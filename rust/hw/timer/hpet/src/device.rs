@@ -13,7 +13,7 @@ use std::{
 use bql::prelude::*;
 use common::prelude::*;
 use hwcore::prelude::*;
-use migration::{self, prelude::*};
+use migration::{self, prelude::*, ToMigrationStateShared};
 use qom::prelude::*;
 use system::{
     bindings::{address_space_memory, address_space_stl_le},
@@ -176,7 +176,6 @@ fn timer_handler(t: &HPETTimer) {
     t.callback(&mut hpet_regs.borrow_mut())
 }
 
-#[repr(C)]
 #[derive(Debug, Default)]
 pub struct HPETTimerRegisters {
     // Memory-mapped, software visible timer registers
@@ -563,11 +562,13 @@ impl HPETTimer {
     }
 }
 
-#[repr(C)]
-#[derive(Default)]
+#[derive(Default, ToMigrationState)]
 pub struct HPETRegisters {
     // HPET block Registers: Memory-mapped, software visible registers
     /// General Capabilities and ID Register
+    ///
+    /// Constant and therefore not migrated.
+    #[migration_state(omit)]
     capability: u64,
     ///  General Configuration Register
     config: u64,
@@ -579,9 +580,15 @@ pub struct HPETRegisters {
     counter: u64,
 
     /// HPET Timer N Registers
+    ///
+    /// Migrated as part of `Migratable<HPETTimer>`
+    #[migration_state(omit)]
     tn_regs: [HPETTimerRegisters; HPET_MAX_TIMERS],
 
     /// Offset of main counter relative to qemu clock.
+    ///
+    /// Migrated as a subsection and therefore snapshotted into [`HPETState`]
+    #[migration_state(omit)]
     pub hpet_offset: u64,
 }
 
@@ -613,7 +620,7 @@ impl HPETRegisters {
 pub struct HPETState {
     parent_obj: ParentField<SysBusDevice>,
     iomem: MemoryRegion,
-    regs: BqlRefCell<HPETRegisters>,
+    regs: Migratable<BqlRefCell<HPETRegisters>>,
 
     // Internal state
     /// Capabilities that QEMU HPET supports.
@@ -639,7 +646,7 @@ pub struct HPETState {
 
     /// HPET timer array managed by this timer block.
     #[doc(alias = "timer")]
-    timers: [HPETTimer; HPET_MAX_TIMERS],
+    timers: [Migratable<HPETTimer>; HPET_MAX_TIMERS],
     #[property(rename = "timers", default = HPET_MIN_TIMERS)]
     num_timers: usize,
     num_timers_save: BqlCell<u8>,
@@ -674,9 +681,12 @@ impl HPETState {
 
             // Initialize in two steps, to avoid calling Timer::init_full on a
             // temporary that can be moved.
-            let timer = timer.write(HPETTimer::new(index.try_into().unwrap(), state));
+            let timer = timer.write(Migratable::new(HPETTimer::new(
+                index.try_into().unwrap(),
+                state,
+            )));
             // SAFETY: HPETState is pinned
-            let timer = unsafe { Pin::new_unchecked(timer) };
+            let timer = unsafe { Pin::new_unchecked(&mut **timer) };
             HPETTimer::init_timer(timer);
         }
     }
@@ -1001,47 +1011,102 @@ static VMSTATE_HPET_OFFSET: VMStateDescription<HPETState> =
         })
         .build();
 
-impl_vmstate_struct!(
-    HPETTimerRegisters,
-    VMStateDescriptionBuilder::<HPETTimerRegisters>::new()
-        .name(c"hpet_timer/regs")
+#[derive(Default)]
+pub struct HPETTimerMigration {
+    index: u8,
+    config: u64,
+    cmp: u64,
+    fsb: u64,
+    period: u64,
+    wrap_flag: u8,
+    qemu_timer: i64,
+}
+
+impl ToMigrationState for HPETTimer {
+    type Migrated = HPETTimerMigration;
+
+    fn snapshot_migration_state(
+        &self,
+        target: &mut Self::Migrated,
+    ) -> Result<(), migration::InvalidError> {
+        let state = self.get_state();
+        let regs = state.regs.borrow_mut();
+        let tn_regs = &regs.tn_regs[self.index as usize];
+
+        target.index = self.index;
+        target.config = tn_regs.config;
+        target.cmp = tn_regs.cmp;
+        target.fsb = tn_regs.fsb;
+        target.period = tn_regs.period;
+        target.wrap_flag = tn_regs.wrap_flag;
+        self.qemu_timer
+            .snapshot_migration_state(&mut target.qemu_timer)?;
+
+        Ok(())
+    }
+
+    fn restore_migrated_state_mut(
+        &mut self,
+        source: Self::Migrated,
+        version_id: u8,
+    ) -> Result<(), migration::InvalidError> {
+        self.restore_migrated_state(source, version_id)
+    }
+}
+
+impl ToMigrationStateShared for HPETTimer {
+    fn restore_migrated_state(
+        &self,
+        source: Self::Migrated,
+        version_id: u8,
+    ) -> Result<(), migration::InvalidError> {
+        let state = self.get_state();
+        let mut regs = state.regs.borrow_mut();
+        let tn_regs = &mut regs.tn_regs[self.index as usize];
+
+        tn_regs.config = source.config;
+        tn_regs.cmp = source.cmp;
+        tn_regs.fsb = source.fsb;
+        tn_regs.period = source.period;
+        tn_regs.wrap_flag = source.wrap_flag;
+        self.qemu_timer
+            .restore_migrated_state(source.qemu_timer, version_id)?;
+
+        Ok(())
+    }
+}
+
+const VMSTATE_HPET_TIMER: VMStateDescription<HPETTimerMigration> =
+    VMStateDescriptionBuilder::<HPETTimerMigration>::new()
+        .name(c"hpet_timer")
         .version_id(1)
         .minimum_version_id(1)
         .fields(vmstate_fields! {
-            vmstate_of!(HPETTimerRegisters, config),
-            vmstate_of!(HPETTimerRegisters, cmp),
-            vmstate_of!(HPETTimerRegisters, fsb),
-            vmstate_of!(HPETTimerRegisters, period),
-            vmstate_of!(HPETTimerRegisters, wrap_flag),
-        })
-        .build()
-);
-
-const VMSTATE_HPET_TIMER: VMStateDescription<HPETTimer> =
-    VMStateDescriptionBuilder::<HPETTimer>::new()
-        .name(c"hpet_timer")
-        .version_id(2)
-        .minimum_version_id(2)
-        .fields(vmstate_fields! {
-            vmstate_of!(HPETTimer, qemu_timer),
+            vmstate_of!(HPETTimerMigration, index),
+            vmstate_of!(HPETTimerMigration, config),
+            vmstate_of!(HPETTimerMigration, cmp),
+            vmstate_of!(HPETTimerMigration, fsb),
+            vmstate_of!(HPETTimerMigration, period),
+            vmstate_of!(HPETTimerMigration, wrap_flag),
+            vmstate_of!(HPETTimerMigration, qemu_timer),
         })
         .build();
 
-impl_vmstate_struct!(HPETTimer, VMSTATE_HPET_TIMER);
+impl_vmstate_struct!(HPETTimerMigration, VMSTATE_HPET_TIMER);
 
 const VALIDATE_TIMERS_NAME: &CStr = c"num_timers must match";
 
+// HPETRegistersMigration is generated by ToMigrationState macro.
 impl_vmstate_struct!(
-    HPETRegisters,
-    VMStateDescriptionBuilder::<HPETRegisters>::new()
+    HPETRegistersMigration,
+    VMStateDescriptionBuilder::<HPETRegistersMigration>::new()
         .name(c"hpet/regs")
         .version_id(2)
         .minimum_version_id(2)
         .fields(vmstate_fields! {
-            vmstate_of!(HPETRegisters, config),
-            vmstate_of!(HPETRegisters, int_status),
-            vmstate_of!(HPETRegisters, counter),
-            vmstate_of!(HPETRegisters, tn_regs),
+            vmstate_of!(HPETRegistersMigration, config),
+            vmstate_of!(HPETRegistersMigration, int_status),
+            vmstate_of!(HPETRegistersMigration, counter),
         })
         .build()
 );
@@ -1049,8 +1114,8 @@ impl_vmstate_struct!(
 const VMSTATE_HPET: VMStateDescription<HPETState> =
     VMStateDescriptionBuilder::<HPETState>::new()
         .name(c"hpet")
-        .version_id(3)
-        .minimum_version_id(3)
+        .version_id(2)
+        .minimum_version_id(2)
         .pre_save(&HPETState::pre_save)
         .post_load(&HPETState::post_load)
         .fields(vmstate_fields! {
