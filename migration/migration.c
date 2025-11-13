@@ -1693,7 +1693,7 @@ void migration_remove_notifier(NotifierWithReturn *notify)
 {
     if (notify->notify) {
         for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
-            migration_blockers[mode] =
+            migration_state_notifiers[mode] =
                 g_slist_remove(migration_state_notifiers[mode], notify);
         }
         notify->notify = NULL;
