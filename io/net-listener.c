@@ -316,6 +316,33 @@ bool qio_net_listener_is_connected(QIONetListener *listener)
     return listener->connected;
 }
 
+size_t qio_net_listener_nsioc(QIONetListener *listener)
+{
+    return listener->nsioc;
+}
+
+QIOChannelSocket *qio_net_listener_sioc(QIONetListener *listener, size_t n)
+{
+    if (n >= listener->nsioc) {
+        return NULL;
+    }
+    return listener->sioc[n];
+}
+
+SocketAddress *
+qio_net_listener_get_local_address(QIONetListener *listener, size_t n,
+                                   Error **errp)
+{
+    QIOChannelSocket *sioc = qio_net_listener_sioc(listener, n);
+
+    if (!sioc) {
+        error_setg(errp, "Listener index out of range");
+        return NULL;
+    }
+
+    return qio_channel_socket_get_local_address(sioc, errp);
+}
+
 static void qio_net_listener_finalize(Object *obj)
 {
     QIONetListener *listener = QIO_NET_LISTENER(obj);

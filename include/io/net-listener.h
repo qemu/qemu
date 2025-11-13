@@ -185,4 +185,46 @@ void qio_net_listener_disconnect(QIONetListener *listener);
  */
 bool qio_net_listener_is_connected(QIONetListener *listener);
 
+
+/**
+ * qio_net_listener_nsioc:
+ * @listener: the network listener object
+ *
+ * Determine the number of listener channels currently owned by the
+ * given listener.
+ *
+ * Returns: number of channels, or 0 if not listening
+ */
+size_t qio_net_listener_nsioc(QIONetListener *listener);
+
+
+/**
+ * qio_net_listener_sioc:
+ * @listener: the network listener object
+ * @n: index of the sioc to grab
+ *
+ * Accessor for the nth sioc owned by the listener.
+ *
+ * Returns: the requested listener, or NULL if not in bounds
+ */
+QIOChannelSocket *qio_net_listener_sioc(QIONetListener *listener, size_t n);
+
+/**
+ * qio_net_listener_get_local_address:
+ * @listener: the network listener object
+ * @n: index of the sioc to grab
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Get the string representation of the local socket
+ * address. A pointer to the allocated address information
+ * struct will be returned, which the caller is required to
+ * release with a call qapi_free_SocketAddress() when no
+ * longer required.
+ *
+ * Returns: the socket address struct, or NULL on error
+ */
+SocketAddress *
+qio_net_listener_get_local_address(QIONetListener *listener, size_t n,
+                                   Error **errp);
+
 #endif /* QIO_NET_LISTENER_H */
