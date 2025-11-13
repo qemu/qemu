@@ -733,6 +733,18 @@ impl HPETState {
             HPET_REG_SPACE_LEN,
         );
 
+        // Only consider members with more complex structures. C has already
+        // initialized memory to all zeros - simple types (bool/u32/usize) can
+        // rely on this without explicit initialization.
+        uninit_field_mut!(*this, regs).write(Default::default());
+        uninit_field_mut!(*this, hpet_offset).write(Default::default());
+        // Set null_mut for now and post_init() will fill it.
+        uninit_field_mut!(*this, irqs).write(Default::default());
+        uninit_field_mut!(*this, rtc_irq_level).write(Default::default());
+        uninit_field_mut!(*this, pit_enabled).write(Default::default());
+        uninit_field_mut!(*this, num_timers_save).write(Default::default());
+        uninit_field_mut!(*this, hpet_id).write(Default::default());
+
         Self::init_timers(&mut this);
     }
 
