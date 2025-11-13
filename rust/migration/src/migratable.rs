@@ -421,7 +421,11 @@ impl<T: 'static + ToMigrationStateShared> Migratable<T> {
         Migratable::<T>::FIELD
     };
 
+    // All Migratable<T> instances share the same name. This is fine because
+    // Migratable<T> is always a field within a VMSD. The parent VMSD has the
+    // different name to distinguish child Migratable<T>.
     const VMSD: &'static bindings::VMStateDescription = VMStateDescriptionBuilder::<Self>::new()
+        .name(c"migratable-wrapper")
         .version_id(1)
         .minimum_version_id(1)
         .pre_save(&Self::pre_save)
