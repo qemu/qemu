@@ -94,10 +94,10 @@ static void nbd_update_server_watch(NBDServerData *s)
 {
     if (s->listener) {
         if (!s->max_connections || s->connections < s->max_connections) {
-            qio_net_listener_set_client_func(s->listener, nbd_accept, NULL,
+            qio_net_listener_set_client_aio_func(s->listener, nbd_accept, NULL,
                                              NULL);
         } else {
-            qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
+            qio_net_listener_set_client_aio_func(s->listener, NULL, NULL, NULL);
         }
     }
 }
