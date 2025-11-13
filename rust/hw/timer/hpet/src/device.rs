@@ -96,7 +96,7 @@ const HPET_TN_CFG_INT_ROUTE_CAP_SHIFT: usize = 32;
 #[derive(common::TryInto)]
 #[repr(u64)]
 #[allow(non_camel_case_types)]
-/// Timer registers, masked by 0x18
+/// Timer register enumerations, masked by 0x18
 enum TimerRegister {
     /// Timer N Configuration and Capability Register
     CFG = 0,
@@ -109,7 +109,7 @@ enum TimerRegister {
 #[derive(common::TryInto)]
 #[repr(u64)]
 #[allow(non_camel_case_types)]
-/// Global registers
+/// Global register enumerations
 enum GlobalRegister {
     /// General Capabilities and ID Register
     CAP = 0,
@@ -121,7 +121,7 @@ enum GlobalRegister {
     COUNTER = 0xF0,
 }
 
-enum HPETRegister<'a> {
+enum DecodedRegister<'a> {
     /// Global register in the range from `0` to `0xff`
     Global(GlobalRegister),
 
@@ -136,7 +136,7 @@ enum HPETRegister<'a> {
 struct HPETAddrDecode<'a> {
     shift: u32,
     len: u32,
-    reg: HPETRegister<'a>,
+    reg: DecodedRegister<'a>,
 }
 
 const fn hpet_next_wrap(cur_tick: u64) -> u64 {
@@ -780,21 +780,21 @@ impl HPETState {
 
         addr &= !4;
         let reg = if (0..=0xff).contains(&addr) {
-            GlobalRegister::try_from(addr).map(HPETRegister::Global)
+            GlobalRegister::try_from(addr).map(DecodedRegister::Global)
         } else {
             let timer_id: usize = ((addr - 0x100) / 0x20) as usize;
             if timer_id < self.num_timers {
                 TimerRegister::try_from(addr & 0x18)
-                    .map(|reg| HPETRegister::Timer(&self.timers[timer_id], reg))
+                    .map(|reg| DecodedRegister::Timer(&self.timers[timer_id], reg))
             } else {
                 trace::trace_hpet_timer_id_out_of_range(timer_id.try_into().unwrap());
                 Err(addr)
             }
         };
 
-        // reg is now a Result<HPETRegister, hwaddr>
-        // convert the Err case into HPETRegister as well
-        let reg = reg.unwrap_or_else(HPETRegister::Unknown);
+        // reg is now a Result<DecodedRegister, hwaddr>
+        // convert the Err case into DecodedRegister as well
+        let reg = reg.unwrap_or_else(DecodedRegister::Unknown);
         HPETAddrDecode { shift, len, reg }
     }
 
@@ -804,7 +804,7 @@ impl HPETState {
         let HPETAddrDecode { shift, reg, .. } = self.decode(addr, size);
 
         use GlobalRegister::*;
-        use HPETRegister::*;
+        use DecodedRegister::*;
         (match reg {
             Timer(timer, tn_reg) => timer.borrow_mut().read(tn_reg),
             Global(CAP) => self.capability.get(), /* including HPET_PERIOD 0x004 */
@@ -834,7 +834,7 @@ impl HPETState {
         trace::trace_hpet_ram_write(addr, value);
 
         use GlobalRegister::*;
-        use HPETRegister::*;
+        use DecodedRegister::*;
         match reg {
             Timer(timer, tn_reg) => timer.borrow_mut().write(tn_reg, value, shift, len),
             Global(CAP) => {} // General Capabilities and ID Register: Read Only
