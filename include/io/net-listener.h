@@ -54,6 +54,7 @@ struct QIONetListener {
 
     bool connected;
 
+    QemuMutex lock; /* Protects remaining fields */
     QIONetListenerClientFunc io_func;
     gpointer io_data;
     GDestroyNotify io_notify;
