@@ -28,6 +28,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(QIONetListener,
                            QIO_NET_LISTENER)
 
+typedef struct QIONetListenerSource QIONetListenerSource;
 
 typedef void (*QIONetListenerClientFunc)(QIONetListener *listener,
                                          QIOChannelSocket *sioc,
@@ -47,10 +48,11 @@ struct QIONetListener {
     Object parent;
 
     char *name;
-    QIOChannelSocket **sioc;
-    GSource **io_source;
+    QIONetListenerSource **source;
     size_t nsioc;
+    /* At most one of context or aio_context will be set */
     GMainContext *context;
+    AioContext *aio_context;
 
     bool connected;
 
