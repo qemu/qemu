@@ -23,11 +23,16 @@
 #include "io/dns-resolver.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/lockable.h"
 #include "trace.h"
 
 QIONetListener *qio_net_listener_new(void)
 {
-    return QIO_NET_LISTENER(object_new(TYPE_QIO_NET_LISTENER));
+    QIONetListener *listener;
+
+    listener = QIO_NET_LISTENER(object_new(TYPE_QIO_NET_LISTENER));
+    qemu_mutex_init(&listener->lock);
+    return listener;
 }
 
 void qio_net_listener_set_name(QIONetListener *listener,
@@ -44,6 +49,9 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
 {
     QIONetListener *listener = QIO_NET_LISTENER(opaque);
     QIOChannelSocket *sioc;
+    QIONetListenerClientFunc io_func;
+    gpointer io_data;
+    GMainContext *context;
 
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
                                      NULL);
@@ -51,10 +59,15 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
         return TRUE;
     }
 
-    trace_qio_net_listener_callback(listener, listener->io_func,
-                                    listener->context);
-    if (listener->io_func) {
-        listener->io_func(listener, sioc, listener->io_data);
+    WITH_QEMU_LOCK_GUARD(&listener->lock) {
+        io_func = listener->io_func;
+        io_data = listener->io_data;
+        context = listener->context;
+    }
+
+    trace_qio_net_listener_callback(listener, io_func, context);
+    if (io_func) {
+        io_func(listener, sioc, io_data);
     }
 
     object_unref(OBJECT(sioc));
@@ -111,6 +124,9 @@ int qio_net_listener_open_sync(QIONetListener *listener,
 void qio_net_listener_add(QIONetListener *listener,
                           QIOChannelSocket *sioc)
 {
+    QIONetListenerClientFunc io_func;
+    GMainContext *context;
+
     if (listener->name) {
         qio_channel_set_name(QIO_CHANNEL(sioc), listener->name);
     }
@@ -126,14 +142,18 @@ void qio_net_listener_add(QIONetListener *listener,
     object_ref(OBJECT(sioc));
     listener->connected = true;
 
-    trace_qio_net_listener_watch(listener, listener->io_func,
-                                 listener->context, "add");
-    if (listener->io_func != NULL) {
+    WITH_QEMU_LOCK_GUARD(&listener->lock) {
+        io_func = listener->io_func;
+        context = listener->context;
+    }
+
+    trace_qio_net_listener_watch(listener, io_func, context, "add");
+    if (io_func) {
         object_ref(OBJECT(listener));
         listener->io_source[listener->nsioc] = qio_channel_add_watch_source(
             QIO_CHANNEL(listener->sioc[listener->nsioc]), G_IO_IN,
             qio_net_listener_channel_func,
-            listener, (GDestroyNotify)object_unref, listener->context);
+            listener, (GDestroyNotify)object_unref, context);
     }
 
     listener->nsioc++;
@@ -148,6 +168,7 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
 {
     size_t i;
 
+    QEMU_LOCK_GUARD(&listener->lock);
     trace_qio_net_listener_unwatch(listener, listener->io_func,
                                    listener->context, "set_client_func");
 
@@ -228,9 +249,15 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
         .loop = loop
     };
     size_t i;
+    QIONetListenerClientFunc io_func;
+    GMainContext *context;
 
-    trace_qio_net_listener_unwatch(listener, listener->io_func,
-                                   listener->context, "wait_client");
+    WITH_QEMU_LOCK_GUARD(&listener->lock) {
+        io_func = listener->io_func;
+        context = listener->context;
+    }
+
+    trace_qio_net_listener_unwatch(listener, io_func, context, "wait_client");
     for (i = 0; i < listener->nsioc; i++) {
         if (listener->io_source[i]) {
             g_source_destroy(listener->io_source[i]);
@@ -260,15 +287,14 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
     g_main_loop_unref(loop);
     g_main_context_unref(ctxt);
 
-    trace_qio_net_listener_watch(listener, listener->io_func,
-                                 listener->context, "wait_client");
-    if (listener->io_func != NULL) {
+    trace_qio_net_listener_watch(listener, io_func, context, "wait_client");
+    if (io_func != NULL) {
         for (i = 0; i < listener->nsioc; i++) {
             object_ref(OBJECT(listener));
             listener->io_source[i] = qio_channel_add_watch_source(
                 QIO_CHANNEL(listener->sioc[i]), G_IO_IN,
                 qio_net_listener_channel_func,
-                listener, (GDestroyNotify)object_unref, listener->context);
+                listener, (GDestroyNotify)object_unref, context);
         }
     }
 
@@ -283,6 +309,7 @@ void qio_net_listener_disconnect(QIONetListener *listener)
         return;
     }
 
+    QEMU_LOCK_GUARD(&listener->lock);
     trace_qio_net_listener_unwatch(listener, listener->io_func,
                                    listener->context, "disconnect");
     for (i = 0; i < listener->nsioc; i++) {
@@ -318,6 +345,7 @@ static void qio_net_listener_finalize(Object *obj)
     g_free(listener->io_source);
     g_free(listener->sioc);
     g_free(listener->name);
+    qemu_mutex_destroy(&listener->lock);
 }
 
 static const TypeInfo qio_net_listener_info = {
