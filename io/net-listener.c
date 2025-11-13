@@ -85,6 +85,17 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
 }
 
 
+static void qio_net_listener_aio_func(void *opaque)
+{
+    QIONetListenerSource *data = opaque;
+
+    assert(data->io_source == NULL);
+    assert(data->listener->aio_context != NULL);
+    qio_net_listener_channel_func(QIO_CHANNEL(data->sioc), G_IO_IN,
+                                  data->listener);
+}
+
+
 int qio_net_listener_open_sync(QIONetListener *listener,
                                SocketAddress *addr,
                                int num,
@@ -157,8 +168,26 @@ qio_net_listener_watch(QIONetListener *listener, size_t i, const char *caller)
                 qio_net_listener_channel_func,
                 listener, (GDestroyNotify)object_unref, listener->context);
         } else {
-            /* The user passed an AioContext. Not supported yet. */
-            g_assert_not_reached();
+            /*
+             * The user passed an AioContext.  At this point,
+             * AioContext lacks a clean way to call a notify function
+             * to release a final reference after any callback is
+             * complete.  But we asserted earlier that the async
+             * callback is changed only from the thread associated
+             * with aio_context, which means no other thread is in the
+             * middle of running the callback when we are changing the
+             * refcount on listener here.  Therefore, a single
+             * reference here is sufficient to ensure listener is not
+             * finalized during the callback.
+             */
+            assert(listener->context == NULL);
+            if (i == 0) {
+                object_ref(OBJECT(listener));
+            }
+            qio_channel_set_aio_fd_handler(
+                QIO_CHANNEL(listener->source[i]->sioc),
+                listener->aio_context, qio_net_listener_aio_func,
+                NULL, NULL, listener->source[i]);
         }
     }
 }
@@ -184,7 +213,13 @@ qio_net_listener_unwatch(QIONetListener *listener, const char *caller)
                 listener->source[i]->io_source = NULL;
             }
         } else {
-            g_assert_not_reached();
+            assert(listener->context == NULL);
+            qio_channel_set_aio_fd_handler(
+                QIO_CHANNEL(listener->source[i]->sioc),
+                listener->aio_context, NULL, NULL, NULL, NULL);
+            if (i == listener->nsioc - 1) {
+                object_unref(OBJECT(listener));
+            }
         }
     }
 }
@@ -257,6 +292,31 @@ void qio_net_listener_set_client_func(QIONetListener *listener,
 {
     qio_net_listener_set_client_func_internal(listener, func, data,
                                               notify, NULL, NULL);
+}
+
+void qio_net_listener_set_client_aio_func(QIONetListener *listener,
+                                          QIONetListenerClientFunc func,
+                                          void *data,
+                                          AioContext *context)
+{
+    if (!context) {
+        assert(qemu_in_main_thread());
+        context = qemu_get_aio_context();
+    } else {
+        /*
+         * TODO: The API was intentionally designed to allow a caller
+         * to pass an alternative AioContext for future expansion;
+         * however, actually implementating that is not possible
+         * without notify callbacks wired into AioContext similar to
+         * how they work in GSource.  So for now, this code hard-codes
+         * the knowledge that the only client needing AioContext is
+         * the NBD server, which uses the global context and does not
+         * suffer from cross-thread safety issues.
+         */
+        g_assert_not_reached();
+    }
+    qio_net_listener_set_client_func_internal(listener, func, data,
+                                              NULL, NULL, context);
 }
 
 struct QIONetListenerClientWaitData {
