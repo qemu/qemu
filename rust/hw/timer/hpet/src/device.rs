@@ -524,24 +524,29 @@ impl HPETTimer {
     }
 }
 
+#[repr(C)]
+#[derive(Default)]
+pub struct HPETRegisters {
+    // HPET block Registers: Memory-mapped, software visible registers
+    /// General Capabilities and ID Register
+    capability: u64,
+    ///  General Configuration Register
+    config: u64,
+    /// General Interrupt Status Register
+    #[doc(alias = "isr")]
+    int_status: u64,
+    /// Main Counter Value Register
+    #[doc(alias = "hpet_counter")]
+    counter: u64,
+}
+
 /// HPET Event Timer Block Abstraction
 #[repr(C)]
 #[derive(qom::Object, hwcore::Device)]
 pub struct HPETState {
     parent_obj: ParentField<SysBusDevice>,
     iomem: MemoryRegion,
-
-    // HPET block Registers: Memory-mapped, software visible registers
-    /// General Capabilities and ID Register
-    capability: BqlCell<u64>,
-    ///  General Configuration Register
-    config: BqlCell<u64>,
-    /// General Interrupt Status Register
-    #[doc(alias = "isr")]
-    int_status: BqlCell<u64>,
-    /// Main Counter Value Register
-    #[doc(alias = "hpet_counter")]
-    counter: BqlCell<u64>,
+    regs: BqlRefCell<HPETRegisters>,
 
     // Internal state
     /// Capabilities that QEMU HPET supports.
@@ -583,15 +588,15 @@ impl HPETState {
     }
 
     fn is_legacy_mode(&self) -> bool {
-        self.config.get() & (1 << HPET_CFG_LEG_RT_SHIFT) != 0
+        self.regs.borrow().config & (1 << HPET_CFG_LEG_RT_SHIFT) != 0
     }
 
     fn is_hpet_enabled(&self) -> bool {
-        self.config.get() & (1 << HPET_CFG_ENABLE_SHIFT) != 0
+        self.regs.borrow().config & (1 << HPET_CFG_ENABLE_SHIFT) != 0
     }
 
     fn is_timer_int_active(&self, index: usize) -> bool {
-        self.int_status.get() & (1 << index) != 0
+        self.regs.borrow().int_status & (1 << index) != 0
     }
 
     fn get_ticks(&self) -> u64 {
@@ -631,22 +636,22 @@ impl HPETState {
     }
 
     fn update_int_status(&self, index: u32, level: bool) {
-        self.int_status
-            .set(self.int_status.get().deposit(index, 1, u64::from(level)));
+        let mut regs = self.regs.borrow_mut();
+        regs.int_status = regs.int_status.deposit(index, 1, u64::from(level));
     }
 
     /// General Configuration Register
     fn set_cfg_reg(&self, shift: u32, len: u32, val: u64) {
-        let old_val = self.config.get();
+        let old_val = self.regs.borrow().config;
         let mut new_val = old_val.deposit(shift, len, val);
 
         new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
-        self.config.set(new_val);
+        self.regs.borrow_mut().config = new_val;
 
         if activating_bit(old_val, new_val, HPET_CFG_ENABLE_SHIFT) {
             // Enable main counter and interrupt generation.
             self.hpet_offset
-                .set(ticks_to_ns(self.counter.get()) - CLOCK_VIRTUAL.get_ns());
+                .set(ticks_to_ns(self.regs.borrow().counter) - CLOCK_VIRTUAL.get_ns());
 
             for timer in self.timers.iter().take(self.num_timers) {
                 let mut t = timer.borrow_mut();
@@ -658,7 +663,7 @@ impl HPETState {
             }
         } else if deactivating_bit(old_val, new_val, HPET_CFG_ENABLE_SHIFT) {
             // Halt main counter and disable interrupt generation.
-            self.counter.set(self.get_ticks());
+            self.regs.borrow_mut().counter = self.get_ticks();
 
             for timer in self.timers.iter().take(self.num_timers) {
                 timer.borrow().del_timer();
@@ -681,7 +686,7 @@ impl HPETState {
     /// General Interrupt Status Register: Read/Write Clear
     fn set_int_status_reg(&self, shift: u32, _len: u32, val: u64) {
         let new_val = val << shift;
-        let cleared = new_val & self.int_status.get();
+        let cleared = new_val & self.regs.borrow().int_status;
 
         for (index, timer) in self.timers.iter().take(self.num_timers).enumerate() {
             if cleared & (1 << index) != 0 {
@@ -701,8 +706,8 @@ impl HPETState {
             // not be changed as well).
             trace::trace_hpet_ram_write_counter_write_while_enabled();
         }
-        self.counter
-            .set(self.counter.get().deposit(shift, len, val));
+        let mut regs = self.regs.borrow_mut();
+        regs.counter = regs.counter.deposit(shift, len, val);
     }
 
     unsafe fn init(mut this: ParentInit<Self>) {
@@ -745,14 +750,12 @@ impl HPETState {
         self.hpet_id.set(HPETFwConfig::assign_hpet_id()?);
 
         // 64-bit General Capabilities and ID Register; LegacyReplacementRoute.
-        self.capability.set(
-            HPET_CAP_REV_ID_VALUE << HPET_CAP_REV_ID_SHIFT |
+        self.regs.borrow_mut().capability = HPET_CAP_REV_ID_VALUE << HPET_CAP_REV_ID_SHIFT |
             1 << HPET_CAP_COUNT_SIZE_CAP_SHIFT |
             1 << HPET_CAP_LEG_RT_CAP_SHIFT |
             HPET_CAP_VENDER_ID_VALUE << HPET_CAP_VENDER_ID_SHIFT |
             ((self.num_timers - 1) as u64) << HPET_CAP_NUM_TIM_SHIFT | // indicate the last timer
-            (HPET_CLK_PERIOD * FS_PER_NS) << HPET_CAP_CNT_CLK_PERIOD_SHIFT, // 10 ns
-        );
+            (HPET_CLK_PERIOD * FS_PER_NS) << HPET_CAP_CNT_CLK_PERIOD_SHIFT; // 10 ns
 
         self.init_gpio_in(2, HPETState::handle_legacy_irq);
         self.init_gpio_out(from_ref(&self.pit_enabled));
@@ -764,16 +767,22 @@ impl HPETState {
             timer.borrow_mut().reset();
         }
 
-        self.counter.set(0);
-        self.config.set(0);
+        // pit_enabled.set(true) will call irq handler and access regs
+        // again. We cannot borrow BqlRefCell twice at once. Minimize the
+        // scope of regs to ensure it will be dropped before irq callback.
+        {
+            let mut regs = self.regs.borrow_mut();
+            regs.counter = 0;
+            regs.config = 0;
+            HPETFwConfig::update_hpet_cfg(
+                self.hpet_id.get(),
+                regs.capability as u32,
+                self.mmio_addr(0).unwrap(),
+            );
+        }
+
         self.pit_enabled.set(true);
         self.hpet_offset.set(0);
-
-        HPETFwConfig::update_hpet_cfg(
-            self.hpet_id.get(),
-            self.capability.get() as u32,
-            self.mmio_addr(0).unwrap(),
-        );
 
         // to document that the RTC lowers its output on reset as well
         self.rtc_irq_level.set(0);
@@ -812,14 +821,14 @@ impl HPETState {
         use GlobalRegister::*;
         (match target {
             Timer(timer, tn_target) => timer.borrow_mut().read(tn_target),
-            Global(CAP) => self.capability.get(), /* including HPET_PERIOD 0x004 */
-            Global(CFG) => self.config.get(),
-            Global(INT_STATUS) => self.int_status.get(),
+            Global(CAP) => self.regs.borrow().capability, /* including HPET_PERIOD 0x004 */
+            Global(CFG) => self.regs.borrow().config,
+            Global(INT_STATUS) => self.regs.borrow().int_status,
             Global(COUNTER) => {
                 let cur_tick = if self.is_hpet_enabled() {
                     self.get_ticks()
                 } else {
-                    self.counter.get()
+                    self.regs.borrow().counter
                 };
 
                 trace::trace_hpet_ram_read_reading_counter((addr & 4) as u8, cur_tick);
@@ -852,7 +861,7 @@ impl HPETState {
 
     fn pre_save(&self) -> Result<(), migration::Infallible> {
         if self.is_hpet_enabled() {
-            self.counter.set(self.get_ticks());
+            self.regs.borrow_mut().counter = self.get_ticks();
         }
 
         /*
@@ -867,15 +876,16 @@ impl HPETState {
     fn post_load(&self, _version_id: u8) -> Result<(), migration::Infallible> {
         for timer in self.timers.iter().take(self.num_timers) {
             let mut t = timer.borrow_mut();
+            let cnt = t.get_state().regs.borrow().counter;
 
-            t.cmp64 = t.calculate_cmp64(t.get_state().counter.get(), t.regs.cmp);
+            t.cmp64 = t.calculate_cmp64(cnt, t.regs.cmp);
             t.last = CLOCK_VIRTUAL.get_ns() - NANOSECONDS_PER_SECOND;
         }
 
         // Recalculate the offset between the main counter and guest time
         if !self.hpet_offset_saved {
             self.hpet_offset
-                .set(ticks_to_ns(self.counter.get()) - CLOCK_VIRTUAL.get_ns());
+                .set(ticks_to_ns(self.regs.borrow().counter) - CLOCK_VIRTUAL.get_ns());
         }
 
         Ok(())
@@ -966,6 +976,22 @@ impl_vmstate_struct!(HPETTimer, VMSTATE_HPET_TIMER);
 
 const VALIDATE_TIMERS_NAME: &CStr = c"num_timers must match";
 
+// In fact, version_id and minimum_version_id for HPETRegisters are
+// unrelated to HPETState's version IDs. Does not affect compatibility.
+impl_vmstate_struct!(
+    HPETRegisters,
+    VMStateDescriptionBuilder::<HPETRegisters>::new()
+        .name(c"hpet/regs")
+        .version_id(1)
+        .minimum_version_id(1)
+        .fields(vmstate_fields! {
+            vmstate_of!(HPETRegisters, config),
+            vmstate_of!(HPETRegisters, int_status),
+            vmstate_of!(HPETRegisters, counter),
+        })
+        .build()
+);
+
 const VMSTATE_HPET: VMStateDescription<HPETState> =
     VMStateDescriptionBuilder::<HPETState>::new()
         .name(c"hpet")
@@ -974,9 +1000,7 @@ const VMSTATE_HPET: VMStateDescription<HPETState> =
         .pre_save(&HPETState::pre_save)
         .post_load(&HPETState::post_load)
         .fields(vmstate_fields! {
-            vmstate_of!(HPETState, config),
-            vmstate_of!(HPETState, int_status),
-            vmstate_of!(HPETState, counter),
+            vmstate_of!(HPETState, regs),
             vmstate_of!(HPETState, num_timers_save),
             vmstate_validate!(HPETState, VALIDATE_TIMERS_NAME, HPETState::validate_num_timers),
             vmstate_of!(HPETState, timers[0 .. num_timers_save], HPETState::validate_num_timers).with_version_id(0),
