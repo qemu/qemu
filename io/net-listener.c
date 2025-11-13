@@ -169,6 +169,11 @@ void qio_net_listener_set_client_func_full(QIONetListener *listener,
     size_t i;
 
     QEMU_LOCK_GUARD(&listener->lock);
+    if (listener->io_func == func && listener->io_data == data &&
+        listener->io_notify == notify && listener->context == context) {
+        return;
+    }
+
     trace_qio_net_listener_unwatch(listener, listener->io_func,
                                    listener->context, "set_client_func");
 
