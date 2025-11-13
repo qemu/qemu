@@ -340,6 +340,9 @@ pub struct Migratable<T: ToMigrationStateShared> {
     runtime_state: T,
 }
 
+// SAFETY: the migration_state asserts via `BqlCell` that the BQL is taken.
+unsafe impl<T: ToMigrationStateShared + Sync> Sync for Migratable<T> {}
+
 impl<T: ToMigrationStateShared> std::ops::Deref for Migratable<T> {
     type Target = T;
 
