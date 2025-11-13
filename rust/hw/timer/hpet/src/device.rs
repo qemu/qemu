@@ -882,9 +882,11 @@ impl HPETState {
     }
 
     fn post_load(&self, _version_id: u8) -> Result<(), migration::Infallible> {
+        let regs = self.regs.borrow();
+
         for timer in self.timers.iter().take(self.num_timers) {
             let mut t = timer.borrow_mut();
-            let cnt = t.get_state().regs.borrow().counter;
+            let cnt = regs.counter;
 
             t.cmp64 = t.calculate_cmp64(cnt, t.regs.cmp);
             t.last = CLOCK_VIRTUAL.get_ns() - NANOSECONDS_PER_SECOND;
@@ -893,7 +895,7 @@ impl HPETState {
         // Recalculate the offset between the main counter and guest time
         if !self.hpet_offset_saved {
             self.hpet_offset
-                .set(ticks_to_ns(self.regs.borrow().counter) - CLOCK_VIRTUAL.get_ns());
+                .set(ticks_to_ns(regs.counter) - CLOCK_VIRTUAL.get_ns());
         }
 
         Ok(())
