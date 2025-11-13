@@ -1255,7 +1255,7 @@ static int qmp_chardev_open_socket_server(Chardev *chr,
     }
 
     qapi_free_SocketAddress(s->addr);
-    s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
+    s->addr = qio_channel_socket_get_local_address(s->listener->sioc[0], errp);
 
 skip_listen:
     update_disconnected_filename(s);
