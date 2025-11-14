@@ -1174,7 +1174,7 @@ static intptr_t vreg_src_off(DisasContext *ctx, int num)
     return offset;
 }
 
-static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
+static void gen_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
                                VRegWriteType type)
 {
     intptr_t dstoff;
@@ -1190,12 +1190,12 @@ static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
     }
 }
 
-static void gen_log_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
+static void gen_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
                                     VRegWriteType type)
 {
-    gen_log_vreg_write(ctx, srcoff, num ^ 0, type);
+    gen_vreg_write(ctx, srcoff, num ^ 0, type);
     srcoff += sizeof(MMVector);
-    gen_log_vreg_write(ctx, srcoff, num ^ 1, type);
+    gen_vreg_write(ctx, srcoff, num ^ 1, type);
 }
 
 static intptr_t get_result_qreg(DisasContext *ctx, int qnum)

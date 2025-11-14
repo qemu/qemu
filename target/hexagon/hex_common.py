@@ -823,8 +823,8 @@ class VRegTmp(Register, Hvx, ReadWrite):
             """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_vreg_write(ctx, {self.hvx_off()}, {self.reg_num},
-                               {hvx_newv(tag)});
+            gen_vreg_write(ctx, {self.hvx_off()}, {self.reg_num},
+                           {hvx_newv(tag)});
         """))
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -915,8 +915,8 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
             """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_vreg_write_pair(ctx, {self.hvx_off()}, {self.reg_num},
-                                    {hvx_newv(tag)});
+            gen_vreg_write_pair(ctx, {self.hvx_off()}, {self.reg_num},
+                                {hvx_newv(tag)});
         """))
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
