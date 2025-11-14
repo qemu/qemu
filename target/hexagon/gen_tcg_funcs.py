@@ -35,7 +35,6 @@ import hex_common
 ##        TCGv RsV = hex_gpr[insn->regno[1]];
 ##        TCGv RtV = hex_gpr[insn->regno[2]];
 ##        <GEN>
-##        gen_log_reg_write(ctx, RdN, RdV);
 ##    }
 ##
 ##       where <GEN> depends on hex_common.skip_qemu_helper(tag)

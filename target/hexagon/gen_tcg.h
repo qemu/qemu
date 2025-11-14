@@ -509,10 +509,9 @@
 /* sub-instruction version (no RxV, so handle it manually) */
 #define fGEN_TCG_SS2_allocframe(SHORTCODE) \
     do { \
-        TCGv r29 = tcg_temp_new(); \
+        TCGv r29 = get_result_gpr(ctx, HEX_REG_SP); \
         tcg_gen_mov_tl(r29, hex_gpr[HEX_REG_SP]); \
         gen_allocframe(ctx, r29, uiV); \
-        gen_log_reg_write(ctx, HEX_REG_SP, r29); \
     } while (0)
 
 /*
@@ -528,7 +527,7 @@
     do { \
         TCGv_i64 r31_30 = tcg_temp_new_i64(); \
         gen_deallocframe(ctx, r31_30, hex_gpr[HEX_REG_FP]); \
-        gen_log_reg_write_pair(ctx, HEX_REG_FP, r31_30); \
+        gen_write_reg_pair(ctx, HEX_REG_FP, r31_30); \
     } while (0)
 
 /*
@@ -546,7 +545,7 @@
     do { \
         TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP); \
         gen_return(ctx, RddV, hex_gpr[HEX_REG_FP]); \
-        gen_log_reg_write_pair(ctx, HEX_REG_FP, RddV); \
+        gen_write_reg_pair(ctx, HEX_REG_FP, RddV); \
     } while (0)
 
 /*

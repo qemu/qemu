@@ -452,9 +452,8 @@ class GprDest(Register, Single, Dest):
             TCGv {self.reg_tcg()} = get_result_gpr(ctx, {self.reg_num});
         """))
     def log_write(self, f, tag):
-        f.write(code_fmt(f"""\
-            gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
-        """))
+        ## No write needed
+        return
     def analyze_write(self, f, tag, regno):
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
@@ -496,9 +495,8 @@ class GprReadWrite(Register, Single, ReadWrite):
                 tcg_gen_mov_tl({self.reg_tcg()}, hex_gpr[{self.reg_num}]);
             """))
     def log_write(self, f, tag):
-        f.write(code_fmt(f"""\
-            gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
-        """))
+        ## No write needed
+        return
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
             ctx_log_reg_read(ctx, {self.reg_num});
@@ -630,7 +628,7 @@ class PairDest(Register, Pair, Dest):
         """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+            gen_write_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
         predicated = "true" if is_predicated(tag) else "false"
@@ -664,7 +662,7 @@ class PairReadWrite(Register, Pair, ReadWrite):
         """))
     def log_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+            gen_write_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\

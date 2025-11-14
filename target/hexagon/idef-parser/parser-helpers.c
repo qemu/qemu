@@ -1315,7 +1315,7 @@ void gen_write_reg(Context *c, YYLTYPE *locp, HexValue *reg, HexValue *value)
     value_m = rvalue_materialize(c, locp, &value_m);
     OUT(c,
         locp,
-        "gen_log_reg_write(ctx, ", &reg->reg.id, ", ",
+        "tcg_gen_mov_tl(get_result_gpr(ctx, ", &reg->reg.id, "), ",
         &value_m, ");\n");
 }
 
