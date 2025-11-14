@@ -10,10 +10,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 
-#include "qemu/osdep.h"
 #include "system/tcg.h"
 #include "system/ram_addr.h"
 #include "qapi/error.h"

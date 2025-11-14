@@ -9,7 +9,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "qemu/osdep.h"
 #include "linux/vfio.h"
 
 #include "hw/vfio-user/proxy.h"

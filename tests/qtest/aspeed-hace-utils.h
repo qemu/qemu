@@ -8,7 +8,6 @@
 #ifndef TESTS_ASPEED_HACE_UTILS_H
 #define TESTS_ASPEED_HACE_UTILS_H
 
-#include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/bitops.h"
 

@@ -6,9 +6,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
-#include "qemu/osdep.h"
 
 #include "hw/vfio-user/container.h"
 #include "hw/vfio-user/device.h"
