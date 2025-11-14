@@ -1160,8 +1160,13 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
 
         assert(RPMB_HASH_LEN <= sizeof(sd->data));
 
-        memcpy((uint8_t *)buf + RPMB_DATA_LEN, &frame->data[RPMB_DATA_LEN],
+        /*
+         * We will hash everything from data field to the end of RPMBDataFrame.
+         */
+        memcpy((uint8_t *)buf + RPMB_DATA_LEN,
+               (uint8_t *)frame + offsetof(RPMBDataFrame, nonce),
                RPMB_HASH_LEN - RPMB_DATA_LEN);
+
         offset = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
         do {
             if (blk_pread(sd->blk, offset, RPMB_DATA_LEN, buf, 0) < 0) {
