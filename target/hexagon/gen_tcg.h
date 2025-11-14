@@ -599,7 +599,7 @@
         TCGv p0 = tcg_temp_new(); \
         gen_helper_cabacdecbin_pred(p0, RssV, RttV); \
         gen_helper_cabacdecbin_val(RddV, RssV, RttV); \
-        gen_log_pred_write(ctx, 0, p0); \
+        gen_pred_write(ctx, 0, p0); \
     } while (0)
 
 /*
@@ -914,7 +914,7 @@
     do { \
         TCGv p0 = tcg_temp_new(); \
         gen_comparei(TCG_COND_EQ, p0, RsV, uiV); \
-        gen_log_pred_write(ctx, 0, p0); \
+        gen_pred_write(ctx, 0, p0); \
     } while (0)
 
 #define fGEN_TCG_J2_jump(SHORTCODE) \

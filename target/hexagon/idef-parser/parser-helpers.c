@@ -1713,7 +1713,7 @@ void gen_pred_assign(Context *c, YYLTYPE *locp, HexValue *left_pred,
     /* Extract first 8 bits, and store new predicate value */
     OUT(c, locp, "tcg_gen_andi_i32(", left_pred, ", ", &r, ", 0xff);\n");
     if (is_direct) {
-        OUT(c, locp, "gen_log_pred_write(ctx, ", pred_id, ", ", left_pred,
+        OUT(c, locp, "gen_pred_write(ctx, ", pred_id, ", ", left_pred,
             ");\n");
     }
 }

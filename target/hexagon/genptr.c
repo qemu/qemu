@@ -120,7 +120,7 @@ TCGv get_result_pred(DisasContext *ctx, int pnum)
     }
 }
 
-void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
+void gen_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
     TCGv pred = get_result_pred(ctx, pnum);
     TCGv base_val = tcg_temp_new();
@@ -215,7 +215,7 @@ static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
     TCGv hex_p8 = tcg_temp_new();
     for (int i = 0; i < NUM_PREGS; i++) {
         tcg_gen_extract_tl(hex_p8, control_reg, i * 8, 8);
-        gen_log_pred_write(ctx, i, hex_p8);
+        gen_pred_write(ctx, i, hex_p8);
     }
 }
 
@@ -557,7 +557,7 @@ static void gen_ploopNsr(DisasContext *ctx, int N, TCGv RsV, int riV)
     tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC0), RsV);
     tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt->pc + riV);
     gen_set_usr_fieldi(ctx, USR_LPCFG, N);
-    gen_log_pred_write(ctx, 3, tcg_constant_tl(0));
+    gen_pred_write(ctx, 3, tcg_constant_tl(0));
 }
 
 static void gen_ploopNsi(DisasContext *ctx, int N, int count, int riV)
@@ -597,7 +597,7 @@ static void gen_cmpnd_cmp_jmp(DisasContext *ctx,
     if (ctx->insn->part1) {
         TCGv pred = tcg_temp_new();
         gen_compare(cond1, pred, arg1, arg2);
-        gen_log_pred_write(ctx, pnum, pred);
+        gen_pred_write(ctx, pnum, pred);
     } else {
         TCGv pred = tcg_temp_new();
         tcg_gen_mov_tl(pred, ctx->new_pred_value[pnum]);
@@ -654,7 +654,7 @@ static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx,
         TCGv pred = tcg_temp_new();
         tcg_gen_andi_tl(pred, arg, 1);
         gen_8bitsof(pred, pred);
-        gen_log_pred_write(ctx, pnum, pred);
+        gen_pred_write(ctx, pnum, pred);
     } else {
         TCGv pred = tcg_temp_new();
         tcg_gen_mov_tl(pred, ctx->new_pred_value[pnum]);
@@ -834,7 +834,7 @@ static void gen_endloop0(DisasContext *ctx)
     TCGLabel *label1 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
-        gen_log_pred_write(ctx, 3, tcg_constant_tl(0xff));
+        gen_pred_write(ctx, 3, tcg_constant_tl(0xff));
     }
     gen_set_label(label1);
 
@@ -908,7 +908,7 @@ static void gen_endloop01(DisasContext *ctx)
      */
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
-        gen_log_pred_write(ctx, 3, tcg_constant_tl(0xff));
+        gen_pred_write(ctx, 3, tcg_constant_tl(0xff));
     }
     gen_set_label(label1);
 
