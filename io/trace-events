@@ -72,3 +72,8 @@ qio_channel_command_new_pid(void *ioc, int writefd, int readfd, int pid) "Comman
 qio_channel_command_new_spawn(void *ioc, const char *binary, int flags) "Command new spawn ioc=%p binary=%s flags=%d"
 qio_channel_command_abort(void *ioc, int pid) "Command abort ioc=%p pid=%d"
 qio_channel_command_wait(void *ioc, int pid, int ret, int status) "Command abort ioc=%p pid=%d ret=%d status=%d"
+
+# net-listener.c
+qio_net_listener_watch(void *listener, void *func, void *gctx, void *actx, const char *extra) "Net listener=%p watch enabled func=%p ctx=%p/%p by %s"
+qio_net_listener_unwatch(void *listener, void *func, void *gctx, void *actx, const char *extra) "Net listener=%p watch disabled func=%p ctx=%p/%p by %s"
+qio_net_listener_callback(void *listener, void *func, void *gctx, void *actx) "Net listener=%p callback forwarding to func=%p ctx=%p/%p"

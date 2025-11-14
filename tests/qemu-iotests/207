@@ -119,7 +119,7 @@ with iotests.FilePath('t.img') as disk_path, \
     iotests.img_info_log(remote_path)
 
     keys = subprocess.check_output(
-        'ssh-keyscan 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
+        'ssh-keyscan 127.0.0.1 2>/dev/null | grep -v "^#" | ' +
         'cut -d" " -f3',
         shell=True).rstrip().decode('ascii').split('\n')
 

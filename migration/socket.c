@@ -170,9 +170,9 @@ void socket_start_incoming_migration(SocketAddress *saddr,
                                           NULL, NULL,
                                           g_main_context_get_thread_default());
 
-    for (i = 0; i < listener->nsioc; i++)  {
+    for (i = 0; i < qio_net_listener_nsioc(listener); i++)  {
         SocketAddress *address =
-            qio_channel_socket_get_local_address(listener->sioc[i], errp);
+            qio_net_listener_get_local_address(listener, i, errp);
         if (!address) {
             return;
         }

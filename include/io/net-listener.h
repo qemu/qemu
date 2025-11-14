@@ -28,6 +28,7 @@
 OBJECT_DECLARE_SIMPLE_TYPE(QIONetListener,
                            QIO_NET_LISTENER)
 
+typedef struct QIONetListenerSource QIONetListenerSource;
 
 typedef void (*QIONetListenerClientFunc)(QIONetListener *listener,
                                          QIOChannelSocket *sioc,
@@ -47,12 +48,15 @@ struct QIONetListener {
     Object parent;
 
     char *name;
-    QIOChannelSocket **sioc;
-    GSource **io_source;
+    QIONetListenerSource **source;
     size_t nsioc;
+    /* At most one of context or aio_context will be set */
+    GMainContext *context;
+    AioContext *aio_context;
 
     bool connected;
 
+    QemuMutex lock; /* Protects remaining fields */
     QIONetListenerClientFunc io_func;
     gpointer io_data;
     GDestroyNotify io_notify;
@@ -149,6 +153,27 @@ void qio_net_listener_set_client_func(QIONetListener *listener,
                                       GDestroyNotify notify);
 
 /**
+ * qio_net_listener_set_client_aio_func:
+ * @listener: the network listener object
+ * @func: the callback function
+ * @data: opaque data to pass to @func
+ * @context: AioContext that @func will be bound to; if NULL, this will
+ *           will use qemu_get_aio_context().
+ *
+ * Similar to qio_net_listener_set_client_func_full(), except that the polling
+ * will be done by an AioContext rather than a GMainContext.
+ *
+ * Because AioContext does not (yet) support a clean way to deregister
+ * a callback from one thread while another thread might be in that
+ * callback, this function is only safe to call from the thread
+ * currently associated with @context.
+ */
+void qio_net_listener_set_client_aio_func(QIONetListener *listener,
+                                          QIONetListenerClientFunc func,
+                                          void *data,
+                                          AioContext *context);
+
+/**
  * qio_net_listener_wait_client:
  * @listener: the network listener object
  *
@@ -182,5 +207,47 @@ void qio_net_listener_disconnect(QIONetListener *listener);
  * Returns: true if connected, false otherwise
  */
 bool qio_net_listener_is_connected(QIONetListener *listener);
+
+
+/**
+ * qio_net_listener_nsioc:
+ * @listener: the network listener object
+ *
+ * Determine the number of listener channels currently owned by the
+ * given listener.
+ *
+ * Returns: number of channels, or 0 if not listening
+ */
+size_t qio_net_listener_nsioc(QIONetListener *listener);
+
+
+/**
+ * qio_net_listener_sioc:
+ * @listener: the network listener object
+ * @n: index of the sioc to grab
+ *
+ * Accessor for the nth sioc owned by the listener.
+ *
+ * Returns: the requested listener, or NULL if not in bounds
+ */
+QIOChannelSocket *qio_net_listener_sioc(QIONetListener *listener, size_t n);
+
+/**
+ * qio_net_listener_get_local_address:
+ * @listener: the network listener object
+ * @n: index of the sioc to grab
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Get the string representation of the local socket
+ * address. A pointer to the allocated address information
+ * struct will be returned, which the caller is required to
+ * release with a call qapi_free_SocketAddress() when no
+ * longer required.
+ *
+ * Returns: the socket address struct, or NULL on error
+ */
+SocketAddress *
+qio_net_listener_get_local_address(QIONetListener *listener, size_t n,
+                                   Error **errp);
 
 #endif /* QIO_NET_LISTENER_H */
