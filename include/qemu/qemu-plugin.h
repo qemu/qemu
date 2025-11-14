@@ -522,7 +522,7 @@ void qemu_plugin_register_vcpu_insn_exec_cond_cb(
  * @entry: entry to run op
  * @imm: the op data (e.g. 1)
  *
- * Insert an inline op to every time an instruction executes.
+ * Insert an inline op to run every time an instruction executes.
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
