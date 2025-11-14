@@ -98,7 +98,7 @@ def gen_tcg_func(f, tag, regs, imms):
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
         if reg.is_written():
-            reg.log_write(f, tag)
+            reg.gen_write(f, tag)
 
     f.write("}\n\n")
 
