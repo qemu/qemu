@@ -431,6 +431,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
         stream->id = stream_id;
         stream->pcm = s->pcm;
         stream->s = s;
+        stream->latency_bytes = 0;
         qemu_mutex_init(&stream->queue_mutex);
         QSIMPLEQ_INIT(&stream->queue);
 
@@ -899,6 +900,7 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
             buffer->vq = vq;
             buffer->size = size;
             buffer->offset = 0;
+            stream->latency_bytes += size;
 
             QSIMPLEQ_INSERT_TAIL(&stream->queue, buffer, entry);
         }
@@ -1112,12 +1114,19 @@ error_cleanup:
     virtio_snd_unrealize(dev);
 }
 
+static inline void update_latency(VirtIOSoundPCMStream *s, size_t used)
+{
+    s->latency_bytes = s->latency_bytes > used ?
+                       s->latency_bytes - used : 0;
+}
+
 static inline void return_tx_buffer(VirtIOSoundPCMStream *stream,
                                     VirtIOSoundPCMBuffer *buffer)
 {
     virtio_snd_pcm_status resp = { 0 };
     resp.status = cpu_to_le32(VIRTIO_SND_S_OK);
-    resp.latency_bytes = cpu_to_le32((uint32_t)buffer->size);
+    update_latency(stream, buffer->size);
+    resp.latency_bytes = cpu_to_le32(stream->latency_bytes);
     iov_from_buf(buffer->elem->in_sg,
                  buffer->elem->in_num,
                  0,
@@ -1178,6 +1187,7 @@ static void virtio_snd_pcm_out_cb(void *data, int available)
                 buffer->size -= size;
                 buffer->offset += size;
                 available -= size;
+                update_latency(stream, size);
                 if (buffer->size < 1) {
                     return_tx_buffer(stream, buffer);
                     break;
