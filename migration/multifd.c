@@ -964,6 +964,7 @@ bool multifd_send_setup(void)
 
         if (!multifd_new_send_channel_create(p, &local_err)) {
             migrate_set_error(s, local_err);
+            error_free(local_err);
             ret = -1;
         }
     }
@@ -988,6 +989,7 @@ bool multifd_send_setup(void)
         ret = multifd_send_state->ops->send_setup(p, &local_err);
         if (ret) {
             migrate_set_error(s, local_err);
+            error_free(local_err);
             goto err;
         }
         assert(p->iov);
