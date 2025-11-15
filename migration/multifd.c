@@ -464,8 +464,8 @@ static void migration_ioc_shutdown_gracefully(QIOChannel *ioc)
          */
         migration_tls_channel_end(ioc, &local_err);
         if (local_err) {
-            warn_report("Failed to gracefully terminate TLS connection: %s",
-                        error_get_pretty(local_err));
+            warn_reportf_err(local_err,
+                        "Failed to gracefully terminate TLS connection: ");
         }
     }
 
