@@ -13,8 +13,8 @@
 #define LASI_H
 
 #include "system/address-spaces.h"
-#include "hw/pci/pci_host.h"
 #include "hw/boards.h"
+#include "hw/sysbus.h"
 
 #define TYPE_LASI_CHIP "lasi-chip"
 OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
@@ -63,7 +63,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
 #define LASI_IRQ_PS2MOU_HPA 26
 
 struct LasiState {
-    PCIHostState parent_obj;
+    SysBusDevice parent_obj;
 
     uint32_t irr;
     uint32_t imr;
