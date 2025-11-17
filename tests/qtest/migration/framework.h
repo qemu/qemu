@@ -19,8 +19,21 @@
 #define FILE_TEST_MARKER 'X'
 
 typedef enum {
+    /*
+     * Use memory-backend-ram, private mappings
+     */
     MEM_TYPE_ANON,
+    /*
+     * Use shmem file (under /dev/shm), shared mappings
+     */
     MEM_TYPE_SHMEM,
+    /*
+     * Use anonymous memfd, shared mappings.
+     *
+     * NOTE: this is internally almost the same as MEM_TYPE_SHMEM on Linux,
+     * but only anonymously allocated.
+     */
+    MEM_TYPE_MEMFD,
     MEM_TYPE_NUM,
 } MemType;
 
