@@ -27,6 +27,7 @@
 #include "exec/helper-proto.h"
 #include "exec/tlb-flags.h"
 #include "trace.h"
+#include "syscall_trace.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline MemOp mo_endian_env(CPURISCVState *env)
@@ -364,7 +365,29 @@ target_ulong helper_sret(CPURISCVState *env)
         riscv_ctr_add_entry(env, env->pc, retpc, CTRDATA_TYPE_EXCEP_INT_RET,
                             src_priv, src_virt);
     }
+    if (prev_priv == PRV_U && env->last_scause) {
+        trace_event_t evt;
+        lk_trace_init(&evt);
+        evt.inout = 1;
+        evt.cause = env->last_scause;
+        evt.epc = env->sepc;
+        memcpy(evt.ax, &env->gpr[xA0], sizeof(evt.ax));
+        evt.usp = env->gpr[xSP];
+        evt.orig_a0 = env->last_a0;
+        evt.satp = env->satp;
+        evt.tp = env->gpr[xTP];
+        evt.sscratch = env->sscratch;
 
+        CPUState *cs = env_cpu(env);
+        FILE *f = lk_trace_trylock();
+        long offset = lk_trace_head(f);
+        handle_payload_out(cs, &evt, f);
+        lk_trace_submit(offset, &evt, f);
+        lk_trace_unlock(f);
+
+        env->last_scause = 0;
+        env->last_a0 = 0;
+    }
     return retpc;
 }
 

@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cpu_user.h"
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
@@ -37,6 +38,7 @@
 #include "debug.h"
 #include "pmp.h"
 #include "qemu/plugin.h"
+#include "syscall_trace.h"
 
 int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
 {
@@ -2284,7 +2286,29 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                   "epc:0x"TARGET_FMT_lx", tval:0x"TARGET_FMT_lx", desc=%s\n",
                   __func__, env->mhartid, async, cause, env->pc, tval,
                   riscv_cpu_get_trap_name(cause, async));
+    if (env->priv ==PRV_U && cause == RISCV_EXCP_U_ECALL) {
+        trace_event_t evt;
+        lk_trace_init(&evt);
+        evt.inout = 0;
+        evt.cause = cause;
+        evt.epc = env->pc;
+        memcpy(evt.ax, &env->gpr[xA0], sizeof(evt.ax));
+        evt.usp = env->gpr[xSP];
+        evt.satp = env->satp;
+        evt.tp = env->gpr[xTP];
+        evt.sscratch = env->sscratch;
 
+        FILE *f = lk_trace_trylock();
+        long offset = lk_trace_head(f);
+        handle_payload_in(cs, &evt, f);
+        lk_trace_submit(offset, &evt, f);
+        lk_trace_unlock(f);
+
+        if (env->gpr[xA7] != __NR_exit) {
+            env->last_scause = RISCV_EXCP_U_ECALL;
+            env->last_a0 = env->gpr[xA0];
+        }
+    }
     mode = env->priv <= PRV_S && cause < 64 &&
         (((deleg >> cause) & 1) || s_injected || vs_injected) ? PRV_S : PRV_M;
 

@@ -37,6 +37,9 @@ typedef struct RCUCloseFILE {
     FILE *fd;
 } RCUCloseFILE;
 
+static char *trace_filename;
+static FILE *trace_file;
+
 /* Mutex covering the other global_* variables. */
 static QemuMutex global_mutex;
 static char *global_filename;
@@ -174,10 +177,76 @@ void qemu_log(const char *fmt, ...)
     }
 }
 
+FILE *lk_trace_trylock(void)
+{
+    assert(trace_filename != NULL);
+    assert(trace_file != NULL);
+    flockfile(trace_file);
+    return trace_file;
+}
+
+void lk_trace_unlock(FILE *f)
+{
+    if (f) {
+        fflush(f);
+        funlockfile(f);
+    }
+}
+
+long lk_trace_head(FILE *f)
+{
+    if (!f) {
+        return 0;
+    }
+    long offset = ftell(f);
+    fseek(f, sizeof(trace_event_t), SEEK_CUR);
+    return offset;
+}
+
+void lk_trace_submit(long offset, const trace_event_t *evt, FILE *f)
+{
+    if (!f) {
+        return;
+    }
+    long saved = ftell(f);
+    fseek(f, offset, SEEK_SET);
+    fwrite(evt, sizeof(*evt), 1, f);
+    fseek(f, saved, SEEK_SET);
+}
+
+void lk_trace_payload(uint16_t index,
+                      trace_event_t *evt,
+                      const void *buf, size_t size,
+                      FILE *f)
+{
+    if (!f) {
+        return;
+    }
+    trace_payload_t payload = {
+        .magic = LK_TRACE_PAYLOAD_MAGIC,
+        .index = index,
+        .size = size,
+    };
+    fwrite(&payload, sizeof(payload), 1, f);
+    fwrite(buf, 1, size, f);
+    evt->totalsize += sizeof(payload) + size;
+}
+
+void lk_trace_init(trace_event_t *event)
+{
+    memset(event, 0, sizeof(*event));
+    event->magic = LK_TRACE_MAGIC;
+    event->headsize = sizeof(*event);
+    event->totalsize = event->headsize;
+}
+
 static void __attribute__((__constructor__)) startup(void)
 {
     qemu_mutex_init(&global_mutex);
+    trace_filename = g_strdup("lk_trace.data");
+    trace_file = fopen(trace_filename, "w");
 }
+
 
 static void rcu_close_file(RCUCloseFILE *r)
 {

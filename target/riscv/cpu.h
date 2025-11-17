@@ -321,6 +321,8 @@ struct CPUArchState {
     target_ulong stvec;
     target_ulong sepc;
     target_ulong scause;
+    target_ulong last_scause;
+    target_ulong last_a0;
 
     target_ulong mtvec;
     target_ulong mepc;

@@ -26,7 +26,8 @@ riscv_ss.add(files(
   'm128_helper.c',
   'crypto_helper.c',
   'zce_helper.c',
-  'vcrypto_helper.c'
+  'vcrypto_helper.c',
+  'syscall_trace.c'
 ))
 
 riscv_system_ss = ss.source_set()
