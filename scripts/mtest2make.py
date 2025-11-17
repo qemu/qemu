@@ -13,7 +13,7 @@ import sys
 class Suite(object):
     def __init__(self):
         self.deps = set()
-        self.speeds = []
+        self.speeds = set()
 
     def names(self, base):
         return [f'{base}-{speed}' for speed in self.speeds]
@@ -61,10 +61,10 @@ def process_tests(test, targets, suites):
         suites[s].deps.update(deps)
         if s.endswith('-slow'):
             s = s[:-5]
-            suites[s].speeds.append('slow')
+            suites[s].speeds.add('slow')
         if s.endswith('-thorough'):
             s = s[:-9]
-            suites[s].speeds.append('thorough')
+            suites[s].speeds.add('thorough')
 
 def emit_prolog(suites, prefix):
     all_targets = ' '.join((f'{prefix}-{k}' for k in suites.keys()))
