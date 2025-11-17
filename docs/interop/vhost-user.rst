@@ -411,8 +411,8 @@ in the ancillary data:
 * ``VHOST_USER_SET_INFLIGHT_FD`` (if ``VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD``)
 * ``VHOST_USER_SET_DEVICE_STATE_FD``
 
-When sending file descriptors in ancilliary data, *front-end* should
-associate the ancilliary data with a ``sendmsg`` operation (or
+When sending file descriptors in ancillary data, *front-end* should
+associate the ancillary data with a ``sendmsg`` operation (or
 equivalent) that sends bytes starting with the first byte of the
 message header.  *back-end* can therefore expect that file descriptors
 will only be received in the first ``recvmsg`` operation for a message
