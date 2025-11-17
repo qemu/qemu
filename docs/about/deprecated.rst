@@ -192,7 +192,7 @@ The ``info capture`` command is deprecated and will be removed in a future relea
 Host Architectures
 ------------------
 
-MIPS (since 11.0)
+MIPS (since 10.2)
 '''''''''''''''''
 
 MIPS is not supported by Debian 13 ("Trixie") and newer, making it hard to
