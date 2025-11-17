@@ -32,7 +32,7 @@ static void test_mode_reboot(void)
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
     MigrateCommon args = {
-        .start.use_shmem = true,
+        .start.mem_type = MEM_TYPE_SHMEM,
         .connect_uri = uri,
         .listen_uri = "defer",
         .start_hook = migrate_hook_start_mode_reboot,

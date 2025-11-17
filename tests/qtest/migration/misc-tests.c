@@ -97,7 +97,7 @@ static void test_ignore_shared(void)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
     MigrateStart args = {
-        .use_shmem = true,
+        .mem_type = MEM_TYPE_SHMEM,
         .caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true,
     };
 

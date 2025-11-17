@@ -260,6 +260,25 @@ static char *test_shmem_path(void)
     return g_strdup_printf("/dev/shm/qemu-%d", getpid());
 }
 
+/* NOTE: caller is responsbile to free the string if returned */
+static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
+{
+    g_autofree char *shmem_path = NULL;
+    char *backend = NULL;
+
+    switch (type) {
+    case MEM_TYPE_SHMEM:
+        shmem_path = test_shmem_path();
+        backend = g_strdup_printf(
+            "-object memory-backend-file,id=mem0,size=%s"
+            ",mem-path=%s,share=on -numa node,memdev=mem0",
+            memory_size, shmem_path);
+        return backend;
+    default:
+        return NULL;
+    }
+}
+
 int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
 {
     /* options for source and target */
@@ -268,7 +287,6 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
     gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
     g_autofree char *shmem_opts = NULL;
-    g_autofree char *shmem_path = NULL;
     const char *kvm_opts = NULL;
     const char *arch = qtest_get_arch();
     const char *memory_size;
@@ -332,13 +350,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
         ignore_stderr = "";
     }
 
-    if (args->use_shmem) {
-        shmem_path = test_shmem_path();
-        shmem_opts = g_strdup_printf(
-            "-object memory-backend-file,id=mem0,size=%s"
-            ",mem-path=%s,share=on -numa node,memdev=mem0",
-            memory_size, shmem_path);
-    }
+    shmem_opts = migrate_mem_type_get_opts(args->mem_type, memory_size);
 
     if (args->memory_backend) {
         memory_backend = g_strdup_printf(args->memory_backend, memory_size);
@@ -403,6 +415,42 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
     return 0;
 }
 
+static bool migrate_mem_type_prepare(MemType type)
+{
+    switch (type) {
+    case MEM_TYPE_SHMEM:
+        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
+            g_test_skip("/dev/shm is not supported");
+            return false;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return true;
+}
+
+static void migrate_mem_type_cleanup(MemType type)
+{
+    g_autofree char *shmem_path = NULL;
+
+    switch (type) {
+    case MEM_TYPE_SHMEM:
+
+        /*
+         * Remove shmem file immediately to avoid memory leak in test
+         * failed case.  It's valid because QEMU has already opened this
+         * file
+         */
+        shmem_path = test_shmem_path();
+        unlink(shmem_path);
+        break;
+    default:
+        break;
+    }
+}
+
 int migrate_start(QTestState **from, QTestState **to, const char *uri,
                   MigrateStart *args)
 {
@@ -410,11 +458,8 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     g_autofree gchar *cmd_target = NULL;
     g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
 
-    if (args->use_shmem) {
-        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
-            g_test_skip("/dev/shm is not supported");
-            return -1;
-        }
+    if (!migrate_mem_type_prepare(args->mem_type)) {
+        return -1;
     }
 
     dst_state = (QTestMigrationState) { };
@@ -441,15 +486,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                      &dst_state);
     }
 
-    /*
-     * Remove shmem file immediately to avoid memory leak in test failed case.
-     * It's valid because QEMU has already opened this file
-     */
-    if (args->use_shmem) {
-        g_autofree char *shmem_path = test_shmem_path();
-        unlink(shmem_path);
-    }
-
+    migrate_mem_type_cleanup(args->mem_type);
     migrate_start_set_capabilities(*from,
                                    args->only_source ? NULL : *to,
                                    args);

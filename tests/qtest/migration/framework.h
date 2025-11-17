@@ -18,6 +18,12 @@
 #define FILE_TEST_OFFSET 0x1000
 #define FILE_TEST_MARKER 'X'
 
+typedef enum {
+    MEM_TYPE_ANON,
+    MEM_TYPE_SHMEM,
+    MEM_TYPE_NUM,
+} MemType;
+
 typedef struct MigrationTestEnv {
     bool has_kvm;
     bool has_tcg;
@@ -102,7 +108,7 @@ typedef struct {
      * unconditionally, because it means the user would like to be verbose.
      */
     bool hide_stderr;
-    bool use_shmem;
+    MemType mem_type;
     /* only launch the source process */
     bool only_source;
     /* only launch the target process */
