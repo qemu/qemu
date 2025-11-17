@@ -366,13 +366,9 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
         ignore_stderr = "";
     }
 
-    if (args->memory_backend) {
-        memory_backend = g_strdup_printf(args->memory_backend, memory_size);
-    } else {
-        mem_object = migrate_mem_type_get_opts(args->mem_type, memory_size);
-        memory_backend = g_strdup_printf("-machine memory-backend=%s %s",
-                                         MIG_MEM_ID, mem_object);
-    }
+    mem_object = migrate_mem_type_get_opts(args->mem_type, memory_size);
+    memory_backend = g_strdup_printf("-machine memory-backend=%s %s",
+                                     MIG_MEM_ID, mem_object);
 
     if (args->use_dirty_ring) {
         kvm_opts = ",dirty-ring-size=4096";

@@ -89,8 +89,7 @@ static void test_mode_transfer_common(bool incoming_defer)
         .start.opts_source = opts,
         .start.opts_target = opts_target,
         .start.defer_target_connect = true,
-        .start.memory_backend = "-object memory-backend-memfd,id=pc.ram,size=%s"
-                                " -machine memory-backend=pc.ram",
+        .start.mem_type = MEM_TYPE_MEMFD,
         .listen_uri = incoming_defer ? "defer" : uri,
         .connect_channels = connect_channels,
         .cpr_channel = cpr_channel,
@@ -235,8 +234,7 @@ static void test_mode_exec(void)
     MigrateCommon args = {
         .start.only_source = true,
         .start.opts_source = "-machine aux-ram-share=on -nodefaults",
-        .start.memory_backend = "-object memory-backend-memfd,id=pc.ram,size=%s"
-                                " -machine memory-backend=pc.ram",
+        .start.mem_type = MEM_TYPE_MEMFD,
         .connect_uri = uri,
         .listen_uri = listen_uri,
         .start_hook = test_mode_exec_start,
