@@ -13,6 +13,7 @@ packages:
  - clang
  - cmocka
  - column
+ - coreutils
  - ctags
  - cyrus-sasl
  - daxctl

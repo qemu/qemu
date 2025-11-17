@@ -33,6 +33,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                ccache \
                clang \
                compiler-rt \
+               coreutils \
                ctags \
                cyrus-sasl-devel \
                daxctl-devel \

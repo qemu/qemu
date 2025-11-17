@@ -20,6 +20,7 @@ RUN zypper update -y && \
            ccache \
            clang \
            clang-devel \
+           coreutils \
            ctags \
            cyrus-sasl-devel \
            dbus-1 \

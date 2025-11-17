@@ -20,6 +20,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       ca-certificates \
                       ccache \
                       clang \
+                      coreutils \
                       dbus \
                       debianutils \
                       diffutils \

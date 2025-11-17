@@ -26,6 +26,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                ca-certificates \
                ccache \
                compiler-rt \
+               coreutils \
                ctags \
                dbus-daemon \
                diffutils \

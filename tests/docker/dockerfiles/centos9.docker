@@ -26,6 +26,7 @@ RUN dnf distro-sync -y && \
         ccache \
         clang \
         compiler-rt \
+        coreutils-single \
         ctags \
         cyrus-sasl-devel \
         daxctl-devel \

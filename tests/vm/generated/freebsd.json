@@ -15,6 +15,7 @@
     "capstone4",
     "ccache4",
     "cmocka",
+    "coreutils",
     "ctags",
     "curl",
     "cyrus-sasl",
