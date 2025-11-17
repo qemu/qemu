@@ -46,26 +46,16 @@ ubuntu-24.04-aarch64-all:
   extends: .ubuntu_aarch64_template
   variables:
     MAKE_CHECK_ARGS: check
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
-      when: manual
-      allow_failure: true
-    - if: "$AARCH64_RUNNER_AVAILABLE"
-      when: manual
-      allow_failure: true
+  allow_failure: true
+  when: manual
 
 ubuntu-24.04-aarch64-without-defaults:
   extends: .ubuntu_aarch64_template
   variables:
     CONFIGURE_ARGS: --disable-user --without-default-devices --without-default-features
     MAKE_CHECK_ARGS: check
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
-      when: manual
-      allow_failure: true
-    - if: "$AARCH64_RUNNER_AVAILABLE"
-      when: manual
-      allow_failure: true
+  allow_failure: true
+  when: manual
 
 ubuntu-24.04-aarch64-alldbg:
   extends: .ubuntu_aarch64_template
@@ -78,34 +68,21 @@ ubuntu-24.04-aarch64-clang:
   variables:
     CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-ubsan
     MAKE_CHECK_ARGS: check
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
-      when: manual
-      allow_failure: true
-    - if: "$AARCH64_RUNNER_AVAILABLE"
-      when: manual
-      allow_failure: true
+  allow_failure: true
+  when: manual
 
 ubuntu-24.04-aarch64-tci:
   extends: .ubuntu_aarch64_template
   variables:
     CONFIGURE_ARGS: --enable-tcg-interpreter
     MAKE_CHECK_ARGS: check
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
-      when: manual
-      allow_failure: true
-    - if: "$AARCH64_RUNNER_AVAILABLE"
-      when: manual
-      allow_failure: true
+  allow_failure: true
+  when: manual
 
 ubuntu-24.04-aarch64-notcg:
   extends: .ubuntu_aarch64_template
   variables:
     CONFIGURE_ARGS: --disable-tcg --with-devices-aarch64=minimal
     MAKE_CHECK_ARGS: check
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
-      when: manual
-    - if: "$AARCH64_RUNNER_AVAILABLE"
-      when: manual
+  allow_failure: true
+  when: manual
