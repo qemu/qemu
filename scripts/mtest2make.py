@@ -58,13 +58,13 @@ def process_tests(test, targets, suites):
             s = s.split(':')[1]
             if s == 'slow' or s == 'thorough':
                 continue
+        suites[s].deps.update(deps)
         if s.endswith('-slow'):
             s = s[:-5]
             suites[s].speeds.append('slow')
         if s.endswith('-thorough'):
             s = s[:-9]
             suites[s].speeds.append('thorough')
-        suites[s].deps.update(deps)
 
 def emit_prolog(suites, prefix):
     all_targets = ' '.join((f'{prefix}-{k}' for k in suites.keys()))
