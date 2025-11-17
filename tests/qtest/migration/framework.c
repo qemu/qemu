@@ -260,23 +260,36 @@ static char *test_shmem_path(void)
     return g_strdup_printf("/dev/shm/qemu-%d", getpid());
 }
 
+#define  MIG_MEM_ID  "mig.mem"
+
 /* NOTE: caller is responsbile to free the string if returned */
 static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
 {
     g_autofree char *shmem_path = NULL;
-    char *backend = NULL;
+    g_autofree char *backend = NULL;
+    bool share = true;
+    char *opts;
 
     switch (type) {
+    case MEM_TYPE_ANON:
+        backend = g_strdup("-object memory-backend-ram");
+        share = false;
+        break;
     case MEM_TYPE_SHMEM:
         shmem_path = test_shmem_path();
-        backend = g_strdup_printf(
-            "-object memory-backend-file,id=mem0,size=%s"
-            ",mem-path=%s,share=on -numa node,memdev=mem0",
-            memory_size, shmem_path);
-        return backend;
+        backend = g_strdup_printf("-object memory-backend-file,mem-path=%s",
+                                  shmem_path);
+        break;
     default:
-        return NULL;
+        g_assert_not_reached();
+        break;
     }
+
+    opts = g_strdup_printf("%s,id=%s,size=%s,share=%s",
+                           backend, MIG_MEM_ID, memory_size,
+                           share ? "on" : "off");
+
+    return opts;
 }
 
 int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
@@ -286,7 +299,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
     gchar *cmd_source = NULL;
     gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
-    g_autofree char *shmem_opts = NULL;
+    g_autofree char *mem_object = NULL;
     const char *kvm_opts = NULL;
     const char *arch = qtest_get_arch();
     const char *memory_size;
@@ -350,12 +363,12 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
         ignore_stderr = "";
     }
 
-    shmem_opts = migrate_mem_type_get_opts(args->mem_type, memory_size);
-
     if (args->memory_backend) {
         memory_backend = g_strdup_printf(args->memory_backend, memory_size);
     } else {
-        memory_backend = g_strdup_printf("-m %s ", memory_size);
+        mem_object = migrate_mem_type_get_opts(args->mem_type, memory_size);
+        memory_backend = g_strdup_printf("-machine memory-backend=%s %s",
+                                         MIG_MEM_ID, mem_object);
     }
 
     if (args->use_dirty_ring) {
@@ -378,12 +391,11 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "-name source,debug-threads=on "
                                  "%s "
                                  "-serial file:%s/src_serial "
-                                 "%s %s %s %s",
+                                 "%s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs,
                                  arch_opts ? arch_opts : "",
-                                 shmem_opts ? shmem_opts : "",
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
 
@@ -400,13 +412,12 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "%s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
-                                 "%s %s %s %s %s",
+                                 "%s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs, uri,
                                  events,
                                  arch_opts ? arch_opts : "",
-                                 shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
 
