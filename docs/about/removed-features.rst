@@ -902,6 +902,11 @@ From 10.0, QEMU has disabled configuration of 64-bit guests on 32-bit hosts.
 Debian 12 "Bookworm" removed support for 32-bit MIPS, making it hard to
 maintain our cross-compilation CI tests of the architecture.
 
+32-bit PPC (since 10.2)
+'''''''''''''''''''''''
+
+The QEMU project no longer supports 32-bit host builds.
+
 Guest Emulator ISAs
 -------------------
 
