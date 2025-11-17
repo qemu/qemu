@@ -1110,12 +1110,15 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     int prot;
     void *host_addr;
 
-    if (!guest_range_valid_untagged(old_addr, old_size) ||
-        ((flags & MREMAP_FIXED) &&
+    if (((flags & MREMAP_FIXED) &&
          !guest_range_valid_untagged(new_addr, new_size)) ||
         ((flags & MREMAP_MAYMOVE) == 0 &&
          !guest_range_valid_untagged(old_addr, new_size))) {
-        errno = ENOMEM;
+        errno = EINVAL;
+        return -1;
+    }
+    if (!guest_range_valid_untagged(old_addr, old_size)) {
+        errno = EFAULT;
         return -1;
     }
 
