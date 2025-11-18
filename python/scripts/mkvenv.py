@@ -92,7 +92,7 @@ import venv
 # Try to load distlib, with a fallback to pip's vendored version.
 # HAVE_DISTLIB is checked below, just-in-time, so that mkvenv does not fail
 # outside the venv or before a potential call to ensurepip in checkpip().
-HAVE_DISTLIB = True
+_import_ok = True
 try:
     import distlib.scripts
 except ImportError:
@@ -102,11 +102,13 @@ except ImportError:
         from pip._vendor import distlib
         import pip._vendor.distlib.scripts  # noqa, pylint: disable=unused-import
     except ImportError:
-        HAVE_DISTLIB = False
+        _import_ok = False
+
+HAVE_DISTLIB = _import_ok
 
 # pip 25.2 does not vendor distlib.version, but it uses vendored
 # packaging.version
-HAVE_DISTLIB_VERSION = True
+_import_ok = True
 try:
     import distlib.version  # pylint: disable=ungrouped-imports
 except ImportError:
@@ -114,9 +116,11 @@ except ImportError:
         # pylint: disable=unused-import,ungrouped-imports
         import pip._vendor.distlib.version  # noqa
     except ImportError:
-        HAVE_DISTLIB_VERSION = False
+        _import_ok = False
 
-HAVE_PACKAGING_VERSION = True
+HAVE_DISTLIB_VERSION = _import_ok
+
+_import_ok = True
 try:
     # Do not bother importing non-vendored packaging, because it is not
     # in stdlib.
@@ -125,20 +129,24 @@ try:
     import pip._vendor.packaging.requirements  # noqa
     import pip._vendor.packaging.version  # noqa
 except ImportError:
-    HAVE_PACKAGING_VERSION = False
+    _import_ok = False
+
+HAVE_PACKAGING_VERSION = _import_ok
 
 
 # Try to load tomllib, with a fallback to tomli.
 # HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
 # outside the venv or before a potential call to ensurepip in checkpip().
-HAVE_TOMLLIB = True
+_import_ok = True
 try:
     import tomllib
 except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        HAVE_TOMLLIB = False
+        _import_ok = False
+
+HAVE_TOMLLIB = _import_ok
 
 # Do not add any mandatory dependencies from outside the stdlib:
 # This script *must* be usable standalone!
