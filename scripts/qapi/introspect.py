@@ -59,7 +59,7 @@ from .source import QAPISourceInfo
 #
 # Sadly, mypy does not support recursive types; so the _Stub alias is used to
 # mark the imprecision in the type model where we'd otherwise use JSONValue.
-_Stub = Any
+_Stub = Any  # pylint: disable=invalid-name
 _Scalar = Union[str, bool, None]
 _NonScalar = Union[Dict[str, _Stub], List[_Stub]]
 _Value = Union[_Scalar, _NonScalar]
