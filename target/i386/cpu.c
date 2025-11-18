@@ -8403,7 +8403,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     }
     case 0x1E: {
-        /* AMX TMUL, for now hardcoded for Sapphire Rapids */
+        /* AMX TMUL */
         *eax = 0;
         *ebx = 0;
         *ecx = 0;
