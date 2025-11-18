@@ -13,10 +13,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from typing import (
-    List,
-    Optional,
-)
+from typing import List, Optional
 
 from .common import c_name, mcgen
 from .gen import (
