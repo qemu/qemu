@@ -1,6 +1,7 @@
 #ifndef QEMU_LOG_H
 #define QEMU_LOG_H
 
+
 /* A small part of this API is split into its own header */
 #include "qemu/log-for-trace.h"
 
@@ -42,9 +43,18 @@ bool qemu_log_separate(void);
 #define LK_TRACE_MAGIC 0xABCD
 #define LK_TRACE_PAYLOAD_MAGIC 0xDCBA
 
+typedef struct LkTraceShm {
+    uint32_t magic;
+    uint32_t version;
+    uint64_t size;
+    _Atomic uint64_t head;
+    _Atomic uint64_t tail;
+    uint8_t  data[];
+} LkTraceShm;
+
 typedef struct trace_event_t {
     uint16_t magic;
-     uint16_t headsize;
+    uint16_t headsize;
     uint32_t totalsize;
     uint64_t inout;
     uint64_t cause;
@@ -68,6 +78,7 @@ void lk_trace_init(trace_event_t *evt);
 FILE *lk_trace_trylock(void);
 void lk_trace_unlock(FILE *f);
 long lk_trace_head(FILE *f);
+bool lk_trace_shm_enabled(void);
 void lk_trace_payload(uint16_t index,
                       trace_event_t *evt,
                       const void *buf, size_t size,

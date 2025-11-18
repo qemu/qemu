@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/units.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -27,6 +28,8 @@
 #include "qemu/thread.h"
 #include "qemu/lockable.h"
 #include "qemu/rcu.h"
+#include <sys/mman.h>
+#include <stdatomic.h>
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
@@ -50,6 +53,18 @@ static __thread Notifier qemu_log_thread_cleanup_notifier;
 unsigned qemu_loglevel;
 static bool log_per_thread;
 static GArray *debug_regions;
+
+/*
+    lktrace data structure
+*/
+static LkTraceShm *trace_shm;
+static size_t trace_shm_size;
+static int trace_shm_fd = -1;
+
+static bool lk_trace_use_shm;
+static bool lk_trace_shm_blocking;
+static const char *lk_trace_shm_name;
+static size_t lk_trace_shm_capacity;
 
 /* Returns true if qemu_log() will really write somewhere. */
 bool qemu_log_enabled(void)
@@ -177,8 +192,112 @@ void qemu_log(const char *fmt, ...)
     }
 }
 
+bool lk_trace_shm_enabled(void)
+{
+    return lk_trace_use_shm && trace_shm != NULL;
+}
+
+static void lk_trace_shm_config_from_env(void)
+{
+    const char *name = g_getenv("LKTRACE_SHM_NAME");
+    const char *size = g_getenv("LKTRACE_SHM_SIZE");
+    const char *blocking = g_getenv("LKTRACE_SHM_BLOCK");
+
+    if (!name) {
+        return;
+    }
+    lk_trace_shm_name = g_strdup(name);
+    lk_trace_shm_capacity = size ? g_ascii_strtoull(size, NULL, 10) : 64 * MiB;
+    lk_trace_shm_blocking = blocking && g_strcmp0(blocking, "1") == 0;
+    lk_trace_use_shm = true;
+}
+
+static void lk_trace_shm_cleanup(void)
+{
+    if (trace_shm){
+        munmap(trace_shm, trace_shm_size);
+        trace_shm = NULL;
+    }
+    if (trace_shm_fd >=0 ) {
+        close(trace_shm_fd);
+        if (lk_trace_shm_name) {
+            shm_unlink(lk_trace_shm_name);
+        }
+        trace_shm_fd = -1;
+    }
+    g_free((char *)lk_trace_shm_name);
+    lk_trace_shm_name = NULL;
+}
+
+static bool lk_trace_shm_init(void)
+{
+    if (!lk_trace_use_shm) {
+        return false;
+    }
+    trace_shm_fd = shm_open(lk_trace_shm_name, O_CREAT | O_RDWR, 0600);
+    if (trace_shm_fd < 0) {
+        warn_report("LKTrace shm_open(%s) failed: %s",
+                    lk_trace_shm_name, strerror(errno));
+        return false;
+    }
+    trace_shm_size = sizeof(LkTraceShm) + lk_trace_shm_capacity;
+    if (ftruncate(trace_shm_fd, trace_shm_size) < 0) {
+        warn_report("LKTrace ftruncate failed: %s", strerror(errno));
+        lk_trace_shm_cleanup();
+        return false;
+    }
+    trace_shm = mmap(NULL, trace_shm_size, PROT_READ | PROT_WRITE,
+                    MAP_SHARED, trace_shm_fd, 0);
+    if (trace_shm == MAP_FAILED) {
+        warn_report("LKTrace mmap failed: %s", strerror(errno));
+        lk_trace_shm_cleanup();
+        return false;
+    }
+    trace_shm->magic = LK_TRACE_MAGIC;
+    trace_shm->version = 1;
+    trace_shm->size = lk_trace_shm_capacity;
+    atomic_store(&trace_shm->head, 0);
+    atomic_store(&trace_shm->tail, 0);
+    return true;
+}
+
+static void lk_trace_shm_write(const void *buf, size_t len)
+{
+    uint64_t head, tail, free_bytes;
+    if (!trace_shm) {
+        return;
+    }
+    while (true) {
+        head = atomic_load_explicit(&trace_shm->head, memory_order_relaxed);
+        tail = atomic_load_explicit(&trace_shm->tail, memory_order_acquire);
+        if (tail <= head) {
+            free_bytes = trace_shm->size - (head - tail);
+        } else {
+            free_bytes = tail - head;
+        }
+        /* Reserve one byte to distinguish full vs empty */
+        if (free_bytes > len + 1) {
+            break;
+        }
+        if (!lk_trace_shm_blocking) {
+            /* drop payload */
+            return;
+        }
+        g_usleep(50);
+    }
+    uint64_t start = head % trace_shm->size;
+    uint64_t first = MIN(len, trace_shm->size - start);
+    memcpy(trace_shm->data + start, buf, first);
+    if (first < len) {
+        memcpy(trace_shm->data, (const uint8_t *)buf + first, len - first);
+    }
+    atomic_store_explicit(&trace_shm->head, head + len, memory_order_release); // change head positon for next write
+}
 FILE *lk_trace_trylock(void)
 {
+    if (lk_trace_shm_enabled()) {
+        return NULL;
+    }
     assert(trace_filename != NULL);
     assert(trace_file != NULL);
     flockfile(trace_file);
@@ -205,7 +324,11 @@ long lk_trace_head(FILE *f)
 
 void lk_trace_submit(long offset, const trace_event_t *evt, FILE *f)
 {
-    if (!f) {
+    if (lk_trace_shm_enabled()) {
+        lk_trace_shm_write(evt, sizeof(*evt));
+        return;
+    }
+     if (!f) {
         return;
     }
     long saved = ftell(f);
@@ -219,17 +342,20 @@ void lk_trace_payload(uint16_t index,
                       const void *buf, size_t size,
                       FILE *f)
 {
-    if (!f) {
-        return;
-    }
-    trace_payload_t payload = {
+   trace_payload_t payload = {
         .magic = LK_TRACE_PAYLOAD_MAGIC,
         .index = index,
         .size = size,
     };
-    fwrite(&payload, sizeof(payload), 1, f);
-    fwrite(buf, 1, size, f);
+    if (lk_trace_shm_enabled()) {
+        lk_trace_shm_write(&payload, sizeof(payload));
+        lk_trace_shm_write(buf, size);
+    } else if (f) {
+        fwrite(&payload, sizeof(payload), 1, f);
+        fwrite(buf, 1, size, f);
+    }
     evt->totalsize += sizeof(payload) + size;
+
 }
 
 void lk_trace_init(trace_event_t *event)
@@ -243,8 +369,11 @@ void lk_trace_init(trace_event_t *event)
 static void __attribute__((__constructor__)) startup(void)
 {
     qemu_mutex_init(&global_mutex);
-    trace_filename = g_strdup("lk_trace.data");
-    trace_file = fopen(trace_filename, "w");
+    lk_trace_shm_config_from_env();
+    if (!lk_trace_shm_init()) {
+        trace_filename = g_strdup("lk_trace.data");
+        trace_file = fopen(trace_filename, "w");
+    }
 }
 
 
