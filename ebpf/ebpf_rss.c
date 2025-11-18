@@ -247,10 +247,8 @@ bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
                       uint16_t *indirections_table, uint8_t *toeplitz_key,
                       Error **errp)
 {
-    if (!ebpf_rss_is_loaded(ctx)) {
-        error_setg(errp, "eBPF program is not loaded");
-        return false;
-    }
+    g_assert(ebpf_rss_is_loaded(ctx));
+
     if (config == NULL) {
         error_setg(errp, "eBPF config table is NULL");
         return false;
