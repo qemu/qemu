@@ -49,6 +49,15 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		-t qemu/$* - < $< $(if $V,,> /dev/null),\
 		"BUILD", $*)
 
+# General rule for inspecting registry images.
+docker-verify-%: $(DOCKER_FILES_DIR)/%.docker
+	  $(call quiet-command,			\
+		skopeo inspect 			\
+			--format '{{.Created}}' \
+			docker://$(DOCKER_REGISTRY)/qemu/$*	\
+		$(if $V,,> /dev/null),\
+		"VERIFY", $*)
+
 # Special rule for debootstraped binfmt linux-user images
 docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 	$(if $(EXECUTABLE),,\
@@ -235,6 +244,8 @@ docker-run: docker-qemu-src
 		"  CLEANUP $(DOCKER_SRC_COPY)")
 
 docker-image: ${DOCKER_IMAGES:%=docker-image-%}
+
+docker-verify: ${DOCKER_IMAGES:%=docker-verify-%}
 
 docker-clean:
 	$(call quiet-command, $(DOCKER_SCRIPT) clean)
