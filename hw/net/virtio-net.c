@@ -1363,9 +1363,7 @@ static bool virtio_net_load_ebpf(VirtIONet *n, Error **errp)
         return virtio_net_load_ebpf_fds(n, errp);
     }
 
-    ebpf_rss_load(&n->ebpf_rss, &err);
-    /* Beware, ebpf_rss_load() can return false with @err unset */
-    if (err) {
+    if (!ebpf_rss_load(&n->ebpf_rss, &err)) {
         warn_report_err(err);
     }
     return true;

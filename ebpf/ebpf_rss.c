@@ -106,9 +106,7 @@ bool ebpf_rss_load(struct EBPFRSSContext *ctx, Error **errp)
 {
     struct rss_bpf *rss_bpf_ctx;
 
-    if (ebpf_rss_is_loaded(ctx)) {
-        return false;
-    }
+    g_assert(!ebpf_rss_is_loaded(ctx));
 
     rss_bpf_ctx = rss_bpf__open();
     if (rss_bpf_ctx == NULL) {
