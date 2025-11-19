@@ -3,7 +3,7 @@
  * Copyright (c) 2021 Loongson Technology Corporation Limited
  */
 
-static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
+static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop, bool acq)
 {
     TCGv t1 = tcg_temp_new();
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
@@ -14,10 +14,14 @@ static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     tcg_gen_st_tl(t1, tcg_env, offsetof(CPULoongArchState, llval));
     gen_set_gpr(a->rd, t1, EXT_NONE);
 
+    if (acq) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    }
+
     return true;
 }
 
-static bool gen_sc(DisasContext *ctx, arg_rr_i *a, MemOp mop)
+static bool gen_sc(DisasContext *ctx, arg_rr_i *a, MemOp mop, bool rel)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
@@ -29,6 +33,10 @@ static bool gen_sc(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     TCGLabel *done = gen_new_label();
 
     tcg_gen_addi_tl(t0, src1, a->imm);
+
+    if (rel) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    }
     tcg_gen_brcond_tl(TCG_COND_EQ, t0, cpu_lladdr, l1);
     tcg_gen_movi_tl(dest, 0);
     tcg_gen_br(done);
@@ -86,10 +94,14 @@ static bool gen_am(DisasContext *ctx, arg_rrr *a,
     return true;
 }
 
-TRANS(ll_w, ALL, gen_ll, MO_LESL)
-TRANS(sc_w, ALL, gen_sc, MO_LESL)
-TRANS(ll_d, 64, gen_ll, MO_LEUQ)
-TRANS(sc_d, 64, gen_sc, MO_LEUQ)
+TRANS(ll_w, ALL, gen_ll, MO_LESL, false)
+TRANS(sc_w, ALL, gen_sc, MO_LESL, false)
+TRANS(ll_d, 64, gen_ll, MO_LEUQ, false)
+TRANS(sc_d, 64, gen_sc, MO_LEUQ, false)
+TRANS(llacq_w, LLACQ_SCREL, gen_ll, MO_LESL, true)
+TRANS(screl_w, LLACQ_SCREL, gen_sc, MO_LESL, true)
+TRANS(llacq_d, LLACQ_SCREL_64, gen_ll, MO_LEUQ, true)
+TRANS(screl_d, LLACQ_SCREL_64, gen_sc, MO_LEUQ, true)
 TRANS(amcas_b, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_SB)
 TRANS(amcas_h, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LESW)
 TRANS(amcas_w, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LESL)

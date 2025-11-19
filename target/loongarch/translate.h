@@ -39,6 +39,9 @@
 #define avail_FRECIPE_LSX(C)   (avail_FRECIPE(C) && avail_LSX(C))
 #define avail_FRECIPE_LASX(C)   (avail_FRECIPE(C) && avail_LASX(C))
 
+#define avail_LLACQ_SCREL(C)    (FIELD_EX32((C)->cpucfg2, CPUCFG2, LLACQ_SCREL))
+#define avail_LLACQ_SCREL_64(C) (avail_64(C) && avail_LLACQ_SCREL(C))
+
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
  * it may require the inputs to be sign- or zero-extended; which will
