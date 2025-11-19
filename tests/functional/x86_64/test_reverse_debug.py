@@ -18,7 +18,7 @@ from qemu_test import skipFlakyTest
 from reverse_debugging import ReverseDebugging
 
 
-class ReverseDebugging_X86_64(ReverseDebugging):
+class ReverseDebuggingX86(ReverseDebugging):
 
     @skipFlakyTest("https://gitlab.com/qemu-project/qemu/-/issues/2922")
     def test_x86_64_pc(self):
