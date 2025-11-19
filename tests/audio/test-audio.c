@@ -493,11 +493,9 @@ static void test_audio_null_handling(void)
     /* audio_be_get_buffer_size_out(NULL) should return 0 */
     g_assert_cmpint(audio_be_get_buffer_size_out(be, NULL), ==, 0);
 
-    /* audio_be_write/read(NULL, ...) should return size (no-op) */
-    g_assert_cmpuint(audio_be_write(be, NULL, buffer, sizeof(buffer)), ==,
-                     sizeof(buffer));
-    g_assert_cmpuint(audio_be_read(be, NULL, buffer, sizeof(buffer)), ==,
-                     sizeof(buffer));
+    /* audio_be_write/read(NULL, ...) should return 0 */
+    g_assert_cmpuint(audio_be_write(be, NULL, buffer, sizeof(buffer)), ==, 0);
+    g_assert_cmpuint(audio_be_read(be, NULL, buffer, sizeof(buffer)), ==, 0);
 
     /* These should not crash */
     audio_be_set_active_out(be, NULL, true);
