@@ -28,7 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 #include "qapi/qapi-events-misc.h"
-
+#include <stdio.h>
 
 
 REG32(LED0, 0x0)
@@ -131,6 +131,8 @@ static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
 
     switch (offset) {
     case A_LED0:
+    	printf("Model: GPIO read operation\n");
+        fflush(stdout);
         r = s->led0;
         break;
     case A_DBGCTRL:
@@ -197,6 +199,8 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case A_LED0:
         if (s->num_leds != 0) {
+       	    printf("Model: GPIO write operation\n");
+    	    fflush(stdout);
             uint32_t i;
 
             s->led0 = value & MAKE_64BIT_MASK(0, s->num_leds);
@@ -285,6 +289,9 @@ static void mps2_fpgaio_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &mps2_fpgaio_ops, s,
                           "mps2-fpgaio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+    
+    printf("Model: GPIO device instantiated\n");
+    fflush(stdout);
 }
 
 static void mps2_fpgaio_realize(DeviceState *dev, Error **errp)

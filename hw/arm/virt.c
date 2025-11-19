@@ -87,6 +87,7 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "hw/char/euart.h"
 
 static GlobalProperty arm_virt_compat[] = {
     { TYPE_VIRTIO_IOMMU_PCI, "aw-bits", "48" },
@@ -2396,6 +2397,59 @@ static void machvirt_init(MachineState *machine)
     }
 
     vms->highmem_ecam &= (!firmware_loaded || aarch64);
+    
+    #if 1
+    {
+    DeviceState *euart_dev;
+    SysBusDevice *sbd;
+    hwaddr base = 0x0A100000;   // your EUART MMIO base
+    int irq = 10;               // GIC IRQ number
+
+    /* ----- DEBUG: Inspect available serial backends ----- */
+    printf("\n[EUART DEBUG] serial_hd(0)=%p serial_hd(1)=%p serial_hd(2)=%p serial_hd(3)=%p\n",
+           serial_hd(0), serial_hd(1), serial_hd(2), serial_hd(3));
+
+    /* ----- Choose chardev to bind ----- */
+    /* Preferred: serial2 (what you intended originally) */
+    void *chosen = serial_hd(2);
+
+    /* If serial2 does not exist, fallback to first available serial */
+    if (!chosen) {
+        for (int i = 0; i < 4; i++) {
+            if (serial_hd(i)) {
+                chosen = serial_hd(i);
+                printf("[EUART DEBUG] Falling back to serial_hd(%d)\n", i);
+                break;
+            }
+        }
+    }
+
+    if (!chosen) {
+        printf("[EUART ERROR] No available serial backend! EUART will be unconnected.\n");
+    } else {
+        printf("[EUART DEBUG] Binding EUART to chardev=%p\n", chosen);
+    }
+
+    /* ----- Create EUART device ----- */
+    euart_dev = qdev_new("euart");
+
+    /* Attach the chosen serial backend (can be null only if QEMU has no serials) */
+    qdev_prop_set_chr(euart_dev, "chardev", chosen);
+
+    /* Realize the device */
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(euart_dev), &error_fatal);
+    sbd = SYS_BUS_DEVICE(euart_dev);
+
+    /* Map the MMIO region */
+    sysbus_mmio_map(sbd, 0, base);
+
+    /* Connect the IRQ */
+    sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(vms->gic, irq));
+
+    printf("[EUART DEBUG] EUART initialized @ 0x%lx, IRQ=%d\n", (long)base, irq);
+   }
+
+    #endif
 
     create_rtc(vms);
 

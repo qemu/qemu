@@ -472,17 +472,6 @@ static void mps2_common_init(MachineState *machine)
 	    }
 	}
 
-    {
-        DeviceState *gpio_dev;
-        SysBusDevice *s;
-
-        gpio_dev = qdev_new("mps2-fpgaio");
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpio_dev), &error_fatal);
-        s = SYS_BUS_DEVICE(gpio_dev);
-        sysbus_mmio_map(s, 0, 0x40028000);
-        qemu_log_mask(LOG_GUEST_ERROR, "Mapped mps2-fpgaio at 0x40028000\n");
-    }
-
     create_unimplemented_device("i2s", 0x40024000, 0x400);
 
     /* In hardware this is a LAN9220; the LAN9118 is software compatible

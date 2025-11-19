@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
+#include <stdio.h>
 #include "hw/registerfields.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -44,6 +45,8 @@ static uint64_t arm_sbcon_i2c_read(void *opaque, hwaddr offset,
 
     switch (offset) {
     case A_CONTROL_SET:
+    	printf("Model: I2c read operation\n");
+    	fflush(stdout);
         return (s->out & 1) | (s->in << 1);
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -59,6 +62,8 @@ static void arm_sbcon_i2c_write(void *opaque, hwaddr offset,
 
     switch (offset) {
     case A_CONTROL_SET:
+	printf("Model: I2c write operation\n");
+	fflush(stdout);
         s->out |= value & 3;
         break;
     case A_CONTROL_CLR:
@@ -90,6 +95,8 @@ static void arm_sbcon_i2c_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &arm_sbcon_i2c_ops, s,
                           "arm_sbcon_i2c", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+    printf("Model: I2c device instantiated\n");
+    fflush(stdout);
 }
 
 static const TypeInfo arm_sbcon_i2c_info = {

@@ -9,6 +9,7 @@
 #include "hw/registerfields.h"
 #include "trace.h"
 #include "qemu/guest-random.h"  // Added
+#include <stdio.h>
 
 FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
 FIELD(CONFIG, THERMOSTAT_MODE,      1, 1)
@@ -97,6 +98,8 @@ static void tmp105_read(TMP105State *s)
 
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE: {
+	    printf("Model: TM105 read operation\n");
+	    fflush(stdout);
         // Generate random temperature between 0–100°C
         uint8_t rand_byte;
         qemu_guest_getrandom(&rand_byte, 1, NULL);
@@ -285,6 +288,9 @@ static void tmp105_class_init(ObjectClass *klass, const void *data)
     k->recv = tmp105_rx;
     k->send = tmp105_tx;
     dc->vmsd = &vmstate_tmp105;
+    
+    printf("Model: TM105 device instantiated\n");
+    fflush(stdout);
 }
 
 static const TypeInfo tmp105_info = {

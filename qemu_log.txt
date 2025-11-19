@@ -1,0 +1,2 @@
+Model: TM105 device instantiated
+qemu-system-aarch64: -chardev socket,id=uart3,host=127.0.0.1,port=7000,server=on,wait=off: Failed to find an available port: Address already in use
