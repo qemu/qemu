@@ -282,10 +282,10 @@ void nbd_set_socket_send_buffer(QIOChannelSocket *sioc)
 #ifdef UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE
     if (sioc->localAddr.ss_family == AF_UNIX) {
         size_t size = UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE;
-        Error *errp = NULL;
+        Error *err = NULL;
 
-        if (qio_channel_socket_set_send_buffer(sioc, size, &errp) < 0) {
-            warn_report_err(errp);
+        if (qio_channel_socket_set_send_buffer(sioc, size, &err) < 0) {
+            warn_report_err(err);
         }
     }
 #endif /* UNIX_STREAM_SOCKET_SEND_BUFFER_SIZE */

@@ -938,14 +938,14 @@ static void GRAPH_RDLOCK
 block_crypto_amend_cleanup(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
-    Error *errp = NULL;
+    Error *err = NULL;
 
     /* release exclusive read/write permissions to the underlying file */
     crypto->updating_keys = false;
-    bdrv_child_refresh_perms(bs, bs->file, &errp);
+    bdrv_child_refresh_perms(bs, bs->file, &err);
 
-    if (errp) {
-        error_report_err(errp);
+    if (err) {
+        error_report_err(err);
     }
 }
 

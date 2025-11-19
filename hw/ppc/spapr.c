@@ -2848,7 +2848,7 @@ static void spapr_machine_init(MachineState *machine)
     int i;
     MemoryRegion *sysmem = get_system_memory();
     long load_limit, fw_size;
-    Error *errp = NULL;
+    Error *err = NULL;
     NICInfo *nd;
 
     if (!filename) {
@@ -2872,7 +2872,7 @@ static void spapr_machine_init(MachineState *machine)
     /* Determine capabilities to run with */
     spapr_caps_init(spapr);
 
-    kvmppc_check_papr_resize_hpt(&errp);
+    kvmppc_check_papr_resize_hpt(&err);
     if (spapr->resize_hpt == SPAPR_RESIZE_HPT_DEFAULT) {
         /*
          * If the user explicitly requested a mode we should either
@@ -2880,10 +2880,10 @@ static void spapr_machine_init(MachineState *machine)
          * it's not set explicitly, we reset our mode to something
          * that works
          */
-        if (errp) {
+        if (err) {
             spapr->resize_hpt = SPAPR_RESIZE_HPT_DISABLED;
-            error_free(errp);
-            errp = NULL;
+            error_free(err);
+            err = NULL;
         } else {
             spapr->resize_hpt = smc->resize_hpt_default;
         }
@@ -2891,14 +2891,14 @@ static void spapr_machine_init(MachineState *machine)
 
     assert(spapr->resize_hpt != SPAPR_RESIZE_HPT_DEFAULT);
 
-    if ((spapr->resize_hpt != SPAPR_RESIZE_HPT_DISABLED) && errp) {
+    if ((spapr->resize_hpt != SPAPR_RESIZE_HPT_DISABLED) && err) {
         /*
          * User requested HPT resize, but this host can't supply it.  Bail out
          */
-        error_report_err(errp);
+        error_report_err(err);
         exit(1);
     }
-    error_free(errp);
+    error_free(err);
 
     spapr->rma_size = spapr_rma_size(spapr, &error_fatal);
 
