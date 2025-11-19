@@ -45,6 +45,23 @@ static bool gen_sc(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     return true;
 }
 
+static bool gen_cas(DisasContext *ctx, arg_rrr *a,
+                    void (*func)(TCGv, TCGv, TCGv, TCGv, TCGArg, MemOp),
+                    MemOp mop)
+{
+    TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
+    TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv val = gpr_src(ctx, a->rk, EXT_NONE);
+    TCGv old = gpr_src(ctx, a->rd, EXT_NONE);
+
+    addr = make_address_i(ctx, addr, 0);
+
+    func(dest, addr, old, val, ctx->mem_idx, mop | MO_ALIGN);
+    gen_set_gpr(a->rd, dest, EXT_NONE);
+
+    return true;
+}
+
 static bool gen_am(DisasContext *ctx, arg_rrr *a,
                    void (*func)(TCGv, TCGv, TCGv, TCGArg, MemOp),
                    MemOp mop)
@@ -73,6 +90,14 @@ TRANS(ll_w, ALL, gen_ll, MO_LESL)
 TRANS(sc_w, ALL, gen_sc, MO_LESL)
 TRANS(ll_d, 64, gen_ll, MO_LEUQ)
 TRANS(sc_d, 64, gen_sc, MO_LEUQ)
+TRANS(amcas_b, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_SB)
+TRANS(amcas_h, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LESW)
+TRANS(amcas_w, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LESL)
+TRANS(amcas_d, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LEUQ)
+TRANS(amcas_db_b, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_SB)
+TRANS(amcas_db_h, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LESW)
+TRANS(amcas_db_w, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LESL)
+TRANS(amcas_db_d, LAMCAS, gen_cas, tcg_gen_atomic_cmpxchg_tl, MO_LEUQ)
 TRANS(amswap_b, LAM_BH, gen_am, tcg_gen_atomic_xchg_tl, MO_SB)
 TRANS(amswap_h, LAM_BH, gen_am, tcg_gen_atomic_xchg_tl, MO_LESW)
 TRANS(amadd_b, LAM_BH, gen_am, tcg_gen_atomic_fetch_add_tl, MO_SB)
