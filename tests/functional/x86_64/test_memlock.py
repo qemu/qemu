@@ -69,11 +69,13 @@ class MemlockTest(QemuSystemTest):
         return result
 
     def _get_raw_process_status(self, pid: int) -> str:
+        status = None
         try:
-            with open(f'/proc/{pid}/status', 'r') as f:
-                return f.read()
+            with open(f'/proc/{pid}/status', 'r', encoding="ascii") as f:
+                status = f.read()
         except FileNotFoundError:
             self.skipTest("Can't open status file of the process")
+        return status
 
 
 if __name__ == '__main__':
