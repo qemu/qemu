@@ -15,8 +15,6 @@ from qemu_test import wait_for_console_pattern
 
 class AmigaOneMachine(QemuSystemTest):
 
-    timeout = 90
-
     ASSET_IMAGE = Asset(
         ('https://www.hyperion-entertainment.com/index.php/'
          'downloads?view=download&format=raw&file=25'),
@@ -25,19 +23,19 @@ class AmigaOneMachine(QemuSystemTest):
     def test_ppc_amigaone(self):
         self.require_accelerator("tcg")
         self.set_machine('amigaone')
-        tar_name = 'A1Firmware_Floppy_05-Mar-2005.zip'
         self.archive_extract(self.ASSET_IMAGE, format="zip")
         bios = self.scratch_file("u-boot-amigaone.bin")
         with open(bios, "wb") as bios_fh:
             subprocess.run(['tail', '-c', '524288',
                             self.scratch_file("floppy_edition",
                                               "updater.image")],
-                           stdout=bios_fh)
+                           stdout=bios_fh, check=True)
 
         self.vm.set_console()
         self.vm.add_args('-bios', bios)
         self.vm.launch()
         wait_for_console_pattern(self, 'FLASH:')
+
 
 if __name__ == '__main__':
     QemuSystemTest.main()
