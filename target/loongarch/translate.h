@@ -33,6 +33,12 @@
 #define avail_IOCSR(C)  (FIELD_EX32((C)->cpucfg1, CPUCFG1, IOCSR))
 #define avail_CRC(C)    (FIELD_EX32((C)->cpucfg1, CPUCFG1, CRC))
 
+#define avail_FRECIPE(C) (FIELD_EX32((C)->cpucfg2, CPUCFG2, FRECIPE))
+#define avail_FRECIPE_FP_SP(C) (avail_FRECIPE(C) && avail_FP_SP(C))
+#define avail_FRECIPE_FP_DP(C) (avail_FRECIPE(C) && avail_FP_DP(C))
+#define avail_FRECIPE_LSX(C)   (avail_FRECIPE(C) && avail_LSX(C))
+#define avail_FRECIPE_LASX(C)   (avail_FRECIPE(C) && avail_LASX(C))
+
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
  * it may require the inputs to be sign- or zero-extended; which will
