@@ -188,8 +188,10 @@ ssize_t load_elf(const char *filename,
  *
  * Inspect an ELF file's header. Read its full header contents into a
  * buffer and/or determine if the ELF is 64bit.
+ *
+ * Returns true on success, false on failure.
  */
-void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
+bool load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
 
 ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
                   bool big_endian, hwaddr target_page_size);

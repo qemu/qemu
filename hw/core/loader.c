@@ -364,8 +364,9 @@ const char *load_elf_strerror(ssize_t error)
     }
 }
 
-void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
+bool load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
 {
+    bool ok = false;
     int fd;
     uint8_t e_ident_local[EI_NIDENT];
     uint8_t *e_ident;
@@ -380,7 +381,7 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         error_setg_errno(errp, errno, "Failed to open file: %s", filename);
-        return;
+        return false;
     }
     if (read(fd, hdr, EI_NIDENT) != EI_NIDENT) {
         error_setg_errno(errp, errno, "Failed to read file: %s", filename);
@@ -415,8 +416,11 @@ void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
         off += br;
     }
 
+    ok = true;
+
 fail:
     close(fd);
+    return ok;
 }
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */

@@ -766,16 +766,12 @@ static ssize_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
     int data_swab = 0;
     int elf_data_order;
     ssize_t ret;
-    Error *err = NULL;
 
-
-    load_elf_hdr(info->kernel_filename, &elf_header, &elf_is64, &err);
-    if (err) {
+    if (!load_elf_hdr(info->kernel_filename, &elf_header, &elf_is64, NULL)) {
         /*
          * If the file is not an ELF file we silently return.
          * The caller will fall back to try other formats.
          */
-        error_free(err);
         return -1;
     }
 
