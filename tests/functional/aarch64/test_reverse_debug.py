@@ -14,11 +14,11 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-from qemu_test import Asset, skipFlakyTest
+from qemu_test import Asset
 from reverse_debugging import ReverseDebugging
 
 
-class ReverseDebugging_AArch64(ReverseDebugging):
+class ReverseDebuggingAArch64(ReverseDebugging):
 
     ASSET_KERNEL = Asset(
         ('https://archives.fedoraproject.org/pub/archive/fedora/linux/'
