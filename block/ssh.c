@@ -1010,19 +1010,18 @@ static int ssh_has_zero_init(BlockDriverState *bs)
 }
 
 typedef struct BDRVSSHRestart {
-    BlockDriverState *bs;
+    BDRVSSHState *s;
     Coroutine *co;
 } BDRVSSHRestart;
 
 static void restart_coroutine(void *opaque)
 {
     BDRVSSHRestart *restart = opaque;
-    BlockDriverState *bs = restart->bs;
-    BDRVSSHState *s = bs->opaque;
-    AioContext *ctx = bdrv_get_aio_context(bs);
+    BDRVSSHState *s = restart->s;
 
     trace_ssh_restart_coroutine(restart->co);
-    aio_set_fd_handler(ctx, s->sock, NULL, NULL, NULL, NULL, NULL);
+    aio_set_fd_handler(qemu_get_current_aio_context(), s->sock,
+                       NULL, NULL, NULL, NULL, NULL);
 
     aio_co_wake(restart->co);
 }
@@ -1031,12 +1030,13 @@ static void restart_coroutine(void *opaque)
  * handlers are set up so that we'll be rescheduled when there is an
  * interesting event on the socket.
  */
-static coroutine_fn void co_yield(BDRVSSHState *s, BlockDriverState *bs)
+static coroutine_fn void co_yield(BDRVSSHState *s)
 {
     int r;
     IOHandler *rd_handler = NULL, *wr_handler = NULL;
+    AioContext *ctx = qemu_get_current_aio_context();
     BDRVSSHRestart restart = {
-        .bs = bs,
+        .s = s,
         .co = qemu_coroutine_self()
     };
 
@@ -1051,7 +1051,7 @@ static coroutine_fn void co_yield(BDRVSSHState *s, BlockDriverState *bs)
 
     trace_ssh_co_yield(s->sock, rd_handler, wr_handler);
 
-    aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock,
+    aio_set_fd_handler(ctx, s->sock,
                        rd_handler, wr_handler, NULL, NULL, &restart);
     qemu_coroutine_yield();
     trace_ssh_co_yield_back(s->sock);
@@ -1093,7 +1093,7 @@ static coroutine_fn int ssh_read(BDRVSSHState *s, BlockDriverState *bs,
         trace_ssh_read_return(r, sftp_get_error(s->sftp));
 
         if (r == SSH_AGAIN) {
-            co_yield(s, bs);
+            co_yield(s);
             goto again;
         }
         if (r == SSH_EOF || (r == 0 && sftp_get_error(s->sftp) == SSH_FX_EOF)) {
@@ -1168,7 +1168,7 @@ static coroutine_fn int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
         trace_ssh_write_return(r, sftp_get_error(s->sftp));
 
         if (r == SSH_AGAIN) {
-            co_yield(s, bs);
+            co_yield(s);
             goto again;
         }
         if (r < 0) {
@@ -1233,7 +1233,7 @@ static coroutine_fn int ssh_flush(BDRVSSHState *s, BlockDriverState *bs)
  again:
     r = sftp_fsync(s->sftp_handle);
     if (r == SSH_AGAIN) {
-        co_yield(s, bs);
+        co_yield(s);
         goto again;
     }
     if (r < 0) {
