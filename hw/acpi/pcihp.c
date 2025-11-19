@@ -62,9 +62,7 @@ static int acpi_pcihp_get_bsel(PCIBus *bus)
                                              &local_err);
 
     if (local_err || bsel >= ACPI_PCIHP_MAX_HOTPLUG_BUS) {
-        if (local_err) {
-            error_free(local_err);
-        }
+        error_free(local_err);
         return -1;
     } else {
         return bsel;
