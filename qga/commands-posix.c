@@ -43,6 +43,9 @@
 #include <net/ethernet.h>
 #endif
 #ifdef CONFIG_SOLARIS
+#ifdef CONFIG_GETLOADAVG
+#include <sys/loadavg.h>
+#endif
 #include <sys/sockio.h>
 #endif
 #endif

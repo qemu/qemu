@@ -789,8 +789,7 @@ static size_t sd_response_size(SDState *sd, sd_rsp_type_t rtype)
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
     if (sd_is_spi(sd)) {
-        response[0] = sd->state == sd_idle_state
-                   && !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
+        response[0] = sd->state == sd_idle_state;
         response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_RESET) << 1;
         response[0] |= FIELD_EX32(sd->card_status, CSR, ILLEGAL_COMMAND) << 2;
         response[0] |= FIELD_EX32(sd->card_status, CSR, COM_CRC_ERROR) << 3;
@@ -1161,8 +1160,13 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
 
         assert(RPMB_HASH_LEN <= sizeof(sd->data));
 
-        memcpy((uint8_t *)buf + RPMB_DATA_LEN, &frame->data[RPMB_DATA_LEN],
+        /*
+         * We will hash everything from data field to the end of RPMBDataFrame.
+         */
+        memcpy((uint8_t *)buf + RPMB_DATA_LEN,
+               (uint8_t *)frame + offsetof(RPMBDataFrame, nonce),
                RPMB_HASH_LEN - RPMB_DATA_LEN);
+
         offset = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
         do {
             if (blk_pread(sd->blk, offset, RPMB_DATA_LEN, buf, 0) < 0) {
@@ -2290,20 +2294,21 @@ static sd_rsp_type_t sd_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
         }
     }
 
-    if (FIELD_EX32(sd->ocr & req.arg, OCR, VDD_VOLTAGE_WINDOW)) {
-        /*
-         * We accept any voltage.  10000 V is nothing.
-         *
-         * Once we're powered up, we advance straight to ready state
-         * unless it's an enquiry ACMD41 (bits 23:0 == 0).
-         */
-        sd->state = sd_ready_state;
-    }
-
     if (sd_is_spi(sd)) {
+        sd->state = sd_ready_state;
         return sd_r1;
+    } else {
+        if (FIELD_EX32(sd->ocr & req.arg, OCR, VDD_VOLTAGE_WINDOW)) {
+            /*
+             * We accept any voltage.  10000 V is nothing.
+             *
+             * Once we're powered up, we advance straight to ready state
+             * unless it's an enquiry ACMD41 (bits 23:0 == 0).
+             */
+            sd->state = sd_ready_state;
+        }
+        return sd_r3;
     }
-    return sd_r3;
 }
 
 /* ACMD42 */

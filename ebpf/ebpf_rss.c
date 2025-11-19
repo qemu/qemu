@@ -106,9 +106,7 @@ bool ebpf_rss_load(struct EBPFRSSContext *ctx, Error **errp)
 {
     struct rss_bpf *rss_bpf_ctx;
 
-    if (ebpf_rss_is_loaded(ctx)) {
-        return false;
-    }
+    g_assert(!ebpf_rss_is_loaded(ctx));
 
     rss_bpf_ctx = rss_bpf__open();
     if (rss_bpf_ctx == NULL) {
@@ -247,10 +245,8 @@ bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
                       uint16_t *indirections_table, uint8_t *toeplitz_key,
                       Error **errp)
 {
-    if (!ebpf_rss_is_loaded(ctx)) {
-        error_setg(errp, "eBPF program is not loaded");
-        return false;
-    }
+    g_assert(ebpf_rss_is_loaded(ctx));
+
     if (config == NULL) {
         error_setg(errp, "eBPF config table is NULL");
         return false;
