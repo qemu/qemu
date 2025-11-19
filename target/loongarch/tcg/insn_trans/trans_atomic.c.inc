@@ -9,7 +9,7 @@ static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
     TCGv t0 = make_address_i(ctx, src1, a->imm);
 
-    tcg_gen_qemu_ld_i64(t1, t0, ctx->mem_idx, mop);
+    tcg_gen_qemu_ld_i64(t1, t0, ctx->mem_idx, mop | MO_ALIGN);
     tcg_gen_st_tl(t0, tcg_env, offsetof(CPULoongArchState, lladdr));
     tcg_gen_st_tl(t1, tcg_env, offsetof(CPULoongArchState, llval));
     gen_set_gpr(a->rd, t1, EXT_NONE);
@@ -37,7 +37,7 @@ static bool gen_sc(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     tcg_gen_mov_tl(val, src2);
     /* generate cmpxchg */
     tcg_gen_atomic_cmpxchg_tl(t0, cpu_lladdr, cpu_llval,
-                              val, ctx->mem_idx, mop);
+                              val, ctx->mem_idx, mop | MO_ALIGN);
     tcg_gen_setcond_tl(TCG_COND_EQ, dest, t0, cpu_llval);
     gen_set_label(done);
     gen_set_gpr(a->rd, dest, EXT_NONE);
@@ -63,7 +63,7 @@ static bool gen_am(DisasContext *ctx, arg_rrr *a,
 
     addr = make_address_i(ctx, addr, 0);
 
-    func(dest, addr, val, ctx->mem_idx, mop);
+    func(dest, addr, val, ctx->mem_idx, mop | MO_ALIGN);
     gen_set_gpr(a->rd, dest, EXT_NONE);
 
     return true;
