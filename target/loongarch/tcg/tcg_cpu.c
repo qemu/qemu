@@ -140,7 +140,9 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     }
 
     if (update_badinstr) {
-        env->CSR_BADI = cpu_ldl_code(env, env->pc);
+        MemOpIdx oi = make_memop_idx(MO_LEUL, cpu_mmu_index(cs, true));
+
+        env->CSR_BADI = cpu_ldl_code_mmu(env, env->pc, oi, 0);
     }
 
     /* Save PLV and IE */
