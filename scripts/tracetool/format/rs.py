@@ -24,25 +24,43 @@ def generate(events, backend, group):
         '#[allow(unused_imports)]',
         'use util::bindings;',
         '',
+        '#[allow(dead_code)]',
         '#[inline(always)]',
         'fn trace_event_state_is_enabled(dstate: u16) -> bool {',
         '    (unsafe { trace_events_enabled_count }) != 0 && dstate != 0',
         '}',
         '',
         'extern "C" {',
+        '    #[allow(dead_code)]',
         '    static mut trace_events_enabled_count: u32;',
         '}',)
 
     out('extern "C" {')
 
     for e in events:
-        out('    static mut %s: u16;' % e.api(e.QEMU_DSTATE))
-    out('}')
+        out('    #[allow(dead_code)]',
+            '    static mut %s: u16;' % e.api(e.QEMU_DSTATE))
+    out('}',
+        '')
 
     backend.generate_begin(events, group)
 
     for e in events:
-        out('',
+        out('#[inline(always)]',
+            '#[allow(dead_code)]',
+            'pub fn %(api)s() -> bool',
+            '{',
+            api=e.api(e.QEMU_RUST_DSTATE))
+
+        if "disable" not in e.properties:
+            backend.generate_backend_dstate(e, group)
+            if backend.check_trace_event_get_state:
+                out('    trace_event_state_is_enabled(unsafe { _%(event_id)s_DSTATE}) ||',
+                    event_id = 'TRACE_' + e.name.upper())
+
+        out('    false',
+            '}',
+            '',
             '#[inline(always)]',
             '#[allow(dead_code)]',
             'pub fn %(api)s(%(args)s)',
@@ -59,6 +77,7 @@ def generate(events, backend, group):
                     api=e.api())
                 backend.generate(e, group, check_trace_event_get_state=True)
                 out('    }')
-        out('}')
+        out('}',
+            '')
 
     backend.generate_end(events, group)

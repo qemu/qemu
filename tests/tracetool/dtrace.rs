@@ -23,11 +23,20 @@ extern "C" {
     static mut _TRACE_TEST_WIBBLE_DSTATE: u16;
 }
 
+use std::cell::UnsafeCell;
+
+extern "C" {
+    #[allow(dead_code)]
+    static qemu_test_blah_semaphore: UnsafeCell<u16>;
+    #[allow(dead_code)]
+    static qemu_test_wibble_semaphore: UnsafeCell<u16>;
+}
+
 #[inline(always)]
 #[allow(dead_code)]
 pub fn trace_test_blah_enabled() -> bool
 {
-    trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) ||
+    (unsafe {qemu_test_blah_semaphore.get().read_volatile()}) != 0 ||
     false
 }
 
@@ -35,17 +44,14 @@ pub fn trace_test_blah_enabled() -> bool
 #[allow(dead_code)]
 pub fn trace_test_blah(_context: *mut (), _filename: &std::ffi::CStr)
 {
-    if trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) {
-        let format_string = c"Blah context=%p filename=%s";
-        unsafe {bindings::ftrace_write(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _filename.as_ptr());}
-    }
+    ::trace::probe!(qemu, test_blah, _context, _filename.as_ptr());
 }
 
 #[inline(always)]
 #[allow(dead_code)]
 pub fn trace_test_wibble_enabled() -> bool
 {
-    trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) ||
+    (unsafe {qemu_test_wibble_semaphore.get().read_volatile()}) != 0 ||
     false
 }
 
@@ -53,9 +59,6 @@ pub fn trace_test_wibble_enabled() -> bool
 #[allow(dead_code)]
 pub fn trace_test_wibble(_context: *mut (), _value: std::ffi::c_int)
 {
-    if trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) {
-        let format_string = c"Wibble context=%p value=%d";
-        unsafe {bindings::ftrace_write(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _value /* as std::ffi::c_int */);}
-    }
+    ::trace::probe!(qemu, test_wibble, _context, _value);
 }
 

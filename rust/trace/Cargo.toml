@@ -14,6 +14,7 @@ rust-version.workspace = true
 
 [dependencies]
 libc = { workspace = true }
+probe = "0.5"
 
 [lints]
 workspace = true

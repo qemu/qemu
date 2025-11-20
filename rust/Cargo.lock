@@ -231,6 +231,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "probe"
+version = "0.5.2"
+
+[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -388,6 +392,7 @@ dependencies = [
  "migration",
  "qom",
  "system",
+ "trace",
  "util",
 ]
 
@@ -430,6 +435,7 @@ name = "trace"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "probe",
 ]
 
 [[package]]
