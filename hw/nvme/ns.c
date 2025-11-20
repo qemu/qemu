@@ -32,11 +32,13 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     NvmeIdNs *id_ns = &ns->id_ns;
     NvmeIdNsNvm *id_ns_nvm = &ns->id_ns_nvm;
     BlockDriverInfo bdi;
-    int npdg, ret;
+    int npdg, ret, index;
     int64_t nlbas;
 
+    index = NVME_ID_NS_FLBAS_INDEX(id_ns->flbas);
     ns->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
     ns->lbasz = 1 << ns->lbaf.ds;
+    ns->pif = NVME_ID_NS_NVM_ELBAF_PIF(ns->id_ns_nvm.elbaf[index]);
 
     nlbas = ns->size / (ns->lbasz + ns->lbaf.ms);
 
@@ -112,8 +114,6 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
         id_ns->dps |= NVME_ID_NS_DPS_FIRST_EIGHT;
     }
 
-    ns->pif = ns->params.pif;
-
     static const NvmeLBAF defaults[16] = {
         [0] = { .ds =  9           },
         [1] = { .ds =  9, .ms =  8 },
@@ -130,6 +130,12 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     memcpy(&id_ns->lbaf, &defaults, sizeof(defaults));
 
     for (i = 0; i < ns->nlbaf; i++) {
+        if (id_ns->lbaf[i].ms >= 16) {
+            id_ns_nvm->elbaf[i] = (ns->params.pif & 0x3) << 7;
+        }
+    }
+
+    for (i = 0; i < ns->nlbaf; i++) {
         NvmeLBAF *lbaf = &id_ns->lbaf[i];
         if (lbaf->ds == ds) {
             if (lbaf->ms == ms) {
@@ -142,13 +148,14 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     /* add non-standard lba format */
     id_ns->lbaf[ns->nlbaf].ds = ds;
     id_ns->lbaf[ns->nlbaf].ms = ms;
+    if (ms >= 16) {
+        id_ns_nvm->elbaf[ns->nlbaf] = (ns->params.pif & 0x3) << 7;
+    }
     ns->nlbaf++;
 
     id_ns->flbas |= i;
 
-
 lbaf_found:
-    id_ns_nvm->elbaf[i] = (ns->pif & 0x3) << 7;
     id_ns->nlbaf = ns->nlbaf - 1;
     nvme_ns_init_format(ns);
 
