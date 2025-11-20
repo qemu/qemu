@@ -149,9 +149,11 @@ void sparc_cpu_do_interrupt(CPUState *cs)
          * mimic delayed trap delivery as if by the subsequent insn.
          */
         if (!env->fsr_qne) {
+            MemOpIdx oi = make_memop_idx(MO_BEUL, cpu_mmu_index(cs, true));
+
             env->fsr_qne = FSR_QNE;
             env->fq.s.addr = env->pc;
-            env->fq.s.insn = cpu_ldl_code(env, env->pc);
+            env->fq.s.insn = cpu_ldl_code_mmu(env, env->pc, oi, 0);
         }
         env->pc = env->npc;
         env->npc = env->npc + 4;
