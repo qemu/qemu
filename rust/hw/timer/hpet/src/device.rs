@@ -250,7 +250,6 @@ impl HPETTimerRegisters {
 }
 
 /// HPET Timer Abstraction
-#[repr(C)]
 #[derive(Debug)]
 pub struct HPETTimer {
     /// timer N index within the timer block (`HPETState`)

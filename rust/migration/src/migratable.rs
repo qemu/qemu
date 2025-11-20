@@ -140,6 +140,26 @@ macro_rules! impl_for_primitive {
 
 impl_for_primitive!(u8, u16, u32, u64, i8, i16, i32, i64, bool);
 
+impl ToMigrationState for util::timer::Timer {
+    type Migrated = i64;
+
+    fn snapshot_migration_state(&self, target: &mut i64) -> Result<(), InvalidError> {
+        // SAFETY: as_ptr() is unsafe to ensure that the caller reasons about
+        // the pinning of the data inside the Opaque<>.  Here all we do is
+        // access a field.
+        *target = self.expire_time_ns().unwrap_or(-1);
+        Ok(())
+    }
+
+    fn restore_migrated_state_mut(
+        &mut self,
+        source: Self::Migrated,
+        version_id: u8,
+    ) -> Result<(), InvalidError> {
+        self.restore_migrated_state(source, version_id)
+    }
+}
+
 impl<T: ToMigrationState, const N: usize> ToMigrationState for [T; N]
 where
     [T::Migrated; N]: Default,
@@ -235,6 +255,17 @@ pub trait ToMigrationStateShared: ToMigrationState {
         source: Self::Migrated,
         version_id: u8,
     ) -> Result<(), InvalidError>;
+}
+
+impl ToMigrationStateShared for util::timer::Timer {
+    fn restore_migrated_state(&self, source: i64, _version_id: u8) -> Result<(), InvalidError> {
+        if source >= 0 {
+            self.modify_ns(source as u64);
+        } else {
+            self.delete();
+        }
+        Ok(())
+    }
 }
 
 impl<T: ToMigrationStateShared, const N: usize> ToMigrationStateShared for [T; N]
