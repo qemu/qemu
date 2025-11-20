@@ -364,8 +364,8 @@ F: target/rx/
 
 S390 TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
-M: David Hildenbrand <david@kernel.org>
-R: Ilya Leoshkevich <iii@linux.ibm.com>
+M: Ilya Leoshkevich <iii@linux.ibm.com>
+R: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: target/s390x/
 F: target/s390x/tcg
@@ -1862,7 +1862,8 @@ F: target/s390x/ioinst.c
 L: qemu-s390x@nongnu.org
 
 S390 CPU models
-M: David Hildenbrand <david@kernel.org>
+M: Hendrik Brueckner <brueckner@linux.ibm.com>
+R: David Hildenbrand <david@kernel.org>
 S: Maintained
 F: target/s390x/cpu_features*.[ch]
 F: target/s390x/cpu_models.[ch]
@@ -2919,7 +2920,7 @@ L: qemu-s390x@nongnu.org
 S390 floating interrupt controller
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
-M: David Hildenbrand <david@kernel.org>
+R: David Hildenbrand <david@kernel.org>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/intc/s390_flic*.c
