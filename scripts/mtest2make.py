@@ -8,24 +8,23 @@ from collections import defaultdict
 import itertools
 import json
 import os
-import shlex
 import sys
 
 class Suite(object):
     def __init__(self):
         self.deps = set()
-        self.speeds = ['quick']
+        self.speeds = set()
 
     def names(self, base):
-        return [base if speed == 'quick' else f'{base}-{speed}' for speed in self.speeds]
+        return [f'{base}-{speed}' for speed in self.speeds]
 
 
-print('''
+print(r'''
 SPEED = quick
 
-.speed.quick = $(foreach s,$(sort $(filter-out %-slow %-thorough, $1)), --suite $s)
-.speed.slow = $(foreach s,$(sort $(filter-out %-thorough, $1)), --suite $s)
-.speed.thorough = $(foreach s,$(sort $1), --suite $s)
+.speed.quick = $(sort $(filter-out %-slow %-thorough, $1))
+.speed.slow = $(sort $(filter-out %-thorough, $1))
+.speed.thorough = $(sort $1)
 
 TIMEOUT_MULTIPLIER ?= 1
 .mtestargs = --no-rebuild -t $(TIMEOUT_MULTIPLIER)
@@ -34,8 +33,10 @@ ifneq ($(SPEED), quick)
 endif
 .mtestargs += $(subst -j,--num-processes , $(filter-out -j, $(lastword -j1 $(filter -j%, $(MAKEFLAGS)))))
 
-.check.mtestargs = $(MTESTARGS) $(.mtestargs) $(if $(V),--verbose,--print-errorlogs)
-.bench.mtestargs = $(MTESTARGS) $(.mtestargs) --benchmark --verbose''')
+.check.mtestargs = $(MTESTARGS) $(.mtestargs) $(if $(V),--verbose,--print-errorlogs) \
+    $(foreach s, $(sort $(.check.mtest-suites)), --suite $s)
+.bench.mtestargs = $(MTESTARGS) $(.mtestargs) --benchmark --verbose \
+    $(foreach s, $(sort $(.bench.mtest-suites)), --suite $s)''')
 
 introspect = json.load(sys.stdin)
 
@@ -57,13 +58,13 @@ def process_tests(test, targets, suites):
             s = s.split(':')[1]
             if s == 'slow' or s == 'thorough':
                 continue
+        suites[s].deps.update(deps)
         if s.endswith('-slow'):
             s = s[:-5]
-            suites[s].speeds.append('slow')
+            suites[s].speeds.add('slow')
         if s.endswith('-thorough'):
             s = s[:-9]
-            suites[s].speeds.append('thorough')
-        suites[s].deps.update(deps)
+            suites[s].speeds.add('thorough')
 
 def emit_prolog(suites, prefix):
     all_targets = ' '.join((f'{prefix}-{k}' for k in suites.keys()))
@@ -72,29 +73,26 @@ def emit_prolog(suites, prefix):
     print(f'all-{prefix}-targets = {all_targets}')
     print(f'all-{prefix}-xml = {all_xml}')
     print(f'.PHONY: {prefix} do-meson-{prefix} {prefix}-report.junit.xml $(all-{prefix}-targets) $(all-{prefix}-xml)')
-    print(f'ifeq ($(filter {prefix}, $(MAKECMDGOALS)),)')
-    print(f'.{prefix}.mtestargs += $(call .speed.$(SPEED), $(.{prefix}.mtest-suites))')
-    print(f'endif')
+    print(f'ninja-cmd-goals += $(foreach s, $(.{prefix}.mtest-suites), $(.{prefix}-$s.deps))')
     print(f'{prefix}-build: run-ninja')
     print(f'{prefix} $(all-{prefix}-targets): do-meson-{prefix}')
     print(f'do-meson-{prefix}: run-ninja; $(if $(MAKE.n),,+)$(MESON) test $(.{prefix}.mtestargs)')
     print(f'{prefix}-report.junit.xml $(all-{prefix}-xml): {prefix}-report%.junit.xml: run-ninja')
     print(f'\t$(MAKE) {prefix}$* MTESTARGS="$(MTESTARGS) --logbase {prefix}-report$*" && ln -f meson-logs/$@ .')
 
-def emit_suite_deps(name, suite, prefix):
+def emit_suite(name, suite, prefix):
     deps = ' '.join(suite.deps)
-    targets = [f'{prefix}-{name}', f'{prefix}-report-{name}.junit.xml', f'{prefix}', f'{prefix}-report.junit.xml',
-               f'{prefix}-build']
     print()
     print(f'.{prefix}-{name}.deps = {deps}')
-    for t in targets:
-        print(f'.ninja-goals.{t} += $(.{prefix}-{name}.deps)')
+    print(f'.ninja-goals.check-build += $(.{prefix}-{name}.deps)')
 
-def emit_suite(name, suite, prefix):
-    emit_suite_deps(name, suite, prefix)
-    targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml {prefix} {prefix}-report.junit.xml'
+    names = ' '.join(suite.names(name))
+    targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml'
+    if not name.endswith('-slow') and not name.endswith('-thorough'):
+        targets += f' {prefix} {prefix}-report.junit.xml'
     print(f'ifneq ($(filter {targets}, $(MAKECMDGOALS)),)')
-    print(f'.{prefix}.mtest-suites += ' + ' '.join(suite.names(name)))
+    # for the "base" suite possibly add FOO-slow and FOO-thorough
+    print(f".{prefix}.mtest-suites += {name} $(call .speed.$(SPEED), {names})")
     print(f'endif')
 
 targets = {t['id']: [os.path.relpath(f) for f in t['filename']]

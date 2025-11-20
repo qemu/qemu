@@ -77,7 +77,11 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
         memcpy(&val, decode->stream->bytes + decode->len, size);
     } else {
         target_ulong va = linear_rip(env_cpu(env), env->eip) + decode->len;
-        emul_ops->fetch_instruction(env_cpu(env), &val, va, size);
+        if (emul_ops->fetch_instruction) {
+            emul_ops->fetch_instruction(env_cpu(env), &val, va, size);
+        } else {
+            emul_ops->read_mem(env_cpu(env), &val, va, size);
+        }
     }
     decode->len += size;
 

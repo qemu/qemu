@@ -1,0 +1,12 @@
+replay_put_byte(uint8_t event) "%02x"
+replay_put_event(uint8_t event) "%02x"
+replay_put_word(uint16_t event) "%04x"
+replay_put_dword(uint32_t event) "%08x"
+replay_put_qword(uint64_t event) "%016" PRIx64
+replay_get_byte(uint8_t byte) "%02x"
+replay_get_word(uint16_t word) "%04x"
+replay_get_dword(uint32_t dword) "%08x"
+replay_get_qword(uint64_t qword) "%016" PRIx64
+replay_fetch_data_kind(void) ""
+replay_get_event(uint32_t current, uint8_t data) "#%u data=%02x"
+replay_advance_current_icount(uint64_t current_icount, int diff) "current=%" PRIu64 " diff=%d"
