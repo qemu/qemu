@@ -23,6 +23,8 @@
 
 target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
 {
+    unsigned mmu_index = cpu_mmu_index(env_cpu(env), true);
+    MemOpIdx oi;
 
 #if !defined(CONFIG_USER_ONLY)
     RISCVException ret = smstateen_acc_ok(env, 0, SMSTATEEN0_JVT);
@@ -43,11 +45,13 @@ target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
     }
 
     if (xlen == 32) {
+        oi = make_memop_idx(MO_LEUL, mmu_index);
         t0 = base + (index << 2);
-        target = cpu_ldl_code(env, t0);
+        target = cpu_ldl_code_mmu(env, t0, oi, 0);
     } else {
+        oi = make_memop_idx(MO_LEUQ, mmu_index);
         t0 = base + (index << 3);
-        target = cpu_ldq_code(env, t0);
+        target = cpu_ldq_code_mmu(env, t0, oi, 0);
     }
 
     return target & ~0x1;
