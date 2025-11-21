@@ -150,13 +150,13 @@ store: ``cpu_st{size}{end}_mmuidx_ra(env, ptr, val, mmuidx, retaddr)``
  - ``q`` : 64 bits
 
 ``end``
- - (empty) : for target endian, or 8 bit sizes
+ - (empty) : for 8 bit sizes
  - ``_be`` : big endian
  - ``_le`` : little endian
 
 Regexes for git grep:
- - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_mmuidx_ra\>``
- - ``\<cpu_st[bwlq]\(_[bl]e\)\?_mmuidx_ra\>``
+ - ``\<cpu_ld[us]\?\(b\|[wlq]\(_[bl]e\)\)_mmuidx_ra\>``
+ - ``\<cpu_st\(b\|[wlq]\(_[bl]e\)\)_mmuidx_ra\>``
 
 ``cpu_{ld,st}*_data_ra``
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -188,13 +188,13 @@ store: ``cpu_st{size}{end}_data_ra(env, ptr, val, ra)``
  - ``q`` : 64 bits
 
 ``end``
- - (empty) : for target endian, or 8 bit sizes
+ - (empty) : for 8 bit sizes
  - ``_be`` : big endian
  - ``_le`` : little endian
 
 Regexes for git grep:
- - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_data_ra\>``
- - ``\<cpu_st[bwlq]\(_[bl]e\)\?_data_ra\>``
+ - ``\<cpu_ld[us]\?\(b\|[wlq]\(_[bl]e\)\)_data_ra\>``
+ - ``\<cpu_st\(b\|[wlq]\(_[bl]e\)\)_data_ra\>``
 
 ``cpu_{ld,st}*_data``
 ~~~~~~~~~~~~~~~~~~~~~
@@ -227,13 +227,13 @@ store: ``cpu_st{size}{end}_data(env, ptr, val)``
  - ``q`` : 64 bits
 
 ``end``
- - (empty) : for target endian, or 8 bit sizes
+ - (empty) : for 8 bit sizes
  - ``_be`` : big endian
  - ``_le`` : little endian
 
 Regexes for git grep:
- - ``\<cpu_ld[us]\?[bwlq]\(_[bl]e\)\?_data\>``
- - ``\<cpu_st[bwlq]\(_[bl]e\)\?_data\+\>``
+ - ``\<cpu_ld[us]\?\(b\|[wlq]\(_[bl]e\)\)_data\>``
+ - ``\<cpu_st\(b\|[wlq]\(_[bl]e\)\)_data\+\>``
 
 ``cpu_ld*_code_mmu``
 ~~~~~~~~~~~~~~~~~~~~
