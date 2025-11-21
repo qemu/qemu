@@ -235,7 +235,6 @@ pub struct HPETTimer {
     /// timer block abstraction containing this timer
     state: NonNull<HPETState>,
 
-    regs: HPETTimerRegisters,
     // Hidden register state
     /// comparator (extended to counter width)
     cmp64: u64,
@@ -260,7 +259,6 @@ impl HPETTimer {
             // is initialized below.
             qemu_timer: unsafe { Timer::new() },
             state: NonNull::new(state.cast_mut()).unwrap(),
-            regs: Default::default(),
             cmp64: 0,
             period: 0,
             wrap_flag: 0,
@@ -289,8 +287,14 @@ impl HPETTimer {
     /// calculate next value of the general counter that matches the
     /// target (either entirely, or the low 32-bit only depending on
     /// the timer mode).
-    fn calculate_cmp64(&self, cur_tick: u64, target: u64) -> u64 {
-        if self.regs.is_32bit_mod() {
+    fn calculate_cmp64(
+        &self,
+        hpet_regs: &BqlRefCell<HPETRegisters>,
+        cur_tick: u64,
+        target: u64,
+    ) -> u64 {
+        let tn_regs = &hpet_regs.borrow().tn_regs[self.index as usize];
+        if tn_regs.is_32bit_mod() {
             let mut result: u64 = cur_tick.deposit(0, 32, target);
             if result < cur_tick {
                 result += 0x100000000;
@@ -322,32 +326,33 @@ impl HPETTimer {
             // ...
             // If the LegacyReplacement Route bit is not set, the individual
             // routing bits for each of the timers are used.
-            self.regs.get_individual_route()
+            regs.tn_regs[self.index as usize].get_individual_route()
         }
     }
 
     fn set_irq(&self, regs: &HPETRegisters, set: bool) {
+        let tn_regs = &regs.tn_regs[self.index as usize];
         let route = self.get_int_route(regs);
 
-        if set && self.regs.is_int_enabled() && regs.is_hpet_enabled() {
-            if self.regs.is_fsb_route_enabled() {
+        if set && tn_regs.is_int_enabled() && regs.is_hpet_enabled() {
+            if tn_regs.is_fsb_route_enabled() {
                 // SAFETY:
                 // the parameters are valid.
                 unsafe {
                     address_space_stl_le(
                         addr_of_mut!(address_space_memory),
-                        self.regs.fsb >> 32,  // Timer N FSB int addr
-                        self.regs.fsb as u32, // Timer N FSB int value, truncate!
+                        tn_regs.fsb >> 32,  // Timer N FSB int addr
+                        tn_regs.fsb as u32, // Timer N FSB int value, truncate!
                         MEMTXATTRS_UNSPECIFIED,
                         null_mut(),
                     );
                 }
-            } else if self.regs.is_int_level_triggered() {
+            } else if tn_regs.is_int_level_triggered() {
                 self.get_state().irqs[route].raise();
             } else {
                 self.get_state().irqs[route].pulse();
             }
-        } else if !self.regs.is_fsb_route_enabled() {
+        } else if !tn_regs.is_fsb_route_enabled() {
             self.get_state().irqs[route].lower();
         }
     }
@@ -360,16 +365,17 @@ impl HPETTimer {
         regs.int_status = regs.int_status.deposit(
             self.index.into(),
             1,
-            u64::from(set && self.regs.is_int_level_triggered()),
+            u64::from(set && regs.tn_regs[self.index as usize].is_int_level_triggered()),
         );
         self.set_irq(&regs, set);
     }
 
-    fn arm_timer(&mut self, tick: u64) {
+    fn arm_timer(&mut self, hpet_regs: &BqlRefCell<HPETRegisters>, tick: u64) {
+        let tn_regs = &hpet_regs.borrow().tn_regs[self.index as usize];
         let mut ns = self.get_state().get_ns(tick);
 
         // Clamp period to reasonable min value (1 us)
-        if self.regs.is_periodic() && ns - self.last < 1000 {
+        if tn_regs.is_periodic() && ns - self.last < 1000 {
             ns = self.last + 1000;
         }
 
@@ -377,21 +383,22 @@ impl HPETTimer {
         self.qemu_timer.modify(self.last);
     }
 
-    fn set_timer(&mut self) {
+    fn set_timer(&mut self, hpet_regs: &BqlRefCell<HPETRegisters>) {
+        let tn_regs = &hpet_regs.borrow().tn_regs[self.index as usize];
         let cur_tick: u64 = self.get_state().get_ticks();
 
         self.wrap_flag = 0;
-        self.cmp64 = self.calculate_cmp64(cur_tick, self.regs.cmp);
-        if self.regs.is_32bit_mod() {
+        self.cmp64 = self.calculate_cmp64(hpet_regs, cur_tick, tn_regs.cmp);
+        if tn_regs.is_32bit_mod() {
             // HPET spec says in one-shot 32-bit mode, generate an interrupt when
             // counter wraps in addition to an interrupt with comparator match.
-            if !self.regs.is_periodic() && self.cmp64 > hpet_next_wrap(cur_tick) {
+            if !tn_regs.is_periodic() && self.cmp64 > hpet_next_wrap(cur_tick) {
                 self.wrap_flag = 1;
-                self.arm_timer(hpet_next_wrap(cur_tick));
+                self.arm_timer(hpet_regs, hpet_next_wrap(cur_tick));
                 return;
             }
         }
-        self.arm_timer(self.cmp64);
+        self.arm_timer(hpet_regs, self.cmp64);
     }
 
     fn del_timer(&self, hpet_regs: &BqlRefCell<HPETRegisters>) {
@@ -406,16 +413,16 @@ impl HPETTimer {
         }
     }
 
-    /// Configuration and Capability Register
-    fn set_tn_cfg_reg(
-        &mut self,
+    fn prepare_tn_cfg_reg_new(
+        &self,
         hpet_regs: &BqlRefCell<HPETRegisters>,
         shift: u32,
         len: u32,
         val: u64,
-    ) {
+    ) -> (u64, u64) {
         trace::trace_hpet_ram_write_tn_cfg((shift / 8).try_into().unwrap());
-        let old_val: u64 = self.regs.config;
+        let tn_regs = &hpet_regs.borrow().tn_regs[self.index as usize];
+        let old_val: u64 = tn_regs.config;
         let mut new_val: u64 = old_val.deposit(shift, len, val);
         new_val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
 
@@ -426,7 +433,21 @@ impl HPETTimer {
             self.update_irq(hpet_regs, false);
         }
 
-        self.regs.config = new_val;
+        (new_val, old_val)
+    }
+
+    /// Configuration and Capability Register
+    fn set_tn_cfg_reg(
+        &mut self,
+        hpet_regs: &BqlRefCell<HPETRegisters>,
+        shift: u32,
+        len: u32,
+        val: u64,
+    ) {
+        // Factor out a prepare_tn_cfg_reg_new() to better handle immutable scope.
+        let (new_val, old_val) = self.prepare_tn_cfg_reg_new(hpet_regs, shift, len, val);
+        let tn_regs = &mut hpet_regs.borrow_mut().tn_regs[self.index as usize];
+        tn_regs.config = new_val;
 
         if activating_bit(old_val, new_val, HPET_TN_CFG_INT_ENABLE_SHIFT)
             && self.is_int_active(hpet_regs)
@@ -434,13 +455,13 @@ impl HPETTimer {
             self.update_irq(hpet_regs, true);
         }
 
-        if self.regs.is_32bit_mod() {
-            self.regs.cmp = u64::from(self.regs.cmp as u32); // truncate!
+        if tn_regs.is_32bit_mod() {
+            tn_regs.cmp = u64::from(tn_regs.cmp as u32); // truncate!
             self.period = u64::from(self.period as u32); // truncate!
         }
 
         if hpet_regs.borrow().is_hpet_enabled() {
-            self.set_timer();
+            self.set_timer(hpet_regs);
         }
     }
 
@@ -452,10 +473,11 @@ impl HPETTimer {
         len: u32,
         val: u64,
     ) {
+        let tn_regs = &mut hpet_regs.borrow_mut().tn_regs[self.index as usize];
         let mut length = len;
         let mut value = val;
 
-        if self.regs.is_32bit_mod() {
+        if tn_regs.is_32bit_mod() {
             // High 32-bits are zero, leave them untouched.
             if shift != 0 {
                 trace::trace_hpet_ram_write_invalid_tn_cmp();
@@ -467,41 +489,43 @@ impl HPETTimer {
 
         trace::trace_hpet_ram_write_tn_cmp((shift / 8).try_into().unwrap());
 
-        if !self.regs.is_periodic() || self.regs.is_valset_enabled() {
-            self.regs.cmp = self.regs.cmp.deposit(shift, length, value);
+        if !tn_regs.is_periodic() || tn_regs.is_valset_enabled() {
+            tn_regs.cmp = tn_regs.cmp.deposit(shift, length, value);
         }
 
-        if self.regs.is_periodic() {
+        if tn_regs.is_periodic() {
             self.period = self.period.deposit(shift, length, value);
         }
 
-        self.regs.clear_valset();
+        tn_regs.clear_valset();
         if hpet_regs.borrow().is_hpet_enabled() {
-            self.set_timer();
+            self.set_timer(hpet_regs);
         }
     }
 
     /// FSB Interrupt Route Register
     fn set_tn_fsb_route_reg(
-        &mut self,
-        _hpet_regs: &BqlRefCell<HPETRegisters>,
+        &self,
+        hpet_regs: &BqlRefCell<HPETRegisters>,
         shift: u32,
         len: u32,
         val: u64,
     ) {
-        self.regs.fsb = self.regs.fsb.deposit(shift, len, val);
+        let tn_regs = &mut hpet_regs.borrow_mut().tn_regs[self.index as usize];
+        tn_regs.fsb = tn_regs.fsb.deposit(shift, len, val);
     }
 
     fn reset(&mut self, hpet_regs: &BqlRefCell<HPETRegisters>) {
         self.del_timer(hpet_regs);
-        self.regs.cmp = u64::MAX; // Comparator Match Registers reset to all 1's.
-        self.regs.config =
-            (1 << HPET_TN_CFG_PERIODIC_CAP_SHIFT) | (1 << HPET_TN_CFG_SIZE_CAP_SHIFT);
+
+        let tn_regs = &mut hpet_regs.borrow_mut().tn_regs[self.index as usize];
+        tn_regs.cmp = u64::MAX; // Comparator Match Registers reset to all 1's.
+        tn_regs.config = (1 << HPET_TN_CFG_PERIODIC_CAP_SHIFT) | (1 << HPET_TN_CFG_SIZE_CAP_SHIFT);
         if self.get_state().has_msi_flag() {
-            self.regs.config |= 1 << HPET_TN_CFG_FSB_CAP_SHIFT;
+            tn_regs.config |= 1 << HPET_TN_CFG_FSB_CAP_SHIFT;
         }
         // advertise availability of ioapic int
-        self.regs.config |=
+        tn_regs.config |=
             (u64::from(self.get_state().int_route_cap)) << HPET_TN_CFG_INT_ROUTE_CAP_SHIFT;
         self.period = 0;
         self.wrap_flag = 0;
@@ -509,32 +533,35 @@ impl HPETTimer {
 
     /// timer expiration callback
     fn callback(&mut self, hpet_regs: &BqlRefCell<HPETRegisters>) {
+        let tn_regs = &mut hpet_regs.borrow_mut().tn_regs[self.index as usize];
         let period: u64 = self.period;
         let cur_tick: u64 = self.get_state().get_ticks();
 
-        if self.regs.is_periodic() && period != 0 {
+        if tn_regs.is_periodic() && period != 0 {
             while hpet_time_after(cur_tick, self.cmp64) {
                 self.cmp64 += period;
             }
-            if self.regs.is_32bit_mod() {
-                self.regs.cmp = u64::from(self.cmp64 as u32); // truncate!
+            if tn_regs.is_32bit_mod() {
+                tn_regs.cmp = u64::from(self.cmp64 as u32); // truncate!
             } else {
-                self.regs.cmp = self.cmp64;
+                tn_regs.cmp = self.cmp64;
             }
-            self.arm_timer(self.cmp64);
+            self.arm_timer(hpet_regs, self.cmp64);
         } else if self.wrap_flag != 0 {
             self.wrap_flag = 0;
-            self.arm_timer(self.cmp64);
+            self.arm_timer(hpet_regs, self.cmp64);
         }
         self.update_irq(hpet_regs, true);
     }
 
-    const fn read(&self, target: TimerRegister, _hpet_regs: &BqlRefCell<HPETRegisters>) -> u64 {
+    fn read(&self, target: TimerRegister, hpet_regs: &BqlRefCell<HPETRegisters>) -> u64 {
+        let tn_regs = &hpet_regs.borrow().tn_regs[self.index as usize];
+
         use TimerRegister::*;
         match target {
-            CFG => self.regs.config, // including interrupt capabilities
-            CMP => self.regs.cmp,    // comparator register
-            ROUTE => self.regs.fsb,
+            CFG => tn_regs.config, // including interrupt capabilities
+            CMP => tn_regs.cmp,    // comparator register
+            ROUTE => tn_regs.fsb,
         }
     }
 
@@ -571,6 +598,9 @@ pub struct HPETRegisters {
     /// Main Counter Value Register
     #[doc(alias = "hpet_counter")]
     counter: u64,
+
+    /// HPET Timer N Registers
+    tn_regs: [HPETTimerRegisters; HPET_MAX_TIMERS],
 }
 
 impl HPETRegisters {
@@ -686,11 +716,13 @@ impl HPETState {
 
             for timer in self.timers.iter().take(self.num_timers) {
                 let mut t = timer.borrow_mut();
+                let id = t.index as usize;
+                let tn_regs = &regs.borrow().tn_regs[id];
 
-                if t.regs.is_int_enabled() && t.is_int_active(regs) {
+                if tn_regs.is_int_enabled() && t.is_int_active(regs) {
                     t.update_irq(regs, true);
                 }
-                t.set_timer();
+                t.set_timer(regs);
             }
         } else if deactivating_bit(old_val, new_val, HPET_CFG_ENABLE_SHIFT) {
             // Halt main counter and disable interrupt generation.
@@ -932,8 +964,9 @@ impl HPETState {
         for timer in self.timers.iter().take(self.num_timers) {
             let mut t = timer.borrow_mut();
             let cnt = regs.counter;
+            let cmp = regs.tn_regs[t.index as usize].cmp;
 
-            t.cmp64 = t.calculate_cmp64(cnt, t.regs.cmp);
+            t.cmp64 = t.calculate_cmp64(&self.regs, cnt, cmp);
             t.last = CLOCK_VIRTUAL.get_ns() - NANOSECONDS_PER_SECOND;
         }
 
@@ -997,8 +1030,6 @@ static VMSTATE_HPET_OFFSET: VMStateDescription<HPETState> =
         })
         .build();
 
-// In fact, version_id and minimum_version_id for HPETTimerRegisters are
-// unrelated to HPETTimer's version IDs. Does not affect compatibility.
 impl_vmstate_struct!(
     HPETTimerRegisters,
     VMStateDescriptionBuilder::<HPETTimerRegisters>::new()
@@ -1016,11 +1047,10 @@ impl_vmstate_struct!(
 const VMSTATE_HPET_TIMER: VMStateDescription<HPETTimer> =
     VMStateDescriptionBuilder::<HPETTimer>::new()
         .name(c"hpet_timer")
-        .version_id(1)
-        .minimum_version_id(1)
+        .version_id(2)
+        .minimum_version_id(2)
         .fields(vmstate_fields! {
             vmstate_of!(HPETTimer, index),
-            vmstate_of!(HPETTimer, regs),
             vmstate_of!(HPETTimer, period),
             vmstate_of!(HPETTimer, wrap_flag),
             vmstate_of!(HPETTimer, qemu_timer),
@@ -1031,18 +1061,17 @@ impl_vmstate_struct!(HPETTimer, VMSTATE_HPET_TIMER);
 
 const VALIDATE_TIMERS_NAME: &CStr = c"num_timers must match";
 
-// In fact, version_id and minimum_version_id for HPETRegisters are
-// unrelated to HPETState's version IDs. Does not affect compatibility.
 impl_vmstate_struct!(
     HPETRegisters,
     VMStateDescriptionBuilder::<HPETRegisters>::new()
         .name(c"hpet/regs")
-        .version_id(1)
-        .minimum_version_id(1)
+        .version_id(2)
+        .minimum_version_id(2)
         .fields(vmstate_fields! {
             vmstate_of!(HPETRegisters, config),
             vmstate_of!(HPETRegisters, int_status),
             vmstate_of!(HPETRegisters, counter),
+            vmstate_of!(HPETRegisters, tn_regs),
         })
         .build()
 );
@@ -1050,8 +1079,8 @@ impl_vmstate_struct!(
 const VMSTATE_HPET: VMStateDescription<HPETState> =
     VMStateDescriptionBuilder::<HPETState>::new()
         .name(c"hpet")
-        .version_id(2)
-        .minimum_version_id(2)
+        .version_id(3)
+        .minimum_version_id(3)
         .pre_save(&HPETState::pre_save)
         .post_load(&HPETState::post_load)
         .fields(vmstate_fields! {
