@@ -362,8 +362,9 @@ impl HPETTimer {
         self.set_irq(regs, set);
     }
 
-    fn arm_timer(&self, tn_regs: &mut HPETTimerRegisters, tick: u64) {
-        let mut ns = self.get_state().get_ns(tick);
+    fn arm_timer(&self, regs: &mut HPETRegisters, tick: u64) {
+        let mut ns = regs.get_ns(tick);
+        let tn_regs = &mut regs.tn_regs[self.index as usize];
 
         // Clamp period to reasonable min value (1 us)
         if tn_regs.is_periodic() && ns - tn_regs.last < 1000 {
@@ -375,21 +376,22 @@ impl HPETTimer {
     }
 
     fn set_timer(&self, regs: &mut HPETRegisters) {
+        let cur_tick: u64 = regs.get_ticks();
         let tn_regs = &mut regs.tn_regs[self.index as usize];
-        let cur_tick: u64 = self.get_state().get_ticks();
 
         tn_regs.wrap_flag = 0;
         tn_regs.update_cmp64(cur_tick);
+
+        let mut next_tick: u64 = tn_regs.cmp64;
         if tn_regs.is_32bit_mod() {
             // HPET spec says in one-shot 32-bit mode, generate an interrupt when
             // counter wraps in addition to an interrupt with comparator match.
             if !tn_regs.is_periodic() && tn_regs.cmp64 > hpet_next_wrap(cur_tick) {
                 tn_regs.wrap_flag = 1;
-                self.arm_timer(tn_regs, hpet_next_wrap(cur_tick));
-                return;
+                next_tick = hpet_next_wrap(cur_tick);
             }
         }
-        self.arm_timer(tn_regs, tn_regs.cmp64);
+        self.arm_timer(regs, next_tick);
     }
 
     fn del_timer(&self, regs: &mut HPETRegisters) {
@@ -506,10 +508,10 @@ impl HPETTimer {
 
     /// timer expiration callback
     fn callback(&self, regs: &mut HPETRegisters) {
+        let cur_tick: u64 = regs.get_ticks();
         let tn_regs = &mut regs.tn_regs[self.index as usize];
-        let cur_tick: u64 = self.get_state().get_ticks();
 
-        if tn_regs.is_periodic() && tn_regs.period != 0 {
+        let next_tick = if tn_regs.is_periodic() && tn_regs.period != 0 {
             while hpet_time_after(cur_tick, tn_regs.cmp64) {
                 tn_regs.cmp64 += tn_regs.period;
             }
@@ -518,10 +520,16 @@ impl HPETTimer {
             } else {
                 tn_regs.cmp = tn_regs.cmp64;
             }
-            self.arm_timer(tn_regs, tn_regs.cmp64);
+            Some(tn_regs.cmp64)
         } else if tn_regs.wrap_flag != 0 {
             tn_regs.wrap_flag = 0;
-            self.arm_timer(tn_regs, tn_regs.cmp64);
+            Some(tn_regs.cmp64)
+        } else {
+            None
+        };
+
+        if let Some(tick) = next_tick {
+            self.arm_timer(regs, tick);
         }
         self.update_irq(regs, true);
     }
@@ -573,9 +581,20 @@ pub struct HPETRegisters {
 
     /// HPET Timer N Registers
     tn_regs: [HPETTimerRegisters; HPET_MAX_TIMERS],
+
+    /// Offset of main counter relative to qemu clock.
+    pub hpet_offset: u64,
 }
 
 impl HPETRegisters {
+    fn get_ticks(&self) -> u64 {
+        ns_to_ticks(CLOCK_VIRTUAL.get_ns() + self.hpet_offset)
+    }
+
+    fn get_ns(&self, tick: u64) -> u64 {
+        ticks_to_ns(tick) - self.hpet_offset
+    }
+
     fn is_legacy_mode(&self) -> bool {
         self.config & (1 << HPET_CFG_LEG_RT_SHIFT) != 0
     }
@@ -603,8 +622,7 @@ pub struct HPETState {
     #[property(rename = "msi", bit = HPET_FLAG_MSI_SUPPORT_SHIFT, default = false)]
     flags: u32,
 
-    /// Offset of main counter relative to qemu clock.
-    hpet_offset: BqlCell<u64>,
+    hpet_offset_migration: BqlCell<u64>,
     #[property(rename = "hpet-offset-saved", default = true)]
     hpet_offset_saved: bool,
 
@@ -634,14 +652,6 @@ pub struct HPETState {
 impl HPETState {
     const fn has_msi_flag(&self) -> bool {
         self.flags & (1 << HPET_FLAG_MSI_SUPPORT_SHIFT) != 0
-    }
-
-    fn get_ticks(&self) -> u64 {
-        ns_to_ticks(CLOCK_VIRTUAL.get_ns() + self.hpet_offset.get())
-    }
-
-    fn get_ns(&self, tick: u64) -> u64 {
-        ticks_to_ns(tick) - self.hpet_offset.get()
     }
 
     fn handle_legacy_irq(&self, irq: u32, level: u32) {
@@ -682,8 +692,7 @@ impl HPETState {
 
         if activating_bit(old_val, new_val, HPET_CFG_ENABLE_SHIFT) {
             // Enable main counter and interrupt generation.
-            self.hpet_offset
-                .set(ticks_to_ns(regs.counter) - CLOCK_VIRTUAL.get_ns());
+            regs.hpet_offset = ticks_to_ns(regs.counter) - CLOCK_VIRTUAL.get_ns();
 
             for t in self.timers.iter().take(self.num_timers) {
                 let id = t.index as usize;
@@ -696,7 +705,7 @@ impl HPETState {
             }
         } else if deactivating_bit(old_val, new_val, HPET_CFG_ENABLE_SHIFT) {
             // Halt main counter and disable interrupt generation.
-            regs.counter = self.get_ticks();
+            regs.counter = regs.get_ticks();
 
             for t in self.timers.iter().take(self.num_timers) {
                 t.del_timer(regs);
@@ -763,7 +772,7 @@ impl HPETState {
         // initialized memory to all zeros - simple types (bool/u32/usize) can
         // rely on this without explicit initialization.
         uninit_field_mut!(*this, regs).write(Default::default());
-        uninit_field_mut!(*this, hpet_offset).write(Default::default());
+        uninit_field_mut!(*this, hpet_offset_migration).write(Default::default());
         // Set null_mut for now and post_init() will fill it.
         uninit_field_mut!(*this, irqs).write(Default::default());
         uninit_field_mut!(*this, rtc_irq_level).write(Default::default());
@@ -814,6 +823,7 @@ impl HPETState {
 
         regs.counter = 0;
         regs.config = 0;
+        regs.hpet_offset = 0;
         HPETFwConfig::update_hpet_cfg(
             self.hpet_id.get(),
             regs.capability as u32,
@@ -826,7 +836,6 @@ impl HPETState {
         drop(regs);
 
         self.pit_enabled.set(true);
-        self.hpet_offset.set(0);
 
         // to document that the RTC lowers its output on reset as well
         self.rtc_irq_level.set(0);
@@ -871,7 +880,7 @@ impl HPETState {
             Global(INT_STATUS) => regs.int_status,
             Global(COUNTER) => {
                 let cur_tick = if regs.is_hpet_enabled() {
-                    self.get_ticks()
+                    regs.get_ticks()
                 } else {
                     regs.counter
                 };
@@ -907,8 +916,9 @@ impl HPETState {
 
     fn pre_save(&self) -> Result<(), migration::Infallible> {
         let mut regs = self.regs.borrow_mut();
+        self.hpet_offset_migration.set(regs.hpet_offset);
         if regs.is_hpet_enabled() {
-            regs.counter = self.get_ticks();
+            regs.counter = regs.get_ticks();
         }
 
         /*
@@ -933,9 +943,10 @@ impl HPETState {
 
         // Recalculate the offset between the main counter and guest time
         if !self.hpet_offset_saved {
-            self.hpet_offset
+            self.hpet_offset_migration
                 .set(ticks_to_ns(regs.counter) - CLOCK_VIRTUAL.get_ns());
         }
+        regs.hpet_offset = self.hpet_offset_migration.get();
 
         Ok(())
     }
@@ -987,7 +998,7 @@ static VMSTATE_HPET_OFFSET: VMStateDescription<HPETState> =
         .minimum_version_id(1)
         .needed(&HPETState::is_offset_needed)
         .fields(vmstate_fields! {
-            vmstate_of!(HPETState, hpet_offset),
+            vmstate_of!(HPETState, hpet_offset_migration),
         })
         .build();
 
