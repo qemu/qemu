@@ -44,7 +44,7 @@ static uint64_t lookup_bte64(CPUX86State *env, uint64_t base, uintptr_t ra)
     }
 
     bde = (extract64(base, 20, 28) << 3) + (extract64(bndcsr, 20, 44) << 12);
-    bt = cpu_ldq_data_ra(env, bde, ra);
+    bt = cpu_ldq_le_data_ra(env, bde, ra);
     if ((bt & 1) == 0) {
         env->bndcs_regs.sts = bde | 2;
         raise_exception_ra(env, EXCP05_BOUND, ra);
@@ -64,7 +64,7 @@ static uint32_t lookup_bte32(CPUX86State *env, uint32_t base, uintptr_t ra)
     }
 
     bde = (extract32(base, 12, 20) << 2) + (bndcsr & TARGET_PAGE_MASK);
-    bt = cpu_ldl_data_ra(env, bde, ra);
+    bt = cpu_ldl_le_data_ra(env, bde, ra);
     if ((bt & 1) == 0) {
         env->bndcs_regs.sts = bde | 2;
         raise_exception_ra(env, EXCP05_BOUND, ra);
@@ -79,9 +79,9 @@ uint64_t helper_bndldx64(CPUX86State *env, target_ulong base, target_ulong ptr)
     uint64_t bte, lb, ub, pt;
 
     bte = lookup_bte64(env, base, ra);
-    lb = cpu_ldq_data_ra(env, bte, ra);
-    ub = cpu_ldq_data_ra(env, bte + 8, ra);
-    pt = cpu_ldq_data_ra(env, bte + 16, ra);
+    lb = cpu_ldq_le_data_ra(env, bte, ra);
+    ub = cpu_ldq_le_data_ra(env, bte + 8, ra);
+    pt = cpu_ldq_le_data_ra(env, bte + 16, ra);
 
     if (pt != ptr) {
         lb = ub = 0;
@@ -96,9 +96,9 @@ uint64_t helper_bndldx32(CPUX86State *env, target_ulong base, target_ulong ptr)
     uint32_t bte, lb, ub, pt;
 
     bte = lookup_bte32(env, base, ra);
-    lb = cpu_ldl_data_ra(env, bte, ra);
-    ub = cpu_ldl_data_ra(env, bte + 4, ra);
-    pt = cpu_ldl_data_ra(env, bte + 8, ra);
+    lb = cpu_ldl_le_data_ra(env, bte, ra);
+    ub = cpu_ldl_le_data_ra(env, bte + 4, ra);
+    pt = cpu_ldl_le_data_ra(env, bte + 8, ra);
 
     if (pt != ptr) {
         lb = ub = 0;
@@ -113,9 +113,9 @@ void helper_bndstx64(CPUX86State *env, target_ulong base, target_ulong ptr,
     uint64_t bte;
 
     bte = lookup_bte64(env, base, ra);
-    cpu_stq_data_ra(env, bte, lb, ra);
-    cpu_stq_data_ra(env, bte + 8, ub, ra);
-    cpu_stq_data_ra(env, bte + 16, ptr, ra);
+    cpu_stq_le_data_ra(env, bte, lb, ra);
+    cpu_stq_le_data_ra(env, bte + 8, ub, ra);
+    cpu_stq_le_data_ra(env, bte + 16, ptr, ra);
 }
 
 void helper_bndstx32(CPUX86State *env, target_ulong base, target_ulong ptr,
@@ -125,9 +125,9 @@ void helper_bndstx32(CPUX86State *env, target_ulong base, target_ulong ptr,
     uint32_t bte;
 
     bte = lookup_bte32(env, base, ra);
-    cpu_stl_data_ra(env, bte, lb, ra);
-    cpu_stl_data_ra(env, bte + 4, ub, ra);
-    cpu_stl_data_ra(env, bte + 8, ptr, ra);
+    cpu_stl_le_data_ra(env, bte, lb, ra);
+    cpu_stl_le_data_ra(env, bte + 4, ub, ra);
+    cpu_stl_le_data_ra(env, bte + 8, ptr, ra);
 }
 
 void helper_bnd_jmp(CPUX86State *env)

@@ -65,20 +65,20 @@ typedef struct StackAccess
 static void pushw(StackAccess *sa, uint16_t val)
 {
     sa->sp -= 2;
-    cpu_stw_mmuidx_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
+    cpu_stw_le_mmuidx_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
                       val, sa->mmu_index, sa->ra);
 }
 
 static void pushl(StackAccess *sa, uint32_t val)
 {
     sa->sp -= 4;
-    cpu_stl_mmuidx_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
+    cpu_stl_le_mmuidx_ra(sa->env, sa->ss_base + (sa->sp & sa->sp_mask),
                       val, sa->mmu_index, sa->ra);
 }
 
 static uint16_t popw(StackAccess *sa)
 {
-    uint16_t ret = cpu_lduw_mmuidx_ra(sa->env,
+    uint16_t ret = cpu_lduw_le_mmuidx_ra(sa->env,
                                       sa->ss_base + (sa->sp & sa->sp_mask),
                                       sa->mmu_index, sa->ra);
     sa->sp += 2;
@@ -87,7 +87,7 @@ static uint16_t popw(StackAccess *sa)
 
 static uint32_t popl(StackAccess *sa)
 {
-    uint32_t ret = cpu_ldl_mmuidx_ra(sa->env,
+    uint32_t ret = cpu_ldl_le_mmuidx_ra(sa->env,
                                      sa->ss_base + (sa->sp & sa->sp_mask),
                                      sa->mmu_index, sa->ra);
     sa->sp += 4;
@@ -905,12 +905,12 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 static void pushq(StackAccess *sa, uint64_t val)
 {
     sa->sp -= 8;
-    cpu_stq_mmuidx_ra(sa->env, sa->sp, val, sa->mmu_index, sa->ra);
+    cpu_stq_le_mmuidx_ra(sa->env, sa->sp, val, sa->mmu_index, sa->ra);
 }
 
 static uint64_t popq(StackAccess *sa)
 {
-    uint64_t ret = cpu_ldq_mmuidx_ra(sa->env, sa->sp, sa->mmu_index, sa->ra);
+    uint64_t ret = cpu_ldq_le_mmuidx_ra(sa->env, sa->sp, sa->mmu_index, sa->ra);
     sa->sp += 8;
     return ret;
 }
@@ -1887,7 +1887,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
                 pushl(&sa, env->segs[R_SS].selector);
                 pushl(&sa, env->regs[R_ESP]);
                 for (i = param_count - 1; i >= 0; i--) {
-                    val = cpu_ldl_data_ra(env,
+                    val = cpu_ldl_le_data_ra(env,
                                           old_ssp + ((env->regs[R_ESP] + i * 4) & old_sp_mask),
                                           GETPC());
                     pushl(&sa, val);
@@ -1896,7 +1896,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
                 pushw(&sa, env->segs[R_SS].selector);
                 pushw(&sa, env->regs[R_ESP]);
                 for (i = param_count - 1; i >= 0; i--) {
-                    val = cpu_lduw_data_ra(env,
+                    val = cpu_lduw_le_data_ra(env,
                                            old_ssp + ((env->regs[R_ESP] + i * 2) & old_sp_mask),
                                            GETPC());
                     pushw(&sa, val);

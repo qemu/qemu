@@ -44,7 +44,7 @@ static inline int is_revectored(int nr, struct target_revectored_struct *bitmap)
 static inline void vm_putw(CPUX86State *env, uint32_t segptr,
                            unsigned int reg16, unsigned int val)
 {
-    cpu_stw_data(env, segptr + (reg16 & 0xffff), val);
+    cpu_stw_le_data(env, segptr + (reg16 & 0xffff), val);
 }
 
 void save_v86_state(CPUX86State *env)
@@ -157,7 +157,7 @@ static void do_int(CPUX86State *env, int intno)
                                        &ts->vm86plus.int21_revectored))
         goto cannot_handle;
     int_addr = (intno << 2);
-    segoffs = cpu_ldl_data(env, int_addr);
+    segoffs = cpu_ldl_le_data(env, int_addr);
     if ((segoffs >> 16) == TARGET_BIOSSEG)
         goto cannot_handle;
     LOG_VM86("VM86: emulating int 0x%x. CS:IP=%04x:%04x\n",

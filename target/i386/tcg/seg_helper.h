@@ -40,18 +40,18 @@ int cpu_mmu_index_kernel(CPUX86State *env);
  * and use *_mmuidx_ra directly.
  */
 #define cpu_lduw_kernel_ra(e, p, r) \
-    cpu_lduw_mmuidx_ra(e, p, cpu_mmu_index_kernel(e), r)
+    cpu_lduw_le_mmuidx_ra(e, p, cpu_mmu_index_kernel(e), r)
 #define cpu_ldl_kernel_ra(e, p, r) \
-    cpu_ldl_mmuidx_ra(e, p, cpu_mmu_index_kernel(e), r)
+    cpu_ldl_le_mmuidx_ra(e, p, cpu_mmu_index_kernel(e), r)
 #define cpu_ldq_kernel_ra(e, p, r) \
-    cpu_ldq_mmuidx_ra(e, p, cpu_mmu_index_kernel(e), r)
+    cpu_ldq_le_mmuidx_ra(e, p, cpu_mmu_index_kernel(e), r)
 
 #define cpu_stw_kernel_ra(e, p, v, r) \
-    cpu_stw_mmuidx_ra(e, p, v, cpu_mmu_index_kernel(e), r)
+    cpu_stw_le_mmuidx_ra(e, p, v, cpu_mmu_index_kernel(e), r)
 #define cpu_stl_kernel_ra(e, p, v, r) \
-    cpu_stl_mmuidx_ra(e, p, v, cpu_mmu_index_kernel(e), r)
+    cpu_stl_le_mmuidx_ra(e, p, v, cpu_mmu_index_kernel(e), r)
 #define cpu_stq_kernel_ra(e, p, v, r) \
-    cpu_stq_mmuidx_ra(e, p, v, cpu_mmu_index_kernel(e), r)
+    cpu_stq_le_mmuidx_ra(e, p, v, cpu_mmu_index_kernel(e), r)
 
 #define cpu_lduw_kernel(e, p)    cpu_lduw_kernel_ra(e, p, 0)
 #define cpu_ldl_kernel(e, p)     cpu_ldl_kernel_ra(e, p, 0)
