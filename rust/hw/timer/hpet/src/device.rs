@@ -126,7 +126,7 @@ enum DecodedRegister<'a> {
     Global(GlobalRegister),
 
     /// Register in the timer block `0x100`...`0x3ff`
-    Timer(&'a BqlRefCell<HPETTimer>, TimerRegister),
+    Timer(&'a HPETTimer, TimerRegister),
 
     /// Invalid address
     #[allow(dead_code)]
@@ -170,8 +170,7 @@ const fn deactivating_bit(old: u64, new: u64, shift: usize) -> bool {
     (old & mask != 0) && (new & mask == 0)
 }
 
-fn timer_handler(timer_cell: &BqlRefCell<HPETTimer>) {
-    let t = timer_cell.borrow();
+fn timer_handler(t: &HPETTimer) {
     // SFAETY: state field is valid after timer initialization.
     let hpet_regs = &unsafe { t.state.as_ref() }.regs;
     t.callback(&mut hpet_regs.borrow_mut())
@@ -277,12 +276,16 @@ impl HPETTimer {
         }
     }
 
-    fn init_timer_with_cell(cell: &BqlRefCell<Self>) {
-        let mut timer = cell.borrow_mut();
-        // SAFETY: HPETTimer is only used as part of HPETState, which is
-        // always pinned.
-        let qemu_timer = unsafe { Pin::new_unchecked(&mut timer.qemu_timer) };
-        qemu_timer.init_full(None, CLOCK_VIRTUAL, Timer::NS, 0, timer_handler, cell);
+    fn init_timer(timer: Pin<&mut Self>) {
+        Timer::init_full(
+            timer,
+            None,
+            CLOCK_VIRTUAL,
+            Timer::NS,
+            0,
+            timer_handler,
+            |t| &mut t.qemu_timer,
+        );
     }
 
     fn get_state(&self) -> &HPETState {
@@ -619,7 +622,7 @@ pub struct HPETState {
 
     /// HPET timer array managed by this timer block.
     #[doc(alias = "timer")]
-    timers: [BqlRefCell<HPETTimer>; HPET_MAX_TIMERS],
+    timers: [HPETTimer; HPET_MAX_TIMERS],
     #[property(rename = "timers", default = HPET_MIN_TIMERS)]
     num_timers: usize,
     num_timers_save: BqlCell<u8>,
@@ -662,11 +665,10 @@ impl HPETState {
 
             // Initialize in two steps, to avoid calling Timer::init_full on a
             // temporary that can be moved.
-            let timer = timer.write(BqlRefCell::new(HPETTimer::new(
-                index.try_into().unwrap(),
-                state,
-            )));
-            HPETTimer::init_timer_with_cell(timer);
+            let timer = timer.write(HPETTimer::new(index.try_into().unwrap(), state));
+            // SAFETY: HPETState is pinned
+            let timer = unsafe { Pin::new_unchecked(timer) };
+            HPETTimer::init_timer(timer);
         }
     }
 
@@ -683,8 +685,7 @@ impl HPETState {
             self.hpet_offset
                 .set(ticks_to_ns(regs.counter) - CLOCK_VIRTUAL.get_ns());
 
-            for timer in self.timers.iter().take(self.num_timers) {
-                let t = timer.borrow();
+            for t in self.timers.iter().take(self.num_timers) {
                 let id = t.index as usize;
                 let tn_regs = &regs.tn_regs[id];
 
@@ -697,8 +698,8 @@ impl HPETState {
             // Halt main counter and disable interrupt generation.
             regs.counter = self.get_ticks();
 
-            for timer in self.timers.iter().take(self.num_timers) {
-                timer.borrow().del_timer(regs);
+            for t in self.timers.iter().take(self.num_timers) {
+                t.del_timer(regs);
             }
         }
 
@@ -720,9 +721,9 @@ impl HPETState {
         let new_val = val << shift;
         let cleared = new_val & regs.int_status;
 
-        for (index, timer) in self.timers.iter().take(self.num_timers).enumerate() {
-            if cleared & (1 << index) != 0 {
-                timer.borrow().update_irq(regs, false);
+        for t in self.timers.iter().take(self.num_timers) {
+            if cleared & (1 << t.index) != 0 {
+                t.update_irq(regs, false);
             }
         }
     }
@@ -807,8 +808,8 @@ impl HPETState {
 
     fn reset_hold(&self, _type: ResetType) {
         let mut regs = self.regs.borrow_mut();
-        for timer in self.timers.iter().take(self.num_timers) {
-            timer.borrow().reset(&mut regs);
+        for t in self.timers.iter().take(self.num_timers) {
+            t.reset(&mut regs);
         }
 
         regs.counter = 0;
@@ -864,7 +865,7 @@ impl HPETState {
         use DecodedRegister::*;
         use GlobalRegister::*;
         (match target {
-            Timer(timer, tn_target) => timer.borrow().read(tn_target, regs),
+            Timer(t, tn_target) => t.read(tn_target, regs),
             Global(CAP) => regs.capability, /* including HPET_PERIOD 0x004 */
             Global(CFG) => regs.config,
             Global(INT_STATUS) => regs.int_status,
@@ -895,9 +896,7 @@ impl HPETState {
         use DecodedRegister::*;
         use GlobalRegister::*;
         match target {
-            Timer(timer, tn_target) => timer
-                .borrow()
-                .write(tn_target, &mut regs, value, shift, len),
+            Timer(t, tn_target) => t.write(tn_target, &mut regs, value, shift, len),
             Global(CAP) => {} // General Capabilities and ID Register: Read Only
             Global(CFG) => self.set_cfg_reg(&mut regs, shift, len, value),
             Global(INT_STATUS) => self.set_int_status_reg(&mut regs, shift, len, value),
