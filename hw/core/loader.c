@@ -380,7 +380,7 @@ bool load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp)
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "Failed to open file: %s", filename);
+        error_setg_file_open(errp, errno, filename);
         return false;
     }
     if (read(fd, hdr, EI_NIDENT) != EI_NIDENT) {
