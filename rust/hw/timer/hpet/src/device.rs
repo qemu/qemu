@@ -193,7 +193,7 @@ pub struct HPETTimerRegisters {
     period: u64,
     /// timer pop will indicate wrap for one-shot 32-bit
     /// mode. Next pop will be actual timer expiration.
-    wrap_flag: u8,
+    wrap_flag: bool,
     /// last value armed, to avoid timer storms
     last: u64,
 }
@@ -377,7 +377,7 @@ impl HPETTimer {
         let cur_tick: u64 = regs.get_ticks();
         let tn_regs = &mut regs.tn_regs[self.index as usize];
 
-        tn_regs.wrap_flag = 0;
+        tn_regs.wrap_flag = false;
         tn_regs.update_cmp64(cur_tick);
 
         let mut next_tick: u64 = tn_regs.cmp64;
@@ -385,7 +385,7 @@ impl HPETTimer {
             // HPET spec says in one-shot 32-bit mode, generate an interrupt when
             // counter wraps in addition to an interrupt with comparator match.
             if !tn_regs.is_periodic() && tn_regs.cmp64 > hpet_next_wrap(cur_tick) {
-                tn_regs.wrap_flag = 1;
+                tn_regs.wrap_flag = true;
                 next_tick = hpet_next_wrap(cur_tick);
             }
         }
@@ -501,7 +501,7 @@ impl HPETTimer {
         tn_regs.config |=
             (u64::from(self.get_state().int_route_cap)) << HPET_TN_CFG_INT_ROUTE_CAP_SHIFT;
         tn_regs.period = 0;
-        tn_regs.wrap_flag = 0;
+        tn_regs.wrap_flag = false;
     }
 
     /// timer expiration callback
@@ -519,13 +519,11 @@ impl HPETTimer {
                 tn_regs.cmp = tn_regs.cmp64;
             }
             Some(tn_regs.cmp64)
-        } else if tn_regs.wrap_flag != 0 {
-            tn_regs.wrap_flag = 0;
-            Some(tn_regs.cmp64)
         } else {
-            None
+            tn_regs.wrap_flag.then_some(tn_regs.cmp64)
         };
 
+        tn_regs.wrap_flag = false;
         if let Some(tick) = next_tick {
             self.arm_timer(regs, tick);
         }
@@ -1038,7 +1036,7 @@ impl ToMigrationState for HPETTimer {
         target.cmp = tn_regs.cmp;
         target.fsb = tn_regs.fsb;
         target.period = tn_regs.period;
-        target.wrap_flag = tn_regs.wrap_flag;
+        target.wrap_flag = u8::from(tn_regs.wrap_flag);
         self.qemu_timer
             .snapshot_migration_state(&mut target.qemu_timer)?;
 
@@ -1068,7 +1066,7 @@ impl ToMigrationStateShared for HPETTimer {
         tn_regs.cmp = source.cmp;
         tn_regs.fsb = source.fsb;
         tn_regs.period = source.period;
-        tn_regs.wrap_flag = source.wrap_flag;
+        tn_regs.wrap_flag = source.wrap_flag != 0;
         self.qemu_timer
             .restore_migrated_state(source.qemu_timer, version_id)?;
 
