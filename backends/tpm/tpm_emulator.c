@@ -225,8 +225,7 @@ static int tpm_emulator_set_locality(TPMEmulator *tpm_emu, uint8_t locty_number,
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SET_LOCALITY, &loc,
                              sizeof(loc), sizeof(loc.u.resp.tpm_result),
                              sizeof(loc)) < 0) {
-        error_setg(errp, "tpm-emulator: could not set locality : %s",
-                   strerror(errno));
+        error_setg_errno(errp, errno, "tpm-emulator: could not set locality");
         return -1;
     }
 
@@ -315,8 +314,7 @@ static int tpm_emulator_stop_tpm(TPMBackend *tb, Error **errp)
 
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_STOP, &res, 0,
                              sizeof(ptm_res), sizeof(res)) < 0) {
-        error_setg(errp, "tpm-emulator: Could not stop TPM: %s",
-                   strerror(errno));
+        error_setg_errno(errp, errno, "tpm-emulator: Could not stop TPM");
         return -1;
     }
 
@@ -377,8 +375,8 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SET_BUFFERSIZE, &psbs,
                              sizeof(psbs.u.req), sizeof(psbs.u.resp.tpm_result),
                              sizeof(psbs.u.resp)) < 0) {
-        error_setg(errp, "tpm-emulator: Could not set buffer size: %s",
-                   strerror(errno));
+        error_setg_errno(errp, errno,
+                         "tpm-emulator: Could not set buffer size");
         return -1;
     }
 
@@ -426,8 +424,7 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_INIT, &init, sizeof(init),
                              sizeof(init.u.resp.tpm_result),
                              sizeof(init)) < 0) {
-        error_setg(errp, "tpm-emulator: could not send INIT: %s",
-                   strerror(errno));
+        error_setg_errno(errp, errno, "tpm-emulator: could not send INIT");
         goto err_exit;
     }
 

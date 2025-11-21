@@ -167,7 +167,7 @@ int spdm_socket_connect(uint16_t port, Error **errp)
 
     client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (client_socket < 0) {
-        error_setg(errp, "cannot create socket: %s", strerror(errno));
+        error_setg_errno(errp, errno, "cannot create socket");
         return -1;
     }
 
@@ -179,7 +179,7 @@ int spdm_socket_connect(uint16_t port, Error **errp)
 
     if (connect(client_socket, (struct sockaddr *)&server_addr,
                 sizeof(server_addr)) < 0) {
-        error_setg(errp, "cannot connect: %s", strerror(errno));
+        error_setg_errno(errp, errno, "cannot connect");
         close(client_socket);
         return -1;
     }

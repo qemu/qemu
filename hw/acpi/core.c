@@ -293,8 +293,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
                 memcpy(blob + bloblen, data, r);
                 bloblen += r;
             } else if (errno != EINTR) {
-                error_setg(errp, "can't read file %s: %s", *cur,
-                           strerror(errno));
+                error_setg_errno(errp, errno, "can't read file %s", *cur);
                 close(fd);
                 goto out;
             }

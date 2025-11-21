@@ -1281,8 +1281,8 @@ static int save_opt_one(void *opaque,
                 break;
             }
             if (ret < 0) {
-                error_setg(errp, "Unable to read from %s: %s",
-                           value, strerror(errno));
+                error_setg_errno(errp, errno, "Unable to read from %s",
+                                 value);
                 qemu_close(fd);
                 return -1;
             }

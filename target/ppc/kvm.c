@@ -2699,9 +2699,8 @@ int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp)
 
     ret = kvm_vm_ioctl(kvm_state, KVM_PPC_GET_HTAB_FD, &s);
     if (ret < 0) {
-        error_setg(errp, "Unable to open fd for %s HPT %s KVM: %s",
-                   write ? "writing" : "reading", write ? "to" : "from",
-                   strerror(errno));
+        error_setg_errno(errp, errno, "Unable to open fd for %s HPT %s KVM",
+                   write ? "writing" : "reading", write ? "to" : "from");
         return -errno;
     }
 
