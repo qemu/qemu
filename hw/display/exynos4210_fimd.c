@@ -131,7 +131,6 @@
 /* Frame buffer address registers */
 #define FIMD_VIDWADD0_START         0x00A0
 #define FIMD_VIDWADD0_END           0x00C4
-#define FIMD_VIDWADD0_END           0x00C4
 #define FIMD_VIDWADD1_START         0x00D0
 #define FIMD_VIDWADD1_END           0x00F4
 #define FIMD_VIDWADD2_START         0x0100
