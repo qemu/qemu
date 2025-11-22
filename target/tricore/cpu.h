@@ -59,7 +59,14 @@ typedef struct CPUArchState {
 
     /* Internal CPU feature flags.  */
     uint64_t features;
+
+    /* Interrupt state for RTOS support */
+    uint32_t pending_int_level;  /* Pending interrupt priority level (PIPN) */
+    bool pending_int;            /* Whether an interrupt is pending */
 } CPUTriCoreState;
+
+/* Interrupt handling functions */
+void tricore_cpu_do_interrupt(CPUState *cs);
 
 /**
  * TriCoreCPU:
@@ -158,6 +165,7 @@ enum tricore_features {
     TRICORE_FEATURE_16,
     TRICORE_FEATURE_161,
     TRICORE_FEATURE_162,
+    TRICORE_FEATURE_18,   /* TriCore 1.8 for TC4xx */
 };
 
 static inline int tricore_has_feature(CPUTriCoreState *env, int feature)

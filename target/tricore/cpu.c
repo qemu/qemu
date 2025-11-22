@@ -21,9 +21,11 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "exec/translation-block.h"
+#include "exec/cpu-interrupt.h"
 #include "qemu/error-report.h"
 #include "tcg/debug-assert.h"
 #include "accel/tcg/cpu-ops.h"
+#include "accel/tcg/cpu-ldst.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
@@ -106,6 +108,10 @@ static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* Some features automatically imply others */
+    if (tricore_has_feature(env, TRICORE_FEATURE_18)) {
+        set_feature(env, TRICORE_FEATURE_162);
+    }
+
     if (tricore_has_feature(env, TRICORE_FEATURE_162)) {
         set_feature(env, TRICORE_FEATURE_161);
     }
@@ -166,10 +172,150 @@ static void tc37x_initfn(Object *obj)
     set_feature(&cpu->env, TRICORE_FEATURE_162);
 }
 
+static void tc4x_initfn(Object *obj)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(obj);
+
+    set_feature(&cpu->env, TRICORE_FEATURE_18);
+}
+
+/*
+ * Check if an interrupt should be taken.
+ * TriCore interrupt conditions:
+ * - ICR.IE (Interrupt Enable) must be set
+ * - Pending interrupt priority (PIPN) must be > Current CPU Priority (CCPN)
+ */
 static bool tricore_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    /* Interrupts are not implemented */
+    CPUTriCoreState *env = cpu_env(cs);
+
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        /* Check if interrupts are enabled (ICR.IE) */
+        if (!icr_get_ie(env)) {
+            return false;
+        }
+
+        /* Check if we have a pending interrupt */
+        if (!env->pending_int) {
+            return false;
+        }
+
+        /*
+         * Check priority: interrupt is taken if PIPN > CCPN
+         * PIPN = Pending Interrupt Priority Number (from ICR)
+         * CCPN = Current CPU Priority Number (from ICR)
+         */
+        uint32_t pipn = env->pending_int_level;
+        uint32_t ccpn = icr_get_ccpn(env);
+
+        if (pipn > ccpn) {
+            /* Take the interrupt */
+            cs->exception_index = TRAPC_IRQ;
+            tricore_cpu_do_interrupt(cs);
+            return true;
+        }
+    }
     return false;
+}
+
+/*
+ * Handle TriCore hardware interrupt.
+ * This saves the upper context and jumps to the interrupt vector.
+ *
+ * Based on TriCore Architecture Manual:
+ * 1. Save upper context (registers) to CSA
+ * 2. Update PCXI with saved context info
+ * 3. Set ICR.CCPN = interrupt priority
+ * 4. Clear ICR.IE (disable interrupts)
+ * 5. Jump to BIV + (interrupt_number * 32)
+ */
+void tricore_cpu_do_interrupt(CPUState *cs)
+{
+    CPUTriCoreState *env = cpu_env(cs);
+    uint32_t ea;
+    uint32_t new_FCX;
+    uint32_t pipn = env->pending_int_level;
+
+    /* Check for Free Context List Underflow */
+    if (env->FCX == 0) {
+        /* FCU trap - cannot save context */
+        /* In real hardware this would be a fatal error */
+        return;
+    }
+
+    /* Save upper context */
+    ea = ((env->FCX & MASK_FCX_FCXS) << 12) +
+         ((env->FCX & MASK_FCX_FCXO) << 6);
+
+    /* Get next free CSA */
+    new_FCX = cpu_ldl_data(env, ea);
+
+    /* Save upper context to CSA:
+     * {PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11],
+     *  A[12], A[13], A[14], A[15], D[12], D[13], D[14], D[15]}
+     */
+    cpu_stl_data(env, ea, env->PCXI);
+    cpu_stl_data(env, ea + 4, psw_read(env));
+    cpu_stl_data(env, ea + 8, env->gpr_a[10]);
+    cpu_stl_data(env, ea + 12, env->gpr_a[11]);
+    cpu_stl_data(env, ea + 16, env->gpr_d[8]);
+    cpu_stl_data(env, ea + 20, env->gpr_d[9]);
+    cpu_stl_data(env, ea + 24, env->gpr_d[10]);
+    cpu_stl_data(env, ea + 28, env->gpr_d[11]);
+    cpu_stl_data(env, ea + 32, env->gpr_a[12]);
+    cpu_stl_data(env, ea + 36, env->gpr_a[13]);
+    cpu_stl_data(env, ea + 40, env->gpr_a[14]);
+    cpu_stl_data(env, ea + 44, env->gpr_a[15]);
+    cpu_stl_data(env, ea + 48, env->gpr_d[12]);
+    cpu_stl_data(env, ea + 52, env->gpr_d[13]);
+    cpu_stl_data(env, ea + 56, env->gpr_d[14]);
+    cpu_stl_data(env, ea + 60, env->gpr_d[15]);
+
+    /* Update PCXI */
+    /* PCXI.PCPN = ICR.CCPN (save current priority) */
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
+    /* PCXI.PIE = ICR.IE (save interrupt enable state) */
+    pcxi_set_pie(env, icr_get_ie(env));
+    /* PCXI.UL = 1 (upper context) */
+    pcxi_set_ul(env, 1);
+    /* PCXI[19:0] = FCX[19:0] */
+    env->PCXI = (env->PCXI & 0xfff00000) + (env->FCX & 0x000fffff);
+
+    /* Update FCX to next free CSA */
+    env->FCX = (env->FCX & 0xfff00000) + (new_FCX & 0x000fffff);
+
+    /* Set return address A[11] = PC */
+    env->gpr_a[11] = env->PC;
+
+    /* Set stack pointer to ISP if not already using interrupt stack */
+    if ((env->PSW & MASK_PSW_IS) == 0) {
+        env->gpr_a[10] = env->ISP;
+    }
+
+    /* Update PSW for interrupt handling */
+    env->PSW |= MASK_PSW_IS;      /* Use interrupt stack */
+    env->PSW |= (2 << 10);        /* Set I/O mode to Supervisor */
+    env->PSW &= ~MASK_PSW_PRS;    /* Clear protection register set */
+    env->PSW &= ~MASK_PSW_CDC;    /* Clear call depth counter */
+    env->PSW |= MASK_PSW_CDE;     /* Enable call depth counting */
+    env->PSW &= ~MASK_PSW_GW;     /* Disable global register write */
+
+    /* Update ICR */
+    /* ICR.CCPN = interrupt priority */
+    icr_set_ccpn(env, pipn);
+    /* ICR.IE = 0 (disable further interrupts) */
+    icr_set_ie(env, 0);
+    /* ICR.PIPN = 0 (clear pending interrupt) */
+    env->ICR &= ~(0xFF << 16);
+
+    /* Clear pending interrupt state */
+    env->pending_int = false;
+    env->pending_int_level = 0;
+
+    /* Jump to interrupt vector: BIV + (priority * 32) */
+    env->PC = (env->BIV & ~0x1) + (pipn * 32);
+
+    cs->exception_index = -1;
 }
 
 #include "hw/core/sysemu-cpu-ops.h"
@@ -192,6 +338,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .tlb_fill = tricore_cpu_tlb_fill,
     .pointer_wrap = cpu_pointer_wrap_uint32,
     .cpu_exec_interrupt = tricore_cpu_exec_interrupt,
+    .do_interrupt = tricore_cpu_do_interrupt,
     .cpu_exec_halt = tricore_cpu_has_work,
     .cpu_exec_reset = cpu_reset,
 };
@@ -243,6 +390,7 @@ static const TypeInfo tricore_cpu_type_infos[] = {
     DEFINE_TRICORE_CPU_TYPE("tc1797", tc1797_initfn),
     DEFINE_TRICORE_CPU_TYPE("tc27x", tc27x_initfn),
     DEFINE_TRICORE_CPU_TYPE("tc37x", tc37x_initfn),
+    DEFINE_TRICORE_CPU_TYPE("tc4x", tc4x_initfn),
 };
 
 DEFINE_TYPES(tricore_cpu_type_infos)
