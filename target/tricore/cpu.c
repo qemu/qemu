@@ -21,9 +21,13 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "exec/translation-block.h"
+#include "exec/cpu-interrupt.h"
+#include "system/memory.h"
+#include "system/address-spaces.h"
 #include "qemu/error-report.h"
 #include "tcg/debug-assert.h"
 #include "accel/tcg/cpu-ops.h"
+#include "exec/helper-proto.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
@@ -83,7 +87,11 @@ static void tricore_cpu_reset_hold(Object *obj, ResetType type)
 
 static bool tricore_cpu_has_work(CPUState *cs)
 {
-    return true;
+    CPUTriCoreState *env = cpu_env(cs);
+
+    return (cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+           tricore_cpu_interrupts_enabled(env) &&
+           tricore_cpu_pending_interrupt(env);
 }
 
 static int tricore_cpu_mmu_index(CPUState *cs, bool ifetch)
@@ -166,10 +174,179 @@ static void tc37x_initfn(Object *obj)
     set_feature(&cpu->env, TRICORE_FEATURE_162);
 }
 
+/* Also add TC39x for TC397 support */
+static void tc39x_initfn(Object *obj)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(obj);
+
+    set_feature(&cpu->env, TRICORE_FEATURE_162);
+}
+
+/*
+ * TriCore interrupt handling
+ *
+ * When an interrupt is taken:
+ * 1. Upper context is saved (A[10-15], D[8-15], PCXI, PSW)
+ * 2. Return address is stored in A[11]
+ * 3. Stack pointer may be switched to ISP
+ * 4. PCXI.PIE = ICR.IE, PCXI.PCPN = ICR.CCPN
+ * 5. ICR.IE = 1, ICR.CCPN = interrupt priority
+ * 6. ICR.PIPN = interrupt vector number
+ * 7. PC = BIV + 32 * interrupt vector number
+ */
+void tricore_cpu_do_interrupt(CPUState *cs)
+{
+    CPUTriCoreState *env = cpu_env(cs);
+    uint32_t tmp_FCX;
+    uint32_t ea;
+    uint32_t new_FCX;
+
+    /* Save upper context */
+    if (env->FCX == 0) {
+        /* FCU trap - cannot save context */
+        cs->exception_index = TRAPC_CTX_MNG;
+        return;
+    }
+
+    tmp_FCX = env->FCX;
+    ea = ((env->FCX & 0xf0000) << 12) + ((env->FCX & 0xffff) << 6);
+
+    /* Read new FCX from memory */
+    new_FCX = address_space_ldl(&address_space_memory, ea,
+                                MEMTXATTRS_UNSPECIFIED, NULL);
+
+    /* Save upper context to memory:
+     * {PCXI, PSW, A[10], A[11], D[8], D[9], D[10], D[11],
+     *  A[12], A[13], A[14], A[15], D[12], D[13], D[14], D[15]}
+     */
+    address_space_stl(&address_space_memory, ea, env->PCXI,
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 4, psw_read(env),
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 8, env->gpr_a[10],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 12, env->gpr_a[11],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 16, env->gpr_d[8],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 20, env->gpr_d[9],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 24, env->gpr_d[10],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 28, env->gpr_d[11],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 32, env->gpr_a[12],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 36, env->gpr_a[13],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 40, env->gpr_a[14],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 44, env->gpr_a[15],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 48, env->gpr_d[12],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 52, env->gpr_d[13],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 56, env->gpr_d[14],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stl(&address_space_memory, ea + 60, env->gpr_d[15],
+                      MEMTXATTRS_UNSPECIFIED, NULL);
+
+    /* Store return address in A[11] */
+    env->gpr_a[11] = env->PC;
+
+    /* Switch to interrupt stack if not already using it */
+    if ((env->PSW & MASK_PSW_IS) == 0) {
+        env->gpr_a[10] = env->ISP;
+    }
+    env->PSW |= MASK_PSW_IS;
+
+    /* Set I/O mode to Supervisor mode: PSW.IO = 10B */
+    env->PSW = (env->PSW & ~MASK_PSW_IO) | (2 << 10);
+
+    /* Clear Protection Register Set: PSW.PRS = 00B */
+    env->PSW &= ~MASK_PSW_PRS;
+
+    /* Clear Call Depth Counter and set limit to 64: PSW.CDC = 0 */
+    env->PSW &= ~MASK_PSW_CDC;
+
+    /* Enable Call Depth Counter: PSW.CDE = 1 */
+    env->PSW |= MASK_PSW_CDE;
+
+    /* Disable write to global registers: PSW.GW = 0 */
+    env->PSW &= ~MASK_PSW_GW;
+
+    /* Save old ICR values to PCXI */
+    pcxi_set_pie(env, icr_get_ie(env));
+    pcxi_set_pcpn(env, icr_get_ccpn(env));
+    pcxi_set_ul(env, 1);  /* Upper context saved */
+
+    /* Update PCXI with FCX pointer */
+    env->PCXI = (env->PCXI & 0xfff00000) | (env->FCX & 0xfffff);
+
+    /* Update FCX */
+    env->FCX = (env->FCX & 0xfff00000) | (new_FCX & 0xfffff);
+
+    /* Set ICR for interrupt */
+    icr_set_ie(env, 1);  /* Enable interrupts */
+    icr_set_ccpn(env, env->pending_int_level);  /* Set current priority */
+
+    /* Update ICR.PIPN with vector number */
+    env->ICR = (env->ICR & ~0xff0000) | ((env->pending_int_vector & 0xff) << 16);
+
+    /* Jump to interrupt vector: PC = BIV + 32 * vector */
+    env->PC = env->BIV + (env->pending_int_vector << 5);
+
+    /* Check for FCD trap */
+    if (tmp_FCX == env->LCX) {
+        /* Would trigger FCD trap, but continue for now */
+    }
+
+    cs->exception_index = -1;
+}
+
 static bool tricore_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    /* Interrupts are not implemented */
+    CPUTriCoreState *env = cpu_env(cs);
+
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        if (tricore_cpu_interrupts_enabled(env) &&
+            tricore_cpu_pending_interrupt(env)) {
+            cs->exception_index = TRAPC_IRQ;
+            tricore_cpu_do_interrupt(cs);
+            return true;
+        }
+    }
     return false;
+}
+
+/*
+ * Set an interrupt request line.
+ * Called from peripheral devices (STM, etc.) to signal interrupts.
+ * level: priority level of the interrupt (0-255)
+ * irq: vector number (PIPN value)
+ */
+void tricore_cpu_set_irq(void *opaque, int irq, int level)
+{
+    TriCoreCPU *cpu = opaque;
+    CPUTriCoreState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    if (level) {
+        /* Set pending interrupt if higher priority than current pending */
+        if ((uint32_t)level > env->pending_int_level) {
+            env->pending_int_level = level;
+            env->pending_int_vector = irq;
+        }
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        /* Clear interrupt if this was the pending one */
+        if (env->pending_int_vector == (uint32_t)irq) {
+            env->pending_int_level = 0;
+            env->pending_int_vector = 0;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+    }
 }
 
 #include "hw/core/sysemu-cpu-ops.h"
@@ -191,6 +368,7 @@ static const TCGCPUOps tricore_tcg_ops = {
     .mmu_index = tricore_cpu_mmu_index,
     .tlb_fill = tricore_cpu_tlb_fill,
     .pointer_wrap = cpu_pointer_wrap_uint32,
+    .do_interrupt = tricore_cpu_do_interrupt,
     .cpu_exec_interrupt = tricore_cpu_exec_interrupt,
     .cpu_exec_halt = tricore_cpu_has_work,
     .cpu_exec_reset = cpu_reset,
@@ -243,6 +421,7 @@ static const TypeInfo tricore_cpu_type_infos[] = {
     DEFINE_TRICORE_CPU_TYPE("tc1797", tc1797_initfn),
     DEFINE_TRICORE_CPU_TYPE("tc27x", tc27x_initfn),
     DEFINE_TRICORE_CPU_TYPE("tc37x", tc37x_initfn),
+    DEFINE_TRICORE_CPU_TYPE("tc39x", tc39x_initfn),
 };
 
 DEFINE_TYPES(tricore_cpu_type_infos)

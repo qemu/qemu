@@ -11,3 +11,14 @@ config TRIBOARD
 
 config TC27X_SOC
     bool
+
+config TC39X_SOC
+    bool
+    select TC_STM
+    select TC_IR
+
+config TC_STM
+    bool
+
+config TC_IR
+    bool

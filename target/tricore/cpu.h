@@ -59,6 +59,10 @@ typedef struct CPUArchState {
 
     /* Internal CPU feature flags.  */
     uint64_t features;
+
+    /* Interrupt state for hardware interrupt support */
+    uint32_t pending_int_level;  /* Priority level of pending interrupt */
+    uint32_t pending_int_vector; /* Vector number (PIPN) of pending interrupt */
 } CPUTriCoreState;
 
 /**
@@ -264,5 +268,21 @@ void tricore_translate_code(CPUState *cs, TranslationBlock *tb,
 bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                           MMUAccessType access_type, int mmu_idx,
                           bool probe, uintptr_t retaddr);
+
+/* Interrupt handling */
+void tricore_cpu_do_interrupt(CPUState *cs);
+void tricore_cpu_set_irq(void *opaque, int irq, int level);
+
+/* Check if interrupts are enabled */
+static inline bool tricore_cpu_interrupts_enabled(CPUTriCoreState *env)
+{
+    return icr_get_ie(env) != 0;
+}
+
+/* Check if pending interrupt has higher priority than current */
+static inline bool tricore_cpu_pending_interrupt(CPUTriCoreState *env)
+{
+    return env->pending_int_level > icr_get_ccpn(env);
+}
 
 #endif /* TRICORE_CPU_H */
