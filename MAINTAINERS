@@ -3382,7 +3382,7 @@ T: git https://gitlab.com/ehabkost/qemu.git machine-next
 
 Cryptodev Backends
 M: Gonglei <arei.gonglei@huawei.com>
-M: zhenwei pi <pizhenwei@bytedance.com>
+M: zhenwei pi <zhenwei.pi@linux.dev>
 S: Maintained
 F: include/system/cryptodev*.h
 F: backends/cryptodev*.c
