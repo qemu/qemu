@@ -1005,7 +1005,7 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_7_1_EAX_FEATURES (CPUID_7_1_EAX_FZRM | CPUID_7_1_EAX_FSRS | \
           CPUID_7_1_EAX_FSRC | CPUID_7_1_EAX_CMPCCXADD)
 #define TCG_7_1_ECX_FEATURES 0
-#define TCG_7_1_EDX_FEATURES 0
+#define TCG_7_1_EDX_FEATURES CPUID_7_1_EDX_APXF
 #define TCG_7_2_EDX_FEATURES 0
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
@@ -1017,7 +1017,7 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_SGX_12_0_EBX_FEATURES 0
 #define TCG_SGX_12_1_EAX_FEATURES 0
 #define TCG_24_0_EBX_FEATURES 0
-#define TCG_29_0_EBX_FEATURES 0
+#define TCG_29_0_EBX_FEATURES CPUID_29_0_EBX_APX_NCI_NDD_NF
 #define TCG_1E_1_EAX_FEATURES 0
 #define TCG_24_1_ECX_FEATURES 0
 
@@ -1554,7 +1554,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .tcg_features = XSTATE_FP_MASK | XSTATE_SSE_MASK |
             XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK |
-            XSTATE_PKRU_MASK,
+            XSTATE_PKRU_MASK | XSTATE_APX_MASK,
         .migratable_flags = XSTATE_FP_MASK | XSTATE_SSE_MASK |
             XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK |
             XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK |
@@ -9722,9 +9722,37 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
      * inside x86_cpu_parse_featurestr() too.
      */
     if (xcc->max_features) {
+        /*
+         * TCG supports both MPX and APX.  Since they they cannot be enabled together,
+         * disable one---prefer APX if none was chosen explicitly.
+         */
+        uint64_t feat7_1_edx = env->user_features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF
+            ? env->features[FEAT_7_1_EDX]
+            : x86_cpu_get_supported_feature_word(cpu, FEAT_7_1_EDX);
+        uint64_t feat7_0_ebx = env->user_features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX
+            ? env->features[FEAT_7_0_EBX]
+            : x86_cpu_get_supported_feature_word(cpu, FEAT_7_0_EBX);
+
+        bool apx = feat7_1_edx & CPUID_7_1_EDX_APXF;
+        bool mpx = feat7_0_ebx & CPUID_7_0_EBX_MPX;
+        if (apx && mpx) {
+            if (env->user_features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF
+                || !(env->user_features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX)) {
+                mpx = false;
+            } else {
+                apx = false;
+            }
+        }
+
         for (w = 0; w < FEATURE_WORDS; w++) {
             /* Override only features that weren't set explicitly by the user.  */
             uint64_t no_autoenable_flags = env->user_features[w] | feature_word_info[w].no_autoenable_flags;
+            if (w == FEAT_7_1_EDX && mpx) {
+                no_autoenable_flags |= CPUID_7_1_EDX_APXF;
+            }
+            if (w == FEAT_7_0_EBX && apx) {
+                no_autoenable_flags |= CPUID_7_0_EBX_MPX;
+            }
 
             env->features[w] |= x86_cpu_get_supported_feature_word(cpu, w) & ~no_autoenable_flags;
         }
