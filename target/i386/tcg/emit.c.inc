@@ -1738,6 +1738,55 @@ static void gen_dfv_movcond(DisasContext *s, X86DecodedInsn *decode, int cond, u
                        decode->cc_dst, tcg_constant_tl(dst));
 }
 
+static bool gen_ccmp_movcond(DisasContext *s, int cond, uint32_t dfv, MemOp ot)
+{
+    target_ulong op0, op1, max_int;
+
+    assert(cond != CCMP_F);
+    if (cond == CCMP_T) {
+        return true;
+    }
+
+    /*
+     * For some values of dfv, it's possible to overwrite operands
+     * instead of using CC_OP_CCMP.  The weird "16"s are to set AF==0.
+     */
+    max_int = MAKE_64BIT_MASK(0, (8 << ot) - 1);
+    switch(dfv) {
+    case 0:
+        op0 = 1, op1 = 0;
+        break;
+    case CC_P|CC_C:
+        op0 = 1, op1 = -16;
+        break;
+    case CC_S:
+        op0 = -3, op1 = 0;
+        break;
+    case CC_S|CC_P|CC_C:
+        op0 = 0, op1 = 16;
+        break;
+    case CC_O:
+        /*
+         * While for >8-bit results -max_int has 1 in the lower byte, for 8-bit
+         * results -max_int is 0x81, so it flips the parity flag.  Compensate
+         * in op1.
+         */
+        op0 = -max_int, op1 = 16 + (ot == MO_8);
+        break;
+    case CC_O|CC_S|CC_P|CC_C:
+        /* Same here. */
+        op0 = max_int, op1 = -1 - (ot == MO_8);
+        break;
+    default:
+        return false;
+    }
+
+    CCPrepare cc = gen_prepare_cc(s, cond, NULL);
+    tcg_gen_movcond_tl(cc.cond, s->T0, cc.reg, cc.reg2, s->T0, tcg_constant_tl(op0));
+    tcg_gen_movcond_tl(cc.cond, s->T1, cc.reg, cc.reg2, s->T1, tcg_constant_tl(op1));
+    return true;
+}
+
 static void gen_SUB(DisasContext *s, X86DecodedInsn *decode);
 static void gen_CMP(DisasContext *s, X86DecodedInsn *decode)
 {
@@ -1746,16 +1795,15 @@ static void gen_CMP(DisasContext *s, X86DecodedInsn *decode)
     MemOp ot = decode->op[1].ot;
     TCGv cout;
 
-    switch (cond) {
-    case CCMP_T:
-        gen_SUB(s, decode);
-        return;
-    case CCMP_F:
+    if (cond == CCMP_F) {
         decode->cc_op = CC_OP_EFLAGS;
         decode->cc_src = tcg_constant_tl(dfv);
         return;
-    default:
-        break;
+    }
+    if (gen_ccmp_movcond(s, cond, dfv, ot)) {
+        /* Including CCMP_T, aka "normal" CMP.  */
+        gen_SUB(s, decode);
+        return;
     }
 
     decode->cc_op = CC_OP_CCMPB + ot;
