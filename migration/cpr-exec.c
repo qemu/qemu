@@ -159,11 +159,12 @@ static void cpr_exec_cb(void *opaque)
     error_report_err(error_copy(err));
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     migrate_set_error(s, err);
+    error_free(err);
+    err = NULL;
 
     /* Note, we can go from state COMPLETED to FAILED */
     migration_call_notifiers(s, MIG_EVENT_PRECOPY_FAILED, NULL);
 
-    err = NULL;
     if (!migration_block_activate(&err)) {
         /* error was already reported */
         error_free(err);

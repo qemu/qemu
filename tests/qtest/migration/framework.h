@@ -18,6 +18,25 @@
 #define FILE_TEST_OFFSET 0x1000
 #define FILE_TEST_MARKER 'X'
 
+typedef enum {
+    /*
+     * Use memory-backend-ram, private mappings
+     */
+    MEM_TYPE_ANON,
+    /*
+     * Use shmem file (under /dev/shm), shared mappings
+     */
+    MEM_TYPE_SHMEM,
+    /*
+     * Use anonymous memfd, shared mappings.
+     *
+     * NOTE: this is internally almost the same as MEM_TYPE_SHMEM on Linux,
+     * but only anonymously allocated.
+     */
+    MEM_TYPE_MEMFD,
+    MEM_TYPE_NUM,
+} MemType;
+
 typedef struct MigrationTestEnv {
     bool has_kvm;
     bool has_tcg;
@@ -102,7 +121,7 @@ typedef struct {
      * unconditionally, because it means the user would like to be verbose.
      */
     bool hide_stderr;
-    bool use_shmem;
+    MemType mem_type;
     /* only launch the source process */
     bool only_source;
     /* only launch the target process */
@@ -115,11 +134,6 @@ typedef struct {
     bool suspend_me;
     /* enable OOB QMP capability */
     bool oob;
-    /*
-     * Format string for the main memory backend, containing one %s where the
-     * size is plugged in.  If omitted, "-m %s" is used.
-     */
-    const char *memory_backend;
 
     /* Do not connect to target monitor and qtest sockets in qtest_init */
     bool defer_target_connect;

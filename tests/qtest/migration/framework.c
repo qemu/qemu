@@ -260,6 +260,41 @@ static char *test_shmem_path(void)
     return g_strdup_printf("/dev/shm/qemu-%d", getpid());
 }
 
+#define  MIG_MEM_ID  "mig.mem"
+
+/* NOTE: caller is responsbile to free the string if returned */
+static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
+{
+    g_autofree char *shmem_path = NULL;
+    g_autofree char *backend = NULL;
+    bool share = true;
+    char *opts;
+
+    switch (type) {
+    case MEM_TYPE_ANON:
+        backend = g_strdup("-object memory-backend-ram");
+        share = false;
+        break;
+    case MEM_TYPE_SHMEM:
+        shmem_path = test_shmem_path();
+        backend = g_strdup_printf("-object memory-backend-file,mem-path=%s",
+                                  shmem_path);
+        break;
+    case MEM_TYPE_MEMFD:
+        backend = g_strdup("-object memory-backend-memfd");
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+    opts = g_strdup_printf("%s,id=%s,size=%s,share=%s",
+                           backend, MIG_MEM_ID, memory_size,
+                           share ? "on" : "off");
+
+    return opts;
+}
+
 int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
 {
     /* options for source and target */
@@ -267,8 +302,7 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
     gchar *cmd_source = NULL;
     gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
-    g_autofree char *shmem_opts = NULL;
-    g_autofree char *shmem_path = NULL;
+    g_autofree char *mem_object = NULL;
     const char *kvm_opts = NULL;
     const char *arch = qtest_get_arch();
     const char *memory_size;
@@ -332,19 +366,9 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
         ignore_stderr = "";
     }
 
-    if (args->use_shmem) {
-        shmem_path = test_shmem_path();
-        shmem_opts = g_strdup_printf(
-            "-object memory-backend-file,id=mem0,size=%s"
-            ",mem-path=%s,share=on -numa node,memdev=mem0",
-            memory_size, shmem_path);
-    }
-
-    if (args->memory_backend) {
-        memory_backend = g_strdup_printf(args->memory_backend, memory_size);
-    } else {
-        memory_backend = g_strdup_printf("-m %s ", memory_size);
-    }
+    mem_object = migrate_mem_type_get_opts(args->mem_type, memory_size);
+    memory_backend = g_strdup_printf("-machine memory-backend=%s %s",
+                                     MIG_MEM_ID, mem_object);
 
     if (args->use_dirty_ring) {
         kvm_opts = ",dirty-ring-size=4096";
@@ -366,12 +390,11 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "-name source,debug-threads=on "
                                  "%s "
                                  "-serial file:%s/src_serial "
-                                 "%s %s %s %s",
+                                 "%s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs,
                                  arch_opts ? arch_opts : "",
-                                 shmem_opts ? shmem_opts : "",
                                  args->opts_source ? args->opts_source : "",
                                  ignore_stderr);
 
@@ -388,19 +411,54 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "%s "
                                  "-serial file:%s/dest_serial "
                                  "-incoming %s "
-                                 "%s %s %s %s %s",
+                                 "%s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
                                  memory_backend, tmpfs, uri,
                                  events,
                                  arch_opts ? arch_opts : "",
-                                 shmem_opts ? shmem_opts : "",
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
 
     *from = cmd_source;
     *to = cmd_target;
     return 0;
+}
+
+static bool migrate_mem_type_prepare(MemType type)
+{
+    switch (type) {
+    case MEM_TYPE_SHMEM:
+        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
+            g_test_skip("/dev/shm is not supported");
+            return false;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return true;
+}
+
+static void migrate_mem_type_cleanup(MemType type)
+{
+    g_autofree char *shmem_path = NULL;
+
+    switch (type) {
+    case MEM_TYPE_SHMEM:
+
+        /*
+         * Remove shmem file immediately to avoid memory leak in test
+         * failed case.  It's valid because QEMU has already opened this
+         * file
+         */
+        shmem_path = test_shmem_path();
+        unlink(shmem_path);
+        break;
+    default:
+        break;
+    }
 }
 
 int migrate_start(QTestState **from, QTestState **to, const char *uri,
@@ -410,11 +468,8 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     g_autofree gchar *cmd_target = NULL;
     g_autoptr(QList) capabilities = migrate_start_get_qmp_capabilities(args);
 
-    if (args->use_shmem) {
-        if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
-            g_test_skip("/dev/shm is not supported");
-            return -1;
-        }
+    if (!migrate_mem_type_prepare(args->mem_type)) {
+        return -1;
     }
 
     dst_state = (QTestMigrationState) { };
@@ -441,15 +496,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
                                      &dst_state);
     }
 
-    /*
-     * Remove shmem file immediately to avoid memory leak in test failed case.
-     * It's valid because QEMU has already opened this file
-     */
-    if (args->use_shmem) {
-        g_autofree char *shmem_path = test_shmem_path();
-        unlink(shmem_path);
-    }
-
+    migrate_mem_type_cleanup(args->mem_type);
     migrate_start_set_capabilities(*from,
                                    args->only_source ? NULL : *to,
                                    args);

@@ -2146,25 +2146,24 @@ static void *postcopy_listen_thread(void *opaque)
     if (load_res < 0) {
         qemu_file_set_error(f, load_res);
         dirty_bitmap_mig_cancel_incoming();
+        error_prepend(&local_err,
+                      "loadvm failed during postcopy: %d: ", load_res);
         if (postcopy_state_get() == POSTCOPY_INCOMING_RUNNING &&
             !migrate_postcopy_ram() && migrate_dirty_bitmaps())
         {
-            error_report("%s: loadvm failed during postcopy: %d: %s. All states "
-                         "are migrated except dirty bitmaps. Some dirty "
-                         "bitmaps may be lost, and present migrated dirty "
-                         "bitmaps are correctly migrated and valid.",
-                         __func__, load_res, error_get_pretty(local_err));
-            g_clear_pointer(&local_err, error_free);
+            error_append_hint(&local_err,
+                              "All state is migrated except dirty bitmaps."
+                              " Some dirty bitmaps may be lost, but any"
+                              " migrated dirty bitmaps are valid.");
+            error_report_err(local_err);
         } else {
             /*
              * Something went fatally wrong and we have a bad state, QEMU will
              * exit depending on if postcopy-exit-on-error is true, but the
              * migration cannot be recovered.
              */
-            error_prepend(&local_err,
-                          "loadvm failed during postcopy: %d: ", load_res);
             migrate_set_error(migr, local_err);
-            g_clear_pointer(&local_err, error_report_err);
+            error_report_err(local_err);
             migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
             goto out;
         }

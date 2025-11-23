@@ -1693,7 +1693,7 @@ void migration_remove_notifier(NotifierWithReturn *notify)
 {
     if (notify->notify) {
         for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
-            migration_blockers[mode] =
+            migration_state_notifiers[mode] =
                 g_slist_remove(migration_state_notifiers[mode], notify);
         }
         notify->notify = NULL;
@@ -3081,9 +3081,9 @@ static void migration_completion(MigrationState *s)
         goto fail;
     }
 
-    if (migrate_colo() && s->state == MIGRATION_STATUS_ACTIVE) {
+    if (migrate_colo() && s->state == MIGRATION_STATUS_DEVICE) {
         /* COLO does not support postcopy */
-        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+        migrate_set_state(&s->state, MIGRATION_STATUS_DEVICE,
                           MIGRATION_STATUS_COLO);
     } else {
         migration_completion_end(s);
