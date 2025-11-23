@@ -14,7 +14,6 @@ from os.path import join
 import shutil
 
 from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
-from qemu_test import exec_command_and_wait_for_pattern
 
 
 class Aarch64RMESbsaRefMachine(QemuSystemTest):
@@ -48,7 +47,7 @@ class Aarch64RMESbsaRefMachine(QemuSystemTest):
         efi = join(rme_stack, 'out', 'EFI')
         os.makedirs(efi, exist_ok=True)
         shutil.copyfile(join(rme_stack, 'out', 'Image'), join(efi, 'Image'))
-        with open(join(efi, 'startup.nsh'), 'w') as startup:
+        with open(join(efi, 'startup.nsh'), 'w', encoding='ascii') as startup:
             startup.write('fs0:Image nokaslr root=/dev/vda rw init=/init --'
                           ' /host/out/lkvm run --realm'
                           ' -m 256m'

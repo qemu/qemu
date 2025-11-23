@@ -6,8 +6,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu_test import QemuSystemTest, Asset
 import asyncio
+from qemu_test import QemuSystemTest, Asset
+
 
 class Ppe42Machine(QemuSystemTest):
 
@@ -30,12 +31,12 @@ class Ppe42Machine(QemuSystemTest):
             raise
 
         self.log.info(output)
-        if "NIP fff80200" in output:
-            self.log.info("<test completed>")
-            return True
-        else:
+        if "NIP fff80200" not in output:
             self.log.info("<test not completed>")
             return False
+
+        self.log.info("<test completed>")
+        return True
 
     def _wait_pass_fail(self, timeout):
         while not self._test_completed():
@@ -49,14 +50,13 @@ class Ppe42Machine(QemuSystemTest):
 
                 except asyncio.TimeoutError:
                     self.log.info("Poll period ended.")
-                    pass
 
                 except Exception as err:
                     self.log.debug(f"event_wait() failed due to {err=},"
                                     " {type(err)=}")
                     raise
 
-                if e != None:
+                if e is not None:
                     self.log.debug(f"Execution stopped: {e}")
                     self.log.debug("Exiting due to test failure")
                     self.fail("Failure detected!")
