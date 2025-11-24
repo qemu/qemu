@@ -8814,9 +8814,14 @@ static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
     }
 }
 
-static void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev)
+static bool nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 {
     uint32_t pmrcap = ldl_le_p(&n->bar.pmrcap);
+
+    if (memory_region_size(&n->pmr.dev->mr) < 16) {
+        error_setg(errp, "PMR device must have at least 16 bytes");
+        return false;
+    }
 
     NVME_PMRCAP_SET_RDS(pmrcap, 1);
     NVME_PMRCAP_SET_WDS(pmrcap, 1);
@@ -8832,6 +8837,8 @@ static void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev)
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &n->pmr.dev->mr);
 
     memory_region_set_enabled(&n->pmr.dev->mr, false);
+
+    return true;
 }
 
 static uint64_t nvme_mbar_size(unsigned total_queues, unsigned total_irqs,
@@ -9050,7 +9057,9 @@ static bool nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     }
 
     if (n->pmr.dev) {
-        nvme_init_pmr(n, pci_dev);
+        if (!nvme_init_pmr(n, pci_dev, errp)) {
+            return false;
+        }
     }
 
     return true;
