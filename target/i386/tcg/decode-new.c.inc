@@ -2665,7 +2665,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
                     goto unknown_op;
                 }
             }
-            s->vex_v = (~vex3 >> 3) & 0xf;
+            s->vex_v = (~vex3 >> 3) & (CODE64(s) ? 15 : 7);
             s->vex_l = (vex3 >> 2) & 1;
             s->prefix |= pp_prefix[vex3 & 3] | PREFIX_VEX;
         }
