@@ -68,6 +68,38 @@ static const TypeInfo aspeed_pcie_root_device_info = {
  * PCIe Root Port
  */
 
+#define ASPEED_PCIE_ROOT_PORT_MSI_OFFSET        0x50
+#define ASPEED_PCIE_ROOT_PORT_MSI_NR_VECTOR     1
+#define ASPEED_PCIE_ROOT_PORT_SSVID_OFFSET      0xC0
+#define ASPEED_PCIE_ROOT_PORT_EXP_OFFSET        0x80
+#define ASPEED_PCIE_ROOT_PORT_AER_OFFSET        0x100
+
+static uint8_t aspeed_pcie_root_port_aer_vector(const PCIDevice *d)
+{
+    return 0;
+}
+
+static int aspeed_pcie_root_port_interrupts_init(PCIDevice *d, Error **errp)
+{
+    int rc;
+
+    rc = msi_init(d, ASPEED_PCIE_ROOT_PORT_MSI_OFFSET,
+                  ASPEED_PCIE_ROOT_PORT_MSI_NR_VECTOR,
+                  PCI_MSI_FLAGS_MASKBIT & PCI_MSI_FLAGS_64BIT,
+                  PCI_MSI_FLAGS_MASKBIT & PCI_MSI_FLAGS_MASKBIT,
+                  errp);
+    if (rc < 0) {
+        assert(rc == -ENOTSUP);
+    }
+
+    return rc;
+}
+
+static void aspeed_pcie_root_port_interrupts_uninit(PCIDevice *d)
+{
+    msi_uninit(d);
+}
+
 static void aspeed_pcie_root_port_class_init(ObjectClass *klass,
                                              const void *data)
 {
@@ -80,7 +112,13 @@ static void aspeed_pcie_root_port_class_init(ObjectClass *klass,
     k->device_id = 0x1150;
     dc->user_creatable = true;
 
-    rpc->aer_offset = 0x100;
+    rpc->aer_vector = aspeed_pcie_root_port_aer_vector;
+    rpc->interrupts_init = aspeed_pcie_root_port_interrupts_init;
+    rpc->interrupts_uninit = aspeed_pcie_root_port_interrupts_uninit;
+    rpc->exp_offset = ASPEED_PCIE_ROOT_PORT_EXP_OFFSET;
+    rpc->aer_offset = ASPEED_PCIE_ROOT_PORT_AER_OFFSET;
+    rpc->ssvid_offset = ASPEED_PCIE_ROOT_PORT_SSVID_OFFSET;
+    rpc->ssid = 0x1150;
 }
 
 static const TypeInfo aspeed_pcie_root_port_info = {
