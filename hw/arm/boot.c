@@ -816,14 +816,14 @@ static ssize_t arm_load_elf(struct arm_boot_info *info, uint64_t *pentry,
 static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
                                    hwaddr *entry, AddressSpace *as)
 {
+    const size_t max_bytes = LOAD_IMAGE_MAX_DECOMPRESSED_BYTES;
     hwaddr kernel_load_offset = KERNEL64_LOAD_ADDR;
     uint64_t kernel_size = 0;
     uint8_t *buffer;
     ssize_t size;
 
     /* On aarch64, it's the bootloader's job to uncompress the kernel. */
-    size = load_image_gzipped_buffer(filename, LOAD_IMAGE_MAX_GUNZIP_BYTES,
-                                     &buffer);
+    size = load_image_gzipped_buffer(filename, max_bytes, &buffer);
 
     if (size < 0) {
         gsize len;
