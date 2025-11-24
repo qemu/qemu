@@ -131,7 +131,6 @@
 /* Frame buffer address registers */
 #define FIMD_VIDWADD0_START         0x00A0
 #define FIMD_VIDWADD0_END           0x00C4
-#define FIMD_VIDWADD0_END           0x00C4
 #define FIMD_VIDWADD1_START         0x00D0
 #define FIMD_VIDWADD1_END           0x00F4
 #define FIMD_VIDWADD2_START         0x0100
@@ -1147,6 +1146,13 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     if (w->mem_section.mr) {
         memory_region_set_log(w->mem_section.mr, false, DIRTY_MEMORY_VGA);
         memory_region_unref(w->mem_section.mr);
+        w->mem_section.mr = NULL;
+    }
+
+    if (w->fb_len == 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "FIMD: Guest config means framebuffer is zero length\n");
+        goto error_return;
     }
 
     w->mem_section = memory_region_find(s->fbmem, fb_start_addr, w->fb_len);

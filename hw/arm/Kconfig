@@ -623,7 +623,7 @@ config FSL_IMX8MP_EVK
     bool
     default y
     depends on AARCH64
-    depends on TCG || KVM
+    depends on TCG
     select FSL_IMX8MP
 
 config ARM_SMMUV3
