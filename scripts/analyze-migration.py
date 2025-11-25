@@ -107,7 +107,7 @@ class MigrationFile(object):
         self.file.close()
 
 class RamSection(object):
-    RAM_SAVE_FLAG_COMPRESS = 0x02
+    RAM_SAVE_FLAG_ZERO     = 0x02
     RAM_SAVE_FLAG_MEM_SIZE = 0x04
     RAM_SAVE_FLAG_PAGE     = 0x08
     RAM_SAVE_FLAG_EOS      = 0x10
@@ -172,19 +172,16 @@ class RamSection(object):
                         mr_addr = self.file.read64()
                 flags &= ~self.RAM_SAVE_FLAG_MEM_SIZE
 
-            if flags & self.RAM_SAVE_FLAG_COMPRESS:
+            if flags & self.RAM_SAVE_FLAG_ZERO:
                 if flags & self.RAM_SAVE_FLAG_CONTINUE:
                     flags &= ~self.RAM_SAVE_FLAG_CONTINUE
                 else:
                     self.name = self.file.readstr()
-                fill_char = self.file.read8()
-                # The page in question is filled with fill_char now
-                if self.write_memory and fill_char != 0:
-                    self.files[self.name].seek(addr, os.SEEK_SET)
-                    self.files[self.name].write(chr(fill_char) * self.TARGET_PAGE_SIZE)
+                _fill_char = self.file.read8()
                 if self.dump_memory:
-                    self.memory['%s (0x%016x)' % (self.name, addr)] = 'Filled with 0x%02x' % fill_char
-                flags &= ~self.RAM_SAVE_FLAG_COMPRESS
+                    self.memory['%s (0x%016x)' %
+                                (self.name, addr)] = 'Filled with 0x00'
+                flags &= ~self.RAM_SAVE_FLAG_ZERO
             elif flags & self.RAM_SAVE_FLAG_PAGE:
                 if flags & self.RAM_SAVE_FLAG_CONTINUE:
                     flags &= ~self.RAM_SAVE_FLAG_CONTINUE
