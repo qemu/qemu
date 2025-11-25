@@ -120,11 +120,14 @@ static void luring_resubmit_short_read(LuringState *s, LuringAIOCB *luringcb,
  * event loop.  When there are no events left  to complete the BH is being
  * canceled.
  *
+ * Returns whether ioq_submit() must be called again afterwards since requests
+ * were resubmitted via luring_resubmit().
  */
-static void luring_process_completions(LuringState *s)
+static bool luring_process_completions(LuringState *s)
 {
     struct io_uring_cqe *cqes;
     int total_bytes;
+    bool resubmit = false;
 
     defer_call_begin();
 
@@ -182,6 +185,7 @@ static void luring_process_completions(LuringState *s)
              */
             if (ret == -EINTR || ret == -EAGAIN) {
                 luring_resubmit(s, luringcb);
+                resubmit = true;
                 continue;
             }
         } else if (!luringcb->qiov) {
@@ -194,6 +198,7 @@ static void luring_process_completions(LuringState *s)
             if (luringcb->is_read) {
                 if (ret > 0) {
                     luring_resubmit_short_read(s, luringcb, ret);
+                    resubmit = true;
                     continue;
                 } else {
                     /* Pad with zeroes */
@@ -224,6 +229,8 @@ end:
     qemu_bh_cancel(s->completion_bh);
 
     defer_call_end();
+
+    return resubmit;
 }
 
 static int ioq_submit(LuringState *s)
@@ -231,6 +238,7 @@ static int ioq_submit(LuringState *s)
     int ret = 0;
     LuringAIOCB *luringcb, *luringcb_next;
 
+resubmit:
     while (s->io_q.in_queue > 0) {
         /*
          * Try to fetch sqes from the ring for requests waiting in
@@ -260,12 +268,14 @@ static int ioq_submit(LuringState *s)
     }
     s->io_q.blocked = (s->io_q.in_queue > 0);
 
-    if (s->io_q.in_flight) {
+    if (ret >= 0 && s->io_q.in_flight) {
         /*
          * We can try to complete something just right away if there are
          * still requests in-flight.
          */
-        luring_process_completions(s);
+        if (luring_process_completions(s)) {
+            goto resubmit;
+        }
     }
     return ret;
 }
