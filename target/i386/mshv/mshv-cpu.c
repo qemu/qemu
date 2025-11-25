@@ -1336,23 +1336,19 @@ static int read_memory(const CPUState *cpu, uint64_t initial_gva,
     return 0;
 }
 
-static int write_memory(const CPUState *cpu, uint64_t initial_gva,
-                        uint64_t initial_gpa, uint64_t gva, const uint8_t *data,
+static int write_memory(const CPUState *cpu, uint64_t gva, const uint8_t *data,
                         size_t len)
 {
     int ret;
     uint64_t gpa, flags;
 
-    if (gva == initial_gva) {
-        gpa = initial_gpa;
-    } else {
-        flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
-        ret = translate_gva(cpu, gva, &gpa, flags);
-        if (ret < 0) {
-            error_report("failed to translate gva to gpa");
-            return -1;
-        }
+    flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
+    ret = translate_gva(cpu, gva, &gpa, flags);
+    if (ret < 0) {
+        error_report("failed to translate gva to gpa");
+        return -1;
     }
+
     ret = mshv_guest_mem_write(gpa, data, len, false);
     if (ret != MEMTX_OK) {
         error_report("failed to write to mmio");
@@ -1407,7 +1403,7 @@ static int handle_pio_str_read(CPUState *cpu,
     for (size_t i = 0; i < repeat; i++) {
         pio_read(port, data, len, false);
 
-        ret = write_memory(cpu, 0, 0, dst, data, len);
+        ret = write_memory(cpu, dst, data, len);
         if (ret < 0) {
             error_report("Failed to write memory");
             return -1;
