@@ -149,7 +149,7 @@ static void nvme_register_nodes(void)
         .before_cmd_line = "-drive id=drv0,if=none,file=null-co://,"
                            "file.read-zeroes=on,format=raw "
                            "-object memory-backend-ram,id=pmr0,"
-                           "share=on,size=8",
+                           "share=on,size=16",
     };
 
     add_qpci_address(&opts, &(QPCIAddress) { .devfn = QPCI_DEVFN(4, 0) });
