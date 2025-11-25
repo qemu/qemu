@@ -1318,9 +1318,9 @@ static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
          * section.
          */
         qemu_mutex_lock(&blk->queued_requests_lock);
+        /* blk_root_drained_end() has the corresponding blk_inc_in_flight() */
         blk_dec_in_flight(blk);
         qemu_co_queue_wait(&blk->queued_requests, &blk->queued_requests_lock);
-        blk_inc_in_flight(blk);
         qemu_mutex_unlock(&blk->queued_requests_lock);
     }
 }
@@ -2305,6 +2305,17 @@ uint32_t blk_get_request_alignment(BlockBackend *blk)
     return bs ? bs->bl.request_alignment : BDRV_SECTOR_SIZE;
 }
 
+/* Returns the optimal write zeroes alignment, in bytes; guaranteed nonzero */
+uint32_t blk_get_pwrite_zeroes_alignment(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    IO_CODE();
+    if (!bs) {
+        return BDRV_SECTOR_SIZE;
+    }
+    return bs->bl.pwrite_zeroes_alignment ?: bs->bl.request_alignment;
+}
+
 /* Returns the maximum hardware transfer length, in bytes; guaranteed nonzero */
 uint64_t blk_get_max_hw_transfer(BlockBackend *blk)
 {
@@ -2767,9 +2778,11 @@ static void blk_root_drained_end(BdrvChild *child)
             blk->dev_ops->drained_end(blk->dev_opaque);
         }
         qemu_mutex_lock(&blk->queued_requests_lock);
-        while (qemu_co_enter_next(&blk->queued_requests,
-                                  &blk->queued_requests_lock)) {
+        while (!qemu_co_queue_empty(&blk->queued_requests)) {
             /* Resume all queued requests */
+            blk_inc_in_flight(blk);
+            qemu_co_enter_next(&blk->queued_requests,
+                               &blk->queued_requests_lock);
         }
         qemu_mutex_unlock(&blk->queued_requests_lock);
     }

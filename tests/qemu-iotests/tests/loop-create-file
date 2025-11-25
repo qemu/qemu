@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# group: quick
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright Red Hat, Inc.
+#
+# Test Linux loop device image creation
+#
+# This test verifies #3127 "qemu-img create fails on loop device with sector size 4096"
+# https://gitlab.com/qemu-project/qemu/-/issues/3127
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup() {
+    if [ -n "$loopdev" ]; then
+        sudo losetup --detach "$loopdev"
+    fi
+
+    _cleanup_test_img
+}
+
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto file
+_supported_os Linux
+
+if ! sudo -n losetup &>/dev/null; then
+    _notrun "sudo losetup not available"
+fi
+
+echo
+echo "=== Create image on a 4 KB sector size loop device ==="
+echo
+
+_make_test_img -f $IMGFMT 1M
+
+loopdev=$(sudo losetup --sector-size 4096 --find --show "$TEST_IMG")
+if [ -z "$loopdev" ]; then
+    _fail
+fi
+
+sudo $QEMU_IMG_PROG create -f raw "$loopdev" 1M | \
+    sed -e "s#/dev/loop[0-9]\\+#LOOPDEV#g"
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0
