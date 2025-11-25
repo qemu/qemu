@@ -450,7 +450,7 @@ static void multifd_send_set_error(Error *err)
  */
 static void migration_ioc_shutdown_gracefully(QIOChannel *ioc)
 {
-    g_autoptr(Error) local_err = NULL;
+    Error *local_err = NULL;
 
     if (!migration_has_failed(migrate_get_current()) &&
         object_dynamic_cast((Object *)ioc, TYPE_QIO_CHANNEL_TLS)) {
