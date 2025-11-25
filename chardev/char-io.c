@@ -182,3 +182,11 @@ int io_channel_send(QIOChannel *ioc, const void *buf, size_t len)
 {
     return io_channel_send_full(ioc, buf, len, NULL, 0);
 }
+
+void remove_listener_fd_in_watch(Chardev *chr)
+{
+    ChardevClass *cc = CHARDEV_GET_CLASS(chr);
+    if (cc->chr_listener_cleanup) {
+        cc->chr_listener_cleanup(chr);
+    }
+}
