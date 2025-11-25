@@ -538,6 +538,11 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
          */
         remove_fd_in_watch(chr);
         /*
+         * Clean up listener IO sources early to prevent racy fd
+         * handling between the main thread and the I/O thread.
+         */
+        remove_listener_fd_in_watch(chr);
+        /*
          * We can't call qemu_chr_fe_set_handlers() directly here
          * since chardev might be running in the monitor I/O
          * thread.  Schedule a bottom half.

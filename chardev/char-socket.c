@@ -1570,6 +1570,15 @@ char_socket_get_connected(Object *obj, Error **errp)
     return s->state == TCP_CHARDEV_STATE_CONNECTED;
 }
 
+static void tcp_chr_listener_cleanup(Chardev *chr)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+    if (s->listener) {
+        qio_net_listener_set_client_func_full(s->listener, NULL, NULL,
+                                              NULL, chr->gcontext);
+    }
+}
+
 static void char_socket_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1587,6 +1596,7 @@ static void char_socket_class_init(ObjectClass *oc, const void *data)
     cc->chr_add_client = tcp_chr_add_client;
     cc->chr_add_watch = tcp_chr_add_watch;
     cc->chr_update_read_handler = tcp_chr_update_read_handler;
+    cc->chr_listener_cleanup = tcp_chr_listener_cleanup;
 
     object_class_property_add(oc, "addr", "SocketAddress",
                               char_socket_get_addr, NULL,

@@ -43,4 +43,6 @@ int io_channel_send(QIOChannel *ioc, const void *buf, size_t len);
 int io_channel_send_full(QIOChannel *ioc, const void *buf, size_t len,
                          int *fds, size_t nfds);
 
+void remove_listener_fd_in_watch(Chardev *chr);
+
 #endif /* CHAR_IO_H */
