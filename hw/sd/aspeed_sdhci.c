@@ -124,7 +124,7 @@ static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps aspeed_sdhci_ops = {
     .read = aspeed_sdhci_read,
     .write = aspeed_sdhci_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
 };
