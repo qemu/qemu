@@ -41,10 +41,11 @@
 //! this rule is not flexible enough. Sometimes it is required to have multiple
 //! references to an object and yet mutate it. In particular, QEMU objects
 //! usually have their pointer shared with the "outside world very early in
-//! their lifetime", for example when they create their
-//! [`MemoryRegion`s](crate::bindings::MemoryRegion).  Therefore, individual
-//! parts of a  device must be made mutable in a controlled manner; this module
-//! provides the tools to do so.
+//! their lifetime", for example when they create their [`MemoryRegion`s].
+//! Therefore, individual parts of a  device must be made mutable in a
+//! controlled manner; this module provides the tools to do so.
+//!
+//! [`MemoryRegion`s]: ../../system/memory/struct.MemoryRegion.html
 //!
 //! ## Cell types
 //!
