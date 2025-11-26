@@ -3042,28 +3042,37 @@ static void mapped_ram_setup_ramblock(QEMUFile *file, RAMBlock *block)
     header = g_new0(MappedRamHeader, 1);
     header_size = sizeof(MappedRamHeader);
 
-    num_pages = block->used_length >> TARGET_PAGE_BITS;
-    bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
-
-    /*
-     * Save the file offsets of where the bitmap and the pages should
-     * go as they are written at the end of migration and during the
-     * iterative phase, respectively.
-     */
-    block->bitmap_offset = qemu_get_offset(file) + header_size;
-    block->pages_offset = ROUND_UP(block->bitmap_offset +
-                                   bitmap_size,
-                                   MAPPED_RAM_FILE_OFFSET_ALIGNMENT);
-
     header->version = cpu_to_be32(MAPPED_RAM_HDR_VERSION);
     header->page_size = cpu_to_be64(TARGET_PAGE_SIZE);
-    header->bitmap_offset = cpu_to_be64(block->bitmap_offset);
-    header->pages_offset = cpu_to_be64(block->pages_offset);
+
+    if (migrate_ram_is_ignored(block)) {
+        header->bitmap_offset = 0;
+        header->pages_offset = 0;
+    } else {
+        num_pages = block->used_length >> TARGET_PAGE_BITS;
+        bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
+
+        /*
+         * Save the file offsets of where the bitmap and the pages should
+         * go as they are written at the end of migration and during the
+         * iterative phase, respectively.
+         */
+        block->bitmap_offset = qemu_get_offset(file) + header_size;
+        block->pages_offset = ROUND_UP(block->bitmap_offset +
+                                       bitmap_size,
+                                       MAPPED_RAM_FILE_OFFSET_ALIGNMENT);
+
+        header->bitmap_offset = cpu_to_be64(block->bitmap_offset);
+        header->pages_offset = cpu_to_be64(block->pages_offset);
+    }
 
     qemu_put_buffer(file, (uint8_t *) header, header_size);
 
-    /* prepare offset for next ramblock */
-    qemu_set_offset(file, block->pages_offset + block->used_length, SEEK_SET);
+    if (!migrate_ram_is_ignored(block)) {
+        /* leave space for block data */
+        qemu_set_offset(file, block->pages_offset + block->used_length,
+                        SEEK_SET);
+    }
 }
 
 static bool mapped_ram_read_header(QEMUFile *file, MappedRamHeader *header,
@@ -3146,7 +3155,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
             if (migrate_ignore_shared()) {
                 qemu_put_be64(f, block->mr->addr);
             }
-
             if (migrate_mapped_ram()) {
                 mapped_ram_setup_ramblock(f, block);
             }
@@ -3217,6 +3225,10 @@ static void ram_save_file_bmap(QEMUFile *f)
     RAMBlock *block;
 
     RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        if (migrate_ram_is_ignored(block)) {
+            continue;
+        }
+
         long num_pages = block->used_length >> TARGET_PAGE_BITS;
         long bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
 
@@ -4159,6 +4171,11 @@ static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
     long num_pages;
 
     if (!mapped_ram_read_header(f, &header, errp)) {
+        return;
+    }
+
+    if (migrate_ignore_shared() &&
+        header.bitmap_offset == 0 && header.pages_offset == 0) {
         return;
     }
 
