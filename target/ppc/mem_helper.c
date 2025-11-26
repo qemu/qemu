@@ -320,22 +320,27 @@ void helper_dcbzl(CPUPPCState *env, target_ulong addr)
 
 void helper_icbi(CPUPPCState *env, target_ulong addr)
 {
+    unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
+    MemOpIdx oi = make_memop_idx(MO_UL | MO_UNALN, mmu_idx);
+
     addr &= ~(env->dcache_line_size - 1);
     /*
      * Invalidate one cache line :
      * PowerPC specification says this is to be treated like a load
      * (not a fetch) by the MMU. To be sure it will be so,
-     * do the load "by hand".
+     * do the load "by hand". As the returned data is not consumed,
+     * endianness is irrelevant.
      */
-    cpu_ldl_data_ra(env, addr, GETPC());
+    cpu_ldl_mmu(env, addr, oi, GETPC());
 }
 
 void helper_icbiep(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(CONFIG_USER_ONLY)
+    MemOpIdx oi = make_memop_idx(MO_UL | MO_UNALN, PPC_TLB_EPID_LOAD);
     /* See comments above */
     addr &= ~(env->dcache_line_size - 1);
-    cpu_ldl_mmuidx_ra(env, addr, PPC_TLB_EPID_LOAD, GETPC());
+    cpu_ldl_mmu(env, addr, oi, GETPC());
 #endif
 }
 
