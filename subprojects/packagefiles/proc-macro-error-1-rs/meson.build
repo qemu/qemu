@@ -23,7 +23,6 @@ _proc_macro_error_rs = static_library(
     '--cap-lints', 'allow',
     '--cfg', 'use_fallback',
     '--cfg', 'feature="syn-error"',
-    '--cfg', 'feature="proc-macro"',
     '-A', 'non_fmt_panics'
   ],
   dependencies: [
