@@ -208,7 +208,7 @@ struct NamedClockList {
     QLIST_ENTRY(NamedClockList) node;
 };
 
-typedef struct {
+typedef struct MemReentrancyGuard {
     bool engaged_in_io;
 } MemReentrancyGuard;
 
