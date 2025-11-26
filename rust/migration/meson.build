@@ -36,8 +36,6 @@ _migration_rs = static_library(
     ],
     {'.' : _migration_bindings_inc_rs},
   ),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
-  rust_abi: 'rust',
   link_with: [_util_rs, _bql_rs],
   dependencies: [common_rs, glib_sys_rs, qemu_macros],
 )

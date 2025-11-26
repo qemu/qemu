@@ -1,7 +1,6 @@
 _qemu_macros_rs = rust.proc_macro(
   'qemu_macros',
   files('src/lib.rs'),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
   dependencies: [
     attrs_rs_native,
     proc_macro2_rs_native,

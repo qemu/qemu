@@ -16,8 +16,6 @@ _common_rs = static_library(
       'src/zeroable.rs',
     ],
   ),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
-  rust_abi: 'rust',
   rust_args: _common_cfg,
   dependencies: [libc_rs, qemu_macros],
 )
