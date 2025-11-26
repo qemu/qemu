@@ -303,6 +303,22 @@ static void migration_test_add_file_smoke(MigrationTestEnv *env)
                        test_multifd_file_mapped_ram_dio);
 }
 
+static void test_precopy_file_mapped_ram_ignore_shared(void)
+{
+    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
+                                           FILE_TEST_FILENAME);
+    MigrateCommon args = {
+        .connect_uri = uri,
+        .listen_uri = "defer",
+        .start = {
+            .caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true,
+            .caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true,
+        },
+    };
+
+    test_file_common(&args, true);
+}
+
 void migration_test_add_file(MigrationTestEnv *env)
 {
     tmpfs = env->tmpfs;
@@ -329,6 +345,8 @@ void migration_test_add_file(MigrationTestEnv *env)
 
     migration_test_add("/migration/multifd/file/mapped-ram",
                        test_multifd_file_mapped_ram);
+    migration_test_add("/migration/multifd/file/mapped-ram/ignore-shared",
+                       test_precopy_file_mapped_ram_ignore_shared);
     migration_test_add("/migration/multifd/file/mapped-ram/live",
                        test_multifd_file_mapped_ram_live);
 
