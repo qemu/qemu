@@ -31,15 +31,6 @@
 
 /* #define DEBUG_OP */
 
-static inline bool needs_byteswap(const CPUPPCState *env)
-{
-#if TARGET_BIG_ENDIAN
-  return FIELD_EX64(env->msr, MSR, LE);
-#else
-  return !FIELD_EX64(env->msr, MSR, LE);
-#endif
-}
-
 /*****************************************************************************/
 /* Memory load and stores */
 
@@ -401,11 +392,10 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
         int adjust = HI_IDX * (n_elems - 1);                    \
         int sh = sizeof(r->element[0]) >> 1;                    \
         int index = (addr & 0xf) >> sh;                         \
-        if (FIELD_EX64(env->msr, MSR, LE)) {                    \
-            index = n_elems - index - 1;                        \
-        }                                                       \
+        bool byteswap = FIELD_EX64(env->msr, MSR, LE);          \
                                                                 \
-        if (needs_byteswap(env)) {                              \
+        if (byteswap) {                                         \
+            index = n_elems - index - 1;                        \
             r->element[LO_IDX ? index : (adjust - index)] =     \
                 swap(access(env, addr, GETPC()));               \
         } else {                                                \
@@ -415,8 +405,8 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
     }
 #define I(x) (x)
 LVE(LVEBX, cpu_ldub_data_ra, I, u8)
-LVE(LVEHX, cpu_lduw_data_ra, bswap16, u16)
-LVE(LVEWX, cpu_ldl_data_ra, bswap32, u32)
+LVE(LVEHX, cpu_lduw_be_data_ra, bswap16, u16)
+LVE(LVEWX, cpu_ldl_be_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 
@@ -428,11 +418,10 @@ LVE(LVEWX, cpu_ldl_data_ra, bswap32, u32)
         int adjust = HI_IDX * (n_elems - 1);                            \
         int sh = sizeof(r->element[0]) >> 1;                            \
         int index = (addr & 0xf) >> sh;                                 \
-        if (FIELD_EX64(env->msr, MSR, LE)) {                            \
-            index = n_elems - index - 1;                                \
-        }                                                               \
+        bool byteswap = FIELD_EX64(env->msr, MSR, LE);                  \
                                                                         \
-        if (needs_byteswap(env)) {                                      \
+        if (byteswap) {                                                 \
+            index = n_elems - index - 1;                                \
             access(env, addr, swap(r->element[LO_IDX ? index :          \
                                               (adjust - index)]),       \
                         GETPC());                                       \
@@ -443,8 +432,8 @@ LVE(LVEWX, cpu_ldl_data_ra, bswap32, u32)
     }
 #define I(x) (x)
 STVE(STVEBX, cpu_stb_data_ra, I, u8)
-STVE(STVEHX, cpu_stw_data_ra, bswap16, u16)
-STVE(STVEWX, cpu_stl_data_ra, bswap32, u32)
+STVE(STVEHX, cpu_stw_be_data_ra, bswap16, u16)
+STVE(STVEWX, cpu_stl_be_data_ra, bswap32, u32)
 #undef I
 #undef LVE
 
