@@ -44,7 +44,6 @@
 #include "tb-internal.h"
 #include "trace.h"
 #include "tb-hash.h"
-#include "tb-internal.h"
 #include "tlb-bounds.h"
 #include "internal-common.h"
 #ifdef CONFIG_PLUGIN
