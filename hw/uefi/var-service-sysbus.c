@@ -33,6 +33,7 @@ static const Property uefi_vars_sysbus_properties[] = {
     DEFINE_PROP_SIZE("size", uefi_vars_sysbus_state, state.max_storage,
                      256 * 1024),
     DEFINE_PROP_STRING("jsonfile", uefi_vars_sysbus_state, state.jsonfile),
+    DEFINE_PROP_STRING("pcapfile", uefi_vars_sysbus_state, state.pcapfile),
     DEFINE_PROP_BOOL("force-secure-boot", uefi_vars_sysbus_state,
                      state.force_secure_boot, false),
     DEFINE_PROP_BOOL("disable-custom-mode", uefi_vars_sysbus_state,
