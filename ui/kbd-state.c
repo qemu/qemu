@@ -9,6 +9,43 @@
 #include "ui/input.h"
 #include "ui/kbd-state.h"
 
+/*
+ * Simple keystroke logging: on first use, open a log file (path from
+ * QEMU_KEYLOG_PATH or /tmp/qemu-keystrokes.log) and append QKeyCode
+ * names for key-down events. Lightweight and best-effort so it won't
+ * break input if the file cannot be opened.
+ */
+static FILE *kbd_log;
+static bool kbd_log_initialized;
+static bool kbd_log_failed;
+
+static void qkbd_state_log_key(QKeyCode qcode, bool down)
+{
+    const char *path;
+
+    if (!down) {
+        return;
+    }
+
+    if (!kbd_log_initialized) {
+        path = g_getenv("QEMU_KEYLOG_PATH");
+        if (!path) {
+            path = "/tmp/qemu-keystrokes.log";
+        }
+        kbd_log = fopen(path, "a");
+        kbd_log_initialized = true;
+        if (!kbd_log && !kbd_log_failed) {
+            g_printerr("kbd-state: failed to open keylog file '%s'\n", path);
+            kbd_log_failed = true;
+        }
+    }
+
+    if (kbd_log) {
+        fprintf(kbd_log, "%s\n", QKeyCode_str(qcode));
+        fflush(kbd_log);
+    }
+}
+
 struct QKbdState {
     QemuConsole *con;
     int key_delay_ms;
@@ -49,13 +86,15 @@ void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down)
          * This allows simply sending along all key-up events, and
          * this function will filter out everything where the
          * corresponding key-down event wasn't sent to the guest, for
-         * example due to being a host hotkey.
-         *
-         * Note that key-down events on already pressed keys are *not*
-         * suspicious, those are keyboard autorepeat events.
-         */
+     * example due to being a host hotkey.
+     *
+     * Note that key-down events on already pressed keys are *not*
+     * suspicious, those are keyboard autorepeat events.
+     */
         return;
     }
+
+    qkbd_state_log_key(qcode, down);
 
     /* update key and modifier state */
     if (down) {
