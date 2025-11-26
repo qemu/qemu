@@ -63,6 +63,7 @@ libqos_srcs = files(
 
         # SMMU:
         'qos-iommu-testdev.c',
+        'qos-smmuv3.c',
 )
 
 if have_virtfs

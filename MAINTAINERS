@@ -3582,6 +3582,7 @@ QTest IOMMU helpers
 M: Tao Tang <tangtao1634@phytium.com.cn>
 S: Maintained
 F: tests/qtest/libqos/qos-iommu*
+F: tests/qtest/libqos/qos-smmuv3*
 
 Device Fuzzing
 M: Alexander Bulekov <alxndr@bu.edu>
