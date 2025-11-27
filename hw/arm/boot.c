@@ -22,7 +22,7 @@
 #include "system/system.h"
 #include "system/memory.h"
 #include "system/numa.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/reset.h"
 #include "hw/loader.h"
 #include "hw/mem/memory-device.h"

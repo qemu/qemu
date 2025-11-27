@@ -5,7 +5,7 @@
 
 #include "target/alpha/cpu-qom.h"
 #include "hw/pci/pci.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/intc/i8259.h"
 
 

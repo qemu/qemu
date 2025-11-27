@@ -25,7 +25,7 @@
 #include "cpu.h"
 #include "hw/clock.h"
 #include "net/net.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/block/flash.h"
 #include "hw/mips/mips.h"

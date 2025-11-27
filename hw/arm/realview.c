@@ -21,7 +21,7 @@
 #include "hw/qdev-core.h"
 #include "net/net.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i2c/i2c.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"

@@ -32,7 +32,7 @@
 #include "hw/block/flash.h"
 #include "system/system.h"
 #include "system/reset.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/device_tree.h"
 #include "hw/loader.h"
 #include "elf.h"

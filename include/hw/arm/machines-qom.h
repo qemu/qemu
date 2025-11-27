@@ -9,7 +9,7 @@
 #ifndef HW_ARM_MACHINES_QOM_H
 #define HW_ARM_MACHINES_QOM_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #define TYPE_TARGET_ARM_MACHINE \
         "target-info-arm-machine"

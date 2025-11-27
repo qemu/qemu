@@ -40,7 +40,7 @@
 #include "user/page-protection.h"
 #else
 #include "hw/s390x/storage-keys.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #endif
 
 #ifdef CONFIG_USER_ONLY

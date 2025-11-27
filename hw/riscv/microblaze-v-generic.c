@@ -20,7 +20,7 @@
 #include "hw/sysbus.h"
 #include "system/system.h"
 #include "net/net.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "system/address-spaces.h"
 #include "hw/char/xilinx_uartlite.h"

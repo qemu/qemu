@@ -15,7 +15,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #define T true
 #define F false

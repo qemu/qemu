@@ -28,7 +28,7 @@
 #include "gdbstub/helpers.h"
 #include "semihosting/syscalls.h"
 #include "semihosting/uaccess.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/log.h"
 
 #define HOSTED_EXIT  0

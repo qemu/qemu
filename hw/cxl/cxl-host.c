@@ -11,7 +11,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "system/qtest.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #include "qapi/qapi-visit-machine.h"
 #include "hw/cxl/cxl.h"

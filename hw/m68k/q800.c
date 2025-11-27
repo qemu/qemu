@@ -27,7 +27,7 @@
 #include "exec/target_page.h"
 #include "system/system.h"
 #include "cpu.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/or-irq.h"
 #include "elf.h"
 #include "hw/loader.h"

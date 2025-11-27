@@ -13,7 +13,7 @@
 #define LASI_H
 
 #include "system/address-spaces.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/sysbus.h"
 
 #define TYPE_LASI_CHIP "lasi-chip"

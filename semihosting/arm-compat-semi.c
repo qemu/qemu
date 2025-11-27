@@ -48,7 +48,7 @@
 #else
 #include "qemu/cutils.h"
 #include "hw/loader.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #endif
 
 #define TARGET_SYS_OPEN        0x01

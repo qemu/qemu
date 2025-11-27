@@ -22,7 +22,7 @@
 #include "qapi/error.h"
 #include "hw/arm/fsl-imx7.h"
 #include "hw/misc/unimp.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/system.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

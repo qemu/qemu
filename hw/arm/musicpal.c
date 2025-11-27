@@ -18,7 +18,7 @@
 #include "hw/arm/machines-qom.h"
 #include "net/net.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"

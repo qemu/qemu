@@ -23,7 +23,7 @@
 #ifndef HW_Q800_H
 #define HW_Q800_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qom/object.h"
 #include "target/m68k/cpu-qom.h"
 #include "system/memory.h"

@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "s390x-internal.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/hw_accel.h"
 #include "system/memory.h"
 #include "system/runstate.h"

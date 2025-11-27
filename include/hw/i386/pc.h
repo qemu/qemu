@@ -4,7 +4,7 @@
 #include "qemu/notify.h"
 #include "qapi/qapi-types-common.h"
 #include "qemu/uuid.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/block/fdc.h"
 #include "hw/block/flash.h"
 #include "hw/i386/x86.h"

@@ -35,7 +35,7 @@
 #include "system/qtest.h"
 #include "hw/core/cpu.h"
 #include "hw/mem/pc-dimm.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/mem/memory-device.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"

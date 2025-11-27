@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "system/hostmem.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/visitor.h"

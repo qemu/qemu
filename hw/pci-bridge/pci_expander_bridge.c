@@ -24,7 +24,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "system/numa.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qom/object.h"
 
 enum BusType { PCI, PCIE, CXL };

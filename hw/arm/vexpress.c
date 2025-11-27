@@ -32,7 +32,7 @@
 #include "hw/i2c/i2c.h"
 #include "net/net.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "hw/block/flash.h"
 #include "system/device_tree.h"

@@ -54,7 +54,7 @@
 #include "hw/arm/armv7m.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/or-irq.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
 #include "system/reset.h"

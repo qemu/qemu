@@ -27,7 +27,7 @@
 #include "system/qtest.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qom/object.h"
 
 /* Same address of GDB integrated simulator */

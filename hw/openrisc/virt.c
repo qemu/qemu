@@ -13,7 +13,7 @@
 #include "cpu.h"
 #include "system/address-spaces.h"
 #include "hw/irq.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/core/split-irq.h"
 #include "hw/openrisc/boot.h"

@@ -34,7 +34,7 @@
 #include "qemu/option.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"

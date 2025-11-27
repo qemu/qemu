@@ -21,7 +21,7 @@
 #include "qemu/units.h"
 
 #include "elf.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci-pci.h"

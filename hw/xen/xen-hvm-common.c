@@ -11,7 +11,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/xen/xen-hvm-common.h"
 #include "hw/xen/xen-bus.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/xen/arch_hvm.h"
 #include "system/memory.h"
 #include "system/runstate.h"

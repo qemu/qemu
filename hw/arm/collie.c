@@ -12,7 +12,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "hw/sysbus.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "strongarm.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"

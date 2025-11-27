@@ -42,7 +42,7 @@
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
 #include "hw/clock.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them

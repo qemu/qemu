@@ -10,7 +10,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "qapi/visitor.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/irq.h"
 #include "system/tpm.h"
 #include "system/tpm_backend.h"

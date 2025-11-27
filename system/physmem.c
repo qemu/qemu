@@ -38,7 +38,7 @@
 #include "exec/translation-block.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/xen.h"
 #include "system/kvm.h"
 #include "system/tcg.h"

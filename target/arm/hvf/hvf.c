@@ -25,7 +25,7 @@
 
 #include "system/address-spaces.h"
 #include "system/memory.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/irq.h"
 #include "qemu/main-loop.h"
 #include "system/cpus.h"

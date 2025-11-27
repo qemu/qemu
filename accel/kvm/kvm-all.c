@@ -53,7 +53,7 @@
 #include "system/dirtylimit.h"
 #include "qemu/range.h"
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/stats.h"
 
 /* This check must be after config-host.h is included */

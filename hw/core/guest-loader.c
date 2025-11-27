@@ -33,7 +33,7 @@
 #include "qemu/module.h"
 #include "guest-loader.h"
 #include "system/device_tree.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 /*
  * Insert some FDT nodes for the loaded blob.

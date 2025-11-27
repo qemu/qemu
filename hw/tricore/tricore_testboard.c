@@ -23,7 +23,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "net/net.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/tricore/tricore.h"

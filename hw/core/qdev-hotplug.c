@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qapi/error.h"
 
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)

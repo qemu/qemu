@@ -31,7 +31,7 @@
 #include "exec/log.h"
 #include "exec/gdbstub.h"
 #include "system/tcg.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
 #ifdef CONFIG_PLUGIN

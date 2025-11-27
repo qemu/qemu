@@ -25,7 +25,7 @@
 #include "qemu/option.h"
 #include "qemu/units.h"
 #include "monitor/qdev.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"

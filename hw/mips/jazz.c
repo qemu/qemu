@@ -33,7 +33,7 @@
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "net/net.h"
 #include "hw/scsi/esp.h"
 #include "hw/loader.h"

@@ -31,7 +31,7 @@
 #include "crypto/init.h"
 #include "exec/cpu-common.h"
 #include "gdbstub/syscalls.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/resettable.h"
 #include "migration/misc.h"
 #include "migration/postcopy-ram.h"

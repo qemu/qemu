@@ -26,7 +26,7 @@
 #include "qemu/uuid.h"
 #include "hw/firmware/smbios.h"
 #include "hw/loader.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_device.h"
 #include "smbios_build.h"

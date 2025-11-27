@@ -64,7 +64,7 @@
 #include "system/dirtylimit.h"
 #include "system/kvm.h"
 
-#include "hw/boards.h" /* for machine_dump_guest_core() */
+#include "hw/core/boards.h" /* for machine_dump_guest_core() */
 
 #if defined(__linux__)
 #include "qemu/userfaultfd.h"

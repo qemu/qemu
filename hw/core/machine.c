@@ -14,7 +14,7 @@
 #include "qemu/units.h"
 #include "qemu/accel.h"
 #include "system/replay.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"

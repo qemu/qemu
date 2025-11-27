@@ -23,7 +23,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/irq.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "net/net.h"
 #include "hw/openrisc/boot.h"

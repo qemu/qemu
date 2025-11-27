@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "system/reset.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "system/memory.h"

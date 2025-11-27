@@ -17,7 +17,7 @@
 #include "hw/registerfields.h"
 #include "qemu/error-report.h"
 #include "system/device_tree.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "hw/arm/boot.h"
 #include "qom/object.h"

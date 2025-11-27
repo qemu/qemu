@@ -10,7 +10,7 @@
 #ifndef HW_XIANGSHAN_KMH_H
 #define HW_XIANGSHAN_KMH_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/riscv/riscv_hart.h"
 
 #define XIANGSHAN_KMH_MAX_CPUS 16

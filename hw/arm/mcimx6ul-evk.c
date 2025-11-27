@@ -15,7 +15,7 @@
 #include "hw/arm/fsl-imx6ul.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "system/qtest.h"

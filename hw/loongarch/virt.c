@@ -9,7 +9,7 @@
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "exec/target_page.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "system/kvm.h"
 #include "system/tcg.h"

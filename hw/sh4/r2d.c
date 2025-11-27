@@ -33,7 +33,7 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "net/net.h"

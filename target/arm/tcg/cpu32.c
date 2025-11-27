@@ -14,7 +14,7 @@
 #include "internals.h"
 #include "target/arm/idau.h"
 #if !defined(CONFIG_USER_ONLY)
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #endif
 #include "cpregs.h"
 

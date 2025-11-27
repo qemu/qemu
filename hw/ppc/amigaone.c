@@ -14,7 +14,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/ppc/ppc.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "hw/pci-host/articia.h"
 #include "hw/isa/vt82c686.h"

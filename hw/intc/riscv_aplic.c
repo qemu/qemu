@@ -25,7 +25,7 @@
 #include "system/address-spaces.h"
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/riscv_aplic.h"
 #include "hw/irq.h"

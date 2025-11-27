@@ -24,7 +24,7 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/qtest.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "hw/fw-path-provider.h"
 #include "elf.h"

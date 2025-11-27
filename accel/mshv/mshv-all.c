@@ -19,7 +19,7 @@
 #include "qemu/event_notifier.h"
 #include "qemu/module.h"
 #include "qemu/main-loop.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #include "hw/hyperv/hvhdk.h"
 #include "hw/hyperv/hvhdk_mini.h"

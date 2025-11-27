@@ -11,7 +11,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/misc/arm_integrator_debug.h"

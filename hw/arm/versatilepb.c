@@ -20,7 +20,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/irq.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/block/flash.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"

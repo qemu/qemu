@@ -22,7 +22,7 @@
 #ifndef HW_MICROCHIP_PFSOC_H
 #define HW_MICROCHIP_PFSOC_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
 #include "hw/cpu/cluster.h"
 #include "hw/dma/sifive_pdma.h"

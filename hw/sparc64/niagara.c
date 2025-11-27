@@ -26,7 +26,7 @@
 #include "block/block_int-common.h"
 #include "qemu/units.h"
 #include "cpu.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"
 #include "hw/loader.h"

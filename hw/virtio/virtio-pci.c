@@ -20,7 +20,7 @@
 #include "exec/memop.h"
 #include "standard-headers/linux/virtio_pci.h"
 #include "standard-headers/linux/virtio_ids.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/pci/pci.h"

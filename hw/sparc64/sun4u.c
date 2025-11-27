@@ -46,7 +46,7 @@
 #include "qemu/timer.h"
 #include "system/runstate.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/nvram/sun_nvram.h"
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/sparc/sparc64.h"

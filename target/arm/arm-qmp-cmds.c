@@ -22,7 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/target-info.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "kvm_arm.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

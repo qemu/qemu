@@ -32,7 +32,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "system/address-spaces.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/intc/riscv_aclint.h"
 #include "hw/intc/riscv_aplic.h"

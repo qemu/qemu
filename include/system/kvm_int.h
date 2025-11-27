@@ -15,7 +15,7 @@
 #include "qemu/queue.h"
 #include "system/kvm.h"
 #include "accel/accel-ops.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/topology.h"
 #include "io/channel-socket.h"
 

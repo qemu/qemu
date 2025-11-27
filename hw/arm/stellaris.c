@@ -19,7 +19,7 @@
 #include "qemu/timer.h"
 #include "hw/i2c/i2c.h"
 #include "net/net.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/log.h"
 #include "system/address-spaces.h"
 #include "system/system.h"

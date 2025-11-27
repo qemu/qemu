@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
 #include "hw/arm/npcm8xx.h"

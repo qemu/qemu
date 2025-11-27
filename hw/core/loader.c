@@ -61,7 +61,7 @@
 #include "hw/loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "system/memory.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/cutils.h"
 #include "system/runstate.h"
 #include "tcg/debuginfo.h"

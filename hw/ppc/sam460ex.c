@@ -16,7 +16,7 @@
 #include "qemu/datadir.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/kvm.h"
 #include "kvm_ppc.h"
 #include "system/device_tree.h"

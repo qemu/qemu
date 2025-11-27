@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 
 #include "chardev/char.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/arm/npcm8xx.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/core/cpu.h"

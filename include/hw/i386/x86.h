@@ -20,7 +20,7 @@
 #include "exec/hwaddr.h"
 #include "system/memory.h"
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/topology.h"
 #include "hw/intc/ioapic.h"
 #include "hw/isa/isa.h"

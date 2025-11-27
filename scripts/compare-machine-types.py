@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Script to compare machine type compatible properties (include/hw/boards.h).
+# Script to compare machine type compatible properties (include/hw/core/boards.h).
 # compat_props are applied to the driver during initialization to change
 # default values, for instance, to maintain compatibility.
 # This script constructs table with machines and values of their compat_props

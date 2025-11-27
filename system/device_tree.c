@@ -25,7 +25,7 @@
 #include "qemu/guest-random.h"
 #include "system/device_tree.h"
 #include "hw/loader.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/config-file.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qobject/qdict.h"

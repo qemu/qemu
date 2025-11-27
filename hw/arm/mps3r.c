@@ -31,7 +31,7 @@
 #include "system/address-spaces.h"
 #include "cpu.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/or-irq.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"

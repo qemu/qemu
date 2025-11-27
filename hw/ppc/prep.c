@@ -31,7 +31,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/ppc.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"

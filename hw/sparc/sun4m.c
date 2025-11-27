@@ -40,7 +40,7 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "net/net.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/scsi/esp.h"
 #include "hw/nvram/sun_nvram.h"
 #include "hw/qdev-properties.h"

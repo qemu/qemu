@@ -39,7 +39,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"

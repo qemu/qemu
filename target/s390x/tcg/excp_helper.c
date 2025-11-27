@@ -33,7 +33,7 @@
 #include "system/memory.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390_flic.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #endif
 #include "qemu/plugin.h"
 

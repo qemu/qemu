@@ -34,7 +34,7 @@
 #include "system/hw_accel.h"
 
 #include "target/s390x/kvm/pv.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/system.h"
 #include "system/tcg.h"
 #include "hw/core/sysemu-cpu-ops.h"

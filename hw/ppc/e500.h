@@ -1,7 +1,7 @@
 #ifndef PPCE500_H
 #define PPCE500_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/platform-bus.h"
 #include "qom/object.h"
 

@@ -54,7 +54,7 @@
 #include "io/channel-buffer.h"
 #include "io/channel-tls.h"
 #include "migration/colo.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "monitor/monitor.h"
 #include "net/announce.h"
 #include "qemu/queue.h"

@@ -21,7 +21,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/qdev-properties.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/balloon.h"
 #include "system/ramblock.h"
 #include "hw/virtio/virtio-balloon.h"

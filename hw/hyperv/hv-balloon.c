@@ -13,7 +13,7 @@
 #include "system/address-spaces.h"
 #include "exec/cpu-common.h"
 #include "system/ramblock.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/hyperv/dynmem-proto.h"
 #include "hw/hyperv/hv-balloon.h"
 #include "hw/hyperv/vmbus.h"

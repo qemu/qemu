@@ -16,7 +16,7 @@
 #include "hw/qdev-core.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/hotplug.h"
 
 #define ACPI_CPU_HOTPLUG_REG_LEN 12

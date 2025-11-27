@@ -17,7 +17,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/riscv/shakti_c.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

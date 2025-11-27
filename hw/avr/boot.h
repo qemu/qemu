@@ -11,7 +11,7 @@
 #ifndef HW_AVR_BOOT_H
 #define HW_AVR_BOOT_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "cpu.h"
 
 /**

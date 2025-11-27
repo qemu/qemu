@@ -44,7 +44,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "system/runstate.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/remote/machine.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"

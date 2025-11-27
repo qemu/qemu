@@ -21,7 +21,7 @@
 #include "monitor/monitor.h"
 #include "system/memory.h"
 #include "exec/target_page.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/kvm.h"
 #include "trace.h"
 #include "migration/misc.h"

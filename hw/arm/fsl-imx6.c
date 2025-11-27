@@ -24,7 +24,7 @@
 #include "hw/arm/fsl-imx6.h"
 #include "hw/misc/unimp.h"
 #include "hw/usb/imx-usb-phy.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
 #include "system/system.h"
 #include "chardev/char.h"

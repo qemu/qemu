@@ -10,7 +10,7 @@
 #include "qapi/error.h"
 #include "system/system.h"
 #include "system/block-backend.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/qdev-clock.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/boot.h"

@@ -27,7 +27,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/armsse.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/pl011.h"
 #include "hw/core/split-irq.h"
 #include "hw/misc/tz-mpc.h"

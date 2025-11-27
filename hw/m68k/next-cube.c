@@ -17,7 +17,7 @@
 #include "system/qtest.h"
 #include "hw/irq.h"
 #include "hw/m68k/next-cube.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "hw/scsi/esp.h"
 #include "hw/sysbus.h"

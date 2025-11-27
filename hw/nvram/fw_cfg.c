@@ -28,7 +28,7 @@
 #include "system/dma.h"
 #include "system/reset.h"
 #include "system/address-spaces.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"

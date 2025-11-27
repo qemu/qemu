@@ -44,7 +44,7 @@
 #include "system/runstate.h"
 #include "system/cpu-timers.h"
 #include "system/whpx.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/hw.h"
 #include "trace.h"
 

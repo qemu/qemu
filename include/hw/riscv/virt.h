@@ -19,7 +19,7 @@
 #ifndef HW_RISCV_VIRT_H
 #define HW_RISCV_VIRT_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
 #include "hw/block/flash.h"

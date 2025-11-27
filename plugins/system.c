@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/plugin.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #include "plugin.h"
 

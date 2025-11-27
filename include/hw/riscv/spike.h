@@ -19,7 +19,7 @@
 #ifndef HW_RISCV_SPIKE_H
 #define HW_RISCV_SPIKE_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
 

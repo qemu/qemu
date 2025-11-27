@@ -25,7 +25,7 @@
 #include "system/replay.h"
 #include "hw/core/cpu.h"
 #include "hw/cpu/cluster.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "monitor/monitor.h"

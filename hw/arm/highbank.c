@@ -28,7 +28,7 @@
 #include "net/net.h"
 #include "system/runstate.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
 #include "hw/ide/ahci-sysbus.h"

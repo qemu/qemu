@@ -11,7 +11,7 @@
 
 #include "system/memory.h"
 #include "qom/object.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/xen/xen-hvm-common.h"
 

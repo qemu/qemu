@@ -21,7 +21,7 @@
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/intc/arm_gic_common.h"
 #include "hw/misc/unimp.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/system.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"

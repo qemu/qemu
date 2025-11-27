@@ -54,7 +54,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
 #include "hw/nvram/mac_nvram.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci-host/uninorth.h"
 #include "hw/input/adb.h"
 #include "hw/ppc/mac_dbdma.h"

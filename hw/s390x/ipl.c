@@ -21,7 +21,7 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/s390x/virtio-ccw.h"
 #include "hw/s390x/vfio-ccw.h"
 #include "hw/s390x/css.h"

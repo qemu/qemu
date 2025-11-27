@@ -9,7 +9,7 @@
 #ifndef ARM_ASPEED_H
 #define ARM_ASPEED_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qom/object.h"
 #include "hw/arm/aspeed_soc.h"
 

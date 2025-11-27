@@ -46,7 +46,7 @@
 #include "spr_common.h"
 #include "power8-pmu.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/intc/intc.h"
 #include "kvm_ppc.h"
 #endif

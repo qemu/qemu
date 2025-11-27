@@ -18,7 +18,7 @@
 #include "exec/page-protection.h"
 #include "net/net.h"
 #include "hw/pci/pci.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/kvm.h"
 #include "system/device_tree.h"
 #include "hw/loader.h"

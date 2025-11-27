@@ -14,7 +14,7 @@
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/plugin-memory.h"
 #include "qemu/plugin.h"
 

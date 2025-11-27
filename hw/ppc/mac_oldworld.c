@@ -31,7 +31,7 @@
 #include "exec/target_page.h"
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/input/adb.h"
 #include "system/system.h"
 #include "net/net.h"

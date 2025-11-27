@@ -16,7 +16,7 @@
 #include "system/hvf.h"
 #include "system/hvf_int.h"
 #include "hw/core/cpu.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "trace.h"
 
 bool hvf_allowed;

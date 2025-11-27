@@ -9,7 +9,7 @@
 #ifndef HW_MIPS_FW_CFG_H
 #define HW_MIPS_FW_CFG_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 
 /* Data for BIOS to identify machine */

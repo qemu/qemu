@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/acpi/vmgenid.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/intc/intc.h"
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"

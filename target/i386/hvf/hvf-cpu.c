@@ -12,7 +12,7 @@
 #include "host-cpu.h"
 #include "qapi/error.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/hvf.h"
 #include "accel/accel-cpu-target.h"
 #include "hvf-i386.h"

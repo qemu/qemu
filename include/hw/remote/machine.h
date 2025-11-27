@@ -12,7 +12,7 @@
 #define REMOTE_MACHINE_H
 
 #include "qom/object.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci-host/remote.h"
 #include "io/channel.h"
 #include "hw/remote/iohub.h"

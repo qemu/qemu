@@ -30,7 +30,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "elf.h"

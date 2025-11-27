@@ -10,7 +10,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/m68k/mcf.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "qemu/error-report.h"

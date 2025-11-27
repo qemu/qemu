@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "system/confidential-guest-support.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "virtio-ccw.h"
