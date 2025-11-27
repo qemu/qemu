@@ -20,7 +20,7 @@
 #define HW_USB_HCD_DWC2_H
 
 #include "qemu/timer.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/usb/usb.h"
 #include "system/dma.h"

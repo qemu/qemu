@@ -35,7 +35,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/registerfields.h"
 #include "system/block-backend.h"
 #include "hw/sd/sd.h"

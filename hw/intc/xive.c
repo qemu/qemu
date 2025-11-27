@@ -16,7 +16,7 @@
 #include "system/reset.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2.h"
 #include "hw/ppc/xive_regs.h"

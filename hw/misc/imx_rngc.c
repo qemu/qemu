@@ -15,7 +15,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/guest-random.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/misc/imx_rngc.h"
 #include "migration/vmstate.h"
 

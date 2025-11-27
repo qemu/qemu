@@ -12,7 +12,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "system/address-spaces.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/core/split-irq.h"

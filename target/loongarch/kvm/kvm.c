@@ -20,7 +20,7 @@
 #include "exec/memattrs.h"
 #include "system/address-spaces.h"
 #include "hw/core/boards.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/loongarch/virt.h"
 #include "qemu/log.h"
 #include "hw/loader.h"

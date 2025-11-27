@@ -14,7 +14,7 @@
 #define MACFB_H
 
 #include "system/memory.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/nubus/nubus.h"
 #include "hw/sysbus.h"
 #include "ui/console.h"

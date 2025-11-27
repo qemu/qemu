@@ -27,7 +27,7 @@
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "hw/intc/intc.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 #include "qom/object.h"
 

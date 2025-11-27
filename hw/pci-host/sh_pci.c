@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "qemu/module.h"

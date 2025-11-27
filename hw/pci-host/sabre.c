@@ -31,7 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/pci-bridge/simba.h"
 #include "hw/pci-host/sabre.h"
 #include "qapi/error.h"

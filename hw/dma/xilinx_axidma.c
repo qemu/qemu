@@ -27,7 +27,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/hw.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"

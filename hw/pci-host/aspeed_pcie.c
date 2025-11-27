@@ -19,7 +19,7 @@
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-host/aspeed_pcie.h"

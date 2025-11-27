@@ -33,7 +33,7 @@
 #include "qemu/units.h"
 #include "trace.h"
 
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/aspeed_smc.h"
 

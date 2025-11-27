@@ -30,7 +30,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/char/cadence_uart.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties-system.h"
 #include "trace.h"

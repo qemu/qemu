@@ -14,7 +14,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/gpio/nrf51_gpio.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 

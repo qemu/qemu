@@ -28,7 +28,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/scsi/scsi.h"
 #include "hw/scsi/ncr53c710.h"

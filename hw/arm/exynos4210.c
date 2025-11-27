@@ -26,7 +26,7 @@
 #include "exec/tswap.h"
 #include "cpu.h"
 #include "hw/cpu/a9mpcore.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/blockdev.h"
 #include "system/system.h"
 #include "hw/sysbus.h"

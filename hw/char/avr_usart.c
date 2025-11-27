@@ -22,7 +22,7 @@
 #include "qemu/osdep.h"
 #include "hw/char/avr_usart.h"
 #include "qemu/log.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 

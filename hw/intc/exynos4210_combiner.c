@@ -34,7 +34,7 @@
 #include "hw/intc/exynos4210_combiner.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/hw.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
 

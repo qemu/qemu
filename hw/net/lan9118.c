@@ -15,7 +15,7 @@
 #include "migration/vmstate.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/net/lan9118_phy.h"
 #include "hw/net/lan9118.h"
 #include "hw/ptimer.h"

@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/adc/zynq-xadc.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"

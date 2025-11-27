@@ -11,7 +11,7 @@
 #include "qemu/error-report.h"
 #include "hw/sd/aspeed_sdhci.h"
 #include "qapi/error.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"

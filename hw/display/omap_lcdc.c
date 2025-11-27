@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
 #include "framebuffer.h"

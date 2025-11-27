@@ -24,7 +24,7 @@
 #include "hw/isa/isa.h"
 #include "hw/isa/superio.h"
 #include "hw/intc/i8259.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/dma/i8257.h"
 #include "hw/usb/hcd-uhci.h"
 #include "hw/timer/i8254.h"

@@ -19,7 +19,7 @@
 #include "system/address-spaces.h"
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qemu/timer.h"
 #include "hw/misc/mac_via.h"
 #include "hw/misc/mos6522.h"

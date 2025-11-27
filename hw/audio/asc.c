@@ -14,7 +14,7 @@
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qemu/audio.h"
 #include "hw/audio/asc.h"
 #include "hw/qdev-properties.h"

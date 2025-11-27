@@ -27,7 +27,7 @@
 #include "ui/console.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/bitbang_i2c.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/or-irq.h"
 #include "hw/audio/wm8750.h"
 #include "system/block-backend.h"

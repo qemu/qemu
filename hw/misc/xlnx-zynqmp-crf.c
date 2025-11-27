@@ -12,7 +12,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/misc/xlnx-zynqmp-crf.h"
 #include "target/arm/arm-powerctl.h"
 

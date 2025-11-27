@@ -34,7 +34,7 @@
 #include "qemu/bcd.h"
 #include "hw/ptimer.h"
 
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 
 #include "hw/arm/exynos4210.h"
 #include "qom/object.h"

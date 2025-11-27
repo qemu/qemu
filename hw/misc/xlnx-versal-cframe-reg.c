@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/misc/xlnx-versal-cframe-reg.h"
 
 #ifndef XLNX_VERSAL_CFRAME_REG_ERR_DEBUG

@@ -12,7 +12,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/pci-host/ppc4xx.h"
 #include "hw/qdev-properties.h"

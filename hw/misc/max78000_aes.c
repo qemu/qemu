@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "trace.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/max78000_aes.h"
 #include "crypto/aes.h"

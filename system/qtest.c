@@ -20,7 +20,7 @@
 #include "system/memory.h"
 #include "exec/tswap.h"
 #include "hw/qdev-core.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/core/cpu.h"
 #include "qemu/accel.h"
 #include "system/cpu-timers.h"

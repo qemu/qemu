@@ -29,7 +29,7 @@
 #include "hw/ptimer.h"
 
 #include "hw/arm/exynos4210.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qom/object.h"
 
 //#define DEBUG_PWM

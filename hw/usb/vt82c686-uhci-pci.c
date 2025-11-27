@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/isa/vt82c686.h"
 #include "hcd-uhci.h"
 

@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 
 static qemu_irq ferr_irq;
 

@@ -38,7 +38,7 @@
 #include "hw/usb/usb.h"
 #include "net/net.h"
 #include "hw/ide/pci.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/kvm.h"
 #include "hw/i386/kvm/clock.h"
 #include "hw/sysbus.h"

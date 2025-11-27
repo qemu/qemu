@@ -14,7 +14,7 @@
 
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ptimer.h"
 #include "qom/object.h"
 

@@ -17,7 +17,7 @@
 #define NPCM7XX_ADC_H
 
 #include "hw/core/clock.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 

@@ -24,7 +24,7 @@
 #include "hw/misc/stm32l4x5_rcc.h"
 #include "hw/misc/stm32l4x5_rcc_internals.h"
 #include "hw/core/clock.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"

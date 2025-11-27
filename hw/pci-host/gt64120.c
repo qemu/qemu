@@ -36,7 +36,7 @@
 #include "hw/misc/empty_slot.h"
 #include "migration/vmstate.h"
 #include "hw/intc/i8259.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 #include "qom/object.h"
 

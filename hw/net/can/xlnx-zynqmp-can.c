@@ -32,7 +32,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"

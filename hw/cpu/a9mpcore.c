@@ -12,7 +12,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/cpu/a9mpcore.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "target/arm/cpu-qom.h"

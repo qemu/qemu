@@ -18,7 +18,7 @@
 
 #include "system/memory.h"
 #include "hw/core/clock.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 

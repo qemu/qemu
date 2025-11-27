@@ -28,7 +28,7 @@
 #include "qemu/bcd.h"
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/intc/kvm_irqcount.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qemu/timer.h"

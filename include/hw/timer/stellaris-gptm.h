@@ -12,7 +12,7 @@
 
 #include "qom/object.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/core/clock.h"
 
 #define TYPE_STELLARIS_GPTM "stellaris-gptm"

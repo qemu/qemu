@@ -13,7 +13,7 @@
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/ppc/pnv.h"
 #include "hw/pci/msi.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "system/reset.h"
 

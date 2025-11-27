@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/intc/loongson_ipi_common.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "system/kvm.h"

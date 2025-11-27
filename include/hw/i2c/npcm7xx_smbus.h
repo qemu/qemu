@@ -18,7 +18,7 @@
 
 #include "system/memory.h"
 #include "hw/i2c/i2c.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 
 /*

@@ -20,7 +20,7 @@
 #include "system/rtc.h"
 #include "hw/loongarch/virt.h"
 #include "system/address-spaces.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "net/net.h"
 #include "hw/loader.h"
 #include "elf.h"

@@ -49,7 +49,7 @@
 #include "hw/char/escc.h"
 #include "hw/misc/empty_slot.h"
 #include "hw/misc/unimp.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/or-irq.h"
 #include "hw/loader.h"
 #include "elf.h"

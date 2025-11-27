@@ -43,7 +43,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/pci/pci_device.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/mips/mips.h"
 #include "hw/pci-host/bonito.h"
 #include "hw/pci/pci_host.h"

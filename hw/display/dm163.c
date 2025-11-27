@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/display/dm163.h"
 #include "ui/console.h"

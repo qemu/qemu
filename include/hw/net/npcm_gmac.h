@@ -20,7 +20,7 @@
 #ifndef NPCM_GMAC_H
 #define NPCM_GMAC_H
 
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 

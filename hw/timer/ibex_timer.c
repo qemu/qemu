@@ -29,7 +29,7 @@
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "hw/timer/ibex_timer.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "target/riscv/cpu.h"
 #include "migration/vmstate.h"

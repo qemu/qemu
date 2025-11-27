@@ -27,7 +27,7 @@
 #include "hw/char/pl011.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/intc/realview_gic.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/sd/sd.h"
 #include "qemu/audio.h"

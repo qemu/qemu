@@ -17,7 +17,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/registerfields.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/misc/tz-mpc.h"
 #include "hw/qdev-properties.h"
 

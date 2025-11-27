@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/timer/allwinner-a10-pit.h"

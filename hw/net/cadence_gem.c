@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include <zlib.h> /* for crc32 */
 
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"

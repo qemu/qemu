@@ -6,7 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "exec/icount.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "cpu.h"
 #include "cpu-features.h"
 #include "cpregs.h"

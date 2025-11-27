@@ -19,7 +19,7 @@
 #include "migration/vmstate.h"
 #include "crypto/hash.h"
 #include "hw/qdev-properties.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 
 #define R_CRYPT_CMD     (0x10 / 4)

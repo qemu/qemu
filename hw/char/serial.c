@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "hw/char/serial.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "chardev/char-serial.h"
 #include "qapi/error.h"

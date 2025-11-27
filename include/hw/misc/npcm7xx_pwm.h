@@ -18,7 +18,7 @@
 
 #include "hw/core/clock.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 
 /* Each PWM module holds 4 PWM channels. */
 #define NPCM7XX_PWM_PER_MODULE 4

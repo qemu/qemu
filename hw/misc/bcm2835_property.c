@@ -10,7 +10,7 @@
 #include "hw/misc/bcm2835_property.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspberrypi-fw-defs.h"
 #include "system/dma.h"

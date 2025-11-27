@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"

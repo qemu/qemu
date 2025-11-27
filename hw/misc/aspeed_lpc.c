@@ -13,7 +13,7 @@
 #include "hw/misc/aspeed_lpc.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 

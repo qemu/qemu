@@ -16,7 +16,7 @@
 #include "qemu/log.h"
 #include "block/aio-wait.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "apple-gfx.h"
 #include "trace.h"
 

@@ -22,7 +22,7 @@
 #include "hw/arm/armsse.h"
 #include "hw/arm/armsse-version.h"
 #include "hw/arm/boot.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-clock.h"
 
 /*

@@ -13,7 +13,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci_host.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/or-irq.h"
 #include "hw/pci-host/articia.h"
 #include "hw/pci-host/mv64361.h"

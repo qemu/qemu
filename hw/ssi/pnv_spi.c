@@ -14,7 +14,7 @@
 #include "hw/ssi/pnv_spi_regs.h"
 #include "hw/ssi/ssi.h"
 #include <libfdt.h>
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 
 #define PNV_SPI_OPCODE_LO_NIBBLE(x) (x & 0x0F)

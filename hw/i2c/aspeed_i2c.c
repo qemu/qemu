@@ -27,7 +27,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/i2c/aspeed_i2c.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "trace.h"

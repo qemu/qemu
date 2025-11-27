@@ -17,7 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/gpio/pca9552.h"
 #include "hw/gpio/pca9552_regs.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

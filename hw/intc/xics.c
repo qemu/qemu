@@ -36,7 +36,7 @@
 #include "qapi/visitor.h"
 #include "migration/vmstate.h"
 #include "hw/intc/intc.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/kvm.h"
 #include "system/reset.h"
 #include "target/ppc/cpu.h"

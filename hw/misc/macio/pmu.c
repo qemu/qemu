@@ -31,7 +31,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/misc/macio/pmu.h"
 #include "qemu/timer.h"
 #include "system/runstate.h"

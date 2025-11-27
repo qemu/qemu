@@ -11,7 +11,7 @@
 #include "qemu/units.h"
 #include "qapi/visitor.h"
 #include "hw/core/boards.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/tpm.h"
 #include "system/tpm_backend.h"
 #include "system/runstate.h"

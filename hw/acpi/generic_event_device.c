@@ -15,7 +15,7 @@
 #include "hw/acpi/pcihp.h"
 #include "hw/acpi/generic_event_device.h"
 #include "hw/pci/pci.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/pci/pci_device.h"

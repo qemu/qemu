@@ -26,7 +26,7 @@
 #ifndef XLNX_VERSAL_TRNG_H
 #define XLNX_VERSAL_TRNG_H
 
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
 

@@ -28,7 +28,7 @@
 #include "qemu/module.h"
 #include "hw/registerfields.h"
 #include "hw/ssi/ibex_spi_host.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"

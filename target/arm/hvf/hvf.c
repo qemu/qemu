@@ -26,7 +26,7 @@
 #include "system/address-spaces.h"
 #include "system/memory.h"
 #include "hw/core/boards.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qemu/main-loop.h"
 #include "system/cpus.h"
 #include "arm-powerctl.h"

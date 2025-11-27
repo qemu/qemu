@@ -20,7 +20,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ssi/allwinner-a10-spi.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"

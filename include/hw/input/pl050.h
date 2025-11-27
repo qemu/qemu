@@ -13,7 +13,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/input/ps2.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 
 struct PL050DeviceClass {
     SysBusDeviceClass parent_class;

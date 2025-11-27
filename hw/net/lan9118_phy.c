@@ -15,7 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/net/lan9118_phy.h"
 #include "hw/net/mii.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/resettable.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"

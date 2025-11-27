@@ -24,7 +24,7 @@
 
 #include "hw/ppc/spapr.h"
 #include "system/dma.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qom/object.h"
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"

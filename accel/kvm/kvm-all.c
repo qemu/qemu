@@ -42,7 +42,7 @@
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qapi/visitor.h"
 #include "qapi/qapi-types-common.h"
 #include "qapi/qapi-visit-common.h"

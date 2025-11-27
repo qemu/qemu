@@ -27,7 +27,7 @@
 #include "qemu/module.h"
 #include "system/watchdog.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-clock.h"

@@ -28,7 +28,7 @@
 #include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/riscv_imsic.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "target/riscv/cpu.h"
 #include "target/riscv/cpu_bits.h"
 #include "system/system.h"

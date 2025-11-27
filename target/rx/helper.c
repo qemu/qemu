@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/log.h"
 #include "accel/tcg/cpu-ldst.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qemu/plugin.h"
 
 void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte)

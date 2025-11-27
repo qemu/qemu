@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/allwinner-i2c.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "hw/i2c/i2c.h"
 #include "qemu/log.h"

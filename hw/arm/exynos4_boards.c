@@ -34,7 +34,7 @@
 #include "hw/net/lan9118.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/boards.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "target/arm/cpu-qom.h"
 
 #define SMDK_LAN9118_BASE_ADDR      0x05000000

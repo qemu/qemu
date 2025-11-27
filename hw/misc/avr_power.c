@@ -26,7 +26,7 @@
 #include "hw/misc/avr_power.h"
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 
 static void avr_mask_reset(DeviceState *dev)

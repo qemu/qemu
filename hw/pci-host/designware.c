@@ -28,7 +28,7 @@
 #include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/pci-host/designware.h"
 
 #define DESIGNWARE_PCIE_PORT_LINK_CONTROL          0x710

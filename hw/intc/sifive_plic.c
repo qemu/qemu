@@ -29,7 +29,7 @@
 #include "hw/intc/sifive_plic.h"
 #include "target/riscv/cpu.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/kvm.h"
 
 static bool addr_between(uint32_t addr, uint32_t base, uint32_t num)

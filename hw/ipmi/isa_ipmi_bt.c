@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ipmi/ipmi_bt.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"

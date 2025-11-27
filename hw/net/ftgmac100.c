@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/net/ftgmac100.h"
 #include "system/dma.h"
 #include "qapi/error.h"

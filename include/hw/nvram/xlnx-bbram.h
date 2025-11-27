@@ -28,7 +28,7 @@
 
 #include "system/block-backend.h"
 #include "hw/qdev-core.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"
 

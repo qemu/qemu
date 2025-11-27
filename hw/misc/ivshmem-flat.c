@@ -13,7 +13,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"

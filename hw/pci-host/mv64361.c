@@ -14,7 +14,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/intc/i8259.h"
 #include "hw/qdev-properties.h"
 #include "system/address-spaces.h"

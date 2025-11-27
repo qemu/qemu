@@ -14,7 +14,7 @@
 #include "crypto/hash.h"
 #include "crypto/aes.h"
 #include "crypto/cipher.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/vmapple/vmapple.h"
 #include "migration/vmstate.h"

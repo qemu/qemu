@@ -23,7 +23,7 @@
  * TPM Profile (PTP) Specification, Family 2.0, Revision 00.43
  */
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
 #include "qemu/bswap.h"

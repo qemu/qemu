@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ssi/mss-spi.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"

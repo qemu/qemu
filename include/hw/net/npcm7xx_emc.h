@@ -17,7 +17,7 @@
 #ifndef NPCM7XX_EMC_H
 #define NPCM7XX_EMC_H
 
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 

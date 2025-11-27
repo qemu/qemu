@@ -23,7 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qom/object.h"
 
 void qemu_set_irq(qemu_irq irq, int level)

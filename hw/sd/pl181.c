@@ -11,7 +11,7 @@
 #include "system/blockdev.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sd/sd.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

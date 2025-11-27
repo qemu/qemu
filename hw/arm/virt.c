@@ -68,7 +68,7 @@
 #include "hw/intc/arm_gic.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/intc/arm_gicv3_its_common.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "kvm_arm.h"
 #include "hvf_arm.h"
 #include "hw/firmware/smbios.h"

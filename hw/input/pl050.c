@@ -20,7 +20,7 @@
 #include "migration/vmstate.h"
 #include "hw/input/ps2.h"
 #include "hw/input/pl050.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"

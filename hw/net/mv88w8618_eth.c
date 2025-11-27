@@ -9,7 +9,7 @@
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/net/mv88w8618_eth.h"
 #include "migration/vmstate.h"
 #include "system/dma.h"

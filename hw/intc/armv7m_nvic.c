@@ -16,7 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "hw/intc/armv7m_nvic.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/qdev-properties.h"
 #include "system/tcg.h"
 #include "system/runstate.h"
