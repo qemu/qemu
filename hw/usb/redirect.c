@@ -43,7 +43,7 @@
 
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"

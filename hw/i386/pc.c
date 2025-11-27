@@ -52,7 +52,7 @@
 #include "acpi-build.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/cxl/cxl_host.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/i386/intel_iommu.h"
 #include "hw/net/ne2000-isa.h"
 #include "hw/virtio/virtio-iommu.h"

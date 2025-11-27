@@ -28,7 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "ui/console.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/usb/hid.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"

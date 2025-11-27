@@ -13,7 +13,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/usb/msd.h"
 #include "desc.h"
 #include "hw/qdev-properties.h"

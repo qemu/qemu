@@ -24,7 +24,7 @@
 #include "hw/input/lasips2.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/nmi.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci-host/astro.h"

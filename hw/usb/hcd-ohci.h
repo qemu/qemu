@@ -23,7 +23,7 @@
 
 #include "hw/sysbus.h"
 #include "system/dma.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "qom/object.h"
 
 /* Number of Downstream Ports on the root hub: */

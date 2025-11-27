@@ -54,7 +54,7 @@
 #include "qemu/accel.h"
 #include "qemu/async-teardown.h"
 #include "qemu/exit-with-parent.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/isa/isa.h"
 #include "hw/scsi/scsi.h"
 #include "hw/sd/sd.h"

@@ -32,7 +32,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
 #include "qemu/audio.h"

@@ -23,7 +23,7 @@
 #define HW_USB_HCD_XHCI_H
 #include "qom/object.h"
 
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/usb/xhci.h"
 #include "system/dma.h"
 

@@ -27,7 +27,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/usb/uhci-regs.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci.h"

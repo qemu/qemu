@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "migration/vmstate.h"
 
 #include "u2f.h"

@@ -28,7 +28,7 @@
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/qdev-properties.h"
 
 #include <u2f-emu/u2f-emu.h>

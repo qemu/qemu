@@ -72,7 +72,7 @@
 #include "system/kvm.h"
 #include "system/reset.h"
 #include "kvm_ppc.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/sysbus.h"
 #include "trace.h"
 

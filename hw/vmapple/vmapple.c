@@ -30,7 +30,7 @@
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/primecell.h"
 #include "hw/char/pl011.h"

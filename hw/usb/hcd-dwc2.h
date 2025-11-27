@@ -22,7 +22,7 @@
 #include "qemu/timer.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "system/dma.h"
 #include "qom/object.h"
 

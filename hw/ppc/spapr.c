@@ -78,7 +78,7 @@
 #include "hw/virtio/vhost-scsi-common.h"
 
 #include "system/confidential-guest-support.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "trace.h"
