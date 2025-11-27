@@ -41,7 +41,7 @@
 
 #include "boot.h"
 
-#include "hw/stream.h"
+#include "hw/core/stream.h"
 
 #define LMB_BRAM_SIZE  (128 * KiB)
 #define FLASH_SIZE     (32 * MiB)

@@ -34,7 +34,7 @@
 #include "qemu/module.h"
 
 #include "system/dma.h"
-#include "hw/stream.h"
+#include "hw/core/stream.h"
 #include "qom/object.h"
 #include "trace.h"
 

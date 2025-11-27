@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "hw/stream.h"
+#include "hw/core/stream.h"
 #include "qemu/module.h"
 
 size_t

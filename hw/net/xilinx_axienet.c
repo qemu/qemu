@@ -33,7 +33,7 @@
 
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/stream.h"
+#include "hw/core/stream.h"
 #include "qom/object.h"
 
 #define DPHY(x)

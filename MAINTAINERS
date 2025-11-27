@@ -3600,7 +3600,7 @@ Streams
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/core/stream.c
-F: include/hw/stream.h
+F: include/hw/core/stream.h
 
 Stubs
 M: Paolo Bonzini <pbonzini@redhat.com>
