@@ -12,7 +12,7 @@
 
 #include "system/system.h"
 #include "system/dma.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "migration/vmstate.h"
 #include "hw/hyperv/vmbus-proto.h"
 #include "qemu/uuid.h"

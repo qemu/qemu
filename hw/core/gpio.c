@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/core/irq.h"
 #include "qapi/error.h"
 

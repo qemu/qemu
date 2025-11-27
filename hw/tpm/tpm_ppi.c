@@ -16,7 +16,7 @@
 #include "qapi/error.h"
 #include "system/memory_mapping.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/acpi/tpm.h"
 #include "tpm_ppi.h"
 #include "trace.h"

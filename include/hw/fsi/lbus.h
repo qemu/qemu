@@ -7,7 +7,7 @@
 #ifndef FSI_LBUS_H
 #define FSI_LBUS_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qemu/units.h"
 #include "system/memory.h"
 

@@ -10,7 +10,7 @@
 #ifndef CANOKEY_H
 #define CANOKEY_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_CANOKEY "canokey"
 #define CANOKEY(obj) \

@@ -11,7 +11,7 @@
 
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_lpc.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_PNV_ADU "pnv-adu"
 

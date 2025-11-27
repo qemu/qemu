@@ -5,7 +5,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "ui/clipboard.h"
 #include "ui/console.h"
 #include "ui/input.h"

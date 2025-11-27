@@ -19,7 +19,7 @@
 #include "hw/hyperv/vmbus.h"
 #include "hw/mem/memory-device.h"
 #include "hw/mem/pc-dimm.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/qdev-properties.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"

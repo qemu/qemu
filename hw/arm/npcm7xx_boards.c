@@ -23,7 +23,7 @@
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/core/loader.h"
 #include "hw/nvram/eeprom_at24c.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/datadir.h"

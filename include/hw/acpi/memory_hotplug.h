@@ -2,7 +2,7 @@
 #define QEMU_HW_ACPI_MEMORY_HOTPLUG_H
 
 #include "qapi/qapi-types-acpi.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
 

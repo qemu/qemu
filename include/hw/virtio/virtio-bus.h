@@ -25,7 +25,7 @@
 #ifndef VIRTIO_BUS_H
 #define VIRTIO_BUS_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/virtio/virtio.h"
 #include "qom/object.h"
 

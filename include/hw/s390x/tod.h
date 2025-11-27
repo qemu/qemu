@@ -11,7 +11,7 @@
 #ifndef HW_S390_TOD_H
 #define HW_S390_TOD_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "tcg/s390-tod.h"
 #include "qom/object.h"
 

@@ -1,7 +1,7 @@
 #ifndef MONITOR_QDEV_H
 #define MONITOR_QDEV_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 /*** monitor commands ***/
 

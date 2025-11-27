@@ -22,7 +22,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/pci/pci.h"
 #include "cpu.h"
 #include "exec/target_page.h"

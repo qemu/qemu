@@ -19,7 +19,7 @@
 #include "system/ioport.h"
 #include "system/memory.h"
 #include "exec/tswap.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/core/irq.h"
 #include "hw/core/cpu.h"
 #include "qemu/accel.h"

@@ -13,7 +13,7 @@
 #include "qemu/notify.h"
 #include "qom/object_interfaces.h"
 #include "io/channel.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/remote/machine.h"
 #include "io/channel-util.h"
 #include "qapi/error.h"

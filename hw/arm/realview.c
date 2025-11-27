@@ -18,7 +18,7 @@
 #include "hw/net/lan9118.h"
 #include "hw/net/smc91c111.h"
 #include "hw/pci/pci.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "net/net.h"
 #include "system/system.h"
 #include "hw/core/boards.h"

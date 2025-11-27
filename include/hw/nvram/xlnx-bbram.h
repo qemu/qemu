@@ -27,7 +27,7 @@
 #define XLNX_BBRAM_H
 
 #include "system/block-backend.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/register.h"

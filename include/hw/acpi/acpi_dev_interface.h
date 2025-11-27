@@ -3,7 +3,7 @@
 
 #include "qapi/qapi-types-acpi.h"
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 /* These values are part of guest ABI, and can not be changed */
 typedef enum {

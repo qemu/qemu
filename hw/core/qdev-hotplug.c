@@ -10,7 +10,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/core/boards.h"
 #include "qapi/error.h"
 

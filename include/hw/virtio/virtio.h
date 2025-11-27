@@ -15,7 +15,7 @@
 #define QEMU_VIRTIO_H
 
 #include "system/memory.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/virtio/virtio-features.h"
 #include "net/net.h"
 #include "migration/vmstate.h"

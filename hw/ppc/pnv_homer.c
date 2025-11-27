@@ -22,7 +22,7 @@
 #include "exec/hwaddr.h"
 #include "system/memory.h"
 #include "system/cpus.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_chip.h"

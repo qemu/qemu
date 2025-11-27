@@ -13,7 +13,7 @@
 #ifndef MEMORY_DEVICE_H
 #define MEMORY_DEVICE_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qapi/qapi-types-machine.h"
 #include "qom/object.h"
 

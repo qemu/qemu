@@ -21,7 +21,7 @@
 #include "qemu/mmap-alloc.h"
 #include "qemu/madvise.h"
 #include "qemu/cutils.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>

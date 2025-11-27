@@ -3,7 +3,7 @@
 
 #include "block/aio.h"
 #include "hw/block/block.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "scsi/utils.h"
 #include "qemu/notify.h"
 #include "qom/object.h"

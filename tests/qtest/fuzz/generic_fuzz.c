@@ -22,7 +22,7 @@
 #include "string.h"
 #include "system/memory.h"
 #include "system/ramblock.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"
 #include "hw/core/boards.h"

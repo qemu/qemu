@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/cpu.h"
 #include "migration/vmstate.h"

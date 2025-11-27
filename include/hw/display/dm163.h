@@ -13,7 +13,7 @@
 #define HW_DISPLAY_DM163_H
 
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_DM163 "dm163"
 OBJECT_DECLARE_SIMPLE_TYPE(DM163State, DM163);

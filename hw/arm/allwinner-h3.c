@@ -22,7 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/sysbus.h"
 #include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"

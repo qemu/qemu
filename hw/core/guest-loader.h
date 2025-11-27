@@ -14,7 +14,7 @@
 #ifndef GUEST_LOADER_H
 #define GUEST_LOADER_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qom/object.h"
 
 struct GuestLoaderState {

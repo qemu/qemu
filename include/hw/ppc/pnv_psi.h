@@ -23,7 +23,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xive.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_PNV_PSI "pnv-psi"
 OBJECT_DECLARE_TYPE(PnvPsi, PnvPsiClass,

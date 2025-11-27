@@ -10,7 +10,7 @@
 #define HW_SPAPR_CPU_CORE_H
 
 #include "hw/cpu/core.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "target/ppc/cpu-qom.h"
 #include "target/ppc/cpu.h"
 #include "qom/object.h"

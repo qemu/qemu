@@ -2,7 +2,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "qapi/error.h"

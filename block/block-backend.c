@@ -16,7 +16,7 @@
 #include "block/blockjob.h"
 #include "block/coroutines.h"
 #include "block/throttle-groups.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "system/blockdev.h"
 #include "system/runstate.h"
 #include "system/replay.h"

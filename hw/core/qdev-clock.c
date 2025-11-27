@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "hw/core/qdev-clock.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qapi/error.h"
 
 /*

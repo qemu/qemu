@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "system/memory.h"
 #include "qom/object.h"
 #include "hw/pci/pci_device.h"

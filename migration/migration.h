@@ -15,7 +15,7 @@
 #define QEMU_MIGRATION_H
 
 #include "exec/cpu-common.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qapi/qapi-types-migration.h"
 #include "qobject/json-writer.h"
 #include "qemu/thread.h"

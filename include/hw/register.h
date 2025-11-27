@@ -11,7 +11,7 @@
 #ifndef REGISTER_H
 #define REGISTER_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "system/memory.h"
 #include "hw/registerfields.h"
 #include "qom/object.h"

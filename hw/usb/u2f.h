@@ -26,7 +26,7 @@
 #ifndef U2F_H
 #define U2F_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define U2FHID_PACKET_SIZE 64
 #define U2FHID_PENDING_IN_NUM 32

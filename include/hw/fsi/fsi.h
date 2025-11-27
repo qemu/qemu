@@ -8,7 +8,7 @@
 #define FSI_FSI_H
 
 #include "system/memory.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/fsi/lbus.h"
 #include "qemu/bitops.h"
 

@@ -24,7 +24,7 @@
 #include "qemu/thread.h"
 #include "qemu/timer.h"
 #include "block/graph-lock.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 
 typedef struct BlockAIOCB BlockAIOCB;

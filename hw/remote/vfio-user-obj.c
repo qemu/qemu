@@ -54,7 +54,7 @@
 #include "qemu/main-loop.h"
 #include "system/system.h"
 #include "libvfio-user.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
 #include "system/memory.h"

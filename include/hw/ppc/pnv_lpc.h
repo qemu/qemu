@@ -22,7 +22,7 @@
 
 #include "system/memory.h"
 #include "hw/ppc/pnv.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/isa/isa.h" /* For ISA_NUM_IRQS */
 
 #define TYPE_PNV_LPC "pnv-lpc"
