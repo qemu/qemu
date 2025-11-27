@@ -33,7 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/intc/i8259.h"
 #include "hw/core/irq.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "qom/object.h"
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"

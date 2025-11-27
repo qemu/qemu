@@ -109,7 +109,7 @@
 #include "hw/misc/armsse-mhu.h"
 #include "hw/misc/armsse-cpu-pwrctrl.h"
 #include "hw/misc/unimp.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/core/clock.h"
 #include "hw/core/split-irq.h"
 #include "hw/cpu/cluster.h"

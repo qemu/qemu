@@ -9,7 +9,7 @@
 #ifndef HW_ARM_MAX78000_SOC_H
 #define HW_ARM_MAX78000_SOC_H
 
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/arm/armv7m.h"
 #include "hw/misc/max78000_aes.h"
 #include "hw/misc/max78000_gcr.h"

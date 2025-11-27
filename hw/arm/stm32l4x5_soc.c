@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/arm/stm32l4x5_soc.h"
 #include "hw/char/stm32l4x5_usart.h"
 #include "hw/gpio/stm32l4x5_gpio.h"

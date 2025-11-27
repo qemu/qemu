@@ -32,7 +32,7 @@
 #include "cpu.h"
 #include "system/system.h"
 #include "hw/core/boards.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"

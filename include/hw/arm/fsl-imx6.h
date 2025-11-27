@@ -33,7 +33,7 @@
 #include "hw/usb/chipidea.h"
 #include "hw/usb/imx-usb-phy.h"
 #include "hw/pci-host/designware.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "system/memory.h"
 #include "cpu.h"
 #include "qom/object.h"

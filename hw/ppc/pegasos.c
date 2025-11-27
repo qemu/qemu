@@ -14,7 +14,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/core/irq.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/pci-host/articia.h"
 #include "hw/pci-host/mv64361.h"
 #include "hw/isa/vt82c686.h"
