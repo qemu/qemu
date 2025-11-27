@@ -2904,8 +2904,8 @@ static void alpha_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 static void alpha_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
-    uint32_t insn = translator_ldl(cpu_env(cpu), &ctx->base,
-                                   ctx->base.pc_next);
+    uint32_t insn = translator_ldl_end(cpu_env(cpu), &ctx->base,
+                                       ctx->base.pc_next, MO_TE);
 
     ctx->base.pc_next += 4;
     ctx->base.is_jmp = translate_one(ctx, insn);
