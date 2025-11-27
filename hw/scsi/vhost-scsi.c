@@ -26,7 +26,7 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/fw-path-provider.h"
+#include "hw/core/fw-path-provider.h"
 #include "hw/qdev-properties.h"
 #include "qemu/cutils.h"
 #include "system/system.h"

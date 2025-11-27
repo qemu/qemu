@@ -66,7 +66,7 @@
 #include "hw/misc/macio/macio.h"
 #include "hw/ppc/openpic.h"
 #include "hw/loader.h"
-#include "hw/fw-path-provider.h"
+#include "hw/core/fw-path-provider.h"
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "system/kvm.h"

@@ -43,7 +43,7 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "qemu/log.h"
-#include "hw/fw-path-provider.h"
+#include "hw/core/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"
 #include "system/device_tree.h"

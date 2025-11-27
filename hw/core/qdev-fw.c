@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/fw-path-provider.h"
+#include "hw/core/fw-path-provider.h"
 #include "hw/qdev-core.h"
 
 const char *qdev_fw_name(DeviceState *dev)
