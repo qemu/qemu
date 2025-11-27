@@ -36,7 +36,7 @@
 #include "hw/core/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
 #include "system/block-backend.h"

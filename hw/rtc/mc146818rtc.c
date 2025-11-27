@@ -30,7 +30,7 @@
 #include "hw/intc/kvm_irqcount.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "qemu/timer.h"
 #include "system/system.h"
 #include "system/replay.h"

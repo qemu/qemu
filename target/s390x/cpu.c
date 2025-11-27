@@ -31,7 +31,7 @@
 #include "qapi/qapi-types-machine.h"
 #include "system/hw_accel.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/resettable.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"

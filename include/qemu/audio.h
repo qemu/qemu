@@ -27,7 +27,7 @@
 
 #include "qemu/queue.h"
 #include "qapi/qapi-types-audio.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #ifdef CONFIG_GIO
 #include "gio/gio.h"
 #endif

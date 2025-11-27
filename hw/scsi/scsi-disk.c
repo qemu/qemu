@@ -37,7 +37,7 @@
 #include "system/blockdev.h"
 #include "hw/block/block.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "system/dma.h"
 #include "system/system.h"
 #include "qemu/cutils.h"

@@ -30,7 +30,7 @@
 #include "hw/xen/xen-backend.h"
 #include "hw/xen/xen-bus-helper.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/xen/interface/io/console.h"
 #include "hw/xen/interface/io/xs_wire.h"
 #include "hw/xen/interface/grant_table.h"

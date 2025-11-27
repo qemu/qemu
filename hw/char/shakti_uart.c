@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/char/shakti_uart.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "qemu/log.h"
 
 static uint64_t shakti_uart_read(void *opaque, hwaddr addr, unsigned size)

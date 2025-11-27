@@ -24,7 +24,7 @@
 #include "chardev/char-fe.h"
 #include "hw/core/irq.h"
 #include "hw/char/sifive_uart.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 
 #define TX_INTERRUPT_TRIGGER_DELAY_NS 100
 

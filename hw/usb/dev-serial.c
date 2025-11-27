@@ -14,7 +14,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/usb/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"

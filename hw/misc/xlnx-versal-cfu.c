@@ -19,7 +19,7 @@
 #include "qemu/units.h"
 #include "migration/vmstate.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/misc/xlnx-versal-cfu.h"
 
 #ifndef XLNX_VERSAL_CFU_APB_ERR_DEBUG

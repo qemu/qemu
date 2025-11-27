@@ -27,7 +27,7 @@
 #include "chardev/char-serial.h"
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties-system.h"
 
 REG32(DATA, 0)
 REG32(STATE, 4)
