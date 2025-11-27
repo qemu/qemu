@@ -27,7 +27,7 @@
 #ifndef XLNX_ZYNQ_DEVCFG_H
 #define XLNX_ZYNQ_DEVCFG_H
 
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 

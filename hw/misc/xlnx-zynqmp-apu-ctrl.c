@@ -15,7 +15,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 
 #include "qemu/bitops.h"
 

@@ -17,7 +17,7 @@
 
 #include "qemu/range.h"
 #include "hw/cxl/cxl_cdat.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "qapi/error.h"
 
 enum reg_type {

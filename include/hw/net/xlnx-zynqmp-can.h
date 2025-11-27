@@ -31,7 +31,7 @@
 #define XLNX_ZYNQMP_CAN_H
 
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "net/can_emu.h"
 #include "net/can_host.h"
 #include "qemu/fifo32.h"

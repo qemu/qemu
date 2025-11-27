@@ -10,7 +10,7 @@
 #define XLNX_VERSAL_XRAMC_H
 
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 
 #define TYPE_XLNX_XRAM_CTRL "xlnx.versal-xramc"
 

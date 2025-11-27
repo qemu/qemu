@@ -22,7 +22,7 @@
 #define XLNX_CSU_DMA_H
 
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/core/ptimer.h"
 #include "hw/stream.h"
 

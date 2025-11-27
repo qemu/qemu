@@ -32,7 +32,7 @@
 #include "qemu/bitops.h"
 #include "hw/ssi/xilinx_spips.h"
 #include "qapi/error.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "system/dma.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"

@@ -24,7 +24,7 @@
 
 #include "hw/core/irq.h"
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/nvram/xlnx-efuse.h"
 
 #define XLNX_ZYNQMP_EFUSE_R_MAX ((0x10fc / 4) + 1)

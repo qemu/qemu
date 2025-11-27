@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "qemu/timer.h"
 #include "system/system.h"
 #include "qemu/cutils.h"

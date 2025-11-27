@@ -30,7 +30,7 @@
 #include "hw/core/qdev.h"
 #include "hw/core/irq.h"
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 
 #define RMAX_XLNX_BBRAM ((0x4c / 4) + 1)
 

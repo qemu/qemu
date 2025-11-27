@@ -11,7 +11,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
 #include "hw/misc/xlnx-versal-xramc.h"

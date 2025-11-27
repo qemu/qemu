@@ -52,7 +52,7 @@
 #ifndef XLNX_VERSAL_OSPI_H
 #define XLNX_VERSAL_OSPI_H
 
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo8.h"
 #include "hw/dma/xlnx_csu_dma.h"

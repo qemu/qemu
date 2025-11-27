@@ -18,7 +18,7 @@
 #define HW_MISC_XLNX_VERSAL_CFU_APB_H
 
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/misc/xlnx-cfi-if.h"
 #include "qemu/fifo32.h"
 

@@ -30,7 +30,7 @@
 #define XLNX_ZDMA_H
 
 #include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "system/dma.h"
 #include "qom/object.h"
 

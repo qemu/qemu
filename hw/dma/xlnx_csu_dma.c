@@ -28,7 +28,7 @@
 #include "system/dma.h"
 #include "hw/core/ptimer.h"
 #include "hw/stream.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/dma/xlnx_csu_dma.h"
 
 /*

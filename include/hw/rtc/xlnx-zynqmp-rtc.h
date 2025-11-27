@@ -27,7 +27,7 @@
 #ifndef HW_RTC_XLNX_ZYNQMP_RTC_H
 #define HW_RTC_XLNX_ZYNQMP_RTC_H
 
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
