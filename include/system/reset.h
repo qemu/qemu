@@ -27,7 +27,7 @@
 #ifndef QEMU_SYSTEM_RESET_H
 #define QEMU_SYSTEM_RESET_H
 
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 #include "qapi/qapi-events-run-state.h"
 
 typedef void QEMUResetHandler(void *opaque);

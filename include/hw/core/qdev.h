@@ -8,7 +8,7 @@
 #include "qemu/rcu_queue.h"
 #include "qom/object.h"
 #include "hw/core/hotplug.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 
 /**
  * DOC: The QEMU Device API

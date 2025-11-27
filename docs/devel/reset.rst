@@ -4,7 +4,7 @@ Reset in QEMU: the Resettable interface
 =======================================
 
 The reset of qemu objects is handled using the resettable interface declared
-in ``include/hw/resettable.h``.
+in ``include/hw/core/resettable.h``.
 
 This interface allows objects to be grouped (on a tree basis); so that the
 whole group can be reset consistently. Each individual member object does not

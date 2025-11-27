@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 #include "trace.h"
 
 /**

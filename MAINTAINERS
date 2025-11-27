@@ -3961,7 +3961,7 @@ F: docs/devel/clocks.rst
 Reset framework
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
-F: include/hw/resettable.h
+F: include/hw/core/resettable.h
 F: include/hw/core/resetcontainer.h
 F: include/system/reset.h
 F: hw/core/reset.c

@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci-host/fsl_imx8m_phy.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 #include "migration/vmstate.h"
 
 #define CMN_REG075 0x1d4

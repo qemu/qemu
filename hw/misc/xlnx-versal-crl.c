@@ -13,7 +13,7 @@
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
 #include "hw/core/register.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 
 #include "target/arm/arm-powerctl.h"
 #include "target/arm/multiprocessing.h"

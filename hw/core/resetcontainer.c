@@ -15,7 +15,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 #include "hw/core/resetcontainer.h"
 
 struct ResettableContainer {

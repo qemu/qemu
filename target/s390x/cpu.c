@@ -32,7 +32,7 @@
 #include "system/hw_accel.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
 #include "system/tcg.h"
