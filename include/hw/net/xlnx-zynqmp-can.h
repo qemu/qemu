@@ -35,7 +35,7 @@
 #include "net/can_emu.h"
 #include "net/can_host.h"
 #include "qemu/fifo32.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/qdev-clock.h"
 
 #define TYPE_XLNX_ZYNQMP_CAN "xlnx.zynqmp-can"

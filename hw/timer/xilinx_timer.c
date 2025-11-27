@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qemu/log.h"

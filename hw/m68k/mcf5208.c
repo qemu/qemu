@@ -25,7 +25,7 @@
 #include "hw/m68k/mcf.h"
 #include "hw/m68k/mcf_fec.h"
 #include "qemu/timer.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "system/system.h"
 #include "system/qtest.h"
 #include "net/net.h"

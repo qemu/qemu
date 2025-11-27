@@ -18,7 +18,7 @@
 #include "hw/core/irq.h"
 #include "hw/net/lan9118_phy.h"
 #include "hw/net/lan9118.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/bswap.h"

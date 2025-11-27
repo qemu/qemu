@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "exec/replay-core.h"

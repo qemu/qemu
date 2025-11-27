@@ -14,7 +14,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/core/clock.h"
 
 #define TYPE_SYSTICK "armv7m_systick"

@@ -15,7 +15,7 @@
 #include "hw/core/irq.h"
 #include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "system/system.h"
 #include "hw/sysbus.h"
 

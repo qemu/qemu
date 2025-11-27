@@ -28,7 +28,7 @@
 #include "qemu/timer.h"
 #include "hw/hw.h"
 #include "hw/core/irq.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

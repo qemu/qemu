@@ -24,7 +24,7 @@
 #define HW_WATCHDOG_ALLWINNER_WDT_H
 
 #include "qom/object.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/sysbus.h"
 
 /*

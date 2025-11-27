@@ -29,7 +29,7 @@
 #define HW_CANFD_XILINX_H
 
 #include "hw/register.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "net/can_emu.h"
 #include "hw/qdev-clock.h"
 

@@ -1,7 +1,7 @@
 #ifndef ALLWINNER_A10_PIT_H
 #define ALLWINNER_A10_PIT_H
 
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 

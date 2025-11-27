@@ -12,7 +12,7 @@
 #include <glib/gprintf.h>
 
 #include "qemu/main-loop.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 
 #include "ptimer-test.h"
 

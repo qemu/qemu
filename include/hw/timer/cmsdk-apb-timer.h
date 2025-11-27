@@ -13,7 +13,7 @@
 #define CMSDK_APB_TIMER_H
 
 #include "hw/sysbus.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "hw/core/clock.h"
 #include "qom/object.h"
 
