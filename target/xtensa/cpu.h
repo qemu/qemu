@@ -33,7 +33,7 @@
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
 #include "exec/cpu-interrupt.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "xtensa-isa.h"
 
 enum {

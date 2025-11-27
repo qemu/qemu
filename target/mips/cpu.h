@@ -9,7 +9,7 @@
 #include "system/memory.h"
 #endif
 #include "fpu/softfloat-types.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "mips-defs.h"
 
 typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;

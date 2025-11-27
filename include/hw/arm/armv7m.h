@@ -15,7 +15,7 @@
 #include "hw/misc/armv7m_ras.h"
 #include "target/arm/idau.h"
 #include "qom/object.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 
 #define TYPE_BITBAND "ARM-bitband-memory"
 OBJECT_DECLARE_SIMPLE_TYPE(BitBandState, BITBAND)

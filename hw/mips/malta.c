@@ -29,7 +29,7 @@
 #include "qemu/cutils.h"
 #include "qemu/guest-random.h"
 #include "exec/tswap.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/southbridge/piix.h"
 #include "hw/isa/superio.h"
 #include "hw/char/serial-mm.h"

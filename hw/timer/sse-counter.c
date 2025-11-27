@@ -34,7 +34,7 @@
 #include "hw/timer/sse-counter.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
 

@@ -15,7 +15,7 @@
 #include "qemu/cutils.h"
 #include "qapi/visitor.h"
 #include "system/qtest.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "trace.h"
 
 #define CLOCK_PATH(_clk) (_clk->canonical_path)

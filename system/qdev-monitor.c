@@ -41,7 +41,7 @@
 #include "migration/misc.h"
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/core/boards.h"
 
 /*

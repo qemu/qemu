@@ -14,7 +14,7 @@
 #include "exec/icount.h"
 #include "system/qtest.h"
 #include "block/aio.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 
 #define DELTA_ADJUST     1
 #define DELTA_NO_ADJUST -1

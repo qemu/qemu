@@ -16,7 +16,7 @@
 #ifndef NPCM7XX_PWM_H
 #define NPCM7XX_PWM_H
 
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 

@@ -28,7 +28,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "qom/object.h"
 
 #define TYPE_CMSDK_APB_DUALTIMER "cmsdk-apb-dualtimer"

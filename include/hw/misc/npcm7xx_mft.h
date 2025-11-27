@@ -17,7 +17,7 @@
 #define NPCM7XX_MFT_H
 
 #include "system/memory.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"

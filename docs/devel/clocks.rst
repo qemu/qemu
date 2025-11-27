@@ -46,7 +46,7 @@ Here is an example of clocks::
                                                 | +-------+    |
                                                 +--------------+
 
-Clocks are defined in the ``include/hw/clock.h`` header and device
+Clocks are defined in the ``include/hw/core/clock.h`` header and device
 related functions are defined in the ``include/hw/qdev-clock.h``
 header.
 

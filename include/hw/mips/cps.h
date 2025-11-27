@@ -21,7 +21,7 @@
 #define MIPS_CPS_H
 
 #include "hw/sysbus.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/misc/mips_cmgcr.h"
 #include "hw/intc/mips_gic.h"
 #include "hw/misc/mips_cpc.h"

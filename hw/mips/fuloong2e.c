@@ -23,7 +23,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "net/net.h"
 #include "hw/core/boards.h"
 #include "hw/i2c/smbus_eeprom.h"

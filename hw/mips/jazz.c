@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 #include "hw/mips/mips.h"
 #include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
