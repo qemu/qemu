@@ -8,7 +8,7 @@
 #ifndef HW_MISC_DJMEMC_H
 #define HW_MISC_DJMEMC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define DJMEMC_SIZE        0x2000
 #define DJMEMC_NUM_REGS    (0x38 / sizeof(uint32_t))

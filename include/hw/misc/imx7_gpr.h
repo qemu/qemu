@@ -13,7 +13,7 @@
 #define IMX7_GPR_H
 
 #include "qemu/bitops.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IMX7_GPR "imx7.gpr"

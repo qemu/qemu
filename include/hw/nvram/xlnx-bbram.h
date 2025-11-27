@@ -29,7 +29,7 @@
 #include "system/block-backend.h"
 #include "hw/core/qdev.h"
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 
 #define RMAX_XLNX_BBRAM ((0x4c / 4) + 1)

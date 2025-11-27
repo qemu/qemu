@@ -27,7 +27,7 @@
 #define MACIO_GPIO_H
 
 #include "hw/ppc/openpic.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_MACIO_GPIO "macio-gpio"

@@ -1,7 +1,7 @@
 #ifndef IMX_GPCV2_H
 #define IMX_GPCV2_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 enum IMXGPCv2Registers {

@@ -15,7 +15,7 @@
 #include "hw/m68k/mcf_fec.h"
 #include "hw/net/mii.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include <zlib.h> /* for crc32 */
 
 //#define DEBUG_FEC 1

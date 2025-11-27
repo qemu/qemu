@@ -23,7 +23,7 @@
 #define ALLWINNER_A10_SPI_H
 
 #include "hw/ssi/ssi.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/fifo8.h"
 #include "qom/object.h"
 

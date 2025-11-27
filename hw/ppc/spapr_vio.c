@@ -26,7 +26,7 @@
 #include "qemu/log.h"
 #include "hw/core/loader.h"
 #include "elf.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/kvm.h"
 #include "system/device_tree.h"
 #include "kvm_ppc.h"

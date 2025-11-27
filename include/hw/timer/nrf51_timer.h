@@ -13,7 +13,7 @@
 #ifndef NRF51_TIMER_H
 #define NRF51_TIMER_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 #define TYPE_NRF51_TIMER "nrf51_soc.timer"

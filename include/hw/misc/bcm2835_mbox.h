@@ -9,7 +9,7 @@
 #define BCM2835_MBOX_H
 
 #include "bcm2835_mbox_defs.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_MBOX "bcm2835-mbox"

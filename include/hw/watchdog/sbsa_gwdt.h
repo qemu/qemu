@@ -13,7 +13,7 @@
 #define WDT_SBSA_GWDT_H
 
 #include "qemu/bitops.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 
 #define TYPE_WDT_SBSA "sbsa_gwdt"

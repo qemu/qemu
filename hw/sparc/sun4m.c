@@ -28,7 +28,7 @@
 #include "qemu/datadir.h"
 #include "cpu.h"
 #include "exec/target_page.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/sparc/sun4m_iommu.h"

@@ -21,7 +21,7 @@
 #ifndef MPS2_FPGAIO_H
 #define MPS2_FPGAIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/misc/led.h"
 #include "qom/object.h"
 

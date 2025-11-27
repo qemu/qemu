@@ -19,7 +19,7 @@
 #include "system/address-spaces.h"
 #include "migration/vmstate.h"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/xen/xen.h"
 #include "xen_overlay.h"
 

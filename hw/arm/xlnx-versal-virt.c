@@ -17,7 +17,7 @@
 #include "system/address-spaces.h"
 #include "hw/block/flash.h"
 #include "hw/core/boards.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/fdt.h"
 #include "hw/arm/xlnx-versal.h"
 #include "hw/arm/boot.h"

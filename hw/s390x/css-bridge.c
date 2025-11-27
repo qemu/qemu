@@ -14,7 +14,7 @@
 #include "qapi/error.h"
 #include "hw/core/hotplug.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "hw/s390x/css.h"

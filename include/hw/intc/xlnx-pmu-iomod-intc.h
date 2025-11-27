@@ -25,7 +25,7 @@
 #ifndef HW_INTC_XLNX_PMU_IOMOD_INTC_H
 #define HW_INTC_XLNX_PMU_IOMOD_INTC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 #include "qom/object.h"
 

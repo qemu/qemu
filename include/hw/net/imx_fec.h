@@ -30,7 +30,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IMXFECState, IMX_FEC)
 
 #define TYPE_IMX_ENET "imx.enet"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/net/lan9118_phy.h"
 #include "hw/core/irq.h"
 #include "net/net.h"

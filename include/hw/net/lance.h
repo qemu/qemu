@@ -31,7 +31,7 @@
 
 #include "net/net.h"
 #include "hw/net/pcnet.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_LANCE "lance"

@@ -42,7 +42,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
 #include "hw/core/loader.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/cpu/cluster.h"
 #include "hw/misc/unimp.h"
 #include "hw/sd/sd.h"

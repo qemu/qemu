@@ -10,7 +10,7 @@
 #ifndef ASPEED_PECI_H
 #define ASPEED_PECI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define ASPEED_PECI_NR_REGS ((0xFC + 4) >> 2)
 #define TYPE_ASPEED_PECI "aspeed.peci"

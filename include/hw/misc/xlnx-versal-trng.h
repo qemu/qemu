@@ -27,7 +27,7 @@
 #define XLNX_VERSAL_TRNG_H
 
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 
 #define TYPE_XLNX_VERSAL_TRNG "xlnx.versal-trng"

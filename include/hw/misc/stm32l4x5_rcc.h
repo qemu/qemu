@@ -18,7 +18,7 @@
 #ifndef HW_STM32L4X5_RCC_H
 #define HW_STM32L4X5_RCC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_RCC "stm32l4x5-rcc"

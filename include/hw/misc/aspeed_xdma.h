@@ -9,7 +9,7 @@
 #ifndef ASPEED_XDMA_H
 #define ASPEED_XDMA_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_XDMA "aspeed.xdma"

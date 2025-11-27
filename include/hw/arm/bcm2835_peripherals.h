@@ -12,7 +12,7 @@
 #ifndef BCM2835_PERIPHERALS_H
 #define BCM2835_PERIPHERALS_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/char/pl011.h"
 #include "hw/char/bcm2835_aux.h"
 #include "hw/display/bcm2835_fb.h"

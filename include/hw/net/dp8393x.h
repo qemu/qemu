@@ -20,7 +20,7 @@
 #ifndef HW_NET_DP8393X_H
 #define HW_NET_DP8393X_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 #include "system/memory.h"
 

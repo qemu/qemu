@@ -25,7 +25,7 @@
 #include "qapi/error.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/char/serial-mm.h"
 #include "target/riscv/cpu.h"

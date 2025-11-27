@@ -22,7 +22,7 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/rtc/goldfish_rtc.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/virtio/virtio-mmio.h"
 #include "system/device_tree.h"
 #include "system/system.h"

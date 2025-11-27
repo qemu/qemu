@@ -17,7 +17,7 @@
 #include "qemu/timer.h"
 #include "hw/core/ptimer.h"
 #include "system/system.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* General purpose timer module.  */
 typedef struct {

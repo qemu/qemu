@@ -8,7 +8,7 @@
 #ifndef BCM2835_PROPERTY_H
 #define BCM2835_PROPERTY_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 #include "hw/display/bcm2835_fb.h"
 #include "hw/nvram/bcm2835_otp.h"

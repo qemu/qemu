@@ -7,7 +7,7 @@
 #include "migration/vmstate.h"
 
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #include "hw/uefi/hardware-info.h"
 #include "hw/uefi/var-service.h"

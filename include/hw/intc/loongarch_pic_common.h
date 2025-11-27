@@ -8,7 +8,7 @@
 #define HW_LOONGARCH_PIC_COMMON_H
 
 #include "hw/loongarch/virt.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/memory.h"
 
 #define PCH_PIC_INT_ID                  0x00

@@ -34,7 +34,7 @@
 #include "qemu/option.h"
 #include "qemu/target-info.h"
 #include "monitor/qdev.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/primecell.h"
 #include "hw/arm/virt.h"

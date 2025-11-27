@@ -10,7 +10,7 @@
 #ifndef ASPEED_GPIO_H
 #define ASPEED_GPIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_GPIO "aspeed.gpio"

@@ -21,7 +21,7 @@
 #define ASPEED_I2C_H
 
 #include "hw/i2c/i2c.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/registerfields.h"
 #include "qom/object.h"
 

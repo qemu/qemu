@@ -25,7 +25,7 @@
 #ifndef ETSEC_H
 #define ETSEC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 #include "hw/core/ptimer.h"
 #include "qom/object.h"

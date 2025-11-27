@@ -26,7 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/timer/grlib_gptimer.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "hw/core/irq.h"
 #include "hw/core/ptimer.h"

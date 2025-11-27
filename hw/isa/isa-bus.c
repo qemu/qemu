@@ -21,7 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/system.h"
 #include "hw/isa/isa.h"
 

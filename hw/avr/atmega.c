@@ -17,7 +17,7 @@
 #include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "hw/misc/unimp.h"
 #include "migration/vmstate.h"

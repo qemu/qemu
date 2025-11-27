@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "hw/core/loader.h"

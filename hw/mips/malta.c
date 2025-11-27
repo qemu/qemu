@@ -47,7 +47,7 @@
 #include "hw/core/loader.h"
 #include "elf.h"
 #include "qom/object.h"
-#include "hw/sysbus.h"             /* SysBusDevice */
+#include "hw/core/sysbus.h"             /* SysBusDevice */
 #include "qemu/host-utils.h"
 #include "system/qtest.h"
 #include "system/reset.h"

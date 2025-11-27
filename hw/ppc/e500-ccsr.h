@@ -1,7 +1,7 @@
 #ifndef E500_CCSR_H
 #define E500_CCSR_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 struct PPCE500CCSRState {

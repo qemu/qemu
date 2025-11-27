@@ -30,7 +30,7 @@
 #ifndef MPS2_SCC_H
 #define MPS2_SCC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/misc/led.h"
 #include "qom/object.h"
 

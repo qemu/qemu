@@ -10,7 +10,7 @@
 #ifndef ASPEED_HACE_H
 #define ASPEED_HACE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "crypto/hash.h"
 
 #define TYPE_ASPEED_HACE "aspeed.hace"

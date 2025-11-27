@@ -14,7 +14,7 @@
 #ifndef BCM2835_SDHOST_H
 #define BCM2835_SDHOST_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/sd/sd.h"
 #include "qom/object.h"
 

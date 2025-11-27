@@ -27,7 +27,7 @@
 #ifndef IBEX_SPI_HOST_H
 #define IBEX_SPI_HOST_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo8.h"
 #include "qom/object.h"

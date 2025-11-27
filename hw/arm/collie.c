@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/boards.h"
 #include "strongarm.h"
 #include "hw/arm/boot.h"

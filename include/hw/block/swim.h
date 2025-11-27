@@ -12,7 +12,7 @@
 #define SWIM_H
 
 #include "hw/block/block.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define SWIM_MAX_FD            2

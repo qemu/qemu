@@ -16,7 +16,7 @@
 #include "system/memory.h"
 #include "hw/core/irq.h"
 #include "hw/nubus/nubus.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "ui/console.h"
 #include "qemu/timer.h"
 

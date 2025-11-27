@@ -15,7 +15,7 @@
 #define BCM2838_GPIO_H
 
 #include "hw/sd/sd.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2838_GPIO "bcm2838-gpio"

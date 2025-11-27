@@ -20,7 +20,7 @@
 #define HW_INPUT_LASIPS2_H
 
 #include "exec/hwaddr.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/input/ps2.h"
 
 #define TYPE_LASIPS2_PORT "lasips2-port"

@@ -21,7 +21,7 @@
 #ifndef HW_RISCV_ACLINT_H
 #define HW_RISCV_ACLINT_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_RISCV_ACLINT_MTIMER "riscv.aclint.mtimer"
 

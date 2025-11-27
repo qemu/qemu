@@ -8,7 +8,7 @@
 #ifndef ASPEED_SLI_H
 #define ASPEED_SLI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_ASPEED_SLI "aspeed.sli"
 #define TYPE_ASPEED_2700_SLI TYPE_ASPEED_SLI "-ast2700"

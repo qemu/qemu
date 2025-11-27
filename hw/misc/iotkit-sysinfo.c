@@ -22,7 +22,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/registerfields.h"
 #include "hw/misc/iotkit-sysinfo.h"
 #include "hw/core/qdev-properties.h"

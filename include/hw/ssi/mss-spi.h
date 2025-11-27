@@ -25,7 +25,7 @@
 #ifndef HW_MSS_SPI_H
 #define HW_MSS_SPI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo32.h"
 #include "qom/object.h"

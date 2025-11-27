@@ -16,7 +16,7 @@
 #define HW_NCR53C710_H
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/scsi/scsi.h"
 #include "qemu/fifo8.h"
 #include "qom/object.h"

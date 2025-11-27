@@ -20,7 +20,7 @@
 #ifndef MIPS_ITU_H
 #define MIPS_ITU_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_MIPS_ITU "mips-itu"

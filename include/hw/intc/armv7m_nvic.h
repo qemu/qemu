@@ -11,7 +11,7 @@
 #define HW_ARM_ARMV7M_NVIC_H
 
 #include "target/arm/cpu-qom.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/timer/armv7m_systick.h"
 #include "qom/object.h"
 

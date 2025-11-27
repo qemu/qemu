@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
 #include "hw/i2c/bitbang_i2c.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "trace.h"

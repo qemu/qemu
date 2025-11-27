@@ -42,7 +42,7 @@
 #include "qapi/visitor.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char.h"
 #include "hw/cpu/cluster.h"
 #include "target/riscv/cpu.h"

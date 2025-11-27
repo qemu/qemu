@@ -14,7 +14,7 @@
 #include "hw/ppc/pnv_sbe.h"
 #include "hw/ppc/pnv_xive.h"
 #include "hw/ppc/pnv_i2c.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 OBJECT_DECLARE_TYPE(PnvChip, PnvChipClass,
                     PNV_CHIP)

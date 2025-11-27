@@ -51,7 +51,7 @@
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/sparc/sparc64.h"
 #include "hw/nvram/fw_cfg.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ide/pci.h"
 #include "hw/core/loader.h"
 #include "hw/core/fw-path-provider.h"

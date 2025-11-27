@@ -24,7 +24,7 @@
 #ifndef HW_STM32L4X5_EXTI_H
 #define HW_STM32L4X5_EXTI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_EXTI "stm32l4x5-exti"

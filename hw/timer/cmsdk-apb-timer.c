@@ -32,7 +32,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "trace.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 #include "hw/core/registerfields.h"
 #include "hw/core/qdev-clock.h"

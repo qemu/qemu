@@ -30,7 +30,7 @@
 #include "hw/core/boards.h"
 #include "system/kvm.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 
 bool apic_report_tpr_access;

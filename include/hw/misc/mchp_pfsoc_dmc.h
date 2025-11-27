@@ -23,7 +23,7 @@
 #ifndef MCHP_PFSOC_DMC_H
 #define MCHP_PFSOC_DMC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* DDR SGMII PHY module */
 

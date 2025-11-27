@@ -12,7 +12,7 @@
 #define LOONGSON_LIOINTC_H
 
 #include "qemu/units.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_LOONGSON_LIOINTC "loongson.liointc"

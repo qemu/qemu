@@ -31,7 +31,7 @@
 #include "qemu/timer.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/timer/hpet.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/rtc/mc146818rtc_regs.h"
 #include "migration/vmstate.h"

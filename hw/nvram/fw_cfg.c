@@ -31,7 +31,7 @@
 #include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "trace.h"

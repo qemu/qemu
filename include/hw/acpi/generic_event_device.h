@@ -59,7 +59,7 @@
 #ifndef HW_ACPI_GENERIC_EVENT_DEVICE_H
 #define HW_ACPI_GENERIC_EVENT_DEVICE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/ghes.h"
 #include "hw/acpi/cpu.h"

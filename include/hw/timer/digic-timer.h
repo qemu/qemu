@@ -18,7 +18,7 @@
 #ifndef HW_TIMER_DIGIC_TIMER_H
 #define HW_TIMER_DIGIC_TIMER_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/ptimer.h"
 #include "qom/object.h"
 

@@ -17,7 +17,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/system.h"
 #include "net/net.h"
 #include "hw/core/boards.h"

@@ -14,7 +14,7 @@
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "system/block-backend.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
 #include "hw/block/swim.h"

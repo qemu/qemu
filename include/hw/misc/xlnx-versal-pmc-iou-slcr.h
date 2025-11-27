@@ -54,7 +54,7 @@
 #ifndef XLNX_VERSAL_PMC_IOU_SLCR_H
 #define XLNX_VERSAL_PMC_IOU_SLCR_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 
 #define TYPE_XILINX_VERSAL_PMC_IOU_SLCR "xlnx.versal-pmc-iou-slcr"

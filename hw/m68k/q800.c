@@ -33,7 +33,7 @@
 #include "hw/core/loader.h"
 #include "ui/console.h"
 #include "hw/char/escc.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/scsi/esp.h"
 #include "standard-headers/asm-m68k/bootinfo.h"
 #include "standard-headers/asm-m68k/bootinfo-mac.h"

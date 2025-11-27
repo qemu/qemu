@@ -23,7 +23,7 @@
 #define XLNX_ZYNQMP_EFUSE_H
 
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 #include "hw/nvram/xlnx-efuse.h"
 

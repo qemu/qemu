@@ -20,7 +20,7 @@
 #ifndef PPC_PNV_PSI_H
 #define PPC_PNV_PSI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xive.h"
 #include "hw/core/qdev.h"

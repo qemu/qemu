@@ -3,7 +3,7 @@
 
 #include "exec/hwaddr.h"
 #include "standard-headers/linux/qemu_fw_cfg.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/dma.h"
 #include "qom/object.h"
 

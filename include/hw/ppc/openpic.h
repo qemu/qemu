@@ -1,7 +1,7 @@
 #ifndef OPENPIC_H
 #define OPENPIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/cpu.h"
 #include "qom/object.h"
 

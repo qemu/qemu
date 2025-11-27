@@ -12,7 +12,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/m68k/mcf.h"
 #include "hw/core/qdev-properties.h"
 #include "qom/object.h"

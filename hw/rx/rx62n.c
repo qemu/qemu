@@ -26,7 +26,7 @@
 #include "qemu/units.h"
 #include "hw/rx/rx62n.h"
 #include "hw/core/loader.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/qdev-properties.h"
 #include "system/system.h"
 #include "qobject/qlist.h"

@@ -21,7 +21,7 @@
 #ifndef IMX_I2C_H
 #define IMX_I2C_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IMX_I2C "imx.i2c"

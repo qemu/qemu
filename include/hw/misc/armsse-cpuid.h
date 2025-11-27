@@ -22,7 +22,7 @@
 #ifndef HW_MISC_ARMSSE_CPUID_H
 #define HW_MISC_ARMSSE_CPUID_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ARMSSE_CPUID "armsse-cpuid"

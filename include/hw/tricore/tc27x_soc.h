@@ -21,7 +21,7 @@
 #ifndef TC27X_SOC_H
 #define TC27X_SOC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "target/tricore/cpu.h"
 #include "qom/object.h"
 

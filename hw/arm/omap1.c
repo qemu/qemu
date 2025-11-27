@@ -38,7 +38,7 @@
 #include "system/runstate.h"
 #include "system/rtc.h"
 #include "qemu/range.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/cutils.h"
 #include "qemu/bcd.h"
 #include "target/arm/cpu-qom.h"

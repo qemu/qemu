@@ -10,7 +10,7 @@
 #ifndef MIPS_CMGCR_H
 #define MIPS_CMGCR_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_MIPS_GCR "mips-gcr"

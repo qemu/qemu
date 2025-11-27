@@ -32,7 +32,7 @@
 #include "hw/usb/hcd-ohci.h"
 #include "hw/char/serial-mm.h"
 #include "ui/console.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci_device.h"
 #include "hw/core/qdev-properties.h"

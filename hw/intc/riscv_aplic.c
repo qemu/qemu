@@ -23,7 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/bswap.h"
 #include "system/address-spaces.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/pci/msi.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"

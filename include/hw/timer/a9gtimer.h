@@ -23,7 +23,7 @@
 #ifndef A9GTIMER_H
 #define A9GTIMER_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define A9_GTIMER_MAX_CPUS 4

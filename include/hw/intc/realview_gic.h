@@ -10,7 +10,7 @@
 #ifndef HW_INTC_REALVIEW_GIC_H
 #define HW_INTC_REALVIEW_GIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/intc/arm_gic.h"
 #include "qom/object.h"
 

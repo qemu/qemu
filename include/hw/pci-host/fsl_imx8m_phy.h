@@ -9,7 +9,7 @@
 #ifndef HW_PCIHOST_FSLIMX8MPCIEPHY_H
 #define HW_PCIHOST_FSLIMX8MPCIEPHY_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "system/memory.h"
 

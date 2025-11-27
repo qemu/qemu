@@ -21,7 +21,7 @@
 #ifndef HW_MISC_ARMV7M_RAS_H
 #define HW_MISC_ARMV7M_RAS_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_ARMV7M_RAS "armv7m-ras"
 OBJECT_DECLARE_SIMPLE_TYPE(ARMv7MRAS, ARMV7M_RAS)

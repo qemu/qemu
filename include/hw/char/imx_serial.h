@@ -18,7 +18,7 @@
 #ifndef IMX_SERIAL_H
 #define IMX_SERIAL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 #include "qemu/fifo32.h"

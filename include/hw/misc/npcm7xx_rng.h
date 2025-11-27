@@ -16,7 +16,7 @@
 #ifndef NPCM7XX_RNG_H
 #define NPCM7XX_RNG_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 struct NPCM7xxRNGState {
     SysBusDevice parent;

@@ -34,7 +34,7 @@
 #ifndef NRF51_RNG_H
 #define NRF51_RNG_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 #define TYPE_NRF51_RNG "nrf51_soc.rng"

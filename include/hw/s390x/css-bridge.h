@@ -14,7 +14,7 @@
 #define HW_S390X_CSS_BRIDGE_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* virtual css bridge */
 struct VirtualCssBridge {

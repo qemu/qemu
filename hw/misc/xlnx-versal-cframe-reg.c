@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 #include "hw/core/registerfields.h"
 #include "qemu/bitops.h"

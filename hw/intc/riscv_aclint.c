@@ -26,7 +26,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "target/riscv/cpu.h"
 #include "target/riscv/time_helper.h"
 #include "hw/core/qdev-properties.h"

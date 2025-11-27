@@ -17,7 +17,7 @@
 #define NPCM_PSPI_H
 
 #include "hw/ssi/ssi.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /*
  * Number of registers in our device state structure. Don't change this without

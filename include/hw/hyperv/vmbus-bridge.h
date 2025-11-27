@@ -10,7 +10,7 @@
 #ifndef HW_HYPERV_VMBUS_BRIDGE_H
 #define HW_HYPERV_VMBUS_BRIDGE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/hyperv/vmbus.h"
 #include "qom/object.h"
 

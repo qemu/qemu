@@ -38,7 +38,7 @@
 #include "exec/tswap.h"
 #include "hw/char/serial-mm.h"
 #include "net/net.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/block/flash.h"
 #include "chardev/char.h"
 #include "system/device_tree.h"

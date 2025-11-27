@@ -8,7 +8,7 @@
 #ifndef HW_MAX78000_AES_H
 #define HW_MAX78000_AES_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "crypto/aes.h"
 #include "qom/object.h"
 

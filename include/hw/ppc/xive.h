@@ -139,7 +139,7 @@
 #define PPC_XIVE_H
 
 #include "system/kvm.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ppc/xive_regs.h"
 #include "qom/object.h"
 

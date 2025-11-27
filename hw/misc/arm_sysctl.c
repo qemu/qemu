@@ -13,7 +13,7 @@
 #include "qemu/timer.h"
 #include "system/runstate.h"
 #include "qemu/bitops.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/arm/primecell.h"
 #include "qemu/log.h"

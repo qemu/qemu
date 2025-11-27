@@ -22,7 +22,7 @@
 #ifndef HW_RTC_GOLDFISH_RTC_H
 #define HW_RTC_GOLDFISH_RTC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_GOLDFISH_RTC "goldfish_rtc"

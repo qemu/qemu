@@ -25,7 +25,7 @@
 #include "qemu/units.h"
 #include "qemu/module.h"
 #include "trace.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/registerfields.h"
 #include "hw/watchdog/allwinner-wdt.h"
 #include "system/watchdog.h"

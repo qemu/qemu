@@ -31,7 +31,7 @@
 #ifndef TZ_MPC_H
 #define TZ_MPC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_TZ_MPC "tz-mpc"

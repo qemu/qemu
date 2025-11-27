@@ -8,7 +8,7 @@
 #ifndef BCM2835_IC_H
 #define BCM2835_IC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_IC "bcm2835-ic"

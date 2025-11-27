@@ -24,7 +24,7 @@
 #ifndef XLNX_DP_H
 #define XLNX_DP_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "ui/console.h"
 #include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"

@@ -10,7 +10,7 @@
 #ifndef HW_CPU_ARM11MPCORE_H
 #define HW_CPU_ARM11MPCORE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/misc/arm11scu.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/timer/arm_mptimer.h"

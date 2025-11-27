@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/input/ps2.h"
 #include "hw/input/pl050.h"

@@ -37,7 +37,7 @@
 #include "hw/char/serial-isa.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/rtc/mc146818rtc.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/usb/xhci.h"
 

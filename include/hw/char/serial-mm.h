@@ -29,7 +29,7 @@
 #include "hw/char/serial.h"
 #include "system/memory.h"
 #include "chardev/char.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_SERIAL_MM "serial-mm"

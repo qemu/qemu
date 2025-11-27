@@ -14,7 +14,7 @@
 #ifndef HW_S390_SCLP_H
 #define HW_S390_SCLP_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "target/s390x/cpu-qom.h"
 #include "qom/object.h"
 

@@ -12,7 +12,7 @@
 #ifndef QEMU_XEN_EVTCHN_H
 #define QEMU_XEN_EVTCHN_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 typedef uint32_t evtchn_port_t;
 

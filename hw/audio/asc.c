@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 #include "qemu/audio.h"
 #include "hw/audio/asc.h"

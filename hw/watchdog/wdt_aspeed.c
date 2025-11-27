@@ -15,7 +15,7 @@
 #include "qemu/timer.h"
 #include "system/watchdog.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/watchdog/wdt_aspeed.h"
 #include "migration/vmstate.h"
 #include "trace.h"

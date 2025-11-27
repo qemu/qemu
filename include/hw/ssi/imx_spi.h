@@ -10,7 +10,7 @@
 #ifndef IMX_SPI_H
 #define IMX_SPI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "qemu/fifo32.h"

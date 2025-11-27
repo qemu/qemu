@@ -11,7 +11,7 @@
 #ifndef HW_MISC_XLNX_ZYNQMP_APU_CTRL_H
 #define HW_MISC_XLNX_ZYNQMP_APU_CTRL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 #include "target/arm/cpu-qom.h"
 

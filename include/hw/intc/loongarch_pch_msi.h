@@ -5,7 +5,7 @@
  * Copyright (C) 2021 Loongson Technology Corporation Limited
  */
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/memory.h"
 
 #define TYPE_LOONGARCH_PCH_MSI "loongarch_pch_msi"

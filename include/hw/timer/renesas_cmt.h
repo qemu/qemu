@@ -10,7 +10,7 @@
 #define HW_TIMER_RENESAS_CMT_H
 
 #include "qemu/timer.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_RENESAS_CMT "renesas-cmt"

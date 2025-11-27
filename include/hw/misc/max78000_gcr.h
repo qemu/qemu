@@ -8,7 +8,7 @@
 #ifndef HW_MAX78000_GCR_H
 #define HW_MAX78000_GCR_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_MAX78000_GCR "max78000-gcr"

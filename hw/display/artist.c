@@ -14,7 +14,7 @@
 #include "qemu/units.h"
 #include "qemu/bswap.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev.h"
 #include "hw/core/qdev-properties.h"

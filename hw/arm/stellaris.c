@@ -11,7 +11,7 @@
 #include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "hw/core/split-irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/sd/sd.h"
 #include "hw/ssi/ssi.h"
 #include "hw/arm/boot.h"

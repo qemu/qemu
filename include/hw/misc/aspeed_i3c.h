@@ -10,7 +10,7 @@
 #ifndef ASPEED_I3C_H
 #define ASPEED_I3C_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_ASPEED_I3C "aspeed.i3c"
 #define TYPE_ASPEED_I3C_DEVICE "aspeed.i3c.device"

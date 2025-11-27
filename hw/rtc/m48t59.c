@@ -31,7 +31,7 @@
 #include "system/runstate.h"
 #include "system/rtc.h"
 #include "system/system.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"

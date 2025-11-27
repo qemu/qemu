@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "hw/nubus/nubus.h"

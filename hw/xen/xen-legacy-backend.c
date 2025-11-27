@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
 #include "qemu/main-loop.h"

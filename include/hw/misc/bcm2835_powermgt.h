@@ -11,7 +11,7 @@
 #ifndef BCM2835_POWERMGT_H
 #define BCM2835_POWERMGT_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_POWERMGT "bcm2835-powermgt"

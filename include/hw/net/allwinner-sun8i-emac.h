@@ -22,7 +22,7 @@
 
 #include "qom/object.h"
 #include "net/net.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /**
  * Object model

@@ -28,7 +28,7 @@
 #include "hw/pci-host/ppc4xx.h"
 #include "system/system.h"
 #include "system/reset.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/intc/ppc-uic.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"

@@ -73,7 +73,7 @@
 #include "system/reset.h"
 #include "kvm_ppc.h"
 #include "hw/usb/usb.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "trace.h"
 
 #define MAX_IDE_BUS 2

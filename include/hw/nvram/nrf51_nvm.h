@@ -22,7 +22,7 @@
 #ifndef NRF51_NVM_H
 #define NRF51_NVM_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #define TYPE_NRF51_NVM "nrf51_soc.nvm"
 OBJECT_DECLARE_SIMPLE_TYPE(NRF51NVMState, NRF51_NVM)

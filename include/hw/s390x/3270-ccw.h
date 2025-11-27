@@ -13,7 +13,7 @@
 #ifndef HW_S390X_3270_CCW_H
 #define HW_S390X_3270_CCW_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/s390x/css.h"
 #include "hw/s390x/ccw-device.h"
 #include "qom/object.h"

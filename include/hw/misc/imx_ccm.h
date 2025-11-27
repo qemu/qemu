@@ -11,7 +11,7 @@
 #ifndef IMX_CCM_H
 #define IMX_CCM_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define CKIL_FREQ 32768 /* nominal 32khz clock */

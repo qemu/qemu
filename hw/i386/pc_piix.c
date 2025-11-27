@@ -41,7 +41,7 @@
 #include "hw/core/irq.h"
 #include "system/kvm.h"
 #include "hw/i386/kvm/clock.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "system/memory.h"
 #include "hw/acpi/acpi.h"

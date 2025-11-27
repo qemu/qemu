@@ -24,7 +24,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/misc/mchp_pfsoc_dmc.h"
 
 /* DDR SGMII PHY module */

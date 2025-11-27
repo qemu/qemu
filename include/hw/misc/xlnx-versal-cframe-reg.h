@@ -17,7 +17,7 @@
 #ifndef HW_MISC_XLNX_VERSAL_CFRAME_REG_H
 #define HW_MISC_XLNX_VERSAL_CFRAME_REG_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 #include "hw/misc/xlnx-cfi-if.h"
 #include "hw/misc/xlnx-versal-cfu.h"

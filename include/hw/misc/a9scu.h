@@ -10,7 +10,7 @@
 #ifndef HW_MISC_A9SCU_H
 #define HW_MISC_A9SCU_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 /* A9MP private memory region.  */

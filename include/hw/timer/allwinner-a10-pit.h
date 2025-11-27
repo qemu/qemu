@@ -2,7 +2,7 @@
 #define ALLWINNER_A10_PIT_H
 
 #include "hw/core/ptimer.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_AW_A10_PIT "allwinner-A10-timer"

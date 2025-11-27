@@ -25,7 +25,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/sparc/sun4u_iommu.h"
 #include "system/address-spaces.h"
 #include "qemu/log.h"

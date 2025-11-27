@@ -27,7 +27,7 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"

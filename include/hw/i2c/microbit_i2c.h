@@ -11,7 +11,7 @@
 #ifndef MICROBIT_I2C_H
 #define MICROBIT_I2C_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/nrf51.h"
 #include "qom/object.h"
 

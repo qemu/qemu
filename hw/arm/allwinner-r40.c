@@ -24,7 +24,7 @@
 #include "qemu/units.h"
 #include "hw/core/boards.h"
 #include "hw/core/qdev.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"
 #include "hw/usb/hcd-ehci.h"

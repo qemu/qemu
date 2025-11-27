@@ -41,7 +41,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/loader.h"
 #include "elf.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/host-utils.h"
 #include "qemu/option.h"
 #include "hw/pci-host/ppce500.h"

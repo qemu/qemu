@@ -13,7 +13,7 @@
 #define IMX7_SNVS_H
 
 #include "qemu/bitops.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 

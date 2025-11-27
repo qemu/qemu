@@ -12,7 +12,7 @@
 #ifndef HW_TIMER_ARMV7M_SYSTICK_H
 #define HW_TIMER_ARMV7M_SYSTICK_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "hw/core/ptimer.h"
 #include "hw/core/clock.h"

@@ -26,7 +26,7 @@
 #include "system/memory.h"
 #include "qemu/iov.h"
 #include "system/dma.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 typedef struct DBDMA_io DBDMA_io;

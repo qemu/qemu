@@ -28,7 +28,7 @@
 #define MOS6522_H
 
 #include "exec/hwaddr.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define MOS6522_NUM_REGS 16

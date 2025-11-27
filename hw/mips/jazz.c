@@ -43,7 +43,7 @@
 #include "hw/display/bochs-vbe.h"
 #include "hw/audio/pcspk.h"
 #include "hw/input/i8042.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "qapi/error.h"

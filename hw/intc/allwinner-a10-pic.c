@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/intc/allwinner-a10-pic.h"
 #include "hw/core/irq.h"

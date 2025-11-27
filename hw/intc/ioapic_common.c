@@ -26,7 +26,7 @@
 #include "hw/intc/intc.h"
 #include "hw/intc/ioapic.h"
 #include "hw/intc/ioapic_internal.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* ioapic_no count start from 0 to MAX_IOAPICS,
  * remove as static variable from ioapic_common_init.

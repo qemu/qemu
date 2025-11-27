@@ -20,7 +20,7 @@
 #ifndef HW_CPU_A15MPCORE_H
 #define HW_CPU_A15MPCORE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/intc/arm_gic.h"
 #include "qom/object.h"
 

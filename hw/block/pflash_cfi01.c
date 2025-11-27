@@ -48,7 +48,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "qemu/option.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "system/blockdev.h"
 #include "system/runstate.h"

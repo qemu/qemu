@@ -18,7 +18,7 @@
 #include "qemu/osdep.h"
 #include "system/address-spaces.h"
 #include "migration/vmstate.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 #include "qemu/timer.h"
 #include "hw/misc/mac_via.h"

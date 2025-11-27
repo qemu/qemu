@@ -11,7 +11,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/ppc/ppc.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/core/irq.h"
 #include "hw/core/or-irq.h"

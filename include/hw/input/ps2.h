@@ -25,7 +25,7 @@
 #ifndef HW_PS2_H
 #define HW_PS2_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define PS2_MOUSE_BUTTON_LEFT   0x01
 #define PS2_MOUSE_BUTTON_RIGHT  0x02

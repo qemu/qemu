@@ -13,7 +13,7 @@
 #define WDT_IMX2_H
 
 #include "qemu/bitops.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 #include "hw/core/ptimer.h"
 #include "qom/object.h"

@@ -28,7 +28,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/sh4/sh.h"
 #include "system/reset.h"
 #include "system/runstate.h"

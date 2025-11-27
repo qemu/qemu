@@ -9,7 +9,7 @@
 #define HW_LOONGSON_IPI_COMMON_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "exec/memattrs.h"
 #include "system/memory.h"
 

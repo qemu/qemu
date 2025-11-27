@@ -8,7 +8,7 @@
 #ifndef ASPEED_INTC_H
 #define ASPEED_INTC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "hw/core/or-irq.h"
 

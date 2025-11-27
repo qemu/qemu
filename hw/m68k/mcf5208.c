@@ -31,7 +31,7 @@
 #include "net/net.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "elf.h"
 
 #define SYS_FREQ 166666666

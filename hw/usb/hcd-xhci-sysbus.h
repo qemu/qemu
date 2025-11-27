@@ -13,7 +13,7 @@
 
 #include "hw/usb/usb.h"
 #include "hcd-xhci.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define XHCI_SYSBUS(obj) \
     OBJECT_CHECK(XHCISysbusState, (obj), TYPE_XHCI_SYSBUS)

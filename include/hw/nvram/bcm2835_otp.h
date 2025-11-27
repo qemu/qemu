@@ -9,7 +9,7 @@
 #ifndef BCM2835_OTP_H
 #define BCM2835_OTP_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_OTP "bcm2835-otp"

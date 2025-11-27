@@ -15,7 +15,7 @@
 #ifndef BCM2836_CONTROL_H
 #define BCM2836_CONTROL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 

@@ -13,7 +13,7 @@
 
 #include "qemu/units.h"
 #include "hw/timer/mips_gictimer.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "cpu.h"
 #include "qom/object.h"
 /*

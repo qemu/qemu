@@ -10,7 +10,7 @@
 #ifndef IMX_RNGC_H
 #define IMX_RNGC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IMX_RNGC "imx.rngc"

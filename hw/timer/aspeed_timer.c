@@ -12,7 +12,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/timer/aspeed_timer.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"

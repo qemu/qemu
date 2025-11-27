@@ -10,7 +10,7 @@
 #ifndef HW_MISC_XLNX_VERSAL_CRL_H
 #define HW_MISC_XLNX_VERSAL_CRL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/register.h"
 #include "target/arm/cpu-qom.h"
 #include "hw/arm/xlnx-versal-version.h"

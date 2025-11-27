@@ -35,7 +35,7 @@
 #include "hw/core/irq.h"
 #include "hw/net/mii.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 #include "qemu/module.h"
 #include "net/eth.h"

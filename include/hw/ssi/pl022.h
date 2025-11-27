@@ -22,7 +22,7 @@
 #ifndef HW_SSI_PL022_H
 #define HW_SSI_PL022_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_PL022 "pl022"

@@ -29,7 +29,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/m68k/next-cube.h"
 #include "ui/console.h"
 #include "migration/vmstate.h"

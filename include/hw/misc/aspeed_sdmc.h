@@ -9,7 +9,7 @@
 #ifndef ASPEED_SDMC_H
 #define ASPEED_SDMC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_SDMC "aspeed.sdmc"

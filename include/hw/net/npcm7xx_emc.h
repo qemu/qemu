@@ -18,7 +18,7 @@
 #define NPCM7XX_EMC_H
 
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 
 /* 32-bit register indices. */

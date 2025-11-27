@@ -15,7 +15,7 @@
 #include "qapi/error.h"
 #include "qobject/qlist.h"
 #include "qemu/module.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 #include "system/system.h"
 #include "hw/misc/unimp.h"

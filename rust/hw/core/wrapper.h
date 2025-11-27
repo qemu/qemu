@@ -24,7 +24,7 @@ typedef enum memory_order {
 
 #include "qemu/osdep.h"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/clock.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"

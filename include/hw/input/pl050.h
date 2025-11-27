@@ -10,7 +10,7 @@
 #ifndef HW_PL050_H
 #define HW_PL050_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/input/ps2.h"
 #include "hw/core/irq.h"

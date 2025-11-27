@@ -28,7 +28,7 @@
 #ifndef HW_TIMER_AVR_TIMER16_H
 #define HW_TIMER_AVR_TIMER16_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 

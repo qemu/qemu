@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/core/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/scsi/scsi.h"
 #include "hw/scsi/ncr53c710.h"
 #include "migration/vmstate.h"

@@ -14,7 +14,7 @@
 #ifndef HW_LASI_NCR710_H
 #define HW_LASI_NCR710_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/osdep.h"
 #include "exec/memattrs.h"
 #include "hw/scsi/scsi.h"

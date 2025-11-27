@@ -19,7 +19,7 @@
 #ifndef HW_STM32L4X5_GPIO_H
 #define HW_STM32L4X5_GPIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_STM32L4X5_GPIO "stm32l4x5-gpio"

@@ -23,7 +23,7 @@
 #ifndef HW_Q800_GLUE_H
 #define HW_Q800_GLUE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_GLUE "q800-glue"
 OBJECT_DECLARE_SIMPLE_TYPE(GLUEState, GLUE)

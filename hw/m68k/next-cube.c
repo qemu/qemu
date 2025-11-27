@@ -20,7 +20,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
 #include "hw/scsi/esp.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
 #include "hw/block/fdc.h"
