@@ -10,7 +10,7 @@
 #define HW_MISC_BCM2835_CPRMAN_H
 
 #include "hw/sysbus.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 
 #define TYPE_BCM2835_CPRMAN "bcm2835-cprman"
 

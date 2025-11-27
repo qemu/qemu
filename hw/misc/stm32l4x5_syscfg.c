@@ -27,7 +27,7 @@
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "hw/core/clock.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "qapi/error.h"
 #include "hw/misc/stm32l4x5_syscfg.h"
 #include "hw/gpio/stm32l4x5_gpio.h"

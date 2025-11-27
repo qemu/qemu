@@ -29,7 +29,7 @@
 #include "hw/char/serial-mm.h"
 #include "hw/arm/msf2-soc.h"
 #include "hw/misc/unimp.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "system/system.h"
 
 #define MSF2_TIMER_BASE       0x40004000

@@ -14,7 +14,7 @@
 #include "hw/arm/boot.h"
 #include "hw/core/loader.h"
 #include "hw/qdev-properties.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "elf.h"
 #include "system/reset.h"
 #include "qemu/error-report.h"

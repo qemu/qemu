@@ -21,7 +21,7 @@
 #include "hw/gpio/stm32l4x5_gpio.h"
 #include "hw/core/irq.h"
 #include "hw/core/clock.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"

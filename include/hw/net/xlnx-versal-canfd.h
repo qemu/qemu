@@ -31,7 +31,7 @@
 #include "hw/register.h"
 #include "hw/core/ptimer.h"
 #include "net/can_emu.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 
 #define TYPE_XILINX_CANFD "xlnx.versal-canfd"
 

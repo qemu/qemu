@@ -11,7 +11,7 @@
 #include "system/system.h"
 #include "system/block-backend.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"

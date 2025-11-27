@@ -13,7 +13,7 @@
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
 

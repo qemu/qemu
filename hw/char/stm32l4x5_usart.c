@@ -25,7 +25,7 @@
 #include "hw/char/stm32l4x5_usart.h"
 #include "hw/core/clock.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/registerfields.h"

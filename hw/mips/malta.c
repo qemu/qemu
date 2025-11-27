@@ -58,7 +58,7 @@
 #include "system/kvm.h"
 #include "semihosting/semihost.h"
 #include "hw/mips/cps.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "target/mips/internal.h"
 #include "trace.h"
 #include "cpu.h"

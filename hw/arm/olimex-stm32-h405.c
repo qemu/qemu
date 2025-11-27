@@ -27,7 +27,7 @@
 #include "qapi/error.h"
 #include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "qemu/error-report.h"
 #include "hw/arm/stm32f405_soc.h"
 #include "hw/arm/boot.h"

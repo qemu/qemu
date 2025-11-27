@@ -3952,7 +3952,7 @@ M: Luc Michel <luc@lmichel.fr>
 R: Damien Hedde <damien.hedde@dahe.fr>
 S: Maintained
 F: include/hw/core/clock.h
-F: include/hw/qdev-clock.h
+F: include/hw/core/qdev-clock.h
 F: hw/core/clock.c
 F: hw/core/clock-vmstate.c
 F: hw/core/qdev-clock.c

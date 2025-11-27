@@ -28,7 +28,7 @@
 #include "qemu/osdep.h"
 #include "hw/char/ibex_uart.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/registerfields.h"

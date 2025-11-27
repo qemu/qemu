@@ -23,7 +23,7 @@
 #include "hw/arm/armsse-version.h"
 #include "hw/arm/boot.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 
 /*
  * The SSE-300 puts some devices in different places to the

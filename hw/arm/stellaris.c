@@ -31,7 +31,7 @@
 #include "migration/vmstate.h"
 #include "hw/misc/unimp.h"
 #include "hw/timer/stellaris-gptm.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "qom/object.h"
 #include "qobject/qlist.h"
 #include "ui/input.h"

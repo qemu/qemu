@@ -36,7 +36,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/core/boards.h"
 #include "hw/sysbus.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 

@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/core/irq.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/npcm7xx_timer.h"
 #include "migration/vmstate.h"

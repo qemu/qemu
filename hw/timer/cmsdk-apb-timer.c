@@ -35,7 +35,7 @@
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
 #include "hw/registerfields.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "migration/vmstate.h"
 
