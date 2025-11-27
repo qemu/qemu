@@ -3656,7 +3656,7 @@ M: Peter Xu <peterx@redhat.com>
 M: Fabiano Rosas <farosas@suse.de>
 S: Maintained
 F: hw/core/vmstate-if.c
-F: include/hw/vmstate-if.h
+F: include/hw/core/vmstate-if.h
 F: include/migration/
 F: include/qemu/userfaultfd.h
 F: migration/
