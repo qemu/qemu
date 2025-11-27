@@ -82,7 +82,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 #include "hw/intc/intc.h"
 
 #include "hw/ppc/spapr_cpu_core.h"

@@ -29,7 +29,7 @@
 #include "system/runstate.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 
 static uint32_t ipmi_current_uuid = 1;
 

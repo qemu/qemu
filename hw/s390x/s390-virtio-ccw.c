@@ -35,7 +35,7 @@
 #include "hw/s390x/ap-bridge.h"
 #include "migration/register.h"
 #include "target/s390x/cpu_models.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/tod.h"
 #include "system/system.h"

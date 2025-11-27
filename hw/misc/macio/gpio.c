@@ -29,7 +29,7 @@
 #include "hw/misc/macio/macio.h"
 #include "hw/misc/macio/gpio.h"
 #include "hw/core/irq.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
