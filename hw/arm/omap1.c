@@ -24,7 +24,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "system/address-spaces.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/boot.h"

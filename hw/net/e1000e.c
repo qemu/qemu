@@ -41,7 +41,7 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "system/system.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/net/mii.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"

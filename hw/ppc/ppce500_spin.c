@@ -30,7 +30,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/core/sysbus.h"
 #include "system/hw_accel.h"
 #include "hw/ppc/ppc.h"

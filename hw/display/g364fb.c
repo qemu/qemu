@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"

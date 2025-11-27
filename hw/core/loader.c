@@ -50,7 +50,7 @@
 #include "qapi/type-helpers.h"
 #include "qemu/units.h"
 #include "trace.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "disas/disas.h"
 #include "migration/cpr.h"
 #include "migration/vmstate.h"

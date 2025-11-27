@@ -26,7 +26,7 @@
 #include "hw/core/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/ptimer.h"
 #include "hw/core/qdev-properties.h"

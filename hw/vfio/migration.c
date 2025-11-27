@@ -30,7 +30,7 @@
 #include "exec/ramlist.h"
 #include "pci.h"
 #include "trace.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "vfio-migration-internal.h"
 
 /*

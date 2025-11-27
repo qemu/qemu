@@ -21,7 +21,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/timer/a9gtimer.h"

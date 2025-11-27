@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/pci/pci.h"
 #include "hw/core/qdev-properties.h"
 #include "net/tap.h"

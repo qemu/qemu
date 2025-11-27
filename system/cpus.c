@@ -45,7 +45,7 @@
 #include "system/cpu-timers.h"
 #include "system/whpx.h"
 #include "hw/core/boards.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "trace.h"
 
 #ifdef CONFIG_LINUX

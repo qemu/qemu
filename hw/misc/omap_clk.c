@@ -20,7 +20,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/arm/omap.h"
 

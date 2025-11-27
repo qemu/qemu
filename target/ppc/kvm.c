@@ -34,7 +34,7 @@
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/ppc/ppc.h"
 #include "migration/qemu-file-types.h"
 #include "system/watchdog.h"

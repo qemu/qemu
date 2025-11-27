@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "qemu/log.h"
 #include "qemu/audio.h"
 #include "lm4549.h"
