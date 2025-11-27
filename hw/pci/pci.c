@@ -39,7 +39,7 @@
 #include "system/numa.h"
 #include "system/runstate.h"
 #include "system/system.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "trace.h"

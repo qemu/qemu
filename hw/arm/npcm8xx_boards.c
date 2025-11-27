@@ -21,7 +21,7 @@
 #include "hw/arm/npcm8xx.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/core/cpu.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"

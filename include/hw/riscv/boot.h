@@ -21,7 +21,7 @@
 #define RISCV_BOOT_H
 
 #include "exec/cpu-defs.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/riscv/riscv_hart.h"
 
 #define RISCV32_BIOS_BIN    "opensbi-riscv32-generic-fw_dynamic.bin"

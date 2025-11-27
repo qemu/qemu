@@ -36,7 +36,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/datadir.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
 #include "hw/qdev-properties.h"

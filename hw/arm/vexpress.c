@@ -33,7 +33,7 @@
 #include "net/net.h"
 #include "system/system.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/block/flash.h"
 #include "system/device_tree.h"
 #include "qemu/error-report.h"

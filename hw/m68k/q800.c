@@ -30,7 +30,7 @@
 #include "hw/core/boards.h"
 #include "hw/or-irq.h"
 #include "elf.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "ui/console.h"
 #include "hw/char/escc.h"
 #include "hw/sysbus.h"

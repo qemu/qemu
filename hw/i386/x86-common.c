@@ -38,7 +38,7 @@
 
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/core/irq.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "multiboot.h"
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"

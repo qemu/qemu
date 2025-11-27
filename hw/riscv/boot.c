@@ -23,7 +23,7 @@
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/riscv/boot.h"
 #include "hw/riscv/boot_opensbi.h"
 #include "elf.h"

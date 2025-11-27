@@ -16,7 +16,7 @@
 #include "hw/core/boards.h"
 #include "hw/qdev-properties.h"
 #include "elf.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "ui/console.h"
 #include "hw/sysbus.h"
 #include "standard-headers/asm-m68k/bootinfo.h"

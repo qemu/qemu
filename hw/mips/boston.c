@@ -25,7 +25,7 @@
 #include "hw/char/serial-mm.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci-pci.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/core/loader-fit.h"
 #include "hw/mips/bootloader.h"
 #include "hw/mips/cps.h"

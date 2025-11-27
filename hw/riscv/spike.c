@@ -26,7 +26,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/sysbus.h"
 #include "target/riscv/cpu.h"
 #include "hw/riscv/riscv_hart.h"

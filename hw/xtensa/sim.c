@@ -30,7 +30,7 @@
 #include "system/reset.h"
 #include "system/system.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "system/memory.h"
 #include "qemu/error-report.h"

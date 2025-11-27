@@ -22,7 +22,7 @@
 #include "system/address-spaces.h"
 #include "hw/core/irq.h"
 #include "net/net.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/intc/loongarch_extioi.h"

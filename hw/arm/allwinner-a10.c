@@ -26,7 +26,7 @@
 #include "system/system.h"
 #include "hw/core/boards.h"
 #include "hw/usb/hcd-ohci.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "target/arm/cpu-qom.h"
 
 #define AW_A10_SRAM_A_BASE      0x00000000

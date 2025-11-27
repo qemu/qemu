@@ -9,7 +9,7 @@
 #include "qemu/datadir.h"
 #include "cpu.h"
 #include "elf.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "qemu/error-report.h"
 #include "exec/target_page.h"
 #include "system/reset.h"

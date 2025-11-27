@@ -36,7 +36,7 @@
 #include "hw/core/boards.h"
 #include "net/net.h"
 #include "hw/scsi/esp.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "hw/display/vga.h"

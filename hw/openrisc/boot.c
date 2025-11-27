@@ -11,7 +11,7 @@
 #include "exec/cpu-defs.h"
 #include "exec/target_page.h"
 #include "elf.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/openrisc/boot.h"
 #include "system/device_tree.h"
 #include "system/qtest.h"

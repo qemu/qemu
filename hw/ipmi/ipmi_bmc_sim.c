@@ -28,7 +28,7 @@
 #include "hw/ipmi/ipmi.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"

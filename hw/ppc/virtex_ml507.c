@@ -34,7 +34,7 @@
 #include "system/reset.h"
 #include "hw/core/boards.h"
 #include "system/device_tree.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

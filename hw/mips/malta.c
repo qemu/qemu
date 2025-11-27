@@ -44,7 +44,7 @@
 #include "qemu/log.h"
 #include "hw/ide/pci.h"
 #include "hw/core/irq.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "qom/object.h"
 #include "hw/sysbus.h"             /* SysBusDevice */

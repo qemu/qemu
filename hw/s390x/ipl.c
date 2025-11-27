@@ -19,7 +19,7 @@
 #include "system/runstate.h"
 #include "system/tcg.h"
 #include "elf.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/core/boards.h"
 #include "hw/s390x/virtio-ccw.h"

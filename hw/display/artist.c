@@ -15,7 +15,7 @@
 #include "qemu/bswap.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"

@@ -38,7 +38,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_core.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/nmi.h"
 #include "qapi/visitor.h"
 #include "hw/intc/intc.h"

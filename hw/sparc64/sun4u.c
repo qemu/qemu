@@ -53,7 +53,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "hw/ide/pci.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/core/fw-path-provider.h"
 #include "elf.h"
 #include "trace.h"

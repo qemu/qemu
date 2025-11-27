@@ -18,7 +18,7 @@
 #include "hw/core/boards.h"
 #include "hw/qdev-clock.h"
 #include "hw/arm/aspeed_soc.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/arm/boot.h"
 #include "hw/block/flash.h"
 #include "hw/arm/aspeed_coprocessor.h"

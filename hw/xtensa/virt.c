@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "system/reset.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/pci-host/gpex.h"
 #include "net/net.h"
 #include "elf.h"

@@ -9,7 +9,7 @@
 #include "hw/acpi/generic_event_device.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/intc/loongarch_extioi.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/loongarch/virt.h"
 #include "hw/pci-host/gpex.h"
 #include "system/device_tree.h"

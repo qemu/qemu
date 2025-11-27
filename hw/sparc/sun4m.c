@@ -51,7 +51,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/core/irq.h"
 #include "hw/or-irq.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "trace.h"
 #include "qom/object.h"

@@ -18,7 +18,7 @@
 #include "hw/char/serial-mm.h"
 #include "system/blockdev.h"
 #include "system/block-backend.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "qemu/datadir.h"
 
 

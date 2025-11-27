@@ -62,7 +62,7 @@
 #include "hw/firmware/smbios.h"
 #include "hw/acpi/acpi.h"
 #include "hw/xen/xen.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "monitor/qdev.h"
 #include "net/net.h"
 #include "net/slirp.h"

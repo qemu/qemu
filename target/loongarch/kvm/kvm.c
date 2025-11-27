@@ -23,7 +23,7 @@
 #include "hw/core/irq.h"
 #include "hw/loongarch/virt.h"
 #include "qemu/log.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "system/runstate.h"
 #include "cpu-csr.h"
 #include "kvm_loongarch.h"

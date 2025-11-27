@@ -40,7 +40,7 @@
 #include "sh7750_regs.h"
 #include "hw/ide/mmio.h"
 #include "hw/core/irq.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/usb/usb.h"
 #include "hw/block/flash.h"
 #include "exec/tswap.h"

@@ -18,7 +18,7 @@
 #include "hw/core/irq.h"
 #include "hw/m68k/next-cube.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/scsi/esp.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"

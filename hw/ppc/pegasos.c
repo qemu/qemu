@@ -25,7 +25,7 @@
 #include "system/runstate.h"
 #include "system/qtest.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/core/fw-path-provider.h"
 #include "elf.h"
 #include "qemu/log.h"

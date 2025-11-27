@@ -21,7 +21,7 @@
 #include "hw/core/boards.h"
 #include "system/kvm.h"
 #include "system/device_tree.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "hw/char/serial-mm.h"
 #include "hw/ppc/ppc.h"

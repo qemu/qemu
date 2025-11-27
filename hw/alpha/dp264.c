@@ -10,7 +10,7 @@
 #include "cpu.h"
 #include "exec/target_page.h"
 #include "elf.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "alpha_sys.h"
 #include "qemu/error-report.h"
 #include "hw/rtc/mc146818rtc.h"

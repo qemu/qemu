@@ -25,7 +25,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "hw/rx/rx62n.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "system/system.h"

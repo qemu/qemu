@@ -24,7 +24,7 @@
 #include "cpu.h"
 #include "net/net.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "hw/tricore/tricore.h"
 #include "hw/tricore/tricore_testdevice.h"

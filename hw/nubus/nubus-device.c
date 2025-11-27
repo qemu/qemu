@@ -12,7 +12,7 @@
 #include "qemu/datadir.h"
 #include "exec/target_page.h"
 #include "hw/core/irq.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/nubus/nubus.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

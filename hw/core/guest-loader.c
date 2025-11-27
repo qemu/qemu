@@ -27,7 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/cpu.h"
 #include "system/dma.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/module.h"

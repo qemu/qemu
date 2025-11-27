@@ -61,7 +61,7 @@
 #include "hw/core/cpu.h"
 
 #include "hw/ppc/ppc.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"

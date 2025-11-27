@@ -19,7 +19,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/npcm7xx.h"
 #include "hw/char/serial-mm.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/misc/unimp.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"

@@ -24,7 +24,7 @@
 #include "system/numa.h"
 #include "hw/core/boards.h"
 #include "system/reset.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/mem/memory-device.h"
 #include "elf.h"
 #include "system/device_tree.h"

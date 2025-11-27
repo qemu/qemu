@@ -21,7 +21,7 @@
 #include "qapi/error.h"
 #include "qemu/units.h"
 #include "system/memory.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/core/loader-fit.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"

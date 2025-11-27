@@ -22,7 +22,7 @@
 #include "system/device_tree.h"
 #include "system/block-backend.h"
 #include "exec/page-protection.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "system/memory.h"
 #include "ppc440.h"

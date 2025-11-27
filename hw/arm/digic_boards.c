@@ -31,7 +31,7 @@
 #include "hw/arm/digic.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/block/flash.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "system/qtest.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"

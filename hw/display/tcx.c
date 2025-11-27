@@ -27,7 +27,7 @@
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"

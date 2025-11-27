@@ -24,7 +24,7 @@
 #include "migration/vmstate.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "net/net.h"
 #include "system/runstate.h"
 #include "system/system.h"

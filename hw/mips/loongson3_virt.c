@@ -37,7 +37,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/intc/i8259.h"
 #include "hw/intc/loongson_ipi.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/isa/superio.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/pci.h"

@@ -22,7 +22,7 @@
 #include "hw/arm/npcm8xx.h"
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gic.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/misc/unimp.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"

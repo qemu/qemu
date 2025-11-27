@@ -13,7 +13,7 @@
 #include "qemu/units.h"
 #include "system/block-backend.h"
 #include "system/blockdev.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/ppc/pnv_pnor.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"

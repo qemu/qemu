@@ -58,7 +58,7 @@
 #include "system/reset.h"
 #include "system/system.h"
 #include "uboot_image.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "system/memory.h"
 #include "hw/core/boards.h"

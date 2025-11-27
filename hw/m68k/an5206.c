@@ -11,7 +11,7 @@
 #include "cpu.h"
 #include "hw/m68k/mcf.h"
 #include "hw/core/boards.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "system/qtest.h"

@@ -31,7 +31,7 @@
 #include "hw/mips/mips.h"
 #include "hw/mips/bootloader.h"
 #include "hw/pci/pci.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/ide/pci.h"
 #include "hw/qdev-properties.h"
 #include "elf.h"
