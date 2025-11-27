@@ -43,7 +43,7 @@
 #include "hw/intc/riscv_aplic.h"
 #include "hw/intc/sifive_plic.h"
 #include "hw/misc/sifive_test.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "chardev/char.h"
 #include "system/device_tree.h"
 #include "system/system.h"

@@ -46,7 +46,7 @@
 #include "qemu/option.h"
 #include "hw/pci-host/ppce500.h"
 #include "qemu/error-report.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "hw/net/fsl_etsec/etsec.h"
 #include "hw/i2c/i2c.h"
 #include "hw/core/irq.h"

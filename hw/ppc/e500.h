@@ -2,7 +2,7 @@
 #define PPCE500_H
 
 #include "hw/core/boards.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "qom/object.h"
 
 #define PLATFORM_CLK_FREQ_HZ (400 * 1000 * 1000)

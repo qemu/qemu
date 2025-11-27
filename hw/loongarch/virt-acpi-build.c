@@ -32,7 +32,7 @@
 #include "hw/pci-host/gpex.h"
 #include "system/system.h"
 #include "system/tpm.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/hmat.h"
 

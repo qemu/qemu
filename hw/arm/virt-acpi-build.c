@@ -54,7 +54,7 @@
 #include "hw/arm/virt.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/mem/nvdimm.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "system/numa.h"
 #include "system/reset.h"
 #include "system/tpm.h"
