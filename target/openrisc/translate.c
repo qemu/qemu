@@ -1558,7 +1558,8 @@ static void openrisc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static void openrisc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
-    uint32_t insn = translator_ldl(cpu_env(cs), &dc->base, dc->base.pc_next);
+    uint32_t insn = translator_ldl_end(cpu_env(cs), &dc->base,
+                                       dc->base.pc_next, mo_endian(dc));
 
     if (!decode(dc, insn)) {
         gen_illegal_exception(dc);
