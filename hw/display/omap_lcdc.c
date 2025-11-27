@@ -23,6 +23,7 @@
 #include "hw/arm/omap.h"
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
+#include "exec/cpu-common.h"
 
 struct omap_lcd_panel_s {
     MemoryRegion *sysmem;

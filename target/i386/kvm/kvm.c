@@ -35,6 +35,7 @@
 #include "system/hw_accel.h"
 #include "system/kvm_int.h"
 #include "system/runstate.h"
+#include "system/ramblock.h"
 #include "kvm_i386.h"
 #include "../confidential-guest.h"
 #include "sev.h"

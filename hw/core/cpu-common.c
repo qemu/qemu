@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/cpu-common.h"
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
 #include "system/hw_accel.h"

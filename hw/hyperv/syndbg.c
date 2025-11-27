@@ -19,6 +19,7 @@
 #include "hw/hyperv/hyperv.h"
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/hyperv/hyperv-proto.h"
+#include "exec/cpu-common.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "net/checksum.h"

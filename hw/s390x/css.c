@@ -22,6 +22,7 @@
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/s390-ccw.h"
+#include "exec/cpu-common.h"
 
 typedef struct CrwContainer {
     CRW crw;

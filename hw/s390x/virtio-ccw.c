@@ -32,6 +32,7 @@
 #include "trace.h"
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "exec/cpu-common.h"
 #include "system/replay.h"
 
 #define NR_CLASSIC_INDICATOR_BITS 64

@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"

@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "system/system.h"
 #include "system/runstate.h"
+#include "system/ramblock.h"
 #include "system/kvm.h"
 #include "system/kvm_int.h"
 #include "kvm_arm.h"

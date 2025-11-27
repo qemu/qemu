@@ -21,6 +21,7 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/boards.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 

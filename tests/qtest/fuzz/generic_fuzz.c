@@ -21,7 +21,7 @@
 #include "fuzz.h"
 #include "string.h"
 #include "system/memory.h"
-#include "system/ramblock.h"
+#include "system/ram_addr.h"
 #include "hw/core/qdev.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_device.h"

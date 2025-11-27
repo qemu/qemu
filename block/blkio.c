@@ -12,7 +12,7 @@
 #include <blkio.h>
 #include "block/block_int.h"
 #include "system/memory.h"
-#include "exec/cpu-common.h" /* for qemu_ram_get_fd() */
+#include "system/ramblock.h"
 #include "qemu/defer-call.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

@@ -23,6 +23,7 @@
 #include "hw/arm/omap.h"
 #include "hw/core/irq.h"
 #include "hw/arm/soc_dma.h"
+#include "exec/cpu-common.h"
 
 struct omap_dma_channel_s {
     /* transfer data */

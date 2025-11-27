@@ -33,6 +33,7 @@
 #include "qemu/guest-random.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
+#include "exec/cpu-common.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
 #include "elf.h"

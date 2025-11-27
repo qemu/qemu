@@ -38,6 +38,7 @@
 #include "hw/ppc/spapr_vio.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
+#include "exec/cpu-common.h"
 #include "qom/object.h"
 
 struct SpaprNvram {

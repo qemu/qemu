@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "system/hostmem.h"
+#include "system/ramblock.h"
 #include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"

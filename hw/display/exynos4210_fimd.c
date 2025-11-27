@@ -27,6 +27,7 @@
 #include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"

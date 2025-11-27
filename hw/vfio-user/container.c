@@ -15,6 +15,7 @@
 #include "hw/vfio-user/trace.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-listener.h"
+#include "system/ramblock.h"
 #include "qapi/error.h"
 
 /*

@@ -31,6 +31,7 @@
 #include "qemu/guest-random.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
+#include "exec/cpu-common.h"
 #include "system/cpus.h"
 #include "system/runstate.h"
 #include "system/accel-blocker.h"

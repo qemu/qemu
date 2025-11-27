@@ -31,6 +31,7 @@
 #include "system/address-spaces.h"
 #include "system/dma.h"
 #include "system/runstate.h"
+#include "exec/cpu-common.h"
 #include "trace.h"
 
 #define HTIF_DEV_SHIFT          56

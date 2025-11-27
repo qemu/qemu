@@ -34,6 +34,7 @@
 #include "scsi/constants.h"
 #include "hw/pci/msi.h"
 #include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 #include "vmw_pvscsi.h"
 #include "trace.h"
 #include "qom/object.h"

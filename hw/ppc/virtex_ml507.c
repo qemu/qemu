@@ -44,6 +44,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 
 #include <libfdt.h>
 

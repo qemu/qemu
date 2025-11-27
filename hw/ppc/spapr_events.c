@@ -41,6 +41,7 @@
 #include "qemu/bcd.h"
 #include "qemu/main-loop.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "exec/cpu-common.h"
 #include <libfdt.h>
 #include "migration/blocker.h"
 

@@ -24,6 +24,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/i386/kvm/clock.h"
 #include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 #include "qapi/error.h"
 
 #include <linux/kvm.h>

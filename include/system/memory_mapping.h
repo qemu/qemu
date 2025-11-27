@@ -15,7 +15,9 @@
 #define MEMORY_MAPPING_H
 
 #include "qemu/queue.h"
-#include "exec/cpu-common.h"
+#include "exec/hwaddr.h"
+#include "exec/vaddr.h"
+#include "system/ram_addr.h"
 
 typedef struct GuestPhysBlock {
     /* visible to guest, reflects PCI hole, etc */

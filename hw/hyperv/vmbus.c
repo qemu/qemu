@@ -19,6 +19,7 @@
 #include "hw/hyperv/vmbus.h"
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
 #include "exec/target_page.h"
 #include "trace.h"
 

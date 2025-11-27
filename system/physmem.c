@@ -68,7 +68,7 @@
 #include "qemu/main-loop.h"
 #include "system/replay.h"
 
-#include "system/ram_addr.h"
+#include "system/ramblock.h"
 
 #include "qemu/pmem.h"
 

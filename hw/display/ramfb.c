@@ -18,6 +18,7 @@
 #include "hw/display/bochs-vbe.h" /* for limits */
 #include "ui/console.h"
 #include "system/reset.h"
+#include "exec/cpu-common.h"
 
 struct QEMU_PACKED RAMFBCfg {
     uint64_t addr;

@@ -43,6 +43,7 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "qemu/log.h"
+#include "exec/cpu-common.h"
 #include "hw/core/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"

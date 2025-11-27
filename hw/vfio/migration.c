@@ -27,7 +27,7 @@
 #include "migration-multifd.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-vfio.h"
-#include "exec/ramlist.h"
+#include "system/ramlist.h"
 #include "pci.h"
 #include "trace.h"
 #include "hw/core/hw-error.h"

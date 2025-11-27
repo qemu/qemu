@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "etsec.h"
 #include "registers.h"
+#include "exec/cpu-common.h"
 
 /* #define ETSEC_RING_DEBUG */
 /* #define HEX_DUMP */

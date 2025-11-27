@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "exec/target_page.h"
+#include "system/ram_addr.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
 #include "hw/core/qdev-properties.h"

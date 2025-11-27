@@ -21,6 +21,7 @@
 #include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "system/reset.h"
+#include "exec/cpu-common.h"
 
 void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
                         BIOSLinker *linker, const char *oem_id)

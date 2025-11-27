@@ -16,7 +16,7 @@
 
 #include "qom/object.h"
 #include "exec/hwaddr.h"
-#include "exec/cpu-common.h"
+#include "system/ram_addr.h"
 #include "system/host_iommu_device.h"
 
 #define TYPE_IOMMUFD_BACKEND "iommufd"

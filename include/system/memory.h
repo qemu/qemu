@@ -14,11 +14,10 @@
 #ifndef SYSTEM_MEMORY_H
 #define SYSTEM_MEMORY_H
 
-#include "exec/cpu-common.h"
 #include "exec/hwaddr.h"
+#include "system/ram_addr.h"
 #include "exec/memattrs.h"
 #include "exec/memop.h"
-#include "exec/ramlist.h"
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
 #include "qemu/int128.h"
@@ -26,6 +25,12 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
+
+enum device_endian {
+    DEVICE_NATIVE_ENDIAN,
+    DEVICE_BIG_ENDIAN,
+    DEVICE_LITTLE_ENDIAN,
+};
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -3265,6 +3270,13 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
  */
 MemTxResult address_space_set(AddressSpace *as, hwaddr addr,
                               uint8_t c, hwaddr len, MemTxAttrs attrs);
+
+/* Coalesced MMIO regions are areas where write operations can be reordered.
+ * This usually implies that write operations are side-effect free.  This allows
+ * batching which can make a major impact on performance when using
+ * virtualization.
+ */
+void qemu_flush_coalesced_mmio_buffer(void);
 
 /*
  * Inhibit technologies that require discarding of pages in RAM blocks, e.g.,

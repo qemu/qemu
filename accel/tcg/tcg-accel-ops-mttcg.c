@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/cpu-common.h"
 #include "system/tcg.h"
 #include "system/replay.h"
 #include "exec/icount.h"

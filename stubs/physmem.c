@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "exec/cpu-common.h"
+#include "system/ramblock.h"
 
 RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
                                    ram_addr_t *offset)

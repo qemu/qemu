@@ -2,6 +2,7 @@
 #define HW_QDEV_PROPERTIES_SYSTEM_H
 
 #include "hw/core/qdev-properties.h"
+#include "qapi/qapi-types-common.h"
 
 bool qdev_prop_sanitize_s390x_loadparm(uint8_t *loadparm, const char *str,
                                        Error **errp);

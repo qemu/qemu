@@ -27,6 +27,7 @@
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "system/dma.h"
 #include "hw/dma/sifive_pdma.h"

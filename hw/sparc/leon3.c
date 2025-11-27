@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/datadir.h"
+#include "exec/cpu-common.h"
 #include "cpu.h"
 #include "hw/core/irq.h"
 #include "qemu/timer.h"

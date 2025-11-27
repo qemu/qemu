@@ -27,6 +27,7 @@
 #include "hw/core/irq.h"
 #include "hw/mips/mips.h"
 #include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"

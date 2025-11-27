@@ -41,6 +41,7 @@
 #include "confidential-guest.h"
 #include "hw/i386/pc.h"
 #include "system/address-spaces.h"
+#include "system/ramlist.h"
 #include "hw/i386/e820_memory_layout.h"
 #include "qemu/queue.h"
 #include "qemu/cutils.h"

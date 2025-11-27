@@ -23,6 +23,7 @@
 #include "hw/ppc/spapr.h" /* for RTAS return codes */
 #include "hw/pci-host/spapr.h" /* spapr_phb_remove_pci_device_cb callback */
 #include "hw/ppc/spapr_nvdimm.h"
+#include "exec/cpu-common.h"
 #include "system/device_tree.h"
 #include "system/reset.h"
 #include "trace.h"

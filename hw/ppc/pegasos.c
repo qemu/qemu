@@ -39,6 +39,7 @@
 #include "qemu/datadir.h"
 #include "system/device_tree.h"
 #include "hw/ppc/vof.h"
+#include "exec/cpu-common.h"
 
 #include <libfdt.h>
 

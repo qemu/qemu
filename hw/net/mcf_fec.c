@@ -16,6 +16,7 @@
 #include "hw/net/mii.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
 #include <zlib.h> /* for crc32 */
 
 //#define DEBUG_FEC 1

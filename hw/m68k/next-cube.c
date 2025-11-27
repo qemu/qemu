@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/hwaddr.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-interrupt.h"
 #include "system/system.h"
 #include "system/qtest.h"

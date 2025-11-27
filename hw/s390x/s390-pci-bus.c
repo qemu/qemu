@@ -25,6 +25,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/msi.h"
+#include "exec/cpu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "system/reset.h"

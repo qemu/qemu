@@ -49,6 +49,7 @@
 #include "bootparam.h"
 #include "xtensa_memory.h"
 #include "hw/xtensa/mx_pic.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 
 typedef struct XtfpgaFlashDesc {
