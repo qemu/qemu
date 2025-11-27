@@ -10,7 +10,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/misc/bcm2835_thermal.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
 
 REG32(CTL, 0)

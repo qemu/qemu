@@ -11,7 +11,7 @@
 #include "hw/core/irq.h"
 #include "qemu/log.h"
 #include "trace.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qapi/error.h"
 
 /*

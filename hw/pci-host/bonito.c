@@ -50,7 +50,7 @@
 #include "migration/vmstate.h"
 #include "system/runstate.h"
 #include "hw/misc/unimp.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qom/object.h"
 #include "trace.h"
 

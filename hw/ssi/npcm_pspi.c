@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/core/irq.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/ssi/npcm_pspi.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"

@@ -20,7 +20,7 @@
 #include "hw/arm/bcm2836.h"
 #include "hw/arm/bcm2838.h"
 #include "hw/arm/raspi_platform.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qemu/error-report.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"

@@ -30,7 +30,7 @@
 #include "qemu/log.h"
 #include "qemu/bswap.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "hw/misc/empty_slot.h"

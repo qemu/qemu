@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 
 #include "exec/hwaddr.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/net/npcm_pcs.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"

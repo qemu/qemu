@@ -3,7 +3,7 @@
 #ifndef BLOCK_UFS_H
 #define BLOCK_UFS_H
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 typedef struct QEMU_PACKED UfsReg {
     uint32_t cap;

@@ -16,7 +16,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/core/irq.h"
 #include "hw/misc/iotkit-secctl.h"
 #include "hw/arm/armsse-version.h"

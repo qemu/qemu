@@ -21,7 +21,7 @@
 #define RISCV_CPU_H
 
 #include "hw/core/cpu.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/core/qdev-properties.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"

@@ -19,7 +19,7 @@
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/misc/npcm7xx_pwm.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"

@@ -25,7 +25,7 @@
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/mps2-scc.h"
 #include "hw/misc/led.h"
 #include "hw/core/qdev-properties.h"

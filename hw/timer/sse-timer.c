@@ -42,7 +42,7 @@
 #include "hw/timer/sse-counter.h"
 #include "hw/sysbus.h"
 #include "hw/core/irq.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/core/clock.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/core/qdev-properties.h"

@@ -13,7 +13,7 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qom/object.h"
 
 #define UART_FIFO_LENGTH 6

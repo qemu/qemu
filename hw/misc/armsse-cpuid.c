@@ -24,7 +24,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/armsse-cpuid.h"
 #include "hw/core/qdev-properties.h"
 

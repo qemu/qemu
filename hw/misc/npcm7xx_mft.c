@@ -20,7 +20,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/misc/npcm7xx_mft.h"
 #include "hw/misc/npcm7xx_pwm.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

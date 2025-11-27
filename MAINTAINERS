@@ -3560,7 +3560,7 @@ M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
 F: hw/core/register.c
 F: include/hw/register.h
-F: include/hw/registerfields.h
+F: include/hw/core/registerfields.h
 
 Rust
 M: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>

@@ -433,7 +433,7 @@ We also suggest avoiding bitfields even in structures where the exact
 layout does not matter, unless you can show that they provide a significant
 usability benefit.
 
-We encourage the usage of ``include/hw/registerfields.h`` as a safe replacement
+We encourage the usage of ``include/hw/core/registerfields.h`` as a safe replacement
 for bitfields.
 
 Reserved namespaces in C and POSIX

@@ -16,7 +16,7 @@
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "hw/timer/bcm2835_systmr.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 

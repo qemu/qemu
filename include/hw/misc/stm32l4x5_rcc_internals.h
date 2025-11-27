@@ -18,7 +18,7 @@
 #ifndef HW_STM32L4X5_RCC_INTERNALS_H
 #define HW_STM32L4X5_RCC_INTERNALS_H
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/stm32l4x5_rcc.h"
 
 #define TYPE_RCC_CLOCK_MUX "stm32l4x5-rcc-clock-mux"

@@ -36,7 +36,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "hw/core/irq.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "system/block-backend.h"
 #include "hw/sd/sd.h"
 #include "migration/vmstate.h"

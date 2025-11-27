@@ -16,7 +16,7 @@
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "trace.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 #define GPIOS_PER_GROUP 8
 

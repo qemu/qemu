@@ -20,7 +20,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/core/irq.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/sifive_e_aon.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"

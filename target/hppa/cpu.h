@@ -27,7 +27,7 @@
 #include "system/memory.h"
 #include "qemu/cpu-float.h"
 #include "qemu/interval-tree.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 #define MMU_KERNEL_IDX    0
 #define MMU_KERNEL_P_IDX  1

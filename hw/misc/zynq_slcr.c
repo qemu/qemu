@@ -21,7 +21,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/core/qdev-clock.h"
 #include "qom/object.h"
 #include "hw/core/qdev-properties.h"

@@ -16,7 +16,7 @@
 #include "migration/vmstate.h"
 #include "hw/misc/unimp.h"
 #include "system/rtc.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 #define SYS_TOYTRIM        0x20
 #define SYS_TOYWRITE0      0x24

@@ -20,7 +20,7 @@
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "libqtest.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/sifive_e_aon.h"
 
 FIELD(AON_WDT_WDOGCFG, SCALE, 0, 4)

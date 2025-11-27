@@ -27,7 +27,7 @@
 #include "exec/cpu-interrupt.h"
 #include "cpu-qom.h"
 #include "qom/object.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 #define CPU_RESOLVING_TYPE TYPE_POWERPC_CPU
 

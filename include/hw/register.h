@@ -13,7 +13,7 @@
 
 #include "hw/core/qdev.h"
 #include "system/memory.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qom/object.h"
 
 typedef struct RegisterInfo RegisterInfo;

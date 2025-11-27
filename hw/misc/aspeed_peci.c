@@ -11,7 +11,7 @@
 #include "qemu/log.h"
 #include "hw/core/irq.h"
 #include "hw/misc/aspeed_peci.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "trace.h"
 
 #define ASPEED_PECI_CC_RSP_SUCCESS (0x40U)

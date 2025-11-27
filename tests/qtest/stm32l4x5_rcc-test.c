@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "libqtest-single.h"
 #include "hw/misc/stm32l4x5_rcc_internals.h"
 

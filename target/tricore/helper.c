@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "cpu.h"
 #include "exec/cputlb.h"
 #include "accel/tcg/cpu-mmu-index.h"

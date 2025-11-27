@@ -29,7 +29,7 @@
 #include "exec/vaddr.h"
 #include "exec/breakpoint.h"
 #include "accel/tcg/tb-cpu-state.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "system/memory.h"
 #include "syndrome.h"

@@ -29,7 +29,7 @@
 #include "hw/i2c/aspeed_i2c.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "trace.h"
 
 /* Enable SLAVE_ADDR_RX_MATCH always */

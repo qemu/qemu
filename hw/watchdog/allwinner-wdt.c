@@ -26,7 +26,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "hw/sysbus.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/watchdog/allwinner-wdt.h"
 #include "system/watchdog.h"
 #include "migration/vmstate.h"

@@ -24,7 +24,7 @@
 #ifndef SDHCI_INTERNAL_H
 #define SDHCI_INTERNAL_H
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 /* R/W SDMA System Address register 0x0 */
 #define SDHC_SYSAD                     0x00

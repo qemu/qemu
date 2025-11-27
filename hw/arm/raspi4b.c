@@ -14,7 +14,7 @@
 #include "hw/arm/machines-qom.h"
 #include "hw/arm/raspi_platform.h"
 #include "hw/display/bcm2835_fb.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qemu/error-report.h"
 #include "system/device_tree.h"
 #include "hw/core/boards.h"

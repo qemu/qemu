@@ -18,7 +18,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/arm/armsse.h"
 #include "hw/arm/armsse-version.h"
 #include "hw/arm/boot.h"

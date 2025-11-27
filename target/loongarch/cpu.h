@@ -13,7 +13,7 @@
 #include "exec/cpu-defs.h"
 #include "exec/cpu-interrupt.h"
 #include "fpu/softfloat-types.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qemu/timer.h"
 #ifndef CONFIG_USER_ONLY
 #include "system/memory.h"

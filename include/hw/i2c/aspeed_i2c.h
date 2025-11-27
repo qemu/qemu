@@ -22,7 +22,7 @@
 
 #include "hw/i2c/i2c.h"
 #include "hw/sysbus.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_I2C "aspeed.i2c"

@@ -25,7 +25,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/iotkit-sysctl.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/armsse-version.h"

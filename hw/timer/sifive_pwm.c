@@ -29,7 +29,7 @@
 #include "hw/core/irq.h"
 #include "hw/timer/sifive_pwm.h"
 #include "hw/core/qdev-properties.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
