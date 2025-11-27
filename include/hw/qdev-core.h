@@ -7,7 +7,7 @@
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qom/object.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "hw/resettable.h"
 
 /**

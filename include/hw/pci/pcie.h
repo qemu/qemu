@@ -25,7 +25,7 @@
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_aer.h"
 #include "hw/pci/pcie_sriov.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 
 typedef struct PCIEPort PCIEPort;
 typedef struct PCIESlot PCIESlot;

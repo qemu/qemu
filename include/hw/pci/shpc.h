@@ -2,7 +2,7 @@
 #define SHPC_H
 
 #include "system/memory.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
 

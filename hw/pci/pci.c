@@ -45,7 +45,7 @@
 #include "trace.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qapi/error.h"

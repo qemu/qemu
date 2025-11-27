@@ -35,7 +35,7 @@
 #include "qemu/range.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/acpi/cpu.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/acpi/memory_hotplug.h"

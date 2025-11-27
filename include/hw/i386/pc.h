@@ -9,7 +9,7 @@
 #include "hw/block/flash.h"
 #include "hw/i386/x86.h"
 
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "qom/object.h"
 #include "hw/i386/sgx-epc.h"
 #include "hw/cxl/cxl.h"

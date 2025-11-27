@@ -16,7 +16,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pc-hotplug.h"
 #include "hw/acpi/aml-build.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "hw/acpi/cpu.h"
 
 typedef struct AcpiCpuHotplug {
