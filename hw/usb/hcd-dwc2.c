@@ -41,7 +41,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #define USB_HZ_FS       12000000
 #define USB_HZ_HS       96000000

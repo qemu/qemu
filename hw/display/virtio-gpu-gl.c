@@ -21,7 +21,7 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #include <virglrenderer.h>
 

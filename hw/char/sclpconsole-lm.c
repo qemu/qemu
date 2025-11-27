@@ -22,7 +22,7 @@
 #include "hw/s390x/sclp.h"
 #include "migration/vmstate.h"
 #include "hw/s390x/event-facility.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/s390x/ebcdic.h"
 #include "qom/object.h"

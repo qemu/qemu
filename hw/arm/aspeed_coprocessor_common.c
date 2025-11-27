@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "system/memory.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/arm/aspeed_coprocessor.h"
 
 static void aspeed_coprocessor_realize(DeviceState *dev, Error **errp)

@@ -28,7 +28,7 @@
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"

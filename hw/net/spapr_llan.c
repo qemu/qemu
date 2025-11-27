@@ -32,7 +32,7 @@
 #include "migration/vmstate.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/system.h"
 #include "trace.h"
 

@@ -34,7 +34,7 @@
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/target_page.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/core/loader.h"
 #include "hw/core/boards.h"

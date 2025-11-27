@@ -33,7 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/boards.h"
 #include "hw/sysbus.h"
 #include "hw/core/qdev-clock.h"

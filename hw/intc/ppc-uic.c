@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/intc/ppc-uic.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 enum {

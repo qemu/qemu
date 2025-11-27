@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "hw/virtio/virtio-pci.h"
 #include "qom/object.h"

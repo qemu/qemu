@@ -25,7 +25,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/usb/imx-usb-phy.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/system.h"
 #include "chardev/char.h"
 #include "qemu/error-report.h"

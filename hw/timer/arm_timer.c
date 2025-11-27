@@ -13,7 +13,7 @@
 #include "qemu/timer.h"
 #include "hw/core/irq.h"
 #include "hw/core/ptimer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "qom/object.h"

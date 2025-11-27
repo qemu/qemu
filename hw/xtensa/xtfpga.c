@@ -32,7 +32,7 @@
 #include "system/system.h"
 #include "hw/core/boards.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "elf.h"
 #include "system/memory.h"
 #include "exec/tswap.h"

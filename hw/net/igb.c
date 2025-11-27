@@ -52,7 +52,7 @@
 #include "hw/pci/pcie_sriov.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #include "igb_common.h"

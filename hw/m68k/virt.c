@@ -14,7 +14,7 @@
 #include "system/system.h"
 #include "cpu.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "elf.h"
 #include "hw/core/loader.h"
 #include "ui/console.h"

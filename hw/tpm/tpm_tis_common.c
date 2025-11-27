@@ -32,7 +32,7 @@
 
 #include "hw/acpi/tpm.h"
 #include "hw/pci/pci_ids.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "system/tpm_backend.h"
 #include "system/tpm_util.h"

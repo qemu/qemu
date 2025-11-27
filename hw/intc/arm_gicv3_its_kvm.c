@@ -23,7 +23,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "hw/intc/arm_gicv3_its_common.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/runstate.h"
 #include "system/kvm.h"
 #include "kvm_arm.h"

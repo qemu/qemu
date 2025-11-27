@@ -33,7 +33,7 @@
 #include "hw/pci/pci.h"
 #include "hw/core/loader.h"
 #include "hw/ide/pci.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "elf.h"
 #include "hw/isa/vt82c686.h"
 #include "system/qtest.h"

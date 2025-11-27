@@ -36,7 +36,7 @@
 #include "hw/core/boards.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/misc/unimp.h"
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/timer/cmsdk-apb-timer.h"

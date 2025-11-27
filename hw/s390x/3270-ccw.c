@@ -15,7 +15,7 @@
 #include "qemu/module.h"
 #include "hw/s390x/css.h"
 #include "hw/s390x/css-bridge.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/s390x/3270-ccw.h"
 
 /* Handle READ ccw commands from guest */

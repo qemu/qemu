@@ -23,7 +23,7 @@
 #include "qapi/visitor.h"
 #include <sys/ioctl.h>
 #include "hw/nvram/fw_cfg.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "pci.h"
 #include "pci-quirks.h"
 #include "trace.h"

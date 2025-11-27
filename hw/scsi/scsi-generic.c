@@ -18,7 +18,7 @@
 #include "qemu/module.h"
 #include "hw/scsi/scsi.h"
 #include "migration/qemu-file-types.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/scsi/emulation.h"
 #include "system/block-backend.h"

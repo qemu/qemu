@@ -40,7 +40,7 @@
 #include "srp.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "viosrp.h"
 #include "trace.h"
 

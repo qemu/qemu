@@ -25,7 +25,7 @@
 #ifndef HW_I8254_H
 #define HW_I8254_H
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
 #include "qom/object.h"

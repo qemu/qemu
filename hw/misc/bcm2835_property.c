@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/misc/bcm2835_property.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/core/irq.h"
 #include "hw/misc/bcm2835_mbox_defs.h"

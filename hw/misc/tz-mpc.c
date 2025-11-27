@@ -19,7 +19,7 @@
 #include "hw/registerfields.h"
 #include "hw/core/irq.h"
 #include "hw/misc/tz-mpc.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 /* Our IOMMU has two IOMMU indexes, one for secure transactions and one for
  * non-secure transactions.

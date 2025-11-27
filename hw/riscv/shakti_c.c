@@ -24,7 +24,7 @@
 #include "hw/intc/sifive_plic.h"
 #include "hw/intc/riscv_aclint.h"
 #include "system/system.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/address-spaces.h"
 #include "hw/riscv/boot.h"
 

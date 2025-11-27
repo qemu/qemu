@@ -20,7 +20,7 @@
 #include "hw/isa/vt82c686.h"
 #include "hw/ide/pci.h"
 #include "hw/i2c/smbus_eeprom.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/qtest.h"

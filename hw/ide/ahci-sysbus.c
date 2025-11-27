@@ -23,7 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "system/address-spaces.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #include "hw/ide/ahci-sysbus.h"

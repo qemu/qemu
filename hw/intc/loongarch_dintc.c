@@ -15,7 +15,7 @@
 #include "hw/misc/unimp.h"
 #include "migration/vmstate.h"
 #include "trace.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "target/loongarch/cpu.h"
 #include "qemu/error-report.h"
 #include "system/hw_accel.h"

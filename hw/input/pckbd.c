@@ -33,7 +33,7 @@
 #include "hw/input/ps2.h"
 #include "hw/core/irq.h"
 #include "hw/input/i8042.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 

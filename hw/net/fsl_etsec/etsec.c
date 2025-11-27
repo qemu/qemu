@@ -31,7 +31,7 @@
 #include "hw/core/irq.h"
 #include "hw/net/mii.h"
 #include "hw/core/ptimer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "etsec.h"
 #include "registers.h"
 #include "qapi/error.h"

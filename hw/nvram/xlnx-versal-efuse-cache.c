@@ -26,7 +26,7 @@
 #include "hw/nvram/xlnx-versal-efuse.h"
 
 #include "qemu/log.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #define MR_SIZE 0xC00
 

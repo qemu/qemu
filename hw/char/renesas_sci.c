@@ -25,7 +25,7 @@
 #include "qemu/log.h"
 #include "hw/core/irq.h"
 #include "hw/registerfields.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/char/renesas_sci.h"
 #include "migration/vmstate.h"

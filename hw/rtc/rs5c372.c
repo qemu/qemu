@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/resettable.h"
 #include "migration/vmstate.h"
 #include "qemu/bcd.h"

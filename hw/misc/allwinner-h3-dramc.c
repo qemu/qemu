@@ -25,7 +25,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "system/address-spaces.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "hw/misc/allwinner-h3-dramc.h"
 #include "trace.h"

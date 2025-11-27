@@ -21,7 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo8.h"

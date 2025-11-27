@@ -29,7 +29,7 @@
 #include "hw/arm/boot.h"
 #include "system/address-spaces.h"
 #include "hw/arm/stm32f100_soc.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
 #include "hw/misc/unimp.h"
 #include "system/system.h"

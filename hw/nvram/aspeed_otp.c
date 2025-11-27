@@ -10,7 +10,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "system/block-backend.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/nvram/aspeed_otp.h"
 #include "hw/nvram/trace.h"
 

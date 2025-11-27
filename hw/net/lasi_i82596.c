@@ -19,7 +19,7 @@
 #include "hw/net/lasi_82596.h"
 #include "hw/net/i82596.h"
 #include "trace.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #define PA_I82596_RESET         0       /* Offsets relative to LASI-LAN-Addr.*/

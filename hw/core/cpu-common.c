@@ -32,7 +32,7 @@
 #include "exec/gdbstub.h"
 #include "system/tcg.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "trace.h"
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin.h"

@@ -32,7 +32,7 @@
 #include "migration/vmstate.h"
 #include "hw/core/irq.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"

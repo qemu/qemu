@@ -26,7 +26,7 @@
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/misc/armsse-cpuid.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 REG32(CPUID, 0x0)
 REG32(PID4, 0xfd0)

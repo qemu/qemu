@@ -36,7 +36,7 @@
 #include "qemu/error-report.h"
 #include "system/address-spaces.h" /* get_system_memory() */
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/ppc4xx.h"
 #include "trace.h"
 

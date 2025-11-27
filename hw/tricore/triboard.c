@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "net/net.h"
 #include "hw/core/loader.h"
 #include "elf.h"

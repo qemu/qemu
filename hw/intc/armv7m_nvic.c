@@ -17,7 +17,7 @@
 #include "qemu/timer.h"
 #include "hw/intc/armv7m_nvic.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/tcg.h"
 #include "system/runstate.h"
 #include "target/arm/cpu.h"

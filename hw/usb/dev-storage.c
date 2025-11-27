@@ -16,7 +16,7 @@
 #include "hw/usb/usb.h"
 #include "hw/usb/msd.h"
 #include "desc.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"

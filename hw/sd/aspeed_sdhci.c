@@ -13,7 +13,7 @@
 #include "qapi/error.h"
 #include "hw/core/irq.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "trace.h"
 
 #define ASPEED_SDHCI_INFO            0x00

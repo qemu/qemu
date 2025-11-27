@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"

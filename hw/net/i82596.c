@@ -41,7 +41,7 @@
 #include "net/net.h"
 #include "net/eth.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
 #include "qemu/module.h"

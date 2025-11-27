@@ -33,7 +33,7 @@
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
 #include "hw/usb/hid.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qom/object.h"
 
 struct USBHIDState {

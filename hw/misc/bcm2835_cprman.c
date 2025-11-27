@@ -46,7 +46,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/misc/bcm2835_cprman.h"
 #include "hw/misc/bcm2835_cprman_internals.h"
 #include "trace.h"

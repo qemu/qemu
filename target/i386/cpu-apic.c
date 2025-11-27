@@ -15,7 +15,7 @@
 #include "system/kvm.h"
 #include "system/xen.h"
 #include "system/address-spaces.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/i386/apic_internal.h"
 #include "cpu-internal.h"
 

@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "trace.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "gicv3_internal.h"
 #include "qom/object.h"

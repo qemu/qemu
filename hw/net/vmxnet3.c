@@ -18,7 +18,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "net/tap.h"
 #include "net/checksum.h"
 #include "system/system.h"

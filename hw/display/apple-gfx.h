@@ -10,7 +10,7 @@
 
 #include "qemu/queue.h"
 #include "system/memory.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "ui/surface.h"
 
 #define TYPE_APPLE_GFX_MMIO         "apple-gfx-mmio"

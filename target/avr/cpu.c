@@ -26,7 +26,7 @@
 #include "cpu.h"
 #include "disas/dis-asm.h"
 #include "tcg/debug-assert.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "accel/tcg/cpu-ops.h"
 
 static void avr_cpu_set_pc(CPUState *cs, vaddr value)

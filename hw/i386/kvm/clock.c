@@ -23,7 +23,7 @@
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/i386/kvm/clock.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 
 #include <linux/kvm.h>

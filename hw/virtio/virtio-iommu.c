@@ -23,7 +23,7 @@
 #include "qemu/range.h"
 #include "qemu/reserved-region.h"
 #include "exec/target_page.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio.h"
 #include "system/kvm.h"
 #include "system/reset.h"

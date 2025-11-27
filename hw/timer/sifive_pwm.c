@@ -28,7 +28,7 @@
 #include "trace.h"
 #include "hw/core/irq.h"
 #include "hw/timer/sifive_pwm.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"

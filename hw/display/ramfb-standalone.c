@@ -3,7 +3,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/display/ramfb.h"
 #include "ui/console.h"
 #include "qom/object.h"

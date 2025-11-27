@@ -29,7 +29,7 @@
 #include "hw/intc/ioapic.h"
 #include "hw/intc/ioapic_internal.h"
 #include "hw/pci/msi.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/accel-irq.h"
 #include "system/kvm.h"
 #include "system/system.h"

@@ -18,7 +18,7 @@
 
 #include "hw/arm/nrf51_soc.h"
 #include "hw/i2c/microbit_i2c.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qom/object.h"
 
 struct MicrobitMachineState {

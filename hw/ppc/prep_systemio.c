@@ -26,7 +26,7 @@
 #include "qemu/log.h"
 #include "hw/core/irq.h"
 #include "hw/isa/isa.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"

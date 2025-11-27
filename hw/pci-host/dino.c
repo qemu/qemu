@@ -17,7 +17,7 @@
 #include "hw/core/irq.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/pci-host/dino.h"
 #include "migration/vmstate.h"
 #include "trace.h"

@@ -17,7 +17,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"

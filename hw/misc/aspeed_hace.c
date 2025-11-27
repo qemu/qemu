@@ -18,7 +18,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "crypto/hash.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
 #include "trace.h"
 

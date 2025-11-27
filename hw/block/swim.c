@@ -18,7 +18,7 @@
 #include "migration/vmstate.h"
 #include "hw/block/block.h"
 #include "hw/block/swim.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "trace.h"
 
 

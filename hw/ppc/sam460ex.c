@@ -37,7 +37,7 @@
 #include "hw/ide/pci.h"
 #include "hw/usb/hcd-ehci.h"
 #include "hw/ppc/fdt.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/intc/ppc-uic.h"
 
 #include <libfdt.h>

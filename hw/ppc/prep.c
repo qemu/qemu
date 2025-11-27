@@ -39,7 +39,7 @@
 #include "hw/core/loader.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "exec/target_page.h"
 #include "system/kvm.h"
 #include "system/reset.h"

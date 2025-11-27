@@ -18,7 +18,7 @@
 #include "qom/object_interfaces.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/aml-build.h"

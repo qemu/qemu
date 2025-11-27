@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/display/vga.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "ui/console.h"
 #include "vga_int.h"
 

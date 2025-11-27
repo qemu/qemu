@@ -28,7 +28,7 @@
 #include "hw/core/irq.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/pci-host/astro.h"
 #include "hw/hppa/hppa_hardware.h"
 #include "migration/vmstate.h"

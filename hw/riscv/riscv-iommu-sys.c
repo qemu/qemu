@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

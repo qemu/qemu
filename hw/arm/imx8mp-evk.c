@@ -12,7 +12,7 @@
 #include "hw/arm/fsl-imx8mp.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/kvm.h"
 #include "system/qtest.h"
 #include "qemu/error-report.h"

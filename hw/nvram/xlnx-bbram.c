@@ -31,7 +31,7 @@
 #include "qapi/error.h"
 #include "system/blockdev.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/nvram/xlnx-efuse.h"
 

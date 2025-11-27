@@ -13,7 +13,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/usb/usb.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "trace.h"
 #include "desc.h"
 #include "canokey.h"

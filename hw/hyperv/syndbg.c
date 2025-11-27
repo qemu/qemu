@@ -13,7 +13,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/loader.h"
 #include "exec/target_page.h"
 #include "hw/hyperv/hyperv.h"

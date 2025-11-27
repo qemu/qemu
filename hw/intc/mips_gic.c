@@ -20,7 +20,7 @@
 #include "kvm_mips.h"
 #include "hw/intc/mips_gic.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 static void mips_gic_set_vp_irq(MIPSGICState *gic, int vp, int pin)
 {

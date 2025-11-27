@@ -24,7 +24,7 @@
 #include "hw/core/loader.h"
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/core/qdev.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"

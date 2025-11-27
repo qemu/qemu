@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ssi/pnv_spi.h"
 #include "hw/ssi/pnv_spi_regs.h"

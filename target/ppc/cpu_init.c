@@ -34,7 +34,7 @@
 #include "qapi/error.h"
 #include "qobject/qnull.h"
 #include "qapi/visitor.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/ppc.h"
 #include "mmu-book3s-v3.h"
 #include "qemu/cutils.h"

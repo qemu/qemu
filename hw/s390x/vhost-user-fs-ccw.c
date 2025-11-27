@@ -8,7 +8,7 @@
  * directory.
  */
 #include "qemu/osdep.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "virtio-ccw.h"

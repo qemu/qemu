@@ -7,7 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/loongson_ipi.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "target/mips/cpu.h"
 

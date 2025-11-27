@@ -22,7 +22,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_chip.h"
 #include "hw/ppc/pnv_xscom.h"

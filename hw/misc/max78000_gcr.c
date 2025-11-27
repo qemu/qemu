@@ -12,7 +12,7 @@
 #include "hw/core/irq.h"
 #include "system/runstate.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/char/max78000_uart.h"
 #include "hw/misc/max78000_trng.h"
 #include "hw/misc/max78000_aes.h"

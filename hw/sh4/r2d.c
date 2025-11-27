@@ -35,7 +35,7 @@
 #include "system/system.h"
 #include "hw/core/boards.h"
 #include "hw/pci/pci.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "net/net.h"
 #include "sh7750_regs.h"
 #include "hw/ide/mmio.h"

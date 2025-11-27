@@ -17,7 +17,7 @@
 #include "hw/sysbus.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390_flic.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/s390x/css.h"
 #include "trace.h"
 #include "qapi/error.h"

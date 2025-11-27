@@ -21,7 +21,7 @@
 #include "internal.h"
 #include "exec/translation-block.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
 #include "exec/gdbstub.h"

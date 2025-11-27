@@ -14,7 +14,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #define TO_REG(offset) ((offset) >> 2)

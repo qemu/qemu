@@ -28,7 +28,7 @@
 #include "migration/qemu-file-types.h"
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
 #include "system/dma.h"
 #include "system/iothread.h"

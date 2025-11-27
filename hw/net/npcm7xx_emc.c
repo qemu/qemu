@@ -33,7 +33,7 @@
 
 #include "hw/core/irq.h"
 #include "hw/core/qdev-clock.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/net/npcm7xx_emc.h"
 #include "net/eth.h"
 #include "migration/vmstate.h"

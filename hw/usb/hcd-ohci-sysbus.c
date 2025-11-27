@@ -27,7 +27,7 @@
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/core/qdev-dma.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "trace.h"
 #include "hcd-ohci.h"
 

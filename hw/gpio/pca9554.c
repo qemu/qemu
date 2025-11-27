@@ -10,7 +10,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/bitops.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/gpio/pca9554.h"
 #include "hw/gpio/pca9554_regs.h"
 #include "hw/core/irq.h"

@@ -13,7 +13,7 @@
 #include "qapi/error.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qemu/error-report.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-vsock.h"
 #include "qemu/iov.h"

@@ -68,7 +68,7 @@
 #include "hw/ppc/spapr_nested.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/vof.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/pci/msi.h"
 

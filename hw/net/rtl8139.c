@@ -52,7 +52,7 @@
 #include <zlib.h> /* for crc32 */
 
 #include "hw/pci/pci_device.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "system/dma.h"
 #include "qemu/module.h"

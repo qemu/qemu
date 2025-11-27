@@ -50,7 +50,7 @@
 #include "hw/pci-host/pnv_phb4.h"
 
 #include "hw/ppc/xics.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/pnv_chip.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_pnor.h"

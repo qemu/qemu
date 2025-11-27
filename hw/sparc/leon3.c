@@ -33,7 +33,7 @@
 #include "hw/core/irq.h"
 #include "qemu/timer.h"
 #include "hw/core/ptimer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/system.h"
 #include "system/qtest.h"
 #include "system/reset.h"

@@ -17,7 +17,7 @@
 
 #include "hw/virtio/virtio-pci.h"
 #include "hw/9pfs/virtio-9p.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 

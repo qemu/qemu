@@ -13,7 +13,7 @@
 #include "target/ppc/cpu.h"
 #include "system/cpus.h"
 #include "system/dma.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2.h"
 #include "hw/ppc/xive2_regs.h"

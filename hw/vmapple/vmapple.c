@@ -28,7 +28,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/usb/usb.h"
 #include "hw/arm/boot.h"

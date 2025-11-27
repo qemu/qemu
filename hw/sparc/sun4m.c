@@ -43,7 +43,7 @@
 #include "hw/core/boards.h"
 #include "hw/scsi/esp.h"
 #include "hw/nvram/sun_nvram.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"

@@ -24,7 +24,7 @@
 #include "qemu/error-report.h"
 #include "hw/core/boards.h"
 #include "hw/i2c/i2c.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/arm/allwinner-r40.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"

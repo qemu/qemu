@@ -20,7 +20,7 @@
 #include "hw/core/irq.h"
 #include "hw/misc/iotkit-secctl.h"
 #include "hw/arm/armsse-version.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 /* Registers in the secure privilege control block */
 REG32(SECRESPCFG, 0x10)

@@ -12,7 +12,7 @@
 #include "hw/pci/pci.h"
 #include "qapi/error.h"
 #include "io/channel-util.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "monitor/monitor.h"
 #include "migration/blocker.h"
 #include "qemu/sockets.h"

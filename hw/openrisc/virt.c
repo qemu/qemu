@@ -20,7 +20,7 @@
 #include "hw/misc/sifive_test.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/rtc/goldfish_rtc.h"
 #include "hw/sysbus.h"
 #include "hw/virtio/virtio-mmio.h"

@@ -30,7 +30,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/misc/xlnx-versal-pmc-iou-slcr.h"
 
 #ifndef XILINX_VERSAL_PMC_IOU_SLCR_ERR_DEBUG

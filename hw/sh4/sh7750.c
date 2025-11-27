@@ -30,7 +30,7 @@
 #include "hw/sh4/sh.h"
 #include "system/system.h"
 #include "target/sh4/cpu.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"

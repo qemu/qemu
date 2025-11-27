@@ -33,7 +33,7 @@
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/block/flash.h"
 #include "system/kvm.h"
 #include "target/i386/sev.h"

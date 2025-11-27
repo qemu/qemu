@@ -29,7 +29,7 @@
 #include "qemu/module.h"
 #include "system/kvm.h"
 #include "system/qtest.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
 #include "fpu_helper.h"
 #ifndef CONFIG_USER_ONLY

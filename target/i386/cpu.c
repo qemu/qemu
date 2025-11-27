@@ -34,7 +34,7 @@
 #include "qemu/error-report.h"
 #include "qapi/qapi-visit-machine.h"
 #include "standard-headers/asm-x86/kvm_para.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/i386/topology.h"
 #include "exec/watchpoint.h"
 #ifndef CONFIG_USER_ONLY

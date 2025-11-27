@@ -22,7 +22,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "hw/isa/isa.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "system/address-spaces.h"
 #include "qapi/error.h"

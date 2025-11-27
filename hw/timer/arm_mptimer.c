@@ -23,7 +23,7 @@
 #include "hw/hw.h"
 #include "hw/core/irq.h"
 #include "hw/core/ptimer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/timer/arm_mptimer.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"

@@ -30,7 +30,7 @@
 #include "qemu/target-info.h"
 #include "exec/cpu-common.h"
 #include "exec/page-vary.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qobject/qdict.h"

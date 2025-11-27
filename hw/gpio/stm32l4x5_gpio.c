@@ -22,7 +22,7 @@
 #include "hw/core/irq.h"
 #include "hw/core/clock.h"
 #include "hw/core/qdev-clock.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"

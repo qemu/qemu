@@ -32,7 +32,7 @@
 #include "system/address-spaces.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/net/lan9118.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/boards.h"
 #include "hw/core/irq.h"
 #include "target/arm/cpu-qom.h"

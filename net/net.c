@@ -27,7 +27,7 @@
 #include "net/net.h"
 #include "clients.h"
 #include "hub.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "net/slirp.h"
 #include "net/eth.h"
 #include "util.h"

@@ -14,7 +14,7 @@
 #include "hw/core/irq.h"
 #include "hw/net/smc91c111.h"
 #include "hw/registerfields.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

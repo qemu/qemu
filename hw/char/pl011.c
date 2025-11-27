@@ -24,7 +24,7 @@
 #include "hw/core/irq.h"
 #include "hw/sysbus.h"
 #include "hw/core/qdev-clock.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "chardev/char-fe.h"

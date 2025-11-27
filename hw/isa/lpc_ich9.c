@@ -45,7 +45,7 @@
 #include "hw/acpi/ich9.h"
 #include "hw/acpi/ich9_timer.h"
 #include "hw/pci/pci_bus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/runstate.h"
 #include "system/system.h"
 #include "hw/core/cpu.h"

@@ -21,7 +21,7 @@
 #include "exec/target_page.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_device.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/riscv/riscv_hart.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"

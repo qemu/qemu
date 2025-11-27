@@ -30,7 +30,7 @@
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/intc/i8259.h"
 #include "hw/core/irq.h"
 #include "hw/core/or-irq.h"

@@ -43,7 +43,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/ppc/spapr_drc.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/device_tree.h"
 #include "system/kvm.h"
 #include "system/hostmem.h"

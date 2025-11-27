@@ -17,7 +17,7 @@
 #include "hw/arm/nrf51.h"
 #include "hw/core/irq.h"
 #include "hw/timer/nrf51_timer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 

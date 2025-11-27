@@ -25,7 +25,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #define REGS_OFFSET 0x20
 

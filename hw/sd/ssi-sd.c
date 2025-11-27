@@ -19,7 +19,7 @@
 #include "system/blockdev.h"
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
 #include "qemu/crc-ccitt.h"

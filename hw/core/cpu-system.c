@@ -25,7 +25,7 @@
 #include "system/memory.h"
 #include "qemu/target-info.h"
 #include "hw/core/qdev.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/sysemu-cpu-ops.h"
 #include "migration/vmstate.h"
 #include "system/tcg.h"

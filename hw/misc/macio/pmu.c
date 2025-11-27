@@ -29,7 +29,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/core/irq.h"
 #include "hw/misc/macio/pmu.h"

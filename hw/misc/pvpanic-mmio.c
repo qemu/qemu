@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/misc/pvpanic.h"
 #include "hw/sysbus.h"
 #include "standard-headers/misc/pvpanic.h"

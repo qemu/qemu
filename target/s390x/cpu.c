@@ -30,7 +30,7 @@
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"
 #include "system/hw_accel.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/resettable.h"
 #include "fpu/softfloat-helpers.h"

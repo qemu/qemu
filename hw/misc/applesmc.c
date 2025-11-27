@@ -32,7 +32,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "ui/console.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

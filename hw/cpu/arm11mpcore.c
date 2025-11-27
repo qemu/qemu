@@ -13,7 +13,7 @@
 #include "hw/cpu/arm11mpcore.h"
 #include "hw/intc/realview_gic.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #define ARM11MPCORE_NUM_GIC_PRIORITY_BITS    4
 

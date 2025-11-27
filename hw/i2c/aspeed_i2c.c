@@ -28,7 +28,7 @@
 #include "qapi/error.h"
 #include "hw/i2c/aspeed_i2c.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "trace.h"
 

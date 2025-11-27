@@ -15,7 +15,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/virtio/virtio.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-rng.h"
 #include "system/rng.h"
 #include "system/runstate.h"

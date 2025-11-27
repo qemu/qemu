@@ -30,7 +30,7 @@
 #include "system/dma.h"
 
 #include "hw/ide/mmio.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "ide-internal.h"
 
 /***********************************************************/

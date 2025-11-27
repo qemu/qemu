@@ -38,7 +38,7 @@
 #include "qemu/log.h"
 #include "qemu/cutils.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "net/can_emu.h"
 #include "net/can_host.h"
 #include "qemu/event_notifier.h"

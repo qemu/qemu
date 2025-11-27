@@ -52,7 +52,7 @@
 #include "qapi/error.h"
 #include "exec/target_page.h"
 #include "hw/ppc/ppc.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/nvram/mac_nvram.h"
 #include "hw/core/boards.h"
 #include "hw/pci-host/uninorth.h"

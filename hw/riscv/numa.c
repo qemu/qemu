@@ -21,7 +21,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/core/boards.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/riscv/numa.h"
 #include "system/device_tree.h"
 

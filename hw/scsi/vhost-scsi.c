@@ -27,7 +27,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/core/fw-path-provider.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/cutils.h"
 #include "system/system.h"
 

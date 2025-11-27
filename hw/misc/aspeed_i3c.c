@@ -12,7 +12,7 @@
 #include "qemu/error-report.h"
 #include "hw/misc/aspeed_i3c.h"
 #include "hw/registerfields.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "trace.h"

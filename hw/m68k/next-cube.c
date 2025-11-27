@@ -25,7 +25,7 @@
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
 #include "hw/block/fdc.h"
 #include "hw/misc/empty_slot.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"

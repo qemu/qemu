@@ -22,7 +22,7 @@
 #include "hw/char/serial-mm.h"
 #include "qemu/timer.h"
 #include "hw/core/ptimer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/block/flash.h"
 #include "ui/console.h"
 #include "hw/i2c/i2c.h"

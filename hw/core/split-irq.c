@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/split-irq.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 

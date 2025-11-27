@@ -40,7 +40,7 @@
 #include "system/block-backend.h"
 #include "migration/misc.h"
 #include "qemu/cutils.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/clock.h"
 #include "hw/core/boards.h"
 

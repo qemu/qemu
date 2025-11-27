@@ -37,7 +37,7 @@
 #include "exec/target_page.h"
 #include "exec/translation-block.h"
 #include "hw/core/qdev.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/boards.h"
 #include "system/xen.h"
 #include "system/kvm.h"

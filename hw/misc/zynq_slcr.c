@@ -24,7 +24,7 @@
 #include "hw/registerfields.h"
 #include "hw/core/qdev-clock.h"
 #include "qom/object.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 
 #ifndef ZYNQ_SLCR_ERR_DEBUG

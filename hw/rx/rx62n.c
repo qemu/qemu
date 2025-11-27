@@ -27,7 +27,7 @@
 #include "hw/rx/rx62n.h"
 #include "hw/core/loader.h"
 #include "hw/sysbus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/system.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"

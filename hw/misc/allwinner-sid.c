@@ -25,7 +25,7 @@
 #include "qemu/module.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/misc/allwinner-sid.h"
 #include "trace.h"

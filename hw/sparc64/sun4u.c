@@ -33,7 +33,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/pci-host/sabre.h"
 #include "hw/char/serial-isa.h"
 #include "hw/char/serial-mm.h"

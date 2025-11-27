@@ -33,7 +33,7 @@
 #include "qemu/module.h"
 #include "hw/intc/xlnx-pmu-iomod-intc.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #ifndef XLNX_PMU_IO_INTC_ERR_DEBUG
 #define XLNX_PMU_IO_INTC_ERR_DEBUG 0

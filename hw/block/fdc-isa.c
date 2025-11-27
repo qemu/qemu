@@ -35,7 +35,7 @@
 #include "hw/acpi/acpi_aml_interface.h"
 #include "hw/core/irq.h"
 #include "hw/isa/isa.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "hw/block/block.h"

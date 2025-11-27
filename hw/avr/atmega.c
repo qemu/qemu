@@ -16,7 +16,7 @@
 #include "system/memory.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/misc/unimp.h"

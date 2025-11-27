@@ -35,7 +35,7 @@
 #include "system/system.h"
 #include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/address-spaces.h"
 #include "hw/ssi/ssi.h"
 

@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/units.h"

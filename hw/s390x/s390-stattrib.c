@@ -14,7 +14,7 @@
 #include "exec/target_page.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/s390x/storage-attributes.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"

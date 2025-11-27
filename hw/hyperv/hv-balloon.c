@@ -20,7 +20,7 @@
 #include "hw/mem/memory-device.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/core/qdev.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"

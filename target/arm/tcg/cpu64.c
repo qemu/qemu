@@ -23,7 +23,7 @@
 #include "cpu.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/units.h"
 #include "internals.h"
 #include "cpu-features.h"

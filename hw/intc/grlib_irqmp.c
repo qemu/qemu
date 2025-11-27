@@ -30,7 +30,7 @@
 #include "hw/core/irq.h"
 #include "hw/sysbus.h"
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/intc/grlib_irqmp.h"
 
 #include "trace.h"

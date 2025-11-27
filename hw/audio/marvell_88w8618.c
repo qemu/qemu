@@ -14,7 +14,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/audio/wm8750.h"
 #include "qemu/audio.h"
 #include "qapi/error.h"

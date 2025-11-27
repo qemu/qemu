@@ -7,7 +7,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/intc/loongarch_extioi_common.h"
 #include "migration/vmstate.h"
 #include "target/loongarch/cpu.h"

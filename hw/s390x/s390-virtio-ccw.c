@@ -36,7 +36,7 @@
 #include "migration/register.h"
 #include "target/s390x/cpu_models.h"
 #include "hw/core/nmi.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/s390x/tod.h"
 #include "system/system.h"
 #include "system/cpus.h"

@@ -30,7 +30,7 @@
 #include "hw/southbridge/piix.h"
 #include "hw/timer/i8254.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ide/piix.h"
 #include "hw/intc/i8259.h"
 #include "hw/isa/isa.h"

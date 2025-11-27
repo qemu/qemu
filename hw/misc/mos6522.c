@@ -27,7 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
 #include "hw/misc/mos6522.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"

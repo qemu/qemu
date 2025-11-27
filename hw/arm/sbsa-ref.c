@@ -44,7 +44,7 @@
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/core/loader.h"
 #include "hw/pci-host/gpex.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/usb/usb.h"
 #include "hw/usb/xhci.h"
 #include "hw/char/pl011.h"

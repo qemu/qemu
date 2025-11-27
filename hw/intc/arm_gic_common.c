@@ -24,7 +24,7 @@
 #include "qemu/error-report.h"
 #include "gic_internal.h"
 #include "hw/arm/linux-boot-if.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "system/kvm.h"
 

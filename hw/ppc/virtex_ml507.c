@@ -43,7 +43,7 @@
 #include "hw/intc/ppc-uic.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #include <libfdt.h>
 

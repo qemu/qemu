@@ -20,7 +20,7 @@
 #include "hw/char/parallel.h"
 #include "hw/block/fdc.h"
 #include "hw/isa/superio.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/input/i8042.h"
 #include "hw/char/parallel-isa.h"
 #include "hw/char/serial-isa.h"

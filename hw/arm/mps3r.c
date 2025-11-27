@@ -34,7 +34,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/or-irq.h"
 #include "hw/core/qdev-clock.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/bsa.h"
 #include "hw/arm/machines-qom.h"

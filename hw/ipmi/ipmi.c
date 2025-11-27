@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ipmi/ipmi.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qom/object_interfaces.h"
 #include "system/runstate.h"
 #include "qapi/error.h"

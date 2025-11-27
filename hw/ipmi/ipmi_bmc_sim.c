@@ -29,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/core/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 

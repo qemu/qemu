@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "qemu/module.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "exec/gdbstub.h"
 #include "exec/translation-block.h"

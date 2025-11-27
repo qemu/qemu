@@ -29,7 +29,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/core/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"

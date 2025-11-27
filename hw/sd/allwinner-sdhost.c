@@ -24,7 +24,7 @@
 #include "qapi/error.h"
 #include "system/blockdev.h"
 #include "system/dma.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
 #include "hw/sd/allwinner-sdhost.h"
 #include "migration/vmstate.h"

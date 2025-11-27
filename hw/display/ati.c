@@ -20,7 +20,7 @@
 #include "ati_int.h"
 #include "ati_regs.h"
 #include "vga-access.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "vga_regs.h"
 #include "qemu/bswap.h"
 #include "qemu/log.h"

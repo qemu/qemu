@@ -36,7 +36,7 @@
 #include "hw/register.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/net/xlnx-versal-canfd.h"
 #include "trace.h"

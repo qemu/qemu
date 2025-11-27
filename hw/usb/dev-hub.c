@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "trace.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/usb/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
