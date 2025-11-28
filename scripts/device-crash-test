@@ -93,7 +93,6 @@ ERROR_RULE_LIST = [
     {'device':'ivshmem-doorbell', 'expected':True},        # You must specify a 'chardev'
     {'device':'ivshmem-plain', 'expected':True},           # You must specify a 'memdev'
     {'device':'loader', 'expected':True},                  # please include valid arguments
-    {'device':'nand', 'expected':True},                    # Unsupported NAND block size 0x1
     {'device':'nvdimm', 'expected':True},                  # 'memdev' property is not set
     {'device':'nvme', 'expected':True},                    # Device initialization failed
     {'device':'pc-dimm', 'expected':True},                 # 'memdev' property is not set
@@ -114,8 +113,6 @@ ERROR_RULE_LIST = [
     {'device':'usb-redir', 'expected':True},               # Parameter 'chardev' is missing
     {'device':'usb-serial', 'expected':True},              # Property chardev is required
     {'device':'usb-storage', 'expected':True},             # drive property not set
-    {'device':'vfio-amd-xgbe', 'expected':True},           # -device vfio-amd-xgbe: vfio error: wrong host device name
-    {'device':'vfio-calxeda-xgmac', 'expected':True},      # -device vfio-calxeda-xgmac: vfio error: wrong host device name
     {'device':'vfio-pci', 'expected':True},                # No provided host device
     {'device':'vfio-pci-igd-lpc-bridge', 'expected':True}, # VFIO dummy ISA/LPC bridge must have address 1f.0
     {'device':'vhost-scsi.*', 'expected':True},            # vhost-scsi: missing wwpn
@@ -159,7 +156,6 @@ ERROR_RULE_LIST = [
     # Silence INFO messages for errors that are common on multiple
     # devices/machines:
     {'log':r"No '[\w-]+' bus found for device '[\w-]+'"},
-    {'log':r"images* must be given with the 'pflash' parameter"},
     {'log':r"(Guest|ROM|Flash|Kernel) image must be specified"},
     {'log':r"[cC]ould not load [\w ]+ (BIOS|bios) '[\w-]+\.bin'"},
     {'log':r"Couldn't find rom image '[\w-]+\.bin'"},
@@ -167,7 +163,6 @@ ERROR_RULE_LIST = [
     {'log':r"Can't create a second ISA bus"},
     {'log':r"duplicate fw_cfg file name"},
     # sysbus-related error messages: most machines reject most dynamic sysbus devices:
-    {'log':r"Option '-device [\w.,-]+' cannot be handled by this machine"},
     {'log':r"Device [\w.,-]+ is not supported by this machine yet"},
     {'log':r"Device [\w.,-]+ can not be dynamically instantiated"},
     {'log':r"Platform Bus: Can not fit MMIO region of size "},
@@ -175,11 +170,9 @@ ERROR_RULE_LIST = [
     {'device':'.*-spapr-cpu-core', 'log':r"CPU core type should be"},
     {'log':r"MSI(-X)? is not supported by interrupt controller"},
     {'log':r"pxb-pcie? devices cannot reside on a PCIe? bus"},
-    {'log':r"Ignoring smp_cpus value"},
     {'log':r"sd_init failed: Drive 'sd0' is already in use because it has been automatically connected to another device"},
     {'log':r"This CPU requires a smaller page size than the system is using"},
     {'log':r"MSI-X support is mandatory in the S390 architecture"},
-    {'log':r"rom check and register reset failed"},
     {'log':r"Unable to initialize GIC, CPUState for CPU#0 not valid"},
     {'log':r"Multiple VT220 operator consoles are not supported"},
     {'log':r"core 0 already populated"},
