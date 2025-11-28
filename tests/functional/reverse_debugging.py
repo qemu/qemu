@@ -64,7 +64,7 @@ class ReverseDebugging(LinuxKernelTest):
 
     @skipIfMissingImports("pygdbmi") # Required by GDB class
     @skipIfMissingEnv("QEMU_TEST_GDB")
-    def reverse_debugging(self, gdb_arch, shift=7, args=None):
+    def reverse_debugging(self, gdb_arch, shift=7, args=None, big_endian=False):
         from qemu_test import GDB
 
         # create qcow2 for snapshots
@@ -99,6 +99,8 @@ class ReverseDebugging(LinuxKernelTest):
             gdb_cmd = os.getenv('QEMU_TEST_GDB')
             gdb = GDB(gdb_cmd)
             try:
+                if big_endian:
+                    gdb.cli("set endian big")
                 self.reverse_debugging_run(gdb, vm, port, gdb_arch, last_icount)
             finally:
                 self.log.info('exiting gdb and qemu')
