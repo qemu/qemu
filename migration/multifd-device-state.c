@@ -143,8 +143,6 @@ static int multifd_device_state_save_thread(void *opaque)
     Error *local_err = NULL;
 
     if (!data->hdlr(data, &local_err)) {
-        MigrationState *s = migrate_get_current();
-
         /*
          * Can't call abort_device_state_save_threads() here since new
          * save threads could still be in process of being launched
@@ -158,8 +156,7 @@ static int multifd_device_state_save_thread(void *opaque)
          * In case of multiple save threads failing which thread error
          * return we end setting is purely arbitrary.
          */
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(migrate_get_current(), local_err);
     }
 
     return 0;

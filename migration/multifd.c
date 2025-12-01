@@ -428,8 +428,9 @@ static void multifd_send_error_propagate(Error *err)
 
     if (err) {
         MigrationState *s = migrate_get_current();
-        migrate_set_error(s, err);
-        error_free(err);
+
+        migrate_error_propagate(s, err);
+
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_PRE_SWITCHOVER ||
             s->state == MIGRATION_STATUS_DEVICE ||
@@ -588,8 +589,7 @@ void multifd_send_shutdown(void)
         Error *local_err = NULL;
 
         if (!multifd_send_cleanup_channel(p, &local_err)) {
-            migrate_set_error(migrate_get_current(), local_err);
-            error_free(local_err);
+            migrate_error_propagate(migrate_get_current(), local_err);
         }
     }
 
@@ -962,8 +962,7 @@ bool multifd_send_setup(void)
         p->write_flags = 0;
 
         if (!multifd_new_send_channel_create(p, &local_err)) {
-            migrate_set_error(s, local_err);
-            error_free(local_err);
+            migrate_error_propagate(s, local_err);
             ret = -1;
         }
     }
@@ -987,8 +986,7 @@ bool multifd_send_setup(void)
 
         ret = multifd_send_state->ops->send_setup(p, &local_err);
         if (ret) {
-            migrate_set_error(s, local_err);
-            error_free(local_err);
+            migrate_error_propagate(s, local_err);
             goto err;
         }
         assert(p->iov);
@@ -1067,8 +1065,9 @@ static void multifd_recv_terminate_threads(Error *err)
 
     if (err) {
         MigrationState *s = migrate_get_current();
-        migrate_set_error(s, err);
-        error_free(err);
+
+        migrate_error_propagate(s, err);
+
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_ACTIVE) {
             migrate_set_state(&s->state, s->state,

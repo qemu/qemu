@@ -1125,13 +1125,13 @@ void qemu_savevm_send_open_return_path(QEMUFile *f)
 int qemu_savevm_send_packaged(QEMUFile *f, const uint8_t *buf, size_t len)
 {
     uint32_t tmp;
-    MigrationState *ms = migrate_get_current();
     Error *local_err = NULL;
 
     if (len > MAX_VM_CMD_PACKAGED_SIZE) {
         error_setg(&local_err, "%s: Unreasonably large packaged state: %zu",
                      __func__, len);
-        migrate_set_error(ms, local_err);
+        migrate_error_propagate(migrate_get_current(),
+                                error_copy(local_err));
         error_report_err(local_err);
         return -1;
     }
@@ -1373,7 +1373,7 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         if (se->vmsd && se->vmsd->early_setup) {
             ret = vmstate_save(f, se, vmdesc, errp);
             if (ret) {
-                migrate_set_error(ms, *errp);
+                migrate_error_propagate(ms, error_copy(*errp));
                 qemu_file_set_error(f, ret);
                 break;
             }
@@ -1681,7 +1681,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
         ret = vmstate_save(f, se, vmdesc, &local_err);
         if (ret) {
-            migrate_set_error(ms, local_err);
+            migrate_error_propagate(ms, error_copy(local_err));
             error_report_err(local_err);
             qemu_file_set_error(f, ret);
             return ret;
@@ -1858,7 +1858,6 @@ void qemu_savevm_live_state(QEMUFile *f)
 
 int qemu_save_device_state(QEMUFile *f)
 {
-    MigrationState *ms = migrate_get_current();
     Error *local_err = NULL;
     SaveStateEntry *se;
 
@@ -1876,7 +1875,8 @@ int qemu_save_device_state(QEMUFile *f)
         }
         ret = vmstate_save(f, se, NULL, &local_err);
         if (ret) {
-            migrate_set_error(ms, local_err);
+            migrate_error_propagate(migrate_get_current(),
+                                    error_copy(local_err));
             error_report_err(local_err);
             return ret;
         }
@@ -2826,8 +2826,6 @@ static int qemu_loadvm_load_thread(void *thread_opaque)
     Error *local_err = NULL;
 
     if (!data->function(data->opaque, &mis->load_threads_abort, &local_err)) {
-        MigrationState *s = migrate_get_current();
-
         /*
          * Can't set load_threads_abort here since processing of main migration
          * channel data could still be happening, resulting in launching of new
@@ -2840,8 +2838,7 @@ static int qemu_loadvm_load_thread(void *thread_opaque)
          * In case of multiple load threads failing which thread error
          * return we end setting is purely arbitrary.
          */
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(migrate_get_current(), local_err);
     }
 
     return 0;
