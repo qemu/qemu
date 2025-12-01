@@ -95,7 +95,6 @@ void migration_channel_connect(MigrationState *s,
         }
     }
     migration_connect(s, error);
-    error_free(error);
 }
 
 

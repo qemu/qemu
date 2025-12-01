@@ -1575,7 +1575,7 @@ static void migrate_error_free(MigrationState *s)
     }
 }
 
-static void migration_connect_set_error(MigrationState *s, const Error *error)
+static void migration_connect_error_propagate(MigrationState *s, Error *error)
 {
     MigrationStatus current = s->state;
     MigrationStatus next;
@@ -1602,6 +1602,7 @@ static void migration_connect_set_error(MigrationState *s, const Error *error)
 
     migrate_set_state(&s->state, current, next);
     migrate_set_error(s, error);
+    error_free(error);
 }
 
 void migration_cancel(void)
@@ -2292,7 +2293,7 @@ void qmp_migrate(const char *uri, bool has_channels,
 
 out:
     if (local_err) {
-        migration_connect_set_error(s, local_err);
+        migration_connect_error_propagate(s, error_copy(local_err));
         error_propagate(errp, local_err);
     }
 }
@@ -2337,7 +2338,7 @@ static void qmp_migrate_finish(MigrationAddress *addr, bool resume_requested,
         if (!resume_requested) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         }
-        migration_connect_set_error(s, local_err);
+        migration_connect_error_propagate(s, error_copy(local_err));
         error_propagate(errp, local_err);
         return;
     }
@@ -4039,7 +4040,7 @@ void migration_connect(MigrationState *s, Error *error_in)
 
     s->expected_downtime = migrate_downtime_limit();
     if (error_in) {
-        migration_connect_set_error(s, error_in);
+        migration_connect_error_propagate(s, error_in);
         if (resume) {
             /*
              * Don't do cleanup for resume if channel is invalid, but only dump
