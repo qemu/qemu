@@ -4,6 +4,7 @@
 #include "qemu/audio.h"
 #include "qemu/audio-capture.h"
 #include "qapi/error.h"
+#include "trace.h"
 
 bool audio_be_check(AudioBackend **be, Error **errp)
 {
@@ -134,6 +135,8 @@ void audio_be_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on)
 {
     AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
 
+    trace_audio_be_set_active_out(sw, on);
+
     if (!sw) {
         return;
     }
@@ -144,6 +147,8 @@ void audio_be_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on)
 void audio_be_set_active_in(AudioBackend *be, SWVoiceIn *sw, bool on)
 {
     AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    trace_audio_be_set_active_in(sw, on);
 
     if (!sw) {
         return;
