@@ -2823,7 +2823,7 @@ static int qemu_loadvm_load_thread(void *thread_opaque)
 {
     struct LoadThreadData *data = thread_opaque;
     MigrationIncomingState *mis = migration_incoming_get_current();
-    g_autoptr(Error) local_err = NULL;
+    Error *local_err = NULL;
 
     if (!data->function(data->opaque, &mis->load_threads_abort, &local_err)) {
         MigrationState *s = migrate_get_current();
@@ -2841,6 +2841,7 @@ static int qemu_loadvm_load_thread(void *thread_opaque)
          * return we end setting is purely arbitrary.
          */
         migrate_set_error(s, local_err);
+        error_free(local_err);
     }
 
     return 0;

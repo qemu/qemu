@@ -140,7 +140,7 @@ static void multifd_device_state_save_thread_data_free(void *opaque)
 static int multifd_device_state_save_thread(void *opaque)
 {
     SaveCompletePrecopyThreadData *data = opaque;
-    g_autoptr(Error) local_err = NULL;
+    Error *local_err = NULL;
 
     if (!data->hdlr(data, &local_err)) {
         MigrationState *s = migrate_get_current();
@@ -159,6 +159,7 @@ static int multifd_device_state_save_thread(void *opaque)
          * return we end setting is purely arbitrary.
          */
         migrate_set_error(s, local_err);
+        error_free(local_err);
     }
 
     return 0;
