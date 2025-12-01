@@ -52,6 +52,10 @@ static int cpu_pre_save(void *opaque)
         kvm_s390_vcpu_interrupt_pre_save(cpu);
     }
 
+    if (tcg_enabled()) {
+        tcg_s390_tod_updated(CPU(cpu), RUN_ON_CPU_NULL);
+    }
+
     return 0;
 }
 
