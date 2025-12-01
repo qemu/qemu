@@ -437,8 +437,6 @@ Error *error_copy(const Error *err);
  */
 void error_free(Error *err);
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Error, error_free)
-
 /*
  * Convenience function to assert that *@errp is set, then silently free it.
  */
