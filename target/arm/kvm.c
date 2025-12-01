@@ -2477,8 +2477,7 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
                                              paddr)) {
                     kvm_inject_arm_sea(c);
                 } else {
-                    error_report("failed to record the error");
-                    abort();
+                    exit(1);
                 }
             }
             return;
