@@ -67,7 +67,7 @@ subject tag is "PULL SUBSYSTEM s390/block/whatever" rather than just
 pull requests that should be applied to master.
 
 You might be interested in the `make-pullreq
-<https://git.linaro.org/people/peter.maydell/misc-scripts.git/tree/make-pullreq>`__
+<https://gitlab.com/pm215/misc-scripts/-/blob/master/make-pullreq>`__
 script which automates some of this process for you and includes a few
 sanity checks. Note that you must edit it to configure it suitably for
 your local situation!
