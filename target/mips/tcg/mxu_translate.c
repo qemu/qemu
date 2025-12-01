@@ -4948,7 +4948,11 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
         case OPC_MXU_S32MADDU:
         case OPC_MXU_S32MSUB:
         case OPC_MXU_S32MSUBU:
-            return decode_opc_mxu_s32madd_sub(ctx);
+            if (!decode_opc_mxu_s32madd_sub(ctx)) {
+                gen_set_label(l_exit);
+                return false;
+            }
+            break;
         case OPC_MXU__POOL00:
             decode_opc_mxu__pool00(ctx);
             break;
@@ -5100,6 +5104,12 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             gen_mxu_q8sad(ctx);
             break;
         default:
+            /*
+             * Instruction not recognized as MXU.
+             * We must emit the l_exit label before returning false,
+             * because we already generated a branch to it above.
+             */
+            gen_set_label(l_exit);
             return false;
         }
 

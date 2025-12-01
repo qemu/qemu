@@ -344,24 +344,31 @@ const mips_def_t mips_defs[] =
         .mmu_type = MMU_TYPE_R4000,
     },
     {
+        /* Ingenic XBurst2 (T41) - real PRID from hardware */
         .name = "XBurstR2",
-        .CP0_PRid = 0x2ed1024f,
+        .CP0_PRid = 0x00132100,
         .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
                     (MMU_TYPE_R4000 << CP0C0_MT),
+        /* 32kB I-cache: 8-way, 32-byte line, 128 sets (IS=2, IL=4, IA=7)
+         * 32kB D-cache: 8-way, 32-byte line, 128 sets (DS=2, DL=4, DA=7) */
         .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (15 << CP0C1_MMU) |
-                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
-                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA) |
+                       (2 << CP0C1_IS) | (4 << CP0C1_IL) | (7 << CP0C1_IA) |
+                       (2 << CP0C1_DS) | (4 << CP0C1_DL) | (7 << CP0C1_DA) |
                        (1 << CP0C1_CA),
-        .CP0_Config2 = MIPS_CONFIG2,
+        /* 128kB L2 cache: 8-way, 64-byte line (SS=1, SL=5, SA=7) */
+        .CP0_Config2 = MIPS_CONFIG2 | (1 << 4) | (5 << 8) | (7 << 0),
         .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_DSP2P) | (1 << CP0C3_DSPP) |
                        (1 << CP0C3_VInt),
+        /* WII bit: Wake from Wait on any interrupt, not just enabled ones */
+        .CP0_Config7 = 1 << CP0C7_WII,
         .CP0_LLAddr_rw_bitmask = 0,
         .CP0_LLAddr_shift = 4,
         .SYNCI_Step = 32,
         .CCRes = 2,
         .CP0_Status_rw_bitmask = 0x3778FF1F,
+        /* FPU revision 0x00f32100 to match real hardware */
         .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
-                    (1 << FCR0_D) | (1 << FCR0_S) | (0x93 << FCR0_PRID),
+                    (1 << FCR0_D) | (1 << FCR0_S) | (0xf3 << FCR0_PRID) | 0x2100,
         .CP1_fcr31 = 0,
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 32,

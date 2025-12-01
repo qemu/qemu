@@ -146,6 +146,7 @@
 #include "qapi/error.h"
 #include "fd-trans.h"
 #include "user/cpu_loop.h"
+#include "ingenic-devices.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -5632,6 +5633,13 @@ static abi_long do_ioctl(int fd, int cmd, abi_long arg)
     int target_size;
     void *argptr;
 
+    /* Check for Ingenic device ioctls first */
+    ret = ingenic_device_ioctl(fd, cmd, arg);
+    if (ret != -2) {
+        /* Ingenic device handled the ioctl */
+        return ret;
+    }
+
     ie = ioctl_entries;
     for(;;) {
         if (ie->target_cmd == 0) {
@@ -7460,6 +7468,9 @@ void syscall_init(void)
 #endif
         ie++;
     }
+
+    /* Initialize Ingenic device emulation */
+    ingenic_devices_init();
 }
 
 #ifdef TARGET_NR_truncate64
@@ -8574,6 +8585,11 @@ static int maybe_do_fake_open(CPUArchState *cpu_env, int dirfd,
         { NULL, NULL, NULL }
     };
 
+    /* Check for Ingenic emulated devices */
+    if (ingenic_is_emulated_device(fname)) {
+        return ingenic_device_open(fname, flags, mode);
+    }
+
     /* if this is a file from /proc/ filesystem, expand full name */
     proc_name = realpath(fname, NULL);
     if (proc_name && strncmp(proc_name, "/proc/", 6) == 0) {
@@ -9610,6 +9626,10 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return get_errno(pidfd_getfd(arg1, arg2, arg3));
 #endif
     case TARGET_NR_close:
+        /* Check if this is an Ingenic emulated device fd */
+        if (ingenic_device_close(arg1) == 0) {
+            return 0;  /* Successfully closed emulated device */
+        }
         fd_trans_unregister(arg1);
         return get_errno(close(arg1));
 #if defined(__NR_close_range) && defined(TARGET_NR_close_range)

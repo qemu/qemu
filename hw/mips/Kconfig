@@ -86,3 +86,12 @@ config MIPS_BOSTON
 
 config FW_CFG_MIPS
     bool
+
+config INGENIC_T41
+    bool
+    default y
+    depends on MIPS && !TARGET_BIG_ENDIAN && FDT
+    select DEVICE_TREE
+    select SERIAL_MM
+    select UNIMP
+    select INGENIC_OST
