@@ -310,7 +310,7 @@ static void xen_9pfs_bh(void *opaque)
 
 again:
     wait = ring->co != NULL && qemu_coroutine_entered(ring->co);
-    /* paired with the smb_wmb barriers in xen_9pfs_init_in_iov_from_pdu */
+    /* paired with the smp_wmb barriers in xen_9pfs_init_in_iov_from_pdu */
     smp_rmb();
     if (wait) {
         cpu_relax();
