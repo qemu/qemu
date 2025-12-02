@@ -148,10 +148,11 @@ static int hvf_init_vcpu(CPUState *cpu)
     sigact.sa_handler = dummy_signal;
     sigaction(SIG_IPI, &sigact, NULL);
 
+#ifdef __aarch64__
     pthread_sigmask(SIG_BLOCK, NULL, &cpu->accel->unblock_ipi_mask);
     sigdelset(&cpu->accel->unblock_ipi_mask, SIG_IPI);
+    cpu->accel->guest_debug_enabled = false;
 
-#ifdef __aarch64__
     r = hv_vcpu_create(&cpu->accel->fd,
                        (hv_vcpu_exit_t **)&cpu->accel->exit, NULL);
 #else
@@ -159,8 +160,6 @@ static int hvf_init_vcpu(CPUState *cpu)
 #endif
     assert_hvf_ok(r);
     cpu->vcpu_dirty = true;
-
-    cpu->accel->guest_debug_enabled = false;
 
     return hvf_arch_init_vcpu(cpu);
 }
