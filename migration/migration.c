@@ -1555,12 +1555,7 @@ void migrate_error_propagate(MigrationState *s, Error *error)
 {
     QEMU_LOCK_GUARD(&s->error_mutex);
     trace_migrate_error(error_get_pretty(error));
-
-    if (!s->error) {
-        s->error = error;
-    } else {
-        error_free(error);
-    }
+    error_propagate(&s->error, error);
 }
 
 bool migrate_has_error(MigrationState *s)
