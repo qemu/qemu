@@ -2450,26 +2450,26 @@ static int parse_cap_ppc_safe_cache(struct kvm_ppc_cpu_char c)
     bool l1d_thread_priv_req = !kvmppc_power8_host();
 
     if (~c.behaviour & c.behaviour_mask & H_CPU_BEHAV_L1D_FLUSH_PR) {
-        return 2;
+        return SPAPR_CAP_FIXED;
     } else if ((!l1d_thread_priv_req ||
                 c.character & c.character_mask & H_CPU_CHAR_L1D_THREAD_PRIV) &&
                (c.character & c.character_mask
                 & (H_CPU_CHAR_L1D_FLUSH_ORI30 | H_CPU_CHAR_L1D_FLUSH_TRIG2))) {
-        return 1;
+        return SPAPR_CAP_WORKAROUND;
     }
 
-    return 0;
+    return SPAPR_CAP_BROKEN;
 }
 
 static int parse_cap_ppc_safe_bounds_check(struct kvm_ppc_cpu_char c)
 {
     if (~c.behaviour & c.behaviour_mask & H_CPU_BEHAV_BNDS_CHK_SPEC_BAR) {
-        return 2;
+        return SPAPR_CAP_FIXED;
     } else if (c.character & c.character_mask & H_CPU_CHAR_SPEC_BAR_ORI31) {
-        return 1;
+        return SPAPR_CAP_WORKAROUND;
     }
 
-    return 0;
+    return SPAPR_CAP_BROKEN;
 }
 
 static int parse_cap_ppc_safe_indirect_branch(struct kvm_ppc_cpu_char c)
@@ -2486,15 +2486,15 @@ static int parse_cap_ppc_safe_indirect_branch(struct kvm_ppc_cpu_char c)
         return SPAPR_CAP_FIXED_IBS;
     }
 
-    return 0;
+    return SPAPR_CAP_BROKEN;
 }
 
 static int parse_cap_ppc_count_cache_flush_assist(struct kvm_ppc_cpu_char c)
 {
     if (c.character & c.character_mask & H_CPU_CHAR_BCCTR_FLUSH_ASSIST) {
-        return 1;
+        return SPAPR_CAP_WORKAROUND;
     }
-    return 0;
+    return SPAPR_CAP_BROKEN;
 }
 
 bool kvmppc_has_cap_xive(void)
