@@ -10,7 +10,19 @@
 #define TCG_HELPER_INFO_H
 
 #ifdef CONFIG_TCG_INTERPRETER
+/*
+ * MacOSX 15 uses an old version of libffi which contains
+ *   #if FFI_GO_CLOSURES
+ * but does not define that in <ffitarget.h>, included from <ffi.h>.
+ * This was fixed upstream with
+ *   https://github.com/libffi/libffi/commit/c23e9a1c
+ * We don't care about go closures one way or the other;
+ * just suppress the warning.
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
 #include <ffi.h>
+#pragma GCC diagnostic pop
 #endif
 #include "tcg-target-reg-bits.h"
 
