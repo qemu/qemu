@@ -88,7 +88,7 @@ void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
         }
     } else {
         /* Slow path -- at least some of the operation requires i/o.  */
-        MemOp op = MO_TE | MO_UL | MO_UNALN;
+        MemOp op = ppc_data_endian_env(env) | MO_UL | MO_UNALN;
         MemOpIdx oi = make_memop_idx(op, mmu_idx);
 
         for (; reg < 32; reg++) {
@@ -114,7 +114,7 @@ void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
     } else {
         /* Slow path -- at least some of the operation requires i/o.  */
         for (; reg < 32; reg++) {
-            MemOp op = MO_TE | MO_UL | MO_UNALN;
+            MemOp op = ppc_data_endian_env(env) | MO_UL | MO_UNALN;
             MemOpIdx oi = make_memop_idx(op, mmu_idx);
 
             cpu_stl_mmu(env, addr, env->gpr[reg], oi, raddr);
@@ -158,7 +158,7 @@ static void do_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
             break;
         }
     } else {
-        MemOp op = MO_TE | MO_UL | MO_UNALN;
+        MemOp op = ppc_data_endian_env(env) | MO_UL | MO_UNALN;
         MemOpIdx oi = make_memop_idx(op, mmu_idx);
 
         /* Slow path -- at least some of the operation requires i/o.  */
@@ -174,12 +174,12 @@ static void do_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
             val = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, raddr) << 24;
             break;
         case 2:
-            op = MO_TE | MO_UW | MO_UNALN;
+            op = ppc_data_endian_env(env) | MO_UW | MO_UNALN;
             oi = make_memop_idx(op, mmu_idx);
             val = cpu_ldw_mmu(env, addr, oi, raddr) << 16;
             break;
         case 3:
-            op = MO_TE | MO_UW | MO_UNALN;
+            op = ppc_data_endian_env(env) | MO_UW | MO_UNALN;
             oi = make_memop_idx(op, mmu_idx);
             val = cpu_ldw_mmu(env, addr, oi, raddr) << 16;
             addr = addr_add(env, addr, 2);
@@ -254,7 +254,7 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
             break;
         }
     } else {
-        MemOp op = MO_TE | MO_UL | MO_UNALN;
+        MemOp op = ppc_data_endian_env(env) | MO_UL | MO_UNALN;
         MemOpIdx oi = make_memop_idx(op, mmu_idx);
 
         for (; nb > 3; nb -= 4) {
@@ -268,12 +268,12 @@ void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
             cpu_stb_mmuidx_ra(env, addr, val >> 24, mmu_idx, raddr);
             break;
         case 2:
-            op = MO_TE | MO_UW | MO_UNALN;
+            op = ppc_data_endian_env(env) | MO_UW | MO_UNALN;
             oi = make_memop_idx(op, mmu_idx);
             cpu_stw_mmu(env, addr, val >> 16, oi, raddr);
             break;
         case 3:
-            op = MO_TE | MO_UW | MO_UNALN;
+            op = ppc_data_endian_env(env) | MO_UW | MO_UNALN;
             oi = make_memop_idx(op, mmu_idx);
             cpu_stw_mmu(env, addr, val >> 16, oi, raddr);
             addr = addr_add(env, addr, 2);
@@ -304,7 +304,7 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
     haddr = probe_write(env, addr, dcbz_size, mmu_idx, retaddr);
     if (unlikely(!haddr)) {
         /* Slow path */
-        MemOp op = MO_TE | MO_UQ | MO_UNALN;
+        MemOp op = ppc_data_endian_env(env) | MO_UQ | MO_UNALN;
         MemOpIdx oi = make_memop_idx(op, mmu_idx);
 
         for (int i = 0; i < dcbz_size; i += 8) {
