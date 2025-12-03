@@ -218,6 +218,61 @@ static int vfio_user_complete(VFIOUserProxy *proxy, Error **errp)
     return 1;
 }
 
+static int vfio_user_recv_hdr(VFIOUserProxy *proxy, Error **errp,
+                              VFIOUserHdr *hdr, int **fdp, size_t *numfdp,
+                              bool *isreply)
+{
+    struct iovec iov = {
+        .iov_base = hdr,
+        .iov_len = sizeof(*hdr),
+    };
+    int ret;
+
+    /*
+     * Read header
+     */
+    ret = qio_channel_readv_full(proxy->ioc, &iov, 1, fdp, numfdp, 0,
+                                 errp);
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        return ret;
+    }
+
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "failed to read header");
+        return -1;
+    } else if (ret == 0) {
+        error_setg(errp, "failed to read header: EOF");
+        return -1;
+    } else if (ret < sizeof(*hdr)) {
+        error_setg(errp, "short read of header");
+        return -1;
+    }
+
+    /*
+     * Validate header
+     */
+    if (hdr->size < sizeof(*hdr)) {
+        error_setg(errp, "bad header size");
+        return -1;
+    }
+
+    switch (hdr->flags & VFIO_USER_TYPE) {
+    case VFIO_USER_REQUEST:
+        *isreply = false;
+        break;
+    case VFIO_USER_REPLY:
+        *isreply = true;
+        break;
+    default:
+        error_setg(errp, "unknown message type");
+        return -1;
+    }
+
+    trace_vfio_user_recv_hdr(proxy->sockname, hdr->id, hdr->command, hdr->size,
+                             hdr->flags);
+    return 0;
+}
+
 /*
  * Receive and process one incoming message.
  *
@@ -230,10 +285,6 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
     g_autofree int *fdp = NULL;
     VFIOUserFDs *reqfds;
     VFIOUserHdr hdr;
-    struct iovec iov = {
-        .iov_base = &hdr,
-        .iov_len = sizeof(hdr),
-    };
     bool isreply = false;
     int i, ret;
     size_t msgleft, numfds = 0;
@@ -257,45 +308,13 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
         /* else fall into reading another msg */
     }
 
-    /*
-     * Read header
-     */
-    ret = qio_channel_readv_full(proxy->ioc, &iov, 1, &fdp, &numfds, 0,
-                                 errp);
-    if (ret == QIO_CHANNEL_ERR_BLOCK) {
-        return ret;
-    }
-
-    /* read error or other side closed connection */
-    if (ret <= 0) {
+    ret = vfio_user_recv_hdr(proxy, errp, &hdr, &fdp, &numfds, &isreply);
+    if (ret < 0) {
+        if (ret == QIO_CHANNEL_ERR_BLOCK) {
+            return ret;
+        }
         goto fatal;
     }
-
-    if (ret < sizeof(hdr)) {
-        error_setg(errp, "short read of header");
-        goto fatal;
-    }
-
-    /*
-     * Validate header
-     */
-    if (hdr.size < sizeof(VFIOUserHdr)) {
-        error_setg(errp, "bad header size");
-        goto fatal;
-    }
-    switch (hdr.flags & VFIO_USER_TYPE) {
-    case VFIO_USER_REQUEST:
-        isreply = false;
-        break;
-    case VFIO_USER_REPLY:
-        isreply = true;
-        break;
-    default:
-        error_setg(errp, "unknown message type");
-        goto fatal;
-    }
-    trace_vfio_user_recv_hdr(proxy->sockname, hdr.id, hdr.command, hdr.size,
-                             hdr.flags);
 
     /*
      * For replies, find the matching pending request.
