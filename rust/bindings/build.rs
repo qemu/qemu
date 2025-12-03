@@ -10,25 +10,25 @@ use std::{env, fs::remove_file, io::Result, path::Path};
 
 fn main() -> Result<()> {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let file = if let Ok(root) = env::var("MESON_BUILD_ROOT") {
-        let sub = get_rust_subdir(manifest_dir).unwrap();
-        format!("{root}/{sub}/bindings.inc.rs")
-    } else {
-        // Placing bindings.inc.rs in the source directory is supported
-        // but not documented or encouraged.
-        format!("{manifest_dir}/src/bindings.inc.rs")
-    };
+    let root = env::var("MESON_BUILD_ROOT").expect(concat!(
+        "\n",
+        "    MESON_BUILD_ROOT not found.  Maybe you wanted one of\n",
+        "    `make clippy`, `make rustfmt`, `make rustdoc`?\n",
+        "\n",
+        "    For other uses of `cargo`, start a subshell with\n",
+        "    `pyvenv/bin/meson devenv`, or point MESON_BUILD_ROOT to\n",
+        "    the top of the build tree."
+    ));
 
+    let sub = get_rust_subdir(manifest_dir).unwrap();
+    let file = format!("{root}/{sub}/bindings.inc.rs");
     let file = Path::new(&file);
-    if !Path::new(&file).exists() {
+
+    if !file.exists() {
         panic!(concat!(
             "\n",
-            "    No generated C bindings found! Maybe you wanted one of\n",
-            "    `make clippy`, `make rustfmt`, `make rustdoc`?\n",
-            "\n",
-            "    For other uses of `cargo`, start a subshell with\n",
-            "    `pyvenv/bin/meson devenv`, or point MESON_BUILD_ROOT to\n",
-            "    the top of the build tree."
+            "    No generated C bindings found! Run `make` first; or maybe you\n",
+            "    wanted one of `make clippy`, `make rustfmt`, `make rustdoc`?\n",
         ));
     }
 

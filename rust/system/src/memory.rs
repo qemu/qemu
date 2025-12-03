@@ -132,7 +132,7 @@ unsafe impl Sync for MemoryRegion {}
 impl MemoryRegion {
     unsafe fn do_init_io(
         slot: *mut bindings::MemoryRegion,
-        owner: *mut bindings::Object,
+        owner: *mut qom::bindings::Object,
         ops: &'static bindings::MemoryRegionOps,
         name: &'static str,
         size: u64,

@@ -6,22 +6,21 @@
 
 use std::ffi::CStr;
 
-pub use bindings::SysBusDeviceClass;
 use common::Opaque;
 use qom::prelude::*;
 use system::MemoryRegion;
+pub use system_sys::SysBusDeviceClass;
 use util::{Error, Result};
 
 use crate::{
-    bindings,
     irq::{IRQState, InterruptSource},
     qdev::{DeviceClassExt, DeviceImpl, DeviceState},
 };
 
-/// A safe wrapper around [`bindings::SysBusDevice`].
+/// A safe wrapper around [`system_sys::SysBusDevice`].
 #[repr(transparent)]
 #[derive(Debug, common::Wrapper)]
-pub struct SysBusDevice(Opaque<bindings::SysBusDevice>);
+pub struct SysBusDevice(Opaque<system_sys::SysBusDevice>);
 
 unsafe impl Send for SysBusDevice {}
 unsafe impl Sync for SysBusDevice {}
@@ -29,7 +28,7 @@ unsafe impl Sync for SysBusDevice {}
 unsafe impl ObjectType for SysBusDevice {
     type Class = SysBusDeviceClass;
     const TYPE_NAME: &'static CStr =
-        unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_SYS_BUS_DEVICE) };
+        unsafe { CStr::from_bytes_with_nul_unchecked(system_sys::TYPE_SYS_BUS_DEVICE) };
 }
 
 qom_isa!(SysBusDevice: DeviceState, Object);
@@ -62,7 +61,7 @@ where
     fn init_mmio(&self, iomem: &MemoryRegion) {
         assert!(bql::is_locked());
         unsafe {
-            bindings::sysbus_init_mmio(self.upcast().as_mut_ptr(), iomem.as_mut_ptr());
+            system_sys::sysbus_init_mmio(self.upcast().as_mut_ptr(), iomem.as_mut_ptr());
         }
     }
 
@@ -73,7 +72,7 @@ where
     fn init_irq(&self, irq: &InterruptSource) {
         assert!(bql::is_locked());
         unsafe {
-            bindings::sysbus_init_irq(self.upcast().as_mut_ptr(), irq.as_ptr());
+            system_sys::sysbus_init_irq(self.upcast().as_mut_ptr(), irq.as_ptr());
         }
     }
 
@@ -82,7 +81,7 @@ where
         assert!(bql::is_locked());
         // SAFETY: the BQL ensures that no one else writes to sbd.mmio[], and
         // the SysBusDevice must be initialized to get an IsA<SysBusDevice>.
-        let sbd = unsafe { &*self.upcast().as_ptr() };
+        let sbd = unsafe { &*self.upcast().as_mut_ptr() };
         let id: usize = id.try_into().unwrap();
         if sbd.mmio[id].memory.is_null() {
             None
@@ -96,7 +95,7 @@ where
         assert!(bql::is_locked());
         let id: i32 = id.try_into().unwrap();
         unsafe {
-            bindings::sysbus_mmio_map(self.upcast().as_mut_ptr(), id, addr);
+            system_sys::sysbus_mmio_map(self.upcast().as_mut_ptr(), id, addr);
         }
     }
 
@@ -108,7 +107,7 @@ where
         let id: i32 = id.try_into().unwrap();
         let irq: &IRQState = irq;
         unsafe {
-            bindings::sysbus_connect_irq(self.upcast().as_mut_ptr(), id, irq.as_mut_ptr());
+            system_sys::sysbus_connect_irq(self.upcast().as_mut_ptr(), id, irq.as_mut_ptr());
         }
     }
 
@@ -116,7 +115,7 @@ where
         assert!(bql::is_locked());
         unsafe {
             Error::with_errp(|errp| {
-                bindings::sysbus_realize(self.upcast().as_mut_ptr(), errp);
+                system_sys::sysbus_realize(self.upcast().as_mut_ptr(), errp);
             })
         }
     }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-mod bindings;
-use bindings::{bql_block_unlock, bql_locked, rust_bql_mock_lock};
+use util_sys::{bql_block_unlock, bql_locked, rust_bql_mock_lock};
 
 mod cell;
 pub use cell::*;

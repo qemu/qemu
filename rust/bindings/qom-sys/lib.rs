@@ -18,11 +18,8 @@
     clippy::too_many_arguments
 )]
 
-use common::Zeroable;
-use glib_sys::{
-    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GMainContext, GPollFD,
-    GPtrArray, GSList, GSource, GSourceFunc,
-};
+use glib_sys::{GHashTable, GHashTableIter, GPtrArray, GSList};
+use util_sys::{Error, QDict, QObject, Visitor};
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");
@@ -30,11 +27,5 @@ include!("bindings.inc.rs");
 #[cfg(not(MESON))]
 include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
 
-// SAFETY: these are implemented in C; the bindings need to assert that the
-// BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
-// When bindings for character devices are introduced, this can be
-// moved to the Opaque<> wrapper in src/chardev.rs.
-unsafe impl Send for CharFrontend {}
-unsafe impl Sync for CharFrontend {}
-
-unsafe impl Zeroable for CharFrontend {}
+unsafe impl Send for TypeInfo {}
+unsafe impl Sync for TypeInfo {}

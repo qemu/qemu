@@ -20,10 +20,9 @@
 
 //! `bindgen`-generated declarations.
 
-use glib_sys::{
-    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GList, GMainContext,
-    GPollFD, GPtrArray, GSList, GSource, GSourceFunc,
-};
+use chardev::bindings::{CharFrontend, Chardev};
+use hwcore::bindings::{qemu_irq, Clock, DeviceState};
+use system::bindings::{hwaddr, MemoryRegion, SysBusDevice};
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");

@@ -14,6 +14,7 @@ rust-version.workspace = true
 
 [dependencies]
 glib-sys.workspace = true
+hwcore-sys = { path = "../../bindings/hwcore-sys" }
 qemu_macros = { path = "../../qemu-macros" }
 common = { path = "../../common" }
 bql = { path = "../../bql" }

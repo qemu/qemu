@@ -1,0 +1,25 @@
+[package]
+name = "qom-sys"
+version = "0.1.0"
+description = "Rust sys bindings for QEMU/qom"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+glib-sys = { workspace = true }
+util-sys = { path = "../util-sys" }
+
+[lints]
+workspace = true
+
+[package.metadata.bindgen]
+header = "wrapper.h"

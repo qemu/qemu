@@ -18,13 +18,10 @@
     clippy::too_many_arguments
 )]
 
-use chardev::bindings::Chardev;
 use common::Zeroable;
-use glib_sys::{GHashTable, GHashTableIter, GList, GPtrArray, GSList};
-use migration::bindings::VMStateDescription;
-use qom::bindings::ObjectClass;
-use system::bindings::MemoryRegion;
-use util::bindings::Error;
+use glib_sys::{gboolean, guint, GIOCondition, GMainContext, GSource, GSourceFunc};
+use qom_sys::{Object, ObjectClass};
+use util_sys::{Error, IOCanReadHandler, IOReadHandler, QemuOpts};
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");
@@ -32,11 +29,11 @@ include!("bindings.inc.rs");
 #[cfg(not(MESON))]
 include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
 
-unsafe impl Send for Property {}
-unsafe impl Sync for Property {}
+// SAFETY: these are implemented in C; the bindings need to assert that the
+// BQL is taken, either directly or via `BqlCell` and `BqlRefCell`.
+// When bindings for character devices are introduced, this can be
+// moved to the Opaque<> wrapper in src/chardev.rs.
+unsafe impl Send for CharFrontend {}
+unsafe impl Sync for CharFrontend {}
 
-unsafe impl Send for TypeInfo {}
-unsafe impl Sync for TypeInfo {}
-
-unsafe impl Zeroable for Property__bindgen_ty_1 {}
-unsafe impl Zeroable for Property {}
+unsafe impl Zeroable for CharFrontend {}

@@ -1,0 +1,32 @@
+[package]
+name = "hwcore-sys"
+version = "0.1.0"
+description = "Rust sys bindings for QEMU/hwcore"
+publish = false
+
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+glib-sys = { workspace = true }
+common = { path = "../../common" }
+chardev-sys = { path = "../chardev-sys" }
+qom-sys = { path = "../qom-sys" }
+migration-sys = { path = "../migration-sys" }
+util-sys = { path = "../util-sys" }
+system-sys = { path = "../system-sys" }
+
+[lints]
+workspace = true
+
+[package.metadata.bindgen]
+header = "wrapper.h"
+rustified-enum = ["DeviceCategory", "GpioPolarity", "MachineInitPhase", "ResetType"]
+bitfield-enum = ["ClockEvent"]

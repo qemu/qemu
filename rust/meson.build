@@ -35,6 +35,7 @@ genrs = []
 subdir('qemu-macros')
 
 subdir('common')
+subdir('bindings')
 subdir('bits')
 
 subdir('util')

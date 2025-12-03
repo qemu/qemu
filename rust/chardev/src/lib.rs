@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-pub mod bindings;
+pub use chardev_sys as bindings;
 
 mod chardev;
 pub use chardev::*;

@@ -339,6 +339,63 @@ Here are some things to keep in mind when working on the QEMU Rust crate.
   or a macro) where it can be documented and tested.  If needed, include
   toy versions of the code in the documentation.
 
+FFI Binding Generation
+''''''''''''''''''''''
+
+QEMU's Rust integration uses multiple ``*-sys`` crates that contain raw FFI
+bindings to different QEMU subsystems. These crates mirror the dependency
+structure that meson.build uses for C code, and which is reflected in
+``static_library()`` declarations. For example:
+
+* util-sys: Basic utilities (no dependencies)
+* qom-sys: QEMU Object Model (depends on util-sys)
+* chardev-sys: Character devices (depends on qom-sys, util-sys)
+* hwcore-sys: Hardware core (depends on qom-sys, util-sys)
+* migration-sys: Migration (depends on util-sys)
+* system-sys: System-level APIs (depends on all others)
+
+Having multiple crates avoids massive rebuilds of all Rust code when C headers
+are changed. On the other hand, bindgen is not aware of how headers are split
+across crates, and therefore it would generate declarations for dependencies
+again. These duplicate declarations are not only large, they create distinct
+types and therefore they are incompatible with each other.
+
+Bindgen Configuration
+~~~~~~~~~~~~~~~~~~~~~
+
+Bindgen options such as symbol blocklists or how to configure enums can be
+defined in each crate's ``Cargo.toml`` via a ``[package.metadata.bindgen]`` section.
+For example::
+
+    [package.metadata.bindgen]
+    header = "wrapper.h"                    # Main header file for this crate
+    rustified-enum = ["QEMUClockType"]      # Enums to generate as Rust enums
+    bitfield-enum = ["VMStateFlags"]        # Enums to treat as bitfields
+    blocklist-function = [                  # Functions to exclude
+        "vmstate_register_ram",
+        "vmstate_unregister_ram"
+    ]
+    additional-files = [                    # Extra files to allowlist
+        "include/system/memory_ldst.*"
+    ]
+
+All bindgen options are supported in the metadata section. The complete list
+can be found in ``rust/bindings/generate_bindgen_args.py``.
+
+Dependency Management
+~~~~~~~~~~~~~~~~~~~~~
+
+By examining the dependency chain before bindgen creates the code for
+the ``*-sys`` crates, the build system ensures that header files included in
+one crate are blocked from appearing in dependent crates, thus avoiding
+duplicate definitions. Dependent crates can import the definition via
+"use" statements.
+
+This dependency-aware binding generation is handled automatically by
+``rust/bindings/generate_bindgen_args.py``, which processes the Cargo.toml
+files in dependency order and generates appropriate ``--allowlist-file`` and
+``--blocklist-file`` arguments for bindgen.
+
 Writing procedural macros
 '''''''''''''''''''''''''
 

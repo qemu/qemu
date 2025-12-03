@@ -18,10 +18,24 @@
     clippy::too_many_arguments
 )]
 
-use glib_sys::{guint, GArray, GHashTable, GHashTableIter, GPollFD, GPtrArray, GSList, GSource};
+use chardev_sys::Chardev;
+use common::Zeroable;
+use glib_sys::GSList;
+use migration_sys::VMStateDescription;
+use qom_sys::{
+    InterfaceClass, Object, ObjectClass, ObjectProperty, ObjectPropertyAccessor,
+    ObjectPropertyRelease,
+};
+use util_sys::{Error, QDict, QList};
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");
 
 #[cfg(not(MESON))]
 include!(concat!(env!("OUT_DIR"), "/bindings.inc.rs"));
+
+unsafe impl Send for Property {}
+unsafe impl Sync for Property {}
+
+unsafe impl Zeroable for Property__bindgen_ty_1 {}
+unsafe impl Zeroable for Property {}
