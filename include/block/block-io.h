@@ -24,6 +24,7 @@
 #ifndef BLOCK_IO_H
 #define BLOCK_IO_H
 
+#include "qemu/aiocb.h"
 #include "block/aio-wait.h"
 #include "block/block-common.h"
 #include "qemu/coroutine.h"

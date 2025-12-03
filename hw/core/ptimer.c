@@ -13,7 +13,6 @@
 #include "exec/replay-core.h"
 #include "exec/icount.h"
 #include "system/qtest.h"
-#include "block/aio.h"
 #include "hw/core/clock.h"
 
 #define DELTA_ADJUST     1

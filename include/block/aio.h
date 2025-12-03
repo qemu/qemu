@@ -27,27 +27,6 @@
 #include "hw/core/qdev.h"
 
 
-typedef struct BlockAIOCB BlockAIOCB;
-typedef void BlockCompletionFunc(void *opaque, int ret);
-
-typedef struct AIOCBInfo {
-    void (*cancel_async)(BlockAIOCB *acb);
-    size_t aiocb_size;
-} AIOCBInfo;
-
-struct BlockAIOCB {
-    const AIOCBInfo *aiocb_info;
-    BlockDriverState *bs;
-    BlockCompletionFunc *cb;
-    void *opaque;
-    int refcnt;
-};
-
-void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
-                   BlockCompletionFunc *cb, void *opaque);
-void qemu_aio_unref(void *p);
-void qemu_aio_ref(void *p);
-
 typedef struct AioHandler AioHandler;
 typedef QLIST_HEAD(, AioHandler) AioHandlerList;
 typedef void QEMUBHFunc(void *opaque);

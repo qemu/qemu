@@ -31,7 +31,6 @@
 #include "vnc-jobs.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
-#include "block/aio.h"
 #include "trace.h"
 
 /*

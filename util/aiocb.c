@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aiocb.h"
 
 void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockCompletionFunc *cb, void *opaque)

@@ -22,7 +22,6 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_pmem.h"
 #include "system/hostmem.h"
-#include "block/aio.h"
 #include "block/thread-pool.h"
 #include "trace.h"
 

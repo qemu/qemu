@@ -13,7 +13,6 @@
 #include "ui/input.h"
 #include "qom/object_interfaces.h"
 #include "system/iothread.h"
-#include "block/aio.h"
 
 #include <sys/ioctl.h>
 #include "standard-headers/linux/input.h"
