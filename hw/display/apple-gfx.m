@@ -17,7 +17,7 @@
 #include "qemu/log.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 #include "system/address-spaces.h"
 #include "system/dma.h"
 #include "migration/blocker.h"

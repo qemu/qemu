@@ -3072,7 +3072,7 @@ F: util/defer-call.c
 F: util/fdmon-*.c
 F: block/io.c
 F: include/qemu/aio.h
-F: include/block/aio-wait.h
+F: include/qemu/aio-wait.h
 F: include/qemu/defer-call.h
 F: scripts/qemugdb/aio.py
 F: tests/unit/test-fdmon-epoll.c

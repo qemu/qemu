@@ -30,7 +30,7 @@
 #include "migration/colo.h"
 #include "util.h"
 
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 #include "qemu/coroutine.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"

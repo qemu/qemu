@@ -19,7 +19,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 #include "io/channel.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"

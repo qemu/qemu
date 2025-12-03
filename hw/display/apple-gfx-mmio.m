@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/irq.h"
 #include "apple-gfx.h"
