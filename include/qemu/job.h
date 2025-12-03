@@ -32,6 +32,7 @@
 #include "qemu/progress_meter.h"
 #include "qemu/coroutine.h"
 #include "block/aio.h"
+#include "block/graph-lock.h"
 
 typedef struct JobDriver JobDriver;
 typedef struct JobTxn JobTxn;

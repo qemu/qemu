@@ -23,9 +23,8 @@
 #include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
-#include "block/graph-lock.h"
-#include "hw/core/qdev.h"
 
+struct MemReentrancyGuard;
 
 typedef struct AioHandler AioHandler;
 typedef QLIST_HEAD(, AioHandler) AioHandlerList;
@@ -211,7 +210,7 @@ struct AioContext {
      * of nodes and edges from block graph while some
      * other thread is traversing it.
      */
-    BdrvGraphRWlock *bdrv_graph;
+    struct BdrvGraphRWlock *bdrv_graph;
 
     /* The list of registered AIO handlers.  Protected by ctx->list_lock. */
     AioHandlerList aio_handlers;
@@ -393,7 +392,7 @@ void aio_bh_schedule_oneshot_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
  * device-reentrancy issues
  */
 QEMUBH *aio_bh_new_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
-                        const char *name, MemReentrancyGuard *reentrancy_guard);
+                        const char *name, struct MemReentrancyGuard *reentrancy_guard);
 
 /**
  * aio_bh_new: Allocate a new bottom half structure

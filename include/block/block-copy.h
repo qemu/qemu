@@ -16,6 +16,7 @@
 #define BLOCK_COPY_H
 
 #include "block/block-common.h"
+#include "block/graph-lock.h"
 #include "qemu/progress_meter.h"
 
 /* All APIs are thread-safe */

@@ -27,6 +27,7 @@
 #include "qemu/aiocb.h"
 #include "block/aio-wait.h"
 #include "block/block-common.h"
+#include "block/graph-lock.h"
 #include "qemu/coroutine.h"
 #include "qemu/iov.h"
 
