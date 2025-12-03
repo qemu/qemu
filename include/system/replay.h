@@ -15,7 +15,7 @@
 #include "qapi/qapi-types-misc.h"
 #include "qapi/qapi-types-run-state.h"
 #include "qapi/qapi-types-ui.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qemu/audio.h"
 
 /* replay clock kinds */

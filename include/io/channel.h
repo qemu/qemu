@@ -23,7 +23,7 @@
 
 #include "qom/object.h"
 #include "qemu/coroutine-core.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 #define TYPE_QIO_CHANNEL "qio-channel"
 OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,

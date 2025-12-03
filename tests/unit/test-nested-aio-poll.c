@@ -13,7 +13,7 @@
  * aio_poll() calls. This test case checks that this is indeed what happens.
  */
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qapi/error.h"
 #include "util/aio-posix.h"
 

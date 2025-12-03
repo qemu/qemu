@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/aio_task.h"
 
 struct AioTaskPool {

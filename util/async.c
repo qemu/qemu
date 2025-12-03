@@ -25,7 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/thread-pool.h"
 #include "block/graph-lock.h"
 #include "qemu/main-loop.h"

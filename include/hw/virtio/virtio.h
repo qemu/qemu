@@ -23,7 +23,7 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 #include "qom/object.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 /*
  * A guest should never accept this. It implies negotiation is broken

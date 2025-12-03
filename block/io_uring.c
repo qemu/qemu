@@ -10,7 +10,7 @@
  */
 #include "qemu/osdep.h"
 #include <liburing.h>
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/block.h"
 #include "block/raw-aio.h"
 #include "qemu/coroutine.h"

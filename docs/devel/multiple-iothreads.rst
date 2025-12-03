@@ -52,7 +52,7 @@ How to program for ``IOThread``\ s
 ----------------------------------
 The main difference between legacy code and new code that can run in an
 ``IOThread`` is dealing explicitly with the event loop object, ``AioContext``
-(see ``include/block/aio.h``).  Code that only works in the main loop
+(see ``include/qemu/aio.h``).  Code that only works in the main loop
 implicitly uses the main loop's ``AioContext``.  Code that supports running
 in ``IOThread``\ s must be aware of its ``AioContext``.
 
@@ -74,7 +74,7 @@ Since they implicitly work on the main loop they cannot be used in code that
 runs in an ``IOThread``.  They might cause a crash or deadlock if called from an
 ``IOThread`` since the BQL is not held.
 
-Instead, use the ``AioContext`` functions directly (see ``include/block/aio.h``):
+Instead, use the ``AioContext`` functions directly (see ``include/qemu/aio.h``):
  * ``aio_set_fd_handler()`` - monitor a file descriptor
  * ``aio_set_event_notifier()`` - monitor an event notifier
  * ``aio_timer_new()`` - create a timer

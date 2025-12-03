@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qmp-registry.h"

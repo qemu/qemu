@@ -3071,7 +3071,7 @@ F: util/aio-*.h
 F: util/defer-call.c
 F: util/fdmon-*.c
 F: block/io.c
-F: include/block/aio.h
+F: include/qemu/aio.h
 F: include/block/aio-wait.h
 F: include/qemu/defer-call.h
 F: scripts/qemugdb/aio.py

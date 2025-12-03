@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"

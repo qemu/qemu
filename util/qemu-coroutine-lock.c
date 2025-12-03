@@ -30,7 +30,7 @@
 #include "qemu/coroutine_int.h"
 #include "qemu/processor.h"
 #include "qemu/queue.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "trace.h"
 
 void qemu_co_queue_init(CoQueue *queue)

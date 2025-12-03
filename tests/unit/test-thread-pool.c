@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/thread-pool.h"
 #include "block/block.h"
 #include "qapi/error.h"

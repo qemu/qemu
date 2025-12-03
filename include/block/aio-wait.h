@@ -25,7 +25,7 @@
 #ifndef QEMU_AIO_WAIT_H
 #define QEMU_AIO_WAIT_H
 
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qemu/main-loop.h"
 
 /**

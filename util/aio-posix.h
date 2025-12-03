@@ -17,7 +17,7 @@
 #ifndef AIO_POSIX_H
 #define AIO_POSIX_H
 
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qapi/error.h"
 
 struct AioHandler {

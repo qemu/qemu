@@ -8,7 +8,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qemu/queue.h"
 #include "block/block.h"
 #include "block/raw-aio.h"

@@ -25,7 +25,7 @@
 #ifndef QEMU_MAIN_LOOP_H
 #define QEMU_MAIN_LOOP_H
 
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qom/object.h"
 #include "system/event-loop-base.h"
 

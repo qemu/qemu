@@ -13,7 +13,7 @@
 #include <scsi/sg.h>
 
 #include "qapi/error.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/thread-pool.h"
 #include "scsi/pr-manager.h"
 #include "trace.h"
