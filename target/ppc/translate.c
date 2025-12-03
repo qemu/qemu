@@ -214,14 +214,21 @@ static inline bool is_ppe(const DisasContext *ctx)
     return !!(ctx->flags & POWERPC_FLAG_PPE42);
 }
 
+/**
+ * ppc_code_endian_dc:
+ * @dc: the disassembly context
+ *
+ * Return the MemOp endianness of the CODE path.
+ */
+static inline MemOp ppc_code_endian_dc(const DisasContext *ctx)
+{
+    return MO_BE ^ (ctx->le_mode * MO_BSWAP);
+}
+
 /* Return true iff byteswap is needed in a scalar memop */
 static inline bool need_byteswap(const DisasContext *ctx)
 {
-#if TARGET_BIG_ENDIAN
-     return ctx->le_mode;
-#else
-     return !ctx->le_mode;
-#endif
+    return ppc_code_endian_dc(ctx) != MO_TE;
 }
 
 /* True when active word size < size of target_long.  */
