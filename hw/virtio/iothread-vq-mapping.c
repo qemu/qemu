@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "system/iothread.h"
+#include "qemu/bitmap.h"
 #include "hw/virtio/iothread-vq-mapping.h"
 
 static bool
