@@ -7456,7 +7456,7 @@ static void ppc_disas_set_info(CPUState *cs, disassemble_info *info)
 {
     CPUPPCState *env = cpu_env(cs);
 
-    if ((env->hflags >> MSR_LE) & 1) {
+    if ((env->msr >> MSR_LE) & 1) {
         info->endian = BFD_ENDIAN_LITTLE;
     } else {
         info->endian = BFD_ENDIAN_BIG;
