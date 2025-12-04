@@ -147,8 +147,7 @@ VFIOUserFDs *vfio_user_getfds(int numfds)
 /*
  * Process a received message.
  */
-static void vfio_user_process(VFIOUserProxy *proxy, VFIOUserMsg *msg,
-                              bool isreply)
+static void vfio_user_process(VFIOUserProxy *proxy, VFIOUserMsg *msg)
 {
 
     /*
@@ -157,7 +156,7 @@ static void vfio_user_process(VFIOUserProxy *proxy, VFIOUserMsg *msg,
      *
      * Requests get queued for the BH.
      */
-    if (isreply) {
+    if ((msg->hdr->flags & VFIO_USER_TYPE) == VFIO_USER_REPLY) {
         msg->complete = true;
         if (msg->type == VFIO_MSG_WAIT) {
             qemu_cond_signal(&msg->cv);
@@ -187,7 +186,6 @@ static int vfio_user_complete(VFIOUserProxy *proxy, Error **errp)
 {
     VFIOUserMsg *msg = proxy->part_recv;
     size_t msgleft = proxy->recv_left;
-    bool isreply;
     char *data;
     int ret;
 
@@ -214,11 +212,65 @@ static int vfio_user_complete(VFIOUserProxy *proxy, Error **errp)
      */
     proxy->part_recv = NULL;
     proxy->recv_left = 0;
-    isreply = (msg->hdr->flags & VFIO_USER_TYPE) == VFIO_USER_REPLY;
-    vfio_user_process(proxy, msg, isreply);
+    vfio_user_process(proxy, msg);
 
     /* return positive value */
     return 1;
+}
+
+static int vfio_user_recv_hdr(VFIOUserProxy *proxy, Error **errp,
+                              VFIOUserHdr *hdr, int **fdp, size_t *numfdp,
+                              bool *isreply)
+{
+    struct iovec iov = {
+        .iov_base = hdr,
+        .iov_len = sizeof(*hdr),
+    };
+    int ret;
+
+    /*
+     * Read header
+     */
+    ret = qio_channel_readv_full(proxy->ioc, &iov, 1, fdp, numfdp, 0,
+                                 errp);
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        return ret;
+    }
+
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "failed to read header");
+        return -1;
+    } else if (ret == 0) {
+        error_setg(errp, "failed to read header: EOF");
+        return -1;
+    } else if (ret < sizeof(*hdr)) {
+        error_setg(errp, "short read of header");
+        return -1;
+    }
+
+    /*
+     * Validate header
+     */
+    if (hdr->size < sizeof(*hdr)) {
+        error_setg(errp, "bad header size");
+        return -1;
+    }
+
+    switch (hdr->flags & VFIO_USER_TYPE) {
+    case VFIO_USER_REQUEST:
+        *isreply = false;
+        break;
+    case VFIO_USER_REPLY:
+        *isreply = true;
+        break;
+    default:
+        error_setg(errp, "unknown message type");
+        return -1;
+    }
+
+    trace_vfio_user_recv_hdr(proxy->sockname, hdr->id, hdr->command, hdr->size,
+                             hdr->flags);
+    return 0;
 }
 
 /*
@@ -229,19 +281,14 @@ static int vfio_user_complete(VFIOUserProxy *proxy, Error **errp)
  */
 static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
 {
-    VFIOUserMsg *msg = NULL;
     g_autofree int *fdp = NULL;
-    VFIOUserFDs *reqfds;
-    VFIOUserHdr hdr;
-    struct iovec iov = {
-        .iov_base = &hdr,
-        .iov_len = sizeof(hdr),
-    };
+    VFIOUserMsg *msg = NULL;
     bool isreply = false;
-    int i, ret;
-    size_t msgleft, numfds = 0;
+    size_t msgleft = 0;
+    size_t numfds = 0;
     char *data = NULL;
-    char *buf = NULL;
+    VFIOUserHdr hdr;
+    int i, ret;
 
     /*
      * Complete any partial reads
@@ -260,49 +307,17 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
         /* else fall into reading another msg */
     }
 
-    /*
-     * Read header
-     */
-    ret = qio_channel_readv_full(proxy->ioc, &iov, 1, &fdp, &numfds, 0,
-                                 errp);
-    if (ret == QIO_CHANNEL_ERR_BLOCK) {
-        return ret;
-    }
-
-    /* read error or other side closed connection */
-    if (ret <= 0) {
-        goto fatal;
-    }
-
-    if (ret < sizeof(hdr)) {
-        error_setg(errp, "short read of header");
+    ret = vfio_user_recv_hdr(proxy, errp, &hdr, &fdp, &numfds, &isreply);
+    if (ret < 0) {
+        if (ret == QIO_CHANNEL_ERR_BLOCK) {
+            return ret;
+        }
         goto fatal;
     }
 
     /*
-     * Validate header
-     */
-    if (hdr.size < sizeof(VFIOUserHdr)) {
-        error_setg(errp, "bad header size");
-        goto fatal;
-    }
-    switch (hdr.flags & VFIO_USER_TYPE) {
-    case VFIO_USER_REQUEST:
-        isreply = false;
-        break;
-    case VFIO_USER_REPLY:
-        isreply = true;
-        break;
-    default:
-        error_setg(errp, "unknown message type");
-        goto fatal;
-    }
-    trace_vfio_user_recv_hdr(proxy->sockname, hdr.id, hdr.command, hdr.size,
-                             hdr.flags);
-
-    /*
-     * For replies, find the matching pending request.
-     * For requests, reap incoming FDs.
+     * Find the matching request if this is a reply, or initialize a new
+     * server->client request.
      */
     if (isreply) {
         QTAILQ_FOREACH(msg, &proxy->pending, next) {
@@ -316,56 +331,52 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
         }
         QTAILQ_REMOVE(&proxy->pending, msg, next);
 
-        /*
-         * Process any received FDs
-         */
-        if (numfds != 0) {
-            if (msg->fds == NULL || msg->fds->recv_fds < numfds) {
-                error_setg(errp, "unexpected FDs");
-                goto err;
-            }
-            msg->fds->recv_fds = numfds;
-            memcpy(msg->fds->fds, fdp, numfds * sizeof(int));
-        }
-    } else {
-        if (numfds != 0) {
-            reqfds = vfio_user_getfds(numfds);
-            memcpy(reqfds->fds, fdp, numfds * sizeof(int));
-        } else {
-            reqfds = NULL;
-        }
-    }
-
-    /*
-     * Put the whole message into a single buffer.
-     */
-    if (isreply) {
         if (hdr.size > msg->rsize) {
             error_setg(errp, "reply larger than recv buffer");
             goto err;
         }
-        *msg->hdr = hdr;
-        data = (char *)msg->hdr + sizeof(hdr);
     } else {
+        void *buf;
+
         if (hdr.size > proxy->max_xfer_size + sizeof(VFIOUserDMARW)) {
             error_setg(errp, "vfio_user_recv request larger than max");
             goto err;
         }
+
         buf = g_malloc0(hdr.size);
-        memcpy(buf, &hdr, sizeof(hdr));
-        data = buf + sizeof(hdr);
-        msg = vfio_user_getmsg(proxy, (VFIOUserHdr *)buf, reqfds);
+        msg = vfio_user_getmsg(proxy, buf, NULL);
         msg->type = VFIO_MSG_REQ;
     }
 
+    *msg->hdr = hdr;
+    data = (char *)msg->hdr + sizeof(hdr);
+
+    if (numfds != 0) {
+        if (msg->type == VFIO_MSG_REQ) {
+            msg->fds = vfio_user_getfds(numfds);
+        } else {
+            if (msg->fds == NULL || msg->fds->recv_fds < numfds) {
+                error_setg(errp, "unexpected FDs in reply");
+                goto err;
+            }
+            msg->fds->recv_fds = numfds;
+        }
+
+        memcpy(msg->fds->fds, fdp, numfds * sizeof(int));
+    }
+
     /*
-     * Read rest of message.
+     * Read rest of message into the data buffer.
      */
+
     msgleft = hdr.size - sizeof(hdr);
     while (msgleft > 0) {
         ret = qio_channel_read(proxy->ioc, data, msgleft, errp);
 
-        /* prepare to complete read on next iternation */
+        /*
+         * We'll complete this read on the next go around; keep track of the
+         * partial message until then.
+         */
         if (ret == QIO_CHANNEL_ERR_BLOCK) {
             proxy->part_recv = msg;
             proxy->recv_left = msgleft;
@@ -381,7 +392,7 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
         data += ret;
     }
 
-    vfio_user_process(proxy, msg, isreply);
+    vfio_user_process(proxy, msg);
     return 0;
 
     /*
@@ -401,11 +412,22 @@ err:
     for (i = 0; i < numfds; i++) {
         close(fdp[i]);
     }
-    if (isreply && msg != NULL) {
-        /* force an error to keep sending thread from hanging */
-        vfio_user_set_error(msg->hdr, EINVAL);
-        msg->complete = true;
-        qemu_cond_signal(&msg->cv);
+    if (msg != NULL) {
+        if (msg->type == VFIO_MSG_REQ) {
+            /*
+             * Clean up the request message on failure. Change type back to
+             * NOWAIT to free.
+             */
+            msg->type = VFIO_MSG_NOWAIT;
+            vfio_user_recycle(proxy, msg);
+        } else {
+            /*
+             * Report an error back to the sender. Sender will recycle msg.
+             */
+            vfio_user_set_error(msg->hdr, EINVAL);
+            msg->complete = true;
+            qemu_cond_signal(&msg->cv);
+        }
     }
     return -1;
 }
