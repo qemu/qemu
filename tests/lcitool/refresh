@@ -161,6 +161,46 @@ ubuntu2204_rust_extras = [
     'RUN cargo install bindgen-cli\n',
 ]
 
+debian_all_test_cross_compilers = [
+    "# extras for cross and alternate toolchains\n",
+    "RUN DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
+    "  apt install -y --no-install-recommends \\\n",
+    "  clang\\\n",
+    "  dpkg-dev\\\n",
+    "  libclang-rt-dev\n",
+    "ENV AVAILABLE_COMPILERS gcc-aarch64-linux-gnu \\\n",
+    "  libc6-dev-arm64-cross \\\n",
+    "  gcc-arm-linux-gnueabihf \\\n",
+    "  libc6-dev-armhf-cross \\\n",
+    "  gcc-mips-linux-gnu \\\n",
+    "  libc6-dev-mips-cross \\\n",
+    "  gcc-mips64-linux-gnuabi64 \\\n",
+    "  libc6-dev-mips64-cross \\\n",
+    "  gcc-mips64el-linux-gnuabi64 \\\n",
+    "  libc6-dev-mips64el-cross \\\n",
+    "  gcc-mipsel-linux-gnu \\\n",
+    "  libc6-dev-mipsel-cross \\\n",
+    "  gcc-powerpc64le-linux-gnu \\\n",
+    "  libc6-dev-ppc64el-cross \\\n",
+    "  gcc-riscv64-linux-gnu \\\n",
+    "  libc6-dev-riscv64-cross \\\n",
+    "  gcc-s390x-linux-gnu \\\n",
+    "  libc6-dev-s390x-cross\n",
+    "RUN if dpkg-architecture -e amd64; then \\\n",
+    "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-hppa-linux-gnu libc6-dev-hppa-cross\"; \\\n",
+    "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-m68k-linux-gnu libc6-dev-m68k-cross\"; \\\n",
+    "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-powerpc-linux-gnu libc6-dev-powerpc-cross\"; \\\n",
+    "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-powerpc64-linux-gnu libc6-dev-ppc64-cross\"; \\\n",
+    "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-sparc64-linux-gnu libc6-dev-sparc64-cross\"; \\\n",
+    "fi && \\\n",
+    "DEBIAN_FRONTEND=noninteractive eatmydata \\\n",
+    "apt install -y --no-install-recommends \\\n",
+    "${AVAILABLE_COMPILERS} && \\\n",
+    "dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt\n",
+    "ENV QEMU_CONFIGURE_OPTS --disable-system --disable-docs --disable-tools\n",
+    "ENV DEF_TARGET_LIST aarch64-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sparc64-linux-user\n",
+]
+
 def cross_build(prefix, targets):
     conf = "ENV QEMU_CONFIGURE_OPTS=--cross-prefix=%s\n" % (prefix)
     targets = "ENV DEF_TARGET_LIST=%s\n" % (targets)
@@ -255,6 +295,15 @@ try:
                         # linking with rust is buggy:
                         # https://github.com/mesonbuild/meson/pull/14991
                         enable_rust=False)
+
+    # We also generate some docker files with minimal dependencies and
+    # as many cross-compilers as Debian will package for building TCG
+    # tests.
+
+    generate_dockerfile("debian-all-test-cross", "debian-13",
+                        project="qemu-minimal",
+                        enable_rust=False,
+                        trailer="".join(debian_all_test_cross_compilers))
 
     #
     # Cirrus packages lists for GitLab
