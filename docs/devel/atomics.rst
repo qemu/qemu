@@ -266,7 +266,7 @@ Splitting a loop can also be useful to reduce the number of barriers:
     |   n = 0;                                 |     smp_mb_release();            |
     |   for (i = 0; i < 10; i++) {             |     for (i = 0; i < 10; i++)     |
     |     qatomic_store_release(&a[i], false); |       qatomic_set(&a[i], false); |
-    |     smp_mb();                            |     smb_mb();                    |
+    |     smp_mb();                            |     smp_mb();                    |
     |     n += qatomic_read(&b[i]);            |     n = 0;                       |
     |   }                                      |     for (i = 0; i < 10; i++)     |
     |                                          |       n += qatomic_read(&b[i]);  |
@@ -283,7 +283,7 @@ as well) ``smp_wmb()``:
     |                                          |     smp_mb_release();            |
     |   for (i = 0; i < 10; i++) {             |     for (i = 0; i < 10; i++)     |
     |     qatomic_store_release(&a[i], false); |       qatomic_set(&a[i], false); |
-    |     qatomic_store_release(&b[i], false); |     smb_wmb();                   |
+    |     qatomic_store_release(&b[i], false); |     smp_wmb();                   |
     |   }                                      |     for (i = 0; i < 10; i++)     |
     |                                          |       qatomic_set(&b[i], false); |
     +------------------------------------------+----------------------------------+
