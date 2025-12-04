@@ -101,6 +101,7 @@ pub unsafe trait VMState {
     /// type for the length (i.e. if it is not `u8`, `u16`, `u32`), using it
     /// in a call to [`vmstate_of!`](crate::vmstate_of) will cause a
     /// compile-time error.
+    #[doc(hidden)] // https://github.com/rust-lang/rust/issues/149635
     const VARRAY_FLAG: VMStateFlags = {
         panic!("invalid type for variable-sized array");
     };
