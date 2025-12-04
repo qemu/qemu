@@ -4,6 +4,7 @@ packages:
  - bash
  - bc
  - bison
+ - bzip2
  - ccache
  - findutils
  - flex
