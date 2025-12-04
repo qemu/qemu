@@ -21,14 +21,53 @@ class TimersCommand(gdb.Command):
         gdb.Command.__init__(self, 'qemu timers', gdb.COMMAND_DATA,
                              gdb.COMPLETE_NONE)
 
+    def _format_expire_time(self, expire_time, scale):
+        "Return human-readable expiry time (ns) with scale info."
+        secs = expire_time / 1e9
+
+        # Select unit and compute value
+        if secs < 1:
+            val, unit = secs * 1000, "ms"
+        elif secs < 60:
+            val, unit = secs, "s"
+        elif secs < 3600:
+            val, unit = secs / 60, "min"
+        elif secs < 86400:
+            val, unit = secs / 3600, "hrs"
+        else:
+            val, unit = secs / 86400, "days"
+
+        scale_map = {1: "ns", 1000: "us", 1000000: "ms",
+                     1000000000: "s"}
+        scale_str = scale_map.get(scale, f"scale={scale}")
+        return f"{val:.2f} {unit} [{scale_str}]"
+
+    def _format_attribute(self, attr):
+        "Given QEMUTimer attributes value, return a human-readable string"
+
+        # From include/qemu/timer.h
+        if attr == 0:
+            value = 'NONE'
+        elif attr == 1 << 0:
+            value = 'ATTR_EXTERNAL'
+        elif attr == int(0xffffffff):
+            value = 'ATTR_ALL'
+        else:
+            value = 'UNKNOWN'
+        return f'{attr} <{value}>'
+
     def dump_timers(self, timer):
         "Follow a timer and recursively dump each one in the list."
         # timer should be of type QemuTimer
-        gdb.write("    timer %s/%s (cb:%s,opq:%s)\n" % (
-            timer['expire_time'],
-            timer['scale'],
-            timer['cb'],
-            timer['opaque']))
+        scale = int(timer['scale'])
+        expire_time = int(timer['expire_time'])
+        attributes = int(timer['attributes'])
+
+        time_str = self._format_expire_time(expire_time, scale)
+        attr_str = self._format_attribute(attributes)
+
+        gdb.write(f"    timer at {time_str} (attr:{attr_str}, "
+                  f"cb:{timer['cb']}, opq:{timer['opaque']})\n")
 
         if int(timer['next']) > 0:
             self.dump_timers(timer['next'])
