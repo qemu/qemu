@@ -67,9 +67,9 @@ static inline Int128 atomic16_fetch_and(Int128 *ptr, Int128 new)
         "stlxp %w[tmp], %[tmpl], %[tmph], %[mem]\n\t"
         "cbnz %w[tmp], 0b"
         : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
-          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
-        : [newl] "r"(newl), [newh] "r"(newh),
-          [tmpl] "r"(tmpl), [tmph] "r"(tmph)
+          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh),
+          [tmpl] "=&r"(tmpl), [tmph] "=&r"(tmph)
+        : [newl] "r"(newl), [newh] "r"(newh)
         : "memory");
 
     return int128_make128(oldl, oldh);
@@ -87,9 +87,9 @@ static inline Int128 atomic16_fetch_or(Int128 *ptr, Int128 new)
         "stlxp %w[tmp], %[tmpl], %[tmph], %[mem]\n\t"
         "cbnz %w[tmp], 0b"
         : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
-          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
-        : [newl] "r"(newl), [newh] "r"(newh),
-          [tmpl] "r"(tmpl), [tmph] "r"(tmph)
+          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh),
+          [tmpl] "=&r"(tmpl), [tmph] "=&r"(tmph)
+        : [newl] "r"(newl), [newh] "r"(newh)
         : "memory");
 
     return int128_make128(oldl, oldh);
