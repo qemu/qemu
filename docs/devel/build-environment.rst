@@ -4,55 +4,103 @@
 Setup build environment
 =======================
 
-QEMU uses a lot of dependencies on the host system. glib2 is used everywhere in
-the code base, and most of the other dependencies are optional.
+QEMU uses a lot of dependencies on the host system a large number of
+which are optional. At a minimum we expect to have a system C library
+(usually glibc but others can work), the glib2 library (used heavily
+in the code base) and a few other core libraries for interfacing with
+code modules and system build descriptions.
 
-We present here simple instructions to enable native builds on most popular
-systems.
+We use the ``libvirt-ci`` project to handle the mapping of
+dependencies to a wide variety output formats including system install
+scripts. For example:
 
-You can find additional instructions on `QEMU wiki <https://wiki.qemu.org/>`_:
+.. code-block:: bash
 
-- `Linux <https://wiki.qemu.org/Hosts/Linux>`_
-- `MacOS <https://wiki.qemu.org/Hosts/Mac>`_
-- `Windows <https://wiki.qemu.org/Hosts/W32>`_
-- `BSD <https://wiki.qemu.org/Hosts/BSD>`_
+  # THIS FILE WAS AUTO-GENERATED
+  #
+  #  $ lcitool buildenvscript debian-13 ./tests/lcitool/projects/qemu-minimal.yml
+  #
+  # https://gitlab.com/libvirt/libvirt-ci
 
-Note: Installing dependencies using your package manager build dependencies may
-miss out on deps that have been newly introduced in qemu.git. In more, it misses
-deps the distribution has decided to exclude.
+  function install_buildenv() {
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get dist-upgrade -y
+      apt-get install --no-install-recommends -y \
+              bash \
+              bc \
+              bison \
+              bzip2 \
+              ca-certificates \
+              ccache \
+              findutils \
+              flex \
+              gcc \
+              git \
+              libc6-dev \
+              libfdt-dev \
+              libffi-dev \
+              libglib2.0-dev \
+              libpixman-1-dev \
+              locales \
+              make \
+              meson \
+              ninja-build \
+              pkgconf \
+              python3 \
+              python3-venv \
+              sed \
+              tar
+      sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen
+      dpkg-reconfigure locales
+      rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED
+      dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt
+      mkdir -p /usr/libexec/ccache-wrappers
+      ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/cc
+      ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
+  }
 
-Linux
------
+  export CCACHE_WRAPPERSDIR="/usr/libexec/ccache-wrappers"
+  export LANG="en_US.UTF-8"
+  export MAKE="/usr/bin/make"
+  export NINJA="/usr/bin/ninja"
+  export PYTHON="/usr/bin/python3"
 
-Fedora
-++++++
+If you instead select the ``qemu.yml`` project file you will get all
+the dependencies that the project can use.
 
-::
+Using you system package manager
+--------------------------------
 
-    sudo dnf update && sudo dnf builddep qemu
+.. note::
 
-Debian/Ubuntu
-+++++++++++++
+   Installing dependencies using your package manager build dependencies may
+   miss out on deps that have been newly introduced in qemu.git. It
+   also misses deps the distribution has decided to exclude.
 
-You first need to enable `Sources List <https://wiki.debian.org/SourcesList>`_.
-Then, use apt to install dependencies:
+Systems with Package Managers
++++++++++++++++++++++++++++++
 
-::
+.. list-table:: Package Manager Commands
+  :widths: 10 50 40
+  :header-rows: 1
 
-    sudo apt update && sudo apt build-dep qemu
-
-MacOS
------
-
-You first need to install `Homebrew <https://brew.sh/>`_. Then, use it to
-install dependencies:
-
-::
-
-    brew update && brew install $(brew deps --include-build qemu)
+  * - System
+    - Command
+    - Notes
+  * - Fedora
+    - ``sudo dnf update && sudo dnf builddep qemu``
+    -
+  * - Debian/Ubuntu
+    - ``sudo apt update && sudo apt build-dep qemu``
+    - Must enable `Sources List
+      <https://wiki.debian.org/SourcesList>`_ first
+  * - MacOS
+    - ``brew update && brew install $(brew deps --include-build qemu)``
+    - Using `Homebrew <https://brew.sh/>`_.
 
 Windows
--------
++++++++
 
 You first need to install `MSYS2 <https://www.msys2.org/>`_.
 MSYS2 offers `different environments <https://www.msys2.org/docs/environments/>`_.
@@ -104,7 +152,7 @@ build QEMU in MSYS2 itself.
     makepkg --syncdeps --nobuild PKGBUILD || true
 
 Build on windows-aarch64
-++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 When trying to cross compile meson for x86_64 using UCRT64 or MINGW64 env,
 configure will run into an error because the cpu detected is not correct.
@@ -115,4 +163,3 @@ and force a cross compilation (with empty prefix).
 ::
 
     ./configure --cpu=x86_64 --cross-prefix=
-

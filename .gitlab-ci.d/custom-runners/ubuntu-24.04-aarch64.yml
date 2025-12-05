@@ -41,9 +41,7 @@
 ubuntu-24.04-aarch64-all-linux-static:
   extends: .ubuntu_aarch64_template
   variables:
-    # Disable -static-pie due to build error with system libc:
-    # https://bugs.launchpad.net/ubuntu/+source/glibc/+bug/1987438
-    CONFIGURE_ARGS: --enable-debug --static --disable-system --disable-pie
+    CONFIGURE_ARGS: --enable-debug --static --disable-system
     MAKE_CHECK_ARGS: check-tcg
 
 ubuntu-24.04-aarch64-all:

@@ -98,6 +98,8 @@ class BinaryFile:
                 size = f'{s.size:{addrx}}'
                 if prefix_symbols:
                     name = f'{binary_name}:{s.name}'
+                else:
+                    name = s.name
                 print(addr, size, 'T', name, file=sym_file)
 
     def generate_debug_file(self):

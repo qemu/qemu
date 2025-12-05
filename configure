@@ -1801,7 +1801,7 @@ if test "$plugins" = "yes" ; then
 fi
 echo "PYTHON=$python" >> tests/tcg/$config_host_mak
 
-tcg_tests_targets=
+tcg_tests_with_compilers=
 for target in $target_list; do
   arch=${target%%-*}
 
@@ -1852,12 +1852,12 @@ for target in $target_list; do
       fi
 
       echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> Makefile.prereqs
-      tcg_tests_targets="$tcg_tests_targets $target"
+      tcg_tests_with_compilers="$tcg_tests_with_compilers $target"
   fi
 done
 
 if test "$tcg" = "enabled"; then
-    echo "TCG_TESTS_TARGETS=$tcg_tests_targets" >> $config_host_mak
+    echo "TCG_TESTS_WITH_COMPILERS=$tcg_tests_with_compilers" >> $config_host_mak
 fi
 
 if test "$skip_meson" = no; then

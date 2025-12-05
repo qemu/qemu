@@ -37,6 +37,15 @@ export SRC_PATH
 
 SPEED = quick
 
+
+# TCG_TESTS_WITH_COMPILERS represents the test targets we have cross compiler
+# support for, CONFIGURED_TEST_TARGETS it what meson has finally
+# configured having rejected stuff we can't build.
+CONFIGURED_TCG_TARGETS=$(patsubst %-config-target.h, %, $(wildcard *-config-target.h))
+
+# This is the intersection of what tests we can build and is configured
+TCG_TESTS_TARGETS=$(filter $(CONFIGURED_TCG_TARGETS), $(TCG_TESTS_WITH_COMPILERS))
+
 # Per guest TCG tests
 BUILD_TCG_TARGET_RULES=$(patsubst %,build-tcg-tests-%, $(TCG_TESTS_TARGETS))
 CLEAN_TCG_TARGET_RULES=$(patsubst %,clean-tcg-tests-%, $(TCG_TESTS_TARGETS))

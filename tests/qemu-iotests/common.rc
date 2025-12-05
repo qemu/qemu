@@ -1053,6 +1053,20 @@ _require_one_device_of()
     _notrun "$* not available"
 }
 
+_require_secret()
+{
+    if [ -e "$TEST_IMG" ]; then
+        echo "unwilling to overwrite existing file"
+        exit 1
+    fi
+    if $QEMU_IMG create -f $IMGFMT --object secret,id=sec0,data=123 \
+                 -o encryption=on,encrypt.key-secret=sec0 "$TEST_IMG" 1M 2>&1 \
+                 | grep "Unsupported cipher" ; then
+        _notrun "missing cipher support"
+    fi
+    rm -f "$TEST_IMG"
+}
+
 _qcow2_dump_header()
 {
     if [[ "$1" == "--no-filter-compression" ]]; then

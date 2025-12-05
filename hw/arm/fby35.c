@@ -175,6 +175,7 @@ static void fby35_class_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Meta Platforms fby35";
+    mc->deprecation_reason = "For a multi-soc machine, use 'ast2700fc' instead";
     mc->init = fby35_init;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;

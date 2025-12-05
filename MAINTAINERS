@@ -4444,12 +4444,13 @@ R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: tests/tcg/Makefile.target
 
-GitLab custom runner (Works On Arm Sponsored)
+GitLab custom runners (HW sponsored by Linaro, OSOUL and IBM)
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
-F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch64.yml
-F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch32.yml
+F: .gitlab-ci.d/custom-runners/ubuntu-24.04-aarch64.yml
+F: .gitlab-ci.d/custom-runners/ubuntu-24.04-s390x.yml
+F: .gitlab-ci.d/custom-runners/debian-13-ppc64le.yml
 
 Documentation
 -------------
