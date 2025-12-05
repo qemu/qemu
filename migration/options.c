@@ -203,6 +203,8 @@ const Property migration_properties[] = {
                         MIGRATION_CAPABILITY_SWITCHOVER_ACK),
     DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
     DEFINE_PROP_MIG_CAP("mapped-ram", MIGRATION_CAPABILITY_MAPPED_RAM),
+    DEFINE_PROP_MIG_CAP("x-ignore-shared",
+                        MIGRATION_CAPABILITY_X_IGNORE_SHARED),
 };
 const size_t migration_properties_count = ARRAY_SIZE(migration_properties);
 
