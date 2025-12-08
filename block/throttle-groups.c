@@ -295,19 +295,15 @@ static bool throttle_group_schedule_timer(ThrottleGroupMember *tgm,
 /* Start the next pending I/O request for a ThrottleGroupMember. Return whether
  * any request was actually pending.
  *
+ * This assumes that tg->lock is held.
+ *
  * @tgm:       the current ThrottleGroupMember
  * @direction: the ThrottleDirection
  */
 static bool coroutine_fn throttle_group_co_restart_queue(ThrottleGroupMember *tgm,
                                                          ThrottleDirection direction)
 {
-    bool ret;
-
-    qemu_co_mutex_lock(&tgm->throttled_reqs_lock);
-    ret = qemu_co_queue_next(&tgm->throttled_reqs[direction]);
-    qemu_co_mutex_unlock(&tgm->throttled_reqs_lock);
-
-    return ret;
+    return qemu_co_queue_next(&tgm->throttled_reqs[direction]);
 }
 
 /* Look for the next pending I/O request and schedule it.
@@ -378,12 +374,8 @@ void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm
     /* Wait if there's a timer set or queued requests of this type */
     if (must_wait || tgm->pending_reqs[direction]) {
         tgm->pending_reqs[direction]++;
-        qemu_mutex_unlock(&tg->lock);
-        qemu_co_mutex_lock(&tgm->throttled_reqs_lock);
         qemu_co_queue_wait(&tgm->throttled_reqs[direction],
-                           &tgm->throttled_reqs_lock);
-        qemu_co_mutex_unlock(&tgm->throttled_reqs_lock);
-        qemu_mutex_lock(&tg->lock);
+                           &tg->lock);
         tgm->pending_reqs[direction]--;
     }
 
@@ -410,15 +402,15 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
     ThrottleDirection direction = data->direction;
     bool empty_queue;
 
+    qemu_mutex_lock(&tg->lock);
     empty_queue = !throttle_group_co_restart_queue(tgm, direction);
 
     /* If the request queue was empty then we have to take care of
      * scheduling the next one */
     if (empty_queue) {
-        qemu_mutex_lock(&tg->lock);
         schedule_next_request(tgm, direction);
-        qemu_mutex_unlock(&tg->lock);
     }
+    qemu_mutex_unlock(&tg->lock);
 
     g_free(data);
 
@@ -569,7 +561,6 @@ void throttle_group_register_tgm(ThrottleGroupMember *tgm,
                          read_timer_cb,
                          write_timer_cb,
                          tgm);
-    qemu_co_mutex_init(&tgm->throttled_reqs_lock);
 }
 
 /* Unregister a ThrottleGroupMember from its group, removing it from the list,
