@@ -1008,7 +1008,7 @@ _require_disk_usage()
     else
         FILENAME="$TEST_IMG_FILE"
     fi
-    if [ -e "FILENAME" ]; then
+    if [ -e "$FILENAME" ]; then
         echo "unwilling to overwrite existing file"
         exit 1
     fi
