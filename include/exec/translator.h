@@ -188,7 +188,8 @@ uint32_t translator_ldl_end(CPUArchState *env, DisasContextBase *db,
 uint64_t translator_ldq_end(CPUArchState *env, DisasContextBase *db,
                             vaddr pc, MemOp endian);
 
-#ifdef COMPILING_PER_TARGET
+#if !defined(TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API) \
+    && defined(COMPILING_PER_TARGET)
 static inline uint16_t
 translator_lduw(CPUArchState *env, DisasContextBase *db, vaddr pc)
 {
@@ -227,7 +228,7 @@ translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
 {
     return translator_ldq_end(env, db, pc, MO_TE ^ (do_swap * MO_BSWAP));
 }
-#endif /* COMPILING_PER_TARGET */
+#endif /* !TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API && COMPILING_PER_TARGET */
 
 /**
  * translator_fake_ld - fake instruction load
