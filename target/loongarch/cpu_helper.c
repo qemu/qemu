@@ -147,6 +147,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
 {
     CPUState *cs = env_cpu(env);
     hwaddr index = 0, phys = 0;
+    uint64_t palen_mask = loongarch_palen_mask(env);
     uint64_t dir_base, dir_width;
     uint64_t base, pte;
     int level;
@@ -154,13 +155,14 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
     TLBRet ret;
     MemTxResult ret1;
 
+
     address = context->addr;
     if ((address >> 63) & 0x1) {
         base = env->CSR_PGDH;
     } else {
         base = env->CSR_PGDL;
     }
-    base &= TARGET_PHYS_MASK;
+    base &= palen_mask;
 
     for (level = 4; level >= 0; level--) {
         get_dir_base_width(env, &dir_base, &dir_width, level);
@@ -181,7 +183,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
                 break;
             } else {
                 /* Discard high bits with page directory table */
-                base &= TARGET_PHYS_MASK;
+                base &= palen_mask;
             }
         }
     }
@@ -315,7 +317,7 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     /* Check PG and DA */
     address = context->addr;
     if (da & !pg) {
-        context->physical = address & TARGET_PHYS_MASK;
+        context->physical = address & loongarch_palen_mask(env);
         context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         context->mmu_index = MMU_DA_IDX;
         return TLBRET_MATCH;
@@ -363,4 +365,11 @@ hwaddr loongarch_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
         return -1;
     }
     return context.physical;
+}
+
+uint64_t loongarch_palen_mask(CPULoongArchState *env)
+{
+    /* PALEN stores physical address bits - 1 */
+    uint64_t phys_bits = FIELD_EX32(env->cpucfg[1], CPUCFG1, PALEN) + 1;
+    return MAKE_64BIT_MASK(0, phys_bits);
 }
