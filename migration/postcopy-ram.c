@@ -1467,7 +1467,8 @@ retry:
 static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
 {
     PostcopyTmpPage *tmp_page;
-    int err, i, channels;
+    int err;
+    unsigned i, channels;
     void *temp_page;
 
     if (migrate_postcopy_preempt()) {
@@ -1479,7 +1480,7 @@ static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
     }
 
     channels = mis->postcopy_channels;
-    mis->postcopy_tmp_pages = g_malloc0_n(sizeof(PostcopyTmpPage), channels);
+    mis->postcopy_tmp_pages = g_new0(PostcopyTmpPage, channels);
 
     for (i = 0; i < channels; i++) {
         tmp_page = &mis->postcopy_tmp_pages[i];

@@ -141,6 +141,12 @@ QEMU_EXTERN_C int daemon(int, int);
 #undef ELF_DATA
 #undef ELF_ARCH
 
+/*
+ * Avoid conflict with Solaris FSCALE definition from <sys/param.h> header,
+ * but we might as well do this unconditionally.
+ */
+#undef FSCALE
+
 #ifdef CONFIG_IOVEC
 #include <sys/uio.h>
 #endif

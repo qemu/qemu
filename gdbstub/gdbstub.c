@@ -362,7 +362,7 @@ static const char *get_feature_xml(const char *p, const char **newp,
      * qXfer:features:read:ANNEX:OFFSET,LENGTH'
      *                     ^p    ^newp
      */
-    char *term = strchr(p, ':');
+    const char *term = strchr(p, ':');
     *newp = term + 1;
     len = term - p;
 
