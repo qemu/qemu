@@ -1826,7 +1826,7 @@ cluster_was_modified(BDRVVVFATState *s, uint32_t cluster_num)
 
 static const char* get_basename(const char* path)
 {
-    char* basename = strrchr(path, '/');
+    const char *basename = strrchr(path, '/');
     if (basename == NULL)
         return path;
     else
