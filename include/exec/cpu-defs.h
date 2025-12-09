@@ -28,9 +28,6 @@
 #ifndef TARGET_LONG_BITS
 # error TARGET_LONG_BITS must be defined in cpu-param.h
 #endif
-#ifndef TARGET_PHYS_ADDR_SPACE_BITS
-# error TARGET_PHYS_ADDR_SPACE_BITS must be defined in cpu-param.h
-#endif
 #ifndef TARGET_VIRT_ADDR_SPACE_BITS
 # error TARGET_VIRT_ADDR_SPACE_BITS must be defined in cpu-param.h
 #endif

@@ -10,12 +10,6 @@
 
 #ifdef TARGET_PPC64
 /*
- * Note that the official physical address space bits is 62-M where M
- * is implementation dependent.  I've not looked up M for the set of
- * cpus we emulate at the system level.
- */
-#define TARGET_PHYS_ADDR_SPACE_BITS 62
-/*
  * Note that the PPC environment architecture talks about 80 bit virtual
  * addresses, with segmentation.  Obviously that's not all visible to a
  * single process, which is all we're concerned with here.
@@ -26,7 +20,6 @@
 #  define TARGET_VIRT_ADDR_SPACE_BITS 64
 # endif
 #else
-# define TARGET_PHYS_ADDR_SPACE_BITS 36
 # define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
