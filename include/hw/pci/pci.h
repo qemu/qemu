@@ -751,7 +751,7 @@ int pci_iommu_register_iotlb_notifier(PCIDevice *dev, uint32_t pasid,
 
 /**
  * pci_iommu_unregister_iotlb_notifier: unregister a notifier that has been
- * registerd with pci_iommu_register_iotlb_notifier.
+ * registered with pci_iommu_register_iotlb_notifier.
  *
  * Returns 0 on success, or a negative errno otherwise.
  *
