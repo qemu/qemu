@@ -986,7 +986,7 @@ static void virtio_net_set_features(VirtIODevice *vdev,
         virtio_has_feature_ex(vdev->guest_features_ex,
                               VIRTIO_NET_F_CTRL_VLAN)) {
         bool vlan = virtio_has_feature_ex(features, VIRTIO_NET_F_CTRL_VLAN);
-        memset(n->vlans, vlan ? 0 : 0xff, sizeof(n->vlans));
+        memset(n->vlans, vlan ? 0 : 0xff, MAX_VLAN >> 3);
     }
 
     if (virtio_has_feature_ex(features, VIRTIO_NET_F_STANDBY)) {
@@ -3598,8 +3598,7 @@ static const VMStateDescription vmstate_virtio_net_device = {
          * buffer; hold onto your endiannesses; it's actually used as a bitmap
          * but based on the uint.
          */
-        VMSTATE_BUFFER_UNSAFE(vlans, VirtIONet, 0,
-                              sizeof(typeof_field(VirtIONet, vlans))),
+        VMSTATE_BUFFER_POINTER_UNSAFE(vlans, VirtIONet, 0, MAX_VLAN >> 3),
         VMSTATE_WITH_TMP(VirtIONet, struct VirtIONetMigTmp,
                          vmstate_virtio_net_has_vnet),
         VMSTATE_UINT8(mac_table.multi_overflow, VirtIONet),
@@ -4017,7 +4016,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     n->mac_table.macs = g_malloc0(MAC_TABLE_ENTRIES * ETH_ALEN);
 
-    memset(n->vlans, 0xff, sizeof(n->vlans));
+    n->vlans = g_malloc0(MAX_VLAN >> 3);
+    memset(n->vlans, 0xff, MAX_VLAN >> 3);
 
     nc = qemu_get_queue(n->nic);
     nc->rxfilter_notify_enabled = 1;
@@ -4066,6 +4066,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     n->netclient_type = NULL;
 
     g_free(n->mac_table.macs);
+    g_free(n->vlans);
 
     if (n->failover) {
         qobject_unref(n->primary_opts);
