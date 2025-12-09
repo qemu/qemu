@@ -9941,12 +9941,9 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * accel-specific code in cpu_exec_realizefn.
      */
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-        if (cpu->phys_bits &&
-            (cpu->phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
-            cpu->phys_bits < 32)) {
-            error_setg(errp, "phys-bits should be between 32 and %u "
-                             " (but is %u)",
-                             TARGET_PHYS_ADDR_SPACE_BITS, cpu->phys_bits);
+        if (cpu->phys_bits && cpu->phys_bits < 32) {
+            error_setg(errp, "phys-bits should be at least 32"
+                             " (but is %u)", cpu->phys_bits);
             return;
         }
         /*
