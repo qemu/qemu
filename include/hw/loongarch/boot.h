@@ -113,6 +113,7 @@ struct memmap_entry {
     uint32_t reserved;
 };
 
-void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info);
+void loongarch_load_kernel(MachineState *ms, struct loongarch_boot_info *info,
+                           uint64_t phys_addr_mask);
 
 #endif /* HW_LOONGARCH_BOOT_H */
