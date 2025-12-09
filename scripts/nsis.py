@@ -114,7 +114,7 @@ def main():
             "-DSRCDIR=" + args.srcdir,
             "-DBINDIR=" + destdir + prefix,
         ]
-        if args.cpu == "x86_64":
+        if args.cpu == "aarch64" or args.cpu == "x86_64":
             makensis += ["-DW64"]
         makensis += ["-DDLLDIR=" + dlldir]
 
