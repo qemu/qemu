@@ -1698,9 +1698,9 @@ static const X86OpEntry opcodes_root[256] = {
     [0xD1] = X86_OP_GROUP1(group2, E,v),
     [0xD2] = X86_OP_GROUP2(group2, E,b, 1,b), /* CL */
     [0xD3] = X86_OP_GROUP2(group2, E,v, 1,b), /* CL */
-    [0xD4] = X86_OP_ENTRY2(AAM, 0,w, I,b),
-    [0xD5] = X86_OP_ENTRY2(AAD, 0,w, I,b),
-    [0xD6] = X86_OP_ENTRYw(SALC, 0,b),
+    [0xD4] = X86_OP_ENTRY2(AAM, 0,w, I,b, chk(i64)),
+    [0xD5] = X86_OP_ENTRY2(AAD, 0,w, I,b, chk(i64)),
+    [0xD6] = X86_OP_ENTRYw(SALC, 0,b, chk(i64)),
     [0xD7] = X86_OP_ENTRY1(XLAT, 0,b, zextT0), /* AL read/written */
 
     [0xE0] = X86_OP_ENTRYr(LOOPNE, J,b), /* implicit: CX with aflag size */
@@ -1834,7 +1834,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0xCB] = X86_OP_ENTRY0(RETF),
     [0xCC] = X86_OP_ENTRY0(INT3),
     [0xCD] = X86_OP_ENTRYr(INT, I,b,  chk(vm86_iopl)),
-    [0xCE] = X86_OP_ENTRY0(INTO),
+    [0xCE] = X86_OP_ENTRY0(INTO, chk(i64)),
     [0xCF] = X86_OP_ENTRY0(IRET,      chk(vm86_iopl) svm(IRET)),
 
     /*
