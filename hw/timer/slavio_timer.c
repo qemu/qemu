@@ -329,7 +329,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_timer_mem_ops = {
     .read = slavio_timer_mem_readl,
     .write = slavio_timer_mem_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
