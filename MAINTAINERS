@@ -3118,6 +3118,8 @@ T: git https://gitlab.com/vsementsov/qemu.git block
 CheckPoint and Restart (CPR)
 R: Peter Xu <peterx@redhat.com>
 R: Fabiano Rosas <farosas@suse.de>
+R: Mark Kanda <mark.kanda@oracle.com>
+R: Ben Chaney <bchaney@akamai.com>
 S: Supported
 F: hw/vfio/cpr*
 F: include/hw/vfio/vfio-cpr.h
