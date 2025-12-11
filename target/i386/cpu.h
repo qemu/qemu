@@ -1664,12 +1664,15 @@ typedef struct {
     uint64_t mask;
 } MTRRVar;
 
+#define CPU_NB_EREGS64 32
 #define CPU_NB_REGS64 16
 #define CPU_NB_REGS32 8
 
 #ifdef TARGET_X86_64
+#define CPU_NB_EREGS CPU_NB_EREGS64
 #define CPU_NB_REGS CPU_NB_REGS64
 #else
+#define CPU_NB_EREGS CPU_NB_REGS32
 #define CPU_NB_REGS CPU_NB_REGS32
 #endif
 
@@ -1901,7 +1904,7 @@ typedef struct CPUCaches {
 
 typedef struct CPUArchState {
     /* standard registers */
-    target_ulong regs[CPU_NB_REGS];
+    target_ulong regs[CPU_NB_EREGS];
     target_ulong eip;
     target_ulong eflags; /* eflags register. During CPU emulation, CC
                         flags and DF are set to zero because they are
@@ -1958,7 +1961,7 @@ typedef struct CPUArchState {
     float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;
     uint32_t mxcsr;
-    ZMMReg xmm_regs[CPU_NB_REGS == 8 ? 8 : 32] QEMU_ALIGNED(16);
+    ZMMReg xmm_regs[CPU_NB_EREGS] QEMU_ALIGNED(16);
     ZMMReg xmm_t0 QEMU_ALIGNED(16);
     MMXReg mmx_t0;
 
