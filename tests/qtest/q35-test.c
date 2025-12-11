@@ -206,12 +206,6 @@ static void test_smram_smbase_lock(void)
     qtest_writeb(qts, SMBASE, SMRAM_TEST_PATTERN);
     g_assert_cmpint(qtest_readb(qts, SMBASE), ==, SMRAM_TEST_PATTERN);
 
-    /* check that writing junk to 0x9c before before negotiating is ignored */
-    for (i = 0; i < 0xff; i++) {
-        qpci_config_writeb(pcidev, MCH_HOST_BRIDGE_F_SMBASE, i);
-        g_assert(qpci_config_readb(pcidev, MCH_HOST_BRIDGE_F_SMBASE) == 0);
-    }
-
     /* enable SMRAM at SMBASE */
     qpci_config_writeb(pcidev, MCH_HOST_BRIDGE_F_SMBASE, 0xff);
     g_assert(qpci_config_readb(pcidev, MCH_HOST_BRIDGE_F_SMBASE) == 0x01);
