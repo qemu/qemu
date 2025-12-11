@@ -2111,6 +2111,12 @@ ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT] = {
             { FEAT_7_0_EDX,         CPUID_7_0_EDX_AMX_TILE },
         },
     },
+    [XSTATE_APX_BIT] = {
+        .size = sizeof(XSaveAPX),
+        .features = {
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_APXF },
+        },
+    },
 };
 
 uint32_t xsave_area_size(uint64_t mask, bool compacted)
@@ -9114,6 +9120,25 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
     if (!kvm_enabled() || !cpu->expose_kvm) {
         env->features[FEAT_KVM] = 0;
+    }
+
+    /*
+     * Since Intel MPX had been previously deprecated, APX re-purposes the
+     * 128-byte XSAVE area that had been previously allocated by MPX (state
+     * component indices 3 and 4, making up a 128-byte area located at an
+     * offset of 960 bytes into an un-compacted XSAVE buffer), as a single
+     * state component housing 128-bytes of storage for EGPRs (8-bytes * 16
+     * registers).
+     *
+     * Check the conflict between MPX and APX before initializing xsave
+     * components.
+     */
+    if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX) &&
+        (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF)) {
+        mark_unavailable_features(cpu, FEAT_7_0_EBX, CPUID_7_0_EBX_MPX,
+            "this feature is conflict with APX");
+        mark_unavailable_features(cpu, FEAT_7_1_EDX, CPUID_7_1_EDX_APXF,
+            "this feature is conflict with MPX");
     }
 
     x86_cpu_enable_xsave_components(cpu);
