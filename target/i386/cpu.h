@@ -554,6 +554,9 @@ typedef enum X86Seg {
 #define MSR_IA32_FRED_SSP3              0x000001d3       /* Stack level 3 shadow stack pointer in ring 0 */
 #define MSR_IA32_FRED_CONFIG            0x000001d4       /* FRED Entrypoint and interrupt stack level */
 
+/* FRED and CET MSR */
+#define MSR_IA32_PL0_SSP                0x000006a4       /* ring-0 shadow stack pointer (aka MSR_IA32_FRED_SSP0 for FRED) */
+
 #define MSR_IA32_BNDCFGS                0x00000d90
 #define MSR_IA32_XSS                    0x00000da0
 #define MSR_IA32_UMWAIT_CONTROL         0xe1
@@ -1969,6 +1972,9 @@ typedef struct CPUArchState {
     uint64_t fred_ssp3;
     uint64_t fred_config;
 #endif
+
+    /* MSR used for both FRED and CET (SHSTK) */
+    uint64_t pl0_ssp;
 
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;
