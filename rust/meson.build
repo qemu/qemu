@@ -1,3 +1,9 @@
+if not have_system
+  subdir_done()
+else
+  message('Rust enabled but it is only used by system emulators.')
+endif
+
 subproject('anyhow-1-rs', required: true)
 subproject('bilge-0.2-rs', required: true)
 subproject('bilge-impl-0.2-rs', required: true)
@@ -30,6 +36,7 @@ subdir('qemu-macros')
 
 subdir('common')
 subdir('bits')
+
 subdir('util')
 subdir('bql')
 subdir('migration')
