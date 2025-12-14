@@ -146,7 +146,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
                      int access_type, int mmu_idx, int debug)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong index = 0, phys = 0;
+    hwaddr index = 0, phys = 0;
     uint64_t dir_base, dir_width;
     uint64_t base, pte;
     int level;
