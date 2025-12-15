@@ -786,7 +786,7 @@ bool migrate_has_block_bitmap_mapping(void)
 {
     MigrationState *s = migrate_get_current();
 
-    return s->parameters.has_block_bitmap_mapping;
+    return s->has_block_bitmap_mapping;
 }
 
 uint32_t migrate_checkpoint_delay(void)
@@ -1071,7 +1071,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->has_announce_step = true;
     params->announce_step = s->parameters.announce_step;
 
-    if (s->parameters.has_block_bitmap_mapping) {
+    if (s->has_block_bitmap_mapping) {
         params->has_block_bitmap_mapping = true;
         params->block_bitmap_mapping =
             QAPI_CLONE(BitmapMigrationNodeAliasList,
@@ -1559,7 +1559,7 @@ static void migrate_params_apply(MigrationParameters *params)
         qapi_free_BitmapMigrationNodeAliasList(
             s->parameters.block_bitmap_mapping);
 
-        s->parameters.has_block_bitmap_mapping = true;
+        s->has_block_bitmap_mapping = true;
         s->parameters.block_bitmap_mapping =
             QAPI_CLONE(BitmapMigrationNodeAliasList,
                        params->block_bitmap_mapping);

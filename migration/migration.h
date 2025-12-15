@@ -514,6 +514,13 @@ struct MigrationState {
     QemuEvent postcopy_package_loaded_event;
 
     GSource *hup_source;
+
+    /*
+     * The block-bitmap-mapping option is allowed to be an empty list,
+     * therefore we need a way to know whether the user has given
+     * anything as input.
+     */
+    bool has_block_bitmap_mapping;
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
