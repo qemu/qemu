@@ -1312,7 +1312,7 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     return true;
 }
 
-static void migrate_params_test_apply(MigrateSetParameters *params,
+static void migrate_params_test_apply(MigrationParameters *params,
                                       MigrationParameters *dest)
 {
     *dest = migrate_get_current()->parameters;
@@ -1439,7 +1439,7 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     }
 }
 
-static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
+static void migrate_params_apply(MigrationParameters *params, Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
@@ -1575,7 +1575,7 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
 }
 
-void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
+void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
 {
     MigrationParameters tmp;
 
