@@ -71,6 +71,26 @@ mixture of host CPU models between machines, if live migration
 compatibility is required, use the newest CPU model that is compatible
 across all desired hosts.
 
+``DiamondRapids``
+    Intel Xeon Processor.
+
+    Diamond Rapids product has a topology which differs from previous Xeon
+    products. It does not support SMT, but instead features a dual core
+    module (DCM) architecture. It also has core building blocks (CBB - die
+    level in CPU topology). The cache hierarchy is organized as follows:
+    L1 i/d cache is per thread, L2 cache is per DCM, and L3 cache is per
+    CBB. This cache topology can be emulated for DiamondRapids CPU model
+    using the smp-cache configuration as shown below:
+
+    Example:
+
+        ::
+
+            -machine smp-cache.0.cache=l1d,smp-cache.0.topology=thread,\
+                     smp-cache.1.cache=l1i,smp-cache.1.topology=thread,\
+                     smp-cache.2.cache=l2,smp-cache.2.topology=module,\
+                     smp-cache.3.cache=l3,smp-cache.3.topology=die
+
 ``ClearwaterForest``
     Intel Xeon Processor (ClearwaterForest, 2025)
 
