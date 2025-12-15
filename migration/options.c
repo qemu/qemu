@@ -1060,47 +1060,9 @@ static void migrate_mark_all_params_present(MigrationParameters *p)
 
 MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 {
-    MigrationParameters *params;
     MigrationState *s = migrate_get_current();
-
-    /* TODO use QAPI_CLONE() instead of duplicating it inline */
-    params = g_malloc0(sizeof(*params));
-
-    params->throttle_trigger_threshold = s->parameters.throttle_trigger_threshold;
-    params->cpu_throttle_initial = s->parameters.cpu_throttle_initial;
-    params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
-    params->cpu_throttle_tailslow = s->parameters.cpu_throttle_tailslow;
-    params->tls_creds = QAPI_CLONE(StrOrNull, s->parameters.tls_creds);
-    params->tls_hostname = QAPI_CLONE(StrOrNull, s->parameters.tls_hostname);
-    params->tls_authz = QAPI_CLONE(StrOrNull, s->parameters.tls_authz);
-    params->max_bandwidth = s->parameters.max_bandwidth;
-    params->avail_switchover_bandwidth = s->parameters.avail_switchover_bandwidth;
-    params->downtime_limit = s->parameters.downtime_limit;
-    params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
-    params->multifd_channels = s->parameters.multifd_channels;
-    params->multifd_compression = s->parameters.multifd_compression;
-    params->multifd_zlib_level = s->parameters.multifd_zlib_level;
-    params->multifd_qatzip_level = s->parameters.multifd_qatzip_level;
-    params->multifd_zstd_level = s->parameters.multifd_zstd_level;
-    params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
-    params->max_postcopy_bandwidth = s->parameters.max_postcopy_bandwidth;
-    params->max_cpu_throttle = s->parameters.max_cpu_throttle;
-    params->announce_initial = s->parameters.announce_initial;
-    params->announce_max = s->parameters.announce_max;
-    params->announce_rounds = s->parameters.announce_rounds;
-    params->announce_step = s->parameters.announce_step;
-    params->x_vcpu_dirty_limit_period = s->parameters.x_vcpu_dirty_limit_period;
-    params->vcpu_dirty_limit = s->parameters.vcpu_dirty_limit;
-    params->mode = s->parameters.mode;
-    params->zero_page_detection = s->parameters.zero_page_detection;
-    params->direct_io = s->parameters.direct_io;
-    params->cpr_exec_command = QAPI_CLONE(strList,
-                                          s->parameters.cpr_exec_command);
-    params->block_bitmap_mapping =
-        QAPI_CLONE(BitmapMigrationNodeAliasList,
-                   s->parameters.block_bitmap_mapping);
-
-    migrate_mark_all_params_present(params);
+    MigrationParameters *params = QAPI_CLONE(MigrationParameters,
+                                             &s->parameters);
 
     /*
      * The block-bitmap-mapping breaks the expected API of
@@ -1118,6 +1080,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 
 void migrate_params_init(MigrationParameters *params)
 {
+    migrate_mark_all_params_present(params);
 }
 
 static void migrate_post_update_params(MigrationParameters *new, Error **errp)
