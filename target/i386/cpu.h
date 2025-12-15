@@ -711,6 +711,7 @@ typedef enum FeatureWord {
     FEAT_7_2_EDX,       /* CPUID[EAX=7,ECX=2].EDX */
     FEAT_24_0_EBX,      /* CPUID[EAX=0x24,ECX=0].EBX */
     FEAT_29_0_EBX,      /* CPUID[EAX=0x29,ECX=0].EBX */
+    FEAT_1E_1_EAX,      /* CPUID[EAX=0x1E,ECX=1].EAX */
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -1083,6 +1084,23 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 
 /* Packets which contain IP payload have LIP values */
 #define CPUID_14_0_ECX_LIP              (1U << 31)
+
+/* AMX_INT8 instruction (mirror of CPUID_7_0_EDX_AMX_INT8) */
+#define CPUID_1E_1_EAX_AMX_INT8_MIRROR      (1U << 0)
+/* AMX_BF16 instruction (mirror of CPUID_7_0_EDX_AMX_BF16) */
+#define CPUID_1E_1_EAX_AMX_BF16_MIRROR      (1U << 1)
+/* AMX_COMPLEX instruction (mirror of CPUID_7_1_EDX_AMX_COMPLEX) */
+#define CPUID_1E_1_EAX_AMX_COMPLEX_MIRROR   (1U << 2)
+/* AMX_FP16 instruction (mirror of CPUID_7_1_EAX_AMX_FP16) */
+#define CPUID_1E_1_EAX_AMX_FP16_MIRROR      (1U << 3)
+/* AMX_FP8 instruction */
+#define CPUID_1E_1_EAX_AMX_FP8              (1U << 4)
+/* AMX_TF32 instruction */
+#define CPUID_1E_1_EAX_AMX_TF32             (1U << 6)
+/* AMX_AVX512 instruction */
+#define CPUID_1E_1_EAX_AMX_AVX512           (1U << 7)
+/* AMX_MOVRS instruction */
+#define CPUID_1E_1_EAX_AMX_MOVRS            (1U << 8)
 
 /* AVX10 128-bit vector support is present */
 #define CPUID_24_0_EBX_AVX10_128        (1U << 16)
