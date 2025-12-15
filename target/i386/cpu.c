@@ -7757,6 +7757,13 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 
 #endif /* !CONFIG_USER_ONLY */
 
+static uint8_t x86_cpu_get_host_avx10_version(void)
+{
+    uint32_t eax, ebx, ecx, edx;
+    x86_cpu_get_supported_cpuid(0x24, 0, &eax, &ebx, &ecx, &edx);
+    return ebx & 0xff;
+}
+
 uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
@@ -9255,11 +9262,10 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
 
         if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && !env->avx10_version) {
-            uint32_t eax, ebx, ecx, edx;
-            x86_cpu_get_supported_cpuid(0x24, 0, &eax, &ebx, &ecx, &edx);
+            uint8_t version = x86_cpu_get_host_avx10_version();
 
             if (!object_property_set_uint(OBJECT(cpu), "avx10-version",
-                                          ebx & 0xff, errp)) {
+                                          version, errp)) {
                 return;
             }
         }
@@ -9481,9 +9487,7 @@ static bool x86_cpu_filter_features(X86CPU *cpu, bool verbose)
     have_filtered_features = x86_cpu_have_filtered_features(cpu);
 
     if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) {
-        x86_cpu_get_supported_cpuid(0x24, 0,
-                                    &eax_0, &ebx_0, &ecx_0, &edx_0);
-        uint8_t version = ebx_0 & 0xff;
+        uint8_t version = x86_cpu_get_host_avx10_version();
 
         if (version < env->avx10_version) {
             if (prefix) {
