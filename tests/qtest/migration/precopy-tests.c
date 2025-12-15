@@ -642,7 +642,8 @@ static void test_multifd_postcopy_tcp_cancel(char *name, MigrateCommon *args)
 }
 
 static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
-                                         const char *uri, const char *phase)
+                                         const char *uri, const char *phase,
+                                         MigrateStart *args)
 {
     /*
      * No migrate_incoming_qmp() at the start to force source into
@@ -669,7 +670,8 @@ static void test_cancel_src_after_failed(QTestState *from, QTestState *to,
 }
 
 static void test_cancel_src_after_cancelled(QTestState *from, QTestState *to,
-                                            const char *uri, const char *phase)
+                                            const char *uri, const char *phase,
+                                            MigrateStart *args)
 {
     migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
 
@@ -693,7 +695,8 @@ static void test_cancel_src_after_cancelled(QTestState *from, QTestState *to,
 }
 
 static void test_cancel_src_after_complete(QTestState *from, QTestState *to,
-                                           const char *uri, const char *phase)
+                                           const char *uri, const char *phase,
+                                           MigrateStart *args)
 {
     migrate_incoming_qmp(to, uri, NULL, "{ 'exit-on-error': false }");
 
@@ -714,7 +717,8 @@ static void test_cancel_src_after_complete(QTestState *from, QTestState *to,
 }
 
 static void test_cancel_src_after_none(QTestState *from, QTestState *to,
-                                       const char *uri, const char *phase)
+                                       const char *uri, const char *phase,
+                                       MigrateStart *args)
 {
     /*
      * Test that cancelling without a migration happening does not
@@ -735,7 +739,8 @@ static void test_cancel_src_after_none(QTestState *from, QTestState *to,
 }
 
 static void test_cancel_src_pre_switchover(QTestState *from, QTestState *to,
-                                           const char *uri, const char *phase)
+                                           const char *uri, const char *phase,
+                                           MigrateStart *args)
 {
     migrate_set_capability(from, "pause-before-switchover", true);
     migrate_set_capability(to, "pause-before-switchover", true);
@@ -775,20 +780,20 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
 
     if (g_str_equal(phase, "cancelling") ||
         g_str_equal(phase, "cancelled")) {
-        test_cancel_src_after_cancelled(from, to, uri, phase);
+        test_cancel_src_after_cancelled(from, to, uri, phase, &args->start);
 
     } else if (g_str_equal(phase, "completed")) {
-        test_cancel_src_after_complete(from, to, uri, phase);
+        test_cancel_src_after_complete(from, to, uri, phase, &args->start);
 
     } else if (g_str_equal(phase, "failed")) {
-        test_cancel_src_after_failed(from, to, uri, phase);
+        test_cancel_src_after_failed(from, to, uri, phase, &args->start);
 
     } else if (g_str_equal(phase, "none")) {
-        test_cancel_src_after_none(from, to, uri, phase);
+        test_cancel_src_after_none(from, to, uri, phase, &args->start);
 
     } else {
         /* any state that comes before pre-switchover */
-        test_cancel_src_pre_switchover(from, to, uri, phase);
+        test_cancel_src_pre_switchover(from, to, uri, phase, &args->start);
     }
 
     migrate_end(from, to, false);
