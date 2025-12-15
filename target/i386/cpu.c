@@ -1266,7 +1266,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, "fred", "lkgs", "wrmsrns",
             NULL, "amx-fp16", NULL, "avx-ifma",
             NULL, NULL, "lam", NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, "movrs",
         },
         .cpuid = {
             .eax = 7,
