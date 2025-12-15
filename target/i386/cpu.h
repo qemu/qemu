@@ -2211,6 +2211,8 @@ typedef struct CPUArchState {
     FeatureWordArray features;
     /* AVX10 version */
     uint8_t avx10_version;
+    /* AVX10 (CPUID 0x24) maximum supported sub-leaf. */
+    uint8_t avx10_max_subleaf;
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
     uint32_t cpuid_model[12];

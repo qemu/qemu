@@ -2382,6 +2382,40 @@ x86_cpu_def_get_versions(const X86CPUDefinition *def)
     return def->versions ?: default_version_list;
 }
 
+/* CPUID 0x24.0x0 (EAX, EBX, ECX, EDX) and 0x24.0x1 (EAX, EBX, ECX, EDX) */
+#define AVX10_FEATURE_WORDS 8
+
+typedef struct AVX10VersionDefinition {
+    const char *name;
+    /* AVX10 version */
+    uint8_t version;
+    /* AVX10 (CPUID 0x24) maximum supported sub-leaf. */
+    uint8_t max_subleaf;
+    FeatureMask *features;
+} AVX10VersionDefinition;
+
+static const AVX10VersionDefinition builtin_avx10_defs[] = {
+    {
+        .name = "avx10.1",
+        .version = 1,
+        .max_subleaf = 0,
+        .features = (FeatureMask[]) {
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_AVX10 },
+            { FEAT_24_0_EBX,        CPUID_24_0_EBX_AVX10_VL_MASK },
+            { /* end of list */ }
+        }
+    },
+    {
+        .name = "avx10.2",
+        .version = 2,
+        .max_subleaf = 1,
+        .features = (FeatureMask[]) {
+            { FEAT_24_1_ECX,         CPUID_24_1_ECX_AVX10_VNNI_INT },
+            { /* end of list */ }
+        }
+    },
+};
+
 static const CPUCaches epyc_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
@@ -7242,6 +7276,65 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
+static void x86_cpuid_get_avx10_version(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    uint8_t value;
+
+    value = cpu->env.avx10_version;
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static bool x86_cpu_apply_avx10_features(X86CPU *cpu, uint8_t version,
+                                         Error **errp)
+{
+    const AVX10VersionDefinition *def;
+    CPUX86State *env = &cpu->env;
+
+    if (!version) {
+        env->avx10_version = 0;
+        env->avx10_max_subleaf = 0;
+        return true;
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(builtin_avx10_defs); i++) {
+        FeatureMask *f;
+
+        def = &builtin_avx10_defs[i];
+        for (f = def->features; f && f->mask; f++) {
+            env->features[f->index] |= f->mask;
+        }
+
+        if (def->version == version) {
+            env->avx10_version = version;
+            env->avx10_max_subleaf = def->max_subleaf;
+            break;
+        }
+    }
+
+    if (def->version < version) {
+        error_setg(errp, "avx10-version can be at most %d", def->version);
+        return false;
+    }
+    return true;
+}
+
+static void x86_cpuid_set_avx10_version(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    x86_cpu_apply_avx10_features(cpu, value, errp);
+}
+
 /* Generic getter for "feature-words" and "filtered-features" properties */
 static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
@@ -7932,8 +8025,10 @@ static void x86_cpu_load_model(X86CPU *cpu, const X86CPUModel *model)
      */
     object_property_set_str(OBJECT(cpu), "vendor", def->vendor, &error_abort);
 
-    object_property_set_uint(OBJECT(cpu), "avx10-version", def->avx10_version,
-                             &error_abort);
+    if (def->avx10_version) {
+        object_property_set_uint(OBJECT(cpu), "avx10-version",
+                                 def->avx10_version, &error_abort);
+    }
 
     x86_cpu_apply_version_props(cpu, model);
 
@@ -8480,9 +8575,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             break;
         }
         if (count == 0) {
-            uint32_t unused;
-            x86_cpu_get_supported_cpuid(0x1E, 0, eax, &unused,
-                                        &unused, &unused);
+            *eax = env->avx10_max_subleaf;
             *ebx = env->features[FEAT_24_0_EBX] | env->avx10_version;
         } else if (count == 1) {
             *ecx = env->features[FEAT_24_1_ECX];
@@ -9164,7 +9257,11 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && !env->avx10_version) {
             uint32_t eax, ebx, ecx, edx;
             x86_cpu_get_supported_cpuid(0x24, 0, &eax, &ebx, &ecx, &edx);
-            env->avx10_version = ebx & 0xff;
+
+            if (!object_property_set_uint(OBJECT(cpu), "avx10-version",
+                                          ebx & 0xff, errp)) {
+                return;
+            }
         }
     }
 
@@ -9393,6 +9490,11 @@ static bool x86_cpu_filter_features(X86CPU *cpu, bool verbose)
                 warn_report("%s: avx10.%d. Adjust to avx10.%d",
                             prefix, env->avx10_version, version);
             }
+            /*
+             * Discrete feature bits have been checked and filtered based on
+             * host support. So it's safe to change version without reverting
+             * other feature bits.
+             */
             env->avx10_version = version;
             have_filtered_features = true;
         }
@@ -10229,7 +10331,6 @@ static const Property x86_cpu_properties[] = {
     DEFINE_PROP_UINT32("min-level", X86CPU, env.cpuid_min_level, 0),
     DEFINE_PROP_UINT32("min-xlevel", X86CPU, env.cpuid_min_xlevel, 0),
     DEFINE_PROP_UINT32("min-xlevel2", X86CPU, env.cpuid_min_xlevel2, 0),
-    DEFINE_PROP_UINT8("avx10-version", X86CPU, env.avx10_version, 0),
     DEFINE_PROP_UINT64("ucode-rev", X86CPU, ucode_rev, 0),
     DEFINE_PROP_BOOL("full-cpuid-auto-level", X86CPU, full_cpuid_auto_level, true),
     DEFINE_PROP_STRING("hv-vendor-id", X86CPU, hyperv_vendor),
@@ -10370,6 +10471,11 @@ static void x86_cpu_common_class_init(ObjectClass *oc, const void *data)
     object_class_property_add(oc, "unavailable-features", "strList",
                               x86_cpu_get_unavailable_features,
                               NULL, NULL, NULL);
+
+    object_class_property_add(oc, "avx10-version",  "uint8",
+                              x86_cpuid_get_avx10_version,
+                              x86_cpuid_set_avx10_version,
+                              NULL, NULL);
 
 #if !defined(CONFIG_USER_ONLY)
     object_class_property_add(oc, "crash-information", "GuestPanicInformation",
