@@ -59,6 +59,7 @@
         'IscsiTransport',
         'KeyValueKind',
         'MemoryDeviceInfoKind',
+        'MigrationParameter',
         'NetClientDriver',
         'ObjectType',
         'QKeyCode',
