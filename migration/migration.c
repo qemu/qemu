@@ -2118,7 +2118,7 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
     }
 
     if (migrate_mode() == MIG_MODE_CPR_EXEC &&
-        !s->parameters.has_cpr_exec_command) {
+        !s->parameters.cpr_exec_command) {
         error_setg(errp, "cpr-exec mode requires setting cpr-exec-command");
         return false;
     }
