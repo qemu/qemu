@@ -22,14 +22,13 @@
 
 static char *tmpfs;
 
-static void test_baddest(void)
+static void test_baddest(char *name, MigrateCommon *args)
 {
-    MigrateStart args = {
-        .hide_stderr = true
-    };
     QTestState *from, *to;
 
-    if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
+    args->start.hide_stderr = true;
+
+    if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
     }
     migrate_qmp(from, to, "tcp:127.0.0.1:0", NULL, "{}");
@@ -38,16 +37,15 @@ static void test_baddest(void)
 }
 
 #ifndef _WIN32
-static void test_analyze_script(void)
+static void test_analyze_script(char *name, MigrateCommon *args)
 {
-    MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
-    };
     QTestState *from, *to;
     g_autofree char *uri = NULL;
     g_autofree char *file = NULL;
     int pid, wstatus;
     const char *python = g_getenv("PYTHON");
+
+    args->start.opts_source = "-uuid 11111111-1111-1111-1111-111111111111";
 
     if (!python) {
         g_test_skip("PYTHON variable not set");
@@ -55,7 +53,7 @@ static void test_analyze_script(void)
     }
 
     /* dummy url */
-    if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args)) {
+    if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
         return;
     }
 
@@ -92,16 +90,15 @@ static void test_analyze_script(void)
 }
 #endif
 
-static void test_ignore_shared(void)
+static void test_ignore_shared(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
-    MigrateStart args = {
-        .mem_type = MEM_TYPE_SHMEM,
-        .caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true,
-    };
 
-    if (migrate_start(&from, &to, uri, &args)) {
+    args->start.mem_type = MEM_TYPE_SHMEM;
+    args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
+
+    if (migrate_start(&from, &to, uri, &args->start)) {
         return;
     }
 
@@ -161,45 +158,37 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     migrate_end(from, to, false);
 }
 
-static void test_validate_uuid(void)
+static void test_validate_uuid(char *name, MigrateCommon *args)
 {
-    MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
-        .opts_target = "-uuid 11111111-1111-1111-1111-111111111111",
-    };
+    args->start.opts_source = "-uuid 11111111-1111-1111-1111-111111111111";
+    args->start.opts_target = "-uuid 11111111-1111-1111-1111-111111111111";
 
-    do_test_validate_uuid(&args, false);
+    do_test_validate_uuid(&args->start, false);
 }
 
-static void test_validate_uuid_error(void)
+static void test_validate_uuid_error(char *name, MigrateCommon *args)
 {
-    MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
-        .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
-        .hide_stderr = true,
-    };
+    args->start.opts_source = "-uuid 11111111-1111-1111-1111-111111111111";
+    args->start.opts_target = "-uuid 22222222-2222-2222-2222-222222222222";
+    args->start.hide_stderr = true;
 
-    do_test_validate_uuid(&args, true);
+    do_test_validate_uuid(&args->start, true);
 }
 
-static void test_validate_uuid_src_not_set(void)
+static void test_validate_uuid_src_not_set(char *name, MigrateCommon *args)
 {
-    MigrateStart args = {
-        .opts_target = "-uuid 22222222-2222-2222-2222-222222222222",
-        .hide_stderr = true,
-    };
+    args->start.opts_target = "-uuid 22222222-2222-2222-2222-222222222222";
+    args->start.hide_stderr = true;
 
-    do_test_validate_uuid(&args, false);
+    do_test_validate_uuid(&args->start, false);
 }
 
-static void test_validate_uuid_dst_not_set(void)
+static void test_validate_uuid_dst_not_set(char *name, MigrateCommon *args)
 {
-    MigrateStart args = {
-        .opts_source = "-uuid 11111111-1111-1111-1111-111111111111",
-        .hide_stderr = true,
-    };
+    args->start.opts_source = "-uuid 11111111-1111-1111-1111-111111111111";
+    args->start.hide_stderr = true;
 
-    do_test_validate_uuid(&args, false);
+    do_test_validate_uuid(&args->start, false);
 }
 
 static void do_test_validate_uri_channel(MigrateCommon *args)
@@ -226,34 +215,27 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
     migrate_end(from, to, false);
 }
 
-static void test_validate_uri_channels_both_set(void)
+static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .listen_uri = "defer",
-        .connect_uri = "tcp:127.0.0.1:0",
-        .connect_channels = ("[ { ""'channel-type': 'main',"
-                             "    'addr': { 'transport': 'socket',"
-                             "              'type': 'inet',"
-                             "              'host': '127.0.0.1',"
-                             "              'port': '0' } } ]"),
-    };
+    args->listen_uri = "defer",
+    args->connect_uri = "tcp:127.0.0.1:0",
+    args->connect_channels = ("[ { ""'channel-type': 'main',"
+                              "    'addr': { 'transport': 'socket',"
+                              "              'type': 'inet',"
+                              "              'host': '127.0.0.1',"
+                              "              'port': '0' } } ]"),
 
-    do_test_validate_uri_channel(&args);
+    args->start.hide_stderr = true;
+
+    do_test_validate_uri_channel(args);
 }
 
-static void test_validate_uri_channels_none_set(void)
+static void test_validate_uri_channels_none_set(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .listen_uri = "defer",
-    };
+    args->listen_uri = "defer";
+    args->start.hide_stderr = true;
 
-    do_test_validate_uri_channel(&args);
+    do_test_validate_uri_channel(args);
 }
 
 static void migration_test_add_misc_smoke(MigrationTestEnv *env)

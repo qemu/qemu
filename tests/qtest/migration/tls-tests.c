@@ -362,149 +362,128 @@ migrate_hook_end_tls_x509(QTestState *from,
 }
 #endif /* CONFIG_TASN1 */
 
-static void test_postcopy_tls_psk(void)
+static void test_postcopy_tls_psk(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-    };
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_postcopy_common(&args);
+    test_postcopy_common(args);
 }
 
-static void test_postcopy_preempt_tls_psk(void)
+static void test_postcopy_preempt_tls_psk(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
-        },
-    };
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_postcopy_common(&args);
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+
+    test_postcopy_common(args);
 }
 
-static void test_postcopy_recovery_tls_psk(void)
+static void test_postcopy_recovery_tls_psk(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-    };
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_postcopy_recovery_common(&args);
+    test_postcopy_recovery_common(args);
 }
 
-static void test_multifd_postcopy_recovery_tls_psk(void)
+static void test_multifd_postcopy_recovery_tls_psk(char *name,
+                                                   MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-    };
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_postcopy_recovery_common(&args);
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_postcopy_recovery_common(args);
 }
 
 /* This contains preempt+recovery+tls test altogether */
-static void test_postcopy_preempt_all(void)
+static void test_postcopy_preempt_all(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
-        },
-    };
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_postcopy_recovery_common(&args);
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+
+    test_postcopy_recovery_common(args);
 }
 
-static void test_multifd_postcopy_preempt_recovery_tls_psk(void)
+static void test_multifd_postcopy_preempt_recovery_tls_psk(char *name,
+                                                           MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-            .caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true,
-        },
-    };
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_postcopy_recovery_common(&args);
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+
+    test_postcopy_recovery_common(args);
 }
 
-static void test_precopy_unix_tls_psk(void)
+static void test_precopy_unix_tls_psk(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateCommon args = {
-        .connect_uri = uri,
-        .listen_uri = uri,
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-    };
 
-    test_precopy_common(&args);
+    args->connect_uri = uri;
+    args->listen_uri = uri;
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
+
+    test_precopy_common(args);
 }
 
 #ifdef CONFIG_TASN1
-static void test_precopy_unix_tls_x509_default_host(void)
+static void test_precopy_unix_tls_x509_default_host(char *name,
+                                                    MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .connect_uri = uri,
-        .listen_uri = uri,
-        .start_hook = migrate_hook_start_tls_x509_default_host,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
-    };
 
-    test_precopy_common(&args);
+    args->connect_uri = uri;
+    args->listen_uri = uri;
+    args->start_hook = migrate_hook_start_tls_x509_default_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
+
+    args->start.hide_stderr = true;
+
+    test_precopy_common(args);
 }
 
-static void test_precopy_unix_tls_x509_override_host(void)
+static void test_precopy_unix_tls_x509_override_host(char *name,
+                                                     MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    MigrateCommon args = {
-        .connect_uri = uri,
-        .listen_uri = uri,
-        .start_hook = migrate_hook_start_tls_x509_override_host,
-        .end_hook = migrate_hook_end_tls_x509,
-    };
 
-    test_precopy_common(&args);
+    args->connect_uri = uri;
+    args->listen_uri = uri;
+    args->start_hook = migrate_hook_start_tls_x509_override_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+
+    test_precopy_common(args);
 }
 #endif /* CONFIG_TASN1 */
 
-static void test_precopy_tcp_tls_psk_match(void)
+static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_precopy_common(&args);
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_psk_mismatch(void)
+static void test_precopy_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_psk_mismatch,
-        .end_hook = migrate_hook_end_tls_psk,
-        .result = MIG_TEST_FAIL,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_psk_mismatch;
+    args->end_hook = migrate_hook_end_tls_psk;
+    args->result = MIG_TEST_FAIL;
 
-    test_precopy_common(&args);
+    args->start.hide_stderr = true;
+
+    test_precopy_common(args);
 }
 
 static void *migrate_hook_start_no_tls(QTestState *from, QTestState *to)
@@ -518,15 +497,13 @@ static void *migrate_hook_start_no_tls(QTestState *from, QTestState *to)
     return data;
 }
 
-static void test_precopy_tcp_no_tls(void)
+static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_no_tls,
-        .end_hook = migrate_hook_end_tls_psk,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_no_tls;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_precopy_common(&args);
+    test_precopy_common(args);
 }
 
 static void *
@@ -545,107 +522,96 @@ migrate_hook_start_tls_x509_no_host(QTestState *from, QTestState *to)
     return data;
 }
 
-static void test_precopy_tcp_tls_no_hostname(void)
+static void test_precopy_tcp_tls_no_hostname(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_no_host,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
-        .start.hide_stderr = true,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_no_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
-    test_precopy_common(&args);
+    args->start.hide_stderr = true;
+
+    test_precopy_common(args);
 }
 
 #ifdef CONFIG_TASN1
-static void test_precopy_tcp_tls_x509_default_host(void)
+static void test_precopy_tcp_tls_x509_default_host(char *name,
+                                                   MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_default_host,
-        .end_hook = migrate_hook_end_tls_x509,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_default_host;
+    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(&args);
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_x509_override_host(void)
+static void test_precopy_tcp_tls_x509_override_host(char *name,
+                                                    MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_override_host,
-        .end_hook = migrate_hook_end_tls_x509,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_override_host;
+    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(&args);
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_x509_mismatch_host(void)
+static void test_precopy_tcp_tls_x509_mismatch_host(char *name,
+                                                    MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_mismatch_host,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_mismatch_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL_DEST_QUIT_ERR;
 
-    test_precopy_common(&args);
+    args->start.hide_stderr = true;
+
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_x509_friendly_client(void)
+static void test_precopy_tcp_tls_x509_friendly_client(char *name,
+                                                      MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_friendly_client,
-        .end_hook = migrate_hook_end_tls_x509,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_friendly_client;
+    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(&args);
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_x509_hostile_client(void)
+static void test_precopy_tcp_tls_x509_hostile_client(char *name,
+                                                     MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_hostile_client,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_hostile_client;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL;
 
-    test_precopy_common(&args);
+    args->start.hide_stderr = true;
+
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_x509_allow_anon_client(void)
+static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
+                                                        MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_allow_anon_client,
-        .end_hook = migrate_hook_end_tls_x509,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_allow_anon_client;
+    args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(&args);
+    test_precopy_common(args);
 }
 
-static void test_precopy_tcp_tls_x509_reject_anon_client(void)
+static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
+                                                         MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-        },
-        .listen_uri = "tcp:127.0.0.1:0",
-        .start_hook = migrate_hook_start_tls_x509_reject_anon_client,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL,
-    };
+    args->listen_uri = "tcp:127.0.0.1:0";
+    args->start_hook = migrate_hook_start_tls_x509_reject_anon_client;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL;
 
-    test_precopy_common(&args);
+    args->start.hide_stderr = true;
+
+    test_precopy_common(args);
 }
 #endif /* CONFIG_TASN1 */
 
@@ -707,77 +673,70 @@ migrate_hook_start_multifd_tls_x509_reject_anon_client(QTestState *from,
 }
 #endif /* CONFIG_TASN1 */
 
-static void test_multifd_tcp_tls_psk_match(void)
+static void test_multifd_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tcp_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
+
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 
-static void test_multifd_tcp_tls_psk_mismatch(void)
+static void test_multifd_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tcp_tls_psk_mismatch,
-        .end_hook = migrate_hook_end_tls_psk,
-        .result = MIG_TEST_FAIL,
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_mismatch;
+    args->end_hook = migrate_hook_end_tls_psk;
+    args->result = MIG_TEST_FAIL;
+
+    args->start.hide_stderr = true;
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 
-static void test_multifd_postcopy_tcp_tls_psk_match(void)
+static void test_multifd_postcopy_tcp_tls_psk_match(char *name,
+                                                    MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-            .caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true,
-        },
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tcp_tls_psk_match,
-        .end_hook = migrate_hook_end_tls_psk,
-    };
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tcp_tls_psk_match;
+    args->end_hook = migrate_hook_end_tls_psk;
 
-    test_precopy_common(&args);
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
+
+    test_precopy_common(args);
 }
 
 #ifdef CONFIG_TASN1
-static void test_multifd_tcp_tls_x509_default_host(void)
+static void test_multifd_tcp_tls_x509_default_host(char *name,
+                                                   MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tls_x509_default_host,
-        .end_hook = migrate_hook_end_tls_x509,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tls_x509_default_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 
-static void test_multifd_tcp_tls_x509_override_host(void)
+static void test_multifd_tcp_tls_x509_override_host(char *name,
+                                                    MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tls_x509_override_host,
-        .end_hook = migrate_hook_end_tls_x509,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tls_x509_override_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 
-static void test_multifd_tcp_tls_x509_mismatch_host(void)
+static void test_multifd_tcp_tls_x509_mismatch_host(char *name,
+                                                    MigrateCommon *args)
 {
     /*
      * This has different behaviour to the non-multifd case.
@@ -792,45 +751,41 @@ static void test_multifd_tcp_tls_x509_mismatch_host(void)
      * to load migration state, and thus just aborts the migration
      * without exiting.
      */
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tls_x509_mismatch_host,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL,
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tls_x509_mismatch_host;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL;
+
+    args->start.hide_stderr = true;
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 
-static void test_multifd_tcp_tls_x509_allow_anon_client(void)
+static void test_multifd_tcp_tls_x509_allow_anon_client(char *name,
+                                                        MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tls_x509_allow_anon_client,
-        .end_hook = migrate_hook_end_tls_x509,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tls_x509_allow_anon_client;
+    args->end_hook = migrate_hook_end_tls_x509;
+
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 
-static void test_multifd_tcp_tls_x509_reject_anon_client(void)
+static void test_multifd_tcp_tls_x509_reject_anon_client(char *name,
+                                                         MigrateCommon *args)
 {
-    MigrateCommon args = {
-        .start = {
-            .hide_stderr = true,
-            .caps[MIGRATION_CAPABILITY_MULTIFD] = true,
-        },
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_multifd_tls_x509_reject_anon_client,
-        .end_hook = migrate_hook_end_tls_x509,
-        .result = MIG_TEST_FAIL,
-    };
-    test_precopy_common(&args);
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_multifd_tls_x509_reject_anon_client;
+    args->end_hook = migrate_hook_end_tls_x509;
+    args->result = MIG_TEST_FAIL;
+
+    args->start.hide_stderr = true;
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+
+    test_precopy_common(args);
 }
 #endif /* CONFIG_TASN1 */
 

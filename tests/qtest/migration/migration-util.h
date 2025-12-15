@@ -15,6 +15,8 @@
 
 #include "libqtest.h"
 
+#include "migration/framework.h"
+
 typedef struct QTestMigrationState {
     bool stop_seen;
     bool resume_seen;
@@ -50,9 +52,11 @@ static inline bool probe_o_direct_support(const char *tmpfs)
 
 bool ufd_version_check(bool *uffd_feature_thread_id);
 bool kvm_dirty_ring_supported(void);
-void migration_test_add(const char *path, void (*fn)(void));
+
+void migration_test_add(const char *path,
+                        void (*fn)(char *name, MigrateCommon *args));
 void migration_test_add_suffix(const char *path, const char *suffix,
-                               void (*fn)(void *));
+                               void (*fn)(char *name, MigrateCommon *args));
 char *migrate_get_connect_uri(QTestState *who);
 void migrate_set_ports(QTestState *to, QList *channel_list);
 

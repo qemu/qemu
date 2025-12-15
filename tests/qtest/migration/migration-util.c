@@ -235,14 +235,15 @@ char *resolve_machine_version(const char *alias, const char *var1,
 
 typedef struct {
     char *name;
-    void (*func)(void);
-    void (*func_full)(void *);
+    MigrateCommon *data;
+    void (*func)(char *name, MigrateCommon *args);
 } MigrationTest;
 
 static void migration_test_destroy(gpointer data)
 {
     MigrationTest *test = (MigrationTest *)data;
 
+    g_free(test->data);
     g_free(test->name);
     g_free(test);
 }
@@ -251,11 +252,14 @@ static void migration_test_wrapper(const void *data)
 {
     MigrationTest *test = (MigrationTest *)data;
 
+    test->data = g_new0(MigrateCommon, 1);
+
     g_test_message("Running /%s%s", qtest_get_arch(), test->name);
-    test->func();
+    test->func(test->name, test->data);
 }
 
-void migration_test_add(const char *path, void (*fn)(void))
+void migration_test_add(const char *path,
+                        void (*fn)(char *name, MigrateCommon *args))
 {
     MigrationTest *test = g_new0(MigrationTest, 1);
 
@@ -266,26 +270,18 @@ void migration_test_add(const char *path, void (*fn)(void))
                              migration_test_destroy);
 }
 
-static void migration_test_wrapper_full(const void *data)
-{
-    MigrationTest *test = (MigrationTest *)data;
-
-    g_test_message("Running /%s%s", qtest_get_arch(), test->name);
-    test->func_full(test->name);
-}
-
 void migration_test_add_suffix(const char *path, const char *suffix,
-                               void (*fn)(void *))
+                               void (*fn)(char *name, MigrateCommon *args))
 {
     MigrationTest *test = g_new0(MigrationTest, 1);
 
     g_assert(g_str_has_suffix(path, "/"));
     g_assert(!g_str_has_prefix(suffix, "/"));
 
-    test->func_full = fn;
+    test->func = fn;
     test->name = g_strconcat(path, suffix, NULL);
 
-    qtest_add_data_func_full(test->name, test, migration_test_wrapper_full,
+    qtest_add_data_func_full(test->name, test, migration_test_wrapper,
                              migration_test_destroy);
 }
 
