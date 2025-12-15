@@ -9490,16 +9490,27 @@ static bool x86_cpu_filter_features(X86CPU *cpu, bool verbose)
         uint8_t version = x86_cpu_get_host_avx10_version();
 
         if (version < env->avx10_version) {
-            if (prefix) {
-                warn_report("%s: avx10.%d. Adjust to avx10.%d",
-                            prefix, env->avx10_version, version);
-            }
             /*
-             * Discrete feature bits have been checked and filtered based on
-             * host support. So it's safe to change version without reverting
-             * other feature bits.
+             * With x-force-features=on, CPUID_7_1_EDX_AVX10 will not be masked
+             * off, so there's no need to zero avx10 version.
              */
-            env->avx10_version = version;
+            if (!cpu->force_features) {
+                if (prefix) {
+                    warn_report("%s: avx10.%d. Adjust to avx10.%d",
+                                prefix, env->avx10_version, version);
+                }
+                /*
+                 * Discrete feature bits have been checked and filtered based
+                 * on host support. So it's safe to change version without
+                 * reverting other feature bits.
+                 */
+                env->avx10_version = version;
+            } else {
+                if (prefix) {
+                    warn_report("%s: avx10.%d.",
+                                prefix, env->avx10_version);
+                }
+            }
             have_filtered_features = true;
         }
     } else if (env->avx10_version) {
