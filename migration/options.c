@@ -1020,6 +1020,44 @@ static void tls_opt_to_str(StrOrNull *opt)
     opt->u.s = g_strdup("");
 }
 
+/*
+ * query-migrate-parameters expects all members of MigrationParameters
+ * to be present, but we cannot mark them non-optional in QAPI because
+ * the structure is also used for migrate-set-parameters, which needs
+ * the optionality. Force all parameters to be seen as present
+ * now. Note that this depends on some form of default being set for
+ * every member of MigrationParameters, currently done during qdev
+ * init using migration_properties defined in this file. The TLS
+ * options are a special case because they don't have a default and
+ * need to be normalized before use.
+ */
+static void migrate_mark_all_params_present(MigrationParameters *p)
+{
+    int len, n_str_args = 3; /* tls-creds, tls-hostname, tls-authz */
+    bool *has_fields[] = {
+        &p->has_throttle_trigger_threshold, &p->has_cpu_throttle_initial,
+        &p->has_cpu_throttle_increment, &p->has_cpu_throttle_tailslow,
+        &p->has_max_bandwidth, &p->has_avail_switchover_bandwidth,
+        &p->has_downtime_limit, &p->has_x_checkpoint_delay,
+        &p->has_multifd_channels, &p->has_multifd_compression,
+        &p->has_multifd_zlib_level, &p->has_multifd_qatzip_level,
+        &p->has_multifd_zstd_level, &p->has_xbzrle_cache_size,
+        &p->has_max_postcopy_bandwidth, &p->has_max_cpu_throttle,
+        &p->has_announce_initial, &p->has_announce_max, &p->has_announce_rounds,
+        &p->has_announce_step, &p->has_block_bitmap_mapping,
+        &p->has_x_vcpu_dirty_limit_period, &p->has_vcpu_dirty_limit,
+        &p->has_mode, &p->has_zero_page_detection, &p->has_direct_io,
+        &p->has_cpr_exec_command,
+    };
+
+    len = ARRAY_SIZE(has_fields);
+    assert(len + n_str_args == MIGRATION_PARAMETER__MAX);
+
+    for (int i = 0; i < len; i++) {
+        *has_fields[i] = true;
+    }
+}
+
 MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 {
     MigrationParameters *params;
@@ -1027,70 +1065,53 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
     params = g_malloc0(sizeof(*params));
-    params->has_throttle_trigger_threshold = true;
+
     params->throttle_trigger_threshold = s->parameters.throttle_trigger_threshold;
-    params->has_cpu_throttle_initial = true;
     params->cpu_throttle_initial = s->parameters.cpu_throttle_initial;
-    params->has_cpu_throttle_increment = true;
     params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
-    params->has_cpu_throttle_tailslow = true;
     params->cpu_throttle_tailslow = s->parameters.cpu_throttle_tailslow;
     params->tls_creds = QAPI_CLONE(StrOrNull, s->parameters.tls_creds);
     params->tls_hostname = QAPI_CLONE(StrOrNull, s->parameters.tls_hostname);
     params->tls_authz = QAPI_CLONE(StrOrNull, s->parameters.tls_authz);
-    params->has_max_bandwidth = true;
     params->max_bandwidth = s->parameters.max_bandwidth;
-    params->has_avail_switchover_bandwidth = true;
     params->avail_switchover_bandwidth = s->parameters.avail_switchover_bandwidth;
-    params->has_downtime_limit = true;
     params->downtime_limit = s->parameters.downtime_limit;
-    params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
-    params->has_multifd_channels = true;
     params->multifd_channels = s->parameters.multifd_channels;
-    params->has_multifd_compression = true;
     params->multifd_compression = s->parameters.multifd_compression;
-    params->has_multifd_zlib_level = true;
     params->multifd_zlib_level = s->parameters.multifd_zlib_level;
-    params->has_multifd_qatzip_level = true;
     params->multifd_qatzip_level = s->parameters.multifd_qatzip_level;
-    params->has_multifd_zstd_level = true;
     params->multifd_zstd_level = s->parameters.multifd_zstd_level;
-    params->has_xbzrle_cache_size = true;
     params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
-    params->has_max_postcopy_bandwidth = true;
     params->max_postcopy_bandwidth = s->parameters.max_postcopy_bandwidth;
-    params->has_max_cpu_throttle = true;
     params->max_cpu_throttle = s->parameters.max_cpu_throttle;
-    params->has_announce_initial = true;
     params->announce_initial = s->parameters.announce_initial;
-    params->has_announce_max = true;
     params->announce_max = s->parameters.announce_max;
-    params->has_announce_rounds = true;
     params->announce_rounds = s->parameters.announce_rounds;
-    params->has_announce_step = true;
     params->announce_step = s->parameters.announce_step;
-
-    if (s->has_block_bitmap_mapping) {
-        params->has_block_bitmap_mapping = true;
-        params->block_bitmap_mapping =
-            QAPI_CLONE(BitmapMigrationNodeAliasList,
-                       s->parameters.block_bitmap_mapping);
-    }
-
-    params->has_x_vcpu_dirty_limit_period = true;
     params->x_vcpu_dirty_limit_period = s->parameters.x_vcpu_dirty_limit_period;
-    params->has_vcpu_dirty_limit = true;
     params->vcpu_dirty_limit = s->parameters.vcpu_dirty_limit;
-    params->has_mode = true;
     params->mode = s->parameters.mode;
-    params->has_zero_page_detection = true;
     params->zero_page_detection = s->parameters.zero_page_detection;
-    params->has_direct_io = true;
     params->direct_io = s->parameters.direct_io;
-    params->has_cpr_exec_command = true;
     params->cpr_exec_command = QAPI_CLONE(strList,
                                           s->parameters.cpr_exec_command);
+    params->block_bitmap_mapping =
+        QAPI_CLONE(BitmapMigrationNodeAliasList,
+                   s->parameters.block_bitmap_mapping);
+
+    migrate_mark_all_params_present(params);
+
+    /*
+     * The block-bitmap-mapping breaks the expected API of
+     * query-migrate-parameters of having all members present. To keep
+     * compatibility, only emit this field if it's actually been
+     * set. The empty list is a valid value.
+     */
+    if (!s->has_block_bitmap_mapping) {
+        params->has_block_bitmap_mapping = false;
+        qapi_free_BitmapMigrationNodeAliasList(params->block_bitmap_mapping);
+    }
 
     return params;
 }
