@@ -304,33 +304,30 @@ static void encode_cache_cpuid2(X86CPU *cpu,
                        ((t) == UNIFIED_CACHE) ? CACHE_TYPE_UNIFIED : \
                        0 /* Invalid value */)
 
+static uint32_t apicid_offset_by_topo_level(X86CPUTopoInfo *topo_info,
+                                            enum CpuTopologyLevel topo_level)
+{
+    switch (topo_level) {
+    case CPU_TOPOLOGY_LEVEL_THREAD:
+        return 0;
+    case CPU_TOPOLOGY_LEVEL_CORE:
+        return apicid_core_offset(topo_info);
+    case CPU_TOPOLOGY_LEVEL_MODULE:
+        return apicid_module_offset(topo_info);
+    case CPU_TOPOLOGY_LEVEL_DIE:
+        return apicid_die_offset(topo_info);
+    case CPU_TOPOLOGY_LEVEL_SOCKET:
+        return apicid_pkg_offset(topo_info);
+    default:
+        g_assert_not_reached();
+    }
+    return 0;
+}
+
 static uint32_t max_thread_ids_for_cache(X86CPUTopoInfo *topo_info,
                                          enum CpuTopologyLevel share_level)
 {
-    uint32_t num_ids = 0;
-
-    switch (share_level) {
-    case CPU_TOPOLOGY_LEVEL_CORE:
-        num_ids = 1 << apicid_core_offset(topo_info);
-        break;
-    case CPU_TOPOLOGY_LEVEL_MODULE:
-        num_ids = 1 << apicid_module_offset(topo_info);
-        break;
-    case CPU_TOPOLOGY_LEVEL_DIE:
-        num_ids = 1 << apicid_die_offset(topo_info);
-        break;
-    case CPU_TOPOLOGY_LEVEL_SOCKET:
-        num_ids = 1 << apicid_pkg_offset(topo_info);
-        break;
-    default:
-        /*
-         * Currently there is no use case for THREAD, so use
-         * assert directly to facilitate debugging.
-         */
-        g_assert_not_reached();
-    }
-
-    return num_ids - 1;
+    return (1 << apicid_offset_by_topo_level(topo_info, share_level)) - 1;
 }
 
 static uint32_t max_core_ids_in_package(X86CPUTopoInfo *topo_info)
@@ -392,26 +389,6 @@ static uint32_t num_threads_by_topo_level(X86CPUTopoInfo *topo_info,
         return x86_threads_per_die(topo_info);
     case CPU_TOPOLOGY_LEVEL_SOCKET:
         return x86_threads_per_pkg(topo_info);
-    default:
-        g_assert_not_reached();
-    }
-    return 0;
-}
-
-static uint32_t apicid_offset_by_topo_level(X86CPUTopoInfo *topo_info,
-                                            enum CpuTopologyLevel topo_level)
-{
-    switch (topo_level) {
-    case CPU_TOPOLOGY_LEVEL_THREAD:
-        return 0;
-    case CPU_TOPOLOGY_LEVEL_CORE:
-        return apicid_core_offset(topo_info);
-    case CPU_TOPOLOGY_LEVEL_MODULE:
-        return apicid_module_offset(topo_info);
-    case CPU_TOPOLOGY_LEVEL_DIE:
-        return apicid_die_offset(topo_info);
-    case CPU_TOPOLOGY_LEVEL_SOCKET:
-        return apicid_pkg_offset(topo_info);
     default:
         g_assert_not_reached();
     }
