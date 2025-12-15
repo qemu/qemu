@@ -507,6 +507,57 @@ static void test_precopy_tcp_tls_psk_mismatch(void)
     test_precopy_common(&args);
 }
 
+static void *migrate_hook_start_no_tls(QTestState *from, QTestState *to)
+{
+    struct TestMigrateTLSPSKData *data =
+        g_new0(struct TestMigrateTLSPSKData, 1);
+
+    migrate_set_parameter_null(from, "tls-creds");
+    migrate_set_parameter_null(to, "tls-creds");
+
+    return data;
+}
+
+static void test_precopy_tcp_no_tls(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "tcp:127.0.0.1:0",
+        .start_hook = migrate_hook_start_no_tls,
+        .end_hook = migrate_hook_end_tls_psk,
+    };
+
+    test_precopy_common(&args);
+}
+
+static void *
+migrate_hook_start_tls_x509_no_host(QTestState *from, QTestState *to)
+{
+    TestMigrateTLSX509 args = {
+        .verifyclient = true,
+        .clientcert = true,
+        .authzclient = true,
+    };
+    TestMigrateTLSX509Data *data = migrate_hook_start_tls_x509_common(from, to,
+                                                                      &args);
+    migrate_set_parameter_null(from, "tls-hostname");
+    migrate_set_parameter_null(to, "tls-hostname");
+
+    return data;
+}
+
+static void test_precopy_tcp_tls_no_hostname(void)
+{
+    MigrateCommon args = {
+        .listen_uri = "tcp:127.0.0.1:0",
+        .start_hook = migrate_hook_start_tls_x509_no_host,
+        .end_hook = migrate_hook_end_tls_x509,
+        .result = MIG_TEST_FAIL_DEST_QUIT_ERR,
+        .start.hide_stderr = true,
+    };
+
+    test_precopy_common(&args);
+}
+
 #ifdef CONFIG_TASN1
 static void test_precopy_tcp_tls_x509_default_host(void)
 {
@@ -798,6 +849,11 @@ void migration_test_add_tls(MigrationTestEnv *env)
     if (!env->full_set) {
         return;
     }
+
+    migration_test_add("/migration/precopy/tcp/no-tls",
+                       test_precopy_tcp_no_tls);
+    migration_test_add("/migration/precopy/tcp/tls/no-hostname",
+                       test_precopy_tcp_tls_no_hostname);
 
     migration_test_add("/migration/precopy/unix/tls/psk",
                        test_precopy_unix_tls_psk);

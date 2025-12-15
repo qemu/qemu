@@ -36,6 +36,7 @@ void migrate_set_parameter_str(QTestState *who, const char *parameter,
                                const char *value);
 void migrate_set_parameter_strv(QTestState *who, const char *parameter,
                                 char **strv);
+void migrate_set_parameter_null(QTestState *who, const char *parameter);
 void migrate_set_parameter_bool(QTestState *who, const char *parameter,
                                 int value);
 void migrate_ensure_non_converge(QTestState *who);
