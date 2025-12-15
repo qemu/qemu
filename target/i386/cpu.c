@@ -2313,6 +2313,12 @@ typedef struct X86CPUDefinition {
     int model;
     int stepping;
     uint8_t avx10_version;
+    /*
+     * Whether to present CPUID 0x1f by default.
+     * If true, encode CPU topology in 0x1f leaf even if there's no
+     * extended topology levels.
+     */
+    bool cpuid_0x1f;
     FeatureWordArray features;
     const char *model_id;
     const CPUCaches *const cache_info;
@@ -8014,6 +8020,10 @@ static void x86_cpu_load_model(X86CPU *cpu, const X86CPUModel *model)
                                  def->avx10_version, &error_abort);
     }
 
+    if (def->cpuid_0x1f) {
+        object_property_set_bool(OBJECT(cpu), "x-force-cpuid-0x1f",
+                                 def->cpuid_0x1f, &error_abort);
+    }
     x86_cpu_apply_version_props(cpu, model);
 
     /*
