@@ -1038,6 +1038,7 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_24_0_EBX_FEATURES 0
 #define TCG_29_0_EBX_FEATURES 0
 #define TCG_1E_1_EAX_FEATURES 0
+#define TCG_24_1_ECX_FEATURES 0
 
 #if defined CONFIG_USER_ONLY
 #define CPUID_8000_0008_EBX_KERNEL_FEATURES (CPUID_8000_0008_EBX_IBPB | \
@@ -1384,6 +1385,18 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EBX,
         },
         .tcg_features = TCG_29_0_EBX_FEATURES,
+    },
+    [FEAT_24_1_ECX] = {
+        .type = CPUID_FEATURE_WORD,
+        .feat_names = {
+            [2] = "avx10-vnni-int",
+        },
+        .cpuid = {
+            .eax = 0x24,
+            .needs_ecx = true, .ecx = 1,
+            .reg = R_ECX,
+        },
+        .tcg_features = TCG_24_1_ECX_FEATURES,
     },
     [FEAT_8000_0007_EDX] = {
         .type = CPUID_FEATURE_WORD,
@@ -2040,6 +2053,11 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_7_1_EDX,             CPUID_7_1_EDX_APXF },
         .to = { FEAT_29_0_EBX,              ~0ull },
+    },
+
+    {
+        .from = { FEAT_7_1_EDX,             CPUID_7_1_EDX_AVX10 },
+        .to = { FEAT_24_1_ECX,              ~0ull },
     },
 };
 
@@ -8457,8 +8475,17 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
-        if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && count == 0) {
+
+        if (!(env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10)) {
+            break;
+        }
+        if (count == 0) {
+            uint32_t unused;
+            x86_cpu_get_supported_cpuid(0x1E, 0, eax, &unused,
+                                        &unused, &unused);
             *ebx = env->features[FEAT_24_0_EBX] | env->avx10_version;
+        } else if (count == 1) {
+            *ecx = env->features[FEAT_24_1_ECX];
         }
         break;
     }

@@ -712,6 +712,7 @@ typedef enum FeatureWord {
     FEAT_24_0_EBX,      /* CPUID[EAX=0x24,ECX=0].EBX */
     FEAT_29_0_EBX,      /* CPUID[EAX=0x29,ECX=0].EBX */
     FEAT_1E_1_EAX,      /* CPUID[EAX=0x1E,ECX=1].EAX */
+    FEAT_24_1_ECX,      /* CPUID[EAX=0x24,ECX=0].ECX */
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -1112,6 +1113,9 @@ uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 #define CPUID_24_0_EBX_AVX10_VL_MASK    (CPUID_24_0_EBX_AVX10_128 | \
                                          CPUID_24_0_EBX_AVX10_256 | \
                                          CPUID_24_0_EBX_AVX10_512)
+
+/* AVX10_VNNI_INT instruction */
+#define CPUID_24_1_ECX_AVX10_VNNI_INT         (1U << 2)
 
 /*
  * New Conditional Instructions (NCIs), explicit New Data Destination (NDD)
