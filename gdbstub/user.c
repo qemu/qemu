@@ -317,7 +317,7 @@ static bool gdb_accept_socket(int gdb_fd)
 static int gdbserver_open_socket(const char *path, Error **errp)
 {
     g_autoptr(GString) buf = g_string_new("");
-    char *pid_placeholder;
+    const char *pid_placeholder;
 
     pid_placeholder = strstr(path, "%d");
     if (pid_placeholder != NULL) {
