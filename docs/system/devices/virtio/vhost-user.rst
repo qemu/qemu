@@ -58,6 +58,9 @@ platform details for what sort of virtio bus to use.
   * - vhost-user-vsock
     - Socket based communication
     - `vhost-device-vsock <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-vsock>`_
+  * - vhost-user-spi
+    - Proxy spi devices to host
+    - `vhost-device-spi <https://github.com/rust-vmm/vhost-device/tree/main/vhost-device-spi>`_
 
 The referenced *daemons* are not exhaustive, any conforming backend
 implementing the device and using the vhost-user protocol should work.

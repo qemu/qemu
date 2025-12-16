@@ -2556,6 +2556,12 @@ F: hw/virtio/vhost-user-scmi*
 F: include/hw/virtio/vhost-user-scmi.h
 F: tests/qtest/libqos/virtio-scmi.*
 
+vhost-user-spi
+M: Haixu Cui <quic_haixcui@quicinc.com>
+S: Maintained
+F: include/hw/virtio/vhost-user-spi.h
+F: hw/virtio/vhost-user-spi*
+
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>
 S: Supported
