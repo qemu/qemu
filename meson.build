@@ -332,6 +332,10 @@ endif
 # Compiler flags #
 ##################
 
+if cc.sizeof('void *') < 8
+  error('QEMU requires a 64-bit CPU host architecture')
+endif
+
 foreach lang : all_languages
   compiler = meson.get_compiler(lang)
   if compiler.get_id() == 'gcc' and compiler.version().version_compare('>=7.4')
@@ -3247,9 +3251,6 @@ if host_os == 'windows'
   endif
 endif
 
-# Detect host pointer size for the target configuration loop.
-host_long_bits = cc.sizeof('void *') * 8
-
 # Detect if ConvertStringToBSTR has been defined in _com_util namespace
 if host_os == 'windows'
   has_convert_string_to_bstr = cxx.links('''
@@ -3360,10 +3361,6 @@ foreach target : target_dirs
 
   target_kconfig = []
   foreach sym: accelerators
-    # Disallow 64-bit on 32-bit emulation and virtualization
-    if host_long_bits < config_target['TARGET_LONG_BITS'].to_int()
-      continue
-    endif
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
       config_all_accel += { sym: 'y' }
@@ -5036,12 +5033,6 @@ if host_arch == 'unknown'
     message('configure has succeeded and you can continue to build, but')
     message('QEMU will use a slow interpreter to emulate the target CPU.')
   endif
-elif host_long_bits < 64
-  message()
-  warning('DEPRECATED HOST CPU')
-  message()
-  message('Support for 32-bit CPU host architecture ' + cpu + ' is going')
-  message('to be dropped in a future QEMU release.')
 elif host_arch == 'mips'
   message()
   warning('DEPRECATED HOST CPU')
