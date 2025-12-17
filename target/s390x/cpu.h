@@ -845,30 +845,8 @@ static inline uint64_t s390_build_validity_mcic(void)
     return mcic;
 }
 
-static inline void s390_do_cpu_full_reset(CPUState *cs, run_on_cpu_data arg)
-{
-    cpu_reset(cs);
-}
-
-static inline void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
-{
-    resettable_reset(OBJECT(cs), RESET_TYPE_S390_CPU_NORMAL);
-}
-
-static inline void s390_do_cpu_initial_reset(CPUState *cs, run_on_cpu_data arg)
-{
-    resettable_reset(OBJECT(cs), RESET_TYPE_S390_CPU_INITIAL);
-}
-
-static inline void s390_do_cpu_load_normal(CPUState *cs, run_on_cpu_data arg)
-{
-    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
-
-    scc->load_normal(cs);
-}
-
-
 /* cpu.c */
+void s390_do_cpu_full_reset(CPUState *cs, run_on_cpu_data arg);
 void s390_crypto_reset(void);
 void s390_cmma_reset(void);
 void s390_enable_css_support(S390CPU *cpu);

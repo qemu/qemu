@@ -364,7 +364,24 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
     }
 }
 
-static inline void s390_do_cpu_ipl(CPUState *cs, run_on_cpu_data arg)
+static void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    resettable_reset(OBJECT(cs), RESET_TYPE_S390_CPU_NORMAL);
+}
+
+static void s390_do_cpu_initial_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    resettable_reset(OBJECT(cs), RESET_TYPE_S390_CPU_INITIAL);
+}
+
+static void s390_do_cpu_load_normal(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->load_normal(cs);
+}
+
+static void s390_do_cpu_ipl(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
 
