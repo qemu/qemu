@@ -494,7 +494,9 @@ static void set_uint64_checkmask(Object *obj, Visitor *v, const char *name,
     const Property *prop = opaque;
     uint64_t *ptr = object_field_prop_ptr(obj, prop);
 
-    visit_type_uint64(v, name, ptr, errp);
+    if (!visit_type_uint64(v, name, ptr, errp)) {
+        return;
+    }
     if (*ptr & ~prop->bitmask) {
         error_setg(errp, "Property value for '%s' has bits outside mask '0x%" PRIx64 "'",
                    name, prop->bitmask);
