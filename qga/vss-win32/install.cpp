@@ -549,6 +549,7 @@ STDAPI DllUnregisterServer(void)
 
 
 /* Support function to convert ASCII string into BSTR (used in _bstr_t) */
+#ifndef CONFIG_CONVERT_STRING_TO_BSTR
 namespace _com_util
 {
     BSTR WINAPI ConvertStringToBSTR(const char *ascii) {
@@ -566,6 +567,7 @@ namespace _com_util
         return bstr;
     }
 }
+#endif
 
 /* Stop QGA VSS provider service using Winsvc API  */
 STDAPI StopService(void)
