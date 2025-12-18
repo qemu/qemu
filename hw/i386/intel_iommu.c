@@ -4764,6 +4764,43 @@ static uint64_t vtd_get_viommu_flags(void *opaque)
     return flags;
 }
 
+/*
+ * There is no valid translated_addr for unmapping a whole iommu memory region.
+ * When dirty tracking is enabled, we need it to set dirty bitmaps. Iterate
+ * over DMAMap list to unmap each range with active mapping and translated_addr
+ * value.
+ */
+static void vtd_address_space_unmap_in_dirty_tracking(VTDAddressSpace *as,
+                                                      IOMMUNotifier *n)
+{
+    const DMAMap *map;
+    const DMAMap target = {
+        .iova = n->start,
+        .size = n->end,
+    };
+    IOVATree *tree = as->iova_tree;
+
+    /*
+     * DMAMap is created during IOMMU page table sync, it's either 4KB or huge
+     * page size and always a power of 2 in size. So the range of DMAMap could
+     * be used for UNMAP notification directly.
+     */
+    while ((map = iova_tree_find(tree, &target))) {
+        IOMMUTLBEvent event;
+
+        event.type = IOMMU_NOTIFIER_UNMAP;
+        event.entry.iova = map->iova;
+        event.entry.addr_mask = map->size;
+        event.entry.target_as = &address_space_memory;
+        event.entry.perm = IOMMU_NONE;
+        /* This field is needed to set dirty bigmap */
+        event.entry.translated_addr = map->translated_addr;
+        memory_region_notify_iommu_one(n, &event);
+
+        iova_tree_remove(tree, *map);
+    }
+}
+
 /* Unmap the whole range in the notifier's scope. */
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 {
@@ -4772,6 +4809,11 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     hwaddr end = n->end;
     IntelIOMMUState *s = as->iommu_state;
     DMAMap map;
+
+    if (global_dirty_tracking) {
+        vtd_address_space_unmap_in_dirty_tracking(as, n);
+        return;
+    }
 
     /*
      * Note: all the codes in this function has a assumption that IOVA
