@@ -163,8 +163,9 @@ vfio_user_set_dirty_page_tracking(const VFIOContainer *bcontainer,
 }
 
 static int vfio_user_query_dirty_bitmap(const VFIOContainer *bcontainer,
-                                         VFIOBitmap *vbmap, hwaddr iova,
-                                         hwaddr size, Error **errp)
+                                        VFIOBitmap *vbmap, hwaddr iova,
+                                        hwaddr size, uint64_t backend_flag,
+                                        Error **errp)
 {
     error_setg_errno(errp, ENOTSUP, "Not supported");
     return -ENOTSUP;
