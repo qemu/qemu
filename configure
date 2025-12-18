@@ -382,8 +382,6 @@ fi
 if test ! -z "$cpu" ; then
   # command line argument
   :
-elif check_define __i386__ ; then
-  cpu="i386"
 elif check_define __x86_64__ ; then
   if check_define __ILP32__ ; then
     cpu="x32"

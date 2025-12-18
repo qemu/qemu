@@ -204,7 +204,7 @@
  * the same semantics.
  */
 #if !defined(QEMU_SANITIZE_THREAD) && \
-    (defined(__i386__) || defined(__x86_64__) || defined(__s390x__))
+    (defined(__x86_64__) || defined(__s390x__))
 # define smp_mb__before_rmw() signal_barrier()
 # define smp_mb__after_rmw() signal_barrier()
 #else
@@ -218,7 +218,7 @@
  */
 
 #if !defined(QEMU_SANITIZE_THREAD) && \
-    (defined(__i386__) || defined(__x86_64__) || defined(__s390x__))
+    (defined(__x86_64__) || defined(__s390x__))
 # define qatomic_set_mb(ptr, i) \
     ({ (void)qatomic_xchg(ptr, i); smp_mb__after_rmw(); })
 #else
