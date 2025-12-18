@@ -4057,10 +4057,10 @@ S: Maintained
 L: qemu-arm@nongnu.org
 F: tcg/aarch64/
 
-i386 TCG target
+X86 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
-F: tcg/i386/
+F: tcg/x86_64/
 
 LoongArch64 TCG target
 M: WANG Xuerui <git@xen0n.name>
