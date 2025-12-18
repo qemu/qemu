@@ -3,7 +3,6 @@
  * buffer_is_zero acceleration, x86 version.
  */
 
-#if defined(CONFIG_AVX2_OPT) || defined(__SSE2__)
 #include <immintrin.h>
 
 /* Helper for preventing the compiler from reassociating
@@ -119,7 +118,3 @@ static unsigned best_accel(void)
 #endif
     return info & CPUINFO_SSE2 ? 1 : 0;
 }
-
-#else
-# include "host/include/generic/host/bufferiszero.c.inc"
-#endif
