@@ -4057,12 +4057,6 @@ S: Maintained
 L: qemu-arm@nongnu.org
 F: tcg/aarch64/
 
-ARM TCG target
-M: Richard Henderson <richard.henderson@linaro.org>
-S: Maintained
-L: qemu-arm@nongnu.org
-F: tcg/arm/
-
 i386 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained

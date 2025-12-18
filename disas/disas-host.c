@@ -74,9 +74,6 @@ static void initialize_debug_host(CPUDebug *s)
 #elif defined(__sparc__)
     s->info.print_insn = print_insn_sparc;
     s->info.mach = bfd_mach_sparc_v9b;
-#elif defined(__arm__)
-    /* TCG only generates code for arm mode.  */
-    s->info.cap_arch = CS_ARCH_ARM;
 #elif defined(__MIPSEB__)
     s->info.print_insn = print_insn_big_mips;
 #elif defined(__MIPSEL__)

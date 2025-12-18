@@ -418,8 +418,6 @@ elif check_define __riscv ; then
   else
     cpu="riscv32"
   fi
-elif check_define __arm__ ; then
-  cpu="arm"
 elif check_define __aarch64__ ; then
   cpu="aarch64"
 elif check_define __loongarch64 ; then
@@ -449,11 +447,6 @@ case "$cpu" in
   aarch64)
     host_arch=aarch64
     linux_arch=arm64
-    ;;
-
-  armv*b|armv*l|arm)
-    cpu=arm
-    host_arch=arm
     ;;
 
   i386|i486|i586|i686)

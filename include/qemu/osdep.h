@@ -566,7 +566,7 @@ int madvise(char *, size_t, int);
 #endif
 
 #if defined(__linux__) && \
-    (defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) \
+    (defined(__x86_64__) || defined(__aarch64__) \
      || defined(__powerpc64__) || defined(__riscv))
    /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
       Valgrind does not support alignments larger than 1 MiB,
