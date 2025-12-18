@@ -1844,6 +1844,7 @@ M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/s390-pci*
 F: include/hw/s390x/s390-pci*
+F: util/s390x_pci_mmio.c
 L: qemu-s390x@nongnu.org
 
 S390 channel subsystem
