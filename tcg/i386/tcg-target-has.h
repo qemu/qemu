@@ -26,13 +26,10 @@
 #define have_avx512vbmi2  ((cpuinfo & CPUINFO_AVX512VBMI2) && have_avx512vl)
 
 /* optional instructions */
-#if TCG_TARGET_REG_BITS == 64
 /* Keep 32-bit values zero-extended in a register.  */
 #define TCG_TARGET_HAS_extr_i64_i32     1
-#endif
 
-#define TCG_TARGET_HAS_qemu_ldst_i128 \
-    (TCG_TARGET_REG_BITS == 64 && (cpuinfo & CPUINFO_ATOMIC_VMOVDQA))
+#define TCG_TARGET_HAS_qemu_ldst_i128   (cpuinfo & CPUINFO_ATOMIC_VMOVDQA)
 
 #define TCG_TARGET_HAS_tst              1
 
@@ -63,8 +60,7 @@
 #define TCG_TARGET_HAS_tst_vec          have_avx512bw
 
 #define TCG_TARGET_deposit_valid(type, ofs, len) \
-    (((ofs) == 0 && ((len) == 8 || (len) == 16)) || \
-     (TCG_TARGET_REG_BITS == 32 && (ofs) == 8 && (len) == 8))
+    ((ofs) == 0 && ((len) == 8 || (len) == 16))
 
 /*
  * Check for the possibility of low byte/word extraction, high-byte extraction

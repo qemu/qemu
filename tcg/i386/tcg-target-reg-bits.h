@@ -10,7 +10,7 @@
 #ifdef __x86_64__
 # define TCG_TARGET_REG_BITS  64
 #else
-# define TCG_TARGET_REG_BITS  32
+# error
 #endif
 
 #endif

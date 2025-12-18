@@ -27,13 +27,8 @@
 
 #define TCG_TARGET_INSN_UNIT_SIZE  1
 
-#ifdef __x86_64__
-# define TCG_TARGET_NB_REGS   32
-# define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
-#else
-# define TCG_TARGET_NB_REGS   24
-# define MAX_CODE_GEN_BUFFER_SIZE  UINT32_MAX
-#endif
+#define TCG_TARGET_NB_REGS   32
+#define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
 
 typedef enum {
     TCG_REG_EAX = 0,
@@ -45,8 +40,6 @@ typedef enum {
     TCG_REG_ESI,
     TCG_REG_EDI,
 
-    /* 64-bit registers; always define the symbols to avoid
-       too much if-deffing.  */
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
@@ -64,8 +57,6 @@ typedef enum {
     TCG_REG_XMM5,
     TCG_REG_XMM6,
     TCG_REG_XMM7,
-
-    /* 64-bit registers; likewise always define.  */
     TCG_REG_XMM8,
     TCG_REG_XMM9,
     TCG_REG_XMM10,
