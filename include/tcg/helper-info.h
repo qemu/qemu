@@ -24,7 +24,7 @@
 #include <ffi.h>
 #pragma GCC diagnostic pop
 #endif
-#include "tcg-target-reg-bits.h"
+#include "tcg/target-reg-bits.h"
 
 #define MAX_CALL_IARGS  7
 
