@@ -4650,6 +4650,7 @@ summary_info += {'Download dependencies': get_option('wrap_mode') != 'nodownload
 summary(summary_info, bool_yn: true, section: 'Build environment')
 
 # Directories
+summary_info = {}
 summary_info += {'Install prefix':    get_option('prefix')}
 summary_info += {'BIOS directory':    qemu_datadir}
 pathsep = host_os == 'windows' ? ';' : ':'
