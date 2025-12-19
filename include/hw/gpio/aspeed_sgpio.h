@@ -58,7 +58,9 @@ struct AspeedSGPIOState {
 
     /*< public >*/
     MemoryRegion iomem;
+    int pending;
     qemu_irq irq;
+    qemu_irq sgpios[ASPEED_SGPIO_MAX_PIN_PAIR];
     uint32_t ctrl_regs[ASPEED_SGPIO_MAX_PIN_PAIR];
     uint32_t int_regs[ASPEED_SGPIO_MAX_INT];
 };
