@@ -469,8 +469,8 @@ case "$cpu" in
     CPU_CFLAGS="-m64 -mlittle-endian"
     ;;
 
-  riscv32 | riscv64)
-    host_arch=riscv
+  riscv64)
+    host_arch=riscv64
     linux_arch=riscv
     ;;
 

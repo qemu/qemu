@@ -265,8 +265,6 @@ enable_modules = get_option('modules') \
 
 if cpu not in supported_cpus
   host_arch = 'unknown'
-elif cpu in ['riscv32', 'riscv64']
-  host_arch = 'riscv'
 else
   host_arch = cpu
 endif

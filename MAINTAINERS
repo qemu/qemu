@@ -4086,7 +4086,7 @@ M: Palmer Dabbelt <palmer@dabbelt.com>
 M: Alistair Francis <Alistair.Francis@wdc.com>
 L: qemu-riscv@nongnu.org
 S: Maintained
-F: tcg/riscv/
+F: tcg/riscv64/
 F: disas/riscv.[ch]
 
 S390 TCG target
