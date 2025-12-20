@@ -872,6 +872,14 @@ F: include/hw/misc/arm_integrator_debug.h
 F: tests/functional/arm/test_integratorcp.py
 F: docs/system/arm/integratorcp.rst
 
+MAX78000FTHR
+L: qemu-arm@nongnu.org
+S: Orphan
+F: docs/system/arm/max78000.rst
+F: hw/*/max78000*
+F: include/hw/*/max78000*
+F: tests/functional/arm/test_max78000fthr.py
+
 MCIMX6UL EVK / i.MX6ul
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Jean-Christophe Dubois <jcd@tribudubois.net>
