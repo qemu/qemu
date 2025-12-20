@@ -2708,6 +2708,12 @@ F: hw/nvram/chrp_nvram.c
 F: include/hw/nvram/chrp_nvram.h
 F: tests/qtest/prom-env-test.c
 
+EEPROM 93xx
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: hw/nvram/eeprom93xx.c
+F: include/hw/nvram/eeprom93xx.h
+
 VM Generation ID
 S: Orphan
 R: Ani Sinha <ani@anisinha.ca>
