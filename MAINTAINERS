@@ -134,6 +134,7 @@ S: Odd Fixes
 K: ^Subject:.*(?i)mips
 F: docs/system/target-mips.rst
 F: configs/targets/mips*
+F: tests/functional/mips*/meson.build
 
 X86 general architecture support
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -201,6 +202,8 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: target/arm/
 F: target/arm/tcg/
+F: tests/functional/aarch64/meson.build
+F: tests/functional/arm/meson.build
 F: tests/tcg/arm/
 F: tests/tcg/aarch64/
 F: tests/qtest/arm-cpu-features.c
@@ -262,6 +265,7 @@ M: Song Gao <gaosong@loongson.cn>
 S: Maintained
 F: target/loongarch/
 F: tests/tcg/loongarch64/
+F: tests/functional/loongarch64/meson.build
 F: tests/functional/loongarch64/test_virt.py
 
 M68K TCG CPUs
@@ -269,6 +273,7 @@ M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: target/m68k/
 F: disas/m68k.c
+F: tests/functional/m68k/meson.build
 F: tests/tcg/m68k/
 
 MicroBlaze TCG CPUs
@@ -278,6 +283,7 @@ F: target/microblaze/
 F: hw/microblaze/
 F: disas/microblaze.c
 F: tests/docker/dockerfiles/debian-microblaze-cross.d/build-toolchain.sh
+F: tests/functional/microblaze*/meson.build
 
 MIPS TCG CPUs
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
@@ -297,6 +303,7 @@ F: docs/system/openrisc/cpu-features.rst
 F: target/openrisc/
 F: hw/openrisc/
 F: include/hw/openrisc/
+F: tests/functional/or1k/meson.build
 F: tests/tcg/openrisc/
 
 PowerPC TCG CPUs
@@ -314,6 +321,7 @@ F: configs/devices/ppc*
 F: docs/system/ppc/embedded.rst
 F: docs/system/target-ppc.rst
 F: tests/tcg/ppc*/*
+F: tests/functional/ppc*/meson.build
 F: tests/functional/ppc/test_74xx.py
 
 RISC-V TCG CPUs
@@ -362,6 +370,7 @@ RENESAS RX CPUs
 R: Yoshinori Sato <yoshinori.sato@nifty.com>
 S: Orphan
 F: target/rx/
+F: tests/functional/rx/meson.build
 
 S390 TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
@@ -381,6 +390,7 @@ F: target/sh4/
 F: hw/sh4/
 F: disas/sh4.c
 F: include/hw/sh4/
+F: tests/functional/sh4*/meson.build
 F: tests/tcg/sh4/
 
 SPARC TCG CPUs
@@ -392,6 +402,7 @@ F: hw/sparc/
 F: hw/sparc64/
 F: include/hw/sparc/sparc64.h
 F: disas/sparc.c
+F: tests/functional/sparc*/meson.build
 F: tests/tcg/sparc64/
 
 X86 TCG CPUs
@@ -413,6 +424,7 @@ W: http://wiki.osll.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
 S: Maintained
 F: target/xtensa/
 F: hw/xtensa/
+F: tests/functional/xtensa/meson.build
 F: tests/tcg/xtensa/
 F: tests/tcg/xtensaeb/
 F: disas/xtensa.c
@@ -4433,6 +4445,8 @@ R: Daniel P. Berrange <berrange@redhat.com>
 S: Maintained
 F: docs/devel/testing/functional.rst
 F: scripts/clean_functional_cache.py
+F: tests/functional/meson.build
+F: tests/functional/generic/meson.build
 F: tests/functional/qemu_test/
 
 Windows Hosted Continuous Integration
