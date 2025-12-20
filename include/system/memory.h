@@ -2855,10 +2855,12 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
 #define ARG1_DECL    AddressSpace *as
 #include "system/memory_ldst.h.inc"
 
+#ifndef TARGET_NOT_USING_LEGACY_LDST_PHYS_API
 #define SUFFIX
 #define ARG1         as
 #define ARG1_DECL    AddressSpace *as
 #include "system/memory_ldst_phys.h.inc"
+#endif
 
 struct MemoryRegionCache {
     uint8_t *ptr;
