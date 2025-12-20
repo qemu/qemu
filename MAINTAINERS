@@ -2185,7 +2185,7 @@ ACPI/FUNCTIONAL/BIOSBITS
 M: Ani Sinha <anisinha@redhat.com>
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
-F: tests/functional/acpi-bits/*
+F: tests/functional/acpi-bits/
 F: tests/functional/x86_64/test_acpi_bits.py
 F: docs/devel/testing/acpi-bits.rst
 
