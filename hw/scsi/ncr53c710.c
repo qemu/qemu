@@ -1422,8 +1422,30 @@ again:
                         s->dsp = s->dnad;
                         break;
                     }
-                } else if (!scsi_device_find(&s->bus, 0, idbitstonum(id), 0)) {
+                }
+                bool device_exists = false;
+                if (insn & (1 << 24)) {
+                    /* ATN set - scan all LUNs for this target */
+                    for (int lun = 0; lun < 8; lun++) {
+                        SCSIDevice *dev = scsi_device_find(&s->bus, 0,
+                                                           idbitstonum(id),
+                                                           lun);
+                        if (dev) {
+                            device_exists = true;
+                            break;
+                        }
+                    }
+                } else {
+                    /* No ATN - check only LUN 0 */
+                    SCSIDevice *dev = scsi_device_find(&s->bus, 0,
+                                                       idbitstonum(id), 0);
+                    device_exists = dev != NULL;
+                }
+                if (!device_exists) {
                     ncr710_bad_selection(s, id);
+                    if (!(insn & (1 << 24)) && addr != 0) {
+                        s->dsp = addr;
+                    }
                     break;
                 } else {
                     /*
