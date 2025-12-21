@@ -2161,7 +2161,11 @@ static void ncr710_reg_writeb(NCR710State *s, int offset, uint8_t val)
         if (val & 0x04) {
             ncr710_scsi_fifo_init(&s->scsi_fifo);
             s->dstat |= NCR710_DSTAT_DFE;
+            s->ctest1 = 0xFF;
+        } else if (s->ctest8 & 0x04) {
+            s->ctest1 = 0x00;
         }
+        s->ctest8 = val;
         break;
     case NCR710_LCRC_REG: /* LCRC */
         s->lcrc = val;
