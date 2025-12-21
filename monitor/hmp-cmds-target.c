@@ -122,12 +122,13 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
 }
 
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
-                        hwaddr addr, bool is_physical)
+                        uint64_t addr, bool is_physical)
 {
     int l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
     CPUState *cs = mon_get_cpu(mon);
+    const unsigned int addr_width = is_physical ? 8 : (target_long_bits() * 2);
 
     if (!cs && (format == 'i' || !is_physical)) {
         monitor_printf(mon, "Can not dump without CPU\n");
@@ -165,11 +166,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     }
 
     while (len > 0) {
-        if (is_physical) {
-            monitor_printf(mon, HWADDR_FMT_plx ":", addr);
-        } else {
-            monitor_printf(mon, TARGET_FMT_lx ":", (target_ulong)addr);
-        }
+        monitor_printf(mon, "%0*" PRIx64 ":", addr_width, addr);
         l = len;
         if (l > line_size)
             l = line_size;
