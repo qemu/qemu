@@ -123,11 +123,13 @@ REG32(CD_1, 4)
     FIELD(CD_1, A, 14, 1)
     FIELD(CD_1, ASID, 16, 16)
 REG32(CD_2, 8)
+    FIELD(CD_2, NSCFG0, 0, 1)
     FIELD(CD_2, HAD0, 1, 1)
     FIELD(CD_2, TTB0_LO, 4, 28)
 REG32(CD_3, 12)
     FIELD(CD_3, TTB0_HI, 0, 20)
 REG32(CD_4, 16)
+    FIELD(CD_4, NSCFG1, 0, 1)
     FIELD(CD_4, HAD1, 1, 1)
     FIELD(CD_4, TTB1_LO, 4, 28)
 REG32(CD_5, 20)
@@ -155,6 +157,9 @@ REG32(CD_5, 20)
 #define CD_R(x)          FIELD_EX32((x)->word[1], CD_1, R)
 #define CD_A(x)          FIELD_EX32((x)->word[1], CD_1, A)
 #define CD_ASID(x)       FIELD_EX32((x)->word[1], CD_1, ASID)
+#define CD_NSCFG(x, sel) ((sel) ?                                         \
+    FIELD_EX32((x)->word[4], CD_4, NSCFG1) :                              \
+    FIELD_EX32((x)->word[2], CD_2, NSCFG0))
 #define CD_HAD(x, sel)   ((sel) ?                                         \
     FIELD_EX32((x)->word[4], CD_4, HAD1) :                                \
     FIELD_EX32((x)->word[2], CD_2, HAD0))
