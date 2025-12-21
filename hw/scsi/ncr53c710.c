@@ -997,6 +997,7 @@ static void ncr710_do_status(NCR710State *s)
     ncr710_set_phase(s, PHASE_MI);
     s->msg_action = NCR710_MSG_ACTION_DISCONNECT;
     ncr710_add_msg_byte(s, 0); /* COMMAND COMPLETE */
+    s->command_complete = NCR710_CMD_COMPLETE;
 }
 
 static void ncr710_do_msgin(NCR710State *s)
@@ -1041,7 +1042,7 @@ static void ncr710_do_msgin(NCR710State *s)
         ncr710_set_phase(s, PHASE_CO);
         break;
     case NCR710_MSG_ACTION_DISCONNECT:
-        ncr710_disconnect(s);
+        s->sstat2 &= ~PHASE_MASK;
         break;
     case NCR710_MSG_ACTION_DATA_OUT:
         ncr710_set_phase(s, PHASE_DO);
