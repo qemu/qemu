@@ -2078,7 +2078,21 @@ static void ncr710_reg_writeb(NCR710State *s, int offset, uint8_t val)
         /* Linux writes to these readonly registers on startup */
         return;
 
-    CASE_SET_REG32(dsa, NCR710_DSA_REG)
+    case NCR710_DSA_REG:
+        s->dsa &= 0xffffff00;
+        s->dsa |= val;
+        break;
+    case NCR710_DSA_REG + 1:
+        s->dsa &= 0xffff00ff;
+        s->dsa |= val << 8;
+        break;
+    case NCR710_DSA_REG + 2:
+        s->dsa &= 0xff00ffff;
+        s->dsa |= val << 16;
+        break;
+    case NCR710_DSA_REG + 3:
+        s->dsa &= 0x00ffffff;
+        s->dsa |= val << 24;
         break;
 
     case NCR710_CTEST0_REG: /* CTEST0 */
