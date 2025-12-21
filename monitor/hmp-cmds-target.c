@@ -129,6 +129,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     uint64_t v;
     CPUState *cs = mon_get_cpu(mon);
     const unsigned int addr_width = is_physical ? 8 : (target_long_bits() * 2);
+    const bool big_endian = target_big_endian();
 
     if (!cs && (format == 'i' || !is_physical)) {
         monitor_printf(mon, "Can not dump without CPU\n");
@@ -192,13 +193,13 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
                 v = ldub_p(buf + i);
                 break;
             case 2:
-                v = lduw_p(buf + i);
+                v = (big_endian ? lduw_be_p : lduw_le_p)(buf + i);
                 break;
             case 4:
-                v = (uint32_t)ldl_p(buf + i);
+                v = (uint32_t)(big_endian ? ldl_be_p : ldl_le_p)(buf + i);
                 break;
             case 8:
-                v = ldq_p(buf + i);
+                v = (big_endian ? ldq_be_p : ldq_le_p)(buf + i);
                 break;
             }
             monitor_printf(mon, " ");
