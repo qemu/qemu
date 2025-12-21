@@ -301,7 +301,7 @@ void hmp_gpa2hva(Monitor *mon, const QDict *qdict)
 
 void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
 {
-    target_ulong addr = qdict_get_int(qdict, "addr");
+    vaddr addr = qdict_get_int(qdict, "addr");
     CPUState *cs = mon_get_cpu(mon);
     hwaddr gpa;
 
