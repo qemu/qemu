@@ -798,7 +798,13 @@ void ncr710_command_complete(SCSIRequest *req, size_t resid)
 
     ncr710_set_phase(s, PHASE_ST);
 
-    if (req->hba_private == s->current) {
+    if (p) {
+        req->hba_private = NULL;
+        if (p == s->current) {
+            p->req = NULL;
+        } else {
+            ncr710_request_free(s, p);
+        }
         scsi_req_unref(req);
     }
 
