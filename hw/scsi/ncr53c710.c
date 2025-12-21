@@ -1355,8 +1355,8 @@ again:
             offset = sextract32(addr, 0, 24);
             ncr710_dma_read(s, s->dsa + offset, buf, 8);
             /* byte count is stored in bits 0:23 only */
-            s->dbc = cpu_to_le32(buf[0]) & 0xffffff;
-            addr = cpu_to_le32(buf[1]);
+            s->dbc = be32_to_cpu(buf[0]) & 0xffffff;
+            addr = be32_to_cpu(buf[1]);
         }
         /* Check phase match for block move instructions */
         if ((s->sstat2 & PHASE_MASK) != ((insn >> 24) & 7)) {
