@@ -100,6 +100,37 @@ REG32(STE_7, 28)
 #define STE_CFG_ABORT(config)      (!(config & 0x4))
 #define STE_CFG_BYPASS(config)     (config == 0x4)
 
+/* Update STE fields */
+#define STE_SET_VALID(ste, v)                                                 \
+    ((ste)->word[0] = FIELD_DP32((ste)->word[0], STE_0, VALID, (v)))
+#define STE_SET_CONFIG(ste, v)                                                \
+    ((ste)->word[0] = FIELD_DP32((ste)->word[0], STE_0, CONFIG, (v)))
+
+#define STE_SET_CTXPTR(ste, v) do {                                           \
+    (ste)->word[0] = FIELD_DP32((ste)->word[0], STE_0, CTXPTR_LO, (v) >> 6);  \
+    (ste)->word[1] = FIELD_DP32((ste)->word[1], STE_1, CTXPTR_HI, (v) >> 32); \
+} while (0)
+#define STE_SET_S2T0SZ(ste, v)                                                \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2T0SZ, (v)))
+#define STE_SET_S2SL0(ste, v)                                                 \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2SL0, (v)))
+#define STE_SET_S2TG(ste, v)                                                  \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2TG, (v)))
+#define STE_SET_S2PS(ste, v)                                                  \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2PS, (v)))
+#define STE_SET_S2AA64(ste, v)                                                \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2AA64, (v)))
+#define STE_SET_S2ENDI(ste, v)                                                \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2ENDI, (v)))
+#define STE_SET_S2AFFD(ste, v)                                                \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2AFFD, (v)))
+#define STE_SET_S2S(ste, v)                                                   \
+    ((ste)->word[5] = FIELD_DP32((ste)->word[5], STE_5, S2S, (v)))
+#define STE_SET_S2TTB(ste, v) do {                                            \
+    (ste)->word[6] = FIELD_DP32((ste)->word[6], STE_6, S2TTB_LO, (v) >> 4);   \
+    (ste)->word[7] = FIELD_DP32((ste)->word[7], STE_7, S2TTB_HI, (v) >> 32);  \
+} while (0)
+
 /* CD fields */
 
 REG32(CD_0, 0)
@@ -168,6 +199,54 @@ REG32(CD_5, 20)
               ((uint64_t)FIELD_EX32((x)->word[4], CD_4, TTB1_LO) << 4)) : \
              (((uint64_t)FIELD_EX32((x)->word[3], CD_3, TTB0_HI) << 32) | \
               ((uint64_t)FIELD_EX32((x)->word[2], CD_2, TTB0_LO) << 4)))
+
+/* Update CD fields */
+#define CD_SET_VALID(cd, v)                                                   \
+    ((cd)->word[0] = FIELD_DP32((cd)->word[0], CD_0, VALID, (v)))
+#define CD_SET_ASID(cd, v)                                                    \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, ASID, (v)))
+#define CD_SET_TTB(cd, sel, v) do {                                           \
+    if (sel) {                                                                \
+        (cd)->word[4] = FIELD_DP32((cd)->word[4], CD_4, TTB1_LO, (v) >> 4);   \
+        (cd)->word[5] = FIELD_DP32((cd)->word[5], CD_5, TTB1_HI, (v) >> 32);  \
+    } else {                                                                  \
+        (cd)->word[2] = FIELD_DP32((cd)->word[2], CD_2, TTB0_LO, (v) >> 4);   \
+        (cd)->word[3] = FIELD_DP32((cd)->word[3], CD_3, TTB0_HI, (v) >> 32);  \
+    }                                                                         \
+} while (0)
+
+#define CD_SET_TSZ(cd, sel, v)                                                \
+    ((cd)->word[0] = (sel) ? FIELD_DP32((cd)->word[0], CD_0, TSZ1, (v)) :     \
+                             FIELD_DP32((cd)->word[0], CD_0, TSZ0, (v)))
+#define CD_SET_TG(cd, sel, v)                                                 \
+    ((cd)->word[0] = (sel) ? FIELD_DP32((cd)->word[0], CD_0, TG1, (v)) :      \
+                             FIELD_DP32((cd)->word[0], CD_0, TG0, (v)))
+#define CD_SET_EPD(cd, sel, v)                                                \
+    ((cd)->word[0] = (sel) ? FIELD_DP32((cd)->word[0], CD_0, EPD1, (v)) :     \
+                             FIELD_DP32((cd)->word[0], CD_0, EPD0, (v)))
+#define CD_SET_ENDI(cd, v)                                                    \
+    ((cd)->word[0] = FIELD_DP32((cd)->word[0], CD_0, ENDI, (v)))
+#define CD_SET_IPS(cd, v)                                                     \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, IPS, (v)))
+#define CD_SET_AFFD(cd, v)                                                    \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, AFFD, (v)))
+#define CD_SET_TBI(cd, v)                                                     \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, TBI, (v)))
+#define CD_SET_HD(cd, v)                                                      \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, HD, (v)))
+#define CD_SET_HA(cd, v)                                                      \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, HA, (v)))
+#define CD_SET_S(cd, v)                                                       \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, S, (v)))
+#define CD_SET_R(cd, v)                                                       \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, R, (v)))
+#define CD_SET_A(cd, v)                                                       \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, A, (v)))
+#define CD_SET_AARCH64(cd, v)                                                 \
+    ((cd)->word[1] = FIELD_DP32((cd)->word[1], CD_1, AARCH64, (v)))
+#define CD_SET_NSCFG(cd, sel, v)                                              \
+    ((sel) ? ((cd)->word[4] = FIELD_DP32((cd)->word[4], CD_4, NSCFG1, (v))) : \
+             ((cd)->word[2] = FIELD_DP32((cd)->word[2], CD_2, NSCFG0, (v))))
 
 /* MMIO Registers */
 
