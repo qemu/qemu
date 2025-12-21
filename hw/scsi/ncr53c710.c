@@ -593,7 +593,7 @@ static void ncr710_update_irq(NCR710State *s)
 {
     int level = 0;
 
-    if (s->dstat) {
+    if (s->dstat & ~NCR710_DSTAT_DFE) {
         if (s->dstat & s->dien) {
             level = 1;
         }
@@ -1785,7 +1785,6 @@ static uint8_t ncr710_reg_readb(NCR710State *s, int offset)
         }
         s->dstat = 0;  /* Clear all DMA interrupt status bits */
         s->dstat |= NCR710_DSTAT_DFE;
-        s->istat &= ~NCR710_ISTAT_DIP;
         ncr710_update_irq(s);
 
         if (s->waiting == NCR710_WAIT_RESELECT && s->current &&
@@ -1811,7 +1810,7 @@ static uint8_t ncr710_reg_readb(NCR710State *s, int offset)
         return ret;
     case NCR710_SSTAT0_REG: /* SSTAT0 */
         ret = s->sstat0;
-        if (s->sstat0 != 0 && !(s->sstat0 & NCR710_SSTAT0_STO)) {
+        if (s->sstat0 != 0) {
             s->sstat0 = 0;
             s->istat &= ~NCR710_ISTAT_SIP;
             ncr710_update_irq(s);
@@ -1824,14 +1823,7 @@ static uint8_t ncr710_reg_readb(NCR710State *s, int offset)
         ret = s->sstat0;
         break;
     case NCR710_SSTAT2_REG: /* SSTAT2 */
-        ret = s->dstat;
-
-        if (s->dstat & NCR710_DSTAT_SIR) {
-            /* SIR bit processing */
-        }
-        s->dstat = 0;
-        s->istat &= ~NCR710_ISTAT_DIP;
-        ncr710_update_irq(s);
+        ret = s->sstat2;
         break;
         CASE_GET_REG32(dsa, NCR710_DSA_REG)
         break;
@@ -1902,7 +1894,6 @@ static uint8_t ncr710_reg_readb(NCR710State *s, int offset)
         if (s->dsps == GOOD_STATUS_AFTER_STATUS &&
             (s->dstat & NCR710_DSTAT_SIR)) {
             s->dstat &= ~NCR710_DSTAT_SIR;
-            s->istat &= ~NCR710_ISTAT_DIP;
             ncr710_update_irq(s);
         }
         break;
