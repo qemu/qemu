@@ -718,7 +718,9 @@ static void ncr710_do_dma(NCR710State *s, int out)
     if (s->current->dma_len == 0) {
         s->current->dma_buf = NULL;
         s->current->pending = 0;
+        s->waiting = NCR710_WAIT_DMA;
         scsi_req_continue(s->current->req);
+        return;
     } else {
         s->current->dma_buf += count;
         s->waiting = NCR710_WAIT_NONE;
