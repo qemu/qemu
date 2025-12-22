@@ -4,8 +4,6 @@ project('qemu', ['c'], meson_version: '>=1.5.0',
                           'rust_std=2021', 'build.rust_std=2021'],
         version: files('VERSION'))
 
-meson.add_devenv({ 'MESON_BUILD_ROOT' : meson.project_build_root() })
-
 add_test_setup('quick', exclude_suites: ['slow', 'thorough'], is_default: true,
                env: ['RUST_BACKTRACE=1'])
 add_test_setup('slow', exclude_suites: ['thorough'],
@@ -3500,6 +3498,20 @@ endif
 
 config_host_h = configure_file(output: 'config-host.h', configuration: config_host_data)
 genh += config_host_h
+
+devenv = environment()
+devenv.set('MESON_BUILD_ROOT', meson.project_build_root())
+devenv.set('VIRTUAL_ENV', meson.project_build_root() / 'pyvenv')
+devenv.prepend('PATH', meson.project_build_root() / 'pyvenv'/ 'bin')
+devenv.prepend('PYTHONPATH', meson.current_source_dir() / 'tests' / 'functional')
+devenv.prepend('PYTHONPATH', meson.current_source_dir() / 'python')
+meson.add_devenv(devenv)
+
+run_config = configuration_data({'build_dir': meson.current_build_dir()})
+run = configure_file(input: 'run.in',
+                     output: 'run',
+                     configuration: run_config)
+run_command('chmod', 'a+x', meson.current_build_dir() / 'run', check: true)
 
 hxtool = find_program('scripts/hxtool')
 shaderinclude = find_program('scripts/shaderinclude.py')

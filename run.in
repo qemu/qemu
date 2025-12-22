@@ -1,0 +1,4 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+exec @build_dir@/pyvenv/bin/meson devenv -C @build_dir@ -w "$PWD" "$@"

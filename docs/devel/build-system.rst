@@ -515,6 +515,18 @@ generates ``Makefile`` from ``Makefile.in``.
 
 Built by configure:
 
+``run``
+  Used to run commands / scripts from the git checkout. Sets ``$PATH``
+  to point to locally built binaries, and activates the python venv
+  before running the requested command. Pass the command to run as
+  args, for example::
+
+    $ ./build/run ./script/qmp/qmp-shell-wrap qemu-system-x86_64
+
+  will use the ``python3`` binary and site-packages from the local
+  venv to run ``qmp-shell-wrap`` and spawn the QEMU emulator from
+  the build directory.
+
 ``config-host.mak``
   When configure has determined the characteristics of the build host it
   will write the paths to various tools to this file, for use in ``Makefile``

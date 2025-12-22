@@ -4479,6 +4479,7 @@ R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: meson.build
 F: meson_options.txt
+F: run.in
 F: scripts/check_sparse.py
 F: scripts/symlink-install-tree.py
 
