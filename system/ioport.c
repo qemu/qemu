@@ -56,7 +56,7 @@ static void unassigned_io_write(void *opaque, hwaddr addr, uint64_t val,
 const MemoryRegionOps unassigned_io_ops = {
     .read = unassigned_io_read,
     .write = unassigned_io_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 void cpu_outb(uint32_t addr, uint8_t val)
@@ -71,7 +71,7 @@ void cpu_outw(uint32_t addr, uint16_t val)
     uint8_t buf[2];
 
     trace_cpu_out(addr, 'w', val);
-    stw_p(buf, val);
+    stw_le_p(buf, val);
     address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
                         buf, 2);
 }
@@ -81,7 +81,7 @@ void cpu_outl(uint32_t addr, uint32_t val)
     uint8_t buf[4];
 
     trace_cpu_out(addr, 'l', val);
-    stl_p(buf, val);
+    stl_le_p(buf, val);
     address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
                         buf, 4);
 }
@@ -102,7 +102,7 @@ uint16_t cpu_inw(uint32_t addr)
     uint16_t val;
 
     address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 2);
-    val = lduw_p(buf);
+    val = lduw_le_p(buf);
     trace_cpu_in(addr, 'w', val);
     return val;
 }
@@ -113,7 +113,7 @@ uint32_t cpu_inl(uint32_t addr)
     uint32_t val;
 
     address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 4);
-    val = ldl_p(buf);
+    val = ldl_le_p(buf);
     trace_cpu_in(addr, 'l', val);
     return val;
 }
