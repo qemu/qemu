@@ -1,3 +1,10 @@
+========================
+vAccel support for QEMU
+========================
+
+The `qemu-mewz` branch adds supports for [vAccel](https://github.com/cloudkernels/vaccel/tree/main) to QEMU, with a particular focus on [Mewz-project](https://github.com/mewz-project/mewz).
+This code includes substantial portions derived from [qemu-vaccel](https://github.com/nubificus/qemu-vaccel), which is published under the same license as QEMU.
+
 ===========
 QEMU README
 ===========
