@@ -2542,6 +2542,22 @@ static bool decode_ops(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_f
         decode->immediate = insn_get_signed(env, s, MO_8);
     }
 
+    if (e->vex_class == 12) {
+        /* Check no overlap between registers.  */
+        if (!decode->op[0].has_ea &&
+            (decode->op[0].n == decode->mem.index || decode->op[0].n == decode->op[1].n)) {
+            return false;
+        }
+        assert(!decode->op[1].has_ea);
+        if (decode->op[1].n == decode->mem.index) {
+            return false;
+        }
+        if (!decode->op[2].has_ea &&
+            (decode->op[2].n == decode->mem.index || decode->op[2].n == decode->op[1].n)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -2648,9 +2664,9 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
             if (s->vex_l) {
                 goto illegal;
             }
-            assert(decode->e.s2 == X86_SIZE_x);
-            if (decode->op[2].has_ea) {
-                decode->op[2].ot = s->prefix & PREFIX_REPZ ? MO_32 : MO_64;
+            assert(e->op2 == X86_TYPE_W && e->s2 == X86_SIZE_x);
+            if ((s->modrm >> 6) != 3) {
+                e->s2 = s->prefix & PREFIX_REPNZ ? X86_SIZE_sd : X86_SIZE_ss;
             }
         }
         break;
@@ -2667,10 +2683,7 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
 
     switch (e->vex_class) {
     case 0:
-        if (s->prefix & PREFIX_VEX) {
-            goto illegal;
-        }
-        return true;
+        g_assert_not_reached();
     case 1:
     case 2:
     case 3:
@@ -2695,19 +2708,6 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
             goto illegal;
         }
 
-        /* Check no overlap between registers.  */
-        if (!decode->op[0].has_ea &&
-            (decode->op[0].n == decode->mem.index || decode->op[0].n == decode->op[1].n)) {
-            goto illegal;
-        }
-        assert(!decode->op[1].has_ea);
-        if (decode->op[1].n == decode->mem.index) {
-            goto illegal;
-        }
-        if (!decode->op[2].has_ea &&
-            (decode->op[2].n == decode->mem.index || decode->op[2].n == decode->op[1].n)) {
-            goto illegal;
-        }
         /* fall through */
     case 6:
     case 11:
@@ -3024,6 +3024,16 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         get_modrm(s, env);
     }
 
+    if (decode.e.vex_class == 0) {
+        if (s->prefix & PREFIX_VEX) {
+            goto illegal_op;
+        }
+    } else {
+        if (!validate_vex(s, &decode)) {
+            return;
+        }
+    }
+
     if (!decode_ops(s, env, decode_func, &decode)) {
         goto illegal_op;
     }
@@ -3083,10 +3093,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     if ((s->prefix & PREFIX_LOCK) && !accept_lock) {
         goto illegal_op;
-    }
-
-    if (!validate_vex(s, &decode)) {
-        return;
     }
 
     /*
