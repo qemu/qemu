@@ -2007,33 +2007,34 @@ static void decode_root(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     *entry = opcodes_root[*b];
 }
 
-/* Decompose an address.  */
-static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
-                                         int modrm, bool is_vsib)
+/* Decode the MODRM and SIB bytes into a register or memory operand.  */
+static void decode_modrm(DisasContext *s, CPUX86State *env,
+                         X86DecodedInsn *decode, X86DecodedOp *op)
 {
-    int def_seg, base, index, scale, mod, rm;
-    target_long disp;
-    bool havesib;
-
-    def_seg = R_DS;
-    index = -1;
-    scale = 0;
-    disp = 0;
-
-    mod = (modrm >> 6) & 3;
-    rm = modrm & 7;
-    base = rm | REX_B(s);
+    int modrm = get_modrm(s, env);
+    int mod = (modrm >> 6) & 3;
+    int rm = modrm & 7;
+    bool is_vsib = decode->e.vex_class == 12;
+    bool havesib = false;
 
     if (mod == 3) {
-        /* Normally filtered out earlier, but including this path
-           simplifies multi-byte nop, as well as bndcl, bndcu, bndcn.  */
-        goto done;
+        op->n = rm;
+        if (op->unit != X86_OP_MMX) {
+            op->n |= REX_B(s);
+        }
+	return;
     }
+
+    /* Decompose an address.  */
+    int def_seg = R_DS;
+    int base = rm | REX_B(s);
+    int index = -1;
+    int scale = 0;
+    target_ulong disp = 0;
 
     switch (s->aflag) {
     case MO_64:
     case MO_32:
-        havesib = 0;
         if (rm == 4) {
             int code = x86_ldub_code(env, s);
             scale = (code >> 6) & 3;
@@ -2042,7 +2043,7 @@ static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
                 index = -1;  /* no index */
             }
             base = (code & 7) | REX_B(s);
-            havesib = 1;
+            havesib = true;
         }
 
         switch (mod) {
@@ -2127,26 +2128,9 @@ static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
         g_assert_not_reached();
     }
 
- done:
-    return (AddressParts){ def_seg, base, index, scale, disp };
-}
-
-static int decode_modrm(DisasContext *s, CPUX86State *env,
-                        X86DecodedInsn *decode, X86DecodedOp *op)
-{
-    int modrm = get_modrm(s, env);
-    if ((modrm >> 6) == 3) {
-        op->n = (modrm & 7);
-        if (op->unit != X86_OP_MMX) {
-            op->n |= REX_B(s);
-        }
-    } else {
-        op->has_ea = true;
-        op->n = -1;
-        decode->mem = decode_modrm_address(env, s, get_modrm(s, env),
-                                           decode->e.vex_class == 12);
-    }
-    return modrm;
+    op->has_ea = true;
+    op->n = -1;
+    decode->mem = (AddressParts){ def_seg, base, index, scale, disp };
 }
 
 static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp *ot)
