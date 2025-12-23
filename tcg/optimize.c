@@ -1103,7 +1103,7 @@ static bool fold_masks_zosa_int(OptContext *ctx, TCGOp *op,
 static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
                             uint64_t o_mask, int64_t s_mask, uint64_t a_mask)
 {
-    fold_masks_zosa_int(ctx, op, z_mask, o_mask, s_mask, -1);
+    fold_masks_zosa_int(ctx, op, z_mask, o_mask, s_mask, a_mask);
     return true;
 }
 
