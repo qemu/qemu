@@ -149,7 +149,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     }
     max_digits = 0;
 
-    switch(format) {
+    switch (format) {
     case 'o':
         max_digits = DIV_ROUND_UP(wsize * 8, 3);
         break;
@@ -169,8 +169,9 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     while (len > 0) {
         monitor_printf(mon, "%0*" PRIx64 ":", addr_width, addr);
         l = len;
-        if (l > line_size)
+        if (l > line_size) {
             l = line_size;
+        }
         if (is_physical) {
             AddressSpace *as = cs ? cs->as : &address_space_memory;
             MemTxResult r = address_space_read(as, addr,
@@ -187,7 +188,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
         }
         i = 0;
         while (i < l) {
-            switch(wsize) {
+            switch (wsize) {
             default:
             case 1:
                 v = ldub_p(buf + i);
@@ -203,9 +204,9 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
                 break;
             }
             monitor_printf(mon, " ");
-            switch(format) {
+            switch (format) {
             case 'o':
-                monitor_printf(mon, "%#*" PRIo64, max_digits, v);
+                monitor_printf(mon, "0%*" PRIo64, max_digits, v);
                 break;
             case 'x':
                 monitor_printf(mon, "0x%0*" PRIx64, max_digits, v);
@@ -255,12 +256,14 @@ void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, uint64_t size, Error **errp)
                                                  addr, size);
 
     if (!mrs.mr) {
-        error_setg(errp, "No memory is mapped at address 0x%" HWADDR_PRIx, addr);
+        error_setg(errp,
+                   "No memory is mapped at address 0x%" HWADDR_PRIx, addr);
         return NULL;
     }
 
     if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
-        error_setg(errp, "Memory at address 0x%" HWADDR_PRIx " is not RAM", addr);
+        error_setg(errp,
+                   "Memory at address 0x%" HWADDR_PRIx " is not RAM", addr);
         memory_region_unref(mrs.mr);
         return NULL;
     }
@@ -312,7 +315,7 @@ void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
     if (gpa == -1) {
         monitor_printf(mon, "Unmapped\n");
     } else {
-        monitor_printf(mon, "gpa: %#" HWADDR_PRIx "\n",
+        monitor_printf(mon, "gpa: 0x%" HWADDR_PRIx "\n",
                        gpa + (addr & ~TARGET_PAGE_MASK));
     }
 }
@@ -344,7 +347,8 @@ static uint64_t vtop(void *ptr, Error **errp)
         error_setg(errp, "Page not present");
         goto out;
     }
-    ret = ((pinfo & 0x007fffffffffffffull) * pagesize) | (addr & (pagesize - 1));
+    ret = (pinfo & 0x007fffffffffffffull) * pagesize;
+    ret |= addr & (pagesize - 1);
 
 out:
     close(fd);
