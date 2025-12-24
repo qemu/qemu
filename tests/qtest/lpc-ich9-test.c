@@ -15,7 +15,7 @@ static void test_lp1878642_pci_bus_get_irq_level_assert(void)
 {
     QTestState *s;
 
-    s = qtest_init("-M pc-q35-5.0 "
+    s = qtest_init("-M q35 "
                    "-nographic -monitor none -serial none");
 
     qtest_outl(s, 0xcf8, 0x8000f840); /* PMBASE */
