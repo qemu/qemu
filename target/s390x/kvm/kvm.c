@@ -1667,10 +1667,10 @@ static int handle_oper_loop(S390CPU *cpu, struct kvm_run *run)
     CPUState *cs = CPU(cpu);
     PSW oldpsw, newpsw;
 
-    newpsw.mask = ldq_phys(cs->as, cpu->env.psa +
-                           offsetof(LowCore, program_new_psw));
-    newpsw.addr = ldq_phys(cs->as, cpu->env.psa +
-                           offsetof(LowCore, program_new_psw) + 8);
+    newpsw.mask = ldq_be_phys(cs->as, cpu->env.psa +
+                              offsetof(LowCore, program_new_psw));
+    newpsw.addr = ldq_be_phys(cs->as, cpu->env.psa +
+                              offsetof(LowCore, program_new_psw) + 8);
     oldpsw.mask  = run->psw_mask;
     oldpsw.addr  = run->psw_addr;
     /*

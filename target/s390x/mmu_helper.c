@@ -44,7 +44,8 @@ static void trigger_access_exception(CPUS390XState *env, uint32_t type,
     } else {
         CPUState *cs = env_cpu(env);
         if (type != PGM_ADDRESSING) {
-            stq_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code), tec);
+            stq_be_phys(cs->as, env->psa + offsetof(LowCore, trans_exc_code),
+                        tec);
         }
         trigger_pgm_exception(env, type);
     }

@@ -958,8 +958,9 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
 inject_exc:
 #if !defined(CONFIG_USER_ONLY)
     if (exc != PGM_ADDRESSING) {
-        stq_phys(env_cpu(env)->as, env->psa + offsetof(LowCore, trans_exc_code),
-                 env->tlb_fill_tec);
+        stq_be_phys(env_cpu(env)->as,
+                    env->psa + offsetof(LowCore, trans_exc_code),
+                    env->tlb_fill_tec);
     }
     if (exc == PGM_PAGE_TRANS) {
         stb_phys(env_cpu(env)->as, env->psa + offsetof(LowCore, op_access_id),
