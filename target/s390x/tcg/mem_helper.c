@@ -1776,10 +1776,10 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
                         uint64_t a2, bool parallel)
 {
     uint32_t mem_idx = s390x_env_mmu_index(env, false);
-    MemOpIdx oi16 = make_memop_idx(MO_TE | MO_128, mem_idx);
-    MemOpIdx oi8 = make_memop_idx(MO_TE | MO_64, mem_idx);
-    MemOpIdx oi4 = make_memop_idx(MO_TE | MO_32, mem_idx);
-    MemOpIdx oi2 = make_memop_idx(MO_TE | MO_16, mem_idx);
+    MemOpIdx oi16 = make_memop_idx(MO_BE | MO_128, mem_idx);
+    MemOpIdx oi8 = make_memop_idx(MO_BE | MO_64, mem_idx);
+    MemOpIdx oi4 = make_memop_idx(MO_BE | MO_32, mem_idx);
+    MemOpIdx oi2 = make_memop_idx(MO_BE | MO_16, mem_idx);
     MemOpIdx oi1 = make_memop_idx(MO_8, mem_idx);
     uintptr_t ra = GETPC();
     uint32_t fc = extract32(env->regs[0], 0, 8);

@@ -331,7 +331,7 @@ static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
     tcg_gen_add_i64(o->addr1, o->addr1, tmp);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 0);
 
-    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_BE | es);
     write_vec_element_i64(tmp, get_field(s, v1), enr, es);
     return DISAS_NEXT;
 }
@@ -402,9 +402,9 @@ static DisasJumpType op_vl(DisasContext *s, DisasOps *o)
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_i64 t1 = tcg_temp_new_i64();
 
-    tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_BEUQ);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
-    tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_BEUQ);
     write_vec_element_i64(t0, get_field(s, v1), 0, ES_64);
     write_vec_element_i64(t1, get_field(s, v1), 1, ES_64);
     return DISAS_NEXT;
@@ -427,7 +427,7 @@ static DisasJumpType op_vlrep(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_BE | es);
     gen_gvec_dup_i64(es, get_field(s, v1), tmp);
     return DISAS_NEXT;
 }
@@ -561,7 +561,7 @@ static DisasJumpType op_vle(DisasContext *s, DisasOps *o)
     }
 
     tmp = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_BE | es);
     write_vec_element_i64(tmp, get_field(s, v1), enr, es);
     return DISAS_NEXT;
 }
@@ -595,9 +595,9 @@ static DisasJumpType op_vler(DisasContext *s, DisasOps *o)
     TCGv_i64 t1 = tcg_temp_new_i64();
 
     /* Begin with the two doublewords swapped... */
-    tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_BEUQ);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
-    tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_ld_i64(t0, o->addr1, get_mem_index(s), MO_BEUQ);
 
     /* ... then swap smaller elements within the doublewords as required. */
     switch (es) {
@@ -693,7 +693,7 @@ static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
     }
 
     t = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(t, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_qemu_ld_i64(t, o->addr1, get_mem_index(s), MO_BE | es);
     gen_gvec_dup_imm(es, get_field(s, v1), 0);
     write_vec_element_i64(t, get_field(s, v1), enr, es);
     return DISAS_NEXT;
@@ -717,16 +717,16 @@ static DisasJumpType op_vlm(DisasContext *s, DisasOps *o)
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
     gen_addi_and_wrap_i64(s, t0, o->addr1, (v3 - v1) * 16 + 8);
-    tcg_gen_qemu_ld_i64(t0, t0, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_ld_i64(t0, t0, get_mem_index(s), MO_BEUQ);
 
     for (;; v1++) {
-        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ);
+        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_BEUQ);
         write_vec_element_i64(t1, v1, 0, ES_64);
         if (v1 == v3) {
             break;
         }
         gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
-        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ);
+        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_BEUQ);
         write_vec_element_i64(t1, v1, 1, ES_64);
         gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
     }
@@ -1009,7 +1009,7 @@ static DisasJumpType op_vsce(DisasContext *s, DisasOps *o)
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 0);
 
     read_vec_element_i64(tmp, get_field(s, v1), enr, es);
-    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_BE | es);
     return DISAS_NEXT;
 }
 
@@ -1063,10 +1063,10 @@ static DisasJumpType op_vst(DisasContext *s, DisasOps *o)
 
     tmp = tcg_temp_new_i64();
     read_vec_element_i64(tmp,  get_field(s, v1), 0, ES_64);
-    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_BEUQ);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
     read_vec_element_i64(tmp,  get_field(s, v1), 1, ES_64);
-    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_BEUQ);
     return DISAS_NEXT;
 }
 
@@ -1154,7 +1154,7 @@ static DisasJumpType op_vste(DisasContext *s, DisasOps *o)
 
     tmp = tcg_temp_new_i64();
     read_vec_element_i64(tmp, get_field(s, v1), enr, es);
-    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_BE | es);
     return DISAS_NEXT;
 }
 
@@ -1193,9 +1193,9 @@ static DisasJumpType op_vster(DisasContext *s, DisasOps *o)
         g_assert_not_reached();
     }
 
-    tcg_gen_qemu_st_i64(t0, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_st_i64(t0, o->addr1, get_mem_index(s), MO_BEUQ);
     gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
-    tcg_gen_qemu_st_i64(t1, o->addr1, get_mem_index(s), MO_TEUQ);
+    tcg_gen_qemu_st_i64(t1, o->addr1, get_mem_index(s), MO_BEUQ);
     return DISAS_NEXT;
 }
 
@@ -1217,10 +1217,10 @@ static DisasJumpType op_vstm(DisasContext *s, DisasOps *o)
     tmp = tcg_temp_new_i64();
     for (;; v1++) {
         read_vec_element_i64(tmp, v1, 0, ES_64);
-        tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEUQ);
+        tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_BEUQ);
         gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
         read_vec_element_i64(tmp, v1, 1, ES_64);
-        tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEUQ);
+        tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_BEUQ);
         if (v1 == v3) {
             break;
         }
