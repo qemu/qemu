@@ -2430,15 +2430,18 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t r1, uint64_t addr)
 */
 void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
 {
+    CPUState *cs = env_cpu(env);
     uint64_t insn;
     uint8_t opc;
+    MemOpIdx oi;
 
     /* EXECUTE targets must be at even addresses.  */
     if (addr & 1) {
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, GETPC());
     }
 
-    insn = cpu_lduw_code(env, addr);
+    oi = make_memop_idx(MO_BEUW, cpu_mmu_index(cs, true));
+    insn = cpu_ldw_code_mmu(env, addr, oi, 0);
     opc = insn >> 8;
 
     /* Or in the contents of R1[56:63].  */
@@ -2450,10 +2453,11 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
     case 2:
         break;
     case 4:
-        insn |= (uint64_t)cpu_lduw_code(env, addr + 2) << 32;
+        insn |= (uint64_t)cpu_ldw_code_mmu(env, addr + 2, oi, 0) << 32;
         break;
     case 6:
-        insn |= (uint64_t)(uint32_t)cpu_ldl_code(env, addr + 2) << 16;
+        oi = make_memop_idx(MO_BEUL, cpu_mmu_index(cs, true));
+        insn |= (uint64_t)(uint32_t)cpu_ldl_code_mmu(env, addr + 2, oi, 0) << 16;
         break;
     default:
         g_assert_not_reached();
