@@ -365,13 +365,13 @@ static void update_cc_op(DisasContext *s)
 static inline uint64_t ld_code2(CPUS390XState *env, DisasContext *s,
                                 uint64_t pc)
 {
-    return (uint64_t)translator_lduw(env, &s->base, pc);
+    return (uint64_t) translator_lduw_end(env, &s->base, pc, MO_BE);
 }
 
 static inline uint64_t ld_code4(CPUS390XState *env, DisasContext *s,
                                 uint64_t pc)
 {
-    return (uint64_t)(uint32_t)translator_ldl(env, &s->base, pc);
+    return (uint64_t)(uint32_t) translator_ldl_end(env, &s->base, pc, MO_BE);
 }
 
 static int get_mem_index(DisasContext *s)
@@ -6408,7 +6408,7 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,
                                 uint64_t pc)
 {
-    uint64_t insn = translator_lduw(env, &s->base, pc);
+    uint64_t insn = translator_lduw_end(env, &s->base, pc, MO_BE);
 
     return pc + get_ilen((insn >> 8) & 0xff);
 }
