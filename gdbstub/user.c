@@ -337,6 +337,7 @@ static int gdbserver_open_socket(const char *path)
 
     sockaddr.sun_family = AF_UNIX;
     pstrcpy(sockaddr.sun_path, sizeof(sockaddr.sun_path) - 1, path);
+    unlink(sockaddr.sun_path);
     ret = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (ret < 0) {
         perror("bind socket");
