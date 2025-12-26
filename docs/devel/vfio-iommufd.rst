@@ -127,18 +127,6 @@ Supports x86, ARM and s390x currently.
 Caveats
 =======
 
-Dirty page sync
----------------
-
-Dirty page sync with iommufd backend is unsupported yet, live migration is
-disabled by default. But it can be force enabled like below, low efficient
-though.
-
-.. code-block:: bash
-
-    -object iommufd,id=iommufd0
-    -device vfio-pci,host=0000:02:00.0,iommufd=iommufd0,enable-migration=on
-
 P2P DMA
 -------
 
