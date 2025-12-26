@@ -799,8 +799,8 @@ void HELPER(cas2w)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
         env->cc_v = c2;
     }
     env->cc_op = CC_OP_CMPW;
-    env->dregs[Dc1] = deposit32(env->dregs[Dc1], 0, 16, l1);
     env->dregs[Dc2] = deposit32(env->dregs[Dc2], 0, 16, l2);
+    env->dregs[Dc1] = deposit32(env->dregs[Dc1], 0, 16, l1);
 }
 
 static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
@@ -861,8 +861,8 @@ static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
         env->cc_v = c2;
     }
     env->cc_op = CC_OP_CMPL;
-    env->dregs[Dc1] = l1;
     env->dregs[Dc2] = l2;
+    env->dregs[Dc1] = l1;
 }
 
 void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
