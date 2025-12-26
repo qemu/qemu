@@ -176,7 +176,7 @@ static void XBZRLE_cache_unlock(void)
 /**
  * xbzrle_cache_resize: resize the xbzrle cache
  *
- * This function is called from migrate_params_apply in main
+ * This function is called from migrate_post_update_params in main
  * thread, possibly while a migration is in progress.  A running
  * migration may be using the cache and might finish during this call,
  * hence changes to the cache are protected by XBZRLE.lock().
@@ -193,8 +193,7 @@ int xbzrle_cache_resize(uint64_t new_size, Error **errp)
 
     /* Check for truncation */
     if (new_size != (size_t)new_size) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "exceeding address space");
+        error_setg(errp, "xbzrle cache size integer overflow");
         return -1;
     }
 
@@ -942,7 +941,6 @@ static uint64_t physical_memory_sync_dirty_bitmap(RAMBlock *rb,
                                                   ram_addr_t start,
                                                   ram_addr_t length)
 {
-    ram_addr_t addr;
     unsigned long word = BIT_WORD((start + rb->offset) >> TARGET_PAGE_BITS);
     uint64_t num_dirty = 0;
     unsigned long *dest = rb->bmap;
@@ -994,19 +992,11 @@ static uint64_t physical_memory_sync_dirty_bitmap(RAMBlock *rb,
             memory_region_clear_dirty_bitmap(rb->mr, start, length);
         }
     } else {
-        ram_addr_t offset = rb->offset;
-
-        for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
-            if (physical_memory_test_and_clear_dirty(
-                        start + addr + offset,
-                        TARGET_PAGE_SIZE,
-                        DIRTY_MEMORY_MIGRATION)) {
-                long k = (start + addr) >> TARGET_PAGE_BITS;
-                if (!test_and_set_bit(k, dest)) {
-                    num_dirty++;
-                }
-            }
-        }
+        num_dirty = physical_memory_test_and_clear_dirty(
+                        start + rb->offset,
+                        length,
+                        DIRTY_MEMORY_MIGRATION,
+                        dest);
     }
 
     return num_dirty;
@@ -3042,28 +3032,37 @@ static void mapped_ram_setup_ramblock(QEMUFile *file, RAMBlock *block)
     header = g_new0(MappedRamHeader, 1);
     header_size = sizeof(MappedRamHeader);
 
-    num_pages = block->used_length >> TARGET_PAGE_BITS;
-    bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
-
-    /*
-     * Save the file offsets of where the bitmap and the pages should
-     * go as they are written at the end of migration and during the
-     * iterative phase, respectively.
-     */
-    block->bitmap_offset = qemu_get_offset(file) + header_size;
-    block->pages_offset = ROUND_UP(block->bitmap_offset +
-                                   bitmap_size,
-                                   MAPPED_RAM_FILE_OFFSET_ALIGNMENT);
-
     header->version = cpu_to_be32(MAPPED_RAM_HDR_VERSION);
     header->page_size = cpu_to_be64(TARGET_PAGE_SIZE);
-    header->bitmap_offset = cpu_to_be64(block->bitmap_offset);
-    header->pages_offset = cpu_to_be64(block->pages_offset);
+
+    if (migrate_ram_is_ignored(block)) {
+        header->bitmap_offset = 0;
+        header->pages_offset = 0;
+    } else {
+        num_pages = block->used_length >> TARGET_PAGE_BITS;
+        bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
+
+        /*
+         * Save the file offsets of where the bitmap and the pages should
+         * go as they are written at the end of migration and during the
+         * iterative phase, respectively.
+         */
+        block->bitmap_offset = qemu_get_offset(file) + header_size;
+        block->pages_offset = ROUND_UP(block->bitmap_offset +
+                                       bitmap_size,
+                                       MAPPED_RAM_FILE_OFFSET_ALIGNMENT);
+
+        header->bitmap_offset = cpu_to_be64(block->bitmap_offset);
+        header->pages_offset = cpu_to_be64(block->pages_offset);
+    }
 
     qemu_put_buffer(file, (uint8_t *) header, header_size);
 
-    /* prepare offset for next ramblock */
-    qemu_set_offset(file, block->pages_offset + block->used_length, SEEK_SET);
+    if (!migrate_ram_is_ignored(block)) {
+        /* leave space for block data */
+        qemu_set_offset(file, block->pages_offset + block->used_length,
+                        SEEK_SET);
+    }
 }
 
 static bool mapped_ram_read_header(QEMUFile *file, MappedRamHeader *header,
@@ -3146,7 +3145,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque, Error **errp)
             if (migrate_ignore_shared()) {
                 qemu_put_be64(f, block->mr->addr);
             }
-
             if (migrate_mapped_ram()) {
                 mapped_ram_setup_ramblock(f, block);
             }
@@ -3217,6 +3215,10 @@ static void ram_save_file_bmap(QEMUFile *f)
     RAMBlock *block;
 
     RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        if (migrate_ram_is_ignored(block)) {
+            continue;
+        }
+
         long num_pages = block->used_length >> TARGET_PAGE_BITS;
         long bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
 
@@ -4162,6 +4164,11 @@ static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
         return;
     }
 
+    if (migrate_ignore_shared() &&
+        header.bitmap_offset == 0 && header.pages_offset == 0) {
+        return;
+    }
+
     block->pages_offset = header.pages_offset;
 
     /*
@@ -4205,6 +4212,17 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
 
     assert(block);
 
+    if (migrate_ignore_shared()) {
+        hwaddr addr = qemu_get_be64(f);
+        if (migrate_ram_is_ignored(block) &&
+            block->mr->addr != addr) {
+            error_report("Mismatched GPAs for block %s "
+                         "%" PRId64 "!= %" PRId64, block->idstr,
+                         (uint64_t)addr, (uint64_t)block->mr->addr);
+            return -EINVAL;
+        }
+    }
+
     if (migrate_mapped_ram()) {
         parse_ramblock_mapped_ram(f, block, length, &local_err);
         if (local_err) {
@@ -4241,16 +4259,6 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
             error_report("Mismatched RAM page size %s "
                          "(local) %zd != %" PRId64, block->idstr,
                          block->page_size, remote_page_size);
-            return -EINVAL;
-        }
-    }
-    if (migrate_ignore_shared()) {
-        hwaddr addr = qemu_get_be64(f);
-        if (migrate_ram_is_ignored(block) &&
-            block->mr->addr != addr) {
-            error_report("Mismatched GPAs for block %s "
-                         "%" PRId64 "!= %" PRId64, block->idstr,
-                         (uint64_t)addr, (uint64_t)block->mr->addr);
             return -EINVAL;
         }
     }
@@ -4730,9 +4738,7 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
          * Abort and indicate a proper reason.
          */
         error_setg(&err, "RAM block '%s' resized during precopy.", rb->idstr);
-        migrate_set_error(migrate_get_current(), err);
-        error_free(err);
-
+        migrate_error_propagate(migrate_get_current(), err);
         migration_cancel();
     }
 

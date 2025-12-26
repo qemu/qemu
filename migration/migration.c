@@ -914,9 +914,7 @@ process_incoming_migration_co(void *opaque)
 fail:
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_FAILED);
-    migrate_set_error(s, local_err);
-    error_free(local_err);
-
+    migrate_error_propagate(s, local_err);
     migration_incoming_state_destroy();
 
     if (mis->exit_on_error) {
@@ -1548,15 +1546,16 @@ static void migration_cleanup_bh(void *opaque)
     migration_cleanup(opaque);
 }
 
-void migrate_set_error(MigrationState *s, const Error *error)
+/*
+ * Propagate the Error* object to migration core.  The caller mustn't
+ * reference the error pointer after the function returned, because the
+ * Error* object might be freed.
+ */
+void migrate_error_propagate(MigrationState *s, Error *error)
 {
     QEMU_LOCK_GUARD(&s->error_mutex);
-
     trace_migrate_error(error_get_pretty(error));
-
-    if (!s->error) {
-        s->error = error_copy(error);
-    }
+    error_propagate(&s->error, error);
 }
 
 bool migrate_has_error(MigrationState *s)
@@ -1575,7 +1574,7 @@ static void migrate_error_free(MigrationState *s)
     }
 }
 
-static void migration_connect_set_error(MigrationState *s, const Error *error)
+static void migration_connect_error_propagate(MigrationState *s, Error *error)
 {
     MigrationStatus current = s->state;
     MigrationStatus next;
@@ -1601,7 +1600,7 @@ static void migration_connect_set_error(MigrationState *s, const Error *error)
     }
 
     migrate_set_state(&s->state, current, next);
-    migrate_set_error(s, error);
+    migrate_error_propagate(s, error);
 }
 
 void migration_cancel(void)
@@ -2013,8 +2012,7 @@ void qmp_migrate_pause(Error **errp)
 
         /* Tell the core migration that we're pausing */
         error_setg(&error, "Postcopy migration is paused by the user");
-        migrate_set_error(ms, error);
-        error_free(error);
+        migrate_error_propagate(ms, error);
 
         qemu_mutex_lock(&ms->qemu_file_lock);
         if (ms->to_dst_file) {
@@ -2120,7 +2118,7 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
     }
 
     if (migrate_mode() == MIG_MODE_CPR_EXEC &&
-        !s->parameters.has_cpr_exec_command) {
+        !s->parameters.cpr_exec_command) {
         error_setg(errp, "cpr-exec mode requires setting cpr-exec-command");
         return false;
     }
@@ -2292,7 +2290,7 @@ void qmp_migrate(const char *uri, bool has_channels,
 
 out:
     if (local_err) {
-        migration_connect_set_error(s, local_err);
+        migration_connect_error_propagate(s, error_copy(local_err));
         error_propagate(errp, local_err);
     }
 }
@@ -2327,8 +2325,7 @@ static void qmp_migrate_finish(MigrationAddress *addr, bool resume_requested,
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
         file_start_outgoing_migration(s, &addr->u.file, &local_err);
     } else {
-        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "uri",
-                   "a valid migration protocol");
+        error_setg(&local_err, "uri is not a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_FAILED);
     }
@@ -2337,7 +2334,7 @@ static void qmp_migrate_finish(MigrationAddress *addr, bool resume_requested,
         if (!resume_requested) {
             yank_unregister_instance(MIGRATION_YANK_INSTANCE);
         }
-        migration_connect_set_error(s, local_err);
+        migration_connect_error_propagate(s, error_copy(local_err));
         error_propagate(errp, local_err);
         return;
     }
@@ -2646,8 +2643,7 @@ static void *source_return_path_thread(void *opaque)
 
 out:
     if (err) {
-        migrate_set_error(ms, err);
-        error_free(err);
+        migrate_error_propagate(ms, err);
         trace_source_return_path_thread_bad_end();
     }
 
@@ -3093,12 +3089,10 @@ static void migration_completion(MigrationState *s)
 
 fail:
     if (qemu_file_get_error_obj(s->to_dst_file, &local_err)) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(s, local_err);
     } else if (ret) {
         error_setg_errno(&local_err, -ret, "Error in migration completion");
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(s, local_err);
     }
 
     if (s->state != MIGRATION_STATUS_CANCELLING) {
@@ -3325,8 +3319,7 @@ static MigThrError migration_detect_error(MigrationState *s)
     }
 
     if (local_error) {
-        migrate_set_error(s, local_error);
-        error_free(local_error);
+        migrate_error_propagate(s, local_error);
     }
 
     if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret) {
@@ -3521,7 +3514,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
         if (must_precopy <= s->threshold_size &&
             can_switchover && qatomic_read(&s->start_postcopy)) {
             if (postcopy_start(s, &local_err)) {
-                migrate_set_error(s, local_err);
+                migrate_error_propagate(s, error_copy(local_err));
                 error_report_err(local_err);
             }
             return MIG_ITERATE_SKIP;
@@ -3818,8 +3811,7 @@ static void *migration_thread(void *opaque)
      * devices to unplug. This to preserve migration state transitions.
      */
     if (ret) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(s, local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_FAILED);
         goto out;
@@ -3943,8 +3935,7 @@ static void *bg_migration_thread(void *opaque)
      * devices to unplug. This to preserve migration state transitions.
      */
     if (ret) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(s, local_err);
         migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
                           MIGRATION_STATUS_FAILED);
         goto fail_setup;
@@ -4039,7 +4030,7 @@ void migration_connect(MigrationState *s, Error *error_in)
 
     s->expected_downtime = migrate_downtime_limit();
     if (error_in) {
-        migration_connect_set_error(s, error_in);
+        migration_connect_error_propagate(s, error_in);
         if (resume) {
             /*
              * Don't do cleanup for resume if channel is invalid, but only dump
@@ -4126,7 +4117,7 @@ void migration_connect(MigrationState *s, Error *error_in)
     return;
 
 fail:
-    migrate_set_error(s, local_err);
+    migrate_error_propagate(s, error_copy(local_err));
     if (s->state != MIGRATION_STATUS_CANCELLING) {
         migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
     }
@@ -4147,6 +4138,8 @@ static void migration_instance_finalize(Object *obj)
 {
     MigrationState *ms = MIGRATION_OBJ(obj);
 
+    qapi_free_BitmapMigrationNodeAliasList(ms->parameters.block_bitmap_mapping);
+    qapi_free_strList(ms->parameters.cpr_exec_command);
     qemu_mutex_destroy(&ms->error_mutex);
     qemu_mutex_destroy(&ms->qemu_file_lock);
     qemu_sem_destroy(&ms->wait_unplug_sem);

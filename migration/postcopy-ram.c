@@ -1928,8 +1928,7 @@ postcopy_preempt_send_channel_done(MigrationState *s,
                                    QIOChannel *ioc, Error *local_err)
 {
     if (local_err) {
-        migrate_set_error(s, local_err);
-        error_free(local_err);
+        migrate_error_propagate(s, local_err);
     } else {
         migration_ioc_register_yank(ioc);
         s->postcopy_qemufile_src = qemu_file_new_output(ioc);
@@ -2163,7 +2162,7 @@ static void *postcopy_listen_thread(void *opaque)
              * exit depending on if postcopy-exit-on-error is true, but the
              * migration cannot be recovered.
              */
-            migrate_set_error(migr, local_err);
+            migrate_error_propagate(migr, error_copy(local_err));
             error_report_err(local_err);
             migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
             goto out;

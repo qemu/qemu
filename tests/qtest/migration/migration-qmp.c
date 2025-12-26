@@ -458,6 +458,15 @@ void migrate_set_parameter_strv(QTestState *who, const char *parameter,
     qtest_qmp_assert_success(who, command, parameter);
 }
 
+void migrate_set_parameter_null(QTestState *who, const char *parameter)
+{
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: null } }",
+                             parameter);
+    migrate_check_parameter_str(who, parameter, "");
+}
+
 static long long migrate_get_parameter_bool(QTestState *who,
                                             const char *parameter)
 {

@@ -27,21 +27,19 @@ static void *migrate_hook_start_mode_reboot(QTestState *from, QTestState *to)
     return NULL;
 }
 
-static void test_mode_reboot(void)
+static void test_mode_reboot(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
-    MigrateCommon args = {
-        .start.mem_type = MEM_TYPE_SHMEM,
-        .connect_uri = uri,
-        .listen_uri = "defer",
-        .start_hook = migrate_hook_start_mode_reboot,
-        .start = {
-            .caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true,
-        },
-    };
 
-    test_file_common(&args, true);
+    args->connect_uri = uri;
+    args->listen_uri = "defer";
+    args->start_hook = migrate_hook_start_mode_reboot;
+
+    args->start.mem_type = MEM_TYPE_SHMEM;
+    args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
+
+    test_file_common(args, true);
 }
 
 static void *test_mode_transfer_start(QTestState *from, QTestState *to)
@@ -55,7 +53,7 @@ static void *test_mode_transfer_start(QTestState *from, QTestState *to)
  * migration, and cannot connect synchronously to the monitor, so defer
  * the target connection.
  */
-static void test_mode_transfer_common(bool incoming_defer)
+static void test_mode_transfer_common(MigrateCommon *args, bool incoming_defer)
 {
     g_autofree char *cpr_path = g_strdup_printf("%s/cpr.sock", tmpfs);
     g_autofree char *mig_path = g_strdup_printf("%s/migsocket", tmpfs);
@@ -85,31 +83,31 @@ static void test_mode_transfer_common(bool incoming_defer)
     opts_target = g_strdup_printf("-incoming cpr,addr.transport=socket,"
                                   "addr.type=fd,addr.str=%d %s",
                                   cpr_sockfd, opts);
-    MigrateCommon args = {
-        .start.opts_source = opts,
-        .start.opts_target = opts_target,
-        .start.defer_target_connect = true,
-        .start.mem_type = MEM_TYPE_MEMFD,
-        .listen_uri = incoming_defer ? "defer" : uri,
-        .connect_channels = connect_channels,
-        .cpr_channel = cpr_channel,
-        .start_hook = test_mode_transfer_start,
-    };
 
-    if (test_precopy_common(&args) < 0) {
+    args->listen_uri = incoming_defer ? "defer" : uri;
+    args->connect_channels = connect_channels;
+    args->cpr_channel = cpr_channel;
+    args->start_hook = test_mode_transfer_start;
+
+    args->start.opts_source = opts;
+    args->start.opts_target = opts_target;
+    args->start.defer_target_connect = true;
+    args->start.mem_type = MEM_TYPE_MEMFD;
+
+    if (test_precopy_common(args) < 0) {
         close(cpr_sockfd);
         unlink(cpr_path);
     }
 }
 
-static void test_mode_transfer(void)
+static void test_mode_transfer(char *name, MigrateCommon *args)
 {
-    test_mode_transfer_common(NULL);
+    test_mode_transfer_common(args, false);
 }
 
-static void test_mode_transfer_defer(void)
+static void test_mode_transfer_defer(char *name, MigrateCommon *args)
 {
-    test_mode_transfer_common(true);
+    test_mode_transfer_common(args, true);
 }
 
 static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
@@ -225,22 +223,21 @@ static void *test_mode_exec_start(QTestState *from, QTestState *to)
     return NULL;
 }
 
-static void test_mode_exec(void)
+static void test_mode_exec(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
     g_autofree char *listen_uri = g_strdup_printf("defer");
 
-    MigrateCommon args = {
-        .start.only_source = true,
-        .start.opts_source = "-machine aux-ram-share=on -nodefaults",
-        .start.mem_type = MEM_TYPE_MEMFD,
-        .connect_uri = uri,
-        .listen_uri = listen_uri,
-        .start_hook = test_mode_exec_start,
-    };
+    args->connect_uri = uri;
+    args->listen_uri = listen_uri;
+    args->start_hook = test_mode_exec_start;
 
-    test_cpr_exec(&args);
+    args->start.only_source = true;
+    args->start.opts_source = "-machine aux-ram-share=on -nodefaults";
+    args->start.mem_type = MEM_TYPE_MEMFD;
+
+    test_cpr_exec(args);
 }
 
 void migration_test_add_cpr(MigrationTestEnv *env)

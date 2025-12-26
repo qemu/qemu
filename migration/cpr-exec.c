@@ -158,8 +158,9 @@ static void cpr_exec_cb(void *opaque)
 
     error_report_err(error_copy(err));
     migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
-    migrate_set_error(s, err);
-    error_free(err);
+
+    migrate_error_propagate(s, err);
+    /* We must reset the error because it'll be reused later */
     err = NULL;
 
     /* Note, we can go from state COMPLETED to FAILED */

@@ -2424,7 +2424,7 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 {
     assert(mr->ram_block);
     physical_memory_test_and_clear_dirty(
-        memory_region_get_ram_addr(mr) + addr, size, client);
+        memory_region_get_ram_addr(mr) + addr, size, client, NULL);
 }
 
 int memory_region_get_fd(MemoryRegion *mr)
