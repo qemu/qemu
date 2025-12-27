@@ -5829,7 +5829,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(move_to_sr, 46c0, ffc0);
 #endif
     INSN(nbcd,      4800, ffc0, M68K);
-    INSN(linkl,     4808, fff8, M68K);
+    INSN(linkl,     4808, fff8, LINKL);
     BASE(pea,       4840, ffc0);
     BASE(swap,      4840, fff8);
     INSN(bkpt,      4848, fff8, BKPT);
