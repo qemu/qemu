@@ -419,8 +419,8 @@ F: include/hw/xtensa/xtensa-isa.h
 F: configs/devices/xtensa*/default.mak
 
 TriCore TCG CPUs
-M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
-S: Maintained
+M: Bastian Koppelmann <kbastian@rumtueddeln.de>
+S: Odd Fixes
 F: target/tricore/
 F: hw/tricore/
 F: include/hw/tricore/
