@@ -30,7 +30,7 @@
 #include "system/system.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/ramblock.h"
 #include "socket.h"
 #include "yank_functions.h"

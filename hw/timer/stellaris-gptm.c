@@ -12,7 +12,7 @@
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/timer/stellaris-gptm.h"
 
 static void gptm_update_irq(gptm_state *s)

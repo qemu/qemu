@@ -29,8 +29,8 @@
 #ifndef IMX_EPIT_H
 #define IMX_EPIT_H
 
-#include "hw/sysbus.h"
-#include "hw/ptimer.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/ptimer.h"
 #include "hw/misc/imx_ccm.h"
 #include "qom/object.h"
 

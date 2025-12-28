@@ -8,7 +8,7 @@ use std::ffi::CStr;
 
 pub use bindings::SysBusDeviceClass;
 use common::Opaque;
-use qom::{prelude::*, Owned};
+use qom::prelude::*;
 use system::MemoryRegion;
 use util::{Error, Result};
 
@@ -78,7 +78,7 @@ where
         assert!(bql::is_locked());
         // SAFETY: the BQL ensures that no one else writes to sbd.mmio[], and
         // the SysBusDevice must be initialized to get an IsA<SysBusDevice>.
-        let sbd = unsafe { *self.upcast().as_ptr() };
+        let sbd = unsafe { &*self.upcast().as_ptr() };
         let id: usize = id.try_into().unwrap();
         if sbd.mmio[id].memory.is_null() {
             None

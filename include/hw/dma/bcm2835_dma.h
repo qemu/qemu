@@ -8,7 +8,7 @@
 #ifndef BCM2835_DMA_H
 #define BCM2835_DMA_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 typedef struct {

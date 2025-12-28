@@ -12,7 +12,7 @@
 #include "host-cpu.h"
 #include "qapi/error.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/x86.h"
 
 #include "kvm_i386.h"

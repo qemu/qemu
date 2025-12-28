@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"

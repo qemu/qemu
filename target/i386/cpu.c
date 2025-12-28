@@ -34,7 +34,7 @@
 #include "qemu/error-report.h"
 #include "qapi/qapi-visit-machine.h"
 #include "standard-headers/asm-x86/kvm_para.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/i386/topology.h"
 #include "exec/watchpoint.h"
 #ifndef CONFIG_USER_ONLY
@@ -42,7 +42,7 @@
 #include "system/reset.h"
 #include "qapi/qapi-commands-machine.h"
 #include "system/address-spaces.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/sgx-epc.h"
 #endif
 #include "system/qtest.h"
@@ -304,33 +304,30 @@ static void encode_cache_cpuid2(X86CPU *cpu,
                        ((t) == UNIFIED_CACHE) ? CACHE_TYPE_UNIFIED : \
                        0 /* Invalid value */)
 
+static uint32_t apicid_offset_by_topo_level(X86CPUTopoInfo *topo_info,
+                                            enum CpuTopologyLevel topo_level)
+{
+    switch (topo_level) {
+    case CPU_TOPOLOGY_LEVEL_THREAD:
+        return 0;
+    case CPU_TOPOLOGY_LEVEL_CORE:
+        return apicid_core_offset(topo_info);
+    case CPU_TOPOLOGY_LEVEL_MODULE:
+        return apicid_module_offset(topo_info);
+    case CPU_TOPOLOGY_LEVEL_DIE:
+        return apicid_die_offset(topo_info);
+    case CPU_TOPOLOGY_LEVEL_SOCKET:
+        return apicid_pkg_offset(topo_info);
+    default:
+        g_assert_not_reached();
+    }
+    return 0;
+}
+
 static uint32_t max_thread_ids_for_cache(X86CPUTopoInfo *topo_info,
                                          enum CpuTopologyLevel share_level)
 {
-    uint32_t num_ids = 0;
-
-    switch (share_level) {
-    case CPU_TOPOLOGY_LEVEL_CORE:
-        num_ids = 1 << apicid_core_offset(topo_info);
-        break;
-    case CPU_TOPOLOGY_LEVEL_MODULE:
-        num_ids = 1 << apicid_module_offset(topo_info);
-        break;
-    case CPU_TOPOLOGY_LEVEL_DIE:
-        num_ids = 1 << apicid_die_offset(topo_info);
-        break;
-    case CPU_TOPOLOGY_LEVEL_SOCKET:
-        num_ids = 1 << apicid_pkg_offset(topo_info);
-        break;
-    default:
-        /*
-         * Currently there is no use case for THREAD, so use
-         * assert directly to facilitate debugging.
-         */
-        g_assert_not_reached();
-    }
-
-    return num_ids - 1;
+    return (1 << apicid_offset_by_topo_level(topo_info, share_level)) - 1;
 }
 
 static uint32_t max_core_ids_in_package(X86CPUTopoInfo *topo_info)
@@ -392,26 +389,6 @@ static uint32_t num_threads_by_topo_level(X86CPUTopoInfo *topo_info,
         return x86_threads_per_die(topo_info);
     case CPU_TOPOLOGY_LEVEL_SOCKET:
         return x86_threads_per_pkg(topo_info);
-    default:
-        g_assert_not_reached();
-    }
-    return 0;
-}
-
-static uint32_t apicid_offset_by_topo_level(X86CPUTopoInfo *topo_info,
-                                            enum CpuTopologyLevel topo_level)
-{
-    switch (topo_level) {
-    case CPU_TOPOLOGY_LEVEL_THREAD:
-        return 0;
-    case CPU_TOPOLOGY_LEVEL_CORE:
-        return apicid_core_offset(topo_info);
-    case CPU_TOPOLOGY_LEVEL_MODULE:
-        return apicid_module_offset(topo_info);
-    case CPU_TOPOLOGY_LEVEL_DIE:
-        return apicid_die_offset(topo_info);
-    case CPU_TOPOLOGY_LEVEL_SOCKET:
-        return apicid_pkg_offset(topo_info);
     default:
         g_assert_not_reached();
     }
@@ -1036,6 +1013,9 @@ void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
 #define TCG_SGX_12_0_EBX_FEATURES 0
 #define TCG_SGX_12_1_EAX_FEATURES 0
 #define TCG_24_0_EBX_FEATURES 0
+#define TCG_29_0_EBX_FEATURES 0
+#define TCG_1E_1_EAX_FEATURES 0
+#define TCG_24_1_ECX_FEATURES 0
 
 #if defined CONFIG_USER_ONLY
 #define CPUID_8000_0008_EBX_KERNEL_FEATURES (CPUID_8000_0008_EBX_IBPB | \
@@ -1221,7 +1201,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             NULL, "avx512vbmi", "umip", "pku",
-            NULL /* ospke */, "waitpkg", "avx512vbmi2", NULL,
+            NULL /* ospke */, "waitpkg", "avx512vbmi2", "cet-ss",
             "gfni", "vaes", "vpclmulqdq", "avx512vnni",
             "avx512bitalg", NULL, "avx512-vpopcntdq", NULL,
             "la57", NULL, NULL, NULL,
@@ -1244,7 +1224,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "avx512-vp2intersect", NULL, "md-clear", NULL,
             NULL, NULL, "serialize", NULL,
             "tsx-ldtrk", NULL, NULL /* pconfig */, "arch-lbr",
-            NULL, NULL, "amx-bf16", "avx512-fp16",
+            "cet-ibt", NULL, "amx-bf16", "avx512-fp16",
             "amx-tile", "amx-int8", "spec-ctrl", "stibp",
             "flush-l1d", "arch-capabilities", "core-capability", "ssbd",
         },
@@ -1265,7 +1245,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, "fred", "lkgs", "wrmsrns",
             NULL, "amx-fp16", NULL, "avx-ifma",
             NULL, NULL, "lam", NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, "movrs",
         },
         .cpuid = {
             .eax = 7,
@@ -1301,7 +1281,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "amx-complex", NULL, "avx-vnni-int16", NULL,
             NULL, NULL, "prefetchiti", NULL,
             NULL, NULL, NULL, "avx10",
-            NULL, NULL, NULL, NULL,
+            NULL, "apxf", NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
@@ -1331,6 +1311,25 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .tcg_features = TCG_7_2_EDX_FEATURES,
     },
+    [FEAT_1E_1_EAX] = {
+        .type = CPUID_FEATURE_WORD,
+        .feat_names = {
+            "amx-int8-mirror", "amx-bf16-mirror", "amx-complex-mirror", "amx-fp16-mirror",
+            "amx-fp8", NULL, "amx-tf32", "amx-avx512",
+            "amx-movrs", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
+        .cpuid = {
+            .eax = 0x1e,
+            .needs_ecx = true, .ecx = 1,
+            .reg = R_EAX,
+        },
+        .tcg_features = TCG_1E_1_EAX_FEATURES,
+    },
     [FEAT_24_0_EBX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
@@ -1344,6 +1343,37 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .reg = R_EBX,
         },
         .tcg_features = TCG_24_0_EBX_FEATURES,
+    },
+    [FEAT_29_0_EBX] = {
+        .type = CPUID_FEATURE_WORD,
+        .feat_names = {
+            "apx-nci-ndd-nf", NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
+        .cpuid = {
+            .eax = 0x29,
+            .needs_ecx = true, .ecx = 0,
+            .reg = R_EBX,
+        },
+        .tcg_features = TCG_29_0_EBX_FEATURES,
+    },
+    [FEAT_24_1_ECX] = {
+        .type = CPUID_FEATURE_WORD,
+        .feat_names = {
+            [2] = "avx10-vnni-int",
+        },
+        .cpuid = {
+            .eax = 0x24,
+            .needs_ecx = true, .ecx = 1,
+            .reg = R_ECX,
+        },
+        .tcg_features = TCG_24_1_ECX_FEATURES,
     },
     [FEAT_8000_0007_EDX] = {
         .type = CPUID_FEATURE_WORD,
@@ -1484,6 +1514,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .ecx = 1,
             .reg = R_ECX,
         },
+        .migratable_flags = XSTATE_CET_U_MASK | XSTATE_CET_S_MASK |
+            XSTATE_ARCH_LBR_MASK,
     },
     [FEAT_XSAVE_XSS_HI] = {
         .type = CPUID_FEATURE_WORD,
@@ -1522,7 +1554,8 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .migratable_flags = XSTATE_FP_MASK | XSTATE_SSE_MASK |
             XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK |
             XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK |
-            XSTATE_PKRU_MASK,
+            XSTATE_PKRU_MASK | XSTATE_XTILE_CFG_MASK | XSTATE_XTILE_DATA_MASK |
+            XSTATE_APX_MASK,
     },
     [FEAT_XSAVE_XCR0_HI] = {
         .type = CPUID_FEATURE_WORD,
@@ -1664,7 +1697,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "vmx-exit-save-efer", "vmx-exit-load-efer",
                 "vmx-exit-save-preemption-timer", "vmx-exit-clear-bndcfgs",
             NULL, "vmx-exit-clear-rtit-ctl", NULL, NULL,
-            NULL, "vmx-exit-load-pkrs", NULL, "vmx-exit-secondary-ctls",
+            "vmx-exit-save-cet", "vmx-exit-load-pkrs", NULL, "vmx-exit-secondary-ctls",
         },
         .msr = {
             .index = MSR_IA32_VMX_TRUE_EXIT_CTLS,
@@ -1679,7 +1712,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, "vmx-entry-ia32e-mode", NULL, NULL,
             NULL, "vmx-entry-load-perf-global-ctrl", "vmx-entry-load-pat", "vmx-entry-load-efer",
             "vmx-entry-load-bndcfgs", NULL, "vmx-entry-load-rtit-ctl", NULL,
-            NULL, NULL, "vmx-entry-load-pkrs", "vmx-entry-load-fred",
+            "vmx-entry-load-cet", NULL, "vmx-entry-load-pkrs", "vmx-entry-load-fred",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
         },
@@ -1994,6 +2027,19 @@ static FeatureDep feature_dependencies[] = {
         .from = { FEAT_7_1_EDX,             CPUID_7_1_EDX_AVX10 },
         .to = { FEAT_24_0_EBX,              ~0ull },
     },
+    {
+        .from = { FEAT_7_1_EDX,             CPUID_7_1_EDX_APXF },
+        .to = { FEAT_29_0_EBX,              ~0ull },
+    },
+
+    {
+        .from = { FEAT_7_1_EDX,             CPUID_7_1_EDX_AVX10 },
+        .to = { FEAT_24_1_ECX,              ~0ull },
+    },
+    {
+        .from = { FEAT_7_1_EAX,             CPUID_7_1_EAX_FRED },
+        .to = { FEAT_VMX_ENTRY_CTLS,        VMX_VM_ENTRY_LOAD_IA32_FRED },
+    },
 };
 
 typedef struct X86RegisterInfo32 {
@@ -2020,46 +2066,100 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT] = {
     [XSTATE_FP_BIT] = {
         /* x87 FP state component is always enabled if XSAVE is supported */
-        .feature = FEAT_1_ECX, .bits = CPUID_EXT_XSAVE,
         .size = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader),
+        .features = {
+            { FEAT_1_ECX,           CPUID_EXT_XSAVE },
+        },
     },
     [XSTATE_SSE_BIT] = {
         /* SSE state component is always enabled if XSAVE is supported */
-        .feature = FEAT_1_ECX, .bits = CPUID_EXT_XSAVE,
         .size = sizeof(X86LegacyXSaveArea) + sizeof(X86XSaveHeader),
+        .features = {
+            { FEAT_1_ECX,           CPUID_EXT_XSAVE },
+        },
     },
-    [XSTATE_YMM_BIT] =
-          { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
-            .size = sizeof(XSaveAVX) },
-    [XSTATE_BNDREGS_BIT] =
-          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
-            .size = sizeof(XSaveBNDREG)  },
-    [XSTATE_BNDCSR_BIT] =
-          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
-            .size = sizeof(XSaveBNDCSR)  },
-    [XSTATE_OPMASK_BIT] =
-          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .size = sizeof(XSaveOpmask) },
-    [XSTATE_ZMM_Hi256_BIT] =
-          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .size = sizeof(XSaveZMM_Hi256) },
-    [XSTATE_Hi16_ZMM_BIT] =
-          { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .size = sizeof(XSaveHi16_ZMM) },
-    [XSTATE_PKRU_BIT] =
-          { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
-            .size = sizeof(XSavePKRU) },
+    [XSTATE_YMM_BIT] = {
+        .size = sizeof(XSaveAVX),
+        .features = {
+            { FEAT_1_ECX,           CPUID_EXT_AVX },
+        },
+    },
+    [XSTATE_BNDREGS_BIT] = {
+        .size = sizeof(XSaveBNDREG),
+        .features = {
+            { FEAT_7_0_EBX,         CPUID_7_0_EBX_MPX },
+        },
+    },
+    [XSTATE_BNDCSR_BIT] = {
+        .size = sizeof(XSaveBNDCSR),
+        .features = {
+            { FEAT_7_0_EBX,         CPUID_7_0_EBX_MPX },
+        },
+    },
+    [XSTATE_OPMASK_BIT] = {
+        .size = sizeof(XSaveOpmask),
+        .features = {
+            { FEAT_7_0_EBX,         CPUID_7_0_EBX_AVX512F },
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_AVX10   },
+        },
+    },
+    [XSTATE_ZMM_Hi256_BIT] = {
+        .size = sizeof(XSaveZMM_Hi256),
+        .features = {
+            { FEAT_7_0_EBX,         CPUID_7_0_EBX_AVX512F },
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_AVX10   },
+        },
+    },
+    [XSTATE_Hi16_ZMM_BIT] = {
+        .size = sizeof(XSaveHi16_ZMM),
+        .features = {
+            { FEAT_7_0_EBX,         CPUID_7_0_EBX_AVX512F },
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_AVX10   },
+        },
+    },
+    [XSTATE_PKRU_BIT] = {
+        .size = sizeof(XSavePKRU),
+        .features = {
+            { FEAT_7_0_ECX,         CPUID_7_0_ECX_PKU },
+        },
+    },
+    [XSTATE_CET_U_BIT] = {
+        .size = sizeof(XSaveCETU),
+        .features = {
+            { FEAT_7_0_ECX,         CPUID_7_0_ECX_CET_SHSTK },
+            { FEAT_7_0_EDX,         CPUID_7_0_EDX_CET_IBT },
+        },
+    },
+    [XSTATE_CET_S_BIT] = {
+        .size = sizeof(XSaveCETS),
+        .features = {
+            { FEAT_7_0_ECX,         CPUID_7_0_ECX_CET_SHSTK },
+            { FEAT_7_0_EDX,         CPUID_7_0_EDX_CET_IBT },
+        },
+    },
     [XSTATE_ARCH_LBR_BIT] = {
-            .feature = FEAT_7_0_EDX, .bits = CPUID_7_0_EDX_ARCH_LBR,
-            .offset = 0 /*supervisor mode component, offset = 0 */,
-            .size = sizeof(XSavesArchLBR) },
+        .size = sizeof(XSaveArchLBR),
+        .features = {
+            { FEAT_7_0_EDX,         CPUID_7_0_EDX_ARCH_LBR },
+        },
+    },
     [XSTATE_XTILE_CFG_BIT] = {
-        .feature = FEAT_7_0_EDX, .bits = CPUID_7_0_EDX_AMX_TILE,
         .size = sizeof(XSaveXTILECFG),
+        .features = {
+            { FEAT_7_0_EDX,         CPUID_7_0_EDX_AMX_TILE },
+        },
     },
     [XSTATE_XTILE_DATA_BIT] = {
-        .feature = FEAT_7_0_EDX, .bits = CPUID_7_0_EDX_AMX_TILE,
-        .size = sizeof(XSaveXTILEDATA)
+        .size = sizeof(XSaveXTILEDATA),
+        .features = {
+            { FEAT_7_0_EDX,         CPUID_7_0_EDX_AMX_TILE },
+        },
+    },
+    [XSTATE_APX_BIT] = {
+        .size = sizeof(XSaveAPX),
+        .features = {
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_APXF },
+        },
     },
 };
 
@@ -2120,8 +2220,13 @@ static uint64_t x86_cpu_get_migratable_flags(X86CPU *cpu, FeatureWord w)
     for (i = 0; i < 64; i++) {
         uint64_t f = 1ULL << i;
 
-        /* If the feature name is known, it is implicitly considered migratable,
-         * unless it is explicitly set in unmigratable_flags */
+        /*
+         * If the feature name is known, it is implicitly considered migratable,
+         * unless it is explicitly set in unmigratable_flags.
+         *
+         * TODO: Make the behavior of x86_cpu_enable_xsave_components() align
+         * with migratable_flags masking.
+         */
         if ((wi->migratable_flags & f) ||
             (wi->feat_names[i] && !(wi->unmigratable_flags & f))) {
             r |= f;
@@ -2212,6 +2317,12 @@ typedef struct X86CPUDefinition {
     int model;
     int stepping;
     uint8_t avx10_version;
+    /*
+     * Whether to present CPUID 0x1f by default.
+     * If true, encode CPU topology in 0x1f leaf even if there's no
+     * extended topology levels.
+     */
+    bool cpuid_0x1f;
     FeatureWordArray features;
     const char *model_id;
     const CPUCaches *const cache_info;
@@ -2257,6 +2368,40 @@ x86_cpu_def_get_versions(const X86CPUDefinition *def)
 
     return def->versions ?: default_version_list;
 }
+
+/* CPUID 0x24.0x0 (EAX, EBX, ECX, EDX) and 0x24.0x1 (EAX, EBX, ECX, EDX) */
+#define AVX10_FEATURE_WORDS 8
+
+typedef struct AVX10VersionDefinition {
+    const char *name;
+    /* AVX10 version */
+    uint8_t version;
+    /* AVX10 (CPUID 0x24) maximum supported sub-leaf. */
+    uint8_t max_subleaf;
+    FeatureMask *features;
+} AVX10VersionDefinition;
+
+static const AVX10VersionDefinition builtin_avx10_defs[] = {
+    {
+        .name = "avx10.1",
+        .version = 1,
+        .max_subleaf = 0,
+        .features = (FeatureMask[]) {
+            { FEAT_7_1_EDX,         CPUID_7_1_EDX_AVX10 },
+            { FEAT_24_0_EBX,        CPUID_24_0_EBX_AVX10_VL_MASK },
+            { /* end of list */ }
+        }
+    },
+    {
+        .name = "avx10.2",
+        .version = 2,
+        .max_subleaf = 1,
+        .features = (FeatureMask[]) {
+            { FEAT_24_1_ECX,         CPUID_24_1_ECX_AVX10_VNNI_INT },
+            { /* end of list */ }
+        }
+    },
+};
 
 static const CPUCaches epyc_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
@@ -5111,6 +5256,17 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 5,
+                .note = "with cet-ss and cet-ibt",
+                .props = (PropValue[]) {
+                    { "cet-ss", "on" },
+                    { "cet-ibt", "on" },
+                    { "vmx-exit-save-cet", "on" },
+                    { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -5273,8 +5429,211 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 4,
+                .note = "with cet-ss and cet-ibt",
+                .props = (PropValue[]) {
+                    { "cet-ss", "on" },
+                    { "cet-ibt", "on" },
+                    { "vmx-exit-save-cet", "on" },
+                    { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ },
         },
+    },
+    {
+        .name = "DiamondRapids",
+        .level = 0x29,
+        .vendor = CPUID_VENDOR_INTEL,
+        .family = 0x13, /* family: 0xf, extended famil: 0x4 */
+        .model = 0x1, /* model: 0x1, extended model: 0x0 */
+        .stepping = 0,
+        .avx10_version = 2, /* avx10.2 */
+        .cpuid_0x1f = true,
+        /*
+         * Please keep the ascending order so that we can have a clear view of
+         * bit position of each feature.
+         *
+         * Missing: CPUID_EXT_DTES64, CPUID_EXT_MONITOR, CPUID_EXT_DSCPL,
+         * CPUID_EXT_VMX, CPUID_EXT_SMX, CPUID_EXT_EST, CPUID_EXT_TM2,
+         * CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_DCA, CPUID_EXT_OSXSAVE
+         */
+        .features[FEAT_1_ECX] =
+            CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSSE3 |
+            CPUID_EXT_FMA | CPUID_EXT_CX16 | CPUID_EXT_PCID | CPUID_EXT_SSE41 |
+            CPUID_EXT_SSE42 | CPUID_EXT_X2APIC | CPUID_EXT_MOVBE |
+            CPUID_EXT_POPCNT | CPUID_EXT_TSC_DEADLINE_TIMER | CPUID_EXT_AES |
+            CPUID_EXT_XSAVE | CPUID_EXT_AVX | CPUID_EXT_F16C | CPUID_EXT_RDRAND,
+        /* Missing: CPUID_DTS, CPUID_ACPI, CPUID_HT, CPUID_TM, CPUID_PBE */
+        .features[FEAT_1_EDX] =
+            CPUID_FP87 | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC |
+            CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC |
+            CPUID_SEP | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV |
+            CPUID_PAT | CPUID_PSE36 | CPUID_CLFLUSH | CPUID_MMX | CPUID_FXSR |
+            CPUID_SSE | CPUID_SSE2 | CPUID_SS,
+        .features[FEAT_6_EAX] = CPUID_6_EAX_ARAT,
+        /*
+         * Missing: CPUID_7_0_EBX_SGX, "cqm" Cache QoS Monitoring,
+         * "rdt_a" Resource Director Technology Allocation,
+         * CPUID_7_0_EBX_INTEL_PT,
+         */
+        .features[FEAT_7_0_EBX] =
+            CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_TSC_ADJUST |
+            CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_AVX2 |
+            CPUID_7_0_EBX_FDP_EXCPTN_ONLY | CPUID_7_0_EBX_SMEP |
+            CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ERMS | CPUID_7_0_EBX_INVPCID |
+            CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_ZERO_FCS_FDS |
+            CPUID_7_0_EBX_AVX512F | CPUID_7_0_EBX_AVX512DQ |
+            CPUID_7_0_EBX_RDSEED | CPUID_7_0_EBX_ADX | CPUID_7_0_EBX_SMAP |
+            CPUID_7_0_EBX_AVX512IFMA | CPUID_7_0_EBX_CLFLUSHOPT |
+            CPUID_7_0_EBX_CLWB | CPUID_7_0_EBX_AVX512CD |
+            CPUID_7_0_EBX_SHA_NI | CPUID_7_0_EBX_AVX512BW |
+            CPUID_7_0_EBX_AVX512VL,
+        /*
+         * Missing: CPUID_7_0_ECX_OSPKE, CPUID_7_0_ECX_WAITPKG, TME, ENQCMD,
+         * CPUID_7_0_ECX_SGX_LC, CPUID_7_0_ECX_PKS
+         */
+        .features[FEAT_7_0_ECX] =
+            CPUID_7_0_ECX_AVX512_VBMI | CPUID_7_0_ECX_UMIP |
+            CPUID_7_0_ECX_PKU | CPUID_7_0_ECX_AVX512_VBMI2 |
+            CPUID_7_0_ECX_CET_SHSTK | CPUID_7_0_ECX_GFNI | CPUID_7_0_ECX_VAES |
+            CPUID_7_0_ECX_VPCLMULQDQ | CPUID_7_0_ECX_AVX512VNNI |
+            CPUID_7_0_ECX_AVX512BITALG | CPUID_7_0_ECX_AVX512_VPOPCNTDQ |
+            CPUID_7_0_ECX_LA57 | CPUID_7_0_ECX_RDPID |
+            CPUID_7_0_ECX_BUS_LOCK_DETECT | CPUID_7_0_ECX_CLDEMOTE |
+            CPUID_7_0_ECX_MOVDIRI | CPUID_7_0_ECX_MOVDIR64B,
+        /*
+         * Missing: SGX-KEYS, UINTR, PCONFIG, ARCH LBR,
+         * CPUID_7_0_EDX_CORE_CAPABILITY
+         */
+        .features[FEAT_7_0_EDX] =
+            CPUID_7_0_EDX_FSRM | CPUID_7_0_EDX_MD_CLEAR |
+            CPUID_7_0_EDX_SERIALIZE | CPUID_7_0_EDX_TSX_LDTRK |
+            CPUID_7_0_EDX_CET_IBT | CPUID_7_0_EDX_AMX_BF16 |
+            CPUID_7_0_EDX_AVX512_FP16 | CPUID_7_0_EDX_AMX_TILE |
+            CPUID_7_0_EDX_AMX_INT8 | CPUID_7_0_EDX_SPEC_CTRL |
+            CPUID_7_0_EDX_STIBP | CPUID_7_0_EDX_FLUSH_L1D |
+            CPUID_7_0_EDX_ARCH_CAPABILITIES | CPUID_7_0_EDX_SPEC_CTRL_SSBD,
+        /* Missing: CPUID_7_1_EAX_LASS, ArchPerfmonExt (0x23 leaf), MSRLIST */
+        .features[FEAT_7_1_EAX] =
+            CPUID_7_1_EAX_AVX_VNNI | CPUID_7_1_EAX_AVX512_BF16 |
+            CPUID_7_1_EAX_CMPCCXADD | CPUID_7_1_EAX_FZRM |
+            CPUID_7_1_EAX_FSRS | CPUID_7_1_EAX_FSRC | CPUID_7_1_EAX_FRED |
+            CPUID_7_1_EAX_LKGS | CPUID_7_1_EAX_WRMSRNS |
+            CPUID_7_1_EAX_AMX_FP16 | CPUID_7_1_EAX_AVX_IFMA |
+            CPUID_7_1_EAX_LAM | CPUID_7_1_EAX_MOVRS,
+        /* Missing: CET_SSS */
+        .features[FEAT_7_1_EDX] =
+            CPUID_7_1_EDX_AVX_VNNI_INT8 | CPUID_7_1_EDX_AVX_NE_CONVERT |
+            CPUID_7_1_EDX_AMX_COMPLEX | CPUID_7_1_EDX_PREFETCHITI |
+            CPUID_7_1_EDX_AVX10 | CPUID_7_1_EDX_APXF,
+        /* Missing: UC-lock disable */
+        .features[FEAT_7_2_EDX] =
+            CPUID_7_2_EDX_PSFD | CPUID_7_2_EDX_IPRED_CTRL |
+            CPUID_7_2_EDX_RRSBA_CTRL | CPUID_7_2_EDX_DDPD_U |
+            CPUID_7_2_EDX_BHI_CTRL | CPUID_7_2_EDX_MCDT_NO,
+        .features[FEAT_XSAVE] =
+            CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
+            CPUID_XSAVE_XGETBV1 | CPUID_XSAVE_XSAVES | CPUID_D_1_EAX_XFD,
+        .features[FEAT_1E_1_EAX] =
+            CPUID_1E_1_EAX_AMX_INT8_MIRROR | CPUID_1E_1_EAX_AMX_BF16_MIRROR |
+            CPUID_1E_1_EAX_AMX_COMPLEX_MIRROR |
+            CPUID_1E_1_EAX_AMX_FP16_MIRROR | CPUID_1E_1_EAX_AMX_FP8 |
+            CPUID_1E_1_EAX_AMX_TF32 | CPUID_1E_1_EAX_AMX_AVX512 |
+            CPUID_1E_1_EAX_AMX_MOVRS,
+        .features[FEAT_29_0_EBX] = CPUID_29_0_EBX_APX_NCI_NDD_NF,
+        /*
+         * Though this bit will be set by avx_version=2, it's better to
+         * explicitly enumerate this feature here.
+         */
+        .features[FEAT_24_1_ECX] = CPUID_24_1_ECX_AVX10_VNNI_INT,
+        .features[FEAT_8000_0001_ECX] =
+            CPUID_EXT3_LAHF_LM | CPUID_EXT3_ABM | CPUID_EXT3_3DNOWPREFETCH,
+        .features[FEAT_8000_0001_EDX] =
+            CPUID_EXT2_SYSCALL | CPUID_EXT2_NX | CPUID_EXT2_PDPE1GB |
+            CPUID_EXT2_RDTSCP | CPUID_EXT2_LM,
+        .features[FEAT_8000_0008_EBX] = CPUID_8000_0008_EBX_WBNOINVD,
+        /*
+         * Missing: ARCH_CAP_RRSBA (KVM bit 19), ARCH_CAP_RFDS_CLEAR (KVM bit
+         * 28), MCU_CONTROL (bit 9), MISC_PACKAGE_CTLS (bit 10),
+         * ENERGY_FILTERING_CTL (bit 11), DOITM (bit 12), MCU_ENUMERATION (bit
+         * 16), RRSBA (bit 19), XAPIC_DISABLE_STATUS (bit 21),
+         * OVERCLOCKING_STATUS (bit 23).
+         */
+        .features[FEAT_ARCH_CAPABILITIES] =
+            MSR_ARCH_CAP_RDCL_NO | MSR_ARCH_CAP_IBRS_ALL |
+            MSR_ARCH_CAP_SKIP_L1DFL_VMENTRY | MSR_ARCH_CAP_MDS_NO |
+            MSR_ARCH_CAP_PSCHANGE_MC_NO | MSR_ARCH_CAP_TAA_NO |
+            MSR_ARCH_CAP_SBDR_SSDP_NO | MSR_ARCH_CAP_FBSDP_NO |
+            MSR_ARCH_CAP_PSDP_NO | MSR_ARCH_CAP_BHI_NO |
+            MSR_ARCH_CAP_PBRSB_NO | MSR_ARCH_CAP_GDS_NO |
+            MSR_ARCH_CAP_RFDS_NO,
+        .features[FEAT_VMX_BASIC] =
+            MSR_VMX_BASIC_INS_OUTS | MSR_VMX_BASIC_TRUE_CTLS |
+            MSR_VMX_BASIC_NESTED_EXCEPTION,
+        .features[FEAT_VMX_ENTRY_CTLS] =
+            VMX_VM_ENTRY_LOAD_DEBUG_CONTROLS | VMX_VM_ENTRY_IA32E_MODE |
+            VMX_VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL |
+            VMX_VM_ENTRY_LOAD_IA32_PAT | VMX_VM_ENTRY_LOAD_IA32_EFER |
+            VMX_VM_ENTRY_LOAD_CET | VMX_VM_ENTRY_LOAD_IA32_FRED,
+        .features[FEAT_VMX_EPT_VPID_CAPS] =
+            MSR_VMX_EPT_EXECONLY |
+            MSR_VMX_EPT_PAGE_WALK_LENGTH_4 | MSR_VMX_EPT_PAGE_WALK_LENGTH_5 |
+            MSR_VMX_EPT_WB | MSR_VMX_EPT_2MB | MSR_VMX_EPT_1GB |
+            MSR_VMX_EPT_INVEPT | MSR_VMX_EPT_AD_BITS |
+            MSR_VMX_EPT_INVEPT_SINGLE_CONTEXT | MSR_VMX_EPT_INVEPT_ALL_CONTEXT |
+            MSR_VMX_EPT_INVVPID | MSR_VMX_EPT_INVVPID_SINGLE_ADDR |
+            MSR_VMX_EPT_INVVPID_SINGLE_CONTEXT |
+            MSR_VMX_EPT_INVVPID_ALL_CONTEXT |
+            MSR_VMX_EPT_INVVPID_SINGLE_CONTEXT_NOGLOBALS,
+        .features[FEAT_VMX_EXIT_CTLS] =
+            VMX_VM_EXIT_SAVE_DEBUG_CONTROLS | VMX_VM_EXIT_HOST_ADDR_SPACE_SIZE,
+            VMX_VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL |
+            VMX_VM_EXIT_ACK_INTR_ON_EXIT | VMX_VM_EXIT_SAVE_IA32_PAT |
+            VMX_VM_EXIT_LOAD_IA32_PAT | VMX_VM_EXIT_SAVE_IA32_EFER |
+            VMX_VM_EXIT_LOAD_IA32_EFER | VMX_VM_EXIT_SAVE_VMX_PREEMPTION_TIMER |
+            VMX_VM_EXIT_SAVE_CET | VMX_VM_EXIT_ACTIVATE_SECONDARY_CONTROLS,
+        .features[FEAT_VMX_MISC] =
+            MSR_VMX_MISC_STORE_LMA | MSR_VMX_MISC_ACTIVITY_HLT |
+            MSR_VMX_MISC_ACTIVITY_SHUTDOWN | MSR_VMX_MISC_ACTIVITY_WAIT_SIPI |
+            MSR_VMX_MISC_VMWRITE_VMEXIT,
+        .features[FEAT_VMX_PINBASED_CTLS] =
+            VMX_PIN_BASED_EXT_INTR_MASK | VMX_PIN_BASED_NMI_EXITING |
+            VMX_PIN_BASED_VIRTUAL_NMIS | VMX_PIN_BASED_VMX_PREEMPTION_TIMER |
+            VMX_PIN_BASED_POSTED_INTR,
+        .features[FEAT_VMX_PROCBASED_CTLS] =
+            VMX_CPU_BASED_VIRTUAL_INTR_PENDING |
+            VMX_CPU_BASED_USE_TSC_OFFSETING | VMX_CPU_BASED_HLT_EXITING |
+            VMX_CPU_BASED_INVLPG_EXITING | VMX_CPU_BASED_MWAIT_EXITING |
+            VMX_CPU_BASED_RDPMC_EXITING | VMX_CPU_BASED_RDTSC_EXITING |
+            VMX_CPU_BASED_CR3_LOAD_EXITING | VMX_CPU_BASED_CR3_STORE_EXITING |
+            VMX_CPU_BASED_CR8_LOAD_EXITING | VMX_CPU_BASED_CR8_STORE_EXITING |
+            VMX_CPU_BASED_TPR_SHADOW | VMX_CPU_BASED_VIRTUAL_NMI_PENDING |
+            VMX_CPU_BASED_MOV_DR_EXITING | VMX_CPU_BASED_UNCOND_IO_EXITING |
+            VMX_CPU_BASED_USE_IO_BITMAPS | VMX_CPU_BASED_MONITOR_TRAP_FLAG |
+            VMX_CPU_BASED_USE_MSR_BITMAPS | VMX_CPU_BASED_MONITOR_EXITING |
+            VMX_CPU_BASED_PAUSE_EXITING |
+            VMX_CPU_BASED_ACTIVATE_SECONDARY_CONTROLS,
+        .features[FEAT_VMX_SECONDARY_CTLS] =
+            VMX_SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+            VMX_SECONDARY_EXEC_ENABLE_EPT | VMX_SECONDARY_EXEC_DESC |
+            VMX_SECONDARY_EXEC_RDTSCP |
+            VMX_SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+            VMX_SECONDARY_EXEC_ENABLE_VPID | VMX_SECONDARY_EXEC_WBINVD_EXITING |
+            VMX_SECONDARY_EXEC_UNRESTRICTED_GUEST |
+            VMX_SECONDARY_EXEC_APIC_REGISTER_VIRT |
+            VMX_SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
+            VMX_SECONDARY_EXEC_RDRAND_EXITING |
+            VMX_SECONDARY_EXEC_ENABLE_INVPCID |
+            VMX_SECONDARY_EXEC_ENABLE_VMFUNC | VMX_SECONDARY_EXEC_SHADOW_VMCS |
+            VMX_SECONDARY_EXEC_RDSEED_EXITING | VMX_SECONDARY_EXEC_ENABLE_PML |
+            VMX_SECONDARY_EXEC_XSAVES | VMX_SECONDARY_EXEC_TSC_SCALING |
+            VMX_SECONDARY_EXEC_ENABLE_USER_WAIT_PAUSE,
+        .features[FEAT_VMX_VMFUNC] = MSR_VMX_VMFUNC_EPT_SWITCHING,
+        .xlevel = 0x80000008,
+        .model_id = "Intel Xeon Processor (DiamondRapids)",
     },
     {
         .name = "SierraForest",
@@ -5427,6 +5786,17 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 4,
+                .note = "with cet-ss and cet-ibt",
+                .props = (PropValue[]) {
+                    { "cet-ss", "on" },
+                    { "cet-ibt", "on" },
+                    { "vmx-exit-save-cet", "on" },
+                    { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ },
         },
     },
@@ -5562,6 +5932,17 @@ static const X86CPUDefinition builtin_x86_defs[] = {
         .model_id = "Intel Xeon Processor (ClearwaterForest)",
         .versions = (X86CPUVersionDefinition[]) {
             { .version = 1 },
+            {
+                .version = 2,
+                .note = "with cet-ss and cet-ibt",
+                .props = (PropValue[]) {
+                    { "cet-ss", "on" },
+                    { "cet-ibt", "on" },
+                    { "vmx-exit-save-cet", "on" },
+                    { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ },
         },
     },
@@ -7074,6 +7455,65 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
+static void x86_cpuid_get_avx10_version(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    uint8_t value;
+
+    value = cpu->env.avx10_version;
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static bool x86_cpu_apply_avx10_features(X86CPU *cpu, uint8_t version,
+                                         Error **errp)
+{
+    const AVX10VersionDefinition *def;
+    CPUX86State *env = &cpu->env;
+
+    if (!version) {
+        env->avx10_version = 0;
+        env->avx10_max_subleaf = 0;
+        return true;
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(builtin_avx10_defs); i++) {
+        FeatureMask *f;
+
+        def = &builtin_avx10_defs[i];
+        for (f = def->features; f && f->mask; f++) {
+            env->features[f->index] |= f->mask;
+        }
+
+        if (def->version == version) {
+            env->avx10_version = version;
+            env->avx10_max_subleaf = def->max_subleaf;
+            break;
+        }
+    }
+
+    if (def->version < version) {
+        error_setg(errp, "avx10-version can be at most %d", def->version);
+        return false;
+    }
+    return true;
+}
+
+static void x86_cpuid_set_avx10_version(Object *obj, Visitor *v,
+                                        const char *name, void *opaque,
+                                        Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    x86_cpu_apply_avx10_features(cpu, value, errp);
+}
+
 /* Generic getter for "feature-words" and "filtered-features" properties */
 static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
@@ -7124,16 +7564,24 @@ static inline void feat2prop(char *s)
 static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
 {
     const char *name;
-    /* XSAVE components are automatically enabled by other features,
+    /*
+     * XSAVE components are automatically enabled by other features,
      * so return the original feature name instead
      */
     if (w == FEAT_XSAVE_XCR0_LO || w == FEAT_XSAVE_XCR0_HI) {
         int comp = (w == FEAT_XSAVE_XCR0_HI) ? bitnr + 32 : bitnr;
 
-        if (comp < ARRAY_SIZE(x86_ext_save_areas) &&
-            x86_ext_save_areas[comp].bits) {
-            w = x86_ext_save_areas[comp].feature;
-            bitnr = ctz32(x86_ext_save_areas[comp].bits);
+        if (comp < ARRAY_SIZE(x86_ext_save_areas)) {
+            /*
+             * Present the first feature as the default.
+             * FIXME: select and present the one which is actually enabled
+             * among multiple dependencies.
+             */
+            const FeatureMask *fm = &x86_ext_save_areas[comp].features[0];
+            if (fm->mask) {
+                w = fm->index;
+                bitnr = ctz32(fm->mask);
+            }
         }
     }
 
@@ -7488,6 +7936,13 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 
 #endif /* !CONFIG_USER_ONLY */
 
+static uint8_t x86_cpu_get_host_avx10_version(void)
+{
+    uint32_t eax, ebx, ecx, edx;
+    x86_cpu_get_supported_cpuid(0x24, 0, &eax, &ebx, &ecx, &edx);
+    return ebx & 0xff;
+}
+
 uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
@@ -7756,9 +8211,15 @@ static void x86_cpu_load_model(X86CPU *cpu, const X86CPUModel *model)
      */
     object_property_set_str(OBJECT(cpu), "vendor", def->vendor, &error_abort);
 
-    object_property_set_uint(OBJECT(cpu), "avx10-version", def->avx10_version,
-                             &error_abort);
+    if (def->avx10_version) {
+        object_property_set_uint(OBJECT(cpu), "avx10-version",
+                                 def->avx10_version, &error_abort);
+    }
 
+    if (def->cpuid_0x1f) {
+        object_property_set_bool(OBJECT(cpu), "x-force-cpuid-0x1f",
+                                 def->cpuid_0x1f, &error_abort);
+    }
     x86_cpu_apply_version_props(cpu, model);
 
     /*
@@ -8137,29 +8598,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = xsave_area_size(xstate, true);
             *ecx = env->features[FEAT_XSAVE_XSS_LO];
             *edx = env->features[FEAT_XSAVE_XSS_HI];
-            if (kvm_enabled() && cpu->enable_pmu &&
-                (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR) &&
-                (*eax & CPUID_XSAVE_XSAVES)) {
-                *ecx |= XSTATE_ARCH_LBR_MASK;
-            } else {
-                *ecx &= ~XSTATE_ARCH_LBR_MASK;
-            }
-        } else if (count == 0xf && cpu->enable_pmu
-                   && (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
-            x86_cpu_get_supported_cpuid(0xD, count, eax, ebx, ecx, edx);
         } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
             const ExtSaveArea *esa = &x86_ext_save_areas[count];
 
-            if (x86_cpu_xsave_xcr0_components(cpu) & (1ULL << count)) {
-                *eax = esa->size;
-                *ebx = esa->offset;
-                *ecx = esa->ecx &
-                       (ESA_FEATURE_ALIGN64_MASK | ESA_FEATURE_XFD_MASK);
-            } else if (x86_cpu_xsave_xss_components(cpu) & (1ULL << count)) {
-                *eax = esa->size;
-                *ebx = 0;
-                *ecx = 1;
-            }
+            *eax = esa->size;
+            *ebx = esa->offset;
+            *ecx = esa->ecx;
         }
         break;
     }
@@ -8248,14 +8692,19 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     }
-    case 0x1C:
-        if (cpu->enable_pmu && (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
-            x86_cpu_get_supported_cpuid(0x1C, 0, eax, ebx, ecx, edx);
-            *edx = 0;
+    case 0x1C: /* Last Branch Records Information Leaf */
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        if (!(env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_ARCH_LBR)) {
+            break;
         }
+        x86_cpu_get_supported_cpuid(0x1C, 0, eax, ebx, ecx, edx);
+        *edx = 0; /* EDX is reserved. */
         break;
     case 0x1D: {
-        /* AMX TILE, for now hardcoded for Sapphire Rapids*/
+        /* AMX TILE */
         *eax = 0;
         *ebx = 0;
         *ecx = 0;
@@ -8268,6 +8717,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             /* Highest numbered palette subleaf */
             *eax = INTEL_AMX_TILE_MAX_SUBLEAF;
         } else if (count == 1) {
+            /* Tile palette 1 */
             *eax = INTEL_AMX_TOTAL_TILE_BYTES |
                    (INTEL_AMX_BYTES_PER_TILE << 16);
             *ebx = INTEL_AMX_BYTES_PER_ROW | (INTEL_AMX_TILE_MAX_NAMES << 16);
@@ -8276,7 +8726,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     }
     case 0x1E: {
-        /* AMX TMUL, for now hardcoded for Sapphire Rapids */
+        /* AMX TMUL */
         *eax = 0;
         *ebx = 0;
         *ecx = 0;
@@ -8286,8 +8736,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
 
         if (count == 0) {
+            uint32_t unused;
+            x86_cpu_get_supported_cpuid(0x1E, 0, eax, &unused,
+                                        &unused, &unused);
             /* Highest numbered palette subleaf */
             *ebx = INTEL_AMX_TMUL_MAX_K | (INTEL_AMX_TMUL_MAX_N << 8);
+        } else if (count == 1) {
+            *eax = env->features[FEAT_1E_1_EAX];
         }
         break;
     }
@@ -8305,11 +8760,27 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
-        if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && count == 0) {
+
+        if (!(env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10)) {
+            break;
+        }
+        if (count == 0) {
+            *eax = env->avx10_max_subleaf;
             *ebx = env->features[FEAT_24_0_EBX] | env->avx10_version;
+        } else if (count == 1) {
+            *ecx = env->features[FEAT_24_1_ECX];
         }
         break;
     }
+    case 0x29:
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF) && count == 0) {
+            *ebx = env->features[FEAT_29_0_EBX];
+        }
+        break;
     case 0x40000000:
         /*
          * CPUID code in kvm_arch_init_vcpu() ignores stuff
@@ -8603,12 +9074,10 @@ static bool cpuid_has_xsave_feature(CPUX86State *env, const ExtSaveArea *esa)
         return false;
     }
 
-    if (env->features[esa->feature] & esa->bits) {
-        return true;
-    }
-    if (esa->feature == FEAT_7_0_EBX && esa->bits == CPUID_7_0_EBX_AVX512F
-        && (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10)) {
-        return true;
+    for (int i = 0; i < ARRAY_SIZE(esa->features); i++) {
+        if (env->features[esa->features[i].index] & esa->features[i].mask) {
+            return true;
+        }
     }
 
     return false;
@@ -8873,6 +9342,12 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
 
     mask = 0;
     for (i = 0; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+        /* Skip supervisor states if XSAVES is not supported. */
+        if (CPUID_XSTATE_XSS_MASK & (1 << i) &&
+            !(env->features[FEAT_XSAVE] & CPUID_XSAVE_XSAVES)) {
+            continue;
+        }
+
         const ExtSaveArea *esa = &x86_ext_save_areas[i];
         if (cpuid_has_xsave_feature(env, esa)) {
             mask |= (1ULL << i);
@@ -8970,9 +9445,12 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
 
         if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && !env->avx10_version) {
-            uint32_t eax, ebx, ecx, edx;
-            x86_cpu_get_supported_cpuid(0x24, 0, &eax, &ebx, &ecx, &edx);
-            env->avx10_version = ebx & 0xff;
+            uint8_t version = x86_cpu_get_host_avx10_version();
+
+            if (!object_property_set_uint(OBJECT(cpu), "avx10-version",
+                                          version, errp)) {
+                return;
+            }
         }
     }
 
@@ -8990,11 +9468,13 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         }
     }
 
-    if (!cpu->pdcm_on_even_without_pmu) {
+    if (!cpu->enable_pmu) {
         /* PDCM is fixed1 bit for TDX */
-        if (!cpu->enable_pmu && !is_tdx_vm()) {
+        if (!cpu->pdcm_on_even_without_pmu && !is_tdx_vm()) {
             env->features[FEAT_1_ECX] &= ~CPUID_EXT_PDCM;
         }
+
+        env->features[FEAT_7_0_EDX] &= ~CPUID_7_0_EDX_ARCH_LBR;
     }
 
     for (i = 0; i < ARRAY_SIZE(feature_dependencies); i++) {
@@ -9013,6 +9493,25 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
     if (!kvm_enabled() || !cpu->expose_kvm) {
         env->features[FEAT_KVM] = 0;
+    }
+
+    /*
+     * Since Intel MPX had been previously deprecated, APX re-purposes the
+     * 128-byte XSAVE area that had been previously allocated by MPX (state
+     * component indices 3 and 4, making up a 128-byte area located at an
+     * offset of 960 bytes into an un-compacted XSAVE buffer), as a single
+     * state component housing 128-bytes of storage for EGPRs (8-bytes * 16
+     * registers).
+     *
+     * Check the conflict between MPX and APX before initializing xsave
+     * components.
+     */
+    if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX) &&
+        (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF)) {
+        mark_unavailable_features(cpu, FEAT_7_0_EBX, CPUID_7_0_EBX_MPX,
+            "this feature is conflict with APX");
+        mark_unavailable_features(cpu, FEAT_7_1_EDX, CPUID_7_1_EDX_APXF,
+            "this feature is conflict with MPX");
     }
 
     x86_cpu_enable_xsave_components(cpu);
@@ -9062,6 +9561,11 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         /* Advanced Vector Extensions 10 (AVX10) requires CPUID[0x24] */
         if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) {
             x86_cpu_adjust_level(cpu, &env->cpuid_min_level, 0x24);
+        }
+
+        /* Advanced Performance Extensions (APX) requires CPUID[0x29] */
+        if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF) {
+            x86_cpu_adjust_level(cpu, &env->cpuid_min_level, 0x29);
         }
 
         /* SVM requires CPUID[0x8000000A] */
@@ -9166,16 +9670,30 @@ static bool x86_cpu_filter_features(X86CPU *cpu, bool verbose)
     have_filtered_features = x86_cpu_have_filtered_features(cpu);
 
     if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) {
-        x86_cpu_get_supported_cpuid(0x24, 0,
-                                    &eax_0, &ebx_0, &ecx_0, &edx_0);
-        uint8_t version = ebx_0 & 0xff;
+        uint8_t version = x86_cpu_get_host_avx10_version();
 
         if (version < env->avx10_version) {
-            if (prefix) {
-                warn_report("%s: avx10.%d. Adjust to avx10.%d",
-                            prefix, env->avx10_version, version);
+            /*
+             * With x-force-features=on, CPUID_7_1_EDX_AVX10 will not be masked
+             * off, so there's no need to zero avx10 version.
+             */
+            if (!cpu->force_features) {
+                if (prefix) {
+                    warn_report("%s: avx10.%d. Adjust to avx10.%d",
+                                prefix, env->avx10_version, version);
+                }
+                /*
+                 * Discrete feature bits have been checked and filtered based
+                 * on host support. So it's safe to change version without
+                 * reverting other feature bits.
+                 */
+                env->avx10_version = version;
+            } else {
+                if (prefix) {
+                    warn_report("%s: avx10.%d.",
+                                prefix, env->avx10_version);
+                }
             }
-            env->avx10_version = version;
             have_filtered_features = true;
         }
     } else if (env->avx10_version) {
@@ -9675,20 +10193,23 @@ static void x86_cpu_post_initfn(Object *obj)
 static void x86_cpu_init_xsave(void)
 {
     static bool first = true;
-    uint64_t supported_xcr0;
+    uint64_t supported_xcr0, supported_xss;
     int i;
 
     if (first) {
         first = false;
 
         supported_xcr0 =
-            ((uint64_t) x86_cpu_get_supported_feature_word(NULL, FEAT_XSAVE_XCR0_HI) << 32) |
+            x86_cpu_get_supported_feature_word(NULL, FEAT_XSAVE_XCR0_HI) << 32 |
             x86_cpu_get_supported_feature_word(NULL, FEAT_XSAVE_XCR0_LO);
+        supported_xss =
+            x86_cpu_get_supported_feature_word(NULL, FEAT_XSAVE_XSS_HI) << 32 |
+            x86_cpu_get_supported_feature_word(NULL, FEAT_XSAVE_XSS_LO);
 
         for (i = XSTATE_SSE_BIT + 1; i < XSAVE_STATE_AREA_COUNT; i++) {
             ExtSaveArea *esa = &x86_ext_save_areas[i];
 
-            if (!(supported_xcr0 & (1 << i))) {
+            if (!((supported_xcr0 | supported_xss) & (1 << i))) {
                 esa->size = 0;
             }
         }
@@ -10008,7 +10529,6 @@ static const Property x86_cpu_properties[] = {
     DEFINE_PROP_UINT32("min-level", X86CPU, env.cpuid_min_level, 0),
     DEFINE_PROP_UINT32("min-xlevel", X86CPU, env.cpuid_min_xlevel, 0),
     DEFINE_PROP_UINT32("min-xlevel2", X86CPU, env.cpuid_min_xlevel2, 0),
-    DEFINE_PROP_UINT8("avx10-version", X86CPU, env.avx10_version, 0),
     DEFINE_PROP_UINT64("ucode-rev", X86CPU, ucode_rev, 0),
     DEFINE_PROP_BOOL("full-cpuid-auto-level", X86CPU, full_cpuid_auto_level, true),
     DEFINE_PROP_STRING("hv-vendor-id", X86CPU, hyperv_vendor),
@@ -10149,6 +10669,11 @@ static void x86_cpu_common_class_init(ObjectClass *oc, const void *data)
     object_class_property_add(oc, "unavailable-features", "strList",
                               x86_cpu_get_unavailable_features,
                               NULL, NULL, NULL);
+
+    object_class_property_add(oc, "avx10-version",  "uint8",
+                              x86_cpuid_get_avx10_version,
+                              x86_cpuid_set_avx10_version,
+                              NULL, NULL);
 
 #if !defined(CONFIG_USER_ONLY)
     object_class_property_add(oc, "crash-information", "GuestPanicInformation",

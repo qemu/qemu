@@ -31,7 +31,7 @@
 #include "kvm_arm.h"
 #include "hvf_arm.h"
 #include "qapi/visitor.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "internals.h"
 #include "cpu-features.h"
 

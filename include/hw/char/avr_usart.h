@@ -22,7 +22,7 @@
 #ifndef HW_CHAR_AVR_USART_H
 #define HW_CHAR_AVR_USART_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 

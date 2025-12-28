@@ -27,8 +27,8 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "migration/misc.h"
-#include "hw/boards.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/boards.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/acpi/acpi.h"
 #include "trace.h"
 

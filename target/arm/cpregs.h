@@ -21,7 +21,7 @@
 #ifndef TARGET_ARM_CPREGS_H
 #define TARGET_ARM_CPREGS_H
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "exec/memop.h"
 #include "target/arm/kvm-consts.h"
 #include "cpu.h"

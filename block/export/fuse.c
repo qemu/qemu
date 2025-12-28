@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/memalign.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/block_int-common.h"
 #include "block/export.h"
 #include "block/fuse.h"

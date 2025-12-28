@@ -21,7 +21,7 @@
 #ifndef DESIGNWARE_H
 #define DESIGNWARE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/pci/pci_bridge.h"
 #include "qom/object.h"
 

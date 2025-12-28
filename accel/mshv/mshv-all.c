@@ -19,7 +19,7 @@
 #include "qemu/event_notifier.h"
 #include "qemu/module.h"
 #include "qemu/main-loop.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #include "hw/hyperv/hvhdk.h"
 #include "hw/hyperv/hvhdk_mini.h"
@@ -31,6 +31,7 @@
 #include "qemu/guest-random.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
+#include "exec/cpu-common.h"
 #include "system/cpus.h"
 #include "system/runstate.h"
 #include "system/accel-blocker.h"

@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "system/reset.h"
+#include "system/ramblock.h"
 #include "qapi/error.h"
 #include "qemu/target-info.h"
 #include "hw/display/vga.h"

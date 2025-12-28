@@ -16,7 +16,7 @@
 #include "system/address-spaces.h"
 
 #include "hw/vfio/vfio-container-legacy.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "trace.h"

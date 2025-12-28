@@ -22,7 +22,7 @@
 #ifndef HW_MISC_IOTKIT_SYSINFO_H
 #define HW_MISC_IOTKIT_SYSINFO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IOTKIT_SYSINFO "iotkit-sysinfo"

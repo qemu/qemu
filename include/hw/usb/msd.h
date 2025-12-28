@@ -7,7 +7,7 @@
  * This code is licensed under the LGPL.
  */
 
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/scsi/scsi.h"
 
 enum USBMSDMode {

@@ -25,7 +25,7 @@
 #ifndef HW_STM32F2XX_SYSCFG_H
 #define HW_STM32F2XX_SYSCFG_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define SYSCFG_MEMRMP  0x00

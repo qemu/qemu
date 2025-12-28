@@ -7,10 +7,10 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "hw/intc/loongarch_ipi.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/kvm.h"
 #include "target/loongarch/cpu.h"
 

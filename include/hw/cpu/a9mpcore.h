@@ -10,7 +10,7 @@
 #ifndef HW_CPU_A9MPCORE_H
 #define HW_CPU_A9MPCORE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/misc/a9scu.h"
 #include "hw/timer/arm_mptimer.h"

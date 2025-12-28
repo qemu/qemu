@@ -20,7 +20,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "monitor/monitor.h"

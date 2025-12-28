@@ -11,9 +11,9 @@
 #define HW_TIMER_STELLARIS_GPTM_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
-#include "hw/clock.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/clock.h"
 
 #define TYPE_STELLARIS_GPTM "stellaris-gptm"
 OBJECT_DECLARE_SIMPLE_TYPE(gptm_state, STELLARIS_GPTM)

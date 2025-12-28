@@ -15,8 +15,8 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "chardev/char-fe.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/s390x/3270-ccw.h"
 #include "qom/object.h"
 

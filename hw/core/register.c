@@ -16,7 +16,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

@@ -13,7 +13,7 @@
 #ifndef ASPEED_VIC_H
 #define ASPEED_VIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_VIC "aspeed.vic"

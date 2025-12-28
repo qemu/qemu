@@ -21,7 +21,7 @@
 #define HW_MISC_ALLWINNER_SID_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/uuid.h"
 
 /**

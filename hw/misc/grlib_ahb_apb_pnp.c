@@ -23,7 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/misc/grlib_ahb_apb_pnp.h"
 #include "trace.h"
 

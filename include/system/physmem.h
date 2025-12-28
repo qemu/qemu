@@ -9,7 +9,7 @@
 #define QEMU_SYSTEM_PHYSMEM_H
 
 #include "exec/hwaddr.h"
-#include "exec/ramlist.h"
+#include "system/ramlist.h"
 
 #define DIRTY_CLIENTS_ALL     ((1 << DIRTY_MEMORY_NUM) - 1)
 #define DIRTY_CLIENTS_NOCODE  (DIRTY_CLIENTS_ALL & ~(1 << DIRTY_MEMORY_CODE))

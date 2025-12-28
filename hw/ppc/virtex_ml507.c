@@ -27,14 +27,14 @@
 #include "qemu/units.h"
 #include "exec/page-protection.h"
 #include "cpu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/char/serial-mm.h"
 #include "hw/block/flash.h"
 #include "system/system.h"
 #include "system/reset.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/device_tree.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -43,7 +43,8 @@
 #include "hw/intc/ppc-uic.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 
 #include <libfdt.h>
 

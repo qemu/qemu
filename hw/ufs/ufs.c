@@ -25,7 +25,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "scsi/constants.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 #include "ufs.h"
 

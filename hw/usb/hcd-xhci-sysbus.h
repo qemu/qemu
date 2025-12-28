@@ -11,9 +11,9 @@
 #ifndef HW_USB_HCD_XHCI_SYSBUS_H
 #define HW_USB_HCD_XHCI_SYSBUS_H
 
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hcd-xhci.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define XHCI_SYSBUS(obj) \
     OBJECT_CHECK(XHCISysbusState, (obj), TYPE_XHCI_SYSBUS)

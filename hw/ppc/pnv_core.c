@@ -29,7 +29,7 @@
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/xics.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "helper_regs.h"
 
 static const char *pnv_core_cpu_typename(PnvCore *pc)

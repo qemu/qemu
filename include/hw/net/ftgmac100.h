@@ -19,7 +19,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(FTGMAC100State, FTGMAC100)
 #define FTGMAC100_REG_HIGH_MEM_SIZE 0x100
 #define FTGMAC100_REG_HIGH_OFFSET 0x100
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 
 /*

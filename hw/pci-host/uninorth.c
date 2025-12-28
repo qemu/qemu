@@ -23,8 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/module.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"

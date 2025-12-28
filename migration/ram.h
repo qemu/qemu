@@ -31,6 +31,7 @@
 
 #include "qapi/qapi-types-migration.h"
 #include "exec/cpu-common.h"
+#include "system/ram_addr.h"
 #include "io/channel.h"
 
 /*

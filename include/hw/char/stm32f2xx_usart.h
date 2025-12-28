@@ -25,7 +25,7 @@
 #ifndef HW_STM32F2XX_USART_H
 #define HW_STM32F2XX_USART_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 

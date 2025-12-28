@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/virtio-pci.h"
 #include "qapi/error.h"

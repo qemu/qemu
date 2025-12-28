@@ -8,7 +8,7 @@
 
 #include "mmuidx.h"
 #include "tcg/debug-assert.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 
 FIELD(MMUIDXINFO, EL, 0, 2)

@@ -5,13 +5,9 @@
 #include "qemu/thread.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
+#include "system/ram_addr.h"
 
 typedef struct RAMBlockNotifier RAMBlockNotifier;
-
-#define DIRTY_MEMORY_VGA       0
-#define DIRTY_MEMORY_CODE      1
-#define DIRTY_MEMORY_MIGRATION 2
-#define DIRTY_MEMORY_NUM       3        /* num of dirty bits */
 
 /* The dirty memory bitmap is split into fixed-size blocks to allow growth
  * under RCU.  The bitmap for a block can be accessed as follows:
@@ -74,6 +70,10 @@ struct RAMBlockNotifier {
                               size_t new_size);
     QLIST_ENTRY(RAMBlockNotifier) next;
 };
+
+typedef int (RAMBlockIterFunc)(RAMBlock *rb, void *opaque);
+
+int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
 
 void ram_block_notifier_add(RAMBlockNotifier *n);
 void ram_block_notifier_remove(RAMBlockNotifier *n);

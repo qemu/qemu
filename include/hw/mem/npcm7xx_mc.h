@@ -17,7 +17,7 @@
 #define NPCM7XX_MC_H
 
 #include "system/memory.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /**
  * struct NPCM7xxMCState - Device state for the memory controller.

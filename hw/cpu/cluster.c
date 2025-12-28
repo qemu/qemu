@@ -22,7 +22,7 @@
 
 #include "hw/core/cpu.h"
 #include "hw/cpu/cluster.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 
 static const Property cpu_cluster_properties[] = {

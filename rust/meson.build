@@ -1,9 +1,16 @@
+if not have_system
+  subdir_done()
+else
+  message('Rust enabled but it is only used by system emulators.')
+endif
+
 subproject('anyhow-1-rs', required: true)
 subproject('bilge-0.2-rs', required: true)
 subproject('bilge-impl-0.2-rs', required: true)
 subproject('foreign-0.3-rs', required: true)
 subproject('glib-sys-0.21-rs', required: true)
 subproject('libc-0.2-rs', required: true)
+subproject('probe-0.5-rs', required: true)
 
 anyhow_rs = dependency('anyhow-1-rs')
 bilge_rs = dependency('bilge-0.2-rs')
@@ -11,6 +18,7 @@ bilge_impl_rs = dependency('bilge-impl-0.2-rs')
 foreign_rs = dependency('foreign-0.3-rs')
 glib_sys_rs = dependency('glib-sys-0.21-rs')
 libc_rs = dependency('libc-0.2-rs')
+probe_rs = dependency('probe-0.5-rs')
 
 subproject('proc-macro2-1-rs', required: true)
 subproject('quote-1-rs', required: true)
@@ -28,6 +36,7 @@ subdir('qemu-macros')
 
 subdir('common')
 subdir('bits')
+
 subdir('util')
 subdir('bql')
 subdir('migration')

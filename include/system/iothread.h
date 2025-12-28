@@ -14,7 +14,7 @@
 #ifndef IOTHREAD_H
 #define IOTHREAD_H
 
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qemu/thread.h"
 #include "qom/object.h"
 #include "system/event-loop-base.h"

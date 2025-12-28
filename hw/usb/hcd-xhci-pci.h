@@ -25,7 +25,7 @@
 #define HW_USB_HCD_XHCI_PCI_H
 
 #include "hw/pci/pci_device.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hcd-xhci.h"
 
 #define TYPE_XHCI_PCI "pci-xhci"

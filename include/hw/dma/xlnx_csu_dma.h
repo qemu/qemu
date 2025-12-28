@@ -21,10 +21,10 @@
 #ifndef XLNX_CSU_DMA_H
 #define XLNX_CSU_DMA_H
 
-#include "hw/sysbus.h"
-#include "hw/register.h"
-#include "hw/ptimer.h"
-#include "hw/stream.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
+#include "hw/core/ptimer.h"
+#include "hw/core/stream.h"
 
 #define TYPE_XLNX_CSU_DMA "xlnx.csu_dma"
 

@@ -18,7 +18,7 @@
 #ifndef HW_TIMER_CADENCE_TTC_H
 #define HW_TIMER_CADENCE_TTC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 
 typedef struct {

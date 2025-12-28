@@ -24,7 +24,7 @@
 #ifndef HW_STM32L4X5_SYSCFG_H
 #define HW_STM32L4X5_SYSCFG_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
 

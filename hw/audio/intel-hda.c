@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/pci/msi.h"
 #include "monitor/qdev.h"
 #include "qemu/timer.h"

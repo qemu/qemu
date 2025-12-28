@@ -21,7 +21,7 @@
 #define HW_SD_ALLWINNER_SDHOST_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/sd/sd.h"
 
 /**

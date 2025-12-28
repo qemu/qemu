@@ -144,6 +144,7 @@ dependencies = [
  "migration",
  "qom",
  "system",
+ "trace",
  "util",
 ]
 
@@ -228,6 +229,10 @@ dependencies = [
  "trace",
  "util",
 ]
+
+[[package]]
+name = "probe"
+version = "0.5.2"
 
 [[package]]
 name = "proc-macro-error"
@@ -387,6 +392,7 @@ dependencies = [
  "migration",
  "qom",
  "system",
+ "trace",
  "util",
 ]
 
@@ -429,6 +435,7 @@ name = "trace"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "probe",
 ]
 
 [[package]]

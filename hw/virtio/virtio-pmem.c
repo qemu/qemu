@@ -17,12 +17,11 @@
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
 #include "hw/virtio/virtio-pmem.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_pmem.h"
 #include "system/hostmem.h"
-#include "block/aio.h"
 #include "block/thread-pool.h"
 #include "trace.h"
 

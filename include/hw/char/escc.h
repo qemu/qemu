@@ -3,7 +3,7 @@
 
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "ui/input.h"
 #include "qom/object.h"
 

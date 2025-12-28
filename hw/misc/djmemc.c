@@ -11,7 +11,7 @@
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "hw/misc/djmemc.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "trace.h"
 
 

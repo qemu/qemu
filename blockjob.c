@@ -24,7 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 #include "block/block.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"

@@ -14,7 +14,7 @@
 #include "system/tcg.h"
 #include "system/kvm.h"
 #include "kvm/kvm_loongarch.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "exec/translation-block.h"
 #include "cpu.h"
 #include "cpu-mmu.h"

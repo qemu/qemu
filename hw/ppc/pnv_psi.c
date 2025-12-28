@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "system/address-spaces.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "target/ppc/cpu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -30,7 +30,7 @@
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_xscom.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/pnv_psi.h"
 
 #include <libfdt.h>

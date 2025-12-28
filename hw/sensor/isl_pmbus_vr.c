@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sensor/isl_pmbus_vr.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

@@ -38,8 +38,8 @@
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_core.h"
-#include "hw/loader.h"
-#include "hw/nmi.h"
+#include "hw/core/loader.h"
+#include "hw/core/nmi.h"
 #include "qapi/visitor.h"
 #include "hw/intc/intc.h"
 #include "hw/ipmi/ipmi.h"
@@ -50,7 +50,7 @@
 #include "hw/pci-host/pnv_phb4.h"
 
 #include "hw/ppc/xics.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/pnv_chip.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_pnor.h"
@@ -58,6 +58,7 @@
 #include "hw/isa/isa.h"
 #include "hw/char/serial-isa.h"
 #include "hw/rtc/mc146818rtc.h"
+#include "exec/cpu-common.h"
 
 #include <libfdt.h>
 

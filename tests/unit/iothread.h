@@ -13,7 +13,7 @@
 #ifndef TEST_IOTHREAD_H
 #define TEST_IOTHREAD_H
 
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qemu/thread.h"
 
 typedef struct IOThread IOThread;

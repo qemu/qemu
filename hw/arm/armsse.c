@@ -16,14 +16,14 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "trace.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/arm/armsse.h"
 #include "hw/arm/armsse-version.h"
 #include "hw/arm/boot.h"
-#include "hw/irq.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-clock.h"
 
 /*
  * The SSE-300 puts some devices in different places to the

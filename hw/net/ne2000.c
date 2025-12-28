@@ -26,7 +26,7 @@
 #include "net/eth.h"
 #include "qemu/module.h"
 #include "system/memory.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "ne2000.h"
 #include "trace.h"

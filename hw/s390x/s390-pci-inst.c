@@ -18,7 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/bswap.h"
 #include "system/hw_accel.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci/pci_device.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"

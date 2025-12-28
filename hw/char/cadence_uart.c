@@ -22,7 +22,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
@@ -30,9 +30,9 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/char/cadence_uart.h"
-#include "hw/irq.h"
-#include "hw/qdev-clock.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/core/qdev-properties-system.h"
 #include "trace.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG

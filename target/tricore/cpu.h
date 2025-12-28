@@ -21,7 +21,7 @@
 #define TRICORE_CPU_H
 
 #include "cpu-qom.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"

@@ -10,7 +10,7 @@
 
 #include "system/memory.h"
 #include "hw/fsi/fsi-master.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_FSI_OPB "fsi.opb"
 

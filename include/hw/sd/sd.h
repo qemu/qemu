@@ -30,7 +30,7 @@
 #ifndef HW_SD_H
 #define HW_SD_H
 
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qom/object.h"
 
 #define OUT_OF_RANGE            (1 << 31)

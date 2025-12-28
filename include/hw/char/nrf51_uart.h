@@ -11,9 +11,9 @@
 #ifndef NRF51_UART_H
 #define NRF51_UART_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "qom/object.h"
 
 #define UART_FIFO_LENGTH 6

@@ -13,10 +13,11 @@
 #include "target/ppc/cpu.h"
 #include "system/cpus.h"
 #include "system/dma.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2.h"
 #include "hw/ppc/xive2_regs.h"
+#include "exec/cpu-common.h"
 #include "trace.h"
 
 static void xive2_router_end_notify(Xive2Router *xrtr, uint8_t end_blk,

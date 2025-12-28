@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "system/runstate.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
 #include "trace.h"

@@ -21,7 +21,7 @@
 #ifndef QEMU_ARM_GICV3_ITS_COMMON_H
 #define QEMU_ARM_GICV3_ITS_COMMON_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "qom/object.h"
 

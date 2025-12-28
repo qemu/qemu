@@ -38,7 +38,7 @@
 #include "gdbstub/user.h"
 #else
 #include "hw/cpu/cluster.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #endif
 #include "hw/core/cpu.h"
 

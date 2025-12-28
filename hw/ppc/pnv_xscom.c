@@ -22,7 +22,7 @@
 #include "qemu/module.h"
 #include "system/hw_accel.h"
 #include "target/ppc/cpu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/pnv.h"

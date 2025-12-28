@@ -18,6 +18,7 @@
 #include "hw/xen/xen_native.h"
 #include "qemu/bitmap.h"
 
+#include "system/ramlist.h"
 #include "system/runstate.h"
 #include "system/xen-mapcache.h"
 #include "trace.h"

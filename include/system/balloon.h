@@ -14,7 +14,7 @@
 #ifndef QEMU_BALLOON_H
 #define QEMU_BALLOON_H
 
-#include "exec/cpu-common.h"
+#include "system/ram_addr.h"
 #include "qapi/qapi-types-machine.h"
 
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);

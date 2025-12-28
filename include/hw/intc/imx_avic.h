@@ -17,7 +17,7 @@
 #ifndef IMX_AVIC_H
 #define IMX_AVIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IMX_AVIC "imx.avic"

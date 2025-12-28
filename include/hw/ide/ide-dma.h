@@ -1,7 +1,7 @@
 #ifndef HW_IDE_DMA_H
 #define HW_IDE_DMA_H
 
-#include "block/aio.h"
+#include "qemu/aiocb.h"
 #include "qemu/iov.h"
 
 typedef struct IDEState IDEState;

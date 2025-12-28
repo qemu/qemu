@@ -26,9 +26,9 @@
 #include "system/memory.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/s390x/storage-keys.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 /* Fetch/store bits in the translation exception code: */
 #define FS_READ  0x800

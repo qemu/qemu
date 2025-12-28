@@ -80,7 +80,7 @@ this code that are retained.
 #ifndef SOFTFLOAT_TYPES_H
 #define SOFTFLOAT_TYPES_H
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 /*
  * Software IEC/IEEE floating-point types.

@@ -26,9 +26,9 @@
 #ifndef XLNX_VERSAL_TRNG_H
 #define XLNX_VERSAL_TRNG_H
 
-#include "hw/irq.h"
-#include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
 
 #define TYPE_XLNX_VERSAL_TRNG "xlnx.versal-trng"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalTRng, XLNX_VERSAL_TRNG);

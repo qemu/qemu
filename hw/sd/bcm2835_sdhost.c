@@ -15,7 +15,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "system/blockdev.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/sd/bcm2835_sdhost.h"
 #include "migration/vmstate.h"
 #include "trace.h"

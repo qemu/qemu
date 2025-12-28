@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/usb/msd.h"
 

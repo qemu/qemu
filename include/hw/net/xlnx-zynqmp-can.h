@@ -30,13 +30,13 @@
 #ifndef XLNX_ZYNQMP_CAN_H
 #define XLNX_ZYNQMP_CAN_H
 
-#include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
 #include "net/can_emu.h"
 #include "net/can_host.h"
 #include "qemu/fifo32.h"
-#include "hw/ptimer.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/ptimer.h"
+#include "hw/core/qdev-clock.h"
 
 #define TYPE_XLNX_ZYNQMP_CAN "xlnx.zynqmp-can"
 

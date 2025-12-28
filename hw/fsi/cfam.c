@@ -14,7 +14,7 @@
 #include "hw/fsi/cfam.h"
 #include "hw/fsi/fsi.h"
 
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #define ENGINE_CONFIG_NEXT            BIT(31)
 #define ENGINE_CONFIG_TYPE_PEEK       (0x02 << 4)

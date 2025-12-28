@@ -291,10 +291,7 @@ try:
                         project='qemu,qemu-win-installer',
                         cross="mingw64",
                         trailer=cross_build("x86_64-w64-mingw32-",
-                                            "x86_64-softmmu"),
-                        # linking with rust is buggy:
-                        # https://github.com/mesonbuild/meson/pull/14991
-                        enable_rust=False)
+                                            "x86_64-softmmu"))
 
     # We also generate some docker files with minimal dependencies and
     # as many cross-compilers as Debian will package for building TCG

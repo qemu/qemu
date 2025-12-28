@@ -28,7 +28,7 @@
 #include "vnc.h"
 #include "vnc-jobs.h"
 #include "trace.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "system/system.h"
 #include "system/runstate.h"
 #include "qemu/error-report.h"

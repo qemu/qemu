@@ -19,7 +19,7 @@
  */
 
 #include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/system.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"

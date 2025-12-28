@@ -12,7 +12,7 @@
 
 #include "hw/cxl/cxl_component.h"
 #include "hw/pci/pci_device.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "hw/cxl/cxl_events.h"
 
 /*

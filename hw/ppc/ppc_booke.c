@@ -29,7 +29,7 @@
 #include "qemu/timer.h"
 #include "system/reset.h"
 #include "system/runstate.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "kvm_ppc.h"
 
 void booke_set_tlb(ppcemb_tlb_t *tlb, target_ulong va, hwaddr pa,

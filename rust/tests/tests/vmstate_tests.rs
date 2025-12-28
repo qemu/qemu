@@ -9,16 +9,15 @@ use std::{
     slice,
 };
 
-use bql::BqlCell;
+use bql::prelude::*;
 use common::Opaque;
 use migration::{
     bindings::{
         vmstate_info_bool, vmstate_info_int32, vmstate_info_int64, vmstate_info_int8,
         vmstate_info_uint64, vmstate_info_uint8, vmstate_info_unused_buffer, VMStateFlags,
     },
-    impl_vmstate_forward, impl_vmstate_struct,
-    vmstate::{VMStateDescription, VMStateDescriptionBuilder, VMStateField},
-    vmstate_fields, vmstate_of, vmstate_unused, vmstate_validate,
+    prelude::*,
+    vmstate::VMStateField,
 };
 
 const FOO_ARRAY_MAX: usize = 3;

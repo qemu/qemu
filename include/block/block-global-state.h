@@ -24,6 +24,8 @@
 #ifndef BLOCK_GLOBAL_STATE_H
 #define BLOCK_GLOBAL_STATE_H
 
+#include "qemu/aiocb.h"
+#include "block/graph-lock.h"
 #include "block/block-common.h"
 #include "qemu/coroutine.h"
 #include "qemu/transactions.h"

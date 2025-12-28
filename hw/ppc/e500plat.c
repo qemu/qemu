@@ -15,7 +15,7 @@
 #include "hw/net/fsl_etsec/etsec.h"
 #include "system/device_tree.h"
 #include "system/kvm.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/ppc/openpic.h"
 #include "kvm_ppc.h"

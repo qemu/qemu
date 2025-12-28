@@ -29,7 +29,7 @@
 #ifndef HW_DMA_PL080_H
 #define HW_DMA_PL080_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define PL080_MAX_CHANNELS 8

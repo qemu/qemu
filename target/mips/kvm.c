@@ -22,7 +22,7 @@
 #include "system/kvm_int.h"
 #include "system/runstate.h"
 #include "kvm_mips.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "fpu_helper.h"
 
 #define DEBUG_KVM 0

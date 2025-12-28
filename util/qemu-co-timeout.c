@@ -25,7 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/coroutine.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 typedef struct QemuCoTimeoutState {
     CoroutineEntry *entry;

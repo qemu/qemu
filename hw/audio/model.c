@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "monitor/qdev.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/audio/model.h"
 
 struct audio_model {

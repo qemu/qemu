@@ -5,7 +5,7 @@
 
 #include "system/memory.h"
 #include "system/ioport.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qom/object.h"
 
 #define ISA_NUM_IRQS 16

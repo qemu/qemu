@@ -17,7 +17,7 @@
 #include "qemu/module.h"
 #include "target/arm/arm-powerctl.h"
 #include "hw/core/cpu.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 #include "trace.h"
 

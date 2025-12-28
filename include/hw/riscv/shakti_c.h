@@ -20,7 +20,7 @@
 #define HW_SHAKTI_C_H
 
 #include "hw/riscv/riscv_hart.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/shakti_uart.h"
 
 #define TYPE_RISCV_SHAKTI_SOC "riscv.shakti.cclass.soc"

@@ -29,6 +29,7 @@
 #include "system/ioport.h"
 #include "system/memory.h"
 #include "system/address-spaces.h"
+#include "hw/core/qdev.h"
 #include "trace.h"
 
 struct MemoryRegionPortioList {

@@ -8,7 +8,7 @@
  */
 
 #include "hw/cxl/cxl.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 #ifndef CXL_HOST_H
 #define CXL_HOST_H

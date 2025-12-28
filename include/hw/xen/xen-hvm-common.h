@@ -5,6 +5,7 @@
 #include "exec/hwaddr.h"
 #include "hw/xen/xen_native.h"
 #include "hw/xen/xen_backend_ops.h"
+#include "system/runstate.h"
 #include <xen/hvm/ioreq.h>
 
 extern MemoryRegion xen_memory;

@@ -22,7 +22,7 @@
 #ifndef HW_VIRTIO_MMIO_H
 #define HW_VIRTIO_MMIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/virtio/virtio-bus.h"
 
 /* QOM macros */

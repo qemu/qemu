@@ -13,7 +13,7 @@
 #include "qapi/error.h"
 #include "hw/pci/pci_host.h"
 #include "cpu.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "alpha_sys.h"
 
 

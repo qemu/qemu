@@ -21,7 +21,7 @@
 #include "qemu/log.h"
 #include "system/runstate.h"
 #include "cpu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define MPC8544_GUTS_MMIO_SIZE        0x1000

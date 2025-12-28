@@ -27,7 +27,7 @@
 #include "net/net.h"
 #include "qemu/fifo8.h"
 #include "hw/net/mii.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_AW_EMAC "allwinner-emac"

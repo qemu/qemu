@@ -24,12 +24,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/ipmi/ipmi.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qom/object_interfaces.h"
 #include "system/runstate.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 
 static uint32_t ipmi_current_uuid = 1;
 

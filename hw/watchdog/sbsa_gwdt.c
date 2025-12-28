@@ -18,7 +18,7 @@
 #include "qemu/osdep.h"
 #include "system/reset.h"
 #include "system/watchdog.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/watchdog/sbsa_gwdt.h"
 #include "qemu/timer.h"
 #include "migration/vmstate.h"

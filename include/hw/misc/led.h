@@ -9,7 +9,7 @@
 #define HW_MISC_LED_H
 
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_LED "led"
 

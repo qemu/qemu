@@ -19,7 +19,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
@@ -27,9 +27,9 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/i2c/aspeed_i2c.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
-#include "hw/registerfields.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/registerfields.h"
 #include "trace.h"
 
 /* Enable SLAVE_ADDR_RX_MATCH always */

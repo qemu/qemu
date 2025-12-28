@@ -8,9 +8,9 @@
 #ifndef ASPEED_INTC_H
 #define ASPEED_INTC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 
 #define TYPE_ASPEED_INTC "aspeed.intc"
 #define TYPE_ASPEED_2700_INTC TYPE_ASPEED_INTC "-ast2700"

@@ -16,7 +16,7 @@
 #ifndef NPCM7XX_H
 #define NPCM7XX_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/adc/npcm7xx_adc.h"
 #include "hw/core/split-irq.h"
 #include "hw/cpu/a9mpcore.h"

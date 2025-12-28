@@ -17,14 +17,14 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "system/runstate.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/registerfields.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/registerfields.h"
+#include "hw/core/qdev-clock.h"
 #include "qom/object.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 
 #ifndef ZYNQ_SLCR_ERR_DEBUG

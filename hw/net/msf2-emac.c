@@ -31,11 +31,11 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/net/msf2-emac.h"
 #include "hw/net/mii.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 REG32(CFG1, 0x0)

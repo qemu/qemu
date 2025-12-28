@@ -15,7 +15,8 @@
 #include "qemu/error-report.h"
 #include "system/reset.h"
 #include "hw/ppc/spapr.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 #include "trace.h"
 
 #define TPM_SPAPR_BUFSIZE 4096

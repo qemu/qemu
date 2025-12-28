@@ -23,7 +23,7 @@
 #include "gdbstub/helpers.h"
 #include "qemu/host-utils.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #endif
 #include "qemu/plugin.h"
 

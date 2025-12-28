@@ -16,7 +16,7 @@
 #include "vmsr_energy.h"
 #include "io/channel.h"
 #include "io/channel-socket.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "cpu.h"
 #include "host-cpu.h"
 

@@ -7,7 +7,7 @@
 #define HW_IDE_AHCI_SYSBUS_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ide/ahci.h"
 
 #define TYPE_SYSBUS_AHCI "sysbus-ahci"

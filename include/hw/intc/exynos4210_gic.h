@@ -22,7 +22,7 @@
 #ifndef HW_INTC_EXYNOS4210_GIC_H
 #define HW_INTC_EXYNOS4210_GIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_EXYNOS4210_GIC "exynos4210.gic"
 OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210GicState, EXYNOS4210_GIC)

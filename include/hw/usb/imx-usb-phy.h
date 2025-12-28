@@ -1,7 +1,7 @@
 #ifndef IMX_USB_PHY_H
 #define IMX_USB_PHY_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/bitops.h"
 #include "qom/object.h"
 

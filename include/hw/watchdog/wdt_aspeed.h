@@ -11,7 +11,7 @@
 #define WDT_ASPEED_H
 
 #include "hw/misc/aspeed_scu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ASPEED_WDT "aspeed.wdt"

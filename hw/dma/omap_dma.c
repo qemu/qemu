@@ -21,8 +21,9 @@
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "hw/arm/omap.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/arm/soc_dma.h"
+#include "exec/cpu-common.h"
 
 struct omap_dma_channel_s {
     /* transfer data */

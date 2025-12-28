@@ -22,13 +22,13 @@
 #include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "trace.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/mps2-scc.h"
 #include "hw/misc/led.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 REG32(CFG0, 0)
 REG32(CFG1, 4)

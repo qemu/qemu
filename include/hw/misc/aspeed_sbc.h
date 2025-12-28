@@ -9,7 +9,7 @@
 #ifndef ASPEED_SBC_H
 #define ASPEED_SBC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/nvram/aspeed_otp.h"
 
 #define TYPE_ASPEED_SBC "aspeed.sbc"

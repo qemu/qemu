@@ -21,7 +21,7 @@
 #ifndef HW_ARM_GIC_COMMON_H
 #define HW_ARM_GIC_COMMON_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 /* Maximum number of possible interrupts, determined by the GIC architecture */

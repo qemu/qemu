@@ -1,7 +1,7 @@
 #ifndef SPARC32_DMA_H
 #define SPARC32_DMA_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/scsi/esp.h"
 #include "hw/net/lance.h"
 #include "qom/object.h"

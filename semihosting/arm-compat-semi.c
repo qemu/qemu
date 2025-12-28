@@ -47,8 +47,8 @@
 #define COMMON_SEMI_HEAP_SIZE (128 * 1024 * 1024)
 #else
 #include "qemu/cutils.h"
-#include "hw/loader.h"
-#include "hw/boards.h"
+#include "hw/core/loader.h"
+#include "hw/core/boards.h"
 #endif
 
 #define TARGET_SYS_OPEN        0x01

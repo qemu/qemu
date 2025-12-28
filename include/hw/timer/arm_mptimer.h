@@ -21,7 +21,7 @@
 #ifndef HW_TIMER_ARM_MPTIMER_H
 #define HW_TIMER_ARM_MPTIMER_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define ARM_MPTIMER_MAX_CPUS 4

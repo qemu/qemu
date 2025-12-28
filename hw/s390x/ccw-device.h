@@ -12,7 +12,7 @@
 #ifndef HW_S390X_CCW_DEVICE_H
 #define HW_S390X_CCW_DEVICE_H
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/s390x/css.h"
 #include "hw/s390x/css-bridge.h"
 

@@ -28,7 +28,7 @@
 #include "qapi/qapi-events-run-state.h"
 #include "system/runstate.h"
 #include "system/watchdog.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 #include "qemu/help_option.h"
 #include "trace.h"
 

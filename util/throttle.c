@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/timer.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 /* This function make a bucket leak
  *

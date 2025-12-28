@@ -13,7 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"

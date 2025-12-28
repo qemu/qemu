@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/timer.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 static const char *qemu_co_sleep_ns__scheduled = "qemu_co_sleep_ns";
 

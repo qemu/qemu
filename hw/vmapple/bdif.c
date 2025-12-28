@@ -15,7 +15,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "hw/vmapple/vmapple.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/block/block.h"
 #include "qapi/error.h"
 #include "system/block-backend.h"

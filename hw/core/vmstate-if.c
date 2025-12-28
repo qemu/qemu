@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/vmstate-if.h"
+#include "hw/core/vmstate-if.h"
 
 static const TypeInfo vmstate_if_info = {
     .name = TYPE_VMSTATE_IF,

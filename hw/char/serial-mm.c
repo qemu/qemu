@@ -28,7 +28,7 @@
 #include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 static uint64_t serial_mm_read(void *opaque, hwaddr addr, unsigned size)
 {

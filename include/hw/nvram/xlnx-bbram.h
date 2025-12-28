@@ -27,10 +27,10 @@
 #define XLNX_BBRAM_H
 
 #include "system/block-backend.h"
-#include "hw/qdev-core.h"
-#include "hw/irq.h"
-#include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/qdev.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
 
 #define RMAX_XLNX_BBRAM ((0x4c / 4) + 1)
 

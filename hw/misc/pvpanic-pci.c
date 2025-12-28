@@ -16,7 +16,7 @@
 #include "system/runstate.h"
 
 #include "hw/nvram/fw_cfg.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/misc/pvpanic.h"
 #include "qom/object.h"

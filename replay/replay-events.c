@@ -13,7 +13,7 @@
 #include "qemu/error-report.h"
 #include "system/replay.h"
 #include "replay-internal.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "ui/input.h"
 #include "hw/core/cpu.h"
 

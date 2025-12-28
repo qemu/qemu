@@ -20,7 +20,7 @@
 #include "qemu/qemu-print.h"
 #include "exec/cputlb.h"
 #include "exec/translation-block.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/cpu-timers.h"
 #include "exec/icount.h"
 #include "system/kvm.h"

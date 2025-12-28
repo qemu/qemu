@@ -65,7 +65,7 @@
 #ifndef TZ_PPC_H
 #define TZ_PPC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_TZ_PPC "tz-ppc"

@@ -10,8 +10,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
-#include "hw/nmi.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/nmi.h"
 #include "hw/intc/intc.h"
 #include "hw/intc/m68k_irqc.h"
 

@@ -7,7 +7,7 @@
 #ifndef BLOCK_RAM_REGISTRAR_H
 #define BLOCK_RAM_REGISTRAR_H
 
-#include "exec/ramlist.h"
+#include "system/ramlist.h"
 
 /**
  * struct BlockRAMRegistrar:

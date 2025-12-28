@@ -23,11 +23,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/acpi/tpm.h"
 #include "tpm_prop.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "tpm_tis.h"
 #include "qom/object.h"
 

@@ -11,7 +11,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "hw/misc/stm32l4x5_rcc_internals.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "stm32l4x5.h"
 
 #define RCC_BASE_ADDR 0x40021000

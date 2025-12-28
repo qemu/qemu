@@ -15,6 +15,11 @@ pub use errno::Errno;
 pub mod opaque;
 pub use opaque::{Opaque, Wrapper};
 
+// preserve one-item-per-"use" syntax, it is clearer
+// for prelude-like modules
+#[rustfmt::skip]
+pub mod prelude;
+
 pub mod uninit;
 pub use uninit::MaybeUninitField;
 

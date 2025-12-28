@@ -19,10 +19,10 @@
 #define HW_USB_HCD_EHCI_H
 
 #include "qemu/timer.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "system/dma.h"
 #include "hw/pci/pci_device.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0

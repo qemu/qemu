@@ -30,8 +30,8 @@
 #include "acpi-microvm.h"
 #include "microvm-dt.h"
 
-#include "hw/loader.h"
-#include "hw/irq.h"
+#include "hw/core/loader.h"
+#include "hw/core/irq.h"
 #include "hw/i386/kvm/clock.h"
 #include "hw/i386/microvm.h"
 #include "hw/i386/x86.h"

@@ -1,5 +1,5 @@
 /*
- *  x86 condition code helpers
+ *  x86 condition code helpers for AF/CF/OF
  *
  *  Copyright (c) 2008 Fabrice Bellard
  *
@@ -44,14 +44,9 @@
 
 /* dynamic flags computation */
 
-static uint32_t glue(compute_all_cout, SUFFIX)(DATA_TYPE dst, DATA_TYPE carries)
+static uint32_t glue(compute_aco_cout, SUFFIX)(DATA_TYPE carries)
 {
-    uint32_t af_cf, pf, zf, sf, of;
-
-    /* PF, ZF, SF computed from result.  */
-    pf = compute_pf(dst);
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
+    uint32_t af_cf, of;
 
     /*
      * AF, CF, OF computed from carry out vector.  To compute AF and CF, rotate it
@@ -62,14 +57,14 @@ static uint32_t glue(compute_all_cout, SUFFIX)(DATA_TYPE dst, DATA_TYPE carries)
      */
     af_cf = ((carries << 1) | (carries >> (DATA_BITS - 1))) & (CC_A | CC_C);
     of = (lshift(carries, 12 - DATA_BITS) + CC_O / 2) & CC_O;
-    return pf + zf + sf + af_cf + of;
+    return af_cf + of;
 }
 
-static uint32_t glue(compute_all_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_aco_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     DATA_TYPE src2 = dst - src1;
     DATA_TYPE carries = ADD_COUT_VEC(src1, src2, dst);
-    return glue(compute_all_cout, SUFFIX)(dst, carries);
+    return glue(compute_aco_cout, SUFFIX)(carries);
 }
 
 static int glue(compute_c_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
@@ -77,12 +72,12 @@ static int glue(compute_c_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return dst < src1;
 }
 
-static uint32_t glue(compute_all_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
+static uint32_t glue(compute_aco_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
                                          DATA_TYPE src3)
 {
     DATA_TYPE src2 = dst - src1 - src3;
     DATA_TYPE carries = ADD_COUT_VEC(src1, src2, dst);
-    return glue(compute_all_cout, SUFFIX)(dst, carries);
+    return glue(compute_aco_cout, SUFFIX)(carries);
 }
 
 static int glue(compute_c_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
@@ -97,11 +92,11 @@ static int glue(compute_c_adc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1,
 #endif
 }
 
-static uint32_t glue(compute_all_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
+static uint32_t glue(compute_aco_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
 {
     DATA_TYPE src1 = dst + src2;
     DATA_TYPE carries = SUB_COUT_VEC(src1, src2, dst);
-    return glue(compute_all_cout, SUFFIX)(dst, carries);
+    return glue(compute_aco_cout, SUFFIX)(carries);
 }
 
 static int glue(compute_c_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
@@ -111,12 +106,12 @@ static int glue(compute_c_sub, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2)
     return src1 < src2;
 }
 
-static uint32_t glue(compute_all_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
+static uint32_t glue(compute_aco_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
                                          DATA_TYPE src3)
 {
     DATA_TYPE src1 = dst + src2 + src3;
     DATA_TYPE carries = SUB_COUT_VEC(src1, src2, dst);
-    return glue(compute_all_cout, SUFFIX)(dst, carries);
+    return glue(compute_aco_cout, SUFFIX)(carries);
 }
 
 static int glue(compute_c_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
@@ -134,57 +129,35 @@ static int glue(compute_c_sbb, SUFFIX)(DATA_TYPE dst, DATA_TYPE src2,
 #endif
 }
 
-static uint32_t glue(compute_all_logic, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_aco_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    uint32_t cf, pf, af, zf, sf, of;
-
-    cf = 0;
-    pf = compute_pf(dst);
-    af = 0;
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
-    of = 0;
-    return cf + pf + af + zf + sf + of;
-}
-
-static uint32_t glue(compute_all_inc, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
-{
-    uint32_t cf, pf, af, zf, sf, of;
+    uint32_t cf, af, of;
 
     cf = src1;
-    pf = compute_pf(dst);
     af = (dst ^ (dst - 1)) & CC_A; /* bits 0..3 are all clear */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = (dst == SIGN_MASK) * CC_O;
-    return cf + pf + af + zf + sf + of;
+    return cf + af + of;
 }
 
-static uint32_t glue(compute_all_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_aco_dec, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    uint32_t cf, pf, af, zf, sf, of;
+    uint32_t cf, af, of;
 
     cf = src1;
-    pf = compute_pf(dst);
     af = (dst ^ (dst + 1)) & CC_A; /* bits 0..3 are all set */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = (dst == SIGN_MASK - 1) * CC_O;
-    return cf + pf + af + zf + sf + of;
+    return cf + af + of;
 }
 
-static uint32_t glue(compute_all_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_aco_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    uint32_t cf, pf, af, zf, sf, of;
+    uint32_t cf, af, of;
 
     cf = (src1 >> (DATA_BITS - 1)) & CC_C;
-    pf = compute_pf(dst);
     af = 0; /* undefined */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     /* of is defined iff shift count == 1 */
     of = lshift(src1 ^ dst, 12 - DATA_BITS) & CC_O;
-    return cf + pf + af + zf + sf + of;
+    return cf + af + of;
 }
 
 static int glue(compute_c_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
@@ -192,47 +165,25 @@ static int glue(compute_c_shl, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return (src1 >> (DATA_BITS - 1)) & CC_C;
 }
 
-static uint32_t glue(compute_all_sar, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static uint32_t glue(compute_aco_sar, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    uint32_t cf, pf, af, zf, sf, of;
+    uint32_t cf, af, of;
 
     cf = src1 & 1;
-    pf = compute_pf(dst);
     af = 0; /* undefined */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     /* of is defined iff shift count == 1 */
     of = lshift(src1 ^ dst, 12 - DATA_BITS) & CC_O;
-    return cf + pf + af + zf + sf + of;
+    return cf + af + of;
 }
 
-/* NOTE: we compute the flags like the P4. On olders CPUs, only OF and
-   CF are modified and it is slower to do that.  Note as well that we
-   don't truncate SRC1 for computing carry to DATA_TYPE.  */
-static uint32_t glue(compute_all_mul, SUFFIX)(DATA_TYPE dst, target_long src1)
+static uint32_t glue(compute_aco_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    uint32_t cf, pf, af, zf, sf, of;
-
-    cf = (src1 != 0);
-    pf = compute_pf(dst);
-    af = 0; /* undefined */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
-    of = cf * CC_O;
-    return cf + pf + af + zf + sf + of;
-}
-
-static uint32_t glue(compute_all_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
-{
-    uint32_t cf, pf, af, zf, sf, of;
+    uint32_t cf, af, of;
 
     cf = (src1 == 0);
-    pf = 0; /* undefined */
     af = 0; /* undefined */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = 0;
-    return cf + pf + af + zf + sf + of;
+    return cf + af + of;
 }
 
 static int glue(compute_c_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
@@ -240,17 +191,14 @@ static int glue(compute_c_bmilg, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
     return src1 == 0;
 }
 
-static int glue(compute_all_blsi, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
+static int glue(compute_aco_blsi, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
-    uint32_t cf, pf, af, zf, sf, of;
+    uint32_t cf, af, of;
 
     cf = (src1 != 0);
-    pf = 0; /* undefined */
     af = 0; /* undefined */
-    zf = (dst == 0) * CC_Z;
-    sf = lshift(dst, 8 - DATA_BITS) & CC_S;
     of = 0;
-    return cf + pf + af + zf + sf + of;
+    return cf + af + of;
 }
 
 static int glue(compute_c_blsi, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)

@@ -18,8 +18,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
-#include "hw/irq.h"
+#include "hw/core/qdev.h"
+#include "hw/core/irq.h"
 #include "qapi/error.h"
 
 static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,

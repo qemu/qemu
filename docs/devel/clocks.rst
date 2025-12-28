@@ -46,8 +46,8 @@ Here is an example of clocks::
                                                 | +-------+    |
                                                 +--------------+
 
-Clocks are defined in the ``include/hw/clock.h`` header and device
-related functions are defined in the ``include/hw/qdev-clock.h``
+Clocks are defined in the ``include/hw/core/clock.h`` header and device
+related functions are defined in the ``include/hw/core/qdev-clock.h``
 header.
 
 The clock state
@@ -97,7 +97,7 @@ Note that it is possible to create a static array describing clock inputs and
 outputs. The function ``qdev_init_clocks()`` must be called with the array as
 parameter to initialize the clocks: it has the same behaviour as calling the
 ``qdev_init_clock_in/out()`` for each clock in the array. To ease the array
-construction, some macros are defined in ``include/hw/qdev-clock.h``.
+construction, some macros are defined in ``include/hw/core/qdev-clock.h``.
 As an example, the following creates 2 clocks to a device: one input and one
 output.
 

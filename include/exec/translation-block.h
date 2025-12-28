@@ -14,6 +14,8 @@
 #ifdef CONFIG_USER_ONLY
 #include "qemu/interval-tree.h"
 #include "exec/target_page.h"
+#else
+#include "system/ram_addr.h"
 #endif
 
 /*

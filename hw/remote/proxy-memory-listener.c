@@ -11,6 +11,7 @@
 #include "qemu/int128.h"
 #include "qemu/range.h"
 #include "system/memory.h"
+#include "system/ramblock.h"
 #include "exec/cpu-common.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

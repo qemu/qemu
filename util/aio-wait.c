@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 
 AioWait global_aio_wait;
 

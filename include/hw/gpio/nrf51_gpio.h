@@ -26,7 +26,7 @@
 #ifndef NRF51_GPIO_H
 #define NRF51_GPIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #define TYPE_NRF51_GPIO "nrf51_soc.gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(NRF51GPIOState, NRF51_GPIO)

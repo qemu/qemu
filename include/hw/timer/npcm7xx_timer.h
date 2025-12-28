@@ -17,7 +17,7 @@
 #define NPCM7XX_TIMER_H
 
 #include "system/memory.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 
 /* Each Timer Module (TIM) instance holds five 25 MHz timers. */

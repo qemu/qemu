@@ -16,8 +16,8 @@
 #include "qemu/osdep.h"
 
 #include "hw/gpio/npcm7xx_gpio.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/log.h"

@@ -16,7 +16,7 @@
 #include "chardev/char-fe.h"
 #include "system/memory.h"
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define IVSHMEM_MAX_VECTOR_NUM 64
 

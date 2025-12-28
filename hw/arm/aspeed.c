@@ -21,7 +21,7 @@
 #include "system/block-backend.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "system/system.h"
 
 static struct arm_boot_info aspeed_board_binfo = {

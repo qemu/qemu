@@ -51,6 +51,7 @@ _hwcore_rs = static_library(
       'src/lib.rs',
       'src/bindings.rs',
       'src/irq.rs',
+      'src/prelude.rs',
       'src/qdev.rs',
       'src/sysbus.rs',
     ],

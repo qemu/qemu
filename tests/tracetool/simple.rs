@@ -6,17 +6,29 @@ use std::ffi::c_char;
 #[allow(unused_imports)]
 use util::bindings;
 
+#[allow(dead_code)]
 #[inline(always)]
 fn trace_event_state_is_enabled(dstate: u16) -> bool {
     (unsafe { trace_events_enabled_count }) != 0 && dstate != 0
 }
 
 extern "C" {
+    #[allow(dead_code)]
     static mut trace_events_enabled_count: u32;
 }
 extern "C" {
+    #[allow(dead_code)]
     static mut _TRACE_TEST_BLAH_DSTATE: u16;
+    #[allow(dead_code)]
     static mut _TRACE_TEST_WIBBLE_DSTATE: u16;
+}
+
+#[inline(always)]
+#[allow(dead_code)]
+pub fn trace_test_blah_enabled() -> bool
+{
+    trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) ||
+    false
 }
 
 #[inline(always)]
@@ -31,6 +43,14 @@ pub fn trace_test_blah(_context: *mut (), _filename: &std::ffi::CStr)
 
 #[inline(always)]
 #[allow(dead_code)]
+pub fn trace_test_wibble_enabled() -> bool
+{
+    trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) ||
+    false
+}
+
+#[inline(always)]
+#[allow(dead_code)]
 pub fn trace_test_wibble(_context: *mut (), _value: std::ffi::c_int)
 {
     if trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) {
@@ -38,3 +58,4 @@ pub fn trace_test_wibble(_context: *mut (), _value: std::ffi::c_int)
         unsafe { _simple_trace_test_wibble(_context, _value); }
     }
 }
+

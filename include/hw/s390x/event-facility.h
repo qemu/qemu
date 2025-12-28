@@ -16,7 +16,7 @@
 #define HW_S390_SCLP_EVENT_FACILITY_H
 
 #include "qemu/thread.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/s390x/sclp.h"
 #include "qom/object.h"
 

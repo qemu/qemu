@@ -25,7 +25,7 @@
 #ifndef HW_STM32F2XX_SPI_H
 #define HW_STM32F2XX_SPI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qom/object.h"
 

@@ -26,7 +26,7 @@
 #include "qapi/visitor.h"
 #include "tpm_int.h"
 #include "system/memory.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/tpm_backend.h"
 #include "system/tpm_util.h"
 #include "trace.h"

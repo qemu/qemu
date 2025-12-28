@@ -20,8 +20,8 @@
 #ifndef NPCM_GMAC_H
 #define NPCM_GMAC_H
 
-#include "hw/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
 #include "net/net.h"
 
 #define NPCM_GMAC_NR_REGS (0x1060 / sizeof(uint32_t))

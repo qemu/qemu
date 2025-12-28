@@ -12,7 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/module.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-serial.h"
 #include "virtio-ccw.h"
 

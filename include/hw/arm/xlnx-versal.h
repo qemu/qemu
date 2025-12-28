@@ -13,7 +13,7 @@
 #ifndef XLNX_VERSAL_H
 #define XLNX_VERSAL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "net/can_emu.h"
 #include "hw/arm/xlnx-versal-version.h"

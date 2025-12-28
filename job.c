@@ -28,7 +28,7 @@
 #include "qemu/job.h"
 #include "qemu/id.h"
 #include "qemu/main-loop.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 #include "trace/trace-root.h"
 #include "qapi/qapi-events-job.h"
 

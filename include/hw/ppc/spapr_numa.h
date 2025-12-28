@@ -13,7 +13,7 @@
 #ifndef HW_SPAPR_NUMA_H
 #define HW_SPAPR_NUMA_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/ppc/spapr.h"
 
 /*

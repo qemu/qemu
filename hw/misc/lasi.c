@@ -14,7 +14,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "trace.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/system.h"
 #include "system/runstate.h"
 #include "migration/vmstate.h"

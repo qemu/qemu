@@ -13,7 +13,7 @@
 #ifndef HW_S390_FLIC_H
 #define HW_S390_FLIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/s390x/adapter.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/queue.h"

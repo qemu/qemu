@@ -11,9 +11,7 @@ _trace_rs = static_library(
   'trace',             # Library name,
   lib_rs,
   trace_rs_targets,         # List of generated `.rs` custom targets
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
-  dependencies: [libc_rs],
-  rust_abi: 'rust',
+  dependencies: [libc_rs, probe_rs],
 )
 
 trace_rs = declare_dependency(link_with: _trace_rs)

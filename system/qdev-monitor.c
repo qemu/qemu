@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
@@ -40,9 +40,9 @@
 #include "system/block-backend.h"
 #include "migration/misc.h"
 #include "qemu/cutils.h"
-#include "hw/qdev-properties.h"
-#include "hw/clock.h"
-#include "hw/boards.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/clock.h"
+#include "hw/core/boards.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them

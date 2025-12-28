@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include <dirent.h>
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "monitor-internal.h"
 #include "monitor/hmp.h"
 #include "qobject/qdict.h"

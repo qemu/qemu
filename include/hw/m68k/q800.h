@@ -23,7 +23,7 @@
 #ifndef HW_Q800_H
 #define HW_Q800_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qom/object.h"
 #include "target/m68k/cpu-qom.h"
 #include "system/memory.h"
@@ -31,7 +31,7 @@
 #include "hw/misc/mac_via.h"
 #include "hw/net/dp8393x.h"
 #include "hw/char/escc.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/scsi/esp.h"
 #include "hw/block/swim.h"
 #include "hw/nubus/mac-nubus-bridge.h"

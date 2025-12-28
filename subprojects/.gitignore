@@ -16,6 +16,7 @@
 /glib-sys-*
 /itertools-*
 /libc-*
+/probe-*
 /proc-macro-error-*
 /proc-macro-error-attr-*
 /proc-macro*

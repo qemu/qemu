@@ -17,8 +17,8 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/vmclock.h"
 #include "hw/nvram/fw_cfg.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "system/reset.h"
 

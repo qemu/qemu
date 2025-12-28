@@ -18,7 +18,7 @@
 #include "hw/arm/fsl-imx31.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/error-report.h"
 #include "system/address-spaces.h"
 #include "net/net.h"

@@ -19,7 +19,7 @@
 #include "qemu/coroutine_int.h"
 #include "qemu/coroutine-tls.h"
 #include "qemu/cutils.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 enum {
     COROUTINE_POOL_BATCH_MAX_SIZE = 128,

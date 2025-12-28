@@ -16,7 +16,7 @@
 
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost.h"
-#include "hw/fw-path-provider.h"
+#include "hw/core/fw-path-provider.h"
 #include "qom/object.h"
 
 #define TYPE_VHOST_SCSI_COMMON "vhost-scsi-common"

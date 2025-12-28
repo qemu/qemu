@@ -30,6 +30,7 @@
 #include "system/mshv.h"
 #include "trace.h"
 #include "hw/i386/apic-msidef.h"
+#include "exec/cpu-common.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 

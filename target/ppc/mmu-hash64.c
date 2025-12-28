@@ -28,7 +28,7 @@
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 #include "exec/log.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "internal.h"
 #include "mmu-book3s-v3.h"
 #include "mmu-books.h"

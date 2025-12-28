@@ -25,7 +25,7 @@
 #include "exec/cpu-defs.h"
 #include "hex_regs.h"
 #include "mmvec/mmvec.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 
 #ifndef CONFIG_USER_ONLY
 #error "Hexagon does not support system emulation"

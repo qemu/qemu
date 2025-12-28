@@ -13,7 +13,7 @@
 #ifndef HW_I2C_ARM_SBCON_I2C_H
 #define HW_I2C_ARM_SBCON_I2C_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "qom/object.h"
 

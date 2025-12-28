@@ -26,7 +26,7 @@
 #define ASPEED_SMC_H
 
 #include "hw/ssi/ssi.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 struct AspeedSMCState;

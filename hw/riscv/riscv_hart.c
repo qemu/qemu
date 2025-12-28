@@ -24,9 +24,9 @@
 #include "system/reset.h"
 #include "system/qtest.h"
 #include "qemu/cutils.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "target/riscv/cpu.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/riscv/riscv_hart.h"
 #include "qemu/error-report.h"
 

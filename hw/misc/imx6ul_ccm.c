@@ -11,7 +11,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "migration/vmstate.h"
 #include "hw/misc/imx6ul_ccm.h"
 #include "qemu/log.h"

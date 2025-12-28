@@ -43,7 +43,8 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "qemu/log.h"
-#include "hw/fw-path-provider.h"
+#include "exec/cpu-common.h"
+#include "hw/core/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"
 #include "system/device_tree.h"
@@ -61,14 +62,14 @@
 #include "hw/core/cpu.h"
 
 #include "hw/ppc/ppc.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_nested.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/ppc/vof.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/pci/msi.h"
 
@@ -78,11 +79,11 @@
 #include "hw/virtio/vhost-scsi-common.h"
 
 #include "system/confidential-guest-support.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "hw/nmi.h"
+#include "hw/core/nmi.h"
 #include "hw/intc/intc.h"
 
 #include "hw/ppc/spapr_cpu_core.h"

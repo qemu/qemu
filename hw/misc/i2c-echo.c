@@ -11,7 +11,6 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
-#include "block/aio.h"
 #include "hw/i2c/i2c.h"
 #include "trace.h"
 

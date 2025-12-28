@@ -13,14 +13,14 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/memory.h"
 #include "system/kvm.h"
 #include "system/reset.h"
 #include "kvm_mips.h"
 #include "hw/intc/mips_gic.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 
 static void mips_gic_set_vp_irq(MIPSGICState *gic, int vp, int pin)
 {

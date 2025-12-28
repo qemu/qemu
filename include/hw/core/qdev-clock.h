@@ -14,7 +14,7 @@
 #ifndef QDEV_CLOCK_H
 #define QDEV_CLOCK_H
 
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 
 /**
  * qdev_init_clock_in:

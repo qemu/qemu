@@ -9,7 +9,7 @@
 #ifndef HW_MAX78000_UART_H
 #define HW_MAX78000_UART_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qemu/fifo8.h"
 #include "qom/object.h"

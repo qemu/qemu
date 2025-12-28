@@ -14,7 +14,7 @@
 #ifndef MIGRATION_REGISTER_H
 #define MIGRATION_REGISTER_H
 
-#include "hw/vmstate-if.h"
+#include "hw/core/vmstate-if.h"
 
 /**
  * struct SaveVMHandlers: handler structure to finely control

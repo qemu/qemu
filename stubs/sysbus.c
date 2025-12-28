@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 BusState *sysbus_get_default(void)
 {

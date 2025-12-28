@@ -25,10 +25,11 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/thread-pool.h"
 #include "block/graph-lock.h"
 #include "qemu/main-loop.h"
+#include "qemu/mem-reentrancy.h"
 #include "qemu/atomic.h"
 #include "qemu/lockcnt.h"
 #include "qemu/rcu_queue.h"

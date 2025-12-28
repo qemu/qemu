@@ -20,7 +20,7 @@
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "system/device_tree.h"

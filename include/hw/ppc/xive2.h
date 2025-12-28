@@ -11,7 +11,7 @@
 
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2_regs.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /*
  * XIVE2 Router (POWER10)

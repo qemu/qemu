@@ -17,7 +17,7 @@
 #define NPCM7XX_OTP_H
 
 #include "system/memory.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* Each OTP module holds 8192 bits of one-time programmable storage */
 #define NPCM7XX_OTP_ARRAY_BITS (8192)

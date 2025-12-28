@@ -14,7 +14,7 @@
 #include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/arm/max78000_soc.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/misc/unimp.h"
 
 static const uint32_t max78000_icc_addr[] = {0x4002a000, 0x4002a800};

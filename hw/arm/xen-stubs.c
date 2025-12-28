@@ -7,7 +7,7 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-commands-migration.h"
 #include "system/xen.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/xen/xen-hvm-common.h"
 #include "hw/xen/arch_hvm.h"
 

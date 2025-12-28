@@ -27,7 +27,7 @@
 #include "system/address-spaces.h"
 #include "system/system.h"
 #include "hw/arm/stm32f405_soc.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/misc/unimp.h"
 
 #define RCC_ADDR                       0x40023800

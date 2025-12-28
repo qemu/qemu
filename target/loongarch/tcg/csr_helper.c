@@ -14,7 +14,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"
 #include "accel/tcg/cpu-ldst.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "cpu-csr.h"
 #include "cpu-mmu.h"
 

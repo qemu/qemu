@@ -23,7 +23,7 @@
 
 #include "hw/vfio/vfio-region.h"
 #include "hw/vfio/vfio-device.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

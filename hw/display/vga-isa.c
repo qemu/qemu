@@ -30,8 +30,8 @@
 #include "ui/pixel_ops.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "hw/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/loader.h"
+#include "hw/core/qdev-properties.h"
 #include "ui/console.h"
 #include "qom/object.h"
 

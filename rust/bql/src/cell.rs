@@ -41,10 +41,11 @@
 //! this rule is not flexible enough. Sometimes it is required to have multiple
 //! references to an object and yet mutate it. In particular, QEMU objects
 //! usually have their pointer shared with the "outside world very early in
-//! their lifetime", for example when they create their
-//! [`MemoryRegion`s](crate::bindings::MemoryRegion).  Therefore, individual
-//! parts of a  device must be made mutable in a controlled manner; this module
-//! provides the tools to do so.
+//! their lifetime", for example when they create their [`MemoryRegion`s].
+//! Therefore, individual parts of a  device must be made mutable in a
+//! controlled manner; this module provides the tools to do so.
+//!
+//! [`MemoryRegion`s]: ../../system/memory/struct.MemoryRegion.html
 //!
 //! ## Cell types
 //!
@@ -141,8 +142,10 @@
 //! Multiple immutable borrows are allowed via [`borrow`](BqlRefCell::borrow),
 //! or a single mutable borrow via [`borrow_mut`](BqlRefCell::borrow_mut).  The
 //! thread will panic if these rules are violated or if the BQL is not held.
+#[cfg(feature = "debug_cell")]
+use std::cell::Cell;
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::UnsafeCell,
     cmp::Ordering,
     fmt,
     marker::PhantomData,
@@ -377,7 +380,7 @@ pub struct BqlRefCell<T> {
     // for std::cell::BqlRefCell), so that we can use offset_of! on it.
     // UnsafeCell and repr(C) both prevent usage of niches.
     value: UnsafeCell<T>,
-    borrow: Cell<BorrowFlag>,
+    borrow: BqlCell<BorrowFlag>,
     // Stores the location of the earliest currently active borrow.
     // This gets updated whenever we go from having zero borrows
     // to having a single borrow. When a borrow occurs, this gets included
@@ -426,7 +429,7 @@ impl<T> BqlRefCell<T> {
     pub const fn new(value: T) -> BqlRefCell<T> {
         BqlRefCell {
             value: UnsafeCell::new(value),
-            borrow: Cell::new(UNUSED),
+            borrow: BqlCell::new(UNUSED),
             #[cfg(feature = "debug_cell")]
             borrowed_at: Cell::new(None),
         }
@@ -688,12 +691,12 @@ impl<T> From<T> for BqlRefCell<T> {
 }
 
 struct BorrowRef<'b> {
-    borrow: &'b Cell<BorrowFlag>,
+    borrow: &'b BqlCell<BorrowFlag>,
 }
 
 impl<'b> BorrowRef<'b> {
     #[inline]
-    fn new(borrow: &'b Cell<BorrowFlag>) -> Option<BorrowRef<'b>> {
+    fn new(borrow: &'b BqlCell<BorrowFlag>) -> Option<BorrowRef<'b>> {
         let b = borrow.get().wrapping_add(1);
         if !is_reading(b) {
             // Incrementing borrow can result in a non-reading value (<= 0) in these cases:
@@ -789,12 +792,12 @@ impl<T: fmt::Display> fmt::Display for BqlRef<'_, T> {
 }
 
 struct BorrowRefMut<'b> {
-    borrow: &'b Cell<BorrowFlag>,
+    borrow: &'b BqlCell<BorrowFlag>,
 }
 
 impl<'b> BorrowRefMut<'b> {
     #[inline]
-    fn new(borrow: &'b Cell<BorrowFlag>) -> Option<BorrowRefMut<'b>> {
+    fn new(borrow: &'b BqlCell<BorrowFlag>) -> Option<BorrowRefMut<'b>> {
         // There must currently be no existing references when borrow_mut() is
         // called, so we explicitly only allow going from UNUSED to UNUSED - 1.
         match borrow.get() {

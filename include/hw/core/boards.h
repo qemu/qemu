@@ -10,7 +10,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "hw/core/cpu.h"
-#include "hw/resettable.h"
+#include "hw/core/resettable.h"
 
 #define TYPE_MACHINE_SUFFIX "-machine"
 

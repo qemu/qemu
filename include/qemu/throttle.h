@@ -25,6 +25,7 @@
 #ifndef THROTTLE_H
 #define THROTTLE_H
 
+#include "qemu/aio.h"
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/timer.h"
 

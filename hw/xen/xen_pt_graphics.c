@@ -5,6 +5,7 @@
 #include "qapi/error.h"
 #include "hw/xen/xen_pt.h"
 #include "hw/xen/xen_igd.h"
+#include "exec/cpu-common.h"
 #include "xen-host-pci-device.h"
 
 static unsigned long igd_guest_opregion;

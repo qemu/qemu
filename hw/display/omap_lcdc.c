@@ -18,11 +18,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
+#include "exec/cpu-common.h"
 
 struct omap_lcd_panel_s {
     MemoryRegion *sysmem;

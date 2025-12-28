@@ -16,7 +16,8 @@
 #ifndef QEMU_RAW_AIO_H
 #define QEMU_RAW_AIO_H
 
-#include "block/aio.h"
+#include "qemu/aiocb.h"
+#include "qemu/aio.h"
 #include "block/block-common.h"
 #include "qemu/iov.h"
 

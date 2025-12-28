@@ -15,7 +15,7 @@
 #ifndef ZYNQ_XADC_H
 #define ZYNQ_XADC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define ZYNQ_XADC_MMIO_SIZE     0x0020

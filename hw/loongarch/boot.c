@@ -9,7 +9,7 @@
 #include "qemu/units.h"
 #include "target/loongarch/cpu.h"
 #include "hw/loongarch/virt.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "system/reset.h"

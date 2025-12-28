@@ -13,7 +13,7 @@
 #include "qemu/units.h"
 #include "exec/target_page.h"
 #include "hw/s390x/s390-virtio-ccw.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/s390x/storage-keys.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"

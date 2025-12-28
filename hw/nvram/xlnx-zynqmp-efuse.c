@@ -31,7 +31,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #ifndef ZYNQMP_EFUSE_ERR_DEBUG
 #define ZYNQMP_EFUSE_ERR_DEBUG 0

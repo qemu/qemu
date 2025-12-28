@@ -55,7 +55,7 @@
 #ifndef IOTKIT_SECCTL_H
 #define IOTKIT_SECCTL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IOTKIT_SECCTL "iotkit-secctl"

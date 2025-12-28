@@ -15,7 +15,7 @@
 #include <linux/vfio.h>
 
 #include "system/tcg.h"
-#include "system/ram_addr.h"
+#include "system/ramblock.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/vfio/vfio-container.h"

@@ -2,7 +2,7 @@
 #define QEMU_HW_ESP_H
 
 #include "hw/scsi/scsi.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/fifo8.h"
 #include "qom/object.h"
 

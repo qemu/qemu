@@ -25,7 +25,7 @@
 #ifndef HW_STM32_RCC_H
 #define HW_STM32_RCC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define STM32_RCC_CR 0x00

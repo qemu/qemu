@@ -20,9 +20,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pcie_port.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/module.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 
 void pcie_port_init_reg(PCIDevice *d)
 {

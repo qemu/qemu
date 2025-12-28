@@ -12,7 +12,7 @@
 #include "hw/arm/machines-qom.h"
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "system/system.h"
 #include "hw/i2c/smbus_eeprom.h"
 

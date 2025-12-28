@@ -38,7 +38,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pcie.h"

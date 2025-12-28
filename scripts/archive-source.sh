@@ -41,6 +41,7 @@ subprojects=(
   keycodemapdb
   libc-0.2-rs
   libvfio-user
+  probe-0.5-rs
   proc-macro-error-1-rs
   proc-macro-error-attr-1-rs
   proc-macro2-1-rs

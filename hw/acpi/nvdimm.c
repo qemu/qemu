@@ -36,6 +36,7 @@
 #include "hw/mem/nvdimm.h"
 #include "qemu/nvdimm-utils.h"
 #include "trace.h"
+#include "exec/cpu-common.h"
 
 /*
  * define Byte Addressable Persistent Memory (PM) Region according to

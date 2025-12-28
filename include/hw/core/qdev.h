@@ -4,11 +4,12 @@
 #include "qemu/atomic.h"
 #include "qemu/queue.h"
 #include "qemu/bitmap.h"
+#include "qemu/mem-reentrancy.h"
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "qom/object.h"
-#include "hw/hotplug.h"
-#include "hw/resettable.h"
+#include "hw/core/hotplug.h"
+#include "hw/core/resettable.h"
 
 /**
  * DOC: The QEMU Device API
@@ -207,11 +208,6 @@ struct NamedClockList {
     bool alias;
     QLIST_ENTRY(NamedClockList) node;
 };
-
-typedef struct {
-    bool engaged_in_io;
-} MemReentrancyGuard;
-
 
 typedef QLIST_HEAD(, NamedGPIOList) NamedGPIOListHead;
 typedef QLIST_HEAD(, NamedClockList) NamedClockListHead;

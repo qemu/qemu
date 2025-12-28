@@ -10,7 +10,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/arm/raspi_platform.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/bcm2838.h"
 #include "trace.h"
 

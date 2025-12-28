@@ -6,7 +6,7 @@
 #include "qobject/qlist.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)
 {

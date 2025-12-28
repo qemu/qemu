@@ -12,7 +12,7 @@ use std::{
 use chardev::Chardev;
 use common::{callbacks::FnCall, Opaque};
 use migration::{impl_vmstate_c_struct, VMStateDescription};
-use qom::{prelude::*, ObjectClass, ObjectImpl, Owned, ParentInit};
+use qom::{prelude::*, ObjectClass};
 use util::{Error, Result};
 
 pub use crate::bindings::{ClockEvent, DeviceClass, Property, ResetType};
@@ -132,6 +132,7 @@ unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
 /// [`bindings::PropertyInfo`] pointer for the trait implementation to be safe.
 pub unsafe trait QDevProp {
     const BASE_INFO: *const bindings::PropertyInfo;
+    #[doc(hidden)] // https://github.com/rust-lang/rust/issues/149635
     const BIT_INFO: *const bindings::PropertyInfo = {
         panic!("invalid type for bit property");
     };

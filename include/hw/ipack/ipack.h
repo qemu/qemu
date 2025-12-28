@@ -11,8 +11,8 @@
 #ifndef QEMU_IPACK_H
 #define QEMU_IPACK_H
 
-#include "hw/qdev-core.h"
-#include "hw/irq.h"
+#include "hw/core/qdev.h"
+#include "hw/core/irq.h"
 #include "qom/object.h"
 
 

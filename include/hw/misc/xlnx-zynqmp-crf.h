@@ -8,8 +8,8 @@
 #ifndef HW_MISC_XLNX_ZYNQMP_CRF_H
 #define HW_MISC_XLNX_ZYNQMP_CRF_H
 
-#include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
 
 #define TYPE_XLNX_ZYNQMP_CRF "xlnx.zynqmp_crf"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPCRF, XLNX_ZYNQMP_CRF)

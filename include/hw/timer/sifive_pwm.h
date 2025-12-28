@@ -27,7 +27,7 @@
 #ifndef HW_SIFIVE_PWM_H
 #define HW_SIFIVE_PWM_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 

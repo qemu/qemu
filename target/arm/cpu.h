@@ -22,7 +22,7 @@
 
 #include "kvm-consts.h"
 #include "qemu/cpu-float.h"
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"

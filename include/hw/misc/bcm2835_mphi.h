@@ -17,8 +17,8 @@
 #ifndef HW_MISC_BCM2835_MPHI_H
 #define HW_MISC_BCM2835_MPHI_H
 
-#include "hw/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define MPHI_MMIO_SIZE      0x1000

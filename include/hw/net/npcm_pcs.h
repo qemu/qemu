@@ -17,7 +17,7 @@
 #ifndef NPCM_PCS_H
 #define NPCM_PCS_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define NPCM_PCS_NR_SR_CTLS     (0x12 / sizeof(uint16_t))
 #define NPCM_PCS_NR_SR_MIIS     (0x20 / sizeof(uint16_t))

@@ -11,7 +11,7 @@
 #ifndef HW_MISC_ARM11SCU_H
 #define HW_MISC_ARM11SCU_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_ARM11_SCU "arm11-scu"

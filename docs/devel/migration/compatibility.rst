@@ -111,7 +111,7 @@ that array to see what value it needs to get for that feature.  And
 what are we going to put in that array, the value of a property.
 
 To create a property for a device, we need to use one of the
-DEFINE_PROP_*() macros. See include/hw/qdev-properties.h to find the
+DEFINE_PROP_*() macros. See include/hw/core/qdev-properties.h to find the
 macros that exist.  With it, we set the default value for that
 property, and that is what it is going to get in the latest released
 version.  But if we want a different value for a previous version, we

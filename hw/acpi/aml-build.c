@@ -25,7 +25,7 @@
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
 #include "system/numa.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/acpi/tpm.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bus.h"

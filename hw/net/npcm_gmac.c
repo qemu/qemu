@@ -23,7 +23,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/net/mii.h"
 #include "hw/net/npcm_gmac.h"
 #include "migration/vmstate.h"

@@ -1,7 +1,7 @@
 #ifndef ALLWINNER_A10_PIC_H
 #define ALLWINNER_A10_PIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_AW_A10_PIC  "allwinner-a10-pic"

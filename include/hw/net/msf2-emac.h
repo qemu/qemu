@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "system/memory.h"
 #include "net/net.h"
 #include "net/eth.h"

@@ -13,7 +13,7 @@
 #define QEMU_EVENT_LOOP_BASE_H
 
 #include "qom/object.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 #define TYPE_EVENT_LOOP_BASE         "event-loop-base"
 OBJECT_DECLARE_TYPE(EventLoopBase, EventLoopBaseClass,

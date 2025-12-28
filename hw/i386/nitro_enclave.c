@@ -14,7 +14,7 @@
 #include "qom/object_interfaces.h"
 
 #include "chardev/char.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/core/eif.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/microvm.h"

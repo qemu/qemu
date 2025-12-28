@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qom/object.h"
 #include "qemu/fifo8.h"

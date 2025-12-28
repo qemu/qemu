@@ -15,11 +15,11 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/sd/sd.h"
 #include "hw/gpio/bcm2838_gpio.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 
 #define GPFSEL0   0x00
 #define GPFSEL1   0x04

@@ -29,7 +29,7 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #ifndef XLNX_VERSAL_EFUSE_CTRL_ERR_DEBUG
 #define XLNX_VERSAL_EFUSE_CTRL_ERR_DEBUG 0

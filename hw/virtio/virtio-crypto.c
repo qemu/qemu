@@ -20,7 +20,7 @@
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-crypto.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "system/cryptodev-vhost.h"
 

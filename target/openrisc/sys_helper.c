@@ -25,7 +25,7 @@
 #include "exec/helper-proto.h"
 #include "exception.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #endif
 #include "tcg/insn-start-words.h"
 

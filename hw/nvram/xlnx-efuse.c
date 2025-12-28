@@ -31,8 +31,8 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "system/blockdev.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 
 #define TBIT0_OFFSET     28
 #define TBIT1_OFFSET     29

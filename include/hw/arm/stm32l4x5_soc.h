@@ -26,7 +26,7 @@
 
 #include "system/memory.h"
 #include "hw/arm/armv7m.h"
-#include "hw/or-irq.h"
+#include "hw/core/or-irq.h"
 #include "hw/misc/stm32l4x5_syscfg.h"
 #include "hw/misc/stm32l4x5_exti.h"
 #include "hw/misc/stm32l4x5_rcc.h"

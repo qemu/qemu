@@ -279,6 +279,130 @@
 
 #define UNKNOWN_OPCODE ((X86OpEntry) {})
 
+#define X86_MAX_INSN_LENGTH 15
+
+static uint64_t advance_pc(CPUX86State *env, DisasContext *s, int num_bytes)
+{
+    uint64_t pc = s->pc;
+
+    /* This is a subsequent insn that crosses a page boundary.  */
+    if (s->base.num_insns > 1 &&
+        !translator_is_same_page(&s->base, s->pc + num_bytes - 1)) {
+        siglongjmp(s->jmpbuf, 2);
+    }
+
+    s->pc += num_bytes;
+    if (unlikely(cur_insn_len(s) > X86_MAX_INSN_LENGTH)) {
+        /* If the instruction's 16th byte is on a different page than the 1st, a
+         * page fault on the second page wins over the general protection fault
+         * caused by the instruction being too long.
+         * This can happen even if the operand is only one byte long!
+         */
+        if (((s->pc - 1) ^ (pc - 1)) & TARGET_PAGE_MASK) {
+            (void)translator_ldub(env, &s->base,
+                                  (s->pc - 1) & TARGET_PAGE_MASK);
+        }
+        siglongjmp(s->jmpbuf, 1);
+    }
+
+    return pc;
+}
+
+static inline uint8_t x86_ldub_code(CPUX86State *env, DisasContext *s)
+{
+    return translator_ldub(env, &s->base, advance_pc(env, s, 1));
+}
+
+static inline uint16_t x86_lduw_code(CPUX86State *env, DisasContext *s)
+{
+    return translator_lduw(env, &s->base, advance_pc(env, s, 2));
+}
+
+static inline uint32_t x86_ldl_code(CPUX86State *env, DisasContext *s)
+{
+    return translator_ldl(env, &s->base, advance_pc(env, s, 4));
+}
+
+#ifdef TARGET_X86_64
+static inline uint64_t x86_ldq_code(CPUX86State *env, DisasContext *s)
+{
+    return translator_ldq(env, &s->base, advance_pc(env, s, 8));
+}
+#endif
+
+static target_ulong insn_get_addr(CPUX86State *env, DisasContext *s, MemOp ot)
+{
+    target_ulong ret;
+
+    switch (ot) {
+    case MO_8:
+        ret = x86_ldub_code(env, s);
+        break;
+    case MO_16:
+        ret = x86_lduw_code(env, s);
+        break;
+    case MO_32:
+        ret = x86_ldl_code(env, s);
+        break;
+#ifdef TARGET_X86_64
+    case MO_64:
+        ret = x86_ldq_code(env, s);
+        break;
+#endif
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+}
+
+static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, MemOp ot)
+{
+    uint32_t ret;
+
+    switch (ot) {
+    case MO_8:
+        ret = x86_ldub_code(env, s);
+        break;
+    case MO_16:
+        ret = x86_lduw_code(env, s);
+        break;
+    case MO_32:
+#ifdef TARGET_X86_64
+    case MO_64:
+#endif
+        ret = x86_ldl_code(env, s);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+}
+
+static target_long insn_get_signed(CPUX86State *env, DisasContext *s, MemOp ot)
+{
+    target_long ret;
+
+    switch (ot) {
+    case MO_8:
+        ret = (int8_t) x86_ldub_code(env, s);
+        break;
+    case MO_16:
+        ret = (int16_t) x86_lduw_code(env, s);
+        break;
+    case MO_32:
+        ret = (int32_t) x86_ldl_code(env, s);
+        break;
+#ifdef TARGET_X86_64
+    case MO_64:
+        ret = x86_ldq_code(env, s);
+        break;
+#endif
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+}
+
 static uint8_t get_modrm(DisasContext *s, CPUX86State *env)
 {
     if (!s->has_modrm) {
@@ -1430,15 +1554,10 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xff] = X86_OP_ENTRYr(UD,     nop,v),                        /* UD0 */
 };
 
-static void do_decode_0F(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
-{
-    *entry = opcodes_0F[*b];
-}
-
 static void decode_0F(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
     *b = x86_ldub_code(env, s);
-    do_decode_0F(s, env, entry, b);
+    *entry = opcodes_0F[*b];
 }
 
 static void decode_63(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
@@ -1698,9 +1817,9 @@ static const X86OpEntry opcodes_root[256] = {
     [0xD1] = X86_OP_GROUP1(group2, E,v),
     [0xD2] = X86_OP_GROUP2(group2, E,b, 1,b), /* CL */
     [0xD3] = X86_OP_GROUP2(group2, E,v, 1,b), /* CL */
-    [0xD4] = X86_OP_ENTRY2(AAM, 0,w, I,b),
-    [0xD5] = X86_OP_ENTRY2(AAD, 0,w, I,b),
-    [0xD6] = X86_OP_ENTRYw(SALC, 0,b),
+    [0xD4] = X86_OP_ENTRY2(AAM, 0,w, I,b, chk(i64)),
+    [0xD5] = X86_OP_ENTRY2(AAD, 0,w, I,b, chk(i64)),
+    [0xD6] = X86_OP_ENTRYw(SALC, 0,b, chk(i64)),
     [0xD7] = X86_OP_ENTRY1(XLAT, 0,b, zextT0), /* AL read/written */
 
     [0xE0] = X86_OP_ENTRYr(LOOPNE, J,b), /* implicit: CX with aflag size */
@@ -1834,7 +1953,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0xCB] = X86_OP_ENTRY0(RETF),
     [0xCC] = X86_OP_ENTRY0(INT3),
     [0xCD] = X86_OP_ENTRYr(INT, I,b,  chk(vm86_iopl)),
-    [0xCE] = X86_OP_ENTRY0(INTO),
+    [0xCE] = X86_OP_ENTRY0(INTO, chk(i64)),
     [0xCF] = X86_OP_ENTRY0(IRET,      chk(vm86_iopl) svm(IRET)),
 
     /*
@@ -1883,15 +2002,134 @@ static const X86OpEntry opcodes_root[256] = {
 #undef vex12
 #undef vex13
 
-/*
- * Decode the fixed part of the opcode and place the last
- * in b.
- */
 static void decode_root(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
     *entry = opcodes_root[*b];
 }
 
+/* Decompose an address.  */
+static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
+                                         int modrm, bool is_vsib)
+{
+    int def_seg, base, index, scale, mod, rm;
+    target_long disp;
+    bool havesib;
+
+    def_seg = R_DS;
+    index = -1;
+    scale = 0;
+    disp = 0;
+
+    mod = (modrm >> 6) & 3;
+    rm = modrm & 7;
+    base = rm | REX_B(s);
+
+    if (mod == 3) {
+        /* Normally filtered out earlier, but including this path
+           simplifies multi-byte nop, as well as bndcl, bndcu, bndcn.  */
+        goto done;
+    }
+
+    switch (s->aflag) {
+    case MO_64:
+    case MO_32:
+        havesib = 0;
+        if (rm == 4) {
+            int code = x86_ldub_code(env, s);
+            scale = (code >> 6) & 3;
+            index = ((code >> 3) & 7) | REX_X(s);
+            if (index == 4 && !is_vsib) {
+                index = -1;  /* no index */
+            }
+            base = (code & 7) | REX_B(s);
+            havesib = 1;
+        }
+
+        switch (mod) {
+        case 0:
+            if ((base & 7) == 5) {
+                base = -1;
+                disp = (int32_t)x86_ldl_code(env, s);
+                if (CODE64(s) && !havesib) {
+                    base = -2;
+                    disp += s->pc + s->rip_offset;
+                }
+            }
+            break;
+        case 1:
+            disp = (int8_t)x86_ldub_code(env, s);
+            break;
+        default:
+        case 2:
+            disp = (int32_t)x86_ldl_code(env, s);
+            break;
+        }
+
+        /* For correct popl handling with esp.  */
+        if (base == R_ESP && s->popl_esp_hack) {
+            disp += s->popl_esp_hack;
+        }
+        if (base == R_EBP || base == R_ESP) {
+            def_seg = R_SS;
+        }
+        break;
+
+    case MO_16:
+        if (mod == 0) {
+            if (rm == 6) {
+                base = -1;
+                disp = x86_lduw_code(env, s);
+                break;
+            }
+        } else if (mod == 1) {
+            disp = (int8_t)x86_ldub_code(env, s);
+        } else {
+            disp = (int16_t)x86_lduw_code(env, s);
+        }
+
+        switch (rm) {
+        case 0:
+            base = R_EBX;
+            index = R_ESI;
+            break;
+        case 1:
+            base = R_EBX;
+            index = R_EDI;
+            break;
+        case 2:
+            base = R_EBP;
+            index = R_ESI;
+            def_seg = R_SS;
+            break;
+        case 3:
+            base = R_EBP;
+            index = R_EDI;
+            def_seg = R_SS;
+            break;
+        case 4:
+            base = R_ESI;
+            break;
+        case 5:
+            base = R_EDI;
+            break;
+        case 6:
+            base = R_EBP;
+            def_seg = R_SS;
+            break;
+        default:
+        case 7:
+            base = R_EBX;
+            break;
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+ done:
+    return (AddressParts){ def_seg, base, index, scale, disp };
+}
 
 static int decode_modrm(DisasContext *s, CPUX86State *env,
                         X86DecodedInsn *decode, X86DecodedOp *op)
@@ -1905,8 +2143,8 @@ static int decode_modrm(DisasContext *s, CPUX86State *env,
     } else {
         op->has_ea = true;
         op->n = -1;
-        decode->mem = gen_lea_modrm_0(env, s, modrm,
-                                      decode->e.vex_class == 12);
+        decode->mem = decode_modrm_address(env, s, get_modrm(s, env),
+                                           decode->e.vex_class == 12);
     }
     return modrm;
 }
@@ -2227,6 +2465,10 @@ static bool decode_insn(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_
 {
     X86OpEntry *e = &decode->e;
 
+    /*
+     * Each step decodes part of the opcode and leaves the last not-fully-decoded
+     * byte in decode->b.  If the modrm byte is read, it is placed in s->modrm.
+     */
     decode_func(s, env, e, &decode->b);
     while (e->is_decode) {
         e->is_decode = false;
@@ -2522,6 +2764,23 @@ illegal:
     return false;
 }
 
+static void dump_unknown_opcode(CPUX86State *env, DisasContext *s)
+{
+    if (qemu_loglevel_mask(LOG_UNIMP)) {
+        FILE *logfile = qemu_log_trylock();
+        if (logfile) {
+            target_ulong pc = s->base.pc_next, end = s->pc;
+
+            fprintf(logfile, "ILLOPC: " TARGET_FMT_lx ":", pc);
+            for (; pc < end; ++pc) {
+                fprintf(logfile, " %02x", translator_ldub(env, &s->base, pc));
+            }
+            fprintf(logfile, "\n");
+            qemu_log_unlock(logfile);
+        }
+    }
+}
+
 /*
  * Convert one instruction. s->base.is_jmp is set if the translation must
  * be stopped.
@@ -2665,7 +2924,7 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
                     goto unknown_op;
                 }
             }
-            s->vex_v = (~vex3 >> 3) & 0xf;
+            s->vex_v = (~vex3 >> 3) & (CODE64(s) ? 15 : 7);
             s->vex_l = (vex3 >> 2) & 1;
             s->prefix |= pp_prefix[vex3 & 3] | PREFIX_VEX;
         }
@@ -2909,5 +3168,11 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
     gen_illegal_opcode(s);
     return;
  unknown_op:
-    gen_unknown_opcode(env, s);
+    /*
+     * Similarly, except that the assumption here is that we don't decode
+     * the instruction at all -- either a missing opcode, an unimplemented
+     * feature, or just a bogus instruction stream.
+     */
+    gen_illegal_opcode(s);
+    dump_unknown_opcode(env, s);
 }

@@ -21,7 +21,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "qemu/iov.h"
 #include "trace.h"
 

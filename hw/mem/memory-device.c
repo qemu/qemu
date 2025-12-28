@@ -13,7 +13,7 @@
 #include "qemu/error-report.h"
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "qemu/range.h"
 #include "hw/virtio/vhost.h"
 #include "system/kvm.h"

@@ -25,9 +25,9 @@
 #include "qemu/osdep.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/intc/intc.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "trace.h"
 #include "qom/object.h"
 

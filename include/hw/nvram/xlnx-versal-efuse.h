@@ -22,9 +22,9 @@
 #ifndef XLNX_VERSAL_EFUSE_H
 #define XLNX_VERSAL_EFUSE_H
 
-#include "hw/irq.h"
-#include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
 #include "hw/nvram/xlnx-efuse.h"
 
 #define XLNX_VERSAL_EFUSE_CTRL_R_MAX ((0x100 / 4) + 1)

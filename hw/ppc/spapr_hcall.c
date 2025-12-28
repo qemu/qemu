@@ -24,6 +24,7 @@
 #include "hw/ppc/spapr_numa.h"
 #include "mmu-book3s-v3.h"
 #include "hw/mem/memory-device.h"
+#include "exec/cpu-common.h"
 
 bool is_ram_address(SpaprMachineState *spapr, hwaddr addr)
 {

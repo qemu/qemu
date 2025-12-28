@@ -26,7 +26,7 @@
 #include "system/runstate.h"
 #include "migration/misc.h"
 #include "migration/global_state.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 bool xen_allowed;
 

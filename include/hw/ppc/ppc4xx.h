@@ -27,7 +27,7 @@
 
 #include "hw/ppc/ppc.h"
 #include "system/memory.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /*
  * Generic DCR device

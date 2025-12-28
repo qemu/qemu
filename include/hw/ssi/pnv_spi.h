@@ -22,7 +22,7 @@
 #define PPC_PNV_SPI_H
 
 #include "hw/ssi/ssi.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/fifo8.h"
 
 #define TYPE_PNV_SPI "pnv-spi"

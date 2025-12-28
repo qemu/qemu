@@ -9,7 +9,7 @@
 #ifndef HW_MISC_BCM2835_THERMAL_H
 #define HW_MISC_BCM2835_THERMAL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_THERMAL "bcm2835-thermal"

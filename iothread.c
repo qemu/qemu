@@ -15,7 +15,7 @@
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/block.h"
 #include "system/event-loop-base.h"
 #include "system/iothread.h"

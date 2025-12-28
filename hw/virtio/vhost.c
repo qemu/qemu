@@ -28,6 +28,7 @@
 #include "migration/qemu-file-types.h"
 #include "system/dma.h"
 #include "system/memory.h"
+#include "system/ramblock.h"
 #include "trace.h"
 
 /* enabled until disconnected backend stabilizes */

@@ -27,7 +27,7 @@
 #include "cpu.h"
 #include "hw/nvram/fw_cfg.h"
 #include "multiboot.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "elf.h"
 #include "exec/target_page.h"
 #include "system/system.h"

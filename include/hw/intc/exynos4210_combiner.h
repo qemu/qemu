@@ -23,7 +23,7 @@
 #ifndef HW_INTC_EXYNOS4210_COMBINER_H
 #define HW_INTC_EXYNOS4210_COMBINER_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /*
  * State for each output signal of internal combiner

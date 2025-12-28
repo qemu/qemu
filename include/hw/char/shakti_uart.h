@@ -25,7 +25,7 @@
 #ifndef HW_SHAKTI_UART_H
 #define HW_SHAKTI_UART_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 
 #define SHAKTI_UART_BAUD        0x00

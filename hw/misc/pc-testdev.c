@@ -37,8 +37,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/isa/isa.h"
+#include "exec/cpu-common.h"
 #include "qom/object.h"
 
 #define IOMEM_LEN    0x10000

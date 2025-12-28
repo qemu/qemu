@@ -91,6 +91,8 @@ static const char * const cc_op_str[] = {
     [CC_OP_BMILGQ] = "BMILGQ",
 
     [CC_OP_POPCNT] = "POPCNT",
+
+    [CC_OP_SBB_SELF] = "SBBx,x",
 };
 
 static void
@@ -354,8 +356,7 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         qemu_fprintf(f, "RAX=%016" PRIx64 " RBX=%016" PRIx64 " RCX=%016" PRIx64 " RDX=%016" PRIx64 "\n"
                      "RSI=%016" PRIx64 " RDI=%016" PRIx64 " RBP=%016" PRIx64 " RSP=%016" PRIx64 "\n"
                      "R8 =%016" PRIx64 " R9 =%016" PRIx64 " R10=%016" PRIx64 " R11=%016" PRIx64 "\n"
-                     "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n"
-                     "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
+                     "R12=%016" PRIx64 " R13=%016" PRIx64 " R14=%016" PRIx64 " R15=%016" PRIx64 "\n",
                      env->regs[R_EAX],
                      env->regs[R_EBX],
                      env->regs[R_ECX],
@@ -371,7 +372,32 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                      env->regs[12],
                      env->regs[13],
                      env->regs[14],
-                     env->regs[15],
+                     env->regs[15]);
+
+        if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF) {
+            qemu_fprintf(f, "R16=%016" PRIx64 " R17=%016" PRIx64 " R18=%016" PRIx64 " R19=%016" PRIx64 "\n"
+                         "R20=%016" PRIx64 " R21=%016" PRIx64 " R22=%016" PRIx64 " R23=%016" PRIx64 "\n"
+                         "R24=%016" PRIx64 " R25=%016" PRIx64 " R26=%016" PRIx64 " R27=%016" PRIx64 "\n"
+                         "R28=%016" PRIx64 " R29=%016" PRIx64 " R30=%016" PRIx64 " R31=%016" PRIx64 "\n",
+                         env->regs[16],
+                         env->regs[17],
+                         env->regs[18],
+                         env->regs[19],
+                         env->regs[20],
+                         env->regs[21],
+                         env->regs[22],
+                         env->regs[23],
+                         env->regs[24],
+                         env->regs[25],
+                         env->regs[26],
+                         env->regs[27],
+                         env->regs[28],
+                         env->regs[29],
+                         env->regs[30],
+                         env->regs[31]);
+        }
+
+        qemu_fprintf(f, "RIP=%016" PRIx64 " RFL=%08x [%c%c%c%c%c%c%c] CPL=%d II=%d A20=%d SMM=%d HLT=%d\n",
                      env->eip, eflags,
                      eflags & DF_MASK ? 'D' : '-',
                      eflags & CC_O ? 'O' : '-',

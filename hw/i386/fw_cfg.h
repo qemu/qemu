@@ -9,7 +9,7 @@
 #ifndef HW_I386_FW_CFG_H
 #define HW_I386_FW_CFG_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/pc.h"
 #include "hw/nvram/fw_cfg.h"
 

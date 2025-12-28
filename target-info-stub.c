@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/target-info.h"
 #include "qemu/target-info-impl.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "cpu.h"
 
 /* Validate correct placement of CPUArchState. */

@@ -27,14 +27,14 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/xen/xen_backend_ops.h"
 
 #include "xen_evtchn.h"

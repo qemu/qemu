@@ -37,8 +37,8 @@
 
 #include "hw/xen/xen-backend.h"
 #include "hw/xen/xen-bus-helper.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 
 #include "hw/xen/interface/io/netif.h"
 #include "hw/xen/interface/io/xs_wire.h"

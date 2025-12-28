@@ -10,7 +10,7 @@
 #define HW_CHAR_RENESAS_SCI_H
 
 #include "chardev/char-fe.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_RENESAS_SCI "renesas-sci"

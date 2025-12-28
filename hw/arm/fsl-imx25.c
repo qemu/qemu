@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "hw/arm/fsl-imx25.h"
 #include "system/system.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "chardev/char.h"
 #include "target/arm/cpu-qom.h"
 

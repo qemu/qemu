@@ -24,7 +24,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/arm/digic.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/system.h"
 
 #define DIGIC4_TIMER_BASE(n)    (0xc0210000 + (n) * 0x100)

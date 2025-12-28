@@ -34,8 +34,8 @@
 #include "qemu/timer.h"
 #include "chardev/char-fe.h"
 #include "hw/ipmi/ipmi.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 

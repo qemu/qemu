@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/target-info-qapi.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/x86.h"
 #include "hw/arm/virt.h"
 #include "system/dma.h"

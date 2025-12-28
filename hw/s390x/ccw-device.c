@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "ccw-device.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/module.h"
 #include "ipl.h"
 #include "qapi/visitor.h"

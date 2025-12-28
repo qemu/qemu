@@ -26,7 +26,7 @@
 #define HW_IPMI_H
 
 #include "system/memory.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qom/object.h"
 
 #define MAX_IPMI_MSG_SIZE 300

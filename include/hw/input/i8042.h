@@ -9,7 +9,7 @@
 #define HW_INPUT_I8042_H
 
 #include "hw/isa/isa.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/input/ps2.h"
 #include "qom/object.h"
 

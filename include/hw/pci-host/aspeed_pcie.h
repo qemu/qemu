@@ -17,7 +17,7 @@
 #ifndef ASPEED_PCIE_H
 #define ASPEED_PCIE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"

@@ -21,7 +21,7 @@
 #define IDE_DEV_H
 
 #include "system/dma.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/block/block.h"
 
 typedef struct IDEDevice IDEDevice;

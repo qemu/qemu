@@ -31,11 +31,10 @@ _bql_rs = static_library(
       'src/lib.rs',
       'src/bindings.rs',
       'src/cell.rs',
+      'src/prelude.rs',
     ],
     {'.': _bql_bindings_inc_rs}
   ),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
-  rust_abi: 'rust',
   rust_args: _bql_cfg,
   dependencies: [glib_sys_rs],
 )

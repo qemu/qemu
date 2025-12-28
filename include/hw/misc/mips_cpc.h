@@ -20,7 +20,7 @@
 #ifndef MIPS_CPC_H
 #define MIPS_CPC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define CPC_ADDRSPACE_SZ    0x6000

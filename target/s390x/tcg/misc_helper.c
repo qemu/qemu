@@ -42,7 +42,7 @@
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/ioinst.h"
 #include "hw/s390x/s390-pci-inst.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/s390x/tod.h"
 #include CONFIG_DEVICES
 #endif

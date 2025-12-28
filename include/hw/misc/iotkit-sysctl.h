@@ -26,7 +26,7 @@
 #ifndef HW_MISC_IOTKIT_SYSCTL_H
 #define HW_MISC_IOTKIT_SYSCTL_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_IOTKIT_SYSCTL "iotkit-sysctl"

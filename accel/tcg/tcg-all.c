@@ -37,7 +37,7 @@
 #include "qemu/units.h"
 #include "qemu/target-info.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "exec/tb-flush.h"
 #include "system/runstate.h"
 #endif

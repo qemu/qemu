@@ -21,7 +21,7 @@
 #define HW_MISC_ALLWINNER_CPUCFG_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /**
  * Object model

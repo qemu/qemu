@@ -17,8 +17,8 @@
 #define NPCM_CLK_H
 
 #include "system/memory.h"
-#include "hw/clock.h"
-#include "hw/sysbus.h"
+#include "hw/core/clock.h"
+#include "hw/core/sysbus.h"
 
 #define NPCM7XX_CLK_NR_REGS             (0x70 / sizeof(uint32_t))
 #define NPCM8XX_CLK_NR_REGS             (0xc4 / sizeof(uint32_t))

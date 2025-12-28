@@ -24,7 +24,7 @@
 #include "qemu/qemu-print.h"
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/translation-block.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/visitor.h"
 #include "tcg/tcg.h"
 #include "fpu/softfloat.h"

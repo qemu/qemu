@@ -26,7 +26,7 @@
 #include "exec/target_page.h"
 #include "gdbstub/helpers.h"
 #include "qemu/host-utils.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 
 static void get_phys_nommu(hwaddr *phys_addr, int *prot, vaddr address)
 {

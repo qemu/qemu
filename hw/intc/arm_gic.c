@@ -19,8 +19,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
 #include "gic_internal.h"
 #include "qapi/error.h"
 #include "hw/core/cpu.h"

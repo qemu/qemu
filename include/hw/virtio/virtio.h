@@ -15,7 +15,7 @@
 #define QEMU_VIRTIO_H
 
 #include "system/memory.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/virtio/virtio-features.h"
 #include "net/net.h"
 #include "migration/vmstate.h"
@@ -23,7 +23,7 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 #include "qom/object.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 
 /*
  * A guest should never accept this. It implies negotiation is broken

@@ -21,8 +21,8 @@
 #define HW_SIFIVE_UART_H
 
 #include "chardev/char-fe.h"
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "qemu/fifo8.h"
 

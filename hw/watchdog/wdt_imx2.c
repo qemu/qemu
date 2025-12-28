@@ -14,7 +14,7 @@
 #include "qemu/module.h"
 #include "system/watchdog.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #include "hw/watchdog/wdt_imx2.h"
 #include "trace.h"

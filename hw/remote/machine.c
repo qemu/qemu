@@ -21,7 +21,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/remote/iohub.h"
 #include "hw/remote/iommu.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "hw/remote/vfio-user-obj.h"
 #include "hw/pci/msi.h"
 

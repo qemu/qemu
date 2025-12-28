@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/aspeed_scu.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

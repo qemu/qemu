@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "qemu/iov.h"
 #include "trace.h"
 

@@ -34,7 +34,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/tcg.h"
 #include "exec/icount.h"
 #endif

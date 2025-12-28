@@ -19,7 +19,7 @@
 #ifndef HW_RISCV_IMSIC_H
 #define HW_RISCV_IMSIC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_RISCV_IMSIC "riscv.imsic"

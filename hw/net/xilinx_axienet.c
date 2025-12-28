@@ -23,17 +23,17 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
-#include "hw/sysbus.h"
+#include "hw/core/hw-error.h"
+#include "hw/core/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "net/net.h"
 #include "net/checksum.h"
 
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
-#include "hw/stream.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/stream.h"
 #include "qom/object.h"
 
 #define DPHY(x)

@@ -1,0 +1,7 @@
+[wrap-file]
+directory = probe-0.5.2
+source_url = https://crates.io/api/v1/crates/probe/0.5.2/download
+source_filename = probe-0.5.2.tar.gz
+source_hash = 136558b6e1ebaecc92755d0ffaf9421f519531bed30cc2ad23b22cb00965cc5e
+#method = cargo
+patch_directory = probe-0.5-rs

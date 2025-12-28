@@ -10,7 +10,8 @@ use std::{
 use common::{callbacks::FnCall, Opaque};
 
 use crate::bindings::{
-    self, qemu_clock_get_ns, timer_del, timer_init_full, timer_mod, QEMUClockType,
+    self, qemu_clock_get_ns, timer_del, timer_expire_time_ns, timer_init_full, timer_mod,
+    timer_mod_ns, QEMUClockType,
 };
 
 /// A safe wrapper around [`bindings::QEMUTimer`].
@@ -45,14 +46,14 @@ impl Timer {
     }
 
     /// Create a new timer with the given attributes.
-    pub fn init_full<'timer, 'opaque: 'timer, T, F>(
-        self: Pin<&'timer mut Self>,
+    pub fn init_full<T, F>(
+        opaque: Pin<&mut T>,
         timer_list_group: Option<&TimerListGroup>,
         clk_type: ClockType,
         scale: u32,
         attributes: u32,
         _cb: F,
-        opaque: &'opaque T,
+        field: impl FnOnce(&mut T) -> &mut Self,
     ) where
         F: for<'a> FnCall<(&'a T,)>,
     {
@@ -70,8 +71,10 @@ impl Timer {
 
         // SAFETY: the opaque outlives the timer
         unsafe {
+            let opaque = Pin::into_inner_unchecked(opaque);
+            let timer = field(opaque).as_mut_ptr();
             timer_init_full(
-                self.as_mut_ptr(),
+                timer,
                 if let Some(g) = timer_list_group {
                     g as *const TimerListGroup as *mut _
                 } else {
@@ -81,9 +84,22 @@ impl Timer {
                 scale as c_int,
                 attributes as c_int,
                 Some(timer_cb),
-                (opaque as *const T).cast::<c_void>().cast_mut(),
+                (opaque as *mut T).cast::<c_void>(),
             )
         }
+    }
+
+    pub fn expire_time_ns(&self) -> Option<i64> {
+        // SAFETY: the only way to obtain a Timer safely is via methods that
+        // take a Pin<&mut Self>, therefore the timer is pinned
+        let ret = unsafe { timer_expire_time_ns(self.as_ptr()) };
+        i64::try_from(ret).ok()
+    }
+
+    pub fn modify_ns(&self, expire_time: u64) {
+        // SAFETY: the only way to obtain a Timer safely is via methods that
+        // take a Pin<&mut Self>, therefore the timer is pinned
+        unsafe { timer_mod_ns(self.as_mut_ptr(), expire_time.try_into().unwrap()) }
     }
 
     pub fn modify(&self, expire_time: u64) {

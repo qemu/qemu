@@ -12,7 +12,7 @@
 #define HW_NET_LAN9118_PHY_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_LAN9118_PHY "lan9118-phy"
 OBJECT_DECLARE_SIMPLE_TYPE(Lan9118PhyState, LAN9118_PHY)

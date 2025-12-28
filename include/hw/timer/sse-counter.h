@@ -30,7 +30,7 @@
 #ifndef SSE_COUNTER_H
 #define SSE_COUNTER_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 #include "qemu/notify.h"
 

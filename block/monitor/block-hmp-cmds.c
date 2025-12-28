@@ -36,7 +36,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/block-backend.h"
 #include "system/blockdev.h"
 #include "qapi/qapi-commands-block.h"

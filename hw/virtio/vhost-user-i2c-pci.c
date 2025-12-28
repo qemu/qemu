@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/virtio/vhost-user-i2c.h"
 #include "hw/virtio/virtio-pci.h"
 

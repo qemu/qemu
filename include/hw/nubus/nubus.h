@@ -9,8 +9,8 @@
 #ifndef HW_NUBUS_NUBUS_H
 #define HW_NUBUS_NUBUS_H
 
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/sysbus.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"
 #include "qemu/units.h"

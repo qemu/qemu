@@ -21,8 +21,8 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/sysbus.h"
-#include "hw/registerfields.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/armsse-cpu-pwrctrl.h"
 
 REG32(CPUPWRCFG, 0x0)

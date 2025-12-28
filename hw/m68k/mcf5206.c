@@ -10,14 +10,14 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "cpu.h"
-#include "hw/qdev-properties.h"
-#include "hw/boards.h"
-#include "hw/irq.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/boards.h"
+#include "hw/core/irq.h"
 #include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "system/system.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* General purpose timer module.  */
 typedef struct {

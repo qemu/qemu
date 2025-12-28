@@ -24,7 +24,7 @@
 #ifndef XLNX_DP_H
 #define XLNX_DP_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "ui/console.h"
 #include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"
@@ -35,7 +35,7 @@
 #include "hw/dma/xlnx_dpdma.h"
 #include "qemu/audio.h"
 #include "qom/object.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 
 #define AUD_CHBUF_MAX_DEPTH                 (32 * KiB)
 #define MAX_QEMU_BUFFER_SIZE                (4 * KiB)

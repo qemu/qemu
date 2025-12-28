@@ -10,7 +10,7 @@
 #ifndef BCM2835_RNG_H
 #define BCM2835_RNG_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_RNG "bcm2835-rng"

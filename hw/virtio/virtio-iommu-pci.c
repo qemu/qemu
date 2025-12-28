@@ -13,10 +13,10 @@
 
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-iommu.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/pci/pci_bus.h"
 #include "qom/object.h"
 

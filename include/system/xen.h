@@ -10,7 +10,8 @@
 #ifndef SYSTEM_XEN_H
 #define SYSTEM_XEN_H
 
-#include "exec/cpu-common.h"
+#include "exec/hwaddr.h"
+#include "system/ram_addr.h"
 
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_XEN

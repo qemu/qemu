@@ -3,7 +3,7 @@
 
 #include "qemu/units.h"
 #include "system/dma.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/ppc/spapr_drc.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/ppc/spapr_ovec.h"

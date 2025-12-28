@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
-#include "hw/hotplug.h"
+#include "hw/core/hotplug.h"
 #include "qemu/module.h"
 
 void hotplug_handler_pre_plug(HotplugHandler *plug_handler,

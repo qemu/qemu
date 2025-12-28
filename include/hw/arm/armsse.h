@@ -93,7 +93,7 @@
 #ifndef ARMSSE_H
 #define ARMSSE_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/armv7m.h"
 #include "hw/misc/iotkit-secctl.h"
 #include "hw/misc/tz-ppc.h"
@@ -109,8 +109,8 @@
 #include "hw/misc/armsse-mhu.h"
 #include "hw/misc/armsse-cpu-pwrctrl.h"
 #include "hw/misc/unimp.h"
-#include "hw/or-irq.h"
-#include "hw/clock.h"
+#include "hw/core/or-irq.h"
+#include "hw/core/clock.h"
 #include "hw/core/split-irq.h"
 #include "hw/cpu/cluster.h"
 #include "qom/object.h"

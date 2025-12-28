@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "hw/char/serial.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "migration/vmstate.h"
 #include "chardev/char-serial.h"
 #include "qapi/error.h"
@@ -35,8 +35,8 @@
 #include "system/runstate.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 
 #define UART_LCR_DLAB   0x80    /* Divisor latch access bit */
 

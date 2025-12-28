@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "hw/scsi/lasi_ncr710.h"
 #include "hw/scsi/ncr53c710.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "trace.h"

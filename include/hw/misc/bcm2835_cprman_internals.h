@@ -9,7 +9,7 @@
 #ifndef HW_MISC_BCM2835_CPRMAN_INTERNALS_H
 #define HW_MISC_BCM2835_CPRMAN_INTERNALS_H
 
-#include "hw/registerfields.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/bcm2835_cprman.h"
 
 #define TYPE_CPRMAN_PLL "bcm2835-cprman-pll"

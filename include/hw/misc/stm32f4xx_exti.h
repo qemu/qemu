@@ -25,7 +25,7 @@
 #ifndef HW_STM32F4XX_EXTI_H
 #define HW_STM32F4XX_EXTI_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define EXTI_IMR   0x00

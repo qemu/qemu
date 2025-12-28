@@ -9,7 +9,7 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/loongarch/virt.h"
 #include "system/address-spaces.h"
 #include "system/kvm.h"

@@ -10,7 +10,7 @@
 #define IMX8MP_ANALOG_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 enum IMX8MPAnalogRegisters {
     ANALOG_AUDIO_PLL1_GEN_CTRL = 0x000 / 4,

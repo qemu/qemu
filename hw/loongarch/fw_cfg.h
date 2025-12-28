@@ -8,7 +8,7 @@
 #ifndef HW_LOONGARCH_FW_CFG_H
 #define HW_LOONGARCH_FW_CFG_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/nvram/fw_cfg.h"
 
 FWCfgState *virt_fw_cfg_init(ram_addr_t ram_size, MachineState *ms);

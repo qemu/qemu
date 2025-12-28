@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "exec/cpu-common.h"
 #include "hw/display/vga.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/xen/xen.h"
 #include "net/net.h"
 #include "system/cpus.h"

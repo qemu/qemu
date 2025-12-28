@@ -28,7 +28,7 @@
 #ifndef HW_ARM_RASPI_PLATFORM_H
 #define HW_ARM_RASPI_PLATFORM_H
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/arm/boot.h"
 
 /* Registered machine type (matches RPi Foundation bootloader and U-Boot) */

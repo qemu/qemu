@@ -4,4 +4,4 @@
 QEMU Device (qdev) API Reference
 ================================
 
-.. kernel-doc:: include/hw/qdev-core.h
+.. kernel-doc:: include/hw/core/qdev.h

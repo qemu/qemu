@@ -32,7 +32,7 @@
 #include "system/device_tree.h"
 #include "system/tpm.h"
 #include "hw/arm/smmuv3.h"
-#include "hw/platform-bus.h"
+#include "hw/core/platform-bus.h"
 #include "hw/display/ramfb.h"
 #include "hw/uefi/var-service-api.h"
 #include "hw/arm/fdt.h"

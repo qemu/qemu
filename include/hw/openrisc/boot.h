@@ -20,7 +20,7 @@
 #define OPENRISC_BOOT_H
 
 #include "exec/cpu-defs.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 
 hwaddr openrisc_load_kernel(ram_addr_t ram_size,
                             const char *kernel_filename,

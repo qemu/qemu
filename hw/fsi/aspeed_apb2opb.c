@@ -13,7 +13,7 @@
 #include "trace.h"
 
 #include "hw/fsi/aspeed_apb2opb.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TO_REG(x) (x >> 2)
 

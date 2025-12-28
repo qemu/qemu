@@ -15,7 +15,7 @@
 #include "hw/intc/i8259.h"
 #include "qemu/module.h"
 #include "hw/intc/kvm_irqcount.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "system/kvm.h"
 #include "qom/object.h"
 

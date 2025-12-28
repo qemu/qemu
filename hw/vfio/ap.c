@@ -28,7 +28,7 @@
 #include "qemu/config-file.h"
 #include "kvm/kvm_s390x.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/s390x/ap-bridge.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"

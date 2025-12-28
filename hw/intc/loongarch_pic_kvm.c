@@ -7,7 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/intc/loongarch_pch_pic.h"
 #include "hw/loongarch/virt.h"
 #include "system/kvm.h"

@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "migration/vmstate.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 
 static bool muldiv_needed(void *opaque)
 {

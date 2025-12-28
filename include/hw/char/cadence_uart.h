@@ -19,8 +19,8 @@
 #ifndef CADENCE_UART_H
 #define CADENCE_UART_H
 
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"

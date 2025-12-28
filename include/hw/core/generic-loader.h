@@ -19,7 +19,7 @@
 #define GENERIC_LOADER_H
 
 #include "elf.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qom/object.h"
 
 struct GenericLoaderState {

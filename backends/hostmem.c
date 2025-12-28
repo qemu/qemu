@@ -12,7 +12,8 @@
 
 #include "qemu/osdep.h"
 #include "system/hostmem.h"
-#include "hw/boards.h"
+#include "system/ramblock.h"
+#include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/visitor.h"
@@ -21,7 +22,7 @@
 #include "qemu/mmap-alloc.h"
 #include "qemu/madvise.h"
 #include "qemu/cutils.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>

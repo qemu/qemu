@@ -28,7 +28,7 @@
 #ifndef PCI_HOST_H
 #define PCI_HOST_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define PCI_HOST_BYPASS_IOMMU "bypass-iommu"

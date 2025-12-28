@@ -24,7 +24,7 @@
 #ifndef ALLWINNER_I2C_H
 #define ALLWINNER_I2C_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_AW_I2C "allwinner.i2c"

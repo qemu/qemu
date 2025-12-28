@@ -4,20 +4,7 @@ _common_cfg = run_command(rustc_args,
 
 _common_rs = static_library(
   'common',
-  structured_sources(
-    [
-      'src/lib.rs',
-      'src/assertions.rs',
-      'src/bitops.rs',
-      'src/callbacks.rs',
-      'src/errno.rs',
-      'src/opaque.rs',
-      'src/uninit.rs',
-      'src/zeroable.rs',
-    ],
-  ),
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
-  rust_abi: 'rust',
+  'src/lib.rs',
   rust_args: _common_cfg,
   dependencies: [libc_rs, qemu_macros],
 )

@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "ui/console.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/visitor.h"

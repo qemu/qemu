@@ -21,7 +21,7 @@
 #include "block/block_int.h"
 #include "trace.h"
 #include "hw/block/block.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "system/blockdev.h"
 #include "system/block-ram-registrar.h"
 #include "system/system.h"

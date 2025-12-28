@@ -13,7 +13,7 @@
 
 #include "qapi/error.h"
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen_backend_ops.h"
 #include "xen_evtchn.h"

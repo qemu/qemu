@@ -14,7 +14,7 @@
 #ifndef SIFIVE_GPIO_H
 #define SIFIVE_GPIO_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_SIFIVE_GPIO "sifive_soc.gpio"

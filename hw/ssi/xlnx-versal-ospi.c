@@ -23,12 +23,12 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/ssi/xlnx-versal-ospi.h"
 
 #ifndef XILINX_VERSAL_OSPI_ERR_DEBUG

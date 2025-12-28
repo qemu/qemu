@@ -8,7 +8,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
 #include "system/kvm.h"
 #include "trace.h"

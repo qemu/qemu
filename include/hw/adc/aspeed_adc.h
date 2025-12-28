@@ -11,7 +11,7 @@
 #ifndef HW_ADC_ASPEED_ADC_H
 #define HW_ADC_ASPEED_ADC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 #define TYPE_ASPEED_ADC "aspeed.adc"
 #define TYPE_ASPEED_2400_ADC TYPE_ASPEED_ADC "-ast2400"

@@ -21,8 +21,8 @@
 //! `bindgen`-generated declarations.
 
 use glib_sys::{
-    gboolean, guint, GArray, GByteArray, GHashTable, GHashTableIter, GIOCondition, GList,
-    GMainContext, GPollFD, GPtrArray, GSList, GSource, GSourceFunc, GString,
+    gboolean, guint, GArray, GHashTable, GHashTableIter, GIOCondition, GList, GMainContext,
+    GPollFD, GPtrArray, GSList, GSource, GSourceFunc,
 };
 
 #[cfg(MESON)]

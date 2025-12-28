@@ -10,8 +10,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/misc/empty_slot.h"
 #include "qapi/error.h"
 #include "trace.h"

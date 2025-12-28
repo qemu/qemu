@@ -11,7 +11,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/vhost-user-server.h"
-#include "block/aio-wait.h"
+#include "qemu/aio-wait.h"
 
 /*
  * Theory of operation:

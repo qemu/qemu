@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 
 #define PCAP_MAGIC                   0xa1b2c3d4
 #define PCAP_MAJOR                   2

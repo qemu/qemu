@@ -25,7 +25,7 @@
 #include "system/device_tree.h"
 #include "system/rng.h"
 #include "hw/ppc/spapr.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "kvm_ppc.h"
 #include "qom/object.h"
 

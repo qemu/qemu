@@ -9,7 +9,7 @@
 #ifndef HW_MAX78000_ICC_H
 #define HW_MAX78000_ICC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_MAX78000_ICC "max78000-icc"

@@ -11,7 +11,7 @@
 #ifndef IMX6_SRC_H
 #define IMX6_SRC_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qemu/bitops.h"
 #include "qom/object.h"
 

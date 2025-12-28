@@ -108,7 +108,7 @@ int64_t qemu_clock_deadline_ns_all(QEMUClockType type, int attr_mask)
 }
 
 QEMUBH *qemu_bh_new_full(QEMUBHFunc *cb, void *opaque, const char *name,
-                         MemReentrancyGuard *reentrancy_guard)
+                         struct MemReentrancyGuard *reentrancy_guard)
 {
     QEMUBH *bh = g_new(QEMUBH, 1);
 

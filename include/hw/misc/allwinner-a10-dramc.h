@@ -24,8 +24,8 @@
 #define HW_MISC_ALLWINNER_A10_DRAMC_H
 
 #include "qom/object.h"
-#include "hw/sysbus.h"
-#include "hw/register.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/register.h"
 
 /**
  * @name Constants

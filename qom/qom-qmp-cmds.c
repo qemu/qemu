@@ -15,7 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "block/qdict.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-qdev.h"
 #include "qapi/qapi-commands-qom.h"

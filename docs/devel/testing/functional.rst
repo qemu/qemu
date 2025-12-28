@@ -53,15 +53,14 @@ the following line will only run the tests for the x86_64 target:
   make check-functional-x86_64
 
 To run a single test file without the meson test runner, you can also
-execute the file directly by specifying two environment variables first,
-the PYTHONPATH that has to include the python folder and the tests/functional
-folder of the source tree, and QEMU_TEST_QEMU_BINARY that has to point
-to the QEMU binary that should be used for the test. The current working
-directory should be your build folder. For example::
+execute the file directly by specifying the name of the emulator target
+binary as an env variable.
 
-  $ export PYTHONPATH=../python:../tests/functional
-  $ export QEMU_TEST_QEMU_BINARY=$PWD/qemu-system-x86_64
-  $ pyvenv/bin/python3 ../tests/functional/test_file.py
+Assuming the current working directory is the top level source checkout
+and the build directory is './build'::
+
+  $ export QEMU_TEST_QEMU_BINARY=qemu-system-x86_64
+  $ ./build/run tests/functional/x86_64/test_virtio_version.py
 
 The test framework will automatically purge any scratch files created during
 the tests. If needing to debug a failed test, it is possible to keep these

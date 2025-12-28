@@ -15,6 +15,7 @@
 #include "qemu/cutils.h"
 #include "elf.h"
 #include "qemu/bswap.h"
+#include "exec/cpu-common.h"
 #include "exec/target_page.h"
 #include "monitor/monitor.h"
 #include "system/dump.h"

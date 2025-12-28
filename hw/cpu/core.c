@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/cpu/core.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

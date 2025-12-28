@@ -2,7 +2,7 @@
 #define ACPI_VMCLOCK_H
 
 #include "hw/acpi/bios-linker-loader.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qemu/uuid.h"
 #include "qom/object.h"
 

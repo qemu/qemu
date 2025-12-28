@@ -7,7 +7,7 @@
  */
 #include "qemu/osdep.h"
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 void qdev_create_fake_machine(void)
 {

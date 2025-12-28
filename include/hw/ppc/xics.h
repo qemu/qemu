@@ -29,7 +29,7 @@
 #define XICS_H
 
 #include "system/memory.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 #include "qom/object.h"
 
 #define XICS_IPI        0x2

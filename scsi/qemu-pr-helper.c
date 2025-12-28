@@ -52,7 +52,6 @@
 #include "trace/control.h"
 #include "qemu-version.h"
 
-#include "block/aio.h"
 #include "block/thread-pool.h"
 
 #include "scsi/constants.h"

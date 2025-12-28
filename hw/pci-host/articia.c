@@ -12,7 +12,7 @@
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "hw/intc/i8259.h"
 #include "hw/pci-host/articia.h"

@@ -27,7 +27,7 @@
 #ifndef GRLIB_IRQMP_H
 #define GRLIB_IRQMP_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /* Emulation of GrLib device is base on the GRLIB IP Core User's Manual:
  * http://www.gaisler.com/products/grlib/grip.pdf

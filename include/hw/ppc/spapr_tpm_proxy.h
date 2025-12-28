@@ -14,7 +14,7 @@
 #define HW_SPAPR_TPM_PROXY_H
 
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_SPAPR_TPM_PROXY "spapr-tpm-proxy"
 OBJECT_DECLARE_SIMPLE_TYPE(SpaprTpmProxy, SPAPR_TPM_PROXY)

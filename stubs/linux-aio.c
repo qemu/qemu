@@ -8,7 +8,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "block/raw-aio.h"
 
 void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context)

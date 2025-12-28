@@ -19,7 +19,7 @@
 #ifndef HW_SIFIVE_AON_H
 #define HW_SIFIVE_AON_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_SIFIVE_E_AON "riscv.sifive.e.aon"

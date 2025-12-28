@@ -7,14 +7,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "exec/replay-core.h"
 #include "exec/icount.h"
 #include "system/qtest.h"
-#include "block/aio.h"
-#include "hw/clock.h"
+#include "hw/core/clock.h"
 
 #define DELTA_ADJUST     1
 #define DELTA_NO_ADJUST -1

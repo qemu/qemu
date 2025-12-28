@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 #include <math.h>
-#include "block/aio.h"
+#include "qemu/aio.h"
 #include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/error-report.h"
