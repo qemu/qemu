@@ -122,7 +122,7 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
 }
 
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
-                        hwaddr addr, int is_physical)
+                        hwaddr addr, bool is_physical)
 {
     int l, line_size, i, max_digits, len;
     uint8_t buf[16];
@@ -237,7 +237,7 @@ void hmp_memory_dump(Monitor *mon, const QDict *qdict)
     int size = qdict_get_int(qdict, "size");
     target_long addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, 0);
+    memory_dump(mon, count, format, size, addr, false);
 }
 
 void hmp_physical_memory_dump(Monitor *mon, const QDict *qdict)
@@ -247,7 +247,7 @@ void hmp_physical_memory_dump(Monitor *mon, const QDict *qdict)
     int size = qdict_get_int(qdict, "size");
     hwaddr addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, 1);
+    memory_dump(mon, count, format, size, addr, true);
 }
 
 void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, uint64_t size, Error **errp)
