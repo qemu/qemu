@@ -53,6 +53,7 @@
 #include "qemu/memalign.h"
 #include "qemu/memfd.h"
 #include "system/memory.h"
+#include "system/memory_cached.h"
 #include "system/ioport.h"
 #include "system/dma.h"
 #include "system/hostmem.h"
