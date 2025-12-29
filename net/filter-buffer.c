@@ -159,6 +159,7 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v,
                                        Error **errp)
 {
     FilterBufferState *s = FILTER_BUFFER(obj);
+    NetFilterState *nf = NETFILTER(obj);
     uint32_t value;
 
     if (!visit_type_uint32(v, name, &value, errp)) {
@@ -170,6 +171,11 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v,
         return;
     }
     s->interval = value;
+
+    if (nf->netdev && nf->on) {
+        timer_mod(&s->release_timer,
+                  qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + s->interval);
+    }
 }
 
 static void filter_buffer_class_init(ObjectClass *oc, const void *data)
