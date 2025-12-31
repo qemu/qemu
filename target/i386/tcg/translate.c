@@ -2543,9 +2543,6 @@ static void gen_x87(DisasContext *s, X86DecodedInsn *decode)
                 break;
             }
             break;
-            /* map to fcomp; op & 7 == 2 would not pop  */
-            op = 0x03;
-            /* fallthrough */
         case 0x00 ... 0x07: /* fxxx st, sti */
         case 0x22 ... 0x23: /* fcom2 and fcomp3, undocumented ops */
         case 0x32: /* fcomp5, undocumented op */
