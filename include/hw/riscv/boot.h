@@ -43,8 +43,8 @@ bool riscv_is_32bit(RISCVHartArrayState *harts);
 char *riscv_plic_hart_config_string(int hart_count);
 
 void riscv_boot_info_init(RISCVBootInfo *info, RISCVHartArrayState *harts);
-hwaddr riscv_calc_kernel_start_addr(RISCVBootInfo *info,
-                                    hwaddr firmware_end_addr);
+vaddr riscv_calc_kernel_start_addr(RISCVBootInfo *info,
+                                   hwaddr firmware_end_addr);
 hwaddr riscv_find_and_load_firmware(MachineState *machine,
                                     const char *default_machine_firmware,
                                     hwaddr *firmware_load_addr,
@@ -57,7 +57,7 @@ hwaddr riscv_load_firmware(const char *firmware_filename,
                            symbol_fn_t sym_cb);
 void riscv_load_kernel(MachineState *machine,
                        RISCVBootInfo *info,
-                       target_ulong kernel_start_addr,
+                       vaddr kernel_start_addr,
                        bool load_initrd,
                        symbol_fn_t sym_cb);
 uint64_t riscv_compute_fdt_addr(hwaddr dram_base, hwaddr dram_size,

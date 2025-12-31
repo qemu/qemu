@@ -3241,6 +3241,18 @@ endif
 # Detect host pointer size for the target configuration loop.
 host_long_bits = cc.sizeof('void *') * 8
 
+# Detect if ConvertStringToBSTR has been defined in _com_util namespace
+if host_os == 'windows'
+  has_convert_string_to_bstr = cxx.links('''
+    #include <comutil.h>
+    int main() {
+        BSTR b = _com_util::ConvertStringToBSTR("test");
+        return b ? 0 : 1;
+    }
+  ''')
+  config_host_data.set('CONFIG_CONVERT_STRING_TO_BSTR', has_convert_string_to_bstr)
+endif
+
 ########################
 # Target configuration #
 ########################
@@ -4638,6 +4650,7 @@ summary_info += {'Download dependencies': get_option('wrap_mode') != 'nodownload
 summary(summary_info, bool_yn: true, section: 'Build environment')
 
 # Directories
+summary_info = {}
 summary_info += {'Install prefix':    get_option('prefix')}
 summary_info += {'BIOS directory':    qemu_datadir}
 pathsep = host_os == 'windows' ? ';' : ':'

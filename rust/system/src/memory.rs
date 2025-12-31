@@ -79,12 +79,6 @@ impl<T> MemoryRegionOpsBuilder<T> {
     }
 
     #[must_use]
-    pub const fn native_endian(mut self) -> Self {
-        self.0.endianness = device_endian::DEVICE_NATIVE_ENDIAN;
-        self
-    }
-
-    #[must_use]
     pub const fn valid_sizes(mut self, min: u32, max: u32) -> Self {
         self.0.valid.min_access_size = min;
         self.0.valid.max_access_size = max;

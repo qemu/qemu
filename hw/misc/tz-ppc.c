@@ -273,8 +273,8 @@ static void tz_ppc_realize(DeviceState *dev, Error **errp)
             continue;
         }
 
-        name = g_strdup_printf("tz-ppc-port[%d]", i);
-
+        name = g_strdup_printf("tz-ppc-port[%s]",
+                               memory_region_name(port->downstream));
         port->ppc = s;
         address_space_init(&port->downstream_as, port->downstream, name);
 
