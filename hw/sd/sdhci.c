@@ -1659,7 +1659,7 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 #define ESDHC_PRNSTS_SDSTB              (1 << 3)
 #define ESDHC_PRNSTS_CLOCK_GATE_OFF     BIT(7)
 
-static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t esdhc_read(void *opaque, hwaddr offset, unsigned size)
 {
     SDHCIState *s = SYSBUS_SDHCI(opaque);
     uint32_t ret;
@@ -1673,7 +1673,7 @@ static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
         /*
          * For a detailed explanation on the following bit
          * manipulation code see comments in a similar part of
-         * usdhc_write()
+         * esdhc_write()
          */
         hostctl1 = SDHC_DMA_TYPE(s->hostctl1) << (8 - 3);
 
@@ -1716,7 +1716,7 @@ static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
 }
 
 static void
-usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
+esdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 {
     SDHCIState *s = SYSBUS_SDHCI(opaque);
     uint8_t hostctl1;
@@ -1872,8 +1872,8 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps usdhc_mmio_ops = {
-    .read = usdhc_read,
-    .write = usdhc_write,
+    .read = esdhc_read,
+    .write = esdhc_write,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
