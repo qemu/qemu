@@ -1642,7 +1642,7 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 #define ESDHC_MIX_CTRL                  0x48
 
 #define ESDHC_VENDOR_SPEC               0xc0
-#define ESDHC_IMX_FRC_SDCLK_ON          (1 << 8)
+#define ESDHC_FRC_SDCLK_ON              (1 << 8)
 
 #define ESDHC_DLL_CTRL                  0x60
 
@@ -1657,6 +1657,7 @@ static void sdhci_bus_class_init(ObjectClass *klass, const void *data)
 #define ESDHC_CTRL_8BITBUS              (0x2 << 1)
 
 #define ESDHC_PRNSTS_SDSTB              (1 << 3)
+#define ESDHC_PRNSTS_CLOCK_GATE_OFF     BIT(7)
 
 static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -1731,10 +1732,10 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 
     case ESDHC_VENDOR_SPEC:
         s->vendor_spec = value;
-        if (value & ESDHC_IMX_FRC_SDCLK_ON) {
-            s->prnsts &= ~SDHC_IMX_CLOCK_GATE_OFF;
+        if (value & ESDHC_FRC_SDCLK_ON) {
+            s->prnsts &= ~ESDHC_PRNSTS_CLOCK_GATE_OFF;
         } else {
-            s->prnsts |= SDHC_IMX_CLOCK_GATE_OFF;
+            s->prnsts |= ESDHC_PRNSTS_CLOCK_GATE_OFF;
         }
         break;
 
