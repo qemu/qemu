@@ -307,7 +307,8 @@ static void sdhci_reset(SDHCIState *s)
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
     s->pending_insert_state = false;
-    if (s->vendor == SDHCI_VENDOR_FSL) {
+    if (object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_BE) ||
+            object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_LE)) {
         s->norintstsen = 0x013f;
         s->errintstsen = 0x117f;
     }
@@ -1863,7 +1864,6 @@ static void fsl_esdhc_be_init(Object *obj)
     s->io_ops = &esdhc_mmio_be_ops;
     s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
     qdev_prop_set_uint8(dev, "sd-spec-version", 2);
-    qdev_prop_set_uint8(dev, "vendor", SDHCI_VENDOR_FSL);
 }
 
 static const MemoryRegionOps esdhc_mmio_le_ops = {
@@ -1889,7 +1889,6 @@ static void fsl_esdhc_le_init(Object *obj)
     s->io_ops = &esdhc_mmio_le_ops;
     s->quirks = SDHCI_QUIRK_NO_BUSY_IRQ;
     qdev_prop_set_uint8(dev, "sd-spec-version", 2);
-    qdev_prop_set_uint8(dev, "vendor", SDHCI_VENDOR_FSL);
 }
 
 static const MemoryRegionOps usdhc_mmio_ops = {

@@ -98,7 +98,6 @@ struct SDHCIState {
     uint32_t quirks;
     uint8_t sd_spec_version;
     uint8_t uhs_mode;
-    uint8_t vendor;        /* For vendor specific functionality */
     /*
      * Write Protect pin default active low for detecting SD card
      * to be protected. Set wp_inverted to invert the signal.
@@ -106,9 +105,6 @@ struct SDHCIState {
     bool wp_inverted;
 };
 typedef struct SDHCIState SDHCIState;
-
-#define SDHCI_VENDOR_NONE       0
-#define SDHCI_VENDOR_FSL        2
 
 /*
  * Controller does not provide transfer-complete interrupt when not
