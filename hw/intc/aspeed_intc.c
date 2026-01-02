@@ -69,28 +69,6 @@ REG32(SSPINT165_STATUS,     0x1D4)
 /*
  * TSP INTC Registers
  */
-REG32(TSPINT128_EN,             0x3000)
-REG32(TSPINT128_STATUS,         0x3004)
-REG32(TSPINT129_EN,             0x3100)
-REG32(TSPINT129_STATUS,         0x3104)
-REG32(TSPINT130_EN,             0x3200)
-REG32(TSPINT130_STATUS,         0x3204)
-REG32(TSPINT131_EN,             0x3300)
-REG32(TSPINT131_STATUS,         0x3304)
-REG32(TSPINT132_EN,             0x3400)
-REG32(TSPINT132_STATUS,         0x3404)
-REG32(TSPINT133_EN,             0x3500)
-REG32(TSPINT133_STATUS,         0x3504)
-REG32(TSPINT134_EN,             0x3600)
-REG32(TSPINT134_STATUS,         0x3604)
-REG32(TSPINT135_EN,             0x3700)
-REG32(TSPINT135_STATUS,         0x3704)
-REG32(TSPINT136_EN,             0x3800)
-REG32(TSPINT136_STATUS,         0x3804)
-REG32(TSPINT137_EN,             0x3900)
-REG32(TSPINT137_STATUS,         0x3904)
-REG32(TSPINT138_EN,             0x3A00)
-REG32(TSPINT138_STATUS,         0x3A04)
 REG32(TSPINT160_169_EN,         0x3B00)
 REG32(TSPINT160_169_STATUS,     0x3B04)
 
@@ -511,28 +489,8 @@ static void aspeed_tsp_intc_write(void *opaque, hwaddr offset, uint64_t data,
     trace_aspeed_intc_write(name, offset, size, data);
 
     switch (reg) {
-    case R_TSPINT128_EN:
-    case R_TSPINT129_EN:
-    case R_TSPINT130_EN:
-    case R_TSPINT131_EN:
-    case R_TSPINT132_EN:
-    case R_TSPINT133_EN:
-    case R_TSPINT134_EN:
-    case R_TSPINT135_EN:
-    case R_TSPINT136_EN:
     case R_TSPINT160_169_EN:
         aspeed_intc_enable_handler(s, offset, data);
-        break;
-    case R_TSPINT128_STATUS:
-    case R_TSPINT129_STATUS:
-    case R_TSPINT130_STATUS:
-    case R_TSPINT131_STATUS:
-    case R_TSPINT132_STATUS:
-    case R_TSPINT133_STATUS:
-    case R_TSPINT134_STATUS:
-    case R_TSPINT135_STATUS:
-    case R_TSPINT136_STATUS:
-        aspeed_intc_status_handler(s, offset, data);
         break;
     case R_TSPINT160_169_STATUS:
         aspeed_intc_status_handler_multi_outpins(s, offset, data);
@@ -929,15 +887,6 @@ static const TypeInfo aspeed_2700ssp_intcio_info = {
 
 static AspeedINTCIRQ aspeed_2700tsp_intc_irqs[ASPEED_INTC_MAX_INPINS] = {
     {0, 0, 10, R_TSPINT160_169_EN, R_TSPINT160_169_STATUS},
-    {1, 10, 1, R_TSPINT128_EN, R_TSPINT128_STATUS},
-    {2, 11, 1, R_TSPINT129_EN, R_TSPINT129_STATUS},
-    {3, 12, 1, R_TSPINT130_EN, R_TSPINT130_STATUS},
-    {4, 13, 1, R_TSPINT131_EN, R_TSPINT131_STATUS},
-    {5, 14, 1, R_TSPINT132_EN, R_TSPINT132_STATUS},
-    {6, 15, 1, R_TSPINT133_EN, R_TSPINT133_STATUS},
-    {7, 16, 1, R_TSPINT134_EN, R_TSPINT134_STATUS},
-    {8, 17, 1, R_TSPINT135_EN, R_TSPINT135_STATUS},
-    {9, 18, 1, R_TSPINT136_EN, R_TSPINT136_STATUS},
 };
 
 static void aspeed_2700tsp_intc_class_init(ObjectClass *klass, const void *data)
@@ -947,8 +896,8 @@ static void aspeed_2700tsp_intc_class_init(ObjectClass *klass, const void *data)
 
     dc->desc = "ASPEED 2700 TSP INTC Controller";
     aic->num_lines = 32;
-    aic->num_inpins = 10;
-    aic->num_outpins = 19;
+    aic->num_inpins = 1;
+    aic->num_outpins = 10;
     aic->mem_size = 0x4000;
     aic->nr_regs = 0x3B08 >> 2;
     aic->reg_offset = 0;

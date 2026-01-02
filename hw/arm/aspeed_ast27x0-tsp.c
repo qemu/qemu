@@ -62,7 +62,7 @@ static const int aspeed_soc_ast27x0tsp_irqmap[] = {
 };
 
 /* TSPINT 164 */
-static const int ast2700_tsp132_tsp164_intcmap[] = {
+static const int ast2700_tsp164_intcmap[] = {
     [ASPEED_DEV_UART0]     = 7,
     [ASPEED_DEV_UART1]     = 8,
     [ASPEED_DEV_UART2]     = 9,
@@ -89,21 +89,12 @@ static struct nvic_intc_irq_info ast2700_tsp_intcmap[] = {
     {161, 1, 1, NULL},
     {162, 1, 2, NULL},
     {163, 1, 3, NULL},
-    {164, 1, 4, ast2700_tsp132_tsp164_intcmap},
+    {164, 1, 4, ast2700_tsp164_intcmap},
     {165, 1, 5, NULL},
     {166, 1, 6, NULL},
     {167, 1, 7, NULL},
     {168, 1, 8, NULL},
     {169, 1, 9, NULL},
-    {128, 0, 1, NULL},
-    {129, 0, 2, NULL},
-    {130, 0, 3, NULL},
-    {131, 0, 4, NULL},
-    {132, 0, 5, ast2700_tsp132_tsp164_intcmap},
-    {133, 0, 6, NULL},
-    {134, 0, 7, NULL},
-    {135, 0, 8, NULL},
-    {136, 0, 9, NULL},
 };
 
 static qemu_irq aspeed_soc_ast27x0tsp_get_irq(AspeedCoprocessorState *s,
