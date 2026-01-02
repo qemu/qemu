@@ -249,14 +249,15 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
     }
 
     /*
-     * Safe to call: nfs_service(), which called us, is only run from the FD
-     * handlers, never from the request coroutine.  The request coroutine in
-     * turn will yield unconditionally.
-     * No need to release the lock, even if we directly enter the coroutine, as
-     * the lock is never re-taken after yielding.  (Note: If we do enter the
-     * coroutine, @task will probably be dangling once aio_co_wake() returns.)
+     * Using aio_co_wake() here could re-enter the coroutine directly, while we
+     * still hold the mutex.  The current request will not attempt to re-take
+     * the mutex, so that is fine; but if the same coroutine then goes on to
+     * submit another request, that new request will try to re-take the mutex,
+     * resulting in a deadlock.
+     * To prevent that, only schedule the coroutine so it will be entered later,
+     * with the mutex released.
      */
-    aio_co_wake(task->co);
+    aio_co_schedule(qemu_coroutine_get_aio_context(task->co), task->co);
 }
 
 static int coroutine_fn nfs_co_preadv(BlockDriverState *bs, int64_t offset,
@@ -716,8 +717,8 @@ nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
     if (task->ret < 0) {
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
-    /* Safe to call, see nfs_co_generic_cb() */
-    aio_co_wake(task->co);
+    /* Must not use aio_co_wake(), see nfs_co_generic_cb() */
+    aio_co_schedule(qemu_coroutine_get_aio_context(task->co), task->co);
 }
 
 static int64_t coroutine_fn nfs_co_get_allocated_file_size(BlockDriverState *bs)
