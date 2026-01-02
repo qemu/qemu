@@ -60,7 +60,22 @@ Assuming the current working directory is the top level source checkout
 and the build directory is './build'::
 
   $ export QEMU_TEST_QEMU_BINARY=qemu-system-x86_64
+
+Run all tests from a test file::
+
   $ ./build/run tests/functional/x86_64/test_virtio_version.py
+
+Run all tests from a test class::
+
+  $ ./build/run tests/functional/x86_64/test_virtio_version.py VirtioVersionCheck
+
+Or a single test::
+
+  $ ./build/run tests/functional/x86_64/test_virtio_version.py VirtioVersionCheck.test_modern_only_devs
+
+Filtering test names also works::
+
+  $ ./build/run tests/functional/x86_64/test_virtio_version.py -k modern
 
 The test framework will automatically purge any scratch files created during
 the tests. If needing to debug a failed test, it is possible to keep these
