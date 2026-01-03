@@ -157,7 +157,7 @@ struct target_ktermios {
 #define  TARGET_B3000000  0010015
 #define  TARGET_B3500000  0010016
 #define  TARGET_B4000000  0010017
-#define TARGET_CIBAUD     002003600000  /* input baud rate (not used) */
+#define TARGET_CIBAUD     002003600000  /* input baud rate */
 #define TARGET_CMSPAR     010000000000  /* mark or space (stick) parity */
 #define TARGET_CRTSCTS    020000000000  /* flow control */
 
