@@ -150,6 +150,7 @@ struct target_ktermios {
 #define TARGET_HUPCL	  0x00000400
 #define TARGET_CLOCAL	  0x00000800
 #define TARGET_CBAUDEX   0x00001000
+#define  TARGET_BOTHER   0x00001000
 /* We'll never see these speeds with the Zilogs, but for completeness... */
 #define  TARGET_B57600   0x00001001
 #define  TARGET_B115200  0x00001002
@@ -176,9 +177,11 @@ struct target_ktermios {
 #define B3000000  0x00001011
 #define B3500000  0x00001012
 #define B4000000  0x00001013  */
-#define TARGET_CIBAUD	  0x100f0000  /* input baud rate (not used) */
+#define TARGET_CIBAUD	  0x100f0000  /* input baud rate */
 #define TARGET_CMSPAR	  0x40000000  /* mark or space (stick) parity */
 #define TARGET_CRTSCTS	  0x80000000  /* flow control */
+
+#define TARGET_IBSHIFT	  16          /* Shift from CBAUD to CIBAUD */
 
 /* c_lflag bits */
 #define TARGET_ISIG	0x00000001
