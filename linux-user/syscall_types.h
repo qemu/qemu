@@ -1,4 +1,7 @@
 STRUCT_SPECIAL(termios)
+#ifdef TARGET_TCGETS2
+STRUCT_SPECIAL(termios2)
+#endif
 
 STRUCT(winsize,
        TYPE_SHORT, TYPE_SHORT, TYPE_SHORT, TYPE_SHORT)
