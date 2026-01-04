@@ -1,6 +1,7 @@
 source Kconfig.host
 source backends/Kconfig
 source accel/Kconfig
+source dump/Kconfig
 source target/Kconfig
 source hw/Kconfig
 source semihosting/Kconfig
