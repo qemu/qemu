@@ -35,7 +35,6 @@ import hex_common
 ##        TCGv RsV = hex_gpr[insn->regno[1]];
 ##        TCGv RtV = hex_gpr[insn->regno[2]];
 ##        <GEN>
-##        gen_log_reg_write(ctx, RdN, RdV);
 ##    }
 ##
 ##       where <GEN> depends on hex_common.skip_qemu_helper(tag)
@@ -77,6 +76,10 @@ def gen_tcg_func(f, tag, regs, imms):
         f.write(f"    emit_{tag}({arguments});\n")
 
     elif hex_common.skip_qemu_helper(tag):
+        if "A_FPOP" in hex_common.attribdict[tag]:
+            f.write("    TCGv pkt_need_commit = ")
+            f.write("tcg_constant_tl(ctx->need_commit);\n")
+
         f.write(f"    fGEN_TCG_{tag}({hex_common.semdict[tag]});\n")
     else:
         ## Generate the call to the helper
@@ -95,7 +98,7 @@ def gen_tcg_func(f, tag, regs, imms):
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
         if reg.is_written():
-            reg.log_write(f, tag)
+            reg.gen_write(f, tag)
 
     f.write("}\n\n")
 

@@ -94,25 +94,17 @@ static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
     return result;
 }
 
-void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
-{
-    const target_ulong reg_mask = reg_immut_masks[rnum];
-
-    gen_masked_reg_write(val, hex_gpr[rnum], reg_mask);
-    tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val);
-}
-
-static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
+static void gen_write_reg_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
 {
     TCGv val32 = tcg_temp_new();
 
     /* Low word */
     tcg_gen_extrl_i64_i32(val32, val);
-    gen_log_reg_write(ctx, rnum, val32);
+    tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val32);
 
     /* High word */
     tcg_gen_extrh_i64_i32(val32, val);
-    gen_log_reg_write(ctx, rnum + 1, val32);
+    tcg_gen_mov_tl(get_result_gpr(ctx, rnum + 1), val32);
 }
 
 TCGv get_result_pred(DisasContext *ctx, int pnum)
@@ -128,7 +120,7 @@ TCGv get_result_pred(DisasContext *ctx, int pnum)
     }
 }
 
-void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
+void gen_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
     TCGv pred = get_result_pred(ctx, pnum);
     TCGv base_val = tcg_temp_new();
@@ -223,7 +215,7 @@ static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
     TCGv hex_p8 = tcg_temp_new();
     for (int i = 0; i < NUM_PREGS; i++) {
         tcg_gen_extract_tl(hex_p8, control_reg, i * 8, 8);
-        gen_log_pred_write(ctx, i, hex_p8);
+        gen_pred_write(ctx, i, hex_p8);
     }
 }
 
@@ -240,7 +232,9 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
     if (reg_num == HEX_REG_P3_0_ALIASED) {
         gen_write_p3_0(ctx, val);
     } else {
-        gen_log_reg_write(ctx, reg_num, val);
+        const target_ulong reg_mask = reg_immut_masks[reg_num];
+        gen_masked_reg_write(val, hex_gpr[reg_num], reg_mask);
+        tcg_gen_mov_tl(get_result_gpr(ctx, reg_num), val);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
             ctx->num_packets = 0;
         }
@@ -256,23 +250,15 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
 static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
                                            TCGv_i64 val)
 {
-    if (reg_num == HEX_REG_P3_0_ALIASED) {
-        TCGv result = get_result_gpr(ctx, reg_num + 1);
-        TCGv val32 = tcg_temp_new();
-        tcg_gen_extrl_i64_i32(val32, val);
-        gen_write_p3_0(ctx, val32);
-        tcg_gen_extrh_i64_i32(val32, val);
-        tcg_gen_mov_tl(result, val32);
-    } else {
-        gen_log_reg_write_pair(ctx, reg_num, val);
-        if (reg_num == HEX_REG_QEMU_PKT_CNT) {
-            ctx->num_packets = 0;
-            ctx->num_insns = 0;
-        }
-        if (reg_num == HEX_REG_QEMU_HVX_CNT) {
-            ctx->num_hvx_insns = 0;
-        }
-    }
+    TCGv val32 = tcg_temp_new();
+
+    /* Low word */
+    tcg_gen_extrl_i64_i32(val32, val);
+    gen_write_ctrl_reg(ctx, reg_num, val32);
+
+    /* High word */
+    tcg_gen_extrh_i64_i32(val32, val);
+    gen_write_ctrl_reg(ctx, reg_num + 1, val32);
 }
 
 TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign)
@@ -541,8 +527,8 @@ static inline void gen_loop0r(DisasContext *ctx, TCGv RsV, int riV)
 {
     fIMMEXT(riV);
     fPCALIGN(riV);
-    gen_log_reg_write(ctx, HEX_REG_LC0, RsV);
-    gen_log_reg_write(ctx, HEX_REG_SA0, tcg_constant_tl(ctx->pkt->pc + riV));
+    tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC0), RsV);
+    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt->pc + riV);
     gen_set_usr_fieldi(ctx, USR_LPCFG, 0);
 }
 
@@ -555,8 +541,8 @@ static inline void gen_loop1r(DisasContext *ctx, TCGv RsV, int riV)
 {
     fIMMEXT(riV);
     fPCALIGN(riV);
-    gen_log_reg_write(ctx, HEX_REG_LC1, RsV);
-    gen_log_reg_write(ctx, HEX_REG_SA1, tcg_constant_tl(ctx->pkt->pc + riV));
+    tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC1), RsV);
+    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA1), ctx->pkt->pc + riV);
 }
 
 static void gen_loop1i(DisasContext *ctx, int count, int riV)
@@ -568,10 +554,10 @@ static void gen_ploopNsr(DisasContext *ctx, int N, TCGv RsV, int riV)
 {
     fIMMEXT(riV);
     fPCALIGN(riV);
-    gen_log_reg_write(ctx, HEX_REG_LC0, RsV);
-    gen_log_reg_write(ctx, HEX_REG_SA0, tcg_constant_tl(ctx->pkt->pc + riV));
+    tcg_gen_mov_tl(get_result_gpr(ctx, HEX_REG_LC0), RsV);
+    tcg_gen_movi_tl(get_result_gpr(ctx, HEX_REG_SA0), ctx->pkt->pc + riV);
     gen_set_usr_fieldi(ctx, USR_LPCFG, N);
-    gen_log_pred_write(ctx, 3, tcg_constant_tl(0));
+    gen_pred_write(ctx, 3, tcg_constant_tl(0));
 }
 
 static void gen_ploopNsi(DisasContext *ctx, int N, int count, int riV)
@@ -611,7 +597,7 @@ static void gen_cmpnd_cmp_jmp(DisasContext *ctx,
     if (ctx->insn->part1) {
         TCGv pred = tcg_temp_new();
         gen_compare(cond1, pred, arg1, arg2);
-        gen_log_pred_write(ctx, pnum, pred);
+        gen_pred_write(ctx, pnum, pred);
     } else {
         TCGv pred = tcg_temp_new();
         tcg_gen_mov_tl(pred, ctx->new_pred_value[pnum]);
@@ -668,7 +654,7 @@ static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx,
         TCGv pred = tcg_temp_new();
         tcg_gen_andi_tl(pred, arg, 1);
         gen_8bitsof(pred, pred);
-        gen_log_pred_write(ctx, pnum, pred);
+        gen_pred_write(ctx, pnum, pred);
     } else {
         TCGv pred = tcg_temp_new();
         tcg_gen_mov_tl(pred, ctx->new_pred_value[pnum]);
@@ -773,25 +759,23 @@ static void gen_framecheck(TCGv EA, int framesize)
 
 static void gen_allocframe(DisasContext *ctx, TCGv r29, int framesize)
 {
-    TCGv r30 = tcg_temp_new();
+    TCGv r30 = get_result_gpr(ctx, HEX_REG_FP);
     TCGv_i64 frame;
     tcg_gen_addi_tl(r30, r29, -8);
     frame = gen_frame_scramble();
     gen_store8(tcg_env, r30, frame, ctx->insn->slot);
-    gen_log_reg_write(ctx, HEX_REG_FP, r30);
     gen_framecheck(r30, framesize);
     tcg_gen_subi_tl(r29, r30, framesize);
 }
 
 static void gen_deallocframe(DisasContext *ctx, TCGv_i64 r31_30, TCGv r30)
 {
-    TCGv r29 = tcg_temp_new();
+    TCGv r29 = get_result_gpr(ctx, HEX_REG_SP);
     TCGv_i64 frame = tcg_temp_new_i64();
     gen_load_frame(ctx, frame, r30);
     gen_frame_unscramble(frame);
     tcg_gen_mov_i64(r31_30, frame);
     tcg_gen_addi_tl(r29, r30, 8);
-    gen_log_reg_write(ctx, HEX_REG_SP, r29);
 }
 #endif
 
@@ -833,7 +817,7 @@ static void gen_cond_return_subinsn(DisasContext *ctx, TCGCond cond, TCGv pred)
 {
     TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP);
     gen_cond_return(ctx, RddV, hex_gpr[HEX_REG_FP], pred, cond);
-    gen_log_reg_write_pair(ctx, HEX_REG_FP, RddV);
+    gen_write_reg_pair(ctx, HEX_REG_FP, RddV);
 }
 
 static void gen_endloop0(DisasContext *ctx)
@@ -850,7 +834,7 @@ static void gen_endloop0(DisasContext *ctx)
     TCGLabel *label1 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
-        gen_log_pred_write(ctx, 3, tcg_constant_tl(0xff));
+        gen_pred_write(ctx, 3, tcg_constant_tl(0xff));
     }
     gen_set_label(label1);
 
@@ -924,7 +908,7 @@ static void gen_endloop01(DisasContext *ctx)
      */
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
-        gen_log_pred_write(ctx, 3, tcg_constant_tl(0xff));
+        gen_pred_write(ctx, 3, tcg_constant_tl(0xff));
     }
     gen_set_label(label1);
 
@@ -1190,7 +1174,7 @@ static intptr_t vreg_src_off(DisasContext *ctx, int num)
     return offset;
 }
 
-static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
+static void gen_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
                                VRegWriteType type)
 {
     intptr_t dstoff;
@@ -1206,12 +1190,12 @@ static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
     }
 }
 
-static void gen_log_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
+static void gen_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
                                     VRegWriteType type)
 {
-    gen_log_vreg_write(ctx, srcoff, num ^ 0, type);
+    gen_vreg_write(ctx, srcoff, num ^ 0, type);
     srcoff += sizeof(MMVector);
-    gen_log_vreg_write(ctx, srcoff, num ^ 1, type);
+    gen_vreg_write(ctx, srcoff, num ^ 1, type);
 }
 
 static intptr_t get_result_qreg(DisasContext *ctx, int qnum)
@@ -1454,4 +1438,8 @@ void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 }
 
 #include "tcg_funcs_generated.c.inc"
-#include "tcg_func_table_generated.c.inc"
+const SemanticInsn opcode_genptr[XX_LAST_OPCODE] = {
+#define OPCODE(X)    [X] = generate_##X
+#include "opcodes_def_generated.h.inc"
+#undef OPCODE
+};

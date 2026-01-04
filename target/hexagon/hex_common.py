@@ -451,10 +451,9 @@ class GprDest(Register, Single, Dest):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = get_result_gpr(ctx, {self.reg_num});
         """))
-    def log_write(self, f, tag):
-        f.write(code_fmt(f"""\
-            gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
-        """))
+    def gen_write(self, f, tag):
+        ## No write needed
+        return
     def analyze_write(self, f, tag, regno):
         predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
@@ -495,10 +494,9 @@ class GprReadWrite(Register, Single, ReadWrite):
             f.write(code_fmt(f"""\
                 tcg_gen_mov_tl({self.reg_tcg()}, hex_gpr[{self.reg_num}]);
             """))
-    def log_write(self, f, tag):
-        f.write(code_fmt(f"""\
-            gen_log_reg_write(ctx, {self.reg_num}, {self.reg_tcg()});
-        """))
+    def gen_write(self, f, tag):
+        ## No write needed
+        return
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
             ctx_log_reg_read(ctx, {self.reg_num});
@@ -519,7 +517,7 @@ class ControlDest(Register, Single, Dest):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = get_result_gpr(ctx, {self.reg_num});
         """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_write_ctrl_reg(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
@@ -571,9 +569,9 @@ class PredDest(Register, Single, Dest):
         f.write(code_fmt(f"""\
             TCGv {self.reg_tcg()} = tcg_temp_new();
         """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
+            gen_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
         f.write(code_fmt(f"""\
@@ -608,9 +606,9 @@ class PredReadWrite(Register, Single, ReadWrite):
             TCGv {self.reg_tcg()} = tcg_temp_new();
             tcg_gen_mov_tl({self.reg_tcg()}, hex_pred[{self.reg_num}]);
         """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
+            gen_pred_write(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
@@ -628,9 +626,9 @@ class PairDest(Register, Pair, Dest):
             TCGv_i64 {self.reg_tcg()} =
                 get_result_gpr_pair(ctx, {self.reg_num});
         """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+            gen_write_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_write(self, f, tag, regno):
         predicated = "true" if is_predicated(tag) else "false"
@@ -662,9 +660,9 @@ class PairReadWrite(Register, Pair, ReadWrite):
                                    hex_gpr[{self.reg_num}],
                                    hex_gpr[{self.reg_num} + 1]);
         """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_reg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+            gen_write_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
     def analyze_read(self, f, regno):
         f.write(code_fmt(f"""\
@@ -687,7 +685,7 @@ class ControlPairDest(Register, Pair, Dest):
             TCGv_i64 {self.reg_tcg()} =
                 get_result_gpr_pair(ctx, {self.reg_num});
         """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_write_ctrl_reg_pair(ctx, {self.reg_num}, {self.reg_tcg()});
         """))
@@ -725,7 +723,7 @@ class VRegDest(Register, Hvx, Dest):
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -791,7 +789,7 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -823,10 +821,10 @@ class VRegTmp(Register, Hvx, ReadWrite):
                                  vreg_src_off(ctx, {self.reg_num}),
                                  sizeof(MMVector), sizeof(MMVector));
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_vreg_write(ctx, {self.hvx_off()}, {self.reg_num},
-                               {hvx_newv(tag)});
+            gen_vreg_write(ctx, {self.hvx_off()}, {self.reg_num},
+                           {hvx_newv(tag)});
         """))
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -856,7 +854,7 @@ class VRegPairDest(Register, Hvx, Dest):
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -915,10 +913,10 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
-            gen_log_vreg_write_pair(ctx, {self.hvx_off()}, {self.reg_num},
-                                    {hvx_newv(tag)});
+            gen_vreg_write_pair(ctx, {self.hvx_off()}, {self.reg_num},
+                                {hvx_newv(tag)});
         """))
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -948,7 +946,7 @@ class QRegDest(Register, Hvx, Dest):
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\
@@ -995,7 +993,7 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
                 TCGv_ptr {self.reg_tcg()} = tcg_temp_new_ptr();
                 tcg_gen_addi_ptr({self.reg_tcg()}, tcg_env, {self.hvx_off()});
             """))
-    def log_write(self, f, tag):
+    def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
         f.write(code_fmt(f"""\

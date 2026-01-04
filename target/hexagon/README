@@ -47,7 +47,6 @@ header files in <BUILD_DIR>/target/hexagon
         gen_op_attribs.py               -> op_attribs_generated.h.inc
         gen_helper_protos.py            -> helper_protos_generated.h.inc
         gen_tcg_funcs.py                -> tcg_funcs_generated.c.inc
-        gen_tcg_func_table.py           -> tcg_func_table_generated.c.inc
         gen_helper_funcs.py             -> helper_funcs_generated.c.inc
         gen_idef_parser_funcs.py        -> idef_parser_input.h
         gen_analyze_funcs.py            -> analyze_funcs_generated.c.inc
@@ -80,12 +79,14 @@ tcg_funcs_generated.c.inc
                     Insn *insn,
                     Packet *pkt)
     {
-        TCGv RdV = tcg_temp_new();
+        Insn *insn G_GNUC_UNUSED = ctx->insn;
         const int RdN = insn->regno[0];
-        TCGv RsV = hex_gpr[insn->regno[1]];
-        TCGv RtV = hex_gpr[insn->regno[2]];
+        TCGv RdV = get_result_gpr(ctx, RdN);
+        const int RsN = insn->regno[1];
+        TCGv RsV = hex_gpr[RsN];
+        const int RtN = insn->regno[2];
+        TCGv RtV = hex_gpr[RtN];
         gen_helper_A2_add(RdV, tcg_env, RsV, RtV);
-        gen_log_reg_write(ctx, RdN, RdV);
     }
 
 helper_funcs_generated.c.inc

@@ -608,6 +608,58 @@ TEST_CMP_xx(uint32_t, uint32_t, FUNC, SRC1, SRC2, RES, USR_RES)
 #define TEST_CMP_PP(FUNC, SRC1, SRC2, RES, USR_RES) \
 TEST_CMP_xx(uint64_t, uint64_t, FUNC, SRC1, SRC2, RES, USR_RES)
 
+static void test_usr_packets(void)
+{
+    uint32_t usr_out;
+    /* Test setting USR bits inside and outside packets */
+    asm(CLEAR_USRBITS \
+        "r10 = satub(%[val_0xfff])                   /* Set usr.OVF */\n\t"
+        "{\n\t"
+        "    r11 = convert_uw2sf(%[val_0x010020a5])  /* Set usr.FPINPF */\n\t"
+        "    r10 = memw(%[err])                      /* Force pkt commit */\n\t"
+        "}\n\t"
+        "{\n\t"
+        "    r11 = sfadd(%[SF_one], %[SF_SNaN])      /* Set usr.FPINVF */\n\t"
+        "    r10 = add(r10, #1)                      /* No pkt commit */\n\t"
+        "}\n\t"
+        "%[usr_out] = usr\n\t"
+        : [usr_out]"=r"(usr_out)
+        : [val_0xfff]"r"(0xfff),
+          [SF_one]"r"(SF_one), [SF_SNaN]"r"(SF_SNaN),
+          [val_0x010020a5]"r"(0x010020a5),
+          [err]"m"(err)
+        : "r2", "r10", "r11", "usr");
+    check32(usr_out & 0x3f, USR_OVF | USR_FPINVF | USR_FPINPF);
+
+    /* Test setting several USR bits in the same packet (no pkt commit) */
+    asm(CLEAR_USRBITS \
+        "{\n\t"
+        "    r10 = satub(%[val_0xfff])               /* Set usr.OVF */\n\t"
+        "    r12 = sfadd(%[SF_one], %[SF_SNaN])      /* Set usr.FPINVF */\n\t"
+        "}\n\t"
+        "%[usr_out] = usr\n\t"
+        : [usr_out]"=r"(usr_out)
+        : [val_0xfff]"r"(0xfff),
+          [SF_one]"r"(SF_one), [SF_SNaN]"r"(SF_SNaN)
+        : "r2", "r10", "r11", "r12", "usr");
+    check32(usr_out & 0x3f, USR_OVF | USR_FPINVF);
+
+    /* Test setting several USR bits in the same packet (with pkt commit) */
+    asm(CLEAR_USRBITS \
+        "{\n\t"
+        "    r10 = satub(%[val_0xfff])               /* Set usr.OVF */\n\t"
+        "    r11 = convert_uw2sf(%[val_0x010020a5])  /* Set usr.FPINPF */\n\t"
+        "    r12 = memw(%[err])                      /* Force pkt commit */\n\t"
+        "}\n\t"
+        "%[usr_out] = usr\n\t"
+        : [usr_out]"=r"(usr_out)
+        : [val_0xfff]"r"(0xfff),
+          [val_0x010020a5]"r"(0x010020a5),
+          [err]"m"(err)
+        : "r2", "r10", "r11", "r12", "usr");
+    check32(usr_out & 0x3f, USR_OVF | USR_FPINPF);
+}
+
 int main()
 {
     TEST_R_OP_R(satub,       0,         0,         USR_CLEAR);
@@ -1096,6 +1148,8 @@ int main()
     TEST_Rp_OP_R(sfinvsqrta, SF_QNaN,       SF_HEX_NaN,       0x00, USR_CLEAR);
     TEST_Rp_OP_R(sfinvsqrta, SF_small_neg,  SF_HEX_NaN,       0x00, USR_FPINVF);
     TEST_Rp_OP_R(sfinvsqrta, SF_SNaN,       SF_HEX_NaN,       0x00, USR_FPINVF);
+
+    test_usr_packets();
 
     puts(err ? "FAIL" : "PASS");
     return err;
