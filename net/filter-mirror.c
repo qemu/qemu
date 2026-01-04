@@ -179,9 +179,16 @@ static void redirector_chr_event(void *opaque, QEMUChrEvent event)
     MirrorState *s = FILTER_REDIRECTOR(nf);
 
     switch (event) {
+    case CHR_EVENT_OPENED:
+        if (nf->on) {
+            qemu_chr_fe_set_handlers_full(&s->chr_in, redirector_chr_can_read,
+                                          redirector_chr_read, redirector_chr_event,
+                                          NULL, nf, NULL, false, false);
+        }
+        break;
     case CHR_EVENT_CLOSED:
-        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
-                                 NULL, NULL, NULL, true);
+        qemu_chr_fe_set_handlers_full(&s->chr_in, NULL, NULL, redirector_chr_event,
+                                      NULL, nf, NULL, false, false);
         break;
     default:
         break;
@@ -306,9 +313,11 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
             return;
         }
 
-        qemu_chr_fe_set_handlers(&s->chr_in, redirector_chr_can_read,
-                                 redirector_chr_read, redirector_chr_event,
-                                 NULL, nf, NULL, true);
+        if (nf->on) {
+            qemu_chr_fe_set_handlers(&s->chr_in, redirector_chr_can_read,
+                                     redirector_chr_read, redirector_chr_event,
+                                     NULL, nf, NULL, true);
+        }
     }
 
     if (s->outdev) {
@@ -321,6 +330,24 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         if (!qemu_chr_fe_init(&s->chr_out, chr, errp)) {
             return;
         }
+    }
+}
+
+static void filter_redirector_status_changed(NetFilterState *nf, Error **errp)
+{
+    MirrorState *s = FILTER_REDIRECTOR(nf);
+
+    if (!s->indev) {
+        return;
+    }
+
+    if (nf->on) {
+        qemu_chr_fe_set_handlers(&s->chr_in, redirector_chr_can_read,
+                                 redirector_chr_read, redirector_chr_event,
+                                 NULL, nf, NULL, true);
+    } else {
+        qemu_chr_fe_set_handlers(&s->chr_in, NULL, NULL, NULL,
+                                 NULL, NULL, NULL, true);
     }
 }
 
@@ -440,6 +467,7 @@ static void filter_redirector_class_init(ObjectClass *oc, const void *data)
     nfc->setup = filter_redirector_setup;
     nfc->cleanup = filter_redirector_cleanup;
     nfc->receive_iov = filter_redirector_receive_iov;
+    nfc->status_changed = filter_redirector_status_changed;
 }
 
 static void filter_mirror_init(Object *obj)
