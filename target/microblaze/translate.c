@@ -794,7 +794,7 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
 #else
     TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_16, false);
-    (mo_endian(dc) == MO_BE ? gen_helper_lhuea_be : gen_helper_lhuea_le)
+    (dc->cfg->endi ? gen_helper_lhuea_le : gen_helper_lhuea_be)
         (reg_for_write(dc, arg->rd), tcg_env, addr);
     return true;
 #endif
@@ -828,7 +828,7 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
 #else
     TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_32, false);
-    (mo_endian(dc) == MO_BE ? gen_helper_lwea_be : gen_helper_lwea_le)
+    (dc->cfg->endi ? gen_helper_lwea_le : gen_helper_lwea_be)
         (reg_for_write(dc, arg->rd), tcg_env, addr);
     return true;
 #endif
@@ -954,7 +954,7 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
 #else
     TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_16, true);
-    (mo_endian(dc) == MO_BE ? gen_helper_shea_be : gen_helper_shea_le)
+    (dc->cfg->endi ? gen_helper_shea_le : gen_helper_shea_be)
         (tcg_env, reg_for_read(dc, arg->rd), addr);
     return true;
 #endif
@@ -988,7 +988,7 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
 #else
     TCGv_i64 addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     gen_alignment_check_ea(dc, addr, arg->rb, arg->rd, MO_32, true);
-    (mo_endian(dc) == MO_BE ? gen_helper_swea_be : gen_helper_swea_le)
+    (dc->cfg->endi ? gen_helper_swea_le : gen_helper_swea_be)
         (tcg_env, reg_for_read(dc, arg->rd), addr);
     return true;
 #endif
