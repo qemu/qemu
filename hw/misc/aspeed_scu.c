@@ -565,6 +565,7 @@ static uint32_t aspeed_silicon_revs[] = {
     AST2600_A3_SILICON_REV,
     AST1030_A0_SILICON_REV,
     AST1030_A1_SILICON_REV,
+    AST1060_A2_SILICON_REV,
     AST2700_A0_SILICON_REV,
     AST2720_A0_SILICON_REV,
     AST2750_A0_SILICON_REV,
@@ -841,7 +842,7 @@ static void aspeed_ast2600_scu_reset(DeviceState *dev)
      * of actual revision. QEMU and Linux only support A1 onwards so this is
      * sufficient.
      */
-    s->regs[AST2600_SILICON_REV] = AST2600_A3_SILICON_REV;
+    s->regs[AST2600_SILICON_REV] = s->silicon_rev;
     s->regs[AST2600_SILICON_REV2] = s->silicon_rev;
     s->regs[AST2600_HW_STRAP1] = s->hw_strap1;
     s->regs[AST2600_HW_STRAP2] = s->hw_strap2;
@@ -1137,7 +1138,7 @@ static void aspeed_ast1030_scu_reset(DeviceState *dev)
 
     memcpy(s->regs, asc->resets, asc->nr_regs * 4);
 
-    s->regs[AST2600_SILICON_REV] = AST1030_A1_SILICON_REV;
+    s->regs[AST2600_SILICON_REV] = s->silicon_rev;
     s->regs[AST2600_SILICON_REV2] = s->silicon_rev;
     s->regs[AST2600_HW_STRAP1] = s->hw_strap1;
     s->regs[AST2600_HW_STRAP2] = s->hw_strap2;

@@ -11,7 +11,7 @@ from aspeed import AspeedTest
 class GB200Machine(AspeedTest):
 
     ASSET_GB200_FLASH = Asset(
-        'https://github.com/legoater/qemu-aspeed-boot/raw/refs/heads/master/images/gb200nvl-obmc/obmc-phosphor-image-gb200nvl-obmc-20250702182348.static.mtd.xz',
+        'https://github.com/legoater/qemu-aspeed-boot/raw/refs/heads/master/images/gb200nvl-bmc/openbmc-20250702182348/obmc-phosphor-image-gb200nvl-obmc-20250702182348.static.mtd.xz',
         'b84819317cb3dc762895ad507705978ef000bfc77c50c33a63bdd37921db0dbc')
 
     def test_arm_aspeed_gb200_openbmc(self):
