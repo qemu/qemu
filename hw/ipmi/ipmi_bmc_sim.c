@@ -106,6 +106,7 @@
 
 #define IPMI_NETFN_TRANSPORT          0x0c
 
+#define IPMI_CMD_SET_LAN_CONFIG           0x01
 #define IPMI_CMD_GET_LAN_CONFIG           0x02
 
 
@@ -300,6 +301,7 @@ struct IPMIBmcSim {
     ((ibs)->lan.channel != 0 && (ibs)->lan.channel == (c))
 
 #define IPMI_BMC_LAN_CFG_CC_PARAM_NOT_SUPPORTED    0x80
+#define IPMI_BMC_LAN_CFG_CC_PARAM_READONLY         0x82
 
 #define IPMI_BMC_LAN_CFG_PARAM_SET_IN_PROGRESS        0x00
 #define IPMI_BMC_LAN_CFG_PARAM_AUTH_TYPE_SUPPORT      0x01
@@ -2127,6 +2129,113 @@ static inline bool is_ipv4_netmask_valid(const void *buf)
 }
 
 /*
+ * Request data (from cmd[2] on):
+ * bytes   meaning
+ *    1    [bits 3:0] channel number
+ *    2    parameter selector
+ * [3:N]   configuration parameter data (from cmd[4] on)
+ */
+static void set_lan_config(IPMIBmcSim *ibs,
+                           uint8_t *cmd, unsigned int cmd_len,
+                           RspBuffer *rsp)
+{
+    uint8_t channel;
+    uint8_t *param;  /* pointer to configuration parameter data */
+    unsigned int param_len;
+
+    if (ibs->lan.channel == 0) {
+        /* LAN channel disabled. Fail as if this command were not defined. */
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_CMD);
+        return;
+    }
+    if (cmd_len < 5) {
+        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+        return;
+    }
+    channel = cmd[2] & 0xf;
+    param = cmd + 4;
+    param_len = cmd_len - 4;
+
+    if (!IPMI_BMC_CHANNEL_IS_LAN(ibs, channel)) {
+        rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+        return;
+    }
+
+    switch (cmd[3]) {
+    case IPMI_BMC_LAN_CFG_PARAM_IP_ADDR:
+        if (param_len < NBYTES_IP) {
+            rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+            return;
+        }
+        memcpy(ibs->lan.ipaddr, param, NBYTES_IP);
+        break;
+
+    case IPMI_BMC_LAN_CFG_PARAM_IP_ADDR_SOURCE:
+        if (param_len < 1) {
+            rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+            return;
+        }
+        if (!IPMI_BMC_LAN_CFG_IS_VALID_IP_SOURCE(*param)) {
+            rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+            return;
+        }
+        ibs->lan.ipsrc = *param;
+        break;
+
+    case IPMI_BMC_LAN_CFG_PARAM_MAC_ADDR:
+        if (param_len < NBYTES_MAC) {
+            rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+            return;
+        }
+        memcpy(ibs->lan.macaddr.a, param, NBYTES_MAC);
+        break;
+
+    case IPMI_BMC_LAN_CFG_PARAM_SUBNET_MASK:
+        if (param_len < NBYTES_IP) {
+            rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+            return;
+        }
+        if (!is_ipv4_netmask_valid(param)) {
+            rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
+            return;
+        }
+        memcpy(ibs->lan.netmask, param, NBYTES_IP);
+        break;
+
+    case IPMI_BMC_LAN_CFG_PARAM_DEFAULT_GW_IP_ADDR:
+        if (param_len < NBYTES_IP) {
+            rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+            return;
+        }
+        memcpy(ibs->lan.defgw_ipaddr, param, NBYTES_IP);
+        break;
+
+    case IPMI_BMC_LAN_CFG_PARAM_DEFAULT_GW_MAC_ADDR:
+        if (param_len < NBYTES_MAC) {
+            rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_LENGTH_INVALID);
+            return;
+        }
+        memcpy(ibs->lan.defgw_macaddr.a, param, NBYTES_MAC);
+        break;
+
+    case IPMI_BMC_LAN_CFG_PARAM_SET_IN_PROGRESS:
+    case IPMI_BMC_LAN_CFG_PARAM_AUTH_TYPE_SUPPORT:
+    case IPMI_BMC_LAN_CFG_PARAM_AUTH_TYPE_ENABLES:
+    case IPMI_BMC_LAN_CFG_PARAM_IPV4_HDR_PARAMS:
+    case IPMI_BMC_LAN_CFG_PARAM_BACKUP_GW_ADDR:
+    case IPMI_BMC_LAN_CFG_PARAM_BACKUP_GW_MAC_ADDR:
+    case IPMI_BMC_LAN_CFG_PARAM_COMMUNITY_STRING:
+    case IPMI_BMC_LAN_CFG_PARAM_NUM_DESTINATIONS:
+        rsp_buffer_set_error(rsp, IPMI_BMC_LAN_CFG_CC_PARAM_READONLY);
+        return;
+
+    default:
+        rsp_buffer_set_error(rsp, IPMI_BMC_LAN_CFG_CC_PARAM_NOT_SUPPORTED);
+        return;
+    }
+}
+
+/*
  * Request data (from cmd[2] to cmd[5] inclusive):
  * bytes   meaning
  *    1    [bit 7] revision only flag, [bits 3:0] channel number
@@ -2324,6 +2433,7 @@ static const IPMINetfn storage_netfn = {
 };
 
 static const IPMICmdHandler transport_cmds[] = {
+    [IPMI_CMD_SET_LAN_CONFIG] = { set_lan_config },
     [IPMI_CMD_GET_LAN_CONFIG] = { get_lan_config },
 };
 static const IPMINetfn transport_netfn = {

@@ -262,6 +262,144 @@ static void test_enable_irq(void)
     kcs_ints_enabled = 1;
 }
 
+
+static uint8_t get_channel_access_cmd[] = { 0x18, 0x41, 0x01, 0x40 };
+static uint8_t get_channel_access_rsp[] = { 0x1c, 0x41, 0x00, 0x3a, 0x04 };
+
+/*
+ * Get channel access
+ */
+static void test_kcs_channel_access(void)
+{
+    uint8_t rsp[20];
+    unsigned int rsplen = sizeof(rsp);
+
+    kcs_cmd(get_channel_access_cmd, sizeof(get_channel_access_cmd),
+            rsp, &rsplen);
+    g_assert(rsplen == sizeof(get_channel_access_rsp));
+    g_assert(memcmp(get_channel_access_rsp, rsp, rsplen) == 0);
+}
+
+
+static uint8_t get_channel_info_cmd[] = { 0x18, 0x42, 0x01 };
+static uint8_t get_channel_info_rsp[] = { 0x1c, 0x42, 0x00, 0x01, 0x04, 0x01,
+                                          0x00, 0xf2, 0x1b, 0x00, 0x00, 0x00 };
+
+/*
+ * Get channel info
+ */
+static void test_kcs_channel_info(void)
+{
+    uint8_t rsp[20];
+    unsigned int rsplen = sizeof(rsp);
+
+    kcs_cmd(get_channel_info_cmd, sizeof(get_channel_info_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(get_channel_info_rsp));
+    g_assert(memcmp(get_channel_info_rsp, rsp, rsplen) == 0);
+}
+
+
+/* get ip address (specified in cmdline): 10.0.0.2 */
+static uint8_t get_ipaddr_cmd[] = { 0x30, 0x02, 0x01, 0x03, 0x00, 0x00 };
+static uint8_t get_ipaddr_rsp[] = { 0x34, 0x02, 0x00, 0x11,
+                                    0x0a, 0x00, 0x00, 0x02 };
+
+/*
+ * Get LAN configurations
+ */
+static void test_kcs_lan_get(void)
+{
+    uint8_t rsp[20];
+    unsigned int rsplen = sizeof(rsp);
+
+    kcs_cmd(get_ipaddr_cmd, sizeof(get_ipaddr_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(get_ipaddr_rsp));
+    g_assert(memcmp(get_ipaddr_rsp, rsp, rsplen) == 0);
+}
+
+
+/* set/get ip address: 192.0.2.2 */
+static uint8_t lan_set_ipaddr_cmd[] = { 0x30, 0x01, 0x01, 0x03,
+                                        0xc0, 0x00, 0x02, 0x02 };
+static uint8_t lan_set_ipaddr_rsp[] = { 0x34, 0x01, 0x00 };
+static uint8_t lan_get_ipaddr_cmd[] = { 0x30, 0x02, 0x01, 0x03, 0x00, 0x00 };
+static uint8_t lan_get_ipaddr_rsp[] = { 0x34, 0x02, 0x00, 0x11,
+                                        0xc0, 0x00, 0x02, 0x02 };
+/* set ip address source: static */
+static uint8_t lan_set_ipsrc_cmd[] = { 0x30, 0x01, 0x01, 0x04, 0x01 };
+static uint8_t lan_set_ipsrc_rsp[] = { 0x34, 0x01, 0x00 };
+
+/* set/get subnet mask: 255.255.255.0 */
+static uint8_t lan_set_netmask_cmd[] = { 0x30, 0x01, 0x01, 0x06,
+                                         0xff, 0xff, 0xff, 0x00 };
+static uint8_t lan_set_netmask_rsp[] = { 0x34, 0x01, 0x00 };
+static uint8_t lan_get_netmask_cmd[] = { 0x30, 0x02, 0x01, 0x06, 0x00, 0x00 };
+static uint8_t lan_get_netmask_rsp[] = { 0x34, 0x02, 0x00, 0x11,
+                                         0xff, 0xff, 0xff, 0x00 };
+
+/* set/get default gateway ip address: 192.0.2.1 */
+static uint8_t lan_set_defgw_ipaddr_cmd[] = { 0x30, 0x01, 0x01, 0x0c,
+                                              0xc0, 0x00, 0x02, 0x01 };
+static uint8_t lan_set_defgw_ipaddr_rsp[] = { 0x34, 0x01, 0x00 };
+static uint8_t lan_get_defgw_ipaddr_cmd[] = { 0x30, 0x02, 0x01, 0x0c,
+                                              0x00, 0x00 };
+static uint8_t lan_get_defgw_ipaddr_rsp[] = { 0x34, 0x02, 0x00, 0x11,
+                                              0xc0, 0x00, 0x02, 0x01 };
+
+/*
+ * Set and then get LAN configurations
+ */
+static void test_kcs_lan_set_get(void)
+{
+    uint8_t rsp[20];
+    unsigned int rsplen = 0;
+
+    /* set ip address */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_set_ipaddr_cmd, sizeof(lan_set_ipaddr_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_set_ipaddr_rsp));
+    g_assert(memcmp(lan_set_ipaddr_rsp, rsp, rsplen) == 0);
+
+    /* get ip address */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_get_ipaddr_cmd, sizeof(lan_get_ipaddr_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_get_ipaddr_rsp));
+    g_assert(memcmp(lan_get_ipaddr_rsp, rsp, rsplen) == 0);
+
+    /* set ip address source */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_set_ipsrc_cmd, sizeof(lan_set_ipsrc_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_set_ipsrc_rsp));
+    g_assert(memcmp(lan_set_ipsrc_rsp, rsp, rsplen) == 0);
+
+    /* set subnet mask */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_set_netmask_cmd, sizeof(lan_set_netmask_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_set_netmask_rsp));
+    g_assert(memcmp(lan_set_netmask_rsp, rsp, rsplen) == 0);
+
+    /* get subnet mask */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_get_netmask_cmd, sizeof(lan_get_netmask_cmd), rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_get_netmask_rsp));
+    g_assert(memcmp(lan_get_netmask_rsp, rsp, rsplen) == 0);
+
+    /* set default gateway ip address */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_set_defgw_ipaddr_cmd, sizeof(lan_set_defgw_ipaddr_cmd),
+            rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_set_defgw_ipaddr_rsp));
+    g_assert(memcmp(lan_set_defgw_ipaddr_rsp, rsp, rsplen) == 0);
+
+    /* get default gateway ip address */
+    rsplen = sizeof(rsp);
+    kcs_cmd(lan_get_defgw_ipaddr_cmd, sizeof(lan_get_defgw_ipaddr_cmd),
+            rsp, &rsplen);
+    g_assert(rsplen == sizeof(lan_get_defgw_ipaddr_rsp));
+    g_assert(memcmp(lan_get_defgw_ipaddr_rsp, rsp, rsplen) == 0);
+}
+
+
 int main(int argc, char **argv)
 {
     char *cmdline;
@@ -271,6 +409,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     cmdline = g_strdup_printf("-device ipmi-bmc-sim,id=bmc0"
+                                       ",lan.channel=1,lan.ipaddr=10.0.0.2"
                               " -device isa-ipmi-kcs,bmc=bmc0");
     qtest_start(cmdline);
     g_free(cmdline);
@@ -280,6 +419,10 @@ int main(int argc, char **argv)
     qtest_add_func("/ipmi/local/kcs_enable_irq", test_enable_irq);
     qtest_add_func("/ipmi/local/kcs_base_irq", test_kcs_base);
     qtest_add_func("/ipmi/local/kcs_abort_irq", test_kcs_abort);
+    qtest_add_func("/ipmi/local/kcs_channel_access", test_kcs_channel_access);
+    qtest_add_func("/ipmi/local/kcs_channel_info", test_kcs_channel_info);
+    qtest_add_func("/ipmi/local/kcs_lan_get", test_kcs_lan_get);
+    qtest_add_func("/ipmi/local/kcs_lan_set_get", test_kcs_lan_set_get);
     ret = g_test_run();
     qtest_quit(global_qtest);
 
