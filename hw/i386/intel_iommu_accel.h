@@ -13,11 +13,11 @@
 #include CONFIG_DEVICES
 
 #ifdef CONFIG_VTD_ACCEL
-bool vtd_check_hiod_accel(IntelIOMMUState *s, HostIOMMUDevice *hiod,
+bool vtd_check_hiod_accel(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
                           Error **errp);
 #else
 static inline bool vtd_check_hiod_accel(IntelIOMMUState *s,
-                                        HostIOMMUDevice *hiod,
+                                        VTDHostIOMMUDevice *vtd_hiod,
                                         Error **errp)
 {
     error_setg(errp, "host IOMMU cannot be checked!");
