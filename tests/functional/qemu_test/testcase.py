@@ -348,7 +348,7 @@ class QemuSystemTest(QemuBaseTest):
         helptxt = run([self.qemu_bin, '-M', 'none', '-netdev', 'help'],
                       capture_output=True, check=True, encoding='utf8').stdout
         if helptxt.find('\n' + netdevname + '\n') < 0:
-            self.skipTest('no support for " + netdevname + " networking')
+            self.skipTest('no support for ' + netdevname + ' networking')
 
     def require_device(self, devicename):
         helptxt = run([self.qemu_bin, '-M', 'none', '-device', 'help'],
