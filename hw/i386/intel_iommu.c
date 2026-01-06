@@ -26,6 +26,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/core/iommu.h"
 #include "intel_iommu_internal.h"
+#include "intel_iommu_accel.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/core/qdev-properties.h"
@@ -4595,9 +4596,7 @@ static bool vtd_check_hiod(IntelIOMMUState *s, HostIOMMUDevice *hiod,
         return true;
     }
 
-    error_setg(errp,
-               "host device is uncompatible with first stage translation");
-    return false;
+    return vtd_check_hiod_accel(s, hiod, errp);
 }
 
 static bool vtd_dev_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
