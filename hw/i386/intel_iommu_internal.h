@@ -685,4 +685,15 @@ typedef struct VTDHostIOMMUDevice {
     uint8_t devfn;
     HostIOMMUDevice *hiod;
 } VTDHostIOMMUDevice;
+
+/*
+ * PCI bus number (or SID) is not reliable since the device is usaully
+ * initialized before guest can configure the PCI bridge
+ * (SECONDARY_BUS_NUMBER).
+ */
+struct vtd_as_key {
+    PCIBus *bus;
+    uint8_t devfn;
+    uint32_t pasid;
+};
 #endif
