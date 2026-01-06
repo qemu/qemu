@@ -196,8 +196,8 @@
 #define VTD_ECAP_PSS                (7ULL << 35) /* limit: MemTxAttrs::pid */
 #define VTD_ECAP_PASID              (1ULL << 40)
 #define VTD_ECAP_SMTS               (1ULL << 43)
-#define VTD_ECAP_SLTS               (1ULL << 46)
-#define VTD_ECAP_FLTS               (1ULL << 47)
+#define VTD_ECAP_SSTS               (1ULL << 46)
+#define VTD_ECAP_FSTS               (1ULL << 47)
 
 /* CAP_REG */
 /* (offset >> 4) << 24 */
@@ -211,7 +211,7 @@
 #define VTD_MAMV                    18ULL
 #define VTD_CAP_MAMV                (VTD_MAMV << 48)
 #define VTD_CAP_PSI                 (1ULL << 39)
-#define VTD_CAP_SLLPS               ((1ULL << 34) | (1ULL << 35))
+#define VTD_CAP_SSLPS               ((1ULL << 34) | (1ULL << 35))
 #define VTD_CAP_DRAIN_WRITE         (1ULL << 54)
 #define VTD_CAP_DRAIN_READ          (1ULL << 55)
 #define VTD_CAP_FS1GP               (1ULL << 56)
@@ -284,7 +284,7 @@ typedef enum VTDFaultReason {
     VTD_FR_ADDR_BEYOND_MGAW,    /* Input-address above (2^x-1) */
     VTD_FR_WRITE,               /* No write permission */
     VTD_FR_READ,                /* No read permission */
-    /* Fail to access a second-level paging entry (not SL_PML4E) */
+    /* Fail to access a second-stage paging entry (not SS_PML4E) */
     VTD_FR_PAGING_ENTRY_INV,
     VTD_FR_ROOT_TABLE_INV,      /* Fail to access a root-entry */
     VTD_FR_CONTEXT_TABLE_INV,   /* Fail to access a context-entry */
@@ -292,7 +292,8 @@ typedef enum VTDFaultReason {
     VTD_FR_ROOT_ENTRY_RSVD,
     /* Non-zero reserved field in a present context-entry */
     VTD_FR_CONTEXT_ENTRY_RSVD,
-    /* Non-zero reserved field in a second-level paging entry with at lease one
+    /*
+     * Non-zero reserved field in a second-stage paging entry with at lease one
      * Read(R) and Write(W) or Execute(E) field is Set.
      */
     VTD_FR_PAGING_ENTRY_RSVD,
@@ -329,7 +330,7 @@ typedef enum VTDFaultReason {
     VTD_FR_PASID_ENTRY_P = 0x59,
     VTD_FR_PASID_TABLE_ENTRY_INV = 0x5b,  /*Invalid PASID table entry */
 
-    /* Fail to access a first-level paging entry (not FS_PML4E) */
+    /* Fail to access a first-stage paging entry (not FS_PML4E) */
     VTD_FR_FS_PAGING_ENTRY_INV = 0x70,
     VTD_FR_FS_PAGING_ENTRY_P = 0x71,
     /* Non-zero reserved field in present first-stage paging entry */
@@ -473,23 +474,23 @@ typedef union VTDPRDesc VTDPRDesc;
 
 #define VTD_SPTE_PAGE_L1_RSVD_MASK(aw, stale_tm) \
         stale_tm ? \
-        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM | VTD_SL_TM)) : \
-        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM | VTD_SS_TM)) : \
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM))
 #define VTD_SPTE_PAGE_L2_RSVD_MASK(aw) \
-        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM))
 #define VTD_SPTE_PAGE_L3_RSVD_MASK(aw) \
-        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+        (0x800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM))
 #define VTD_SPTE_PAGE_L4_RSVD_MASK(aw) \
-        (0x880ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+        (0x880ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM))
 
 #define VTD_SPTE_LPAGE_L2_RSVD_MASK(aw, stale_tm) \
         stale_tm ? \
-        (0x1ff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM | VTD_SL_TM)) : \
-        (0x1ff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+        (0x1ff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM | VTD_SS_TM)) : \
+        (0x1ff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM))
 #define VTD_SPTE_LPAGE_L3_RSVD_MASK(aw, stale_tm) \
         stale_tm ? \
-        (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM | VTD_SL_TM)) : \
-        (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SL_IGN_COM))
+        (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM | VTD_SS_TM)) : \
+        (0x3ffff800ULL | ~(VTD_HAW_MASK(aw) | VTD_SS_IGN_COM))
 
 /* Rsvd field masks for fpte */
 #define VTD_FS_UPPER_IGNORED 0xfff0000000000000ULL
@@ -596,8 +597,8 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_CONTEXT_TT_MULTI_LEVEL  0
 #define VTD_CONTEXT_TT_DEV_IOTLB    (1ULL << 2)
 #define VTD_CONTEXT_TT_PASS_THROUGH (2ULL << 2)
-/* Second Level Page Translation Pointer*/
-#define VTD_CONTEXT_ENTRY_SLPTPTR   (~0xfffULL)
+/* Second Stage Page Translation Pointer*/
+#define VTD_CONTEXT_ENTRY_SSPTPTR   (~0xfffULL)
 #define VTD_CONTEXT_ENTRY_RSVD_LO(aw) (0xff0ULL | ~VTD_HAW_MASK(aw))
 /* hi */
 #define VTD_CONTEXT_ENTRY_AW        7ULL /* Adjusted guest-address-width */
@@ -635,37 +636,37 @@ typedef struct VTDPASIDCacheInfo {
 /* PASID Granular Translation Type Mask */
 #define VTD_PASID_ENTRY_P              1ULL
 #define VTD_SM_PASID_ENTRY_PGTT        (7ULL << 6)
-#define VTD_SM_PASID_ENTRY_FLT         (1ULL << 6)
-#define VTD_SM_PASID_ENTRY_SLT         (2ULL << 6)
+#define VTD_SM_PASID_ENTRY_FST         (1ULL << 6)
+#define VTD_SM_PASID_ENTRY_SST         (2ULL << 6)
 #define VTD_SM_PASID_ENTRY_NESTED      (3ULL << 6)
 #define VTD_SM_PASID_ENTRY_PT          (4ULL << 6)
 
 #define VTD_SM_PASID_ENTRY_AW          7ULL /* Adjusted guest-address-width */
 #define VTD_SM_PASID_ENTRY_DID(val)    ((val) & VTD_DOMAIN_ID_MASK)
 
-#define VTD_SM_PASID_ENTRY_FLPM          3ULL
-#define VTD_SM_PASID_ENTRY_FLPTPTR       (~0xfffULL)
+#define VTD_SM_PASID_ENTRY_FSPM          3ULL
+#define VTD_SM_PASID_ENTRY_FSPTPTR       (~0xfffULL)
 
-/* First Level Paging Structure */
-/* Masks for First Level Paging Entry */
-#define VTD_FL_P                    1ULL
-#define VTD_FL_RW                   (1ULL << 1)
-#define VTD_FL_US                   (1ULL << 2)
-#define VTD_FL_A                    (1ULL << 5)
-#define VTD_FL_D                    (1ULL << 6)
+/* First Stage Paging Structure */
+/* Masks for First Stage Paging Entry */
+#define VTD_FS_P                    1ULL
+#define VTD_FS_RW                   (1ULL << 1)
+#define VTD_FS_US                   (1ULL << 2)
+#define VTD_FS_A                    (1ULL << 5)
+#define VTD_FS_D                    (1ULL << 6)
 
-/* Second Level Page Translation Pointer*/
-#define VTD_SM_PASID_ENTRY_SLPTPTR     (~0xfffULL)
+/* Second Stage Page Translation Pointer*/
+#define VTD_SM_PASID_ENTRY_SSPTPTR     (~0xfffULL)
 
-/* Second Level Paging Structure */
-/* Masks for Second Level Paging Entry */
-#define VTD_SL_RW_MASK              3ULL
-#define VTD_SL_R                    1ULL
-#define VTD_SL_W                    (1ULL << 1)
-#define VTD_SL_IGN_COM              0xbff0000000000000ULL
-#define VTD_SL_TM                   (1ULL << 62)
+/* Second Stage Paging Structure */
+/* Masks for Second Stage Paging Entry */
+#define VTD_SS_RW_MASK              3ULL
+#define VTD_SS_R                    1ULL
+#define VTD_SS_W                    (1ULL << 1)
+#define VTD_SS_IGN_COM              0xbff0000000000000ULL
+#define VTD_SS_TM                   (1ULL << 62)
 
-/* Common for both First Level and Second Level */
+/* Common for both First Stage and Second Stage */
 #define VTD_PML4_LEVEL           4
 #define VTD_PDP_LEVEL            3
 #define VTD_PD_LEVEL             2
