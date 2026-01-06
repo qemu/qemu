@@ -76,8 +76,13 @@ static bool vfio_log_sync_needed(const VFIOContainer *bcontainer)
     return true;
 }
 
-static bool vfio_listener_skipped_section(MemoryRegionSection *section)
+static bool vfio_listener_skipped_section(MemoryRegionSection *section,
+                                          bool bypass_ro)
 {
+    if (bypass_ro && section->readonly) {
+        return true;
+    }
+
     return (!memory_region_is_ram(section->mr) &&
             !memory_region_is_iommu(section->mr)) ||
            memory_region_is_protected(section->mr) ||
@@ -368,9 +373,9 @@ static bool vfio_known_safe_misalignment(MemoryRegionSection *section)
 }
 
 static bool vfio_listener_valid_section(MemoryRegionSection *section,
-                                        const char *name)
+                                        bool bypass_ro, const char *name)
 {
-    if (vfio_listener_skipped_section(section)) {
+    if (vfio_listener_skipped_section(section, bypass_ro)) {
         trace_vfio_listener_region_skip(name,
                 section->offset_within_address_space,
                 section->offset_within_address_space +
@@ -497,7 +502,7 @@ void vfio_container_region_add(VFIOContainer *bcontainer,
     int ret;
     Error *err = NULL;
 
-    if (!vfio_listener_valid_section(section, "region_add")) {
+    if (!vfio_listener_valid_section(section, false, "region_add")) {
         return;
     }
 
@@ -663,7 +668,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     int ret;
     bool try_unmap = true;
 
-    if (!vfio_listener_valid_section(section, "region_del")) {
+    if (!vfio_listener_valid_section(section, false, "region_del")) {
         return;
     }
 
@@ -722,9 +727,10 @@ static void vfio_listener_region_del(MemoryListener *listener,
         }
 
         /*
-         * Fake an IOTLB entry for identity mapping which is needed by dirty
-         * tracking when switch out of PT domain. In fact, in unmap_bitmap,
-         * only translated_addr field is used to set dirty bitmap.
+         * Fake an IOTLB entry for writable identity mapping which is needed
+         * by dirty tracking when switch out of PT domain. In fact, in
+         * unmap_bitmap, only translated_addr field is used to set dirty
+         * bitmap.
          *
          * Note: When switch into PT domain from DMA domain, the whole IOMMU
          * MR is deleted without iotlb, before that happen, we depend on
@@ -733,7 +739,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
          * it is triggered during switching to block domain because vtd does
          * not support direct switching from DMA to PT domain.
          */
-        if (global_dirty_tracking && memory_region_is_ram(section->mr)) {
+        if (global_dirty_tracking && memory_region_is_ram(section->mr) &&
+            !section->readonly) {
             entry.iova = iova;
             entry.translated_addr = iova;
             iotlb = &entry;
@@ -841,7 +848,8 @@ static void vfio_dirty_tracking_update(MemoryListener *listener,
         container_of(listener, VFIODirtyRangesListener, listener);
     hwaddr iova, end;
 
-    if (!vfio_listener_valid_section(section, "tracking_update") ||
+    /* Bypass readonly section as it never becomes dirty */
+    if (!vfio_listener_valid_section(section, true, "tracking_update") ||
         !vfio_get_section_iova_range(dirty->bcontainer, section,
                                      &iova, &end, NULL)) {
         return;
@@ -1100,6 +1108,19 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     if (!mr) {
         goto out_unlock;
     }
+
+    /*
+     * The mapping is readonly when either it's a readonly mapping in guest
+     * or mapped target is readonly, bypass it for dirty tracking as it
+     * never becomes dirty.
+     */
+    if (!(iotlb->perm & IOMMU_WO) || mr->readonly) {
+        trace_vfio_iommu_map_dirty_notify_skip_ro(iova,
+                                                  iova + iotlb->addr_mask);
+        rcu_read_unlock();
+        return;
+    }
+
     translated_addr = memory_region_get_ram_addr(mr) + xlat;
 
     ret = vfio_container_query_dirty_bitmap(bcontainer, iova, iotlb->addr_mask + 1,
@@ -1235,7 +1256,12 @@ static void vfio_listener_log_sync(MemoryListener *listener,
     int ret;
     Error *local_err = NULL;
 
-    if (vfio_listener_skipped_section(section)) {
+    /*
+     * Bypass readonly section as it never becomes dirty, iommu memory section
+     * is RW and never bypassed. The readonly mappings in iommu MR are bypassed
+     * in vfio_iommu_map_dirty_notify().
+     */
+    if (vfio_listener_skipped_section(section, true)) {
         return;
     }
 
