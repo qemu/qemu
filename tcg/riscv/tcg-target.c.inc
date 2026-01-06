@@ -1074,7 +1074,7 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
 }
 
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
-                                   TCGReg dst, TCGReg src)
+                            TCGReg dst, TCGReg src)
 {
     set_vtype_len_sew(s, type, vece);
     tcg_out_opc_vx(s, OPC_VMV_V_X, dst, 0, src);
@@ -1082,29 +1082,34 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
 }
 
 static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
-                                    TCGReg dst, TCGReg base, intptr_t offset)
+                             TCGReg dst, TCGReg base, intptr_t offset)
 {
+    /* Note set_vtype* may clobber TMP0, so do that first. */
+    set_vtype_len_sew(s, type, vece);
     tcg_out_ld(s, TCG_TYPE_REG, TCG_REG_TMP0, base, offset);
-    return tcg_out_dup_vec(s, type, vece, dst, TCG_REG_TMP0);
+    tcg_out_opc_vx(s, OPC_VMV_V_X, dst, 0, TCG_REG_TMP0);
+    return true;
 }
 
 static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
-                                    TCGReg dst, int64_t arg)
+                             TCGReg dst, int64_t arg)
 {
     /* Arg is replicated by VECE; extract the highest element. */
     arg >>= (-8 << vece) & 63;
 
-    if (arg >= -16 && arg < 16) {
-        if (arg == 0 || arg == -1) {
-            set_vtype_len(s, type);
-        } else {
-            set_vtype_len_sew(s, type, vece);
-        }
-        tcg_out_opc_vi(s, OPC_VMV_V_I, dst, 0, arg);
-        return;
+    /* Note set_vtype* may clobber TMP0, so do that first. */
+    if (arg == 0 || arg == -1) {
+        set_vtype_len(s, type);
+    } else {
+        set_vtype_len_sew(s, type, vece);
     }
-    tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP0, arg);
-    tcg_out_dup_vec(s, type, vece, dst, TCG_REG_TMP0);
+
+    if (arg >= -16 && arg < 16) {
+        tcg_out_opc_vi(s, OPC_VMV_V_I, dst, 0, arg);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP0, arg);
+        tcg_out_opc_vx(s, OPC_VMV_V_X, dst, 0, TCG_REG_TMP0);
+    }
 }
 
 static void tcg_out_br(TCGContext *s, TCGLabel *l)
