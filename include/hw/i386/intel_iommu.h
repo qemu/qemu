@@ -154,6 +154,8 @@ struct VTDAddressSpace {
      * with the guest IOMMU pgtables for a device.
      */
     IOVATree *iova_tree;
+
+    uint32_t fs_hwpt_id;
 };
 
 struct VTDIOTLBEntry {

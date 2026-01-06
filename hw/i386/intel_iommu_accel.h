@@ -16,6 +16,7 @@
 bool vtd_check_hiod_accel(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
                           Error **errp);
 VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as);
+bool vtd_propagate_guest_pasid(VTDAddressSpace *vtd_as, Error **errp);
 #else
 static inline bool vtd_check_hiod_accel(IntelIOMMUState *s,
                                         VTDHostIOMMUDevice *vtd_hiod,
@@ -29,6 +30,12 @@ static inline bool vtd_check_hiod_accel(IntelIOMMUState *s,
 static inline VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as)
 {
     return NULL;
+}
+
+static inline bool vtd_propagate_guest_pasid(VTDAddressSpace *vtd_as,
+                                             Error **errp)
+{
+    return true;
 }
 #endif
 #endif
