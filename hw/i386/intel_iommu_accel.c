@@ -47,9 +47,7 @@ bool vtd_check_hiod_accel(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
         return false;
     }
 
-    error_setg(errp,
-               "host IOMMU is incompatible with guest first stage translation");
-    return false;
+    return true;
 }
 
 VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as)
