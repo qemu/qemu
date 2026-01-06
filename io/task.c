@@ -70,8 +70,12 @@ QIOTask *qio_task_new(Object *source,
     return task;
 }
 
-static void qio_task_free(QIOTask *task)
+void qio_task_free(QIOTask *task)
 {
+    if (!task) {
+        return;
+    }
+
     qemu_mutex_lock(&task->thread_lock);
     if (task->thread) {
         if (task->thread->destroy) {
@@ -110,6 +114,7 @@ static gboolean qio_task_thread_result(gpointer opaque)
 
     trace_qio_task_thread_result(task);
     qio_task_complete(task);
+    qio_task_free(task);
 
     return FALSE;
 }
@@ -196,7 +201,6 @@ void qio_task_complete(QIOTask *task)
 {
     task->func(task, task->opaque);
     trace_qio_task_complete(task);
-    qio_task_free(task);
 }
 
 
