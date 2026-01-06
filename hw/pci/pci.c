@@ -3032,6 +3032,18 @@ uint64_t pci_device_get_viommu_flags(PCIDevice *dev)
     return 0;
 }
 
+uint64_t pci_device_get_host_iommu_quirks(PCIDevice *dev, uint32_t type,
+                                          void *caps, uint32_t size)
+{
+    PCIBus *iommu_bus;
+
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, NULL, NULL);
+    if (iommu_bus && iommu_bus->iommu_ops->get_host_iommu_quirks) {
+        return iommu_bus->iommu_ops->get_host_iommu_quirks(type, caps, size);
+    }
+    return 0;
+}
+
 int pci_pri_request_page(PCIDevice *dev, uint32_t pasid, bool priv_req,
                          bool exec_req, hwaddr addr, bool lpig,
                          uint16_t prgi, bool is_read, bool is_write)

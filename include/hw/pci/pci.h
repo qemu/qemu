@@ -475,6 +475,23 @@ typedef struct PCIIOMMUOps {
      */
     uint64_t (*get_viommu_flags)(void *opaque);
     /**
+     * @get_host_iommu_quirks: get host IOMMU quirks
+     *
+     * Optional callback, if not implemented, then vIOMMU doesn't support
+     * converting @type specific hardware information data into a standard
+     * bitmap format.
+     *
+     * @type: IOMMU hardware info type
+     *
+     * @caps: IOMMU @type specific hardware information data
+     *
+     * @size: size of @caps
+     *
+     * Returns: bitmap with each bit representing a host IOMMU quirk defined in
+     * enum host_iommu_quirks
+     */
+    uint64_t (*get_host_iommu_quirks)(uint32_t type, void *caps, uint32_t size);
+    /**
      * @get_iotlb_info: get properties required to initialize a device IOTLB.
      *
      * Callback required if devices are allowed to cache translations.
@@ -665,6 +682,20 @@ void pci_device_unset_iommu_device(PCIDevice *dev);
  * @dev: PCI device pointer.
  */
 uint64_t pci_device_get_viommu_flags(PCIDevice *dev);
+
+/**
+ * pci_device_get_host_iommu_quirks: get host IOMMU quirks.
+ *
+ * Returns: bitmap with each bit representing a host IOMMU quirk defined in
+ * enum host_iommu_quirks. Or 0 if vIOMMU doesn't convert any.
+ *
+ * @dev: PCI device pointer.
+ * @type: IOMMU hardware info type
+ * @caps: IOMMU @type specific hardware information data
+ * @size: size of @caps
+ */
+uint64_t pci_device_get_host_iommu_quirks(PCIDevice *dev, uint32_t type,
+                                          void *caps, uint32_t size);
 
 /**
  * pci_iommu_get_iotlb_info: get properties required to initialize a
