@@ -169,3 +169,12 @@ otherwise below error shows:
 .. code-block:: none
 
     qemu-system-x86_64: -device vfio-pci,host=0000:02:00.0,bus=bridge1,iommufd=iommufd0: vfio 0000:02:00.0: Failed to set vIOMMU: Host device downstream to a PCI bridge is unsupported when x-flts=on
+
+If host IOMMU has ERRATA_772415_SPR17, running guest with "intel_iommu=on,sm_off"
+is unsupported, kexec or reboot guest from "intel_iommu=on,sm_on" to
+"intel_iommu=on,sm_off" is also unsupported. Configure scalable mode off as
+below if it's not needed by guest:
+
+.. code-block:: bash
+
+    -device intel-iommu,x-scalable-mode=off
