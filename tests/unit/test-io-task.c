@@ -73,12 +73,35 @@ static void test_task_complete(void)
     src = qio_task_get_source(task);
 
     qio_task_complete(task);
+    qio_task_free(task);
 
     g_assert(obj == src);
 
     object_unref(obj);
 
     g_assert(data.source == obj);
+    g_assert(data.err == NULL);
+    g_assert(data.freed == false);
+}
+
+
+static void test_task_cancel(void)
+{
+    QIOTask *task;
+    Object *obj = object_new(TYPE_DUMMY);
+    Object *src;
+    struct TestTaskData data = { NULL, NULL, false };
+
+    task = qio_task_new(obj, task_callback, &data, NULL);
+    src = qio_task_get_source(task);
+
+    qio_task_free(task);
+
+    g_assert(obj == src);
+
+    object_unref(obj);
+
+    g_assert(data.source == NULL);
     g_assert(data.err == NULL);
     g_assert(data.freed == false);
 }
@@ -101,6 +124,7 @@ static void test_task_data_free(void)
     task = qio_task_new(obj, task_callback, &data, task_data_free);
 
     qio_task_complete(task);
+    qio_task_free(task);
 
     object_unref(obj);
 
@@ -123,6 +147,7 @@ static void test_task_failure(void)
 
     qio_task_set_error(task, err);
     qio_task_complete(task);
+    qio_task_free(task);
 
     object_unref(obj);
 
@@ -260,6 +285,7 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
     type_register_static(&dummy_info);
     g_test_add_func("/crypto/task/complete", test_task_complete);
+    g_test_add_func("/crypto/task/cancel", test_task_cancel);
     g_test_add_func("/crypto/task/datafree", test_task_data_free);
     g_test_add_func("/crypto/task/failure", test_task_failure);
     g_test_add_func("/crypto/task/thread_complete", test_task_thread_complete);
