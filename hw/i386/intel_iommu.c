@@ -48,10 +48,11 @@
 #define VTD_CE_GET_PRE(ce) \
     ((ce)->val[0] & VTD_SM_CONTEXT_ENTRY_PRE)
 
-/* pe operations */
-#define VTD_PE_GET_TYPE(pe) ((pe)->val[0] & VTD_SM_PASID_ENTRY_PGTT)
-#define VTD_PE_GET_FS_LEVEL(pe) \
-    (4 + (((pe)->val[2] >> 2) & VTD_SM_PASID_ENTRY_FSPM))
+/*
+ * Paging mode for first-stage translation (VTD spec Figure 9-6)
+ * 00: 4-level paging, 01: 5-level paging
+ */
+#define VTD_PE_GET_FS_LEVEL(pe) (VTD_SM_PASID_ENTRY_FSPM(pe) + 4)
 #define VTD_PE_GET_SS_LEVEL(pe) \
     (2 + (((pe)->val[0] >> 2) & VTD_SM_PASID_ENTRY_AW))
 
@@ -807,7 +808,7 @@ static inline bool vtd_is_fs_level_supported(IntelIOMMUState *s, uint32_t level)
 /* Return true if check passed, otherwise false */
 static inline bool vtd_pe_type_check(IntelIOMMUState *s, VTDPASIDEntry *pe)
 {
-    switch (VTD_PE_GET_TYPE(pe)) {
+    switch (VTD_SM_PASID_ENTRY_PGTT(pe)) {
     case VTD_SM_PASID_ENTRY_FST:
         return !!(s->ecap & VTD_ECAP_FSTS);
     case VTD_SM_PASID_ENTRY_SST:
@@ -882,7 +883,7 @@ static int vtd_get_pe_in_pasid_leaf_table(IntelIOMMUState *s,
         return -VTD_FR_PASID_TABLE_ENTRY_INV;
     }
 
-    pgtt = VTD_PE_GET_TYPE(pe);
+    pgtt = VTD_SM_PASID_ENTRY_PGTT(pe);
     if (pgtt == VTD_SM_PASID_ENTRY_SST &&
         !vtd_is_ss_level_supported(s, VTD_PE_GET_SS_LEVEL(pe))) {
             return -VTD_FR_PASID_TABLE_ENTRY_INV;
@@ -1116,7 +1117,7 @@ static dma_addr_t vtd_get_iova_pgtbl_base(IntelIOMMUState *s,
     if (s->root_scalable) {
         vtd_ce_get_pasid_entry(s, ce, &pe, pasid);
         if (s->fsts) {
-            return pe.val[2] & VTD_SM_PASID_ENTRY_FSPTPTR;
+            return vtd_pe_get_fspt_base(&pe);
         } else {
             return pe.val[0] & VTD_SM_PASID_ENTRY_SSPTPTR;
         }
@@ -1605,7 +1606,7 @@ static uint16_t vtd_get_domain_id(IntelIOMMUState *s,
 
     if (s->root_scalable) {
         vtd_ce_get_pasid_entry(s, ce, &pe, pasid);
-        return VTD_SM_PASID_ENTRY_DID(pe.val[1]);
+        return VTD_SM_PASID_ENTRY_DID(&pe);
     }
 
     return VTD_CONTEXT_ENTRY_DID(ce->hi);
@@ -1687,7 +1688,7 @@ static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
              */
             return false;
         }
-        return (VTD_PE_GET_TYPE(&pe) == VTD_SM_PASID_ENTRY_PT);
+        return vtd_pe_pgtt_is_pt(&pe);
     }
 
     return (vtd_ce_get_type(ce) == VTD_CONTEXT_TT_PASS_THROUGH);
@@ -3108,9 +3109,9 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
         /* Fall through */
     case VTD_INV_DESC_PASIDC_G_DSI:
         if (pc_entry->valid) {
-            did = VTD_SM_PASID_ENTRY_DID(pc_entry->pasid_entry.val[1]);
+            did = VTD_SM_PASID_ENTRY_DID(&pc_entry->pasid_entry);
         } else {
-            did = VTD_SM_PASID_ENTRY_DID(pe.val[1]);
+            did = VTD_SM_PASID_ENTRY_DID(&pe);
         }
         if (pc_info->did != did) {
             return;
@@ -5154,8 +5155,8 @@ static int vtd_pri_perform_implicit_invalidation(VTDAddressSpace *vtd_as,
     if (ret) {
         return -EINVAL;
     }
-    pgtt = VTD_PE_GET_TYPE(&pe);
-    domain_id = VTD_SM_PASID_ENTRY_DID(pe.val[1]);
+    pgtt = VTD_SM_PASID_ENTRY_PGTT(&pe);
+    domain_id = VTD_SM_PASID_ENTRY_DID(&pe);
     ret = 0;
     switch (pgtt) {
     case VTD_SM_PASID_ENTRY_FST:
