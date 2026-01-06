@@ -17,6 +17,9 @@ bool vtd_check_hiod_accel(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
                           Error **errp);
 VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as);
 bool vtd_propagate_guest_pasid(VTDAddressSpace *vtd_as, Error **errp);
+void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s, uint16_t domain_id,
+                                      uint32_t pasid, hwaddr addr,
+                                      uint64_t npages, bool ih);
 #else
 static inline bool vtd_check_hiod_accel(IntelIOMMUState *s,
                                         VTDHostIOMMUDevice *vtd_hiod,
@@ -36,6 +39,13 @@ static inline bool vtd_propagate_guest_pasid(VTDAddressSpace *vtd_as,
                                              Error **errp)
 {
     return true;
+}
+
+static inline void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s,
+                                                    uint16_t domain_id,
+                                                    uint32_t pasid, hwaddr addr,
+                                                    uint64_t npages, bool ih)
+{
 }
 #endif
 #endif
