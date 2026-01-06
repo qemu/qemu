@@ -12,6 +12,7 @@
 #include "system/iommufd.h"
 #include "intel_iommu_internal.h"
 #include "intel_iommu_accel.h"
+#include "hw/core/iommu.h"
 #include "hw/pci/pci_bus.h"
 #include "trace.h"
 
@@ -248,4 +249,24 @@ void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s, uint16_t domain_id,
      */
     g_hash_table_foreach(s->vtd_address_spaces,
                          vtd_flush_host_piotlb_locked, &piotlb_info);
+}
+
+static uint64_t vtd_get_host_iommu_quirks(uint32_t type,
+                                          void *caps, uint32_t size)
+{
+    struct iommu_hw_info_vtd *vtd = caps;
+    uint64_t quirks = 0;
+
+    if (type == IOMMU_HW_INFO_TYPE_INTEL_VTD &&
+        sizeof(struct iommu_hw_info_vtd) <= size &&
+        vtd->flags & IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17) {
+        quirks |= HOST_IOMMU_QUIRK_NESTING_PARENT_BYPASS_RO;
+    }
+
+    return quirks;
+}
+
+void vtd_iommu_ops_update_accel(PCIIOMMUOps *ops)
+{
+    ops->get_host_iommu_quirks = vtd_get_host_iommu_quirks;
 }
