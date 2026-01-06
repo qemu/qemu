@@ -708,7 +708,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_EXECFN, info->file_string);
 
     if (HAVE_ELF_HWCAP2) {
-        NEW_AUX_ENT(AT_HWCAP2, get_elf_hwcap(thread_cpu));
+        NEW_AUX_ENT(AT_HWCAP2, get_elf_hwcap2(thread_cpu));
     }
     if (u_base_platform) {
         NEW_AUX_ENT(AT_BASE_PLATFORM, u_base_platform);
