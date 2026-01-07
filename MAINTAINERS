@@ -105,6 +105,7 @@ S390 general architecture support
 M: Thomas Huth <thuth@redhat.com>
 S: Supported
 F: configs/devices/s390x-softmmu/default.mak
+F: configs/targets/s390x-softmmu.mak
 F: gdb-xml/s390*.xml
 F: hw/char/sclp*.[hc]
 F: hw/char/terminal3270.c
@@ -1844,6 +1845,7 @@ M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/s390-pci*
 F: include/hw/s390x/s390-pci*
+F: util/s390x_pci_mmio.c
 L: qemu-s390x@nongnu.org
 
 S390 channel subsystem

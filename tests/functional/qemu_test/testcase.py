@@ -249,17 +249,16 @@ class QemuBaseTest(unittest.TestCase):
         warnings.simplefilter("default")
         os.environ["PYTHONWARNINGS"] = "default"
 
-        path = os.path.basename(sys.argv[0])[:-3]
+        test_module = os.path.basename(sys.argv[0])[:-3]
 
         cache = os.environ.get("QEMU_TEST_PRECACHE", None)
         if cache is not None:
-            Asset.precache_suites(path, cache)
+            Asset.precache_suites(test_module, cache)
             return
 
         tr = pycotap.TAPTestRunner(message_log = pycotap.LogMode.LogToError,
                                    test_output_log = pycotap.LogMode.LogToError)
-        res = unittest.main(module = None, testRunner = tr, exit = False,
-                            argv=[sys.argv[0], path] + sys.argv[1:])
+        res = unittest.main(test_module, testRunner = tr, exit = False)
         failed = {}
         for (test, _message) in res.result.errors + res.result.failures:
             if hasattr(test, "log_filename") and not test.id() in failed:
@@ -349,7 +348,7 @@ class QemuSystemTest(QemuBaseTest):
         helptxt = run([self.qemu_bin, '-M', 'none', '-netdev', 'help'],
                       capture_output=True, check=True, encoding='utf8').stdout
         if helptxt.find('\n' + netdevname + '\n') < 0:
-            self.skipTest('no support for " + netdevname + " networking')
+            self.skipTest('no support for ' + netdevname + ' networking')
 
     def require_device(self, devicename):
         helptxt = run([self.qemu_bin, '-M', 'none', '-device', 'help'],

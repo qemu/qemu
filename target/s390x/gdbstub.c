@@ -34,11 +34,11 @@ int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
     switch (n) {
     case S390_PSWM_REGNUM:
-        return gdb_get_regl(mem_buf, s390_cpu_get_psw_mask(env));
+        return gdb_get_reg64(mem_buf, s390_cpu_get_psw_mask(env));
     case S390_PSWA_REGNUM:
-        return gdb_get_regl(mem_buf, env->psw.addr);
+        return gdb_get_reg64(mem_buf, env->psw.addr);
     case S390_R0_REGNUM ... S390_R15_REGNUM:
-        return gdb_get_regl(mem_buf, env->regs[n - S390_R0_REGNUM]);
+        return gdb_get_reg64(mem_buf, env->regs[n - S390_R0_REGNUM]);
     }
     return 0;
 }
@@ -190,7 +190,7 @@ static int cpu_read_c_reg(CPUState *cs, GByteArray *buf, int n)
 
     switch (n) {
     case S390_C0_REGNUM ... S390_C15_REGNUM:
-        return gdb_get_regl(buf, env->cregs[n]);
+        return gdb_get_reg64(buf, env->cregs[n]);
     default:
         return 0;
     }
@@ -227,13 +227,13 @@ static int cpu_read_virt_reg(CPUState *cs, GByteArray *mem_buf, int n)
 
     switch (n) {
     case S390_VIRT_CKC_REGNUM:
-        return gdb_get_regl(mem_buf, env->ckc);
+        return gdb_get_reg64(mem_buf, env->ckc);
     case S390_VIRT_CPUTM_REGNUM:
-        return gdb_get_regl(mem_buf, env->cputm);
+        return gdb_get_reg64(mem_buf, env->cputm);
     case S390_VIRT_BEA_REGNUM:
-        return gdb_get_regl(mem_buf, env->gbea);
+        return gdb_get_reg64(mem_buf, env->gbea);
     case S390_VIRT_PREFIX_REGNUM:
-        return gdb_get_regl(mem_buf, env->psa);
+        return gdb_get_reg64(mem_buf, env->psa);
     default:
         return 0;
     }
@@ -279,13 +279,13 @@ static int cpu_read_virt_kvm_reg(CPUState *cs, GByteArray *mem_buf, int n)
 
     switch (n) {
     case S390_VIRT_KVM_PP_REGNUM:
-        return gdb_get_regl(mem_buf, env->pp);
+        return gdb_get_reg64(mem_buf, env->pp);
     case S390_VIRT_KVM_PFT_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_token);
+        return gdb_get_reg64(mem_buf, env->pfault_token);
     case S390_VIRT_KVM_PFS_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_select);
+        return gdb_get_reg64(mem_buf, env->pfault_select);
     case S390_VIRT_KVM_PFC_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_compare);
+        return gdb_get_reg64(mem_buf, env->pfault_compare);
     default:
         return 0;
     }
@@ -330,7 +330,7 @@ static int cpu_read_gs_reg(CPUState *cs, GByteArray *buf, int n)
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
 
-    return gdb_get_regl(buf, env->gscb[n]);
+    return gdb_get_reg64(buf, env->gscb[n]);
 }
 
 static int cpu_write_gs_reg(CPUState *cs, uint8_t *mem_buf, int n)

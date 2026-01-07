@@ -55,8 +55,8 @@ G_NORETURN void tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
     g_assert(dxc <= 0xff);
 #if !defined(CONFIG_USER_ONLY)
     /* Store the DXC into the lowcore */
-    stl_phys(env_cpu(env)->as,
-             env->psa + offsetof(LowCore, data_exc_code), dxc);
+    stl_be_phys(env_cpu(env)->as,
+                env->psa + offsetof(LowCore, data_exc_code), dxc);
 #endif
 
     /* Store the DXC into the FPC if AFP is enabled */
@@ -72,8 +72,8 @@ G_NORETURN void tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
     g_assert(vxc <= 0xff);
 #if !defined(CONFIG_USER_ONLY)
     /* Always store the VXC into the lowcore, without AFP it is undefined */
-    stl_phys(env_cpu(env)->as,
-             env->psa + offsetof(LowCore, data_exc_code), vxc);
+    stl_be_phys(env_cpu(env)->as,
+                env->psa + offsetof(LowCore, data_exc_code), vxc);
 #endif
 
     /* Always store the VXC into the FPC, without AFP it is undefined */
@@ -651,10 +651,10 @@ void monitor_event(CPUS390XState *env,
                    uint8_t monitor_class, uintptr_t ra)
 {
     /* Store the Monitor Code and the Monitor Class Number into the lowcore */
-    stq_phys(env_cpu(env)->as,
-             env->psa + offsetof(LowCore, monitor_code), monitor_code);
-    stw_phys(env_cpu(env)->as,
-             env->psa + offsetof(LowCore, mon_class_num), monitor_class);
+    stq_be_phys(env_cpu(env)->as,
+                env->psa + offsetof(LowCore, monitor_code), monitor_code);
+    stw_be_phys(env_cpu(env)->as,
+                env->psa + offsetof(LowCore, mon_class_num), monitor_class);
 
     tcg_s390_program_interrupt(env, PGM_MONITOR, ra);
 }

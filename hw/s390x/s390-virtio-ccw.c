@@ -364,7 +364,24 @@ static void s390_cpu_plug(HotplugHandler *hotplug_dev,
     }
 }
 
-static inline void s390_do_cpu_ipl(CPUState *cs, run_on_cpu_data arg)
+static void s390_do_cpu_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    resettable_reset(OBJECT(cs), RESET_TYPE_S390_CPU_NORMAL);
+}
+
+static void s390_do_cpu_initial_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    resettable_reset(OBJECT(cs), RESET_TYPE_S390_CPU_INITIAL);
+}
+
+static void s390_do_cpu_load_normal(CPUState *cs, run_on_cpu_data arg)
+{
+    S390CPUClass *scc = S390_CPU_GET_CLASS(cs);
+
+    scc->load_normal(cs);
+}
+
+static void s390_do_cpu_ipl(CPUState *cs, run_on_cpu_data arg)
 {
     S390CPU *cpu = S390_CPU(cs);
 
@@ -890,14 +907,26 @@ static const TypeInfo ccw_machine_info = {
     DEFINE_CCW_MACHINE_IMPL(false, major, minor)
 
 
+static void ccw_machine_11_0_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_11_0_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE_AS_LATEST(11, 0);
+
 static void ccw_machine_10_2_instance_options(MachineState *machine)
 {
+    ccw_machine_11_0_instance_options(machine);
 }
 
 static void ccw_machine_10_2_class_options(MachineClass *mc)
 {
+    ccw_machine_11_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_10_2, hw_compat_10_2_len);
 }
-DEFINE_CCW_MACHINE_AS_LATEST(10, 2);
+DEFINE_CCW_MACHINE(10, 2);
 
 static void ccw_machine_10_1_instance_options(MachineState *machine)
 {
@@ -1132,18 +1161,6 @@ static void ccw_machine_5_1_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_5_1, hw_compat_5_1_len);
 }
 DEFINE_CCW_MACHINE(5, 1);
-
-static void ccw_machine_5_0_instance_options(MachineState *machine)
-{
-    ccw_machine_5_1_instance_options(machine);
-}
-
-static void ccw_machine_5_0_class_options(MachineClass *mc)
-{
-    ccw_machine_5_1_class_options(mc);
-    compat_props_add(mc->compat_props, hw_compat_5_0, hw_compat_5_0_len);
-}
-DEFINE_CCW_MACHINE(5, 0);
 
 static void ccw_machine_register_types(void)
 {

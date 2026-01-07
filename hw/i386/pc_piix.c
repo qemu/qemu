@@ -438,12 +438,21 @@ static void pc_i440fx_machine_options(MachineClass *m)
                      pc_piix_compat_defaults, pc_piix_compat_defaults_len);
 }
 
-static void pc_i440fx_machine_10_2_options(MachineClass *m)
+static void pc_i440fx_machine_11_0_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
 }
 
-DEFINE_I440FX_MACHINE_AS_LATEST(10, 2);
+DEFINE_I440FX_MACHINE_AS_LATEST(11, 0);
+
+static void pc_i440fx_machine_10_2_options(MachineClass *m)
+{
+    pc_i440fx_machine_11_0_options(m);
+    compat_props_add(m->compat_props, hw_compat_10_2, hw_compat_10_2_len);
+    compat_props_add(m->compat_props, pc_compat_10_2, pc_compat_10_2_len);
+}
+
+DEFINE_I440FX_MACHINE(10, 2);
 
 static void pc_i440fx_machine_10_1_options(MachineClass *m)
 {

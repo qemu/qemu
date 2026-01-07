@@ -1583,27 +1583,25 @@ static void css_update_chnmon(SubchDev *sch)
         /* Format 1, per-subchannel area. */
         uint32_t count;
 
-        count = address_space_ldl(&address_space_memory,
-                                  sch->curr_status.mba,
-                                  MEMTXATTRS_UNSPECIFIED,
-                                  NULL);
+        count = address_space_ldl_be(&address_space_memory,
+                                     sch->curr_status.mba,
+                                     MEMTXATTRS_UNSPECIFIED, NULL);
         count++;
-        address_space_stl(&address_space_memory, sch->curr_status.mba, count,
-                          MEMTXATTRS_UNSPECIFIED, NULL);
+        address_space_stl_be(&address_space_memory, sch->curr_status.mba, count,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
     } else {
         /* Format 0, global area. */
         uint32_t offset;
         uint16_t count;
 
         offset = sch->curr_status.pmcw.mbi << 5;
-        count = address_space_lduw(&address_space_memory,
-                                   channel_subsys.chnmon_area + offset,
-                                   MEMTXATTRS_UNSPECIFIED,
-                                   NULL);
+        count = address_space_lduw_be(&address_space_memory,
+                                      channel_subsys.chnmon_area + offset,
+                                      MEMTXATTRS_UNSPECIFIED, NULL);
         count++;
-        address_space_stw(&address_space_memory,
-                          channel_subsys.chnmon_area + offset, count,
-                          MEMTXATTRS_UNSPECIFIED, NULL);
+        address_space_stw_be(&address_space_memory,
+                             channel_subsys.chnmon_area + offset, count,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
     }
 }
 

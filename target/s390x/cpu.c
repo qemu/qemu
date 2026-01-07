@@ -141,6 +141,11 @@ static void s390_query_cpu_fast(CPUState *cpu, CpuInfoFast *value)
 #endif
 }
 
+void s390_do_cpu_full_reset(CPUState *cs, run_on_cpu_data arg)
+{
+    cpu_reset(cs);
+}
+
 /* S390CPUClass Resettable reset_hold phase method */
 static void s390_cpu_reset_hold(Object *obj, ResetType type)
 {

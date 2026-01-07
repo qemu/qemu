@@ -38,6 +38,9 @@
 #include "hw/acpi/generic_event_device.h"
 #include "qemu/audio.h"
 
+GlobalProperty hw_compat_10_2[] = {};
+const size_t hw_compat_10_2_len = G_N_ELEMENTS(hw_compat_10_2);
+
 GlobalProperty hw_compat_10_1[] = {
     { TYPE_ACPI_GED, "x-has-hest-addr", "false" },
     { TYPE_VIRTIO_NET, "host_tunnel", "off" },
