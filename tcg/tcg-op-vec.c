@@ -75,7 +75,6 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
         case INDEX_op_xor_vec:
         case INDEX_op_mov_vec:
         case INDEX_op_dup_vec:
-        case INDEX_op_dup2_vec:
         case INDEX_op_ld_vec:
         case INDEX_op_st_vec:
         case INDEX_op_bitsel_vec:
@@ -228,20 +227,11 @@ void tcg_gen_dupi_vec(unsigned vece, TCGv_vec r, uint64_t a)
 void tcg_gen_dup_i64_vec(unsigned vece, TCGv_vec r, TCGv_i64 a)
 {
     TCGArg ri = tcgv_vec_arg(r);
+    TCGArg ai = tcgv_i64_arg(a);
     TCGTemp *rt = arg_temp(ri);
     TCGType type = rt->base_type;
 
-    if (TCG_TARGET_REG_BITS == 64) {
-        TCGArg ai = tcgv_i64_arg(a);
-        vec_gen_2(INDEX_op_dup_vec, type, vece, ri, ai);
-    } else if (vece == MO_64) {
-        TCGArg al = tcgv_i32_arg(TCGV_LOW(a));
-        TCGArg ah = tcgv_i32_arg(TCGV_HIGH(a));
-        vec_gen_3(INDEX_op_dup2_vec, type, MO_64, ri, al, ah);
-    } else {
-        TCGArg ai = tcgv_i32_arg(TCGV_LOW(a));
-        vec_gen_2(INDEX_op_dup_vec, type, vece, ri, ai);
-    }
+    vec_gen_2(INDEX_op_dup_vec, type, vece, ri, ai);
 }
 
 void tcg_gen_dup_i32_vec(unsigned vece, TCGv_vec r, TCGv_i32 a)

@@ -1716,21 +1716,6 @@ static bool fold_dup(OptContext *ctx, TCGOp *op)
     return finish_folding(ctx, op);
 }
 
-static bool fold_dup2(OptContext *ctx, TCGOp *op)
-{
-    if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-        uint64_t t = deposit64(arg_const_val(op->args[1]), 32, 32,
-                               arg_const_val(op->args[2]));
-        return tcg_opt_gen_movi(ctx, op, op->args[0], t);
-    }
-
-    if (args_are_copies(op->args[1], op->args[2])) {
-        op->opc = INDEX_op_dup_vec;
-        TCGOP_VECE(op) = MO_32;
-    }
-    return finish_folding(ctx, op);
-}
-
 static bool fold_eqv(OptContext *ctx, TCGOp *op)
 {
     uint64_t z_mask, o_mask, s_mask;
@@ -2886,9 +2871,6 @@ void tcg_optimize(TCGContext *s)
             break;
         case INDEX_op_dup_vec:
             done = fold_dup(&ctx, op);
-            break;
-        case INDEX_op_dup2_vec:
-            done = fold_dup2(&ctx, op);
             break;
         case INDEX_op_eqv:
         case INDEX_op_eqv_vec:

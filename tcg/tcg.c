@@ -2493,8 +2493,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_xor_vec:
     case INDEX_op_cmp_vec:
         return has_type;
-    case INDEX_op_dup2_vec:
-        return has_type && TCG_TARGET_REG_BITS == 32;
     case INDEX_op_not_vec:
         return has_type && TCG_TARGET_HAS_not_vec;
     case INDEX_op_neg_vec:
@@ -5888,93 +5886,6 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     }
 }
 
-static bool tcg_reg_alloc_dup2(TCGContext *s, const TCGOp *op)
-{
-    const TCGLifeData arg_life = op->life;
-    TCGTemp *ots, *itsl, *itsh;
-    TCGType vtype = TCGOP_TYPE(op);
-
-    /* This opcode is only valid for 32-bit hosts, for 64-bit elements. */
-    tcg_debug_assert(TCG_TARGET_REG_BITS == 32);
-    tcg_debug_assert(TCGOP_VECE(op) == MO_64);
-
-    ots = arg_temp(op->args[0]);
-    itsl = arg_temp(op->args[1]);
-    itsh = arg_temp(op->args[2]);
-
-    /* ENV should not be modified.  */
-    tcg_debug_assert(!temp_readonly(ots));
-
-    /* Allocate the output register now.  */
-    if (ots->val_type != TEMP_VAL_REG) {
-        TCGRegSet allocated_regs = s->reserved_regs;
-        TCGRegSet dup_out_regs = opcode_args_ct(op)[0].regs;
-        TCGReg oreg;
-
-        /* Make sure to not spill the input registers. */
-        if (!IS_DEAD_ARG(1) && itsl->val_type == TEMP_VAL_REG) {
-            tcg_regset_set_reg(allocated_regs, itsl->reg);
-        }
-        if (!IS_DEAD_ARG(2) && itsh->val_type == TEMP_VAL_REG) {
-            tcg_regset_set_reg(allocated_regs, itsh->reg);
-        }
-
-        oreg = tcg_reg_alloc(s, dup_out_regs, allocated_regs,
-                             output_pref(op, 0), ots->indirect_base);
-        set_temp_val_reg(s, ots, oreg);
-    }
-
-    /* Promote dup2 of immediates to dupi_vec. */
-    if (itsl->val_type == TEMP_VAL_CONST && itsh->val_type == TEMP_VAL_CONST) {
-        uint64_t val = deposit64(itsl->val, 32, 32, itsh->val);
-        MemOp vece = MO_64;
-
-        if (val == dup_const(MO_8, val)) {
-            vece = MO_8;
-        } else if (val == dup_const(MO_16, val)) {
-            vece = MO_16;
-        } else if (val == dup_const(MO_32, val)) {
-            vece = MO_32;
-        }
-
-        tcg_out_dupi_vec(s, vtype, vece, ots->reg, val);
-        goto done;
-    }
-
-    /* If the two inputs form one 64-bit value, try dupm_vec. */
-    if (itsl->temp_subindex == HOST_BIG_ENDIAN &&
-        itsh->temp_subindex == !HOST_BIG_ENDIAN &&
-        itsl == itsh + (HOST_BIG_ENDIAN ? 1 : -1)) {
-        TCGTemp *its = itsl - HOST_BIG_ENDIAN;
-
-        temp_sync(s, its + 0, s->reserved_regs, 0, 0);
-        temp_sync(s, its + 1, s->reserved_regs, 0, 0);
-
-        if (tcg_out_dupm_vec(s, vtype, MO_64, ots->reg,
-                             its->mem_base->reg, its->mem_offset)) {
-            goto done;
-        }
-    }
-
-    /* Fall back to generic expansion. */
-    return false;
-
- done:
-    ots->mem_coherent = 0;
-    if (IS_DEAD_ARG(1)) {
-        temp_dead(s, itsl);
-    }
-    if (IS_DEAD_ARG(2)) {
-        temp_dead(s, itsh);
-    }
-    if (NEED_SYNC_ARG(0)) {
-        temp_sync(s, ots, s->reserved_regs, 0, IS_DEAD_ARG(0));
-    } else if (IS_DEAD_ARG(0)) {
-        temp_dead(s, ots);
-    }
-    return true;
-}
-
 static void load_arg_reg(TCGContext *s, TCGReg reg, TCGTemp *ts,
                          TCGRegSet allocated_regs)
 {
@@ -6939,11 +6850,6 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
         case INDEX_op_mb:
             tcg_out_mb(s, op->args[0]);
             break;
-        case INDEX_op_dup2_vec:
-            if (tcg_reg_alloc_dup2(s, op)) {
-                break;
-            }
-            /* fall through */
         default:
         do_default:
             /* Sanity check that we've not introduced any unhandled opcodes. */
