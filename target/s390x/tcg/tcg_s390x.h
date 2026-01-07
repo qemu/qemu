@@ -21,4 +21,9 @@ G_NORETURN void tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
 G_NORETURN void tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
                                           uintptr_t ra);
 
+#ifndef CONFIG_USER_ONLY
+void s390_cpu_recompute_watchpoints(CPUState *cs);
+void s390x_cpu_debug_excp_handler(CPUState *cs);
+#endif
+
 #endif /* TCG_S390X_H */
