@@ -825,11 +825,6 @@ typedef void (*gen_atomic_op_i64)(TCGv_i64, TCGv_env, TCGv_i64,
 typedef void (*gen_atomic_op_i128)(TCGv_i128, TCGv_env, TCGv_i64,
                                    TCGv_i128, TCGv_i32);
 
-#ifdef CONFIG_ATOMIC64
-# define WITH_ATOMIC64(X) X,
-#else
-# define WITH_ATOMIC64(X)
-#endif
 #if HAVE_CMPXCHG128
 # define WITH_ATOMIC128(X) X,
 #else
@@ -842,8 +837,8 @@ static void * const table_cmpxchg[(MO_SIZE | MO_BSWAP) + 1] = {
     [MO_16 | MO_BE] = gen_helper_atomic_cmpxchgw_be,
     [MO_32 | MO_LE] = gen_helper_atomic_cmpxchgl_le,
     [MO_32 | MO_BE] = gen_helper_atomic_cmpxchgl_be,
-    WITH_ATOMIC64([MO_64 | MO_LE] = gen_helper_atomic_cmpxchgq_le)
-    WITH_ATOMIC64([MO_64 | MO_BE] = gen_helper_atomic_cmpxchgq_be)
+    [MO_64 | MO_LE] = gen_helper_atomic_cmpxchgq_le,
+    [MO_64 | MO_BE] = gen_helper_atomic_cmpxchgq_be,
     WITH_ATOMIC128([MO_128 | MO_LE] = gen_helper_atomic_cmpxchgo_le)
     WITH_ATOMIC128([MO_128 | MO_BE] = gen_helper_atomic_cmpxchgo_be)
 };
@@ -1235,8 +1230,8 @@ static void * const table_##NAME[(MO_SIZE | MO_BSWAP) + 1] = {          \
     [MO_16 | MO_BE] = gen_helper_atomic_##NAME##w_be,                   \
     [MO_32 | MO_LE] = gen_helper_atomic_##NAME##l_le,                   \
     [MO_32 | MO_BE] = gen_helper_atomic_##NAME##l_be,                   \
-    WITH_ATOMIC64([MO_64 | MO_LE] = gen_helper_atomic_##NAME##q_le)     \
-    WITH_ATOMIC64([MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be)     \
+    [MO_64 | MO_LE] = gen_helper_atomic_##NAME##q_le,                   \
+    [MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be,                   \
     WITH_ATOMIC128([MO_128 | MO_LE] = gen_helper_atomic_##NAME##o_le)   \
     WITH_ATOMIC128([MO_128 | MO_BE] = gen_helper_atomic_##NAME##o_be)   \
 };                                                                      \
@@ -1287,8 +1282,8 @@ static void * const table_##NAME[(MO_SIZE | MO_BSWAP) + 1] = {          \
     [MO_16 | MO_BE] = gen_helper_atomic_##NAME##w_be,                   \
     [MO_32 | MO_LE] = gen_helper_atomic_##NAME##l_le,                   \
     [MO_32 | MO_BE] = gen_helper_atomic_##NAME##l_be,                   \
-    WITH_ATOMIC64([MO_64 | MO_LE] = gen_helper_atomic_##NAME##q_le)     \
-    WITH_ATOMIC64([MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be)     \
+    [MO_64 | MO_LE] = gen_helper_atomic_##NAME##q_le,                   \
+    [MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be,                   \
 };                                                                      \
 void tcg_gen_atomic_##NAME##_i32_chk(TCGv_i32 ret, TCGTemp *addr,       \
                                      TCGv_i32 val, TCGArg idx,          \

@@ -46,11 +46,8 @@ CMPXCHG_HELPER(cmpxchgw_be, uint32_t)
 CMPXCHG_HELPER(cmpxchgw_le, uint32_t)
 CMPXCHG_HELPER(cmpxchgl_be, uint32_t)
 CMPXCHG_HELPER(cmpxchgl_le, uint32_t)
-
-#ifdef CONFIG_ATOMIC64
 CMPXCHG_HELPER(cmpxchgq_be, uint64_t)
 CMPXCHG_HELPER(cmpxchgq_le, uint64_t)
-#endif
 
 #if HAVE_CMPXCHG128
 CMPXCHG_HELPER(cmpxchgo_be, Int128)
@@ -64,7 +61,6 @@ CMPXCHG_HELPER(cmpxchgo_le, Int128)
                                   TYPE val, uint32_t oi)                 \
     { return glue(glue(cpu_atomic_,OP),_mmu)(env, addr, val, oi, GETPC()); }
 
-#ifdef CONFIG_ATOMIC64
 #define GEN_ATOMIC_HELPERS(OP)              \
     ATOMIC_HELPER(glue(OP,b), uint32_t)     \
     ATOMIC_HELPER(glue(OP,w_be), uint32_t)  \
@@ -73,14 +69,6 @@ CMPXCHG_HELPER(cmpxchgo_le, Int128)
     ATOMIC_HELPER(glue(OP,l_le), uint32_t)  \
     ATOMIC_HELPER(glue(OP,q_be), uint64_t)  \
     ATOMIC_HELPER(glue(OP,q_le), uint64_t)
-#else
-#define GEN_ATOMIC_HELPERS(OP)              \
-    ATOMIC_HELPER(glue(OP,b), uint32_t)     \
-    ATOMIC_HELPER(glue(OP,w_be), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,w_le), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,l_be), uint32_t)  \
-    ATOMIC_HELPER(glue(OP,l_le), uint32_t)
-#endif
 
 GEN_ATOMIC_HELPERS(fetch_add)
 GEN_ATOMIC_HELPERS(fetch_and)
