@@ -59,26 +59,6 @@ CMPXCHG_HELPER(cmpxchgo_le, Int128)
 
 #undef CMPXCHG_HELPER
 
-Int128 HELPER(nonatomic_cmpxchgo)(CPUArchState *env, uint64_t addr,
-                                  Int128 cmpv, Int128 newv, uint32_t oi)
-{
-#if TCG_TARGET_REG_BITS == 32
-    uintptr_t ra = GETPC();
-    Int128 oldv;
-
-    oldv = cpu_ld16_mmu(env, addr, oi, ra);
-    if (int128_eq(oldv, cmpv)) {
-        cpu_st16_mmu(env, addr, newv, oi, ra);
-    } else {
-        /* Even with comparison failure, still need a write cycle. */
-        probe_write(env, addr, 16, get_mmuidx(oi), ra);
-    }
-    return oldv;
-#else
-    g_assert_not_reached();
-#endif
-}
-
 #define ATOMIC_HELPER(OP, TYPE) \
     TYPE HELPER(glue(atomic_,OP))(CPUArchState *env, uint64_t addr,  \
                                   TYPE val, uint32_t oi)                 \
