@@ -4864,7 +4864,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 static bool hppa_tr_disas_log(const DisasContextBase *dcbase,
                               CPUState *cs, FILE *logfile)
 {
-    target_ulong pc = dcbase->pc_first;
+    vaddr pc = dcbase->pc_first;
 
     switch (pc) {
     case 0x00:
