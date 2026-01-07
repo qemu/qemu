@@ -26,11 +26,6 @@
 #include <ffi.h>
 
 
-#define ctpop_tr    glue(ctpop, TCG_TARGET_REG_BITS)
-#define deposit_tr  glue(deposit, TCG_TARGET_REG_BITS)
-#define extract_tr  glue(extract, TCG_TARGET_REG_BITS)
-#define sextract_tr glue(sextract, TCG_TARGET_REG_BITS)
-
 /*
  * Enable TCI assertions only when debugging TCG (and without NDEBUG defined).
  * Without assertions, the interpreter runs much faster.
@@ -525,7 +520,7 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             break;
         case INDEX_op_ctpop:
             tci_args_rr(insn, &r0, &r1);
-            regs[r0] = ctpop_tr(regs[r1]);
+            regs[r0] = ctpop64(regs[r1]);
             break;
         case INDEX_op_addco:
             tci_args_rrr(insn, &r0, &r1, &r2);
@@ -639,15 +634,15 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             break;
         case INDEX_op_deposit:
             tci_args_rrrbb(insn, &r0, &r1, &r2, &pos, &len);
-            regs[r0] = deposit_tr(regs[r1], pos, len, regs[r2]);
+            regs[r0] = deposit64(regs[r1], pos, len, regs[r2]);
             break;
         case INDEX_op_extract:
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = extract_tr(regs[r1], pos, len);
+            regs[r0] = extract64(regs[r1], pos, len);
             break;
         case INDEX_op_sextract:
             tci_args_rrbb(insn, &r0, &r1, &pos, &len);
-            regs[r0] = sextract_tr(regs[r1], pos, len);
+            regs[r0] = sextract64(regs[r1], pos, len);
             break;
         case INDEX_op_brcond:
             tci_args_rl(insn, tb_ptr, &r0, &ptr);
