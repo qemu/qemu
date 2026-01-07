@@ -489,7 +489,7 @@ bool win_dump_available(Error **errp)
 
 void create_win_dump(DumpState *s, Error **errp)
 {
-    win_dump_available(errp);
+    g_assert_not_reached();
 }
 
 #endif
