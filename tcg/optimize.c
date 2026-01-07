@@ -1597,102 +1597,6 @@ static bool fold_brcond(OptContext *ctx, TCGOp *op)
     return true;
 }
 
-static bool fold_brcond2(OptContext *ctx, TCGOp *op)
-{
-    TCGCond cond;
-    TCGArg label;
-    int i, inv = 0;
-
-    i = do_constant_folding_cond2(ctx, op, &op->args[0]);
-    cond = op->args[4];
-    label = op->args[5];
-    if (i >= 0) {
-        goto do_brcond_const;
-    }
-
-    switch (cond) {
-    case TCG_COND_LT:
-    case TCG_COND_GE:
-        /*
-         * Simplify LT/GE comparisons vs zero to a single compare
-         * vs the high word of the input.
-         */
-        if (arg_is_const_val(op->args[2], 0) &&
-            arg_is_const_val(op->args[3], 0)) {
-            goto do_brcond_high;
-        }
-        break;
-
-    case TCG_COND_NE:
-        inv = 1;
-        QEMU_FALLTHROUGH;
-    case TCG_COND_EQ:
-        /*
-         * Simplify EQ/NE comparisons where one of the pairs
-         * can be simplified.
-         */
-        i = do_constant_folding_cond(TCG_TYPE_I32, op->args[0],
-                                     op->args[2], cond);
-        switch (i ^ inv) {
-        case 0:
-            goto do_brcond_const;
-        case 1:
-            goto do_brcond_high;
-        }
-
-        i = do_constant_folding_cond(TCG_TYPE_I32, op->args[1],
-                                     op->args[3], cond);
-        switch (i ^ inv) {
-        case 0:
-            goto do_brcond_const;
-        case 1:
-            goto do_brcond_low;
-        }
-        break;
-
-    case TCG_COND_TSTEQ:
-    case TCG_COND_TSTNE:
-        if (arg_is_const_val(op->args[2], 0)) {
-            goto do_brcond_high;
-        }
-        if (arg_is_const_val(op->args[3], 0)) {
-            goto do_brcond_low;
-        }
-        break;
-
-    default:
-        break;
-
-    do_brcond_low:
-        op->opc = INDEX_op_brcond;
-        op->args[1] = op->args[2];
-        op->args[2] = cond;
-        op->args[3] = label;
-        return fold_brcond(ctx, op);
-
-    do_brcond_high:
-        op->opc = INDEX_op_brcond;
-        op->args[0] = op->args[1];
-        op->args[1] = op->args[3];
-        op->args[2] = cond;
-        op->args[3] = label;
-        return fold_brcond(ctx, op);
-
-    do_brcond_const:
-        if (i == 0) {
-            tcg_op_remove(ctx->tcg, op);
-            return true;
-        }
-        op->opc = INDEX_op_br;
-        op->args[0] = label;
-        finish_ebb(ctx);
-        return true;
-    }
-
-    finish_bb(ctx);
-    return true;
-}
-
 static bool fold_bswap(OptContext *ctx, TCGOp *op)
 {
     uint64_t z_mask, o_mask, s_mask;
@@ -3162,9 +3066,6 @@ void tcg_optimize(TCGContext *s)
             break;
         case INDEX_op_brcond:
             done = fold_brcond(&ctx, op);
-            break;
-        case INDEX_op_brcond2_i32:
-            done = fold_brcond2(&ctx, op);
             break;
         case INDEX_op_bswap16:
         case INDEX_op_bswap32:

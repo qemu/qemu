@@ -265,14 +265,6 @@ static void DNI tcg_gen_op6i_i64(TCGOpcode opc, TCGv_i64 a1, TCGv_i64 a2,
                 tcgv_i64_arg(a3), tcgv_i64_arg(a4), tcgv_i64_arg(a5), a6);
 }
 
-static TCGOp * DNI tcg_gen_op6ii_i32(TCGOpcode opc, TCGv_i32 a1, TCGv_i32 a2,
-                                     TCGv_i32 a3, TCGv_i32 a4,
-                                     TCGArg a5, TCGArg a6)
-{
-    return tcg_gen_op6(opc, TCG_TYPE_I32, tcgv_i32_arg(a1), tcgv_i32_arg(a2),
-                       tcgv_i32_arg(a3), tcgv_i32_arg(a4), a5, a6);
-}
-
 /* Generic ops.  */
 
 void gen_set_label(TCGLabel *l)
@@ -1873,33 +1865,15 @@ void tcg_gen_brcond_i64(TCGCond cond, TCGv_i64 arg1, TCGv_i64 arg2, TCGLabel *l)
     if (cond == TCG_COND_ALWAYS) {
         tcg_gen_br(l);
     } else if (cond != TCG_COND_NEVER) {
-        TCGOp *op;
-        if (TCG_TARGET_REG_BITS == 32) {
-            op = tcg_gen_op6ii_i32(INDEX_op_brcond2_i32, TCGV_LOW(arg1),
-                                   TCGV_HIGH(arg1), TCGV_LOW(arg2),
-                                   TCGV_HIGH(arg2), cond, label_arg(l));
-        } else {
-            op = tcg_gen_op4ii_i64(INDEX_op_brcond, arg1, arg2, cond,
-                                   label_arg(l));
-        }
+        TCGOp *op = tcg_gen_op4ii_i64(INDEX_op_brcond, arg1, arg2, cond,
+                                      label_arg(l));
         add_as_label_use(l, op);
     }
 }
 
 void tcg_gen_brcondi_i64(TCGCond cond, TCGv_i64 arg1, int64_t arg2, TCGLabel *l)
 {
-    if (TCG_TARGET_REG_BITS == 64) {
-        tcg_gen_brcond_i64(cond, arg1, tcg_constant_i64(arg2), l);
-    } else if (cond == TCG_COND_ALWAYS) {
-        tcg_gen_br(l);
-    } else if (cond != TCG_COND_NEVER) {
-        TCGOp *op = tcg_gen_op6ii_i32(INDEX_op_brcond2_i32,
-                                      TCGV_LOW(arg1), TCGV_HIGH(arg1),
-                                      tcg_constant_i32(arg2),
-                                      tcg_constant_i32(arg2 >> 32),
-                                      cond, label_arg(l));
-        add_as_label_use(l, op);
-    }
+    tcg_gen_brcond_i64(cond, arg1, tcg_constant_i64(arg2), l);
 }
 
 void tcg_gen_setcond_i64(TCGCond cond, TCGv_i64 ret,
