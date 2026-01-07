@@ -586,12 +586,11 @@ static void do_dup(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
         }
     }
 
-    /* Implement inline with a vector type, if possible.
-     * Prefer integer when 64-bit host and no variable dup.
+    /*
+     * Implement inline with a vector type, if possible;
+     * prefer_i64 with 64-bit variable dup.
      */
-    type = choose_vector_type(NULL, vece, oprsz,
-                              (TCG_TARGET_REG_BITS == 64 && in_32 == NULL
-                               && (in_64 == NULL || vece == MO_64)));
+    type = choose_vector_type(NULL, vece, oprsz, vece == MO_64 && in_64);
     if (type != 0) {
         TCGv_vec t_vec = tcg_temp_new_vec(type);
 
@@ -612,11 +611,11 @@ static void do_dup(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
         t_32 = NULL;
 
         if (in_32) {
-            /* We are given a 32-bit variable input.  For a 64-bit host,
-               use a 64-bit operation unless the 32-bit operation would
-               be simple enough.  */
-            if (TCG_TARGET_REG_BITS == 64
-                && (vece != MO_32 || !check_size_impl(oprsz, 4))) {
+            /*
+             * We are given a 32-bit variable input.  Use a 64-bit operation
+             * unless the 32-bit operation would be simple enough.
+             */
+            if (vece != MO_32 || !check_size_impl(oprsz, 4)) {
                 t_64 = tcg_temp_ebb_new_i64();
                 tcg_gen_extu_i32_i64(t_64, in_32);
                 tcg_gen_dup_i64(vece, t_64, t_64);
@@ -629,14 +628,16 @@ static void do_dup(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
             t_64 = tcg_temp_ebb_new_i64();
             tcg_gen_dup_i64(vece, t_64, in_64);
         } else {
-            /* We are given a constant input.  */
-            /* For 64-bit hosts, use 64-bit constants for "simple" constants
-               or when we'd need too many 32-bit stores, or when a 64-bit
-               constant is really required.  */
+            /*
+             * We are given a constant input.
+             * Use 64-bit constants for "simple" constants or when we'd
+             * need too many 32-bit stores, or when a 64-bit constant
+             * is really required.
+             */
             if (vece == MO_64
-                || (TCG_TARGET_REG_BITS == 64
-                    && (in_c == 0 || in_c == -1
-                        || !check_size_impl(oprsz, 4)))) {
+                || in_c == 0
+                || in_c == -1
+                || !check_size_impl(oprsz, 4)) {
                 t_64 = tcg_constant_i64(in_c);
             } else {
                 t_32 = tcg_constant_i32(in_c);
@@ -3872,12 +3873,11 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
     }
 
     /*
-     * Implement inline with a vector type, if possible.
-     * Prefer integer when 64-bit host and 64-bit comparison.
+     * Implement inline with a vector type, if possible;
+     * prefer_i64 for a 64-bit comparison.
      */
     hold_list = tcg_swap_vecop_list(cmp_list);
-    type = choose_vector_type(cmp_list, vece, oprsz,
-                              TCG_TARGET_REG_BITS == 64 && vece == MO_64);
+    type = choose_vector_type(cmp_list, vece, oprsz, vece == MO_64);
     switch (type) {
     case TCG_TYPE_V256:
         /* Recall that ARM SVE allows vector sizes that are not a
@@ -3992,11 +3992,10 @@ void tcg_gen_gvec_cmps(TCGCond cond, unsigned vece, uint32_t dofs,
     }
 
     /*
-     * Implement inline with a vector type, if possible.
-     * Prefer integer when 64-bit host and 64-bit comparison.
+     * Implement inline with a vector type, if possible;
+     * prefer_i64 for a 64-bit comparison.
      */
-    type = choose_vector_type(cmp_list, vece, oprsz,
-                              TCG_TARGET_REG_BITS == 64 && vece == MO_64);
+    type = choose_vector_type(cmp_list, vece, oprsz, vece == MO_64);
     if (type != 0) {
         const TCGOpcode *hold_list = tcg_swap_vecop_list(cmp_list);
         TCGv_vec t_vec = tcg_temp_new_vec(type);
