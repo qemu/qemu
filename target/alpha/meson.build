@@ -18,4 +18,4 @@ alpha_system_ss.add(files(
 ))
 
 target_arch += {'alpha': alpha_ss}
-target_system_arch += {'alpha': alpha_system_ss}
+target_common_system_arch += {'alpha': alpha_system_ss}
