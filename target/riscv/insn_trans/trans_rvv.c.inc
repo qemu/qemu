@@ -1489,7 +1489,7 @@ static void tcg_gen_gvec_rsubs(unsigned vece, uint32_t dofs, uint32_t aofs,
           .fniv = gen_rsub_vec,
           .fno = gen_helper_vec_rsubs64,
           .opt_opc = vecop_list,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .prefer_i64 = true,
           .vece = MO_64 },
     };
 

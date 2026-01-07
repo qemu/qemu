@@ -3006,7 +3006,7 @@ static void gen_PMOVMSKB(DisasContext *s, X86DecodedInsn *decode)
         .fniv = gen_pmovmskb_vec,
         .opt_opc = vecop_list,
         .vece = MO_64,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64
+        .prefer_i64 = true
     };
     MemOp ot = decode->op[2].ot;
     int vec_len = vector_len(s, decode);
