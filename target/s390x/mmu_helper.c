@@ -122,7 +122,7 @@ static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
     return ret == MEMTX_OK;
 }
 
-static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
+static int mmu_translate_asce(CPUS390XState *env, vaddr vaddr,
                               uint64_t asc, uint64_t asce, target_ulong *raddr,
                               int *flags)
 {
@@ -381,7 +381,7 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
  *               there is an exception to raise
  * @return       0 = success, != 0, the exception to raise
  */
-int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
+int mmu_translate(CPUS390XState *env, vaddr vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, uint64_t *tec)
 {
     uint64_t asce;
