@@ -13,4 +13,4 @@ rx_ss.add(files(
   'disas.c'))
 
 target_arch += {'rx': rx_ss}
-target_system_arch += {'rx': ss.source_set()}
+target_common_system_arch += {'rx': ss.source_set()}
