@@ -12,8 +12,6 @@
 #ifndef HW_S390_PV_H
 #define HW_S390_PV_H
 
-#include "qapi/error.h"
-#include "system/kvm.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
 struct S390PVResponse {
@@ -23,27 +21,7 @@ struct S390PVResponse {
 };
 
 #ifdef CONFIG_KVM
-#include "cpu.h"
-
-static inline bool s390_is_pv(void)
-{
-    static S390CcwMachineState *ccw;
-    Object *obj;
-
-    if (ccw) {
-        return ccw->pv;
-    }
-
-    /* we have to bail out for the "none" machine */
-    obj = object_dynamic_cast(qdev_get_machine(),
-                              TYPE_S390_CCW_MACHINE);
-    if (!obj) {
-        return false;
-    }
-    ccw = S390_CCW_MACHINE(obj);
-    return ccw->pv;
-}
-
+bool s390_is_pv(void);
 int s390_pv_query_info(void);
 int s390_pv_vm_enable(void);
 void s390_pv_vm_disable(void);
