@@ -418,14 +418,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tci_args_l(insn, tb_ptr, &ptr);
             tb_ptr = ptr;
             continue;
-#if TCG_TARGET_REG_BITS == 32
-        case INDEX_op_setcond2_i32:
-            tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &condition);
-            regs[r0] = tci_compare64(tci_uint64(regs[r2], regs[r1]),
-                                     tci_uint64(regs[r4], regs[r3]),
-                                     condition);
-            break;
-#elif TCG_TARGET_REG_BITS == 64
         case INDEX_op_setcond:
             tci_args_rrrc(insn, &r0, &r1, &r2, &condition);
             regs[r0] = tci_compare64(regs[r1], regs[r2], condition);
@@ -435,7 +427,6 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             tmp32 = tci_compare64(regs[r1], regs[r2], condition);
             regs[r0] = regs[tmp32 ? r3 : r4];
             break;
-#endif
         case INDEX_op_mov:
             tci_args_rr(insn, &r0, &r1);
             regs[r0] = regs[r1];
@@ -1040,7 +1031,6 @@ int print_insn_tci(bfd_vma addr, disassemble_info *info)
 
     case INDEX_op_tci_movcond32:
     case INDEX_op_movcond:
-    case INDEX_op_setcond2_i32:
         tci_args_rrrrrc(insn, &r0, &r1, &r2, &r3, &r4, &c);
         info->fprintf_func(info->stream, "%-12s  %s, %s, %s, %s, %s, %s",
                            op_name, str_r(r0), str_r(r1), str_r(r2),

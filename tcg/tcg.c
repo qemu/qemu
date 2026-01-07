@@ -1088,12 +1088,6 @@ typedef struct TCGOutOpSetcond {
                     TCGReg ret, TCGReg a1, tcg_target_long a2);
 } TCGOutOpSetcond;
 
-typedef struct TCGOutOpSetcond2 {
-    TCGOutOp base;
-    void (*out)(TCGContext *s, TCGCond cond, TCGReg ret, TCGReg al, TCGReg ah,
-                TCGArg bl, bool const_bl, TCGArg bh, bool const_bh);
-} TCGOutOpSetcond2;
-
 typedef struct TCGOutOpStore {
     TCGOutOp base;
     void (*out_r)(TCGContext *s, TCGType type, TCGReg data,
@@ -1240,9 +1234,6 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
 
     [INDEX_op_goto_ptr] = &outop_goto_ptr,
 
-#if TCG_TARGET_REG_BITS == 32
-    OUTOP(INDEX_op_setcond2_i32, TCGOutOpSetcond2, outop_setcond2),
-#else
     OUTOP(INDEX_op_bswap64, TCGOutOpUnary, outop_bswap64),
     OUTOP(INDEX_op_ext_i32_i64, TCGOutOpUnary, outop_exts_i32_i64),
     OUTOP(INDEX_op_extu_i32_i64, TCGOutOpUnary, outop_extu_i32_i64),
@@ -1251,7 +1242,6 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_ld32u, TCGOutOpLoad, outop_ld32u),
     OUTOP(INDEX_op_ld32s, TCGOutOpLoad, outop_ld32s),
     OUTOP(INDEX_op_st32, TCGOutOpStore, outop_st),
-#endif
 };
 
 #undef OUTOP
@@ -2482,9 +2472,6 @@ bool tcg_op_supported(TCGOpcode op, TCGType type, unsigned flags)
     case INDEX_op_xor:
         return has_type;
 
-    case INDEX_op_setcond2_i32:
-        return TCG_TARGET_REG_BITS == 32;
-
     case INDEX_op_ld32u:
     case INDEX_op_ld32s:
     case INDEX_op_st32:
@@ -3013,7 +3000,6 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             case INDEX_op_setcond:
             case INDEX_op_negsetcond:
             case INDEX_op_movcond:
-            case INDEX_op_setcond2_i32:
             case INDEX_op_cmp_vec:
             case INDEX_op_cmpsel_vec:
                 if (op->args[k] < ARRAY_SIZE(cond_name)
@@ -5269,7 +5255,6 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         op_cond = op->args[3];
         break;
     case INDEX_op_movcond:
-    case INDEX_op_setcond2_i32:
     case INDEX_op_cmpsel_vec:
         op_cond = op->args[5];
         break;
@@ -5868,23 +5853,6 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             }
         }
         break;
-
-#if TCG_TARGET_REG_BITS == 32
-    case INDEX_op_setcond2_i32:
-        {
-            const TCGOutOpSetcond2 *out = &outop_setcond2;
-            TCGCond cond = new_args[5];
-
-            tcg_debug_assert(!const_args[1]);
-            tcg_debug_assert(!const_args[2]);
-            out->out(s, cond, new_args[0], new_args[1], new_args[2],
-                     new_args[3], const_args[3], new_args[4], const_args[4]);
-        }
-        break;
-#else
-    case INDEX_op_setcond2_i32:
-        g_assert_not_reached();
-#endif
 
     case INDEX_op_goto_ptr:
         tcg_debug_assert(!const_args[0]);
