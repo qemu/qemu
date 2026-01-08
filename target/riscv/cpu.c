@@ -3317,6 +3317,9 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.ext_zbb = true,
         .cfg.marchid = 0x8000000000000201,
         .cfg.mvendorid = MIPS_VENDOR_ID,
+#ifndef CONFIG_USER_ONLY
+        .custom_csrs = mips_csr_list,
+#endif
     ),
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
