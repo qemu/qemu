@@ -83,7 +83,7 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
                 uint64_t o64, n64, r64;
                 o64 = *(uint64_t *)g2h(cs, old);
                 n64 = *(uint64_t *)g2h(cs, new);
-                r64 = qatomic_cmpxchg((aligned_uint64_t *)g2h(cs, addr), o64, n64);
+                r64 = qatomic_cmpxchg((uint64_t *)g2h(cs, addr), o64, n64);
                 ret = r64 != o64;
             }
             break;
