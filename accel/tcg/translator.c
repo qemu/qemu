@@ -352,15 +352,13 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
             return true;
         }
         break;
-#ifdef CONFIG_ATOMIC64
     case 8:
         if (QEMU_IS_ALIGNED(pc, 8)) {
-            uint64_t t = qatomic_read__nocheck((uint64_t *)host);
+            uint64_t t = qatomic_read((uint64_t *)host);
             stq_he_p(dest, t);
             return true;
         }
         break;
-#endif
     }
     /* Unaligned or partial read from the second page is not atomic. */
     memcpy(dest, host, len);
