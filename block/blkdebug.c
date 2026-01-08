@@ -288,7 +288,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
     if (filename) {
         f = fopen(filename, "r");
         if (f == NULL) {
-            error_setg_errno(errp, errno, "Could not read blkdebug config file");
+            error_setg_file_open(errp, errno, filename);
             return -errno;
         }
 

@@ -101,7 +101,7 @@ static void xen_create_virtio_mmio_devices(XenPVHMachineState *s)
 #ifdef CONFIG_TPM
 static void xen_enable_tpm(XenPVHMachineState *s)
 {
-    Error *errp = NULL;
+    Error *err = NULL;
     DeviceState *dev;
     SysBusDevice *busdev;
 
@@ -111,8 +111,15 @@ static void xen_enable_tpm(XenPVHMachineState *s)
         return;
     }
     dev = qdev_new(TYPE_TPM_TIS_SYSBUS);
-    object_property_set_link(OBJECT(dev), "tpmdev", OBJECT(be), &errp);
-    object_property_set_str(OBJECT(dev), "tpmdev", be->id, &errp);
+    /*
+     * FIXME This use of &err is is wrong.  If both calls fail, the
+     * second will trip error_setv()'s assertion.  If just one call
+     * fails, we leak an Error object.  Setting the same property
+     * twice (first to a QOM path, then to an ID string) is almost
+     * certainly wrong, too.
+     */
+    object_property_set_link(OBJECT(dev), "tpmdev", OBJECT(be), &err);
+    object_property_set_str(OBJECT(dev), "tpmdev", be->id, &err);
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, s->cfg.tpm.base);

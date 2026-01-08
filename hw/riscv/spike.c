@@ -180,15 +180,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
 
 static bool spike_test_elf_image(char *filename)
 {
-    Error *err = NULL;
-
-    load_elf_hdr(filename, NULL, NULL, &err);
-    if (err) {
-        error_free(err);
-        return false;
-    } else {
-        return true;
-    }
+    return load_elf_hdr(filename, NULL, NULL, NULL);
 }
 
 static void spike_board_init(MachineState *machine)

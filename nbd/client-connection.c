@@ -207,8 +207,7 @@ static void *connect_thread_func(void *opaque)
         qemu_mutex_lock(&conn->mutex);
 
         error_free(conn->err);
-        conn->err = NULL;
-        error_propagate(&conn->err, local_err);
+        conn->err = local_err;
 
         if (ret < 0) {
             object_unref(OBJECT(conn->sioc));

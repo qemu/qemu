@@ -41,8 +41,8 @@ vhost_vdpa_device_get_u32(int fd, unsigned long int cmd, Error **errp)
     uint32_t val = (uint32_t)-1;
 
     if (ioctl(fd, cmd, &val) < 0) {
-        error_setg(errp, "vhost-vdpa-device: cmd 0x%lx failed: %s",
-                   cmd, strerror(errno));
+        error_setg_errno(errp, errno, "vhost-vdpa-device: cmd 0x%lx failed",
+                         cmd);
     }
 
     return val;

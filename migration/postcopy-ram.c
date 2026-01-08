@@ -582,7 +582,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
 
     ufd = uffd_open(O_CLOEXEC);
     if (ufd == -1) {
-        error_setg(errp, "Userfaultfd not available: %s", strerror(errno));
+        error_setg_errno(errp, errno, "Userfaultfd not available");
         goto out;
     }
 
@@ -620,7 +620,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
      * it was enabled.
      */
     if (munlockall()) {
-        error_setg(errp, "munlockall() failed: %s", strerror(errno));
+        error_setg_errno(errp, errno, "munlockall() failed");
         goto out;
     }
 
@@ -632,7 +632,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
     testarea = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_PRIVATE |
                                     MAP_ANONYMOUS, -1, 0);
     if (testarea == MAP_FAILED) {
-        error_setg(errp, "Failed to map test area: %s", strerror(errno));
+        error_setg_errno(errp, errno, "Failed to map test area");
         goto out;
     }
     g_assert(QEMU_PTR_IS_ALIGNED(testarea, pagesize));
@@ -642,14 +642,14 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
     reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
 
     if (ioctl(ufd, UFFDIO_REGISTER, &reg_struct)) {
-        error_setg(errp, "UFFDIO_REGISTER failed: %s", strerror(errno));
+        error_setg_errno(errp, errno, "UFFDIO_REGISTER failed");
         goto out;
     }
 
     range_struct.start = (uintptr_t)testarea;
     range_struct.len = pagesize;
     if (ioctl(ufd, UFFDIO_UNREGISTER, &range_struct)) {
-        error_setg(errp, "UFFDIO_UNREGISTER failed: %s", strerror(errno));
+        error_setg_errno(errp, errno, "UFFDIO_UNREGISTER failed");
         goto out;
     }
 

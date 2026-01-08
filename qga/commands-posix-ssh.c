@@ -61,20 +61,22 @@ mkdir_for_user(const char *path, const struct passwd *p,
                mode_t mode, Error **errp)
 {
     if (g_mkdir(path, mode) == -1) {
-        error_setg(errp, "failed to create directory '%s': %s",
-                   path, g_strerror(errno));
+        error_setg_errno(errp, errno, "failed to create directory '%s'",
+                         path);
         return false;
     }
 
     if (chown(path, p->pw_uid, p->pw_gid) == -1) {
-        error_setg(errp, "failed to set ownership of directory '%s': %s",
-                   path, g_strerror(errno));
+        error_setg_errno(errp, errno,
+                         "failed to set ownership of directory '%s'",
+                         path);
         return false;
     }
 
     if (chmod(path, mode) == -1) {
-        error_setg(errp, "failed to set permissions of directory '%s': %s",
-                   path, g_strerror(errno));
+        error_setg_errno(errp, errno,
+                         "failed to set permissions of directory '%s'",
+                         path);
         return false;
     }
 
@@ -95,14 +97,15 @@ write_authkeys(const char *path, const GStrv keys,
     }
 
     if (chown(path, p->pw_uid, p->pw_gid) == -1) {
-        error_setg(errp, "failed to set ownership of directory '%s': %s",
-                   path, g_strerror(errno));
+        error_setg_errno(errp, errno,
+                         "failed to set ownership of directory '%s'",
+                         path);
         return false;
     }
 
     if (chmod(path, 0600) == -1) {
-        error_setg(errp, "failed to set permissions of '%s': %s",
-                   path, g_strerror(errno));
+        error_setg_errno(errp, errno, "failed to set permissions of '%s'",
+                         path);
         return false;
     }
 

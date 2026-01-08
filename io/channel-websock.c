@@ -932,9 +932,7 @@ static void qio_channel_websock_finalize(Object *obj)
     if (ioc->io_tag) {
         g_source_remove(ioc->io_tag);
     }
-    if (ioc->io_err) {
-        error_free(ioc->io_err);
-    }
+    error_free(ioc->io_err);
     object_unref(OBJECT(ioc->master));
 }
 

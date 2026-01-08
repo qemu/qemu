@@ -4345,8 +4345,7 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
      * use co-routines here.
      */
     if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
-        error_setg(errp,
-                   "error in converting name to path %s", strerror(errno));
+        error_setg_errno(errp, errno, "error in converting name to path");
         goto out;
     }
     if (s->ops->lstat(&s->ctx, &path, &stat)) {

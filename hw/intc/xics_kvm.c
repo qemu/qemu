@@ -165,8 +165,9 @@ void icp_kvm_realize(DeviceState *dev, Error **errp)
     if (ret < 0) {
         Error *local_err = NULL;
 
-        error_setg(&local_err, "Unable to connect CPU%ld to kernel XICS: %s",
-                   vcpu_id, strerror(errno));
+        error_setg_errno(&local_err, errno,
+                         "Unable to connect CPU%ld to kernel XICS",
+                         vcpu_id);
         if (errno == ENOSPC) {
             error_append_hint(&local_err, "Try -smp maxcpus=N with N < %u\n",
                               MACHINE(qdev_get_machine())->smp.max_cpus);

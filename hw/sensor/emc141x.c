@@ -59,7 +59,7 @@ static void emc141x_get_temperature(Object *obj, Visitor *v, const char *name,
     unsigned tempid;
 
     if (sscanf(name, "temperature%u", &tempid) != 1) {
-        error_setg(errp, "error reading %s: %s", name, g_strerror(errno));
+        error_setg_errno(errp, errno, "error reading %s", name);
         return;
     }
 
@@ -86,7 +86,7 @@ static void emc141x_set_temperature(Object *obj, Visitor *v, const char *name,
     }
 
     if (sscanf(name, "temperature%u", &tempid) != 1) {
-        error_setg(errp, "error reading %s: %s", name, g_strerror(errno));
+        error_setg_errno(errp, errno, "error reading %s", name);
         return;
     }
 
