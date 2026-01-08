@@ -1815,9 +1815,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
      */
     if (parallel) {
         uint32_t max = 2;
-#ifdef CONFIG_ATOMIC64
         max = 3;
-#endif
         if ((HAVE_CMPXCHG128 ? 0 : fc + 2 > max) ||
             (HAVE_ATOMIC128_RW ? 0 : sc > max)) {
             cpu_loop_exit_atomic(env_cpu(env), ra);
@@ -1856,12 +1854,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
             uint64_t ov;
 
             if (parallel) {
-#ifdef CONFIG_ATOMIC64
                 ov = cpu_atomic_cmpxchgq_be_mmu(env, a1, cv, nv, oi8, ra);
-#else
-                /* Note that we asserted !parallel above.  */
-                g_assert_not_reached();
-#endif
             } else {
                 ov = cpu_ldq_mmu(env, a1, oi8, ra);
                 cpu_stq_mmu(env, a1, (ov == cv ? nv : ov), oi8, ra);
