@@ -651,7 +651,7 @@ bdrv_query_bds_stats(BlockDriverState *bs, bool blk_level)
         s->node_name = g_strdup(bdrv_get_node_name(bs));
     }
 
-    s->stats->wr_highest_offset = stat64_get(&bs->wr_highest_offset);
+    s->stats->wr_highest_offset = qatomic_read(&bs->wr_highest_offset);
 
     s->driver_specific = bdrv_get_specific_stats(bs);
 

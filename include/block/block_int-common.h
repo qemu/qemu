@@ -30,7 +30,6 @@
 #include "qemu/aiocb.h"
 #include "qemu/iov.h"
 #include "qemu/rcu.h"
-#include "qemu/stats64.h"
 
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8
 
@@ -1246,7 +1245,7 @@ struct BlockDriverState {
     QLIST_HEAD(, BdrvDirtyBitmap) dirty_bitmaps;
 
     /* Offset after the highest byte written to */
-    Stat64 wr_highest_offset;
+    uint64_t wr_highest_offset;
 
     /*
      * If true, copy read backing sectors into image.  Can be >1 if more
