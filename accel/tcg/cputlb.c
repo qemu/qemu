@@ -2081,25 +2081,6 @@ static uint64_t do_ld_parts_beN(MMULookupPageData *p, uint64_t ret_be)
 }
 
 /**
- * do_ld_parts_be4
- * @p: translation parameters
- * @ret_be: accumulated data
- *
- * As do_ld_bytes_beN, but with one atomic load.
- * Four aligned bytes are guaranteed to cover the load.
- */
-static uint64_t do_ld_whole_be4(MMULookupPageData *p, uint64_t ret_be)
-{
-    int o = p->addr & 3;
-    uint32_t x = load_atomic4(p->haddr - o);
-
-    x = cpu_to_be32(x);
-    x <<= o * 8;
-    x >>= (4 - p->size) * 8;
-    return (ret_be << (p->size * 8)) | x;
-}
-
-/**
  * do_ld_parts_be8
  * @p: translation parameters
  * @ret_be: accumulated data
@@ -2111,7 +2092,7 @@ static uint64_t do_ld_whole_be8(CPUState *cpu, uintptr_t ra,
                                 MMULookupPageData *p, uint64_t ret_be)
 {
     int o = p->addr & 7;
-    uint64_t x = load_atomic8_or_exit(cpu, ra, p->haddr - o);
+    uint64_t x = load_atomic8(p->haddr - o);
 
     x = cpu_to_be64(x);
     x <<= o * 8;
@@ -2176,11 +2157,7 @@ static uint64_t do_ld_beN(CPUState *cpu, MMULookupPageData *p,
         if (atom == MO_ATOM_IFALIGN_PAIR
             ? p->size == half_size
             : p->size >= half_size) {
-            if (!HAVE_al8_fast && p->size < 4) {
-                return do_ld_whole_be4(p, ret_be);
-            } else {
-                return do_ld_whole_be8(cpu, ra, p, ret_be);
-            }
+            return do_ld_whole_be8(cpu, ra, p, ret_be);
         }
         /* fall through */
 
@@ -2586,13 +2563,7 @@ static uint64_t do_st_leN(CPUState *cpu, MMULookupPageData *p,
         if (atom == MO_ATOM_IFALIGN_PAIR
             ? p->size == half_size
             : p->size >= half_size) {
-            if (!HAVE_al8_fast && p->size <= 4) {
-                return store_whole_le4(p->haddr, p->size, val_le);
-            } else if (HAVE_al8) {
-                return store_whole_le8(p->haddr, p->size, val_le);
-            } else {
-                cpu_loop_exit_atomic(cpu, ra);
-            }
+            return store_whole_le8(p->haddr, p->size, val_le);
         }
         /* fall through */
 
