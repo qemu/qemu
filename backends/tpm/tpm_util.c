@@ -72,6 +72,7 @@ static void release_tpm(Object *obj, const char *name, void *opaque)
 
     if (*be) {
         tpm_backend_reset(*be);
+        *be = NULL;
     }
 }
 
