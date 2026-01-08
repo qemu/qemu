@@ -757,20 +757,12 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw,
 
     if (likely(host)) {
         /* Page tables are in RAM, and we have the host address. */
-#ifdef CONFIG_ATOMIC64
-        data = qatomic_read__nocheck((uint64_t *)host);
+        data = qatomic_read((uint64_t *)host);
         if (ptw->out_be) {
             data = be64_to_cpu(data);
         } else {
             data = le64_to_cpu(data);
         }
-#else
-        if (ptw->out_be) {
-            data = ldq_be_p(host);
-        } else {
-            data = ldq_le_p(host);
-        }
-#endif
     } else {
         /* Page tables are in MMIO. */
         MemTxAttrs attrs = {
@@ -798,7 +790,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
                              uint64_t new_val, S1Translate *ptw,
                              ARMMMUFaultInfo *fi)
 {
-#if defined(CONFIG_ATOMIC64) && defined(CONFIG_TCG)
+#ifdef CONFIG_TCG
     uint64_t cur_val;
     void *host = ptw->out_host;
 
@@ -903,17 +895,17 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
     if (ptw->out_be) {
         old_val = cpu_to_be64(old_val);
         new_val = cpu_to_be64(new_val);
-        cur_val = qatomic_cmpxchg__nocheck((uint64_t *)host, old_val, new_val);
+        cur_val = qatomic_cmpxchg((uint64_t *)host, old_val, new_val);
         cur_val = be64_to_cpu(cur_val);
     } else {
         old_val = cpu_to_le64(old_val);
         new_val = cpu_to_le64(new_val);
-        cur_val = qatomic_cmpxchg__nocheck((uint64_t *)host, old_val, new_val);
+        cur_val = qatomic_cmpxchg((uint64_t *)host, old_val, new_val);
         cur_val = le64_to_cpu(cur_val);
     }
     return cur_val;
 #else
-    /* AArch32 does not have FEAT_HADFS; non-TCG guests only use debug-mode. */
+    /* Non-TCG guests only use debug-mode. */
     g_assert_not_reached();
 #endif
 }
