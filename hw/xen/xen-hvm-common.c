@@ -4,6 +4,7 @@
 #include "qemu/error-report.h"
 #include "qemu/target-info.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-misc.h"
 #include "exec/target_page.h"
 #include "trace.h"
 
@@ -471,6 +472,7 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
             cpu_ioreq_move(req);
             break;
         case IOREQ_TYPE_TIMEOFFSET:
+            qapi_event_send_rtc_change((int64_t)req->data, "");
             break;
         case IOREQ_TYPE_INVALIDATE:
             xen_invalidate_map_cache();
