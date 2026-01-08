@@ -247,26 +247,4 @@
 typedef int64_t aligned_int64_t __attribute__((aligned(8)));
 typedef uint64_t aligned_uint64_t __attribute__((aligned(8)));
 
-#ifdef CONFIG_ATOMIC64
-/* Use __nocheck because sizeof(void *) might be < sizeof(u64) */
-#define qatomic_read_i64(P) \
-    _Generic(*(P), int64_t: qatomic_read__nocheck(P))
-#define qatomic_read_u64(P) \
-    _Generic(*(P), uint64_t: qatomic_read__nocheck(P))
-#define qatomic_set_i64(P, V) \
-    _Generic(*(P), int64_t: qatomic_set__nocheck(P, V))
-#define qatomic_set_u64(P, V) \
-    _Generic(*(P), uint64_t: qatomic_set__nocheck(P, V))
-
-static inline void qatomic64_init(void)
-{
-}
-#else /* !CONFIG_ATOMIC64 */
-int64_t  qatomic_read_i64(const int64_t *ptr);
-uint64_t qatomic_read_u64(const uint64_t *ptr);
-void qatomic_set_i64(int64_t *ptr, int64_t val);
-void qatomic_set_u64(uint64_t *ptr, uint64_t val);
-void qatomic64_init(void);
-#endif /* !CONFIG_ATOMIC64 */
-
 #endif /* QEMU_ATOMIC_H */
