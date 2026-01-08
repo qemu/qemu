@@ -40,6 +40,7 @@
 #include "hw/southbridge/ich9.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/pc-hotplug.h"
 
 static void ich9_pm_update_sci_fn(ACPIREGS *regs)
 {

@@ -33,7 +33,6 @@
 #include "system/xen.h"
 #include "qapi/error.h"
 #include "qemu/range.h"
-#include "hw/acpi/cpu_hotplug.h"
 #include "hw/acpi/cpu.h"
 #include "hw/core/hotplug.h"
 #include "hw/mem/pc-dimm.h"
@@ -43,6 +42,7 @@
 #include "migration/vmstate.h"
 #include "hw/core/cpu.h"
 #include "qom/object.h"
+#include "hw/acpi/pc-hotplug.h"
 
 #define GPE_BASE 0xafe0
 #define GPE_LEN 4

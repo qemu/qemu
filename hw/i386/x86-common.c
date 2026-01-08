@@ -36,7 +36,6 @@
 #include "hw/rtc/mc146818rtc.h"
 #include "target/i386/sev.h"
 
-#include "hw/acpi/cpu_hotplug.h"
 #include "hw/core/irq.h"
 #include "hw/core/loader.h"
 #include "multiboot.h"
