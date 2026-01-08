@@ -1266,22 +1266,22 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram = g_malloc0(sizeof(*info->ram));
     info->ram->transferred = migration_transferred_bytes();
     info->ram->total = ram_bytes_total();
-    info->ram->duplicate = stat64_get(&mig_stats.zero_pages);
-    info->ram->normal = stat64_get(&mig_stats.normal_pages);
+    info->ram->duplicate = qatomic_read(&mig_stats.zero_pages);
+    info->ram->normal = qatomic_read(&mig_stats.normal_pages);
     info->ram->normal_bytes = info->ram->normal * page_size;
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count =
-        stat64_get(&mig_stats.dirty_sync_count);
+        qatomic_read(&mig_stats.dirty_sync_count);
     info->ram->dirty_sync_missed_zero_copy =
-        stat64_get(&mig_stats.dirty_sync_missed_zero_copy);
+        qatomic_read(&mig_stats.dirty_sync_missed_zero_copy);
     info->ram->postcopy_requests =
-        stat64_get(&mig_stats.postcopy_requests);
+        qatomic_read(&mig_stats.postcopy_requests);
     info->ram->page_size = page_size;
-    info->ram->multifd_bytes = stat64_get(&mig_stats.multifd_bytes);
+    info->ram->multifd_bytes = qatomic_read(&mig_stats.multifd_bytes);
     info->ram->pages_per_second = s->pages_per_second;
-    info->ram->precopy_bytes = stat64_get(&mig_stats.precopy_bytes);
-    info->ram->downtime_bytes = stat64_get(&mig_stats.downtime_bytes);
-    info->ram->postcopy_bytes = stat64_get(&mig_stats.postcopy_bytes);
+    info->ram->precopy_bytes = qatomic_read(&mig_stats.precopy_bytes);
+    info->ram->downtime_bytes = qatomic_read(&mig_stats.downtime_bytes);
+    info->ram->postcopy_bytes = qatomic_read(&mig_stats.postcopy_bytes);
 
     if (migrate_xbzrle()) {
         info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
@@ -1302,7 +1302,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
         info->ram->dirty_pages_rate =
-           stat64_get(&mig_stats.dirty_pages_rate);
+           qatomic_read(&mig_stats.dirty_pages_rate);
     }
 
     if (migrate_dirty_limit() && dirtylimit_in_service()) {
@@ -3420,10 +3420,10 @@ static void migration_update_counters(MigrationState *s,
      * if we haven't sent anything, we don't want to
      * recalculate. 10000 is a small enough number for our purposes
      */
-    if (stat64_get(&mig_stats.dirty_pages_rate) &&
+    if (qatomic_read(&mig_stats.dirty_pages_rate) &&
         transferred > 10000) {
         s->expected_downtime =
-            stat64_get(&mig_stats.dirty_bytes_last_sync) / expected_bw_per_ms;
+            qatomic_read(&mig_stats.dirty_bytes_last_sync) / expected_bw_per_ms;
     }
 
     migration_rate_reset();

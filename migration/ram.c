@@ -479,11 +479,11 @@ uint64_t ram_bytes_remaining(void)
 void ram_transferred_add(uint64_t bytes)
 {
     if (runstate_is_running()) {
-        stat64_add(&mig_stats.precopy_bytes, bytes);
+        qatomic_add(&mig_stats.precopy_bytes, bytes);
     } else if (migration_in_postcopy()) {
-        stat64_add(&mig_stats.postcopy_bytes, bytes);
+        qatomic_add(&mig_stats.postcopy_bytes, bytes);
     } else {
-        stat64_add(&mig_stats.downtime_bytes, bytes);
+        qatomic_add(&mig_stats.downtime_bytes, bytes);
     }
 }
 
@@ -605,7 +605,7 @@ static void xbzrle_cache_zero_page(ram_addr_t current_addr)
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
     cache_insert(XBZRLE.cache, current_addr, XBZRLE.zero_target_page,
-                 stat64_get(&mig_stats.dirty_sync_count));
+                 qatomic_read(&mig_stats.dirty_sync_count));
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -631,7 +631,7 @@ static int save_xbzrle_page(RAMState *rs, PageSearchStatus *pss,
     int encoded_len = 0, bytes_xbzrle;
     uint8_t *prev_cached_page;
     QEMUFile *file = pss->pss_channel;
-    uint64_t generation = stat64_get(&mig_stats.dirty_sync_count);
+    uint64_t generation = qatomic_read(&mig_stats.dirty_sync_count);
 
     if (!cache_is_cached(XBZRLE.cache, current_addr, generation)) {
         xbzrle_counters.cache_miss++;
@@ -1035,9 +1035,9 @@ uint64_t ram_pagesize_summary(void)
 
 uint64_t ram_get_total_transferred_pages(void)
 {
-    return stat64_get(&mig_stats.normal_pages) +
-        stat64_get(&mig_stats.zero_pages) +
-        xbzrle_counters.pages;
+    return (qatomic_read(&mig_stats.normal_pages) +
+            qatomic_read(&mig_stats.zero_pages) +
+            xbzrle_counters.pages);
 }
 
 static void migration_update_rates(RAMState *rs, int64_t end_time)
@@ -1045,7 +1045,7 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     uint64_t page_count = rs->target_page_count - rs->target_page_count_prev;
 
     /* calculate period counters */
-    stat64_set(&mig_stats.dirty_pages_rate,
+    qatomic_set(&mig_stats.dirty_pages_rate,
                rs->num_dirty_pages_period * 1000 /
                (end_time - rs->time_last_bitmap_sync));
 
@@ -1136,7 +1136,7 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
     RAMBlock *block;
     int64_t end_time;
 
-    stat64_add(&mig_stats.dirty_sync_count, 1);
+    qatomic_add(&mig_stats.dirty_sync_count, 1);
 
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -1150,7 +1150,7 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
             RAMBLOCK_FOREACH_NOT_IGNORED(block) {
                 ramblock_sync_dirty_bitmap(rs, block);
             }
-            stat64_set(&mig_stats.dirty_bytes_last_sync, ram_bytes_remaining());
+            qatomic_set(&mig_stats.dirty_bytes_last_sync, ram_bytes_remaining());
         }
     }
 
@@ -1173,7 +1173,7 @@ static void migration_bitmap_sync(RAMState *rs, bool last_stage)
         rs->bytes_xfer_prev = migration_transferred_bytes();
     }
     if (migrate_events()) {
-        uint64_t generation = stat64_get(&mig_stats.dirty_sync_count);
+        uint64_t generation = qatomic_read(&mig_stats.dirty_sync_count);
         qapi_event_send_migration_pass(generation);
     }
 }
@@ -1232,7 +1232,7 @@ static int save_zero_page(RAMState *rs, PageSearchStatus *pss,
         return 0;
     }
 
-    stat64_add(&mig_stats.zero_pages, 1);
+    qatomic_add(&mig_stats.zero_pages, 1);
 
     if (migrate_mapped_ram()) {
         /* zero pages are not transferred with mapped-ram */
@@ -1291,7 +1291,7 @@ static int save_normal_page(PageSearchStatus *pss, RAMBlock *block,
         }
     }
     ram_transferred_add(TARGET_PAGE_SIZE);
-    stat64_add(&mig_stats.normal_pages, 1);
+    qatomic_add(&mig_stats.normal_pages, 1);
     return 1;
 }
 
@@ -1943,7 +1943,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len,
     RAMBlock *ramblock;
     RAMState *rs = ram_state;
 
-    stat64_add(&mig_stats.postcopy_requests, 1);
+    qatomic_add(&mig_stats.postcopy_requests, 1);
     RCU_READ_LOCK_GUARD();
 
     if (!rbname) {

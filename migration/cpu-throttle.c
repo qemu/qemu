@@ -134,7 +134,7 @@ int cpu_throttle_get_percentage(void)
 
 void cpu_throttle_dirty_sync_timer_tick(void *opaque)
 {
-    uint64_t sync_cnt = stat64_get(&mig_stats.dirty_sync_count);
+    uint64_t sync_cnt = qatomic_read(&mig_stats.dirty_sync_count);
 
     /*
      * The first iteration copies all memory anyhow and has no
@@ -153,7 +153,7 @@ void cpu_throttle_dirty_sync_timer_tick(void *opaque)
     }
 
 end:
-    throttle_dirty_sync_count_prev = stat64_get(&mig_stats.dirty_sync_count);
+    throttle_dirty_sync_count_prev = qatomic_read(&mig_stats.dirty_sync_count);
 
     timer_mod(throttle_dirty_sync_timer,
         qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT) +
