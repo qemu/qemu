@@ -9,3 +9,4 @@
 #            (https://mips.com/products/hardware/p8700/)
 
 ccmov          rs3:5 11 rs2:5 rs1:5 011 rd:5 0001011
+pref        000 imm_9:9 rs1:5 000 imm_hint:5 0001011
