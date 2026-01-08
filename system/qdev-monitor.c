@@ -762,19 +762,18 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, DeviceClass *dc,
     for (int i = 0, n = dc->props_count_; i < n; ++i) {
         const Property *prop = &dc->props_[i];
         char *value;
-        char *legacy_name = g_strdup_printf("legacy-%s", prop->name);
 
-        if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
-            value = object_property_get_str(OBJECT(dev), legacy_name, NULL);
+        if (prop->info->print) {
+            value = prop->info->print(OBJECT(dev), prop);
         } else {
             value = object_property_print(OBJECT(dev), prop->name, true,
                                           NULL);
         }
-        g_free(legacy_name);
 
         if (!value) {
             continue;
         }
+
         qdev_printf("%s = %s\n", prop->name,
                     *value ? value : "<null>");
         g_free(value);
