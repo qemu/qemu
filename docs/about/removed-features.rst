@@ -766,6 +766,11 @@ without reporting any destination threads, or non-multifd source
 threads).  For debugging purpose, please use ``-name
 $VM,debug-threads=on`` instead.
 
+``migrate`` argument ``detach`` (since 11.0)
+''''''''''''''''''''''''''''''''''''''''''''
+
+This argument has always been ignored.
+
 QEMU Machine Protocol (QMP) events
 ----------------------------------
 

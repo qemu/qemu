@@ -2201,7 +2201,7 @@ static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
 }
 
 void qmp_migrate(const char *uri, bool has_channels,
-                 MigrationChannelList *channels, bool has_detach, bool detach,
+                 MigrationChannelList *channels,
                  bool has_resume, bool resume, Error **errp)
 {
     bool resume_requested;
