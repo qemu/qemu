@@ -2939,22 +2939,6 @@ config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
         return printf("%zu", SIZE_MAX);
     }''', args: ['-Werror']))
 
-# See if 64-bit atomic operations are supported.
-# Note that without __atomic builtins, we can only
-# assume atomic loads/stores max at pointer size.
-config_host_data.set('CONFIG_ATOMIC64', cc.links('''
-  #include <stdint.h>
-  int main(void)
-  {
-    uint64_t x = 0, y = 0;
-    y = __atomic_load_n(&x, __ATOMIC_RELAXED);
-    __atomic_store_n(&x, y, __ATOMIC_RELAXED);
-    __atomic_compare_exchange_n(&x, &y, x, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-    __atomic_exchange_n(&x, y, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&x, y, __ATOMIC_RELAXED);
-    return 0;
-  }''', args: qemu_isa_flags))
-
 # has_int128_type is set to false on Emscripten to avoid errors by libffi
 # during runtime.
 has_int128_type = host_os != 'emscripten' and cc.compiles('''
