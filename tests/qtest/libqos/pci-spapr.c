@@ -13,7 +13,7 @@
 
 #include "hw/pci/pci_regs.h"
 
-#include "qemu/host-utils.h"
+#include "qemu/bswap.h"
 #include "qemu/module.h"
 
 /*
