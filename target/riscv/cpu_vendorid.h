@@ -2,6 +2,7 @@
 #define TARGET_RISCV_CPU_VENDORID_H
 
 #define THEAD_VENDOR_ID         0x5b7
+#define MIPS_VENDOR_ID          0x127
 
 #define VEYRON_V1_MARCHID       0x8000000000010000
 #define VEYRON_V1_MIMPID        0x111

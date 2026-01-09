@@ -75,14 +75,21 @@ int64_t get_image_size(const char *filename, Error **errp)
 {
     int fd;
     int64_t size;
+
     fd = qemu_open(filename, O_RDONLY | O_BINARY, errp);
-    if (fd < 0)
-        return -1;
-    size = lseek(fd, 0, SEEK_END);
-    if (size < 0) {
-        error_setg_errno(errp, errno, "lseek failure: %s", filename);
+
+    if (fd < 0) {
         return -1;
     }
+
+    size = lseek(fd, 0, SEEK_END);
+
+    if (size < 0) {
+        error_setg_errno(errp, errno, "lseek failure: %s", filename);
+        close(fd);
+        return -1;
+    }
+
     close(fd);
     return size;
 }
@@ -146,8 +153,12 @@ ssize_t load_image_targphys_as(const char *filename,
     }
 
     if (size > max_sz) {
+        char *size_str = size_to_str(max_sz);
+
         error_setg(errp, "%s exceeds maximum image size (%s)",
-                   filename, size_to_str(max_sz));
+                   filename, size_str);
+
+        g_free(size_str);
         return -1;
     }
 

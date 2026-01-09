@@ -196,13 +196,9 @@ FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 
 typedef struct PMUCTRState {
     /* Current value of a counter */
-    target_ulong mhpmcounter_val;
-    /* Current value of a counter in RV32 */
-    target_ulong mhpmcounterh_val;
-    /* Snapshot values of counter */
-    target_ulong mhpmcounter_prev;
-    /* Snapshort value of a counter in RV32 */
-    target_ulong mhpmcounterh_prev;
+    uint64_t mhpmcounter_val;
+    /* Snapshot value of a counter */
+    uint64_t mhpmcounter_prev;
     /* Value beyond UINT32_MAX/UINT64_MAX before overflow interrupt trigger */
     target_ulong irq_overflow_left;
 } PMUCTRState;
@@ -255,7 +251,7 @@ struct CPUArchState {
     /* 128-bit helpers upper part return value */
     target_ulong retxh;
 
-    target_ulong jvt;
+    uint64_t jvt;
 
     /* elp state for zicfilp extension */
     bool      elp;
@@ -272,7 +268,7 @@ struct CPUArchState {
     target_ulong priv;
     /* CSRs for execution environment configuration */
     uint64_t menvcfg;
-    target_ulong senvcfg;
+    uint64_t senvcfg;
 
 #ifndef CONFIG_USER_ONLY
     /* This contains QEMU specific information about the virt state. */
@@ -280,7 +276,7 @@ struct CPUArchState {
     target_ulong geilen;
     uint64_t resetvec;
 
-    target_ulong mhartid;
+    uint64_t mhartid;
     /*
      * For RV32 this is 32-bit mstatus and 32-bit mstatush.
      * For RV64 this is a 64-bit mstatus.
@@ -314,18 +310,18 @@ struct CPUArchState {
      */
     uint64_t vsie;
 
-    target_ulong satp;   /* since: priv-1.10.0 */
-    target_ulong stval;
-    target_ulong medeleg;
+    uint64_t satp;   /* since: priv-1.10.0 */
+    uint64_t stval;
+    uint64_t medeleg;
 
-    target_ulong stvec;
-    target_ulong sepc;
-    target_ulong scause;
+    uint64_t stvec;
+    uint64_t sepc;
+    uint64_t scause;
 
-    target_ulong mtvec;
-    target_ulong mepc;
-    target_ulong mcause;
-    target_ulong mtval;  /* since: priv-1.10.0 */
+    uint64_t mtvec;
+    uint64_t mepc;
+    uint64_t mcause;
+    uint64_t mtval;  /* since: priv-1.10.0 */
 
     uint64_t mctrctl;
     uint32_t sctrdepth;
@@ -347,13 +343,13 @@ struct CPUArchState {
     uint64_t mvip;
 
     /* Hypervisor CSRs */
-    target_ulong hstatus;
-    target_ulong hedeleg;
+    uint64_t hstatus;
+    uint64_t hedeleg;
     uint64_t hideleg;
     uint32_t hcounteren;
-    target_ulong htval;
-    target_ulong htinst;
-    target_ulong hgatp;
+    uint64_t htval;
+    uint64_t htinst;
+    uint64_t hgatp;
     target_ulong hgeie;
     target_ulong hgeip;
     uint64_t htimedelta;
@@ -367,7 +363,7 @@ struct CPUArchState {
     uint64_t hvip;
 
     /* Hypervisor controlled virtual interrupt priorities */
-    target_ulong hvictl;
+    uint32_t hvictl;
     uint8_t hviprio[64];
 
     /* Upper 64-bits of 128-bit CSRs */
@@ -380,26 +376,26 @@ struct CPUArchState {
      * For RV64 this is a 64-bit vsstatus.
      */
     uint64_t vsstatus;
-    target_ulong vstvec;
-    target_ulong vsscratch;
-    target_ulong vsepc;
-    target_ulong vscause;
-    target_ulong vstval;
-    target_ulong vsatp;
+    uint64_t vstvec;
+    uint64_t vsscratch;
+    uint64_t vsepc;
+    uint64_t vscause;
+    uint64_t vstval;
+    uint64_t vsatp;
 
     /* AIA VS-mode CSRs */
     target_ulong vsiselect;
 
-    target_ulong mtval2;
-    target_ulong mtinst;
+    uint64_t mtval2;
+    uint64_t mtinst;
 
     /* HS Backup CSRs */
-    target_ulong stvec_hs;
-    target_ulong sscratch_hs;
-    target_ulong sepc_hs;
-    target_ulong scause_hs;
-    target_ulong stval_hs;
-    target_ulong satp_hs;
+    uint64_t stvec_hs;
+    uint64_t sscratch_hs;
+    uint64_t sepc_hs;
+    uint64_t scause_hs;
+    uint64_t stval_hs;
+    uint64_t satp_hs;
     uint64_t mstatus_hs;
 
     /*
@@ -420,24 +416,22 @@ struct CPUArchState {
     uint32_t mcountinhibit;
 
     /* PMU cycle & instret privilege mode filtering */
-    target_ulong mcyclecfg;
-    target_ulong mcyclecfgh;
-    target_ulong minstretcfg;
-    target_ulong minstretcfgh;
+    uint64_t mcyclecfg;
+    uint64_t minstretcfg;
 
     /* PMU counter state */
     PMUCTRState pmu_ctrs[RV_MAX_MHPMCOUNTERS];
 
-    /* PMU event selector configured values. First three are unused */
-    target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
-
-    /* PMU event selector configured values for RV32 */
-    target_ulong mhpmeventh_val[RV_MAX_MHPMEVENTS];
+    /*
+     * PMU event selector configured values. First three are unused.
+     * For RV32 top 32 bits are accessed via the mhpmeventh CSR.
+     */
+    uint64_t mhpmevent_val[RV_MAX_MHPMEVENTS];
 
     PMUFixedCtrState pmu_fixed_ctrs[2];
 
-    target_ulong sscratch;
-    target_ulong mscratch;
+    uint64_t sscratch;
+    uint64_t mscratch;
 
     /* Sstc CSRs */
     uint64_t stimecmp;
@@ -507,11 +501,11 @@ struct CPUArchState {
 #endif /* CONFIG_KVM */
 
     /* RNMI */
-    target_ulong mnscratch;
-    target_ulong mnepc;
-    target_ulong mncause; /* mncause without bit XLEN-1 set to 1 */
-    target_ulong mnstatus;
-    target_ulong rnmip;
+    uint64_t mnscratch;
+    uint64_t mnepc;
+    uint64_t mncause; /* mncause without bit XLEN-1 set to 1 */
+    uint64_t mnstatus;
+    uint64_t rnmip;
     uint64_t rnmi_irqvec;
     uint64_t rnmi_excpvec;
 };
@@ -673,6 +667,10 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
 
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong);
+
+#ifndef CONFIG_USER_ONLY
+void cpu_set_exception_base(int vp_index, target_ulong address);
+#endif
 
 FIELD(TB_FLAGS, MEM_IDX, 0, 3)
 FIELD(TB_FLAGS, FS, 3, 2)
@@ -969,6 +967,8 @@ bool riscv_cpu_accelerator_compatible(RISCVCPU *cpu);
 
 /* CSR function table */
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
+bool riscv_csr_is_fpu(int csrno);
+bool riscv_csr_is_vpu(int csrno);
 
 extern const bool valid_vm_1_10_32[], valid_vm_1_10_64[];
 
@@ -984,6 +984,9 @@ const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 
 /* In th_csr.c */
 extern const RISCVCSR th_csr_list[];
+
+/* Implemented in mips_csr.c */
+extern const RISCVCSR mips_csr_list[];
 
 const char *priv_spec_to_str(int priv_version);
 #endif /* RISCV_CPU_H */

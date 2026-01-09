@@ -73,6 +73,22 @@ bool riscv_cpu_option_set(const char *optname)
     return g_hash_table_contains(general_user_opts, optname);
 }
 
+#ifndef CONFIG_USER_ONLY
+/* This is used in runtime only. */
+void cpu_set_exception_base(int vp_index, target_ulong address)
+{
+    RISCVCPU *cpu;
+    CPUState *cs = qemu_get_cpu(vp_index);
+    if (cs == NULL) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "cpu_set_exception_base: invalid vp_index: %u",
+                      vp_index);
+    }
+    cpu = RISCV_CPU(cs);
+    cpu->env.resetvec = address;
+}
+#endif
+
 static void riscv_cpu_cfg_merge(RISCVCPUConfig *dest, const RISCVCPUConfig *src)
 {
 #define BOOL_FIELD(x) dest->x |= src->x;
@@ -121,12 +137,14 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zihintntl, PRIV_VERSION_1_10_0, ext_zihintntl),
     ISA_EXT_DATA_ENTRY(zihintpause, PRIV_VERSION_1_10_0, ext_zihintpause),
     ISA_EXT_DATA_ENTRY(zihpm, PRIV_VERSION_1_12_0, ext_zihpm),
+    ISA_EXT_DATA_ENTRY(zilsd, PRIV_VERSION_1_12_0, ext_zilsd),
     ISA_EXT_DATA_ENTRY(zimop, PRIV_VERSION_1_13_0, ext_zimop),
     ISA_EXT_DATA_ENTRY(zmmul, PRIV_VERSION_1_12_0, ext_zmmul),
     ISA_EXT_DATA_ENTRY(za64rs, PRIV_VERSION_1_12_0, has_priv_1_12),
     ISA_EXT_DATA_ENTRY(zaamo, PRIV_VERSION_1_12_0, ext_zaamo),
     ISA_EXT_DATA_ENTRY(zabha, PRIV_VERSION_1_13_0, ext_zabha),
     ISA_EXT_DATA_ENTRY(zacas, PRIV_VERSION_1_12_0, ext_zacas),
+    ISA_EXT_DATA_ENTRY(zalasr, PRIV_VERSION_1_12_0, ext_zalasr),
     ISA_EXT_DATA_ENTRY(zalrsc, PRIV_VERSION_1_12_0, ext_zalrsc),
     ISA_EXT_DATA_ENTRY(zama16b, PRIV_VERSION_1_13_0, ext_zama16b),
     ISA_EXT_DATA_ENTRY(zawrs, PRIV_VERSION_1_12_0, ext_zawrs),
@@ -144,6 +162,7 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zcmop, PRIV_VERSION_1_13_0, ext_zcmop),
     ISA_EXT_DATA_ENTRY(zcmp, PRIV_VERSION_1_12_0, ext_zcmp),
     ISA_EXT_DATA_ENTRY(zcmt, PRIV_VERSION_1_12_0, ext_zcmt),
+    ISA_EXT_DATA_ENTRY(zclsd, PRIV_VERSION_1_12_0, ext_zclsd),
     ISA_EXT_DATA_ENTRY(zba, PRIV_VERSION_1_12_0, ext_zba),
     ISA_EXT_DATA_ENTRY(zbb, PRIV_VERSION_1_12_0, ext_zbb),
     ISA_EXT_DATA_ENTRY(zbc, PRIV_VERSION_1_12_0, ext_zbc),
@@ -233,6 +252,9 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(svrsw60t59b, PRIV_VERSION_1_13_0, ext_svrsw60t59b),
     ISA_EXT_DATA_ENTRY(svukte, PRIV_VERSION_1_13_0, ext_svukte),
     ISA_EXT_DATA_ENTRY(svvptc, PRIV_VERSION_1_13_0, ext_svvptc),
+    ISA_EXT_DATA_ENTRY(xmipscbop, PRIV_VERSION_1_12_0, ext_xmipscbop),
+    ISA_EXT_DATA_ENTRY(xmipscmov, PRIV_VERSION_1_12_0, ext_xmipscmov),
+    ISA_EXT_DATA_ENTRY(xmipslsp, PRIV_VERSION_1_12_0, ext_xmipslsp),
     ISA_EXT_DATA_ENTRY(xtheadba, PRIV_VERSION_1_11_0, ext_xtheadba),
     ISA_EXT_DATA_ENTRY(xtheadbb, PRIV_VERSION_1_11_0, ext_xtheadbb),
     ISA_EXT_DATA_ENTRY(xtheadbs, PRIV_VERSION_1_11_0, ext_xtheadbs),
@@ -516,6 +538,21 @@ char *riscv_cpu_get_name(RISCVCPU *cpu)
     return cpu_model_from_type(typename);
 }
 
+static void riscv_dump_csr(CPURISCVState *env, int csrno, FILE *f)
+{
+    target_ulong val = 0;
+    RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
+
+    /*
+     * Rely on the smode, hmode, etc, predicates within csr.c
+     * to do the filtering of the registers that are present.
+     */
+    if (res == RISCV_EXCP_NONE) {
+        qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
+                     csr_ops[csrno].name, val);
+    }
+}
+
 static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -530,55 +567,27 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 #endif
     qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ", env->pc);
 #ifndef CONFIG_USER_ONLY
-    {
-        static const int dump_csrs[] = {
-            CSR_MHARTID,
-            CSR_MSTATUS,
-            CSR_MSTATUSH,
-            /*
-             * CSR_SSTATUS is intentionally omitted here as its value
-             * can be figured out by looking at CSR_MSTATUS
-             */
-            CSR_HSTATUS,
-            CSR_VSSTATUS,
-            CSR_MIP,
-            CSR_MIE,
-            CSR_MIDELEG,
-            CSR_HIDELEG,
-            CSR_MEDELEG,
-            CSR_HEDELEG,
-            CSR_MTVEC,
-            CSR_STVEC,
-            CSR_VSTVEC,
-            CSR_MEPC,
-            CSR_SEPC,
-            CSR_VSEPC,
-            CSR_MCAUSE,
-            CSR_SCAUSE,
-            CSR_VSCAUSE,
-            CSR_MTVAL,
-            CSR_STVAL,
-            CSR_HTVAL,
-            CSR_MTVAL2,
-            CSR_MSCRATCH,
-            CSR_SSCRATCH,
-            CSR_SATP,
-        };
+    for (i = 0; i < ARRAY_SIZE(csr_ops); i++) {
+        int csrno = i;
 
-        for (i = 0; i < ARRAY_SIZE(dump_csrs); ++i) {
-            int csrno = dump_csrs[i];
-            target_ulong val = 0;
-            RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
-
-            /*
-             * Rely on the smode, hmode, etc, predicates within csr.c
-             * to do the filtering of the registers that are present.
-             */
-            if (res == RISCV_EXCP_NONE) {
-                qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
-                             csr_ops[csrno].name, val);
-            }
+        /*
+         * Early skip when possible since we're going
+         * through a lot of NULL entries.
+         */
+        if (csr_ops[csrno].predicate == NULL) {
+            continue;
         }
+
+        /*
+         * FPU and VPU CSRs will be printed in the
+         * CPU_DUMP_FPU/CPU_DUMP_VPU blocks later.
+         */
+        if (riscv_csr_is_fpu(csrno) ||
+            riscv_csr_is_vpu(csrno)) {
+            continue;
+        }
+
+        riscv_dump_csr(env, csrno, f);
     }
 #endif
 
@@ -590,12 +599,10 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         }
     }
     if (flags & CPU_DUMP_FPU) {
-        target_ulong val = 0;
-        RISCVException res = riscv_csrrw_debug(env, CSR_FCSR, &val, 0, 0);
-        if (res == RISCV_EXCP_NONE) {
-            qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
-                    csr_ops[CSR_FCSR].name, val);
-        }
+        riscv_dump_csr(env, CSR_FFLAGS, f);
+        riscv_dump_csr(env, CSR_FRM, f);
+        riscv_dump_csr(env, CSR_FCSR, f);
+
         for (i = 0; i < 32; i++) {
             qemu_fprintf(f, " %-8s %016" PRIx64,
                          riscv_fpr_regnames[i], env->fpr[i]);
@@ -613,22 +620,12 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                     CSR_VL,
                     CSR_VTYPE,
                     CSR_VLENB,
-                };
-        for (i = 0; i < ARRAY_SIZE(dump_rvv_csrs); ++i) {
-            int csrno = dump_rvv_csrs[i];
-            target_ulong val = 0;
-            RISCVException res = riscv_csrrw_debug(env, csrno, &val, 0, 0);
-
-            /*
-             * Rely on the smode, hmode, etc, predicates within csr.c
-             * to do the filtering of the registers that are present.
-             */
-            if (res == RISCV_EXCP_NONE) {
-                qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
-                             csr_ops[csrno].name, val);
-            }
-        }
+        };
         uint16_t vlenb = cpu->cfg.vlenb;
+
+        for (i = 0; i < ARRAY_SIZE(dump_rvv_csrs); ++i) {
+            riscv_dump_csr(env, dump_rvv_csrs[i], f);
+        }
 
         for (i = 0; i < 32; i++) {
             qemu_fprintf(f, " %-8s ", riscv_rvv_regnames[i]);
@@ -1253,6 +1250,7 @@ const RISCVCPUMultiExtConfig riscv_cpu_extensions[] = {
     MULTI_EXT_CFG_BOOL("zama16b", ext_zama16b, false),
     MULTI_EXT_CFG_BOOL("zabha", ext_zabha, false),
     MULTI_EXT_CFG_BOOL("zaamo", ext_zaamo, false),
+    MULTI_EXT_CFG_BOOL("zalasr", ext_zalasr, false),
     MULTI_EXT_CFG_BOOL("zalrsc", ext_zalrsc, false),
     MULTI_EXT_CFG_BOOL("zawrs", ext_zawrs, true),
     MULTI_EXT_CFG_BOOL("zfa", ext_zfa, true),
@@ -1292,6 +1290,7 @@ const RISCVCPUMultiExtConfig riscv_cpu_extensions[] = {
 
     MULTI_EXT_CFG_BOOL("zicntr", ext_zicntr, true),
     MULTI_EXT_CFG_BOOL("zihpm", ext_zihpm, true),
+    MULTI_EXT_CFG_BOOL("zilsd", ext_zilsd, false),
 
     MULTI_EXT_CFG_BOOL("zba", ext_zba, true),
     MULTI_EXT_CFG_BOOL("zbb", ext_zbb, true),
@@ -1331,6 +1330,7 @@ const RISCVCPUMultiExtConfig riscv_cpu_extensions[] = {
     MULTI_EXT_CFG_BOOL("zcmp", ext_zcmp, false),
     MULTI_EXT_CFG_BOOL("zcmt", ext_zcmt, false),
     MULTI_EXT_CFG_BOOL("zicond", ext_zicond, false),
+    MULTI_EXT_CFG_BOOL("zclsd", ext_zclsd, false),
 
     /* Vector cryptography extensions */
     MULTI_EXT_CFG_BOOL("zvbb", ext_zvbb, false),
@@ -1366,6 +1366,9 @@ const RISCVCPUMultiExtConfig riscv_cpu_vendor_exts[] = {
     MULTI_EXT_CFG_BOOL("xtheadmempair", ext_xtheadmempair, false),
     MULTI_EXT_CFG_BOOL("xtheadsync", ext_xtheadsync, false),
     MULTI_EXT_CFG_BOOL("xventanacondops", ext_XVentanaCondOps, false),
+    MULTI_EXT_CFG_BOOL("xmipscbop", ext_xmipscbop, false),
+    MULTI_EXT_CFG_BOOL("xmipscmov", ext_xmipscmov, false),
+    MULTI_EXT_CFG_BOOL("xmipslsp", ext_xmipslsp, false),
 
     { },
 };
@@ -3304,6 +3307,28 @@ static const TypeInfo riscv_cpu_type_infos[] = {
         .cfg.mmu = true,
         .cfg.pmp = true,
         .cfg.max_satp_mode = VM_1_10_SV48,
+    ),
+
+    /* https://mips.com/products/hardware/p8700/ */
+    DEFINE_RISCV_CPU(TYPE_RISCV_CPU_MIPS_P8700, TYPE_RISCV_VENDOR_CPU,
+        .misa_mxl_max = MXL_RV64,
+        .misa_ext = RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU,
+        .priv_spec = PRIV_VERSION_1_12_0,
+        .cfg.max_satp_mode = VM_1_10_SV48,
+        .cfg.ext_zifencei = true,
+        .cfg.ext_zicsr = true,
+        .cfg.mmu = true,
+        .cfg.pmp = true,
+        .cfg.ext_zba = true,
+        .cfg.ext_zbb = true,
+        .cfg.ext_xmipslsp = true,
+        .cfg.ext_xmipscbop = true,
+        .cfg.ext_xmipscmov = true,
+        .cfg.marchid = 0x8000000000000201,
+        .cfg.mvendorid = MIPS_VENDOR_ID,
+#ifndef CONFIG_USER_ONLY
+        .custom_csrs = mips_csr_list,
+#endif
     ),
 
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
