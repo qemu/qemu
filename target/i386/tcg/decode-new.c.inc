@@ -1848,7 +1848,6 @@ static const X86OpEntry opcodes_root[256] = {
     [0x0C] = X86_OP_ENTRY2(OR, 0,b, I,b, lock),   /* AL, Ib */
     [0x0D] = X86_OP_ENTRY2(OR, 0,v, I,z, lock),   /* rAX, Iz */
     [0x0E] = X86_OP_ENTRYr(PUSH, CS, w, chk(i64)),
-    [0x0F] = X86_OP_GROUP0(0F),
 
     [0x18] = X86_OP_ENTRY2(SBB, E,b, G,b, lock),
     [0x19] = X86_OP_ENTRY2(SBB, E,v, G,v, lock),
@@ -2833,6 +2832,9 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     /* Collect prefixes.  */
     switch (b) {
+    case 0x0f:
+        decode_func = decode_0F;
+        break;
     case 0xf3:
         s->prefix |= PREFIX_REPZ;
         s->prefix &= ~PREFIX_REPNZ;
