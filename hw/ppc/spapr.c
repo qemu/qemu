@@ -4776,8 +4776,14 @@ DEFINE_SPAPR_MACHINE(10, 1);
  */
 static void spapr_machine_10_0_class_options(MachineClass *mc)
 {
+    static GlobalProperty spapr_compat_10_0[] = {
+        { TYPE_POWERPC_CPU, "rtas-stopped-state", "false" },
+    };
+
     spapr_machine_10_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_10_0, hw_compat_10_0_len);
+    compat_props_add(mc->compat_props, spapr_compat_10_0,
+                     G_N_ELEMENTS(spapr_compat_10_0));
 }
 
 DEFINE_SPAPR_MACHINE(10, 0);
