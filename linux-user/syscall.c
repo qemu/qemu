@@ -13619,13 +13619,10 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     }
 #endif
 
-#if defined(TARGET_NR_epoll_wait) || defined(TARGET_NR_epoll_pwait)
 #if defined(TARGET_NR_epoll_wait)
     case TARGET_NR_epoll_wait:
 #endif
-#if defined(TARGET_NR_epoll_pwait)
     case TARGET_NR_epoll_pwait:
-#endif
     {
         struct target_epoll_event *target_ep;
         struct epoll_event *ep;
@@ -13650,7 +13647,6 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         }
 
         switch (num) {
-#if defined(TARGET_NR_epoll_pwait)
         case TARGET_NR_epoll_pwait:
         {
             sigset_t *set = NULL;
@@ -13670,7 +13666,6 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             }
             break;
         }
-#endif
 #if defined(TARGET_NR_epoll_wait)
         case TARGET_NR_epoll_wait:
             ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, timeout,
@@ -13694,8 +13689,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         g_free(ep);
         return ret;
     }
-#endif
-#endif
+#endif /* CONFIG_EPOLL */
 #ifdef TARGET_NR_prlimit64
     case TARGET_NR_prlimit64:
     {
