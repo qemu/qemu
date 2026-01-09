@@ -430,17 +430,15 @@ static TCGv gen_op_deposit_reg_v(DisasContext *s, MemOp ot, int reg, TCGv dest, 
         tcg_gen_deposit_tl(dest, cpu_regs[reg], t0, 0, 16);
         break;
     case MO_32:
-        /* For x86_64, this sets the higher half of register to zero.
-           For i386, this is equivalent to a mov. */
+#ifdef TARGET_X86_64
         dest = dest ? dest : cpu_regs[reg];
         tcg_gen_ext32u_tl(dest, t0);
         break;
-#ifdef TARGET_X86_64
     case MO_64:
+#endif
         dest = dest ? dest : cpu_regs[reg];
         tcg_gen_mov_tl(dest, t0);
         break;
-#endif
     default:
         g_assert_not_reached();
     }
@@ -1585,8 +1583,8 @@ static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
             tcg_gen_shri_i64(s->T0, s->T0, 32);
         }
         break;
+    case MO_64:
 #endif
-    default:
         hishift = tcg_temp_new();
         tcg_gen_subi_tl(tmp, count, 1);
         if (is_right) {
@@ -1615,6 +1613,9 @@ static TCGv gen_shiftd_rm_T1(DisasContext *s, MemOp ot,
                            tcg_constant_tl(0), s->T1);
         tcg_gen_or_tl(s->T0, s->T0, s->T1);
         break;
+
+    default:
+	g_assert_not_reached();
     }
 
     return cc_src;
