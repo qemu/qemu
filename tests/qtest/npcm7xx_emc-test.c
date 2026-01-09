@@ -19,6 +19,7 @@
 #include "qobject/qdict.h"
 #include "qobject/qnum.h"
 #include "qemu/bitops.h"
+#include "qemu/bswap.h"
 #include "qemu/iov.h"
 
 /* Name of the emc device. */

@@ -26,6 +26,7 @@
    here.  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "hw/scsi/scsi.h"
 
 static void lba_to_msf(uint8_t *buf, int lba)

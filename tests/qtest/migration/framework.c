@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qobject/qjson.h"
 #include "qobject/qlist.h"
+#include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/range.h"

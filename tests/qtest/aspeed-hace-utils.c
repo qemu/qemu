@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/bitops.h"
+#include "qemu/bswap.h"
 #include "aspeed-hace-utils.h"
 
 /*

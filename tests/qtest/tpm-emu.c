@@ -16,6 +16,7 @@
 #include "backends/tpm/tpm_ioctl.h"
 #include "io/channel-socket.h"
 #include "qapi/error.h"
+#include "qemu/bswap.h"
 #include "qobject/qlist.h"
 #include "qobject/qstring.h"
 #include "tpm-emu.h"

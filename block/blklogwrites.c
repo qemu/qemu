@@ -16,6 +16,7 @@
 #include "block/block_int.h"
 #include "qobject/qdict.h"
 #include "qobject/qstring.h"
+#include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
