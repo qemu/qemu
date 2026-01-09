@@ -2015,7 +2015,7 @@ static void decode_modrm(DisasContext *s, CPUX86State *env,
     int mod = (modrm >> 6) & 3;
     int rm = modrm & 7;
     bool is_vsib = decode->e.vex_class == 12;
-    bool havesib = false;
+    int sib = -1;
 
     if (mod == 3) {
         op->n = rm;
@@ -2036,14 +2036,13 @@ static void decode_modrm(DisasContext *s, CPUX86State *env,
     case MO_64:
     case MO_32:
         if (rm == 4) {
-            int code = x86_ldub_code(env, s);
-            scale = (code >> 6) & 3;
-            index = ((code >> 3) & 7) | REX_X(s);
+            sib = x86_ldub_code(env, s);
+            scale = (sib >> 6) & 3;
+            index = ((sib >> 3) & 7) | REX_X(s);
             if (index == 4 && !is_vsib) {
                 index = -1;  /* no index */
             }
-            base = (code & 7) | REX_B(s);
-            havesib = true;
+            base = (sib & 7) | REX_B(s);
         }
 
         switch (mod) {
@@ -2051,7 +2050,7 @@ static void decode_modrm(DisasContext *s, CPUX86State *env,
             if ((base & 7) == 5) {
                 base = -1;
                 disp = (int32_t)x86_ldl_code(env, s);
-                if (CODE64(s) && !havesib) {
+                if (CODE64(s) && sib == -1) {
                     base = -2;
                     disp += s->pc + s->rip_offset;
                 }
