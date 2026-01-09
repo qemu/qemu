@@ -27,7 +27,6 @@ uint64_t glue(address_space_ldm_internal, SUFFIX)(ARG1_DECL, MemOp mop,
                                                   MemTxResult *result)
 {
     const unsigned size = memop_size(mop);
-    uint8_t *ptr;
     uint64_t val;
     MemoryRegion *mr;
     hwaddr l = size;
@@ -45,12 +44,7 @@ uint64_t glue(address_space_ldm_internal, SUFFIX)(ARG1_DECL, MemOp mop,
     } else {
         /* RAM case */
         fuzz_dma_read_cb(addr, size, mr);
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-        if ((mop & MO_BSWAP) == MO_LE) {
-            val = ldn_le_p(ptr, size);
-        } else {
-            val = ldn_be_p(ptr, size);
-        }
+        val = ldm_p(qemu_map_ram_ptr(mr->ram_block, addr1), mop);
         r = MEMTX_OK;
     }
     if (result) {
@@ -102,7 +96,6 @@ void glue(address_space_stm_internal, SUFFIX)(ARG1_DECL, MemOp mop,
                                               MemTxResult *result)
 {
     const unsigned size = memop_size(mop);
-    uint8_t *ptr;
     MemoryRegion *mr;
     hwaddr l = size;
     hwaddr addr1;
@@ -116,12 +109,7 @@ void glue(address_space_stm_internal, SUFFIX)(ARG1_DECL, MemOp mop,
         r = memory_region_dispatch_write(mr, addr1, val, mop, attrs);
     } else {
         /* RAM case */
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-        if ((mop & MO_BSWAP) == MO_LE) {
-            stn_le_p(ptr, size, val);
-        } else {
-            stn_be_p(ptr, size, val);
-        }
+        stm_p(qemu_map_ram_ptr(mr->ram_block, addr1), mop, val);
         invalidate_and_set_dirty(mr, addr1, size);
         r = MEMTX_OK;
     }
