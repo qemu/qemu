@@ -374,30 +374,6 @@ static void gen_update_cc_op(DisasContext *s)
     }
 }
 
-#ifdef TARGET_X86_64
-
-#define NB_OP_SIZES 4
-
-#else /* !TARGET_X86_64 */
-
-#define NB_OP_SIZES 3
-
-#endif /* !TARGET_X86_64 */
-
-#if HOST_BIG_ENDIAN
-#define REG_B_OFFSET (sizeof(target_ulong) - 1)
-#define REG_H_OFFSET (sizeof(target_ulong) - 2)
-#define REG_W_OFFSET (sizeof(target_ulong) - 2)
-#define REG_L_OFFSET (sizeof(target_ulong) - 4)
-#define REG_LH_OFFSET (sizeof(target_ulong) - 8)
-#else
-#define REG_B_OFFSET 0
-#define REG_H_OFFSET 1
-#define REG_W_OFFSET 0
-#define REG_L_OFFSET 0
-#define REG_LH_OFFSET 4
-#endif
-
 /* In instruction encodings for byte register accesses the
  * register number usually indicates "low 8 bits of register N";
  * however there are some special cases where N 4..7 indicates
