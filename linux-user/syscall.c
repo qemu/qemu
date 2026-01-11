@@ -708,8 +708,11 @@ safe_syscall5(int, ppoll, struct pollfd *, ufds, unsigned int, nfds,
               size_t, sigsetsize)
 #endif
 safe_syscall6(int, epoll_pwait, int, epfd, struct epoll_event *, events,
-              int, maxevents, int, timeout, const sigset_t *, sigmask,
-              size_t, sigsetsize)
+              int, maxevents, int, timeout,
+              const sigset_t *, sigmask, size_t, sigsetsize)
+safe_syscall6(int, epoll_pwait2, int, epfd, struct epoll_event *, events,
+              int, maxevents, struct timespec *, timeout_ts,
+              const sigset_t *, sigmask, size_t, sigsetsize)
 #if defined(__NR_futex)
 safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
               const struct timespec *,timeout,int *,uaddr2,int,val3)
@@ -12141,9 +12144,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             int dirfd = arg1;
             int flags = arg3;
 
-            p = lock_user_string(arg2);
-            if (p == NULL) {
-                return -TARGET_EFAULT;
+            p = NULL;
+            /* Since Linux 6.11, the path argument may be NULL */
+            if (arg2 != 0) {
+                p = lock_user_string(arg2);
+                if (p == NULL) {
+                    return -TARGET_EFAULT;
+                }
             }
 #if defined(__NR_statx)
             {
@@ -13615,19 +13622,24 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     }
 #endif
 
-#if defined(TARGET_NR_epoll_wait) || defined(TARGET_NR_epoll_pwait)
 #if defined(TARGET_NR_epoll_wait)
     case TARGET_NR_epoll_wait:
 #endif
-#if defined(TARGET_NR_epoll_pwait)
     case TARGET_NR_epoll_pwait:
-#endif
+    case TARGET_NR_epoll_pwait2:
     {
         struct target_epoll_event *target_ep;
         struct epoll_event *ep;
         int epfd = arg1;
         int maxevents = arg3;
-        int timeout = arg4;
+        struct timespec ts, *timeout_ts = NULL;
+
+        if (num == TARGET_NR_epoll_pwait2 && arg4 != 0) {
+            if (target_to_host_timespec(&ts, arg4)) {
+                return -TARGET_EFAULT;
+            }
+            timeout_ts = &ts;
+        }
 
         if (maxevents <= 0 || maxevents > TARGET_EP_MAX_EVENTS) {
             return -TARGET_EINVAL;
@@ -13646,8 +13658,8 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         }
 
         switch (num) {
-#if defined(TARGET_NR_epoll_pwait)
         case TARGET_NR_epoll_pwait:
+        case TARGET_NR_epoll_pwait2:
         {
             sigset_t *set = NULL;
 
@@ -13658,18 +13670,22 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 }
             }
 
-            ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, timeout,
-                                             set, SIGSET_T_SIZE));
+            if (num == TARGET_NR_epoll_pwait) {
+                ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, arg4,
+                                                 set, SIGSET_T_SIZE));
+            } else {
+                ret = get_errno(safe_epoll_pwait2(epfd, ep, maxevents, timeout_ts,
+                                                  set, SIGSET_T_SIZE));
+            }
 
             if (set) {
                 finish_sigsuspend_mask(ret);
             }
             break;
         }
-#endif
 #if defined(TARGET_NR_epoll_wait)
         case TARGET_NR_epoll_wait:
-            ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, timeout,
+            ret = get_errno(safe_epoll_pwait(epfd, ep, maxevents, arg4,
                                              NULL, 0));
             break;
 #endif
@@ -13690,8 +13706,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         g_free(ep);
         return ret;
     }
-#endif
-#endif
+#endif /* CONFIG_EPOLL */
 #ifdef TARGET_NR_prlimit64
     case TARGET_NR_prlimit64:
     {

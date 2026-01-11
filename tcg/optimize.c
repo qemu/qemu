@@ -1088,8 +1088,9 @@ static bool fold_masks_zosa_int(OptContext *ctx, TCGOp *op,
 
     ti = ts_info(ts);
     ti->z_mask = z_mask;
+    ti->o_mask = o_mask;
 
-    /* Canonicalize s_mask and incorporate data from z_mask. */
+    /* Canonicalize s_mask and incorporate data from [zo]_mask. */
     rep = clz64(~s_mask);
     rep = MAX(rep, clz64(z_mask));
     rep = MAX(rep, clz64(~o_mask));
@@ -1102,7 +1103,7 @@ static bool fold_masks_zosa_int(OptContext *ctx, TCGOp *op,
 static bool fold_masks_zosa(OptContext *ctx, TCGOp *op, uint64_t z_mask,
                             uint64_t o_mask, int64_t s_mask, uint64_t a_mask)
 {
-    fold_masks_zosa_int(ctx, op, z_mask, o_mask, s_mask, -1);
+    fold_masks_zosa_int(ctx, op, z_mask, o_mask, s_mask, a_mask);
     return true;
 }
 
@@ -2359,7 +2360,7 @@ static bool fold_orc(OptContext *ctx, TCGOp *op)
     s_mask = t1->s_mask & t2->s_mask;
 
     /* Affected bits are those not known one, masked by those known one. */
-    a_mask = ~t1->o_mask & t2->o_mask;
+    a_mask = ~t1->o_mask & ~t2->o_mask;
 
     return fold_masks_zosa(ctx, op, z_mask, o_mask, s_mask, a_mask);
 }
