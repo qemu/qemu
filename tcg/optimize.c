@@ -2360,7 +2360,7 @@ static bool fold_orc(OptContext *ctx, TCGOp *op)
     s_mask = t1->s_mask & t2->s_mask;
 
     /* Affected bits are those not known one, masked by those known one. */
-    a_mask = ~t1->o_mask & t2->o_mask;
+    a_mask = ~t1->o_mask & ~t2->o_mask;
 
     return fold_masks_zosa(ctx, op, z_mask, o_mask, s_mask, a_mask);
 }
