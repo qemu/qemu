@@ -1215,15 +1215,26 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
                           "aspeed.i2c", aic->mem_size);
     sysbus_init_mmio(sbd, &s->iomem);
 
+    /* default value */
+    if (!s->bus_label) {
+        s->bus_label = g_strdup(TYPE_ASPEED_I2C_BUS);
+    }
+
     for (i = 0; i < aic->num_busses; i++) {
         Object *bus = OBJECT(&s->busses[i]);
         int offset = i < aic->gap ? 1 : 5;
+        g_autofree char *name = g_strdup_printf("%s.%d",
+                                                s->bus_label, i);
 
         if (!object_property_set_link(bus, "controller", OBJECT(s), errp)) {
             return;
         }
 
         if (!object_property_set_uint(bus, "bus-id", i, errp)) {
+            return;
+        }
+
+        if (!object_property_set_str(bus, "bus-name", name, errp)) {
             return;
         }
 
@@ -1263,6 +1274,7 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
 static const Property aspeed_i2c_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedI2CState, dram_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_STRING("bus-label", AspeedI2CState, bus_label),
 };
 
 static void aspeed_i2c_class_init(ObjectClass *klass, const void *data)
@@ -1423,24 +1435,26 @@ static void aspeed_i2c_bus_realize(DeviceState *dev, Error **errp)
 {
     AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
     AspeedI2CClass *aic;
-    g_autofree char *name = g_strdup_printf(TYPE_ASPEED_I2C_BUS ".%d", s->id);
-    g_autofree char *pool_name = g_strdup_printf("%s.pool", name);
+    g_autofree char *pool_name = NULL;
 
-    if (!s->controller) {
-        error_setg(errp, TYPE_ASPEED_I2C_BUS ": 'controller' link not set");
+    if (!s->controller || !s->name) {
+        error_setg(errp, TYPE_ASPEED_I2C_BUS
+                   ": 'controller' or 'bus-name' not set");
         return;
     }
+
+    pool_name = g_strdup_printf("%s.pool", s->name);
 
     aic = ASPEED_I2C_GET_CLASS(s->controller);
 
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 
-    s->bus = i2c_init_bus(dev, name);
+    s->bus = i2c_init_bus(dev, s->name);
     s->slave = i2c_slave_create_simple(s->bus, TYPE_ASPEED_I2C_BUS_SLAVE,
                                        0xff);
 
     memory_region_init_io(&s->mr, OBJECT(s), &aspeed_i2c_bus_ops,
-                          s, name, aic->reg_size);
+                          s, s->name, aic->reg_size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
 
     memory_region_init_io(&s->mr_pool, OBJECT(s), &aspeed_i2c_bus_pool_ops,
@@ -1452,6 +1466,7 @@ static const Property aspeed_i2c_bus_properties[] = {
     DEFINE_PROP_UINT8("bus-id", AspeedI2CBus, id, 0),
     DEFINE_PROP_LINK("controller", AspeedI2CBus, controller, TYPE_ASPEED_I2C,
                      AspeedI2CState *),
+    DEFINE_PROP_STRING("bus-name", AspeedI2CBus, name),
 };
 
 static void aspeed_i2c_bus_class_init(ObjectClass *klass, const void *data)
