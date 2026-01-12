@@ -33,7 +33,7 @@ foreach format, speed: qemu_iotests_formats
   if speed == 'quick'
     suites = 'block'
   else
-    suites = ['block-' + speed, speed]
+    suites = ['block-' + speed]
   endif
 
   args = ['-tap', '-' + format]
