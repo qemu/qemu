@@ -9,6 +9,7 @@
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
+from test_migration import PpcMigrationTest
 
 class PseriesMachine(QemuSystemTest):
 
@@ -86,6 +87,40 @@ class PseriesMachine(QemuSystemTest):
         console_pattern = 'smp: Brought up 2 nodes, 16 CPUs'
         wait_for_console_pattern(self, console_pattern, self.panic_message)
         wait_for_console_pattern(self, self.good_message, self.panic_message)
+
+    def test_ppc64_linux_migration(self):
+        self.set_machine('pseries')
+
+        kernel_path = self.ASSET_KERNEL.fetch()
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
+
+        dest_vm = self.get_vm(name="dest-qemu")
+        dest_vm.add_args('-incoming', 'defer')
+        dest_vm.add_args('-smp', '4')
+        dest_vm.add_args('-nodefaults')
+        dest_vm.add_args('-kernel', kernel_path,
+                         '-append', kernel_command_line)
+        dest_vm.set_console()
+        dest_vm.launch()
+
+        source_vm = self.get_vm(name="source-qemu")
+        source_vm.add_args('-smp', '4')
+        source_vm.add_args('-nodefaults')
+        source_vm.add_args('-kernel', kernel_path,
+                           '-append', kernel_command_line)
+        source_vm.set_console()
+        source_vm.launch()
+
+        # ensure the boot has reached Linux
+        console_pattern = 'smp: Brought up 1 node, 4 CPUs'
+        wait_for_console_pattern(self, console_pattern, self.panic_message,
+                                 vm=source_vm)
+
+        PpcMigrationTest().do_migrate_ppc64_linux(source_vm, dest_vm);
+
+        # ensure the boot proceeds after migration
+        wait_for_console_pattern(self, self.good_message, self.panic_message,
+                                 vm=dest_vm)
 
 if __name__ == '__main__':
     QemuSystemTest.main()
