@@ -22,7 +22,7 @@ class Suite(object):
 print(r'''
 SPEED = quick
 
-.speed.quick = $(sort $(filter-out %-slow %-thorough, $1))
+.speed.quick = $(sort $(filter-out %-slow %-thorough %-optional, $1))
 .speed.slow = $(sort $(filter-out %-thorough, $1))
 .speed.thorough = $(sort $1)
 
@@ -66,10 +66,15 @@ def process_tests(test, targets, suites):
             s = s[:-9]
             suites[s].speeds.add('thorough')
 
+def target_name(suite):
+    if suite.endswith('-optional'):
+        return suite[0:-9]
+    return suite
+
 def emit_prolog(suites, prefix):
-    all_targets = ' '.join((f'{prefix}-{k}'
+    all_targets = ' '.join((f'{prefix}-{target_name(k)}'
                             for k in sorted(suites.keys())))
-    all_xml = ' '.join((f'{prefix}-report-{k}.junit.xml'
+    all_xml = ' '.join((f'{prefix}-report-{target_name(k)}.junit.xml'
                         for k in sorted(suites.keys())))
     print()
     print(f'all-{prefix}-targets = {all_targets}')
@@ -83,14 +88,17 @@ def emit_prolog(suites, prefix):
     print(f'\t$(MAKE) {prefix}$* MTESTARGS="$(MTESTARGS) --logbase {prefix}-report$*" && ln -f meson-logs/$@ .')
 
 def emit_suite(name, suite, prefix):
+    tgtname = target_name(name)
     deps = ' '.join(sorted(suite.deps))
     print()
-    print(f'.{prefix}-{name}.deps = {deps}')
-    print(f'.ninja-goals.check-build += $(.{prefix}-{name}.deps)')
+    print(f'.{prefix}-{tgtname}.deps = {deps}')
+    print(f'.ninja-goals.check-build += $(.{prefix}-{tgtname}.deps)')
 
     names = ' '.join(sorted(suite.names(name)))
-    targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml'
-    if not name.endswith('-slow') and not name.endswith('-thorough'):
+    targets = f'{prefix}-{tgtname} {prefix}-report-{tgtname}.junit.xml'
+    if not name.endswith('-slow') and \
+       not name.endswith('-thorough') and \
+       not name.endswith('-optional'):
         targets += f' {prefix} {prefix}-report.junit.xml'
     print(f'ifneq ($(filter {targets}, $(MAKECMDGOALS)),)')
     # for the "base" suite possibly add FOO-slow and FOO-thorough
