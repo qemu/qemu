@@ -1514,9 +1514,12 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
         assert(!qiov);
         ret = blk_co_pwrite_zeroes(job->target, offset, bytes, flags);
         if (job->zero_bitmap && ret >= 0) {
-            bitmap_set(job->zero_bitmap, dirty_bitmap_offset / job->granularity,
-                       (dirty_bitmap_end - dirty_bitmap_offset) /
-                       job->granularity);
+            if (dirty_bitmap_offset < dirty_bitmap_end) {
+                bitmap_set(job->zero_bitmap,
+                           dirty_bitmap_offset / job->granularity,
+                           (dirty_bitmap_end - dirty_bitmap_offset) /
+                           job->granularity);
+            }
         }
         break;
 
