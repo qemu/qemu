@@ -95,11 +95,14 @@ def verify_passwordless_sudo():
 
     args = ["sudo", "-n", "/bin/true"]
 
-    proc = subprocess.Popen(args,
-                            stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            universal_newlines=True)
+    try:
+        proc = subprocess.Popen(args,
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                universal_newlines=True)
+    except FileNotFoundError as e:
+        iotests.notrun('requires sudo binary: %s' % e)
 
     msg = proc.communicate()[0]
 
