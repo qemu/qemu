@@ -6,6 +6,27 @@
 #ifndef ALPHA_TARGET_PROC_H
 #define ALPHA_TARGET_PROC_H
 
+#include "qemu/osdep.h"
+#include "target/alpha/cpu.h"
+
+static uint8_t alpha_phys_addr_space_bits(CPUAlphaState *env)
+{
+    switch (env->implver) {
+    case IMPLVER_2106x:
+        /* EV4 */
+        return 34;
+    case IMPLVER_21164:
+        /* EV5 */
+        return 40;
+    case IMPLVER_21264:
+    case IMPLVER_21364:
+        /* EV6 and EV7*/
+        return 44;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static int open_cpuinfo(CPUArchState *cpu_env, int fd)
 {
     int max_cpus = sysconf(_SC_NPROCESSORS_CONF);
@@ -57,7 +78,7 @@ static int open_cpuinfo(CPUArchState *cpu_env, int fd)
             "L1 Dcache\t\t: n/a\n"
             "L2 cache\t\t: n/a\n"
             "L3 cache\t\t: n/a\n",
-            model, TARGET_PAGE_SIZE, TARGET_PHYS_ADDR_SPACE_BITS,
+            model, TARGET_PAGE_SIZE, alpha_phys_addr_space_bits(cpu_env),
             max_cpus, num_cpus, cpu_mask);
 
     return 0;
