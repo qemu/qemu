@@ -639,7 +639,7 @@ static gint of_claimed_compare_func(gconstpointer a, gconstpointer b)
 
 static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
 {
-    int i, n, offset, proplen = 0, sc, ac;
+    int i, offset, proplen = 0, sc, ac;
     target_ulong mem0_end;
     const uint8_t *mem0_reg;
     g_autofree uint8_t *avail = NULL;
@@ -677,7 +677,7 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
     g_assert(claimed->len && (g_array_index(claimed, OfClaimed, 0).start == 0));
 
     avail = g_malloc0(sizeof(uint32_t) * (ac + sc) * claimed->len);
-    for (i = 0, n = 0, availcur = avail; i < claimed->len; ++i) {
+    for (i = 0, availcur = avail; i < claimed->len; ++i) {
         OfClaimed c = g_array_index(claimed, OfClaimed, i);
         uint64_t start, size;
 
@@ -705,7 +705,6 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
 
         if (size) {
             trace_vof_avail(c.start + c.size, c.start + c.size + size, size);
-            ++n;
         }
     }
     _FDT((fdt_setprop(fdt, offset, "available", avail, availcur - avail)));
