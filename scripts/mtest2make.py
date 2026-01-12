@@ -67,8 +67,10 @@ def process_tests(test, targets, suites):
             suites[s].speeds.add('thorough')
 
 def emit_prolog(suites, prefix):
-    all_targets = ' '.join((f'{prefix}-{k}' for k in suites.keys()))
-    all_xml = ' '.join((f'{prefix}-report-{k}.junit.xml' for k in suites.keys()))
+    all_targets = ' '.join((f'{prefix}-{k}'
+                            for k in sorted(suites.keys())))
+    all_xml = ' '.join((f'{prefix}-report-{k}.junit.xml'
+                        for k in sorted(suites.keys())))
     print()
     print(f'all-{prefix}-targets = {all_targets}')
     print(f'all-{prefix}-xml = {all_xml}')
@@ -81,12 +83,12 @@ def emit_prolog(suites, prefix):
     print(f'\t$(MAKE) {prefix}$* MTESTARGS="$(MTESTARGS) --logbase {prefix}-report$*" && ln -f meson-logs/$@ .')
 
 def emit_suite(name, suite, prefix):
-    deps = ' '.join(suite.deps)
+    deps = ' '.join(sorted(suite.deps))
     print()
     print(f'.{prefix}-{name}.deps = {deps}')
     print(f'.ninja-goals.check-build += $(.{prefix}-{name}.deps)')
 
-    names = ' '.join(suite.names(name))
+    names = ' '.join(sorted(suite.names(name)))
     targets = f'{prefix}-{name} {prefix}-report-{name}.junit.xml'
     if not name.endswith('-slow') and not name.endswith('-thorough'):
         targets += f' {prefix} {prefix}-report.junit.xml'
