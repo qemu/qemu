@@ -6405,10 +6405,9 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(dc->base.pc_next, dc->cc_op, 0);
 }
 
-static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,
-                                uint64_t pc)
+static vaddr get_next_pc(CPUS390XState *env, DisasContext *s, vaddr pc)
 {
-    uint64_t insn = translator_lduw_end(env, &s->base, pc, MO_BE);
+    uint16_t insn = translator_lduw_end(env, &s->base, pc, MO_BE);
 
     return pc + get_ilen((insn >> 8) & 0xff);
 }

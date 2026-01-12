@@ -30,6 +30,7 @@
 #include "exec/icount.h"
 #include "system/replay.h"
 #include "system/cpus.h"
+#include "hw/core/cpu.h"
 
 #ifdef CONFIG_POSIX
 #include <pthread.h>
@@ -387,10 +388,39 @@ static void timer_del_locked(QEMUTimerList *timer_list, QEMUTimer *ts)
     }
 }
 
+static void timer_fire(CPUState *cpu, run_on_cpu_data data)
+{
+    QEMUTimer *t = data.host_ptr;
+
+    t->cb(t->opaque);
+}
+
 static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
                                 QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimer **pt, *t;
+
+    /*
+     * Normally during record-replay virtual clock timers and CPU work are
+     * deterministically ordered. This is because the virtual clock can be
+     * advanced only by instructions running on a CPU.
+     *
+     * A notable exception are timers that are armed already expired. Their
+     * expiration is not constrained by instruction execution, and, therefore,
+     * their ordering relative to CPU work is affected by what the
+     * record-replay thread is doing when they are armed. This introduces
+     * non-determinism.
+     *
+     * Convert such timers to CPU work in order to avoid it.
+     */
+    if (replay_mode != REPLAY_MODE_NONE &&
+        timer_list->clock->type == QEMU_CLOCK_VIRTUAL &&
+        !(ts->attributes & QEMU_TIMER_ATTR_EXTERNAL) &&
+        expire_time <= qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) {
+        async_run_on_cpu(first_cpu, timer_fire,
+                         RUN_ON_CPU_HOST_PTR(ts));
+        return false;
+    }
 
     /* add the timer in the sorted list */
     pt = &timer_list->active_timers;

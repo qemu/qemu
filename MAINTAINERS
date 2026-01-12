@@ -4461,6 +4461,8 @@ F: docs/devel/testing/functional.rst
 F: scripts/clean_functional_cache.py
 F: tests/functional/meson.build
 F: tests/functional/generic/meson.build
+F: tests/functional/generic/test_linters.py
+F: tests/functional/pylintrc
 F: tests/functional/qemu_test/
 
 Windows Hosted Continuous Integration

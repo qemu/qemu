@@ -12,3 +12,6 @@ s390x_ss.add(when: 'CONFIG_TCG', if_true: files(
   'vec_int_helper.c',
   'vec_string_helper.c',
 ))
+s390x_system_ss.add(when: 'CONFIG_TCG', if_true: files(
+  'debug.c',
+))

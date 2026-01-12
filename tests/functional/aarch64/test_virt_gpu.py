@@ -9,16 +9,16 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from qemu.machine.machine import VMLaunchFailure
+from re import search
+from subprocess import check_output, CalledProcessError
 
-from qemu_test import Asset
+from qemu_test import Asset, skipIfMissingCommands
 from qemu_test import exec_command_and_wait_for_pattern as ec_and_wait
-from qemu_test import skipIfMissingCommands
 
 from qemu_test.linuxkernel import LinuxKernelTest
 
-from re import search
-from subprocess import check_output, CalledProcessError
+from qemu.machine.machine import VMLaunchFailure
+
 
 class Aarch64VirtGPUMachine(LinuxKernelTest):
 
@@ -81,16 +81,16 @@ class Aarch64VirtGPUMachine(LinuxKernelTest):
         self.wait_for_console_pattern('buildroot login:')
         ec_and_wait(self, 'root', '#')
 
-    def _run_virt_weston_test(self, cmd, fail = None):
+    def _run_virt_weston_test(self, cmd, fail=None):
 
         # make it easier to detect successful return to shell
-        PS1 = 'RES=[$?] # '
-        OK_CMD = 'RES=[0] # '
+        ps1 = 'RES=[$?] # '
+        ok_cmd = 'RES=[0] # '
 
         ec_and_wait(self, 'export XDG_RUNTIME_DIR=/tmp', '#')
-        ec_and_wait(self, f"export PS1='{PS1}'", OK_CMD)
+        ec_and_wait(self, f"export PS1='{ps1}'", ok_cmd)
         full_cmd = f"weston -B headless --renderer gl --shell kiosk -- {cmd}"
-        ec_and_wait(self, full_cmd, OK_CMD, fail)
+        ec_and_wait(self, full_cmd, ok_cmd, fail)
 
     @skipIfMissingCommands('zstd')
     def test_aarch64_virt_with_virgl_gpu(self):

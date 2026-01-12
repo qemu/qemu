@@ -6,6 +6,7 @@ test_s390x_timeouts = {
 
 tests_s390x_system_quick = [
   'vmstate',
+  'reverse_debug',
 ]
 
 tests_s390x_system_thorough = [

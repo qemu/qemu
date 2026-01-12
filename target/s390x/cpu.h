@@ -39,12 +39,6 @@
 
 #define S390_MAX_CPUS 248
 
-#ifndef CONFIG_KVM
-#define S390_ADAPTER_SUPPRESSIBLE 0x01
-#else
-#define S390_ADAPTER_SUPPRESSIBLE KVM_S390_ADAPTER_SUPPRESSIBLE
-#endif
-
 typedef struct PSW {
     uint64_t mask;
     uint64_t addr;

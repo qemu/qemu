@@ -50,6 +50,7 @@ class SMMU(LinuxKernelTest):
         elif kvm_available(self.qemu_bin):
             accel = "kvm"
         else:
+            accel = None        # for keeping pylint happy
             self.skipTest("Neither HVF nor KVM accelerator is available")
         self.require_accelerator(accel)
         self.require_netdev('user')
