@@ -4284,9 +4284,11 @@ foreach target : target_dirs
   endif
   if target.endswith('-softmmu')
     target_type='system'
-    t = target_system_arch[target_base_arch].apply(config_target, strict: false)
-    arch_srcs += t.sources()
-    arch_deps += t.dependencies()
+    if target_base_arch in target_system_arch
+      t = target_system_arch[target_base_arch].apply(config_target, strict: false)
+      arch_srcs += t.sources()
+      arch_deps += t.dependencies()
+    endif
 
     hw_dir = target_name == 'sparc64' ? 'sparc64' : target_base_arch
     if hw_arch.has_key(hw_dir)

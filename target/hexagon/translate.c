@@ -207,8 +207,9 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
     memset(words, 0, PACKET_WORDS_MAX * sizeof(uint32_t));
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
         words[nwords] =
-            translator_ldl(env, &ctx->base,
-                           ctx->base.pc_next + nwords * sizeof(uint32_t));
+            translator_ldl_end(env, &ctx->base,
+                               ctx->base.pc_next + nwords * sizeof(uint32_t),
+                               MO_LE);
         found_end = is_packet_end(words[nwords]);
     }
     if (!found_end) {
@@ -987,8 +988,10 @@ static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
     int nwords;
 
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
-        uint32_t word = translator_ldl(env, &ctx->base,
-                            ctx->base.pc_next + nwords * sizeof(uint32_t));
+        uint32_t word = translator_ldl_end(env, &ctx->base,
+                                           ctx->base.pc_next
+                                           + nwords * sizeof(uint32_t),
+                                           MO_LE);
         found_end = is_packet_end(word);
     }
     uint32_t next_ptr =  ctx->base.pc_next + nwords * sizeof(uint32_t);

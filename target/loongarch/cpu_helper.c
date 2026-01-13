@@ -146,7 +146,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
                      int access_type, int mmu_idx, int debug)
 {
     CPUState *cs = env_cpu(env);
-    target_ulong index = 0, phys = 0;
+    hwaddr index = 0, phys = 0;
     uint64_t dir_base, dir_width;
     uint64_t base, pte;
     int level;
@@ -172,7 +172,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         /* get next level page directory */
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
-        base = ldq_phys(cs->as, phys);
+        base = ldq_le_phys(cs->as, phys);
         if (level) {
             if (FIELD_EX64(base, TLBENTRY, HUGE)) {
                 /* base is a huge pte */
@@ -204,8 +204,8 @@ restart:
     } else if (cpu_has_ptw(env)) {
         index &= 1;
         context->pte_buddy[index] = base;
-        context->pte_buddy[1 - index] = ldq_phys(cs->as,
-                                            phys + 8 * (1 - 2 * index));
+        context->pte_buddy[1 - index] = ldq_le_phys(cs->as,
+                                                    phys + 8 * (1 - 2 * index));
     }
 
     context->ps = dir_base;
@@ -237,7 +237,7 @@ restart:
         ret1 = loongarch_cmpxchg_phys(cs, phys, pte, base);
         /* PTE updated by other CPU, reload PTE entry */
         if (ret1 == MEMTX_DECODE_ERROR) {
-            base = ldq_phys(cs->as, phys);
+            base = ldq_le_phys(cs->as, phys);
             goto restart;
         }
 
@@ -289,7 +289,7 @@ static TLBRet loongarch_map_address(CPULoongArchState *env,
     return TLBRET_NOMATCH;
 }
 
-static hwaddr dmw_va2pa(CPULoongArchState *env, vaddr va, target_ulong dmw)
+static hwaddr dmw_va2pa(CPULoongArchState *env, vaddr va, uint64_t dmw)
 {
     if (is_la64(env)) {
         return va & TARGET_VIRT_MASK;

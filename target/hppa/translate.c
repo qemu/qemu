@@ -4737,7 +4737,8 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     {
         /* Always fetch the insn, even if nullified, so that we check
            the page permissions for execute.  */
-        uint32_t insn = translator_ldl(env, &ctx->base, ctx->base.pc_next);
+        uint32_t insn = translator_ldl_end(env, &ctx->base, ctx->base.pc_next,
+                                           mo_endian(ctx));
 
         /*
          * Set up the IA queue for the next insn.
@@ -4863,7 +4864,7 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 static bool hppa_tr_disas_log(const DisasContextBase *dcbase,
                               CPUState *cs, FILE *logfile)
 {
-    target_ulong pc = dcbase->pc_first;
+    vaddr pc = dcbase->pc_first;
 
     switch (pc) {
     case 0x00:

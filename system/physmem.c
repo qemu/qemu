@@ -53,6 +53,7 @@
 #include "qemu/memalign.h"
 #include "qemu/memfd.h"
 #include "system/memory.h"
+#include "system/memory_cached.h"
 #include "system/ioport.h"
 #include "system/dma.h"
 #include "system/hostmem.h"
@@ -90,8 +91,6 @@
 #endif
 
 #include "memory-internal.h"
-
-//#define DEBUG_SUBPAGE
 
 /* ram_list is read under rcu_read_lock()/rcu_read_unlock().  Writes
  * are protected by the ramlist lock.
@@ -1272,7 +1271,8 @@ uint64_t physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 
             for (k = 0; k < nr; k++) {
                 if (bitmap[k]) {
-                    unsigned long temp = leul_to_cpu(bitmap[k]);
+                    unsigned long temp = ldn_le_p(&bitmap[k],
+                                                  sizeof(bitmap[k]));
 
                     nbits = ctpopl(temp);
                     qatomic_or(&blocks[DIRTY_MEMORY_VGA][idx][offset], temp);
@@ -1319,7 +1319,7 @@ uint64_t physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
          */
         for (i = 0; i < len; i++) {
             if (bitmap[i] != 0) {
-                c = leul_to_cpu(bitmap[i]);
+                c = ldn_le_p(&bitmap[i], sizeof(bitmap[i]));
                 nbits = ctpopl(c);
                 if (unlikely(global_dirty_tracking & GLOBAL_DIRTY_DIRTY_RATE)) {
                     total_dirty_pages += nbits;
@@ -2920,10 +2920,7 @@ static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
     uint8_t buf[8];
     MemTxResult res;
 
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %u addr " HWADDR_FMT_plx "\n", __func__,
-           subpage, len, addr);
-#endif
+    trace_subpage_read(subpage, len, addr);
     res = flatview_read(subpage->fv, addr + subpage->base, attrs, buf, len);
     if (res) {
         return res;
@@ -2938,11 +2935,7 @@ static MemTxResult subpage_write(void *opaque, hwaddr addr,
     subpage_t *subpage = opaque;
     uint8_t buf[8];
 
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %u addr " HWADDR_FMT_plx
-           " value %"PRIx64"\n",
-           __func__, subpage, len, addr, value);
-#endif
+    trace_subpage_write(subpage, len, addr, value);
     stn_p(buf, len, value);
     return flatview_write(subpage->fv, addr + subpage->base, attrs, buf, len);
 }
@@ -2952,10 +2945,8 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
                             MemTxAttrs attrs)
 {
     subpage_t *subpage = opaque;
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p %c len %u addr " HWADDR_FMT_plx "\n",
-           __func__, subpage, is_write ? 'w' : 'r', len, addr);
-#endif
+
+    trace_subpage_accepts(subpage, is_write ? 'w' : 'r', len, addr);
 
     return flatview_access_valid(subpage->fv, addr + subpage->base,
                                  len, is_write, attrs);
@@ -2981,10 +2972,7 @@ static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
         return -1;
     idx = SUBPAGE_IDX(start);
     eidx = SUBPAGE_IDX(end);
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: %p start %08x end %08x idx %08x eidx %08x section %d\n",
-           __func__, mmio, start, end, idx, eidx, section);
-#endif
+    trace_subpage_register(mmio, start, end, idx, eidx, section);
     for (; idx <= eidx; idx++) {
         mmio->sub_section[idx] = section;
     }
@@ -3003,10 +2991,7 @@ static subpage_t *subpage_init(FlatView *fv, hwaddr base)
     memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
                           NULL, TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
-#if defined(DEBUG_SUBPAGE)
-    printf("%s: %p base " HWADDR_FMT_plx " len %08x\n", __func__,
-           mmio, base, TARGET_PAGE_SIZE);
-#endif
+    trace_subpage_init(mmio, base, TARGET_PAGE_SIZE);
 
     return mmio;
 }

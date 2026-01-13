@@ -5743,7 +5743,7 @@ static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     unsigned int insn;
 
-    insn = translator_ldl(cpu_env(cs), &dc->base, dc->pc);
+    insn = translator_ldl_end(cpu_env(cs), &dc->base, dc->pc, MO_BE);
     dc->base.pc_next += 4;
 
     if (!decode(dc, insn)) {

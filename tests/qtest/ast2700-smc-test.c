@@ -7,7 +7,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/bswap.h"
 #include "libqtest-single.h"
 #include "qemu/bitops.h"
 #include "aspeed-smc-utils.h"

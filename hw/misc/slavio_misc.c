@@ -147,7 +147,7 @@ static uint64_t slavio_cfg_mem_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_cfg_mem_ops = {
     .read = slavio_cfg_mem_readb,
     .write = slavio_cfg_mem_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -177,7 +177,7 @@ static uint64_t slavio_diag_mem_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_diag_mem_ops = {
     .read = slavio_diag_mem_readb,
     .write = slavio_diag_mem_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -207,7 +207,7 @@ static uint64_t slavio_mdm_mem_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_mdm_mem_ops = {
     .read = slavio_mdm_mem_readb,
     .write = slavio_mdm_mem_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -245,7 +245,7 @@ static uint64_t slavio_aux1_mem_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_aux1_mem_ops = {
     .read = slavio_aux1_mem_readb,
     .write = slavio_aux1_mem_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -282,7 +282,7 @@ static uint64_t slavio_aux2_mem_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_aux2_mem_ops = {
     .read = slavio_aux2_mem_readb,
     .write = slavio_aux2_mem_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -310,7 +310,7 @@ static uint64_t apc_mem_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps apc_mem_ops = {
     .read = apc_mem_readb,
     .write = apc_mem_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -355,7 +355,7 @@ static void slavio_sysctrl_mem_writel(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_sysctrl_mem_ops = {
     .read = slavio_sysctrl_mem_readl,
     .write = slavio_sysctrl_mem_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -397,7 +397,7 @@ static void slavio_led_mem_writew(void *opaque, hwaddr addr,
 static const MemoryRegionOps slavio_led_mem_ops = {
     .read = slavio_led_mem_readw,
     .write = slavio_led_mem_writew,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 2,
         .max_access_size = 2,

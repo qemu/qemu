@@ -12,13 +12,12 @@
 #ifndef _GDBSTUB_HELPERS_H_
 #define _GDBSTUB_HELPERS_H_
 
-#ifndef COMPILING_PER_TARGET
-#error "gdbstub helpers should only be included by target specific code"
-#endif
-
 #include "qemu/bswap.h"
 #include "qemu/target-info.h"
+
+#ifdef COMPILING_PER_TARGET
 #include "cpu-param.h"
+#endif
 
 /*
  * The GDB remote protocol transfers values in target byte order. As
@@ -102,6 +101,7 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
     return buf->data + buf->len - len;
 }
 
+#ifdef COMPILING_PER_TARGET
 #if TARGET_LONG_BITS == 64
 #define gdb_get_regl(buf, val) gdb_get_reg64(buf, val)
 #define ldtul_p(addr) ldq_p(addr)
@@ -113,5 +113,6 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
 #define ldtul_le_p(addr) ldl_le_p(addr)
 #define ldtul_be_p(addr) ldl_be_p(addr)
 #endif
+#endif /* COMPILING_PER_TARGET */
 
 #endif /* _GDBSTUB_HELPERS_H_ */

@@ -189,7 +189,8 @@ static inline Int128 bswap128(Int128 a)
 #if __has_builtin(__builtin_bswap128)
     return __builtin_bswap128(a);
 #else
-    return int128_make128(bswap64(int128_gethi(a)), bswap64(int128_getlo(a)));
+    return int128_make128(__builtin_bswap64(int128_gethi(a)),
+                          __builtin_bswap64(int128_getlo(a)));
 #endif
 }
 
@@ -451,7 +452,7 @@ static inline void int128_subfrom(Int128 *a, Int128 b)
 
 static inline Int128 bswap128(Int128 a)
 {
-    return int128_make128(bswap64(a.hi), bswap64(a.lo));
+    return int128_make128(__builtin_bswap64(a.hi), __builtin_bswap64(a.lo));
 }
 
 static inline int clz128(Int128 a)

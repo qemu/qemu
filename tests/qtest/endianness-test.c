@@ -65,8 +65,9 @@ static uint16_t isa_inw(QTestState *qts, const TestCase *test, uint16_t addr)
         value = qtest_inw(qts, addr);
     } else {
         value = qtest_readw(qts, test->isa_base + addr);
+        value = test->bswap ? bswap16(value) : value;
     }
-    return test->bswap ? bswap16(value) : value;
+    return value;
 }
 
 static uint32_t isa_inl(QTestState *qts, const TestCase *test, uint16_t addr)
@@ -76,8 +77,9 @@ static uint32_t isa_inl(QTestState *qts, const TestCase *test, uint16_t addr)
         value = qtest_inl(qts, addr);
     } else {
         value = qtest_readl(qts, test->isa_base + addr);
+        value = test->bswap ? bswap32(value) : value;
     }
-    return test->bswap ? bswap32(value) : value;
+    return value;
 }
 
 static void isa_outb(QTestState *qts, const TestCase *test, uint16_t addr,
@@ -93,10 +95,10 @@ static void isa_outb(QTestState *qts, const TestCase *test, uint16_t addr,
 static void isa_outw(QTestState *qts, const TestCase *test, uint16_t addr,
                      uint16_t value)
 {
-    value = test->bswap ? bswap16(value) : value;
     if (test->isa_base == -1) {
         qtest_outw(qts, addr, value);
     } else {
+        value = test->bswap ? bswap16(value) : value;
         qtest_writew(qts, test->isa_base + addr, value);
     }
 }
@@ -104,10 +106,10 @@ static void isa_outw(QTestState *qts, const TestCase *test, uint16_t addr,
 static void isa_outl(QTestState *qts, const TestCase *test, uint16_t addr,
                      uint32_t value)
 {
-    value = test->bswap ? bswap32(value) : value;
     if (test->isa_base == -1) {
         qtest_outl(qts, addr, value);
     } else {
+        value = test->bswap ? bswap32(value) : value;
         qtest_writel(qts, test->isa_base + addr, value);
     }
 }

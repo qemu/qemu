@@ -17,7 +17,6 @@
 #include "malloc-pc.h"
 #include "libqos-malloc.h"
 #include "../libqtest.h"
-#include "qemu/bswap.h"
 #include "hw/nvram/fw_cfg.h"
 
 void qfw_cfg_select(QFWCFG *fw_cfg, uint16_t key)

@@ -286,7 +286,8 @@ static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    ctx->opcode = translator_ldl(cpu_env(cs), &ctx->base, ctx->base.pc_next);
+    ctx->opcode = translator_ldl_end(cpu_env(cs), &ctx->base,
+                                     ctx->base.pc_next, MO_LE);
 
     if (!decode(ctx, ctx->opcode)) {
         qemu_log_mask(LOG_UNIMP, "Error: unknown opcode. "

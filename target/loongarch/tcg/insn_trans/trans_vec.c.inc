@@ -5279,7 +5279,7 @@ static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
 
     addr = make_address_i(ctx, addr, a->imm);
 
-    tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+    tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_LE);
     tcg_gen_extr_i128_i64(rl, rh, val);
     set_vreg64(rh, a->vd, 1);
     set_vreg64(rl, a->vd, 0);
@@ -5311,7 +5311,7 @@ static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
     get_vreg64(ah, a->vd, 1);
     get_vreg64(al, a->vd, 0);
     tcg_gen_concat_i64_i128(val, al, ah);
-    tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+    tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_LE);
 
     return true;
 }
@@ -5337,7 +5337,7 @@ static bool trans_vldx(DisasContext *ctx, arg_vrr *a)
     rh = tcg_temp_new_i64();
 
     addr = make_address_x(ctx, src1, src2);
-    tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+    tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_LE);
     tcg_gen_extr_i128_i64(rl, rh, val);
     set_vreg64(rh, a->vd, 1);
     set_vreg64(rl, a->vd, 0);
@@ -5369,7 +5369,7 @@ static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
     get_vreg64(ah, a->vd, 1);
     get_vreg64(al, a->vd, 0);
     tcg_gen_concat_i64_i128(val, al, ah);
-    tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+    tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_LE);
 
     return true;
 }
@@ -5478,12 +5478,12 @@ static void gen_xvld(DisasContext *ctx, int vreg, TCGv addr)
     TCGv temp = tcg_temp_new();
     TCGv dest = tcg_temp_new();
 
-    tcg_gen_qemu_ld_i64(dest, addr, ctx->mem_idx, MO_TEUQ);
+    tcg_gen_qemu_ld_i64(dest, addr, ctx->mem_idx, MO_LEUQ);
     set_vreg64(dest, vreg, 0);
 
     for (i = 1; i < 4; i++) {
         tcg_gen_addi_tl(temp, addr, 8 * i);
-        tcg_gen_qemu_ld_i64(dest, temp, ctx->mem_idx, MO_TEUQ);
+        tcg_gen_qemu_ld_i64(dest, temp, ctx->mem_idx, MO_LEUQ);
         set_vreg64(dest, vreg, i);
     }
 }
@@ -5495,12 +5495,12 @@ static void gen_xvst(DisasContext * ctx, int vreg, TCGv addr)
     TCGv dest = tcg_temp_new();
 
     get_vreg64(dest, vreg, 0);
-    tcg_gen_qemu_st_i64(dest, addr, ctx->mem_idx, MO_TEUQ);
+    tcg_gen_qemu_st_i64(dest, addr, ctx->mem_idx, MO_LEUQ);
 
     for (i = 1; i < 4; i++) {
         tcg_gen_addi_tl(temp, addr, 8 * i);
         get_vreg64(dest, vreg, i);
-        tcg_gen_qemu_st_i64(dest, temp, ctx->mem_idx, MO_TEUQ);
+        tcg_gen_qemu_st_i64(dest, temp, ctx->mem_idx, MO_LEUQ);
     }
 }
 

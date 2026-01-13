@@ -173,7 +173,7 @@ static int to_regs_00_30_by_two(DisasContext *ctx, int indx)
 
 static uint16_t next_word(DisasContext *ctx)
 {
-    return translator_lduw(ctx->env, &ctx->base, ctx->npc++ * 2);
+    return translator_lduw_end(ctx->env, &ctx->base, ctx->npc++ * 2, MO_LE);
 }
 
 static int append_16(DisasContext *ctx, int x)

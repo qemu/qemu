@@ -56,64 +56,56 @@ static void unassigned_io_write(void *opaque, hwaddr addr, uint64_t val,
 const MemoryRegionOps unassigned_io_ops = {
     .read = unassigned_io_read,
     .write = unassigned_io_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 void cpu_outb(uint32_t addr, uint8_t val)
 {
     trace_cpu_out(addr, 'b', val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        &val, 1);
+    address_space_stb(&address_space_io, addr, val,
+                      MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 void cpu_outw(uint32_t addr, uint16_t val)
 {
-    uint8_t buf[2];
-
     trace_cpu_out(addr, 'w', val);
-    stw_p(buf, val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        buf, 2);
+    address_space_stw_le(&address_space_io, addr, val,
+                         MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 void cpu_outl(uint32_t addr, uint32_t val)
 {
-    uint8_t buf[4];
-
     trace_cpu_out(addr, 'l', val);
-    stl_p(buf, val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        buf, 4);
+    address_space_stl_le(&address_space_io, addr, val,
+                         MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 uint8_t cpu_inb(uint32_t addr)
 {
     uint8_t val;
 
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                       &val, 1);
+    val = address_space_ldub(&address_space_io, addr,
+                             MEMTXATTRS_UNSPECIFIED, NULL);
     trace_cpu_in(addr, 'b', val);
     return val;
 }
 
 uint16_t cpu_inw(uint32_t addr)
 {
-    uint8_t buf[2];
     uint16_t val;
 
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 2);
-    val = lduw_p(buf);
+    val = address_space_lduw_le(&address_space_io, addr,
+                                MEMTXATTRS_UNSPECIFIED, NULL);
     trace_cpu_in(addr, 'w', val);
     return val;
 }
 
 uint32_t cpu_inl(uint32_t addr)
 {
-    uint8_t buf[4];
     uint32_t val;
 
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 4);
-    val = ldl_p(buf);
+    val = address_space_ldl_le(&address_space_io, addr,
+                               MEMTXATTRS_UNSPECIFIED, NULL);
     trace_cpu_in(addr, 'l', val);
     return val;
 }

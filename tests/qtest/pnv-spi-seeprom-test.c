@@ -7,7 +7,6 @@
  */
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "qemu/bswap.h"
 #include "hw/ssi/pnv_spi_regs.h"
 #include "pnv-xscom.h"
 

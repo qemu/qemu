@@ -10,7 +10,6 @@
 #include "i2c.h"
 
 
-#include "qemu/bswap.h"
 #include "../libqtest.h"
 
 enum OMAPI2CRegisters {
