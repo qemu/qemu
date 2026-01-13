@@ -118,6 +118,7 @@ static FILE *qemu_log_trylock_with_err(Error **errp)
             logfile = qatomic_rcu_read((void **)&global_file);
             if (!logfile) {
                 rcu_read_unlock();
+                error_setg(errp, "Global log file output is not open");
                 return NULL;
             }
         }
