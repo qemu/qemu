@@ -1813,13 +1813,10 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
      * restart early if we can't support either operation that is supposed
      * to be atomic.
      */
-    if (parallel) {
-        uint32_t max = 2;
-        max = 3;
-        if ((HAVE_CMPXCHG128 ? 0 : fc + 2 > max) ||
-            (HAVE_ATOMIC128_RW ? 0 : sc > max)) {
-            cpu_loop_exit_atomic(env_cpu(env), ra);
-        }
+    if (parallel &&
+        ((!HAVE_CMPXCHG128 && fc + 2 > MO_64) ||
+         (!HAVE_ATOMIC128_RW && sc > MO_64))) {
+        cpu_loop_exit_atomic(env_cpu(env), ra);
     }
 
     /*
