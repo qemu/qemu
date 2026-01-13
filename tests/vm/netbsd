@@ -22,15 +22,15 @@ class NetBSDVM(basevm.BaseVM):
     name = "netbsd"
     arch = "x86_64"
 
-    link = "https://cdn.netbsd.org/pub/NetBSD/NetBSD-9.3/images/NetBSD-9.3-amd64.iso"
-    csum = "2bfce544f762a579f61478e7106c436fc48731ff25cf6f79b392ba5752e6f5ec130364286f7471716290a5f033637cf56aacee7fedb91095face59adf36300c3"
+    link = "https://cdn.netbsd.org/pub/NetBSD/images/10.1/NetBSD-10.1-amd64.iso"
+    csum = "7a5e5071307e1795885ffc6e1b8aac465082c21c8b79f4c9b4103ef44e4f2da45477299d213ae0093f6534dc99dc2bbf78f41e9dd556c72a02516068bf43fe49"
     size = "20G"
     pkgs = [
         # tools
         "git-base",
         "pkgconf",
         "xz",
-        "python311",
+        "python313",
         "ninja-build",
 
         # gnu tools
@@ -46,7 +46,6 @@ class NetBSDVM(basevm.BaseVM):
         "gnutls",
 
         # libs: images
-        "jpeg",
         "png",
 
         # libs: ui
@@ -126,8 +125,6 @@ class NetBSDVM(basevm.BaseVM):
         self.print_step("Installation started now, this will take a while")
         self.console_wait_send("Hit enter to continue",    "\n")
 
-        self.console_wait_send("d: Change root password",  "d\n")
-        self.console_wait_send("a: Yes",                   "a\n")
         self.console_wait("New password:")
         self.console_send("%s\n" % self._config["root_pass"])
         self.console_wait("New password:")
@@ -153,6 +150,7 @@ class NetBSDVM(basevm.BaseVM):
         self.console_wait_send("Network media type",       "\n")
         self.console_wait("autoconfiguration")
         self.console_wait_send("a: Yes",                   "a\n")
+        self.console_wait_send("Finished",                 "netbsd-guest\n")
         self.console_wait_send("DNS domain",               "localnet\n")
         self.console_wait("Are they OK?")
         self.console_wait_send("a: Yes",                   "a\n")
@@ -160,6 +158,8 @@ class NetBSDVM(basevm.BaseVM):
         self.console_wait_send("a: Yes",                   "a\n")
 
         self.console_wait_send("e: Enable install",        "e\n")
+        self.console_wait("installed in /etc")
+        self.console_wait_send("a: Yes",                   "a\n")
         proxy = os.environ.get("http_proxy")
         if not proxy is None:
             self.console_wait_send("f: Proxy",             "f\n")
@@ -178,13 +178,13 @@ class NetBSDVM(basevm.BaseVM):
         self.console_wait_send("d: Reboot the computer",   "d\n")
 
         # setup qemu user
-        prompt = "localhost$"
+        prompt = "netbsd-guest$"
         self.console_ssh_init(prompt, self._config["guest_user"],
                                       self._config["guest_pass"])
         self.console_wait_send(prompt, "exit\n")
 
         # setup root user
-        prompt = "localhost#"
+        prompt = "netbsd-guest#"
         self.console_ssh_init(prompt, "root", self._config["root_pass"])
         self.console_sshd_config(prompt)
 
