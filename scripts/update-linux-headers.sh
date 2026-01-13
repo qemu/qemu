@@ -154,7 +154,6 @@ EOF
     mkdir -p "$output/include/standard-headers/asm-$arch"
     if [ $arch = s390 ]; then
         cp_portable "$hdrdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
-        cp "$hdrdir/include/asm/unistd_32.h" "$output/linux-headers/asm-s390/"
         cp "$hdrdir/include/asm/unistd_64.h" "$output/linux-headers/asm-s390/"
     fi
     if [ $arch = arm64 ]; then

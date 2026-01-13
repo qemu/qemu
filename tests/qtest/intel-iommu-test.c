@@ -13,9 +13,9 @@
 #include "hw/i386/intel_iommu_internal.h"
 
 #define CAP_STAGE_1_FIXED1    (VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | \
-                              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS)
+                              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SSLPS)
 #define ECAP_STAGE_1_FIXED1   (VTD_ECAP_QI |  VTD_ECAP_IR | VTD_ECAP_IRO | \
-                              VTD_ECAP_MHMV | VTD_ECAP_SMTS | VTD_ECAP_FLTS)
+                              VTD_ECAP_MHMV | VTD_ECAP_SMTS | VTD_ECAP_FSTS)
 
 static inline uint64_t vtd_reg_readq(QTestState *s, uint64_t offset)
 {

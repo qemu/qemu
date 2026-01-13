@@ -450,13 +450,6 @@ typedef struct hv_input_set_vp_registers {
     struct hv_register_assoc elements[];
 } hv_input_set_vp_registers;
 
-#define MSHV_VP_MAX_REGISTERS   128
-
-struct mshv_vp_registers {
-    int count; /* at most MSHV_VP_MAX_REGISTERS */
-    struct hv_register_assoc *regs;
-};
-
 union hv_interrupt_control {
     uint64_t as_uint64;
     struct {

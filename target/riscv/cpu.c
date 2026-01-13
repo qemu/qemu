@@ -2913,7 +2913,7 @@ void riscv_isa_write_fdt(RISCVCPU *cpu, void *fdt, char *nodename)
     riscv_isa = riscv_isa_string(cpu);
     qemu_fdt_setprop_string(fdt, nodename, "riscv,isa", riscv_isa);
 
-    snprintf(isa_base, maxlen, "rv%di", xlen);
+    snprintf(isa_base, maxlen, "rv%di", xlen & 0xFF);
     qemu_fdt_setprop_string(fdt, nodename, "riscv,isa-base", isa_base);
 
     isa_extensions = riscv_isa_extensions_list(cpu, &count);

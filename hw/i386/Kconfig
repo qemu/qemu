@@ -150,7 +150,12 @@ config X86_IOMMU
 
 config VTD
     bool
+    imply VTD_ACCEL
     select X86_IOMMU
+
+config VTD_ACCEL
+    bool
+    depends on VTD && IOMMUFD
 
 config AMD_IOMMU
     bool
