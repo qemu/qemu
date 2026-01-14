@@ -231,7 +231,6 @@ typedef struct {
     bool live;
 
     /* Postcopy specific fields */
-    void *postcopy_data;
     PostcopyRecoveryFailStage postcopy_recovery_fail_stage;
 } MigrateCommon;
 
