@@ -321,6 +321,8 @@ static void fdt_add_pcie_irq_map_node(const LoongArchVirtMachineState *lvms,
     uint32_t full_irq_map[PCI_NUM_PINS * PCI_NUM_PINS * 10] = {};
     uint32_t *irq_map = full_irq_map;
     const MachineState *ms = MACHINE(lvms);
+    uint32_t pin_mask;
+    uint32_t devfn_mask;
 
     /*
      * This code creates a standard swizzle of interrupts such that
@@ -333,37 +335,45 @@ static void fdt_add_pcie_irq_map_node(const LoongArchVirtMachineState *lvms,
      */
 
     for (dev = 0; dev < PCI_NUM_PINS; dev++) {
-        int devfn = dev * 0x8;
+        int devfn = PCI_DEVFN(dev, 0);
 
         for (pin = 0; pin < PCI_NUM_PINS; pin++) {
-            int irq_nr = 16 + ((pin + PCI_SLOT(devfn)) % PCI_NUM_PINS);
+            int irq_nr = VIRT_DEVICE_IRQS + \
+                         ((pin + PCI_SLOT(devfn)) % PCI_NUM_PINS);
             int i = 0;
 
-            /* Fill PCI address cells */
-            irq_map[i] = cpu_to_be32(devfn << 8);
-            i += 3;
-
-            /* Fill PCI Interrupt cells */
-            irq_map[i] = cpu_to_be32(pin + 1);
-            i += 1;
-
-            /* Fill interrupt controller phandle and cells */
-            irq_map[i++] = cpu_to_be32(*pch_pic_phandle);
-            irq_map[i++] = cpu_to_be32(irq_nr);
+            uint32_t map[] = {
+                devfn << 8, 0, 0,             /* devfn */
+                pin + 1,                      /* PCI pin */
+                *pch_pic_phandle,             /* interrupt controller handle */
+                irq_nr,                       /* irq number */
+                FDT_IRQ_TYPE_LEVEL_HIGH };    /* irq trigger level */
 
             if (!irq_map_stride) {
-                irq_map_stride = i;
+                irq_map_stride = sizeof(map) / sizeof(uint32_t);
             }
+
+            /* Convert map to big endian */
+            for (i = 0; i < irq_map_stride; i++) {
+                irq_map[i] = cpu_to_be32(map[i]);
+            }
+
             irq_map += irq_map_stride;
         }
     }
 
-
     qemu_fdt_setprop(ms->fdt, nodename, "interrupt-map", full_irq_map,
                      PCI_NUM_PINS * PCI_NUM_PINS *
                      irq_map_stride * sizeof(uint32_t));
+
+    /* Only need to match the pci slot bit */
+    devfn_mask = PCI_DEVFN((PCI_NUM_PINS - 1), 0) << 8;
+    /* The pci interrupt only needs to match the specified low bit */
+    pin_mask = (1 << ((PCI_NUM_PINS - 1))) - 1;
+
     qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupt-map-mask",
-                     0x1800, 0, 0, 0x7);
+                           devfn_mask, 0, 0,  /* address cells */
+                           pin_mask);
 }
 
 static void fdt_add_pcie_node(const LoongArchVirtMachineState *lvms,
@@ -400,6 +410,8 @@ static void fdt_add_pcie_node(const LoongArchVirtMachineState *lvms,
                                  2, base_mmio, 2, size_mmio);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "msi-map",
                            0, *pch_msi_phandle, 0, 0x10000);
+
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 1);
     fdt_add_pcie_irq_map_node(lvms, nodename, pch_pic_phandle);
     g_free(nodename);
 }
