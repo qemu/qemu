@@ -1632,6 +1632,7 @@ probe_target_compiler() {
 }
 
 write_target_makefile() {
+  echo "PYTHON=$python"
   echo "EXTRA_CFLAGS=$target_cflags"
   if test -z "$target_cc" && test -z "$target_as"; then
     test -z "$container_image" && error_exit "Internal error: could not find cross compiler for $1?"
