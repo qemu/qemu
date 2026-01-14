@@ -66,7 +66,7 @@ Modifying ``configure``
 ``configure`` is a shell script; it uses ``#!/bin/sh`` and therefore
 should be compatible with any POSIX shell. It is important to avoid
 using bash-isms to avoid breaking development platforms where bash is
-the primary host.
+not the default shell implementation.
 
 The configure script provides a variety of functions to help writing
 portable shell code and providing consistent behavior across architectures
