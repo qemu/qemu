@@ -67,6 +67,8 @@ class ReverseDebugging(LinuxKernelTest):
     def reverse_debugging(self, gdb_arch, shift=7, args=None, big_endian=False):
         from qemu_test import GDB
 
+        self.require_accelerator("tcg")
+
         # create qcow2 for snapshots
         self.log.info('creating qcow2 image for VM snapshots')
         image_path = os.path.join(self.workdir, 'disk.qcow2')
