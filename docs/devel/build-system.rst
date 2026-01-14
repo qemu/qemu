@@ -88,7 +88,7 @@ and operating systems:
   ``$target_ar``, etc. to non-empty values.
 
 ``write_target_makefile``
-  Write a Makefile fragment to stdout, exposing the result of the most
+  Write a Makefile fragment to stdout, exposing the result of the most recent
   ``probe_target_compiler`` call as the usual Make variables (``CC``,
   ``AR``, ``LD``, etc.).
 
