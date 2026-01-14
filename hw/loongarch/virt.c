@@ -45,6 +45,7 @@
 #include "hw/block/flash.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 
 static void virt_get_veiointc(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
@@ -532,8 +533,15 @@ static MemTxResult virt_iocsr_misc_write(void *opaque, hwaddr addr,
                           EXTIOI_VIRT_BASE + EXTIOI_VIRT_CONFIG,
                           features, attrs, NULL);
         break;
+    case VERSION_REG:
+    case FEATURE_REG:
+    case VENDOR_REG:
+    case CPUNAME_REG:
+        break;
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_UNIMP, "%s: Unimplemented IOCSR 0x%" HWADDR_PRIx "\n",
+                      __func__, addr);
+        break;
     }
 
     return MEMTX_OK;
@@ -580,7 +588,9 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         }
         break;
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_UNIMP, "%s: Unimplemented IOCSR 0x%" HWADDR_PRIx "\n",
+                      __func__, addr);
+        break;
     }
 
     *data = ret;
