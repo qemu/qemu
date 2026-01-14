@@ -21,7 +21,6 @@ bql = { path = "../../bql" }
 qom = { path = "../../qom" }
 chardev = { path = "../../chardev" }
 migration = { path = "../../migration" }
-system = { path = "../../system" }
 util = { path = "../../util" }
 
 [lints]

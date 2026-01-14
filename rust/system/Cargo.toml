@@ -16,6 +16,7 @@ rust-version.workspace = true
 common = { path = "../common" }
 system-sys = { path = "../bindings/system-sys" }
 bql = { path = "../bql" }
+hwcore = { path = "../hw/core" }
 migration = { path = "../migration" }
 qom = { path = "../qom" }
 util = { path = "../util" }

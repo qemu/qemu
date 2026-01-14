@@ -9,3 +9,6 @@ pub use memory::*;
 // for prelude-like modules
 #[rustfmt::skip]
 pub mod prelude;
+
+mod sysbus;
+pub use sysbus::*;

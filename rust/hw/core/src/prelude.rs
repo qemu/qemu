@@ -9,9 +9,4 @@ pub use crate::qdev::DeviceMethods;
 pub use crate::qdev::ResettablePhasesImpl;
 pub use crate::qdev::ResetType;
 
-pub use crate::sysbus::SysBusDevice;
-pub use crate::sysbus::SysBusDeviceClassExt;
-pub use crate::sysbus::SysBusDeviceImpl;
-pub use crate::sysbus::SysBusDeviceMethods;
-
 pub use crate::irq::InterruptSource;

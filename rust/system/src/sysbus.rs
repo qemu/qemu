@@ -7,15 +7,12 @@
 use std::ffi::CStr;
 
 use common::Opaque;
+use hwcore::{prelude::*, IRQState};
 use qom::prelude::*;
-use system::MemoryRegion;
 pub use system_sys::SysBusDeviceClass;
 use util::{Error, Result};
 
-use crate::{
-    irq::{IRQState, InterruptSource},
-    qdev::{DeviceClassExt, DeviceImpl, DeviceState},
-};
+use crate::MemoryRegion;
 
 /// A safe wrapper around [`system_sys::SysBusDevice`].
 #[repr(transparent)]

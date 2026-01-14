@@ -14,6 +14,3 @@ pub mod prelude;
 
 mod qdev;
 pub use qdev::*;
-
-mod sysbus;
-pub use sysbus::*;
