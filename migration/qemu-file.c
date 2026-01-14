@@ -396,8 +396,7 @@ int qemu_file_get_fd(QEMUFile *f)
         goto fail;
     }
 
-    /* Force the dummy byte and its fd passenger to appear. */
-    qemu_peek_byte(f, 0);
+    qemu_get_byte(f);
 
     fde = QTAILQ_FIRST(&f->fds);
     if (!fde) {
@@ -405,7 +404,6 @@ int qemu_file_get_fd(QEMUFile *f)
         goto fail;
     }
 
-    qemu_get_byte(f);       /* Drop the dummy byte */
     fd = fde->fd;
     QTAILQ_REMOVE(&f->fds, fde, entry);
     g_free(fde);
