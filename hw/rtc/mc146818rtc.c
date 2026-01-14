@@ -77,12 +77,13 @@ static inline bool rtc_running(MC146818RtcState *s)
             (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20);
 }
 
-static uint64_t get_guest_rtc_ns(MC146818RtcState *s)
+/*
+ * Note: get_rtc_ns_since_last_update() does not include the base_rtc seconds
+ * value.  This does not matter if the caller only needs the nanoseconds part.
+ */
+static uint64_t get_rtc_ns_since_last_update(MC146818RtcState *s)
 {
-    uint64_t guest_clock = qemu_clock_get_ns(rtc_clock);
-
-    return s->base_rtc * NANOSECONDS_PER_SECOND +
-        guest_clock - s->last_update + s->offset;
+    return qemu_clock_get_ns(rtc_clock) - s->last_update + s->offset;
 }
 
 static void rtc_coalesced_timer_update(MC146818RtcState *s)
@@ -258,7 +259,7 @@ static void check_update_timer(MC146818RtcState *s)
         return;
     }
 
-    guest_nsec = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
+    guest_nsec = get_rtc_ns_since_last_update(s) % NANOSECONDS_PER_SECOND;
     next_update_time = qemu_clock_get_ns(rtc_clock)
         + NANOSECONDS_PER_SECOND - guest_nsec;
 
@@ -510,7 +511,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
                 /* if disabling set mode, update the time */
                 if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
                     (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20) {
-                    s->offset = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
+                    s->offset = get_rtc_ns_since_last_update(s) % NANOSECONDS_PER_SECOND;
                     rtc_set_time(s);
                 }
             }
@@ -623,10 +624,8 @@ static void rtc_update_time(MC146818RtcState *s)
 {
     struct tm ret;
     time_t guest_sec;
-    int64_t guest_nsec;
 
-    guest_nsec = get_guest_rtc_ns(s);
-    guest_sec = guest_nsec / NANOSECONDS_PER_SECOND;
+    guest_sec = s->base_rtc + get_rtc_ns_since_last_update(s) / NANOSECONDS_PER_SECOND;
     gmtime_r(&guest_sec, &ret);
 
     /* Is SET flag of Register B disabled? */
@@ -637,7 +636,7 @@ static void rtc_update_time(MC146818RtcState *s)
 
 static int update_in_progress(MC146818RtcState *s)
 {
-    int64_t guest_nsec;
+    uint64_t guest_nsec;
 
     if (!rtc_running(s)) {
         return 0;
@@ -652,7 +651,7 @@ static int update_in_progress(MC146818RtcState *s)
         }
     }
 
-    guest_nsec = get_guest_rtc_ns(s);
+    guest_nsec = get_rtc_ns_since_last_update(s);
     /* UIP bit will be set at last 244us of every second. */
     if ((guest_nsec % NANOSECONDS_PER_SECOND) >=
         (NANOSECONDS_PER_SECOND - UIP_HOLD_LENGTH)) {
