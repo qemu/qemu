@@ -41,30 +41,26 @@ static void test_postcopy_preempt(char *name, MigrateCommon *args)
 
 static void test_postcopy_recovery(char *name, MigrateCommon *args)
 {
-    test_postcopy_recovery_common(args);
+    test_postcopy_recovery_common(args, POSTCOPY_FAIL_NONE);
 }
 
 static void test_postcopy_recovery_fail_handshake(char *name,
                                                   MigrateCommon *args)
 {
-    args->postcopy_recovery_fail_stage = POSTCOPY_FAIL_RECOVERY;
-
-    test_postcopy_recovery_common(args);
+    test_postcopy_recovery_common(args, POSTCOPY_FAIL_RECOVERY);
 }
 
 static void test_postcopy_recovery_fail_reconnect(char *name,
                                                   MigrateCommon *args)
 {
-    args->postcopy_recovery_fail_stage = POSTCOPY_FAIL_CHANNEL_ESTABLISH;
-
-    test_postcopy_recovery_common(args);
+    test_postcopy_recovery_common(args, POSTCOPY_FAIL_CHANNEL_ESTABLISH);
 }
 
 static void test_postcopy_preempt_recovery(char *name, MigrateCommon *args)
 {
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
 
-    test_postcopy_recovery_common(args);
+    test_postcopy_recovery_common(args, POSTCOPY_FAIL_NONE);
 }
 
 static void migration_test_add_postcopy_smoke(MigrationTestEnv *env)
