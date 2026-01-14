@@ -389,28 +389,34 @@ int qemu_file_get_fd(QEMUFile *f)
 {
     int fd = -1;
     FdEntry *fde;
+    Error *err = NULL;
 
     if (!f->can_pass_fd) {
-        Error *err = NULL;
         error_setg(&err, "%s does not support fd passing", f->ioc->name);
-        error_report_err(error_copy(err));
-        qemu_file_set_error_obj(f, -EIO, err);
-        goto out;
+        goto fail;
     }
 
     /* Force the dummy byte and its fd passenger to appear. */
     qemu_peek_byte(f, 0);
 
     fde = QTAILQ_FIRST(&f->fds);
-    if (fde) {
-        qemu_get_byte(f);       /* Drop the dummy byte */
-        fd = fde->fd;
-        QTAILQ_REMOVE(&f->fds, fde, entry);
-        g_free(fde);
+    if (!fde) {
+        error_setg(&err, "%s no FD come with service byte", f->ioc->name);
+        goto fail;
     }
-out:
+
+    qemu_get_byte(f);       /* Drop the dummy byte */
+    fd = fde->fd;
+    QTAILQ_REMOVE(&f->fds, fde, entry);
+    g_free(fde);
+
     trace_qemu_file_get_fd(f->ioc->name, fd);
     return fd;
+
+fail:
+    error_report_err(error_copy(err));
+    qemu_file_set_error_obj(f, -EIO, err);
+    return -1;
 }
 
 /** Closes the file
