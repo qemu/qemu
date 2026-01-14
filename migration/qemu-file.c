@@ -385,9 +385,8 @@ int qemu_file_put_fd(QEMUFile *f, int fd)
     return ret;
 }
 
-int qemu_file_get_fd(QEMUFile *f)
+int qemu_file_get_fd(QEMUFile *f, int *fd)
 {
-    int fd = -1;
     FdEntry *fde;
     Error *err = NULL;
     int service_byte;
@@ -410,12 +409,12 @@ int qemu_file_get_fd(QEMUFile *f)
         goto fail;
     }
 
-    fd = fde->fd;
+    *fd = fde->fd;
     QTAILQ_REMOVE(&f->fds, fde, entry);
     g_free(fde);
 
-    trace_qemu_file_get_fd(f->ioc->name, fd);
-    return fd;
+    trace_qemu_file_get_fd(f->ioc->name, *fd);
+    return 0;
 
 fail:
     error_report_err(error_copy(err));
