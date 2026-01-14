@@ -45,14 +45,15 @@ static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
 
 static int qemu_spice_set_passwd_stub(const char *passwd,
                                       bool fail_if_connected,
-                                      bool disconnect_if_connected)
+                                      bool disconnect_if_connected,
+                                      Error **errp)
 {
-    return -1;
+    g_assert_not_reached();
 }
 
 static int qemu_spice_set_pw_expire_stub(time_t expires)
 {
-    return -1;
+    g_assert_not_reached();
 }
 
 static int qemu_spice_display_add_client_stub(int csock, int skipauth,
