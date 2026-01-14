@@ -66,7 +66,7 @@ KVM Acceleration
 ----------------
 
 To enable hardware-assisted acceleration via KVM, append
-``-accel kvm -cpu host`` to the command line. While this speeds up performance
+``-accel kvm`` to the command line. While this speeds up performance
 significantly, be aware of the following limitations:
 
 * The ``imx8mp-evk`` machine is not included under the "virtualization use case"
