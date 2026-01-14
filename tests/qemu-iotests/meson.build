@@ -12,7 +12,7 @@ qemu_iotests_binaries = [qemu_img, qemu_io, qemu_nbd, qsd]
 qemu_iotests_env = {'PYTHON': python.full_path()}
 # If altering this definition, also update docs/devel/testing/main.rst
 # section on 'check-block' targets to reflect the changes
-qemu_iotests_formats = {
+qemu_iotests_drivers = {
   'qcow2': 'quick',
   'raw': 'slow',
   'luks': 'thorough',
@@ -33,12 +33,12 @@ endforeach
 
 qemu_iotests_check_cmd = files('check')
 
-foreach format, speed: qemu_iotests_formats
-  # Formats tagged 'quick' get the subset of tests in the 'auto'
+foreach driver, speed: qemu_iotests_drivers
+  # Drivers tagged 'quick' get the subset of tests in the 'auto'
   # group, run by default with 'make check' / 'make check-block'
   seen = []
   if speed == 'quick'
-    args = ['-tap', '-' + format, '-g', 'auto']
+    args = ['-tap', '-' + driver, '-g', 'auto']
     suites = ['block']
 
     rc = run_command(
@@ -49,13 +49,13 @@ foreach format, speed: qemu_iotests_formats
     foreach item: rc.stdout().strip().split()
       seen += item
       args = [qemu_iotests_check_cmd,
-              '-tap', '-' + format, item,
+              '-tap', '-' + driver, item,
               '--source-dir', meson.current_source_dir(),
               '--build-dir', meson.current_build_dir()]
       # Some individual tests take as long as 45 seconds
       # Bump the timeout to 3 minutes for some headroom
       # on slow machines to minimize spurious failures
-      test('io-' + format + '-' + item,
+      test('io-' + driver + '-' + item,
            python,
            args: args,
            depends: qemu_iotests_binaries,
@@ -66,9 +66,9 @@ foreach format, speed: qemu_iotests_formats
     endforeach
   endif
 
-  # Every format gets put in the format specific suite
-  suites = ['block-' + format + '-optional']
-  # Any format tagged quick or slow also gets added to slow
+  # Every driver gets put in the driver specific suite
+  suites = ['block-' + driver + '-optional']
+  # Any driver tagged quick or slow also gets added to slow
   # otherwise its tagged thorough
   if speed != 'thorough'
     suites += ['block-slow']
@@ -76,7 +76,7 @@ foreach format, speed: qemu_iotests_formats
     suites += ['block-thorough']
   endif
 
-  args = ['-tap', '-' + format]
+  args = ['-tap', '-' + driver]
 
   rc = run_command(
       [python, qemu_iotests_check_cmd] + args + ['-n'],
@@ -91,13 +91,13 @@ foreach format, speed: qemu_iotests_formats
       endif
 
       args = [qemu_iotests_check_cmd,
-              '-tap', '-' + format, item,
+              '-tap', '-' + driver, item,
               '--source-dir', meson.current_source_dir(),
               '--build-dir', meson.current_build_dir()]
       # Some individual tests take as long as 45 seconds
       # Bump the timeout to 3 minutes for some headroom
       # on slow machines to minimize spurious failures
-      test('io-' + format + '-' + item,
+      test('io-' + driver + '-' + item,
            python,
            args: args,
            depends: qemu_iotests_binaries,
