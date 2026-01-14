@@ -16,6 +16,7 @@
 #include "system/nvmm.h"
 #include "system/cpus.h"
 #include "system/memory.h"
+#include "system/ramlist.h"
 #include "system/runstate.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
