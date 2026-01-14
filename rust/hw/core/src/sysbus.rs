@@ -15,7 +15,7 @@ use util::{Error, Result};
 use crate::{
     bindings,
     irq::{IRQState, InterruptSource},
-    qdev::{DeviceImpl, DeviceState},
+    qdev::{DeviceClassExt, DeviceImpl, DeviceState},
 };
 
 /// A safe wrapper around [`bindings::SysBusDevice`].
@@ -37,10 +37,14 @@ qom_isa!(SysBusDevice: DeviceState, Object);
 // TODO: add virtual methods
 pub trait SysBusDeviceImpl: DeviceImpl + IsA<SysBusDevice> {}
 
-impl SysBusDeviceClass {
+pub trait SysBusDeviceClassExt {
+    fn class_init<T: SysBusDeviceImpl>(&mut self);
+}
+
+impl SysBusDeviceClassExt for SysBusDeviceClass {
     /// Fill in the virtual methods of `SysBusDeviceClass` based on the
     /// definitions in the `SysBusDeviceImpl` trait.
-    pub fn class_init<T: SysBusDeviceImpl>(self: &mut SysBusDeviceClass) {
+    fn class_init<T: SysBusDeviceImpl>(&mut self) {
         self.parent_class.class_init::<T>();
     }
 }
