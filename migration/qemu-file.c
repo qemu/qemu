@@ -390,13 +390,19 @@ int qemu_file_get_fd(QEMUFile *f)
     int fd = -1;
     FdEntry *fde;
     Error *err = NULL;
+    int service_byte;
 
     if (!f->can_pass_fd) {
         error_setg(&err, "%s does not support fd passing", f->ioc->name);
         goto fail;
     }
 
-    qemu_get_byte(f);
+    service_byte = qemu_get_byte(f);
+    if (service_byte != ' ') {
+        error_setg(&err, "%s unexpected service byte: %d(%c)", f->ioc->name,
+                   service_byte, service_byte);
+        goto fail;
+    }
 
     fde = QTAILQ_FIRST(&f->fds);
     if (!fde) {
