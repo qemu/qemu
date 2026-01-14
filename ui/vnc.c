@@ -3578,9 +3578,9 @@ static void vnc_display_print_local_addr(VncDisplay *vd)
         qapi_free_SocketAddress(addr);
         return;
     }
-    error_printf_unless_qmp("VNC server running on %s:%s\n",
-                            addr->u.inet.host,
-                            addr->u.inet.port);
+    error_printf("VNC server running on %s:%s\n",
+                 addr->u.inet.host,
+                 addr->u.inet.port);
     qapi_free_SocketAddress(addr);
 }
 
