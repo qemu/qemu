@@ -66,7 +66,6 @@ struct AdlibState {
     int64_t exp[2];
 #endif
     int16_t *mixbuf;
-    uint64_t dexp[2];
     SWVoiceOut *voice;
     int left, pos, samples;
     FM_OPL *opl;
@@ -133,7 +132,6 @@ static void timer_handler (void *opaque, int c, double interval_Sec)
     s->exp[n] = exp;
 #endif
 
-    s->dexp[n] = interval_Sec * 1000000.0;
 }
 
 static int write_audio (AdlibState *s, int samples)
