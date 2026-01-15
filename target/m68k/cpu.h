@@ -555,6 +555,8 @@ enum m68k_features {
     M68K_FEATURE_MOVEFROMSR_PRIV,
     /* Exception frame with format+vector (from 68010) */
     M68K_FEATURE_EXCEPTION_FORMAT_VEC,
+    /* LINK.L (680[2346]0, and CPU32) */
+    M68K_FEATURE_LINKL,
 };
 
 static inline bool m68k_feature(CPUM68KState *env, int feature)

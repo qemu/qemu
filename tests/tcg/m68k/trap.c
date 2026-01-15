@@ -33,6 +33,7 @@ static void sig_handler(int sig, siginfo_t *si, void *puc)
     "move.l #0f, (%[ad])\n\tmove.l #1f, (%[pc])\n" S "\n1:\n"
 
 #define CHECK_SIG   do { assert(got_signal); got_signal = 0; } while (0)
+#define OUT_CZ      "\n\tscs %0\n\tseq %1" : [c] "=r"(c), [z] "=r"(z) :
 
 int main(int argc, char **argv)
 {
@@ -41,6 +42,73 @@ int main(int argc, char **argv)
         .sa_flags = SA_SIGINFO
     };
     int t0, t1;
+    char bbounds[2] = { 0, 2 };
+    short wbounds[2] = { 0, 2 };
+    int lbounds[2] = { 0, 2 };
+    static int sbounds[2] = { 0, 2 };
+    void *intermediate;
+    char c, z;
+
+    /*
+     * Tests for CMP2, which sets the condition code register just as
+     * CHK2 does but doesn't raise out-of-bounds exceptions:
+     */
+    asm volatile("cmp2.b %2, %3" OUT_CZ "m"(bbounds), "d"(-1));
+    assert(c && !z);
+    asm volatile("cmp2.b %2, %3" OUT_CZ "m"(bbounds), "d"(0));
+    assert(!c && z);
+    asm volatile("cmp2.b %2, %3" OUT_CZ "m"(bbounds), "d"(1));
+    assert(!c && !z);
+    asm volatile("cmp2.b %2, %3" OUT_CZ "m"(bbounds), "d"(2));
+    assert(!c && z);
+    asm volatile("cmp2.b %2, %3" OUT_CZ "m"(bbounds), "d"(3));
+    assert(c && !z);
+    asm volatile("cmp2.w %2, %3" OUT_CZ "m"(wbounds), "d"(-1));
+    assert(c && !z);
+    asm volatile("cmp2.w %2, %3" OUT_CZ "m"(wbounds), "d"(0));
+    assert(!c && z);
+    asm volatile("cmp2.w %2, %3" OUT_CZ "m"(wbounds), "d"(1));
+    assert(!c && !z);
+    asm volatile("cmp2.w %2, %3" OUT_CZ "m"(wbounds), "d"(2));
+    assert(!c && z);
+    asm volatile("cmp2.w %2, %3" OUT_CZ "m"(wbounds), "d"(3));
+    assert(c && !z);
+    asm volatile("cmp2.l %2, %3" OUT_CZ "m"(lbounds), "d"(-1));
+    assert(c && !z);
+    asm volatile("cmp2.l %2, %3" OUT_CZ "m"(lbounds), "d"(0));
+    assert(!c && z);
+    asm volatile("cmp2.l %2, %3" OUT_CZ "m"(lbounds), "d"(1));
+    assert(!c && !z);
+    asm volatile("cmp2.l %2, %3" OUT_CZ "m"(lbounds), "d"(2));
+    assert(!c && z);
+    asm volatile("cmp2.l %2, %3" OUT_CZ "m"(lbounds), "d"(3));
+    assert(c && !z);
+
+    /*
+     * CHK2 shouldn't raise out-of-bounds exceptions, either, when the
+     * register value is within bounds:
+     */
+    asm volatile("chk2.b %2, %3" OUT_CZ "m"(bbounds), "d"(0));
+    assert(!c && z);
+    asm volatile("chk2.w %2, %3" OUT_CZ "m"(wbounds), "d"(0));
+    assert(!c && z);
+    asm volatile("chk2.l %2, %3" OUT_CZ "m"(lbounds), "d"(0));
+    assert(!c && z);
+
+    /* Address register indirect addressing (without displacement) */
+    asm volatile("chk2.l %2, %3" OUT_CZ "Q"(lbounds), "d"(2));
+    assert(!c && z);
+
+    /* Absolute long addressing */
+    asm volatile("chk2.l %2, %3" OUT_CZ "m"(sbounds), "d"(2));
+    assert(!c && z);
+
+    /* Memory indirect preindexed addressing */
+    intermediate = (void *)lbounds - 0x0D0D0D0D;
+    asm volatile("chk2.l %2@(0xBDBDBDBD,%3:l:4)@(0x0D0D0D0D), %4" OUT_CZ
+                 "a"((void *)&intermediate - 0xBDBDBDBD - 0xEEEE * 4),
+                 "r"(0xEEEE), "d"(2));
+    assert(!c && z);
 
     sigaction(SIGILL, &act, NULL);
     sigaction(SIGTRAP, &act, NULL);
@@ -51,13 +119,40 @@ int main(int argc, char **argv)
     asm volatile(FMT2_STR("0:\tchk %0, %1") : : "d"(0), "d"(-1), FMT_INS);
     CHECK_SIG;
 
-#if 0
-    /* FIXME: chk2 not correctly translated. */
-    int bounds[2] = { 0, 1 };
-    asm volatile(FMT2_STR("0:\tchk2.l %0, %1")
-                 : : "m"(bounds), "d"(2), FMT_INS);
+    /*
+     * The extension word here should be counted when computing the
+     * address of the next instruction in the exception stack frame
+     */
+    asm volatile(FMT2_STR("0:\tchk %0, %1")
+                 : : "m"(lbounds), "d"(-1), FMT_INS);
     CHECK_SIG;
-#endif
+
+    asm volatile(FMT2_STR("0:\tchk2.b %0, %1")
+                 : : "m"(bbounds), "d"(3), FMT_INS);
+    CHECK_SIG;
+
+    asm volatile(FMT2_STR("0:\tchk2.w %0, %1")
+                 : : "m"(wbounds), "d"(3), FMT_INS);
+    CHECK_SIG;
+
+    asm volatile(FMT2_STR("0:\tchk2.l %0, %1")
+                 : : "m"(lbounds), "d"(3), FMT_INS);
+    CHECK_SIG;
+
+    /* Absolute long addressing */
+    asm volatile(FMT2_STR("0:\tchk2.l %0, %1")
+                 : : "m"(sbounds), "d"(3), FMT_INS);
+    CHECK_SIG;
+
+    /*
+     * Memory indirect preindexed addressing; also, the six extension
+     * words here should be counted when computing the address of the
+     * next instruction in the exception stack frame
+     */
+    asm volatile(FMT2_STR("0:\tchk2.l %0@(0xBDBDBDBD,%1:l:4)@(0x0D0D0D0D), %2")
+                 : : "a"((void *)&intermediate - 0xBDBDBDBD - 0xEEEE * 4),
+                 "r"(0xEEEE), "d"(3), FMT_INS);
+    CHECK_SIG;
 
     asm volatile(FMT2_STR("cmp.l %0, %1\n0:\ttrapv")
                  : : "d"(INT_MIN), "d"(1), FMT_INS);

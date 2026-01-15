@@ -799,8 +799,8 @@ void HELPER(cas2w)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
         env->cc_v = c2;
     }
     env->cc_op = CC_OP_CMPW;
-    env->dregs[Dc1] = deposit32(env->dregs[Dc1], 0, 16, l1);
     env->dregs[Dc2] = deposit32(env->dregs[Dc2], 0, 16, l2);
+    env->dregs[Dc1] = deposit32(env->dregs[Dc1], 0, 16, l1);
 }
 
 static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
@@ -861,8 +861,8 @@ static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
         env->cc_v = c2;
     }
     env->cc_op = CC_OP_CMPL;
-    env->dregs[Dc1] = l1;
     env->dregs[Dc2] = l2;
+    env->dregs[Dc1] = l1;
 }
 
 void HELPER(cas2l)(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2)
@@ -1090,7 +1090,7 @@ uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
     return n | ffo;
 }
 
-void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
+void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub, int ilen)
 {
     /*
      * From the specs:
@@ -1106,11 +1106,12 @@ void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
     env->cc_c = 0 <= ub ? val < 0 || val > ub : val > ub && val < 0;
 
     if (val < 0 || val > ub) {
-        raise_exception_format2(env, EXCP_CHK, 2, GETPC());
+        raise_exception_format2(env, EXCP_CHK, ilen, GETPC());
     }
 }
 
-void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
+void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub,
+                  int ilen)
 {
     /*
      * From the specs:
@@ -1127,6 +1128,13 @@ void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
     env->cc_c = lb <= ub ? val < lb || val > ub : val > ub && val < lb;
 
     if (env->cc_c) {
-        raise_exception_format2(env, EXCP_CHK, 4, GETPC());
+        raise_exception_format2(env, EXCP_CHK, ilen, GETPC());
     }
+}
+
+void HELPER(cmp2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
+{
+    /* Identical to CHK2 (above) but doesn't raise an exception */
+    env->cc_z = val != lb && val != ub;
+    env->cc_c = lb <= ub ? val < lb || val > ub : val > ub && val < lb;
 }

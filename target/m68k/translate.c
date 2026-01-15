@@ -4237,7 +4237,7 @@ DISAS_INSN(ff1)
 
 DISAS_INSN(chk)
 {
-    TCGv src, reg;
+    TCGv src, reg, ilen;
     int opsize;
 
     switch ((insn >> 7) & 3) {
@@ -4258,13 +4258,14 @@ DISAS_INSN(chk)
     reg = gen_extend(s, DREG(insn, 9), opsize, 1);
 
     gen_flush_flags(s);
-    gen_helper_chk(tcg_env, reg, src);
+    ilen = tcg_constant_i32(s->pc - s->base.pc_next);
+    gen_helper_chk(tcg_env, reg, src, ilen);
 }
 
 DISAS_INSN(chk2)
 {
     uint16_t ext;
-    TCGv addr1, addr2, bound1, bound2, reg;
+    TCGv addr1, addr2, bound1, bound2, reg, ilen;
     int opsize;
 
     switch ((insn >> 9) & 3) {
@@ -4283,10 +4284,6 @@ DISAS_INSN(chk2)
     }
 
     ext = read_im16(env, s);
-    if ((ext & 0x0800) == 0) {
-        gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
-        return;
-    }
 
     addr1 = gen_lea(env, s, insn, OS_UNSIZED);
     addr2 = tcg_temp_new();
@@ -4303,7 +4300,12 @@ DISAS_INSN(chk2)
     }
 
     gen_flush_flags(s);
-    gen_helper_chk2(tcg_env, reg, bound1, bound2);
+    if ((ext & 0x0800) == 0) {
+        gen_helper_cmp2(tcg_env, reg, bound1, bound2);
+    } else {
+        ilen = tcg_constant_i32(s->pc - s->base.pc_next);
+        gen_helper_chk2(tcg_env, reg, bound1, bound2, ilen);
+    }
 }
 
 static void m68k_copy_line(TCGv dst, TCGv src, int index)
@@ -5770,8 +5772,11 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(undef,     0000, 0000);
     INSN(arith_im,  0080, fff8, CF_ISA_A);
     INSN(arith_im,  0000, ff00, M68K);
-    INSN(chk2,      00c0, f9c0, CHK2);
     INSN(bitrev,    00c0, fff8, CF_ISA_APLUSC);
+    INSN(chk2,      00d0, fff8, CHK2);
+    INSN(chk2,      00e8, fff8, CHK2);
+    INSN(chk2,      00f0, fff8, CHK2);
+    INSN(chk2,      00f8, fffc, CHK2);
     BASE(bitop_reg, 0100, f1c0);
     BASE(bitop_reg, 0140, f1c0);
     BASE(bitop_reg, 0180, f1c0);
@@ -5781,12 +5786,20 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(arith_im,  0200, ff00, M68K);
     INSN(undef,     02c0, ffc0, M68K);
     INSN(byterev,   02c0, fff8, CF_ISA_APLUSC);
+    INSN(chk2,      02d0, fff8, CHK2);
+    INSN(chk2,      02e8, fff8, CHK2);
+    INSN(chk2,      02f0, fff8, CHK2);
+    INSN(chk2,      02f8, fffc, CHK2);
     INSN(arith_im,  0480, fff8, CF_ISA_A);
     INSN(arith_im,  0400, ff00, M68K);
     INSN(undef,     04c0, ffc0, M68K);
     INSN(arith_im,  0600, ff00, M68K);
     INSN(undef,     06c0, ffc0, M68K);
     INSN(ff1,       04c0, fff8, CF_ISA_APLUSC);
+    INSN(chk2,      04d0, fff8, CHK2);
+    INSN(chk2,      04e8, fff8, CHK2);
+    INSN(chk2,      04f0, fff8, CHK2);
+    INSN(chk2,      04f8, fffc, CHK2);
     INSN(arith_im,  0680, fff8, CF_ISA_A);
     INSN(arith_im,  0c00, ff38, CF_ISA_A);
     INSN(arith_im,  0c00, ff00, M68K);
@@ -5829,7 +5842,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(move_to_sr, 46c0, ffc0);
 #endif
     INSN(nbcd,      4800, ffc0, M68K);
-    INSN(linkl,     4808, fff8, M68K);
+    INSN(linkl,     4808, fff8, LINKL);
     BASE(pea,       4840, ffc0);
     BASE(swap,      4840, fff8);
     INSN(bkpt,      4848, fff8, BKPT);
