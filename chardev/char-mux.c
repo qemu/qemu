@@ -361,10 +361,10 @@ void mux_set_focus(Chardev *chr, unsigned int focus)
     mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 
-static void qemu_chr_open_mux(Chardev *chr,
-                              ChardevBackend *backend,
-                              bool *be_opened,
-                              Error **errp)
+static void mux_chr_open(Chardev *chr,
+                         ChardevBackend *backend,
+                         bool *be_opened,
+                         Error **errp)
 {
     ChardevMux *mux = backend->u.mux.data;
     Chardev *drv;
@@ -384,8 +384,7 @@ static void qemu_chr_open_mux(Chardev *chr,
     qemu_chr_fe_init(&d->chr, drv, errp);
 }
 
-static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
-                               Error **errp)
+static void mux_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     const char *chardev = qemu_opt_get(opts, "chardev");
     ChardevMux *mux;
@@ -451,8 +450,8 @@ static void char_mux_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = qemu_chr_parse_mux;
-    cc->chr_open = qemu_chr_open_mux;
+    cc->chr_parse = mux_chr_parse;
+    cc->chr_open = mux_chr_open;
     cc->chr_write = mux_chr_write;
     cc->chr_accept_input = mux_chr_accept_input;
     cc->chr_add_watch = mux_chr_add_watch;

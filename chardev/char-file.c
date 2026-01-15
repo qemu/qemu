@@ -34,10 +34,10 @@
 #include "chardev/char-fd.h"
 #endif
 
-static void qmp_chardev_open_file(Chardev *chr,
-                                  ChardevBackend *backend,
-                                  bool *be_opened,
-                                  Error **errp)
+static void file_chr_open(Chardev *chr,
+                          ChardevBackend *backend,
+                          bool *be_opened,
+                          Error **errp)
 {
     ChardevFile *file = backend->u.file.data;
 #ifdef _WIN32
@@ -102,8 +102,8 @@ static void qmp_chardev_open_file(Chardev *chr,
 #endif
 }
 
-static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
-                                    Error **errp)
+static void file_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                           Error **errp)
 {
     const char *path = qemu_opt_get(opts, "path");
     const char *inpath = qemu_opt_get(opts, "input-path");
@@ -133,8 +133,8 @@ static void char_file_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = qemu_chr_parse_file_out;
-    cc->chr_open = qmp_chardev_open_file;
+    cc->chr_parse = file_chr_parse;
+    cc->chr_open = file_chr_open;
 }
 
 static const TypeInfo char_file_type_info = {

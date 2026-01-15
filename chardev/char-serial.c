@@ -41,10 +41,10 @@
 
 #ifdef _WIN32
 
-static void qmp_chardev_open_serial(Chardev *chr,
-                                    ChardevBackend *backend,
-                                    bool *be_opened,
-                                    Error **errp)
+static void serial_chr_open(Chardev *chr,
+                            ChardevBackend *backend,
+                            bool *be_opened,
+                            Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial.data;
 
@@ -176,7 +176,7 @@ static void tty_serial_init(int fd, int speed,
     tcsetattr(fd, TCSANOW, &tty);
 }
 
-static int tty_serial_ioctl(Chardev *chr, int cmd, void *arg)
+static int serial_chr_ioctl(Chardev *chr, int cmd, void *arg)
 {
     FDChardev *s = FD_CHARDEV(chr);
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(s->ioc_in);
@@ -258,10 +258,10 @@ static int tty_serial_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void qmp_chardev_open_serial(Chardev *chr,
-                                    ChardevBackend *backend,
-                                    bool *be_opened,
-                                    Error **errp)
+static void serial_chr_open(Chardev *chr,
+                            ChardevBackend *backend,
+                            bool *be_opened,
+                            Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial.data;
     int fd;
@@ -285,8 +285,8 @@ static void qmp_chardev_open_serial(Chardev *chr,
 #endif /* __linux__ || __sun__ */
 
 #ifdef HAVE_CHARDEV_SERIAL
-static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
-                                  Error **errp)
+static void serial_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                             Error **errp)
 {
     const char *device = qemu_opt_get(opts, "path");
     ChardevHostdev *serial;
@@ -305,10 +305,10 @@ static void char_serial_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = qemu_chr_parse_serial;
-    cc->chr_open = qmp_chardev_open_serial;
+    cc->chr_parse = serial_chr_parse;
+    cc->chr_open = serial_chr_open;
 #ifndef _WIN32
-    cc->chr_ioctl = tty_serial_ioctl;
+    cc->chr_ioctl = serial_chr_ioctl;
 #endif
 }
 

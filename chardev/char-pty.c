@@ -105,7 +105,7 @@ static void pty_chr_update_read_handler(Chardev *chr)
     }
 }
 
-static int char_pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static int pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
     GPollFD pfd;
@@ -331,10 +331,10 @@ static int qemu_openpty_raw(int *aslave, char *pty_name)
     return amaster;
 }
 
-static void char_pty_open(Chardev *chr,
-                          ChardevBackend *backend,
-                          bool *be_opened,
-                          Error **errp)
+static void pty_chr_open(Chardev *chr,
+                         ChardevBackend *backend,
+                         bool *be_opened,
+                         Error **errp)
 {
     PtyChardev *s;
     int master_fd, slave_fd;
@@ -378,8 +378,7 @@ static void char_pty_open(Chardev *chr,
     }
 }
 
-static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
-                           Error **errp)
+static void pty_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     const char *path = qemu_opt_get(opts, "path");
     ChardevPty *pty;
@@ -394,9 +393,9 @@ static void char_pty_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = char_pty_parse;
-    cc->chr_open = char_pty_open;
-    cc->chr_write = char_pty_chr_write;
+    cc->chr_parse = pty_chr_parse;
+    cc->chr_open = pty_chr_open;
+    cc->chr_write = pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
     cc->chr_add_watch = pty_chr_add_watch;
 }

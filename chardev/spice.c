@@ -215,7 +215,7 @@ static void char_spice_finalize(Object *obj)
     g_free((char *)s->sin.portname);
 }
 
-static void spice_vmc_set_fe_open(struct Chardev *chr, int fe_open)
+static void spice_vmc_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
     SpiceChardev *s = SPICE_CHARDEV(chr);
     if (fe_open) {
@@ -225,7 +225,7 @@ static void spice_vmc_set_fe_open(struct Chardev *chr, int fe_open)
     }
 }
 
-static void spice_port_set_fe_open(struct Chardev *chr, int fe_open)
+static void spice_port_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
     SpiceChardev *s = SPICE_CHARDEV(chr);
 
@@ -251,10 +251,10 @@ static void chr_open(Chardev *chr, const char *subtype)
     s->sin.subtype = g_strdup(subtype);
 }
 
-static void qemu_chr_open_spice_vmc(Chardev *chr,
-                                    ChardevBackend *backend,
-                                    bool *be_opened,
-                                    Error **errp)
+static void spice_vmc_chr_open(Chardev *chr,
+                               ChardevBackend *backend,
+                               bool *be_opened,
+                               Error **errp)
 {
     ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
     const char *type = spicevmc->type;
@@ -281,10 +281,10 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
     chr_open(chr, type);
 }
 
-static void qemu_chr_open_spice_port(Chardev *chr,
-                                     ChardevBackend *backend,
-                                     bool *be_opened,
-                                     Error **errp)
+static void spice_port_chr_open(Chardev *chr,
+                                ChardevBackend *backend,
+                                bool *be_opened,
+                                Error **errp)
 {
     ChardevSpicePort *spiceport = backend->u.spiceport.data;
     const char *name = spiceport->fqdn;
@@ -309,8 +309,8 @@ static void qemu_chr_open_spice_port(Chardev *chr,
     vmc_register_interface(s);
 }
 
-static void qemu_chr_parse_spice_vmc(QemuOpts *opts, ChardevBackend *backend,
-                                     Error **errp)
+static void spice_vmc_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                                Error **errp)
 {
     const char *name = qemu_opt_get(opts, "name");
     ChardevSpiceChannel *spicevmc;
@@ -325,8 +325,8 @@ static void qemu_chr_parse_spice_vmc(QemuOpts *opts, ChardevBackend *backend,
     spicevmc->type = g_strdup(name);
 }
 
-static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
-                                      Error **errp)
+static void spice_port_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                                 Error **errp)
 {
     const char *name = qemu_opt_get(opts, "name");
     ChardevSpicePort *spiceport;
@@ -364,9 +364,9 @@ static void char_spicevmc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = qemu_chr_parse_spice_vmc;
-    cc->chr_open = qemu_chr_open_spice_vmc;
-    cc->chr_set_fe_open = spice_vmc_set_fe_open;
+    cc->chr_parse = spice_vmc_chr_parse;
+    cc->chr_open = spice_vmc_chr_open;
+    cc->chr_set_fe_open = spice_vmc_chr_set_fe_open;
 }
 
 static const TypeInfo char_spicevmc_type_info = {
@@ -380,9 +380,9 @@ static void char_spiceport_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = qemu_chr_parse_spice_port;
-    cc->chr_open = qemu_chr_open_spice_port;
-    cc->chr_set_fe_open = spice_port_set_fe_open;
+    cc->chr_parse = spice_port_chr_parse;
+    cc->chr_open = spice_port_chr_open;
+    cc->chr_set_fe_open = spice_port_chr_set_fe_open;
 }
 
 static const TypeInfo char_spiceport_type_info = {

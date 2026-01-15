@@ -222,7 +222,7 @@ static void tcp_chr_process_IAC_bytes(Chardev *chr,
     *size = j;
 }
 
-static int tcp_get_msgfds(Chardev *chr, int *fds, int num)
+static int tcp_chr_get_msgfds(Chardev *chr, int *fds, int num)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
@@ -248,7 +248,7 @@ static int tcp_get_msgfds(Chardev *chr, int *fds, int num)
     return to_copy;
 }
 
-static int tcp_set_msgfds(Chardev *chr, int *fds, int num)
+static int tcp_chr_set_msgfds(Chardev *chr, int *fds, int num)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
@@ -367,7 +367,7 @@ static void tcp_chr_free_connection(Chardev *chr)
 
     remove_hup_source(s);
 
-    tcp_set_msgfds(chr, NULL, 0);
+    tcp_chr_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
     if (s->registered_yank &&
         (s->state == TCP_CHARDEV_STATE_CONNECTING
@@ -1365,10 +1365,10 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
 }
 
 
-static void qmp_chardev_open_socket(Chardev *chr,
-                                    ChardevBackend *backend,
-                                    bool *be_opened,
-                                    Error **errp)
+static void tcp_chr_open(Chardev *chr,
+                         ChardevBackend *backend,
+                         bool *be_opened,
+                         Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
@@ -1456,8 +1456,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     }
 }
 
-static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
-                                  Error **errp)
+static void tcp_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     const char *path = qemu_opt_get(opts, "path");
     const char *host = qemu_opt_get(opts, "host");
@@ -1585,14 +1584,14 @@ static void char_socket_class_init(ObjectClass *oc, const void *data)
 
     cc->supports_yank = true;
 
-    cc->chr_parse = qemu_chr_parse_socket;
-    cc->chr_open = qmp_chardev_open_socket;
+    cc->chr_parse = tcp_chr_parse;
+    cc->chr_open = tcp_chr_open;
     cc->chr_wait_connected = tcp_chr_wait_connected;
     cc->chr_write = tcp_chr_write;
     cc->chr_sync_read = tcp_chr_sync_read;
     cc->chr_disconnect = tcp_chr_disconnect;
-    cc->chr_get_msgfds = tcp_get_msgfds;
-    cc->chr_set_msgfds = tcp_set_msgfds;
+    cc->chr_get_msgfds = tcp_chr_get_msgfds;
+    cc->chr_set_msgfds = tcp_chr_set_msgfds;
     cc->chr_add_client = tcp_chr_add_client;
     cc->chr_add_watch = tcp_chr_add_watch;
     cc->chr_update_read_handler = tcp_chr_update_read_handler;

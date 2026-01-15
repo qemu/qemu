@@ -225,7 +225,7 @@ static void gdb_sigterm_handler(int signal)
 }
 #endif
 
-static int gdb_monitor_write(Chardev *chr, const uint8_t *buf, int len)
+static int gdb_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     g_autoptr(GString) hex_buf = g_string_new("O");
     gdb_memtohex(hex_buf, buf, len);
@@ -233,7 +233,7 @@ static int gdb_monitor_write(Chardev *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static void gdb_monitor_open(Chardev *chr, ChardevBackend *backend,
+static void gdb_chr_open(Chardev *chr, ChardevBackend *backend,
                              bool *be_opened, Error **errp)
 {
     *be_opened = false;
@@ -244,8 +244,8 @@ static void char_gdb_class_init(ObjectClass *oc, const void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->internal = true;
-    cc->chr_open = gdb_monitor_open;
-    cc->chr_write = gdb_monitor_write;
+    cc->chr_open = gdb_chr_open;
+    cc->chr_write = gdb_chr_write;
 }
 
 #define TYPE_CHARDEV_GDB "chardev-gdb"

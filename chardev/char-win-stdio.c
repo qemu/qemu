@@ -128,7 +128,7 @@ static void win_stdio_thread_wait_func(void *opaque)
     SetEvent(stdio->hInputDoneEvent);
 }
 
-static void qemu_chr_set_echo_win_stdio(Chardev *chr, bool echo)
+static void win_stiod_chr_set_echo(Chardev *chr, bool echo)
 {
     WinStdioChardev *stdio = WIN_STDIO_CHARDEV(chr);
     DWORD              dwMode = 0;
@@ -142,10 +142,10 @@ static void qemu_chr_set_echo_win_stdio(Chardev *chr, bool echo)
     }
 }
 
-static void qemu_chr_open_stdio(Chardev *chr,
-                                ChardevBackend *backend,
-                                bool *be_opened,
-                                Error **errp)
+static void win_stdio_chr_open(Chardev *chr,
+                               ChardevBackend *backend,
+                               bool *be_opened,
+                               Error **errp)
 {
     ChardevStdio *opts = backend->u.stdio.data;
     bool stdio_allow_signal = !opts->has_signal || opts->signal;
@@ -206,7 +206,7 @@ static void qemu_chr_open_stdio(Chardev *chr,
 
     SetConsoleMode(stdio->hStdIn, dwMode);
 
-    qemu_chr_set_echo_win_stdio(chr, false);
+    win_stiod_chr_set_echo(chr, false);
 
     return;
 
@@ -237,7 +237,7 @@ static void char_win_stdio_finalize(Object *obj)
     }
 }
 
-static int win_stdio_write(Chardev *chr, const uint8_t *buf, int len)
+static int win_stdio_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     HANDLE  hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD   dwSize;
@@ -260,9 +260,9 @@ static void char_win_stdio_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_open = qemu_chr_open_stdio;
-    cc->chr_write = win_stdio_write;
-    cc->chr_set_echo = qemu_chr_set_echo_win_stdio;
+    cc->chr_open = win_stdio_chr_open;
+    cc->chr_write = win_stdio_chr_write;
+    cc->chr_set_echo = win_stiod_chr_set_echo;
 }
 
 static const TypeInfo char_win_stdio_type_info = {

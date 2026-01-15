@@ -203,10 +203,10 @@ static void hub_chr_update_read_handlers(Chardev *chr)
     }
 }
 
-static void qemu_chr_open_hub(Chardev *chr,
-                                 ChardevBackend *backend,
-                                 bool *be_opened,
-                                 Error **errp)
+static void hub_chr_open(Chardev *chr,
+                         ChardevBackend *backend,
+                         bool *be_opened,
+                         Error **errp)
 {
     ChardevHub *hub = backend->u.hub.data;
     HubChardev *d = HUB_CHARDEV(chr);
@@ -245,8 +245,7 @@ static void qemu_chr_open_hub(Chardev *chr,
     *be_opened = false;
 }
 
-static void qemu_chr_parse_hub(QemuOpts *opts, ChardevBackend *backend,
-                                  Error **errp)
+static void hub_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     ChardevHub *hub;
     strList **tail;
@@ -276,8 +275,8 @@ static void char_hub_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->chr_parse = qemu_chr_parse_hub;
-    cc->chr_open = qemu_chr_open_hub;
+    cc->chr_parse = hub_chr_parse;
+    cc->chr_open = hub_chr_open;
     cc->chr_write = hub_chr_write;
     cc->chr_add_watch = hub_chr_add_watch;
     /* We handle events from backends only */

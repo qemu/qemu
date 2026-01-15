@@ -57,7 +57,7 @@ def test_res() -> None:
 
     print(RE_TYPEINFO_START)
     assert re.search(RE_TYPEINFO_START, r'''
-    cc->chr_open = qmp_chardev_open_file;
+    cc->chr_open = file_chr_open;
 }
 
 static const TypeInfo char_file_type_info = {
