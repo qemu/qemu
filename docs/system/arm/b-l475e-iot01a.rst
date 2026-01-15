@@ -2,7 +2,7 @@ B-L475E-IOT01A IoT Node (``b-l475e-iot01a``)
 ============================================
 
 The B-L475E-IOT01A IoT Node uses the STM32L475VG SoC which is based on
-ARM Cortex-M4F core. It is part of STMicroelectronics
+an Arm Cortex-M4F core. It is part of STMicroelectronics
 :doc:`STM32 boards </system/arm/stm32>` and more specifically the STM32L4
 ultra-low power series. The STM32L4x5 chip runs at up to 80 MHz and
 integrates 128 KiB of SRAM and up to 1MiB of Flash. The B-L475E-IOT01A board

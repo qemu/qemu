@@ -27,12 +27,12 @@ Versal
 """"""
 Implemented CPU cores:
 
-- 2 ACPUs (ARM Cortex-A72) with their GICv3 and ITS
-- 2 RCPUs (ARM Cortex-R5F) with their GICv2
+- 2 ACPUs (Arm Cortex-A72) with their GICv3 and ITS
+- 2 RCPUs (Arm Cortex-R5F) with their GICv2
 
 Implemented devices:
 
-- 2 UARTs (ARM PL011)
+- 2 UARTs (Arm PL011)
 - An RTC (Versal built-in)
 - 2 GEMs (Cadence MACB Ethernet MACs)
 - 8 ADMA (Xilinx zDMA) channels
@@ -51,12 +51,12 @@ Versal Gen 2
 """"""""""""
 Implemented CPU cores:
 
-- 8 ACPUs (ARM Cortex-A78AE) with their GICv3 and ITS
-- 10 RCPUs (ARM Cortex-R52) with their GICv3 (one per cluster)
+- 8 ACPUs (Arm Cortex-A78AE) with their GICv3 and ITS
+- 10 RCPUs (Arm Cortex-R52) with their GICv3 (one per cluster)
 
 Implemented devices:
 
-- 2 UARTs (ARM PL011)
+- 2 UARTs (Arm PL011)
 - An RTC (Versal built-in)
 - 3 GEMs (Cadence MACB Ethernet MACs)
 - 8 ADMA (Xilinx zDMA) channels
@@ -134,7 +134,7 @@ Direct Linux boot of PetaLinux 2019.2:
       -device virtio-rng-device,bus=virtio-mmio-bus.0,rng=rng0 \
       -object rng-random,filename=/dev/urandom,id=rng0
 
-Boot PetaLinux 2019.2 via ARM Trusted Firmware (2018.3 because the 2019.2
+Boot PetaLinux 2019.2 via Arm Trusted Firmware (2018.3 because the 2019.2
 version of ATF tries to configure the CCI which we don't model) and U-boot:
 
 .. code-block:: bash
@@ -188,7 +188,7 @@ Run the following at the U-Boot prompt:
   fdt set /chosen/dom0 reg <0x00000000 0x40000000 0x0 0x03100000>
   booti 30000000 - 20000000
 
-Boot Linux as Dom0 on Xen via ARM Trusted Firmware and U-Boot:
+Boot Linux as Dom0 on Xen via Arm Trusted Firmware and U-Boot:
 
 .. code-block:: bash
 

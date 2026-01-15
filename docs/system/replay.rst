@@ -23,7 +23,7 @@ Deterministic replay has the following features:
    the memory, state of the hardware devices, clocks, and screen of the VM.
  * Writes execution log into the file for later replaying for multiple times
    on different machines.
- * Supports i386, x86_64, ARM, AArch64, Risc-V, MIPS, MIPS64, S390X, Alpha,
+ * Supports i386, x86_64, Arm, AArch64, Risc-V, MIPS, MIPS64, S390X, Alpha,
    PowerPC, PowerPC64, M68000, Microblaze, OpenRISC, SPARC,
    and Xtensa hardware platforms.
  * Performs deterministic replay of all operations with keyboard and mouse

@@ -1,24 +1,24 @@
 STMicroelectronics STM32 boards (``netduino2``, ``netduinoplus2``, ``olimex-stm32-h405``, ``stm32vldiscovery``)
 ===============================================================================================================
 
-The `STM32`_ chips are a family of 32-bit ARM-based microcontroller by
+The `STM32`_ chips are a family of 32-bit Arm-based microcontrollers by
 STMicroelectronics.
 
 .. _STM32: https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html
 
-The STM32F1 series is based on ARM Cortex-M3 core. The following machines are
+The STM32F1 series is based on an Arm Cortex-M3 core. The following machines are
 based on this chip :
 
 - ``stm32vldiscovery``  STM32VLDISCOVERY board with STM32F100RBT6 microcontroller
 
-The STM32F2 series is based on ARM Cortex-M3 core. The following machines are
+The STM32F2 series is based on an Arm Cortex-M3 core. The following machines are
 based on this chip :
 
 - ``netduino2``         Netduino 2 board with STM32F205RFT6 microcontroller
 
-The STM32F4 series is based on ARM Cortex-M4F core, as well as the STM32L4
+The STM32F4 series is based on an Arm Cortex-M4F core, as well as the STM32L4
 ultra-low-power series. The STM32F4 series is pin-to-pin compatible with STM32F2 series.
-The following machines are based on this ARM Cortex-M4F chip :
+The following machines are based on this Arm Cortex-M4F chip :
 
 - ``netduinoplus2``     Netduino Plus 2 board with STM32F405RGT6 microcontroller
 - ``olimex-stm32-h405`` Olimex STM32 H405 board with STM32F405RGT6 microcontroller
@@ -29,7 +29,7 @@ There are many other STM32 series that are currently not supported by QEMU.
 Supported devices
 -----------------
 
- * ARM Cortex-M3, Cortex M4F
+ * Arm Cortex-M3, Cortex-M4F
  * Analog to Digital Converter (ADC)
  * EXTI interrupt
  * Serial ports (USART)

@@ -32,7 +32,7 @@ size. Additional information can be passed with by using additional
 arguments.
 
 Currently the only supported machines which use FDT data to boot are
-the ARM and RiscV ``virt`` machines.
+the Arm and RiscV ``virt`` machines.
 
 Arguments
 ^^^^^^^^^
