@@ -255,16 +255,16 @@ static void char_msmouse_finalize(Object *obj)
 
 static void msmouse_chr_open(Chardev *chr,
                              ChardevBackend *backend,
-                             bool *be_opened,
                              Error **errp)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(chr);
 
-    *be_opened = false;
     mouse->hs = qemu_input_handler_register((DeviceState *)mouse,
                                             &msmouse_handler);
     mouse->tiocm = 0;
     fifo8_create(&mouse->outbuf, MSMOUSE_BUF_SZ);
+
+    /* Never send CHR_EVENT_OPENED */
 }
 
 static void char_msmouse_class_init(ObjectClass *oc, const void *data)

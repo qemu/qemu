@@ -246,8 +246,7 @@ int qemu_chr_add_client(Chardev *s, int fd)
         CHARDEV_GET_CLASS(s)->chr_add_client(s, fd) : -1;
 }
 
-static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
-                           bool *be_opened, Error **errp)
+static void qemu_char_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(chr);
     /* Any ChardevCommon member would work */
@@ -268,7 +267,7 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
     }
 
     if (cc->chr_open) {
-        cc->chr_open(chr, backend, be_opened, errp);
+        cc->chr_open(chr, backend, errp);
     }
 }
 
@@ -1009,7 +1008,6 @@ static Chardev *chardev_new(const char *id, const char *typename,
     Object *obj;
     Chardev *chr = NULL;
     Error *local_err = NULL;
-    bool be_opened = true;
 
     assert(g_str_has_prefix(typename, "chardev-"));
     assert(id);
@@ -1020,7 +1018,7 @@ static Chardev *chardev_new(const char *id, const char *typename,
     chr->label = g_strdup(id);
     chr->gcontext = gcontext;
 
-    qemu_char_open(chr, backend, &be_opened, &local_err);
+    qemu_char_open(chr, backend, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         object_unref(obj);
@@ -1029,9 +1027,6 @@ static Chardev *chardev_new(const char *id, const char *typename,
 
     if (!chr->filename) {
         chr->filename = g_strdup(typename + 8);
-    }
-    if (be_opened) {
-        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     }
 
     return chr;

@@ -203,10 +203,7 @@ static void hub_chr_update_read_handlers(Chardev *chr)
     }
 }
 
-static void hub_chr_open(Chardev *chr,
-                         ChardevBackend *backend,
-                         bool *be_opened,
-                         Error **errp)
+static void hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHub *hub = backend->u.hub.data;
     HubChardev *d = HUB_CHARDEV(chr);
@@ -241,8 +238,10 @@ static void hub_chr_open(Chardev *chr,
         list = list->next;
     }
 
-    /* Closed until an explicit event from backend */
-    *be_opened = false;
+    /*
+     * Closed until an explicit event from backend, so we don't
+     * send CHR_EVENT_OPENED now.
+     */
 }
 
 static void hub_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

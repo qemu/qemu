@@ -157,10 +157,7 @@ static int parallel_chr_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void parallel_chr_open_fd(Chardev *chr,
-                                int fd,
-                                bool *be_opened,
-                                Error **errp)
+static void parallel_chr_open_fd(Chardev *chr, int fd, Error **errp)
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
 
@@ -172,6 +169,7 @@ static void parallel_chr_open_fd(Chardev *chr,
     }
 
     drv->mode = IEEE1284_MODE_COMPAT;
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 #endif /* __linux__ */
 
@@ -227,21 +225,16 @@ static int parallel_chr_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void parallel_chr_open_fd(Chardev *chr,
-                                int fd,
-                                bool *be_opened,
-                                Error **errp)
+static void parallel_chr_open_fd(Chardev *chr, int fd, Error **errp)
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
     drv->fd = fd;
-    *be_opened = false;
 }
 #endif
 
 #ifdef HAVE_CHARDEV_PARALLEL
 static void parallel_chr_open(Chardev *chr,
                               ChardevBackend *backend,
-                              bool *be_opened,
                               Error **errp)
 {
     ChardevHostdev *parallel = backend->u.parallel.data;
@@ -251,7 +244,7 @@ static void parallel_chr_open(Chardev *chr,
     if (fd < 0) {
         return;
     }
-    parallel_chr_open_fd(chr, fd, be_opened, errp);
+    parallel_chr_open_fd(chr, fd, errp);
 }
 
 static void parallel_chr_parse(QemuOpts *opts, ChardevBackend *backend,

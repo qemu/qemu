@@ -176,9 +176,7 @@ dbus_chr_send_break(
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
 
-static void
-dbus_chr_open(Chardev *chr, ChardevBackend *backend,
-              bool *be_opened, Error **errp)
+static void dbus_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ERRP_GUARD();
 
@@ -211,7 +209,7 @@ dbus_chr_open(Chardev *chr, ChardevBackend *backend,
         return;
     }
     CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->chr_open(
-        chr, be, be_opened, errp);
+        chr, be, errp);
 }
 
 static void

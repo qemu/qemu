@@ -251,9 +251,7 @@ static void chr_open(Chardev *chr, const char *subtype)
     s->sin.subtype = g_strdup(subtype);
 }
 
-static void spice_vmc_chr_open(Chardev *chr,
-                               ChardevBackend *backend,
-                               bool *be_opened,
+static void spice_vmc_chr_open(Chardev *chr, ChardevBackend *backend,
                                Error **errp)
 {
     ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
@@ -277,13 +275,10 @@ static void spice_vmc_chr_open(Chardev *chr,
         return;
     }
 
-    *be_opened = false;
     chr_open(chr, type);
 }
 
-static void spice_port_chr_open(Chardev *chr,
-                                ChardevBackend *backend,
-                                bool *be_opened,
+static void spice_port_chr_open(Chardev *chr, ChardevBackend *backend,
                                 Error **errp)
 {
     ChardevSpicePort *spiceport = backend->u.spiceport.data;
@@ -302,7 +297,6 @@ static void spice_port_chr_open(Chardev *chr,
 
     chr_open(chr, "port");
 
-    *be_opened = false;
     s = SPICE_CHARDEV(chr);
     s->sin.portname = g_strdup(name);
 

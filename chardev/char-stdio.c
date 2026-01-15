@@ -85,10 +85,7 @@ static void term_stdio_handler(int sig)
     stdio_chr_set_echo(NULL, stdio_echo_state);
 }
 
-static void stdio_chr_open(Chardev *chr,
-                           ChardevBackend *backend,
-                           bool *be_opened,
-                           Error **errp)
+static void stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevStdio *opts = backend->u.stdio.data;
     struct sigaction act;
@@ -123,6 +120,8 @@ static void stdio_chr_open(Chardev *chr,
 
     stdio_allow_signal = !opts->has_signal || opts->signal;
     stdio_chr_set_echo(chr, false);
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 #endif
 

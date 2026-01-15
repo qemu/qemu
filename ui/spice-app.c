@@ -49,8 +49,7 @@ struct VCChardev {
 
 struct VCChardevClass {
     ChardevClass parent;
-    void (*parent_open)(Chardev *chr, ChardevBackend *backend,
-                        bool *be_opened, Error **errp);
+    void (*parent_open)(Chardev *chr, ChardevBackend *backend, Error **errp);
 };
 
 #define TYPE_CHARDEV_VC "chardev-vc"
@@ -67,10 +66,7 @@ chr_spice_backend_new(void)
     return be;
 }
 
-static void vc_chr_open(Chardev *chr,
-                        ChardevBackend *backend,
-                        bool *be_opened,
-                        Error **errp)
+static void vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     VCChardevClass *vc = CHARDEV_VC_GET_CLASS(chr);
     ChardevBackend *be;
@@ -87,7 +83,7 @@ static void vc_chr_open(Chardev *chr,
     be = chr_spice_backend_new();
     be->u.spiceport.data->fqdn = fqdn ?
         g_strdup(fqdn) : g_strdup_printf("org.qemu.console.%s", chr->label);
-    vc->parent_open(chr, be, be_opened, errp);
+    vc->parent_open(chr, be, errp);
     qapi_free_ChardevBackend(be);
 }
 

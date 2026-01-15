@@ -662,7 +662,6 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
 
 static void vdagent_chr_open(Chardev *chr,
                              ChardevBackend *backend,
-                             bool *be_opened,
                              Error **errp)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
@@ -692,7 +691,7 @@ static void vdagent_chr_open(Chardev *chr,
                                                    &vdagent_mouse_handler);
     }
 
-    *be_opened = true;
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 static void vdagent_clipboard_peer_register(VDAgentChardev *vd)

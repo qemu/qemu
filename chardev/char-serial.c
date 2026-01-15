@@ -41,14 +41,15 @@
 
 #ifdef _WIN32
 
-static void serial_chr_open(Chardev *chr,
-                            ChardevBackend *backend,
-                            bool *be_opened,
-                            Error **errp)
+static void serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial.data;
+    int ret = win_chr_serial_init(chr, serial->device, errp);
+    if (ret < 0) {
+        return;
+    }
 
-    win_chr_serial_init(chr, serial->device, errp);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 #elif defined(__linux__) || defined(__sun__) || defined(__FreeBSD__)      \
@@ -258,10 +259,7 @@ static int serial_chr_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void serial_chr_open(Chardev *chr,
-                            ChardevBackend *backend,
-                            bool *be_opened,
-                            Error **errp)
+static void serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial.data;
     int fd;
@@ -281,6 +279,8 @@ static void serial_chr_open(Chardev *chr,
         close(fd);
         return;
     }
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 #endif /* __linux__ || __sun__ */
 

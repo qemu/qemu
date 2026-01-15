@@ -361,10 +361,7 @@ void mux_set_focus(Chardev *chr, unsigned int focus)
     mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 
-static void mux_chr_open(Chardev *chr,
-                         ChardevBackend *backend,
-                         bool *be_opened,
-                         Error **errp)
+static void mux_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevMux *mux = backend->u.mux.data;
     Chardev *drv;
@@ -377,11 +374,17 @@ static void mux_chr_open(Chardev *chr,
     }
 
     d->focus = -1;
-    /* only default to opened state if we've realized the initial
-     * set of muxes
+    if (!qemu_chr_fe_init(&d->chr, drv, errp)) {
+        return;
+    }
+
+    /*
+     * Only move to opened state if we've realized
+     * the initial set of muxes:
      */
-    *be_opened = muxes_opened;
-    qemu_chr_fe_init(&d->chr, drv, errp);
+    if (muxes_opened) {
+        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    }
 }
 
 static void mux_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

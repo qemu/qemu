@@ -331,10 +331,7 @@ static int qemu_openpty_raw(int *aslave, char *pty_name)
     return amaster;
 }
 
-static void pty_chr_open(Chardev *chr,
-                         ChardevBackend *backend,
-                         bool *be_opened,
-                         Error **errp)
+static void pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     PtyChardev *s;
     int master_fd, slave_fd;
@@ -364,7 +361,6 @@ static void pty_chr_open(Chardev *chr,
     qio_channel_set_name(s->ioc, name);
     g_free(name);
     s->timer_src = NULL;
-    *be_opened = false;
 
     /* create symbolic link */
     if (path) {

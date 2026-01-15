@@ -1365,10 +1365,7 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
 }
 
 
-static void tcp_chr_open(Chardev *chr,
-                         ChardevBackend *backend,
-                         bool *be_opened,
-                         Error **errp)
+static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
@@ -1439,9 +1436,6 @@ static void tcp_chr_open(Chardev *chr,
     }
     s->registered_yank = true;
 
-    /* be isn't opened until we get a connection */
-    *be_opened = false;
-
     update_disconnected_filename(s);
 
     if (s->is_listen) {
@@ -1454,6 +1448,8 @@ static void tcp_chr_open(Chardev *chr,
             return;
         }
     }
+
+    /* be isn't opened until we get a connection */
 }
 
 static void tcp_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

@@ -144,7 +144,6 @@ static void win_stiod_chr_set_echo(Chardev *chr, bool echo)
 
 static void win_stdio_chr_open(Chardev *chr,
                                ChardevBackend *backend,
-                               bool *be_opened,
                                Error **errp)
 {
     ChardevStdio *opts = backend->u.stdio.data;
@@ -208,6 +207,7 @@ static void win_stdio_chr_open(Chardev *chr,
 
     win_stiod_chr_set_echo(chr, false);
 
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     return;
 
 err3:

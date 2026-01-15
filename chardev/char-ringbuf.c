@@ -94,7 +94,6 @@ static void char_ringbuf_finalize(Object *obj)
 
 static void ringbuf_chr_open(Chardev *chr,
                              ChardevBackend *backend,
-                             bool *be_opened,
                              Error **errp)
 {
     ChardevRingbuf *opts = backend->u.ringbuf.data;
@@ -111,6 +110,8 @@ static void ringbuf_chr_open(Chardev *chr,
     d->prod = 0;
     d->cons = 0;
     d->cbuf = g_malloc0(d->size);
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 void qmp_ringbuf_write(const char *device, const char *data,

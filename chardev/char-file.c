@@ -34,10 +34,7 @@
 #include "chardev/char-fd.h"
 #endif
 
-static void file_chr_open(Chardev *chr,
-                          ChardevBackend *backend,
-                          bool *be_opened,
-                          Error **errp)
+static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevFile *file = backend->u.file.data;
 #ifdef _WIN32
@@ -100,6 +97,8 @@ static void file_chr_open(Chardev *chr,
         return;
     }
 #endif
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
 
 static void file_chr_parse(QemuOpts *opts, ChardevBackend *backend,
