@@ -90,5 +90,4 @@ wasm64-emsdk-cross-container:
   extends: .container_job_template
   variables:
     NAME: emsdk-wasm64-cross
-    BUILD_ARGS: --build-arg TARGET_CPU=wasm64
     DOCKERFILE: emsdk-wasm-cross
