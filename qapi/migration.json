@@ -440,13 +440,6 @@
 #     footprint is mlock()'d on demand or all at once.  Refer to
 #     docs/rdma.txt for usage.  Disabled by default.  (since 2.0)
 #
-# @zero-blocks: During storage migration encode blocks of zeroes
-#     efficiently.  This essentially saves 1MB of zeroes per block on
-#     the wire.  Enabling requires source and target VM to support
-#     this feature.  To enable it is sufficient to enable the
-#     capability on the source VM.  The feature is disabled by
-#     default.  (since 1.6)
-#
 # @events: generate events for each migration state change (since 2.4)
 #
 # @auto-converge: If enabled, QEMU will automatically throttle down
@@ -531,14 +524,10 @@
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
-# @deprecated: Member @zero-blocks is deprecated as being part of
-#     block migration which was already removed.
-#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge',
-           { 'name': 'zero-blocks', 'features': [ 'deprecated' ] },
            'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
@@ -595,7 +584,6 @@
 #           {"state": false, "capability": "xbzrle"},
 #           {"state": false, "capability": "rdma-pin-all"},
 #           {"state": false, "capability": "auto-converge"},
-#           {"state": false, "capability": "zero-blocks"},
 #           {"state": true, "capability": "events"},
 #           {"state": false, "capability": "postcopy-ram"},
 #           {"state": false, "capability": "x-colo"}

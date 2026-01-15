@@ -188,7 +188,6 @@ const Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
     DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
     DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
-    DEFINE_PROP_MIG_CAP("x-zero-blocks", MIGRATION_CAPABILITY_ZERO_BLOCKS),
     DEFINE_PROP_MIG_CAP("x-events", MIGRATION_CAPABILITY_EVENTS),
     DEFINE_PROP_MIG_CAP("x-postcopy-ram", MIGRATION_CAPABILITY_POSTCOPY_RAM),
     DEFINE_PROP_MIG_CAP("x-postcopy-preempt",
@@ -575,10 +574,6 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 {
     ERRP_GUARD();
     MigrationIncomingState *mis = migration_incoming_get_current();
-
-    if (new_caps[MIGRATION_CAPABILITY_ZERO_BLOCKS]) {
-        warn_report("zero-blocks capability is deprecated");
-    }
 
 #ifndef CONFIG_REPLICATION
     if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
