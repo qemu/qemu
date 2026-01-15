@@ -5972,22 +5972,31 @@ SRST
         stored. The file format is libpcap, so it can be analyzed with
         tools such as tcpdump or Wireshark.
 
-    ``-object colo-compare,id=id,primary_in=chardevid,secondary_in=chardevid,outdev=chardevid,iothread=id[,vnet_hdr_support][,notify_dev=id][,compare_timeout=@var{ms}][,expired_scan_cycle=@var{ms}][,max_queue_size=@var{size}]``
-        Colo-compare gets packet from primary\_in chardevid and
-        secondary\_in, then compare whether the payload of primary packet
-        and secondary packet are the same. If same, it will output
-        primary packet to out\_dev, else it will notify COLO-framework to do
-        checkpoint and send primary packet to out\_dev. In order to
-        improve efficiency, we need to put the task of comparison in
-        another iothread. If it has the vnet\_hdr\_support flag,
-        colo compare will send/recv packet with vnet\_hdr\_len.
-        The compare\_timeout=@var{ms} determines the maximum time of the
-        colo-compare hold the packet. The expired\_scan\_cycle=@var{ms}
-        is to set the period of scanning expired primary node network packets.
-        The max\_queue\_size=@var{size} is to set the max compare queue
-        size depend on user environment.
-        If user want to use Xen COLO, need to add the notify\_dev to
-        notify Xen colo-frame to do checkpoint.
+    ``-object colo-compare,id=<id>,primary_in=<chardevid>,secondary_in=<chardevid>,outdev=<chardevid>,iothread=<id>[,vnet_hdr_support][,notify_dev=<id>][,compare_timeout=<time_ms>][,expired_scan_cycle=<time_ms>][,max_queue_size=<maxsize>]``
+        Colo-compare gets packets from the chardev backends specified by
+        ``primary_in`` and ``secondary_in``, and compares whether the payloads
+        of the primary packet and the secondary packet are the same.
+        If they match, it will output the primary packet to the chardev
+        backend specified by ``outdev``; otherwise it will notify COLO-framework
+        to do a checkpoint and send the primary packet to ``outdev``.
+
+        In order to improve efficiency, we need to put the task of comparison in
+        another iothread; the ``iothread`` option specifies that iothread object
+        (which your commandline should create).
+
+        The ``vnet_hdr_support`` flag tells
+        colo compare to pass the vnet header length when it sends and receives packets.
+
+        The ``compare_timeout`` option sets the maximum time that
+        colo-compare will hold the packet for, in ms.
+
+        The ``expired_scan_cycle`` option sets the period of scanning expired
+        primary node network packets, in ms.
+
+        The ``max_queue_size`` option sets the max compare queue size.
+
+        If you want to use Xen COLO, you need to specify ``notify_dev`` to
+        tell colo-compare how to notify Xen colo-frame to do a checkpoint.
 
         COLO-compare must be used with the help of filter-mirror,
         filter-redirector and filter-rewriter.
