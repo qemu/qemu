@@ -24,6 +24,7 @@
 #include "qemu/sockets.h"
 #include "io/channel-util.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 static bool fd_is_pipe(int fd)
 {
@@ -58,8 +59,9 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
     }
 
     if (!migration_fd_valid(fd)) {
-        warn_report("fd: migration to a file is deprecated."
-                    " Use file: instead.");
+        error_setg(errp, "fd: migration to a file is not supported."
+                   " Use file: instead.");
+        return;
     }
 
     trace_migration_fd_outgoing(fd);
@@ -92,8 +94,9 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
     }
 
     if (!migration_fd_valid(fd)) {
-        warn_report("fd: migration to a file is deprecated."
-                    " Use file: instead.");
+        error_setg(errp, "fd: migration to a file is not supported."
+                   " Use file: instead.");
+        return;
     }
 
     trace_migration_fd_incoming(fd);

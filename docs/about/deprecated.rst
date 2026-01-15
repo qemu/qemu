@@ -518,17 +518,3 @@ If the user requests a modern x86 CPU model (i.e. not one of ``486``,
 ``athlon``, ``kvm32``, ``pentium``, ``pentium2``, ``pentium3``or ``qemu32``)
 a warning will be displayed until a future QEMU version when such CPUs will
 be rejected.
-
-Migration
----------
-
-``fd:`` URI when used for file migration (since 9.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``fd:`` URI can currently provide a file descriptor that
-references either a socket or a plain file. These are two different
-types of migration. In order to reduce ambiguity, the ``fd:`` URI
-usage of providing a file descriptor to a plain file has been
-deprecated in favor of explicitly using the ``file:`` URI with the
-file descriptor being passed as an ``fdset``. Refer to the ``add-fd``
-command documentation for details on the ``fdset`` usage.
