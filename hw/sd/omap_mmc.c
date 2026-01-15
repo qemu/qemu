@@ -335,7 +335,9 @@ static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
     OMAPMMCState *s = opaque;
 
     if (size != 2) {
-        return omap_badwidth_read16(opaque, offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: read at offset 0x%" HWADDR_PRIx
+                      " with bad width %d\n", __func__, offset, size);
+        return 0;
     }
 
     switch (offset) {
@@ -428,7 +430,8 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
     OMAPMMCState *s = opaque;
 
     if (size != 2) {
-        omap_badwidth_write16(opaque, offset, value);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: write at offset 0x%" HWADDR_PRIx
+                      " with bad width %d\n", __func__, offset, size);
         return;
     }
 
