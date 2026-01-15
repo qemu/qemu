@@ -1216,6 +1216,40 @@ void arm_v7m_cpu_do_interrupt(CPUState *cpu);
 
 hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
+
+typedef struct ARMGranuleProtectionConfig {
+    /* GPCCR_EL3 */
+    uint64_t gpccr;
+    /* GPTBR_EL3 */
+    uint64_t gptbr;
+    /* ID_AA64MMFR0_EL1.PARange */
+    uint8_t parange;
+    /* FEAT_SEL2 */
+    bool support_sel2;
+    /* Address space to access Granule Protection Table */
+    AddressSpace *gpt_as;
+} ARMGranuleProtectionConfig;
+
+/**
+ * arm_granule_protection_check
+ * @config: granule protection configuration
+ * @paddress: address accessed
+ * @pspace: physical address space accessed
+ * @ss: security state for access
+ * @fi: fault information in case a fault is detected
+ *
+ * Checks if @paddress can be accessed in physical adress space @pspace
+ * for @ss secure state, following granule protection setup with @config.
+ * If a fault is detected, @fi is set accordingly.
+ * See GranuleProtectionCheck() in A-profile manual.
+ *
+ * Returns: true if access is authorized, else false.
+ */
+bool arm_granule_protection_check(ARMGranuleProtectionConfig config,
+                                  uint64_t paddress,
+                                  ARMSecuritySpace pspace,
+                                  ARMSecuritySpace ss,
+                                  ARMMMUFaultInfo *fi);
 #endif /* !CONFIG_USER_ONLY */
 
 int arm_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
