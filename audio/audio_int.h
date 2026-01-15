@@ -33,10 +33,6 @@
 #include "qemu/audio-capture.h"
 #include "mixeng.h"
 
-#ifdef CONFIG_GIO
-#include <gio/gio.h>
-#endif
-
 void G_GNUC_PRINTF(2, 0)
 AUD_vlog(const char *cap, const char *fmt, va_list ap);
 
@@ -145,12 +141,6 @@ struct audio_driver {
     const char *name;
     void *(*init) (Audiodev *, Error **);
     void (*fini) (void *);
-#ifdef CONFIG_GIO
-    bool (*set_dbus_server)(AudioBackend *be,
-                            GDBusObjectManagerServer *manager,
-                            bool p2p,
-                            Error **errp);
-#endif
     struct audio_pcm_ops *pcm_ops;
     int max_voices_out;
     int max_voices_in;

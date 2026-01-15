@@ -54,13 +54,6 @@ struct AudioDbus {
 
 static struct audio_driver dbus_audio_driver;
 
-static void audio_dbus_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &dbus_audio_driver;
-}
-
 typedef struct DBusAudio {
     Audiodev *dev;
     GDBusObjectManagerServer *server;
@@ -720,13 +713,21 @@ static struct audio_driver dbus_audio_driver = {
     .name            = "dbus",
     .init            = dbus_audio_init,
     .fini            = dbus_audio_fini,
-    .set_dbus_server = dbus_audio_set_server,
     .pcm_ops         = &dbus_pcm_ops,
     .max_voices_out  = INT_MAX,
     .max_voices_in   = INT_MAX,
     .voice_size_out  = sizeof(DBusVoiceOut),
     .voice_size_in   = sizeof(DBusVoiceIn)
 };
+
+static void audio_dbus_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    b->set_dbus_server = dbus_audio_set_server;
+    k->driver = &dbus_audio_driver;
+}
 
 static const TypeInfo audio_dbus_info = {
     .name = TYPE_AUDIO_DBUS,

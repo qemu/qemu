@@ -1640,31 +1640,11 @@ static const char *audio_mixeng_backend_get_id(AudioBackend *be)
     return AUDIO_MIXENG_BACKEND(be)->dev->id;
 }
 
-#ifdef CONFIG_GIO
-static bool audio_mixeng_backend_set_dbus_server(AudioBackend *be,
-                                                 GDBusObjectManagerServer *manager,
-                                                 bool p2p,
-                                                 Error **errp)
-{
-    AudioMixengBackend *d = AUDIO_MIXENG_BACKEND(be);
-
-    if (!d->drv->set_dbus_server) {
-        return false;
-    }
-
-    return d->drv->set_dbus_server(be, manager, p2p, errp);
-}
-
-#endif
-
 static void audio_mixeng_backend_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *be = AUDIO_BACKEND_CLASS(klass);
 
     be->get_id = audio_mixeng_backend_get_id;
-#ifdef CONFIG_GIO
-    be->set_dbus_server = audio_mixeng_backend_set_dbus_server;
-#endif
 }
 
 static void audio_mixeng_backend_init(Object *obj)
@@ -2264,12 +2244,9 @@ AudioBackend *audio_be_by_name(const char *name, Error **errp)
 #ifdef CONFIG_GIO
 bool audio_be_can_set_dbus_server(AudioBackend *be)
 {
-    /*
-     * TODO:
-     * AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
-     * return klass->set_dbus_server != NULL;
-     */
-    return AUDIO_MIXENG_BACKEND(be)->drv->set_dbus_server != NULL;
+    AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);
+
+    return klass->set_dbus_server != NULL;
 }
 
 bool audio_be_set_dbus_server(AudioBackend *be,
