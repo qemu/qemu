@@ -21,6 +21,10 @@ can be done by following the syntax below::
 ``<addr>``
   The address to store the data in.
 
+  Note that as usual with QEMU numeric option values, the default is to
+  treat the argument as decimal.  To specify a value in hex, prefix it
+  with '0x'.
+
 ``<data>``
   The value to be written to the address. The maximum size of the data
   is 8 bytes.
@@ -37,10 +41,6 @@ can be done by following the syntax below::
   The number of the CPU's address space where the data should be
   loaded. If not specified the address space of the first CPU is used.
 
-All values are parsed using the standard QemuOps parsing. This allows the user
-to specify any values in any format supported. By default the values
-will be parsed as decimal. To use hex values the user should prefix the number
-with a '0x'.
 
 An example of loading value 0x8000000e to address 0xfd1a0104 is::
 
@@ -57,13 +57,12 @@ can be done by following the syntax below::
 ``<addr>``
   The value to use as the CPU's PC.
 
+  Note that as usual with QEMU numeric option values, the default is to
+  treat the argument as decimal.  To specify a value in hex, prefix it
+  with '0x'.
+
 ``<cpu-num>``
   The number of the CPU whose PC should be set to the specified value.
-
-All values are parsed using the standard QemuOpts parsing. This allows the user
-to specify any values in any format supported. By default the values
-will be parsed as decimal. To use hex values the user should prefix the number
-with a '0x'.
 
 An example of setting CPU 0's PC to 0x8000 is::
 
@@ -85,6 +84,10 @@ shown below:
   The memory address where the file should be loaded. This is required
   for raw images and ignored for non-raw files.
 
+  Note that as usual with QEMU numeric option values, the default is to
+  treat the argument as decimal.  To specify a value in hex, prefix it
+  with '0x'.
+
 ``<cpu-num>``
   This specifies the CPU that should be used. This is an
   optional argument with two effects:
@@ -104,10 +107,6 @@ shown below:
   This can be used to load supported executable formats as if they
   were raw.
 
-All values are parsed using the standard QemuOpts parsing. This allows the user
-to specify any values in any format supported. By default the values
-will be parsed as decimal. To use hex values the user should prefix the number
-with a '0x'.
 
 An example of loading an ELF file which CPU0 will boot is shown below::
 
