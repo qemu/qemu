@@ -242,6 +242,8 @@ typedef enum X86InsnSpecial {
  * section of the manual.
  */
 typedef enum X86VEXSpecial {
+    X86_VEX_None,
+
     /* Legacy SSE instructions that allow unaligned operands */
     X86_VEX_SSEUnaligned,
 
