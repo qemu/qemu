@@ -1562,19 +1562,24 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
     return total;
 }
 
-static bool audio_driver_do_init(AudioMixengBackend *d, Error **errp)
+static AudioBackend *audio_be_new(Audiodev *dev, Error **errp)
 {
-    const char *drvname = AudiodevDriver_str(d->dev->driver);
+    const char *drvname = AudiodevDriver_str(dev->driver);
     struct audio_driver *drv = audio_driver_lookup(drvname);
 
     if (!drv) {
         error_setg(errp, "Unknown audio driver `%s'", drvname);
-        return false;
+        qapi_free_Audiodev(dev);
+        return NULL;
     }
 
-    d->drv_opaque = drv->init(d->dev, errp);
-    if (!d->drv_opaque) {
-        return false;
+    AudioMixengBackend *be = AUDIO_MIXENG_BACKEND(object_new(TYPE_AUDIO_MIXENG_BACKEND));
+    be->dev = dev;
+
+    be->drv_opaque = drv->init(be->dev, errp);
+    if (!be->drv_opaque) {
+        object_unref(OBJECT(be));
+        return NULL;
     }
 
     if (!drv->pcm_ops->get_buffer_in) {
@@ -1586,17 +1591,17 @@ static bool audio_driver_do_init(AudioMixengBackend *d, Error **errp)
         drv->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
     }
 
-    audio_init_nb_voices_out(d, drv, 1);
-    audio_init_nb_voices_in(d, drv, 0);
-    d->drv = drv;
+    audio_init_nb_voices_out(be, drv, 1);
+    audio_init_nb_voices_in(be, drv, 0);
+    be->drv = drv;
 
-    if (d->dev->timer_period <= 0) {
-        d->period_ticks = 1;
+    if (be->dev->timer_period <= 0) {
+        be->period_ticks = 1;
     } else {
-        d->period_ticks = d->dev->timer_period * (int64_t)SCALE_US;
+        be->period_ticks = be->dev->timer_period * (int64_t)SCALE_US;
     }
 
-    return true;
+    return AUDIO_BACKEND(be);
 }
 
 static void audio_vm_change_state_handler (void *opaque, bool running,
@@ -1793,41 +1798,39 @@ void audio_create_default_audiodevs(void)
  */
 static AudioBackend *audio_init(Audiodev *dev, Error **errp)
 {
-    AudioMixengBackend *d;
+    AudioBackend *be;
 
-    d = AUDIO_MIXENG_BACKEND(object_new(TYPE_AUDIO_MIXENG_BACKEND));
-    d->dev = dev;
-    if (d->dev) {
-        if (!audio_driver_do_init(d, errp)) {
-            goto out;
+    if (dev) {
+        be = audio_be_new(dev, errp);
+        if (!be) {
+            return NULL;
         }
     } else {
         assert(!default_audio_be);
         for (;;) {
             AudiodevListEntry *e = QSIMPLEQ_FIRST(&default_audiodevs);
+
             if (!e) {
                 error_setg(errp, "no default audio driver available");
-                goto out;
+                return NULL;
             }
-            d->dev = e->dev;
+            dev = e->dev;
             QSIMPLEQ_REMOVE_HEAD(&default_audiodevs, next);
             g_free(e);
-            if (audio_driver_do_init(d, NULL)) {
+            be = audio_be_new(dev, NULL);
+            if (be) {
                 break;
             }
         }
     }
 
     if (!object_property_try_add_child(get_audiodevs_root(),
-                                       d->dev->id, OBJECT(d), errp)) {
-        goto out;
+                                       audio_be_get_id(be), OBJECT(be), errp)) {
+        object_unref(be);
+        return NULL;
     }
-    object_unref(d);
-    return AUDIO_BACKEND(d);
-
-out:
-    object_unref(d);
-    return NULL;
+    object_unref(be);
+    return be;
 }
 
 AudioBackend *audio_get_default_audio_be(Error **errp)
@@ -2183,7 +2186,7 @@ void audio_init_audiodevs(void)
     AudiodevListEntry *e;
 
     QSIMPLEQ_FOREACH(e, &audiodevs, next) {
-        audio_init(e->dev, &error_fatal);
+        audio_init(QAPI_CLONE(Audiodev, e->dev), &error_fatal);
     }
 }
 
