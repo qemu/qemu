@@ -203,7 +203,7 @@ static void hub_chr_update_read_handlers(Chardev *chr)
     }
 }
 
-static void hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHub *hub = backend->u.hub.data;
     HubChardev *d = HUB_CHARDEV(chr);
@@ -213,7 +213,7 @@ static void hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
     if (list == NULL) {
         error_setg(errp, "hub: 'chardevs' list is not defined");
-        return;
+        return false;
     }
 
     while (list) {
@@ -223,17 +223,17 @@ static void hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         if (s == NULL) {
             error_setg(errp, "hub: chardev can't be found by id '%s'",
                        list->value);
-            return;
+            return false;
         }
         if (CHARDEV_IS_HUB(s) || CHARDEV_IS_MUX(s)) {
             error_setg(errp, "hub: multiplexers and hub devices can't be "
                        "stacked, check chardev '%s', chardev should not "
                        "be a hub device or have 'mux=on' enabled",
                        list->value);
-            return;
+            return false;
         }
         if (!hub_chr_attach_chardev(d, s, errp)) {
-            return;
+            return false;
         }
         list = list->next;
     }
@@ -242,6 +242,7 @@ static void hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
      * Closed until an explicit event from backend, so we don't
      * send CHR_EVENT_OPENED now.
      */
+    return true;
 }
 
 static void hub_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

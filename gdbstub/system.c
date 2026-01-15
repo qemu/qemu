@@ -233,9 +233,10 @@ static int gdb_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static void gdb_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool gdb_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     /* Never send CHR_EVENT_OPENED */
+    return true;
 }
 
 static void char_gdb_class_init(ObjectClass *oc, const void *data)

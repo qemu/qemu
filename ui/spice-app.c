@@ -49,7 +49,7 @@ struct VCChardev {
 
 struct VCChardevClass {
     ChardevClass parent;
-    void (*parent_open)(Chardev *chr, ChardevBackend *backend, Error **errp);
+    bool (*parent_init)(Chardev *chr, ChardevBackend *backend, Error **errp);
 };
 
 #define TYPE_CHARDEV_VC "chardev-vc"
@@ -66,11 +66,12 @@ chr_spice_backend_new(void)
     return be;
 }
 
-static void vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     VCChardevClass *vc = CHARDEV_VC_GET_CLASS(chr);
     ChardevBackend *be;
     const char *fqdn = NULL;
+    bool ok;
 
     if (strstart(chr->label, "serial", NULL)) {
         fqdn = "org.qemu.console.serial.0";
@@ -83,8 +84,9 @@ static void vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     be = chr_spice_backend_new();
     be->u.spiceport.data->fqdn = fqdn ?
         g_strdup(fqdn) : g_strdup_printf("org.qemu.console.%s", chr->label);
-    vc->parent_open(chr, be, errp);
+    ok = vc->parent_init(chr, be, errp);
     qapi_free_ChardevBackend(be);
+    return ok;
 }
 
 static void vc_chr_set_echo(Chardev *chr, bool echo)
@@ -102,7 +104,7 @@ static void char_vc_class_init(ObjectClass *oc, const void *data)
     VCChardevClass *vc = CHARDEV_VC_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    vc->parent_open = cc->chr_open;
+    vc->parent_init = cc->chr_open;
 
     cc->chr_parse = vc_chr_parse;
     cc->chr_open = vc_chr_open;

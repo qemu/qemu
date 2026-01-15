@@ -260,7 +260,7 @@ struct ChardevClass {
     void (*chr_parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
     /* called after construction, open/starts the backend */
-    void (*chr_open)(Chardev *chr, ChardevBackend *backend, Error **errp);
+    bool (*chr_open)(Chardev *chr, ChardevBackend *backend, Error **errp);
 
     /* write buf to the backend */
     int (*chr_write)(Chardev *s, const uint8_t *buf, int len);

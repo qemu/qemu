@@ -253,7 +253,7 @@ static void char_msmouse_finalize(Object *obj)
     fifo8_destroy(&mouse->outbuf);
 }
 
-static void msmouse_chr_open(Chardev *chr,
+static bool msmouse_chr_open(Chardev *chr,
                              ChardevBackend *backend,
                              Error **errp)
 {
@@ -265,6 +265,7 @@ static void msmouse_chr_open(Chardev *chr,
     fifo8_create(&mouse->outbuf, MSMOUSE_BUF_SZ);
 
     /* Never send CHR_EVENT_OPENED */
+    return true;
 }
 
 static void char_msmouse_class_init(ObjectClass *oc, const void *data)

@@ -251,7 +251,7 @@ static void chr_open(Chardev *chr, const char *subtype)
     s->sin.subtype = g_strdup(subtype);
 }
 
-static void spice_vmc_chr_open(Chardev *chr, ChardevBackend *backend,
+static bool spice_vmc_chr_open(Chardev *chr, ChardevBackend *backend,
                                Error **errp)
 {
     ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
@@ -272,13 +272,14 @@ static void spice_vmc_chr_open(Chardev *chr, ChardevBackend *backend,
                           subtypes);
 
         g_free(subtypes);
-        return;
+        return false;
     }
 
     chr_open(chr, type);
+    return true;
 }
 
-static void spice_port_chr_open(Chardev *chr, ChardevBackend *backend,
+static bool spice_port_chr_open(Chardev *chr, ChardevBackend *backend,
                                 Error **errp)
 {
     ChardevSpicePort *spiceport = backend->u.spiceport.data;
@@ -287,12 +288,12 @@ static void spice_port_chr_open(Chardev *chr, ChardevBackend *backend,
 
     if (name == NULL) {
         error_setg(errp, "missing name parameter");
-        return;
+        return false;
     }
 
     if (!using_spice) {
         error_setg(errp, "spice not enabled");
-        return;
+        return false;
     }
 
     chr_open(chr, "port");
@@ -301,6 +302,7 @@ static void spice_port_chr_open(Chardev *chr, ChardevBackend *backend,
     s->sin.portname = g_strdup(name);
 
     vmc_register_interface(s);
+    return true;
 }
 
 static void spice_vmc_chr_parse(QemuOpts *opts, ChardevBackend *backend,

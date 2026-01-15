@@ -324,7 +324,7 @@ static void wctablet_chr_finalize(Object *obj)
     }
 }
 
-static void wctablet_chr_open(Chardev *chr,
+static bool wctablet_chr_open(Chardev *chr,
                               ChardevBackend *backend,
                               Error **errp)
 {
@@ -339,6 +339,7 @@ static void wctablet_chr_open(Chardev *chr,
                                              &wctablet_handler);
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void wctablet_chr_class_init(ObjectClass *oc, const void *data)

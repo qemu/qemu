@@ -361,7 +361,7 @@ void mux_set_focus(Chardev *chr, unsigned int focus)
     mux_chr_send_event(d, d->focus, CHR_EVENT_MUX_IN);
 }
 
-static void mux_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool mux_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevMux *mux = backend->u.mux.data;
     Chardev *drv;
@@ -370,12 +370,12 @@ static void mux_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     drv = qemu_chr_find(mux->chardev);
     if (drv == NULL) {
         error_setg(errp, "mux: base chardev %s not found", mux->chardev);
-        return;
+        return false;
     }
 
     d->focus = -1;
     if (!qemu_chr_fe_init(&d->chr, drv, errp)) {
-        return;
+        return false;
     }
 
     /*
@@ -385,6 +385,8 @@ static void mux_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     if (muxes_opened) {
         qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     }
+
+    return true;
 }
 
 static void mux_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

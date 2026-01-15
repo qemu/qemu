@@ -331,7 +331,7 @@ static int qemu_openpty_raw(int *aslave, char *pty_name)
     return amaster;
 }
 
-static void pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     PtyChardev *s;
     int master_fd, slave_fd;
@@ -342,13 +342,13 @@ static void pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     master_fd = qemu_openpty_raw(&slave_fd, pty_name);
     if (master_fd < 0) {
         error_setg_errno(errp, errno, "Failed to create PTY");
-        return;
+        return false;
     }
 
     close(slave_fd);
     if (!qemu_set_blocking(master_fd, false, errp)) {
         close(master_fd);
-        return;
+        return false;
     }
 
     chr->filename = g_strdup_printf("pty:%s", pty_name);
@@ -368,10 +368,13 @@ static void pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
         if (res != 0) {
             error_setg_errno(errp, errno, "Failed to create PTY symlink");
+            return false;
         } else {
             s->path = g_strdup(path);
         }
     }
+
+    return true;
 }
 
 static void pty_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

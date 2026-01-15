@@ -188,7 +188,7 @@ static void udp_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
     }
 }
 
-static void upd_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool upd_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevUdp *udp = backend->u.udp.data;
     SocketAddress *local_addr = socket_address_flatten(udp->local);
@@ -203,7 +203,7 @@ static void upd_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     qapi_free_SocketAddress(remote_addr);
     if (ret < 0) {
         object_unref(OBJECT(sioc));
-        return;
+        return false;
     }
 
     name = g_strdup_printf("chardev-udp-%s", chr->label);
@@ -212,6 +212,7 @@ static void upd_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
     s->ioc = QIO_CHANNEL(sioc);
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void char_udp_class_init(ObjectClass *oc, const void *data)

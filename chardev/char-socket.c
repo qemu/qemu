@@ -1365,7 +1365,7 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
 }
 
 
-static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
@@ -1390,7 +1390,7 @@ static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         if (!creds) {
             error_setg(errp, "No TLS credentials with id '%s'",
                        sock->tls_creds);
-            return;
+            return false;
         }
         s->tls_creds = (QCryptoTLSCreds *)
             object_dynamic_cast(creds,
@@ -1398,7 +1398,7 @@ static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         if (!s->tls_creds) {
             error_setg(errp, "Object with id '%s' is not TLS credentials",
                        sock->tls_creds);
-            return;
+            return false;
         }
         object_ref(OBJECT(s->tls_creds));
         if (!qcrypto_tls_creds_check_endpoint(s->tls_creds,
@@ -1406,7 +1406,7 @@ static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
                                           ? QCRYPTO_TLS_CREDS_ENDPOINT_SERVER
                                           : QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT,
                                           errp)) {
-            return;
+            return false;
         }
     }
     s->tls_authz = g_strdup(sock->tls_authz);
@@ -1414,7 +1414,7 @@ static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     s->addr = addr = socket_address_flatten(sock->addr);
 
     if (!qmp_chardev_validate_socket(sock, addr, errp)) {
-        return;
+        return false;
     }
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
@@ -1431,7 +1431,7 @@ static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
      */
     if (!chr->handover_yank_instance) {
         if (!yank_register_instance(CHARDEV_YANK_INSTANCE(chr->label), errp)) {
-            return;
+            return false;
         }
     }
     s->registered_yank = true;
@@ -1441,15 +1441,16 @@ static void tcp_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     if (s->is_listen) {
         if (qmp_chardev_open_socket_server(chr, is_telnet || is_tn3270,
                                            is_waitconnect, errp) < 0) {
-            return;
+            return false;
         }
     } else {
         if (qmp_chardev_open_socket_client(chr, reconnect_ms, errp) < 0) {
-            return;
+            return false;
         }
     }
 
     /* be isn't opened until we get a connection */
+    return true;
 }
 
 static void tcp_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)

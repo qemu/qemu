@@ -642,7 +642,7 @@ static void char_braille_finalize(Object *obj)
     }
 }
 
-static void baum_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool baum_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     BaumChardev *baum = BAUM_CHARDEV(chr);
     brlapi_handle_t *handle;
@@ -656,7 +656,7 @@ static void baum_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
                    brlapi_strerror(brlapi_error_location()));
         g_free(handle);
         baum->brlapi = NULL;
-        return;
+        return false;
     }
     baum->deferred_init = 0;
 
@@ -669,6 +669,7 @@ static void baum_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     qemu_set_fd_handler(baum->brlapi_fd, baum_chr_read, NULL, baum);
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void char_braille_class_init(ObjectClass *oc, const void *data)

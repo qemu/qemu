@@ -85,19 +85,19 @@ static void term_stdio_handler(int sig)
     stdio_chr_set_echo(NULL, stdio_echo_state);
 }
 
-static void stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevStdio *opts = backend->u.stdio.data;
     struct sigaction act;
 
     if (is_daemonized()) {
         error_setg(errp, "cannot use stdio with -daemonize");
-        return;
+        return false;
     }
 
     if (stdio_in_use) {
         error_setg(errp, "cannot use stdio by multiple character devices");
-        return;
+        return false;
     }
 
     stdio_in_use = true;
@@ -105,11 +105,11 @@ static void stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     old_fd1_flags = fcntl(1, F_GETFL);
     tcgetattr(0, &oldtty);
     if (!qemu_set_blocking(0, false, errp)) {
-        return;
+        return false;
     }
 
     if (!qemu_chr_open_fd(chr, 0, 1, errp)) {
-        return;
+        return false;
     }
 
     atexit(term_exit);
@@ -122,6 +122,7 @@ static void stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     stdio_chr_set_echo(chr, false);
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 #endif
 

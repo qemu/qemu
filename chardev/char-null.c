@@ -26,9 +26,9 @@
 #include "chardev/char.h"
 #include "qemu/module.h"
 
-static void null_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool null_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
-    /* do not send CHR_EVENT_OPENED */
+    return true;
 }
 
 static void char_null_class_init(ObjectClass *oc, const void *data)

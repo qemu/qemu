@@ -142,7 +142,7 @@ static void win_stiod_chr_set_echo(Chardev *chr, bool echo)
     }
 }
 
-static void win_stdio_chr_open(Chardev *chr,
+static bool win_stdio_chr_open(Chardev *chr,
                                ChardevBackend *backend,
                                Error **errp)
 {
@@ -155,7 +155,7 @@ static void win_stdio_chr_open(Chardev *chr,
     stdio->hStdIn = GetStdHandle(STD_INPUT_HANDLE);
     if (stdio->hStdIn == INVALID_HANDLE_VALUE) {
         error_setg(errp, "cannot open stdio: invalid handle");
-        return;
+        return false;
     }
 
     is_console = GetConsoleMode(stdio->hStdIn, &dwMode) != 0;
@@ -208,7 +208,7 @@ static void win_stdio_chr_open(Chardev *chr,
     win_stiod_chr_set_echo(chr, false);
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
-    return;
+    return true;
 
 err3:
     qemu_del_wait_object(stdio->hInputReadyEvent, NULL, NULL);
@@ -217,6 +217,7 @@ err2:
     CloseHandle(stdio->hInputDoneEvent);
 err1:
     qemu_del_wait_object(stdio->hStdIn, NULL, NULL);
+    return false;
 }
 
 static void char_win_stdio_finalize(Object *obj)

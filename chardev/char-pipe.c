@@ -103,21 +103,22 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     return -1;
 }
 
-static void pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *opts = backend->u.pipe.data;
     const char *filename = opts->device;
 
     if (win_chr_pipe_init(chr, filename, errp) < 0) {
-        return;
+        return false;
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 #else
 
-static void pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *opts = backend->u.pipe.data;
     int fd_in, fd_out;
@@ -143,7 +144,7 @@ static void pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         );
         if (fd_in < 0) {
             error_setg_file_open(errp, errno, filename);
-            return;
+            return false;
         }
     }
 
@@ -152,10 +153,11 @@ static void pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         if (fd_out != fd_in) {
             close(fd_out);
         }
-        return;
+        return false;
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 #endif /* !_WIN32 */

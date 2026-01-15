@@ -34,7 +34,7 @@
 #include "chardev/char-fd.h"
 #endif
 
-static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevFile *file = backend->u.file.data;
 #ifdef _WIN32
@@ -44,7 +44,7 @@ static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
     if (file->in) {
         error_setg(errp, "input file not supported");
-        return;
+        return false;
     }
 
     if (file->has_append && file->append) {
@@ -61,7 +61,7 @@ static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
                      FILE_ATTRIBUTE_NORMAL, NULL);
     if (out == INVALID_HANDLE_VALUE) {
         error_setg(errp, "open %s failed", file->out);
-        return;
+        return false;
     }
 
     win_chr_set_file(chr, out, false);
@@ -77,7 +77,7 @@ static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 
     out = qmp_chardev_open_file_source(file->out, flags, errp);
     if (out < 0) {
-        return;
+        return false;
     }
 
     if (file->in) {
@@ -85,7 +85,7 @@ static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         in = qmp_chardev_open_file_source(file->in, flags, errp);
         if (in < 0) {
             qemu_close(out);
-            return;
+            return false;
         }
     }
 
@@ -94,11 +94,12 @@ static void file_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         if (in >= 0) {
             qemu_close(in);
         }
-        return;
+        return false;
     }
 #endif
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void file_chr_parse(QemuOpts *opts, ChardevBackend *backend,

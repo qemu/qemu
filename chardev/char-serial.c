@@ -41,15 +41,17 @@
 
 #ifdef _WIN32
 
-static void serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial.data;
     int ret = win_chr_serial_init(chr, serial->device, errp);
     if (ret < 0) {
-        return;
+        return false;
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+
+    return true;
 }
 
 #elif defined(__linux__) || defined(__sun__) || defined(__FreeBSD__)      \
@@ -259,7 +261,7 @@ static int serial_chr_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
+static bool serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *serial = backend->u.serial.data;
     int fd;
@@ -267,20 +269,21 @@ static void serial_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     fd = qmp_chardev_open_file_source(serial->device, O_RDWR | O_NONBLOCK,
                                       errp);
     if (fd < 0) {
-        return;
+        return false;
     }
     if (!qemu_set_blocking(fd, false, errp)) {
         close(fd);
-        return;
+        return false;
     }
     tty_serial_init(fd, 115200, 'N', 8, 1);
 
     if (!qemu_chr_open_fd(chr, fd, fd, errp)) {
         close(fd);
-        return;
+        return false;
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 #endif /* __linux__ || __sun__ */
 
