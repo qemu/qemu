@@ -62,7 +62,6 @@ struct Chardev {
     QemuMutex chr_write_lock;
     CharFrontend *fe;
     char *label;
-    char *filename;
     int logfd;
     int be_open;
     /* used to coordinate the chardev-change special-case: */
@@ -309,6 +308,9 @@ struct ChardevClass {
 
     /* return PTY name if available */
     char *(*chr_get_pty_name)(Chardev *s);
+
+    /* get filename for reporting */
+    char *(*chr_get_filename)(Chardev *s);
 };
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,
@@ -324,5 +326,6 @@ void suspend_mux_open(void);
 void resume_mux_open(void);
 
 char *qemu_chr_get_pty_name(Chardev *chr);
+char *qemu_chr_get_filename(Chardev *chr);
 
 #endif
