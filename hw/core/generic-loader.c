@@ -30,6 +30,24 @@
  * separate backend.
  */
 
+/*
+ * TODO: currently the "load a file" functionality provides no way
+ * for the user to specify which CPU address space to load the data
+ * into without also causing that CPU's PC to be set to the start
+ * address of the file.
+ *
+ * We could fix this by having a new suboption set-pc (default: true)
+ * so the user can say
+ *  -device loader,file=<file>,cpu-num=<cpu-num>
+ * for the current "use this address space and set the PC" behaviour
+ * or
+ *  -device loader,file=<file>,cpu-num=<cpu-num>,set-pc=off
+ * to just pick the address space and not set the PC.
+ *
+ * Using set-pc without file= should be handled as an error; otherwise
+ * it can feed through to what we set s->set_pc to.
+ */
+
 #include "qemu/osdep.h"
 #include "system/dma.h"
 #include "system/reset.h"

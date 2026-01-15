@@ -99,6 +99,9 @@ shown below:
   If this option is not specified, then the data will be loaded via
   the address space of the first CPU, and no CPU will have its PC set.
 
+  Note that there is currently no way to specify the address space to
+  load the data without also causing that CPU's PC to be set.
+
   Since it sets the starting PC, this option should only be used for the boot
   image.
 
@@ -111,14 +114,3 @@ shown below:
 An example of loading an ELF file which CPU0 will boot is shown below::
 
     -device loader,file=./images/boot.elf,cpu-num=0
-
-Restrictions and ToDos
-^^^^^^^^^^^^^^^^^^^^^^
-
-At the moment it is just assumed that if you specify a cpu-num then
-you want to set the PC as well. This might not always be the case. In
-future the internal state 'set_pc' (which exists in the generic loader
-now) should be exposed to the user so that they can choose if the PC
-is set or not.
-
-
