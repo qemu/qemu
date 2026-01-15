@@ -428,6 +428,15 @@ int alle1_tlbmask(CPUARMState *env)
             ARMMMUIdxBit_Stage2_S);
 }
 
+int alle2_tlbmask(void)
+{
+    return (ARMMMUIdxBit_E20_2 |
+            ARMMMUIdxBit_E20_2_PAN |
+            ARMMMUIdxBit_E20_2_GCS |
+            ARMMMUIdxBit_E20_0 |
+            ARMMMUIdxBit_E20_0_GCS);
+}
+
 static const ARMCPRegInfo cp_reginfo[] = {
     /*
      * Define the secure and non-secure FCSE identifier CP registers
@@ -2802,12 +2811,7 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
      */
     if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
         (arm_hcr_el2_eff(env) & HCR_E2H)) {
-        uint16_t mask = ARMMMUIdxBit_E20_2 |
-                        ARMMMUIdxBit_E20_2_PAN |
-                        ARMMMUIdxBit_E20_2_GCS |
-                        ARMMMUIdxBit_E20_0 |
-                        ARMMMUIdxBit_E20_0_GCS;
-        tlb_flush_by_mmuidx(env_cpu(env), mask);
+        tlb_flush_by_mmuidx(env_cpu(env), alle2_tlbmask());
     }
     raw_write(env, ri, value);
 }
@@ -6102,6 +6106,12 @@ static void tcr2_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (cpu_isar_feature(aa64_aie, cpu)) {
         valid_mask |= TCR2_AIE;
     }
+    if (cpu_isar_feature(aa64_asid2, cpu)) {
+        valid_mask |= TCR2_FNG1 | TCR2_FNG0 | TCR2_A2;
+        if (((raw_read(env, ri) ^ value) & TCR2_A2) != 0) {
+            tlb_flush_by_mmuidx(CPU(cpu), alle1_tlbmask(env));
+        }
+    }
     value &= valid_mask;
     raw_write(env, ri, value);
 }
@@ -6120,6 +6130,12 @@ static void tcr2_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
     if (cpu_isar_feature(aa64_mec, cpu)) {
         valid_mask |= TCR2_AMEC0 | TCR2_AMEC1;
+    }
+    if (cpu_isar_feature(aa64_asid2, cpu)) {
+        valid_mask |= TCR2_FNG1 | TCR2_FNG0 | TCR2_A2;
+        if (((raw_read(env, ri) ^ value) & TCR2_A2) != 0) {
+            tlb_flush_by_mmuidx(CPU(cpu), alle2_tlbmask());
+        }
     }
     value &= valid_mask;
     raw_write(env, ri, value);

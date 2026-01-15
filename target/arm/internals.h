@@ -1892,6 +1892,11 @@ uint64_t gt_direct_access_timer_offset(CPUARMState *env, int timeridx);
  * all EL1" scope; this covers stage 1 and stage 2.
  */
 int alle1_tlbmask(CPUARMState *env);
+/*
+ * Return mask of ARMMMUIdxBit values corresponding to an "invalidate
+ * all EL2&0" scope.
+ */
+int alle2_tlbmask(void);
 
 /* Set the float_status behaviour to match the Arm defaults */
 void arm_set_default_fp_behaviours(float_status *s);
