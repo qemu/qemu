@@ -87,12 +87,17 @@ shown below:
 
 ``<cpu-num>``
   This specifies the CPU that should be used. This is an
-  optional argument and will cause the CPU's PC to be set to the
-  memory address where the raw file is loaded or the entry point
-  specified in the executable format header. This option should only
-  be used for the boot image. This will also cause the image to be
-  written to the specified CPU's address space. If not specified, the
-  default is CPU 0.
+  optional argument with two effects:
+
+  * this CPU's address space is used to load the data
+  * this CPU's PC will be set to the address where the raw file is loaded
+    or the entry point specified in the executable format header
+
+  If this option is not specified, then the data will be loaded via
+  the address space of the first CPU, and no CPU will have its PC set.
+
+  Since it sets the starting PC, this option should only be used for the boot
+  image.
 
 ``<force-raw>``
   Setting 'force-raw=on' forces the file to be treated as a raw image.
