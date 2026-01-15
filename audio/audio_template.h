@@ -478,7 +478,7 @@ static void glue (audio_close_, TYPE) (SW *sw)
     g_free (sw);
 }
 
-void glue(AUD_close_, TYPE)(AudioBackend *be, SW *sw)
+static void glue(audio_mixeng_backend_close_, TYPE)(AudioBackend *be, SW *sw)
 {
     if (sw) {
         if (audio_bug(__func__, !be)) {
@@ -490,14 +490,13 @@ void glue(AUD_close_, TYPE)(AudioBackend *be, SW *sw)
     }
 }
 
-SW *glue (AUD_open_, TYPE) (
+static SW *glue(audio_mixeng_backend_open_, TYPE) (
     AudioBackend *be,
     SW *sw,
     const char *name,
     void *callback_opaque ,
     audio_callback_fn callback_fn,
-    const struct audsettings *as
-    )
+    const struct audsettings *as)
 {
     AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(be);
     AudiodevPerDirectionOptions *pdo;
@@ -569,7 +568,7 @@ SW *glue (AUD_open_, TYPE) (
     return NULL;
 }
 
-bool glue(AUD_is_active_, TYPE)(AudioBackend *be, SW *sw)
+static bool glue(audio_mixeng_backend_is_active_, TYPE)(AudioBackend *be, SW *sw)
 {
     return sw ? sw->active : 0;
 }

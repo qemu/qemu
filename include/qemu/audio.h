@@ -43,6 +43,25 @@ typedef struct audsettings {
 
 typedef struct SWVoiceOut SWVoiceOut;
 typedef struct SWVoiceIn SWVoiceIn;
+typedef struct CaptureVoiceOut CaptureVoiceOut;
+
+typedef enum {
+    AUD_CNOTIFY_ENABLE,
+    AUD_CNOTIFY_DISABLE
+} audcnotification_e;
+
+struct audio_capture_ops {
+    void (*notify) (void *opaque, audcnotification_e cmd);
+    void (*capture) (void *opaque, const void *buf, int size);
+    void (*destroy) (void *opaque);
+};
+
+#define AUDIO_MAX_CHANNELS 16
+typedef struct Volume {
+    bool mute;
+    int channels;
+    uint8_t vol[AUDIO_MAX_CHANNELS];
+} Volume;
 
 typedef struct AudioBackend {
     Object parent_obj;
@@ -53,6 +72,35 @@ typedef struct AudioBackendClass {
 
     bool (*realize)(AudioBackend *be, Audiodev *dev, Error **errp);
     const char *(*get_id)(AudioBackend *be);
+    SWVoiceOut *(*open_out)(AudioBackend *be,
+                            SWVoiceOut *sw,
+                            const char *name,
+                            void *callback_opaque,
+                            audio_callback_fn callback_fn,
+                            const struct audsettings *as);
+    SWVoiceIn *(*open_in)(AudioBackend *be,
+                          SWVoiceIn *sw,
+                          const char *name,
+                          void *callback_opaque,
+                          audio_callback_fn callback_fn,
+                          const struct audsettings *as);
+    void (*close_out)(AudioBackend *be, SWVoiceOut *sw);
+    void (*close_in)(AudioBackend *be, SWVoiceIn *sw);
+    bool (*is_active_out)(AudioBackend *be, SWVoiceOut *sw);
+    bool (*is_active_in)(AudioBackend *be, SWVoiceIn *sw);
+    void (*set_active_out)(AudioBackend *be, SWVoiceOut *sw, bool on);
+    void (*set_active_in)(AudioBackend *be, SWVoiceIn *sw, bool on);
+    void (*set_volume_out)(AudioBackend *be, SWVoiceOut *sw, Volume *vol);
+    void (*set_volume_in)(AudioBackend *be, SWVoiceIn *sw, Volume *vol);
+    size_t (*write)(AudioBackend *be, SWVoiceOut *sw, void *buf, size_t size);
+    size_t (*read)(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size);
+    int (*get_buffer_size_out)(AudioBackend *be, SWVoiceOut *sw);
+    CaptureVoiceOut *(*add_capture)(AudioBackend *be,
+                                    struct audsettings *as,
+                                    struct audio_capture_ops *ops,
+                                    void *cb_opaque);
+    void (*del_capture)(AudioBackend *be, CaptureVoiceOut *cap, void *cb_opaque);
+
 #ifdef CONFIG_GIO
     bool (*set_dbus_server)(AudioBackend *be,
                             GDBusObjectManagerServer *manager,
@@ -69,21 +117,13 @@ SWVoiceOut *AUD_open_out(
     const char *name,
     void *callback_opaque,
     audio_callback_fn callback_fn,
-    const struct audsettings *settings
-    );
+    const struct audsettings *settings);
 
 void AUD_close_out(AudioBackend *be, SWVoiceOut *sw);
 size_t AUD_write(AudioBackend *be, SWVoiceOut *sw, void *pcm_buf, size_t size);
 int  AUD_get_buffer_size_out(AudioBackend *be, SWVoiceOut *sw);
 void AUD_set_active_out(AudioBackend *be, SWVoiceOut *sw, bool on);
 bool AUD_is_active_out(AudioBackend *be, SWVoiceOut *sw);
-
-#define AUDIO_MAX_CHANNELS 16
-typedef struct Volume {
-    bool mute;
-    int channels;
-    uint8_t vol[AUDIO_MAX_CHANNELS];
-} Volume;
 
 void AUD_set_volume_out(AudioBackend *be, SWVoiceOut *sw, Volume *vol);
 void AUD_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol);

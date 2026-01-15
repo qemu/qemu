@@ -8,19 +8,6 @@
 
 #include "audio.h"
 
-typedef struct CaptureVoiceOut CaptureVoiceOut;
-
-typedef enum {
-    AUD_CNOTIFY_ENABLE,
-    AUD_CNOTIFY_DISABLE
-} audcnotification_e;
-
-struct audio_capture_ops {
-    void (*notify) (void *opaque, audcnotification_e cmd);
-    void (*capture) (void *opaque, const void *buf, int size);
-    void (*destroy) (void *opaque);
-};
-
 struct capture_ops {
     void (*info) (void *opaque);
     void (*destroy) (void *opaque);
