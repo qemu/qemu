@@ -159,6 +159,10 @@ static uint64_t uart_read(void *opaque, hwaddr offset, unsigned size)
     switch (offset) {
     case A_DATA:
         r = s->rxbuf;
+        if (!(s->ctrl & R_CTRL_RX_EN_MASK)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CMSDK APB UART: receive data read with Rx disabled\n");
+        }
         s->state &= ~R_STATE_RXFULL_MASK;
         cmsdk_apb_uart_update(s);
         qemu_chr_fe_accept_input(&s->chr);
@@ -248,6 +252,10 @@ static void uart_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case A_DATA:
         s->txbuf = value;
+        if (!(s->ctrl & R_CTRL_TX_EN_MASK)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CMSDK APB UART: transmit data write with Tx disabled\n");
+        }
         if (s->state & R_STATE_TXFULL_MASK) {
             /* Buffer already full -- note the overrun and let the
              * existing pending transmit callback handle the new char.
