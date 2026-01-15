@@ -221,8 +221,8 @@ static void char_udp_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_udp;
-    cc->open = qmp_chardev_open_udp;
+    cc->chr_parse = qemu_chr_parse_udp;
+    cc->chr_open = qmp_chardev_open_udp;
     cc->chr_write = udp_chr_write;
     cc->chr_update_read_handler = udp_chr_update_read_handler;
 }

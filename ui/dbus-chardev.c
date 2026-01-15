@@ -205,12 +205,12 @@ dbus_chr_open(Chardev *chr, ChardevBackend *backend,
     opts = qemu_opts_create(qemu_find_opts("chardev"), NULL, 0, &error_abort);
     qemu_opt_set(opts, "server", "on", &error_abort);
     qemu_opt_set(opts, "wait", "off", &error_abort);
-    CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->parse(
+    CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->chr_parse(
         opts, be, errp);
     if (*errp) {
         return;
     }
-    CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->open(
+    CHARDEV_CLASS(object_class_by_name(TYPE_CHARDEV_SOCKET))->chr_open(
         chr, be, be_opened, errp);
 }
 
@@ -274,8 +274,8 @@ char_dbus_class_init(ObjectClass *oc, const void *data)
     DBusChardevClass *klass = DBUS_CHARDEV_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = dbus_chr_parse;
-    cc->open = dbus_chr_open;
+    cc->chr_parse = dbus_chr_parse;
+    cc->chr_open = dbus_chr_open;
     cc->chr_set_fe_open = dbus_chr_set_fe_open;
     cc->chr_set_echo = dbus_chr_set_echo;
     klass->parent_chr_be_event = cc->chr_be_event;

@@ -364,8 +364,8 @@ static void char_spicevmc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_spice_vmc;
-    cc->open = qemu_chr_open_spice_vmc;
+    cc->chr_parse = qemu_chr_parse_spice_vmc;
+    cc->chr_open = qemu_chr_open_spice_vmc;
     cc->chr_set_fe_open = spice_vmc_set_fe_open;
 }
 
@@ -380,8 +380,8 @@ static void char_spiceport_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_spice_port;
-    cc->open = qemu_chr_open_spice_port;
+    cc->chr_parse = qemu_chr_parse_spice_port;
+    cc->chr_open = qemu_chr_open_spice_port;
     cc->chr_set_fe_open = spice_port_set_fe_open;
 }
 

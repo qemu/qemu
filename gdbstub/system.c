@@ -244,7 +244,7 @@ static void char_gdb_class_init(ObjectClass *oc, const void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->internal = true;
-    cc->open = gdb_monitor_open;
+    cc->chr_open = gdb_monitor_open;
     cc->chr_write = gdb_monitor_write;
 }
 

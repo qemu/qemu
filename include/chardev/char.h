@@ -257,10 +257,10 @@ struct ChardevClass {
     bool supports_yank;
 
     /* parse command line options and populate QAPI @backend */
-    void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
+    void (*chr_parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
     /* called after construction, open/starts the backend */
-    void (*open)(Chardev *chr, ChardevBackend *backend,
+    void (*chr_open)(Chardev *chr, ChardevBackend *backend,
                  bool *be_opened, Error **errp);
 
     /* write buf to the backend */
@@ -282,10 +282,10 @@ struct ChardevClass {
     int (*chr_ioctl)(Chardev *s, int cmd, void *arg);
 
     /* get ancillary-received fds during last read */
-    int (*get_msgfds)(Chardev *s, int* fds, int num);
+    int (*chr_get_msgfds)(Chardev *s, int* fds, int num);
 
     /* set ancillary fds to be sent with next write */
-    int (*set_msgfds)(Chardev *s, int *fds, int num);
+    int (*chr_set_msgfds)(Chardev *s, int *fds, int num);
 
     /* accept the given fd */
     int (*chr_add_client)(Chardev *chr, int fd);

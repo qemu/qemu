@@ -274,8 +274,8 @@ static void char_parallel_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_parallel;
-    cc->open = qmp_chardev_open_parallel;
+    cc->chr_parse = qemu_chr_parse_parallel;
+    cc->chr_open = qmp_chardev_open_parallel;
     cc->chr_ioctl = pp_ioctl;
 }
 

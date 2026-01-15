@@ -182,8 +182,8 @@ static void char_pipe_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_pipe;
-    cc->open = qemu_chr_open_pipe;
+    cc->chr_parse = qemu_chr_parse_pipe;
+    cc->chr_open = qemu_chr_open_pipe;
 }
 
 static const TypeInfo char_pipe_type_info = {

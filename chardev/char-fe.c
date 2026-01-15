@@ -130,8 +130,8 @@ int qemu_chr_fe_get_msgfds(CharFrontend *c, int *fds, int len)
         return -1;
     }
 
-    return CHARDEV_GET_CLASS(s)->get_msgfds ?
-        CHARDEV_GET_CLASS(s)->get_msgfds(s, fds, len) : -1;
+    return CHARDEV_GET_CLASS(s)->chr_get_msgfds ?
+        CHARDEV_GET_CLASS(s)->chr_get_msgfds(s, fds, len) : -1;
 }
 
 int qemu_chr_fe_set_msgfds(CharFrontend *c, int *fds, int num)
@@ -142,8 +142,8 @@ int qemu_chr_fe_set_msgfds(CharFrontend *c, int *fds, int num)
         return -1;
     }
 
-    return CHARDEV_GET_CLASS(s)->set_msgfds ?
-        CHARDEV_GET_CLASS(s)->set_msgfds(s, fds, num) : -1;
+    return CHARDEV_GET_CLASS(s)->chr_set_msgfds ?
+        CHARDEV_GET_CLASS(s)->chr_set_msgfds(s, fds, num) : -1;
 }
 
 void qemu_chr_fe_accept_input(CharFrontend *c)

@@ -227,8 +227,8 @@ static void char_ringbuf_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_ringbuf;
-    cc->open = qemu_chr_open_ringbuf;
+    cc->chr_parse = qemu_chr_parse_ringbuf;
+    cc->chr_open = qemu_chr_open_ringbuf;
     cc->chr_write = ringbuf_chr_write;
 }
 

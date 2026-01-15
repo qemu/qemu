@@ -142,9 +142,9 @@ static void char_stdio_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_stdio;
+    cc->chr_parse = qemu_chr_parse_stdio;
 #ifndef _WIN32
-    cc->open = qemu_chr_open_stdio;
+    cc->chr_open = qemu_chr_open_stdio;
     cc->chr_set_echo = qemu_chr_set_echo_stdio;
 #endif
 }

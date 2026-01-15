@@ -133,8 +133,8 @@ static void char_file_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_file_out;
-    cc->open = qmp_chardev_open_file;
+    cc->chr_parse = qemu_chr_parse_file_out;
+    cc->chr_open = qmp_chardev_open_file;
 }
 
 static const TypeInfo char_file_type_info = {

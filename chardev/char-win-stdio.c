@@ -260,7 +260,7 @@ static void char_win_stdio_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = qemu_chr_open_stdio;
+    cc->chr_open = qemu_chr_open_stdio;
     cc->chr_write = win_stdio_write;
     cc->chr_set_echo = qemu_chr_set_echo_win_stdio;
 }

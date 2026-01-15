@@ -267,8 +267,8 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
         }
     }
 
-    if (cc->open) {
-        cc->open(chr, backend, be_opened, errp);
+    if (cc->chr_open) {
+        cc->chr_open(chr, backend, be_opened, errp);
     }
 }
 
@@ -604,8 +604,8 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
     backend = g_new0(ChardevBackend, 1);
     backend->type = CHARDEV_BACKEND_KIND_NULL;
 
-    if (cc->parse) {
-        cc->parse(opts, backend, &local_err);
+    if (cc->chr_parse) {
+        cc->chr_parse(opts, backend, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             qapi_free_ChardevBackend(backend);

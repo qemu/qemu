@@ -38,7 +38,7 @@ static void char_console_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = qemu_chr_open_win_con;
+    cc->chr_open = qemu_chr_open_win_con;
 }
 
 static const TypeInfo char_console_type_info = {

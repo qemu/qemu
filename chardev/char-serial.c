@@ -305,8 +305,8 @@ static void char_serial_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_serial;
-    cc->open = qmp_chardev_open_serial;
+    cc->chr_parse = qemu_chr_parse_serial;
+    cc->chr_open = qmp_chardev_open_serial;
 #ifndef _WIN32
     cc->chr_ioctl = tty_serial_ioctl;
 #endif

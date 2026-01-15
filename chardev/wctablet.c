@@ -346,7 +346,7 @@ static void wctablet_chr_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = wctablet_chr_open;
+    cc->chr_open = wctablet_chr_open;
     cc->chr_write = wctablet_chr_write;
     cc->chr_ioctl = wctablet_chr_ioctl;
     cc->chr_accept_input = wctablet_chr_accept_input;

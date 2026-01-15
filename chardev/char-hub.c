@@ -276,8 +276,8 @@ static void char_hub_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_hub;
-    cc->open = qemu_chr_open_hub;
+    cc->chr_parse = qemu_chr_parse_hub;
+    cc->chr_open = qemu_chr_open_hub;
     cc->chr_write = hub_chr_write;
     cc->chr_add_watch = hub_chr_add_watch;
     /* We handle events from backends only */

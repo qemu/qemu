@@ -451,8 +451,8 @@ static void char_mux_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_mux;
-    cc->open = qemu_chr_open_mux;
+    cc->chr_parse = qemu_chr_parse_mux;
+    cc->chr_open = qemu_chr_open_mux;
     cc->chr_write = mux_chr_write;
     cc->chr_accept_input = mux_chr_accept_input;
     cc->chr_add_watch = mux_chr_add_watch;
