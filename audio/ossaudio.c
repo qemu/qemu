@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi-types-audio.h"
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
 #include "qemu/main-loop.h"
@@ -39,18 +40,13 @@
 #define TYPE_AUDIO_OSS "audio-oss"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioOss, AUDIO_OSS)
 
+static AudioBackendClass *audio_oss_parent_class;
+
 struct AudioOss {
     AudioMixengBackend parent_obj;
 };
 
 static struct audio_driver oss_audio_driver;
-
-static void audio_oss_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &oss_audio_driver;
-}
 
 #if defined OSS_GETVERSION && defined SNDCTL_DSP_POLICY
 #define USE_DSP_POLICY
@@ -505,7 +501,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
     int err;
     int fd;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevOssOptions *oopts = &dev->u.oss;
 
     oss->fd = -1;
@@ -636,7 +632,7 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     int err;
     int fd;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     oss->fd = -1;
 
@@ -737,7 +733,8 @@ static void oss_init_per_direction(AudiodevOssPerDirectionOptions *opdo)
     }
 }
 
-static void *oss_audio_init(Audiodev *dev, Error **errp)
+static bool
+audio_oss_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
     AudiodevOssOptions *oopts;
     assert(dev->driver == AUDIODEV_DRIVER_OSS);
@@ -748,17 +745,16 @@ static void *oss_audio_init(Audiodev *dev, Error **errp)
 
     if (access(oopts->in->dev ?: "/dev/dsp", R_OK | W_OK) < 0) {
         error_setg_errno(errp, errno, "%s not accessible", oopts->in->dev ?: "/dev/dsp");
-        return NULL;
+        qapi_free_Audiodev(dev);
+        return false;
     }
     if (access(oopts->out->dev ?: "/dev/dsp", R_OK | W_OK) < 0) {
         error_setg_errno(errp, errno, "%s not accessible", oopts->out->dev ?: "/dev/dsp");
-        return NULL;
+        qapi_free_Audiodev(dev);
+        return false;
     }
-    return dev;
-}
 
-static void oss_audio_fini (void *opaque)
-{
+    return audio_oss_parent_class->realize(abe, dev, errp);
 }
 
 static struct audio_pcm_ops oss_pcm_ops = {
@@ -780,14 +776,23 @@ static struct audio_pcm_ops oss_pcm_ops = {
 
 static struct audio_driver oss_audio_driver = {
     .name           = "oss",
-    .init           = oss_audio_init,
-    .fini           = oss_audio_fini,
     .pcm_ops        = &oss_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
     .voice_size_out = sizeof (OSSVoiceOut),
     .voice_size_in  = sizeof (OSSVoiceIn)
 };
+
+static void audio_oss_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_oss_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_oss_realize;
+    k->driver = &oss_audio_driver;
+}
 
 static const TypeInfo audio_types[] = {
     {
