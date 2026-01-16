@@ -922,21 +922,6 @@ audio_alsa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
     return audio_alsa_parent_class->realize(abe, dev, errp);
 }
 
-static struct audio_pcm_ops alsa_pcm_ops = {
-    .init_out = alsa_init_out,
-    .fini_out = alsa_fini_out,
-    .write    = alsa_write,
-    .buffer_get_free = alsa_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = alsa_enable_out,
-
-    .init_in  = alsa_init_in,
-    .fini_in  = alsa_fini_in,
-    .read     = alsa_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = alsa_enable_in,
-};
-
 static void audio_alsa_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -946,11 +931,23 @@ static void audio_alsa_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_alsa_realize;
     k->name = "alsa";
-    k->pcm_ops = &alsa_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(ALSAVoiceOut);
     k->voice_size_in = sizeof(ALSAVoiceIn);
+
+    k->init_out = alsa_init_out;
+    k->fini_out = alsa_fini_out;
+    k->write = alsa_write;
+    k->buffer_get_free = alsa_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = alsa_enable_out;
+
+    k->init_in = alsa_init_in;
+    k->fini_in = alsa_fini_in;
+    k->read = alsa_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = alsa_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

@@ -468,29 +468,6 @@ static void audio_sdl_finalize(Object *obj)
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
-static struct audio_pcm_ops sdl_pcm_ops = {
-    .init_out = sdl_init_out,
-    .fini_out = sdl_fini_out,
-  /* wrapper for audio_generic_write */
-    .write    = sdl_write,
-  /* wrapper for audio_generic_buffer_get_free */
-    .buffer_get_free = sdl_buffer_get_free,
-  /* wrapper for audio_generic_get_buffer_out */
-    .get_buffer_out = sdl_get_buffer_out,
-  /* wrapper for audio_generic_put_buffer_out */
-    .put_buffer_out = sdl_put_buffer_out,
-    .enable_out = sdl_enable_out,
-    .init_in = sdl_init_in,
-    .fini_in = sdl_fini_in,
-  /* wrapper for audio_generic_read */
-    .read = sdl_read,
-  /* wrapper for audio_generic_get_buffer_in */
-    .get_buffer_in = sdl_get_buffer_in,
-  /* wrapper for audio_generic_put_buffer_in */
-    .put_buffer_in = sdl_put_buffer_in,
-    .enable_in = sdl_enable_in,
-};
-
 static void audio_sdl_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -500,11 +477,32 @@ static void audio_sdl_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_sdl_realize;
     k->name = "sdl";
-    k->pcm_ops = &sdl_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(SDLVoiceOut);
     k->voice_size_in = sizeof(SDLVoiceIn);
+
+    k->init_out = sdl_init_out;
+    k->fini_out = sdl_fini_out;
+    /* wrapper for audio_generic_write */
+    k->write = sdl_write;
+    /* wrapper for audio_generic_buffer_get_free */
+    k->buffer_get_free = sdl_buffer_get_free;
+    /* wrapper for audio_generic_get_buffer_out */
+    k->get_buffer_out = sdl_get_buffer_out;
+    /* wrapper for audio_generic_put_buffer_out */
+    k->put_buffer_out = sdl_put_buffer_out;
+    k->enable_out = sdl_enable_out;
+
+    k->init_in = sdl_init_in;
+    k->fini_in = sdl_fini_in;
+    /* wrapper for audio_generic_read */
+    k->read = sdl_read;
+    /* wrapper for audio_generic_get_buffer_in */
+    k->get_buffer_in = sdl_get_buffer_in;
+    /* wrapper for audio_generic_put_buffer_in */
+    k->put_buffer_in = sdl_put_buffer_in;
+    k->enable_in = sdl_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

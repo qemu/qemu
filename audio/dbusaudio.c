@@ -691,23 +691,6 @@ dbus_audio_set_server(AudioBackend *s,
     return true;
 }
 
-static struct audio_pcm_ops dbus_pcm_ops = {
-    .init_out = dbus_init_out,
-    .fini_out = dbus_fini_out,
-    .write    = audio_generic_write,
-    .get_buffer_out = dbus_get_buffer_out,
-    .put_buffer_out = dbus_put_buffer_out,
-    .enable_out = dbus_enable_out,
-    .volume_out = dbus_volume_out,
-
-    .init_in  = dbus_init_in,
-    .fini_in  = dbus_fini_in,
-    .read     = dbus_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = dbus_enable_in,
-    .volume_in = dbus_volume_in,
-};
-
 static void audio_dbus_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -718,11 +701,25 @@ static void audio_dbus_class_init(ObjectClass *klass, const void *data)
     b->realize = audio_dbus_realize;
     b->set_dbus_server = dbus_audio_set_server;
     k->name = "dbus";
-    k->pcm_ops = &dbus_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(DBusVoiceOut);
     k->voice_size_in = sizeof(DBusVoiceIn);
+
+    k->init_out = dbus_init_out;
+    k->fini_out = dbus_fini_out;
+    k->write = audio_generic_write;
+    k->get_buffer_out = dbus_get_buffer_out;
+    k->put_buffer_out = dbus_put_buffer_out;
+    k->enable_out = dbus_enable_out;
+    k->volume_out = dbus_volume_out;
+
+    k->init_in = dbus_init_in;
+    k->fini_in = dbus_fini_in;
+    k->read = dbus_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = dbus_enable_in;
+    k->volume_in = dbus_volume_in;
 }
 
 static const TypeInfo audio_types[] = {

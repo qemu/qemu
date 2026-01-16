@@ -296,29 +296,6 @@ static void line_in_volume(HWVoiceIn *hw, Volume *vol)
 }
 #endif
 
-static struct audio_pcm_ops audio_callbacks = {
-    .init_out = line_out_init,
-    .fini_out = line_out_fini,
-    .write    = audio_generic_write,
-    .buffer_get_free = line_out_get_free,
-    .get_buffer_out = line_out_get_buffer,
-    .put_buffer_out = line_out_put_buffer,
-    .enable_out = line_out_enable,
-#if (SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && \
-        (SPICE_INTERFACE_PLAYBACK_MINOR >= 2)
-    .volume_out = line_out_volume,
-#endif
-
-    .init_in  = line_in_init,
-    .fini_in  = line_in_fini,
-    .read     = line_in_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = line_in_enable,
-#if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
-    .volume_in = line_in_volume,
-#endif
-};
-
 static void audio_spice_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -328,11 +305,31 @@ static void audio_spice_class_init(ObjectClass *klass, const void *data)
 
     b->realize = spice_audio_realize;
     k->name = "spice";
-    k->pcm_ops = &audio_callbacks;
     k->max_voices_out = 1;
     k->max_voices_in = 1;
     k->voice_size_out = sizeof(SpiceVoiceOut);
     k->voice_size_in = sizeof(SpiceVoiceIn);
+
+    k->init_out = line_out_init;
+    k->fini_out = line_out_fini;
+    k->write = audio_generic_write;
+    k->buffer_get_free = line_out_get_free;
+    k->get_buffer_out = line_out_get_buffer;
+    k->put_buffer_out = line_out_put_buffer;
+    k->enable_out = line_out_enable;
+#if (SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && \
+        (SPICE_INTERFACE_PLAYBACK_MINOR >= 2)
+    k->volume_out = line_out_volume;
+#endif
+
+    k->init_in = line_in_init;
+    k->fini_in = line_in_fini;
+    k->read = line_in_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = line_in_enable;
+#if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
+    k->volume_in = line_in_volume;
+#endif
 }
 
 static const TypeInfo audio_types[] = {

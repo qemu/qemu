@@ -667,23 +667,6 @@ audio_dsound_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
     return true;
 }
 
-static struct audio_pcm_ops dsound_pcm_ops = {
-    .init_out = dsound_init_out,
-    .fini_out = dsound_fini_out,
-    .write    = audio_generic_write,
-    .buffer_get_free = dsound_buffer_get_free,
-    .get_buffer_out = dsound_get_buffer_out,
-    .put_buffer_out = dsound_put_buffer_out,
-    .enable_out = dsound_enable_out,
-
-    .init_in  = dsound_init_in,
-    .fini_in  = dsound_fini_in,
-    .read     = audio_generic_read,
-    .get_buffer_in = dsound_get_buffer_in,
-    .put_buffer_in = dsound_put_buffer_in,
-    .enable_in = dsound_enable_in,
-};
-
 static void audio_dsound_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -693,11 +676,25 @@ static void audio_dsound_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_dsound_realize;
     k->name = "dsound";
-    k->pcm_ops = &dsound_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = 1;
     k->voice_size_out = sizeof(DSoundVoiceOut);
     k->voice_size_in = sizeof(DSoundVoiceIn);
+
+    k->init_out = dsound_init_out;
+    k->fini_out = dsound_fini_out;
+    k->write = audio_generic_write;
+    k->buffer_get_free = dsound_buffer_get_free;
+    k->get_buffer_out = dsound_get_buffer_out;
+    k->put_buffer_out = dsound_put_buffer_out;
+    k->enable_out = dsound_enable_out;
+
+    k->init_in = dsound_init_in;
+    k->fini_in = dsound_fini_in;
+    k->read = audio_generic_read;
+    k->get_buffer_in = dsound_get_buffer_in;
+    k->put_buffer_in = dsound_put_buffer_in;
+    k->enable_in = dsound_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

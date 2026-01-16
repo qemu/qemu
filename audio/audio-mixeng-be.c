@@ -526,7 +526,7 @@ static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t buf_len)
 
     audio_pcm_sw_resample_in(sw, live, frames_out_max, &total_in, &total_out);
 
-    if (!hw->pcm_ops->volume_in) {
+    if (!AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s)->volume_in) {
         mixeng_volume(sw->resample_buf.buffer, total_out, &sw->vol);
     }
     sw->clip(buf, sw->resample_buf.buffer, total_out);
@@ -579,8 +579,10 @@ static size_t audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
 
 static size_t audio_pcm_hw_get_free(HWVoiceOut *hw)
 {
-    return (hw->pcm_ops->buffer_get_free ? hw->pcm_ops->buffer_get_free(hw) :
-            INT_MAX) / hw->info.bytes_per_frame;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
+
+    return (k->buffer_get_free ? k->buffer_get_free(hw) : INT_MAX) /
+        hw->info.bytes_per_frame;
 }
 
 static void audio_pcm_hw_clip_out(HWVoiceOut *hw, void *pcm_buf, size_t len)
@@ -673,7 +675,7 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
     if (frames_in_max > sw->resample_buf.pos) {
         sw->conv(sw->resample_buf.buffer + sw->resample_buf.pos,
                  buf, frames_in_max - sw->resample_buf.pos);
-        if (!sw->hw->pcm_ops->volume_out) {
+        if (!AUDIO_MIXENG_BACKEND_GET_CLASS(sw->hw->s)->volume_out) {
             mixeng_volume(sw->resample_buf.buffer + sw->resample_buf.pos,
                           frames_in_max - sw->resample_buf.pos, &sw->vol);
         }
@@ -806,7 +808,7 @@ static size_t audio_mixeng_backend_write(AudioBackend *be, SWVoiceOut *sw,
     if (audio_get_pdo_out(hw->s->dev)->mixing_engine) {
         return audio_pcm_sw_write(sw, buf, size);
     } else {
-        return hw->pcm_ops->write(hw, buf, size);
+        return AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s)->write(hw, buf, size);
     }
 }
 
@@ -829,7 +831,7 @@ static size_t audio_mixeng_backend_read(AudioBackend *be,
     if (audio_get_pdo_in(hw->s->dev)->mixing_engine) {
         return audio_pcm_sw_read(sw, buf, size);
     } else {
-        return hw->pcm_ops->read(hw, buf, size);
+        return AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s)->read(hw, buf, size);
     }
 
 }
@@ -863,12 +865,14 @@ static void audio_mixeng_backend_set_active_out(AudioBackend *be, SWVoiceOut *sw
         SWVoiceCap *sc;
 
         if (on) {
+            AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
+
             hw->pending_disable = 0;
             if (!hw->enabled) {
                 hw->enabled = true;
                 if (runstate_is_running()) {
-                    if (hw->pcm_ops->enable_out) {
-                        hw->pcm_ops->enable_out(hw, true);
+                    if (k->enable_out) {
+                        k->enable_out(hw, true);
                     }
                     audio_reset_timer (s);
                 }
@@ -908,14 +912,15 @@ static void audio_mixeng_backend_set_active_in(AudioBackend *be, SWVoiceIn *sw, 
     hw = sw->hw;
     if (sw->active != on) {
         AudioMixengBackend *s = sw->s;
+        AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
         SWVoiceIn *temp_sw;
 
         if (on) {
             if (!hw->enabled) {
                 hw->enabled = true;
                 if (runstate_is_running()) {
-                    if (hw->pcm_ops->enable_in) {
-                        hw->pcm_ops->enable_in(hw, true);
+                    if (k->enable_in) {
+                        k->enable_in(hw, true);
                     }
                     audio_reset_timer (s);
                 }
@@ -932,8 +937,8 @@ static void audio_mixeng_backend_set_active_in(AudioBackend *be, SWVoiceIn *sw, 
 
                 if (nb_active == 1) {
                     hw->enabled = false;
-                    if (hw->pcm_ops->enable_in) {
-                        hw->pcm_ops->enable_in(hw, false);
+                    if (k->enable_in) {
+                        k->enable_in(hw, false);
                     }
                 }
             }
@@ -1040,12 +1045,13 @@ static void audio_capture_mix_and_clear(HWVoiceOut *hw, size_t rpos,
 
 static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
     size_t clipped = 0;
 
     while (live) {
         size_t size = live * hw->info.bytes_per_frame;
         size_t decr, proc;
-        void *buf = hw->pcm_ops->get_buffer_out(hw, &size);
+        void *buf = k->get_buffer_out(hw, &size);
 
         if (size == 0) {
             break;
@@ -1055,8 +1061,7 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
         if (buf) {
             audio_pcm_hw_clip_out(hw, buf, decr);
         }
-        proc = hw->pcm_ops->put_buffer_out(hw, buf,
-                                           decr * hw->info.bytes_per_frame) /
+        proc = k->put_buffer_out(hw, buf, decr * hw->info.bytes_per_frame) /
             hw->info.bytes_per_frame;
 
         live -= proc;
@@ -1068,8 +1073,8 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
         }
     }
 
-    if (hw->pcm_ops->run_buffer_out) {
-        hw->pcm_ops->run_buffer_out(hw);
+    if (k->run_buffer_out) {
+        k->run_buffer_out(hw);
     }
 
     return clipped;
@@ -1077,6 +1082,7 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
 
 static void audio_run_out(AudioMixengBackend *s)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
     HWVoiceOut *hw = NULL;
     SWVoiceOut *sw;
 
@@ -1092,8 +1098,8 @@ static void audio_run_out(AudioMixengBackend *s)
             if (hw->pending_disable) {
                 hw->enabled = false;
                 hw->pending_disable = false;
-                if (hw->pcm_ops->enable_out) {
-                    hw->pcm_ops->enable_out(hw, false);
+                if (k->enable_out) {
+                    k->enable_out(hw, false);
                 }
             }
 
@@ -1102,8 +1108,8 @@ static void audio_run_out(AudioMixengBackend *s)
                                 hw_free * sw->info.bytes_per_frame);
             }
 
-            if (hw->pcm_ops->run_buffer_out) {
-                hw->pcm_ops->run_buffer_out(hw);
+            if (k->run_buffer_out) {
+                k->run_buffer_out(hw);
             }
 
             continue;
@@ -1146,8 +1152,8 @@ static void audio_run_out(AudioMixengBackend *s)
 #endif
             hw->enabled = false;
             hw->pending_disable = false;
-            if (hw->pcm_ops->enable_out) {
-                hw->pcm_ops->enable_out(hw, false);
+            if (k->enable_out) {
+                k->enable_out(hw, false);
             }
             for (sc = hw->cap_head.lh_first; sc; sc = sc->entries.le_next) {
                 sc->sw.active = false;
@@ -1157,8 +1163,8 @@ static void audio_run_out(AudioMixengBackend *s)
         }
 
         if (!live) {
-            if (hw->pcm_ops->run_buffer_out) {
-                hw->pcm_ops->run_buffer_out(hw);
+            if (k->run_buffer_out) {
+                k->run_buffer_out(hw);
             }
             continue;
         }
@@ -1202,16 +1208,17 @@ static void audio_run_out(AudioMixengBackend *s)
 
 static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
     size_t conv = 0;
 
-    if (hw->pcm_ops->run_buffer_in) {
-        hw->pcm_ops->run_buffer_in(hw);
+    if (k->run_buffer_in) {
+        k->run_buffer_in(hw);
     }
 
     while (samples) {
         size_t proc;
         size_t size = samples * hw->info.bytes_per_frame;
-        void *buf = hw->pcm_ops->get_buffer_in(hw, &size);
+        void *buf = k->get_buffer_in(hw, &size);
 
         assert(size % hw->info.bytes_per_frame == 0);
         if (size == 0) {
@@ -1222,7 +1229,7 @@ static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
 
         samples -= proc;
         conv += proc;
-        hw->pcm_ops->put_buffer_in(hw, buf, proc * hw->info.bytes_per_frame);
+        k->put_buffer_in(hw, buf, proc * hw->info.bytes_per_frame);
     }
 
     return conv;
@@ -1367,6 +1374,8 @@ void audio_run(AudioMixengBackend *s, const char *msg)
 
 void audio_generic_run_buffer_in(HWVoiceIn *hw)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
+
     if (unlikely(!hw->buf_emul)) {
         hw->size_emul = hw->samples * hw->info.bytes_per_frame;
         hw->buf_emul = g_malloc(hw->size_emul);
@@ -1376,8 +1385,7 @@ void audio_generic_run_buffer_in(HWVoiceIn *hw)
     while (hw->pending_emul < hw->size_emul) {
         size_t read_len = MIN(hw->size_emul - hw->pos_emul,
                               hw->size_emul - hw->pending_emul);
-        size_t read = hw->pcm_ops->read(hw, hw->buf_emul + hw->pos_emul,
-                                        read_len);
+        size_t read = k->read(hw, hw->buf_emul + hw->pos_emul, read_len);
         hw->pending_emul += read;
         hw->pos_emul = (hw->pos_emul + read) % hw->size_emul;
         if (read < read_len) {
@@ -1415,6 +1423,8 @@ size_t audio_generic_buffer_get_free(HWVoiceOut *hw)
 
 void audio_generic_run_buffer_out(HWVoiceOut *hw)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
+
     while (hw->pending_emul) {
         size_t write_len, written, start;
 
@@ -1423,7 +1433,7 @@ void audio_generic_run_buffer_out(HWVoiceOut *hw)
 
         write_len = MIN(hw->pending_emul, hw->size_emul - start);
 
-        written = hw->pcm_ops->write(hw, hw->buf_emul + start, write_len);
+        written = k->write(hw, hw->buf_emul + start, write_len);
         hw->pending_emul -= written;
 
         if (written < write_len) {
@@ -1458,10 +1468,11 @@ size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 
 size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
     size_t total = 0;
 
-    if (hw->pcm_ops->buffer_get_free) {
-        size_t free = hw->pcm_ops->buffer_get_free(hw);
+    if (k->buffer_get_free) {
+        size_t free = k->buffer_get_free(hw);
 
         size = MIN(size, free);
     }
@@ -1469,7 +1480,7 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
     while (total < size) {
         size_t dst_size = size - total;
         size_t copy_size, proc;
-        void *dst = hw->pcm_ops->get_buffer_out(hw, &dst_size);
+        void *dst = k->get_buffer_out(hw, &dst_size);
 
         if (dst_size == 0) {
             break;
@@ -1479,7 +1490,7 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
         if (dst) {
             memcpy(dst, (char *)buf + total, copy_size);
         }
-        proc = hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
+        proc = k->put_buffer_out(hw, dst, copy_size);
         total += proc;
 
         if (proc == 0 || proc < copy_size) {
@@ -1492,22 +1503,23 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
     size_t total = 0;
 
-    if (hw->pcm_ops->run_buffer_in) {
-        hw->pcm_ops->run_buffer_in(hw);
+    if (k->run_buffer_in) {
+        k->run_buffer_in(hw);
     }
 
     while (total < size) {
         size_t src_size = size - total;
-        void *src = hw->pcm_ops->get_buffer_in(hw, &src_size);
+        void *src = k->get_buffer_in(hw, &src_size);
 
         if (src_size == 0) {
             break;
         }
 
         memcpy((char *)buf + total, src, src_size);
-        hw->pcm_ops->put_buffer_in(hw, src, src_size);
+        k->put_buffer_in(hw, src, src_size);
         total += src_size;
     }
 
@@ -1521,13 +1533,13 @@ static bool audio_mixeng_backend_realize(AudioBackend *abe,
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(be);
 
     be->dev = dev;
-    if (!k->pcm_ops->get_buffer_in) {
-        k->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
-        k->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
+    if (!k->get_buffer_in) {
+        k->get_buffer_in = audio_generic_get_buffer_in;
+        k->put_buffer_in = audio_generic_put_buffer_in;
     }
-    if (!k->pcm_ops->get_buffer_out) {
-        k->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
-        k->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
+    if (!k->get_buffer_out) {
+        k->get_buffer_out = audio_generic_get_buffer_out;
+        k->put_buffer_out = audio_generic_put_buffer_out;
     }
 
     audio_init_nb_voices_out(be, k, 1);
@@ -1546,18 +1558,19 @@ static void audio_vm_change_state_handler (void *opaque, bool running,
                                            RunState state)
 {
     AudioMixengBackend *s = opaque;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
     HWVoiceOut *hwo = NULL;
     HWVoiceIn *hwi = NULL;
 
     while ((hwo = audio_pcm_hw_find_any_enabled_out(s, hwo))) {
-        if (hwo->pcm_ops->enable_out) {
-            hwo->pcm_ops->enable_out(hwo, running);
+        if (k->enable_out) {
+            k->enable_out(hwo, running);
         }
     }
 
     while ((hwi = audio_pcm_hw_find_any_enabled_in(s, hwi))) {
-        if (hwi->pcm_ops->enable_in) {
-            hwi->pcm_ops->enable_in(hwi, running);
+        if (k->enable_in) {
+            k->enable_in(hwi, running);
         }
     }
     audio_reset_timer (s);
@@ -1627,16 +1640,17 @@ static void audio_mixeng_backend_init(Object *obj)
 static void audio_mixeng_backend_finalize(Object *obj)
 {
     AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(obj);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
     HWVoiceOut *hwo, *hwon;
     HWVoiceIn *hwi, *hwin;
 
     QLIST_FOREACH_SAFE(hwo, &s->hw_head_out, entries, hwon) {
         SWVoiceCap *sc;
 
-        if (hwo->enabled && hwo->pcm_ops->enable_out) {
-            hwo->pcm_ops->enable_out(hwo, false);
+        if (hwo->enabled && k->enable_out) {
+            k->enable_out(hwo, false);
         }
-        hwo->pcm_ops->fini_out (hwo);
+        k->fini_out(hwo);
 
         for (sc = hwo->cap_head.lh_first; sc; sc = sc->entries.le_next) {
             CaptureVoiceOut *cap = sc->cap;
@@ -1650,10 +1664,10 @@ static void audio_mixeng_backend_finalize(Object *obj)
     }
 
     QLIST_FOREACH_SAFE(hwi, &s->hw_head_in, entries, hwin) {
-        if (hwi->enabled && hwi->pcm_ops->enable_in) {
-            hwi->pcm_ops->enable_in(hwi, false);
+        if (hwi->enabled && k->enable_in) {
+            k->enable_in(hwi, false);
         }
-        hwi->pcm_ops->fini_in (hwi);
+        k->fini_in(hwi);
         QLIST_REMOVE(hwi, entries);
     }
 
@@ -1693,8 +1707,6 @@ static const VMStateDescription vmstate_audio = {
         VMSTATE_END_OF_LIST()
     }
 };
-
-static struct audio_pcm_ops capture_pcm_ops;
 
 static CaptureVoiceOut *audio_mixeng_backend_add_capture(
     AudioBackend *be,
@@ -1736,7 +1748,6 @@ static CaptureVoiceOut *audio_mixeng_backend_add_capture(
 
         hw = &cap->hw;
         hw->s = s;
-        hw->pcm_ops = &capture_pcm_ops;
         QLIST_INIT (&hw->sw_head);
         QLIST_INIT (&cap->cb_head);
 
@@ -1817,14 +1828,15 @@ static void audio_mixeng_backend_set_volume_out(AudioBackend *be, SWVoiceOut *sw
 {
     if (sw) {
         HWVoiceOut *hw = sw->hw;
+        AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
 
         sw->vol.mute = vol->mute;
         sw->vol.l = nominal_volume.l * vol->vol[0] / 255;
         sw->vol.r = nominal_volume.l * vol->vol[vol->channels > 1 ? 1 : 0] /
             255;
 
-        if (hw->pcm_ops->volume_out) {
-            hw->pcm_ops->volume_out(hw, vol);
+        if (k->volume_out) {
+            k->volume_out(hw, vol);
         }
     }
 }
@@ -1834,14 +1846,15 @@ static void audio_mixeng_backend_set_volume_in(AudioBackend *be, SWVoiceIn *sw,
 {
     if (sw) {
         HWVoiceIn *hw = sw->hw;
+        AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(hw->s);
 
         sw->vol.mute = vol->mute;
         sw->vol.l = nominal_volume.l * vol->vol[0] / 255;
         sw->vol.r = nominal_volume.r * vol->vol[vol->channels > 1 ? 1 : 0] /
             255;
 
-        if (hw->pcm_ops->volume_in) {
-            hw->pcm_ops->volume_in(hw, vol);
+        if (k->volume_in) {
+            k->volume_in(hw, vol);
         }
     }
 }

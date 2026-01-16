@@ -822,23 +822,6 @@ audio_pw_finalize(Object *obj)
     g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
 }
 
-static struct audio_pcm_ops qpw_pcm_ops = {
-    .init_out = qpw_init_out,
-    .fini_out = qpw_fini_out,
-    .write = qpw_write,
-    .buffer_get_free = qpw_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = qpw_enable_out,
-    .volume_out = qpw_volume_out,
-    .volume_in = qpw_volume_in,
-
-    .init_in = qpw_init_in,
-    .fini_in = qpw_fini_in,
-    .read = qpw_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = qpw_enable_in
-};
-
 static void audio_pw_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -848,11 +831,25 @@ static void audio_pw_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_pw_realize;
     k->name = "pipewire";
-    k->pcm_ops = &qpw_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(PWVoiceOut);
     k->voice_size_in = sizeof(PWVoiceIn);
+
+    k->init_out = qpw_init_out;
+    k->fini_out = qpw_fini_out;
+    k->write = qpw_write;
+    k->buffer_get_free = qpw_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = qpw_enable_out;
+    k->volume_out = qpw_volume_out;
+
+    k->init_in = qpw_init_in;
+    k->fini_in = qpw_fini_in;
+    k->read = qpw_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = qpw_enable_in;
+    k->volume_in = qpw_volume_in;
 }
 
 static const TypeInfo audio_types[] = {

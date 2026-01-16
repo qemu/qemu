@@ -652,21 +652,6 @@ static int qjack_thread_creator(jack_native_thread_t *thread,
 }
 #endif
 
-static struct audio_pcm_ops jack_pcm_ops = {
-    .init_out       = qjack_init_out,
-    .fini_out       = qjack_fini_out,
-    .write          = qjack_write,
-    .buffer_get_free = audio_generic_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out     = qjack_enable_out,
-
-    .init_in        = qjack_init_in,
-    .fini_in        = qjack_fini_in,
-    .read           = qjack_read,
-    .run_buffer_in  = audio_generic_run_buffer_in,
-    .enable_in      = qjack_enable_in
-};
-
 static void qjack_error(const char *msg)
 {
     dolog("E: %s\n", msg);
@@ -682,11 +667,23 @@ static void audio_jack_class_init(ObjectClass *klass, const void *data)
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
     k->name = "jack";
-    k->pcm_ops = &jack_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(QJackOut);
     k->voice_size_in = sizeof(QJackIn);
+
+    k->init_out = qjack_init_out;
+    k->fini_out = qjack_fini_out;
+    k->write = qjack_write;
+    k->buffer_get_free = audio_generic_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = qjack_enable_out;
+
+    k->init_in = qjack_init_in;
+    k->fini_in = qjack_fini_in;
+    k->read = qjack_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = qjack_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

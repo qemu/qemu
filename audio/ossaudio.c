@@ -755,23 +755,6 @@ audio_oss_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
     return audio_oss_parent_class->realize(abe, dev, errp);
 }
 
-static struct audio_pcm_ops oss_pcm_ops = {
-    .init_out = oss_init_out,
-    .fini_out = oss_fini_out,
-    .write    = oss_write,
-    .buffer_get_free = oss_buffer_get_free,
-    .run_buffer_out = oss_run_buffer_out,
-    .get_buffer_out = oss_get_buffer_out,
-    .put_buffer_out = oss_put_buffer_out,
-    .enable_out = oss_enable_out,
-
-    .init_in  = oss_init_in,
-    .fini_in  = oss_fini_in,
-    .read     = oss_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = oss_enable_in
-};
-
 static void audio_oss_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -781,11 +764,25 @@ static void audio_oss_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_oss_realize;
     k->name = "oss";
-    k->pcm_ops = &oss_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(OSSVoiceOut);
     k->voice_size_in = sizeof(OSSVoiceIn);
+
+    k->init_out = oss_init_out;
+    k->fini_out = oss_fini_out;
+    k->write = oss_write;
+    k->buffer_get_free = oss_buffer_get_free;
+    k->run_buffer_out = oss_run_buffer_out;
+    k->get_buffer_out = oss_get_buffer_out;
+    k->put_buffer_out = oss_put_buffer_out;
+    k->enable_out = oss_enable_out;
+
+    k->init_in = oss_init_in;
+    k->fini_in = oss_fini_in;
+    k->read = oss_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = oss_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

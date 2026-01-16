@@ -190,25 +190,22 @@ static void wav_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static struct audio_pcm_ops wav_pcm_ops = {
-    .init_out = wav_init_out,
-    .fini_out = wav_fini_out,
-    .write    = wav_write_out,
-    .buffer_get_free = audio_generic_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = wav_enable_out,
-};
-
 static void audio_wav_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
     k->name = "wav";
-    k->pcm_ops = &wav_pcm_ops;
     k->max_voices_out = 1;
     k->max_voices_in = 0;
     k->voice_size_out = sizeof(WAVVoiceOut);
     k->voice_size_in = 0;
+
+    k->init_out = wav_init_out;
+    k->fini_out = wav_fini_out;
+    k->write = wav_write_out;
+    k->buffer_get_free = audio_generic_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = wav_enable_out;
 }
 
 static const TypeInfo audio_types[] = {

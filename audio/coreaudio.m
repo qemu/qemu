@@ -646,30 +646,27 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
     update_device_playback_state(core);
 }
 
-static struct audio_pcm_ops coreaudio_pcm_ops = {
-    .init_out = coreaudio_init_out,
-    .fini_out = coreaudio_fini_out,
-  /* wrapper for audio_generic_write */
-    .write    = coreaudio_write,
-  /* wrapper for audio_generic_buffer_get_free */
-    .buffer_get_free = coreaudio_buffer_get_free,
-  /* wrapper for audio_generic_get_buffer_out */
-    .get_buffer_out = coreaudio_get_buffer_out,
-  /* wrapper for audio_generic_put_buffer_out */
-    .put_buffer_out = coreaudio_put_buffer_out,
-    .enable_out = coreaudio_enable_out
-};
-
 static void audio_coreaudio_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
     k->name = "coreaudio";
-    k->pcm_ops = &coreaudio_pcm_ops;
     k->max_voices_out = 1;
     k->max_voices_in = 0;
     k->voice_size_out = sizeof(coreaudioVoiceOut);
     k->voice_size_in = 0;
+
+    k->init_out = coreaudio_init_out;
+    k->fini_out = coreaudio_fini_out;
+    /* wrapper for audio_generic_write */
+    k->write = coreaudio_write;
+    /* wrapper for audio_generic_buffer_get_free */
+    k->buffer_get_free = coreaudio_buffer_get_free;
+    /* wrapper for audio_generic_get_buffer_out */
+    k->get_buffer_out = coreaudio_get_buffer_out;
+    /* wrapper for audio_generic_put_buffer_out */
+    k->put_buffer_out = coreaudio_put_buffer_out;
+    k->enable_out = coreaudio_enable_out;
 }
 
 static const TypeInfo audio_types[] = {

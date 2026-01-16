@@ -527,32 +527,30 @@ static void sndio_fini_in(HWVoiceIn *hw)
     sndio_fini(self);
 }
 
-static struct audio_pcm_ops sndio_pcm_ops = {
-    .init_out        = sndio_init_out,
-    .fini_out        = sndio_fini_out,
-    .enable_out      = sndio_enable_out,
-    .write           = audio_generic_write,
-    .buffer_get_free = sndio_buffer_get_free,
-    .get_buffer_out  = sndio_get_buffer_out,
-    .put_buffer_out  = sndio_put_buffer_out,
-    .init_in         = sndio_init_in,
-    .fini_in         = sndio_fini_in,
-    .read            = audio_generic_read,
-    .enable_in       = sndio_enable_in,
-    .get_buffer_in   = sndio_get_buffer_in,
-    .put_buffer_in   = sndio_put_buffer_in,
-};
-
 static void audio_sndio_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
     k->name = "sndio";
-    k->pcm_ops = &sndio_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(SndioVoice);
     k->voice_size_in = sizeof(SndioVoice);
+
+    k->init_out = sndio_init_out;
+    k->fini_out = sndio_fini_out;
+    k->write = audio_generic_write;
+    k->buffer_get_free = sndio_buffer_get_free;
+    k->get_buffer_out = sndio_get_buffer_out;
+    k->put_buffer_out = sndio_put_buffer_out;
+    k->enable_out = sndio_enable_out;
+
+    k->init_in = sndio_init_in;
+    k->fini_in = sndio_fini_in;
+    k->read = audio_generic_read;
+    k->get_buffer_in = sndio_get_buffer_in;
+    k->put_buffer_in = sndio_put_buffer_in;
+    k->enable_in = sndio_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

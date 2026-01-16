@@ -110,31 +110,28 @@ static void no_enable_in(HWVoiceIn *hw, bool enable)
     }
 }
 
-static struct audio_pcm_ops no_pcm_ops = {
-    .init_out = no_init_out,
-    .fini_out = no_fini_out,
-    .write    = no_write,
-    .buffer_get_free = audio_generic_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = no_enable_out,
-
-    .init_in  = no_init_in,
-    .fini_in  = no_fini_in,
-    .read     = no_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = no_enable_in
-};
-
 static void audio_none_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
     k->name = "none";
-    k->pcm_ops = &no_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(NoVoiceOut);
     k->voice_size_in = sizeof(NoVoiceIn);
+
+    k->init_out = no_init_out;
+    k->fini_out = no_fini_out;
+    k->write = no_write;
+    k->buffer_get_free = audio_generic_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = no_enable_out;
+
+    k->init_in = no_init_in;
+    k->fini_in = no_fini_in;
+    k->read = no_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = no_enable_in;
 }
 
 static const TypeInfo audio_types[] = {

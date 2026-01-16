@@ -223,13 +223,14 @@ static void glue (audio_pcm_hw_gc_, TYPE) (HW **hwp)
 {
     HW *hw = *hwp;
     AudioMixengBackend *s = hw->s;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
 
     if (!hw->sw_head.lh_first) {
 #ifdef DAC
         audio_detach_capture(hw);
 #endif
         QLIST_REMOVE(hw, entries);
-        glue(hw->pcm_ops->fini_, TYPE) (hw);
+        glue(k->fini_, TYPE)(hw);
         glue(s->nb_hw_voices_, TYPE) += 1;
         glue(audio_pcm_hw_free_resources_ , TYPE) (hw);
         object_unref(hw->s);
@@ -274,8 +275,8 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
         return NULL;
     }
 
-    if (audio_bug(__func__, !k->pcm_ops)) {
-        dolog("No host audio driver or missing pcm_ops\n");
+    if (audio_bug(__func__, !glue(k->init_, TYPE))) {
+        dolog("No host audio driver or missing init_%s\n", NAME);
         return NULL;
     }
 
@@ -285,13 +286,12 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
      */
     hw = g_malloc0(glue(k->voice_size_, TYPE));
     hw->s = AUDIO_MIXENG_BACKEND(object_ref(s));
-    hw->pcm_ops = k->pcm_ops;
 
     QLIST_INIT (&hw->sw_head);
 #ifdef DAC
     QLIST_INIT (&hw->cap_head);
 #endif
-    if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
+    if (glue(k->init_, TYPE)(hw, as)) {
         goto err0;
     }
 
@@ -330,7 +330,7 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
     return hw;
 
  err1:
-    glue (hw->pcm_ops->fini_, TYPE) (hw);
+    glue(k->fini_, TYPE)(hw);
  err0:
     object_unref(hw->s);
     g_free (hw);
@@ -495,6 +495,7 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     const struct audsettings *as)
 {
     AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(be);
+    AudioMixengBackendClass *k;
     AudiodevPerDirectionOptions *pdo;
 
     if (audio_bug(__func__, !be || !name || !callback_fn || !as)) {
@@ -503,6 +504,7 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
         goto fail;
     }
 
+    k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
     pdo = glue(audio_get_pdo_, TYPE)(s->dev);
 
     ldebug ("open %s, freq %d, nchannels %d, fmt %d\n",
@@ -513,7 +515,7 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
         goto fail;
     }
 
-    if (audio_bug(__func__, !AUDIO_MIXENG_BACKEND_GET_CLASS(s)->pcm_ops)) {
+    if (audio_bug(__func__, !glue(k->init_, TYPE))) {
         dolog("Can not open `%s' (no host audio driver)\n", name);
         goto fail;
     }

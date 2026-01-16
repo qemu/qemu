@@ -39,8 +39,6 @@ AUD_vlog(const char *cap, const char *fmt, va_list ap);
 void G_GNUC_PRINTF(2, 3)
 AUD_log(const char *cap, const char *fmt, ...);
 
-struct audio_pcm_ops;
-
 struct audio_callback {
     void *opaque;
     audio_callback_fn fn;
@@ -81,7 +79,6 @@ typedef struct HWVoiceOut {
     size_t samples;
     QLIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
     QLIST_HEAD (sw_cap_listhead, SWVoiceCap) cap_head;
-    struct audio_pcm_ops *pcm_ops;
     QLIST_ENTRY (HWVoiceOut) entries;
 } HWVoiceOut;
 
@@ -101,7 +98,6 @@ typedef struct HWVoiceIn {
 
     size_t samples;
     QLIST_HEAD (sw_in_listhead, SWVoiceIn) sw_head;
-    struct audio_pcm_ops *pcm_ops;
     QLIST_ENTRY (HWVoiceIn) entries;
 } HWVoiceIn;
 
@@ -134,40 +130,6 @@ struct SWVoiceIn {
     struct mixeng_volume vol;
     struct audio_callback callback;
     QLIST_ENTRY (SWVoiceIn) entries;
-};
-
-struct audio_pcm_ops {
-    int    (*init_out)(HWVoiceOut *hw, audsettings *as);
-    void   (*fini_out)(HWVoiceOut *hw);
-    size_t (*write)   (HWVoiceOut *hw, void *buf, size_t size);
-    void   (*run_buffer_out)(HWVoiceOut *hw);
-    /*
-     * Get the free output buffer size. This is an upper limit. The size
-     * returned by function get_buffer_out may be smaller.
-     */
-    size_t (*buffer_get_free)(HWVoiceOut *hw);
-    /*
-     * get a buffer that after later can be passed to put_buffer_out; optional
-     * returns the buffer, and writes it's size to size (in bytes)
-     */
-    void  *(*get_buffer_out)(HWVoiceOut *hw, size_t *size);
-    /*
-     * put back the buffer returned by get_buffer_out; optional
-     * buf must be equal the pointer returned by get_buffer_out,
-     * size may be smaller
-     */
-    size_t (*put_buffer_out)(HWVoiceOut *hw, void *buf, size_t size);
-    void   (*enable_out)(HWVoiceOut *hw, bool enable);
-    void   (*volume_out)(HWVoiceOut *hw, Volume *vol);
-
-    int    (*init_in) (HWVoiceIn *hw, audsettings *as);
-    void   (*fini_in) (HWVoiceIn *hw);
-    size_t (*read)    (HWVoiceIn *hw, void *buf, size_t size);
-    void   (*run_buffer_in)(HWVoiceIn *hw);
-    void  *(*get_buffer_in)(HWVoiceIn *hw, size_t *size);
-    void   (*put_buffer_in)(HWVoiceIn *hw, void *buf, size_t size);
-    void   (*enable_in)(HWVoiceIn *hw, bool enable);
-    void   (*volume_in)(HWVoiceIn *hw, Volume *vol);
 };
 
 audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo);
@@ -220,11 +182,42 @@ struct AudioMixengBackendClass {
     AudioBackendClass parent_class;
 
     const char *name;
-    struct audio_pcm_ops *pcm_ops;
     int max_voices_out;
     int max_voices_in;
     size_t voice_size_out;
     size_t voice_size_in;
+
+    int    (*init_out)(HWVoiceOut *hw, audsettings *as);
+    void   (*fini_out)(HWVoiceOut *hw);
+    size_t (*write)   (HWVoiceOut *hw, void *buf, size_t size);
+    void   (*run_buffer_out)(HWVoiceOut *hw);
+    /*
+     * Get the free output buffer size. This is an upper limit. The size
+     * returned by function get_buffer_out may be smaller.
+     */
+    size_t (*buffer_get_free)(HWVoiceOut *hw);
+    /*
+     * get a buffer that after later can be passed to put_buffer_out; optional
+     * returns the buffer, and writes it's size to size (in bytes)
+     */
+    void  *(*get_buffer_out)(HWVoiceOut *hw, size_t *size);
+    /*
+     * put back the buffer returned by get_buffer_out; optional
+     * buf must be equal the pointer returned by get_buffer_out,
+     * size may be smaller
+     */
+    size_t (*put_buffer_out)(HWVoiceOut *hw, void *buf, size_t size);
+    void   (*enable_out)(HWVoiceOut *hw, bool enable);
+    void   (*volume_out)(HWVoiceOut *hw, Volume *vol);
+
+    int    (*init_in) (HWVoiceIn *hw, audsettings *as);
+    void   (*fini_in) (HWVoiceIn *hw);
+    size_t (*read)    (HWVoiceIn *hw, void *buf, size_t size);
+    void   (*run_buffer_in)(HWVoiceIn *hw);
+    void  *(*get_buffer_in)(HWVoiceIn *hw, size_t *size);
+    void   (*put_buffer_in)(HWVoiceIn *hw, void *buf, size_t size);
+    void   (*enable_in)(HWVoiceIn *hw, bool enable);
+    void   (*volume_in)(HWVoiceIn *hw, Volume *vol);
 };
 
 struct AudioMixengBackend {

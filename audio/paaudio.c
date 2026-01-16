@@ -913,23 +913,6 @@ static void audio_pa_finalize(Object *obj)
     }
 }
 
-static struct audio_pcm_ops qpa_pcm_ops = {
-    .init_out = qpa_init_out,
-    .fini_out = qpa_fini_out,
-    .write    = qpa_write,
-    .buffer_get_free = qpa_buffer_get_free,
-    .get_buffer_out = qpa_get_buffer_out,
-    .put_buffer_out = qpa_put_buffer_out,
-    .volume_out = qpa_volume_out,
-
-    .init_in  = qpa_init_in,
-    .fini_in  = qpa_fini_in,
-    .read     = qpa_read,
-    .get_buffer_in = qpa_get_buffer_in,
-    .put_buffer_in = qpa_put_buffer_in,
-    .volume_in = qpa_volume_in
-};
-
 static void audio_pa_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -939,11 +922,25 @@ static void audio_pa_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_pa_realize;
     k->name = "pa";
-    k->pcm_ops = &qpa_pcm_ops;
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(PAVoiceOut);
     k->voice_size_in = sizeof(PAVoiceIn);
+
+    k->init_out = qpa_init_out;
+    k->fini_out = qpa_fini_out;
+    k->write = qpa_write;
+    k->buffer_get_free = qpa_buffer_get_free;
+    k->get_buffer_out = qpa_get_buffer_out;
+    k->put_buffer_out = qpa_put_buffer_out;
+    k->volume_out = qpa_volume_out;
+
+    k->init_in = qpa_init_in;
+    k->fini_in = qpa_fini_in;
+    k->read = qpa_read;
+    k->get_buffer_in = qpa_get_buffer_in;
+    k->put_buffer_in = qpa_put_buffer_in;
+    k->volume_in = qpa_volume_in;
 }
 
 static const TypeInfo audio_types[] = {
