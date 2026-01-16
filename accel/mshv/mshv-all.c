@@ -41,7 +41,6 @@
 #include "system/reset.h"
 #include "trace.h"
 #include <err.h>
-#include <stdint.h>
 #include <sys/ioctl.h>
 
 #define TYPE_MSHV_ACCEL ACCEL_CLASS_NAME("mshv")

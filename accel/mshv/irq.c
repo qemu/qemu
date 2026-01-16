@@ -10,8 +10,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#include "linux/mshv.h"
 #include "qemu/osdep.h"
+#include "linux/mshv.h"
 #include "qemu/error-report.h"
 #include "hw/hyperv/hvhdk_mini.h"
 #include "hw/hyperv/hvgdk_mini.h"
@@ -20,7 +20,6 @@
 #include "system/mshv.h"
 #include "system/mshv_int.h"
 #include "trace.h"
-#include <stdint.h>
 #include <sys/ioctl.h>
 
 #define MSHV_IRQFD_RESAMPLE_FLAG (1 << MSHV_IRQFD_BIT_RESAMPLE)

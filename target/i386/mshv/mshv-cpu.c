@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
-#include "qemu/typedefs.h"
 
 #include "system/mshv.h"
 #include "system/mshv_int.h"
