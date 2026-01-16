@@ -44,18 +44,13 @@
 #define TYPE_AUDIO_SDL "audio-sdl"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioSdl, AUDIO_SDL)
 
+static AudioBackendClass *audio_sdl_parent_class;
+
 struct AudioSdl {
     AudioMixengBackend parent_obj;
 };
 
 static struct audio_driver sdl_audio_driver;
-
-static void audio_sdl_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &sdl_audio_driver;
-}
 
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
@@ -356,7 +351,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     SDLVoiceOut *sdl = (SDLVoiceOut *)hw;
     SDL_AudioSpec req, obt;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.out;
     struct audsettings obt_as;
 
@@ -412,7 +407,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
     SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
     SDL_AudioSpec req, obt;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.in;
     struct audsettings obt_as;
 
@@ -459,19 +454,20 @@ static void sdl_enable_in(HWVoiceIn *hw, bool enable)
     SDL_PauseAudioDevice(sdl->devid, !enable);
 }
 
-static void *sdl_audio_init(Audiodev *dev, Error **errp)
+static bool audio_sdl_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
-    if (SDL_InitSubSystem (SDL_INIT_AUDIO)) {
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO)) {
         error_setg(errp, "SDL failed to initialize audio subsystem");
-        return NULL;
+        qapi_free_Audiodev(dev);
+        return false;
     }
 
-    return dev;
+    return audio_sdl_parent_class->realize(abe, dev, errp);
 }
 
-static void sdl_audio_fini (void *opaque)
+static void audio_sdl_finalize(Object *obj)
 {
-    SDL_QuitSubSystem (SDL_INIT_AUDIO);
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 static struct audio_pcm_ops sdl_pcm_ops = {
@@ -499,8 +495,6 @@ static struct audio_pcm_ops sdl_pcm_ops = {
 
 static struct audio_driver sdl_audio_driver = {
     .name           = "sdl",
-    .init           = sdl_audio_init,
-    .fini           = sdl_audio_fini,
     .pcm_ops        = &sdl_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
@@ -508,12 +502,24 @@ static struct audio_driver sdl_audio_driver = {
     .voice_size_in  = sizeof(SDLVoiceIn),
 };
 
+static void audio_sdl_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_sdl_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_sdl_realize;
+    k->driver = &sdl_audio_driver;
+}
+
 static const TypeInfo audio_types[] = {
     {
         .name = TYPE_AUDIO_SDL,
         .parent = TYPE_AUDIO_MIXENG_BACKEND,
         .instance_size = sizeof(AudioSdl),
         .class_init = audio_sdl_class_init,
+        .instance_finalize = audio_sdl_finalize,
     },
 };
 
