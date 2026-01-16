@@ -1521,9 +1521,11 @@ static bool audio_mixeng_backend_realize(AudioBackend *abe,
     audio_driver *drv = AUDIO_MIXENG_BACKEND_GET_CLASS(be)->driver;
 
     be->dev = dev;
-    be->drv_opaque = drv->init(be->dev, errp);
-    if (!be->drv_opaque) {
-        return false;
+    if (drv->init != NULL) {
+        be->drv_opaque = drv->init(be->dev, errp);
+        if (!be->drv_opaque) {
+            return false;
+        }
     }
 
     if (!drv->pcm_ops->get_buffer_in) {
@@ -1664,7 +1666,9 @@ static void audio_mixeng_backend_finalize(Object *obj)
     }
 
     if (s->drv) {
-        s->drv->fini (s->drv_opaque);
+        if (s->drv->fini) {
+            s->drv->fini (s->drv_opaque);
+        }
         s->drv = NULL;
     }
 
