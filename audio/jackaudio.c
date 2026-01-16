@@ -44,13 +44,6 @@ struct AudioJack {
 
 static struct audio_driver jack_driver;
 
-static void audio_jack_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &jack_driver;
-}
-
 struct QJack;
 
 typedef enum QJackState {
@@ -518,7 +511,7 @@ static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as,
     void *drv_opaque)
 {
     QJackOut *jo  = (QJackOut *)hw;
-    Audiodev *dev = (Audiodev *)drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     jo->c.out       = true;
     jo->c.enabled   = false;
@@ -555,7 +548,7 @@ static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as,
     void *drv_opaque)
 {
     QJackIn  *ji  = (QJackIn *)hw;
-    Audiodev *dev = (Audiodev *)drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     ji->c.out       = false;
     ji->c.enabled   = false;
@@ -662,16 +655,6 @@ static int qjack_thread_creator(jack_native_thread_t *thread,
 }
 #endif
 
-static void *qjack_init(Audiodev *dev, Error **errp)
-{
-    assert(dev->driver == AUDIODEV_DRIVER_JACK);
-    return dev;
-}
-
-static void qjack_fini(void *opaque)
-{
-}
-
 static struct audio_pcm_ops jack_pcm_ops = {
     .init_out       = qjack_init_out,
     .fini_out       = qjack_fini_out,
@@ -689,8 +672,6 @@ static struct audio_pcm_ops jack_pcm_ops = {
 
 static struct audio_driver jack_driver = {
     .name           = "jack",
-    .init           = qjack_init,
-    .fini           = qjack_fini,
     .pcm_ops        = &jack_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
@@ -706,6 +687,13 @@ static void qjack_error(const char *msg)
 static void qjack_info(const char *msg)
 {
     dolog("I: %s\n", msg);
+}
+
+static void audio_jack_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->driver = &jack_driver;
 }
 
 static const TypeInfo audio_types[] = {
