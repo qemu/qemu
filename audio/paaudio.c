@@ -14,18 +14,9 @@
 #define TYPE_AUDIO_PA "audio-pa"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioPa, AUDIO_PA)
 
-struct AudioPa {
-    AudioMixengBackend parent_obj;
-};
+static AudioBackendClass *audio_pa_parent_class;
 
 static struct audio_driver pa_audio_driver;
-
-static void audio_pa_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &pa_audio_driver;
-}
 
 typedef struct PAConnection {
     char *server;
@@ -36,18 +27,19 @@ typedef struct PAConnection {
     pa_context *context;
 } PAConnection;
 
+struct AudioPa {
+    AudioMixengBackend parent_obj;
+
+    PAConnection *conn;
+};
+
 static QTAILQ_HEAD(PAConnectionHead, PAConnection) pa_conns =
     QTAILQ_HEAD_INITIALIZER(pa_conns);
 
 typedef struct {
-    Audiodev *dev;
-    PAConnection *conn;
-} paaudio;
-
-typedef struct {
     HWVoiceOut hw;
     pa_stream *stream;
-    paaudio *g;
+    AudioPa *g;
 } PAVoiceOut;
 
 typedef struct {
@@ -55,7 +47,7 @@ typedef struct {
     pa_stream *stream;
     const void *read_data;
     size_t read_length;
-    paaudio *g;
+    AudioPa *g;
 } PAVoiceIn;
 
 static void qpa_conn_fini(PAConnection *c);
@@ -529,23 +521,25 @@ fail:
 static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
                         void *drv_opaque)
 {
+    AudioMixengBackend *amb = hw->s;
+    AudioPa *apa = AUDIO_PA(amb);
     int error;
     pa_sample_spec ss;
     pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
-    paaudio *g = pa->g = drv_opaque;
-    AudiodevPaOptions *popts = &g->dev->u.pa;
+    AudiodevPaOptions *popts = &amb->dev->u.pa;
     AudiodevPaPerDirectionOptions *ppdo = popts->out;
-    PAConnection *c = g->conn;
+    PAConnection *c = apa->conn;
 
+    pa->g = apa;
     ss.format = audfmt_to_pa (as->fmt, as->endianness);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
     ba.tlength = pa_usec_to_bytes(ppdo->latency, &ss);
     ba.minreq = pa_usec_to_bytes(MIN(ppdo->latency >> 2,
-                                     (g->dev->timer_period >> 2) * 3), &ss);
+                                     (amb->dev->timer_period >> 2) * 3), &ss);
     ba.maxlength = -1;
     ba.prebuf = -1;
 
@@ -553,7 +547,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     pa->stream = qpa_simple_new (
         c,
-        ppdo->stream_name ?: g->dev->id,
+        ppdo->stream_name ?: amb->dev->id,
         PA_STREAM_PLAYBACK,
         ppdo->name,
         &ss,
@@ -578,23 +572,25 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
 static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
+    AudioMixengBackend *amb = hw->s;
+    AudioPa *apa = AUDIO_PA(amb);
     int error;
     pa_sample_spec ss;
     pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
-    paaudio *g = pa->g = drv_opaque;
-    AudiodevPaOptions *popts = &g->dev->u.pa;
+    AudiodevPaOptions *popts = &amb->dev->u.pa;
     AudiodevPaPerDirectionOptions *ppdo = popts->in;
-    PAConnection *c = g->conn;
+    PAConnection *c = apa->conn;
 
+    pa->g = apa;
     ss.format = audfmt_to_pa (as->fmt, as->endianness);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
-    ba.fragsize = pa_usec_to_bytes((g->dev->timer_period >> 1) * 3, &ss);
+    ba.fragsize = pa_usec_to_bytes((amb->dev->timer_period >> 1) * 3, &ss);
     ba.maxlength = pa_usec_to_bytes(
-        MAX(ppdo->latency, g->dev->timer_period * 3), &ss);
+        MAX(ppdo->latency, amb->dev->timer_period * 3), &ss);
     ba.minreq = -1;
     ba.prebuf = -1;
 
@@ -602,7 +598,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     pa->stream = qpa_simple_new (
         c,
-        ppdo->stream_name ?: g->dev->id,
+        ppdo->stream_name ?: amb->dev->id,
         PA_STREAM_RECORD,
         ppdo->name,
         &ss,
@@ -834,14 +830,19 @@ fail:
     return NULL;
 }
 
-static void *qpa_audio_init(Audiodev *dev, Error **errp)
+static bool
+audio_pa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
-    paaudio *g;
+    AudioPa *apa = AUDIO_PA(abe);
     AudiodevPaOptions *popts = &dev->u.pa;
     const char *server;
     PAConnection *c;
 
     assert(dev->driver == AUDIODEV_DRIVER_PA);
+
+    if (!audio_pa_parent_class->realize(abe, dev, errp)) {
+        return false;
+    }
 
     if (!popts->server) {
         char pidfile[64];
@@ -851,42 +852,38 @@ static void *qpa_audio_init(Audiodev *dev, Error **errp)
         runtime = getenv("XDG_RUNTIME_DIR");
         if (!runtime) {
             error_setg(errp, "XDG_RUNTIME_DIR not set");
-            return NULL;
+            return false;
         }
         snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
         if (stat(pidfile, &st) != 0) {
             error_setg_errno(errp, errno, "could not stat pidfile %s", pidfile);
-            return NULL;
+            return false;
         }
     }
 
     qpa_validate_per_direction_opts(dev, popts->in);
     qpa_validate_per_direction_opts(dev, popts->out);
 
-    g = g_new0(paaudio, 1);
     server = popts->server;
-
-    g->dev = dev;
-
     QTAILQ_FOREACH(c, &pa_conns, list) {
         if (server == NULL || c->server == NULL ?
             server == c->server :
             strcmp(server, c->server) == 0) {
-            g->conn = c;
+            apa->conn = c;
             break;
         }
     }
-    if (!g->conn) {
-        g->conn = qpa_conn_init(server);
+    if (!apa->conn) {
+        apa->conn = qpa_conn_init(server);
     }
-    if (!g->conn) {
-        g_free(g);
+    if (!apa->conn) {
         error_setg(errp, "could not connect to PulseAudio server");
-        return NULL;
+        return false;
     }
 
-    ++g->conn->refcount;
-    return g;
+    ++apa->conn->refcount;
+
+    return true;
 }
 
 static void qpa_conn_fini(PAConnection *c)
@@ -908,16 +905,14 @@ static void qpa_conn_fini(PAConnection *c)
     g_free(c);
 }
 
-static void qpa_audio_fini (void *opaque)
+static void audio_pa_finalize(Object *obj)
 {
-    paaudio *g = opaque;
-    PAConnection *c = g->conn;
+    AudioPa *apa = AUDIO_PA(obj);
+    PAConnection *c = apa->conn;
 
-    if (--c->refcount == 0) {
+    if (c && --c->refcount == 0) {
         qpa_conn_fini(c);
     }
-
-    g_free(g);
 }
 
 static struct audio_pcm_ops qpa_pcm_ops = {
@@ -939,8 +934,6 @@ static struct audio_pcm_ops qpa_pcm_ops = {
 
 static struct audio_driver pa_audio_driver = {
     .name           = "pa",
-    .init           = qpa_audio_init,
-    .fini           = qpa_audio_fini,
     .pcm_ops        = &qpa_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
@@ -948,12 +941,24 @@ static struct audio_driver pa_audio_driver = {
     .voice_size_in  = sizeof (PAVoiceIn),
 };
 
+static void audio_pa_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_pa_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_pa_realize;
+    k->driver = &pa_audio_driver;
+}
+
 static const TypeInfo audio_types[] = {
     {
         .name = TYPE_AUDIO_PA,
         .parent = TYPE_AUDIO_MIXENG_BACKEND,
         .instance_size = sizeof(AudioPa),
         .class_init = audio_pa_class_init,
+        .instance_finalize = audio_pa_finalize,
     },
 };
 
