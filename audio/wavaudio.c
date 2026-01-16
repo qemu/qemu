@@ -89,7 +89,7 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
         0x02, 0x00, 0x44, 0xac, 0x00, 0x00, 0x10, 0xb1, 0x02, 0x00, 0x04,
         0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00
     };
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevWavOptions *wopts = &dev->u.wav;
     struct audsettings wav_as = audiodev_to_audsettings(dev->u.wav.out);
     const char *wav_path = wopts->path ?: "qemu.wav";
@@ -200,17 +200,6 @@ static void wav_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static void *wav_audio_init(Audiodev *dev, Error **errp)
-{
-    assert(dev->driver == AUDIODEV_DRIVER_WAV);
-    return dev;
-}
-
-static void wav_audio_fini (void *opaque)
-{
-    ldebug ("wav_fini");
-}
-
 static struct audio_pcm_ops wav_pcm_ops = {
     .init_out = wav_init_out,
     .fini_out = wav_fini_out,
@@ -222,8 +211,6 @@ static struct audio_pcm_ops wav_pcm_ops = {
 
 static struct audio_driver wav_audio_driver = {
     .name           = "wav",
-    .init           = wav_audio_init,
-    .fini           = wav_audio_fini,
     .pcm_ops        = &wav_pcm_ops,
     .max_voices_out = 1,
     .max_voices_in  = 0,
