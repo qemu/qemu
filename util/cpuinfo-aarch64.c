@@ -26,7 +26,6 @@
 #if defined(__OpenBSD__) && !defined(CONFIG_ELF_AUX_INFO)
 # include <machine/armreg.h>
 # include <machine/cpu.h>
-# include <sys/types.h>
 # include <sys/sysctl.h>
 #endif
 

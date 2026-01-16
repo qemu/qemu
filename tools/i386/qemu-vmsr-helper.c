@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include <getopt.h>
-#include <stdbool.h>
 #include <sys/ioctl.h>
 #ifdef CONFIG_LIBCAP_NG
 #include <cap-ng.h>

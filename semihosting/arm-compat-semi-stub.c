@@ -6,7 +6,6 @@
 
 #include "qemu/osdep.h"
 #include "semihosting/semihost.h"
-#include <glib.h>
 
 bool semihosting_arm_compatible(void)
 {

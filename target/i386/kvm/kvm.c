@@ -21,7 +21,6 @@
 #include <sys/utsname.h>
 #include <sys/syscall.h>
 #include <sys/resource.h>
-#include <sys/time.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
