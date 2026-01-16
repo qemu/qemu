@@ -33,16 +33,33 @@
 #define TYPE_AUDIO_SPICE "audio-spice"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioSpice, AUDIO_SPICE)
 
+static AudioBackendClass *audio_spice_parent_class;
+
 struct AudioSpice {
     AudioMixengBackend parent_obj;
 };
 
 static struct audio_driver spice_audio_driver;
 
+static bool spice_audio_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
+{
+    if (!using_spice) {
+        error_setg(errp, "Cannot use spice audio without -spice");
+        qapi_free_Audiodev(dev);
+        return false;
+    }
+
+    return audio_spice_parent_class->realize(abe, dev, errp);
+}
+
 static void audio_spice_class_init(ObjectClass *klass, const void *data)
 {
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
+    audio_spice_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = spice_audio_realize;
     k->driver = &spice_audio_driver;
 }
 
@@ -88,21 +105,6 @@ static const SpiceRecordInterface record_sif = {
     .base.major_version = SPICE_INTERFACE_RECORD_MAJOR,
     .base.minor_version = SPICE_INTERFACE_RECORD_MINOR,
 };
-
-static void *spice_audio_init(Audiodev *dev, Error **errp)
-{
-    if (!using_spice) {
-        error_setg(errp, "Cannot use spice audio without -spice");
-        return NULL;
-    }
-
-    return &spice_audio_init;
-}
-
-static void spice_audio_fini (void *opaque)
-{
-    /* nothing */
-}
 
 /* playback */
 
@@ -333,8 +335,6 @@ static struct audio_pcm_ops audio_callbacks = {
 
 static struct audio_driver spice_audio_driver = {
     .name           = "spice",
-    .init           = spice_audio_init,
-    .fini           = spice_audio_fini,
     .pcm_ops        = &audio_callbacks,
     .max_voices_out = 1,
     .max_voices_in  = 1,
