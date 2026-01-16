@@ -108,8 +108,7 @@ static const SpiceRecordInterface record_sif = {
 
 /* playback */
 
-static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
-                         void *drv_opaque)
+static int line_out_init(HWVoiceOut *hw, struct audsettings *as)
 {
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
     struct audsettings settings;
@@ -225,7 +224,7 @@ static void line_out_volume(HWVoiceOut *hw, Volume *vol)
 
 /* record */
 
-static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int line_in_init(HWVoiceIn *hw, struct audsettings *as)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
     struct audsettings settings;

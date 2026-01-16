@@ -692,8 +692,7 @@ static void alsa_fini_out (HWVoiceOut *hw)
     alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 }
 
-static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
-                         void *drv_opaque)
+static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     struct alsa_params_req req;
@@ -779,7 +778,7 @@ static void alsa_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     struct alsa_params_req req;

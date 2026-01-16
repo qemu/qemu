@@ -495,7 +495,7 @@ static void sndio_enable_in(HWVoiceIn *hw, bool enable)
     sndio_enable(self, enable);
 }
 
-static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as, void *opaque)
+static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
@@ -508,7 +508,7 @@ static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as, void *opaque)
     return 0;
 }
 
-static int sndio_init_in(HWVoiceIn *hw, struct audsettings *as, void *opaque)
+static int sndio_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     SndioVoice *self = (SndioVoice *) hw;
 

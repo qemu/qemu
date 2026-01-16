@@ -507,8 +507,7 @@ static int qjack_client_init(QJackClient *c)
     return 0;
 }
 
-static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as,
-    void *drv_opaque)
+static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     QJackOut *jo  = (QJackOut *)hw;
     Audiodev *dev = hw->s->dev;
@@ -544,8 +543,7 @@ static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as,
     return 0;
 }
 
-static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as,
-    void *drv_opaque)
+static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     QJackIn  *ji  = (QJackIn *)hw;
     Audiodev *dev = hw->s->dev;

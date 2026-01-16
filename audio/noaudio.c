@@ -62,7 +62,7 @@ static size_t no_write(HWVoiceOut *hw, void *buf, size_t len)
     return audio_rate_get_bytes(&no->rate, &hw->info, len);
 }
 
-static int no_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
+static int no_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
 
@@ -86,7 +86,7 @@ static void no_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static int no_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int no_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     NoVoiceIn *no = (NoVoiceIn *) hw;
 

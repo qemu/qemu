@@ -524,7 +524,7 @@ qpw_set_position(uint32_t channels, uint32_t position[SPA_AUDIO_MAX_CHANNELS])
 }
 
 static int
-qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
+qpw_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceOut *pw = (PWVoiceOut *) hw;
@@ -571,7 +571,7 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 }
 
 static int
-qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+qpw_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceIn *pw = (PWVoiceIn *) hw;

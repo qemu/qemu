@@ -518,8 +518,7 @@ fail:
     return NULL;
 }
 
-static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
-                        void *drv_opaque)
+static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     AudioMixengBackend *amb = hw->s;
     AudioPa *apa = AUDIO_PA(amb);
@@ -570,7 +569,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     return -1;
 }
 
-static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     AudioMixengBackend *amb = hw->s;
     AudioPa *apa = AUDIO_PA(amb);

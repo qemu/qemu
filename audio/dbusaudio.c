@@ -173,7 +173,7 @@ dbus_audio_get_nsamples(AudioDbus *da)
 }
 
 static int
-dbus_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
+dbus_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     AudioDbus *da = AUDIO_DBUS(hw->s);
     DBusVoiceOut *vo = container_of(hw, DBusVoiceOut, hw);
@@ -287,7 +287,7 @@ dbus_init_in_listener(QemuDBusDisplay1AudioInListener *listener, HWVoiceIn *hw)
 }
 
 static int
-dbus_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+dbus_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     AudioDbus *da = AUDIO_DBUS(hw->s);
     DBusVoiceIn *vo = container_of(hw, DBusVoiceIn, hw);

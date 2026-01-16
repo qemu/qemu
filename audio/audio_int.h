@@ -139,18 +139,15 @@ struct SWVoiceIn {
 typedef struct audio_driver audio_driver;
 struct audio_driver {
     const char *name;
-    void *(*init) (Audiodev *, Error **);
-    void (*fini) (void *);
     struct audio_pcm_ops *pcm_ops;
     int max_voices_out;
     int max_voices_in;
     size_t voice_size_out;
     size_t voice_size_in;
-    QLIST_ENTRY(audio_driver) next;
 };
 
 struct audio_pcm_ops {
-    int    (*init_out)(HWVoiceOut *hw, audsettings *as, void *drv_opaque);
+    int    (*init_out)(HWVoiceOut *hw, audsettings *as);
     void   (*fini_out)(HWVoiceOut *hw);
     size_t (*write)   (HWVoiceOut *hw, void *buf, size_t size);
     void   (*run_buffer_out)(HWVoiceOut *hw);
@@ -173,7 +170,7 @@ struct audio_pcm_ops {
     void   (*enable_out)(HWVoiceOut *hw, bool enable);
     void   (*volume_out)(HWVoiceOut *hw, Volume *vol);
 
-    int    (*init_in) (HWVoiceIn *hw, audsettings *as, void *drv_opaque);
+    int    (*init_in) (HWVoiceIn *hw, audsettings *as);
     void   (*fini_in) (HWVoiceIn *hw);
     size_t (*read)    (HWVoiceIn *hw, void *buf, size_t size);
     void   (*run_buffer_in)(HWVoiceIn *hw);
@@ -240,7 +237,6 @@ struct AudioMixengBackend {
 
     struct audio_driver *drv;
     Audiodev *dev;
-    void *drv_opaque;
 
     QEMUTimer *ts;
     QLIST_HEAD (hw_in_listhead, HWVoiceIn) hw_head_in;

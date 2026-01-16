@@ -493,8 +493,7 @@ static void oss_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
-                        void *drv_opaque)
+static int oss_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     struct oss_params req, obt;
@@ -625,7 +624,7 @@ static void oss_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int oss_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     struct oss_params req, obt;

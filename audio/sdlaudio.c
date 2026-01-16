@@ -345,8 +345,7 @@ static void sdl_fini_out(HWVoiceOut *hw)
     sdl_close_out(sdl);
 }
 
-static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
-                        void *drv_opaque)
+static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     SDLVoiceOut *sdl = (SDLVoiceOut *)hw;
     SDL_AudioSpec req, obt;
@@ -402,7 +401,7 @@ static void sdl_fini_in(HWVoiceIn *hw)
     sdl_close_in(sdl);
 }
 
-static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
+static int sdl_init_in(HWVoiceIn *hw, audsettings *as)
 {
     SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
     SDL_AudioSpec req, obt;

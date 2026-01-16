@@ -1521,13 +1521,6 @@ static bool audio_mixeng_backend_realize(AudioBackend *abe,
     audio_driver *drv = AUDIO_MIXENG_BACKEND_GET_CLASS(be)->driver;
 
     be->dev = dev;
-    if (drv->init != NULL) {
-        be->drv_opaque = drv->init(be->dev, errp);
-        if (!be->drv_opaque) {
-            return false;
-        }
-    }
-
     if (!drv->pcm_ops->get_buffer_in) {
         drv->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
         drv->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
@@ -1665,13 +1658,7 @@ static void audio_mixeng_backend_finalize(Object *obj)
         QLIST_REMOVE(hwi, entries);
     }
 
-    if (s->drv) {
-        if (s->drv->fini) {
-            s->drv->fini (s->drv_opaque);
-        }
-        s->drv = NULL;
-    }
-
+    s->drv = NULL;
     if (s->dev) {
         qapi_free_Audiodev(s->dev);
         s->dev = NULL;

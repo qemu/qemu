@@ -157,11 +157,9 @@ static void dsound_fini_out (HWVoiceOut *hw)
 }
 
 #ifdef DSBTYPE_IN
-static int dsound_init_in(HWVoiceIn *hw, struct audsettings *as,
-                          void *drv_opaque)
+static int dsound_init_in(HWVoiceIn *hw, struct audsettings *as)
 #else
-static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
-                           void *drv_opaque)
+static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as)
 #endif
 {
     int err;

@@ -295,7 +295,7 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
 #ifdef DAC
     QLIST_INIT (&hw->cap_head);
 #endif
-    if (glue (hw->pcm_ops->init_, TYPE) (hw, as, s->drv_opaque)) {
+    if (glue (hw->pcm_ops->init_, TYPE) (hw, as)) {
         goto err0;
     }
 
