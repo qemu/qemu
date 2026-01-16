@@ -39,15 +39,6 @@
 # removed.
 # Other files (including C++ and ObjectiveC) can't be handled by this script.
 
-# The following one-liner may be handy for finding files to run this on.
-# However some caution is required regarding files that might be part
-# of the guest agent or standalone tests.
-
-# for i in $(git ls-tree --name-only HEAD) ; do test -f $i && \
-#   grep -E '^# *include' $i | head -1 | grep 'osdep.h' ; test $? != 0 && \
-#   echo $i ; done
-
-
 GIT=no
 DUPHEAD=no
 
