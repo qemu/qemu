@@ -20,7 +20,6 @@
 #ifndef QEMU_BSD_H
 #define QEMU_BSD_H
 
-#include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
