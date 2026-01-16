@@ -14,7 +14,7 @@
 # the top-level directory.
 
 # Usage:
-#   clean-includes [--git subjectprefix] [--check-dup-head] file ...
+#   clean-includes [--git subjectprefix] [--check-dup-head] file-or-dir ...
 # or
 #   clean-includes [--git subjectprefix] [--check-dup-head] --all
 #
@@ -28,7 +28,8 @@
 #
 # Using --all will cause clean-includes to run on the whole source
 # tree (excluding certain directories which are known not to need
-# handling).
+# handling). This is equivalent to passing '.' as the directory to
+# scan.
 
 # This script requires Coccinelle to be installed.
 
@@ -86,10 +87,13 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+# --all means "scan everything starting from the current directory"
 if [ "$1" = "--all" ]; then
-    # We assume there are no files in the tree with spaces in their name
-    set -- $(git ls-files '*.[ch]' | grep -E -v "$XDIRREGEX")
+    set -- '.'
 fi
+
+# We assume there are no files in the tree with spaces in their name
+set -- $(git ls-files "$@" | grep '\.[ch]$' | grep -E -v "$XDIRREGEX")
 
 # Annoyingly coccinelle won't read a scriptfile unless its
 # name ends '.cocci', so write it out to a tempfile with the
