@@ -499,7 +499,7 @@ static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as, void *opaque)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
-    if (sndio_init(self, as, SIO_PLAY, opaque) == -1) {
+    if (sndio_init(self, as, SIO_PLAY, hw->s->dev) == -1) {
         return -1;
     }
 
@@ -512,7 +512,7 @@ static int sndio_init_in(HWVoiceIn *hw, struct audsettings *as, void *opaque)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
-    if (sndio_init(self, as, SIO_REC, opaque) == -1) {
+    if (sndio_init(self, as, SIO_REC, hw->s->dev) == -1) {
         return -1;
     }
 
@@ -535,16 +535,6 @@ static void sndio_fini_in(HWVoiceIn *hw)
     sndio_fini(self);
 }
 
-static void *sndio_audio_init(Audiodev *dev, Error **errp)
-{
-    assert(dev->driver == AUDIODEV_DRIVER_SNDIO);
-    return dev;
-}
-
-static void sndio_audio_fini(void *opaque)
-{
-}
-
 static struct audio_pcm_ops sndio_pcm_ops = {
     .init_out        = sndio_init_out,
     .fini_out        = sndio_fini_out,
@@ -563,8 +553,6 @@ static struct audio_pcm_ops sndio_pcm_ops = {
 
 static struct audio_driver sndio_audio_driver = {
     .name           = "sndio",
-    .init           = sndio_audio_init,
-    .fini           = sndio_audio_fini,
     .pcm_ops        = &sndio_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
