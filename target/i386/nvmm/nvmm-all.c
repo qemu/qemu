@@ -16,6 +16,7 @@
 #include "system/nvmm.h"
 #include "system/cpus.h"
 #include "system/memory.h"
+#include "system/ramlist.h"
 #include "system/runstate.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
@@ -985,7 +986,7 @@ nvmm_init_vcpu(CPUState *cpu)
         }
     }
 
-    qcpu->vcpu_dirty = true;
+    cpu->vcpu_dirty = true;
     cpu->accel = qcpu;
 
     return 0;

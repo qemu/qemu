@@ -1265,8 +1265,7 @@ void migration_test_add_precopy(MigrationTestEnv *env)
     if (g_test_slow()) {
         migration_test_add("/migration/auto_converge",
                            test_auto_converge);
-        if (g_str_equal(env->arch, "x86_64") &&
-            env->has_kvm && env->has_dirty_ring) {
+        if (g_str_equal(env->arch, "x86_64") && env->has_dirty_ring) {
             migration_test_add("/dirty_limit",
                                test_dirty_limit);
         }

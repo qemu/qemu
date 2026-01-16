@@ -267,18 +267,6 @@ ERST
         .cmd        = hmp_info_sync_profile,
     },
 
-    {
-        .name       = "accel",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show accelerator statistics",
-    },
-
-SRST
-  ``info accel``
-    Show accelerator statistics.
-ERST
-
 SRST
   ``info sync-profile [-m|-n]`` [*max*]
     Show synchronization profiling info, up to *max* entries (default: 10),
@@ -292,6 +280,18 @@ SRST
     When different objects that share the same call site are coalesced,
     the "Object" field shows---enclosed in brackets---the number of objects
     being coalesced.
+ERST
+
+    {
+        .name       = "accel",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show accelerator statistics",
+    },
+
+SRST
+  ``info accel``
+    Show accelerator statistics.
 ERST
 
     {
