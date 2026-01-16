@@ -10,7 +10,6 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/osdep.h"
 #include <vss-handles.h>
 
 #ifndef VSS_DEBUG_H

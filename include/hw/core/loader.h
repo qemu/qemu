@@ -1,7 +1,6 @@
 #ifndef LOADER_H
 #define LOADER_H
 #include "hw/nvram/fw_cfg.h"
-#include "qemu/typedefs.h"
 
 /* loader.c */
 /**

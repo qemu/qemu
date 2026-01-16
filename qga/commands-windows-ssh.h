@@ -11,7 +11,6 @@
  */
 
 #include <glib/gstrfuncs.h>
-#include <stdbool.h>
 typedef struct WindowsUserInfo {
     char *sshDirectory;
     char *authorizedKeyFile;
