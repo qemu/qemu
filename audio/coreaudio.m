@@ -579,7 +579,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     OSStatus status;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevCoreaudioPerDirectionOptions *cpdo = dev->u.coreaudio.out;
     struct audsettings obt_as;
 
@@ -656,15 +656,6 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
     update_device_playback_state(core);
 }
 
-static void *coreaudio_audio_init(Audiodev *dev, Error **errp)
-{
-    return dev;
-}
-
-static void coreaudio_audio_fini (void *opaque)
-{
-}
-
 static struct audio_pcm_ops coreaudio_pcm_ops = {
     .init_out = coreaudio_init_out,
     .fini_out = coreaudio_fini_out,
@@ -681,8 +672,6 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
 
 static struct audio_driver coreaudio_audio_driver = {
     .name           = "coreaudio",
-    .init           = coreaudio_audio_init,
-    .fini           = coreaudio_audio_fini,
     .pcm_ops        = &coreaudio_pcm_ops,
     .max_voices_out = 1,
     .max_voices_in  = 0,
