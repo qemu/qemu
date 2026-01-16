@@ -1173,7 +1173,7 @@ static bool vfio_dirty_tracking_exceed_limit(VFIODevice *vbasedev)
      * can also switch to use IOMMUFD backend if there is a need to migrate
      * large VM.
      */
-    page_size = 1 << ctz64(bcontainer->dirty_pgsizes);
+    page_size = 1ULL << ctz64(bcontainer->dirty_pgsizes);
     max_size = bcontainer->max_dirty_bitmap_size * BITS_PER_BYTE * page_size;
 
     return current_machine->ram_size > max_size;
