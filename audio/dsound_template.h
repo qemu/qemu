@@ -72,7 +72,7 @@ static int glue (dsound_lock_, TYPE) (
     DWORD *blen1p,
     DWORD *blen2p,
     int entire,
-    dsound *s
+    AudioDsound *s
     )
 {
     HRESULT hr;
@@ -166,7 +166,7 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
 {
     int err;
     HRESULT hr;
-    dsound *s = drv_opaque;
+    AudioDsound *s = AUDIO_DSOUND(hw->s);
     WAVEFORMATEX wfx;
     struct audsettings obt_as;
 #ifdef DSBTYPE_IN
@@ -174,13 +174,13 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;
     DSCBUFFERDESC bd;
     DSCBCAPS bc;
-    AudiodevPerDirectionOptions *pdo = s->dev->u.dsound.in;
+    AudiodevPerDirectionOptions *pdo = hw->s->dev->u.dsound.in;
 #else
     const char *typ = "DAC";
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     DSBUFFERDESC bd;
     DSBCAPS bc;
-    AudiodevPerDirectionOptions *pdo = s->dev->u.dsound.out;
+    AudiodevPerDirectionOptions *pdo = hw->s->dev->u.dsound.out;
 #endif
 
     if (!s->FIELD2) {
@@ -256,7 +256,6 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
     hw->size_emul = bc.dwBufferBytes;
     hw->samples = bc.dwBufferBytes / hw->info.bytes_per_frame;
-    ds->s = s;
 
 #ifdef DEBUG_DSOUND
     dolog ("caps %ld, desc %ld\n",

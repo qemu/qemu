@@ -45,40 +45,30 @@
 #define TYPE_AUDIO_DSOUND "audio-dsound"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioDsound, AUDIO_DSOUND)
 
+static AudioBackendClass *audio_dsound_parent_class;
+
 struct AudioDsound {
     AudioMixengBackend parent_obj;
+
+    LPDIRECTSOUND dsound;
+    LPDIRECTSOUNDCAPTURE dsound_capture;
+    struct audsettings settings;
 };
 
 static struct audio_driver dsound_audio_driver;
 
-static void audio_dsound_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &dsound_audio_driver;
-}
-
 /* #define DEBUG_DSOUND */
-
-typedef struct {
-    LPDIRECTSOUND dsound;
-    LPDIRECTSOUNDCAPTURE dsound_capture;
-    struct audsettings settings;
-    Audiodev *dev;
-} dsound;
 
 typedef struct {
     HWVoiceOut hw;
     LPDIRECTSOUNDBUFFER dsound_buffer;
     bool first_time;
-    dsound *s;
 } DSoundVoiceOut;
 
 typedef struct {
     HWVoiceIn hw;
     LPDIRECTSOUNDCAPTUREBUFFER dsound_capture_buffer;
     bool first_time;
-    dsound *s;
 } DSoundVoiceIn;
 
 static const char *dserror(HRESULT hr)
@@ -276,7 +266,7 @@ static void print_wave_format (WAVEFORMATEX *wfx)
 }
 #endif
 
-static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, dsound *s)
+static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, AudioDsound *s)
 {
     HRESULT hr;
 
@@ -295,7 +285,7 @@ static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, dsound *s)
 #undef DSBTYPE_IN
 
 static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp,
-                                  dsound *s)
+                                  AudioDsound *s)
 {
     HRESULT hr;
 
@@ -328,7 +318,7 @@ static int dsound_get_status_in (LPDIRECTSOUNDCAPTUREBUFFER dscb,
 }
 
 static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
-                                 dsound *s)
+                                 AudioDsound *s)
 {
     int err;
     LPVOID p1, p2;
@@ -372,9 +362,9 @@ static void dsound_enable_out(HWVoiceOut *hw, bool enable)
 {
     HRESULT hr;
     DWORD status;
+    AudioDsound *s = AUDIO_DSOUND(hw->s);
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
-    dsound *s = ds->s;
 
     if (!dsb) {
         dolog ("Attempt to control voice without a buffer\n");
@@ -450,7 +440,7 @@ static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
     assert(req_size > 0);
 
     err = dsound_lock_out(dsb, &hw->info, hw->pos_emul, req_size, &ret, NULL,
-                          &act_size, NULL, false, ds->s);
+                          &act_size, NULL, false, AUDIO_DSOUND(hw->s));
     if (err) {
         dolog("Failed to lock buffer\n");
         *size = 0;
@@ -553,7 +543,7 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
     }
 
     err = dsound_lock_in(dscb, &hw->info, hw->pos_emul, req_size, &ret, NULL,
-                         &act_size, NULL, false, ds->s);
+                         &act_size, NULL, false, AUDIO_DSOUND(hw->s));
     if (err) {
         dolog("Failed to lock buffer\n");
         *size = 0;
@@ -577,13 +567,12 @@ static void dsound_put_buffer_in(HWVoiceIn *hw, void *buf, size_t len)
     hw->pos_emul = (hw->pos_emul + len) % hw->size_emul;
 }
 
-static void dsound_audio_fini (void *opaque)
+static void audio_dsound_finalize(Object *obj)
 {
+    AudioDsound *s = AUDIO_DSOUND(obj);
     HRESULT hr;
-    dsound *s = opaque;
 
     if (!s->dsound) {
-        g_free(s);
         return;
     }
 
@@ -594,7 +583,6 @@ static void dsound_audio_fini (void *opaque)
     s->dsound = NULL;
 
     if (!s->dsound_capture) {
-        g_free(s);
         return;
     }
 
@@ -603,18 +591,21 @@ static void dsound_audio_fini (void *opaque)
         dsound_logerr (hr, "Could not release DirectSoundCapture\n");
     }
     s->dsound_capture = NULL;
-
-    g_free(s);
 }
 
-static void *dsound_audio_init(Audiodev *dev, Error **errp)
+static bool
+audio_dsound_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
+    AudioDsound *s = AUDIO_DSOUND(abe);
     HRESULT hr;
-    dsound *s = g_new0(dsound, 1);
     AudiodevDsoundOptions *dso;
 
     assert(dev->driver == AUDIODEV_DRIVER_DSOUND);
-    s->dev = dev;
+
+    if (!audio_dsound_parent_class->realize(abe, dev, errp)) {
+        return false;
+    }
+
     dso = &dev->u.dsound;
 
     if (!dso->has_latency) {
@@ -625,8 +616,7 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
     hr = CoInitialize (NULL);
     if (FAILED (hr)) {
         dserror_set(errp, hr, "Could not initialize COM");
-        dsound_audio_fini(s);
-        return NULL;
+        return false;
     }
 
     hr = CoCreateInstance (
@@ -638,15 +628,13 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
         );
     if (FAILED (hr)) {
         dserror_set(errp, hr, "Could not create DirectSound instance");
-        dsound_audio_fini(s);
-        return NULL;
+        return false;
     }
 
     hr = IDirectSound_Initialize (s->dsound, NULL);
     if (FAILED (hr)) {
         dserror_set(errp, hr, "Could not initialize DirectSound");
-        dsound_audio_fini(s);
-        return NULL;
+        return false;
     }
 
     hr = CoCreateInstance (
@@ -658,15 +646,13 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
         );
     if (FAILED (hr)) {
         dserror_set(errp, hr, "Could not create DirectSoundCapture instance");
-        dsound_audio_fini(s);
-        return NULL;
+        return false;
     }
 
     hr = IDirectSoundCapture_Initialize (s->dsound_capture, NULL);
     if (FAILED(hr)) {
         dserror_set(errp, hr, "Could not initialize DirectSoundCapture");
-        dsound_audio_fini(s);
-        return NULL;
+        return false;
     }
 
     hr = IDirectSound_SetCooperativeLevel (
@@ -676,11 +662,10 @@ static void *dsound_audio_init(Audiodev *dev, Error **errp)
     );
     if (FAILED(hr)) {
         dserror_set(errp, hr, "Could not set cooperative level");
-        dsound_audio_fini(s);
-        return NULL;
+        return false;
     }
 
-    return s;
+    return true;
 }
 
 static struct audio_pcm_ops dsound_pcm_ops = {
@@ -702,8 +687,6 @@ static struct audio_pcm_ops dsound_pcm_ops = {
 
 static struct audio_driver dsound_audio_driver = {
     .name           = "dsound",
-    .init           = dsound_audio_init,
-    .fini           = dsound_audio_fini,
     .pcm_ops        = &dsound_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = 1,
@@ -711,12 +694,24 @@ static struct audio_driver dsound_audio_driver = {
     .voice_size_in  = sizeof (DSoundVoiceIn)
 };
 
+static void audio_dsound_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_dsound_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_dsound_realize;
+    k->driver = &dsound_audio_driver;
+}
+
 static const TypeInfo audio_types[] = {
     {
         .name = TYPE_AUDIO_DSOUND,
         .parent = TYPE_AUDIO_MIXENG_BACKEND,
         .instance_size = sizeof(AudioDsound),
         .class_init = audio_dsound_class_init,
+        .instance_finalize = audio_dsound_finalize,
     },
 };
 
