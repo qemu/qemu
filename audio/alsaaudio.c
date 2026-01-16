@@ -40,18 +40,13 @@
 #define TYPE_AUDIO_ALSA "audio-alsa"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioALSA, AUDIO_ALSA)
 
+static AudioBackendClass *audio_alsa_parent_class;
+
 struct AudioALSA {
     AudioMixengBackend parent_obj;
 };
 
 static struct audio_driver alsa_audio_driver;
-
-static void audio_alsa_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &alsa_audio_driver;
-}
 
 struct pollhlp {
     snd_pcm_t *handle;
@@ -65,14 +60,12 @@ typedef struct ALSAVoiceOut {
     HWVoiceOut hw;
     snd_pcm_t *handle;
     struct pollhlp pollhlp;
-    Audiodev *dev;
 } ALSAVoiceOut;
 
 typedef struct ALSAVoiceIn {
     HWVoiceIn hw;
     snd_pcm_t *handle;
     struct pollhlp pollhlp;
-    Audiodev *dev;
 } ALSAVoiceIn;
 
 struct alsa_params_req {
@@ -707,7 +700,7 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
     struct alsa_params_obt obt;
     snd_pcm_t *handle;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     req.fmt = aud_to_alsafmt (as->fmt, as->endianness);
     req.freq = as->freq;
@@ -727,7 +720,6 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     alsa->pollhlp.s = hw->s;
     alsa->handle = handle;
-    alsa->dev = dev;
     return 0;
 }
 
@@ -766,7 +758,7 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int ctl)
 static void alsa_enable_out(HWVoiceOut *hw, bool enable)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-    AudiodevAlsaPerDirectionOptions *apdo = alsa->dev->u.alsa.out;
+    AudiodevAlsaPerDirectionOptions *apdo = hw->s->dev->u.alsa.out;
 
     if (enable) {
         bool poll_mode = apdo->try_poll;
@@ -794,7 +786,7 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     struct alsa_params_obt obt;
     snd_pcm_t *handle;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     req.fmt = aud_to_alsafmt (as->fmt, as->endianness);
     req.freq = as->freq;
@@ -814,7 +806,6 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     alsa->pollhlp.s = hw->s;
     alsa->handle = handle;
-    alsa->dev = dev;
     return 0;
 }
 
@@ -871,7 +862,7 @@ static size_t alsa_read(HWVoiceIn *hw, void *buf, size_t len)
 static void alsa_enable_in(HWVoiceIn *hw, bool enable)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
-    AudiodevAlsaPerDirectionOptions *apdo = alsa->dev->u.alsa.in;
+    AudiodevAlsaPerDirectionOptions *apdo = hw->s->dev->u.alsa.in;
 
     if (enable) {
         bool poll_mode = apdo->try_poll;
@@ -901,7 +892,8 @@ static void alsa_init_per_direction(AudiodevAlsaPerDirectionOptions *apdo)
     }
 }
 
-static void *alsa_audio_init(Audiodev *dev, Error **errp)
+static bool
+audio_alsa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
     AudiodevAlsaOptions *aopts;
     assert(dev->driver == AUDIODEV_DRIVER_ALSA);
@@ -929,11 +921,7 @@ static void *alsa_audio_init(Audiodev *dev, Error **errp)
         dev->u.alsa.in->buffer_length = 92880;
     }
 
-    return dev;
-}
-
-static void alsa_audio_fini (void *opaque)
-{
+    return audio_alsa_parent_class->realize(abe, dev, errp);
 }
 
 static struct audio_pcm_ops alsa_pcm_ops = {
@@ -953,14 +941,23 @@ static struct audio_pcm_ops alsa_pcm_ops = {
 
 static struct audio_driver alsa_audio_driver = {
     .name           = "alsa",
-    .init           = alsa_audio_init,
-    .fini           = alsa_audio_fini,
     .pcm_ops        = &alsa_pcm_ops,
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
     .voice_size_out = sizeof (ALSAVoiceOut),
     .voice_size_in  = sizeof (ALSAVoiceIn)
 };
+
+static void audio_alsa_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_alsa_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_alsa_realize;
+    k->driver = &alsa_audio_driver;
+}
 
 static const TypeInfo audio_types[] = {
     {
