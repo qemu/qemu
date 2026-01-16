@@ -41,15 +41,6 @@ struct AudioCoreaudio {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver coreaudio_audio_driver;
-
-static void audio_coreaudio_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &coreaudio_audio_driver;
-}
-
 typedef struct coreaudioVoiceOut {
     HWVoiceOut hw;
     pthread_mutex_t buf_mutex;
@@ -669,14 +660,17 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
     .enable_out = coreaudio_enable_out
 };
 
-static struct audio_driver coreaudio_audio_driver = {
-    .name           = "coreaudio",
-    .pcm_ops        = &coreaudio_pcm_ops,
-    .max_voices_out = 1,
-    .max_voices_in  = 0,
-    .voice_size_out = sizeof (coreaudioVoiceOut),
-    .voice_size_in  = 0
-};
+static void audio_coreaudio_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->name = "coreaudio";
+    k->pcm_ops = &coreaudio_pcm_ops;
+    k->max_voices_out = 1;
+    k->max_voices_in = 0;
+    k->voice_size_out = sizeof(coreaudioVoiceOut);
+    k->voice_size_in = 0;
+}
 
 static const TypeInfo audio_types[] = {
     {

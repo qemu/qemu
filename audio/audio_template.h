@@ -37,41 +37,42 @@
 #endif
 
 static void glue(audio_init_nb_voices_, TYPE)(AudioMixengBackend *s,
-                                              struct audio_driver *drv, int min_voices)
+                                              AudioMixengBackendClass *k,
+                                              int min_voices)
 {
-    int max_voices = glue (drv->max_voices_, TYPE);
-    size_t voice_size = glue(drv->voice_size_, TYPE);
+    int max_voices = glue(k->max_voices_, TYPE);
+    size_t voice_size = glue(k->voice_size_, TYPE);
 
-    glue (s->nb_hw_voices_, TYPE) = glue(audio_get_pdo_, TYPE)(s->dev)->voices;
-    if (glue (s->nb_hw_voices_, TYPE) > max_voices) {
+    glue(s->nb_hw_voices_, TYPE) = glue(audio_get_pdo_, TYPE)(s->dev)->voices;
+    if (glue(s->nb_hw_voices_, TYPE) > max_voices) {
         if (!max_voices) {
 #ifdef DAC
-            dolog ("Driver `%s' does not support " NAME "\n", drv->name);
+            dolog("Driver `%s' does not support " NAME "\n", k->name);
 #endif
         } else {
-            dolog ("Driver `%s' does not support %d " NAME " voices, max %d\n",
-                   drv->name,
-                   glue (s->nb_hw_voices_, TYPE),
+            dolog("Driver `%s' does not support %d " NAME " voices, max %d\n",
+                   k->name,
+                   glue(s->nb_hw_voices_, TYPE),
                    max_voices);
         }
-        glue (s->nb_hw_voices_, TYPE) = max_voices;
+        glue(s->nb_hw_voices_, TYPE) = max_voices;
     }
 
-    if (glue (s->nb_hw_voices_, TYPE) < min_voices) {
-        dolog ("Bogus number of " NAME " voices %d, setting to %d\n",
-               glue (s->nb_hw_voices_, TYPE),
+    if (glue(s->nb_hw_voices_, TYPE) < min_voices) {
+        dolog("Bogus number of " NAME " voices %d, setting to %d\n",
+               glue(s->nb_hw_voices_, TYPE),
                min_voices);
     }
 
     if (audio_bug(__func__, !voice_size && max_voices)) {
-        dolog ("drv=`%s' voice_size=0 max_voices=%d\n",
-               drv->name, max_voices);
-        glue (s->nb_hw_voices_, TYPE) = 0;
+        dolog("drv=`%s' voice_size=0 max_voices=%d\n",
+               k->name, max_voices);
+        glue(s->nb_hw_voices_, TYPE) = 0;
     }
 
     if (audio_bug(__func__, voice_size && !max_voices)) {
         dolog("drv=`%s' voice_size=%zu max_voices=0\n",
-              drv->name, voice_size);
+              k->name, voice_size);
     }
 }
 
@@ -267,29 +268,24 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
                                              struct audsettings *as)
 {
     HW *hw;
-    struct audio_driver *drv = s->drv;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(s);
 
-    if (!glue (s->nb_hw_voices_, TYPE)) {
+    if (!glue(s->nb_hw_voices_, TYPE)) {
         return NULL;
     }
 
-    if (audio_bug(__func__, !drv)) {
-        dolog ("No host audio driver\n");
-        return NULL;
-    }
-
-    if (audio_bug(__func__, !drv->pcm_ops)) {
-        dolog ("Host audio driver without pcm_ops\n");
+    if (audio_bug(__func__, !k->pcm_ops)) {
+        dolog("No host audio driver or missing pcm_ops\n");
         return NULL;
     }
 
     /*
-     * Since glue(s->nb_hw_voices_, TYPE) is != 0, glue(drv->voice_size_, TYPE)
+     * Since glue(s->nb_hw_voices_, TYPE) is != 0, glue(k->voice_size_, TYPE)
      * is guaranteed to be != 0. See the audio_init_nb_voices_* functions.
      */
-    hw = g_malloc0(glue(drv->voice_size_, TYPE));
+    hw = g_malloc0(glue(k->voice_size_, TYPE));
     hw->s = AUDIO_MIXENG_BACKEND(object_ref(s));
-    hw->pcm_ops = drv->pcm_ops;
+    hw->pcm_ops = k->pcm_ops;
 
     QLIST_INIT (&hw->sw_head);
 #ifdef DAC
@@ -517,8 +513,8 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
         goto fail;
     }
 
-    if (audio_bug(__func__, !s->drv)) {
-        dolog ("Can not open `%s' (no host audio driver)\n", name);
+    if (audio_bug(__func__, !AUDIO_MIXENG_BACKEND_GET_CLASS(s)->pcm_ops)) {
+        dolog("Can not open `%s' (no host audio driver)\n", name);
         goto fail;
     }
 

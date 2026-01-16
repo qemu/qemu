@@ -32,14 +32,6 @@ struct AudioSndio {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver sndio_audio_driver;
-
-static void audio_sndio_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &sndio_audio_driver;
-}
 
 /* default latency in microseconds if no option is set */
 #define SNDIO_LATENCY_US   50000
@@ -551,14 +543,17 @@ static struct audio_pcm_ops sndio_pcm_ops = {
     .put_buffer_in   = sndio_put_buffer_in,
 };
 
-static struct audio_driver sndio_audio_driver = {
-    .name           = "sndio",
-    .pcm_ops        = &sndio_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof(SndioVoice),
-    .voice_size_in  = sizeof(SndioVoice)
-};
+static void audio_sndio_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->name = "sndio";
+    k->pcm_ops = &sndio_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(SndioVoice);
+    k->voice_size_in = sizeof(SndioVoice);
+}
 
 static const TypeInfo audio_types[] = {
     {

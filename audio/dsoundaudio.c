@@ -55,7 +55,6 @@ struct AudioDsound {
     struct audsettings settings;
 };
 
-static struct audio_driver dsound_audio_driver;
 
 /* #define DEBUG_DSOUND */
 
@@ -685,15 +684,6 @@ static struct audio_pcm_ops dsound_pcm_ops = {
     .enable_in = dsound_enable_in,
 };
 
-static struct audio_driver dsound_audio_driver = {
-    .name           = "dsound",
-    .pcm_ops        = &dsound_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = 1,
-    .voice_size_out = sizeof (DSoundVoiceOut),
-    .voice_size_in  = sizeof (DSoundVoiceIn)
-};
-
 static void audio_dsound_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -702,7 +692,12 @@ static void audio_dsound_class_init(ObjectClass *klass, const void *data)
     audio_dsound_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_dsound_realize;
-    k->driver = &dsound_audio_driver;
+    k->name = "dsound";
+    k->pcm_ops = &dsound_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = 1;
+    k->voice_size_out = sizeof(DSoundVoiceOut);
+    k->voice_size_in = sizeof(DSoundVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {

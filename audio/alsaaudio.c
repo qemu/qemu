@@ -46,7 +46,6 @@ struct AudioALSA {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver alsa_audio_driver;
 
 struct pollhlp {
     snd_pcm_t *handle;
@@ -938,15 +937,6 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .enable_in = alsa_enable_in,
 };
 
-static struct audio_driver alsa_audio_driver = {
-    .name           = "alsa",
-    .pcm_ops        = &alsa_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof (ALSAVoiceOut),
-    .voice_size_in  = sizeof (ALSAVoiceIn)
-};
-
 static void audio_alsa_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -955,7 +945,12 @@ static void audio_alsa_class_init(ObjectClass *klass, const void *data)
     audio_alsa_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_alsa_realize;
-    k->driver = &alsa_audio_driver;
+    k->name = "alsa";
+    k->pcm_ops = &alsa_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(ALSAVoiceOut);
+    k->voice_size_in = sizeof(ALSAVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {

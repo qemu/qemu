@@ -46,7 +46,6 @@ struct AudioOss {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver oss_audio_driver;
 
 #if defined OSS_GETVERSION && defined SNDCTL_DSP_POLICY
 #define USE_DSP_POLICY
@@ -773,15 +772,6 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .enable_in = oss_enable_in
 };
 
-static struct audio_driver oss_audio_driver = {
-    .name           = "oss",
-    .pcm_ops        = &oss_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof (OSSVoiceOut),
-    .voice_size_in  = sizeof (OSSVoiceIn)
-};
-
 static void audio_oss_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -790,7 +780,12 @@ static void audio_oss_class_init(ObjectClass *klass, const void *data)
     audio_oss_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_oss_realize;
-    k->driver = &oss_audio_driver;
+    k->name = "oss";
+    k->pcm_ops = &oss_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(OSSVoiceOut);
+    k->voice_size_in = sizeof(OSSVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {

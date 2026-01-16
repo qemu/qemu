@@ -37,15 +37,6 @@ struct AudioNone {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver no_audio_driver;
-
-static void audio_none_class_init(ObjectClass *klass, const void *data)
-{
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    k->driver = &no_audio_driver;
-}
-
 typedef struct NoVoiceOut {
     HWVoiceOut hw;
     RateCtl rate;
@@ -134,14 +125,17 @@ static struct audio_pcm_ops no_pcm_ops = {
     .enable_in = no_enable_in
 };
 
-static struct audio_driver no_audio_driver = {
-    .name           = "none",
-    .pcm_ops        = &no_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof (NoVoiceOut),
-    .voice_size_in  = sizeof (NoVoiceIn)
-};
+static void audio_none_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->name = "none";
+    k->pcm_ops = &no_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(NoVoiceOut);
+    k->voice_size_in = sizeof(NoVoiceIn);
+}
 
 static const TypeInfo audio_types[] = {
     {

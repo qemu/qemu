@@ -16,7 +16,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(AudioPa, AUDIO_PA)
 
 static AudioBackendClass *audio_pa_parent_class;
 
-static struct audio_driver pa_audio_driver;
 
 typedef struct PAConnection {
     char *server;
@@ -931,15 +930,6 @@ static struct audio_pcm_ops qpa_pcm_ops = {
     .volume_in = qpa_volume_in
 };
 
-static struct audio_driver pa_audio_driver = {
-    .name           = "pa",
-    .pcm_ops        = &qpa_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof (PAVoiceOut),
-    .voice_size_in  = sizeof (PAVoiceIn),
-};
-
 static void audio_pa_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -948,7 +938,12 @@ static void audio_pa_class_init(ObjectClass *klass, const void *data)
     audio_pa_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_pa_realize;
-    k->driver = &pa_audio_driver;
+    k->name = "pa";
+    k->pcm_ops = &qpa_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(PAVoiceOut);
+    k->voice_size_in = sizeof(PAVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {

@@ -1518,21 +1518,20 @@ static bool audio_mixeng_backend_realize(AudioBackend *abe,
                                          Audiodev *dev, Error **errp)
 {
     AudioMixengBackend *be = AUDIO_MIXENG_BACKEND(abe);
-    audio_driver *drv = AUDIO_MIXENG_BACKEND_GET_CLASS(be)->driver;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_GET_CLASS(be);
 
     be->dev = dev;
-    if (!drv->pcm_ops->get_buffer_in) {
-        drv->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
-        drv->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
+    if (!k->pcm_ops->get_buffer_in) {
+        k->pcm_ops->get_buffer_in = audio_generic_get_buffer_in;
+        k->pcm_ops->put_buffer_in = audio_generic_put_buffer_in;
     }
-    if (!drv->pcm_ops->get_buffer_out) {
-        drv->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
-        drv->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
+    if (!k->pcm_ops->get_buffer_out) {
+        k->pcm_ops->get_buffer_out = audio_generic_get_buffer_out;
+        k->pcm_ops->put_buffer_out = audio_generic_put_buffer_out;
     }
 
-    audio_init_nb_voices_out(be, drv, 1);
-    audio_init_nb_voices_in(be, drv, 0);
-    be->drv = drv;
+    audio_init_nb_voices_out(be, k, 1);
+    audio_init_nb_voices_in(be, k, 0);
 
     if (be->dev->timer_period <= 0) {
         be->period_ticks = 1;
@@ -1658,7 +1657,6 @@ static void audio_mixeng_backend_finalize(Object *obj)
         QLIST_REMOVE(hwi, entries);
     }
 
-    s->drv = NULL;
     if (s->dev) {
         qapi_free_Audiodev(s->dev);
         s->dev = NULL;

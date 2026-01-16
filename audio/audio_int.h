@@ -136,16 +136,6 @@ struct SWVoiceIn {
     QLIST_ENTRY (SWVoiceIn) entries;
 };
 
-typedef struct audio_driver audio_driver;
-struct audio_driver {
-    const char *name;
-    struct audio_pcm_ops *pcm_ops;
-    int max_voices_out;
-    int max_voices_in;
-    size_t voice_size_out;
-    size_t voice_size_in;
-};
-
 struct audio_pcm_ops {
     int    (*init_out)(HWVoiceOut *hw, audsettings *as);
     void   (*fini_out)(HWVoiceOut *hw);
@@ -229,13 +219,17 @@ struct SWVoiceCap {
 struct AudioMixengBackendClass {
     AudioBackendClass parent_class;
 
-    audio_driver *driver;
+    const char *name;
+    struct audio_pcm_ops *pcm_ops;
+    int max_voices_out;
+    int max_voices_in;
+    size_t voice_size_out;
+    size_t voice_size_in;
 };
 
 struct AudioMixengBackend {
     AudioBackend parent_obj;
 
-    struct audio_driver *drv;
     Audiodev *dev;
 
     QEMUTimer *ts;

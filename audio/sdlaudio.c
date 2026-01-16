@@ -50,7 +50,6 @@ struct AudioSdl {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver sdl_audio_driver;
 
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
@@ -492,15 +491,6 @@ static struct audio_pcm_ops sdl_pcm_ops = {
     .enable_in = sdl_enable_in,
 };
 
-static struct audio_driver sdl_audio_driver = {
-    .name           = "sdl",
-    .pcm_ops        = &sdl_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof(SDLVoiceOut),
-    .voice_size_in  = sizeof(SDLVoiceIn),
-};
-
 static void audio_sdl_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -509,7 +499,12 @@ static void audio_sdl_class_init(ObjectClass *klass, const void *data)
     audio_sdl_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_sdl_realize;
-    k->driver = &sdl_audio_driver;
+    k->name = "sdl";
+    k->pcm_ops = &sdl_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(SDLVoiceOut);
+    k->voice_size_in = sizeof(SDLVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {

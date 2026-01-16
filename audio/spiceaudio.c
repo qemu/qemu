@@ -39,8 +39,6 @@ struct AudioSpice {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver spice_audio_driver;
-
 static bool spice_audio_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
     if (!using_spice) {
@@ -50,17 +48,6 @@ static bool spice_audio_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
     }
 
     return audio_spice_parent_class->realize(abe, dev, errp);
-}
-
-static void audio_spice_class_init(ObjectClass *klass, const void *data)
-{
-    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
-    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
-
-    audio_spice_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
-
-    b->realize = spice_audio_realize;
-    k->driver = &spice_audio_driver;
 }
 
 #if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
@@ -332,14 +319,21 @@ static struct audio_pcm_ops audio_callbacks = {
 #endif
 };
 
-static struct audio_driver spice_audio_driver = {
-    .name           = "spice",
-    .pcm_ops        = &audio_callbacks,
-    .max_voices_out = 1,
-    .max_voices_in  = 1,
-    .voice_size_out = sizeof (SpiceVoiceOut),
-    .voice_size_in  = sizeof (SpiceVoiceIn),
-};
+static void audio_spice_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_spice_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = spice_audio_realize;
+    k->name = "spice";
+    k->pcm_ops = &audio_callbacks;
+    k->max_voices_out = 1;
+    k->max_voices_in = 1;
+    k->voice_size_out = sizeof(SpiceVoiceOut);
+    k->voice_size_in = sizeof(SpiceVoiceIn);
+}
 
 static const TypeInfo audio_types[] = {
     {

@@ -42,7 +42,6 @@ struct AudioJack {
     AudioMixengBackend parent_obj;
 };
 
-static struct audio_driver jack_driver;
 
 struct QJack;
 
@@ -668,15 +667,6 @@ static struct audio_pcm_ops jack_pcm_ops = {
     .enable_in      = qjack_enable_in
 };
 
-static struct audio_driver jack_driver = {
-    .name           = "jack",
-    .pcm_ops        = &jack_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof(QJackOut),
-    .voice_size_in  = sizeof(QJackIn)
-};
-
 static void qjack_error(const char *msg)
 {
     dolog("E: %s\n", msg);
@@ -691,7 +681,12 @@ static void audio_jack_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
-    k->driver = &jack_driver;
+    k->name = "jack";
+    k->pcm_ops = &jack_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(QJackOut);
+    k->voice_size_in = sizeof(QJackIn);
 }
 
 static const TypeInfo audio_types[] = {

@@ -61,7 +61,6 @@ struct AudioDbus {
     GHashTable *in_listeners;
 };
 
-static struct audio_driver dbus_audio_driver;
 
 typedef struct DBusVoiceOut {
     HWVoiceOut hw;
@@ -709,15 +708,6 @@ static struct audio_pcm_ops dbus_pcm_ops = {
     .volume_in = dbus_volume_in,
 };
 
-static struct audio_driver dbus_audio_driver = {
-    .name            = "dbus",
-    .pcm_ops         = &dbus_pcm_ops,
-    .max_voices_out  = INT_MAX,
-    .max_voices_in   = INT_MAX,
-    .voice_size_out  = sizeof(DBusVoiceOut),
-    .voice_size_in   = sizeof(DBusVoiceIn)
-};
-
 static void audio_dbus_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -727,7 +717,12 @@ static void audio_dbus_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_dbus_realize;
     b->set_dbus_server = dbus_audio_set_server;
-    k->driver = &dbus_audio_driver;
+    k->name = "dbus";
+    k->pcm_ops = &dbus_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(DBusVoiceOut);
+    k->voice_size_in = sizeof(DBusVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {

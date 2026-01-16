@@ -44,7 +44,6 @@ struct AudioPw {
     int last_seq, pending_seq, error;
 };
 
-static struct audio_driver pw_audio_driver;
 
 typedef struct pwvolume {
     uint32_t channels;
@@ -840,15 +839,6 @@ static struct audio_pcm_ops qpw_pcm_ops = {
     .enable_in = qpw_enable_in
 };
 
-static struct audio_driver pw_audio_driver = {
-    .name = "pipewire",
-    .pcm_ops = &qpw_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in = INT_MAX,
-    .voice_size_out = sizeof(PWVoiceOut),
-    .voice_size_in = sizeof(PWVoiceIn),
-};
-
 static void audio_pw_class_init(ObjectClass *klass, const void *data)
 {
     AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
@@ -857,7 +847,12 @@ static void audio_pw_class_init(ObjectClass *klass, const void *data)
     audio_pw_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_pw_realize;
-    k->driver = &pw_audio_driver;
+    k->name = "pipewire";
+    k->pcm_ops = &qpw_pcm_ops;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(PWVoiceOut);
+    k->voice_size_in = sizeof(PWVoiceIn);
 }
 
 static const TypeInfo audio_types[] = {
