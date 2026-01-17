@@ -4070,11 +4070,19 @@ libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
 hwcore = declare_dependency(objects: libhwcore.extract_all_objects(recursive: false))
 common_ss.add(hwcore)
 
+audio_ss = audio_ss.apply({})
+libaudio = static_library('qemuaudio', audio_ss.sources() + genh,
+                          dependencies: [audio_ss.dependencies()],
+                          build_by_default: false)
+
+audio = declare_dependency(objects: libaudio.extract_all_objects(recursive: false),
+                           dependencies: [audio_ss.dependencies(), qom])
+
 ###########
 # Targets #
 ###########
 
-system_ss.add(authz, blockdev, chardev, crypto, io, qmp)
+system_ss.add(authz, blockdev, chardev, crypto, io, qmp, audio)
 common_ss.add(qom, qemuutil)
 
 libuser = static_library('user',

@@ -1,4 +1,5 @@
-system_ss.add(files(
+audio_ss = ss.source_set()
+audio_ss.add(files(
   'audio.c',
   'mixeng.c',
   'noaudio.c',
