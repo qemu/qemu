@@ -141,7 +141,7 @@ static int multifd_nocomp_send_prepare(MultiFDSendParams *p, Error **errp)
             return -1;
         }
 
-        stat64_add(&mig_stats.multifd_bytes, p->packet_len);
+        qatomic_add(&mig_stats.multifd_bytes, p->packet_len);
     }
 
     return 0;

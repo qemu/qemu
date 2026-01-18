@@ -54,31 +54,14 @@ static inline unsigned tcg_call_flags(TCGOp *op)
     return tcg_call_info(op)->flags;
 }
 
-#if TCG_TARGET_REG_BITS == 32
-static inline TCGv_i32 TCGV_LOW(TCGv_i64 t)
-{
-    return temp_tcgv_i32(tcgv_i64_temp(t) + HOST_BIG_ENDIAN);
-}
-static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t)
-{
-    return temp_tcgv_i32(tcgv_i64_temp(t) + !HOST_BIG_ENDIAN);
-}
-#else
-TCGv_i32 TCGV_LOW(TCGv_i64) QEMU_ERROR("32-bit code path is reachable");
-TCGv_i32 TCGV_HIGH(TCGv_i64) QEMU_ERROR("32-bit code path is reachable");
-#endif
-
 static inline TCGv_i64 TCGV128_LOW(TCGv_i128 t)
 {
-    /* For 32-bit, offset by 2, which may then have TCGV_{LOW,HIGH} applied. */
-    int o = HOST_BIG_ENDIAN ? 64 / TCG_TARGET_REG_BITS : 0;
-    return temp_tcgv_i64(tcgv_i128_temp(t) + o);
+    return temp_tcgv_i64(tcgv_i128_temp(t) + HOST_BIG_ENDIAN);
 }
 
 static inline TCGv_i64 TCGV128_HIGH(TCGv_i128 t)
 {
-    int o = HOST_BIG_ENDIAN ? 0 : 64 / TCG_TARGET_REG_BITS;
-    return temp_tcgv_i64(tcgv_i128_temp(t) + o);
+    return temp_tcgv_i64(tcgv_i128_temp(t) + !HOST_BIG_ENDIAN);
 }
 
 bool tcg_target_has_memory_bswap(MemOp memop);

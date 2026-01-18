@@ -7,7 +7,7 @@
 #ifndef QEMU_PROCESSOR_H
 #define QEMU_PROCESSOR_H
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64__)
 # define cpu_relax() asm volatile("rep; nop" ::: "memory")
 
 #elif defined(__aarch64__)

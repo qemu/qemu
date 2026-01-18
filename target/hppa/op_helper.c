@@ -74,7 +74,6 @@ static void atomic_store_mask64(CPUHPPAState *env, target_ulong addr,
                                 uint64_t val, uint64_t mask,
                                 int size, uintptr_t ra)
 {
-#ifdef CONFIG_ATOMIC64
     int mmu_idx = cpu_mmu_index(env_cpu(env), 0);
     uint64_t old, new, cmp, *haddr;
     void *vaddr;
@@ -88,15 +87,12 @@ static void atomic_store_mask64(CPUHPPAState *env, target_ulong addr,
     old = *haddr;
     while (1) {
         new = be32_to_cpu((cpu_to_be32(old) & ~mask) | (val & mask));
-        cmp = qatomic_cmpxchg__nocheck(haddr, old, new);
+        cmp = qatomic_cmpxchg(haddr, old, new);
         if (cmp == old) {
             return;
         }
         old = cmp;
     }
-#else
-    cpu_loop_exit_atomic(env_cpu(env), ra);
-#endif
 }
 
 static void do_stby_b(CPUHPPAState *env, target_ulong addr, target_ulong val,

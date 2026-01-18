@@ -623,7 +623,7 @@ static void gen_bsl1n(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
         .fniv = gen_bsl1n_vec,
         .fno = gen_helper_sve2_bsl1n,
         .vece = MO_64,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
@@ -661,7 +661,7 @@ static void gen_bsl2n(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
         .fniv = gen_bsl2n_vec,
         .fno = gen_helper_sve2_bsl2n,
         .vece = MO_64,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
@@ -690,7 +690,7 @@ static void gen_nbsl(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
         .fniv = gen_nbsl_vec,
         .fno = gen_helper_sve2_nbsl,
         .vece = MO_64,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
@@ -1367,7 +1367,7 @@ static bool trans_AND_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_and_pg_i64,
         .fniv = gen_and_pg_vec,
         .fno = gen_helper_sve_and_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -1405,7 +1405,7 @@ static bool trans_BIC_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_bic_pg_i64,
         .fniv = gen_bic_pg_vec,
         .fno = gen_helper_sve_bic_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -1436,7 +1436,7 @@ static bool trans_EOR_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_eor_pg_i64,
         .fniv = gen_eor_pg_vec,
         .fno = gen_helper_sve_eor_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -1483,7 +1483,7 @@ static bool trans_ORR_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_orr_pg_i64,
         .fniv = gen_orr_pg_vec,
         .fno = gen_helper_sve_orr_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -1514,7 +1514,7 @@ static bool trans_ORN_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_orn_pg_i64,
         .fniv = gen_orn_pg_vec,
         .fno = gen_helper_sve_orn_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -1542,7 +1542,7 @@ static bool trans_NOR_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_nor_pg_i64,
         .fniv = gen_nor_pg_vec,
         .fno = gen_helper_sve_nor_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -1570,7 +1570,7 @@ static bool trans_NAND_pppp(DisasContext *s, arg_rprr_s *a)
         .fni8 = gen_nand_pg_i64,
         .fniv = gen_nand_pg_vec,
         .fno = gen_helper_sve_nand_pppp,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
 
     if (!dc_isar_feature(aa64_sve, s)) {
@@ -3680,7 +3680,7 @@ static bool trans_SUBR_zzi(DisasContext *s, arg_rri_esz *a)
           .fniv = tcg_gen_sub_vec,
           .fno = gen_helper_sve_subri_d,
           .opt_opc = vecop_list,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .prefer_i64 = true,
           .vece = MO_64,
           .scalar_first = true }
     };
@@ -8024,7 +8024,7 @@ static void gen_sclamp(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
           .fno  = gen_helper_gvec_sclamp_d,
           .opt_opc = vecop,
           .vece = MO_64,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64 }
+          .prefer_i64 = true }
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &ops[vece]);
 }
@@ -8075,7 +8075,7 @@ static void gen_uclamp(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
           .fno  = gen_helper_gvec_uclamp_d,
           .opt_opc = vecop,
           .vece = MO_64,
-          .prefer_i64 = TCG_TARGET_REG_BITS == 64 }
+          .prefer_i64 = true }
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &ops[vece]);
 }

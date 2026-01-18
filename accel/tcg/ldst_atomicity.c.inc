@@ -12,13 +12,6 @@
 #include "host/load-extract-al16-al8.h.inc"
 #include "host/store-insert-al16.h.inc"
 
-#ifdef CONFIG_ATOMIC64
-# define HAVE_al8          true
-#else
-# define HAVE_al8          false
-#endif
-#define HAVE_al8_fast      (ATOMIC_REG_SIZE >= 8)
-
 /**
  * required_atomicity:
  *
@@ -132,44 +125,7 @@ static inline uint32_t load_atomic4(void *pv)
 static inline uint64_t load_atomic8(void *pv)
 {
     uint64_t *p = __builtin_assume_aligned(pv, 8);
-
-    qemu_build_assert(HAVE_al8);
-    return qatomic_read__nocheck(p);
-}
-
-/**
- * load_atomic8_or_exit:
- * @cpu: generic cpu state
- * @ra: host unwind address
- * @pv: host address
- *
- * Atomically load 8 aligned bytes from @pv.
- * If this is not possible, longjmp out to restart serially.
- */
-static uint64_t load_atomic8_or_exit(CPUState *cpu, uintptr_t ra, void *pv)
-{
-    if (HAVE_al8) {
-        return load_atomic8(pv);
-    }
-
-#ifdef CONFIG_USER_ONLY
-    /*
-     * If the page is not writable, then assume the value is immutable
-     * and requires no locking.  This ignores the case of MAP_SHARED with
-     * another process, because the fallback start_exclusive solution
-     * provides no protection across processes.
-     */
-    WITH_MMAP_LOCK_GUARD() {
-        if (!page_check_range(h2g(pv), 8, PAGE_WRITE_ORG)) {
-            uint64_t *p = __builtin_assume_aligned(pv, 8);
-            return *p;
-        }
-    }
-#endif
-
-    /* Ultimate fallback: re-execute in serial context. */
-    trace_load_atom8_or_exit_fallback(ra);
-    cpu_loop_exit_atomic(cpu, ra);
+    return qatomic_read(p);
 }
 
 /**
@@ -264,9 +220,7 @@ static uint64_t load_atom_extract_al8x2(void *pv)
 }
 
 /**
- * load_atom_extract_al8_or_exit:
- * @cpu: generic cpu state
- * @ra: host unwind address
+ * load_atom_extract_al8
  * @pv: host address
  * @s: object size in bytes, @s <= 4.
  *
@@ -275,15 +229,14 @@ static uint64_t load_atom_extract_al8x2(void *pv)
  * 8-byte load and extract.
  * The value is returned in the low bits of a uint32_t.
  */
-static uint32_t load_atom_extract_al8_or_exit(CPUState *cpu, uintptr_t ra,
-                                              void *pv, int s)
+static uint32_t load_atom_extract_al8(void *pv, int s)
 {
     uintptr_t pi = (uintptr_t)pv;
     int o = pi & 7;
     int shr = (HOST_BIG_ENDIAN ? 8 - s - o : o) * 8;
 
     pv = (void *)(pi & ~7);
-    return load_atomic8_or_exit(cpu, ra, pv) >> shr;
+    return load_atomic8(pv) >> shr;
 }
 
 /**
@@ -297,7 +250,7 @@ static uint32_t load_atom_extract_al8_or_exit(CPUState *cpu, uintptr_t ra,
  * and p % 16 + s > 8.  I.e. does not cross a 16-byte
  * boundary, but *does* cross an 8-byte boundary.
  * This is the slow version, so we must have eliminated
- * any faster load_atom_extract_al8_or_exit case.
+ * any faster load_atom_extract_al8 case.
  *
  * If this is not possible, longjmp out to restart serially.
  */
@@ -375,21 +328,6 @@ static inline uint64_t load_atom_8_by_4(void *pv)
 }
 
 /**
- * load_atom_8_by_8_or_4:
- * @pv: host address
- *
- * Load 8 bytes from aligned @pv, with at least 4-byte atomicity.
- */
-static inline uint64_t load_atom_8_by_8_or_4(void *pv)
-{
-    if (HAVE_al8_fast) {
-        return load_atomic8(pv);
-    } else {
-        return load_atom_8_by_4(pv);
-    }
-}
-
-/**
  * load_atom_2:
  * @p: host address
  * @memop: the full memory op
@@ -418,12 +356,8 @@ static uint16_t load_atom_2(CPUState *cpu, uintptr_t ra,
         return lduw_he_p(pv);
     case MO_16:
         /* The only case remaining is MO_ATOM_WITHIN16. */
-        if (!HAVE_al8_fast && (pi & 3) == 1) {
-            /* Big or little endian, we want the middle two bytes. */
-            return load_atomic4(pv - 1) >> 8;
-        }
         if ((pi & 15) != 7) {
-            return load_atom_extract_al8_or_exit(cpu, ra, pv, 2);
+            return load_atom_extract_al8(pv, 2);
         }
         return load_atom_extract_al16_or_exit(cpu, ra, pv, 2);
     default:
@@ -468,7 +402,7 @@ static uint32_t load_atom_4(CPUState *cpu, uintptr_t ra,
         return load_atom_extract_al4x2(pv);
     case MO_32:
         if (!(pi & 4)) {
-            return load_atom_extract_al8_or_exit(cpu, ra, pv, 4);
+            return load_atom_extract_al8(pv, 4);
         }
         return load_atom_extract_al16_or_exit(cpu, ra, pv, 4);
     default:
@@ -493,7 +427,7 @@ static uint64_t load_atom_8(CPUState *cpu, uintptr_t ra,
      * If the host does not support 8-byte atomics, wait until we have
      * examined the atomicity parameters below.
      */
-    if (HAVE_al8 && likely((pi & 7) == 0)) {
+    if (likely((pi & 7) == 0)) {
         return load_atomic8(pv);
     }
     if (HAVE_ATOMIC128_RO) {
@@ -502,30 +436,9 @@ static uint64_t load_atom_8(CPUState *cpu, uintptr_t ra,
 
     atmax = required_atomicity(cpu, pi, memop);
     if (atmax == MO_64) {
-        if (!HAVE_al8 && (pi & 7) == 0) {
-            load_atomic8_or_exit(cpu, ra, pv);
-        }
         return load_atom_extract_al16_or_exit(cpu, ra, pv, 8);
     }
-    if (HAVE_al8_fast) {
-        return load_atom_extract_al8x2(pv);
-    }
-    switch (atmax) {
-    case MO_8:
-        return ldq_he_p(pv);
-    case MO_16:
-        return load_atom_8_by_2(pv);
-    case MO_32:
-        return load_atom_8_by_4(pv);
-    case -MO_32:
-        if (HAVE_al8) {
-            return load_atom_extract_al8x2(pv);
-        }
-        trace_load_atom8_fallback(memop, ra);
-        cpu_loop_exit_atomic(cpu, ra);
-    default:
-        g_assert_not_reached();
-    }
+    return load_atom_extract_al8x2(pv);
 }
 
 /**
@@ -565,18 +478,10 @@ static Int128 load_atom_16(CPUState *cpu, uintptr_t ra,
         b = load_atom_8_by_4(pv + 8);
         break;
     case MO_64:
-        if (!HAVE_al8) {
-            trace_load_atom16_fallback(memop, ra);
-            cpu_loop_exit_atomic(cpu, ra);
-        }
         a = load_atomic8(pv);
         b = load_atomic8(pv + 8);
         break;
     case -MO_64:
-        if (!HAVE_al8) {
-            trace_load_atom16_fallback(memop, ra);
-            cpu_loop_exit_atomic(cpu, ra);
-        }
         a = load_atom_extract_al8x2(pv);
         b = load_atom_extract_al8x2(pv + 8);
         break;
@@ -624,9 +529,7 @@ static inline void store_atomic4(void *pv, uint32_t val)
 static inline void store_atomic8(void *pv, uint64_t val)
 {
     uint64_t *p = __builtin_assume_aligned(pv, 8);
-
-    qemu_build_assert(HAVE_al8);
-    qatomic_set__nocheck(p, val);
+    qatomic_set(p, val);
 }
 
 /**
@@ -688,9 +591,8 @@ static void store_atom_insert_al8(uint64_t *p, uint64_t val, uint64_t msk)
 {
     uint64_t old, new;
 
-    qemu_build_assert(HAVE_al8);
     p = __builtin_assume_aligned(p, 8);
-    old = qatomic_read__nocheck(p);
+    old = qatomic_read(p);
     do {
         new = (old & ~msk) | val;
     } while (!__atomic_compare_exchange_n(p, &old, new, true,
@@ -802,7 +704,6 @@ static uint64_t store_whole_le8(void *pv, int size, uint64_t val_le)
     uint64_t m = MAKE_64BIT_MASK(0, sz);
     uint64_t v;
 
-    qemu_build_assert(HAVE_al8);
     if (HOST_BIG_ENDIAN) {
         v = bswap64(val_le) >> sh;
         m = bswap64(m) >> sh;
@@ -887,10 +788,8 @@ static void store_atom_2(CPUState *cpu, uintptr_t ra,
         store_atom_insert_al4(pv - 1, (uint32_t)val << 8, MAKE_64BIT_MASK(8, 16));
         return;
     } else if ((pi & 7) == 3) {
-        if (HAVE_al8) {
-            store_atom_insert_al8(pv - 3, (uint64_t)val << 24, MAKE_64BIT_MASK(24, 16));
-            return;
-        }
+        store_atom_insert_al8(pv - 3, (uint64_t)val << 24, MAKE_64BIT_MASK(24, 16));
+        return;
     } else if ((pi & 15) == 7) {
         if (HAVE_CMPXCHG128) {
             Int128 v = int128_lshift(int128_make64(val), 56);
@@ -957,10 +856,8 @@ static void store_atom_4(CPUState *cpu, uintptr_t ra,
         return;
     case MO_32:
         if ((pi & 7) < 4) {
-            if (HAVE_al8) {
-                store_whole_le8(pv, 4, cpu_to_le32(val));
-                return;
-            }
+            store_whole_le8(pv, 4, cpu_to_le32(val));
+            return;
         } else {
             if (HAVE_CMPXCHG128) {
                 store_whole_le16(pv, 4, int128_make64(cpu_to_le32(val)));
@@ -988,7 +885,7 @@ static void store_atom_8(CPUState *cpu, uintptr_t ra,
     uintptr_t pi = (uintptr_t)pv;
     int atmax;
 
-    if (HAVE_al8 && likely((pi & 7) == 0)) {
+    if (likely((pi & 7) == 0)) {
         store_atomic8(pv, val);
         return;
     }
@@ -1005,7 +902,7 @@ static void store_atom_8(CPUState *cpu, uintptr_t ra,
         store_atom_8_by_4(pv, val);
         return;
     case -MO_32:
-        if (HAVE_al8) {
+        {
             uint64_t val_le = cpu_to_le64(val);
             int s2 = pi & 7;
             int s1 = 8 - s2;
@@ -1024,9 +921,8 @@ static void store_atom_8(CPUState *cpu, uintptr_t ra,
             default:
                 g_assert_not_reached();
             }
-            return;
         }
-        break;
+        return;
     case MO_64:
         if (HAVE_CMPXCHG128) {
             store_whole_le16(pv, 8, int128_make64(cpu_to_le64(val)));
@@ -1077,12 +973,9 @@ static void store_atom_16(CPUState *cpu, uintptr_t ra,
         store_atom_8_by_4(pv + 8, b);
         return;
     case MO_64:
-        if (HAVE_al8) {
-            store_atomic8(pv, a);
-            store_atomic8(pv + 8, b);
-            return;
-        }
-        break;
+        store_atomic8(pv, a);
+        store_atomic8(pv + 8, b);
+        return;
     case -MO_64:
         if (HAVE_CMPXCHG128) {
             uint64_t val_le;

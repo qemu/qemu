@@ -866,15 +866,6 @@ static inline int64_t cpu_get_host_ticks(void)
     return retval;
 }
 
-#elif defined(__i386__)
-
-static inline int64_t cpu_get_host_ticks(void)
-{
-    int64_t val;
-    asm volatile ("rdtsc" : "=A" (val));
-    return val;
-}
-
 #elif defined(__x86_64__)
 
 static inline int64_t cpu_get_host_ticks(void)

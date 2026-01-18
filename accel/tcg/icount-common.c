@@ -86,8 +86,8 @@ static void icount_update_locked(CPUState *cpu)
     int64_t executed = icount_get_executed(cpu);
     cpu->icount_budget -= executed;
 
-    qatomic_set_i64(&timers_state.qemu_icount,
-                    timers_state.qemu_icount + executed);
+    qatomic_set(&timers_state.qemu_icount,
+                timers_state.qemu_icount + executed);
 }
 
 /*
@@ -116,15 +116,14 @@ static int64_t icount_get_raw_locked(void)
         /* Take into account what has run */
         icount_update_locked(cpu);
     }
-    /* The read is protected by the seqlock, but needs atomic64 to avoid UB */
-    return qatomic_read_i64(&timers_state.qemu_icount);
+    /* The read is protected by the seqlock, but needs atomic to avoid UB */
+    return qatomic_read(&timers_state.qemu_icount);
 }
 
 static int64_t icount_get_locked(void)
 {
     int64_t icount = icount_get_raw_locked();
-    return qatomic_read_i64(&timers_state.qemu_icount_bias) +
-        icount_to_ns(icount);
+    return qatomic_read(&timers_state.qemu_icount_bias) + icount_to_ns(icount);
 }
 
 int64_t icount_get_raw(void)
@@ -201,9 +200,9 @@ static void icount_adjust(void)
                     timers_state.icount_time_shift + 1);
     }
     timers_state.last_delta = delta;
-    qatomic_set_i64(&timers_state.qemu_icount_bias,
-                    cur_icount - (timers_state.qemu_icount
-                                  << timers_state.icount_time_shift));
+    qatomic_set(&timers_state.qemu_icount_bias,
+                cur_icount - (timers_state.qemu_icount
+                              << timers_state.icount_time_shift));
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                          &timers_state.vm_clock_lock);
 }
@@ -269,8 +268,8 @@ static void icount_warp_rt(void)
             }
             warp_delta = MIN(warp_delta, delta);
         }
-        qatomic_set_i64(&timers_state.qemu_icount_bias,
-                        timers_state.qemu_icount_bias + warp_delta);
+        qatomic_set(&timers_state.qemu_icount_bias,
+                    timers_state.qemu_icount_bias + warp_delta);
     }
     timers_state.vm_clock_warp_start = -1;
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
@@ -361,8 +360,8 @@ void icount_start_warp_timer(void)
              */
             seqlock_write_lock(&timers_state.vm_clock_seqlock,
                                &timers_state.vm_clock_lock);
-            qatomic_set_i64(&timers_state.qemu_icount_bias,
-                            timers_state.qemu_icount_bias + deadline);
+            qatomic_set(&timers_state.qemu_icount_bias,
+                        timers_state.qemu_icount_bias + deadline);
             seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                                  &timers_state.vm_clock_lock);
             qemu_clock_notify(QEMU_CLOCK_VIRTUAL);

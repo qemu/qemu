@@ -105,7 +105,7 @@ static void reclaim_list_el(struct rcu_head *prcu)
     struct list_element *el = container_of(prcu, struct list_element, rcu);
     g_free(el);
     /* Accessed only from call_rcu thread.  */
-    qatomic_set_i64(&n_reclaims, n_reclaims + 1);
+    qatomic_set(&n_reclaims, n_reclaims + 1);
 }
 
 #if TEST_LIST_TYPE == 1
@@ -247,7 +247,7 @@ static void *rcu_q_updater(void *arg)
     qemu_mutex_lock(&counts_mutex);
     n_nodes += n_nodes_local;
     n_updates += n_updates_local;
-    qatomic_set_i64(&n_nodes_removed, n_nodes_removed + n_removed_local);
+    qatomic_set(&n_nodes_removed, n_nodes_removed + n_removed_local);
     qemu_mutex_unlock(&counts_mutex);
     return NULL;
 }
@@ -301,23 +301,22 @@ static void rcu_qtest(const char *test, int duration, int nreaders)
         n_removed_local++;
     }
     qemu_mutex_lock(&counts_mutex);
-    qatomic_set_i64(&n_nodes_removed, n_nodes_removed + n_removed_local);
+    qatomic_set(&n_nodes_removed, n_nodes_removed + n_removed_local);
     qemu_mutex_unlock(&counts_mutex);
     synchronize_rcu();
-    while (qatomic_read_i64(&n_nodes_removed) >
-           qatomic_read_i64(&n_reclaims)) {
+    while (qatomic_read(&n_nodes_removed) > qatomic_read(&n_reclaims)) {
         g_usleep(100);
         synchronize_rcu();
     }
     if (g_test_in_charge) {
-        g_assert_cmpint(qatomic_read_i64(&n_nodes_removed), ==,
-                        qatomic_read_i64(&n_reclaims));
+        g_assert_cmpint(qatomic_read(&n_nodes_removed), ==,
+                        qatomic_read(&n_reclaims));
     } else {
         printf("%s: %d readers; 1 updater; nodes read: "  \
                "%lld, nodes removed: %"PRIi64"; nodes reclaimed: %"PRIi64"\n",
                test, nthreadsrunning - 1, n_reads,
-               qatomic_read_i64(&n_nodes_removed),
-               qatomic_read_i64(&n_reclaims));
+               qatomic_read(&n_nodes_removed),
+               qatomic_read(&n_reclaims));
         exit(0);
     }
 }

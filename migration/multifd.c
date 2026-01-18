@@ -58,10 +58,6 @@ struct {
      * operations on both 32bit / 64 bits hosts.  It means on 32bit systems
      * multifd will overflow the packet_num easier, but that should be
      * fine.
-     *
-     * Another option is to use QEMU's Stat64 then it'll be 64 bits on all
-     * hosts, however so far it does not support atomic fetch_add() yet.
-     * Make it easy for now.
      */
     uintptr_t packet_num;
     /*
@@ -174,7 +170,7 @@ static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
     if (ret != 0) {
         return -1;
     }
-    stat64_add(&mig_stats.multifd_bytes, size);
+    qatomic_add(&mig_stats.multifd_bytes, size);
     return 0;
 }
 
@@ -607,7 +603,7 @@ static int multifd_zero_copy_flush(QIOChannel *c)
         return -1;
     }
     if (ret == 1) {
-        stat64_add(&mig_stats.dirty_sync_missed_zero_copy, 1);
+        qatomic_add(&mig_stats.dirty_sync_missed_zero_copy, 1);
     }
 
     return ret;
@@ -735,7 +731,7 @@ static void *multifd_send_thread(void *opaque)
                 break;
             }
 
-            stat64_add(&mig_stats.multifd_bytes, total_size);
+            qatomic_add(&mig_stats.multifd_bytes, total_size);
 
             p->next_packet_size = 0;
             multifd_send_data_clear(p->data);
@@ -766,7 +762,7 @@ static void *multifd_send_thread(void *opaque)
                     break;
                 }
                 /* p->next_packet_size will always be zero for a SYNC packet */
-                stat64_add(&mig_stats.multifd_bytes, p->packet_len);
+                qatomic_add(&mig_stats.multifd_bytes, p->packet_len);
             }
 
             qatomic_set(&p->pending_sync, MULTIFD_SYNC_NONE);

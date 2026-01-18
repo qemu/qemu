@@ -70,7 +70,7 @@
 #define SZP  ((int)sizeof(void *))
 
 /* Shorthand for size of a register.  */
-#define SZR  (TCG_TARGET_REG_BITS / 8)
+#define SZR  ((int)sizeof(tcg_target_long))
 
 #define TCG_CT_CONST_S16     0x00100
 #define TCG_CT_CONST_U16     0x00200

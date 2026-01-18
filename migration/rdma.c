@@ -1936,8 +1936,8 @@ retry:
                  * would think that head.len would be the more similar
                  * thing to a correct value.
                  */
-                stat64_add(&mig_stats.zero_pages,
-                           sge.length / qemu_target_page_size());
+                qatomic_add(&mig_stats.zero_pages,
+                            sge.length / qemu_target_page_size());
                 return 1;
             }
 
@@ -2045,7 +2045,7 @@ retry:
     }
 
     set_bit(chunk, block->transit_bitmap);
-    stat64_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
+    qatomic_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
     /*
      * We are adding to transferred the amount of data written, but no
      * overhead at all.  I will assume that RDMA is magicaly and don't
@@ -2055,7 +2055,7 @@ retry:
      *     sizeof(send_wr) + sge.length
      * but this being RDMA, who knows.
      */
-    stat64_add(&mig_stats.rdma_bytes, sge.length);
+    qatomic_add(&mig_stats.rdma_bytes, sge.length);
     ram_transferred_add(sge.length);
     rdma->total_writes++;
 

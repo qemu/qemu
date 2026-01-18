@@ -157,7 +157,7 @@ void gen_gvec_eor3(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
         .fniv = gen_eor3_vec,
         .fno = gen_helper_sve2_eor3,
         .vece = MO_64,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
@@ -183,7 +183,7 @@ void gen_gvec_bcax(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
         .fniv = gen_bcax_vec,
         .fno = gen_helper_sve2_bcax,
         .vece = MO_64,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+        .prefer_i64 = true,
     };
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }

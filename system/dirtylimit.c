@@ -123,7 +123,7 @@ static void *vcpu_dirty_rate_stat_thread(void *opaque)
 int64_t vcpu_dirty_rate_get(int cpu_index)
 {
     DirtyRateVcpu *rates = vcpu_dirty_rate_stat->stat.rates;
-    return qatomic_read_i64(&rates[cpu_index].dirty_rate);
+    return qatomic_read(&rates[cpu_index].dirty_rate);
 }
 
 void vcpu_dirty_rate_stat_start(void)

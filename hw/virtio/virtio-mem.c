@@ -60,7 +60,7 @@ static uint32_t virtio_mem_default_thp_size(void)
 {
     uint32_t default_thp_size = VIRTIO_MEM_MIN_BLOCK_SIZE;
 
-#if defined(__x86_64__) || defined(__arm__) || defined(__powerpc64__)
+#if defined(__x86_64__) || defined(__powerpc64__)
     default_thp_size = 2 * MiB;
 #elif defined(__aarch64__)
     if (qemu_real_host_page_size() == 4 * KiB) {

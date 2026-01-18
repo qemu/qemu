@@ -459,10 +459,7 @@ static int xenfb_map_fb(struct XenFB *xenfb)
          */
         uint32_t *ptr32 = NULL;
         uint32_t *ptr64 = NULL;
-#if defined(__i386__)
-        ptr32 = (void*)page->pd;
-        ptr64 = ((void*)page->pd) + 4;
-#elif defined(__x86_64__)
+#if defined(__x86_64__)
         ptr32 = ((void*)page->pd) - 4;
         ptr64 = (void*)page->pd;
 #endif
@@ -480,11 +477,6 @@ static int xenfb_map_fb(struct XenFB *xenfb)
         /* 64bit dom0, 32bit domU */
         mode = 32;
         pd   = ((void*)page->pd) - 4;
-#elif defined(__i386__)
-    } else if (strcmp(protocol, XEN_IO_PROTO_ABI_X86_64) == 0) {
-        /* 32bit dom0, 64bit domU */
-        mode = 64;
-        pd   = ((void*)page->pd) + 4;
 #endif
     }
 

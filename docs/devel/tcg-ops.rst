@@ -696,26 +696,6 @@ Memory Barrier support
        | Please see :ref:`atomics-ref` for more information on memory barriers.
 
 
-64-bit guest on 32-bit host support
------------------------------------
-
-The following opcodes are internal to TCG.  Thus they are to be implemented by
-32-bit host code generators, but are not to be emitted by guest translators.
-They are emitted as needed by inline functions within ``tcg-op.h``.
-
-.. list-table::
-
-   * - brcond2_i32 *t0_low*, *t0_high*, *t1_low*, *t1_high*, *cond*, *label*
-
-     - | Similar to brcond, except that the 64-bit values *t0* and *t1*
-         are formed from two 32-bit arguments.
-
-   * - setcond2_i32 *dest*, *t1_low*, *t1_high*, *t2_low*, *t2_high*, *cond*
-
-     - | Similar to setcond, except that the 64-bit values *t1* and *t2* are
-         formed from two 32-bit arguments. The result is a 32-bit value.
-
-
 QEMU specific operations
 ------------------------
 
@@ -935,15 +915,11 @@ than being a standalone C file.
 Assumptions
 -----------
 
-The target word size (``TCG_TARGET_REG_BITS``) is expected to be 32 bit or
-64 bit. It is expected that the pointer has the same size as the word.
+The target word size (``TCG_TARGET_REG_BITS``) is expected to be 64 bit.
+It is expected that the pointer has the same size as the word.
 
-On a 32 bit target, all 64 bit operations are converted to 32 bits.
-A few specific operations must be implemented to allow it
-(see brcond2_i32, setcond2_i32).
-
-On a 64 bit target, the values are transferred between 32 and 64-bit
-registers using the following ops:
+Values are transferred between 32 and 64-bit registers using the
+following ops:
 
 - extrl_i64_i32
 - extrh_i64_i32

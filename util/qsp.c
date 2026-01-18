@@ -83,8 +83,8 @@ typedef struct QSPCallSite QSPCallSite;
 struct QSPEntry {
     void *thread_ptr;
     const QSPCallSite *callsite;
-    aligned_uint64_t n_acqs;
-    aligned_uint64_t ns;
+    uint64_t n_acqs;
+    uint64_t ns;
     unsigned int n_objs; /* count of coalesced objs; only used for reporting */
 };
 typedef struct QSPEntry QSPEntry;
@@ -346,9 +346,9 @@ static QSPEntry *qsp_entry_get(const void *obj, const char *file, int line,
  */
 static inline void do_qsp_entry_record(QSPEntry *e, int64_t delta, bool acq)
 {
-    qatomic_set_u64(&e->ns, e->ns + delta);
+    qatomic_set(&e->ns, e->ns + delta);
     if (acq) {
-        qatomic_set_u64(&e->n_acqs, e->n_acqs + 1);
+        qatomic_set(&e->n_acqs, e->n_acqs + 1);
     }
 }
 
@@ -538,8 +538,8 @@ static void qsp_aggregate(void *p, uint32_t h, void *up)
      * The entry is in the global hash table; read from it atomically (as in
      * "read once").
      */
-    agg->ns += qatomic_read_u64(&e->ns);
-    agg->n_acqs += qatomic_read_u64(&e->n_acqs);
+    agg->ns += qatomic_read(&e->ns);
+    agg->n_acqs += qatomic_read(&e->n_acqs);
 }
 
 static void qsp_iter_diff(void *p, uint32_t hash, void *htp)
