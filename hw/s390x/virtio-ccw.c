@@ -1038,6 +1038,7 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
             if (r) {
                 virtio_queue_set_guest_notifier_fd_handler(vq, false,
                                                            with_irqfd);
+                event_notifier_cleanup(notifier);
                 return r;
             }
         }
