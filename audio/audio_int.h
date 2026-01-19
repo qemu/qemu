@@ -252,7 +252,6 @@ typedef struct AudioBackend {
     QLIST_HEAD (cap_listhead, CaptureVoiceOut) cap_head;
     int nb_hw_voices_out;
     int nb_hw_voices_in;
-    int vm_running;
     int64_t period_ticks;
 
     bool timer_running;
