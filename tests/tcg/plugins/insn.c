@@ -93,8 +93,8 @@ static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
         for (int i = 0; i < reg_list->len; i++) {
             qemu_plugin_reg_descriptor *rd = &g_array_index(
                 reg_list, qemu_plugin_reg_descriptor, i);
-            int count = qemu_plugin_read_register(rd->handle, reg_value);
-            g_assert(count > 0);
+            bool success = qemu_plugin_read_register(rd->handle, reg_value);
+            g_assert(success);
         }
     }
 }

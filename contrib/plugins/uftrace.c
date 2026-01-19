@@ -403,8 +403,8 @@ static uint64_t cpu_read_register64(Cpu *cpu, struct qemu_plugin_register *reg)
 {
     GByteArray *buf = cpu->buf;
     g_byte_array_set_size(buf, 0);
-    size_t sz = qemu_plugin_read_register(reg, buf);
-    g_assert(sz == 8);
+    bool success = qemu_plugin_read_register(reg, buf);
+    g_assert(success);
     g_assert(buf->len == 8);
     return *((uint64_t *) buf->data);
 }
@@ -413,8 +413,8 @@ static uint32_t cpu_read_register32(Cpu *cpu, struct qemu_plugin_register *reg)
 {
     GByteArray *buf = cpu->buf;
     g_byte_array_set_size(buf, 0);
-    size_t sz = qemu_plugin_read_register(reg, buf);
-    g_assert(sz == 4);
+    bool success = qemu_plugin_read_register(reg, buf);
+    g_assert(success);
     g_assert(buf->len == 4);
     return *((uint32_t *) buf->data);
 }

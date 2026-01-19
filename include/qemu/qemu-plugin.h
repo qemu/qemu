@@ -72,11 +72,14 @@ typedef uint64_t qemu_plugin_id_t;
  * - added qemu_plugin_write_memory_hwaddr
  * - added qemu_plugin_write_register
  * - added qemu_plugin_translate_vaddr
+ *
+ * version 6:
+ * - changed return value of qemu_plugin_{read,write}_register from int to bool
  */
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 5
+#define QEMU_PLUGIN_VERSION 6
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -1004,12 +1007,12 @@ GArray *qemu_plugin_get_registers(void);
  * qemu_plugin_register_vcpu_init_cb(), except for callbacks registered with
  * qemu_plugin_register_atexit_cb() and qemu_plugin_register_flush_cb().
  *
- * Returns the size of the read register. The content of @buf is in target byte
- * order. On failure returns -1.
+ * Returns true on success, false on failure. The content of @buf is in target
+ * byte order.
  */
 QEMU_PLUGIN_API
-int qemu_plugin_read_register(struct qemu_plugin_register *handle,
-                              GByteArray *buf);
+bool qemu_plugin_read_register(struct qemu_plugin_register *handle,
+                               GByteArray *buf);
 
 /**
  * qemu_plugin_write_register() - write register for current vCPU
@@ -1029,11 +1032,11 @@ int qemu_plugin_read_register(struct qemu_plugin_register *handle,
  * Attempting to write a register with @buf smaller than the register size
  * will result in a crash or other undesired behavior.
  *
- * Returns the number of bytes written. On failure returns 0.
+ * Returns true on sucess, false on failure.
  */
 QEMU_PLUGIN_API
-int qemu_plugin_write_register(struct qemu_plugin_register *handle,
-                              GByteArray *buf);
+bool qemu_plugin_write_register(struct qemu_plugin_register *handle,
+                                GByteArray *buf);
 
 /**
  * qemu_plugin_read_memory_vaddr() - read from memory using a virtual address
