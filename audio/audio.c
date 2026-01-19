@@ -170,7 +170,7 @@ void AUD_log (const char *cap, const char *fmt, ...)
     va_end (ap);
 }
 
-static void audio_print_settings (struct audsettings *as)
+static void audio_print_settings (const struct audsettings *as)
 {
     dolog ("frequency=%d nchannels=%d fmt=", as->freq, as->nchannels);
 
@@ -216,7 +216,7 @@ static void audio_print_settings (struct audsettings *as)
     AUD_log (NULL, "\n");
 }
 
-static int audio_validate_settings (struct audsettings *as)
+static int audio_validate_settings (const struct audsettings *as)
 {
     int invalid;
 
@@ -241,7 +241,7 @@ static int audio_validate_settings (struct audsettings *as)
     return invalid ? -1 : 0;
 }
 
-static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *as)
+static int audio_pcm_info_eq (struct audio_pcm_info *info, const struct audsettings *as)
 {
     int bits = 8;
     bool is_signed = false, is_float = false;
@@ -281,7 +281,7 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
         && info->swap_endianness == (as->endianness != HOST_BIG_ENDIAN);
 }
 
-void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
+void audio_pcm_init_info (struct audio_pcm_info *info, const struct audsettings *as)
 {
     int bits = 8, mul;
     bool is_signed = false, is_float = false;

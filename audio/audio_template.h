@@ -159,7 +159,7 @@ static int glue (audio_pcm_sw_init_, TYPE) (
     SW *sw,
     HW *hw,
     const char *name,
-    struct audsettings *as
+    const struct audsettings *as
     )
 {
     int err;
@@ -426,7 +426,7 @@ static HW *glue(audio_pcm_hw_add_, TYPE)(AudioBackend *s, struct audsettings *as
 static SW *glue(audio_pcm_create_voice_pair_, TYPE)(
     AudioBackend *s,
     const char *sw_name,
-    struct audsettings *as
+    const struct audsettings *as
     )
 {
     SW *sw;
@@ -491,7 +491,7 @@ SW *glue (AUD_open_, TYPE) (
     const char *name,
     void *callback_opaque ,
     audio_callback_fn callback_fn,
-    struct audsettings *as
+    const struct audsettings *as
     )
 {
     AudioBackend *s = be;

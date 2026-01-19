@@ -58,7 +58,7 @@ SWVoiceOut *AUD_open_out (
     const char *name,
     void *callback_opaque,
     audio_callback_fn callback_fn,
-    struct audsettings *settings
+    const struct audsettings *settings
     );
 
 void AUD_close_out (AudioBackend *be, SWVoiceOut *sw);
@@ -97,7 +97,7 @@ SWVoiceIn *AUD_open_in(
     const char *name,
     void *callback_opaque,
     audio_callback_fn callback_fn,
-    struct audsettings *settings
+    const struct audsettings *settings
     );
 
 void AUD_close_in(AudioBackend *be, SWVoiceIn *sw);
