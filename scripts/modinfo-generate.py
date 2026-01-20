@@ -84,7 +84,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description='Generate C code for QEMU module info'
     )
-    parser.add_argument('--devices', required=True,
+    parser.add_argument('--devices',
                         help='path to config-device.mak')
     parser.add_argument('modinfo', nargs='+',
                         help='modinfo files to process')
@@ -92,11 +92,12 @@ def main() -> None:
 
     # get all devices enabled in kconfig, from *-config-device.mak
     enabled = set()
-    with open(args.devices) as file:
-        for line in file.readlines():
-            config = line.split('=')
-            if config[1].rstrip() == 'y':
-                enabled.add(config[0][7:])  # remove CONFIG_
+    if args.devices:
+        with open(args.devices) as file:
+            for line in file.readlines():
+                config = line.split('=')
+                if config[1].rstrip() == 'y':
+                    enabled.add(config[0][7:])  # remove CONFIG_
 
     deps = set()
     modules = set()
