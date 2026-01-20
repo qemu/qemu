@@ -28,10 +28,9 @@
 
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
 #include "qom/object.h"
-
-#define AUDIO_CAP "coreaudio"
 #include "audio_int.h"
 
 #define TYPE_AUDIO_COREAUDIO "audio-coreaudio"
@@ -157,7 +156,7 @@ static OSStatus coreaudio_get_isrunning(AudioDeviceID id, UInt32 *result)
                                       result);
 }
 
-static void coreaudio_logstatus (OSStatus status)
+static void coreaudio_logstatus(OSStatus status)
 {
     const char *str = "BUG";
 
@@ -207,70 +206,64 @@ static void coreaudio_logstatus (OSStatus status)
         break;
 
     default:
-        AUD_log (AUDIO_CAP, "Reason: status code %" PRId32 "\n", (int32_t)status);
+        error_printf(" Reason: status code %" PRId32, (int32_t)status);
         return;
     }
 
-    AUD_log (AUDIO_CAP, "Reason: %s\n", str);
+    error_printf(" Reason: %s", str);
 }
 
-static void G_GNUC_PRINTF (2, 3) coreaudio_logerr (
-    OSStatus status,
-    const char *fmt,
-    ...
-    )
+static void G_GNUC_PRINTF(2, 3) coreaudio_logerr(OSStatus status,
+                                                const char *fmt, ...)
 {
     va_list ap;
 
-    va_start (ap, fmt);
-    AUD_log (AUDIO_CAP, fmt, ap);
-    va_end (ap);
-
-    coreaudio_logstatus (status);
+    error_printf("coreaudio: ");
+    va_start(ap, fmt);
+    error_vprintf(fmt, ap);
+    va_end(ap);
+    coreaudio_logstatus(status);
+    error_printf("\n");
 }
 
-static void G_GNUC_PRINTF (3, 4) coreaudio_logerr2 (
-    OSStatus status,
-    const char *typ,
-    const char *fmt,
-    ...
-    )
+static void G_GNUC_PRINTF(3, 4) coreaudio_logerr2(OSStatus status,
+                                                  const char *typ,
+                                                  const char *fmt, ...)
 {
     va_list ap;
 
-    AUD_log (AUDIO_CAP, "Could not initialize %s\n", typ);
-
-    va_start (ap, fmt);
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-    va_end (ap);
-
-    coreaudio_logstatus (status);
+    error_printf("coreaudio: Could not initialize %s: ", typ);
+    va_start(ap, fmt);
+    error_vprintf(fmt, ap);
+    va_end(ap);
+    coreaudio_logstatus(status);
+    error_printf("\n");
 }
 
 #define coreaudio_playback_logerr(status, ...) \
     coreaudio_logerr2(status, "playback", __VA_ARGS__)
 
-static int coreaudio_buf_lock (coreaudioVoiceOut *core, const char *fn_name)
+static int coreaudio_buf_lock(coreaudioVoiceOut *core, const char *fn_name)
 {
     int err;
 
-    err = pthread_mutex_lock (&core->buf_mutex);
+    err = pthread_mutex_lock(&core->buf_mutex);
     if (err) {
-        dolog ("Could not lock voice for %s\nReason: %s\n",
-               fn_name, strerror (err));
+        error_report("coreaudio: Could not lock voice for %s: %s",
+                     fn_name, strerror(err));
         return -1;
     }
     return 0;
 }
 
-static int coreaudio_buf_unlock (coreaudioVoiceOut *core, const char *fn_name)
+static int coreaudio_buf_unlock(coreaudioVoiceOut *core, const char *fn_name)
 {
     int err;
 
-    err = pthread_mutex_unlock (&core->buf_mutex);
+    err = pthread_mutex_unlock(&core->buf_mutex);
     if (err) {
-        dolog ("Could not unlock voice for %s\nReason: %s\n",
-               fn_name, strerror (err));
+        error_report("coreaudio: Could not unlock voice for %s: %s",
+                     fn_name, strerror(err));
         return -1;
     }
     return 0;
@@ -378,12 +371,13 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
 
     status = coreaudio_get_voice(&core->outputDeviceID);
     if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                   "Could not get default output Device\n");
+        coreaudio_playback_logerr(status,
+                                  "Could not get default output device");
         return status;
     }
     if (core->outputDeviceID == kAudioDeviceUnknown) {
-        dolog ("Could not initialize playback - Unknown Audiodevice\n");
+        error_report("coreaudio: Could not initialize playback: "
+                     "Unknown audio device");
         return status;
     }
 
@@ -394,17 +388,19 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         return 0;
     }
     if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                    "Could not get device buffer frame range\n");
+        coreaudio_playback_logerr(status,
+                                  "Could not get device buffer frame range");
         return status;
     }
 
     if (frameRange.mMinimum > core->frameSizeSetting) {
         core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMinimum;
-        dolog ("warning: Upsizing Buffer Frames to %f\n", frameRange.mMinimum);
+        warn_report("coreaudio: Upsizing buffer frames to %f",
+                    frameRange.mMinimum);
     } else if (frameRange.mMaximum < core->frameSizeSetting) {
         core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMaximum;
-        dolog ("warning: Downsizing Buffer Frames to %f\n", frameRange.mMaximum);
+        warn_report("coreaudio: Downsizing buffer frames to %f",
+                    frameRange.mMaximum);
     } else {
         core->audioDevicePropertyBufferFrameSize = core->frameSizeSetting;
     }
@@ -416,9 +412,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         return 0;
     }
     if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                    "Could not set device buffer frame size %" PRIu32 "\n",
-                                    (uint32_t)core->audioDevicePropertyBufferFrameSize);
+        coreaudio_playback_logerr(status,
+                                  "Could not set device buffer frame size %" PRIu32,
+                                  (uint32_t)core->audioDevicePropertyBufferFrameSize);
         return status;
     }
 
@@ -429,8 +425,8 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         return 0;
     }
     if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                    "Could not get device buffer frame size\n");
+        coreaudio_playback_logerr(status,
+                                  "Could not get device buffer frame size");
         return status;
     }
     core->hw.samples = core->bufferCount * core->audioDevicePropertyBufferFrameSize;
@@ -442,9 +438,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         return 0;
     }
     if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                   "Could not set samplerate %lf\n",
-                                   streamBasicDescription.mSampleRate);
+        coreaudio_playback_logerr(status,
+                                  "Could not set samplerate %lf",
+                                  streamBasicDescription.mSampleRate);
         core->outputDeviceID = kAudioDeviceUnknown;
         return status;
     }
@@ -468,7 +464,7 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         return 0;
     }
     if (status != kAudioHardwareNoError || core->ioprocid == NULL) {
-        coreaudio_playback_logerr (status, "Could not set IOProc\n");
+        coreaudio_playback_logerr(status, "Could not set IOProc");
         core->outputDeviceID = kAudioDeviceUnknown;
         return status;
     }
@@ -486,13 +482,13 @@ static void fini_out_device(coreaudioVoiceOut *core)
     if (status != kAudioHardwareBadObjectError) {
         if (status != kAudioHardwareNoError) {
             coreaudio_logerr(status,
-                             "Could not determine whether Device is playing\n");
+                             "Could not determine whether device is playing");
         }
 
         if (isrunning) {
             status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
             if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
-                coreaudio_logerr(status, "Could not stop playback\n");
+                coreaudio_logerr(status, "Could not stop playback");
             }
         }
     }
@@ -501,7 +497,7 @@ static void fini_out_device(coreaudioVoiceOut *core)
     status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
                                         core->ioprocid);
     if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
-        coreaudio_logerr(status, "Could not remove IOProc\n");
+        coreaudio_logerr(status, "Could not remove IOProc");
     }
     core->outputDeviceID = kAudioDeviceUnknown;
 }
@@ -515,7 +511,7 @@ static void update_device_playback_state(coreaudioVoiceOut *core)
     if (status != kAudioHardwareNoError) {
         if (status != kAudioHardwareBadObjectError) {
             coreaudio_logerr(status,
-                             "Could not determine whether Device is playing\n");
+                             "Could not determine whether device is playing");
         }
 
         return;
@@ -526,7 +522,7 @@ static void update_device_playback_state(coreaudioVoiceOut *core)
         if (!isrunning) {
             status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
             if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
-                coreaudio_logerr (status, "Could not resume playback\n");
+                coreaudio_logerr(status, "Could not resume playback");
             }
         }
     } else {
@@ -535,7 +531,7 @@ static void update_device_playback_state(coreaudioVoiceOut *core)
             status = AudioDeviceStop(core->outputDeviceID,
                                      core->ioprocid);
             if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
-                coreaudio_logerr(status, "Could not pause playback\n");
+                coreaudio_logerr(status, "Could not pause playback");
             }
         }
     }
@@ -576,7 +572,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as)
     /* create mutex */
     err = pthread_mutex_init(&core->buf_mutex, NULL);
     if (err) {
-        dolog("Could not create mutex\nReason: %s\n", strerror (err));
+        error_report("coreaudio: Could not create mutex: %s", strerror(err));
         return -1;
     }
 
@@ -594,8 +590,8 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as)
                                             &voice_addr, handle_voice_change,
                                             core);
     if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr (status,
-                                   "Could not listen to voice property change\n");
+        coreaudio_playback_logerr(status,
+                                  "Could not listen to voice property change");
         return -1;
     }
 
@@ -606,7 +602,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as)
                                                    core);
         if (status != kAudioHardwareNoError) {
             coreaudio_playback_logerr(status,
-                                      "Could not remove voice property change listener\n");
+                                      "Could not remove voice property change listener");
         }
 
         return -1;
@@ -626,7 +622,7 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
                                                handle_voice_change,
                                                core);
     if (status != kAudioHardwareNoError) {
-        coreaudio_logerr(status, "Could not remove voice property change listener\n");
+        coreaudio_logerr(status, "Could not remove voice property change listener");
     }
 
     fini_out_device(core);
@@ -634,7 +630,7 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     /* destroy mutex */
     err = pthread_mutex_destroy(&core->buf_mutex);
     if (err) {
-        dolog("Could not destroy mutex\nReason: %s\n", strerror (err));
+        error_report("coreaudio: Could not destroy mutex: %s", strerror(err));
     }
 }
 
