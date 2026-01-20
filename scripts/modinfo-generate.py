@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import sys
 from typing import Optional
@@ -79,24 +80,28 @@ def print_post() -> None:
     print("    /* end of list */")
     print("}};")
 
-def main(args: list[str]) -> None:
-    if len(args) < 3 or args[0] != '--devices':
-        print('Expected: modinfo-generate.py --devices '
-              'config-device.mak [modinfo files]', file=sys.stderr)
-        exit(1)
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description='Generate C code for QEMU module info'
+    )
+    parser.add_argument('--devices', required=True,
+                        help='path to config-device.mak')
+    parser.add_argument('modinfo', nargs='+',
+                        help='modinfo files to process')
+    args = parser.parse_args()
 
     # get all devices enabled in kconfig, from *-config-device.mak
     enabled = set()
-    with open(args[1]) as file:
+    with open(args.devices) as file:
         for line in file.readlines():
             config = line.split('=')
             if config[1].rstrip() == 'y':
-                enabled.add(config[0][7:]) # remove CONFIG_
+                enabled.add(config[0][7:])  # remove CONFIG_
 
     deps = set()
     modules = set()
     print_pre()
-    for modinfo in args[2:]:
+    for modinfo in args.modinfo:
         with open(modinfo) as f:
             lines = f.readlines()
         print(f"    /* {modinfo} */")
@@ -116,4 +121,4 @@ def main(args: list[str]) -> None:
         exit(1)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
