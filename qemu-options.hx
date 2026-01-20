@@ -305,9 +305,9 @@ SRST
         with break-before-make sequences are considerable and also if guest
         workloads are read intensive. The size here specifies how many pages
         to break at a time and needs to be a valid block size which is
-        1GB/2MB/4KB, 32MB/16KB and 512MB/64KB for 4KB/16KB/64KB PAGE_SIZE
-        respectively. Be wary of specifying a higher size as it will have an
-        impact on the memory. By default, this feature is disabled
+        1GiB/2MiB/4KiB, 32MiB/16KiB and 512MiB/64KiB for 4KiB/16KiB/64KiB
+        PAGE_SIZE respectively. Be wary of specifying a higher size as it will
+        have an impact on the memory. By default, this feature is disabled
         (eager-split-size=0).
 
     ``notify-vmexit=run|internal-error|disable,notify-window=n``
@@ -564,7 +564,7 @@ SRST
 
     lat is latency value in nanoseconds. bw is bandwidth value, the
     possible value and units are NUM[M\|G\|T], mean that the bandwidth
-    value are NUM byte per second (or MB/s, GB/s or TB/s depending on
+    value are NUM byte per second (or MiB/s, GiB/s or TiB/s depending on
     used suffix). Note that if latency or bandwidth value is 0, means
     the corresponding latency or bandwidth information is not provided.
 
@@ -579,10 +579,10 @@ SRST
     For example, the following options describe 2 NUMA nodes. Node 0 has
     2 cpus and a ram, node 1 has only a ram. The processors in node 0
     access memory in node 0 with access-latency 5 nanoseconds,
-    access-bandwidth is 200 MB/s; The processors in NUMA node 0 access
+    access-bandwidth is 200 MiB/s; The processors in NUMA node 0 access
     memory in NUMA node 1 with access-latency 10 nanoseconds,
-    access-bandwidth is 100 MB/s. And for memory side cache information,
-    NUMA node 0 and 1 both have 1 level memory cache, size is 10KB,
+    access-bandwidth is 100 MiB/s. And for memory side cache information,
+    NUMA node 0 and 1 both have 1 level memory cache, size is 10KiB,
     policy is write-back, the cache Line size is 8 bytes:
 
     ::
@@ -739,8 +739,8 @@ SRST
     amount of memory. Note that maxmem must be aligned to the page size.
 
     For example, the following command-line sets the guest startup RAM
-    size to 1GB, creates 3 slots to hotplug additional memory and sets
-    the maximum memory the guest can reach to 4GB:
+    size to 1GiB, creates 3 slots to hotplug additional memory and sets
+    the maximum memory the guest can reach to 4GiB:
 
     .. parsed-literal::
 
@@ -1696,7 +1696,7 @@ SRST
         Specify bandwidth throttling limits in bytes per second, either
         for all request types or for reads or writes only. Small values
         can lead to timeouts or hangs inside the guest. A safe minimum
-        for disks is 2 MB/s.
+        for disks is 2 MiB/s.
 
     ``bps_max=bm,bps_rd_max=rm,bps_wr_max=wm``
         Specify bursts in bytes per second, either for all request types

@@ -25,7 +25,7 @@ _start:
 	li	a0, 0x03	# 8N1, DLAB=0
 	sb	a0, 3(t1)
 
-	# Run test for around 60s
+	# Run test for around 30s
 	call	rtc_get
 	li	t0, 30
 	slli	t0, t0, 30 # Approx. 10e9 ns

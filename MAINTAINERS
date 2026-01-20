@@ -143,6 +143,7 @@ S: Maintained
 F: configs/devices/i386-softmmu/default.mak
 F: configs/targets/i386-softmmu.mak
 F: configs/targets/x86_64-softmmu.mak
+F: docs/system/i386/
 F: docs/system/target-i386*
 F: target/i386/*.[ch]
 F: target/i386/Kconfig

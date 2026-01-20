@@ -247,7 +247,7 @@ struct target_freebsd11_stat {
     unsigned int:(8 / 2) * (16 - (int)sizeof(struct target_freebsd_timespec));
 } __packed;
 
-#if defined(TARGET_I386)
+#if defined(TARGET_I386) && !defined(TARGET_X86_64)
 #define TARGET_HAS_STAT_TIME_T_EXT       1
 #endif
 
