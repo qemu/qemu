@@ -18,12 +18,12 @@
 #include <poll.h>
 #include <sndio.h>
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
-#include "trace.h"
 #include "qom/object.h"
 
-#define AUDIO_CAP "sndio"
 #include "audio_int.h"
+#include "trace.h"
 
 #define TYPE_AUDIO_SNDIO "audio-sndio"
 OBJECT_DECLARE_SIMPLE_TYPE(AudioSndio, AUDIO_SNDIO)
@@ -348,7 +348,7 @@ static int sndio_init(SndioVoice *self,
     /* open the device in non-blocking mode */
     self->hdl = sio_open(dev_name, mode, 1);
     if (self->hdl == NULL) {
-        dolog("failed to open device\n");
+        error_report("sndio: failed to open device");
         return -1;
     }
 
@@ -382,7 +382,7 @@ static int sndio_init(SndioVoice *self,
         req.sig = 0;
         break;
     default:
-        dolog("unknown audio sample format\n");
+        error_report("sndio: unknown audio sample format");
         return -1;
     }
 
@@ -401,12 +401,12 @@ static int sndio_init(SndioVoice *self,
     req.appbufsz = req.rate * latency / 1000000;
 
     if (!sio_setpar(self->hdl, &req)) {
-        dolog("failed set audio params\n");
+        error_report("sndio: failed to set audio params");
         goto fail;
     }
 
     if (!sio_getpar(self->hdl, &self->par)) {
-        dolog("failed get audio params\n");
+        error_report("sndio: failed to get audio params");
         goto fail;
     }
 
@@ -419,7 +419,7 @@ static int sndio_init(SndioVoice *self,
     if (self->par.bits != req.bits || self->par.bps != req.bits / 8 ||
         self->par.sig != req.sig || (req.bits > 8 && self->par.le != req.le) ||
         self->par.rate != as->freq || nch != as->nchannels) {
-        dolog("unsupported audio params\n");
+        error_report("sndio: unsupported audio params");
         goto fail;
     }
 
@@ -431,7 +431,7 @@ static int sndio_init(SndioVoice *self,
 
     self->buf = g_malloc(self->buf_size);
     if (self->buf == NULL) {
-        dolog("failed to allocate audio buffer\n");
+        error_report("sndio: failed to allocate audio buffer");
         goto fail;
     }
 
@@ -439,13 +439,13 @@ static int sndio_init(SndioVoice *self,
 
     self->pfds = g_malloc_n(nfds, sizeof(struct pollfd));
     if (self->pfds == NULL) {
-        dolog("failed to allocate pollfd structures\n");
+        error_report("sndio: failed to allocate pollfd structures");
         goto fail;
     }
 
     self->pindexes = g_malloc_n(nfds, sizeof(struct pollindex));
     if (self->pindexes == NULL) {
-        dolog("failed to allocate pollindex structures\n");
+        error_report("sndio: failed to allocate pollindex structures");
         goto fail;
     }
 
