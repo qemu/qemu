@@ -60,6 +60,10 @@ libqos_srcs = files(
         'x86_64_pc-machine.c',
         'riscv-virt-machine.c',
         'loongarch-virt-machine.c',
+
+        # SMMU:
+        'qos-iommu-testdev.c',
+        'qos-smmuv3.c',
 )
 
 if have_virtfs

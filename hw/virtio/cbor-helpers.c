@@ -8,6 +8,7 @@
  * top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/cbor-helpers.h"
 
 bool qemu_cbor_map_add(cbor_item_t *map, cbor_item_t *key, cbor_item_t *value)

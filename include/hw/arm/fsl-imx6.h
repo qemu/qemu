@@ -46,7 +46,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6State, FSL_IMX6)
 #define FSL_IMX6_NUM_EPITS 2
 #define FSL_IMX6_NUM_I2CS 3
 #define FSL_IMX6_NUM_GPIOS 7
-#define FSL_IMX6_NUM_ESDHCS 4
+#define FSL_IMX6_NUM_USDHCS 4
 #define FSL_IMX6_NUM_ECSPIS 5
 #define FSL_IMX6_NUM_WDTS 2
 #define FSL_IMX6_NUM_USB_PHYS 2
@@ -67,7 +67,7 @@ struct FslIMX6State {
     IMXEPITState       epit[FSL_IMX6_NUM_EPITS];
     IMXI2CState        i2c[FSL_IMX6_NUM_I2CS];
     IMXGPIOState       gpio[FSL_IMX6_NUM_GPIOS];
-    SDHCIState         esdhc[FSL_IMX6_NUM_ESDHCS];
+    SDHCIState         usdhc[FSL_IMX6_NUM_USDHCS];
     IMXSPIState        spi[FSL_IMX6_NUM_ECSPIS];
     IMX2WdtState       wdt[FSL_IMX6_NUM_WDTS];
     IMXUSBPHYState     usbphy[FSL_IMX6_NUM_USB_PHYS];

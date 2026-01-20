@@ -77,6 +77,10 @@ struct uefi_vars_state {
     bool                              force_secure_boot;
     bool                              disable_custom_mode;
     bool                              use_pio;
+
+    /* request + reply capture */
+    char                              *pcapfile;
+    FILE                              *pcapfp;
 };
 
 struct uefi_vars_cert {
@@ -188,5 +192,11 @@ void uefi_vars_policies_clear(uefi_vars_state *uv);
 uefi_var_policy *uefi_vars_add_policy(uefi_vars_state *uv,
                                       variable_policy_entry *pe);
 uint32_t uefi_vars_mm_check_policy_proto(uefi_vars_state *uv);
+
+/* vars-service-pcap.c */
+void uefi_vars_pcap_init(uefi_vars_state *uv, Error **errp);
+void uefi_vars_pcap_reset(uefi_vars_state *uv);
+void uefi_vars_pcap_request(uefi_vars_state *uv, void *buffer, size_t size);
+void uefi_vars_pcap_reply(uefi_vars_state *uv, void *buffer, size_t size);
 
 #endif /* QEMU_UEFI_VAR_SERVICE_H */
