@@ -48,7 +48,7 @@ def generate(name: str, lines: list[str], enabled: set[str]) -> Optional[set[str
             elif kind == 'opts':
                 opts.append(data)
             elif kind == 'arch':
-                arch = data;
+                arch = data
             elif kind == 'kconfig':
                 # don't add a module which dependency is not enabled
                 # in kconfig
