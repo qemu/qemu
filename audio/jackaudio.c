@@ -26,11 +26,11 @@
 #include "qemu/module.h"
 #include "qemu/atomic.h"
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
 #include "qom/object.h"
-
-#define AUDIO_CAP "jack"
 #include "audio_int.h"
+#include "trace.h"
 
 #include <jack/jack.h>
 #include <jack/thread.h>
@@ -343,7 +343,7 @@ static void qjack_client_recover(QJackClient *c)
 
         /* if enabled then attempt to recover */
         if (c->enabled) {
-            dolog("attempting to reconnect to server\n");
+            trace_jack_client_recover();
             qjack_client_init(c);
         }
     }
@@ -399,10 +399,10 @@ static void qjack_client_connect_ports(QJackClient *c)
         }
 
         if (c->out) {
-            dolog("connect %s -> %s\n", p, ports[i]);
+            trace_jack_connect(p, ports[i]);
             jack_connect(c->client, p, ports[i]);
         } else {
-            dolog("connect %s -> %s\n", ports[i], p);
+            trace_jack_connect(ports[i], p);
             jack_connect(c->client, ports[i], p);
         }
     }
@@ -441,9 +441,9 @@ static int qjack_client_init(QJackClient *c)
       c->opt->server_name);
 
     if (c->client == NULL) {
-        dolog("jack_client_open failed: status = 0x%2.0x\n", status);
+        error_report("jack: jack_client_open failed: status = 0x%2.0x", status);
         if (status & JackServerFailed) {
-            dolog("unable to connect to JACK server\n");
+            error_report("jack: unable to connect to JACK server");
         }
         return -1;
     }
@@ -451,12 +451,11 @@ static int qjack_client_init(QJackClient *c)
     c->freq = jack_get_sample_rate(c->client);
 
     if (status & JackServerStarted) {
-        dolog("JACK server started\n");
+        trace_jack_server_started();
     }
 
     if (status & JackNameNotUnique) {
-        dolog("JACK unique name assigned %s\n",
-          jack_get_client_name(c->client));
+        trace_jack_unique_name(jack_get_client_name(c->client));
     }
 
     /* Allocate working buffer for process callback */
@@ -536,8 +535,7 @@ static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as)
     };
     audio_pcm_init_info(&hw->info, &os);
 
-    dolog("JACK output configured for %dHz (%d samples)\n",
-        jo->c.freq, jo->c.buffersize);
+    trace_jack_out_init(jo->c.freq, jo->c.buffersize);
 
     return 0;
 }
@@ -572,8 +570,7 @@ static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as)
     };
     audio_pcm_init_info(&hw->info, &is);
 
-    dolog("JACK input configured for %dHz (%d samples)\n",
-        ji->c.freq, ji->c.buffersize);
+    trace_jack_in_init(ji->c.freq, ji->c.buffersize);
 
     return 0;
 }
@@ -654,12 +651,12 @@ static int qjack_thread_creator(jack_native_thread_t *thread,
 
 static void qjack_error(const char *msg)
 {
-    dolog("E: %s\n", msg);
+    error_report("jack: %s", msg);
 }
 
 static void qjack_info(const char *msg)
 {
-    dolog("I: %s\n", msg);
+    trace_jack_info(msg);
 }
 
 static void audio_jack_class_init(ObjectClass *klass, const void *data)

@@ -28,6 +28,15 @@ dsound_clear_sample(void *p1, uint32_t blen1, uint32_t len1, void *p2, uint32_t 
 dsound_wave_format(uint16_t wFormatTag, uint16_t nChannels, uint32_t nSamplesPerSec, uint32_t nAvgBytesPerSec, uint16_t nBlockAlign, uint16_t wBitsPerSample, uint16_t cbSize) "wFormatTag=%u, nChannels=%u, nSamplesPerSec=%u, nAvgBytesPerSec=%u, nBlockAlign=%u, wBitsPerSample=%u, cbSize=%u"
 dsound_buffer_bytes(uint32_t caps_bytes, uint32_t desc_bytes) "caps_bytes=%u, desc_bytes=%u"
 
+# jackaudio.c
+jack_client_recover(void) "attempting to reconnect to server"
+jack_connect(const char *src, const char *dst) "connect %s -> %s"
+jack_server_started(void) "server started"
+jack_unique_name(const char *name) "unique name assigned %s"
+jack_out_init(uint32_t freq, int buffersize) "output configured for %uHz (%d samples)"
+jack_in_init(uint32_t freq, int buffersize) "input configured for %uHz (%d samples)"
+jack_info(const char *msg) "%s"
+
 # pwaudio.c
 pw_state_changed(int nodeid, const char *s) "node id: %d stream state: %s"
 pw_read(int32_t avail, uint32_t index, size_t len) "avail=%d index=%u len=%zu"
