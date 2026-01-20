@@ -36,7 +36,6 @@
 #include "ui/dbus-display.h"
 #include "ui/dbus-display1.h"
 
-#define AUDIO_CAP "dbus"
 #include "qemu/audio.h"
 #include "audio_int.h"
 #include "trace.h"
