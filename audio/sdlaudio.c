@@ -26,6 +26,7 @@
 #include <SDL.h>
 #include <SDL_thread.h>
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/audio.h"
 #include "qom/object.h"
@@ -38,7 +39,6 @@
 #endif
 #endif
 
-#define AUDIO_CAP "sdl"
 #include "audio_int.h"
 
 #define TYPE_AUDIO_SDL "audio-sdl"
@@ -67,17 +67,6 @@ typedef struct SDLVoiceIn {
     SDL_AudioDeviceID devid;
 } SDLVoiceIn;
 
-static void G_GNUC_PRINTF (1, 2) sdl_logerr (const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start (ap, fmt);
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-    va_end (ap);
-
-    AUD_log (AUDIO_CAP, "Reason: %s\n", SDL_GetError ());
-}
-
 static int aud_to_sdlfmt (AudioFormat fmt)
 {
     switch (fmt) {
@@ -102,10 +91,7 @@ static int aud_to_sdlfmt (AudioFormat fmt)
         return AUDIO_F32LSB;
 
     default:
-        dolog ("Internal logic error: Bad audio format %d\n", fmt);
-#ifdef DEBUG_AUDIO
-        abort ();
-#endif
+        error_report("sdl: internal logic error: bad audio format %d", fmt);
         return AUDIO_U8;
     }
 }
@@ -164,7 +150,7 @@ static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, int *endianness)
         break;
 
     default:
-        dolog ("Unrecognized SDL audio format %d\n", sdlfmt);
+        error_report("sdl: unrecognized audio format %d", sdlfmt);
         return -1;
     }
 
@@ -182,27 +168,27 @@ static SDL_AudioDeviceID sdl_open(SDL_AudioSpec *req, SDL_AudioSpec *obt,
     /* Make sure potential threads created by SDL don't hog signals.  */
     err = sigfillset (&new);
     if (err) {
-        dolog ("sdl_open: sigfillset failed: %s\n", strerror (errno));
+        error_report("sdl: sigfillset failed: %s", strerror (errno));
         return 0;
     }
     err = pthread_sigmask (SIG_BLOCK, &new, &old);
     if (err) {
-        dolog ("sdl_open: pthread_sigmask failed: %s\n", strerror (err));
+        error_report("sdl: pthread_sigmask failed: %s", strerror (err));
         return 0;
     }
 #endif
 
     devid = SDL_OpenAudioDevice(NULL, rec, req, obt, 0);
     if (!devid) {
-        sdl_logerr("SDL_OpenAudioDevice for %s failed\n",
-                   rec ? "recording" : "playback");
+        error_report("SDL_OpenAudioDevice for %s failed: %s",
+                   rec ? "recording" : "playback", SDL_GetError());
     }
 
 #ifndef _WIN32
     err = pthread_sigmask (SIG_SETMASK, &old, NULL);
     if (err) {
-        dolog ("sdl_open: pthread_sigmask (restore) failed: %s\n",
-               strerror (errno));
+        error_report("sdl: pthread_sigmask (restore) failed: %s",
+                     strerror (errno));
         /* We have failed to restore original signal mask, all bets are off,
            so exit the process */
         exit (EXIT_FAILURE);
@@ -232,8 +218,6 @@ static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
     HWVoiceOut *hw = &sdl->hw;
 
     if (!sdl->exit) {
-
-        /* dolog("callback_out: len=%d avail=%zu\n", len, hw->pending_emul); */
 
         while (hw->pending_emul && len) {
             size_t write_len, start;
@@ -282,8 +266,6 @@ static void sdl_callback_in(void *opaque, Uint8 *buf, int len)
     if (sdl->exit) {
         return;
     }
-
-    /* dolog("callback_in: len=%d pending=%zu\n", len, hw->pending_emul); */
 
     while (hw->pending_emul < hw->size_emul && len) {
         size_t read_len = MIN(len, MIN(hw->size_emul - hw->pos_emul,
