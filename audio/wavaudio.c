@@ -24,10 +24,10 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
 #include "qom/object.h"
 
-#define AUDIO_CAP "wav"
 #include "audio_int.h"
 
 #define TYPE_AUDIO_WAV "audio-wav"
@@ -51,8 +51,8 @@ static size_t wav_write_out(HWVoiceOut *hw, void *buf, size_t len)
     assert(bytes % hw->info.bytes_per_frame == 0);
 
     if (bytes && fwrite(buf, bytes, 1, wav->f) != 1) {
-        dolog("wav_write_out: fwrite of %" PRId64 " bytes failed\nReason: %s\n",
-              bytes, strerror(errno));
+        error_report("wav: fwrite of %" PRId64 " bytes failed: %s",
+                     bytes, strerror(errno));
     }
 
     wav->total_samples += bytes / hw->info.bytes_per_frame;
@@ -98,11 +98,11 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as)
 
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
-        dolog ("WAVE files can not handle 32bit formats\n");
+        error_report("wav: WAVE files cannot handle 32-bit formats");
         return -1;
 
     case AUDIO_FORMAT_F32:
-        dolog("WAVE files can not handle float formats\n");
+        error_report("wav: WAVE files cannot handle float formats");
         return -1;
 
     default:
@@ -122,14 +122,13 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as)
 
     wav->f = fopen(wav_path, "wb");
     if (!wav->f) {
-        dolog ("Failed to open wave file `%s'\nReason: %s\n",
-               wav_path, strerror(errno));
+        error_report("wav: failed to open wave file '%s': %s",
+                     wav_path, strerror(errno));
         return -1;
     }
 
     if (fwrite (hdr, sizeof (hdr), 1, wav->f) != 1) {
-        dolog ("wav_init_out: failed to write header\nReason: %s\n",
-               strerror(errno));
+        error_report("wav: failed to write header: %s", strerror(errno));
         return -1;
     }
 
@@ -153,30 +152,25 @@ static void wav_fini_out (HWVoiceOut *hw)
     le_store (dlen, datalen, 4);
 
     if (fseek (wav->f, 4, SEEK_SET)) {
-        dolog ("wav_fini_out: fseek to rlen failed\nReason: %s\n",
-               strerror(errno));
+        error_report("wav: fseek to rlen failed: %s", strerror(errno));
         goto doclose;
     }
     if (fwrite (rlen, 4, 1, wav->f) != 1) {
-        dolog ("wav_fini_out: failed to write rlen\nReason: %s\n",
-               strerror (errno));
+        error_report("wav: failed to write rlen: %s", strerror(errno));
         goto doclose;
     }
     if (fseek (wav->f, 32, SEEK_CUR)) {
-        dolog ("wav_fini_out: fseek to dlen failed\nReason: %s\n",
-               strerror (errno));
+        error_report("wav: fseek to dlen failed: %s", strerror(errno));
         goto doclose;
     }
     if (fwrite (dlen, 4, 1, wav->f) != 1) {
-        dolog ("wav_fini_out: failed to write dlen\nReaons: %s\n",
-               strerror (errno));
+        error_report("wav: failed to write dlen: %s", strerror(errno));
         goto doclose;
     }
 
  doclose:
     if (fclose (wav->f))  {
-        dolog ("wav_fini_out: fclose %p failed\nReason: %s\n",
-               wav->f, strerror (errno));
+        error_report("wav: fclose failed: %s", strerror(errno));
     }
     wav->f = NULL;
 }
