@@ -28,8 +28,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/audio.h"
-
-#define AUDIO_CAP "dsound"
+#include "qemu/error-report.h"
 #include "audio_int.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -40,6 +39,7 @@
 #include <objbase.h>
 #include <dsound.h>
 
+#include "trace.h"
 #include "audio_win_int.h"
 
 #define TYPE_AUDIO_DSOUND "audio-dsound"
@@ -54,9 +54,6 @@ struct AudioDsound {
     LPDIRECTSOUNDCAPTURE dsound_capture;
     struct audsettings settings;
 };
-
-
-/* #define DEBUG_DSOUND */
 
 typedef struct {
     HWVoiceOut hw;
@@ -214,56 +211,37 @@ static void dsound_log_hresult(HRESULT hr)
     const char *str = dserror(hr);
 
     if (str) {
-        AUD_log (AUDIO_CAP, "Reason: %s\n", str);
+        error_printf(" Reason: %s", str);
     } else {
-        AUD_log (AUDIO_CAP, "Reason: Unknown (HRESULT: 0x%lx)\n", hr);
+        error_printf(" Reason: Unknown (HRESULT: 0x%lx)", hr);
     }
 }
 
-static void G_GNUC_PRINTF (2, 3) dsound_logerr (
-    HRESULT hr,
-    const char *fmt,
-    ...
-    )
+static void G_GNUC_PRINTF(2, 3) dsound_logerr(HRESULT hr, const char *fmt, ...)
 {
     va_list ap;
 
-    va_start (ap, fmt);
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-    va_end (ap);
-
-    dsound_log_hresult (hr);
+    error_printf("dsound: ");
+    va_start(ap, fmt);
+    error_vprintf(fmt, ap);
+    va_end(ap);
+    dsound_log_hresult(hr);
+    error_printf("\n");
 }
 
-static void G_GNUC_PRINTF (3, 4) dsound_logerr2 (
-    HRESULT hr,
-    const char *typ,
-    const char *fmt,
-    ...
-    )
+static void G_GNUC_PRINTF(3, 4) dsound_logerr2(HRESULT hr, const char *typ,
+                                               const char *fmt, ...)
 {
     va_list ap;
 
-    AUD_log (AUDIO_CAP, "Could not initialize %s\n", typ);
-    va_start (ap, fmt);
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-    va_end (ap);
-
-    dsound_log_hresult (hr);
+    error_printf("dsound: Could not initialize %s: ", typ);
+    va_start(ap, fmt);
+    error_vprintf(fmt, ap);
+    va_end(ap);
+    dsound_log_hresult(hr);
+    error_printf("\n");
 }
 
-#ifdef DEBUG_DSOUND
-static void print_wave_format (WAVEFORMATEX *wfx)
-{
-    dolog ("tag             = %d\n", wfx->wFormatTag);
-    dolog ("nChannels       = %d\n", wfx->nChannels);
-    dolog ("nSamplesPerSec  = %ld\n", wfx->nSamplesPerSec);
-    dolog ("nAvgBytesPerSec = %ld\n", wfx->nAvgBytesPerSec);
-    dolog ("nBlockAlign     = %d\n", wfx->nBlockAlign);
-    dolog ("wBitsPerSample  = %d\n", wfx->wBitsPerSample);
-    dolog ("cbSize          = %d\n", wfx->cbSize);
-}
-#endif
 
 static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, AudioDsound *s)
 {
@@ -272,7 +250,7 @@ static int dsound_restore_out (LPDIRECTSOUNDBUFFER dsb, AudioDsound *s)
     hr = IDirectSoundBuffer_Restore (dsb);
 
     if (hr != DS_OK) {
-        dsound_logerr (hr, "Could not restore playback buffer\n");
+        dsound_logerr(hr, "Could not restore playback buffer");
         return -1;
     }
     return 0;
@@ -290,7 +268,7 @@ static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp,
 
     hr = IDirectSoundBuffer_GetStatus (dsb, statusp);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not get playback buffer status\n");
+        dsound_logerr(hr, "Could not get playback buffer status");
         return -1;
     }
 
@@ -309,7 +287,7 @@ static int dsound_get_status_in (LPDIRECTSOUNDCAPTUREBUFFER dscb,
 
     hr = IDirectSoundCaptureBuffer_GetStatus (dscb, statusp);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not get capture buffer status\n");
+        dsound_logerr(hr, "Could not get capture buffer status");
         return -1;
     }
 
@@ -340,11 +318,7 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
     len1 = blen1 / hw->info.bytes_per_frame;
     len2 = blen2 / hw->info.bytes_per_frame;
 
-#ifdef DEBUG_DSOUND
-    dolog ("clear %p,%ld,%ld %p,%ld,%ld\n",
-           p1, blen1, len1,
-           p2, blen2, len2);
-#endif
+    trace_dsound_clear_sample(p1, blen1, len1, p2, blen2, len2);
 
     if (p1 && len1) {
         audio_pcm_info_clear_buf (&hw->info, p1, len1);
@@ -366,40 +340,40 @@ static void dsound_enable_out(HWVoiceOut *hw, bool enable)
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
 
     if (!dsb) {
-        dolog ("Attempt to control voice without a buffer\n");
+        error_report("dsound: Attempt to control voice without a buffer");
         return;
     }
 
     if (enable) {
-        if (dsound_get_status_out (dsb, &status, s)) {
+        if (dsound_get_status_out(dsb, &status, s)) {
             return;
         }
 
         if (status & DSBSTATUS_PLAYING) {
-            dolog ("warning: Voice is already playing\n");
+            warn_report("dsound: Voice is already playing");
             return;
         }
 
-        dsound_clear_sample (hw, dsb, s);
+        dsound_clear_sample(hw, dsb, s);
 
-        hr = IDirectSoundBuffer_Play (dsb, 0, 0, DSBPLAY_LOOPING);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not start playing buffer\n");
+        hr = IDirectSoundBuffer_Play(dsb, 0, 0, DSBPLAY_LOOPING);
+        if (FAILED(hr)) {
+            dsound_logerr(hr, "Could not start playing buffer");
             return;
         }
     } else {
-        if (dsound_get_status_out (dsb, &status, s)) {
+        if (dsound_get_status_out(dsb, &status, s)) {
             return;
         }
 
         if (status & DSBSTATUS_PLAYING) {
-            hr = IDirectSoundBuffer_Stop (dsb);
-            if (FAILED (hr)) {
-                dsound_logerr (hr, "Could not stop playing buffer\n");
+            hr = IDirectSoundBuffer_Stop(dsb);
+            if (FAILED(hr)) {
+                dsound_logerr(hr, "Could not stop playing buffer");
                 return;
             }
         } else {
-            dolog ("warning: Voice is not playing\n");
+            warn_report("dsound: Voice is not playing");
         }
     }
 }
@@ -414,7 +388,7 @@ static size_t dsound_buffer_get_free(HWVoiceOut *hw)
     hr = IDirectSoundBuffer_GetCurrentPosition(
         dsb, &ppos, ds->first_time ? &wpos : NULL);
     if (FAILED(hr)) {
-        dsound_logerr(hr, "Could not get playback buffer position\n");
+        dsound_logerr(hr, "Could not get playback buffer position");
         return 0;
     }
 
@@ -441,7 +415,7 @@ static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
     err = dsound_lock_out(dsb, &hw->info, hw->pos_emul, req_size, &ret, NULL,
                           &act_size, NULL, false, AUDIO_DSOUND(hw->s));
     if (err) {
-        dolog("Failed to lock buffer\n");
+        error_report("dsound: Failed to lock buffer");
         *size = 0;
         return NULL;
     }
@@ -457,7 +431,7 @@ static size_t dsound_put_buffer_out(HWVoiceOut *hw, void *buf, size_t len)
     int err = dsound_unlock_out(dsb, buf, NULL, len, 0);
 
     if (err) {
-        dolog("Failed to unlock buffer!!\n");
+        error_report("dsound: Failed to unlock buffer");
         return 0;
     }
     hw->pos_emul = (hw->pos_emul + len) % hw->size_emul;
@@ -473,40 +447,40 @@ static void dsound_enable_in(HWVoiceIn *hw, bool enable)
     LPDIRECTSOUNDCAPTUREBUFFER dscb = ds->dsound_capture_buffer;
 
     if (!dscb) {
-        dolog ("Attempt to control capture voice without a buffer\n");
+        error_report("dsound: Attempt to control capture voice without a buffer");
         return;
     }
 
     if (enable) {
-        if (dsound_get_status_in (dscb, &status)) {
+        if (dsound_get_status_in(dscb, &status)) {
             return;
         }
 
         if (status & DSCBSTATUS_CAPTURING) {
-            dolog ("warning: Voice is already capturing\n");
+            warn_report("dsound: Voice is already capturing");
             return;
         }
 
         /* clear ?? */
 
-        hr = IDirectSoundCaptureBuffer_Start (dscb, DSCBSTART_LOOPING);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not start capturing\n");
+        hr = IDirectSoundCaptureBuffer_Start(dscb, DSCBSTART_LOOPING);
+        if (FAILED(hr)) {
+            dsound_logerr(hr, "Could not start capturing");
             return;
         }
     } else {
-        if (dsound_get_status_in (dscb, &status)) {
+        if (dsound_get_status_in(dscb, &status)) {
             return;
         }
 
         if (status & DSCBSTATUS_CAPTURING) {
-            hr = IDirectSoundCaptureBuffer_Stop (dscb);
-            if (FAILED (hr)) {
-                dsound_logerr (hr, "Could not stop capturing\n");
+            hr = IDirectSoundCaptureBuffer_Stop(dscb);
+            if (FAILED(hr)) {
+                dsound_logerr(hr, "Could not stop capturing");
                 return;
             }
         } else {
-            dolog ("warning: Voice is not capturing\n");
+            warn_report("dsound: Voice is not capturing");
         }
     }
 }
@@ -523,7 +497,7 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
 
     hr = IDirectSoundCaptureBuffer_GetCurrentPosition(dscb, NULL, &rpos);
     if (FAILED(hr)) {
-        dsound_logerr(hr, "Could not get capture buffer position\n");
+        dsound_logerr(hr, "Could not get capture buffer position");
         *size = 0;
         return NULL;
     }
@@ -544,7 +518,7 @@ static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
     err = dsound_lock_in(dscb, &hw->info, hw->pos_emul, req_size, &ret, NULL,
                          &act_size, NULL, false, AUDIO_DSOUND(hw->s));
     if (err) {
-        dolog("Failed to lock buffer\n");
+        error_report("dsound: Failed to lock buffer");
         *size = 0;
         return NULL;
     }
@@ -560,7 +534,7 @@ static void dsound_put_buffer_in(HWVoiceIn *hw, void *buf, size_t len)
     int err = dsound_unlock_in(dscb, buf, NULL, len, 0);
 
     if (err) {
-        dolog("Failed to unlock buffer!!\n");
+        error_report("dsound: Failed to unlock buffer");
         return;
     }
     hw->pos_emul = (hw->pos_emul + len) % hw->size_emul;
@@ -577,7 +551,7 @@ static void audio_dsound_finalize(Object *obj)
 
     hr = IDirectSound_Release (s->dsound);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not release DirectSound\n");
+        dsound_logerr(hr, "Could not release DirectSound");
     }
     s->dsound = NULL;
 
@@ -587,7 +561,7 @@ static void audio_dsound_finalize(Object *obj)
 
     hr = IDirectSoundCapture_Release (s->dsound_capture);
     if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not release DirectSoundCapture\n");
+        dsound_logerr(hr, "Could not release DirectSoundCapture");
     }
     s->dsound_capture = NULL;
 }

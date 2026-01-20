@@ -53,9 +53,9 @@ static int glue (dsound_unlock_, TYPE) (
 {
     HRESULT hr;
 
-    hr = glue (IFACE, _Unlock) (buf, p1, blen1, p2, blen2);
-    if (FAILED (hr)) {
-        dsound_logerr (hr, "Could not unlock " NAME "\n");
+    hr = glue(IFACE, _Unlock)(buf, p1, blen1, p2, blen2);
+    if (FAILED(hr)) {
+        dsound_logerr(hr, "Could not unlock " NAME);
         return -1;
     }
 
@@ -85,35 +85,35 @@ static int glue (dsound_lock_, TYPE) (
 #endif
     hr = glue(IFACE, _Lock)(buf, pos, len, p1p, blen1p, p2p, blen2p, flag);
 
-    if (FAILED (hr)) {
+    if (FAILED(hr)) {
 #ifndef DSBTYPE_IN
         if (hr == DSERR_BUFFERLOST) {
-            if (glue (dsound_restore_, TYPE) (buf, s)) {
-                dsound_logerr (hr, "Could not lock " NAME "\n");
+            if (glue(dsound_restore_, TYPE)(buf, s)) {
+                dsound_logerr(hr, "Could not lock " NAME);
             }
             goto fail;
         }
 #endif
-        dsound_logerr (hr, "Could not lock " NAME "\n");
+        dsound_logerr(hr, "Could not lock " NAME);
         goto fail;
     }
 
     if ((p1p && *p1p && (*blen1p % info->bytes_per_frame)) ||
         (p2p && *p2p && (*blen2p % info->bytes_per_frame))) {
-        dolog("DirectSound returned misaligned buffer %ld %ld\n",
-              *blen1p, *blen2p);
+        error_report("dsound: returned misaligned buffer %ld %ld",
+                     *blen1p, *blen2p);
         glue(dsound_unlock_, TYPE)(buf, *p1p, p2p ? *p2p : NULL, *blen1p,
                                    blen2p ? *blen2p : 0);
         goto fail;
     }
 
     if (p1p && !*p1p && *blen1p) {
-        dolog("warning: !p1 && blen1=%ld\n", *blen1p);
+        warn_report("dsound: !p1 && blen1=%ld", *blen1p);
         *blen1p = 0;
     }
 
     if (p2p && !*p2p && *blen2p) {
-        dolog("warning: !p2 && blen2=%ld\n", *blen2p);
+        warn_report("dsound: !p2 && blen2=%ld", *blen2p);
         *blen2p = 0;
     }
 
@@ -143,14 +143,14 @@ static void dsound_fini_out (HWVoiceOut *hw)
 #endif
 
     if (ds->FIELD) {
-        hr = glue (IFACE, _Stop) (ds->FIELD);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not stop " NAME "\n");
+        hr = glue(IFACE, _Stop)(ds->FIELD);
+        if (FAILED(hr)) {
+            dsound_logerr(hr, "Could not stop " NAME);
         }
 
-        hr = glue (IFACE, _Release) (ds->FIELD);
-        if (FAILED (hr)) {
-            dsound_logerr (hr, "Could not release " NAME "\n");
+        hr = glue(IFACE, _Release)(ds->FIELD);
+        if (FAILED(hr)) {
+            dsound_logerr(hr, "Could not release " NAME);
         }
         ds->FIELD = NULL;
     }
@@ -182,7 +182,8 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as)
 #endif
 
     if (!s->FIELD2) {
-        dolog ("Attempt to initialize voice without " NAME2 " object\n");
+        error_report("dsound: Attempt to initialize voice without "
+                     NAME2 " object");
         return -1;
     }
 
@@ -212,28 +213,28 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as)
         );
 #endif
 
-    if (FAILED (hr)) {
-        dsound_logerr2 (hr, typ, "Could not create " NAME "\n");
+    if (FAILED(hr)) {
+        dsound_logerr2(hr, typ, "Could not create " NAME);
         return -1;
     }
 
-    hr = glue (IFACE, _GetFormat) (ds->FIELD, &wfx, sizeof (wfx), NULL);
-    if (FAILED (hr)) {
-        dsound_logerr2 (hr, typ, "Could not get " NAME " format\n");
+    hr = glue(IFACE, _GetFormat)(ds->FIELD, &wfx, sizeof(wfx), NULL);
+    if (FAILED(hr)) {
+        dsound_logerr2(hr, typ, "Could not get " NAME " format");
         goto fail0;
     }
 
-#ifdef DEBUG_DSOUND
-    dolog (NAME "\n");
-    print_wave_format (&wfx);
-#endif
+    trace_dsound_wave_format(
+        wfx.wFormatTag, wfx.nChannels,
+        wfx.nSamplesPerSec, wfx.nAvgBytesPerSec,
+        wfx.nBlockAlign, wfx.wBitsPerSample, wfx.cbSize);
 
     memset (&bc, 0, sizeof (bc));
     bc.dwSize = sizeof (bc);
 
-    hr = glue (IFACE, _GetCaps) (ds->FIELD, &bc);
-    if (FAILED (hr)) {
-        dsound_logerr2 (hr, typ, "Could not get " NAME " format\n");
+    hr = glue(IFACE, _GetCaps)(ds->FIELD, &bc);
+    if (FAILED(hr)) {
+        dsound_logerr2(hr, typ, "Could not get " NAME " caps");
         goto fail0;
     }
 
@@ -247,18 +248,13 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as)
     audio_pcm_init_info (&hw->info, &obt_as);
 
     if (bc.dwBufferBytes % hw->info.bytes_per_frame) {
-        dolog (
-            "GetCaps returned misaligned buffer size %ld, alignment %d\n",
-            bc.dwBufferBytes, hw->info.bytes_per_frame
-            );
+        warn_report("dsound: GetCaps returned misaligned buffer size %ld, "
+                    "alignment %d", bc.dwBufferBytes, hw->info.bytes_per_frame);
     }
     hw->size_emul = bc.dwBufferBytes;
     hw->samples = bc.dwBufferBytes / hw->info.bytes_per_frame;
 
-#ifdef DEBUG_DSOUND
-    dolog ("caps %ld, desc %ld\n",
-           bc.dwBufferBytes, bd.dwBufferBytes);
-#endif
+    trace_dsound_buffer_bytes(bc.dwBufferBytes, bd.dwBufferBytes);
     return 0;
 
  fail0:

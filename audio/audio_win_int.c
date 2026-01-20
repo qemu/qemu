@@ -2,12 +2,12 @@
 
 #include "qemu/osdep.h"
 
-#define AUDIO_CAP "win-int"
 #include <windows.h>
 #include <mmreg.h>
 #include <mmsystem.h>
 
 #include "qemu/audio.h"
+#include "qemu/error-report.h"
 #include "audio_int.h"
 #include "audio_win_int.h"
 
@@ -53,7 +53,7 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
         break;
 
     default:
-        dolog("Internal logic error: Bad audio format %d\n", as->fmt);
+        error_report("dsound: Internal logic error: Bad audio format %d", as->fmt);
         return -1;
     }
 
@@ -64,7 +64,7 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
                                   struct audsettings *as)
 {
     if (!wfx->nSamplesPerSec) {
-        dolog ("Invalid wave format, frequency is zero\n");
+        error_report("dsound: Invalid wave format, frequency is zero");
         return -1;
     }
     as->freq = wfx->nSamplesPerSec;
@@ -79,10 +79,9 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
         break;
 
     default:
-        dolog (
-            "Invalid wave format, number of channels is not 1 or 2, but %d\n",
-            wfx->nChannels
-            );
+        error_report("dsound: Invalid wave format, "
+                     "number of channels is not 1 or 2, but %d",
+                     wfx->nChannels);
         return -1;
     }
 
@@ -101,9 +100,9 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
             break;
 
         default:
-            dolog("Invalid PCM wave format, bits per sample is not "
-                  "8, 16 or 32, but %d\n",
-                  wfx->wBitsPerSample);
+            error_report("dsound: Invalid PCM wave format, bits per sample is not "
+                         "8, 16 or 32, but %d",
+                         wfx->wBitsPerSample);
             return -1;
         }
     } else if (wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
@@ -113,15 +112,15 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
             break;
 
         default:
-            dolog("Invalid IEEE_FLOAT wave format, bits per sample is not "
-                  "32, but %d\n",
-                  wfx->wBitsPerSample);
+            error_report("dsound: Invalid IEEE_FLOAT wave format, "
+                         "bits per sample is not 32, but %d",
+                         wfx->wBitsPerSample);
             return -1;
         }
     } else {
-        dolog("Invalid wave format, tag is not PCM and not IEEE_FLOAT, "
-              "but %d\n",
-              wfx->wFormatTag);
+        error_report("dsound: Invalid wave format, "
+                     "tag is not PCM and not IEEE_FLOAT, but %d",
+                     wfx->wFormatTag);
         return -1;
     }
 
