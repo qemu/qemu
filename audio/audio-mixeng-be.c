@@ -62,23 +62,28 @@ int audio_bug (const char *funcname, int cond)
     return cond;
 }
 
-static inline int audio_bits_to_index (int bits)
+/*
+ * Convert audio format to mixeng_clip index. Used by audio_pcm_sw_init_ and
+ * audio_mixeng_backend_add_capture()
+ */
+static int audio_format_to_index(AudioFormat af)
 {
-    switch (bits) {
-    case 8:
+    switch (af) {
+    case AUDIO_FORMAT_U8:
+    case AUDIO_FORMAT_S8:
         return 0;
-
-    case 16:
+    case AUDIO_FORMAT_U16:
+    case AUDIO_FORMAT_S16:
         return 1;
-
-    case 32:
+    case AUDIO_FORMAT_U32:
+    case AUDIO_FORMAT_S32:
         return 2;
-
-    default:
-        audio_bug ("bits_to_index", 1);
-        AUD_log (NULL, "invalid bits %d\n", bits);
-        return 0;
+    case AUDIO_FORMAT_F32:
+    case AUDIO_FORMAT__MAX:
+        break;
     }
+
+    g_assert_not_reached();
 }
 
 void AUD_vlog (const char *cap, const char *fmt, va_list ap)
@@ -172,141 +177,68 @@ static int audio_validate_settings (const struct audsettings *as)
 
 static int audio_pcm_info_eq (struct audio_pcm_info *info, const struct audsettings *as)
 {
-    int bits = 8;
-    bool is_signed = false, is_float = false;
-
-    switch (as->fmt) {
-    case AUDIO_FORMAT_S8:
-        is_signed = true;
-        /* fall through */
-    case AUDIO_FORMAT_U8:
-        break;
-
-    case AUDIO_FORMAT_S16:
-        is_signed = true;
-        /* fall through */
-    case AUDIO_FORMAT_U16:
-        bits = 16;
-        break;
-
-    case AUDIO_FORMAT_F32:
-        is_float = true;
-        /* fall through */
-    case AUDIO_FORMAT_S32:
-        is_signed = true;
-        /* fall through */
-    case AUDIO_FORMAT_U32:
-        bits = 32;
-        break;
-
-    default:
-        abort();
-    }
-    return info->freq == as->freq
+    return info->af == as->fmt
+        && info->freq == as->freq
         && info->nchannels == as->nchannels
-        && info->is_signed == is_signed
-        && info->is_float == is_float
-        && info->bits == bits
         && info->swap_endianness == (as->endianness != HOST_BIG_ENDIAN);
 }
 
 void audio_pcm_init_info (struct audio_pcm_info *info, const struct audsettings *as)
 {
-    int bits = 8, mul;
-    bool is_signed = false, is_float = false;
-
-    switch (as->fmt) {
-    case AUDIO_FORMAT_S8:
-        is_signed = true;
-        /* fall through */
-    case AUDIO_FORMAT_U8:
-        mul = 1;
-        break;
-
-    case AUDIO_FORMAT_S16:
-        is_signed = true;
-        /* fall through */
-    case AUDIO_FORMAT_U16:
-        bits = 16;
-        mul = 2;
-        break;
-
-    case AUDIO_FORMAT_F32:
-        is_float = true;
-        /* fall through */
-    case AUDIO_FORMAT_S32:
-        is_signed = true;
-        /* fall through */
-    case AUDIO_FORMAT_U32:
-        bits = 32;
-        mul = 4;
-        break;
-
-    default:
-        abort();
-    }
-
+    info->af = as->fmt;
     info->freq = as->freq;
-    info->bits = bits;
-    info->is_signed = is_signed;
-    info->is_float = is_float;
     info->nchannels = as->nchannels;
-    info->bytes_per_frame = as->nchannels * mul;
+    info->bytes_per_frame = as->nchannels * audio_format_bits(as->fmt) / 8;
     info->bytes_per_second = info->freq * info->bytes_per_frame;
     info->swap_endianness = (as->endianness != HOST_BIG_ENDIAN);
 }
 
-void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
+void audio_pcm_info_clear_buf(struct audio_pcm_info *info, void *buf, int len)
 {
     if (!len) {
         return;
     }
 
-    if (info->is_signed || info->is_float) {
-        memset(buf, 0x00, len * info->bytes_per_frame);
-    } else {
-        switch (info->bits) {
-        case 8:
-            memset(buf, 0x80, len * info->bytes_per_frame);
-            break;
+    switch (info->af) {
+    case AUDIO_FORMAT_U8:
+        memset(buf, 0x80, len * info->bytes_per_frame);
+        break;
+    case AUDIO_FORMAT_U16: {
+        int i;
+        uint16_t *p = buf;
+        short s = INT16_MAX;
 
-        case 16:
-            {
-                int i;
-                uint16_t *p = buf;
-                short s = INT16_MAX;
-
-                if (info->swap_endianness) {
-                    s = bswap16 (s);
-                }
-
-                for (i = 0; i < len * info->nchannels; i++) {
-                    p[i] = s;
-                }
-            }
-            break;
-
-        case 32:
-            {
-                int i;
-                uint32_t *p = buf;
-                int32_t s = INT32_MAX;
-
-                if (info->swap_endianness) {
-                    s = bswap32 (s);
-                }
-
-                for (i = 0; i < len * info->nchannels; i++) {
-                    p[i] = s;
-                }
-            }
-            break;
-
-        default:
-            AUD_log (NULL, "audio_pcm_info_clear_buf: invalid bits %d\n",
-                     info->bits);
-            break;
+        if (info->swap_endianness) {
+            s = bswap16(s);
         }
+
+        for (i = 0; i < len * info->nchannels; i++) {
+            p[i] = s;
+        }
+        break;
+    }
+    case AUDIO_FORMAT_U32: {
+        int i;
+        uint32_t *p = buf;
+        int32_t s = INT32_MAX;
+
+        if (info->swap_endianness) {
+            s = bswap32(s);
+        }
+
+        for (i = 0; i < len * info->nchannels; i++) {
+            p[i] = s;
+        }
+        break;
+    }
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_F32:
+        memset(buf, 0x00, len * info->bytes_per_frame);
+        break;
+    case AUDIO_FORMAT__MAX:
+        g_assert_not_reached();
     }
 }
 
@@ -719,8 +651,8 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
 #ifdef DEBUG_AUDIO
 static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 {
-    dolog("%s: bits %d, sign %d, float %d, freq %d, nchan %d\n",
-          cap, info->bits, info->is_signed, info->is_float, info->freq,
+    dolog("%s: %s, freq %d, nchan %d\n",
+          cap, AudioFormat_str(info->af), info->freq,
           info->nchannels);
 }
 #endif
@@ -1759,15 +1691,15 @@ static CaptureVoiceOut *audio_mixeng_backend_add_capture(
 
         cap->buf = g_malloc0_n(hw->mix_buf.size, hw->info.bytes_per_frame);
 
-        if (hw->info.is_float) {
+        if (audio_format_is_float(hw->info.af)) {
             hw->clip = mixeng_clip_float[hw->info.nchannels == 2]
                 [hw->info.swap_endianness];
         } else {
             hw->clip = mixeng_clip
                 [hw->info.nchannels == 2]
-                [hw->info.is_signed]
+                [audio_format_is_signed(hw->info.af)]
                 [hw->info.swap_endianness]
-                [audio_bits_to_index(hw->info.bits)];
+                [audio_format_to_index(hw->info.af)];
         }
 
         QLIST_INSERT_HEAD (&s->cap_head, cap, entries);
@@ -1869,29 +1801,6 @@ audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)
     };
 }
 
-int audioformat_bytes_per_sample(AudioFormat fmt)
-{
-    switch (fmt) {
-    case AUDIO_FORMAT_U8:
-    case AUDIO_FORMAT_S8:
-        return 1;
-
-    case AUDIO_FORMAT_U16:
-    case AUDIO_FORMAT_S16:
-        return 2;
-
-    case AUDIO_FORMAT_U32:
-    case AUDIO_FORMAT_S32:
-    case AUDIO_FORMAT_F32:
-        return 4;
-
-    case AUDIO_FORMAT__MAX:
-        ;
-    }
-    abort();
-}
-
-
 /* frames = freq * usec / 1e6 */
 int audio_buffer_frames(AudiodevPerDirectionOptions *pdo,
                         audsettings *as, int def_usecs)
@@ -1914,8 +1823,7 @@ int audio_buffer_samples(AudiodevPerDirectionOptions *pdo,
 int audio_buffer_bytes(AudiodevPerDirectionOptions *pdo,
                        audsettings *as, int def_usecs)
 {
-    return audio_buffer_samples(pdo, as, def_usecs) *
-        audioformat_bytes_per_sample(as->fmt);
+    return audio_buffer_samples(pdo, as, def_usecs) * audio_format_bits(as->fmt) / 8;
 }
 
 void audio_rate_start(RateCtl *rate)

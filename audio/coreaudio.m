@@ -359,7 +359,7 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     AudioValueRange frameRange;
 
     AudioStreamBasicDescription streamBasicDescription = {
-        .mBitsPerChannel = core->hw.info.bits,
+        .mBitsPerChannel = audio_format_bits(core->hw.info.af),
         .mBytesPerFrame = core->hw.info.bytes_per_frame,
         .mBytesPerPacket = core->hw.info.bytes_per_frame,
         .mChannelsPerFrame = core->hw.info.nchannels,

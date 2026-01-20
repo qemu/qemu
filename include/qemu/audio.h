@@ -185,6 +185,55 @@ bool audio_be_set_dbus_server(AudioBackend *be,
 
 const char *audio_application_name(void);
 
+static inline int audio_format_bits(AudioFormat fmt)
+{
+    switch (fmt) {
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_U8:
+        return 8;
+
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_U16:
+        return 16;
+
+    case AUDIO_FORMAT_F32:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_U32:
+        return 32;
+
+    case AUDIO_FORMAT__MAX:
+        break;
+    }
+
+    g_assert_not_reached();
+}
+
+static inline bool audio_format_is_float(AudioFormat fmt)
+{
+    return fmt == AUDIO_FORMAT_F32;
+}
+
+static inline bool audio_format_is_signed(AudioFormat fmt)
+{
+    switch (fmt) {
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_F32:
+        return true;
+
+    case AUDIO_FORMAT_U8:
+    case AUDIO_FORMAT_U16:
+    case AUDIO_FORMAT_U32:
+        return false;
+
+    case AUDIO_FORMAT__MAX:
+        break;
+    }
+
+    g_assert_not_reached();
+}
+
 #define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
     DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
 
