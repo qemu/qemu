@@ -313,7 +313,7 @@ static void open_voice(AC97LinkState *s, int index, int freq)
     as.freq = freq;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = 0;
+    as.big_endian = false;
 
     if (freq > 0) {
         s->invalid_freq[index] = 0;

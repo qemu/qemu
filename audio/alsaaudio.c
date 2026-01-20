@@ -666,7 +666,7 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as)
     struct audsettings obt_as;
     Audiodev *dev = hw->s->dev;
 
-    req.fmt = aud_to_alsafmt (as->fmt, as->endianness);
+    req.fmt = aud_to_alsafmt (as->fmt, as->big_endian);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
 
@@ -677,7 +677,7 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = obt.fmt;
-    obt_as.endianness = obt.endianness;
+    obt_as.big_endian = obt.endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;
@@ -752,7 +752,7 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as)
     struct audsettings obt_as;
     Audiodev *dev = hw->s->dev;
 
-    req.fmt = aud_to_alsafmt (as->fmt, as->endianness);
+    req.fmt = aud_to_alsafmt (as->fmt, as->big_endian);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
 
@@ -763,7 +763,7 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as)
     obt_as.freq = obt.freq;
     obt_as.nchannels = obt.nchannels;
     obt_as.fmt = obt.fmt;
-    obt_as.endianness = obt.endianness;
+    obt_as.big_endian = obt.endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = obt.samples;

@@ -256,7 +256,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     as.freq = s->freq;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = HOST_BIG_ENDIAN;
+    as.big_endian = HOST_BIG_ENDIAN;
 
     s->voice = audio_be_open_out(
         s->audio_be,

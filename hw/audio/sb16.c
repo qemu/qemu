@@ -213,7 +213,7 @@ static void continue_dma8 (SB16State *s)
         as.freq = s->freq;
         as.nchannels = 1 << s->fmt_stereo;
         as.fmt = s->fmt;
-        as.endianness = 0;
+        as.big_endian = false;
 
         s->voice = audio_be_open_out(
             s->audio_be,
@@ -376,7 +376,7 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
         as.freq = s->freq;
         as.nchannels = 1 << s->fmt_stereo;
         as.fmt = s->fmt;
-        as.endianness = 0;
+        as.big_endian = false;
 
         s->voice = audio_be_open_out(
             s->audio_be,
@@ -877,7 +877,7 @@ static void legacy_reset (SB16State *s)
     as.freq = s->freq;
     as.nchannels = 1;
     as.fmt = AUDIO_FORMAT_U8;
-    as.endianness = 0;
+    as.big_endian = false;
 
     s->voice = audio_be_open_out(
         s->audio_be,
@@ -1300,7 +1300,7 @@ static int sb16_post_load (void *opaque, int version_id)
             as.freq = s->freq;
             as.nchannels = 1 << s->fmt_stereo;
             as.fmt = s->fmt;
-            as.endianness = 0;
+            as.big_endian = false;
 
             s->voice = audio_be_open_out(
                 s->audio_be,

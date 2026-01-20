@@ -202,7 +202,7 @@ static void wm8750_set_format(WM8750State *s)
         return;
 
     /* Setup input */
-    in_fmt.endianness = 0;
+    in_fmt.big_endian = false;
     in_fmt.nchannels = 2;
     in_fmt.freq = s->adc_hz;
     in_fmt.fmt = AUDIO_FORMAT_S16;
@@ -215,7 +215,7 @@ static void wm8750_set_format(WM8750State *s)
                     CODEC ".input3", s, wm8750_audio_in_cb, &in_fmt);
 
     /* Setup output */
-    out_fmt.endianness = 0;
+    out_fmt.big_endian = false;
     out_fmt.nchannels = 2;
     out_fmt.freq = s->dac_hz;
     out_fmt.fmt = AUDIO_FORMAT_S16;

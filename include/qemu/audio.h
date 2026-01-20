@@ -38,7 +38,7 @@ typedef struct audsettings {
     int freq;
     int nchannels;
     AudioFormat fmt;
-    int endianness;
+    bool big_endian;
 } audsettings;
 
 typedef struct SWVoiceOut SWVoiceOut;

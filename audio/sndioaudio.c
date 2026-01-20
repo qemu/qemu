@@ -387,7 +387,7 @@ static int sndio_init(SndioVoice *self,
     }
 
     if (req.bits > 8) {
-        req.le = as->endianness ? 0 : 1;
+        req.le = !as->big_endian;
     }
 
     req.rate = as->freq;

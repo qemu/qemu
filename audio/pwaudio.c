@@ -365,7 +365,7 @@ audfmt_to_pw(AudioFormat fmt, bool big_endian)
 }
 
 static AudioFormat
-pw_to_audfmt(enum spa_audio_format fmt, int *endianness,
+pw_to_audfmt(enum spa_audio_format fmt, bool *big_endian,
              uint32_t *sample_size)
 {
     switch (fmt) {
@@ -377,43 +377,43 @@ pw_to_audfmt(enum spa_audio_format fmt, int *endianness,
         return AUDIO_FORMAT_U8;
     case SPA_AUDIO_FORMAT_S16_BE:
         *sample_size = 2;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S16;
     case SPA_AUDIO_FORMAT_S16_LE:
         *sample_size = 2;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S16;
     case SPA_AUDIO_FORMAT_U16_BE:
         *sample_size = 2;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_U16;
     case SPA_AUDIO_FORMAT_U16_LE:
         *sample_size = 2;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_U16;
     case SPA_AUDIO_FORMAT_S32_BE:
         *sample_size = 4;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S32;
     case SPA_AUDIO_FORMAT_S32_LE:
         *sample_size = 4;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S32;
     case SPA_AUDIO_FORMAT_U32_BE:
         *sample_size = 4;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_U32;
     case SPA_AUDIO_FORMAT_U32_LE:
         *sample_size = 4;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_U32;
     case SPA_AUDIO_FORMAT_F32_BE:
         *sample_size = 4;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_F32;
     case SPA_AUDIO_FORMAT_F32_LE:
         *sample_size = 4;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_F32;
     default:
         *sample_size = 1;
@@ -534,13 +534,13 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as)
 
     pw_thread_loop_lock(c->thread_loop);
 
-    v->info.format = audfmt_to_pw(as->fmt, as->endianness);
+    v->info.format = audfmt_to_pw(as->fmt, as->big_endian);
     v->info.channels = as->nchannels;
     qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
-        pw_to_audfmt(v->info.format, &obt_as.endianness, &v->frame_size);
+        pw_to_audfmt(v->info.format, &obt_as.big_endian, &v->frame_size);
     v->frame_size *= as->nchannels;
 
     v->req = (uint64_t)AUDIO_MIXENG_BACKEND(c)->dev->timer_period * v->info.rate
@@ -581,13 +581,13 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as)
 
     pw_thread_loop_lock(c->thread_loop);
 
-    v->info.format = audfmt_to_pw(as->fmt, as->endianness);
+    v->info.format = audfmt_to_pw(as->fmt, as->big_endian);
     v->info.channels = as->nchannels;
     qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
-        pw_to_audfmt(v->info.format, &obt_as.endianness, &v->frame_size);
+        pw_to_audfmt(v->info.format, &obt_as.big_endian, &v->frame_size);
     v->frame_size *= as->nchannels;
 
     /* call the function that creates a new stream for recording */

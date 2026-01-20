@@ -202,7 +202,7 @@ void lm4549_write(lm4549_state *s,
         as.freq = value;
         as.nchannels = 2;
         as.fmt = AUDIO_FORMAT_S16;
-        as.endianness = 0;
+        as.big_endian = false;
 
         s->voice = audio_be_open_out(
             s->audio_be,
@@ -272,7 +272,7 @@ static int lm4549_post_load(void *opaque, int version_id)
     as.freq = freq;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = 0;
+    as.big_endian = false;
 
     s->voice = audio_be_open_out(
         s->audio_be,
@@ -312,7 +312,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
     as.freq = 48000;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = 0;
+    as.big_endian = false;
 
     s->voice = audio_be_open_out(
         s->audio_be,

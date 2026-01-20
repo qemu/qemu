@@ -96,56 +96,56 @@ static int aud_to_sdlfmt (AudioFormat fmt)
     }
 }
 
-static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, int *endianness)
+static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, bool *big_endian)
 {
     switch (sdlfmt) {
     case AUDIO_S8:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S8;
         break;
 
     case AUDIO_U8:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_U8;
         break;
 
     case AUDIO_S16LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AUDIO_S16MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AUDIO_S32LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S32;
         break;
 
     case AUDIO_S32MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_S32;
         break;
 
     case AUDIO_F32LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_F32;
         break;
 
     case AUDIO_F32MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_F32;
         break;
 
@@ -350,7 +350,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as)
         return -1;
     }
 
-    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.endianness);
+    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.big_endian);
     if (err) {
         sdl_close_out(sdl);
         return -1;
@@ -406,7 +406,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as)
         return -1;
     }
 
-    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.endianness);
+    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.big_endian);
     if (err) {
         sdl_close_in(sdl);
         return -1;

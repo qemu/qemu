@@ -244,7 +244,7 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as)
     }
 
     ds->first_time = true;
-    obt_as.endianness = 0;
+    obt_as.big_endian = false;
     audio_pcm_init_info (&hw->info, &obt_as);
 
     if (bc.dwBufferBytes % hw->info.bytes_per_frame) {

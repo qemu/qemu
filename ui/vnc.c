@@ -3372,7 +3372,7 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
     vs->as.freq = 44100;
     vs->as.nchannels = 2;
     vs->as.fmt = AUDIO_FORMAT_S16;
-    vs->as.endianness = 0;
+    vs->as.big_endian = false;
 
     qemu_mutex_init(&vs->output_mutex);
     vs->bh = qemu_bh_new(vnc_jobs_bh, vs);

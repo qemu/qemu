@@ -135,19 +135,7 @@ static void audio_print_settings (const struct audsettings *as)
         break;
     }
 
-    AUD_log (NULL, " endianness=");
-    switch (as->endianness) {
-    case 0:
-        AUD_log (NULL, "little");
-        break;
-    case 1:
-        AUD_log (NULL, "big");
-        break;
-    default:
-        AUD_log (NULL, "invalid");
-        break;
-    }
-    AUD_log (NULL, "\n");
+    AUD_log (NULL, " endianness=%s\n", as->big_endian ? "big" : "little");
 }
 
 static int audio_validate_settings (const struct audsettings *as)
@@ -155,7 +143,6 @@ static int audio_validate_settings (const struct audsettings *as)
     int invalid;
 
     invalid = as->nchannels < 1;
-    invalid |= as->endianness != 0 && as->endianness != 1;
 
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
@@ -180,7 +167,7 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, const struct audsetti
     return info->af == as->fmt
         && info->freq == as->freq
         && info->nchannels == as->nchannels
-        && info->swap_endianness == (as->endianness != HOST_BIG_ENDIAN);
+        && info->swap_endianness == (as->big_endian != HOST_BIG_ENDIAN);
 }
 
 void audio_pcm_init_info (struct audio_pcm_info *info, const struct audsettings *as)
@@ -190,7 +177,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, const struct audsettings 
     info->nchannels = as->nchannels;
     info->bytes_per_frame = as->nchannels * audio_format_bits(as->fmt) / 8;
     info->bytes_per_second = info->freq * info->bytes_per_frame;
-    info->swap_endianness = (as->endianness != HOST_BIG_ENDIAN);
+    info->swap_endianness = (as->big_endian != HOST_BIG_ENDIAN);
 }
 
 void audio_pcm_info_clear_buf(struct audio_pcm_info *info, void *buf, int len)
@@ -1797,7 +1784,7 @@ audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)
         .freq = pdo->frequency,
         .nchannels = pdo->channels,
         .fmt = pdo->format,
-        .endianness = HOST_BIG_ENDIAN,
+        .big_endian = HOST_BIG_ENDIAN,
     };
 }
 

@@ -975,7 +975,7 @@ static void usb_audio_reinit(USBDevice *dev, unsigned channels)
     s->out.as.freq       = USBAUDIO_SAMPLE_RATE;
     s->out.as.nchannels  = s->out.channels;
     s->out.as.fmt        = AUDIO_FORMAT_S16;
-    s->out.as.endianness = 0;
+    s->out.as.big_endian = false;
     streambuf_init(&s->out.buf, s->buffer, s->out.channels);
 
     s->out.voice = audio_be_open_out(s->audio_be, s->out.voice, TYPE_USB_AUDIO,

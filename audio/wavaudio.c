@@ -111,7 +111,7 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as)
 
     hdr[34] = bits16 ? 0x10 : 0x08;
 
-    wav_as.endianness = 0;
+    wav_as.big_endian = false;
     audio_pcm_init_info (&hw->info, &wav_as);
 
     hw->samples = 1024;

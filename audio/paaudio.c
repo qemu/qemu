@@ -352,28 +352,28 @@ static pa_sample_format_t audfmt_to_pa(AudioFormat afmt, bool big_endian)
     return format;
 }
 
-static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
+static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, bool *big_endian)
 {
     switch (fmt) {
     case PA_SAMPLE_U8:
         return AUDIO_FORMAT_U8;
     case PA_SAMPLE_S16BE:
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S16;
     case PA_SAMPLE_S16LE:
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S16;
     case PA_SAMPLE_S32BE:
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S32;
     case PA_SAMPLE_S32LE:
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S32;
     case PA_SAMPLE_FLOAT32BE:
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_F32;
     case PA_SAMPLE_FLOAT32LE:
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_F32;
     default:
         error_report("pulseaudio: Internal logic error: Bad pa_sample_format %d", fmt);
@@ -531,7 +531,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as)
     PAConnection *c = apa->conn;
 
     pa->g = apa;
-    ss.format = audfmt_to_pa (as->fmt, as->endianness);
+    ss.format = audfmt_to_pa (as->fmt, as->big_endian);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
@@ -541,7 +541,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as)
     ba.maxlength = -1;
     ba.prebuf = -1;
 
-    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
+    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.big_endian);
 
     pa->stream = qpa_simple_new (
         c,
@@ -582,7 +582,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as)
     PAConnection *c = apa->conn;
 
     pa->g = apa;
-    ss.format = audfmt_to_pa (as->fmt, as->endianness);
+    ss.format = audfmt_to_pa (as->fmt, as->big_endian);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
@@ -592,7 +592,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as)
     ba.minreq = -1;
     ba.prebuf = -1;
 
-    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
+    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.big_endian);
 
     pa->stream = qpa_simple_new (
         c,

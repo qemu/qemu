@@ -57,7 +57,7 @@ static const struct audsettings default_test_settings = {
     .freq = SAMPLE_RATE,
     .nchannels = CHANNELS,
     .fmt = AUDIO_FORMAT_S16,
-    .endianness = 0,
+    .big_endian = false,
 };
 
 static void dummy_audio_callback(void *opaque, int avail)

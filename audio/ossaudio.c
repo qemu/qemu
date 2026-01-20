@@ -160,36 +160,36 @@ static int aud_to_ossfmt(AudioFormat fmt, bool big_endian)
     }
 }
 
-static int oss_to_audfmt (int ossfmt, AudioFormat *fmt, int *endianness)
+static int oss_to_audfmt (int ossfmt, AudioFormat *fmt, bool *big_endian)
 {
     switch (ossfmt) {
     case AFMT_S8:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S8;
         break;
 
     case AFMT_U8:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_U8;
         break;
 
     case AFMT_S16_LE:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AFMT_U16_LE:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AFMT_S16_BE:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AFMT_U16_BE:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_U16;
         break;
 
@@ -475,7 +475,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as)
 
     oss->fd = -1;
 
-    req.fmt = aud_to_ossfmt (as->fmt, as->endianness);
+    req.fmt = aud_to_ossfmt (as->fmt, as->big_endian);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
 
@@ -483,7 +483,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as)
         return -1;
     }
 
-    err = oss_to_audfmt(obt.fmt, &obt_as.fmt, &obt_as.endianness);
+    err = oss_to_audfmt(obt.fmt, &obt_as.fmt, &obt_as.big_endian);
     if (err) {
         oss_anal_close (&fd);
         return -1;
@@ -601,14 +601,14 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as)
 
     oss->fd = -1;
 
-    req.fmt = aud_to_ossfmt (as->fmt, as->endianness);
+    req.fmt = aud_to_ossfmt (as->fmt, as->big_endian);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
     if (oss_open(1, &req, as, &obt, &fd, dev)) {
         return -1;
     }
 
-    err = oss_to_audfmt(obt.fmt, &obt_as.fmt, &obt_as.endianness);
+    err = oss_to_audfmt(obt.fmt, &obt_as.fmt, &obt_as.big_endian);
     if (err) {
         oss_anal_close (&fd);
         return -1;

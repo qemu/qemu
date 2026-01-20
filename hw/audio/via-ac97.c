@@ -237,7 +237,7 @@ static void open_voice_out(ViaAC97State *s)
         .freq = CODEC_REG(s, AC97_PCM_Front_DAC_Rate),
         .nchannels = s->aur.type & BIT(4) ? 2 : 1,
         .fmt = s->aur.type & BIT(5) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_S8,
-        .endianness = 0,
+        .big_endian = false,
     };
     s->vo = audio_be_open_out(s->audio_be, s->vo, "via-ac97.out", s, out_cb, &as);
 }

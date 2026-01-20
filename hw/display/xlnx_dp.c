@@ -1393,7 +1393,7 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
     as.freq = 44100;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = 0;
+    as.big_endian = false;
 
     s->amixer_output_stream = audio_be_open_out(s->audio_be,
                                            s->amixer_output_stream,

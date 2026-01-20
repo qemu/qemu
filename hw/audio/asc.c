@@ -648,7 +648,7 @@ static void asc_realize(DeviceState *dev, Error **errp)
     as.freq = ASC_FREQ;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_U8;
-    as.endianness = HOST_BIG_ENDIAN;
+    as.big_endian = HOST_BIG_ENDIAN;
 
     s->voice = audio_be_open_out(s->audio_be, s->voice, "asc.out", s, asc_out_cb,
                             &as);

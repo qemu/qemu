@@ -289,7 +289,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     }
 
     as.nchannels = (val & (1 << 4)) ? 2 : 1;
-    as.endianness = 0;
+    as.big_endian = false;
     s->tab = NULL;
 
     switch ((val >> 5) & ((s->dregs[MODE_And_ID] & MODE2) ? 7 : 3)) {
@@ -305,12 +305,12 @@ static void cs_reset_voices (CSState *s, uint32_t val)
         s->tab = ALawDecompressTable;
     x_law:
         as.fmt = AUDIO_FORMAT_S16;
-        as.endianness = HOST_BIG_ENDIAN;
+        as.big_endian = HOST_BIG_ENDIAN;
         s->shift = as.nchannels == 2;
         break;
 
     case 6:
-        as.endianness = 1;
+        as.big_endian = true;
         /* fall through */
     case 2:
         as.fmt = AUDIO_FORMAT_S16;

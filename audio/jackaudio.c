@@ -531,7 +531,7 @@ static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as)
         .freq       = jo->c.freq,
         .nchannels  = jo->c.nchannels,
         .fmt        = AUDIO_FORMAT_F32,
-        .endianness = 0
+        .big_endian = false
     };
     audio_pcm_init_info(&hw->info, &os);
 
@@ -566,7 +566,7 @@ static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as)
         .freq       = ji->c.freq,
         .nchannels  = ji->c.nchannels,
         .fmt        = AUDIO_FORMAT_F32,
-        .endianness = 0
+        .big_endian = false
     };
     audio_pcm_init_info(&hw->info, &is);
 
