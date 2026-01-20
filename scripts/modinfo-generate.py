@@ -39,7 +39,7 @@ def generate(name: str, lines: list[str], enabled: set[str]) -> Optional[set[str
     deps = []
     opts = []
     for line in lines:
-        if line.find("MODINFO_START") != -1:
+        if "MODINFO_START" in line:
             (kind, data) = parse_line(line)
             if kind == 'obj':
                 objs.append(data)
