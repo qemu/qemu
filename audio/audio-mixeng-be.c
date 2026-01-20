@@ -881,11 +881,7 @@ static size_t audio_get_avail(SWVoiceIn *sw)
         return 0;
     }
 
-    ldebug (
-        "%s: get_avail live %zu frontend frames %u\n",
-        SW_NAME (sw),
-        live, st_rate_frames_out(sw->rate, live)
-        );
+    trace_audio_get_avail(SW_NAME(sw), live, st_rate_frames_out(sw->rate, live));
 
     return live;
 }
