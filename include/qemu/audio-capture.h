@@ -21,8 +21,8 @@ typedef struct CaptureState {
 
 CaptureVoiceOut *audio_be_add_capture(
     AudioBackend *be,
-    struct audsettings *as,
-    struct audio_capture_ops *ops,
+    const struct audsettings *as,
+    const struct audio_capture_ops *ops,
     void *opaque);
 
 void audio_be_del_capture(

@@ -182,8 +182,8 @@ void audio_be_set_volume_in(AudioBackend *be, SWVoiceIn *sw, Volume *vol)
 
 CaptureVoiceOut *audio_be_add_capture(
     AudioBackend *be,
-    struct audsettings *as,
-    struct audio_capture_ops *ops,
+    const struct audsettings *as,
+    const struct audio_capture_ops *ops,
     void *cb_opaque)
 {
     AudioBackendClass *klass = AUDIO_BACKEND_GET_CLASS(be);

@@ -96,8 +96,8 @@ typedef struct AudioBackendClass {
     size_t (*read)(AudioBackend *be, SWVoiceIn *sw, void *buf, size_t size);
     int (*get_buffer_size_out)(AudioBackend *be, SWVoiceOut *sw);
     CaptureVoiceOut *(*add_capture)(AudioBackend *be,
-                                    struct audsettings *as,
-                                    struct audio_capture_ops *ops,
+                                    const struct audsettings *as,
+                                    const struct audio_capture_ops *ops,
                                     void *cb_opaque);
     void (*del_capture)(AudioBackend *be, CaptureVoiceOut *cap, void *cb_opaque);
 

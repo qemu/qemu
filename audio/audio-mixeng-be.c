@@ -314,7 +314,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
  * Capture
  */
 static CaptureVoiceOut *audio_pcm_capture_find_specific(AudioMixengBackend *s,
-                                                        struct audsettings *as)
+                                                        const struct audsettings *as)
 {
     CaptureVoiceOut *cap;
 
@@ -1585,8 +1585,8 @@ static const char *audio_mixeng_backend_get_id(AudioBackend *be)
 
 static CaptureVoiceOut *audio_mixeng_backend_add_capture(
     AudioBackend *be,
-    struct audsettings *as,
-    struct audio_capture_ops *ops,
+    const struct audsettings *as,
+    const struct audio_capture_ops *ops,
     void *cb_opaque);
 
 static void audio_mixeng_backend_del_capture(
@@ -1710,8 +1710,8 @@ static const VMStateDescription vmstate_audio = {
 
 static CaptureVoiceOut *audio_mixeng_backend_add_capture(
     AudioBackend *be,
-    struct audsettings *as,
-    struct audio_capture_ops *ops,
+    const struct audsettings *as,
+    const struct audio_capture_ops *ops,
     void *cb_opaque)
 {
     AudioMixengBackend *s = AUDIO_MIXENG_BACKEND(be);
