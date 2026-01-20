@@ -17,6 +17,11 @@ alsa_enable_in(bool enable) "enable=%d"
 
 # ossaudio.c
 oss_version(int version) "OSS version = 0x%x"
+oss_out_params(int req_fmt, int obt_fmt, int req_channels, int obt_channels, int req_freq, int obt_freq, int req_nfrags, int obt_nfrags, int req_fragsize, int obt_fragsize) "fmt=%d->%d, channels %d->%d, freq=%d->%d, nfrags=%d->%d, fragsize=%d->%d"
+oss_in_params(int req_fmt, int obt_fmt, int req_channels, int obt_channels, int req_freq, int obt_freq, int req_nfrags, int obt_nfrags, int req_fragsize, int obt_fragsize) "fmt=%d->%d, channels %d->%d, freq=%d->%d, nfrags=%d->%d, fragsize=%d->%d"
+oss_fini_out(void) ""
+oss_enable_out(bool enable) "enable=%d"
+oss_enable_in(bool enable) "enable=%d"
 
 # dbusaudio.c
 dbus_audio_register(const char *s, const char *dir) "sender = %s, dir = %s"
