@@ -27,7 +27,6 @@
 #include "qemu/audio.h"
 #include "qom/object.h"
 
-#define AUDIO_CAP "noaudio"
 #include "audio_int.h"
 
 #define TYPE_AUDIO_NONE "audio-none"
