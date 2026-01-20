@@ -26,7 +26,6 @@
 #include "ui/qemu-spice.h"
 #include "qom/object.h"
 
-#define AUDIO_CAP "spice"
 #include "qemu/audio.h"
 #include "audio_int.h"
 
