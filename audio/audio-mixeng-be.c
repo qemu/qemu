@@ -30,7 +30,6 @@
 #include "audio_int.h"
 
 /* #define DEBUG_OUT */
-/* #define DEBUG_CAPTURE */
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
@@ -249,9 +248,8 @@ static void audio_notify_capture (CaptureVoiceOut *cap, audcnotification_e cmd)
 {
     struct capture_callback *cb;
 
-#ifdef DEBUG_CAPTURE
-    dolog ("notification %d sent\n", cmd);
-#endif
+    trace_audio_notify_capture(cmd);
+
     for (cb = cap->cb_head.lh_first; cb; cb = cb->entries.le_next) {
         cb->ops.notify (cb->opaque, cmd);
     }
@@ -333,12 +331,10 @@ static int audio_attach_capture (HWVoiceOut *hw)
         sw->rate = st_rate_start (sw->info.freq, hw_cap->info.freq);
         QLIST_INSERT_HEAD (&hw_cap->sw_head, sw, entries);
         QLIST_INSERT_HEAD (&hw->cap_head, sc, entries);
-#ifdef DEBUG_CAPTURE
-        sw->name = g_strdup_printf ("for %p %d,%d,%d",
-                                    hw, sw->info.freq, sw->info.bits,
-                                    sw->info.nchannels);
-        dolog ("Added %s active = %d\n", sw->name, sw->active);
-#endif
+        sw->name = g_strdup_printf("for %p %d,%s,%d",
+                                   hw, sw->info.freq, AudioFormat_str(sw->info.af),
+                                   sw->info.nchannels);
+        trace_audio_capture_attach(sw->name, sw->active);
         if (sw->active) {
             audio_capture_maybe_changed (cap, 1);
         }
@@ -1707,10 +1703,8 @@ static void audio_mixeng_backend_del_capture(
 
                 while (sw) {
                     SWVoiceCap *sc = (SWVoiceCap *) sw;
-#ifdef DEBUG_CAPTURE
-                    dolog ("freeing %s\n", sw->name);
-#endif
 
+                    trace_audio_capture_free_sw(sw->name);
                     sw1 = sw->entries.le_next;
                     if (sw->rate) {
                         st_rate_stop (sw->rate);
