@@ -398,5 +398,6 @@
 #define __NR_open_tree_attr (__NR_Linux + 467)
 #define __NR_file_getattr (__NR_Linux + 468)
 #define __NR_file_setattr (__NR_Linux + 469)
+#define __NR_listns (__NR_Linux + 470)
 
 #endif /* _ASM_UNISTD_N32_H */
