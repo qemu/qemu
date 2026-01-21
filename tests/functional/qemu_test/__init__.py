@@ -15,8 +15,8 @@ from .testcase import QemuBaseTest, QemuUserTest, QemuSystemTest
 from .linuxkernel import LinuxKernelTest
 from .decorators import skipIfMissingCommands, skipIfNotMachine, \
     skipFlakyTest, skipUntrustedTest, skipBigDataTest, skipSlowTest, \
-    skipIfMissingImports, skipIfOperatingSystem, skipLockedMemoryTest, \
-    skipIfMissingEnv
+    skipIfMissingImports, skipIfOperatingSystem, skipUnlessOperatingSystem, \
+    skipLockedMemoryTest, skipIfMissingEnv
 from .archive import archive_extract
 from .uncompress import uncompress
 from .gdb import GDB

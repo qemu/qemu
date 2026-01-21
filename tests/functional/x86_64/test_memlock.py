@@ -14,12 +14,13 @@ import re
 from typing import Dict
 
 from qemu_test import QemuSystemTest
-from qemu_test import skipLockedMemoryTest
+from qemu_test import skipLockedMemoryTest, skipUnlessOperatingSystem
 
 
 STATUS_VALUE_PATTERN = re.compile(r'^(\w+):\s+(\d+) kB', re.MULTILINE)
 
 
+@skipUnlessOperatingSystem('Linux')
 @skipLockedMemoryTest(2_097_152)  # 2GB
 class MemlockTest(QemuSystemTest):
     """
