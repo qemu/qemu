@@ -534,6 +534,26 @@ static void test_audio_multiple_voices(void)
     audio_be_close_out(be, out1);
 }
 
+static const struct audsettings invalid_test_settings = {
+    .nchannels = 0,
+    .freq = SAMPLE_RATE,
+    .fmt = AUDIO_FORMAT_S16,
+    .big_endian = false,
+};
+
+static void test_audio_invalid_settings(void)
+{
+    AudioBackend *be = get_test_audio_backend();
+    void *voice;
+
+    voice = audio_be_open_out(be, NULL, "invalid", NULL,
+                              dummy_audio_callback, &invalid_test_settings);
+    g_assert_null(voice);
+    voice = audio_be_open_in(be, NULL, "invalid", NULL,
+                             dummy_audio_callback, &invalid_test_settings);
+    g_assert_null(voice);
+}
+
 int main(int argc, char **argv)
 {
     GOptionContext *context;
@@ -589,6 +609,7 @@ int main(int argc, char **argv)
 
     g_test_add_func("/audio/null-handling", test_audio_null_handling);
     g_test_add_func("/audio/multiple-voices", test_audio_multiple_voices);
+    g_test_add_func("/audio/invalid-settings", test_audio_invalid_settings);
 
     ret = g_test_run();
 
