@@ -26,7 +26,6 @@
 #include "trace.h"
 #include "trace/control.h"
 
-#define AUDIO_CAP "audio"
 #include "audio_int.h"
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
@@ -66,24 +65,6 @@ static int audio_format_to_index(AudioFormat af)
     }
 
     g_assert_not_reached();
-}
-
-void AUD_vlog (const char *cap, const char *fmt, va_list ap)
-{
-    if (cap) {
-        fprintf(stderr, "%s: ", cap);
-    }
-
-    vfprintf(stderr, fmt, ap);
-}
-
-void AUD_log (const char *cap, const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start (ap, fmt);
-    AUD_vlog (cap, fmt, ap);
-    va_end (ap);
 }
 
 static char *audsettings_to_string(const struct audsettings *as)

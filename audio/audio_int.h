@@ -33,12 +33,6 @@
 #include "qemu/audio-capture.h"
 #include "mixeng.h"
 
-void G_GNUC_PRINTF(2, 0)
-AUD_vlog(const char *cap, const char *fmt, va_list ap);
-
-void G_GNUC_PRINTF(2, 3)
-AUD_log(const char *cap, const char *fmt, ...);
-
 struct audio_callback {
     void *opaque;
     audio_callback_fn fn;
@@ -275,14 +269,6 @@ static inline size_t audio_ring_posb(size_t pos, size_t dist, size_t len)
 {
     return pos >= dist ? pos - dist : len - dist + pos;
 }
-
-#define dolog(fmt, ...) AUD_log(AUDIO_CAP, fmt, ## __VA_ARGS__)
-
-#ifdef DEBUG
-#define ldebug(fmt, ...) AUD_log(AUDIO_CAP, fmt, ## __VA_ARGS__)
-#else
-#define ldebug(fmt, ...) (void)0
-#endif
 
 AudiodevPerDirectionOptions *audio_get_pdo_in(Audiodev *dev);
 AudiodevPerDirectionOptions *audio_get_pdo_out(Audiodev *dev);
