@@ -556,11 +556,11 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     sw->callback.fn = callback_fn;
     sw->callback.opaque = callback_opaque;
 
-#ifdef DEBUG_AUDIO
-    dolog ("%s\n", name);
-    audio_pcm_print_info ("hw", &sw->hw->info);
-    audio_pcm_print_info ("sw", &sw->info);
-#endif
+    trace_audio_voice_pair(G_STRINGIFY(TYPE), name,
+                           AudioFormat_str(sw->hw->info.af),
+                           sw->hw->info.freq, sw->hw->info.nchannels,
+                           AudioFormat_str(sw->info.af),
+                           sw->info.freq, sw->info.nchannels);
 
     return sw;
 

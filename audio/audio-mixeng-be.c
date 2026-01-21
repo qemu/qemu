@@ -620,15 +620,6 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
     return total_in * sw->info.bytes_per_frame;
 }
 
-#ifdef DEBUG_AUDIO
-static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
-{
-    dolog("%s: %s, freq %d, nchan %d\n",
-          cap, AudioFormat_str(info->af), info->freq,
-          info->nchannels);
-}
-#endif
-
 #define DAC
 #include "audio_template.h"
 #undef DAC
