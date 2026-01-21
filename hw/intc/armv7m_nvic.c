@@ -2467,7 +2467,7 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps nvic_sysreg_ops = {
     .read_with_attrs = nvic_sysreg_read,
     .write_with_attrs = nvic_sysreg_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int nvic_post_load(void *opaque, int version_id)
