@@ -513,8 +513,9 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     trace_audio_open_in(name, as->freq, as->nchannels, as->fmt);
 #endif
 
-    if (audio_bug(__func__, audio_validate_settings(as))) {
-        audio_print_settings (as);
+    if (audio_validate_settings(as)) {
+        g_autofree char *str = audsettings_to_string(as);
+        error_report("audio: Invalid audio settings: %s", str);
         goto fail;
     }
 

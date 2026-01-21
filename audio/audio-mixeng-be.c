@@ -101,38 +101,11 @@ void AUD_log (const char *cap, const char *fmt, ...)
     va_end (ap);
 }
 
-static void audio_print_settings (const struct audsettings *as)
+static char *audsettings_to_string(const struct audsettings *as)
 {
-    dolog ("frequency=%d nchannels=%d fmt=", as->freq, as->nchannels);
-
-    switch (as->fmt) {
-    case AUDIO_FORMAT_S8:
-        AUD_log (NULL, "S8");
-        break;
-    case AUDIO_FORMAT_U8:
-        AUD_log (NULL, "U8");
-        break;
-    case AUDIO_FORMAT_S16:
-        AUD_log (NULL, "S16");
-        break;
-    case AUDIO_FORMAT_U16:
-        AUD_log (NULL, "U16");
-        break;
-    case AUDIO_FORMAT_S32:
-        AUD_log (NULL, "S32");
-        break;
-    case AUDIO_FORMAT_U32:
-        AUD_log (NULL, "U32");
-        break;
-    case AUDIO_FORMAT_F32:
-        AUD_log (NULL, "F32");
-        break;
-    default:
-        AUD_log (NULL, "invalid(%d)", as->fmt);
-        break;
-    }
-
-    AUD_log (NULL, " endianness=%s\n", as->big_endian ? "big" : "little");
+    return g_strdup_printf("frequency=%d nchannels=%d fmt=%s endian=%s",
+                           as->freq, as->nchannels, AudioFormat_str(as->fmt),
+                           as->big_endian ? "big" : "little");
 }
 
 static int audio_validate_settings (const struct audsettings *as)
@@ -1607,9 +1580,9 @@ static CaptureVoiceOut *audio_mixeng_backend_add_capture(
         return NULL;
     }
 
-    if (audio_validate_settings (as)) {
-        dolog ("Invalid settings were passed when trying to add capture\n");
-        audio_print_settings (as);
+    if (audio_validate_settings(as)) {
+        g_autofree char *str = audsettings_to_string(as);
+        error_report("audio: Invalid audio settings when trying to add capture: %s", str);
         return NULL;
     }
 
