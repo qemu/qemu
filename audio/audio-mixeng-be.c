@@ -31,6 +31,8 @@
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
+#define audio_bug(fmt, ...) error_report("%s: " fmt, __func__, ##__VA_ARGS__)
+
 const struct mixeng_volume nominal_volume = {
     .mute = 0,
 #ifdef FLOAT_MIXENG
@@ -41,23 +43,6 @@ const struct mixeng_volume nominal_volume = {
     .l = 1ULL << 32,
 #endif
 };
-
-int audio_bug (const char *funcname, int cond)
-{
-    if (cond) {
-        static int shown;
-
-        AUD_log (NULL, "A bug was just triggered in %s\n", funcname);
-        if (!shown) {
-            shown = 1;
-            AUD_log (NULL, "Save all your work and restart without audio\n");
-            AUD_log (NULL, "I am sorry\n");
-        }
-        AUD_log (NULL, "Context:\n");
-    }
-
-    return cond;
-}
 
 /*
  * Convert audio format to mixeng_clip index. Used by audio_pcm_sw_init_ and
@@ -332,8 +317,8 @@ static size_t audio_pcm_hw_find_min_in (HWVoiceIn *hw)
 static size_t audio_pcm_hw_get_live_in(HWVoiceIn *hw)
 {
     size_t live = hw->total_samples_captured - audio_pcm_hw_find_min_in (hw);
-    if (audio_bug(__func__, live > hw->conv_buf.size)) {
-        dolog("live=%zu hw->conv_buf.size=%zu\n", live, hw->conv_buf.size);
+    if (live > hw->conv_buf.size) {
+        audio_bug("live=%zu hw->conv_buf.size=%zu", live, hw->conv_buf.size);
         return 0;
     }
     return live;
@@ -402,8 +387,8 @@ static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t buf_len)
     if (!live) {
         return 0;
     }
-    if (audio_bug(__func__, live > hw->conv_buf.size)) {
-        dolog("live_in=%zu hw->conv_buf.size=%zu\n", live, hw->conv_buf.size);
+    if (live > hw->conv_buf.size) {
+        audio_bug("live=%zu hw->conv_buf.size=%zu", live, hw->conv_buf.size);
         return 0;
     }
 
@@ -454,8 +439,8 @@ static size_t audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
     if (nb_live1) {
         size_t live = smin;
 
-        if (audio_bug(__func__, live > hw->mix_buf.size)) {
-            dolog("live=%zu hw->mix_buf.size=%zu\n", live, hw->mix_buf.size);
+        if (live > hw->mix_buf.size) {
+            audio_bug("live=%zu hw->mix_buf.size=%zu", live, hw->mix_buf.size);
             return 0;
         }
         return live;
@@ -533,8 +518,8 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
     size_t frames_in_max, frames_out_max, total_in, total_out;
 
     live = sw->total_hw_samples_mixed;
-    if (audio_bug(__func__, live > hw->mix_buf.size)) {
-        dolog("live=%zu hw->mix_buf.size=%zu\n", live, hw->mix_buf.size);
+    if (live > hw->mix_buf.size) {
+        audio_bug("live=%zu hw->mix_buf.size=%zu", live, hw->mix_buf.size);
         return 0;
     }
 
@@ -824,9 +809,9 @@ static size_t audio_get_avail(SWVoiceIn *sw)
     }
 
     live = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
-    if (audio_bug(__func__, live > sw->hw->conv_buf.size)) {
-        dolog("live=%zu sw->hw->conv_buf.size=%zu\n", live,
-              sw->hw->conv_buf.size);
+    if (live > sw->hw->conv_buf.size) {
+        audio_bug("live=%zu sw->hw->conv_buf.size=%zu", live,
+                  sw->hw->conv_buf.size);
         return 0;
     }
 
@@ -845,9 +830,9 @@ static size_t audio_get_free(SWVoiceOut *sw)
 
     live = sw->total_hw_samples_mixed;
 
-    if (audio_bug(__func__, live > sw->hw->mix_buf.size)) {
-        dolog("live=%zu sw->hw->mix_buf.size=%zu\n", live,
-              sw->hw->mix_buf.size);
+    if (live > sw->hw->mix_buf.size) {
+        audio_bug("live=%zu sw->hw->mix_buf.size=%zu", live,
+                  sw->hw->mix_buf.size);
         return 0;
     }
 
@@ -1002,8 +987,8 @@ static void audio_run_out(AudioMixengBackend *s)
             live = 0;
         }
 
-        if (audio_bug(__func__, live > hw->mix_buf.size)) {
-            dolog("live=%zu hw->mix_buf.size=%zu\n", live, hw->mix_buf.size);
+        if (live > hw->mix_buf.size) {
+            audio_bug("live=%zu hw->mix_buf.size=%zu", live, hw->mix_buf.size);
             continue;
         }
 
@@ -1033,9 +1018,9 @@ static void audio_run_out(AudioMixengBackend *s)
         prev_rpos = hw->mix_buf.pos;
         played = audio_pcm_hw_run_out(hw, live);
         replay_audio_out(&played);
-        if (audio_bug(__func__, hw->mix_buf.pos >= hw->mix_buf.size)) {
-            dolog("hw->mix_buf.pos=%zu hw->mix_buf.size=%zu played=%zu\n",
-                  hw->mix_buf.pos, hw->mix_buf.size, played);
+        if (hw->mix_buf.pos >= hw->mix_buf.size) {
+            audio_bug("hw->mix_buf.pos=%zu hw->mix_buf.size=%zu played=%zu",
+                      hw->mix_buf.pos, hw->mix_buf.size, played);
             hw->mix_buf.pos = 0;
         }
 
@@ -1050,9 +1035,9 @@ static void audio_run_out(AudioMixengBackend *s)
                 continue;
             }
 
-            if (audio_bug(__func__, played > sw->total_hw_samples_mixed)) {
-                dolog("played=%zu sw->total_hw_samples_mixed=%zu\n",
-                      played, sw->total_hw_samples_mixed);
+            if (played > sw->total_hw_samples_mixed) {
+                audio_bug("played=%zu sw->total_hw_samples_mixed=%zu",
+                          played, sw->total_hw_samples_mixed);
                 played = sw->total_hw_samples_mixed;
             }
 
@@ -1195,9 +1180,9 @@ static void audio_run_capture(AudioMixengBackend *s)
                 continue;
             }
 
-            if (audio_bug(__func__, captured > sw->total_hw_samples_mixed)) {
-                dolog("captured=%zu sw->total_hw_samples_mixed=%zu\n",
-                      captured, sw->total_hw_samples_mixed);
+            if (captured > sw->total_hw_samples_mixed) {
+                audio_bug("captured=%zu sw->total_hw_samples_mixed=%zu",
+                          captured, sw->total_hw_samples_mixed);
                 captured = sw->total_hw_samples_mixed;
             }
 

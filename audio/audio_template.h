@@ -64,15 +64,15 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioMixengBackend *s,
                min_voices);
     }
 
-    if (audio_bug(__func__, !voice_size && max_voices)) {
-        dolog("drv=`%s' voice_size=0 max_voices=%d\n",
-               k->name, max_voices);
+    if (!voice_size && max_voices) {
+        audio_bug("drv=`%s' voice_size=0 max_voices=%d",
+                  k->name, max_voices);
         glue(s->nb_hw_voices_, TYPE) = 0;
     }
 
-    if (audio_bug(__func__, voice_size && !max_voices)) {
-        dolog("drv=`%s' voice_size=%zu max_voices=0\n",
-              k->name, voice_size);
+    if (voice_size && !max_voices) {
+        audio_bug("drv=`%s' voice_size=%zu max_voices=0",
+                  k->name, voice_size);
     }
 }
 
@@ -88,8 +88,8 @@ static void glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
 {
     if (glue(audio_get_pdo_, TYPE)(hw->s->dev)->mixing_engine) {
         size_t samples = hw->samples;
-        if (audio_bug(__func__, samples == 0)) {
-            dolog("Attempted to allocate empty buffer\n");
+        if (samples == 0) {
+            audio_bug("Attempted to allocate empty buffer");
         }
 
         HWBUF.buffer = g_new0(st_sample, samples);
@@ -275,8 +275,8 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
         return NULL;
     }
 
-    if (audio_bug(__func__, !glue(k->init_, TYPE))) {
-        dolog("No host audio driver or missing init_%s\n", NAME);
+    if (!glue(k->init_, TYPE)) {
+        audio_bug("No host audio driver or missing init_%s", NAME);
         return NULL;
     }
 
@@ -295,8 +295,8 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioMixengBackend *s,
         goto err0;
     }
 
-    if (audio_bug(__func__, hw->samples <= 0)) {
-        dolog("hw->samples=%zd\n", hw->samples);
+    if (hw->samples <= 0) {
+        audio_bug("hw->samples=%zd", hw->samples);
         goto err1;
     }
 
@@ -477,8 +477,8 @@ static void glue (audio_close_, TYPE) (SW *sw)
 static void glue(audio_mixeng_backend_close_, TYPE)(AudioBackend *be, SW *sw)
 {
     if (sw) {
-        if (audio_bug(__func__, !be)) {
-            dolog("backend=%p\n", be);
+        if (!be) {
+            audio_bug("backend=%p", be);
             return;
         }
 
@@ -498,9 +498,9 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
     AudioMixengBackendClass *k;
     AudiodevPerDirectionOptions *pdo;
 
-    if (audio_bug(__func__, !be || !name || !callback_fn || !as)) {
-        dolog("backend=%p name=%p callback_fn=%p as=%p\n",
-              be, name, callback_fn, as);
+    if (!be || !name || !callback_fn || !as) {
+        audio_bug("backend=%p name=%p callback_fn=%p as=%p",
+                  be, name, callback_fn, as);
         goto fail;
     }
 
@@ -519,8 +519,8 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
         goto fail;
     }
 
-    if (audio_bug(__func__, !glue(k->init_, TYPE))) {
-        dolog("Can not open `%s' (no host audio driver)\n", name);
+    if (!glue(k->init_, TYPE)) {
+        error_report("audio: Can not open `%s' (no host audio driver)", name);
         goto fail;
     }
 
