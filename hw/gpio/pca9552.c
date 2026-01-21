@@ -31,6 +31,7 @@ struct PCA955xClass {
 
     uint8_t pin_count;
     uint8_t max_reg;
+    bool has_led_support;
 };
 typedef struct PCA955xClass PCA955xClass;
 
@@ -113,32 +114,59 @@ static void pca955x_update_pin_input(PCA955xState *s)
     for (i = 0; i < k->pin_count; i++) {
         uint8_t input_reg = PCA9552_INPUT0 + (i / 8);
         uint8_t bit_mask = 1 << (i % 8);
-        uint8_t config = pca955x_pin_get_config(s, i);
         uint8_t old_value = s->regs[input_reg] & bit_mask;
         uint8_t new_value;
 
-        switch (config) {
-        case PCA9552_LED_ON:
-            /* Pin is set to 0V to turn on LED */
-            s->regs[input_reg] &= ~bit_mask;
-            break;
-        case PCA9552_LED_OFF:
-            /*
-             * Pin is set to Hi-Z to turn off LED and
-             * pullup sets it to a logical 1 unless
-             * external device drives it low.
-             */
-            if (s->ext_state[i] == PCA9552_PIN_LOW) {
+        if (k->has_led_support) {
+            /* PCA9552: LED control behavior */
+            uint8_t config = pca955x_pin_get_config(s, i);
+
+            switch (config) {
+            case PCA9552_LED_ON:
+                /* Pin is set to 0V to turn on LED */
                 s->regs[input_reg] &= ~bit_mask;
-            } else {
-                s->regs[input_reg] |=  bit_mask;
+                break;
+            case PCA9552_LED_OFF:
+                /*
+                 * Pin is set to Hi-Z to turn off LED and
+                 * pullup sets it to a logical 1 unless
+                 * external device drives it low.
+                 */
+                if (s->ext_state[i] == PCA9552_PIN_LOW) {
+                    s->regs[input_reg] &= ~bit_mask;
+                } else {
+                    s->regs[input_reg] |=  bit_mask;
+                }
+                break;
+            case PCA9552_LED_PWM0:
+            case PCA9552_LED_PWM1:
+                /* TODO */
+            default:
+                break;
             }
-            break;
-        case PCA9552_LED_PWM0:
-        case PCA9552_LED_PWM1:
-            /* TODO */
-        default:
-            break;
+        } else {
+            /* PCA9535: Simple GPIO behavior */
+            uint8_t config_reg = PCA9535_CONFIG0 + (i / 8);
+            uint8_t output_reg = PCA9535_OUTPUT0 + (i / 8);
+            uint8_t polarity_reg = PCA9535_POLARITY0 + (i / 8);
+
+            /* Check if pin is configured as input */
+            if (s->regs[config_reg] & bit_mask) {
+                /* Input mode - reflect external state */
+                if (s->ext_state[i] == PCA9552_PIN_LOW) {
+                    s->regs[input_reg] &= ~bit_mask;
+                } else {
+                    s->regs[input_reg] |= bit_mask;
+                }
+            } else {
+                /* Output mode - reflect output register value */
+                uint8_t output_bit = s->regs[output_reg] & bit_mask;
+                uint8_t polarity_bit = s->regs[polarity_reg] & bit_mask;
+
+                /* Apply polarity inversion if set */
+                s->regs[input_reg] = (s->regs[input_reg] & ~bit_mask) |
+                                    ((output_bit ^ polarity_bit) & bit_mask);
+            }
         }
 
         /* update irq state only if pin state changed */
@@ -151,52 +179,52 @@ static void pca955x_update_pin_input(PCA955xState *s)
 
 static uint8_t pca955x_read(PCA955xState *s, uint8_t reg)
 {
-    switch (reg) {
-    case PCA9552_INPUT0:
-    case PCA9552_INPUT1:
-    case PCA9552_PSC0:
-    case PCA9552_PWM0:
-    case PCA9552_PSC1:
-    case PCA9552_PWM1:
-    case PCA9552_LS0:
-    case PCA9552_LS1:
-    case PCA9552_LS2:
-    case PCA9552_LS3:
-        return s->regs[reg];
-    default:
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
+
+    if (reg > k->max_reg) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: unexpected read to register %d\n",
                       __func__, reg);
         return 0xFF;
     }
+
+    return s->regs[reg];
 }
 
 static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
 {
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
     uint16_t pins_status;
 
-    switch (reg) {
-    case PCA9552_PSC0:
-    case PCA9552_PWM0:
-    case PCA9552_PSC1:
-    case PCA9552_PWM1:
-        s->regs[reg] = data;
-        break;
-
-    case PCA9552_LS0:
-    case PCA9552_LS1:
-    case PCA9552_LS2:
-    case PCA9552_LS3:
-        pins_status = pca955x_pins_get_status(s);
-        s->regs[reg] = data;
-        pca955x_update_pin_input(s);
-        pca955x_display_pins_status(s, pins_status);
-        break;
-
-    case PCA9552_INPUT0:
-    case PCA9552_INPUT1:
-    default:
+    if (reg > k->max_reg) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: unexpected write to register %d\n",
                       __func__, reg);
+        return;
+    }
+
+    /* Handle read-only registers */
+    if (reg == PCA9552_INPUT0 || reg == PCA9552_INPUT1) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: unexpected write to read-only register %d\n",
+                      __func__, reg);
+        return;
+    }
+
+    pins_status = pca955x_pins_get_status(s);
+    s->regs[reg] = data;
+
+    /* Update GPIO state if this register affects outputs */
+    if (k->has_led_support) {
+        /* PCA9552: Update on LED selector register writes */
+        if (reg >= PCA9552_LS0 && reg <= PCA9552_LS3) {
+            pca955x_update_pin_input(s);
+            pca955x_display_pins_status(s, pins_status);
+        }
+    } else {
+        /* PCA9535: Update on OUTPUT, POLARITY, or CONFIG register writes */
+        if (reg >= PCA9535_OUTPUT0 && reg <= PCA9535_CONFIG1) {
+            pca955x_update_pin_input(s);
+            pca955x_display_pins_status(s, pins_status);
+        }
     }
 }
 
@@ -379,6 +407,26 @@ static void pca9552_reset(DeviceState *dev)
     s->len = 0;
 }
 
+static void pca9535_reset(DeviceState *dev)
+{
+    PCA955xState *s = PCA955X(dev);
+
+    s->regs[PCA9535_INPUT0] = 0xFF;   /* All inputs high (pull-ups) */
+    s->regs[PCA9535_INPUT1] = 0xFF;   /* All inputs high (pull-ups) */
+    s->regs[PCA9535_OUTPUT0] = 0xFF;  /* All outputs high */
+    s->regs[PCA9535_OUTPUT1] = 0xFF;  /* All outputs high */
+    s->regs[PCA9535_POLARITY0] = 0x00; /* No polarity inversion */
+    s->regs[PCA9535_POLARITY1] = 0x00; /* No polarity inversion */
+    s->regs[PCA9535_CONFIG0] = 0xFF;  /* All pins as inputs */
+    s->regs[PCA9535_CONFIG1] = 0xFF;  /* All pins as inputs */
+
+    memset(s->ext_state, PCA9552_PIN_HIZ, PCA955X_PIN_COUNT_MAX);
+    pca955x_update_pin_input(s);
+
+    s->pointer = 0xFF;
+    s->len = 0;
+}
+
 static void pca955x_initfn(Object *obj)
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
@@ -463,6 +511,19 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
     dc->vmsd = &pca9552_vmstate;
     pc->max_reg = PCA9552_LS3;
     pc->pin_count = 16;
+    pc->has_led_support = true;
+}
+
+static void pca9535_class_init(ObjectClass *oc, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PCA955xClass *pc = PCA955X_CLASS(oc);
+
+    device_class_set_legacy_reset(dc, pca9535_reset);
+    dc->vmsd = &pca9552_vmstate;
+    pc->max_reg = PCA9535_CONFIG1;
+    pc->pin_count = 16;
+    pc->has_led_support = false;
 }
 
 static const TypeInfo pca9552_info = {
@@ -471,10 +532,17 @@ static const TypeInfo pca9552_info = {
     .class_init    = pca9552_class_init,
 };
 
+static const TypeInfo pca9535_info = {
+    .name          = TYPE_PCA9535,
+    .parent        = TYPE_PCA955X,
+    .class_init    = pca9535_class_init,
+};
+
 static void pca955x_register_types(void)
 {
     type_register_static(&pca955x_info);
     type_register_static(&pca9552_info);
+    type_register_static(&pca9535_info);
 }
 
 type_init(pca955x_register_types)
