@@ -65,6 +65,11 @@ audio_capture_attach(const char *name, bool active) "capture %s active=%d"
 audio_get_avail(const char *name, size_t live, uint32_t frontend_frames) "%s: get_avail live %zu frontend frames %u"
 audio_run_poll(const char *msg, int64_t elapsed_us) "Elapsed since last %s: %" PRId64 " us"
 audio_capture_free_sw(const char *name) "freeing %s"
+audio_out_full(const char *name, size_t live) "%s is full %zu"
+audio_sw_write(const char *name, size_t size, size_t written, size_t total_mixed) "%s: write size %zu written %zu total mixed %zu"
+audio_get_free(const char *name, size_t live, size_t dead, uint32_t frontend_frames) "%s: get_free live %zu dead %zu frontend frames %u"
+audio_out_disable(void) "Disabling voice"
+audio_out_played(size_t played) "played=%zu"
 
 # audio_template.h
 audio_open_out(const char *name, int freq, int nchannels, int fmt) "open %s, freq %d, nchannels %d, fmt %d"
