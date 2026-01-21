@@ -24,13 +24,13 @@
 #include "system/replay.h"
 #include "system/runstate.h"
 #include "trace.h"
+#include "trace/control.h"
 
 #define AUDIO_CAP "audio"
 #include "audio_int.h"
 
 /* #define DEBUG_OUT */
 /* #define DEBUG_CAPTURE */
-/* #define DEBUG_POLL */
 
 #define SW_NAME(sw) (sw)->name ? (sw)->name : "unknown"
 
@@ -1269,22 +1269,12 @@ void audio_run(AudioMixengBackend *s, const char *msg)
     audio_run_in(s);
     audio_run_capture(s);
 
-#ifdef DEBUG_POLL
-    {
-        static double prevtime;
-        double currtime;
-        struct timeval tv;
-
-        if (gettimeofday (&tv, NULL)) {
-            perror ("audio_run: gettimeofday");
-            return;
-        }
-
-        currtime = tv.tv_sec + tv.tv_usec * 1e-6;
-        dolog ("Elapsed since last %s: %f\n", msg, currtime - prevtime);
-        prevtime = currtime;
+    if (trace_event_get_state(TRACE_AUDIO_RUN_POLL)) {
+        /* Convert seconds to microseconds for trace event */
+        int64_t elapsed_us = g_timer_elapsed(s->run_timer, NULL) * MICROSECONDS_PER_SECOND;
+        trace_audio_run_poll(msg, elapsed_us);
+        g_timer_start(s->run_timer);
     }
-#endif
 }
 
 void audio_generic_run_buffer_in(HWVoiceIn *hw)
@@ -1545,6 +1535,7 @@ static void audio_mixeng_backend_init(Object *obj)
     QLIST_INIT(&s->hw_head_in);
     QLIST_INIT(&s->cap_head);
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
+    s->run_timer = g_timer_new();
 
     s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
     assert(s->vmse != NULL);
@@ -1595,6 +1586,8 @@ static void audio_mixeng_backend_finalize(Object *obj)
         timer_free(s->ts);
         s->ts = NULL;
     }
+
+    g_clear_pointer(&s->run_timer, g_timer_destroy);
 
     if (s->vmse) {
         qemu_del_vm_change_state_handler(s->vmse);
