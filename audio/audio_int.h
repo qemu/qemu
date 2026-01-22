@@ -173,7 +173,6 @@ struct SWVoiceCap {
 struct AudioMixengBackendClass {
     AudioBackendClass parent_class;
 
-    const char *name;
     int max_voices_out;
     int max_voices_in;
     size_t voice_size_out;

@@ -649,7 +649,6 @@ static void audio_dsound_class_init(ObjectClass *klass, const void *data)
     audio_dsound_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_dsound_realize;
-    k->name = "dsound";
     k->max_voices_out = INT_MAX;
     k->max_voices_in = 1;
     k->voice_size_out = sizeof(DSoundVoiceOut);

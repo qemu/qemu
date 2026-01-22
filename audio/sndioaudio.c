@@ -531,7 +531,6 @@ static void audio_sndio_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
-    k->name = "sndio";
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(SndioVoice);

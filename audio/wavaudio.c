@@ -188,7 +188,6 @@ static void audio_wav_class_init(ObjectClass *klass, const void *data)
 {
     AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
 
-    k->name = "wav";
     k->max_voices_out = 1;
     k->max_voices_in = 0;
     k->voice_size_out = sizeof(WAVVoiceOut);

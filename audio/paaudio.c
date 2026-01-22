@@ -920,7 +920,6 @@ static void audio_pa_class_init(ObjectClass *klass, const void *data)
     audio_pa_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_pa_realize;
-    k->name = "pa";
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(PAVoiceOut);

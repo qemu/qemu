@@ -699,7 +699,6 @@ static void audio_dbus_class_init(ObjectClass *klass, const void *data)
 
     b->realize = audio_dbus_realize;
     b->set_dbus_server = dbus_audio_set_server;
-    k->name = "dbus";
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(DBusVoiceOut);

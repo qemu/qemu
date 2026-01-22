@@ -739,7 +739,6 @@ static void audio_oss_class_init(ObjectClass *klass, const void *data)
     audio_oss_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = audio_oss_realize;
-    k->name = "oss";
     k->max_voices_out = INT_MAX;
     k->max_voices_in = INT_MAX;
     k->voice_size_out = sizeof(OSSVoiceOut);

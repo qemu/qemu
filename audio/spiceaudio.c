@@ -303,7 +303,6 @@ static void audio_spice_class_init(ObjectClass *klass, const void *data)
     audio_spice_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
 
     b->realize = spice_audio_realize;
-    k->name = "spice";
     k->max_voices_out = 1;
     k->max_voices_in = 1;
     k->voice_size_out = sizeof(SpiceVoiceOut);

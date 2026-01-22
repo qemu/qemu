@@ -40,6 +40,7 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioMixengBackend *s,
                                               AudioMixengBackendClass *k,
                                               int min_voices)
 {
+    const char *be_name = object_class_get_name(OBJECT_CLASS(k));
     int max_voices = glue(k->max_voices_, TYPE);
     size_t voice_size = glue(k->voice_size_, TYPE);
 
@@ -47,11 +48,11 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioMixengBackend *s,
     if (glue(s->nb_hw_voices_, TYPE) > max_voices) {
         if (!max_voices) {
 #ifdef DAC
-            warn_report("audio: Driver '%s' does not support " NAME, k->name);
+            warn_report("audio: '%s' backend does not support " NAME, be_name);
 #endif
         } else {
-            warn_report("audio: Driver '%s' does not support %d " NAME " voices, max %d",
-                        k->name, glue(s->nb_hw_voices_, TYPE), max_voices);
+            warn_report("audio: '%s' backend does not support %d " NAME " voices, max %d",
+                        be_name, glue(s->nb_hw_voices_, TYPE), max_voices);
         }
         glue(s->nb_hw_voices_, TYPE) = max_voices;
     }
@@ -63,14 +64,14 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioMixengBackend *s,
     }
 
     if (!voice_size && max_voices) {
-        audio_bug("drv=`%s' voice_size=0 max_voices=%d",
-                  k->name, max_voices);
+        audio_bug("backend=`%s' voice_size=0 max_voices=%d",
+                  be_name, max_voices);
         glue(s->nb_hw_voices_, TYPE) = 0;
     }
 
     if (voice_size && !max_voices) {
-        audio_bug("drv=`%s' voice_size=%zu max_voices=0",
-                  k->name, voice_size);
+        audio_bug("backend=`%s' voice_size=%zu max_voices=0",
+                  be_name, voice_size);
     }
 }
 
