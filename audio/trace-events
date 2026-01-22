@@ -70,6 +70,7 @@ audio_sw_write(const char *name, size_t size, size_t written, size_t total_mixed
 audio_get_free(const char *name, size_t live, size_t dead, uint32_t frontend_frames) "%s: get_free live %zu dead %zu frontend frames %u"
 audio_out_disable(void) "Disabling voice"
 audio_out_played(size_t played) "played=%zu"
+audio_rate_reset(int64_t frames) "Resetting rate control (%" PRId64 " frames)"
 
 # audio_template.h
 audio_open_out(const char *name, int freq, int nchannels, int fmt) "open %s, freq %d, nchannels %d, fmt %d"

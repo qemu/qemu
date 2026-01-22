@@ -654,7 +654,7 @@ static size_t audio_mixeng_backend_write(AudioBackend *be, SWVoiceOut *sw,
     hw = sw->hw;
 
     if (!hw->enabled) {
-        dolog("Writing to disabled voice %s\n", SW_NAME(sw));
+        warn_report("audio: Writing to disabled voice %s", SW_NAME(sw));
         return 0;
     }
 
@@ -677,7 +677,7 @@ static size_t audio_mixeng_backend_read(AudioBackend *be,
     hw = sw->hw;
 
     if (!hw->enabled) {
-        dolog("Reading from disabled voice %s\n", SW_NAME(sw));
+        warn_report("audio: Reading from disabled voice %s", SW_NAME(sw));
         return 0;
     }
 
@@ -874,9 +874,8 @@ static void audio_capture_mix_and_clear(HWVoiceOut *hw, size_t rpos,
                 sw->empty = sw->total_hw_samples_mixed == 0;
 
                 if (to_read - frames_in) {
-                    dolog("Could not mix %zu frames into a capture "
-                          "buffer, mixed %zu\n",
-                          to_read, frames_in);
+                    audio_bug("Could not mix %zu frames into a capture "
+                              "buffer, mixed %zu", to_read, frames_in);
                     break;
                 }
                 n -= to_read;
@@ -1561,7 +1560,7 @@ static CaptureVoiceOut *audio_mixeng_backend_add_capture(
     }
 
     if (!audio_get_pdo_out(s->dev)->mixing_engine) {
-        dolog("Can't capture with mixeng disabled\n");
+        error_report("audio: Can't capture with mixeng disabled");
         return NULL;
     }
 
@@ -1754,8 +1753,7 @@ size_t audio_rate_peek_bytes(RateCtl *rate, struct audio_pcm_info *info)
 void audio_rate_add_bytes(RateCtl *rate, size_t bytes_used)
 {
     if (rate->peeked_frames < 0 || rate->peeked_frames > 65536) {
-        AUD_log(NULL, "Resetting rate control (%" PRId64 " frames)\n",
-                rate->peeked_frames);
+        trace_audio_rate_reset(rate->peeked_frames);
         audio_rate_start(rate);
     }
 

@@ -47,21 +47,19 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioMixengBackend *s,
     if (glue(s->nb_hw_voices_, TYPE) > max_voices) {
         if (!max_voices) {
 #ifdef DAC
-            dolog("Driver `%s' does not support " NAME "\n", k->name);
+            warn_report("audio: Driver '%s' does not support " NAME, k->name);
 #endif
         } else {
-            dolog("Driver `%s' does not support %d " NAME " voices, max %d\n",
-                   k->name,
-                   glue(s->nb_hw_voices_, TYPE),
-                   max_voices);
+            warn_report("audio: Driver '%s' does not support %d " NAME " voices, max %d",
+                        k->name, glue(s->nb_hw_voices_, TYPE), max_voices);
         }
         glue(s->nb_hw_voices_, TYPE) = max_voices;
     }
 
     if (glue(s->nb_hw_voices_, TYPE) < min_voices) {
-        dolog("Bogus number of " NAME " voices %d, setting to %d\n",
-               glue(s->nb_hw_voices_, TYPE),
-               min_voices);
+        warn_report("audio: Bogus number of " NAME " voices %d, setting to %d",
+                    glue(s->nb_hw_voices_, TYPE),
+                    min_voices);
     }
 
     if (!voice_size && max_voices) {
@@ -443,7 +441,7 @@ static SW *glue(audio_pcm_create_voice_pair_, TYPE)(
 
     hw = glue(audio_pcm_hw_add_, TYPE)(s, &hw_as);
     if (!hw) {
-        dolog("Could not create a backend for voice `%s'\n", sw_name);
+        error_report("audio: Could not create a backend for voice '%s'", sw_name);
         goto err1;
     }
 
@@ -537,8 +535,7 @@ static SW *glue(audio_mixeng_backend_open_, TYPE) (
         HW *hw = sw->hw;
 
         if (!hw) {
-            dolog("Internal logic error: voice `%s' has no backend\n",
-                  SW_NAME(sw));
+            audio_bug("Internal logic error: voice '%s' has no backend", SW_NAME(sw));
             goto fail;
         }
 
