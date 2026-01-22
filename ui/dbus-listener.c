@@ -815,8 +815,7 @@ static void ddl_scanout(DBusDisplayListener *ddl)
     qemu_dbus_display1_listener_call_scanout(
         ddl->proxy, surface_width(ddl->ds), surface_height(ddl->ds),
         surface_stride(ddl->ds), surface_format(ddl->ds), v_data,
-        G_DBUS_CALL_FLAGS_NONE, DBUS_DEFAULT_TIMEOUT, NULL, NULL,
-        g_object_ref(ddl));
+        G_DBUS_CALL_FLAGS_NONE, DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
 static void dbus_gfx_update(DisplayChangeListener *dcl,
