@@ -40,7 +40,8 @@ const char *exec_get_cmd_path(void)
 }
 #endif
 
-void exec_connect_outgoing(MigrationState *s, strList *command, Error **errp)
+QIOChannel *exec_connect_outgoing(MigrationState *s, strList *command,
+                                  Error **errp)
 {
     QIOChannel *ioc = NULL;
     g_auto(GStrv) argv = strv_from_str_list(command);
@@ -50,12 +51,11 @@ void exec_connect_outgoing(MigrationState *s, strList *command, Error **errp)
     trace_migration_exec_outgoing(new_command);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(args, O_RDWR, errp));
     if (!ioc) {
-        return;
+        return NULL;
     }
 
     qio_channel_set_name(ioc, "migration-exec-outgoing");
-    migration_channel_connect_outgoing(s, ioc);
-    object_unref(OBJECT(ioc));
+    return ioc;
 }
 
 static gboolean exec_accept_incoming_migration(QIOChannel *ioc,

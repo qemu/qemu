@@ -3933,8 +3933,8 @@ err:
     g_free(rdma);
 }
 
-void rdma_connect_outgoing(void *opaque,
-                           InetSocketAddress *host_port, Error **errp)
+QIOChannel *rdma_connect_outgoing(void *opaque,
+                                  InetSocketAddress *host_port, Error **errp)
 {
     MigrationState *s = opaque;
     RDMAContext *rdma_return_path = NULL;
@@ -3944,7 +3944,7 @@ void rdma_connect_outgoing(void *opaque,
     /* Avoid ram_block_discard_disable(), cannot change during migration. */
     if (ram_block_discard_is_required()) {
         error_setg(errp, "RDMA: cannot disable RAM discard");
-        return;
+        return NULL;
     }
 
     rdma = qemu_rdma_data_init(host_port, errp);
@@ -3994,12 +3994,11 @@ void rdma_connect_outgoing(void *opaque,
     trace_rdma_connect_outgoing_after_rdma_connect();
 
     s->rdma_migration = true;
-    migration_outgoing_setup(rdma_new_output(rdma));
-    migration_start_outgoing(s);
-    return;
+    return rdma_new_output(rdma);
 return_path_err:
     qemu_rdma_cleanup(rdma);
 err:
     g_free(rdma);
     g_free(rdma_return_path);
+    return NULL;
 }

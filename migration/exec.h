@@ -20,10 +20,13 @@
 #ifndef QEMU_MIGRATION_EXEC_H
 #define QEMU_MIGRATION_EXEC_H
 
+#include "io/channel.h"
+
 #ifdef WIN32
 const char *exec_get_cmd_path(void);
 #endif
 void exec_connect_incoming(strList *host_port, Error **errp);
 
-void exec_connect_outgoing(MigrationState *s, strList *host_port, Error **errp);
+QIOChannel *exec_connect_outgoing(MigrationState *s, strList *host_port,
+                                  Error **errp);
 #endif

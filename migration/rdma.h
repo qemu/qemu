@@ -21,8 +21,8 @@
 
 #include "system/memory.h"
 
-void rdma_connect_outgoing(void *opaque, InetSocketAddress *host_port,
-                           Error **errp);
+QIOChannel *rdma_connect_outgoing(void *opaque, InetSocketAddress *host_port,
+                                  Error **errp);
 
 void rdma_connect_incoming(InetSocketAddress *host_port, Error **errp);
 

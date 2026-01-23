@@ -93,36 +93,38 @@ out:
     return ret;
 }
 
-void file_connect_outgoing(MigrationState *s,
-                           FileMigrationArgs *file_args, Error **errp)
+QIOChannel *file_connect_outgoing(MigrationState *s,
+                                  FileMigrationArgs *file_args, Error **errp)
 {
-    g_autoptr(QIOChannelFile) fioc = NULL;
+    QIOChannelFile *fioc = NULL;
     g_autofree char *filename = g_strdup(file_args->filename);
     uint64_t offset = file_args->offset;
-    QIOChannel *ioc;
+    QIOChannel *ioc = NULL;
 
     trace_migration_file_outgoing(filename);
 
     fioc = qio_channel_file_new_path(filename, O_CREAT | O_WRONLY, 0600, errp);
     if (!fioc) {
-        return;
+        goto out;
     }
 
     if (ftruncate(fioc->fd, offset)) {
         error_setg_errno(errp, errno,
                          "failed to truncate migration file to offset %" PRIx64,
                          offset);
-        return;
+        goto out;
     }
 
     outgoing_args.fname = g_strdup(filename);
 
     ioc = QIO_CHANNEL(fioc);
     if (offset && qio_channel_io_seek(ioc, offset, SEEK_SET, errp) < 0) {
-        return;
+        ioc = NULL;
+        goto out;
     }
     qio_channel_set_name(ioc, "migration-file-outgoing");
-    migration_channel_connect_outgoing(s, ioc);
+out:
+    return ioc;
 }
 
 static gboolean file_accept_incoming_migration(QIOChannel *ioc,
