@@ -2,6 +2,7 @@
 #define BSWAP_H
 
 #include "qemu/target-info.h"
+#include "exec/memop.h"
 
 #undef  bswap16
 #define bswap16(_x) __builtin_bswap16(_x)
@@ -373,6 +374,77 @@ static inline void stl_be_p(void *ptr, uint32_t v)
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
     stq_he_p(ptr, be_bswap(v, 64));
+}
+
+
+/**
+ * ldm_p: Load value from host memory (byteswapping if necessary)
+ *
+ * @ptr: the host pointer to be accessed
+ * @mop: #MemOp mask containing access size and optional byteswapping
+ *
+ * Convert the value stored at @ptr in host memory and byteswap if necessary.
+ *
+ * Returns: the converted value.
+ */
+static inline uint64_t ldm_p(const void *ptr, MemOp mop)
+{
+    switch (mop & (MO_SIZE | MO_BSWAP)) {
+    case MO_8:
+        return ldub_p(ptr);
+    case MO_16 | MO_LE:
+        return lduw_le_p(ptr);
+    case MO_16 | MO_BE:
+        return lduw_be_p(ptr);
+    case MO_32 | MO_LE:
+        return ldl_le_p(ptr);
+    case MO_32 | MO_BE:
+        return ldl_be_p(ptr);
+    case MO_64 | MO_LE:
+        return ldq_le_p(ptr);
+    case MO_64 | MO_BE:
+        return ldq_be_p(ptr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/**
+ * stm_p: Store value to host memory (byteswapping if necessary)
+ *
+ * @ptr: the host pointer to be accessed
+ * @mop: #MemOp mask containing access size and optional byteswapping
+ * @val: the value to store
+ *
+ * Convert the value (byteswap if necessary) and store at @ptr in host memory.
+ */
+static inline void stm_p(void *ptr, MemOp mop, uint64_t val)
+{
+    switch (mop & (MO_SIZE | MO_BSWAP)) {
+    case MO_8:
+        stb_p(ptr, val);
+        break;
+    case MO_16 | MO_LE:
+        stw_le_p(ptr, val);
+        break;
+    case MO_16 | MO_BE:
+        stw_be_p(ptr, val);
+        break;
+    case MO_32 | MO_LE:
+        stl_le_p(ptr, val);
+        break;
+    case MO_32 | MO_BE:
+        stl_be_p(ptr, val);
+        break;
+    case MO_64 | MO_LE:
+        stq_le_p(ptr, val);
+        break;
+    case MO_64 | MO_BE:
+        stq_be_p(ptr, val);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 /* Store v to p as a sz byte value in host order */

@@ -30,13 +30,13 @@
 static void svm_save_seg(CPUX86State *env, int mmu_idx, hwaddr addr,
                          const SegmentCache *sc)
 {
-    cpu_stw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, selector),
+    cpu_stw_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, selector),
                       sc->selector, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, base),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, base),
                       sc->base, mmu_idx, 0);
-    cpu_stl_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, limit),
+    cpu_stl_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, limit),
                       sc->limit, mmu_idx, 0);
-    cpu_stw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, attrib),
+    cpu_stw_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, attrib),
                       ((sc->flags >> 8) & 0xff)
                       | ((sc->flags >> 12) & 0x0f00),
                       mmu_idx, 0);
@@ -58,16 +58,16 @@ static void svm_load_seg(CPUX86State *env, int mmu_idx, hwaddr addr,
     unsigned int flags;
 
     sc->selector =
-        cpu_lduw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, selector),
+        cpu_lduw_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, selector),
                            mmu_idx, 0);
     sc->base =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, base),
+        cpu_ldq_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, base),
                           mmu_idx, 0);
     sc->limit =
-        cpu_ldl_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, limit),
+        cpu_ldl_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, limit),
                           mmu_idx, 0);
     flags =
-        cpu_lduw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, attrib),
+        cpu_lduw_le_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, attrib),
                            mmu_idx, 0);
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
 
@@ -507,32 +507,35 @@ void helper_vmload(CPUX86State *env, int aflag)
 
 #ifdef TARGET_X86_64
     env->kernelgsbase =
-        cpu_ldq_mmuidx_ra(env,
-                          addr + offsetof(struct vmcb, save.kernel_gs_base),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env,
+                             addr + offsetof(struct vmcb, save.kernel_gs_base),
+                             mmu_idx, 0);
     env->lstar =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.lstar),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.lstar),
+                             mmu_idx, 0);
     env->cstar =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.cstar),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.cstar),
+                             mmu_idx, 0);
     env->fmask =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sfmask),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sfmask),
+                             mmu_idx, 0);
     svm_canonicalization(env, &env->kernelgsbase);
 #endif
     env->star =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.star),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.star),
+                             mmu_idx, 0);
     env->sysenter_cs =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_cs),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env,
+                             addr + offsetof(struct vmcb, save.sysenter_cs),
+                             mmu_idx, 0);
     env->sysenter_esp =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_esp),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env,
+                             addr + offsetof(struct vmcb, save.sysenter_esp),
+                             mmu_idx, 0);
     env->sysenter_eip =
-        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_eip),
-                          mmu_idx, 0);
+        cpu_ldq_le_mmuidx_ra(env,
+                             addr + offsetof(struct vmcb, save.sysenter_eip),
+                             mmu_idx, 0);
 }
 
 void helper_vmsave(CPUX86State *env, int aflag)
@@ -567,22 +570,22 @@ void helper_vmsave(CPUX86State *env, int aflag)
                  &env->ldt);
 
 #ifdef TARGET_X86_64
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.kernel_gs_base),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.kernel_gs_base),
                       env->kernelgsbase, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.lstar),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.lstar),
                       env->lstar, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.cstar),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.cstar),
                       env->cstar, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sfmask),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sfmask),
                       env->fmask, mmu_idx, 0);
 #endif
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.star),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.star),
                       env->star, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_cs),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_cs),
                       env->sysenter_cs, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_esp),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_esp),
                       env->sysenter_esp, mmu_idx, 0);
-    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_eip),
+    cpu_stq_le_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_eip),
                       env->sysenter_eip, mmu_idx, 0);
 }
 

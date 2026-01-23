@@ -31,6 +31,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "system/block-backend.h"
 #include "qapi/qapi-types-block.h"
 #include "hw/block/block.h"

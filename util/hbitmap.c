@@ -10,8 +10,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "qemu/hbitmap.h"
-#include "qemu/host-utils.h"
 #include "trace.h"
 #include "crypto/hash.h"
 

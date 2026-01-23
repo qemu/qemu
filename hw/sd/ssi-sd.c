@@ -19,6 +19,7 @@
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
 #include "hw/sd/sd.h"
+#include "qemu/bswap.h"
 #include "qemu/crc-ccitt.h"
 #include "qom/object.h"
 

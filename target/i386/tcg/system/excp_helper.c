@@ -90,7 +90,7 @@ static inline uint32_t ptw_ldl(const PTETranslate *in, uint64_t ra)
     if (likely(in->haddr)) {
         return ldl_p(in->haddr);
     }
-    return cpu_ldl_mmuidx_ra(in->env, in->gaddr, in->ptw_idx, ra);
+    return cpu_ldl_le_mmuidx_ra(in->env, in->gaddr, in->ptw_idx, ra);
 }
 
 static inline uint64_t ptw_ldq(const PTETranslate *in, uint64_t ra)
@@ -98,7 +98,7 @@ static inline uint64_t ptw_ldq(const PTETranslate *in, uint64_t ra)
     if (likely(in->haddr)) {
         return ldq_p(in->haddr);
     }
-    return cpu_ldq_mmuidx_ra(in->env, in->gaddr, in->ptw_idx, ra);
+    return cpu_ldq_le_mmuidx_ra(in->env, in->gaddr, in->ptw_idx, ra);
 }
 
 /*
@@ -116,9 +116,9 @@ static bool ptw_setl_slow(const PTETranslate *in, uint32_t old, uint32_t new)
     cpu_exec_end(cpu);
     /* Does x86 really perform a rmw cycle on mmio for ptw? */
     start_exclusive();
-    cmp = cpu_ldl_mmuidx_ra(in->env, in->gaddr, in->ptw_idx, 0);
+    cmp = cpu_ldl_le_mmuidx_ra(in->env, in->gaddr, in->ptw_idx, 0);
     if (cmp == old) {
-        cpu_stl_mmuidx_ra(in->env, in->gaddr, new, in->ptw_idx, 0);
+        cpu_stl_le_mmuidx_ra(in->env, in->gaddr, new, in->ptw_idx, 0);
     }
     end_exclusive();
     cpu_exec_start(cpu);

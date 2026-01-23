@@ -1,8 +1,6 @@
 #ifndef INT128_H
 #define INT128_H
 
-#include "qemu/bswap.h"
-
 /*
  * With TCI, we need to use libffi for interfacing with TCG helpers.
  * But libffi does not support __int128_t, and therefore cannot pass

@@ -1,5 +1,5 @@
 /*
- * Windows crashdump (target specific implementations)
+ * Windows crashdump (x86 specific implementations)
  *
  * Copyright (c) 2018 Virtuozzo International GmbH
  *
@@ -17,8 +17,6 @@
 #include "qemu/win_dump_defs.h"
 #include "win_dump.h"
 #include "cpu.h"
-
-#if defined(TARGET_X86_64)
 
 bool win_dump_available(Error **errp)
 {
@@ -477,19 +475,3 @@ out_free:
 out_cr3:
     first_x86_cpu->env.cr[3] = saved_cr3;
 }
-
-#else /* !TARGET_X86_64 */
-
-bool win_dump_available(Error **errp)
-{
-    error_setg(errp, "Windows dump is only available for x86-64");
-
-    return false;
-}
-
-void create_win_dump(DumpState *s, Error **errp)
-{
-    win_dump_available(errp);
-}
-
-#endif

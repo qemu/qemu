@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include <sys/eventfd.h>
 
+#include "qemu/bswap.h"
 #include "qapi/error.h"
 #include "block/export.h"
 #include "qemu/error-report.h"

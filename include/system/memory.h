@@ -27,9 +27,11 @@
 #include "qemu/rcu.h"
 
 enum device_endian {
-    DEVICE_NATIVE_ENDIAN,
-    DEVICE_BIG_ENDIAN,
-    DEVICE_LITTLE_ENDIAN,
+#ifndef TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API
+    DEVICE_NATIVE_ENDIAN = 0,
+#endif
+    DEVICE_BIG_ENDIAN = 1,
+    DEVICE_LITTLE_ENDIAN = 2,
 };
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)

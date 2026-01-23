@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config WINDUMP
+    bool
+    default y if X86_64
+    depends on X86_64
