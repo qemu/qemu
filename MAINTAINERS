@@ -4034,6 +4034,7 @@ T: git https://github.com/qemu-bsd-user/qemu-bsd-user bsd-user-rebase-3.1
 
 Linux user
 M: Laurent Vivier <laurent@vivier.eu>
+R: Pierrick Bouvier <pierrick.bouvier@linaro.org>
 S: Maintained
 F: linux-user/
 F: configs/targets/*linux-user.mak
