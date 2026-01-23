@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "channel.h"
 #include "exec.h"
 #include "fd.h"
@@ -20,7 +21,9 @@
 #include "migration.h"
 #include "multifd.h"
 #include "options.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/qapi-types-migration.h"
+#include "qapi/qapi-visit-migration.h"
 #include "qapi/error.h"
 #include "qemu-file.h"
 #include "qemu/yank.h"
@@ -279,4 +282,50 @@ int migration_channel_read_peek(QIOChannel *ioc,
     }
 
     return 0;
+}
+
+bool migrate_channels_parse(MigrationChannelList *channels,
+                            MigrationChannel **main_channelp,
+                            MigrationChannel **cpr_channelp,
+                            Error **errp)
+{
+    MigrationChannel *channelv[MIGRATION_CHANNEL_TYPE__MAX] = { NULL };
+
+    if (!cpr_channelp && channels->next) {
+        error_setg(errp, "Channel list must have only one entry, "
+                   "for type 'main'");
+        return false;
+    }
+
+    for ( ; channels; channels = channels->next) {
+        MigrationChannelType type;
+
+        type = channels->value->channel_type;
+        if (channelv[type]) {
+            error_setg(errp, "Channel list has more than one %s entry",
+                       MigrationChannelType_str(type));
+            return false;
+        }
+        channelv[type] = channels->value;
+    }
+
+    if (cpr_channelp) {
+        *cpr_channelp = QAPI_CLONE(MigrationChannel,
+                                   channelv[MIGRATION_CHANNEL_TYPE_CPR]);
+
+        if (migrate_mode() == MIG_MODE_CPR_TRANSFER && !*cpr_channelp) {
+            error_setg(errp, "missing 'cpr' migration channel");
+            return false;
+        }
+    }
+
+    *main_channelp = QAPI_CLONE(MigrationChannel,
+                                channelv[MIGRATION_CHANNEL_TYPE_MAIN]);
+
+    if (!(*main_channelp)->addr) {
+        error_setg(errp, "Channel list has no main entry");
+        return false;
+    }
+
+    return true;
 }

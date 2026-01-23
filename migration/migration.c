@@ -740,8 +740,7 @@ static void qemu_setup_incoming_migration(const char *uri, bool has_channels,
                                           MigrationChannelList *channels,
                                           Error **errp)
 {
-    g_autoptr(MigrationChannel) channel = NULL;
-    MigrationAddress *addr = NULL;
+    g_autoptr(MigrationChannel) main_ch = NULL;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     /*
@@ -753,25 +752,20 @@ static void qemu_setup_incoming_migration(const char *uri, bool has_channels,
     }
 
     if (channels) {
-        /* To verify that Migrate channel list has only item */
-        if (channels->next) {
-            error_setg(errp, "Channel list must have only one entry, "
-                             "for type 'main'");
+        if (!migrate_channels_parse(channels, &main_ch, NULL, errp)) {
             return;
         }
-        addr = channels->value->addr;
     }
 
     if (uri) {
         /* caller uses the old URI syntax */
-        if (!migrate_uri_parse(uri, &channel, errp)) {
+        if (!migrate_uri_parse(uri, &main_ch, errp)) {
             return;
         }
-        addr = channel->addr;
     }
 
     /* transport mechanism not suitable for migration? */
-    if (!migration_transport_compatible(addr, errp)) {
+    if (!migration_transport_compatible(main_ch->addr, errp)) {
         return;
     }
 
@@ -779,7 +773,7 @@ static void qemu_setup_incoming_migration(const char *uri, bool has_channels,
         return;
     }
 
-    migration_connect_incoming(addr, errp);
+    migration_connect_incoming(main_ch->addr, errp);
 
     /* Close cpr socket to tell source that we are listening */
     cpr_state_close();
@@ -2113,10 +2107,8 @@ void qmp_migrate(const char *uri, bool has_channels,
                  bool has_resume, bool resume, Error **errp)
 {
     MigrationState *s = migrate_get_current();
-    g_autoptr(MigrationChannel) channel = NULL;
-    MigrationAddress *addr = NULL;
-    MigrationChannel *channelv[MIGRATION_CHANNEL_TYPE__MAX] = { NULL };
-    MigrationChannel *cpr_channel = NULL;
+    g_autoptr(MigrationChannel) main_ch = NULL;
+    g_autoptr(MigrationChannel) cpr_ch = NULL;
 
     /*
      * Having preliminary checks for uri and channel
@@ -2127,39 +2119,20 @@ void qmp_migrate(const char *uri, bool has_channels,
     }
 
     if (channels) {
-        for ( ; channels; channels = channels->next) {
-            MigrationChannelType type = channels->value->channel_type;
-
-            if (channelv[type]) {
-                error_setg(errp, "Channel list has more than one %s entry",
-                           MigrationChannelType_str(type));
-                return;
-            }
-            channelv[type] = channels->value;
-        }
-        cpr_channel = channelv[MIGRATION_CHANNEL_TYPE_CPR];
-        addr = channelv[MIGRATION_CHANNEL_TYPE_MAIN]->addr;
-        if (!addr) {
-            error_setg(errp, "Channel list has no main entry");
+        if (!migrate_channels_parse(channels, &main_ch, &cpr_ch, errp)) {
             return;
         }
     }
 
     if (uri) {
         /* caller uses the old URI syntax */
-        if (!migrate_uri_parse(uri, &channel, errp)) {
+        if (!migrate_uri_parse(uri, &main_ch, errp)) {
             return;
         }
-        addr = channel->addr;
     }
 
     /* transport mechanism not suitable for migration? */
-    if (!migration_transport_compatible(addr, errp)) {
-        return;
-    }
-
-    if (migrate_mode() == MIG_MODE_CPR_TRANSFER && !cpr_channel) {
-        error_setg(errp, "missing 'cpr' migration channel");
+    if (!migration_transport_compatible(main_ch->addr, errp)) {
         return;
     }
 
@@ -2175,7 +2148,7 @@ void qmp_migrate(const char *uri, bool has_channels,
      */
     Error *local_err = NULL;
 
-    if (!cpr_state_save(cpr_channel, &local_err)) {
+    if (!cpr_state_save(cpr_ch, &local_err)) {
         goto out;
     }
 
@@ -2191,10 +2164,10 @@ void qmp_migrate(const char *uri, bool has_channels,
      */
     if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
         migrate_hup_add(s, cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
-                        QAPI_CLONE(MigrationAddress, addr));
+                        QAPI_CLONE(MigrationAddress, main_ch->addr));
 
     } else {
-        qmp_migrate_finish(addr, errp);
+        qmp_migrate_finish(main_ch->addr, errp);
     }
 
 out:
