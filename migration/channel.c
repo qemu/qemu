@@ -12,17 +12,73 @@
 
 #include "qemu/osdep.h"
 #include "channel.h"
-#include "tls.h"
+#include "exec.h"
+#include "fd.h"
+#include "file.h"
+#include "io/channel-socket.h"
+#include "io/channel-tls.h"
 #include "migration.h"
 #include "multifd.h"
-#include "savevm.h"
-#include "trace.h"
 #include "options.h"
+#include "qapi/qapi-types-migration.h"
 #include "qapi/error.h"
-#include "io/channel-tls.h"
-#include "io/channel-socket.h"
+#include "qemu-file.h"
 #include "qemu/yank.h"
+#include "rdma.h"
+#include "savevm.h"
+#include "socket.h"
+#include "tls.h"
+#include "trace.h"
 #include "yank_functions.h"
+
+void migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
+                                Error **errp)
+{
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
+        SocketAddress *saddr = &addr->u.socket;
+        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
+            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
+            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
+            socket_connect_outgoing(s, saddr, errp);
+        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
+            fd_connect_outgoing(s, saddr->u.fd.str, errp);
+        }
+#ifdef CONFIG_RDMA
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
+        rdma_connect_outgoing(s, &addr->u.rdma, errp);
+#endif
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
+        exec_connect_outgoing(s, addr->u.exec.args, errp);
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        file_connect_outgoing(s, &addr->u.file, errp);
+    } else {
+        error_setg(errp, "uri is not a valid migration protocol");
+    }
+}
+
+void migration_connect_incoming(MigrationAddress *addr, Error **errp)
+{
+    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
+        SocketAddress *saddr = &addr->u.socket;
+        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
+            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
+            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
+            socket_connect_incoming(saddr, errp);
+        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
+            fd_connect_incoming(saddr->u.fd.str, errp);
+        }
+#ifdef CONFIG_RDMA
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
+        rdma_connect_incoming(&addr->u.rdma, errp);
+#endif
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
+        exec_connect_incoming(addr->u.exec.args, errp);
+    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
+        file_connect_incoming(&addr->u.file, errp);
+    } else {
+        error_setg(errp, "unknown migration protocol");
+    }
+}
 
 bool migration_has_main_and_multifd_channels(void)
 {

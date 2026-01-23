@@ -20,13 +20,10 @@
 #include "qemu/main-loop.h"
 #include "migration/blocker.h"
 #include "exec.h"
-#include "fd.h"
 #include "file.h"
-#include "socket.h"
 #include "system/runstate.h"
 #include "system/system.h"
 #include "system/cpu-throttle.h"
-#include "rdma.h"
 #include "ram.h"
 #include "migration/cpr.h"
 #include "migration/global_state.h"
@@ -782,26 +779,7 @@ static void qemu_setup_incoming_migration(const char *uri, bool has_channels,
         return;
     }
 
-    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
-        SocketAddress *saddr = &addr->u.socket;
-        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
-            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
-            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
-            socket_connect_incoming(saddr, errp);
-        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            fd_connect_incoming(saddr->u.fd.str, errp);
-        }
-#ifdef CONFIG_RDMA
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_connect_incoming(&addr->u.rdma, errp);
-#endif
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
-        exec_connect_incoming(addr->u.exec.args, errp);
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
-        file_connect_incoming(&addr->u.file, errp);
-    } else {
-        error_setg(errp, "unknown migration protocol: %s", uri);
-    }
+    migration_connect_incoming(addr, errp);
 
     /* Close cpr socket to tell source that we are listening */
     cpr_state_close();
@@ -2231,31 +2209,11 @@ static void qmp_migrate_finish(MigrationAddress *addr, Error **errp)
     MigrationState *s = migrate_get_current();
     Error *local_err = NULL;
 
-    if (addr->transport == MIGRATION_ADDRESS_TYPE_SOCKET) {
-        SocketAddress *saddr = &addr->u.socket;
-        if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
-            saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
-            saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
-            socket_connect_outgoing(s, saddr, &local_err);
-        } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            fd_connect_outgoing(s, saddr->u.fd.str, &local_err);
-        }
-#ifdef CONFIG_RDMA
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_connect_outgoing(s, &addr->u.rdma, &local_err);
-#endif
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
-        exec_connect_outgoing(s, addr->u.exec.args, &local_err);
-    } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
-        file_connect_outgoing(s, &addr->u.file, &local_err);
-    } else {
-        error_setg(&local_err, "uri is not a valid migration protocol");
-    }
+    migration_connect_outgoing(s, addr, &local_err);
 
     if (local_err) {
         migration_connect_error_propagate(s, error_copy(local_err));
         error_propagate(errp, local_err);
-        return;
     }
 }
 
