@@ -29,7 +29,6 @@
 #include "qemu-file.h"
 #include "trace.h"
 #include "multifd.h"
-#include "threadinfo.h"
 #include "options.h"
 #include "qemu/yank.h"
 #include "io/channel-file.h"
@@ -658,12 +657,9 @@ int multifd_send_sync_main(MultiFDSyncReq req)
 static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
-    MigrationThread *thread = NULL;
     Error *local_err = NULL;
     int ret = 0;
     bool use_packets = multifd_use_packets();
-
-    thread = migration_threads_add(p->name, qemu_get_thread_id());
 
     trace_multifd_send_thread_start(p->id);
     rcu_register_thread();
@@ -779,7 +775,6 @@ out:
     }
 
     rcu_unregister_thread();
-    migration_threads_remove(thread);
     trace_multifd_send_thread_end(p->id, p->packets_sent);
 
     return NULL;
@@ -810,12 +805,10 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
                                         QIOChannel *ioc,
                                         Error **errp)
 {
-    MigrationState *s = migrate_get_current();
-    const char *hostname = s->hostname;
     MultiFDTLSThreadArgs *args;
     QIOChannelTLS *tioc;
 
-    tioc = migration_tls_client_create(ioc, hostname, errp);
+    tioc = migration_tls_client_create(ioc, errp);
     if (!tioc) {
         return false;
     }
@@ -825,7 +818,7 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
      * created TLS channel, which has already taken a reference.
      */
     object_unref(OBJECT(ioc));
-    trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
+    trace_multifd_tls_outgoing_handshake_start(ioc, tioc);
     qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
 
     args = g_new0(MultiFDTLSThreadArgs, 1);
@@ -872,8 +865,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         goto out;
     }
 
-    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)),
-                                       migrate_get_current()->hostname);
+    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         ret = multifd_tls_channel_connect(p, ioc, &local_err);
@@ -1520,7 +1512,7 @@ bool multifd_recv_all_channels_created(void)
  * Try to receive all multifd channels to get ready for the migration.
  * Sets @errp when failing to receive the current channel.
  */
-void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
+bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 {
     MultiFDRecvParams *p;
     Error *local_err = NULL;
@@ -1535,7 +1527,7 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
                                     "failed to receive packet"
                                     " via multifd channel %d: ",
                                     qatomic_read(&multifd_recv_state->count));
-            return;
+            return false;
         }
         trace_multifd_recv_new_channel(id);
     } else {
@@ -1548,7 +1540,7 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
                    id);
         multifd_recv_terminate_threads(error_copy(local_err));
         error_propagate(errp, local_err);
-        return;
+        return false;
     }
     p->c = ioc;
     object_ref(OBJECT(ioc));
@@ -1557,4 +1549,6 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
                        QEMU_THREAD_JOINABLE);
     qatomic_inc(&multifd_recv_state->count);
+
+    return true;
 }

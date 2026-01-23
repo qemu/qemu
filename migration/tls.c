@@ -71,9 +71,7 @@ static void migration_tls_incoming_handshake(QIOTask *task,
     object_unref(OBJECT(ioc));
 }
 
-void migration_tls_channel_process_incoming(MigrationState *s,
-                                            QIOChannel *ioc,
-                                            Error **errp)
+void migration_tls_channel_process_incoming(QIOChannel *ioc, Error **errp)
 {
     QCryptoTLSCreds *creds;
     QIOChannelTLS *tioc;
@@ -106,20 +104,20 @@ static void migration_tls_outgoing_handshake(QIOTask *task,
                                              gpointer opaque)
 {
     MigrationState *s = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
+    g_autoptr(QIOChannel) ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
         trace_migration_tls_outgoing_handshake_error(error_get_pretty(err));
-    } else {
-        trace_migration_tls_outgoing_handshake_complete();
+        migration_connect_error_propagate(s, err);
+        return;
     }
-    migration_channel_connect(s, ioc, NULL, err);
-    object_unref(OBJECT(ioc));
+
+    trace_migration_tls_outgoing_handshake_complete();
+    migration_channel_connect_outgoing(s, ioc);
 }
 
 QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
-                                           const char *hostname,
                                            Error **errp)
 {
     QCryptoTLSCreds *creds;
@@ -129,29 +127,20 @@ QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
         return NULL;
     }
 
-    const char *tls_hostname = migrate_tls_hostname();
-    if (tls_hostname) {
-        hostname = tls_hostname;
-    }
-
-    return qio_channel_tls_new_client(ioc, creds, hostname, errp);
+    return qio_channel_tls_new_client(ioc, creds, migrate_tls_hostname(), errp);
 }
 
-void migration_tls_channel_connect(MigrationState *s,
-                                   QIOChannel *ioc,
-                                   const char *hostname,
+void migration_tls_channel_connect(MigrationState *s, QIOChannel *ioc,
                                    Error **errp)
 {
     QIOChannelTLS *tioc;
 
-    tioc = migration_tls_client_create(ioc, hostname, errp);
+    tioc = migration_tls_client_create(ioc, errp);
     if (!tioc) {
         return;
     }
 
-    /* Save hostname into MigrationState for handshake */
-    s->hostname = g_strdup(hostname);
-    trace_migration_tls_outgoing_handshake_start(hostname);
+    trace_migration_tls_outgoing_handshake_start();
     qio_channel_set_name(QIO_CHANNEL(tioc), "migration-tls-outgoing");
 
     if (migrate_postcopy_ram() || migrate_return_path()) {

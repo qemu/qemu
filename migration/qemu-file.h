@@ -82,6 +82,6 @@ size_t qemu_get_buffer_at(QEMUFile *f, const uint8_t *buf, size_t buflen,
 
 QIOChannel *qemu_file_get_ioc(QEMUFile *file);
 int qemu_file_put_fd(QEMUFile *f, int fd);
-int qemu_file_get_fd(QEMUFile *f);
+int qemu_file_get_fd(QEMUFile *f, int *fd);
 
 #endif

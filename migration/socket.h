@@ -23,10 +23,10 @@
 
 void socket_send_channel_create(QIOTaskFunc f, void *data);
 
-void socket_start_incoming_migration(SocketAddress *saddr, Error **errp);
+void socket_connect_incoming(SocketAddress *saddr, Error **errp);
 
-void socket_start_outgoing_migration(MigrationState *s,
-                                     SocketAddress *saddr, Error **errp);
+void socket_connect_outgoing(MigrationState *s,
+                             SocketAddress *saddr, Error **errp);
 void socket_cleanup_outgoing_migration(void);
 
 #endif

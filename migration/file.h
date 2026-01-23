@@ -9,14 +9,15 @@
 #define QEMU_MIGRATION_FILE_H
 
 #include "qapi/qapi-types-migration.h"
+#include "io/channel.h"
 #include "io/task.h"
 #include "channel.h"
 #include "multifd.h"
 
-void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp);
+void file_connect_incoming(FileMigrationArgs *file_args, Error **errp);
 
-void file_start_outgoing_migration(MigrationState *s,
-                                   FileMigrationArgs *file_args, Error **errp);
+QIOChannel *file_connect_outgoing(MigrationState *s,
+                                  FileMigrationArgs *file_args, Error **errp);
 int file_parse_offset(char *filespec, uint64_t *offsetp, Error **errp);
 void file_cleanup_outgoing_migration(void);
 bool file_send_channel_create(gpointer opaque, Error **errp);

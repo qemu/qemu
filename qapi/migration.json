@@ -440,13 +440,6 @@
 #     footprint is mlock()'d on demand or all at once.  Refer to
 #     docs/rdma.txt for usage.  Disabled by default.  (since 2.0)
 #
-# @zero-blocks: During storage migration encode blocks of zeroes
-#     efficiently.  This essentially saves 1MB of zeroes per block on
-#     the wire.  Enabling requires source and target VM to support
-#     this feature.  To enable it is sufficient to enable the
-#     capability on the source VM.  The feature is disabled by
-#     default.  (since 1.6)
-#
 # @events: generate events for each migration state change (since 2.4)
 #
 # @auto-converge: If enabled, QEMU will automatically throttle down
@@ -531,14 +524,10 @@
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
-# @deprecated: Member @zero-blocks is deprecated as being part of
-#     block migration which was already removed.
-#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge',
-           { 'name': 'zero-blocks', 'features': [ 'deprecated' ] },
            'events', 'postcopy-ram',
            { 'name': 'x-colo', 'features': [ 'unstable' ] },
            'release-ram',
@@ -595,7 +584,6 @@
 #           {"state": false, "capability": "xbzrle"},
 #           {"state": false, "capability": "rdma-pin-all"},
 #           {"state": false, "capability": "auto-converge"},
-#           {"state": false, "capability": "zero-blocks"},
 #           {"state": true, "capability": "events"},
 #           {"state": false, "capability": "postcopy-ram"},
 #           {"state": false, "capability": "x-colo"}
@@ -1397,18 +1385,11 @@
 # @channels: list of migration stream channels with each stream in the
 #     list connected to a destination interface endpoint.
 #
-# @detach: this argument exists only for compatibility reasons and is
-#     ignored by QEMU
-#
 # @resume: when set, use the new uri/channels specified to resume
 #     paused postcopy migration.  This flag should only be used if
 #     the previous postcopy migration was interrupted.  The command
 #     will fail unless migration is in "postcopy-paused" state.
 #     (default: false, since 3.0)
-#
-# Features:
-#
-# @deprecated: Argument @detach is deprecated.
 #
 # Since: 0.14
 #
@@ -1469,7 +1450,6 @@
 { 'command': 'migrate',
   'data': {'*uri': 'str',
            '*channels': [ 'MigrationChannel' ],
-           '*detach': { 'type': 'bool', 'features': [ 'deprecated' ] },
            '*resume': 'bool' } }
 
 ##
@@ -2053,36 +2033,6 @@
 ##
 { 'command': 'query-vcpu-dirty-limit',
   'returns': [ 'DirtyLimitInfo' ] }
-
-##
-# @MigrationThreadInfo:
-#
-# Information about migrationthreads
-#
-# @name: the name of migration thread
-#
-# @thread-id: ID of the underlying host thread
-#
-# Since: 7.2
-##
-{ 'struct': 'MigrationThreadInfo',
-  'data': {'name': 'str',
-           'thread-id': 'int'} }
-
-##
-# @query-migrationthreads:
-#
-# Return information of migration threads
-#
-# Features:
-#
-# @deprecated: This command is deprecated with no replacement yet.
-#
-# Since: 7.2
-##
-{ 'command': 'query-migrationthreads',
-  'returns': ['MigrationThreadInfo'],
-  'features': ['deprecated'] }
 
 ##
 # @snapshot-save:

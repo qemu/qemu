@@ -24,6 +24,7 @@
 #include "qemu/sockets.h"
 #include "io/channel-util.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 static bool fd_is_pipe(int fd)
 {
@@ -49,29 +50,31 @@ static bool migration_fd_valid(int fd)
     return false;
 }
 
-void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
+QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
+                                Error **errp)
 {
-    QIOChannel *ioc;
+    QIOChannel *ioc = NULL;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
     if (fd == -1) {
-        return;
+        goto out;
     }
 
     if (!migration_fd_valid(fd)) {
-        warn_report("fd: migration to a file is deprecated."
-                    " Use file: instead.");
+        error_setg(errp, "fd: migration to a file is not supported."
+                   " Use file: instead.");
+        goto out;
     }
 
     trace_migration_fd_outgoing(fd);
     ioc = qio_channel_new_fd(fd, errp);
     if (!ioc) {
         close(fd);
-        return;
+        goto out;
     }
 
     qio_channel_set_name(ioc, "migration-fd-outgoing");
-    migration_channel_connect(s, ioc, NULL, NULL);
-    object_unref(OBJECT(ioc));
+out:
+    return ioc;
 }
 
 static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
@@ -83,7 +86,7 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
     return G_SOURCE_REMOVE;
 }
 
-void fd_start_incoming_migration(const char *fdname, Error **errp)
+void fd_connect_incoming(const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
     int fd = monitor_fd_param(monitor_cur(), fdname, errp);
@@ -92,8 +95,9 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
     }
 
     if (!migration_fd_valid(fd)) {
-        warn_report("fd: migration to a file is deprecated."
-                    " Use file: instead.");
+        error_setg(errp, "fd: migration to a file is not supported."
+                   " Use file: instead.");
+        return;
     }
 
     trace_migration_fd_incoming(fd);

@@ -542,6 +542,7 @@ void migrate_end(QTestState *from, QTestState *to, bool test_dest)
 
 static int migrate_postcopy_prepare(QTestState **from_ptr,
                                     QTestState **to_ptr,
+                                    void **hook_data,
                                     MigrateCommon *args)
 {
     QTestState *from, *to;
@@ -555,7 +556,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     }
 
     if (args->start_hook) {
-        args->postcopy_data = args->start_hook(from, to);
+        *hook_data = args->start_hook(from, to);
     }
 
     migrate_ensure_non_converge(from);
@@ -583,7 +584,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
 }
 
 static void migrate_postcopy_complete(QTestState *from, QTestState *to,
-                                      MigrateCommon *args)
+                                      void *hook_data, MigrateCommon *args)
 {
     MigrationTestEnv *env = migration_get_env();
 
@@ -602,8 +603,7 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
     }
 
     if (args->end_hook) {
-        args->end_hook(from, to, args->postcopy_data);
-        args->postcopy_data = NULL;
+        args->end_hook(from, to, hook_data);
     }
 
     migrate_end(from, to, true);
@@ -611,13 +611,14 @@ static void migrate_postcopy_complete(QTestState *from, QTestState *to,
 
 void test_postcopy_common(MigrateCommon *args)
 {
+    void *hook_data = NULL;
     QTestState *from, *to;
 
-    if (migrate_postcopy_prepare(&from, &to, args)) {
+    if (migrate_postcopy_prepare(&from, &to, &hook_data, args)) {
         return;
     }
     migrate_postcopy_start(from, to, &src_state);
-    migrate_postcopy_complete(from, to, args);
+    migrate_postcopy_complete(from, to, hook_data, args);
 }
 
 static void wait_for_postcopy_status(QTestState *one, const char *status)
@@ -739,10 +740,12 @@ static void postcopy_recover_fail(QTestState *from, QTestState *to,
 #endif
 }
 
-void test_postcopy_recovery_common(MigrateCommon *args)
+void test_postcopy_recovery_common(MigrateCommon *args,
+                                   PostcopyRecoveryFailStage fail_stage)
 {
     QTestState *from, *to;
     g_autofree char *uri = NULL;
+    void *hook_data = NULL;
 
     /*
      * Always enable OOB QMP capability for recovery tests, migrate-recover is
@@ -753,7 +756,7 @@ void test_postcopy_recovery_common(MigrateCommon *args)
     /* Always hide errors for postcopy recover tests since they're expected */
     args->start.hide_stderr = true;
 
-    if (migrate_postcopy_prepare(&from, &to, args)) {
+    if (migrate_postcopy_prepare(&from, &to, &hook_data, args)) {
         return;
     }
 
@@ -783,12 +786,12 @@ void test_postcopy_recovery_common(MigrateCommon *args)
     wait_for_postcopy_status(to, "postcopy-paused");
     wait_for_postcopy_status(from, "postcopy-paused");
 
-    if (args->postcopy_recovery_fail_stage) {
+    if (fail_stage) {
         /*
          * Test when a wrong socket specified for recover, and then the
          * ability to kick it out, and continue with a correct socket.
          */
-        postcopy_recover_fail(from, to, args->postcopy_recovery_fail_stage);
+        postcopy_recover_fail(from, to, fail_stage);
         /* continue with a good recovery */
     }
 
@@ -809,7 +812,7 @@ void test_postcopy_recovery_common(MigrateCommon *args)
     /* Restore the postcopy bandwidth to unlimited */
     migrate_set_parameter_int(from, "max-postcopy-bandwidth", 0);
 
-    migrate_postcopy_complete(from, to, args);
+    migrate_postcopy_complete(from, to, hook_data, args);
 }
 
 int test_precopy_common(MigrateCommon *args)

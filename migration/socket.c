@@ -44,7 +44,6 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
 
 struct SocketConnectData {
     MigrationState *s;
-    char *hostname;
 };
 
 static void socket_connect_data_free(void *opaque)
@@ -53,7 +52,6 @@ static void socket_connect_data_free(void *opaque)
     if (!data) {
         return;
     }
-    g_free(data->hostname);
     g_free(data);
 }
 
@@ -61,29 +59,29 @@ static void socket_outgoing_migration(QIOTask *task,
                                       gpointer opaque)
 {
     struct SocketConnectData *data = opaque;
-    QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
+    g_autoptr(QIOChannel) sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        trace_migration_socket_outgoing_error(error_get_pretty(err));
-           goto out;
+        goto fail;
     }
-
-    trace_migration_socket_outgoing_connected(data->hostname);
 
     if (migrate_zero_copy_send() &&
         !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY)) {
         error_setg(&err, "Zero copy send feature not detected in host kernel");
+        goto fail;
     }
 
-out:
-    migration_channel_connect(data->s, sioc, data->hostname, err);
-    object_unref(OBJECT(sioc));
+    trace_migration_socket_outgoing_connected();
+    migration_channel_connect_outgoing(data->s, sioc);
+    return;
+fail:
+    trace_migration_socket_outgoing_error(error_get_pretty(err));
+    migration_connect_error_propagate(data->s, err);
 }
 
-void socket_start_outgoing_migration(MigrationState *s,
-                                     SocketAddress *saddr,
-                                     Error **errp)
+void socket_connect_outgoing(MigrationState *s, SocketAddress *saddr,
+                             Error **errp)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
     struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
@@ -96,7 +94,7 @@ void socket_start_outgoing_migration(MigrationState *s,
     outgoing_args.saddr = addr;
 
     if (saddr->type == SOCKET_ADDRESS_TYPE_INET) {
-        data->hostname = g_strdup(saddr->u.inet.host);
+        s->hostname = g_strdup(saddr->u.inet.host);
     }
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-outgoing");
@@ -141,8 +139,7 @@ socket_incoming_migration_end(void *opaque)
     object_unref(OBJECT(listener));
 }
 
-void socket_start_incoming_migration(SocketAddress *saddr,
-                                     Error **errp)
+void socket_connect_incoming(SocketAddress *saddr, Error **errp)
 {
     QIONetListener *listener = qio_net_listener_new();
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -180,4 +177,3 @@ void socket_start_incoming_migration(SocketAddress *saddr,
         qapi_free_SocketAddress(address);
     }
 }
-

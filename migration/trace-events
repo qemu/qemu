@@ -149,10 +149,10 @@ multifd_send_sync_main_wait(uint8_t id) "channel %u"
 multifd_send_terminate_threads(void) ""
 multifd_send_thread_end(uint8_t id, uint64_t packets) "channel %u packets %" PRIu64
 multifd_send_thread_start(uint8_t id) "%u"
-multifd_tls_outgoing_handshake_start(void *ioc, void *tioc, const char *hostname) "ioc=%p tioc=%p hostname=%s"
+multifd_tls_outgoing_handshake_start(void *ioc, void *tioc) "ioc=%p tioc=%p"
 multifd_tls_outgoing_handshake_error(void *ioc, const char *err) "ioc=%p err=%s"
 multifd_tls_outgoing_handshake_complete(void *ioc) "ioc=%p"
-multifd_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostname)  "ioc=%p ioctype=%s hostname=%s"
+multifd_set_outgoing_channel(void *ioc, const char *ioctype)  "ioc=%p ioctype=%s"
 
 # migration.c
 migrate_set_state(const char *new_state) "new state %s"
@@ -204,7 +204,7 @@ migration_transferred_bytes(uint64_t qemu_file, uint64_t multifd, uint64_t rdma)
 
 # channel.c
 migration_set_incoming_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
-migration_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostname, void *err)  "ioc=%p ioctype=%s hostname=%s err=%p"
+migration_set_outgoing_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
 
 # global_state.c
 migrate_state_too_big(void) ""
@@ -271,11 +271,11 @@ rdma_registration_handle_wait(void) ""
 rdma_registration_start(uint64_t flags) "%" PRIu64
 rdma_registration_stop(uint64_t flags) "%" PRIu64
 rdma_registration_stop_ram(void) ""
-rdma_start_incoming_migration(void) ""
-rdma_start_incoming_migration_after_dest_init(void) ""
-rdma_start_incoming_migration_after_rdma_listen(void) ""
-rdma_start_outgoing_migration_after_rdma_connect(void) ""
-rdma_start_outgoing_migration_after_rdma_source_init(void) ""
+rdma_connect_incoming(void) ""
+rdma_connect_incoming_after_dest_init(void) ""
+rdma_connect_incoming_after_rdma_listen(void) ""
+rdma_connect_outgoing_after_rdma_connect(void) ""
+rdma_connect_outgoing_after_rdma_source_init(void) ""
 
 # postcopy-ram.c
 postcopy_discard_send_finish(const char *ramblock, int nwords, int ncmds) "%s mask words sent=%d in %d commands"
@@ -328,11 +328,11 @@ migration_file_incoming(const char *filename) "filename=%s"
 
 # socket.c
 migration_socket_incoming_accepted(void) ""
-migration_socket_outgoing_connected(const char *hostname) "hostname=%s"
+migration_socket_outgoing_connected(void) ""
 migration_socket_outgoing_error(const char *err) "error=%s"
 
 # tls.c
-migration_tls_outgoing_handshake_start(const char *hostname) "hostname=%s"
+migration_tls_outgoing_handshake_start(void) ""
 migration_tls_outgoing_handshake_error(const char *err) "err=%s"
 migration_tls_outgoing_handshake_complete(void) ""
 migration_tls_incoming_handshake_start(void) ""

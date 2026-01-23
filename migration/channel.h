@@ -17,16 +17,35 @@
 #define QEMU_MIGRATION_CHANNEL_H
 
 #include "io/channel.h"
+#include "qapi/qapi-types-migration.h"
+
+/* Migration channel types */
+typedef enum {
+    CH_NONE,
+    CH_MAIN,
+    CH_MULTIFD,
+    CH_POSTCOPY
+} MigChannelType;
 
 void migration_channel_process_incoming(QIOChannel *ioc);
 
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               const char *hostname,
-                               Error *error_in);
+void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc);
 
 int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,
                                 const size_t buflen,
                                 Error **errp);
+
+bool migration_has_main_and_multifd_channels(void);
+bool migration_has_all_channels(void);
+
+void migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
+                                Error **errp);
+void migration_connect_incoming(MigrationAddress *addr, Error **errp);
+
+bool migration_channel_parse_input(const char *uri,
+                                   MigrationChannelList *channels,
+                                   MigrationChannel **main_channelp,
+                                   MigrationChannel **cpr_channelp,
+                                   Error **errp);
 #endif
