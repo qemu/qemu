@@ -50,7 +50,7 @@ static bool migration_fd_valid(int fd)
     return false;
 }
 
-void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
+void fd_connect_outgoing(MigrationState *s, const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
     int fd = monitor_get_fd(monitor_cur(), fdname, errp);
@@ -85,7 +85,7 @@ static gboolean fd_accept_incoming_migration(QIOChannel *ioc,
     return G_SOURCE_REMOVE;
 }
 
-void fd_start_incoming_migration(const char *fdname, Error **errp)
+void fd_connect_incoming(const char *fdname, Error **errp)
 {
     QIOChannel *ioc;
     int fd = monitor_fd_param(monitor_cur(), fdname, errp);

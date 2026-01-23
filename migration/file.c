@@ -93,8 +93,8 @@ out:
     return ret;
 }
 
-void file_start_outgoing_migration(MigrationState *s,
-                                   FileMigrationArgs *file_args, Error **errp)
+void file_connect_outgoing(MigrationState *s,
+                           FileMigrationArgs *file_args, Error **errp)
 {
     g_autoptr(QIOChannelFile) fioc = NULL;
     g_autofree char *filename = g_strdup(file_args->filename);
@@ -173,7 +173,7 @@ static void file_create_incoming_channels(QIOChannel *ioc, char *filename,
     }
 }
 
-void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp)
+void file_connect_incoming(FileMigrationArgs *file_args, Error **errp)
 {
     g_autofree char *filename = g_strdup(file_args->filename);
     QIOChannelFile *fioc = NULL;

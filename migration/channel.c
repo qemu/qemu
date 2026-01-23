@@ -48,7 +48,7 @@ void migration_channel_process_incoming(QIOChannel *ioc)
         }
 
         if (migration_incoming_setup(ioc, ch, &local_err)) {
-            migration_incoming_process();
+            migration_start_incoming();
         }
     }
 out:
@@ -82,7 +82,7 @@ void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
 
     migration_ioc_register_yank(ioc);
     migration_outgoing_setup(ioc);
-    migration_connect(s);
+    migration_start_outgoing(s);
 }
 
 

@@ -40,8 +40,7 @@ const char *exec_get_cmd_path(void)
 }
 #endif
 
-void exec_start_outgoing_migration(MigrationState *s, strList *command,
-                                   Error **errp)
+void exec_connect_outgoing(MigrationState *s, strList *command, Error **errp)
 {
     QIOChannel *ioc = NULL;
     g_auto(GStrv) argv = strv_from_str_list(command);
@@ -68,7 +67,7 @@ static gboolean exec_accept_incoming_migration(QIOChannel *ioc,
     return G_SOURCE_REMOVE;
 }
 
-void exec_start_incoming_migration(strList *command, Error **errp)
+void exec_connect_incoming(strList *command, Error **errp)
 {
     QIOChannel *ioc;
     g_auto(GStrv) argv = strv_from_str_list(command);

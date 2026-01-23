@@ -3881,17 +3881,16 @@ static void rdma_accept_incoming_migration(void *opaque)
 
     rdma->migration_started_on_destination = 1;
     migration_incoming_setup(ioc, CH_MAIN, &error_abort);
-    migration_incoming_process();
+    migration_start_incoming();
 }
 
-void rdma_start_incoming_migration(InetSocketAddress *host_port,
-                                   Error **errp)
+void rdma_connect_incoming(InetSocketAddress *host_port, Error **errp)
 {
     MigrationState *s = migrate_get_current();
     int ret;
     RDMAContext *rdma;
 
-    trace_rdma_start_incoming_migration();
+    trace_rdma_connect_incoming();
 
     /* Avoid ram_block_discard_disable(), cannot change during migration. */
     if (ram_block_discard_is_required()) {
@@ -3909,7 +3908,7 @@ void rdma_start_incoming_migration(InetSocketAddress *host_port,
         goto err;
     }
 
-    trace_rdma_start_incoming_migration_after_dest_init();
+    trace_rdma_connect_incoming_after_dest_init();
 
     ret = rdma_listen(rdma->listen_id, 5);
 
@@ -3918,7 +3917,7 @@ void rdma_start_incoming_migration(InetSocketAddress *host_port,
         goto cleanup_rdma;
     }
 
-    trace_rdma_start_incoming_migration_after_rdma_listen();
+    trace_rdma_connect_incoming_after_rdma_listen();
     s->rdma_migration = true;
     qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
                         NULL, (void *)(intptr_t)rdma);
@@ -3933,8 +3932,8 @@ err:
     g_free(rdma);
 }
 
-void rdma_start_outgoing_migration(void *opaque,
-                            InetSocketAddress *host_port, Error **errp)
+void rdma_connect_outgoing(void *opaque,
+                           InetSocketAddress *host_port, Error **errp)
 {
     MigrationState *s = opaque;
     RDMAContext *rdma_return_path = NULL;
@@ -3958,7 +3957,7 @@ void rdma_start_outgoing_migration(void *opaque,
         goto err;
     }
 
-    trace_rdma_start_outgoing_migration_after_rdma_source_init();
+    trace_rdma_connect_outgoing_after_rdma_source_init();
     ret = qemu_rdma_connect(rdma, false, errp);
 
     if (ret < 0) {
@@ -3991,11 +3990,11 @@ void rdma_start_outgoing_migration(void *opaque,
         rdma_return_path->is_return_path = true;
     }
 
-    trace_rdma_start_outgoing_migration_after_rdma_connect();
+    trace_rdma_connect_outgoing_after_rdma_connect();
 
     s->rdma_migration = true;
     migration_outgoing_setup(rdma_new_output(rdma));
-    migration_connect(s);
+    migration_start_outgoing(s);
     return;
 return_path_err:
     qemu_rdma_cleanup(rdma);

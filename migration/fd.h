@@ -16,8 +16,8 @@
 
 #ifndef QEMU_MIGRATION_FD_H
 #define QEMU_MIGRATION_FD_H
-void fd_start_incoming_migration(const char *fdname, Error **errp);
+void fd_connect_incoming(const char *fdname, Error **errp);
 
-void fd_start_outgoing_migration(MigrationState *s, const char *fdname,
-                                 Error **errp);
+void fd_connect_outgoing(MigrationState *s, const char *fdname,
+                         Error **errp);
 #endif

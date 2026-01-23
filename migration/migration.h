@@ -539,7 +539,8 @@ void migration_connect_error_propagate(MigrationState *s, Error *error);
 void migrate_error_propagate(MigrationState *s, Error *error);
 bool migrate_has_error(MigrationState *s);
 
-void migration_connect(MigrationState *s);
+void migration_start_outgoing(MigrationState *s);
+void migration_start_incoming(void);
 
 int migration_call_notifiers(MigrationEventType type, Error **errp);
 

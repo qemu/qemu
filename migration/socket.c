@@ -80,9 +80,8 @@ fail:
     migration_connect_error_propagate(data->s, err);
 }
 
-void socket_start_outgoing_migration(MigrationState *s,
-                                     SocketAddress *saddr,
-                                     Error **errp)
+void socket_connect_outgoing(MigrationState *s, SocketAddress *saddr,
+                             Error **errp)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
     struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
@@ -140,8 +139,7 @@ socket_incoming_migration_end(void *opaque)
     object_unref(OBJECT(listener));
 }
 
-void socket_start_incoming_migration(SocketAddress *saddr,
-                                     Error **errp)
+void socket_connect_incoming(SocketAddress *saddr, Error **errp)
 {
     QIONetListener *listener = qio_net_listener_new();
     MigrationIncomingState *mis = migration_incoming_get_current();

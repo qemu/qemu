@@ -739,7 +739,7 @@ migration_incoming_state_setup(MigrationIncomingState *mis, Error **errp)
     return true;
 }
 
-static void qemu_start_incoming_migration(const char *uri, bool has_channels,
+static void qemu_setup_incoming_migration(const char *uri, bool has_channels,
                                           MigrationChannelList *channels,
                                           Error **errp)
 {
@@ -787,18 +787,18 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
             saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
             saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
-            socket_start_incoming_migration(saddr, errp);
+            socket_connect_incoming(saddr, errp);
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            fd_start_incoming_migration(saddr->u.fd.str, errp);
+            fd_connect_incoming(saddr->u.fd.str, errp);
         }
 #ifdef CONFIG_RDMA
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_start_incoming_migration(&addr->u.rdma, errp);
+        rdma_connect_incoming(&addr->u.rdma, errp);
 #endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
-        exec_start_incoming_migration(addr->u.exec.args, errp);
+        exec_connect_incoming(addr->u.exec.args, errp);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
-        file_start_incoming_migration(&addr->u.file, errp);
+        file_connect_incoming(&addr->u.file, errp);
     } else {
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
@@ -1011,7 +1011,7 @@ static bool postcopy_try_recover(void)
     return false;
 }
 
-void migration_incoming_process(void)
+void migration_start_incoming(void)
 {
     if (postcopy_try_recover()) {
         return;
@@ -1968,7 +1968,7 @@ void qmp_migrate_incoming(const char *uri, bool has_channels,
     mis->exit_on_error =
         has_exit_on_error ? exit_on_error : INMIGRATE_DEFAULT_EXIT_ON_ERROR;
 
-    qemu_start_incoming_migration(uri, has_channels, channels, &local_err);
+    qemu_setup_incoming_migration(uri, has_channels, channels, &local_err);
 
     if (local_err) {
         yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -2015,7 +2015,7 @@ void qmp_migrate_recover(const char *uri, Error **errp)
      * only re-setup the migration stream and poke existing migration
      * to continue using that newly established channel.
      */
-    qemu_start_incoming_migration(uri, false, NULL, errp);
+    qemu_setup_incoming_migration(uri, false, NULL, errp);
 }
 
 void qmp_migrate_pause(Error **errp)
@@ -2332,18 +2332,18 @@ static void qmp_migrate_finish(MigrationAddress *addr, Error **errp)
         if (saddr->type == SOCKET_ADDRESS_TYPE_INET ||
             saddr->type == SOCKET_ADDRESS_TYPE_UNIX ||
             saddr->type == SOCKET_ADDRESS_TYPE_VSOCK) {
-            socket_start_outgoing_migration(s, saddr, &local_err);
+            socket_connect_outgoing(s, saddr, &local_err);
         } else if (saddr->type == SOCKET_ADDRESS_TYPE_FD) {
-            fd_start_outgoing_migration(s, saddr->u.fd.str, &local_err);
+            fd_connect_outgoing(s, saddr->u.fd.str, &local_err);
         }
 #ifdef CONFIG_RDMA
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_RDMA) {
-        rdma_start_outgoing_migration(s, &addr->u.rdma, &local_err);
+        rdma_connect_outgoing(s, &addr->u.rdma, &local_err);
 #endif
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_EXEC) {
-        exec_start_outgoing_migration(s, addr->u.exec.args, &local_err);
+        exec_connect_outgoing(s, addr->u.exec.args, &local_err);
     } else if (addr->transport == MIGRATION_ADDRESS_TYPE_FILE) {
-        file_start_outgoing_migration(s, &addr->u.file, &local_err);
+        file_connect_outgoing(s, &addr->u.file, &local_err);
     } else {
         error_setg(&local_err, "uri is not a valid migration protocol");
     }
@@ -4024,7 +4024,7 @@ fail_setup:
     return NULL;
 }
 
-void migration_connect(MigrationState *s)
+void migration_start_outgoing(MigrationState *s)
 {
     Error *local_err = NULL;
     uint64_t rate_limit;
