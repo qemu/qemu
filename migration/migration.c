@@ -1998,15 +1998,18 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
     return true;
 }
 
-static void qmp_migrate_finish(MigrationAddress *addr, Error **errp);
-
-static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
-                                      GIOCondition cond,
-                                      void *opaque)
+static gboolean migration_connect_outgoing_cb(QIOChannel *channel,
+                                              GIOCondition cond, void *opaque)
 {
-    MigrationAddress *addr = opaque;
+    MigrationState *s = migrate_get_current();
+    Error *local_err = NULL;
 
-    qmp_migrate_finish(addr, NULL);
+    migration_connect_outgoing(s, opaque, &local_err);
+
+    if (local_err) {
+        migration_connect_error_propagate(s, local_err);
+    }
+
     return G_SOURCE_REMOVE;
 }
 
@@ -2055,26 +2058,14 @@ void qmp_migrate(const char *uri, bool has_channels,
      * connection, so qmp_migrate_finish will fail to connect, and then recover.
      */
     if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
-        cpr_transfer_add_hup_watch(s, qmp_migrate_finish_cb, main_ch->addr);
+        cpr_transfer_add_hup_watch(s, migration_connect_outgoing_cb,
+                                   main_ch->addr);
 
     } else {
-        qmp_migrate_finish(main_ch->addr, errp);
+        migration_connect_outgoing(s, main_ch->addr, &local_err);
     }
 
 out:
-    if (local_err) {
-        migration_connect_error_propagate(s, error_copy(local_err));
-        error_propagate(errp, local_err);
-    }
-}
-
-static void qmp_migrate_finish(MigrationAddress *addr, Error **errp)
-{
-    MigrationState *s = migrate_get_current();
-    Error *local_err = NULL;
-
-    migration_connect_outgoing(s, addr, &local_err);
-
     if (local_err) {
         migration_connect_error_propagate(s, error_copy(local_err));
         error_propagate(errp, local_err);
