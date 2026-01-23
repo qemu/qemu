@@ -90,9 +90,6 @@ enum mig_rp_message_type {
     MIG_RP_MSG_MAX
 };
 
-/* Migration channel types */
-enum { CH_MAIN, CH_MULTIFD, CH_POSTCOPY };
-
 /* When we add fault tolerance, we could have several
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
@@ -1022,16 +1019,6 @@ void migration_incoming_process(void)
 
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
     qemu_coroutine_enter(co);
-}
-
-void migration_fd_process_incoming(QEMUFile *f)
-{
-    MigrationIncomingState *mis = migration_incoming_get_current();
-
-    assert(!mis->from_src_file);
-    mis->from_src_file = f;
-    qemu_file_set_blocking(f, false, &error_abort);
-    migration_incoming_process();
 }
 
 static bool migration_has_main_and_multifd_channels(void)

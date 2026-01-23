@@ -18,6 +18,13 @@
 
 #include "io/channel.h"
 
+/* Migration channel types */
+enum {
+    CH_MAIN,
+    CH_MULTIFD,
+    CH_POSTCOPY
+};
+
 void migration_channel_process_incoming(QIOChannel *ioc);
 
 void migration_channel_connect(MigrationState *s, QIOChannel *ioc);
