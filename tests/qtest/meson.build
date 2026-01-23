@@ -46,6 +46,7 @@ qtests_cxl = \
 #        for the availability of the default NICs in the tests
 qtests_filter = \
   (get_option('default_devices') and slirp.found() ? ['test-netfilter'] : []) + \
+  (get_option('default_devices') and host_os != 'windows' ? ['test-filter-buffer'] : []) + \
   (get_option('default_devices') and host_os != 'windows' ? ['test-filter-mirror'] : []) + \
   (get_option('default_devices') and host_os != 'windows' ? ['test-filter-redirector'] : [])
 
