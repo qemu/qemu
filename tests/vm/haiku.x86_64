@@ -78,6 +78,8 @@ class HaikuVM(basevm.BaseVM):
         "devel:libusb_1.0",
         "devel:libz",
         "ninja",
+        "pip",
+        "tomli_python310",
     ]
 
     BUILD_SCRIPT = """
@@ -109,6 +111,8 @@ class HaikuVM(basevm.BaseVM):
         self.wait_ssh(wait_root=True, cmd="exit 0")
 
         # Install packages
+        self.ssh_root("echo yes | pkgman add-repo https://eu.hpkg.haiku-os.org/haiku/r1beta5/$(getarch)/current")
+        self.ssh_root("echo yes | pkgman add-repo https://eu.hpkg.haiku-os.org/haikuports/r1beta5/$(getarch)/current")
         self.ssh_root("pkgman install -y %s" % " ".join(self.requirements))
         self.graceful_shutdown()
 
