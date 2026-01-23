@@ -200,7 +200,7 @@ F: disas/alpha.c
 ARM TCG CPUs
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Supported
 F: target/arm/
 F: target/arm/tcg/
 F: tests/functional/aarch64/meson.build
@@ -462,7 +462,7 @@ F: scripts/kvm/kvm_flightrecorder
 ARM KVM CPUs
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Supported
 F: target/arm/kvm.c
 F: tests/functional/aarch64/test_kvm.py
 
@@ -1102,7 +1102,7 @@ F: docs/system/arm/versatile.rst
 Virt
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Supported
 F: hw/arm/virt*
 F: include/hw/arm/virt.h
 F: docs/system/arm/virt.rst
