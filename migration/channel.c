@@ -60,38 +60,35 @@ void migration_channel_process_incoming(QIOChannel *ioc)
  *
  * @s: Current migration state
  * @ioc: Channel to which we are connecting
- * @error: Error indicating failure to connect, free'd here
  */
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               Error *error)
+void migration_channel_connect(MigrationState *s, QIOChannel *ioc)
 {
-    trace_migration_set_outgoing_channel(
-        ioc, object_get_typename(OBJECT(ioc)), error);
+    trace_migration_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
 
-    if (!error) {
-        if (migrate_channel_requires_tls_upgrade(ioc)) {
-            migration_tls_channel_connect(s, ioc, &error);
+    if (migrate_channel_requires_tls_upgrade(ioc)) {
+        Error *local_err = NULL;
 
-            if (!error) {
-                /* tls_channel_connect will call back to this
-                 * function after the TLS handshake,
-                 * so we mustn't call migration_connect until then
-                 */
-
-                return;
-            }
-        } else {
-            QEMUFile *f = qemu_file_new_output(ioc);
-
-            migration_ioc_register_yank(ioc);
-
-            qemu_mutex_lock(&s->qemu_file_lock);
-            s->to_dst_file = f;
-            qemu_mutex_unlock(&s->qemu_file_lock);
+        migration_tls_channel_connect(s, ioc, &local_err);
+        if (local_err) {
+            migration_connect_error_propagate(s, local_err);
         }
+
+        /*
+         * async: the above will call back to this function after
+         * the TLS handshake is successfully completed.
+         */
+        return;
     }
-    migration_connect(s, error);
+
+    QEMUFile *f = qemu_file_new_output(ioc);
+
+    migration_ioc_register_yank(ioc);
+
+    qemu_mutex_lock(&s->qemu_file_lock);
+    s->to_dst_file = f;
+    qemu_mutex_unlock(&s->qemu_file_lock);
+
+    migration_connect(s);
 }
 
 

@@ -59,24 +59,25 @@ static void socket_outgoing_migration(QIOTask *task,
                                       gpointer opaque)
 {
     struct SocketConnectData *data = opaque;
-    QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
+    g_autoptr(QIOChannel) sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
-        trace_migration_socket_outgoing_error(error_get_pretty(err));
-           goto out;
+        goto fail;
     }
-
-    trace_migration_socket_outgoing_connected();
 
     if (migrate_zero_copy_send() &&
         !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY)) {
         error_setg(&err, "Zero copy send feature not detected in host kernel");
+        goto fail;
     }
 
-out:
-    migration_channel_connect(data->s, sioc, err);
-    object_unref(OBJECT(sioc));
+    trace_migration_socket_outgoing_connected();
+    migration_channel_connect(data->s, sioc);
+    return;
+fail:
+    trace_migration_socket_outgoing_error(error_get_pretty(err));
+    migration_connect_error_propagate(data->s, err);
 }
 
 void socket_start_outgoing_migration(MigrationState *s,

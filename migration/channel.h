@@ -20,9 +20,7 @@
 
 void migration_channel_process_incoming(QIOChannel *ioc);
 
-void migration_channel_connect(MigrationState *s,
-                               QIOChannel *ioc,
-                               Error *error_in);
+void migration_channel_connect(MigrationState *s, QIOChannel *ioc);
 
 int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,

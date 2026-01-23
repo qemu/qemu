@@ -104,16 +104,17 @@ static void migration_tls_outgoing_handshake(QIOTask *task,
                                              gpointer opaque)
 {
     MigrationState *s = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
+    g_autoptr(QIOChannel) ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
         trace_migration_tls_outgoing_handshake_error(error_get_pretty(err));
-    } else {
-        trace_migration_tls_outgoing_handshake_complete();
+        migration_connect_error_propagate(s, err);
+        return;
     }
-    migration_channel_connect(s, ioc, err);
-    object_unref(OBJECT(ioc));
+
+    trace_migration_tls_outgoing_handshake_complete();
+    migration_channel_connect(s, ioc);
 }
 
 QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
@@ -129,8 +130,7 @@ QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
     return qio_channel_tls_new_client(ioc, creds, migrate_tls_hostname(), errp);
 }
 
-void migration_tls_channel_connect(MigrationState *s,
-                                   QIOChannel *ioc,
+void migration_tls_channel_connect(MigrationState *s, QIOChannel *ioc,
                                    Error **errp)
 {
     QIOChannelTLS *tioc;
