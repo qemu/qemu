@@ -40,10 +40,12 @@
 #     example, firmware built from the edk2 (EFI Development Kit II)
 #     project usually provides this interface.
 #
+# @svsm: AMD SEV-SNP Secure VM Service Module (SVSM) guest protocol.
+#
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareOSInterface',
-  'data' : [ 'bios', 'openfirmware', 'uboot', 'uefi' ] }
+  'data' : [ 'bios', 'openfirmware', 'svsm', 'uboot', 'uefi' ] }
 
 ##
 # @FirmwareDevice:
