@@ -99,7 +99,6 @@ static bool migration_object_check(MigrationState *ms, Error **errp);
 static bool migration_switchover_start(MigrationState *s, Error **errp);
 static bool close_return_path_on_source(MigrationState *s);
 static void migration_completion_end(MigrationState *s);
-static void migrate_hup_delete(MigrationState *s);
 
 static void migration_downtime_start(MigrationState *s)
 {
@@ -1296,7 +1295,7 @@ static void migration_cleanup(MigrationState *s)
 
     qemu_savevm_state_cleanup();
     cpr_state_close();
-    migrate_hup_delete(s);
+    cpr_transfer_source_destroy(s);
 
     close_return_path_on_source(s);
 
@@ -1477,7 +1476,7 @@ void migration_cancel(void)
         migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
                           MIGRATION_STATUS_CANCELLED);
         cpr_state_close();
-        migrate_hup_delete(s);
+        cpr_transfer_source_destroy(s);
     }
 }
 
@@ -2001,25 +2000,6 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
 
 static void qmp_migrate_finish(MigrationAddress *addr, Error **errp);
 
-static void migrate_hup_add(MigrationState *s, QIOChannel *ioc, GSourceFunc cb,
-                            void *opaque)
-{
-    s->hup_source = qio_channel_create_watch(ioc, G_IO_HUP);
-    g_source_set_callback(s->hup_source, cb,
-                          QAPI_CLONE(MigrationAddress, opaque),
-                          (GDestroyNotify)qapi_free_MigrationAddress);
-    g_source_attach(s->hup_source, NULL);
-}
-
-static void migrate_hup_delete(MigrationState *s)
-{
-    if (s->hup_source) {
-        g_source_destroy(s->hup_source);
-        g_source_unref(s->hup_source);
-        s->hup_source = NULL;
-    }
-}
-
 static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
                                       GIOCondition cond,
                                       void *opaque)
@@ -2075,8 +2055,7 @@ void qmp_migrate(const char *uri, bool has_channels,
      * connection, so qmp_migrate_finish will fail to connect, and then recover.
      */
     if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
-        migrate_hup_add(s, cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
-                        main_ch->addr);
+        cpr_transfer_add_hup_watch(s, qmp_migrate_finish_cb, main_ch->addr);
 
     } else {
         qmp_migrate_finish(main_ch->addr, errp);

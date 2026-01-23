@@ -9,6 +9,7 @@
 #define MIGRATION_CPR_H
 
 #include "qapi/qapi-types-migration.h"
+#include "io/channel.h"
 #include "qemu/queue.h"
 
 #define MIG_MODE_NONE           -1
@@ -52,6 +53,10 @@ int cpr_get_fd_param(const char *name, const char *fdname, int index,
 
 QEMUFile *cpr_transfer_output(MigrationChannel *channel, Error **errp);
 QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp);
+
+void cpr_transfer_add_hup_watch(MigrationState *s, QIOChannelFunc func,
+                                void *opaque);
+void cpr_transfer_source_destroy(MigrationState *s);
 
 void cpr_exec_init(void);
 QEMUFile *cpr_exec_output(Error **errp);

@@ -6,7 +6,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/error.h"
+#include "qapi/qapi-visit-migration.h"
+#include "io/channel.h"
 #include "io/channel-file.h"
 #include "io/channel-socket.h"
 #include "io/net-listener.h"
@@ -70,5 +73,25 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp)
     } else {
         error_setg(errp, "bad cpr channel socket type; must be unix");
         return NULL;
+    }
+}
+
+void cpr_transfer_add_hup_watch(MigrationState *s, QIOChannelFunc func,
+                                void *opaque)
+{
+    s->hup_source = qio_channel_create_watch(cpr_state_ioc(), G_IO_HUP);
+    g_source_set_callback(s->hup_source,
+                          (GSourceFunc)func,
+                          QAPI_CLONE(MigrationAddress, opaque),
+                          (GDestroyNotify)qapi_free_MigrationAddress);
+    g_source_attach(s->hup_source, NULL);
+}
+
+void cpr_transfer_source_destroy(MigrationState *s)
+{
+    if (s->hup_source) {
+        g_source_destroy(s->hup_source);
+        g_source_unref(s->hup_source);
+        s->hup_source = NULL;
     }
 }
