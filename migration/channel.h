@@ -19,11 +19,12 @@
 #include "io/channel.h"
 
 /* Migration channel types */
-enum {
+typedef enum {
+    CH_NONE,
     CH_MAIN,
     CH_MULTIFD,
     CH_POSTCOPY
-};
+} MigChannelType;
 
 void migration_channel_process_incoming(QIOChannel *ioc);
 

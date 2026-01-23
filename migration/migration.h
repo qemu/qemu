@@ -28,6 +28,7 @@
 #include "postcopy-ram.h"
 #include "system/runstate.h"
 #include "migration/misc.h"
+#include "channel.h"
 
 #define  MIGRATION_THREAD_SNAPSHOT          "mig/snapshot"
 #define  MIGRATION_THREAD_DIRTY_RATE        "mig/dirtyrate"
@@ -527,7 +528,7 @@ struct MigrationState {
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,
                        MigrationStatus new_state);
 
-void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);
+MigChannelType migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);
 void migration_incoming_process(void);
 bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp);
 void migration_outgoing_setup(QIOChannel *ioc);
