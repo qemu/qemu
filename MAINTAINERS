@@ -4512,6 +4512,11 @@ Incompatible changes
 L: devel@lists.libvirt.org
 F: docs/about/deprecated.rst
 
+General Documentation
+M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+S: Maintained
+F: docs/
+
 Build System
 ------------
 Meson
