@@ -60,20 +60,18 @@ void migration_channel_process_incoming(QIOChannel *ioc)
  *
  * @s: Current migration state
  * @ioc: Channel to which we are connecting
- * @hostname: Where we want to connect
  * @error: Error indicating failure to connect, free'd here
  */
 void migration_channel_connect(MigrationState *s,
                                QIOChannel *ioc,
-                               const char *hostname,
                                Error *error)
 {
     trace_migration_set_outgoing_channel(
-        ioc, object_get_typename(OBJECT(ioc)), hostname, error);
+        ioc, object_get_typename(OBJECT(ioc)), error);
 
     if (!error) {
         if (migrate_channel_requires_tls_upgrade(ioc)) {
-            migration_tls_channel_connect(s, ioc, hostname, &error);
+            migration_tls_channel_connect(s, ioc, &error);
 
             if (!error) {
                 /* tls_channel_connect will call back to this

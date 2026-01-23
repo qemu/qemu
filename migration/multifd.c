@@ -805,12 +805,10 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
                                         QIOChannel *ioc,
                                         Error **errp)
 {
-    MigrationState *s = migrate_get_current();
-    const char *hostname = s->hostname;
     MultiFDTLSThreadArgs *args;
     QIOChannelTLS *tioc;
 
-    tioc = migration_tls_client_create(ioc, hostname, errp);
+    tioc = migration_tls_client_create(ioc, errp);
     if (!tioc) {
         return false;
     }
@@ -820,7 +818,7 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
      * created TLS channel, which has already taken a reference.
      */
     object_unref(OBJECT(ioc));
-    trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
+    trace_multifd_tls_outgoing_handshake_start(ioc, tioc);
     qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
 
     args = g_new0(MultiFDTLSThreadArgs, 1);
@@ -867,8 +865,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         goto out;
     }
 
-    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)),
-                                       migrate_get_current()->hostname);
+    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         ret = multifd_tls_channel_connect(p, ioc, &local_err);

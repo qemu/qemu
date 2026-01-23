@@ -44,7 +44,6 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
 
 struct SocketConnectData {
     MigrationState *s;
-    char *hostname;
 };
 
 static void socket_connect_data_free(void *opaque)
@@ -53,7 +52,6 @@ static void socket_connect_data_free(void *opaque)
     if (!data) {
         return;
     }
-    g_free(data->hostname);
     g_free(data);
 }
 
@@ -69,7 +67,7 @@ static void socket_outgoing_migration(QIOTask *task,
            goto out;
     }
 
-    trace_migration_socket_outgoing_connected(data->hostname);
+    trace_migration_socket_outgoing_connected();
 
     if (migrate_zero_copy_send() &&
         !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY)) {
@@ -77,7 +75,7 @@ static void socket_outgoing_migration(QIOTask *task,
     }
 
 out:
-    migration_channel_connect(data->s, sioc, data->hostname, err);
+    migration_channel_connect(data->s, sioc, err);
     object_unref(OBJECT(sioc));
 }
 
@@ -96,7 +94,7 @@ void socket_start_outgoing_migration(MigrationState *s,
     outgoing_args.saddr = addr;
 
     if (saddr->type == SOCKET_ADDRESS_TYPE_INET) {
-        data->hostname = g_strdup(saddr->u.inet.host);
+        s->hostname = g_strdup(saddr->u.inet.host);
     }
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-outgoing");
@@ -180,4 +178,3 @@ void socket_start_incoming_migration(SocketAddress *saddr,
         qapi_free_SocketAddress(address);
     }
 }
-

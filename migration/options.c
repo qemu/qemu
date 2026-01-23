@@ -951,6 +951,11 @@ const char *migrate_tls_hostname(void)
         return s->parameters.tls_hostname->u.s;
     }
 
+    /* hostname saved from a previously connected channel */
+    if (s->hostname) {
+        return s->hostname;
+    }
+
     return NULL;
 }
 
