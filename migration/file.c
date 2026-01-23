@@ -122,7 +122,7 @@ void file_start_outgoing_migration(MigrationState *s,
         return;
     }
     qio_channel_set_name(ioc, "migration-file-outgoing");
-    migration_channel_connect(s, ioc);
+    migration_channel_connect_outgoing(s, ioc);
 }
 
 static gboolean file_accept_incoming_migration(QIOChannel *ioc,

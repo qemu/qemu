@@ -73,7 +73,7 @@ static void socket_outgoing_migration(QIOTask *task,
     }
 
     trace_migration_socket_outgoing_connected();
-    migration_channel_connect(data->s, sioc);
+    migration_channel_connect_outgoing(data->s, sioc);
     return;
 fail:
     trace_migration_socket_outgoing_error(error_get_pretty(err));

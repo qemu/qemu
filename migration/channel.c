@@ -61,14 +61,7 @@ out:
     }
 }
 
-
-/**
- * @migration_channel_connect - Create new outgoing migration channel
- *
- * @s: Current migration state
- * @ioc: Channel to which we are connecting
- */
-void migration_channel_connect(MigrationState *s, QIOChannel *ioc)
+void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
 {
     trace_migration_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
 

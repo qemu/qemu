@@ -114,7 +114,7 @@ static void migration_tls_outgoing_handshake(QIOTask *task,
     }
 
     trace_migration_tls_outgoing_handshake_complete();
-    migration_channel_connect(s, ioc);
+    migration_channel_connect_outgoing(s, ioc);
 }
 
 QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
