@@ -12922,6 +12922,22 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 
 #ifdef TARGET_NR_madvise
     case TARGET_NR_madvise:
+#ifdef TARGET_HPPA
+        /* Emulate old hppa mapping of MADV_xxx constants. */
+        switch (arg3) {
+        case 65: arg3 = MADV_MERGEABLE;     break;
+        case 66: arg3 = MADV_UNMERGEABLE;   break;
+        case 67: arg3 = MADV_HUGEPAGE;      break;
+        case 68: arg3 = MADV_NOHUGEPAGE;    break;
+        case 69: arg3 = MADV_DONTDUMP;      break;
+        case 70: arg3 = MADV_DODUMP;        break;
+        case 71: arg3 = MADV_WIPEONFORK;    break;
+        case 72: arg3 = MADV_KEEPONFORK;    break;
+        #ifdef MADV_COLLAPSE
+        case 73: arg3 = MADV_COLLAPSE;      break;
+        #endif
+        }
+#endif /* TARGET_HPPA */
         return target_madvise(arg1, arg2, arg3);
 #endif
 #ifdef TARGET_NR_fcntl64
