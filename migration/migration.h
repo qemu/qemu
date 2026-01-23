@@ -538,8 +538,7 @@ bool migrate_has_error(MigrationState *s);
 
 void migration_connect(MigrationState *s, Error *error_in);
 
-int migration_call_notifiers(MigrationState *s, MigrationEventType type,
-                             Error **errp);
+int migration_call_notifiers(MigrationEventType type, Error **errp);
 
 int migrate_init(MigrationState *s, Error **errp);
 bool migration_is_blocked(Error **errp);
@@ -548,7 +547,7 @@ bool migration_in_postcopy(void);
 bool migration_postcopy_is_alive(MigrationStatus state);
 MigrationState *migrate_get_current(void);
 bool migration_has_failed(MigrationState *);
-bool migrate_mode_is_cpr(MigrationState *);
+bool migrate_mode_is_cpr(void);
 
 uint64_t ram_get_total_transferred_pages(void);
 
