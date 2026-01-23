@@ -30,7 +30,6 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "hw/s390x/storage-keys.h"
-#include <sys/stat.h>
 
 /*
  * QMP query for enabled and present accelerators

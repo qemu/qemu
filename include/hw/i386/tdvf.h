@@ -9,7 +9,6 @@
 #ifndef HW_I386_TDVF_H
 #define HW_I386_TDVF_H
 
-#include "qemu/osdep.h"
 
 #define TDVF_SECTION_TYPE_BFV               0
 #define TDVF_SECTION_TYPE_CFV               1

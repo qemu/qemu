@@ -14,8 +14,6 @@
 #ifndef VMSR_ENERGY_H
 #define VMSR_ENERGY_H
 
-#include <stdint.h>
-#include "qemu/osdep.h"
 #include "io/channel-socket.h"
 #include "hw/i386/topology.h"
 

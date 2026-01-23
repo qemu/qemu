@@ -49,11 +49,8 @@
 #ifndef BSD_USER_BSD_MEM_H
 #define BSD_USER_BSD_MEM_H
 
-#include <sys/types.h>
 #include <sys/ipc.h>
-#include <sys/mman.h>
 #include <sys/shm.h>
-#include <fcntl.h>
 
 #include "qemu-bsd.h"
 #include "exec/mmap-lock.h"

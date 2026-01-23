@@ -6,7 +6,6 @@
 #ifndef ALPHA_TARGET_PROC_H
 #define ALPHA_TARGET_PROC_H
 
-#include "qemu/osdep.h"
 #include "target/alpha/cpu.h"
 
 static uint8_t alpha_phys_addr_space_bits(CPUAlphaState *env)

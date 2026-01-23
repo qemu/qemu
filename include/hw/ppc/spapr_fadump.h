@@ -6,7 +6,6 @@
 #ifndef PPC_SPAPR_FADUMP_H
 #define PPC_SPAPR_FADUMP_H
 
-#include "qemu/osdep.h"
 #include "cpu.h"
 
 /* Fadump commands */

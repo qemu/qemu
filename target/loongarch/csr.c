@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2025 Loongson Technology Corporation Limited
  */
-#include <stddef.h>
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "csr.h"

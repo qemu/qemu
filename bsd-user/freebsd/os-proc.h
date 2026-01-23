@@ -23,10 +23,8 @@
 #include <sys/param.h>
 #include <sys/procctl.h>
 #include <sys/signal.h>
-#include <sys/types.h>
 #include <sys/procdesc.h>
 #include <sys/wait.h>
-#include <unistd.h>
 
 #include "target_arch_cpu.h"
 

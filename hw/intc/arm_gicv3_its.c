@@ -1906,7 +1906,7 @@ static const MemoryRegionOps gicv3_its_control_ops = {
     .valid.max_access_size = 8,
     .impl.min_access_size = 4,
     .impl.max_access_size = 8,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps gicv3_its_translation_ops = {
@@ -1916,7 +1916,7 @@ static const MemoryRegionOps gicv3_its_translation_ops = {
     .valid.max_access_size = 4,
     .impl.min_access_size = 2,
     .impl.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)

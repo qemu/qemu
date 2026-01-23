@@ -54,7 +54,7 @@ Now that everything is prepared the machine can be started as follows:
 
 .. code-block:: bash
 
-  $ qemu-system-aarch64 -M imx8mp-evk -smp 4 -m 3G \
+  $ qemu-system-aarch64 -M imx8mp-evk \
       -display none -serial null -serial stdio \
       -kernel Image \
       -dtb imx8mp-evk.dtb \
@@ -66,7 +66,7 @@ KVM Acceleration
 ----------------
 
 To enable hardware-assisted acceleration via KVM, append
-``-accel kvm -cpu host`` to the command line. While this speeds up performance
+``-accel kvm`` to the command line. While this speeds up performance
 significantly, be aware of the following limitations:
 
 * The ``imx8mp-evk`` machine is not included under the "virtualization use case"

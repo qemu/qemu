@@ -3,7 +3,6 @@
 #include "qemu/osdep.h"
 #include "target/arm/cpu.h"
 #include "target/arm/internals.h"
-#include <glib.h>
 
 void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp)
 {

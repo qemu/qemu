@@ -13,7 +13,6 @@
 #include "cpu.h"
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
-#include "qemu/typedefs.h"
 #include "qemu/error-report.h"
 #include "system/mshv.h"
 

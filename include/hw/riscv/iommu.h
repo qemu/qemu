@@ -19,7 +19,6 @@
 #ifndef HW_RISCV_IOMMU_H
 #define HW_RISCV_IOMMU_H
 
-#include "qemu/osdep.h"
 #include "qom/object.h"
 
 #define TYPE_RISCV_IOMMU "riscv-iommu"

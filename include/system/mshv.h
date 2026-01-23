@@ -14,7 +14,6 @@
 #ifndef QEMU_MSHV_H
 #define QEMU_MSHV_H
 
-#include "qemu/osdep.h"
 #include "qemu/accel.h"
 #include "hw/hyperv/hyperv-proto.h"
 #include "hw/hyperv/hvhdk.h"

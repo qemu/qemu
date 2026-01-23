@@ -182,9 +182,9 @@ When not using TLS the recommended configuration is
 This says to use the 'GSSAPI' mechanism with the Kerberos v5 protocol,
 with the server principal stored in /etc/qemu/krb5.tab. For this to work
 the administrator of your KDC must generate a Kerberos principal for the
-server, with a name of 'qemu/somehost.example.com@EXAMPLE.COM' replacing
-'somehost.example.com' with the fully qualified host name of the machine
-running QEMU, and 'EXAMPLE.COM' with the Kerberos Realm.
+server, with a name of ``qemu/somehost.example.com@EXAMPLE.COM`` replacing
+``somehost.example.com`` with the fully qualified host name of the machine
+running QEMU, and ``EXAMPLE.COM`` with the Kerberos Realm.
 
 When using TLS, if username+password authentication is desired, then a
 reasonable configuration is

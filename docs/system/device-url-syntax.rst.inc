@@ -33,7 +33,7 @@ These are specified using a special URL syntax.
 
    .. parsed-literal::
 
-      |qemu_system| -drive file=iscsi://user%password@192.0.2.1/iqn.2001-04.com.example/1
+      |qemu_system| -drive file=iscsi://user%password\@192.0.2.1/iqn.2001-04.com.example/1
 
    Example (CHAP username/password via environment variables):
 
@@ -79,7 +79,7 @@ These are specified using a special URL syntax.
 
    .. parsed-literal::
 
-      |qemu_system| -drive file=ssh://user@host/path/to/disk.img
+      |qemu_system| -drive file=ssh://user\@host/path/to/disk.img
       |qemu_system| -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
 
    Currently authentication must be done using ssh-agent. Other

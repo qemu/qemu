@@ -12,7 +12,6 @@
 #ifndef SYSTEM_ACCEL_IRQ_H
 #define SYSTEM_ACCEL_IRQ_H
 #include "hw/pci/msi.h"
-#include "qemu/osdep.h"
 #include "system/kvm.h"
 #include "system/mshv.h"
 

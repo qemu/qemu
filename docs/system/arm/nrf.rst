@@ -1,7 +1,7 @@
 Nordic nRF boards (``microbit``)
 ================================
 
-The `Nordic nRF`_ chips are a family of ARM-based System-on-Chip that
+The `Nordic nRF`_ chips are a family of Arm-based System-on-Chip that
 are designed to be used for low-power and short-range wireless solutions.
 
 .. _Nordic nRF: https://www.nordicsemi.com/Products
@@ -18,7 +18,7 @@ supported by QEMU.
 Supported devices
 -----------------
 
- * ARM Cortex-M0 (ARMv6-M)
+ * Arm Cortex-M0 (ARMv6-M)
  * Serial ports (UART)
  * Clock controller
  * Timers

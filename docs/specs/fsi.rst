@@ -40,7 +40,7 @@ for the implementation are: (see the `FSI specification`_ for more details)
    MMIO-mapping of the CFAM address straight onto a sub-region of the OPB
    address space.
 
-5. An APB-to-OPB bridge enabling access to the OPB from the ARM core in the
+5. An APB-to-OPB bridge enabling access to the OPB from the Arm core in the
    AST2600. Hardware limitations prevent the OPB from being directly mapped
    into APB, so all accesses are indirect through the bridge.
 

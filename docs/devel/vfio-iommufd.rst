@@ -122,7 +122,7 @@ container:
 Supported platform
 ==================
 
-Supports x86, ARM and s390x currently.
+Supports x86, Arm and s390x currently.
 
 Caveats
 =======

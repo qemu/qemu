@@ -8,7 +8,7 @@ take care of booting QEMU with the right machine and devices.
 This makes each test "hardcoded" for a specific configuration, reducing
 the possible coverage that it can reach.
 
-For example, the sdhci device is supported on both x86_64 and ARM boards,
+For example, the sdhci device is supported on both x86_64 and Arm boards,
 therefore a generic sdhci test should test all machines and drivers that
 support that device.
 Using only libqos APIs, the test has to manually take care of
@@ -195,7 +195,7 @@ there.
 The ``arm/raspi2b`` machine node is listed as "UNAVAILABLE". Although it is
 reachable from the root via '' -> 'arm/raspi2b' the node is unavailable because
 the QEMU binary did not list it when queried by the framework. This is expected
-because we used the ``qemu-system-x86_64`` binary which does not support ARM
+because we used the ``qemu-system-x86_64`` binary which does not support Arm
 machine types.
 
 If a test is unexpectedly listed as "UNAVAILABLE", first check that the "ALL
@@ -214,9 +214,9 @@ Here we continue the ``sdhci`` use case, with the following scenario:
 
 - ``sdhci-test`` aims to test the ``read[q,w], writeq`` functions
   offered by the ``sdhci`` drivers.
-- The current ``sdhci`` device is supported by both ``x86_64/pc`` and ``ARM``
+- The current ``sdhci`` device is supported by both ``x86_64/pc`` and Arm
   (in this example we focus on the ``arm-raspi2b``) machines.
-- QEMU offers 2 types of drivers: ``QSDHCI_MemoryMapped`` for ``ARM`` and
+- QEMU offers 2 types of drivers: ``QSDHCI_MemoryMapped`` for Arm and
   ``QSDHCI_PCI`` for ``x86_64/pc``. Both implement the
   ``read[q,w], writeq`` functions.
 
