@@ -1572,18 +1572,25 @@ static void migrate_error_free(MigrationState *s)
 static void migration_connect_error_propagate(MigrationState *s, Error *error)
 {
     MigrationStatus current = s->state;
-    MigrationStatus next;
-
-    assert(s->to_dst_file == NULL);
+    MigrationStatus next = MIGRATION_STATUS_NONE;
 
     switch (current) {
     case MIGRATION_STATUS_SETUP:
         next = MIGRATION_STATUS_FAILED;
         break;
+
     case MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP:
         /* Never fail a postcopy migration; switch back to PAUSED instead */
         next = MIGRATION_STATUS_POSTCOPY_PAUSED;
         break;
+
+    case MIGRATION_STATUS_CANCELLING:
+        /*
+         * Don't move out of CANCELLING, the only valid transition is to
+         * CANCELLED, at migration_cleanup().
+         */
+        break;
+
     default:
         /*
          * This really shouldn't happen. Just be careful to not crash a VM
@@ -1594,7 +1601,10 @@ static void migration_connect_error_propagate(MigrationState *s, Error *error)
         return;
     }
 
-    migrate_set_state(&s->state, current, next);
+    if (next) {
+        migrate_set_state(&s->state, current, next);
+    }
+
     migrate_error_propagate(s, error);
 }
 
@@ -4098,10 +4108,7 @@ void migration_connect(MigrationState *s, Error *error_in)
     return;
 
 fail:
-    migrate_error_propagate(s, error_copy(local_err));
-    if (s->state != MIGRATION_STATUS_CANCELLING) {
-        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
-    }
+    migration_connect_error_propagate(s, local_err);
     migration_cleanup(s);
     if (s->error) {
         error_report_err(error_copy(s->error));
