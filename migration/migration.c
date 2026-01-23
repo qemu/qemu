@@ -926,8 +926,6 @@ out:
     migrate_incoming_unref_outgoing_state();
 }
 
-static bool migration_has_main_and_multifd_channels(void);
-
 /*
  * Returns whether all the necessary channels to proceed with the
  * incoming migration have been established without error.
@@ -1019,100 +1017,6 @@ void migration_start_incoming(void)
 
     Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
     qemu_coroutine_enter(co);
-}
-
-static bool migration_has_main_and_multifd_channels(void)
-{
-    MigrationIncomingState *mis = migration_incoming_get_current();
-    if (!mis->from_src_file) {
-        /* main channel not established */
-        return false;
-    }
-
-    if (migrate_multifd() && !multifd_recv_all_channels_created()) {
-        return false;
-    }
-
-    /* main and all multifd channels are established */
-    return true;
-}
-
-MigChannelType migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
-{
-    MigrationIncomingState *mis = migration_incoming_get_current();
-    MigChannelType channel = CH_NONE;
-    uint32_t channel_magic = 0;
-    int ret = 0;
-
-    if (!migration_has_main_and_multifd_channels()) {
-        if (qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_READ_MSG_PEEK)) {
-            /*
-             * With multiple channels, it is possible that we receive channels
-             * out of order on destination side, causing incorrect mapping of
-             * source channels on destination side. Check channel MAGIC to
-             * decide type of channel. Please note this is best effort,
-             * postcopy preempt channel does not send any magic number so
-             * avoid it for postcopy live migration. Also tls live migration
-             * already does tls handshake while initializing main channel so
-             * with tls this issue is not possible.
-             */
-            ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
-                                              sizeof(channel_magic), errp);
-            if (ret != 0) {
-                goto out;
-            }
-
-            channel_magic = be32_to_cpu(channel_magic);
-            if (channel_magic == QEMU_VM_FILE_MAGIC) {
-                channel = CH_MAIN;
-            } else if (channel_magic == MULTIFD_MAGIC) {
-                assert(migrate_multifd());
-                channel = CH_MULTIFD;
-            } else if (!mis->from_src_file &&
-                        mis->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
-                /* reconnect main channel for postcopy recovery */
-                channel = CH_MAIN;
-            } else {
-                error_setg(errp, "unknown channel magic: %u", channel_magic);
-            }
-        } else if (mis->from_src_file && migrate_multifd()) {
-            /*
-             * Non-peekable channels like tls/file are processed as
-             * multifd channels when multifd is enabled.
-             */
-            channel = CH_MULTIFD;
-        } else if (!mis->from_src_file) {
-            channel = CH_MAIN;
-        } else {
-            error_setg(errp, "non-peekable channel used without multifd");
-        }
-    } else {
-        assert(migrate_postcopy_preempt());
-        channel = CH_POSTCOPY;
-    }
-
-out:
-    return channel;
-}
-
-/**
- * @migration_has_all_channels: We have received all channels that we need
- *
- * Returns true when we have got connections to all the channels that
- * we need for migration.
- */
-bool migration_has_all_channels(void)
-{
-    if (!migration_has_main_and_multifd_channels()) {
-        return false;
-    }
-
-    MigrationIncomingState *mis = migration_incoming_get_current();
-    if (migrate_postcopy_preempt() && !mis->postcopy_qemufile_dst) {
-        return false;
-    }
-
-    return true;
 }
 
 int migrate_send_rp_switchover_ack(MigrationIncomingState *mis)

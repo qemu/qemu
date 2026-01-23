@@ -14,12 +14,109 @@
 #include "channel.h"
 #include "tls.h"
 #include "migration.h"
+#include "multifd.h"
+#include "savevm.h"
 #include "trace.h"
+#include "options.h"
 #include "qapi/error.h"
 #include "io/channel-tls.h"
 #include "io/channel-socket.h"
 #include "qemu/yank.h"
 #include "yank_functions.h"
+
+bool migration_has_main_and_multifd_channels(void)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    if (!mis->from_src_file) {
+        /* main channel not established */
+        return false;
+    }
+
+    if (migrate_multifd() && !multifd_recv_all_channels_created()) {
+        return false;
+    }
+
+    /* main and all multifd channels are established */
+    return true;
+}
+
+/**
+ * @migration_has_all_channels: We have received all channels that we need
+ *
+ * Returns true when we have got connections to all the channels that
+ * we need for migration.
+ */
+bool migration_has_all_channels(void)
+{
+    if (!migration_has_main_and_multifd_channels()) {
+        return false;
+    }
+
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    if (migrate_postcopy_preempt() && !mis->postcopy_qemufile_dst) {
+        return false;
+    }
+
+    return true;
+}
+
+static MigChannelType migration_channel_identify(MigrationIncomingState *mis,
+                                                 QIOChannel *ioc, Error **errp)
+{
+    MigChannelType channel = CH_NONE;
+    uint32_t channel_magic = 0;
+    int ret = 0;
+
+    if (!migration_has_main_and_multifd_channels()) {
+        if (qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_READ_MSG_PEEK)) {
+            /*
+             * With multiple channels, it is possible that we receive channels
+             * out of order on destination side, causing incorrect mapping of
+             * source channels on destination side. Check channel MAGIC to
+             * decide type of channel. Please note this is best effort,
+             * postcopy preempt channel does not send any magic number so
+             * avoid it for postcopy live migration. Also tls live migration
+             * already does tls handshake while initializing main channel so
+             * with tls this issue is not possible.
+             */
+            ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
+                                              sizeof(channel_magic), errp);
+            if (ret != 0) {
+                goto out;
+            }
+
+            channel_magic = be32_to_cpu(channel_magic);
+            if (channel_magic == QEMU_VM_FILE_MAGIC) {
+                channel = CH_MAIN;
+            } else if (channel_magic == MULTIFD_MAGIC) {
+                assert(migrate_multifd());
+                channel = CH_MULTIFD;
+            } else if (!mis->from_src_file &&
+                        mis->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
+                /* reconnect main channel for postcopy recovery */
+                channel = CH_MAIN;
+            } else {
+                error_setg(errp, "unknown channel magic: %u", channel_magic);
+            }
+        } else if (mis->from_src_file && migrate_multifd()) {
+            /*
+             * Non-peekable channels like tls/file are processed as
+             * multifd channels when multifd is enabled.
+             */
+            channel = CH_MULTIFD;
+        } else if (!mis->from_src_file) {
+            channel = CH_MAIN;
+        } else {
+            error_setg(errp, "non-peekable channel used without multifd");
+        }
+    } else {
+        assert(migrate_postcopy_preempt());
+        channel = CH_POSTCOPY;
+    }
+
+out:
+    return channel;
+}
 
 /**
  * @migration_channel_process_incoming - Create new incoming migration channel
@@ -42,7 +139,7 @@ void migration_channel_process_incoming(QIOChannel *ioc)
         migration_tls_channel_process_incoming(ioc, &local_err);
     } else {
         migration_ioc_register_yank(ioc);
-        ch = migration_ioc_process_incoming(ioc, &local_err);
+        ch = migration_channel_identify(mis, ioc, &local_err);
         if (!ch) {
             goto out;
         }

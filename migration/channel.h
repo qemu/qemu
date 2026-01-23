@@ -34,4 +34,8 @@ int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,
                                 const size_t buflen,
                                 Error **errp);
+
+bool migration_has_main_and_multifd_channels(void);
+bool migration_has_all_channels(void);
+
 #endif
