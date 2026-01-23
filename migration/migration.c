@@ -942,12 +942,6 @@ static void migration_incoming_setup(QEMUFile *f)
     qemu_file_set_blocking(f, false, &error_abort);
 }
 
-void migration_incoming_process(void)
-{
-    Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
-    qemu_coroutine_enter(co);
-}
-
 /* Returns true if recovered from a paused migration, otherwise false */
 static bool postcopy_try_recover(void)
 {
@@ -981,12 +975,19 @@ static bool postcopy_try_recover(void)
     return false;
 }
 
-void migration_fd_process_incoming(QEMUFile *f)
+void migration_incoming_process(void)
 {
-    migration_incoming_setup(f);
     if (postcopy_try_recover()) {
         return;
     }
+
+    Coroutine *co = qemu_coroutine_create(process_incoming_migration_co, NULL);
+    qemu_coroutine_enter(co);
+}
+
+void migration_fd_process_incoming(QEMUFile *f)
+{
+    migration_incoming_setup(f);
     migration_incoming_process();
 }
 
@@ -1086,10 +1087,6 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     }
 
     if (migration_has_main_and_multifd_channels()) {
-        /* If it's a recovery, we're done */
-        if (postcopy_try_recover()) {
-            return;
-        }
         migration_incoming_process();
     }
 }
