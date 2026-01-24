@@ -2734,7 +2734,11 @@ struct target_statx {
     abi_uint stx_dev_major; /* ID of device containing file [uncond] */
     abi_uint stx_dev_minor;
     /* 0x90 */
-    abi_ullong __spare2[14]; /* Spare space for future expansion */
+    abi_ullong stx_mnt_id;
+    abi_uint stx_dio_mem_align;
+    abi_uint stx_dio_offset_align;
+    /* 0xa0 */
+    abi_ullong __spare2[12]; /* Spare space for future expansion */
     /* 0x100 */
 };
 
