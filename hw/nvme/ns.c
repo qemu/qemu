@@ -944,12 +944,11 @@ static void nvme_ns_class_init(ObjectClass *oc, const void *data)
 static void nvme_ns_instance_init(Object *obj)
 {
     NvmeNamespace *ns = NVME_NS(obj);
-    char *bootindex = g_strdup_printf("/namespace@%d,0", ns->params.nsid);
+
+    sprintf(ns->bootindex_suffix, "/namespace@%" PRIu32 ",0", ns->params.nsid);
 
     device_add_bootindex_property(obj, &ns->bootindex, "bootindex",
-                                  bootindex, DEVICE(obj));
-
-    g_free(bootindex);
+                                  ns->bootindex_suffix, DEVICE(obj));
 }
 
 static const TypeInfo nvme_ns_info = {
