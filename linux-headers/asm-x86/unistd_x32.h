@@ -337,6 +337,7 @@
 #define __NR_open_tree_attr (__X32_SYSCALL_BIT + 467)
 #define __NR_file_getattr (__X32_SYSCALL_BIT + 468)
 #define __NR_file_setattr (__X32_SYSCALL_BIT + 469)
+#define __NR_listns (__X32_SYSCALL_BIT + 470)
 #define __NR_rt_sigaction (__X32_SYSCALL_BIT + 512)
 #define __NR_rt_sigreturn (__X32_SYSCALL_BIT + 513)
 #define __NR_ioctl (__X32_SYSCALL_BIT + 514)
