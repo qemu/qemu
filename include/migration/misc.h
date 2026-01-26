@@ -59,10 +59,22 @@ void migration_shutdown(void);
 bool migration_is_running(void);
 bool migration_thread_is_self(void);
 
+/*
+ * Notifiers may receive events in any of the following orders:
+ *
+ *    - MIG_EVENT_PRECOPY_SETUP [-> MIG_EVENT_POSTCOPY_START]
+ *      -> MIG_EVENT_PRECOPY_DONE
+ *
+ *    - MIG_EVENT_PRECOPY_SETUP [-> MIG_EVENT_POSTCOPY_START]
+ *      -> MIG_EVENT_PRECOPY_FAILED
+ *
+ *    - MIG_EVENT_PRECOPY_FAILED
+ */
 typedef enum MigrationEventType {
     MIG_EVENT_PRECOPY_SETUP,
     MIG_EVENT_PRECOPY_DONE,
     MIG_EVENT_PRECOPY_FAILED,
+    MIG_EVENT_POSTCOPY_START,
     MIG_EVENT_MAX
 } MigrationEventType;
 
@@ -81,10 +93,6 @@ typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,
 /*
  * Register the notifier @notify to be called when a migration event occurs
  * for MIG_MODE_NORMAL, as specified by the MigrationEvent passed to @func.
- * Notifiers may receive events in any of the following orders:
- *    - MIG_EVENT_PRECOPY_SETUP -> MIG_EVENT_PRECOPY_DONE
- *    - MIG_EVENT_PRECOPY_SETUP -> MIG_EVENT_PRECOPY_FAILED
- *    - MIG_EVENT_PRECOPY_FAILED
  */
 void migration_add_notifier(NotifierWithReturn *notify,
                             MigrationNotifyFunc func);

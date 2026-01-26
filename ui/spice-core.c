@@ -585,7 +585,8 @@ static int migration_state_notifier(NotifierWithReturn *notifier,
 
     if (e->type == MIG_EVENT_PRECOPY_SETUP) {
         spice_server_migrate_start(spice_server);
-    } else if (e->type == MIG_EVENT_PRECOPY_DONE) {
+    } else if (e->type == MIG_EVENT_PRECOPY_DONE ||
+               e->type == MIG_EVENT_POSTCOPY_START) {
         spice_server_migrate_end(spice_server, true);
         spice_have_target_host = false;
     } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
