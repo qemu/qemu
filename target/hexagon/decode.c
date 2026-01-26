@@ -26,14 +26,6 @@
 
 #define fZXTN(N, M, VAL) ((VAL) & ((1LL << (N)) - 1))
 
-enum {
-    EXT_IDX_noext = 0,
-    EXT_IDX_noext_AFTER = 4,
-    EXT_IDX_mmvec = 4,
-    EXT_IDX_mmvec_AFTER = 8,
-    XX_LAST_EXT_IDX
-};
-
 /*
  *  Certain operand types represent a non-contiguous set of values.
  *  For example, the compound compare-and-jump instruction can only access
