@@ -11,6 +11,7 @@
 
 #include "qemu/typedefs.h"
 #include "qom/object.h"
+#include "hw/core/resettable.h"
 
 struct IgvmCfg {
     ObjectClass parent_class;
@@ -21,6 +22,7 @@ struct IgvmCfg {
      *           format.
      */
     char *filename;
+    ResettableState reset_state;
 };
 
 #endif
