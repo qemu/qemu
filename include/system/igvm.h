@@ -12,8 +12,8 @@
 #ifndef BACKENDS_IGVM_H
 #define BACKENDS_IGVM_H
 
+#include "qemu/typedefs.h"
 #include "system/confidential-guest-support.h"
-#include "system/igvm-cfg.h"
 #include "qapi/error.h"
 
 int qigvm_process_file(IgvmCfg *igvm, ConfidentialGuestSupport *cgs,

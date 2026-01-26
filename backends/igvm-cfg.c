@@ -11,8 +11,10 @@
 
 #include "qemu/osdep.h"
 
-#include "system/igvm-cfg.h"
 #include "system/igvm.h"
+#include "system/igvm-cfg.h"
+#include "system/igvm-internal.h"
+#include "system/reset.h"
 #include "qom/object_interfaces.h"
 
 static char *get_igvm(Object *obj, Error **errp)

@@ -12,18 +12,8 @@
 #ifndef QEMU_IGVM_CFG_H
 #define QEMU_IGVM_CFG_H
 
+#include "qemu/typedefs.h"
 #include "qom/object.h"
-
-typedef struct IgvmCfg {
-    ObjectClass parent_class;
-
-    /*
-     * filename: Filename that specifies a file that contains the configuration
-     *           of the guest in Independent Guest Virtual Machine (IGVM)
-     *           format.
-     */
-    char *filename;
-} IgvmCfg;
 
 typedef struct IgvmCfgClass {
     ObjectClass parent_class;
