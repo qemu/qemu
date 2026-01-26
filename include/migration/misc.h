@@ -62,19 +62,15 @@ bool migration_thread_is_self(void);
 /*
  * Notifiers may receive events in any of the following orders:
  *
- *    - MIG_EVENT_PRECOPY_SETUP [-> MIG_EVENT_POSTCOPY_START]
- *      -> MIG_EVENT_PRECOPY_DONE
- *
- *    - MIG_EVENT_PRECOPY_SETUP [-> MIG_EVENT_POSTCOPY_START]
- *      -> MIG_EVENT_PRECOPY_FAILED
- *
- *    - MIG_EVENT_PRECOPY_FAILED
+ *    - MIG_EVENT_SETUP [-> MIG_EVENT_POSTCOPY_START] -> MIG_EVENT_DONE
+ *    - MIG_EVENT_SETUP [-> MIG_EVENT_POSTCOPY_START] -> MIG_EVENT_FAILED
+ *    - MIG_EVENT_FAILED
  */
 typedef enum MigrationEventType {
-    MIG_EVENT_PRECOPY_SETUP,
-    MIG_EVENT_PRECOPY_DONE,
-    MIG_EVENT_PRECOPY_FAILED,
+    MIG_EVENT_SETUP,
     MIG_EVENT_POSTCOPY_START,
+    MIG_EVENT_DONE,
+    MIG_EVENT_FAILED,
     MIG_EVENT_MAX
 } MigrationEventType;
 
@@ -84,7 +80,7 @@ typedef struct MigrationEvent {
 
 /*
  * A MigrationNotifyFunc may return an error code and an Error object,
- * but only when @e->type is MIG_EVENT_PRECOPY_SETUP.  The code is an int
+ * but only when @e->type is MIG_EVENT_SETUP.  The code is an int
  * to allow for different failure modes and recovery actions.
  */
 typedef int (*MigrationNotifyFunc)(NotifierWithReturn *notify,

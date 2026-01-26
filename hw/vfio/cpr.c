@@ -18,7 +18,7 @@
 int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
                              MigrationEvent *e, Error **errp)
 {
-    if (e->type == MIG_EVENT_PRECOPY_SETUP &&
+    if (e->type == MIG_EVENT_SETUP &&
         !runstate_check(RUN_STATE_SUSPENDED) && !vm_get_suspended()) {
 
         error_setg(errp,
@@ -186,7 +186,7 @@ static int vfio_cpr_kvm_close_notifier(NotifierWithReturn *notifier,
                                        MigrationEvent *e,
                                        Error **errp)
 {
-    if (e->type == MIG_EVENT_PRECOPY_DONE) {
+    if (e->type == MIG_EVENT_DONE) {
         vfio_kvm_device_close();
     }
     return 0;
@@ -272,9 +272,9 @@ static int vfio_cpr_pci_notifier(NotifierWithReturn *notifier,
     VFIOPCIDevice *vdev =
         container_of(notifier, VFIOPCIDevice, cpr.transfer_notifier);
 
-    if (e->type == MIG_EVENT_PRECOPY_SETUP) {
+    if (e->type == MIG_EVENT_SETUP) {
         return vfio_cpr_set_msi_virq(vdev, errp, false);
-    } else if (e->type == MIG_EVENT_PRECOPY_FAILED) {
+    } else if (e->type == MIG_EVENT_FAILED) {
         return vfio_cpr_set_msi_virq(vdev, errp, true);
     }
     return 0;

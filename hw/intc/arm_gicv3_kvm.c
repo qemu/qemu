@@ -774,7 +774,7 @@ static void vm_change_state_handler(void *opaque, bool running,
 static int kvm_arm_gicv3_notifier(NotifierWithReturn *notifier,
                                   MigrationEvent *e, Error **errp)
 {
-    if (e->type == MIG_EVENT_PRECOPY_DONE) {
+    if (e->type == MIG_EVENT_DONE) {
         GICv3State *s = container_of(notifier, GICv3State, cpr_notifier);
         return kvm_device_access(s->dev_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
                                  KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES,

@@ -1337,7 +1337,7 @@ static void migration_cleanup(MigrationState *s)
      * migration completed successfully.
      */
     if (!migration_has_failed(s)) {
-        migration_call_notifiers(MIG_EVENT_PRECOPY_DONE, NULL);
+        migration_call_notifiers(MIG_EVENT_DONE, NULL);
     }
 
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
@@ -1541,7 +1541,7 @@ int migration_call_notifiers(MigrationEventType type, Error **errp)
         notifier = (NotifierWithReturn *)elem->data;
         ret = notifier->notify(notifier, &e, errp);
         if (ret) {
-            assert(type == MIG_EVENT_PRECOPY_SETUP);
+            assert(type == MIG_EVENT_SETUP);
             return ret;
         }
     }
@@ -3331,7 +3331,7 @@ static void migration_iteration_finish(MigrationState *s)
          * Notify FAILED before starting VM, so that devices can invoke
          * necessary fallbacks before vCPUs run again.
          */
-        migration_call_notifiers(MIG_EVENT_PRECOPY_FAILED, NULL);
+        migration_call_notifiers(MIG_EVENT_FAILED, NULL);
 
         if (runstate_is_live(s->vm_old_state)) {
             if (!runstate_check(RUN_STATE_SHUTDOWN)) {
@@ -3769,7 +3769,7 @@ void migration_start_outgoing(MigrationState *s)
         rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
-        if (migration_call_notifiers(MIG_EVENT_PRECOPY_SETUP, &local_err)) {
+        if (migration_call_notifiers(MIG_EVENT_SETUP, &local_err)) {
             goto fail;
         }
     }
