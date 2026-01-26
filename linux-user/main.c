@@ -145,6 +145,7 @@ unsigned long guest_stack_size = TARGET_DEFAULT_STACK_SIZE;
 void fork_start(void)
 {
     start_exclusive();
+    clone_fork_start();
     mmap_fork_start();
     cpu_list_lock();
     qemu_plugin_user_prefork_lock();
@@ -174,6 +175,7 @@ void fork_end(pid_t pid)
         cpu_list_unlock();
     }
     gdbserver_fork_end(thread_cpu, pid);
+    clone_fork_end(child);
     /*
      * qemu_init_cpu_list() reinitialized the child exclusive state, but we
      * also need to keep current_cpu consistent, so call end_exclusive() for
