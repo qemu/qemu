@@ -1528,6 +1528,8 @@ int migration_call_notifiers(MigrationEventType type, Error **errp)
     GSList *elem, *next;
     int ret;
 
+    trace_migration_call_notifiers(type);
+
     e.type = type;
 
     for (elem = migration_state_notifiers[mode]; elem; elem = next) {
