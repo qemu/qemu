@@ -1728,8 +1728,9 @@ int qemu_savevm_state_non_iterable(QEMUFile *f)
     return 0;
 }
 
-int qemu_savevm_state_complete_precopy(QEMUFile *f)
+int qemu_savevm_state_complete_precopy(MigrationState *s)
 {
+    QEMUFile *f = s->to_dst_file;
     int ret;
 
     ret = qemu_savevm_state_complete_precopy_iterable(f, false);
@@ -1742,7 +1743,7 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f)
         return ret;
     }
 
-    qemu_savevm_state_end_precopy(migrate_get_current(), f);
+    qemu_savevm_state_end_precopy(s, f);
 
     return qemu_fflush(f);
 }
@@ -1841,7 +1842,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     ret = qemu_file_get_error(f);
     if (ret == 0) {
-        qemu_savevm_state_complete_precopy(f);
+        qemu_savevm_state_complete_precopy(ms);
         ret = qemu_file_get_error(f);
     }
     if (ret != 0) {
