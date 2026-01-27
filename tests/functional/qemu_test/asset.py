@@ -57,10 +57,8 @@ class Asset:
             return True
         if len(self.hash) == 64:
             hl = hashlib.sha256()
-        elif len(self.hash) == 128:
-            hl = hashlib.sha512()
         else:
-            raise AssetError(self, "unknown hash type")
+            raise AssetError(self, "unsupported hash type")
 
         # Calculate the hash of the file:
         with open(cache_file, 'rb') as file:

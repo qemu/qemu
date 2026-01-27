@@ -57,6 +57,18 @@ def skipIfOperatingSystem(*args):
                   'running on an OS (%s) that is not able to run this test' %
                   ", ".join(args))
 
+def skipUnlessOperatingSystem(*args):
+    '''
+    Decorator to skip execution of a test if the current host
+    operating system does not match one of the allowed ones.
+    Example:
+
+      @skipUnlessOperatingSystem("Linux", "Darwin")
+    '''
+    return skipUnless(platform.system() in args,
+                  'not running on one of the required operating systems (%s)' %
+                  ", ".join(args))
+
 def skipIfNotMachine(*args):
     '''
     Decorator to skip execution of a test if the current

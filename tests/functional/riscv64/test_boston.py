@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 #
-# Boston board test for RISC-V P8700 processor by MIPS
-#
 # Copyright (c) 2025 MIPS
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
+"""
+Boston board test for RISC-V P8700 processor by MIPS
+"""
+
+from subprocess import run
 
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern
@@ -92,7 +95,6 @@ class RiscvBostonTest(QemuSystemTest):
         """
         Test that 65 CPUs is rejected as invalid (negative test case)
         """
-        from subprocess import run, PIPE
 
         fw_payload_path = self.ASSET_FW_PAYLOAD.fetch()
         rootfs_path = self.ASSET_ROOTFS.fetch()
@@ -109,7 +111,8 @@ class RiscvBostonTest(QemuSystemTest):
         ]
 
         # Run QEMU and expect it to fail immediately.
-        result = run(cmd, capture_output=True, text=True, timeout=5)
+        result = run(cmd, capture_output=True, text=True, timeout=5,
+                     check=False)
 
         # Check that QEMU exited with error code 1
         self.assertEqual(result.returncode, 1,

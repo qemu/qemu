@@ -5,6 +5,7 @@
 '''Test whether the vmstate-static-checker script detects problems correctly'''
 
 import subprocess
+import sys
 
 from qemu_test import QemuBaseTest
 
@@ -41,12 +42,13 @@ class BadVmStateTest(QemuBaseTest):
                                        'vmstate-static-checker.py')
 
         self.log.info('Comparing %s with %s', src_json, dst_json)
-        cp = subprocess.run([checkerscript, '-s', src_json, '-d', dst_json],
+        cp = subprocess.run([sys.executable, checkerscript,
+                             '-s', src_json, '-d', dst_json],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
                             text=True, check=False)
         if cp.returncode != 13:
-            self.fail('Unexpected return code of vmstate-static-checker: ' +
+            self.fail('Unexpected return code of vmstate-static-checker: %d' %
                       cp.returncode)
         if cp.stdout != EXPECTED_OUTPUT:
             self.log.info('vmstate-static-checker output:\n%s', cp.stdout)

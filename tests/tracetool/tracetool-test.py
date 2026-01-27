@@ -36,7 +36,8 @@ def test_tracetool_one(tracetool, backend, fmt, src_dir, build_dir):
     actual_file = Path(build_dir, rel_filename)
     expect_file = Path(src_dir, rel_filename)
 
-    args = [tracetool, f"--format={fmt}", f"--backends={backend}", "--group=testsuite"]
+    args = [sys.executable, tracetool,
+            f"--format={fmt}", f"--backends={backend}", "--group=testsuite"]
 
     if fmt.find("stap") != -1:
         args += ["--binary=qemu", "--probe-prefix=qemu"]

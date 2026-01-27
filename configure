@@ -987,6 +987,12 @@ if [ -f "$meson$EXESUF" ]; then
   meson="$meson$EXESUF"
 fi
 
+# On Haiku, meson might show up in a "non-packaged" subfolder instead, see
+# https://github.com/haiku/haiku/blob/r1beta5/docs/user/storage/storageintro.dox
+if test "$host_os" = "haiku" && test ! -e "$meson" ; then
+    meson="$(cd pyvenv/non-packaged/bin; get_pwd)/meson"
+fi
+
 # Conditionally ensure Sphinx is installed.
 
 mkvenv_online_flag=""
@@ -1069,7 +1075,7 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
-if test "$host_os" = windows || test "$host_os" = haiku; then
+if test "$host_os" = windows ; then
   if test "$pie" = "yes"; then
     error_exit "PIE not available due to missing OS support"
   fi

@@ -32,9 +32,7 @@ class QEMUFadump(LinuxKernelTest):
     ASSET_VMLINUZ_KERNEL = Asset(
         ('https://archives.fedoraproject.org/pub/archive/fedora-secondary/'
          'releases/39/Everything/ppc64le/os/ppc/ppc64/vmlinuz'),
-        ('81e5541d243b50c8f9568906c6918dda22239744d637bb9a7b22d23c3d661226'
-         '8d5302beb2ca5c06f93bdbc9736c414ef5120756c8bf496ff488ad07d116d67f')
-        )
+         '6d77658130a7de1dd014ae14d7983c27f8ba1a61fa02e8d9064afdb8519e7e96')
 
     ASSET_FEDORA_INITRD = Asset(
         ('https://archives.fedoraproject.org/pub/archive/fedora-secondary/'
