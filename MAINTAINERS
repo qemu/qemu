@@ -200,7 +200,7 @@ F: disas/alpha.c
 ARM TCG CPUs
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Supported
 F: target/arm/
 F: target/arm/tcg/
 F: tests/functional/aarch64/meson.build
@@ -462,7 +462,7 @@ F: scripts/kvm/kvm_flightrecorder
 ARM KVM CPUs
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Supported
 F: target/arm/kvm.c
 F: tests/functional/aarch64/test_kvm.py
 
@@ -536,7 +536,6 @@ F: system/cpus.c
 
 Apple Silicon HVF CPUs
 M: Alexander Graf <agraf@csgraf.de>
-R: Mads Ynddal <mads@ynddal.dk>
 S: Maintained
 F: target/arm/hvf/
 F: target/arm/hvf-stub.c
@@ -553,7 +552,6 @@ HVF
 M: Cameron Esfahani <dirty@apple.com>
 M: Roman Bolshakov <rbolshakov@ddn.com>
 R: Phil Dennis-Jordan <phil@philjordan.eu>
-R: Mads Ynddal <mads@ynddal.dk>
 W: https://wiki.qemu.org/Features/HVF
 S: Maintained
 F: accel/hvf/
@@ -1104,7 +1102,7 @@ F: docs/system/arm/versatile.rst
 Virt
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Supported
 F: hw/arm/virt*
 F: include/hw/arm/virt.h
 F: docs/system/arm/virt.rst
@@ -2551,7 +2549,7 @@ F: hw/virtio/vhost-user-snd*
 F: include/hw/virtio/vhost-user-snd.h
 
 vhost-user-scmi
-R: mzamazal@redhat.com
+R: Milan Zamazal <mzamazal@redhat.com>
 S: Supported
 F: hw/virtio/vhost-user-scmi*
 F: include/hw/virtio/vhost-user-scmi.h
@@ -2694,7 +2692,7 @@ F: hw/i2c/i2c_mux_pca954x.c
 F: include/hw/i2c/i2c_mux_pca954x.h
 
 pcf8574
-S: Orphaned
+S: Orphan
 F: hw/gpio/pcf8574.c
 F: include/gpio/pcf8574.h
 
@@ -2922,7 +2920,7 @@ S390 3270 device
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 R: Collin Walling <walling@linux.ibm.com>
-S: Odd fixes
+S: Odd Fixes
 F: include/hw/s390x/3270-ccw.h
 F: hw/char/terminal3270.c
 F: hw/s390x/3270-ccw.c
@@ -3656,7 +3654,6 @@ F: stubs/
 
 Tracing
 M: Stefan Hajnoczi <stefanha@redhat.com>
-R: Mads Ynddal <mads@ynddal.dk>
 S: Maintained
 F: trace/
 F: trace-events
@@ -3842,7 +3839,7 @@ F: tests/unit/test-uuid.c
 
 Yank feature
 M: Lukas Straub <lukasstraub2@web.de>
-S: Odd fixes
+S: Odd Fixes
 F: util/yank.c
 F: migration/yank_functions*
 F: tests/unit/test-yank.c
@@ -4020,7 +4017,7 @@ Usermode Emulation
 ------------------
 Overall usermode emulation
 M: Riku Voipio <riku.voipio@iki.fi>
-S: Maintained
+S: Odd Fixes
 F: accel/tcg/user-exec*.c
 F: hw/core/cpu-user.c
 F: include/user/
@@ -4029,7 +4026,7 @@ F: common-user/
 BSD user
 M: Warner Losh <imp@bsdimp.com>
 R: Kyle Evans <kevans@freebsd.org>
-S: Maintained
+S: Odd Fixes
 F: bsd-user/
 F: configs/targets/*-bsd-user.mak
 F: tests/vm/*bsd
@@ -4037,7 +4034,8 @@ T: git https://github.com/qemu-bsd-user/qemu-bsd-user bsd-user-rebase-3.1
 
 Linux user
 M: Laurent Vivier <laurent@vivier.eu>
-S: Maintained
+R: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+S: Odd Fixes
 F: linux-user/
 F: configs/targets/*linux-user.mak
 F: scripts/qemu-binfmt-conf.sh
@@ -4055,10 +4053,10 @@ F: include/tcg/
 
 TCG Plugins
 M: Alex Bennée <alex.bennee@linaro.org>
+M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
 T: git https://gitlab.com/stsquad/qemu plugins/next
 R: Alexandre Iooss <erdnaxe@crans.org>
 R: Mahmoud Mandour <ma.mandourr@gmail.com>
-R: Pierrick Bouvier <pierrick.bouvier@linaro.org>
 S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
@@ -4512,8 +4510,13 @@ F: gitdm.config
 F: contrib/gitdm/*
 
 Incompatible changes
-R: devel@lists.libvirt.org
+L: devel@lists.libvirt.org
 F: docs/about/deprecated.rst
+
+General Documentation
+M: Pierrick Bouvier <pierrick.bouvier@linaro.org>
+S: Maintained
+F: docs/
 
 Build System
 ------------
