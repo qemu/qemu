@@ -1669,13 +1669,34 @@ ret_fail_abort_threads:
     return -1;
 }
 
+static void qemu_savevm_state_vm_desc(MigrationState *s, QEMUFile *f)
+{
+    JSONWriter *vmdesc = s->vmdesc;
+    int vmdesc_len;
+
+    if (vmdesc) {
+        json_writer_end_array(vmdesc);
+        json_writer_end_object(vmdesc);
+        vmdesc_len = strlen(json_writer_get(vmdesc));
+
+        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
+        qemu_put_be32(f, vmdesc_len);
+        qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
+    }
+}
+
+void qemu_savevm_state_end_precopy(MigrationState *s, QEMUFile *f)
+{
+    qemu_savevm_state_end(f);
+    qemu_savevm_state_vm_desc(s, f);
+}
+
 int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                                     bool in_postcopy)
 {
     MigrationState *ms = migrate_get_current();
     int64_t start_ts_each, end_ts_each;
     JSONWriter *vmdesc = ms->vmdesc;
-    int vmdesc_len;
     SaveStateEntry *se;
     Error *local_err = NULL;
     int ret;
@@ -1705,17 +1726,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
-        qemu_savevm_state_end(f);
-
-        if (vmdesc) {
-            json_writer_end_array(vmdesc);
-            json_writer_end_object(vmdesc);
-            vmdesc_len = strlen(json_writer_get(vmdesc));
-
-            qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
-            qemu_put_be32(f, vmdesc_len);
-            qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
-        }
+        qemu_savevm_state_end_precopy(ms, f);
     }
 
     trace_vmstate_downtime_checkpoint("src-non-iterable-saved");
