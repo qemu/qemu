@@ -81,7 +81,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_FSI1]      = 0x1E79B000,
     [ASPEED_DEV_FSI2]      = 0x1E79B100,
     [ASPEED_DEV_I3C]       = 0x1E7A0000,
-    [ASPEED_DEV_PCIE_MMIO1] = 0x70000000,
+    [ASPEED_DEV_PCIE_MMIO1] = 0x60000000,
     [ASPEED_DEV_SDRAM]     = 0x80000000,
 };
 
@@ -303,14 +303,14 @@ static uint64_t aspeed_calc_affinity(int cpu)
  *
  * Model scope / limitations:
  *   - Firmware supports RC_H only; this QEMU model does not support RC_L.
- *   - RC_H uses PHY1 and the MMIO window [0x70000000, 0x80000000]
+ *   - RC_H uses PHY1 and the MMIO window [0x60000000, 0x80000000]
  *     (aka MMIO1).
  *
  * Indexing convention (this model):
  *   - Expose a single logical instance at index 0.
  *   - pcie[0] -> hardware RC_H (PCIe1)
  *   - phy[0]  -> hardware PHY1
- *   - mmio.0 -> guest address range MMIO1: 0x70000000-0x80000000
+ *   - mmio.0 -> guest address range MMIO1: 0x60000000-0x80000000
  *   - RC_L / PCIe0 is not created and mapped.
  */
 static bool aspeed_soc_ast2600_pcie_realize(DeviceState *dev, Error **errp)
@@ -346,7 +346,7 @@ static bool aspeed_soc_ast2600_pcie_realize(DeviceState *dev, Error **errp)
     memory_region_init_alias(&s->pcie_mmio_alias[0], OBJECT(&s->pcie[0].rc),
                              "aspeed.pcie-mmio", mmio_mr,
                              sc->memmap[ASPEED_DEV_PCIE_MMIO1],
-                             0x10000000);
+                             0x20000000);
     memory_region_add_subregion(s->memory,
                                 sc->memmap[ASPEED_DEV_PCIE_MMIO1],
                                 &s->pcie_mmio_alias[0]);
