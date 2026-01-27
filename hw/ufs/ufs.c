@@ -449,15 +449,24 @@ static void ufs_mcq_process_cq(void *opaque)
     {
         ufs_dma_write_rsp_upiu(req);
 
-        req->cqe.utp_addr =
-            ((uint64_t)req->utrd.command_desc_base_addr_hi << 32ULL) |
-            req->utrd.command_desc_base_addr_lo;
-        req->cqe.utp_addr |= req->sq->sqid;
-        req->cqe.resp_len = req->utrd.response_upiu_length;
-        req->cqe.resp_off = req->utrd.response_upiu_offset;
-        req->cqe.prdt_len = req->utrd.prd_table_length;
-        req->cqe.prdt_off = req->utrd.prd_table_offset;
-        req->cqe.status = req->utrd.header.dword_2 & 0xf;
+        /* UTRD/CQE are LE; round-trip through host to keep BE correct. */
+        uint64_t ucdba =
+            ((uint64_t)le32_to_cpu(req->utrd.command_desc_base_addr_hi)
+             << 32ULL) |
+            le32_to_cpu(req->utrd.command_desc_base_addr_lo);
+        uint16_t resp_len = le16_to_cpu(req->utrd.response_upiu_length);
+        uint16_t resp_off = le16_to_cpu(req->utrd.response_upiu_offset);
+        uint16_t prdt_len = le16_to_cpu(req->utrd.prd_table_length);
+        uint16_t prdt_off = le16_to_cpu(req->utrd.prd_table_offset);
+        uint8_t status = le32_to_cpu(req->utrd.header.dword_2) & UFS_MASK_OCS;
+
+        ucdba |= req->sq->sqid;
+        req->cqe.utp_addr = cpu_to_le64(ucdba);
+        req->cqe.resp_len = cpu_to_le16(resp_len);
+        req->cqe.resp_off = cpu_to_le16(resp_off);
+        req->cqe.prdt_len = cpu_to_le16(prdt_len);
+        req->cqe.prdt_off = cpu_to_le16(prdt_off);
+        req->cqe.status = status;
         req->cqe.error = 0;
 
         ret = ufs_addr_write(u, cq->addr + tail, &req->cqe, sizeof(req->cqe));
