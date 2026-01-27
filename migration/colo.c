@@ -472,12 +472,14 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     qemu_savevm_state_complete_precopy_iterable(s->to_dst_file, false);
     qemu_put_byte(s->to_dst_file, QEMU_VM_EOF);
 
-    qemu_fflush(fb);
-
     /*
      * We need the size of the VMstate data in Secondary side,
      * With which we can decide how much data should be read.
+     *
+     * Flush the qemufile cache to make sure both bioc->usage and
+     * bioc->data contains the latest info.
      */
+    qemu_fflush(fb);
     colo_send_message_value(s->to_dst_file, COLO_MESSAGE_VMSTATE_SIZE,
                             bioc->usage, &local_err);
     if (local_err) {
