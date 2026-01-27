@@ -815,7 +815,8 @@ static bool rtl8139_can_receive(NetClientState *nc)
     return avail == 0 || avail >= 1514 || (s->IntrMask & RxOverflow);
 }
 
-static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
+static ssize_t rtl8139_receive(NetClientState *nc,
+                               const uint8_t *buf, size_t size_)
 {
     RTL8139State *s = qemu_get_nic_opaque(nc);
     PCIDevice *d = PCI_DEVICE(s);
@@ -1173,18 +1174,9 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
     }
 
     s->IntrStatus |= RxOK;
-
-    if (do_interrupt)
-    {
-        rtl8139_update_irq(s);
-    }
+    rtl8139_update_irq(s);
 
     return size_;
-}
-
-static ssize_t rtl8139_receive(NetClientState *nc, const uint8_t *buf, size_t size)
-{
-    return rtl8139_do_receive(nc, buf, size, 1);
 }
 
 static void rtl8139_reset_rxring(RTL8139State *s, uint32_t bufferSize)
@@ -1745,7 +1737,7 @@ static uint32_t rtl8139_RxConfig_read(RTL8139State *s)
 }
 
 static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
-    int do_interrupt, const uint8_t *dot1q_buf)
+                                   const uint8_t *dot1q_buf)
 {
     struct iovec *iov = NULL;
     struct iovec vlan_iov[3];
@@ -1828,7 +1820,7 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
     s->TxStatus[descriptor] |= TxHostOwns;
     s->TxStatus[descriptor] |= TxStatOK;
 
-    rtl8139_transfer_frame(s, txbuffer, txsize, 0, NULL);
+    rtl8139_transfer_frame(s, txbuffer, txsize, NULL);
 
     DPRINTF("+++ transmitted %d bytes from descriptor %d\n", txsize,
         descriptor);
@@ -2246,7 +2238,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     DPRINTF("+++ C+ mode TSO transferring packet size "
                         "%d\n", tso_send_size);
                     rtl8139_transfer_frame(s, saved_buffer, tso_send_size,
-                        0, (uint8_t *) dot1q_buffer);
+                                           (uint8_t *)dot1q_buffer);
 
                     /* add transferred count to TCP sequence number */
                     stl_be_p(&p_tcp_hdr->th_seq,
@@ -2323,8 +2315,8 @@ skip_offload:
 
         DPRINTF("+++ C+ mode transmitting %d bytes packet\n", saved_size);
 
-        rtl8139_transfer_frame(s, saved_buffer, saved_size, 1,
-            (uint8_t *) dot1q_buffer);
+        rtl8139_transfer_frame(s, saved_buffer, saved_size,
+                               (uint8_t *)dot1q_buffer);
 
         /* restore card space if there was no recursion and reset offset */
         if (!s->cplus_txbuffer)
