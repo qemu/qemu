@@ -1717,7 +1717,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     return 0;
 }
 
-int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
+int qemu_savevm_state_complete_precopy(QEMUFile *f)
 {
     int ret;
 
@@ -1726,11 +1726,9 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
         return ret;
     }
 
-    if (!iterable_only) {
-        ret = qemu_savevm_state_complete_precopy_non_iterable(f, false);
-        if (ret) {
-            return ret;
-        }
+    ret = qemu_savevm_state_complete_precopy_non_iterable(f, false);
+    if (ret) {
+        return ret;
     }
 
     return qemu_fflush(f);
@@ -1830,7 +1828,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     ret = qemu_file_get_error(f);
     if (ret == 0) {
-        qemu_savevm_state_complete_precopy(f, false);
+        qemu_savevm_state_complete_precopy(f);
         ret = qemu_file_get_error(f);
     }
     if (ret != 0) {

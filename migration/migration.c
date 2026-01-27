@@ -2757,7 +2757,7 @@ static int migration_completion_precopy(MigrationState *s)
         goto out_unlock;
     }
 
-    ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false);
+    ret = qemu_savevm_state_complete_precopy(s->to_dst_file);
 out_unlock:
     bql_unlock();
     return ret;
