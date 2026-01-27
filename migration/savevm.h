@@ -74,8 +74,7 @@ int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis,
                            Error **errp);
 int qemu_load_device_state(QEMUFile *f, Error **errp);
 int qemu_loadvm_approve_switchover(void);
-int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
-        bool in_postcopy);
+int qemu_savevm_state_non_iterable(QEMUFile *f);
 
 bool qemu_loadvm_load_state_buffer(const char *idstr, uint32_t instance_id,
                                    char *buf, size_t len, Error **errp);

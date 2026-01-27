@@ -1691,8 +1691,7 @@ void qemu_savevm_state_end_precopy(MigrationState *s, QEMUFile *f)
     qemu_savevm_state_vm_desc(s, f);
 }
 
-int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
-                                                    bool in_postcopy)
+int qemu_savevm_state_non_iterable(QEMUFile *f)
 {
     MigrationState *ms = migrate_get_current();
     int64_t start_ts_each, end_ts_each;
@@ -1724,11 +1723,6 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                     end_ts_each - start_ts_each);
     }
 
-    if (!in_postcopy) {
-        /* Postcopy stream will still be going */
-        qemu_savevm_state_end_precopy(ms, f);
-    }
-
     trace_vmstate_downtime_checkpoint("src-non-iterable-saved");
 
     return 0;
@@ -1743,10 +1737,12 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f)
         return ret;
     }
 
-    ret = qemu_savevm_state_complete_precopy_non_iterable(f, false);
+    ret = qemu_savevm_state_non_iterable(f);
     if (ret) {
         return ret;
     }
+
+    qemu_savevm_state_end_precopy(migrate_get_current(), f);
 
     return qemu_fflush(f);
 }

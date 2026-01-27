@@ -2552,7 +2552,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    ret = qemu_savevm_state_complete_precopy_non_iterable(fb, true);
+    ret = qemu_savevm_state_non_iterable(fb);
     if (ret) {
         error_setg(errp, "Postcopy save non-iterable device states failed");
         goto fail_closefb;
@@ -3690,9 +3690,12 @@ static void *bg_migration_thread(void *opaque)
         goto fail;
     }
 
-    if (qemu_savevm_state_complete_precopy_non_iterable(fb, false)) {
+    if (qemu_savevm_state_non_iterable(fb)) {
         goto fail;
     }
+
+    qemu_savevm_state_end_precopy(s, fb);
+
     /*
      * Since we are going to get non-iterable state data directly
      * from s->bioc->data, explicit flush is needed here.
