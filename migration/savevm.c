@@ -1071,6 +1071,16 @@ void qemu_savevm_state_end(QEMUFile *f)
     qemu_put_byte(f, QEMU_VM_EOF);
 }
 
+static inline bool qemu_savevm_state_active(SaveStateEntry *se)
+{
+    /* When no is_active() hook, always treat it as ACTIVE */
+    if (!se->ops->is_active) {
+        return true;
+    }
+
+    return se->ops->is_active(se->opaque);
+}
+
 /**
  * qemu_savevm_command_send: Send a 'QEMU_VM_COMMAND' type element with the
  *                           command and associated data.
@@ -1352,12 +1362,9 @@ int qemu_savevm_state_prepare(Error **errp)
         if (!se->ops || !se->ops->save_prepare) {
             continue;
         }
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
-
         ret = se->ops->save_prepare(se->opaque, errp);
         if (ret < 0) {
             return ret;
@@ -1397,10 +1404,8 @@ static int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         if (!se->ops || !se->ops->save_setup) {
             continue;
         }
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
         save_section_header(f, se, QEMU_VM_SECTION_START);
         ret = se->ops->save_setup(f, se->opaque, errp);
@@ -1450,10 +1455,8 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
         if (!se->ops || !se->ops->resume_prepare) {
             continue;
         }
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
         ret = se->ops->resume_prepare(s, se->opaque);
         if (ret < 0) {
@@ -1481,8 +1484,7 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
         if (!se->ops || !se->ops->save_live_iterate) {
             continue;
         }
-        if (se->ops->is_active &&
-            !se->ops->is_active(se->opaque)) {
+        if (!qemu_savevm_state_active(se)) {
             continue;
         }
         if (se->ops->is_active_iterate &&
@@ -1543,10 +1545,8 @@ static int qemu_savevm_complete(SaveStateEntry *se, QEMUFile *f)
 {
     int ret;
 
-    if (se->ops->is_active) {
-        if (!se->ops->is_active(se->opaque)) {
-            return 0;
-        }
+    if (!qemu_savevm_state_active(se)) {
+        return 0;
     }
 
     trace_savevm_section_start(se->idstr, se->section_id);
@@ -1596,10 +1596,8 @@ bool qemu_savevm_state_postcopy_prepare(QEMUFile *f, Error **errp)
             continue;
         }
 
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
 
         trace_savevm_section_start(se->idstr, se->section_id);
@@ -1785,10 +1783,8 @@ void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
         if (!se->ops || !se->ops->state_pending_estimate) {
             continue;
         }
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
         se->ops->state_pending_estimate(se->opaque, must_precopy, can_postcopy);
     }
@@ -1806,10 +1802,8 @@ void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
         if (!se->ops || !se->ops->state_pending_exact) {
             continue;
         }
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
         se->ops->state_pending_exact(se->opaque, must_precopy, can_postcopy);
     }
@@ -2829,12 +2823,9 @@ static int qemu_loadvm_state_setup(QEMUFile *f, Error **errp)
         if (!se->ops || !se->ops->load_setup) {
             continue;
         }
-        if (se->ops->is_active) {
-            if (!se->ops->is_active(se->opaque)) {
-                continue;
-            }
+        if (!qemu_savevm_state_active(se)) {
+            continue;
         }
-
         ret = se->ops->load_setup(f, se->opaque, errp);
         if (ret < 0) {
             error_prepend(errp, "Load state of device %s failed: ",
