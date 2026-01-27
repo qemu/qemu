@@ -729,10 +729,14 @@ unsafe extern "C" fn rust_unparent_fn<T: ObjectImpl>(dev: *mut bindings::Object)
     T::UNPARENT.unwrap()(unsafe { state.as_ref() });
 }
 
-impl ObjectClass {
+pub trait ObjectClassExt {
+    fn class_init<T: ObjectImpl>(&mut self);
+}
+
+impl ObjectClassExt for ObjectClass {
     /// Fill in the virtual methods of `ObjectClass` based on the definitions in
     /// the `ObjectImpl` trait.
-    pub fn class_init<T: ObjectImpl>(&mut self) {
+    fn class_init<T: ObjectImpl>(&mut self) {
         if <T as ObjectImpl>::UNPARENT.is_some() {
             self.unparent = Some(rust_unparent_fn::<T>);
         }

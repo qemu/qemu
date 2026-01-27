@@ -4,6 +4,7 @@ pub use crate::qom::InterfaceType;
 pub use crate::qom::IsA;
 pub use crate::qom::Object;
 pub use crate::qom::ObjectCast;
+pub use crate::qom::ObjectClassExt;
 pub use crate::qom::ObjectClassMethods;
 pub use crate::qom::ObjectDeref;
 pub use crate::qom::ObjectImpl;

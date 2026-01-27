@@ -725,7 +725,6 @@ impl HPETState {
             self.irqs[0].lower();
             self.irqs[RTC_ISA_IRQ].lower();
         } else if deactivating_bit(old_val, new_val, HPET_CFG_LEG_RT_SHIFT) {
-            // TODO: Add irq binding: qemu_irq_lower(s->irqs[0])
             self.irqs[0].lower();
             self.pit_enabled.set(true);
             self.irqs[RTC_ISA_IRQ].set(self.rtc_irq_level.get() != 0);

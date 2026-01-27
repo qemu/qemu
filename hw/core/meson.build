@@ -1,6 +1,7 @@
 # core qdev-related obj files, also used by *-user and unit tests
 hwcore_ss.add(files(
   'bus.c',
+  'gpio.c',
   'qdev-properties.c',
   'qdev.c',
   'resetcontainer.c',
@@ -29,7 +30,6 @@ system_ss.add(when: 'CONFIG_EIF', if_true: [files('eif.c'), zlib, libcbor, gnutl
 system_ss.add(files(
   'cpu-system.c',
   'fw-path-provider.c',
-  'gpio.c',
   'hotplug.c',
   'loader.c',
   'machine-hmp-cmds.c',

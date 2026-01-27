@@ -35,15 +35,16 @@ genrs = []
 subdir('qemu-macros')
 
 subdir('common')
+subdir('bindings')
 subdir('bits')
 
 subdir('util')
 subdir('bql')
 subdir('migration')
 subdir('qom')
-subdir('system')
 subdir('chardev')
 subdir('hw/core')
+subdir('system')
 subdir('tests')
 subdir('trace')
 subdir('hw')

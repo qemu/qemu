@@ -15,9 +15,9 @@ use migration::{impl_vmstate_c_struct, VMStateDescription};
 use qom::{prelude::*, ObjectClass};
 use util::{Error, Result};
 
-pub use crate::bindings::{ClockEvent, DeviceClass, Property, ResetType};
+pub use crate::bindings::{ClockEvent, ResetType};
 use crate::{
-    bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, ResettableClass},
+    bindings::{self, qdev_init_gpio_in, qdev_init_gpio_out, DeviceClass, Property},
     irq::InterruptSource,
 };
 
@@ -66,7 +66,7 @@ pub trait ResettablePhasesImpl {
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_resettable_enter_fn<T: ResettablePhasesImpl>(
-    obj: *mut bindings::Object,
+    obj: *mut qom::bindings::Object,
     typ: ResetType,
 ) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
@@ -79,7 +79,7 @@ unsafe extern "C" fn rust_resettable_enter_fn<T: ResettablePhasesImpl>(
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_resettable_hold_fn<T: ResettablePhasesImpl>(
-    obj: *mut bindings::Object,
+    obj: *mut qom::bindings::Object,
     typ: ResetType,
 ) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
@@ -92,7 +92,7 @@ unsafe extern "C" fn rust_resettable_hold_fn<T: ResettablePhasesImpl>(
 /// can be downcasted to type `T`. We also expect the device is
 /// readable/writeable from one thread at any time.
 unsafe extern "C" fn rust_resettable_exit_fn<T: ResettablePhasesImpl>(
-    obj: *mut bindings::Object,
+    obj: *mut qom::bindings::Object,
     typ: ResetType,
 ) {
     let state = NonNull::new(obj).unwrap().cast::<T>();
@@ -206,6 +206,9 @@ unsafe extern "C" fn rust_realize_fn<T: DeviceImpl>(
     }
 }
 
+#[repr(transparent)]
+pub struct ResettableClass(bindings::ResettableClass);
+
 unsafe impl InterfaceType for ResettableClass {
     const TYPE_NAME: &'static CStr =
         unsafe { CStr::from_bytes_with_nul_unchecked(bindings::TYPE_RESETTABLE_INTERFACE) };
@@ -214,23 +217,25 @@ unsafe impl InterfaceType for ResettableClass {
 impl ResettableClass {
     /// Fill in the virtual methods of `ResettableClass` based on the
     /// definitions in the `ResettablePhasesImpl` trait.
-    pub fn class_init<T: ResettablePhasesImpl>(&mut self) {
+    fn class_init<T: ResettablePhasesImpl>(&mut self) {
         if <T as ResettablePhasesImpl>::ENTER.is_some() {
-            self.phases.enter = Some(rust_resettable_enter_fn::<T>);
+            self.0.phases.enter = Some(rust_resettable_enter_fn::<T>);
         }
         if <T as ResettablePhasesImpl>::HOLD.is_some() {
-            self.phases.hold = Some(rust_resettable_hold_fn::<T>);
+            self.0.phases.hold = Some(rust_resettable_hold_fn::<T>);
         }
         if <T as ResettablePhasesImpl>::EXIT.is_some() {
-            self.phases.exit = Some(rust_resettable_exit_fn::<T>);
+            self.0.phases.exit = Some(rust_resettable_exit_fn::<T>);
         }
     }
 }
 
-impl DeviceClass {
-    /// Fill in the virtual methods of `DeviceClass` based on the definitions in
-    /// the `DeviceImpl` trait.
-    pub fn class_init<T: DeviceImpl>(&mut self) {
+pub trait DeviceClassExt {
+    fn class_init<T: DeviceImpl>(&mut self);
+}
+
+impl DeviceClassExt for DeviceClass {
+    fn class_init<T: DeviceImpl>(&mut self) {
         if <T as DeviceImpl>::REALIZE.is_some() {
             self.realize = Some(rust_realize_fn::<T>);
         }

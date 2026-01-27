@@ -142,7 +142,7 @@ fn test_cast() {
     let obj_ref: &Object = p_ref.upcast();
     assert_eq!(addr_of!(*obj_ref), p_ptr.cast());
 
-    let sbd_ref: Option<&SysBusDevice> = obj_ref.dynamic_cast();
+    let sbd_ref: Option<&DummyChildState> = obj_ref.dynamic_cast();
     assert!(sbd_ref.is_none());
 
     let dev_ref: Option<&DeviceState> = obj_ref.downcast();
@@ -150,7 +150,7 @@ fn test_cast() {
 
     // SAFETY: the cast is wrong, but the value is only used for comparison
     unsafe {
-        let sbd_ref: &SysBusDevice = obj_ref.unsafe_cast();
+        let sbd_ref: &DummyChildState = obj_ref.unsafe_cast();
         assert_eq!(addr_of!(*sbd_ref), p_ptr.cast());
     }
 }

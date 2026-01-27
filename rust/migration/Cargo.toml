@@ -17,6 +17,7 @@ bql = { path = "../bql" }
 common = { path = "../common" }
 qemu_macros = { path = "../qemu-macros" }
 util = { path = "../util" }
+migration-sys = { path = "../bindings/migration-sys" }
 glib-sys.workspace = true
 
 [lints]

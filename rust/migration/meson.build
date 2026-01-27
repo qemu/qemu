@@ -1,44 +1,8 @@
-_migration_bindgen_args = []
-c_bitfields = [
-  'MigrationPolicy',
-  'MigrationPriority',
-  'VMStateFlags',
-]
-foreach enum : c_bitfields
-  _migration_bindgen_args += ['--bitfield-enum', enum]
-endforeach
-#
-# TODO: Remove this comment when the clang/libclang mismatch issue is solved.
-#
-# Rust bindings generation with `bindgen` might fail in some cases where the
-# detected `libclang` does not match the expected `clang` version/target. In
-# this case you must pass the path to `clang` and `libclang` to your build
-# command invocation using the environment variables CLANG_PATH and
-# LIBCLANG_PATH
-_migration_bindings_inc_rs = rust.bindgen(
-  input: 'wrapper.h',
-  dependencies: common_ss.all_dependencies(),
-  output: 'bindings.inc.rs',
-  include_directories: bindings_incdir,
-  bindgen_version: ['>=0.60.0'],
-  args: bindgen_args_common + _migration_bindgen_args,
-  c_args: bindgen_c_args,
-)
-
 _migration_rs = static_library(
   'migration',
-  structured_sources(
-    [
-      'src/lib.rs',
-      'src/bindings.rs',
-      'src/migratable.rs',
-      'src/prelude.rs',
-      'src/vmstate.rs',
-    ],
-    {'.' : _migration_bindings_inc_rs},
-  ),
+  'src/lib.rs',
   link_with: [_util_rs, _bql_rs],
-  dependencies: [common_rs, glib_sys_rs, qemu_macros],
+  dependencies: [common_rs, glib_sys_rs, qemu_macros, migration_sys_rs],
 )
 
 migration_rs = declare_dependency(link_with: [_migration_rs],

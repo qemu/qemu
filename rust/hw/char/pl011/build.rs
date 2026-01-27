@@ -1,1 +1,1 @@
-../../../util/build.rs
+../../../bindings/build.rs

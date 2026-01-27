@@ -33,10 +33,10 @@ pub struct IRQState(Opaque<bindings::IRQState>);
 ///
 /// Interrupts are implemented as a pointer to the interrupt "sink", which has
 /// type [`IRQState`].  A device exposes its source as a QOM link property using
-/// a function such as [`crate::sysbus::SysBusDeviceMethods::init_irq`], and
+/// a function such as [`crate::DeviceMethods::init_gpio_out`], and
 /// initially leaves the pointer to a NULL value, representing an unconnected
 /// interrupt. To connect it, whoever creates the device fills the pointer with
-/// the sink's `IRQState *`, for example using `sysbus_connect_irq`.  Because
+/// the sink's `IRQState *`, for example using `qdev_connect_gpio_out`.  Because
 /// devices are generally shared objects, interrupt sources are an example of
 /// the interior mutability pattern.
 ///
@@ -87,11 +87,11 @@ where
         }
     }
 
-    pub(crate) const fn as_ptr(&self) -> *mut *mut bindings::IRQState {
+    pub const fn as_ptr(&self) -> *mut *mut bindings::IRQState {
         self.cell.as_ptr()
     }
 
-    pub(crate) const fn slice_as_ptr(slice: &[Self]) -> *mut *mut bindings::IRQState {
+    pub const fn slice_as_ptr(slice: &[Self]) -> *mut *mut bindings::IRQState {
         assert!(!slice.is_empty());
         slice[0].as_ptr()
     }

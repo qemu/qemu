@@ -788,9 +788,9 @@ static void gen_##uname(DisasContext *s, X86DecodedInsn *decode)                
 BINARY_IMM_SSE(VBLENDPD,   blendpd)
 BINARY_IMM_SSE(VBLENDPS,   blendps)
 BINARY_IMM_SSE(VPBLENDW,   pblendw)
-BINARY_IMM_SSE(VDDPS,      dpps)
+BINARY_IMM_SSE(VDPPS,      dpps)
 #define gen_helper_dppd_ymm NULL
-BINARY_IMM_SSE(VDDPD,      dppd)
+BINARY_IMM_SSE(VDPPD,      dppd)
 BINARY_IMM_SSE(VMPSADBW,   mpsadbw)
 BINARY_IMM_SSE(PCLMULQDQ,  pclmulqdq)
 
@@ -1236,8 +1236,8 @@ static void gen_ADCOX(DisasContext *s, X86DecodedInsn *decode, int cc_op)
     }
 
     switch (ot) {
-#ifdef TARGET_X86_64
     case MO_32:
+#ifdef TARGET_X86_64
         /* If TL is 64-bit just do everything in 64-bit arithmetic.  */
         tcg_gen_ext32u_tl(s->T0, s->T0);
         tcg_gen_ext32u_tl(s->T1, s->T1);
@@ -1245,12 +1245,16 @@ static void gen_ADCOX(DisasContext *s, X86DecodedInsn *decode, int cc_op)
         tcg_gen_add_i64(s->T0, s->T0, carry_in);
         tcg_gen_shri_i64(*carry_out, s->T0, 32);
         break;
+
+    case MO_64:
 #endif
-    default:
         zero = tcg_constant_tl(0);
         tcg_gen_add2_tl(s->T0, *carry_out, s->T0, zero, carry_in, zero);
         tcg_gen_add2_tl(s->T0, *carry_out, s->T0, *carry_out, s->T1, zero);
         break;
+
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -1991,7 +1995,6 @@ static void gen_DIV(DisasContext *s, X86DecodedInsn *decode)
     case MO_16:
         gen_helper_divw_AX(tcg_env, s->T0);
         break;
-    default:
     case MO_32:
         gen_helper_divl_EAX(tcg_env, s->T0);
         break;
@@ -2000,6 +2003,8 @@ static void gen_DIV(DisasContext *s, X86DecodedInsn *decode)
         gen_helper_divq_EAX(tcg_env, s->T0);
         break;
 #endif
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -2065,7 +2070,6 @@ static void gen_IDIV(DisasContext *s, X86DecodedInsn *decode)
     case MO_16:
         gen_helper_idivw_AX(tcg_env, s->T0);
         break;
-    default:
     case MO_32:
         gen_helper_idivl_EAX(tcg_env, s->T0);
         break;
@@ -2074,6 +2078,8 @@ static void gen_IDIV(DisasContext *s, X86DecodedInsn *decode)
         gen_helper_idivq_EAX(tcg_env, s->T0);
         break;
 #endif
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -2876,7 +2882,7 @@ static inline void gen_pextr(DisasContext *s, X86DecodedInsn *decode, MemOp ot)
         tcg_gen_ld_tl(s->T0, tcg_env, vector_elem_offset(&decode->op[1], ot, val));
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 }
 
@@ -2923,7 +2929,7 @@ static inline void gen_pinsr(DisasContext *s, X86DecodedInsn *decode, MemOp ot)
         tcg_gen_st_tl(s->T1, tcg_env, vector_elem_offset(&decode->op[0], ot, val));
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 }
 

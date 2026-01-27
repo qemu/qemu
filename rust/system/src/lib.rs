@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-pub mod bindings;
+pub use system_sys as bindings;
 
 mod memory;
 pub use memory::*;
@@ -9,3 +9,6 @@ pub use memory::*;
 // for prelude-like modules
 #[rustfmt::skip]
 pub mod prelude;
+
+mod sysbus;
+pub use sysbus::*;

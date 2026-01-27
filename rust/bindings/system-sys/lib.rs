@@ -19,7 +19,9 @@
 )]
 
 use common::Zeroable;
-use glib_sys::{guint, GHashTable, GHashTableIter, GList, GPollFD, GPtrArray, GSList};
+use hwcore_sys::{qemu_irq, DeviceClass, DeviceState};
+use qom_sys::{InterfaceClass, Object, ObjectClass};
+use util_sys::{Error, EventNotifier, QEMUBH};
 
 #[cfg(MESON)]
 include!("bindings.inc.rs");

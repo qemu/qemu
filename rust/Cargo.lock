@@ -59,6 +59,7 @@ name = "bql"
 version = "0.1.0"
 dependencies = [
  "glib-sys",
+ "util-sys",
 ]
 
 [[package]]
@@ -76,11 +77,22 @@ name = "chardev"
 version = "0.1.0"
 dependencies = [
  "bql",
+ "chardev-sys",
  "common",
  "glib-sys",
  "migration",
  "qom",
  "util",
+]
+
+[[package]]
+name = "chardev-sys"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "glib-sys",
+ "qom-sys",
+ "util-sys",
 ]
 
 [[package]]
@@ -156,11 +168,25 @@ dependencies = [
  "chardev",
  "common",
  "glib-sys",
+ "hwcore-sys",
  "migration",
  "qemu_macros",
  "qom",
  "system",
  "util",
+]
+
+[[package]]
+name = "hwcore-sys"
+version = "0.1.0"
+dependencies = [
+ "chardev-sys",
+ "common",
+ "glib-sys",
+ "migration-sys",
+ "qom-sys",
+ "system-sys",
+ "util-sys",
 ]
 
 [[package]]
@@ -201,8 +227,18 @@ dependencies = [
  "bql",
  "common",
  "glib-sys",
+ "migration-sys",
  "qemu_macros",
  "util",
+]
+
+[[package]]
+name = "migration-sys"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "glib-sys",
+ "util-sys",
 ]
 
 [[package]]
@@ -287,7 +323,16 @@ dependencies = [
  "glib-sys",
  "migration",
  "qemu_macros",
+ "qom-sys",
  "util",
+]
+
+[[package]]
+name = "qom-sys"
+version = "0.1.0"
+dependencies = [
+ "glib-sys",
+ "util-sys",
 ]
 
 [[package]]
@@ -306,6 +351,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
 dependencies = [
  "serde_core",
+ "serde_derive",
 ]
 
 [[package]]
@@ -358,9 +404,12 @@ dependencies = [
 name = "system"
 version = "0.1.0"
 dependencies = [
+ "bql",
  "common",
  "glib-sys",
+ "migration",
  "qom",
+ "system-sys",
  "util",
 ]
 
@@ -375,6 +424,17 @@ dependencies = [
  "pkg-config",
  "toml",
  "version-compare",
+]
+
+[[package]]
+name = "system-sys"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "glib-sys",
+ "migration-sys",
+ "qom-sys",
+ "util-sys",
 ]
 
 [[package]]
@@ -454,6 +514,14 @@ dependencies = [
  "foreign",
  "glib-sys",
  "libc",
+ "util-sys",
+]
+
+[[package]]
+name = "util-sys"
+version = "0.1.0"
+dependencies = [
+ "glib-sys",
 ]
 
 [[package]]

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-pub mod bindings;
+pub use util_sys as bindings;
+
 pub mod error;
 pub mod log;
 pub mod module;

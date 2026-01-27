@@ -628,7 +628,7 @@ static void decode_0F7E(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     static const X86OpEntry opcodes_0F7E[4] = {
         X86_OP_ENTRY3(MOVD_from,  E,y, None,None, P,y, vex5 mmx),
         X86_OP_ENTRY3(MOVD_from,  E,y, None,None, V,y, vex5),
-        X86_OP_ENTRY3(MOVQ,       V,x, None,None, W,q, vex5),  /* wrong dest Vy on SDM! */
+        X86_OP_ENTRY3(MOVQ,       V,dq,None,None, W,q, vex5),  /* wrong dest Vq on SDM! */
         {},
     };
     *entry = *decode_by_prefix(s, opcodes_0F7E);
@@ -693,7 +693,7 @@ static void decode_0FD6(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
 {
     static const X86OpEntry movq[4] = {
         {},
-        X86_OP_ENTRY3(MOVQ,    W,x,  None, None, V,q, vex5),
+        X86_OP_ENTRY3(MOVQ,    W,dq, None, None, V,q, vex5),
         X86_OP_ENTRY3(MOVq_dq, V,dq, None, None, N,q),
         X86_OP_ENTRY3(MOVq_dq, P,q,  None, None, U,q),
     };
@@ -977,8 +977,8 @@ static const X86OpEntry opcodes_0F3A[256] = {
     [0x21] = X86_OP_GROUP0(VINSERTPS),
     [0x22] = X86_OP_ENTRY4(PINSR,      V,dq, H,dq, E,y,  vex5 cpuid(SSE41) p_66),
 
-    [0x40] = X86_OP_ENTRY4(VDDPS,      V,x,  H,x,  W,x,  vex2 cpuid(SSE41) p_66),
-    [0x41] = X86_OP_ENTRY4(VDDPD,      V,dq, H,dq, W,dq, vex2 cpuid(SSE41) p_66),
+    [0x40] = X86_OP_ENTRY4(VDPPS,      V,x,  H,x,  W,x,  vex2 cpuid(SSE41) p_66),
+    [0x41] = X86_OP_ENTRY4(VDPPD,      V,dq, H,dq, W,dq, vex2 cpuid(SSE41) p_66),
     [0x42] = X86_OP_ENTRY4(VMPSADBW,   V,x,  H,x,  W,x,  vex2 cpuid(SSE41) avx2_256 p_66),
     [0x44] = X86_OP_ENTRY4(PCLMULQDQ,  V,dq, H,dq, W,dq, vex4 cpuid(PCLMULQDQ) p_66),
     [0x46] = X86_OP_ENTRY4(VPERM2x128, V,qq, H,qq, W,qq, vex6 chk(W0) cpuid(AVX2) p_66),
@@ -1102,7 +1102,7 @@ static void decode_0F12(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     };
     static const X86OpEntry opcodes_0F12_reg[4] = {
         X86_OP_ENTRY3(VMOVHLPS,  V,dq, H,dq,       U,dq, vex7),
-        X86_OP_ENTRY3(VMOVLPx,   W,x,  H,x,        U,q,  vex5), /* MOVLPD */
+        X86_OP_ENTRY3(VMOVLPx,   W,dq, H,dq,       U,q,  vex5), /* MOVLPD */
         X86_OP_ENTRY3(VMOVSLDUP, V,x,  None,None,  U,x,  vex4 cpuid(SSE3)),
         X86_OP_ENTRY3(VMOVDDUP,  V,x,  None,None,  U,x,  vex5 cpuid(SSE3)),
     };
@@ -1465,7 +1465,7 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x6b] = X86_OP_ENTRY3(PACKSSDW,   V,x, H,x, W,x,  vex4 mmx avx2_256 p_00_66),
     [0x6c] = X86_OP_ENTRY3(PUNPCKLQDQ, V,x, H,x, W,x,  vex4 p_66 avx2_256),
     [0x6d] = X86_OP_ENTRY3(PUNPCKHQDQ, V,x, H,x, W,x,  vex4 p_66 avx2_256),
-    [0x6e] = X86_OP_ENTRY3(MOVD_to,    V,x, None,None, E,y, vex5 mmx p_00_66),  /* wrong dest Vy on SDM! */
+    [0x6e] = X86_OP_ENTRY3(MOVD_to,    V,dq,None,None, E,y, vex5 mmx p_00_66),  /* wrong dest Vy on SDM! */
     [0x6f] = X86_OP_GROUP0(0F6F),
 
     [0x78] = X86_OP_GROUP0(0F78),
@@ -2007,42 +2007,42 @@ static void decode_root(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
     *entry = opcodes_root[*b];
 }
 
-/* Decompose an address.  */
-static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
-                                         int modrm, bool is_vsib)
+/* Decode the MODRM and SIB bytes into a register or memory operand.  */
+static void decode_modrm(DisasContext *s, CPUX86State *env,
+                         X86DecodedInsn *decode, X86DecodedOp *op)
 {
-    int def_seg, base, index, scale, mod, rm;
-    target_long disp;
-    bool havesib;
-
-    def_seg = R_DS;
-    index = -1;
-    scale = 0;
-    disp = 0;
-
-    mod = (modrm >> 6) & 3;
-    rm = modrm & 7;
-    base = rm | REX_B(s);
+    int modrm = get_modrm(s, env);
+    int mod = (modrm >> 6) & 3;
+    int rm = modrm & 7;
+    bool is_vsib = decode->e.vex_class == 12;
+    int sib = -1;
 
     if (mod == 3) {
-        /* Normally filtered out earlier, but including this path
-           simplifies multi-byte nop, as well as bndcl, bndcu, bndcn.  */
-        goto done;
+        op->n = rm;
+        if (op->unit != X86_OP_MMX) {
+            op->n |= REX_B(s);
+        }
+	return;
     }
+
+    /* Decompose an address.  */
+    int def_seg = R_DS;
+    int base = rm | REX_B(s);
+    int index = -1;
+    int scale = 0;
+    target_ulong disp = 0;
 
     switch (s->aflag) {
     case MO_64:
     case MO_32:
-        havesib = 0;
         if (rm == 4) {
-            int code = x86_ldub_code(env, s);
-            scale = (code >> 6) & 3;
-            index = ((code >> 3) & 7) | REX_X(s);
+            sib = x86_ldub_code(env, s);
+            scale = (sib >> 6) & 3;
+            index = ((sib >> 3) & 7) | REX_X(s);
             if (index == 4 && !is_vsib) {
                 index = -1;  /* no index */
             }
-            base = (code & 7) | REX_B(s);
-            havesib = 1;
+            base = (sib & 7) | REX_B(s);
         }
 
         switch (mod) {
@@ -2050,7 +2050,7 @@ static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
             if ((base & 7) == 5) {
                 base = -1;
                 disp = (int32_t)x86_ldl_code(env, s);
-                if (CODE64(s) && !havesib) {
+                if (CODE64(s) && sib == -1) {
                     base = -2;
                     disp += s->pc + s->rip_offset;
                 }
@@ -2127,26 +2127,9 @@ static AddressParts decode_modrm_address(CPUX86State *env, DisasContext *s,
         g_assert_not_reached();
     }
 
- done:
-    return (AddressParts){ def_seg, base, index, scale, disp };
-}
-
-static int decode_modrm(DisasContext *s, CPUX86State *env,
-                        X86DecodedInsn *decode, X86DecodedOp *op)
-{
-    int modrm = get_modrm(s, env);
-    if ((modrm >> 6) == 3) {
-        op->n = (modrm & 7);
-        if (op->unit != X86_OP_MMX) {
-            op->n |= REX_B(s);
-        }
-    } else {
-        op->has_ea = true;
-        op->n = -1;
-        decode->mem = decode_modrm_address(env, s, get_modrm(s, env),
-                                           decode->e.vex_class == 12);
-    }
-    return modrm;
+    op->has_ea = true;
+    op->n = -1;
+    decode->mem = (AddressParts){ def_seg, base, index, scale, disp };
 }
 
 static bool decode_op_size(DisasContext *s, X86OpEntry *e, X86OpSize size, MemOp *ot)

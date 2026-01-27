@@ -18,6 +18,7 @@ foreign = { workspace = true }
 glib-sys = { workspace = true }
 libc = { workspace = true }
 common = { path = "../common" }
+util-sys = { path = "../bindings/util-sys" }
 
 [lints]
 workspace = true
