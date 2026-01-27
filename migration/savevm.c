@@ -1872,8 +1872,7 @@ int qemu_save_device_state(QEMUFile *f)
     SaveStateEntry *se;
 
     if (!migration_in_colo_state()) {
-        qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
-        qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+        qemu_savevm_send_header(f);
     }
     cpu_synchronize_all_states();
 
