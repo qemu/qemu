@@ -1871,9 +1871,6 @@ int qemu_save_device_state(QEMUFile *f)
     Error *local_err = NULL;
     SaveStateEntry *se;
 
-    if (!migration_in_colo_state()) {
-        qemu_savevm_send_header(f);
-    }
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -3335,6 +3332,7 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
     qio_channel_set_name(QIO_CHANNEL(ioc), "migration-xen-save-state");
     f = qemu_file_new_output(QIO_CHANNEL(ioc));
     object_unref(OBJECT(ioc));
+    qemu_savevm_send_header(f);
     ret = qemu_save_device_state(f);
     if (ret < 0 || qemu_fclose(f) < 0) {
         error_setg(errp, "saving Xen device state failed");
