@@ -69,7 +69,6 @@ struct AspeedPCIERcState {
     uint64_t dram_base;
     uint32_t msi_addr;
     uint32_t rp_addr;
-    uint32_t bus_nr;
     char name[16];
     qemu_irq irq;
 
@@ -102,7 +101,6 @@ struct AspeedPCIECfgClass {
 
     uint32_t rc_msi_addr;
     uint32_t rc_rp_addr;
-    uint64_t rc_bus_nr;
     uint64_t nr_regs;
     bool rc_has_rd;
 };

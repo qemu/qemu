@@ -268,7 +268,7 @@ static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
     AspeedPCIECfgState *cfg =
            container_of(rc, AspeedPCIECfgState, rc);
 
-    snprintf(rc->name, sizeof(rc->name), "%04x:%02x", cfg->id, rc->bus_nr);
+    snprintf(rc->name, sizeof(rc->name), "%04x:00", cfg->id);
 
     return rc->name;
 }
@@ -283,7 +283,6 @@ static void aspeed_pcie_rc_instance_init(Object *obj)
 }
 
 static const Property aspeed_pcie_rc_props[] = {
-    DEFINE_PROP_UINT32("bus-nr", AspeedPCIERcState, bus_nr, 0),
     DEFINE_PROP_UINT32("rp-addr", AspeedPCIERcState, rp_addr, 0),
     DEFINE_PROP_UINT32("msi-addr", AspeedPCIERcState, msi_addr, 0),
     DEFINE_PROP_UINT64("dram-base", AspeedPCIERcState, dram_base, 0),
@@ -490,17 +489,6 @@ static void aspeed_pcie_cfg_readwrite(AspeedPCIECfgState *s,
     offset = cfg_addr & 0xffc;
 
     pci = PCI_HOST_BRIDGE(rc);
-
-    /*
-     * On the AST2600, the RC_H bus number range from 0x80 to 0xFF, with the
-     * root device and root port assigned to bus 0x80 instead of the standard
-     * 0x00. To allow the PCI subsystem to correctly discover devices on the
-     * root bus, bus 0x80 is remapped to 0x00.
-     */
-    if (bus == rc->bus_nr) {
-        bus = 0;
-    }
-
     pdev = pci_find_device(pci->bus, bus, devfn);
     if (!pdev) {
         s->regs[desc->rdata_reg] = ~0;
@@ -650,9 +638,6 @@ static void aspeed_pcie_cfg_realize(DeviceState *dev, Error **errp)
                           apc->nr_regs << 2);
     sysbus_init_mmio(sbd, &s->mmio);
 
-    object_property_set_int(OBJECT(&s->rc), "bus-nr",
-                            apc->rc_bus_nr,
-                            &error_abort);
     object_property_set_int(OBJECT(&s->rc), "rp-addr",
                             apc->rc_rp_addr,
                             &error_abort);
@@ -691,7 +676,6 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
     apc->reg_map = &aspeed_regmap;
     apc->nr_regs = 0x100 >> 2;
     apc->rc_msi_addr = 0x1e77005C;
-    apc->rc_bus_nr = 0x80;
     apc->rc_rp_addr = PCI_DEVFN(8, 0);
 }
 
@@ -811,7 +795,6 @@ static void aspeed_2700_pcie_cfg_class_init(ObjectClass *klass,
     apc->reg_map = &aspeed_2700_regmap;
     apc->nr_regs = 0x100 >> 2;
     apc->rc_msi_addr = 0x000000F0;
-    apc->rc_bus_nr = 0;
     apc->rc_rp_addr = PCI_DEVFN(0, 0);
 }
 
