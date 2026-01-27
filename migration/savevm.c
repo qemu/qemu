@@ -1688,7 +1688,6 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         if (ret) {
             migrate_error_propagate(ms, error_copy(local_err));
             error_report_err(local_err);
-            qemu_file_set_error(f, ret);
             return ret;
         }
 
