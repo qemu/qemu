@@ -470,7 +470,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
      * to be blocked here.
      */
     qemu_savevm_state_complete_precopy_iterable(s->to_dst_file, false);
-    qemu_put_byte(s->to_dst_file, QEMU_VM_EOF);
+    qemu_savevm_state_end(s->to_dst_file);
 
     /*
      * We need the size of the VMstate data in Secondary side,

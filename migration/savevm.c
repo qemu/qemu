@@ -1065,6 +1065,12 @@ static int vmstate_save(QEMUFile *f, SaveStateEntry *se, JSONWriter *vmdesc,
     }
     return 0;
 }
+
+void qemu_savevm_state_end(QEMUFile *f)
+{
+    qemu_put_byte(f, QEMU_VM_EOF);
+}
+
 /**
  * qemu_savevm_command_send: Send a 'QEMU_VM_COMMAND' type element with the
  *                           command and associated data.
@@ -1555,7 +1561,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
         }
     }
 
-    qemu_put_byte(f, QEMU_VM_EOF);
+    qemu_savevm_state_end(f);
     qemu_fflush(f);
 }
 
@@ -1699,7 +1705,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
     if (!in_postcopy) {
         /* Postcopy stream will still be going */
-        qemu_put_byte(f, QEMU_VM_EOF);
+        qemu_savevm_state_end(f);
 
         if (vmdesc) {
             json_writer_end_array(vmdesc);
@@ -1879,7 +1885,7 @@ int qemu_save_device_state(QEMUFile *f)
         }
     }
 
-    qemu_put_byte(f, QEMU_VM_EOF);
+    qemu_savevm_state_end(f);
 
     return qemu_file_get_error(f);
 }
