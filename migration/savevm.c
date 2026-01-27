@@ -1854,13 +1854,6 @@ cleanup:
     return ret;
 }
 
-void qemu_savevm_live_state(QEMUFile *f)
-{
-    /* save QEMU_VM_SECTION_END section */
-    qemu_savevm_state_complete_precopy(f, true);
-    qemu_put_byte(f, QEMU_VM_EOF);
-}
-
 /* Is a save state entry iterable (e.g. RAM)? */
 static bool qemu_savevm_se_iterable(SaveStateEntry *se)
 {
