@@ -1385,8 +1385,6 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         if (se->vmsd && se->vmsd->early_setup) {
             ret = vmstate_save(f, se, vmdesc, errp);
             if (ret) {
-                migrate_error_propagate(ms, error_copy(*errp));
-                qemu_file_set_error(f, ret);
                 break;
             }
             continue;
@@ -1405,7 +1403,6 @@ int qemu_savevm_state_setup(QEMUFile *f, Error **errp)
         ret = se->ops->save_setup(f, se->opaque, errp);
         save_section_footer(f, se);
         if (ret < 0) {
-            qemu_file_set_error(f, ret);
             break;
         }
     }
