@@ -1887,26 +1887,24 @@ static bool qemu_savevm_se_iterable(SaveStateEntry *se)
     return se->ops && se->ops->save_setup;
 }
 
-int qemu_save_device_state(QEMUFile *f)
+int qemu_save_device_state(QEMUFile *f, Error **errp)
 {
-    Error *local_err = NULL;
-    SaveStateEntry *se;
+    int ret;
 
-    cpu_synchronize_all_states();
+    /* Both COLO and Xen never use vmdesc, hence NULL. */
+    ret = qemu_savevm_state_non_iterable_early(f, NULL, errp);
+    if (ret) {
+        return ret;
+    }
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        int ret;
-
-        ret = vmstate_save(f, se, NULL, &local_err);
-        if (ret) {
-            error_report_err(local_err);
-            return ret;
-        }
+    ret = qemu_savevm_state_non_iterable(f, errp);
+    if (ret) {
+        return ret;
     }
 
     qemu_savevm_state_end(f);
 
-    return qemu_file_get_error(f);
+    return 0;
 }
 
 static SaveStateEntry *find_se(const char *idstr, uint32_t instance_id)
@@ -3346,9 +3344,11 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
     f = qemu_file_new_output(QIO_CHANNEL(ioc));
     object_unref(OBJECT(ioc));
     qemu_savevm_send_header(f);
-    ret = qemu_save_device_state(f);
+    ret = qemu_save_device_state(f, errp);
     if (ret < 0 || qemu_fclose(f) < 0) {
-        error_setg(errp, "saving Xen device state failed");
+        if (*errp == NULL) {
+            error_setg(errp, "saving Xen device state failed");
+        }
     } else {
         /* libxl calls the QMP command "stop" before calling
          * "xen-save-devices-state" and in case of migration failure, libxl

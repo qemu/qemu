@@ -454,7 +454,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     }
 
     /* Note: device state is saved into buffer */
-    ret = qemu_save_device_state(fb);
+    ret = qemu_save_device_state(fb, &local_err);
 
     bql_unlock();
     if (ret < 0) {
