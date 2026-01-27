@@ -1040,19 +1040,19 @@ static bool virtio_gpu_rutabaga_init(VirtIOGPU *g, Error **errp)
     return true;
 }
 
-static int virtio_gpu_rutabaga_get_num_capsets(VirtIOGPU *g)
+static bool
+virtio_gpu_rutabaga_get_num_capsets(VirtIOGPU *g, uint32_t *num_capsets, Error **errp)
 {
     int result;
-    uint32_t num_capsets;
     VirtIOGPURutabaga *vr = VIRTIO_GPU_RUTABAGA(g);
 
-    result = rutabaga_get_num_capsets(vr->rutabaga, &num_capsets);
+    result = rutabaga_get_num_capsets(vr->rutabaga, num_capsets);
     if (result) {
-        error_report("Failed to get capsets");
-        return 0;
+        error_setg_errno(errp, -result, "Failed to get num_capsets");
+        return false;
     }
-    vr->num_capsets = num_capsets;
-    return num_capsets;
+    vr->num_capsets = *num_capsets;
+    return true;
 }
 
 static void virtio_gpu_rutabaga_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
@@ -1078,7 +1078,7 @@ static void virtio_gpu_rutabaga_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
 {
-    int num_capsets;
+    uint32_t num_capsets;
     VirtIOGPUBase *bdev = VIRTIO_GPU_BASE(qdev);
     VirtIOGPU *gpudev = VIRTIO_GPU(qdev);
 
@@ -1091,8 +1091,7 @@ static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
         return;
     }
 
-    num_capsets = virtio_gpu_rutabaga_get_num_capsets(gpudev);
-    if (!num_capsets) {
+    if (!virtio_gpu_rutabaga_get_num_capsets(gpudev, &num_capsets, errp)) {
         return;
     }
 
