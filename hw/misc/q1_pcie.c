@@ -895,10 +895,9 @@ static void q1_pcie_exit(PCIDevice *pdev)
  * Device Properties
  *============================================================================*/
 
-static Property q1_pcie_properties[] = {
+static const Property q1_pcie_properties[] = {
     DEFINE_PROP_STRING("shmem", Q1PCIEState, shmem_path),
     DEFINE_PROP_STRING("doorbell", Q1PCIEState, doorbell_path),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 /*============================================================================
