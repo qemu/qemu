@@ -1282,38 +1282,48 @@ void qemu_savevm_non_migratable_list(strList **reasons)
     }
 }
 
-void qemu_savevm_state_header(QEMUFile *f)
+void qemu_savevm_send_header(QEMUFile *f)
 {
-    MigrationState *s = migrate_get_current();
-    JSONWriter *vmdesc = s->vmdesc;
-    Error *local_err = NULL;
-
     trace_savevm_state_header();
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
     qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+}
 
+static void qemu_savevm_send_configuration(MigrationState *s, QEMUFile *f)
+{
+    JSONWriter *vmdesc = s->vmdesc;
+    Error *local_err = NULL;
+
+    qemu_put_byte(f, QEMU_VM_CONFIGURATION);
+
+    if (vmdesc) {
+        /*
+         * This starts the main json object and is paired with the
+         * json_writer_end_object in
+         * qemu_savevm_state_complete_precopy_non_iterable
+         */
+        json_writer_start_object(vmdesc, NULL);
+        json_writer_start_object(vmdesc, "configuration");
+    }
+
+    vmstate_save_state(f, &vmstate_configuration, &savevm_state,
+                       vmdesc, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+
+    if (vmdesc) {
+        json_writer_end_object(vmdesc);
+    }
+}
+
+void qemu_savevm_state_header(QEMUFile *f)
+{
+    MigrationState *s = migrate_get_current();
+
+    qemu_savevm_send_header(f);
     if (s->send_configuration) {
-        qemu_put_byte(f, QEMU_VM_CONFIGURATION);
-
-        if (vmdesc) {
-            /*
-             * This starts the main json object and is paired with the
-             * json_writer_end_object in
-             * qemu_savevm_state_complete_precopy_non_iterable
-             */
-            json_writer_start_object(vmdesc, NULL);
-            json_writer_start_object(vmdesc, "configuration");
-        }
-
-        vmstate_save_state(f, &vmstate_configuration, &savevm_state,
-                           vmdesc, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-        }
-
-        if (vmdesc) {
-            json_writer_end_object(vmdesc);
-        }
+        qemu_savevm_send_configuration(s, f);
     }
 }
 
