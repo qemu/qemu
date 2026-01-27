@@ -1710,13 +1710,12 @@ void qemu_savevm_state_end_precopy(MigrationState *s, QEMUFile *f)
     qemu_savevm_state_vm_desc(s, f);
 }
 
-int qemu_savevm_state_non_iterable(QEMUFile *f)
+int qemu_savevm_state_non_iterable(QEMUFile *f, Error **errp)
 {
     MigrationState *ms = migrate_get_current();
     int64_t start_ts_each, end_ts_each;
     JSONWriter *vmdesc = ms->vmdesc;
     SaveStateEntry *se;
-    Error *local_err = NULL;
     int ret;
 
     /* Making sure cpu states are synchronized before saving non-iterable */
@@ -1730,10 +1729,8 @@ int qemu_savevm_state_non_iterable(QEMUFile *f)
 
         start_ts_each = qemu_clock_get_us(QEMU_CLOCK_REALTIME);
 
-        ret = vmstate_save(f, se, vmdesc, &local_err);
+        ret = vmstate_save(f, se, vmdesc, errp);
         if (ret) {
-            migrate_error_propagate(ms, error_copy(local_err));
-            error_report_err(local_err);
             return ret;
         }
 
@@ -1750,6 +1747,7 @@ int qemu_savevm_state_non_iterable(QEMUFile *f)
 int qemu_savevm_state_complete_precopy(MigrationState *s)
 {
     QEMUFile *f = s->to_dst_file;
+    Error *local_err = NULL;
     int ret;
 
     ret = qemu_savevm_state_complete_precopy_iterable(f, false);
@@ -1757,8 +1755,11 @@ int qemu_savevm_state_complete_precopy(MigrationState *s)
         return ret;
     }
 
-    ret = qemu_savevm_state_non_iterable(f);
+    /* TODO: pass error upper */
+    ret = qemu_savevm_state_non_iterable(f, &local_err);
     if (ret) {
+        migrate_error_propagate(s, error_copy(local_err));
+        error_report_err(local_err);
         return ret;
     }
 

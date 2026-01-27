@@ -2552,9 +2552,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    ret = qemu_savevm_state_non_iterable(fb);
+    ret = qemu_savevm_state_non_iterable(fb, errp);
     if (ret) {
-        error_setg(errp, "Postcopy save non-iterable device states failed");
+        error_prepend(errp, "Postcopy save non-iterable states failed: ");
         goto fail_closefb;
     }
 
@@ -3687,8 +3687,8 @@ static void *bg_migration_thread(void *opaque)
         goto fail_with_bql;
     }
 
-    if (qemu_savevm_state_non_iterable(fb)) {
-        error_setg(&local_err, "Failed to save non-iterable devices");
+    if (qemu_savevm_state_non_iterable(fb, &local_err)) {
+        error_prepend(&local_err, "Failed to save non-iterable devices ");
         goto fail_with_bql;
     }
 
