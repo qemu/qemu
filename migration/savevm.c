@@ -1897,13 +1897,8 @@ int qemu_save_device_state(QEMUFile *f)
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         int ret;
 
-        if (qemu_savevm_se_iterable(se)) {
-            continue;
-        }
         ret = vmstate_save(f, se, NULL, &local_err);
         if (ret) {
-            migrate_error_propagate(migrate_get_current(),
-                                    error_copy(local_err));
             error_report_err(local_err);
             return ret;
         }
