@@ -53,8 +53,7 @@ static void ufs_build_scsi_response_upiu(UfsRequest *req, uint8_t *sense,
         response = UFS_COMMAND_RESULT_FAIL;
     }
 
-    data_segment_length =
-        cpu_to_be16(sense_len + sizeof(req->rsp_upiu.sr.sense_data_len));
+    data_segment_length = sense_len + sizeof(req->rsp_upiu.sr.sense_data_len);
     ufs_build_upiu_header(req, UFS_UPIU_TRANSACTION_RESPONSE, flags, response,
                           status, data_segment_length);
 }
