@@ -19,10 +19,15 @@
  * Shared Memory Layout
  *============================================================================*/
 
-/* Total shared memory size: 512MB DDR + 256B control region */
-#define Q1_SHMEM_DDR_SIZE           (512 * 1024 * 1024)  /* 512MB */
+/* 
+ * Shared memory layout (must match firmware's shmem_interface.h):
+ *   0x00000000 - 0x0EFFFFFF: 240MB - DDR region
+ *   0x0F000000 - 0x0F0000FF: 256B  - Control region (SHMEM_CTRL)
+ *   Total: 256MB file (matches RISC-V virt machine RAM at 0x80000000)
+ */
+#define Q1_SHMEM_DDR_SIZE           (0x0F000000)          /* 240MB */
 #define Q1_SHMEM_CTRL_SIZE          256                   /* 256 bytes */
-#define Q1_SHMEM_TOTAL_SIZE         (Q1_SHMEM_DDR_SIZE + Q1_SHMEM_CTRL_SIZE)
+#define Q1_SHMEM_TOTAL_SIZE         (256 * 1024 * 1024)   /* 256MB total file */
 
 /* Control region offsets (relative to control region base) */
 #define Q1_SHMEM_CTRL_DOORBELL      0x00    /* uint32_t: doorbell value */
