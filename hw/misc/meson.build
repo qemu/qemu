@@ -1,6 +1,6 @@
 system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.c'))
 system_ss.add(when: 'CONFIG_EDU', if_true: files('edu.c'))
-system_ss.add(when: 'CONFIG_Q1_PCIE', if_true: files('q1_pcie.c'))
+system_ss.add(when: 'CONFIG_Q1_PCIE', if_true: files('q1_pcie.c', 'q1_shmem.c'))
 system_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('vmcoreinfo.c'))
 system_ss.add(when: 'CONFIG_ISA_DEBUG', if_true: files('debugexit.c'))
 system_ss.add(when: 'CONFIG_ISA_TESTDEV', if_true: files('pc-testdev.c'))
