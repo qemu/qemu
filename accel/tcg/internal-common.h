@@ -105,7 +105,8 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
 static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
                                                 vaddr addr)
 {
-    return get_page_addr_code_hostp(env, addr, NULL);
+    void *discard;
+    return get_page_addr_code_hostp(env, addr, &discard);
 }
 
 /*
