@@ -275,9 +275,7 @@ struct Q1PCIEState {
     /* Shared memory for firmware communication */
     Q1ShmemContext shmem;
     char *shmem_path;           /* Device property: path to shared memory file */
-    char *doorbell_path;        /* Device property: path to doorbell socket */
     bool use_shmem;             /* Whether shared memory is active */
-    int doorbell_client_fd;     /* Connected client socket for doorbell signals */
     
     /* Register state */
     CtrlState ctrl;
@@ -329,9 +327,6 @@ static uint64_t q1_ctrl_read(Q1PCIEState *s, hwaddr offset)
     }
 }
 
-/* Forward declaration for signal handler */
-static void q1_handle_firmware_signal(Q1PCIEState *s, Q1Signal *sig);
-
 static void q1_ctrl_write(Q1PCIEState *s, hwaddr offset, uint64_t val)
 {
     switch (offset) {
@@ -341,19 +336,9 @@ static void q1_ctrl_write(Q1PCIEState *s, hwaddr offset, uint64_t val)
         qemu_log_mask(LOG_UNIMP, "q1-pcie: doorbell rung (val=0x%lx)\n",
                       (unsigned long)val);
         
-        /* If using shared memory, mirror doorbell and signal firmware */
+        /* If using shared memory, write doorbell value for firmware to poll */
         if (s->use_shmem && s->shmem.initialized) {
-            /* Write doorbell value to shared control region */
             q1_shmem_ctrl_write32(&s->shmem, Q1_SHMEM_CTRL_DOORBELL, val);
-            
-            /* Send signal to firmware via socket */
-            if (s->doorbell_client_fd >= 0) {
-                int ret = q1_shmem_send_signal(&s->shmem, Q1_SIGNAL_DOORBELL, val);
-                if (ret < 0) {
-                    qemu_log_mask(LOG_GUEST_ERROR,
-                                  "q1-pcie: failed to send doorbell signal: %d\n", ret);
-                }
-            }
         }
         break;
     case Q1_CTRL_STATUS:
@@ -718,72 +703,6 @@ static const MemoryRegionOps q1_bar2_ops = {
 };
 
 /*============================================================================
- * Firmware Signal Handling
- *============================================================================*/
-
-/**
- * Handle a signal received from the firmware (RISC-V QEMU instance)
- */
-static void q1_handle_firmware_signal(Q1PCIEState *s, Q1Signal *sig)
-{
-    switch (sig->type) {
-    case Q1_SIGNAL_COMPLETE:
-        qemu_log_mask(LOG_UNIMP, "q1-pcie: firmware signaled completion (val=0x%x)\n",
-                      sig->value);
-        s->ctrl.irq_status |= Q1_IRQ_COMPLETE;
-        
-        /* Update firmware status from shared memory */
-        if (s->use_shmem && s->shmem.initialized) {
-            s->ctrl.fw_status = q1_shmem_ctrl_read32(&s->shmem, Q1_SHMEM_CTRL_FW_STATUS);
-        }
-        
-        /* TODO: Raise MSI interrupt if enabled */
-        break;
-        
-    case Q1_SIGNAL_ERROR:
-        qemu_log_mask(LOG_GUEST_ERROR, "q1-pcie: firmware signaled error (val=0x%x)\n",
-                      sig->value);
-        s->ctrl.irq_status |= Q1_IRQ_ERROR;
-        s->ctrl.fw_status = Q1_FW_STATUS_ERROR;
-        break;
-        
-    case Q1_SIGNAL_PONG:
-        qemu_log_mask(LOG_UNIMP, "q1-pcie: received pong from firmware\n");
-        break;
-        
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "q1-pcie: unknown signal type 0x%x\n",
-                      sig->type);
-        break;
-    }
-}
-
-/**
- * Callback for QEMU main loop when data is available on the doorbell socket
- */
-static void q1_doorbell_socket_read(void *opaque)
-{
-    Q1PCIEState *s = opaque;
-    Q1Signal sig;
-    int ret;
-    
-    if (s->doorbell_client_fd < 0) {
-        return;
-    }
-    
-    /* Try to read a signal */
-    ret = q1_shmem_recv_signal(&s->shmem, &sig);
-    if (ret == 0) {
-        q1_handle_firmware_signal(s, &sig);
-    } else if (ret == -ECONNRESET) {
-        qemu_log_mask(LOG_UNIMP, "q1-pcie: firmware disconnected\n");
-        qemu_set_fd_handler(s->doorbell_client_fd, NULL, NULL, NULL);
-        close(s->doorbell_client_fd);
-        s->doorbell_client_fd = -1;
-    }
-}
-
-/*============================================================================
  * Device Lifecycle
  *============================================================================*/
 
@@ -794,7 +713,6 @@ static void q1_pcie_realize(PCIDevice *pdev, Error **errp)
     int ret;
     
     s->use_shmem = false;
-    s->doorbell_client_fd = -1;
     
     /* Try to use shared memory if path is configured */
     if (s->shmem_path && strlen(s->shmem_path) > 0) {
@@ -808,24 +726,6 @@ static void q1_pcie_realize(PCIDevice *pdev, Error **errp)
             s->use_shmem = true;
             qemu_log_mask(LOG_UNIMP,
                           "q1-pcie: using shared memory at %s\n", s->shmem_path);
-            
-            /* Try to connect to doorbell socket if configured */
-            if (s->doorbell_path && strlen(s->doorbell_path) > 0) {
-                ret = q1_shmem_connect_signal(&s->shmem, s->doorbell_path);
-                if (ret < 0) {
-                    qemu_log_mask(LOG_UNIMP,
-                                  "q1-pcie: failed to connect to doorbell socket at %s: %d\n",
-                                  s->doorbell_path, ret);
-                } else {
-                    s->doorbell_client_fd = s->shmem.signal_sock;
-                    /* Register with QEMU main loop to receive signals */
-                    qemu_set_fd_handler(s->doorbell_client_fd,
-                                        q1_doorbell_socket_read, NULL, s);
-                    qemu_log_mask(LOG_UNIMP,
-                                  "q1-pcie: connected to doorbell socket at %s\n",
-                                  s->doorbell_path);
-                }
-            }
         }
     }
     
@@ -877,11 +777,6 @@ static void q1_pcie_exit(PCIDevice *pdev)
 {
     Q1PCIEState *s = Q1_PCIE(pdev);
     
-    /* Unregister socket handler */
-    if (s->doorbell_client_fd >= 0) {
-        qemu_set_fd_handler(s->doorbell_client_fd, NULL, NULL, NULL);
-    }
-    
     if (s->use_shmem) {
         q1_shmem_cleanup(&s->shmem);
         s->ddr = NULL;
@@ -897,7 +792,6 @@ static void q1_pcie_exit(PCIDevice *pdev)
 
 static const Property q1_pcie_properties[] = {
     DEFINE_PROP_STRING("shmem", Q1PCIEState, shmem_path),
-    DEFINE_PROP_STRING("doorbell", Q1PCIEState, doorbell_path),
 };
 
 /*============================================================================

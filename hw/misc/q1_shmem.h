@@ -1,7 +1,7 @@
 /*
  * Q1 Shared Memory Interface
  *
- * Provides shared memory and signaling between the Q1 PCIe device model
+ * Provides shared memory between the Q1 PCIe device model
  * and the RISC-V firmware running in a separate QEMU instance.
  *
  * Copyright (c) 2026 Qernel AI
@@ -57,23 +57,6 @@
 #define Q1_SHMEM_IRQ_ERROR          (1 << 2)
 
 /*============================================================================
- * Signaling Protocol
- *============================================================================*/
-
-/* Signal types sent over the Unix socket */
-#define Q1_SIGNAL_DOORBELL          0x01    /* Host -> Firmware: doorbell rung */
-#define Q1_SIGNAL_COMPLETE          0x02    /* Firmware -> Host: command complete */
-#define Q1_SIGNAL_ERROR             0x03    /* Firmware -> Host: error occurred */
-#define Q1_SIGNAL_PING              0x04    /* Bidirectional: keepalive/test */
-#define Q1_SIGNAL_PONG              0x05    /* Response to PING */
-
-/* Signal message structure (8 bytes) */
-typedef struct Q1Signal {
-    uint32_t type;      /* Q1_SIGNAL_* */
-    uint32_t value;     /* Associated value (e.g., doorbell value) */
-} Q1Signal;
-
-/*============================================================================
  * Shared Memory Context
  *============================================================================*/
 
@@ -85,10 +68,6 @@ typedef struct Q1ShmemContext {
     void *shmem_base;       /* Base of entire shared memory */
     void *ddr_base;         /* DDR region (same as shmem_base) */
     void *ctrl_base;        /* Control region (shmem_base + DDR_SIZE) */
-    
-    /* Socket for signaling */
-    int signal_sock;        /* Unix domain socket FD */
-    bool is_server;         /* True if we created the socket server */
     
     /* State */
     bool initialized;
@@ -114,59 +93,6 @@ int q1_shmem_init(Q1ShmemContext *ctx, const char *shmem_path, bool create);
  * @param ctx   Context to cleanup
  */
 void q1_shmem_cleanup(Q1ShmemContext *ctx);
-
-/**
- * Connect to signaling socket (client mode)
- * 
- * @param ctx           Context
- * @param socket_path   Path to Unix domain socket
- * @return 0 on success, negative errno on failure
- */
-int q1_shmem_connect_signal(Q1ShmemContext *ctx, const char *socket_path);
-
-/**
- * Create signaling socket server
- * 
- * @param ctx           Context
- * @param socket_path   Path to create Unix domain socket
- * @return 0 on success, negative errno on failure
- */
-int q1_shmem_create_signal_server(Q1ShmemContext *ctx, const char *socket_path);
-
-/**
- * Accept a connection on the signal server socket
- * 
- * @param ctx   Context with server socket
- * @return Client socket FD on success, negative errno on failure
- */
-int q1_shmem_accept_signal(Q1ShmemContext *ctx);
-
-/**
- * Send a signal to the other side
- * 
- * @param ctx       Context
- * @param type      Signal type (Q1_SIGNAL_*)
- * @param value     Associated value
- * @return 0 on success, negative errno on failure
- */
-int q1_shmem_send_signal(Q1ShmemContext *ctx, uint32_t type, uint32_t value);
-
-/**
- * Receive a signal (blocking)
- * 
- * @param ctx       Context
- * @param signal    Output: received signal
- * @return 0 on success, negative errno on failure
- */
-int q1_shmem_recv_signal(Q1ShmemContext *ctx, Q1Signal *signal);
-
-/**
- * Check if a signal is available (non-blocking)
- * 
- * @param ctx       Context
- * @return 1 if signal available, 0 if not, negative errno on error
- */
-int q1_shmem_signal_available(Q1ShmemContext *ctx);
 
 /*============================================================================
  * Control Region Access Helpers
