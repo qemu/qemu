@@ -1,5 +1,14 @@
-test_plugins = ['bb.c', 'discons.c', 'empty.c', 'inline.c', 'insn.c', 'mem.c',
-                'reset.c', 'syscall.c', 'patch.c']
+test_plugins = [
+'bb.c',
+'discons.c',
+'empty.c',
+'inline.c',
+'insn.c',
+'mem.c',
+'patch.c',
+'reset.c',
+'syscall.c',
+]
 
 t = []
 if get_option('plugins')
