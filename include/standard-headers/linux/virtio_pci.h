@@ -40,7 +40,7 @@
 #define _LINUX_VIRTIO_PCI_H
 
 #include "standard-headers/linux/types.h"
-#include "standard-headers/linux/kernel.h"
+#include "standard-headers/linux/const.h"
 
 #ifndef VIRTIO_PCI_NO_LEGACY
 
