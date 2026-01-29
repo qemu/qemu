@@ -4504,6 +4504,7 @@ if have_tools
 
   if have_vhost_user
     subdir('contrib/vhost-user-blk')
+    subdir('contrib/vhost-user-bridge')
     subdir('contrib/vhost-user-gpu')
     subdir('contrib/vhost-user-input')
     subdir('contrib/vhost-user-scsi')

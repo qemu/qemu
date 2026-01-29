@@ -85,3 +85,42 @@ vhost-user-scsi - SCSI controller
 
 The vhost-user-scsi daemon can proxy iSCSI devices onto a virtualized
 SCSI controller.
+
+.. _vhost_user_bridge:
+
+vhost-user-bridge - Network bridge
+==================================
+
+The vhost-user-bridge daemon serves as a development tool for testing real
+internet traffic by providing a networking backend, i.e. server, for the
+vhost-user protocol.
+
+Example
+-------
+For a single QEMU instance that both runs the user-mode net stack (slirp) and
+serves as a vhost-user protocol frontend, i.e. client, simultaneously:
+
+First, start vhost-user-bridge:
+
+::
+
+  $ vhost-user-bridge -u /tmp/vubr.sock \
+                      -l 127.0.0.1:4444 \
+                      -r 127.0.0.1:5555
+
+Then, invoke QEMU:
+
+::
+
+  $ qemu-system-x86_64 \
+        -m 4G \
+        -object memory-backend-memfd,id=mem0,size=4G,share=on,prealloc=on \
+        -numa node,memdev=mem0 \
+        -chardev socket,id=char0,path=/tmp/vubr.sock \
+        -netdev vhost-user,id=vhost0,chardev=char0,vhostforce=on \
+        -device virtio-net-pci,netdev=vhost0 \
+        -netdev socket,id=udp0,udp=localhost:4444,localaddr=localhost:5555 \
+        -netdev user,id=user0 \
+        -netdev hubport,id=hub0,hubid=0,netdev=udp0 \
+        -netdev hubport,id=hub1,hubid=0,netdev=user0 \
+        ...
