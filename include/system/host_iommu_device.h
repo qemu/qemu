@@ -59,6 +59,12 @@ struct HostIOMMUDevice {
 #endif
 };
 
+typedef struct PasidInfo {
+    bool exec_perm;
+    bool priv_mod;
+    uint8_t max_pasid_log2;
+} PasidInfo;
+
 /**
  * struct HostIOMMUDeviceClass - The base class for all host IOMMU devices.
  *
@@ -116,6 +122,17 @@ struct HostIOMMUDeviceClass {
      * @hiod: handle to the host IOMMU device
      */
     uint64_t (*get_page_size_mask)(HostIOMMUDevice *hiod);
+    /**
+     * @get_pasid_info: Return the PASID information associated with the
+     * @hiod Host IOMMU device.
+     *
+     * @hiod: handle to the host IOMMU device
+     *
+     * @pasid_info: If success, returns the PASID related information.
+     *
+     * Returns: true on success, false on failure.
+     */
+    bool (*get_pasid_info)(HostIOMMUDevice *hiod, PasidInfo *pasid_info);
 };
 
 /*
