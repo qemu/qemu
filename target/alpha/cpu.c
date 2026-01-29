@@ -98,7 +98,8 @@ static int alpha_cpu_mmu_index(CPUState *cs, bool ifetch)
     return alpha_env_mmu_index(cpu_env(cs));
 }
 
-static void alpha_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void alpha_cpu_disas_set_info(const CPUState *cpu,
+                                     disassemble_info *info)
 {
     info->endian = BFD_ENDIAN_LITTLE;
     info->mach = bfd_mach_alpha_ev6;

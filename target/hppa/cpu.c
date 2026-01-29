@@ -150,7 +150,7 @@ static int hppa_cpu_mmu_index(CPUState *cs, bool ifetch)
     return env->psw & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX;
 }
 
-static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
+static void hppa_cpu_disas_set_info(const CPUState *cs, disassemble_info *info)
 {
     info->mach = bfd_mach_hppa20;
     info->endian = BFD_ENDIAN_BIG;

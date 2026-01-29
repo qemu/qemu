@@ -795,10 +795,11 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 #endif
 }
 
-static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
+static void riscv_cpu_disas_set_info(const CPUState *s, disassemble_info *info)
 {
-    RISCVCPU *cpu = RISCV_CPU(s);
-    CPURISCVState *env = &cpu->env;
+    const RISCVCPU *cpu = RISCV_CPU(s);
+    const CPURISCVState *env = &cpu->env;
+
     info->target_info = &cpu->cfg;
 
     /*

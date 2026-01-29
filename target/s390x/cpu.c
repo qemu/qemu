@@ -222,7 +222,7 @@ static void s390_cpu_reset_hold(Object *obj, ResetType type)
     }
 }
 
-static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void s390_cpu_disas_set_info(const CPUState *cpu, disassemble_info *info)
 {
     info->mach = bfd_mach_s390_64;
     info->cap_arch = CS_ARCH_SYSZ;
