@@ -182,6 +182,7 @@ struct VirtMachineState {
     bool legacy_smmuv3_present;
     MemoryRegion *sysmem;
     MemoryRegion *secure_sysmem;
+    bool pci_preserve_config;
 };
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)

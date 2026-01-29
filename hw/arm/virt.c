@@ -3080,6 +3080,7 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
             }
             object_property_set_uint(OBJECT(dev), "msi-gpa", db_start,
                                      &error_abort);
+            vms->pci_preserve_config = true;
         }
     }
 }
