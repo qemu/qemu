@@ -423,6 +423,77 @@ static const hv_sys_reg_t hvf_sreg_list[] = {
 
 #undef DEF_SYSREG
 
+static uint32_t hvf_reg2cp_reg(uint32_t reg)
+{
+    return ENCODE_AA64_CP_REG((reg >> SYSREG_OP0_SHIFT) & SYSREG_OP0_MASK,
+                              (reg >> SYSREG_OP1_SHIFT) & SYSREG_OP1_MASK,
+                              (reg >> SYSREG_CRN_SHIFT) & SYSREG_CRN_MASK,
+                              (reg >> SYSREG_CRM_SHIFT) & SYSREG_CRM_MASK,
+                              (reg >> SYSREG_OP2_SHIFT) & SYSREG_OP2_MASK);
+}
+
+static bool hvf_sysreg_read_cp(CPUState *cpu, const char *cpname,
+                               uint32_t reg, uint64_t *val)
+{
+    ARMCPU *arm_cpu = ARM_CPU(cpu);
+    CPUARMState *env = &arm_cpu->env;
+    const ARMCPRegInfo *ri;
+
+    ri = get_arm_cp_reginfo(arm_cpu->cp_regs, hvf_reg2cp_reg(reg));
+    if (ri) {
+        if (!cp_access_ok(1, ri, true)) {
+            return false;
+        }
+        if (ri->accessfn) {
+            if (ri->accessfn(env, ri, true) != CP_ACCESS_OK) {
+                return false;
+            }
+        }
+        if (ri->type & ARM_CP_CONST) {
+            *val = ri->resetvalue;
+        } else if (ri->readfn) {
+            *val = ri->readfn(env, ri);
+        } else {
+            *val = raw_read(env, ri);
+        }
+        trace_hvf_emu_reginfo_read(cpname, ri->name, *val);
+        return true;
+    }
+
+    return false;
+}
+
+static bool hvf_sysreg_write_cp(CPUState *cpu, const char *cpname,
+                                uint32_t reg, uint64_t val)
+{
+    ARMCPU *arm_cpu = ARM_CPU(cpu);
+    CPUARMState *env = &arm_cpu->env;
+    const ARMCPRegInfo *ri;
+
+    ri = get_arm_cp_reginfo(arm_cpu->cp_regs, hvf_reg2cp_reg(reg));
+
+    if (ri) {
+        if (!cp_access_ok(1, ri, false)) {
+            return false;
+        }
+        if (ri->accessfn) {
+            if (ri->accessfn(env, ri, false) != CP_ACCESS_OK) {
+                return false;
+            }
+        }
+        if (ri->writefn) {
+            ri->writefn(env, ri, val);
+        } else {
+            raw_write(env, ri, val);
+        }
+
+        trace_hvf_emu_reginfo_write(cpname, ri->name, val);
+        return true;
+    }
+
+    return false;
+}
+
 int hvf_arch_get_registers(CPUState *cpu)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
@@ -1161,46 +1232,6 @@ static bool is_id_sysreg(uint32_t reg)
            SYSREG_CRM(reg) < 8;
 }
 
-static uint32_t hvf_reg2cp_reg(uint32_t reg)
-{
-    return ENCODE_AA64_CP_REG((reg >> SYSREG_OP0_SHIFT) & SYSREG_OP0_MASK,
-                              (reg >> SYSREG_OP1_SHIFT) & SYSREG_OP1_MASK,
-                              (reg >> SYSREG_CRN_SHIFT) & SYSREG_CRN_MASK,
-                              (reg >> SYSREG_CRM_SHIFT) & SYSREG_CRM_MASK,
-                              (reg >> SYSREG_OP2_SHIFT) & SYSREG_OP2_MASK);
-}
-
-static bool hvf_sysreg_read_cp(CPUState *cpu, const char *cpname,
-                               uint32_t reg, uint64_t *val)
-{
-    ARMCPU *arm_cpu = ARM_CPU(cpu);
-    CPUARMState *env = &arm_cpu->env;
-    const ARMCPRegInfo *ri;
-
-    ri = get_arm_cp_reginfo(arm_cpu->cp_regs, hvf_reg2cp_reg(reg));
-    if (ri) {
-        if (!cp_access_ok(1, ri, true)) {
-            return false;
-        }
-        if (ri->accessfn) {
-            if (ri->accessfn(env, ri, true) != CP_ACCESS_OK) {
-                return false;
-            }
-        }
-        if (ri->type & ARM_CP_CONST) {
-            *val = ri->resetvalue;
-        } else if (ri->readfn) {
-            *val = ri->readfn(env, ri);
-        } else {
-            *val = raw_read(env, ri);
-        }
-        trace_hvf_emu_reginfo_read(cpname, ri->name, *val);
-        return true;
-    }
-
-    return false;
-}
-
 static int hvf_sysreg_read(CPUState *cpu, uint32_t reg, uint64_t *val)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
@@ -1452,37 +1483,6 @@ static void pmswinc_write(CPUARMState *env, uint64_t value)
             env->cp15.c14_pmevcntr[i] = new_pmswinc;
         }
     }
-}
-
-static bool hvf_sysreg_write_cp(CPUState *cpu, const char *cpname,
-                                uint32_t reg, uint64_t val)
-{
-    ARMCPU *arm_cpu = ARM_CPU(cpu);
-    CPUARMState *env = &arm_cpu->env;
-    const ARMCPRegInfo *ri;
-
-    ri = get_arm_cp_reginfo(arm_cpu->cp_regs, hvf_reg2cp_reg(reg));
-
-    if (ri) {
-        if (!cp_access_ok(1, ri, false)) {
-            return false;
-        }
-        if (ri->accessfn) {
-            if (ri->accessfn(env, ri, false) != CP_ACCESS_OK) {
-                return false;
-            }
-        }
-        if (ri->writefn) {
-            ri->writefn(env, ri, val);
-        } else {
-            raw_write(env, ri, val);
-        }
-
-        trace_hvf_emu_reginfo_write(cpname, ri->name, val);
-        return true;
-    }
-
-    return false;
 }
 
 static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
