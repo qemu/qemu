@@ -424,6 +424,89 @@ static void scsi_handle_persistent_reserve_out_reply(
     }
 }
 
+static bool scsi_generic_pr_register(SCSIDevice *s, uint64_t key, Error **errp)
+{
+    uint8_t cmd[10] = {};
+    uint8_t buf[24] = {};
+    uint64_t key_be = cpu_to_be64(key);
+    int ret;
+
+    cmd[0] = PERSISTENT_RESERVE_OUT;
+    cmd[1] = PRO_REGISTER;
+    cmd[8] = sizeof(buf);
+    memcpy(&buf[8], &key_be, sizeof(key_be));
+
+    ret = scsi_SG_IO(s->conf.blk, SG_DXFER_TO_DEV, cmd, sizeof(cmd),
+                     buf, sizeof(buf), s->io_timeout, errp);
+    if (ret < 0) {
+        error_prepend(errp, "PERSISTENT RESERVE OUT with REGISTER");
+        return false;
+    }
+    return true;
+}
+
+static bool scsi_generic_pr_preempt(SCSIDevice *s, uint64_t key,
+                                    uint8_t resv_type, Error **errp)
+{
+    uint8_t cmd[10] = {};
+    uint8_t buf[24] = {};
+    uint64_t key_be = cpu_to_be64(key);
+    int ret;
+
+    cmd[0] = PERSISTENT_RESERVE_OUT;
+    cmd[1] = PRO_PREEMPT;
+    cmd[2] = resv_type & 0xf;
+    cmd[8] = sizeof(buf);
+    memcpy(&buf[0], &key_be, sizeof(key_be));
+    memcpy(&buf[8], &key_be, sizeof(key_be));
+
+    ret = scsi_SG_IO(s->conf.blk, SG_DXFER_TO_DEV, cmd, sizeof(cmd),
+                     buf, sizeof(buf), s->io_timeout, errp);
+    if (ret < 0) {
+        error_prepend(errp, "PERSISTENT RESERVE OUT with PREEMPT");
+        return false;
+    }
+    return true;
+}
+
+/* Register keys and preempt reservations after live migration */
+bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
+{
+    SCSIPRState *pr_state = &s->pr_state;
+    uint64_t key;
+    uint8_t resv_type;
+
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        key = pr_state->key;
+        resv_type = pr_state->resv_type;
+    }
+
+    trace_scsi_generic_pr_state_preempt(key, resv_type);
+
+    if (key) {
+        if (!scsi_generic_pr_register(s, key, errp)) {
+            return false;
+        }
+
+        /*
+         * Two cases:
+         *
+         * 1. There is no reservation (resv_type is 0) and the other I_T nexus
+         *    will be unregistered. This is important so the source host does
+         *    not leak registered keys across live migration.
+         *
+         * 2. There is a reservation (resv_type is not 0) and the other I_T
+         *    nexus will be unregistered and its reservation is atomically
+         *    taken over by us. This is the scenario where a reservation is
+         *    migrated along with the guest.
+         */
+        if (!scsi_generic_pr_preempt(s, key, resv_type, errp)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
