@@ -611,9 +611,11 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
         }
     }
 
-    if (STE_S1CDMAX(ste) != 0) {
+    /* Multiple context descriptors require SubstreamID support */
+    if (!s->ssidsize && STE_S1CDMAX(ste) != 0) {
         qemu_log_mask(LOG_UNIMP,
-                      "SMMUv3 does not support multiple context descriptors yet\n");
+                "SMMUv3: multiple S1 context descriptors require SubstreamID support. "
+                "Configure ssidsize > 0 (requires accel=on)\n");
         goto bad_ste;
     }
 
@@ -1954,6 +1956,10 @@ static bool smmu_validate_property(SMMUv3State *s, Error **errp)
             error_setg(errp, "OAS must be 44 bits when accel=off");
             return false;
         }
+        if (s->ssidsize) {
+            error_setg(errp, "ssidsize can only be set if accel=on");
+            return false;
+        }
         return true;
     }
 
@@ -1966,6 +1972,11 @@ static bool smmu_validate_property(SMMUv3State *s, Error **errp)
 
     if (s->oas != SMMU_OAS_44BIT && s->oas != SMMU_OAS_48BIT) {
         error_setg(errp, "OAS can only be set to 44 or 48 bits");
+        return false;
+    }
+    if (s->ssidsize > SMMU_SSID_MAX_BITS) {
+        error_setg(errp, "ssidsize must be in the range 0 to %d",
+                   SMMU_SSID_MAX_BITS);
         return false;
     }
 
@@ -2096,6 +2107,7 @@ static const Property smmuv3_properties[] = {
     DEFINE_PROP_BOOL("ril", SMMUv3State, ril, true),
     DEFINE_PROP_BOOL("ats", SMMUv3State, ats, false),
     DEFINE_PROP_UINT8("oas", SMMUv3State, oas, 44),
+    DEFINE_PROP_UINT8("ssidsize", SMMUv3State, ssidsize, 0),
 };
 
 static void smmuv3_instance_init(Object *obj)
@@ -2129,6 +2141,12 @@ static void smmuv3_class_init(ObjectClass *klass, const void *data)
     object_class_property_set_description(klass, "oas",
         "Specify Output Address Size (for accel=on). Supported values "
         "are 44 or 48 bits. Defaults to 44 bits");
+    object_class_property_set_description(klass, "ssidsize",
+        "Number of bits used to represent SubstreamIDs (SSIDs). "
+        "A value of N allows SSIDs in the range [0 .. 2^N - 1]. "
+        "Valid range is 0-20, where 0 disables SubstreamID support. "
+        "Defaults to 0. A value greater than 0 is required to enable "
+        "PASID support.");
 }
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,

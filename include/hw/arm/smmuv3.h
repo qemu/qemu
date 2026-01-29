@@ -72,6 +72,7 @@ struct SMMUv3State {
     bool ril;
     bool ats;
     uint8_t oas;
+    uint8_t ssidsize;
 };
 
 typedef enum {
