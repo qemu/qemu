@@ -1284,18 +1284,13 @@ void pcie_acs_reset(PCIDevice *dev)
     }
 }
 
-/* PASID */
-void pcie_pasid_init(PCIDevice *dev, uint16_t offset, uint8_t pasid_width,
-                     bool exec_perm, bool priv_mod)
+void pcie_pasid_common_init(PCIDevice *dev, uint16_t offset,
+                            uint8_t pasid_width, bool exec_perm, bool priv_mod)
 {
     static const uint16_t control_reg_rw_mask = 0x07;
     uint16_t capability_reg;
 
     assert(pasid_width <= PCI_EXT_CAP_PASID_MAX_WIDTH);
-
-    pcie_add_capability(dev, PCI_EXT_CAP_ID_PASID, PCI_PASID_VER, offset,
-                        PCI_EXT_CAP_PASID_SIZEOF);
-
     capability_reg = ((uint16_t)pasid_width) << PCI_PASID_CAP_WIDTH_SHIFT;
     capability_reg |= exec_perm ? PCI_PASID_CAP_EXEC : 0;
     capability_reg |= priv_mod  ? PCI_PASID_CAP_PRIV : 0;
@@ -1307,6 +1302,16 @@ void pcie_pasid_init(PCIDevice *dev, uint16_t offset, uint8_t pasid_width,
     pci_set_word(dev->wmask + offset + PCI_PASID_CTRL, control_reg_rw_mask);
 
     dev->exp.pasid_cap = offset;
+
+}
+
+/* PASID */
+void pcie_pasid_init(PCIDevice *dev, uint16_t offset, uint8_t pasid_width,
+                     bool exec_perm, bool priv_mod)
+{
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_PASID, PCI_PASID_VER, offset,
+                        PCI_EXT_CAP_PASID_SIZEOF);
+    pcie_pasid_common_init(dev, offset, pasid_width, exec_perm, priv_mod);
 }
 
 /* PRI */
