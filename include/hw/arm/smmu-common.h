@@ -166,6 +166,7 @@ struct SMMUState {
     AddressSpace memory_as;
     MemoryRegion *secure_memory;
     AddressSpace secure_memory_as;
+    const PCIIOMMUOps *iommu_ops;
 };
 
 struct SMMUBaseClass {
