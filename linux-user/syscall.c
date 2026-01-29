@@ -132,6 +132,7 @@
 #include "uname.h"
 
 #include "qemu.h"
+#include "gdbstub/user.h"
 #include "user-internals.h"
 #include "strace.h"
 #include "signal-common.h"
@@ -142,7 +143,6 @@
 #include "user/signal.h"
 #include "qemu/guest-random.h"
 #include "qemu/selfmap.h"
-#include "user/syscall-trace.h"
 #include "special-errno.h"
 #include "qapi/error.h"
 #include "fd-trans.h"
@@ -14334,6 +14334,41 @@ static bool sys_dispatch(CPUState *cpu, TaskState *ts)
     return true;
 }
 
+static void record_syscall_start(CPUState *cpu, int num,
+                                 abi_long arg1, abi_long arg2,
+                                 abi_long arg3, abi_long arg4,
+                                 abi_long arg5, abi_long arg6,
+                                 abi_long arg7, abi_long arg8)
+{
+    qemu_plugin_vcpu_syscall(cpu, num,
+                             arg1, arg2, arg3, arg4,
+                             arg5, arg6, arg7, arg8);
+    gdb_syscall_entry(cpu, num);
+}
+
+static void record_syscall_return(CPUState *cpu, int num, abi_long ret)
+{
+    qemu_plugin_vcpu_syscall_ret(cpu, num, ret);
+    gdb_syscall_return(cpu, num);
+}
+
+static bool send_through_syscall_filters(CPUState *cpu, int num,
+                                         abi_long arg1, abi_long arg2,
+                                         abi_long arg3, abi_long arg4,
+                                         abi_long arg5, abi_long arg6,
+                                         abi_long arg7, abi_long arg8,
+                                         abi_long *sysret)
+{
+    uint64_t sysret64 = 0;
+    bool filtered = qemu_plugin_vcpu_syscall_filter(cpu, num, arg1, arg2,
+                                                    arg3, arg4, arg5, arg6,
+                                                    arg7, arg8, &sysret64);
+    if (filtered) {
+        *sysret = sysret64;
+    }
+    return filtered;
+}
+
 abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6, abi_long arg7,
@@ -14368,8 +14403,11 @@ abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
         print_syscall(cpu_env, num, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 
-    ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                      arg5, arg6, arg7, arg8);
+    if (!send_through_syscall_filters(cpu, num, arg1, arg2, arg3, arg4, arg5,
+                                      arg6, arg7, arg8, &ret)) {
+        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
+                          arg5, arg6, arg7, arg8);
+    }
 
     if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_syscall_ret(cpu_env, num, ret, arg1, arg2,

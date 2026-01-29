@@ -202,8 +202,13 @@ run-plugin-test-plugin-mem-access-with-libmem.so: \
 	CHECK_PLUGIN_OUTPUT_COMMAND= \
 	$(SRC_PATH)/tests/tcg/multiarch/check-plugin-output.sh \
 	$(QEMU) $<
+run-plugin-test-plugin-syscall-filter-with-libsyscall.so:
 
-EXTRA_RUNS_WITH_PLUGIN += run-plugin-test-plugin-mem-access-with-libmem.so
+EXTRA_RUNS_WITH_PLUGIN += run-plugin-test-plugin-mem-access-with-libmem.so \
+			  run-plugin-test-plugin-syscall-filter-with-libsyscall.so
+else
+# test-plugin-syscall-filter needs syscall plugin to succeed
+test-plugin-syscall-filter: CFLAGS+=-DSKIP
 endif
 
 # Update TESTS

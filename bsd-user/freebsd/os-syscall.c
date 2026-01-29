@@ -31,7 +31,6 @@
 
 #include "qemu.h"
 #include "signal-common.h"
-#include "user/syscall-trace.h"
 
 /* BSD independent syscall shims */
 #include "bsd-file.h"
