@@ -527,10 +527,10 @@ static int read_naa_id(const uint8_t *p, uint64_t *p_wwn)
 
 int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
                uint8_t cmd_size, uint8_t *buf, uint8_t buf_size,
-               uint32_t timeout)
+               uint32_t timeout, Error **errp)
 {
     sg_io_hdr_t io_header;
-    uint8_t sensebuf[8];
+    uint8_t sensebuf[8] = {};
     int ret;
 
     memset(&io_header, 0, sizeof(io_header));
@@ -550,6 +550,29 @@ int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
         io_header.driver_status || io_header.host_status) {
         trace_scsi_generic_ioctl_sgio_done(cmd[0], ret, io_header.status,
                                            io_header.host_status);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "SG_IO ioctl failed");
+        } else {
+            g_autofree char *sensebuf_hex =
+                g_strdup_printf("%02x%02x%02x%02x%02x%02x%02x%02x",
+                                sensebuf[0],
+                                sensebuf[1],
+                                sensebuf[2],
+                                sensebuf[3],
+                                sensebuf[4],
+                                sensebuf[5],
+                                sensebuf[6],
+                                sensebuf[7]);
+
+            error_setg(errp, "SG_IO SCSI command failed with status=0x%x "
+                    "driver_status=0x%x host_status=0x%x sensebuf=%s "
+                    "sb_len_wr=%u",
+                    io_header.status,
+                    io_header.driver_status,
+                    io_header.host_status,
+                    sensebuf_hex,
+                    io_header.sb_len_wr);
+        }
         return -1;
     }
     return 0;
@@ -576,7 +599,7 @@ static void scsi_generic_set_vpd_bl_emulation(SCSIDevice *s)
     cmd[4] = sizeof(buf);
 
     ret = scsi_SG_IO(s->conf.blk, SG_DXFER_FROM_DEV, cmd, sizeof(cmd),
-                     buf, sizeof(buf), s->io_timeout);
+                     buf, sizeof(buf), s->io_timeout, NULL);
     if (ret < 0) {
         /*
          * Do not assume anything if we can't retrieve the
@@ -612,7 +635,7 @@ static void scsi_generic_read_device_identification(SCSIDevice *s)
     cmd[4] = sizeof(buf);
 
     ret = scsi_SG_IO(s->conf.blk, SG_DXFER_FROM_DEV, cmd, sizeof(cmd),
-                     buf, sizeof(buf), s->io_timeout);
+                     buf, sizeof(buf), s->io_timeout, NULL);
     if (ret < 0) {
         return;
     }
@@ -664,7 +687,7 @@ static int get_stream_blocksize(BlockBackend *blk)
     cmd[4] = sizeof(buf);
 
     ret = scsi_SG_IO(blk, SG_DXFER_FROM_DEV, cmd, sizeof(cmd),
-                     buf, sizeof(buf), 6);
+                     buf, sizeof(buf), 6, NULL);
     if (ret < 0) {
         return -1;
     }
