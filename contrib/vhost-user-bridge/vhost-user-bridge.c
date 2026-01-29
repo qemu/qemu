@@ -179,6 +179,9 @@ vubr_handle_tx(VuDev *dev, int qidx)
 
     assert(qidx % 2);
 
+    DPRINT("\n\n   ***   IN UDP TRANSMIT HANDLER    ***\n\n");
+    DPRINT("    hdrlen = %d\n", hdrlen);
+
     for (;;) {
         ssize_t ret;
         unsigned int out_num;
@@ -332,6 +335,10 @@ vubr_backend_recv_cb(int sock, void *ctx)
             .msg_flags = MSG_DONTWAIT,
         };
         ret = RETRY_ON_EINTR(recvmsg(vubr->backend_udp_sock, &msg, 0));
+
+        if (ret > 0 && VHOST_USER_BRIDGE_DEBUG) {
+            iov_hexdump(sg, num, stderr, "RX:", ret);
+        }
 
         if (i == 0) {
             iov_restore_front(elem->in_sg, sg, hdrlen);
