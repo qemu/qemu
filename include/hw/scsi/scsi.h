@@ -57,6 +57,13 @@ struct SCSIRequest {
     QTAILQ_ENTRY(SCSIRequest) next;
 };
 
+/* Per-SCSIDevice Persistent Reservation state */
+typedef struct {
+    QemuMutex mutex;   /* protects all fields (e.g. from multiple IOThreads) */
+    uint64_t key;      /* 0 if no registered key */
+    uint8_t resv_type; /* 0 if no reservation */
+} SCSIPRState;
+
 #define TYPE_SCSI_DEVICE "scsi-device"
 OBJECT_DECLARE_TYPE(SCSIDevice, SCSIDeviceClass, SCSI_DEVICE)
 
@@ -97,6 +104,9 @@ struct SCSIDevice
     uint32_t io_timeout;
     bool needs_vpd_bl_emulation;
     bool hba_supports_iothread;
+
+    bool migrate_pr;
+    SCSIPRState pr_state;
 };
 
 extern const VMStateDescription vmstate_scsi_device;

@@ -393,6 +393,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     }
 
     qemu_mutex_init(&dev->requests_lock);
+    qemu_mutex_init(&dev->pr_state.mutex);
     QTAILQ_INIT(&dev->requests);
     scsi_device_realize(dev, &local_err);
     if (local_err) {
@@ -416,6 +417,8 @@ static void scsi_qdev_unrealize(DeviceState *qdev)
     qemu_mutex_destroy(&dev->requests_lock);
 
     scsi_device_unrealize(dev);
+
+    qemu_mutex_destroy(&dev->pr_state.mutex);
 
     blockdev_mark_auto_del(dev->conf.blk);
 }

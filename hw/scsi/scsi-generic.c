@@ -265,6 +265,165 @@ static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
     return r->buflen;
 }
 
+/*
+ * Patch persistent reservation capabilities that are not emulated.
+ */
+static void scsi_handle_persistent_reserve_in_reply(SCSIGenericReq *r,
+                                                    SCSIDevice *s)
+{
+    uint8_t service_action = r->req.cmd.buf[1] & 0x1f;
+
+    if (!s->migrate_pr) {
+        return; /* when migration is disabled there is no need for patching */
+    }
+
+    if (service_action == PRI_REPORT_CAPABILITIES) {
+        assert(r->buflen >= 3);
+
+        /*
+         * Clear specify initiator ports capable (SIP_C) and all target ports
+         * capable (ATC_C).
+         *
+         * SPEC_I_PT is not supported because the guest sees an emulated SCSI
+         * bus and does not have the underlying transport IDs needed to use
+         * SPEC_I_PT.
+         *
+         * ALL_TG_PT is not supported because we only track the state of this
+         * emulated I_T nexus, not the underlying device's target ports.
+         */
+        r->buf[2] &= ~0xc;
+    }
+}
+
+static int scsi_generic_read_reservation(SCSIDevice *s, uint64_t *key,
+        uint8_t *resv_type, Error **errp)
+{
+    uint8_t cmd[10] = {};
+    uint8_t buf[24] = {};
+    uint32_t additional_length;
+    int ret;
+
+    *key = 0;
+    *resv_type = 0;
+
+    cmd[0] = PERSISTENT_RESERVE_IN;
+    cmd[1] = PRI_READ_RESERVATION;
+    cmd[8] = sizeof(buf);
+
+    ret = scsi_SG_IO(s->conf.blk, SG_DXFER_FROM_DEV, cmd, sizeof(cmd),
+                     buf, sizeof(buf), s->io_timeout, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    memcpy(&additional_length, &buf[4], sizeof(additional_length));
+    be32_to_cpus(&additional_length);
+
+    if (additional_length >= 0x10) {
+        memcpy(key, &buf[8], sizeof(*key));
+        be64_to_cpus(key);
+
+        *resv_type = buf[21] & 0xf;
+    }
+    return 0;
+}
+
+/*
+ * Snoop changes to registered keys and reservations so that this information
+ * can be transferred during live migration.
+ */
+static void scsi_handle_persistent_reserve_out_reply(
+        SCSIGenericReq *r,
+        SCSIDevice *s)
+{
+    SCSIPRState *pr_state = &s->pr_state;
+    uint8_t service_action = r->req.cmd.buf[1] & 0x1f;
+    uint8_t resv_type = r->req.cmd.buf[2] & 0xf;
+    uint64_t old_key;
+    uint64_t new_key;
+
+    assert(r->buflen >= 16);
+    memcpy(&old_key, &r->buf[0], sizeof(old_key));
+    memcpy(&new_key, &r->buf[8], sizeof(new_key));
+    be64_to_cpus(&old_key);
+    be64_to_cpus(&new_key);
+
+    trace_scsi_generic_persistent_reserve_out_reply(service_action, resv_type,
+                                                    old_key, new_key);
+
+    switch (service_action) {
+    case PRO_REGISTER: /* fallthrough */
+    case PRO_REGISTER_AND_IGNORE_EXISTING_KEY:
+        if (service_action == PRO_REGISTER && old_key == 0 && new_key == 0) {
+            /* Do nothing */
+        } else {
+            WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+                pr_state->key = new_key;
+                if (new_key == 0) {
+                    pr_state->resv_type = 0; /* release reservation */
+                }
+            }
+        }
+        break;
+
+    case PRO_RESERVE:
+        WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+            pr_state->resv_type = resv_type;
+        }
+        break;
+
+    case PRO_RELEASE:
+        WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+            pr_state->resv_type = 0;
+        }
+        break;
+
+    case PRO_CLEAR:
+        WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+            pr_state->key = 0;
+            pr_state->resv_type = 0;
+        }
+        break;
+
+    case PRO_REPLACE_LOST_RESERVATION:
+        WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+            pr_state->key = new_key;
+            pr_state->resv_type = resv_type;
+        }
+        break;
+
+    case PRO_PREEMPT: /* fallthrough */
+    case PRO_PREEMPT_AND_ABORT: {
+        uint64_t dev_key;
+        uint8_t dev_resv_type;
+        Error *local_err = NULL;
+
+        /* Not enough information to know actual state, ask the device */
+        if (!scsi_generic_read_reservation(s, &dev_key, &dev_resv_type,
+                                           &local_err)) {
+            WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+                if (pr_state->key == dev_key) {
+                    pr_state->resv_type = dev_resv_type;
+                } else {
+                    pr_state->resv_type = 0;
+                }
+            }
+        }
+        if (local_err) {
+            warn_report_err(local_err);
+        }
+        break;
+    }
+
+    /*
+     * PRO_REGISTER_AND_MOVE cannot be implemented since it involves the
+     * physical SCSI bus target ports.
+     */
+    default:
+        break; /* do nothing */
+    }
+}
+
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
@@ -347,6 +506,9 @@ static void scsi_read_complete(void * opaque, int ret)
     if (r->req.cmd.buf[0] == INQUIRY) {
         len = scsi_handle_inquiry_reply(r, s, len);
     }
+    if (r->req.cmd.buf[0] == PERSISTENT_RESERVE_IN) {
+        scsi_handle_persistent_reserve_in_reply(r, s);
+    }
 
 req_complete:
     scsi_req_data(&r->req, len);
@@ -395,6 +557,9 @@ static void scsi_write_complete(void * opaque, int ret)
         s->type == TYPE_TAPE) {
         s->blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
         trace_scsi_generic_write_complete_blocksize(s->blocksize);
+    }
+    if (r->req.cmd.buf[0] == PERSISTENT_RESERVE_OUT) {
+        scsi_handle_persistent_reserve_out_reply(r, s);
     }
 
     scsi_command_complete_noio(r, ret);
