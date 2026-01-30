@@ -12,6 +12,7 @@
 #include "qemu/queue.h"
 #include "qemu/typedefs.h"
 #include "qom/object.h"
+#include "hw/core/boards.h"
 #include "hw/core/resettable.h"
 
 #include "system/confidential-guest-support.h"
@@ -43,7 +44,7 @@ typedef struct QIgvmParameterData {
  */
 typedef struct QIgvm {
     IgvmHandle file;
-    ConfidentialGuestSupport *cgs;
+    MachineState *machine_state;
     ConfidentialGuestSupportClass *cgsc;
     uint32_t compatibility_mask;
     unsigned current_header_index;
