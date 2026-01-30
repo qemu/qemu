@@ -83,7 +83,10 @@ bool acpi_builtin(void)
     return true;
 }
 
-static int acpi_checksum(const uint8_t *data, int len)
+/* Calculate the ACPI checksum value so that if used in the corresponding
+ * header field, the ACPI checksum verification will be successful.
+ */
+int acpi_checksum(const uint8_t *data, int len)
 {
     int sum, i;
     sum = 0;
