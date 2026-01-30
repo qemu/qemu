@@ -70,4 +70,7 @@ typedef struct QIgvm {
 
 IgvmHandle qigvm_file_init(char *filename, Error **errp);
 
+QIgvmParameterData*
+qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index);
+
 #endif
