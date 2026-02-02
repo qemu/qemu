@@ -167,6 +167,7 @@ __ufs_send_transfer_request_mcq(QUfs *ufs, uint8_t lun,
     cqhp = ufs_rreg(ufs, ufs->cqdao[TEST_QID]);
     cqentry_addr = ufs->cqlba[TEST_QID] + cqhp;
     qtest_memread(ufs->dev.bus->qts, cqentry_addr, &cqentry, sizeof(cqentry));
+    cqhp = (cqhp + sizeof(UfsCqEntry)) % (QUEUE_SIZE * sizeof(UfsCqEntry));
     ufs_wreg(ufs, ufs->cqdao[TEST_QID], cqhp);
 
     return cqentry.status;
@@ -207,6 +208,81 @@ static enum UtpOcsCodes ufs_send_nop_out(QUfs *ufs, UtpUpiuRsp *rsp_out)
     qtest_memread(ufs->dev.bus->qts, rsp_upiu_addr, rsp_out, sizeof(*rsp_out));
     release_cmd_desc_slot(ufs, cmd_desc_slot);
     return ret;
+}
+
+static bool ufs_mcq_sq_has_space(QUfs *ufs)
+{
+    uint32_t sqhp = ufs_rreg(ufs, ufs->sqdao[TEST_QID]);
+    uint32_t sqtp = ufs_rreg(ufs, ufs->sqdao[TEST_QID] + 0x4);
+    uint32_t next_sqtp =
+        (sqtp + sizeof(UfsSqEntry)) % (QUEUE_SIZE * sizeof(UfsSqEntry));
+    return next_sqtp != sqhp;
+}
+
+static void
+__ufs_send_transfer_request_mcq_async(QUfs *ufs, uint8_t lun,
+                                      const UtpTransferReqDesc *utrd)
+{
+    uint32_t sqtp;
+    uint64_t utrd_addr;
+
+    /* Wait for SQ space */
+    while (!ufs_mcq_sq_has_space(ufs)) {
+        qtest_clock_step(ufs->dev.bus->qts, 100);
+    }
+
+    sqtp = ufs_rreg(ufs, ufs->sqdao[TEST_QID] + 0x4);
+    utrd_addr = ufs->sqlba[TEST_QID] + sqtp;
+    qtest_memwrite(ufs->dev.bus->qts, utrd_addr, utrd, sizeof(*utrd));
+    sqtp = (sqtp + sizeof(UfsSqEntry)) % (QUEUE_SIZE * sizeof(UfsSqEntry));
+    ufs_wreg(ufs, ufs->sqdao[TEST_QID] + 0x4, sqtp);
+}
+
+static int ufs_mcq_send_nop_out_async(QUfs *ufs)
+{
+    int cmd_desc_slot = alloc_cmd_desc_slot(ufs);
+    uint64_t req_upiu_addr =
+        ufs->cmd_desc_addr + cmd_desc_slot * UTP_COMMAND_DESCRIPTOR_SIZE;
+
+    /* Build up request upiu */
+    UtpUpiuReq req_upiu = { 0 };
+    req_upiu.header.trans_type = UFS_UPIU_TRANSACTION_NOP_OUT;
+    req_upiu.header.task_tag = cmd_desc_slot;
+    qtest_memwrite(ufs->dev.bus->qts, req_upiu_addr, &req_upiu,
+                   sizeof(req_upiu));
+
+    /* Build up utp transfer request descriptor */
+    UtpTransferReqDesc utrd =
+        ufs_build_req_utrd(req_upiu_addr, UFS_UTP_NO_DATA_TRANSFER, 0);
+
+    /* Send Transfer Request */
+    __ufs_send_transfer_request_mcq_async(ufs, 0, &utrd);
+
+    return cmd_desc_slot;
+}
+
+static int ufs_mcq_poll_cq(QUfs *ufs, UfsCqEntry *cqe, uint16_t n_cqe)
+{
+    uint32_t cqhp, cqtp;
+    uint64_t cqe_addr;
+    int ix = 0;
+
+    cqhp = ufs_rreg(ufs, ufs->cqdao[TEST_QID]);
+    cqtp = ufs_rreg(ufs, ufs->cqdao[TEST_QID] + 0x4);
+
+    while (cqhp != cqtp && ix < n_cqe) {
+        /* read completion entry */
+        cqe_addr = ufs->cqlba[TEST_QID] + cqhp;
+        qtest_memread(ufs->dev.bus->qts, cqe_addr, &cqe[ix], sizeof(cqe[ix]));
+
+        /* advance completion queue head pointer */
+        cqhp = (cqhp + sizeof(UfsCqEntry)) % (QUEUE_SIZE * sizeof(UfsCqEntry));
+        ix++;
+    }
+
+    ufs_wreg(ufs, ufs->cqdao[TEST_QID], cqhp);
+
+    return ix;
 }
 
 static enum UtpOcsCodes ufs_send_query(QUfs *ufs, uint8_t query_function,
@@ -417,6 +493,7 @@ static void ufs_init(QUfs *ufs, QGuestAllocator *alloc)
     ufs_wreg(ufs, A_UTRIACR, 0);
 
     /* Enable transfer request */
+    bitmap_zero(ufs->cmd_desc_bitmap, UFS_MAX_CMD_DESC);
     ufs->cmd_desc_addr =
         guest_alloc(alloc, UFS_MAX_CMD_DESC * UTP_COMMAND_DESCRIPTOR_SIZE);
     ufs->data_buffer_addr =
@@ -677,6 +754,53 @@ static void ufstest_read_write(void *obj, void *data, QGuestAllocator *alloc)
                      UFS_COMMAND_RESULT_SUCCESS);
     g_assert_cmpint(memcmp(read_buf, write_buf, block_size), ==, 0);
 
+    ufs_exit(ufs, alloc);
+}
+
+static void ufstest_mcq_cq_wraparound(void *obj, void *data,
+                                      QGuestAllocator *alloc)
+{
+    QUfs *ufs = obj;
+    UfsCqEntry cqe[QUEUE_SIZE];
+    const int num_requests = QUEUE_SIZE;
+    int i, completed = 0;
+
+    ufs_init(ufs, alloc);
+
+    /* Ensure MCQ is supported */
+    g_assert_true(ufs->support_mcq);
+
+    for (i = 0; i < num_requests; ++i) {
+        ufs_mcq_send_nop_out_async(ufs);
+    }
+
+    while (completed != num_requests) {
+        int n_cqe = ufs_mcq_poll_cq(ufs, cqe, ARRAY_SIZE(cqe));
+        if (!n_cqe) {
+            break;
+        }
+
+        for (i = 0; i < n_cqe; ++i) {
+            uint64_t ucdba;
+            uint64_t rsp_upiu_addr;
+            UtpUpiuRsp rsp_upiu;
+            uint8_t tag;
+
+            g_assert_cmpuint(cqe[i].status, ==, UFS_OCS_SUCCESS);
+
+            ucdba = le64_to_cpu(cqe[i].utp_addr) & MAKE_64BIT_MASK(7, 57);
+            rsp_upiu_addr = ucdba + UTP_RESPONSE_UPIU_OFFSET;
+            qtest_memread(ufs->dev.bus->qts, rsp_upiu_addr, &rsp_upiu,
+                          sizeof(rsp_upiu));
+
+            tag = rsp_upiu.header.task_tag;
+            release_cmd_desc_slot(ufs, tag);
+        }
+
+        completed += n_cqe;
+    }
+
+    g_assert_cmpint(completed, ==, num_requests);
     ufs_exit(ufs, alloc);
 }
 
@@ -1130,6 +1254,8 @@ static void ufs_register_nodes(void)
     qos_add_test("init", "ufs", ufstest_init, NULL);
     qos_add_test("legacy-read-write", "ufs", ufstest_read_write, &io_test_opts);
     qos_add_test("mcq-read-write", "ufs", ufstest_read_write, &mcq_test_opts);
+    qos_add_test("mcq-cq-wraparound", "ufs", ufstest_mcq_cq_wraparound,
+                 &mcq_test_opts);
     qos_add_test("query-flag", "ufs", ufstest_query_flag_request,
                  &io_test_opts);
     qos_add_test("query-attribute", "ufs", ufstest_query_attr_request,
