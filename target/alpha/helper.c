@@ -173,8 +173,9 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
     CPUState *cs = env_cpu(env);
     target_long saddr = addr;
     target_ulong phys = 0;
-    target_ulong L1pte, L2pte, L3pte;
-    target_ulong pt, index;
+    uint64_t L1pte, L2pte, L3pte;
+    uint64_t pt;
+    uint16_t index;
     int prot = 0;
     int ret = MM_K_ACV;
     MemTxResult txres;
