@@ -114,7 +114,6 @@ the backing memory yourself, you can call the functions:
 
 - memory_region_init_ram_nomigrate()
 - memory_region_init_rom_nomigrate()
-- memory_region_init_rom_device_nomigrate()
 
 which only initialize the MemoryRegion and leave handling
 migration to the caller.

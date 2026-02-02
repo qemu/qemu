@@ -97,14 +97,6 @@ expression NAME;
 expression SIZE;
 expression ERRP;
 @@
--memory_region_init_rom_device_nomigrate(MR, NULL, OPS, OPAQUE, NAME, SIZE, ERRP);
-+memory_region_init_rom_device(MR, NULL, OPS, OPAQUE, NAME, SIZE, ERRP);
- ...
--vmstate_register_ram_global(MR);
-
-
-// Device is owner
-@@
 typedef DeviceState;
 identifier device_fn, dev, obj;
 expression E1, E2, E3, E4, E5;

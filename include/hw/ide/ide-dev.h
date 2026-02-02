@@ -160,7 +160,7 @@ struct IDEDevice {
      * 0x0000        - rotation rate not reported
      * 0x0001        - non-rotating medium (SSD)
      * 0x0002-0x0400 - reserved
-     * 0x0401-0xffe  - rotations per minute
+     * 0x0401-0xfffe - rotations per minute
      * 0xffff        - reserved
      */
     uint16_t rotation_rate;
