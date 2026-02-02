@@ -78,4 +78,3 @@ wasm64-emsdk-cross-container:
   extends: .container_job_template
   variables:
     NAME: emsdk-wasm64-cross
-    DOCKERFILE: emsdk-wasm-cross
