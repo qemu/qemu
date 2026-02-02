@@ -420,7 +420,7 @@ target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
         int adjust = HI_IDX * (n_elems - 1);                    \
         int sh = sizeof(r->element[0]) >> 1;                    \
         int index = (addr & 0xf) >> sh;                         \
-        bool byteswap = FIELD_EX64(env->msr, MSR, LE);          \
+        bool byteswap = ppc_env_is_little_endian(env);          \
                                                                 \
         if (byteswap) {                                         \
             index = n_elems - index - 1;                        \
@@ -446,7 +446,7 @@ LVE(LVEWX, cpu_ldl_be_data_ra, bswap32, u32)
         int adjust = HI_IDX * (n_elems - 1);                            \
         int sh = sizeof(r->element[0]) >> 1;                            \
         int index = (addr & 0xf) >> sh;                                 \
-        bool byteswap = FIELD_EX64(env->msr, MSR, LE);                  \
+        bool byteswap = ppc_env_is_little_endian(env);                  \
                                                                         \
         if (byteswap) {                                                 \
             index = n_elems - index - 1;                                \
@@ -479,7 +479,7 @@ void helper_##name(CPUPPCState *env, target_ulong addr,                 \
     t.s128 = int128_zero();                                             \
     if (nb) {                                                           \
         nb = (nb >= 16) ? 16 : nb;                                      \
-        if (FIELD_EX64(env->msr, MSR, LE) && !lj) {                     \
+        if (ppc_env_is_little_endian(env) && !lj) {                     \
             for (i = 16; i > 16 - nb; i--) {                            \
                 t.VsrB(i - 1) = cpu_ldub_data_ra(env, addr, GETPC());   \
                 addr = addr_add(env, addr, 1);                          \
@@ -510,7 +510,7 @@ void helper_##name(CPUPPCState *env, target_ulong addr,           \
     }                                                             \
                                                                   \
     nb = (nb >= 16) ? 16 : nb;                                    \
-    if (FIELD_EX64(env->msr, MSR, LE) && !lj) {                   \
+    if (ppc_env_is_little_endian(env) && !lj) {                   \
         for (i = 16; i > 16 - nb; i--) {                          \
             cpu_stb_data_ra(env, addr, xt->VsrB(i - 1), GETPC()); \
             addr = addr_add(env, addr, 1);                        \

@@ -24,6 +24,11 @@
 #include "exec/page-protection.h"
 #include "accel/tcg/tb-cpu-state.h"
 
+static inline bool ppc_env_is_little_endian(const CPUPPCState *env)
+{
+    return FIELD_EX64(env->msr, MSR, LE);
+}
+
 /**
  * ppc_data_endian_env:
  * @env: the cpu context
