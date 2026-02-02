@@ -129,7 +129,7 @@ void alpha_cpu_record_sigsegv(CPUState *cs, vaddr address,
                               bool maperr, uintptr_t retaddr)
 {
     CPUAlphaState *env = cpu_env(cs);
-    target_ulong mmcsr, cause;
+    uint64_t mmcsr, cause;
 
     /* Assuming !maperr, infer the missing protection. */
     switch (access_type) {
