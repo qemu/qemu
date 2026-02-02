@@ -1112,8 +1112,6 @@ struct ArchCPU {
     bool prop_pauth_qarma5;
     bool prop_lpa2;
 
-    /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
-    uint8_t dcz_blocksize;
     /* GM blocksize, in log_2(words), ie low 4 bits of GMID_EL0 */
     uint8_t gm_blocksize;
 
@@ -1178,6 +1176,18 @@ struct ARMCPUClass {
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
+
+static inline uint8_t get_dczid_bs(ARMCPU *cpu)
+{
+    return extract64(cpu->isar.idregs[DCZID_EL0_IDX], 0, 4);
+}
+
+static inline void set_dczid_bs(ARMCPU *cpu, uint8_t bs)
+{
+    /* keep dzp unchanged */
+    cpu->isar.idregs[DCZID_EL0_IDX] =
+        deposit64(cpu->isar.idregs[DCZID_EL0_IDX], 0, 4, bs);
+}
 
 /* Callback functions for the generic timer's timers. */
 void arm_gt_ptimer_cb(void *opaque);

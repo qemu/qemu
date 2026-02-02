@@ -2175,7 +2175,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     if (tcg_enabled()) {
-        int dcz_blocklen = 4 << cpu->dcz_blocksize;
+        int dcz_blocklen = 4 << get_dczid_bs(cpu);
 
         /*
          * We only support DCZ blocklen that fits on one page.

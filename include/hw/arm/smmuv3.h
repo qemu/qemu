@@ -63,6 +63,16 @@ struct SMMUv3State {
     qemu_irq     irq[4];
     QemuMutex mutex;
     char *stage;
+
+    /* SMMU has HW accelerator support for nested S1 + s2 */
+    bool accel;
+    struct SMMUv3AccelState *s_accel;
+    uint64_t msi_gpa;
+    Error *migration_blocker;
+    bool ril;
+    bool ats;
+    uint8_t oas;
+    uint8_t ssidsize;
 };
 
 typedef enum {
