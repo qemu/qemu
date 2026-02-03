@@ -974,3 +974,15 @@ void gdb_handle_query_xfer_siginfo(GArray *params, void *user_ctx)
     gdb_put_packet_binary(gdbserver_state.str_buf->str,
                           gdbserver_state.str_buf->len, true);
 }
+
+/*
+ * The minimal user-mode stop reply packet is:
+ *   T05thread:{id};
+ */
+
+void gdb_build_stop_packet(GString *buf, CPUState *cs)
+{
+    g_string_printf(buf, "T%02xthread:", GDB_SIGNAL_TRAP);
+    gdb_append_thread_id(cs, buf);
+    g_string_append_c(buf, ';');
+}

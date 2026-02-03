@@ -662,3 +662,14 @@ void gdb_breakpoint_remove_all(CPUState *cs)
         ops->remove_all_breakpoints(cs);
     }
 }
+
+/*
+ * The minimal system-mode stop reply packet is:
+ *   T05core:{id};
+ */
+
+void gdb_build_stop_packet(GString *buf, CPUState *cs)
+{
+    g_string_printf(buf,
+                    "T%02xcore:%02x;", GDB_SIGNAL_TRAP, gdb_get_cpu_index(cs));
+}
