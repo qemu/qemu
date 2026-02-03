@@ -557,8 +557,10 @@ static TPMVersion tpm_emulator_get_tpm_version(TPMBackend *tb)
 static size_t tpm_emulator_get_buffer_size(TPMBackend *tb)
 {
     size_t actual_size;
+    Error *local_err = NULL;
 
-    if (tpm_emulator_set_buffer_size(tb, 0, &actual_size, NULL) < 0) {
+    if (tpm_emulator_set_buffer_size(tb, 0, &actual_size, &local_err) < 0) {
+        error_report_err(local_err);
         return 4096;
     }
 
