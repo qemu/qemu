@@ -347,7 +347,7 @@ static TCGv gen_ldst(DisasContext *s, int opsize, TCGv addr, TCGv val,
 static inline uint16_t read_im16(CPUM68KState *env, DisasContext *s)
 {
     uint16_t im;
-    im = translator_lduw(env, &s->base, s->pc);
+    im = translator_lduw_end(env, &s->base, s->pc, MO_BE);
     s->pc += 2;
     return im;
 }
@@ -1412,12 +1412,12 @@ static bool semihosting_test(DisasContext *s)
     if (s->pc % 4 != 0) {
         return false;
     }
-    test = translator_lduw(s->env, &s->base, s->pc - 4);
+    test = translator_lduw_end(s->env, &s->base, s->pc - 4, MO_BE);
     if (test != 0x4e71) {
         return false;
     }
     /* "... and followed by an invalid sentinel instruction movec %sp,0." */
-    test = translator_ldl(s->env, &s->base, s->pc);
+    test = translator_ldl_end(s->env, &s->base, s->pc, MO_BE);
     if (test != 0x4e7bf000) {
         return false;
     }

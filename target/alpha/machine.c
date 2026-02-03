@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "migration/cpu.h"
+#include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 
 static int get_fpcr(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field)

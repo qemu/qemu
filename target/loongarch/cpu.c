@@ -506,7 +506,8 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
     cs->exception_index = -1;
 }
 
-static void loongarch_cpu_disas_set_info(CPUState *s, disassemble_info *info)
+static void loongarch_cpu_disas_set_info(const CPUState *cs,
+                                         disassemble_info *info)
 {
     info->endian = BFD_ENDIAN_LITTLE;
     info->print_insn = print_insn_loongarch;

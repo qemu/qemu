@@ -103,7 +103,8 @@ static bool sparc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-static void cpu_sparc_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void cpu_sparc_disas_set_info(const CPUState *cpu,
+                                     disassemble_info *info)
 {
     info->print_insn = print_insn_sparc;
     info->endian = BFD_ENDIAN_BIG;

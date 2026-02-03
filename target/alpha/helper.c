@@ -129,7 +129,7 @@ void alpha_cpu_record_sigsegv(CPUState *cs, vaddr address,
                               bool maperr, uintptr_t retaddr)
 {
     CPUAlphaState *env = cpu_env(cs);
-    target_ulong mmcsr, cause;
+    uint64_t mmcsr, cause;
 
     /* Assuming !maperr, infer the missing protection. */
     switch (access_type) {
@@ -165,16 +165,17 @@ void alpha_cpu_record_sigsegv(CPUState *cs, vaddr address,
 }
 #else
 /* Returns the OSF/1 entMM failure indication, or -1 on success.  */
-static int get_physical_address(CPUAlphaState *env, target_ulong addr,
+static int get_physical_address(CPUAlphaState *env, vaddr addr,
                                 int prot_need, int mmu_idx,
-                                target_ulong *pphys, int *pprot)
+                                hwaddr *pphys, int *pprot)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     CPUState *cs = env_cpu(env);
     target_long saddr = addr;
-    target_ulong phys = 0;
-    target_ulong L1pte, L2pte, L3pte;
-    target_ulong pt, index;
+    hwaddr phys = 0;
+    uint64_t L1pte, L2pte, L3pte;
+    uint64_t pt;
+    uint16_t index;
     int prot = 0;
     int ret = MM_K_ACV;
     MemTxResult txres;
@@ -296,7 +297,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
 
 hwaddr alpha_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
-    target_ulong phys;
+    hwaddr phys;
     int prot, fail;
 
     fail = get_physical_address(cpu_env(cs), addr, 0, 0, &phys, &prot);
@@ -308,7 +309,7 @@ bool alpha_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                         bool probe, uintptr_t retaddr)
 {
     CPUAlphaState *env = cpu_env(cs);
-    target_ulong phys;
+    hwaddr phys;
     int prot, fail;
 
     fail = get_physical_address(env, addr, 1 << access_type,

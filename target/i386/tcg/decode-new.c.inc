@@ -315,18 +315,18 @@ static inline uint8_t x86_ldub_code(CPUX86State *env, DisasContext *s)
 
 static inline uint16_t x86_lduw_code(CPUX86State *env, DisasContext *s)
 {
-    return translator_lduw(env, &s->base, advance_pc(env, s, 2));
+    return translator_lduw_end(env, &s->base, advance_pc(env, s, 2), MO_LE);
 }
 
 static inline uint32_t x86_ldl_code(CPUX86State *env, DisasContext *s)
 {
-    return translator_ldl(env, &s->base, advance_pc(env, s, 4));
+    return translator_ldl_end(env, &s->base, advance_pc(env, s, 4), MO_LE);
 }
 
 #ifdef TARGET_X86_64
 static inline uint64_t x86_ldq_code(CPUX86State *env, DisasContext *s)
 {
-    return translator_ldq(env, &s->base, advance_pc(env, s, 8));
+    return translator_ldq_end(env, &s->base, advance_pc(env, s, 8), MO_LE);
 }
 #endif
 

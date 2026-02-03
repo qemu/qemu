@@ -397,7 +397,7 @@ typedef struct disassemble_info {
   bool show_opcodes;
 
   /* Field intended to be used by targets in any way they deem suitable.  */
-  void *target_info;
+  const void *target_info;
 
   /* Options for Capstone disassembly.  */
   int cap_arch;

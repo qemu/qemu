@@ -233,7 +233,7 @@ static void mb_cpu_reset_hold(Object *obj, ResetType type)
 #endif
 }
 
-static void mb_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void mb_disas_set_info(const CPUState *cpu, disassemble_info *info)
 {
     info->mach = bfd_arch_microblaze;
     info->print_insn = print_insn_microblaze;

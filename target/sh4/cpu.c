@@ -164,7 +164,8 @@ static void superh_cpu_reset_hold(Object *obj, ResetType type)
     set_float_ftz_detection(float_ftz_before_rounding, &env->fp_status);
 }
 
-static void superh_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void superh_cpu_disas_set_info(const CPUState *cpu,
+                                      disassemble_info *info)
 {
     info->endian = TARGET_BIG_ENDIAN ? BFD_ENDIAN_BIG
                                      : BFD_ENDIAN_LITTLE;

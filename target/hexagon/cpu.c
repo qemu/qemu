@@ -301,7 +301,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     set_float_default_nan_pattern(0b11111111, &env->fp_status);
 }
 
-static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)
+static void hexagon_cpu_disas_set_info(const CPUState *cs,
+                                       disassemble_info *info)
 {
     info->print_insn = print_insn_hexagon;
     info->endian = BFD_ENDIAN_LITTLE;

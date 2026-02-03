@@ -226,7 +226,8 @@ static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static void xtensa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
+static void xtensa_cpu_disas_set_info(const CPUState *cs,
+                                      disassemble_info *info)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
 
