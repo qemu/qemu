@@ -198,9 +198,6 @@ void gdb_qemu_exit(int code)
 int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
                   int siginfo_len)
 {
-    char buf[256];
-    int n;
-
     if (!gdbserver_state.init || gdbserver_user_state.fd < 0) {
         return sig;
     }
@@ -246,11 +243,10 @@ int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
     gdbserver_state.state = RS_IDLE;
     gdbserver_user_state.running_state = 0;
     while (gdbserver_user_state.running_state == 0) {
-        n = read(gdbserver_user_state.fd, buf, 256);
+        char buf[256];
+        int n = read(gdbserver_user_state.fd, buf, 256);
         if (n > 0) {
-            int i;
-
-            for (i = 0; i < n; i++) {
+            for (int i = 0; i < n; i++) {
                 gdb_read_byte(buf[i]);
             }
         } else {
