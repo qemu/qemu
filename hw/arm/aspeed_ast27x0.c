@@ -181,6 +181,8 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_ETH1]      = 196,
     [ASPEED_DEV_ETH2]      = 196,
     [ASPEED_DEV_ETH3]      = 196,
+    [ASPEED_DEV_EHCI3]     = 196,
+    [ASPEED_DEV_EHCI4]     = 196,
     [ASPEED_DEV_PECI]      = 197,
     [ASPEED_DEV_SDHCI]     = 197,
 };
