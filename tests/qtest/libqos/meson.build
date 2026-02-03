@@ -71,7 +71,7 @@ if have_virtfs
 endif
 
 if config_all_devices.has_key('CONFIG_RISCV_IOMMU')
-  libqos_srcs += files('riscv-iommu.c')
+  libqos_srcs += files('riscv-iommu.c', 'qos-riscv-iommu.c')
 endif
 if config_all_devices.has_key('CONFIG_TPCI200')
   libqos_srcs += files('tpci200.c')
