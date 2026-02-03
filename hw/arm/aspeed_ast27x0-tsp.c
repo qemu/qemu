@@ -44,12 +44,13 @@ static const hwaddr aspeed_soc_ast27x0tsp_memmap[] = {
 };
 
 static const int aspeed_soc_ast27x0tsp_irqmap[] = {
+    [ASPEED_DEV_UART4]     = 8,
     [ASPEED_DEV_SCU]       = 12,
+    [ASPEED_DEV_TIMER1]    = 16,
     [ASPEED_DEV_UART0]     = 164,
     [ASPEED_DEV_UART1]     = 164,
     [ASPEED_DEV_UART2]     = 164,
     [ASPEED_DEV_UART3]     = 164,
-    [ASPEED_DEV_UART4]     = 8,
     [ASPEED_DEV_UART5]     = 164,
     [ASPEED_DEV_UART6]     = 164,
     [ASPEED_DEV_UART7]     = 164,
@@ -58,7 +59,6 @@ static const int aspeed_soc_ast27x0tsp_irqmap[] = {
     [ASPEED_DEV_UART10]    = 164,
     [ASPEED_DEV_UART11]    = 164,
     [ASPEED_DEV_UART12]    = 164,
-    [ASPEED_DEV_TIMER1]    = 16,
 };
 
 /* TSPINT 164 */
