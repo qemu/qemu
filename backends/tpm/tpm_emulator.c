@@ -885,10 +885,8 @@ static int tpm_emulator_set_state_blob(TPMEmulator *tpm_emu,
 
 /*
  * Set all the TPM state blobs.
- *
- * Returns a negative errno code in case of error.
  */
-static int tpm_emulator_set_state_blobs(TPMBackend *tb, Error **errp)
+static bool tpm_emulator_set_state_blobs(TPMBackend *tb, Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     TPMBlobBuffers *state_blobs = &tpm_emu->state_blobs;
@@ -897,7 +895,7 @@ static int tpm_emulator_set_state_blobs(TPMBackend *tb, Error **errp)
 
     if (tpm_emulator_stop_tpm(tb, errp) < 0) {
         trace_tpm_emulator_set_state_blobs_error("Could not stop TPM");
-        return -EIO;
+        return false;
     }
 
     if (tpm_emulator_set_state_blob(tpm_emu, PTM_BLOB_TYPE_PERMANENT,
@@ -909,12 +907,12 @@ static int tpm_emulator_set_state_blobs(TPMBackend *tb, Error **errp)
         tpm_emulator_set_state_blob(tpm_emu, PTM_BLOB_TYPE_SAVESTATE,
                                     &state_blobs->savestate,
                                     state_blobs->savestate_flags, errp) < 0) {
-        return -EIO;
+        return false;
     }
 
     trace_tpm_emulator_set_state_blobs_done();
 
-    return 0;
+    return true;
 }
 
 static int tpm_emulator_pre_save(void *opaque)
@@ -957,10 +955,8 @@ static void tpm_emulator_vm_state_change(void *opaque, bool running,
 static bool tpm_emulator_post_load(void *opaque, int version_id, Error **errp)
 {
     TPMBackend *tb = opaque;
-    int ret;
 
-    ret = tpm_emulator_set_state_blobs(tb, errp);
-    if (ret < 0) {
+    if (!tpm_emulator_set_state_blobs(tb, errp)) {
         return false;
     }
 
