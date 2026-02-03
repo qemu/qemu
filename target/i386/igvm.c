@@ -13,7 +13,9 @@
 
 #include "cpu.h"
 #include "hw/i386/e820_memory_layout.h"
+#include "hw/i386/acpi-build.h"
 #include "system/igvm.h"
+#include "system/igvm-internal.h"
 
 struct IgvmNativeVpContextX64 {
     uint64_t rax;
@@ -177,4 +179,34 @@ void qigvm_x86_bsp_reset(CPUX86State *env)
     }
 
     qigvm_x86_load_context(bsp_context, env);
+}
+
+/*
+ * Process MADT IGVM parameter
+ */
+int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp)
+{
+    const IGVM_VHS_PARAMETER *param = (const IGVM_VHS_PARAMETER *)header_data;
+    QIgvmParameterData *param_entry;
+    int result = 0;
+
+    /* Find the parameter area that should hold the MADT data */
+    param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
+    if (param_entry == NULL) {
+        return 0;
+    }
+
+    GArray *madt = acpi_build_madt_standalone(ctx->machine_state);
+
+    if (madt->len <= param_entry->size) {
+        memcpy(param_entry->data, madt->data, madt->len);
+    } else {
+        error_setg(
+            errp,
+            "IGVM: MADT size exceeds parameter area defined in IGVM file");
+        result = -1;
+    }
+
+    g_array_free(madt, true);
+    return result;
 }

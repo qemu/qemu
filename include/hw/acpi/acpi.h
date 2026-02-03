@@ -203,4 +203,7 @@ struct AcpiSlicOem {
 };
 int acpi_get_slic_oem(AcpiSlicOem *oem);
 
+/* core.c */
+int acpi_checksum(const uint8_t *data, int len);
+
 #endif /* QEMU_HW_ACPI_H */

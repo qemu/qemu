@@ -166,8 +166,8 @@ References
 ----------
 
 [1] AMD64 Architecture Programmer's Manual, Volume 2: System Programming
-  Rev 3.41
-  https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf
+  Rev 3.43
+  https://docs.amd.com/v/u/en-US/24593_3.43
 
 [2] ``buildigvm`` - A tool to build example IGVM files containing OVMF firmware
-  https://github.com/roy-hopkins/buildigvm
+  https://gitlab.com/qemu-project/buildigvm
