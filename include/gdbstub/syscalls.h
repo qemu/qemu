@@ -103,6 +103,15 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...);
 int use_gdb_syscalls(void);
 
 /**
+ * host_to_gdb_errno: convert host errno to GDB errno value
+ * @err: errno from host
+ *
+ * Given an error number from the host, this helper function returns
+ * its GDB File-I/O specified representation.
+ */
+int host_to_gdb_errno(int err);
+
+/**
  * gdb_exit: exit gdb session, reporting inferior status
  * @code: exit code reported
  *
