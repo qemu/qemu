@@ -9,7 +9,7 @@
 import os
 
 from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
+from qemu_test import wait_for_console_pattern, exec_command
 from qemu_test import exec_command_and_wait_for_pattern
 
 
@@ -37,9 +37,23 @@ class AST2x00MachineSDK(QemuSystemTest):
         wait_for_console_pattern(self, 'done')
         wait_for_console_pattern(self, 'Jumping to BL31 (Trusted Firmware-A)')
 
+    def enable_ast2700_pcie2(self):
+        wait_for_console_pattern(self, 'Hit any key to stop autoboot')
+        exec_command_and_wait_for_pattern(self, '\012', '=>')
+        exec_command_and_wait_for_pattern(self,
+            'cp 100420000 403000000 900000', '=>')
+        exec_command_and_wait_for_pattern(self,
+            'bootm start 403000000', '=>')
+        exec_command_and_wait_for_pattern(self, 'bootm loados', '=>')
+        exec_command_and_wait_for_pattern(self, 'bootm ramdisk', '=>')
+        exec_command_and_wait_for_pattern(self, 'bootm prep', '=>')
+        exec_command_and_wait_for_pattern(self,
+            'fdt set /soc@14000000/pcie@140d0000 status "okay"', '=>')
+        exec_command(self, 'bootm go')
+
     def verify_openbmc_boot_start(self):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
-        wait_for_console_pattern(self, '## Loading kernel from FIT Image')
+        self.enable_ast2700_pcie2()
         wait_for_console_pattern(self, 'Linux version ')
 
     def verify_openbmc_boot_and_login(self, name):
