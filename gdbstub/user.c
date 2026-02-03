@@ -87,7 +87,11 @@ enum GDBForkMessage {
 typedef struct {
     int fd;
     char *socket_path;
-    int running_state;
+    /*
+     * running state of the guest, when we process a packet that restarts
+     * the guest we set this to true.
+     */
+    bool running;
     /*
      * Store syscalls mask without memory allocation in order to avoid
      * implementing synchronization.
@@ -241,8 +245,8 @@ int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
 
     sig = 0;
     gdbserver_state.state = RS_IDLE;
-    gdbserver_user_state.running_state = 0;
-    while (gdbserver_user_state.running_state == 0) {
+    gdbserver_user_state.running = false;
+    while (!gdbserver_user_state.running) {
         char buf[256];
         int n = read(gdbserver_user_state.fd, buf, 256);
         if (n > 0) {
@@ -611,11 +615,11 @@ void gdbserver_fork_end(CPUState *cpu, pid_t pid)
 
     gdbserver_state.state = RS_IDLE;
     gdbserver_state.allow_stop_reply = false;
-    gdbserver_user_state.running_state = 0;
+    gdbserver_user_state.running = false;
     for (;;) {
         switch (gdbserver_user_state.fork_state) {
         case GDB_FORK_ENABLED:
-            if (gdbserver_user_state.running_state) {
+            if (gdbserver_user_state.running) {
                 close(fd);
                 return;
             }
@@ -728,7 +732,7 @@ void gdb_handle_query_attached(GArray *params, void *user_ctx)
 
 void gdb_continue(void)
 {
-    gdbserver_user_state.running_state = 1;
+    gdbserver_user_state.running = true;
     trace_gdbstub_op_continue();
 }
 
@@ -750,7 +754,7 @@ int gdb_continue_partial(char *newstates)
             cpu_single_step(cpu, gdbserver_state.sstep_flags);
         }
     }
-    gdbserver_user_state.running_state = 1;
+    gdbserver_user_state.running = true;
     return res;
 }
 
