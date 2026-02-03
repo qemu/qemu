@@ -1743,14 +1743,38 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
             goto done;
         }
 
-        /* Lower invalid deposit into zero as AND + SHL. */
+        /* Lower invalid deposit into zero as AND + SHL or SHL + SHR. */
         if (!valid) {
-            op2 = opt_insert_before(ctx, op, INDEX_op_and, 3);
-            op2->args[0] = ret;
-            op2->args[1] = arg2;
-            op2->args[2] = arg_new_constant(ctx, len_mask);
-            fold_and(ctx, op2);
+            if (TCG_TARGET_extract_valid(ctx->type, 0, len)) {
+                /* EXTRACT (at 0) + SHL */
+                op2 = opt_insert_before(ctx, op, INDEX_op_extract, 4);
+                op2->args[0] = ret;
+                op2->args[1] = arg2;
+                op2->args[2] = 0;
+                op2->args[3] = len;
+            } else if (tcg_op_imm_match(INDEX_op_and, ctx->type, len_mask)) {
+                /* AND + SHL */
+                op2 = opt_insert_before(ctx, op, INDEX_op_and, 3);
+                op2->args[0] = ret;
+                op2->args[1] = arg2;
+                op2->args[2] = arg_new_constant(ctx, len_mask);
+            } else {
+                /* SHL + SHR */
+                int shl = width - len;
+                int shr = width - len - ofs;
 
+                op2 = opt_insert_before(ctx, op, INDEX_op_shl, 3);
+                op2->args[0] = ret;
+                op2->args[1] = arg2;
+                op2->args[2] = arg_new_constant(ctx, shl);
+
+                op->opc = INDEX_op_shr;
+                op->args[1] = ret;
+                op->args[2] = arg_new_constant(ctx, shr);
+                goto done;
+            }
+
+            /* Finish the (EXTRACT|AND) + SHL cases. */
             op->opc = INDEX_op_shl;
             op->args[1] = ret;
             op->args[2] = arg_new_constant(ctx, ofs);
