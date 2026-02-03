@@ -1169,27 +1169,18 @@ uint64_t helper_ld_code(CPUSPARCState *env, target_ulong addr, uint32_t oi)
         break;
     case MO_16:
         ret = cpu_ldw_code_mmu(env, addr, oi, ra);
-        if ((mop & MO_BSWAP) != MO_TE) {
-            ret = bswap16(ret);
-        }
         if (mop & MO_SIGN) {
             ret = (int16_t)ret;
         }
         break;
     case MO_32:
         ret = cpu_ldl_code_mmu(env, addr, oi, ra);
-        if ((mop & MO_BSWAP) != MO_TE) {
-            ret = bswap32(ret);
-        }
         if (mop & MO_SIGN) {
             ret = (int32_t)ret;
         }
         break;
     case MO_64:
         ret = cpu_ldq_code_mmu(env, addr, oi, ra);
-        if ((mop & MO_BSWAP) != MO_TE) {
-            ret = bswap64(ret);
-        }
         break;
     default:
         g_assert_not_reached();
