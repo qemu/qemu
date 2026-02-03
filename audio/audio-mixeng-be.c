@@ -227,6 +227,7 @@ static void audio_detach_capture (HWVoiceOut *hw)
         CaptureVoiceOut *cap = sc->cap;
         int was_active = sw->active;
 
+        g_clear_pointer(&sw->name, g_free);
         if (sw->rate) {
             st_rate_stop (sw->rate);
             sw->rate = NULL;
@@ -1618,6 +1619,7 @@ static void audio_mixeng_backend_del_capture(
                     SWVoiceCap *sc = (SWVoiceCap *) sw;
 
                     trace_audio_capture_free_sw(sw->name);
+                    g_clear_pointer(&sw->name, g_free);
                     sw1 = sw->entries.le_next;
                     if (sw->rate) {
                         st_rate_stop (sw->rate);
