@@ -25,6 +25,7 @@ enum {
     ASPEED_AST1700_DEV_I2C,
     ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
+    ASPEED_AST1700_DEV_WDT,
     ASPEED_AST1700_DEV_SPI0_MEM,
 };
 
@@ -37,6 +38,7 @@ static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_I2C]       =  0x00C0F000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
+    [ASPEED_AST1700_DEV_WDT]       =  0x00C37000,
     [ASPEED_AST1700_DEV_SPI0_MEM]  =  0x04000000,
 };
 
@@ -135,6 +137,22 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->iomem,
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_LTPI_CTRL],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ltpi), 0));
+    /* WDT */
+    for (int i = 0; i < AST1700_WDT_NUM; i++) {
+        AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
+        hwaddr wdt_offset = aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_WDT] +
+                            i * awc->iosize;
+
+        object_property_set_link(OBJECT(&s->wdt[i]), "scu", OBJECT(&s->scu),
+                                 errp);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), errp)) {
+            return;
+        }
+        memory_region_add_subregion(&s->iomem,
+                        wdt_offset,
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->wdt[i]), 0));
+    }
+
 }
 
 static void aspeed_ast1700_instance_init(Object *obj)
@@ -168,6 +186,12 @@ static void aspeed_ast1700_instance_init(Object *obj)
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",
                             &s->ltpi, TYPE_ASPEED_LTPI);
+
+    /* WDT */
+    for (int i = 0; i < AST1700_WDT_NUM; i++) {
+        object_initialize_child(obj, "ioexp-wdt[*]",
+                                &s->wdt[i], "aspeed.wdt-ast2700");
+    }
 
     return;
 }
