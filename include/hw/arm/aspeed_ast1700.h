@@ -20,9 +20,11 @@ struct AspeedAST1700SoCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+    uint8_t board_idx;
 
     AspeedLTPIState ltpi;
     SerialMM uart;
+    MemoryRegion sram;
 };
 
 #endif /* ASPEED_AST1700_H */
