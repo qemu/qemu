@@ -13,6 +13,14 @@
 
 #define AST2700_SOC_LTPI_SIZE        0x01000000
 
+enum {
+    ASPEED_AST1700_DEV_LTPI_CTRL,
+};
+
+static const hwaddr aspeed_ast1700_io_memmap[] = {
+    [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
+};
+
 static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
 {
     AspeedAST1700SoCState *s = ASPEED_AST1700(dev);
@@ -22,6 +30,25 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
     memory_region_init(&s->iomem, OBJECT(s), TYPE_ASPEED_AST1700,
                        AST2700_SOC_LTPI_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    /* LTPI controller */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_LTPI_CTRL],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ltpi), 0));
+}
+
+static void aspeed_ast1700_instance_init(Object *obj)
+{
+    AspeedAST1700SoCState *s = ASPEED_AST1700(obj);
+
+    /* LTPI controller */
+    object_initialize_child(obj, "ltpi-ctrl",
+                            &s->ltpi, TYPE_ASPEED_LTPI);
+
+    return;
 }
 
 static void aspeed_ast1700_class_init(ObjectClass *klass, const void *data)
@@ -36,6 +63,7 @@ static const TypeInfo aspeed_ast1700_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedAST1700SoCState),
     .class_init    = aspeed_ast1700_class_init,
+    .instance_init = aspeed_ast1700_instance_init,
 };
 
 static void aspeed_ast1700_register_types(void)
