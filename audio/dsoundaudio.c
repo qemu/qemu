@@ -711,16 +711,14 @@ static struct audio_driver dsound_audio_driver = {
     .voice_size_in  = sizeof (DSoundVoiceIn)
 };
 
-static const TypeInfo audio_dsound_info = {
-    .name = TYPE_AUDIO_DSOUND,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioDsound),
-    .class_init = audio_dsound_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_DSOUND,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioDsound),
+        .class_init = audio_dsound_class_init,
+    },
 };
 
-static void register_audio_dsound(void)
-{
-    type_register_static(&audio_dsound_info);
-}
-type_init(register_audio_dsound);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_DSOUND);

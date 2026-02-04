@@ -572,17 +572,14 @@ static struct audio_driver sndio_audio_driver = {
     .voice_size_in  = sizeof(SndioVoice)
 };
 
-static const TypeInfo audio_sndio_info = {
-    .name = TYPE_AUDIO_SNDIO,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioSndio),
-    .class_init = audio_sndio_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_SNDIO,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioSndio),
+        .class_init = audio_sndio_class_init,
+    },
 };
 
-static void register_audio_sndio(void)
-{
-    type_register_static(&audio_sndio_info);
-}
-
-type_init(register_audio_sndio);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_SNDIO);

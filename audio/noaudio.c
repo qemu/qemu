@@ -155,16 +155,14 @@ static struct audio_driver no_audio_driver = {
     .voice_size_in  = sizeof (NoVoiceIn)
 };
 
-static const TypeInfo audio_none_info = {
-    .name = TYPE_AUDIO_NONE,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioNone),
-    .class_init = audio_none_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_NONE,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioNone),
+        .class_init = audio_none_class_init,
+    },
 };
 
-static void register_audio_none(void)
-{
-    type_register_static(&audio_none_info);
-}
-type_init(register_audio_none);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_NONE);

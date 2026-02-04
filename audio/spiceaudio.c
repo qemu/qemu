@@ -342,18 +342,16 @@ static struct audio_driver spice_audio_driver = {
     .voice_size_in  = sizeof (SpiceVoiceIn),
 };
 
-static const TypeInfo audio_spice_info = {
-    .name = TYPE_AUDIO_SPICE,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioSpice),
-    .class_init = audio_spice_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_SPICE,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioSpice),
+        .class_init = audio_spice_class_init,
+    },
 };
 
-static void register_audio_spice(void)
-{
-    type_register_static(&audio_spice_info);
-}
-type_init(register_audio_spice);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_SPICE);
 
 module_dep("ui-spice-core");

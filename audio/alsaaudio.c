@@ -962,17 +962,14 @@ static struct audio_driver alsa_audio_driver = {
     .voice_size_in  = sizeof (ALSAVoiceIn)
 };
 
-static const TypeInfo audio_alsa_info = {
-    .name = TYPE_AUDIO_ALSA,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioALSA),
-    .class_init = audio_alsa_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_ALSA,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioALSA),
+        .class_init = audio_alsa_class_init,
+    },
 };
 
-
-static void register_audio_alsa(void)
-{
-    type_register_static(&audio_alsa_info);
-}
-type_init(register_audio_alsa);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_ALSA);

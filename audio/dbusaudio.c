@@ -729,18 +729,16 @@ static void audio_dbus_class_init(ObjectClass *klass, const void *data)
     k->driver = &dbus_audio_driver;
 }
 
-static const TypeInfo audio_dbus_info = {
-    .name = TYPE_AUDIO_DBUS,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioDbus),
-    .class_init = audio_dbus_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_DBUS,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioDbus),
+        .class_init = audio_dbus_class_init,
+    },
 };
 
-static void register_audio_dbus(void)
-{
-    type_register_static(&audio_dbus_info);
-}
-type_init(register_audio_dbus);
+DEFINE_TYPES(audio_types)
 
 module_dep("ui-dbus")
 module_obj(TYPE_AUDIO_DBUS)

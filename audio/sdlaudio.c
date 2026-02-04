@@ -508,16 +508,14 @@ static struct audio_driver sdl_audio_driver = {
     .voice_size_in  = sizeof(SDLVoiceIn),
 };
 
-static const TypeInfo audio_sdl_info = {
-    .name = TYPE_AUDIO_SDL,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioSdl),
-    .class_init = audio_sdl_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_SDL,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioSdl),
+        .class_init = audio_sdl_class_init,
+    },
 };
 
-static void register_audio_sdl(void)
-{
-    type_register_static(&audio_sdl_info);
-}
-type_init(register_audio_sdl);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_SDL);

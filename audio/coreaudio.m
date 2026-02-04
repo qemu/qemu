@@ -690,16 +690,14 @@ static struct audio_driver coreaudio_audio_driver = {
     .voice_size_in  = 0
 };
 
-static const TypeInfo audio_coreaudio_info = {
-    .name = TYPE_AUDIO_COREAUDIO,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioCoreaudio),
-    .class_init = audio_coreaudio_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_COREAUDIO,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioCoreaudio),
+        .class_init = audio_coreaudio_class_init,
+    },
 };
 
-static void register_audio_coreaudio(void)
-{
-    type_register_static(&audio_coreaudio_info);
-}
-type_init(register_audio_coreaudio);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_COREAUDIO);

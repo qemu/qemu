@@ -864,18 +864,14 @@ static struct audio_driver pw_audio_driver = {
     .voice_size_in = sizeof(PWVoiceIn),
 };
 
-static const TypeInfo audio_pw_info = {
-    .name = TYPE_AUDIO_PW,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioPw),
-    .class_init = audio_pw_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_PW,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioPw),
+        .class_init = audio_pw_class_init,
+    },
 };
 
-static void
-register_audio_pw(void)
-{
-    type_register_static(&audio_pw_info);
-}
-
-type_init(register_audio_pw);
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_PW);

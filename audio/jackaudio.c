@@ -708,22 +708,24 @@ static void qjack_info(const char *msg)
     dolog("I: %s\n", msg);
 }
 
-static const TypeInfo audio_jack_info = {
-    .name = TYPE_AUDIO_JACK,
-    .parent = TYPE_AUDIO_MIXENG_BACKEND,
-    .instance_size = sizeof(AudioJack),
-    .class_init = audio_jack_class_init,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_JACK,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioJack),
+        .class_init = audio_jack_class_init,
+    },
 };
 
-static void register_audio_jack(void)
+static void __attribute__((__constructor__)) audio_jack_init(void)
 {
     qemu_mutex_init(&qjack_shutdown_lock);
-    type_register_static(&audio_jack_info);
 #if !defined(WIN32) && defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
     jack_set_thread_creator(qjack_thread_creator);
 #endif
     jack_set_error_function(qjack_error);
     jack_set_info_function(qjack_info);
 }
-type_init(register_audio_jack);
+
+DEFINE_TYPES(audio_types)
 module_obj(TYPE_AUDIO_JACK);
