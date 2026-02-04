@@ -65,13 +65,14 @@ class AST2x00MachineSDK(QemuSystemTest):
             'fdt set /soc@14000000/pcie@140d0000 status "okay"', '=>')
         exec_command(self, 'bootm go')
 
-    def verify_openbmc_boot_start(self):
+    def verify_openbmc_boot_start(self, enable_pcie=True):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
-        self.enable_ast2700_pcie2()
+        if enable_pcie:
+            self.enable_ast2700_pcie2()
         wait_for_console_pattern(self, 'Linux version ')
 
-    def verify_openbmc_boot_and_login(self, name):
-        self.verify_openbmc_boot_start()
+    def verify_openbmc_boot_and_login(self, name, enable_pcie=True):
+        self.verify_openbmc_boot_start(enable_pcie)
 
         wait_for_console_pattern(self, f'{name} login:')
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
