@@ -22,6 +22,7 @@ enum {
     ASPEED_AST1700_DEV_ADC,
     ASPEED_AST1700_DEV_SCU,
     ASPEED_AST1700_DEV_GPIO,
+    ASPEED_AST1700_DEV_I2C,
     ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
     ASPEED_AST1700_DEV_SPI0_MEM,
@@ -33,6 +34,7 @@ static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_ADC]       =  0x00C00000,
     [ASPEED_AST1700_DEV_SCU]       =  0x00C02000,
     [ASPEED_AST1700_DEV_GPIO]      =  0x00C0B000,
+    [ASPEED_AST1700_DEV_I2C]       =  0x00C0F000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
     [ASPEED_AST1700_DEV_SPI0_MEM]  =  0x04000000,
@@ -113,6 +115,19 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_GPIO],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gpio), 0));
 
+    /* I2C */
+    snprintf(dev_name, sizeof(dev_name), "ioexp%d", s->board_idx);
+    qdev_prop_set_string(DEVICE(&s->i2c), "bus-label", dev_name);
+
+    object_property_set_link(OBJECT(&s->i2c), "dram",
+                             OBJECT(s->dram_mr), errp);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_I2C],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->i2c), 0));
+
     /* LTPI controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
         return;
@@ -145,6 +160,10 @@ static void aspeed_ast1700_instance_init(Object *obj)
     /* GPIO */
     object_initialize_child(obj, "ioexp-gpio", &s->gpio,
                             "aspeed.gpio-ast2700");
+
+    /* I2C */
+    object_initialize_child(obj, "ioexp-i2c", &s->i2c,
+                            "aspeed.i2c-ast2700");
 
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",

@@ -157,6 +157,8 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_EHCI4]     = 196,
     [ASPEED_DEV_PECI]      = 197,
     [ASPEED_DEV_SDHCI]     = 197,
+    [ASPEED_DEV_IOEXP0_I2C] = 198,
+    [ASPEED_DEV_IOEXP1_I2C] = 200,
 };
 
 /* GICINT 192 */
@@ -213,6 +215,18 @@ static const int ast2700_gic197_intcmap[] = {
     [ASPEED_DEV_PECI]      = 4,
 };
 
+/* Primary AST1700 Interrupts */
+/* A1: GICINT 198 */
+static const int ast2700_gic198_intcmap[] = {
+    [ASPEED_DEV_IOEXP0_I2C]       = 0, /* 0 - 15 */
+};
+
+/* Secondary AST1700 Interrupts */
+/* A1: GINTC 200 */
+static const int ast2700_gic200_intcmap[] = {
+    [ASPEED_DEV_IOEXP1_I2C]       = 0, /* 0 - 15 */
+};
+
 /* GICINT 192 ~ 201 */
 struct gic_intc_irq_info {
     int irq;
@@ -228,9 +242,9 @@ static const struct gic_intc_irq_info ast2700_gic_intcmap[] = {
     {195, 1, 3, ast2700_gic195_intcmap},
     {196, 1, 4, ast2700_gic196_intcmap},
     {197, 1, 5, ast2700_gic197_intcmap},
-    {198, 1, 6, NULL},
+    {198, 2, 0, ast2700_gic198_intcmap},
     {199, 1, 7, NULL},
-    {200, 1, 8, NULL},
+    {200, 3, 0, ast2700_gic200_intcmap},
     {201, 1, 9, NULL},
 };
 
@@ -263,14 +277,23 @@ static qemu_irq aspeed_soc_ast2700_get_irq_index(AspeedSoCState *s, int dev,
     int or_idx;
     int idx;
     int i;
+    OrIRQState *porgates;
 
     for (i = 0; i < ARRAY_SIZE(ast2700_gic_intcmap); i++) {
         if (sc->irqmap[dev] == ast2700_gic_intcmap[i].irq) {
             assert(ast2700_gic_intcmap[i].ptr);
             or_idx = ast2700_gic_intcmap[i].orgate_idx;
             idx = ast2700_gic_intcmap[i].intc_idx;
-            return qdev_get_gpio_in(DEVICE(&a->intc[idx].orgates[or_idx]),
+            if (idx < ASPEED_INTC_NUM) {
+                porgates = &a->intc[idx].orgates[or_idx];
+                return qdev_get_gpio_in(DEVICE(porgates),
                                     ast2700_gic_intcmap[i].ptr[dev] + index);
+            } else {
+                idx -= ASPEED_INTC_NUM;
+                porgates = &a->intcioexp[idx].orgates[or_idx];
+                return qdev_get_gpio_in(DEVICE(porgates),
+                                    ast2700_gic_intcmap[i].ptr[dev] + index);
+            }
         }
     }
 
@@ -1025,6 +1048,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
 
     /* IO Expander */
     for (i = 0; i < sc->ioexp_num; i++) {
+        AspeedI2CClass *i2c_ctl;
+
         qdev_prop_set_uint8(DEVICE(&s->ioexp[i]), "board-idx", i);
         object_property_set_link(OBJECT(&s->ioexp[i]), "dram",
                                  OBJECT(s->dram_mr), &error_abort);
@@ -1057,6 +1082,26 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioexp[i].gpio), 0,
                            aspeed_soc_ast2700_get_irq(s, ASPEED_DEV_GPIO));
 
+        /* I2C */
+        i2c_ctl = ASPEED_I2C_GET_CLASS(&s->ioexp[i].i2c);
+        for (int j = 0; j < i2c_ctl->num_busses; j++) {
+            /*
+             * For I2C on AST1700:
+             * I2C bus interrupts are connected to the OR gate from bit 0 to bit
+             * 15, and the OR gate output pin is connected to the input pin of
+             * GICINT192 of IO expander Interrupt controller (INTC2/3). Then,
+             * the output pin is connected to the INTC (CPU Die) input pin, and
+             * its output pin is connected to the GIC.
+             *
+             * I2C bus 0 is connected to the OR gate at bit 0.
+             * I2C bus 15 is connected to the OR gate at bit 15.
+             */
+            irq = aspeed_soc_ast2700_get_irq_index(s,
+                                                   ASPEED_DEV_IOEXP0_I2C + i,
+                                                   j);
+            sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioexp[i].i2c.busses[j]),
+                               0, irq);
+        }
     }
 
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
