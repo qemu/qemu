@@ -9,15 +9,18 @@
 #include "qemu/osdep.h"
 #include "hw/core/boards.h"
 #include "qom/object.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/arm/aspeed_ast1700.h"
 
 #define AST2700_SOC_LTPI_SIZE        0x01000000
 
 enum {
+    ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
 };
 
 static const hwaddr aspeed_ast1700_io_memmap[] = {
+    [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
 };
 
@@ -31,6 +34,17 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                        AST2700_SOC_LTPI_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
 
+    /* UART */
+    qdev_prop_set_uint8(DEVICE(&s->uart), "regshift", 2);
+    qdev_prop_set_uint32(DEVICE(&s->uart), "baudbase", 38400);
+    qdev_prop_set_uint8(DEVICE(&s->uart), "endianness", DEVICE_LITTLE_ENDIAN);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_UART12],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart), 0));
+
     /* LTPI controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
         return;
@@ -43,6 +57,10 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
 static void aspeed_ast1700_instance_init(Object *obj)
 {
     AspeedAST1700SoCState *s = ASPEED_AST1700(obj);
+
+    /* UART */
+    object_initialize_child(obj, "uart", &s->uart,
+                            TYPE_SERIAL_MM);
 
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",
