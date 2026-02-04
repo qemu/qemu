@@ -15,6 +15,7 @@
 #include "hw/cxl/cxl.h"
 #include "hw/cxl/cxl_events.h"
 #include "hw/cxl/cxl_mailbox.h"
+#include "hw/cxl/cxl_port.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-bridge/cxl_upstream_port.h"
 #include "qemu/cutils.h"
@@ -565,16 +566,16 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
     } QEMU_PACKED *in;
 
     /*
-     * CXL r3.1 Table 7-19: Get Physical Port State Port Information Block
+     * CXL r3.2 Table 7-19: Get Physical Port State Port Information Block
      * Format
      */
     struct cxl_fmapi_port_state_info_block {
         uint8_t port_id;
         uint8_t config_state;
-        uint8_t connected_device_cxl_version;
+        uint8_t connected_device_mode;
         uint8_t rsv1;
         uint8_t connected_device_type;
-        uint8_t port_cxl_version_bitmask;
+        uint8_t supported_cxl_mode_bitmask;
         uint8_t max_link_width;
         uint8_t negotiated_link_width;
         uint8_t supported_link_speeds_vector;
@@ -623,21 +624,30 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
         if (port_dev) { /* DSP */
             PCIDevice *ds_dev = pci_bridge_get_sec_bus(PCI_BRIDGE(port_dev))
                 ->devices[0];
-            port->config_state = 3;
+            port->config_state = CXL_PORT_CONFIG_STATE_DSP;
             if (ds_dev) {
                 if (object_dynamic_cast(OBJECT(ds_dev), TYPE_CXL_TYPE3)) {
-                    port->connected_device_type = 5; /* Assume MLD for now */
+                    /* Assume MLD for now */
+                    port->connected_device_type =
+                        CXL_PORT_CONNECTED_DEV_TYPE_3_MLD;
                 } else {
-                    port->connected_device_type = 1;
+                    port->connected_device_type =
+                        CXL_PORT_CONNECTED_DEV_TYPE_PCIE;
+                    port->connected_device_mode =
+                        CXL_PORT_CONNECTED_DEV_MODE_NOT_CXL_OR_DISCONN;
+
                 }
             } else {
-                port->connected_device_type = 0;
+                port->connected_device_type = CXL_PORT_CONNECTED_DEV_TYPE_NONE;
+                port->connected_device_mode =
+                    CXL_PORT_CONNECTED_DEV_MODE_NOT_CXL_OR_DISCONN;
             }
             port->supported_ld_count = 3;
         } else if (usp->port == in->ports[i]) { /* USP */
             port_dev = PCI_DEVICE(usp);
-            port->config_state = 4;
-            port->connected_device_type = 0;
+            port->config_state = CXL_PORT_CONFIG_STATE_USP;
+            port->connected_device_type = 0; /* Reserved for USP */
+            port->connected_device_mode = 0; /* Reserved for USP */
         } else {
             return CXL_MBOX_INVALID_INPUT;
         }
@@ -667,8 +677,7 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
         port->ltssm_state = 0x7;
         port->first_lane_num = 0;
         port->link_state = 0;
-        port->port_cxl_version_bitmask = 0x2;
-        port->connected_device_cxl_version = 0x2;
+        port->supported_cxl_mode_bitmask = CXL_PORT_SUPPORTS_68B_VH;
     }
 
     pl_size = sizeof(*out) + sizeof(*out->ports) * in->num_ports;
