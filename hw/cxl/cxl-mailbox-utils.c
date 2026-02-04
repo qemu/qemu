@@ -627,9 +627,26 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
             port->config_state = CXL_PORT_CONFIG_STATE_DSP;
             if (ds_dev) {
                 if (object_dynamic_cast(OBJECT(ds_dev), TYPE_CXL_TYPE3)) {
+                    uint16_t lnksta2;
+
+                    if (!port_dev->exp.exp_cap) {
+                        return CXL_MBOX_INTERNAL_ERROR;
+                    }
+
+                    lnksta2 = port_dev->config_read(port_dev,
+                                  port_dev->exp.exp_cap + PCI_EXP_LNKSTA2,
+                                  sizeof(lnksta2));
+
                     /* Assume MLD for now */
                     port->connected_device_type =
                         CXL_PORT_CONNECTED_DEV_TYPE_3_MLD;
+                    if (lnksta2 & PCI_EXP_LNKSTA2_FLIT) {
+                        port->connected_device_mode =
+                            CXL_PORT_CONNECTED_DEV_MODE_256B;
+                    } else {
+                        port->connected_device_mode =
+                            CXL_PORT_CONNECTED_DEV_MODE_68B_VH;
+                    }
                 } else {
                     port->connected_device_type =
                         CXL_PORT_CONNECTED_DEV_TYPE_PCIE;
@@ -642,12 +659,17 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
                 port->connected_device_mode =
                     CXL_PORT_CONNECTED_DEV_MODE_NOT_CXL_OR_DISCONN;
             }
+            /* DSP currently always support modes implemented in QEMU */
+            port->supported_cxl_mode_bitmask = CXL_PORT_SUPPORTS_68B_VH |
+                CXL_PORT_SUPPORTS_256B;
             port->supported_ld_count = 3;
         } else if (usp->port == in->ports[i]) { /* USP */
             port_dev = PCI_DEVICE(usp);
             port->config_state = CXL_PORT_CONFIG_STATE_USP;
             port->connected_device_type = 0; /* Reserved for USP */
             port->connected_device_mode = 0; /* Reserved for USP */
+            port->supported_cxl_mode_bitmask = CXL_PORT_SUPPORTS_68B_VH |
+                (CXL_USP(usp)->flitmode ? CXL_PORT_SUPPORTS_256B : 0);
         } else {
             return CXL_MBOX_INVALID_INPUT;
         }
@@ -676,8 +698,6 @@ static CXLRetCode cmd_get_physical_port_state(const struct cxl_cmd *cmd,
         /* TODO: Track down if we can get the rest of the info */
         port->ltssm_state = 0x7;
         port->first_lane_num = 0;
-        port->link_state = 0;
-        port->supported_cxl_mode_bitmask = CXL_PORT_SUPPORTS_68B_VH;
     }
 
     pl_size = sizeof(*out) + sizeof(*out->ports) * in->num_ports;
