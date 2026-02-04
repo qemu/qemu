@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/boards.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/aspeed_ast1700.h"
 
@@ -16,15 +17,19 @@
 #define AST1700_SOC_SRAM_SIZE        0x00040000
 
 enum {
+    ASPEED_AST1700_DEV_SPI0,
     ASPEED_AST1700_DEV_SRAM,
     ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
+    ASPEED_AST1700_DEV_SPI0_MEM,
 };
 
 static const hwaddr aspeed_ast1700_io_memmap[] = {
+    [ASPEED_AST1700_DEV_SPI0]      =  0x00030000,
     [ASPEED_AST1700_DEV_SRAM]      =  0x00BC0000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
+    [ASPEED_AST1700_DEV_SPI0_MEM]  =  0x04000000,
 };
 
 static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
@@ -32,6 +37,11 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
     AspeedAST1700SoCState *s = ASPEED_AST1700(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     char dev_name[32];
+
+    if (!s->dram_mr) {
+        error_setg(errp, TYPE_ASPEED_AST1700 ": 'dram' link not set");
+        return;
+    }
 
     /* Occupy memory space for all controllers in AST1700 */
     memory_region_init(&s->iomem, OBJECT(s), TYPE_ASPEED_AST1700,
@@ -57,6 +67,20 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_UART12],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart), 0));
 
+    /* SPI */
+    object_property_set_link(OBJECT(&s->spi), "dram",
+                             OBJECT(s->dram_mr), errp);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_SPI0],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->spi), 0));
+
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_SPI0_MEM],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->spi), 1));
+
     /* LTPI controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
         return;
@@ -74,6 +98,10 @@ static void aspeed_ast1700_instance_init(Object *obj)
     object_initialize_child(obj, "uart", &s->uart,
                             TYPE_SERIAL_MM);
 
+    /* SPI */
+    object_initialize_child(obj, "ioexp-spi", &s->spi,
+                            "aspeed.spi0-ast2700");
+
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",
                             &s->ltpi, TYPE_ASPEED_LTPI);
@@ -83,6 +111,8 @@ static void aspeed_ast1700_instance_init(Object *obj)
 
 static const Property aspeed_ast1700_props[] = {
     DEFINE_PROP_UINT8("board-idx", AspeedAST1700SoCState, board_idx, 0),
+    DEFINE_PROP_LINK("dram", AspeedAST1700SoCState, dram_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
 static void aspeed_ast1700_class_init(ObjectClass *klass, const void *data)

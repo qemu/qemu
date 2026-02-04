@@ -1024,6 +1024,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
     /* IO Expander */
     for (i = 0; i < sc->ioexp_num; i++) {
         qdev_prop_set_uint8(DEVICE(&s->ioexp[i]), "board-idx", i);
+        object_property_set_link(OBJECT(&s->ioexp[i]), "dram",
+                                 OBJECT(s->dram_mr), &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ioexp[i]), errp)) {
             return;
         }
