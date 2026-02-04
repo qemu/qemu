@@ -21,6 +21,7 @@ enum {
     ASPEED_AST1700_DEV_SRAM,
     ASPEED_AST1700_DEV_ADC,
     ASPEED_AST1700_DEV_SCU,
+    ASPEED_AST1700_DEV_GPIO,
     ASPEED_AST1700_DEV_UART12,
     ASPEED_AST1700_DEV_LTPI_CTRL,
     ASPEED_AST1700_DEV_SPI0_MEM,
@@ -31,6 +32,7 @@ static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_SRAM]      =  0x00BC0000,
     [ASPEED_AST1700_DEV_ADC]       =  0x00C00000,
     [ASPEED_AST1700_DEV_SCU]       =  0x00C02000,
+    [ASPEED_AST1700_DEV_GPIO]      =  0x00C0B000,
     [ASPEED_AST1700_DEV_UART12]    =  0x00C33B00,
     [ASPEED_AST1700_DEV_LTPI_CTRL] =  0x00C34000,
     [ASPEED_AST1700_DEV_SPI0_MEM]  =  0x04000000,
@@ -103,6 +105,14 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_SCU],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->scu), 0));
 
+    /* GPIO */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_GPIO],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gpio), 0));
+
     /* LTPI controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
         return;
@@ -131,6 +141,10 @@ static void aspeed_ast1700_instance_init(Object *obj)
     /* SCU */
     object_initialize_child(obj, "ioexp-scu", &s->scu,
                             TYPE_ASPEED_2700_SCU);
+
+    /* GPIO */
+    object_initialize_child(obj, "ioexp-gpio", &s->gpio,
+                            "aspeed.gpio-ast2700");
 
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",

@@ -11,6 +11,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/misc/aspeed_scu.h"
 #include "hw/adc/aspeed_adc.h"
+#include "hw/gpio/aspeed_gpio.h"
 #include "hw/misc/aspeed_ltpi.h"
 #include "hw/ssi/aspeed_smc.h"
 #include "hw/char/serial-mm.h"
@@ -33,6 +34,7 @@ struct AspeedAST1700SoCState {
     AspeedSMCState spi;
     AspeedADCState adc;
     AspeedSCUState scu;
+    AspeedGPIOState gpio;
 };
 
 #endif /* ASPEED_AST1700_H */
