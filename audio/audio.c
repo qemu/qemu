@@ -2366,30 +2366,25 @@ AudiodevList *qmp_query_audiodevs(Error **errp)
     return ret;
 }
 
-static const TypeInfo audio_be_info = {
-    .name = TYPE_AUDIO_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(AudioBackend),
-    .instance_init = audio_be_init,
-    .instance_finalize = audio_be_finalize,
-    .abstract = true,
-    .class_size = sizeof(AudioBackendClass),
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_BACKEND,
+        .parent = TYPE_OBJECT,
+        .instance_size = sizeof(AudioBackend),
+        .instance_init = audio_be_init,
+        .instance_finalize = audio_be_finalize,
+        .abstract = true,
+        .class_size = sizeof(AudioBackendClass),
+    },
+    {
+        .name = TYPE_AUDIO_MIXENG_BACKEND,
+        .parent = TYPE_AUDIO_BACKEND,
+        .instance_size = sizeof(AudioMixengBackend),
+        .instance_init = audio_mixeng_backend_init,
+        .instance_finalize = audio_mixeng_backend_finalize,
+        .class_size = sizeof(AudioMixengBackendClass),
+        .class_init = audio_mixeng_backend_class_init,
+    }
 };
 
-static const TypeInfo audio_mixeng_backend_info = {
-    .name = TYPE_AUDIO_MIXENG_BACKEND,
-    .parent = TYPE_AUDIO_BACKEND,
-    .instance_size = sizeof(AudioMixengBackend),
-    .instance_init = audio_mixeng_backend_init,
-    .instance_finalize = audio_mixeng_backend_finalize,
-    .class_size = sizeof(AudioMixengBackendClass),
-    .class_init = audio_mixeng_backend_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&audio_be_info);
-    type_register_static(&audio_mixeng_backend_info);
-}
-
-type_init(register_types);
+DEFINE_TYPES(audio_types)
