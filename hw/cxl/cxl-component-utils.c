@@ -68,11 +68,7 @@ static uint64_t cxl_cache_mem_read_reg(void *opaque, hwaddr offset,
     ComponentRegisters *cregs = &cxl_cstate->crb;
 
     switch (size) {
-    case 4:
-        if (cregs->special_ops && cregs->special_ops->read) {
-            return cregs->special_ops->read(cxl_cstate, offset, 4);
-        }
-
+    case 4: {
         QEMU_BUILD_BUG_ON(sizeof(*cregs->cache_mem_registers) != 4);
 
         if (offset == A_CXL_BI_RT_STATUS ||
@@ -105,6 +101,7 @@ static uint64_t cxl_cache_mem_read_reg(void *opaque, hwaddr offset,
         }
 
         return cregs->cache_mem_registers[offset / 4];
+    }
     case 8:
         qemu_log_mask(LOG_UNIMP,
                       "CXL 8 byte cache mem registers not implemented\n");
