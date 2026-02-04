@@ -190,7 +190,9 @@ static int get_physical_address(CPUSPARCState *env, CPUTLBEntryFull *full,
         if (is_dirty) {
             pde |= PG_MODIFIED_MASK;
         }
-        stl_be_phys(cs->as, pde_ptr, pde);
+        address_space_stl_be(cs->as, pde_ptr, pde,
+                             MEMTXATTRS_UNSPECIFIED, &result);
+        assert(result == MEMTX_OK);
     }
 
     /* the page can be put in the TLB */
