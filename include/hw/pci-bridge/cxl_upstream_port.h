@@ -4,6 +4,7 @@
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_port.h"
 
 typedef struct CXLUpstreamPort {
     /*< private >*/
@@ -12,6 +13,7 @@ typedef struct CXLUpstreamPort {
     /*< public >*/
     CXLComponentState cxl_cstate;
     CXLCCI swcci;
+    CXLPhyPortPerst perst;
 
     PCIExpLinkSpeed speed;
     PCIExpLinkWidth width;

@@ -13,9 +13,11 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/pci-bridge/cxl_downstream_port.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_port.h"
 #include "qapi/error.h"
 
 typedef struct CXLDownstreamPort {
@@ -24,6 +26,7 @@ typedef struct CXLDownstreamPort {
 
     /*< public >*/
     CXLComponentState cxl_cstate;
+    CXLPhyPortPerst perst;
 } CXLDownstreamPort;
 
 #define CXL_DOWNSTREAM_PORT_MSI_OFFSET 0x70
@@ -81,6 +84,11 @@ static void cxl_dsp_config_write(PCIDevice *d, uint32_t address,
     cxl_dsp_dvsec_write_config(d, address, val, len);
 }
 
+CXLPhyPortPerst *cxl_dsp_get_perst(CXLDownstreamPort *dsp)
+{
+    return &dsp->perst;
+}
+
 static void cxl_dsp_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
@@ -92,6 +100,7 @@ static void cxl_dsp_reset(DeviceState *qdev)
     pci_bridge_reset(qdev);
 
     latch_registers(dsp);
+    cxl_init_physical_port_control(&dsp->perst);
 }
 
 static void build_dvsecs(PCIDevice *d, CXLComponentState *cxl)

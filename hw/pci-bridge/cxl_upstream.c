@@ -103,6 +103,7 @@ static void cxl_usp_reset(DeviceState *qdev)
     pcie_cap_deverr_reset(d);
     pcie_cap_fill_link_ep_usp(d, usp->width, usp->speed, usp->flitmode);
     latch_registers(usp);
+    cxl_init_physical_port_control(&usp->perst);
 }
 
 static void build_dvsecs(CXLUpstreamPort *usp)

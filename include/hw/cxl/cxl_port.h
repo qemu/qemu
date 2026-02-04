@@ -3,6 +3,8 @@
 #ifndef CXL_PORT_H
 #define CXL_PORT_H
 
+#include "qemu/thread.h"
+
 /* CXL r3.2 Table 7-19: Get Physical Port State Port Information Block Format */
 #define CXL_PORT_CONFIG_STATE_DISABLED           0x0
 #define CXL_PORT_CONFIG_STATE_BIND_IN_PROGRESS   0x1
@@ -49,5 +51,23 @@
 #define CXL_PORT_LINK_STATE_FLAG_PERST_ASSERTED   BIT(1)
 #define CXL_PORT_LINK_STATE_FLAG_PRSNT            BIT(2)
 #define CXL_PORT_LINK_STATE_FLAG_POWER_OFF        BIT(3)
+
+#define CXL_MAX_PHY_PORTS 256
+#define ASSERT_WAIT_TIME_MS 100 /* Assert - Deassert PERST */
+
+/* Assert - Deassert PERST */
+typedef struct CXLPhyPortPerst {
+    bool issued_assert_perst;
+    QemuMutex lock; /* protecting assert-deassert reset request */
+    uint64_t asrt_time;
+    QemuThread asrt_thread; /* thread for 100ms delay */
+} CXLPhyPortPerst;
+
+void cxl_init_physical_port_control(CXLPhyPortPerst *perst);
+
+static inline bool cxl_perst_asserted(CXLPhyPortPerst *perst)
+{
+    return perst->issued_assert_perst || perst->asrt_time < ASSERT_WAIT_TIME_MS;
+}
 
 #endif /* CXL_PORT_H */
