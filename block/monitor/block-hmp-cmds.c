@@ -422,7 +422,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     /* Then try adding all block devices.  If one fails, close all and
      * exit.
      */
-    block_list = qmp_query_block(NULL);
+    block_list = qmp_query_block(false, false, NULL);
 
     for (info = block_list; info; info = info->next) {
         if (!info->value->inserted) {
@@ -741,7 +741,7 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
 
     /* Print BlockBackend information */
     if (!nodes) {
-        block_list = qmp_query_block(NULL);
+        block_list = qmp_query_block(false, false, NULL);
     } else {
         block_list = NULL;
     }
