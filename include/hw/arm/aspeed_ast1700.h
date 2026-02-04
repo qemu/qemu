@@ -9,6 +9,7 @@
 #define ASPEED_AST1700_H
 
 #include "hw/core/sysbus.h"
+#include "hw/misc/aspeed_scu.h"
 #include "hw/adc/aspeed_adc.h"
 #include "hw/misc/aspeed_ltpi.h"
 #include "hw/ssi/aspeed_smc.h"
@@ -24,12 +25,14 @@ struct AspeedAST1700SoCState {
     MemoryRegion iomem;
     MemoryRegion *dram_mr;
     uint8_t board_idx;
+    uint32_t silicon_rev;
 
     AspeedLTPIState ltpi;
     SerialMM uart;
     MemoryRegion sram;
     AspeedSMCState spi;
     AspeedADCState adc;
+    AspeedSCUState scu;
 };
 
 #endif /* ASPEED_AST1700_H */

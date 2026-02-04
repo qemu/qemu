@@ -508,6 +508,8 @@ static void aspeed_soc_ast2700_init(Object *obj)
         /* AST1700 IOEXP */
         object_initialize_child(obj, "ioexp[*]", &s->ioexp[i],
                                 TYPE_ASPEED_AST1700);
+        qdev_prop_set_uint32(DEVICE(&s->ioexp[i]), "silicon-rev",
+                             sc->silicon_rev);
     }
 
     object_initialize_child(obj, "dpmcu", &s->dpmcu,
