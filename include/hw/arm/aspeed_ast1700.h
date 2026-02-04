@@ -14,6 +14,7 @@
 #include "hw/gpio/aspeed_gpio.h"
 #include "hw/i2c/aspeed_i2c.h"
 #include "hw/misc/aspeed_ltpi.h"
+#include "hw/misc/aspeed_pwm.h"
 #include "hw/ssi/aspeed_smc.h"
 #include "hw/watchdog/wdt_aspeed.h"
 #include "hw/char/serial-mm.h"
@@ -40,6 +41,7 @@ struct AspeedAST1700SoCState {
     AspeedSCUState scu;
     AspeedGPIOState gpio;
     AspeedI2CState i2c;
+    AspeedPWMState pwm;
     AspeedWDTState wdt[AST1700_WDT_NUM];
 };
 

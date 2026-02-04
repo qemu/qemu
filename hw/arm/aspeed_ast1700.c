@@ -18,6 +18,7 @@
 
 enum {
     ASPEED_AST1700_DEV_SPI0,
+    ASPEED_AST1700_DEV_PWM,
     ASPEED_AST1700_DEV_SRAM,
     ASPEED_AST1700_DEV_ADC,
     ASPEED_AST1700_DEV_SCU,
@@ -31,6 +32,7 @@ enum {
 
 static const hwaddr aspeed_ast1700_io_memmap[] = {
     [ASPEED_AST1700_DEV_SPI0]      =  0x00030000,
+    [ASPEED_AST1700_DEV_PWM]       =  0x000C0000,
     [ASPEED_AST1700_DEV_SRAM]      =  0x00BC0000,
     [ASPEED_AST1700_DEV_ADC]       =  0x00C00000,
     [ASPEED_AST1700_DEV_SCU]       =  0x00C02000,
@@ -130,6 +132,14 @@ static void aspeed_ast1700_realize(DeviceState *dev, Error **errp)
                         aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_I2C],
                         sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->i2c), 0));
 
+    /* PWM */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->pwm), errp)) {
+        return;
+    }
+    memory_region_add_subregion(&s->iomem,
+                        aspeed_ast1700_io_memmap[ASPEED_AST1700_DEV_PWM],
+                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->pwm), 0));
+
     /* LTPI controller */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->ltpi), errp)) {
         return;
@@ -182,6 +192,9 @@ static void aspeed_ast1700_instance_init(Object *obj)
     /* I2C */
     object_initialize_child(obj, "ioexp-i2c", &s->i2c,
                             "aspeed.i2c-ast2700");
+
+    /* PWM */
+    object_initialize_child(obj, "pwm", &s->pwm, TYPE_ASPEED_PWM);
 
     /* LTPI controller */
     object_initialize_child(obj, "ltpi-ctrl",
