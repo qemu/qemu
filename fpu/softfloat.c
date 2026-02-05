@@ -522,7 +522,16 @@ typedef struct {
 #define DECOMPOSED_BINARY_POINT    63
 #define DECOMPOSED_IMPLICIT_BIT    (1ull << DECOMPOSED_BINARY_POINT)
 
-/* Structure holding all of the relevant parameters for a format.
+/* Format-specific handling of exp == exp_max */
+typedef enum __attribute__((__packed__)) {
+    /* exp==max, frac==0 ? infinity : nan; this is ieee standard. */
+    float_expmax_ieee,
+    /* exp==max is a normal number; no infinity or nan representation. */
+    float_expmax_normal,
+} FloatFmtExpMaxKind;
+
+/*
+ * Structure holding all of the relevant parameters for a format.
  *   exp_size: the size of the exponent field
  *   exp_bias: the offset applied to the exponent field
  *   exp_max: the maximum normalised exponent
@@ -531,7 +540,7 @@ typedef struct {
  * The following are computed based the size of fraction
  *   round_mask: bits below lsb which must be rounded
  * The following optional modifiers are available:
- *   arm_althp: handle ARM Alternative Half Precision
+ *   exp_max_kind: affects how exp == exp_max is interpreted
  *   has_explicit_bit: has an explicit integer bit; this affects whether
  *   the float_status floatx80_behaviour handling applies
  */
@@ -542,7 +551,7 @@ typedef struct {
     int exp_max;
     int frac_size;
     int frac_shift;
-    bool arm_althp;
+    FloatFmtExpMaxKind exp_max_kind;
     bool has_explicit_bit;
     uint64_t round_mask;
 } FloatFmt;
@@ -566,7 +575,7 @@ static const FloatFmt float16_params = {
 
 static const FloatFmt float16_params_ahp = {
     FLOAT_PARAMS(5, 10),
-    .arm_althp = true
+    .exp_max_kind = float_expmax_normal,
 };
 
 static const FloatFmt bfloat16_params = {
