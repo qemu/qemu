@@ -1495,7 +1495,7 @@ M: Jia Liu <proljc@gmail.com>
 S: Maintained
 F: docs/system/or1k/or1k-sim.rst
 F: hw/intc/ompic.c
-F: hw/or1k/openrisc_sim.c
+F: hw/or1k/or1k-sim.c
 F: tests/functional/or1k/test_sim.py
 
 PowerPC Machines
