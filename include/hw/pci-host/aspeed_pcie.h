@@ -50,13 +50,6 @@ typedef struct AspeedPCIERootPortState {
     PCIESlot parent_obj;
 } AspeedPCIERootPortState;
 
-#define TYPE_ASPEED_PCIE_ROOT_DEVICE "aspeed.pcie-root-device"
-OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERootDeviceState, ASPEED_PCIE_ROOT_DEVICE);
-
-struct AspeedPCIERootDeviceState {
-    PCIBridge parent_obj;
-};
-
 #define TYPE_ASPEED_PCIE_RC "aspeed.pcie-rc"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedPCIERcState, ASPEED_PCIE_RC);
 
@@ -76,12 +69,9 @@ struct AspeedPCIERcState {
     uint64_t dram_base;
     uint32_t msi_addr;
     uint32_t rp_addr;
-    uint32_t bus_nr;
     char name[16];
-    bool has_rd;
     qemu_irq irq;
 
-    AspeedPCIERootDeviceState root_device;
     AspeedPCIERootPortState root_port;
 };
 
@@ -111,7 +101,6 @@ struct AspeedPCIECfgClass {
 
     uint32_t rc_msi_addr;
     uint32_t rc_rp_addr;
-    uint64_t rc_bus_nr;
     uint64_t nr_regs;
     bool rc_has_rd;
 };

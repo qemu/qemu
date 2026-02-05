@@ -27,44 +27,6 @@
 #include "trace.h"
 
 /*
- * PCIe Root Device
- * This device exists only on AST2600.
- */
-
-static void aspeed_pcie_root_device_class_init(ObjectClass *klass,
-                                               const void *data)
-{
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->desc = "ASPEED PCIe Root Device";
-    k->vendor_id = PCI_VENDOR_ID_ASPEED;
-    k->device_id = 0x2600;
-    k->class_id = PCI_CLASS_BRIDGE_HOST;
-    k->subsystem_vendor_id = k->vendor_id;
-    k->subsystem_id = k->device_id;
-    k->revision = 0;
-
-    /*
-     * PCI-facing part of the host bridge,
-     * not usable without the host-facing part
-     */
-    dc->user_creatable = false;
-}
-
-static const TypeInfo aspeed_pcie_root_device_info = {
-    .name = TYPE_ASPEED_PCIE_ROOT_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(AspeedPCIERootDeviceState),
-    .class_init = aspeed_pcie_root_device_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
-/*
  * PCIe Root Port
  */
 
@@ -291,18 +253,6 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
                                 &rc->dram_alias);
     pci_setup_iommu(pci->bus, &aspeed_pcie_rc_iommu_ops, rc);
 
-    /* setup root device */
-    if (rc->has_rd) {
-        object_initialize_child(OBJECT(rc), "root_device", &rc->root_device,
-                                TYPE_ASPEED_PCIE_ROOT_DEVICE);
-        qdev_prop_set_int32(DEVICE(&rc->root_device), "addr",
-                            PCI_DEVFN(0, 0));
-        qdev_prop_set_bit(DEVICE(&rc->root_device), "multifunction", false);
-        if (!qdev_realize(DEVICE(&rc->root_device), BUS(pci->bus), errp)) {
-            return;
-        }
-    }
-
     /* setup root port */
     qdev_prop_set_int32(DEVICE(&rc->root_port), "addr", rc->rp_addr);
     qdev_prop_set_uint16(DEVICE(&rc->root_port), "chassis", cfg->id);
@@ -318,7 +268,7 @@ static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
     AspeedPCIECfgState *cfg =
            container_of(rc, AspeedPCIECfgState, rc);
 
-    snprintf(rc->name, sizeof(rc->name), "%04x:%02x", cfg->id, rc->bus_nr);
+    snprintf(rc->name, sizeof(rc->name), "%04x:00", cfg->id);
 
     return rc->name;
 }
@@ -333,8 +283,6 @@ static void aspeed_pcie_rc_instance_init(Object *obj)
 }
 
 static const Property aspeed_pcie_rc_props[] = {
-    DEFINE_PROP_UINT32("bus-nr", AspeedPCIERcState, bus_nr, 0),
-    DEFINE_PROP_BOOL("has-rd", AspeedPCIERcState, has_rd, 0),
     DEFINE_PROP_UINT32("rp-addr", AspeedPCIERcState, rp_addr, 0),
     DEFINE_PROP_UINT32("msi-addr", AspeedPCIERcState, msi_addr, 0),
     DEFINE_PROP_UINT64("dram-base", AspeedPCIERcState, dram_base, 0),
@@ -541,17 +489,6 @@ static void aspeed_pcie_cfg_readwrite(AspeedPCIECfgState *s,
     offset = cfg_addr & 0xffc;
 
     pci = PCI_HOST_BRIDGE(rc);
-
-    /*
-     * On the AST2600, the RC_H bus number range from 0x80 to 0xFF, with the
-     * root device and root port assigned to bus 0x80 instead of the standard
-     * 0x00. To allow the PCI subsystem to correctly discover devices on the
-     * root bus, bus 0x80 is remapped to 0x00.
-     */
-    if (bus == rc->bus_nr) {
-        bus = 0;
-    }
-
     pdev = pci_find_device(pci->bus, bus, devfn);
     if (!pdev) {
         s->regs[desc->rdata_reg] = ~0;
@@ -701,12 +638,6 @@ static void aspeed_pcie_cfg_realize(DeviceState *dev, Error **errp)
                           apc->nr_regs << 2);
     sysbus_init_mmio(sbd, &s->mmio);
 
-    object_property_set_int(OBJECT(&s->rc), "bus-nr",
-                            apc->rc_bus_nr,
-                            &error_abort);
-    object_property_set_bool(OBJECT(&s->rc), "has-rd",
-                            apc->rc_has_rd,
-                            &error_abort);
     object_property_set_int(OBJECT(&s->rc), "rp-addr",
                             apc->rc_rp_addr,
                             &error_abort);
@@ -745,8 +676,6 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
     apc->reg_map = &aspeed_regmap;
     apc->nr_regs = 0x100 >> 2;
     apc->rc_msi_addr = 0x1e77005C;
-    apc->rc_bus_nr = 0x80;
-    apc->rc_has_rd = true;
     apc->rc_rp_addr = PCI_DEVFN(8, 0);
 }
 
@@ -866,8 +795,6 @@ static void aspeed_2700_pcie_cfg_class_init(ObjectClass *klass,
     apc->reg_map = &aspeed_2700_regmap;
     apc->nr_regs = 0x100 >> 2;
     apc->rc_msi_addr = 0x000000F0;
-    apc->rc_bus_nr = 0;
-    apc->rc_has_rd = false;
     apc->rc_rp_addr = PCI_DEVFN(0, 0);
 }
 
@@ -1041,7 +968,6 @@ static const TypeInfo aspeed_2700_pcie_phy_info = {
 static void aspeed_pcie_register_types(void)
 {
     type_register_static(&aspeed_pcie_rc_info);
-    type_register_static(&aspeed_pcie_root_device_info);
     type_register_static(&aspeed_pcie_root_port_info);
     type_register_static(&aspeed_pcie_cfg_info);
     type_register_static(&aspeed_2700_pcie_cfg_info);

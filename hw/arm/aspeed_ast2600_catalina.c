@@ -480,7 +480,7 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
     /* i2c0mux1ch1 */
     /* io_expander7 - pca9535@20 */
     i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 1),
-                            TYPE_PCA9552, 0x20);
+                            TYPE_PCA9535, 0x20);
     /* eeprom@50 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 1), 0x50, 8 * KiB,
                           gb200io_eeprom, gb200io_eeprom_len);
@@ -497,7 +497,7 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
     /* i2c0mux4ch1 */
     /* io_expander8 - pca9535@21 */
     i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 1),
-                            TYPE_PCA9552, 0x21);
+                            TYPE_PCA9535, 0x21);
     /* eeprom@50 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 1), 0x50, 8 * KiB,
                           gb200io_eeprom, gb200io_eeprom_len);

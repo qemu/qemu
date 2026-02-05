@@ -26,7 +26,6 @@
 #define AST2700_SOC_IO_SIZE          0x00FE0000
 #define AST2700_SOC_IOMEM_SIZE       0x01000000
 #define AST2700_SOC_DPMCU_SIZE       0x00040000
-#define AST2700_SOC_LTPI_SIZE        0x01000000
 
 static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_VBOOTROM]  =  0x00000000,
@@ -88,8 +87,13 @@ static const hwaddr aspeed_soc_ast2700_memmap[] = {
     [ASPEED_DEV_UART10]    =  0x14C33900,
     [ASPEED_DEV_UART11]    =  0x14C33A00,
     [ASPEED_DEV_UART12]    =  0x14C33B00,
+    [ASPEED_DEV_LTPI_CTRL1] =  0x14C34000,
+    [ASPEED_DEV_LTPI_CTRL2] =  0x14C35000,
     [ASPEED_DEV_WDT]       =  0x14C37000,
-    [ASPEED_DEV_LTPI]      =  0x30000000,
+    [ASPEED_DEV_LTPI_IO0]  =  0x30000000,
+    [ASPEED_DEV_IOEXP0_INTCIO] = 0x30C18000,
+    [ASPEED_DEV_LTPI_IO1]  =  0x50000000,
+    [ASPEED_DEV_IOEXP1_INTCIO] = 0x50C18000,
     [ASPEED_DEV_PCIE_MMIO0] = 0x60000000,
     [ASPEED_DEV_PCIE_MMIO1] = 0x80000000,
     [ASPEED_DEV_PCIE_MMIO2] = 0xA0000000,
@@ -149,8 +153,14 @@ static const int aspeed_soc_ast2700a1_irqmap[] = {
     [ASPEED_DEV_ETH1]      = 196,
     [ASPEED_DEV_ETH2]      = 196,
     [ASPEED_DEV_ETH3]      = 196,
+    [ASPEED_DEV_EHCI3]     = 196,
+    [ASPEED_DEV_EHCI4]     = 196,
     [ASPEED_DEV_PECI]      = 197,
     [ASPEED_DEV_SDHCI]     = 197,
+    [ASPEED_DEV_IOEXP0_I2C] = 198,
+    [ASPEED_DEV_IOEXP0_I3C] = 199,
+    [ASPEED_DEV_IOEXP1_I2C] = 200,
+    [ASPEED_DEV_IOEXP1_I3C] = 201,
 };
 
 /* GICINT 192 */
@@ -207,6 +217,30 @@ static const int ast2700_gic197_intcmap[] = {
     [ASPEED_DEV_PECI]      = 4,
 };
 
+/* Primary AST1700 Interrupts */
+/* A1: GICINT 198 */
+static const int ast2700_gic198_intcmap[] = {
+    [ASPEED_DEV_IOEXP0_I2C]       = 0, /* 0 - 15 */
+};
+
+/* Primary AST1700 Interrupts */
+/* A1: GINTC 199 */
+static const int ast2700_gic199_intcmap[] = {
+    [ASPEED_DEV_IOEXP0_I3C]       = 0, /* 0 - 15 */
+};
+
+/* Secondary AST1700 Interrupts */
+/* A1: GINTC 200 */
+static const int ast2700_gic200_intcmap[] = {
+    [ASPEED_DEV_IOEXP1_I2C]       = 0, /* 0 - 15 */
+};
+
+/* Secondary AST1700 Interrupts */
+/* A1: GINTC 201 */
+static const int ast2700_gic201_intcmap[] = {
+    [ASPEED_DEV_IOEXP1_I3C]       = 0, /* 0 - 15 */
+};
+
 /* GICINT 192 ~ 201 */
 struct gic_intc_irq_info {
     int irq;
@@ -222,10 +256,10 @@ static const struct gic_intc_irq_info ast2700_gic_intcmap[] = {
     {195, 1, 3, ast2700_gic195_intcmap},
     {196, 1, 4, ast2700_gic196_intcmap},
     {197, 1, 5, ast2700_gic197_intcmap},
-    {198, 1, 6, NULL},
-    {199, 1, 7, NULL},
-    {200, 1, 8, NULL},
-    {201, 1, 9, NULL},
+    {198, 2, 0, ast2700_gic198_intcmap},
+    {199, 2, 1, ast2700_gic199_intcmap},
+    {200, 3, 0, ast2700_gic200_intcmap},
+    {201, 3, 1, ast2700_gic201_intcmap},
 };
 
 static qemu_irq aspeed_soc_ast2700_get_irq(AspeedSoCState *s, int dev)
@@ -257,14 +291,23 @@ static qemu_irq aspeed_soc_ast2700_get_irq_index(AspeedSoCState *s, int dev,
     int or_idx;
     int idx;
     int i;
+    OrIRQState *porgates;
 
     for (i = 0; i < ARRAY_SIZE(ast2700_gic_intcmap); i++) {
         if (sc->irqmap[dev] == ast2700_gic_intcmap[i].irq) {
             assert(ast2700_gic_intcmap[i].ptr);
             or_idx = ast2700_gic_intcmap[i].orgate_idx;
             idx = ast2700_gic_intcmap[i].intc_idx;
-            return qdev_get_gpio_in(DEVICE(&a->intc[idx].orgates[or_idx]),
+            if (idx < ASPEED_INTC_NUM) {
+                porgates = &a->intc[idx].orgates[or_idx];
+                return qdev_get_gpio_in(DEVICE(porgates),
                                     ast2700_gic_intcmap[i].ptr[dev] + index);
+            } else {
+                idx -= ASPEED_INTC_NUM;
+                porgates = &a->intcioexp[idx].orgates[or_idx];
+                return qdev_get_gpio_in(DEVICE(porgates),
+                                    ast2700_gic_intcmap[i].ptr[dev] + index);
+            }
         }
     }
 
@@ -442,6 +485,10 @@ static void aspeed_soc_ast2700_init(Object *obj)
     object_initialize_child(obj, "intc", &a->intc[0], TYPE_ASPEED_2700_INTC);
     object_initialize_child(obj, "intcio", &a->intc[1],
                             TYPE_ASPEED_2700_INTCIO);
+    object_initialize_child(obj, "intc-ioexp0", &a->intcioexp[0],
+                            TYPE_ASPEED_2700_INTCIOEXP1);
+    object_initialize_child(obj, "intc-ioexp1", &a->intcioexp[1],
+                            TYPE_ASPEED_2700_INTCIOEXP2);
 
     snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
     object_initialize_child(obj, "adc", &s->adc, typename);
@@ -489,9 +536,20 @@ static void aspeed_soc_ast2700_init(Object *obj)
         object_property_set_int(OBJECT(&s->pcie[i]), "id", i, &error_abort);
     }
 
+    for (i = 0; i < ASPEED_IOEXP_NUM; i++) {
+        object_initialize_child(obj, "ltpi-ctrl[*]",
+                                &s->ltpi_ctrl[i], TYPE_ASPEED_LTPI);
+    }
+
+    for (i = 0; i < sc->ioexp_num; i++) {
+        /* AST1700 IOEXP */
+        object_initialize_child(obj, "ioexp[*]", &s->ioexp[i],
+                                TYPE_ASPEED_AST1700);
+        qdev_prop_set_uint32(DEVICE(&s->ioexp[i]), "silicon-rev",
+                             sc->silicon_rev);
+    }
+
     object_initialize_child(obj, "dpmcu", &s->dpmcu,
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "ltpi", &s->ltpi,
                             TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "iomem", &s->iomem,
                             TYPE_UNIMPLEMENTED_DEVICE);
@@ -676,6 +734,22 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
 
     aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->intc[1]), 0,
                     sc->memmap[ASPEED_DEV_INTCIO]);
+
+    /* INTCIOEXP0 */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->intcioexp[0]), errp)) {
+        return;
+    }
+
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->intcioexp[0]), 0,
+                    sc->memmap[ASPEED_DEV_IOEXP0_INTCIO]);
+
+    /* INTCIOEXP1 */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->intcioexp[1]), errp)) {
+        return;
+    }
+
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->intcioexp[1]), 0,
+                    sc->memmap[ASPEED_DEV_IOEXP1_INTCIO]);
 
     /* irq sources -> orgates -> INTC */
     for (i = 0; i < ic->num_inpins; i++) {
@@ -972,14 +1046,82 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* LTPI controller */
+    for (i = 0; i < ASPEED_IOEXP_NUM; i++) {
+        AspeedLTPIState *ltpi_ctrl;
+        hwaddr ltpi_base;
+
+        ltpi_ctrl = ASPEED_LTPI(&s->ltpi_ctrl[i]);
+        ltpi_base = sc->memmap[ASPEED_DEV_LTPI_CTRL1 + i];
+
+        if (!sysbus_realize(SYS_BUS_DEVICE(ltpi_ctrl), errp)) {
+            return;
+        }
+        aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(ltpi_ctrl), 0, ltpi_base);
+    }
+
+    /* IO Expander */
+    for (i = 0; i < sc->ioexp_num; i++) {
+        AspeedI2CClass *i2c_ctl;
+
+        qdev_prop_set_uint8(DEVICE(&s->ioexp[i]), "board-idx", i);
+        object_property_set_link(OBJECT(&s->ioexp[i]), "dram",
+                                 OBJECT(s->dram_mr), &error_abort);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->ioexp[i]), errp)) {
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ioexp[i]), 0,
+                        sc->memmap[ASPEED_DEV_LTPI_IO0 + i]);
+
+        icio = ASPEED_INTC_GET_CLASS(&a->intcioexp[i]);
+        /* INTC_IOEXP internal: orgate[i] -> input[i] */
+        for (int j = 0; j < icio->num_inpins; j++) {
+            irq = qdev_get_gpio_in(DEVICE(&a->intcioexp[i]), j);
+            qdev_connect_gpio_out(DEVICE(&a->intcioexp[i].orgates[j]), 0,
+                                  irq);
+        }
+
+        /* INTC_IOEXP output[i] -> INTC0.orgate[0].input[i] */
+        for (int j = 0; j < icio->num_outpins; j++) {
+            irq = qdev_get_gpio_in(DEVICE(&a->intc[0].orgates[0]), j);
+            sysbus_connect_irq(SYS_BUS_DEVICE(&a->intcioexp[i]), j,
+                               irq);
+        }
+
+        /* ADC */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioexp[i].adc), 0,
+                           aspeed_soc_ast2700_get_irq(s, ASPEED_DEV_ADC));
+
+        /* GPIO */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioexp[i].gpio), 0,
+                           aspeed_soc_ast2700_get_irq(s, ASPEED_DEV_GPIO));
+
+        /* I2C */
+        i2c_ctl = ASPEED_I2C_GET_CLASS(&s->ioexp[i].i2c);
+        for (int j = 0; j < i2c_ctl->num_busses; j++) {
+            /*
+             * For I2C on AST1700:
+             * I2C bus interrupts are connected to the OR gate from bit 0 to bit
+             * 15, and the OR gate output pin is connected to the input pin of
+             * GICINT192 of IO expander Interrupt controller (INTC2/3). Then,
+             * the output pin is connected to the INTC (CPU Die) input pin, and
+             * its output pin is connected to the GIC.
+             *
+             * I2C bus 0 is connected to the OR gate at bit 0.
+             * I2C bus 15 is connected to the OR gate at bit 15.
+             */
+            irq = aspeed_soc_ast2700_get_irq_index(s,
+                                                   ASPEED_DEV_IOEXP0_I2C + i,
+                                                   j);
+            sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioexp[i].i2c.busses[j]),
+                               0, irq);
+        }
+    }
+
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->dpmcu),
                                   "aspeed.dpmcu",
                                   sc->memmap[ASPEED_DEV_DPMCU],
                                   AST2700_SOC_DPMCU_SIZE);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->ltpi),
-                                  "aspeed.ltpi",
-                                  sc->memmap[ASPEED_DEV_LTPI],
-                                  AST2700_SOC_LTPI_SIZE);
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->iomem),
                                   "aspeed.io",
                                   sc->memmap[ASPEED_DEV_IOMEM],
@@ -1018,6 +1160,7 @@ static void aspeed_soc_ast2700a1_class_init(ObjectClass *oc, const void *data)
     sc->macs_num     = 3;
     sc->uarts_num    = 13;
     sc->num_cpus     = 4;
+    sc->ioexp_num    = 2;
     sc->uarts_base   = ASPEED_DEV_UART0;
     sc->irqmap       = aspeed_soc_ast2700a1_irqmap;
     sc->memmap       = aspeed_soc_ast2700_memmap;

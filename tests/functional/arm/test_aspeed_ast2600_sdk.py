@@ -14,22 +14,18 @@ from qemu_test import exec_command_and_wait_for_pattern
 
 class AST2600Machine(AspeedTest):
 
-    ASSET_SDK_V908_AST2600 = Asset(
-        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.08/ast2600-default-obmc.tar.gz',
-        'a0414f14ad696550efe083c2156dbeda855c08cc9ae7f40fe1b41bf292295f82')
+    ASSET_SDK_V1100_AST2600 = Asset(
+        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.00/ast2600-default-obmc.tar.gz',
+        '64d8926a7d01b649168be96c986603b5690f06391286c438a3a772c8c7039e93')
 
     def do_ast2600_pcie_test(self):
         exec_command_and_wait_for_pattern(self,
-            'lspci -s 80:00.0',
-            '80:00.0 Host bridge: '
-            'ASPEED Technology, Inc. Device 2600')
-        exec_command_and_wait_for_pattern(self,
-            'lspci -s 80:08.0',
-            '80:08.0 PCI bridge: '
+            'lspci -s 00:08.0',
+            '00:08.0 PCI bridge: '
             'ASPEED Technology, Inc. AST1150 PCI-to-PCI Bridge')
         exec_command_and_wait_for_pattern(self,
-            'lspci -s 81:00.0',
-            '81:00.0 Ethernet controller: '
+            'lspci -s 01:00.0',
+            '01:00.0 Ethernet controller: '
             'Intel Corporation 82574L Gigabit Network Connection')
         exec_command_and_wait_for_pattern(self,
             'ip addr show dev eth4',
@@ -39,7 +35,7 @@ class AST2600Machine(AspeedTest):
         self.set_machine('ast2600-evb')
         self.require_netdev('user')
 
-        self.archive_extract(self.ASSET_SDK_V908_AST2600)
+        self.archive_extract(self.ASSET_SDK_V1100_AST2600)
 
         self.vm.add_args('-device',
             'tmp105,bus=aspeed.i2c.bus.5,address=0x4d,id=tmp-test')
@@ -77,7 +73,7 @@ class AST2600Machine(AspeedTest):
     def test_arm_ast2600_otp_blockdev_device(self):
         self.vm.set_machine("ast2600-evb")
 
-        image_path = self.archive_extract(self.ASSET_SDK_V908_AST2600)
+        image_path = self.archive_extract(self.ASSET_SDK_V1100_AST2600)
         otp_img = self.generate_otpmem_image()
 
         self.vm.set_console()

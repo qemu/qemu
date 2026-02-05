@@ -29,4 +29,14 @@
  */
 #define PCA9552_AUTOINC  (1 << 4)
 
+/* PCA9535 Registers (same addresses, different semantics) */
+#define PCA9535_INPUT0      0 /* read only input register 0 */
+#define PCA9535_INPUT1      1 /* read only input register 1  */
+#define PCA9535_OUTPUT0     2 /* read/write output register 0 */
+#define PCA9535_OUTPUT1     3 /* read/write output register 1 */
+#define PCA9535_POLARITY0   4 /* read/write polarity inversion register 0 */
+#define PCA9535_POLARITY1   5 /* read/write polarity inversion register 1 */
+#define PCA9535_CONFIG0     6 /* read/write configuration register 0 */
+#define PCA9535_CONFIG1     7 /* read/write configuration register 1 */
+
 #endif

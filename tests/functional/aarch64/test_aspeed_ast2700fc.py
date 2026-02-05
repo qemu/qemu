@@ -9,7 +9,7 @@
 import os
 
 from qemu_test import QemuSystemTest, Asset
-from qemu_test import wait_for_console_pattern
+from qemu_test import wait_for_console_pattern, exec_command
 from qemu_test import exec_command_and_wait_for_pattern
 
 
@@ -27,9 +27,23 @@ class AST2x00MachineSDK(QemuSystemTest):
 
         self.vm.launch()
 
+    def enable_ast2700_pcie2(self):
+        wait_for_console_pattern(self, 'Hit any key to stop autoboot')
+        exec_command_and_wait_for_pattern(self, '\012', '=>')
+        exec_command_and_wait_for_pattern(self,
+            'cp 100420000 403000000 900000', '=>')
+        exec_command_and_wait_for_pattern(self,
+            'bootm start 403000000', '=>')
+        exec_command_and_wait_for_pattern(self, 'bootm loados', '=>')
+        exec_command_and_wait_for_pattern(self, 'bootm ramdisk', '=>')
+        exec_command_and_wait_for_pattern(self, 'bootm prep', '=>')
+        exec_command_and_wait_for_pattern(self,
+            'fdt set /soc@14000000/pcie@140d0000 status "okay"', '=>')
+        exec_command(self, 'bootm go')
+
     def verify_openbmc_boot_and_login(self, name):
         wait_for_console_pattern(self, 'U-Boot 2023.10')
-        wait_for_console_pattern(self, '## Loading kernel from FIT Image')
+        self.enable_ast2700_pcie2()
         wait_for_console_pattern(self, 'Starting kernel ...')
 
         wait_for_console_pattern(self, f'{name} login:')
@@ -47,9 +61,9 @@ class AST2x00MachineSDK(QemuSystemTest):
             self.vm.add_args('-device',
                              f'loader,file={file},cpu-num={cpu_num}')
 
-    ASSET_SDK_V908_AST2700 = Asset(
-            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v09.08/ast2700-default-obmc.tar.gz',
-            'eac3dc409b7ea3cd4b03d4792d3cebd469792ad893cb51e1d15f0fc20bd1e2cd')
+    ASSET_SDK_V1100_AST2700 = Asset(
+            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.00/ast2700-a1-obmc.tar.gz',
+            'd5ceed511cd0dfefbb102fff2d731159e0472948a28066dc0d90bcd54be76525')
 
     def do_ast2700_i2c_test(self):
         exec_command_and_wait_for_pattern(self,
@@ -99,19 +113,10 @@ class AST2x00MachineSDK(QemuSystemTest):
 
     def start_ast2700fc_test(self, name):
         ca35_core = 4
-        uboot_size = os.path.getsize(self.scratch_file(name,
-                                                       'u-boot-nodtb.bin'))
-        uboot_dtb_load_addr = hex(0x400000000 + uboot_size)
-
         load_images_list = [
             {
                 'addr': '0x400000000',
-                'file': self.scratch_file(name,
-                                          'u-boot-nodtb.bin')
-            },
-            {
-                'addr': str(uboot_dtb_load_addr),
-                'file': self.scratch_file(name, 'u-boot.dtb')
+                'file': self.scratch_file(name, 'u-boot.bin')
             },
             {
                 'addr': '0x430000000',
@@ -119,8 +124,7 @@ class AST2x00MachineSDK(QemuSystemTest):
             },
             {
                 'addr': '0x430080000',
-                'file': self.scratch_file(name, 'optee',
-                                          'tee-raw.bin')
+                'file': self.scratch_file(name, 'optee', 'tee-raw.bin')
             }
         ]
 
@@ -144,24 +148,24 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.do_test_aarch64_aspeed_sdk_start(
                 self.scratch_file(name, 'image-bmc'))
 
-    def test_aarch64_ast2700fc_sdk_v09_08(self):
+    def test_aarch64_ast2700fc_sdk_v11_00(self):
         self.set_machine('ast2700fc')
         self.require_netdev('user')
 
-        self.archive_extract(self.ASSET_SDK_V908_AST2700)
-        self.start_ast2700fc_test('ast2700-default')
-        self.verify_openbmc_boot_and_login('ast2700-default')
+        self.archive_extract(self.ASSET_SDK_V1100_AST2700)
+        self.start_ast2700fc_test('ast2700-a1')
+        self.verify_openbmc_boot_and_login('ast2700-a1')
         self.do_ast2700_i2c_test()
         self.do_ast2700_pcie_test()
         self.do_ast2700fc_ssp_test()
         self.do_ast2700fc_tsp_test()
 
-    def test_aarch64_ast2700fc_sdk_vbootrom_v09_08(self):
+    def test_aarch64_ast2700fc_sdk_vbootrom_v11_00(self):
         self.set_machine('ast2700fc')
 
-        self.archive_extract(self.ASSET_SDK_V908_AST2700)
-        self.start_ast2700fc_test_vbootrom('ast2700-default')
-        self.verify_openbmc_boot_and_login('ast2700-default')
+        self.archive_extract(self.ASSET_SDK_V1100_AST2700)
+        self.start_ast2700fc_test_vbootrom('ast2700-a1')
+        self.verify_openbmc_boot_and_login('ast2700-a1')
         self.do_ast2700fc_ssp_test()
         self.do_ast2700fc_tsp_test()
 

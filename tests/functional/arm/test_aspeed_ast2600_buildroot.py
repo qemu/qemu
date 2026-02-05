@@ -16,15 +16,15 @@ from qemu_test import exec_command_and_wait_for_pattern, skipIfMissingCommands
 
 class AST2600Machine(AspeedTest):
 
-    ASSET_BR2_202411_AST2600_FLASH = Asset(
+    ASSET_BR2_202511_AST2600_FLASH = Asset(
         ('https://github.com/legoater/qemu-aspeed-boot/raw/master/'
-         'images/ast2600-evb/buildroot-2024.11/flash.img'),
-        '4bb2f3dfdea31199b51d66b42f686dc5374c144a7346fdc650194a5578b73609')
+         'images/ast2600-evb/buildroot-2025.11/flash.img'),
+        'c64a0755501393d570ca318e326e1e9f8372edc5a6452cdccc3649bc9fd2c138')
 
     def test_arm_ast2600_evb_buildroot(self):
         self.set_machine('ast2600-evb')
 
-        image_path = self.ASSET_BR2_202411_AST2600_FLASH.fetch()
+        image_path = self.ASSET_BR2_202511_AST2600_FLASH.fetch()
 
         self.vm.add_args('-device',
                          'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test')

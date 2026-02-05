@@ -28,6 +28,7 @@
 #include "hw/misc/aspeed_hace.h"
 #include "hw/misc/aspeed_sbc.h"
 #include "hw/misc/aspeed_sli.h"
+#include "hw/misc/aspeed_pwm.h"
 #include "hw/watchdog/wdt_aspeed.h"
 #include "hw/net/ftgmac100.h"
 #include "target/arm/cpu.h"
@@ -43,6 +44,8 @@
 #include "hw/fsi/aspeed_apb2opb.h"
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gicv3.h"
+#include "hw/misc/aspeed_ltpi.h"
+#include "hw/arm/aspeed_ast1700.h"
 
 #define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
 
@@ -55,6 +58,8 @@
 #define ASPEED_UARTS_NUM 13
 #define ASPEED_JTAG_NUM  2
 #define ASPEED_PCIE_NUM  3
+#define ASPEED_INTC_NUM  2
+#define ASPEED_IOEXP_NUM 2
 
 struct AspeedSoCState {
     DeviceState parent;
@@ -86,6 +91,7 @@ struct AspeedSoCState {
     MemoryRegion secsram;
     UnimplementedDeviceState sbc_unimplemented;
     AspeedSDMCState sdmc;
+    AspeedPWMState pwm;
     AspeedWDTState wdt[ASPEED_WDTS_NUM];
     FTGMAC100State ftgmac100[ASPEED_MACS_NUM];
     AspeedMiiState mii[ASPEED_MACS_NUM];
@@ -106,12 +112,12 @@ struct AspeedSoCState {
     UnimplementedDeviceState video;
     UnimplementedDeviceState emmc_boot_controller;
     UnimplementedDeviceState dpmcu;
-    UnimplementedDeviceState pwm;
     UnimplementedDeviceState espi;
     UnimplementedDeviceState udc;
-    UnimplementedDeviceState ltpi;
     UnimplementedDeviceState jtag[ASPEED_JTAG_NUM];
     AspeedAPB2OPBState fsi[2];
+    AspeedLTPIState ltpi_ctrl[ASPEED_IOEXP_NUM];
+    AspeedAST1700SoCState ioexp[ASPEED_IOEXP_NUM];
 };
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
@@ -141,7 +147,8 @@ struct Aspeed27x0SoCState {
     AspeedSoCState parent;
 
     ARMCPU cpu[ASPEED_CPUS_NUM];
-    AspeedINTCState intc[2];
+    AspeedINTCState intc[ASPEED_INTC_NUM];
+    AspeedINTCState intcioexp[ASPEED_IOEXP_NUM];
     GICv3State gic;
     MemoryRegion dram_empty;
 };
@@ -174,6 +181,7 @@ struct AspeedSoCClass {
     int macs_num;
     int uarts_num;
     int uarts_base;
+    int ioexp_num;
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
@@ -186,7 +194,6 @@ enum {
     ASPEED_DEV_IOMEM,
     ASPEED_DEV_IOMEM0,
     ASPEED_DEV_IOMEM1,
-    ASPEED_DEV_LTPI,
     ASPEED_DEV_UART0,
     ASPEED_DEV_UART1,
     ASPEED_DEV_UART2,
@@ -279,6 +286,16 @@ enum {
     ASPEED_GIC_REDIST,
     ASPEED_DEV_IPC0,
     ASPEED_DEV_IPC1,
+    ASPEED_DEV_LTPI_CTRL1,
+    ASPEED_DEV_LTPI_CTRL2,
+    ASPEED_DEV_LTPI_IO0,
+    ASPEED_DEV_LTPI_IO1,
+    ASPEED_DEV_IOEXP0_I2C,
+    ASPEED_DEV_IOEXP1_I2C,
+    ASPEED_DEV_IOEXP0_INTCIO,
+    ASPEED_DEV_IOEXP1_INTCIO,
+    ASPEED_DEV_IOEXP0_I3C,
+    ASPEED_DEV_IOEXP1_I3C,
 };
 
 const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);

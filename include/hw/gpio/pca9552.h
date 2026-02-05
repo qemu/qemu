@@ -14,6 +14,7 @@
 
 #define TYPE_PCA9552 "pca9552"
 #define TYPE_PCA955X "pca955x"
+#define TYPE_PCA9535 "pca9535"
 typedef struct PCA955xState PCA955xState;
 DECLARE_INSTANCE_CHECKER(PCA955xState, PCA955X,
                          TYPE_PCA955X)
