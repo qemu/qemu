@@ -303,7 +303,7 @@ OpenRISC TCG CPUs
 M: Stafford Horne <shorne@gmail.com>
 S: Odd Fixes
 F: docs/system/openrisc/cpu-features.rst
-F: target/openrisc/
+F: target/or1k/
 F: hw/openrisc/
 F: include/hw/openrisc/
 F: tests/functional/or1k/meson.build

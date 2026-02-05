@@ -72,7 +72,7 @@
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4)  \
     || defined(TARGET_M68K)                                             \
-    || defined(TARGET_S390X) || defined(TARGET_OPENRISC)                \
+    || defined(TARGET_S390X) || defined(TARGET_OR1K)                    \
     || defined(TARGET_RISCV)                                            \
     || defined(TARGET_XTENSA) || defined(TARGET_LOONGARCH64)
 
@@ -1976,7 +1976,7 @@ struct target_stat64  {
     abi_ulong __unused5;
 };
 
-#elif defined(TARGET_OPENRISC) \
+#elif defined(TARGET_OR1K) \
     || defined(TARGET_RISCV) || defined(TARGET_HEXAGON) || defined(TARGET_LOONGARCH)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
