@@ -258,9 +258,12 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
  * are FRAC_SHIFT bits that may require rounding at the bottom of the
  * fraction; these bits will be removed. The exponent will be biased
  * by EXP_BIAS and must be bounded by [EXP_MAX-1, 0].
+ *
+ * The saturate parameter controls saturation behavior for formats that
+ * support it -- when true, overflow produces max normal instead of infinity.
  */
 static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
-                                   const FloatFmt *fmt)
+                                   const FloatFmt *fmt, bool saturate)
 {
     const int exp_max = fmt->exp_max;
     const int frac_shift = fmt->frac_shift;
@@ -269,7 +272,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     const uint64_t frac_lsbm1 = round_mask ^ (round_mask >> 1);
     const uint64_t roundeven_mask = round_mask | frac_lsb;
     uint64_t inc;
-    bool overflow_norm = false;
+    bool overflow_norm = saturate;
     int exp, flags = 0;
 
     switch (s->float_rounding_mode) {
@@ -294,11 +297,11 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         break;
     case float_round_up:
         inc = p->sign ? 0 : round_mask;
-        overflow_norm = p->sign;
+        overflow_norm |= p->sign;
         break;
     case float_round_down:
         inc = p->sign ? round_mask : 0;
-        overflow_norm = !p->sign;
+        overflow_norm |= !p->sign;
         break;
     case float_round_to_odd:
         overflow_norm = true;
@@ -445,10 +448,10 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
 }
 
 static void partsN(uncanon)(FloatPartsN *p, float_status *s,
-                            const FloatFmt *fmt)
+                            const FloatFmt *fmt, bool saturate)
 {
     if (likely(is_anynorm(p->cls))) {
-        parts_uncanon_normal(p, s, fmt);
+        parts_uncanon_normal(p, s, fmt, saturate);
     } else {
         switch (p->cls) {
         case float_class_zero:
