@@ -200,7 +200,6 @@ static void articia_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = articia_realize;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 /* TYPE_ARTICIA_PCI_HOST */

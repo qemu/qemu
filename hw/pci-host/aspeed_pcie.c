@@ -298,7 +298,6 @@ static void aspeed_pcie_rc_class_init(ObjectClass *klass, const void *data)
     dc->desc = "ASPEED PCIe RC";
     dc->realize = aspeed_pcie_rc_realize;
     dc->fw_name = "pci";
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 
     hc->root_bus_path = aspeed_pcie_rc_root_bus_path;
     device_class_set_props(dc, aspeed_pcie_rc_props);

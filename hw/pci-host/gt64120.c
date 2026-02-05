@@ -1298,7 +1298,6 @@ static void gt64120_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, gt64120_properties);
     dc->realize = gt64120_realize;
     device_class_set_legacy_reset(dc, gt64120_reset);

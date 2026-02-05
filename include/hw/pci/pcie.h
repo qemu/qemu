@@ -165,5 +165,6 @@ void pcie_pri_init(PCIDevice *dev, uint16_t offset, uint32_t outstanding_pr_cap,
 uint32_t pcie_pri_get_req_alloc(const PCIDevice *dev);
 bool pcie_pri_enabled(const PCIDevice *dev);
 bool pcie_pasid_enabled(const PCIDevice *dev);
+bool pcie_pasid_priv_enabled(PCIDevice *dev);
 bool pcie_ats_enabled(const PCIDevice *dev);
 #endif /* QEMU_PCIE_H */

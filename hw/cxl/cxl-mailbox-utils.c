@@ -1875,7 +1875,7 @@ static uint64_t get_dc_size(CXLType3Dev *ct3d, MemoryRegion **dc_mr)
 static int validate_dpa_addr(CXLType3Dev *ct3d, uint64_t dpa_addr,
                              size_t length)
 {
-    uint64_t vmr_size, pmr_size, dc_size;
+    uint64_t vmr_size, pmr_size, dc_size, dpa_end;
 
     if ((dpa_addr % CXL_CACHE_LINE_SIZE) ||
         (length % CXL_CACHE_LINE_SIZE)  ||
@@ -1887,7 +1887,12 @@ static int validate_dpa_addr(CXLType3Dev *ct3d, uint64_t dpa_addr,
     pmr_size = get_pmr_size(ct3d, NULL);
     dc_size = get_dc_size(ct3d, NULL);
 
-    if (dpa_addr + length > vmr_size + pmr_size + dc_size) {
+    /* sanitize 64 bit values coming from guest */
+    if (uadd64_overflow(dpa_addr, length, &dpa_end)) {
+        return -EINVAL;
+    }
+
+    if (dpa_end > vmr_size + pmr_size + dc_size) {
         return -EINVAL;
     }
 
@@ -2006,7 +2011,7 @@ static CXLRetCode media_operations_discovery(uint8_t *payload_in,
      * sub class command.
      */
     if (media_op_in_disc_pl->dpa_range_count ||
-        start_index > ARRAY_SIZE(media_op_matrix)) {
+        start_index + num_ops > ARRAY_SIZE(media_op_matrix)) {
         return CXL_MBOX_INVALID_INPUT;
     }
 

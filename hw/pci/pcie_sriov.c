@@ -195,14 +195,17 @@ bool pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
 
 void pcie_sriov_pf_exit(PCIDevice *dev)
 {
+    uint8_t *cfg;
+
     if (dev->exp.sriov_cap == 0) {
         return;
     }
+    cfg = dev->config + dev->exp.sriov_cap;
 
     if (dev->exp.sriov_pf.vf_user_created) {
         uint16_t ven_id = pci_get_word(dev->config + PCI_VENDOR_ID);
-        uint16_t total_vfs = pci_get_word(dev->config + PCI_SRIOV_TOTAL_VF);
-        uint16_t vf_dev_id = pci_get_word(dev->config + PCI_SRIOV_VF_DID);
+        uint16_t total_vfs = pci_get_word(cfg + PCI_SRIOV_TOTAL_VF);
+        uint16_t vf_dev_id = pci_get_word(cfg + PCI_SRIOV_VF_DID);
 
         unregister_vfs(dev);
 
@@ -213,8 +216,6 @@ void pcie_sriov_pf_exit(PCIDevice *dev)
             pci_config_set_device_id(dev->exp.sriov_pf.vf[i]->config, vf_dev_id);
         }
     } else {
-        uint8_t *cfg = dev->config + dev->exp.sriov_cap;
-
         unparent_vfs(dev, pci_get_word(cfg + PCI_SRIOV_TOTAL_VF));
     }
 }

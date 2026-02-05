@@ -200,7 +200,6 @@ static void gpex_host_class_init(ObjectClass *klass, const void *data)
     hc->root_bus_path = gpex_host_root_bus_path;
     dc->realize = gpex_host_realize;
     dc->unrealize = gpex_host_unrealize;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     device_class_set_props(dc, gpex_host_properties);
 }
@@ -242,7 +241,6 @@ static void gpex_root_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "QEMU generic PCIe host bridge";
     dc->vmsd = &vmstate_gpex_root;
     k->vendor_id = PCI_VENDOR_ID_REDHAT;

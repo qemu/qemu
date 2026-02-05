@@ -2183,15 +2183,17 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                          PCI_BASE_ADDRESS_SPACE_IO, &proxy->bar);
     }
 
-    if (pci_is_vf(&proxy->pci_dev)) {
-        pcie_ari_init(&proxy->pci_dev, proxy->last_pcie_cap_offset);
-        proxy->last_pcie_cap_offset += PCI_ARI_SIZEOF;
-    } else {
-        res = pcie_sriov_pf_init_from_user_created_vfs(
-            &proxy->pci_dev, proxy->last_pcie_cap_offset, errp);
-        if (res > 0) {
-            proxy->last_pcie_cap_offset += res;
-            virtio_add_feature(&vdev->host_features, VIRTIO_F_SR_IOV);
+    if (pci_is_express(&proxy->pci_dev)) {
+        if (pci_is_vf(&proxy->pci_dev)) {
+            pcie_ari_init(&proxy->pci_dev, proxy->last_pcie_cap_offset);
+            proxy->last_pcie_cap_offset += PCI_ARI_SIZEOF;
+        } else {
+            res = pcie_sriov_pf_init_from_user_created_vfs(
+                &proxy->pci_dev, proxy->last_pcie_cap_offset, errp);
+            if (res > 0) {
+                proxy->last_pcie_cap_offset += res;
+                virtio_add_feature(&vdev->host_features, VIRTIO_F_SR_IOV);
+            }
         }
     }
 }

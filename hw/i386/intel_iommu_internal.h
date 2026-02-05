@@ -194,8 +194,10 @@
 #define VTD_ECAP_PRS                (1ULL << 29)
 #define VTD_ECAP_MHMV               (15ULL << 20)
 #define VTD_ECAP_SRS                (1ULL << 31)
+#define VTD_ECAP_NWFS               (1ULL << 33)
 #define VTD_ECAP_PSS                (7ULL << 35) /* limit: MemTxAttrs::pid */
 #define VTD_ECAP_PASID              (1ULL << 40)
+#define VTD_ECAP_PDS                (1ULL << 42)
 #define VTD_ECAP_SMTS               (1ULL << 43)
 #define VTD_ECAP_SSTS               (1ULL << 46)
 #define VTD_ECAP_FSTS               (1ULL << 47)
@@ -417,7 +419,9 @@ typedef union VTDPRDesc VTDPRDesc;
 #define VTD_INV_DESC_WAIT_IF            (1ULL << 4)
 #define VTD_INV_DESC_WAIT_FN            (1ULL << 6)
 #define VTD_INV_DESC_WAIT_DATA_SHIFT    32
-#define VTD_INV_DESC_WAIT_RSVD_LO       0Xfffff180ULL
+#define VTD_INV_DESC_WAIT_RSVD_LO(ecap) (0Xfffff100ULL | \
+                                        (((ecap) & VTD_ECAP_PDS) \
+                                            ? 0 : (1 << 7)))
 #define VTD_INV_DESC_WAIT_RSVD_HI       3ULL
 
 /* Masks for Context-cache Invalidation Descriptor */
@@ -687,6 +691,14 @@ typedef struct VTDPIOTLBInvInfo {
 
 /* Bits to decide the offset for each level */
 #define VTD_LEVEL_BITS           9
+
+/* IOMMU Index */
+typedef enum VTDIOMMUIndex {
+    VTD_IDX_UNTRANSLATED = 0, /* Default */
+    VTD_IDX_TRANSLATED = 1,
+    VTD_IDX_ATS = 2,
+    VTD_IDX_COUNT = 3, /* Number of supported indexes */
+} VTDIOMMUIndex;
 
 typedef struct VTDHostIOMMUDevice {
     IntelIOMMUState *iommu_state;

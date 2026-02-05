@@ -34,6 +34,7 @@ bool vhost_svq_valid_features(uint64_t features, Error **errp)
         switch (b) {
         case VIRTIO_F_ANY_LAYOUT:
         case VIRTIO_RING_F_EVENT_IDX:
+        case VIRTIO_RING_F_INDIRECT_DESC:
             continue;
 
         case VIRTIO_F_ACCESS_PLATFORM:

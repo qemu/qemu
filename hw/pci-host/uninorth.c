@@ -435,7 +435,6 @@ static void pci_unin_main_class_init(ObjectClass *klass, const void *data)
 
     dc->realize = pci_unin_main_realize;
     device_class_set_props(dc, pci_unin_main_pci_host_props);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     sbc->explicit_ofw_unit_address = pci_unin_main_ofw_unit_address;
 }
@@ -453,7 +452,6 @@ static void pci_u3_agp_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pci_u3_agp_realize;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pci_u3_agp_info = {
@@ -469,7 +467,6 @@ static void pci_unin_agp_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pci_unin_agp_realize;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pci_unin_agp_info = {
@@ -485,7 +482,6 @@ static void pci_unin_internal_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pci_unin_internal_realize;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo pci_unin_internal_info = {

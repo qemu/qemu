@@ -592,11 +592,13 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
         /*
          * Some backends (like vhost-user) can only handle memory regions
          * that have an fd (can be mapped into a different process). Filter
-         * the ones without an fd out, if requested.
-         *
-         * TODO: we might have to limit to MAP_SHARED as well.
+         * the ones without an fd out, if requested. Also make sure that
+         * this region is mapped as shared so that the vhost backend can
+         * observe modifications to this region, otherwise we consider it
+         * private.
          */
-        if (memory_region_get_fd(section->mr) < 0 &&
+        if ((memory_region_get_fd(section->mr) < 0 ||
+            !qemu_ram_is_shared(section->mr->ram_block)) &&
             dev->vhost_ops->vhost_backend_no_private_memslots &&
             dev->vhost_ops->vhost_backend_no_private_memslots(dev)) {
             trace_vhost_reject_section(mr->name, 2);
@@ -1915,6 +1917,62 @@ void vhost_get_features_ex(struct vhost_dev *hdev,
         bit++;
     }
 }
+
+static bool vhost_inflight_buffer_pre_load(void *opaque, Error **errp)
+{
+    struct vhost_inflight *inflight = opaque;
+
+    int fd = -1;
+    void *addr = qemu_memfd_alloc("vhost-inflight", inflight->size,
+                                  F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                                  &fd, errp);
+    if (*errp) {
+        return -ENOMEM;
+    }
+
+    inflight->offset = 0;
+    inflight->addr = addr;
+    inflight->fd = fd;
+
+    return true;
+}
+
+const VMStateDescription vmstate_vhost_inflight_region_buffer = {
+    .name = "vhost-inflight-region/buffer",
+    .pre_load_errp = vhost_inflight_buffer_pre_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_VBUFFER_UINT64(addr, struct vhost_inflight, 0, NULL, size),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool vhost_inflight_region_post_load(void *opaque,
+                                           int version_id,
+                                           Error **errp)
+{
+    struct vhost_inflight *inflight = opaque;
+
+    if (inflight->addr == NULL) {
+        error_setg(errp, "inflight buffer subsection has not been loaded");
+        return false;
+    }
+
+    return true;
+}
+
+const VMStateDescription vmstate_vhost_inflight_region = {
+    .name = "vhost-inflight-region",
+    .post_load_errp = vhost_inflight_region_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(size, struct vhost_inflight),
+        VMSTATE_UINT16(queue_size, struct vhost_inflight),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_vhost_inflight_region_buffer,
+        NULL
+    }
+};
 
 void vhost_ack_features_ex(struct vhost_dev *hdev, const int *feature_bits,
                            const uint64_t *features)

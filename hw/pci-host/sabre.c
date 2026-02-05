@@ -505,7 +505,6 @@ static void sabre_class_init(ObjectClass *klass, const void *data)
     dc->realize = sabre_realize;
     device_class_set_legacy_reset(dc, sabre_reset);
     device_class_set_props(dc, sabre_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
     sbc->explicit_ofw_unit_address = sabre_ofw_unit_address;
 }

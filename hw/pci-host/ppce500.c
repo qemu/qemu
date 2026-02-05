@@ -516,7 +516,6 @@ static void e500_pcihost_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = e500_pcihost_realize;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, pcihost_properties);
     dc->vmsd = &vmstate_ppce500_pci;
 }

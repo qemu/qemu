@@ -55,7 +55,6 @@ static void remote_pcihost_class_init(ObjectClass *klass, const void *data)
     dc->realize = remote_pcihost_realize;
 
     dc->user_creatable = false;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
 }
 
