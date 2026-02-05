@@ -12,7 +12,7 @@
 #include "exec/target_page.h"
 #include "elf.h"
 #include "hw/core/loader.h"
-#include "hw/openrisc/boot.h"
+#include "hw/or1k/boot.h"
 #include "system/device_tree.h"
 #include "system/qtest.h"
 #include "system/reset.h"

@@ -305,7 +305,7 @@ S: Odd Fixes
 F: docs/system/openrisc/cpu-features.rst
 F: target/or1k/
 F: hw/openrisc/
-F: include/hw/openrisc/
+F: include/hw/or1k/
 F: tests/functional/or1k/meson.build
 F: tests/tcg/openrisc/
 

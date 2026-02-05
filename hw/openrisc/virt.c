@@ -16,7 +16,7 @@
 #include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/core/split-irq.h"
-#include "hw/openrisc/boot.h"
+#include "hw/or1k/boot.h"
 #include "hw/misc/sifive_test.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"

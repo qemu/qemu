@@ -26,7 +26,7 @@
 #include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "net/net.h"
-#include "hw/openrisc/boot.h"
+#include "hw/or1k/boot.h"
 #include "hw/core/qdev-properties.h"
 #include "system/address-spaces.h"
 #include "system/device_tree.h"
