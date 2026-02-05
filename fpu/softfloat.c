@@ -574,6 +574,11 @@ typedef struct {
     .frac_shift     = (-F - 1) & 63,                    \
     .round_mask     = (1ull << ((-F - 1) & 63)) - 1
 
+static const FloatFmt float4_e2m1_params = {
+    FLOAT_PARAMS(2, 1),
+    .exp_max_kind = float_expmax_normal,
+};
+
 static const FloatFmt float8_e4m3_params = {
     FLOAT_PARAMS(4, 3),
     .exp_max_kind = float_expmax_e4m3
@@ -639,6 +644,11 @@ static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
         .exp = extract64(raw, f_size, e_size),
         .frac = extract64(raw, 0, f_size)
     };
+}
+
+static void QEMU_FLATTEN float4_e2m1_unpack_raw(FloatParts64 *p, float4_e2m1 f)
+{
+    unpack_raw64(p, &float4_e2m1_params, f);
 }
 
 static void QEMU_FLATTEN float8_e4m3_unpack_raw(FloatParts64 *p, float8_e4m3 f)
@@ -1708,6 +1718,13 @@ static const uint16_t rsqrt_tab[128] = {
 /*
  * Pack/unpack routines with a specific FloatFmt.
  */
+
+static void float4_e2m1_unpack_canonical(FloatParts64 *p, float4_e2m1 f,
+                                         float_status *s)
+{
+    float4_e2m1_unpack_raw(p, f);
+    parts_canonicalize(p, s, &float4_e2m1_params);
+}
 
 static void float8_e4m3_unpack_canonical(FloatParts64 *p, float8_e4m3 f,
                                          float_status *s)
@@ -2927,6 +2944,15 @@ static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
     if (a->cls == float_class_denormal) {
         float_raise(float_flag_input_denormal_used, s);
     }
+}
+
+float8_e4m3 float4_e2m1_to_float8_e4m3(float4_e2m1 a, float_status *s)
+{
+    FloatParts64 p;
+
+    float4_e2m1_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return float8_e4m3_round_pack_canonical(&p, s, false);
 }
 
 bfloat16 float8_e4m3_to_bfloat16(float8_e4m3 a, float_status *s)
