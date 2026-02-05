@@ -302,7 +302,7 @@ F: tests/tcg/mips/
 OpenRISC TCG CPUs
 M: Stafford Horne <shorne@gmail.com>
 S: Odd Fixes
-F: docs/system/openrisc/cpu-features.rst
+F: docs/system/or1k/cpu-features.rst
 F: target/or1k/
 F: hw/or1k/
 F: include/hw/or1k/
@@ -1493,7 +1493,7 @@ OpenRISC Machines
 or1k-sim
 M: Jia Liu <proljc@gmail.com>
 S: Maintained
-F: docs/system/openrisc/or1k-sim.rst
+F: docs/system/or1k/or1k-sim.rst
 F: hw/intc/ompic.c
 F: hw/or1k/openrisc_sim.c
 F: tests/functional/or1k/test_sim.py

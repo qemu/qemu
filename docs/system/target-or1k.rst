@@ -55,17 +55,17 @@ Board-specific documentation
 .. toctree::
    :maxdepth: 1
 
-   openrisc/or1k-sim
-   openrisc/virt
+   or1k/or1k-sim
+   or1k/virt
 
 Emulated CPU architecture support
 =================================
 
 .. toctree::
-   openrisc/emulation
+   or1k/emulation
 
 OpenRISC CPU features
 =====================
 
 .. toctree::
-   openrisc/cpu-features
+   or1k/cpu-features
