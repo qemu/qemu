@@ -542,7 +542,9 @@ typedef enum __attribute__((__packed__)) {
  * The following optional modifiers are available:
  *   exp_max_kind: affects how exp == exp_max is interpreted
  *   has_explicit_bit: has an explicit integer bit; this affects whether
- *   the float_status floatx80_behaviour handling applies
+ *       the float_status floatx80_behaviour handling applies
+ *   overflow_raises_invalid: for float_expmax_normal, raise invalid
+ *       instead of overflow.
  */
 typedef struct {
     int exp_size;
@@ -553,6 +555,7 @@ typedef struct {
     int frac_shift;
     FloatFmtExpMaxKind exp_max_kind;
     bool has_explicit_bit;
+    bool overflow_raises_invalid;
     uint64_t round_mask;
 } FloatFmt;
 
@@ -576,6 +579,7 @@ static const FloatFmt float16_params = {
 static const FloatFmt float16_params_ahp = {
     FLOAT_PARAMS(5, 10),
     .exp_max_kind = float_expmax_normal,
+    .overflow_raises_invalid = true,
 };
 
 static const FloatFmt bfloat16_params = {

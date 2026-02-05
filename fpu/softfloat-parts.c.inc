@@ -348,7 +348,9 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             case float_expmax_normal:
                 if (unlikely(exp > exp_max)) {
                     /* Overflow.  Return the maximum normal.  */
-                    flags = float_flag_invalid;
+                    flags = (fmt->overflow_raises_invalid
+                             ? float_flag_invalid
+                             : float_flag_overflow | float_flag_inexact);
                     exp = exp_max;
                     frac_allones(p);
                     p->frac_lo &= ~round_mask;
