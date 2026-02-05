@@ -572,6 +572,10 @@ typedef struct {
     .frac_shift     = (-F - 1) & 63,                    \
     .round_mask     = (1ull << ((-F - 1) & 63)) - 1
 
+static const FloatFmt float8_e5m2_params = {
+    FLOAT_PARAMS(5, 2)
+};
+
 static const FloatFmt float16_params = {
     FLOAT_PARAMS(5, 10)
 };
@@ -625,6 +629,11 @@ static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
         .exp = extract64(raw, f_size, e_size),
         .frac = extract64(raw, 0, f_size)
     };
+}
+
+static void QEMU_FLATTEN float8_e5m2_unpack_raw(FloatParts64 *p, float8_e5m2 f)
+{
+    unpack_raw64(p, &float8_e5m2_params, f);
 }
 
 static void QEMU_FLATTEN float16_unpack_raw(FloatParts64 *p, float16 f)
@@ -682,6 +691,11 @@ static uint64_t pack_raw64(const FloatParts64 *p, const FloatFmt *fmt)
     ret = deposit64(ret, f_size, e_size, p->exp);
     ret = deposit64(ret, 0, f_size, p->frac);
     return ret;
+}
+
+static float8_e5m2 QEMU_FLATTEN float8_e5m2_pack_raw(const FloatParts64 *p)
+{
+    return pack_raw64(p, &float8_e5m2_params);
 }
 
 static float16 QEMU_FLATTEN float16_pack_raw(const FloatParts64 *p)
@@ -1675,6 +1689,13 @@ static const uint16_t rsqrt_tab[128] = {
  * Pack/unpack routines with a specific FloatFmt.
  */
 
+static void float8_e5m2_unpack_canonical(FloatParts64 *p, float8_e5m2 f,
+                                         float_status *s)
+{
+    float8_e5m2_unpack_raw(p, f);
+    parts_canonicalize(p, s, &float8_e5m2_params);
+}
+
 static void float16a_unpack_canonical(FloatParts64 *p, float16 f,
                                       float_status *s, const FloatFmt *params)
 {
@@ -1693,6 +1714,14 @@ static void bfloat16_unpack_canonical(FloatParts64 *p, bfloat16 f,
 {
     bfloat16_unpack_raw(p, f);
     parts_canonicalize(p, s, &bfloat16_params);
+}
+
+static float8_e5m2 float8_e5m2_round_pack_canonical(FloatParts64 *p,
+                                                    float_status *s,
+                                                    bool saturate)
+{
+    parts_uncanon(p, s, &float8_e5m2_params, saturate);
+    return float8_e5m2_pack_raw(p);
 }
 
 static float16 float16a_round_pack_canonical(FloatParts64 *p,
@@ -2772,6 +2801,35 @@ static void parts_float_to_ahp(FloatParts64 *a, float_status *s)
     }
 }
 
+static void parts_float_to_e5m2(FloatParts64 *a, float_status *s, bool saturate)
+{
+    switch (a->cls) {
+    case float_class_snan:
+    case float_class_qnan:
+        parts_return_nan(a, s);
+        break;
+
+    case float_class_inf:
+        /* Per OCP, conversion in SATURATE mode bounds Inf to MAX. */
+        if (saturate) {
+            a->cls = float_class_normal;
+            a->exp = float8_e5m2_params.exp_max - 1;
+            a->frac = MAKE_64BIT_MASK(float8_e5m2_params.frac_shift,
+                                      float8_e5m2_params.frac_size + 1);
+        }
+        break;
+
+    case float_class_denormal:
+        float_raise(float_flag_input_denormal_used, s);
+        break;
+    case float_class_normal:
+    case float_class_zero:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void parts64_float_to_float(FloatParts64 *a, float_status *s)
 {
     if (is_nan(a->cls)) {
@@ -2836,6 +2894,15 @@ static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
     }
 }
 
+bfloat16 float8_e5m2_to_bfloat16(float8_e5m2 a, float_status *s)
+{
+    FloatParts64 p;
+
+    float8_e5m2_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return bfloat16_round_pack_canonical(&p, s);
+}
+
 float32 float16_to_float32(float16 a, bool ieee, float_status *s)
 {
     const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
@@ -2854,6 +2921,15 @@ float64 float16_to_float64(float16 a, bool ieee, float_status *s)
     float16a_unpack_canonical(&p, a, s, fmt16);
     parts_float_to_float(&p, s);
     return float64_round_pack_canonical(&p, s);
+}
+
+float8_e5m2 float32_to_float8_e5m2(float32 a, bool saturate, float_status *s)
+{
+    FloatParts64 p;
+
+    float32_unpack_canonical(&p, a, s);
+    parts_float_to_e5m2(&p, s, saturate);
+    return float8_e5m2_round_pack_canonical(&p, s, saturate);
 }
 
 float16 float32_to_float16(float32 a, bool ieee, float_status *s)
@@ -2921,6 +2997,15 @@ float32 float64_to_float32(float64 a, float_status *s)
     float64_unpack_canonical(&p, a, s);
     parts_float_to_float(&p, s);
     return float32_round_pack_canonical(&p, s);
+}
+
+float8_e5m2 bfloat16_to_float8_e5m2(bfloat16 a, bool saturate, float_status *s)
+{
+    FloatParts64 p;
+
+    bfloat16_unpack_canonical(&p, a, s);
+    parts_float_to_e5m2(&p, s, saturate);
+    return float8_e5m2_round_pack_canonical(&p, s, saturate);
 }
 
 float32 bfloat16_to_float32(bfloat16 a, float_status *s)

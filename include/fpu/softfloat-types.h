@@ -120,6 +120,11 @@ typedef struct {
 typedef uint16_t bfloat16;
 
 /*
+ * Open Compute Project (OCP) Microscaling Formats
+ */
+typedef uint8_t float8_e5m2;
+
+/*
  * Software IEC/IEEE floating-point underflow tininess-detection mode.
  */
 
