@@ -64,22 +64,22 @@
 ##
 # @CXLGeneralMediaEvent:
 #
-# Event record for a General Media Event (CXL r3.0 8.2.9.2.1.1).
+# Event record for a General Media Event (CXL r3.2 8.2.10.2.1.1).
 #
 # @dpa: Device Physical Address (relative to @path device).  Note
-#     lower bits include some flags.  See CXL r3.0 Table 8-43 General
+#     lower bits include some flags.  See CXL r3.2 Table 8-57 General
 #     Media Event Record, Physical Address.
 #
 # @descriptor: Memory Event Descriptor with additional memory event
-#     information.  See CXL r3.0 Table 8-43 General Media Event
+#     information.  See CXL r3.2 Table 8-57 General Media Event
 #     Record, Memory Event Descriptor for bit definitions.
 #
-# @type: Type of memory event that occurred.  See CXL r3.0 Table 8-43
+# @type: Type of memory event that occurred.  See CXL r3.2 Table 8-57
 #     General Media Event Record, Memory Event Type for possible
 #     values.
 #
 # @transaction-type: Type of first transaction that caused the event
-#     to occur.  See CXL r3.0 Table 8-43 General Media Event Record,
+#     to occur.  See CXL r3-2 Table 8-57 General Media Event Record,
 #     Transaction Type for possible values.
 #
 # @channel: The channel of the memory event location.  A channel is an
@@ -94,6 +94,16 @@
 # @component-id: Device specific component identifier for the event.
 #     May describe a field replaceable sub-component of the device.
 #
+# @is-comp-id-pldm: This flag specifies whether the device-specific
+#     component identifier format follows PLDM.
+#
+# @cme-ev-flags: Advanced programmable corrected memory error
+#     threshold event flags.
+#
+# @cme-count: Corrected memory error count at event.
+#
+# @sub-type: Memory event sub-type.
+#
 # Since: 8.1
 ##
 { 'struct': 'CXLGeneralMediaEvent',
@@ -101,13 +111,16 @@
   'data': { 'dpa': 'uint64', 'descriptor': 'uint8',
             'type': 'uint8', 'transaction-type': 'uint8',
             '*channel': 'uint8', '*rank': 'uint8',
-            '*device': 'uint32', '*component-id': 'str' } }
+            '*device': 'uint32', '*component-id': 'str',
+            '*is-comp-id-pldm':'bool',
+            '*cme-ev-flags':'uint8', '*cme-count':'uint32',
+            'sub-type':'uint8' } }
 
 ##
 # @cxl-inject-general-media-event:
 #
-# Inject an event record for a General Media Event (CXL r3.0
-# 8.2.9.2.1.1).  This event type is reported via one of the event
+# Inject an event record for a General Media Event (CXL r3.2
+# 8.2.10.2.1.1).  This event type is reported via one of the event
 # logs specified via the log parameter.
 #
 # Since: 8.1
