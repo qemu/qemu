@@ -33,20 +33,33 @@
 ##
 # @CXLCommonEventBase:
 #
-# Common event base for a CXL Event (CXL r3.0 8.2.9.2.1
-# Table 8-42 Common Event Record Format).
+# Common event base for a CXL Event (CXL r3.2 8.2.10.2.1
+# Table 8-55 Common Event Record Format).
 #
 # @path: CXL type 3 device canonical QOM path
 #
 # @log: event log to add the event to
 #
-# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+# @flags: Event Record Flags.  See CXL r3.2 Table 8-55 Common Event
 #     Record Format, Event Record Flags for subfield definitions.
+#
+# @maint-op-class: Maintenance operation class the device requests to
+#     initiate.
+#
+# @maint-op-subclass: Maintenance operation subclass the device
+#     requests to initiate.
+#
+# @ld-id: Logical Device (LD) ID of LD from where the event
+#     originated.
+#
+# @head-id: ID of the device head from where the event originated.
 #
 # Since: 8.1
 ##
 { 'struct': 'CXLCommonEventBase',
-  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags': 'uint8' } }
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags': 'uint32',
+            '*maint-op-class':'uint8', '*maint-op-subclass':'uint8',
+            '*ld-id':'uint16', '*head-id':'uint8' } }
 
 ##
 # @CXLGeneralMediaEvent:
