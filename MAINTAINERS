@@ -307,7 +307,7 @@ F: target/or1k/
 F: hw/or1k/
 F: include/hw/or1k/
 F: tests/functional/or1k/meson.build
-F: tests/tcg/openrisc/
+F: tests/tcg/or1k/
 
 PowerPC TCG CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
