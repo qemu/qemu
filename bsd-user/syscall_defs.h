@@ -26,7 +26,6 @@
 #include "errno_defs.h"
 
 #include "freebsd/syscall_nr.h"
-#include "netbsd/syscall_nr.h"
 
 /*
  * machine/_types.h
@@ -106,18 +105,6 @@ struct bsd_shm_regions {
                                                 /* underlying file */
 
 #define TARGET_FREEBSD_MAP_FLAGMASK     0x1ff7
-
-#define TARGET_NETBSD_MAP_INHERIT       0x0080  /* region is retained after */
-                                                /* exec */
-#define TARGET_NETBSD_MAP_TRYFIXED      0x0400  /* attempt hint address, even */
-                                                /* within break */
-#define TARGET_NETBSD_MAP_WIRED         0x0800  /* mlock() mapping when it is */
-                                                /* established */
-
-#define TARGET_NETBSD_MAP_STACK         0x2000  /* allocated from memory, */
-                                                /* swap space (stack) */
-
-#define TARGET_NETBSD_MAP_FLAGMASK      0x3ff7
 
 /* XXX */
 #define TARGET_BSD_MAP_FLAGMASK         0x3ff7

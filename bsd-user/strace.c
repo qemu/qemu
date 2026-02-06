@@ -153,9 +153,6 @@ static void print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
 static const struct syscallname freebsd_scnames[] = {
 #include "freebsd/strace.list"
 };
-static const struct syscallname netbsd_scnames[] = {
-#include "netbsd/strace.list"
-};
 
 static void print_syscall(int num, const struct syscallname *scnames,
         unsigned int nscnames, abi_long arg1, abi_long arg2, abi_long arg3,
@@ -225,20 +222,6 @@ void print_freebsd_syscall_ret(int num, abi_long ret)
 {
 
     print_syscall_ret(num, ret, freebsd_scnames, ARRAY_SIZE(freebsd_scnames));
-}
-
-void print_netbsd_syscall(int num, abi_long arg1, abi_long arg2, abi_long arg3,
-        abi_long arg4, abi_long arg5, abi_long arg6)
-{
-
-    print_syscall(num, netbsd_scnames, ARRAY_SIZE(netbsd_scnames),
-                  arg1, arg2, arg3, arg4, arg5, arg6);
-}
-
-void print_netbsd_syscall_ret(int num, abi_long ret)
-{
-
-    print_syscall_ret(num, ret, netbsd_scnames, ARRAY_SIZE(netbsd_scnames));
 }
 
 static void
