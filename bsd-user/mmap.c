@@ -215,11 +215,15 @@ static int mmap_frag(abi_ulong real_start,
 
     prot_new = prot | prot1;
     if (fd != -1) {
-        /* msync() won't work here, so we return an error if write is
-           possible while it is a shared mapping */
-        if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
-            (prot & PROT_WRITE))
+        /*
+         * msync() won't work here, so we return an error if write is
+         * possible while it is a shared mapping
+         */
+        if (!(flags & MAP_ANON)
+            && (flags & MAP_TYPE) == MAP_SHARED
+            && (prot & PROT_WRITE)) {
             return -1;
+        }
 
         /* adjust protection to be able to read */
         if (!(prot1 & PROT_WRITE))
@@ -586,8 +590,9 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
              * msync() won't work here, so we return an error if write is
              * possible while it is a shared mapping
              */
-            if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
-                (prot & PROT_WRITE)) {
+            if (!(flags & MAP_ANON)
+                && (flags & MAP_TYPE) == MAP_SHARED
+                && (prot & PROT_WRITE)) {
                 errno = EINVAL;
                 goto fail;
             }
