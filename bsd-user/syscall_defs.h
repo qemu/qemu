@@ -27,7 +27,6 @@
 
 #include "freebsd/syscall_nr.h"
 #include "netbsd/syscall_nr.h"
-#include "openbsd/syscall_nr.h"
 
 /*
  * machine/_types.h
@@ -119,15 +118,6 @@ struct bsd_shm_regions {
                                                 /* swap space (stack) */
 
 #define TARGET_NETBSD_MAP_FLAGMASK      0x3ff7
-
-#define TARGET_OPENBSD_MAP_INHERIT      0x0080  /* region is retained after */
-                                                /* exec */
-#define TARGET_OPENBSD_MAP_NOEXTEND     0x0100  /* for MAP_FILE, don't change */
-                                                /* file size */
-#define TARGET_OPENBSD_MAP_TRYFIXED     0x0400  /* attempt hint address, */
-                                                /* even within heap */
-
-#define TARGET_OPENBSD_MAP_FLAGMASK     0x17f7
 
 /* XXX */
 #define TARGET_BSD_MAP_FLAGMASK         0x3ff7
