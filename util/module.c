@@ -396,6 +396,9 @@ void qemu_load_module_for_opts(const char *group)
 
 #else
 
+const QemuModinfo qemu_modinfo[] = {};
+
+void module_init_info(const QemuModinfo *info) {}
 void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
 int module_load(const char *prefix, const char *name, Error **errp) { return 2; }

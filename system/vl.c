@@ -2889,10 +2889,8 @@ void qemu_init(int argc, char **argv)
 
     os_setup_limits();
 
-#ifdef CONFIG_MODULES
     module_init_info(qemu_modinfo);
     module_allow_arch(target_name());
-#endif
 
     qemu_init_subsystems();
 
