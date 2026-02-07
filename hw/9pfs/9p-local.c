@@ -469,12 +469,16 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
 
         fd = local_open_nofollow(fs_ctx, fs_path->data, O_RDONLY, 0);
         if (fd == -1) {
+            if (errno == ELOOP) {
+                goto native_symlink;
+            }
             return -1;
         }
         tsize = RETRY_ON_EINTR(read(fd, (void *)buf, bufsz));
         close_preserve_errno(fd);
     } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
                (fs_ctx->export_flags & V9FS_SM_NONE)) {
+    native_symlink:;
         char *dirpath = g_path_get_dirname(fs_path->data);
         char *name = g_path_get_basename(fs_path->data);
         int dirfd;
