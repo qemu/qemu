@@ -1413,36 +1413,31 @@ static void handle_v_cont(GArray *params, void *user_ctx)
 
 static void handle_v_attach(GArray *params, void *user_ctx)
 {
-    GDBProcess *process;
-    CPUState *cpu;
+    GDBProcess *process = NULL;
+    CPUState *cpu = NULL;
 
+    /* Default error reply */
     g_string_assign(gdbserver_state.str_buf, "E22");
-    if (!params->len) {
-        goto cleanup;
+    if (params->len) {
+        process = gdb_get_process(gdb_get_cmd_param(params, 0)->val_ul);
     }
 
-    process = gdb_get_process(gdb_get_cmd_param(params, 0)->val_ul);
-    if (!process) {
-        goto cleanup;
+    if (process) {
+        cpu = gdb_get_first_cpu_in_process(process);
     }
 
-    cpu = gdb_get_first_cpu_in_process(process);
-    if (!cpu) {
-        goto cleanup;
+    if (cpu) {
+        process->attached = true;
+        gdbserver_state.g_cpu = cpu;
+        gdbserver_state.c_cpu = cpu;
+
+        if (gdbserver_state.allow_stop_reply) {
+            gdb_build_stop_packet(gdbserver_state.str_buf, cpu);
+            gdbserver_state.allow_stop_reply = false;
+        }
     }
 
-    process->attached = true;
-    gdbserver_state.g_cpu = cpu;
-    gdbserver_state.c_cpu = cpu;
-
-    if (gdbserver_state.allow_stop_reply) {
-        g_string_printf(gdbserver_state.str_buf, "T%02xthread:", GDB_SIGNAL_TRAP);
-        gdb_append_thread_id(cpu, gdbserver_state.str_buf);
-        g_string_append_c(gdbserver_state.str_buf, ';');
-        gdbserver_state.allow_stop_reply = false;
-cleanup:
-        gdb_put_strbuf();
-    }
+    gdb_put_strbuf();
 }
 
 static void handle_v_kill(GArray *params, void *user_ctx)
@@ -2041,11 +2036,9 @@ static void handle_gen_set(GArray *params, void *user_ctx)
 static void handle_target_halt(GArray *params, void *user_ctx)
 {
     if (gdbserver_state.allow_stop_reply) {
-        g_string_printf(gdbserver_state.str_buf, "T%02xthread:", GDB_SIGNAL_TRAP);
-        gdb_append_thread_id(gdbserver_state.c_cpu, gdbserver_state.str_buf);
-        g_string_append_c(gdbserver_state.str_buf, ';');
-        gdb_put_strbuf();
+        gdb_build_stop_packet(gdbserver_state.str_buf, gdbserver_state.c_cpu);
         gdbserver_state.allow_stop_reply = false;
+        gdb_put_strbuf();
     }
     /*
      * Remove all the breakpoints when this query is issued,

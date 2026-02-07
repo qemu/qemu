@@ -53,6 +53,11 @@ AUTO_OPTIONS = {
     "werror",
 }
 
+# Options that configure prints help for, so we can skip
+CONFIGURE_HELP = {
+    "gdb",
+}
+
 # Builtin options that should be definable via configure.  Some of the others
 # we really do not want (e.g. c_args is defined via the native file, not
 # via -D, because it's a mix of CFLAGS and --extra-cflags); for specific
@@ -189,7 +194,9 @@ def print_help(options):
         key = cli_help_key(opt)
         # The first section includes options that have an arguments,
         # and booleans (i.e., only one of enable/disable makes sense)
-        if require_arg(opt):
+        if opt["name"] in CONFIGURE_HELP:
+            pass
+        elif require_arg(opt):
             metavar = cli_metavar(opt)
             left = f"--{key}={metavar}"
             help_line(left, opt, 27, True)

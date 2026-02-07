@@ -50,7 +50,7 @@ typedef union GdbCmdVariant {
  * '.' -> Skip 1 char unless reached "\0"
  * Any other value is treated as the delimiter value itself
  *
- * @allow_stop_reply: True iff the gdbstub can respond to this command with a
+ * @allow_stop_reply: True if the gdbstub can respond to this command with a
  * "stop reply" packet. The list of commands that accept such response is
  * defined at the GDB Remote Serial Protocol documentation. See:
  * https://sourceware.org/gdb/onlinedocs/gdb/Stop-Reply-Packets.html#Stop-Reply-Packets.

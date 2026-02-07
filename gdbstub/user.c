@@ -87,7 +87,11 @@ enum GDBForkMessage {
 typedef struct {
     int fd;
     char *socket_path;
-    int running_state;
+    /*
+     * running state of the guest, when we process a packet that restarts
+     * the guest we set this to true.
+     */
+    bool running;
     /*
      * Store syscalls mask without memory allocation in order to avoid
      * implementing synchronization.
@@ -198,9 +202,6 @@ void gdb_qemu_exit(int code)
 int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
                   int siginfo_len)
 {
-    char buf[256];
-    int n;
-
     if (!gdbserver_state.init || gdbserver_user_state.fd < 0) {
         return sig;
     }
@@ -244,13 +245,12 @@ int gdb_handlesig(CPUState *cpu, int sig, const char *reason, void *siginfo,
 
     sig = 0;
     gdbserver_state.state = RS_IDLE;
-    gdbserver_user_state.running_state = 0;
-    while (gdbserver_user_state.running_state == 0) {
-        n = read(gdbserver_user_state.fd, buf, 256);
+    gdbserver_user_state.running = false;
+    while (!gdbserver_user_state.running) {
+        char buf[256];
+        int n = read(gdbserver_user_state.fd, buf, 256);
         if (n > 0) {
-            int i;
-
-            for (i = 0; i < n; i++) {
+            for (int i = 0; i < n; i++) {
                 gdb_read_byte(buf[i]);
             }
         } else {
@@ -615,11 +615,11 @@ void gdbserver_fork_end(CPUState *cpu, pid_t pid)
 
     gdbserver_state.state = RS_IDLE;
     gdbserver_state.allow_stop_reply = false;
-    gdbserver_user_state.running_state = 0;
+    gdbserver_user_state.running = false;
     for (;;) {
         switch (gdbserver_user_state.fork_state) {
         case GDB_FORK_ENABLED:
-            if (gdbserver_user_state.running_state) {
+            if (gdbserver_user_state.running) {
                 close(fd);
                 return;
             }
@@ -732,7 +732,7 @@ void gdb_handle_query_attached(GArray *params, void *user_ctx)
 
 void gdb_continue(void)
 {
-    gdbserver_user_state.running_state = 1;
+    gdbserver_user_state.running = true;
     trace_gdbstub_op_continue();
 }
 
@@ -754,7 +754,7 @@ int gdb_continue_partial(char *newstates)
             cpu_single_step(cpu, gdbserver_state.sstep_flags);
         }
     }
-    gdbserver_user_state.running_state = 1;
+    gdbserver_user_state.running = true;
     return res;
 }
 
@@ -973,4 +973,16 @@ void gdb_handle_query_xfer_siginfo(GArray *params, void *user_ctx)
     gdb_memtox(gdbserver_state.str_buf, (const char *)siginfo_offset, len);
     gdb_put_packet_binary(gdbserver_state.str_buf->str,
                           gdbserver_state.str_buf->len, true);
+}
+
+/*
+ * The minimal user-mode stop reply packet is:
+ *   T05thread:{id};
+ */
+
+void gdb_build_stop_packet(GString *buf, CPUState *cs)
+{
+    g_string_printf(buf, "T%02xthread:", GDB_SIGNAL_TRAP);
+    gdb_append_thread_id(cs, buf);
+    g_string_append_c(buf, ';');
 }
