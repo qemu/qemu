@@ -2091,7 +2091,7 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
 }
 
 #ifndef HAVE_COPY_FILE_RANGE
-#ifndef EMSCRIPTEN
+#if !defined(EMSCRIPTEN) && !defined(__GNU__)
 static
 #endif
 ssize_t copy_file_range(int in_fd, off_t *in_off, int out_fd,
