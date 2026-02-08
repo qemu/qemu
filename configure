@@ -371,6 +371,8 @@ elif check_define __APPLE__; then
 elif check_define EMSCRIPTEN ; then
   host_os=emscripten
   cross_compile="yes"
+elif check_define __GNU__; then
+  host_os=gnu
 else
   # This is a fatal error, but don't report it yet, because we
   # might be going to just print the --help text, or it might
