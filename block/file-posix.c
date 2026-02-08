@@ -43,9 +43,11 @@
 #include "scsi/constants.h"
 #include "scsi/utils.h"
 
-#if defined(__APPLE__) && (__MACH__)
+#ifndef __sun__
 #include <sys/ioctl.h>
-#if defined(HAVE_HOST_BLOCK_DEVICE)
+#endif
+
+#if defined(__APPLE__) && (__MACH__) && defined(HAVE_HOST_BLOCK_DEVICE)
 #include <paths.h>
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -57,7 +59,6 @@
 //#include <IOKit/storage/IOCDTypes.h>
 #include <IOKit/storage/IODVDMedia.h>
 #include <CoreFoundation/CoreFoundation.h>
-#endif /* defined(HAVE_HOST_BLOCK_DEVICE) */
 #endif
 
 #ifdef __sun__
@@ -65,7 +66,6 @@
 #include <sys/dkio.h>
 #endif
 #ifdef __linux__
-#include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/syscall.h>
 #include <sys/vfs.h>
@@ -95,25 +95,18 @@
 #endif
 
 #ifdef __OpenBSD__
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/dkio.h>
 #endif
 
 #ifdef __NetBSD__
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/dkio.h>
 #include <sys/disk.h>
 #endif
 
 #ifdef __DragonFly__
-#include <sys/ioctl.h>
 #include <sys/diskslice.h>
-#endif
-
-#ifdef EMSCRIPTEN
-#include <sys/ioctl.h>
 #endif
 
 /* OS X does not have O_DSYNC */
