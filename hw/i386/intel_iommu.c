@@ -1857,6 +1857,21 @@ static const bool vtd_qualified_faults[] = {
     [VTD_FR_MAX] = false,
 };
 
+static const bool vtd_recoverable_faults[] = {
+    [VTD_FR_WRITE] = true,
+    [VTD_FR_READ] = true,
+    [VTD_FR_PASID_DIR_ENTRY_P] = true,
+    [VTD_FR_PASID_ENTRY_P] = true,
+    [VTD_FR_FS_PAGING_ENTRY_INV] = true,
+    [VTD_FR_FS_PAGING_ENTRY_P] = true,
+    [VTD_FR_FS_PAGING_ENTRY_RSVD] = true,
+    [VTD_FR_PASID_ENTRY_FSPTPTR_INV] = true,
+    [VTD_FR_FS_NON_CANONICAL] = true,
+    [VTD_FR_FS_PAGING_ENTRY_US] = true,
+    [VTD_FR_SM_WRITE] = true,
+    [VTD_FR_MAX] = false,
+};
+
 /* To see if a fault condition is "qualified", which is reported to software
  * only if the FPD field in the context-entry used to process the faulting
  * request is 0.
@@ -1864,6 +1879,11 @@ static const bool vtd_qualified_faults[] = {
 static inline bool vtd_is_qualified_fault(VTDFaultReason fault)
 {
     return vtd_qualified_faults[fault];
+}
+
+static inline bool vtd_is_recoverable_fault(VTDFaultReason fault, int iommu_idx)
+{
+    return iommu_idx == VTD_IDX_ATS && vtd_recoverable_faults[fault];
 }
 
 static inline bool vtd_is_interrupt_addr(hwaddr addr)
@@ -2237,8 +2257,10 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     }
 
     if (ret_fr) {
-        vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
-                         addr, is_write, pasid != PCI_NO_PASID, pasid);
+        if (!vtd_is_recoverable_fault(-ret_fr, iommu_idx)) {
+            vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
+                            addr, is_write, pasid != PCI_NO_PASID, pasid);
+        }
         goto error;
     }
 
