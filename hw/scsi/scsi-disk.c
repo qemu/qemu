@@ -28,6 +28,7 @@
 #include "qemu/hw-version.h"
 #include "qemu/memalign.h"
 #include "hw/scsi/scsi.h"
+#include "migration/misc.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "hw/scsi/emulation.h"
@@ -122,6 +123,7 @@ struct SCSIDiskState {
      */
     uint16_t rotation_rate;
     bool migrate_emulated_scsi_request;
+    NotifierWithReturn migration_notifier;
 };
 
 static void scsi_free_request(SCSIRequest *req)
@@ -2737,6 +2739,29 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 }
 
 #ifdef __linux__
+/*
+ * Preempt on the SCSI Persistent Reservation on the source when migration
+ * fails because the destination may have already preempted and we need to get
+ * the reservation back.
+ */
+static int scsi_block_migration_notifier(NotifierWithReturn *notifier,
+                                         MigrationEvent *e, Error **errp)
+{
+    if (e->type == MIG_EVENT_PRECOPY_FAILED) {
+        SCSIDiskState *s =
+            container_of(notifier, SCSIDiskState, migration_notifier);
+        SCSIDevice *d = &s->qdev;
+        Error *local_err = NULL;
+
+        if (!scsi_generic_pr_state_preempt(d, &local_err)) {
+            /* MIG_EVENT_PRECOPY_FAILED cannot fail, so just warn */
+            error_prepend(&local_err, "scsi-block migration rollback: ");
+            warn_report_err(local_err);
+        }
+    }
+    return 0;
+}
+
 static int get_device_type(SCSIDiskState *s)
 {
     uint8_t cmd[16];
@@ -2748,8 +2773,8 @@ static int get_device_type(SCSIDiskState *s)
     cmd[0] = INQUIRY;
     cmd[4] = sizeof(buf);
 
-    ret = scsi_SG_IO_FROM_DEV(s->qdev.conf.blk, cmd, sizeof(cmd),
-                              buf, sizeof(buf), s->qdev.io_timeout);
+    ret = scsi_SG_IO(s->qdev.conf.blk, SG_DXFER_FROM_DEV, cmd, sizeof(cmd),
+                     buf, sizeof(buf), s->qdev.io_timeout, NULL);
     if (ret < 0) {
         return -1;
     }
@@ -2815,6 +2840,16 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 
     scsi_realize(&s->qdev, errp);
     scsi_generic_read_device_inquiry(&s->qdev);
+
+    migration_add_notifier(&s->migration_notifier,
+                           scsi_block_migration_notifier);
+}
+
+static void scsi_block_unrealize(SCSIDevice *dev)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+
+    migration_remove_notifier(&s->migration_notifier);
 }
 
 typedef struct SCSIBlockReq {
@@ -3209,6 +3244,47 @@ static const Property scsi_hd_properties[] = {
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
 };
 
+#ifdef __linux__
+static bool scsi_disk_pr_state_post_load_errp(void *opaque, int version_id,
+                                              Error **errp)
+{
+    SCSIDiskState *s = opaque;
+    SCSIDevice *dev = &s->qdev;
+
+    return scsi_generic_pr_state_preempt(dev, errp);
+}
+
+static bool scsi_disk_pr_state_needed(void *opaque)
+{
+    SCSIDiskState *s = opaque;
+    SCSIPRState *pr_state = &s->qdev.pr_state;
+    bool ret;
+
+    if (!s->qdev.migrate_pr) {
+        return false;
+    }
+
+    /* A reservation requires a key, so checking this field is enough */
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        ret = pr_state->key;
+    }
+    return ret;
+}
+
+static const VMStateDescription vmstate_scsi_disk_pr_state = {
+    .name = "scsi-disk/pr",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load_errp = scsi_disk_pr_state_post_load_errp,
+    .needed = scsi_disk_pr_state_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT64(qdev.pr_state.key, SCSIDiskState),
+        VMSTATE_UINT8(qdev.pr_state.resv_type, SCSIDiskState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+#endif /* __linux__ */
+
 static const VMStateDescription vmstate_scsi_disk_state = {
     .name = "scsi-disk",
     .version_id = 1,
@@ -3221,7 +3297,13 @@ static const VMStateDescription vmstate_scsi_disk_state = {
         VMSTATE_BOOL(tray_open, SCSIDiskState),
         VMSTATE_BOOL(tray_locked, SCSIDiskState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription * const []) {
+#ifdef __linux__
+        &vmstate_scsi_disk_pr_state,
+#endif
+        NULL
+    },
 };
 
 static void scsi_hd_class_initfn(ObjectClass *klass, const void *data)
@@ -3301,6 +3383,7 @@ static const Property scsi_block_properties[] = {
                       -1),
     DEFINE_PROP_UINT32("io_timeout", SCSIDiskState, qdev.io_timeout,
                        DEFAULT_IO_TIMEOUT),
+    DEFINE_PROP_BOOL("migrate-pr", SCSIDiskState, qdev.migrate_pr, true),
 };
 
 static void scsi_block_class_initfn(ObjectClass *klass, const void *data)
@@ -3310,6 +3393,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, const void *data)
     SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
 
     sc->realize      = scsi_block_realize;
+    sc->unrealize    = scsi_block_unrealize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
     sdc->dma_readv   = scsi_block_dma_readv;
