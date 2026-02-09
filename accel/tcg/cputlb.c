@@ -1271,7 +1271,7 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
 
 static MemoryRegionSection *
 io_prepare(hwaddr *out_offset, CPUState *cpu, CPUTLBEntryFull *full,
-           MemTxAttrs attrs, vaddr addr, uintptr_t retaddr)
+           vaddr addr, uintptr_t retaddr)
 {
     MemoryRegionSection *section;
     hwaddr mr_offset;
@@ -1545,18 +1545,18 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
 
     (void)probe_access_internal(env_cpu(env), addr, 1, MMU_INST_FETCH,
                                 cpu_mmu_index(env_cpu(env), true), false,
-                                &p, &full, 0, false);
+                                hostp, &full, 0, false);
+
+    p = *hostp;
     if (p == NULL) {
         return -1;
     }
 
     if (full->lg_page_size < TARGET_PAGE_BITS) {
+        *hostp = NULL;
         return -1;
     }
 
-    if (hostp) {
-        *hostp = p;
-    }
     return qemu_ram_addr_from_host_nofail(p);
 }
 
@@ -1974,12 +1974,10 @@ static uint64_t do_ld_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
-    MemTxAttrs attrs;
 
     tcg_debug_assert(size > 0 && size <= 8);
 
-    attrs = full->attrs;
-    section = io_prepare(&mr_offset, cpu, full, attrs, addr, ra);
+    section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
 
     BQL_LOCK_GUARD();
@@ -1994,13 +1992,11 @@ static Int128 do_ld16_mmio_beN(CPUState *cpu, CPUTLBEntryFull *full,
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
-    MemTxAttrs attrs;
     uint64_t a, b;
 
     tcg_debug_assert(size > 8 && size <= 16);
 
-    attrs = full->attrs;
-    section = io_prepare(&mr_offset, cpu, full, attrs, addr, ra);
+    section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
 
     BQL_LOCK_GUARD();
@@ -2492,12 +2488,10 @@ static uint64_t do_st_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
     MemoryRegionSection *section;
     hwaddr mr_offset;
     MemoryRegion *mr;
-    MemTxAttrs attrs;
 
     tcg_debug_assert(size > 0 && size <= 8);
 
-    attrs = full->attrs;
-    section = io_prepare(&mr_offset, cpu, full, attrs, addr, ra);
+    section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
 
     BQL_LOCK_GUARD();
@@ -2512,12 +2506,10 @@ static uint64_t do_st16_mmio_leN(CPUState *cpu, CPUTLBEntryFull *full,
     MemoryRegionSection *section;
     MemoryRegion *mr;
     hwaddr mr_offset;
-    MemTxAttrs attrs;
 
     tcg_debug_assert(size > 8 && size <= 16);
 
-    attrs = full->attrs;
-    section = io_prepare(&mr_offset, cpu, full, attrs, addr, ra);
+    section = io_prepare(&mr_offset, cpu, full, addr, ra);
     mr = section->mr;
 
     BQL_LOCK_GUARD();

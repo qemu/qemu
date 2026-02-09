@@ -82,7 +82,7 @@ void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
  * See get_page_addr_code() (full-system version) for documentation on the
  * return value.
  *
- * Sets *@hostp (when @hostp is non-NULL) as follows.
+ * Sets *@hostp as follows.
  * If the return value is -1, sets *@hostp to NULL. Otherwise, sets *@hostp
  * to the host address where @addr's content is kept.
  *
@@ -105,7 +105,8 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, vaddr addr,
 static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
                                                 vaddr addr)
 {
-    return get_page_addr_code_hostp(env, addr, NULL);
+    void *discard;
+    return get_page_addr_code_hostp(env, addr, &discard);
 }
 
 /*
