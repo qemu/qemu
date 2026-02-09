@@ -55,7 +55,7 @@ TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
 TCGv hex_new_value_usr;
 TCGv hex_store_addr[STORES_MAX];
-TCGv hex_store_width[STORES_MAX];
+TCGv_i32 hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
 TCGv_i64 hex_store_val64[STORES_MAX];
 TCGv hex_llsc_addr;
@@ -1123,7 +1123,7 @@ void hexagon_translate_init(void)
             store_addr_names[i]);
 
         snprintf(store_width_names[i], NAME_LEN, "store_width_%d", i);
-        hex_store_width[i] = tcg_global_mem_new(tcg_env,
+        hex_store_width[i] = tcg_global_mem_new_i32(tcg_env,
             offsetof(CPUHexagonState, mem_log_stores[i].width),
             store_width_names[i]);
 

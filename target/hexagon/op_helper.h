@@ -20,8 +20,8 @@
 
 /* Misc functions */
 void log_store64(CPUHexagonState *env, target_ulong addr,
-                 int64_t val, int width, int slot);
+                 int64_t val, uint32_t width, int slot);
 void log_store32(CPUHexagonState *env, target_ulong addr,
-                 target_ulong val, int width, int slot);
+                 target_ulong val, uint32_t width, int slot);
 
 #endif
