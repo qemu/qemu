@@ -7,11 +7,33 @@ static bool gen_load(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+    TCGv t1 = tcg_temp_new();
+    TCGv mask = tcg_constant_tl(0x8);
+    TCGv zero = tcg_constant_tl(0);
+    TCGLabel *done = gen_new_label();
+    TCGLabel *l1 = gen_new_label();
 
     addr = make_address_i(ctx, addr, a->imm);
 
+    if (avail_SCQ(ctx) && mop == MO_LEUQ) {
+        /*
+         * The LL.D+LD.D may be paired with SC.Q,
+         * use llval_high if llbit_scq && (addr == lladdr ^ 0x8)
+         */
+        tcg_gen_brcond_tl(TCG_COND_EQ, cpu_llbit_scq, zero, l1);
+        tcg_gen_xor_tl(t1, addr, mask);
+        tcg_gen_brcond_tl(TCG_COND_NE, cpu_lladdr, t1, l1);
+        gen_set_gpr(a->rd, cpu_llval_high, EXT_NONE);
+        tcg_gen_br(done);
+        gen_set_label(l1);
+    }
+
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, mop);
     gen_set_gpr(a->rd, dest, EXT_NONE);
+
+    if (avail_SCQ(ctx) && mop == MO_LEUQ) {
+        gen_set_label(done);
+    }
     return true;
 }
 
