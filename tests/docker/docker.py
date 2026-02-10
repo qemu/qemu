@@ -618,12 +618,7 @@ class ProbeCommand(SubCommand):
     def run(self, args, argv):
         try:
             docker = Docker()
-            if docker._command[0] == "docker":
-                print("docker")
-            elif docker._command[0] == "sudo":
-                print("sudo docker")
-            elif docker._command[0] == "podman":
-                print("podman")
+            print(" ".join(docker._command))
         except Exception:
             print("no")
 
