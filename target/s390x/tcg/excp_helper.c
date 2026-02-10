@@ -147,7 +147,8 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        bool probe, uintptr_t retaddr)
 {
     CPUS390XState *env = cpu_env(cs);
-    target_ulong vaddr, raddr;
+    vaddr vaddr;
+    hwaddr raddr;
     uint64_t asc, tec;
     int prot, excp;
 

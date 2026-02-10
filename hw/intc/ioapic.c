@@ -141,7 +141,8 @@ static void ioapic_service(IOAPICCommonState *s)
                  * the IOAPIC message into a MSI one, and its
                  * address space will decide whether we need a
                  * translation. */
-                stl_le_phys(ioapic_as, info.addr, info.data);
+                address_space_stl_le(ioapic_as, info.addr, info.data,
+                                     MEMTXATTRS_UNSPECIFIED, NULL);
             }
         }
     }
@@ -429,7 +430,7 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ioapic_io_ops = {
     .read = ioapic_mem_read,
     .write = ioapic_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ioapic_machine_done_notify(Notifier *notifier, void *data)

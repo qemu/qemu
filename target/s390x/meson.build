@@ -20,10 +20,15 @@ s390x_ss.add(gen_features_h)
 
 s390x_system_ss = ss.source_set()
 s390x_system_ss.add(files(
+  'ioinst.c',
+))
+
+s390x_common_system_ss = ss.source_set()
+s390x_common_system_ss.add(gen_features_h)
+s390x_common_system_ss.add(files(
   'helper.c',
   'arch_dump.c',
   'diag.c',
-  'ioinst.c',
   'machine.c',
   'mmu_helper.c',
   'sigp.c',
@@ -41,4 +46,5 @@ subdir('kvm')
 
 target_arch += {'s390x': s390x_ss}
 target_system_arch += {'s390x': s390x_system_ss}
+target_common_system_arch += {'s390x': s390x_common_system_ss}
 target_user_arch += {'s390x': s390x_user_ss}

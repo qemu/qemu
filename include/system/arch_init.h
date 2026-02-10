@@ -15,7 +15,7 @@ enum {
     QEMU_ARCH_SH4 = (1 << 10),
     QEMU_ARCH_SPARC = (1 << 11),
     QEMU_ARCH_XTENSA = (1 << 12),
-    QEMU_ARCH_OPENRISC = (1 << 13),
+    QEMU_ARCH_OR1K = (1 << 13),
     QEMU_ARCH_TRICORE = (1 << 16),
     QEMU_ARCH_HPPA = (1 << 18),
     QEMU_ARCH_RISCV = (1 << 19),

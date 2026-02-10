@@ -1108,7 +1108,7 @@ static const MemoryRegionOps apic_io_ops = {
     .impl.max_access_size = 4,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void apic_realize(DeviceState *dev, Error **errp)

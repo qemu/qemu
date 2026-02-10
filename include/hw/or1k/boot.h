@@ -16,8 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPENRISC_BOOT_H
-#define OPENRISC_BOOT_H
+#ifndef OR1K_BOOT_H
+#define OR1K_BOOT_H
 
 #include "exec/cpu-defs.h"
 #include "hw/core/boards.h"
@@ -32,4 +32,4 @@ hwaddr openrisc_load_initrd(void *fdt, const char *filename,
 uint32_t openrisc_load_fdt(MachineState *ms, void *fdt, hwaddr load_start,
                            uint64_t mem_size);
 
-#endif /* OPENRISC_BOOT_H */
+#endif /* OR1K_BOOT_H */

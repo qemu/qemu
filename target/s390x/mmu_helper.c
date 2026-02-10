@@ -86,7 +86,7 @@ static bool lowprot_enabled(const CPUS390XState *env, uint64_t asc)
  * Translate real address to absolute (= physical)
  * address by taking care of the prefix mapping.
  */
-target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
+hwaddr mmu_real2abs(CPUS390XState *env, hwaddr raddr)
 {
     if (raddr < 0x2000) {
         return raddr + env->psa;    /* Map the lowcore. */
@@ -96,7 +96,7 @@ target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
     return raddr;
 }
 
-bool mmu_absolute_addr_valid(target_ulong addr, bool is_write)
+bool mmu_absolute_addr_valid(hwaddr addr, bool is_write)
 {
     return address_space_access_valid(&address_space_memory,
                                       addr & TARGET_PAGE_MASK,
@@ -108,6 +108,7 @@ static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
                                     uint64_t *entry)
 {
     CPUState *cs = env_cpu(env);
+    MemTxResult ret;
 
     /*
      * According to the PoP, these table addresses are "unpredictably real
@@ -116,17 +117,13 @@ static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
      *
      * We treat them as absolute addresses and don't wrap them.
      */
-    if (unlikely(address_space_read(cs->as, gaddr, MEMTXATTRS_UNSPECIFIED,
-                                    entry, sizeof(*entry)) !=
-                 MEMTX_OK)) {
-        return false;
-    }
-    *entry = be64_to_cpu(*entry);
-    return true;
+    *entry = address_space_ldq_be(cs->as, gaddr, MEMTXATTRS_UNSPECIFIED, &ret);
+
+    return ret == MEMTX_OK;
 }
 
-static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
-                              uint64_t asc, uint64_t asce, target_ulong *raddr,
+static int mmu_translate_asce(CPUS390XState *env, vaddr vaddr,
+                              uint64_t asc, uint64_t asce, hwaddr *raddr,
                               int *flags)
 {
     const bool edat1 = (env->cregs[0] & CR0_EDAT) &&
@@ -299,7 +296,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     return 0;
 }
 
-static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
+static void mmu_handle_skey(hwaddr addr, int rw, int *flags)
 {
     static S390SKeysClass *skeyclass;
     static S390SKeysState *ss;
@@ -384,8 +381,8 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
  *               there is an exception to raise
  * @return       0 = success, != 0, the exception to raise
  */
-int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
-                  target_ulong *raddr, int *flags, uint64_t *tec)
+int mmu_translate(CPUS390XState *env, vaddr vaddr, int rw, uint64_t asc,
+                  hwaddr *raddr, int *flags, uint64_t *tec)
 {
     uint64_t asce;
     int r;
@@ -475,7 +472,7 @@ nodat:
  * the MEMOP interface.
  */
 static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
-                           target_ulong *pages, bool is_write, uint64_t *tec)
+                           hwaddr *pages, bool is_write, uint64_t *tec)
 {
     uint64_t asc = cpu->env.psw.mask & PSW_MASK_ASC;
     CPUS390XState *env = &cpu->env;
@@ -526,7 +523,7 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int currlen, nr_pages, i;
-    target_ulong *pages;
+    hwaddr *pages;
     uint64_t tec;
     int ret;
 
@@ -587,8 +584,8 @@ void s390_cpu_virt_mem_handle_exc(S390CPU *cpu, uintptr_t ra)
  * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
  * @return       0 = success, != 0, the exception to raise
  */
-int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
-                       target_ulong *addr, int *flags, uint64_t *tec)
+int mmu_translate_real(CPUS390XState *env, hwaddr raddr, int rw,
+                       hwaddr *addr, int *flags, uint64_t *tec)
 {
     const bool lowprot_enabled = env->cregs[0] & CR0_LOWPROT;
 

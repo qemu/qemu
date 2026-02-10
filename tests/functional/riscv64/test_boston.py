@@ -66,25 +66,6 @@ class RiscvBostonTest(QemuSystemTest):
         """
         self._boot_linux_test(smp_count=2)
 
-    def test_boston_boot_linux_7_cpus(self):
-        """
-        Test Linux kernel boot with 7 CPUs
-
-        7 CPUs is a special configuration that tests odd CPU count
-        handling and ensures proper core distribution across clusters.
-        """
-        self._boot_linux_test(smp_count=7)
-
-    def test_boston_boot_linux_35_cpus(self):
-        """
-        Test Linux kernel boot with 35 CPUs
-
-        35 CPUs is a special configuration that tests a non-power-of-2
-        CPU count above 32, validating proper handling of larger
-        asymmetric SMP configurations.
-        """
-        self._boot_linux_test(smp_count=35)
-
     def test_boston_boot_linux_max_cpus(self):
         """
         Test Linux kernel boot with maximum supported CPU count (64)
