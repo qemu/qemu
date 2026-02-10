@@ -100,6 +100,19 @@ typedef struct {
 } X64Cpu;
 
 typedef struct {
+    struct qemu_plugin_register *reg_fp;
+    struct qemu_plugin_register *reg_priv;
+} Riscv64Cpu;
+
+typedef enum {
+    RISCV64_USER,
+    RISCV64_SUPERVISOR,
+    RISCV64_RESERVED,
+    RISCV64_MACHINE,
+    RISCV64_PRIVILEGE_LEVEL_MAX,
+} Riscv64PrivilegeLevel;
+
+typedef struct {
     uint64_t timestamp;
     uint64_t data;
 } UftraceEntry;
@@ -681,6 +694,78 @@ static CpuOps x64_ops = {
     .does_insn_modify_frame_pointer = x64_does_insn_modify_frame_pointer,
 };
 
+static uint8_t riscv64_num_privilege_levels(void)
+{
+    return RISCV64_PRIVILEGE_LEVEL_MAX;
+}
+
+static const char *riscv64_get_privilege_level_name(uint8_t pl)
+{
+    switch (pl) {
+    case RISCV64_USER: return "User";
+    case RISCV64_SUPERVISOR: return "Supervisor";
+    case RISCV64_RESERVED: return "Unknown";
+    case RISCV64_MACHINE: return "Machine";
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static uint8_t riscv64_get_privilege_level(Cpu *cpu_)
+{
+    Riscv64Cpu *cpu = cpu_->arch;
+    return cpu_read_register64(cpu_, cpu->reg_priv);
+}
+
+static uint64_t riscv64_get_frame_pointer(Cpu *cpu_)
+{
+    Riscv64Cpu *cpu = cpu_->arch;
+    return cpu_read_register64(cpu_, cpu->reg_fp);
+}
+
+static uint64_t riscv64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp - 16);
+}
+
+static uint64_t riscv64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp - 8);
+}
+
+static void riscv64_init(Cpu *cpu_)
+{
+    Riscv64Cpu *cpu = g_new0(Riscv64Cpu, 1);
+    cpu_->arch = cpu;
+    cpu->reg_fp = plugin_find_register("fp");
+    g_assert(cpu->reg_fp);
+    cpu->reg_priv = plugin_find_register("priv");
+    g_assert(cpu->reg_priv);
+}
+
+static void riscv64_end(Cpu *cpu)
+{
+    g_free(cpu->arch);
+}
+
+static bool riscv64_does_insn_modify_frame_pointer(const char *disas)
+{
+    /* fp is s0 in disassembly */
+    return strstr(disas, "s0");
+}
+
+static CpuOps riscv64_ops = {
+    .init = riscv64_init,
+    .end = riscv64_end,
+    .get_frame_pointer = riscv64_get_frame_pointer,
+    .get_next_frame_pointer = riscv64_get_next_frame_pointer,
+    .get_next_return_address = riscv64_get_next_return_address,
+    .get_privilege_level = riscv64_get_privilege_level,
+    .num_privilege_levels = riscv64_num_privilege_levels,
+    .get_privilege_level_name = riscv64_get_privilege_level_name,
+    .does_insn_modify_frame_pointer = riscv64_does_insn_modify_frame_pointer,
+};
+
 static void track_privilege_change(unsigned int cpu_index, void *udata)
 {
     Cpu *cpu = qemu_plugin_scoreboard_find(score, cpu_index);
@@ -890,6 +975,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         arch_ops = aarch64_ops;
     } else if (!strcmp(info->target_name, "x86_64")) {
         arch_ops = x64_ops;
+    } else if (!strcmp(info->target_name, "riscv64")) {
+        arch_ops = riscv64_ops;
     } else {
         fprintf(stderr, "plugin uftrace: %s target is not supported\n",
                 info->target_name);

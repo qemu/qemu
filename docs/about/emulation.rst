@@ -836,8 +836,8 @@ Uftrace
 This plugin generates a binary trace compatible with
 `uftrace <https://github.com/namhyung/uftrace>`_.
 
-Plugin supports aarch64 and x64, and works in user and system mode, allowing to
-trace a system boot, which is not something possible usually.
+Plugin supports aarch64, x64 and riscv64, and works in user and system mode,
+allowing to trace a system boot, which is not something possible usually.
 
 In user mode, the memory mapping is directly copied from ``/proc/self/maps`` at
 the end of execution. Uftrace should be able to retrieve symbols by itself,
@@ -872,7 +872,7 @@ Performance wise, overhead compared to normal tcg execution is around x5-x15.
     - Description
   * - trace-privilege-level=[on|off]
     - Generate separate traces for each privilege level (Exception Level +
-      Security State on aarch64, Rings on x64).
+      Security State on aarch64, Privilege levels on riscv64 and Rings on x64).
 
 .. list-table:: uftrace_symbols.py arguments
   :widths: 20 80
@@ -975,6 +975,10 @@ on machine where you build it.
 You can follow the exact same instructions for a x64 system, combining edk2,
 Linux, and Ubuntu, simply by switching to
 `x86_64 <https://github.com/pbo-linaro/qemu-linux-stack/tree/x86_64>`_ branch.
+
+You can follow the exact same instructions for a riscv64 system, combining
+opensbi, Linux, and Ubuntu, simply by switching to
+`riscv64 <https://github.com/pbo-linaro/qemu-linux-stack/tree/riscv64>`_ branch.
 
 To build and run the system::
 
