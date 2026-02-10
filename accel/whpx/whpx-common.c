@@ -35,6 +35,7 @@
 #include <winhvplatformdefs.h>
 
 bool whpx_allowed;
+bool whpx_irqchip_in_kernel;
 static bool whp_dispatch_initialized;
 static HMODULE hWinHvPlatform;
 #ifdef HOST_X86_64
@@ -487,15 +488,6 @@ static const TypeInfo whpx_cpu_accel_type = {
     .class_init = whpx_cpu_accel_class_init,
     .abstract = true,
 };
-
-/*
- * Partition support
- */
-
-bool whpx_apic_in_platform(void)
-{
-    return whpx_global.apic_in_platform;
-}
 
 static void whpx_accel_class_init(ObjectClass *oc, const void *data)
 {
