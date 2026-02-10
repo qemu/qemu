@@ -46,6 +46,8 @@ typedef struct {
     void (*init)(Cpu *cpu);
     void (*end)(Cpu *cpu);
     uint64_t (*get_frame_pointer)(Cpu *cpu);
+    uint64_t (*get_next_frame_pointer)(Cpu *cpu, uint64_t fp);
+    uint64_t (*get_next_return_address)(Cpu *cpu, uint64_t fp);
     uint8_t (*get_privilege_level)(Cpu *cpu);
     uint8_t (*num_privilege_levels)(void);
     const char *(*get_privilege_level_name)(uint8_t pl);
@@ -421,7 +423,9 @@ static uint32_t cpu_read_register32(Cpu *cpu, struct qemu_plugin_register *reg)
 
 static uint64_t cpu_read_memory64(Cpu *cpu, uint64_t addr)
 {
-    g_assert(addr);
+    if (!addr) {
+        return 0;
+    }
     GByteArray *buf = cpu->buf;
     g_byte_array_set_size(buf, 0);
     bool read = qemu_plugin_read_memory_vaddr(addr, buf, 8);
@@ -449,10 +453,8 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
         CallstackEntry e = {.frame_pointer = frame_pointer, .pc = pc};
         unwind[depth] = e;
         depth++;
-        if (frame_pointer) {
-            frame_pointer = cpu_read_memory64(cpu, frame_pointer);
-        }
-        pc = cpu_read_memory64(cpu, frame_pointer + 8); /* read previous lr */
+        frame_pointer = cpu->ops.get_next_frame_pointer(cpu, frame_pointer);
+        pc = cpu->ops.get_next_return_address(cpu, frame_pointer);
     } while (frame_pointer && pc && depth < UNWIND_STACK_MAX_DEPTH);
     #undef UNWIND_STACK_MAX_DEPTH
 
@@ -545,6 +547,16 @@ static uint64_t aarch64_get_frame_pointer(Cpu *cpu_)
     return cpu_read_register64(cpu_, cpu->reg_fp);
 }
 
+static uint64_t aarch64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp);
+}
+
+static uint64_t aarch64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp + 8);
+}
+
 static void aarch64_init(Cpu *cpu_)
 {
     Aarch64Cpu *cpu = g_new0(Aarch64Cpu, 1);
@@ -580,6 +592,8 @@ static CpuOps aarch64_ops = {
     .init = aarch64_init,
     .end = aarch64_end,
     .get_frame_pointer = aarch64_get_frame_pointer,
+    .get_next_frame_pointer = aarch64_get_next_frame_pointer,
+    .get_next_return_address = aarch64_get_next_return_address,
     .get_privilege_level = aarch64_get_privilege_level,
     .num_privilege_levels = aarch64_num_privilege_levels,
     .get_privilege_level_name = aarch64_get_privilege_level_name,
@@ -623,6 +637,16 @@ static uint64_t x64_get_frame_pointer(Cpu *cpu_)
     return cpu_read_register64(cpu_, cpu->reg_rbp);
 }
 
+static uint64_t x64_get_next_frame_pointer(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp);
+}
+
+static uint64_t x64_get_next_return_address(Cpu *cpu_, uint64_t fp)
+{
+    return cpu_read_memory64(cpu_, fp + 8);
+}
+
 static void x64_init(Cpu *cpu_)
 {
     X64Cpu *cpu = g_new0(X64Cpu, 1);
@@ -649,6 +673,8 @@ static CpuOps x64_ops = {
     .init = x64_init,
     .end = x64_end,
     .get_frame_pointer = x64_get_frame_pointer,
+    .get_next_frame_pointer = x64_get_next_frame_pointer,
+    .get_next_return_address = x64_get_next_return_address,
     .get_privilege_level = x64_get_privilege_level,
     .num_privilege_levels = x64_num_privilege_levels,
     .get_privilege_level_name = x64_get_privilege_level_name,
@@ -710,7 +736,7 @@ static void track_callstack(unsigned int cpu_index, void *udata)
         return;
     }
 
-    uint64_t caller_fp = fp ? cpu_read_memory64(cpu, fp) : 0;
+    uint64_t caller_fp = cpu->ops.get_next_frame_pointer(cpu, fp);
     if (caller_fp == top.frame_pointer) {
         /* call */
         callstack_push(cs, (CallstackEntry){.frame_pointer = fp, .pc = pc});
