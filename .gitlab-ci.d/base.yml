@@ -28,6 +28,9 @@ variables:
     # we don't need. The --filter options avoid blobs and tree references we aren't going to use
     # and we also avoid fetching tags.
     GIT_FETCH_EXTRA_FLAGS: --filter=blob:none --filter=tree:0 --no-tags --prune --quiet
+    # Ensure docker.py / tests/docker/Makefile.include always displays stdout
+    # from any docker commands to aid debugging of failures
+    DOCKER_V: 1
 
   interruptible: true
 
