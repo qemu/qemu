@@ -94,7 +94,7 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
                                         unsigned size)
 {
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
-    uint64_t value = bus->regs[offset / sizeof(*bus->regs)];
+    uint64_t value = -1;
 
     switch (offset) {
     case A_I2CD_FUN_CTRL:
@@ -105,7 +105,7 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CD_DEV_ADDR:
     case A_I2CD_POOL_CTRL:
     case A_I2CD_BYTE_BUF:
-        /* Value is already set, don't do anything. */
+        value = bus->regs[offset / sizeof(*bus->regs)];
         break;
     case A_I2CD_CMD:
         value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
@@ -113,21 +113,20 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CD_DMA_ADDR:
         if (!aic->has_dma) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA support\n",  __func__);
-            value = -1;
             break;
         }
+        value = bus->regs[offset / sizeof(*bus->regs)];
         break;
     case A_I2CD_DMA_LEN:
         if (!aic->has_dma) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA support\n",  __func__);
-            value = -1;
+            break;
         }
+        value = bus->regs[offset / sizeof(*bus->regs)];
         break;
-
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
-        value = -1;
         break;
     }
 
@@ -139,7 +138,7 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
                                         unsigned size)
 {
     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
-    uint64_t value = bus->regs[offset / sizeof(*bus->regs)];
+    uint64_t value = -1;
 
     switch (offset) {
     case A_I2CC_FUN_CTRL:
@@ -159,12 +158,11 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CS_CMD:
     case A_I2CS_INTR_CTRL:
     case A_I2CS_DMA_LEN_STS:
-        /* Value is already set, don't do anything. */
+    case A_I2CS_INTR_STS:
+        value = bus->regs[offset / sizeof(*bus->regs)];
         break;
     case A_I2CC_DMA_ADDR:
         value = extract64(bus->dma_dram_offset, 0, 32);
-        break;
-    case A_I2CS_INTR_STS:
         break;
     case A_I2CM_CMD:
         value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
@@ -176,13 +174,13 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
         if (!aic->has_dma64) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA 64 bits support\n",
             __func__);
-            value = -1;
+            break;
         }
+        value = bus->regs[offset / sizeof(*bus->regs)];
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
-        value = -1;
         break;
     }
 
