@@ -55,7 +55,8 @@ static QObject *parse_value(JSONParserContext *ctxt);
  * Error handler
  */
 static void G_GNUC_PRINTF(3, 4) parse_error(JSONParserContext *ctxt,
-                                           JSONToken *token, const char *msg, ...)
+                                            const JSONToken *token,
+                                            const char *msg, ...)
 {
     va_list ap;
     char message[1024];
@@ -126,7 +127,7 @@ static int cvt4hex(const char *s)
  * - Invalid Unicode characters are rejected.
  * - Control characters \x00..\x1F are rejected by the lexer.
  */
-static QString *parse_string(JSONParserContext *ctxt, JSONToken *token)
+static QString *parse_string(JSONParserContext *ctxt, const JSONToken *token)
 {
     const char *ptr = token->str;
     GString *str;
@@ -239,14 +240,14 @@ out:
  * parser_context_pop_token is deleted as soon as parser_context_pop_token
  * is called again.
  */
-static JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
+static const JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
 {
     g_free(ctxt->current);
     ctxt->current = g_queue_pop_head(ctxt->buf);
     return ctxt->current;
 }
 
-static JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
+static const JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
 {
     return g_queue_peek_head(ctxt->buf);
 }
@@ -259,7 +260,7 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict)
     QObject *key_obj = NULL;
     QString *key;
     QObject *value;
-    JSONToken *peek, *token;
+    const JSONToken *peek, *token;
 
     peek = parser_context_peek_token(ctxt);
     if (peek == NULL) {
@@ -309,7 +310,7 @@ out:
 static QObject *parse_object(JSONParserContext *ctxt)
 {
     QDict *dict = NULL;
-    JSONToken *token, *peek;
+    const JSONToken *token, *peek;
 
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_LCURLY);
@@ -363,7 +364,7 @@ out:
 static QObject *parse_array(JSONParserContext *ctxt)
 {
     QList *list = NULL;
-    JSONToken *token, *peek;
+    const JSONToken *token, *peek;
 
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_LSQUARE);
@@ -426,7 +427,7 @@ out:
 
 static QObject *parse_keyword(JSONParserContext *ctxt)
 {
-    JSONToken *token;
+    const JSONToken *token;
 
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_KEYWORD);
@@ -444,7 +445,7 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
 
 static QObject *parse_interpolation(JSONParserContext *ctxt)
 {
-    JSONToken *token;
+    const JSONToken *token;
 
     token = parser_context_pop_token(ctxt);
     assert(token && token->type == JSON_INTERP);
@@ -480,7 +481,7 @@ static QObject *parse_interpolation(JSONParserContext *ctxt)
 
 static QObject *parse_literal(JSONParserContext *ctxt)
 {
-    JSONToken *token;
+    const JSONToken *token;
 
     token = parser_context_pop_token(ctxt);
     assert(token);
@@ -532,7 +533,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
 
 static QObject *parse_value(JSONParserContext *ctxt)
 {
-    JSONToken *token;
+    const JSONToken *token;
 
     token = parser_context_peek_token(ctxt);
     if (token == NULL) {
