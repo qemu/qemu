@@ -443,7 +443,7 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
         /* check we don't have an infinite stack */
         for (size_t i = 0; i < depth; ++i) {
             if (frame_pointer == unwind[i].frame_pointer) {
-                break;
+                goto after_unwind;
             }
         }
         CallstackEntry e = {.frame_pointer = frame_pointer, .pc = pc};
@@ -456,6 +456,7 @@ static void cpu_unwind_stack(Cpu *cpu, uint64_t frame_pointer, uint64_t pc)
     } while (frame_pointer && pc && depth < UNWIND_STACK_MAX_DEPTH);
     #undef UNWIND_STACK_MAX_DEPTH
 
+after_unwind:
     /* push it from bottom to top */
     while (depth) {
         callstack_push(cpu->cs, unwind[depth - 1]);
