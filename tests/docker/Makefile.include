@@ -23,6 +23,8 @@ RUNC ?= $(shell $(DOCKER_SCRIPT) probe)
 CUR_TIME := $(shell date +%Y-%m-%d-%H.%M.%S.$$$$)
 DOCKER_SRC_COPY := $(BUILD_DIR)/docker-src.$(CUR_TIME)
 
+DOCKER_V ?= $(V)
+
 .DELETE_ON_ERROR: $(DOCKER_SRC_COPY)
 $(DOCKER_SRC_COPY):
 	@mkdir $@
@@ -40,14 +42,14 @@ docker-qemu-src: $(DOCKER_SRC_COPY)
 docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 	  $(call quiet-command,			\
 		DOCKER_BUILDKIT=1 $(RUNC) build		\
-		$(if $V,,--quiet)			\
+		$(if $(DOCKER_V),,--quiet)		\
 		$(if $(NOCACHE),--no-cache,		\
 			$(if $(DOCKER_REGISTRY),--cache-from $(DOCKER_REGISTRY)/qemu/$*)) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 	\
 		$(if $(NOUSER),,			\
 			--build-arg USER=$(USER)	\
 			--build-arg UID=$(UID))		\
-		-t qemu/$* - < $< $(if $V,,> /dev/null),\
+		-t qemu/$* - < $< $(if $(DOCKER_V),,> /dev/null),\
 		"BUILD", $*)
 
 # General rule for inspecting registry images.
@@ -73,7 +75,7 @@ docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 			DEB_TYPE=$(DEB_TYPE) 					\
 			$(if $(DEB_URL),DEB_URL=$(DEB_URL),)			\
 			$(DOCKER_SCRIPT) build -t qemu/debian-$* -f $< 		\
-			$(if $V,,--quiet) $(if $(NOCACHE),--no-cache) 		\
+			$(if $(DOCKER_V),,--quiet) $(if $(NOCACHE),--no-cache) 	\
 			$(if $(NOUSER),,--add-current-user) 			\
 			$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))	\
 			$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)), \
@@ -105,16 +107,17 @@ debian-toolchain-run = \
 	$(if $(NOCACHE)$(NOFETCH),					\
 		$(call quiet-command,					\
 			$(DOCKER_SCRIPT) build -t qemu/$1 -f $< 	\
-			$(if $V,,--quiet) $(if $(NOCACHE),--no-cache)	\
+			$(if $(DOCKER_V),,--quiet) 			\
+			$(if $(NOCACHE),--no-cache)			\
 			--registry $(DOCKER_REGISTRY) --extra-files	\
 			$(DOCKER_FILES_DIR)/$1.d/build-toolchain.sh,	\
 			"BUILD", $1),				        \
 		$(call quiet-command,					\
-			$(DOCKER_SCRIPT) fetch $(if $V,,--quiet)	\
+			$(DOCKER_SCRIPT) fetch $(if $(DOCKER_V),,--quiet) \
 				qemu/$1 $(DOCKER_REGISTRY),		\
 			"FETCH", $1)					\
 		$(call quiet-command,					\
-			$(DOCKER_SCRIPT) update $(if $V,,--quiet) 	\
+			$(DOCKER_SCRIPT) update $(if $(DOCKER_V),,--quiet) \
 				qemu/$1 				\
 				$(if $(NOUSER),,--add-current-user) 	\
 			"PREPARE", $1))
@@ -231,7 +234,10 @@ docker-run: docker-qemu-src
 			-e TARGET_LIST=$(subst $(SPACE),$(COMMA),$(TARGET_LIST))	\
 			-e EXTRA_CONFIGURE_OPTS="$(EXTRA_CONFIGURE_OPTS)" \
 			-e TEST_COMMAND="$(TEST_COMMAND)" 		\
-			-e V=$V -e J=$J -e DEBUG=$(DEBUG)		\
+			-e V=$V						\
+			-e DOCKER_V=$(DOCKER_V)				\
+			-e J=$J						\
+			-e DEBUG=$(DEBUG)				\
 			-e SHOW_ENV=$(SHOW_ENV) 			\
 			$(if $(NOUSER),,				\
 				-v $(DOCKER_QEMU_CACHE_DIR):$(DOCKER_QEMU_CACHE_DIR) 	\
