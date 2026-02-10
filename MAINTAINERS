@@ -569,6 +569,8 @@ F: target/i386/whpx/
 F: accel/stubs/whpx-stub.c
 F: include/system/whpx.h
 F: include/system/whpx-accel-ops.h
+F: include/system/whpx-common.h
+F: include/system/whpx-internal.h
 
 MSHV
 M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
