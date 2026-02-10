@@ -315,6 +315,62 @@ Int128 HELPER(dxb)(CPUS390XState *env, Int128 a, Int128 b)
     return RET128(ret);
 }
 
+void HELPER(dib)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
+                 uint32_t m4, uint32_t bits)
+{
+    int final_quotient_rounding_mode = s390_get_bfp_rounding_mode(env, m4);
+    bool mask_underflow = (env->fpc >> 24) & S390_IEEE_MASK_UNDERFLOW;
+    bool mask_inexact = (env->fpc >> 24) & S390_IEEE_MASK_INEXACT;
+    float32 a32, b32, n32, r32;
+    float64 a64, b64, n64, r64;
+    int dxc = -1;
+    uint32_t cc;
+
+    if (bits == 32) {
+        a32 = env->vregs[r1][0] >> 32;
+        b32 = env->vregs[r2][0] >> 32;
+
+        float32_s390_divide_to_integer(
+            a32, b32,
+            final_quotient_rounding_mode,
+            mask_underflow, mask_inexact,
+            &r32, &n32, &cc, &dxc, &env->fpu_status);
+    } else {
+        a64 = env->vregs[r1][0];
+        b64 = env->vregs[r2][0];
+
+        float64_s390_divide_to_integer(
+            a64, b64,
+            final_quotient_rounding_mode,
+            mask_underflow, mask_inexact,
+            &r64, &n64, &cc, &dxc, &env->fpu_status);
+    }
+
+    /* Flush the results if needed */
+    if ((env->fpu_status.float_exception_flags & float_flag_invalid) &&
+        ((env->fpc >> 24) & S390_IEEE_MASK_INVALID)) {
+        /* The action for invalid operation is "Suppress" */
+    } else {
+        /* The action for other exceptions is "Complete" */
+        if (bits == 32) {
+            env->vregs[r1][0] = deposit64(env->vregs[r1][0], 32, 32, r32);
+            env->vregs[r3][0] = deposit64(env->vregs[r3][0], 32, 32, n32);
+        } else {
+            env->vregs[r1][0] = r64;
+            env->vregs[r3][0] = n64;
+        }
+        env->cc_op = cc;
+    }
+
+    /* Raise an exception if needed */
+    if (dxc == -1) {
+        handle_exceptions(env, false, GETPC());
+    } else {
+        env->fpu_status.float_exception_flags = 0;
+        tcg_s390_data_exception(env, dxc, GETPC());
+    }
+}
+
 /* 32-bit FP multiplication */
 uint64_t HELPER(meeb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {

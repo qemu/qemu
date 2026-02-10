@@ -1372,4 +1372,15 @@ static inline bool float128_unordered_quiet(float128 a, float128 b,
 *----------------------------------------------------------------------------*/
 float128 float128_default_nan(float_status *status);
 
+#define DECLARE_S390_DIVIDE_TO_INTEGER(floatN)                                 \
+void floatN ## _s390_divide_to_integer(floatN a, floatN b,                     \
+                                       int final_quotient_rounding_mode,       \
+                                       bool mask_underflow, bool mask_inexact, \
+                                       floatN *r, floatN *n,                   \
+                                       uint32_t *cc, int *dxc,                 \
+                                       float_status *status)
+DECLARE_S390_DIVIDE_TO_INTEGER(float32);
+DECLARE_S390_DIVIDE_TO_INTEGER(float64);
+
+
 #endif /* SOFTFLOAT_H */
