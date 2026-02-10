@@ -3200,7 +3200,7 @@ if host_os == 'windows'
 endif
 
 # Detect if ConvertStringToBSTR has been defined in _com_util namespace
-if host_os == 'windows'
+if host_os == 'windows' and 'cpp' in all_languages
   has_convert_string_to_bstr = cxx.links('''
     #include <comutil.h>
     int main() {
