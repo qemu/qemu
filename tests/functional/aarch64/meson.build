@@ -2,6 +2,7 @@
 
 test_aarch64_timeouts = {
   'aspeed_ast2700a1' : 600,
+  'aspeed_ast2700a2' : 600,
   'aspeed_ast2700fc' : 600,
   'device_passthrough' : 720,
   'imx8mp_evk' : 240,
@@ -24,6 +25,7 @@ tests_aarch64_system_quick = [
 
 tests_aarch64_system_thorough = [
   'aspeed_ast2700a1',
+  'aspeed_ast2700a2',
   'aspeed_ast2700fc',
   'device_passthrough',
   'hotplug_pci',
