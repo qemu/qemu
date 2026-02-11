@@ -62,8 +62,8 @@ class AST2x00MachineSDK(QemuSystemTest):
                              f'loader,file={file},cpu-num={cpu_num}')
 
     ASSET_SDK_V1100_AST2700 = Asset(
-            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.00/ast2700-a1-obmc.tar.gz',
-            'd5ceed511cd0dfefbb102fff2d731159e0472948a28066dc0d90bcd54be76525')
+            'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.00/ast2700-default-obmc.tar.gz',
+            'e2b8f043fe8063dd3b6ded93422e38bd41914dc9c3202199507652df024de4dc')
 
     def do_ast2700_i2c_test(self):
         exec_command_and_wait_for_pattern(self,
@@ -98,7 +98,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         exec_command_and_wait_for_pattern(self, 'version',
                                           'Zephyr version 3.7.1')
         exec_command_and_wait_for_pattern(self, 'md 72c02000 1',
-                                          '[72c02000] 06010103')
+                                          '[72c02000] 06020103')
 
     def do_ast2700fc_tsp_test(self):
         self.vm.shutdown()
@@ -109,7 +109,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         exec_command_and_wait_for_pattern(self, 'version',
                                           'Zephyr version 3.7.1')
         exec_command_and_wait_for_pattern(self, 'md 72c02000 1',
-                                          '[72c02000] 06010103')
+                                          '[72c02000] 06020103')
 
     def start_ast2700fc_test(self, name):
         ca35_core = 4
@@ -153,8 +153,8 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.require_netdev('user')
 
         self.archive_extract(self.ASSET_SDK_V1100_AST2700)
-        self.start_ast2700fc_test('ast2700-a1')
-        self.verify_openbmc_boot_and_login('ast2700-a1')
+        self.start_ast2700fc_test('ast2700-default')
+        self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test()
         self.do_ast2700_pcie_test()
         self.do_ast2700fc_ssp_test()
@@ -164,8 +164,8 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.set_machine('ast2700fc')
 
         self.archive_extract(self.ASSET_SDK_V1100_AST2700)
-        self.start_ast2700fc_test_vbootrom('ast2700-a1')
-        self.verify_openbmc_boot_and_login('ast2700-a1')
+        self.start_ast2700fc_test_vbootrom('ast2700-default')
+        self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700fc_ssp_test()
         self.do_ast2700fc_tsp_test()
 
