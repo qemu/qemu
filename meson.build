@@ -1325,7 +1325,7 @@ endif
 
 spice_protocol = not_found
 if not get_option('spice_protocol').auto() or have_system
-  spice_protocol = dependency('spice-protocol', version: '>=0.14.0',
+  spice_protocol = dependency('spice-protocol', version: '>=0.14.3',
                               required: get_option('spice_protocol'),
                               method: 'pkg-config')
 endif

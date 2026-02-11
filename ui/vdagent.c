@@ -17,14 +17,6 @@
 
 #include "spice/vd_agent.h"
 
-#define CHECK_SPICE_PROTOCOL_VERSION(major, minor, micro) \
-    (CONFIG_SPICE_PROTOCOL_MAJOR > (major) ||             \
-     (CONFIG_SPICE_PROTOCOL_MAJOR == (major) &&           \
-      CONFIG_SPICE_PROTOCOL_MINOR > (minor)) ||           \
-     (CONFIG_SPICE_PROTOCOL_MAJOR == (major) &&           \
-      CONFIG_SPICE_PROTOCOL_MINOR == (minor) &&           \
-      CONFIG_SPICE_PROTOCOL_MICRO >= (micro)))
-
 #define VDAGENT_BUFFER_LIMIT (1 * MiB)
 #define VDAGENT_MOUSE_DEFAULT true
 #define VDAGENT_CLIPBOARD_DEFAULT false
@@ -87,10 +79,8 @@ static const char *cap_name[] = {
     [VD_AGENT_CAP_FILE_XFER_DISABLED]             = "file-xfer-disabled",
     [VD_AGENT_CAP_FILE_XFER_DETAILED_ERRORS]      = "file-xfer-detailed-errors",
     [VD_AGENT_CAP_GRAPHICS_DEVICE_INFO]           = "graphics-device-info",
-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
     [VD_AGENT_CAP_CLIPBOARD_NO_RELEASE_ON_REGRAB] = "clipboard-no-release-on-regrab",
     [VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL]          = "clipboard-grab-serial",
-#endif
 };
 
 static const char *msg_name[] = {
@@ -125,9 +115,7 @@ static const char *type_name[] = {
     [VD_AGENT_CLIPBOARD_IMAGE_BMP]  = "bmp",
     [VD_AGENT_CLIPBOARD_IMAGE_TIFF] = "tiff",
     [VD_AGENT_CLIPBOARD_IMAGE_JPG]  = "jpg",
-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 3)
     [VD_AGENT_CLIPBOARD_FILE_LIST]  = "files",
-#endif
 };
 
 #define GET_NAME(_m, _v) \
@@ -197,9 +185,7 @@ static void vdagent_send_caps(VDAgentChardev *vd, bool request)
     if (vd->clipboard) {
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_BY_DEMAND);
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION);
-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
         caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL);
-#endif
     }
 
     caps->request = request;
@@ -318,11 +304,7 @@ static bool have_selection(VDAgentChardev *vd)
 
 static bool have_clipboard_serial(VDAgentChardev *vd)
 {
-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
     return vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL);
-#else
-    return false;
-#endif
 }
 
 static uint32_t type_qemu_to_vdagent(enum QemuClipboardType type)
