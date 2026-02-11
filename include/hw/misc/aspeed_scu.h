@@ -47,6 +47,7 @@ struct AspeedSCUState {
 #define AST1030_A1_SILICON_REV   0x80010000U
 #define AST1060_A2_SILICON_REV   0xA0030000U
 #define AST2700_A1_SILICON_REV   0x06010103U
+#define AST2700_A2_SILICON_REV   0x06020103U
 
 #define ASPEED_IS_AST2500(si_rev)     ((((si_rev) >> 24) & 0xff) == 0x04)
 
