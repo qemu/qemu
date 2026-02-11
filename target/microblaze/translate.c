@@ -692,7 +692,7 @@ static void gen_alignment_check_ea(DisasContext *dc, TCGv_i64 ea, int rb,
         record_unaligned_ess(dc, rd, size, store);
 
         tcg_gen_brcondi_i64(TCG_COND_TSTEQ, ea, (1 << size) - 1, over);
-        gen_helper_unaligned_access(tcg_env, ea);
+        gen_helper_microblaze_unaligned_access(tcg_env, ea);
         gen_set_label(over);
     }
 }

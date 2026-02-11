@@ -382,8 +382,8 @@ static void check_lse2_align(DisasContext *s, int rn, int imm,
 
     type = is_write ? MMU_DATA_STORE : MMU_DATA_LOAD,
     mmu_idx = get_mem_index(s);
-    gen_helper_unaligned_access(tcg_env, addr, tcg_constant_i32(type),
-                                tcg_constant_i32(mmu_idx));
+    gen_helper_arm_unaligned_access(tcg_env, addr, tcg_constant_i32(type),
+                                    tcg_constant_i32(mmu_idx));
 
     gen_set_label(over_label);
 

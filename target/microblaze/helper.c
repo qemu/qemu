@@ -69,7 +69,7 @@ void mb_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
 #ifndef CONFIG_USER_ONLY
 
-void HELPER(unaligned_access)(CPUMBState *env, uint64_t addr)
+void HELPER(microblaze_unaligned_access)(CPUMBState *env, uint64_t addr)
 {
     mb_unaligned_access_internal(env_cpu(env), addr, GETPC());
 }
