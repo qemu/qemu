@@ -48,7 +48,7 @@ struct Ast2700FCState {
     Aspeed27x0CoprocessorState tsp;
 };
 
-#define AST2700FC_BMC_RAM_SIZE (1 * GiB)
+#define AST2700FC_BMC_RAM_SIZE (2 * GiB)
 
 #define AST2700FC_HW_STRAP1 0x000000C0
 #define AST2700FC_HW_STRAP2 0x00000003
