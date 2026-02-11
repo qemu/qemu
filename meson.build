@@ -1298,7 +1298,7 @@ endif
 
 pulse = not_found
 if not get_option('pa').auto() or (host_os == 'linux' and have_system)
-  pulse = dependency('libpulse', required: get_option('pa'),
+  pulse = dependency('libpulse', version: '>=0.9.13', required: get_option('pa'),
                      method: 'pkg-config')
 endif
 alsa = not_found
