@@ -1177,6 +1177,15 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt, bool reset)
         if (machine->boot_config.has_menu && machine->boot_config.menu) {
             _FDT((fdt_setprop_cell(fdt, chosen, "qemu,boot-menu", true)));
         }
+        if (!graphic_width) {
+            graphic_width = 800;
+        }
+        if (!graphic_height) {
+            graphic_height = 600;
+        }
+        if (!graphic_depth) {
+            graphic_depth = 32;
+        }
         _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-width", graphic_width));
         _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-height", graphic_height));
         _FDT(fdt_setprop_cell(fdt, chosen, "qemu,graphic-depth", graphic_depth));

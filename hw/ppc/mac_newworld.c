@@ -432,6 +432,15 @@ static void ppc_core99_init(MachineState *machine)
 
     pci_vga_init(pci_bus);
 
+    if (!graphic_width) {
+        graphic_width = 800;
+    }
+    if (!graphic_height) {
+        graphic_height = 600;
+    }
+    if (!graphic_depth) {
+        graphic_depth = 32;
+    }
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8) {
         graphic_depth = 15;
     }
