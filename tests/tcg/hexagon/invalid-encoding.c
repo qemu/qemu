@@ -65,6 +65,30 @@ static int test_invalid_duplex(void)
     return sig;
 }
 
+/*
+ * Invalid non-duplex encoding:
+ * The encoding 0xffffc000 has parse bits [15:14] = 0b11, making it a
+ * non-duplex instruction and packet end.  The remaining bits do not match
+ * any valid normal or HVX instruction encoding, so this should raise SIGILL.
+ */
+static int test_invalid_nonduplex(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0xffffc000\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
 int main()
 {
     struct sigaction act;
@@ -75,6 +99,7 @@ int main()
     assert(sigaction(SIGILL, &act, NULL) == 0);
 
     assert(test_invalid_duplex() == SIGILL);
+    assert(test_invalid_nonduplex() == SIGILL);
 
     puts("PASS");
     return EXIT_SUCCESS;

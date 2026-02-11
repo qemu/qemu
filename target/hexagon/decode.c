@@ -489,7 +489,8 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
             insn->iclass = iclass_bits(encoding);
             return 1;
         }
-        g_assert_not_reached();
+        /* Invalid non-duplex encoding */
+        return 0;
     } else {
         uint32_t iclass = get_duplex_iclass(encoding);
         unsigned int slot0_subinsn = get_slot0_subinsn(encoding);
