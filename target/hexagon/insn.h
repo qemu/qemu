@@ -41,6 +41,8 @@ struct Instruction {
     uint32_t new_value_producer_slot:4;
     int32_t new_read_idx;
     int32_t dest_idx;
+    bool dest_is_pair;
+    bool dest_is_gpr;
     bool has_pred_dest;
 
     bool part1;              /*
@@ -71,6 +73,8 @@ struct Packet {
 
     bool pkt_has_hvx;
     Insn *vhist_insn;
+
+    bool pkt_has_write_conflict;
 
     Insn insn[INSTRUCTIONS_MAX];
 };

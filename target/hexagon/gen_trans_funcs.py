@@ -91,6 +91,8 @@ def gen_trans_funcs(f):
         new_read_idx = -1
         dest_idx = -1
         dest_idx_reg_id = None
+        dest_is_pair = "false"
+        dest_is_gpr = "false"
         has_pred_dest = "false"
         for regno, (reg_type, reg_id, *_) in enumerate(regs):
             reg = hex_common.get_register(tag, reg_type, reg_id)
@@ -104,6 +106,12 @@ def gen_trans_funcs(f):
                 if dest_idx_reg_id is None or reg_id < dest_idx_reg_id:
                     dest_idx = regno
                     dest_idx_reg_id = reg_id
+                    dest_is_pair = ("true"
+                                    if isinstance(reg, hex_common.Pair)
+                                    else "false")
+                    dest_is_gpr = ("true"
+                                   if reg_type == "R"
+                                   else "false")
             if reg_type == "P" and reg.is_written() and not reg.is_read():
                 has_pred_dest = "true"
 
@@ -129,6 +137,8 @@ def gen_trans_funcs(f):
         f.write(code_fmt(f"""\
             insn->new_read_idx = {new_read_idx};
             insn->dest_idx = {dest_idx};
+            insn->dest_is_pair = {dest_is_pair};
+            insn->dest_is_gpr = {dest_is_gpr};
             insn->has_pred_dest = {has_pred_dest};
         """))
         f.write(textwrap.dedent(f"""\

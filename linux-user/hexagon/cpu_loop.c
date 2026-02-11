@@ -65,6 +65,7 @@ void cpu_loop(CPUHexagonState *env)
                             env->gpr[HEX_REG_R31]);
             break;
         case HEX_CAUSE_INVALID_PACKET:
+        case HEX_CAUSE_REG_WRITE_CONFLICT:
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC,
                             env->gpr[HEX_REG_PC]);
             break;

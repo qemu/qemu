@@ -656,6 +656,55 @@ decode_set_slot_number(Packet *pkt)
 }
 
 /*
+ * Check for GPR write conflicts in the packet.
+ * A conflict exists when a register is written by more than one instruction
+ * and at least one of those writes is unconditional.
+ *
+ * TODO: handle the more general case of any
+ * packet w/multiple-register-write operands.
+ */
+static bool pkt_has_write_conflict(Packet *pkt)
+{
+    DECLARE_BITMAP(all_dest_gprs, 32) = { 0 };
+    DECLARE_BITMAP(wreg_mult_gprs, 32) = { 0 };
+    DECLARE_BITMAP(uncond_wreg_gprs, 32) = { 0 };
+    DECLARE_BITMAP(conflict, 32);
+
+    for (int i = 0; i < pkt->num_insns; i++) {
+        Insn *insn = &pkt->insn[i];
+        int dest = insn->dest_idx;
+
+        if (dest < 0 || !insn->dest_is_gpr) {
+            continue;
+        }
+
+        int rnum = insn->regno[dest];
+        bool is_uncond = !GET_ATTRIB(insn->opcode, A_CONDEXEC);
+
+        if (test_bit(rnum, all_dest_gprs)) {
+            set_bit(rnum, wreg_mult_gprs);
+        }
+        set_bit(rnum, all_dest_gprs);
+        if (is_uncond) {
+            set_bit(rnum, uncond_wreg_gprs);
+        }
+
+        if (insn->dest_is_pair) {
+            if (test_bit(rnum + 1, all_dest_gprs)) {
+                set_bit(rnum + 1, wreg_mult_gprs);
+            }
+            set_bit(rnum + 1, all_dest_gprs);
+            if (is_uncond) {
+                set_bit(rnum + 1, uncond_wreg_gprs);
+            }
+        }
+    }
+
+    bitmap_and(conflict, wreg_mult_gprs, uncond_wreg_gprs, 32);
+    return !bitmap_empty(conflict, 32);
+}
+
+/*
  * decode_packet
  * Decodes packet with given words
  * Returns 0 on insufficient words,
@@ -674,6 +723,10 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
 
     /* Initialize */
     memset(pkt, 0, sizeof(*pkt));
+    for (i = 0; i < INSTRUCTIONS_MAX; i++) {
+        pkt->insn[i].dest_idx = -1;
+        pkt->insn[i].new_read_idx = -1;
+    }
     /* Try to build packet */
     while (!end_of_packet && (words_read < max_words)) {
         Insn *insn = &pkt->insn[num_insns];
@@ -737,6 +790,7 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
             /* Invalid packet */
             return 0;
         }
+        pkt->pkt_has_write_conflict = pkt_has_write_conflict(pkt);
     }
     decode_fill_newvalue_regno(pkt);
 

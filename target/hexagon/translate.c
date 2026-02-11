@@ -943,7 +943,7 @@ static void gen_commit_packet(DisasContext *ctx)
 static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
 {
     uint32_t words[PACKET_WORDS_MAX];
-    int nwords;
+    int nwords, words_read;
     Packet pkt;
     int i;
 
@@ -954,8 +954,14 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     }
 
     ctx->pkt = &pkt;
-    if (decode_packet(ctx, nwords, words, &pkt, false) > 0) {
+    words_read = decode_packet(ctx, nwords, words, &pkt, false);
+    if (words_read > 0) {
         pkt.pc = ctx->base.pc_next;
+        if (pkt.pkt_has_write_conflict) {
+            gen_exception_decode_fail(ctx, words_read,
+                                      HEX_CAUSE_REG_WRITE_CONFLICT);
+            return;
+        }
         gen_start_packet(ctx);
         for (i = 0; i < pkt.num_insns; i++) {
             ctx->insn = &pkt.insn[i];
