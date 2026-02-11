@@ -347,6 +347,7 @@ FIELD(ID_AA64MMFR3, ADERR, 56, 4)
 FIELD(ID_AA64MMFR3, SPEC_FPACC, 60, 4)
 
 FIELD(ID_AA64MMFR4, ASID2, 8, 4)
+FIELD(ID_AA64MMFR4, E2H0, 24, 4)
 
 FIELD(ID_AA64DFR0, DEBUGVER, 0, 4)
 FIELD(ID_AA64DFR0, TRACEVER, 4, 4)
@@ -1374,6 +1375,20 @@ static inline bool isar_feature_aa64_aie(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_asid2(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64MMFR4, ASID2) != 0;
+}
+
+/*
+ * Note the E2H0 ID fields is signed, increasingly negative as more
+ * isn't implemented.
+ */
+static inline bool isar_feature_aa64_e2h0(const ARMISARegisters *id)
+{
+    return FIELD_SEX64_IDREG(id, ID_AA64MMFR4, E2H0) >= 0;
+}
+
+static inline bool isar_feature_aa64_nv1_res0(const ARMISARegisters *id)
+{
+    return FIELD_SEX64_IDREG(id, ID_AA64MMFR4, E2H0) <= -2;
 }
 
 static inline bool isar_feature_aa64_mec(const ARMISARegisters *id)
