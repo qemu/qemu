@@ -23,57 +23,57 @@ static const struct AspeedMasks as2700_masks = {
 /* ast2700 */
 static void test_md5_ast2700(void)
 {
-    aspeed_test_md5("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_md5("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha256_ast2700(void)
 {
-    aspeed_test_sha256("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha256("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha256_sg_ast2700(void)
 {
-    aspeed_test_sha256_sg("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha256_sg("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha384_ast2700(void)
 {
-    aspeed_test_sha384("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha384("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha384_sg_ast2700(void)
 {
-    aspeed_test_sha384_sg("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha384_sg("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha512_ast2700(void)
 {
-    aspeed_test_sha512("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha512("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha512_sg_ast2700(void)
 {
-    aspeed_test_sha512_sg("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha512_sg("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha256_accum_ast2700(void)
 {
-    aspeed_test_sha256_accum("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha256_accum("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha384_accum_ast2700(void)
 {
-    aspeed_test_sha384_accum("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha384_accum("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_sha512_accum_ast2700(void)
 {
-    aspeed_test_sha512_accum("-machine ast2700a1-evb", 0x12070000, 0x400000000);
+    aspeed_test_sha512_accum("-machine ast2700-evb", 0x12070000, 0x400000000);
 }
 
 static void test_addresses_ast2700(void)
 {
-    aspeed_test_addresses("-machine ast2700a1-evb", 0x12070000, &as2700_masks);
+    aspeed_test_addresses("-machine ast2700-evb", 0x12070000, &as2700_masks);
 }
 
 int main(int argc, char **argv)
