@@ -4526,6 +4526,8 @@ if have_tools
     subdir('contrib/ivshmem-client')
     subdir('contrib/ivshmem-server')
   endif
+
+  subdir('contrib/dbus-vnc-bridge')
 endif
 
 if stap.found()
