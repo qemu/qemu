@@ -82,7 +82,7 @@ typedef struct MacFbSense {
     uint8_t ext_sense;
 } MacFbSense;
 
-static MacFbSense macfb_sense_table[] = {
+static const MacFbSense macfb_sense_table[] = {
     { MACFB_DISPLAY_APPLE_21_COLOR, 0x0, 0 },
     { MACFB_DISPLAY_APPLE_PORTRAIT, 0x1, 0 },
     { MACFB_DISPLAY_APPLE_12_RGB, 0x2, 0 },
@@ -342,7 +342,7 @@ static void macfb_invalidate_display(void *opaque)
 
 static uint32_t macfb_sense_read(MacfbState *s)
 {
-    MacFbSense *macfb_sense;
+    const MacFbSense *macfb_sense;
     uint8_t sense;
 
     assert(s->type < ARRAY_SIZE(macfb_sense_table));
