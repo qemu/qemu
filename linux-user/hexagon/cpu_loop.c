@@ -64,6 +64,10 @@ void cpu_loop(CPUHexagonState *env)
             force_sig_fault(TARGET_SIGBUS, TARGET_BUS_ADRALN,
                             env->gpr[HEX_REG_R31]);
             break;
+        case HEX_CAUSE_INVALID_PACKET:
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC,
+                            env->gpr[HEX_REG_PC]);
+            break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
             break;

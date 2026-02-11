@@ -509,8 +509,14 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
                 insn->iclass = iclass_bits(encoding);
                 return 2;
             }
+            /*
+             * Slot0 decode failed after slot1 succeeded. This is an invalid
+             * duplex encoding (both sub-instructions must be valid).
+             */
+            ctx->insn = --insn;
         }
-        g_assert_not_reached();
+        /* Invalid duplex encoding - return 0 to signal failure */
+        return 0;
     }
 }
 
@@ -674,7 +680,10 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
         encoding32 = words[words_read];
         end_of_packet = is_packet_end(encoding32);
         new_insns = decode_insns(ctx, insn, encoding32);
-        g_assert(new_insns > 0);
+        if (new_insns == 0) {
+            /* Invalid instruction encoding */
+            return 0;
+        }
         /*
          * If we saw an extender, mark next word extended so immediate
          * decode works
