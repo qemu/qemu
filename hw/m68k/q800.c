@@ -255,7 +255,7 @@ static void q800_machine_init(MachineState *machine)
     int32_t initrd_size;
     uint8_t *prom;
     int i, checksum;
-    MacFbMode *macfb_mode;
+    const MacFbMode *macfb_mode;
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;

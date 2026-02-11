@@ -100,7 +100,7 @@ static const MacFbSense macfb_sense_table[] = {
     { MACFB_DISPLAY_SVGA, 0x7, 0x5 },
 };
 
-static MacFbMode macfb_mode_table[] = {
+static const MacFbMode macfb_mode_table[] = {
     { MACFB_DISPLAY_VGA, 1, 0x100, 0x71e, 640, 480, 0x400, 0x1000 },
     { MACFB_DISPLAY_VGA, 2, 0x100, 0x70e, 640, 480, 0x400, 0x1000 },
     { MACFB_DISPLAY_VGA, 4, 0x100, 0x706, 640, 480, 0x400, 0x1000 },
@@ -397,7 +397,7 @@ static void macfb_update_mode(MacfbState *s)
 
 static void macfb_mode_write(MacfbState *s)
 {
-    MacFbMode *macfb_mode;
+    const MacFbMode *macfb_mode;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
@@ -418,11 +418,11 @@ static void macfb_mode_write(MacfbState *s)
     }
 }
 
-static MacFbMode *macfb_find_mode(MacfbDisplayType display_type,
+static const MacFbMode *macfb_find_mode(MacfbDisplayType display_type,
                                   uint16_t width, uint16_t height,
                                   uint8_t depth)
 {
-    MacFbMode *macfb_mode;
+    const MacFbMode *macfb_mode;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
@@ -440,7 +440,7 @@ static MacFbMode *macfb_find_mode(MacfbDisplayType display_type,
 static gchar *macfb_mode_list(void)
 {
     GString *list = g_string_new("");
-    MacFbMode *macfb_mode;
+    const MacFbMode *macfb_mode;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(macfb_mode_table); i++) {
