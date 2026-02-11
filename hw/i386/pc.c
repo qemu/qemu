@@ -1822,6 +1822,8 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "fd-bootchk",
         pc_machine_get_fd_bootchk,
         pc_machine_set_fd_bootchk);
+    object_class_property_set_description(oc, "fd-bootchk",
+        "Enable/disable boot signature checking for floppy disks in BIOS");
 
 #if defined(CONFIG_IGVM)
     object_class_property_add_link(oc, "igvm-cfg",
