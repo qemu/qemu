@@ -555,22 +555,12 @@ static void aspeed_scu_reset(DeviceState *dev)
 }
 
 static uint32_t aspeed_silicon_revs[] = {
-    AST2400_A0_SILICON_REV,
     AST2400_A1_SILICON_REV,
-    AST2500_A0_SILICON_REV,
     AST2500_A1_SILICON_REV,
-    AST2600_A0_SILICON_REV,
-    AST2600_A1_SILICON_REV,
-    AST2600_A2_SILICON_REV,
     AST2600_A3_SILICON_REV,
-    AST1030_A0_SILICON_REV,
     AST1030_A1_SILICON_REV,
     AST1060_A2_SILICON_REV,
-    AST2700_A0_SILICON_REV,
-    AST2720_A0_SILICON_REV,
-    AST2750_A0_SILICON_REV,
     AST2700_A1_SILICON_REV,
-    AST2750_A1_SILICON_REV,
 };
 
 bool is_supported_silicon_rev(uint32_t silicon_rev)
