@@ -14,9 +14,9 @@ int graphic_width = 1024;
 int graphic_height = 768;
 int graphic_depth = 8;
 #elif defined(TARGET_M68K)
-int graphic_width = 800;
-int graphic_height = 600;
-int graphic_depth = 8;
+int graphic_width;
+int graphic_height;
+int graphic_depth;
 #else
 int graphic_width = 800;
 int graphic_height = 600;
