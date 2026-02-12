@@ -274,7 +274,7 @@ eth_strip_vlan_ex(const struct iovec *iov, int iovcnt, size_t iovoff, int index,
                   uint16_t *payload_offset, uint16_t *tci)
 {
     struct vlan_header vlan_hdr;
-    uint16_t *new_ehdr_proto;
+    void *new_ehdr_proto;
     size_t new_ehdr_size;
     size_t copied;
 
@@ -298,7 +298,7 @@ eth_strip_vlan_ex(const struct iovec *iov, int iovcnt, size_t iovoff, int index,
         return 0;
     }
 
-    if (copied < new_ehdr_size || be16_to_cpu(*new_ehdr_proto) != vet) {
+    if (copied < new_ehdr_size || lduw_be_p(new_ehdr_proto) != vet) {
         return 0;
     }
 
@@ -308,7 +308,7 @@ eth_strip_vlan_ex(const struct iovec *iov, int iovcnt, size_t iovoff, int index,
         return 0;
     }
 
-    *new_ehdr_proto = vlan_hdr.h_proto;
+    stw_he_p(new_ehdr_proto, vlan_hdr.h_proto);
     *payload_offset = iovoff + new_ehdr_size + sizeof(vlan_hdr);
     *tci = be16_to_cpu(vlan_hdr.h_tci);
 
