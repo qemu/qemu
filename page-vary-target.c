@@ -23,21 +23,6 @@
 #include "exec/page-vary.h"
 #include "exec/target_page.h"
 
-
-/*
- * For system mode, the minimum comes from the number of bits
- * required for maximum alignment (6) and the number of bits
- * required for TLB_FLAGS_MASK (3).
- *
- * For user mode, TARGET_PAGE_BITS_VARY is a hack to allow the target
- * page size to match the host page size.  Mostly, this reduces the
- * ordinary target page size to run on a host with 4KiB pages (i.e. x86).
- * There is no true minimum required by the implementation, but keep the
- * same minimum as for system mode for sanity.
- * See linux-user/mmap.c, mmap_h_lt_g and mmap_h_gt_g.
- */
-#define TARGET_PAGE_BITS_MIN 9
-
 #ifndef TARGET_PAGE_BITS_VARY
 QEMU_BUILD_BUG_ON(TARGET_PAGE_BITS < TARGET_PAGE_BITS_MIN);
 #endif
