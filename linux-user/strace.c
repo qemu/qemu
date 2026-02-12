@@ -1129,7 +1129,9 @@ UNUSED static const struct flags openat2_resolve_flags[] = {
     FLAG_GENERIC(RESOLVE_NO_SYMLINKS),
     FLAG_GENERIC(RESOLVE_BENEATH),
     FLAG_GENERIC(RESOLVE_IN_ROOT),
+#ifdef RESOLVE_CACHED
     FLAG_GENERIC(RESOLVE_CACHED),
+#endif
 #endif
     FLAG_END,
 };
