@@ -143,7 +143,7 @@ typedef struct of_dpa_flow {
 typedef struct of_dpa_flow_pkt_fields {
     uint32_t tunnel_id;
     struct eth_header *ethhdr;
-    uint16_t *h_proto;
+    void *h_proto; /* pointer to unaligned uint16_t data */
     struct vlan_header *vlanhdr;
     struct ip_header *ipv4hdr;
     struct ip6_header *ipv6hdr;
@@ -195,6 +195,11 @@ typedef struct of_dpa_group {
         } l3_unicast;
     };
 } OfDpaGroup;
+
+static uint16_t of_dpa_flow_pkt_h_proto(const OfDpaFlowPktFields *fields)
+{
+    return lduw_he_p(fields->h_proto);
+}
 
 static int of_dpa_mask2prefix(uint32_t mask)
 {
@@ -395,7 +400,7 @@ static void of_dpa_flow_pkt_parse(OfDpaFlowContext *fc,
     fields->ethhdr = iov->iov_base;
     fields->h_proto = &fields->ethhdr->h_proto;
 
-    if (ntohs(*fields->h_proto) == ETH_P_VLAN) {
+    if (ntohs(of_dpa_flow_pkt_h_proto(fields) == ETH_P_VLAN)) {
         sofar += sizeof(struct vlan_header);
         if (iov->iov_len < sofar) {
             DPRINTF("flow_pkt_parse underrun on vlan_header\n");
@@ -405,7 +410,7 @@ static void of_dpa_flow_pkt_parse(OfDpaFlowContext *fc,
         fields->h_proto = &fields->vlanhdr->h_proto;
     }
 
-    switch (ntohs(*fields->h_proto)) {
+    switch (ntohs(of_dpa_flow_pkt_h_proto(fields))) {
     case ETH_P_IP:
         sofar += sizeof(struct ip_header);
         if (iov->iov_len < sofar) {
@@ -547,7 +552,7 @@ static void of_dpa_term_mac_build_match(OfDpaFlowContext *fc,
 {
     match->value.tbl_id = ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC;
     match->value.in_pport = fc->in_pport;
-    match->value.eth.type = *fc->fields.h_proto;
+    match->value.eth.type = of_dpa_flow_pkt_h_proto(&fc->fields);
     match->value.eth.vlan_id = fc->fields.vlanhdr->h_tci;
     memcpy(match->value.eth.dst.a, fc->fields.ethhdr->h_dest,
            sizeof(match->value.eth.dst.a));
@@ -643,7 +648,7 @@ static void of_dpa_unicast_routing_build_match(OfDpaFlowContext *fc,
                                                OfDpaFlowMatch *match)
 {
     match->value.tbl_id = ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING;
-    match->value.eth.type = *fc->fields.h_proto;
+    match->value.eth.type = of_dpa_flow_pkt_h_proto(&fc->fields);
     if (fc->fields.ipv4hdr) {
         match->value.ipv4.addr.dst = fc->fields.ipv4hdr->ip_dst;
     }
@@ -672,7 +677,7 @@ of_dpa_multicast_routing_build_match(OfDpaFlowContext *fc,
                                      OfDpaFlowMatch *match)
 {
     match->value.tbl_id = ROCKER_OF_DPA_TABLE_ID_MULTICAST_ROUTING;
-    match->value.eth.type = *fc->fields.h_proto;
+    match->value.eth.type = of_dpa_flow_pkt_h_proto(&fc->fields);
     match->value.eth.vlan_id = fc->fields.vlanhdr->h_tci;
     if (fc->fields.ipv4hdr) {
         match->value.ipv4.addr.src = fc->fields.ipv4hdr->ip_src;
@@ -713,7 +718,7 @@ static void of_dpa_acl_build_match(OfDpaFlowContext *fc,
            sizeof(match->value.eth.src.a));
     memcpy(match->value.eth.dst.a, fc->fields.ethhdr->h_dest,
            sizeof(match->value.eth.dst.a));
-    match->value.eth.type = *fc->fields.h_proto;
+    match->value.eth.type = of_dpa_flow_pkt_h_proto(&fc->fields);
     match->value.eth.vlan_id = fc->fields.vlanhdr->h_tci;
     match->value.width = FLOW_KEY_WIDTH(eth.type);
     if (fc->fields.ipv4hdr) {
