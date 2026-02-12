@@ -488,20 +488,18 @@ static void test_precopy_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 
 static void *migrate_hook_start_no_tls(QTestState *from, QTestState *to)
 {
-    struct TestMigrateTLSPSKData *data =
-        g_new0(struct TestMigrateTLSPSKData, 1);
-
     migrate_set_parameter_null(from, "tls-creds");
     migrate_set_parameter_null(to, "tls-creds");
 
-    return data;
+    return NULL;
 }
 
 static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
 {
     args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_no_tls;
-    args->end_hook = migrate_hook_end_tls_psk;
+    /* the no_tls start hook requires no cleanup actions */
+    args->end_hook = NULL;
 
     test_precopy_common(args);
 }
