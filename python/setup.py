@@ -7,7 +7,6 @@ Copyright (c) 2020-2021 John Snow for Red Hat, Inc.
 import setuptools
 from setuptools.command import bdist_egg
 import sys
-import pkg_resources
 
 
 class bdist_egg_guard(bdist_egg.bdist_egg):
@@ -29,9 +28,6 @@ def main():
     """
     QEMU tooling installer
     """
-
-    # https://medium.com/@daveshawley/safely-using-setup-cfg-for-metadata-1babbe54c108
-    pkg_resources.require('setuptools>=39.2')
 
     setuptools.setup(cmdclass={'bdist_egg': bdist_egg_guard})
 

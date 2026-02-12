@@ -73,9 +73,6 @@ class ReverseDebugging(LinuxKernelTest):
         self.log.info('creating qcow2 image for VM snapshots')
         image_path = os.path.join(self.workdir, 'disk.qcow2')
         qemu_img = get_qemu_img(self)
-        if qemu_img is None:
-            self.skipTest('Could not find "qemu-img", which is required to '
-                          'create the temporary qcow2 image')
         out = check_output([qemu_img, 'create', '-f', 'qcow2', image_path, '128M'],
                            encoding='utf8')
         self.log.info("qemu-img: %s" % out)

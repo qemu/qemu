@@ -3,29 +3,30 @@
 .PHONY: check-help
 check-help:
 	@echo "Regression testing targets:"
-	@echo " $(MAKE) check                    Run block, qapi-schema, unit, softfloat, qtest and decodetree tests"
-	@echo " $(MAKE) bench                    Run speed tests"
+	@echo " $(MAKE) check                         Run block, qapi-schema, unit, softfloat, qtest and decodetree tests"
+	@echo " $(MAKE) bench                         Run speed tests"
 	@echo
 	@echo "Individual test suites:"
-	@echo " $(MAKE) check-qtest-TARGET       Run qtest tests for given target"
-	@echo " $(MAKE) check-qtest              Run qtest tests"
-	@echo " $(MAKE) check-functional         Run python-based functional tests"
-	@echo " $(MAKE) check-functional-TARGET  Run functional tests for a given target"
-	@echo " $(MAKE) check-unit               Run qobject tests"
-	@echo " $(MAKE) check-qapi-schema        Run QAPI schema tests"
-	@echo " $(MAKE) check-tracetool          Run tracetool generator tests"
-	@echo " $(MAKE) check-block              Run block tests"
+	@echo " $(MAKE) check-qtest-TARGET            Run qtest tests for given target"
+	@echo " $(MAKE) check-qtest                   Run qtest tests"
+	@echo " $(MAKE) check-functional              Run python-based functional tests"
+	@echo " $(MAKE) check-functional-TARGET       Run functional tests for a given target"
+	@echo " $(MAKE) check-unit                    Run qobject tests"
+	@echo " $(MAKE) check-qapi-schema             Run QAPI schema tests"
+	@echo " $(MAKE) check-tracetool               Run tracetool generator tests"
+	@echo " $(MAKE) check-block                   Run block tests"
 ifneq ($(filter $(all-check-targets), check-softfloat),)
-	@echo " $(MAKE) check-tcg                Run TCG tests"
-	@echo " $(MAKE) check-softfloat          Run FPU emulation tests"
+	@echo " $(MAKE) check-tcg                     Run TCG tests"
+	@echo " $(MAKE) check-softfloat               Run FPU emulation tests"
+	@echo " $(MAKE) run-tcg-tests-TARGET-softmmu  Run TCG tests for a given target"
 endif
 	@echo
-	@echo " $(MAKE) check-report.junit.xml   Generates an aggregated XML test report"
-	@echo " $(MAKE) check-venv               Creates a Python venv for tests"
-	@echo " $(MAKE) check-clean              Clean the tests and related data"
+	@echo " $(MAKE) check-report.junit.xml        Generates an aggregated XML test report"
+	@echo " $(MAKE) check-venv                    Creates a Python venv for tests"
+	@echo " $(MAKE) check-clean                   Clean the tests and related data"
 	@echo
 	@echo "The following are useful for CI builds"
-	@echo " $(MAKE) check-build              Build most test binaries"
+	@echo " $(MAKE) check-build                   Build most test binaries"
 	@echo
 	@echo
 	@echo "The variable SPEED can be set to control the gtester speed setting."

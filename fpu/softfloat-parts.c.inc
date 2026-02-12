@@ -1118,11 +1118,6 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
         return true;
     }
 
-    if (a->exp >= frac_size) {
-        /* All integral */
-        return false;
-    }
-
     if (N > 64 && a->exp < N - 64) {
         /*
          * Rounding is not in the low word -- shift lsb to bit 2,
@@ -1132,8 +1127,13 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
         frac_shrjam(a, shift_adj);
         frac_lsb = 1 << 2;
     } else {
+        /*
+         * Rounding is in the low word -- compute the lsb offset for rounding
+         * and for clamping to the target precision, then map it to an offset
+         * within frac_lo.
+         */
         shift_adj = 0;
-        frac_lsb = DECOMPOSED_IMPLICIT_BIT >> (a->exp & 63);
+        frac_lsb = DECOMPOSED_IMPLICIT_BIT >> (MIN(a->exp, frac_size) & 63);
     }
 
     frac_lsbm1 = frac_lsb >> 1;
