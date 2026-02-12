@@ -85,7 +85,7 @@ typedef struct udp_header {
     uint16_t uh_dport; /* destination port */
     uint16_t uh_ulen;  /* udp length */
     uint16_t uh_sum;   /* udp checksum */
-} udp_header;
+} QEMU_PACKED udp_header;
 
 typedef struct ip_pseudo_header {
     uint32_t ip_src;
