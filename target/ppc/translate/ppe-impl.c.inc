@@ -424,11 +424,15 @@ static bool do_mask_branch(DisasContext *ctx, arg_FCB * a, bool invert,
         shift = tcg_temp_new();
         tcg_gen_andi_tl(shift, cpu_gpr[a->rb], 0x1f);
         tcg_gen_shr_tl(mask, tcg_constant_tl(0x80000000), shift);
+        if (invert) {
+            tcg_gen_not_tl(mask, mask);
+        }
     } else {
-        mask = tcg_constant_tl(PPC_BIT32(a->rb));
-    }
-    if (invert) {
-        tcg_gen_not_tl(mask, mask);
+        target_ulong mask_const = PPC_BIT32(a->rb);
+        if (invert) {
+            mask_const = ~mask_const;
+        }
+        mask = tcg_constant_tl(mask_const);
     }
 
     /* apply mask to ra */
