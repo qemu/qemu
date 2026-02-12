@@ -68,7 +68,7 @@ typedef struct tcp_header {
     uint16_t th_win;            /* window */
     uint16_t th_sum;            /* checksum */
     uint16_t th_urp;            /* urgent pointer */
-} tcp_header;
+} QEMU_PACKED tcp_header;
 
 #define TCP_FLAGS_ONLY(flags) ((flags) & 0x3f)
 
