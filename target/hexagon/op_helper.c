@@ -52,7 +52,7 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
 }
 
 void log_store32(CPUHexagonState *env, target_ulong addr,
-                 target_ulong val, int width, int slot)
+                 target_ulong val, uint32_t width, int slot)
 {
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
@@ -60,7 +60,7 @@ void log_store32(CPUHexagonState *env, target_ulong addr,
 }
 
 void log_store64(CPUHexagonState *env, target_ulong addr,
-                 int64_t val, int width, int slot)
+                 int64_t val, uint32_t width, int slot)
 {
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
@@ -69,7 +69,7 @@ void log_store64(CPUHexagonState *env, target_ulong addr,
 
 static void commit_store(CPUHexagonState *env, int slot_num, uintptr_t ra)
 {
-    uint8_t width = env->mem_log_stores[slot_num].width;
+    uint32_t width = env->mem_log_stores[slot_num].width;
     target_ulong va = env->mem_log_stores[slot_num].va;
 
     switch (width) {
@@ -363,7 +363,7 @@ static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
                         bool is_predicated, uintptr_t retaddr)
 {
     if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
-        size1u_t width = env->mem_log_stores[slot].width;
+        uint32_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
         probe_write(env, va, width, mmu_idx, retaddr);
     }

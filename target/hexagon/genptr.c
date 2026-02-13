@@ -387,10 +387,10 @@ static TCGv gen_slotval(DisasContext *ctx)
 }
 #endif
 
-void gen_store32(TCGv vaddr, TCGv src, int width, uint32_t slot)
+void gen_store32(TCGv vaddr, TCGv src, uint32_t width, uint32_t slot)
 {
     tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
-    tcg_gen_movi_tl(hex_store_width[slot], width);
+    tcg_gen_movi_i32(hex_store_width[slot], width);
     tcg_gen_mov_tl(hex_store_val32[slot], src);
 }
 
@@ -430,7 +430,7 @@ void gen_store4i(TCGv_env tcg_env, TCGv vaddr, int32_t src, uint32_t slot)
 void gen_store8(TCGv_env tcg_env, TCGv vaddr, TCGv_i64 src, uint32_t slot)
 {
     tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
-    tcg_gen_movi_tl(hex_store_width[slot], 8);
+    tcg_gen_movi_i32(hex_store_width[slot], 8);
     tcg_gen_mov_i64(hex_store_val64[slot], src);
 }
 

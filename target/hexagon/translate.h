@@ -272,7 +272,7 @@ extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_new_value_usr;
 extern TCGv hex_store_addr[STORES_MAX];
-extern TCGv hex_store_width[STORES_MAX];
+extern TCGv_i32 hex_store_width[STORES_MAX];
 extern TCGv hex_store_val32[STORES_MAX];
 extern TCGv_i64 hex_store_val64[STORES_MAX];
 extern TCGv hex_llsc_addr;

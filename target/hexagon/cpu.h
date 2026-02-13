@@ -46,7 +46,7 @@
 
 typedef struct {
     target_ulong va;
-    uint8_t width;
+    uint32_t width;
     uint32_t data32;
     uint64_t data64;
 } MemLog;
