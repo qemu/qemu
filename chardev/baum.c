@@ -1,7 +1,7 @@
 /*
  * QEMU Baum Braille Device
  *
- * Copyright (c) 2008, 2010-2011, 2016-2017 Samuel Thibault
+ * Copyright (c) 2008, 2010-2011, 2016-2017, 2026 Samuel Thibault
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -561,8 +561,37 @@ static void baum_chr_read(void *opaque)
         case BRLAPI_KEY_TYPE_CMD:
             switch (code & BRLAPI_KEY_CMD_BLK_MASK) {
             case BRLAPI_KEY_CMD_ROUTE:
-                baum_send_key(baum, BAUM_RSP_RoutingKey, (code & BRLAPI_KEY_CMD_ARG_MASK)+1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey,
+                              (code & BRLAPI_KEY_CMD_ARG_MASK) + 1);
                 baum_send_key(baum, BAUM_RSP_RoutingKey, 0);
+                break;
+            case BRLAPI_KEY_CMD_CLIP_NEW:
+                baum_send_key(baum, BAUM_RSP_TopKeys, BAUM_TL1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey,
+                              (code & BRLAPI_KEY_CMD_ARG_MASK) + 1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey, 0);
+                baum_send_key(baum, BAUM_RSP_TopKeys, 0);
+                break;
+            case BRLAPI_KEY_CMD_CLIP_ADD:
+                baum_send_key(baum, BAUM_RSP_TopKeys, BAUM_TL2);
+                baum_send_key(baum, BAUM_RSP_RoutingKey,
+                              (code & BRLAPI_KEY_CMD_ARG_MASK) + 1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey, 0);
+                baum_send_key(baum, BAUM_RSP_TopKeys, 0);
+                break;
+            case BRLAPI_KEY_CMD_COPY_LINE:
+                baum_send_key(baum, BAUM_RSP_TopKeys, BAUM_TR1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey,
+                              (code & BRLAPI_KEY_CMD_ARG_MASK) + 1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey, 0);
+                baum_send_key(baum, BAUM_RSP_TopKeys, 0);
+                break;
+            case BRLAPI_KEY_CMD_COPY_RECT:
+                baum_send_key(baum, BAUM_RSP_TopKeys, BAUM_TR2);
+                baum_send_key(baum, BAUM_RSP_RoutingKey,
+                              (code & BRLAPI_KEY_CMD_ARG_MASK) + 1);
+                baum_send_key(baum, BAUM_RSP_RoutingKey, 0);
+                baum_send_key(baum, BAUM_RSP_TopKeys, 0);
                 break;
             case 0:
                 switch (code & BRLAPI_KEY_CMD_ARG_MASK) {
@@ -604,6 +633,11 @@ static void baum_chr_read(void *opaque)
                     break;
                 case BRLAPI_KEY_CMD_PREFMENU:
                     baum_send_key(baum, BAUM_RSP_TopKeys, BAUM_TL1|BAUM_TL3|BAUM_TR1);
+                    baum_send_key(baum, BAUM_RSP_TopKeys, 0);
+                    break;
+                case BRLAPI_KEY_CMD_PASTE:
+                    baum_send_key(baum, BAUM_RSP_TopKeys,
+                                  BAUM_TL1 | BAUM_TL2 | BAUM_TL3 | BAUM_TR1);
                     baum_send_key(baum, BAUM_RSP_TopKeys, 0);
                     break;
                 }
