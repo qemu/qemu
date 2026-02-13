@@ -1166,6 +1166,36 @@ static void aspeed_soc_ast2700a1_class_init(ObjectClass *oc, const void *data)
     sc->memmap       = aspeed_soc_ast2700_memmap;
 }
 
+static void aspeed_soc_ast2700a2_class_init(ObjectClass *oc, const void *data)
+{
+    static const char * const valid_cpu_types[] = {
+        ARM_CPU_TYPE_NAME("cortex-a35"),
+        NULL
+    };
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    AspeedSoCClass *sc = ASPEED_SOC_CLASS(oc);
+
+    /* Reason: The Aspeed SoC can only be instantiated from a board */
+    dc->user_creatable = false;
+    dc->realize      = aspeed_soc_ast2700_realize;
+
+    sc->valid_cpu_types = valid_cpu_types;
+    sc->silicon_rev  = AST2700_A2_SILICON_REV;
+    sc->sram_size    = 0x20000;
+    sc->pcie_num     = 3;
+    sc->spis_num     = 3;
+    sc->sgpio_num    = 2;
+    sc->ehcis_num    = 4;
+    sc->wdts_num     = 8;
+    sc->macs_num     = 3;
+    sc->uarts_num    = 13;
+    sc->num_cpus     = 4;
+    sc->ioexp_num    = 2;
+    sc->uarts_base   = ASPEED_DEV_UART0;
+    sc->irqmap       = aspeed_soc_ast2700a1_irqmap;
+    sc->memmap       = aspeed_soc_ast2700_memmap;
+}
+
 static const TypeInfo aspeed_soc_ast27x0_types[] = {
     {
         .name           = TYPE_ASPEED27X0_SOC,
@@ -1178,6 +1208,12 @@ static const TypeInfo aspeed_soc_ast27x0_types[] = {
         .parent         = TYPE_ASPEED27X0_SOC,
         .instance_init  = aspeed_soc_ast2700_init,
         .class_init     = aspeed_soc_ast2700a1_class_init,
+    },
+    {
+        .name           = "ast2700-a2",
+        .parent         = TYPE_ASPEED27X0_SOC,
+        .instance_init  = aspeed_soc_ast2700_init,
+        .class_init     = aspeed_soc_ast2700a2_class_init,
     },
 };
 

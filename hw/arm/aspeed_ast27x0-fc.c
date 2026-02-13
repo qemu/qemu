@@ -24,8 +24,8 @@
 #include "hw/arm/aspeed_coprocessor.h"
 #include "hw/arm/machines-qom.h"
 
-#define TYPE_AST2700A1FC MACHINE_TYPE_NAME("ast2700fc")
-OBJECT_DECLARE_SIMPLE_TYPE(Ast2700FCState, AST2700A1FC);
+#define TYPE_AST2700FC MACHINE_TYPE_NAME("ast2700fc")
+OBJECT_DECLARE_SIMPLE_TYPE(Ast2700FCState, AST2700FC);
 
 static struct arm_boot_info ast2700fc_board_info = {
     .board_id = -1, /* device-tree-only board */
@@ -48,8 +48,7 @@ struct Ast2700FCState {
     Aspeed27x0CoprocessorState tsp;
 };
 
-#define AST2700FC_BMC_RAM_SIZE (1 * GiB)
-#define AST2700FC_CM4_DRAM_SIZE (32 * MiB)
+#define AST2700FC_BMC_RAM_SIZE (2 * GiB)
 
 #define AST2700FC_HW_STRAP1 0x000000C0
 #define AST2700FC_HW_STRAP2 0x00000003
@@ -58,7 +57,7 @@ struct Ast2700FCState {
 
 static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
 {
-    Ast2700FCState *s = AST2700A1FC(machine);
+    Ast2700FCState *s = AST2700FC(machine);
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
     const char *bios_name = NULL;
@@ -66,7 +65,7 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     DeviceState *dev = NULL;
     uint64_t rom_size;
 
-    object_initialize_child(OBJECT(s), "ca35", &s->ca35, "ast2700-a1");
+    object_initialize_child(OBJECT(s), "ca35", &s->ca35, "ast2700-a2");
     soc = ASPEED_SOC(&s->ca35);
     sc = ASPEED_SOC_GET_CLASS(soc);
 
@@ -135,7 +134,7 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 {
-    Ast2700FCState *s = AST2700A1FC(machine);
+    Ast2700FCState *s = AST2700FC(machine);
     AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
 
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
@@ -167,7 +166,7 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
 
 static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
 {
-    Ast2700FCState *s = AST2700A1FC(machine);
+    Ast2700FCState *s = AST2700FC(machine);
     AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
 
     s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
