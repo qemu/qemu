@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "system/arch_init.h"
 
-bool qemu_arch_available(unsigned qemu_arch_mask)
+bool qemu_arch_available(uint32_t arch_bitmask)
 {
-    return qemu_arch_mask & QEMU_ARCH;
+    return arch_bitmask & QEMU_ARCH;
 }

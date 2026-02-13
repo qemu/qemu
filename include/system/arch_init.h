@@ -25,6 +25,12 @@ enum {
     QEMU_ARCH_LOONGARCH = (1 << 23),
 };
 
-bool qemu_arch_available(unsigned qemu_arch_mask);
+/**
+ * qemu_arch_available:
+ * @arch_bitmask: bitmask of QEMU_ARCH_* constants
+ *
+ * Return whether the current target architecture is contained in @arch_bitmask
+ */
+bool qemu_arch_available(uint32_t arch_bitmask);
 
 #endif
