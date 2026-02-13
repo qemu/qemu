@@ -344,7 +344,19 @@ static void fdmon_io_uring_gsource_prepare(AioContext *ctx)
 static bool fdmon_io_uring_gsource_check(AioContext *ctx)
 {
     gpointer tag = ctx->io_uring_fd_tag;
-    return g_source_query_unix_fd(&ctx->source, tag) & G_IO_IN;
+
+    /* Check ppoll revents (normal path) */
+    if (g_source_query_unix_fd(&ctx->source, tag) & G_IO_IN) {
+        return true;
+    }
+
+    /*
+     * Also check for CQEs that may have been posted during prepare's
+     * io_uring_submit() via task_work on syscall exit.  Without this,
+     * the main loop can miss completions and sleep in ppoll() until the
+     * next timer fires.
+     */
+    return io_uring_cq_ready(&ctx->fdmon_io_uring);
 }
 
 /* Dispatch CQE handlers that are ready */
