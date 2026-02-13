@@ -645,3 +645,6 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+# Kconfig pour la machine Calypso Motherboard
+source calypso/Kconfig

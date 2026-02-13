@@ -1,0 +1,18 @@
+config CALYPSO
+    bool
+    default y
+    depends on TCG && ARM
+    select PFLASH_CFI01
+    select SERIAL
+    select UNIMP
+
+config CALYPSO_SOCKET
+    bool
+    default y
+    depends on CALYPSO
+
+config CALYPSO_MB
+    bool
+    default y
+    depends on CALYPSO
+    depends on CALYPSO_SOCKET

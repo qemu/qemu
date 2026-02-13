@@ -1,0 +1,11 @@
+arm_ss.add(files(
+  'calypso_inth.c',
+  'calypso_timer.c',
+  'calypso_uart.c',
+  'calypso_spi.c',
+  'calypso_trx.c',
+  'calypso_soc.c',
+  'calypso.c',
+  'calypso_high.c',
+  'calypso_mb.c',
+))
