@@ -836,8 +836,8 @@ Uftrace
 This plugin generates a binary trace compatible with
 `uftrace <https://github.com/namhyung/uftrace>`_.
 
-Plugin supports aarch64 and x64, and works in user and system mode, allowing to
-trace a system boot, which is not something possible usually.
+Plugin supports aarch64, x64 and riscv64, and works in user and system mode,
+allowing to trace a system boot, which is not something possible usually.
 
 In user mode, the memory mapping is directly copied from ``/proc/self/maps`` at
 the end of execution. Uftrace should be able to retrieve symbols by itself,
@@ -849,7 +849,7 @@ Symbols must be present in ELF binaries.
 It tracks the call stack (based on frame pointer analysis). Thus, your program
 and its dependencies must be compiled using ``-fno-omit-frame-pointer
 -mno-omit-leaf-frame-pointer``. In 2024, `Ubuntu and Fedora enabled it by
-default again on x64
+default again on 64-bit platforms
 <https://www.brendangregg.com/blog/2024-03-17/the-return-of-the-frame-pointers.html>`_.
 On aarch64, this is less of a problem, as they are usually part of the ABI,
 except for leaf functions. That's true for user space applications, but not
@@ -872,7 +872,7 @@ Performance wise, overhead compared to normal tcg execution is around x5-x15.
     - Description
   * - trace-privilege-level=[on|off]
     - Generate separate traces for each privilege level (Exception Level +
-      Security State on aarch64, Rings on x64).
+      Security State on aarch64, Privilege levels on riscv64 and Rings on x64).
 
 .. list-table:: uftrace_symbols.py arguments
   :widths: 20 80
@@ -976,7 +976,11 @@ You can follow the exact same instructions for a x64 system, combining edk2,
 Linux, and Ubuntu, simply by switching to
 `x86_64 <https://github.com/pbo-linaro/qemu-linux-stack/tree/x86_64>`_ branch.
 
-To build the system::
+You can follow the exact same instructions for a riscv64 system, combining
+opensbi, Linux, and Ubuntu, simply by switching to
+`riscv64 <https://github.com/pbo-linaro/qemu-linux-stack/tree/riscv64>`_ branch.
+
+To build and run the system::
 
     # Install dependencies
     $ sudo apt install -y podman qemu-user-static
@@ -988,7 +992,14 @@ To build the system::
     # system can be started using:
     $ ./run.sh /path/to/qemu-system-aarch64
 
-To generate a uftrace for a system boot from that::
+    # generate a uftrace for execution (collect symbols automatically)
+    $ ./trace.sh /path/to/qemu-system-aarch64
+    # show output log to read timestamps
+    $ cat uftrace.data/exec.log
+    # generate final trace (compressed) for perfetto
+    $ ./perfetto.sh <start_timestamp> <end_timestamp> ~/trace.gz
+
+To generate manually the same trace::
 
     # run true and poweroff the system
     $ env INIT=true ./run.sh path/to/qemu-system-aarch64 \
