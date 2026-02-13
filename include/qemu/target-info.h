@@ -92,4 +92,11 @@ bool target_ppc(void);
  */
 bool target_ppc64(void);
 
+/**
+ * target_s390x:
+ *
+ * Returns whether the target architecture is S390x.
+ */
+bool target_s390x(void);
+
 #endif
