@@ -1144,6 +1144,32 @@ SRST
         is set, get "Get GUID" command to the BMC will return it.
         Otherwise "Get GUID" will return an error.
 
+    ``lan.channel=val``
+        channel number of the fake LAN channel. It can be 0 or any
+        integer from 0x1 to 0xb inclusive. If set to 0, the LAN channel
+        is disabled, otherwise the LAN channel is enabled at the
+        specified channel number. The default is 0.
+
+    ``lan.ipaddr=addr``
+        the ipv4 address of the BMC LAN channel.
+
+    ``lan.ipsrc=val``
+        the ipv4 address source of the BMC LAN channel. It can be 0
+        (unspecified source), 1 (static address), 2 (DHCP), 3 (BIOS or
+        system software), or 4 (other source). The default is 0.
+
+    ``lan.macaddr=mac``
+        the mac address of the BMC LAN channel.
+
+    ``lan.netmask=mask``
+        the ipv4 subnet mask for the BMC LAN channel.
+
+    ``lan.defgw_ipaddr=addr``
+        the default gateway ipv4 address for the BMC LAN channel.
+
+    ``lan.defgw_macaddr=mac``
+        the default gateway mac address for the BMC LAN channel.
+
 ``-device ipmi-bmc-extern,id=id,chardev=id[,slave_addr=val]``
     Add a connection to an external IPMI BMC simulator. Instead of
     locally emulating the BMC like the above item, instead connect to an
