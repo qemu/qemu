@@ -669,6 +669,10 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
                               "can be found at gpa page: 0x%" PRIx64 "\n",
                               info->u.tdx.gpa);
             }
+        } else if (info->type == GUEST_PANIC_INFORMATION_TYPE_SEV) {
+            qemu_log_mask(LOG_GUEST_ERROR, "SEV termination (reason set: %d code: %d)",
+                          info->u.sev.set,
+                          info->u.sev.code);
         }
 
         qapi_free_GuestPanicInformation(info);

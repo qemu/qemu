@@ -1167,43 +1167,6 @@ static int handle_mmio(CPUState *cpu, const struct hyperv_message *msg,
     return 0;
 }
 
-static int handle_unmapped_mem(int vm_fd, CPUState *cpu,
-                               const struct hyperv_message *msg,
-                               MshvVmExit *exit_reason)
-{
-    struct hv_x64_memory_intercept_message info = { 0 };
-    uint64_t gpa;
-    int ret;
-    enum MshvRemapResult remap_result;
-
-    ret = set_memory_info(msg, &info);
-    if (ret < 0) {
-        error_report("failed to convert message to memory info");
-        return -1;
-    }
-
-    gpa = info.guest_physical_address;
-
-    /* attempt to remap the region, in case of overlapping userspace mappings */
-    remap_result = mshv_remap_overlap_region(vm_fd, gpa);
-    *exit_reason = MshvVmExitIgnore;
-
-    switch (remap_result) {
-    case MshvRemapNoMapping:
-        /* if we didn't find a mapping, it is probably mmio */
-        return handle_mmio(cpu, msg, exit_reason);
-    case MshvRemapOk:
-        break;
-    case MshvRemapNoOverlap:
-        /* This should not happen, but we are forgiving it */
-        warn_report("found no overlap for unmapped region");
-        *exit_reason = MshvVmExitSpecial;
-        break;
-    }
-
-    return 0;
-}
-
 static int set_ioport_info(const struct hyperv_message *msg,
                            hv_x64_io_port_intercept_message *info)
 {
@@ -1373,23 +1336,19 @@ static int read_memory(const CPUState *cpu, uint64_t initial_gva,
     return 0;
 }
 
-static int write_memory(const CPUState *cpu, uint64_t initial_gva,
-                        uint64_t initial_gpa, uint64_t gva, const uint8_t *data,
+static int write_memory(const CPUState *cpu, uint64_t gva, const uint8_t *data,
                         size_t len)
 {
     int ret;
     uint64_t gpa, flags;
 
-    if (gva == initial_gva) {
-        gpa = initial_gpa;
-    } else {
-        flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
-        ret = translate_gva(cpu, gva, &gpa, flags);
-        if (ret < 0) {
-            error_report("failed to translate gva to gpa");
-            return -1;
-        }
+    flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
+    ret = translate_gva(cpu, gva, &gpa, flags);
+    if (ret < 0) {
+        error_report("failed to translate gva to gpa");
+        return -1;
     }
+
     ret = mshv_guest_mem_write(gpa, data, len, false);
     if (ret != MEMTX_OK) {
         error_report("failed to write to mmio");
@@ -1444,7 +1403,7 @@ static int handle_pio_str_read(CPUState *cpu,
     for (size_t i = 0; i < repeat; i++) {
         pio_read(port, data, len, false);
 
-        ret = write_memory(cpu, 0, 0, dst, data, len);
+        ret = write_memory(cpu, dst, data, len);
         if (ret < 0) {
             error_report("Failed to write memory");
             return -1;
@@ -1545,12 +1504,6 @@ int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
     case HVMSG_UNRECOVERABLE_EXCEPTION:
         return MshvVmExitShutdown;
     case HVMSG_UNMAPPED_GPA:
-        ret = handle_unmapped_mem(vm_fd, cpu, msg, &exit_reason);
-        if (ret < 0) {
-            error_report("failed to handle unmapped memory");
-            return -1;
-        }
-        return exit_reason;
     case HVMSG_GPA_INTERCEPT:
         ret = handle_mmio(cpu, msg, &exit_reason);
         if (ret < 0) {

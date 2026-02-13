@@ -504,10 +504,12 @@
 #
 # @tdx: tdx guest panic information type (Since: 10.1)
 #
+# @sev: AMD SEV-ES guest termination information type (Since: 11.0)
+#
 # Since: 2.9
 ##
 { 'enum': 'GuestPanicInformationType',
-  'data': [ 'hyper-v', 's390', 'tdx' ] }
+  'data': [ 'hyper-v', 's390', 'tdx', 'sev' ] }
 
 ##
 # @GuestPanicInformation:
@@ -523,7 +525,8 @@
  'discriminator': 'type',
  'data': {'hyper-v': 'GuestPanicInformationHyperV',
           's390': 'GuestPanicInformationS390',
-          'tdx' : 'GuestPanicInformationTdx'}}
+          'tdx': 'GuestPanicInformationTdx',
+          'sev': 'GuestPanicInformationSev' }}
 
 ##
 # @GuestPanicInformationHyperV:
@@ -624,6 +627,22 @@
  'data': {'error-code': 'uint32',
           'message': 'str',
           '*gpa': 'uint64'}}
+
+##
+# @GuestPanicInformationSev:
+#
+# Information for AMD SEV-specific termination request (GHCB MSR
+# contents)
+#
+# @set: The reason code set provided by the guest
+#
+# @code: The reason code provided by the guest
+#
+# Since: 11.0
+##
+{'struct': 'GuestPanicInformationSev',
+ 'data': {'set': 'uint32',
+          'code': 'uint32'}}
 
 ##
 # @MEMORY_FAILURE:

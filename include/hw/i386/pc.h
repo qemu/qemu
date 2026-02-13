@@ -110,9 +110,6 @@ struct PCMachineClass {
     bool enforce_amd_1tb_hole;
     bool isa_bios_alias;
 
-    /* generate legacy CPU hotplug AML */
-    bool legacy_cpu_hotplug;
-
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
 
@@ -297,12 +294,6 @@ extern const size_t pc_compat_2_9_len;
 
 extern GlobalProperty pc_compat_2_8[];
 extern const size_t pc_compat_2_8_len;
-
-extern GlobalProperty pc_compat_2_7[];
-extern const size_t pc_compat_2_7_len;
-
-extern GlobalProperty pc_compat_2_6[];
-extern const size_t pc_compat_2_6_len;
 
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
     static void pc_machine_##suffix##_class_init(ObjectClass *oc, \
