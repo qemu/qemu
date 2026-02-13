@@ -92,10 +92,9 @@ static void char_ringbuf_finalize(Object *obj)
     g_free(d->cbuf);
 }
 
-static void qemu_chr_open_ringbuf(Chardev *chr,
-                                  ChardevBackend *backend,
-                                  bool *be_opened,
-                                  Error **errp)
+static bool ringbuf_chr_open(Chardev *chr,
+                             ChardevBackend *backend,
+                             Error **errp)
 {
     ChardevRingbuf *opts = backend->u.ringbuf.data;
     RingBufChardev *d = RINGBUF_CHARDEV(chr);
@@ -105,12 +104,15 @@ static void qemu_chr_open_ringbuf(Chardev *chr,
     /* The size must be power of 2 */
     if (d->size & (d->size - 1)) {
         error_setg(errp, "size of ringbuf chardev must be power of two");
-        return;
+        return false;
     }
 
     d->prod = 0;
     d->cons = 0;
     d->cbuf = g_malloc0(d->size);
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 void qmp_ringbuf_write(const char *device, const char *data,
@@ -206,8 +208,8 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     return data;
 }
 
-static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
-                                   Error **errp)
+static void ringbuf_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                              Error **errp)
 {
     int val;
     ChardevRingbuf *ringbuf;
@@ -227,8 +229,8 @@ static void char_ringbuf_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_ringbuf;
-    cc->open = qemu_chr_open_ringbuf;
+    cc->chr_parse = ringbuf_chr_parse;
+    cc->chr_open = ringbuf_chr_open;
     cc->chr_write = ringbuf_chr_write;
 }
 

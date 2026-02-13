@@ -203,10 +203,7 @@ static void hub_chr_update_read_handlers(Chardev *chr)
     }
 }
 
-static void qemu_chr_open_hub(Chardev *chr,
-                                 ChardevBackend *backend,
-                                 bool *be_opened,
-                                 Error **errp)
+static bool hub_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHub *hub = backend->u.hub.data;
     HubChardev *d = HUB_CHARDEV(chr);
@@ -216,7 +213,7 @@ static void qemu_chr_open_hub(Chardev *chr,
 
     if (list == NULL) {
         error_setg(errp, "hub: 'chardevs' list is not defined");
-        return;
+        return false;
     }
 
     while (list) {
@@ -226,27 +223,29 @@ static void qemu_chr_open_hub(Chardev *chr,
         if (s == NULL) {
             error_setg(errp, "hub: chardev can't be found by id '%s'",
                        list->value);
-            return;
+            return false;
         }
         if (CHARDEV_IS_HUB(s) || CHARDEV_IS_MUX(s)) {
             error_setg(errp, "hub: multiplexers and hub devices can't be "
                        "stacked, check chardev '%s', chardev should not "
                        "be a hub device or have 'mux=on' enabled",
                        list->value);
-            return;
+            return false;
         }
         if (!hub_chr_attach_chardev(d, s, errp)) {
-            return;
+            return false;
         }
         list = list->next;
     }
 
-    /* Closed until an explicit event from backend */
-    *be_opened = false;
+    /*
+     * Closed until an explicit event from backend, so we don't
+     * send CHR_EVENT_OPENED now.
+     */
+    return true;
 }
 
-static void qemu_chr_parse_hub(QemuOpts *opts, ChardevBackend *backend,
-                                  Error **errp)
+static void hub_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     ChardevHub *hub;
     strList **tail;
@@ -276,8 +275,8 @@ static void char_hub_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_hub;
-    cc->open = qemu_chr_open_hub;
+    cc->chr_parse = hub_chr_parse;
+    cc->chr_open = hub_chr_open;
     cc->chr_write = hub_chr_write;
     cc->chr_add_watch = hub_chr_add_watch;
     /* We handle events from backends only */

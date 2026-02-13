@@ -131,8 +131,7 @@ static void char_udp_finalize(Object *obj)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
-                               Error **errp)
+static void udp_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     const char *host = qemu_opt_get(opts, "host");
     const char *port = qemu_opt_get(opts, "port");
@@ -189,10 +188,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
-static void qmp_chardev_open_udp(Chardev *chr,
-                                 ChardevBackend *backend,
-                                 bool *be_opened,
-                                 Error **errp)
+static bool upd_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevUdp *udp = backend->u.udp.data;
     SocketAddress *local_addr = socket_address_flatten(udp->local);
@@ -207,7 +203,7 @@ static void qmp_chardev_open_udp(Chardev *chr,
     qapi_free_SocketAddress(remote_addr);
     if (ret < 0) {
         object_unref(OBJECT(sioc));
-        return;
+        return false;
     }
 
     name = g_strdup_printf("chardev-udp-%s", chr->label);
@@ -215,16 +211,16 @@ static void qmp_chardev_open_udp(Chardev *chr,
     g_free(name);
 
     s->ioc = QIO_CHANNEL(sioc);
-    /* be isn't opened until we get a connection */
-    *be_opened = false;
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void char_udp_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_udp;
-    cc->open = qmp_chardev_open_udp;
+    cc->chr_parse = udp_chr_parse;
+    cc->chr_open = upd_chr_open;
     cc->chr_write = udp_chr_write;
     cc->chr_update_read_handler = udp_chr_update_read_handler;
 }

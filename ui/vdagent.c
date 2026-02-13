@@ -660,9 +660,7 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
 /* ------------------------------------------------------------------ */
 /* chardev backend                                                    */
 
-static void vdagent_chr_open(Chardev *chr,
-                             ChardevBackend *backend,
-                             bool *be_opened,
+static bool vdagent_chr_open(Chardev *chr, ChardevBackend *backend,
                              Error **errp)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(chr);
@@ -674,7 +672,7 @@ static void vdagent_chr_open(Chardev *chr,
      * so we have to byteswap everything on BE hosts.
      */
     error_setg(errp, "vdagent is not supported on bigendian hosts");
-    return;
+    return false;
 #endif
 
     vd->mouse = VDAGENT_MOUSE_DEFAULT;
@@ -692,7 +690,8 @@ static void vdagent_chr_open(Chardev *chr,
                                                    &vdagent_mouse_handler);
     }
 
-    *be_opened = true;
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void vdagent_clipboard_peer_register(VDAgentChardev *vd)
@@ -924,8 +923,8 @@ static void vdagent_chr_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse            = vdagent_chr_parse;
-    cc->open             = vdagent_chr_open;
+    cc->chr_parse        = vdagent_chr_parse;
+    cc->chr_open         = vdagent_chr_open;
     cc->chr_write        = vdagent_chr_write;
     cc->chr_set_fe_open  = vdagent_chr_set_fe_open;
     cc->chr_accept_input = vdagent_chr_accept_input;
@@ -1075,7 +1074,7 @@ static const VMStateDescription vmstate_vdagent = {
     }
 };
 
-static void vdagent_chr_init(Object *obj)
+static void vdagent_chr_instance_init(Object *obj)
 {
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
@@ -1098,7 +1097,7 @@ static const TypeInfo vdagent_chr_type_info = {
     .name = TYPE_CHARDEV_QEMU_VDAGENT,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VDAgentChardev),
-    .instance_init = vdagent_chr_init,
+    .instance_init = vdagent_chr_instance_init,
     .instance_finalize = vdagent_chr_fini,
     .class_init = vdagent_chr_class_init,
 };

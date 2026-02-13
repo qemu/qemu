@@ -26,19 +26,16 @@
 #include "chardev/char.h"
 #include "qemu/module.h"
 
-static void null_chr_open(Chardev *chr,
-                          ChardevBackend *backend,
-                          bool *be_opened,
-                          Error **errp)
+static bool null_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
-    *be_opened = false;
+    return true;
 }
 
 static void char_null_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = null_chr_open;
+    cc->chr_open = null_chr_open;
 }
 
 static const TypeInfo char_null_type_info = {

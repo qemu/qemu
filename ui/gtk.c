@@ -1963,29 +1963,27 @@ static void gd_vc_chr_set_echo(Chardev *chr, bool echo)
 
 static int nb_vcs;
 static Chardev *vcs[MAX_VCS];
-static void gd_vc_open(Chardev *chr,
-                       ChardevBackend *backend,
-                       bool *be_opened,
-                       Error **errp)
+static bool gd_vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     if (nb_vcs == MAX_VCS) {
         error_setg(errp, "Maximum number of consoles reached");
-        return;
+        return false;
     }
 
     vcs[nb_vcs++] = chr;
 
-    /* console/chardev init sometimes completes elsewhere in a 2nd
+    /*
+     * console/chardev init sometimes completes elsewhere in a 2nd
      * stage, so defer OPENED events until they are fully initialized
      */
-    *be_opened = false;
+    return true;
 }
 
 static void char_gd_vc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = gd_vc_open;
+    cc->chr_open = gd_vc_chr_open;
     cc->chr_write = gd_vc_chr_write;
     cc->chr_accept_input = gd_vc_chr_accept_input;
     cc->chr_set_echo = gd_vc_chr_set_echo;

@@ -74,4 +74,10 @@ extern bool message_with_timestamp;
 extern bool error_with_guestname;
 extern const char *error_guest_name;
 
+/*
+ * Return current datetime in ISO 8601 format.
+ * Caller is responsible to g_free() the returned string.
+ */
+char *real_time_iso8601(void);
+
 #endif

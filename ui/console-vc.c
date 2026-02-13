@@ -1093,10 +1093,7 @@ void qemu_text_console_update_size(QemuTextConsole *c)
     dpy_text_resize(QEMU_CONSOLE(c), c->width, c->height);
 }
 
-static void vc_chr_open(Chardev *chr,
-                        ChardevBackend *backend,
-                        bool *be_opened,
-                        Error **errp)
+static bool vc_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevVC *vc = backend->u.vc.data;
     VCChardev *drv = VC_CHARDEV(chr);
@@ -1144,7 +1141,8 @@ static void vc_chr_open(Chardev *chr,
         drv->t_attrib = TEXT_ATTRIBUTES_DEFAULT;
     }
 
-    *be_opened = true;
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void vc_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
@@ -1185,8 +1183,8 @@ static void char_vc_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = vc_chr_parse;
-    cc->open = vc_chr_open;
+    cc->chr_parse = vc_chr_parse;
+    cc->chr_open = vc_chr_open;
     cc->chr_write = vc_chr_write;
     cc->chr_accept_input = vc_chr_accept_input;
     cc->chr_set_echo = vc_chr_set_echo;

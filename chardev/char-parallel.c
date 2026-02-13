@@ -70,7 +70,7 @@ static int pp_hw_mode(ParallelChardev *s, uint16_t mode)
     return 1;
 }
 
-static int pp_ioctl(Chardev *chr, int cmd, void *arg)
+static int parallel_chr_ioctl(Chardev *chr, int cmd, void *arg)
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
     int fd = drv->fd;
@@ -157,10 +157,7 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void qemu_chr_open_pp_fd(Chardev *chr,
-                                int fd,
-                                bool *be_opened,
-                                Error **errp)
+static bool parallel_chr_open_fd(Chardev *chr, int fd, Error **errp)
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
 
@@ -168,10 +165,12 @@ static void qemu_chr_open_pp_fd(Chardev *chr,
 
     if (ioctl(fd, PPCLAIM) < 0) {
         error_setg_errno(errp, errno, "not a parallel port");
-        return;
+        return false;
     }
 
     drv->mode = IEEE1284_MODE_COMPAT;
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 #endif /* __linux__ */
 
@@ -185,7 +184,7 @@ typedef struct {
 #define PARALLEL_CHARDEV(obj)                                   \
     OBJECT_CHECK(ParallelChardev, (obj), TYPE_CHARDEV_PARALLEL)
 
-static int pp_ioctl(Chardev *chr, int cmd, void *arg)
+static int parallel_chr_ioctl(Chardev *chr, int cmd, void *arg)
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
     uint8_t b;
@@ -227,35 +226,31 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void qemu_chr_open_pp_fd(Chardev *chr,
-                                int fd,
-                                bool *be_opened,
-                                Error **errp)
+static bool parallel_chr_open_fd(Chardev *chr, int fd, Error **errp)
 {
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
     drv->fd = fd;
-    *be_opened = false;
+    return true;
 }
 #endif
 
 #ifdef HAVE_CHARDEV_PARALLEL
-static void qmp_chardev_open_parallel(Chardev *chr,
-                                      ChardevBackend *backend,
-                                      bool *be_opened,
-                                      Error **errp)
+static bool parallel_chr_open(Chardev *chr,
+                              ChardevBackend *backend,
+                              Error **errp)
 {
     ChardevHostdev *parallel = backend->u.parallel.data;
     int fd;
 
     fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
     if (fd < 0) {
-        return;
+        return false;
     }
-    qemu_chr_open_pp_fd(chr, fd, be_opened, errp);
+    return parallel_chr_open_fd(chr, fd, errp);
 }
 
-static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
-                                    Error **errp)
+static void parallel_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                               Error **errp)
 {
     const char *device = qemu_opt_get(opts, "path");
     ChardevHostdev *parallel;
@@ -274,9 +269,9 @@ static void char_parallel_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_parallel;
-    cc->open = qmp_chardev_open_parallel;
-    cc->chr_ioctl = pp_ioctl;
+    cc->chr_parse = parallel_chr_parse;
+    cc->chr_open = parallel_chr_open;
+    cc->chr_ioctl = parallel_chr_ioctl;
 }
 
 static void char_parallel_finalize(Object *obj)

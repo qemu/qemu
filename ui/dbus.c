@@ -451,8 +451,8 @@ dbus_vc_class_init(ObjectClass *oc, const void *data)
     DBusVCClass *klass = DBUS_VC_CLASS(oc);
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    klass->parent_parse = cc->parse;
-    cc->parse = dbus_vc_parse;
+    klass->parent_parse = cc->chr_parse;
+    cc->chr_parse = dbus_vc_parse;
 }
 
 static const TypeInfo dbus_vc_type_info = {

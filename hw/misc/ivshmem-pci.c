@@ -873,10 +873,11 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
         host_memory_backend_set_mapped(s->hostmem, true);
     } else {
         Chardev *chr = qemu_chr_fe_get_driver(&s->server_chr);
-        assert(chr);
+        g_autofree char *filename = NULL;
 
-        IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
-                        chr->filename);
+        assert(chr);
+        filename = qemu_chr_get_filename(chr);
+        IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n", filename);
 
         /* we allocate enough space for 16 peers and grow as needed */
         resize_peers(s, 16);

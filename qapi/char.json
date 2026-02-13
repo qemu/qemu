@@ -197,11 +197,15 @@
 # @logappend: true to append instead of truncate (default to false to
 #     truncate)
 #
+# @logtimestamp: true to insert timestamps into logfile
+#     (default false) (since 11.0)
+#
 # Since: 2.6
 ##
 { 'struct': 'ChardevCommon',
   'data': { '*logfile': 'str',
-            '*logappend': 'bool' } }
+            '*logappend': 'bool',
+            '*logtimestamp': 'bool' } }
 
 ##
 # @ChardevFile:

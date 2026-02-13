@@ -82,29 +82,62 @@ void qemu_chr_be_event(Chardev *s, QEMUChrEvent event)
     CHARDEV_GET_CLASS(s)->chr_be_event(s, event);
 }
 
-/* Not reporting errors from writing to logfile, as logs are
- * defined to be "best effort" only */
+static void do_write_log(Chardev *s, const uint8_t *buf, size_t len)
+{
+    if (qemu_write_full(s->logfd, buf, len) < len) {
+        /*
+         * qemu_write_full() is defined with G_GNUC_WARN_UNUSED_RESULT,
+         * but logging is best‑effort, we do ignore errors.
+         */
+    }
+}
+
+static void do_write_log_timestamps(Chardev *s, const uint8_t *buf, size_t len)
+{
+    g_autofree char *timestr = NULL;
+
+    while (len) {
+        size_t i;
+
+        if (s->log_line_start) {
+            if (!timestr) {
+                timestr = real_time_iso8601();
+            }
+            do_write_log(s, (const uint8_t *)timestr, strlen(timestr));
+            do_write_log(s, (const uint8_t *)" ", 1);
+            s->log_line_start = false;
+        }
+
+        for (i = 0; i < len; i++) {
+            if (buf[i] == '\n') {
+                break;
+            }
+        }
+
+        if (i == len) {
+            /* not found \n */
+            do_write_log(s, buf, len);
+            return;
+        }
+
+        i += 1;
+        do_write_log(s, buf, i);
+        buf += i;
+        len -= i;
+        s->log_line_start = true;
+    }
+}
+
 static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
 {
-    size_t done = 0;
-    ssize_t ret;
-
     if (s->logfd < 0) {
         return;
     }
 
-    while (done < len) {
-    retry:
-        ret = write(s->logfd, buf + done, len - done);
-        if (ret == -1 && errno == EAGAIN) {
-            g_usleep(100);
-            goto retry;
-        }
-
-        if (ret <= 0) {
-            return;
-        }
-        done += ret;
+    if (s->logtimestamp) {
+        do_write_log_timestamps(s, buf, len);
+    } else {
+        do_write_log(s, buf, len);
     }
 }
 
@@ -246,8 +279,7 @@ int qemu_chr_add_client(Chardev *s, int fd)
         CHARDEV_GET_CLASS(s)->chr_add_client(s, fd) : -1;
 }
 
-static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
-                           bool *be_opened, Error **errp)
+static bool qemu_char_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(chr);
     /* Any ChardevCommon member would work */
@@ -261,15 +293,18 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
         } else {
             flags |= O_TRUNC;
         }
+        chr->logtimestamp = common->has_logtimestamp && common->logtimestamp;
         chr->logfd = qemu_create(common->logfile, flags, 0666, errp);
         if (chr->logfd < 0) {
-            return;
+            return false;
         }
     }
 
-    if (cc->open) {
-        cc->open(chr, backend, be_opened, errp);
+    if (!cc->chr_open) {
+        return true;
     }
+
+    return cc->chr_open(chr, backend, errp);
 }
 
 static void char_init(Object *obj)
@@ -278,6 +313,7 @@ static void char_init(Object *obj)
 
     chr->handover_yank_instance = false;
     chr->logfd = -1;
+    chr->log_line_start = true;
     qemu_mutex_init(&chr->chr_write_lock);
 
     /*
@@ -310,7 +346,6 @@ static void char_finalize(Object *obj)
     if (chr->fe) {
         chr->fe->chr = NULL;
     }
-    g_free(chr->filename);
     g_free(chr->label);
     if (chr->logfd != -1) {
         close(chr->logfd);
@@ -517,6 +552,9 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
     backend->logfile = g_strdup(logfile);
     backend->has_logappend = true;
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
+
+    backend->has_logtimestamp = true;
+    backend->logtimestamp = qemu_opt_get_bool(opts, "logtimestamp", false);
 }
 
 static const ChardevClass *char_get_class(const char *driver, Error **errp)
@@ -604,8 +642,8 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
     backend = g_new0(ChardevBackend, 1);
     backend->type = CHARDEV_BACKEND_KIND_NULL;
 
-    if (cc->parse) {
-        cc->parse(opts, backend, &local_err);
+    if (cc->chr_parse) {
+        cc->chr_parse(opts, backend, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             qapi_free_ChardevBackend(backend);
@@ -797,7 +835,7 @@ static int qmp_query_chardev_foreach(Object *obj, void *data)
     ChardevInfo *value = g_malloc0(sizeof(*value));
 
     value->label = g_strdup(chr->label);
-    value->filename = g_strdup(chr->filename);
+    value->filename = qemu_chr_get_filename(chr);
     value->frontend_open = chr->fe && chr->fe->fe_is_open;
 
     QAPI_LIST_PREPEND(*list, value);
@@ -969,6 +1007,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "logappend",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "logtimestamp",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "mouse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -1008,8 +1049,6 @@ static Chardev *chardev_new(const char *id, const char *typename,
 {
     Object *obj;
     Chardev *chr = NULL;
-    Error *local_err = NULL;
-    bool be_opened = true;
 
     assert(g_str_has_prefix(typename, "chardev-"));
     assert(id);
@@ -1020,18 +1059,9 @@ static Chardev *chardev_new(const char *id, const char *typename,
     chr->label = g_strdup(id);
     chr->gcontext = gcontext;
 
-    qemu_char_open(chr, backend, &be_opened, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qemu_char_open(chr, backend, errp)) {
         object_unref(obj);
         return NULL;
-    }
-
-    if (!chr->filename) {
-        chr->filename = g_strdup(typename + 8);
-    }
-    if (be_opened) {
-        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
     }
 
     return chr;
@@ -1095,15 +1125,38 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
 
     ret = g_new0(ChardevReturn, 1);
-    if (CHARDEV_IS_PTY(chr)) {
-        ret->pty = g_strdup(chr->filename + 4);
-    }
+    ret->pty = qemu_chr_get_pty_name(chr);
 
     return ret;
 
 err:
     error_prepend(errp, "Failed to add chardev '%s': ", id);
     return NULL;
+}
+
+char *qemu_chr_get_pty_name(Chardev *chr)
+{
+    ChardevClass *cc = CHARDEV_GET_CLASS(chr);
+
+    if (cc->chr_get_pty_name) {
+        return cc->chr_get_pty_name(chr);
+    }
+
+    return NULL;
+}
+
+char *qemu_chr_get_filename(Chardev *chr)
+{
+    ChardevClass *cc = CHARDEV_GET_CLASS(chr);
+    const char *typename;
+
+    if (cc->chr_get_filename) {
+        return cc->chr_get_filename(chr);
+    }
+
+    typename = object_get_typename(OBJECT(chr));
+    assert(g_str_has_prefix(typename, "chardev-"));
+    return g_strdup(typename + 8);
 }
 
 ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
@@ -1197,9 +1250,7 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
     object_unref(OBJECT(chr_new));
 
     ret = g_new0(ChardevReturn, 1);
-    if (CHARDEV_IS_PTY(chr_new)) {
-        ret->pty = g_strdup(chr_new->filename + 4);
-    }
+    ret->pty = qemu_chr_get_pty_name(chr_new);
 
     return ret;
 }

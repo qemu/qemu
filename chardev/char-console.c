@@ -26,19 +26,19 @@
 #include "chardev/char-win.h"
 #include "qemu/module.h"
 
-static void qemu_chr_open_win_con(Chardev *chr,
-                                  ChardevBackend *backend,
-                                  bool *be_opened,
-                                  Error **errp)
+static bool console_chr_open(Chardev *chr, ChardevBackend *backend,
+                             Error **errp)
 {
     win_chr_set_file(chr, GetStdHandle(STD_OUTPUT_HANDLE), true);
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void char_console_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = qemu_chr_open_win_con;
+    cc->chr_open = console_chr_open;
 }
 
 static const TypeInfo char_console_type_info = {

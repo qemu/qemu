@@ -43,6 +43,7 @@ struct PtyChardev {
     int connected;
     GSource *timer_src;
     char *path;
+    char *pty_name;
 };
 typedef struct PtyChardev PtyChardev;
 
@@ -105,7 +106,7 @@ static void pty_chr_update_read_handler(Chardev *chr)
     }
 }
 
-static int char_pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
+static int pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
     GPollFD pfd;
@@ -303,7 +304,7 @@ static void cfmakeraw (struct termios *termios_p)
 #endif
 
 /* like openpty() but also makes it raw; return master fd */
-static int qemu_openpty_raw(int *aslave, char *pty_name)
+static int qemu_openpty_raw(int *aslave, char **pty_name)
 {
     int amaster;
     struct termios tty;
@@ -324,62 +325,57 @@ static int qemu_openpty_raw(int *aslave, char *pty_name)
     cfmakeraw(&tty);
     tcsetattr(*aslave, TCSAFLUSH, &tty);
 
-    if (pty_name) {
-        strcpy(pty_name, q_ptsname(amaster));
-    }
+    *pty_name = g_strdup(q_ptsname(amaster));
 
     return amaster;
 }
 
-static void char_pty_open(Chardev *chr,
-                          ChardevBackend *backend,
-                          bool *be_opened,
-                          Error **errp)
+static bool pty_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     PtyChardev *s;
     int master_fd, slave_fd;
-    char pty_name[PATH_MAX];
     char *name;
     char *path = backend->u.pty.data->path;
 
-    master_fd = qemu_openpty_raw(&slave_fd, pty_name);
+    s = PTY_CHARDEV(chr);
+
+    master_fd = qemu_openpty_raw(&slave_fd, &s->pty_name);
     if (master_fd < 0) {
         error_setg_errno(errp, errno, "Failed to create PTY");
-        return;
+        return false;
     }
 
     close(slave_fd);
     if (!qemu_set_blocking(master_fd, false, errp)) {
         close(master_fd);
-        return;
+        return false;
     }
 
-    chr->filename = g_strdup_printf("pty:%s", pty_name);
     qemu_printf("char device redirected to %s (label %s)\n",
-                pty_name, chr->label);
+                s->pty_name, chr->label);
 
-    s = PTY_CHARDEV(chr);
     s->ioc = QIO_CHANNEL(qio_channel_file_new_fd(master_fd));
     name = g_strdup_printf("chardev-pty-%s", chr->label);
     qio_channel_set_name(s->ioc, name);
     g_free(name);
     s->timer_src = NULL;
-    *be_opened = false;
 
     /* create symbolic link */
     if (path) {
-        int res = symlink(pty_name, path);
+        int res = symlink(s->pty_name, path);
 
         if (res != 0) {
             error_setg_errno(errp, errno, "Failed to create PTY symlink");
+            return false;
         } else {
             s->path = g_strdup(path);
         }
     }
+
+    return true;
 }
 
-static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
-                           Error **errp)
+static void pty_chr_parse(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     const char *path = qemu_opt_get(opts, "path");
     ChardevPty *pty;
@@ -390,15 +386,29 @@ static void char_pty_parse(QemuOpts *opts, ChardevBackend *backend,
     pty->path = g_strdup(path);
 }
 
+static char *pty_chr_get_pty_name(Chardev *chr)
+{
+    PtyChardev *s = PTY_CHARDEV(chr);
+    return g_strdup(s->pty_name);
+}
+
+static char *pty_chr_get_filename(Chardev *chr)
+{
+    PtyChardev *s = PTY_CHARDEV(chr);
+    return g_strdup_printf("pty:%s", s->pty_name);
+}
+
 static void char_pty_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = char_pty_parse;
-    cc->open = char_pty_open;
-    cc->chr_write = char_pty_chr_write;
+    cc->chr_parse = pty_chr_parse;
+    cc->chr_open = pty_chr_open;
+    cc->chr_write = pty_chr_write;
     cc->chr_update_read_handler = pty_chr_update_read_handler;
     cc->chr_add_watch = pty_chr_add_watch;
+    cc->chr_get_pty_name = pty_chr_get_pty_name;
+    cc->chr_get_filename = pty_chr_get_filename;
 }
 
 static const TypeInfo char_pty_type_info = {

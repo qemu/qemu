@@ -324,14 +324,11 @@ static void wctablet_chr_finalize(Object *obj)
     }
 }
 
-static void wctablet_chr_open(Chardev *chr,
+static bool wctablet_chr_open(Chardev *chr,
                               ChardevBackend *backend,
-                              bool *be_opened,
                               Error **errp)
 {
     TabletChardev *tablet = WCTABLET_CHARDEV(chr);
-
-    *be_opened = true;
 
     /* init state machine */
     memcpy(tablet->outbuf, WC_FULL_CONFIG_STRING, WC_FULL_CONFIG_STRING_LENGTH);
@@ -340,13 +337,16 @@ static void wctablet_chr_open(Chardev *chr,
 
     tablet->hs = qemu_input_handler_register((DeviceState *)tablet,
                                              &wctablet_handler);
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 static void wctablet_chr_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->open = wctablet_chr_open;
+    cc->chr_open = wctablet_chr_open;
     cc->chr_write = wctablet_chr_write;
     cc->chr_ioctl = wctablet_chr_ioctl;
     cc->chr_accept_input = wctablet_chr_accept_input;

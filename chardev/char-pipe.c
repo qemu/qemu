@@ -103,25 +103,22 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     return -1;
 }
 
-static void qemu_chr_open_pipe(Chardev *chr,
-                               ChardevBackend *backend,
-                               bool *be_opened,
-                               Error **errp)
+static bool pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *opts = backend->u.pipe.data;
     const char *filename = opts->device;
 
     if (win_chr_pipe_init(chr, filename, errp) < 0) {
-        return;
+        return false;
     }
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 #else
 
-static void qemu_chr_open_pipe(Chardev *chr,
-                               ChardevBackend *backend,
-                               bool *be_opened,
-                               Error **errp)
+static bool pipe_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
 {
     ChardevHostdev *opts = backend->u.pipe.data;
     int fd_in, fd_out;
@@ -147,7 +144,7 @@ static void qemu_chr_open_pipe(Chardev *chr,
         );
         if (fd_in < 0) {
             error_setg_file_open(errp, errno, filename);
-            return;
+            return false;
         }
     }
 
@@ -156,14 +153,17 @@ static void qemu_chr_open_pipe(Chardev *chr,
         if (fd_out != fd_in) {
             close(fd_out);
         }
-        return;
+        return false;
     }
+
+    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    return true;
 }
 
 #endif /* !_WIN32 */
 
-static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
-                                Error **errp)
+static void pipe_chr_parse(QemuOpts *opts, ChardevBackend *backend,
+                           Error **errp)
 {
     const char *device = qemu_opt_get(opts, "path");
     ChardevHostdev *dev;
@@ -182,8 +182,8 @@ static void char_pipe_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_pipe;
-    cc->open = qemu_chr_open_pipe;
+    cc->chr_parse = pipe_chr_parse;
+    cc->chr_open = pipe_chr_open;
 }
 
 static const TypeInfo char_pipe_type_info = {
