@@ -1,12 +1,9 @@
-specific_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: [files(
-  'arch_init.c',
-)])
-
 system_ss.add(files(
   'vl.c',
 ), sdl, libpmem, libdaxctl)
 
 system_ss.add(files(
+  'arch_init.c',
   'balloon.c',
   'bootdevice.c',
   'cpus.c',
