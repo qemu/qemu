@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2013-2026 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.sparc.cp0">
+  <reg name="pc" bitsize="64" type="code_ptr" regnum="80"/>
+  <reg name="npc" bitsize="64" type="code_ptr" regnum="81"/>
+  <reg name="state" bitsize="64" type="uint64" regnum="82"/>
+  <reg name="fsr" bitsize="64" type="uint64" regnum="83"/>
+  <reg name="fprs" bitsize="64" type="uint64" regnum="84"/>
+  <reg name="y" bitsize="64" type="uint64" regnum="85"/>
+</feature>
