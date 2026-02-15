@@ -602,46 +602,7 @@ static target_long monitor_get_pc(Monitor *mon, const struct MonitorDef *md,
 
 const MonitorDef monitor_defs[] = {
 #define SEG(name, seg) \
-    { name, offsetof(CPUX86State, segs[seg].selector), NULL, MD_I32 },\
-    { name ".base", offsetof(CPUX86State, segs[seg].base) },\
     { name ".limit", offsetof(CPUX86State, segs[seg].limit), NULL, MD_I32 },
-
-    { "eax", offsetof(CPUX86State, regs[0]) },
-    { "ecx", offsetof(CPUX86State, regs[1]) },
-    { "edx", offsetof(CPUX86State, regs[2]) },
-    { "ebx", offsetof(CPUX86State, regs[3]) },
-    { "esp|sp", offsetof(CPUX86State, regs[4]) },
-    { "ebp|fp", offsetof(CPUX86State, regs[5]) },
-    { "esi", offsetof(CPUX86State, regs[6]) },
-    { "edi", offsetof(CPUX86State, regs[7]) },
-#ifdef TARGET_X86_64
-    { "r8", offsetof(CPUX86State, regs[8]) },
-    { "r9", offsetof(CPUX86State, regs[9]) },
-    { "r10", offsetof(CPUX86State, regs[10]) },
-    { "r11", offsetof(CPUX86State, regs[11]) },
-    { "r12", offsetof(CPUX86State, regs[12]) },
-    { "r13", offsetof(CPUX86State, regs[13]) },
-    { "r14", offsetof(CPUX86State, regs[14]) },
-    { "r15", offsetof(CPUX86State, regs[15]) },
-    { "r16", offsetof(CPUX86State, regs[16]) },
-    { "r17", offsetof(CPUX86State, regs[17]) },
-    { "r18", offsetof(CPUX86State, regs[18]) },
-    { "r19", offsetof(CPUX86State, regs[19]) },
-    { "r20", offsetof(CPUX86State, regs[20]) },
-    { "r21", offsetof(CPUX86State, regs[21]) },
-    { "r22", offsetof(CPUX86State, regs[22]) },
-    { "r23", offsetof(CPUX86State, regs[23]) },
-    { "r24", offsetof(CPUX86State, regs[24]) },
-    { "r25", offsetof(CPUX86State, regs[25]) },
-    { "r26", offsetof(CPUX86State, regs[26]) },
-    { "r27", offsetof(CPUX86State, regs[27]) },
-    { "r28", offsetof(CPUX86State, regs[28]) },
-    { "r29", offsetof(CPUX86State, regs[29]) },
-    { "r30", offsetof(CPUX86State, regs[30]) },
-    { "r31", offsetof(CPUX86State, regs[31]) },
-#endif
-    { "eflags", offsetof(CPUX86State, eflags) },
-    { "eip", offsetof(CPUX86State, eip) },
     SEG("cs", R_CS)
     SEG("ds", R_DS)
     SEG("es", R_ES)
