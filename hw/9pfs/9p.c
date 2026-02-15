@@ -3514,6 +3514,12 @@ static void coroutine_fn v9fs_renameat(void *opaque)
         goto out_err;
     }
 
+    /* if fs driver is not path based, return EOPNOTSUPP */
+    if (!(s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
+        err = -EOPNOTSUPP;
+        goto out_err;
+    }
+
     v9fs_path_write_lock(s);
     err = v9fs_complete_renameat(pdu, olddirfid,
                                  &old_name, newdirfid, &new_name);
@@ -3604,6 +3610,11 @@ static void coroutine_fn v9fs_wstat(void *opaque)
         }
     }
     if (v9stat.name.size != 0) {
+        /* if fs driver is not path based, return EOPNOTSUPP */
+        if (!(s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
+            err = -EOPNOTSUPP;
+            goto out;
+        }
         v9fs_path_write_lock(s);
         err = v9fs_complete_rename(pdu, fidp, -1, &v9stat.name);
         v9fs_path_unlock(s);
