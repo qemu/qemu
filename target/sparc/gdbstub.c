@@ -40,32 +40,40 @@ int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         /* register window */
         return gdb_get_rega(mem_buf, env->regwptr[n - 8]);
     }
+    return 0;
+}
+
+__attribute__((unused))
+static int sparc_fpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
-    if (n < 64) {
+    if (n < 32) {
         /* fprs */
         if (n & 1) {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.lower);
         } else {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.upper);
         }
     }
 #else
-    if (n < 64) {
+    if (n < 32) {
         /* f0-f31 */
         if (n & 1) {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.lower);
         } else {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.upper);
         }
     }
-    if (n < 80) {
+    if (n < 48) {
         /* f32-f62 (16 double width registers, even register numbers only)
-         * n == 64: f32 : env->fpr[16]
-         * n == 65: f34 : env->fpr[17]
+         * n == 32: f32 : env->fpr[16]
+         * n == 33: f34 : env->fpr[17]
          * etc...
-         * n == 79: f62 : env->fpr[31]
+         * n == 47: f62 : env->fpr[31]
          */
-        return gdb_get_reg64(mem_buf, env->fpr[(n - 64) + 16].ll);
+        return gdb_get_reg64(mem_buf, env->fpr[(n - 32) + 16].ll);
     }
 #endif
     return 0;
@@ -135,39 +143,55 @@ int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (n < 8) {
         /* g0..g7 */
         env->gregs[n] = tmp;
-    } else if (n < 32) {
+    } else {
         /* register window */
         env->regwptr[n - 8] = tmp;
     }
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
-    else if (n < 64) {
-        /* fprs */
-        /* f0-f31 */
-        if (n & 1) {
-            env->fpr[(n - 32) / 2].l.lower = tmp;
-        } else {
-            env->fpr[(n - 32) / 2].l.upper = tmp;
-        }
-    }
     return 4;
 #else
-    else if (n < 64) {
+    return 8;
+#endif
+}
+
+__attribute__((unused))
+static int sparc_fpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    uint32_t tmp;
+
+    tmp = ldl_p(mem_buf);
+
+    /* fprs */
+    /* f0-f31 */
+    if (n & 1) {
+        env->fpr[n / 2].l.lower = tmp;
+    } else {
+        env->fpr[n / 2].l.upper = tmp;
+    }
+
+    return 4;
+#else
+    if (n < 32) {
         /* f0-f31 */
-        tmp = ldl_p(mem_buf);
+        uint32_t tmp = ldl_p(mem_buf);
         if (n & 1) {
-            env->fpr[(n - 32) / 2].l.lower = tmp;
+            env->fpr[n / 2].l.lower = tmp;
         } else {
-            env->fpr[(n - 32) / 2].l.upper = tmp;
+            env->fpr[n  / 2].l.upper = tmp;
         }
         return 4;
-    } else if (n < 80) {
+    } else {
+        uint64_t tmp = ldq_p(mem_buf);
         /* f32-f62 (16 double width registers, even register numbers only)
-         * n == 64: f32 : env->fpr[16]
-         * n == 65: f34 : env->fpr[17]
+         * n == 32: f32 : env->fpr[16]
+         * n == 33: f34 : env->fpr[17]
          * etc...
-         * n == 79: f62 : env->fpr[31]
+         * n == 47: f62 : env->fpr[31]
          */
-        env->fpr[(n - 64) + 16].ll = tmp;
+        env->fpr[(n - 32) + 16].ll = tmp;
     }
     return 8;
 #endif
@@ -249,6 +273,10 @@ void sparc_cpu_register_gdb_regs(CPUState *cs)
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
     /* Not yet supported */
 #else
+    gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
+                             sparc_fpu_gdb_write_register,
+                             gdb_find_static_feature("sparc64-fpu.xml"),
+                             0);
     gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
                              sparc_cp0_gdb_write_register,
                              gdb_find_static_feature("sparc64-cp0.xml"),
