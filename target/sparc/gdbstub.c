@@ -43,7 +43,6 @@ int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-__attribute__((unused))
 static int sparc_fpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPUSPARCState *env = cpu_env(cs);
@@ -79,7 +78,6 @@ static int sparc_fpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-__attribute__((unused))
 static int sparc_cp0_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPUSPARCState *env = cpu_env(cs);
@@ -154,7 +152,6 @@ int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 #endif
 }
 
-__attribute__((unused))
 static int sparc_fpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUSPARCState *env = cpu_env(cs);
@@ -197,7 +194,6 @@ static int sparc_fpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 #endif
 }
 
-__attribute__((unused))
 static int sparc_cp0_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUSPARCState *env = cpu_env(cs);
@@ -271,7 +267,14 @@ static int sparc_cp0_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 void sparc_cpu_register_gdb_regs(CPUState *cs)
 {
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
-    /* Not yet supported */
+    gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
+                             sparc_fpu_gdb_write_register,
+                             gdb_find_static_feature("sparc32-fpu.xml"),
+                             0);
+    gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
+                             sparc_cp0_gdb_write_register,
+                             gdb_find_static_feature("sparc32-cp0.xml"),
+                             0);
 #else
     gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
                              sparc_fpu_gdb_write_register,

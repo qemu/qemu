@@ -1095,7 +1095,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, const void *data)
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
     cc->gdb_core_xml_file = "sparc64-cpu.xml";
 #else
-    cc->gdb_num_core_regs = 72;
+    cc->gdb_core_xml_file = "sparc32-cpu.xml";
 #endif
     cc->tcg_ops = &sparc_tcg_ops;
 }
