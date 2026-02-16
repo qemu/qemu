@@ -897,6 +897,8 @@ static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
+    sparc_cpu_register_gdb_regs(cs);
+
     qemu_init_vcpu(cs);
 
     scc->parent_realize(dev, errp);

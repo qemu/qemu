@@ -215,3 +215,12 @@ int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     return 8;
 #endif
 }
+
+void sparc_cpu_register_gdb_regs(CPUState *cs)
+{
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    /* Not yet supported */
+#else
+    /* Not yet supported */
+#endif
+}
