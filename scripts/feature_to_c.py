@@ -90,13 +90,16 @@ for input in sys.argv[1:]:
     writeliteral(8, read)
     sys.stdout.write(',\n')
     writeliteral(8, bytes(feature_name, 'utf-8'))
-    sys.stdout.write(',\n        (const char * const []) {\n')
+    sys.stdout.write(',\n')
+    sys.stdout.write(f'        (const char * const [{num_regs}]) {{\n')
 
     for index, regname in enumerate(regnames):
         sys.stdout.write(f'            [{regnums[index] - base_reg}] =\n')
         writeliteral(16, bytes(regname, 'utf-8'))
         sys.stdout.write(',\n')
 
-    sys.stdout.write(f'        }},\n        {num_regs},\n    }},\n')
+    sys.stdout.write( '        },\n')
+    sys.stdout.write(f'        {num_regs},\n')
+    sys.stdout.write( '    },\n')
 
 sys.stdout.write('    { NULL }\n};\n')
