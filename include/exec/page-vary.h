@@ -40,10 +40,6 @@ typedef struct {
     uint64_t mask;
 } TargetPageBits;
 
-#ifdef IN_PAGE_VARY
-void finalize_target_page_bits_common(int min);
-#endif
-
 /**
  * set_preferred_target_page_bits:
  * @bits: number of bits needed to represent an address within the page

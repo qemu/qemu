@@ -38,15 +38,3 @@ int migration_legacy_page_bits(void)
 #endif
 }
 #endif
-
-void finalize_target_page_bits(void)
-{
-#ifndef TARGET_PAGE_BITS_VARY
-    finalize_target_page_bits_common(TARGET_PAGE_BITS);
-#elif defined(CONFIG_USER_ONLY)
-    assert(target_page.bits != 0);
-    finalize_target_page_bits_common(target_page.bits);
-#else
-    finalize_target_page_bits_common(TARGET_PAGE_BITS_LEGACY);
-#endif
-}

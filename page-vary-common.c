@@ -50,11 +50,18 @@ bool set_preferred_target_page_bits(int bits)
     return true;
 }
 
-void finalize_target_page_bits_common(int min)
+void finalize_target_page_bits(void)
 {
-    if (target_page.bits == 0) {
-        target_page.bits = min;
+    int bits = target_page.bits;
+
+    if (bits == 0) {
+        const TargetInfo *ti = target_info();
+
+        bits = ti->page_bits_init;
+        assert(bits != 0);
+        target_page.bits = bits;
     }
-    target_page.mask = -1ull << target_page.bits;
+
+    target_page.mask = -1ull << bits;
     target_page.decided = true;
 }
