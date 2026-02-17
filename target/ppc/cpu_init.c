@@ -52,7 +52,6 @@
 #endif
 
 #include "cpu_init.h"
-/* #define PPC_DEBUG_SPR */
 /* #define USE_APPLE_GDB */
 
 static const Property powerpc_cpu_properties[] = {
