@@ -27,7 +27,6 @@
 #include <winerror.h>
 
 #include "syndrome.h"
-#include "cpu.h"
 #include "target/arm/cpregs.h"
 #include "internals.h"
 
