@@ -43,10 +43,14 @@
 #define RCU_GP_LOCKED           (1UL << 0)
 #define RCU_GP_CTR              (1UL << 1)
 
+
+#define RCU_CALL_MIN_SIZE        30
+
 unsigned long rcu_gp_ctr = RCU_GP_LOCKED;
 
 QemuEvent rcu_gp_event;
 static int in_drain_call_rcu;
+static int rcu_call_count;
 static QemuMutex rcu_registry_lock;
 static QemuMutex rcu_sync_lock;
 
@@ -76,15 +80,29 @@ static void wait_for_readers(void)
 {
     ThreadList qsreaders = QLIST_HEAD_INITIALIZER(qsreaders);
     struct rcu_reader_data *index, *tmp;
+    int sleeps = 0;
+    bool forced = false;
 
     for (;;) {
-        /* We want to be notified of changes made to rcu_gp_ongoing
-         * while we walk the list.
+        /*
+         * Force the grace period to end and wait for it if any of the
+         * following heuristical conditions are satisfied:
+         * - A decent number of callbacks piled up.
+         * - It timed out.
+         * - It is in a drain_call_rcu() call.
+         *
+         * Otherwise, periodically poll the grace period, hoping it ends
+         * promptly.
          */
-        qemu_event_reset(&rcu_gp_event);
+        if (!forced &&
+            (qatomic_read(&rcu_call_count) >= RCU_CALL_MIN_SIZE ||
+             sleeps >= 5 || qatomic_read(&in_drain_call_rcu))) {
+            forced = true;
 
-        QLIST_FOREACH(index, &registry, node) {
-            qatomic_set(&index->waiting, true);
+            QLIST_FOREACH(index, &registry, node) {
+                notifier_list_notify(&index->force_rcu, NULL);
+                qatomic_set(&index->waiting, true);
+            }
         }
 
         /* Here, order the stores to index->waiting before the loads of
@@ -106,8 +124,6 @@ static void wait_for_readers(void)
                  * get some extra futex wakeups.
                  */
                 qatomic_set(&index->waiting, false);
-            } else if (qatomic_read(&in_drain_call_rcu)) {
-                notifier_list_notify(&index->force_rcu, NULL);
             }
         }
 
@@ -115,7 +131,8 @@ static void wait_for_readers(void)
             break;
         }
 
-        /* Wait for one thread to report a quiescent state and try again.
+        /*
+         * Sleep for a while and try again.
          * Release rcu_registry_lock, so rcu_(un)register_thread() doesn't
          * wait too much time.
          *
@@ -133,7 +150,20 @@ static void wait_for_readers(void)
          * rcu_registry_lock is released.
          */
         qemu_mutex_unlock(&rcu_registry_lock);
-        qemu_event_wait(&rcu_gp_event);
+
+        if (forced) {
+            qemu_event_wait(&rcu_gp_event);
+
+            /*
+             * We want to be notified of changes made to rcu_gp_ongoing
+             * while we walk the list.
+             */
+            qemu_event_reset(&rcu_gp_event);
+        } else {
+            g_usleep(10000);
+            sleeps++;
+        }
+
         qemu_mutex_lock(&rcu_registry_lock);
     }
 
@@ -173,15 +203,11 @@ void synchronize_rcu(void)
     }
 }
 
-
-#define RCU_CALL_MIN_SIZE        30
-
 /* Multi-producer, single-consumer queue based on urcu/static/wfqueue.h
  * from liburcu.  Note that head is only used by the consumer.
  */
 static struct rcu_head dummy;
 static struct rcu_head *head = &dummy, **tail = &dummy.next;
-static int rcu_call_count;
 static QemuEvent rcu_call_ready_event;
 
 static void enqueue(struct rcu_head *node)
@@ -259,30 +285,27 @@ static void *call_rcu_thread(void *opaque)
     rcu_register_thread();
 
     for (;;) {
-        int tries = 0;
-        int n = qatomic_read(&rcu_call_count);
+        int n;
 
-        /* Heuristically wait for a decent number of callbacks to pile up.
+        /*
          * Fetch rcu_call_count now, we only must process elements that were
          * added before synchronize_rcu() starts.
          */
-        while (n == 0 || (n < RCU_CALL_MIN_SIZE && ++tries <= 5)) {
-            g_usleep(10000);
-            if (n == 0) {
-                qemu_event_reset(&rcu_call_ready_event);
-                n = qatomic_read(&rcu_call_count);
-                if (n == 0) {
-#if defined(CONFIG_MALLOC_TRIM)
-                    malloc_trim(4 * 1024 * 1024);
-#endif
-                    qemu_event_wait(&rcu_call_ready_event);
-                }
-            }
+        for (;;) {
+            qemu_event_reset(&rcu_call_ready_event);
             n = qatomic_read(&rcu_call_count);
+            if (n) {
+                break;
+            }
+
+#if defined(CONFIG_MALLOC_TRIM)
+            malloc_trim(4 * 1024 * 1024);
+#endif
+            qemu_event_wait(&rcu_call_ready_event);
         }
 
-        qatomic_sub(&rcu_call_count, n);
         synchronize_rcu();
+        qatomic_sub(&rcu_call_count, n);
         bql_lock();
         while (n > 0) {
             node = try_dequeue();
