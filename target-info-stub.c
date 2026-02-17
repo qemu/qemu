@@ -23,6 +23,15 @@ static const TargetInfo target_info_stub = {
     .cpu_type = CPU_RESOLVING_TYPE,
     .machine_typename = TYPE_MACHINE,
     .endianness = TARGET_BIG_ENDIAN ? ENDIAN_MODE_BIG : ENDIAN_MODE_LITTLE,
+#ifdef TARGET_PAGE_BITS_VARY
+    .page_bits_vary = true,
+# ifdef TARGET_PAGE_BITS_LEGACY
+    .page_bits_init = TARGET_PAGE_BITS_LEGACY,
+# endif
+#else
+    .page_bits_vary = false,
+    .page_bits_init = TARGET_PAGE_BITS,
+#endif
 };
 
 const TargetInfo *target_info(void)
