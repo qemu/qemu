@@ -124,19 +124,22 @@ static int sparc_cp0_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
+static unsigned sparc_gdb_register_bytes(void)
+{
+#ifdef CONFIG_USER_ONLY
+# if defined(TARGET_ABI32)
+    return 4;
+# endif
+#endif
+    return target_long_bits() / 8;
+}
+
 int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
-#if defined(TARGET_ABI32)
-    uint32_t tmp;
-
-    tmp = ldl_p(mem_buf);
-#else
-    target_ulong tmp;
-
-    tmp = ldtul_p(mem_buf);
-#endif
+    const unsigned regsz = sparc_gdb_register_bytes();
+    uint64_t tmp = ldn_p(mem_buf, regsz);
 
     if (n < 8) {
         /* g0..g7 */
@@ -145,11 +148,7 @@ int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         /* register window */
         env->regwptr[n - 8] = tmp;
     }
-#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
-    return 4;
-#else
-    return 8;
-#endif
+    return regsz;
 }
 
 static int sparc_fpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
