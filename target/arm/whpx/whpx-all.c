@@ -554,7 +554,7 @@ void whpx_get_registers(CPUState *cpu)
     }
 
     for (i = 0; i < ARRAY_SIZE(whpx_fpreg_match); i++) {
-        whpx_get_reg(cpu, whpx_reg_match[i].reg, &val);
+        whpx_get_reg(cpu, whpx_fpreg_match[i].reg, &val);
         memcpy((char *)env + whpx_fpreg_match[i].offset, &val, sizeof(val.Reg128));
     }
 
@@ -605,7 +605,7 @@ void whpx_set_registers(CPUState *cpu, int level)
 
     for (i = 0; i < ARRAY_SIZE(whpx_fpreg_match); i++) {
         memcpy(&val.Reg128, (char *)env + whpx_fpreg_match[i].offset, sizeof(val.Reg128));
-        whpx_set_reg(cpu, whpx_reg_match[i].reg, val);
+        whpx_set_reg(cpu, whpx_fpreg_match[i].reg, val);
     }
 
     clean_whv_register_value(&val);
