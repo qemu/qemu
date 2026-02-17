@@ -23,12 +23,12 @@
 #include "gdbstub/helpers.h"
 #include "internal.h"
 
-static int ppc_gdb_register_len(int n)
+static unsigned ppc_gdb_register_len(int n)
 {
     switch (n) {
     case 0 ... 31:
         /* gprs */
-        return sizeof(target_ulong);
+        return target_long_bits() / 8;
     case 66:
         /* cr */
     case 69:
@@ -42,7 +42,7 @@ static int ppc_gdb_register_len(int n)
         /* lr */
     case 68:
         /* ctr */
-        return sizeof(target_ulong);
+        return target_long_bits() / 8;
     default:
         return 0;
     }
@@ -85,7 +85,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
 {
     CPUPPCState *env = cpu_env(cs);
     uint8_t *mem_buf;
-    int r = ppc_gdb_register_len(n);
+    unsigned r = ppc_gdb_register_len(n);
 
     if (!r) {
         return r;
@@ -127,7 +127,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
 int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUPPCState *env = cpu_env(cs);
-    int r = ppc_gdb_register_len(n);
+    unsigned r = ppc_gdb_register_len(n);
 
     if (!r) {
         return r;
@@ -135,17 +135,17 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     ppc_maybe_bswap_register(env, mem_buf, r);
     if (n < 32) {
         /* gprs */
-        env->gpr[n] = ldtul_p(mem_buf);
+        env->gpr[n] = ldn_p(mem_buf, r);
     } else if (n < 64) {
         /* fprs */
         *cpu_fpr_ptr(env, n - 32) = ldq_p(mem_buf);
     } else {
         switch (n) {
         case 64:
-            env->nip = ldtul_p(mem_buf);
+            env->nip = ldn_p(mem_buf, r);
             break;
         case 65:
-            ppc_store_msr(env, ldtul_p(mem_buf));
+            ppc_store_msr(env, ldn_p(mem_buf, r));
             break;
         case 66:
             {
@@ -154,17 +154,17 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
                 break;
             }
         case 67:
-            env->lr = ldtul_p(mem_buf);
+            env->lr = ldn_p(mem_buf, r);
             break;
         case 68:
-            env->ctr = ldtul_p(mem_buf);
+            env->ctr = ldn_p(mem_buf, r);
             break;
         case 69:
             cpu_write_xer(env, ldl_p(mem_buf));
             break;
         case 70:
             /* fpscr */
-            ppc_store_fpscr(env, ldtul_p(mem_buf));
+            ppc_store_fpscr(env, ldn_p(mem_buf, r));
             break;
         }
     }
