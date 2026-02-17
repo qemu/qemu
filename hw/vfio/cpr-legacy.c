@@ -137,7 +137,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
         container_of(notifier, VFIOLegacyContainer, cpr.transfer_notifier);
     VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
-    if (e->type != MIG_EVENT_PRECOPY_FAILED) {
+    if (e->type != MIG_EVENT_FAILED) {
         return 0;
     }
 

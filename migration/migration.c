@@ -1283,7 +1283,6 @@ static void migration_cleanup_json_writer(MigrationState *s)
 
 static void migration_cleanup(MigrationState *s)
 {
-    MigrationEventType type;
     QEMUFile *tmp = NULL;
 
     trace_migration_cleanup();
@@ -1333,9 +1332,14 @@ static void migration_cleanup(MigrationState *s)
                           MIGRATION_STATUS_CANCELLED);
     }
 
-    type = migration_has_failed(s) ? MIG_EVENT_PRECOPY_FAILED :
-                                     MIG_EVENT_PRECOPY_DONE;
-    migration_call_notifiers(type, NULL);
+    /*
+     * FAILED notification should have already happened.  Notify DONE if
+     * migration completed successfully.
+     */
+    if (!migration_has_failed(s)) {
+        migration_call_notifiers(MIG_EVENT_DONE, NULL);
+    }
+
     yank_unregister_instance(MIGRATION_YANK_INSTANCE);
 }
 
@@ -1469,8 +1473,8 @@ void migration_cancel(void)
     }
 
     /*
-     * If qmp_migrate_finish has not been called, then there is no path that
-     * will complete the cancellation.  Do it now.
+     * If migration_connect_outgoing has not been called, then there
+     * is no path that will complete the cancellation. Do it now.
      */
     if (setup && !s->to_dst_file) {
         migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
@@ -1528,6 +1532,8 @@ int migration_call_notifiers(MigrationEventType type, Error **errp)
     GSList *elem, *next;
     int ret;
 
+    trace_migration_call_notifiers(type);
+
     e.type = type;
 
     for (elem = migration_state_notifiers[mode]; elem; elem = next) {
@@ -1535,7 +1541,7 @@ int migration_call_notifiers(MigrationEventType type, Error **errp)
         notifier = (NotifierWithReturn *)elem->data;
         ret = notifier->notify(notifier, &e, errp);
         if (ret) {
-            assert(type == MIG_EVENT_PRECOPY_SETUP);
+            assert(type == MIG_EVENT_SETUP);
             return ret;
         }
     }
@@ -2051,11 +2057,12 @@ void qmp_migrate(const char *uri, bool has_channels,
      * For cpr-transfer, the target may not be listening yet on the migration
      * channel, because first it must finish cpr_load_state.  The target tells
      * us it is listening by closing the cpr-state socket.  Wait for that HUP
-     * event before connecting in qmp_migrate_finish.
+     * event before connecting in migration_connect_outgoing.
      *
      * The HUP could occur because the target fails while reading CPR state,
      * in which case the target will not listen for the incoming migration
-     * connection, so qmp_migrate_finish will fail to connect, and then recover.
+     * connection, so migration_connect_outgoing will fail to connect,
+     * and then recover.
      */
     if (migrate_mode() == MIG_MODE_CPR_TRANSFER) {
         cpr_transfer_add_hup_watch(s, migration_connect_outgoing_cb,
@@ -2545,9 +2552,9 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    ret = qemu_savevm_state_complete_precopy_non_iterable(fb, true);
+    ret = qemu_savevm_state_non_iterable(fb, errp);
     if (ret) {
-        error_setg(errp, "Postcopy save non-iterable device states failed");
+        error_prepend(errp, "Postcopy save non-iterable states failed: ");
         goto fail_closefb;
     }
 
@@ -2589,7 +2596,7 @@ static int postcopy_start(MigrationState *ms, Error **errp)
      * at the transition to postcopy and after the device state; in particular
      * spice needs to trigger a transition now
      */
-    migration_call_notifiers(MIG_EVENT_PRECOPY_DONE, NULL);
+    migration_call_notifiers(MIG_EVENT_POSTCOPY_START, NULL);
 
     migration_downtime_end(ms);
 
@@ -2637,8 +2644,6 @@ fail:
     if (ms->state != MIGRATION_STATUS_CANCELLING) {
         migrate_set_state(&ms->state, ms->state, MIGRATION_STATUS_FAILED);
     }
-    migration_block_activate(NULL);
-    migration_call_notifiers(MIG_EVENT_PRECOPY_FAILED, NULL);
     bql_unlock();
     return -1;
 }
@@ -2752,7 +2757,7 @@ static int migration_completion_precopy(MigrationState *s)
         goto out_unlock;
     }
 
-    ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false);
+    ret = qemu_savevm_state_complete_precopy(s);
 out_unlock:
     bql_unlock();
     return ret;
@@ -3322,6 +3327,13 @@ static void migration_iteration_finish(MigrationState *s)
             error_free(local_err);
             break;
         }
+
+        /*
+         * Notify FAILED before starting VM, so that devices can invoke
+         * necessary fallbacks before vCPUs run again.
+         */
+        migration_call_notifiers(MIG_EVENT_FAILED, NULL);
+
         if (runstate_is_live(s->vm_old_state)) {
             if (!runstate_check(RUN_STATE_SHUTDOWN)) {
                 vm_start();
@@ -3528,7 +3540,7 @@ static void *migration_thread(void *opaque)
     }
 
     bql_lock();
-    ret = qemu_savevm_state_setup(s->to_dst_file, &local_err);
+    ret = qemu_savevm_state_do_setup(s->to_dst_file, &local_err);
     bql_unlock();
 
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
@@ -3616,7 +3628,6 @@ static void *bg_migration_thread(void *opaque)
     int64_t setup_start;
     MigThrError thr_error;
     QEMUFile *fb;
-    bool early_fail = true;
     Error *local_err = NULL;
     int ret;
 
@@ -3651,7 +3662,7 @@ static void *bg_migration_thread(void *opaque)
 
     bql_lock();
     qemu_savevm_state_header(s->to_dst_file);
-    ret = qemu_savevm_state_setup(s->to_dst_file, &local_err);
+    ret = qemu_savevm_state_do_setup(s->to_dst_file, &local_err);
     bql_unlock();
 
     qemu_savevm_wait_unplug(s, MIGRATION_STATUS_SETUP,
@@ -3662,10 +3673,7 @@ static void *bg_migration_thread(void *opaque)
      * devices to unplug. This to preserve migration state transitions.
      */
     if (ret) {
-        migrate_error_propagate(s, local_err);
-        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                          MIGRATION_STATUS_FAILED);
-        goto fail_setup;
+        goto fail;
     }
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
@@ -3675,12 +3683,17 @@ static void *bg_migration_thread(void *opaque)
     bql_lock();
 
     if (migration_stop_vm(s, RUN_STATE_PAUSED)) {
-        goto fail;
+        error_setg(&local_err, "Failed to stop the VM");
+        goto fail_with_bql;
     }
 
-    if (qemu_savevm_state_complete_precopy_non_iterable(fb, false)) {
-        goto fail;
+    if (qemu_savevm_state_non_iterable(fb, &local_err)) {
+        error_prepend(&local_err, "Failed to save non-iterable devices ");
+        goto fail_with_bql;
     }
+
+    qemu_savevm_state_end_precopy(s, fb);
+
     /*
      * Since we are going to get non-iterable state data directly
      * from s->bioc->data, explicit flush is needed here.
@@ -3689,9 +3702,9 @@ static void *bg_migration_thread(void *opaque)
 
     /* Now initialize UFFD context and start tracking RAM writes */
     if (ram_write_tracking_start()) {
-        goto fail;
+        error_setg(&local_err, "Failed to start write tracking");
+        goto fail_with_bql;
     }
-    early_fail = false;
 
     /*
      * Start VM from BH handler to avoid write-fault lock here.
@@ -3723,21 +3736,22 @@ static void *bg_migration_thread(void *opaque)
     }
 
     trace_migration_thread_after_loop();
+    goto done;
+
+fail_with_bql:
+    bql_unlock();
 
 fail:
-    if (early_fail) {
-        migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
-                MIGRATION_STATUS_FAILED);
-        bql_unlock();
-    }
+    /* local_err is guaranteed to be set when reaching here */
+    migrate_error_propagate(s, local_err);
+    migrate_set_state(&s->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_FAILED);
 
-fail_setup:
+done:
     bg_migration_iteration_finish(s);
-
     qemu_fclose(fb);
     object_unref(OBJECT(s));
     rcu_unregister_thread();
-
     return NULL;
 }
 
@@ -3758,7 +3772,7 @@ void migration_start_outgoing(MigrationState *s)
         rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
-        if (migration_call_notifiers(MIG_EVENT_PRECOPY_SETUP, &local_err)) {
+        if (migration_call_notifiers(MIG_EVENT_SETUP, &local_err)) {
             goto fail;
         }
     }

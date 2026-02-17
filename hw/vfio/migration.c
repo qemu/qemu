@@ -917,10 +917,10 @@ static int vfio_migration_state_notifier(NotifierWithReturn *notifier,
 
     trace_vfio_migration_state_notifier(vbasedev->name, e->type);
 
-    if (e->type == MIG_EVENT_PRECOPY_FAILED) {
+    if (e->type == MIG_EVENT_FAILED) {
         /*
          * MigrationNotifyFunc may not return an error code and an Error
-         * object for MIG_EVENT_PRECOPY_FAILED. Hence, report the error
+         * object for MIG_EVENT_FAILED. Hence, report the error
          * locally and ignore the errp argument.
          */
         ret = vfio_migration_set_state_or_reset(vbasedev,

@@ -453,10 +453,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
-    qemu_savevm_maybe_send_switchover_start(s->to_dst_file);
-
     /* Note: device state is saved into buffer */
-    ret = qemu_save_device_state(fb);
+    ret = qemu_save_device_state(fb, &local_err);
 
     bql_unlock();
     if (ret < 0) {
@@ -471,21 +469,25 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
      * TODO: We may need a timeout mechanism to prevent COLO process
      * to be blocked here.
      */
-    qemu_savevm_live_state(s->to_dst_file);
-
-    qemu_fflush(fb);
+    qemu_savevm_state_complete_precopy_iterable(s->to_dst_file, false);
+    qemu_savevm_state_end(s->to_dst_file);
 
     /*
      * We need the size of the VMstate data in Secondary side,
      * With which we can decide how much data should be read.
+     *
+     * Flush the qemufile cache to make sure both bioc->usage and
+     * bioc->data contains the latest info.
      */
+    qemu_fflush(fb);
     colo_send_message_value(s->to_dst_file, COLO_MESSAGE_VMSTATE_SIZE,
                             bioc->usage, &local_err);
     if (local_err) {
         goto out;
     }
 
-    qemu_put_buffer(s->to_dst_file, bioc->data, bioc->usage);
+    /* We can use async put because flush happens right away */
+    qemu_put_buffer_async(s->to_dst_file, bioc->data, bioc->usage, false);
     ret = qemu_fflush(s->to_dst_file);
     if (ret < 0) {
         goto out;

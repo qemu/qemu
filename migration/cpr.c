@@ -9,7 +9,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "hw/vfio/vfio-device.h"
+#include "hw/vfio/vfio-cpr.h"
 #include "migration/cpr.h"
 #include "migration/misc.h"
 #include "migration/options.h"
