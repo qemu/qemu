@@ -79,15 +79,9 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 #define IDX_CTL_CR8_REG     (IDX_CTL_REGS + 4)
 #define IDX_CTL_EFER_REG    (IDX_CTL_REGS + 5)
 
-#ifdef TARGET_X86_64
-#define GDB_FORCE_64 1
-#else
-#define GDB_FORCE_64 0
-#endif
-
 static int gdb_read_reg_cs64(uint32_t hflags, GByteArray *buf, target_ulong val)
 {
-    if ((hflags & HF_CS64_MASK) || GDB_FORCE_64) {
+    if ((hflags & HF_CS64_MASK) || TARGET_LONG_BITS == 64) {
         return gdb_get_reg64(buf, val);
     }
     return gdb_get_reg32(buf, val);
