@@ -1,5 +1,5 @@
 /*
- * QEMU PPC (monitor definitions)
+ * QEMU PPC (QMP definitions)
  *
  * Copyright (c) 2003-2004 Fabrice Bellard
  *
@@ -24,25 +24,11 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "monitor/monitor.h"
 #include "qemu/ctype.h"
-#include "monitor/hmp-target.h"
-#include "monitor/hmp.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "cpu-models.h"
 #include "cpu-qom.h"
-
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
-{
-    CPUArchState *env1 = mon_get_cpu_env(mon);
-
-    if (!env1) {
-        monitor_printf(mon, "No CPU available\n");
-        return;
-    }
-    dump_mmu(env1);
-}
 
 CpuModelExpansionInfo *
 qmp_query_cpu_model_expansion(CpuModelExpansionType type,

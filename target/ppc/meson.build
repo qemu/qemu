@@ -43,6 +43,7 @@ ppc_system_ss.add(files(
   'mmu-hash32.c',
   'mmu-booke.c',
   'mmu_common.c',
+  'monitor.c',
   'ppc-qmp-cmds.c',
 ))
 ppc_system_ss.add(when: 'CONFIG_TCG', if_true: files(
