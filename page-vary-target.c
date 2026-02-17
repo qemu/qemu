@@ -23,10 +23,6 @@
 #include "exec/page-vary.h"
 #include "exec/target_page.h"
 
-#ifndef TARGET_PAGE_BITS_VARY
-QEMU_BUILD_BUG_ON(TARGET_PAGE_BITS < TARGET_PAGE_BITS_MIN);
-#endif
-
 #ifndef CONFIG_USER_ONLY
 #include "exec/tlb-flags.h"
 
