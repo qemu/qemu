@@ -53,7 +53,7 @@ int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     default:
         return 0;
     }
-    return gdb_get_regl(mem_buf, val);
+    return gdb_get_reg64(mem_buf, val);
 }
 
 int alpha_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
