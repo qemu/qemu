@@ -39,16 +39,6 @@ int migration_legacy_page_bits(void)
 }
 #endif
 
-bool set_preferred_target_page_bits(int bits)
-{
-    assert(bits >= TARGET_PAGE_BITS_MIN);
-#ifdef TARGET_PAGE_BITS_VARY
-    return set_preferred_target_page_bits_common(bits);
-#else
-    return true;
-#endif
-}
-
 void finalize_target_page_bits(void)
 {
 #ifndef TARGET_PAGE_BITS_VARY
