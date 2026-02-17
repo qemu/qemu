@@ -89,6 +89,20 @@ static inline int gdb_get_zeroes(GByteArray *array, size_t len)
 }
 
 /**
+ * gdb_get_regl: append @val in @buf using 32 or 64-bit, depending on target
+ *
+ * This function is legacy and deprecated, thus should not be used in new code.
+ */
+static inline int gdb_get_regl(GByteArray *buf, uint64_t val)
+{
+    if (target_long_bits() == 64) {
+        return gdb_get_reg64(buf, val);
+    } else {
+        return gdb_get_reg32(buf, val);
+    }
+}
+
+/**
  * gdb_get_reg_ptr: get pointer to start of last element
  * @len: length of element
  *
@@ -100,13 +114,5 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
 {
     return buf->data + buf->len - len;
 }
-
-#ifdef COMPILING_PER_TARGET
-#if TARGET_LONG_BITS == 64
-#define gdb_get_regl(buf, val) gdb_get_reg64(buf, val)
-#else
-#define gdb_get_regl(buf, val) gdb_get_reg32(buf, val)
-#endif
-#endif /* COMPILING_PER_TARGET */
 
 #endif /* _GDBSTUB_HELPERS_H_ */
