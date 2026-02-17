@@ -31,6 +31,9 @@ int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case 0 ... 30:
         val = cpu_alpha_load_gr(env, n);
         break;
+    case 31: /* zero register */
+        val = 0;
+        break;
     case 32 ... 62:
         d.d = env->fir[n - 32];
         val = d.ll;
@@ -41,14 +44,11 @@ int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case 64:
         val = env->pc;
         break;
-    case 66:
-        val = env->unique;
-        break;
-    case 31:
-    case 65:
-        /* 31 really is the zero register; 65 is unassigned in the
-           gdb protocol, but is still required to occupy 8 bytes. */
+    case 65: /* former Virtual Register (reserved as unassigned) */
         val = 0;
+        break;
+    case 66: /* PALcode Memory Slot */
+        val = env->unique;
         break;
     default:
         return 0;
@@ -66,6 +66,8 @@ int alpha_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case 0 ... 30:
         cpu_alpha_store_gr(env, n, tmp);
         break;
+    case 31: /* zero register */
+        break;
     case 32 ... 62:
         d.ll = tmp;
         env->fir[n - 32] = d.d;
@@ -76,13 +78,10 @@ int alpha_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case 64:
         env->pc = tmp;
         break;
-    case 66:
-        env->unique = tmp;
+    case 65: /* former Virtual Register (reserved as unassigned) */
         break;
-    case 31:
-    case 65:
-        /* 31 really is the zero register; 65 is unassigned in the
-           gdb protocol, but is still required to occupy 8 bytes. */
+    case 66: /* PALcode Memory Slot */
+        env->unique = tmp;
         break;
     default:
         return 0;
