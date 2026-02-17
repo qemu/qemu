@@ -7553,7 +7553,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, const void *data)
                       PAGE_WRITE == 2 && PAGE_EXEC == 4);
 #endif
 
-    cc->gdb_num_core_regs = 71;
+    cc->gdb_num_core_regs = 70;
 #ifdef USE_APPLE_GDB
     cc->gdb_read_register = ppc_cpu_gdb_read_register_apple;
     cc->gdb_write_register = ppc_cpu_gdb_write_register_apple;
