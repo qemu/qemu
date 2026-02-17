@@ -7551,8 +7551,6 @@ static void ppc_cpu_class_init(ObjectClass *oc, const void *data)
                       MMU_INST_FETCH == 2 && PAGE_READ == 1 &&
                       PAGE_WRITE == 2 && PAGE_EXEC == 4);
 #endif
-
-    cc->gdb_num_core_regs = 70;
     cc->gdb_arch_name = ppc_gdb_arch_name;
 #if defined(TARGET_PPC64)
     cc->gdb_core_xml_file = "power64-core.xml";

@@ -128,9 +128,9 @@ struct SysemuCPUOps;
  * @gdb_adjust_breakpoint: Callback for adjusting the address of a
  *       breakpoint.  Used by AVR to handle a gdb mis-feature with
  *       its Harvard architecture split code and data.
- * @gdb_num_core_regs: Number of core registers accessible to GDB or 0 to infer
- *                     from @gdb_core_xml_file.
  * @gdb_core_xml_file: File name for core registers GDB XML description.
+ * @gdb_num_core_regs: Number of core registers accessible to GDB if no
+ *                     @gdb_core_xml_file available (otherwise inferred).
  * @gdb_get_core_xml_file: Optional callback that returns the file name for
  * the core registers GDB XML description. The returned value is expected to
  * be a simple constant string: the caller will not g_free() it. If this

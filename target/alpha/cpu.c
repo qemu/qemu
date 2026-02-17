@@ -295,7 +295,6 @@ static void alpha_cpu_class_init(ObjectClass *oc, const void *data)
     cc->disas_set_info = alpha_cpu_disas_set_info;
 
     cc->tcg_ops = &alpha_tcg_ops;
-    cc->gdb_num_core_regs = 67;
 }
 
 #define DEFINE_ALPHA_CPU_TYPE(base_type, cpu_model, initfn) \
