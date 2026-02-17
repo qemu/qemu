@@ -350,6 +350,7 @@ F: common-user/host/riscv*
 F: tests/functional/riscv32
 F: tests/functional/riscv64
 F: tests/tcg/riscv64/
+F: tests/qtest/iommu-riscv-test.c
 
 RISC-V XThead* extensions
 M: Christoph Muellner <christoph.muellner@vrull.eu>
@@ -3600,6 +3601,7 @@ M: Tao Tang <tangtao1634@phytium.com.cn>
 S: Maintained
 F: tests/qtest/libqos/qos-iommu*
 F: tests/qtest/libqos/qos-smmuv3*
+F: tests/qtest/libqos/qos-riscv-iommu*
 
 Device Fuzzing
 M: Alexander Bulekov <alxndr@bu.edu>
