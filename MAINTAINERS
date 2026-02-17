@@ -304,6 +304,7 @@ M: Stafford Horne <shorne@gmail.com>
 S: Odd Fixes
 F: docs/system/or1k/cpu-features.rst
 F: target/or1k/
+F: gdb-xml/or1k-core.xml
 F: hw/or1k/
 F: include/hw/or1k/
 F: tests/functional/or1k/meson.build
