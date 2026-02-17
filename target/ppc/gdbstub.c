@@ -23,31 +23,6 @@
 #include "gdbstub/helpers.h"
 #include "internal.h"
 
-static int ppc_gdb_register_len_apple(int n)
-{
-    switch (n) {
-    case 0 ... 31:
-        /* gprs */
-        return 8;
-    case 32 ... 63:
-        /* fprs */
-        return 8;
-    case 64 ... 95:
-        return 16;
-    case 64 + 32: /* nip */
-    case 65 + 32: /* msr */
-    case 67 + 32: /* lr */
-    case 68 + 32: /* ctr */
-    case 70 + 32: /* fpscr */
-        return 8;
-    case 66 + 32: /* cr */
-    case 69 + 32: /* xer */
-        return 4;
-    default:
-        return 0;
-    }
-}
-
 static int ppc_gdb_register_len(int n)
 {
     switch (n) {
@@ -149,59 +124,6 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
     return r;
 }
 
-int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
-{
-    CPUPPCState *env = cpu_env(cs);
-    uint8_t *mem_buf;
-    int r = ppc_gdb_register_len_apple(n);
-
-    if (!r) {
-        return r;
-    }
-
-    if (n < 32) {
-        /* gprs */
-        gdb_get_reg64(buf, env->gpr[n]);
-    } else if (n < 64) {
-        /* fprs */
-        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n - 32));
-    } else if (n < 96) {
-        /* Altivec */
-        gdb_get_reg64(buf, n - 64);
-        gdb_get_reg64(buf, 0);
-    } else {
-        switch (n) {
-        case 64 + 32:
-            gdb_get_reg64(buf, env->nip);
-            break;
-        case 65 + 32:
-            gdb_get_reg64(buf, env->msr);
-            break;
-        case 66 + 32:
-            {
-                uint32_t cr = ppc_get_cr(env);
-                gdb_get_reg32(buf, cr);
-                break;
-            }
-        case 67 + 32:
-            gdb_get_reg64(buf, env->lr);
-            break;
-        case 68 + 32:
-            gdb_get_reg64(buf, env->ctr);
-            break;
-        case 69 + 32:
-            gdb_get_reg32(buf, cpu_read_xer(env));
-            break;
-        case 70 + 32:
-            gdb_get_reg64(buf, env->fpscr);
-            break;
-        }
-    }
-    mem_buf = buf->data + buf->len - r;
-    ppc_maybe_bswap_register(env, mem_buf, r);
-    return r;
-}
-
 int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUPPCState *env = cpu_env(cs);
@@ -243,52 +165,6 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         case 70:
             /* fpscr */
             ppc_store_fpscr(env, ldtul_p(mem_buf));
-            break;
-        }
-    }
-    return r;
-}
-int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
-{
-    CPUPPCState *env = cpu_env(cs);
-    int r = ppc_gdb_register_len_apple(n);
-
-    if (!r) {
-        return r;
-    }
-    ppc_maybe_bswap_register(env, mem_buf, r);
-    if (n < 32) {
-        /* gprs */
-        env->gpr[n] = ldq_p(mem_buf);
-    } else if (n < 64) {
-        /* fprs */
-        *cpu_fpr_ptr(env, n - 32) = ldq_p(mem_buf);
-    } else {
-        switch (n) {
-        case 64 + 32:
-            env->nip = ldq_p(mem_buf);
-            break;
-        case 65 + 32:
-            ppc_store_msr(env, ldq_p(mem_buf));
-            break;
-        case 66 + 32:
-            {
-                uint32_t cr = ldl_p(mem_buf);
-                ppc_set_cr(env, cr);
-                break;
-            }
-        case 67 + 32:
-            env->lr = ldq_p(mem_buf);
-            break;
-        case 68 + 32:
-            env->ctr = ldq_p(mem_buf);
-            break;
-        case 69 + 32:
-            cpu_write_xer(env, ldl_p(mem_buf));
-            break;
-        case 70 + 32:
-            /* fpscr */
-            ppc_store_fpscr(env, ldq_p(mem_buf));
             break;
         }
     }
