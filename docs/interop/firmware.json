@@ -370,6 +370,39 @@
   'data'   : { 'filename' : 'str' } }
 
 ##
+# @FirmwareMemoryUefiVars:
+#
+# Contains information needed to set up the "uefi-vars" device
+# to provide UEFI variable store access to the firmware.
+#
+# @template: The path to the UEFI JSON variable store template
+#     compatible with the firmware.  Management software instantiates
+#     an individual copy -- a specific UEFI variable store file --
+#     from @template for each new virtual machine definition created.
+#     @template itself is never mapped into virtual machines, only
+#     individual copies of it are.  The file created by copying
+#     @template is used for persistently storing the non-volatile
+#     UEFI variables of a virtual machine definition.  The
+#     corresponding QEMU command line options are
+#
+#     ::
+#
+#         -device uefi-vars-x64,jsonfile=PATH_TO_PRIVATE_FILE
+#
+#     for x86_64 virtual machines, or
+#
+#     ::
+#
+#         -device uefi-vars-sysbus,jsonfile=PATH_TO_PRIVATE_FILE
+#
+#     for other UEFI architectures (aarch64, riscv64, loongarch64).
+#
+# Since: 11.0
+##
+{ 'struct' : 'FirmwareMemoryUefiVars',
+  'data'   : { 'template' : 'str' }}
+
+##
 # @FirmwareMappingMemory:
 #
 # Describes loading and mapping properties for the firmware
@@ -380,10 +413,18 @@
 #     definitions.  The corresponding QEMU command line option is
 #     "-bios @filename".
 #
+# @uefi-vars: Information specific to firmware builds that expect the
+#     "uefi-vars" device to be used to provide access to the UEFI
+#     variable store.  If the mapping contains this member, the
+#     firmware descriptor must advertise both the @uefi interface
+#     from @FirmwareOSInterface and the @host-uefi-vars feature from
+#     @FirmwareFeature.  (Since 11.0)
+#
 # Since: 3.0
 ##
 { 'struct' : 'FirmwareMappingMemory',
-  'data'   : { 'filename' : 'str' } }
+  'data'   : { 'filename' : 'str',
+               '*uefi-vars' : 'FirmwareMemoryUefiVars' } }
 
 ##
 # @FirmwareMappingIgvm:
