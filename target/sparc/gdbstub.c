@@ -22,11 +22,14 @@
 #include "cpu.h"
 #include "gdbstub/helpers.h"
 
-#ifdef TARGET_ABI32
-#define gdb_get_rega(buf, val) gdb_get_reg32(buf, val)
+static inline int gdb_get_rega(GByteArray *buf, uint64_t val)
+{
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    return gdb_get_reg32(buf, val);
 #else
-#define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
+    return gdb_get_reg64(buf, val);
 #endif
+}
 
 int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
