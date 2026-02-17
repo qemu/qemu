@@ -163,7 +163,8 @@ static int vfio_mmap_compare_offset(const void *a, const void *b)
 }
 
 static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
-                                          struct vfio_region_info *info)
+                                          struct vfio_region_info *info,
+                                          Error **errp)
 {
     struct vfio_info_cap_header *hdr;
     struct vfio_region_info_cap_sparse_mmap *sparse;
@@ -210,12 +211,12 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
             off_t prev_end = region->mmaps[i - 1].offset +
                              region->mmaps[i - 1].size;
             if (prev_end > region->mmaps[i].offset) {
-                error_report("%s: overlapping sparse mmap regions detected "
-                             "in region %d: [0x%"PRIx64"-0x%"PRIx64"] overlaps "
-                             "with [0x%"PRIx64"-0x%"PRIx64"]",
-                             __func__, region->nr, region->mmaps[i - 1].offset,
-                             prev_end - 1, region->mmaps[i].offset,
-                             region->mmaps[i].offset + region->mmaps[i].size - 1);
+                error_setg(errp, "%s: overlapping sparse mmap regions detected "
+                           "in region %d: [0x%"PRIx64"-0x%"PRIx64"] overlaps "
+                           "with [0x%"PRIx64"-0x%"PRIx64"]",
+                           __func__, region->nr, region->mmaps[i - 1].offset,
+                           prev_end - 1, region->mmaps[i].offset,
+                           region->mmaps[i].offset + region->mmaps[i].size - 1);
                 g_free(region->mmaps);
                 region->mmaps = NULL;
                 region->nr_mmaps = 0;
@@ -228,13 +229,14 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
 }
 
 int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
-                      int index, const char *name)
+                      int index, const char *name, Error **errp)
 {
     struct vfio_region_info *info = NULL;
     int ret;
 
     ret = vfio_device_get_region_info(vbasedev, index, &info);
     if (ret) {
+        error_setg_errno(errp, -ret, "failed to get region %d info", index);
         return ret;
     }
 
@@ -253,7 +255,7 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
         if (!vbasedev->no_mmap &&
             region->flags & VFIO_REGION_INFO_FLAG_MMAP) {
 
-            ret = vfio_setup_region_sparse_mmaps(region, info);
+            ret = vfio_setup_region_sparse_mmaps(region, info, errp);
 
             if (ret == -ENODEV) {
                 region->nr_mmaps = 1;
