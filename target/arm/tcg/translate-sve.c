@@ -6782,8 +6782,6 @@ static bool do_trans_pmull(DisasContext *s, arg_rrr_esz *a, bool sel)
             return false;
         }
         s->is_nonstreaming = true;
-    } else if (!dc_isar_feature(aa64_sve, s)) {
-        return false;
     }
     return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, sel);
 }
