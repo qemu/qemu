@@ -3,7 +3,6 @@ s390x_ss.add(files(
   'cpu.c',
   'cpu_features.c',
   'cpu_models.c',
-  'gdbstub.c',
   'interrupt.c',
   'cpu-dump.c',
 ))
@@ -34,11 +33,13 @@ s390x_common_system_ss.add(files(
   'sigp.c',
   'cpu-system.c',
   'cpu_models_system.c',
+  'gdbstub.c',
 ))
 
 s390x_user_ss = ss.source_set()
 s390x_user_ss.add(files(
   'cpu_models_user.c',
+  'gdbstub.c',
 ))
 
 subdir('tcg')
