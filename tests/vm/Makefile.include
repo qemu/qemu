@@ -2,12 +2,24 @@
 
 # Hack to allow running in an unconfigured build tree
 ifeq ($(realpath $(SRC_PATH)),$(realpath .))
-VM_PYTHON = PYTHONPATH=$(SRC_PATH)/python /usr/bin/env python3
-VM_VENV =
+VM_PYTHON = $(SRC_PATH)/vm-venv/bin/python3
+VM_VENV = vm-venv
 else
 VM_PYTHON = $(PYTHON)
-VM_VENV = check-venv
+VM_VENV =
 endif
+
+VM_VENV_TOKEN=$(SRC_PATH)/vm-venv/tooling.group $(SRC_PATH)/vm-venv/functests.group
+
+$(VM_VENV_TOKEN): $(SRC_PATH)/pythondeps.toml
+	/usr/bin/env python3 $(SRC_PATH)/python/scripts/mkvenv.py create vm-venv
+	$(SRC_PATH)/vm-venv/bin/python3 \
+	$(SRC_PATH)/python/scripts/mkvenv.py ensuregroup --online \
+	$(SRC_PATH)/pythondeps.toml tooling functests
+
+.PHONY: vm-venv
+vm-venv: $(VM_VENV_TOKEN)
+# end hackery
 
 .PHONY: vm-build-all vm-clean-all
 
@@ -102,7 +114,7 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 		$(if $(LOG_CONSOLE),--log-console) \
 		--source-path $(SRC_PATH) \
 		--image "$@" \
-		$(if $(filter-out check-venv, $?), --force) \
+		--force \
 		--build-image $@, \
 		"  VM-IMAGE $*")
 
