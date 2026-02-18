@@ -20,10 +20,8 @@ setuptools<=70
 # Dependencies for qapidoc/qapi_domain et al
 sphinx==3.4.3
 
-# Dependencies for the TUI addon (Required for successful linting)
-urwid==2.1.2
-urwid-readline==0.13
-Pygments==2.9.0
+# Dependencies for qemu.machine
+qemu.qmp==0.0.5
 
 # Dependencies for mkvenv
 distlib==0.3.6
@@ -36,7 +34,7 @@ avocado-framework==90.0
 
 # Linters
 flake8==5.0.4
-isort==5.1.2
+isort==5.6.0
 mypy==1.4.0
 pylint==2.17.3
 
