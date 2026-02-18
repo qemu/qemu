@@ -376,7 +376,9 @@ static void machine_HP_common_init_tail(MachineState *machine, PCIBus *pci_bus,
 
     if (pci_bus) {
         pci_init_nic_devices(pci_bus, mc->default_nic);
+    }
 
+    if (pci_bus && hppa_is_pa20(&cpu[0]->env)) {
         /* BMC board: HP Diva GSP PCI card */
         dev = qdev_new("diva-gsp");
         if (dev && !object_property_get_bool(OBJECT(dev), "disable", NULL)) {
