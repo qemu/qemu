@@ -3,7 +3,17 @@ QEMU Python Tooling
 
 This directory houses Python tooling used by the QEMU project to build,
 configure, and test QEMU. It is organized by namespace (``qemu``), and
-then by package (e.g. ``qemu/machine``, ``qemu/qmp``, etc).
+then by package (e.g. ``qemu/machine``, ``qemu/utils``, etc).
+
+These tools and libraries are installed to the QEMU configure-time
+Python virtual environment by default (see qemu.git/pythondeps.toml
+"tooling" group), and are available for use by any Python script
+executed by the build system. To have these libraries available for
+manual invocations of scripts, use of the "run" script in your build
+directory is recommended.
+
+General structure
+-----------------
 
 ``setup.py`` is used by ``pip`` to install this tooling to the current
 environment. ``setup.cfg`` provides the packaging configuration used by
@@ -20,9 +30,9 @@ environment. ``setup.cfg`` provides the packaging configuration used by
 
 If you append the ``--editable`` or ``-e`` argument to either invocation
 above, pip will install in "editable" mode. This installs the package as
-a forwarder ("qemu.egg-link") that points to the source tree. In so
-doing, the installed package always reflects the latest version in your
-source tree.
+a forwarder that points to the source tree. In so doing, the installed
+package always reflects the latest version in your source tree. This is
+the mode used to install these packages at configure time.
 
 Installing ".[devel]" instead of "." will additionally pull in required
 packages for testing this package. They are not runtime requirements,
@@ -40,8 +50,18 @@ for more information.
 Using these packages without installing them
 --------------------------------------------
 
-These packages may be used without installing them first, by using one
-of two tricks:
+It is no longer recommended to try to use these packages without
+installing them to a virtual environment, but depending on your use
+case, it may still be possible to do.
+
+The "qemu.qmp" library is now hosted outside of the qemu.git repository,
+and the "qemu.machine" library that remains in-tree here has qemu.qmp as
+a dependency. It is possible to install "qemu.qmp" independently and
+then use the rest of these packages without installing them, but be
+advised that if future dependencies are introduced, bypassing the
+installation phase may introduce breakages to your script in the future.
+
+That said, you can use these packages without installing them by either:
 
 1. Set your PYTHONPATH environment variable to include this source
    directory, e.g. ``~/src/qemu/python``. See
@@ -61,8 +81,26 @@ invoke them without installation, you can invoke e.g.:
 
 ``> PYTHONPATH=~/src/qemu/python python3 -m qemu.qmp.qmp_shell``
 
+**It is strongly advised to just use the configure-time venv instead.**
+After running configure, simply use the run script available in the QEMU
+build directory:
+
+``> $builddir/run qmp-shell``
+
 The mappings between console script name and python module path can be
-found in ``setup.cfg``.
+found in ``setup.cfg``, but the console scripts available are listed
+here for reference:
+
+* ``qemu-ga-client``
+* ``qmp-shell``
+* ``qmp-shell-wrap``
+* ``qmp-tui`` (prototype urwid interface for async QMP)
+* ``qom``
+* ``qom-fuse`` (requires fusepy to be installed!)
+* ``qom-get``
+* ``qom-list``
+* ``qom-set``
+* ``qom-tree``
 
 
 Files in this directory
