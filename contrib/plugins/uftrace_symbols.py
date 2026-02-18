@@ -59,6 +59,9 @@ def find_symbols_locations(elf_file, symbols):
         print(e.output)
         raise
     out = out.strip().split('\n')
+    # filter out some addr2line error messages
+    skip_err='addr2line: DWARF error: mangled line number section (bad file number)'
+    out = [src for src in out if src != skip_err]
     assert len(out) == len(symbols)
     for i in range(len(symbols)):
         s = symbols[i]
