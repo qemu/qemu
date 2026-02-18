@@ -31,7 +31,10 @@ gen = [
 ]
 ppc_ss.add(when: 'CONFIG_TCG', if_true: gen)
 
-ppc_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user_only_helper.c'))
+ppc_user_ss = ss.source_set()
+ppc_user_ss.add(files(
+  'user_only_helper.c',
+))
 
 ppc_system_ss = ss.source_set()
 ppc_system_ss.add(files(
@@ -57,4 +60,5 @@ ppc_system_ss.add(when: 'TARGET_PPC64', if_true: files(
 ))
 
 target_arch += {'ppc': ppc_ss}
+target_user_arch += {'ppc': ppc_user_ss}
 target_system_arch += {'ppc': ppc_system_ss}
