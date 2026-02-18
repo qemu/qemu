@@ -838,6 +838,12 @@ def ensure_group(
             raise Ouch(result[0])
         raise SystemExit(f"\n{result[0]}\n\n")
 
+    if inside_a_venv():
+        for group in groups:
+            path = Path(sys.prefix).joinpath(f"{group}.group")
+            with open(path, "w", encoding="UTF8"):
+                pass
+
 
 def post_venv_setup() -> None:
     """
