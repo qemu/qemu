@@ -60,6 +60,9 @@ class OpenBSDVM(basevm.BaseVM):
 
         # libs: networking
         "libslirp",
+
+        # Python stuff
+        "py3-setuptools",
     ]
 
     BUILD_SCRIPT = """

@@ -87,8 +87,10 @@ RUN apk update && \
         py3-numpy \
         py3-pillow \
         py3-pip \
+        py3-setuptools \
         py3-sphinx \
         py3-sphinx_rtd_theme \
+        py3-wheel \
         py3-yaml \
         python3 \
         rpm2cpio \

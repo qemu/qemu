@@ -89,6 +89,8 @@ msys2-64bit:
       mingw-w64-x86_64-pkgconf
       mingw-w64-x86_64-python
       mingw-w64-x86_64-python-certifi
+      mingw-w64-x86_64-python-setuptools
+      mingw-w64-x86_64-python-wheel
       mingw-w64-x86_64-rust
       mingw-w64-x86_64-rust-bindgen
       mingw-w64-x86_64-zstd"

@@ -98,6 +98,7 @@ RUN zypper update -y && \
            python311-base \
            python311-pip \
            python311-setuptools \
+           python311-wheel \
            rdma-core-devel \
            rust \
            rust-bindgen \

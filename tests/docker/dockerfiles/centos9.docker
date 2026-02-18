@@ -101,9 +101,11 @@ RUN dnf --quiet distro-sync -y && \
                 python3-numpy \
                 python3-pillow \
                 python3-pip \
+                python3-setuptools \
                 python3-sphinx \
                 python3-sphinx_rtd_theme \
                 python3-tomli \
+                python3-wheel \
                 rdma-core-devel \
                 rust \
                 rust-std-static \

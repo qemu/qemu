@@ -31,6 +31,7 @@ class NetBSDVM(basevm.BaseVM):
         "pkgconf",
         "xz",
         "python313",
+        "py313-wheel",
         "ninja-build",
 
         # gnu tools

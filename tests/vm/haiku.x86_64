@@ -80,6 +80,8 @@ class HaikuVM(basevm.BaseVM):
         "ninja",
         "pip",
         "tomli_python310",
+        "wheel_python310",
+        "setuptools_python310",
     ]
 
     BUILD_SCRIPT = """
