@@ -37,6 +37,7 @@ sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.2.2" }
 # system packages, or python packages we vendor.
 [tooling]
 "qemu.qmp" = { accepted = ">=0.0.5", installed = "0.0.5" }
+"qemu" = { path = "python/" }
 
 # This test group is for functional tests, and can include dependencies
 # fetched from PyPI.
