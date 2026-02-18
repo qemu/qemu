@@ -20,6 +20,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+import shlex
 import shutil
 import collections
 import contextlib
@@ -140,7 +141,29 @@ class TestEnv(contextlib.AbstractContextManager['TestEnv']):
              PYTHON (for bash tests)
              QEMU_PROG, QEMU_IMG_PROG, QEMU_IO_PROG, QEMU_NBD_PROG, QSD_PROG
         """
-        self.python = sys.executable
+        self.python = str(Path(sys.executable).absolute())
+
+        # QEMU configure-time venv python executable
+        venv_python = Path(
+            os.path.join(self.build_root, "pyvenv", "bin", "python3")
+        ).absolute()
+
+        if self.python != str(venv_python):
+            runpath = os.path.join(self.build_root, "run")
+            cmd = ' '.join(shlex.quote(x) for x in sys.argv)
+            print(
+                "\n\033[93m\033[1mWARNING\033[0m: "
+                "iotests is being run from outside of the configure-time "
+                "python virtual environment\n\n"
+                f"current python: {self.python}\n"
+                f"pyvenv python:  {venv_python}\n\n"
+                "Individual python tests will be executed inside the pyvenv,\n"
+                "but the test runner will continue to run outside.\n\n"
+                "\033[1mPlease use the meson run script:\033[0m\n"
+                f"\t{runpath} {cmd}\n",
+                file=sys.stderr
+            )
+            self.python = str(venv_python)
 
         def root(*names: str) -> str:
             return os.path.join(self.build_root, *names)
