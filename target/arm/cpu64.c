@@ -388,6 +388,11 @@ void arm_cpu_sme_finalize(ARMCPU *cpu, Error **errp)
         /* SME2 or better */
         FIELD_DP64_IDREG(&cpu->isar, ID_AA64PFR1, SME, 2);
     }
+
+    if (!cpu_isar_feature(aa64_sve, cpu)) {
+        /* FEAT_SME_FA64 requires SVE, not just SME */
+        FIELD_DP64_IDREG(&cpu->isar, ID_AA64SMFR0, FA64, 0);
+    }
 }
 
 static bool cpu_arm_get_sme(Object *obj, Error **errp)
