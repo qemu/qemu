@@ -1,12 +1,12 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all --cross-arch mingw64 fedora-41 qemu,qemu-win-installer
+#  $ lcitool dockerfile --layers all --cross-arch mingw64 fedora-43 qemu,qemu-win-installer
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM registry.fedoraproject.org/fedora:41
+FROM registry.fedoraproject.org/fedora:43
 
-RUN dnf install -y nosync && \
+RUN dnf --quiet install -y nosync && \
     printf '#!/bin/sh\n\
 if test -d /usr/lib64\n\
 then\n\
@@ -16,59 +16,59 @@ else\n\
 fi\n\
 exec "$@"\n' > /usr/bin/nosync && \
     chmod +x /usr/bin/nosync && \
-    nosync dnf update -y && \
-    nosync dnf install -y \
-               bash \
-               bc \
-               bindgen-cli \
-               bison \
-               bzip2 \
-               ca-certificates \
-               ccache \
-               compiler-rt \
-               coreutils \
-               ctags \
-               dbus-daemon \
-               diffutils \
-               findutils \
-               flex \
-               gcc \
-               gcovr \
-               git \
-               glib2-devel \
-               glibc-langpack-en \
-               hostname \
-               llvm \
-               make \
-               mtools \
-               ninja-build \
-               nmap-ncat \
-               openssh-clients \
-               python3 \
-               python3-PyYAML \
-               python3-numpy \
-               python3-opencv \
-               python3-pillow \
-               python3-pip \
-               python3-setuptools \
-               python3-sphinx \
-               python3-sphinx_rtd_theme \
-               python3-wheel \
-               rust \
-               sed \
-               socat \
-               sparse \
-               swtpm \
-               tar \
-               tesseract \
-               tesseract-langpack-eng \
-               util-linux \
-               vulkan-tools \
-               which \
-               xorriso \
-               zstd && \
-    nosync dnf autoremove -y && \
-    nosync dnf clean all -y && \
+    nosync dnf --quiet update -y && \
+    nosync dnf --quiet install -y \
+                       bash \
+                       bc \
+                       bindgen-cli \
+                       bison \
+                       bzip2 \
+                       ca-certificates \
+                       ccache \
+                       compiler-rt \
+                       coreutils \
+                       ctags \
+                       dbus-daemon \
+                       diffutils \
+                       findutils \
+                       flex \
+                       gcc \
+                       gcovr \
+                       git \
+                       glib2-devel \
+                       glibc-langpack-en \
+                       hostname \
+                       llvm \
+                       make \
+                       mtools \
+                       ninja-build \
+                       nmap-ncat \
+                       openssh-clients \
+                       python3 \
+                       python3-PyYAML \
+                       python3-numpy \
+                       python3-opencv \
+                       python3-pillow \
+                       python3-pip \
+                       python3-setuptools \
+                       python3-sphinx \
+                       python3-sphinx_rtd_theme \
+                       python3-wheel \
+                       rust \
+                       sed \
+                       socat \
+                       sparse \
+                       swtpm \
+                       tar \
+                       tesseract \
+                       tesseract-langpack-eng \
+                       util-linux \
+                       vulkan-tools \
+                       which \
+                       xorriso \
+                       zstd && \
+    nosync dnf --quiet autoremove -y && \
+    nosync dnf --quiet clean all -y && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED
 
 RUN /usr/bin/pip3 install meson==1.8.1
@@ -79,31 +79,31 @@ ENV MAKE="/usr/bin/make"
 ENV NINJA="/usr/bin/ninja"
 ENV PYTHON="/usr/bin/python3"
 
-RUN nosync dnf install -y \
-               mingw-w64-tools \
-               mingw32-nsis \
-               mingw64-SDL2 \
-               mingw64-SDL2_image \
-               mingw64-bzip2 \
-               mingw64-curl \
-               mingw64-gcc \
-               mingw64-gcc-c++ \
-               mingw64-gettext \
-               mingw64-glib2 \
-               mingw64-gnutls \
-               mingw64-gtk-vnc2 \
-               mingw64-gtk3 \
-               mingw64-libepoxy \
-               mingw64-libfdt \
-               mingw64-libgcrypt \
-               mingw64-libjpeg-turbo \
-               mingw64-libpng \
-               mingw64-libtasn1 \
-               mingw64-nettle \
-               mingw64-pixman \
-               mingw64-pkg-config \
-               rust-std-static-x86_64-pc-windows-gnu && \
-    nosync dnf clean all -y && \
+RUN nosync dnf --quiet install -y \
+                       mingw-w64-tools \
+                       mingw32-nsis \
+                       mingw64-SDL2 \
+                       mingw64-SDL2_image \
+                       mingw64-bzip2 \
+                       mingw64-curl \
+                       mingw64-gcc \
+                       mingw64-gcc-c++ \
+                       mingw64-gettext \
+                       mingw64-glib2 \
+                       mingw64-gnutls \
+                       mingw64-gtk-vnc2 \
+                       mingw64-gtk3 \
+                       mingw64-libepoxy \
+                       mingw64-libfdt \
+                       mingw64-libgcrypt \
+                       mingw64-libjpeg-turbo \
+                       mingw64-libpng \
+                       mingw64-libtasn1 \
+                       mingw64-nettle \
+                       mingw64-pixman \
+                       mingw64-pkg-config \
+                       rust-std-static-x86_64-pc-windows-gnu && \
+    nosync dnf --quiet clean all -y && \
     rpm -qa | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-w64-mingw32-c++ && \

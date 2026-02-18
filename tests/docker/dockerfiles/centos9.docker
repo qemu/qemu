@@ -6,126 +6,126 @@
 
 FROM quay.io/centos/centos:stream9
 
-RUN dnf distro-sync -y && \
-    dnf install 'dnf-command(config-manager)' -y && \
-    dnf config-manager --set-enabled -y crb && \
-    dnf install -y epel-release && \
-    dnf install -y epel-next-release && \
-    dnf install -y \
-        SDL2-devel \
-        alsa-lib-devel \
-        bash \
-        bc \
-        bindgen-cli \
-        bison \
-        brlapi-devel \
-        bzip2 \
-        bzip2-devel \
-        ca-certificates \
-        capstone-devel \
-        ccache \
-        clang \
-        compiler-rt \
-        coreutils-single \
-        ctags \
-        cyrus-sasl-devel \
-        daxctl-devel \
-        dbus-daemon \
-        device-mapper-multipath-devel \
-        diffutils \
-        findutils \
-        flex \
-        fuse3-devel \
-        gcc \
-        gettext \
-        git \
-        glib2-devel \
-        glib2-static \
-        glibc-langpack-en \
-        glibc-static \
-        gnutls-devel \
-        gtk3-devel \
-        hostname \
-        jemalloc-devel \
-        json-c-devel \
-        libaio-devel \
-        libasan \
-        libattr-devel \
-        libbpf-devel \
-        libcacard-devel \
-        libcap-ng-devel \
-        libcmocka-devel \
-        libcurl-devel \
-        libdrm-devel \
-        libepoxy-devel \
-        libfdt-devel \
-        libffi-devel \
-        libgcrypt-devel \
-        libiscsi-devel \
-        libjpeg-devel \
-        libnfs-devel \
-        libpmem-devel \
-        libpng-devel \
-        librbd-devel \
-        libseccomp-devel \
-        libselinux-devel \
-        libslirp-devel \
-        libssh-devel \
-        libtasn1-devel \
-        libubsan \
-        liburing-devel \
-        libusbx-devel \
-        libxdp-devel \
-        libzstd-devel \
-        llvm \
-        lttng-ust-devel \
-        lzo-devel \
-        make \
-        mesa-libgbm-devel \
-        meson \
-        mtools \
-        ncurses-devel \
-        nettle-devel \
-        ninja-build \
-        nmap-ncat \
-        numactl-devel \
-        openssh-clients \
-        pam-devel \
-        pcre-static \
-        pipewire-devel \
-        pixman-devel \
-        pkgconfig \
-        pulseaudio-libs-devel \
-        python3 \
-        python3-PyYAML \
-        python3-numpy \
-        python3-pillow \
-        python3-pip \
-        python3-sphinx \
-        python3-sphinx_rtd_theme \
-        python3-tomli \
-        rdma-core-devel \
-        rust \
-        rust-std-static \
-        sed \
-        snappy-devel \
-        socat \
-        spice-protocol \
-        swtpm \
-        systemd-devel \
-        systemtap-sdt-devel \
-        tar \
-        usbredir-devel \
-        util-linux \
-        vte291-devel \
-        vulkan-tools \
-        which \
-        xorriso \
-        zlib-devel \
-        zlib-static \
-        zstd && \
-    dnf autoremove -y && \
-    dnf clean all -y && \
+RUN dnf --quiet distro-sync -y && \
+    dnf --quiet install 'dnf-command(config-manager)' -y && \
+    dnf --quiet config-manager --set-enabled -y crb && \
+    dnf --quiet install -y epel-release && \
+    dnf --quiet install -y epel-next-release && \
+    dnf --quiet install -y \
+                SDL2-devel \
+                alsa-lib-devel \
+                bash \
+                bc \
+                bindgen-cli \
+                bison \
+                brlapi-devel \
+                bzip2 \
+                bzip2-devel \
+                ca-certificates \
+                capstone-devel \
+                ccache \
+                clang \
+                compiler-rt \
+                coreutils-single \
+                ctags \
+                cyrus-sasl-devel \
+                daxctl-devel \
+                dbus-daemon \
+                device-mapper-multipath-devel \
+                diffutils \
+                findutils \
+                flex \
+                fuse3-devel \
+                gcc \
+                gettext \
+                git \
+                glib2-devel \
+                glib2-static \
+                glibc-langpack-en \
+                glibc-static \
+                gnutls-devel \
+                gtk3-devel \
+                hostname \
+                jemalloc-devel \
+                json-c-devel \
+                libaio-devel \
+                libasan \
+                libattr-devel \
+                libbpf-devel \
+                libcacard-devel \
+                libcap-ng-devel \
+                libcmocka-devel \
+                libcurl-devel \
+                libdrm-devel \
+                libepoxy-devel \
+                libfdt-devel \
+                libffi-devel \
+                libgcrypt-devel \
+                libiscsi-devel \
+                libjpeg-devel \
+                libnfs-devel \
+                libpmem-devel \
+                libpng-devel \
+                librbd-devel \
+                libseccomp-devel \
+                libselinux-devel \
+                libslirp-devel \
+                libssh-devel \
+                libtasn1-devel \
+                libubsan \
+                liburing-devel \
+                libusbx-devel \
+                libxdp-devel \
+                libzstd-devel \
+                llvm \
+                lttng-ust-devel \
+                lzo-devel \
+                make \
+                mesa-libgbm-devel \
+                meson \
+                mtools \
+                ncurses-devel \
+                nettle-devel \
+                ninja-build \
+                nmap-ncat \
+                numactl-devel \
+                openssh-clients \
+                pam-devel \
+                pcre-static \
+                pipewire-devel \
+                pixman-devel \
+                pkgconfig \
+                pulseaudio-libs-devel \
+                python3 \
+                python3-PyYAML \
+                python3-numpy \
+                python3-pillow \
+                python3-pip \
+                python3-sphinx \
+                python3-sphinx_rtd_theme \
+                python3-tomli \
+                rdma-core-devel \
+                rust \
+                rust-std-static \
+                sed \
+                snappy-devel \
+                socat \
+                spice-protocol \
+                swtpm \
+                systemd-devel \
+                systemtap-sdt-devel \
+                tar \
+                usbredir-devel \
+                util-linux \
+                vte291-devel \
+                vulkan-tools \
+                which \
+                xorriso \
+                zlib-devel \
+                zlib-static \
+                zstd && \
+    dnf --quiet autoremove -y && \
+    dnf --quiet clean all -y && \
     rm -f /usr/lib*/python3*/EXTERNALLY-MANAGED && \
     rpm -qa | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \
