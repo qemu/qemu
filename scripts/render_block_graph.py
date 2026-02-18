@@ -24,9 +24,13 @@ import subprocess
 import json
 from graphviz import Digraph
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-from qemu.qmp import QMPError
-from qemu.qmp.legacy import QEMUMonitorProtocol
+try:
+    from qemu.qmp import QMPError
+    from qemu.qmp.legacy import QEMUMonitorProtocol
+except ModuleNotFoundError as exc:
+    print(f"Module '{exc.name}' not found.", file=sys.stderr)
+    print(f"Try $builddir/run {' '.join(sys.argv)}", file=sys.stderr)
+    sys.exit(1)
 
 
 def perm(arr):

@@ -27,9 +27,18 @@ from guestperf.progress import Progress, ProgressStats
 from guestperf.report import Report, ReportResult
 from guestperf.timings import TimingRecord, Timings
 
-sys.path.append(os.path.join(os.path.dirname(__file__),
-                             '..', '..', '..', 'python'))
-from qemu.machine import QEMUMachine
+try:
+    from qemu.machine import QEMUMachine
+except ModuleNotFoundError as exc:
+    print(
+        f"Module '{exc.name}' not found.\n"
+        "It should be installed as part of the configure-time "
+        "virtual environment in $builddir/pyvenv.\n"
+        "Try re-running this script as:\n"
+        f"> $builddir/run {' '.join(sys.argv)}",
+        file=sys.stderr
+    )
+    sys.exit(1)
 
 # multifd supported compression algorithms
 MULTIFD_CMP_ALGS = ("zlib", "zstd", "qpl", "uadk")

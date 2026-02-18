@@ -27,19 +27,16 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from os import path
 from argparse import ArgumentParser, RawTextHelpFormatter, Namespace
 import pandas as pd
 from contextlib import ExitStack
 from typing import Optional, List, Dict, Generator, Tuple, Union, Any, Set
 
 try:
-    qemu_dir = path.abspath(path.dirname(path.dirname(__file__)))
-    sys.path.append(path.join(qemu_dir, 'python'))
     from qemu.machine import QEMUMachine
 except ModuleNotFoundError as exc:
-    print(f"Module '{exc.name}' not found.")
-    print("Try export PYTHONPATH=top-qemu-dir/python or run from top-qemu-dir")
+    print(f"Module '{exc.name}' not found.", file=sys.stderr)
+    print(f"Try $builddir/run {' '.join(sys.argv)}", file=sys.stderr)
     sys.exit(1)
 
 
