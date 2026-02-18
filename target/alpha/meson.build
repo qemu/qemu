@@ -2,7 +2,6 @@ alpha_ss = ss.source_set()
 alpha_ss.add(files(
   'cpu.c',
   'fpu_helper.c',
-  'gdbstub.c',
   'helper.c',
   'clk_helper.c',
   'int_helper.c',
@@ -11,11 +10,18 @@ alpha_ss.add(files(
   'vax_helper.c',
 ))
 
-alpha_system_ss = ss.source_set()
-alpha_system_ss.add(files(
+alpha_user_ss = ss.source_set()
+alpha_user_ss.add(files(
+  'gdbstub.c',
+))
+
+alpha_common_system_ss = ss.source_set()
+alpha_common_system_ss.add(files(
+  'gdbstub.c',
   'machine.c',
   'sys_helper.c',
 ))
 
 target_arch += {'alpha': alpha_ss}
-target_common_system_arch += {'alpha': alpha_system_ss}
+target_user_arch += {'alpha': alpha_user_ss}
+target_common_system_arch += {'alpha': alpha_common_system_ss}
