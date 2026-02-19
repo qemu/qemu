@@ -7,8 +7,10 @@ sh4_ss.add(files(
   'translate.c',
 ))
 
-sh4_system_ss = ss.source_set()
-sh4_system_ss.add(files('monitor.c'))
+sh4_common_system_ss = ss.source_set()
+sh4_common_system_ss.add(files(
+  'monitor.c',
+))
 
 target_arch += {'sh4': sh4_ss}
-target_common_system_arch += {'sh4': sh4_system_ss}
+target_common_system_arch += {'sh4': sh4_common_system_ss}
