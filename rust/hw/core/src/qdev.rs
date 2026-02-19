@@ -425,18 +425,16 @@ impl Clock {
     }
 
     pub const fn period_from_hz(hz: u64) -> u64 {
-        if hz == 0 {
-            0
-        } else {
-            Self::PERIOD_1SEC / hz
+        match Self::PERIOD_1SEC.checked_div(hz) {
+            Some(value) => value,
+            None => 0,
         }
     }
 
     pub const fn period_to_hz(period: u64) -> u64 {
-        if period == 0 {
-            0
-        } else {
-            Self::PERIOD_1SEC / period
+        match Self::PERIOD_1SEC.checked_div(period) {
+            Some(value) => value,
+            None => 0,
         }
     }
 
