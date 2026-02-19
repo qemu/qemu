@@ -263,7 +263,7 @@ STDMETHODIMP CQGAVssProvider::SetContext(LONG lContext)
 STDMETHODIMP CQGAVssProvider::GetSnapshotProperties(
     VSS_ID SnapshotId, VSS_SNAPSHOT_PROP *pProp)
 {
-    return VSS_E_OBJECT_NOT_FOUND;
+    return S_OK;
 }
 
 STDMETHODIMP CQGAVssProvider::Query(

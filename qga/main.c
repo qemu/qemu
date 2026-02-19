@@ -32,6 +32,8 @@
 #include "qemu/systemd.h"
 #include "qemu-version.h"
 #ifdef _WIN32
+#include <windows.h>
+#include <objbase.h>
 #include <dbt.h>
 #include <pdh.h>
 #include "qga/service-win32.h"
@@ -830,6 +832,29 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
     return ret;
 }
 
+/* Initialize COM for VSS operations */
+static HRESULT init_com(void)
+{
+    HRESULT hr;
+
+    hr = CoInitialize(NULL);
+    if (FAILED(hr)) {
+        return hr;
+    }
+
+    hr = CoInitializeSecurity(
+        NULL, -1, NULL, NULL,
+        RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
+        RPC_C_IMP_LEVEL_IDENTIFY,
+        NULL, EOAC_NONE, NULL);
+    if (FAILED(hr)) {
+        CoUninitialize();
+        return hr;
+    }
+
+    return S_OK;
+}
+
 VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
 {
     GAService *service = &ga_state->service;
@@ -839,6 +864,13 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
 
     if (service->status_handle == 0) {
         g_critical("Failed to register extended requests function!\n");
+        return;
+    }
+
+    /* Initialize COM for VSS operations in the service thread */
+    HRESULT hr_com = init_com();
+    if (FAILED(hr_com)) {
+        g_critical("Failed to initialize COM in service thread: 0x%lx", hr_com);
         return;
     }
 
@@ -865,6 +897,8 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
     SetServiceStatus(service->status_handle, &service->status);
 
     run_agent(ga_state);
+
+    CoUninitialize();
 
     UnregisterDeviceNotification(service->device_notification_handle);
     service->status.dwCurrentState = SERVICE_STOPPED;
@@ -1719,7 +1753,15 @@ int main(int argc, char **argv)
         StartServiceCtrlDispatcher(service_table);
         ret = EXIT_SUCCESS;
     } else {
+        HRESULT hr_com = init_com();
+        if (FAILED(hr_com)) {
+            g_critical("Failed to initialize COM: 0x%lx", hr_com);
+            ret = EXIT_FAILURE;
+            goto end;
+        }
+
         ret = run_agent(s);
+        CoUninitialize();
     }
 #else
     ret = run_agent(s);

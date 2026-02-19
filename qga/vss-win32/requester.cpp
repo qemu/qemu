@@ -60,15 +60,6 @@ STDAPI requester_init(void)
 {
     qga_debug_begin;
 
-    COMInitializer initializer; /* to call CoInitializeSecurity */
-    HRESULT hr = CoInitializeSecurity(
-        NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
-        RPC_C_IMP_LEVEL_IDENTIFY, NULL, EOAC_NONE, NULL);
-    if (FAILED(hr)) {
-        qga_debug("failed to CoInitializeSecurity (error %lx)", hr);
-        return hr;
-    }
-
     hLib = LoadLibraryA("VSSAPI.DLL");
     if (!hLib) {
         qga_debug("failed to load VSSAPI.DLL");
@@ -320,8 +311,6 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
         return;
     }
 
-    CoInitialize(NULL);
-
     /* Allow unrestricted access to events */
     InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
     SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
@@ -562,7 +551,6 @@ out:
 
 out1:
     requester_cleanup();
-    CoUninitialize();
 
     qga_debug_end;
 }
@@ -643,7 +631,6 @@ void requester_thaw(int *num_vols, void *mountpints, ErrorSet *errset)
     *num_vols = vss_ctx.cFrozenVols;
     requester_cleanup();
 
-    CoUninitialize();
     StopService();
 
     qga_debug_end;
