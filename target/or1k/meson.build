@@ -1,8 +1,8 @@
 gen = decodetree.process('insns.decode')
 
-openrisc_ss = ss.source_set()
-openrisc_ss.add(gen)
-openrisc_ss.add(files(
+or1k_ss = ss.source_set()
+or1k_ss.add(gen)
+or1k_ss.add(files(
   'cpu.c',
   'disas.c',
   'exception.c',
@@ -14,12 +14,12 @@ openrisc_ss.add(files(
   'translate.c',
 ))
 
-openrisc_system_ss = ss.source_set()
-openrisc_system_ss.add(files(
+or1k_common_system_ss = ss.source_set()
+or1k_common_system_ss.add(files(
   'interrupt.c',
   'machine.c',
   'mmu.c',
 ))
 
-target_arch += {'or1k': openrisc_ss}
-target_common_system_arch += {'or1k': openrisc_system_ss}
+target_arch += {'or1k': or1k_ss}
+target_common_system_arch += {'or1k': or1k_common_system_ss}
