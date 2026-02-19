@@ -368,12 +368,14 @@ FIELD(ID_AA64DFR0, HPMN0, 60, 4)
 
 FIELD(ID_AA64ZFR0, SVEVER, 0, 4)
 FIELD(ID_AA64ZFR0, AES, 4, 4)
+FIELD(ID_AA64ZFR0, ELTPERM, 12, 4)
 FIELD(ID_AA64ZFR0, BITPERM, 16, 4)
 FIELD(ID_AA64ZFR0, BFLOAT16, 20, 4)
 FIELD(ID_AA64ZFR0, B16B16, 24, 4)
 FIELD(ID_AA64ZFR0, SHA3, 32, 4)
 FIELD(ID_AA64ZFR0, SM4, 40, 4)
 FIELD(ID_AA64ZFR0, I8MM, 44, 4)
+FIELD(ID_AA64ZFR0, F16MM, 48, 4)
 FIELD(ID_AA64ZFR0, F32MM, 52, 4)
 FIELD(ID_AA64ZFR0, F64MM, 56, 4)
 
@@ -1449,7 +1451,7 @@ static inline bool isar_feature_aa64_sve2_bitperm(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64ZFR0, BITPERM) != 0;
 }
 
-static inline bool isar_feature_aa64_sve_bf16(const ARMISARegisters *id)
+static inline bool isar_feature_aa64_sme_sve_bf16(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64ZFR0, BFLOAT16) != 0;
 }
@@ -1464,7 +1466,8 @@ static inline bool isar_feature_aa64_sve2_sm4(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64ZFR0, SM4) != 0;
 }
 
-static inline bool isar_feature_aa64_sve_i8mm(const ARMISARegisters *id)
+/* Note that this is true if either SVE or SME are implemented with I8MM */
+static inline bool isar_feature_aa64_sme_sve_i8mm(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64ZFR0, I8MM) != 0;
 }
@@ -1522,6 +1525,16 @@ static inline bool isar_feature_aa64_sme2p1(const ARMISARegisters *id)
 /*
  * Combinations of feature tests, for ease of use with TRANS_FEAT.
  */
+static inline bool isar_feature_aa64_sme_or_sve(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme(id) || isar_feature_aa64_sve(id);
+}
+
+static inline bool isar_feature_aa64_sme_or_sve2(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme(id) || isar_feature_aa64_sve2(id);
+}
+
 static inline bool isar_feature_aa64_sme_or_sve2p1(const ARMISARegisters *id)
 {
     return isar_feature_aa64_sme(id) || isar_feature_aa64_sve2p1(id);
@@ -1545,6 +1558,16 @@ static inline bool isar_feature_aa64_sme2_i16i64(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sme2_f64f64(const ARMISARegisters *id)
 {
     return isar_feature_aa64_sme2(id) && isar_feature_aa64_sme_f64f64(id);
+}
+
+static inline bool isar_feature_aa64_sve_i8mm(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sve(id) && isar_feature_aa64_sme_sve_i8mm(id);
+}
+
+static inline bool isar_feature_aa64_sve_bf16(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sve(id) && isar_feature_aa64_sme_sve_bf16(id);
 }
 
 /*

@@ -7,14 +7,12 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "helper.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "exec/translation-block.h"
 #include "accel/tcg/cpu-ops.h"
 #include "cpregs.h"
-
-#define HELPER_H "tcg/helper.h"
-#include "exec/helper-proto.h.inc"
 
 static inline bool fgt_svc(CPUARMState *env, int el)
 {

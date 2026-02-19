@@ -1809,6 +1809,15 @@ static inline uint64_t arm_mdcr_el2_eff(CPUARMState *env)
      (1 << (4 - 1)) | (1 << (8 - 1)) | (1 << (16 - 1)))
 
 /*
+ * Return the maximum SVE/SME VQ for this CPU. This defines
+ * the maximum possible size of the Zn vector registers.
+ */
+static inline int arm_max_vq(ARMCPU *cpu)
+{
+    return MAX(cpu->sve_max_vq, cpu->sme_max_vq);
+}
+
+/*
  * Return true if it is possible to take a fine-grained-trap to EL2.
  */
 static inline bool arm_fgt_active(CPUARMState *env, int el)

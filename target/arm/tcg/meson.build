@@ -33,7 +33,6 @@ arm_ss.add(files(
   'm_helper.c',
   'mve_helper.c',
   'op_helper.c',
-  'vec_helper.c',
 ))
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
@@ -47,13 +46,10 @@ arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'pauth_helper.c',
   'sme_helper.c',
   'sve_helper.c',
+  'vec_helper64.c',
 ))
 
-arm_system_ss.add(files(
-  'psci.c',
-))
-
-arm_system_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('cpu-v7m.c'))
+arm_common_system_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('cpu-v7m.c'))
 arm_user_ss.add(when: 'TARGET_AARCH64', if_false: files('cpu-v7m.c'))
 
 arm_common_ss.add(zlib)
@@ -65,15 +61,20 @@ arm_common_ss.add(files(
 
 arm_common_system_ss.add(files(
   'cpregs-at.c',
+  'debug.c',
   'hflags.c',
   'neon_helper.c',
+  'psci.c',
   'tlb_helper.c',
   'tlb-insns.c',
+  'vec_helper.c',
   'vfp_helper.c',
 ))
 arm_user_ss.add(files(
+  'debug.c',
   'hflags.c',
   'neon_helper.c',
   'tlb_helper.c',
+  'vec_helper.c',
   'vfp_helper.c',
 ))

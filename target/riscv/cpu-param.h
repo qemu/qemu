@@ -18,13 +18,6 @@
 #define TARGET_PAGE_BITS 12 /* 4 KiB Pages */
 
 /*
- * RISC-V-specific extra insn start words:
- * 1: Original instruction opcode
- * 2: more information about instruction
- */
-#define TARGET_INSN_START_EXTRA_WORDS 2
-
-/*
  * The current MMU Modes are:
  *  - U mode 0b000
  *  - S mode 0b001

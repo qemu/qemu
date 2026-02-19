@@ -18,6 +18,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "cpu.h"
+#include "helper-sme.h"
+#include "helper-sve.h"
 #include "translate.h"
 #include "translate-a64.h"
 

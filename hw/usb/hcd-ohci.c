@@ -1246,6 +1246,10 @@ static void ohci_frame_boundary(void *opaque)
     hcca.frame = cpu_to_le16(ohci->frame_number);
     /* When the HC updates frame number, set pad to 0. Ref OHCI Spec 4.4.1*/
     hcca.pad = 0;
+    /* FrameNumberOverflow happens when bit 15 of frame number changes */
+    if (ohci->frame_number == 0x8000 || ohci->frame_number == 0) {
+        ohci_set_interrupt(ohci, OHCI_INTR_FNO);
+    }
 
     if (ohci->done_count == 0 && !(ohci->intr_status & OHCI_INTR_WD)) {
         if (!ohci->done) {
