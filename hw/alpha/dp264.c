@@ -16,8 +16,6 @@
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/ide/pci.h"
 #include "hw/isa/superio.h"
-#include "net/net.h"
-#include "qemu/cutils.h"
 #include "qemu/datadir.h"
 
 static uint64_t cpu_alpha_superpage_to_phys(void *opaque, uint64_t addr)
