@@ -446,13 +446,13 @@ static void vfio_display_region_update(void *opaque)
 
     if (!dpy->region.buffer.size) {
         /* mmap region */
+        Error *error = NULL;
         ret = vfio_region_setup(OBJECT(vdev), &vdev->vbasedev,
                                 &dpy->region.buffer,
                                 plane.region_index,
-                                "display");
+                                "display", &error);
         if (ret != 0) {
-            error_report("%s: vfio_region_setup(%d): %s",
-                         __func__, plane.region_index, strerror(-ret));
+            error_report_err(error);
             goto err;
         }
         ret = vfio_region_mmap(&dpy->region.buffer);
