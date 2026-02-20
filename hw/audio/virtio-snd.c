@@ -156,7 +156,7 @@ static virtio_snd_pcm_set_params *virtio_snd_pcm_get_params(VirtIOSound *s,
 static void virtio_snd_handle_pcm_info(VirtIOSound *s,
                                        virtio_snd_ctrl_command *cmd)
 {
-    uint32_t stream_id, start_id, count, size;
+    uint32_t stream_id, start_id, count, size, tmp;
     virtio_snd_pcm_info val;
     virtio_snd_query_info req;
     VirtIOSoundPCMStream *stream = NULL;
@@ -179,11 +179,34 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
     count = le32_to_cpu(req.count);
     size = le32_to_cpu(req.size);
 
-    if (iov_size(cmd->elem->in_sg, cmd->elem->in_num) <
-        sizeof(virtio_snd_hdr) + size * count) {
+    /*
+     * 5.14.6.2 Driver Requirements: Item Information Request
+     * "The driver MUST NOT set start_id and count such that start_id + count
+     * is greater than the total number of particular items that is indicated
+     * in the device configuration space."
+     */
+    if (start_id > s->snd_conf.streams
+        || !g_uint_checked_add(&tmp, start_id, count)
+        || start_id + count > s->snd_conf.streams) {
+        error_report("pcm info: start_id + count is greater than the total "
+                     "number of streams, got: start_id = %u, count = %u",
+                     start_id, count);
+        cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+        return;
+    }
+
+    /*
+     * 5.14.6.2 Driver Requirements: Item Information Request
+     * "The driver MUST provide a buffer of sizeof(struct virtio_snd_hdr) +
+     * count * size bytes for the response."
+     */
+    if (!g_uint_checked_mul(&tmp, size, count)
+        || !g_uint_checked_add(&tmp, tmp, sizeof(virtio_snd_hdr))
+        || iov_size(cmd->elem->in_sg, cmd->elem->in_num) <
+           sizeof(virtio_snd_hdr) + size * count) {
         error_report("pcm info: buffer too small, got: %zu, needed: %zu",
                 iov_size(cmd->elem->in_sg, cmd->elem->in_num),
-                sizeof(virtio_snd_pcm_info));
+                sizeof(virtio_snd_pcm_info) * count);
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         return;
     }
