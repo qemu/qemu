@@ -1250,7 +1250,7 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
 {
     VirtIOSoundPCMStream *stream = data;
     VirtIOSoundPCMBuffer *buffer;
-    size_t size, max_size;
+    size_t size, max_size, to_read;
 
     WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
         while (!QSIMPLEQ_EMPTY(&stream->queue)) {
@@ -1276,10 +1276,12 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
                     return_rx_buffer(stream, buffer);
                     break;
                 }
+                to_read = stream->params.period_bytes - buffer->size;
+                to_read = MIN(to_read, available);
+                to_read = MIN(to_read, max_size - buffer->size);
                 size = AUD_read(stream->voice.in,
-                        buffer->data + buffer->size,
-                        MIN(available, (stream->params.period_bytes -
-                                        buffer->size)));
+                                buffer->data + buffer->size,
+                                to_read);
                 if (!size) {
                     available = 0;
                     break;
