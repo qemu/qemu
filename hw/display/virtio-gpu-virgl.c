@@ -52,10 +52,16 @@ virgl_get_egl_display(G_GNUC_UNUSED void *cookie)
 
 #if VIRGL_VERSION_MAJOR >= 1
 struct virtio_gpu_virgl_hostmem_region {
+    Object parent_obj;
     MemoryRegion mr;
     struct VirtIOGPU *g;
     bool finish_unmapping;
 };
+
+#define TYPE_VIRTIO_GPU_VIRGL_HOSTMEM_REGION "virtio-gpu-virgl-hostmem-region"
+
+OBJECT_DECLARE_SIMPLE_TYPE(virtio_gpu_virgl_hostmem_region,
+                           VIRTIO_GPU_VIRGL_HOSTMEM_REGION)
 
 static struct virtio_gpu_virgl_hostmem_region *
 to_hostmem_region(MemoryRegion *mr)
@@ -70,14 +76,22 @@ static void virtio_gpu_virgl_resume_cmdq_bh(void *opaque)
     virtio_gpu_process_cmdq(g);
 }
 
-static void virtio_gpu_virgl_hostmem_region_free(void *obj)
+/*
+ * MR could outlive the resource if MR's reference is held outside of
+ * virtio-gpu. In order to prevent unmapping resource while MR is alive,
+ * and thus, making the data pointer invalid, we will block virtio-gpu
+ * command processing until MR is fully unreferenced and freed.
+ */
+static void virtio_gpu_virgl_hostmem_region_finalize(Object *obj)
 {
-    MemoryRegion *mr = MEMORY_REGION(obj);
-    struct virtio_gpu_virgl_hostmem_region *vmr;
+    struct virtio_gpu_virgl_hostmem_region *vmr = VIRTIO_GPU_VIRGL_HOSTMEM_REGION(obj);
     VirtIOGPUBase *b;
     VirtIOGPUGL *gl;
 
-    vmr = to_hostmem_region(mr);
+    if (!vmr->g) {
+        return;
+    }
+
     vmr->finish_unmapping = true;
 
     b = VIRTIO_GPU_BASE(vmr->g);
@@ -92,11 +106,26 @@ static void virtio_gpu_virgl_hostmem_region_free(void *obj)
     qemu_bh_schedule(gl->cmdq_resume_bh);
 }
 
+static const TypeInfo virtio_gpu_virgl_hostmem_region_info = {
+    .parent = TYPE_OBJECT,
+    .name = TYPE_VIRTIO_GPU_VIRGL_HOSTMEM_REGION,
+    .instance_size = sizeof(struct virtio_gpu_virgl_hostmem_region),
+    .instance_finalize = virtio_gpu_virgl_hostmem_region_finalize
+};
+
+static void virtio_gpu_virgl_types(void)
+{
+    type_register_static(&virtio_gpu_virgl_hostmem_region_info);
+}
+
+type_init(virtio_gpu_virgl_types)
+
 static int
 virtio_gpu_virgl_map_resource_blob(VirtIOGPU *g,
                                    struct virtio_gpu_virgl_resource *res,
                                    uint64_t offset)
 {
+    g_autofree char *name = NULL;
     struct virtio_gpu_virgl_hostmem_region *vmr;
     VirtIOGPUBase *b = VIRTIO_GPU_BASE(g);
     MemoryRegion *mr;
@@ -117,20 +146,15 @@ virtio_gpu_virgl_map_resource_blob(VirtIOGPU *g,
     }
 
     vmr = g_new0(struct virtio_gpu_virgl_hostmem_region, 1);
+    name = g_strdup_printf("blob[%" PRIu32 "]", res->base.resource_id);
+    object_initialize_child(OBJECT(g), name, vmr,
+                            TYPE_VIRTIO_GPU_VIRGL_HOSTMEM_REGION);
     vmr->g = g;
 
     mr = &vmr->mr;
-    memory_region_init_ram_ptr(mr, OBJECT(mr), NULL, size, data);
+    memory_region_init_ram_ptr(mr, OBJECT(vmr), "mr", size, data);
     memory_region_add_subregion(&b->hostmem, offset, mr);
     memory_region_set_enabled(mr, true);
-
-    /*
-     * MR could outlive the resource if MR's reference is held outside of
-     * virtio-gpu. In order to prevent unmapping resource while MR is alive,
-     * and thus, making the data pointer invalid, we will block virtio-gpu
-     * command processing until MR is fully unreferenced and freed.
-     */
-    OBJECT(mr)->free = virtio_gpu_virgl_hostmem_region_free;
 
     res->mr = mr;
 
@@ -163,7 +187,7 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
      * 1. Begin async unmapping with memory_region_del_subregion()
      *    and suspend/block cmd processing.
      * 2. Wait for res->mr to be freed and cmd processing resumed
-     *    asynchronously by virtio_gpu_virgl_hostmem_region_free().
+     *    asynchronously by virtio_gpu_virgl_hostmem_region_finalize().
      * 3. Finish the unmapping with final virgl_renderer_resource_unmap().
      */
     if (vmr->finish_unmapping) {
@@ -186,7 +210,7 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
         /* memory region owns self res->mr object and frees it by itself */
         memory_region_set_enabled(mr, false);
         memory_region_del_subregion(&b->hostmem, mr);
-        object_unref(OBJECT(mr));
+        object_unparent(OBJECT(vmr));
     }
 
     return 0;

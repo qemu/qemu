@@ -29,9 +29,15 @@ typedef enum CXLEventLogType {
 
 /*
  * Common Event Record Format
- * CXL r3.1 section 8.2.9.2.1: Event Records; Table 8-43
+ * CXL r3.2 section 8.2.10.2.1: Event Records; Table 8-55
  */
-#define CXL_EVENT_REC_HDR_RES_LEN 0xf
+#define CXL_EVENT_REC_FLAGS_PERMANENT_COND BIT(2)
+#define CXL_EVENT_REC_FLAGS_MAINT_NEEDED   BIT(3)
+#define CXL_EVENT_REC_FLAGS_PERF_DEGRADED  BIT(4)
+#define CXL_EVENT_REC_FLAGS_HW_REPLACEMENT_NEEDED BIT(5)
+#define CXL_EVENT_REC_FLAGS_MAINT_OP_SUBCLASS_VALID BIT(6)
+#define CXL_EVENT_REC_FLAGS_LD_ID_VALID BIT(7)
+#define CXL_EVENT_REC_FLAGS_HEAD_ID_VALID BIT(8)
 typedef struct CXLEventRecordHdr {
     QemuUUID id;
     uint8_t length;
@@ -40,7 +46,10 @@ typedef struct CXLEventRecordHdr {
     uint16_t related_handle;
     uint64_t timestamp;
     uint8_t maint_op_class;
-    uint8_t reserved[CXL_EVENT_REC_HDR_RES_LEN];
+    uint8_t maint_op_subclass;
+    uint16_t ld_id;
+    uint8_t head_id;
+    uint8_t reserved[0xb];
 } QEMU_PACKED CXLEventRecordHdr;
 
 #define CXL_EVENT_RECORD_DATA_LENGTH 0x50
@@ -106,10 +115,10 @@ typedef struct CXLEventInterruptPolicy {
 
 /*
  * General Media Event Record
- * CXL r3.1 Section 8.2.9.2.1.1; Table 8-45
+ * CXL r3.2 Section 8.2.10.2.1.1; Table 8-57
  */
 #define CXL_EVENT_GEN_MED_COMP_ID_SIZE  0x10
-#define CXL_EVENT_GEN_MED_RES_SIZE      0x2e
+#define CXL_EVENT_GEN_MED_RES_SIZE      0x29
 typedef struct CXLEventGenMedia {
     CXLEventRecordHdr hdr;
     uint64_t phys_addr;
@@ -121,12 +130,15 @@ typedef struct CXLEventGenMedia {
     uint8_t rank;
     uint8_t device[3];
     uint8_t component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+    uint8_t cme_ev_flags;
+    uint8_t cme_count[3];
+    uint8_t sub_type;
     uint8_t reserved[CXL_EVENT_GEN_MED_RES_SIZE];
 } QEMU_PACKED CXLEventGenMedia;
 
 /*
  * DRAM Event Record
- * CXL r3.1 Section 8.2.9.2.1.2: Table 8-46
+ * CXL r3.2 Section 8.2.10.2.1.2: Table 8-58
  * All fields little endian.
  */
 typedef struct CXLEventDram {
@@ -144,12 +156,17 @@ typedef struct CXLEventDram {
     uint8_t row[3];
     uint16_t column;
     uint64_t correction_mask[4];
-    uint8_t reserved[0x17];
+    uint8_t component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+    uint8_t sub_channel;
+    uint8_t cme_ev_flags;
+    uint8_t cvme_count[3];
+    uint8_t sub_type;
+    uint8_t reserved;
 } QEMU_PACKED CXLEventDram;
 
 /*
  * Memory Module Event Record
- * CXL r3.1 Section 8.2.9.2.1.3: Table 8-47
+ * CXL r3.2 Section 8.2.10.2.1.3: Table 8-59
  * All fields little endian.
  */
 typedef struct CXLEventMemoryModule {
@@ -163,7 +180,10 @@ typedef struct CXLEventMemoryModule {
     uint32_t dirty_shutdown_count;
     uint32_t corrected_volatile_error_count;
     uint32_t corrected_persistent_error_count;
-    uint8_t reserved[0x3d];
+    uint16_t validity_flags;
+    uint8_t component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+    uint8_t sub_type;
+    uint8_t reserved[0x2a];
 } QEMU_PACKED CXLEventMemoryModule;
 
 /*
@@ -198,5 +218,52 @@ typedef enum CXLDCEventType {
     DC_EVENT_ADD_CAPACITY_RSP = 0x4,
     DC_EVENT_CAPACITY_RELEASED = 0x5,
 } CXLDCEventType;
+
+/*
+ * CXL r3.2 section Table 8-60: Memory Sparing Event Record
+ * All fields little endian.
+ */
+
+#define CXL_MSER_FLAGS_QUERY_RESOURCES BIT(0)
+#define CXL_MSER_FLAGS_HARD_SPARING BIT(1)
+#define CXL_MSER_FLAGS_DEV_INITIATED BIT(2)
+
+#define CXL_MSER_VALID_CHANNEL BIT(0)
+#define CXL_MSER_VALID_RANK BIT(1)
+#define CXL_MSER_VALID_NIB_MASK BIT(2)
+#define CXL_MSER_VALID_BANK_GROUP BIT(3)
+#define CXL_MSER_VALID_BANK BIT(4)
+#define CXL_MSER_VALID_ROW BIT(5)
+#define CXL_MSER_VALID_COLUMN BIT(6)
+#define CXL_MSER_VALID_COMP_ID BIT(7)
+#define CXL_MSER_VALID_COMP_ID_FORMAT BIT(8)
+#define CXL_MSER_VALID_SUB_CHANNEL BIT(9)
+
+typedef struct CXLEventSparing {
+    CXLEventRecordHdr hdr;
+    uint8_t maint_op_class;
+    uint8_t maint_op_subclass;
+    uint8_t flags;
+    uint8_t result;
+    uint16_t validity_flags;
+    uint8_t reserved1[6];
+    uint16_t res_avail;
+    uint8_t channel;
+    uint8_t rank;
+    uint8_t nibble_mask[3];
+    uint8_t bank_group;
+    uint8_t bank;
+    uint8_t row[3];
+    uint16_t column;
+    uint8_t component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+    uint8_t sub_channel;
+    uint8_t reserved2[0x25];
+} QEMU_PACKED CXLEventSparing;
+
+/* CXL r3.2 Table 8-60: Memory Sparing Event Record */
+static const QemuUUID sparing_uuid = {
+    .data = UUID(0xe71f3a40, 0x2d29, 0x4092, 0x8a, 0x39,
+                 0x4d, 0x1c, 0x96, 0x6c, 0x7c, 0x65),
+};
 
 #endif /* CXL_EVENTS_H */

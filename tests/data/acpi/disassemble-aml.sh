@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 outdir=
 while getopts "o:" arg; do
@@ -7,7 +7,7 @@ while getopts "o:" arg; do
         outdir=$OPTARG
         ;;
     \? )
-        echo "Usage: ./tests/data/acpi/disassemle-aml.sh [-o <output-directory>]"
+        echo "Usage: ./tests/data/acpi/disassemble-aml.sh [-o <output-directory>]"
         exit 1
         ;;
 

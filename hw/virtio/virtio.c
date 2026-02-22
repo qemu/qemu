@@ -3235,9 +3235,8 @@ int virtio_set_features_ex(VirtIODevice *vdev, const uint64_t *features)
     return ret;
 }
 
-void virtio_reset(void *opaque)
+void virtio_reset(VirtIODevice *vdev)
 {
-    VirtIODevice *vdev = opaque;
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint64_t features[VIRTIO_FEATURES_NU64S];
     int i;

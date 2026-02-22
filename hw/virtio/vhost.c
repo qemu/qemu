@@ -1926,8 +1926,8 @@ static bool vhost_inflight_buffer_pre_load(void *opaque, Error **errp)
     void *addr = qemu_memfd_alloc("vhost-inflight", inflight->size,
                                   F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
                                   &fd, errp);
-    if (*errp) {
-        return -ENOMEM;
+    if (!addr) {
+        return false;
     }
 
     inflight->offset = 0;

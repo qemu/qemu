@@ -13,9 +13,11 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/pci-bridge/cxl_downstream_port.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_port.h"
 #include "qapi/error.h"
 
 typedef struct CXLDownstreamPort {
@@ -24,6 +26,7 @@ typedef struct CXLDownstreamPort {
 
     /*< public >*/
     CXLComponentState cxl_cstate;
+    CXLPhyPortPerst perst;
 } CXLDownstreamPort;
 
 #define CXL_DOWNSTREAM_PORT_MSI_OFFSET 0x70
@@ -39,7 +42,7 @@ static void latch_registers(CXLDownstreamPort *dsp)
     uint32_t *write_msk = dsp->cxl_cstate.crb.cache_mem_regs_write_mask;
 
     cxl_component_register_init_common(reg_state, write_msk,
-                                       CXL2_DOWNSTREAM_PORT);
+                                       CXL2_DOWNSTREAM_PORT, true);
 }
 
 /* TODO: Look at sharing this code across all CXL port types */
@@ -81,6 +84,11 @@ static void cxl_dsp_config_write(PCIDevice *d, uint32_t address,
     cxl_dsp_dvsec_write_config(d, address, val, len);
 }
 
+CXLPhyPortPerst *cxl_dsp_get_perst(CXLDownstreamPort *dsp)
+{
+    return &dsp->perst;
+}
+
 static void cxl_dsp_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
@@ -92,10 +100,12 @@ static void cxl_dsp_reset(DeviceState *qdev)
     pci_bridge_reset(qdev);
 
     latch_registers(dsp);
+    cxl_init_physical_port_control(&dsp->perst);
 }
 
-static void build_dvsecs(CXLComponentState *cxl)
+static void build_dvsecs(PCIDevice *d, CXLComponentState *cxl)
 {
+    PCIESlot *s = PCIE_SLOT(d);
     uint8_t *dvsec;
 
     dvsec = (uint8_t *)&(CXLDVSECPortExt){ 0 };
@@ -107,7 +117,7 @@ static void build_dvsecs(CXLComponentState *cxl)
     dvsec = (uint8_t *)&(CXLDVSECPortFlexBus){
         .cap                     = 0x27, /* Cache, IO, Mem, non-MLD */
         .ctrl                    = 0x02, /* IO always enabled */
-        .status                  = 0x26, /* same */
+        .status                  = s->flitmode ? 0x6 : 0x26, /* lack of 68B */
         .rcvd_mod_ts_data_phase1 = 0xef, /* WTF? */
     };
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
@@ -182,7 +192,7 @@ static void cxl_dsp_realize(PCIDevice *d, Error **errp)
 
     cxl_cstate->dvsec_offset = CXL_DOWNSTREAM_PORT_DVSEC_OFFSET;
     cxl_cstate->pdev = d;
-    build_dvsecs(cxl_cstate);
+    build_dvsecs(d, cxl_cstate);
     cxl_component_register_block_init(OBJECT(d), cxl_cstate, TYPE_CXL_DSP);
     pci_register_bar(d, CXL_COMPONENT_REG_BAR_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
@@ -217,6 +227,7 @@ static const Property cxl_dsp_props[] = {
                                 speed, PCIE_LINK_SPEED_64),
     DEFINE_PROP_PCIE_LINK_WIDTH("x-width", PCIESlot,
                                 width, PCIE_LINK_WIDTH_16),
+    DEFINE_PROP_BOOL("x-256b-flit", PCIESlot, flitmode, true),
 };
 
 static void cxl_dsp_class_init(ObjectClass *oc, const void *data)

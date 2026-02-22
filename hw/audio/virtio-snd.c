@@ -156,7 +156,7 @@ static virtio_snd_pcm_set_params *virtio_snd_pcm_get_params(VirtIOSound *s,
 static void virtio_snd_handle_pcm_info(VirtIOSound *s,
                                        virtio_snd_ctrl_command *cmd)
 {
-    uint32_t stream_id, start_id, count, size;
+    uint32_t stream_id, start_id, count, size, tmp;
     virtio_snd_pcm_info val;
     virtio_snd_query_info req;
     VirtIOSoundPCMStream *stream = NULL;
@@ -168,9 +168,6 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
                                sizeof(virtio_snd_query_info));
 
     if (msg_sz != sizeof(virtio_snd_query_info)) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
         qemu_log_mask(LOG_GUEST_ERROR,
                 "%s: virtio-snd command size incorrect %zu vs \
                 %zu\n", __func__, msg_sz, sizeof(virtio_snd_query_info));
@@ -182,14 +179,34 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
     count = le32_to_cpu(req.count);
     size = le32_to_cpu(req.size);
 
-    if (iov_size(cmd->elem->in_sg, cmd->elem->in_num) <
-        sizeof(virtio_snd_hdr) + size * count) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
+    /*
+     * 5.14.6.2 Driver Requirements: Item Information Request
+     * "The driver MUST NOT set start_id and count such that start_id + count
+     * is greater than the total number of particular items that is indicated
+     * in the device configuration space."
+     */
+    if (start_id > s->snd_conf.streams
+        || !g_uint_checked_add(&tmp, start_id, count)
+        || start_id + count > s->snd_conf.streams) {
+        error_report("pcm info: start_id + count is greater than the total "
+                     "number of streams, got: start_id = %u, count = %u",
+                     start_id, count);
+        cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+        return;
+    }
+
+    /*
+     * 5.14.6.2 Driver Requirements: Item Information Request
+     * "The driver MUST provide a buffer of sizeof(struct virtio_snd_hdr) +
+     * count * size bytes for the response."
+     */
+    if (!g_uint_checked_mul(&tmp, size, count)
+        || !g_uint_checked_add(&tmp, tmp, sizeof(virtio_snd_hdr))
+        || iov_size(cmd->elem->in_sg, cmd->elem->in_num) <
+           sizeof(virtio_snd_hdr) + size * count) {
         error_report("pcm info: buffer too small, got: %zu, needed: %zu",
                 iov_size(cmd->elem->in_sg, cmd->elem->in_num),
-                sizeof(virtio_snd_pcm_info));
+                sizeof(virtio_snd_pcm_info) * count);
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
         return;
     }
@@ -244,9 +261,6 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
     virtio_snd_pcm_set_params *st_params;
 
     if (stream_id >= s->snd_conf.streams || s->pcm->pcm_params == NULL) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
         virtio_error(VIRTIO_DEVICE(s), "Streams have not been initialized.\n");
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
@@ -297,9 +311,6 @@ static void virtio_snd_handle_pcm_set_params(VirtIOSound *s,
                                sizeof(virtio_snd_pcm_set_params));
 
     if (msg_sz != sizeof(virtio_snd_pcm_set_params)) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
         qemu_log_mask(LOG_GUEST_ERROR,
                 "%s: virtio-snd command size incorrect %zu vs \
                 %zu\n", __func__, msg_sz, sizeof(virtio_snd_pcm_set_params));
@@ -431,6 +442,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
         stream->id = stream_id;
         stream->pcm = s->pcm;
         stream->s = s;
+        stream->latency_bytes = 0;
         qemu_mutex_init(&stream->queue_mutex);
         QSIMPLEQ_INIT(&stream->queue);
 
@@ -609,9 +621,6 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
                                sizeof(stream_id));
 
     if (msg_sz != sizeof(stream_id)) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
         qemu_log_mask(LOG_GUEST_ERROR,
                 "%s: virtio-snd command size incorrect %zu vs \
                 %zu\n", __func__, msg_sz, sizeof(stream_id));
@@ -623,9 +632,6 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
     trace_virtio_snd_handle_pcm_release(stream_id);
     stream = virtio_snd_pcm_get_stream(s, stream_id);
     if (stream == NULL) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
         error_report("already released stream %"PRIu32, stream_id);
         virtio_error(VIRTIO_DEVICE(s),
                      "already released stream %"PRIu32,
@@ -668,9 +674,6 @@ process_cmd(VirtIOSound *s, virtio_snd_ctrl_command *cmd)
                                sizeof(virtio_snd_hdr));
 
     if (msg_sz != sizeof(virtio_snd_hdr)) {
-        /*
-         * TODO: do we need to set DEVICE_NEEDS_RESET?
-         */
         qemu_log_mask(LOG_GUEST_ERROR,
                 "%s: virtio-snd command size incorrect %zu vs \
                 %zu\n", __func__, msg_sz, sizeof(virtio_snd_hdr));
@@ -899,6 +902,7 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
             buffer->vq = vq;
             buffer->size = size;
             buffer->offset = 0;
+            stream->latency_bytes += size;
 
             QSIMPLEQ_INSERT_TAIL(&stream->queue, buffer, entry);
         }
@@ -1112,12 +1116,19 @@ error_cleanup:
     virtio_snd_unrealize(dev);
 }
 
+static inline void update_latency(VirtIOSoundPCMStream *s, size_t used)
+{
+    s->latency_bytes = s->latency_bytes > used ?
+                       s->latency_bytes - used : 0;
+}
+
 static inline void return_tx_buffer(VirtIOSoundPCMStream *stream,
                                     VirtIOSoundPCMBuffer *buffer)
 {
     virtio_snd_pcm_status resp = { 0 };
     resp.status = cpu_to_le32(VIRTIO_SND_S_OK);
-    resp.latency_bytes = cpu_to_le32((uint32_t)buffer->size);
+    update_latency(stream, buffer->size);
+    resp.latency_bytes = cpu_to_le32(stream->latency_bytes);
     iov_from_buf(buffer->elem->in_sg,
                  buffer->elem->in_num,
                  0,
@@ -1178,6 +1189,7 @@ static void virtio_snd_pcm_out_cb(void *data, int available)
                 buffer->size -= size;
                 buffer->offset += size;
                 available -= size;
+                update_latency(stream, size);
                 if (buffer->size < 1) {
                     return_tx_buffer(stream, buffer);
                     break;
@@ -1238,7 +1250,7 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
 {
     VirtIOSoundPCMStream *stream = data;
     VirtIOSoundPCMBuffer *buffer;
-    size_t size, max_size;
+    size_t size, max_size, to_read;
 
     WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
         while (!QSIMPLEQ_EMPTY(&stream->queue)) {
@@ -1253,15 +1265,23 @@ static void virtio_snd_pcm_in_cb(void *data, int available)
             }
 
             max_size = iov_size(buffer->elem->in_sg, buffer->elem->in_num);
+            if (max_size <= sizeof(virtio_snd_pcm_status)) {
+                return_rx_buffer(stream, buffer);
+                continue;
+            }
+            max_size -= sizeof(virtio_snd_pcm_status);
+
             for (;;) {
                 if (buffer->size >= max_size) {
                     return_rx_buffer(stream, buffer);
                     break;
                 }
+                to_read = stream->params.period_bytes - buffer->size;
+                to_read = MIN(to_read, available);
+                to_read = MIN(to_read, max_size - buffer->size);
                 size = AUD_read(stream->voice.in,
-                        buffer->data + buffer->size,
-                        MIN(available, (stream->params.period_bytes -
-                                        buffer->size)));
+                                buffer->data + buffer->size,
+                                to_read);
                 if (!size) {
                     available = 0;
                     break;
