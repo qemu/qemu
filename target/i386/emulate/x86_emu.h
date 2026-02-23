@@ -44,15 +44,15 @@ target_ulong read_reg(CPUX86State *env, int reg, int size);
 void write_reg(CPUX86State *env, int reg, target_ulong val, int size);
 target_ulong read_val_from_reg(void *reg_ptr, int size);
 void write_val_to_reg(void *reg_ptr, target_ulong val, int size);
-void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size);
+bool write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size);
 uint8_t *read_mmio(CPUX86State *env, target_ulong ptr, int bytes);
-target_ulong read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size);
+bool read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size, target_ulong* val);
 
-void exec_movzx(CPUX86State *env, struct x86_decode *decode);
-void exec_shl(CPUX86State *env, struct x86_decode *decode);
-void exec_movsx(CPUX86State *env, struct x86_decode *decode);
-void exec_ror(CPUX86State *env, struct x86_decode *decode);
-void exec_rol(CPUX86State *env, struct x86_decode *decode);
-void exec_rcl(CPUX86State *env, struct x86_decode *decode);
-void exec_rcr(CPUX86State *env, struct x86_decode *decode);
+bool exec_movzx(CPUX86State *env, struct x86_decode *decode);
+bool exec_shl(CPUX86State *env, struct x86_decode *decode);
+bool exec_movsx(CPUX86State *env, struct x86_decode *decode);
+bool exec_ror(CPUX86State *env, struct x86_decode *decode);
+bool exec_rol(CPUX86State *env, struct x86_decode *decode);
+bool exec_rcl(CPUX86State *env, struct x86_decode *decode);
+bool exec_rcr(CPUX86State *env, struct x86_decode *decode);
 #endif
