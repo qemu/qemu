@@ -93,16 +93,16 @@ static int task_switch_32(CPUState *cpu, x86_segment_selector tss_sel, x86_segme
     uint32_t eip_offset = offsetof(struct x86_tss_segment32, eip);
     uint32_t ldt_sel_offset = offsetof(struct x86_tss_segment32, ldt);
 
-    vmx_read_mem(cpu, &tss_seg, old_tss_base, sizeof(tss_seg));
+    x86_read_mem_priv(cpu, &tss_seg, old_tss_base, sizeof(tss_seg));
     save_state_to_tss32(cpu, &tss_seg);
 
-    vmx_write_mem(cpu, old_tss_base + eip_offset, &tss_seg.eip, ldt_sel_offset - eip_offset);
-    vmx_read_mem(cpu, &tss_seg, new_tss_base, sizeof(tss_seg));
+    x86_write_mem_priv(cpu, &tss_seg.eip, old_tss_base + eip_offset, ldt_sel_offset - eip_offset);
+    x86_read_mem_priv(cpu, &tss_seg, new_tss_base, sizeof(tss_seg));
 
     if (old_tss_sel.sel != 0xffff) {
         tss_seg.prev_tss = old_tss_sel.sel;
 
-        vmx_write_mem(cpu, new_tss_base, &tss_seg.prev_tss, sizeof(tss_seg.prev_tss));
+        x86_write_mem_priv(cpu, &tss_seg.prev_tss, new_tss_base, sizeof(tss_seg.prev_tss));
     }
     load_state_from_tss32(cpu, &tss_seg);
     return 0;

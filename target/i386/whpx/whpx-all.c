@@ -862,16 +862,6 @@ static int whpx_handle_portio(CPUState *cpu,
     return 0;
 }
 
-static void write_mem(CPUState *cpu, void *data, target_ulong addr, int bytes)
-{
-    vmx_write_mem(cpu, addr, data, bytes);
-}
-
-static void read_mem(CPUState *cpu, void *data, target_ulong addr, int bytes)
-{
-    vmx_read_mem(cpu, data, addr, bytes);
-}
-
 static void read_segment_descriptor(CPUState *cpu,
                                     struct x86_segment_descriptor *desc,
                                     enum X86Seg seg_idx)
@@ -891,8 +881,6 @@ static void read_segment_descriptor(CPUState *cpu,
 
 
 static const struct x86_emul_ops whpx_x86_emul_ops = {
-    .read_mem = read_mem,
-    .write_mem = write_mem,
     .read_segment_descriptor = read_segment_descriptor,
     .handle_io = handle_io
 };

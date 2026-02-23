@@ -21,7 +21,9 @@
 #include "cpu.h"
 #include "system/address-spaces.h"
 #include "system/memory.h"
+#include "qemu/error-report.h"
 #include "emulate/x86.h"
+#include "emulate/x86_emu.h"
 #include "emulate/x86_mmu.h"
 
 #define pte_present(pte) (pte & PT_PRESENT)
@@ -32,6 +34,11 @@
 #define pte_large_page(pte) (pte & PT_PS)
 #define pte_global_access(pte) (pte & PT_GLOBAL)
 
+#define mmu_validate_write(flags) (flags & MMU_TRANSLATE_VALIDATE_WRITE)
+#define mmu_validate_execute(flags) (flags & MMU_TRANSLATE_VALIDATE_EXECUTE)
+#define mmu_priv_checks_exempt(flags) (flags & MMU_TRANSLATE_PRIV_CHECKS_EXEMPT)
+
+
 #define PAE_CR3_MASK                (~0x1fllu)
 #define LEGACY_CR3_MASK             (0xffffffff)
 
@@ -40,14 +47,16 @@
 #define PAE_PTE_LARGE_PAGE_MASK     ((-1llu << (21)) & ((1llu << 52) - 1))
 #define PAE_PTE_SUPER_PAGE_MASK     ((-1llu << (30)) & ((1llu << 52) - 1))
 
+static bool is_user(CPUState *cpu)
+{
+    return false;
+}
+
+
 struct gpt_translation {
     target_ulong  gva;
     uint64_t gpa;
-    int    err_code;
     uint64_t pte[5];
-    bool write_access;
-    bool user_access;
-    bool exec_access;
 };
 
 static int gpt_top_level(CPUState *cpu, bool pae)
@@ -99,25 +108,15 @@ static bool get_pt_entry(CPUState *cpu, struct gpt_translation *pt,
 }
 
 /* test page table entry */
-static bool test_pt_entry(CPUState *cpu, struct gpt_translation *pt,
-                          int level, int *largeness, bool pae)
+static MMUTranslateResult test_pt_entry(CPUState *cpu, struct gpt_translation *pt,
+                          int level, int *largeness, bool pae, MMUTranslateFlags flags)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     uint64_t pte = pt->pte[level];
 
-    if (pt->write_access) {
-        pt->err_code |= MMU_PAGE_WT;
-    }
-    if (pt->user_access) {
-        pt->err_code |= MMU_PAGE_US;
-    }
-    if (pt->exec_access) {
-        pt->err_code |= MMU_PAGE_NX;
-    }
-
     if (!pte_present(pte)) {
-        return false;
+        return MMU_TRANSLATE_PAGE_NOT_MAPPED;
     }
 
     if (pae && !x86_is_long_mode(cpu) && 2 == level) {
@@ -125,32 +124,30 @@ static bool test_pt_entry(CPUState *cpu, struct gpt_translation *pt,
     }
 
     if (level && pte_large_page(pte)) {
-        pt->err_code |= MMU_PAGE_PT;
         *largeness = level;
-    }
-    if (!level) {
-        pt->err_code |= MMU_PAGE_PT;
     }
 
     uint32_t cr0 = env->cr[0];
     /* check protection */
     if (cr0 & CR0_WP_MASK) {
-        if (pt->write_access && !pte_write_access(pte)) {
-            return false;
+        if (mmu_validate_write(flags) && !pte_write_access(pte)) {
+            return MMU_TRANSLATE_PRIV_VIOLATION;
         }
     }
 
-    if (pt->user_access && !pte_user_access(pte)) {
-        return false;
+    if (!mmu_priv_checks_exempt(flags)) {
+        if (is_user(cpu) && !pte_user_access(pte)) {
+            return MMU_TRANSLATE_PRIV_VIOLATION;
+        }
     }
 
-    if (pae && pt->exec_access && !pte_exec_access(pte)) {
-        return false;
+    if (pae && mmu_validate_execute(flags) && !pte_exec_access(pte)) {
+        return MMU_TRANSLATE_PRIV_VIOLATION;
     }
     
 exit:
     /* TODO: check reserved bits */
-    return true;
+    return MMU_TRANSLATE_SUCCESS;
 }
 
 static inline uint64_t pse_pte_to_page(uint64_t pte)
@@ -181,7 +178,7 @@ static inline uint64_t large_page_gpa(struct gpt_translation *pt, bool pae,
 
 
 
-static bool walk_gpt(CPUState *cpu, target_ulong addr, int err_code,
+static MMUTranslateResult walk_gpt(CPUState *cpu, target_ulong addr, MMUTranslateFlags flags,
                      struct gpt_translation *pt, bool pae)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -190,21 +187,20 @@ static bool walk_gpt(CPUState *cpu, target_ulong addr, int err_code,
     int largeness = 0;
     target_ulong cr3 = env->cr[3];
     uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
+    MMUTranslateResult res;
     
     memset(pt, 0, sizeof(*pt));
     top_level = gpt_top_level(cpu, pae);
 
     pt->pte[top_level] = pae ? (cr3 & PAE_CR3_MASK) : (cr3 & LEGACY_CR3_MASK);
     pt->gva = addr;
-    pt->user_access = (err_code & MMU_PAGE_US);
-    pt->write_access = (err_code & MMU_PAGE_WT);
-    pt->exec_access = (err_code & MMU_PAGE_NX);
     
     for (level = top_level; level > 0; level--) {
         get_pt_entry(cpu, pt, level, pae);
+        res = test_pt_entry(cpu, pt, level - 1, &largeness, pae, flags);
 
-        if (!test_pt_entry(cpu, pt, level - 1, &largeness, pae)) {
-            return false;
+        if (res) {
+            return res;
         }
 
         if (largeness) {
@@ -218,69 +214,111 @@ static bool walk_gpt(CPUState *cpu, target_ulong addr, int err_code,
         pt->gpa = large_page_gpa(pt, pae, largeness);
     }
 
-    return true;
+    return res;
 }
 
 
-bool mmu_gva_to_gpa(CPUState *cpu, target_ulong gva, uint64_t *gpa)
+MMUTranslateResult mmu_gva_to_gpa(CPUState *cpu, target_ulong gva, uint64_t *gpa, MMUTranslateFlags flags)
 {
+    if (emul_ops->mmu_gva_to_gpa) {
+        return emul_ops->mmu_gva_to_gpa(cpu, gva, gpa, flags);
+    }
+
     bool res;
     struct gpt_translation pt;
-    int err_code = 0;
 
     if (!x86_is_paging_mode(cpu)) {
         *gpa = gva;
-        return true;
+        return MMU_TRANSLATE_SUCCESS;
     }
 
-    res = walk_gpt(cpu, gva, err_code, &pt, x86_is_pae_enabled(cpu));
-    if (res) {
+    res = walk_gpt(cpu, gva, flags, &pt, x86_is_pae_enabled(cpu));
+    if (res == MMU_TRANSLATE_SUCCESS) {
         *gpa = pt.gpa;
-        return true;
     }
 
-    return false;
+    return res;
 }
 
-void vmx_write_mem(CPUState *cpu, target_ulong gva, void *data, int bytes)
+static MMUTranslateResult x86_write_mem_ex(CPUState *cpu, void *data, target_ulong gva, int bytes, bool priv_check_exempt)
 {
+    MMUTranslateResult translate_res = MMU_TRANSLATE_SUCCESS;
+    MemTxResult mem_tx_res;
     uint64_t gpa;
 
     while (bytes > 0) {
         /* copy page */
         int copy = MIN(bytes, 0x1000 - (gva & 0xfff));
 
-        if (!mmu_gva_to_gpa(cpu, gva, &gpa)) {
-            VM_PANIC_EX("%s: mmu_gva_to_gpa " TARGET_FMT_lx " failed\n",
-                        __func__, gva);
-        } else {
-            address_space_write(&address_space_memory, gpa,
-                                MEMTXATTRS_UNSPECIFIED, data, copy);
+        translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, MMU_TRANSLATE_VALIDATE_WRITE);
+        if (translate_res) {
+            return translate_res;
+        }
+
+        mem_tx_res = address_space_write(&address_space_memory, gpa,
+                            MEMTXATTRS_UNSPECIFIED, data, copy);
+
+        if (mem_tx_res == MEMTX_DECODE_ERROR) {
+            warn_report("write to unmapped mmio region gpa=0x%" PRIx64 " size=%i", gpa, bytes);
+            return MMU_TRANSLATE_GPA_UNMAPPED;
+        } else if (mem_tx_res == MEMTX_ACCESS_ERROR) {
+            return MMU_TRANSLATE_GPA_NO_WRITE_ACCESS;
         }
 
         bytes -= copy;
         gva += copy;
         data += copy;
     }
+    return translate_res;
 }
 
-void vmx_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
+MMUTranslateResult x86_write_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
 {
+    return x86_write_mem_ex(cpu, data, gva, bytes, false);
+}
+
+MMUTranslateResult x86_write_mem_priv(CPUState *cpu, void *data, target_ulong gva, int bytes)
+{
+    return x86_write_mem_ex(cpu, data, gva, bytes, true);
+}
+
+static MMUTranslateResult x86_read_mem_ex(CPUState *cpu, void *data, target_ulong gva, int bytes, bool priv_check_exempt)
+{
+    MMUTranslateResult translate_res = MMU_TRANSLATE_SUCCESS;
+    MemTxResult mem_tx_res;
     uint64_t gpa;
 
     while (bytes > 0) {
         /* copy page */
         int copy = MIN(bytes, 0x1000 - (gva & 0xfff));
 
-        if (!mmu_gva_to_gpa(cpu, gva, &gpa)) {
-            VM_PANIC_EX("%s: mmu_gva_to_gpa " TARGET_FMT_lx " failed\n",
-                        __func__, gva);
+        translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, 0);
+        if (translate_res) {
+            return translate_res;
         }
-        address_space_read(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED,
+        mem_tx_res = address_space_read(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED,
                            data, copy);
 
+        if (mem_tx_res == MEMTX_DECODE_ERROR) {
+            warn_report("read from unmapped mmio region gpa=0x%" PRIx64 " size=%i", gpa, bytes);
+            return MMU_TRANSLATE_GPA_UNMAPPED;
+        } else if (mem_tx_res == MEMTX_ACCESS_ERROR) {
+            return MMU_TRANSLATE_GPA_NO_READ_ACCESS;
+        }
+
         bytes -= copy;
         gva += copy;
         data += copy;
     }
+    return translate_res;
+}
+
+MMUTranslateResult x86_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
+{
+    return x86_read_mem_ex(cpu, data, gva, bytes, false);
+}
+
+MMUTranslateResult x86_read_mem_priv(CPUState *cpu, void *data, target_ulong gva, int bytes)
+{
+    return x86_read_mem_ex(cpu, data, gva, bytes, true);
 }

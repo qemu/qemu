@@ -21,13 +21,13 @@
 
 #include "x86.h"
 #include "x86_decode.h"
+#include "x86_mmu.h"
 #include "cpu.h"
 
 struct x86_emul_ops {
     void (*fetch_instruction)(CPUState *cpu, void *data, target_ulong addr,
                               int bytes);
-    void (*read_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
-    void (*write_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
+    MMUTranslateResult (*mmu_gva_to_gpa) (CPUState *cpu, target_ulong gva, uint64_t *gpa, MMUTranslateFlags flags);
     void (*read_segment_descriptor)(CPUState *cpu, struct x86_segment_descriptor *desc,
                                     enum X86Seg seg);
     void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,

@@ -166,7 +166,7 @@ void write_val_to_reg(void *reg_ptr, target_ulong val, int size)
 
 static void write_val_to_mem(CPUX86State *env, target_ulong ptr, target_ulong val, int size)
 {
-    emul_ops->write_mem(env_cpu(env), &val, ptr, size);
+    x86_write_mem(env_cpu(env), &val, ptr, size);
 }
 
 void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size)
@@ -180,7 +180,7 @@ void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong 
 
 uint8_t *read_mmio(CPUX86State *env, target_ulong ptr, int bytes)
 {
-    emul_ops->read_mem(env_cpu(env), env->emu_mmio_buf, ptr, bytes);
+    x86_read_mem(env_cpu(env), env->emu_mmio_buf, ptr, bytes);
     return env->emu_mmio_buf;
 }
 
@@ -497,7 +497,7 @@ static void exec_ins_single(CPUX86State *env, struct x86_decode *decode)
 
     emul_ops->handle_io(env_cpu(env), DX(env), env->emu_mmio_buf, 0,
                         decode->operand_size, 1);
-    emul_ops->write_mem(env_cpu(env), env->emu_mmio_buf, addr,
+    x86_write_mem(env_cpu(env), env->emu_mmio_buf, addr,
                         decode->operand_size);
 
     string_increment_reg(env, R_EDI, decode);
@@ -518,7 +518,7 @@ static void exec_outs_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr = decode_linear_addr(env, decode, RSI(env), R_DS);
 
-    emul_ops->read_mem(env_cpu(env), env->emu_mmio_buf, addr,
+    x86_read_mem(env_cpu(env), env->emu_mmio_buf, addr,
                        decode->operand_size);
     emul_ops->handle_io(env_cpu(env), DX(env), env->emu_mmio_buf, 1,
                         decode->operand_size, 1);
@@ -604,7 +604,7 @@ static void exec_stos_single(CPUX86State *env, struct x86_decode *decode)
     addr = linear_addr_size(env_cpu(env), RDI(env),
                             decode->addressing_size, R_ES);
     val = read_reg(env, R_EAX, decode->operand_size);
-    emul_ops->write_mem(env_cpu(env), &val, addr, decode->operand_size);
+    x86_write_mem(env_cpu(env), &val, addr, decode->operand_size);
 
     string_increment_reg(env, R_EDI, decode);
 }
@@ -628,7 +628,7 @@ static void exec_scas_single(CPUX86State *env, struct x86_decode *decode)
     addr = linear_addr_size(env_cpu(env), RDI(env),
                             decode->addressing_size, R_ES);
     decode->op[1].type = X86_VAR_IMMEDIATE;
-    emul_ops->read_mem(env_cpu(env), &decode->op[1].val, addr, decode->operand_size);
+    x86_read_mem(env_cpu(env), &decode->op[1].val, addr, decode->operand_size);
 
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
     string_increment_reg(env, R_EDI, decode);
@@ -653,7 +653,7 @@ static void exec_lods_single(CPUX86State *env, struct x86_decode *decode)
     target_ulong val = 0;
 
     addr = decode_linear_addr(env, decode, RSI(env), R_DS);
-    emul_ops->read_mem(env_cpu(env), &val, addr,  decode->operand_size);
+    x86_read_mem(env_cpu(env), &val, addr,  decode->operand_size);
     write_reg(env, R_EAX, val, decode->operand_size);
 
     string_increment_reg(env, R_ESI, decode);

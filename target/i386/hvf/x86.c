@@ -72,7 +72,7 @@ bool x86_read_segment_descriptor(CPUState *cpu,
         return false;
     }
 
-    vmx_read_mem(cpu, desc, base + sel.index * 8, sizeof(*desc));
+    x86_read_mem_priv(cpu, desc, base + sel.index * 8, sizeof(*desc));
     return true;
 }
 
@@ -95,7 +95,7 @@ bool x86_write_segment_descriptor(CPUState *cpu,
         printf("%s: gdt limit\n", __func__);
         return false;
     }
-    vmx_write_mem(cpu, base + sel.index * 8, desc, sizeof(*desc));
+    x86_write_mem_priv(cpu, desc, base + sel.index * 8, sizeof(*desc));
     return true;
 }
 
@@ -111,7 +111,7 @@ bool x86_read_call_gate(CPUState *cpu, struct x86_call_gate *idt_desc,
         return false;
     }
 
-    vmx_read_mem(cpu, idt_desc, base + gate * 8, sizeof(*idt_desc));
+    x86_read_mem_priv(cpu, idt_desc, base + gate * 8, sizeof(*idt_desc));
     return true;
 }
 

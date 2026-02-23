@@ -13,6 +13,7 @@
 #include "cpu.h"
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
+#include "emulate/x86_mmu.h"
 #include "qemu/error-report.h"
 #include "system/mshv.h"
 
@@ -176,7 +177,7 @@ bool x86_read_segment_descriptor(CPUState *cpu,
     }
 
     gva = base + sel.index * 8;
-    emul_ops->read_mem(cpu, desc, gva, sizeof(*desc));
+    x86_read_mem_priv(cpu, desc, gva, sizeof(*desc));
 
     return true;
 }
@@ -200,7 +201,7 @@ bool x86_read_call_gate(CPUState *cpu, struct x86_call_gate *idt_desc,
     }
 
     gva = base + gate * 8;
-    emul_ops->read_mem(cpu, idt_desc, gva, sizeof(*idt_desc));
+    x86_read_mem_priv(cpu, idt_desc, gva, sizeof(*idt_desc));
 
     return true;
 }
