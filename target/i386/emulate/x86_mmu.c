@@ -240,8 +240,29 @@ MMUTranslateResult mmu_gva_to_gpa(CPUState *cpu, target_ulong gva, uint64_t *gpa
     return res;
 }
 
+static int translate_res_to_error_code(MMUTranslateResult res, bool is_write, bool is_user)
+{
+    int error_code = 0;
+    if (is_user) {
+        error_code |= PG_ERROR_U_MASK;
+    }
+    if (!(res & MMU_TRANSLATE_PAGE_NOT_MAPPED)) {
+        error_code |= PG_ERROR_P_MASK;
+    }
+    if (is_write && (res & MMU_TRANSLATE_PRIV_VIOLATION)) {
+        error_code |= PG_ERROR_W_MASK;
+    }
+    if (res & MMU_TRANSLATE_INVALID_PT_FLAGS) {
+        error_code |= PG_ERROR_RSVD_MASK;
+    }
+    return error_code;
+}
+
 static MMUTranslateResult x86_write_mem_ex(CPUState *cpu, void *data, target_ulong gva, int bytes, bool priv_check_exempt)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
     MMUTranslateResult translate_res = MMU_TRANSLATE_SUCCESS;
     MemTxResult mem_tx_res;
     uint64_t gpa;
@@ -252,6 +273,9 @@ static MMUTranslateResult x86_write_mem_ex(CPUState *cpu, void *data, target_ulo
 
         translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, MMU_TRANSLATE_VALIDATE_WRITE);
         if (translate_res) {
+            int error_code = translate_res_to_error_code(translate_res, true, is_user(cpu));
+            env->cr[2] = gva;
+            x86_emul_raise_exception(env, EXCP0E_PAGE, error_code);
             return translate_res;
         }
 
@@ -284,6 +308,9 @@ MMUTranslateResult x86_write_mem_priv(CPUState *cpu, void *data, target_ulong gv
 
 static MMUTranslateResult x86_read_mem_ex(CPUState *cpu, void *data, target_ulong gva, int bytes, bool priv_check_exempt)
 {
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
     MMUTranslateResult translate_res = MMU_TRANSLATE_SUCCESS;
     MemTxResult mem_tx_res;
     uint64_t gpa;
@@ -294,6 +321,9 @@ static MMUTranslateResult x86_read_mem_ex(CPUState *cpu, void *data, target_ulon
 
         translate_res = mmu_gva_to_gpa(cpu, gva, &gpa, 0);
         if (translate_res) {
+            int error_code = translate_res_to_error_code(translate_res, false, is_user(cpu));
+            env->cr[2] = gva;
+            x86_emul_raise_exception(env, EXCP0E_PAGE, error_code);
             return translate_res;
         }
         mem_tx_res = address_space_read(&address_space_memory, gpa, MEMTXATTRS_UNSPECIFIED,
