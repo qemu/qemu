@@ -477,7 +477,19 @@ static void hvf_load_crs(CPUState *cs)
 
     env->cr[0] = rvmcs(cpu->accel->fd, VMCS_GUEST_CR0);
     env->cr[3] = rvmcs(cpu->accel->fd, VMCS_GUEST_CR3);
+    env->cr[2] = rreg(cpu->accel->fd, HV_X86_CR2);
 }
+
+static void hvf_save_crs(CPUState *cs)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    wvmcs(cpu->accel->fd, VMCS_GUEST_CR0, env->cr[0]);
+    wvmcs(cpu->accel->fd, VMCS_GUEST_CR3, env->cr[3]);
+    wreg(cs->accel->fd, HV_X86_CR2, env->cr[2]);
+}
+
 void hvf_load_regs(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -794,6 +806,7 @@ static int hvf_handle_vmexit(CPUState *cpu)
             decode_instruction(env, &decode);
             exec_instruction(env, &decode);
             hvf_store_regs(cpu);
+            hvf_save_crs(cpu);
             break;
         }
         break;
@@ -837,6 +850,7 @@ static int hvf_handle_vmexit(CPUState *cpu)
         assert(ins_len == decode.len);
         exec_instruction(env, &decode);
         hvf_store_regs(cpu);
+        hvf_save_crs(cpu);
 
         break;
     }
@@ -942,6 +956,7 @@ static int hvf_handle_vmexit(CPUState *cpu)
         decode_instruction(env, &decode);
         exec_instruction(env, &decode);
         hvf_store_regs(cpu);
+        hvf_save_crs(cpu);
         break;
     }
     case EXIT_REASON_TPR: {
