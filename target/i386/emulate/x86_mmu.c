@@ -56,6 +56,9 @@ static int gpt_top_level(CPUState *cpu, bool pae)
         return 2;
     }
     if (x86_is_long_mode(cpu)) {
+        if (x86_is_la57(cpu)) {
+            return 5;
+        }
         return 4;
     }
 

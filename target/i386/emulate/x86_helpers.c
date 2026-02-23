@@ -236,6 +236,14 @@ bool x86_is_long_mode(CPUState *cpu)
     return ((efer & lme_lma) == lme_lma);
 }
 
+bool x86_is_la57(CPUState *cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    uint64_t is_la57 = env->cr[4] & CR4_LA57_MASK;
+    return is_la57;
+}
+
 bool x86_is_long64_mode(CPUState *cpu)
 {
     error_report("unimplemented: is_long64_mode()");

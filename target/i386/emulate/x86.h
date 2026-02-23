@@ -263,6 +263,7 @@ bool x86_is_protected(CPUState *cpu);
 bool x86_is_real(CPUState *cpu);
 bool x86_is_v8086(CPUState *cpu);
 bool x86_is_long_mode(CPUState *cpu);
+bool x86_is_la57(CPUState *cpu);
 bool x86_is_long64_mode(CPUState *cpu);
 bool x86_is_paging_mode(CPUState *cpu);
 bool x86_is_pae_enabled(CPUState *cpu);

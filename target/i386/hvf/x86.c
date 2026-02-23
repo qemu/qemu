@@ -138,6 +138,11 @@ bool x86_is_long_mode(CPUState *cpu)
     return rvmcs(cpu->accel->fd, VMCS_GUEST_IA32_EFER) & MSR_EFER_LMA;
 }
 
+bool x86_is_la57(CPUState *cpu)
+{
+    return false;
+}
+
 bool x86_is_long64_mode(CPUState *cpu)
 {
     struct vmx_segment desc;
