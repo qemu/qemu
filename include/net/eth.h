@@ -39,7 +39,7 @@ struct eth_header {
     uint8_t  h_dest[ETH_ALEN];   /* destination eth addr */
     uint8_t  h_source[ETH_ALEN]; /* source ether addr    */
     uint16_t h_proto;            /* packet type ID field */
-};
+} QEMU_PACKED;
 
 struct vlan_header {
     uint16_t  h_tci;     /* priority and VLAN ID  */
@@ -68,7 +68,7 @@ typedef struct tcp_header {
     uint16_t th_win;            /* window */
     uint16_t th_sum;            /* checksum */
     uint16_t th_urp;            /* urgent pointer */
-} tcp_header;
+} QEMU_PACKED tcp_header;
 
 #define TCP_FLAGS_ONLY(flags) ((flags) & 0x3f)
 
@@ -85,7 +85,7 @@ typedef struct udp_header {
     uint16_t uh_dport; /* destination port */
     uint16_t uh_ulen;  /* udp length */
     uint16_t uh_sum;   /* udp checksum */
-} udp_header;
+} QEMU_PACKED udp_header;
 
 typedef struct ip_pseudo_header {
     uint32_t ip_src;

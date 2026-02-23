@@ -301,7 +301,7 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
         if (n->needs_vnet_hdr_swap) {
             error_report("backend does not support %s vnet headers; "
                          "falling back on userspace virtio",
-                         virtio_is_big_endian(vdev) ? "BE" : "LE");
+                         virtio_vdev_is_big_endian(vdev) ? "BE" : "LE");
             return;
         }
 
@@ -343,7 +343,7 @@ static int virtio_net_set_vnet_endian_one(VirtIODevice *vdev,
                                           NetClientState *peer,
                                           bool enable)
 {
-    if (virtio_is_big_endian(vdev)) {
+    if (virtio_vdev_is_big_endian(vdev)) {
         return qemu_set_vnet_be(peer, enable);
     } else {
         return qemu_set_vnet_le(peer, enable);

@@ -66,7 +66,7 @@ typedef struct MacfbState {
     uint8_t type;
 
     uint32_t regs[MACFB_NUM_REGS];
-    MacFbMode *mode;
+    const MacFbMode *mode;
 
     QEMUTimer *vbl_timer;
     qemu_irq irq;

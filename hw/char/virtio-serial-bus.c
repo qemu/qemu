@@ -1039,10 +1039,6 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!virtio_has_feature(vdev->host_features,
-                            VIRTIO_CONSOLE_F_EMERG_WRITE)) {
-        config_size = offsetof(struct virtio_console_config, emerg_wr);
-    }
     virtio_init(vdev, VIRTIO_ID_CONSOLE, config_size);
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
