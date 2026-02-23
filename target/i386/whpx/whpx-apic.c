@@ -192,6 +192,11 @@ static void whpx_send_msi(MSIMessage *msg)
     uint8_t trigger_mode = (data >> MSI_DATA_TRIGGER_SHIFT) & 0x1;
     uint8_t delivery = (data >> MSI_DATA_DELIVERY_MODE_SHIFT) & 0x7;
 
+    if (vector == 0) {
+        warn_report("Ignoring request for interrupt vector 0");
+        return;
+    }
+
     WHV_INTERRUPT_CONTROL interrupt = {
         /* Values correspond to delivery modes */
         .Type = delivery,
