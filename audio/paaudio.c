@@ -3,12 +3,18 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/audio.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qom/object.h"
+#include "audio_int.h"
 
 #include <pulse/pulseaudio.h>
 
-#define AUDIO_CAP "pulseaudio"
-#include "audio_int.h"
+#define TYPE_AUDIO_PA "audio-pa"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioPa, AUDIO_PA)
+
+static AudioBackendClass *audio_pa_parent_class;
+
 
 typedef struct PAConnection {
     char *server;
@@ -19,18 +25,19 @@ typedef struct PAConnection {
     pa_context *context;
 } PAConnection;
 
+struct AudioPa {
+    AudioMixengBackend parent_obj;
+
+    PAConnection *conn;
+};
+
 static QTAILQ_HEAD(PAConnectionHead, PAConnection) pa_conns =
     QTAILQ_HEAD_INITIALIZER(pa_conns);
 
 typedef struct {
-    Audiodev *dev;
-    PAConnection *conn;
-} paaudio;
-
-typedef struct {
     HWVoiceOut hw;
     pa_stream *stream;
-    paaudio *g;
+    AudioPa *g;
 } PAVoiceOut;
 
 typedef struct {
@@ -38,20 +45,21 @@ typedef struct {
     pa_stream *stream;
     const void *read_data;
     size_t read_length;
-    paaudio *g;
+    AudioPa *g;
 } PAVoiceIn;
 
 static void qpa_conn_fini(PAConnection *c);
 
-static void G_GNUC_PRINTF (2, 3) qpa_logerr (int err, const char *fmt, ...)
+static void G_GNUC_PRINTF(2, 3) qpa_logerr(int err, const char *fmt, ...)
 {
     va_list ap;
 
-    va_start (ap, fmt);
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-    va_end (ap);
+    error_printf("pulseaudio: ");
+    va_start(ap, fmt);
+    error_vprintf(fmt, ap);
+    va_end(ap);
 
-    AUD_log (AUDIO_CAP, "Reason: %s\n", pa_strerror (err));
+    error_printf(" Reason: %s\n", pa_strerror(err));
 }
 
 #ifndef PA_CONTEXT_IS_GOOD
@@ -105,12 +113,12 @@ static void *qpa_get_buffer_in(HWVoiceIn *hw, size_t *size)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
 
     if (!p->read_length) {
         r = pa_stream_peek(p->stream, &p->read_data, &p->read_length);
         CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                           "pa_stream_peek failed\n");
+                           "pa_stream_peek failed");
     }
 
     *size = MIN(p->read_length, *size);
@@ -133,7 +141,7 @@ static void qpa_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
 
     assert(buf == p->read_data && size <= p->read_length);
 
@@ -142,7 +150,7 @@ static void qpa_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
 
     if (size && !p->read_length) {
         r = pa_stream_drop(p->stream);
-        CHECK_SUCCESS_GOTO(c, r == 0, unlock, "pa_stream_drop failed\n");
+        CHECK_SUCCESS_GOTO(c, r == 0, unlock, "pa_stream_drop failed");
     }
 
 unlock:
@@ -158,7 +166,7 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
     if (pa_stream_get_state(p->stream) != PA_STREAM_READY) {
         /* wait for stream to become ready */
         goto unlock;
@@ -171,7 +179,7 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
         if (!p->read_length) {
             r = pa_stream_peek(p->stream, &p->read_data, &p->read_length);
             CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                               "pa_stream_peek failed\n");
+                               "pa_stream_peek failed");
             if (!p->read_length) {
                 /* buffer is empty */
                 break;
@@ -188,7 +196,7 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
         if (!p->read_length) {
             r = pa_stream_drop(p->stream);
             CHECK_SUCCESS_GOTO(c, r == 0, unlock_and_fail,
-                               "pa_stream_drop failed\n");
+                               "pa_stream_drop failed");
         }
     }
 
@@ -210,7 +218,7 @@ static size_t qpa_buffer_get_free(HWVoiceOut *hw)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
     if (pa_stream_get_state(p->stream) != PA_STREAM_READY) {
         /* wait for stream to become ready */
         l = 0;
@@ -219,7 +227,7 @@ static size_t qpa_buffer_get_free(HWVoiceOut *hw)
 
     l = pa_stream_writable_size(p->stream);
     CHECK_SUCCESS_GOTO(c, l != (size_t) -1, unlock_and_fail,
-                       "pa_stream_writable_size failed\n");
+                       "pa_stream_writable_size failed");
 
 unlock:
     pa_threaded_mainloop_unlock(c->mainloop);
@@ -240,12 +248,12 @@ static void *qpa_get_buffer_out(HWVoiceOut *hw, size_t *size)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
 
     *size = -1;
     r = pa_stream_begin_write(p->stream, &ret, size);
     CHECK_SUCCESS_GOTO(c, r >= 0, unlock_and_fail,
-                       "pa_stream_begin_write failed\n");
+                       "pa_stream_begin_write failed");
 
     pa_threaded_mainloop_unlock(c->mainloop);
     return ret;
@@ -265,10 +273,10 @@ static size_t qpa_put_buffer_out(HWVoiceOut *hw, void *data, size_t length)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
 
     r = pa_stream_write(p->stream, data, length, NULL, 0LL, PA_SEEK_RELATIVE);
-    CHECK_SUCCESS_GOTO(c, r >= 0, unlock_and_fail, "pa_stream_write failed\n");
+    CHECK_SUCCESS_GOTO(c, r >= 0, unlock_and_fail, "pa_stream_write failed");
 
     pa_threaded_mainloop_unlock(c->mainloop);
     return length;
@@ -288,7 +296,7 @@ static size_t qpa_write(HWVoiceOut *hw, void *data, size_t length)
     pa_threaded_mainloop_lock(c->mainloop);
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
-                    "pa_threaded_mainloop_lock failed\n");
+                    "pa_threaded_mainloop_lock failed");
     if (pa_stream_get_state(p->stream) != PA_STREAM_READY) {
         /* wait for stream to become ready */
         l = 0;
@@ -298,14 +306,14 @@ static size_t qpa_write(HWVoiceOut *hw, void *data, size_t length)
     l = pa_stream_writable_size(p->stream);
 
     CHECK_SUCCESS_GOTO(c, l != (size_t) -1, unlock_and_fail,
-                       "pa_stream_writable_size failed\n");
+                       "pa_stream_writable_size failed");
 
     if (l > length) {
         l = length;
     }
 
     r = pa_stream_write(p->stream, data, l, NULL, 0LL, PA_SEEK_RELATIVE);
-    CHECK_SUCCESS_GOTO(c, r >= 0, unlock_and_fail, "pa_stream_write failed\n");
+    CHECK_SUCCESS_GOTO(c, r >= 0, unlock_and_fail, "pa_stream_write failed");
 
 unlock:
     pa_threaded_mainloop_unlock(c->mainloop);
@@ -337,43 +345,43 @@ static pa_sample_format_t audfmt_to_pa(AudioFormat afmt, bool big_endian)
         format = big_endian ? PA_SAMPLE_FLOAT32BE : PA_SAMPLE_FLOAT32LE;
         break;
     default:
-        dolog ("Internal logic error: Bad audio format %d\n", afmt);
+        error_report("pulseaudio: Internal logic error: Bad audio format %d", afmt);
         format = PA_SAMPLE_U8;
         break;
     }
     return format;
 }
 
-static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
+static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, bool *big_endian)
 {
     switch (fmt) {
     case PA_SAMPLE_U8:
         return AUDIO_FORMAT_U8;
     case PA_SAMPLE_S16BE:
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S16;
     case PA_SAMPLE_S16LE:
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S16;
     case PA_SAMPLE_S32BE:
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S32;
     case PA_SAMPLE_S32LE:
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S32;
     case PA_SAMPLE_FLOAT32BE:
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_F32;
     case PA_SAMPLE_FLOAT32LE:
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_F32;
     default:
-        dolog ("Internal logic error: Bad pa_sample_format %d\n", fmt);
+        error_report("pulseaudio: Internal logic error: Bad pa_sample_format %d", fmt);
         return AUDIO_FORMAT_U8;
     }
 }
 
-static void context_state_cb (pa_context *c, void *userdata)
+static void context_state_cb(pa_context *c, void *userdata)
 {
     PAConnection *conn = userdata;
 
@@ -465,7 +473,7 @@ static pa_stream *qpa_simple_new (
         break;
 
     default:
-        dolog("Internal error: unsupported channel count %d\n", ss->channels);
+        error_report("pulseaudio: unsupported channel count %d", ss->channels);
         goto fail;
     }
 
@@ -509,34 +517,35 @@ fail:
     return NULL;
 }
 
-static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
-                        void *drv_opaque)
+static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
+    AudioMixengBackend *amb = hw->s;
+    AudioPa *apa = AUDIO_PA(amb);
     int error;
     pa_sample_spec ss;
     pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
-    paaudio *g = pa->g = drv_opaque;
-    AudiodevPaOptions *popts = &g->dev->u.pa;
+    AudiodevPaOptions *popts = &amb->dev->u.pa;
     AudiodevPaPerDirectionOptions *ppdo = popts->out;
-    PAConnection *c = g->conn;
+    PAConnection *c = apa->conn;
 
-    ss.format = audfmt_to_pa (as->fmt, as->endianness);
+    pa->g = apa;
+    ss.format = audfmt_to_pa (as->fmt, as->big_endian);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
     ba.tlength = pa_usec_to_bytes(ppdo->latency, &ss);
     ba.minreq = pa_usec_to_bytes(MIN(ppdo->latency >> 2,
-                                     (g->dev->timer_period >> 2) * 3), &ss);
+                                     (amb->dev->timer_period >> 2) * 3), &ss);
     ba.maxlength = -1;
     ba.prebuf = -1;
 
-    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
+    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.big_endian);
 
     pa->stream = qpa_simple_new (
         c,
-        ppdo->stream_name ?: g->dev->id,
+        ppdo->stream_name ?: amb->dev->id,
         PA_STREAM_PLAYBACK,
         ppdo->name,
         &ss,
@@ -544,7 +553,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
         &error
         );
     if (!pa->stream) {
-        qpa_logerr (error, "pa_simple_new for playback failed\n");
+        qpa_logerr(error, "pa_simple_new for playback failed");
         goto fail1;
     }
 
@@ -559,33 +568,35 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     return -1;
 }
 
-static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
+    AudioMixengBackend *amb = hw->s;
+    AudioPa *apa = AUDIO_PA(amb);
     int error;
     pa_sample_spec ss;
     pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
-    paaudio *g = pa->g = drv_opaque;
-    AudiodevPaOptions *popts = &g->dev->u.pa;
+    AudiodevPaOptions *popts = &amb->dev->u.pa;
     AudiodevPaPerDirectionOptions *ppdo = popts->in;
-    PAConnection *c = g->conn;
+    PAConnection *c = apa->conn;
 
-    ss.format = audfmt_to_pa (as->fmt, as->endianness);
+    pa->g = apa;
+    ss.format = audfmt_to_pa (as->fmt, as->big_endian);
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
-    ba.fragsize = pa_usec_to_bytes((g->dev->timer_period >> 1) * 3, &ss);
+    ba.fragsize = pa_usec_to_bytes((amb->dev->timer_period >> 1) * 3, &ss);
     ba.maxlength = pa_usec_to_bytes(
-        MAX(ppdo->latency, g->dev->timer_period * 3), &ss);
+        MAX(ppdo->latency, amb->dev->timer_period * 3), &ss);
     ba.minreq = -1;
     ba.prebuf = -1;
 
-    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
+    obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.big_endian);
 
     pa->stream = qpa_simple_new (
         c,
-        ppdo->stream_name ?: g->dev->id,
+        ppdo->stream_name ?: amb->dev->id,
         PA_STREAM_RECORD,
         ppdo->name,
         &ss,
@@ -593,7 +604,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         &error
         );
     if (!pa->stream) {
-        qpa_logerr (error, "pa_simple_new for capture failed\n");
+        qpa_logerr(error, "pa_simple_new for capture failed");
         goto fail1;
     }
 
@@ -622,7 +633,7 @@ static void qpa_simple_disconnect(PAConnection *c, pa_stream *stream)
 
     err = pa_stream_disconnect(stream);
     if (err != 0) {
-        dolog("Failed to disconnect! err=%d\n", err);
+        error_report("pulseaudio: Failed to disconnect! err=%d", err);
     }
     pa_stream_unref(stream);
 }
@@ -653,7 +664,7 @@ static void qpa_fini_in (HWVoiceIn *hw)
             int r = pa_stream_drop(pa->stream);
             if (r) {
                 qpa_logerr(pa_context_errno(c->context),
-                           "pa_stream_drop failed\n");
+                           "pa_stream_drop failed");
             }
             pa->read_length = 0;
         }
@@ -687,7 +698,7 @@ static void qpa_volume_out(HWVoiceOut *hw, Volume *vol)
                                           &v, NULL, NULL);
     if (!op) {
         qpa_logerr(pa_context_errno(c->context),
-                   "set_sink_input_volume() failed\n");
+                   "set_sink_input_volume() failed");
     } else {
         pa_operation_unref(op);
     }
@@ -697,7 +708,7 @@ static void qpa_volume_out(HWVoiceOut *hw, Volume *vol)
                                         vol->mute, NULL, NULL);
     if (!op) {
         qpa_logerr(pa_context_errno(c->context),
-                   "set_sink_input_mute() failed\n");
+                   "set_sink_input_mute() failed");
     } else {
         pa_operation_unref(op);
     }
@@ -729,7 +740,7 @@ static void qpa_volume_in(HWVoiceIn *hw, Volume *vol)
         &v, NULL, NULL);
     if (!op) {
         qpa_logerr(pa_context_errno(c->context),
-                   "set_source_output_volume() failed\n");
+                   "set_source_output_volume() failed");
     } else {
         pa_operation_unref(op);
     }
@@ -739,7 +750,7 @@ static void qpa_volume_in(HWVoiceIn *hw, Volume *vol)
         vol->mute, NULL, NULL);
     if (!op) {
         qpa_logerr(pa_context_errno(c->context),
-                   "set_source_output_mute() failed\n");
+                   "set_source_output_mute() failed");
     } else {
         pa_operation_unref(op);
     }
@@ -777,7 +788,7 @@ static void *qpa_conn_init(const char *server)
 
     if (pa_context_connect(c->context, server, 0, NULL) < 0) {
         qpa_logerr(pa_context_errno(c->context),
-                   "pa_context_connect() failed\n");
+                   "pa_context_connect() failed");
         goto fail;
     }
 
@@ -798,7 +809,7 @@ static void *qpa_conn_init(const char *server)
 
         if (!PA_CONTEXT_IS_GOOD(state)) {
             qpa_logerr(pa_context_errno(c->context),
-                       "Wrong context state\n");
+                       "Wrong context state");
             goto unlock_and_fail;
         }
 
@@ -812,19 +823,23 @@ static void *qpa_conn_init(const char *server)
 unlock_and_fail:
     pa_threaded_mainloop_unlock(c->mainloop);
 fail:
-    AUD_log (AUDIO_CAP, "Failed to initialize PA context");
     qpa_conn_fini(c);
     return NULL;
 }
 
-static void *qpa_audio_init(Audiodev *dev, Error **errp)
+static bool
+audio_pa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
-    paaudio *g;
+    AudioPa *apa = AUDIO_PA(abe);
     AudiodevPaOptions *popts = &dev->u.pa;
     const char *server;
     PAConnection *c;
 
     assert(dev->driver == AUDIODEV_DRIVER_PA);
+
+    if (!audio_pa_parent_class->realize(abe, dev, errp)) {
+        return false;
+    }
 
     if (!popts->server) {
         char pidfile[64];
@@ -834,42 +849,38 @@ static void *qpa_audio_init(Audiodev *dev, Error **errp)
         runtime = getenv("XDG_RUNTIME_DIR");
         if (!runtime) {
             error_setg(errp, "XDG_RUNTIME_DIR not set");
-            return NULL;
+            return false;
         }
         snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
         if (stat(pidfile, &st) != 0) {
             error_setg_errno(errp, errno, "could not stat pidfile %s", pidfile);
-            return NULL;
+            return false;
         }
     }
 
     qpa_validate_per_direction_opts(dev, popts->in);
     qpa_validate_per_direction_opts(dev, popts->out);
 
-    g = g_new0(paaudio, 1);
     server = popts->server;
-
-    g->dev = dev;
-
     QTAILQ_FOREACH(c, &pa_conns, list) {
         if (server == NULL || c->server == NULL ?
             server == c->server :
             strcmp(server, c->server) == 0) {
-            g->conn = c;
+            apa->conn = c;
             break;
         }
     }
-    if (!g->conn) {
-        g->conn = qpa_conn_init(server);
+    if (!apa->conn) {
+        apa->conn = qpa_conn_init(server);
     }
-    if (!g->conn) {
-        g_free(g);
+    if (!apa->conn) {
         error_setg(errp, "could not connect to PulseAudio server");
-        return NULL;
+        return false;
     }
 
-    ++g->conn->refcount;
-    return g;
+    ++apa->conn->refcount;
+
+    return true;
 }
 
 static void qpa_conn_fini(PAConnection *c)
@@ -891,48 +902,54 @@ static void qpa_conn_fini(PAConnection *c)
     g_free(c);
 }
 
-static void qpa_audio_fini (void *opaque)
+static void audio_pa_finalize(Object *obj)
 {
-    paaudio *g = opaque;
-    PAConnection *c = g->conn;
+    AudioPa *apa = AUDIO_PA(obj);
+    PAConnection *c = apa->conn;
 
-    if (--c->refcount == 0) {
+    if (c && --c->refcount == 0) {
         qpa_conn_fini(c);
     }
-
-    g_free(g);
 }
 
-static struct audio_pcm_ops qpa_pcm_ops = {
-    .init_out = qpa_init_out,
-    .fini_out = qpa_fini_out,
-    .write    = qpa_write,
-    .buffer_get_free = qpa_buffer_get_free,
-    .get_buffer_out = qpa_get_buffer_out,
-    .put_buffer_out = qpa_put_buffer_out,
-    .volume_out = qpa_volume_out,
-
-    .init_in  = qpa_init_in,
-    .fini_in  = qpa_fini_in,
-    .read     = qpa_read,
-    .get_buffer_in = qpa_get_buffer_in,
-    .put_buffer_in = qpa_put_buffer_in,
-    .volume_in = qpa_volume_in
-};
-
-static struct audio_driver pa_audio_driver = {
-    .name           = "pa",
-    .init           = qpa_audio_init,
-    .fini           = qpa_audio_fini,
-    .pcm_ops        = &qpa_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof (PAVoiceOut),
-    .voice_size_in  = sizeof (PAVoiceIn),
-};
-
-static void register_audio_pa(void)
+static void audio_pa_class_init(ObjectClass *klass, const void *data)
 {
-    audio_driver_register(&pa_audio_driver);
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_pa_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_pa_realize;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(PAVoiceOut);
+    k->voice_size_in = sizeof(PAVoiceIn);
+
+    k->init_out = qpa_init_out;
+    k->fini_out = qpa_fini_out;
+    k->write = qpa_write;
+    k->buffer_get_free = qpa_buffer_get_free;
+    k->get_buffer_out = qpa_get_buffer_out;
+    k->put_buffer_out = qpa_put_buffer_out;
+    k->volume_out = qpa_volume_out;
+
+    k->init_in = qpa_init_in;
+    k->fini_in = qpa_fini_in;
+    k->read = qpa_read;
+    k->get_buffer_in = qpa_get_buffer_in;
+    k->put_buffer_in = qpa_put_buffer_in;
+    k->volume_in = qpa_volume_in;
 }
-type_init(register_audio_pa);
+
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_PA,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioPa),
+        .class_init = audio_pa_class_init,
+        .instance_finalize = audio_pa_finalize,
+    },
+};
+
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_PA);

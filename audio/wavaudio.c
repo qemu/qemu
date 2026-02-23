@@ -24,10 +24,18 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
-#define AUDIO_CAP "wav"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_WAV "audio-wav"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioWav, AUDIO_WAV)
+
+struct AudioWav {
+    AudioMixengBackend parent_obj;
+};
 
 typedef struct WAVVoiceOut {
     HWVoiceOut hw;
@@ -43,8 +51,8 @@ static size_t wav_write_out(HWVoiceOut *hw, void *buf, size_t len)
     assert(bytes % hw->info.bytes_per_frame == 0);
 
     if (bytes && fwrite(buf, bytes, 1, wav->f) != 1) {
-        dolog("wav_write_out: fwrite of %" PRId64 " bytes failed\nReason: %s\n",
-              bytes, strerror(errno));
+        error_report("wav: fwrite of %" PRId64 " bytes failed: %s",
+                     bytes, strerror(errno));
     }
 
     wav->total_samples += bytes / hw->info.bytes_per_frame;
@@ -61,8 +69,7 @@ static void le_store (uint8_t *buf, uint32_t val, int len)
     }
 }
 
-static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
-                        void *drv_opaque)
+static int wav_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
     int bits16 = 0, stereo = 0;
@@ -72,7 +79,7 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
         0x02, 0x00, 0x44, 0xac, 0x00, 0x00, 0x10, 0xb1, 0x02, 0x00, 0x04,
         0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00
     };
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevWavOptions *wopts = &dev->u.wav;
     struct audsettings wav_as = audiodev_to_audsettings(dev->u.wav.out);
     const char *wav_path = wopts->path ?: "qemu.wav";
@@ -91,11 +98,11 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
-        dolog ("WAVE files can not handle 32bit formats\n");
+        error_report("wav: WAVE files cannot handle 32-bit formats");
         return -1;
 
     case AUDIO_FORMAT_F32:
-        dolog("WAVE files can not handle float formats\n");
+        error_report("wav: WAVE files cannot handle float formats");
         return -1;
 
     default:
@@ -104,7 +111,7 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     hdr[34] = bits16 ? 0x10 : 0x08;
 
-    wav_as.endianness = 0;
+    wav_as.big_endian = false;
     audio_pcm_init_info (&hw->info, &wav_as);
 
     hw->samples = 1024;
@@ -115,14 +122,13 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     wav->f = fopen(wav_path, "wb");
     if (!wav->f) {
-        dolog ("Failed to open wave file `%s'\nReason: %s\n",
-               wav_path, strerror(errno));
+        error_report("wav: failed to open wave file '%s': %s",
+                     wav_path, strerror(errno));
         return -1;
     }
 
     if (fwrite (hdr, sizeof (hdr), 1, wav->f) != 1) {
-        dolog ("wav_init_out: failed to write header\nReason: %s\n",
-               strerror(errno));
+        error_report("wav: failed to write header: %s", strerror(errno));
         return -1;
     }
 
@@ -146,30 +152,25 @@ static void wav_fini_out (HWVoiceOut *hw)
     le_store (dlen, datalen, 4);
 
     if (fseek (wav->f, 4, SEEK_SET)) {
-        dolog ("wav_fini_out: fseek to rlen failed\nReason: %s\n",
-               strerror(errno));
+        error_report("wav: fseek to rlen failed: %s", strerror(errno));
         goto doclose;
     }
     if (fwrite (rlen, 4, 1, wav->f) != 1) {
-        dolog ("wav_fini_out: failed to write rlen\nReason: %s\n",
-               strerror (errno));
+        error_report("wav: failed to write rlen: %s", strerror(errno));
         goto doclose;
     }
     if (fseek (wav->f, 32, SEEK_CUR)) {
-        dolog ("wav_fini_out: fseek to dlen failed\nReason: %s\n",
-               strerror (errno));
+        error_report("wav: fseek to dlen failed: %s", strerror(errno));
         goto doclose;
     }
     if (fwrite (dlen, 4, 1, wav->f) != 1) {
-        dolog ("wav_fini_out: failed to write dlen\nReaons: %s\n",
-               strerror (errno));
+        error_report("wav: failed to write dlen: %s", strerror(errno));
         goto doclose;
     }
 
  doclose:
     if (fclose (wav->f))  {
-        dolog ("wav_fini_out: fclose %p failed\nReason: %s\n",
-               wav->f, strerror (errno));
+        error_report("wav: fclose failed: %s", strerror(errno));
     }
     wav->f = NULL;
 }
@@ -183,39 +184,31 @@ static void wav_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static void *wav_audio_init(Audiodev *dev, Error **errp)
+static void audio_wav_class_init(ObjectClass *klass, const void *data)
 {
-    assert(dev->driver == AUDIODEV_DRIVER_WAV);
-    return dev;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->max_voices_out = 1;
+    k->max_voices_in = 0;
+    k->voice_size_out = sizeof(WAVVoiceOut);
+    k->voice_size_in = 0;
+
+    k->init_out = wav_init_out;
+    k->fini_out = wav_fini_out;
+    k->write = wav_write_out;
+    k->buffer_get_free = audio_generic_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = wav_enable_out;
 }
 
-static void wav_audio_fini (void *opaque)
-{
-    ldebug ("wav_fini");
-}
-
-static struct audio_pcm_ops wav_pcm_ops = {
-    .init_out = wav_init_out,
-    .fini_out = wav_fini_out,
-    .write    = wav_write_out,
-    .buffer_get_free = audio_generic_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = wav_enable_out,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_WAV,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioWav),
+        .class_init = audio_wav_class_init,
+    }
 };
 
-static struct audio_driver wav_audio_driver = {
-    .name           = "wav",
-    .init           = wav_audio_init,
-    .fini           = wav_audio_fini,
-    .pcm_ops        = &wav_pcm_ops,
-    .max_voices_out = 1,
-    .max_voices_in  = 0,
-    .voice_size_out = sizeof (WAVVoiceOut),
-    .voice_size_in  = 0
-};
-
-static void register_audio_wav(void)
-{
-    audio_driver_register(&wav_audio_driver);
-}
-type_init(register_audio_wav);
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_WAV);

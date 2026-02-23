@@ -101,11 +101,11 @@ static void lm4549_audio_transfer(lm4549_state *s)
     uint32_t i;
 
     /* Activate the voice */
-    AUD_set_active_out(s->voice, 1);
+    audio_be_set_active_out(s->audio_be, s->voice, 1);
     s->voice_is_active = 1;
 
     /* Try to write the buffer content */
-    written_bytes = AUD_write(s->voice, s->buffer,
+    written_bytes = audio_be_write(s->audio_be, s->voice, s->buffer,
                               s->buffer_level * sizeof(uint16_t));
     written_samples = written_bytes >> 1;
 
@@ -129,14 +129,14 @@ static void lm4549_audio_out_callback(void *opaque, int free)
     static uint32_t prev_buffer_level;
 
 #ifdef LM4549_DEBUG
-    int size = AUD_get_buffer_size_out(s->voice);
+    int size = audio_be_get_buffer_size_out(s->audio_be, s->voice);
     DPRINTF("audio_out_callback size = %i free = %i\n", size, free);
 #endif
 
     /* Detect that no data are consumed
        => disable the voice */
     if (s->buffer_level == prev_buffer_level) {
-        AUD_set_active_out(s->voice, 0);
+        audio_be_set_active_out(s->audio_be, s->voice, 0);
         s->voice_is_active = 0;
     }
     prev_buffer_level = s->buffer_level;
@@ -202,9 +202,9 @@ void lm4549_write(lm4549_state *s,
         as.freq = value;
         as.nchannels = 2;
         as.fmt = AUDIO_FORMAT_S16;
-        as.endianness = 0;
+        as.big_endian = false;
 
-        s->voice = AUD_open_out(
+        s->voice = audio_be_open_out(
             s->audio_be,
             s->voice,
             "lm4549.out",
@@ -272,9 +272,9 @@ static int lm4549_post_load(void *opaque, int version_id)
     as.freq = freq;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = 0;
+    as.big_endian = false;
 
-    s->voice = AUD_open_out(
+    s->voice = audio_be_open_out(
         s->audio_be,
         s->voice,
         "lm4549.out",
@@ -285,7 +285,7 @@ static int lm4549_post_load(void *opaque, int version_id)
 
     /* Request data */
     if (s->voice_is_active == 1) {
-        lm4549_audio_out_callback(s, AUD_get_buffer_size_out(s->voice));
+        lm4549_audio_out_callback(s, audio_be_get_buffer_size_out(s->audio_be, s->voice));
     }
 
     return 0;
@@ -297,7 +297,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
     struct audsettings as;
 
     /* Register an audio card */
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -312,9 +312,9 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
     as.freq = 48000;
     as.nchannels = 2;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = 0;
+    as.big_endian = false;
 
-    s->voice = AUD_open_out(
+    s->voice = audio_be_open_out(
         s->audio_be,
         s->voice,
         "lm4549.out",
@@ -323,7 +323,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
         &as
     );
 
-    AUD_set_volume_out_lr(s->voice, 0, 255, 255);
+    audio_be_set_volume_out_lr(s->audio_be, s->voice, 0, 255, 255);
 
     s->voice_is_active = 0;
 

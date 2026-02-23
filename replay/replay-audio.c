@@ -13,7 +13,6 @@
 #include "qemu/error-report.h"
 #include "system/replay.h"
 #include "replay-internal.h"
-#include "qemu/audio.h"
 
 void replay_audio_out(size_t *played)
 {
@@ -35,38 +34,48 @@ void replay_audio_out(size_t *played)
     }
 }
 
-void replay_audio_in(size_t *recorded, st_sample *samples, size_t *wpos, size_t size)
+void replay_audio_in_start(size_t *nsamples)
 {
-    int pos;
-    uint64_t left, right;
     if (replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());
         replay_save_instructions();
         replay_put_event(EVENT_AUDIO_IN);
-        replay_put_qword(*recorded);
-        replay_put_qword(*wpos);
-        for (pos = (*wpos - *recorded + size) % size ; pos != *wpos
-             ; pos = (pos + 1) % size) {
-            audio_sample_to_uint64(samples, pos, &left, &right);
-            replay_put_qword(left);
-            replay_put_qword(right);
-        }
+        replay_put_qword(*nsamples);
+        replay_state.n_audio_samples = *nsamples;
     } else if (replay_mode == REPLAY_MODE_PLAY) {
         g_assert(replay_mutex_locked());
         replay_account_executed_instructions();
         if (replay_next_event_is(EVENT_AUDIO_IN)) {
-            *recorded = replay_get_qword();
-            *wpos = replay_get_qword();
-            for (pos = (*wpos - *recorded + size) % size ; pos != *wpos
-                 ; pos = (pos + 1) % size) {
-                left = replay_get_qword();
-                right = replay_get_qword();
-                audio_sample_from_uint64(samples, pos, left, right);
-            }
-            replay_finish_event();
+            *nsamples = replay_get_qword();
+            replay_state.n_audio_samples = *nsamples;
         } else {
             error_report("Missing audio in event in the replay log");
             abort();
         }
+    }
+}
+
+void replay_audio_in_sample_lr(uint64_t *left, uint64_t *right)
+{
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        replay_put_qword(*left);
+        replay_put_qword(*right);
+    } else if (replay_mode == REPLAY_MODE_PLAY) {
+        *left = replay_get_qword();
+        *right = replay_get_qword();
+    } else {
+        return;
+    }
+
+    assert(replay_state.n_audio_samples > 0);
+    replay_state.n_audio_samples--;
+}
+
+void replay_audio_in_finish(void)
+{
+    assert(replay_state.n_audio_samples == 0);
+
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        replay_finish_event();
     }
 }

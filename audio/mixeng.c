@@ -26,7 +26,6 @@
 #include "qemu/bswap.h"
 #include "qemu/audio.h"
 
-#define AUDIO_CAP "mixeng"
 #include "audio_int.h"
 #ifdef FLOAT_MIXENG
 #include "qemu/error-report.h"

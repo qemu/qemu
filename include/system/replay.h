@@ -165,8 +165,15 @@ void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
 
 /*! Saves/restores number of played samples of audio out operation. */
 void replay_audio_out(size_t *played);
-/*! Saves/restores recorded samples of audio in operation. */
-void replay_audio_in(size_t *recorded, st_sample *samples, size_t *wpos, size_t size);
+/*
+ * Start saves/restores recorded samples of audio in operation.
+ * Must be called before replay_audio_in_sample_lr().
+ */
+void replay_audio_in_start(size_t *recorded);
+/* Saves/restores recorded samples. */
+void replay_audio_in_sample_lr(uint64_t *left, uint64_t *right);
+/* Finish saves/restores recorded samples. */
+void replay_audio_in_finish(void);
 
 /* VM state operations */
 

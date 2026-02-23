@@ -34,8 +34,6 @@
 
 #define DEBUG 0
 
-#define ADLIB_KILL_TIMERS 1
-
 #define ADLIB_DESC "Yamaha YM3812 (OPL2)"
 
 #if DEBUG
@@ -68,10 +66,8 @@ struct AdlibState {
     int64_t exp[2];
 #endif
     int16_t *mixbuf;
-    uint64_t dexp[2];
     SWVoiceOut *voice;
     int left, pos, samples;
-    QEMUAudioTimeStamp ats;
     FM_OPL *opl;
     PortioList port_list;
 };
@@ -88,19 +84,7 @@ static void adlib_kill_timers (AdlibState *s)
 
     for (i = 0; i < 2; ++i) {
         if (s->ticking[i]) {
-            uint64_t delta;
-
-            delta = AUD_get_elapsed_usec_out (s->voice, &s->ats);
-            ldebug (
-                "delta = %f dexp = %f expired => %d",
-                delta / 1000000.0,
-                s->dexp[i] / 1000000.0,
-                delta >= s->dexp[i]
-                );
-            if (ADLIB_KILL_TIMERS || delta >= s->dexp[i]) {
-                adlib_stop_opl_timer (s, i);
-                AUD_init_time_stamp_out (s->voice, &s->ats);
-            }
+            adlib_stop_opl_timer(s, i);
         }
     }
 }
@@ -111,7 +95,7 @@ static void adlib_write(void *opaque, uint32_t nport, uint32_t val)
     int a = nport & 3;
 
     s->active = 1;
-    AUD_set_active_out (s->voice, 1);
+    audio_be_set_active_out(s->audio_be, s->voice, 1);
 
     adlib_kill_timers (s);
 
@@ -148,8 +132,6 @@ static void timer_handler (void *opaque, int c, double interval_Sec)
     s->exp[n] = exp;
 #endif
 
-    s->dexp[n] = interval_Sec * 1000000.0;
-    AUD_init_time_stamp_out (s->voice, &s->ats);
 }
 
 static int write_audio (AdlibState *s, int samples)
@@ -161,7 +143,8 @@ static int write_audio (AdlibState *s, int samples)
         int nbytes, wbytes, wsampl;
 
         nbytes = samples << SHIFT;
-        wbytes = AUD_write (
+        wbytes = audio_be_write(
+            s->audio_be,
             s->voice,
             s->mixbuf + (pos << (SHIFT - 1)),
             nbytes
@@ -254,7 +237,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!audio_be_check(&s->audio_be, errp)) {
         return;
     }
 
@@ -271,9 +254,9 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     as.freq = s->freq;
     as.nchannels = SHIFT;
     as.fmt = AUDIO_FORMAT_S16;
-    as.endianness = HOST_BIG_ENDIAN;
+    as.big_endian = HOST_BIG_ENDIAN;
 
-    s->voice = AUD_open_out (
+    s->voice = audio_be_open_out(
         s->audio_be,
         s->voice,
         "adlib",
@@ -287,7 +270,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
         return;
     }
 
-    s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
+    s->samples = audio_be_get_buffer_size_out(s->audio_be, s->voice) >> SHIFT;
     s->mixbuf = g_malloc0 (s->samples << SHIFT);
 
     adlib_portio_list[0].offset = s->port;

@@ -70,6 +70,7 @@ if opengl.found()
   ui_modules += {'egl-headless' : egl_headless_ss}
 endif
 
+dbus_display1 = files()
 if dbus_display
   dbus_ss = ss.source_set()
   env = environment()
@@ -88,6 +89,8 @@ if dbus_display
                                           '--interface-prefix', 'org.qemu.',
                                           '--c-namespace', 'QemuDBus',
                                           '--generate-c-code', '@BASENAME@'])
+  dbus_display1_h = declare_dependency(dependencies: [gio],
+                                       sources: dbus_display1[0])
   dbus_ss.add(when: gio,
               if_true: [files(
                 'dbus-chardev.c',

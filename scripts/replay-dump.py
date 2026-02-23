@@ -395,6 +395,9 @@ v12_event_table = [Decoder(0, "EVENT_INSTRUCTION", decode_instruction),
                   Decoder(39, "EVENT_END", decode_end),
 ]
 
+# EVENT_AUDIO_IN has changed
+v13_event_table = v12_event_table
+
 def parse_arguments():
     "Grab arguments for script"
     parser = argparse.ArgumentParser()
@@ -413,7 +416,10 @@ def decode_file(filename):
     # see REPLAY_VERSION
     print("HEADER: version 0x%x" % (version))
 
-    if version == 0xe0200c:
+    if version == 0xe0200d:
+        event_decode_table = v13_event_table
+        replay_state.checkpoint_start = 30
+    elif version == 0xe0200c:
         event_decode_table = v12_event_table
         replay_state.checkpoint_start = 30
     elif version == 0xe02007:

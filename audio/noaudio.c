@@ -25,9 +25,16 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
-#define AUDIO_CAP "noaudio"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_NONE "audio-none"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioNone, AUDIO_NONE)
+
+struct AudioNone {
+    AudioMixengBackend parent_obj;
+};
 
 typedef struct NoVoiceOut {
     HWVoiceOut hw;
@@ -45,7 +52,7 @@ static size_t no_write(HWVoiceOut *hw, void *buf, size_t len)
     return audio_rate_get_bytes(&no->rate, &hw->info, len);
 }
 
-static int no_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
+static int no_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
 
@@ -69,7 +76,7 @@ static void no_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
-static int no_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int no_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     NoVoiceIn *no = (NoVoiceIn *) hw;
 
@@ -102,44 +109,37 @@ static void no_enable_in(HWVoiceIn *hw, bool enable)
     }
 }
 
-static void *no_audio_init(Audiodev *dev, Error **errp)
+static void audio_none_class_init(ObjectClass *klass, const void *data)
 {
-    return &no_audio_init;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(NoVoiceOut);
+    k->voice_size_in = sizeof(NoVoiceIn);
+
+    k->init_out = no_init_out;
+    k->fini_out = no_fini_out;
+    k->write = no_write;
+    k->buffer_get_free = audio_generic_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = no_enable_out;
+
+    k->init_in = no_init_in;
+    k->fini_in = no_fini_in;
+    k->read = no_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = no_enable_in;
 }
 
-static void no_audio_fini (void *opaque)
-{
-    (void) opaque;
-}
-
-static struct audio_pcm_ops no_pcm_ops = {
-    .init_out = no_init_out,
-    .fini_out = no_fini_out,
-    .write    = no_write,
-    .buffer_get_free = audio_generic_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = no_enable_out,
-
-    .init_in  = no_init_in,
-    .fini_in  = no_fini_in,
-    .read     = no_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = no_enable_in
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_NONE,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioNone),
+        .class_init = audio_none_class_init,
+    },
 };
 
-static struct audio_driver no_audio_driver = {
-    .name           = "none",
-    .init           = no_audio_init,
-    .fini           = no_audio_fini,
-    .pcm_ops        = &no_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof (NoVoiceOut),
-    .voice_size_in  = sizeof (NoVoiceIn)
-};
-
-static void register_audio_none(void)
-{
-    audio_driver_register(&no_audio_driver);
-}
-type_init(register_audio_none);
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_NONE);

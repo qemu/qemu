@@ -26,13 +26,22 @@
 #include "qemu/module.h"
 #include "qemu/atomic.h"
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
-
-#define AUDIO_CAP "jack"
+#include "qom/object.h"
 #include "audio_int.h"
+#include "trace.h"
 
 #include <jack/jack.h>
 #include <jack/thread.h>
+
+#define TYPE_AUDIO_JACK "audio-jack"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioJack, AUDIO_JACK)
+
+struct AudioJack {
+    AudioMixengBackend parent_obj;
+};
+
 
 struct QJack;
 
@@ -334,7 +343,7 @@ static void qjack_client_recover(QJackClient *c)
 
         /* if enabled then attempt to recover */
         if (c->enabled) {
-            dolog("attempting to reconnect to server\n");
+            trace_jack_client_recover();
             qjack_client_init(c);
         }
     }
@@ -390,10 +399,10 @@ static void qjack_client_connect_ports(QJackClient *c)
         }
 
         if (c->out) {
-            dolog("connect %s -> %s\n", p, ports[i]);
+            trace_jack_connect(p, ports[i]);
             jack_connect(c->client, p, ports[i]);
         } else {
-            dolog("connect %s -> %s\n", ports[i], p);
+            trace_jack_connect(ports[i], p);
             jack_connect(c->client, ports[i], p);
         }
     }
@@ -432,9 +441,9 @@ static int qjack_client_init(QJackClient *c)
       c->opt->server_name);
 
     if (c->client == NULL) {
-        dolog("jack_client_open failed: status = 0x%2.0x\n", status);
+        error_report("jack: jack_client_open failed: status = 0x%2.0x", status);
         if (status & JackServerFailed) {
-            dolog("unable to connect to JACK server\n");
+            error_report("jack: unable to connect to JACK server");
         }
         return -1;
     }
@@ -442,12 +451,11 @@ static int qjack_client_init(QJackClient *c)
     c->freq = jack_get_sample_rate(c->client);
 
     if (status & JackServerStarted) {
-        dolog("JACK server started\n");
+        trace_jack_server_started();
     }
 
     if (status & JackNameNotUnique) {
-        dolog("JACK unique name assigned %s\n",
-          jack_get_client_name(c->client));
+        trace_jack_unique_name(jack_get_client_name(c->client));
     }
 
     /* Allocate working buffer for process callback */
@@ -497,11 +505,10 @@ static int qjack_client_init(QJackClient *c)
     return 0;
 }
 
-static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as,
-    void *drv_opaque)
+static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     QJackOut *jo  = (QJackOut *)hw;
-    Audiodev *dev = (Audiodev *)drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     jo->c.out       = true;
     jo->c.enabled   = false;
@@ -524,21 +531,19 @@ static int qjack_init_out(HWVoiceOut *hw, struct audsettings *as,
         .freq       = jo->c.freq,
         .nchannels  = jo->c.nchannels,
         .fmt        = AUDIO_FORMAT_F32,
-        .endianness = 0
+        .big_endian = false
     };
     audio_pcm_init_info(&hw->info, &os);
 
-    dolog("JACK output configured for %dHz (%d samples)\n",
-        jo->c.freq, jo->c.buffersize);
+    trace_jack_out_init(jo->c.freq, jo->c.buffersize);
 
     return 0;
 }
 
-static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as,
-    void *drv_opaque)
+static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     QJackIn  *ji  = (QJackIn *)hw;
-    Audiodev *dev = (Audiodev *)drv_opaque;
+    Audiodev *dev = hw->s->dev;
 
     ji->c.out       = false;
     ji->c.enabled   = false;
@@ -561,12 +566,11 @@ static int qjack_init_in(HWVoiceIn *hw, struct audsettings *as,
         .freq       = ji->c.freq,
         .nchannels  = ji->c.nchannels,
         .fmt        = AUDIO_FORMAT_F32,
-        .endianness = 0
+        .big_endian = false
     };
     audio_pcm_init_info(&hw->info, &is);
 
-    dolog("JACK input configured for %dHz (%d samples)\n",
-        ji->c.freq, ji->c.buffersize);
+    trace_jack_in_init(ji->c.freq, ji->c.buffersize);
 
     return 0;
 }
@@ -645,60 +649,57 @@ static int qjack_thread_creator(jack_native_thread_t *thread,
 }
 #endif
 
-static void *qjack_init(Audiodev *dev, Error **errp)
-{
-    assert(dev->driver == AUDIODEV_DRIVER_JACK);
-    return dev;
-}
-
-static void qjack_fini(void *opaque)
-{
-}
-
-static struct audio_pcm_ops jack_pcm_ops = {
-    .init_out       = qjack_init_out,
-    .fini_out       = qjack_fini_out,
-    .write          = qjack_write,
-    .buffer_get_free = audio_generic_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out     = qjack_enable_out,
-
-    .init_in        = qjack_init_in,
-    .fini_in        = qjack_fini_in,
-    .read           = qjack_read,
-    .run_buffer_in  = audio_generic_run_buffer_in,
-    .enable_in      = qjack_enable_in
-};
-
-static struct audio_driver jack_driver = {
-    .name           = "jack",
-    .init           = qjack_init,
-    .fini           = qjack_fini,
-    .pcm_ops        = &jack_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof(QJackOut),
-    .voice_size_in  = sizeof(QJackIn)
-};
-
 static void qjack_error(const char *msg)
 {
-    dolog("E: %s\n", msg);
+    error_report("jack: %s", msg);
 }
 
 static void qjack_info(const char *msg)
 {
-    dolog("I: %s\n", msg);
+    trace_jack_info(msg);
 }
 
-static void register_audio_jack(void)
+static void audio_jack_class_init(ObjectClass *klass, const void *data)
+{
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(QJackOut);
+    k->voice_size_in = sizeof(QJackIn);
+
+    k->init_out = qjack_init_out;
+    k->fini_out = qjack_fini_out;
+    k->write = qjack_write;
+    k->buffer_get_free = audio_generic_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = qjack_enable_out;
+
+    k->init_in = qjack_init_in;
+    k->fini_in = qjack_fini_in;
+    k->read = qjack_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = qjack_enable_in;
+}
+
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_JACK,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioJack),
+        .class_init = audio_jack_class_init,
+    },
+};
+
+static void __attribute__((__constructor__)) audio_jack_init(void)
 {
     qemu_mutex_init(&qjack_shutdown_lock);
-    audio_driver_register(&jack_driver);
 #if !defined(WIN32) && defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
     jack_set_thread_creator(qjack_thread_creator);
 #endif
     jack_set_error_function(qjack_error);
     jack_set_info_function(qjack_info);
 }
-type_init(register_audio_jack);
+
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_JACK);

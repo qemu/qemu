@@ -77,6 +77,7 @@ if 'CONFIG_TCG' in config_all_accel
   subdir('tcg/plugins')
 endif
 
+subdir('audio')
 subdir('unit')
 subdir('qapi-schema')
 subdir('qtest')

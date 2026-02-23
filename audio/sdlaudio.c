@@ -26,8 +26,10 @@
 #include <SDL.h>
 #include <SDL_thread.h>
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
 
 #ifndef _WIN32
 #ifdef __sun__
@@ -37,8 +39,17 @@
 #endif
 #endif
 
-#define AUDIO_CAP "sdl"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_SDL "audio-sdl"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioSdl, AUDIO_SDL)
+
+static AudioBackendClass *audio_sdl_parent_class;
+
+struct AudioSdl {
+    AudioMixengBackend parent_obj;
+};
+
 
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
@@ -55,17 +66,6 @@ typedef struct SDLVoiceIn {
     Audiodev *dev;
     SDL_AudioDeviceID devid;
 } SDLVoiceIn;
-
-static void G_GNUC_PRINTF (1, 2) sdl_logerr (const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start (ap, fmt);
-    AUD_vlog (AUDIO_CAP, fmt, ap);
-    va_end (ap);
-
-    AUD_log (AUDIO_CAP, "Reason: %s\n", SDL_GetError ());
-}
 
 static int aud_to_sdlfmt (AudioFormat fmt)
 {
@@ -91,69 +91,66 @@ static int aud_to_sdlfmt (AudioFormat fmt)
         return AUDIO_F32LSB;
 
     default:
-        dolog ("Internal logic error: Bad audio format %d\n", fmt);
-#ifdef DEBUG_AUDIO
-        abort ();
-#endif
+        error_report("sdl: internal logic error: bad audio format %d", fmt);
         return AUDIO_U8;
     }
 }
 
-static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, int *endianness)
+static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, bool *big_endian)
 {
     switch (sdlfmt) {
     case AUDIO_S8:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S8;
         break;
 
     case AUDIO_U8:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_U8;
         break;
 
     case AUDIO_S16LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AUDIO_S16MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AUDIO_S32LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_S32;
         break;
 
     case AUDIO_S32MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_S32;
         break;
 
     case AUDIO_F32LSB:
-        *endianness = 0;
+        *big_endian = false;
         *fmt = AUDIO_FORMAT_F32;
         break;
 
     case AUDIO_F32MSB:
-        *endianness = 1;
+        *big_endian = true;
         *fmt = AUDIO_FORMAT_F32;
         break;
 
     default:
-        dolog ("Unrecognized SDL audio format %d\n", sdlfmt);
+        error_report("sdl: unrecognized audio format %d", sdlfmt);
         return -1;
     }
 
@@ -171,27 +168,27 @@ static SDL_AudioDeviceID sdl_open(SDL_AudioSpec *req, SDL_AudioSpec *obt,
     /* Make sure potential threads created by SDL don't hog signals.  */
     err = sigfillset (&new);
     if (err) {
-        dolog ("sdl_open: sigfillset failed: %s\n", strerror (errno));
+        error_report("sdl: sigfillset failed: %s", strerror (errno));
         return 0;
     }
     err = pthread_sigmask (SIG_BLOCK, &new, &old);
     if (err) {
-        dolog ("sdl_open: pthread_sigmask failed: %s\n", strerror (err));
+        error_report("sdl: pthread_sigmask failed: %s", strerror (err));
         return 0;
     }
 #endif
 
     devid = SDL_OpenAudioDevice(NULL, rec, req, obt, 0);
     if (!devid) {
-        sdl_logerr("SDL_OpenAudioDevice for %s failed\n",
-                   rec ? "recording" : "playback");
+        error_report("SDL_OpenAudioDevice for %s failed: %s",
+                   rec ? "recording" : "playback", SDL_GetError());
     }
 
 #ifndef _WIN32
     err = pthread_sigmask (SIG_SETMASK, &old, NULL);
     if (err) {
-        dolog ("sdl_open: pthread_sigmask (restore) failed: %s\n",
-               strerror (errno));
+        error_report("sdl: pthread_sigmask (restore) failed: %s",
+                     strerror (errno));
         /* We have failed to restore original signal mask, all bets are off,
            so exit the process */
         exit (EXIT_FAILURE);
@@ -221,8 +218,6 @@ static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
     HWVoiceOut *hw = &sdl->hw;
 
     if (!sdl->exit) {
-
-        /* dolog("callback_out: len=%d avail=%zu\n", len, hw->pending_emul); */
 
         while (hw->pending_emul && len) {
             size_t write_len, start;
@@ -271,8 +266,6 @@ static void sdl_callback_in(void *opaque, Uint8 *buf, int len)
     if (sdl->exit) {
         return;
     }
-
-    /* dolog("callback_in: len=%d pending=%zu\n", len, hw->pending_emul); */
 
     while (hw->pending_emul < hw->size_emul && len) {
         size_t read_len = MIN(len, MIN(hw->size_emul - hw->pos_emul,
@@ -333,13 +326,12 @@ static void sdl_fini_out(HWVoiceOut *hw)
     sdl_close_out(sdl);
 }
 
-static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
-                        void *drv_opaque)
+static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     SDLVoiceOut *sdl = (SDLVoiceOut *)hw;
     SDL_AudioSpec req, obt;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.out;
     struct audsettings obt_as;
 
@@ -358,7 +350,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.endianness);
+    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.big_endian);
     if (err) {
         sdl_close_out(sdl);
         return -1;
@@ -390,12 +382,12 @@ static void sdl_fini_in(HWVoiceIn *hw)
     sdl_close_in(sdl);
 }
 
-static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
+static int sdl_init_in(HWVoiceIn *hw, audsettings *as)
 {
     SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
     SDL_AudioSpec req, obt;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = hw->s->dev;
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.in;
     struct audsettings obt_as;
 
@@ -414,7 +406,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
         return -1;
     }
 
-    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.endianness);
+    err = sdl_to_audfmt(obt.format, &obt_as.fmt, &obt_as.big_endian);
     if (err) {
         sdl_close_in(sdl);
         return -1;
@@ -442,57 +434,67 @@ static void sdl_enable_in(HWVoiceIn *hw, bool enable)
     SDL_PauseAudioDevice(sdl->devid, !enable);
 }
 
-static void *sdl_audio_init(Audiodev *dev, Error **errp)
+static bool audio_sdl_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
-    if (SDL_InitSubSystem (SDL_INIT_AUDIO)) {
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO)) {
         error_setg(errp, "SDL failed to initialize audio subsystem");
-        return NULL;
+        qapi_free_Audiodev(dev);
+        return false;
     }
 
-    return dev;
+    return audio_sdl_parent_class->realize(abe, dev, errp);
 }
 
-static void sdl_audio_fini (void *opaque)
+static void audio_sdl_finalize(Object *obj)
 {
-    SDL_QuitSubSystem (SDL_INIT_AUDIO);
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
-static struct audio_pcm_ops sdl_pcm_ops = {
-    .init_out = sdl_init_out,
-    .fini_out = sdl_fini_out,
-  /* wrapper for audio_generic_write */
-    .write    = sdl_write,
-  /* wrapper for audio_generic_buffer_get_free */
-    .buffer_get_free = sdl_buffer_get_free,
-  /* wrapper for audio_generic_get_buffer_out */
-    .get_buffer_out = sdl_get_buffer_out,
-  /* wrapper for audio_generic_put_buffer_out */
-    .put_buffer_out = sdl_put_buffer_out,
-    .enable_out = sdl_enable_out,
-    .init_in = sdl_init_in,
-    .fini_in = sdl_fini_in,
-  /* wrapper for audio_generic_read */
-    .read = sdl_read,
-  /* wrapper for audio_generic_get_buffer_in */
-    .get_buffer_in = sdl_get_buffer_in,
-  /* wrapper for audio_generic_put_buffer_in */
-    .put_buffer_in = sdl_put_buffer_in,
-    .enable_in = sdl_enable_in,
+static void audio_sdl_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_sdl_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_sdl_realize;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(SDLVoiceOut);
+    k->voice_size_in = sizeof(SDLVoiceIn);
+
+    k->init_out = sdl_init_out;
+    k->fini_out = sdl_fini_out;
+    /* wrapper for audio_generic_write */
+    k->write = sdl_write;
+    /* wrapper for audio_generic_buffer_get_free */
+    k->buffer_get_free = sdl_buffer_get_free;
+    /* wrapper for audio_generic_get_buffer_out */
+    k->get_buffer_out = sdl_get_buffer_out;
+    /* wrapper for audio_generic_put_buffer_out */
+    k->put_buffer_out = sdl_put_buffer_out;
+    k->enable_out = sdl_enable_out;
+
+    k->init_in = sdl_init_in;
+    k->fini_in = sdl_fini_in;
+    /* wrapper for audio_generic_read */
+    k->read = sdl_read;
+    /* wrapper for audio_generic_get_buffer_in */
+    k->get_buffer_in = sdl_get_buffer_in;
+    /* wrapper for audio_generic_put_buffer_in */
+    k->put_buffer_in = sdl_put_buffer_in;
+    k->enable_in = sdl_enable_in;
+}
+
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_SDL,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioSdl),
+        .class_init = audio_sdl_class_init,
+        .instance_finalize = audio_sdl_finalize,
+    },
 };
 
-static struct audio_driver sdl_audio_driver = {
-    .name           = "sdl",
-    .init           = sdl_audio_init,
-    .fini           = sdl_audio_fini,
-    .pcm_ops        = &sdl_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof(SDLVoiceOut),
-    .voice_size_in  = sizeof(SDLVoiceIn),
-};
-
-static void register_audio_sdl(void)
-{
-    audio_driver_register(&sdl_audio_driver);
-}
-type_init(register_audio_sdl);
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_SDL);

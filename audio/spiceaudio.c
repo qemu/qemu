@@ -24,10 +24,30 @@
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "ui/qemu-spice.h"
+#include "qom/object.h"
 
-#define AUDIO_CAP "spice"
 #include "qemu/audio.h"
 #include "audio_int.h"
+
+#define TYPE_AUDIO_SPICE "audio-spice"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioSpice, AUDIO_SPICE)
+
+static AudioBackendClass *audio_spice_parent_class;
+
+struct AudioSpice {
+    AudioMixengBackend parent_obj;
+};
+
+static bool spice_audio_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
+{
+    if (!using_spice) {
+        error_setg(errp, "Cannot use spice audio without -spice");
+        qapi_free_Audiodev(dev);
+        return false;
+    }
+
+    return audio_spice_parent_class->realize(abe, dev, errp);
+}
 
 #if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
 #define LINE_OUT_SAMPLES (480 * 4)
@@ -72,25 +92,9 @@ static const SpiceRecordInterface record_sif = {
     .base.minor_version = SPICE_INTERFACE_RECORD_MINOR,
 };
 
-static void *spice_audio_init(Audiodev *dev, Error **errp)
-{
-    if (!using_spice) {
-        error_setg(errp, "Cannot use spice audio without -spice");
-        return NULL;
-    }
-
-    return &spice_audio_init;
-}
-
-static void spice_audio_fini (void *opaque)
-{
-    /* nothing */
-}
-
 /* playback */
 
-static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
-                         void *drv_opaque)
+static int line_out_init(HWVoiceOut *hw, struct audsettings *as)
 {
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
     struct audsettings settings;
@@ -102,7 +106,7 @@ static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
 #endif
     settings.nchannels  = SPICE_INTERFACE_PLAYBACK_CHAN;
     settings.fmt        = AUDIO_FORMAT_S16;
-    settings.endianness = HOST_BIG_ENDIAN;
+    settings.big_endian = HOST_BIG_ENDIAN;
 
     audio_pcm_init_info (&hw->info, &settings);
     hw->samples = LINE_OUT_SAMPLES;
@@ -206,7 +210,7 @@ static void line_out_volume(HWVoiceOut *hw, Volume *vol)
 
 /* record */
 
-static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+static int line_in_init(HWVoiceIn *hw, struct audsettings *as)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
     struct audsettings settings;
@@ -218,7 +222,7 @@ static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 #endif
     settings.nchannels  = SPICE_INTERFACE_RECORD_CHAN;
     settings.fmt        = AUDIO_FORMAT_S16;
-    settings.endianness = HOST_BIG_ENDIAN;
+    settings.big_endian = HOST_BIG_ENDIAN;
 
     audio_pcm_init_info (&hw->info, &settings);
     hw->samples = LINE_IN_SAMPLES;
@@ -291,44 +295,51 @@ static void line_in_volume(HWVoiceIn *hw, Volume *vol)
 }
 #endif
 
-static struct audio_pcm_ops audio_callbacks = {
-    .init_out = line_out_init,
-    .fini_out = line_out_fini,
-    .write    = audio_generic_write,
-    .buffer_get_free = line_out_get_free,
-    .get_buffer_out = line_out_get_buffer,
-    .put_buffer_out = line_out_put_buffer,
-    .enable_out = line_out_enable,
+static void audio_spice_class_init(ObjectClass *klass, const void *data)
+{
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_spice_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = spice_audio_realize;
+    k->max_voices_out = 1;
+    k->max_voices_in = 1;
+    k->voice_size_out = sizeof(SpiceVoiceOut);
+    k->voice_size_in = sizeof(SpiceVoiceIn);
+
+    k->init_out = line_out_init;
+    k->fini_out = line_out_fini;
+    k->write = audio_generic_write;
+    k->buffer_get_free = line_out_get_free;
+    k->get_buffer_out = line_out_get_buffer;
+    k->put_buffer_out = line_out_put_buffer;
+    k->enable_out = line_out_enable;
 #if (SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && \
         (SPICE_INTERFACE_PLAYBACK_MINOR >= 2)
-    .volume_out = line_out_volume,
+    k->volume_out = line_out_volume;
 #endif
 
-    .init_in  = line_in_init,
-    .fini_in  = line_in_fini,
-    .read     = line_in_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = line_in_enable,
+    k->init_in = line_in_init;
+    k->fini_in = line_in_fini;
+    k->read = line_in_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = line_in_enable;
 #if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
-    .volume_in = line_in_volume,
+    k->volume_in = line_in_volume;
 #endif
-};
-
-static struct audio_driver spice_audio_driver = {
-    .name           = "spice",
-    .init           = spice_audio_init,
-    .fini           = spice_audio_fini,
-    .pcm_ops        = &audio_callbacks,
-    .max_voices_out = 1,
-    .max_voices_in  = 1,
-    .voice_size_out = sizeof (SpiceVoiceOut),
-    .voice_size_in  = sizeof (SpiceVoiceIn),
-};
-
-static void register_audio_spice(void)
-{
-    audio_driver_register(&spice_audio_driver);
 }
-type_init(register_audio_spice);
+
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_SPICE,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioSpice),
+        .class_init = audio_spice_class_init,
+    },
+};
+
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_SPICE);
 
 module_dep("ui-spice-core");

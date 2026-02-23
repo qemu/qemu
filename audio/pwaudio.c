@@ -13,37 +13,43 @@
 #include "qemu/audio.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 #include <spa/param/audio/format-utils.h>
 #include <spa/utils/ringbuffer.h>
 #include <spa/utils/result.h>
 #include <spa/param/props.h>
 
 #include <pipewire/pipewire.h>
+
+#include "audio_int.h"
 #include "trace.h"
 
-#define AUDIO_CAP "pipewire"
 #define RINGBUFFER_SIZE    (1u << 22)
 #define RINGBUFFER_MASK    (RINGBUFFER_SIZE - 1)
 
-#include "audio_int.h"
+#define TYPE_AUDIO_PW "audio-pipewire"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioPw, AUDIO_PW)
 
-typedef struct pwvolume {
-    uint32_t channels;
-    float values[SPA_AUDIO_MAX_CHANNELS];
-} pwvolume;
+static AudioBackendClass *audio_pw_parent_class;
 
-typedef struct pwaudio {
-    Audiodev *dev;
+struct AudioPw {
+    AudioMixengBackend parent_obj;
+
     struct pw_thread_loop *thread_loop;
     struct pw_context *context;
 
     struct pw_core *core;
     struct spa_hook core_listener;
     int last_seq, pending_seq, error;
-} pwaudio;
+};
+
+
+typedef struct pwvolume {
+    uint32_t channels;
+    float values[SPA_AUDIO_MAX_CHANNELS];
+} pwvolume;
 
 typedef struct PWVoice {
-    pwaudio *g;
     struct pw_stream *stream;
     struct spa_hook stream_listener;
     struct spa_audio_info_raw info;
@@ -219,9 +225,9 @@ static const struct pw_stream_events playback_stream_events = {
 static size_t
 qpw_read(HWVoiceIn *hw, void *data, size_t len)
 {
+    AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceIn *pw = (PWVoiceIn *) hw;
     PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
     const char *error = NULL;
     size_t l;
     int32_t avail;
@@ -256,9 +262,9 @@ done_unlock:
 
 static size_t qpw_buffer_get_free(HWVoiceOut *hw)
 {
+    AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceOut *pw = (PWVoiceOut *)hw;
     PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
     const char *error = NULL;
     int32_t filled, avail;
     uint32_t index;
@@ -281,9 +287,9 @@ done_unlock:
 static size_t
 qpw_write(HWVoiceOut *hw, void *data, size_t len)
 {
+    AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceOut *pw = (PWVoiceOut *) hw;
     PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
     const char *error = NULL;
     int32_t filled, avail;
     uint32_t index;
@@ -351,7 +357,7 @@ audfmt_to_pw(AudioFormat fmt, bool big_endian)
         format = big_endian ? SPA_AUDIO_FORMAT_F32_BE : SPA_AUDIO_FORMAT_F32_LE;
         break;
     default:
-        dolog("Internal logic error: Bad audio format %d\n", fmt);
+        error_report("pipewire: internal logic error: bad audio format %d", fmt);
         format = SPA_AUDIO_FORMAT_U8;
         break;
     }
@@ -359,7 +365,7 @@ audfmt_to_pw(AudioFormat fmt, bool big_endian)
 }
 
 static AudioFormat
-pw_to_audfmt(enum spa_audio_format fmt, int *endianness,
+pw_to_audfmt(enum spa_audio_format fmt, bool *big_endian,
              uint32_t *sample_size)
 {
     switch (fmt) {
@@ -371,53 +377,53 @@ pw_to_audfmt(enum spa_audio_format fmt, int *endianness,
         return AUDIO_FORMAT_U8;
     case SPA_AUDIO_FORMAT_S16_BE:
         *sample_size = 2;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S16;
     case SPA_AUDIO_FORMAT_S16_LE:
         *sample_size = 2;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S16;
     case SPA_AUDIO_FORMAT_U16_BE:
         *sample_size = 2;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_U16;
     case SPA_AUDIO_FORMAT_U16_LE:
         *sample_size = 2;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_U16;
     case SPA_AUDIO_FORMAT_S32_BE:
         *sample_size = 4;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_S32;
     case SPA_AUDIO_FORMAT_S32_LE:
         *sample_size = 4;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_S32;
     case SPA_AUDIO_FORMAT_U32_BE:
         *sample_size = 4;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_U32;
     case SPA_AUDIO_FORMAT_U32_LE:
         *sample_size = 4;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_U32;
     case SPA_AUDIO_FORMAT_F32_BE:
         *sample_size = 4;
-        *endianness = 1;
+        *big_endian = true;
         return AUDIO_FORMAT_F32;
     case SPA_AUDIO_FORMAT_F32_LE:
         *sample_size = 4;
-        *endianness = 0;
+        *big_endian = false;
         return AUDIO_FORMAT_F32;
     default:
         *sample_size = 1;
-        dolog("Internal logic error: Bad spa_audio_format %d\n", fmt);
+        error_report("pipewire: internal logic error: bad spa_audio_format %d", fmt);
         return AUDIO_FORMAT_U8;
     }
 }
 
 static int
-qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
+qpw_stream_new(AudioPw *c, PWVoice *v, const char *stream_name,
                const char *name, enum spa_direction dir)
 {
     int res;
@@ -435,8 +441,8 @@ qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
     }
 
     /* 75% of the timer period for faster updates */
-    buf_samples = (uint64_t)v->g->dev->timer_period * v->info.rate
-                    * 3 / 4 / 1000000;
+    buf_samples = (uint64_t)AUDIO_MIXENG_BACKEND(c)->dev->timer_period
+        * v->info.rate * 3 / 4 / 1000000;
     pw_properties_setf(props, PW_KEY_NODE_LATENCY, "%" PRIu64 "/%u",
                        buf_samples, v->info.rate);
 
@@ -511,37 +517,37 @@ qpw_set_position(uint32_t channels, uint32_t position[SPA_AUDIO_MAX_CHANNELS])
         position[0] = SPA_AUDIO_CHANNEL_MONO;
         break;
     default:
-        dolog("Internal error: unsupported channel count %d\n", channels);
+        error_report("pipewire: unsupported channel count %d", channels);
     }
 }
 
 static int
-qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
+qpw_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
+    AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceOut *pw = (PWVoiceOut *) hw;
     PWVoice *v = &pw->v;
     struct audsettings obt_as = *as;
-    pwaudio *c = v->g = drv_opaque;
-    AudiodevPipewireOptions *popts = &c->dev->u.pipewire;
+    AudiodevPipewireOptions *popts = &AUDIO_MIXENG_BACKEND(c)->dev->u.pipewire;
     AudiodevPipewirePerDirectionOptions *ppdo = popts->out;
     int r;
 
     pw_thread_loop_lock(c->thread_loop);
 
-    v->info.format = audfmt_to_pw(as->fmt, as->endianness);
+    v->info.format = audfmt_to_pw(as->fmt, as->big_endian);
     v->info.channels = as->nchannels;
     qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
-        pw_to_audfmt(v->info.format, &obt_as.endianness, &v->frame_size);
+        pw_to_audfmt(v->info.format, &obt_as.big_endian, &v->frame_size);
     v->frame_size *= as->nchannels;
 
-    v->req = (uint64_t)c->dev->timer_period * v->info.rate
+    v->req = (uint64_t)AUDIO_MIXENG_BACKEND(c)->dev->timer_period * v->info.rate
         * 1 / 2 / 1000000 * v->frame_size;
 
     /* call the function that creates a new stream for playback */
-    r = qpw_stream_new(c, v, ppdo->stream_name ? : c->dev->id,
+    r = qpw_stream_new(c, v, ppdo->stream_name ?: AUDIO_MIXENG_BACKEND(c)->dev->id,
                        ppdo->name, SPA_DIRECTION_OUTPUT);
     if (r < 0) {
         pw_thread_loop_unlock(c->thread_loop);
@@ -563,29 +569,29 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 }
 
 static int
-qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
+qpw_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
+    AudioPw *c = AUDIO_PW(hw->s);
     PWVoiceIn *pw = (PWVoiceIn *) hw;
     PWVoice *v = &pw->v;
     struct audsettings obt_as = *as;
-    pwaudio *c = v->g = drv_opaque;
-    AudiodevPipewireOptions *popts = &c->dev->u.pipewire;
+    AudiodevPipewireOptions *popts = &AUDIO_MIXENG_BACKEND(c)->dev->u.pipewire;
     AudiodevPipewirePerDirectionOptions *ppdo = popts->in;
     int r;
 
     pw_thread_loop_lock(c->thread_loop);
 
-    v->info.format = audfmt_to_pw(as->fmt, as->endianness);
+    v->info.format = audfmt_to_pw(as->fmt, as->big_endian);
     v->info.channels = as->nchannels;
     qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
-        pw_to_audfmt(v->info.format, &obt_as.endianness, &v->frame_size);
+        pw_to_audfmt(v->info.format, &obt_as.big_endian, &v->frame_size);
     v->frame_size *= as->nchannels;
 
     /* call the function that creates a new stream for recording */
-    r = qpw_stream_new(c, v, ppdo->stream_name ? : c->dev->id,
+    r = qpw_stream_new(c, v, ppdo->stream_name ? : AUDIO_MIXENG_BACKEND(c)->dev->id,
                        ppdo->name, SPA_DIRECTION_INPUT);
     if (r < 0) {
         pw_thread_loop_unlock(c->thread_loop);
@@ -604,10 +610,8 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 }
 
 static void
-qpw_voice_fini(PWVoice *v)
+qpw_voice_fini(AudioPw *c, PWVoice *v)
 {
-    pwaudio *c = v->g;
-
     if (!v->stream) {
         return;
     }
@@ -620,19 +624,18 @@ qpw_voice_fini(PWVoice *v)
 static void
 qpw_fini_out(HWVoiceOut *hw)
 {
-    qpw_voice_fini(&PW_VOICE_OUT(hw)->v);
+    qpw_voice_fini(AUDIO_PW(hw->s), &PW_VOICE_OUT(hw)->v);
 }
 
 static void
 qpw_fini_in(HWVoiceIn *hw)
 {
-    qpw_voice_fini(&PW_VOICE_IN(hw)->v);
+    qpw_voice_fini(AUDIO_PW(hw->s), &PW_VOICE_IN(hw)->v);
 }
 
 static void
-qpw_voice_set_enabled(PWVoice *v, bool enable)
+qpw_voice_set_enabled(AudioPw *c, PWVoice *v, bool enable)
 {
-    pwaudio *c = v->g;
     pw_thread_loop_lock(c->thread_loop);
     pw_stream_set_active(v->stream, enable);
     pw_thread_loop_unlock(c->thread_loop);
@@ -641,19 +644,18 @@ qpw_voice_set_enabled(PWVoice *v, bool enable)
 static void
 qpw_enable_out(HWVoiceOut *hw, bool enable)
 {
-    qpw_voice_set_enabled(&PW_VOICE_OUT(hw)->v, enable);
+    qpw_voice_set_enabled(AUDIO_PW(hw->s), &PW_VOICE_OUT(hw)->v, enable);
 }
 
 static void
 qpw_enable_in(HWVoiceIn *hw, bool enable)
 {
-    qpw_voice_set_enabled(&PW_VOICE_IN(hw)->v, enable);
+    qpw_voice_set_enabled(AUDIO_PW(hw->s), &PW_VOICE_IN(hw)->v, enable);
 }
 
 static void
-qpw_voice_set_volume(PWVoice *v, Volume *vol)
+qpw_voice_set_volume(AudioPw *c, PWVoice *v, Volume *vol)
 {
-    pwaudio *c = v->g;
     int i, ret;
 
     pw_thread_loop_lock(c->thread_loop);
@@ -676,16 +678,16 @@ qpw_voice_set_volume(PWVoice *v, Volume *vol)
 static void
 qpw_volume_out(HWVoiceOut *hw, Volume *vol)
 {
-    qpw_voice_set_volume(&PW_VOICE_OUT(hw)->v, vol);
+    qpw_voice_set_volume(AUDIO_PW(hw->s), &PW_VOICE_OUT(hw)->v, vol);
 }
 
 static void
 qpw_volume_in(HWVoiceIn *hw, Volume *vol)
 {
-    qpw_voice_set_volume(&PW_VOICE_IN(hw)->v, vol);
+    qpw_voice_set_volume(AUDIO_PW(hw->s), &PW_VOICE_IN(hw)->v, vol);
 }
 
-static int wait_resync(pwaudio *pw)
+static int wait_resync(AudioPw *pw)
 {
     int res;
     pw->pending_seq = pw_core_sync(pw->core, PW_ID_CORE, pw->pending_seq);
@@ -708,7 +710,7 @@ static int wait_resync(pwaudio *pw)
 static void
 on_core_error(void *data, uint32_t id, int seq, int res, const char *message)
 {
-    pwaudio *pw = data;
+    AudioPw *pw = data;
 
     error_report("error id:%u seq:%d res:%d (%s): %s",
                 id, seq, res, spa_strerror(res), message);
@@ -720,7 +722,7 @@ on_core_error(void *data, uint32_t id, int seq, int res, const char *message)
 static void
 on_core_done(void *data, uint32_t id, int seq)
 {
-    pwaudio *pw = data;
+    AudioPw *pw = data;
     assert(id == PW_ID_CORE);
     pw->last_seq = seq;
     if (pw->pending_seq == seq) {
@@ -735,17 +737,20 @@ static const struct pw_core_events core_events = {
     .error = on_core_error,
 };
 
-static void *
-qpw_audio_init(Audiodev *dev, Error **errp)
+static bool
+audio_pw_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
 {
-    g_autofree pwaudio *pw = g_new0(pwaudio, 1);
+    AudioPw *pw = AUDIO_PW(abe);
 
     assert(dev->driver == AUDIODEV_DRIVER_PIPEWIRE);
     trace_pw_audio_init();
 
+    if (!audio_pw_parent_class->realize(abe, dev, errp)) {
+        return false;
+    }
+
     pw_init(NULL, NULL);
 
-    pw->dev = dev;
     pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
     if (pw->thread_loop == NULL) {
         error_setg_errno(errp, errno, "Could not create PipeWire loop");
@@ -784,8 +789,7 @@ qpw_audio_init(Audiodev *dev, Error **errp)
     }
 
     pw_thread_loop_unlock(pw->thread_loop);
-
-    return g_steal_pointer(&pw);
+    return true;
 
 fail:
     if (pw->thread_loop) {
@@ -793,13 +797,13 @@ fail:
     }
     g_clear_pointer(&pw->context, pw_context_destroy);
     g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
-    return NULL;
+    return false;
 }
 
 static void
-qpw_audio_fini(void *opaque)
+audio_pw_finalize(Object *obj)
 {
-    pwaudio *pw = opaque;
+    AudioPw *pw = AUDIO_PW(obj);
 
     if (pw->thread_loop) {
         pw_thread_loop_stop(pw->thread_loop);
@@ -814,43 +818,47 @@ qpw_audio_fini(void *opaque)
     if (pw->context) {
         pw_context_destroy(pw->context);
     }
-    pw_thread_loop_destroy(pw->thread_loop);
-
-    g_free(pw);
+    g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
 }
 
-static struct audio_pcm_ops qpw_pcm_ops = {
-    .init_out = qpw_init_out,
-    .fini_out = qpw_fini_out,
-    .write = qpw_write,
-    .buffer_get_free = qpw_buffer_get_free,
-    .run_buffer_out = audio_generic_run_buffer_out,
-    .enable_out = qpw_enable_out,
-    .volume_out = qpw_volume_out,
-    .volume_in = qpw_volume_in,
-
-    .init_in = qpw_init_in,
-    .fini_in = qpw_fini_in,
-    .read = qpw_read,
-    .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = qpw_enable_in
-};
-
-static struct audio_driver pw_audio_driver = {
-    .name = "pipewire",
-    .init = qpw_audio_init,
-    .fini = qpw_audio_fini,
-    .pcm_ops = &qpw_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in = INT_MAX,
-    .voice_size_out = sizeof(PWVoiceOut),
-    .voice_size_in = sizeof(PWVoiceIn),
-};
-
-static void
-register_audio_pw(void)
+static void audio_pw_class_init(ObjectClass *klass, const void *data)
 {
-    audio_driver_register(&pw_audio_driver);
+    AudioBackendClass *b = AUDIO_BACKEND_CLASS(klass);
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    audio_pw_parent_class = AUDIO_BACKEND_CLASS(object_class_get_parent(klass));
+
+    b->realize = audio_pw_realize;
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(PWVoiceOut);
+    k->voice_size_in = sizeof(PWVoiceIn);
+
+    k->init_out = qpw_init_out;
+    k->fini_out = qpw_fini_out;
+    k->write = qpw_write;
+    k->buffer_get_free = qpw_buffer_get_free;
+    k->run_buffer_out = audio_generic_run_buffer_out;
+    k->enable_out = qpw_enable_out;
+    k->volume_out = qpw_volume_out;
+
+    k->init_in = qpw_init_in;
+    k->fini_in = qpw_fini_in;
+    k->read = qpw_read;
+    k->run_buffer_in = audio_generic_run_buffer_in;
+    k->enable_in = qpw_enable_in;
+    k->volume_in = qpw_volume_in;
 }
 
-type_init(register_audio_pw);
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_PW,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioPw),
+        .class_init = audio_pw_class_init,
+        .instance_finalize = audio_pw_finalize,
+    },
+};
+
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_PW);

@@ -18,11 +18,20 @@
 #include <poll.h>
 #include <sndio.h>
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "qemu/audio.h"
+#include "qom/object.h"
+
+#include "audio_int.h"
 #include "trace.h"
 
-#define AUDIO_CAP "sndio"
-#include "audio_int.h"
+#define TYPE_AUDIO_SNDIO "audio-sndio"
+OBJECT_DECLARE_SIMPLE_TYPE(AudioSndio, AUDIO_SNDIO)
+
+struct AudioSndio {
+    AudioMixengBackend parent_obj;
+};
+
 
 /* default latency in microseconds if no option is set */
 #define SNDIO_LATENCY_US   50000
@@ -339,7 +348,7 @@ static int sndio_init(SndioVoice *self,
     /* open the device in non-blocking mode */
     self->hdl = sio_open(dev_name, mode, 1);
     if (self->hdl == NULL) {
-        dolog("failed to open device\n");
+        error_report("sndio: failed to open device");
         return -1;
     }
 
@@ -373,12 +382,12 @@ static int sndio_init(SndioVoice *self,
         req.sig = 0;
         break;
     default:
-        dolog("unknown audio sample format\n");
+        error_report("sndio: unknown audio sample format");
         return -1;
     }
 
     if (req.bits > 8) {
-        req.le = as->endianness ? 0 : 1;
+        req.le = !as->big_endian;
     }
 
     req.rate = as->freq;
@@ -392,12 +401,12 @@ static int sndio_init(SndioVoice *self,
     req.appbufsz = req.rate * latency / 1000000;
 
     if (!sio_setpar(self->hdl, &req)) {
-        dolog("failed set audio params\n");
+        error_report("sndio: failed to set audio params");
         goto fail;
     }
 
     if (!sio_getpar(self->hdl, &self->par)) {
-        dolog("failed get audio params\n");
+        error_report("sndio: failed to get audio params");
         goto fail;
     }
 
@@ -410,7 +419,7 @@ static int sndio_init(SndioVoice *self,
     if (self->par.bits != req.bits || self->par.bps != req.bits / 8 ||
         self->par.sig != req.sig || (req.bits > 8 && self->par.le != req.le) ||
         self->par.rate != as->freq || nch != as->nchannels) {
-        dolog("unsupported audio params\n");
+        error_report("sndio: unsupported audio params");
         goto fail;
     }
 
@@ -422,7 +431,7 @@ static int sndio_init(SndioVoice *self,
 
     self->buf = g_malloc(self->buf_size);
     if (self->buf == NULL) {
-        dolog("failed to allocate audio buffer\n");
+        error_report("sndio: failed to allocate audio buffer");
         goto fail;
     }
 
@@ -430,13 +439,13 @@ static int sndio_init(SndioVoice *self,
 
     self->pfds = g_malloc_n(nfds, sizeof(struct pollfd));
     if (self->pfds == NULL) {
-        dolog("failed to allocate pollfd structures\n");
+        error_report("sndio: failed to allocate pollfd structures");
         goto fail;
     }
 
     self->pindexes = g_malloc_n(nfds, sizeof(struct pollindex));
     if (self->pindexes == NULL) {
-        dolog("failed to allocate pollindex structures\n");
+        error_report("sndio: failed to allocate pollindex structures");
         goto fail;
     }
 
@@ -478,11 +487,11 @@ static void sndio_enable_in(HWVoiceIn *hw, bool enable)
     sndio_enable(self, enable);
 }
 
-static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as, void *opaque)
+static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
-    if (sndio_init(self, as, SIO_PLAY, opaque) == -1) {
+    if (sndio_init(self, as, SIO_PLAY, hw->s->dev) == -1) {
         return -1;
     }
 
@@ -491,11 +500,11 @@ static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as, void *opaque)
     return 0;
 }
 
-static int sndio_init_in(HWVoiceIn *hw, struct audsettings *as, void *opaque)
+static int sndio_init_in(HWVoiceIn *hw, struct audsettings *as)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
-    if (sndio_init(self, as, SIO_REC, opaque) == -1) {
+    if (sndio_init(self, as, SIO_REC, hw->s->dev) == -1) {
         return -1;
     }
 
@@ -518,46 +527,39 @@ static void sndio_fini_in(HWVoiceIn *hw)
     sndio_fini(self);
 }
 
-static void *sndio_audio_init(Audiodev *dev, Error **errp)
+static void audio_sndio_class_init(ObjectClass *klass, const void *data)
 {
-    assert(dev->driver == AUDIODEV_DRIVER_SNDIO);
-    return dev;
+    AudioMixengBackendClass *k = AUDIO_MIXENG_BACKEND_CLASS(klass);
+
+    k->max_voices_out = INT_MAX;
+    k->max_voices_in = INT_MAX;
+    k->voice_size_out = sizeof(SndioVoice);
+    k->voice_size_in = sizeof(SndioVoice);
+
+    k->init_out = sndio_init_out;
+    k->fini_out = sndio_fini_out;
+    k->write = audio_generic_write;
+    k->buffer_get_free = sndio_buffer_get_free;
+    k->get_buffer_out = sndio_get_buffer_out;
+    k->put_buffer_out = sndio_put_buffer_out;
+    k->enable_out = sndio_enable_out;
+
+    k->init_in = sndio_init_in;
+    k->fini_in = sndio_fini_in;
+    k->read = audio_generic_read;
+    k->get_buffer_in = sndio_get_buffer_in;
+    k->put_buffer_in = sndio_put_buffer_in;
+    k->enable_in = sndio_enable_in;
 }
 
-static void sndio_audio_fini(void *opaque)
-{
-}
-
-static struct audio_pcm_ops sndio_pcm_ops = {
-    .init_out        = sndio_init_out,
-    .fini_out        = sndio_fini_out,
-    .enable_out      = sndio_enable_out,
-    .write           = audio_generic_write,
-    .buffer_get_free = sndio_buffer_get_free,
-    .get_buffer_out  = sndio_get_buffer_out,
-    .put_buffer_out  = sndio_put_buffer_out,
-    .init_in         = sndio_init_in,
-    .fini_in         = sndio_fini_in,
-    .read            = audio_generic_read,
-    .enable_in       = sndio_enable_in,
-    .get_buffer_in   = sndio_get_buffer_in,
-    .put_buffer_in   = sndio_put_buffer_in,
+static const TypeInfo audio_types[] = {
+    {
+        .name = TYPE_AUDIO_SNDIO,
+        .parent = TYPE_AUDIO_MIXENG_BACKEND,
+        .instance_size = sizeof(AudioSndio),
+        .class_init = audio_sndio_class_init,
+    },
 };
 
-static struct audio_driver sndio_audio_driver = {
-    .name           = "sndio",
-    .init           = sndio_audio_init,
-    .fini           = sndio_audio_fini,
-    .pcm_ops        = &sndio_pcm_ops,
-    .max_voices_out = INT_MAX,
-    .max_voices_in  = INT_MAX,
-    .voice_size_out = sizeof(SndioVoice),
-    .voice_size_in  = sizeof(SndioVoice)
-};
-
-static void register_audio_sndio(void)
-{
-    audio_driver_register(&sndio_audio_driver);
-}
-
-type_init(register_audio_sndio);
+DEFINE_TYPES(audio_types)
+module_obj(TYPE_AUDIO_SNDIO);
