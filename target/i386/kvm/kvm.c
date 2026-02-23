@@ -5501,8 +5501,6 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
         }
         if (events.smi.pending) {
             cpu_interrupt(CPU(cpu), CPU_INTERRUPT_SMI);
-        } else {
-            cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_SMI);
         }
         if (events.smi.smm_inside_nmi) {
             env->hflags2 |= HF2_SMM_INSIDE_NMI_MASK;
@@ -5511,8 +5509,6 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
         }
         if (events.smi.latched_init) {
             cpu_interrupt(CPU(cpu), CPU_INTERRUPT_INIT);
-        } else {
-            cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_INIT);
         }
     }
 
