@@ -164,17 +164,12 @@ void write_val_to_reg(void *reg_ptr, target_ulong val, int size)
     }
 }
 
-static void write_val_to_mem(CPUX86State *env, target_ulong ptr, target_ulong val, int size)
-{
-    x86_write_mem(env_cpu(env), &val, ptr, size);
-}
-
 void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size)
 {
     if (decode->type == X86_VAR_REG) {
         write_val_to_reg(decode->regptr, val, size);
     } else {
-        write_val_to_mem(env, decode->addr, val, size);
+        x86_write_mem(env_cpu(env), &val, decode->addr, size);
     }
 }
 
@@ -548,7 +543,7 @@ static void exec_movs_single(CPUX86State *env, struct x86_decode *decode)
                                 decode->addressing_size, R_ES);
 
     val = read_val_from_mem(env, src_addr, decode->operand_size);
-    write_val_to_mem(env, dst_addr, val, decode->operand_size);
+    x86_write_mem(env_cpu(env), &val, dst_addr, decode->operand_size);
 
     string_increment_reg(env, R_ESI, decode);
     string_increment_reg(env, R_EDI, decode);
