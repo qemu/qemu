@@ -1506,6 +1506,26 @@ static void whpx_vcpu_process_async_events(CPUState *cpu)
     }
 }
 
+static void whpx_inject_exceptions(CPUState* cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    if (env->exception_injected) {
+        env->exception_injected = 0;
+        WHV_REGISTER_VALUE reg = {};
+        reg.ExceptionEvent.EventPending = 1;
+        reg.ExceptionEvent.EventType = WHvX64PendingEventException;
+        reg.ExceptionEvent.DeliverErrorCode = 1;
+        reg.ExceptionEvent.Vector = env->exception_nr;
+        reg.ExceptionEvent.ErrorCode = env->error_code;
+        if (env->exception_nr == EXCP0E_PAGE) {
+            reg.ExceptionEvent.ExceptionParameter = env->cr[2];
+        }
+        whpx_set_reg(cpu, WHvRegisterPendingEvent, reg);
+    }
+}
+
 int whpx_vcpu_run(CPUState *cpu)
 {
     HRESULT hr;
@@ -1599,6 +1619,8 @@ int whpx_vcpu_run(CPUState *cpu)
         if (exclusive_step_mode != WHPX_STEP_NONE || cpu->singlestep_enabled) {
             whpx_vcpu_configure_single_stepping(cpu, true, NULL);
         }
+
+        whpx_inject_exceptions(cpu);
 
         hr = whp_dispatch.WHvRunVirtualProcessor(
             whpx->partition, cpu->cpu_index,
