@@ -227,18 +227,39 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
             p->exp = fmt->frac_shift - fmt->exp_bias
                    - shift + !has_pseudo_denormals;
         }
-    } else if (likely(p->exp < fmt->exp_max) || fmt->arm_althp) {
-        p->cls = float_class_normal;
-        p->exp -= fmt->exp_bias;
-        frac_shl(p, fmt->frac_shift);
-        p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
-    } else if (likely(frac_eqz(p))) {
-        p->cls = float_class_inf;
-    } else {
-        frac_shl(p, fmt->frac_shift);
-        p->cls = (parts_is_snan_frac(p->frac_hi, status)
-                  ? float_class_snan : float_class_qnan);
+        return;
     }
+    if (unlikely(p->exp == fmt->exp_max)) {
+        switch (fmt->exp_max_kind) {
+        case float_expmax_ieee:
+            if (likely(frac_eqz(p))) {
+                p->cls = float_class_inf;
+            } else {
+                frac_shl(p, fmt->frac_shift);
+                p->cls = (parts_is_snan_frac(p->frac_hi, status)
+                          ? float_class_snan : float_class_qnan);
+            }
+            return;
+        case float_expmax_normal:
+            break;
+        case float_expmax_e4m3:
+            if (p->frac_hi == 0b111) {
+                frac_shl(p, fmt->frac_shift);
+                p->cls = (parts_is_snan_frac(p->frac_hi, status)
+                          ? float_class_snan : float_class_qnan);
+                return;
+            }
+            /* otherwise normal */
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    p->cls = float_class_normal;
+    p->exp -= fmt->exp_bias;
+    frac_shl(p, fmt->frac_shift);
+    p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
 }
 
 /*
@@ -246,9 +267,27 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
  * are FRAC_SHIFT bits that may require rounding at the bottom of the
  * fraction; these bits will be removed. The exponent will be biased
  * by EXP_BIAS and must be bounded by [EXP_MAX-1, 0].
+ *
+ * The saturate parameter controls saturation behavior for formats that
+ * support it -- when true, overflow produces max normal instead of infinity.
  */
+
+/* Helper for uncanon_normal and uncanon, for FP8 E4M3. */
+static void partsN(uncanon_e4m3_overflow)(FloatPartsN *p, float_status *s,
+                                          const FloatFmt *fmt, bool saturate)
+{
+    assert(N == 64);
+    float_raise(float_flag_overflow | float_flag_inexact, s);
+    if (saturate) {
+        p->exp = fmt->exp_max;
+        p->frac_hi = E4M3_NORMAL_FRAC_MAX;
+    } else {
+        parts_default_nan(p, s);
+    }
+}
+
 static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
-                                   const FloatFmt *fmt)
+                                   const FloatFmt *fmt, bool saturate)
 {
     const int exp_max = fmt->exp_max;
     const int frac_shift = fmt->frac_shift;
@@ -257,7 +296,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     const uint64_t frac_lsbm1 = round_mask ^ (round_mask >> 1);
     const uint64_t roundeven_mask = round_mask | frac_lsb;
     uint64_t inc;
-    bool overflow_norm = false;
+    bool overflow_norm = saturate;
     int exp, flags = 0;
 
     switch (s->float_rounding_mode) {
@@ -282,11 +321,11 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         break;
     case float_round_up:
         inc = p->sign ? 0 : round_mask;
-        overflow_norm = p->sign;
+        overflow_norm |= p->sign;
         break;
     case float_round_down:
         inc = p->sign ? round_mask : 0;
-        overflow_norm = !p->sign;
+        overflow_norm |= !p->sign;
         break;
     case float_round_to_odd:
         overflow_norm = true;
@@ -314,29 +353,45 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             p->frac_lo &= ~round_mask;
         }
 
-        if (fmt->arm_althp) {
-            /* ARM Alt HP eschews Inf and NaN for a wider exponent.  */
-            if (unlikely(exp > exp_max)) {
-                /* Overflow.  Return the maximum normal.  */
-                flags = float_flag_invalid;
-                exp = exp_max;
-                frac_allones(p);
-                p->frac_lo &= ~round_mask;
-            }
-        } else if (unlikely(exp >= exp_max)) {
-            flags |= float_flag_overflow;
-            if (s->rebias_overflow) {
-                exp -= fmt->exp_re_bias;
-            } else if (overflow_norm) {
-                flags |= float_flag_inexact;
-                exp = exp_max - 1;
-                frac_allones(p);
-                p->frac_lo &= ~round_mask;
-            } else {
-                flags |= float_flag_inexact;
-                p->cls = float_class_inf;
-                exp = exp_max;
-                frac_clear(p);
+        if (unlikely(exp >= exp_max)) {
+            switch (fmt->exp_max_kind) {
+            case float_expmax_ieee:
+                flags |= float_flag_overflow;
+                if (s->rebias_overflow) {
+                    exp -= fmt->exp_re_bias;
+                } else if (overflow_norm) {
+                    flags |= float_flag_inexact;
+                    exp = exp_max - 1;
+                    frac_allones(p);
+                    p->frac_lo &= ~round_mask;
+                } else {
+                    flags |= float_flag_inexact;
+                    p->cls = float_class_inf;
+                    exp = exp_max;
+                    frac_clear(p);
+                }
+                break;
+
+            case float_expmax_normal:
+                if (unlikely(exp > exp_max)) {
+                    /* Overflow.  Return the maximum normal.  */
+                    flags = (fmt->overflow_raises_invalid
+                             ? float_flag_invalid
+                             : float_flag_overflow | float_flag_inexact);
+                    exp = exp_max;
+                    frac_allones(p);
+                    p->frac_lo &= ~round_mask;
+                }
+                break;
+
+            case float_expmax_e4m3:
+                if (exp > exp_max || p->frac_hi > E4M3_NORMAL_FRAC_MAX) {
+                    partsN(uncanon_e4m3_overflow)(p, s, fmt, overflow_norm);
+                }
+                break;
+
+            default:
+                g_assert_not_reached();
             }
         }
         frac_shr(p, frac_shift);
@@ -423,10 +478,10 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
 }
 
 static void partsN(uncanon)(FloatPartsN *p, float_status *s,
-                            const FloatFmt *fmt)
+                            const FloatFmt *fmt, bool saturate)
 {
     if (likely(is_anynorm(p->cls))) {
-        parts_uncanon_normal(p, s, fmt);
+        parts_uncanon_normal(p, s, fmt, saturate);
     } else {
         switch (p->cls) {
         case float_class_zero:
@@ -434,13 +489,22 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
             frac_clear(p);
             return;
         case float_class_inf:
-            g_assert(!fmt->arm_althp);
-            p->exp = fmt->exp_max;
-            frac_clear(p);
+            switch (fmt->exp_max_kind) {
+            case float_expmax_ieee:
+                p->exp = fmt->exp_max;
+                frac_clear(p);
+                break;
+            case float_expmax_e4m3:
+                partsN(uncanon_e4m3_overflow)(p, s, fmt, saturate);
+                break;
+            case float_expmax_normal:
+            default:
+                g_assert_not_reached();
+            }
             return;
         case float_class_qnan:
         case float_class_snan:
-            g_assert(!fmt->arm_althp);
+            assert(fmt->exp_max_kind != float_expmax_normal);
             p->exp = fmt->exp_max;
             frac_shr(p, fmt->frac_shift);
             return;

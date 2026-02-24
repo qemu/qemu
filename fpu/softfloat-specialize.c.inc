@@ -227,42 +227,26 @@ floatx80 floatx80_default_inf(bool zSign, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Determine if a float16 NaN is signaling NaN.
+*----------------------------------------------------------------------------*/
+
+static bool float16_nan_is_snan(float16 a, float_status *status)
+{
+    if (no_signaling_nans(status)) {
+        return false;
+    }
+    bool frac_msb_is_one = (a >> 9) & 1;
+    return frac_msb_is_one == snan_bit_is_one(status);
+}
+
+/*----------------------------------------------------------------------------
 | Returns 1 if the half-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 bool float16_is_quiet_nan(float16 a_, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return float16_is_any_nan(a_);
-    } else {
-        uint16_t a = float16_val(a_);
-        if (snan_bit_is_one(status)) {
-            return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
-        } else {
-
-            return ((a >> 9) & 0x3F) == 0x3F;
-        }
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Returns 1 if the bfloat16 value `a' is a quiet
-| NaN; otherwise returns 0.
-*----------------------------------------------------------------------------*/
-
-bool bfloat16_is_quiet_nan(bfloat16 a_, float_status *status)
-{
-    if (no_signaling_nans(status)) {
-        return bfloat16_is_any_nan(a_);
-    } else {
-        uint16_t a = a_;
-        if (snan_bit_is_one(status)) {
-            return (((a >> 6) & 0x1FF) == 0x1FE) && (a & 0x3F);
-        } else {
-            return ((a >> 6) & 0x1FF) == 0x1FF;
-        }
-    }
+    return float16_is_any_nan(a_) && !float16_nan_is_snan(a_, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -272,35 +256,51 @@ bool bfloat16_is_quiet_nan(bfloat16 a_, float_status *status)
 
 bool float16_is_signaling_nan(float16 a_, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return 0;
-    } else {
-        uint16_t a = float16_val(a_);
-        if (snan_bit_is_one(status)) {
-            return ((a >> 9) & 0x3F) == 0x3F;
-        } else {
-            return (((a >> 9) & 0x3F) == 0x3E) && (a & 0x1FF);
-        }
-    }
+    return float16_is_any_nan(a_) && float16_nan_is_snan(a_, status);
 }
 
 /*----------------------------------------------------------------------------
-| Returns 1 if the bfloat16 value `a' is a signaling
-| NaN; otherwise returns 0.
+| Determine if a bfloat16 NaN is signaling NaN.
+*----------------------------------------------------------------------------*/
+
+static bool bfloat16_nan_is_snan(bfloat16 a, float_status *status)
+{
+    if (no_signaling_nans(status)) {
+        return false;
+    }
+    bool frac_msb_is_one = (a >> 6) & 1;
+    return frac_msb_is_one == snan_bit_is_one(status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the bfloat16 value `a' is a quiet NaN; otherwise returns 0.
+*----------------------------------------------------------------------------*/
+
+bool bfloat16_is_quiet_nan(bfloat16 a_, float_status *status)
+{
+    return bfloat16_is_any_nan(a_) && !bfloat16_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the bfloat16 value `a' is a signaling NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 bool bfloat16_is_signaling_nan(bfloat16 a_, float_status *status)
 {
+    return bfloat16_is_any_nan(a_) && bfloat16_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Determine if a float32 NaN is signaling NaN.
+*----------------------------------------------------------------------------*/
+
+static bool float32_nan_is_snan(float32 a, float_status *status)
+{
     if (no_signaling_nans(status)) {
-        return 0;
-    } else {
-        uint16_t a = a_;
-        if (snan_bit_is_one(status)) {
-            return ((a >> 6) & 0x1FF) == 0x1FF;
-        } else {
-            return (((a >> 6) & 0x1FF) == 0x1FE) && (a & 0x3F);
-        }
+        return false;
     }
+    bool frac_msb_is_one = (a >> 22) & 1;
+    return frac_msb_is_one == snan_bit_is_one(status);
 }
 
 /*----------------------------------------------------------------------------
@@ -310,16 +310,7 @@ bool bfloat16_is_signaling_nan(bfloat16 a_, float_status *status)
 
 bool float32_is_quiet_nan(float32 a_, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return float32_is_any_nan(a_);
-    } else {
-        uint32_t a = float32_val(a_);
-        if (snan_bit_is_one(status)) {
-            return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
-        } else {
-            return ((uint32_t)(a << 1) >= 0xFF800000);
-        }
-    }
+    return float32_is_any_nan(a_) && !float32_nan_is_snan(a_, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -329,16 +320,20 @@ bool float32_is_quiet_nan(float32 a_, float_status *status)
 
 bool float32_is_signaling_nan(float32 a_, float_status *status)
 {
+    return float32_is_any_nan(a_) && float32_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Determine if a float64 NaN is signaling NaN.
+*----------------------------------------------------------------------------*/
+
+static bool float64_nan_is_snan(float64 a, float_status *status)
+{
     if (no_signaling_nans(status)) {
-        return 0;
-    } else {
-        uint32_t a = float32_val(a_);
-        if (snan_bit_is_one(status)) {
-            return ((uint32_t)(a << 1) >= 0xFF800000);
-        } else {
-            return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
-        }
+        return false;
     }
+    bool frac_msb_is_one = (a >> 51) & 1;
+    return frac_msb_is_one == snan_bit_is_one(status);
 }
 
 /*----------------------------------------------------------------------------
@@ -348,17 +343,7 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
 
 bool float64_is_quiet_nan(float64 a_, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return float64_is_any_nan(a_);
-    } else {
-        uint64_t a = float64_val(a_);
-        if (snan_bit_is_one(status)) {
-            return (((a >> 51) & 0xFFF) == 0xFFE)
-                && (a & 0x0007FFFFFFFFFFFFULL);
-        } else {
-            return ((a << 1) >= 0xFFF0000000000000ULL);
-        }
-    }
+    return float64_is_any_nan(a_) && !float64_nan_is_snan(a_, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -368,67 +353,42 @@ bool float64_is_quiet_nan(float64 a_, float_status *status)
 
 bool float64_is_signaling_nan(float64 a_, float_status *status)
 {
+    return float64_is_any_nan(a_) && float64_nan_is_snan(a_, status);
+}
+
+/*----------------------------------------------------------------------------
+| Determine if a floatx80 NaN is signaling NaN.
+| The MSB of frac differs from the same function for other types as floatx80
+| has an explicit bit.
+*----------------------------------------------------------------------------*/
+
+static bool floatx80_nan_is_snan(floatx80 a, float_status *status)
+{
     if (no_signaling_nans(status)) {
-        return 0;
-    } else {
-        uint64_t a = float64_val(a_);
-        if (snan_bit_is_one(status)) {
-            return ((a << 1) >= 0xFFF0000000000000ULL);
-        } else {
-            return (((a >> 51) & 0xFFF) == 0xFFE)
-                && (a & UINT64_C(0x0007FFFFFFFFFFFF));
-        }
+        return false;
     }
+    bool frac_msb_is_one = (a.low >> 62) & 1;
+    return frac_msb_is_one == snan_bit_is_one(status);
 }
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
-| quiet NaN; otherwise returns 0. This slightly differs from the same
-| function for other types as floatx80 has an explicit bit.
+| quiet NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int floatx80_is_quiet_nan(floatx80 a, float_status *status)
+bool floatx80_is_quiet_nan(floatx80 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return floatx80_is_any_nan(a);
-    } else {
-        if (snan_bit_is_one(status)) {
-            uint64_t aLow;
-
-            aLow = a.low & ~0x4000000000000000ULL;
-            return ((a.high & 0x7FFF) == 0x7FFF)
-                && (aLow << 1)
-                && (a.low == aLow);
-        } else {
-            return ((a.high & 0x7FFF) == 0x7FFF)
-                && (UINT64_C(0x8000000000000000) <= ((uint64_t)(a.low << 1)));
-        }
-    }
+    return floatx80_is_any_nan(a) && !floatx80_nan_is_snan(a, status);
 }
 
 /*----------------------------------------------------------------------------
 | Returns 1 if the extended double-precision floating-point value `a' is a
-| signaling NaN; otherwise returns 0. This slightly differs from the same
-| function for other types as floatx80 has an explicit bit.
+| signaling NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
-int floatx80_is_signaling_nan(floatx80 a, float_status *status)
+bool floatx80_is_signaling_nan(floatx80 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return 0;
-    } else {
-        if (snan_bit_is_one(status)) {
-            return ((a.high & 0x7FFF) == 0x7FFF)
-                && ((a.low << 1) >= 0x8000000000000000ULL);
-        } else {
-            uint64_t aLow;
-
-            aLow = a.low & ~UINT64_C(0x4000000000000000);
-            return ((a.high & 0x7FFF) == 0x7FFF)
-                && (uint64_t)(aLow << 1)
-                && (a.low == aLow);
-        }
-    }
+    return floatx80_is_any_nan(a) && floatx80_nan_is_snan(a, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -445,23 +405,26 @@ floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Determine if a float128 NaN is signaling NaN.
+*----------------------------------------------------------------------------*/
+
+static bool float128_nan_is_snan(float128 a, float_status *status)
+{
+    if (no_signaling_nans(status)) {
+        return false;
+    }
+    bool frac_msb_is_one = (a.high >> 47) & 1;
+    return frac_msb_is_one == snan_bit_is_one(status);
+}
+
+/*----------------------------------------------------------------------------
 | Returns 1 if the quadruple-precision floating-point value `a' is a quiet
 | NaN; otherwise returns 0.
 *----------------------------------------------------------------------------*/
 
 bool float128_is_quiet_nan(float128 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return float128_is_any_nan(a);
-    } else {
-        if (snan_bit_is_one(status)) {
-            return (((a.high >> 47) & 0xFFFF) == 0xFFFE)
-                && (a.low || (a.high & 0x00007FFFFFFFFFFFULL));
-        } else {
-            return ((a.high << 1) >= 0xFFFF000000000000ULL)
-                && (a.low || (a.high & 0x0000FFFFFFFFFFFFULL));
-        }
-    }
+    return float128_is_any_nan(a) && !float128_nan_is_snan(a, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -471,15 +434,5 @@ bool float128_is_quiet_nan(float128 a, float_status *status)
 
 bool float128_is_signaling_nan(float128 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return 0;
-    } else {
-        if (snan_bit_is_one(status)) {
-            return ((a.high << 1) >= 0xFFFF000000000000ULL)
-                && (a.low || (a.high & 0x0000FFFFFFFFFFFFULL));
-        } else {
-            return (((a.high >> 47) & 0xFFFF) == 0xFFFE)
-                && (a.low || (a.high & UINT64_C(0x00007FFFFFFFFFFF)));
-        }
-    }
+    return float128_is_any_nan(a) && float128_nan_is_snan(a, status);
 }
