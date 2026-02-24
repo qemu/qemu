@@ -237,7 +237,7 @@ static void aspeed_i2c_set_tx_dma_dram_offset(AspeedI2CBus *bus)
         bus->dma_dram_offset =
             deposit64(bus->dma_dram_offset, 0, 32,
                       FIELD_EX32(value, I2CM_DMA_TX_ADDR, ADDR));
-        if (!aic->has_dma64) {
+        if (aic->has_dma64) {
             value = bus->regs[R_I2CM_DMA_TX_ADDR_HI];
             bus->dma_dram_offset =
                 deposit64(bus->dma_dram_offset, 32, 32,
@@ -262,7 +262,7 @@ static void aspeed_i2c_set_rx_dma_dram_offset(AspeedI2CBus *bus)
         bus->dma_dram_offset =
             deposit64(bus->dma_dram_offset, 0, 32,
                       FIELD_EX32(value, I2CM_DMA_RX_ADDR, ADDR));
-        if (!aic->has_dma64) {
+        if (aic->has_dma64) {
             value = bus->regs[R_I2CM_DMA_RX_ADDR_HI];
             bus->dma_dram_offset =
                 deposit64(bus->dma_dram_offset, 32, 32,
