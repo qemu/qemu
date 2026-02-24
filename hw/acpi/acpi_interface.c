@@ -4,15 +4,6 @@
 #include "qemu/module.h"
 #include "qemu/queue.h"
 
-void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event)
-{
-    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(dev);
-    if (adevc->send_event) {
-        AcpiDeviceIf *adev = ACPI_DEVICE_IF(dev);
-        adevc->send_event(adev, event);
-    }
-}
-
 void qbus_build_aml(BusState *bus, Aml *scope)
 {
     BusChild *kid;

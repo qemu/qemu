@@ -22,6 +22,7 @@
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/acpi_dev_interface.h"
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/config-file.h"
 #include "qapi/error.h"
@@ -752,4 +753,13 @@ void acpi_update_sci(ACPIREGS *regs, qemu_irq irq)
     acpi_pm_tmr_update(regs,
                        (regs->pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
                        !(pm1a_sts & ACPI_BITMASK_TIMER_STATUS));
+}
+
+void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event)
+{
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(dev);
+    if (adevc->send_event) {
+        AcpiDeviceIf *adev = ACPI_DEVICE_IF(dev);
+        adevc->send_event(adev, event);
+    }
 }
