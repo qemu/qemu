@@ -13,17 +13,12 @@ import json
 import sys
 
 from datetime import datetime
-from os import path as os_path
 
 try:
-    qemu_dir = os_path.abspath(os_path.dirname(os_path.dirname(__file__)))
-    sys.path.append(os_path.join(qemu_dir, 'python'))
-
     from qemu.qmp.legacy import QEMUMonitorProtocol
-
 except ModuleNotFoundError as exc:
-    print(f"Module '{exc.name}' not found.")
-    print("Try export PYTHONPATH=top-qemu-dir/python or run from top-qemu-dir")
+    print(f"Module '{exc.name}' not found.", file=sys.stderr)
+    print(f"Try $builddir/run {' '.join(sys.argv)}", file=sys.stderr)
     sys.exit(1)
 
 from base64 import b64encode

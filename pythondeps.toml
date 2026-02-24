@@ -31,6 +31,23 @@ meson = { accepted = ">=1.10.0", installed = "1.10.0", canary = "meson" }
 sphinx = { accepted = ">=3.4.3", installed = "6.2.1", canary = "sphinx-build" }
 sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.2.2" }
 
-[testdeps]
-qemu.qmp = { accepted = ">=0.0.3", installed = "0.0.3" }
+# This test group is for dependencies required to run various tooling
+# and tests that should always be installed at configure time. It should
+# only include dependencies that can be guaranteed via configure from
+# system packages, or python packages we vendor.
+[tooling]
+"qemu.qmp" = { accepted = ">=0.0.5", installed = "0.0.5" }
+"qemu" = { path = "python/" }
+# NB: The following dependencies should be a little bit more modern than
+# the versions listed here, but we are still using Debian 11 for several
+# GitLab CI tests, so we are further restricted.
+"setuptools" = { accepted = ">=44.1.1" }
+"wheel" = { accepted = ">=0.34.2" }
+# pip should be guaranteed by mkvenv, this is merely a sanity check for
+# which version we are counting on being present.
+"pip" = { accepted = ">=20.3.4" }
+
+# This test group is for functional tests, and can include dependencies
+# fetched from PyPI.
+[functests]
 pygdbmi = { accepted = ">=0.11.0.0", installed = "0.11.0.0" }

@@ -98,11 +98,13 @@ packages:
  - python3-pillow
  - python3-pip
  - python3-PyYAML
+ - python3-setuptools
  - python3-sphinx
  - python3-sphinx-rtd-theme
  - python3-sqlite3
  - python3-tomli
  - python3-venv
+ - python3-wheel
  - rpm2cpio
  - rust
  - rust-std
