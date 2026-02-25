@@ -1,2 +1,4 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
+# serial-vsock.c
+nitro_serial_vsock_event(int event) "event %d"

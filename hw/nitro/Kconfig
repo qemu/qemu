@@ -1,2 +1,6 @@
 config NITRO_VSOCK_BUS
     bool
+
+config NITRO_SERIAL_VSOCK
+    bool
+    depends on NITRO_VSOCK_BUS
