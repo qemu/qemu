@@ -363,10 +363,11 @@ static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
 {
     DWI3C *s = DW_I3C(opaque);
     uint32_t addr = offset >> 2;
+    uint32_t val32 = (uint32_t)value;
 
     trace_dw_i3c_write(s->id, offset, value);
 
-    value &= ~dw_i3c_ro[addr];
+    val32 &= ~dw_i3c_ro[addr];
     switch (addr) {
     case R_HW_CAPABILITY:
     case R_RESPONSE_QUEUE_PORT:
@@ -392,7 +393,7 @@ static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
     case R_RESET_CTRL:
         break;
     default:
-        s->regs[addr] = value;
+        s->regs[addr] = val32;
         break;
     }
 }
