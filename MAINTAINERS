@@ -3031,6 +3031,7 @@ M: Alexander Graf <graf@amazon.com>
 S: Maintained
 F: hw/nitro/
 F: include/hw/nitro/
+F: docs/system/nitro.rst
 
 Subsystems
 ----------
