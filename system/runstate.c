@@ -42,6 +42,7 @@
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qemu/accel.h"
+#include "accel/accel-ops.h"
 #include "qemu/error-report.h"
 #include "qemu/job.h"
 #include "qemu/log.h"
@@ -509,6 +510,9 @@ void qemu_system_reset(ShutdownCause reason)
 {
     MachineClass *mc;
     ResetType type;
+    AccelClass *ac = ACCEL_GET_CLASS(current_accel());
+    bool guest_state_rebuilt = false;
+    int ret;
 
     mc = current_machine ? MACHINE_GET_CLASS(current_machine) : NULL;
 
@@ -521,6 +525,29 @@ void qemu_system_reset(ShutdownCause reason)
     default:
         type = RESET_TYPE_COLD;
     }
+
+    if (!cpus_are_resettable() &&
+        (reason == SHUTDOWN_CAUSE_GUEST_RESET ||
+         reason == SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET)) {
+        if (ac->rebuild_guest) {
+            ret = ac->rebuild_guest(current_machine);
+            if (ret < 0) {
+                error_report("unable to rebuild guest: %s(%d)",
+                             strerror(-ret), ret);
+                vm_stop(RUN_STATE_INTERNAL_ERROR);
+            } else {
+                info_report("virtual machine state has been rebuilt with new "
+                            "guest file handle.");
+                guest_state_rebuilt = true;
+            }
+        } else if (!cpus_are_resettable())  {
+            error_report("accelerator does not support reset!");
+        } else {
+            error_report("accelerator does not support rebuilding guest state,"
+                         " proceeding with normal reset!");
+        }
+    }
+
     if (mc && mc->reset) {
         mc->reset(current_machine, type);
     } else {
@@ -543,7 +570,16 @@ void qemu_system_reset(ShutdownCause reason)
      * it does _more_  than cpu_synchronize_all_post_reset().
      */
     if (cpus_are_resettable()) {
-        cpu_synchronize_all_post_reset();
+        if (guest_state_rebuilt) {
+            /*
+             * If guest state has been rebuilt, then we
+             * need to sync full cpu state for non confidential guests post
+             * reset.
+             */
+            cpu_synchronize_all_post_init();
+        } else {
+            cpu_synchronize_all_post_reset();
+        }
     }
 
     vm_set_suspended(false);
