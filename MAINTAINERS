@@ -586,6 +586,12 @@ F: include/system/mshv.h
 F: include/hw/hyperv/hvgdk*.h
 F: include/hw/hyperv/hvhdk*.h
 
+Nitro Enclaves (native)
+M: Alexander Graf <graf@amazon.com>
+S: Maintained
+F: accel/nitro/
+F: include/system/nitro-accel.h
+
 X86 MSHV CPUs
 M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
 R: Wei Liu <wei.liu@kernel.org>
