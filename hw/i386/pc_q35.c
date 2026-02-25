@@ -661,12 +661,3 @@ static void pc_q35_machine_2_9_options(MachineClass *m)
 }
 
 DEFINE_Q35_MACHINE(2, 9);
-
-static void pc_q35_machine_2_8_options(MachineClass *m)
-{
-    pc_q35_machine_2_9_options(m);
-    compat_props_add(m->compat_props, hw_compat_2_8, hw_compat_2_8_len);
-    compat_props_add(m->compat_props, pc_compat_2_8, pc_compat_2_8_len);
-}
-
-DEFINE_Q35_MACHINE(2, 8);
