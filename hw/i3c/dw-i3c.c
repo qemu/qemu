@@ -344,6 +344,8 @@ static const uint32_t dw_i3c_ro[DW_I3C_NR_REGS] = {
     [R_SLAVE_CONFIG]                = 0xffffffff,
 };
 
+static void dw_i3c_cmd_queue_execute(DWI3C *s);
+
 static inline bool dw_i3c_has_hdr_ts(DWI3C *s)
 {
     return ARRAY_FIELD_EX32(s->regs, HW_CAPABILITY, HDR_TS);
@@ -501,6 +503,36 @@ static int dw_i3c_recv_data(DWI3C *s, bool is_i2c, uint8_t *data,
     trace_dw_i3c_recv_data(s->cfg.id, *num_read);
 
     return ret;
+}
+
+static void dw_i3c_ctrl_w(DWI3C *s, uint32_t val)
+{
+    /*
+     * If the user is setting I3C_RESUME, the controller was halted.
+     * Try and resume execution and leave the bit cleared.
+     */
+    if (FIELD_EX32(val, DEVICE_CTRL, I3C_RESUME)) {
+        dw_i3c_cmd_queue_execute(s);
+        val = FIELD_DP32(val, DEVICE_CTRL, I3C_RESUME, 0);
+    }
+    /*
+     * I3C_ABORT being set sends an I3C STOP. It's cleared when the STOP is
+     * sent.
+     */
+    if (FIELD_EX32(val, DEVICE_CTRL, I3C_ABORT)) {
+        dw_i3c_end_transfer(s, /*is_i2c=*/true);
+        dw_i3c_end_transfer(s, /*is_i2c=*/false);
+        val = FIELD_DP32(val, DEVICE_CTRL, I3C_ABORT, 0);
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, TRANSFER_ABORT, 1);
+        dw_i3c_update_irq(s);
+    }
+    /* Update present state. */
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                     DW_I3C_TRANSFER_STATE_IDLE);
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
+                     DW_I3C_TRANSFER_STATUS_IDLE);
+
+    s->regs[R_DEVICE_CTRL] = val;
 }
 
 static inline bool dw_i3c_target_is_i2c(DWI3C *s, uint16_t offset)
@@ -1574,6 +1606,9 @@ static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
                       "%s: write to readonly register[0x%02" HWADDR_PRIx
                       "] = 0x%08" PRIx64 "\n",
                       __func__, offset, value);
+        break;
+    case R_DEVICE_CTRL:
+        dw_i3c_ctrl_w(s, val32);
         break;
     case R_RX_TX_DATA_PORT:
         dw_i3c_push_tx(s, val32);
