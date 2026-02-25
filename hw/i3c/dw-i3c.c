@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/core/irq.h"
 
 REG32(DEVICE_CTRL,                  0x00)
     FIELD(DEVICE_CTRL, I3C_BROADCAST_ADDR_INC,    0, 1)
@@ -335,6 +336,46 @@ static const uint32_t dw_i3c_ro[DW_I3C_NR_REGS] = {
     [R_SLAVE_CONFIG]                = 0xffffffff,
 };
 
+static void dw_i3c_update_irq(DWI3C *s)
+{
+    bool level = !!(s->regs[R_INTR_SIGNAL_EN] & s->regs[R_INTR_STATUS]);
+    qemu_set_irq(s->irq, level);
+}
+
+static uint32_t dw_i3c_intr_status_r(DWI3C *s)
+{
+    /* Only return the status whose corresponding EN bits are set. */
+    return s->regs[R_INTR_STATUS] & s->regs[R_INTR_STATUS_EN];
+}
+
+static void dw_i3c_intr_status_w(DWI3C *s, uint32_t val)
+{
+    /* INTR_STATUS[13:5] is w1c, other bits are RO. */
+    val &= 0x3fe0;
+    s->regs[R_INTR_STATUS] &= ~val;
+
+    dw_i3c_update_irq(s);
+}
+
+static void dw_i3c_intr_status_en_w(DWI3C *s, uint32_t val)
+{
+    s->regs[R_INTR_STATUS_EN] = val;
+    dw_i3c_update_irq(s);
+}
+
+static void dw_i3c_intr_signal_en_w(DWI3C *s, uint32_t val)
+{
+    s->regs[R_INTR_SIGNAL_EN] = val;
+    dw_i3c_update_irq(s);
+}
+
+static void dw_i3c_intr_force_w(DWI3C *s, uint32_t val)
+{
+    /* INTR_FORCE is WO, just set the corresponding INTR_STATUS bits. */
+    s->regs[R_INTR_STATUS] = val;
+    dw_i3c_update_irq(s);
+}
+
 static uint64_t dw_i3c_read(void *opaque, hwaddr offset, unsigned size)
 {
     DWI3C *s = DW_I3C(opaque);
@@ -347,6 +388,9 @@ static uint64_t dw_i3c_read(void *opaque, hwaddr offset, unsigned size)
     case R_RESET_CTRL:
     case R_INTR_FORCE:
         value = 0;
+        break;
+    case R_INTR_STATUS:
+        value = dw_i3c_intr_status_r(s);
         break;
     default:
         value = s->regs[addr];
@@ -391,6 +435,18 @@ static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
     case R_RX_TX_DATA_PORT:
         break;
     case R_RESET_CTRL:
+        break;
+    case R_INTR_STATUS:
+        dw_i3c_intr_status_w(s, val32);
+        break;
+    case R_INTR_STATUS_EN:
+        dw_i3c_intr_status_en_w(s, val32);
+        break;
+    case R_INTR_SIGNAL_EN:
+        dw_i3c_intr_signal_en_w(s, val32);
+        break;
+    case R_INTR_FORCE:
+        dw_i3c_intr_force_w(s, val32);
         break;
     default:
         s->regs[addr] = val32;
