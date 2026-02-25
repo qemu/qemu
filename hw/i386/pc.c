@@ -247,15 +247,6 @@ GlobalProperty pc_compat_2_9[] = {
 };
 const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
 
-GlobalProperty pc_compat_2_8[] = {
-    { TYPE_X86_CPU, "tcg-cpuid", "off" },
-    { "kvmclock", "x-mach-use-reliable-get-clock", "off" },
-    { "ICH9-LPC", "x-smi-broadcast", "off" },
-    { TYPE_X86_CPU, "vmware-cpuid-freq", "off" },
-    { "Haswell-" TYPE_X86_CPU, "stepping", "1" },
-};
-const size_t pc_compat_2_8_len = G_N_ELEMENTS(pc_compat_2_8);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
