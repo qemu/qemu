@@ -35,8 +35,6 @@ struct GenPCIERootPort {
     PCIESlot parent_obj;
     /*< public >*/
 
-    bool migrate_msix;
-
     /* additional resources to reserve */
     PCIResReserve res_reserve;
 };
@@ -64,13 +62,6 @@ static int gen_rp_interrupts_init(PCIDevice *d, Error **errp)
 static void gen_rp_interrupts_uninit(PCIDevice *d)
 {
     msix_uninit_exclusive_bar(d);
-}
-
-static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
-{
-    GenPCIERootPort *rp = opaque;
-
-    return rp->migrate_msix;
 }
 
 static void gen_rp_realize(DeviceState *dev, Error **errp)
@@ -121,16 +112,13 @@ static const VMStateDescription vmstate_rp_dev = {
         VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
         VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
                        PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
-        VMSTATE_MSIX_TEST(parent_obj.parent_obj.parent_obj.parent_obj,
-                          GenPCIERootPort,
-                          gen_rp_test_migrate_msix),
+        VMSTATE_MSIX(parent_obj.parent_obj.parent_obj.parent_obj,
+                     GenPCIERootPort),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static const Property gen_rp_props[] = {
-    DEFINE_PROP_BOOL("x-migrate-msix", GenPCIERootPort,
-                     migrate_msix, true),
     DEFINE_PROP_UINT32("bus-reserve", GenPCIERootPort,
                        res_reserve.bus, -1),
     DEFINE_PROP_SIZE("io-reserve", GenPCIERootPort,
