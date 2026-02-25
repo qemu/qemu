@@ -547,6 +547,7 @@ config ASPEED_SOC
     select I2C
     select I3C
     select DW_I3C
+    select I3C_DEVICES
     select DPS310
     select PCA9552
     select PCA9554
