@@ -11,6 +11,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/i3c/i3c.h"
+#include "hw/core/hotplug.h"
 #include "hw/core/qdev-properties.h"
 
 /*
@@ -25,6 +26,17 @@ static const Property i3c_props[] = {
     DEFINE_PROP_UINT8("bcr", struct I3CTarget, bcr, 0),
     DEFINE_PROP_UINT64("pid", struct I3CTarget, pid, 0),
 };
+
+static void i3c_realize(BusState *bus, Error **errp)
+{
+    qbus_set_bus_hotplug_handler(bus);
+}
+
+static void i3c_class_init(ObjectClass *klass, const void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+    k->realize = i3c_realize;
+}
 
 I3CBus *i3c_init_bus(DeviceState *parent, const char *name)
 {
@@ -633,6 +645,11 @@ static const TypeInfo i3c_types[] = {
         .parent = TYPE_BUS,
         .instance_size = sizeof(I3CBus),
         .class_size = sizeof(I3CBusClass),
+        .class_init = i3c_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { TYPE_HOTPLUG_HANDLER },
+            { }
+        }
     },
     {
         .name = TYPE_I3C_TARGET,
