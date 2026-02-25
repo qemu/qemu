@@ -2307,10 +2307,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
             proxy->last_pcie_cap_offset += PCI_ERR_SIZEOF;
         }
 
-        if (proxy->flags & VIRTIO_PCI_FLAG_INIT_DEVERR) {
-            /* Init error enabling flags */
-            pcie_cap_deverr_init(pci_dev);
-        }
+        /* Init error enabling flags */
+        pcie_cap_deverr_init(pci_dev);
 
         if (proxy->flags & VIRTIO_PCI_FLAG_INIT_LNKCTL) {
             /* Init Link Control Register */
@@ -2446,8 +2444,6 @@ static const Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_ATS_BIT, false),
     DEFINE_PROP_BIT("x-ats-page-aligned", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT, true),
-    DEFINE_PROP_BIT("x-pcie-deverr-init", VirtIOPCIProxy, flags,
-                    VIRTIO_PCI_FLAG_INIT_DEVERR_BIT, true),
     DEFINE_PROP_BIT("x-pcie-lnkctl-init", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_INIT_LNKCTL_BIT, true),
     DEFINE_PROP_BIT("x-pcie-pm-init", VirtIOPCIProxy, flags,
