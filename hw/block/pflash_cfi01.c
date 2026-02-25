@@ -84,7 +84,6 @@ struct PFlashCFI01 {
     char *name;
     void *storage;
     VMChangeStateEntry *vmstate;
-    bool old_multiple_chip_handling;
 
     /* block update buffer */
     unsigned char *blk_bytes;
@@ -703,13 +702,8 @@ static void pflash_cfi01_fill_cfi_table(PFlashCFI01 *pfl)
      * in the cfi_table[].
      */
     num_devices = pfl->device_width ? (pfl->bank_width / pfl->device_width) : 1;
-    if (pfl->old_multiple_chip_handling) {
-        blocks_per_device = pfl->nb_blocs / num_devices;
-        sector_len_per_device = pfl->sector_len;
-    } else {
-        blocks_per_device = pfl->nb_blocs;
-        sector_len_per_device = pfl->sector_len / num_devices;
-    }
+    blocks_per_device = pfl->nb_blocs;
+    sector_len_per_device = pfl->sector_len / num_devices;
     device_len = sector_len_per_device * blocks_per_device;
 
     /* Hardcoded CFI table */
@@ -765,7 +759,7 @@ static void pflash_cfi01_fill_cfi_table(PFlashCFI01 *pfl)
         pfl->cfi_table[0x2A] = 0x0B;
     }
     pfl->writeblock_size = 1 << pfl->cfi_table[0x2A];
-    if (!pfl->old_multiple_chip_handling && num_devices > 1) {
+    if (num_devices > 1) {
         pfl->writeblock_size *= num_devices;
     }
 
@@ -930,8 +924,6 @@ static const Property pflash_cfi01_properties[] = {
     DEFINE_PROP_UINT16("id2", PFlashCFI01, ident2, 0),
     DEFINE_PROP_UINT16("id3", PFlashCFI01, ident3, 0),
     DEFINE_PROP_STRING("name", PFlashCFI01, name),
-    DEFINE_PROP_BOOL("old-multiple-chip-handling", PFlashCFI01,
-                     old_multiple_chip_handling, false),
 };
 
 static void pflash_cfi01_class_init(ObjectClass *klass, const void *data)
