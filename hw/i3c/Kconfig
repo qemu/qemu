@@ -3,3 +3,13 @@ config I3C
 
 config DW_I3C
     bool
+
+config I3C_DEVICES
+    # Device group for i3c devices which can reasonably be user-plugged to any
+    # board's i3c bus.
+    bool
+
+config MOCK_I3C_TARGET
+    bool
+    select I3C
+    default y if I3C_DEVICES
