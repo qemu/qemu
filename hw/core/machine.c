@@ -264,14 +264,6 @@ GlobalProperty hw_compat_2_10[] = {
 };
 const size_t hw_compat_2_10_len = G_N_ELEMENTS(hw_compat_2_10);
 
-GlobalProperty hw_compat_2_9[] = {
-    { "pci-bridge", "shpc", "off" },
-    { "intel-iommu", "pt", "off" },
-    { "virtio-net-device", "x-mtu-bypass-backend", "off" },
-    { "pcie-root-port", "x-migrate-msix", "false" },
-};
-const size_t hw_compat_2_9_len = G_N_ELEMENTS(hw_compat_2_9);
-
 MachineState *current_machine;
 
 static char *machine_get_kernel(Object *obj, Error **errp)
