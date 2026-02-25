@@ -813,6 +813,14 @@ static void aarch64_a53_initfn(Object *obj)
 static void aarch64_host_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+
+#if defined(CONFIG_NITRO)
+    if (nitro_enabled()) {
+        /* The nitro accel uses -cpu host, but does not actually consume it */
+        return;
+    }
+#endif
+
 #if defined(CONFIG_KVM)
     kvm_arm_set_cpu_features_from_host(cpu);
     aarch64_add_sve_properties(obj);
