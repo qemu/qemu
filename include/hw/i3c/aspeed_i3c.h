@@ -31,4 +31,7 @@ struct AspeedI3CState {
     DWI3C devices[ASPEED_I3C_NR_DEVICES];
     uint8_t id;
 };
+
+I3CBus *aspeed_i3c_get_bus(AspeedI3CState *s, uint8_t bus_num);
+
 #endif /* ASPEED_I3C_H */

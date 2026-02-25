@@ -153,6 +153,15 @@ static const MemoryRegionOps aspeed_i3c_ops = {
     }
 };
 
+I3CBus *aspeed_i3c_get_bus(AspeedI3CState *s, uint8_t bus_num)
+{
+    if (bus_num < ARRAY_SIZE(s->devices)) {
+        return s->devices[bus_num].bus;
+    }
+    /* Developer error, fail fast. */
+    g_assert_not_reached();
+}
+
 static void aspeed_i3c_reset(DeviceState *dev)
 {
     AspeedI3CState *s = ASPEED_I3C(dev);
