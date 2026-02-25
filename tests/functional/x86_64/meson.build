@@ -37,4 +37,5 @@ tests_x86_64_system_thorough = [
   'vhost_user_bridge',
   'virtio_balloon',
   'virtio_gpu',
+  'rebuild_vmfd',
 ]
