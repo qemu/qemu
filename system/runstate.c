@@ -526,9 +526,9 @@ void qemu_system_reset(ShutdownCause reason)
         type = RESET_TYPE_COLD;
     }
 
-    if (!cpus_are_resettable() &&
-        (reason == SHUTDOWN_CAUSE_GUEST_RESET ||
-         reason == SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET)) {
+    if ((reason == SHUTDOWN_CAUSE_GUEST_RESET ||
+         reason == SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET) &&
+        (current_machine->new_accel_vmfd_on_reset || !cpus_are_resettable())) {
         if (ac->rebuild_guest) {
             ret = ac->rebuild_guest(current_machine);
             if (ret < 0) {
