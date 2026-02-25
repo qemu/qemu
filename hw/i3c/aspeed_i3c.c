@@ -74,6 +74,21 @@ REG32(I3C6_REG1, 0x64)
     FIELD(I3C6_REG1, SA_EN,         15, 1)
     FIELD(I3C6_REG1, INST_ID,       16, 4)
 
+static const uint32_t ast2600_i3c_controller_ro[ASPEED_I3C_NR_REGS] = {
+    [R_I3C1_REG0]                   = 0xcc000000,
+    [R_I3C1_REG1]                   = 0xfff00000,
+    [R_I3C2_REG0]                   = 0xcc000000,
+    [R_I3C2_REG1]                   = 0xfff00000,
+    [R_I3C3_REG0]                   = 0xcc000000,
+    [R_I3C3_REG1]                   = 0xfff00000,
+    [R_I3C4_REG0]                   = 0xcc000000,
+    [R_I3C4_REG1]                   = 0xfff00000,
+    [R_I3C5_REG0]                   = 0xcc000000,
+    [R_I3C5_REG1]                   = 0xfff00000,
+    [R_I3C6_REG0]                   = 0xcc000000,
+    [R_I3C6_REG1]                   = 0xfff00000,
+};
+
 static uint64_t aspeed_i3c_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedI3CState *s = ASPEED_I3C(opaque);
@@ -97,6 +112,7 @@ static void aspeed_i3c_write(void *opaque,
 
     addr >>= 2;
 
+    data &= ~ast2600_i3c_controller_ro[addr];
     /* I3C controller register */
     switch (addr) {
     case R_I3C1_REG1:
