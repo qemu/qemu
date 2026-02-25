@@ -242,11 +242,6 @@ GlobalProperty pc_compat_2_10[] = {
 };
 const size_t pc_compat_2_10_len = G_N_ELEMENTS(pc_compat_2_10);
 
-GlobalProperty pc_compat_2_9[] = {
-    { "mch", "extended-tseg-mbytes", "0" },
-};
-const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
