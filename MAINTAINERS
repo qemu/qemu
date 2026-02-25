@@ -3956,6 +3956,19 @@ F: include/hw/i2c/smbus_master.h
 F: include/hw/i2c/smbus_slave.h
 F: include/hw/i2c/smbus_eeprom.h
 
+I3C
+M: Joe Komlodi <komlodi@google.com>
+M: Cédric Le Goater <clg@kaod.org>
+M: Jamin Lin <jamin_lin@aspeedtech.com>
+R: Nabih Estefan <nabihestefan@google.com>
+S: Maintained
+F: hw/i3c/*.c
+F: hw/i3c/.h
+F: hw/i3c/Kconfig
+F: hw/i3c/meson.build
+F: hw/i3c/trace-events
+F: include/hw/i3c/*.h
+
 PMBus
 M: Titus Rwantare <titusr@google.com>
 S: Maintained
