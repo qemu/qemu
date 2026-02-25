@@ -442,13 +442,14 @@ static void ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector,
     s->msi_vectors[vector].pdev = pdev;
 }
 
-static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
+static bool setup_interrupt(IVShmemState *s, int vector, Error **errp)
 {
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
     bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
         ivshmem_has_feature(s, IVSHMEM_MSI);
     PCIDevice *pdev = PCI_DEVICE(s);
     Error *err = NULL;
+    int ret;
 
     IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
 
@@ -460,18 +461,22 @@ static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
         ivshmem_add_kvm_msi_virq(s, vector, &err);
         if (err) {
             error_propagate(errp, err);
-            return;
+            return false;
         }
 
         if (!msix_is_masked(pdev, vector)) {
-            kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL,
+            ret = kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL,
                                                s->msi_vectors[vector].virq);
-            /* TODO handle error */
+            if (ret < 0) {
+                error_setg(errp, "Failed to configure irqfd notifier");
+                return false;
+            }
         }
     } else {
         /* it will be delayed until msix is enabled, in write_config */
         IVSHMEM_DPRINTF("with irqfd, delayed until msix enabled\n");
     }
+    return true;
 }
 
 static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
