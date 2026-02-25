@@ -141,6 +141,28 @@ typedef union DWI3CCmdQueueData {
     DWI3CAddrAssignCmd addr_assign_cmd;
 } DWI3CCmdQueueData;
 
+/*
+ * When we receive an IBI with data, we need to store it temporarily until
+ * the target is finished sending data. Then we can set the IBI queue status
+ * appropriately.
+ */
+typedef struct DWI3CIBIData {
+    /* Do we notify the user that an IBI was NACKed? */
+    bool notify_ibi_nack;
+    /* Intermediate storage of IBI_QUEUE_STATUS. */
+    uint32_t ibi_queue_status;
+    /* Temporary buffer to store IBI data from the target. */
+    Fifo8 ibi_intermediate_queue;
+    /* The address we should send a CCC_DISEC to. */
+    uint8_t disec_addr;
+    /* The byte we should send along with the CCC_DISEC. */
+    uint8_t disec_byte;
+    /* Should we send a direct DISEC CCC? (As opposed to global). */
+    bool send_direct_disec;
+    /* Was this IBI NACKed? */
+    bool ibi_nacked;
+} DWI3CIBIData;
+
 struct DWI3C {
     SysBusDevice parent_obj;
 
@@ -152,11 +174,16 @@ struct DWI3C {
     Fifo32 resp_queue;
     Fifo32 tx_queue;
     Fifo32 rx_queue;
+    Fifo32 ibi_queue;
+
+    /* Temporary storage for IBI data. */
+    DWI3CIBIData ibi_data;
 
     struct {
         uint8_t id;
         uint8_t cmd_resp_queue_capacity_bytes;
         uint16_t tx_rx_queue_capacity_bytes;
+        uint8_t ibi_queue_capacity_bytes;
         uint8_t num_addressable_devices;
         uint16_t dev_addr_table_pointer;
         uint16_t dev_addr_table_depth;

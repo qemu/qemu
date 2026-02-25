@@ -19,6 +19,14 @@
 #include "trace.h"
 #include "hw/core/irq.h"
 
+/*
+ * Disable event command values. sent along with a DISEC CCC to disable certain
+ * events on targets.
+ */
+#define DISEC_HJ 0x08
+#define DISEC_CR 0x02
+#define DISEC_INT 0x01
+
 REG32(DEVICE_CTRL,                  0x00)
     FIELD(DEVICE_CTRL, I3C_BROADCAST_ADDR_INC,    0, 1)
     FIELD(DEVICE_CTRL, I2C_SLAVE_PRESENT,         7, 1)
@@ -356,6 +364,23 @@ static inline bool dw_i3c_can_transmit(DWI3C *s)
            !ARRAY_FIELD_EX32(s->regs, DEVICE_CTRL, I3C_RESUME);
 }
 
+static inline uint8_t dw_i3c_ibi_slice_size(DWI3C *s)
+{
+    uint8_t ibi_slice_size = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                              IBI_DATA_THLD);
+    /* The minimum supported slice size is 4 bytes. */
+    if (ibi_slice_size == 0) {
+        ibi_slice_size = 1;
+    }
+    ibi_slice_size *= sizeof(uint32_t);
+    /* maximum supported size is 63 bytes. */
+    if (ibi_slice_size >= 64) {
+        ibi_slice_size = 63;
+    }
+
+    return ibi_slice_size;
+}
+
 static inline uint8_t dw_i3c_fifo_threshold_from_reg(uint8_t regval)
 {
     return regval = regval ? (2 << regval) : 1;
@@ -509,6 +534,266 @@ static uint8_t dw_i3c_target_addr(DWI3C *s, uint16_t offset)
                       DEV_DYNAMIC_ADDR);
 }
 
+static int dw_i3c_addr_table_index_from_addr(DWI3C *s, uint8_t addr)
+{
+    uint8_t table_size = ARRAY_FIELD_EX32(s->regs, DEVICE_ADDR_TABLE_POINTER,
+                                          DEPTH);
+    for (uint8_t i = 0; i < table_size; i++) {
+        if (dw_i3c_target_addr(s, i) == addr) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void dw_i3c_send_disec(DWI3C *s)
+{
+    uint8_t ccc = I3C_CCC_DISEC;
+    if (s->ibi_data.send_direct_disec) {
+        ccc = I3C_CCCD_DISEC;
+    }
+
+    dw_i3c_send_start(s, I3C_BROADCAST, /*is_recv=*/false,
+                                 /*is_i2c=*/false);
+    dw_i3c_send_byte(s, ccc, /*is_i2c=*/false);
+    if (s->ibi_data.send_direct_disec) {
+        dw_i3c_send_start(s, s->ibi_data.disec_addr,
+                                     /*is_recv=*/false, /*is_i2c=*/false);
+    }
+    dw_i3c_send_byte(s, s->ibi_data.disec_byte, /*is_i2c=*/false);
+}
+
+static int dw_i3c_handle_hj(DWI3C *s)
+{
+    if (ARRAY_FIELD_EX32(s->regs, IBI_QUEUE_CTRL, NOTIFY_REJECTED_HOT_JOIN)) {
+        s->ibi_data.notify_ibi_nack = true;
+    }
+
+    bool nack_and_disable = ARRAY_FIELD_EX32(s->regs, DEVICE_CTRL,
+                                             HOT_JOIN_ACK_NACK_CTRL);
+    if (nack_and_disable) {
+        s->ibi_data.ibi_queue_status = FIELD_DP32(s->ibi_data.ibi_queue_status,
+                                                  IBI_QUEUE_STATUS,
+                                                  IBI_STATUS, 1);
+        s->ibi_data.ibi_nacked = true;
+        s->ibi_data.disec_byte = DISEC_HJ;
+        return -1;
+    }
+    return 0;
+}
+
+static int dw_i3c_handle_ctlr_req(DWI3C *s, uint8_t addr)
+{
+    if (ARRAY_FIELD_EX32(s->regs, IBI_QUEUE_CTRL, NOTIFY_REJECTED_MASTER_REQ)) {
+        s->ibi_data.notify_ibi_nack = true;
+    }
+
+    int table_offset = dw_i3c_addr_table_index_from_addr(s, addr);
+    /* Doesn't exist in the table, NACK it, don't DISEC. */
+    if (table_offset < 0) {
+        return -1;
+    }
+
+    /* / sizeof(uint32_t) because we're indexing into our 32-bit reg array. */
+    table_offset += (ARRAY_FIELD_EX32(s->regs, DEVICE_ADDR_TABLE_POINTER,
+                                      ADDR) / sizeof(uint32_t));
+    if (FIELD_EX32(s->regs[table_offset], DEVICE_ADDR_TABLE_LOC1, MR_REJECT)) {
+        s->ibi_data.ibi_queue_status = FIELD_DP32(s->ibi_data.ibi_queue_status,
+                                                  IBI_QUEUE_STATUS,
+                                                  IBI_STATUS, 1);
+        s->ibi_data.ibi_nacked = true;
+        s->ibi_data.disec_addr = addr;
+        /* Tell the requester to disable controller role requests. */
+        s->ibi_data.disec_byte = DISEC_CR;
+        s->ibi_data.send_direct_disec = true;
+        return -1;
+    }
+    return 0;
+}
+
+static int dw_i3c_handle_targ_irq(DWI3C *s, uint8_t addr)
+{
+    if (ARRAY_FIELD_EX32(s->regs, IBI_QUEUE_CTRL, NOTIFY_REJECTED_SLAVE_IRQ)) {
+        s->ibi_data.notify_ibi_nack = true;
+    }
+
+    int table_offset = dw_i3c_addr_table_index_from_addr(s, addr);
+    /* Doesn't exist in the table, NACK it, don't DISEC. */
+    if (table_offset < 0) {
+        return -1;
+    }
+
+    /* / sizeof(uint32_t) because we're indexing into our 32-bit reg array. */
+    table_offset += (ARRAY_FIELD_EX32(s->regs, DEVICE_ADDR_TABLE_POINTER,
+                                      ADDR) / sizeof(uint32_t));
+    if (FIELD_EX32(s->regs[table_offset], DEVICE_ADDR_TABLE_LOC1, SIR_REJECT)) {
+        s->ibi_data.ibi_queue_status = FIELD_DP32(s->ibi_data.ibi_queue_status,
+                                                  IBI_QUEUE_STATUS,
+                                                  IBI_STATUS, 1);
+        s->ibi_data.ibi_nacked = true;
+        s->ibi_data.disec_addr = addr;
+        /* Tell the requester to disable interrupts. */
+        s->ibi_data.disec_byte = DISEC_INT;
+        s->ibi_data.send_direct_disec = true;
+        return -1;
+    }
+    return 0;
+}
+
+static int dw_i3c_ibi_handle(I3CBus *bus, uint8_t addr, bool is_recv)
+{
+    DWI3C *s = DW_I3C(bus->parent_obj.parent);
+
+    trace_dw_i3c_ibi_handle(s->cfg.id, addr, is_recv);
+    s->ibi_data.ibi_queue_status = FIELD_DP32(s->ibi_data.ibi_queue_status,
+                                              IBI_QUEUE_STATUS, IBI_ID,
+                                              (addr << 1) | is_recv);
+    /* Is this a hot join request? */
+    if (addr == I3C_HJ_ADDR) {
+        return dw_i3c_handle_hj(s);
+    }
+    /* Is secondary controller requesting access? */
+    if (!is_recv) {
+        return dw_i3c_handle_ctlr_req(s, addr);
+    }
+    /* Is this a target IRQ? */
+    if (is_recv) {
+        return dw_i3c_handle_targ_irq(s, addr);
+    }
+
+    /* At this point the IBI should have been ACKed or NACKed. */
+    g_assert_not_reached();
+    return -1;
+}
+
+static int dw_i3c_ibi_recv(I3CBus *bus, uint8_t data)
+{
+    DWI3C *s = DW_I3C(bus->parent_obj.parent);
+    if (fifo8_is_full(&s->ibi_data.ibi_intermediate_queue)) {
+        return -1;
+    }
+
+    fifo8_push(&s->ibi_data.ibi_intermediate_queue, data);
+    trace_dw_i3c_ibi_recv(s->cfg.id, data);
+    return 0;
+}
+
+static void dw_i3c_ibi_queue_push(DWI3C *s)
+{
+    /* Stored value is in 32-bit chunks, convert it to byte chunks. */
+    uint8_t ibi_slice_size = dw_i3c_ibi_slice_size(s);
+    uint8_t num_slices = (fifo8_num_used(&s->ibi_data.ibi_intermediate_queue) /
+                         ibi_slice_size) +
+                         ((fifo8_num_used(&s->ibi_data.ibi_intermediate_queue) %
+                         ibi_slice_size) ? 1 : 0);
+    uint8_t ibi_status_count = num_slices;
+    union {
+        uint8_t b[sizeof(uint32_t)];
+        uint32_t val32;
+    } ibi_data = {
+        .val32 = 0
+    };
+
+    /* The report was suppressed, do nothing. */
+    if (s->ibi_data.ibi_nacked && !s->ibi_data.notify_ibi_nack) {
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_IDLE);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
+                         DW_I3C_TRANSFER_STATUS_IDLE);
+        return;
+    }
+
+    /* If we don't have any slices to push, just push the status. */
+    if (num_slices == 0) {
+        s->ibi_data.ibi_queue_status =
+             FIELD_DP32(s->ibi_data.ibi_queue_status, IBI_QUEUE_STATUS,
+                        LAST_STATUS, 1);
+        fifo32_push(&s->ibi_queue, s->ibi_data.ibi_queue_status);
+        ibi_status_count = 1;
+    }
+
+    for (uint8_t i = 0; i < num_slices; i++) {
+        /* If this is the last slice, set LAST_STATUS. */
+        if (fifo8_num_used(&s->ibi_data.ibi_intermediate_queue) <
+            ibi_slice_size) {
+            s->ibi_data.ibi_queue_status =
+                FIELD_DP32(s->ibi_data.ibi_queue_status, IBI_QUEUE_STATUS,
+                           IBI_DATA_LEN,
+                           fifo8_num_used(&s->ibi_data.ibi_intermediate_queue));
+            s->ibi_data.ibi_queue_status =
+                FIELD_DP32(s->ibi_data.ibi_queue_status, IBI_QUEUE_STATUS,
+                           LAST_STATUS, 1);
+        } else {
+            s->ibi_data.ibi_queue_status =
+                FIELD_DP32(s->ibi_data.ibi_queue_status, IBI_QUEUE_STATUS,
+                           IBI_DATA_LEN, ibi_slice_size);
+        }
+
+        /* Push the IBI status header. */
+        fifo32_push(&s->ibi_queue, s->ibi_data.ibi_queue_status);
+        /* Move each IBI byte into a 32-bit word and push it into the queue. */
+        for (uint8_t j = 0; j < ibi_slice_size; ++j) {
+            if (fifo8_is_empty(&s->ibi_data.ibi_intermediate_queue)) {
+                break;
+            }
+
+            ibi_data.b[j & 3] = fifo8_pop(&s->ibi_data.ibi_intermediate_queue);
+            /* We have 32-bits, push it to the IBI FIFO. */
+            if ((j & 0x03) == 0x03) {
+                fifo32_push(&s->ibi_queue, ibi_data.val32);
+                ibi_data.val32 = 0;
+            }
+        }
+        /* If the data isn't 32-bit aligned, push the leftover bytes. */
+        if (ibi_slice_size & 0x03) {
+            fifo32_push(&s->ibi_queue, ibi_data.val32);
+        }
+
+        /* Clear out the data length for the next iteration. */
+        s->ibi_data.ibi_queue_status = FIELD_DP32(s->ibi_data.ibi_queue_status,
+                                         IBI_QUEUE_STATUS, IBI_DATA_LEN, 0);
+    }
+
+    ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, IBI_BUF_BLR,
+                     fifo32_num_used(&s->ibi_queue));
+    ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, IBI_STATUS_CNT,
+                     ibi_status_count);
+    /* Threshold is the register value + 1. */
+    uint8_t threshold = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                         IBI_STATUS_THLD) + 1;
+    if (fifo32_num_used(&s->ibi_queue) >= threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, IBI_THLD, 1);
+        dw_i3c_update_irq(s);
+    }
+
+    /* State update. */
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                     DW_I3C_TRANSFER_STATE_IDLE);
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
+                     DW_I3C_TRANSFER_STATUS_IDLE);
+}
+
+static int dw_i3c_ibi_finish(I3CBus *bus)
+{
+    DWI3C *s = DW_I3C(bus->parent_obj.parent);
+    bool nack_and_disable_hj = ARRAY_FIELD_EX32(s->regs, DEVICE_CTRL,
+                                                HOT_JOIN_ACK_NACK_CTRL);
+    if (nack_and_disable_hj || s->ibi_data.send_direct_disec) {
+        dw_i3c_send_disec(s);
+    }
+    dw_i3c_ibi_queue_push(s);
+
+    /* Clear out the intermediate values. */
+    s->ibi_data.ibi_queue_status = 0;
+    s->ibi_data.disec_addr = 0;
+    s->ibi_data.disec_byte = 0;
+    s->ibi_data.send_direct_disec = false;
+    s->ibi_data.notify_ibi_nack = false;
+    s->ibi_data.ibi_nacked = false;
+
+    return 0;
+}
+
 static uint32_t dw_i3c_intr_status_r(DWI3C *s)
 {
     /* Only return the status whose corresponding EN bits are set. */
@@ -569,6 +854,25 @@ static uint32_t dw_i3c_pop_rx(DWI3C *s)
     return val;
 }
 
+static uint32_t dw_i3c_ibi_queue_r(DWI3C *s)
+{
+    if (fifo32_is_empty(&s->ibi_queue)) {
+        return 0;
+    }
+
+    uint32_t val = fifo32_pop(&s->ibi_queue);
+    ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, IBI_BUF_BLR,
+                     fifo32_num_used(&s->ibi_queue));
+    /* Threshold is the register value + 1. */
+    uint8_t threshold = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                         IBI_STATUS_THLD) + 1;
+    if (fifo32_num_used(&s->ibi_queue) < threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, IBI_THLD, 0);
+        dw_i3c_update_irq(s);
+    }
+    return val;
+}
+
 static uint32_t dw_i3c_resp_queue_port_r(DWI3C *s)
 {
     if (fifo32_is_empty(&s->resp_queue)) {
@@ -605,6 +909,9 @@ static uint64_t dw_i3c_read(void *opaque, hwaddr offset, unsigned size)
     case R_RESET_CTRL:
     case R_INTR_FORCE:
         value = 0;
+        break;
+    case R_IBI_QUEUE_DATA:
+        value = dw_i3c_ibi_queue_r(s);
         break;
     case R_INTR_STATUS:
         value = dw_i3c_intr_status_r(s);
@@ -1345,8 +1652,16 @@ static void dw_i3c_realize(DeviceState *dev, Error **errp)
     fifo32_create(&s->resp_queue, s->cfg.cmd_resp_queue_capacity_bytes);
     fifo32_create(&s->tx_queue, s->cfg.tx_rx_queue_capacity_bytes);
     fifo32_create(&s->rx_queue, s->cfg.tx_rx_queue_capacity_bytes);
+    fifo32_create(&s->ibi_queue, s->cfg.ibi_queue_capacity_bytes);
+    /* Arbitrarily large enough to not be an issue. */
+    fifo8_create(&s->ibi_data.ibi_intermediate_queue,
+                 s->cfg.ibi_queue_capacity_bytes * 8);
 
     s->bus = i3c_init_bus(DEVICE(s), name);
+    I3CBusClass *bc = I3C_BUS_GET_CLASS(s->bus);
+    bc->ibi_handle = dw_i3c_ibi_handle;
+    bc->ibi_recv = dw_i3c_ibi_recv;
+    bc->ibi_finish = dw_i3c_ibi_finish;
 }
 
 static const Property dw_i3c_properties[] = {
@@ -1355,6 +1670,8 @@ static const Property dw_i3c_properties[] = {
                       cfg.cmd_resp_queue_capacity_bytes, 0x10),
     DEFINE_PROP_UINT16("tx-rx-queue-capacity-bytes", DWI3C,
                       cfg.tx_rx_queue_capacity_bytes, 0x40),
+    DEFINE_PROP_UINT8("ibi-queue-capacity-bytes", DWI3C,
+                      cfg.ibi_queue_capacity_bytes, 0x10),
     DEFINE_PROP_UINT8("num-addressable-devices", DWI3C,
                       cfg.num_addressable_devices, 8),
     DEFINE_PROP_UINT16("dev-addr-table-pointer", DWI3C,
