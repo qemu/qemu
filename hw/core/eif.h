@@ -12,6 +12,7 @@
 #define HW_CORE_EIF_H
 
 #define MAX_SECTIONS 32
+#define EIF_HDR_ARCH_ARM64 0x1
 
 /* members are ordered according to field order in .eif file */
 typedef struct EifHeader {
@@ -48,6 +49,8 @@ enum EifSectionTypes {
     EIF_SECTION_METADATA = 5,
     EIF_SECTION_MAX = 6,
 };
+
+#define EIF_MAGIC { '.', 'e', 'i', 'f' }
 
 bool read_eif_file(const char *eif_path, const char *machine_initrd,
                    char **kernel_path, char **initrd_path,

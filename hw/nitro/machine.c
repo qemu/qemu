@@ -32,8 +32,103 @@
 #include "system/nitro-accel.h"
 #include "qemu/accel.h"
 #include "hw/arm/machines-qom.h"
+#include "hw/core/eif.h"
+#include <zlib.h> /* for crc32 */
 
 #define EIF_LOAD_ADDR   (8 * 1024 * 1024)
+
+static bool is_eif(char *eif, gsize len)
+{
+    const char eif_magic[] = EIF_MAGIC;
+
+    return len >= sizeof(eif_magic) &&
+           !memcmp(eif, eif_magic, sizeof(eif_magic));
+}
+
+static void build_eif_section(EifHeader *hdr, GByteArray *buf, uint16_t type,
+                              const char *data, uint64_t size)
+{
+    uint16_t section = be16_to_cpu(hdr->section_cnt);
+    EifSectionHeader shdr = {
+        .section_type = cpu_to_be16(type),
+        .flags = 0,
+        .section_size = cpu_to_be64(size),
+    };
+
+    hdr->section_offsets[section] = cpu_to_be64(buf->len);
+    hdr->section_sizes[section] = cpu_to_be64(size);
+
+    g_byte_array_append(buf, (const uint8_t *)&shdr, sizeof(shdr));
+    if (size) {
+        g_byte_array_append(buf, (const uint8_t *)data, size);
+    }
+
+    hdr->section_cnt = cpu_to_be16(section + 1);
+}
+
+/*
+ * Nitro Enclaves only support loading EIF files. When the user provides
+ * a Linux kernel, initrd and cmdline, convert them into EIF format.
+ */
+static char *build_eif(const char *kernel_data, gsize kernel_size,
+                       const char *initrd_path, const char *cmdline,
+                       gsize *out_size, Error **errp)
+{
+    g_autofree char *initrd_data = NULL;
+    static const char metadata[] = "{}";
+    size_t metadata_len = sizeof(metadata) - 1;
+    gsize initrd_size = 0;
+    GByteArray *buf;
+    EifHeader hdr;
+    uint32_t crc = 0;
+    size_t cmdline_len;
+
+    if (initrd_path) {
+        if (!g_file_get_contents(initrd_path, &initrd_data,
+                                 &initrd_size, NULL)) {
+            error_setg(errp, "Failed to read initrd '%s'", initrd_path);
+            return NULL;
+        }
+    }
+
+    buf = g_byte_array_new();
+
+    cmdline_len = cmdline ? strlen(cmdline) : 0;
+
+    hdr = (EifHeader) {
+        .magic = EIF_MAGIC,
+        .version = cpu_to_be16(4),
+        .flags = cpu_to_be16(target_aarch64() ? EIF_HDR_ARCH_ARM64 : 0),
+    };
+
+    g_byte_array_append(buf, (const uint8_t *)&hdr, sizeof(hdr));
+
+    /* Kernel */
+    build_eif_section(&hdr, buf, EIF_SECTION_KERNEL, kernel_data, kernel_size);
+
+    /* Command line */
+    build_eif_section(&hdr, buf, EIF_SECTION_CMDLINE, cmdline, cmdline_len);
+
+    /* Initramfs */
+    build_eif_section(&hdr, buf, EIF_SECTION_RAMDISK, initrd_data, initrd_size);
+
+    /* Metadata */
+    build_eif_section(&hdr, buf, EIF_SECTION_METADATA, metadata, metadata_len);
+
+    /*
+     * Patch the header into the buffer first (with real section offsets
+     * and sizes), then compute CRC over everything except the CRC field.
+     */
+    memcpy(buf->data, &hdr, sizeof(hdr));
+    crc = crc32(crc, buf->data, offsetof(EifHeader, eif_crc32));
+    crc = crc32(crc, &buf->data[sizeof(hdr)], buf->len - sizeof(hdr));
+
+    /* Finally write the CRC into the in-buffer header */
+    ((EifHeader *)buf->data)->eif_crc32 = cpu_to_be32(crc);
+
+    *out_size = buf->len;
+    return (char *)g_byte_array_free(buf, false);
+}
 
 static void nitro_machine_init(MachineState *machine)
 {
@@ -74,6 +169,27 @@ static void nitro_machine_init(MachineState *machine)
         error_report("nitro: failed to read EIF '%s'", eif_path);
         exit(1);
     }
+
+    if (!is_eif(eif_data, eif_size)) {
+        char *kernel_data = eif_data;
+        gsize kernel_size = eif_size;
+        Error *err = NULL;
+
+        /*
+         * The user gave us a non-EIF kernel, likely a Linux kernel image.
+         * Assemble an EIF file from it, the -initrd and the -append arguments,
+         * so that users can perform a natural direct kernel boot.
+         */
+        eif_data = build_eif(kernel_data, kernel_size, machine->initrd_filename,
+                             machine->kernel_cmdline, &eif_size, &err);
+        if (!eif_data) {
+            error_report_err(err);
+            exit(1);
+        }
+
+        g_free(kernel_data);
+    }
+
     address_space_write(&address_space_memory, EIF_LOAD_ADDR,
                         MEMTXATTRS_UNSPECIFIED, eif_data, eif_size);
 
