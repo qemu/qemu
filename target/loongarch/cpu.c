@@ -287,6 +287,8 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG0, SERID, PRID_SERIES_LA464);
     data = FIELD_DP32(data, CPUCFG0, VENID, PRID_VENDOR_LOONGSON);
     env->cpucfg[0] = data;
+    memccpy((void *)&env->vendor_id, CPU_VENDOR_LOONGSON, 0, 8);
+    memccpy((void *)&env->cpu_id, CPU_MODEL_3A5000, 0, 8);
 
     data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 2);
@@ -413,6 +415,8 @@ static void loongarch_la132_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG0, SERID, PRID_SERIES_LA132);
     data = FIELD_DP32(data, CPUCFG0, VENID, PRID_VENDOR_LOONGSON);
     env->cpucfg[0] = data;
+    memccpy((void *)&env->vendor_id, CPU_VENDOR_LOONGSON, 0, 8);
+    memccpy((void *)&env->cpu_id, CPU_MODEL_1C101, 0, 8);
 
     data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */

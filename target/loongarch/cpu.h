@@ -307,6 +307,10 @@ typedef struct  LoongArchBT {
     uint32_t ftop;
 } lbt_t;
 
+#define CPU_VENDOR_LOONGSON   "Loongson"
+#define CPU_MODEL_3A5000      "3A5000"
+#define CPU_MODEL_1C101       "1C101"
+
 typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
@@ -318,6 +322,8 @@ typedef struct CPUArchState {
 
     uint32_t cpucfg[21];
     uint32_t pv_features;
+    uint64_t vendor_id;
+    uint64_t cpu_id;
 
     /* LoongArch CSRs */
     uint64_t CSR_CRMD;
