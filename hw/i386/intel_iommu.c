@@ -1072,17 +1072,12 @@ static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
 {
     switch (vtd_ce_get_type(ce)) {
     case VTD_CONTEXT_TT_MULTI_LEVEL:
+    case VTD_CONTEXT_TT_PASS_THROUGH:
         /* Always supported */
         break;
     case VTD_CONTEXT_TT_DEV_IOTLB:
         if (!x86_iommu->dt_supported) {
             error_report_once("%s: DT specified but not supported", __func__);
-            return false;
-        }
-        break;
-    case VTD_CONTEXT_TT_PASS_THROUGH:
-        if (!x86_iommu->pt_supported) {
-            error_report_once("%s: PT specified but not supported", __func__);
             return false;
         }
         break;
@@ -5004,7 +4999,7 @@ static void vtd_cap_init(IntelIOMMUState *s)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
 
-    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
+    s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND | VTD_ECAP_PT |
              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SSLPS |
              VTD_CAP_ESRTPS | VTD_CAP_MGAW(s->aw_bits);
     if (s->dma_drain) {
@@ -5030,10 +5025,6 @@ static void vtd_cap_init(IntelIOMMUState *s)
 
     if (x86_iommu->dt_supported) {
         s->ecap |= VTD_ECAP_DT;
-    }
-
-    if (x86_iommu->pt_supported) {
-        s->ecap |= VTD_ECAP_PT;
     }
 
     if (s->caching_mode) {
