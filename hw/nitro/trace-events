@@ -2,3 +2,7 @@
 
 # serial-vsock.c
 nitro_serial_vsock_event(int event) "event %d"
+
+# heartbeat.c
+nitro_heartbeat_event(int event) "event %d"
+nitro_heartbeat_done(void) "enclave heartbeat received"
