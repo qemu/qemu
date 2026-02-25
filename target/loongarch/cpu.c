@@ -532,7 +532,7 @@ static uint32_t get_host_cpucfg(int number)
 
 static void loongarch_host_initfn(Object *obj)
 {
-    uint32_t data;
+    uint32_t data, cpucfg, field;
     uint64_t cpuid;
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
 
@@ -541,6 +541,40 @@ static void loongarch_host_initfn(Object *obj)
     if (data) {
         cpu->env.cpucfg[0] = data;
     }
+
+   /*
+    * There is no exception in KVM hypervisor when these intructions are
+    * executed if HW support, KVM hypervisor cannot control this.
+    *
+    * Set cpucfg bits which cannot be controlled by KVM hypervisor.
+    */
+    data = get_host_cpucfg(2);
+    cpucfg = cpu->env.cpucfg[2];
+    field = FIELD_EX32(data, CPUCFG2, FRECIPE);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, FRECIPE, field);
+    field = FIELD_EX32(data, CPUCFG2, DIV32);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, DIV32, field);
+    field = FIELD_EX32(data, CPUCFG2, LAM_BH);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, LAM_BH, field);
+    field = FIELD_EX32(data, CPUCFG2, LAMCAS);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, LAMCAS, field);
+    field = FIELD_EX32(data, CPUCFG2, LLACQ_SCREL);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, LLACQ_SCREL, field);
+    field = FIELD_EX32(data, CPUCFG2, SCQ);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, SCQ, field);
+    cpu->env.cpucfg[2] = cpucfg;
+
+    data = get_host_cpucfg(3);
+    cpucfg = cpu->env.cpucfg[3];
+    field = FIELD_EX32(data, CPUCFG3, DBAR_HINTS);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, DBAR_HINTS, field);
+    field = FIELD_EX32(data, CPUCFG3, ALDORDER_STA);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, ALDORDER_STA, field);
+    field = FIELD_EX32(data, CPUCFG3, ASTORDER_STA);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, ASTORDER_STA, field);
+    field = FIELD_EX32(data, CPUCFG3, SLDORDER_STA);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, SLDORDER_STA, field);
+    cpu->env.cpucfg[3] = cpucfg;
 
     cpuid = get_host_cpu_model();
     if (cpuid) {
