@@ -96,9 +96,8 @@ void mshv_arch_amend_proc_features(
     union hv_partition_synthetic_processor_features *features);
 int mshv_arch_post_init_vm(int vm_fd);
 
-#if defined COMPILING_PER_TARGET && defined CONFIG_MSHV_IS_POSSIBLE
-int mshv_hvcall(int fd, const struct mshv_root_hvcall *args);
-#endif
+typedef struct mshv_root_hvcall mshv_root_hvcall;
+int mshv_hvcall(int fd, const mshv_root_hvcall *args);
 
 /* memory */
 typedef struct MshvMemoryRegion {
