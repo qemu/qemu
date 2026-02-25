@@ -10,7 +10,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "hw/misc/aspeed_i3c.h"
+#include "hw/i3c/aspeed_i3c.h"
 #include "hw/core/registerfields.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/error.h"

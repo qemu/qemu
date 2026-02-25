@@ -1,0 +1,2 @@
+config I3C
+    bool
