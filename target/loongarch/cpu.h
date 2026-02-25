@@ -97,7 +97,15 @@ FIELD(FCSR0, CAUSE, 24, 5)
 #define  EXCCODE_DBP                 EXCODE(26, 0) /* Reserved subcode used for debug */
 
 /* cpucfg[0] bits */
-FIELD(CPUCFG0, PRID, 0, 32)
+FIELD(CPUCFG0, PRID, 0, 12)
+FIELD(CPUCFG0, SERID, 12, 4)
+FIELD(CPUCFG0, VENID, 16, 8)
+#define PRID_SERIES_LA132            0x8  /* Loongson 32bit */
+#define PRID_SERIES_LA264            0xa  /* Loongson 64bit, 2-issue */
+#define PRID_SERIES_LA364            0xb  /* Loongson 64bit, 3-issue */
+#define PRID_SERIES_LA464            0xc  /* Loongson 64bit, 4-issue */
+#define PRID_SERIES_LA664            0xd  /* Loongson 64bit, 6-issue */
+#define PRID_VENDOR_LOONGSON         0x14
 
 /* cpucfg[1] bits */
 FIELD(CPUCFG1, ARCH, 0, 2)

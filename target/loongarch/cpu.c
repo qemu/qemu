@@ -283,8 +283,12 @@ static void loongarch_la464_initfn(Object *obj)
     }
 
     cpu->dtb_compatible = "loongarch,Loongson-3A5000";
-    env->cpucfg[0] = 0x14c010;  /* PRID */
+    data = FIELD_DP32(data, CPUCFG0, PRID, 0x10);
+    data = FIELD_DP32(data, CPUCFG0, SERID, PRID_SERIES_LA464);
+    data = FIELD_DP32(data, CPUCFG0, VENID, PRID_VENDOR_LOONGSON);
+    env->cpucfg[0] = data;
 
+    data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 2);
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
@@ -389,8 +393,12 @@ static void loongarch_la132_initfn(Object *obj)
     }
 
     cpu->dtb_compatible = "loongarch,Loongson-1C103";
-    env->cpucfg[0] = 0x148042;  /* PRID */
+    data = FIELD_DP32(data, CPUCFG0, PRID, 0x42);
+    data = FIELD_DP32(data, CPUCFG0, SERID, PRID_SERIES_LA132);
+    data = FIELD_DP32(data, CPUCFG0, VENID, PRID_VENDOR_LOONGSON);
+    env->cpucfg[0] = data;
 
+    data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
