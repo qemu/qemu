@@ -1,2 +1,5 @@
 config I3C
     bool
+
+config DW_I3C
+    bool

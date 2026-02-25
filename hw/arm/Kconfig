@@ -546,6 +546,7 @@ config ASPEED_SOC
     select FTGMAC100
     select I2C
     select I3C
+    select DW_I3C
     select DPS310
     select PCA9552
     select PCA9554
