@@ -342,7 +342,10 @@ static uint64_t dw_i3c_read(void *opaque, hwaddr offset, unsigned size)
     uint64_t value;
 
     switch (addr) {
+    /* RAZ */
     case R_COMMAND_QUEUE_PORT:
+    case R_RESET_CTRL:
+    case R_INTR_FORCE:
         value = 0;
         break;
     default:
