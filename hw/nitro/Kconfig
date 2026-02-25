@@ -8,3 +8,11 @@ config NITRO_SERIAL_VSOCK
 config NITRO_HEARTBEAT
     bool
     depends on NITRO_VSOCK_BUS
+
+config NITRO_MACHINE
+    bool
+    default y
+    depends on NITRO
+    select NITRO_VSOCK_BUS
+    select NITRO_HEARTBEAT
+    select NITRO_SERIAL_VSOCK
