@@ -321,6 +321,22 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, LAM, 1);
     env->cpucfg[2] = data;
 
+    data = 0;
+    data = FIELD_DP32(data, CPUCFG3, CCDMA, 1);
+    data = FIELD_DP32(data, CPUCFG3, UCACC, 1);
+    data = FIELD_DP32(data, CPUCFG3, LLEXC, 1);
+    data = FIELD_DP32(data, CPUCFG3, SCDLY, 1);
+    data = FIELD_DP32(data, CPUCFG3, LLDBAR, 1);
+    data = FIELD_DP32(data, CPUCFG3, ITLBHMC, 1);
+    data = FIELD_DP32(data, CPUCFG3, ICHMC, 1);
+    data = FIELD_DP32(data, CPUCFG3, SPW_LVL, 4);
+    data = FIELD_DP32(data, CPUCFG3, SPW_HP_HF, 1);
+    if (kvm_enabled()) {
+        data = FIELD_DP32(data, CPUCFG3, RVA, 1);
+        data = FIELD_DP32(data, CPUCFG3, RVAMAX, 7);
+    }
+    env->cpucfg[3] = data;
+
     env->cpucfg[4] = 100 * 1000 * 1000; /* Crystal frequency */
 
     data = 0;
