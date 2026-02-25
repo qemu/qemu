@@ -336,10 +336,177 @@ static const uint32_t dw_i3c_ro[DW_I3C_NR_REGS] = {
     [R_SLAVE_CONFIG]                = 0xffffffff,
 };
 
+static inline bool dw_i3c_has_hdr_ts(DWI3C *s)
+{
+    return ARRAY_FIELD_EX32(s->regs, HW_CAPABILITY, HDR_TS);
+}
+
+static inline bool dw_i3c_has_hdr_ddr(DWI3C *s)
+{
+    return ARRAY_FIELD_EX32(s->regs, HW_CAPABILITY, HDR_DDR);
+}
+
+static inline bool dw_i3c_can_transmit(DWI3C *s)
+{
+    /*
+     * We can only transmit if we're enabled and the resume bit is cleared.
+     * The resume bit is set on a transaction error, and software must clear it.
+     */
+    return ARRAY_FIELD_EX32(s->regs, DEVICE_CTRL, I3C_EN) &&
+           !ARRAY_FIELD_EX32(s->regs, DEVICE_CTRL, I3C_RESUME);
+}
+
+static inline uint8_t dw_i3c_fifo_threshold_from_reg(uint8_t regval)
+{
+    return regval = regval ? (2 << regval) : 1;
+}
+
 static void dw_i3c_update_irq(DWI3C *s)
 {
     bool level = !!(s->regs[R_INTR_SIGNAL_EN] & s->regs[R_INTR_STATUS]);
     qemu_set_irq(s->irq, level);
+}
+
+static void dw_i3c_end_transfer(DWI3C *s, bool is_i2c)
+{
+    if (is_i2c) {
+        legacy_i2c_end_transfer(s->bus);
+    } else {
+        i3c_end_transfer(s->bus);
+    }
+}
+
+static int dw_i3c_send_start(DWI3C *s, uint8_t addr, bool is_recv, bool is_i2c)
+{
+    int ret;
+
+    if (is_i2c) {
+        ret = legacy_i2c_start_transfer(s->bus, addr, is_recv);
+    } else {
+        ret = i3c_start_transfer(s->bus, addr, is_recv);
+    }
+    if (ret) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: NACKed on TX with addr 0x%.2x\n",
+                      path, addr);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_HALT);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
+                         DW_I3C_TRANSFER_STATUS_HALT);
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, TRANSFER_ERR, 1);
+        ARRAY_FIELD_DP32(s->regs, DEVICE_CTRL, I3C_RESUME, 1);
+    }
+
+    return ret;
+}
+
+static int dw_i3c_send(DWI3C *s, const uint8_t *data, uint32_t num_to_send,
+                       uint32_t *num_sent, bool is_i2c)
+{
+    int ret;
+    uint32_t i;
+
+    *num_sent = 0;
+    if (is_i2c) {
+        /* Legacy I2C must be byte-by-byte. */
+        for (i = 0; i < num_to_send; i++) {
+            ret = legacy_i2c_send(s->bus, data[i]);
+            if (ret) {
+                break;
+            }
+            (*num_sent)++;
+        }
+    } else {
+        ret = i3c_send(s->bus, data, num_to_send, num_sent);
+    }
+    if (ret) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: NACKed sending byte 0x%.2x\n",
+                      path, data[*num_sent]);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_HALT);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
+                         DW_I3C_TRANSFER_STATUS_HALT);
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, TRANSFER_ERR, 1);
+        ARRAY_FIELD_DP32(s->regs, DEVICE_CTRL, I3C_RESUME, 1);
+    }
+
+    trace_dw_i3c_send(s->cfg.id, *num_sent);
+
+    return ret;
+}
+
+static int dw_i3c_send_byte(DWI3C *s, uint8_t byte, bool is_i2c)
+{
+    /*
+     * Ignored, the caller will know if we sent 0 or 1 bytes depending on if
+     * we were ACKed/NACKed.
+     */
+    uint32_t num_sent;
+    return dw_i3c_send(s, &byte, 1, &num_sent, is_i2c);
+}
+
+static int dw_i3c_recv_data(DWI3C *s, bool is_i2c, uint8_t *data,
+                            uint16_t num_to_read, uint32_t *num_read)
+{
+    int ret;
+
+    if (is_i2c) {
+        for (uint16_t i = 0; i < num_to_read; i++) {
+            data[i] = legacy_i2c_recv(s->bus);
+        }
+        /* I2C devices can neither NACK a read, nor end transfers early. */
+        *num_read = num_to_read;
+        trace_dw_i3c_recv_data(s->cfg.id, *num_read);
+        return 0;
+    }
+    /* I3C devices can NACK if the controller sends an unsupported CCC. */
+    ret = i3c_recv(s->bus, data, num_to_read, num_read);
+    if (ret) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: NACKed receiving byte\n",
+                      object_get_canonical_path(OBJECT(s)));
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_HALT);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
+                         DW_I3C_TRANSFER_STATUS_HALT);
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, TRANSFER_ERR, 1);
+        ARRAY_FIELD_DP32(s->regs, DEVICE_CTRL, I3C_RESUME, 1);
+    }
+
+    trace_dw_i3c_recv_data(s->cfg.id, *num_read);
+
+    return ret;
+}
+
+static inline bool dw_i3c_target_is_i2c(DWI3C *s, uint16_t offset)
+{
+    /* / sizeof(uint32_t) because we're indexing into our 32-bit reg array. */
+    uint16_t dev_index = (ARRAY_FIELD_EX32(s->regs, DEVICE_ADDR_TABLE_POINTER,
+                                          ADDR) / sizeof(uint32_t)) + offset;
+    return FIELD_EX32(s->regs[dev_index], DEVICE_ADDR_TABLE_LOC1,
+                   LEGACY_I2C_DEVICE);
+}
+
+static uint8_t dw_i3c_target_addr(DWI3C *s, uint16_t offset)
+{
+    if (offset > s->cfg.num_addressable_devices) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Device addr table offset %d out of "
+                      "bounds\n", path, offset);
+        /* If we're out of bounds, return an address of 0. */
+        return 0;
+    }
+
+    /* / sizeof(uint32_t) because we're indexing into our 32-bit reg array. */
+    uint16_t dev_index = (ARRAY_FIELD_EX32(s->regs, DEVICE_ADDR_TABLE_POINTER,
+                                          ADDR) / sizeof(uint32_t)) + offset;
+    /* I2C devices use a static address. */
+    if (dw_i3c_target_is_i2c(s, offset)) {
+        return FIELD_EX32(s->regs[dev_index], DEVICE_ADDR_TABLE_LOC1,
+                          DEV_STATIC_ADDR);
+    }
+    return FIELD_EX32(s->regs[dev_index], DEVICE_ADDR_TABLE_LOC1,
+                      DEV_DYNAMIC_ADDR);
 }
 
 static uint32_t dw_i3c_intr_status_r(DWI3C *s)
@@ -376,6 +543,56 @@ static void dw_i3c_intr_force_w(DWI3C *s, uint32_t val)
     dw_i3c_update_irq(s);
 }
 
+static uint32_t dw_i3c_pop_rx(DWI3C *s)
+{
+    if (fifo32_is_empty(&s->rx_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to read RX FIFO when empty\n",
+                      path);
+        return 0;
+    }
+
+    uint32_t val = fifo32_pop(&s->rx_queue);
+    ARRAY_FIELD_DP32(s->regs, DATA_BUFFER_STATUS_LEVEL, RX_BUF_BLR,
+                     fifo32_num_used(&s->rx_queue));
+
+    /* Threshold is 2^RX_BUF_THLD. */
+    uint8_t threshold = ARRAY_FIELD_EX32(s->regs, DATA_BUFFER_THLD_CTRL,
+                                         RX_BUF_THLD);
+    threshold = dw_i3c_fifo_threshold_from_reg(threshold);
+    if (fifo32_num_used(&s->rx_queue) < threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, RX_THLD, 0);
+        dw_i3c_update_irq(s);
+    }
+
+    trace_dw_i3c_pop_rx(s->cfg.id, val);
+    return val;
+}
+
+static uint32_t dw_i3c_resp_queue_port_r(DWI3C *s)
+{
+    if (fifo32_is_empty(&s->resp_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to read response FIFO when "
+                      "empty\n", path);
+        return 0;
+    }
+
+    uint32_t val = fifo32_pop(&s->resp_queue);
+    ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, RESP_BUF_BLR,
+                     fifo32_num_used(&s->resp_queue));
+
+    /* Threshold is the register value + 1. */
+    uint8_t threshold = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                         RESP_BUF_THLD) + 1;
+    if (fifo32_num_used(&s->resp_queue) < threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, RESP_RDY, 0);
+        dw_i3c_update_irq(s);
+    }
+
+    return val;
+}
+
 static uint64_t dw_i3c_read(void *opaque, hwaddr offset, unsigned size)
 {
     DWI3C *s = DW_I3C(opaque);
@@ -392,14 +609,633 @@ static uint64_t dw_i3c_read(void *opaque, hwaddr offset, unsigned size)
     case R_INTR_STATUS:
         value = dw_i3c_intr_status_r(s);
         break;
+    case R_RX_TX_DATA_PORT:
+        value = dw_i3c_pop_rx(s);
+        break;
+    case R_RESPONSE_QUEUE_PORT:
+        value = dw_i3c_resp_queue_port_r(s);
+        break;
     default:
         value = s->regs[addr];
         break;
     }
 
-    trace_dw_i3c_read(s->id, offset, value);
+    trace_dw_i3c_read(s->cfg.id, offset, value);
 
     return value;
+}
+
+static void dw_i3c_resp_queue_push(DWI3C *s, uint8_t err, uint8_t tid,
+                                   uint8_t ccc_type, uint16_t data_len)
+{
+    uint32_t val = 0;
+    val = FIELD_DP32(val, RESPONSE_QUEUE_PORT, ERR_STATUS, err);
+    val = FIELD_DP32(val, RESPONSE_QUEUE_PORT, TID, tid);
+    val = FIELD_DP32(val, RESPONSE_QUEUE_PORT, CCCT, ccc_type);
+    val = FIELD_DP32(val, RESPONSE_QUEUE_PORT, DL, data_len);
+    if (!fifo32_is_full(&s->resp_queue)) {
+        trace_dw_i3c_resp_queue_push(s->cfg.id, val);
+        fifo32_push(&s->resp_queue, val);
+    }
+
+    ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, RESP_BUF_BLR,
+                     fifo32_num_used(&s->resp_queue));
+    /* Threshold is the register value + 1. */
+    uint8_t threshold = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                         RESP_BUF_THLD) + 1;
+    if (fifo32_num_used(&s->resp_queue) >= threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, RESP_RDY, 1);
+        dw_i3c_update_irq(s);
+    }
+}
+
+static void dw_i3c_push_tx(DWI3C *s, uint32_t val)
+{
+    if (fifo32_is_full(&s->tx_queue)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to push to TX FIFO when "
+                      "full\n", object_get_canonical_path(OBJECT(s)));
+        return;
+    }
+
+    trace_dw_i3c_push_tx(s->cfg.id, val);
+    fifo32_push(&s->tx_queue, val);
+    ARRAY_FIELD_DP32(s->regs, DATA_BUFFER_STATUS_LEVEL, TX_BUF_EMPTY_LOC,
+                     fifo32_num_free(&s->tx_queue));
+
+    /* Threshold is 2^TX_BUF_THLD. */
+    uint8_t empty_threshold = ARRAY_FIELD_EX32(s->regs, DATA_BUFFER_THLD_CTRL,
+                                               TX_BUF_THLD);
+    empty_threshold =
+        dw_i3c_fifo_threshold_from_reg(empty_threshold);
+    if (fifo32_num_free(&s->tx_queue) < empty_threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, TX_THLD, 0);
+        dw_i3c_update_irq(s);
+    }
+}
+
+static uint32_t dw_i3c_pop_tx(DWI3C *s)
+{
+    if (fifo32_is_empty(&s->tx_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to pop from TX FIFO when "
+                      "empty\n", path);
+        return 0;
+    }
+
+    uint32_t val = fifo32_pop(&s->tx_queue);
+    trace_dw_i3c_pop_tx(s->cfg.id, val);
+    ARRAY_FIELD_DP32(s->regs, DATA_BUFFER_STATUS_LEVEL, TX_BUF_EMPTY_LOC,
+                     fifo32_num_free(&s->tx_queue));
+
+    /* Threshold is 2^TX_BUF_THLD. */
+    uint8_t empty_threshold = ARRAY_FIELD_EX32(s->regs, DATA_BUFFER_THLD_CTRL,
+                                               TX_BUF_THLD);
+    empty_threshold =
+        dw_i3c_fifo_threshold_from_reg(empty_threshold);
+    if (fifo32_num_free(&s->tx_queue) >= empty_threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, TX_THLD, 1);
+        dw_i3c_update_irq(s);
+    }
+    return val;
+}
+
+static void dw_i3c_push_rx(DWI3C *s, uint32_t val)
+{
+    if (fifo32_is_full(&s->rx_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to push to RX FIFO when "
+                      "full\n", path);
+        return;
+    }
+    trace_dw_i3c_push_rx(s->cfg.id, val);
+    fifo32_push(&s->rx_queue, val);
+
+    ARRAY_FIELD_DP32(s->regs, DATA_BUFFER_STATUS_LEVEL, RX_BUF_BLR,
+                     fifo32_num_used(&s->rx_queue));
+    /* Threshold is 2^RX_BUF_THLD. */
+    uint8_t threshold = ARRAY_FIELD_EX32(s->regs, DATA_BUFFER_THLD_CTRL,
+                                         RX_BUF_THLD);
+    threshold = dw_i3c_fifo_threshold_from_reg(threshold);
+    if (fifo32_num_used(&s->rx_queue) >= threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, RX_THLD, 1);
+        dw_i3c_update_irq(s);
+    }
+}
+
+static void dw_i3c_short_transfer(DWI3C *s, DWI3CTransferCmd cmd,
+                                  DWI3CShortArg arg)
+{
+    uint8_t err = DW_I3C_RESP_QUEUE_ERR_NONE;
+    uint8_t addr = dw_i3c_target_addr(s, cmd.dev_index);
+    bool is_i2c = dw_i3c_target_is_i2c(s, cmd.dev_index);
+    uint8_t data[4]; /* Max we can send on a short transfer is 4 bytes. */
+    uint8_t len = 0;
+    uint32_t bytes_sent; /* Ignored on short transfers. */
+
+    /* Can't do reads on a short transfer. */
+    if (cmd.rnw) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Cannot do a read on a short "
+                      "transfer\n", path);
+        return;
+    }
+
+    if (dw_i3c_send_start(s, addr, /*is_recv=*/false, is_i2c)) {
+        err = DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+        goto transfer_done;
+    }
+
+    /* Are we sending a command? */
+    if (cmd.cp) {
+        data[len] = cmd.cmd;
+        len++;
+        /*
+         * byte0 is the defining byte for a command, and is only sent if a
+         * command is present and if the command has a defining byte present.
+         * (byte_strb & 0x01) is always treated as set by the controller, and is
+         * ignored.
+         */
+        if (cmd.dbp) {
+            data[len] += arg.byte0;
+            len++;
+        }
+    }
+
+    /* Send the bytes passed in the argument. */
+    if (arg.byte_strb & 0x02) {
+        data[len] = arg.byte1;
+        len++;
+    }
+    if (arg.byte_strb & 0x04) {
+        data[len] = arg.byte2;
+        len++;
+    }
+
+    if (dw_i3c_send(s, data, len, &bytes_sent, is_i2c)) {
+        err = DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+    } else {
+        /* Only go to an idle state on a successful transfer. */
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_IDLE);
+    }
+
+transfer_done:
+    if (cmd.toc) {
+        dw_i3c_end_transfer(s, is_i2c);
+    }
+    if (cmd.roc) {
+        /*
+         * ccc_type is always 0 in controller mode, data_len is 0 in short
+         * transfers.
+         */
+        dw_i3c_resp_queue_push(s, err, cmd.tid, /*ccc_type=*/0,
+                                          /*data_len=*/0);
+    }
+}
+
+/* Returns number of bytes transmitted. */
+static uint16_t dw_i3c_tx(DWI3C *s, uint16_t num, bool is_i2c)
+{
+    uint16_t bytes_sent = 0;
+    union {
+        uint8_t b[sizeof(uint32_t)];
+        uint32_t val;
+    } val32;
+
+    while (bytes_sent < num) {
+        val32.val = dw_i3c_pop_tx(s);
+        for (uint8_t i = 0; i < sizeof(val32.val); i++) {
+            if (dw_i3c_send_byte(s, val32.b[i], is_i2c)) {
+                return bytes_sent;
+            }
+            bytes_sent++;
+
+            /* We're not sending the full 32-bits, break early. */
+            if (bytes_sent >= num) {
+                break;
+            }
+        }
+    }
+
+    return bytes_sent;
+}
+
+/* Returns number of bytes received. */
+static uint16_t dw_i3c_rx(DWI3C *s, uint16_t num, bool is_i2c)
+{
+    /*
+     * Allocate a temporary buffer to read data from the target.
+     * Zero it and word-align it as well in case we're reading unaligned data.
+     */
+    g_autofree uint8_t *data = g_new0(uint8_t, num + (4 - (num & 0x03)));
+    uint32_t *data32 = (uint32_t *)data;
+    /*
+     * 32-bits since the I3C API wants a 32-bit number, even though the
+     * controller can only do 16-bit transfers.
+     */
+    uint32_t num_read = 0;
+
+    /* Can NACK if the target receives an unsupported CCC. */
+    if (dw_i3c_recv_data(s, is_i2c, data, num, &num_read)) {
+        return 0;
+    }
+
+    for (uint16_t i = 0; i < num_read / 4; i++) {
+        dw_i3c_push_rx(s, *data32);
+        data32++;
+    }
+    /*
+     * If we're pushing data that isn't 32-bit aligned, push what's left.
+     * It's software's responsibility to know what bits are valid in the partial
+     * data.
+     */
+    if (num_read & 0x03) {
+        dw_i3c_push_rx(s, *data32);
+    }
+
+    return num_read;
+}
+
+static int dw_i3c_transfer_ccc(DWI3C *s, DWI3CTransferCmd cmd,
+                               DWI3CTransferArg arg)
+{
+    /* CCC start is always a write. CCCs cannot be done on I2C devices. */
+    if (dw_i3c_send_start(s, I3C_BROADCAST, /*is_recv=*/false,
+                                     /*is_i2c=*/false)) {
+        return DW_I3C_RESP_QUEUE_ERR_BROADCAST_NACK;
+    }
+    trace_dw_i3c_transfer_ccc(s->cfg.id, cmd.cmd);
+    if (dw_i3c_send_byte(s, cmd.cmd, /*is_i2c=*/false)) {
+        return DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+    }
+
+    /* On a direct CCC, we do a restart and then send the target's address. */
+    if (CCC_IS_DIRECT(cmd.cmd)) {
+        bool is_recv = cmd.rnw;
+        uint8_t addr = dw_i3c_target_addr(s, cmd.dev_index);
+        if (dw_i3c_send_start(s, addr, is_recv, /*is_i2c=*/false)) {
+            return DW_I3C_RESP_QUEUE_ERR_BROADCAST_NACK;
+        }
+    }
+
+    return DW_I3C_RESP_QUEUE_ERR_NONE;
+}
+
+static void dw_i3c_transfer(DWI3C *s, DWI3CTransferCmd cmd,
+                            DWI3CTransferArg arg)
+{
+    bool is_recv = cmd.rnw;
+    uint8_t err = DW_I3C_RESP_QUEUE_ERR_NONE;
+    uint8_t addr = dw_i3c_target_addr(s, cmd.dev_index);
+    bool is_i2c = dw_i3c_target_is_i2c(s, cmd.dev_index);
+    uint16_t bytes_transferred = 0;
+
+    if (cmd.cp) {
+        /* We're sending a CCC. */
+        err = dw_i3c_transfer_ccc(s, cmd, arg);
+        if (err != DW_I3C_RESP_QUEUE_ERR_NONE) {
+            goto transfer_done;
+        }
+    } else {
+        if (ARRAY_FIELD_EX32(s->regs, DEVICE_CTRL, I3C_BROADCAST_ADDR_INC) &&
+            is_i2c == false) {
+            if (dw_i3c_send_start(s, I3C_BROADCAST,
+                                             /*is_recv=*/false, is_i2c)) {
+                err = DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+                goto transfer_done;
+            }
+        }
+        /* Otherwise we're doing a private transfer. */
+        if (dw_i3c_send_start(s, addr, is_recv, is_i2c)) {
+            err = DW_I3C_RESP_QUEUE_ERR_I2C_NACK;
+            goto transfer_done;
+        }
+    }
+
+    if (is_recv) {
+        bytes_transferred = dw_i3c_rx(s, arg.data_len, is_i2c);
+    } else {
+        bytes_transferred = dw_i3c_tx(s, arg.data_len, is_i2c);
+    }
+
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                     DW_I3C_TRANSFER_STATE_IDLE);
+
+transfer_done:
+    if (cmd.toc) {
+        dw_i3c_end_transfer(s, is_i2c);
+    }
+    if (cmd.roc) {
+        /*
+         * data_len is the number of bytes that still need to be TX'd, or the
+         * number of bytes RX'd.
+         */
+        uint16_t data_len = is_recv ? bytes_transferred : arg.data_len -
+                                                          bytes_transferred;
+        /* CCCT is always 0 in controller mode. */
+        dw_i3c_resp_queue_push(s, err, cmd.tid, /*ccc_type=*/0,
+                                          data_len);
+    }
+
+    dw_i3c_update_irq(s);
+}
+
+static void dw_i3c_transfer_cmd(DWI3C *s, DWI3CTransferCmd cmd,
+                                DWI3CCmdQueueData arg)
+{
+    uint8_t arg_attr = FIELD_EX32(arg.word, COMMAND_QUEUE_PORT, CMD_ATTR);
+
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CMD_TID, cmd.tid);
+
+    /* User is trying to do HDR transfers, see if we can do them. */
+    if (cmd.speed == 0x06 && !dw_i3c_has_hdr_ddr(s)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: HDR DDR is not supported\n", path);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_HALT);
+        return;
+    }
+    if (cmd.speed == 0x05 && !dw_i3c_has_hdr_ts(s)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: HDR TS is not supported\n", path);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_HALT);
+        return;
+    }
+
+    if (arg_attr == DW_I3C_CMD_ATTR_TRANSFER_ARG) {
+        dw_i3c_transfer(s, cmd, arg.transfer_arg);
+    } else if (arg_attr == DW_I3C_CMD_ATTR_SHORT_DATA_ARG) {
+        dw_i3c_short_transfer(s, cmd, arg.short_arg);
+    } else {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown command queue cmd_attr 0x%x"
+                      "\n", path, arg_attr);
+        ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                         DW_I3C_TRANSFER_STATE_HALT);
+    }
+}
+
+static void dw_i3c_update_char_table(DWI3C *s, uint8_t offset, uint64_t pid,
+                                     uint8_t bcr, uint8_t dcr, uint8_t addr)
+{
+    if (offset > s->cfg.num_addressable_devices) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Device char table offset %d out of "
+                      "bounds\n", path, offset);
+        /* If we're out of bounds, do nothing. */
+        return;
+    }
+
+    /*
+     * Each device offset is 128 bits apart in the table, since each device gets
+     * 4 * 32-bits of entries in the table.
+     * / sizeof(uint32_t) because we're indexing into our 32-bit reg array.
+     */
+    uint16_t dev_index = (ARRAY_FIELD_EX32(s->regs, DEV_CHAR_TABLE_POINTER,
+                                          P_DEV_CHAR_TABLE_START_ADDR) /
+                                          sizeof(uint32_t)) +
+                                          (offset * sizeof(uint32_t));
+    s->regs[dev_index] = pid & 0xffffffff;
+    pid >>= 32;
+    s->regs[dev_index + 1] = FIELD_DP32(s->regs[dev_index + 1],
+                                        DEVICE_CHARACTERISTIC_TABLE_LOC2,
+                                        MSB_PID, pid);
+    s->regs[dev_index + 2] = FIELD_DP32(s->regs[dev_index + 2],
+                                        DEVICE_CHARACTERISTIC_TABLE_LOC3, DCR,
+                                        dcr);
+    s->regs[dev_index + 2] = FIELD_DP32(s->regs[dev_index + 2],
+                                        DEVICE_CHARACTERISTIC_TABLE_LOC3, BCR,
+                                        bcr);
+    s->regs[dev_index + 3] = FIELD_DP32(s->regs[dev_index + 3],
+                                        DEVICE_CHARACTERISTIC_TABLE_LOC4,
+                                        DEV_DYNAMIC_ADDR, addr);
+
+    /* Increment PRESENT_DEV_CHAR_TABLE_INDEX. */
+    uint8_t idx = ARRAY_FIELD_EX32(s->regs, DEV_CHAR_TABLE_POINTER,
+                     PRESENT_DEV_CHAR_TABLE_INDEX);
+    /* Increment and rollover. */
+    idx++;
+    if (idx >= ARRAY_FIELD_EX32(s->regs, DEV_CHAR_TABLE_POINTER,
+                               DEV_CHAR_TABLE_DEPTH) / 4) {
+        idx = 0;
+    }
+    ARRAY_FIELD_DP32(s->regs, DEV_CHAR_TABLE_POINTER,
+                     PRESENT_DEV_CHAR_TABLE_INDEX, idx);
+}
+
+static void dw_i3c_addr_assign_cmd(DWI3C *s, DWI3CAddrAssignCmd cmd)
+{
+    uint8_t i = 0;
+    uint8_t err = DW_I3C_RESP_QUEUE_ERR_NONE;
+
+    /* Tell everyone to ENTDAA. If these error, no one is on the bus. */
+    if (dw_i3c_send_start(s, I3C_BROADCAST, /*is_recv=*/false,
+                                     /*is_i2c=*/false)) {
+        err = DW_I3C_RESP_QUEUE_ERR_BROADCAST_NACK;
+        goto transfer_done;
+    }
+    if (dw_i3c_send_byte(s, cmd.cmd, /*is_i2c=*/false)) {
+        err = DW_I3C_RESP_QUEUE_ERR_BROADCAST_NACK;
+        goto transfer_done;
+    }
+
+    /* Go through each device in the table and assign it an address. */
+    for (i = 0; i < cmd.dev_count; i++) {
+        uint8_t addr = dw_i3c_target_addr(s, cmd.dev_index + i);
+        union {
+            uint64_t pid:48;
+            uint8_t bcr;
+            uint8_t dcr;
+            uint32_t w[2];
+            uint8_t b[8];
+        } target_info;
+
+        /* If this fails, there was no one left to ENTDAA. */
+        if (dw_i3c_send_start(s, I3C_BROADCAST, /*is_recv=*/false,
+                                         /*is_i2c=*/false)) {
+            err = DW_I3C_RESP_QUEUE_ERR_BROADCAST_NACK;
+            break;
+        }
+
+        /*
+         * In ENTDAA, we read 8 bytes from the target, which will be the
+         * target's PID, BCR, and DCR. After that, we send it the dynamic
+         * address.
+         * Don't bother checking the number of bytes received, it must send 8
+         * bytes during ENTDAA.
+         */
+        uint32_t num_read;
+        if (dw_i3c_recv_data(s, /*is_i2c=*/false, target_info.b,
+                                        I3C_ENTDAA_SIZE, &num_read)) {
+            g_autofree char *path = object_get_canonical_path(OBJECT(s));
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Target NACKed ENTDAA CCC\n",
+                          path);
+            err = DW_I3C_RESP_QUEUE_ERR_DAA_NACK;
+            goto transfer_done;
+        }
+        if (dw_i3c_send_byte(s, addr, /*is_i2c=*/false)) {
+            g_autofree char *path = object_get_canonical_path(OBJECT(s));
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Target NACKed addr 0x%.2x "
+                          "during ENTDAA\n", path, addr);
+            err = DW_I3C_RESP_QUEUE_ERR_DAA_NACK;
+            break;
+        }
+        dw_i3c_update_char_table(s, cmd.dev_index + i,
+                                            target_info.pid, target_info.bcr,
+                                            target_info.dcr, addr);
+
+        /* Push the PID, BCR, and DCR to the RX queue. */
+        dw_i3c_push_rx(s, target_info.w[0]);
+        dw_i3c_push_rx(s, target_info.w[1]);
+    }
+
+transfer_done:
+    /* Do we send a STOP? */
+    if (cmd.toc) {
+        dw_i3c_end_transfer(s, /*is_i2c=*/false);
+    }
+    /*
+     * For addr assign commands, the length field is the number of devices
+     * left to assign. CCCT is always 0 in controller mode.
+     */
+    if (cmd.roc) {
+        dw_i3c_resp_queue_push(s, err, cmd.tid, /*ccc_type=*/0,
+                                         cmd.dev_count - i);
+    }
+}
+
+static uint32_t dw_i3c_cmd_queue_pop(DWI3C *s)
+{
+    if (fifo32_is_empty(&s->cmd_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to dequeue command queue "
+                      "when it was empty\n", path);
+        return 0;
+    }
+    uint32_t val = fifo32_pop(&s->cmd_queue);
+
+    uint8_t empty_threshold = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                               CMD_BUF_EMPTY_THLD);
+    uint8_t cmd_queue_empty_loc = ARRAY_FIELD_EX32(s->regs,
+                                                   QUEUE_STATUS_LEVEL,
+                                                   CMD_QUEUE_EMPTY_LOC);
+    cmd_queue_empty_loc++;
+    ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, CMD_QUEUE_EMPTY_LOC,
+                     cmd_queue_empty_loc);
+    if (cmd_queue_empty_loc >= empty_threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, CMD_QUEUE_RDY, 1);
+        dw_i3c_update_irq(s);
+    }
+
+    return val;
+}
+
+static void dw_i3c_cmd_queue_execute(DWI3C *s)
+{
+    ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
+                     DW_I3C_TRANSFER_STATE_IDLE);
+    if (!dw_i3c_can_transmit(s)) {
+        return;
+    }
+
+    /*
+     * We only start executing when a command is passed into the FIFO.
+     * We expect there to be a multiple of 2 items in the queue. The first item
+     * should be an argument to a command, and the command should be the second
+     * item.
+     */
+    if (fifo32_num_used(&s->cmd_queue) & 1) {
+        return;
+    }
+
+    while (!fifo32_is_empty(&s->cmd_queue)) {
+        DWI3CCmdQueueData arg;
+        arg.word = dw_i3c_cmd_queue_pop(s);
+        DWI3CCmdQueueData cmd;
+        cmd.word = dw_i3c_cmd_queue_pop(s);
+        trace_dw_i3c_cmd_queue_execute(s->cfg.id, cmd.word, arg.word);
+
+        uint8_t cmd_attr = FIELD_EX32(cmd.word, COMMAND_QUEUE_PORT, CMD_ATTR);
+        switch (cmd_attr) {
+        case DW_I3C_CMD_ATTR_TRANSFER_CMD:
+            dw_i3c_transfer_cmd(s, cmd.transfer_cmd, arg);
+            break;
+        case DW_I3C_CMD_ATTR_ADDR_ASSIGN_CMD:
+            /* Arg is discarded for addr assign commands. */
+            dw_i3c_addr_assign_cmd(s, cmd.addr_assign_cmd);
+            break;
+        case DW_I3C_CMD_ATTR_TRANSFER_ARG:
+        case DW_I3C_CMD_ATTR_SHORT_DATA_ARG:
+            {
+                g_autofree char *path = object_get_canonical_path(OBJECT(s));
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Command queue received "
+                              "argument packet when it expected a command "
+                              "packet\n", path);
+            }
+            break;
+        default:
+            /*
+             * The caller's check before queueing an item should prevent this
+             * from happening.
+             */
+            g_assert_not_reached();
+            break;
+        }
+    }
+}
+
+static void dw_i3c_cmd_queue_push(DWI3C *s, uint32_t val)
+{
+    if (fifo32_is_full(&s->cmd_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Command queue received packet when "
+                      "already full\n", path);
+        return;
+    }
+    trace_dw_i3c_cmd_queue_push(s->cfg.id, val);
+    fifo32_push(&s->cmd_queue, val);
+
+    uint8_t empty_threshold = ARRAY_FIELD_EX32(s->regs, QUEUE_THLD_CTRL,
+                                               CMD_BUF_EMPTY_THLD);
+    uint8_t cmd_queue_empty_loc = ARRAY_FIELD_EX32(s->regs,
+                                                   QUEUE_STATUS_LEVEL,
+                                                   CMD_QUEUE_EMPTY_LOC);
+    if (cmd_queue_empty_loc) {
+        cmd_queue_empty_loc--;
+        ARRAY_FIELD_DP32(s->regs, QUEUE_STATUS_LEVEL, CMD_QUEUE_EMPTY_LOC,
+                         cmd_queue_empty_loc);
+    }
+    if (cmd_queue_empty_loc < empty_threshold) {
+        ARRAY_FIELD_DP32(s->regs, INTR_STATUS, CMD_QUEUE_RDY, 0);
+        dw_i3c_update_irq(s);
+    }
+}
+
+static void dw_i3c_cmd_queue_port_w(DWI3C *s, uint32_t val)
+{
+    uint8_t cmd_attr = FIELD_EX32(val, COMMAND_QUEUE_PORT, CMD_ATTR);
+
+    switch (cmd_attr) {
+    /* If a command is received we can start executing it. */
+    case DW_I3C_CMD_ATTR_TRANSFER_CMD:
+    case DW_I3C_CMD_ATTR_ADDR_ASSIGN_CMD:
+        dw_i3c_cmd_queue_push(s, val);
+        dw_i3c_cmd_queue_execute(s);
+        break;
+    /* If we get an argument just push it. */
+    case DW_I3C_CMD_ATTR_TRANSFER_ARG:
+    case DW_I3C_CMD_ATTR_SHORT_DATA_ARG:
+        dw_i3c_cmd_queue_push(s, val);
+        break;
+    default:
+        {
+            g_autofree char *path = object_get_canonical_path(OBJECT(s));
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Command queue received packet "
+                          "with unknown cmd attr 0x%x\n", path, cmd_attr);
+        }
+        break;
+    }
 }
 
 static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
@@ -409,7 +1245,7 @@ static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
     uint32_t addr = offset >> 2;
     uint32_t val32 = (uint32_t)value;
 
-    trace_dw_i3c_write(s->id, offset, value);
+    trace_dw_i3c_write(s->cfg.id, offset, value);
 
     val32 &= ~dw_i3c_ro[addr];
     switch (addr) {
@@ -433,6 +1269,10 @@ static void dw_i3c_write(void *opaque, hwaddr offset, uint64_t value,
                       __func__, offset, value);
         break;
     case R_RX_TX_DATA_PORT:
+        dw_i3c_push_tx(s, val32);
+        break;
+    case R_COMMAND_QUEUE_PORT:
+        dw_i3c_cmd_queue_port_w(s, val32);
         break;
     case R_RESET_CTRL:
         break;
@@ -475,22 +1315,56 @@ static void dw_i3c_reset_enter(Object *obj, ResetType type)
     DWI3C *s = DW_I3C(obj);
 
     memcpy(s->regs, dw_i3c_resets, sizeof(s->regs));
+    /*
+     * The user config for these may differ from our resets array, set them
+     * manually.
+     */
+    ARRAY_FIELD_DP32(s->regs, DEVICE_ADDR_TABLE_POINTER, ADDR,
+                     s->cfg.dev_addr_table_pointer);
+    ARRAY_FIELD_DP32(s->regs, DEVICE_ADDR_TABLE_POINTER, DEPTH,
+                     s->cfg.dev_addr_table_depth);
+    ARRAY_FIELD_DP32(s->regs, DEV_CHAR_TABLE_POINTER,
+                     P_DEV_CHAR_TABLE_START_ADDR,
+                     s->cfg.dev_char_table_pointer);
+    ARRAY_FIELD_DP32(s->regs, DEV_CHAR_TABLE_POINTER, DEV_CHAR_TABLE_DEPTH,
+                     s->cfg.dev_char_table_depth);
 }
 
 static void dw_i3c_realize(DeviceState *dev, Error **errp)
 {
     DWI3C *s = DW_I3C(dev);
-    g_autofree char *name = g_strdup_printf(TYPE_DW_I3C ".%d", s->id);
+    g_autofree char *name = g_strdup_printf(TYPE_DW_I3C ".%d", s->cfg.id);
 
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 
     memory_region_init_io(&s->mr, OBJECT(s), &dw_i3c_ops, s, name,
                           DW_I3C_NR_REGS << 2);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
+
+    fifo32_create(&s->cmd_queue, s->cfg.cmd_resp_queue_capacity_bytes);
+    fifo32_create(&s->resp_queue, s->cfg.cmd_resp_queue_capacity_bytes);
+    fifo32_create(&s->tx_queue, s->cfg.tx_rx_queue_capacity_bytes);
+    fifo32_create(&s->rx_queue, s->cfg.tx_rx_queue_capacity_bytes);
+
+    s->bus = i3c_init_bus(DEVICE(s), name);
 }
 
 static const Property dw_i3c_properties[] = {
-    DEFINE_PROP_UINT8("device-id", DWI3C, id, 0),
+    DEFINE_PROP_UINT8("device-id", DWI3C, cfg.id, 0),
+    DEFINE_PROP_UINT8("command-response-queue-capacity-bytes", DWI3C,
+                      cfg.cmd_resp_queue_capacity_bytes, 0x10),
+    DEFINE_PROP_UINT16("tx-rx-queue-capacity-bytes", DWI3C,
+                      cfg.tx_rx_queue_capacity_bytes, 0x40),
+    DEFINE_PROP_UINT8("num-addressable-devices", DWI3C,
+                      cfg.num_addressable_devices, 8),
+    DEFINE_PROP_UINT16("dev-addr-table-pointer", DWI3C,
+                       cfg.dev_addr_table_pointer, 0x280),
+    DEFINE_PROP_UINT16("dev-addr-table-depth", DWI3C,
+                       cfg.dev_addr_table_depth, 0x08),
+    DEFINE_PROP_UINT16("dev-char-table-pointer", DWI3C,
+                       cfg.dev_char_table_pointer, 0x200),
+    DEFINE_PROP_UINT16("dev-char-table-depth", DWI3C,
+                       cfg.dev_char_table_depth, 0x20),
 };
 
 static void dw_i3c_class_init(ObjectClass *klass, const void *data)

@@ -2,6 +2,7 @@
  * ASPEED I3C Controller
  *
  * Copyright (C) 2021 ASPEED Technology Inc.
+ * Copyright (C) 2023 Google, LLC
  *
  * This code is licensed under the GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
