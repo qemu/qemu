@@ -218,7 +218,6 @@ struct VirtIONet {
     uint64_t saved_guest_offloads;
     AnnounceTimer announce_timer;
     bool needs_vnet_hdr_swap;
-    bool mtu_bypass_backend;
     /* primary failover device is hidden*/
     bool failover_primary_hidden;
     bool failover;
