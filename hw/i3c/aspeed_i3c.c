@@ -337,13 +337,6 @@ static void aspeed_i3c_device_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_i3c_device_properties);
 }
 
-static const TypeInfo aspeed_i3c_device_info = {
-    .name = TYPE_ASPEED_I3C_DEVICE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedI3CDevice),
-    .class_init = aspeed_i3c_device_class_init,
-};
-
 static const VMStateDescription vmstate_aspeed_i3c = {
     .name = TYPE_ASPEED_I3C,
     .version_id = 1,
@@ -366,18 +359,20 @@ static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_i3c;
 }
 
-static const TypeInfo aspeed_i3c_info = {
-    .name = TYPE_ASPEED_I3C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_i3c_instance_init,
-    .instance_size = sizeof(AspeedI3CState),
-    .class_init = aspeed_i3c_class_init,
+static const TypeInfo aspeed_i3c_types[] = {
+    {
+        .name = TYPE_ASPEED_I3C,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_init = aspeed_i3c_instance_init,
+        .instance_size = sizeof(AspeedI3CState),
+        .class_init = aspeed_i3c_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_I3C_DEVICE,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedI3CDevice),
+        .class_init = aspeed_i3c_device_class_init,
+    },
 };
 
-static void aspeed_i3c_register_types(void)
-{
-    type_register_static(&aspeed_i3c_device_info);
-    type_register_static(&aspeed_i3c_info);
-}
-
-type_init(aspeed_i3c_register_types);
+DEFINE_TYPES(aspeed_i3c_types)
