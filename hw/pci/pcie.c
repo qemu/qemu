@@ -250,10 +250,8 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset,
 
     pci_set_word(dev->wmask + pos + PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_EETLPPB);
 
-    if (dev->cap_present & QEMU_PCIE_EXTCAP_INIT) {
-        /* read-only to behave like a 'NULL' Extended Capability Header */
-        pci_set_long(dev->wmask + PCI_CONFIG_SPACE_SIZE, 0);
-    }
+    /* read-only to behave like a 'NULL' Extended Capability Header */
+    pci_set_long(dev->wmask + PCI_CONFIG_SPACE_SIZE, 0);
 
     return pos;
 }
