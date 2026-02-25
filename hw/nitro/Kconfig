@@ -1,0 +1,2 @@
+config NITRO_VSOCK_BUS
+    bool

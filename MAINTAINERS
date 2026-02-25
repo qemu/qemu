@@ -3020,6 +3020,12 @@ F: hw/vmapple/*
 F: include/hw/vmapple/*
 F: docs/system/arm/vmapple.rst
 
+Nitro Enclaves (native)
+M: Alexander Graf <graf@amazon.com>
+S: Maintained
+F: hw/nitro/
+F: include/hw/nitro/
+
 Subsystems
 ----------
 Overall Audio backends
