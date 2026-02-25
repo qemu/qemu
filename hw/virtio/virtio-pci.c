@@ -2318,11 +2318,9 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
                          PCI_PM_CTRL_NO_SOFT_RESET);
         }
 
-        if (proxy->flags & VIRTIO_PCI_FLAG_INIT_PM) {
-            /* Init Power Management Control Register */
-            pci_set_word(pci_dev->wmask + pos + PCI_PM_CTRL,
-                         PCI_PM_CTRL_STATE_MASK);
-        }
+        /* Init Power Management Control Register */
+        pci_set_word(pci_dev->wmask + pos + PCI_PM_CTRL,
+                     PCI_PM_CTRL_STATE_MASK);
 
         if (proxy->flags & VIRTIO_PCI_FLAG_ATS) {
             pcie_ats_init(pci_dev, proxy->last_pcie_cap_offset,
@@ -2418,16 +2416,11 @@ static void virtio_pci_bus_reset_hold(Object *obj, ResetType type)
     virtio_pci_reset(qdev);
 
     if (pci_is_express(dev)) {
-        VirtIOPCIProxy *proxy = VIRTIO_PCI(dev);
-
         pcie_cap_deverr_reset(dev);
         pcie_cap_lnkctl_reset(dev);
 
-        if (proxy->flags & VIRTIO_PCI_FLAG_INIT_PM) {
-            pci_word_test_and_clear_mask(
-                dev->config + dev->pm_cap + PCI_PM_CTRL,
-                PCI_PM_CTRL_STATE_MASK);
-        }
+        pci_word_test_and_clear_mask(dev->config + dev->pm_cap + PCI_PM_CTRL,
+                                     PCI_PM_CTRL_STATE_MASK);
     }
 }
 
@@ -2442,8 +2435,6 @@ static const Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_ATS_BIT, false),
     DEFINE_PROP_BIT("x-ats-page-aligned", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_ATS_PAGE_ALIGNED_BIT, true),
-    DEFINE_PROP_BIT("x-pcie-pm-init", VirtIOPCIProxy, flags,
-                    VIRTIO_PCI_FLAG_INIT_PM_BIT, true),
     DEFINE_PROP_BIT("x-pcie-pm-no-soft-reset", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_PM_NO_SOFT_RESET_BIT, false),
     DEFINE_PROP_BIT("x-pcie-flr-init", VirtIOPCIProxy, flags,
