@@ -16,6 +16,7 @@
 # installation of the QEMU package itself fails, failing to find
 # setuptools.
 setuptools<=70
+wheel==0.34.2
 
 # Dependencies for qapidoc/qapi_domain et al
 sphinx==3.4.3
