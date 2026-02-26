@@ -22,10 +22,10 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/cpu/a15mpcore.h"
+#include "hw/core/cpu.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "system/kvm.h"
-#include "kvm_arm.h"
 #include "target/arm/gtimer.h"
 
 static void a15mp_priv_set_irq(void *opaque, int irq, int level)
