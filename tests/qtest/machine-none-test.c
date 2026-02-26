@@ -32,7 +32,6 @@ static struct arch2cpu cpus_map[] = {
     { "alpha", "ev67" },
     { "m68k", "m5206" },
     { "microblaze", "any" },
-    { "microblazeel", "any" },
     { "mips", "4Kc" },
     { "mipsel", "I7200" },
     { "mips64", "20Kc" },
