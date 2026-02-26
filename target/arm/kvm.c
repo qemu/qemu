@@ -2118,7 +2118,7 @@ static int kvm_arch_put_fpsimd(CPUState *cs)
  * code the slice index to zero for now as it's unlikely we'll need more than
  * one slice for quite some time.
  */
-static int kvm_arch_put_sve(CPUState *cs, uint32_t vq)
+static int kvm_arch_put_sve(CPUState *cs, uint32_t vq, bool have_ffr)
 {
     CPUARMState *env = cpu_env(cs);
     uint64_t tmp[ARM_MAX_VQ * 2];
@@ -2141,11 +2141,13 @@ static int kvm_arch_put_sve(CPUState *cs, uint32_t vq)
         }
     }
 
-    r = sve_bswap64(tmp, &env->vfp.pregs[FFR_PRED_NUM].p[0],
-                    DIV_ROUND_UP(vq * 2, 8));
-    ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SVE_FFR(0), r);
-    if (ret) {
-        return ret;
+    if (have_ffr) {
+        r = sve_bswap64(tmp, &env->vfp.pregs[FFR_PRED_NUM].p[0],
+                        DIV_ROUND_UP(vq * 2, 8));
+        ret = kvm_set_one_reg(cs, KVM_REG_ARM64_SVE_FFR(0), r);
+        if (ret) {
+            return ret;
+        }
     }
 
     return 0;
@@ -2234,7 +2236,7 @@ int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
     }
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
-        ret = kvm_arch_put_sve(cs, cpu->sve_max_vq);
+        ret = kvm_arch_put_sve(cs, cpu->sve_max_vq, true);
     } else {
         ret = kvm_arch_put_fpsimd(cs);
     }
@@ -2300,7 +2302,7 @@ static int kvm_arch_get_fpsimd(CPUState *cs)
  * code the slice index to zero for now as it's unlikely we'll need more than
  * one slice for quite some time.
  */
-static int kvm_arch_get_sve(CPUState *cs, uint32_t vq)
+static int kvm_arch_get_sve(CPUState *cs, uint32_t vq, bool have_ffr)
 {
     CPUARMState *env = cpu_env(cs);
     uint64_t *r;
@@ -2324,12 +2326,14 @@ static int kvm_arch_get_sve(CPUState *cs, uint32_t vq)
         sve_bswap64(r, r, DIV_ROUND_UP(vq * 2, 8));
     }
 
-    r = &env->vfp.pregs[FFR_PRED_NUM].p[0];
-    ret = kvm_get_one_reg(cs, KVM_REG_ARM64_SVE_FFR(0), r);
-    if (ret) {
-        return ret;
+    if (have_ffr) {
+        r = &env->vfp.pregs[FFR_PRED_NUM].p[0];
+        ret = kvm_get_one_reg(cs, KVM_REG_ARM64_SVE_FFR(0), r);
+        if (ret) {
+            return ret;
+        }
+        sve_bswap64(r, r, DIV_ROUND_UP(vq * 2, 8));
     }
-    sve_bswap64(r, r, DIV_ROUND_UP(vq * 2, 8));
 
     return 0;
 }
@@ -2417,7 +2421,7 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     }
 
     if (cpu_isar_feature(aa64_sve, cpu)) {
-        ret = kvm_arch_get_sve(cs, cpu->sve_max_vq);
+        ret = kvm_arch_get_sve(cs, cpu->sve_max_vq, true);
     } else {
         ret = kvm_arch_get_fpsimd(cs);
     }
