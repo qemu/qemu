@@ -32,6 +32,7 @@ fusepy==2.0.4
 
 # Test-runners, utilities, etc.
 avocado-framework==90.0
+pytest==6.0.2
 
 # Linters
 flake8==5.0.4

@@ -105,7 +105,7 @@ develop:
 
 .PHONY: check
 check:
-	@avocado --config avocado.cfg run tests/
+	@pytest -v tests/*.py
 
 .PHONY: check-tox
 check-tox:
@@ -113,7 +113,7 @@ check-tox:
 
 .PHONY: check-coverage
 check-coverage:
-	@coverage run -m avocado --config avocado.cfg run tests/*.py
+	@coverage run -m pytest -v tests/*.py
 	@coverage combine
 	@coverage html
 	@coverage report
