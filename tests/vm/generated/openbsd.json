@@ -1,0 +1,27 @@
+{
+  "ccache": "/usr/local/bin/ccache",
+  "cpan_pkgs": [],
+  "cross_pkgs": [],
+  "make": "/usr/local/bin/gmake",
+  "ninja": "/usr/local/bin/ninja",
+  "packaging_command": "pkg_add",
+  "pip3": "/usr/local/bin/pip3",
+  "pkgs": [
+    "bash",
+    "bison",
+    "bzip2",
+    "ccache",
+    "dtc",
+    "git",
+    "glib2",
+    "gmake",
+    "gsed",
+    "libffi",
+    "meson",
+    "ninja",
+    "pkgconf",
+    "python3"
+  ],
+  "pypi_pkgs": [],
+  "python": "/usr/local/bin/python3"
+}
