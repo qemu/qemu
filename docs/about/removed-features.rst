@@ -1277,6 +1277,20 @@ The 'pvrdma' device and the whole RDMA subsystem have been removed.
 
 SD physical layer specification v2.00 supersedes the v1.10 one.
 
+
+System emulator binaries
+------------------------
+
+``qemu-system-microblazeel`` (removed in 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``qemu-system-microblaze`` binary can emulate little-endian machines
+now, too, so the separate binary ``qemu-system-microblazeel`` (with the
+``el`` suffix) for little-endian targets is not required anymore. The
+``petalogix-s3adsp1800`` machine can now be switched to little endian by
+setting its ``endianness`` property to ``little``.
+
+
 Related binaries
 ----------------
 
