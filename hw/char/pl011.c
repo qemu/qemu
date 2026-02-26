@@ -227,10 +227,25 @@ static void pl011_loopback_tx(PL011State *s, uint32_t value)
 static void pl011_write_txdata(PL011State *s, uint8_t data)
 {
     if (!(s->cr & CR_UARTEN)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "PL011 data written to disabled UART\n");
+        /*
+         * Only log this message once, not every time the guest outputs:
+         * otherwise we would flood the logs with this message, making
+         * harder to debug guests. (Some very popular guests like Linux
+         * don't actively enable the UART.)
+         */
+        if (!s->logged_disabled_uart) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "PL011 data written to disabled UART\n");
+            s->logged_disabled_uart = true;
+        }
     }
     if (!(s->cr & CR_TXE)) {
+        /*
+         * We don't bother with the only-log-once machinery for this check
+         * because TXE is enabled by default from PL011 reset, so there
+         * isn't likely to be existing in-the-wild guest code that trips
+         * over this one.
+         */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "PL011 data written to disabled TX UART\n");
     }
@@ -457,6 +472,10 @@ static void pl011_write(void *opaque, hwaddr offset,
         break;
     case 12: /* UARTCR */
         /* ??? Need to implement the enable bit.  */
+        if ((s->cr ^ value) & CR_UARTEN) {
+            /* Re-arm the log warning when the guest toggles UARTEN */
+            s->logged_disabled_uart = false;
+        }
         s->cr = value;
         pl011_loopback_mdmctrl(s);
         break;
@@ -665,6 +684,7 @@ static void pl011_reset(DeviceState *dev)
     s->ifl = 0x12;
     s->cr = 0x300;
     s->flags = 0;
+    s->logged_disabled_uart = false;
     pl011_reset_rx_fifo(s);
     pl011_reset_tx_fifo(s);
 }
