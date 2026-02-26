@@ -62,16 +62,6 @@ ram_block_attributes_notify_populate_cb(MemoryRegionSection *section,
 }
 
 static int
-ram_block_attributes_notify_discard_cb(MemoryRegionSection *section,
-                                       void *arg)
-{
-    RamDiscardListener *rdl = arg;
-
-    rdl->notify_discard(rdl, section);
-    return 0;
-}
-
-static int
 ram_block_attributes_for_each_populated_section(const RamBlockAttributes *attr,
                                                 MemoryRegionSection *section,
                                                 void *arg,
@@ -191,22 +181,11 @@ ram_block_attributes_rdm_unregister_listener(RamDiscardManager *rdm,
                                              RamDiscardListener *rdl)
 {
     RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
-    int ret;
 
     g_assert(rdl->section);
     g_assert(rdl->section->mr == attr->ram_block->mr);
 
-    if (rdl->double_discard_supported) {
-        rdl->notify_discard(rdl, rdl->section);
-    } else {
-        ret = ram_block_attributes_for_each_populated_section(attr,
-                rdl->section, rdl, ram_block_attributes_notify_discard_cb);
-        if (ret) {
-            error_report("%s: Failed to unregister RAM discard listener: %s",
-                         __func__, strerror(-ret));
-            exit(1);
-        }
-    }
+    rdl->notify_discard(rdl, rdl->section);
 
     memory_region_section_free_copy(rdl->section);
     rdl->section = NULL;
