@@ -1663,8 +1663,7 @@ int whpx_vcpu_run(CPUState *cpu)
 
         case WHvRunVpExitReasonX64Halt:
             /*
-             * WARNING: as of build 19043.1526 (21H1), this exit reason is no
-             * longer used.
+             * Used for kernel-irqchip=off
              */
             ret = whpx_handle_halt(cpu);
             break;
