@@ -45,7 +45,6 @@ weekly-container-builds:
     # cross
     - amd64-debian-cross-container
     - amd64-debian-user-cross-container
-    - amd64-debian-legacy-cross-container
     - arm64-debian-cross-container
     - hexagon-cross-container
     - loongarch-debian-cross-container

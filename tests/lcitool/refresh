@@ -172,6 +172,8 @@ debian_all_test_cross_compilers = [
     "  libc6-dev-arm64-cross \\\n",
     "  gcc-arm-linux-gnueabihf \\\n",
     "  libc6-dev-armhf-cross \\\n",
+    "  gcc-alpha-linux-gnu \\\n"
+    "  libc6.1-dev-alpha-cross \\\n"
     "  gcc-mips-linux-gnu \\\n",
     "  libc6-dev-mips-cross \\\n",
     "  gcc-mips64-linux-gnuabi64 \\\n",
@@ -185,7 +187,9 @@ debian_all_test_cross_compilers = [
     "  gcc-riscv64-linux-gnu \\\n",
     "  libc6-dev-riscv64-cross \\\n",
     "  gcc-s390x-linux-gnu \\\n",
-    "  libc6-dev-s390x-cross\n",
+    "  libc6-dev-s390x-cross\\\n",
+    "  gcc-sh4-linux-gnu \\\n",
+    "  libc6-dev-sh4-cross\n",
     "RUN if dpkg-architecture -e amd64; then \\\n",
     "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-hppa-linux-gnu libc6-dev-hppa-cross\"; \\\n",
     "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-m68k-linux-gnu libc6-dev-m68k-cross\"; \\\n",
@@ -198,7 +202,7 @@ debian_all_test_cross_compilers = [
     "${AVAILABLE_COMPILERS} && \\\n",
     "dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt\n",
     "ENV QEMU_CONFIGURE_OPTS --disable-docs\n",
-    "ENV DEF_TARGET_LIST aarch64-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sparc64-linux-user\n",
+    "ENV DEF_TARGET_LIST aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user\n",
 ]
 
 def cross_build(prefix, targets):
