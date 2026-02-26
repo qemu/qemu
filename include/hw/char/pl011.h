@@ -51,6 +51,7 @@ struct PL011State {
     qemu_irq irq[6];
     Clock *clk;
     bool migrate_clk;
+    bool logged_disabled_uart;
     const unsigned char *id;
     /*
      * Since some users embed this struct directly, we must

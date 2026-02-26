@@ -84,7 +84,7 @@ static void allwinner_cpucfg_cpu_reset(AwCpuCfgState *s, uint8_t cpu_id)
 
     trace_allwinner_cpucfg_cpu_reset(cpu_id, s->entry_addr);
 
-    ARMCPU *target_cpu = ARM_CPU(arm_get_cpu_by_id(cpu_id));
+    CPUState *target_cpu = arm_get_cpu_by_id(cpu_id);
     if (!target_cpu) {
         /*
          * Called with a bogus value for cpu_id. Guest error will
@@ -92,7 +92,7 @@ static void allwinner_cpucfg_cpu_reset(AwCpuCfgState *s, uint8_t cpu_id)
          */
         return;
     }
-    bool target_aa64 = arm_feature(&target_cpu->env, ARM_FEATURE_AARCH64);
+    bool target_aa64 = arm_feature(cpu_env(target_cpu), ARM_FEATURE_AARCH64);
 
     ret = arm_set_cpu_on(cpu_id, s->entry_addr, 0,
                          CPU_EXCEPTION_LEVEL_ON_RESET, target_aa64);

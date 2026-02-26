@@ -125,16 +125,6 @@ bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
 void kvm_arm_destroy_scratch_host_vcpu(int *fdarray);
 
 /**
- * kvm_arm_sve_get_vls:
- * @cpu: ARMCPU
- *
- * Get all the SVE vector lengths supported by the KVM host, setting
- * the bits corresponding to their length in quadwords minus one
- * (vq - 1) up to ARM_MAX_VQ.  Return the resulting map.
- */
-uint32_t kvm_arm_sve_get_vls(ARMCPU *cpu);
-
-/**
  * kvm_arm_set_cpu_features_from_host:
  * @cpu: ARMCPU to set the features for
  *
@@ -179,21 +169,6 @@ void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 bool kvm_arm_aarch32_supported(void);
 
 /**
- * kvm_arm_pmu_supported:
- *
- * Returns: true if KVM can enable the PMU
- * and false otherwise.
- */
-bool kvm_arm_pmu_supported(void);
-
-/**
- * kvm_arm_sve_supported:
- *
- * Returns true if KVM can enable SVE and false otherwise.
- */
-bool kvm_arm_sve_supported(void);
-
-/**
  * kvm_arm_mte_supported:
  *
  * Returns: true if KVM can enable MTE, and false otherwise.
@@ -209,16 +184,6 @@ bool kvm_arm_el2_supported(void);
 #else
 
 static inline bool kvm_arm_aarch32_supported(void)
-{
-    return false;
-}
-
-static inline bool kvm_arm_pmu_supported(void)
-{
-    return false;
-}
-
-static inline bool kvm_arm_sve_supported(void)
 {
     return false;
 }
