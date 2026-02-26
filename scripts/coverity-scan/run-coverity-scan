@@ -424,7 +424,7 @@ echo "Configuring..."
     --enable-linux-aio --enable-attr \
     --enable-cap-ng --enable-trace-backends=log --enable-spice --enable-rbd \
     --enable-libusb --enable-usb-redir \
-    --enable-libiscsi --enable-libnfs --enable-seccomp \
+    --enable-libiscsi --enable-seccomp \
     --enable-tpm --enable-libssh --enable-lzo --enable-snappy --enable-bzip2 \
     --enable-numa --enable-rdma --enable-smartcard --enable-virglrenderer \
     --enable-mpath --enable-glusterfs \
