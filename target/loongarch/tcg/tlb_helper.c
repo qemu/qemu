@@ -692,7 +692,9 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     CPUState *cs = env_cpu(env);
     uint64_t badvaddr;
     hwaddr index, phys;
+    uint64_t palen_mask = loongarch_palen_mask(env);
     uint64_t dir_base, dir_width;
+
 
     if (unlikely((level == 0) || (level > 4))) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -715,11 +717,11 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     }
 
     badvaddr = env->CSR_TLBRBADV;
-    base = base & TARGET_PHYS_MASK;
+    base = base & palen_mask;
     get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << 3;
-    return ldq_le_phys(cs->as, phys) & TARGET_PHYS_MASK;
+    return ldq_le_phys(cs->as, phys) & palen_mask;
 }
 
 void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
@@ -730,8 +732,10 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
     uint64_t badv;
     uint64_t ptbase = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
     uint64_t ptwidth = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
+    uint64_t palen_mask = loongarch_palen_mask(env);
     uint64_t dir_base, dir_width;
     uint8_t  ps;
+
 
     /*
      * The parameter "base" has only two types,
@@ -740,7 +744,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
      * and the other is the huge page entry,
      * whose bit 6 should be 1.
      */
-    base = base & TARGET_PHYS_MASK;
+    base = base & palen_mask;
     if (FIELD_EX64(base, TLBENTRY, HUGE)) {
         /*
          * Gets the huge page level and Gets huge page size.
@@ -781,7 +785,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
         ptoffset0 = ptindex << 3;
         ptoffset1 = (ptindex + 1) << 3;
         phys = base | (odd ? ptoffset1 : ptoffset0);
-        tmp0 = ldq_le_phys(cs->as, phys) & TARGET_PHYS_MASK;
+        tmp0 = ldq_le_phys(cs->as, phys) & palen_mask;
         ps = ptbase;
     }
 

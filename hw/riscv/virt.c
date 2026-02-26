@@ -1739,6 +1739,13 @@ static void virt_machine_init(MachineState *machine)
         object_property_set_link(OBJECT(iommu_sys), "irqchip",
                                  OBJECT(mmio_irqchip),
                                  &error_fatal);
+        /*
+         * For riscv64 use a physical address size of 56 bits (44 bit PPN),
+         * and for riscv32 use 34 bits (22 bit PPN).
+         */
+        object_property_set_uint(OBJECT(iommu_sys), "pas-bits",
+                                 riscv_is_32bit(&s->soc[0]) ? 34 : 56,
+                                 &error_fatal);
 
         sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu_sys), &error_fatal);
     }

@@ -1,45 +1,12 @@
 <?xml version="1.0"?>
-<!-- Copyright (C) 2013-2025 Free Software Foundation, Inc.
+<!-- Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
      Copying and distribution of this file, with or without modification,
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.sparc.core">
-  <reg name="g0" bitsize="64" type="uint64" regnum="0"/>
-  <reg name="g1" bitsize="64" type="uint64" regnum="1"/>
-  <reg name="g2" bitsize="64" type="uint64" regnum="2"/>
-  <reg name="g3" bitsize="64" type="uint64" regnum="3"/>
-  <reg name="g4" bitsize="64" type="uint64" regnum="4"/>
-  <reg name="g5" bitsize="64" type="uint64" regnum="5"/>
-  <reg name="g6" bitsize="64" type="uint64" regnum="6"/>
-  <reg name="g7" bitsize="64" type="uint64" regnum="7"/>
-  <reg name="o0" bitsize="64" type="uint64" regnum="8"/>
-  <reg name="o1" bitsize="64" type="uint64" regnum="9"/>
-  <reg name="o2" bitsize="64" type="uint64" regnum="10"/>
-  <reg name="o3" bitsize="64" type="uint64" regnum="11"/>
-  <reg name="o4" bitsize="64" type="uint64" regnum="12"/>
-  <reg name="o5" bitsize="64" type="uint64" regnum="13"/>
-  <reg name="sp" bitsize="64" type="uint64" regnum="14"/>
-  <reg name="o7" bitsize="64" type="uint64" regnum="15"/>
-  <reg name="l0" bitsize="64" type="uint64" regnum="16"/>
-  <reg name="l1" bitsize="64" type="uint64" regnum="17"/>
-  <reg name="l2" bitsize="64" type="uint64" regnum="18"/>
-  <reg name="l3" bitsize="64" type="uint64" regnum="19"/>
-  <reg name="l4" bitsize="64" type="uint64" regnum="20"/>
-  <reg name="l5" bitsize="64" type="uint64" regnum="21"/>
-  <reg name="l6" bitsize="64" type="uint64" regnum="22"/>
-  <reg name="l7" bitsize="64" type="uint64" regnum="23"/>
-  <reg name="i0" bitsize="64" type="uint64" regnum="24"/>
-  <reg name="i1" bitsize="64" type="uint64" regnum="25"/>
-  <reg name="i2" bitsize="64" type="uint64" regnum="26"/>
-  <reg name="i3" bitsize="64" type="uint64" regnum="27"/>
-  <reg name="i4" bitsize="64" type="uint64" regnum="28"/>
-  <reg name="i5" bitsize="64" type="uint64" regnum="29"/>
-  <reg name="fp" bitsize="64" type="uint64" regnum="30"/>
-  <reg name="i7" bitsize="64" type="uint64" regnum="31"/>
-
+<feature name="org.gnu.gdb.sparc.fpu">
   <reg name="f0" bitsize="32" type="ieee_single" regnum="32"/>
   <reg name="f1" bitsize="32" type="ieee_single" regnum="33"/>
   <reg name="f2" bitsize="32" type="ieee_single" regnum="34"/>
@@ -89,11 +56,4 @@
   <reg name="f58" bitsize="64" type="ieee_double" regnum="77"/>
   <reg name="f60" bitsize="64" type="ieee_double" regnum="78"/>
   <reg name="f62" bitsize="64" type="ieee_double" regnum="79"/>
-
-  <reg name="pc" bitsize="64" type="code_ptr" regnum="80"/>
-  <reg name="npc" bitsize="64" type="code_ptr" regnum="81"/>
-  <reg name="state" bitsize="64" type="uint64" regnum="82"/>
-  <reg name="fsr" bitsize="64" type="uint64" regnum="83"/>
-  <reg name="fprs" bitsize="64" type="uint64" regnum="84"/>
-  <reg name="y" bitsize="64" type="uint64" regnum="85"/>
 </feature>

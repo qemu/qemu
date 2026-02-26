@@ -2453,10 +2453,6 @@ static void riscv_iommu_instance_init(Object *obj)
     /* Enable translation debug interface */
     s->cap = RISCV_IOMMU_CAP_DBG;
 
-    /* Report QEMU target physical address space limits */
-    s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS,
-                       TARGET_PHYS_ADDR_SPACE_BITS);
-
     /* TODO: method to report supported PID bits */
     s->pid_bits = 8; /* restricted to size of MemTxAttrs.pid */
     s->cap |= RISCV_IOMMU_CAP_PD8;
@@ -2486,6 +2482,9 @@ static void riscv_iommu_instance_init(Object *obj)
 static void riscv_iommu_realize(DeviceState *dev, Error **errp)
 {
     RISCVIOMMUState *s = RISCV_IOMMU(dev);
+
+    /* Report QEMU target physical address space limits. */
+    s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS, s->pas_bits);
 
     s->cap |= s->version & RISCV_IOMMU_CAP_VERSION;
     if (s->enable_msi) {
@@ -2645,6 +2644,7 @@ void riscv_iommu_reset(RISCVIOMMUState *s)
 static const Property riscv_iommu_properties[] = {
     DEFINE_PROP_UINT32("version", RISCVIOMMUState, version,
         RISCV_IOMMU_SPEC_DOT_VER),
+    DEFINE_PROP_UINT32("pas-bits", RISCVIOMMUState, pas_bits, 0),
     DEFINE_PROP_UINT32("bus", RISCVIOMMUState, bus, 0x0),
     DEFINE_PROP_UINT32("ioatc-limit", RISCVIOMMUState, iot_limit,
         LIMIT_CACHE_IOT),

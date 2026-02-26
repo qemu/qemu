@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2017-2026 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.or1k.group0">
+  <reg name="r0" bitsize="32" type="int"/>
+  <reg name="r1" bitsize="32" type="data_ptr"/>
+  <reg name="r2" bitsize="32" type="data_ptr"/>
+  <reg name="r3" bitsize="32" type="int"/>
+  <reg name="r4" bitsize="32" type="int"/>
+  <reg name="r5" bitsize="32" type="int"/>
+  <reg name="r6" bitsize="32" type="int"/>
+  <reg name="r7" bitsize="32" type="int"/>
+  <reg name="r8" bitsize="32" type="int"/>
+  <reg name="r9" bitsize="32" type="code_ptr"/>
+  <reg name="r10" bitsize="32" type="int"/>
+  <reg name="r11" bitsize="32" type="int"/>
+  <reg name="r12" bitsize="32" type="int"/>
+  <reg name="r13" bitsize="32" type="int"/>
+  <reg name="r14" bitsize="32" type="int"/>
+  <reg name="r15" bitsize="32" type="int"/>
+  <reg name="r16" bitsize="32" type="int"/>
+  <reg name="r17" bitsize="32" type="int"/>
+  <reg name="r18" bitsize="32" type="int"/>
+  <reg name="r19" bitsize="32" type="int"/>
+  <reg name="r20" bitsize="32" type="int"/>
+  <reg name="r21" bitsize="32" type="int"/>
+  <reg name="r22" bitsize="32" type="int"/>
+  <reg name="r23" bitsize="32" type="int"/>
+  <reg name="r24" bitsize="32" type="int"/>
+  <reg name="r25" bitsize="32" type="int"/>
+  <reg name="r26" bitsize="32" type="int"/>
+  <reg name="r27" bitsize="32" type="int"/>
+  <reg name="r28" bitsize="32" type="int"/>
+  <reg name="r29" bitsize="32" type="int"/>
+  <reg name="r30" bitsize="32" type="int"/>
+  <reg name="r31" bitsize="32" type="int"/>
+  <reg name="ppc" bitsize="32" type="code_ptr"/>
+  <reg name="npc" bitsize="32" type="code_ptr"/>
+  <flags id="sr_flags" size="4">
+    <field name="SM" start="0" end="0"/>
+    <field name="TEE" start="1" end="1"/>
+    <field name="IEE" start="2" end="2"/>
+    <field name="DCE" start="3" end="3"/>
+    <field name="ICE" start="4" end="4"/>
+    <field name="DME" start="5" end="5"/>
+    <field name="IME" start="6" end="6"/>
+    <field name="LEE" start="7" end="7"/>
+    <field name="CE" start="8" end="8"/>
+    <field name="F" start="9" end="9"/>
+    <field name="CY" start="10" end="10"/>
+    <field name="OV" start="11" end="11"/>
+    <field name="OVE" start="12" end="12"/>
+    <field name="DSX" start="13" end="13"/>
+    <field name="EPH" start="14" end="14"/>
+    <field name="FO" start="15" end="15"/>
+    <field name="SUMRA" start="16" end="16"/>
+    <field name="CID" start="28" end="31"/>
+  </flags>
+  <reg name="sr" bitsize="32" type="sr_flags"/>
+</feature>

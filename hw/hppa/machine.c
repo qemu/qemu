@@ -181,7 +181,7 @@ static uint64_t linux_kernel_virt_to_phys(void *opaque, uint64_t addr)
 
 static uint64_t translate_pa10(void *dummy, uint64_t addr)
 {
-    return (uint32_t)addr;
+    return hppa_abs_to_phys_pa1x(addr);
 }
 
 static uint64_t translate_pa20(void *dummy, uint64_t addr)

@@ -8,9 +8,6 @@
 #ifndef ALPHA_CPU_PARAM_H
 #define ALPHA_CPU_PARAM_H
 
-/* ??? EV4 has 34 phys addr bits, EV5 has 40, EV6 has 44.  */
-#define TARGET_PHYS_ADDR_SPACE_BITS  44
-
 #ifdef CONFIG_USER_ONLY
 /*
  * Allow user-only to vary page size.  Real hardware allows only 8k and 64k,

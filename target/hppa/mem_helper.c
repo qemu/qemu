@@ -29,6 +29,28 @@
 #include "hw/core/cpu.h"
 #include "trace.h"
 
+/*
+ * 64-bit (PA-RISC 2.0) machines are assumed to run PA-8700, and 32-bit
+ * machines 7300LC.  This should give 44 and 32 bits of physical address
+ * space respectively.
+ *
+ *   CPU model        Physical address space bits
+ *   PA-7000--7300LC  32
+ *   PA-8000--8600    40
+ *   PA-8700--8900    44
+ *
+ * FIXME: However, the SeaBIOS firmware that is that tested against
+ * uses 40-bit physical addresses, despite supposedly running a C3700
+ * with a PA-8700 cpu, so use 40-bits for 64-bit.
+ */
+#define HPPA_PHYS_ADDR_SPACE_BITS_PA20 40
+#define HPPA_PHYS_ADDR_SPACE_BITS_PA1X 32
+
+hwaddr hppa_abs_to_phys_pa1x(vaddr addr)
+{
+    return extract64(addr, 0, HPPA_PHYS_ADDR_SPACE_BITS_PA1X);
+}
+
 hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr)
 {
     /*
@@ -42,8 +64,8 @@ hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr)
      * Since the supported physical address space is below 54 bits, the
      * H-8 algorithm is moot and all that is left is to truncate.
      */
-    QEMU_BUILD_BUG_ON(TARGET_PHYS_ADDR_SPACE_BITS > 54);
-    return sextract64(addr, 0, TARGET_PHYS_ADDR_SPACE_BITS);
+    QEMU_BUILD_BUG_ON(HPPA_PHYS_ADDR_SPACE_BITS_PA20 > 54);
+    return sextract64(addr, 0, HPPA_PHYS_ADDR_SPACE_BITS_PA20);
 }
 
 hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
@@ -67,7 +89,7 @@ hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr)
          * is what can be seen on physical machines too.
          */
         addr = (uint32_t)addr;
-        addr |= -1ull << (TARGET_PHYS_ADDR_SPACE_BITS - 4);
+        addr |= -1ull << (HPPA_PHYS_ADDR_SPACE_BITS_PA20 - 4);
     }
     return addr;
 }
@@ -217,7 +239,7 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
             if (hppa_is_pa20(env)) {
                 phys = hppa_abs_to_phys_pa2_w0(addr);
             } else {
-                phys = (uint32_t)addr;
+                phys = hppa_abs_to_phys_pa1x(addr);
             }
             break;
         default:
@@ -558,7 +580,7 @@ static void itlbt_pa20(CPUHPPAState *env, target_ulong r1,
     /* Align per the page size. */
     ent->pa &= TARGET_PAGE_MASK << mask_shift;
     /* Ignore the bits beyond physical address space. */
-    ent->pa = sextract64(ent->pa, 0, TARGET_PHYS_ADDR_SPACE_BITS);
+    ent->pa = sextract64(ent->pa, 0, HPPA_PHYS_ADDR_SPACE_BITS_PA20);
 
     ent->t = extract64(r2, 61, 1);
     ent->d = extract64(r2, 60, 1);

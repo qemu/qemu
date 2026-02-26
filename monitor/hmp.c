@@ -27,14 +27,18 @@
 #include "hw/core/qdev.h"
 #include "monitor-internal.h"
 #include "monitor/hmp.h"
+#include "monitor/hmp-target.h"
 #include "qobject/qdict.h"
 #include "qobject/qnum.h"
+#include "qemu/bswap.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/option.h"
+#include "qemu/target-info.h"
 #include "qemu/units.h"
+#include "exec/gdbstub.h"
 #include "system/block-backend.h"
 #include "trace.h"
 
@@ -306,6 +310,46 @@ void hmp_help_cmd(Monitor *mon, const char *name)
     free_cmdline_args(args, nb_args);
 }
 
+/*
+ * Set @pval to the value in the register identified by @name.
+ * return %true if the register is found, %false otherwise.
+ */
+static bool gdb_get_register(Monitor *mon, int64_t *pval, const char *name)
+{
+    g_autoptr(GArray) regs = NULL;
+    CPUState *cs = mon_get_cpu(mon);
+
+    if (cs == NULL) {
+        return false;
+    }
+
+    regs = gdb_get_register_list(cs);
+
+    for (int i = 0; i < regs->len; i++) {
+        GDBRegDesc *reg = &g_array_index(regs, GDBRegDesc, i);
+        g_autoptr(GByteArray) buf = NULL;
+        int reg_size;
+
+        if (!reg->name || g_strcmp0(name, reg->name)) {
+            continue;
+        }
+
+        buf = g_byte_array_new();
+        reg_size = gdb_read_register(cs, buf, reg->gdb_reg);
+        if (reg_size > sizeof(*pval)) {
+            return false;
+        }
+
+        if (target_big_endian()) {
+            *pval = ldn_be_p(buf->data, reg_size);
+        } else {
+            *pval = ldn_le_p(buf->data, reg_size);
+        }
+        return true;
+    }
+    return false;
+}
+
 /*******************************************************************/
 
 static const char *pch;
@@ -338,7 +382,6 @@ static int64_t expr_unary(Monitor *mon)
 {
     int64_t n;
     char *p;
-    int ret;
 
     switch (*pch) {
     case '+':
@@ -393,8 +436,8 @@ static int64_t expr_unary(Monitor *mon)
                 pch++;
             }
             *q = 0;
-            ret = get_monitor_def(mon, &reg, buf);
-            if (ret < 0) {
+            if (!gdb_get_register(mon, &reg, buf)
+                && get_monitor_def(mon, &reg, buf) < 0) {
                 expr_error(mon, "unknown register");
             }
             n = reg;

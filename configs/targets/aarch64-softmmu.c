@@ -10,6 +10,7 @@
 #include "qemu/target-info-impl.h"
 #include "hw/arm/machines-qom.h"
 #include "target/arm/cpu-qom.h"
+#include "target/arm/cpu-param.h"
 
 static const TargetInfo target_info_aarch64_system = {
     .target_name = "aarch64",
@@ -18,6 +19,8 @@ static const TargetInfo target_info_aarch64_system = {
     .cpu_type = TYPE_ARM_CPU,
     .machine_typename = TYPE_TARGET_AARCH64_MACHINE,
     .endianness = ENDIAN_MODE_LITTLE,
+    .page_bits_vary = true,
+    .page_bits_init = TARGET_PAGE_BITS_LEGACY,
 };
 
 const TargetInfo *target_info(void)

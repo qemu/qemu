@@ -10,7 +10,7 @@
      register descriptions.  -->
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.riscv.cpu">
+<feature name="org.gnu.gdb.avr.cpu">
   <reg name="r0" bitsize="8" type="int" regnum="0"/>
   <reg name="r1" bitsize="8" type="int"/>
   <reg name="r2" bitsize="8" type="int"/>

@@ -20,34 +20,48 @@
 #define IN_PAGE_VARY 1
 
 #include "qemu/osdep.h"
+#include "qemu/target-info-impl.h"
 #include "exec/page-vary.h"
 
 /* WARNING: This file must *not* be complied with -flto. */
 
 TargetPageBits target_page;
 
-bool set_preferred_target_page_bits_common(int bits)
+bool set_preferred_target_page_bits(int bits)
 {
-    /*
-     * The target page size is the lowest common denominator for all
-     * the CPUs in the system, so we can only make it smaller, never
-     * larger. And we can't make it smaller once we've committed to
-     * a particular size.
-     */
-    if (target_page.bits == 0 || target_page.bits > bits) {
-        if (target_page.decided) {
-            return false;
+    const TargetInfo *ti = target_info();
+
+    assert(bits >= TARGET_PAGE_BITS_MIN);
+    if (ti->page_bits_vary) {
+
+        /*
+         * The target page size is the lowest common denominator for all
+         * the CPUs in the system, so we can only make it smaller, never
+         * larger. And we can't make it smaller once we've committed to
+         * a particular size.
+         */
+        if (target_page.bits == 0 || target_page.bits > bits) {
+            if (target_page.decided) {
+                return false;
+            }
+            target_page.bits = bits;
         }
-        target_page.bits = bits;
     }
     return true;
 }
 
-void finalize_target_page_bits_common(int min)
+void finalize_target_page_bits(void)
 {
-    if (target_page.bits == 0) {
-        target_page.bits = min;
+    int bits = target_page.bits;
+
+    if (bits == 0) {
+        const TargetInfo *ti = target_info();
+
+        bits = ti->page_bits_init;
+        assert(bits != 0);
+        target_page.bits = bits;
     }
-    target_page.mask = -1ull << target_page.bits;
+
+    target_page.mask = -1ull << bits;
     target_page.decided = true;
 }

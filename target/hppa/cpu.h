@@ -336,6 +336,7 @@ static inline vaddr hppa_form_gva(CPUHPPAState *env, uint64_t spc,
     return hppa_form_gva_mask(env->gva_offset_mask, spc, off);
 }
 
+hwaddr hppa_abs_to_phys_pa1x(vaddr addr);
 hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr);
 hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr);
 

@@ -52,8 +52,6 @@
 #endif
 
 #include "cpu_init.h"
-/* #define PPC_DEBUG_SPR */
-/* #define USE_APPLE_GDB */
 
 static const Property powerpc_cpu_properties[] = {
     DEFINE_PROP_BOOL("rtas-stopped-state", PowerPCCPU,
@@ -7553,14 +7551,6 @@ static void ppc_cpu_class_init(ObjectClass *oc, const void *data)
                       MMU_INST_FETCH == 2 && PAGE_READ == 1 &&
                       PAGE_WRITE == 2 && PAGE_EXEC == 4);
 #endif
-
-    cc->gdb_num_core_regs = 71;
-#ifdef USE_APPLE_GDB
-    cc->gdb_read_register = ppc_cpu_gdb_read_register_apple;
-    cc->gdb_write_register = ppc_cpu_gdb_write_register_apple;
-    cc->gdb_num_core_regs = 71 + 32;
-#endif
-
     cc->gdb_arch_name = ppc_gdb_arch_name;
 #if defined(TARGET_PPC64)
     cc->gdb_core_xml_file = "power64-core.xml";

@@ -1,7 +1,7 @@
 /*
- * QEMU AVR CPU
+ * Variable page size handling -- system specific part.
  *
- * Copyright (c) 2016-2020 Michael Rolnik
+ *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -14,14 +14,20 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, see
- * <http://www.gnu.org/licenses/lgpl-2.1.html>
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef AVR_CPU_PARAM_H
-#define AVR_CPU_PARAM_H
+#include "qemu/osdep.h"
+#include "exec/page-vary.h"
+#include "exec/tlb-flags.h"
+#include "qemu/target-info-impl.h"
 
-#define TARGET_PAGE_BITS 10
-#define TARGET_VIRT_ADDR_SPACE_BITS 24
+QEMU_BUILD_BUG_ON(TLB_FLAGS_MASK & ((1u < TARGET_PAGE_BITS_MIN) - 1));
 
-#endif
+int migration_legacy_page_bits(void)
+{
+    const TargetInfo *ti = target_info();
+
+    assert(ti->page_bits_init >= TARGET_PAGE_BITS_MIN);
+    return ti->page_bits_init;
+}

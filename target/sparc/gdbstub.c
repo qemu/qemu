@@ -18,14 +18,18 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "exec/gdbstub.h"
 #include "cpu.h"
 #include "gdbstub/helpers.h"
 
-#ifdef TARGET_ABI32
-#define gdb_get_rega(buf, val) gdb_get_reg32(buf, val)
+static inline int gdb_get_rega(GByteArray *buf, uint64_t val)
+{
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    return gdb_get_reg32(buf, val);
 #else
-#define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
+    return gdb_get_reg64(buf, val);
 #endif
+}
 
 int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
@@ -39,179 +43,248 @@ int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         /* register window */
         return gdb_get_rega(mem_buf, env->regwptr[n - 8]);
     }
+    return 0;
+}
+
+static int sparc_fpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
-    if (n < 64) {
+    if (n < 32) {
         /* fprs */
         if (n & 1) {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.lower);
         } else {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.upper);
         }
-    }
-    /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
-    switch (n) {
-    case 64:
-        return gdb_get_rega(mem_buf, env->y);
-    case 65:
-        return gdb_get_rega(mem_buf, cpu_get_psr(env));
-    case 66:
-        return gdb_get_rega(mem_buf, env->wim);
-    case 67:
-        return gdb_get_rega(mem_buf, env->tbr);
-    case 68:
-        return gdb_get_rega(mem_buf, env->pc);
-    case 69:
-        return gdb_get_rega(mem_buf, env->npc);
-    case 70:
-        return gdb_get_rega(mem_buf, cpu_get_fsr(env));
-    case 71:
-        return gdb_get_rega(mem_buf, 0); /* csr */
-    default:
-        return gdb_get_rega(mem_buf, 0);
     }
 #else
-    if (n < 64) {
+    if (n < 32) {
         /* f0-f31 */
         if (n & 1) {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.lower);
         } else {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(mem_buf, env->fpr[n / 2].l.upper);
         }
     }
-    if (n < 80) {
+    if (n < 48) {
         /* f32-f62 (16 double width registers, even register numbers only)
-         * n == 64: f32 : env->fpr[16]
-         * n == 65: f34 : env->fpr[17]
+         * n == 32: f32 : env->fpr[16]
+         * n == 33: f34 : env->fpr[17]
          * etc...
-         * n == 79: f62 : env->fpr[31]
+         * n == 47: f62 : env->fpr[31]
          */
-        return gdb_get_reg64(mem_buf, env->fpr[(n - 64) + 16].ll);
+        return gdb_get_reg64(mem_buf, env->fpr[(n - 32) + 16].ll);
     }
+#endif
+    return 0;
+}
+
+static int sparc_cp0_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     switch (n) {
-    case 80:
+    case 0:
+        return gdb_get_rega(mem_buf, env->y);
+    case 1:
+        return gdb_get_rega(mem_buf, cpu_get_psr(env));
+    case 2:
+        return gdb_get_rega(mem_buf, env->wim);
+    case 3:
+        return gdb_get_rega(mem_buf, env->tbr);
+    case 4:
+        return gdb_get_rega(mem_buf, env->pc);
+    case 5:
+        return gdb_get_rega(mem_buf, env->npc);
+    case 6:
+        return gdb_get_rega(mem_buf, cpu_get_fsr(env));
+    case 7:
+        return gdb_get_rega(mem_buf, 0); /* csr */
+    }
+#else
+    switch (n) {
+    case 0:
         return gdb_get_regl(mem_buf, env->pc);
-    case 81:
+    case 1:
         return gdb_get_regl(mem_buf, env->npc);
-    case 82:
+    case 2:
         return gdb_get_regl(mem_buf, (cpu_get_ccr(env) << 32) |
                                      ((env->asi & 0xff) << 24) |
                                      ((env->pstate & 0xfff) << 8) |
                                      cpu_get_cwp64(env));
-    case 83:
+    case 3:
         return gdb_get_regl(mem_buf, cpu_get_fsr(env));
-    case 84:
+    case 4:
         return gdb_get_regl(mem_buf, env->fprs);
-    case 85:
+    case 5:
         return gdb_get_regl(mem_buf, env->y);
     }
 #endif
     return 0;
 }
 
+static unsigned sparc_gdb_register_bytes(void)
+{
+#ifdef CONFIG_USER_ONLY
+# if defined(TARGET_ABI32)
+    return 4;
+# endif
+#endif
+    return target_long_bits() / 8;
+}
+
 int sparc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
-#if defined(TARGET_ABI32)
-    uint32_t tmp;
-
-    tmp = ldl_p(mem_buf);
-#else
-    target_ulong tmp;
-
-    tmp = ldtul_p(mem_buf);
-#endif
+    const unsigned regsz = sparc_gdb_register_bytes();
+    uint64_t tmp = ldn_p(mem_buf, regsz);
 
     if (n < 8) {
         /* g0..g7 */
         env->gregs[n] = tmp;
-    } else if (n < 32) {
+    } else {
         /* register window */
         env->regwptr[n - 8] = tmp;
     }
+    return regsz;
+}
+
+static int sparc_fpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
-    else if (n < 64) {
-        /* fprs */
-        /* f0-f31 */
-        if (n & 1) {
-            env->fpr[(n - 32) / 2].l.lower = tmp;
-        } else {
-            env->fpr[(n - 32) / 2].l.upper = tmp;
-        }
+    uint32_t tmp;
+
+    tmp = ldl_p(mem_buf);
+
+    /* fprs */
+    /* f0-f31 */
+    if (n & 1) {
+        env->fpr[n / 2].l.lower = tmp;
     } else {
-        /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
-        switch (n) {
-        case 64:
-            env->y = tmp;
-            break;
-        case 65:
-            cpu_put_psr(env, tmp);
-            break;
-        case 66:
-            env->wim = tmp;
-            break;
-        case 67:
-            env->tbr = tmp;
-            break;
-        case 68:
-            env->pc = tmp;
-            break;
-        case 69:
-            env->npc = tmp;
-            break;
-        case 70:
-            cpu_put_fsr(env, tmp);
-            break;
-        default:
-            return 0;
+        env->fpr[n / 2].l.upper = tmp;
+    }
+
+    return 4;
+#else
+    if (n < 32) {
+        /* f0-f31 */
+        uint32_t tmp = ldl_p(mem_buf);
+        if (n & 1) {
+            env->fpr[n / 2].l.lower = tmp;
+        } else {
+            env->fpr[n  / 2].l.upper = tmp;
         }
+        return 4;
+    } else {
+        uint64_t tmp = ldq_p(mem_buf);
+        /* f32-f62 (16 double width registers, even register numbers only)
+         * n == 32: f32 : env->fpr[16]
+         * n == 33: f34 : env->fpr[17]
+         * etc...
+         * n == 47: f62 : env->fpr[31]
+         */
+        env->fpr[(n - 32) + 16].ll = tmp;
+    }
+    return 8;
+#endif
+}
+
+static int sparc_cp0_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+{
+    CPUSPARCState *env = cpu_env(cs);
+
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    uint32_t tmp;
+
+    tmp = ldl_p(mem_buf);
+
+    /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
+    switch (n) {
+    case 0:
+        env->y = tmp;
+        break;
+    case 1:
+        cpu_put_psr(env, tmp);
+        break;
+    case 2:
+        env->wim = tmp;
+        break;
+    case 3:
+        env->tbr = tmp;
+        break;
+    case 4:
+        env->pc = tmp;
+        break;
+    case 5:
+        env->npc = tmp;
+        break;
+    case 6:
+        cpu_put_fsr(env, tmp);
+        break;
+    default:
+        return 0;
     }
     return 4;
 #else
-    else if (n < 64) {
-        /* f0-f31 */
-        tmp = ldl_p(mem_buf);
-        if (n & 1) {
-            env->fpr[(n - 32) / 2].l.lower = tmp;
-        } else {
-            env->fpr[(n - 32) / 2].l.upper = tmp;
-        }
-        return 4;
-    } else if (n < 80) {
-        /* f32-f62 (16 double width registers, even register numbers only)
-         * n == 64: f32 : env->fpr[16]
-         * n == 65: f34 : env->fpr[17]
-         * etc...
-         * n == 79: f62 : env->fpr[31]
-         */
-        env->fpr[(n - 64) + 16].ll = tmp;
-    } else {
-        switch (n) {
-        case 80:
-            env->pc = tmp;
-            break;
-        case 81:
-            env->npc = tmp;
-            break;
-        case 82:
-            cpu_put_ccr(env, tmp >> 32);
-            env->asi = (tmp >> 24) & 0xff;
-            env->pstate = (tmp >> 8) & 0xfff;
-            cpu_put_cwp64(env, tmp & 0xff);
-            break;
-        case 83:
-            cpu_put_fsr(env, tmp);
-            break;
-        case 84:
-            env->fprs = tmp;
-            break;
-        case 85:
-            env->y = tmp;
-            break;
-        default:
-            return 0;
-        }
+    uint64_t tmp;
+
+    tmp = ldq_p(mem_buf);
+
+    switch (n) {
+    case 0:
+        env->pc = tmp;
+        break;
+    case 1:
+        env->npc = tmp;
+        break;
+    case 2:
+        cpu_put_ccr(env, tmp >> 32);
+        env->asi = (tmp >> 24) & 0xff;
+        env->pstate = (tmp >> 8) & 0xfff;
+        cpu_put_cwp64(env, tmp & 0xff);
+        break;
+    case 3:
+        cpu_put_fsr(env, tmp);
+        break;
+    case 4:
+        env->fprs = tmp;
+        break;
+    case 5:
+        env->y = tmp;
+        break;
+    default:
+        return 0;
     }
     return 8;
+#endif
+}
+
+void sparc_cpu_register_gdb_regs(CPUState *cs)
+{
+#if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
+    gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
+                             sparc_fpu_gdb_write_register,
+                             gdb_find_static_feature("sparc32-fpu.xml"),
+                             0);
+    gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
+                             sparc_cp0_gdb_write_register,
+                             gdb_find_static_feature("sparc32-cp0.xml"),
+                             0);
+#else
+    gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
+                             sparc_fpu_gdb_write_register,
+                             gdb_find_static_feature("sparc64-fpu.xml"),
+                             0);
+    gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
+                             sparc_cp0_gdb_write_register,
+                             gdb_find_static_feature("sparc64-cp0.xml"),
+                             0);
 #endif
 }

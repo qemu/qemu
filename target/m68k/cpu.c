@@ -19,12 +19,15 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "cpu.h"
-#include "migration/vmstate.h"
-#include "fpu/softfloat.h"
-#include "exec/translation-block.h"
 #include "accel/tcg/cpu-ops.h"
+#include "fpu/softfloat.h"
+#include "qapi/error.h"
+
+#ifndef CONFIG_USER_ONLY
+#include "migration/vmstate.h"
+#endif
+
+#include "cpu.h"
 
 static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
 {

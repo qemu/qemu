@@ -88,3 +88,8 @@ bool target_ppc64(void)
 {
     return target_arch() == SYS_EMU_TARGET_PPC64;
 }
+
+bool target_s390x(void)
+{
+    return target_arch() == SYS_EMU_TARGET_S390X;
+}

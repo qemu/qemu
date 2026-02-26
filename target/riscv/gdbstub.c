@@ -52,7 +52,7 @@ int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(cs);
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    target_ulong tmp;
+    uint64_t tmp;
 
     if (n < 32) {
         tmp = env->gpr[n];
@@ -80,7 +80,7 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
     int length = 0;
-    target_ulong tmp;
+    uint64_t tmp;
 
     switch (mcc->def->misa_mxl_max) {
     case MXL_RV32:
@@ -191,14 +191,15 @@ static int riscv_gdb_set_csr(CPUState *cs, uint8_t *mem_buf, int n)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
+    const unsigned regsz = riscv_cpu_is_32bit(cpu) ? 4 : 8;
 
     if (n < CSR_TABLE_SIZE) {
-        target_ulong val = ldtul_p(mem_buf);
+        uint64_t val = ldn_p(mem_buf, regsz);
         int result;
 
         result = riscv_csrrw_debug(env, n, NULL, val, -1);
         if (result == RISCV_EXCP_NONE) {
-            return sizeof(target_ulong);
+            return regsz;
         }
     }
     return 0;
@@ -214,7 +215,7 @@ static int riscv_gdb_get_virtual(CPUState *cs, GByteArray *buf, int n)
         CPURISCVState *env = &cpu->env;
 
         /* Per RiscV debug spec v1.0.0 rc4 */
-        target_ulong vbit = (env->virt_enabled) ? BIT(2) : 0;
+        uint32_t vbit = (env->virt_enabled) ? BIT(2) : 0;
 
         return gdb_get_regl(buf, env->priv | vbit);
 #endif
@@ -225,11 +226,12 @@ static int riscv_gdb_get_virtual(CPUState *cs, GByteArray *buf, int n)
 static int riscv_gdb_set_virtual(CPUState *cs, uint8_t *mem_buf, int n)
 {
     if (n == 0) {
-#ifndef CONFIG_USER_ONLY
         RISCVCPU *cpu = RISCV_CPU(cs);
+        const unsigned regsz = riscv_cpu_is_32bit(cpu) ? 4 : 8;
+#ifndef CONFIG_USER_ONLY
         CPURISCVState *env = &cpu->env;
 
-        target_ulong new_priv = ldtul_p(mem_buf) & 0x3;
+        target_ulong new_priv = ldn_p(mem_buf, regsz) & 0x3;
         bool new_virt = 0;
 
         if (new_priv == PRV_RESERVED) {
@@ -237,7 +239,7 @@ static int riscv_gdb_set_virtual(CPUState *cs, uint8_t *mem_buf, int n)
         }
 
         if (new_priv != PRV_M) {
-            new_virt = (ldtul_p(mem_buf) & BIT(2)) >> 2;
+            new_virt = (ldn_p(mem_buf, regsz) & BIT(2)) >> 2;
         }
 
         if (riscv_has_ext(env, RVH) && new_virt != env->virt_enabled) {
@@ -246,7 +248,7 @@ static int riscv_gdb_set_virtual(CPUState *cs, uint8_t *mem_buf, int n)
 
         riscv_cpu_set_mode(env, new_priv, new_virt);
 #endif
-        return sizeof(target_ulong);
+        return regsz;
     }
     return 0;
 }

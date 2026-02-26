@@ -31,8 +31,6 @@
 # define TCG_PHYS_ADDR_BITS 36
 #endif
 
-QEMU_BUILD_BUG_ON(TCG_PHYS_ADDR_BITS > TARGET_PHYS_ADDR_SPACE_BITS);
-
 /**
  * x86_cpu_do_interrupt:
  * @cpu: vCPU the interrupt is to be handled by.

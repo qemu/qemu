@@ -3200,7 +3200,7 @@ if host_os == 'windows'
 endif
 
 # Detect if ConvertStringToBSTR has been defined in _com_util namespace
-if host_os == 'windows'
+if host_os == 'windows' and 'cpp' in all_languages
   has_convert_string_to_bstr = cxx.links('''
     #include <comutil.h>
     int main() {
@@ -3375,8 +3375,6 @@ foreach target : target_dirs
       config_target_data.set(k, v)
     endif
   endforeach
-  config_target_data.set('QEMU_ARCH',
-                         'QEMU_ARCH_' + config_target['TARGET_BASE_ARCH'].to_upper())
   config_target_h += {target: configure_file(output: target + '-config-target.h',
                                                configuration: config_target_data)}
 
@@ -3835,7 +3833,7 @@ if get_option('b_lto')
   pagevary = declare_dependency(link_with: pagevary)
 endif
 common_ss.add(pagevary)
-specific_ss.add(files('page-vary-target.c'))
+system_ss.add(files('page-vary-system.c'))
 
 common_ss.add(files('target-info.c'))
 system_ss.add(files('target-info-qom.c'))

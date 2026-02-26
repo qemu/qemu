@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "cpu.h"
 #include "internal.h"
 #include "gdbstub/helpers.h"
@@ -77,14 +78,15 @@ int mips_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
 int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
+    const unsigned regsz = target_long_bits() / 8;
     CPUMIPSState *env = cpu_env(cs);
-    target_ulong tmp;
+    uint64_t tmp;
 
-    tmp = ldtul_p(mem_buf);
+    tmp = ldn_p(mem_buf, regsz);
 
     if (n < 32) {
         env->active_tc.gpr[n] = tmp;
-        return sizeof(target_ulong);
+        return regsz;
     }
     if (env->CP0_Config1 & (1 << CP0C1_FP) && n >= 38 && n < 72) {
         switch (n) {
@@ -104,7 +106,7 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             }
             break;
         }
-        return sizeof(target_ulong);
+        return regsz;
     }
     switch (n) {
     case 32:
@@ -127,7 +129,7 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 #endif
         break;
     case 37:
-        env->active_tc.PC = tmp & ~(target_ulong)1;
+        env->active_tc.PC = deposit64(tmp, 63, 1, 0);
         if (tmp & 1) {
             env->hflags |= MIPS_HFLAG_M16;
         } else {
@@ -144,5 +146,5 @@ int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         break;
     }
 
-    return sizeof(target_ulong);
+    return regsz;
 }
