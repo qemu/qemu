@@ -246,7 +246,6 @@ static int get_host_cpu_reg(int fd, ARMHostCPUFeatures *ahcf,
 
 static uint32_t kvm_arm_sve_get_vls(int fd)
 {
-    /* Only call this function if kvm_arm_sve_supported() returns true. */
     uint64_t vls[KVM_ARM64_SVE_VLS_WORDS];
     struct kvm_one_reg reg = {
         .id = KVM_REG_ARM64_SVE_VLS,
@@ -298,7 +297,7 @@ static bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      * Ask for SVE if supported, so that we can query ID_AA64ZFR0,
      * which is otherwise RAZ.
      */
-    sve_supported = kvm_arm_sve_supported();
+    sve_supported = kvm_check_extension(kvm_state, KVM_CAP_ARM_SVE);
     if (sve_supported) {
         init.features[0] |= 1 << KVM_ARM_VCPU_SVE;
     }
@@ -1937,11 +1936,6 @@ bool kvm_arm_el2_supported(void)
     return kvm_check_extension(kvm_state, KVM_CAP_ARM_EL2);
 }
 
-bool kvm_arm_sve_supported(void)
-{
-    return kvm_check_extension(kvm_state, KVM_CAP_ARM_SVE);
-}
-
 bool kvm_arm_mte_supported(void)
 {
     return kvm_check_extension(kvm_state, KVM_CAP_ARM_MTE);
@@ -2000,7 +1994,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
     }
     if (cpu_isar_feature(aa64_sve, cpu)) {
-        assert(kvm_arm_sve_supported());
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
     }
     if (cpu_isar_feature(aa64_pauth, cpu)) {

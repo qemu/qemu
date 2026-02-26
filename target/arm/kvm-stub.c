@@ -37,11 +37,6 @@ bool kvm_arm_pmu_supported(void)
     return false;
 }
 
-bool kvm_arm_sve_supported(void)
-{
-    return false;
-}
-
 bool kvm_arm_mte_supported(void)
 {
     return false;
