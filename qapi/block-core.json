@@ -4600,23 +4600,14 @@
 # Driver specific block device options for HTTPS connections over the
 # curl backend.  URLs must start with "https://".
 #
-# @cookie: List of cookies to set; format is "name1=content1;
-#     name2=content2;" as explained by CURLOPT_COOKIE(3).  Defaults to
-#     no cookies.
-#
 # @sslverify: Whether to verify the SSL certificate's validity
 #     (defaults to true)
-#
-# @cookie-secret: ID of a QCryptoSecret object providing the cookie
-#     data in a secure way.  See @cookie for the format.  (since 2.10)
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttps',
-  'base': 'BlockdevOptionsCurlBase',
-  'data': { '*cookie': 'str',
-            '*sslverify': 'bool',
-            '*cookie-secret': 'str'} }
+  'base': 'BlockdevOptionsCurlHttp',
+  'data': { '*sslverify': 'bool'} }
 
 ##
 # @BlockdevOptionsCurlFtp:
