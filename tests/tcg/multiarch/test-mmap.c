@@ -442,19 +442,19 @@ void check_invalid_mmaps(void)
 
     /* Attempt to map a zero length page.  */
     addr = mmap(NULL, 0, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
+    fprintf(stdout, "%s addr=%p errno=%d\n", __func__, (void *)addr, errno);
     fail_unless(addr == MAP_FAILED);
     fail_unless(errno == EINVAL);
 
     /* Attempt to map a over length page.  */
     addr = mmap(NULL, -4, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
+    fprintf(stdout, "%s addr=%p errno=%d\n", __func__, (void *)addr, errno);
     fail_unless(addr == MAP_FAILED);
     fail_unless(errno == ENOMEM);
 
     /* Attempt to remap a region which exceeds the bounds of memory. */
     addr = mremap((void *)((uintptr_t)pagesize * 10), SIZE_MAX & ~(size_t)pagemask, pagesize, 0);
-    fprintf(stdout, "%s mremap addr=%p", __func__, (void *)addr);
+    fprintf(stdout, "%s mremap addr=%p errno=%d\n", __func__, (void *)addr, errno);
     fail_unless(addr == MAP_FAILED);
     fail_unless(errno == EFAULT);
 
@@ -465,8 +465,11 @@ void check_shrink_mmaps(void)
 {
     unsigned char *a, *b, *c;
     a = mmap(NULL, pagesize * 2, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    fprintf(stdout, "%s addr=%p errno=%d\n", __func__, (void *)a, errno);
     b = mmap(NULL, pagesize * 2, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    fprintf(stdout, "%s addr=%p errno=%d\n", __func__, (void *)b, errno);
     c = mmap(NULL, pagesize * 2, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    fprintf(stdout, "%s addr=%p errno=%d\n", __func__, (void *)c, errno);
 
     fail_unless(a != MAP_FAILED);
     fail_unless(b != MAP_FAILED);
@@ -479,6 +482,7 @@ void check_shrink_mmaps(void)
 
     /* Shrink the middle mapping in-place; the others should be unaffected */
     b = mremap(b, pagesize * 2, pagesize, 0);
+    fprintf(stdout, "%s mremap addr=%p errno=%d\n", __func__, (void *)b, errno);
     fail_unless(b != MAP_FAILED);
 
     /* Ensure we can still access all valid mappings */
@@ -489,6 +493,8 @@ void check_shrink_mmaps(void)
     munmap(a, 2 * pagesize);
     munmap(b, pagesize);
     munmap(c, 2 * pagesize);
+
+    fprintf(stdout, " passed\n");
 }
 
 int main(int argc, char **argv)
