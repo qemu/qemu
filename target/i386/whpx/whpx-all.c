@@ -1323,6 +1323,16 @@ static int whpx_handle_halt(CPUState *cpu)
     return ret;
 }
 
+static void whpx_vcpu_kick_out_of_hlt(CPUState *cpu) 
+{
+    WHV_REGISTER_VALUE reg;
+    whpx_get_reg(cpu, WHvRegisterInternalActivityState, &reg);
+    if (reg.InternalActivity.HaltSuspend) {
+        reg.InternalActivity.HaltSuspend = 0;
+        whpx_set_reg(cpu, WHvRegisterInternalActivityState, reg);
+    }
+}
+
 static void whpx_vcpu_pre_run(CPUState *cpu)
 {
     HRESULT hr;
@@ -1406,6 +1416,17 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
                 .Vector = irq,
             };
             reg_count += 1;
+            /* 
+             * When the Hyper-V APIC is enabled, to get out of HLT we
+             * either have to request an interrupt or manually get it away
+             * from HLT.
+             *
+             * We also manually do inject some interrupts via WHvRegisterPendingEvent
+             * instead of WHVRequestInterrupt, which does not reset the HLT state.
+             */
+            if (whpx_irqchip_in_kernel()) {
+                whpx_vcpu_kick_out_of_hlt(cpu);
+            }
         }
      }
 
@@ -1468,15 +1489,6 @@ static void whpx_vcpu_post_run(CPUState *cpu)
         !vcpu->exit_ctx.VpContext.ExecutionState.InterruptShadow;
 }
 
-static void whpx_vcpu_kick_out_of_hlt(CPUState *cpu) 
-{
-    WHV_REGISTER_VALUE reg;
-    whpx_get_reg(cpu, WHvRegisterInternalActivityState, &reg);
-    if (reg.InternalActivity.HaltSuspend) {
-        reg.InternalActivity.HaltSuspend = 0;
-        whpx_set_reg(cpu, WHvRegisterInternalActivityState, reg);
-    }
-}
 
 static void whpx_vcpu_process_async_events(CPUState *cpu)
 {
@@ -1784,25 +1796,6 @@ int whpx_vcpu_run(CPUState *cpu)
             } else {
                 cpu->exception_index = EXCP_INTERRUPT;
                 ret = 1;
-            }
-            /* 
-             * When the Hyper-V APIC is enabled, to get out of HLT we
-             * either have to request an interrupt or manually get it away
-             * from HLT.
-             *
-             * We also manually do inject some interrupts via WHvRegisterPendingEvent
-             * instead of WHVRequestInterrupt, which does not reset the HLT state.
-             *
-             * However, even with this done, if the guest does an HLT without
-             * interrupts enabled (which the test_sti_inhibit KVM unit test does)
-             * then the guest will stay in HLT forever.
-             *
-             * Keep it this way for now, with perhaps adding a heartbeat later
-             * so that we get the CPU time savings from having Hyper-V handle HLT
-             * instead of going away from it as soon as possible.
-             */
-            if (whpx_irqchip_in_kernel()) {
-                whpx_vcpu_kick_out_of_hlt(cpu);
             }
             break;
         case WHvRunVpExitReasonX64MsrAccess: {
