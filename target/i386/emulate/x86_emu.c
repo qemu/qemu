@@ -745,6 +745,8 @@ static bool exec_scas(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = R_EAX;
+    decode->op[0].regptr = x86_reg(env, R_EAX);
+
     if (decode->rep) {
         string_rep(env, decode, exec_scas_single, decode->rep);
     } else {
