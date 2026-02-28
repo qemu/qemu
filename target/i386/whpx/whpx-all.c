@@ -2026,6 +2026,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     WHV_PARTITION_PROPERTY prop;
     WHV_CAPABILITY_FEATURES features = {0};
     WHV_PROCESSOR_FEATURES_BANKS processor_features;
+    WHV_PROCESSOR_PERFMON_FEATURES perfmon_features;
 
     whpx = &whpx_global;
 
@@ -2166,6 +2167,27 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
             sizeof(WHV_PROCESSOR_FEATURES_BANKS));
     if (FAILED(hr)) {
         error_report("WHPX: Failed to set processor features, hr=%08lx", hr);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    /* Enable supported performance monitoring capabilities */
+    hr = whp_dispatch.WHvGetCapability(
+        WHvCapabilityCodeProcessorPerfmonFeatures, &perfmon_features,
+        sizeof(WHV_PROCESSOR_PERFMON_FEATURES), &whpx_cap_size);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get performance monitoring features, hr=%08lx", hr);
+        ret = -ENOSPC;
+        goto error;
+    }
+
+    hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeProcessorPerfmonFeatures,
+            &perfmon_features,
+            sizeof(WHV_PROCESSOR_PERFMON_FEATURES));
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set performance monitoring features, hr=%08lx", hr);
         ret = -EINVAL;
         goto error;
     }
