@@ -2022,6 +2022,7 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
     WHV_CAPABILITY_FEATURES features = {0};
+    WHV_PROCESSOR_FEATURES_BANKS processor_features;
 
     whpx = &whpx_global;
 
@@ -2125,6 +2126,45 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
         } else {
             whpx_irqchip_in_kernel = true;
         }
+    }
+
+    /* Set all the supported features, to follow the MSHV example */
+    memset(&processor_features, 0, sizeof(WHV_PROCESSOR_FEATURES_BANKS));
+    processor_features.BanksCount = 2;
+
+    hr = whp_dispatch.WHvGetCapability(
+        WHvCapabilityCodeProcessorFeaturesBanks, &processor_features,
+        sizeof(WHV_PROCESSOR_FEATURES_BANKS), &whpx_cap_size);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get processor features, hr=%08lx", hr);
+        ret = -ENOSPC;
+        goto error;
+    }
+
+    if (processor_features.Bank1.NestedVirtSupport) {
+        memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
+        prop.NestedVirtualization = 1;
+        hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeNestedVirtualization,
+            &prop,
+            sizeof(WHV_PARTITION_PROPERTY));
+            if (FAILED(hr)) {
+                error_report("WHPX: Failed to enable nested virtualization, hr=%08lx", hr);
+                ret = -EINVAL;
+                goto error;
+        }
+    }
+
+    hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeProcessorFeaturesBanks,
+            &processor_features,
+            sizeof(WHV_PROCESSOR_FEATURES_BANKS));
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set processor features, hr=%08lx", hr);
+        ret = -EINVAL;
+        goto error;
     }
 
     /* Register for MSR and CPUID exits */
