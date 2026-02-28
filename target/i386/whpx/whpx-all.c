@@ -45,6 +45,8 @@
 #include <winhvplatform.h>
 
 #define HYPERV_APIC_BUS_FREQUENCY      (200000000ULL)
+/* for kernel-irqchip=off */
+#define HV_X64_MSR_APIC_FREQUENCY       0x40000023
 
 static const WHV_REGISTER_NAME whpx_register_names[] = {
 
@@ -1802,6 +1804,7 @@ int whpx_vcpu_run(CPUState *cpu)
             WHV_REGISTER_VALUE reg_values[3] = {0};
             WHV_REGISTER_NAME reg_names[3];
             UINT32 reg_count;
+            bool is_known_msr = 0; 
 
             reg_names[0] = WHvX64RegisterRip;
             reg_names[1] = WHvX64RegisterRax;
@@ -1811,6 +1814,12 @@ int whpx_vcpu_run(CPUState *cpu)
                 vcpu->exit_ctx.VpContext.Rip +
                 vcpu->exit_ctx.VpContext.InstructionLength;
 
+            if (vcpu->exit_ctx.MsrAccess.MsrNumber == HV_X64_MSR_APIC_FREQUENCY
+                && !vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite
+                && !whpx_irqchip_in_kernel()) {
+                is_known_msr = 1;
+                reg_values[1].Reg32 = (uint32_t)X86_CPU(cpu)->env.apic_bus_freq;
+            }
             /*
              * For all unsupported MSR access we:
              *     ignore writes
@@ -1819,8 +1828,10 @@ int whpx_vcpu_run(CPUState *cpu)
             reg_count = vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite ?
                         1 : 3;
 
-            warn_report("WHPX: Unsupported MSR access (0x%x), IsWrite=%i", 
+            if (!is_known_msr) {
+                warn_report("WHPX: Unsupported MSR access (0x%x), IsWrite=%i", 
                 vcpu->exit_ctx.MsrAccess.MsrNumber, vcpu->exit_ctx.MsrAccess.AccessInfo.IsWrite);
+            }
 
             hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
                 whpx->partition,
@@ -1988,6 +1999,10 @@ int whpx_init_vcpu(CPUState *cpu)
         }
     }
 
+    /* When not using the Hyper-V APIC, the frequency is 1 GHz */
+    if (!whpx_irqchip_in_kernel()) {
+        env->apic_bus_freq = 1000000000;
+    }
 
     vcpu->interruptable = true;
     cpu->vcpu_dirty = true;
@@ -2201,7 +2216,6 @@ int whpx_accel_init(AccelState *as, MachineState *ms)
     synthetic_features.Bank0.Hv1 = 1;
     synthetic_features.Bank0.AccessPartitionReferenceCounter = 1;
     synthetic_features.Bank0.AccessPartitionReferenceTsc = 1;
-    /* if kernel-irqchip=off, HV_X64_MSR_APIC_FREQUENCY = 0. */
     synthetic_features.Bank0.AccessFrequencyRegs = 1;
     synthetic_features.Bank0.AccessVpIndex = 1;
     synthetic_features.Bank0.AccessHypercallRegs = 1;
