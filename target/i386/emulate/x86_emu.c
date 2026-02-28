@@ -45,6 +45,22 @@
 #include "x86_mmu.h"
 
 
+#ifdef TARGET_X86_64
+#define EXEC_2OP_FLAGS_CMD_64(env, decode, cmd, FLAGS_FUNC, save_res) \
+    case 8:                                        \
+    {                                               \
+        uint64_t v1 = (uint64_t)decode->op[0].val;  \
+        uint64_t v2 = (uint64_t)decode->op[1].val;  \
+        uint64_t diff = v1 cmd v2;                  \
+        if (save_res) {                              \
+            if (write_val_ext(env, &decode->op[0], diff, 8)) { return 1; } \
+        } \
+        FLAGS_FUNC##64(env, v1, v2, diff);          \
+        break;                                      \
+    }
+#else
+#define EXEC_2OP_FLAGS_CMD_64(env, decode, cmd, FLAGS_FUNC, save_res)
+#endif
 #define EXEC_2OP_FLAGS_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \
     if (fetch_operands(env, decode, 2, true, true, false))  {\
@@ -84,6 +100,7 @@
         FLAGS_FUNC##32(env, v1, v2, diff);          \
         break;                                      \
     }                                               \
+    EXEC_2OP_FLAGS_CMD_64(env, decode, cmd, FLAGS_FUNC, save_res) \
     default:                                        \
         VM_PANIC("bad size\n");                    \
     }                                                   \
