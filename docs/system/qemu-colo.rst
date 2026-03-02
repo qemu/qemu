@@ -3,10 +3,6 @@
 Qemu COLO Fault Tolerance
 =========================
 
-| Copyright (c) 2016 Intel Corporation
-| Copyright (c) 2016 HUAWEI TECHNOLOGIES CO., LTD.
-| Copyright (c) 2016 Fujitsu, Corp.
-
 This document gives an overview of COLO's design and how to use it.
 
 Background
@@ -81,8 +77,8 @@ Overview::
         |   Storage     |  |External Network|       | External Network | |   Storage    |
         +---------------+  +----------------+       +------------------+ +--------------+
 
-Components introduction
-^^^^^^^^^^^^^^^^^^^^^^^
+Components
+^^^^^^^^^^
 You can see there are several components in COLO's diagram of architecture.
 Their functions are described below.
 
@@ -156,14 +152,21 @@ in test procedure.
 
 Test procedure
 --------------
-Note: Here we are running both instances on the same host for testing,
+
+Setup
+^^^^^
+
+Here we are running both instances on the same host for testing,
 change the IP Addresses if you want to run it on two hosts. Initially
 ``127.0.0.1`` is the Primary Host and ``127.0.0.2`` is the Secondary Host.
+
+COLO uses double the guest ram size on the secondary side. The Qemu version
+should be the same on both hosts.
 
 Startup qemu
 ^^^^^^^^^^^^
 **1. Primary**:
-Note: Initially, ``$imagefolder/primary.qcow2`` needs to be copied to all hosts.
+Initially, ``$imagefolder/primary.qcow2`` needs to be copied to all hosts.
 You don't need to change any IP's here, because ``0.0.0.0`` listens on any
 interface. The chardev's with ``127.0.0.1`` IP's loopback to the local qemu
 instance::
@@ -191,7 +194,7 @@ instance::
 
 
 **2. Secondary**:
-Note: Active and hidden images need to be created only once and the
+Active and hidden images need to be created only once and the
 size should be the same as ``primary.qcow2``. Again, you don't need to change
 any IP's here, except for the ``$primary_ip`` variable::
 
@@ -352,8 +355,6 @@ Wait until disk is synced, then::
     {"execute": "migrate-set-capabilities", "arguments":{ "capabilities": [ {"capability": "x-colo", "state": true } ] } }
     {"execute": "migrate", "arguments":{ "uri": "tcp:127.0.0.1:9998" } }
 
-TODO
-----
-1. Support shared storage.
-2. Develop the heartbeat part.
-3. Reduce checkpoint VM’s downtime while doing checkpoint.
+| Copyright (c) 2016 Intel Corporation
+| Copyright (c) 2016 HUAWEI TECHNOLOGIES CO., LTD.
+| Copyright (c) 2016 Fujitsu, Corp.
