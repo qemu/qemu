@@ -455,9 +455,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
 
     /* Note: device state is saved into buffer */
     ret = qemu_save_device_state(fb, &local_err);
-
-    bql_unlock();
     if (ret < 0) {
+        bql_unlock();
         goto out;
     }
 
@@ -471,6 +470,7 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
      */
     qemu_savevm_state_complete_precopy_iterable(s->to_dst_file, false);
     qemu_savevm_state_end(s->to_dst_file);
+    bql_unlock();
 
     /*
      * We need the size of the VMstate data in Secondary side,
