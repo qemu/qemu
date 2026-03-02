@@ -26,8 +26,6 @@
 #include "errno_defs.h"
 
 #include "freebsd/syscall_nr.h"
-#include "netbsd/syscall_nr.h"
-#include "openbsd/syscall_nr.h"
 
 /*
  * machine/_types.h
@@ -93,6 +91,62 @@ struct bsd_shm_regions {
 };
 
 /*
+ * sys/sem.h
+ */
+#define TARGET_GETNCNT  3   /* Return the value of semncnt {READ} */
+#define TARGET_GETPID   4   /* Return the value of sempid {READ} */
+#define TARGET_GETVAL   5   /* Return the value of semval {READ} */
+#define TARGET_GETALL   6   /* Return semvals into arg.array {READ} */
+#define TARGET_GETZCNT  7   /* Return the value of semzcnt {READ} */
+#define TARGET_SETVAL   8   /* Set the value of semval to arg.val {ALTER} */
+#define TARGET_SETALL   9   /* Set semvals from arg.array {ALTER} */
+
+struct target_sembuf {
+    abi_ushort      sem_num;        /* semaphore # */
+    abi_short       sem_op;         /* semaphore operation */
+    abi_short       sem_flg;        /* operation flags */
+};
+
+union target_semun {
+    abi_int     val;        /* value for SETVAL */
+    abi_ulong   buf;        /* buffer for IPC_STAT & IPC_SET */
+    abi_ulong   array;      /* array for GETALL & SETALL */
+};
+
+struct target_semid_ds {
+    struct target_ipc_perm sem_perm; /* operation permission struct */
+    abi_ptr     sem_base;   /* pointer to first semaphore in set */
+    abi_ushort  sem_nsems;  /* number of sems in set */
+    target_time_t   sem_otime;  /* last operation time */
+    target_time_t   sem_ctime;  /* times measured in secs */
+};
+
+/*
+ * sys/msg.h
+ */
+struct target_msqid_ds {
+    struct  target_ipc_perm msg_perm; /* msg queue permission bits */
+    abi_ptr     msg_first;  /* first message in the queue */
+    abi_ptr     msg_last;   /* last message in the queue */
+    abi_ulong   msg_cbytes; /* # of bytes in use on the queue */
+    abi_ulong   msg_qnum;   /* number of msgs in the queue */
+    abi_ulong   msg_qbytes; /* max # of bytes on the queue */
+    int32_t     msg_lspid;  /* pid of last msgsnd() */
+    int32_t     msg_lrpid;  /* pid of last msgrcv() */
+    target_time_t   msg_stime;  /* time of last msgsnd() */
+    target_time_t   msg_rtime;  /* time of last msgrcv() */
+    target_time_t   msg_ctime;  /* time of last msgctl() */
+};
+
+/*
+ * sys/msgbuf.h
+ */
+struct target_msgbuf {
+    abi_long    mtype;      /* message type */
+    char        mtext[1];   /* body of message */
+};
+
+/*
  *  sys/mman.h
  */
 #define TARGET_MADV_DONTNEED            4       /* dont need these pages */
@@ -107,27 +161,6 @@ struct bsd_shm_regions {
                                                 /* underlying file */
 
 #define TARGET_FREEBSD_MAP_FLAGMASK     0x1ff7
-
-#define TARGET_NETBSD_MAP_INHERIT       0x0080  /* region is retained after */
-                                                /* exec */
-#define TARGET_NETBSD_MAP_TRYFIXED      0x0400  /* attempt hint address, even */
-                                                /* within break */
-#define TARGET_NETBSD_MAP_WIRED         0x0800  /* mlock() mapping when it is */
-                                                /* established */
-
-#define TARGET_NETBSD_MAP_STACK         0x2000  /* allocated from memory, */
-                                                /* swap space (stack) */
-
-#define TARGET_NETBSD_MAP_FLAGMASK      0x3ff7
-
-#define TARGET_OPENBSD_MAP_INHERIT      0x0080  /* region is retained after */
-                                                /* exec */
-#define TARGET_OPENBSD_MAP_NOEXTEND     0x0100  /* for MAP_FILE, don't change */
-                                                /* file size */
-#define TARGET_OPENBSD_MAP_TRYFIXED     0x0400  /* attempt hint address, */
-                                                /* even within heap */
-
-#define TARGET_OPENBSD_MAP_FLAGMASK     0x17f7
 
 /* XXX */
 #define TARGET_BSD_MAP_FLAGMASK         0x3ff7
@@ -468,6 +501,20 @@ struct target_procctl_reaper_kill {
     uint32_t rk_killed;
     uint32_t rk_fpid;
     uint32_t rk_pad0[15];
+};
+
+/*
+ * sys/uuid.h
+ */
+#define TARGET_UUID_NODE_LEN    6
+
+struct target_uuid {
+    uint32_t    time_low;
+    uint16_t    time_mid;
+    uint16_t    time_hi_and_version;
+    uint8_t     clock_seq_hi_and_reserved;
+    uint8_t     clock_seq_low;
+    uint8_t     node[TARGET_UUID_NODE_LEN];
 };
 
 
