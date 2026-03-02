@@ -159,8 +159,6 @@ qtests_m68k = ['boot-serial-test'] + \
 qtests_microblaze = ['boot-serial-test'] + \
   qtests_filter
 
-qtests_microblazeel = qtests_microblaze
-
 qtests_mips = \
   qtests_filter + \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \

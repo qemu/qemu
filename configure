@@ -1319,17 +1319,11 @@ fi
 ##########################################
 # functions to probe cross compilers
 
-container="no"
-runc=""
+runc="no"
 if test $use_containers = "yes" && (has "docker" || has "podman"); then
-    case $($python "$source_path"/tests/docker/docker.py --engine "$container_engine" probe) in
-        *docker) container=docker ;;
-        podman) container=podman ;;
-        no) container=no ;;
-    esac
-    if test "$container" != "no"; then
-        docker_py="$python $source_path/tests/docker/docker.py --engine $container"
-        runc=$container
+    runc=$($python "$source_path"/tests/docker/docker.py --engine "$container_engine" probe)
+    if test "$runc" != "no"; then
+        docker_py="$python $source_path/tests/docker/docker.py --engine $container_engine"
     fi
 fi
 
@@ -1449,7 +1443,7 @@ probe_target_compiler() {
   esac
 
   for host in $container_hosts; do
-    test "$container" != no || continue
+    test "$runc" != no || continue
     test "$host" = "$cpu" || continue
     case $target_arch in
       # debian-all-test-cross architectures
@@ -1771,8 +1765,9 @@ echo all: >> $config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
 echo "GDB=$gdb_bin" >> $config_host_mak
-if test "$container" != no; then
+if test "$runc" != no; then
     echo "RUNC=$runc" >> $config_host_mak
+    echo "CONTAINER_ENGINE=$container_engine" >> $config_host_mak
 fi
 echo "SUBDIRS=$subdirs" >> $config_host_mak
 if test "$rust" != disabled; then

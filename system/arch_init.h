@@ -10,8 +10,7 @@ enum {
     QEMU_ARCH_I386 =        (1UL << SYS_EMU_TARGET_I386) |
                             (1UL << SYS_EMU_TARGET_X86_64),
     QEMU_ARCH_M68K =        (1UL << SYS_EMU_TARGET_M68K),
-    QEMU_ARCH_MICROBLAZE =  (1UL << SYS_EMU_TARGET_MICROBLAZE) |
-                            (1UL << SYS_EMU_TARGET_MICROBLAZEEL),
+    QEMU_ARCH_MICROBLAZE =  (1UL << SYS_EMU_TARGET_MICROBLAZE),
     QEMU_ARCH_MIPS =        (1UL << SYS_EMU_TARGET_MIPS) |
                             (1UL << SYS_EMU_TARGET_MIPSEL) |
                             (1UL << SYS_EMU_TARGET_MIPS64) |
