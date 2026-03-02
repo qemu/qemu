@@ -772,8 +772,13 @@ out:
         assert(local_err);
         trace_multifd_send_error(p->id);
         multifd_send_error_propagate(local_err);
-        multifd_send_kick_main(p);
     }
+
+    /*
+     * Always kick the main thread: The main thread might wait on this thread
+     * while another thread encounters an error and signals this thread to exit.
+     */
+    multifd_send_kick_main(p);
 
     rcu_unregister_thread();
     trace_multifd_send_thread_end(p->id, p->packets_sent);
