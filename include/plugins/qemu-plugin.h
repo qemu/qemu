@@ -77,6 +77,9 @@ typedef uint64_t qemu_plugin_id_t;
  * version 6:
  * - changed return value of qemu_plugin_{read,write}_register from int to bool
  * - added qemu_plugin_set_pc
+ * - added disconinuity callback API (for interrupts, exceptions, host calls)
+ * - added syscall filter callback API, which allows skipping syscalls and
+ *   setting custom syscall return values
  */
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
