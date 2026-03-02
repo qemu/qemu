@@ -192,18 +192,38 @@ static void amdvi_assign_andq(AMDVIState *s, hwaddr addr, uint64_t val)
    amdvi_writeq_raw(s, addr, amdvi_readq(s, addr) & val);
 }
 
+static void amdvi_build_xt_msi_msg(AMDVIState *s, MSIMessage *msg)
+{
+    union mmio_xt_intr xt_reg;
+    struct X86IOMMUIrq irq;
+
+    xt_reg.val = amdvi_readq(s, AMDVI_MMIO_XT_GEN_INTR);
+
+    irq.vector = xt_reg.vector;
+    irq.delivery_mode = xt_reg.delivery_mode;
+    irq.dest_mode = xt_reg.destination_mode;
+    irq.dest = (xt_reg.destination_hi << 24) | xt_reg.destination_lo;
+    irq.trigger_mode = 0;
+    irq.redir_hint = 0;
+
+    x86_iommu_irq_to_msi_message(&irq, msg);
+}
+
 static void amdvi_generate_msi_interrupt(AMDVIState *s)
 {
     MSIMessage msg = {};
-    MemTxAttrs attrs = {
-        .requester_id = pci_requester_id(&s->pci->dev)
-    };
 
-    if (msi_enabled(&s->pci->dev)) {
+    if (s->intcapxten) {
+        trace_amdvi_generate_msi_interrupt("XT GEN");
+        amdvi_build_xt_msi_msg(s, &msg);
+    } else if (msi_enabled(&s->pci->dev)) {
+        trace_amdvi_generate_msi_interrupt("MSI");
         msg = msi_get_message(&s->pci->dev, 0);
-        address_space_stl_le(&address_space_memory, msg.address, msg.data,
-                             attrs, NULL);
+    } else {
+        trace_amdvi_generate_msi_interrupt("NO MSI");
+        return;
     }
+    apic_get_class(NULL)->send_msi(&msg);
 }
 
 static uint32_t get_next_eventlog_entry(AMDVIState *s)
@@ -1538,6 +1558,7 @@ const char *amdvi_mmio_get_name(hwaddr addr)
     MMIO_REG_TO_STRING(AMDVI_MMIO_PPR_BASE);
     MMIO_REG_TO_STRING(AMDVI_MMIO_PPR_HEAD);
     MMIO_REG_TO_STRING(AMDVI_MMIO_PPR_TAIL);
+    MMIO_REG_TO_STRING(AMDVI_MMIO_XT_GEN_INTR);
 #undef MMIO_REG_TO_STRING
     default:
         return "UNHANDLED";
@@ -1581,6 +1602,15 @@ static void amdvi_handle_control_write(AMDVIState *s)
     s->ga_enabled = !!(control & AMDVI_MMIO_CONTROL_GAEN);
     s->xten = !!(control & AMDVI_MMIO_CONTROL_XTEN) && s->xtsup &&
               s->ga_enabled;
+    /*
+     * IntCapXTEn controls whether IOMMU-originated interrupts are sent based
+     * on the information in XT IOMMU Interrupt Control Registers rather than
+     * the IOMMU’s MSI capability registers. Therefore it requires IOMMU
+     * x2APIC support capabilities (i.e. XTSup=1), but it is independent of
+     * whether a driver chooses to enable x2APIC mode for interrupt remapping
+     * (i.e. XTEn=1).
+     */
+    s->intcapxten = !!(control & AMDVI_MMIO_CONTROL_INTCAPXTEN) && s->xtsup;
 
     /* update the flags depending on the control register */
     if (s->cmdbuf_enabled) {
@@ -1788,6 +1818,9 @@ static void amdvi_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         amdvi_handle_pprtail_write(s);
         break;
     case AMDVI_MMIO_STATUS:
+        amdvi_mmio_reg_write(s, size, val, addr);
+        break;
+    case AMDVI_MMIO_XT_GEN_INTR:
         amdvi_mmio_reg_write(s, size, val, addr);
         break;
     }
@@ -2440,6 +2473,7 @@ static void amdvi_init(AMDVIState *s)
     s->enabled = false;
     s->cmdbuf_enabled = false;
     s->xten = false;
+    s->intcapxten = false;
 
     /* reset MMIO */
     memset(s->mmior, 0, AMDVI_MMIO_SIZE);
@@ -2510,6 +2544,7 @@ static const VMStateDescription vmstate_xt = {
        .minimum_version_id = 1,
        .fields = (VMStateField[]) {
            VMSTATE_BOOL(xten, AMDVIState),
+           VMSTATE_BOOL(intcapxten, AMDVIState),
            VMSTATE_END_OF_LIST()
        }
 };

@@ -53,6 +53,7 @@
 #define AMDVI_MMIO_EXCL_BASE          0x0020
 #define AMDVI_MMIO_EXCL_LIMIT         0x0028
 #define AMDVI_MMIO_EXT_FEATURES       0x0030
+#define AMDVI_MMIO_XT_GEN_INTR        0x0170
 #define AMDVI_MMIO_COMMAND_HEAD       0x2000
 #define AMDVI_MMIO_COMMAND_TAIL       0x2008
 #define AMDVI_MMIO_EVENT_HEAD         0x2010
@@ -103,6 +104,7 @@
 #define AMDVI_MMIO_CONTROL_CMDBUFLEN      (1ULL << 12)
 #define AMDVI_MMIO_CONTROL_GAEN           (1ULL << 17)
 #define AMDVI_MMIO_CONTROL_XTEN           (1ULL << 50)
+#define AMDVI_MMIO_CONTROL_INTCAPXTEN     (1ULL << 51)
 
 /* MMIO status register bits */
 #define AMDVI_MMIO_STATUS_CMDBUF_RUN  (1 << 4)
@@ -338,6 +340,20 @@ struct irte_ga {
   union irte_ga_hi hi;
 };
 
+union mmio_xt_intr {
+    uint64_t val;
+    struct {
+        uint64_t rsvd_1:2,
+                 destination_mode:1,
+                 rsvd_2:5,
+                 destination_lo:24,
+                 vector:8,
+                 delivery_mode:1,
+                 rsvd_3:15,
+                 destination_hi:8;
+    };
+};
+
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
 
@@ -416,6 +432,7 @@ struct AMDVIState {
     bool ga_enabled;
     bool xtsup;     /* xtsup=on command line */
     bool xten;      /* guest controlled, x2apic mode enabled */
+    bool intcapxten; /* guest controlled, IOMMU x2apic interrupts enabled */
 
     /* DMA address translation */
     bool dma_remap;
