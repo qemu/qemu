@@ -539,18 +539,14 @@ static void colo_process_checkpoint(MigrationState *s)
     Error *local_err = NULL;
     int ret;
 
+    assert(s->rp_state.from_dst_file);
+    assert(!s->rp_state.rp_thread_created);
     if (get_colo_mode() != COLO_MODE_PRIMARY) {
         error_report("COLO mode must be COLO_MODE_PRIMARY");
         return;
     }
 
     failover_init_state();
-
-    s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
-    if (!s->rp_state.from_dst_file) {
-        error_report("Open QEMUFile from_dst_file failed");
-        goto out;
-    }
 
     packets_compare_notifier.notify = colo_compare_notify_checkpoint;
     colo_compare_register_notifier(&packets_compare_notifier);
@@ -636,16 +632,6 @@ out:
     colo_compare_unregister_notifier(&packets_compare_notifier);
     timer_free(s->colo_delay_timer);
     qemu_event_destroy(&s->colo_checkpoint_event);
-
-    /*
-     * Must be called after failover BH is completed,
-     * Or the failover BH may shutdown the wrong fd that
-     * re-used by other threads after we release here.
-     */
-    if (s->rp_state.from_dst_file) {
-        qemu_fclose(s->rp_state.from_dst_file);
-        s->rp_state.from_dst_file = NULL;
-    }
 }
 
 void migrate_start_colo_process(MigrationState *s)
@@ -838,6 +824,7 @@ static void *colo_process_incoming_thread(void *opaque)
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
 
+    assert(mis->to_src_file);
     if (get_colo_mode() != COLO_MODE_SECONDARY) {
         error_report("COLO mode must be COLO_MODE_SECONDARY");
         return NULL;
@@ -854,7 +841,6 @@ static void *colo_process_incoming_thread(void *opaque)
 
     failover_init_state();
 
-    mis->to_src_file = qemu_file_get_return_path(mis->from_src_file);
     /*
      * Note: the communication between Primary side and Secondary side
      * should be sequential, we set the fd to unblocked in migration incoming
@@ -865,6 +851,12 @@ static void *colo_process_incoming_thread(void *opaque)
         error_report_err(local_err);
         goto out;
     }
+
+    /*
+     * rp thread still running on primary side, shut it down to go into
+     * colo state.
+     */
+    migrate_send_rp_shut(mis, 0);
 
     colo_incoming_start_dirty_log();
 

@@ -42,6 +42,7 @@ static int test_colo_common(MigrateCommon *args,
      * used in production.
      */
     args->start.oob = true;
+    args->start.caps[MIGRATION_CAPABILITY_RETURN_PATH] = true;
     args->start.caps[MIGRATION_CAPABILITY_X_COLO] = true;
 
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {

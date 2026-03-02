@@ -216,6 +216,19 @@ static void migrate_start_set_capabilities(QTestState *from, QTestState *to,
      * MigrationCapability_lookup and MIGRATION_CAPABILITY_ constants
      * are from qapi-types-migration.h.
      */
+
+    /*
+     * Enable return path first, since other features depend on it.
+     */
+    if (args->caps[MIGRATION_CAPABILITY_RETURN_PATH]) {
+        if (from) {
+            migrate_set_capability(from, "return-path", true);
+        }
+        if (to) {
+            migrate_set_capability(to, "return-path", true);
+        }
+    }
+
     for (uint8_t i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
         if (!args->caps[i]) {
             continue;

@@ -227,7 +227,7 @@ any IP's here, except for the ``$primary_ip`` variable::
 **3.** On Secondary VM's QEMU monitor, issue command::
 
     {"execute":"qmp_capabilities"}
-    {"execute": "migrate-set-capabilities", "arguments": {"capabilities": [ {"capability": "x-colo", "state": true } ] } }
+    {"execute": "migrate-set-capabilities", "arguments": {"capabilities": [ {"capability": "return-path", "state": true }, {"capability": "x-colo", "state": true } ] } }
     {"execute": "nbd-server-start", "arguments": {"addr": {"type": "inet", "data": {"host": "0.0.0.0", "port": "9999"} } } }
     {"execute": "nbd-server-add", "arguments": {"device": "parent0", "writable": true } }
 
@@ -244,7 +244,7 @@ Note:
     {"execute":"qmp_capabilities"}
     {"execute": "blockdev-add", "arguments": {"driver": "nbd", "node-name": "nbd0", "server": {"type": "inet", "host": "127.0.0.2", "port": "9999"}, "export": "parent0", "detect-zeroes": "on"} }
     {"execute": "x-blockdev-change", "arguments":{"parent": "colo-disk0", "node": "nbd0" } }
-    {"execute": "migrate-set-capabilities", "arguments": {"capabilities": [ {"capability": "x-colo", "state": true } ] } }
+    {"execute": "migrate-set-capabilities", "arguments": {"capabilities": [ {"capability": "return-path", "state": true }, {"capability": "x-colo", "state": true } ] } }
     {"execute": "migrate", "arguments": {"uri": "tcp:127.0.0.2:9998" } }
 
 Note:
