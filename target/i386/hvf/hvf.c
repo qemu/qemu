@@ -62,7 +62,7 @@
 #include "emulate/x86.h"
 #include "x86_descr.h"
 #include "emulate/x86_flags.h"
-#include "x86_mmu.h"
+#include "emulate/x86_mmu.h"
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
 #include "x86_task.h"
@@ -252,19 +252,7 @@ static void hvf_read_segment_descriptor(CPUState *s, struct x86_segment_descript
     vmx_segment_to_x86_descriptor(s, &vmx_segment, desc);
 }
 
-static void hvf_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
-{
-    vmx_read_mem(cpu, data, gva, bytes);
-}
-
-static void hvf_write_mem(CPUState *cpu, void *data, target_ulong gva, int bytes)
-{
-    vmx_write_mem(cpu, gva, data, bytes);
-}
-
 static const struct x86_emul_ops hvf_x86_emul_ops = {
-    .read_mem = hvf_read_mem,
-    .write_mem = hvf_write_mem,
     .read_segment_descriptor = hvf_read_segment_descriptor,
     .handle_io = hvf_handle_io,
     .simulate_rdmsr = hvf_simulate_rdmsr,
@@ -480,6 +468,26 @@ static void hvf_cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *edx = 0;
         break;
     }
+}
+
+static void hvf_load_crs(CPUState *cs)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    env->cr[0] = rvmcs(cpu->accel->fd, VMCS_GUEST_CR0);
+    env->cr[3] = rvmcs(cpu->accel->fd, VMCS_GUEST_CR3);
+    env->cr[2] = rreg(cpu->accel->fd, HV_X86_CR2);
+}
+
+static void hvf_save_crs(CPUState *cs)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    wvmcs(cpu->accel->fd, VMCS_GUEST_CR0, env->cr[0]);
+    wvmcs(cpu->accel->fd, VMCS_GUEST_CR3, env->cr[3]);
+    wreg(cs->accel->fd, HV_X86_CR2, env->cr[2]);
 }
 
 void hvf_load_regs(CPUState *cs)
@@ -794,9 +802,11 @@ static int hvf_handle_vmexit(CPUState *cpu)
             struct x86_decode decode;
 
             hvf_load_regs(cpu);
+            hvf_load_crs(cpu);
             decode_instruction(env, &decode);
             exec_instruction(env, &decode);
             hvf_store_regs(cpu);
+            hvf_save_crs(cpu);
             break;
         }
         break;
@@ -835,10 +845,12 @@ static int hvf_handle_vmexit(CPUState *cpu)
         }
 
         hvf_load_regs(cpu);
+        hvf_load_crs(cpu);
         decode_instruction(env, &decode);
         assert(ins_len == decode.len);
         exec_instruction(env, &decode);
         hvf_store_regs(cpu);
+        hvf_save_crs(cpu);
 
         break;
     }
@@ -940,9 +952,11 @@ static int hvf_handle_vmexit(CPUState *cpu)
         struct x86_decode decode;
 
         hvf_load_regs(cpu);
+        hvf_load_crs(cpu);
         decode_instruction(env, &decode);
         exec_instruction(env, &decode);
         hvf_store_regs(cpu);
+        hvf_save_crs(cpu);
         break;
     }
     case EXIT_REASON_TPR: {

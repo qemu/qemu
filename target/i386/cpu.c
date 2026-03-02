@@ -1656,7 +1656,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "vmx-apicv-register", "vmx-apicv-vid", "vmx-ple", "vmx-rdrand-exit",
             "vmx-invpcid-exit", "vmx-vmfunc", "vmx-shadow-vmcs", "vmx-encls-exit",
             "vmx-rdseed-exit", "vmx-pml", NULL, NULL,
-            "vmx-xsaves", NULL, NULL, NULL,
+            "vmx-xsaves", NULL, "vmx-mbec", NULL,
             NULL, "vmx-tsc-scaling", "vmx-enable-user-wait-pause", NULL,
             NULL, NULL, NULL, NULL,
         },
@@ -1970,6 +1970,10 @@ static FeatureDep feature_dependencies[] = {
     {
         .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_EPT },
         .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_UNRESTRICTED_GUEST },
+    },
+    {
+        .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_EPT },
+        .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_MODE_BASED_EPT_EXEC },
     },
     {
         .from = { FEAT_VMX_SECONDARY_CTLS,  VMX_SECONDARY_EXEC_ENABLE_VPID },
@@ -5257,6 +5261,15 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 6,
+                .note = "with cet-ss, cet-ibt, its-no",
+                .cache_info = &xeon_spr_cache_info,
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ }
         }
     },
@@ -5427,6 +5440,15 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { "cet-ibt", "on" },
                     { "vmx-exit-save-cet", "on" },
                     { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 5,
+                .note = "with cet-ss, cet-ibt, its-no",
+                .cache_info = &xeon_gnr_cache_info,
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
                     { /* end of list */ },
                 }
             },
@@ -5787,6 +5809,15 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { /* end of list */ },
                 }
             },
+            {
+                .version = 5,
+                .note = "with ITS_NO",
+                .cache_info = &xeon_srf_cache_info,
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
+                    { /* end of list */ },
+                }
+            },
             { /* end of list */ },
         },
     },
@@ -5930,6 +5961,14 @@ static const X86CPUDefinition builtin_x86_defs[] = {
                     { "cet-ibt", "on" },
                     { "vmx-exit-save-cet", "on" },
                     { "vmx-entry-load-cet", "on" },
+                    { /* end of list */ },
+                }
+            },
+            {
+                .version = 3,
+                .note = "with cet-ss, cet-ibt, ITS_NO",
+                .props = (PropValue[]) {
+                    { "its-no", "on" },
                     { /* end of list */ },
                 }
             },

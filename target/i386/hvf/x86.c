@@ -23,7 +23,7 @@
 #include "emulate/x86_emu.h"
 #include "vmcs.h"
 #include "vmx.h"
-#include "x86_mmu.h"
+#include "emulate/x86_mmu.h"
 #include "x86_descr.h"
 
 /* static uint32_t x86_segment_access_rights(struct x86_segment_descriptor *var)
@@ -72,7 +72,7 @@ bool x86_read_segment_descriptor(CPUState *cpu,
         return false;
     }
 
-    vmx_read_mem(cpu, desc, base + sel.index * 8, sizeof(*desc));
+    x86_read_mem_priv(cpu, desc, base + sel.index * 8, sizeof(*desc));
     return true;
 }
 
@@ -95,7 +95,7 @@ bool x86_write_segment_descriptor(CPUState *cpu,
         printf("%s: gdt limit\n", __func__);
         return false;
     }
-    vmx_write_mem(cpu, base + sel.index * 8, desc, sizeof(*desc));
+    x86_write_mem_priv(cpu, desc, base + sel.index * 8, sizeof(*desc));
     return true;
 }
 
@@ -111,7 +111,7 @@ bool x86_read_call_gate(CPUState *cpu, struct x86_call_gate *idt_desc,
         return false;
     }
 
-    vmx_read_mem(cpu, idt_desc, base + gate * 8, sizeof(*idt_desc));
+    x86_read_mem_priv(cpu, idt_desc, base + gate * 8, sizeof(*idt_desc));
     return true;
 }
 
@@ -136,6 +136,11 @@ bool x86_is_v8086(CPUState *cpu)
 bool x86_is_long_mode(CPUState *cpu)
 {
     return rvmcs(cpu->accel->fd, VMCS_GUEST_IA32_EFER) & MSR_EFER_LMA;
+}
+
+bool x86_is_la57(CPUState *cpu)
+{
+    return false;
 }
 
 bool x86_is_long64_mode(CPUState *cpu)

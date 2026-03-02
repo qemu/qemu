@@ -1649,7 +1649,7 @@ static void audio_mixeng_backend_set_volume_out(AudioBackend *be, SWVoiceOut *sw
 
         sw->vol.mute = vol->mute;
         sw->vol.l = nominal_volume.l * vol->vol[0] / 255;
-        sw->vol.r = nominal_volume.l * vol->vol[vol->channels > 1 ? 1 : 0] /
+        sw->vol.r = nominal_volume.r * vol->vol[vol->channels > 1 ? 1 : 0] /
             255;
 
         if (k->volume_out) {

@@ -22,6 +22,7 @@ source isa/Kconfig
 source mem/Kconfig
 source misc/Kconfig
 source net/Kconfig
+source nitro/Kconfig
 source nubus/Kconfig
 source nvme/Kconfig
 source nvram/Kconfig

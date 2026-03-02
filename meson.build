@@ -302,11 +302,13 @@ accelerator_targets += { 'CONFIG_XEN': xen_targets }
 if cpu == 'aarch64'
   accelerator_targets += {
     'CONFIG_HVF': ['aarch64-softmmu'],
+    'CONFIG_NITRO': ['aarch64-softmmu'],
     'CONFIG_WHPX': ['aarch64-softmmu']
   }
 elif cpu == 'x86_64'
   accelerator_targets += {
     'CONFIG_HVF': ['x86_64-softmmu'],
+    'CONFIG_NITRO': ['x86_64-softmmu'],
     'CONFIG_NVMM': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_MSHV': ['x86_64-softmmu'],
@@ -865,8 +867,7 @@ if get_option('whpx').allowed() and host_os == 'windows'
     endif
    # Leave CONFIG_WHPX disabled
   else
-    if cc.has_header('winhvplatform.h', required: get_option('whpx')) and \
-      cc.has_header('winhvemulation.h', required: get_option('whpx'))
+    if cc.has_header('winhvplatform.h', required: get_option('whpx'))
       accelerators += 'CONFIG_WHPX'
     endif
   endif
@@ -879,6 +880,11 @@ if get_option('hvf').allowed()
   if hvf.found()
     accelerators += 'CONFIG_HVF'
   endif
+endif
+
+nitro = not_found
+if get_option('nitro').allowed() and host_os == 'linux'
+  accelerators += 'CONFIG_NITRO'
 endif
 
 nvmm = not_found
@@ -921,6 +927,9 @@ if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
 endif
 if 'CONFIG_HVF' not in accelerators and get_option('hvf').enabled()
   error('HVF not available on this platform')
+endif
+if 'CONFIG_NITRO' not in accelerators and get_option('nitro').enabled()
+  error('NITRO not available on this platform')
 endif
 if 'CONFIG_NVMM' not in accelerators and get_option('nvmm').enabled()
   error('NVMM not available on this platform')
@@ -1289,7 +1298,7 @@ endif
 
 pulse = not_found
 if not get_option('pa').auto() or (host_os == 'linux' and have_system)
-  pulse = dependency('libpulse', required: get_option('pa'),
+  pulse = dependency('libpulse', version: '>=0.9.13', required: get_option('pa'),
                      method: 'pkg-config')
 endif
 alsa = not_found
@@ -1316,7 +1325,7 @@ endif
 
 spice_protocol = not_found
 if not get_option('spice_protocol').auto() or have_system
-  spice_protocol = dependency('spice-protocol', version: '>=0.14.0',
+  spice_protocol = dependency('spice-protocol', version: '>=0.14.3',
                               required: get_option('spice_protocol'),
                               method: 'pkg-config')
 endif
@@ -3591,6 +3600,7 @@ if have_system
     'accel/hvf',
     'accel/kvm',
     'accel/mshv',
+    'accel/nitro',
     'audio',
     'backends',
     'backends/tpm',
@@ -3621,6 +3631,7 @@ if have_system
     'hw/misc/macio',
     'hw/net',
     'hw/net/can',
+    'hw/nitro',
     'hw/nubus',
     'hw/nvme',
     'hw/nvram',
@@ -4789,6 +4800,7 @@ endif
 summary_info = {}
 if have_system
   summary_info += {'KVM support':       config_all_accel.has_key('CONFIG_KVM')}
+  summary_info += {'Nitro support':     config_all_accel.has_key('CONFIG_NITRO')}
   summary_info += {'HVF support':       config_all_accel.has_key('CONFIG_HVF')}
   summary_info += {'WHPX support':      config_all_accel.has_key('CONFIG_WHPX')}
   summary_info += {'NVMM support':      config_all_accel.has_key('CONFIG_NVMM')}

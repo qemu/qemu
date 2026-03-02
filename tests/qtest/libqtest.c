@@ -1815,6 +1815,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
             g_str_equal("xenpv", machines[i].name) ||
             g_str_equal("xenpvh", machines[i].name) ||
             g_str_equal("vmapple", machines[i].name) ||
+            g_str_equal("nitro", machines[i].name) ||
             g_str_equal("nitro-enclave", machines[i].name)) {
             continue;
         }

@@ -1009,13 +1009,19 @@
 #     designated guest firmware page for measured boot with -kernel
 #     (default: false) (since 6.2)
 #
+# Features:
+#
+# @confidential-guest-reset: If present, the hypervisor supports
+#     confidential guest resets (since 11.0).
+#
 # Since: 9.1
 ##
 { 'struct': 'SevCommonProperties',
   'data': { '*sev-device': 'str',
             '*cbitpos': 'uint32',
             'reduced-phys-bits': 'uint32',
-            '*kernel-hashes': 'bool' } }
+            '*kernel-hashes': 'bool' },
+  'features': ['confidential-guest-reset']}
 
 ##
 # @SevGuestProperties:
@@ -1136,6 +1142,11 @@
 #     it, the guest will not be able to get a TD quote for
 #     attestation.
 #
+# Features:
+#
+# @confidential-guest-reset: If present, the hypervisor supports
+#     confidential guest resets (since 11.0).
+#
 # Since: 10.1
 ##
 { 'struct': 'TdxGuestProperties',
@@ -1144,7 +1155,8 @@
             '*mrconfigid': 'str',
             '*mrowner': 'str',
             '*mrownerconfig': 'str',
-            '*quote-generation-socket': 'SocketAddress' } }
+            '*quote-generation-socket': 'SocketAddress' },
+   'features': ['confidential-guest-reset']}
 
 ##
 # @ThreadContextProperties:

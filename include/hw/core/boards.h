@@ -448,6 +448,12 @@ struct MachineState {
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
     bool acpi_spcr_enabled;
+    /*
+     * Whether to change virtual machine accelerator handle upon
+     * reset or not. Used only for debugging and testing purpose.
+     * Set to false by default for all regular use.
+     */
+    bool new_accel_vmfd_on_reset;
 };
 
 /*

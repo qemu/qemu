@@ -21,13 +21,11 @@
 
 #include "x86.h"
 #include "x86_decode.h"
+#include "x86_mmu.h"
 #include "cpu.h"
 
 struct x86_emul_ops {
-    void (*fetch_instruction)(CPUState *cpu, void *data, target_ulong addr,
-                              int bytes);
-    void (*read_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
-    void (*write_mem)(CPUState *cpu, void *data, target_ulong addr, int bytes);
+    MMUTranslateResult (*mmu_gva_to_gpa) (CPUState *cpu, target_ulong gva, uint64_t *gpa, MMUTranslateFlags flags);
     void (*read_segment_descriptor)(CPUState *cpu, struct x86_segment_descriptor *desc,
                                     enum X86Seg seg);
     void (*handle_io)(CPUState *cpu, uint16_t port, void *data, int direction,
@@ -46,15 +44,15 @@ target_ulong read_reg(CPUX86State *env, int reg, int size);
 void write_reg(CPUX86State *env, int reg, target_ulong val, int size);
 target_ulong read_val_from_reg(void *reg_ptr, int size);
 void write_val_to_reg(void *reg_ptr, target_ulong val, int size);
-void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size);
+bool write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size);
 uint8_t *read_mmio(CPUX86State *env, target_ulong ptr, int bytes);
-target_ulong read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size);
+bool read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size, target_ulong* val);
 
-void exec_movzx(CPUX86State *env, struct x86_decode *decode);
-void exec_shl(CPUX86State *env, struct x86_decode *decode);
-void exec_movsx(CPUX86State *env, struct x86_decode *decode);
-void exec_ror(CPUX86State *env, struct x86_decode *decode);
-void exec_rol(CPUX86State *env, struct x86_decode *decode);
-void exec_rcl(CPUX86State *env, struct x86_decode *decode);
-void exec_rcr(CPUX86State *env, struct x86_decode *decode);
+bool exec_movzx(CPUX86State *env, struct x86_decode *decode);
+bool exec_shl(CPUX86State *env, struct x86_decode *decode);
+bool exec_movsx(CPUX86State *env, struct x86_decode *decode);
+bool exec_ror(CPUX86State *env, struct x86_decode *decode);
+bool exec_rol(CPUX86State *env, struct x86_decode *decode);
+bool exec_rcl(CPUX86State *env, struct x86_decode *decode);
+bool exec_rcr(CPUX86State *env, struct x86_decode *decode);
 #endif

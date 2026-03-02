@@ -12,6 +12,7 @@ if have_system
   subdir('xen')
   subdir('stubs')
   subdir('mshv')
+  subdir('nitro')
 endif
 
 # qtest

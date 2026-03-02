@@ -1548,74 +1548,6 @@ int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd)
     return 0;
 }
 
-static int guest_mem_read_with_gva(const CPUState *cpu, uint64_t gva,
-                                   uint8_t *data, uintptr_t size,
-                                   bool fetch_instruction)
-{
-    int ret;
-    uint64_t gpa, flags;
-
-    flags = HV_TRANSLATE_GVA_VALIDATE_READ;
-    ret = translate_gva(cpu, gva, &gpa, flags);
-    if (ret < 0) {
-        error_report("failed to translate gva to gpa");
-        return -1;
-    }
-
-    ret = mshv_guest_mem_read(gpa, data, size, false, fetch_instruction);
-    if (ret < 0) {
-        error_report("failed to read from guest memory");
-        return -1;
-    }
-
-    return 0;
-}
-
-static int guest_mem_write_with_gva(const CPUState *cpu, uint64_t gva,
-                                    const uint8_t *data, uintptr_t size)
-{
-    int ret;
-    uint64_t gpa, flags;
-
-    flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
-    ret = translate_gva(cpu, gva, &gpa, flags);
-    if (ret < 0) {
-        error_report("failed to translate gva to gpa");
-        return -1;
-    }
-    ret = mshv_guest_mem_write(gpa, data, size, false);
-    if (ret < 0) {
-        error_report("failed to write to guest memory");
-        return -1;
-    }
-    return 0;
-}
-
-static void write_mem(CPUState *cpu, void *data, target_ulong addr, int bytes)
-{
-    if (guest_mem_write_with_gva(cpu, addr, data, bytes) < 0) {
-        error_report("failed to write memory");
-        abort();
-    }
-}
-
-static void fetch_instruction(CPUState *cpu, void *data,
-                              target_ulong addr, int bytes)
-{
-    if (guest_mem_read_with_gva(cpu, addr, data, bytes, true) < 0) {
-        error_report("failed to fetch instruction");
-        abort();
-    }
-}
-
-static void read_mem(CPUState *cpu, void *data, target_ulong addr, int bytes)
-{
-    if (guest_mem_read_with_gva(cpu, addr, data, bytes, false) < 0) {
-        error_report("failed to read memory");
-        abort();
-    }
-}
-
 static void read_segment_descriptor(CPUState *cpu,
                                     struct x86_segment_descriptor *desc,
                                     enum X86Seg seg_idx)
@@ -1634,9 +1566,6 @@ static void read_segment_descriptor(CPUState *cpu,
 }
 
 static const struct x86_emul_ops mshv_x86_emul_ops = {
-    .fetch_instruction = fetch_instruction,
-    .read_mem = read_mem,
-    .write_mem = write_mem,
     .read_segment_descriptor = read_segment_descriptor,
 };
 

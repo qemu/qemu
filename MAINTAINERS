@@ -152,6 +152,13 @@ F: tools/i386/
 F: tests/functional/i386/
 F: tests/functional/x86_64/
 
+X86 VM file descriptor change on reset test
+M: Ani Sinha <anisinha@redhat.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: stubs/kvm.c
+F: tests/functional/x86_64/test_rebuild_vmfd.py
+
 Guest CPU cores (TCG)
 ---------------------
 Overall TCG CPUs
@@ -586,6 +593,12 @@ F: accel/mshv/
 F: include/system/mshv.h
 F: include/hw/hyperv/hvgdk*.h
 F: include/hw/hyperv/hvhdk*.h
+
+Nitro Enclaves (native)
+M: Alexander Graf <graf@amazon.com>
+S: Maintained
+F: accel/nitro/
+F: include/system/nitro-accel.h
 
 X86 MSHV CPUs
 M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
@@ -3020,6 +3033,13 @@ S: Maintained
 F: hw/vmapple/*
 F: include/hw/vmapple/*
 F: docs/system/arm/vmapple.rst
+
+Nitro Enclaves (native)
+M: Alexander Graf <graf@amazon.com>
+S: Maintained
+F: hw/nitro/
+F: include/hw/nitro/
+F: docs/system/nitro.rst
 
 Subsystems
 ----------

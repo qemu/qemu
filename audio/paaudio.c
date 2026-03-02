@@ -62,26 +62,6 @@ static void G_GNUC_PRINTF(2, 3) qpa_logerr(int err, const char *fmt, ...)
     error_printf(" Reason: %s\n", pa_strerror(err));
 }
 
-#ifndef PA_CONTEXT_IS_GOOD
-static inline int PA_CONTEXT_IS_GOOD(pa_context_state_t x)
-{
-    return
-        x == PA_CONTEXT_CONNECTING ||
-        x == PA_CONTEXT_AUTHORIZING ||
-        x == PA_CONTEXT_SETTING_NAME ||
-        x == PA_CONTEXT_READY;
-}
-#endif
-
-#ifndef PA_STREAM_IS_GOOD
-static inline int PA_STREAM_IS_GOOD(pa_stream_state_t x)
-{
-    return
-        x == PA_STREAM_CREATING ||
-        x == PA_STREAM_READY;
-}
-#endif
-
 #define CHECK_SUCCESS_GOTO(c, expression, label, msg)           \
     do {                                                        \
         if (!(expression)) {                                    \
@@ -682,9 +662,7 @@ static void qpa_volume_out(HWVoiceOut *hw, Volume *vol)
     PAConnection *c = pa->g->conn;
     int i;
 
-#ifdef PA_CHECK_VERSION    /* macro is present in 0.9.16+ */
-    pa_cvolume_init (&v);  /* function is present in 0.9.13+ */
-#endif
+    pa_cvolume_init(&v);
 
     v.channels = vol->channels;
     for (i = 0; i < vol->channels; ++i) {
@@ -724,9 +702,7 @@ static void qpa_volume_in(HWVoiceIn *hw, Volume *vol)
     PAConnection *c = pa->g->conn;
     int i;
 
-#ifdef PA_CHECK_VERSION
-    pa_cvolume_init (&v);
-#endif
+    pa_cvolume_init(&v);
 
     v.channels = vol->channels;
     for (i = 0; i < vol->channels; ++i) {

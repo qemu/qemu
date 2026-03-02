@@ -36,15 +36,36 @@
 /////////////////////////////////////////////////////////////////////////
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "panic.h"
 #include "x86_decode.h"
 #include "x86.h"
 #include "x86_emu.h"
 #include "x86_flags.h"
+#include "x86_mmu.h"
 
+
+#ifdef TARGET_X86_64
+#define EXEC_2OP_FLAGS_CMD_64(env, decode, cmd, FLAGS_FUNC, save_res) \
+    case 8:                                        \
+    {                                               \
+        uint64_t v1 = (uint64_t)decode->op[0].val;  \
+        uint64_t v2 = (uint64_t)decode->op[1].val;  \
+        uint64_t diff = v1 cmd v2;                  \
+        if (save_res) {                              \
+            if (write_val_ext(env, &decode->op[0], diff, 8)) { return 1; } \
+        } \
+        FLAGS_FUNC##64(env, v1, v2, diff);          \
+        break;                                      \
+    }
+#else
+#define EXEC_2OP_FLAGS_CMD_64(env, decode, cmd, FLAGS_FUNC, save_res)
+#endif
 #define EXEC_2OP_FLAGS_CMD(env, decode, cmd, FLAGS_FUNC, save_res) \
 {                                                       \
-    fetch_operands(env, decode, 2, true, true, false);  \
+    if (fetch_operands(env, decode, 2, true, true, false))  {\
+        return 1; \
+    }\
     switch (decode->operand_size) {                     \
     case 1:                                         \
     {                                               \
@@ -52,7 +73,7 @@
         uint8_t v2 = (uint8_t)decode->op[1].val;    \
         uint8_t diff = v1 cmd v2;                   \
         if (save_res) {                              \
-            write_val_ext(env, &decode->op[0], diff, 1);  \
+            if (write_val_ext(env, &decode->op[0], diff, 1)) { return 1; }  \
         } \
         FLAGS_FUNC##8(env, v1, v2, diff);           \
         break;                                      \
@@ -63,7 +84,7 @@
         uint16_t v2 = (uint16_t)decode->op[1].val;  \
         uint16_t diff = v1 cmd v2;                  \
         if (save_res) {                              \
-            write_val_ext(env, &decode->op[0], diff, 2); \
+            if (write_val_ext(env, &decode->op[0], diff, 2)) { return 1; } \
         } \
         FLAGS_FUNC##16(env, v1, v2, diff);          \
         break;                                      \
@@ -74,11 +95,12 @@
         uint32_t v2 = (uint32_t)decode->op[1].val;  \
         uint32_t diff = v1 cmd v2;                  \
         if (save_res) {                              \
-            write_val_ext(env, &decode->op[0], diff, 4); \
+            if (write_val_ext(env, &decode->op[0], diff, 4)) { return 1; } \
         } \
         FLAGS_FUNC##32(env, v1, v2, diff);          \
         break;                                      \
     }                                               \
+    EXEC_2OP_FLAGS_CMD_64(env, decode, cmd, FLAGS_FUNC, save_res) \
     default:                                        \
         VM_PANIC("bad size\n");                    \
     }                                                   \
@@ -164,63 +186,77 @@ void write_val_to_reg(void *reg_ptr, target_ulong val, int size)
     }
 }
 
-static void write_val_to_mem(CPUX86State *env, target_ulong ptr, target_ulong val, int size)
-{
-    emul_ops->write_mem(env_cpu(env), &val, ptr, size);
-}
-
-void write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size)
+bool write_val_ext(CPUX86State *env, struct x86_decode_op *decode, target_ulong val, int size)
 {
     if (decode->type == X86_VAR_REG) {
         write_val_to_reg(decode->regptr, val, size);
     } else {
-        write_val_to_mem(env, decode->addr, val, size);
+        MMUTranslateResult res = x86_write_mem(env_cpu(env), &val, decode->addr, size);
+        if (res) {
+            if (res == MMU_TRANSLATE_GPA_UNMAPPED) {
+                return 0;
+            }
+            return 1;
+        }
     }
+    return 0;
 }
 
 uint8_t *read_mmio(CPUX86State *env, target_ulong ptr, int bytes)
 {
-    emul_ops->read_mem(env_cpu(env), env->emu_mmio_buf, ptr, bytes);
+    MMUTranslateResult res = x86_read_mem(env_cpu(env), env->emu_mmio_buf, ptr, bytes);
+    if (res) {
+        if (res == MMU_TRANSLATE_GPA_UNMAPPED) {
+            memset(env->emu_mmio_buf, 0xFF, bytes);
+            return env->emu_mmio_buf;
+        }
+        return NULL;
+    }
     return env->emu_mmio_buf;
 }
 
 
-static target_ulong read_val_from_mem(CPUX86State *env, target_long ptr, int size)
+static bool read_val_from_mem(CPUX86State *env, target_long ptr, int size, target_ulong* val)
 {
-    target_ulong val;
     uint8_t *mmio_ptr;
 
     mmio_ptr = read_mmio(env, ptr, size);
+    if (mmio_ptr == NULL) {
+        return 1;
+    }
     switch (size) {
     case 1:
-        val = *(uint8_t *)mmio_ptr;
+        *val = *(uint8_t *)mmio_ptr;
         break;
     case 2:
-        val = *(uint16_t *)mmio_ptr;
+        *val = *(uint16_t *)mmio_ptr;
         break;
     case 4:
-        val = *(uint32_t *)mmio_ptr;
+        *val = *(uint32_t *)mmio_ptr;
         break;
     case 8:
-        val = *(uint64_t *)mmio_ptr;
+        *val = *(uint64_t *)mmio_ptr;
         break;
     default:
         VM_PANIC("bad size\n");
         break;
     }
-    return val;
+    return 0;
 }
 
-target_ulong read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size)
+bool read_val_ext(CPUX86State *env, struct x86_decode_op *decode, int size, target_ulong* val)
 {
     if (decode->type == X86_VAR_REG) {
-        return read_val_from_reg(decode->regptr, size);
+        *val = read_val_from_reg(decode->regptr, size);
     } else {
-        return read_val_from_mem(env, decode->addr, size);
+        if (read_val_from_mem(env, decode->addr, size, val)) {
+            return 1;
+        }
     }
+    return 0;
 }
 
-static void fetch_operands(CPUX86State *env, struct x86_decode *decode,
+static bool fetch_operands(CPUX86State *env, struct x86_decode *decode,
                            int n, bool val_op0, bool val_op1, bool val_op2)
 {
     int i;
@@ -240,8 +276,10 @@ static void fetch_operands(CPUX86State *env, struct x86_decode *decode,
         case X86_VAR_RM:
             calc_modrm_operand(env, decode, &decode->op[i]);
             if (calc_val[i]) {
-                decode->op[i].val = read_val_ext(env, &decode->op[i],
-                                                 decode->operand_size);
+                if (read_val_ext(env, &decode->op[i],decode->operand_size,
+                                                            &decode->op[i].val)) {
+                    return 1;
+                }
             }
             break;
         case X86_VAR_OFFSET:
@@ -249,68 +287,81 @@ static void fetch_operands(CPUX86State *env, struct x86_decode *decode,
                                                     decode->op[i].addr,
                                                     R_DS);
             if (calc_val[i]) {
-                decode->op[i].val = read_val_ext(env, &decode->op[i],
-                                                 decode->operand_size);
+                if (read_val_ext(env, &decode->op[i], decode->operand_size,
+                                                 &decode->op[i].val)) {
+                    return 1;
+                }
             }
             break;
         default:
             break;
         }
     }
+    return 0;
 }
 
-static void exec_mov(CPUX86State *env, struct x86_decode *decode)
+static bool exec_mov(CPUX86State *env, struct x86_decode *decode)
 {
     fetch_operands(env, decode, 2, false, true, false);
-    write_val_ext(env, &decode->op[0], decode->op[1].val,
-                  decode->operand_size);
+    if (write_val_ext(env, &decode->op[0], decode->op[1].val,
+                  decode->operand_size)) {
+        return 1;
+    }
 
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_add(CPUX86State *env, struct x86_decode *decode)
+static bool exec_add(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_or(CPUX86State *env, struct x86_decode *decode)
+static bool exec_or(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, |, SET_FLAGS_OSZAPC_LOGIC, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_adc(CPUX86State *env, struct x86_decode *decode)
+static bool exec_adc(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, +get_CF(env)+, SET_FLAGS_OSZAPC_ADD, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_sbb(CPUX86State *env, struct x86_decode *decode)
+static bool exec_sbb(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, -get_CF(env)-, SET_FLAGS_OSZAPC_SUB, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_and(CPUX86State *env, struct x86_decode *decode)
+static bool exec_and(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_sub(CPUX86State *env, struct x86_decode *decode)
+static bool exec_sub(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_xor(CPUX86State *env, struct x86_decode *decode)
+static bool exec_xor(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, ^, SET_FLAGS_OSZAPC_LOGIC, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_neg(CPUX86State *env, struct x86_decode *decode)
+static bool exec_neg(CPUX86State *env, struct x86_decode *decode)
 {
     /*EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);*/
     int32_t val;
@@ -331,15 +382,17 @@ static void exec_neg(CPUX86State *env, struct x86_decode *decode)
 
     /*lflags_to_rflags(env);*/
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_cmp(CPUX86State *env, struct x86_decode *decode)
+static bool exec_cmp(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_inc(CPUX86State *env, struct x86_decode *decode)
+static bool exec_inc(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[1].type = X86_VAR_IMMEDIATE;
     decode->op[1].val = 0;
@@ -347,33 +400,37 @@ static void exec_inc(CPUX86State *env, struct x86_decode *decode)
     EXEC_2OP_FLAGS_CMD(env, decode, +1+, SET_FLAGS_OSZAP_ADD, true);
 
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_dec(CPUX86State *env, struct x86_decode *decode)
+static bool exec_dec(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[1].type = X86_VAR_IMMEDIATE;
     decode->op[1].val = 0;
 
     EXEC_2OP_FLAGS_CMD(env, decode, -1-, SET_FLAGS_OSZAP_SUB, true);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_tst(CPUX86State *env, struct x86_decode *decode)
+static bool exec_tst(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, &, SET_FLAGS_OSZAPC_LOGIC, false);
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_not(CPUX86State *env, struct x86_decode *decode)
+static bool exec_not(CPUX86State *env, struct x86_decode *decode)
 {
     fetch_operands(env, decode, 1, true, false, false);
 
     write_val_ext(env, &decode->op[0], ~decode->op[0].val,
                   decode->operand_size);
     env->eip += decode->len;
+    return 0;
 }
 
-void exec_movzx(CPUX86State *env, struct x86_decode *decode)
+bool exec_movzx(CPUX86State *env, struct x86_decode *decode)
 {
     int src_op_size;
     int op_size = decode->operand_size;
@@ -387,13 +444,16 @@ void exec_movzx(CPUX86State *env, struct x86_decode *decode)
     }
     decode->operand_size = src_op_size;
     calc_modrm_operand(env, decode, &decode->op[1]);
-    decode->op[1].val = read_val_ext(env, &decode->op[1], src_op_size);
+    if (read_val_ext(env, &decode->op[1], src_op_size, &decode->op[1].val)) {
+        return 1;
+    }
     write_val_ext(env, &decode->op[0], decode->op[1].val, op_size);
 
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_out(CPUX86State *env, struct x86_decode *decode)
+static bool exec_out(CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->opcode[0]) {
     case 0xe6:
@@ -415,9 +475,10 @@ static void exec_out(CPUX86State *env, struct x86_decode *decode)
         break;
     }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_in(CPUX86State *env, struct x86_decode *decode)
+static bool exec_in(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong val = 0;
     switch (decode->opcode[0]) {
@@ -452,6 +513,7 @@ static void exec_in(CPUX86State *env, struct x86_decode *decode)
     }
 
     env->eip += decode->len;
+    return 0;
 }
 
 static inline void string_increment_reg(CPUX86State *env, int reg,
@@ -466,99 +528,138 @@ static inline void string_increment_reg(CPUX86State *env, int reg,
     write_reg(env, reg, val, decode->addressing_size);
 }
 
-static inline void string_rep(CPUX86State *env, struct x86_decode *decode,
-                              void (*func)(CPUX86State *env,
+static inline int get_ZF(CPUX86State *env) {
+    return env->cc_dst ? 0 : CC_Z;
+}
+
+static inline bool string_rep(CPUX86State *env, struct x86_decode *decode,
+                              bool (*func)(CPUX86State *env,
                                            struct x86_decode *ins), int rep)
 {
     target_ulong rcx = read_reg(env, R_ECX, decode->addressing_size);
-    while (rcx--) {
-        func(env, decode);
+
+    while (rcx != 0) {
+        bool is_cmps_or_scas = decode->cmd == X86_DECODE_CMD_CMPS || decode->cmd == X86_DECODE_CMD_SCAS;
+        if (func(env, decode)) {
+            return 1;
+        }
+        rcx--;
         write_reg(env, R_ECX, rcx, decode->addressing_size);
-        if ((PREFIX_REP == rep) && !env->cc_dst) {
+        if ((PREFIX_REP == rep) && !get_ZF(env) && is_cmps_or_scas) {
             break;
         }
-        if ((PREFIX_REPN == rep) && env->cc_dst) {
+        if ((PREFIX_REPN == rep) && get_ZF(env)&& is_cmps_or_scas) {
             break;
         }
     }
+    return 0;
 }
 
-static void exec_ins_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_ins_single(CPUX86State *env, struct x86_decode *decode)
 {
+    MMUTranslateResult res;
+
     target_ulong addr = linear_addr_size(env_cpu(env), RDI(env),
                                          decode->addressing_size, R_ES);
 
     emul_ops->handle_io(env_cpu(env), DX(env), env->emu_mmio_buf, 0,
                         decode->operand_size, 1);
-    emul_ops->write_mem(env_cpu(env), env->emu_mmio_buf, addr,
+    res = x86_write_mem(env_cpu(env), env->emu_mmio_buf, addr,
                         decode->operand_size);
-
-    string_increment_reg(env, R_EDI, decode);
-}
-
-static void exec_ins(CPUX86State *env, struct x86_decode *decode)
-{
-    if (decode->rep) {
-        string_rep(env, decode, exec_ins_single, 0);
-    } else {
-        exec_ins_single(env, decode);
+    if (res) {
+        return 1;
     }
 
-    env->eip += decode->len;
+    string_increment_reg(env, R_EDI, decode);
+    return 0;
 }
 
-static void exec_outs_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_ins(CPUX86State *env, struct x86_decode *decode)
+{
+    bool res;
+    if (decode->rep) {
+        res = string_rep(env, decode, exec_ins_single, 0);
+    } else {
+        res = exec_ins_single(env, decode);
+    }
+
+    if (res) {
+        return 1;
+    }
+    env->eip += decode->len;
+    return 0;
+}
+
+static bool exec_outs_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr = decode_linear_addr(env, decode, RSI(env), R_DS);
 
-    emul_ops->read_mem(env_cpu(env), env->emu_mmio_buf, addr,
+    x86_read_mem(env_cpu(env), env->emu_mmio_buf, addr,
                        decode->operand_size);
     emul_ops->handle_io(env_cpu(env), DX(env), env->emu_mmio_buf, 1,
                         decode->operand_size, 1);
 
     string_increment_reg(env, R_ESI, decode);
+    return 0;
 }
 
-static void exec_outs(CPUX86State *env, struct x86_decode *decode)
+static bool exec_outs(CPUX86State *env, struct x86_decode *decode)
 {
+    bool res;
     if (decode->rep) {
-        string_rep(env, decode, exec_outs_single, 0);
+        res = string_rep(env, decode, exec_outs_single, 0);
     } else {
-        exec_outs_single(env, decode);
+        res = exec_outs_single(env, decode);
     }
 
+    if (res) {
+        return 1;
+    }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_movs_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_movs_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong src_addr;
     target_ulong dst_addr;
     target_ulong val;
+    MMUTranslateResult res;
 
     src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
     dst_addr = linear_addr_size(env_cpu(env), RDI(env),
                                 decode->addressing_size, R_ES);
 
-    val = read_val_from_mem(env, src_addr, decode->operand_size);
-    write_val_to_mem(env, dst_addr, val, decode->operand_size);
+    if (read_val_from_mem(env, src_addr, decode->operand_size, &val)) {
+        return 1;
+    }
+    res = x86_write_mem(env_cpu(env), &val, dst_addr, decode->operand_size);
+    if (res) {
+        return 1;
+    }
 
     string_increment_reg(env, R_ESI, decode);
     string_increment_reg(env, R_EDI, decode);
+    return 0;
 }
 
-static void exec_movs(CPUX86State *env, struct x86_decode *decode)
+static bool exec_movs(CPUX86State *env, struct x86_decode *decode)
 {
+    bool res;
     if (decode->rep) {
-        string_rep(env, decode, exec_movs_single, 0);
+        res = string_rep(env, decode, exec_movs_single, 0);
     } else {
-        exec_movs_single(env, decode);
+        res = exec_movs_single(env, decode);
     }
 
+    if (res) {
+        return 1;
+    }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_cmps_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_cmps_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong src_addr;
     target_ulong dst_addr;
@@ -568,17 +669,22 @@ static void exec_cmps_single(CPUX86State *env, struct x86_decode *decode)
                                 decode->addressing_size, R_ES);
 
     decode->op[0].type = X86_VAR_IMMEDIATE;
-    decode->op[0].val = read_val_from_mem(env, src_addr, decode->operand_size);
+    if (read_val_from_mem(env, src_addr, decode->operand_size, &decode->op[0].val)) {
+        return 1;
+    }
     decode->op[1].type = X86_VAR_IMMEDIATE;
-    decode->op[1].val = read_val_from_mem(env, dst_addr, decode->operand_size);
+    if (read_val_from_mem(env, dst_addr, decode->operand_size, &decode->op[1].val)) {
+        return 1;
+    }
 
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
 
     string_increment_reg(env, R_ESI, decode);
     string_increment_reg(env, R_EDI, decode);
+    return 0;
 }
 
-static void exec_cmps(CPUX86State *env, struct x86_decode *decode)
+static bool exec_cmps(CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(env, decode, exec_cmps_single, decode->rep);
@@ -586,24 +692,30 @@ static void exec_cmps(CPUX86State *env, struct x86_decode *decode)
         exec_cmps_single(env, decode);
     }
     env->eip += decode->len;
+    return 0;
 }
 
 
-static void exec_stos_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_stos_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr;
     target_ulong val;
+    MMUTranslateResult res;
 
     addr = linear_addr_size(env_cpu(env), RDI(env),
                             decode->addressing_size, R_ES);
     val = read_reg(env, R_EAX, decode->operand_size);
-    emul_ops->write_mem(env_cpu(env), &val, addr, decode->operand_size);
+    res = x86_write_mem(env_cpu(env), &val, addr, decode->operand_size);
+    if (res) {
+        return 1;
+    }
 
     string_increment_reg(env, R_EDI, decode);
+    return 0;
 }
 
 
-static void exec_stos(CPUX86State *env, struct x86_decode *decode)
+static bool exec_stos(CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(env, decode, exec_stos_single, 0);
@@ -612,25 +724,29 @@ static void exec_stos(CPUX86State *env, struct x86_decode *decode)
     }
 
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_scas_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_scas_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr;
 
     addr = linear_addr_size(env_cpu(env), RDI(env),
                             decode->addressing_size, R_ES);
     decode->op[1].type = X86_VAR_IMMEDIATE;
-    emul_ops->read_mem(env_cpu(env), &decode->op[1].val, addr, decode->operand_size);
+    x86_read_mem(env_cpu(env), &decode->op[1].val, addr, decode->operand_size);
 
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
     string_increment_reg(env, R_EDI, decode);
+    return 0;
 }
 
-static void exec_scas(CPUX86State *env, struct x86_decode *decode)
+static bool exec_scas(CPUX86State *env, struct x86_decode *decode)
 {
     decode->op[0].type = X86_VAR_REG;
     decode->op[0].reg = R_EAX;
+    decode->op[0].regptr = x86_reg(env, R_EAX);
+
     if (decode->rep) {
         string_rep(env, decode, exec_scas_single, decode->rep);
     } else {
@@ -638,21 +754,23 @@ static void exec_scas(CPUX86State *env, struct x86_decode *decode)
     }
 
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_lods_single(CPUX86State *env, struct x86_decode *decode)
+static bool exec_lods_single(CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr;
     target_ulong val = 0;
 
     addr = decode_linear_addr(env, decode, RSI(env), R_DS);
-    emul_ops->read_mem(env_cpu(env), &val, addr,  decode->operand_size);
+    x86_read_mem(env_cpu(env), &val, addr,  decode->operand_size);
     write_reg(env, R_EAX, val, decode->operand_size);
 
     string_increment_reg(env, R_ESI, decode);
+    return 0;
 }
 
-static void exec_lods(CPUX86State *env, struct x86_decode *decode)
+static bool exec_lods(CPUX86State *env, struct x86_decode *decode)
 {
     if (decode->rep) {
         string_rep(env, decode, exec_lods_single, 0);
@@ -661,6 +779,7 @@ static void exec_lods(CPUX86State *env, struct x86_decode *decode)
     }
 
     env->eip += decode->len;
+    return 0;
 }
 
 void x86_emul_raise_exception(CPUX86State *env, int exception_index, int error_code)
@@ -671,23 +790,25 @@ void x86_emul_raise_exception(CPUX86State *env, int exception_index, int error_c
     env->exception_injected = 1;
 }
 
-static void exec_rdmsr(CPUX86State *env, struct x86_decode *decode)
+static bool exec_rdmsr(CPUX86State *env, struct x86_decode *decode)
 {
     emul_ops->simulate_rdmsr(env_cpu(env));
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_wrmsr(CPUX86State *env, struct x86_decode *decode)
+static bool exec_wrmsr(CPUX86State *env, struct x86_decode *decode)
 {
     emul_ops->simulate_wrmsr(env_cpu(env));
     env->eip += decode->len;
+    return 0;
 }
 
 /*
  * flag:
  * 0 - bt, 1 - btc, 2 - bts, 3 - btr
  */
-static void do_bt(CPUX86State *env, struct x86_decode *decode, int flag)
+static bool do_bt(CPUX86State *env, struct x86_decode *decode, int flag)
 {
     int32_t displacement;
     uint8_t index;
@@ -696,7 +817,9 @@ static void do_bt(CPUX86State *env, struct x86_decode *decode, int flag)
 
     VM_PANIC_ON(decode->rex.rex);
 
-    fetch_operands(env, decode, 2, false, true, false);
+    if (fetch_operands(env, decode, 2, false, true, false)) {
+        return 1;
+    }
     index = decode->op[1].val & mask;
 
     if (decode->op[0].type != X86_VAR_REG) {
@@ -710,14 +833,16 @@ static void do_bt(CPUX86State *env, struct x86_decode *decode, int flag)
             VM_PANIC("bt 64bit\n");
         }
     }
-    decode->op[0].val = read_val_ext(env, &decode->op[0],
-                                     decode->operand_size);
+    if (read_val_ext(env, &decode->op[0],
+                                     decode->operand_size, &decode->op[0].val)) {
+        return 1;
+    }
     cf = (decode->op[0].val >> index) & 0x01;
 
     switch (flag) {
     case 0:
         set_CF(env, cf);
-        return;
+        return 0;
     case 1:
         decode->op[0].val ^= (1u << index);
         break;
@@ -728,41 +853,58 @@ static void do_bt(CPUX86State *env, struct x86_decode *decode, int flag)
         decode->op[0].val &= ~(1u << index);
         break;
     }
-    write_val_ext(env, &decode->op[0], decode->op[0].val,
-                  decode->operand_size);
+    if (write_val_ext(env, &decode->op[0], decode->op[0].val,
+                  decode->operand_size)) {
+        return 1;
+    }
     set_CF(env, cf);
+    return 0;
 }
 
-static void exec_bt(CPUX86State *env, struct x86_decode *decode)
+static bool exec_bt(CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(env, decode, 0);
+    if (do_bt(env, decode, 0)) {
+        return 1;
+    }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_btc(CPUX86State *env, struct x86_decode *decode)
+static bool exec_btc(CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(env, decode, 1);
+    if (do_bt(env, decode, 1)) {
+        return 1;
+    }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_btr(CPUX86State *env, struct x86_decode *decode)
+static bool exec_btr(CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(env, decode, 3);
+    if (do_bt(env, decode, 3)) {
+        return 1;
+    }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_bts(CPUX86State *env, struct x86_decode *decode)
+static bool exec_bts(CPUX86State *env, struct x86_decode *decode)
 {
-    do_bt(env, decode, 2);
+    if (do_bt(env, decode, 2)) {
+        return 1;
+    }
     env->eip += decode->len;
+    return 0;
 }
 
-void exec_shl(CPUX86State *env, struct x86_decode *decode)
+bool exec_shl(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
     int of = 0, cf = 0;
 
-    fetch_operands(env, decode, 2, true, true, false);
+    if (fetch_operands(env, decode, 2, true, true, false)) {
+        return 1;
+    }
 
     count = decode->op[1].val;
     count &= 0x1f;      /* count is masked to 5 bits*/
@@ -819,12 +961,14 @@ void exec_shl(CPUX86State *env, struct x86_decode *decode)
 exit:
     /* lflags_to_rflags(env); */
     env->eip += decode->len;
+    return 0;
 }
 
-void exec_movsx(CPUX86State *env, struct x86_decode *decode)
+bool exec_movsx(CPUX86State *env, struct x86_decode *decode)
 {
     int src_op_size;
     int op_size = decode->operand_size;
+    target_ulong val;
 
     fetch_operands(env, decode, 2, false, false, false);
 
@@ -836,15 +980,18 @@ void exec_movsx(CPUX86State *env, struct x86_decode *decode)
 
     decode->operand_size = src_op_size;
     calc_modrm_operand(env, decode, &decode->op[1]);
-    decode->op[1].val = sign(read_val_ext(env, &decode->op[1], src_op_size),
-                             src_op_size);
+    if (read_val_ext(env, &decode->op[1], src_op_size, &val)) {
+        return 1;
+    }
+    decode->op[1].val = sign(val, src_op_size);
 
     write_val_ext(env, &decode->op[0], decode->op[1].val, op_size);
 
     env->eip += decode->len;
+    return 0;
 }
 
-void exec_ror(CPUX86State *env, struct x86_decode *decode)
+bool exec_ror(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
 
@@ -920,9 +1067,10 @@ void exec_ror(CPUX86State *env, struct x86_decode *decode)
         }
     }
     env->eip += decode->len;
+    return 0;
 }
 
-void exec_rol(CPUX86State *env, struct x86_decode *decode)
+bool exec_rol(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
 
@@ -1001,10 +1149,11 @@ void exec_rol(CPUX86State *env, struct x86_decode *decode)
         }
     }
     env->eip += decode->len;
+    return 0;
 }
 
 
-void exec_rcl(CPUX86State *env, struct x86_decode *decode)
+bool exec_rcl(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
     int of = 0, cf = 0;
@@ -1087,9 +1236,10 @@ void exec_rcl(CPUX86State *env, struct x86_decode *decode)
         }
     }
     env->eip += decode->len;
+    return 0;
 }
 
-void exec_rcr(CPUX86State *env, struct x86_decode *decode)
+bool exec_rcr(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t count;
     int of = 0, cf = 0;
@@ -1162,9 +1312,10 @@ void exec_rcr(CPUX86State *env, struct x86_decode *decode)
         }
     }
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_xchg(CPUX86State *env, struct x86_decode *decode)
+static bool exec_xchg(CPUX86State *env, struct x86_decode *decode)
 {
     fetch_operands(env, decode, 2, true, true, false);
 
@@ -1174,20 +1325,22 @@ static void exec_xchg(CPUX86State *env, struct x86_decode *decode)
                   decode->operand_size);
 
     env->eip += decode->len;
+    return 0;
 }
 
-static void exec_xadd(CPUX86State *env, struct x86_decode *decode)
+static bool exec_xadd(CPUX86State *env, struct x86_decode *decode)
 {
     EXEC_2OP_FLAGS_CMD(env, decode, +, SET_FLAGS_OSZAPC_ADD, true);
     write_val_ext(env, &decode->op[1], decode->op[0].val,
                   decode->operand_size);
 
     env->eip += decode->len;
+    return 0;
 }
 
 static struct cmd_handler {
     enum x86_decode_cmd cmd;
-    void (*handler)(CPUX86State *env, struct x86_decode *ins);
+    bool (*handler)(CPUX86State *env, struct x86_decode *ins);
 } handlers[] = {
     {X86_DECODE_CMD_INVL, NULL,},
     {X86_DECODE_CMD_MOV, exec_mov},

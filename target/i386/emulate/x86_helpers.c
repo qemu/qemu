@@ -13,6 +13,7 @@
 #include "cpu.h"
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
+#include "emulate/x86_mmu.h"
 #include "qemu/error-report.h"
 #include "system/mshv.h"
 
@@ -176,7 +177,7 @@ bool x86_read_segment_descriptor(CPUState *cpu,
     }
 
     gva = base + sel.index * 8;
-    emul_ops->read_mem(cpu, desc, gva, sizeof(*desc));
+    x86_read_mem_priv(cpu, desc, gva, sizeof(*desc));
 
     return true;
 }
@@ -200,7 +201,7 @@ bool x86_read_call_gate(CPUState *cpu, struct x86_call_gate *idt_desc,
     }
 
     gva = base + gate * 8;
-    emul_ops->read_mem(cpu, idt_desc, gva, sizeof(*idt_desc));
+    x86_read_mem_priv(cpu, idt_desc, gva, sizeof(*idt_desc));
 
     return true;
 }
@@ -234,6 +235,14 @@ bool x86_is_long_mode(CPUState *cpu)
     uint64_t lme_lma = (MSR_EFER_LME | MSR_EFER_LMA);
 
     return ((efer & lme_lma) == lme_lma);
+}
+
+bool x86_is_la57(CPUState *cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    uint64_t is_la57 = env->cr[4] & CR4_LA57_MASK;
+    return is_la57;
 }
 
 bool x86_is_long64_mode(CPUState *cpu)

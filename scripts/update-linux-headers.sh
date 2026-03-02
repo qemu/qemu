@@ -254,6 +254,7 @@ for i in "$hdrdir"/include/linux/*virtio*.h \
          "$hdrdir/include/linux/kvm_para.h" \
          "$hdrdir/include/linux/vhost_types.h" \
          "$hdrdir/include/linux/vmclock-abi.h" \
+         "$hdrdir/include/linux/nitro_enclaves.h" \
          "$hdrdir/include/linux/sysinfo.h"; do
     cp_portable "$i" "$output/include/standard-headers/linux"
 done

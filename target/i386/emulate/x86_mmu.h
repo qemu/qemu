@@ -30,15 +30,30 @@
 #define PT_GLOBAL       (1 << 8)
 #define PT_NX           (1llu << 63)
 
-/* error codes */
-#define MMU_PAGE_PT             (1 << 0)
-#define MMU_PAGE_WT             (1 << 1)
-#define MMU_PAGE_US             (1 << 2)
-#define MMU_PAGE_NX             (1 << 3)
+typedef enum MMUTranslateFlags {
+    MMU_TRANSLATE_VALIDATE_WRITE = BIT(1),
+    MMU_TRANSLATE_VALIDATE_EXECUTE = BIT(2),
+    MMU_TRANSLATE_PRIV_CHECKS_EXEMPT = BIT(3)
+} MMUTranslateFlags;
 
-bool mmu_gva_to_gpa(CPUState *cpu, target_ulong gva, uint64_t *gpa);
+typedef enum MMUTranslateResult {
+    MMU_TRANSLATE_SUCCESS = 0,
+    MMU_TRANSLATE_PAGE_NOT_MAPPED = 1,
+    MMU_TRANSLATE_PRIV_VIOLATION = 2,
+    MMU_TRANSLATE_INVALID_PT_FLAGS = 3,
+    MMU_TRANSLATE_GPA_UNMAPPED = 4,
+    MMU_TRANSLATE_GPA_NO_READ_ACCESS = 5,
+    MMU_TRANSLATE_GPA_NO_WRITE_ACCESS = 6
+} MMUTranslateResult;
 
-void vmx_write_mem(CPUState *cpu, target_ulong gva, void *data, int bytes);
-void vmx_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes);
+MMUTranslateResult mmu_gva_to_gpa(CPUState *cpu, target_ulong gva, uint64_t *gpa, MMUTranslateFlags flags);
+
+/* Thin wrappers x86_write_mem_ex/x86_read_mem_ex for code readability */
+MMUTranslateResult x86_write_mem(CPUState *cpu, void *data, target_ulong gva, int bytes);
+MMUTranslateResult x86_read_mem(CPUState *cpu, void *data, target_ulong gva, int bytes);
+
+MMUTranslateResult x86_write_mem_priv(CPUState *cpu, void *data, target_ulong gva, int bytes);
+MMUTranslateResult x86_read_mem_priv(CPUState *cpu, void *data, target_ulong gva, int bytes);
+
 
 #endif /* X86_MMU_H */

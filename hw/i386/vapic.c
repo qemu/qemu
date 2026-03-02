@@ -16,6 +16,7 @@
 #include "system/cpus.h"
 #include "system/hw_accel.h"
 #include "system/kvm.h"
+#include "system/whpx.h"
 #include "system/runstate.h"
 #include "system/address-spaces.h"
 #include "hw/i386/apic_internal.h"
@@ -229,7 +230,8 @@ static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
         return -1;
     }
 
-    if (kvm_enabled() && !kvm_irqchip_in_kernel()) {
+    if ((kvm_enabled() && !kvm_irqchip_in_kernel())
+        || (whpx_enabled() && !whpx_irqchip_in_kernel())) {
         /*
          * KVM without kernel-based TPR access reporting will pass an IP that
          * points after the accessing instruction. So we need to look backward
@@ -549,7 +551,7 @@ static int patch_hypercalls(VAPICROMState *s)
     cpu_physical_memory_read(rom_paddr, rom, s->rom_size);
 
     for (pos = 0; pos < s->rom_size - sizeof(vmcall_pattern); pos++) {
-        if (kvm_irqchip_in_kernel()) {
+        if (kvm_enabled() && kvm_irqchip_in_kernel()) {
             pattern = outl_pattern;
             alternates[0] = outl_pattern[7];
             alternates[1] = outl_pattern[7];
@@ -679,16 +681,25 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
         }
         break;
     case 1:
-        if (kvm_enabled()) {
+        if (kvm_enabled() || (whpx_enabled() && !whpx_irqchip_in_kernel())) {
             /*
              * Disable triggering instruction in ROM by writing a NOP.
              *
              * We cannot do this in TCG mode as the reported IP is not
              * accurate.
+             *
+             * Oddly enough, KVM increments EIP _before_ the execution
+             * of the instruction is finished.
              */
             pause_all_vcpus();
-            patch_byte(cpu, env->eip - 2, 0x66);
-            patch_byte(cpu, env->eip - 1, 0x90);
+            if (!kvm_enabled()) {
+                patch_byte(cpu, env->eip, 0x66);
+                patch_byte(cpu, env->eip + 1, 0x90);
+            }
+            else {
+                patch_byte(cpu, env->eip - 2, 0x66);
+                patch_byte(cpu, env->eip - 1, 0x90);
+            }
             resume_all_vcpus();
         }
 
@@ -705,7 +716,8 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     default:
     case 4:
-        if (!kvm_irqchip_in_kernel()) {
+        if ((kvm_enabled() && !kvm_irqchip_in_kernel())
+          || (whpx_enabled() && !whpx_irqchip_in_kernel())) {
             apic_poll_irq(cpu->apic_state);
         }
         break;

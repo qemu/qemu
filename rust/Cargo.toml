@@ -46,6 +46,7 @@ redundant_explicit_links = "deny"
 [workspace.lints.clippy]
 # default-warn lints
 result_unit_err = "allow"
+manual_checked_ops = "deny"
 should_implement_trait = "deny"
 # can be for a reason, e.g. in callbacks
 unused_self = "allow"
