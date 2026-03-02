@@ -1579,6 +1579,8 @@ static void amdvi_handle_control_write(AMDVIState *s)
     s->cmdbuf_enabled = s->enabled && !!(control &
                         AMDVI_MMIO_CONTROL_CMDBUFLEN);
     s->ga_enabled = !!(control & AMDVI_MMIO_CONTROL_GAEN);
+    s->xten = !!(control & AMDVI_MMIO_CONTROL_XTEN) && s->xtsup &&
+              s->ga_enabled;
 
     /* update the flags depending on the control register */
     if (s->cmdbuf_enabled) {
@@ -2054,7 +2056,7 @@ static int amdvi_int_remap_ga(AMDVIState *iommu,
     irq->vector = irte.hi.fields.vector;
     irq->dest_mode = irte.lo.fields_remap.dm;
     irq->redir_hint = irte.lo.fields_remap.rq_eoi;
-    if (iommu->xtsup) {
+    if (iommu->xten) {
         irq->dest = irte.lo.fields_remap.destination |
                     (irte.hi.fields.destination_hi << 24);
     } else {
@@ -2437,6 +2439,7 @@ static void amdvi_init(AMDVIState *s)
     s->mmio_enabled = false;
     s->enabled = false;
     s->cmdbuf_enabled = false;
+    s->xten = false;
 
     /* reset MMIO */
     memset(s->mmior, 0, AMDVI_MMIO_SIZE);
@@ -2501,6 +2504,16 @@ static void amdvi_sysbus_reset(DeviceState *dev)
     amdvi_reset_address_translation_all(s);
 }
 
+static const VMStateDescription vmstate_xt = {
+       .name = "amd-iommu-xt",
+       .version_id = 1,
+       .minimum_version_id = 1,
+       .fields = (VMStateField[]) {
+           VMSTATE_BOOL(xten, AMDVIState),
+           VMSTATE_END_OF_LIST()
+       }
+};
+
 static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
     .name = "amd-iommu",
     .version_id = 1,
@@ -2545,7 +2558,11 @@ static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
       VMSTATE_UINT8_ARRAY(romask, AMDVIState, AMDVI_MMIO_SIZE),
       VMSTATE_UINT8_ARRAY(w1cmask, AMDVIState, AMDVI_MMIO_SIZE),
       VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription *const []) {
+                    &vmstate_xt,
+                    NULL
+     }
 };
 
 static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
