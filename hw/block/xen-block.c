@@ -883,32 +883,29 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     QDict *driver_layer;
     struct stat st;
     int rc;
+    char **v;
 
-    if (params) {
-        char **v = g_strsplit(params, ":", 2);
-
-        if (v[1] == NULL) {
-            filename = g_strdup(v[0]);
-            driver = g_strdup("raw");
-        } else {
-            if (strcmp(v[0], "aio") == 0) {
-                driver = g_strdup("raw");
-            } else if (strcmp(v[0], "vhd") == 0) {
-                driver = g_strdup("vpc");
-            } else {
-                driver = g_strdup(v[0]);
-            }
-            filename = g_strdup(v[1]);
-        }
-
-        g_strfreev(v);
-    } else {
+    if (!params) {
         error_setg(errp, "no params");
-        goto done;
+        return NULL;
     }
 
-    assert(filename);
-    assert(driver);
+    v = g_strsplit(params, ":", 2);
+    if (v[1] == NULL) {
+        filename = g_strdup(v[0]);
+        driver = g_strdup("raw");
+    } else {
+        if (strcmp(v[0], "aio") == 0) {
+            driver = g_strdup("raw");
+        } else if (strcmp(v[0], "vhd") == 0) {
+            driver = g_strdup("vpc");
+        } else {
+            driver = g_strdup(v[0]);
+        }
+        filename = g_strdup(v[1]);
+    }
+
+    g_strfreev(v);
 
     drive = g_new0(XenBlockDrive, 1);
     drive->id = g_strdup(id);
