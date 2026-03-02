@@ -1253,6 +1253,15 @@ static int multifd_device_state_recv(MultiFDRecvParams *p, Error **errp)
     return ret;
 }
 
+static int multifd_ram_state_recv(MultiFDRecvParams *p, Error **errp)
+{
+    int ret;
+
+    ret = multifd_recv_state->ops->recv(p, errp);
+
+    return ret;
+}
+
 static void *multifd_recv_thread(void *opaque)
 {
     MigrationState *s = migrate_get_current();
@@ -1387,7 +1396,7 @@ static void *multifd_recv_thread(void *opaque)
                 assert(use_packets);
                 ret = multifd_device_state_recv(p, &local_err);
             } else {
-                ret = multifd_recv_state->ops->recv(p, &local_err);
+                ret = multifd_ram_state_recv(p, &local_err);
             }
             if (ret != 0) {
                 break;
