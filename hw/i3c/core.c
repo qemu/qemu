@@ -525,7 +525,7 @@ int i3c_target_ibi_finish(I3CTarget *t, uint8_t data)
 
 static bool i3c_addr_is_rsvd(uint8_t addr)
 {
-    const bool is_rsvd[255] = {
+    static const bool is_rsvd[256] = {
         [0x00] = true,
         [0x01] = true,
         [0x02] = true,
