@@ -11,7 +11,6 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-import tempfile
 import time
 
 from qemu_test import QemuSystemTest, which
@@ -65,9 +64,8 @@ class MigrationTest(QemuSystemTest):
             self.do_migrate(dest_uri)
 
     def migration_with_unix(self):
-        with tempfile.TemporaryDirectory(prefix='socket_') as socket_path:
-            dest_uri = 'unix:%s/qemu-test.sock' % socket_path
-            self.do_migrate(dest_uri)
+        dest_uri = 'unix:%s/migration.sock' % self.socket_dir().name
+        self.do_migrate(dest_uri)
 
     def migration_with_exec(self):
         if not which('ncat'):
