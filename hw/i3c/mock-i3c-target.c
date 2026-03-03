@@ -70,6 +70,7 @@ static int mock_i3c_target_tx(I3CTarget *i3c, const uint8_t *data,
 
     if (s->cfg.ibi_magic && num_to_send == 1 && s->cfg.ibi_magic == *data) {
         mock_i3c_target_ibi_timer_start(s);
+        *num_sent = 1;
         return 0;
     }
 
@@ -86,6 +87,7 @@ static int mock_i3c_target_tx(I3CTarget *i3c, const uint8_t *data,
         s->buf[s->p_buf] = data[i];
         s->p_buf++;
     }
+    *num_sent = to_write;
     return ret;
 }
 
