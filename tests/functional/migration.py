@@ -65,6 +65,11 @@ class MigrationTest(QemuSystemTest):
             self.skipTest('Failed to find a free port')
         return port
 
+    def migration_with_tcp_localhost_vms(self, dst_vm, src_vm):
+        with Ports() as ports:
+            uri = 'tcp:localhost:%u' % self._get_free_port(ports)
+            self.migrate_vms(uri, uri, dst_vm, src_vm)
+
     def migration_with_tcp_localhost(self):
         with Ports() as ports:
             dst_uri = 'tcp:localhost:%u' % self._get_free_port(ports)

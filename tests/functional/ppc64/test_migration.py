@@ -22,17 +22,6 @@ class PpcMigrationTest(MigrationTest):
         self.set_machine('mac99')
         self.migration_with_exec()
 
-    def do_migrate_ppc64_linux(self, source_vm, dest_vm):
-        with Ports() as ports:
-            port = ports.find_free_port()
-            if port is None:
-                self.skipTest('Failed to find a free port')
-            uri = 'tcp:localhost:%u' % port
-
-            dest_vm.qmp('migrate-incoming', uri=uri)
-            source_vm.qmp('migrate', uri=uri)
-            self.assert_migration(source_vm, dest_vm)
-
 
 if __name__ == '__main__':
     MigrationTest.main()
