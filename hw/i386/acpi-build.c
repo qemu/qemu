@@ -78,6 +78,7 @@
 
 #include "hw/acpi/hmat.h"
 #include "hw/acpi/viot.h"
+#include "hw/acpi/wdat-ich9.h"
 
 #include CONFIG_DEVICES
 
@@ -110,6 +111,7 @@ typedef struct AcpiPmInfo {
     uint16_t cpu_hp_io_base;
     uint16_t pcihp_io_base;
     uint16_t pcihp_io_len;
+    uint64_t tco_io_base;
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
@@ -204,6 +206,7 @@ static void acpi_get_pm_info(MachineState *machine, AcpiPmInfo *pm)
     pm->pcihp_io_len = 0;
     pm->smi_on_cpuhp = false;
     pm->smi_on_cpu_unplug = false;
+    pm->tco_io_base = 0;
 
     assert(obj);
     init_common_fadt_data(machine, obj, &pm->fadt);
@@ -225,6 +228,8 @@ static void acpi_get_pm_info(MachineState *machine, AcpiPmInfo *pm)
             !!(smi_features & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT));
         pm->smi_on_cpu_unplug =
             !!(smi_features & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT));
+        pm->tco_io_base = object_property_get_uint(obj, ACPI_PM_PROP_PM_IO_BASE,
+            NULL) + ICH9_PMIO_TCO_RLD;
     }
     pm->pcihp_io_base =
         object_property_get_uint(obj, ACPI_PCIHP_IO_BASE_PROP, NULL);
@@ -2077,6 +2082,13 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
     acpi_add_table(table_offsets, tables_blob);
     build_waet(tables_blob, tables->linker, x86ms->oem_id, x86ms->oem_table_id);
+
+    if (pcms->wdat_enabled == true) {
+        g_assert(pm.tco_io_base);
+        acpi_add_table(table_offsets, tables_blob);
+        build_ich9_wdat(tables_blob, tables->linker, x86ms->oem_id,
+                        x86ms->oem_table_id, pm.tco_io_base);
+    }
 
     /* Add tables supplied by user (if any) */
     for (u = acpi_table_first(); u; u = acpi_table_next(u)) {
