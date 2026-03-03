@@ -35,6 +35,7 @@
 #include "hw/acpi/acpi_aml_interface.h"
 #include "qemu/cutils.h"
 #include "hw/core/cpu.h"
+#include "hw/acpi/wdat.h"
 
 static GArray *build_alloc_array(void)
 {
@@ -2871,4 +2872,17 @@ void qbus_build_aml(BusState *bus, Aml *scope)
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         call_dev_aml_func(DEVICE(kid->child), scope);
     }
+}
+
+void build_append_wdat_ins(GArray *table_data,
+                           WDATAction action, uint8_t flags,
+                           struct AcpiGenericAddress as,
+                           uint32_t val, uint32_t mask)
+{
+    build_append_int_noprefix(table_data, action, 1);    /* Watchdog Action */
+    build_append_int_noprefix(table_data, flags, 1);     /* Instruction Flags */
+    build_append_int_noprefix(table_data, 0, 2);         /* Reserved */
+    build_append_gas_from_struct(table_data, &as);       /* Register Region */
+    build_append_int_noprefix(table_data, val, 4);       /* Value */
+    build_append_int_noprefix(table_data, mask, 4);      /* Mask */
 }
