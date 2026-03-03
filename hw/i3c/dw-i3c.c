@@ -1282,7 +1282,7 @@ static uint16_t dw_i3c_rx(DWI3C *s, uint16_t num, bool is_i2c)
      * Allocate a temporary buffer to read data from the target.
      * Zero it and word-align it as well in case we're reading unaligned data.
      */
-    g_autofree uint8_t *data = g_new0(uint8_t, num + (4 - (num & 0x03)));
+    g_autofree uint8_t *data = g_new0(uint8_t, ROUND_UP(num, 4));
     uint32_t *data32 = (uint32_t *)data;
     /*
      * 32-bits since the I3C API wants a 32-bit number, even though the
