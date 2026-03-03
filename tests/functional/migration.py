@@ -40,6 +40,11 @@ class MigrationTest(QemuSystemTest):
         self.assertEqual(dst_vm.cmd('query-status')['status'], 'running')
         self.assertEqual(src_vm.cmd('query-status')['status'],'postmigrate')
 
+    def migrate_vms(self, dst_uri, src_uri, dst_vm, src_vm):
+        dst_vm.qmp('migrate-incoming', uri=dst_uri)
+        src_vm.qmp('migrate', uri=src_uri)
+        self.assert_migration(src_vm, dst_vm)
+
     def do_migrate(self, dest_uri, src_uri=None):
         dest_vm = self.get_vm('-incoming', dest_uri, name="dest-qemu")
         dest_vm.add_args('-nodefaults')
