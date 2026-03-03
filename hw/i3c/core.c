@@ -325,7 +325,7 @@ int i3c_send_byte(I3CBus *bus, uint8_t data)
      * Ignored, the caller can determine how many were sent based on if this was
      * ACKed/NACKed.
      */
-    uint32_t num_sent;
+    uint32_t num_sent = 0;
     return i3c_send(bus, &data, 1, &num_sent);
 }
 
