@@ -146,9 +146,12 @@ static int mock_i3c_target_handle_ccc_read(I3CTarget *i3c, uint8_t *data,
             if (s->ccc_byte_offset >= 2) {
                 break;
             }
-            data[s->ccc_byte_offset] = (s->cfg.buf_size &
-                                        (0xff00 >> (s->ccc_byte_offset * 8))) >>
-                                        (8 - (s->ccc_byte_offset * 8));
+            if (s->ccc_byte_offset == 0) {
+                data[s->ccc_byte_offset] = (uint8_t)(s->cfg.buf_size >> 8);
+            } else {
+                data[s->ccc_byte_offset] = (uint8_t)s->cfg.buf_size;
+            }
+
             s->ccc_byte_offset++;
             *num_read = num_to_read;
         }
