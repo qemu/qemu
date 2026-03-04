@@ -175,7 +175,7 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
     for (n = 0; n < num; n++) {
         if (more_descs || (n + 1 < num)) {
             descs[i].flags = flags | cpu_to_le16(VRING_DESC_F_NEXT);
-            descs[i].next = cpu_to_le16(svq->desc_next[i]);
+            descs[i].next = cpu_to_le16(svq->desc_state[i].next);
         } else {
             descs[i].flags = flags;
         }
@@ -183,10 +183,10 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
         descs[i].len = cpu_to_le32(iovec[n].iov_len);
 
         last = i;
-        i = svq->desc_next[i];
+        i = svq->desc_state[i].next;
     }
 
-    svq->free_head = svq->desc_next[last];
+    svq->free_head = svq->desc_state[last].next;
     return true;
 }
 
@@ -432,7 +432,7 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
                                              uint16_t num, uint16_t i)
 {
     for (uint16_t j = 0; j < (num - 1); ++j) {
-        i = svq->desc_next[i];
+        i = svq->desc_state[i].next;
     }
 
     return i;
@@ -473,7 +473,7 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     num = svq->desc_state[used_elem.id].ndescs;
     svq->desc_state[used_elem.id].ndescs = 0;
     last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
-    svq->desc_next[last_used_chain] = svq->free_head;
+    svq->desc_state[last_used_chain].next = svq->free_head;
     svq->free_head = used_elem.id;
     svq->num_free += num;
 
@@ -705,9 +705,8 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
                            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
                            -1, 0);
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
-    svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
-        svq->desc_next[i] = i + 1;
+        svq->desc_state[i].next = i + 1;
     }
 }
 
@@ -744,7 +743,6 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
         virtqueue_unpop(svq->vq, next_avail_elem, 0);
     }
     svq->vq = NULL;
-    g_free(svq->desc_next);
     g_free(svq->desc_state);
     munmap(svq->vring.desc, vhost_svq_driver_area_size(svq));
     munmap(svq->vring.used, vhost_svq_device_area_size(svq));

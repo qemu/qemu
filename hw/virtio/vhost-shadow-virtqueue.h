@@ -23,6 +23,12 @@ typedef struct SVQDescState {
      * guest's
      */
     unsigned int ndescs;
+
+    /*
+     * Backup next field for each descriptor so we can recover securely, not
+     * needing to trust the device access.
+     */
+    uint16_t next;
 } SVQDescState;
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
@@ -83,12 +89,6 @@ typedef struct VhostShadowVirtqueue {
 
     /* Next VirtQueue element that guest made available */
     VirtQueueElement *next_guest_avail_elem;
-
-    /*
-     * Backup next field for each descriptor so we can recover securely, not
-     * needing to trust the device access.
-     */
-    uint16_t *desc_next;
 
     /* Caller callbacks */
     const VhostShadowVirtqueueOps *ops;
