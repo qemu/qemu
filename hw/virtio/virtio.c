@@ -986,7 +986,7 @@ static void virtqueue_ordered_fill(VirtQueue *vq, const VirtQueueElement *elem,
      * We shouldn't need to increase 'i' by more than or equal to
      * the distance between used_idx and last_avail_idx (max_steps).
      */
-    max_steps = (vq->last_avail_idx - vq->used_idx) % vq->vring.num;
+    max_steps = MIN(vq->last_avail_idx - vq->used_idx, vq->vring.num);
 
     /* Search for element in vq->used_elems */
     while (steps < max_steps) {
