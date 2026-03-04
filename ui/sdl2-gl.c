@@ -139,9 +139,11 @@ QEMUGLContext sdl2_gl_create_context(DisplayGLCtx *dgc,
                                      QEMUGLParams *params)
 {
     struct sdl2_console *scon = container_of(dgc, struct sdl2_console, dgc);
-    SDL_GLContext ctx;
+    SDL_GLContext ctx, current_ctx;
 
     assert(scon->opengl);
+
+    current_ctx = SDL_GL_GetCurrentContext();
 
     SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
 
@@ -167,6 +169,9 @@ QEMUGLContext sdl2_gl_create_context(DisplayGLCtx *dgc,
                             SDL_GL_CONTEXT_PROFILE_ES);
         ctx = SDL_GL_CreateContext(scon->real_window);
     }
+
+    SDL_GL_MakeCurrent(scon->real_window, current_ctx);
+
     return (QEMUGLContext)ctx;
 }
 
