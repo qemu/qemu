@@ -41,7 +41,7 @@ typedef enum SMMUTranslationClass {
 
 static inline int smmu_enabled(SMMUv3State *s)
 {
-    return FIELD_EX32(s->cr[0], CR0, SMMU_ENABLE);
+    return FIELD_EX32(s->cr[0], CR0, SMMUEN);
 }
 
 /* Command Queue Entry */
