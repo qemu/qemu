@@ -474,10 +474,23 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
 }
 
 G_GNUC_WARN_UNUSED_RESULT
+static VirtQueueElement *vhost_svq_detach_buf(VhostShadowVirtqueue *svq,
+                                              uint16_t id)
+{
+    uint16_t num = svq->desc_state[id].ndescs;
+    uint16_t last_used_chain = vhost_svq_last_desc_of_chain(svq, num, id);
+
+    svq->desc_state[last_used_chain].next = svq->free_head;
+    svq->free_head = id;
+
+    return g_steal_pointer(&svq->desc_state[id].elem);
+}
+
+G_GNUC_WARN_UNUSED_RESULT
 static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
                                            uint32_t *len)
 {
-    uint16_t last_used, last_used_chain, num;
+    uint16_t last_used;
 
     if (!vhost_svq_more_used(svq)) {
         return NULL;
@@ -500,14 +513,9 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
         return NULL;
     }
 
-    num = svq->desc_state[last_used].ndescs;
+    svq->num_free += svq->desc_state[last_used].ndescs;
     svq->desc_state[last_used].ndescs = 0;
-    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, last_used);
-    svq->desc_state[last_used_chain].next = svq->free_head;
-    svq->free_head = last_used;
-    svq->num_free += num;
-
-    return g_steal_pointer(&svq->desc_state[last_used].elem);
+    return vhost_svq_detach_buf(svq, last_used);
 }
 
 /**
