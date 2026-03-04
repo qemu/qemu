@@ -37,8 +37,41 @@ const VMStateDescription vmstate_uefi_time = {
     },
 };
 
+static int uefi_vars_pre_load(void *opaque)
+{
+    uefi_variable *var = opaque;
+
+    /* clear digest which is optional in the live migration data stream */
+    var->digest = NULL;
+    var->digest_size = 0;
+    return 0;
+}
+
+static bool uefi_vars_digest_is_needed(void *opaque)
+{
+    uefi_variable *var = opaque;
+
+    if ((var->attributes & EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS)
+        && !uefi_vars_is_sb_any(var)) {
+        return true;
+    }
+    return false;
+}
+
+const VMStateDescription vmstate_uefi_variable_digest = {
+    .name = "uefi-variable-digest",
+    .needed = uefi_vars_digest_is_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(digest_size, uefi_variable),
+        VMSTATE_VBUFFER_ALLOC_UINT32(digest, uefi_variable,
+                                     0, NULL, digest_size),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 const VMStateDescription vmstate_uefi_variable = {
     .name = "uefi-variable",
+    .pre_load = uefi_vars_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_ARRAY_V(guid.data, uefi_variable, sizeof(QemuUUID), 0),
         VMSTATE_UINT32(name_size, uefi_variable),
@@ -49,6 +82,10 @@ const VMStateDescription vmstate_uefi_variable = {
         VMSTATE_STRUCT(time, uefi_variable, 0, vmstate_uefi_time, efi_time),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * const []) {
+        &vmstate_uefi_variable_digest,
+        NULL
+    }
 };
 
 uefi_variable *uefi_vars_find_variable(uefi_vars_state *uv, QemuUUID guid,
