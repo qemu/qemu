@@ -24,11 +24,19 @@ typedef struct SVQDescState {
      */
     unsigned int ndescs;
 
-    /*
-     * Backup next field for each descriptor so we can recover securely, not
-     * needing to trust the device access.
-     */
-    uint16_t next;
+    union {
+        /*
+         * Total length of the available buffer that is writable by the device.
+         * Only used in packed vq.
+         */
+        uint32_t in_bytes;
+
+        /*
+         * Backup next field for each descriptor so we can recover securely, not
+         * needing to trust the device access.  Only used in split vq.
+         */
+        uint16_t next;
+    };
 } SVQDescState;
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
@@ -99,8 +107,24 @@ typedef struct VhostShadowVirtqueue {
     /* Next head to expose to the device */
     uint16_t shadow_avail_idx;
 
-    /* Next free descriptor */
+    /*
+     * Next free descriptor.
+     *
+     * Without IN_ORDER free_head is used as a linked list head, and
+     * desc_next[id] is the next element.
+     * With IN_ORDER free_head is the next available buffer index.
+     */
     uint16_t free_head;
+
+    /*
+     * Last used element of the processing batch of used descriptors if
+     * IN_ORDER.
+     * If SVQ is not processing a batch of descriptors id is set to UINT_MAX.
+     */
+    vring_used_elem_t batch_last;
+
+    /* Last used id if IN_ORDER and split vq */
+    uint16_t last_used;
 
     /* Last seen used idx */
     uint16_t shadow_used_idx;
