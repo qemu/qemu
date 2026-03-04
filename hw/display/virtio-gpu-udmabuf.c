@@ -151,13 +151,6 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
     res->blob = pdata;
 }
 
-void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)
-{
-    if (res->remapped) {
-        virtio_gpu_destroy_udmabuf(res);
-    }
-}
-
 static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
 {
     struct virtio_gpu_scanout *scanout;
@@ -167,6 +160,26 @@ static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
     g_clear_pointer(&dmabuf->buf, qemu_dmabuf_free);
     QTAILQ_REMOVE(&g->dmabuf.bufs, dmabuf, next);
     g_free(dmabuf);
+}
+
+void virtio_gpu_fini_udmabuf(VirtIOGPU *g, struct virtio_gpu_simple_resource *res)
+{
+    int max_outputs = g->parent_obj.conf.max_outputs;
+    int i;
+
+    for (i = 0; i < max_outputs; i++) {
+        VGPUDMABuf *dmabuf = g->dmabuf.primary[i];
+
+        if (dmabuf &&
+            qemu_dmabuf_get_num_planes(dmabuf->buf) > 0 &&
+            qemu_dmabuf_get_fds(dmabuf->buf, NULL)[0] == res->dmabuf_fd &&
+            res->dmabuf_fd != -1) {
+            qemu_dmabuf_close(dmabuf->buf);
+            res->dmabuf_fd = -1;
+        }
+    }
+
+    virtio_gpu_destroy_udmabuf(res);
 }
 
 static VGPUDMABuf
