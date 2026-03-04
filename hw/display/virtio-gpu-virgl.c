@@ -1323,6 +1323,25 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
     if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
         flags |= VIRGL_RENDERER_VENUS | VIRGL_RENDERER_RENDER_SERVER;
     }
+    if (virtio_gpu_drm_enabled(g->parent_obj.conf)) {
+        flags |= VIRGL_RENDERER_DRM;
+
+        if (!(flags & VIRGL_RENDERER_ASYNC_FENCE_CB)) {
+            /*
+             * Virglrenderer skips enabling DRM context support without
+             * enabled async-fence feature. VirtIO-GPU will initialize
+             * successfully, but DRM context won't be available in guest.
+             *
+             * For vrend async-fencing can be enabled only if EGL display
+             * is used. Vrend can't be disabled in QEMU, hence DRM implicitly
+             * requires EGL too.
+             *
+             * Async-fence was bugged in virglrenderer versions <= 1.1.1.
+             */
+            error_report("drm requires egl display and virglrenderer >= 1.2.0");
+            return -EINVAL;
+        }
+    }
 #endif
 
     ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
@@ -1383,6 +1402,15 @@ GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g)
                                    &capset_max_size);
         if (capset_max_size) {
             virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_VENUS);
+        }
+    }
+
+    if (virtio_gpu_drm_enabled(g->parent_obj.conf)) {
+        virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_DRM,
+                                   &capset_max_ver,
+                                   &capset_max_size);
+        if (capset_max_size) {
+            virtio_gpu_virgl_add_capset(capset_ids, VIRTIO_GPU_CAPSET_DRM);
         }
     }
 
