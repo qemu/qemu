@@ -140,6 +140,20 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
 }
 
 /**
+ * Get the next descriptor in the chain in SVQ vring from a descriptor id
+ *
+ * @svq Shadow Virtqueue
+ * @id ID of the descriptor
+ *
+ * Return the id of the next descriptor.
+ */
+static uint16_t vhost_svq_next_desc(const VhostShadowVirtqueue *svq,
+                                    uint16_t id)
+{
+    return svq->desc_state[id].next;
+}
+
+/**
  * Write descriptors to SVQ vring
  *
  * @svq: The shadow virtqueue
@@ -173,9 +187,11 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
     }
 
     for (n = 0; n < num; n++) {
+        uint16_t next = vhost_svq_next_desc(svq, i);
+
         if (more_descs || (n + 1 < num)) {
             descs[i].flags = flags | cpu_to_le16(VRING_DESC_F_NEXT);
-            descs[i].next = cpu_to_le16(svq->desc_state[i].next);
+            descs[i].next = cpu_to_le16(next);
         } else {
             descs[i].flags = flags;
         }
@@ -183,10 +199,10 @@ static bool vhost_svq_vring_write_descs(VhostShadowVirtqueue *svq, hwaddr *sg,
         descs[i].len = cpu_to_le32(iovec[n].iov_len);
 
         last = i;
-        i = svq->desc_state[i].next;
+        i = next;
     }
 
-    svq->free_head = svq->desc_state[last].next;
+    svq->free_head = vhost_svq_next_desc(svq, last);
     return true;
 }
 
@@ -432,7 +448,7 @@ static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
                                              uint16_t num, uint16_t i)
 {
     for (uint16_t j = 0; j < (num - 1); ++j) {
-        i = svq->desc_state[i].next;
+        i = vhost_svq_next_desc(svq, i);
     }
 
     return i;
