@@ -444,6 +444,25 @@ static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
     }
 }
 
+/*
+ * Gets the next buffer id and moves forward the used idx, so the next time
+ * SVQ calls this function will get the next one.
+ *
+ * @svq: Shadow VirtQueue
+ * @len: Consumed length by the device.
+ *
+ * Return the next descriptor consumed by the device.
+ */
+static uint16_t vhost_svq_get_last_used_split(VhostShadowVirtqueue *svq,
+                                              uint32_t *len)
+{
+    const vring_used_t *used = svq->vring.used;
+    uint16_t last_used = svq->last_used_idx++ & (svq->vring.num - 1);
+
+    *len = le32_to_cpu(used->ring[last_used].len);
+    return le32_to_cpu(used->ring[last_used].id);
+}
+
 static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
                                              uint16_t num, uint16_t i)
 {
@@ -458,8 +477,6 @@ G_GNUC_WARN_UNUSED_RESULT
 static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
                                            uint32_t *len)
 {
-    const vring_used_t *used = svq->vring.used;
-    vring_used_elem_t used_elem;
     uint16_t last_used, last_used_chain, num;
 
     if (!vhost_svq_more_used(svq)) {
@@ -468,33 +485,29 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
 
     /* Only get used array entries after they have been exposed by dev */
     smp_rmb();
-    last_used = svq->last_used_idx & (svq->vring.num - 1);
-    used_elem.id = le32_to_cpu(used->ring[last_used].id);
-    used_elem.len = le32_to_cpu(used->ring[last_used].len);
+    last_used = vhost_svq_get_last_used_split(svq, len);
 
-    svq->last_used_idx++;
-    if (unlikely(used_elem.id >= svq->vring.num)) {
+    if (unlikely(last_used >= svq->vring.num)) {
         qemu_log_mask(LOG_GUEST_ERROR, "Device %s says index %u is used",
-                      svq->vdev->name, used_elem.id);
+                      svq->vdev->name, last_used);
         return NULL;
     }
 
-    if (unlikely(!svq->desc_state[used_elem.id].ndescs)) {
+    if (unlikely(!svq->desc_state[last_used].ndescs)) {
         qemu_log_mask(LOG_GUEST_ERROR,
             "Device %s says index %u is used, but it was not available",
-            svq->vdev->name, used_elem.id);
+            svq->vdev->name, last_used);
         return NULL;
     }
 
-    num = svq->desc_state[used_elem.id].ndescs;
-    svq->desc_state[used_elem.id].ndescs = 0;
-    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, used_elem.id);
+    num = svq->desc_state[last_used].ndescs;
+    svq->desc_state[last_used].ndescs = 0;
+    last_used_chain = vhost_svq_last_desc_of_chain(svq, num, last_used);
     svq->desc_state[last_used_chain].next = svq->free_head;
-    svq->free_head = used_elem.id;
+    svq->free_head = last_used;
     svq->num_free += num;
 
-    *len = used_elem.len;
-    return g_steal_pointer(&svq->desc_state[used_elem.id].elem);
+    return g_steal_pointer(&svq->desc_state[last_used].elem);
 }
 
 /**
