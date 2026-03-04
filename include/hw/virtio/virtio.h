@@ -99,6 +99,44 @@ enum virtio_device_endian {
     VIRTIO_DEVICE_ENDIAN_BIG,
 };
 
+#define TYPE_VIRTIO_SHARED_MEMORY_MAPPING "virtio-shared-memory-mapping"
+OBJECT_DECLARE_SIMPLE_TYPE(VirtioSharedMemoryMapping, VIRTIO_SHARED_MEMORY_MAPPING)
+
+/**
+ * VirtioSharedMemoryMapping:
+ * @parent: Parent QOM object
+ * @shmid: VIRTIO Shared Memory Region ID
+ * @offset: Offset within the VIRTIO Shared Memory Region
+ * @len: Size of the mapping
+ * @mr: MemoryRegion associated with this shared memory mapping
+ * @link: List entry for the shared memory region's mapping list
+ *
+ * A QOM object that represents an individual file descriptor-based shared
+ * memory mapping within a VIRTIO Shared Memory Region. It manages the
+ * MemoryRegion lifecycle and file descriptor cleanup through QOM reference
+ * counting. When the object is unreferenced and its reference count drops
+ * to zero, it automatically cleans up the MemoryRegion and closes the file
+ * descriptor.
+ */
+struct VirtioSharedMemoryMapping {
+    Object parent;
+
+    uint8_t shmid;
+    hwaddr offset;
+    uint64_t len;
+    MemoryRegion *mr;
+    QTAILQ_ENTRY(VirtioSharedMemoryMapping) link;
+};
+
+struct VirtioSharedMemory {
+    uint8_t shmid;
+    MemoryRegion mr;
+    QTAILQ_HEAD(, VirtioSharedMemoryMapping) mmaps;
+    QSIMPLEQ_ENTRY(VirtioSharedMemory) entry;
+};
+
+typedef struct VirtioSharedMemory VirtioSharedMemory;
+
 /**
  * struct VirtIODevice - common VirtIO structure
  * @name: name of the device
@@ -168,6 +206,8 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+    /* Shared memory region for mappings. */
+    QSIMPLEQ_HEAD(, VirtioSharedMemory) shmem_list;
 };
 
 struct VirtioDeviceClass {
@@ -297,6 +337,100 @@ int virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
 int virtio_save(VirtIODevice *vdev, QEMUFile *f);
+
+/**
+ * virtio_new_shmem_region() - Create a new shared memory region
+ * @vdev: VirtIODevice
+ * @shmid: Shared memory ID
+ * @size: Size of the shared memory region
+ *
+ * Creates a new VirtioSharedMemory region for the given device and ID.
+ * The returned VirtioSharedMemory is owned by the VirtIODevice and will
+ * be automatically freed when the device is destroyed. The caller
+ * should not free the returned pointer.
+ *
+ * Returns: Pointer to the new VirtioSharedMemory region, or NULL on failure
+ */
+VirtioSharedMemory *virtio_new_shmem_region(VirtIODevice *vdev, uint8_t shmid, uint64_t size);
+
+/**
+ * virtio_find_shmem_region() - Find an existing shared memory region
+ * @vdev: VirtIODevice
+ * @shmid: Shared memory ID to find
+ *
+ * Finds an existing VirtioSharedMemory region by ID. The returned pointer
+ * is owned by the VirtIODevice and should not be freed by the caller.
+ *
+ * Returns: Pointer to the VirtioSharedMemory region, or NULL if not found
+ */
+VirtioSharedMemory *virtio_find_shmem_region(VirtIODevice *vdev, uint8_t shmid);
+
+/**
+ * virtio_shared_memory_mapping_new() - Create a new VirtioSharedMemoryMapping
+ * @shmid: VIRTIO Shared Memory Region ID
+ * @fd: File descriptor for the shared memory
+ * @fd_offset: Offset within the file descriptor
+ * @shm_offset: Offset within the VIRTIO Shared Memory Region
+ * @len: Size of the mapping
+ * @allow_write: Whether to allow write access to the mapping
+ *
+ * Creates a new VirtioSharedMemoryMapping that manages a shared memory mapping.
+ * The object will create a MemoryRegion using memory_region_init_ram_from_fd()
+ * as a child object. When the object is finalized, it will automatically
+ * clean up the MemoryRegion and close the file descriptor.
+ *
+ * Return: A new VirtioSharedMemoryMapping on success, NULL on error.
+ */
+VirtioSharedMemoryMapping *virtio_shared_memory_mapping_new(uint8_t shmid,
+                                                            int fd,
+                                                            uint64_t fd_offset,
+                                                            uint64_t shm_offset,
+                                                            uint64_t len,
+                                                            bool allow_write);
+
+/**
+ * virtio_add_shmem_map() - Add a memory mapping to a shared region
+ * @shmem: VirtioSharedMemory region
+ * @mapping: VirtioSharedMemoryMapping to add (transfers ownership)
+ *
+ * Adds a memory mapping to the shared memory region. The VirtioSharedMemoryMapping
+ * ownership is transferred to the shared memory region and will be automatically
+ * cleaned up through QOM reference counting when virtio_del_shmem_map() is
+ * called or when the shared memory region is destroyed.
+ *
+ * Returns: 0 on success, negative errno on failure
+ */
+int virtio_add_shmem_map(VirtioSharedMemory *shmem,
+                         VirtioSharedMemoryMapping *mapping);
+
+/**
+ * virtio_find_shmem_map() - Find a memory mapping in a shared region
+ * @shmem: VirtioSharedMemory region
+ * @offset: Offset within the shared memory region
+ * @size: Size of the mapping to find
+ *
+ * Finds an existing memory mapping that covers the specified range.
+ * The returned VirtioSharedMemoryMapping is owned by the VirtioSharedMemory
+ * region and should not be freed by the caller.
+ *
+ * Returns: Pointer to the VirtioSharedMemoryMapping, or NULL if not found
+ */
+VirtioSharedMemoryMapping *virtio_find_shmem_map(VirtioSharedMemory *shmem,
+                                          hwaddr offset, uint64_t size);
+
+/**
+ * virtio_del_shmem_map() - Remove a memory mapping from a shared region
+ * @shmem: VirtioSharedMemory region
+ * @offset: Offset of the mapping to remove
+ * @size: Size of the mapping to remove
+ *
+ * Removes a memory mapping from the shared memory region. This will
+ * automatically unref the associated VhostUserShmemObject, which may
+ * trigger its finalization and cleanup if no other references exist.
+ * The mapping's MemoryRegion will be properly unmapped and cleaned up.
+ */
+void virtio_del_shmem_map(VirtioSharedMemory *shmem, hwaddr offset,
+                          uint64_t size);
 
 extern const VMStateInfo virtio_vmstate_info;
 

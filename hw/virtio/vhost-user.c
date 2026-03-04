@@ -100,6 +100,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_SHARED_OBJECT = 41,
     VHOST_USER_SET_DEVICE_STATE_FD = 42,
     VHOST_USER_CHECK_DEVICE_STATE = 43,
+    VHOST_USER_GET_SHMEM_CONFIG = 44,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -111,6 +112,8 @@ typedef enum VhostUserBackendRequest {
     VHOST_USER_BACKEND_SHARED_OBJECT_ADD = 6,
     VHOST_USER_BACKEND_SHARED_OBJECT_REMOVE = 7,
     VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP = 8,
+    VHOST_USER_BACKEND_SHMEM_MAP = 9,
+    VHOST_USER_BACKEND_SHMEM_UNMAP = 10,
     VHOST_USER_BACKEND_MAX
 }  VhostUserBackendRequest;
 
@@ -189,6 +192,12 @@ typedef struct VhostUserMemRegMsg {
     VhostUserMemoryRegion region;
 } VhostUserMemRegMsg;
 
+typedef struct VhostUserShMemConfig {
+    uint32_t nregions;
+    uint32_t padding;
+    uint64_t memory_sizes[VIRTIO_MAX_SHMEM_REGIONS];
+} VhostUserShMemConfig;
+
 typedef struct VhostUserLog {
     uint64_t mmap_size;
     uint64_t mmap_offset;
@@ -245,6 +254,23 @@ typedef struct VhostUserShared {
     unsigned char uuid[16];
 } VhostUserShared;
 
+/* For the flags field of VhostUserMMap */
+#define VHOST_USER_FLAG_MAP_RW (1u << 0)
+
+typedef struct {
+    /* VIRTIO Shared Memory Region ID */
+    uint8_t shmid;
+    uint8_t padding[7];
+    /* File offset */
+    uint64_t fd_offset;
+    /* Offset within the VIRTIO Shared Memory Region */
+    uint64_t shm_offset;
+    /* Size of the mapping */
+    uint64_t len;
+    /* Flags for the mmap operation, from VHOST_USER_FLAG_MAP_* */
+    uint64_t flags;
+} VhostUserMMap;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -277,6 +303,8 @@ typedef union {
         VhostUserInflight inflight;
         VhostUserShared object;
         VhostUserTransferDeviceState transfer_state;
+        VhostUserMMap mmap;
+        VhostUserShMemConfig shmem;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1860,6 +1888,196 @@ vhost_user_backend_handle_shared_object_lookup(struct vhost_user *u,
     return 0;
 }
 
+/**
+ * vhost_user_backend_handle_shmem_map() - Handle SHMEM_MAP backend request
+ * @dev: vhost device
+ * @ioc: QIOChannel for communication
+ * @hdr: vhost-user message header
+ * @payload: message payload containing mapping details
+ * @fd: file descriptor for the shared memory region
+ *
+ * Handles VHOST_USER_BACKEND_SHMEM_MAP requests from the backend. Creates
+ * a VhostUserShmemObject to manage the shared memory mapping and adds it
+ * to the appropriate VirtIO shared memory region. The VhostUserShmemObject
+ * serves as an intermediate parent for the MemoryRegion, ensuring proper
+ * lifecycle management with reference counting.
+ *
+ * Returns: 0 on success, negative errno on failure
+ */
+static int
+vhost_user_backend_handle_shmem_map(struct vhost_dev *dev,
+                                    QIOChannel *ioc,
+                                    VhostUserHeader *hdr,
+                                    VhostUserPayload *payload,
+                                    int fd)
+{
+    VirtioSharedMemory *shmem;
+    VhostUserMMap *vu_mmap = &payload->mmap;
+    VirtioSharedMemoryMapping *existing;
+    Error *local_err = NULL;
+    int ret = 0;
+
+    if (fd < 0) {
+        error_report("Bad fd for map");
+        ret = -EBADF;
+        goto send_reply;
+    }
+
+    if (QSIMPLEQ_EMPTY(&dev->vdev->shmem_list)) {
+        error_report("Device has no VIRTIO Shared Memory Regions. "
+                     "Requested ID: %d", vu_mmap->shmid);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+    shmem = virtio_find_shmem_region(dev->vdev, vu_mmap->shmid);
+    if (!shmem) {
+        error_report("VIRTIO Shared Memory Region at "
+                     "ID %d not found or uninitialized", vu_mmap->shmid);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+    if ((vu_mmap->shm_offset + vu_mmap->len) < vu_mmap->len ||
+        (vu_mmap->shm_offset + vu_mmap->len) > memory_region_size(&shmem->mr)) {
+        error_report("Bad offset/len for mmap %" PRIx64 "+%" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+    QTAILQ_FOREACH(existing, &shmem->mmaps, link) {
+        if (ranges_overlap(existing->offset, existing->len,
+                           vu_mmap->shm_offset, vu_mmap->len)) {
+            error_report("VIRTIO Shared Memory mapping overlap");
+            ret = -EFAULT;
+            goto send_reply;
+        }
+    }
+
+    memory_region_transaction_begin();
+
+    /* Create VirtioSharedMemoryMapping object */
+    VirtioSharedMemoryMapping *mapping = virtio_shared_memory_mapping_new(
+        vu_mmap->shmid, fd, vu_mmap->fd_offset, vu_mmap->shm_offset,
+        vu_mmap->len, vu_mmap->flags & VHOST_USER_FLAG_MAP_RW);
+
+    if (!mapping) {
+        ret = -EFAULT;
+        goto send_reply_commit;
+    }
+
+    /* Add the mapping to the shared memory region */
+    if (virtio_add_shmem_map(shmem, mapping) != 0) {
+        error_report("Failed to add shared memory mapping");
+        object_unref(OBJECT(mapping));
+        ret = -EFAULT;
+        goto send_reply_commit;
+    }
+
+send_reply_commit:
+    /* Send reply and commit after transaction started */
+    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
+        payload->u64 = !!ret;
+        hdr->size = sizeof(payload->u64);
+        if (!vhost_user_send_resp(ioc, hdr, payload, &local_err)) {
+            error_report_err(local_err);
+            memory_region_transaction_commit();
+            return -EFAULT;
+        }
+    }
+    memory_region_transaction_commit();
+    return 0;
+
+send_reply:
+    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
+        payload->u64 = !!ret;
+        hdr->size = sizeof(payload->u64);
+        if (!vhost_user_send_resp(ioc, hdr, payload, &local_err)) {
+            error_report_err(local_err);
+            return -EFAULT;
+        }
+    }
+    return 0;
+}
+
+/**
+ * vhost_user_backend_handle_shmem_unmap() - Handle SHMEM_UNMAP backend request
+ * @dev: vhost device
+ * @ioc: QIOChannel for communication
+ * @hdr: vhost-user message header
+ * @payload: message payload containing unmapping details
+ *
+ * Handles VHOST_USER_BACKEND_SHMEM_UNMAP requests from the backend. Removes
+ * the specified memory mapping from the VirtIO shared memory region. This
+ * automatically unreferences the associated VhostUserShmemObject, which may
+ * trigger its finalization and cleanup (munmap, close fd) if no other
+ * references exist.
+ *
+ * Returns: 0 on success, negative errno on failure
+ */
+static int
+vhost_user_backend_handle_shmem_unmap(struct vhost_dev *dev,
+                                      QIOChannel *ioc,
+                                      VhostUserHeader *hdr,
+                                      VhostUserPayload *payload)
+{
+    VirtioSharedMemory *shmem = NULL;
+    VirtioSharedMemoryMapping *mmap = NULL;
+    VhostUserMMap *vu_mmap = &payload->mmap;
+    Error *local_err = NULL;
+    int ret = 0;
+
+    if (QSIMPLEQ_EMPTY(&dev->vdev->shmem_list)) {
+        error_report("Device has no VIRTIO Shared Memory Regions. "
+                     "Requested ID: %d", vu_mmap->shmid);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+    shmem = virtio_find_shmem_region(dev->vdev, vu_mmap->shmid);
+    if (!shmem) {
+        error_report("VIRTIO Shared Memory Region at "
+                     "ID %d not found or uninitialized", vu_mmap->shmid);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+    if ((vu_mmap->shm_offset + vu_mmap->len) < vu_mmap->len ||
+        (vu_mmap->shm_offset + vu_mmap->len) > memory_region_size(&shmem->mr)) {
+        error_report("Bad offset/len for unmmap %" PRIx64 "+%" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+    mmap = virtio_find_shmem_map(shmem, vu_mmap->shm_offset, vu_mmap->len);
+    if (!mmap) {
+        error_report("Shared memory mapping not found at offset %" PRIx64
+                     " with length %" PRIx64,
+                     vu_mmap->shm_offset, vu_mmap->len);
+        ret = -EFAULT;
+        goto send_reply;
+    }
+
+send_reply:
+    if (hdr->flags & VHOST_USER_NEED_REPLY_MASK) {
+        payload->u64 = !!ret;
+        hdr->size = sizeof(payload->u64);
+        if (!vhost_user_send_resp(ioc, hdr, payload, &local_err)) {
+            error_report_err(local_err);
+            return -EFAULT;
+        }
+    }
+
+    if (!ret && shmem && mmap) {
+        /* Free the MemoryRegion only after reply */
+        virtio_del_shmem_map(shmem, vu_mmap->shm_offset, vu_mmap->len);
+    }
+
+    return 0;
+}
+
 static void close_backend_channel(struct vhost_user *u)
 {
     g_source_destroy(u->backend_src);
@@ -1932,6 +2150,21 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
         reply_ack = true;
         ret = vhost_user_backend_handle_shared_object_lookup(dev->opaque,
                                                              &payload.object);
+        break;
+    case VHOST_USER_BACKEND_SHMEM_MAP:
+        /* Handler manages its own response, check error and close connection */
+        reply_ack = false;
+        if (vhost_user_backend_handle_shmem_map(dev, ioc, &hdr, &payload,
+                                                fd ? fd[0] : -1) < 0) {
+            goto err;
+        }
+        break;
+    case VHOST_USER_BACKEND_SHMEM_UNMAP:
+        /* Handler manages its own response, check error and close connection */
+        reply_ack = false;
+        if (vhost_user_backend_handle_shmem_unmap(dev, ioc, &hdr, &payload) < 0) {
+            goto err;
+        }
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
@@ -3123,6 +3356,46 @@ void vhost_user_qmp_status(struct vhost_dev *dev, VirtioStatus *status)
         qmp_decode_protocols(u->protocol_features);
 }
 
+static int vhost_user_get_shmem_config(struct vhost_dev *dev,
+                                       int *nregions,
+                                       uint64_t *memory_sizes,
+                                       Error **errp)
+{
+    int ret;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GET_SHMEM_CONFIG,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    if (!vhost_user_has_protocol_feature(dev,
+                                         VHOST_USER_PROTOCOL_F_SHMEM)) {
+        *nregions = 0;
+        return 0;
+    }
+
+    ret = vhost_user_write(dev, &msg, NULL, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = vhost_user_read(dev, &msg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (msg.payload.shmem.nregions > VIRTIO_MAX_SHMEM_REGIONS) {
+        error_setg(errp, "Received too many shared memory regions: %d",
+                   msg.payload.shmem.nregions);
+        return -EINVAL;
+    }
+
+    *nregions = msg.payload.shmem.nregions;
+    memcpy(memory_sizes,
+           &msg.payload.shmem.memory_sizes,
+           sizeof(uint64_t) * VIRTIO_MAX_SHMEM_REGIONS);
+    return 0;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_init = vhost_user_backend_init,
@@ -3163,4 +3436,5 @@ const VhostOps user_ops = {
         .vhost_check_device_state = vhost_user_check_device_state,
         .vhost_phys_vring_addr = vhost_user_gpa_addresses,
         .vhost_phys_iotlb_msg = vhost_user_gpa_addresses,
+        .vhost_get_shmem_config = vhost_user_get_shmem_config,
 };
