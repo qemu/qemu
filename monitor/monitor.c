@@ -367,14 +367,33 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
 {
     MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
+    bool throttled;
 
     assert(event < QAPI_EVENT__MAX);
     evconf = &monitor_qapi_event_conf[event];
     trace_monitor_protocol_event_queue(event, qdict, evconf->rate);
+    throttled = evconf->rate;
+
+    /*
+     * Rate limit BLOCK_IO_ERROR only for action != "stop".
+     *
+     * If the VM is stopped after an I/O error, this is important information
+     * for the management tool to keep track of the state of QEMU and we can't
+     * merge any events. At the same time, stopping the VM means that the guest
+     * can't send additional requests and the number of events is already
+     * limited, so we can do without rate limiting.
+     */
+    if (event == QAPI_EVENT_BLOCK_IO_ERROR) {
+        QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
+        const char *action = qdict_get_str(data, "action");
+        if (!strcmp(action, "stop")) {
+            throttled = false;
+        }
+    }
 
     QEMU_LOCK_GUARD(&monitor_lock);
 
-    if (!evconf->rate) {
+    if (!throttled) {
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
