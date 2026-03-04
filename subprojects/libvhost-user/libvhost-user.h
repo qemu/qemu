@@ -70,7 +70,9 @@ enum VhostUserProtocolFeature {
     /* Feature 17 reserved for VHOST_USER_PROTOCOL_F_XEN_MMAP. */
     VHOST_USER_PROTOCOL_F_SHARED_OBJECT = 18,
     /* Feature 19 is reserved for VHOST_USER_PROTOCOL_F_DEVICE_STATE */
-    VHOST_USER_PROTOCOL_F_SHMEM = 20,
+    /* Feature 20 is reserved for VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT */
+    /* Feature 21 is reserved for VHOST_USER_PROTOCOL_F_GPA_ADDRESSES */
+    VHOST_USER_PROTOCOL_F_SHMEM = 22,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
