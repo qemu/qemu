@@ -970,15 +970,24 @@
 ##
 # @VirtIOGPUOutput:
 #
-# Describes configuration of a VirtIO GPU output.
+# Describes configuration of a VirtIO GPU output.  If both @xres and
+# @yres are set, they take precedence over root virtio-gpu resolution
+# configuration and enable the corresponding output.  If none of @xres
+# and @yres are set, root virtio-gpu resolution configuration takes
+# precedence and only the first output is enabled.  Only setting one
+# of @xres or @yres is an error.
 #
 # @name: the name of the output
+#
+# @xres: horizontal resolution of the output in pixels (since 11.0)
+#
+# @yres: vertical resolution of the output in pixels (since 11.0)
 #
 # Since: 10.1
 ##
 
 { 'struct': 'VirtIOGPUOutput',
-  'data': { 'name': 'str' } }
+  'data': { 'name': 'str', '*xres': 'uint16', '*yres': 'uint16' } }
 
 ##
 # @DummyVirtioForceArrays:
