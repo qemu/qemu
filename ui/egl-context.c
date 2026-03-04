@@ -3,7 +3,8 @@
 #include "ui/egl-context.h"
 
 QEMUGLContext qemu_egl_create_context(DisplayGLCtx *dgc,
-                                      QEMUGLParams *params)
+                                      QEMUGLParams *params,
+                                      EGLContext share_context)
 {
    EGLContext ctx;
    EGLint ctx_att_core[] = {
@@ -19,8 +20,7 @@ QEMUGLContext qemu_egl_create_context(DisplayGLCtx *dgc,
    };
    bool gles = (qemu_egl_mode == DISPLAY_GL_MODE_ES);
 
-   ctx = eglCreateContext(qemu_egl_display, qemu_egl_config,
-                          eglGetCurrentContext(),
+   ctx = eglCreateContext(qemu_egl_display, qemu_egl_config, share_context,
                           gles ? ctx_att_gles : ctx_att_core);
    return ctx;
 }
