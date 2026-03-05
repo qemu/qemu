@@ -2476,7 +2476,6 @@ static const Property qxl_properties[] = {
         DEFINE_PROP_UINT16("max_outputs", PCIQXLDevice, max_outputs, 0),
         DEFINE_PROP_UINT32("xres", PCIQXLDevice, xres, 0),
         DEFINE_PROP_UINT32("yres", PCIQXLDevice, yres, 0),
-        DEFINE_PROP_BOOL("global-vmstate", PCIQXLDevice, vga.global_vmstate, false),
 };
 
 static void qxl_pci_class_init(ObjectClass *klass, const void *data)

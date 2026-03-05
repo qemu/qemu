@@ -23,7 +23,6 @@
 #include "migration/vmstate.h"
 #include "hw/core/sysbus.h"
 #include "hw/i386/kvm/clock.h"
-#include "hw/core/qdev-properties.h"
 #include "exec/cpu-common.h"
 #include "qapi/error.h"
 
@@ -43,9 +42,6 @@ struct KVMClockState {
 
     /* whether the 'clock' value was obtained in the 'paused' state */
     bool runstate_paused;
-
-    /* whether machine type supports reliable KVM_GET_CLOCK */
-    bool mach_use_reliable_get_clock;
 
     /* whether the 'clock' value was obtained in a host with
      * reliable KVM_GET_CLOCK */
@@ -292,18 +288,10 @@ static void kvmclock_realize(DeviceState *dev, Error **errp)
     kvm_vmfd_add_change_notifier(&s->kvmclock_vmfd_change_notifier);
 }
 
-static bool kvmclock_clock_is_reliable_needed(void *opaque)
-{
-    KVMClockState *s = opaque;
-
-    return s->mach_use_reliable_get_clock;
-}
-
 static const VMStateDescription kvmclock_reliable_get_clock = {
     .name = "kvmclock/clock_is_reliable",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = kvmclock_clock_is_reliable_needed,
     .fields = (const VMStateField[]) {
         VMSTATE_BOOL(clock_is_reliable, KVMClockState),
         VMSTATE_END_OF_LIST()
@@ -364,18 +352,12 @@ static const VMStateDescription kvmclock_vmsd = {
     }
 };
 
-static const Property kvmclock_properties[] = {
-    DEFINE_PROP_BOOL("x-mach-use-reliable-get-clock", KVMClockState,
-                      mach_use_reliable_get_clock, true),
-};
-
 static void kvmclock_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = kvmclock_realize;
     dc->vmsd = &kvmclock_vmsd;
-    device_class_set_props(dc, kvmclock_properties);
 }
 
 static const TypeInfo kvmclock_info = {

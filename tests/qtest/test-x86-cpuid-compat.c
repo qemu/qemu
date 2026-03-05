@@ -343,17 +343,6 @@ int main(int argc, char **argv)
                    "486", "xlevel2=0xC0000002,xstore=on",
                    NULL, "xlevel2", 0xC0000002);
 
-    /* Check compatibility of old machine-types that didn't
-     * auto-increase level/xlevel/xlevel2: */
-    if (qtest_has_machine("pc-i440fx-2.9")) {
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
-                       "Conroe", NULL, "pc-i440fx-2.9",
-                       "level", 10);
-        add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/on",
-                       "Conroe", "erms=on", "pc-i440fx-2.9",
-                       "level", 10);
-    }
-
     /* Test feature parsing */
     add_feature_test("x86/cpuid/features/plus",
                      "486", "+arat",

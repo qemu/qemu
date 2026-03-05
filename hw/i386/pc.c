@@ -221,41 +221,6 @@ GlobalProperty pc_compat_3_0[] = {
 };
 const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
 
-GlobalProperty pc_compat_2_12[] = {
-    { TYPE_X86_CPU, "legacy-cache", "on" },
-    { TYPE_X86_CPU, "topoext", "off" },
-    { "EPYC-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
-    { "EPYC-IBPB-" TYPE_X86_CPU, "xlevel", "0x8000000a" },
-};
-const size_t pc_compat_2_12_len = G_N_ELEMENTS(pc_compat_2_12);
-
-GlobalProperty pc_compat_2_11[] = {
-    { TYPE_X86_CPU, "x-migrate-smi-count", "off" },
-    { "Skylake-Server" "-" TYPE_X86_CPU, "clflushopt", "off" },
-};
-const size_t pc_compat_2_11_len = G_N_ELEMENTS(pc_compat_2_11);
-
-GlobalProperty pc_compat_2_10[] = {
-    { TYPE_X86_CPU, "x-hv-max-vps", "0x40" },
-    { "i440FX-pcihost", "x-pci-hole64-fix", "off" },
-    { "q35-pcihost", "x-pci-hole64-fix", "off" },
-};
-const size_t pc_compat_2_10_len = G_N_ELEMENTS(pc_compat_2_10);
-
-GlobalProperty pc_compat_2_9[] = {
-    { "mch", "extended-tseg-mbytes", "0" },
-};
-const size_t pc_compat_2_9_len = G_N_ELEMENTS(pc_compat_2_9);
-
-GlobalProperty pc_compat_2_8[] = {
-    { TYPE_X86_CPU, "tcg-cpuid", "off" },
-    { "kvmclock", "x-mach-use-reliable-get-clock", "off" },
-    { "ICH9-LPC", "x-smi-broadcast", "off" },
-    { TYPE_X86_CPU, "vmware-cpuid-freq", "off" },
-    { "Haswell-" TYPE_X86_CPU, "stepping", "1" },
-};
-const size_t pc_compat_2_8_len = G_N_ELEMENTS(pc_compat_2_8);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
