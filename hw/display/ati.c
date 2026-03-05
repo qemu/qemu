@@ -28,7 +28,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "ui/console.h"
-#include "hw/display/i2c-ddc.h"
 #include "trace.h"
 
 #define ATI_DEBUG_HW_CURSOR 0
@@ -1039,6 +1038,7 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
 {
     ATIVGAState *s = ATI_VGA(dev);
     VGACommonState *vga = &s->vga;
+    I2CBus *i2cbus;
     uint64_t aper_size;
 
 #ifndef CONFIG_PIXMAN
@@ -1087,11 +1087,10 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     }
 
     /* ddc, edid */
-    I2CBus *i2cbus = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
+    i2cbus = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
     bitbang_i2c_init(&s->bbi2c, i2cbus);
-    I2CSlave *i2cddc = I2C_SLAVE(qdev_new(TYPE_I2CDDC));
-    i2c_slave_set_address(i2cddc, 0x50);
-    qdev_realize_and_unref(DEVICE(i2cddc), BUS(i2cbus), &error_abort);
+    i2c_slave_set_address(I2C_SLAVE(&s->i2cddc), 0x50);
+    qdev_realize(DEVICE(&s->i2cddc), BUS(i2cbus), &error_abort);
 
     /* mmio register space */
     memory_region_init_io(&s->mm, OBJECT(s), &ati_mm_ops, s,
@@ -1147,6 +1146,7 @@ static const Property ati_vga_properties[] = {
     DEFINE_PROP_BOOL("guest_hwcursor", ATIVGAState, cursor_guest_mode, false),
     /* this is a debug option, prefer PROP_UINT over PROP_BIT for simplicity */
     DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, DEFAULT_X_PIXMAN),
+    DEFINE_EDID_PROPERTIES(ATIVGAState, i2cddc.edid_info),
 };
 
 static void ati_vga_class_init(ObjectClass *klass, const void *data)
@@ -1169,6 +1169,9 @@ static void ati_vga_class_init(ObjectClass *klass, const void *data)
 
 static void ati_vga_init(Object *o)
 {
+    ATIVGAState *s = ATI_VGA(o);
+
+    object_initialize_child(o, "edid", &s->i2cddc, TYPE_I2CDDC);
     object_property_set_description(o, "x-pixman", "Use pixman for: "
                                     "1: fill, 2: blit");
 }

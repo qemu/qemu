@@ -13,6 +13,7 @@
 #include "qemu/units.h"
 #include "hw/pci/pci_device.h"
 #include "hw/i2c/bitbang_i2c.h"
+#include "hw/display/i2c-ddc.h"
 #include "vga_int.h"
 #include "qom/object.h"
 
@@ -108,6 +109,7 @@ struct ATIVGAState {
     QEMUCursor *cursor;
     QEMUTimer vblank_timer;
     bitbang_i2c_interface bbi2c;
+    I2CDDCState i2cddc;
     MemoryRegion linear_aper;
     MemoryRegion io;
     MemoryRegion mm;
