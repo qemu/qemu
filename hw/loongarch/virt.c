@@ -777,7 +777,9 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(opaque);
     uint64_t ret = 0;
     int features;
+    CPULoongArchState *env;
 
+    env = &LOONGARCH_CPU(first_cpu)->env;
     switch (addr) {
     case VERSION_REG:
         ret = 0x11ULL;
@@ -792,10 +794,10 @@ static MemTxResult virt_iocsr_misc_read(void *opaque, hwaddr addr,
         }
         break;
     case VENDOR_REG:
-        ret = 0x6e6f73676e6f6f4cULL; /* "Loongson" */
+        ret = env->vendor_id;
         break;
     case CPUNAME_REG:
-        ret = 0x303030354133ULL;     /* "3A5000" */
+        ret = env->cpu_id;
         break;
     case MISC_FUNC_REG:
         if (kvm_irqchip_in_kernel()) {

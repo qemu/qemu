@@ -283,8 +283,14 @@ static void loongarch_la464_initfn(Object *obj)
     }
 
     cpu->dtb_compatible = "loongarch,Loongson-3A5000";
-    env->cpucfg[0] = 0x14c010;  /* PRID */
+    data = FIELD_DP32(data, CPUCFG0, PRID, 0x10);
+    data = FIELD_DP32(data, CPUCFG0, SERID, PRID_SERIES_LA464);
+    data = FIELD_DP32(data, CPUCFG0, VENID, PRID_VENDOR_LOONGSON);
+    env->cpucfg[0] = data;
+    memccpy((void *)&env->vendor_id, CPU_VENDOR_LOONGSON, 0, 8);
+    memccpy((void *)&env->cpu_id, CPU_MODEL_3A5000, 0, 8);
 
+    data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 2);
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
@@ -316,6 +322,22 @@ static void loongarch_la464_initfn(Object *obj)
     data = FIELD_DP32(data, CPUCFG2, LSPW, 1);
     data = FIELD_DP32(data, CPUCFG2, LAM, 1);
     env->cpucfg[2] = data;
+
+    data = 0;
+    data = FIELD_DP32(data, CPUCFG3, CCDMA, 1);
+    data = FIELD_DP32(data, CPUCFG3, UCACC, 1);
+    data = FIELD_DP32(data, CPUCFG3, LLEXC, 1);
+    data = FIELD_DP32(data, CPUCFG3, SCDLY, 1);
+    data = FIELD_DP32(data, CPUCFG3, LLDBAR, 1);
+    data = FIELD_DP32(data, CPUCFG3, ITLBHMC, 1);
+    data = FIELD_DP32(data, CPUCFG3, ICHMC, 1);
+    data = FIELD_DP32(data, CPUCFG3, SPW_LVL, 4);
+    data = FIELD_DP32(data, CPUCFG3, SPW_HP_HF, 1);
+    if (kvm_enabled()) {
+        data = FIELD_DP32(data, CPUCFG3, RVA, 1);
+        data = FIELD_DP32(data, CPUCFG3, RVAMAX, 7);
+    }
+    env->cpucfg[3] = data;
 
     env->cpucfg[4] = 100 * 1000 * 1000; /* Crystal frequency */
 
@@ -389,8 +411,14 @@ static void loongarch_la132_initfn(Object *obj)
     }
 
     cpu->dtb_compatible = "loongarch,Loongson-1C103";
-    env->cpucfg[0] = 0x148042;  /* PRID */
+    data = FIELD_DP32(data, CPUCFG0, PRID, 0x42);
+    data = FIELD_DP32(data, CPUCFG0, SERID, PRID_SERIES_LA132);
+    data = FIELD_DP32(data, CPUCFG0, VENID, PRID_VENDOR_LOONGSON);
+    env->cpucfg[0] = data;
+    memccpy((void *)&env->vendor_id, CPU_VENDOR_LOONGSON, 0, 8);
+    memccpy((void *)&env->cpu_id, CPU_MODEL_1C101, 0, 8);
 
+    data = 0;
     data = FIELD_DP32(data, CPUCFG1, ARCH, 1); /* LA32 */
     data = FIELD_DP32(data, CPUCFG1, PGMMU, 1);
     data = FIELD_DP32(data, CPUCFG1, IOCSR, 1);
@@ -429,6 +457,131 @@ static void loongarch_max_initfn(Object *obj)
         cpu->env.cpucfg[2] = data;
     }
 }
+
+#if defined(CONFIG_KVM)
+static int read_cpuinfo(const char *field, char *value, int len)
+{
+    FILE *f;
+    int ret = -1;
+    int field_len = strlen(field);
+    char line[512];
+
+    f = fopen("/proc/cpuinfo", "r");
+    if (!f) {
+        return -1;
+    }
+
+    do {
+        if (!fgets(line, sizeof(line), f)) {
+            break;
+        }
+        if (!strncmp(line, field, field_len)) {
+            strncpy(value, line, len);
+            ret = 0;
+            break;
+        }
+    } while (*line);
+
+    fclose(f);
+
+    return ret;
+}
+
+static uint64_t get_host_cpu_model(void)
+{
+    char line[512];
+    char *ns;
+    static uint64_t cpuid;
+
+    if (cpuid) {
+        return cpuid;
+    }
+
+    if (read_cpuinfo("Model Name", line, sizeof(line))) {
+        return 0;
+    }
+
+    ns = strchr(line, ':');
+    if (!ns) {
+        return 0;
+    }
+
+    ns = strstr(ns, "Loongson-");
+    if (!ns) {
+        return 0;
+    }
+
+    ns += strlen("Loongson-");
+    memccpy((void *)&cpuid, ns, 0, 8);
+    return cpuid;
+}
+
+static uint32_t get_host_cpucfg(int number)
+{
+    unsigned int data = 0;
+
+#ifdef __loongarch__
+    asm volatile("cpucfg %[val], %[reg]"
+                 : [val] "=r" (data)
+                 : [reg] "r" (number)
+                 : "memory");
+#endif
+
+    return data;
+}
+
+static void loongarch_host_initfn(Object *obj)
+{
+    uint32_t data, cpucfg, field;
+    uint64_t cpuid;
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    loongarch_max_initfn(obj);
+    data = get_host_cpucfg(0);
+    if (data) {
+        cpu->env.cpucfg[0] = data;
+    }
+
+   /*
+    * There is no exception in KVM hypervisor when these intructions are
+    * executed if HW support, KVM hypervisor cannot control this.
+    *
+    * Set cpucfg bits which cannot be controlled by KVM hypervisor.
+    */
+    data = get_host_cpucfg(2);
+    cpucfg = cpu->env.cpucfg[2];
+    field = FIELD_EX32(data, CPUCFG2, FRECIPE);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, FRECIPE, field);
+    field = FIELD_EX32(data, CPUCFG2, DIV32);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, DIV32, field);
+    field = FIELD_EX32(data, CPUCFG2, LAM_BH);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, LAM_BH, field);
+    field = FIELD_EX32(data, CPUCFG2, LAMCAS);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, LAMCAS, field);
+    field = FIELD_EX32(data, CPUCFG2, LLACQ_SCREL);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, LLACQ_SCREL, field);
+    field = FIELD_EX32(data, CPUCFG2, SCQ);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG2, SCQ, field);
+    cpu->env.cpucfg[2] = cpucfg;
+
+    data = get_host_cpucfg(3);
+    cpucfg = cpu->env.cpucfg[3];
+    field = FIELD_EX32(data, CPUCFG3, DBAR_HINTS);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, DBAR_HINTS, field);
+    field = FIELD_EX32(data, CPUCFG3, ALDORDER_STA);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, ALDORDER_STA, field);
+    field = FIELD_EX32(data, CPUCFG3, ASTORDER_STA);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, ASTORDER_STA, field);
+    field = FIELD_EX32(data, CPUCFG3, SLDORDER_STA);
+    cpucfg = FIELD_DP32(cpucfg, CPUCFG3, SLDORDER_STA, field);
+    cpu->env.cpucfg[3] = cpucfg;
+
+    cpuid = get_host_cpu_model();
+    if (cpuid) {
+        cpu->env.cpu_id = cpuid;
+    }
+}
+#endif
 
 static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
 {
@@ -783,6 +936,9 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
     DEFINE_LOONGARCH_CPU_TYPE(64, "la464", loongarch_la464_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(32, "la132", loongarch_la132_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(64, "max", loongarch_max_initfn),
+#if defined(CONFIG_KVM)
+    DEFINE_LOONGARCH_CPU_TYPE(64, "host", loongarch_host_initfn),
+#endif
 };
 
 DEFINE_TYPES(loongarch_cpu_type_infos)
