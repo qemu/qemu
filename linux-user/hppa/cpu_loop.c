@@ -124,6 +124,7 @@ void cpu_loop(CPUHPPAState *env)
                 break;
             case -QEMU_ERESTARTSYS:
             case -QEMU_ESIGRETURN:
+            case -QEMU_ESETPC:
                 break;
             }
             break;
