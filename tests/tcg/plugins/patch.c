@@ -65,7 +65,7 @@ static void patch_hwaddr(unsigned int vcpu_index, void *userdata)
         return;
     }
 
-    GByteArray *read_data = g_byte_array_new();
+    g_autoptr(GByteArray) read_data = g_byte_array_new();
 
     result = qemu_plugin_read_memory_hwaddr(addr, read_data,
                                             patch_data->len);
