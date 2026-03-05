@@ -12,7 +12,7 @@ from qemu_test import wait_for_console_pattern
 class HppaSeabios(QemuSystemTest):
 
     timeout = 5
-    MACH_BITS = {'B160L': 32, 'C3700': 64}
+    MACH_BITS = {'B160L': 32, 'A400': 64}
 
     def boot_seabios(self):
         mach = self.machine
@@ -28,7 +28,7 @@ class HppaSeabios(QemuSystemTest):
         self.boot_seabios()
 
     def test_hppa_64(self):
-        self.set_machine('C3700')
+        self.set_machine('A400')
         self.boot_seabios()
 
 if __name__ == '__main__':

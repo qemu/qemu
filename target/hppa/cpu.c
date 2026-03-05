@@ -349,7 +349,7 @@ static const TypeInfo hppa_cpu_type_infos[] = {
         .name = TYPE_HPPA_CPU_PA_8700,
         .parent = TYPE_HPPA_CPU,
         .class_data = &(const HPPACPUDef) {
-            .phys_addr_bits = 40,
+            .phys_addr_bits = 44,
             .is_pa20 = true,
         },
     },
