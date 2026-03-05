@@ -2,11 +2,11 @@
 #include "ui/console.h"
 #include "qapi/error.h"
 
-int vnc_display_password(const char *id, const char *password)
+int vnc_display_password(const char *id, const char *password, Error **errp)
 {
-    return -ENODEV;
+    g_assert_not_reached();
 }
 int vnc_display_pw_expire(const char *id, time_t expires)
 {
-    return -ENODEV;
+    g_assert_not_reached();
 };

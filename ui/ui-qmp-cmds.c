@@ -31,15 +31,14 @@
 
 void qmp_set_password(SetPasswordOptions *opts, Error **errp)
 {
-    int rc;
-
     if (opts->protocol == DISPLAY_PROTOCOL_SPICE) {
         if (!qemu_using_spice(errp)) {
             return;
         }
-        rc = qemu_spice.set_passwd(opts->password,
-                opts->connected == SET_PASSWORD_ACTION_FAIL,
-                opts->connected == SET_PASSWORD_ACTION_DISCONNECT);
+        qemu_spice.set_passwd(opts->password,
+                              opts->connected == SET_PASSWORD_ACTION_FAIL,
+                              opts->connected == SET_PASSWORD_ACTION_DISCONNECT,
+                              errp);
     } else {
         assert(opts->protocol == DISPLAY_PROTOCOL_VNC);
         if (opts->connected != SET_PASSWORD_ACTION_KEEP) {
@@ -52,11 +51,7 @@ void qmp_set_password(SetPasswordOptions *opts, Error **errp)
          * Note that setting an empty password will not disable login
          * through this interface.
          */
-        rc = vnc_display_password(opts->u.vnc.display, opts->password);
-    }
-
-    if (rc != 0) {
-        error_setg(errp, "Could not set password");
+        vnc_display_password(opts->u.vnc.display, opts->password, errp);
     }
 }
 
@@ -107,9 +102,7 @@ void qmp_expire_password(ExpirePasswordOptions *opts, Error **errp)
 #ifdef CONFIG_VNC
 void qmp_change_vnc_password(const char *password, Error **errp)
 {
-    if (vnc_display_password(NULL, password) < 0) {
-        error_setg(errp, "Could not set password");
-    }
+    vnc_display_password(NULL, password, errp);
 }
 #endif
 

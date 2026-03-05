@@ -757,7 +757,7 @@ static void qemu_spice_init(void)
                              tls_ciphers);
     }
     if (password) {
-        qemu_spice.set_passwd(password, false, false);
+        qemu_spice.set_passwd(password, false, false, NULL);
     }
     if (qemu_opt_get_bool(opts, "sasl", 0)) {
         if (spice_server_set_sasl(spice_server, 1) == -1) {
@@ -920,8 +920,10 @@ int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con)
     return qemu_spice_add_interface(&qxlin->base);
 }
 
-static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
+static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn,
+                                 Error **errp)
 {
+    int ret;
     time_t lifetime, now = time(NULL);
     char *passwd;
 
@@ -935,26 +937,35 @@ static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
         passwd = NULL;
         lifetime = 1;
     }
-    return spice_server_set_ticket(spice_server, passwd, lifetime,
-                                   fail_if_conn, disconnect_if_conn);
+    ret = spice_server_set_ticket(spice_server, passwd, lifetime,
+                                  fail_if_conn, disconnect_if_conn);
+    if (ret < 0) {
+        error_setg(errp, "Unable to set SPICE server ticket");
+        return -1;
+    }
+    return 0;
 }
 
 static int qemu_spice_set_passwd(const char *passwd,
-                                 bool fail_if_conn, bool disconnect_if_conn)
+                                 bool fail_if_conn, bool disconnect_if_conn,
+                                 Error **errp)
 {
     if (strcmp(auth, "spice") != 0) {
+        error_setg(errp, "SPICE authentication is disabled");
+        error_append_hint(errp,
+                          "To enable it use '-spice ...,password-secret=ID'");
         return -1;
     }
 
     g_free(auth_passwd);
     auth_passwd = g_strdup(passwd);
-    return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn);
+    return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn, errp);
 }
 
 static int qemu_spice_set_pw_expire(time_t expires)
 {
     auth_expires = expires;
-    return qemu_spice_set_ticket(false, false);
+    return qemu_spice_set_ticket(false, false, NULL);
 }
 
 static int qemu_spice_display_add_client(int csock, int skipauth, int tls)

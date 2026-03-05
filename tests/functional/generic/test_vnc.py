@@ -48,7 +48,7 @@ class Vnc(QemuSystemTest):
         self.assertEqual(set_password_response['error']['class'],
                          'GenericError')
         self.assertEqual(set_password_response['error']['desc'],
-                         'Could not set password')
+                         'No VNC display is present');
 
     def launch_guarded(self):
         try:
@@ -73,7 +73,7 @@ class Vnc(QemuSystemTest):
         self.assertEqual(set_password_response['error']['class'],
                          'GenericError')
         self.assertEqual(set_password_response['error']['desc'],
-                         'Could not set password')
+                         'VNC password authentication is disabled')
 
     def test_change_password(self):
         self.set_machine('none')

@@ -18,24 +18,39 @@
 #include "qemu/tsan.h"
 #include "qemu/bitmap.h"
 
-#ifdef CONFIG_PTHREAD_SET_NAME_NP
+#if defined(CONFIG_PTHREAD_SET_NAME_NP) || defined(CONFIG_PTHREAD_GET_NAME_NP)
 #include <pthread_np.h>
 #endif
 
-static bool name_threads;
-
-void qemu_thread_naming(bool enable)
-{
-    name_threads = enable;
-
-#if !defined CONFIG_PTHREAD_SETNAME_NP_W_TID && \
-    !defined CONFIG_PTHREAD_SETNAME_NP_WO_TID && \
-    !defined CONFIG_PTHREAD_SET_NAME_NP
-    /* This is a debugging option, not fatal */
-    if (enable) {
-        fprintf(stderr, "qemu: thread naming not supported on this host\n");
-    }
+/*
+ * This is not defined on Linux, but the man page indicates
+ * the buffer must be at least 16 bytes, including the NUL
+ * terminator
+ */
+#ifndef PTHREAD_MAX_NAMELEN_NP
+#define PTHREAD_MAX_NAMELEN_NP 16
 #endif
+
+static __thread char namebuf[PTHREAD_MAX_NAMELEN_NP];
+
+static void __attribute__((__constructor__(QEMU_CONSTRUCTOR_EARLY)))
+qemu_thread_init(void)
+{
+    /*
+     * Initialize the main thread name. We must not use
+     * qemu_thread_setname(), since on some platforms (at least Linux)
+     * this can change the process name that is reported by tools like
+     * 'ps'.
+     *
+     * This workaround suffices to ensure QEMU log/error messages
+     * get the main thread name, but at the cost of external tools
+     * like GDB not seeing it.
+     *
+     * NB using a constructor instead of static initializing namebuf,
+     * to ensure it only initializes the thread-local in the main
+     * thread
+     */
+    g_strlcpy(namebuf, "main", sizeof(namebuf));
 }
 
 static void error_exit(int err, const char *msg)
@@ -345,6 +360,21 @@ static void qemu_thread_atexit_notify(void *arg)
     notifier_list_notify(&thread_exit, NULL);
 }
 
+void qemu_thread_set_name(const char *name)
+{
+    /*
+     * Attempt to set the thread name; note that this is for debug, so
+     * we're not going to fail if we can't set it.
+     */
+# if defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
+    pthread_setname_np(pthread_self(), name);
+# elif defined(CONFIG_PTHREAD_SETNAME_NP_WO_TID)
+    pthread_setname_np(name);
+# elif defined(CONFIG_PTHREAD_SET_NAME_NP)
+    pthread_set_name_np(pthread_self(), name);
+# endif
+}
+
 typedef struct {
     void *(*start_routine)(void *);
     void *arg;
@@ -358,17 +388,8 @@ static void *qemu_thread_start(void *args)
     void *arg = qemu_thread_args->arg;
     void *r;
 
-    /* Attempt to set the threads name; note that this is for debug, so
-     * we're not going to fail if we can't set it.
-     */
-    if (name_threads && qemu_thread_args->name) {
-# if defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
-        pthread_setname_np(pthread_self(), qemu_thread_args->name);
-# elif defined(CONFIG_PTHREAD_SETNAME_NP_WO_TID)
-        pthread_setname_np(qemu_thread_args->name);
-# elif defined(CONFIG_PTHREAD_SET_NAME_NP)
-        pthread_set_name_np(pthread_self(), qemu_thread_args->name);
-# endif
+    if (qemu_thread_args->name) {
+        qemu_thread_set_name(qemu_thread_args->name);
     }
     QEMU_TSAN_ANNOTATE_THREAD_NAME(qemu_thread_args->name);
     g_free(qemu_thread_args->name);
@@ -535,4 +556,24 @@ void *qemu_thread_join(QemuThread *thread)
         error_exit(err, __func__);
     }
     return ret;
+}
+
+const char *qemu_thread_get_name(void)
+{
+    int rv;
+    if (namebuf[0] != '\0') {
+        return namebuf;
+    }
+
+# if defined(CONFIG_PTHREAD_GETNAME_NP)
+    rv = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
+# elif defined(CONFIG_PTHREAD_GET_NAME_NP)
+    rv = pthread_get_name_np(pthread_self(), namebuf, sizeof(namebuf));
+# else
+    rv = -1;
+# endif
+    if (rv != 0) {
+        g_strlcpy(namebuf, "unnamed", G_N_ELEMENTS(namebuf));
+    }
+    return namebuf;
 }

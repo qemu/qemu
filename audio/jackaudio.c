@@ -633,17 +633,35 @@ static void qjack_enable_in(HWVoiceIn *hw, bool enable)
     ji->c.enabled = enable;
 }
 
-#if !defined(WIN32) && defined(CONFIG_PTHREAD_SETNAME_NP_W_TID)
+#if !defined(WIN32)
+struct QJackThreadData {
+    void *(*function)(void *);
+    void *arg;
+};
+
+static void *qjack_thread_trampoline(void *targ)
+{
+    struct QJackThreadData *data = targ;
+    void *(*function)(void *) = data->function;
+    void *arg = data->arg;
+
+    g_free(data);
+    qemu_thread_set_name("jack-client");
+
+    return function(arg);
+}
+
 static int qjack_thread_creator(jack_native_thread_t *thread,
     const pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
-    int ret = pthread_create(thread, attr, function, arg);
+    struct QJackThreadData *data = g_new0(struct QJackThreadData, 1);
+    data->function = function;
+    data->arg = arg;
+    int ret = pthread_create(thread, attr, qjack_thread_trampoline, data);
     if (ret != 0) {
+        g_free(data);
         return ret;
     }
-
-    /* set the name of the thread */
-    pthread_setname_np(*thread, "jack-client");
 
     return ret;
 }

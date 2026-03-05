@@ -373,8 +373,9 @@ our @LICENSE_BOILERPLATE = (
 	"under the terms of the GNU Lesser General Public",
 	"Permission is hereby granted, free of charge",
 	"GNU GPL, version 2 or later",
-	"See the COPYING file"
-);
+	"See the COPYING file",
+	"terms and conditions of the GNU General Public",
+    );
 our $LICENSE_BOILERPLATE_RE = join("|", @LICENSE_BOILERPLATE);
 
 # Load common spelling mistakes and build regular expression list.
@@ -1473,9 +1474,9 @@ sub process_file_list {
 
 	# If we don't see a MAINTAINERS update, prod the user to check
 	if (int(@maybemaintainers) > 0 && !$sawmaintainers) {
-		WARN("added, moved or deleted file(s):\n\n  " .
-		     join("\n  ", @maybemaintainers) .
-		     "\n\nDoes MAINTAINERS need updating?\n");
+                WARN("added, moved or deleted file(s),"
+		     . " does MAINTAINERS need updating?\n  "
+		     . join("\n  ", @maybemaintainers));
 	}
 }
 

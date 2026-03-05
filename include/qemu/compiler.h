@@ -195,6 +195,14 @@
 #endif
 
 /*
+ * A priority for __attribute__((constructor(...))) that
+ * will run earlier than the default constructors. Must
+ * only be used for functions that have no dependency
+ * on global initialization of other QEMU subsystems.
+ */
+#define QEMU_CONSTRUCTOR_EARLY 101
+
+/*
  * Disable -ftrivial-auto-var-init on a local variable.
  *
  * Use this in cases where there a method in the device I/O path (or other

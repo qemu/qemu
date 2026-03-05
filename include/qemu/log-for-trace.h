@@ -29,7 +29,22 @@ static inline bool qemu_loglevel_mask(int mask)
     return (qemu_loglevel & mask) != 0;
 }
 
-/* main logging function */
+/**
+ * qemu_log: report a log message
+ * @fmt: the format string for the message
+ * @...: the format string arguments
+ *
+ * This will emit a log message to the current output stream.
+ *
+ * The @fmt string should normally represent a complete line
+ * of text, and thus end with a newline character.
+ *
+ * While it is possible to incrementally output fragments of
+ * a complete line using qemu_log, this is inefficient and
+ * races with other threads. For outputting fragments it is
+ * strongly preferred to use the qemu_log_trylock() method
+ * combined with fprintf().
+ */
 void G_GNUC_PRINTF(1, 2) qemu_log(const char *fmt, ...);
 
 #endif
