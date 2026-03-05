@@ -82,6 +82,8 @@ struct AstroState {
     uint64_t tlb_tcnfg;
     uint64_t tlb_pdir_base;
 
+    uint8_t phys_addr_bits;
+
     struct ElroyState *elroy[ELROY_NUM];
 
     MemoryRegion this_mem;

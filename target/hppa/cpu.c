@@ -283,6 +283,11 @@ static void hppa_cpu_class_base_init(ObjectClass *oc, const void *data)
     /* Make sure all CPU models define a HPPACPUDef */
     g_assert(!object_class_is_abstract(oc) && data != NULL);
     acc->def = data;
+    /*
+     * Verify assumptions made in hppa_abs_to_phys_pa2_w1() on the size
+     * of the physical address space.
+     */
+    g_assert(acc->def->phys_addr_bits <= 54);
 }
 
 static void hppa_cpu_class_init(ObjectClass *oc, const void *data)

@@ -179,18 +179,20 @@ static uint64_t linux_kernel_virt_to_phys(void *opaque, uint64_t addr)
     return addr;
 }
 
+static HPPACPU *cpu[HPPA_MAX_CPUS];
+static uint64_t firmware_entry;
+
 static uint64_t translate_pa10(void *dummy, uint64_t addr)
 {
-    return hppa_abs_to_phys_pa1x(addr);
+    const uint8_t pa_bits = hppa_phys_addr_bits(&cpu[0]->env);
+    return hppa_abs_to_phys_pa1x(pa_bits, addr);
 }
 
 static uint64_t translate_pa20(void *dummy, uint64_t addr)
 {
-    return hppa_abs_to_phys_pa2_w0(addr);
+    const uint8_t pa_bits = hppa_phys_addr_bits(&cpu[0]->env);
+    return hppa_abs_to_phys_pa2_w0(pa_bits, addr);
 }
-
-static HPPACPU *cpu[HPPA_MAX_CPUS];
-static uint64_t firmware_entry;
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
@@ -685,6 +687,9 @@ static AstroState *astro_init(void)
     DeviceState *dev;
 
     dev = qdev_new(TYPE_ASTRO_CHIP);
+    object_property_set_int(OBJECT(dev), "phys-addr-bits",
+                            hppa_phys_addr_bits(&cpu[0]->env),
+                            &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return ASTRO_CHIP(dev);

@@ -303,7 +303,7 @@ static IOMMUTLBEntry astro_translate_iommu(IOMMUMemoryRegion *iommu,
      * language which not-coincidentally matches the PSW.W=0 mapping.
      */
     if (addr <= UINT32_MAX) {
-        entry = hppa_abs_to_phys_pa2_w0(addr);
+        entry = hppa_abs_to_phys_pa2_w0(s->phys_addr_bits, addr);
     } else {
         entry = addr;
     }
@@ -910,6 +910,10 @@ static void astro_realize(DeviceState *obj, Error **errp)
     }
 }
 
+static const Property astro_props[] = {
+    DEFINE_PROP_UINT8("phys-addr-bits", AstroState, phys_addr_bits, 32),
+};
+
 static void astro_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -922,6 +926,8 @@ static void astro_class_init(ObjectClass *klass, const void *data)
      * be created without that hardware
      */
     dc->user_creatable = false;
+
+    device_class_set_props(dc, astro_props);
 }
 
 static const TypeInfo astro_chip_info = {

@@ -320,6 +320,11 @@ static inline const HPPACPUDef *hppa_def(CPUHPPAState *env)
     return HPPA_CPU_GET_CLASS(env_cpu(env))->def;
 }
 
+static inline uint8_t hppa_phys_addr_bits(CPUHPPAState *env)
+{
+    return hppa_def(env)->phys_addr_bits;
+}
+
 static inline bool hppa_is_pa20(CPUHPPAState *env)
 {
     return hppa_def(env)->is_pa20;
@@ -352,9 +357,9 @@ static inline vaddr hppa_form_gva(CPUHPPAState *env, uint64_t spc,
     return hppa_form_gva_mask(env->gva_offset_mask, spc, off);
 }
 
-hwaddr hppa_abs_to_phys_pa1x(vaddr addr);
-hwaddr hppa_abs_to_phys_pa2_w0(vaddr addr);
-hwaddr hppa_abs_to_phys_pa2_w1(vaddr addr);
+hwaddr hppa_abs_to_phys_pa1x(uint8_t phys_addr_bits, vaddr addr);
+hwaddr hppa_abs_to_phys_pa2_w0(uint8_t phys_addr_bits, vaddr addr);
+hwaddr hppa_abs_to_phys_pa2_w1(uint8_t phys_addr_bits, vaddr addr);
 
 /*
  * Since PSW_{I,CB} will never need to be in tb->flags, reuse them.
