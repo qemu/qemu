@@ -102,7 +102,9 @@ static void net_passt_cleanup(NetClientState *nc)
     }
 #endif
 
-    kill(s->pid, SIGTERM);
+    if (s->pid > 0) {
+        kill(s->pid, SIGTERM);
+    }
     if (g_remove(s->pidfile) != 0) {
         warn_report("Failed to remove passt pidfile %s: %s",
                     s->pidfile, strerror(errno));
