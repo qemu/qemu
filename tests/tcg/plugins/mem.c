@@ -84,24 +84,22 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
 
     if (do_region_summary) {
-        GList *counts = g_hash_table_get_values(regions);
+        g_autoptr(GList) regionlist = g_hash_table_get_values(regions);
 
-        counts = g_list_sort_with_data(counts, addr_order, NULL);
+        regionlist = g_list_sort_with_data(regionlist, addr_order, NULL);
 
         g_string_printf(out, "Region Base, Reads, Writes, Seen all\n");
 
-        if (counts && g_list_next(counts)) {
-            for (/* counts */; counts; counts = counts->next) {
-                RegionInfo *ri = (RegionInfo *) counts->data;
+        for (GList *l = regionlist; l; l = g_list_next(l)) {
+            RegionInfo *ri = (RegionInfo *) l->data;
 
-                g_string_append_printf(out,
-                                       "0x%016"PRIx64", "
-                                       "%"PRId64", %"PRId64", %s\n",
-                                       ri->region_address,
-                                       ri->reads,
-                                       ri->writes,
-                                       ri->seen_all ? "true" : "false");
-            }
+            g_string_append_printf(out,
+                                   "0x%016"PRIx64", "
+                                   "%"PRId64", %"PRId64", %s\n",
+                                   ri->region_address,
+                                   ri->reads,
+                                   ri->writes,
+                                   ri->seen_all ? "true" : "false");
         }
         qemu_plugin_outs(out->str);
     }
