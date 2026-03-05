@@ -130,7 +130,7 @@ static VirtIOSoundPCMStream *virtio_snd_pcm_get_stream(VirtIOSound *s,
                                                        uint32_t stream_id)
 {
     return stream_id >= s->snd_conf.streams ? NULL :
-        s->pcm->streams[stream_id];
+        s->pcm.streams[stream_id];
 }
 
 /*
@@ -143,7 +143,7 @@ static virtio_snd_pcm_set_params *virtio_snd_pcm_get_params(VirtIOSound *s,
                                                             uint32_t stream_id)
 {
     return stream_id >= s->snd_conf.streams ? NULL
-        : &s->pcm->pcm_params[stream_id];
+        : &s->pcm.pcm_params[stream_id];
 }
 
 /*
@@ -260,7 +260,7 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
 {
     virtio_snd_pcm_set_params *st_params;
 
-    if (stream_id >= s->snd_conf.streams || s->pcm->pcm_params == NULL) {
+    if (stream_id >= s->snd_conf.streams || s->pcm.pcm_params == NULL) {
         virtio_error(VIRTIO_DEVICE(s), "Streams have not been initialized.\n");
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
@@ -424,8 +424,8 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
     virtio_snd_pcm_set_params *params;
     VirtIOSoundPCMStream *stream;
 
-    if (s->pcm->streams == NULL ||
-        s->pcm->pcm_params == NULL ||
+    if (s->pcm.streams == NULL ||
+        s->pcm.pcm_params == NULL ||
         stream_id >= s->snd_conf.streams) {
         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
     }
@@ -440,7 +440,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
         stream = g_new0(VirtIOSoundPCMStream, 1);
         stream->active = false;
         stream->id = stream_id;
-        stream->pcm = s->pcm;
+        stream->pcm = &s->pcm;
         stream->s = s;
         stream->latency_bytes = 0;
         qemu_mutex_init(&stream->queue_mutex);
@@ -450,7 +450,7 @@ static uint32_t virtio_snd_pcm_prepare(VirtIOSound *s, uint32_t stream_id)
          * stream_id >= s->snd_conf.streams was checked before so this is
          * in-bounds
          */
-        s->pcm->streams[stream_id] = stream;
+        s->pcm.streams[stream_id] = stream;
     }
 
     virtio_snd_get_qemu_audsettings(&as, params);
@@ -884,11 +884,11 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         stream_id = le32_to_cpu(hdr.stream_id);
 
         if (stream_id >= vsnd->snd_conf.streams
-            || vsnd->pcm->streams[stream_id] == NULL) {
+            || vsnd->pcm.streams[stream_id] == NULL) {
             goto tx_err;
         }
 
-        stream = vsnd->pcm->streams[stream_id];
+        stream = vsnd->pcm.streams[stream_id];
         if (stream->info.direction != VIRTIO_SND_D_OUTPUT) {
             goto tx_err;
         }
@@ -966,11 +966,11 @@ static void virtio_snd_handle_rx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         stream_id = le32_to_cpu(hdr.stream_id);
 
         if (stream_id >= vsnd->snd_conf.streams
-            || !vsnd->pcm->streams[stream_id]) {
+            || !vsnd->pcm.streams[stream_id]) {
             goto rx_err;
         }
 
-        stream = vsnd->pcm->streams[stream_id];
+        stream = vsnd->pcm.streams[stream_id];
         if (stream == NULL || stream->info.direction != VIRTIO_SND_D_INPUT) {
             goto rx_err;
         }
@@ -1064,11 +1064,10 @@ static void virtio_snd_realize(DeviceState *dev, Error **errp)
     vsnd->vmstate =
         qemu_add_vm_change_state_handler(virtio_snd_vm_state_change, vsnd);
 
-    vsnd->pcm = g_new0(VirtIOSoundPCM, 1);
-    vsnd->pcm->snd = vsnd;
-    vsnd->pcm->streams =
+    vsnd->pcm.snd = vsnd;
+    vsnd->pcm.streams =
         g_new0(VirtIOSoundPCMStream *, vsnd->snd_conf.streams);
-    vsnd->pcm->pcm_params =
+    vsnd->pcm.pcm_params =
         g_new0(virtio_snd_pcm_set_params, vsnd->snd_conf.streams);
 
     virtio_init(vdev, VIRTIO_ID_SOUND, sizeof(virtio_snd_config));
@@ -1335,23 +1334,19 @@ static void virtio_snd_unrealize(DeviceState *dev)
     qemu_del_vm_change_state_handler(vsnd->vmstate);
     trace_virtio_snd_unrealize(vsnd);
 
-    if (vsnd->pcm) {
-        if (vsnd->pcm->streams) {
-            for (uint32_t i = 0; i < vsnd->snd_conf.streams; i++) {
-                stream = vsnd->pcm->streams[i];
-                if (stream) {
-                    virtio_snd_process_cmdq(stream->s);
-                    virtio_snd_pcm_close(stream);
-                    qemu_mutex_destroy(&stream->queue_mutex);
-                    g_free(stream);
-                }
+    if (vsnd->pcm.streams) {
+        for (uint32_t i = 0; i < vsnd->snd_conf.streams; i++) {
+            stream = vsnd->pcm.streams[i];
+            if (stream) {
+                virtio_snd_process_cmdq(stream->s);
+                virtio_snd_pcm_close(stream);
+                qemu_mutex_destroy(&stream->queue_mutex);
+                g_free(stream);
             }
-            g_free(vsnd->pcm->streams);
         }
-        g_free(vsnd->pcm->pcm_params);
-        g_free(vsnd->pcm);
-        vsnd->pcm = NULL;
+        g_free(vsnd->pcm.streams);
     }
+    g_free(vsnd->pcm.pcm_params);
     qemu_mutex_destroy(&vsnd->cmdq_mutex);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_CONTROL]);
     virtio_delete_queue(vsnd->queues[VIRTIO_SND_VQ_EVENT]);
