@@ -20,9 +20,14 @@ def extract_symbols(plugin_header):
     # Remove QEMU_PLUGIN_API macro definition.
     content = content.replace('#define QEMU_PLUGIN_API', '')
     expected = content.count('QEMU_PLUGIN_API')
-    # Find last word between QEMU_PLUGIN_API and (, matching on several lines.
+    # Find last word between QEMU_PLUGIN_API and ( to get the function name,
+    # matching on several lines. Discard attributes, if any.
     # We use *? non-greedy quantifier.
-    syms = re.findall(r'QEMU_PLUGIN_API.*?(\w+)\s*\(', content, re.DOTALL)
+    syms = re.findall(
+        r'QEMU_PLUGIN_API\s+(?:__attribute__\(\(\S+\)\))?.*?(\w+)\s*\(',
+        content,
+        re.DOTALL,
+    )
     syms.sort()
     # Ensure we found as many symbols as API markers.
     assert len(syms) == expected

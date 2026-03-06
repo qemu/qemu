@@ -43,6 +43,7 @@
 #include <linux/capability.h>
 #include <sched.h>
 #include <sys/timex.h>
+#include <setjmp.h>
 #include <sys/socket.h>
 #include <linux/sockios.h>
 #include <sys/un.h>
@@ -599,6 +600,9 @@ const char *target_strerror(int err)
     }
     if (err == QEMU_ESIGRETURN) {
         return "Successful exit from sigreturn";
+    }
+    if (err == QEMU_ESETPC) {
+        return "Successfully redirected control flow";
     }
 
     return strerror(target_to_host_errno(err));
@@ -14408,6 +14412,18 @@ abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
 
     if (sys_dispatch(cpu, ts)) {
         return -QEMU_ESIGRETURN;
+    }
+
+    /*
+     * Set up a longjmp target here so that we can call cpu_loop_exit to
+     * redirect control flow back to the main loop even from within
+     * syscall-related plugin callbacks.
+     * For other types of callbacks or longjmp call sites, the longjmp target
+     * is set up in the cpu loop itself but in syscalls the target is not live
+     * anymore.
+     */
+    if (unlikely(sigsetjmp(cpu->jmp_env, 0) != 0)) {
+        return -QEMU_ESETPC;
     }
 
     record_syscall_start(cpu, num, arg1,

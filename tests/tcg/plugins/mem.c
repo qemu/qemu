@@ -84,24 +84,22 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
 
     if (do_region_summary) {
-        GList *counts = g_hash_table_get_values(regions);
+        g_autoptr(GList) regionlist = g_hash_table_get_values(regions);
 
-        counts = g_list_sort_with_data(counts, addr_order, NULL);
+        regionlist = g_list_sort_with_data(regionlist, addr_order, NULL);
 
         g_string_printf(out, "Region Base, Reads, Writes, Seen all\n");
 
-        if (counts && g_list_next(counts)) {
-            for (/* counts */; counts; counts = counts->next) {
-                RegionInfo *ri = (RegionInfo *) counts->data;
+        for (GList *l = regionlist; l; l = g_list_next(l)) {
+            RegionInfo *ri = (RegionInfo *) l->data;
 
-                g_string_append_printf(out,
-                                       "0x%016"PRIx64", "
-                                       "%"PRId64", %"PRId64", %s\n",
-                                       ri->region_address,
-                                       ri->reads,
-                                       ri->writes,
-                                       ri->seen_all ? "true" : "false");
-            }
+            g_string_append_printf(out,
+                                   "0x%016"PRIx64", "
+                                   "%"PRId64", %"PRId64", %s\n",
+                                   ri->region_address,
+                                   ri->reads,
+                                   ri->writes,
+                                   ri->seen_all ? "true" : "false");
         }
         qemu_plugin_outs(out->str);
     }
@@ -123,6 +121,9 @@ static void update_region_info(uint64_t region, uint64_t offset,
     bool is_store = qemu_plugin_mem_is_store(meminfo);
     RegionInfo *ri;
     bool unseen_data = false;
+    void *val_ptr;
+    unsigned int val_size;
+    qemu_plugin_mem_value swapped_value;
 
     g_assert(offset + size <= region_size);
 
@@ -144,59 +145,44 @@ static void update_region_info(uint64_t region, uint64_t offset,
     }
 
     void *ri_data = &ri->data[offset];
+
+    swapped_value.type = value.type;
     switch (value.type) {
     case QEMU_PLUGIN_MEM_VALUE_U8:
-    {
-        uint8_t val = value.data.u8;
-        uint8_t *p = ri_data;
-        if (is_store) {
-            *p = val;
-        } else {
-            unseen_data = *p != val;
-        }
+        swapped_value.data.u8 = value.data.u8;
+        val_ptr = &swapped_value.data.u8;
+        val_size = 1;
         break;
-    }
     case QEMU_PLUGIN_MEM_VALUE_U16:
-    {
-        uint16_t val = be ? GUINT16_FROM_BE(value.data.u16) :
-                            GUINT16_FROM_LE(value.data.u16);
-        uint16_t *p = ri_data;
-        if (is_store) {
-            *p = val;
-        } else {
-            unseen_data = *p != val;
-        }
+        swapped_value.data.u16 = be ? GUINT16_FROM_BE(value.data.u16) :
+            GUINT16_FROM_LE(value.data.u16);
+        val_ptr = &swapped_value.data.u16;
+        val_size = 2;
         break;
-    }
     case QEMU_PLUGIN_MEM_VALUE_U32:
-    {
-        uint32_t val = be ? GUINT32_FROM_BE(value.data.u32) :
-                            GUINT32_FROM_LE(value.data.u32);
-        uint32_t *p = ri_data;
-        if (is_store) {
-            *p = val;
-        } else {
-            unseen_data = *p != val;
-        }
+        swapped_value.data.u32 = be ? GUINT32_FROM_BE(value.data.u32) :
+            GUINT32_FROM_LE(value.data.u32);
+        val_ptr = &swapped_value.data.u32;
+        val_size = 4;
         break;
-    }
     case QEMU_PLUGIN_MEM_VALUE_U64:
-    {
-        uint64_t val = be ? GUINT64_FROM_BE(value.data.u64) :
-                            GUINT64_FROM_LE(value.data.u64);
-        uint64_t *p = ri_data;
-        if (is_store) {
-            *p = val;
-        } else {
-            unseen_data = *p != val;
-        }
+        swapped_value.data.u64 = be ? GUINT64_FROM_BE(value.data.u64) :
+            GUINT64_FROM_LE(value.data.u64);
+        val_ptr = &swapped_value.data.u64;
+        val_size = 8;
         break;
-    }
     case QEMU_PLUGIN_MEM_VALUE_U128:
-        /* non in test so skip */
-        break;
+        /* none in test so skip */
+        goto done;
     default:
         g_assert_not_reached();
+    }
+
+    /* ri_data may not be aligned, so we use memcpy/memcmp */
+    if (is_store) {
+        memcpy(ri_data, val_ptr, val_size);
+    } else {
+        unseen_data = memcmp(ri_data, val_ptr, val_size) != 0;
     }
 
     /*
@@ -213,6 +199,7 @@ static void update_region_info(uint64_t region, uint64_t offset,
         ri->seen_all = false;
     }
 
+done:
     g_mutex_unlock(&lock);
 }
 

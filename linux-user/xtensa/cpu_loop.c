@@ -186,6 +186,7 @@ void cpu_loop(CPUXtensaState *env)
                     break;
 
                 case -QEMU_ESIGRETURN:
+                case -QEMU_ESETPC:
                     break;
                 }
                 break;

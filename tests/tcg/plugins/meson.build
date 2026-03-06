@@ -6,7 +6,9 @@ test_plugins = [
 'insn.c',
 'mem.c',
 'patch.c',
+'registers.c',
 'reset.c',
+'setpc.c',
 'syscall.c',
 ]
 
