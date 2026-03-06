@@ -833,15 +833,6 @@ F: include/hw/*/exynos*
 F: docs/system/arm/exynos.rst
 F: tests/functional/arm/test_smdkc210.py
 
-Calxeda Highbank
-M: Rob Herring <robh@kernel.org>
-M: Peter Maydell <peter.maydell@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/arm/highbank.c
-F: hw/net/xgmac.c
-F: docs/system/arm/highbank.rst
-
 Canon DIGIC
 M: Antony Pavlov <antonynpavlov@gmail.com>
 M: Peter Maydell <peter.maydell@linaro.org>

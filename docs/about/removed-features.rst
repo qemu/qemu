@@ -1180,6 +1180,13 @@ and serves as the initial engineering sample rather than a production version.
 A newer revision, A1, is now supported, and the ``ast2700a1-evb`` should
 replace the older A0 version.
 
+Arm ``highbank`` and ``midway`` machines (removed in 11.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+There were no known users left for these machines. If you just want to
+boot a Cortex-A15 or Cortex-A9 Linux, use the ``virt`` machine instead.
+
+
 linux-user mode CPUs
 --------------------
 
