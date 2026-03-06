@@ -14,9 +14,8 @@ DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chr);
 DeviceState *mcf_uart_create_mmap(hwaddr base, qemu_irq irq, Chardev *chr);
 
 /* mcf_intc.c */
-qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
-                        hwaddr base,
-                        M68kCPU *cpu);
+DeviceState *mcf_intc_init(struct MemoryRegion *sysmem,
+                           hwaddr base, M68kCPU *cpu);
 
 /* mcf5206.c */
 #define TYPE_MCF5206_MBAR "mcf5206-mbar"

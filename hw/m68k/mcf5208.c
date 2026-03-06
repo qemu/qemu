@@ -227,7 +227,7 @@ static const MemoryRegionOps m5208_rcm_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic,
+static void mcf5208_sys_init(MemoryRegion *address_space, DeviceState *intc,
                              M68kCPU *cpu)
 {
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
@@ -250,11 +250,11 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic,
                               "m5208-timer", 0x00004000);
         memory_region_add_subregion(address_space, 0xfc080000 + 0x4000 * i,
                                     &s->iomem);
-        s->irq = pic[4 + i];
+        s->irq = qdev_get_gpio_in(intc, 4 + i);
     }
 }
 
-static void mcf_fec_init(MemoryRegion *sysmem, hwaddr base, qemu_irq *irqs)
+static void mcf_fec_init(MemoryRegion *sysmem, hwaddr base, DeviceState *intc)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -268,7 +268,7 @@ static void mcf_fec_init(MemoryRegion *sysmem, hwaddr base, qemu_irq *irqs)
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < FEC_NUM_IRQ; i++) {
-        sysbus_connect_irq(s, i, irqs[i]);
+        sysbus_connect_irq(s, i, qdev_get_gpio_in(intc, i + 36));
     }
 
     memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
@@ -283,10 +283,10 @@ static void mcf5208evb_init(MachineState *machine)
     int kernel_size;
     uint64_t elf_entry;
     hwaddr entry;
-    qemu_irq *pic;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
+    DeviceState *intc;
 
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -307,17 +307,15 @@ static void mcf5208evb_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu);
+    intc = mcf_intc_init(address_space_mem, 0xfc048000, cpu);
 
-    mcf_uart_create_mmap(0xfc060000, pic[26], serial_hd(0));
-    mcf_uart_create_mmap(0xfc064000, pic[27], serial_hd(1));
-    mcf_uart_create_mmap(0xfc068000, pic[28], serial_hd(2));
+    mcf_uart_create_mmap(0xfc060000, qdev_get_gpio_in(intc, 26), serial_hd(0));
+    mcf_uart_create_mmap(0xfc064000, qdev_get_gpio_in(intc, 27), serial_hd(1));
+    mcf_uart_create_mmap(0xfc068000, qdev_get_gpio_in(intc, 28), serial_hd(2));
 
-    mcf5208_sys_init(address_space_mem, pic, cpu);
+    mcf5208_sys_init(address_space_mem, intc, cpu);
 
-    mcf_fec_init(address_space_mem, 0xfc030000, pic + 36);
-
-    g_free(pic);
+    mcf_fec_init(address_space_mem, 0xfc030000, intc);
 
     /*  0xfc000000 SCM.  */
     /*  0xfc004000 XBS.  */
