@@ -8602,6 +8602,11 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         error_setg(errp, "serial property not set");
         return false;
     }
+    if (strlen(params->serial) > NVME_ID_CTRL_SN_MAX_LEN) {
+        error_setg(errp, "'serial' parameter '%s' can be at most '%d' characters",
+                   params->serial, NVME_ID_CTRL_SN_MAX_LEN);
+        return false;
+    }
 
     if (params->mqes < 1) {
         error_setg(errp, "mqes property cannot be less than 1");
