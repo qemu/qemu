@@ -1134,12 +1134,16 @@ enum NvmeIdCns {
     NVME_ID_CNS_CS_IND_NS_ALLOCATED   = 0x1f,
 };
 
+#define NVME_ID_CTRL_SN_MAX_LEN 20
+#define NVME_ID_CTRL_MN_MAX_LEN 40
+#define NVME_ID_CTRL_FR_MAX_LEN 8
+
 typedef struct QEMU_PACKED NvmeIdCtrl {
     uint16_t    vid;
     uint16_t    ssvid;
-    uint8_t     sn[20];
-    uint8_t     mn[40];
-    uint8_t     fr[8];
+    uint8_t     sn[NVME_ID_CTRL_SN_MAX_LEN];
+    uint8_t     mn[NVME_ID_CTRL_MN_MAX_LEN];
+    uint8_t     fr[NVME_ID_CTRL_FR_MAX_LEN];
     uint8_t     rab;
     uint8_t     ieee[3];
     uint8_t     cmic;
