@@ -2068,6 +2068,8 @@ static void cxl_perform_ppr(CXLType3Dev *ct3d, uint64_t dpa)
                                 CXL_MEMDEV_MAINT_SUBCLASS_CACHELINE_SPARING,
                                 ent, NULL);
             }
+            QLIST_REMOVE(ent, node);
+            g_free(ent);
             break;
         }
     }
