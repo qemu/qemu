@@ -79,9 +79,6 @@ config NE2000_ISA
 config OPENCORES_ETH
     bool
 
-config XGMAC
-    bool
-
 config ALLWINNER_EMAC
     bool
 
