@@ -1767,7 +1767,6 @@ static void cxl_maintenance_insert(CXLType3Dev *ct3d, uint64_t dpa,
         }
     }
     m = g_new0(CXLMaintenance, 1);
-    memset(m, 0, sizeof(*m));
     m->dpa = dpa;
     m->validity_flags = 0;
 
@@ -1804,8 +1803,7 @@ static void cxl_maintenance_insert(CXLType3Dev *ct3d, uint64_t dpa,
         m->validity_flags |= CXL_MSER_VALID_SUB_CHANNEL;
     }
     if (component_id) {
-        strncpy((char *)m->component_id, component_id,
-                sizeof(m->component_id) - 1);
+        memcpy(m->component_id, component_id, sizeof(m->component_id));
         m->validity_flags |= CXL_MSER_VALID_COMP_ID;
         if (has_comp_id_pldm && is_comp_id_pldm) {
             m->validity_flags |= CXL_MSER_VALID_COMP_ID_FORMAT;
