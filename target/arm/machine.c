@@ -1061,6 +1061,7 @@ static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
+    bool fail = false;
     int i, v;
 
     trace_cpu_post_load(cpu->cpreg_vmstate_array_len,
@@ -1093,13 +1094,14 @@ static int cpu_post_load(void *opaque, int version_id)
      */
 
     for (i = 0, v = 0; i < cpu->cpreg_array_len
-             && v < cpu->cpreg_vmstate_array_len; i++) {
+             && v < cpu->cpreg_vmstate_array_len;) {
         if (cpu->cpreg_vmstate_indexes[v] > cpu->cpreg_indexes[i]) {
             g_autofree gchar *name = print_register_name(cpu->cpreg_indexes[i]);
 
             warn_report("%s: %s "
                         "expected by the destination but not in the incoming stream: "
                         "skip it", __func__, name);
+            i++;
             continue;
         }
         if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
@@ -1107,11 +1109,17 @@ static int cpu_post_load(void *opaque, int version_id)
 
             error_report("%s: %s in the incoming stream but unknown on the destination: "
                          "fail migration", __func__, name);
-            return -1;
+            v++;
+            fail = true;
+            continue;
         }
         /* matching register, copy the value over */
         cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+        i++;
         v++;
+    }
+    if (fail) {
+        return -1;
     }
 
     if (kvm_enabled()) {
