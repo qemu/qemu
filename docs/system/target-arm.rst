@@ -83,7 +83,6 @@ Board-specific documentation
    arm/bananapi_m2u.rst
    arm/b-l475e-iot01a.rst
    arm/sabrelite
-   arm/highbank
    arm/digic
    arm/cubieboard
    arm/emcraft-sf2

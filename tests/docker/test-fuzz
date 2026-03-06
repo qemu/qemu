@@ -18,7 +18,7 @@ cd "$BUILD_DIR"
 cp -a $QEMU_SRC .
 cd src
 mkdir build-oss-fuzz
-export LSAN_OPTIONS=suppressions=scripts/oss-fuzz/lsan_suppressions.txt
+export LSAN_OPTIONS=suppressions=scripts/lsan_suppressions.txt
 env CC="clang" CXX="clang++" CFLAGS="-fsanitize=address" ./scripts/oss-fuzz/build.sh
 export ASAN_OPTIONS="fast_unwind_on_malloc=0"
 for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f | grep -v slirp); do

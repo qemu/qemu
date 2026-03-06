@@ -586,7 +586,7 @@ F: include/system/whpx-common.h
 F: include/system/whpx-internal.h
 
 MSHV
-M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
+M: Magnus Kulke <magnuskulke@linux.microsoft.com>
 R: Wei Liu <wei.liu@kernel.org>
 S: Supported
 F: accel/mshv/
@@ -601,7 +601,7 @@ F: accel/nitro/
 F: include/system/nitro-accel.h
 
 X86 MSHV CPUs
-M: Magnus Kulke <magnus.kulke@linux.microsoft.com>
+M: Magnus Kulke <magnuskulke@linux.microsoft.com>
 R: Wei Liu <wei.liu@kernel.org>
 S: Supported
 F: target/i386/mshv/
@@ -619,7 +619,6 @@ Guest CPU Cores (Xen)
 X86 Xen CPUs
 M: Stefano Stabellini <sstabellini@kernel.org>
 M: Anthony PERARD <anthony@xenproject.org>
-M: Paul Durrant <paul@xen.org>
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: xen-devel@lists.xenproject.org
 S: Supported
@@ -832,15 +831,6 @@ F: hw/*/exynos*
 F: include/hw/*/exynos*
 F: docs/system/arm/exynos.rst
 F: tests/functional/arm/test_smdkc210.py
-
-Calxeda Highbank
-M: Rob Herring <robh@kernel.org>
-M: Peter Maydell <peter.maydell@linaro.org>
-L: qemu-arm@nongnu.org
-S: Odd Fixes
-F: hw/arm/highbank.c
-F: hw/net/xgmac.c
-F: docs/system/arm/highbank.rst
 
 Canon DIGIC
 M: Antony Pavlov <antonynpavlov@gmail.com>
@@ -4026,7 +4016,7 @@ VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
 R: Jason Wang <jasowang@redhat.com>
 R: Yi Liu <yi.l.liu@intel.com>
-R: Clément Mathieu--Drif <clement.mathieu--drif@eviden.com>
+R: Clément Mathieu--Drif <clement.mathieu--drif@bull.com>
 S: Supported
 F: hw/i386/intel_iommu.c
 F: hw/i386/intel_iommu_internal.h
