@@ -370,7 +370,8 @@ static void tcp_chr_free_connection(Chardev *chr)
 
     tcp_chr_set_msgfds(chr, NULL, 0);
     remove_fd_in_watch(chr);
-    if (s->registered_yank &&
+
+    if (s->registered_yank && s->sioc &&
         (s->state == TCP_CHARDEV_STATE_CONNECTING
         || s->state == TCP_CHARDEV_STATE_CONNECTED)) {
         yank_unregister_function(CHARDEV_YANK_INSTANCE(chr->label),
