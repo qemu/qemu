@@ -231,4 +231,13 @@ void arm_cpu_kvm_set_irq(void *arm_cpu, int irq, int level);
 
 void arm_gic_cap_kvm_probe(GICCapability *v2, GICCapability *v3);
 
+/*
+ * kvm_print_register_name:
+ * @regidx: register KVM index
+ *
+ * Returns a human-readable string representing this register
+ * The caller must free the string with g_free().
+ */
+char *kvm_print_register_name(uint64_t regidx);
+
 #endif
