@@ -112,7 +112,7 @@ static inline void fill_hex_val(char *out, void *ptr, unsigned size)
 static inline void debug_print_int(const char *desc, u64 addr)
 {
 #ifdef DEBUG
-    printf("%s 0x%X\n", desc, addr);
+    printf("%s 0x%llx\n", desc, addr);
 #endif
 }
 
