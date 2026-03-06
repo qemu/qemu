@@ -4003,7 +4003,7 @@ VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
 R: Jason Wang <jasowang@redhat.com>
 R: Yi Liu <yi.l.liu@intel.com>
-R: Clément Mathieu--Drif <clement.mathieu--drif@eviden.com>
+R: Clément Mathieu--Drif <clement.mathieu--drif@bull.com>
 S: Supported
 F: hw/i386/intel_iommu.c
 F: hw/i386/intel_iommu_internal.h
