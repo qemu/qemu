@@ -1,0 +1,48 @@
+# See docs/devel/tracing.rst for syntax documentation.
+
+# aspeed_i3c.c
+aspeed_i3c_read(uint64_t offset, uint64_t data) "I3C read: offset 0x%" PRIx64 " data 0x%" PRIx64
+aspeed_i3c_write(uint64_t offset, uint64_t data) "I3C write: offset 0x%" PRIx64 " data 0x%" PRIx64
+
+# dw-i3c,c
+dw_i3c_read(uint32_t deviceid, uint64_t offset, uint64_t data) "I3C Dev[%u] read: offset 0x%" PRIx64 " data 0x%" PRIx64
+dw_i3c_write(uint32_t deviceid, uint64_t offset, uint64_t data) "I3C Dev[%u] write: offset 0x%" PRIx64 " data 0x%" PRIx64
+dw_i3c_send(uint32_t deviceid, uint32_t num_bytes) "I3C Dev[%u] send %" PRId32 " bytes to bus"
+dw_i3c_recv_data(uint32_t deviceid, uint32_t num_bytes) "I3C Dev[%u] recv %" PRId32 " bytes from bus"
+dw_i3c_ibi_recv(uint32_t deviceid, uint8_t ibi_byte) "I3C Dev[%u] recv IBI byte 0x%" PRIx8
+dw_i3c_ibi_handle(uint32_t deviceid, uint8_t addr, bool rnw) "I3C Dev[%u] handle IBI from address 0x%" PRIx8 " RnW=%d"
+dw_i3c_reset(uint32_t deviceid) "I3C Dev[%u] reset"
+dw_i3c_pop_rx(uint32_t deviceid, uint32_t data) "I3C Dev[%u] pop 0x%" PRIx32 " from RX FIFO"
+dw_i3c_resp_queue_push(uint32_t deviceid, uint32_t data) "I3C Dev[%u] push 0x%" PRIx32 " to response queue"
+dw_i3c_push_tx(uint32_t deviceid, uint32_t data) "I3C Dev[%u] push 0x%" PRIx32 " to TX FIFO"
+dw_i3c_pop_tx(uint32_t deviceid, uint32_t data) "I3C Dev[%u] pop 0x%" PRIx32 " from TX FIFO"
+dw_i3c_push_rx(uint32_t deviceid, uint32_t data) "I3C Dev[%u] push 0x%" PRIx32 " to RX FIFO"
+dw_i3c_transfer_ccc(uint32_t deviceid, uint8_t ccc) "I3C Dev[%u] transfer CCC 0x%" PRIx8
+dw_i3c_cmd_queue_execute(uint32_t deviceid, uint32_t cmd, uint32_t arg) "I3C Dev[%u] execute command 0x%" PRIx32 " arg 0x%" PRIx32
+dw_i3c_cmd_queue_push(uint32_t deviceid, uint32_t data) "I3C Dev[%u] push 0x%" PRIx32 " to cmd queue"
+
+# core.c
+i3c_target_event(uint8_t address, uint8_t event) "I3C target 0x%" PRIx8 " event 0x%" PRIx8
+i3c_target_handle_ccc(uint8_t address, uint8_t ccc) "I3C target 0x%" PRIx8 " handling CCC 0x%" PRIx8
+i3c_target_send_ibi(uint8_t address, bool is_recv) "I3C target IBI address 0x%" PRIx8 " RnW=%d"
+i3c_target_send_ibi_bytes(uint8_t byte) "I3C target IBI byte 0x%" PRIx8
+i3c_target_ibi_finish(void) "I3C target IBI finish"
+i3c_start_transfer(uint8_t address, bool is_recv) "I3C START with address 0x%" PRIx8 " is_recv=%d"
+i3c_end_transfer(void) "I3C transfer done"
+i3c_send(uint32_t num_sent, uint32_t num_to_send, bool ack) "I3C send %" PRId32 "/%" PRId32 " bytes, ack=%d"
+i3c_recv(uint32_t num_read, uint32_t num_to_read, bool ack) "I3C recv %" PRId32 "/%" PRId32 " bytes, ack=%d"
+legacy_i2c_nack(void) "Legacy I2C NACK"
+legacy_i2c_recv(uint8_t byte) "Legacy I2C recv 0x%" PRIx8
+legacy_i2c_send(uint8_t byte) "Legacy I2C send 0x%" PRIx8
+legacy_i2c_start_transfer(uint8_t address, bool is_recv) "Legacy I2C START with address 0x%" PRIx8 " is_recv=%d"
+legacy_i2c_end_transfer(void) "Legacy I2C STOP"
+
+# mock-target.c
+mock_i3c_target_rx(uint8_t byte) "I3C mock target read 0x%" PRIx8
+mock_i3c_target_tx(uint8_t byte) "I3C mock target write 0x%" PRIx8
+mock_i3c_target_event(uint8_t event) "I3C mock target event 0x%" PRIx8
+mock_i3c_target_handle_ccc_read(uint32_t num_read, uint32_t num_to_read) "I3C mock target read %" PRId32 "/%" PRId32 " bytes"
+mock_i3c_target_new_ccc(uint8_t ccc) "I3C mock target handle CCC 0x%" PRIx8
+mock_i3c_target_handle_ccc_write(uint32_t num_sent, uint32_t num_to_send) "I3C mock target send %" PRId32 "/%" PRId32 " bytes"
+mock_i3c_target_do_ibi(uint8_t address, bool is_recv) "I3C mock target IBI with address 0x%" PRIx8 " RnW=%d"
+mock_i3c_target_do_ibi_nack(const char *reason) "NACKed from controller when %s target interrupt"

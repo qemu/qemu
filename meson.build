@@ -3635,6 +3635,7 @@ if have_system
     'hw/fsi',
     'hw/hyperv',
     'hw/i2c',
+    'hw/i3c',
     'hw/i386',
     'hw/i386/xen',
     'hw/i386/kvm',
