@@ -855,6 +855,10 @@
 #
 # Get a list of `BlockInfo` for all virtual block devices.
 #
+# @flat: Omit nested data about the backing image, i.e. `BlockInfo`
+#     member 'inserted.image.backing-image' will be absent.
+#     Default is false.  (Since 11.0)
+#
 # Returns: a list describing each virtual block device.  Filter nodes
 #     that were created implicitly are skipped over.
 #
@@ -945,6 +949,7 @@
 #        }
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'],
+  'data': { '*flat': 'bool' },
   'allow-preconfig': true }
 
 ##
@@ -5789,7 +5794,7 @@
 # .. note:: If action is "stop", a `STOP` event will eventually follow
 #    the `BLOCK_IO_ERROR` event.
 #
-# .. note:: This event is rate-limited.
+# .. note:: This event is rate-limited, except if action is "stop".
 #
 # Since: 0.13
 #

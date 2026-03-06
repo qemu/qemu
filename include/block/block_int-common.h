@@ -56,6 +56,7 @@
 #define BLOCK_OPT_DATA_FILE_RAW     "data_file_raw"
 #define BLOCK_OPT_COMPRESSION_TYPE  "compression_type"
 #define BLOCK_OPT_EXTL2             "extended_l2"
+#define BLOCK_OPT_KEEP_DATA_FILE    "keep_data_file"
 
 #define BLOCK_PROBE_BUF_SIZE        512
 

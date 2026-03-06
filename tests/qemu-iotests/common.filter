@@ -182,7 +182,7 @@ _do_filter_img_create()
             -e 's/^\(fmt\)/0-\1/' \
             -e 's/^\(size\)/1-\1/' \
             -e 's/^\(backing\)/2-\1/' \
-            -e 's/^\(data_file\)/3-\1/' \
+            -e 's/^\(\(keep_\)\?data_file\)/3-\1/' \
             -e 's/^\(encryption\)/4-\1/' \
             -e 's/^\(preallocation\)/8-\1/' \
         | LC_ALL=C sort \

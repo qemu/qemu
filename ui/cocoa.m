@@ -1849,7 +1849,7 @@ static void addRemovableDevicesMenuItems(void)
     BlockInfoList *currentDevice, *pointerToFree;
     NSString *deviceName;
 
-    currentDevice = qmp_query_block(NULL);
+    currentDevice = qmp_query_block(false, false, NULL);
     pointerToFree = currentDevice;
 
     menu = [[[NSApp mainMenu] itemWithTitle:@"Machine"] submenu];

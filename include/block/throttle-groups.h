@@ -35,8 +35,7 @@
 
 typedef struct ThrottleGroupMember {
     AioContext   *aio_context;
-    /* throttled_reqs_lock protects the CoQueues for throttled requests.  */
-    CoMutex      throttled_reqs_lock;
+    /* Protected by ThrottleGroup.lock */
     CoQueue      throttled_reqs[THROTTLE_MAX];
 
     /* Nonzero if the I/O limits are currently being ignored; generally

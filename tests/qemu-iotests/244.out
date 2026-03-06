@@ -197,4 +197,65 @@ wrote 1048576/1048576 bytes at offset 0
 
 Comparing qcow2 image and raw data file:
 Images are identical.
+
+=== keep_data_file tests ===
+
+--- Creating test data file ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on
+wrote 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+--- Testing stand-alone option ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 keep_data_file=on
+qemu-img: TEST_DIR/t.IMGFMT: Must not use 'keep_data_file=on' without 'data_file'
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 keep_data_file=true
+qemu-img: TEST_DIR/t.IMGFMT: Invalid value 'true' for 'keep_data_file': Must be 'on' or 'off'
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 keep_data_file=off
+
+--- Testing prealloc=off data_file_raw=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=off keep_data_file=on preallocation=off
+qemu-img: TEST_DIR/t.IMGFMT: 'keep_data_file=on' requires 'preallocation=metadata' or 'data_file_raw=on', or the file contents will not be visible
+
+--- Testing prealloc=off data_file_raw=on ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on keep_data_file=on preallocation=off
+read 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+--- Testing prealloc=metadata data_file_raw=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=off keep_data_file=on preallocation=metadata
+read 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+--- Testing prealloc=metadata data_file_raw=on ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on keep_data_file=on preallocation=metadata
+read 524288/524288 bytes at offset 0
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 524288/524288 bytes at offset 524288
+512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+--- Testing prealloc=falloc data_file_raw=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=off keep_data_file=on preallocation=falloc
+qemu-img: TEST_DIR/t.IMGFMT: Preallocating more than only metadata would overwrite the external data file's content and is therefore incompatible with 'keep_data_file=on'
+
+--- Testing prealloc=falloc data_file_raw=on ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on keep_data_file=on preallocation=falloc
+qemu-img: TEST_DIR/t.IMGFMT: Preallocating more than only metadata would overwrite the external data file's content and is therefore incompatible with 'keep_data_file=on'
+
+--- Testing prealloc=full data_file_raw=off ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=off keep_data_file=on preallocation=full
+qemu-img: TEST_DIR/t.IMGFMT: Preallocating more than only metadata would overwrite the external data file's content and is therefore incompatible with 'keep_data_file=on'
+
+--- Testing prealloc=full data_file_raw=on ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on keep_data_file=on preallocation=full
+qemu-img: TEST_DIR/t.IMGFMT: Preallocating more than only metadata would overwrite the external data file's content and is therefore incompatible with 'keep_data_file=on'
+
+--- Testing non-existent data file ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 data_file=TEST_DIR/t.IMGFMT.doesnotexist data_file_raw=on keep_data_file=on
+qemu-img: TEST_DIR/t.IMGFMT: Could not open 'TEST_DIR/t.IMGFMT.doesnotexist': No such file or directory
 *** done
