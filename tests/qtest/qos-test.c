@@ -31,6 +31,7 @@
 #include "libqos/qos_external.h"
 
 static char *old_path;
+static GSList *path_vecs;
 
 
 /**
@@ -182,11 +183,16 @@ static void run_one_test(const void *arg)
 
 static void subprocess_run_one_test(const void *arg)
 {
-    const gchar *path = arg;
-    g_test_trap_subprocess(path, 180 * G_USEC_PER_SEC,
+    char **path_vec = (char **) arg;
+    gchar *path = g_strjoinv("/", path_vec + 1);
+    gchar *subprocess_path = g_strdup_printf("/%s/subprocess", path);
+
+    g_test_trap_subprocess(subprocess_path, 180 * G_USEC_PER_SEC,
                            G_TEST_SUBPROCESS_INHERIT_STDOUT |
                            G_TEST_SUBPROCESS_INHERIT_STDERR);
     g_test_trap_assert_passed();
+    g_free(path);
+    g_free(subprocess_path);
 }
 
 static void destroy_pathv(void *arg)
@@ -238,6 +244,7 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     GString *cmd_line = g_string_new("");
     GString *cmd_line2 = g_string_new("");
 
+    path_vecs = g_slist_append(path_vecs, path_vec);
     path = qos_graph_get_node(node_name); /* root */
     node_name = qos_graph_edge_get_dest(path->path_edge); /* machine name */
 
@@ -297,15 +304,15 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     path_vec[0] = g_string_free(cmd_line, false);
 
     if (path->u.test.subprocess) {
-        gchar *subprocess_path = g_strdup_printf("/%s/%s/subprocess",
-                                                 qtest_get_arch(), path_str);
-        qtest_add_data_func_full(path_str, subprocess_path,
-                                 subprocess_run_one_test, g_free);
-        g_test_add_data_func_full(subprocess_path, path_vec,
-                                  run_one_test, destroy_pathv);
+        gchar *subprocess_path = g_strdup_printf("%s/%s", path_str,
+                                                 "subprocess");
+
+        qtest_add_data_func(path_str, path_vec, subprocess_run_one_test);
+        qtest_add_data_func(subprocess_path, path_vec, run_one_test);
+
+        g_free(subprocess_path);
     } else {
-        qtest_add_data_func_full(path_str, path_vec,
-                                 run_one_test, destroy_pathv);
+        qtest_add_data_func(path_str, path_vec, run_one_test);
     }
 
     g_free(path_str);
@@ -340,6 +347,14 @@ int main(int argc, char **argv, char** envp)
     module_call_init(MODULE_INIT_LIBQOS);
     qos_set_machines_devices_available();
 
+    /*
+     * Even if this invocation was done to run a single test in a
+     * subprocess (i.e. g_test_subprocess() is true), gtester doesn't
+     * expose the test name, so w still need to execute the whole
+     * thing as normal, including walking the QOS graph to add all
+     * the tests, in order for g_test_run() to find the one /subprocess
+     * test that it is going to execute.
+     */
     qos_graph_foreach_test_path(walk_path);
     if (g_test_verbose()) {
         qos_dump_graph();
@@ -348,5 +363,6 @@ int main(int argc, char **argv, char** envp)
     qtest_end();
     qos_graph_destroy();
     g_free(old_path);
+    g_slist_free_full(path_vecs, (GDestroyNotify)destroy_pathv);
     return 0;
 }
