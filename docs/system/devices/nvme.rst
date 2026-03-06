@@ -65,6 +65,11 @@ parameters.
   to more closely impersonate a particular device type. The model name
   can be a maximum of 40 characters in length.
 
+``firmware-version`` (default: current QEMU version number)
+  Override the default reported firmware version, which can be used when
+  needing to more closely impersonate a particular device type. The version
+  can be a maximum of 8 characters in length.
+
 Additional Namespaces
 ---------------------
 

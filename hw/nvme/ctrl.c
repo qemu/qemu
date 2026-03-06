@@ -44,7 +44,8 @@
  *              atomic.awun<N[optional]>, \
  *              atomic.awupf<N[optional]>, \
  *              subsys=<subsys_id>, \
- *              model=<model-str>
+ *              model=<model-str>, \
+ *              firmware-version=<version-str>
  *      -device nvme-ns,drive=<drive_id>,bus=<bus_name>,nsid=<nsid>,\
  *              zoned=<true|false[optional]>, \
  *              subsys=<subsys_id>,shared=<true|false[optional]>, \
@@ -8616,6 +8617,13 @@ static bool nvme_check_params(NvmeCtrl *n, Error **errp)
         return false;
     }
 
+    if (params->firmware_version &&
+        strlen(params->firmware_version) > NVME_ID_CTRL_FR_MAX_LEN) {
+        error_setg(errp, "'firmware-version' parameter '%s' can be at most '%d' characters",
+                   params->firmware_version, NVME_ID_CTRL_FR_MAX_LEN);
+        return false;
+    }
+
     if (params->mqes < 1) {
         error_setg(errp, "mqes property cannot be less than 1");
         return false;
@@ -9111,7 +9119,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
     strpadcpy((char *)id->mn, sizeof(id->mn),
               n->params.model ? n->params.model : "QEMU NVMe Ctrl", ' ');
-    strpadcpy((char *)id->fr, sizeof(id->fr), QEMU_VERSION, ' ');
+    strpadcpy((char *)id->fr, sizeof(id->fr),
+              n->params.firmware_version ? n->params.firmware_version : QEMU_VERSION, ' ');
     strpadcpy((char *)id->sn, sizeof(id->sn), n->params.serial, ' ');
 
     id->cntlid = cpu_to_le16(n->cntlid);
@@ -9391,6 +9400,7 @@ static const Property nvme_props[] = {
                      NvmeSubsystem *),
     DEFINE_PROP_STRING("serial", NvmeCtrl, params.serial),
     DEFINE_PROP_STRING("model", NvmeCtrl, params.model),
+    DEFINE_PROP_STRING("firmware-version", NvmeCtrl, params.firmware_version),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
     DEFINE_PROP_UINT32("max_ioqpairs", NvmeCtrl, params.max_ioqpairs, 64),

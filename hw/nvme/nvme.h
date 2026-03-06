@@ -543,6 +543,7 @@ typedef struct NvmeCQueue {
 typedef struct NvmeParams {
     char     *serial;
     char     *model;
+    char     *firmware_version;
     uint32_t num_queues; /* deprecated since 5.1 */
     uint32_t max_ioqpairs;
     uint16_t msix_qsize;
