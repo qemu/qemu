@@ -69,7 +69,9 @@ typedef struct NFSClient {
 typedef struct NFSRPC {
     BlockDriverState *bs;
     int ret;
+#ifndef LIBNFS_API_V2
     QEMUIOVector *iov;
+#endif
     struct stat *st;
     Coroutine *co;
     NFSClient *client;
@@ -237,6 +239,7 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
     NFSRPC *task = private_data;
     task->ret = ret;
     assert(!task->st);
+#ifndef LIBNFS_API_V2
     if (task->ret > 0 && task->iov) {
         if (task->ret <= task->iov->size) {
             qemu_iovec_from_buf(task->iov, 0, data, task->ret);
@@ -244,6 +247,7 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
             task->ret = -EIO;
         }
     }
+#endif
     if (task->ret < 0) {
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
@@ -266,19 +270,49 @@ static int coroutine_fn nfs_co_preadv(BlockDriverState *bs, int64_t offset,
 {
     NFSClient *client = bs->opaque;
     NFSRPC task;
+    char *buf = NULL;
+    bool my_buffer = false;
 
     nfs_co_init_task(bs, &task);
-    task.iov = iov;
+
+#ifdef LIBNFS_API_V2
+    if (iov->niov != 1) {
+        buf = g_try_malloc(bytes);
+        if (bytes && buf == NULL) {
+            return -ENOMEM;
+        }
+        my_buffer = true;
+    } else {
+        buf = iov->iov[0].iov_base;
+    }
+#endif
 
     WITH_QEMU_LOCK_GUARD(&client->mutex) {
+#ifdef LIBNFS_API_V2
+        if (nfs_pread_async(client->context, client->fh,
+                            buf, bytes, offset,
+                            nfs_co_generic_cb, &task) != 0) {
+#else
+        task.iov = iov;
         if (nfs_pread_async(client->context, client->fh,
                             offset, bytes, nfs_co_generic_cb, &task) != 0) {
+#endif
+            if (my_buffer) {
+                g_free(buf);
+            }
             return -ENOMEM;
         }
 
         nfs_set_events(client);
     }
     qemu_coroutine_yield();
+
+    if (my_buffer) {
+        if (task.ret > 0) {
+            qemu_iovec_from_buf(iov, 0, buf, task.ret);
+        }
+        g_free(buf);
+    }
 
     if (task.ret < 0) {
         return task.ret;
@@ -315,9 +349,15 @@ static int coroutine_fn nfs_co_pwritev(BlockDriverState *bs, int64_t offset,
     }
 
     WITH_QEMU_LOCK_GUARD(&client->mutex) {
+#ifdef LIBNFS_API_V2
+        if (nfs_pwrite_async(client->context, client->fh,
+                             buf, bytes, offset,
+                             nfs_co_generic_cb, &task) != 0) {
+#else
         if (nfs_pwrite_async(client->context, client->fh,
                              offset, bytes, buf,
                              nfs_co_generic_cb, &task) != 0) {
+#endif
             if (my_buffer) {
                 g_free(buf);
             }
@@ -856,6 +896,13 @@ static void coroutine_fn nfs_co_invalidate_cache(BlockDriverState *bs,
 }
 #endif
 
+static void nfs_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    NFSClient *client = bs->opaque;
+    bs->bl.max_transfer = MIN((uint32_t)nfs_get_readmax(client->context),
+                              (uint32_t)nfs_get_writemax(client->context));
+}
+
 static const char *nfs_strong_runtime_opts[] = {
     "path",
     "user",
@@ -893,6 +940,7 @@ static BlockDriver bdrv_nfs = {
     .bdrv_detach_aio_context        = nfs_detach_aio_context,
     .bdrv_attach_aio_context        = nfs_attach_aio_context,
     .bdrv_refresh_filename          = nfs_refresh_filename,
+    .bdrv_refresh_limits            = nfs_refresh_limits,
     .bdrv_dirname                   = nfs_dirname,
 
     .strong_runtime_opts            = nfs_strong_runtime_opts,
