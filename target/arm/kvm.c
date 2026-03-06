@@ -978,7 +978,7 @@ char *kvm_print_register_name(uint64_t regidx)
         case KVM_REG_ARM_DEMUX:
             return g_strdup_printf("demuxed reg %"PRIx64, regidx);
         case KVM_REG_ARM64_SYSREG:
-            return g_strdup_printf("op0:%d op1:%d crn:%d crm:%d op2:%d",
+            return g_strdup_printf("system register op0:%d op1:%d crn:%d crm:%d op2:%d",
                                    CP_REG_ARM64_SYSREG_OP(regidx, OP0),
                                    CP_REG_ARM64_SYSREG_OP(regidx, OP1),
                                    CP_REG_ARM64_SYSREG_OP(regidx, CRN),
