@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "cpregs.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "system/kvm.h"
@@ -1047,6 +1048,15 @@ static int cpu_pre_load(void *opaque)
     return 0;
 }
 
+static gchar *print_register_name(uint64_t kvm_regidx)
+{
+    if (kvm_enabled()) {
+        return kvm_print_register_name(kvm_regidx);
+    } else {
+        return g_strdup_printf("system register 0x%x", kvm_to_cpreg_id(kvm_regidx));
+    }
+}
+
 static int cpu_post_load(void *opaque, int version_id)
 {
     ARMCPU *cpu = opaque;
@@ -1085,11 +1095,18 @@ static int cpu_post_load(void *opaque, int version_id)
     for (i = 0, v = 0; i < cpu->cpreg_array_len
              && v < cpu->cpreg_vmstate_array_len; i++) {
         if (cpu->cpreg_vmstate_indexes[v] > cpu->cpreg_indexes[i]) {
-            /* register in our list but not incoming : skip it */
+            g_autofree gchar *name = print_register_name(cpu->cpreg_indexes[i]);
+
+            warn_report("%s: %s "
+                        "expected by the destination but not in the incoming stream: "
+                        "skip it", __func__, name);
             continue;
         }
         if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
-            /* register in their list but not ours: fail migration */
+            g_autofree gchar *name = print_register_name(cpu->cpreg_vmstate_indexes[v]);
+
+            error_report("%s: %s in the incoming stream but unknown on the destination: "
+                         "fail migration", __func__, name);
             return -1;
         }
         /* matching register, copy the value over */
