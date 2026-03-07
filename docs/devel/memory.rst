@@ -113,7 +113,6 @@ have a special case where you need to manage the migration of
 the backing memory yourself, you can call the functions:
 
 - memory_region_init_ram_nomigrate()
-- memory_region_init_rom_nomigrate()
 
 which only initialize the MemoryRegion and leave handling
 migration to the caller.

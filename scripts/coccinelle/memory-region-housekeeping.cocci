@@ -16,17 +16,10 @@
 expression E1, E2, E3, E4, E5;
 symbol true;
 @@
-(
 - memory_region_init_ram(E1, E2, E3, E4, E5);
 + memory_region_init_rom(E1, E2, E3, E4, E5);
   ... WHEN != E1
 - memory_region_set_readonly(E1, true);
-|
-- memory_region_init_ram_nomigrate(E1, E2, E3, E4, E5);
-+ memory_region_init_rom_nomigrate(E1, E2, E3, E4, E5);
-  ... WHEN != E1
-- memory_region_set_readonly(E1, true);
-)
 
 
 @possible_memory_region_init_rom@
@@ -53,11 +46,7 @@ cocci.print_main("potential use of memory_region_init_rom*() in ", p)
 expression ROM, E1, E2, E3, E4;
 expression ALIAS, E5, E6, E7, E8;
 @@
-(
   memory_region_init_rom(ROM, E1, E2, E3, E4);
-|
-  memory_region_init_rom_nomigrate(ROM, E1, E2, E3, E4);
-)
   ...
    memory_region_init_alias(ALIAS, E5, E6, ROM, E7, E8);
 -  memory_region_set_readonly(ALIAS, true);
@@ -79,23 +68,6 @@ expression ERRP;
 +memory_region_init_ram(MR, NULL, NAME, SIZE, ERRP);
  ...
 -vmstate_register_ram_global(MR);
-@@
-expression MR;
-expression NAME;
-expression SIZE;
-expression ERRP;
-@@
--memory_region_init_rom_nomigrate(MR, NULL, NAME, SIZE, ERRP);
-+memory_region_init_rom(MR, NULL, NAME, SIZE, ERRP);
- ...
--vmstate_register_ram_global(MR);
-@@
-expression MR;
-expression OPS;
-expression OPAQUE;
-expression NAME;
-expression SIZE;
-expression ERRP;
 @@
 typedef DeviceState;
 identifier device_fn, dev, obj;
