@@ -62,19 +62,20 @@ typedef struct CPUTimerState {
 #define TYPE_SLAVIO_TIMER "slavio_timer"
 OBJECT_DECLARE_SIMPLE_TYPE(SLAVIO_TIMERState, SLAVIO_TIMER)
 
+typedef struct TimerContext {
+    MemoryRegion iomem;
+    SLAVIO_TIMERState *s;
+    unsigned int timer_index; /* 0 for system, 1 ... MAX_CPUS for CPU timers */
+} TimerContext;
+
 struct SLAVIO_TIMERState {
     SysBusDevice parent_obj;
 
     uint32_t num_cpus;
     uint32_t cputimer_mode;
     CPUTimerState cputimer[MAX_CPUS + 1];
+    TimerContext timer_context[MAX_CPUS + 1];
 };
-
-typedef struct TimerContext {
-    MemoryRegion iomem;
-    SLAVIO_TIMERState *s;
-    unsigned int timer_index; /* 0 for system, 1 ... MAX_CPUS for CPU timers */
-} TimerContext;
 
 #define SYS_TIMER_SIZE 0x14
 #define CPU_TIMER_SIZE 0x10
@@ -400,7 +401,7 @@ static void slavio_timer_init(Object *obj)
         uint64_t size;
         char timer_name[20];
 
-        tc = g_new0(TimerContext, 1);
+        tc = &s->timer_context[i];
         tc->s = s;
         tc->timer_index = i;
 
@@ -417,6 +418,15 @@ static void slavio_timer_init(Object *obj)
         sysbus_init_mmio(dev, &tc->iomem);
 
         sysbus_init_irq(dev, &s->cputimer[i].irq);
+    }
+}
+
+static void slavio_timer_finalize(Object *obj)
+{
+    SLAVIO_TIMERState *s = SLAVIO_TIMER(obj);
+
+    for (int i = 0; i <= MAX_CPUS; i++) {
+        ptimer_free(s->cputimer[i].timer);
     }
 }
 
@@ -438,6 +448,7 @@ static const TypeInfo slavio_timer_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_TIMERState),
     .instance_init = slavio_timer_init,
+    .instance_finalize = slavio_timer_finalize,
     .class_init    = slavio_timer_class_init,
 };
 
