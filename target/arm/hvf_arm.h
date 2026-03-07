@@ -27,7 +27,7 @@ void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu);
  * headers are not available until we raise our minimum macOS version.
  */
 #ifdef __MAC_OS_X_VERSION_MAX_ALLOWED
-  #if (__MAC_OS_X_VERSION_MAX_ALLOWED >= 150200)
+  #if (__MAC_OS_X_VERSION_MAX_ALLOWED >= 150200) && defined(__aarch64__)
     #include "system/hvf_int.h"
 
     static inline bool hvf_arm_sme2_supported(void)
