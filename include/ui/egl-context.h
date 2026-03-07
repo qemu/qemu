@@ -5,7 +5,8 @@
 #include "ui/egl-helpers.h"
 
 QEMUGLContext qemu_egl_create_context(DisplayGLCtx *dgc,
-                                      QEMUGLParams *params);
+                                      QEMUGLParams *params,
+                                      EGLContext share_context);
 void qemu_egl_destroy_context(DisplayGLCtx *dgc, QEMUGLContext ctx);
 int qemu_egl_make_context_current(DisplayGLCtx *dgc,
                                   QEMUGLContext ctx);
