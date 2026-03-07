@@ -196,10 +196,6 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void dummy_cpu_set_irq(void *opaque, int irq, int level)
-{
-}
-
 static void sun4m_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
@@ -344,6 +340,7 @@ static void *sparc32_dma_init(hwaddr dma_base,
 
 static DeviceState *slavio_intctl_init(hwaddr addr,
                                        hwaddr addrg,
+                                       unsigned int smp_cpus,
                                        qemu_irq **parent_irq)
 {
     DeviceState *dev;
@@ -355,7 +352,7 @@ static DeviceState *slavio_intctl_init(hwaddr addr,
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
-    for (i = 0; i < MAX_CPUS; i++) {
+    for (i = 0; i < smp_cpus; i++) {
         for (j = 0; j < MAX_PILS; j++) {
             sysbus_connect_irq(s, i * MAX_PILS + j, parent_irq[i][j]);
         }
@@ -841,9 +838,6 @@ static void sun4m_hw_init(MachineState *machine)
         cpu_devinit(machine->cpu_type, i, hwdef->slavio_base, &cpu_irqs[i]);
     }
 
-    for (i = smp_cpus; i < MAX_CPUS; i++)
-        cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
-
     /* Create and map RAM frontend */
     dev = qdev_new("memory");
     object_property_set_link(OBJECT(dev), "memdev", OBJECT(ram_memdev), &error_fatal);
@@ -860,6 +854,7 @@ static void sun4m_hw_init(MachineState *machine)
 
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000ULL,
+                                       smp_cpus,
                                        cpu_irqs);
 
     for (i = 0; i < 32; i++) {
