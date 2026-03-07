@@ -1278,10 +1278,7 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid_legacy(CPUState *cs)
     }
 
     if (has_msr_hv_synic) {
-        unsigned int cap = cpu->hyperv_synic_kvm_only ?
-            KVM_CAP_HYPERV_SYNIC : KVM_CAP_HYPERV_SYNIC2;
-
-        if (kvm_check_extension(cs->kvm_state, cap) > 0) {
+        if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_SYNIC2) > 0) {
             entry_feat->eax |= HV_SYNIC_AVAILABLE;
         }
     }
@@ -1543,7 +1540,6 @@ bool kvm_hyperv_expand_features(X86CPU *cpu, Error **errp)
 
     /* Additional dependencies not covered by kvm_hyperv_properties[] */
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC) &&
-        !cpu->hyperv_synic_kvm_only &&
         !hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX)) {
         error_setg(errp, "Hyper-V %s requires Hyper-V %s",
                    kvm_hyperv_properties[HYPERV_FEAT_SYNIC].desc,
@@ -1608,8 +1604,7 @@ static int hyperv_fill_cpuids(CPUState *cs,
     c->eax |= HV_HYPERCALL_AVAILABLE;
 
     /* SynIC and Vmbus devices require messages/signals hypercalls */
-    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC) &&
-        !cpu->hyperv_synic_kvm_only) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
         c->ebx |= HV_POST_MESSAGES | HV_SIGNAL_EVENTS;
     }
 
@@ -1752,16 +1747,14 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     }
 
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
-        uint32_t synic_cap = cpu->hyperv_synic_kvm_only ?
-            KVM_CAP_HYPERV_SYNIC : KVM_CAP_HYPERV_SYNIC2;
-        ret = kvm_vcpu_enable_cap(cs, synic_cap, 0);
+        ret = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC2, 0);
         if (ret < 0) {
             error_report("failed to turn on HyperV SynIC in KVM: %s",
                          strerror(-ret));
             return ret;
         }
 
-        if (!cpu->hyperv_synic_kvm_only && !hyperv_is_synic_enabled()) {
+        if (!hyperv_is_synic_enabled()) {
             ret = hyperv_x86_synic_add(cpu);
             if (ret < 0) {
                 error_report("failed to create HyperV SynIC: %s",
