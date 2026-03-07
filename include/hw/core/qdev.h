@@ -1084,6 +1084,22 @@ extern bool qdev_hot_removed;
  * If @dev is NULL or not on a bus, returns NULL.
  */
 char *qdev_get_dev_path(DeviceState *dev);
+
+/**
+ * qdev_get_printable_name: Return human readable name for device
+ * @dev: Device to get name of
+ *
+ * Returns: A newly allocated string containing some human
+ * readable name for the device, suitable for printing in
+ * user-facing error messages. The function will never return NULL,
+ * so the name can be used without further checking or fallbacks.
+ *
+ * If the device has an explicitly set ID (e.g. by the user on the
+ * command line via "-device thisdev,id=myid") this is preferred.
+ * Otherwise we try the canonical QOM device path (which will be
+ * the PCI ID for PCI devices, for example). If all else fails
+ * we will return the placeholder "<unknown device">.
+ */
 const char *qdev_get_printable_name(DeviceState *dev);
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler);
