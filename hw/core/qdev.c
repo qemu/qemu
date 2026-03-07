@@ -420,7 +420,7 @@ const char *qdev_get_printable_name(DeviceState *vdev)
      * names.
      */
     if (vdev->id) {
-        return vdev->id;
+        return g_strdup(vdev->id);
     }
     /*
      * Fall back to the canonical QOM device path (eg. ID for PCI
@@ -437,7 +437,7 @@ const char *qdev_get_printable_name(DeviceState *vdev)
      * Final fallback: if all else fails, return a placeholder string.
      * This ensures the error message always contains a valid string.
      */
-    return "<unknown device>";
+    return g_strdup("<unknown device>");
 }
 
 void qdev_add_unplug_blocker(DeviceState *dev, Error *reason)
