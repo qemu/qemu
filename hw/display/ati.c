@@ -214,6 +214,9 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
         uint8_t abits = vga_read_byte(vga, srcoff + i);
         uint8_t xbits = vga_read_byte(vga, srcoff + i + 8);
         for (j = 0; j < 8; j++, abits <<= 1, xbits <<= 1, idx++) {
+            if (vga->hw_cursor_x + idx >= h) {
+                return; /* end of screen, don't span to next line */
+            }
             if (abits & BIT(7)) {
                 if (xbits & BIT(7)) {
                     color = dp[idx] ^ 0xffffffff; /* complement */
@@ -223,9 +226,6 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
             } else {
                 color = (xbits & BIT(7) ? s->regs.cur_color1 :
                                           s->regs.cur_color0) | 0xff000000;
-            }
-            if (vga->hw_cursor_x + idx >= h) {
-                return; /* end of screen, don't span to next line */
             }
             dp[idx] = color;
         }
