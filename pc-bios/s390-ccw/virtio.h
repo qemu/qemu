@@ -239,6 +239,7 @@ struct VDev {
     SubChannelId schid;
     SenseId senseid;
     S390IplType ipl_type;
+    VirtioDevType dev_type;
     union {
         VirtioBlkConfig blk;
         VirtioScsiConfig scsi;
