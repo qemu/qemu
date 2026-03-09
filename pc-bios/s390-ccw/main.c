@@ -277,7 +277,8 @@ static void ipl_boot_device(void)
         break;
     case CU_TYPE_VIRTIO:
         if (virtio_setup() == 0) {
-            zipl_load();
+            zipl_load(); /* only return on error */
+            virtio_reset(virtio_get_device());
         }
         break;
     default:
