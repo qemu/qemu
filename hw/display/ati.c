@@ -1037,11 +1037,9 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         }
         s->host_data.acc[s->host_data.next++] = data;
         if (addr == HOST_DATA_LAST) {
-            qemu_log_mask(LOG_UNIMP, "HOST_DATA finish not yet implemented\n");
-            s->host_data.next = 0;
+            ati_host_data_finish(s);
         } else if (s->host_data.next >= 4) {
-            qemu_log_mask(LOG_UNIMP, "HOST_DATA flush not yet implemented\n");
-            s->host_data.next = 0;
+            ati_host_data_flush(s);
         }
         break;
     default:
