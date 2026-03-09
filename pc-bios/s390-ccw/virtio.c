@@ -17,6 +17,7 @@
 #include "virtio.h"
 #include "virtio-scsi.h"
 #include "virtio-ccw.h"
+#include "virtio-pci.h"
 #include "bswap.h"
 #include "helper.h"
 #include "s390-time.h"
@@ -96,7 +97,7 @@ void vring_init(VRing *vr, VqInfo *info)
     vr->avail->idx = 0;
 
     /* We're running with interrupts off anyways, so don't bother */
-    vr->used->flags = VRING_USED_F_NO_NOTIFY;
+    vr->used->flags = be_ipl() ? VRING_USED_F_NO_NOTIFY : bswap16(VRING_USED_F_NO_NOTIFY);
     vr->used->idx = 0;
     vr->used_idx = 0;
     vr->next_idx = 0;
@@ -112,6 +113,8 @@ bool vring_notify(VRing *vr)
     case S390_IPL_TYPE_CCW:
         vr->cookie = virtio_ccw_notify(vdev.schid, vr->id, vr->cookie);
         break;
+    case S390_IPL_TYPE_PCI:
+        vr->cookie = virtio_pci_notify(vr->id);
     default:
         return 1;
     }
@@ -119,11 +122,45 @@ bool vring_notify(VRing *vr)
     return vr->cookie >= 0;
 }
 
+/*
+ * Get endienness of the IPL type
+ * Return true for s390x native big-endian
+ */
+bool be_ipl(void)
+{
+    switch (virtio_get_device()->ipl_type) {
+    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW:
+        return true;
+    case S390_IPL_TYPE_PCI:
+        return false;
+    default:
+        return true;
+    }
+}
+
+/*
+ * Format the virtio ring descriptor endianness
+ * Return the available index increment in the appropriate endianness
+ */
+static void vr_bswap_descriptor(VRingDesc *desc)
+{
+    desc->addr = bswap64(desc->addr);
+    desc->len = bswap32(desc->len);
+    desc->flags = bswap16(desc->flags);
+    desc->next = bswap16(desc->next);
+}
+
 void vring_send_buf(VRing *vr, void *p, int len, int flags)
 {
+    if (!be_ipl()) {
+        vr->avail->idx = bswap16(vr->avail->idx);
+    }
+
     /* For follow-up chains we need to keep the first entry point */
     if (!(flags & VRING_HIDDEN_IS_CHAIN)) {
-        vr->avail->ring[vr->avail->idx % vr->num] = vr->next_idx;
+        vr->avail->ring[vr->avail->idx % vr->num] = be_ipl() ? vr->next_idx :
+                                                               bswap16(vr->next_idx);
     }
 
     vr->desc[vr->next_idx].addr = (unsigned long)p;
@@ -131,11 +168,20 @@ void vring_send_buf(VRing *vr, void *p, int len, int flags)
     vr->desc[vr->next_idx].flags = flags & ~VRING_HIDDEN_IS_CHAIN;
     vr->desc[vr->next_idx].next = vr->next_idx;
     vr->desc[vr->next_idx].next++;
+
+    if (!be_ipl()) {
+        vr_bswap_descriptor(&vr->desc[vr->next_idx]);
+    }
+
     vr->next_idx++;
 
     /* Chains only have a single ID */
     if (!(flags & VRING_DESC_F_NEXT)) {
         vr->avail->idx++;
+    }
+
+    if (!be_ipl()) {
+        vr->avail->idx = bswap16(vr->avail->idx);
     }
 }
 
@@ -147,7 +193,7 @@ int vr_poll(VRing *vr)
         return 0;
     }
 
-    vr->used_idx = vr->used->idx;
+    vr->used_idx = vr->used->idx; /* Endianness is preserved */
     vr->next_idx = 0;
     vr->desc[0].len = 0;
     vr->desc[0].flags = 0;
@@ -187,6 +233,8 @@ int virtio_reset(VDev *vdev)
     case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_ccw_reset(vdev);
+    case S390_IPL_TYPE_PCI:
+        return virtio_pci_reset(vdev);
     default:
         return -1;
     }

@@ -13,9 +13,21 @@
 #include "virtio.h"
 #include "virtio-scsi.h"
 #include "virtio-ccw.h"
+#include "virtio-pci.h"
+#include "bswap.h"
 
 #define VIRTIO_BLK_F_GEOMETRY   (1 << 4)
 #define VIRTIO_BLK_F_BLK_SIZE   (1 << 6)
+
+/*
+ * Format header for little endian IPL
+ */
+static void fmt_blk_hdr_le(VirtioBlkOuthdr *hdr)
+{
+    hdr->type = bswap32(hdr->type);
+    hdr->ioprio = bswap32(hdr->ioprio);
+    hdr->sector = bswap64(hdr->sector);
+}
 
 static int virtio_blk_read_many(VDev *vdev, unsigned long sector, void *load_addr,
                                 int sec_num)
@@ -28,6 +40,10 @@ static int virtio_blk_read_many(VDev *vdev, unsigned long sector, void *load_add
     out_hdr.type = VIRTIO_BLK_T_IN;
     out_hdr.ioprio = 99;
     out_hdr.sector = virtio_sector_adjust(sector);
+
+    if (!be_ipl()) {
+        fmt_blk_hdr_le(&out_hdr);
+    }
 
     vring_send_buf(vr, &out_hdr, sizeof(out_hdr), VRING_DESC_F_NEXT);
 
@@ -240,6 +256,8 @@ int virtio_blk_setup_device(VDev *vdev)
     case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_ccw_setup(vdev);
+    case S390_IPL_TYPE_PCI:
+        return virtio_pci_setup(vdev);
     default:
         return 1;
     }

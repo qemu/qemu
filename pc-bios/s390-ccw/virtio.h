@@ -273,6 +273,7 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+bool be_ipl(void);
 void vring_init(VRing *vr, VqInfo *info);
 bool virtio_is_supported(VDev *vdev);
 bool vring_notify(VRing *vr);

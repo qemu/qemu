@@ -26,7 +26,10 @@ union register_pair {
 };
 
 #define PCI_CFGBAR             0xF  /* Base Address Register for config space */
+#define PCI_CMD_REG            0x4  /* Offset of command register */
 #define PCI_CAPABILITY_LIST    0x34 /* Offset of first capability list entry */
+
+#define PCI_BUS_MASTER_MASK    0x0020 /* LE bit 3 of 16 bit register */
 
 int pci_write(uint32_t fhandle, uint64_t offset, uint8_t pcias, uint64_t data,
               uint8_t len);
