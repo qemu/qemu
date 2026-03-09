@@ -363,14 +363,16 @@
 #     to the export before completion is signalled.  (since: 5.2;
 #     default: false)
 #
-# @iothread: The name of the iothread object where the export will
-#     run.  The default is to use the thread currently associated with
-#     the block node.  (since: 5.2)
+# @iothread: The name(s) of one or more iothread object(s) where the
+#     export will run.  The default is to use the thread currently
+#     associated with the block node.  (since: 5.2; multi-threading
+#     since 10.1)
 #
 # @fixed-iothread: True prevents the block node from being moved to
 #     another thread while the export is active.  If true and
 #     @iothread is given, export creation fails if the block node
-#     cannot be moved to the iothread.  The default is false.
+#     cannot be moved to the iothread.  Must not be true when giving
+#     multiple iothreads for @iothread.  The default is false.
 #     (since: 5.2)
 #
 # @allow-inactive: If true, the export allows the exported node to be
@@ -387,7 +389,7 @@
   'base': { 'type': 'BlockExportType',
             'id': 'str',
             '*fixed-iothread': 'bool',
-            '*iothread': 'str',
+            '*iothread': 'BlockExportIothreads',
             'node-name': 'str',
             '*writable': 'bool',
             '*writethrough': 'bool',
@@ -402,6 +404,30 @@
       'vduse-blk': { 'type': 'BlockExportOptionsVduseBlk',
                      'if': 'CONFIG_VDUSE_BLK_EXPORT' }
    } }
+
+##
+# @BlockExportIothreads:
+#
+# Specify a single or multiple I/O threads in which to run a block
+# export's I/O.
+#
+# @single: Run the export's I/O in the given single I/O thread.
+#
+# @multi: Use multi-threading across the given set of I/O threads,
+#     which must not be empty.  Note: Passing a single I/O thread via
+#     this variant is still treated as multi-threading, which is
+#     different from using the @single variant.  In particular, even
+#     if there only is a single I/O thread in the set, export types
+#     that do not support multi-threading will generally reject this
+#     variant, and BlockExportOptions.fixed-iothread is always
+#     incompatible with it.
+#
+# Since: 10.1
+##
+{ 'alternate': 'BlockExportIothreads',
+  'data': {
+      'single': 'str',
+      'multi': ['str'] } }
 
 ##
 # @block-export-add:
