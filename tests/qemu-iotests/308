@@ -296,7 +296,8 @@ orig_disk_usage=$(disk_usage "$TEST_IMG")
 # Should fail (exports are non-growable by default)
 # (Note that qemu-io can never write beyond the EOF, so we have to use
 # dd here)
-dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$orig_len 2>&1 \
+dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$orig_len \
+    conv=notrunc 2>&1 \
     | _filter_testdir | _filter_imgfmt
 
 echo
@@ -333,7 +334,7 @@ fuse_export_add \
     'node-protocol'
 
 # Now we should be able to write beyond the EOF
-dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$new_len 2>&1 \
+dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$new_len conv=notrunc 2>&1 \
     | _filter_testdir | _filter_imgfmt
 
 new_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
