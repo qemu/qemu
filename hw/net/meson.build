@@ -66,7 +66,8 @@ system_ss.add(when: 'CONFIG_ROCKER', if_true: files(
   'rocker/rocker_fp.c',
   'rocker/rocker_of_dpa.c',
   'rocker/rocker_world.c',
-), if_false: files('rocker/qmp-norocker.c'))
+))
+stub_ss.add(files('rocker/rocker-stubs.c'))
 system_ss.add(files('rocker/rocker-hmp-cmds.c'))
 
 subdir('can')

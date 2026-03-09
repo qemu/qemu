@@ -7,7 +7,7 @@ system_ss.add(when: 'CONFIG_CXL',
                    'cxl-cdat.c',
                    'cxl-events.c',
                    'switch-mailbox-cci.c',
-               ),
-               if_false: files(
+               ))
+stub_ss.add(files(
                    'cxl-host-stubs.c',
                ))

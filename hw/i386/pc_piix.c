@@ -668,15 +668,6 @@ static void pc_i440fx_machine_3_1_options(MachineClass *m)
 
 DEFINE_I440FX_MACHINE(3, 1);
 
-static void pc_i440fx_machine_3_0_options(MachineClass *m)
-{
-    pc_i440fx_machine_3_1_options(m);
-    compat_props_add(m->compat_props, hw_compat_3_0, hw_compat_3_0_len);
-    compat_props_add(m->compat_props, pc_compat_3_0, pc_compat_3_0_len);
-}
-
-DEFINE_I440FX_MACHINE(3, 0);
-
 #ifdef CONFIG_XEN
 static void xenfv_machine_4_2_options(MachineClass *m)
 {

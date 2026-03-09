@@ -73,15 +73,6 @@
 #include "hw/xen/xen-bus.h"
 #endif
 
-/*
- * Helper for setting model-id for CPU models that changed model-id
- * depending on QEMU versions up to QEMU 2.4.
- */
-#define PC_CPU_MODEL_IDS(v) \
-    { "qemu32-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },\
-    { "qemu64-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },\
-    { "athlon-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },
-
 GlobalProperty pc_compat_10_2[] = {};
 const size_t pc_compat_10_2_len = G_N_ELEMENTS(pc_compat_10_2);
 
@@ -213,13 +204,6 @@ GlobalProperty pc_compat_3_1[] = {
     { TYPE_X86_CPU, "x-intel-pt-auto-level", "off" },
 };
 const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
-
-GlobalProperty pc_compat_3_0[] = {
-    { TYPE_X86_CPU, "x-hv-synic-kvm-only", "on" },
-    { "Skylake-Server" "-" TYPE_X86_CPU, "pku", "off" },
-    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "pku", "off" },
-};
-const size_t pc_compat_3_0_len = G_N_ELEMENTS(pc_compat_3_0);
 
 /*
  * @PC_FW_DATA:

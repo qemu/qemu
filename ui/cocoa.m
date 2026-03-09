@@ -627,7 +627,10 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     [[self window] setContentAspectRatio:NSMakeSize(screen.width, screen.height)];
 
     if (!([[self window] styleMask] & NSWindowStyleMaskResizable)) {
-        [[self window] setContentSize:NSMakeSize(screen.width, screen.height)];
+        CGFloat width = screen.width / [[self window] backingScaleFactor];
+        CGFloat height = screen.height / [[self window] backingScaleFactor];
+
+        [[self window] setContentSize:NSMakeSize(width, height)];
         [[self window] center];
     } else if ([[self window] styleMask] & NSWindowStyleMaskFullScreen) {
         [[self window] setContentSize:[self fixAspectRatio:[self screenSafeAreaSize]]];
@@ -685,8 +688,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
     info.xoff = 0;
     info.yoff = 0;
-    info.width = frameSize.width;
-    info.height = frameSize.height;
+    info.width = frameSize.width * [[self window] backingScaleFactor];
+    info.height = frameSize.height * [[self window] backingScaleFactor];
 
     dpy_set_ui_info(dcl.con, &info, TRUE);
 }

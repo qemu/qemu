@@ -25,12 +25,14 @@
 #include "hw/acpi/acpi.h"
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
+#include "qemu/queue.h"
 #include "system/numa.h"
 #include "hw/core/boards.h"
 #include "hw/acpi/tpm.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/acpi/acpi_aml_interface.h"
 #include "qemu/cutils.h"
 
 static GArray *build_alloc_array(void)
@@ -2646,4 +2648,13 @@ Aml *aml_error_device(void)
     aml_append(dev, aml_name_decl("_UID", aml_int(0)));
 
     return dev;
+}
+
+void qbus_build_aml(BusState *bus, Aml *scope)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        call_dev_aml_func(DEVICE(kid->child), scope);
+    }
 }

@@ -19,4 +19,4 @@ pci_ss.add(files('pcie_doe.c'))
 system_ss.add(when: 'CONFIG_PCI_EXPRESS', if_true: files('pcie_port.c', 'pcie_host.c'))
 system_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
-system_ss.add(when: 'CONFIG_PCI', if_false: files('pci-stub.c'))
+stub_ss.add(files('pci-stub.c'))

@@ -8,7 +8,7 @@
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
-    return "hppa";
+    return "pa-7300lc";
 }
 
 const char *get_elf_platform(CPUState *cs)
