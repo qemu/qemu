@@ -156,6 +156,7 @@ typedef struct FuseExport {
     /* Whether allow_other was used as a mount option or not */
     bool allow_other;
 
+    /* All atomic */
     mode_t st_mode;
     uid_t st_uid;
     gid_t st_gid;
@@ -266,6 +267,7 @@ static int fuse_export_create(BlockExport *blk_exp,
     ERRP_GUARD(); /* ensure clean-up even with error_fatal */
     FuseExport *exp = container_of(blk_exp, FuseExport, common);
     BlockExportOptionsFuse *args = &blk_exp_args->u.fuse;
+    uint32_t st_mode;
     int ret;
 
     assert(blk_exp_args->type == BLOCK_EXPORT_TYPE_FUSE);
@@ -334,12 +336,13 @@ static int fuse_export_create(BlockExport *blk_exp,
         args->allow_other = FUSE_EXPORT_ALLOW_OTHER_AUTO;
     }
 
-    exp->st_mode = S_IFREG | S_IRUSR;
+    st_mode = S_IFREG | S_IRUSR;
     if (exp->writable) {
-        exp->st_mode |= S_IWUSR;
+        st_mode |= S_IWUSR;
     }
-    exp->st_uid = getuid();
-    exp->st_gid = getgid();
+    qatomic_set(&exp->st_mode, st_mode);
+    qatomic_set(&exp->st_uid, getuid());
+    qatomic_set(&exp->st_gid, getgid());
 
     if (args->allow_other == FUSE_EXPORT_ALLOW_OTHER_AUTO) {
         /* Try allow_other == true first, ignore errors */
@@ -817,10 +820,10 @@ fuse_co_getattr(FuseExport *exp, struct fuse_attr_out *out)
         .attr_valid = 1,
         .attr = {
             .ino        = 1,
-            .mode       = exp->st_mode,
+            .mode       = qatomic_read(&exp->st_mode),
             .nlink      = 1,
-            .uid        = exp->st_uid,
-            .gid        = exp->st_gid,
+            .uid        = qatomic_read(&exp->st_uid),
+            .gid        = qatomic_read(&exp->st_gid),
             .size       = length,
             .blksize    = blk_bs(exp->common.blk)->bl.request_alignment,
             .blocks     = allocated_blocks,
@@ -903,15 +906,15 @@ fuse_co_setattr(FuseExport *exp, struct fuse_attr_out *out, uint32_t to_set,
 
     if (to_set & FATTR_MODE) {
         /* Ignore FUSE-supplied file type, only change the mode */
-        exp->st_mode = (mode & 07777) | S_IFREG;
+        qatomic_set(&exp->st_mode, (mode & 07777) | S_IFREG);
     }
 
     if (to_set & FATTR_UID) {
-        exp->st_uid = uid;
+        qatomic_set(&exp->st_uid, uid);
     }
 
     if (to_set & FATTR_GID) {
-        exp->st_gid = gid;
+        qatomic_set(&exp->st_gid, gid);
     }
 
     return fuse_co_getattr(exp, out);
