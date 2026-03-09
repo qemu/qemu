@@ -503,44 +503,14 @@ static void fuse_getattr(fuse_req_t req, fuse_ino_t inode,
 static int fuse_do_truncate(const FuseExport *exp, int64_t size,
                             bool req_zero_write, PreallocMode prealloc)
 {
-    uint64_t blk_perm, blk_shared_perm;
     BdrvRequestFlags truncate_flags = 0;
-    bool add_resize_perm;
-    int ret, ret_check;
-
-    /* Growable and writable exports have a permanent RESIZE permission */
-    add_resize_perm = !exp->growable && !exp->writable;
 
     if (req_zero_write) {
         truncate_flags |= BDRV_REQ_ZERO_WRITE;
     }
 
-    if (add_resize_perm) {
-        if (!qemu_in_main_thread()) {
-            /* Changing permissions like below only works in the main thread */
-            return -EPERM;
-        }
-
-        blk_get_perm(exp->common.blk, &blk_perm, &blk_shared_perm);
-
-        ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
-                           blk_shared_perm, NULL);
-        if (ret < 0) {
-            return ret;
-        }
-    }
-
-    ret = blk_truncate(exp->common.blk, size, true, prealloc,
-                       truncate_flags, NULL);
-
-    if (add_resize_perm) {
-        /* Must succeed, because we are only giving up the RESIZE permission */
-        ret_check = blk_set_perm(exp->common.blk, blk_perm,
-                                 blk_shared_perm, &error_abort);
-        assert(ret_check == 0);
-    }
-
-    return ret;
+    return blk_truncate(exp->common.blk, size, true, prealloc,
+                        truncate_flags, NULL);
 }
 
 /**
