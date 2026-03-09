@@ -158,7 +158,10 @@
 #
 # @completed: migration is finished.
 #
-# @failed: some error occurred during migration process.
+# @failing: error occurred during migration, clean-up underway.
+#     (since 11.0)
+#
+# @failed: error occurred during migration, clean-up done.
 #
 # @colo: VM is in the process of fault tolerance, VM can not get into
 #     this state unless colo capability is enabled for migration.
@@ -181,8 +184,8 @@
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
             'active', 'postcopy-device', 'postcopy-active',
             'postcopy-paused', 'postcopy-recover-setup',
-            'postcopy-recover', 'completed', 'failed', 'colo',
-            'pre-switchover', 'device', 'wait-unplug' ] }
+            'postcopy-recover', 'completed', 'failing', 'failed',
+            'colo', 'pre-switchover', 'device', 'wait-unplug' ] }
 
 ##
 # @VfioStats:

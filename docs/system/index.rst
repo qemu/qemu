@@ -42,3 +42,4 @@ or Hypervisor.Framework.
    nitro
    vm-templating
    sriov
+   qemu-colo

@@ -3880,12 +3880,14 @@ F: include/qemu/yank.h
 F: qapi/yank.json
 
 COLO Framework
-M: Hailiang Zhang <zhanghailiang@xfusion.com>
+M: Lukas Straub <lukasstraub2@web.de>
 S: Maintained
 F: migration/colo*
+F: migration/multifd-colo.*
 F: include/migration/colo.h
 F: include/migration/failover.h
-F: docs/COLO-FT.txt
+F: tests/qtest/migration/colo-tests.c
+F: docs/system/qemu-colo.rst
 
 COLO Proxy
 M: Zhang Chen <zhangckid@gmail.com>

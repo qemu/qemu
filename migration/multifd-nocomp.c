@@ -16,6 +16,7 @@
 #include "file.h"
 #include "migration-stats.h"
 #include "multifd.h"
+#include "multifd-colo.h"
 #include "options.h"
 #include "migration.h"
 #include "qapi/error.h"
@@ -269,7 +270,6 @@ int multifd_ram_unfill_packet(MultiFDRecvParams *p, Error **errp)
         return -1;
     }
 
-    p->host = p->block->host;
     for (i = 0; i < p->normal_num; i++) {
         uint64_t offset = be64_to_cpu(packet->offset[i]);
 
@@ -292,6 +292,14 @@ int multifd_ram_unfill_packet(MultiFDRecvParams *p, Error **errp)
             return -1;
         }
         p->zero[i] = offset;
+    }
+
+    if (migrate_colo()) {
+        multifd_colo_prepare_recv(p);
+        assert(p->block->colo_cache);
+        p->host = p->block->colo_cache;
+    } else {
+        p->host = p->block->host;
     }
 
     return 0;
