@@ -250,8 +250,7 @@ S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
     return NULL;
 }
 
-static S390PCIBusDevice *s390_pci_find_dev_by_pci(S390pciState *s,
-                                                  PCIDevice *pci_dev)
+S390PCIBusDevice *s390_pci_find_dev_by_pci(S390pciState *s, PCIDevice *pci_dev)
 {
     S390PCIBusDevice *pbdev;
 
