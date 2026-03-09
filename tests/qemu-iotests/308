@@ -300,16 +300,34 @@ dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$orig_len \
     conv=notrunc 2>&1 \
     | _filter_testdir | _filter_imgfmt
 
+# And one really squarely post-EOF write
+dd if=/dev/zero of="$EXT_MP" bs=1 count=1 seek=$((orig_len + 32 * 1024)) \
+    conv=notrunc 2>&1 \
+    | _filter_testdir | _filter_imgfmt
+
+# Half-post-EOF reads
+dd if="$EXT_MP" of=/dev/null bs=1 count=64k skip=$((orig_len - 32 * 1024)) \
+    2>&1 | _filter_testdir | _filter_imgfmt
+
+# And one really squarely post-EOF read
+dd if="$EXT_MP" of=/dev/null bs=1 count=1 skip=$((orig_len + 32 * 1024)) \
+    2>&1 | _filter_testdir | _filter_imgfmt
+
 echo
 echo '--- Resize export ---'
 
 # But we can truncate it explicitly; even with fallocate
-fallocate -o "$orig_len" -l 64k "$EXT_MP"
+# (Make sure we extend it to a length not divisible by 128k, we need that below)
+bs=$((128 * 1024))
+extend_to=$(((orig_len + bs - 1) / bs * bs + bs / 2))
+extend_by=$((extend_to - orig_len))
+
+fallocate -o "$orig_len" -l $extend_by "$EXT_MP"
 
 new_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
-if [ "$new_len" != "$((orig_len + 65536))" ]; then
+if [ "$new_len" != "$extend_to" ]; then
     echo 'ERROR: Unexpected post-truncate image size:'
-    echo "$new_len != $((orig_len + 65536))"
+    echo "$new_len != $extend_to"
 else
     echo 'OK: Post-truncate image size is as expected'
 fi
@@ -321,6 +339,13 @@ else
     echo 'ERROR: Disk usage did not grow despite fallocate:'
     echo "$orig_disk_usage => $new_disk_usage"
 fi
+
+# Use this opportunity to test a read access across the (now no longer so much
+# aligned) EOF.  dd can only do requests with a length of its block size, and
+# all of its seek/skip values are in bs units, so it is hard to do a request
+# across the EOF if the EOF is at a power of two (64M).
+dd if="$EXT_MP" of=/dev/null bs=$bs count=2 skip=$((extend_to / bs)) \
+    2>&1 | _filter_testdir | _filter_imgfmt
 
 echo
 echo '--- Try growing growable export ---'
@@ -338,9 +363,9 @@ dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$new_len conv=notrunc 2>&1 \
     | _filter_testdir | _filter_imgfmt
 
 new_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
-if [ "$new_len" != "$((orig_len + 131072))" ]; then
+if [ "$new_len" != "$((extend_to + 65536))" ]; then
     echo 'ERROR: Unexpected post-grow image size:'
-    echo "$new_len != $((orig_len + 131072))"
+    echo "$new_len != $((extend_to + 65536))"
 else
     echo 'OK: Post-grow image size is as expected'
 fi

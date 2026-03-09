@@ -134,11 +134,21 @@ wrote 65536/65536 bytes at offset 1048576
 dd: error writing 'TEST_DIR/t.IMGFMT.fuse': No space left on device
 1+0 records in
 0+0 records out
+dd: error writing 'TEST_DIR/t.IMGFMT.fuse': No space left on device
+1+0 records in
+0+0 records out
+32768+0 records in
+32768+0 records out
+dd: TEST_DIR/t.IMGFMT.fuse: cannot skip to specified offset
+0+0 records in
+0+0 records out
 
 --- Resize export ---
 (OK: Lengths of export and original are the same)
 OK: Post-truncate image size is as expected
 OK: Disk usage grew with fallocate
+0+1 records in
+0+1 records out
 
 --- Try growing growable export ---
 {'execute': 'block-export-del',

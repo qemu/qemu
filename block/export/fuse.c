@@ -657,6 +657,16 @@ static void fuse_read(fuse_req_t req, fuse_ino_t inode,
         return;
     }
 
+    if (offset >= blk_len) {
+        /*
+         * Technically libfuse does not allow returning a zero error code for
+         * read requests, but in practice this is a 0-length read (and a future
+         * commit will change this code anyway)
+         */
+        fuse_reply_err(req, 0);
+        return;
+    }
+
     if (offset + size > blk_len) {
         size = blk_len - offset;
     }
@@ -717,7 +727,15 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
         return;
     }
 
-    if (offset + size > blk_len) {
+    if (offset >= blk_len && !exp->growable) {
+        fuse_reply_write(req, 0);
+        return;
+    }
+
+    if (offset + size < offset) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    } else if (offset + size > blk_len) {
         if (exp->growable) {
             ret = fuse_do_truncate(exp, offset + size, true, PREALLOC_MODE_OFF);
             if (ret < 0) {
