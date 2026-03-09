@@ -177,34 +177,6 @@ const size_t pc_compat_4_2_len = G_N_ELEMENTS(pc_compat_4_2);
 GlobalProperty pc_compat_4_1[] = {};
 const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 
-GlobalProperty pc_compat_4_0[] = {};
-const size_t pc_compat_4_0_len = G_N_ELEMENTS(pc_compat_4_0);
-
-GlobalProperty pc_compat_3_1[] = {
-    { "intel-iommu", "dma-drain", "off" },
-    { "Opteron_G3" "-" TYPE_X86_CPU, "rdtscp", "off" },
-    { "Opteron_G4" "-" TYPE_X86_CPU, "rdtscp", "off" },
-    { "Opteron_G4" "-" TYPE_X86_CPU, "npt", "off" },
-    { "Opteron_G4" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "Opteron_G5" "-" TYPE_X86_CPU, "rdtscp", "off" },
-    { "Opteron_G5" "-" TYPE_X86_CPU, "npt", "off" },
-    { "Opteron_G5" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "EPYC" "-" TYPE_X86_CPU, "npt", "off" },
-    { "EPYC" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "EPYC-IBPB" "-" TYPE_X86_CPU, "npt", "off" },
-    { "EPYC-IBPB" "-" TYPE_X86_CPU, "nrip-save", "off" },
-    { "Skylake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Skylake-Client-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
-    { "Skylake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
-    { "Cascadelake-Server" "-" TYPE_X86_CPU,  "mpx", "on" },
-    { "Icelake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Icelake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
-    { "Cascadelake-Server" "-" TYPE_X86_CPU, "stepping", "5" },
-    { TYPE_X86_CPU, "x-intel-pt-auto-level", "off" },
-};
-const size_t pc_compat_3_1_len = G_N_ELEMENTS(pc_compat_3_1);
-
 /*
  * @PC_FW_DATA:
  * Size of the chunk of memory at the top of RAM for the BIOS ACPI tables
@@ -588,7 +560,6 @@ void xen_load_linux(PCMachineState *pcms)
 {
     int i;
     FWCfgState *fw_cfg;
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
 
     assert(MACHINE(pcms)->kernel_filename != NULL);
@@ -598,7 +569,7 @@ void xen_load_linux(PCMachineState *pcms)
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, x86ms->boot_cpus);
     rom_set_fw(fw_cfg);
 
-    x86_load_linux(x86ms, fw_cfg, PC_FW_DATA, pcmc->pvh_enabled);
+    x86_load_linux(x86ms, fw_cfg, PC_FW_DATA);
     for (i = 0; i < nb_option_roms; i++) {
         assert(!strcmp(option_rom[i].name, "linuxboot_dma.bin") ||
                !strcmp(option_rom[i].name, "pvh.bin") ||
@@ -932,7 +903,7 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     if (linux_boot) {
-        x86_load_linux(x86ms, fw_cfg, PC_FW_DATA, pcmc->pvh_enabled);
+        x86_load_linux(x86ms, fw_cfg, PC_FW_DATA);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
@@ -1673,7 +1644,6 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
     pcmc->has_reserved_memory = true;
     pcmc->enforce_amd_1tb_hole = true;
     pcmc->isa_bios_alias = true;
-    pcmc->pvh_enabled = true;
     pcmc->kvmclock_create_always = true;
     x86mc->apic_xrupt_override = true;
     assert(!mc->get_hotplug_handler);

@@ -2457,9 +2457,6 @@ struct ArchCPU {
     /* Only advertise TOPOEXT features that AMD defines */
     bool amd_topoext_features_only;
 
-    /* Enable auto level-increase for Intel Processor Trace leave */
-    bool intel_pt_auto_level;
-
     /* if true fill the top bits of the MTRR_PHYSMASKn variable range */
     bool fill_mtrr_mask;
 

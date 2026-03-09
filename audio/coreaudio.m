@@ -272,7 +272,7 @@ static int coreaudio_buf_unlock(coreaudioVoiceOut *core, const char *fn_name)
 #define COREAUDIO_WRAPPER_FUNC(name, ret_type, args_decl, args) \
     static ret_type glue(coreaudio_, name)args_decl             \
     {                                                           \
-        coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;     \
+        coreaudioVoiceOut *core = (coreaudioVoiceOut *)hw;      \
         ret_type ret;                                           \
                                                                 \
         if (coreaudio_buf_lock(core, "coreaudio_" #name)) {         \
@@ -310,16 +310,16 @@ static OSStatus audioDeviceIOProc(
     UInt32 frameCount, pending_frames;
     void *out = outOutputData->mBuffers[0].mData;
     HWVoiceOut *hw = hwptr;
-    coreaudioVoiceOut *core = (coreaudioVoiceOut *) hwptr;
+    coreaudioVoiceOut *core = hwptr;
     size_t len;
 
-    if (coreaudio_buf_lock (core, "audioDeviceIOProc")) {
+    if (coreaudio_buf_lock(core, "audioDeviceIOProc")) {
         inInputTime = 0;
         return 0;
     }
 
     if (inDevice != core->outputDeviceID) {
-        coreaudio_buf_unlock (core, "audioDeviceIOProc(old device)");
+        coreaudio_buf_unlock(core, "audioDeviceIOProc(old device)");
         return 0;
     }
 
@@ -329,7 +329,7 @@ static OSStatus audioDeviceIOProc(
     /* if there are not enough samples, set signal and return */
     if (pending_frames < frameCount) {
         inInputTime = 0;
-        coreaudio_buf_unlock (core, "audioDeviceIOProc(empty)");
+        coreaudio_buf_unlock(core, "audioDeviceIOProc(empty)");
         return 0;
     }
 
@@ -349,7 +349,7 @@ static OSStatus audioDeviceIOProc(
         out += write_len;
     }
 
-    coreaudio_buf_unlock (core, "audioDeviceIOProc");
+    coreaudio_buf_unlock(core, "audioDeviceIOProc");
     return 0;
 }
 
@@ -394,11 +394,11 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     }
 
     if (frameRange.mMinimum > core->frameSizeSetting) {
-        core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMinimum;
+        core->audioDevicePropertyBufferFrameSize = frameRange.mMinimum;
         warn_report("coreaudio: Upsizing buffer frames to %f",
                     frameRange.mMinimum);
     } else if (frameRange.mMaximum < core->frameSizeSetting) {
-        core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMaximum;
+        core->audioDevicePropertyBufferFrameSize = frameRange.mMaximum;
         warn_report("coreaudio: Downsizing buffer frames to %f",
                     frameRange.mMaximum);
     } else {
@@ -563,7 +563,7 @@ static OSStatus handle_voice_change(
 static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as)
 {
     OSStatus status;
-    coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
+    coreaudioVoiceOut *core = (coreaudioVoiceOut *)hw;
     int err;
     Audiodev *dev = hw->s->dev;
     AudiodevCoreaudioPerDirectionOptions *cpdo = dev->u.coreaudio.out;
@@ -579,7 +579,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as)
     obt_as = *as;
     as = &obt_as;
     as->fmt = AUDIO_FORMAT_F32;
-    audio_pcm_init_info (&hw->info, as);
+    audio_pcm_init_info(&hw->info, as);
 
     core->frameSizeSetting = audio_buffer_frames(
         qapi_AudiodevCoreaudioPerDirectionOptions_base(cpdo), as, 11610);
@@ -615,7 +615,7 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
 {
     OSStatus status;
     int err;
-    coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
+    coreaudioVoiceOut *core = (coreaudioVoiceOut *)hw;
 
     status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
                                                &voice_addr,
@@ -636,7 +636,7 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
 
 static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
 {
-    coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
+    coreaudioVoiceOut *core = (coreaudioVoiceOut *)hw;
 
     core->enabled = enable;
     update_device_playback_state(core);

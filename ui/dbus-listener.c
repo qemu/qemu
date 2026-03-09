@@ -815,8 +815,7 @@ static void ddl_scanout(DBusDisplayListener *ddl)
     qemu_dbus_display1_listener_call_scanout(
         ddl->proxy, surface_width(ddl->ds), surface_height(ddl->ds),
         surface_stride(ddl->ds), surface_format(ddl->ds), v_data,
-        G_DBUS_CALL_FLAGS_NONE, DBUS_DEFAULT_TIMEOUT, NULL, NULL,
-        g_object_ref(ddl));
+        G_DBUS_CALL_FLAGS_NONE, DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
 static void dbus_gfx_update(DisplayChangeListener *dcl,
@@ -961,18 +960,18 @@ dbus_display_listener_dispose(GObject *object)
     g_clear_object(&ddl->conn);
     g_clear_pointer(&ddl->bus_name, g_free);
     g_clear_object(&ddl->proxy);
-#ifdef WIN32
     g_clear_object(&ddl->map_proxy);
+#ifdef WIN32
     g_clear_object(&ddl->d3d11_proxy);
     g_clear_pointer(&ddl->peer_process, CloseHandle);
-#ifdef CONFIG_PIXMAN
-    pixman_region32_fini(&ddl->gl_damage);
-#endif
 #ifdef CONFIG_OPENGL
     egl_fb_destroy(&ddl->fb);
 #endif
 #else /* !WIN32 */
     g_clear_object(&ddl->scanout_dmabuf_v2_proxy);
+#endif
+#ifdef CONFIG_PIXMAN
+    pixman_region32_fini(&ddl->gl_damage);
 #endif
 
     G_OBJECT_CLASS(dbus_display_listener_parent_class)->dispose(object);

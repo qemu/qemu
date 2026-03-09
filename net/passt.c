@@ -102,7 +102,9 @@ static void net_passt_cleanup(NetClientState *nc)
     }
 #endif
 
-    kill(s->pid, SIGTERM);
+    if (s->pid > 0) {
+        kill(s->pid, SIGTERM);
+    }
     if (g_remove(s->pidfile) != 0) {
         warn_report("Failed to remove passt pidfile %s: %s",
                     s->pidfile, strerror(errno));
@@ -268,8 +270,17 @@ static int net_passt_start_daemon(NetPasstState *s, int sock, Error **errp)
         return -1;
     }
 
-    if (g_subprocess_get_if_exited(daemon) &&
-        g_subprocess_get_exit_status(daemon)) {
+    if (g_subprocess_get_if_exited(daemon)) {
+        gint status = g_subprocess_get_exit_status(daemon);
+        if (status) {
+            error_setg(errp, "Passt exited with code %d", status);
+            return -1;
+        }
+    }
+
+    if (g_subprocess_get_if_signaled(daemon)) {
+        error_setg(errp, "Passt killed with signal %d",
+                   g_subprocess_get_term_sig(daemon));
         return -1;
     }
 

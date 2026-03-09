@@ -9565,13 +9565,7 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
     /* Intel Processor Trace requires CPUID[0x14] */
     if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT)) {
-        if (cpu->intel_pt_auto_level) {
-            x86_cpu_adjust_level(cpu, &cpu->env.cpuid_min_level, 0x14);
-        } else if (cpu->env.cpuid_min_level < 0x14) {
-            mark_unavailable_features(cpu, FEAT_7_0_EBX,
-                CPUID_7_0_EBX_INTEL_PT,
-                "Intel PT need CPUID leaf 0x14, please set by \"-cpu ...,intel-pt=on,min-level=0x14\"");
-        }
+        x86_cpu_adjust_level(cpu, &cpu->env.cpuid_min_level, 0x14);
     }
 
     /*
@@ -10589,8 +10583,6 @@ static const Property x86_cpu_properties[] = {
      * to the specific Windows version being used."
      */
     DEFINE_PROP_INT32("x-hv-max-vps", X86CPU, hv_max_vps, -1),
-    DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
-                     true),
     DEFINE_PROP_BOOL("x-l1-cache-per-thread", X86CPU, l1_cache_per_core, true),
     DEFINE_PROP_BOOL("x-force-cpuid-0x1f", X86CPU, force_cpuid_0x1f, false),
 

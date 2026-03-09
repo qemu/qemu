@@ -76,6 +76,7 @@ test_dbus_display_vm(void)
         qemu_dbus_display1_vm_get_name(QEMU_DBUS_DISPLAY1_VM(vm)),
         ==,
         "dbus-test");
+    g_clear_object(&conn);
     qtest_quit(qts);
 }
 
@@ -97,6 +98,8 @@ static gboolean listener_handle_scanout(
     GVariant *arg_data,
     TestDBusConsoleRegister *test)
 {
+    qemu_dbus_display1_listener_complete_scanout(object, invocation);
+
     if (!test->with_map) {
         g_main_loop_quit(test->loop);
     }
@@ -130,6 +133,9 @@ static gboolean listener_handle_scanout_map(
     addr = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, arg_offset);
     g_assert_no_errno(addr == MAP_FAILED ? -1 : 0);
     g_assert_no_errno(munmap(addr, len));
+
+    qemu_dbus_display1_listener_unix_map_complete_scanout_map(object, invocation,
+                                                              NULL);
 
     g_main_loop_quit(test->loop);
 
@@ -287,6 +293,7 @@ test_dbus_display_console(const void* data)
 
     g_clear_object(&test.server);
     g_clear_object(&test.listener_conn);
+    g_clear_object(&conn);
     qtest_quit(qts);
 }
 
@@ -322,6 +329,7 @@ test_dbus_display_keyboard(void)
         &err);
     if (g_error_matches(err, G_DBUS_ERROR, G_DBUS_ERROR_UNKNOWN_METHOD)) {
         g_test_skip("The VM doesn't have a console!");
+        g_clear_object(&conn);
         qtest_quit(qts);
         return;
     }
@@ -348,6 +356,7 @@ test_dbus_display_keyboard(void)
     g_assert_cmpint(qemu_dbus_display1_keyboard_get_modifiers(
                         QEMU_DBUS_DISPLAY1_KEYBOARD(keyboard)), ==, 0);
 
+    g_clear_object(&conn);
     qtest_quit(qts);
 }
 

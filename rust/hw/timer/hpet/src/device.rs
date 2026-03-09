@@ -627,8 +627,6 @@ pub struct HPETState {
     flags: u32,
 
     hpet_offset_migration: BqlCell<u64>,
-    #[property(rename = "hpet-offset-saved", default = true)]
-    hpet_offset_saved: bool,
 
     irqs: [InterruptSource; HPET_NUM_IRQ_ROUTES],
     rtc_irq_level: BqlCell<u32>,
@@ -947,11 +945,6 @@ impl HPETState {
             tn_regs.last = CLOCK_VIRTUAL.get_ns() - NANOSECONDS_PER_SECOND;
         }
 
-        // Recalculate the offset between the main counter and guest time
-        if !self.hpet_offset_saved {
-            self.hpet_offset_migration
-                .set(ticks_to_ns(regs.counter) - CLOCK_VIRTUAL.get_ns());
-        }
         regs.hpet_offset = self.hpet_offset_migration.get();
 
         Ok(())
@@ -962,7 +955,7 @@ impl HPETState {
     }
 
     fn is_offset_needed(&self) -> bool {
-        self.regs.borrow().is_hpet_enabled() && self.hpet_offset_saved
+        self.regs.borrow().is_hpet_enabled()
     }
 
     fn validate_num_timers(&self, _version_id: u8) -> bool {

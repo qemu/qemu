@@ -494,18 +494,6 @@ static bool pe_check_pdb_name(uint64_t base, void *start_addr,
     return !strcmp(pdb_name, PDB_NAME);
 }
 
-static void pe_get_pdb_symstore_hash(OMFSignatureRSDS *rsds, char *hash)
-{
-    sprintf(hash, "%.08x%.04x%.04x%.02x%.02x", rsds->guid.a, rsds->guid.b,
-            rsds->guid.c, rsds->guid.d[0], rsds->guid.d[1]);
-    hash += 20;
-    for (unsigned int i = 0; i < 6; i++, hash += 2) {
-        sprintf(hash, "%.02x", rsds->guid.e[i]);
-    }
-
-    sprintf(hash, "%.01x", rsds->age);
-}
-
 int main(int argc, char *argv[])
 {
     int err = 1;
@@ -517,9 +505,7 @@ int main(int argc, char *argv[])
     uint64_t KernBase;
     void *nt_start_addr = NULL;
     WinDumpHeader64 header;
-    char pdb_hash[34];
-    char pdb_url[] = SYM_URL_BASE PDB_NAME
-        "/0123456789ABCDEF0123456789ABCDEFx/" PDB_NAME;
+    g_autofree char *pdb_url = NULL;
     struct pdb_reader pdb;
     uint64_t KdDebuggerDataBlock;
     KDDEBUGGER_DATA64 *kdbg;
@@ -583,9 +569,21 @@ int main(int argc, char *argv[])
     printf("KernBase = 0x%016"PRIx64", signature is \'%.2s\'\n", KernBase,
             (char *)nt_start_addr);
 
-    pe_get_pdb_symstore_hash(&rsds, pdb_hash);
+    pdb_url = g_strdup_printf("%s"
+                              "%.08x%.04x%.04x"
+                              "%.02x%.02x"
+                              "%.02x%.02x"
+                              "%.02x%.02x"
+                              "%.02x%.02x%.01x"
+                              "%s",
+                              SYM_URL_BASE PDB_NAME "/",
+                              rsds.guid.a, rsds.guid.b, rsds.guid.c,
+                              rsds.guid.d[0], rsds.guid.d[1],
+                              rsds.guid.e[0], rsds.guid.e[1],
+                              rsds.guid.e[2], rsds.guid.e[3],
+                              rsds.guid.e[4], rsds.guid.e[5], rsds.age,
+                              "/" PDB_NAME);
 
-    sprintf(pdb_url, "%s%s/%s/%s", SYM_URL_BASE, PDB_NAME, pdb_hash, PDB_NAME);
     printf("PDB URL is %s\n", pdb_url);
 
     if (!download_url(PDB_NAME, pdb_url)) {

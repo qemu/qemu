@@ -122,7 +122,6 @@ struct VirtIOSoundPCMBuffer {
 };
 
 struct VirtIOSoundPCM {
-    VirtIOSound *snd;
     /*
      * PCM parameters are a separate field instead of a VirtIOSoundPCMStream
      * field, because the operation of PCM control requests is first
@@ -135,7 +134,6 @@ struct VirtIOSoundPCM {
 };
 
 struct VirtIOSoundPCMStream {
-    VirtIOSoundPCM *pcm;
     virtio_snd_pcm_info info;
     virtio_snd_pcm_set_params params;
     uint32_t id;
@@ -216,7 +214,7 @@ struct VirtIOSound {
 
     VirtQueue *queues[VIRTIO_SND_VQ_MAX];
     uint64_t features;
-    VirtIOSoundPCM *pcm;
+    VirtIOSoundPCM pcm;
     AudioBackend *audio_be;
     VMChangeStateEntry *vmstate;
     virtio_snd_config snd_conf;

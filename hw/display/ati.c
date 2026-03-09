@@ -198,7 +198,7 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
     ATIVGAState *s = container_of(vga, ATIVGAState, vga);
     uint32_t srcoff;
     uint32_t *dp = (uint32_t *)d;
-    int i, j, h;
+    int i, j, h, idx = 0;
 
     if (!(s->regs.crtc_gen_cntl & CRTC2_CUR_EN) ||
         scr_y < vga->hw_cursor_y || scr_y >= vga->hw_cursor_y + 64 ||
@@ -213,10 +213,13 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
         uint32_t color;
         uint8_t abits = vga_read_byte(vga, srcoff + i);
         uint8_t xbits = vga_read_byte(vga, srcoff + i + 8);
-        for (j = 0; j < 8; j++, abits <<= 1, xbits <<= 1) {
+        for (j = 0; j < 8; j++, abits <<= 1, xbits <<= 1, idx++) {
+            if (vga->hw_cursor_x + idx >= h) {
+                return; /* end of screen, don't span to next line */
+            }
             if (abits & BIT(7)) {
                 if (xbits & BIT(7)) {
-                    color = dp[i * 8 + j] ^ 0xffffffff; /* complement */
+                    color = dp[idx] ^ 0xffffffff; /* complement */
                 } else {
                     continue; /* transparent, no change */
                 }
@@ -224,10 +227,7 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
                 color = (xbits & BIT(7) ? s->regs.cur_color1 :
                                           s->regs.cur_color0) | 0xff000000;
             }
-            if (vga->hw_cursor_x + i * 8 + j >= h) {
-                return; /* end of screen, don't span to next line */
-            }
-            dp[i * 8 + j] = color;
+            dp[idx] = color;
         }
     }
 }
@@ -1023,6 +1023,25 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case SRC_SC_BOTTOM:
         s->regs.src_sc_bottom = data & 0x3fff;
         break;
+    case HOST_DATA0:
+    case HOST_DATA1:
+    case HOST_DATA2:
+    case HOST_DATA3:
+    case HOST_DATA4:
+    case HOST_DATA5:
+    case HOST_DATA6:
+    case HOST_DATA7:
+    case HOST_DATA_LAST:
+        if (!s->host_data.active) {
+            break;
+        }
+        s->host_data.acc[s->host_data.next++] = data;
+        if (addr == HOST_DATA_LAST) {
+            ati_host_data_finish(s);
+        } else if (s->host_data.next >= 4) {
+            ati_host_data_flush(s);
+        }
+        break;
     default:
         break;
     }
@@ -1128,6 +1147,11 @@ static void ati_vga_reset(DeviceState *dev)
     /* reset vga */
     vga_common_reset(&s->vga);
     s->mode = VGA_MODE;
+
+    s->host_data.active = false;
+    s->host_data.next = 0;
+    s->host_data.row = 0;
+    s->host_data.col = 0;
 }
 
 static void ati_vga_exit(PCIDevice *dev)

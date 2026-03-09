@@ -196,10 +196,6 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void dummy_cpu_set_irq(void *opaque, int irq, int level)
-{
-}
-
 static void sun4m_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
@@ -344,7 +340,8 @@ static void *sparc32_dma_init(hwaddr dma_base,
 
 static DeviceState *slavio_intctl_init(hwaddr addr,
                                        hwaddr addrg,
-                                       qemu_irq **parent_irq)
+                                       unsigned int smp_cpus,
+                                       DeviceState **cpus)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -355,9 +352,10 @@ static DeviceState *slavio_intctl_init(hwaddr addr,
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
-    for (i = 0; i < MAX_CPUS; i++) {
+    for (i = 0; i < smp_cpus; i++) {
         for (j = 0; j < MAX_PILS; j++) {
-            sysbus_connect_irq(s, i * MAX_PILS + j, parent_irq[i][j]);
+            sysbus_connect_irq(s, i * MAX_PILS + j,
+                               qdev_get_gpio_in_named(cpus[i], "pil", j));
         }
     }
     sysbus_mmio_map(s, 0, addrg);
@@ -788,22 +786,25 @@ static const TypeInfo ram_info = {
     .class_init    = ram_class_init,
 };
 
-static void cpu_devinit(const char *cpu_type, unsigned int id,
-                        uint64_t prom_addr, qemu_irq **cpu_irqs)
+static DeviceState *cpu_devinit(const char *cpu_type, unsigned int id,
+                                uint64_t prom_addr)
 {
     SPARCCPU *cpu;
     CPUSPARCState *env;
+    DeviceState *cpudev;
 
     cpu = SPARC_CPU(object_new(cpu_type));
     env = &cpu->env;
+    cpudev = DEVICE(cpu);
 
     qemu_register_reset(sun4m_cpu_reset, cpu);
     object_property_set_bool(OBJECT(cpu), "start-powered-off", id != 0,
                              &error_abort);
-    qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+    qdev_init_gpio_in_named(cpudev, cpu_set_irq, "pil", MAX_PILS);
+    qdev_realize_and_unref(cpudev, NULL, &error_fatal);
     cpu_sparc_set_id(env, id);
-    *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);
     env->prom_addr = prom_addr;
+    return cpudev;
 }
 
 static void dummy_fdc_tc(void *opaque, int irq, int level)
@@ -816,13 +817,14 @@ static void sun4m_hw_init(MachineState *machine)
     DeviceState *slavio_intctl;
     unsigned int i;
     Nvram *nvram;
-    qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
+    qemu_irq slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
     qemu_irq fdc_tc;
     unsigned long kernel_size;
     uint32_t initrd_size;
     DriveInfo *fd[MAX_FD];
     FWCfgState *fw_cfg;
     DeviceState *dev, *ms_kb_orgate, *serial_orgate;
+    DeviceState *cpus[MAX_CPUS];
     SysBusDevice *s;
     unsigned int smp_cpus = machine->smp.cpus;
     unsigned int max_cpus = machine->smp.max_cpus;
@@ -838,11 +840,8 @@ static void sun4m_hw_init(MachineState *machine)
 
     /* init CPUs */
     for(i = 0; i < smp_cpus; i++) {
-        cpu_devinit(machine->cpu_type, i, hwdef->slavio_base, &cpu_irqs[i]);
+        cpus[i] = cpu_devinit(machine->cpu_type, i, hwdef->slavio_base);
     }
-
-    for (i = smp_cpus; i < MAX_CPUS; i++)
-        cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
     /* Create and map RAM frontend */
     dev = qdev_new("memory");
@@ -860,7 +859,8 @@ static void sun4m_hw_init(MachineState *machine)
 
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000ULL,
-                                       cpu_irqs);
+                                       smp_cpus,
+                                       cpus);
 
     for (i = 0; i < 32; i++) {
         slavio_irq[i] = qdev_get_gpio_in(slavio_intctl, i);

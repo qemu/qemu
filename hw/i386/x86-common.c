@@ -642,8 +642,7 @@ static bool load_elfboot(const char *kernel_filename,
 
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
-                    int acpi_data_size,
-                    bool pvh_enabled)
+                    int acpi_data_size)
 {
     uint16_t protocol;
     int setup_size, kernel_size, cmdline_size;
@@ -704,8 +703,7 @@ void x86_load_linux(X86MachineState *x86ms,
          * saving the PVH entry point used by the x86/HVM direct boot ABI.
          * If load_elfboot() is successful, populate the fw_cfg info.
          */
-        if (pvh_enabled &&
-            load_elfboot(kernel_filename, kernel_size,
+        if (load_elfboot(kernel_filename, kernel_size,
                          header, pvh_start_addr, fw_cfg)) {
             fclose(f);
 

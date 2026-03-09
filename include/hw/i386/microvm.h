@@ -79,7 +79,7 @@ struct MicrovmMachineClass {
     HotplugHandler *(*orig_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
     void (*x86_load_linux)(X86MachineState *x86ms, FWCfgState *fw_cfg,
-                        int acpi_data_size, bool pvh_enabled);
+                           int acpi_data_size);
 };
 
 struct MicrovmMachineState {

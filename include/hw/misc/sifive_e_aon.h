@@ -46,7 +46,7 @@ struct SiFiveEAONState {
     MemoryRegion mmio;
 
     /*< watchdog timer >*/
-    QEMUTimer *wdog_timer;
+    QEMUTimer wdog_timer;
     qemu_irq wdog_irq;
     uint64_t wdog_restart_time;
     uint64_t wdogclk_freq;
