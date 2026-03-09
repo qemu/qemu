@@ -185,6 +185,13 @@ static void riscv_cpc_init(Object *obj)
     }
 }
 
+static void riscv_cpc_finalize(Object *obj)
+{
+    RISCVCPCState *s = RISCV_CPC(obj);
+
+    g_free(s->cpus);
+}
+
 static void riscv_cpc_realize(DeviceState *dev, Error **errp)
 {
     RISCVCPCState *s = RISCV_CPC(dev);
@@ -254,6 +261,7 @@ static const TypeInfo riscv_cpc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVCPCState),
     .instance_init = riscv_cpc_init,
+    .instance_finalize = riscv_cpc_finalize,
     .class_init    = riscv_cpc_class_init,
 };
 
