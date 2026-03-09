@@ -270,11 +270,17 @@ static int mount_fuse_export(FuseExport *exp, Error **errp)
     ret = fuse_session_mount(exp->fuse_session, exp->mountpoint);
     if (ret < 0) {
         error_setg(errp, "Failed to mount FUSE session to export");
-        return -EIO;
+        ret = -EIO;
+        goto fail;
     }
     exp->mounted = true;
 
     return 0;
+
+fail:
+    fuse_session_destroy(exp->fuse_session);
+    exp->fuse_session = NULL;
+    return ret;
 }
 
 /**
