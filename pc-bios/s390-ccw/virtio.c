@@ -72,14 +72,14 @@ static long virtio_notify(SubChannelId schid, int vq_idx, long cookie)
  *             Virtio functions                *
  ***********************************************/
 
-int drain_irqs(SubChannelId schid)
+int drain_irqs(void)
 {
     Irb irb = {};
     int r = 0;
 
     while (1) {
         /* FIXME: make use of TPI, for that enable subchannel and isc */
-        if (tsch(schid, &irb)) {
+        if (tsch(vdev.schid, &irb)) {
             /* Might want to differentiate error codes later on. */
             if (irb.scsw.cstat) {
                 r = -EIO;
@@ -134,7 +134,7 @@ static void vring_init(VRing *vr, VqInfo *info)
 
 bool vring_notify(VRing *vr)
 {
-    vr->cookie = virtio_notify(vr->schid, vr->id, vr->cookie);
+    vr->cookie = virtio_notify(vdev.schid, vr->id, vr->cookie);
     return vr->cookie >= 0;
 }
 
@@ -211,7 +211,7 @@ int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd)
     } while (cmd[i++].flags & VRING_DESC_F_NEXT);
 
     vring_wait_reply();
-    if (drain_irqs(vr->schid)) {
+    if (drain_irqs()) {
         return -1;
     }
     return 0;
@@ -316,7 +316,6 @@ int virtio_setup_ccw(VDev *vdev)
         }
         info.num = config.num;
         vring_init(&vdev->vrings[i], &info);
-        vdev->vrings[i].schid = vdev->schid;
         if (run_ccw(vdev, CCW_CMD_SET_VQ, &info, sizeof(info), false)) {
             puts("Cannot set VQ info");
             return -EIO;

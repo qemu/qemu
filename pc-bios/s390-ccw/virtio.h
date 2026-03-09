@@ -103,7 +103,6 @@ struct VRing {
     VRingDesc *desc;
     VRingAvail *avail;
     VRingUsed *used;
-    SubChannelId schid;
     long cookie;
     int id;
 };
@@ -269,7 +268,7 @@ struct VirtioCmd {
 typedef struct VirtioCmd VirtioCmd;
 
 bool vring_notify(VRing *vr);
-int drain_irqs(SubChannelId schid);
+int drain_irqs(void);
 void vring_send_buf(VRing *vr, void *p, int len, int flags);
 int vr_poll(VRing *vr);
 int vring_wait_reply(void);

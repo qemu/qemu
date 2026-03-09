@@ -88,7 +88,7 @@ int send(int fd, const void *buf, int len, int flags)
     while (!vr_poll(txvq)) {
         yield();
     }
-    if (drain_irqs(txvq->schid)) {
+    if (drain_irqs()) {
         puts("send: drain irqs failed");
         return -1;
     }
