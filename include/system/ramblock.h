@@ -154,26 +154,26 @@ RAMBlock *qemu_ram_block_by_name(const char *name);
  */
 RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
                                    ram_addr_t *offset);
-ram_addr_t qemu_ram_block_host_offset(RAMBlock *rb, void *host);
+ram_addr_t qemu_ram_block_host_offset(const RAMBlock *rb, void *host);
 void qemu_ram_set_idstr(RAMBlock *block, const char *name, DeviceState *dev);
 void qemu_ram_unset_idstr(RAMBlock *block);
-const char *qemu_ram_get_idstr(RAMBlock *rb);
-void *qemu_ram_get_host_addr(RAMBlock *rb);
-ram_addr_t qemu_ram_get_offset(RAMBlock *rb);
-ram_addr_t qemu_ram_get_fd_offset(RAMBlock *rb);
-ram_addr_t qemu_ram_get_used_length(RAMBlock *rb);
-ram_addr_t qemu_ram_get_max_length(RAMBlock *rb);
-bool qemu_ram_is_shared(RAMBlock *rb);
-bool qemu_ram_is_noreserve(RAMBlock *rb);
-bool qemu_ram_is_uf_zeroable(RAMBlock *rb);
+const char *qemu_ram_get_idstr(const RAMBlock *rb);
+void *qemu_ram_get_host_addr(const RAMBlock *rb);
+ram_addr_t qemu_ram_get_offset(const RAMBlock *rb);
+ram_addr_t qemu_ram_get_fd_offset(const RAMBlock *rb);
+ram_addr_t qemu_ram_get_used_length(const RAMBlock *rb);
+ram_addr_t qemu_ram_get_max_length(const RAMBlock *rb);
+bool qemu_ram_is_shared(const RAMBlock *rb);
+bool qemu_ram_is_noreserve(const RAMBlock *rb);
+bool qemu_ram_is_uf_zeroable(const RAMBlock *rb);
 void qemu_ram_set_uf_zeroable(RAMBlock *rb);
-bool qemu_ram_is_migratable(RAMBlock *rb);
+bool qemu_ram_is_migratable(const RAMBlock *rb);
 void qemu_ram_set_migratable(RAMBlock *rb);
 void qemu_ram_unset_migratable(RAMBlock *rb);
-bool qemu_ram_is_named_file(RAMBlock *rb);
-int qemu_ram_get_fd(RAMBlock *rb);
+bool qemu_ram_is_named_file(const RAMBlock *rb);
+int qemu_ram_get_fd(const RAMBlock *rb);
 
-size_t qemu_ram_pagesize(RAMBlock *block);
+size_t qemu_ram_pagesize(const RAMBlock *block);
 size_t qemu_ram_pagesize_largest(void);
 #include "exec/target_page.h"
 #include "exec/hwaddr.h"
