@@ -8831,6 +8831,10 @@ static int do_openat2(CPUArchState *cpu_env, abi_long dirfd,
         }
         return ret;
     }
+    if (tswap64(how.flags) >> 32) {
+        return -TARGET_EINVAL;
+    }
+
     pathname = lock_user_string(guest_pathname);
     if (!pathname) {
         return -TARGET_EFAULT;
