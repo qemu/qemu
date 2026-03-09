@@ -31,11 +31,13 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "system/block-backend.h"
+#include "system/iothread.h"
 
 #include <fuse.h>
 #include <fuse_lowlevel.h>
 
 #include "standard-headers/linux/fuse.h"
+#include <sys/ioctl.h>
 
 #if defined(CONFIG_FALLOCATE_ZERO_RANGE)
 #include <linux/falloc.h>
@@ -118,12 +120,17 @@ QEMU_BUILD_BUG_ON(sizeof(((FuseRequestInHeaderBuf *)0)->head) +
                   sizeof(((FuseRequestInHeaderBuf *)0)->tail) !=
                   sizeof(FuseRequestInHeader));
 
-typedef struct FuseExport {
-    BlockExport common;
+typedef struct FuseExport FuseExport;
 
-    struct fuse_session *fuse_session;
-    unsigned int in_flight; /* atomic */
-    bool mounted, fd_handler_set_up;
+/*
+ * One FUSE "queue", representing one FUSE FD from which requests are fetched
+ * and processed.  Each queue is tied to an AioContext.
+ */
+typedef struct FuseQueue {
+    FuseExport *exp;
+
+    AioContext *ctx;
+    int fuse_fd;
 
     /*
      * Cached buffer to receive the data of WRITE requests.  Cached because:
@@ -140,6 +147,14 @@ typedef struct FuseExport {
      * via blk_blockalign() and thus need to be freed via qemu_vfree().
      */
     void *req_write_data_cached;
+} FuseQueue;
+
+struct FuseExport {
+    BlockExport common;
+
+    struct fuse_session *fuse_session;
+    unsigned int in_flight; /* atomic */
+    bool mounted, fd_handler_set_up;
 
     /*
      * Set when there was an unrecoverable error and no requests should be read
@@ -148,7 +163,15 @@ typedef struct FuseExport {
      */
     bool halted;
 
-    int fuse_fd;
+    int num_queues;
+    FuseQueue *queues;
+    /*
+     * True if this export should follow the generic export's AioContext.
+     * Will be false if the queues' AioContexts have been explicitly set by the
+     * user, i.e. are expected to stay in those contexts.
+     * (I.e. is always false if there is more than one queue.)
+     */
+    bool follow_aio_context;
 
     char *mountpoint;
     bool writable;
@@ -160,7 +183,7 @@ typedef struct FuseExport {
     mode_t st_mode;
     uid_t st_uid;
     gid_t st_gid;
-} FuseExport;
+};
 
 /*
  * Verify that the size of FuseRequestInHeaderBuf.head plus the data
@@ -179,12 +202,13 @@ static void fuse_export_halt(FuseExport *exp);
 static void init_exports_table(void);
 
 static int mount_fuse_export(FuseExport *exp, Error **errp);
+static int clone_fuse_fd(int fd, Error **errp);
 
 static bool is_regular_file(const char *path, Error **errp);
 
 static void read_from_fuse_fd(void *opaque);
 static void coroutine_fn
-fuse_co_process_request(FuseExport *exp, const FuseRequestInHeader *in_hdr,
+fuse_co_process_request(FuseQueue *q, const FuseRequestInHeader *in_hdr,
                         const void *data_buffer);
 static int fuse_write_err(int fd, const struct fuse_in_header *in_hdr, int err);
 
@@ -216,8 +240,11 @@ static void fuse_attach_handlers(FuseExport *exp)
         return;
     }
 
-    aio_set_fd_handler(exp->common.ctx, exp->fuse_fd,
-                       read_from_fuse_fd, NULL, NULL, NULL, exp);
+    for (int i = 0; i < exp->num_queues; i++) {
+        aio_set_fd_handler(exp->queues[i].ctx, exp->queues[i].fuse_fd,
+                           read_from_fuse_fd, NULL, NULL, NULL,
+                           &exp->queues[i]);
+    }
     exp->fd_handler_set_up = true;
 }
 
@@ -226,8 +253,10 @@ static void fuse_attach_handlers(FuseExport *exp)
  */
 static void fuse_detach_handlers(FuseExport *exp)
 {
-    aio_set_fd_handler(exp->common.ctx, exp->fuse_fd,
-                       NULL, NULL, NULL, NULL, NULL);
+    for (int i = 0; i < exp->num_queues; i++) {
+        aio_set_fd_handler(exp->queues[i].ctx, exp->queues[i].fuse_fd,
+                           NULL, NULL, NULL, NULL, NULL);
+    }
     exp->fd_handler_set_up = false;
 }
 
@@ -242,6 +271,11 @@ static void fuse_export_drained_end(void *opaque)
 
     /* Refresh AioContext in case it changed */
     exp->common.ctx = blk_get_aio_context(exp->common.blk);
+    if (exp->follow_aio_context) {
+        assert(exp->num_queues == 1);
+        exp->queues[0].ctx = exp->common.ctx;
+    }
+
     fuse_attach_handlers(exp);
 }
 
@@ -273,8 +307,32 @@ static int fuse_export_create(BlockExport *blk_exp,
     assert(blk_exp_args->type == BLOCK_EXPORT_TYPE_FUSE);
 
     if (multithread) {
-        error_setg(errp, "FUSE export does not support multi-threading");
-        return -EINVAL;
+        /* Guaranteed by common export code */
+        assert(mt_count >= 1);
+
+        exp->follow_aio_context = false;
+        exp->num_queues = mt_count;
+        exp->queues = g_new(FuseQueue, mt_count);
+
+        for (size_t i = 0; i < mt_count; i++) {
+            exp->queues[i] = (FuseQueue) {
+                .exp = exp,
+                .ctx = multithread[i],
+                .fuse_fd = -1,
+            };
+        }
+    } else {
+        /* Guaranteed by common export code */
+        assert(mt_count == 0);
+
+        exp->follow_aio_context = true;
+        exp->num_queues = 1;
+        exp->queues = g_new(FuseQueue, 1);
+        exp->queues[0] = (FuseQueue) {
+            .exp = exp,
+            .ctx = exp->common.ctx,
+            .fuse_fd = -1,
+        };
     }
 
     /* For growable and writable exports, take the RESIZE permission */
@@ -286,7 +344,7 @@ static int fuse_export_create(BlockExport *blk_exp,
         ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
                            blk_shared_perm, errp);
         if (ret < 0) {
-            return ret;
+            goto fail;
         }
     }
 
@@ -362,11 +420,21 @@ static int fuse_export_create(BlockExport *blk_exp,
 
     g_hash_table_insert(exports, g_strdup(exp->mountpoint), NULL);
 
-    exp->fuse_fd = fuse_session_fd(exp->fuse_session);
-    ret = qemu_fcntl_addfl(exp->fuse_fd, O_NONBLOCK);
+    assert(exp->num_queues >= 1);
+    exp->queues[0].fuse_fd = fuse_session_fd(exp->fuse_session);
+    ret = qemu_fcntl_addfl(exp->queues[0].fuse_fd, O_NONBLOCK);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to make FUSE FD non-blocking");
         goto fail;
+    }
+
+    for (int i = 1; i < exp->num_queues; i++) {
+        int fd = clone_fuse_fd(exp->queues[0].fuse_fd, errp);
+        if (fd < 0) {
+            ret = fd;
+            goto fail;
+        }
+        exp->queues[i].fuse_fd = fd;
     }
 
     fuse_attach_handlers(exp);
@@ -461,28 +529,28 @@ fail:
 /**
  * Allocate a buffer to receive WRITE data, or take the cached one.
  */
-static void *get_write_data_buffer(FuseExport *exp)
+static void *get_write_data_buffer(FuseQueue *q)
 {
-    if (exp->req_write_data_cached) {
-        void *cached = exp->req_write_data_cached;
-        exp->req_write_data_cached = NULL;
+    if (q->req_write_data_cached) {
+        void *cached = q->req_write_data_cached;
+        q->req_write_data_cached = NULL;
         return cached;
     } else {
-        return blk_blockalign(exp->common.blk, FUSE_MAX_WRITE_BYTES);
+        return blk_blockalign(q->exp->common.blk, FUSE_MAX_WRITE_BYTES);
     }
 }
 
 /**
  * Release a WRITE data buffer, possibly reusing it for a subsequent request.
  */
-static void release_write_data_buffer(FuseExport *exp, void **buffer)
+static void release_write_data_buffer(FuseQueue *q, void **buffer)
 {
     if (!*buffer) {
         return;
     }
 
-    if (!exp->req_write_data_cached) {
-        exp->req_write_data_cached = *buffer;
+    if (!q->req_write_data_cached) {
+        q->req_write_data_cached = *buffer;
     } else {
         qemu_vfree(*buffer);
     }
@@ -529,8 +597,41 @@ static ssize_t req_op_hdr_len(const FuseRequestInHeader *in_hdr)
 }
 
 /**
+ * Clone the given /dev/fuse file descriptor, yielding a second FD from which
+ * requests can be pulled for the associated filesystem.  Returns an FD on
+ * success, and -errno on error.
+ */
+static int clone_fuse_fd(int fd, Error **errp)
+{
+    uint32_t src_fd = fd;
+    int new_fd;
+    int ret;
+
+    /*
+     * The name "/dev/fuse" is fixed, see libfuse's lib/fuse_loop_mt.c
+     * (fuse_clone_chan()).
+     */
+    new_fd = open("/dev/fuse", O_RDWR | O_CLOEXEC | O_NONBLOCK);
+    if (new_fd < 0) {
+        ret = -errno;
+        error_setg_errno(errp, errno, "Failed to open /dev/fuse");
+        return ret;
+    }
+
+    ret = ioctl(new_fd, FUSE_DEV_IOC_CLONE, &src_fd);
+    if (ret < 0) {
+        ret = -errno;
+        error_setg_errno(errp, errno, "Failed to clone FUSE FD");
+        close(new_fd);
+        return ret;
+    }
+
+    return new_fd;
+}
+
+/**
  * Try to read a single request from the FUSE FD.
- * Takes a FuseExport pointer in `opaque`.
+ * Takes a FuseQueue pointer in `opaque`.
  *
  * Assumes the export's in-flight counter has already been incremented.
  *
@@ -538,8 +639,9 @@ static ssize_t req_op_hdr_len(const FuseRequestInHeader *in_hdr)
  */
 static void coroutine_fn co_read_from_fuse_fd(void *opaque)
 {
-    FuseExport *exp = opaque;
-    int fuse_fd = exp->fuse_fd;
+    FuseQueue *q = opaque;
+    int fuse_fd = q->fuse_fd;
+    FuseExport *exp = q->exp;
     ssize_t ret;
     FuseRequestInHeaderBuf in_hdr_buf;
     const FuseRequestInHeader *in_hdr;
@@ -551,7 +653,7 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
         goto no_request;
     }
 
-    data_buffer = get_write_data_buffer(exp);
+    data_buffer = get_write_data_buffer(q);
 
     /* Construct the I/O vector to hold the FUSE request */
     iov[0] = (struct iovec) { &in_hdr_buf.head, sizeof(in_hdr_buf.head) };
@@ -612,29 +714,29 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
             memcpy(in_hdr_buf.tail, data_buffer, len);
         }
 
-        release_write_data_buffer(exp, &data_buffer);
+        release_write_data_buffer(q, &data_buffer);
     }
 
-    fuse_co_process_request(exp, in_hdr, data_buffer);
+    fuse_co_process_request(q, in_hdr, data_buffer);
 
 no_request:
-    release_write_data_buffer(exp, &data_buffer);
+    release_write_data_buffer(q, &data_buffer);
     fuse_dec_in_flight(exp);
 }
 
 /**
  * Try to read and process a single request from the FUSE FD.
  * (To be used as a handler for when the FUSE FD becomes readable.)
- * Takes a FuseExport pointer in `opaque`.
+ * Takes a FuseQueue pointer in `opaque`.
  */
 static void read_from_fuse_fd(void *opaque)
 {
-    FuseExport *exp = opaque;
+    FuseQueue *q = opaque;
     Coroutine *co;
 
-    co = qemu_coroutine_create(co_read_from_fuse_fd, exp);
+    co = qemu_coroutine_create(co_read_from_fuse_fd, q);
     /* Decremented by co_read_from_fuse_fd() */
-    fuse_inc_in_flight(exp);
+    fuse_inc_in_flight(q->exp);
     qemu_coroutine_enter(co);
 }
 
@@ -659,6 +761,17 @@ static void fuse_export_delete(BlockExport *blk_exp)
 {
     FuseExport *exp = container_of(blk_exp, FuseExport, common);
 
+    for (int i = 0; i < exp->num_queues; i++) {
+        FuseQueue *q = &exp->queues[i];
+
+        /* Queue 0's FD belongs to the FUSE session */
+        if (i > 0 && q->fuse_fd >= 0) {
+            close(q->fuse_fd);
+        }
+        qemu_vfree(q->req_write_data_cached);
+    }
+    g_free(exp->queues);
+
     if (exp->fuse_session) {
         if (exp->mounted) {
             fuse_session_unmount(exp->fuse_session);
@@ -667,7 +780,6 @@ static void fuse_export_delete(BlockExport *blk_exp)
         fuse_session_destroy(exp->fuse_session);
     }
 
-    qemu_vfree(exp->req_write_data_cached);
     g_free(exp->mountpoint);
 }
 
@@ -1344,10 +1456,11 @@ static int fuse_write_buf_response(int fd,
  * Process a FUSE request, incl. writing the response.
  */
 static void coroutine_fn
-fuse_co_process_request(FuseExport *exp, const FuseRequestInHeader *in_hdr,
+fuse_co_process_request(FuseQueue *q, const FuseRequestInHeader *in_hdr,
                         const void *data_buffer)
 {
     FuseRequestOutHeader out_hdr;
+    FuseExport *exp = q->exp;
     /* For read requests: Data to be returned */
     void *out_data_buffer = NULL;
     ssize_t ret;
@@ -1471,10 +1584,10 @@ fuse_co_process_request(FuseExport *exp, const FuseRequestInHeader *in_hdr,
     }
 
     if (out_data_buffer) {
-        fuse_write_buf_response(exp->fuse_fd, &out_hdr.common, out_data_buffer);
+        fuse_write_buf_response(q->fuse_fd, &out_hdr.common, out_data_buffer);
         qemu_vfree(out_data_buffer);
     } else {
-        fuse_write_response(exp->fuse_fd, &out_hdr);
+        fuse_write_response(q->fuse_fd, &out_hdr);
     }
 }
 
