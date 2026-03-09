@@ -71,6 +71,7 @@ static int is_dev_possibly_bootable(int dev_no, int sch_no)
     bool is_virtio;
     Schib schib;
     int r;
+    VDev *vdev = virtio_get_device();
 
     blk_schid.sch_no = sch_no;
     r = stsch_err(blk_schid, &schib);
@@ -91,7 +92,8 @@ static int is_dev_possibly_bootable(int dev_no, int sch_no)
      * Note: we always have to run virtio_is_supported() here to make
      * sure that the vdev.senseid data gets pre-initialized correctly
      */
-    is_virtio = virtio_is_supported(blk_schid);
+    vdev->schid = blk_schid;
+    is_virtio = virtio_is_supported(vdev);
 
     /* No specific devno given, just return whether the device is possibly bootable */
     if (dev_no < 0) {
@@ -256,10 +258,10 @@ static int virtio_setup(void)
         puts("Network boot device detected");
         return 0;
     case VIRTIO_ID_BLOCK:
-        ret = virtio_blk_setup_device(blk_schid);
+        ret = virtio_blk_setup_device(vdev);
         break;
     case VIRTIO_ID_SCSI:
-        ret = virtio_scsi_setup_device(blk_schid);
+        ret = virtio_scsi_setup_device(vdev);
         break;
     default:
         puts("\n! No IPL device available !\n");

@@ -12,6 +12,7 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 #include "virtio-scsi.h"
+#include "virtio-ccw.h"
 
 #define VIRTIO_BLK_F_GEOMETRY   (1 << 4)
 #define VIRTIO_BLK_F_BLK_SIZE   (1 << 6)
@@ -229,15 +230,17 @@ uint64_t virtio_get_blocks(void)
     }
 }
 
-int virtio_blk_setup_device(SubChannelId schid)
+int virtio_blk_setup_device(VDev *vdev)
 {
-    VDev *vdev = virtio_get_device();
-
     vdev->guest_features[0] = VIRTIO_BLK_F_GEOMETRY | VIRTIO_BLK_F_BLK_SIZE;
-    vdev->schid = schid;
-    virtio_setup_ccw(vdev);
 
     puts("Using virtio-blk.");
 
-    return 0;
+    switch (vdev->ipl_type) {
+    case S390_IPL_TYPE_QEMU_SCSI:
+    case S390_IPL_TYPE_CCW:
+        return virtio_ccw_setup(vdev);
+    default:
+        return 1;
+    }
 }

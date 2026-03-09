@@ -66,9 +66,6 @@ void sclp_setup(void);
 void sclp_get_loadparm_ascii(char *loadparm);
 int sclp_read(char *str, size_t count);
 
-/* virtio.c */
-bool virtio_is_supported(SubChannelId schid);
-
 /* bootmap.c */
 void zipl_load(void);
 
