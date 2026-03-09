@@ -30,7 +30,7 @@ extern bool xen_allowed;
 
 void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length);
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
-                   struct MemoryRegion *mr, Error **errp);
-bool xen_mr_is_memory(MemoryRegion *mr);
-bool xen_mr_is_grants(MemoryRegion *mr);
+                   const MemoryRegion *mr, Error **errp);
+bool xen_mr_is_memory(const MemoryRegion *mr);
+bool xen_mr_is_grants(const MemoryRegion *mr);
 #endif

@@ -19,12 +19,12 @@ void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
 }
 
 void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
-                   struct MemoryRegion *mr, Error **errp)
+                   const MemoryRegion *mr, Error **errp)
 {
     g_assert_not_reached();
 }
 
-bool xen_mr_is_memory(MemoryRegion *mr)
+bool xen_mr_is_memory(const MemoryRegion *mr)
 {
     g_assert_not_reached();
 }
@@ -44,7 +44,7 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
     g_assert_not_reached();
 }
 
-uint8_t *xen_map_cache(MemoryRegion *mr,
+uint8_t *xen_map_cache(const MemoryRegion *mr,
                        hwaddr phys_addr,
                        hwaddr size,
                        ram_addr_t ram_addr_offset,
