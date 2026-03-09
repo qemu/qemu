@@ -490,8 +490,9 @@ static int dw_i3c_recv_data(DWI3C *s, bool is_i2c, uint8_t *data,
     /* I3C devices can NACK if the controller sends an unsupported CCC. */
     ret = i3c_recv(s->bus, data, num_to_read, num_read);
     if (ret) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
         qemu_log_mask(LOG_GUEST_ERROR, "%s: NACKed receiving byte\n",
-                      object_get_canonical_path(OBJECT(s)));
+                      path);
         ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_ST_STATUS,
                          DW_I3C_TRANSFER_STATE_HALT);
         ARRAY_FIELD_DP32(s->regs, PRESENT_STATE, CM_TFR_STATUS,
@@ -1107,8 +1108,9 @@ static void dw_i3c_resp_queue_push(DWI3C *s, uint8_t err, uint8_t tid,
 static void dw_i3c_push_tx(DWI3C *s, uint32_t val)
 {
     if (fifo32_is_full(&s->tx_queue)) {
+        g_autofree char *path = object_get_canonical_path(OBJECT(s));
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Tried to push to TX FIFO when "
-                      "full\n", object_get_canonical_path(OBJECT(s)));
+                      "full\n", path);
         return;
     }
 
