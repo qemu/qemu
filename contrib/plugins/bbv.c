@@ -30,8 +30,13 @@ static uint64_t interval = 100000000;
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
+    Vcpu *vcpu;
+
     for (int i = 0; i < qemu_plugin_num_vcpus(); i++) {
-        fclose(((Vcpu *)qemu_plugin_scoreboard_find(vcpus, i))->file);
+        vcpu = qemu_plugin_scoreboard_find(vcpus, i);
+        if (vcpu->file) {
+            fclose(vcpu->file);
+        }
     }
 
     g_hash_table_unref(bbs);
