@@ -123,7 +123,7 @@ static void setup_2d_blt_ctx(const ATIVGAState *s, ATI2DCtx *ctx)
             (ctx->top_to_bottom ? 'v' : '^'));
 }
 
-static bool ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx)
+static bool ati_2d_do_blt(ATI2DCtx *ctx, uint8_t use_pixman)
 {
     if (!ctx->bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
@@ -164,14 +164,14 @@ static bool ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx)
 #ifdef CONFIG_PIXMAN
         int src_stride_words = ctx->src_stride / sizeof(uint32_t);
         int dst_stride_words = ctx->dst_stride / sizeof(uint32_t);
-        if ((s->use_pixman & BIT(1)) &&
+        if ((use_pixman & BIT(1)) &&
             ctx->left_to_right && ctx->top_to_bottom) {
             fallback = !pixman_blt((uint32_t *)ctx->src_bits,
                                    (uint32_t *)ctx->dst_bits, src_stride_words,
                                    dst_stride_words, ctx->bpp, ctx->bpp,
                                    ctx->src.x, ctx->src.y, ctx->dst.x,
                                    ctx->dst.y, ctx->dst.width, ctx->dst.height);
-        } else if (s->use_pixman & BIT(1)) {
+        } else if (use_pixman & BIT(1)) {
             /* FIXME: We only really need a temporary if src and dst overlap */
             int llb = ctx->dst.width * (ctx->bpp / 8);
             int tmp_stride_words = DIV_ROUND_UP(llb, sizeof(uint32_t));
@@ -241,7 +241,7 @@ static bool ati_2d_do_blt(ATIVGAState *s, ATI2DCtx *ctx)
                 ctx->dst.x, ctx->dst.y, ctx->dst.width, ctx->dst.height,
                 filler);
 #ifdef CONFIG_PIXMAN
-        if (!(s->use_pixman & BIT(0)) ||
+        if (!(use_pixman & BIT(0)) ||
             !pixman_fill((uint32_t *)ctx->dst_bits,
                          ctx->dst_stride / sizeof(uint32_t), ctx->bpp,
                          ctx->dst.x, ctx->dst.y,
@@ -272,7 +272,7 @@ void ati_2d_blt(ATIVGAState *s)
 {
     ATI2DCtx ctx;
     setup_2d_blt_ctx(s, &ctx);
-    if (ati_2d_do_blt(s, &ctx)) {
+    if (ati_2d_do_blt(&ctx, s->use_pixman)) {
         ati_set_dirty(&s->vga, &ctx);
     }
 }
