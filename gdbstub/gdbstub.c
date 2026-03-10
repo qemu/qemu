@@ -601,6 +601,7 @@ void gdb_init_cpu(CPUState *cpu)
     if (xmlfile) {
         assert(!cc->gdb_num_core_regs);
         feature = gdb_find_static_feature(xmlfile);
+        assert(feature->base_reg == 0);
         gdb_register_feature(cpu, 0,
                              cc->gdb_read_register, cc->gdb_write_register,
                              feature);
@@ -630,6 +631,11 @@ void gdb_register_coprocessor(CPUState *cpu,
         }
     }
 
+    if (base_reg < feature->base_reg) {
+        trace_gdbxml_register_coprocessor_gap(base_reg,
+                                              feature->base_reg);
+        base_reg = feature->base_reg;
+    }
     gdb_register_feature(cpu, base_reg, get_reg, set_reg, feature);
 
     /* Add to end of list.  */
