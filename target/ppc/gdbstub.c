@@ -502,24 +502,23 @@ void ppc_gdb_init(CPUState *cs, PowerPCCPUClass *pcc)
 {
     if (pcc->insns_flags & PPC_FLOAT) {
         gdb_register_coprocessor(cs, gdb_get_float_reg, gdb_set_float_reg,
-                                 gdb_find_static_feature("power-fpu.xml"), 0);
+                                 gdb_find_static_feature("power-fpu.xml"));
     }
     if (pcc->insns_flags & PPC_ALTIVEC) {
         gdb_register_coprocessor(cs, gdb_get_avr_reg, gdb_set_avr_reg,
-                                 gdb_find_static_feature("power-altivec.xml"),
-                                 0);
+                                 gdb_find_static_feature("power-altivec.xml"));
     }
     if (pcc->insns_flags & PPC_SPE) {
         gdb_register_coprocessor(cs, gdb_get_spe_reg, gdb_set_spe_reg,
-                                 gdb_find_static_feature("power-spe.xml"), 0);
+                                 gdb_find_static_feature("power-spe.xml"));
     }
     if (pcc->insns_flags2 & PPC2_VSX) {
         gdb_register_coprocessor(cs, gdb_get_vsx_reg, gdb_set_vsx_reg,
-                                 gdb_find_static_feature("power-vsx.xml"), 0);
+                                 gdb_find_static_feature("power-vsx.xml"));
     }
 #ifndef CONFIG_USER_ONLY
     gdb_gen_spr_feature(cs);
     gdb_register_coprocessor(cs, gdb_get_spr_reg, gdb_set_spr_reg,
-                             &pcc->gdb_spr, 0);
+                             &pcc->gdb_spr);
 #endif
 }

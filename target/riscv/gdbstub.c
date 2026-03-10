@@ -348,32 +348,27 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     CPURISCVState *env = &cpu->env;
     if (env->misa_ext & RVD) {
         gdb_register_coprocessor(cs, riscv_gdb_get_fpu, riscv_gdb_set_fpu,
-                                 gdb_find_static_feature("riscv-64bit-fpu.xml"),
-                                 0);
+                                 gdb_find_static_feature("riscv-64bit-fpu.xml"));
     } else if (env->misa_ext & RVF) {
         gdb_register_coprocessor(cs, riscv_gdb_get_fpu, riscv_gdb_set_fpu,
-                                 gdb_find_static_feature("riscv-32bit-fpu.xml"),
-                                 0);
+                                 gdb_find_static_feature("riscv-32bit-fpu.xml"));
     }
     if (cpu->cfg.ext_zve32x) {
         gdb_register_coprocessor(cs, riscv_gdb_get_vector,
                                  riscv_gdb_set_vector,
-                                 ricsv_gen_dynamic_vector_feature(cs, cs->gdb_num_regs),
-                                 0);
+                                 ricsv_gen_dynamic_vector_feature(cs, cs->gdb_num_regs));
     }
     switch (mcc->def->misa_mxl_max) {
     case MXL_RV32:
         gdb_register_coprocessor(cs, riscv_gdb_get_virtual,
                                  riscv_gdb_set_virtual,
-                                 gdb_find_static_feature("riscv-32bit-virtual.xml"),
-                                 0);
+                                 gdb_find_static_feature("riscv-32bit-virtual.xml"));
         break;
     case MXL_RV64:
     case MXL_RV128:
         gdb_register_coprocessor(cs, riscv_gdb_get_virtual,
                                  riscv_gdb_set_virtual,
-                                 gdb_find_static_feature("riscv-64bit-virtual.xml"),
-                                 0);
+                                 gdb_find_static_feature("riscv-64bit-virtual.xml"));
         break;
     default:
         g_assert_not_reached();
@@ -381,7 +376,6 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
 
     if (cpu->cfg.ext_zicsr) {
         gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
-                                 riscv_gen_dynamic_csr_feature(cs, cs->gdb_num_regs),
-                                 0);
+                                 riscv_gen_dynamic_csr_feature(cs, cs->gdb_num_regs));
     }
 }

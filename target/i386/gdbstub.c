@@ -501,8 +501,7 @@ void x86_cpu_gdb_init(CPUState *cs)
     if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF) {
         gdb_register_coprocessor(cs, i386_cpu_gdb_get_egprs,
                                  i386_cpu_gdb_set_egprs,
-                                 gdb_find_static_feature("i386-64bit-apx.xml"),
-                                 0);
+                                 gdb_find_static_feature("i386-64bit-apx.xml"));
     }
 #endif
 
@@ -510,10 +509,9 @@ void x86_cpu_gdb_init(CPUState *cs)
     gdb_register_coprocessor(cs, x86_cpu_gdb_read_linux_register,
                              x86_cpu_gdb_write_linux_register,
 #ifdef TARGET_X86_64
-                             gdb_find_static_feature("i386-64bit-linux.xml"),
+                             gdb_find_static_feature("i386-64bit-linux.xml"));
 #else
-                             gdb_find_static_feature("i386-32bit-linux.xml"),
+                             gdb_find_static_feature("i386-32bit-linux.xml"));
 #endif
-                             0);
 #endif
 }

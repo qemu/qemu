@@ -347,34 +347,33 @@ void s390_cpu_gdb_init(CPUState *cs)
 {
     gdb_register_coprocessor(cs, cpu_read_ac_reg,
                              cpu_write_ac_reg,
-                             gdb_find_static_feature("s390-acr.xml"), 0);
+                             gdb_find_static_feature("s390-acr.xml"));
 
     gdb_register_coprocessor(cs, cpu_read_fp_reg,
                              cpu_write_fp_reg,
-                             gdb_find_static_feature("s390-fpr.xml"), 0);
+                             gdb_find_static_feature("s390-fpr.xml"));
 
     gdb_register_coprocessor(cs, cpu_read_vreg,
                              cpu_write_vreg,
-                             gdb_find_static_feature("s390-vx.xml"), 0);
+                             gdb_find_static_feature("s390-vx.xml"));
 
     gdb_register_coprocessor(cs, cpu_read_gs_reg,
                              cpu_write_gs_reg,
-                             gdb_find_static_feature("s390-gs.xml"), 0);
+                             gdb_find_static_feature("s390-gs.xml"));
 
 #ifndef CONFIG_USER_ONLY
     gdb_register_coprocessor(cs, cpu_read_c_reg,
                              cpu_write_c_reg,
-                             gdb_find_static_feature("s390-cr.xml"), 0);
+                             gdb_find_static_feature("s390-cr.xml"));
 
     gdb_register_coprocessor(cs, cpu_read_virt_reg,
                              cpu_write_virt_reg,
-                             gdb_find_static_feature("s390-virt.xml"), 0);
+                             gdb_find_static_feature("s390-virt.xml"));
 
     if (kvm_enabled()) {
         gdb_register_coprocessor(cs, cpu_read_virt_kvm_reg,
                                  cpu_write_virt_kvm_reg,
-                                 gdb_find_static_feature("s390-virt-kvm.xml"),
-                                 0);
+                                 gdb_find_static_feature("s390-virt-kvm.xml"));
     }
 #endif
 }
