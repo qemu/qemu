@@ -4331,7 +4331,7 @@ foreach target : target_dirs
   if 'TARGET_XML_FILES' in config_target
     gdbstub_xml_files = []
     foreach gdbstub_xml : config_target['TARGET_XML_FILES'].split()
-      gdbstub_xml_files += 'gdb-xml/' + gdbstub_xml
+      gdbstub_xml_files += 'gdbstub/gdb-xml/' + gdbstub_xml
     endforeach
     gdbstub_xml = custom_target(target + '-gdbstub-xml.c',
                                 output: target + '-gdbstub-xml.c',

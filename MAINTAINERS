@@ -106,7 +106,7 @@ M: Thomas Huth <thuth@redhat.com>
 S: Supported
 F: configs/devices/s390x-softmmu/default.mak
 F: configs/targets/s390x-softmmu.mak
-F: gdb-xml/s390*.xml
+F: gdbstub/gdb-xml/s390*.xml
 F: hw/char/sclp*.[hc]
 F: hw/char/terminal3270.c
 F: hw/intc/s390_flic.c
@@ -221,8 +221,8 @@ F: include/hw/cpu/a*mpcore.h
 F: docs/system/target-arm.rst
 F: docs/system/arm/cpu-features.rst
 F: docs/system/arm/emulation.rst
-F: gdb-xml/arm*.xml
-F: gdb-xml/aarch64*.xml
+F: gdbstub/gdb-xml/arm*.xml
+F: gdbstub/gdb-xml/aarch64*.xml
 
 ARM SMMU
 M: Eric Auger <eric.auger@redhat.com>
@@ -237,7 +237,7 @@ AVR TCG CPUs
 M: Michael Rolnik <mrolnik@gmail.com>
 S: Maintained
 F: docs/system/target-avr.rst
-F: gdb-xml/avr-cpu.xml
+F: gdbstub/gdb-xml/avr-cpu.xml
 F: target/avr/
 F: tests/functional/avr/
 
@@ -252,7 +252,7 @@ F: tests/tcg/hexagon/
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user/default.mak
 F: docker/dockerfiles/debian-hexagon-cross.docker
-F: gdb-xml/hexagon*.xml
+F: gdbstub/gdb-xml/hexagon*.xml
 T: git https://github.com/quic/qemu.git hex-next
 
 Hexagon idef-parser
@@ -311,7 +311,7 @@ M: Stafford Horne <shorne@gmail.com>
 S: Odd Fixes
 F: docs/system/or1k/cpu-features.rst
 F: target/or1k/
-F: gdb-xml/or1k-core.xml
+F: gdbstub/gdb-xml/or1k-core.xml
 F: hw/or1k/
 F: include/hw/or1k/
 F: tests/functional/or1k/meson.build
@@ -411,7 +411,7 @@ M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 M: Artyom Tarasenko <atar4qemu@gmail.com>
 S: Maintained
 F: target/sparc/
-F: gdb-xml/sparc*.xml
+F: gdbstub/gdb-xml/sparc*.xml
 F: hw/sparc/
 F: hw/sparc64/
 F: include/hw/sparc/sparc64.h
@@ -499,7 +499,7 @@ S: Supported
 F: target/s390x/kvm/
 F: target/s390x/machine.c
 F: target/s390x/sigp.c
-F: gdb-xml/s390*.xml
+F: gdbstub/gdb-xml/s390*.xml
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
@@ -1352,7 +1352,7 @@ F: include/hw/intc/loongson_ipi_common.h
 F: hw/intc/loongarch_*.c
 F: hw/intc/loongson_ipi_common.c
 F: hw/rtc/ls7a_rtc.c
-F: gdb-xml/loongarch*.xml
+F: gdbstub/gdb-xml/loongarch*.xml
 
 M68K Machines
 -------------
@@ -3311,7 +3311,6 @@ F: docs/system/gdb.rst
 F: gdbstub/*
 F: include/exec/gdbstub.h
 F: include/gdbstub/*
-F: gdb-xml/
 F: tests/tcg/multiarch/gdbstub/*
 F: scripts/feature_to_c.py
 F: scripts/probe-gdb-support.py
