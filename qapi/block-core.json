@@ -4587,12 +4587,18 @@
 # @cookie-secret: ID of a QCryptoSecret object providing the cookie
 #     data in a secure way.  See @cookie for the format.  (since 2.10)
 #
+# @force-range: Don't issue a HEAD HTTP request to discover if the
+#     http server supports range requests and rely only on GET
+#     requests.  This is especially useful for S3 presigned URLs where
+#     HEAD requests are unauthorized.  (default: false; since 11.0)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttp',
   'base': 'BlockdevOptionsCurlBase',
   'data': { '*cookie': 'str',
-            '*cookie-secret': 'str'} }
+            '*cookie-secret': 'str',
+            '*force-range': 'bool'} }
 
 ##
 # @BlockdevOptionsCurlHttps:
@@ -4600,23 +4606,14 @@
 # Driver specific block device options for HTTPS connections over the
 # curl backend.  URLs must start with "https://".
 #
-# @cookie: List of cookies to set; format is "name1=content1;
-#     name2=content2;" as explained by CURLOPT_COOKIE(3).  Defaults to
-#     no cookies.
-#
 # @sslverify: Whether to verify the SSL certificate's validity
 #     (defaults to true)
-#
-# @cookie-secret: ID of a QCryptoSecret object providing the cookie
-#     data in a secure way.  See @cookie for the format.  (since 2.10)
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlHttps',
-  'base': 'BlockdevOptionsCurlBase',
-  'data': { '*cookie': 'str',
-            '*sslverify': 'bool',
-            '*cookie-secret': 'str'} }
+  'base': 'BlockdevOptionsCurlHttp',
+  'data': { '*sslverify': 'bool'} }
 
 ##
 # @BlockdevOptionsCurlFtp:

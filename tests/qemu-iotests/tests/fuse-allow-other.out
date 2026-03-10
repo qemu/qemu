@@ -12,7 +12,8 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
                   'id': 'export',
                   'node-name': 'node-format',
                   'mountpoint': 'TEST_DIR/fuse-export',
-         'allow-other': 'off'
+         'allow-other': 'off',
+         'writable': true
               } }
 {"return": {}}
 (Removing all permissions)
@@ -41,7 +42,8 @@ stat: cannot statx 'fuse-export': Permission denied
                   'id': 'export',
                   'node-name': 'node-format',
                   'mountpoint': 'TEST_DIR/fuse-export',
-         'allow-other': 'on'
+         'allow-other': 'on',
+         'writable': true
               } }
 {"return": {}}
 (Removing all permissions)
@@ -68,7 +70,8 @@ Permissions seen by nobody: 440
                   'id': 'export',
                   'node-name': 'node-format',
                   'mountpoint': 'TEST_DIR/fuse-export',
-         'allow-other': 'auto'
+         'allow-other': 'auto',
+         'writable': true
               } }
 {"return": {}}
 (Removing all permissions)

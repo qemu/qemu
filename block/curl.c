@@ -62,10 +62,12 @@
 #define CURL_BLOCK_OPT_PASSWORD_SECRET "password-secret"
 #define CURL_BLOCK_OPT_PROXY_USERNAME "proxy-username"
 #define CURL_BLOCK_OPT_PROXY_PASSWORD_SECRET "proxy-password-secret"
+#define CURL_BLOCK_OPT_FORCE_RANGE "force-range"
 
 #define CURL_BLOCK_OPT_READAHEAD_DEFAULT (256 * 1024)
 #define CURL_BLOCK_OPT_SSLVERIFY_DEFAULT true
 #define CURL_BLOCK_OPT_TIMEOUT_DEFAULT 5
+#define CURL_BLOCK_OPT_FORCE_RANGE_DEFAULT false
 
 struct BDRVCURLState;
 struct CURLState;
@@ -206,27 +208,33 @@ static size_t curl_header_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
     BDRVCURLState *s = opaque;
     size_t realsize = size * nmemb;
-    const char *p = ptr;
-    const char *end = p + realsize;
-    const char *t = "accept-ranges : bytes "; /* A lowercase template */
+    g_autofree char *header = g_strstrip(g_strndup(ptr, realsize));
+    char *val = strchr(header, ':');
 
-    /* check if header matches the "t" template */
-    for (;;) {
-        if (*t == ' ') { /* space in t matches any amount of isspace in p */
-            if (p < end && g_ascii_isspace(*p)) {
-                ++p;
-            } else {
-                ++t;
-            }
-        } else if (*t && p < end && *t == g_ascii_tolower(*p)) {
-            ++p, ++t;
-        } else {
-            break;
-        }
+    if (!val) {
+        return realsize;
     }
 
-    if (!*t && p == end) { /* if we managed to reach ends of both strings */
-        s->accept_range = true;
+    *val++ = '\0';
+    g_strchomp(header);
+    while (g_ascii_isspace(*val)) {
+        ++val;
+    }
+
+    trace_curl_header_cb(header, val);
+
+    if (!g_ascii_strcasecmp(header, "accept-ranges")) {
+        if (!g_ascii_strcasecmp(val, "bytes")) {
+            s->accept_range = true;
+        }
+    } else if (!g_ascii_strcasecmp(header, "Content-Range")) {
+        /* Content-Range fmt is `bytes begin-end/full_size` */
+        val = strchr(val, '/');
+        if (val) {
+            if (qemu_strtou64(val + 1, NULL, 10, &s->len) < 0) {
+                s->len = UINT64_MAX;
+            }
+        }
     }
 
     return realsize;
@@ -668,6 +676,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of secret used as password for HTTP proxy auth",
         },
+        {
+            .name = CURL_BLOCK_OPT_FORCE_RANGE,
+            .type = QEMU_OPT_BOOL,
+            .help = "Assume HTTP range requests are supported",
+        },
         { /* end of list */ }
     },
 };
@@ -690,6 +703,7 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
 #endif
     const char *secretid;
     const char *protocol_delimiter;
+    bool force_range;
     int ret;
 
     bdrv_graph_rdlock_main_loop();
@@ -807,34 +821,55 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->accept_range = false;
+    s->len = UINT64_MAX;
+    force_range = qemu_opt_get_bool(opts, CURL_BLOCK_OPT_FORCE_RANGE,
+                                    CURL_BLOCK_OPT_FORCE_RANGE_DEFAULT);
+    /*
+     * When minimal CURL will be bumped to `7.83`, the header callback + manual
+     * parsing can be replaced by `curl_easy_header` calls
+     */
     if (curl_easy_setopt(state->curl, CURLOPT_NOBODY, 1L) ||
         curl_easy_setopt(state->curl, CURLOPT_HEADERFUNCTION, curl_header_cb) ||
         curl_easy_setopt(state->curl, CURLOPT_HEADERDATA, s)) {
-        pstrcpy(state->errmsg, CURL_ERROR_SIZE,
-                "curl library initialization failed.");
-        goto out;
+        goto out_init;
     }
+    if (force_range) {
+        if (curl_easy_setopt(state->curl, CURLOPT_CUSTOMREQUEST, "GET") ||
+            curl_easy_setopt(state->curl, CURLOPT_RANGE, "0-0")) {
+            goto out_init;
+        }
+    }
+
     if (curl_easy_perform(state->curl))
         goto out;
-    /* CURL 7.55.0 deprecates CURLINFO_CONTENT_LENGTH_DOWNLOAD in favour of
-     * the *_T version which returns a more sensible type for content length.
-     */
+
+    if (!force_range) {
+        /*
+         * CURL 7.55.0 deprecates CURLINFO_CONTENT_LENGTH_DOWNLOAD in favour of
+         * the *_T version which returns a more sensible type for content
+         * length.
+         */
 #if LIBCURL_VERSION_NUM >= 0x073700
-    if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl)) {
-        goto out;
-    }
+        if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T,
+                              &cl)) {
+            goto out;
+        }
 #else
-    if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &cl)) {
-        goto out;
-    }
+        if (curl_easy_getinfo(state->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD,
+                              &cl)) {
+            goto out;
+        }
 #endif
-    if (cl < 0) {
+        if (cl >= 0) {
+            s->len = cl;
+        }
+    }
+
+    if (s->len == UINT64_MAX) {
         pstrcpy(state->errmsg, CURL_ERROR_SIZE,
                 "Server didn't report file size.");
         goto out;
     }
-
-    s->len = cl;
 
     if ((!strncasecmp(s->url, "http://", strlen("http://"))
         || !strncasecmp(s->url, "https://", strlen("https://")))
@@ -856,6 +891,9 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_opts_del(opts);
     return 0;
 
+out_init:
+    pstrcpy(state->errmsg, CURL_ERROR_SIZE,
+            "curl library initialization failed.");
 out:
     error_setg(errp, "CURL: Error opening file: %s", state->errmsg);
     curl_easy_cleanup(state->curl);

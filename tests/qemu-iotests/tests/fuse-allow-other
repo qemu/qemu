@@ -101,7 +101,8 @@ run_permission_test()
 
     fuse_export_add 'export' \
         "'mountpoint': '$EXT_MP',
-         'allow-other': '$1'"
+         'allow-other': '$1',
+         'writable': true"
 
     # Should always work
     echo '(Removing all permissions)'
