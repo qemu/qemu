@@ -108,8 +108,6 @@ Files in this directory
 
 - ``qemu/`` Python 'qemu' namespace package source directory.
 - ``tests/`` Python package tests directory.
-- ``avocado.cfg`` Configuration for the Avocado test-runner.
-  Used by ``make check`` et al.
 - ``Makefile`` provides some common testing/installation invocations.
   Try ``make help`` to see available targets.
 - ``MANIFEST.in`` is read by python setuptools, it specifies additional files

@@ -63,8 +63,6 @@ $(QEMU_MINVENV_DIR) $(QEMU_MINVENV_DIR)/bin/activate: setup.cfg tests/minreqs.tx
 	@(								\
 		echo "ACTIVATE $(QEMU_MINVENV_DIR)";			\
 		. $(QEMU_MINVENV_DIR)/bin/activate;			\
-		echo "INSTALL wheel $(QEMU_MINVENV_DIR)";               \
-		$(PIP_INSTALL) wheel 1>/dev/null;		               \
 		echo "INSTALL -r tests/minreqs.txt $(QEMU_MINVENV_DIR)";\
 		$(PIP_INSTALL) -r tests/minreqs.txt 1>/dev/null;	\
 		echo "INSTALL -e qemu $(QEMU_MINVENV_DIR)";		\
@@ -107,7 +105,7 @@ develop:
 
 .PHONY: check
 check:
-	@avocado --config avocado.cfg run tests/
+	@pytest -v tests/*.py
 
 .PHONY: check-tox
 check-tox:
@@ -115,7 +113,7 @@ check-tox:
 
 .PHONY: check-coverage
 check-coverage:
-	@coverage run -m avocado --config avocado.cfg run tests/*.py
+	@coverage run -m pytest -v tests/*.py
 	@coverage combine
 	@coverage html
 	@coverage report

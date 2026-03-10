@@ -16,6 +16,7 @@
 # installation of the QEMU package itself fails, failing to find
 # setuptools.
 setuptools<=70
+wheel==0.34.2
 
 # Dependencies for qapidoc/qapi_domain et al
 sphinx==3.4.3
@@ -30,7 +31,7 @@ distlib==0.3.6
 fusepy==2.0.4
 
 # Test-runners, utilities, etc.
-avocado-framework==90.0
+pytest==6.0.2
 
 # Linters
 flake8==5.0.4
