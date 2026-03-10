@@ -12,7 +12,6 @@
 #include "qemu/osdep.h"
 
 #include "system/igvm.h"
-#include "system/igvm-internal.h"
 
 int qigvm_x86_get_mem_map_entry(int index,
                                 ConfidentialGuestMemoryMapEntry *entry,

@@ -42,7 +42,7 @@ typedef struct QIgvmParameterData {
  * QIgvm contains the information required during processing of a single IGVM
  * file.
  */
-typedef struct QIgvm {
+struct QIgvm {
     IgvmHandle file;
     MachineState *machine_state;
     ConfidentialGuestSupportClass *cgsc;
@@ -67,16 +67,11 @@ typedef struct QIgvm {
     unsigned region_start_index;
     unsigned region_last_index;
     unsigned region_page_count;
-} QIgvm;
+};
 
 IgvmHandle qigvm_file_init(char *filename, Error **errp);
 
 QIgvmParameterData*
 qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index);
-
-/*
- *  IGVM parameter handlers
- */
-int qigvm_directive_madt(QIgvm *ctx, const uint8_t *header_data, Error **errp);
 
 #endif
