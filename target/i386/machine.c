@@ -466,7 +466,7 @@ static bool cpu_errcode_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
 
-    return cpu->env.has_error_code != 0;
+    return cpu->env.has_error_code != 0 && cpu->migrate_error_code;
 }
 
 static const VMStateDescription vmstate_error_code = {
