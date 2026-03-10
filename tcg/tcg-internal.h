@@ -100,4 +100,9 @@ TCGOp *tcg_op_insert_before(TCGContext *s, TCGOp *op,
 TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *op,
                            TCGOpcode, TCGType, unsigned nargs);
 
+/*
+ * For a binary opcode OP, return true if the second input operand allows IMM.
+ */
+bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
+
 #endif /* TCG_INTERNAL_H */

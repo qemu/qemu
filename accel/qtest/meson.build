@@ -1,1 +1,4 @@
-qtest_module_ss.add(when: ['CONFIG_SYSTEM_ONLY'], if_true: files('qtest.c'))
+qtest_module_ss = ss.source_set()
+qtest_module_ss.add(files('qtest.c'))
+
+modules += {'accel': {'qtest': qtest_module_ss}}
