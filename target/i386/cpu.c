@@ -1314,7 +1314,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_1E_1_EAX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
-            "amx-int8-mirror", "amx-bf16-mirror", "amx-complex-mirror", "amx-fp16-mirror",
+            "amx-int8-alias", "amx-bf16-alias", "amx-complex-alias", "amx-fp16-alias",
             "amx-fp8", NULL, "amx-tf32", "amx-avx512",
             "amx-movrs", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
