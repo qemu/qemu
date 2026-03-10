@@ -2760,7 +2760,11 @@ static int cgs_set_guest_policy(ConfidentialGuestPolicyType policy_type,
                 id_auth->author_key[0] ? 1 : 0;
             finish->id_block_en = 1;
         }
-        sev_snp_guest->kvm_start_conf.policy = policy;
+
+        /* do not reset existing policy if policy was not set in IGVM  */
+        if (policy != 0) {
+            sev_snp_guest->kvm_start_conf.policy = policy;
+        }
     } else {
         SevGuestState *sev_guest = SEV_GUEST(MACHINE(qdev_get_machine())->cgs);
         /* Only the policy flags are supported for SEV and SEV-ES */
@@ -2769,7 +2773,11 @@ static int cgs_set_guest_policy(ConfidentialGuestPolicyType policy_type,
                              "but SEV-SNP is not enabled", __func__);
             return -1;
         }
-        sev_guest->policy = policy;
+
+        /* do not reset existing policy if policy was not set in IGVM  */
+        if (policy != 0) {
+            sev_guest->policy = policy;
+        }
     }
     return 0;
 }
