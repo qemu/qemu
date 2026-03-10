@@ -18,6 +18,8 @@
 #define VIRTIO_CONFIG_S_DRIVER          2
 /* Driver has used its parts of the config, and is happy */
 #define VIRTIO_CONFIG_S_DRIVER_OK       4
+/* Feature negotiation complete */
+#define VIRTIO_CONFIG_S_FEATURES_OK     8
 /* We've given up on this device. */
 #define VIRTIO_CONFIG_S_FAILED          0x80
 
@@ -103,12 +105,12 @@ struct VRing {
     VRingDesc *desc;
     VRingAvail *avail;
     VRingUsed *used;
-    SubChannelId schid;
     long cookie;
     int id;
 };
 typedef struct VRing VRing;
 
+char *virtio_get_ring_area(int ring_num);
 
 /***********************************************
  *               Virtio block                  *
@@ -239,6 +241,8 @@ struct VDev {
     VirtioGDN guessed_disk_nature;
     SubChannelId schid;
     SenseId senseid;
+    S390IplType ipl_type;
+    VirtioDevType dev_type;
     union {
         VirtioBlkConfig blk;
         VirtioScsiConfig scsi;
@@ -253,6 +257,7 @@ struct VDev {
     uint8_t scsi_dev_heads;
     bool scsi_device_selected;
     ScsiDevice selected_scsi_device;
+    uint32_t pci_fh;
     uint32_t max_transfer;
     uint32_t guest_features[2];
 };
@@ -268,8 +273,11 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+bool be_ipl(void);
+void vring_init(VRing *vr, VqInfo *info);
+bool virtio_is_supported(VDev *vdev);
 bool vring_notify(VRing *vr);
-int drain_irqs(SubChannelId schid);
+int drain_irqs(void);
 void vring_send_buf(VRing *vr, void *p, int len, int flags);
 int vr_poll(VRing *vr);
 int vring_wait_reply(void);
@@ -277,7 +285,14 @@ int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
 int virtio_reset(VDev *vdev);
 int virtio_setup_ccw(VDev *vdev);
 
+/* virtio-net.c */
 int virtio_net_init(void *mac_addr);
 void virtio_net_deinit(void);
+
+/* virtio-blkdev.c */
+int virtio_blk_setup_device(VDev *vdev);
+int virtio_read(unsigned long sector, void *load_addr);
+unsigned long virtio_load_direct(unsigned long rec_list1, unsigned long rec_list2,
+                                 void *load_addr);
 
 #endif /* VIRTIO_H */

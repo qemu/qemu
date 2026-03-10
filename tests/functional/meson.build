@@ -4,8 +4,9 @@
 # (e.g. tests that fetch assets from the internet) should be put into
 # the 'thorough' category instead.
 
-# Most tests run too slow with TCI enabled, so skip the functional tests there
-if get_option('tcg_interpreter')
+# Most tests run too slow with TCI enabled, and they haven't been adapted
+# to Windows yet, so skip the functional tests in these environments
+if get_option('tcg_interpreter') or host_os == 'windows'
   subdir_done()
 endif
 

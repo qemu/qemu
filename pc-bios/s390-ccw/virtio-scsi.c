@@ -15,6 +15,7 @@
 #include "virtio.h"
 #include "scsi.h"
 #include "virtio-scsi.h"
+#include "virtio-ccw.h"
 #include "s390-time.h"
 #include "helper.h"
 
@@ -476,12 +477,9 @@ static int virtio_scsi_setup(VDev *vdev)
     return 0;
 }
 
-int virtio_scsi_setup_device(SubChannelId schid)
+int virtio_scsi_setup_device(VDev *vdev)
 {
-    VDev *vdev = virtio_get_device();
-
-    vdev->schid = schid;
-    virtio_setup_ccw(vdev);
+    virtio_ccw_setup(vdev);
 
     if (vdev->config.scsi.sense_size != VIRTIO_SCSI_SENSE_SIZE) {
         puts("Config: sense size mismatch");
