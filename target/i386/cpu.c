@@ -5264,7 +5264,6 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 6,
                 .note = "with cet-ss, cet-ibt, its-no",
-                .cache_info = &xeon_spr_cache_info,
                 .props = (PropValue[]) {
                     { "its-no", "on" },
                     { /* end of list */ },
@@ -5446,7 +5445,6 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 5,
                 .note = "with cet-ss, cet-ibt, its-no",
-                .cache_info = &xeon_gnr_cache_info,
                 .props = (PropValue[]) {
                     { "its-no", "on" },
                     { /* end of list */ },
@@ -5812,7 +5810,6 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 5,
                 .note = "with ITS_NO",
-                .cache_info = &xeon_srf_cache_info,
                 .props = (PropValue[]) {
                     { "its-no", "on" },
                     { /* end of list */ },
