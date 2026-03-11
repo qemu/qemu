@@ -19,7 +19,7 @@ Tiny Code Generator (TCG) capable of emulating many CPUs.
     - Host Architectures
   * - KVM
     - Linux
-    - Arm (64 bit only), MIPS, PPC, RISC-V, s390x, x86
+    - Arm, MIPS, PPC, RISC-V, s390x, x86
   * - Xen
     - Linux (as dom0)
     - Arm, x86
@@ -28,7 +28,7 @@ Tiny Code Generator (TCG) capable of emulating many CPUs.
     - x86
   * - Hypervisor Framework (hvf)
     - MacOS
-    - x86 (64 bit only), Arm (64 bit only)
+    - x86, Arm
   * - Windows Hypervisor Platform (whpx)
     - Windows
     - x86
