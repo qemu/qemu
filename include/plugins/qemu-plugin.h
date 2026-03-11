@@ -339,12 +339,28 @@ enum qemu_plugin_cb_flags {
     QEMU_PLUGIN_CB_RW_REGS_PC,
 };
 
+/**
+ * enum qemu_plugin_mem_rw - type of memory access
+ *
+ * @QEMU_PLUGIN_MEM_R: memory read access only
+ * @QEMU_PLUGIN_MEM_W: memory write access only
+ * @QEMU_PLUGIN_MEM_RW: memory read and write access
+ */
 enum qemu_plugin_mem_rw {
     QEMU_PLUGIN_MEM_R = 1,
     QEMU_PLUGIN_MEM_W,
     QEMU_PLUGIN_MEM_RW,
 };
 
+/**
+ * enum qemu_plugin_mem_value_type - size of memory value
+ *
+ * @QEMU_PLUGIN_MEM_VALUE_U8: unsigned 8-bit value
+ * @QEMU_PLUGIN_MEM_VALUE_U16: unsigned 16-bit value
+ * @QEMU_PLUGIN_MEM_VALUE_U32: unsigned 32-bit value
+ * @QEMU_PLUGIN_MEM_VALUE_U64: unsigned 64-bit value
+ * @QEMU_PLUGIN_MEM_VALUE_U128: unsigned 128-bit value
+ */
 enum qemu_plugin_mem_value_type {
     QEMU_PLUGIN_MEM_VALUE_U8,
     QEMU_PLUGIN_MEM_VALUE_U16,
@@ -353,7 +369,13 @@ enum qemu_plugin_mem_value_type {
     QEMU_PLUGIN_MEM_VALUE_U128,
 };
 
-/* typedef qemu_plugin_mem_value - value accessed during a load/store */
+/**
+ * typedef qemu_plugin_mem_value - value accessed during a load/store
+ *
+ * @type: the memory access size
+ * @data: the value accessed during the memory operation (value after
+ *        read/write)
+ */
 typedef struct {
     enum qemu_plugin_mem_value_type type;
     union {
@@ -462,7 +484,6 @@ void qemu_plugin_register_vcpu_tb_exec_cond_cb(struct qemu_plugin_tb *tb,
  * @QEMU_PLUGIN_INLINE_ADD_U64: add an immediate value uint64_t
  * @QEMU_PLUGIN_INLINE_STORE_U64: store an immediate value uint64_t
  */
-
 enum qemu_plugin_op {
     QEMU_PLUGIN_INLINE_ADD_U64,
     QEMU_PLUGIN_INLINE_STORE_U64,
@@ -803,6 +824,20 @@ const void *qemu_plugin_request_time_control(void);
 QEMU_PLUGIN_API
 void qemu_plugin_update_ns(const void *handle, int64_t time);
 
+/**
+ * typedef qemu_plugin_vcpu_syscall_cb_t - vCPU syscall callback function type
+ * @id: plugin id
+ * @vcpu_index: the executing vCPU
+ * @num: the syscall number
+ * @a1: the 1st syscall argument
+ * @a2: the 2nd syscall argument
+ * @a3: the 3rd syscall argument
+ * @a4: the 4th syscall argument
+ * @a5: the 5th syscall argument
+ * @a6: the 6th syscall argument
+ * @a7: the 7th syscall argument
+ * @a8: the 8th syscall argument
+ */
 typedef void
 (*qemu_plugin_vcpu_syscall_cb_t)(qemu_plugin_id_t id, unsigned int vcpu_index,
                                  int64_t num, uint64_t a1, uint64_t a2,
@@ -836,24 +871,62 @@ typedef bool
                                         uint64_t a6, uint64_t a7, uint64_t a8,
                                         uint64_t *sysret);
 
+/**
+ * typedef qemu_plugin_vcpu_syscall_ret_cb_t - vCPU syscall return callback
+ * function type
+ * @id: plugin id
+ * @vcpu_index: the executing vCPU
+ * @num: the syscall number
+ * @ret: the syscall return value
+ */
+typedef void
+(*qemu_plugin_vcpu_syscall_ret_cb_t)(qemu_plugin_id_t id,
+                                     unsigned int vcpu_index,
+                                     int64_t num, int64_t ret);
+
+/**
+ * qemu_plugin_register_vcpu_syscall_cb() - register a syscall entry callback
+ * @id: plugin id
+ * @cb: callback of type qemu_plugin_vcpu_syscall_cb_t
+ *
+ * This registers a callback for every syscall executed by the guest. The @cb
+ * function is executed before a syscall is handled by the host.
+ */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,
                                           qemu_plugin_vcpu_syscall_cb_t cb);
 
-typedef void
-(*qemu_plugin_vcpu_syscall_ret_cb_t)(qemu_plugin_id_t id, unsigned int vcpu_idx,
-                                     int64_t num, int64_t ret);
-
-QEMU_PLUGIN_API
-void
-qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
-                                         qemu_plugin_vcpu_syscall_ret_cb_t cb);
-
+/**
+ * qemu_plugin_register_vcpu_syscall_filter_cb() - register a syscall filter
+ * callback
+ * @id: plugin id
+ * @cb: callback of type qemu_plugin_vcpu_syscall_filter_cb_t
+ *
+ * This registers a callback for every syscall executed by the guest. The @cb
+ * function is executed before a syscall is handled by the host. If the
+ * callback returns true, the syscall is filtered and will not be executed by
+ * the host. The callback must then set the syscall return value via the
+ * corresponding pointer passed to it.
+ */
 QEMU_PLUGIN_API
 void
 qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
                                             qemu_plugin_vcpu_syscall_filter_cb_t cb);
 
+/**
+ * qemu_plugin_register_vcpu_syscall_ret_cb() - register a syscall entry
+ * callback
+ * @id: plugin id
+ * @cb: callback of type qemu_plugin_vcpu_syscall_ret_cb_t
+ *
+ * This registers a callback for every syscall executed by the guest. The @cb
+ * function is executed upon return from the host syscall before execution is
+ * handed back to the guest.
+ */
+QEMU_PLUGIN_API
+void
+qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
+                                         qemu_plugin_vcpu_syscall_ret_cb_t cb);
 
 /**
  * qemu_plugin_insn_disas() - return disassembly string for instruction
@@ -861,7 +934,6 @@ qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
  *
  * Returns an allocated string containing the disassembly
  */
-
 QEMU_PLUGIN_API
 char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn);
 
@@ -888,6 +960,16 @@ QEMU_PLUGIN_API
 void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
                                qemu_plugin_vcpu_simple_cb_t cb);
 
+/**
+ * qemu_plugin_register_flush_cb() - register code cache flush callback
+ * @id: plugin ID
+ * @cb: callback
+ *
+ * The @cb function is called every time the code cache is flushed.
+ * The callback can be used to free resources associated with existing
+ * translated blocks in a plugin. @cb is guaranteed to run with all cpus being
+ * stopped, thus no lock is required within it.
+ */
 QEMU_PLUGIN_API
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
                                    qemu_plugin_simple_cb_t cb);
