@@ -887,24 +887,22 @@ void aarch64_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
         isar_feature_aa64_sme(&cpu->isar)) {
         GDBFeature *feature = arm_gen_dynamic_svereg_feature(cs, cs->gdb_num_regs);
         gdb_register_coprocessor(cs, aarch64_gdb_get_sve_reg,
-                                 aarch64_gdb_set_sve_reg, feature, 0);
+                                 aarch64_gdb_set_sve_reg, feature);
     } else {
         gdb_register_coprocessor(cs, aarch64_gdb_get_fpu_reg,
                                  aarch64_gdb_set_fpu_reg,
-                                 gdb_find_static_feature("aarch64-fpu.xml"),
-                                 0);
+                                 gdb_find_static_feature("aarch64-fpu.xml"));
     }
 
     if (isar_feature_aa64_sme(&cpu->isar)) {
         GDBFeature *sme_feature =
             arm_gen_dynamic_smereg_feature(cs, cs->gdb_num_regs);
         gdb_register_coprocessor(cs, aarch64_gdb_get_sme_reg,
-                                 aarch64_gdb_set_sme_reg, sme_feature, 0);
+                                 aarch64_gdb_set_sme_reg, sme_feature);
         if (isar_feature_aa64_sme2(&cpu->isar)) {
             gdb_register_coprocessor(cs, aarch64_gdb_get_sme2_reg,
                                      aarch64_gdb_set_sme2_reg,
-                                     gdb_find_static_feature("aarch64-sme2.xml"),
-                                     0);
+                                     gdb_find_static_feature("aarch64-sme2.xml"));
         }
     }
     /*
@@ -916,8 +914,7 @@ void aarch64_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
     if (isar_feature_aa64_pauth(&cpu->isar)) {
         gdb_register_coprocessor(cs, aarch64_gdb_get_pauth_reg,
                                  aarch64_gdb_set_pauth_reg,
-                                 gdb_find_static_feature("aarch64-pauth.xml"),
-                                 0);
+                                 gdb_find_static_feature("aarch64-pauth.xml"));
     }
 
 #ifdef CONFIG_USER_ONLY
@@ -925,14 +922,12 @@ void aarch64_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
     if (cpu_isar_feature(aa64_mte, cpu)) {
         gdb_register_coprocessor(cs, aarch64_gdb_get_tag_ctl_reg,
                                  aarch64_gdb_set_tag_ctl_reg,
-                                 gdb_find_static_feature("aarch64-mte.xml"),
-                                 0);
+                                 gdb_find_static_feature("aarch64-mte.xml"));
     }
 #endif
 
     /* All AArch64 CPUs have at least TPIDR */
     gdb_register_coprocessor(cs, aarch64_gdb_get_tls_reg,
                              aarch64_gdb_set_tls_reg,
-                             arm_gen_dynamic_tls_feature(cs, cs->gdb_num_regs),
-                             0);
+                             arm_gen_dynamic_tls_feature(cs, cs->gdb_num_regs));
 }

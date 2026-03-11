@@ -117,12 +117,19 @@ run-gdbstub-registers: sha512
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/registers.py, \
 	checking register enumeration)
 
+# The prot-none test was skipped on gitlab due to missing gdb-multiarch,
+# however it seems to have bitrotten. Disable, it is tracked as
+# https://gitlab.com/qemu-project/qemu/-/issues/3329
 run-gdbstub-prot-none: prot-none
+ifneq ($(GITLAB_CI),)
+	$(call skip-test, $<, "Broken on GitLab")
+else
 	$(call run-test, $@, env PROT_NONE_PY=1 $(GDB_SCRIPT) \
 		--gdb $(GDB) \
 		--qemu $(QEMU) --qargs "$(QEMU_OPTS)" \
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/prot-none.py, \
 	accessing PROT_NONE memory)
+endif
 
 run-gdbstub-catch-syscalls: catch-syscalls
 	$(call run-test, $@, $(GDB_SCRIPT) \

@@ -271,20 +271,16 @@ void sparc_cpu_register_gdb_regs(CPUState *cs)
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
     gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
                              sparc_fpu_gdb_write_register,
-                             gdb_find_static_feature("sparc32-fpu.xml"),
-                             0);
+                             gdb_find_static_feature("sparc32-fpu.xml"));
     gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
                              sparc_cp0_gdb_write_register,
-                             gdb_find_static_feature("sparc32-cp0.xml"),
-                             0);
+                             gdb_find_static_feature("sparc32-cp0.xml"));
 #else
     gdb_register_coprocessor(cs, sparc_fpu_gdb_read_register,
                              sparc_fpu_gdb_write_register,
-                             gdb_find_static_feature("sparc64-fpu.xml"),
-                             0);
+                             gdb_find_static_feature("sparc64-fpu.xml"));
     gdb_register_coprocessor(cs, sparc_cp0_gdb_read_register,
                              sparc_cp0_gdb_write_register,
-                             gdb_find_static_feature("sparc64-cp0.xml"),
-                             0);
+                             gdb_find_static_feature("sparc64-cp0.xml"));
 #endif
 }

@@ -265,8 +265,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     gdb_register_coprocessor(cs, mb_cpu_gdb_read_stack_protect,
                              mb_cpu_gdb_write_stack_protect,
-                             gdb_find_static_feature("microblaze-stack-protect.xml"),
-                             0);
+                             gdb_find_static_feature("microblaze-stack-protect.xml"));
 
     qemu_init_vcpu(cs);
 

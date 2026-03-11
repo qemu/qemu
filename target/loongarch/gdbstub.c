@@ -180,16 +180,16 @@ void loongarch_cpu_register_gdb_regs_for_features(CPUState *cs)
 
     if (FIELD_EX32(env->cpucfg[2], CPUCFG2, FP)) {
         gdb_register_coprocessor(cs, loongarch_gdb_get_fpu, loongarch_gdb_set_fpu,
-                                 gdb_find_static_feature("loongarch-fpu.xml"), 0);
+                                 gdb_find_static_feature("loongarch-fpu.xml"));
     }
 
     if (FIELD_EX32(env->cpucfg[2], CPUCFG2, LSX)) {
         gdb_register_coprocessor(cs, loongarch_gdb_get_lsx, loongarch_gdb_set_lsx,
-                                 gdb_find_static_feature("loongarch-lsx.xml"), 0);
+                                 gdb_find_static_feature("loongarch-lsx.xml"));
     }
 
     if (FIELD_EX32(env->cpucfg[2], CPUCFG2, LASX)) {
         gdb_register_coprocessor(cs, loongarch_gdb_get_lasx, loongarch_gdb_set_lasx,
-                                 gdb_find_static_feature("loongarch-lasx.xml"), 0);
+                                 gdb_find_static_feature("loongarch-lasx.xml"));
     }
 }

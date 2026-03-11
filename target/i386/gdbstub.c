@@ -39,9 +39,7 @@ static const int gpr_map[CPU_NB_EREGS] = {
 static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
 /*
- * Keep these in sync with assignment to
- * gdb_num_core_regs in target/i386/cpu.c
- * and with the machine description
+ * Keep these in sync with the machine description
  */
 
 /*
@@ -503,8 +501,7 @@ void x86_cpu_gdb_init(CPUState *cs)
     if (env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_APXF) {
         gdb_register_coprocessor(cs, i386_cpu_gdb_get_egprs,
                                  i386_cpu_gdb_set_egprs,
-                                 gdb_find_static_feature("i386-64bit-apx.xml"),
-                                 0);
+                                 gdb_find_static_feature("i386-64bit-apx.xml"));
     }
 #endif
 
@@ -512,10 +509,9 @@ void x86_cpu_gdb_init(CPUState *cs)
     gdb_register_coprocessor(cs, x86_cpu_gdb_read_linux_register,
                              x86_cpu_gdb_write_linux_register,
 #ifdef TARGET_X86_64
-                             gdb_find_static_feature("i386-64bit-linux.xml"),
+                             gdb_find_static_feature("i386-64bit-linux.xml"));
 #else
-                             gdb_find_static_feature("i386-32bit-linux.xml"),
+                             gdb_find_static_feature("i386-32bit-linux.xml"));
 #endif
-                             0);
 #endif
 }

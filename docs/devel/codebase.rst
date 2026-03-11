@@ -88,8 +88,6 @@ yet, so sometimes the source code is all you have.
   `VirtFS <https://www.linux-kvm.org/page/VirtFS>`_ support.
 * `gdbstub <https://gitlab.com/qemu-project/qemu/-/tree/master/gdbstub>`_:
   `GDB <GDB usage>` support.
-* `gdb-xml <https://gitlab.com/qemu-project/qemu/-/tree/master/gdb-xml>`_:
-  Set of XML files describing architectures and used by `gdbstub <GDB usage>`.
 * `host <https://gitlab.com/qemu-project/qemu/-/tree/master/host>`_:
   Various architecture specific header files (crypto, atomic, memory
   operations).

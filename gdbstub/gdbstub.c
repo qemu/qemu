@@ -478,6 +478,10 @@ void gdb_feature_builder_end(const GDBFeatureBuilder *builder)
 
     builder->feature->num_regs = builder->regs->len;
     builder->feature->regs = (void *)g_ptr_array_free(builder->regs, FALSE);
+    trace_gdbxml_feature_builder_header(builder->feature->name,
+                                        builder->feature->xmlname,
+                                        builder->feature->num_regs);
+    trace_gdbxml_feature_builder_content(builder->feature->xml);
 }
 
 const GDBFeature *gdb_find_static_feature(const char *xmlname)
@@ -511,6 +515,10 @@ GArray *gdb_get_register_list(CPUState *cpu)
                 name,
                 r->feature->name
             };
+            trace_gdbxml_get_register_list(r->feature->name,
+                                           r->feature->xmlname,
+                                           r->feature->base_reg,
+                                           r->base_reg + i, name);
             g_array_append_val(results, desc);
         }
     }
@@ -563,6 +571,8 @@ static void gdb_register_feature(CPUState *cpu, int base_reg,
         .feature = feature
     };
 
+    trace_gdbxml_register_feature(feature->name, feature->xmlname,
+                                  base_reg, feature->num_regs);
     g_array_append_val(cpu->gdb_regs, s);
 }
 
@@ -582,29 +592,32 @@ static const char *gdb_get_core_xml_file(CPUState *cpu)
 
 void gdb_init_cpu(CPUState *cpu)
 {
-    CPUClass *cc = cpu->cc;
+    const CPUClass *cc = cpu->cc;
     const GDBFeature *feature;
     const char *xmlfile = gdb_get_core_xml_file(cpu);
 
     cpu->gdb_regs = g_array_new(false, false, sizeof(GDBRegisterState));
 
     if (xmlfile) {
+        assert(!cc->gdb_num_core_regs);
         feature = gdb_find_static_feature(xmlfile);
+        assert(feature->base_reg == 0);
         gdb_register_feature(cpu, 0,
                              cc->gdb_read_register, cc->gdb_write_register,
                              feature);
-        assert(!cc->gdb_num_core_regs);
         cpu->gdb_num_regs = cpu->gdb_num_g_regs = feature->num_regs;
-    }
-
-    if (cc->gdb_num_core_regs) {
+    } else {
         cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
     }
+
+    trace_gdbxml_init_cpu(object_get_typename(OBJECT(cpu)), cpu->cpu_index,
+                          cpu->gdb_num_regs, cpu->gdb_num_g_regs,
+                          cc->gdb_num_core_regs);
 }
 
 void gdb_register_coprocessor(CPUState *cpu,
                               gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
-                              const GDBFeature *feature, int g_pos)
+                              const GDBFeature *feature)
 {
     GDBRegisterState *s;
     guint i;
@@ -618,18 +631,15 @@ void gdb_register_coprocessor(CPUState *cpu,
         }
     }
 
+    if (base_reg < feature->base_reg) {
+        trace_gdbxml_register_coprocessor_gap(base_reg,
+                                              feature->base_reg);
+        base_reg = feature->base_reg;
+    }
     gdb_register_feature(cpu, base_reg, get_reg, set_reg, feature);
 
     /* Add to end of list.  */
     cpu->gdb_num_regs += feature->num_regs;
-    if (g_pos) {
-        if (g_pos != base_reg) {
-            error_report("Error: Bad gdb register numbering for '%s', "
-                         "expected %d got %d", feature->xml, g_pos, base_reg);
-        } else {
-            cpu->gdb_num_g_regs = cpu->gdb_num_regs;
-        }
-    }
 }
 
 void gdb_unregister_coprocessor_all(CPUState *cpu)

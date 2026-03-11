@@ -6,6 +6,7 @@ typedef struct GDBFeature {
     const char *xml;
     const char *name;
     const char * const *regs;
+    int base_reg;
     int num_regs;
 } GDBFeature;
 
@@ -34,11 +35,10 @@ void gdb_init_cpu(CPUState *cpu);
  * @set_reg - set function (gdb modifying)
  * @num_regs - number of registers in set
  * @xml - xml name of set
- * @gpos - non-zero to append to "general" register set at @gpos
  */
 void gdb_register_coprocessor(CPUState *cpu,
                               gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
-                              const GDBFeature *feature, int g_pos);
+                              const GDBFeature *feature);
 
 /**
  * gdb_unregister_coprocessor_all() - unregisters supplemental set of registers
