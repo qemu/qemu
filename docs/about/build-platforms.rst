@@ -43,7 +43,7 @@ Those hosts are officially supported, with various accelerators:
    * - CPU Architecture
      - Accelerators
    * - Arm
-     - hvf, kvm, tcg, xen
+     - hvf, kvm, tcg, whpx, xen
    * - PPC
      - kvm, tcg
    * - RISC-V
