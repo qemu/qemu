@@ -44,19 +44,43 @@ static bool qom_get_bool(const char *path, const char *prop)
 }
 
 typedef struct CpuidTestArgs {
-    const char *cmdline;
+    /* test name */
+    const char *name;
+    /* CPU type */
+    const char *cpu;
+    /* CPU features (may be NULL) */
+    const char *cpufeat;
+    /* machine type (may be NULL to use default machine) */
+    const char *machine;
+    /* CPU property to read */
     const char *property;
+    /* expected value of the property */
     int64_t expected_value;
 } CpuidTestArgs;
 
 static void test_cpuid_prop(const void *data)
 {
     const CpuidTestArgs *args = data;
+    char *cmdline;
+    char *save;
     char *path;
     QNum *value;
     int64_t val;
 
-    qtest_start(args->cmdline);
+    cmdline = g_strdup_printf("-cpu %s", args->cpu);
+
+    if (args->cpufeat) {
+        save = cmdline;
+        cmdline = g_strdup_printf("%s,%s", cmdline, args->cpufeat);
+        g_free(save);
+    }
+    if (args->machine) {
+        save = cmdline;
+        cmdline = g_strdup_printf("-machine %s %s", args->machine, cmdline);
+        g_free(save);
+    }
+
+    qtest_start(cmdline);
     path = get_cpu0_qom_path();
     value = qobject_to(QNum, qom_get(path, args->property));
     g_assert(qnum_get_try_int(value, &val));
@@ -65,44 +89,17 @@ static void test_cpuid_prop(const void *data)
 
     qobject_unref(value);
     g_free(path);
-    g_free((void *)args->cmdline);
-    g_free((void *)data);
+    g_free(cmdline);
 }
-
-static void add_cpuid_test(const char *name, const char *cpu,
-                           const char *cpufeat, const char *machine,
-                           const char *property, int64_t expected_value)
-{
-    CpuidTestArgs *args = g_new0(CpuidTestArgs, 1);
-    char *cmdline;
-    char *save;
-
-    if (!qtest_has_cpu_model(cpu)) {
-        return;
-    }
-    cmdline = g_strdup_printf("-cpu %s", cpu);
-
-    if (cpufeat) {
-        save = cmdline;
-        cmdline = g_strdup_printf("%s,%s", cmdline, cpufeat);
-        g_free(save);
-    }
-    if (machine) {
-        save = cmdline;
-        cmdline = g_strdup_printf("-machine %s %s", machine, cmdline);
-        g_free(save);
-    }
-    args->cmdline = cmdline;
-    args->property = property;
-    args->expected_value = expected_value;
-    qtest_add_data_func(name, args, test_cpuid_prop);
-}
-
 
 /* Parameters to a add_feature_test() test case */
 typedef struct FeatureTestArgs {
-    /* cmdline to start QEMU */
-    const char *cmdline;
+    /* Test name */
+    const char *name;
+    /* CPU type */
+    const char *cpu;
+    /* CPU features, may be NULL */
+    const char *cpufeat;
     /*
      * cpuid-input-eax and cpuid-input-ecx values to look for,
      * in "feature-words" and "filtered-features" properties.
@@ -147,10 +144,17 @@ static void test_feature_flag(const void *data)
 {
     const FeatureTestArgs *args = data;
     char *path;
+    char *cmdline;
     QList *present, *filtered;
     uint32_t value;
 
-    qtest_start(args->cmdline);
+    if (args->cpufeat) {
+        cmdline = g_strdup_printf("-cpu %s,%s", args->cpu, args->cpufeat);
+    } else {
+        cmdline = g_strdup_printf("-cpu %s", args->cpu);
+    }
+
+    qtest_start(cmdline);
     path = get_cpu0_qom_path();
     present = qobject_to(QList, qom_get(path, "feature-words"));
     filtered = qobject_to(QList, qom_get(path, "filtered-features"));
@@ -163,40 +167,7 @@ static void test_feature_flag(const void *data)
     qobject_unref(present);
     qobject_unref(filtered);
     g_free(path);
-    g_free((void *)args->cmdline);
-    g_free((void *)data);
-}
-
-/*
- * Add test case to ensure that a given feature flag is set in
- * either "feature-words" or "filtered-features", when running QEMU
- * using cmdline
- */
-static void add_feature_test(const char *name, const char *cpu,
-                             const char *cpufeat, uint32_t eax,
-                             uint32_t ecx, const char *reg,
-                             int bitnr, bool expected_value)
-{
-    FeatureTestArgs *args = g_new0(FeatureTestArgs, 1);
-    char *cmdline;
-
-    if (!qtest_has_cpu_model(cpu)) {
-        return;
-    }
-
-    if (cpufeat) {
-        cmdline = g_strdup_printf("-cpu %s,%s", cpu, cpufeat);
-    } else {
-        cmdline = g_strdup_printf("-cpu %s", cpu);
-    }
-
-    args->cmdline = cmdline;
-    args->in_eax = eax;
-    args->in_ecx = ecx;
-    args->reg = reg;
-    args->bitnr = bitnr;
-    args->expected_value = expected_value;
-    qtest_add_data_func(name, args, test_feature_flag);
+    g_free(cmdline);
 }
 
 static void test_plus_minus_subprocess(void)
@@ -249,6 +220,195 @@ static void test_plus_minus(void)
     g_test_trap_assert_stdout("");
 }
 
+static const CpuidTestArgs cpuid_tests[] = {
+    /* Original level values for CPU models: */
+    {
+        "x86/cpuid/phenom/level",
+        "phenom", NULL, NULL, "level", 5,
+    },
+    {
+        "x86/cpuid/Conroe/level",
+        "Conroe", NULL, NULL, "level", 10,
+    },
+    {
+        "x86/cpuid/SandyBridge/level",
+        "SandyBridge", NULL, NULL, "level", 0xd,
+    },
+    {
+        "x86/cpuid/486/xlevel",
+        "486", NULL, NULL, "xlevel", 0,
+    },
+    {
+        "x86/cpuid/core2duo/xlevel",
+        "core2duo", NULL, NULL, "xlevel", 0x80000008,
+    },
+    {
+        "x86/cpuid/phenom/xlevel",
+        "phenom", NULL, NULL, "xlevel", 0x8000001A,
+    },
+    {
+        "x86/cpuid/athlon/xlevel",
+        "athlon", NULL, NULL, "xlevel", 0x80000008,
+    },
+    /* If level is not large enough, it should increase automatically: */
+    /* CPUID[6].EAX: */
+    {
+        "x86/cpuid/auto-level/486/arat",
+        "486", "arat=on", NULL, "level", 6,
+    },
+    /* CPUID[EAX=7,ECX=0].EBX: */
+    {
+        "x86/cpuid/auto-level/phenom/fsgsbase",
+        "phenom", "fsgsbase=on", NULL, "level", 7,
+    },
+    /* CPUID[EAX=7,ECX=0].ECX: */
+    {
+        "x86/cpuid/auto-level/phenom/avx512vbmi",
+        "phenom", "avx512vbmi=on", NULL, "level", 7,
+    },
+    /* CPUID[EAX=0xd,ECX=1].EAX: */
+    {
+        "x86/cpuid/auto-level/phenom/xsaveopt",
+        "phenom", "xsaveopt=on", NULL, "level", 0xd,
+    },
+    /* CPUID[8000_0001].EDX: */
+    {
+        "x86/cpuid/auto-xlevel/486/3dnow",
+        "486", "3dnow=on", NULL, "xlevel", 0x80000001,
+    },
+    /* CPUID[8000_0001].ECX: */
+    {
+        "x86/cpuid/auto-xlevel/486/sse4a",
+        "486", "sse4a=on", NULL, "xlevel", 0x80000001,
+    },
+    /* CPUID[8000_0007].EDX: */
+    {
+        "x86/cpuid/auto-xlevel/486/invtsc",
+        "486", "invtsc=on", NULL, "xlevel", 0x80000007,
+    },
+    /* CPUID[8000_000A].EDX: */
+    {
+        "x86/cpuid/auto-xlevel/486/npt",
+        "486", "svm=on,npt=on", NULL, "xlevel", 0x8000000A,
+    },
+    /* CPUID[C000_0001].EDX: */
+    {
+        "x86/cpuid/auto-xlevel2/phenom/xstore",
+        "phenom", "xstore=on", NULL, "xlevel2", 0xC0000001,
+    },
+    /* SVM needs CPUID[0x8000000A] */
+    {
+        "x86/cpuid/auto-xlevel/athlon/svm",
+        "athlon", "svm=on", NULL, "xlevel", 0x8000000A,
+    },
+    /* If level is already large enough, it shouldn't change: */
+    {
+        "x86/cpuid/auto-level/SandyBridge/multiple",
+        "SandyBridge", "arat=on,fsgsbase=on,avx512vbmi=on",
+        NULL, "level", 0xd,
+    },
+    /* If level is explicitly set, it shouldn't change: */
+    {
+        "x86/cpuid/auto-level/486/fixed/0xF",
+        "486",
+        "level=0xF,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
+        NULL, "level", 0xF,
+    },
+    {
+        "x86/cpuid/auto-level/486/fixed/2",
+        "486",
+        "level=2,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
+        NULL, "level", 2,
+    },
+    {
+        "x86/cpuid/auto-level/486/fixed/0",
+        "486",
+        "level=0,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
+        NULL, "level", 0,
+    },
+    /* if xlevel is already large enough, it shouldn't change: */
+    {
+        "x86/cpuid/auto-xlevel/phenom/3dnow",
+        "phenom", "3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+        NULL, "xlevel", 0x8000001A,
+    },
+    /* If xlevel is explicitly set, it shouldn't change: */
+    {
+        "x86/cpuid/auto-xlevel/486/fixed/80000002",
+        "486",
+        "xlevel=0x80000002,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+        NULL, "xlevel", 0x80000002,
+    },
+    {
+        "x86/cpuid/auto-xlevel/486/fixed/8000001A",
+        "486",
+        "xlevel=0x8000001A,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+        NULL, "xlevel", 0x8000001A,
+    },
+    {
+        "x86/cpuid/auto-xlevel/phenom/fixed/0",
+        "486",
+        "xlevel=0,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
+        NULL, "xlevel", 0,
+    },
+    /* if xlevel2 is already large enough, it shouldn't change: */
+    {
+        "x86/cpuid/auto-xlevel2/486/fixed",
+        "486", "xlevel2=0xC0000002,xstore=on",
+        NULL, "xlevel2", 0xC0000002,
+    },
+};
+
+/*
+ * Test cases to ensure that a given feature flag is set in
+ * either "feature-words" or "filtered-features", when running QEMU
+ * using cmdline
+ */
+static const FeatureTestArgs feature_tests[] = {
+    /* Test feature parsing */
+    {
+        "x86/cpuid/features/plus",
+        "486", "+arat",
+        6, 0, "EAX", 2, true,
+    },
+    {
+        "x86/cpuid/features/minus",
+        "pentium", "-mmx",
+        1, 0, "EDX", 23, false,
+    },
+    {
+        "x86/cpuid/features/on",
+        "486", "arat=on",
+        6, 0, "EAX", 2, true,
+    },
+    {
+        "x86/cpuid/features/off",
+        "pentium", "mmx=off",
+        1, 0, "EDX", 23, false,
+    },
+
+    {
+        "x86/cpuid/features/max-plus-invtsc",
+        "max" , "+invtsc",
+        0x80000007, 0, "EDX", 8, true,
+    },
+    {
+        "x86/cpuid/features/max-invtsc-on",
+        "max", "invtsc=on",
+        0x80000007, 0, "EDX", 8, true,
+    },
+    {
+        "x86/cpuid/features/max-minus-mmx",
+        "max", "-mmx",
+        1, 0, "EDX", 23, false,
+    },
+    {
+        "x86/cpuid/features/max-invtsc-on,mmx=off",
+        "max", "mmx=off",
+        1, 0, "EDX", 23, false,
+    },
+};
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -257,122 +417,22 @@ int main(int argc, char **argv)
                     test_plus_minus_subprocess);
     g_test_add_func("/x86/cpuid/parsing-plus-minus", test_plus_minus);
 
-    /* Original level values for CPU models: */
-    add_cpuid_test("x86/cpuid/phenom/level",
-                   "phenom", NULL, NULL, "level", 5);
-    add_cpuid_test("x86/cpuid/Conroe/level",
-                   "Conroe", NULL, NULL, "level", 10);
-    add_cpuid_test("x86/cpuid/SandyBridge/level",
-                   "SandyBridge", NULL, NULL, "level", 0xd);
-    add_cpuid_test("x86/cpuid/486/xlevel",
-                   "486", NULL, NULL, "xlevel", 0);
-    add_cpuid_test("x86/cpuid/core2duo/xlevel",
-                   "core2duo", NULL, NULL, "xlevel", 0x80000008);
-    add_cpuid_test("x86/cpuid/phenom/xlevel",
-                   "phenom", NULL, NULL, "xlevel", 0x8000001A);
-    add_cpuid_test("x86/cpuid/athlon/xlevel",
-                   "athlon", NULL, NULL, "xlevel", 0x80000008);
-
-    /* If level is not large enough, it should increase automatically: */
-    /* CPUID[6].EAX: */
-    add_cpuid_test("x86/cpuid/auto-level/486/arat",
-                   "486", "arat=on", NULL, "level", 6);
-    /* CPUID[EAX=7,ECX=0].EBX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/fsgsbase",
-                   "phenom", "fsgsbase=on", NULL, "level", 7);
-    /* CPUID[EAX=7,ECX=0].ECX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/avx512vbmi",
-                   "phenom", "avx512vbmi=on", NULL, "level", 7);
-    /* CPUID[EAX=0xd,ECX=1].EAX: */
-    add_cpuid_test("x86/cpuid/auto-level/phenom/xsaveopt",
-                   "phenom", "xsaveopt=on", NULL, "level", 0xd);
-    /* CPUID[8000_0001].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/3dnow",
-                   "486", "3dnow=on", NULL, "xlevel", 0x80000001);
-    /* CPUID[8000_0001].ECX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/sse4a",
-                   "486", "sse4a=on", NULL, "xlevel", 0x80000001);
-    /* CPUID[8000_0007].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/invtsc",
-                   "486", "invtsc=on", NULL, "xlevel", 0x80000007);
-    /* CPUID[8000_000A].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/npt",
-                   "486", "svm=on,npt=on", NULL, "xlevel", 0x8000000A);
-    /* CPUID[C000_0001].EDX: */
-    add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
-                   "phenom", "xstore=on", NULL, "xlevel2", 0xC0000001);
-    /* SVM needs CPUID[0x8000000A] */
-    add_cpuid_test("x86/cpuid/auto-xlevel/athlon/svm",
-                   "athlon", "svm=on", NULL, "xlevel", 0x8000000A);
+    for (int i = 0; i < ARRAY_SIZE(cpuid_tests); i++) {
+        if (!qtest_has_cpu_model(cpuid_tests[i].cpu)) {
+            continue;
+        }
+        qtest_add_data_func(cpuid_tests[i].name,
+                            &cpuid_tests[i], test_cpuid_prop);
+    }
 
 
-    /* If level is already large enough, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-level/SandyBridge/multiple",
-                   "SandyBridge", "arat=on,fsgsbase=on,avx512vbmi=on",
-                   NULL, "level", 0xd);
-    /* If level is explicitly set, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-level/486/fixed/0xF",
-                   "486",
-                   "level=0xF,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
-                   NULL, "level", 0xF);
-    add_cpuid_test("x86/cpuid/auto-level/486/fixed/2",
-                   "486",
-                   "level=2,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
-                   NULL, "level", 2);
-    add_cpuid_test("x86/cpuid/auto-level/486/fixed/0",
-                   "486",
-                   "level=0,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
-                   NULL, "level", 0);
-
-    /* if xlevel is already large enough, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/phenom/3dnow",
-                   "phenom", "3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   NULL, "xlevel", 0x8000001A);
-    /* If xlevel is explicitly set, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/80000002",
-                   "486",
-                   "xlevel=0x80000002,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   NULL, "xlevel", 0x80000002);
-    add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/8000001A",
-                   "486",
-                   "xlevel=0x8000001A,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   NULL, "xlevel", 0x8000001A);
-    add_cpuid_test("x86/cpuid/auto-xlevel/phenom/fixed/0",
-                   "486",
-                   "xlevel=0,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
-                   NULL, "xlevel", 0);
-
-    /* if xlevel2 is already large enough, it shouldn't change: */
-    add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed",
-                   "486", "xlevel2=0xC0000002,xstore=on",
-                   NULL, "xlevel2", 0xC0000002);
-
-    /* Test feature parsing */
-    add_feature_test("x86/cpuid/features/plus",
-                     "486", "+arat",
-                     6, 0, "EAX", 2, true);
-    add_feature_test("x86/cpuid/features/minus",
-                     "pentium", "-mmx",
-                     1, 0, "EDX", 23, false);
-    add_feature_test("x86/cpuid/features/on",
-                     "486", "arat=on",
-                     6, 0, "EAX", 2, true);
-    add_feature_test("x86/cpuid/features/off",
-                     "pentium", "mmx=off",
-                     1, 0, "EDX", 23, false);
-
-    add_feature_test("x86/cpuid/features/max-plus-invtsc",
-                     "max" , "+invtsc",
-                     0x80000007, 0, "EDX", 8, true);
-    add_feature_test("x86/cpuid/features/max-invtsc-on",
-                     "max", "invtsc=on",
-                     0x80000007, 0, "EDX", 8, true);
-    add_feature_test("x86/cpuid/features/max-minus-mmx",
-                     "max", "-mmx",
-                     1, 0, "EDX", 23, false);
-    add_feature_test("x86/cpuid/features/max-invtsc-on,mmx=off",
-                     "max", "mmx=off",
-                     1, 0, "EDX", 23, false);
+    for (int i = 0; i < ARRAY_SIZE(feature_tests); i++) {
+        if (!qtest_has_cpu_model(feature_tests[i].cpu)) {
+            continue;
+        }
+        qtest_add_data_func(feature_tests[i].name,
+                            &feature_tests[i], test_feature_flag);
+    }
 
     return g_test_run();
 }

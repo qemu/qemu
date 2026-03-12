@@ -930,25 +930,41 @@ reconnect_cb(gpointer user_data)
     return FALSE;
 }
 
-static gpointer
-connect_thread(gpointer data)
+static gboolean connect_cb(gpointer user_data)
 {
-    TestServer *s = data;
+    TestServer *s = user_data;
 
-    /* wait for qemu to start before first try, to avoid extra warnings */
-    g_usleep(G_USEC_PER_SEC);
     test_server_connect(s);
 
-    return NULL;
+    /* We only need to be called once */
+    return G_SOURCE_REMOVE;
+}
+
+/* Initial delay before connect, in milliseconds (1 second) */
+#define INITIAL_CONNECT_DELAY_MS (1 * 1000)
+
+static void test_schedule_connect(TestServer *s)
+{
+    /*
+     * Wait for a bit for QEMU to start before we first try to connect,
+     * to avoid extra warnings. We must run the "connect" on the
+     * main-loop thread so it doesn't race with a callback that
+     * the socket-chardev sets up on the main-loop.
+     */
+    GSource *src = g_timeout_source_new(INITIAL_CONNECT_DELAY_MS);
+    g_source_set_callback(src, connect_cb, s, NULL);
+    g_source_attach(src, s->context);
+    g_source_unref(src);
 }
 
 static void *vhost_user_test_setup_reconnect(GString *cmd_line, void *arg)
 {
     TestServer *s = test_server_new("reconnect", arg);
 
-    g_thread_unref(g_thread_new("connect", connect_thread, s));
     append_mem_opts(s, cmd_line, 256, TEST_MEMFD_AUTO);
     s->vu_ops->append_opts(s, cmd_line, ",server=on");
+
+    test_schedule_connect(s);
 
     g_test_queue_destroy(vhost_user_test_cleanup, s);
 
@@ -983,9 +999,10 @@ static void *vhost_user_test_setup_connect_fail(GString *cmd_line, void *arg)
 
     s->test_fail = true;
 
-    g_thread_unref(g_thread_new("connect", connect_thread, s));
     append_mem_opts(s, cmd_line, 256, TEST_MEMFD_AUTO);
     s->vu_ops->append_opts(s, cmd_line, ",server=on");
+
+    test_schedule_connect(s);
 
     g_test_queue_destroy(vhost_user_test_cleanup, s);
 
@@ -998,9 +1015,10 @@ static void *vhost_user_test_setup_flags_mismatch(GString *cmd_line, void *arg)
 
     s->test_flags = TEST_FLAGS_DISCONNECT;
 
-    g_thread_unref(g_thread_new("connect", connect_thread, s));
     append_mem_opts(s, cmd_line, 256, TEST_MEMFD_AUTO);
     s->vu_ops->append_opts(s, cmd_line, ",server=on");
+
+    test_schedule_connect(s);
 
     g_test_queue_destroy(vhost_user_test_cleanup, s);
 
