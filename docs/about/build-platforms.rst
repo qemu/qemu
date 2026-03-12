@@ -43,7 +43,7 @@ Those hosts are officially supported, with various accelerators:
    * - CPU Architecture
      - Accelerators
    * - Arm
-     - hvf (64 bit only), kvm (64 bit only), tcg, xen
+     - hvf, kvm, tcg, whpx, xen
    * - PPC
      - kvm, tcg
    * - RISC-V
@@ -53,7 +53,7 @@ Those hosts are officially supported, with various accelerators:
    * - SPARC
      - tcg
    * - x86
-     - hvf (64 bit only), mshv (64 bit only), kvm, nvmm, tcg, whpx (64 bit only), xen
+     - hvf, mshv, kvm, nvmm, tcg, whpx, xen
 
 Other host architectures are not supported. It is possible to build QEMU system
 emulation on an unsupported host architecture using the configure

@@ -13,9 +13,10 @@
 #define BACKENDS_IGVM_H
 
 #include "hw/core/boards.h"
-#include "qemu/typedefs.h"
 #include "system/confidential-guest-support.h"
 #include "qapi/error.h"
+
+typedef struct QIgvm QIgvm;
 
 int qigvm_process_file(IgvmCfg *igvm, MachineState *machine_state,
                        bool onlyVpContext, Error **errp);
