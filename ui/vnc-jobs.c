@@ -108,11 +108,25 @@ int vnc_job_add_rect(VncJob *job, int x, int y, int w, int h)
     return 1;
 }
 
+static void vnc_job_free(VncJob *job)
+{
+    VncRectEntry *entry, *tmp;
+
+    if (!job) {
+        return;
+    }
+    QLIST_FOREACH_SAFE(entry, &job->rectangles, next, tmp) {
+        /* no need for QLIST_REMOVE(entry, next) */
+        g_free(entry);
+    }
+    g_free(job);
+}
+
 void vnc_job_push(VncJob *job)
 {
     vnc_lock_queue(queue);
     if (queue->exit || QLIST_EMPTY(&job->rectangles)) {
-        g_free(job);
+        vnc_job_free(job);
     } else {
         QTAILQ_INSERT_TAIL(&queue->jobs, job, next);
         qemu_cond_broadcast(&queue->cond);
@@ -297,6 +311,7 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
                 n_rectangles += n;
             }
         }
+        QLIST_REMOVE(entry, next);
         g_free(entry);
     }
     trace_vnc_job_nrects(&vs, job, n_rectangles);
@@ -325,7 +340,7 @@ disconnected:
     QTAILQ_REMOVE(&queue->jobs, job, next);
     vnc_unlock_queue(queue);
     qemu_cond_broadcast(&queue->cond);
-    g_free(job);
+    vnc_job_free(job);
     vs.magic = 0;
     return 0;
 }
