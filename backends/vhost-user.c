@@ -102,7 +102,7 @@ vhost_user_backend_stop(VhostUserBackend *b)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(b->vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    int ret;
+    int ret, err;
 
     if (!b->started) {
         return 0;
@@ -111,9 +111,9 @@ vhost_user_backend_stop(VhostUserBackend *b)
     ret = vhost_dev_stop(&b->dev, b->vdev, true);
 
     if (k->set_guest_notifiers &&
-        k->set_guest_notifiers(qbus->parent, b->dev.nvqs, false) < 0) {
-        error_report("vhost guest notifier cleanup failed: %d", ret);
-        return -1;
+        (err = k->set_guest_notifiers(qbus->parent, b->dev.nvqs, false)) < 0) {
+        error_report("vhost guest notifier cleanup failed: %d", err);
+        return err;
     }
 
     vhost_dev_disable_notifiers(&b->dev, b->vdev);

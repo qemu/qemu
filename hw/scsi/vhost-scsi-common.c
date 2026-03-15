@@ -113,7 +113,7 @@ int vhost_scsi_common_stop(VHostSCSICommon *vsc)
     if (k->set_guest_notifiers) {
         int r = k->set_guest_notifiers(qbus->parent, vsc->dev.nvqs, false);
         if (r < 0) {
-            error_report("vhost guest notifier cleanup failed: %d", ret);
+            error_report("vhost guest notifier cleanup failed: %d", r);
             return r;
         }
     }

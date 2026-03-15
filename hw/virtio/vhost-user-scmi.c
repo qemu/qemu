@@ -89,7 +89,7 @@ static int vu_scmi_stop(VirtIODevice *vdev)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     struct vhost_dev *vhost_dev = &scmi->vhost_dev;
-    int ret;
+    int ret, err;
 
     /* vhost_dev_is_started() check in the callers is not fully reliable. */
     if (!scmi->started_vu) {
@@ -103,9 +103,10 @@ static int vu_scmi_stop(VirtIODevice *vdev)
 
     ret = vhost_dev_stop(vhost_dev, vdev, true);
 
-    if (k->set_guest_notifiers(qbus->parent, vhost_dev->nvqs, false) < 0) {
-        error_report("vhost guest notifier cleanup failed: %d", ret);
-        return -1;
+    err = k->set_guest_notifiers(qbus->parent, vhost_dev->nvqs, false);
+    if (err < 0) {
+        error_report("vhost guest notifier cleanup failed: %d", err);
+        return err;
     }
     vhost_dev_disable_notifiers(vhost_dev, vdev);
     return ret;
