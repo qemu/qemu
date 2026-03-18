@@ -903,19 +903,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
         goto fail;
     }
 
-    if (tap->fd) {
-        vnet_hdr = tap_probe_vnet_hdr(fds[0], errp);
-        if (vnet_hdr < 0) {
-            goto fail;
-        }
-
-        if (!net_init_tap_one(tap, peer, name, NULL,
-                              NULL, NULL,
-                              vhost_fds ? vhost_fds[0] : -1,
-                              vnet_hdr, fds[0], errp)) {
-            goto fail;
-        }
-    } else if (tap->fds) {
+    if (fds) {
         for (i = 0; i < queues; i++) {
             if (i == 0) {
                 vnet_hdr = tap_probe_vnet_hdr(fds[i], errp);
@@ -934,18 +922,6 @@ int net_init_tap(const Netdev *netdev, const char *name,
                                   vnet_hdr, fds[i], errp)) {
                 goto fail;
             }
-        }
-    } else if (tap->helper) {
-        vnet_hdr = tap_probe_vnet_hdr(fds[0], errp);
-        if (vnet_hdr < 0) {
-            goto fail;
-        }
-
-        if (!net_init_tap_one(tap, peer, name, ifname,
-                              NULL, NULL,
-                              vhost_fds ? vhost_fds[0] : -1,
-                              vnet_hdr, fds[0], errp)) {
-            goto fail;
         }
     } else {
         g_autofree char *script =
