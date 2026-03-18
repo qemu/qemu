@@ -442,14 +442,14 @@ static NetClientInfo net_af_xdp_info = {
 };
 
 static int *parse_socket_fds(const char *sock_fds_str,
-                             int64_t n_expected, Error **errp)
+                             int n_expected, Error **errp)
 {
     gchar **substrings = g_strsplit(sock_fds_str, ":", -1);
-    int64_t i, n_sock_fds = g_strv_length(substrings);
+    int i, n_sock_fds = g_strv_length(substrings);
     int *sock_fds = NULL;
 
     if (n_sock_fds != n_expected) {
-        error_setg(errp, "expected %"PRIi64" socket fds, got %"PRIi64,
+        error_setg(errp, "expected %d socket fds, got %d",
                    n_expected, n_sock_fds);
         goto exit;
     }
@@ -484,7 +484,7 @@ int net_init_af_xdp(const Netdev *netdev,
     unsigned int ifindex;
     uint32_t prog_id = 0;
     g_autofree int *sock_fds = NULL;
-    int64_t i, queues;
+    int i, queues;
     Error *err = NULL;
     AFXDPState *s;
     bool inhibit;
@@ -496,12 +496,13 @@ int net_init_af_xdp(const Netdev *netdev,
         return -1;
     }
 
-    queues = opts->has_queues ? opts->queues : 1;
-    if (queues < 1) {
+    if (opts->has_queues && (opts->queues < 1 || opts->queues > INT_MAX)) {
         error_setg(errp, "invalid number of queues (%" PRIi64 ") for '%s'",
-                   queues, opts->ifname);
+                   opts->queues, opts->ifname);
         return -1;
     }
+
+    queues = opts->has_queues ? opts->queues : 1;
 
     inhibit = opts->has_inhibit && opts->inhibit;
     if (inhibit && !opts->sock_fds && !opts->map_path) {
@@ -537,7 +538,7 @@ int net_init_af_xdp(const Netdev *netdev,
 
     for (i = 0; i < queues; i++) {
         nc = qemu_new_net_client(&net_af_xdp_info, peer, "af-xdp", name);
-        qemu_set_info_str(nc, "af-xdp%"PRIi64" to %s", i, opts->ifname);
+        qemu_set_info_str(nc, "af-xdp%d to %s", i, opts->ifname);
         nc->queue_index = i;
 
         if (!nc0) {
