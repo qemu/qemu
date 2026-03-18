@@ -706,11 +706,10 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *model, const char *name,
                              const char *ifname, const char *script,
-                             const char *downscript, const char *vhostfdname,
+                             const char *downscript, int vhostfd,
                              int vnet_hdr, int fd, Error **errp)
 {
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
-    int vhostfd;
     bool sndbuf_required = tap->has_sndbuf;
     int sndbuf =
         (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
@@ -738,7 +737,7 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     }
 
     if (tap->has_vhost ? tap->vhost :
-        vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
+        (vhostfd != -1) || (tap->has_vhostforce && tap->vhostforce)) {
         VhostNetOptions options;
 
         options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
@@ -749,15 +748,7 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
             options.busyloop_timeout = 0;
         }
 
-        if (vhostfdname) {
-            vhostfd = monitor_fd_param(monitor_cur(), vhostfdname, errp);
-            if (vhostfd == -1) {
-                goto failed;
-            }
-            if (!qemu_set_blocking(vhostfd, false, errp)) {
-                goto failed;
-            }
-        } else {
+        if (vhostfd == -1) {
             vhostfd = open("/dev/vhost-net", O_RDWR);
             if (vhostfd < 0) {
                 error_setg_file_open(errp, errno, "/dev/vhost-net");
@@ -820,7 +811,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
     const NetdevTapOptions *tap;
-    int fd = -1, vnet_hdr = 0, i = 0, queues;
+    int fd = -1, vhostfd = -1, vnet_hdr = 0, i = 0, queues;
     /* for the no-fd, no-helper case */
     char ifname[128];
     char **fds = NULL, **vhost_fds = NULL;
@@ -866,6 +857,17 @@ int net_init_tap(const Netdev *netdev, const char *name,
         return -1;
     }
 
+    if (tap->vhostfd) {
+        vhostfd = monitor_fd_param(monitor_cur(), tap->vhostfd, errp);
+        if (vhostfd == -1) {
+            return -1;
+        }
+
+        if (!qemu_set_blocking(vhostfd, false, errp)) {
+            goto fail;
+        }
+    }
+
     if (tap->fd) {
         fd = monitor_fd_param(monitor_cur(), tap->fd, errp);
         if (fd == -1) {
@@ -883,7 +885,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         if (!net_init_tap_one(tap, peer, "tap", name, NULL,
                               NULL, NULL,
-                              tap->vhostfd, vnet_hdr, fd, errp)) {
+                              vhostfd, vnet_hdr, fd, errp)) {
             goto fail;
         }
     } else if (tap->fds) {
@@ -910,6 +912,17 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto fail;
             }
 
+            if (tap->vhostfds) {
+                vhostfd = monitor_fd_param(monitor_cur(), vhost_fds[i], errp);
+                if (vhostfd == -1) {
+                    goto fail;
+                }
+
+                if (!qemu_set_blocking(vhostfd, false, errp)) {
+                    goto fail;
+                }
+            }
+
             if (i == 0) {
                 vnet_hdr = tap_probe_vnet_hdr(fd, errp);
                 if (vnet_hdr < 0) {
@@ -923,7 +936,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
             if (!net_init_tap_one(tap, peer, "tap", name, ifname,
                                   NULL, NULL,
-                                  tap->vhostfds ? vhost_fds[i] : NULL,
+                                  vhostfd,
                                   vnet_hdr, fd, errp)) {
                 goto fail;
             }
@@ -945,7 +958,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
         }
 
         if (!net_init_tap_one(tap, peer, "bridge", name, ifname,
-                              NULL, NULL, tap->vhostfd,
+                              NULL, NULL, vhostfd,
                               vnet_hdr, fd, errp)) {
             goto fail;
         }
@@ -978,7 +991,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             if (!net_init_tap_one(tap, peer, "tap", name, ifname,
                                   i >= 1 ? NULL : script,
                                   i >= 1 ? NULL : downscript,
-                                  tap->vhostfd, vnet_hdr, fd, errp)) {
+                                  vhostfd, vnet_hdr, fd, errp)) {
                 goto fail;
             }
         }
@@ -988,6 +1001,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
 fail:
     close(fd);
+    close(vhostfd);
     if (vhost_fds) {
         for (i = 0; i < nvhosts; i++) {
             g_free(vhost_fds[i]);
