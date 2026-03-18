@@ -143,6 +143,12 @@ static void dumb_hdm_handler(CXLComponentState *cxl_cstate, hwaddr offset,
         value = FIELD_DP32(value, CXL_HDM_DECODER0_CTRL, COMMITTED, 0);
     }
     stl_le_p((uint8_t *)cache_mem + offset, value);
+
+    if (should_commit) {
+        cfmws_update_non_interleaved(true);
+    } else if (should_uncommit) {
+        cfmws_update_non_interleaved(false);
+    }
 }
 
 static void bi_handler(CXLComponentState *cxl_cstate, hwaddr offset,

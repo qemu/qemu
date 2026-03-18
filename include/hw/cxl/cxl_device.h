@@ -685,6 +685,8 @@ typedef struct CXLSetFeatureInfo {
     size_t data_size;
 } CXLSetFeatureInfo;
 
+typedef struct CXLFixedWindow CXLFixedWindow;
+
 struct CXLSanitizeInfo;
 
 typedef struct CXLAlertConfig {
@@ -712,6 +714,8 @@ struct CXLType3Dev {
     uint64_t sn;
 
     /* State */
+    MemoryRegion direct_mr[CXL_HDM_DECODER_COUNT];
+    CXLFixedWindow *direct_mr_fw[CXL_HDM_DECODER_COUNT];
     AddressSpace hostvmem_as;
     AddressSpace hostpmem_as;
     CXLComponentState cxl_cstate;

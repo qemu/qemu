@@ -264,6 +264,207 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr,
     return d;
 }
 
+typedef struct CXLDirectPTState {
+    CXLType3Dev *ct3d;
+    hwaddr decoder_base;
+    hwaddr decoder_size;
+    hwaddr dpa_base;
+    unsigned int hdm_decoder_idx;
+} CXLDirectPTState;
+
+static void cxl_fmws_direct_passthrough_setup(CXLDirectPTState *state,
+                                              CXLFixedWindow *fw)
+{
+    CXLType3Dev *ct3d = state->ct3d;
+    MemoryRegion *mr = NULL;
+    uint64_t vmr_size = 0, pmr_size = 0, offset = 0;
+    MemoryRegion *direct_mr;
+    g_autofree char *direct_mr_name;
+    unsigned int idx = state->hdm_decoder_idx;
+
+    if (ct3d->hostvmem) {
+        MemoryRegion *vmr = host_memory_backend_get_memory(ct3d->hostvmem);
+
+        vmr_size = memory_region_size(vmr);
+        if (state->dpa_base < vmr_size) {
+            mr = vmr;
+            offset = state->dpa_base;
+        }
+    }
+    if (!mr && ct3d->hostpmem) {
+        MemoryRegion *pmr = host_memory_backend_get_memory(ct3d->hostpmem);
+
+        pmr_size = memory_region_size(pmr);
+        if (state->dpa_base - vmr_size < pmr_size) {
+            mr = pmr;
+            offset = state->dpa_base - vmr_size;
+        }
+    }
+    if (!mr) {
+        return;
+    }
+
+    if (ct3d->direct_mr_fw[idx]) {
+        return;
+    }
+
+    direct_mr = &ct3d->direct_mr[idx];
+    direct_mr_name = g_strdup_printf("cxl-direct-mapping-alias-%u", idx);
+    if (!direct_mr_name) {
+        return;
+    }
+
+    memory_region_init_alias(direct_mr, OBJECT(ct3d), direct_mr_name, mr,
+                             offset, state->decoder_size);
+    memory_region_transaction_begin();
+    memory_region_add_subregion(&fw->mr,
+                                state->decoder_base - fw->base, direct_mr);
+    memory_region_transaction_commit();
+    ct3d->direct_mr_fw[idx] = fw;
+}
+
+static void cxl_fmws_direct_passthrough_remove(CXLType3Dev *ct3d,
+                                               uint64_t decoder_base,
+                                               unsigned int idx)
+{
+    CXLFixedWindow *owner_fw = ct3d->direct_mr_fw[idx];
+    MemoryRegion *direct_mr = &ct3d->direct_mr[idx];
+
+    if (!owner_fw) {
+        return;
+    }
+
+    if (!memory_region_is_mapped(direct_mr)) {
+        return;
+    }
+
+    if (cxl_cfmws_find_device(owner_fw, decoder_base, false)) {
+        return;
+    }
+
+    memory_region_transaction_begin();
+    memory_region_del_subregion(&owner_fw->mr, direct_mr);
+    object_unparent(OBJECT(direct_mr));
+    memory_region_transaction_commit();
+    ct3d->direct_mr_fw[idx] = NULL;
+}
+
+static int cxl_fmws_direct_passthrough(Object *obj, void *opaque)
+{
+    CXLDirectPTState *state = opaque;
+    CXLFixedWindow *fw;
+
+    if (!object_dynamic_cast(obj, TYPE_CXL_FMW)) {
+        return 0;
+    }
+
+    fw = CXL_FMW(obj);
+
+    /* Verify not interleaved */
+    if (!cxl_cfmws_find_device(fw, state->decoder_base, false)) {
+        return 0;
+    }
+
+    cxl_fmws_direct_passthrough_setup(state, fw);
+
+    return 0;
+}
+
+static int update_non_interleaved(Object *obj, void *opaque)
+{
+    const int hdm_inc = R_CXL_HDM_DECODER1_BASE_LO - R_CXL_HDM_DECODER0_BASE_LO;
+    bool commit = *(bool *)opaque;
+    CXLType3Dev *ct3d;
+    uint32_t *cache_mem;
+    unsigned int hdm_count, i;
+    int interleave_ways_dec;
+    uint32_t cap;
+    uint64_t dpa_base = 0;
+
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        return 0;
+    }
+
+    ct3d = CXL_TYPE3(obj);
+    cache_mem = ct3d->cxl_cstate.crb.cache_mem_registers;
+    cap = ldl_le_p(cache_mem + R_CXL_HDM_DECODER_CAPABILITY);
+    hdm_count = cxl_decoder_count_dec(FIELD_EX32(cap,
+                                                 CXL_HDM_DECODER_CAPABILITY,
+                                                 DECODER_COUNT));
+    for (i = 0; i < hdm_count; i++) {
+        uint64_t decoder_base, decoder_size, skip;
+        uint32_t hdm_ctrl, low, high;
+        int iw, committed;
+
+        hdm_ctrl = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_CTRL + i * hdm_inc);
+        committed = FIELD_EX32(hdm_ctrl, CXL_HDM_DECODER0_CTRL, COMMITTED);
+
+        /*
+         * Optimization: Looking for a fully committed path; if the type 3 HDM
+         * decoder is not commmitted, it cannot lie on such a path.
+         */
+        if (commit && !committed) {
+            return 0;
+        }
+
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_LO +
+                       i * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_DPA_SKIP_HI +
+                        i * hdm_inc);
+        skip = ((uint64_t)high << 32) | (low & 0xf0000000);
+        dpa_base += skip;
+
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_LO + i * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_SIZE_HI + i * hdm_inc);
+        decoder_size = ((uint64_t)high << 32) | (low & 0xf0000000);
+
+        low = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_LO + i * hdm_inc);
+        high = ldl_le_p(cache_mem + R_CXL_HDM_DECODER0_BASE_HI + i * hdm_inc);
+        decoder_base = ((uint64_t)high << 32) | (low & 0xf0000000);
+
+        iw = FIELD_EX32(hdm_ctrl, CXL_HDM_DECODER0_CTRL, IW);
+
+        if (iw == 0) {
+            if (!commit) {
+                cxl_fmws_direct_passthrough_remove(ct3d, decoder_base, i);
+            } else {
+                CXLDirectPTState state = {
+                    .ct3d = ct3d,
+                    .decoder_base = decoder_base,
+                    .decoder_size = decoder_size,
+                    .dpa_base = dpa_base,
+                    .hdm_decoder_idx = i,
+                };
+
+                object_child_foreach_recursive(object_get_root(),
+                                               cxl_fmws_direct_passthrough,
+                                               &state);
+            }
+        }
+
+        interleave_ways_dec = cxl_interleave_ways_dec(iw, &error_fatal);
+        if (interleave_ways_dec == 0) {
+            return 0;
+        }
+
+        dpa_base += decoder_size / interleave_ways_dec;
+    }
+
+    return 0;
+}
+
+void cfmws_update_non_interleaved(bool commit)
+{
+    /*
+     * Walk endpoints to find both committed and uncommitted decoders,
+     * then check if they are not interleaved (but the path is fully set up).
+     */
+    object_child_foreach_recursive(object_get_root(),
+                                   update_non_interleaved, &commit);
+
+    return;
+}
+
 static MemTxResult cxl_read_cfmws(void *opaque, hwaddr addr, uint64_t *data,
                                   unsigned size, MemTxAttrs attrs)
 {
