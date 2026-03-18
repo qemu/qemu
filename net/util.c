@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "monitor/monitor.h"
+#include "qapi/error.h"
 #include "util.h"
 
 int net_parse_macaddr(uint8_t *macaddr, const char *p)
@@ -56,4 +58,52 @@ int net_parse_macaddr(uint8_t *macaddr, const char *p)
     }
 
     return 0;
+}
+
+void net_free_fds(int *fds, int nfds)
+{
+    int i;
+
+    if (!fds || nfds <= 0) {
+        return;
+    }
+
+    for (i = 0; i < nfds; i++) {
+        if (fds[i] != -1) {
+            close(fds[i]);
+        }
+    }
+
+    g_free(fds);
+}
+
+int net_parse_fds(const char *fds_param, int **fds, int expected_nfds,
+                  Error **errp)
+{
+    g_auto(GStrv) fdnames = g_strsplit(fds_param, ":", -1);
+    unsigned nfds = g_strv_length(fdnames);
+    int i;
+
+    if (nfds > INT_MAX) {
+        error_setg(errp, "fds parameter exceeds maximum of %d", INT_MAX);
+        return -1;
+    }
+
+    if (expected_nfds && nfds != expected_nfds) {
+        error_setg(errp, "expected %u socket fds, got %u", expected_nfds, nfds);
+        return -1;
+    }
+
+    *fds = g_new(int, nfds);
+
+    for (i = 0; i < nfds; i++) {
+        (*fds)[i] = monitor_fd_param(monitor_cur(), fdnames[i], errp);
+        if ((*fds)[i] == -1) {
+            net_free_fds(*fds, i);
+            *fds = NULL;
+            return -1;
+        }
+    }
+
+    return nfds;
 }

@@ -45,6 +45,7 @@
 #include "hw/virtio/vhost.h"
 
 #include "net/tap.h"
+#include "net/util.h"
 
 #include "net/vhost_net.h"
 
@@ -701,8 +702,6 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
     return fd;
 }
 
-#define MAX_TAP_QUEUES 1024
-
 static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *name,
                              const char *ifname, const char *script,
@@ -782,32 +781,6 @@ failed:
     return false;
 }
 
-static int get_fds(char *str, char *fds[], int max)
-{
-    char *ptr = str, *this;
-    size_t len = strlen(str);
-    int i = 0;
-
-    while (i < max && ptr < str + len) {
-        this = strchr(ptr, ':');
-
-        if (this == NULL) {
-            fds[i] = g_strdup(ptr);
-        } else {
-            fds[i] = g_strndup(ptr, this - ptr);
-        }
-
-        i++;
-        if (this == NULL) {
-            break;
-        } else {
-            ptr = this + 1;
-        }
-    }
-
-    return i;
-}
-
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
@@ -815,9 +788,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
     int fd = -1, vhostfd = -1, vnet_hdr = 0, i = 0, queues;
     /* for the no-fd, no-helper case */
     char ifname[128];
-    char **fds = NULL, **vhost_fds = NULL;
-    int nfds = 0, nvhosts = 0;
-
+    int *fds = NULL, *vhost_fds = NULL;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
@@ -890,46 +861,31 @@ int net_init_tap(const Netdev *netdev, const char *name,
             goto fail;
         }
     } else if (tap->fds) {
-        fds = g_new0(char *, MAX_TAP_QUEUES);
-        vhost_fds = g_new0(char *, MAX_TAP_QUEUES);
-
-        nfds = get_fds(tap->fds, fds, MAX_TAP_QUEUES);
-        if (tap->vhostfds) {
-            nvhosts = get_fds(tap->vhostfds, vhost_fds, MAX_TAP_QUEUES);
-            if (nfds != nvhosts) {
-                error_setg(errp, "The number of fds passed does not match "
-                           "the number of vhostfds passed");
-                goto fail;
-            }
+        queues = net_parse_fds(tap->fds, &fds, 0, errp);
+        if (queues < 0) {
+            goto fail;
         }
 
-        for (i = 0; i < nfds; i++) {
-            fd = monitor_fd_param(monitor_cur(), fds[i], errp);
-            if (fd == -1) {
+        if (tap->vhostfds && net_parse_fds(tap->vhostfds, &vhost_fds,
+                                           queues, errp) < 0) {
+            goto fail;
+        }
+
+        for (i = 0; i < queues; i++) {
+            if (!qemu_set_blocking(fds[i], false, errp)) {
                 goto fail;
             }
 
-            if (!qemu_set_blocking(fd, false, errp)) {
+            if (vhost_fds && !qemu_set_blocking(vhost_fds[i], false, errp)) {
                 goto fail;
-            }
-
-            if (tap->vhostfds) {
-                vhostfd = monitor_fd_param(monitor_cur(), vhost_fds[i], errp);
-                if (vhostfd == -1) {
-                    goto fail;
-                }
-
-                if (!qemu_set_blocking(vhostfd, false, errp)) {
-                    goto fail;
-                }
             }
 
             if (i == 0) {
-                vnet_hdr = tap_probe_vnet_hdr(fd, errp);
+                vnet_hdr = tap_probe_vnet_hdr(fds[i], errp);
                 if (vnet_hdr < 0) {
                     goto fail;
                 }
-            } else if (vnet_hdr != tap_probe_vnet_hdr(fd, NULL)) {
+            } else if (vnet_hdr != tap_probe_vnet_hdr(fds[i], NULL)) {
                 error_setg(errp,
                            "vnet_hdr not consistent across given tap fds");
                 goto fail;
@@ -937,8 +893,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
             if (!net_init_tap_one(tap, peer, name, ifname,
                                   NULL, NULL,
-                                  vhostfd,
-                                  vnet_hdr, fd, errp)) {
+                                  vhost_fds ? vhost_fds[i] : -1,
+                                  vnet_hdr, fds[i], errp)) {
                 goto fail;
             }
         }
@@ -1003,18 +959,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
 fail:
     close(fd);
     close(vhostfd);
-    if (vhost_fds) {
-        for (i = 0; i < nvhosts; i++) {
-            g_free(vhost_fds[i]);
-        }
-        g_free(vhost_fds);
-    }
-    if (fds) {
-        for (i = 0; i < nfds; i++) {
-            g_free(fds[i]);
-        }
-        g_free(fds);
-    }
+    net_free_fds(fds, queues);
+    net_free_fds(vhost_fds, queues);
     return -1;
 }
 
