@@ -822,14 +822,12 @@ int net_init_tap(const Netdev *netdev, const char *name,
     const NetdevTapOptions *tap;
     int fd, vnet_hdr = 0, i = 0, queues;
     /* for the no-fd, no-helper case */
-    const char *vhostfdname;
     char ifname[128];
     int ret = 0;
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
     queues = tap->has_queues ? tap->queues : 1;
-    vhostfdname = tap->vhostfd;
 
     /* QEMU hubs do not support multiqueue tap, in this case peer is set.
      * For -netdev, peer is always NULL. */
@@ -871,7 +869,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         if (!net_init_tap_one(tap, peer, "tap", name, NULL,
                               NULL, NULL,
-                              vhostfdname, vnet_hdr, fd, errp)) {
+                              tap->vhostfd, vnet_hdr, fd, errp)) {
             close(fd);
             return -1;
         }
@@ -972,7 +970,7 @@ free_fail:
         }
 
         if (!net_init_tap_one(tap, peer, "bridge", name, ifname,
-                              NULL, NULL, vhostfdname,
+                              NULL, NULL, tap->vhostfd,
                               vnet_hdr, fd, errp)) {
             close(fd);
             return -1;
@@ -1012,7 +1010,7 @@ free_fail:
             if (!net_init_tap_one(tap, peer, "tap", name, ifname,
                                   i >= 1 ? NULL : script,
                                   i >= 1 ? NULL : downscript,
-                                  vhostfdname, vnet_hdr, fd, errp)) {
+                                  tap->vhostfd, vnet_hdr, fd, errp)) {
                 close(fd);
                 return -1;
             }
