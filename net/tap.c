@@ -807,6 +807,10 @@ static int tap_parse_fds_and_queues(const NetdevTapOptions *tap, int **fds,
             error_setg(errp, "queues exceeds maximum %d", INT_MAX);
             return -1;
         }
+        if (tap->queues == 0) {
+            error_setg(errp, "queues must be greater than zero");
+            return -1;
+        }
         queues = tap->queues;
         *fds = NULL;
     } else if (tap->fd || tap->fds) {

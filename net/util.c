@@ -94,6 +94,11 @@ int net_parse_fds(const char *fds_param, int **fds, int expected_nfds,
         return -1;
     }
 
+    if (nfds == 0) {
+        error_setg(errp, "no fds passed");
+        return -1;
+    }
+
     *fds = g_new(int, nfds);
 
     for (i = 0; i < nfds; i++) {
