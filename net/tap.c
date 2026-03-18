@@ -781,6 +781,61 @@ failed:
     return false;
 }
 
+static bool unblock_fds(int *fds, int nfds, Error **errp)
+{
+    for (int i = 0; i < nfds; i++) {
+        if (!qemu_set_blocking(fds[i], false, errp)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static int tap_parse_fds_and_queues(const NetdevTapOptions *tap, int **fds,
+                                    Error **errp)
+{
+    int queues = 1;
+
+    if (tap->has_queues + !!tap->helper + !!tap->fds + !!tap->fd > 1) {
+        error_setg(errp, "queues=, helper=, fds= and fd= are mutual exclusive");
+        return -1;
+    }
+
+    if (tap->has_queues) {
+        if (tap->queues > INT_MAX) {
+            error_setg(errp, "queues exceeds maximum %d", INT_MAX);
+            return -1;
+        }
+        queues = tap->queues;
+        *fds = NULL;
+    } else if (tap->fd || tap->fds) {
+        queues = net_parse_fds(tap->fd ?: tap->fds, fds,
+                               tap->fd ? 1 : 0, errp);
+        if (!*fds) {
+            return -1;
+        }
+    } else if (tap->helper) {
+        int fd = net_bridge_run_helper(tap->helper,
+                                       tap->br ?: DEFAULT_BRIDGE_INTERFACE,
+                                       errp);
+        if (fd < 0) {
+            return -1;
+        }
+
+        queues = 1;
+        *fds = g_new(int, 1);
+        **fds = fd;
+    }
+
+    if (*fds && !unblock_fds(*fds, queues, errp)) {
+        net_free_fds(*fds, queues);
+        return -1;
+    }
+
+    return queues;
+}
+
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
@@ -792,7 +847,6 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
-    queues = tap->has_queues ? tap->queues : 1;
 
     /* QEMU hubs do not support multiqueue tap, in this case peer is set.
      * For -netdev, peer is always NULL. */
@@ -829,10 +883,15 @@ int net_init_tap(const Netdev *netdev, const char *name,
         return -1;
     }
 
+    queues = tap_parse_fds_and_queues(tap, &fds, errp);
+    if (queues < 0) {
+        return -1;
+    }
+
     if (tap->vhostfd) {
         vhostfd = monitor_fd_param(monitor_cur(), tap->vhostfd, errp);
         if (vhostfd == -1) {
-            return -1;
+            goto fail;
         }
 
         if (!qemu_set_blocking(vhostfd, false, errp)) {
@@ -841,41 +900,23 @@ int net_init_tap(const Netdev *netdev, const char *name,
     }
 
     if (tap->fd) {
-        fd = monitor_fd_param(monitor_cur(), tap->fd, errp);
-        if (fd == -1) {
-            goto fail;
-        }
-
-        if (!qemu_set_blocking(fd, false, errp)) {
-            goto fail;
-        }
-
-        vnet_hdr = tap_probe_vnet_hdr(fd, errp);
+        vnet_hdr = tap_probe_vnet_hdr(fds[0], errp);
         if (vnet_hdr < 0) {
             goto fail;
         }
 
         if (!net_init_tap_one(tap, peer, name, NULL,
                               NULL, NULL,
-                              vhostfd, vnet_hdr, fd, errp)) {
+                              vhostfd, vnet_hdr, fds[0], errp)) {
             goto fail;
         }
     } else if (tap->fds) {
-        queues = net_parse_fds(tap->fds, &fds, 0, errp);
-        if (queues < 0) {
-            goto fail;
-        }
-
         if (tap->vhostfds && net_parse_fds(tap->vhostfds, &vhost_fds,
                                            queues, errp) < 0) {
             goto fail;
         }
 
         for (i = 0; i < queues; i++) {
-            if (!qemu_set_blocking(fds[i], false, errp)) {
-                goto fail;
-            }
-
             if (vhost_fds && !qemu_set_blocking(vhost_fds[i], false, errp)) {
                 goto fail;
             }
@@ -899,24 +940,14 @@ int net_init_tap(const Netdev *netdev, const char *name,
             }
         }
     } else if (tap->helper) {
-        fd = net_bridge_run_helper(tap->helper,
-                                   tap->br ?: DEFAULT_BRIDGE_INTERFACE,
-                                   errp);
-        if (fd == -1) {
-            goto fail;
-        }
-
-        if (!qemu_set_blocking(fd, false, errp)) {
-            goto fail;
-        }
-        vnet_hdr = tap_probe_vnet_hdr(fd, errp);
+        vnet_hdr = tap_probe_vnet_hdr(fds[0], errp);
         if (vnet_hdr < 0) {
             goto fail;
         }
 
         if (!net_init_tap_one(tap, peer, name, ifname,
                               NULL, NULL, vhostfd,
-                              vnet_hdr, fd, errp)) {
+                              vnet_hdr, fds[0], errp)) {
             goto fail;
         }
     } else {
