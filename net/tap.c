@@ -704,12 +704,13 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 #define MAX_TAP_QUEUES 1024
 
 static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
-                             const char *model, const char *name,
+                             const char *name,
                              const char *ifname, const char *script,
                              const char *downscript, int vhostfd,
                              int vnet_hdr, int fd, Error **errp)
 {
-    TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
+    TAPState *s = net_tap_fd_init(peer, tap->helper ? "bridge" : "tap",
+                                  name, fd, vnet_hdr);
     bool sndbuf_required = tap->has_sndbuf;
     int sndbuf =
         (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
@@ -883,7 +884,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             goto fail;
         }
 
-        if (!net_init_tap_one(tap, peer, "tap", name, NULL,
+        if (!net_init_tap_one(tap, peer, name, NULL,
                               NULL, NULL,
                               vhostfd, vnet_hdr, fd, errp)) {
             goto fail;
@@ -934,7 +935,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 goto fail;
             }
 
-            if (!net_init_tap_one(tap, peer, "tap", name, ifname,
+            if (!net_init_tap_one(tap, peer, name, ifname,
                                   NULL, NULL,
                                   vhostfd,
                                   vnet_hdr, fd, errp)) {
@@ -957,7 +958,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             goto fail;
         }
 
-        if (!net_init_tap_one(tap, peer, "bridge", name, ifname,
+        if (!net_init_tap_one(tap, peer, name, ifname,
                               NULL, NULL, vhostfd,
                               vnet_hdr, fd, errp)) {
             goto fail;
@@ -988,7 +989,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                 }
             }
 
-            if (!net_init_tap_one(tap, peer, "tap", name, ifname,
+            if (!net_init_tap_one(tap, peer, name, ifname,
                                   i >= 1 ? NULL : script,
                                   i >= 1 ? NULL : downscript,
                                   vhostfd, vnet_hdr, fd, errp)) {
