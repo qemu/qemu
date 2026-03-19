@@ -51,12 +51,12 @@ struct MemoryRegionCache {
 
 #define SUFFIX       _cached_slow
 #define ARG1         cache
-#define ARG1_DECL    MemoryRegionCache *cache
+#define ARG1_DECL    const MemoryRegionCache *cache
 #include "system/memory_ldst.h.inc"
 
 /* Inline fast path for direct RAM access.  */
 static inline
-uint8_t address_space_ldub_cached(MemoryRegionCache *cache, hwaddr addr,
+uint8_t address_space_ldub_cached(const MemoryRegionCache *cache, hwaddr addr,
                                   MemTxAttrs attrs, MemTxResult *result)
 {
     assert(addr < cache->len);
@@ -68,7 +68,7 @@ uint8_t address_space_ldub_cached(MemoryRegionCache *cache, hwaddr addr,
 }
 
 static inline
-void address_space_stb_cached(MemoryRegionCache *cache,
+void address_space_stb_cached(const MemoryRegionCache *cache,
                               hwaddr addr, uint8_t val,
                               MemTxAttrs attrs, MemTxResult *result)
 {
@@ -93,7 +93,7 @@ void address_space_stb_cached(MemoryRegionCache *cache,
 
 #define SUFFIX       _cached
 #define ARG1         cache
-#define ARG1_DECL    MemoryRegionCache *cache
+#define ARG1_DECL    const MemoryRegionCache *cache
 #include "system/memory_ldst_phys.h.inc"
 
 /**
@@ -145,7 +145,7 @@ static inline void address_space_cache_init_empty(MemoryRegionCache *cache)
  * address that was passed to @address_space_cache_init.
  * @access_len: The number of bytes that were written starting at @addr.
  */
-void address_space_cache_invalidate(MemoryRegionCache *cache,
+void address_space_cache_invalidate(const MemoryRegionCache *cache,
                                     hwaddr addr,
                                     hwaddr access_len);
 
@@ -160,9 +160,9 @@ void address_space_cache_destroy(MemoryRegionCache *cache);
  * Internal functions, part of the implementation of address_space_read_cached
  * and address_space_write_cached.
  */
-MemTxResult address_space_read_cached_slow(MemoryRegionCache *cache,
+MemTxResult address_space_read_cached_slow(const MemoryRegionCache *cache,
                                            hwaddr addr, void *buf, hwaddr len);
-MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
+MemTxResult address_space_write_cached_slow(const MemoryRegionCache *cache,
                                             hwaddr addr, const void *buf,
                                             hwaddr len);
 
@@ -175,7 +175,7 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
  * @len: length of the data transferred
  */
 static inline MemTxResult
-address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
+address_space_read_cached(const MemoryRegionCache *cache, hwaddr addr,
                           void *buf, hwaddr len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
@@ -197,7 +197,7 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
  * @len: length of the data transferred
  */
 static inline MemTxResult
-address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
+address_space_write_cached(const MemoryRegionCache *cache, hwaddr addr,
                            const void *buf, hwaddr len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
