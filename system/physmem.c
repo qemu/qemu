@@ -3646,7 +3646,7 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, hwaddr len,
     return true;
 }
 
-bool address_space_access_valid(AddressSpace *as, hwaddr addr,
+bool address_space_access_valid(const AddressSpace *as, hwaddr addr,
                                 hwaddr len, bool is_write,
                                 MemTxAttrs attrs)
 {

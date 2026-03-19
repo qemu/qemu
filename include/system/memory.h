@@ -2850,7 +2850,8 @@ static inline MemoryRegion *address_space_translate(AddressSpace *as,
  * @is_write: indicates the transfer direction
  * @attrs: memory attributes
  */
-bool address_space_access_valid(AddressSpace *as, hwaddr addr, hwaddr len,
+bool address_space_access_valid(const AddressSpace *as,
+                                hwaddr addr, hwaddr len,
                                 bool is_write, MemTxAttrs attrs);
 
 /**
