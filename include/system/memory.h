@@ -2703,7 +2703,7 @@ void address_space_destroy_free(AddressSpace *as);
  *
  * @as: an initialized #AddressSpace
  */
-void address_space_remove_listeners(AddressSpace *as);
+void address_space_remove_listeners(const AddressSpace *as);
 
 /**
  * address_space_rw: read from or write to an address space.
