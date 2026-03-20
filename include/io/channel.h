@@ -1147,8 +1147,8 @@ int coroutine_mixed_fn qio_channel_writev_full_all(QIOChannel *ioc,
  * If not implemented, acts as a no-op, and returns 0.
  *
  * Returns -1 if any error is found,
- *          1 if every send failed to use zero copy.
- *          0 otherwise.
+ *          1 if at least one send failed to use zero copy.
+ *          0 if every send successfully used zero copy.
  */
 
 int qio_channel_flush(QIOChannel *ioc,
