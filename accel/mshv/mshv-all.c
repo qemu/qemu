@@ -479,6 +479,7 @@ static void register_mshv_memory_listener(MshvState *s, MshvMemoryListener *mml,
 
     mml->listener = mshv_memory_listener;
     mml->listener.name = name;
+    mml->mapped_regions = g_hash_table_new(g_direct_hash, g_direct_equal);
     memory_listener_register(&mml->listener, as);
     for (i = 0; i < s->nr_as; ++i) {
         if (!s->as[i].as) {
