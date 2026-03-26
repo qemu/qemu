@@ -799,6 +799,7 @@ static void ide_sector_read(IDEState *s)
     s->error = 0; /* not needed by IDE spec, but needed by Windows */
     sector_num = ide_get_sector(s);
     n = s->nsector;
+    ide_set_retry(s);
 
     if (n == 0) {
         ide_transfer_stop(s);
