@@ -81,7 +81,12 @@ void pci_host_config_write_common(PCIDevice *pci_dev, uint32_t addr,
         return;
     }
 
-    assert(len <= 4);
+    if (len > 4) {
+        PCI_DPRINTF("%s: invalid length access: addr " HWADDR_FMT_plx " \
+            len %d val %"PRIx32"\n", __func__, addr, len, val);
+        return;
+    }
+
     /* non-zero functions are only exposed when function 0 is present,
      * allowing direct removal of unexposed functions.
      */
@@ -106,7 +111,12 @@ uint32_t pci_host_config_read_common(PCIDevice *pci_dev, uint32_t addr,
         return ~0x0;
     }
 
-    assert(len <= 4);
+    if (len > 4) {
+        PCI_DPRINTF("%s: invalid length access: addr " HWADDR_FMT_plx " \
+            len %d val %"PRIx32"\n", __func__, addr, len, val);
+        return ~0x0;
+    }
+
     /* non-zero functions are only exposed when function 0 is present,
      * allowing direct removal of unexposed functions.
      */
