@@ -637,7 +637,7 @@ static void lsi_do_dma(LSIState *s, int out)
     }
 
     p = s->current;
-    req = s->current->req;
+    req = scsi_req_ref(s->current->req);
     dev = req->dev;
     assert(dev);
 
@@ -667,6 +667,11 @@ static void lsi_do_dma(LSIState *s, int out)
     } else {
         lsi_mem_write(s, addr, p->dma_buf, count);
     }
+    if (p->orphan) {
+        scsi_req_unref(req);
+        return;
+    }
+    scsi_req_unref(req);
 
     p->dma_len -= count;
     if (p->dma_len == 0) {
