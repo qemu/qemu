@@ -87,27 +87,34 @@
   </flags>
 
   <flags id="i386_cr4" size="4">
-	<field name="VME" start="0" end="0"/>
-	<field name="PVI" start="1" end="1"/>
-	<field name="TSD" start="2" end="2"/>
-	<field name="DE" start="3" end="3"/>
-	<field name="PSE" start="4" end="4"/>
-	<field name="PAE" start="5" end="5"/>
-	<field name="MCE" start="6" end="6"/>
-	<field name="PGE" start="7" end="7"/>
-	<field name="PCE" start="8" end="8"/>
-	<field name="OSFXSR" start="9" end="9"/>
-	<field name="OSXMMEXCPT" start="10" end="10"/>
-	<field name="UMIP" start="11" end="11"/>
-	<field name="LA57" start="12" end="12"/>
-	<field name="VMXE" start="13" end="13"/>
-	<field name="SMXE" start="14" end="14"/>
-	<field name="FSGSBASE" start="16" end="16"/>
-	<field name="PCIDE" start="17" end="17"/>
-	<field name="OSXSAVE" start="18" end="18"/>
-	<field name="SMEP" start="20" end="20"/>
-	<field name="SMAP" start="21" end="21"/>
+	<field name="LAM_SUP" start="28" end="28"/>
+	<field name="LASS" start="27" end="27"/>
+	<field name="UINTR" start="25" end="25"/>
+	<field name="PKS" start="24" end="24"/>
+	<field name="CET" start="23" end="23"/>
 	<field name="PKE" start="22" end="22"/>
+	<field name="PKE" start="22" end="22"/>
+	<field name="SMAP" start="21" end="21"/>
+	<field name="SMEP" start="20" end="20"/>
+	<field name="KL" start="19" end="19"/>
+	<field name="OSXSAVE" start="18" end="18"/>
+	<field name="PCIDE" start="17" end="17"/>
+	<field name="FSGSBASE" start="16" end="16"/>
+	<field name="SMXE" start="14" end="14"/>
+	<field name="VMXE" start="13" end="13"/>
+	<field name="LA57" start="12" end="12"/>
+	<field name="UMIP" start="11" end="11"/>
+	<field name="OSXMMEXCPT" start="10" end="10"/>
+	<field name="OSFXSR" start="9" end="9"/>
+	<field name="PCE" start="8" end="8"/>
+	<field name="PGE" start="7" end="7"/>
+	<field name="MCE" start="6" end="6"/>
+	<field name="PAE" start="5" end="5"/>
+	<field name="PSE" start="4" end="4"/>
+	<field name="DE" start="3" end="3"/>
+	<field name="TSD" start="2" end="2"/>
+	<field name="PVI" start="1" end="1"/>
+	<field name="VME" start="0" end="0"/>
   </flags>
 
   <flags id="i386_efer" size="4">
