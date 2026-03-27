@@ -1163,6 +1163,7 @@ static void lsi_execute_script(LSIState *s)
         s->waiting = LSI_NOWAIT;
     }
 
+    object_ref(s);
     reentrancy_level++;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
@@ -1182,6 +1183,7 @@ again:
         s->waiting = LSI_WAIT_SCRIPTS;
         lsi_scripts_timer_start(s);
         reentrancy_level--;
+        object_unref(s);
         return;
     }
     insn = read_dword(s, s->dsp);
@@ -1630,6 +1632,7 @@ again:
     trace_lsi_execute_script_stop();
 
     reentrancy_level--;
+    object_unref(s);
 }
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
