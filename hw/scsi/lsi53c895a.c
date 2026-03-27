@@ -197,6 +197,7 @@ typedef struct lsi_request {
     uint8_t *dma_buf;
     uint32_t pending;
     int out;
+    bool orphan;
     QTAILQ_ENTRY(lsi_request) next;
 } lsi_request;
 
@@ -748,14 +749,20 @@ static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
     return NULL;
 }
 
-static void lsi_request_free(LSIState *s, lsi_request *p)
+static void lsi_request_orphan(LSIState *s, lsi_request *p)
 {
+    p->orphan = true;
     if (p == s->current) {
         s->current = NULL;
     } else {
         QTAILQ_REMOVE(&s->queue, p, next);
     }
-    g_free(p);
+    scsi_req_unref(p->req);
+}
+
+static void lsi_free_request(SCSIBus *bus, void *priv)
+{
+    g_free(priv);
 }
 
 static void lsi_request_cancelled(SCSIRequest *req)
@@ -763,9 +770,7 @@ static void lsi_request_cancelled(SCSIRequest *req)
     LSIState *s = LSI53C895A(req->bus->qbus.parent);
     lsi_request *p = req->hba_private;
 
-    req->hba_private = NULL;
-    lsi_request_free(s, p);
-    scsi_req_unref(req);
+    lsi_request_orphan(s, p);
 }
 
 /* Record that data is available for a queued command.  Returns zero if
@@ -817,9 +822,7 @@ static void lsi_command_complete(SCSIRequest *req, size_t resid)
     }
 
     if (req->hba_private == s->current) {
-        req->hba_private = NULL;
-        lsi_request_free(s, s->current);
-        scsi_req_unref(req);
+        lsi_request_orphan(s, s->current);
     }
     if (!stop) {
         lsi_resume_script(s);
@@ -830,10 +833,11 @@ static void lsi_command_complete(SCSIRequest *req, size_t resid)
 static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
 {
     LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    lsi_request *p = req->hba_private;
     int out;
 
-    assert(req->hba_private);
-    if (s->waiting == LSI_WAIT_RESELECT || req->hba_private != s->current ||
+    assert(!p->orphan);
+    if (s->waiting == LSI_WAIT_RESELECT || p != s->current ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
         if (lsi_queue_req(s, req, len)) {
             return;
@@ -2325,7 +2329,8 @@ static const struct SCSIBusInfo lsi_scsi_info = {
 
     .transfer_data = lsi_transfer_data,
     .complete = lsi_command_complete,
-    .cancel = lsi_request_cancelled
+    .cancel = lsi_request_cancelled,
+    .free_request = lsi_free_request,
 };
 
 static void scripts_timer_cb(void *opaque)
