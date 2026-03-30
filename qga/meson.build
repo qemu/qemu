@@ -105,16 +105,14 @@ endif
 qga_objs = []
 if host_os == 'windows'
   windmc = find_program('windmc', required: true)
-  windres = find_program('windres', required: true)
 
   msgrc = custom_target('messages-win32.rc',
                         input: 'messages-win32.mc',
                         output: ['messages-win32.rc', 'MSG00409.bin', 'messages-win32.h'],
                         command: [windmc, '-h', '@OUTDIR@', '-r', '@OUTDIR@', '@INPUT@'])
-  msgobj = custom_target('messages-win32.o',
-                         input: msgrc[0],
-                         output: 'messages-win32.o',
-                         command: [windres, '-I', '@OUTDIR@', '-o', '@OUTPUT@', '@INPUT@'])
+
+  windows = import('windows')
+  msgobj = windows.compile_resources(msgrc[0])
 
   qga_objs = [msgobj]
 endif
