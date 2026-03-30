@@ -30,8 +30,6 @@
 #define __RPC__out_ecount_part(x, y)
 #endif
 #define _declspec(x)
-#undef uuid
-#define uuid(x)
 
 #include <vss.h>
 #include "vss-handles.h"
