@@ -1662,7 +1662,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
 #if 0
     printf("w=%d h=%d v=%d line_offset=%d cr[0x09]=0x%02x cr[0x17]=0x%02x linecmp=%d sr[0x01]=0x%02x\n",
-           width, height, v, line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
+           width, height, v, s->params.line_offset, s->cr[9], s->cr[VGA_CRTC_MODE],
            s->params.line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
     addr1 = (s->params.start_addr * 4);
