@@ -649,6 +649,52 @@ static uint64_t large_pte_page_size(uint64_t pte)
 }
 
 /*
+ * Validate DTE fields and extract permissions and top level data required to
+ * initiate the page table walk.
+ *
+ * On success, returns 0 and stores:
+ *   - top_level: highest page-table level encoded in DTE[Mode]
+ *   - dte_perms: effective permissions from the DTE
+ *
+ * On failure, returns -AMDVI_FR_PT_ROOT_INV. This includes cases where:
+ *   - DTE permissions disallow read AND write
+ *   - DTE[Mode] is invalid for translation
+ *   - IOVA exceeds the address width supported by DTE[Mode]
+ * In all such cases a page walk must be aborted.
+ */
+static uint64_t amdvi_get_top_pt_level_and_perms(hwaddr address, uint64_t dte,
+                                                 uint8_t *top_level,
+                                                 IOMMUAccessFlags *dte_perms)
+{
+    *dte_perms = amdvi_get_perms(dte);
+    if (*dte_perms == IOMMU_NONE) {
+        return -AMDVI_FR_PT_ROOT_INV;
+    }
+
+    /* Verifying a valid mode is encoded in DTE */
+    *top_level = get_pte_translation_mode(dte);
+
+    /*
+     * Page Table Root pointer is only valid for GPA->SPA translation on
+     * supported modes.
+     */
+    if (*top_level == 0 || *top_level > 6) {
+        return -AMDVI_FR_PT_ROOT_INV;
+    }
+
+    /*
+     * If IOVA is larger than the max supported by the highest pgtable level,
+     * there is nothing to do.
+     */
+    if (address > PT_LEVEL_MAX_ADDR(*top_level)) {
+        /* IOVA too large for the current DTE */
+        return -AMDVI_FR_PT_ROOT_INV;
+    }
+
+    return 0;
+}
+
+/*
  * Helper function to fetch a PTE using AMD v1 pgtable format.
  * On successful page walk, returns 0 and pte parameter points to a valid PTE.
  * On failure, returns:
@@ -662,40 +708,49 @@ static uint64_t large_pte_page_size(uint64_t pte)
 static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
                           uint64_t *pte, hwaddr *page_size)
 {
-    IOMMUAccessFlags perms = amdvi_get_perms(dte);
-
-    uint8_t level, mode;
     uint64_t pte_addr;
+    uint8_t pt_level, next_pt_level;
+    IOMMUAccessFlags perms;
+    int ret;
 
-    *pte = dte;
     *page_size = 0;
 
-    if (perms == IOMMU_NONE) {
+    /*
+     * Verify the DTE is properly configured before page walk, and extract
+     * top pagetable level and permissions.
+     */
+    ret = amdvi_get_top_pt_level_and_perms(address, dte, &pt_level, &perms);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * Retrieve the top pagetable entry by following the DTE Page Table Root
+     * Pointer and indexing the top level table using the IOVA from the request.
+     */
+    pte_addr = NEXT_PTE_ADDR(dte, pt_level, address);
+    *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
+
+    if (*pte == (uint64_t)-1) {
+        /*
+         * A returned PTE of -1 here indicates a failure to read the top level
+         * page table from guest memory. A page walk is not possible and page
+         * size must be returned as 0.
+         */
         return -AMDVI_FR_PT_ROOT_INV;
     }
 
     /*
-     * The Linux kernel driver initializes the default mode to 3, corresponding
-     * to a 39-bit GPA space, where each entry in the pagetable translates to a
-     * 1GB (2^30) page size.
+     * Calculate page size for the top level page table entry.
+     * This ensures correct results for a single level Page Table setup.
      */
-    level = mode = get_pte_translation_mode(dte);
-    assert(mode > 0 && mode < 7);
+    *page_size = PTE_LEVEL_PAGE_SIZE(pt_level);
 
     /*
-     * If IOVA is larger than the max supported by the current pgtable level,
-     * there is nothing to do.
+     * The root page table entry and its level have been determined. Begin the
+     * page walk.
      */
-    if (address > PT_LEVEL_MAX_ADDR(mode - 1)) {
-        /* IOVA too large for the current DTE */
-        return -AMDVI_FR_PT_ROOT_INV;
-    }
-
-    do {
-        level -= 1;
-
-        /* Update the page_size */
-        *page_size = PTE_LEVEL_PAGE_SIZE(level);
+    while (pt_level > 0) {
 
         /* Permission bits are ANDed at every level, including the DTE */
         perms &= amdvi_get_perms(*pte);
@@ -708,37 +763,34 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
             return 0;
         }
 
+        next_pt_level = PTE_NEXT_LEVEL(*pte);
+
         /* Large or Leaf PTE found */
-        if (PTE_NEXT_LEVEL(*pte) == 7 || PTE_NEXT_LEVEL(*pte) == 0) {
+        if (next_pt_level == 0 || next_pt_level == 7) {
             /* Leaf PTE found */
             break;
         }
 
+        pt_level = next_pt_level;
+
         /*
-         * Index the pgtable using the IOVA bits corresponding to current level
-         * and walk down to the lower level.
+         * The current entry is a Page Directory Entry. Descend to the lower
+         * page table level encoded in current pte, and index the new table
+         * using the appropriate IOVA bits to retrieve the new entry.
          */
-        pte_addr = NEXT_PTE_ADDR(*pte, level, address);
+        *page_size = PTE_LEVEL_PAGE_SIZE(pt_level);
+
+        pte_addr = NEXT_PTE_ADDR(*pte, pt_level, address);
         *pte = amdvi_get_pte_entry(as->iommu_state, pte_addr, as->devfn);
 
         if (*pte == (uint64_t)-1) {
-            /*
-             * A returned PTE of -1 indicates a failure to read the page table
-             * entry from guest memory.
-             */
-            if (level == mode - 1) {
-                /* Failure to retrieve the Page Table from Root Pointer */
-                *page_size = 0;
-                return -AMDVI_FR_PT_ROOT_INV;
-            } else {
-                /* Failure to read PTE. Page walk skips a page_size chunk */
-                return -AMDVI_FR_PT_ENTRY_INV;
-            }
+            /* Failure to read PTE. Page walk skips a page_size chunk */
+            return -AMDVI_FR_PT_ENTRY_INV;
         }
-    } while (level > 0);
+    }
 
-    assert(PTE_NEXT_LEVEL(*pte) == 0 || PTE_NEXT_LEVEL(*pte) == 7 ||
-           level == 0);
+    assert(PTE_NEXT_LEVEL(*pte) == 0 || PTE_NEXT_LEVEL(*pte) == 7);
+
     /*
      * Page walk ends when Next Level field on PTE shows that either a leaf PTE
      * or a series of large PTEs have been reached. In the latter case, even if
