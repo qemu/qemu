@@ -2063,6 +2063,7 @@ static int of_dpa_cmd_add_l2_flood(OfDpa *of_dpa, OfDpaGroup *group,
 err_out:
     group->l2_flood.group_count = 0;
     g_free(group->l2_flood.group_ids);
+    group->l2_flood.group_ids = NULL;
     g_free(tlvs);
 
     return err;
