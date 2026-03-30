@@ -27,6 +27,7 @@
 #include "user/abitypes.h"
 #include "user/cpu_loop.h"
 #include "user/page-protection.h"
+#include "user/guest-host.h"
 
 extern char **environ;
 

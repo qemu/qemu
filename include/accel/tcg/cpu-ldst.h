@@ -71,10 +71,6 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/abi_ptr.h"
 
-#if defined(CONFIG_USER_ONLY)
-#include "user/guest-host.h"
-#endif /* CONFIG_USER_ONLY */
-
 static inline uint32_t
 cpu_ldub_mmuidx_ra(CPUArchState *env, abi_ptr addr, int mmu_idx, uintptr_t ra)
 {

@@ -10,6 +10,7 @@
 #include "syscall_defs.h"
 #include "target_syscall.h"
 #include "accel/tcg/vcpu-state.h"
+#include "user/guest-host.h"
 
 /*
  * This is the size of the host kernel's sigset_t, needed where we make
