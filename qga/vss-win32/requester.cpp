@@ -444,7 +444,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
                 hr = vss_ctx.pVssbc->AddToSnapshotSet(short_volume_name,
                                                       g_gProviderId, &pid);
                 if (FAILED(hr)) {
-                    WCHAR volume_path_name[PATH_MAX];
+                    WCHAR volume_path_name[MAX_PATH];
                     if (GetVolumePathNamesForVolumeNameW(
                             short_volume_name, volume_path_name,
                             sizeof(volume_path_name), NULL) &&
