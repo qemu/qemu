@@ -373,7 +373,6 @@ static bool scsi_sense_is_guest_recoverable(int key, int asc, int ascq)
     case 0x1a00: /* PARAMETER LIST LENGTH ERROR */
     case 0x2000: /* INVALID OPERATION CODE */
     case 0x2400: /* INVALID FIELD IN CDB */
-    case 0x2500: /* LOGICAL UNIT NOT SUPPORTED */
     case 0x2600: /* INVALID FIELD IN PARAMETER LIST */
 
     case 0x2104: /* UNALIGNED WRITE COMMAND */
