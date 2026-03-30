@@ -104,7 +104,7 @@ endif
 
 qga_objs = []
 if host_os == 'windows'
-  windmc = find_program('windmc', required: true)
+  windmc = find_program('windmc', 'mc', required: true)
 
   msgrc = custom_target('messages-win32.rc',
                         input: 'messages-win32.mc',
