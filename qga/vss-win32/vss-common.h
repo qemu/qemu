@@ -33,19 +33,6 @@
 #undef uuid
 #define uuid(x)
 
-/* Undef some duplicated error codes redefined in vss.h */
-#undef VSS_E_BAD_STATE
-#undef VSS_E_PROVIDER_NOT_REGISTERED
-#undef VSS_E_PROVIDER_VETO
-#undef VSS_E_OBJECT_NOT_FOUND
-#undef VSS_E_VOLUME_NOT_SUPPORTED
-#undef VSS_E_VOLUME_NOT_SUPPORTED_BY_PROVIDER
-#undef VSS_E_OBJECT_ALREADY_EXISTS
-#undef VSS_E_UNEXPECTED_PROVIDER_ERROR
-#undef VSS_E_INVALID_XML_DOCUMENT
-#undef VSS_E_MAXIMUM_NUMBER_OF_VOLUMES_REACHED
-#undef VSS_E_MAXIMUM_NUMBER_OF_SNAPSHOTS_REACHED
-
 #include <vss.h>
 #include "vss-handles.h"
 
