@@ -173,6 +173,15 @@ int block_latency_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
         prev = entry->value;
     }
 
+    /*
+     * block_latency_histogram_account() assumes that it can always access
+     * hist->boundaries[0], so require at least one boundary. A histogram with
+     * a single bin is useless anyway.
+     */
+    if (new_nbins <= 1) {
+        return -EINVAL;
+    }
+
     hist->nbins = new_nbins;
     g_free(hist->boundaries);
     hist->boundaries = g_new(uint64_t, hist->nbins - 1);
