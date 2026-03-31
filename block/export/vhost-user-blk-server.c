@@ -119,7 +119,7 @@ static uint64_t vu_blk_get_features(VuDev *dev)
     uint64_t features;
     VuServer *server = container_of(dev, VuServer, vu_dev);
     VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
-    features = 1ull << VIRTIO_BLK_F_SIZE_MAX |
+    features =
                1ull << VIRTIO_BLK_F_SEG_MAX |
                1ull << VIRTIO_BLK_F_TOPOLOGY |
                1ull << VIRTIO_BLK_F_BLK_SIZE |
