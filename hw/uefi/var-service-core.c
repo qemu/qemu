@@ -133,9 +133,8 @@ static uint32_t uefi_vars_cmd_mm(uefi_vars_state *uv, bool dma_mode)
                          uv->buffer, sizeof(*mhdr) + mhdr->length,
                          MEMTXATTRS_UNSPECIFIED);
     } else {
-        memcpy(uv->pio_xfer_buffer + sizeof(*mhdr),
-               uv->buffer + sizeof(*mhdr),
-               sizeof(*mhdr) + mhdr->length);
+        memcpy(uv->pio_xfer_buffer,
+               uv->buffer, sizeof(*mhdr) + mhdr->length);
     }
 
     return retval;
