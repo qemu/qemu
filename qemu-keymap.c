@@ -230,6 +230,9 @@ int main(int argc, char *argv[])
     shift = get_mod(map, "Shift");
     ctrl = get_mod(map, "Control");
     altgr = get_mod(map, "AltGr");
+    if (!altgr) {
+        altgr = get_mod(map, "Mod5");
+    }
     numlock = get_mod(map, "NumLock");
 
     state = xkb_state_new(map);
