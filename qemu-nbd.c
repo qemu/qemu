@@ -534,6 +534,7 @@ int main(int argc, char **argv)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
+    BlockDriverState *orig_bs;
     uint64_t dev_offset = 0;
     bool readonly = false;
     bool disconnect = false;
@@ -716,7 +717,7 @@ int main(int argc, char **argv)
             } else {
                 sn_id_or_name = optarg;
             }
-            /* fall through */
+            break;
         case 'r':
             readonly = true;
             flags &= ~BDRV_O_RDWR;
@@ -1110,6 +1111,15 @@ int main(int argc, char **argv)
     bdrv_init();
     atexit(qemu_nbd_shutdown);
 
+    /*
+     * -s and -l can be used together to create read-write wrapper
+     * around an internal snapshot. Otherwise, -l in isolation implies
+     * read-only.
+     */
+    if ((sn_opts || sn_id_or_name) && (flags & BDRV_O_SNAPSHOT) == 0) {
+        readonly = true;
+        flags &= ~BDRV_O_RDWR;
+    }
     opts.srcpath = argv[optind];
     if (imageOpts) {
         QemuOpts *o;
@@ -1155,13 +1165,19 @@ int main(int argc, char **argv)
 
     blk_set_enable_write_cache(blk, !writethrough);
 
+    orig_bs = bs;
+    if (flags & BDRV_O_SNAPSHOT) {
+        WITH_GRAPH_RDLOCK_GUARD() {
+            orig_bs = bs->backing->bs;
+        }
+    }
     if (sn_opts) {
-        ret = bdrv_snapshot_load_tmp(bs,
+        ret = bdrv_snapshot_load_tmp(orig_bs,
                                      qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
                                      qemu_opt_get(sn_opts, SNAPSHOT_OPT_NAME),
                                      &local_err);
     } else if (sn_id_or_name) {
-        ret = bdrv_snapshot_load_tmp_by_id_or_name(bs, sn_id_or_name,
+        ret = bdrv_snapshot_load_tmp_by_id_or_name(orig_bs, sn_id_or_name,
                                                    &local_err);
     }
     if (ret < 0) {
