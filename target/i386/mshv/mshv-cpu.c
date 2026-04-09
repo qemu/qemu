@@ -1831,21 +1831,38 @@ static int read_memory(const CPUState *cpu, uint64_t initial_gva,
 {
     int ret;
     uint64_t gpa, flags;
+    uint64_t cur_gva = gva;
+    size_t page_left, chunk;
+    uint8_t *cur_data = data;
 
-    if (gva == initial_gva) {
-        gpa = initial_gpa;
-    } else {
-        flags = HV_TRANSLATE_GVA_VALIDATE_READ;
-        ret = translate_gva(cpu, gva, &gpa, flags);
-        if (ret < 0) {
-            return -1;
+    /*
+     * If the read spans multiple pages,
+     * we need to translate and read each page separately
+     */
+    while (len > 0) {
+        page_left = HV_HYP_PAGE_SIZE - (cur_gva & (HV_HYP_PAGE_SIZE - 1));
+        chunk = MIN(len, page_left);
+
+        if (cur_gva == initial_gva) {
+            gpa = initial_gpa;
+        } else {
+            flags = HV_TRANSLATE_GVA_VALIDATE_READ;
+            ret = translate_gva(cpu, cur_gva, &gpa, flags);
+            if (ret < 0) {
+                return -1;
+            }
         }
 
-        ret = mshv_guest_mem_read(gpa, data, len, false, false);
+        ret = mshv_guest_mem_read(gpa, cur_data, chunk,
+                                  false, false);
         if (ret < 0) {
             error_report("failed to read guest mem");
             return -1;
         }
+
+        cur_gva += chunk;
+        cur_data += chunk;
+        len -= chunk;
     }
 
     return 0;
@@ -1856,18 +1873,34 @@ static int write_memory(const CPUState *cpu, uint64_t gva, const uint8_t *data,
 {
     int ret;
     uint64_t gpa, flags;
+    uint64_t cur_gva = gva;
+    size_t page_left, chunk;
+    const uint8_t *cur_data = data;
 
-    flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
-    ret = translate_gva(cpu, gva, &gpa, flags);
-    if (ret < 0) {
-        error_report("failed to translate gva to gpa");
-        return -1;
-    }
+    /*
+     * If the write spans multiple pages,
+     * we need to translate and write each page separately
+     */
+    while (len > 0) {
+        page_left = HV_HYP_PAGE_SIZE - (cur_gva & (HV_HYP_PAGE_SIZE - 1));
+        chunk = MIN(len, page_left);
 
-    ret = mshv_guest_mem_write(gpa, data, len, false);
-    if (ret != MEMTX_OK) {
-        error_report("failed to write to mmio");
-        return -1;
+        flags = HV_TRANSLATE_GVA_VALIDATE_WRITE;
+        ret = translate_gva(cpu, cur_gva, &gpa, flags);
+        if (ret < 0) {
+            error_report("failed to translate gva to gpa");
+            return -1;
+        }
+
+        ret = mshv_guest_mem_write(gpa, cur_data, chunk, false);
+        if (ret != MEMTX_OK) {
+            error_report("failed to write to mmio");
+            return -1;
+        }
+
+        cur_gva += chunk;
+        cur_data += chunk;
+        len -= chunk;
     }
 
     return 0;
