@@ -51,6 +51,13 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     return exp;
 }
 
+#define DEFAULT_BLOCK_CONF (BlockConf) {                                \
+    .bootindex = -1,                                                    \
+    .share_rw = false,                                                  \
+    .rerror = BLOCKDEV_ON_ERROR_AUTO,                                   \
+    .werror = BLOCKDEV_ON_ERROR_AUTO,                                   \
+}
+
 #define DEFINE_BLOCK_PROPERTIES_BASE(_state, _conf)                     \
     DEFINE_PROP_ON_OFF_AUTO("backend_defaults", _state,                 \
                             _conf.backend_defaults, ON_OFF_AUTO_AUTO),  \
