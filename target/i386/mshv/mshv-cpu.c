@@ -1552,17 +1552,42 @@ static void read_segment_descriptor(CPUState *cpu,
                                     struct x86_segment_descriptor *desc,
                                     enum X86Seg seg_idx)
 {
-    bool ret;
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     SegmentCache *seg = &env->segs[seg_idx];
-    x86_segment_selector sel = { .sel = seg->selector & 0xFFFF };
+    uint32_t limit;
 
-    ret = x86_read_segment_descriptor(cpu, desc, sel);
-    if (ret == false) {
-        error_report("failed to read segment descriptor");
-        abort();
+    memset(desc, 0, sizeof(struct x86_segment_descriptor));
+
+    desc->type = (seg->flags & DESC_TYPE_MASK) >> DESC_TYPE_SHIFT;
+    desc->s    = (seg->flags & DESC_S_MASK)    >> DESC_S_SHIFT;
+    desc->dpl  = (seg->flags & DESC_DPL_MASK)  >> DESC_DPL_SHIFT;
+    desc->p    = (seg->flags & DESC_P_MASK)    >> DESC_P_SHIFT;
+    desc->avl  = (seg->flags & DESC_AVL_MASK)  >> DESC_AVL_SHIFT;
+    desc->l    = (seg->flags & DESC_L_MASK)    >> DESC_L_SHIFT;
+    desc->db   = (seg->flags & DESC_B_MASK)    >> DESC_B_SHIFT;
+    desc->g    = (seg->flags & DESC_G_MASK)    >> DESC_G_SHIFT;
+
+    /*
+     * SegmentCache stores the hypervisor-provided value verbatim (populated by
+     * mshv_load_regs). We need to convert it to format expected by the
+     * instruction emulator. We can have a limit value > 0xfffff with
+     * granularity of 0 (byte granularity), which is not representable
+     * in real x86_segment_descriptor. In this case we set granularity to 1
+     * (4k granularity) and shift the limit accordingly.
+     *
+     * This quirk has been adopted from "whpx_segment_to_x86_description()"
+     */
+
+    if (!desc->g && seg->limit <= 0xfffff) {
+        limit = seg->limit;
+    } else {
+        limit = seg->limit >> 12;
+        desc->g = 1;
     }
+
+    x86_set_segment_limit(desc, limit);
+    x86_set_segment_base(desc, seg->base);
 }
 
 static const struct x86_emul_ops mshv_x86_emul_ops = {
