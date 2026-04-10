@@ -53,7 +53,12 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 
 #define DEFAULT_BLOCK_CONF (BlockConf) {                                \
     .bootindex = -1,                                                    \
+    .backend_defaults = ON_OFF_AUTO_AUTO,                               \
+    .discard_granularity = -1,                                          \
+    .wce = ON_OFF_AUTO_AUTO,                                            \
     .share_rw = false,                                                  \
+    .account_invalid = ON_OFF_AUTO_AUTO,                                \
+    .account_failed = ON_OFF_AUTO_AUTO,                                 \
     .rerror = BLOCKDEV_ON_ERROR_AUTO,                                   \
     .werror = BLOCKDEV_ON_ERROR_AUTO,                                   \
 }
