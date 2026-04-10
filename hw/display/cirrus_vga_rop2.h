@@ -108,12 +108,34 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
     unsigned int col;
     unsigned bitmask;
     unsigned index;
+
+    /*
+     * Raster ops where the source is a monochrome bitmap with
+     * color expansion to 8/16/24/32bpp destination.
+     */
+
 #if DEPTH == 24
+    /*
+     * For packed-24 modes, GR2F bits [4:0] are a count of destination
+     * bytes to be suppressed for each scanline, which we keep in
+     * dstskipleft. We want to track the number of whole bytes
+     * to skip in the source (always either 0 or 1) and the number
+     * of bits within the byte to skip.
+     */
     int dstskipleft = s->vga.gr[0x2f] & 0x1f;
-    int srcskipleft = dstskipleft / 3;
+    int srcskipleftbits = (dstskipleft / 3) & 0x7;
+    int srcskipleftbytes = (dstskipleft / 3) >> 3;
 #else
-    int srcskipleft = s->vga.gr[0x2f] & 0x07;
-    int dstskipleft = srcskipleft * (DEPTH / 8);
+    /*
+     * In all other modes, GR2F bits [2:0] are a count of how many
+     * destination pixels to suppress for each scanline, which is our
+     * srcskipleftbits. We get dstskipleft, the number of bytes to
+     * skip, by multiplying this by the bytes-per-pixel. In these
+     * modes we never need to skip an entire source byte.
+     */
+    int srcskipleftbits = s->vga.gr[0x2f] & 0x07;
+    int srcskipleftbytes = 0;
+    int dstskipleft = srcskipleftbits * (DEPTH / 8);
 #endif
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
@@ -125,7 +147,8 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
     }
 
     for(y = 0; y < bltheight; y++) {
-        bitmask = 0x80 >> srcskipleft;
+        bitmask = 0x80 >> srcskipleftbits;
+        srcaddr += srcskipleftbytes;
         bits = cirrus_src(s, srcaddr++) ^ bits_xor;
         addr = dstaddr + dstskipleft;
         for (x = dstskipleft; x < bltwidth; x += (DEPTH / 8)) {
