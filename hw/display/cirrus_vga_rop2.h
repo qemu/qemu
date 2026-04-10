@@ -191,10 +191,29 @@ glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
     int x, y, bitpos, pattern_y;
     unsigned int bits, bits_xor;
     unsigned int col;
+
+    /*
+     * Copy from an 8x8 monochrome pattern with color expansion.
+     */
+
 #if DEPTH == 24
+    /*
+     * For packed-24 modes, GR2F bits [4:0] are a count of destination
+     * bytes to be suppressed for each scanline, which we keep in
+     * dstskipleft. Our srcskipleft is the number of pixels to skip
+     * within the 8x8 source pattern to match up with that number
+     * of suppressed bytes. As the pattern repeats every 8 bits we
+     * take the number of pixels mod 8.
+     */
     int dstskipleft = s->vga.gr[0x2f] & 0x1f;
-    int srcskipleft = dstskipleft / 3;
+    int srcskipleft = (dstskipleft / 3) & 0x7;
 #else
+    /*
+     * In all other modes, GR2F bits [2:0] are a count of how many
+     * destination pixels to suppress for each scanline, which is our
+     * srcskipleft. We get dstskipleft, the number of bytes to skip,
+     * by multiplying this by the bytes-per-pixel.
+     */
     int srcskipleft = s->vga.gr[0x2f] & 0x07;
     int dstskipleft = srcskipleft * (DEPTH / 8);
 #endif
