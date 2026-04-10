@@ -38,6 +38,9 @@
 #include "hw/virtio/virtio-blk-common.h"
 #include "qemu/coroutine.h"
 
+/* Internal buffer size limit for zone report */
+#define VIRTIO_BLK_MAX_ZONES_PER_BATCH 4096
+
 static void virtio_blk_ioeventfd_attach(VirtIOBlock *s);
 
 static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
@@ -447,15 +450,22 @@ err:
     return err_status;
 }
 
+typedef struct {
+    unsigned int total_nr_zones;    /* max zones to fill in this request */
+    unsigned int nr_zones_done;     /* how many zones have been filled in */
+    int64_t iov_offset;             /* current byte position in in_iov[] */
+    int64_t offset;                 /* current zone report disk offset */
+    unsigned int nr_zones;          /* for zone report calls */
+    unsigned int zones_per_batch;   /* size of zone report buffer */
+    BlockZoneDescriptor *zones;     /* zone report buffer */
+} ZoneReportData;
+
 typedef struct ZoneCmdData {
     VirtIOBlockReq *req;
     struct iovec *in_iov;
     unsigned in_num;
     union {
-        struct {
-            unsigned int nr_zones;
-            BlockZoneDescriptor *zones;
-        } zone_report_data;
+        ZoneReportData zone_report_data;
         struct {
             int64_t offset;
         } zone_append_data;
@@ -512,16 +522,15 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
 static void virtio_blk_zone_report_complete(void *opaque, int ret)
 {
     ZoneCmdData *data = opaque;
+    ZoneReportData *zrd = &data->zone_report_data;
     VirtIOBlockReq *req = data->req;
     VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
     struct iovec *in_iov = data->in_iov;
     unsigned in_num = data->in_num;
-    int64_t zrp_size, n, j = 0;
-    int64_t nz = data->zone_report_data.nr_zones;
+    int64_t n;
+    unsigned nz = zrd->nr_zones;
     int8_t err_status = VIRTIO_BLK_S_OK;
-    struct virtio_blk_zone_report zrp_hdr = (struct virtio_blk_zone_report) {
-        .nr_zones = cpu_to_le64(nz),
-    };
+    struct virtio_blk_zone_report zrp_hdr = {};
 
     trace_virtio_blk_zone_report_complete(vdev, req, nz, ret);
     if (ret) {
@@ -529,28 +538,18 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
         goto out;
     }
 
-    zrp_size = sizeof(struct virtio_blk_zone_report)
-               + sizeof(struct virtio_blk_zone_descriptor) * nz;
-    n = iov_from_buf(in_iov, in_num, 0, &zrp_hdr, sizeof(zrp_hdr));
-    if (n != sizeof(zrp_hdr)) {
-        virtio_error(vdev, "Driver provided input buffer that is too small!");
-        err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
-        goto out;
-    }
-
-    for (size_t i = sizeof(zrp_hdr); i < zrp_size;
-        i += sizeof(struct virtio_blk_zone_descriptor), ++j) {
+    for (unsigned j = 0; j < nz; j++) {
         struct virtio_blk_zone_descriptor desc =
             (struct virtio_blk_zone_descriptor) {
-                .z_start = cpu_to_le64(data->zone_report_data.zones[j].start
+                .z_start = cpu_to_le64(zrd->zones[j].start
                     >> BDRV_SECTOR_BITS),
-                .z_cap = cpu_to_le64(data->zone_report_data.zones[j].cap
+                .z_cap = cpu_to_le64(zrd->zones[j].cap
                     >> BDRV_SECTOR_BITS),
-                .z_wp = cpu_to_le64(data->zone_report_data.zones[j].wp
+                .z_wp = cpu_to_le64(zrd->zones[j].wp
                     >> BDRV_SECTOR_BITS),
         };
 
-        switch (data->zone_report_data.zones[j].type) {
+        switch (zrd->zones[j].type) {
         case BLK_ZT_CONV:
             desc.z_type = VIRTIO_BLK_ZT_CONV;
             break;
@@ -564,7 +563,7 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
             g_assert_not_reached();
         }
 
-        switch (data->zone_report_data.zones[j].state) {
+        switch (zrd->zones[j].state) {
         case BLK_ZS_RDONLY:
             desc.z_state = VIRTIO_BLK_ZS_RDONLY;
             break;
@@ -594,18 +593,47 @@ static void virtio_blk_zone_report_complete(void *opaque, int ret)
         }
 
         /* TODO: it takes O(n^2) time complexity. Optimizations required. */
-        n = iov_from_buf(in_iov, in_num, i, &desc, sizeof(desc));
+        n = iov_from_buf(in_iov, in_num, zrd->iov_offset, &desc, sizeof(desc));
         if (n != sizeof(desc)) {
             virtio_error(vdev, "Driver provided input buffer "
                                "for descriptors that is too small!");
             err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
+            goto out;
         }
+
+        zrd->iov_offset += sizeof(desc);
+    }
+
+    if (nz > 0) {
+        BlockZoneDescriptor *zone = &zrd->zones[nz - 1];
+        zrd->offset = zone->start + zone->length;
+    }
+
+    zrd->nr_zones_done += nz;
+
+    /* Call zone report again if the end hasn't been reached yet */
+    if (nz == zrd->zones_per_batch &&
+        zrd->nr_zones_done < zrd->total_nr_zones) {
+        zrd->nr_zones = MIN(zrd->zones_per_batch,
+                            zrd->total_nr_zones - zrd->nr_zones_done);
+        blk_aio_zone_report(req->dev->blk, zrd->offset, &zrd->nr_zones,
+                            zrd->zones, virtio_blk_zone_report_complete, data);
+        return;
+    }
+
+    /* Fill in header now that all zones have been reported */
+    zrp_hdr.nr_zones = cpu_to_le64(zrd->nr_zones_done);
+    n = iov_from_buf(in_iov, in_num, 0, &zrp_hdr, sizeof(zrp_hdr));
+    if (n != sizeof(zrp_hdr)) {
+        virtio_error(vdev, "Driver provided input buffer that is too small!");
+        err_status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
+        goto out;
     }
 
 out:
     virtio_blk_req_complete(req, err_status);
     g_free(req);
-    g_free(data->zone_report_data.zones);
+    g_free(zrd->zones);
     g_free(data);
 }
 
@@ -617,7 +645,8 @@ static void virtio_blk_handle_zone_report(VirtIOBlockReq *req,
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     unsigned int nr_zones;
     ZoneCmdData *data;
-    int64_t zone_size, offset;
+    ZoneReportData *zrd;
+    int64_t offset;
     uint8_t err_status;
 
     if (req->in_len < sizeof(struct virtio_blk_inhdr) +
@@ -639,16 +668,21 @@ static void virtio_blk_handle_zone_report(VirtIOBlockReq *req,
     trace_virtio_blk_handle_zone_report(vdev, req,
                                         offset >> BDRV_SECTOR_BITS, nr_zones);
 
-    zone_size = sizeof(BlockZoneDescriptor) * nr_zones;
     data = g_malloc(sizeof(ZoneCmdData));
     data->req = req;
     data->in_iov = in_iov;
     data->in_num = in_num;
-    data->zone_report_data.nr_zones = nr_zones;
-    data->zone_report_data.zones = g_malloc(zone_size),
 
-    blk_aio_zone_report(s->blk, offset, &data->zone_report_data.nr_zones,
-                        data->zone_report_data.zones,
+    zrd = &data->zone_report_data;
+    zrd->total_nr_zones = nr_zones;
+    zrd->nr_zones_done = 0;
+    zrd->iov_offset = sizeof(struct virtio_blk_zone_report);
+    zrd->offset = offset;
+    zrd->zones_per_batch = MIN(nr_zones, VIRTIO_BLK_MAX_ZONES_PER_BATCH);
+    zrd->zones = g_malloc(zrd->zones_per_batch * sizeof(BlockZoneDescriptor));
+
+    zrd->nr_zones = zrd->zones_per_batch;
+    blk_aio_zone_report(s->blk, offset, &zrd->nr_zones, zrd->zones,
                         virtio_blk_zone_report_complete, data);
     return;
 out:
