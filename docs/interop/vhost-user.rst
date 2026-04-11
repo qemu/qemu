@@ -668,7 +668,10 @@ destination, following the usual protocol for establishing a connection
 to a vhost-user back-end: This includes, for example, setting up memory
 mappings and kick and call FDs as necessary, negotiating protocol
 features, or setting the initial vring base indices (to the same value
-as on the source side, so that operation can resume).
+as on the source side, so that operation can resume). The vhost-user front-end
+may also write to the kick FDs of vrings containing unused buffers or send
+``VHOST_USER_VRING_KICK`` if negotiated to start those vrings in the destination
+since the driver likely already kicked them in the source and won't do it again.
 
 Both on the source and on the destination side, after the respective
 front-end has seen all data transferred (when the transfer FD has been
