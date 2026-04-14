@@ -1165,9 +1165,10 @@ char *get_relocated_path(const char *dir)
 
         PCWSTR wdir_skipped_root;
         if (PathCchSkipRoot(wdir, &wdir_skipped_root) == S_OK) {
+            char *cursor;
             size = wcsrtombs(NULL, &wdir_skipped_root, 0, &(mbstate_t){0});
-            char *cursor = result->str + result->len;
             g_string_set_size(result, result->len + size);
+            cursor = result->str + result->len - size;
             wcsrtombs(cursor, &wdir_skipped_root, size + 1, &(mbstate_t){0});
         } else {
             g_string_append(result, dir);
