@@ -770,10 +770,20 @@ static void gen_bswap16x4_i64(TCGv_i64 dst, TCGv_i64 src)
     tcg_gen_or_i64(dst, t0, t1);        /* dst = badcfebg */
 }
 
+/*
+ * Byte pattern: abcd.efgh -> dcba.hgfe
+ */
+static void gen_bswap32x2_i64(TCGv_i64 dst, TCGv_i64 src)
+{
+    tcg_gen_bswap64_i64(dst, src);
+    tcg_gen_rotri_i64(dst, dst, 32);
+}
+
 static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 {
     static const MemOp mo_atom_df[4] = {
         MO_ATOM_NONE,
+        MO_ATOM_SUBALIGN, /* Slightly stronger than required */
         MO_ATOM_SUBALIGN, /* Slightly stronger than required */
     };
     TCGv_i32 wd;
@@ -795,18 +805,12 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 
     if (is_load) {
         switch (a->df) {
-        case 2:
-            gen_helper_msa_ld_w(tcg_env, wd, addr);
-            return true;
         case 3:
             gen_helper_msa_ld_d(tcg_env, wd, addr);
             return true;
         }
     } else {
         switch (a->df) {
-        case 2:
-            gen_helper_msa_st_w(tcg_env, wd, addr);
-            return true;
         case 3:
             gen_helper_msa_st_d(tcg_env, wd, addr);
             return true;
@@ -838,6 +842,10 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
         case 1:
             gen_bswap16x4_i64(d0, d0);
             gen_bswap16x4_i64(d1, d1);
+            break;
+        case 2:
+            gen_bswap32x2_i64(d0, d0);
+            gen_bswap32x2_i64(d1, d1);
             break;
         }
     }
