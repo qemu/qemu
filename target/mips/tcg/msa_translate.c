@@ -754,10 +754,27 @@ TRANS(FTINT_U,  trans_msa_2rf, gen_helper_msa_ftint_u_df);
 TRANS(FFINT_S,  trans_msa_2rf, gen_helper_msa_ffint_s_df);
 TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
+/*
+ * Byte pattern: ab.cd.ef.gh -> ba.dc.fe.bg
+ */
+static void gen_bswap16x4_i64(TCGv_i64 dst, TCGv_i64 src)
+{
+    uint64_t m = 0x00ff00ff00ff00ffull;
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+                                        /* src = abcdefgh */
+    tcg_gen_andi_i64(t0, src, m);       /*  t0 = .b.d.f.h */
+    tcg_gen_shli_i64(t0, t0, 8);        /*  t0 = b.d.f.h. */
+    tcg_gen_shri_i64(t1, src, 8);       /*  t1 = habcdefg */
+    tcg_gen_andi_i64(t1, t1, m);        /*  t1 = .a.c.e.g */
+    tcg_gen_or_i64(dst, t0, t1);        /* dst = badcfebg */
+}
+
 static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 {
     static const MemOp mo_atom_df[4] = {
         MO_ATOM_NONE,
+        MO_ATOM_SUBALIGN, /* Slightly stronger than required */
     };
     TCGv_i32 wd;
     TCGv_i128 t16;
@@ -778,9 +795,6 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 
     if (is_load) {
         switch (a->df) {
-        case 1:
-            gen_helper_msa_ld_h(tcg_env, wd, addr);
-            return true;
         case 2:
             gen_helper_msa_ld_w(tcg_env, wd, addr);
             return true;
@@ -790,9 +804,6 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
         }
     } else {
         switch (a->df) {
-        case 1:
-            gen_helper_msa_st_h(tcg_env, wd, addr);
-            return true;
         case 2:
             gen_helper_msa_st_w(tcg_env, wd, addr);
             return true;
@@ -810,6 +821,25 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
     if (is_load) {
         tcg_gen_qemu_ld_i128(t16, addr, ctx->mem_idx, mop);
         tcg_gen_extr_i128_i64(d0, d1, t16);
+    }
+
+    if (mo_endian(ctx) != MO_LE) {
+        if (!is_load) {
+            TCGv_i64 temp_d0 = tcg_temp_new_i64();
+            TCGv_i64 temp_d1 = tcg_temp_new_i64();
+
+            tcg_gen_mov_i64(temp_d0, d0);
+            tcg_gen_mov_i64(temp_d1, d1);
+            d0 = temp_d0;
+            d1 = temp_d1;
+        }
+
+        switch (a->df) {
+        case 1:
+            gen_bswap16x4_i64(d0, d0);
+            gen_bswap16x4_i64(d1, d1);
+            break;
+        }
     }
 
     if (!is_load) {

@@ -8226,36 +8226,9 @@ void HELPER(msa_ffint_u_df)(CPUMIPSState *env, uint32_t df, uint32_t wd,
 /* Element-by-element access macros */
 #define DF_ELEMENTS(df) (MSA_WRLEN / DF_BITS(df))
 
-static inline uint64_t bswap16x4(uint64_t x)
-{
-    uint64_t m = 0x00ff00ff00ff00ffull;
-    return ((x & m) << 8) | ((x >> 8) & m);
-}
-
 static inline uint64_t bswap32x2(uint64_t x)
 {
     return ror64(bswap64(x), 32);
-}
-
-void HELPER(msa_ld_h)(CPUMIPSState *env, uint32_t wd,
-                     target_ulong addr)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    uintptr_t ra = GETPC();
-    uint64_t d0, d1;
-
-    /*
-     * Load 8 bytes at a time.  Use little-endian load, then for
-     * big-endian target, we must then swap the four halfwords.
-     */
-    d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
-    d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
-    if (mips_env_is_bigendian(env)) {
-        d0 = bswap16x4(d0);
-        d1 = bswap16x4(d1);
-    }
-    pwd->d[0] = d0;
-    pwd->d[1] = d1;
 }
 
 void HELPER(msa_ld_w)(CPUMIPSState *env, uint32_t wd,
@@ -8313,27 +8286,6 @@ static inline void ensure_writable_pages(CPUMIPSState *env,
         addr = (addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
         probe_write(env, addr, 0, mmu_idx, retaddr);
     }
-}
-
-void HELPER(msa_st_h)(CPUMIPSState *env, uint32_t wd,
-                     target_ulong addr)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    int mmu_idx = mips_env_mmu_index(env);
-    uintptr_t ra = GETPC();
-    uint64_t d0, d1;
-
-    ensure_writable_pages(env, addr, mmu_idx, ra);
-
-    /* Store 8 bytes at a time.  See helper_msa_ld_h. */
-    d0 = pwd->d[0];
-    d1 = pwd->d[1];
-    if (mips_env_is_bigendian(env)) {
-        d0 = bswap16x4(d0);
-        d1 = bswap16x4(d1);
-    }
-    cpu_stq_le_data_ra(env, addr + 0, d0, ra);
-    cpu_stq_le_data_ra(env, addr + 8, d1, ra);
 }
 
 void HELPER(msa_st_w)(CPUMIPSState *env, uint32_t wd,
