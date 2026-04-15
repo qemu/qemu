@@ -785,8 +785,8 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
         MO_ATOM_NONE,
         MO_ATOM_SUBALIGN, /* Slightly stronger than required */
         MO_ATOM_SUBALIGN, /* Slightly stronger than required */
+        MO_ATOM_IFALIGN_PAIR
     };
-    TCGv_i32 wd;
     TCGv_i128 t16;
     TCGv_va addr;
     MemOp mop;
@@ -801,33 +801,25 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
     addr = tcgv_va_temp_new();
     gen_base_offset_addr(ctx, addr, a->ws, a->sa << a->df);
 
-    wd = tcg_constant_i32(a->wd);
-
-    if (is_load) {
-        switch (a->df) {
-        case 3:
-            gen_helper_msa_ld_d(tcg_env, wd, addr);
-            return true;
-        }
-    } else {
-        switch (a->df) {
-        case 3:
-            gen_helper_msa_st_d(tcg_env, wd, addr);
-            return true;
-        }
-    }
-
     t16 = tcg_temp_new_i128();
 
     mop = MO_128 | MO_LE;
     mop |= mo_atom_df[a->df];
+
+    if (a->df == 3 && mo_endian(ctx) != MO_LE) {
+        TCGv_i64 saved_d0 = d0;
+
+        mop = (mop & ~MO_BSWAP) | MO_BE;
+        d0 = d1;
+        d1 = saved_d0;
+    }
 
     if (is_load) {
         tcg_gen_qemu_ld_i128(t16, addr, ctx->mem_idx, mop);
         tcg_gen_extr_i128_i64(d0, d1, t16);
     }
 
-    if (mo_endian(ctx) != MO_LE) {
+    if (mo_endian(ctx) != MO_LE && a->df != 3) {
         if (!is_load) {
             TCGv_i64 temp_d0 = tcg_temp_new_i64();
             TCGv_i64 temp_d1 = tcg_temp_new_i64();
