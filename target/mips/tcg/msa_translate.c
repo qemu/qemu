@@ -164,7 +164,6 @@ static inline bool check_msa_enabled(DisasContext *ctx)
     return true;
 }
 
-typedef void gen_helper_piv(TCGv_ptr, TCGv_i32, TCGv);
 typedef void gen_helper_pii(TCGv_ptr, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32);
 typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
@@ -174,9 +173,6 @@ typedef void gen_helper_piiii(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
         gen_func##_b, gen_func##_h, gen_func##_w, gen_func##_d \
     }; \
     TRANS(NAME, trans_func, NAME##_tab[a->df])
-
-#define TRANS_DF_iv(NAME, trans_func, gen_func) \
-    TRANS_DF_x(iv, NAME, trans_func, gen_func)
 
 #define TRANS_DF_ii(NAME, trans_func, gen_func) \
     TRANS_DF_x(ii, NAME, trans_func, gen_func)
@@ -758,25 +754,64 @@ TRANS(FTINT_U,  trans_msa_2rf, gen_helper_msa_ftint_u_df);
 TRANS(FFINT_S,  trans_msa_2rf, gen_helper_msa_ffint_s_df);
 TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
-static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a,
-                           gen_helper_piv *gen_msa_ldst)
+static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 {
-    TCGv taddr;
+    TCGv_i32 wd;
+    TCGv_va addr;
 
     if (!check_msa_enabled(ctx)) {
         return true;
     }
 
-    taddr = tcg_temp_new();
+    addr = tcgv_va_temp_new();
+    gen_base_offset_addr(ctx, addr, a->ws, a->sa << a->df);
 
-    gen_base_offset_addr(ctx, taddr, a->ws, a->sa << a->df);
-    gen_msa_ldst(tcg_env, tcg_constant_i32(a->wd), taddr);
+    wd = tcg_constant_i32(a->wd);
+
+    if (is_load) {
+        switch (a->df) {
+        case 0:
+            gen_helper_msa_ld_b(tcg_env, wd, addr);
+            return true;
+        case 1:
+            gen_helper_msa_ld_h(tcg_env, wd, addr);
+            return true;
+        case 2:
+            gen_helper_msa_ld_w(tcg_env, wd, addr);
+            return true;
+        case 3:
+            gen_helper_msa_ld_d(tcg_env, wd, addr);
+            return true;
+        }
+    } else {
+        switch (a->df) {
+        case 0:
+            gen_helper_msa_st_b(tcg_env, wd, addr);
+            return true;
+        case 1:
+            gen_helper_msa_st_h(tcg_env, wd, addr);
+            return true;
+        case 2:
+            gen_helper_msa_st_w(tcg_env, wd, addr);
+            return true;
+        case 3:
+            gen_helper_msa_st_d(tcg_env, wd, addr);
+            return true;
+        }
+    }
 
     return true;
 }
 
-TRANS_DF_iv(LD, trans_msa_ldst, gen_helper_msa_ld);
-TRANS_DF_iv(ST, trans_msa_ldst, gen_helper_msa_st);
+static bool trans_LD(DisasContext *ctx, arg_msa_i *a)
+{
+    return trans_msa_ldst(ctx, a, true);
+}
+
+static bool trans_ST(DisasContext *ctx, arg_msa_i *a)
+{
+    return trans_msa_ldst(ctx, a, false);
+}
 
 static bool trans_LSA(DisasContext *ctx, arg_r *a)
 {
