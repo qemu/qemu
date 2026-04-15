@@ -756,8 +756,16 @@ TRANS(FFINT_U,  trans_msa_2rf, gen_helper_msa_ffint_u_df);
 
 static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 {
+    static const MemOp mo_atom_df[4] = {
+        MO_ATOM_NONE,
+    };
     TCGv_i32 wd;
+    TCGv_i128 t16;
     TCGv_va addr;
+    MemOp mop;
+    int idx = a->wd << 1;
+    TCGv_i64 d0 = msa_wr_d[idx +  FP_ENDIAN_IDX];
+    TCGv_i64 d1 = msa_wr_d[idx + !FP_ENDIAN_IDX];
 
     if (!check_msa_enabled(ctx)) {
         return true;
@@ -770,9 +778,6 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
 
     if (is_load) {
         switch (a->df) {
-        case 0:
-            gen_helper_msa_ld_b(tcg_env, wd, addr);
-            return true;
         case 1:
             gen_helper_msa_ld_h(tcg_env, wd, addr);
             return true;
@@ -785,9 +790,6 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
         }
     } else {
         switch (a->df) {
-        case 0:
-            gen_helper_msa_st_b(tcg_env, wd, addr);
-            return true;
         case 1:
             gen_helper_msa_st_h(tcg_env, wd, addr);
             return true;
@@ -798,6 +800,21 @@ static bool trans_msa_ldst(DisasContext *ctx, arg_msa_i *a, bool is_load)
             gen_helper_msa_st_d(tcg_env, wd, addr);
             return true;
         }
+    }
+
+    t16 = tcg_temp_new_i128();
+
+    mop = MO_128 | MO_LE;
+    mop |= mo_atom_df[a->df];
+
+    if (is_load) {
+        tcg_gen_qemu_ld_i128(t16, addr, ctx->mem_idx, mop);
+        tcg_gen_extr_i128_i64(d0, d1, t16);
+    }
+
+    if (!is_load) {
+        tcg_gen_concat_i64_i128(t16, d0, d1);
+        tcg_gen_qemu_st_i128(t16, addr, ctx->mem_idx, mop);
     }
 
     return true;
