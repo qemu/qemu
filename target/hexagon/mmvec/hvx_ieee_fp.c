@@ -19,3 +19,53 @@ float32 fp_vdmpy(float16 a1, float16 a2, float16 a3, float16 a4,
     return float32_add(fp_mult_sf_hf(a1, a3, fp_status),
                        fp_mult_sf_hf(a2, a4, fp_status), fp_status);
 }
+
+#define float32_is_pos_nan(X) (float32_is_any_nan(X) && !float32_is_neg(X))
+#define float32_is_neg_nan(X) (float32_is_any_nan(X) && float32_is_neg(X))
+#define float16_is_pos_nan(X) (float16_is_any_nan(X) && !float16_is_neg(X))
+#define float16_is_neg_nan(X) (float16_is_any_nan(X) && float16_is_neg(X))
+
+/* Qfloat min/max treat +NaN as greater than +INF and -NaN as smaller than -INF */
+float32 qf_max_sf(float32 a1, float32 a2, float_status *fp_status)
+{
+    if (float32_is_pos_nan(a1) || float32_is_neg_nan(a2)) {
+        return a1;
+    }
+    if (float32_is_pos_nan(a2) || float32_is_neg_nan(a1)) {
+        return a2;
+    }
+    return float32_max(a1, a2, fp_status);
+}
+
+float32 qf_min_sf(float32 a1, float32 a2, float_status *fp_status)
+{
+    if (float32_is_pos_nan(a1) || float32_is_neg_nan(a2)) {
+        return a2;
+    }
+    if (float32_is_pos_nan(a2) || float32_is_neg_nan(a1)) {
+        return a1;
+    }
+    return float32_min(a1, a2, fp_status);
+}
+
+float16 qf_max_hf(float16 a1, float16 a2, float_status *fp_status)
+{
+    if (float16_is_pos_nan(a1) || float16_is_neg_nan(a2)) {
+        return a1;
+    }
+    if (float16_is_pos_nan(a2) || float16_is_neg_nan(a1)) {
+        return a2;
+    }
+    return float16_max(a1, a2, fp_status);
+}
+
+float16 qf_min_hf(float16 a1, float16 a2, float_status *fp_status)
+{
+    if (float16_is_pos_nan(a1) || float16_is_neg_nan(a2)) {
+        return a2;
+    }
+    if (float16_is_pos_nan(a2) || float16_is_neg_nan(a1)) {
+        return a1;
+    }
+    return float16_min(a1, a2, fp_status);
+}
