@@ -69,3 +69,21 @@ float16 qf_min_hf(float16 a1, float16 a2, float_status *fp_status)
     }
     return float16_min(a1, a2, fp_status);
 }
+
+int32_t conv_w_sf(float32 a, float_status *fp_status)
+{
+    /* float32_to_int32 converts any NaN to MAX, hexagon looks at the sign. */
+    if (float32_is_any_nan(a)) {
+        return float32_is_neg(a) ? INT32_MIN : INT32_MAX;
+    }
+    return float32_to_int32_round_to_zero(a, fp_status);
+}
+
+int16_t conv_h_hf(float16 a, float_status *fp_status)
+{
+    /* float16_to_int16 converts any NaN to MAX, hexagon looks at the sign. */
+    if (float16_is_any_nan(a)) {
+        return float16_is_neg(a) ? INT16_MIN : INT16_MAX;
+    }
+    return float16_to_int16_round_to_zero(a, fp_status);
+}

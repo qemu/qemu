@@ -10,6 +10,7 @@
 #include "fpu/softfloat.h"
 
 #define f16_to_f32(A) float16_to_float32((A), true, &env->hvx_fp_status)
+#define f32_to_f16(A) float32_to_float16((A), true, &env->hvx_fp_status)
 
 float32 fp_mult_sf_hf(float16 a1, float16 a2, float_status *fp_status);
 float32 fp_vdmpy(float16 a1, float16 a2, float16 a3, float16 a4,
@@ -20,5 +21,8 @@ float32 qf_max_sf(float32 a1, float32 a2, float_status *fp_status);
 float32 qf_min_sf(float32 a1, float32 a2, float_status *fp_status);
 float16 qf_max_hf(float16 a1, float16 a2, float_status *fp_status);
 float16 qf_min_hf(float16 a1, float16 a2, float_status *fp_status);
+
+int32_t conv_w_sf(float32 a, float_status *fp_status);
+int16_t conv_h_hf(float16 a, float_status *fp_status);
 
 #endif
