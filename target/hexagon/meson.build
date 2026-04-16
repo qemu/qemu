@@ -252,6 +252,7 @@ hexagon_ss.add(files(
     'fma_emu.c',
     'mmvec/decode_ext_mmvec.c',
     'mmvec/system_ext_mmvec.c',
+    'mmvec/hvx_ieee_fp.c',
 ))
 
 hexagon_softmmu_ss.add(files(
