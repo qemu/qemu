@@ -454,6 +454,8 @@ typedef struct hv_input_set_vp_registers {
     struct hv_register_assoc elements[];
 } QEMU_PACKED hv_input_set_vp_registers;
 
+#define MSHV_VP_MAX_REGISTERS   128
+
 union hv_interrupt_control {
     uint64_t as_uint64;
     struct {
