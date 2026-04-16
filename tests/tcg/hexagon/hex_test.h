@@ -111,6 +111,20 @@ static inline void __check64_ne(int line, uint64_t val, uint64_t expect)
     "usr = r2\n\t"
 
 /* Some useful floating point values */
+const uint16_t HF_INF = 0x7c00;
+const uint16_t HF_INF_neg = 0xfc00;
+const uint16_t HF_QNaN = 0x7e00;
+const uint16_t HF_SNaN = 0x7d00;
+const uint16_t HF_QNaN_neg = 0xfe00;
+const uint16_t HF_zero = 0x0000;
+const uint16_t HF_zero_neg = 0x8000;
+const uint16_t HF_one = 0x3c00;
+const uint16_t HF_one_recip = 0x3bf9;
+const uint16_t HF_two = 0x4000;
+const uint16_t HF_small_neg = 0x8010;
+const uint16_t HF_any = 0x3c00;
+const uint16_t HF_neg_two = 0xc000;
+
 const uint32_t SF_INF =              0x7f800000;
 const uint32_t SF_INF_neg =          0xff800000;
 const uint32_t SF_QNaN =             0x7fc00000;

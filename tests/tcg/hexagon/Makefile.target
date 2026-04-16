@@ -51,6 +51,7 @@ HEX_TESTS += scatter_gather
 HEX_TESTS += hvx_misc
 HEX_TESTS += hvx_histogram
 HEX_TESTS += fp_hvx
+HEX_TESTS += fp_hvx_cvt
 HEX_TESTS += fp_hvx_disabled
 HEX_TESTS += invalid-slots
 HEX_TESTS += valid-slots
@@ -142,6 +143,8 @@ fp_hvx: fp_hvx.c hvx_misc.h hex_test.h
 fp_hvx: CFLAGS += -mhvx -mhvx-ieee-fp
 fp_hvx_disabled: fp_hvx_disabled.c hvx_misc.h hex_test.h
 fp_hvx_disabled: CFLAGS += -mhvx -mhvx-ieee-fp
+fp_hvx_cvt: fp_hvx_cvt.c hvx_misc.h hex_test.h
+fp_hvx_cvt: CFLAGS += -mhvx -mhvx-ieee-fp
 
 run-fp_hvx_disabled: QEMU_OPTS += -cpu v73,ieee-fp=false
 
