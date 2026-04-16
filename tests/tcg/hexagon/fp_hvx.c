@@ -29,6 +29,7 @@ int err;
 #define CHECK_NAN(A, DEF_NAN) (isnan(A) ? DEF_NAN : (A))
 #define NAN_SF float_sf(0x7FFFFFFF)
 #define NAN_HF float_hf(0x7FFF)
+#define NAN_BF float_hf(0x7FFF)
 
 /******************************************************************************
  * Binary operations
@@ -91,11 +92,43 @@ DEF_TEST_OP_2(vmpy, MULT_HF, hf, hf);
 #define MAX_HF(X, Y) MAX(X, Y, NAN_HF)
 #define MIN_SF(X, Y) MIN(X, Y, NAN_SF)
 #define MAX_SF(X, Y) MAX(X, Y, NAN_SF)
+#define MIN_BF(X, Y) MIN(X, Y, NAN_BF)
+#define MAX_BF(X, Y) MAX(X, Y, NAN_BF)
 
 DEF_TEST_OP_2(vfmin, MIN_SF, sf, sf);
 DEF_TEST_OP_2(vfmax, MAX_SF, sf, sf);
 DEF_TEST_OP_2(vfmin, MIN_HF, hf, hf);
 DEF_TEST_OP_2(vfmax, MAX_HF, hf, hf);
+DEF_TEST_OP_2(vmin, MIN_BF, bf, bf);
+DEF_TEST_OP_2(vmax, MAX_BF, bf, bf);
+
+#define DEF_TEST_OP_2_INTERLEAVED(vop, op, type_res, type_arg) \
+    static void test_##vop##_##type_res##_##type_arg(void) \
+    { \
+        memset(expect, 0xff, sizeof(expect)); \
+        memset(output, 0xff, sizeof(output)); \
+        for (int i = 0; i < BUFSIZE / 2; i++) { \
+            HVX_VectorPair *hvx_output = (HVX_VectorPair *)&output[2 * i]; \
+            HVX_Vector hvx_buffer0 = *(HVX_Vector *)&buffer0[i]; \
+            HVX_Vector hvx_buffer1 = *(HVX_Vector *)&buffer1[i]; \
+            *hvx_output = \
+                Q6_W##type_res##_##vop##_V##type_arg##V##type_arg(hvx_buffer0, \
+                                                                  hvx_buffer1); \
+            for (int j = 0; j < MAX_VEC_SIZE_BYTES / bytes_##type_res; j++) { \
+                expect[2 * i].type_res[j] = \
+                    raw_##type_res(op(float_##type_arg(buffer0[i].type_arg[2 * j]), \
+                                      float_##type_arg(buffer1[i].type_arg[2 * j]))); \
+                expect[2 * i + 1].type_res[j] = \
+                    raw_##type_res(op(float_##type_arg(buffer0[i].type_arg[2 * j + 1]), \
+                                    float_##type_arg(buffer1[i].type_arg[2 * j + 1]))); \
+            } \
+        } \
+        check_output_##type_res(__LINE__, BUFSIZE); \
+    }
+
+DEF_TEST_OP_2_INTERLEAVED(vadd, SUM_SF, sf, bf);
+DEF_TEST_OP_2_INTERLEAVED(vsub, SUB_SF, sf, bf);
+DEF_TEST_OP_2_INTERLEAVED(vmpy, MULT_SF, sf, bf);
 
 /******************************************************************************
  * Other tests
@@ -179,6 +212,14 @@ int main(void)
     test_vfmin_hf_hf();
     test_vfmax_sf_sf();
     test_vfmax_hf_hf();
+
+    /* bfloat */
+    init_buffers_bf();
+    test_vmin_bf_bf();
+    test_vmax_bf_bf();
+    test_vadd_sf_bf();
+    test_vsub_sf_bf();
+    test_vmpy_sf_bf();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

@@ -19,6 +19,8 @@ int err;
 #include "hvx_misc.h"
 #include "hex_test.h"
 
+#define NAN_BF 0x7FFF
+
 #define TEST_EXP(TO, FROM, VAL, EXP) do { \
     ((MMVector *)&buffer)->FROM[index] = VAL; \
     expect[0].TO[index] = EXP; \
@@ -172,6 +174,34 @@ DEF_TEST_VCONV(sf, w, { \
     TEST_EXP(sf, w, 16777219, raw_sf((float)16777220)); /* rounds UP */ \
 })
 
+#define TEST_EXP_BF(VAL, EXP) do { \
+    ((MMVector *)&buffers[1])->sf[index] = VAL; \
+    ((MMVector *)&buffers[0])->sf[index] = VAL; \
+    expect[0].bf[2 * index] = EXP; \
+    expect[0].bf[2 * index + 1] = EXP; \
+    index++; \
+} while (0)
+
+static void test_vconv_bf_sf(void)
+{
+    HVX_Vector *hvx_output = (HVX_Vector *)&output[0];
+    HVX_Vector buffers[2];
+    int index = 0;
+    memset(&buffers, 0, sizeof(buffers));
+    memset(expect, 0, sizeof(expect));
+
+    TEST_EXP_BF(SF_QNaN, NAN_BF);
+    TEST_EXP_BF(SF_SNaN, NAN_BF);
+    TEST_EXP_BF(SF_QNaN_neg, NAN_BF);
+    TEST_EXP_BF(SF_INF, BF_INF);
+    TEST_EXP_BF(SF_INF_neg, BF_INF_neg);
+    TEST_EXP_BF(SF_one, BF_one);
+    TEST_EXP_BF(SF_zero_neg, BF_zero_neg);
+
+    *hvx_output = Q6_Vbf_vcvt_VsfVsf(buffers[0], buffers[1]);
+    check_output_hf(__LINE__, 1);
+}
+
 int main(void)
 {
     test_vcvt_uh_hf();
@@ -182,6 +212,7 @@ int main(void)
     test_vconv_sf_w();
     test_vconv_h_hf();
     test_vconv_hf_h();
+    test_vconv_bf_sf();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

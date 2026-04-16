@@ -41,6 +41,7 @@ typedef union {
     uint16_t uh[MAX_VEC_SIZE_BYTES / 2];
     uint16_t hf[MAX_VEC_SIZE_BYTES / 2]; /* convenience alias */
     int16_t   h[MAX_VEC_SIZE_BYTES / 2];
+    uint16_t  bf[MAX_VEC_SIZE_BYTES / 2];
     uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
     int8_t    b[MAX_VEC_SIZE_BYTES / 1];
 } MMVector;
@@ -73,6 +74,7 @@ CHECK_OUTPUT_FUNC(uh, 2)
 CHECK_OUTPUT_FUNC(hf, 2)
 CHECK_OUTPUT_FUNC(ub,  1)
 CHECK_OUTPUT_FUNC(b,  1)
+CHECK_OUTPUT_FUNC(bf,  2)
 
 static inline void init_buffers(void)
 {
@@ -97,6 +99,12 @@ static const uint32_t FP_VALUES[] = {
 };
 #define FP_VALUES_MAX ARRAY_SIZE(FP_VALUES)
 
+static const uint16_t BF_VALUES[] = {
+    BF_INF, BF_INF_neg, BF_QNaN, BF_SNaN, BF_QNaN_neg, BF_SNaN_neg,
+    BF_HEX_NaN, BF_zero, BF_zero_neg, BF_one, BF_two, BF_four,
+};
+#define BF_VALUES_MAX ARRAY_SIZE(BF_VALUES)
+
 static inline void init_buffers_fp(void)
 {
     _Static_assert(BUFSIZE * (MAX_VEC_SIZE_BYTES / 4) >
@@ -111,6 +119,25 @@ static inline void init_buffers_fp(void)
             if (counter2 == FP_VALUES_MAX) {
                 counter2 = 0;
                 counter1 = (counter1 + 1) % FP_VALUES_MAX;
+            }
+        }
+    }
+}
+
+static inline void init_buffers_bf(void)
+{
+    _Static_assert(BUFSIZE * (MAX_VEC_SIZE_BYTES / 2) >
+                   BF_VALUES_MAX * BF_VALUES_MAX,
+                   "test arrays can't fit all BF_VALUES combinations");
+    int counter1 = 0, counter2 = 0;
+    for (int i = 0; i < BUFSIZE; i++) {
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES / 2; j++) {
+            buffer0[i].bf[j] = BF_VALUES[counter1];
+            buffer1[i].bf[j] = BF_VALUES[counter2];
+            counter2++;
+            if (counter2 == BF_VALUES_MAX) {
+                counter2 = 0;
+                counter1 = (counter1 + 1) % BF_VALUES_MAX;
             }
         }
     }
@@ -212,10 +239,13 @@ static inline void test_##NAME(bool invert) \
 
 #define float_sf(x) ({ typeof(x) _x = (x); *((float *)&(_x)); })
 #define float_hf(x) ({ typeof(x) _x = (x); *((_Float16 *) &(_x)); })
+#define float_bf(x) ({ uint32_t _u = ((uint32_t)(x)) << 16; *((float *)&(_u)); })
 #define raw_sf(x) ({ typeof(x) _x = (x); *((uint32_t *)&(_x)); })
 #define raw_hf(x) ({ typeof(x) _x = (x); *((uint16_t *)&(_x)); })
+#define raw_bf(x) ({ typeof(x) _x = (x); (uint16_t)(*((uint32_t *)&(_x)) >> 16); })
 #define float_hf_to_sf(x) ((float)x)
 #define bytes_hf 2
 #define bytes_sf 4
+#define bytes_bf 2
 
 #endif

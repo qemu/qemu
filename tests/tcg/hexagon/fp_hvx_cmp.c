@@ -22,9 +22,11 @@ int err;
 
 #define MAX_TESTS_hf (MAX_VEC_SIZE_BYTES / 2)
 #define MAX_TESTS_sf (MAX_VEC_SIZE_BYTES / 4)
+#define MAX_TESTS_bf (MAX_VEC_SIZE_BYTES / 2)
 
 #define TRUE_MASK_sf 0xffffffff
 #define TRUE_MASK_hf 0xffff
+#define TRUE_MASK_bf 0xffff
 
 static const char *comparisons[MAX_TESTS_sf][2];
 static HVX_Vector *hvx_output = (HVX_Vector *)&output[0];
@@ -160,6 +162,54 @@ static void test_cmp_hf(void)
     CHECK(hf, 2);
 }
 
+static void test_cmp_bf(void)
+{
+    /*
+     * General ordering for bf:
+     * QNaN > SNaN > +Inf > numbers > -Inf > SNaN_neg > QNaN_neg
+     */
+
+    /* Test equality */
+    PREP_TEST();
+    ADD_TEST_CMP(bf, 0,       0,       false);
+    ADD_TEST_CMP(bf, BF_SNaN, BF_SNaN, false);
+    CHECK(bf, 2);
+
+    /* Common numbers */
+    PREP_TEST();
+    TEST_CMP_GT(bf, BF_two, BF_one);
+    TEST_CMP_GT(bf, BF_one, BF_zero);
+    CHECK(bf, 2);
+
+    /* Infinity vs Infinity/NaN */
+    PREP_TEST();
+    TEST_CMP_GT(bf, BF_QNaN,      BF_INF);
+    TEST_CMP_GT(bf, BF_SNaN,      BF_INF);
+    TEST_CMP_GT(bf, BF_INF,       BF_INF_neg);
+    TEST_CMP_GT(bf, BF_INF,       BF_SNaN_neg);
+    TEST_CMP_GT(bf, BF_INF,       BF_QNaN_neg);
+    TEST_CMP_GT(bf, BF_INF_neg,   BF_SNaN_neg);
+    TEST_CMP_GT(bf, BF_INF_neg,   BF_QNaN_neg);
+    TEST_CMP_GT(bf, BF_SNaN,      BF_INF_neg);
+    TEST_CMP_GT(bf, BF_QNaN,      BF_INF_neg);
+    CHECK(bf, 2);
+
+    /* NaN vs NaN */
+    PREP_TEST();
+    TEST_CMP_GT(bf, BF_QNaN,      BF_SNaN);
+    TEST_CMP_GT(bf, BF_SNaN,      BF_SNaN_neg);
+    TEST_CMP_GT(bf, BF_SNaN_neg,  BF_QNaN_neg);
+    CHECK(bf, 2);
+
+    /* NaN vs non-NaN */
+    PREP_TEST();
+    TEST_CMP_GT(bf, BF_QNaN,      BF_one);
+    TEST_CMP_GT(bf, BF_SNaN,      BF_one);
+    TEST_CMP_GT(bf, BF_one,       BF_QNaN_neg);
+    TEST_CMP_GT(bf, BF_one,       BF_SNaN_neg);
+    CHECK(bf, 2);
+}
+
 static void check_byte_pred(HVX_VectorPred pred, int byte_idx, uint8_t exp_mask,
                             int line)
 {
@@ -217,6 +267,7 @@ int main(void)
 
     test_cmp_sf();
     test_cmp_hf();
+    test_cmp_bf();
     test_cmp_variants();
 
     puts(err ? "FAIL" : "PASS");
