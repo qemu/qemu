@@ -538,22 +538,17 @@ static int register_intercept_result_cpuid_entry(const CPUState *cpu,
         .input.always_override = always_override,
         .input.padding = 0,
         /*
-         * With regard to masks - these are to specify bits to be overwritten
-         * The current CpuidEntry structure wouldn't allow to carry the masks
-         * in addition to the actual register values. For this reason, the
-         * masks are set to the exact values of the corresponding register bits
-         * to be registered for an overwrite. To view resulting values the
-         * hypervisor would return, HvCallGetVpCpuidValues hypercall can be
-         * used.
+         * Masks specify which bits to override. Set to 0xFFFFFFFF to
+         * override all bits with the values from the QEMU CPU model.
          */
         .result.eax = entry->eax,
-        .result.eax_mask = entry->eax,
+        .result.eax_mask = 0xFFFFFFFF,
         .result.ebx = entry->ebx,
-        .result.ebx_mask = entry->ebx,
+        .result.ebx_mask = 0xFFFFFFFF,
         .result.ecx = entry->ecx,
-        .result.ecx_mask = entry->ecx,
+        .result.ecx_mask = 0xFFFFFFFF,
         .result.edx = entry->edx,
-        .result.edx_mask = entry->edx,
+        .result.edx_mask = 0xFFFFFFFF,
     };
     union hv_register_intercept_result_parameters parameters = {
         .cpuid = cpuid_params,
