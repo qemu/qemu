@@ -354,6 +354,10 @@
     do { \
         COE = (sextract32(VAL, 24 + 2 * POS, 2) << 8) | \
                extract32(VAL, POS * 8, 8); \
-    } while (0);
+    } while (0) \
+    ;
+
+#define fCMPGT_SF(A, B) cmpgt_sf(A, B, &env->hvx_fp_status)
+#define fCMPGT_HF(A, B) cmpgt_hf(A, B, &env->hvx_fp_status)
 
 #endif
