@@ -856,7 +856,7 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
 
 /* Used for "-d in_asm" logging */
 int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc,
-                        GString *buf, const HexagonCPUDef  *hex_def)
+                        GString *buf, const HexagonCPUConfig *cfg)
 {
     HexagonCPUDef any_def = {
         .hex_version = HEX_VER_ANY,  /* Allow decode to accept anything */
@@ -867,7 +867,7 @@ int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc,
     ctx.hex_def = &any_def;
 
     if (decode_packet(&ctx, nwords, words, &ctx.pkt, true) > 0) {
-        snprint_a_pkt_disas(buf, &ctx.pkt, words, pc, hex_def);
+        snprint_a_pkt_disas(buf, &ctx.pkt, words, pc, cfg);
         return ctx.pkt.encod_pkt_size_in_bytes;
     } else {
         for (int i = 0; i < nwords; i++) {

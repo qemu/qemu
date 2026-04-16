@@ -139,7 +139,7 @@ static void snprintinsn(GString *buf, Insn *insn)
 }
 
 void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
-                         target_ulong pc, const HexagonCPUDef *hex_def)
+                         target_ulong pc, const HexagonCPUConfig *cfg)
 {
     bool has_endloop0 = false;
     bool has_endloop1 = false;
@@ -171,10 +171,15 @@ void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
         }
 
         g_string_append(buf, "\t");
-        if (opcode_supported(pkt->insn[i].opcode, hex_def)) {
+        if (opcode_supported(pkt->insn[i].opcode, cfg->hex_def)) {
             snprintinsn(buf, &(pkt->insn[i]));
         } else {
             g_string_append(buf, "<invalid>");
+        }
+
+        if (!cfg->ieee_fp_extension &&
+            GET_ATTRIB(pkt->insn[i].opcode, A_HVX_IEEE_FP)) {
+            g_string_append(buf, " (disabled: no ieee_fp)");
         }
 
         if (i < pkt->num_insns - 1) {
