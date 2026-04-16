@@ -1129,6 +1129,12 @@ void mshv_arch_amend_proc_features(
     features->access_guest_idle_reg = 1;
 }
 
+void mshv_arch_disable_partition_proc_features(
+     union hv_partition_processor_features *disabled_features)
+{
+    disabled_features->la57_support = 1;
+}
+
 static int set_memory_info(const struct hyperv_message *msg,
                            struct hv_x64_memory_intercept_message *info)
 {
@@ -1705,6 +1711,15 @@ uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
     }
     if (func == 0x01       && reg == R_ECX) {
         ret &= ~CPUID_EXT_VMX;
+    }
+
+    if (func == 0x07 && idx == 0 && reg == R_ECX) {
+        /*
+         * LA57 (5-level paging) causes incorrect GVA=>GPA translations
+         * in the instruction decoder/emulator. Disable until page table
+         * walk in x86_mmu.c works w/ 5-level paging.
+         */
+        ret &= ~CPUID_7_0_ECX_LA57;
     }
 
     return ret;

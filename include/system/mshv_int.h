@@ -94,6 +94,8 @@ void mshv_arch_init_vcpu(CPUState *cpu);
 void mshv_arch_destroy_vcpu(CPUState *cpu);
 void mshv_arch_amend_proc_features(
     union hv_partition_synthetic_processor_features *features);
+void mshv_arch_disable_partition_proc_features(
+     union hv_partition_processor_features *disabled_features);
 int mshv_arch_post_init_vm(int vm_fd);
 
 typedef struct mshv_root_hvcall mshv_root_hvcall;

@@ -142,6 +142,8 @@ static int create_partition(int mshv_fd, int *vm_fd)
     int ret;
     uint64_t pt_flags, host_proc_features;
     union hv_partition_processor_xsave_features disabled_xsave_features;
+    union hv_partition_processor_features disabled_partition_features = {0};
+
     struct mshv_create_partition_v2 args = {0};
 
     QEMU_BUILD_BUG_ON(MSHV_NUM_CPU_FEATURES_BANKS != 2);
@@ -176,6 +178,11 @@ static int create_partition(int mshv_fd, int *vm_fd)
         return -1;
     }
     args.pt_cpu_fbanks[1] = ~host_proc_features;
+
+    /* arch-specific features we disable regardless of host support */
+    mshv_arch_disable_partition_proc_features(&disabled_partition_features);
+    args.pt_cpu_fbanks[0] |= disabled_partition_features.as_uint64[0];
+    args.pt_cpu_fbanks[1] |= disabled_partition_features.as_uint64[1];
 
     /* populate args structure */
     args.pt_flags = pt_flags;
