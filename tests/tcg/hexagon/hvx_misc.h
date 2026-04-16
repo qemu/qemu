@@ -18,6 +18,8 @@
 #ifndef HVX_MISC_H
 #define HVX_MISC_H
 
+#include "hex_test.h"
+
 static inline void check(int line, int i, int j,
                          uint64_t result, uint64_t expect)
 {
@@ -34,8 +36,10 @@ typedef union {
     uint64_t ud[MAX_VEC_SIZE_BYTES / 8];
     int64_t   d[MAX_VEC_SIZE_BYTES / 8];
     uint32_t uw[MAX_VEC_SIZE_BYTES / 4];
+    uint32_t sf[MAX_VEC_SIZE_BYTES / 4]; /* convenience alias */
     int32_t   w[MAX_VEC_SIZE_BYTES / 4];
     uint16_t uh[MAX_VEC_SIZE_BYTES / 2];
+    uint16_t hf[MAX_VEC_SIZE_BYTES / 2]; /* convenience alias */
     int16_t   h[MAX_VEC_SIZE_BYTES / 2];
     uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
     int8_t    b[MAX_VEC_SIZE_BYTES / 1];
@@ -63,7 +67,9 @@ static inline void check_output_##FIELD(int line, size_t num_vectors) \
 
 CHECK_OUTPUT_FUNC(d,  8)
 CHECK_OUTPUT_FUNC(w,  4)
+CHECK_OUTPUT_FUNC(sf, 4)
 CHECK_OUTPUT_FUNC(h,  2)
+CHECK_OUTPUT_FUNC(hf, 2)
 CHECK_OUTPUT_FUNC(b,  1)
 
 static inline void init_buffers(void)
@@ -77,6 +83,33 @@ static inline void init_buffers(void)
         }
         for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
             mask[i].w[j] = (i + j % MASKMOD == 0) ? 0 : 1;
+        }
+    }
+}
+
+static const uint32_t FP_VALUES[] = {
+    SF_INF, SF_INF_neg, SF_QNaN, SF_QNaN_special, SF_SNaN, SF_QNaN_neg,
+    SF_SNaN_neg, SF_HEX_NaN, SF_zero, SF_zero_neg, SF_one, SF_one_recip,
+    SF_one_invsqrta, SF_two, SF_four, SF_small_neg, SF_large_pos, SF_any,
+    SF_denorm, SF_random, SF_neg_two,
+};
+#define FP_VALUES_MAX ARRAY_SIZE(FP_VALUES)
+
+static inline void init_buffers_fp(void)
+{
+    _Static_assert(BUFSIZE * (MAX_VEC_SIZE_BYTES / 4) >
+                   FP_VALUES_MAX * FP_VALUES_MAX,
+                   "test arrays can't fit all FP_VALUES combinations");
+    int counter1 = 0, counter2 = 0;
+    for (int i = 0; i < BUFSIZE; i++) {
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
+            buffer0[i].sf[j] = FP_VALUES[counter1];
+            buffer1[i].sf[j] = FP_VALUES[counter2];
+            counter2++;
+            if (counter2 == FP_VALUES_MAX) {
+                counter2 = 0;
+                counter1 = (counter1 + 1) % FP_VALUES_MAX;
+            }
         }
     }
 }
@@ -174,5 +207,13 @@ static inline void test_##NAME(bool invert) \
     } \
     check_output_b(__LINE__, BUFSIZE); \
 }
+
+#define float_sf(x) ({ typeof(x) _x = (x); *((float *)&(_x)); })
+#define float_hf(x) ({ typeof(x) _x = (x); *((_Float16 *) &(_x)); })
+#define raw_sf(x) ({ typeof(x) _x = (x); *((uint32_t *)&(_x)); })
+#define raw_hf(x) ({ typeof(x) _x = (x); *((uint16_t *)&(_x)); })
+#define float_hf_to_sf(x) ((float)x)
+#define bytes_hf 2
+#define bytes_sf 4
 
 #endif
