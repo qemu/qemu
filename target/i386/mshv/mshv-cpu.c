@@ -465,14 +465,17 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
     CPUX86State *env = &x86_cpu->env;
     uint32_t eax, ebx, ecx, edx;
     uint32_t leaf, subleaf;
-    size_t max_leaf = 0x1F;
-    size_t max_subleaf = 0x20;
-
-    uint32_t leaves_with_subleaves[] = {0x4, 0x7, 0xD, 0xF, 0x10};
+    uint32_t max_basic_leaf, max_extended_leaf;
+    uint32_t max_subleaf = 0x20;
+    uint32_t leaves_with_subleaves[] = {0x04, 0x07, 0x0d, 0x0f, 0x10};
     int n_subleaf_leaves = ARRAY_SIZE(leaves_with_subleaves);
 
-    /* Regular leaves without subleaves */
-    for (leaf = 0; leaf <= max_leaf; leaf++) {
+    /* Get maximum basic and and extended CPUID leaves */
+    cpu_x86_cpuid(env, 0, 0, &max_basic_leaf, &ebx, &ecx, &edx);
+    cpu_x86_cpuid(env, 0x80000000, 0, &max_extended_leaf, &ebx, &ecx, &edx);
+
+    /* Collect basic leaves (0x0 to max_basic_leaf) */
+    for (leaf = 0; leaf <= max_basic_leaf; leaf++) {
         bool has_subleaves = false;
         for (int i = 0; i < n_subleaf_leaves; i++) {
             if (leaf == leaves_with_subleaves[i]) {
@@ -483,12 +486,20 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
 
         if (!has_subleaves) {
             cpu_x86_cpuid(env, leaf, 0, &eax, &ebx, &ecx, &edx);
-            if (eax == 0 && ebx == 0 && ecx == 0 && edx == 0) {
-                /* all zeroes indicates no more leaves */
-                continue;
-            }
-
             add_cpuid_entry(cpuid_entries, leaf, 0, eax, ebx, ecx, edx);
+            continue;
+        }
+
+        /*
+         * Valid XSAVE components can exist at a higher index se we need to set
+         * all subleaves for leaf 0x0d, even if we encounter an empty one.
+         */
+        if (leaf == 0x0d) {
+            for (subleaf = 0; subleaf <= 63; subleaf++) {
+                cpu_x86_cpuid(env, leaf, subleaf, &eax, &ebx, &ecx, &edx);
+                add_cpuid_entry(cpuid_entries, leaf, subleaf,
+                                eax, ebx, ecx, edx);
+            }
             continue;
         }
 
@@ -497,12 +508,17 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
             cpu_x86_cpuid(env, leaf, subleaf, &eax, &ebx, &ecx, &edx);
 
             if (eax == 0 && ebx == 0 && ecx == 0 && edx == 0) {
-                /* all zeroes indicates no more leaves */
                 break;
             }
-            add_cpuid_entry(cpuid_entries, leaf, 0, eax, ebx, ecx, edx);
+            add_cpuid_entry(cpuid_entries, leaf, subleaf, eax, ebx, ecx, edx);
             subleaf++;
         }
+    }
+
+    /* Collect extended leaves (0x80000000 to max_extended_leaf) */
+    for (leaf = 0x80000000; leaf <= max_extended_leaf; leaf++) {
+        cpu_x86_cpuid(env, leaf, 0, &eax, &ebx, &ecx, &edx);
+        add_cpuid_entry(cpuid_entries, leaf, 0, eax, ebx, ecx, edx);
     }
 }
 
@@ -576,22 +592,40 @@ static int register_intercept_result_cpuid(const CPUState *cpu,
         subleaf_specific = 0;
         always_override = 1;
 
-        /* Intel */
-        /* 0xb - Extended Topology Enumeration Leaf */
-        /* 0x1f - V2 Extended Topology Enumeration Leaf */
-        /* AMD */
-        /* 0x8000_001e - Processor Topology Information */
-        /* 0x8000_0026 - Extended CPU Topology */
-        if (entry->function == 0xb
-            || entry->function == 0x1f
-            || entry->function == 0x8000001e
-            || entry->function == 0x80000026) {
+        /*
+         * Intel
+         * 0xb - Extended Topology Enumeration Leaf
+         * 0x1f - V2 Extended Topology Enumeration Leaf
+         * AMD
+         * 0x8000_001e - Processor Topology Information
+         * 0x8000_0026 - Extended CPU Topology
+         */
+        if (entry->function == 0xb ||
+            entry->function == 0x1f ||
+            entry->function == 0x8000001e ||
+            entry->function == 0x80000026) {
             subleaf_specific = 1;
             always_override = 1;
-        } else if (entry->function == 0x00000001
-            || entry->function == 0x80000000
-            || entry->function == 0x80000001
-            || entry->function == 0x80000008) {
+        /*
+         * Feature enumeration leaves (subleaf-specific)
+         * 0x04: Deterministic Cache Parameters
+         * 0x07: Structured Extended Feature Flags
+         * 0x0D: Processor Extended State Enumeration
+         * 0x0F: Platform QoS Monitoring
+         * 0x10: Platform QoS Enforcement
+         */
+        } else if (entry->function == 0x04 ||
+                   entry->function == 0x07 ||
+                   entry->function == 0x0d ||
+                   entry->function == 0x0f ||
+                   entry->function == 0x10) {
+            subleaf_specific = 1;
+            always_override = 1;
+        /* Basic feature leaves (no subleaves) */
+        } else if (entry->function == 0x00000001 ||
+                   entry->function == 0x80000000 ||
+                   entry->function == 0x80000001 ||
+                   entry->function == 0x80000008) {
             subleaf_specific = 0;
             always_override = 1;
         }
