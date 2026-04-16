@@ -115,6 +115,7 @@ const uint16_t HF_INF = 0x7c00;
 const uint16_t HF_INF_neg = 0xfc00;
 const uint16_t HF_QNaN = 0x7e00;
 const uint16_t HF_SNaN = 0x7d00;
+const uint16_t HF_SNaN_neg = 0xfd00;
 const uint16_t HF_QNaN_neg = 0xfe00;
 const uint16_t HF_zero = 0x0000;
 const uint16_t HF_zero_neg = 0x8000;
