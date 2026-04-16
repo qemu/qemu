@@ -194,6 +194,7 @@ struct ArchCPU {
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
     bool short_circuit;
+    bool ieee_fp_extension;
 #ifndef CONFIG_USER_ONLY
     HexagonTLBState *tlb;
     uint32_t boot_addr;

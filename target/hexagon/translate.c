@@ -1211,6 +1211,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
     ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
+    ctx->ieee_fp_extension = hex_cpu->ieee_fp_extension;
 #ifndef CONFIG_USER_ONLY
     ctx->num_cycles = 0;
     ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
