@@ -528,6 +528,7 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
 static int register_intercept_result_cpuid_entry(const CPUState *cpu,
                                                  uint8_t subleaf_specific,
                                                  uint8_t always_override,
+                                                 uint32_t ebx_mask,
                                                  struct hv_cpuid_entry *entry)
 {
     int ret;
@@ -543,11 +544,12 @@ static int register_intercept_result_cpuid_entry(const CPUState *cpu,
         /*
          * Masks specify which bits to override. Set to 0xFFFFFFFF to
          * override all bits with the values from the QEMU CPU model.
+         * A mask of 0 lets the hypervisor supply its own value.
          */
         .result.eax = entry->eax,
         .result.eax_mask = 0xFFFFFFFF,
         .result.ebx = entry->ebx,
-        .result.ebx_mask = 0xFFFFFFFF,
+        .result.ebx_mask = ebx_mask,
         .result.ecx = entry->ecx,
         .result.ecx_mask = 0xFFFFFFFF,
         .result.edx = entry->edx,
@@ -582,6 +584,7 @@ static int register_intercept_result_cpuid(const CPUState *cpu,
     int ret = 0, entry_ret;
     struct hv_cpuid_entry *entry;
     uint8_t subleaf_specific, always_override;
+    uint32_t ebx_mask;
 
     for (size_t i = 0; i < cpuid->nent; i++) {
         entry = &cpuid->entries[i];
@@ -589,6 +592,7 @@ static int register_intercept_result_cpuid(const CPUState *cpu,
         /* set defaults */
         subleaf_specific = 0;
         always_override = 1;
+        ebx_mask = 0xFFFFFFFF;
 
         /*
          * Intel
@@ -628,8 +632,22 @@ static int register_intercept_result_cpuid(const CPUState *cpu,
             always_override = 1;
         }
 
-        entry_ret = register_intercept_result_cpuid_entry(cpu, subleaf_specific,
+        /*
+         * CPUID[0xD,0].EBX and CPUID[0xD,1].EBX report the XSAVE area
+         * size based on features currently enabled in XCR0/XSS. These
+         * values are dynamic and must not be overridden with static
+         * results from the QEMU CPU model. Setting ebx_mask to 0 lets
+         * the hypervisor supply EBX based on the guest's actual state.
+         */
+        if (entry->function == 0x0d &&
+           (entry->index == 0 || entry->index == 1)) {
+            ebx_mask = 0;
+        }
+
+        entry_ret = register_intercept_result_cpuid_entry(cpu,
+                                                          subleaf_specific,
                                                           always_override,
+                                                          ebx_mask,
                                                           entry);
         if ((entry_ret < 0) && (ret == 0)) {
             ret = entry_ret;
@@ -1688,6 +1706,7 @@ uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
     if (func == 0x01       && reg == R_ECX) {
         ret &= ~CPUID_EXT_VMX;
     }
+
     return ret;
 }
 
