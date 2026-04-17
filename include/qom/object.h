@@ -720,6 +720,53 @@ Object *object_new_with_props_from_qdict(const char *typename,
                                          Error **errp);
 
 /**
+ * object_new_with_props_parentless:
+ * @typename:  The name of the type of the object to instantiate.
+ * @errp: pointer to error object
+ * @...: list of property names and values
+ *
+ * Behaviour as object_new_with_props(), except the object
+ * will not be added to any parent and thus the caller will
+ * own the returned instance. The caller must call
+ * object_unref when it is no longer required.
+ */
+Object *object_new_with_props_parentless(const char *typename,
+                                         Error **errp,
+                                         ...) G_GNUC_NULL_TERMINATED;
+
+/**
+ * object_new_with_propv_parentless:
+ * @typename:  The name of the type of the object to instantiate.
+ * @vargs: list of property names and values
+ * @errp: pointer to error object
+ *
+ * Behaviour as object_new_with_propv(), except the object
+ * will not be added to any parent and thus the caller will
+ * own the returned instance. The caller must call
+ * object_unref when it is no longer required.
+ */
+Object *object_new_with_propv_parentless(const char *typename,
+                                         va_list vargs,
+                                         Error **errp);
+
+/**
+ * object_new_with_props_from_qdict_parentless:
+ * @typename:  The name of the type of the object to instantiate.
+ * @props: dictionary of property names and values
+ * @v: visitor to iterate over @props
+ * @errp: pointer to error object
+ *
+ * Behaviour as object_new_with_props_from_qdict(), except the
+ * object will not be added to any parent and thus the caller
+ * will own the returned instance. The caller must call
+ * object_unref when it is no longer required.
+ */
+Object *object_new_with_props_from_qdict_parentless(const char *typename,
+                                                    const QDict *props,
+                                                    Visitor *v,
+                                                    Error **errp);
+
+/**
  * object_set_props:
  * @obj: the object instance to set properties on
  * @errp: pointer to error object

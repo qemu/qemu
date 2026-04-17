@@ -336,7 +336,7 @@ static QemuOptsList qemu_object_opts = {
 };
 
 
-static void test_dummy_createv(void)
+static void test_dummy_createv_tree(void)
 {
     Error *err = NULL;
     Object *parent = object_get_objects_root();
@@ -351,6 +351,7 @@ static void test_dummy_createv(void)
                               NULL));
 
     g_assert(err == NULL);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
@@ -362,9 +363,30 @@ static void test_dummy_createv(void)
 }
 
 
-static Object *new_helper(Error **errp,
-                          Object *parent,
-                          ...)
+static void test_dummy_createv_parentless(void)
+{
+    Error *err = NULL;
+    DummyObject *dobj = DUMMY_OBJECT(
+        object_new_with_props_parentless(TYPE_DUMMY,
+                                         &err,
+                                         "bv", "yes",
+                                         "sv", "Hiss hiss hiss",
+                                         "av", "platypus",
+                                         NULL));
+
+    g_assert(err == NULL);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
+    g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
+    g_assert(dobj->bv == true);
+    g_assert(dobj->av == DUMMY_PLATYPUS);
+
+    object_unref(OBJECT(dobj));
+}
+
+
+static Object *new_helper_tree(Error **errp,
+                               Object *parent,
+                               ...)
 {
     va_list vargs;
     Object *obj;
@@ -379,19 +401,20 @@ static Object *new_helper(Error **errp,
     return obj;
 }
 
-static void test_dummy_createlist(void)
+static void test_dummy_createlist_tree(void)
 {
     Error *err = NULL;
     Object *parent = object_get_objects_root();
     DummyObject *dobj = DUMMY_OBJECT(
-        new_helper(&err,
-                   parent,
-                   "bv", "yes",
-                   "sv", "Hiss hiss hiss",
-                   "av", "platypus",
-                   NULL));
+        new_helper_tree(&err,
+                        parent,
+                        "bv", "yes",
+                        "sv", "Hiss hiss hiss",
+                        "av", "platypus",
+                        NULL));
 
     g_assert(err == NULL);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
@@ -400,6 +423,39 @@ static void test_dummy_createlist(void)
              == OBJECT(dobj));
 
     object_unparent(OBJECT(dobj));
+}
+
+static Object *new_helper_parentless(Error **errp,
+                                     ...)
+{
+    va_list vargs;
+    Object *obj;
+
+    va_start(vargs, errp);
+    obj = object_new_with_propv_parentless(TYPE_DUMMY,
+                                           vargs,
+                                           errp);
+    va_end(vargs);
+    return obj;
+}
+
+static void test_dummy_createlist_parentless(void)
+{
+    Error *err = NULL;
+    DummyObject *dobj = DUMMY_OBJECT(
+        new_helper_parentless(&err,
+                              "bv", "yes",
+                              "sv", "Hiss hiss hiss",
+                              "av", "platypus",
+                              NULL));
+
+    g_assert(err == NULL);
+    g_assert_cmpint(dobj->parent_obj.ref, ==, 1);
+    g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
+    g_assert(dobj->bv == true);
+    g_assert(dobj->av == DUMMY_PLATYPUS);
+
+    object_unref(OBJECT(dobj));
 }
 
 static bool test_create_obj(QDict *qdict, Error **errp)
@@ -658,8 +714,14 @@ int main(int argc, char **argv)
     type_register_static(&dummy_bus_info);
     type_register_static(&dummy_backend_info);
 
-    g_test_add_func("/qom/proplist/createlist", test_dummy_createlist);
-    g_test_add_func("/qom/proplist/createv", test_dummy_createv);
+    g_test_add_func("/qom/proplist/createlist/tree",
+                    test_dummy_createlist_tree);
+    g_test_add_func("/qom/proplist/createlist/parentless",
+                    test_dummy_createlist_parentless);
+    g_test_add_func("/qom/proplist/createv/tree",
+                    test_dummy_createv_tree);
+    g_test_add_func("/qom/proplist/createv/parentless",
+                    test_dummy_createv_parentless);
     g_test_add_func("/qom/proplist/createcmdline", test_dummy_createcmdl);
     g_test_add_func("/qom/proplist/badenum", test_dummy_badenum);
     g_test_add_func("/qom/proplist/getenum", test_dummy_getenum);
