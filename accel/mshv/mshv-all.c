@@ -505,8 +505,6 @@ static int mshv_init(AccelState *as, MachineState *ms)
 
     mshv_init_mmio_emu();
 
-    mshv_init_msicontrol();
-
     ret = create_vm(mshv_fd, &vm_fd);
     if (ret < 0) {
         close(mshv_fd);

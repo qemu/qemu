@@ -25,17 +25,6 @@
 #define MSHV_IRQFD_RESAMPLE_FLAG (1 << MSHV_IRQFD_BIT_RESAMPLE)
 #define MSHV_IRQFD_BIT_DEASSIGN_FLAG (1 << MSHV_IRQFD_BIT_DEASSIGN)
 
-static MshvMsiControl *msi_control;
-static QemuMutex msi_control_mutex;
-
-void mshv_init_msicontrol(void)
-{
-    qemu_mutex_init(&msi_control_mutex);
-    msi_control = g_new0(MshvMsiControl, 1);
-    msi_control->gsi_routes = g_hash_table_new(g_direct_hash, g_direct_equal);
-    msi_control->updated = false;
-}
-
 /* Pass an eventfd which is to be used for injecting interrupts from userland */
 static int irqfd(int vm_fd, int fd, int resample_fd, uint32_t gsi,
                  uint32_t flags)

@@ -120,7 +120,4 @@ typedef struct MshvMsrEntries {
 int mshv_configure_msr(const CPUState *cpu, const MshvMsrEntry *msrs,
                        size_t n_msrs);
 
-/* interrupt */
-void mshv_init_msicontrol(void);
-
 #endif
