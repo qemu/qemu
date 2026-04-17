@@ -36,52 +36,6 @@ void mshv_init_msicontrol(void)
     msi_control->updated = false;
 }
 
-static int set_msi_routing(uint32_t gsi, uint64_t addr, uint32_t data)
-{
-    struct mshv_user_irq_entry *entry;
-    uint32_t high_addr = addr >> 32;
-    uint32_t low_addr = addr & 0xFFFFFFFF;
-    GHashTable *gsi_routes;
-
-    trace_mshv_set_msi_routing(gsi, addr, data);
-
-    if (gsi >= MSHV_MAX_MSI_ROUTES) {
-        error_report("gsi >= MSHV_MAX_MSI_ROUTES");
-        return -1;
-    }
-
-    assert(msi_control);
-
-    WITH_QEMU_LOCK_GUARD(&msi_control_mutex) {
-        gsi_routes = msi_control->gsi_routes;
-        entry = g_hash_table_lookup(gsi_routes, GINT_TO_POINTER(gsi));
-
-        if (entry
-            && entry->address_hi == high_addr
-            && entry->address_lo == low_addr
-            && entry->data == data)
-        {
-            /* nothing to update */
-            return 0;
-        }
-
-        /* free old entry */
-        g_free(entry);
-
-        /* create new entry */
-        entry = g_new0(struct mshv_user_irq_entry, 1);
-        entry->gsi = gsi;
-        entry->address_hi = high_addr;
-        entry->address_lo = low_addr;
-        entry->data = data;
-
-        g_hash_table_insert(gsi_routes, GINT_TO_POINTER(gsi), entry);
-        msi_control->updated = true;
-    }
-
-    return 0;
-}
-
 static int add_msi_routing(uint64_t addr, uint32_t data)
 {
     struct mshv_user_irq_entry *route_entry;
@@ -370,15 +324,50 @@ void mshv_irqchip_release_virq(int virq)
     remove_msi_routing(virq);
 }
 
+static int update_routing_entry(MshvState *s,
+                                struct mshv_user_irq_entry *new_entry)
+{
+    struct mshv_user_irq_entry *entry;
+    int n;
+
+    for (n = 0; n < s->irq_routes->nr; n++) {
+        entry = &s->irq_routes->entries[n];
+        if (entry->gsi != new_entry->gsi) {
+            continue;
+        }
+
+        if (!memcmp(entry, new_entry, sizeof *entry)) {
+            return 0;
+        }
+
+        *entry = *new_entry;
+
+        return 0;
+    }
+
+    return -ESRCH;
+}
+
 int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev)
 {
+    uint32_t addr_hi = msg.address >> 32;
+    uint32_t addr_lo = msg.address & 0xFFFFFFFF;
+    uint32_t data = le32_to_cpu(msg.data);
+    struct mshv_user_irq_entry entry = {
+        .gsi = virq,
+        .address_hi = addr_hi,
+        .address_lo = addr_lo,
+        .data = data,
+    };
     int ret;
 
-    ret = set_msi_routing(virq, msg.address, le32_to_cpu(msg.data));
+    ret = update_routing_entry(mshv_state, &entry);
     if (ret < 0) {
-        error_report("Failed to set msi routing");
-        return -1;
+        error_report("Failed to set msi routing for gsi %d", virq);
+        abort();
     }
+
+    trace_mshv_set_msi_routing(virq, msg.address, data);
 
     return 0;
 }
