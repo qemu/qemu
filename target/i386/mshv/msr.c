@@ -77,6 +77,10 @@ static const MshvMsrEnvMap msr_env_map[] = {
     { HV_X64_MSR_SIMP,      HV_REGISTER_SIMP,
                             offsetof(CPUX86State, msr_hv_synic_msg_page) },
 
+    /* MTRR default type */
+    { IA32_MSR_MTRR_DEF_TYPE, HV_X64_REGISTER_MSR_MTRR_DEF_TYPE,
+                              offsetof(CPUX86State, mtrr_deftype) },
+
     /* Other */
 
     /* TODO: find out processor features that correlate to unsupported MSRs. */
@@ -87,6 +91,98 @@ static const MshvMsrEnvMap msr_env_map[] = {
     { IA32_MSR_SPEC_CTRL,   HV_X64_REGISTER_SPEC_CTRL,
                             offsetof(CPUX86State, spec_ctrl) },
 };
+
+/*
+ * The assocs have to be set according to this schema:
+ *      8  entries for 0-7 mtrr_base
+ *      8  entries for mtrr_mask 0-7
+ *      11 entries for 1 x 64k, 2 x 16k, 8 x 4k fixed MTRR
+ *      27 total entries
+ */
+
+#define MSHV_MTRR_MSR_COUNT 27
+#define MSHV_MSR_TOTAL_COUNT (ARRAY_SIZE(msr_env_map) + MSHV_MTRR_MSR_COUNT)
+
+static void store_in_env_mtrr_phys(CPUState *cpu,
+                                   const struct hv_register_assoc *assocs,
+                                   size_t n_assocs)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    size_t i, fixed_offset;
+    hv_register_name hv_name;
+    uint64_t base, mask;
+
+    assert(n_assocs == MSHV_MTRR_MSR_COUNT);
+
+    for (i = 0; i < MSR_MTRRcap_VCNT; i++) {
+        hv_name = HV_X64_REGISTER_MSR_MTRR_PHYS_BASE0 + i;
+        assert(assocs[i].name == hv_name);
+        hv_name = HV_X64_REGISTER_MSR_MTRR_PHYS_MASK0 + i;
+        assert(assocs[i + MSR_MTRRcap_VCNT].name == hv_name);
+
+        base = assocs[i].value.reg64;
+        mask = assocs[i + MSR_MTRRcap_VCNT].value.reg64;
+        env->mtrr_var[i].base = base;
+        env->mtrr_var[i].mask = mask;
+    }
+
+    /* fixed 1x 64, 2x 16, 8x 4 kB */
+    fixed_offset = MSR_MTRRcap_VCNT * 2;
+    for (i = 0; i < 11; i++) {
+        hv_name = HV_X64_REGISTER_MSR_MTRR_FIX64K00000 + i;
+        assert(assocs[fixed_offset + i].name == hv_name);
+        env->mtrr_fixed[i] = assocs[fixed_offset + i].value.reg64;
+    }
+}
+
+/*
+ * The assocs have to be set according to this schema:
+ *      8  entries for 0-7 mtrr_base
+ *      8  entries for mtrr_mask 0-7
+ *      11 entries for 1 x 64k, 2 x 16k, 8 x 4k fixed MTRR
+ *      27 total entries
+ */
+static void load_from_env_mtrr_phys(const CPUState *cpu,
+                                    struct hv_register_assoc *assocs,
+                                    size_t n_assocs)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    size_t i, fixed_offset;
+    uint64_t base, mask, fixed_value;
+    hv_register_name base_name, mask_name, fixed_name;
+    hv_register_assoc *assoc;
+
+    assert(n_assocs == MSHV_MTRR_MSR_COUNT);
+
+    for (i = 0; i < MSR_MTRRcap_VCNT; i++) {
+        base = env->mtrr_var[i].base;
+        mask = env->mtrr_var[i].mask;
+
+        base_name = HV_X64_REGISTER_MSR_MTRR_PHYS_BASE0 + i;
+        mask_name = HV_X64_REGISTER_MSR_MTRR_PHYS_MASK0 + i;
+
+        assoc = &assocs[i];
+        assoc->name = base_name;
+        assoc->value.reg64 = base;
+
+        assoc = &assocs[i + MSR_MTRRcap_VCNT];
+        assoc->name = mask_name;
+        assoc->value.reg64 = mask;
+    }
+
+    /* fixed 1x 64, 2x 16, 8x 4 kB */
+    fixed_offset = MSR_MTRRcap_VCNT * 2;
+    for (i = 0; i < 11; i++) {
+        fixed_name = HV_X64_REGISTER_MSR_MTRR_FIX64K00000 + i;
+        fixed_value = env->mtrr_fixed[i];
+
+        assoc = &assocs[fixed_offset + i];
+        assoc->name = fixed_name;
+        assoc->value.reg64 = fixed_value;
+    }
+}
 
 int mshv_init_msrs(const CPUState *cpu)
 {
@@ -129,8 +225,9 @@ static void store_in_env(CPUState *cpu, const struct hv_register_assoc *assocs,
     union hv_register_value hv_value;
     ptrdiff_t offset;
     uint32_t hv_name;
+    size_t mtrr_index;
 
-    assert(n_assocs <= (ARRAY_SIZE(msr_env_map)));
+    assert(n_assocs <= MSHV_MSR_TOTAL_COUNT);
 
     for (i = 0, j = 0; i < ARRAY_SIZE(msr_env_map); i++) {
         hv_name = assocs[j].name;
@@ -144,16 +241,37 @@ static void store_in_env(CPUState *cpu, const struct hv_register_assoc *assocs,
         MSHV_ENV_FIELD(env, offset) = hv_value.reg64;
         j++;
     }
+
+    mtrr_index = j;
+    store_in_env_mtrr_phys(cpu, &assocs[mtrr_index], MSHV_MTRR_MSR_COUNT);
 }
 
 static void set_hv_name_in_assocs(struct hv_register_assoc *assocs,
                                   size_t n_assocs)
 {
     size_t i;
+    size_t mtrr_offset, mtrr_fixed_offset;
+    hv_register_name hv_name;
 
-    assert(n_assocs == ARRAY_SIZE(msr_env_map));
+    assert(n_assocs == MSHV_MSR_TOTAL_COUNT);
+
     for (i = 0; i < ARRAY_SIZE(msr_env_map); i++) {
         assocs[i].name = msr_env_map[i].hv_name;
+    }
+
+    mtrr_offset = ARRAY_SIZE(msr_env_map);
+    for (i = 0; i < MSR_MTRRcap_VCNT; i++) {
+        hv_name = HV_X64_REGISTER_MSR_MTRR_PHYS_BASE0 + i;
+        assocs[mtrr_offset + i].name = hv_name;
+        hv_name = HV_X64_REGISTER_MSR_MTRR_PHYS_MASK0 + i;
+        assocs[mtrr_offset + MSR_MTRRcap_VCNT + i].name = hv_name;
+    }
+
+    /* fixed 1x 64, 2x 16, 8x 4 kB */
+    mtrr_fixed_offset = mtrr_offset + MSR_MTRRcap_VCNT * 2;
+    for (i = 0; i < 11; i++) {
+        hv_name = HV_X64_REGISTER_MSR_MTRR_FIX64K00000 + i;
+        assocs[mtrr_fixed_offset + i].name = hv_name;
     }
 }
 
@@ -177,8 +295,8 @@ static bool msr_supported(uint32_t name)
 int mshv_get_msrs(CPUState *cpu)
 {
     int ret = 0;
-    size_t n_assocs = ARRAY_SIZE(msr_env_map);
-    struct hv_register_assoc assocs[ARRAY_SIZE(msr_env_map)];
+    size_t n_assocs = MSHV_MSR_TOTAL_COUNT;
+    struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT];
     size_t i, j;
     uint32_t name;
 
@@ -219,8 +337,9 @@ static void load_from_env(const CPUState *cpu, struct hv_register_assoc *assocs,
     CPUX86State *env = &x86_cpu->env;
     ptrdiff_t offset;
     union hv_register_value *hv_value;
+    size_t mtrr_offset;
 
-    assert(n_assocs == ARRAY_SIZE(msr_env_map));
+    assert(n_assocs == MSHV_MSR_TOTAL_COUNT);
 
     for (i = 0; i < ARRAY_SIZE(msr_env_map); i++) {
         mapping = &msr_env_map[i];
@@ -229,12 +348,15 @@ static void load_from_env(const CPUState *cpu, struct hv_register_assoc *assocs,
         hv_value = &assocs[i].value;
         hv_value->reg64 = MSHV_ENV_FIELD(env, offset);
     }
+
+    mtrr_offset = ARRAY_SIZE(msr_env_map);
+    load_from_env_mtrr_phys(cpu, &assocs[mtrr_offset], MSHV_MTRR_MSR_COUNT);
 }
 
 int mshv_set_msrs(const CPUState *cpu)
 {
-    size_t n_assocs = ARRAY_SIZE(msr_env_map);
-    struct hv_register_assoc assocs[ARRAY_SIZE(msr_env_map)];
+    size_t n_assocs = MSHV_MSR_TOTAL_COUNT;
+    struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT];
     int ret;
     size_t i, j;
 
