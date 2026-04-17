@@ -14,6 +14,8 @@
 #ifndef QEMU_MSHV_INT_H
 #define QEMU_MSHV_INT_H
 
+#include "hw/hyperv/hvhdk.h"
+
 #define MSHV_MSR_ENTRIES_COUNT 64
 
 typedef struct hyperv_message hv_message;
@@ -53,6 +55,7 @@ struct MshvState {
     int nr_allocated_irq_routes;
     unsigned long *used_gsi_bitmap;
     unsigned int gsi_count;
+    union hv_partition_processor_features processor_features;
 };
 
 typedef struct MshvMsiControl {

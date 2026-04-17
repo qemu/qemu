@@ -353,7 +353,7 @@ union hv_partition_processor_features {
         uint64_t lass_support:1;
         uint64_t idle_hlt_intercept_support:1;
         uint64_t msr_list_support:1;
-    };
+    } QEMU_PACKED;
 };
 
 enum hv_translate_gva_result_code {

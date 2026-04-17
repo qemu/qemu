@@ -133,6 +133,57 @@ static int get_host_partition_property(int mshv_fd, uint32_t property_code,
     return 0;
 }
 
+static int get_partition_property(int vm_fd, uint32_t feature_bank,
+                                  uint64_t *value)
+{
+    struct hv_input_get_partition_property in = {0};
+    struct hv_output_get_partition_property out = {0};
+    struct mshv_root_hvcall args = {0};
+    int ret;
+
+    in.property_code = feature_bank;
+
+    args.code    = HVCALL_GET_PARTITION_PROPERTY;
+    args.in_sz   = sizeof(in);
+    args.in_ptr  = (uint64_t)&in;
+    args.out_sz  = sizeof(out);
+    args.out_ptr = (uint64_t)&out;
+
+    ret = ioctl(vm_fd, MSHV_ROOT_HVCALL, &args);
+    if (ret < 0) {
+        error_report("Failed to get guest partition property bank: %s",
+                     strerror(errno));
+        return -1;
+    }
+
+    *value = out.property_value;
+    return 0;
+}
+
+static int get_proc_features(int vm_fd,
+                             union hv_partition_processor_features *features)
+{
+    int ret;
+
+    ret = get_partition_property(vm_fd,
+                                 HV_PARTITION_PROPERTY_PROCESSOR_FEATURES0,
+                                 features[0].as_uint64);
+    if (ret < 0) {
+        error_report("Failed to get processor features bank 0");
+        return -1;
+    }
+
+    ret = get_partition_property(vm_fd,
+                                 HV_PARTITION_PROPERTY_PROCESSOR_FEATURES1,
+                                 features[1].as_uint64);
+    if (ret < 0) {
+        error_report("Failed to get processor features bank 1");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int create_partition(int mshv_fd, int *vm_fd)
 {
     int ret;
@@ -520,6 +571,12 @@ static int mshv_init(AccelState *as, MachineState *ms)
 
     s->vm = vm_fd;
     s->fd = mshv_fd;
+
+    ret = get_proc_features(vm_fd, &s->processor_features);
+    if (ret < 0) {
+        return -1;
+    }
+
     s->nr_as = 1;
     s->as = g_new0(MshvAddressSpace, s->nr_as);
 
