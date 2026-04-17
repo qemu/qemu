@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/pci/msi.h"
 
 #include "system/kvm.h"
@@ -103,4 +104,24 @@ int accel_irqchip_remove_irqfd_notifier_gsi(EventNotifier *n, int virq)
         return kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n, virq);
     }
     return -ENOSYS;
+}
+
+inline AccelRouteChange accel_irqchip_begin_route_changes(void)
+{
+#ifdef CONFIG_MSHV_IS_POSSIBLE
+    if (mshv_msi_via_irqfd_enabled()) {
+        return (AccelRouteChange) {
+            .accel = ACCEL(mshv_state),
+            .changes = 0,
+        };
+    }
+#endif
+    if (kvm_enabled()) {
+        return (AccelRouteChange) {
+            .accel = ACCEL(kvm_state),
+            .changes = 0,
+        };
+    }
+    error_report("can't initiate route change, no accel irqchip available");
+    abort();
 }

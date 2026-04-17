@@ -476,14 +476,6 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
                                  PCIDevice *dev);
 void kvm_irqchip_commit_routes(KVMState *s);
 
-static inline AccelRouteChange kvm_irqchip_begin_route_changes(KVMState *s)
-{
-    return (AccelRouteChange) {
-        .accel = ACCEL(s),
-        .changes = 0,
-    };
-}
-
 static inline void kvm_irqchip_commit_route_changes(AccelRouteChange *c)
 {
     if (c->changes) {
