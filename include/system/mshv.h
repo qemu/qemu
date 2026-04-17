@@ -45,7 +45,13 @@ extern bool mshv_allowed;
 #define mshv_msi_via_irqfd_enabled() mshv_enabled()
 #endif
 
+#define TYPE_MSHV_ACCEL ACCEL_CLASS_NAME("mshv")
+
 typedef struct MshvState MshvState;
+
+DECLARE_INSTANCE_CHECKER(MshvState, MSHV_STATE,
+                         TYPE_MSHV_ACCEL)
+
 extern MshvState *mshv_state;
 
 /* interrupt */
@@ -60,6 +66,7 @@ void mshv_irqchip_release_virq(int virq);
 int mshv_irqchip_add_irqfd_notifier_gsi(const EventNotifier *n,
                                         const EventNotifier *rn, int virq);
 int mshv_irqchip_remove_irqfd_notifier_gsi(const EventNotifier *n, int virq);
+void mshv_init_irq_routing(MshvState *s);
 
 /* cpuid */
 uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg);

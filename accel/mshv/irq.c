@@ -396,3 +396,13 @@ int mshv_reserve_ioapic_msi_routes(int vm_fd)
 
     return 0;
 }
+
+void mshv_init_irq_routing(MshvState *s)
+{
+    int gsi_count = MSHV_MAX_MSI_ROUTES;
+
+    s->irq_routes = g_malloc0(sizeof(*s->irq_routes));
+    s->nr_allocated_irq_routes = 0;
+    s->gsi_count = gsi_count;
+    s->used_gsi_bitmap = bitmap_new(gsi_count);
+}

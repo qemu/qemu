@@ -43,10 +43,6 @@
 #include <err.h>
 #include <sys/ioctl.h>
 
-#define TYPE_MSHV_ACCEL ACCEL_CLASS_NAME("mshv")
-
-DECLARE_INSTANCE_CHECKER(MshvState, MSHV_STATE, TYPE_MSHV_ACCEL)
-
 bool mshv_allowed;
 
 MshvState *mshv_state;
@@ -535,6 +531,8 @@ static int mshv_init(AccelState *as, MachineState *ms)
     s->as = g_new0(MshvAddressSpace, s->nr_as);
 
     mshv_state = s;
+
+    mshv_init_irq_routing(s);
 
     register_mshv_memory_listener(s, &s->memory_listener, &address_space_memory,
                                   0, "mshv-memory");
