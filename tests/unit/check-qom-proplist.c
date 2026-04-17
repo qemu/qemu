@@ -461,10 +461,9 @@ static void test_dummy_createlist_parentless(void)
 static bool test_create_obj(QDict *qdict, Error **errp)
 {
     Visitor *v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
-    Object *obj = user_creatable_add_type(TYPE_DUMMY, "dev0", qdict, v, errp);
-
+    Object *obj = object_new_with_props_from_qdict(
+        TYPE_DUMMY, object_get_objects_root(), "dev0", qdict, v, errp);
     visit_free(v);
-    object_unref(obj);
     return !!obj;
 }
 

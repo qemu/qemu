@@ -79,8 +79,8 @@ qauthz_list_file_load(QAuthZListFile *fauthz, Error **errp)
 
     v = qobject_input_visitor_new(obj);
 
-    ret = (QAuthZ *)user_creatable_add_type(TYPE_QAUTHZ_LIST,
-                                            NULL, pdict, v, errp);
+    ret = QAUTHZ(object_new_with_props_from_qdict_parentless(
+                     TYPE_QAUTHZ_LIST, pdict, v, errp));
 
  cleanup:
     visit_free(v);
