@@ -915,7 +915,7 @@ type_init(do_qemu_init_ ## type_array)
 bool type_print_class_properties(const char *type);
 
 /**
- * object_set_properties_from_keyval:
+ * object_set_props_from_keyval:
  * @obj: a QOM object
  * @qdict: a dictionary with the properties to be set
  * @from_json: true if leaf values of @qdict are typed, false if they
@@ -925,8 +925,8 @@ bool type_print_class_properties(const char *type);
  * For each key in the dictionary, parse the value string if needed,
  * then set the corresponding property in @obj.
  */
-void object_set_properties_from_keyval(Object *obj, const QDict *qdict,
-                                       bool from_json, Error **errp);
+void object_set_props_from_keyval(Object *obj, const QDict *qdict,
+                                  bool from_json, Error **errp);
 
 /**
  * object_class_dynamic_cast_assert:
