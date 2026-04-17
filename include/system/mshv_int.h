@@ -17,6 +17,20 @@
 #include "hw/hyperv/hvhdk.h"
 
 #define MSHV_MSR_ENTRIES_COUNT 64
+
+/*
+ * Interruption-type encoding, used by the hypervisor in
+ * hv_x64_pending_interruption_register.interruption_type
+ * See TLFS 6.0 section 7.9.2, p55
+ * https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/tlfs/tlfs
+ */
+#define MSHV_HV_INTERRUPTION_TYPE_EXT_INT     0
+#define MSHV_HV_INTERRUPTION_TYPE_NMI         2
+#define MSHV_HV_INTERRUPTION_TYPE_HW_EXC      3
+#define MSHV_HV_INTERRUPTION_TYPE_SW_INT      4
+#define MSHV_HV_INTERRUPTION_TYPE_PRIV_SW_EXC 5
+#define MSHV_HV_INTERRUPTION_TYPE_SW_EXC      6
+
 #define MSHV_DIRTY_PAGES_BATCH_SIZE 0x10000
 
 typedef struct hyperv_message hv_message;

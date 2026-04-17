@@ -535,6 +535,164 @@ static int load_regs(CPUState *cpu)
     return 0;
 }
 
+static int get_vcpu_events(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    struct hv_register_assoc assocs[] = {
+        { .name = HV_REGISTER_PENDING_INTERRUPTION },
+        { .name = HV_REGISTER_INTERRUPT_STATE },
+        { .name = HV_REGISTER_PENDING_EVENT0 },
+    };
+    union hv_x64_pending_interruption_register pending_int;
+    union hv_x64_interrupt_state_register int_state;
+    union hv_x64_pending_exception_event pending_exc;
+    int ret;
+
+    ret = mshv_get_generic_regs(cpu, assocs, ARRAY_SIZE(assocs));
+    if (ret < 0) {
+        error_report("failed to get vcpu event registers");
+        return -1;
+    }
+
+    pending_int.as_uint64 = assocs[0].value.reg64;
+    int_state.as_uint64 = assocs[1].value.reg64;
+    pending_exc = assocs[2].value.pending_exception_event;
+
+    /* Clear previous state. injected ints/excs are blanked w/ -1 */
+    env->interrupt_injected    = -1;
+    env->soft_interrupt        = 0;
+    env->exception_injected    = 0;
+    env->exception_pending     = 0;
+    env->exception_nr          = -1;
+    env->has_error_code        = 0;
+    env->error_code            = 0;
+    env->exception_has_payload = 0;
+    env->exception_payload     = 0;
+    env->nmi_injected          = 0;
+
+    if (pending_int.interruption_pending) {
+        switch (pending_int.interruption_type) {
+        case MSHV_HV_INTERRUPTION_TYPE_EXT_INT:
+            env->interrupt_injected = pending_int.interruption_vector;
+            break;
+        case MSHV_HV_INTERRUPTION_TYPE_NMI:
+            env->nmi_injected = 1;
+            break;
+        case MSHV_HV_INTERRUPTION_TYPE_HW_EXC:
+            env->exception_injected = 1;
+            env->exception_nr       = pending_int.interruption_vector;
+            env->has_error_code     = pending_int.deliver_error_code;
+            env->error_code         = pending_int.error_code;
+            break;
+        case MSHV_HV_INTERRUPTION_TYPE_SW_INT:
+            env->interrupt_injected = pending_int.interruption_vector;
+            env->soft_interrupt     = 1;
+            break;
+        case MSHV_HV_INTERRUPTION_TYPE_SW_EXC:
+        case MSHV_HV_INTERRUPTION_TYPE_PRIV_SW_EXC:
+            env->exception_injected = 1;
+            env->exception_nr       = pending_int.interruption_vector;
+            env->has_error_code     = pending_int.deliver_error_code;
+            env->error_code         = pending_int.error_code;
+            break;
+        default:
+            error_report("unknown interruption type %u",
+                         pending_int.interruption_type);
+            return -EINVAL;
+        }
+    }
+
+    /* disabled for one instr after STI, MOV/POP SS, see hvf_store_events() */
+    if (int_state.interrupt_shadow) {
+        env->hflags |= HF_INHIBIT_IRQ_MASK;
+    } else {
+        env->hflags &= ~HF_INHIBIT_IRQ_MASK;
+    }
+
+    /* see kvm_get_vcpu_events(), hvf_store_events() */
+    if (int_state.nmi_masked) {
+        env->hflags2 |= HF2_NMI_MASK;
+    } else {
+        env->hflags2 &= ~HF2_NMI_MASK;
+    }
+
+    /* HV_REGISTER_PENDING_EVENT0: pending exception not yet injected */
+    if (pending_exc.event_pending) {
+        env->exception_pending     = 1;
+        env->exception_nr          = pending_exc.vector;
+        env->has_error_code        = pending_exc.deliver_error_code;
+        env->error_code            = pending_exc.error_code;
+        env->exception_has_payload = (pending_exc.exception_parameter != 0);
+        env->exception_payload     = pending_exc.exception_parameter;
+    }
+
+    /*
+     * Ignoring HV_REGISTER_PENDING_EVENT1, virtualization fault events, MSHV
+     * does not support nested virtualization.
+     */
+
+    return 0;
+}
+
+static int set_vcpu_events(const CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    union hv_x64_pending_interruption_register pending_int = { 0 };
+    union hv_x64_interrupt_state_register int_state = { 0 };
+    union hv_x64_pending_exception_event pending_exc = { 0 };
+    struct hv_register_assoc assocs[3];
+    int ret;
+
+    /* build pending_int from CPUX86State */
+    if (env->exception_injected) {
+        pending_int.interruption_pending = 1;
+        pending_int.interruption_type    = MSHV_HV_INTERRUPTION_TYPE_HW_EXC;
+        pending_int.interruption_vector  = env->exception_nr;
+        pending_int.deliver_error_code   = env->has_error_code;
+        pending_int.error_code           = env->error_code;
+    } else if (env->nmi_injected) {
+        pending_int.interruption_pending = 1;
+        pending_int.interruption_type    = MSHV_HV_INTERRUPTION_TYPE_NMI;
+        pending_int.interruption_vector  = EXCP02_NMI;
+    } else if (env->interrupt_injected >= 0) {
+        pending_int.interruption_pending = 1;
+        pending_int.interruption_type    = env->soft_interrupt
+            ? MSHV_HV_INTERRUPTION_TYPE_SW_INT
+            : MSHV_HV_INTERRUPTION_TYPE_EXT_INT;
+        pending_int.interruption_vector  = env->interrupt_injected;
+    }
+
+    /* build int_state, normalize to bool */
+    int_state.interrupt_shadow = !!(env->hflags  & HF_INHIBIT_IRQ_MASK);
+    int_state.nmi_masked       = !!(env->hflags2 & HF2_NMI_MASK);
+
+    /* build pending_exc */
+    if (env->exception_pending) {
+        pending_exc.event_pending       = 1;
+        pending_exc.vector              = env->exception_nr;
+        pending_exc.deliver_error_code  = env->has_error_code;
+        pending_exc.error_code          = env->error_code;
+        pending_exc.exception_parameter = env->exception_payload;
+    }
+
+    assocs[0].name = HV_REGISTER_PENDING_INTERRUPTION;
+    assocs[0].value.reg64 = pending_int.as_uint64;
+    assocs[1].name = HV_REGISTER_INTERRUPT_STATE;
+    assocs[1].value.reg64 = int_state.as_uint64;
+    assocs[2].name = HV_REGISTER_PENDING_EVENT0;
+    assocs[2].value.pending_exception_event = pending_exc;
+
+    ret = mshv_set_generic_regs(cpu, assocs, ARRAY_SIZE(assocs));
+    if (ret < 0) {
+        error_report("failed to set vcpu event registers");
+        return -1;
+    }
+
+    return 0;
+}
+
 int mshv_arch_load_vcpu_state(CPUState *cpu)
 {
     int ret;
@@ -555,6 +713,11 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
     }
 
     ret = get_fpu(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = get_vcpu_events(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1096,6 +1259,11 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
     }
 
     ret = set_fpu(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = set_vcpu_events(cpu);
     if (ret < 0) {
         return ret;
     }
