@@ -55,7 +55,7 @@ void accel_irqchip_commit_routes(void)
 {
 #ifdef CONFIG_MSHV_IS_POSSIBLE
     if (mshv_msi_via_irqfd_enabled()) {
-        mshv_irqchip_commit_routes();
+        mshv_irqchip_commit_routes(mshv_state);
     }
 #endif
     if (kvm_enabled()) {

@@ -28,7 +28,7 @@ int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev)
     return -ENOSYS;
 }
 
-void mshv_irqchip_commit_routes(void)
+void mshv_irqchip_commit_routes(MshvState *s)
 {
 }
 

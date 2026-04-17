@@ -394,16 +394,17 @@ int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint3
     return 0;
 }
 
-void mshv_irqchip_commit_routes(void)
+void mshv_irqchip_commit_routes(MshvState *s)
 {
     int ret;
-    int vm_fd = mshv_state->vm;
+    int vm_fd = s->vm;
 
-    ret = commit_msi_routing_table(vm_fd);
+    ret = ioctl(vm_fd, MSHV_SET_MSI_ROUTING, s->irq_routes);
     if (ret < 0) {
         error_report("Failed to commit msi routing table");
         abort();
     }
+    trace_mshv_commit_msi_routing_table(vm_fd, s->irq_routes->nr);
 }
 
 int mshv_irqchip_add_irqfd_notifier_gsi(const EventNotifier *event,
