@@ -477,6 +477,9 @@ static MemoryListener mshv_memory_listener = {
     .region_del = mem_region_del,
     .eventfd_add = mem_ioeventfd_add,
     .eventfd_del = mem_ioeventfd_del,
+    .log_sync = mshv_log_sync,
+    .log_global_start = mshv_log_global_start,
+    .log_global_stop = mshv_log_global_stop,
 };
 
 static MemoryListener mshv_io_listener = {

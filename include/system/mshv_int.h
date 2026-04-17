@@ -17,6 +17,7 @@
 #include "hw/hyperv/hvhdk.h"
 
 #define MSHV_MSR_ENTRIES_COUNT 64
+#define MSHV_DIRTY_PAGES_BATCH_SIZE 0x10000
 
 typedef struct hyperv_message hv_message;
 
@@ -109,6 +110,9 @@ int mshv_guest_mem_write(uint64_t gpa, const uint8_t *data, uintptr_t size,
                          bool is_secure_mode);
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
+void mshv_log_sync(MemoryListener *listener, MemoryRegionSection *section);
+bool mshv_log_global_start(MemoryListener *listener, Error **errp);
+void mshv_log_global_stop(MemoryListener *listener);
 
 /* msr */
 typedef struct MshvMsrEntry {
