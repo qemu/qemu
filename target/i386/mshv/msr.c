@@ -81,6 +81,26 @@ static const MshvMsrEnvMap msr_env_map[] = {
     { IA32_MSR_MTRR_DEF_TYPE, HV_X64_REGISTER_MSR_MTRR_DEF_TYPE,
                               offsetof(CPUX86State, mtrr_deftype) },
 
+    /* CET / Shadow Stack */
+    { MSR_IA32_U_CET,       HV_X64_REGISTER_U_CET,
+                            offsetof(CPUX86State, u_cet) },
+    { MSR_IA32_S_CET,       HV_X64_REGISTER_S_CET,
+                            offsetof(CPUX86State, s_cet) },
+    { MSR_IA32_PL0_SSP,     HV_X64_REGISTER_PL0_SSP,
+                            offsetof(CPUX86State, pl0_ssp) },
+    { MSR_IA32_PL1_SSP,     HV_X64_REGISTER_PL1_SSP,
+                            offsetof(CPUX86State, pl1_ssp) },
+    { MSR_IA32_PL2_SSP,     HV_X64_REGISTER_PL2_SSP,
+                            offsetof(CPUX86State, pl2_ssp) },
+    { MSR_IA32_PL3_SSP,     HV_X64_REGISTER_PL3_SSP,
+                            offsetof(CPUX86State, pl3_ssp) },
+    { MSR_IA32_INT_SSP_TAB, HV_X64_REGISTER_INTERRUPT_SSP_TABLE_ADDR,
+                            offsetof(CPUX86State, int_ssp_table) },
+
+    /* XSAVE Supervisor State */
+    { MSR_IA32_XSS,         HV_X64_REGISTER_U_XSS,
+                            offsetof(CPUX86State, xss) },
+
     /* Other */
 
     /* TODO: find out processor features that correlate to unsupported MSRs. */
@@ -287,6 +307,16 @@ static bool msr_supported(uint32_t name)
         return mshv_state->processor_features.ibrs_support;
     case HV_X64_REGISTER_TSC_ADJUST:
         return mshv_state->processor_features.tsc_adjust_support;
+    case HV_X64_REGISTER_U_CET:
+    case HV_X64_REGISTER_S_CET:
+    case HV_X64_REGISTER_PL0_SSP:
+    case HV_X64_REGISTER_PL1_SSP:
+    case HV_X64_REGISTER_PL2_SSP:
+    case HV_X64_REGISTER_PL3_SSP:
+    case HV_X64_REGISTER_INTERRUPT_SSP_TABLE_ADDR:
+    case HV_X64_REGISTER_U_XSS:
+        return mshv_state->processor_features.cet_ss_support ||
+               mshv_state->processor_features.cet_ibt_support;
     }
 
     return true;
