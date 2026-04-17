@@ -21,6 +21,7 @@
 #include "qapi/qapi-types-common.h"
 #include "system/memory.h"
 #include "accel/accel-ops.h"
+#include "accel/accel-route.h"
 
 #ifdef COMPILING_PER_TARGET
 #ifdef CONFIG_MSHV

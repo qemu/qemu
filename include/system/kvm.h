@@ -18,6 +18,7 @@
 
 #include "exec/memattrs.h"
 #include "qemu/accel.h"
+#include "accel/accel-route.h"
 #include "qom/object.h"
 
 #ifdef COMPILING_PER_TARGET
@@ -182,11 +183,6 @@ DECLARE_INSTANCE_CHECKER(KVMState, KVM_STATE,
 extern KVMState *kvm_state;
 typedef struct Notifier Notifier;
 typedef struct NotifierWithReturn NotifierWithReturn;
-
-typedef struct KVMRouteChange {
-     KVMState *s;
-     int changes;
-} KVMRouteChange;
 
 /* external API */
 
@@ -466,7 +462,7 @@ void kvm_init_cpu_signals(CPUState *cpu);
 
 /**
  * kvm_irqchip_add_msi_route - Add MSI route for specific vector
- * @c:      KVMRouteChange instance.
+ * @c:      AccelRouteChange instance.
  * @vector: which vector to add. This can be either MSI/MSIX
  *          vector. The function will automatically detect whether
  *          MSI/MSIX is enabled, and fetch corresponding MSI
@@ -475,20 +471,23 @@ void kvm_init_cpu_signals(CPUState *cpu);
  *          as @NULL, an empty MSI message will be inited.
  * @return: virq (>=0) when success, errno (<0) when failed.
  */
-int kvm_irqchip_add_msi_route(KVMRouteChange *c, int vector, PCIDevice *dev);
+int kvm_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
                                  PCIDevice *dev);
 void kvm_irqchip_commit_routes(KVMState *s);
 
-static inline KVMRouteChange kvm_irqchip_begin_route_changes(KVMState *s)
+static inline AccelRouteChange kvm_irqchip_begin_route_changes(KVMState *s)
 {
-    return (KVMRouteChange) { .s = s, .changes = 0 };
+    return (AccelRouteChange) {
+        .accel = ACCEL(s),
+        .changes = 0,
+    };
 }
 
-static inline void kvm_irqchip_commit_route_changes(KVMRouteChange *c)
+static inline void kvm_irqchip_commit_route_changes(AccelRouteChange *c)
 {
     if (c->changes) {
-        kvm_irqchip_commit_routes(c->s);
+        kvm_irqchip_commit_routes(KVM_STATE(c->accel));
         c->changes = 0;
     }
 }

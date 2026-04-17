@@ -16,7 +16,7 @@
 #include "system/mshv.h"
 #include "system/accel-irq.h"
 
-int accel_irqchip_add_msi_route(KVMRouteChange *c, int vector, PCIDevice *dev)
+int accel_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev)
 {
 #ifdef CONFIG_MSHV_IS_POSSIBLE
     if (mshv_msi_via_irqfd_enabled()) {
@@ -42,7 +42,7 @@ int accel_irqchip_update_msi_route(int vector, MSIMessage msg, PCIDevice *dev)
     return -ENOSYS;
 }
 
-void accel_irqchip_commit_route_changes(KVMRouteChange *c)
+void accel_irqchip_commit_route_changes(AccelRouteChange *c)
 {
 #ifdef CONFIG_MSHV_IS_POSSIBLE
     if (mshv_msi_via_irqfd_enabled()) {
