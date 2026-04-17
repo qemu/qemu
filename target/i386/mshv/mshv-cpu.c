@@ -765,6 +765,16 @@ static int set_vcpu_events(const CPUState *cpu)
     return 0;
 }
 
+static int update_hflags(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+
+    x86_update_hflags(env);
+
+    return 0;
+}
+
 int mshv_arch_load_vcpu_state(CPUState *cpu)
 {
     int ret;
@@ -778,6 +788,9 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
     if (ret < 0) {
         return ret;
     }
+
+    /* INVARIANT: hflags are derived from regs+sregs, need to get both first */
+    update_hflags(cpu);
 
     ret = get_xc_reg(cpu);
     if (ret < 0) {
