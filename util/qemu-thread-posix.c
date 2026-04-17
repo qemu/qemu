@@ -568,7 +568,8 @@ const char *qemu_thread_get_name(void)
 # if defined(CONFIG_PTHREAD_GETNAME_NP)
     rv = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
 # elif defined(CONFIG_PTHREAD_GET_NAME_NP)
-    rv = pthread_get_name_np(pthread_self(), namebuf, sizeof(namebuf));
+    pthread_get_name_np(pthread_self(), namebuf, sizeof(namebuf));
+    rv = 0;
 # else
     rv = -1;
 # endif
