@@ -924,8 +924,10 @@ bool type_print_class_properties(const char *type);
  *
  * For each key in the dictionary, parse the value string if needed,
  * then set the corresponding property in @obj.
+ *
+ * Returns: %true on success, %false on error.
  */
-void object_set_props_from_keyval(Object *obj, const QDict *qdict,
+bool object_set_props_from_keyval(Object *obj, const QDict *qdict,
                                   bool from_json, Error **errp);
 
 /**
