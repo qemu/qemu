@@ -14,7 +14,7 @@
 
 bool mshv_allowed;
 
-int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev)
+int mshv_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev)
 {
     return -ENOSYS;
 }

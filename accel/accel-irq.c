@@ -21,7 +21,7 @@ int accel_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev)
 {
 #ifdef CONFIG_MSHV_IS_POSSIBLE
     if (mshv_msi_via_irqfd_enabled()) {
-        return mshv_irqchip_add_msi_route(vector, dev);
+        return mshv_irqchip_add_msi_route(c, vector, dev);
     }
 #endif
     if (kvm_enabled()) {

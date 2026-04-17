@@ -278,18 +278,91 @@ static int irqchip_update_irqfd_notifier_gsi(const EventNotifier *event,
     return register_irqfd(vm_fd, fd, virq);
 }
 
-
-int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev)
+static int irqchip_allocate_gsi(MshvState *s, int *gsi)
 {
-    MSIMessage msg = { 0, 0 };
-    int virq = 0;
+    int next_gsi;
 
-    if (pci_available && dev) {
-        msg = pci_get_msi_message(dev, vector);
-        virq = add_msi_routing(msg.address, le32_to_cpu(msg.data));
+    /* Return the lowest unused GSI in the bitmap */
+    next_gsi = find_first_zero_bit(s->used_gsi_bitmap, s->gsi_count);
+    if (next_gsi >= s->gsi_count) {
+        return -ENOSPC;
     }
 
-    return virq;
+    *gsi = next_gsi;
+
+    return 0;
+}
+
+static void irqchip_release_gsi(MshvState *s, int gsi)
+{
+    clear_bit(gsi, s->used_gsi_bitmap);
+}
+
+static void add_routing_entry(MshvState *s, struct mshv_user_irq_entry *entry)
+{
+    struct mshv_user_irq_entry *new;
+    int n, size;
+
+    if (s->irq_routes->nr == s->nr_allocated_irq_routes) {
+        n = s->nr_allocated_irq_routes * 2;
+        if (n < MSHV_MIN_ALLOCATED_MSI_ROUTES) {
+            n = MSHV_MIN_ALLOCATED_MSI_ROUTES;
+        }
+        size = sizeof(struct mshv_user_irq_table);
+        size += n * sizeof(*new);
+        s->irq_routes = g_realloc(s->irq_routes, size);
+        s->nr_allocated_irq_routes = n;
+    }
+
+    n = s->irq_routes->nr;
+    s->irq_routes->nr++;
+    new = &s->irq_routes->entries[n];
+
+    *new = *entry;
+
+    set_bit(entry->gsi, s->used_gsi_bitmap);
+
+    trace_mshv_add_msi_routing(entry->address_lo | entry->address_hi,
+                               entry->data);
+}
+
+int mshv_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev)
+{
+    struct mshv_user_irq_entry entry = { 0 };
+    MSIMessage msg = { 0 };
+    uint32_t data, high_addr, low_addr;
+    int gsi, ret;
+    MshvState *s = MSHV_STATE(c->accel);
+
+    if (!pci_available || !dev) {
+        return 0;
+    }
+
+    msg = pci_get_msi_message(dev, vector);
+
+    ret = irqchip_allocate_gsi(mshv_state, &gsi);
+    if (ret < 0) {
+        error_report("Could not allocate GSI for MSI route");
+        return -1;
+    }
+    high_addr = msg.address >> 32;
+    low_addr = msg.address & 0xFFFFFFFF;
+    data = le32_to_cpu(msg.data);
+
+    entry.gsi = gsi;
+    entry.address_hi = high_addr;
+    entry.address_lo = low_addr;
+    entry.data = data;
+
+    if (s->irq_routes->nr < s->gsi_count) {
+        add_routing_entry(s, &entry);
+        c->changes++;
+    } else {
+        irqchip_release_gsi(s, gsi);
+        return -ENOSPC;
+    }
+
+    return gsi;
 }
 
 void mshv_irqchip_release_virq(int virq)

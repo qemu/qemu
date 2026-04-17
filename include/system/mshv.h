@@ -33,6 +33,7 @@
 #endif
 
 #define MSHV_MAX_MSI_ROUTES 4096
+#define MSHV_MIN_ALLOCATED_MSI_ROUTES 64
 
 #define MSHV_PAGE_SHIFT 12
 
@@ -59,7 +60,7 @@ int mshv_request_interrupt(MshvState *mshv_state, uint32_t interrupt_type, uint3
                            uint32_t vp_index, bool logical_destination_mode,
                            bool level_triggered);
 
-int mshv_irqchip_add_msi_route(int vector, PCIDevice *dev);
+int mshv_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev);
 int mshv_irqchip_update_msi_route(int virq, MSIMessage msg, PCIDevice *dev);
 void mshv_irqchip_commit_routes(void);
 void mshv_irqchip_release_virq(int virq);
