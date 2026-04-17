@@ -67,7 +67,7 @@ void accel_irqchip_release_virq(int virq)
 {
 #ifdef CONFIG_MSHV_IS_POSSIBLE
     if (mshv_msi_via_irqfd_enabled()) {
-        mshv_irqchip_release_virq(virq);
+        mshv_irqchip_release_virq(mshv_state, virq);
     }
 #endif
     if (kvm_enabled()) {
