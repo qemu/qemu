@@ -129,18 +129,8 @@ bool mshv_log_global_start(MemoryListener *listener, Error **errp);
 void mshv_log_global_stop(MemoryListener *listener);
 
 /* msr */
-typedef struct MshvMsrEntry {
-  uint32_t index;
-  uint32_t reserved;
-  uint64_t data;
-} MshvMsrEntry;
-
-typedef struct MshvMsrEntries {
-    MshvMsrEntry entries[MSHV_MSR_ENTRIES_COUNT];
-    uint32_t nmsrs;
-} MshvMsrEntries;
-
-int mshv_configure_msr(const CPUState *cpu, const MshvMsrEntry *msrs,
-                       size_t n_msrs);
+int mshv_init_msrs(const CPUState *cpu);
+int mshv_get_msrs(CPUState *cpu);
+int mshv_set_msrs(const CPUState *cpu);
 
 #endif

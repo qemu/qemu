@@ -9,6 +9,19 @@
 
 #define MSHV_IOCTL  0xB8
 
+/* Hyper-V specific model specific registers (MSRs) */
+
+/* HV_X64_SYNTHETIC_MSR */
+#define HV_X64_MSR_GUEST_OS_ID      0x40000000
+#define HV_X64_MSR_HYPERCALL        0x40000001
+#define HV_X64_MSR_VP_INDEX         0x40000002
+#define HV_X64_MSR_RESET            0x40000003
+#define HV_X64_MSR_VP_RUNTIME       0x40000010
+#define HV_X64_MSR_TIME_REF_COUNT   0x40000020
+#define HV_X64_MSR_REFERENCE_TSC    0x40000021
+#define HV_X64_MSR_TSC_FREQUENCY    0x40000022
+#define HV_X64_MSR_APIC_FREQUENCY   0x40000023
+
 typedef enum hv_register_name {
     /* Pending Interruption Register */
     HV_REGISTER_PENDING_INTERRUPTION = 0x00010002,
@@ -161,6 +174,7 @@ typedef enum hv_register_name {
     HV_X64_REGISTER_MSR_IA32_MISC_ENABLE = 0x000800A0,
 
     /* Misc */
+    HV_X64_REGISTER_HYPERCALL       = 0x00090001,
     HV_REGISTER_GUEST_OS_ID         = 0x00090002,
     HV_REGISTER_REFERENCE_TSC       = 0x00090017,
 

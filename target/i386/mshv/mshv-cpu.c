@@ -802,6 +802,11 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
         return ret;
     }
 
+    ret = mshv_get_msrs(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
     ret = get_xsave_state(cpu);
     if (ret < 0) {
         return ret;
@@ -1353,6 +1358,11 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
+    ret = mshv_set_msrs(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
     ret = set_xsave_state(cpu);
     if (ret < 0) {
         return ret;
@@ -1880,33 +1890,6 @@ void mshv_init_mmio_emu(void)
     init_emu(&mshv_x86_emul_ops);
 }
 
-static int init_msrs(const CPUState *cpu)
-{
-    int ret;
-    uint64_t d_t = MSR_MTRR_ENABLE | MSR_MTRR_MEM_TYPE_WB;
-
-    const struct hv_register_assoc assocs[] = {
-        { .name = HV_X64_REGISTER_SYSENTER_CS,       .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_SYSENTER_ESP,      .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_SYSENTER_EIP,      .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_STAR,              .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_CSTAR,             .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_LSTAR,             .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_KERNEL_GS_BASE,    .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_SFMASK,            .value.reg64 = 0x0 },
-        { .name = HV_X64_REGISTER_MSR_MTRR_DEF_TYPE, .value.reg64 = d_t },
-    };
-    QEMU_BUILD_BUG_ON(ARRAY_SIZE(assocs) > MSHV_MSR_ENTRIES_COUNT);
-
-    ret = mshv_set_generic_regs(cpu, assocs, ARRAY_SIZE(assocs));
-    if (ret < 0) {
-        error_report("failed to put msrs");
-        return -1;
-    }
-
-    return 0;
-}
-
 void mshv_arch_init_vcpu(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
@@ -1948,7 +1931,7 @@ void mshv_arch_init_vcpu(CPUState *cpu)
     ret = init_cpuid2(cpu);
     assert(ret == 0);
 
-    ret = init_msrs(cpu);
+    ret = mshv_init_msrs(cpu);
     assert(ret == 0);
 
     ret = init_lint(cpu);
