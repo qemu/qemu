@@ -264,11 +264,6 @@ static int create_vm(int mshv_fd, int *vm_fd)
         return -1;
     }
 
-    ret = mshv_reserve_ioapic_msi_routes(*vm_fd);
-    if (ret < 0) {
-        return -1;
-    }
-
     ret = mshv_arch_post_init_vm(*vm_fd);
     if (ret < 0) {
         return -1;
