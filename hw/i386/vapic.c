@@ -716,8 +716,7 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     default:
     case 4:
-        if ((kvm_enabled() && !kvm_irqchip_in_kernel())
-          || (whpx_enabled() && !whpx_irqchip_in_kernel())) {
+        if (!kvm_irqchip_in_kernel() && !whpx_irqchip_in_kernel()) {
             apic_poll_irq(cpu->apic_state);
         }
         break;
