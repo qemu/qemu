@@ -58,6 +58,16 @@ virtio_blk_handle_zone_mgmt(void *vdev, void *req, uint8_t op, int64_t sector, i
 virtio_blk_handle_zone_reset_all(void *vdev, void *req, int64_t sector, int64_t len) "vdev %p req %p sector 0x%" PRIx64 " cap 0x%" PRIx64 ""
 virtio_blk_handle_zone_append(void *vdev, void *req, int64_t sector) "vdev %p req %p, append sector 0x%" PRIx64 ""
 
+# vhost-user-blk.c
+vhost_user_blk_start_in(void *vdev) "vdev %p"
+vhost_user_blk_start_out(void *vdev) "vdev %p"
+vhost_user_blk_stop_in(void *vdev) "vdev %p"
+vhost_user_blk_stop_out(void *vdev) "vdev %p"
+vhost_user_blk_connect_in(void *vdev) "vdev %p"
+vhost_user_blk_connect_out(void *vdev) "vdev %p"
+vhost_user_blk_device_realize_in(void *vdev) "vdev %p"
+vhost_user_blk_device_realize_out(void *vdev) "vdev %p"
+
 # hd-geometry.c
 hd_geometry_lchs_guess(void *blk, int cyls, int heads, int secs) "blk %p LCHS %d %d %d"
 hd_geometry_guess(void *blk, uint32_t cyls, uint32_t heads, uint32_t secs, int trans) "blk %p CHS %u %u %u trans %d"

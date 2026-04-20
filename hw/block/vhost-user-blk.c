@@ -31,6 +31,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "system/system.h"
 #include "system/runstate.h"
+#include "trace.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_BLK_F_SIZE_MAX,
@@ -137,6 +138,8 @@ static int vhost_user_blk_start(VirtIODevice *vdev, Error **errp)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i, ret;
 
+    trace_vhost_user_blk_start_in(vdev);
+
     if (!k->set_guest_notifiers) {
         error_setg(errp, "binding does not support guest notifiers");
         return -ENOSYS;
@@ -192,6 +195,8 @@ static int vhost_user_blk_start(VirtIODevice *vdev, Error **errp)
     }
     s->started_vu = true;
 
+    trace_vhost_user_blk_start_out(vdev);
+
     return ret;
 
 err_guest_notifiers:
@@ -211,6 +216,8 @@ static int vhost_user_blk_stop(VirtIODevice *vdev)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
     bool force_stop = false;
+
+    trace_vhost_user_blk_stop_in(vdev);
 
     if (!s->started_vu) {
         return 0;
@@ -233,6 +240,9 @@ static int vhost_user_blk_stop(VirtIODevice *vdev)
     }
 
     vhost_dev_disable_notifiers(&s->dev, vdev);
+
+    trace_vhost_user_blk_stop_out(vdev);
+
     return ret;
 }
 
@@ -340,6 +350,8 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
     int ret = 0;
 
+    trace_vhost_user_blk_connect_in(vdev);
+
     if (s->connected) {
         return 0;
     }
@@ -365,6 +377,8 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
     if (virtio_device_started(vdev, vdev->status)) {
         ret = vhost_user_blk_start(vdev, errp);
     }
+
+    trace_vhost_user_blk_connect_out(vdev);
 
     return ret;
 }
@@ -456,6 +470,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     int retries;
     int i, ret;
 
+    trace_vhost_user_blk_device_realize_in(vdev);
+
     if (!s->chardev.chr) {
         error_setg(errp, "chardev is mandatory");
         return;
@@ -515,6 +531,9 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
                              vhost_user_blk_event, NULL, (void *)dev,
                              NULL, true);
+
+    trace_vhost_user_blk_device_realize_out(vdev);
+
     return;
 
 virtio_err:
