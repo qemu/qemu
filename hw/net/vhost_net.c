@@ -52,8 +52,14 @@ int vhost_net_set_config(struct vhost_net *net, const uint8_t *data,
 
 void vhost_net_ack_features_ex(struct vhost_net *net, const uint64_t *features)
 {
-    virtio_features_copy(net->dev.acked_features_ex,
-                         net->dev.backend_features_ex);
+    virtio_features_clear(net->dev.acked_features_ex);
+    if (net->backend == -1) {
+        net->dev.acked_features =
+           net->dev.features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES);
+    } else if (!qemu_has_vnet_hdr(net->nc)) {
+        net->dev.acked_features = 1ULL << VHOST_NET_F_VIRTIO_NET_HDR;
+    }
+
     vhost_ack_features_ex(&net->dev, net->feature_bits, features);
 }
 
@@ -258,12 +264,9 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         if (r < 0) {
             goto fail;
         }
-        net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
-            ? 0 : (1ULL << VHOST_NET_F_VIRTIO_NET_HDR);
         net->backend = r;
         net->dev.protocol_features = 0;
     } else {
-        virtio_features_clear(net->dev.backend_features_ex);
         net->dev.protocol_features = 0;
         net->backend = -1;
 
@@ -284,13 +287,12 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
             net->dev.features &= ~(1ULL << VIRTIO_NET_F_MRG_RXBUF);
         }
 
-        if (virtio_features_andnot(missing_features,
-                                   net->dev.backend_features_ex,
-                                   net->dev.features_ex)) {
-            fprintf(stderr, "vhost lacks feature mask 0x" VIRTIO_FEATURES_FMT
-                   " for backend\n", VIRTIO_FEATURES_PR(missing_features));
-            goto fail;
-        }
+        if (!qemu_has_vnet_hdr(options->net_backend) &&
+            (~net->dev.features & (1ULL << VHOST_NET_F_VIRTIO_NET_HDR))) {
+            fprintf(stderr, "vhost lacks feature mask 0x%llx for backend\n",
+                    ~net->dev.features & (1ULL << VHOST_NET_F_VIRTIO_NET_HDR));
+             goto fail;
+         }
     }
 
     /* Set sane init value. Override when guest acks. */
