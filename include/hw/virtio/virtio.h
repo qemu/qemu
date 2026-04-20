@@ -420,8 +420,6 @@ void virtio_queue_update_used_idx(VirtIODevice *vdev, int n);
 VirtQueue *virtio_get_queue(VirtIODevice *vdev, int n);
 uint16_t virtio_get_queue_index(VirtQueue *vq);
 EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq);
-void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
-                                                bool with_irqfd);
 int virtio_device_start_ioeventfd(VirtIODevice *vdev);
 int virtio_device_grab_ioeventfd(VirtIODevice *vdev);
 void virtio_device_release_ioeventfd(VirtIODevice *vdev);
@@ -435,8 +433,17 @@ void virtio_queue_aio_detach_host_notifier(VirtQueue *vq, AioContext *ctx);
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector);
 VirtQueue *virtio_vector_next_queue(VirtQueue *vq);
 EventNotifier *virtio_config_get_guest_notifier(VirtIODevice *vdev);
-void virtio_config_set_guest_notifier_fd_handler(VirtIODevice *vdev,
-                                                 bool assign, bool with_irqfd);
+
+/**
+ * virtio_set_guest_notifier - set/unset queue or config guest notifier
+ *
+ * @vdev: the VirtIO device
+ * @n: queue number, or VIRTIO_CONFIG_IRQ_IDX to set config notifer
+ * @assign: true to set notifier, false to unset
+ * @with_irqfd: irqfd enabled
+ */
+int virtio_set_guest_notifier(VirtIODevice *vdev, int n, bool assign,
+                              bool with_irqfd);
 
 static inline void virtio_add_feature(uint64_t *features, unsigned int fbit)
 {
