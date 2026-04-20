@@ -298,7 +298,7 @@ static void vhost_kernel_iotlb_read(void *opaque)
                 break;
             }
 
-            vhost_backend_handle_iotlb_msg(dev, &msg.iotlb);
+            vhost_handle_iotlb_msg(dev, &msg.iotlb);
         }
     } else {
         struct vhost_msg msg;
@@ -313,7 +313,7 @@ static void vhost_kernel_iotlb_read(void *opaque)
                 break;
             }
 
-            vhost_backend_handle_iotlb_msg(dev, &msg.iotlb);
+            vhost_handle_iotlb_msg(dev, &msg.iotlb);
         }
     }
 }
@@ -392,81 +392,3 @@ const VhostOps kernel_ops = {
         .vhost_send_device_iotlb_msg = vhost_kernel_send_device_iotlb_msg,
 };
 #endif
-
-int vhost_backend_update_device_iotlb(struct vhost_dev *dev,
-                                             uint64_t iova, uint64_t uaddr,
-                                             uint64_t len,
-                                             IOMMUAccessFlags perm)
-{
-    struct vhost_iotlb_msg imsg;
-
-    imsg.iova =  iova;
-    imsg.uaddr = uaddr;
-    imsg.size = len;
-    imsg.type = VHOST_IOTLB_UPDATE;
-
-    switch (perm) {
-    case IOMMU_RO:
-        imsg.perm = VHOST_ACCESS_RO;
-        break;
-    case IOMMU_WO:
-        imsg.perm = VHOST_ACCESS_WO;
-        break;
-    case IOMMU_RW:
-        imsg.perm = VHOST_ACCESS_RW;
-        break;
-    default:
-        return -EINVAL;
-    }
-
-    if (dev->vhost_ops && dev->vhost_ops->vhost_send_device_iotlb_msg)
-        return dev->vhost_ops->vhost_send_device_iotlb_msg(dev, &imsg);
-
-    return -ENODEV;
-}
-
-int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
-                                                 uint64_t iova, uint64_t len)
-{
-    struct vhost_iotlb_msg imsg;
-
-    imsg.iova = iova;
-    imsg.size = len;
-    imsg.type = VHOST_IOTLB_INVALIDATE;
-
-    if (dev->vhost_ops && dev->vhost_ops->vhost_send_device_iotlb_msg)
-        return dev->vhost_ops->vhost_send_device_iotlb_msg(dev, &imsg);
-
-    return -ENODEV;
-}
-
-int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
-                                          struct vhost_iotlb_msg *imsg)
-{
-    int ret = 0;
-
-    if (unlikely(!dev->vdev)) {
-        error_report("Unexpected IOTLB message when virtio device is stopped");
-        return -EINVAL;
-    }
-
-    switch (imsg->type) {
-    case VHOST_IOTLB_MISS:
-        ret = vhost_device_iotlb_miss(dev, imsg->iova,
-                                      imsg->perm != VHOST_ACCESS_RO);
-        break;
-    case VHOST_IOTLB_ACCESS_FAIL:
-        /* FIXME: report device iotlb error */
-        error_report("Access failure IOTLB message type not supported");
-        ret = -ENOTSUP;
-        break;
-    case VHOST_IOTLB_UPDATE:
-    case VHOST_IOTLB_INVALIDATE:
-    default:
-        error_report("Unexpected IOTLB message type");
-        ret = -EINVAL;
-        break;
-    }
-
-    return ret;
-}

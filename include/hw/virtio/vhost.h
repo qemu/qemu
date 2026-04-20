@@ -403,6 +403,8 @@ int vhost_dev_set_inflight(struct vhost_dev *dev,
 int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
                            struct vhost_inflight *inflight);
 bool vhost_dev_has_iommu(struct vhost_dev *dev);
+int vhost_handle_iotlb_msg(struct vhost_dev *dev, struct vhost_iotlb_msg *imsg);
+
 
 static inline bool vhost_dev_has_feature(struct vhost_dev *dev,
                                          uint64_t feature)

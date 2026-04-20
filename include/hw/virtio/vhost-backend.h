@@ -222,17 +222,6 @@ typedef struct VhostOps {
     vhost_check_device_state_op vhost_check_device_state;
 } VhostOps;
 
-int vhost_backend_update_device_iotlb(struct vhost_dev *dev,
-                                             uint64_t iova, uint64_t uaddr,
-                                             uint64_t len,
-                                             IOMMUAccessFlags perm);
-
-int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
-                                                 uint64_t iova, uint64_t len);
-
-int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
-                                          struct vhost_iotlb_msg *imsg);
-
 int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd);
 
 int vhost_user_get_shared_object(struct vhost_dev *dev, unsigned char *uuid,
