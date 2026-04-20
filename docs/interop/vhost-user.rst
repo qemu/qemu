@@ -164,8 +164,16 @@ A vring address description
 
 :log: a 64-bit guest address for logging
 
-Note that a ring address is an IOVA if ``VIRTIO_F_IOMMU_PLATFORM`` has
-been negotiated. Otherwise it is a user address.
+.. Note::
+   When ``VIRTIO_F_IOMMU_PLATFORM`` is negotiated, ring addresses are IOVAs.
+
+   Otherwise, when ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES`` is negotiated, the
+   ring addresses are guest physical addresses for frontend messages. That
+   does not apply to backend replies.
+
+   Finally, when neither ``VIRTIO_F_IOMMU_PLATFORM`` nor
+   ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES`` features are negotiated, ring
+   addresses are user virtual addresses.
 
 .. _memory_region_description:
 
@@ -180,7 +188,9 @@ Memory region description
 
 :size: a 64-bit size
 
-:user address: a 64-bit user address
+:user address: a 64-bit user address. When ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES``
+  is negotiated, this field contain guest physical address instead and must
+  duplicate ``guest address`` field.
 
 :mmap offset: a 64-bit offset where region starts in the mapped memory
 
@@ -252,7 +262,9 @@ An IOTLB message
 
 :size: a 64-bit size
 
-:user address: a 64-bit user address
+:user address: a 64-bit user address. When ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES``
+  is negotiated, this field contain guest physical address instead, except for
+  ``VHOST_USER_BACKEND_IOTLB_MSG``, where it's user address anyway.
 
 :permissions flags: an 8-bit value:
   - 0: No access
@@ -1063,6 +1075,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_SHARED_OBJECT           18
   #define VHOST_USER_PROTOCOL_F_DEVICE_STATE            19
   #define VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT 20
+  #define VHOST_USER_PROTOCOL_F_GPA_ADDRESSES           21
 
 Front-end message types
 -----------------------

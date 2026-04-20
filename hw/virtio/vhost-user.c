@@ -563,12 +563,22 @@ static MemoryRegion *vhost_user_get_mr_data(uint64_t addr, ram_addr_t *offset,
     return mr;
 }
 
-static void vhost_user_fill_msg_region(VhostUserMemoryRegion *dst,
+static bool vhost_user_gpa_addresses(struct vhost_dev *dev)
+{
+    return vhost_user_has_protocol_feature(
+        dev, VHOST_USER_PROTOCOL_F_GPA_ADDRESSES);
+}
+
+static void vhost_user_fill_msg_region(struct vhost_dev *dev,
+                                       VhostUserMemoryRegion *dst,
                                        struct vhost_memory_region *src,
                                        uint64_t mmap_offset)
 {
+    bool use_phys = vhost_user_gpa_addresses(dev);
+
     assert(src != NULL && dst != NULL);
-    dst->userspace_addr = src->userspace_addr;
+
+    dst->userspace_addr = use_phys ? src->guest_phys_addr : src->userspace_addr;
     dst->memory_size = src->memory_size;
     dst->guest_phys_addr = src->guest_phys_addr;
     dst->mmap_offset = mmap_offset;
@@ -606,7 +616,7 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                 error_report("Failed preparing vhost-user memory table msg");
                 return -ENOBUFS;
             }
-            vhost_user_fill_msg_region(&region_buffer, reg, offset);
+            vhost_user_fill_msg_region(dev, &region_buffer, reg, offset);
             msg->payload.memory.regions[*fd_num] = region_buffer;
             fds[(*fd_num)++] = fd;
         } else if (track_ramblocks) {
@@ -752,7 +762,7 @@ static int send_remove_regions(struct vhost_dev *dev,
 
         if (fd > 0) {
             msg->hdr.request = VHOST_USER_REM_MEM_REG;
-            vhost_user_fill_msg_region(&region_buffer, shadow_reg, 0);
+            vhost_user_fill_msg_region(dev, &region_buffer, shadow_reg, 0);
             msg->payload.mem_reg.region = region_buffer;
 
             ret = vhost_user_write(dev, msg, NULL, 0);
@@ -813,7 +823,7 @@ static int send_add_regions(struct vhost_dev *dev,
                 u->region_rb[reg_idx] = mr->ram_block;
             }
             msg->hdr.request = VHOST_USER_ADD_MEM_REG;
-            vhost_user_fill_msg_region(&region_buffer, reg, offset);
+            vhost_user_fill_msg_region(dev, &region_buffer, reg, offset);
             msg->payload.mem_reg.region = region_buffer;
 
             ret = vhost_user_write(dev, msg, &fd, 1);
@@ -3151,4 +3161,6 @@ const VhostOps user_ops = {
         .vhost_supports_device_state = vhost_user_supports_device_state,
         .vhost_set_device_state_fd = vhost_user_set_device_state_fd,
         .vhost_check_device_state = vhost_user_check_device_state,
+        .vhost_phys_vring_addr = vhost_user_gpa_addresses,
+        .vhost_phys_iotlb_msg = vhost_user_gpa_addresses,
 };
