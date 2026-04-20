@@ -794,9 +794,6 @@ VirtVhostQueueStatus *qmp_x_query_virtio_vhost_queue_status(const char *path,
     status->name = g_strdup(vdev->name);
     status->kick = hdev->vqs[queue].kick;
     status->call = hdev->vqs[queue].call;
-    status->desc = (uintptr_t)hdev->vqs[queue].desc;
-    status->avail = (uintptr_t)hdev->vqs[queue].avail;
-    status->used = (uintptr_t)hdev->vqs[queue].used;
     status->num = hdev->vqs[queue].num;
     status->desc_phys = hdev->vqs[queue].desc_phys;
     status->desc_size = hdev->vqs[queue].desc_size;

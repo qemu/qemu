@@ -650,12 +650,6 @@
 #
 # @call: vhost_virtqueue call
 #
-# @desc: vhost_virtqueue desc
-#
-# @avail: vhost_virtqueue avail
-#
-# @used: vhost_virtqueue used
-#
 # @num: vhost_virtqueue num
 #
 # @desc-phys: vhost_virtqueue desc_phys (descriptor area physical
@@ -678,9 +672,6 @@
   'data': { 'name': 'str',
             'kick': 'int',
             'call': 'int',
-            'desc': 'uint64',
-            'avail': 'uint64',
-            'used': 'uint64',
             'num': 'int',
             'desc-phys': 'uint64',
             'desc-size': 'uint32',
@@ -720,12 +711,9 @@
 #              "avail-size": 2054,
 #              "desc-size": 16384,
 #              "used-size": 8198,
-#              "desc": 140141447430144,
 #              "num": 1024,
 #              "call": 0,
-#              "avail": 140141447446528,
 #              "desc-phys": 5216108544,
-#              "used": 140141447448640,
 #              "kick": 0
 #          }
 #        }
@@ -744,12 +732,9 @@
 #              "avail-size": 262,
 #              "desc-size": 2048,
 #              "used-size": 1030,
-#              "desc": 140141413580800,
 #              "num": 128,
 #              "call": 0,
-#              "avail": 140141413582848,
 #              "desc-phys": 5182259200,
-#              "used": 140141413583168,
 #              "kick": 0
 #          }
 #        }
