@@ -920,14 +920,18 @@ static void vhost_region_addnop(MemoryListener *listener,
 }
 
 static int vhost_update_device_iotlb(struct vhost_dev *dev,
-                                     uint64_t iova, uint64_t uaddr,
+                                     uint64_t iova,
+                                     uint64_t paddr,
+                                     uint64_t uaddr,
                                      uint64_t len,
                                      IOMMUAccessFlags perm)
 {
+    bool phys = dev->vhost_ops->vhost_phys_iotlb_msg &&
+        dev->vhost_ops->vhost_phys_iotlb_msg(dev);
     struct vhost_iotlb_msg imsg;
 
     imsg.iova =  iova;
-    imsg.uaddr = uaddr;
+    imsg.uaddr = phys ? paddr : uaddr;
     imsg.size = len;
     imsg.type = VHOST_IOTLB_UPDATE;
 
@@ -1385,7 +1389,8 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
         len = MIN(iotlb.addr_mask + 1, len);
         iova = iova & ~iotlb.addr_mask;
 
-        ret = vhost_update_device_iotlb(dev, iova, uaddr, len, iotlb.perm);
+        ret = vhost_update_device_iotlb(dev, iova, iotlb.translated_addr, uaddr,
+                                        len, iotlb.perm);
         if (ret) {
             trace_vhost_iotlb_miss(dev, 4);
             error_report("Fail to update device iotlb");
