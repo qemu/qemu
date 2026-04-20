@@ -456,21 +456,17 @@ static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
 static void *vhost_memory_map(struct vhost_dev *dev, hwaddr addr,
                               hwaddr len, bool is_write)
 {
-    if (!vhost_dev_has_iommu(dev)) {
-        hwaddr mapped_len = len;
-        void *res = address_space_map(dev->vdev->dma_as, addr, &mapped_len,
-                                      is_write, MEMTXATTRS_UNSPECIFIED);
-        if (!res) {
-            return NULL;
-        }
-        if (len != mapped_len) {
-            address_space_unmap(dev->vdev->dma_as, res, mapped_len, 0, 0);
-            return NULL;
-        }
-        return res;
-    } else {
-        return (void *)(uintptr_t)addr;
+    hwaddr mapped_len = len;
+    void *res = address_space_map(dev->vdev->dma_as, addr, &mapped_len,
+                                  is_write, MEMTXATTRS_UNSPECIFIED);
+    if (!res) {
+        return NULL;
     }
+    if (len != mapped_len) {
+        address_space_unmap(dev->vdev->dma_as, res, mapped_len, 0, 0);
+        return NULL;
+    }
+    return res;
 }
 
 static void vhost_memory_unmap(struct vhost_dev *dev, void **buffer,
@@ -481,17 +477,18 @@ static void vhost_memory_unmap(struct vhost_dev *dev, void **buffer,
         return;
     }
 
-    if (!vhost_dev_has_iommu(dev)) {
-        address_space_unmap(dev->vdev->dma_as, *buffer, len, is_write,
-                            access_len);
-    }
-
+    address_space_unmap(dev->vdev->dma_as, *buffer, len, is_write,
+                        access_len);
     *buffer = NULL;
 }
 
 static void vhost_vrings_unmap(struct vhost_dev *dev,
                                struct vhost_virtqueue *vq, bool touched)
 {
+    if (vhost_dev_has_iommu(dev)) {
+        return;
+    }
+
     vhost_memory_unmap(dev, &vq->used, vq->used_size, touched,
                        touched ? vq->used_size : 0);
     vhost_memory_unmap(dev, &vq->avail, vq->avail_size, 0,
@@ -519,6 +516,14 @@ static int vhost_vrings_map(struct vhost_dev *dev,
         /* Queue might not be ready for start */
         return 0;
     }
+
+    if (vhost_dev_has_iommu(dev)) {
+        vq->desc = (void *)(uintptr_t)vq->desc_phys;
+        vq->avail = (void *)(uintptr_t)vq->avail_phys;
+        vq->used = (void *)(uintptr_t)vq->used_phys;
+        return 1;
+    }
+
     vq->desc = vhost_memory_map(dev, vq->desc_phys, vq->desc_size, false);
     if (!vq->desc) {
         goto fail;
