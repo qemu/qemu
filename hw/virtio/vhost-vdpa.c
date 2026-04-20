@@ -1571,16 +1571,9 @@ static int vhost_vdpa_set_owner(struct vhost_dev *dev)
     return 0;
 }
 
-static int vhost_vdpa_vq_get_addr(struct vhost_dev *dev,
-                    struct vhost_vring_addr *addr, struct vhost_virtqueue *vq)
+static bool vhost_vdpa_phys_vring_addr(struct vhost_dev *dev)
 {
-    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
-    addr->desc_user_addr = (uint64_t)(unsigned long)vq->desc_phys;
-    addr->avail_user_addr = (uint64_t)(unsigned long)vq->avail_phys;
-    addr->used_user_addr = (uint64_t)(unsigned long)vq->used_phys;
-    trace_vhost_vdpa_vq_get_addr(dev, vq, addr->desc_user_addr,
-                                 addr->avail_user_addr, addr->used_user_addr);
-    return 0;
+    return true;
 }
 
 static bool  vhost_vdpa_force_iommu(struct vhost_dev *dev)
@@ -1617,7 +1610,7 @@ const VhostOps vdpa_ops = {
         .vhost_send_device_iotlb_msg = NULL,
         .vhost_dev_start = vhost_vdpa_dev_start,
         .vhost_get_device_id = vhost_vdpa_get_device_id,
-        .vhost_vq_get_addr = vhost_vdpa_vq_get_addr,
+        .vhost_phys_vring_addr = vhost_vdpa_phys_vring_addr,
         .vhost_force_iommu = vhost_vdpa_force_iommu,
         .vhost_set_config_call = vhost_vdpa_set_config_call,
         .vhost_reset_status = vhost_vdpa_reset_status,

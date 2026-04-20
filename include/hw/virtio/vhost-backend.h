@@ -141,9 +141,7 @@ typedef int (*vhost_set_inflight_fd_op)(struct vhost_dev *dev,
 
 typedef int (*vhost_dev_start_op)(struct vhost_dev *dev, bool started);
 
-typedef int (*vhost_vq_get_addr_op)(struct vhost_dev *dev,
-                    struct vhost_vring_addr *addr,
-                    struct vhost_virtqueue *vq);
+typedef bool (*vhost_phys_vring_addr_op)(struct vhost_dev *dev);
 
 typedef int (*vhost_get_device_id_op)(struct vhost_dev *dev, uint32_t *dev_id);
 
@@ -211,7 +209,7 @@ typedef struct VhostOps {
     vhost_get_inflight_fd_op vhost_get_inflight_fd;
     vhost_set_inflight_fd_op vhost_set_inflight_fd;
     vhost_dev_start_op vhost_dev_start;
-    vhost_vq_get_addr_op  vhost_vq_get_addr;
+    vhost_phys_vring_addr_op vhost_phys_vring_addr;
     vhost_get_device_id_op vhost_get_device_id;
     vhost_force_iommu_op vhost_force_iommu;
     vhost_set_config_call_op vhost_set_config_call;

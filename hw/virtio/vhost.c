@@ -1093,16 +1093,16 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
                                     struct vhost_virtqueue *vq,
                                     unsigned idx, bool enable_log)
 {
+    bool phys = dev->vhost_ops->vhost_phys_vring_addr &&
+        dev->vhost_ops->vhost_phys_vring_addr(dev);
     struct vhost_vring_addr addr;
     int r;
     memset(&addr, 0, sizeof(struct vhost_vring_addr));
 
-    if (dev->vhost_ops->vhost_vq_get_addr) {
-        r = dev->vhost_ops->vhost_vq_get_addr(dev, &addr, vq);
-        if (r < 0) {
-            VHOST_OPS_DEBUG(r, "vhost_vq_get_addr failed");
-            return r;
-        }
+    if (phys) {
+        addr.desc_user_addr = (uint64_t)(unsigned long)vq->desc_phys;
+        addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail_phys;
+        addr.used_user_addr = (uint64_t)(unsigned long)vq->used_phys;
     } else {
         addr.desc_user_addr = (uint64_t)(unsigned long)vq->desc;
         addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail;
