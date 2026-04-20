@@ -489,11 +489,11 @@ static void vhost_vrings_unmap(struct vhost_dev *dev,
         return;
     }
 
-    vhost_memory_unmap(dev, &vq->used, vq->used_size, touched,
+    vhost_memory_unmap(dev, &vq->used_user, vq->used_size, touched,
                        touched ? vq->used_size : 0);
-    vhost_memory_unmap(dev, &vq->avail, vq->avail_size, 0,
+    vhost_memory_unmap(dev, &vq->avail_user, vq->avail_size, 0,
                        touched ? vq->avail_size : 0);
-    vhost_memory_unmap(dev, &vq->desc, vq->desc_size, 0,
+    vhost_memory_unmap(dev, &vq->desc_user, vq->desc_size, 0,
                        touched ? vq->desc_size : 0);
 }
 
@@ -504,13 +504,13 @@ static int vhost_vrings_map(struct vhost_dev *dev,
 {
     vq->desc_size = virtio_queue_get_desc_size(vdev, idx);
     vq->desc_phys = virtio_queue_get_desc_addr(vdev, idx);
-    vq->desc = NULL;
+    vq->desc_user = NULL;
     vq->avail_size = virtio_queue_get_avail_size(vdev, idx);
     vq->avail_phys = virtio_queue_get_avail_addr(vdev, idx);
-    vq->avail = NULL;
+    vq->avail_user = NULL;
     vq->used_size = virtio_queue_get_used_size(vdev, idx);
     vq->used_phys = virtio_queue_get_used_addr(vdev, idx);
-    vq->used = NULL;
+    vq->used_user = NULL;
 
     if (vq->desc_phys == 0) {
         /* Queue might not be ready for start */
@@ -521,16 +521,17 @@ static int vhost_vrings_map(struct vhost_dev *dev,
         return 1;
     }
 
-    vq->desc = vhost_memory_map(dev, vq->desc_phys, vq->desc_size, false);
-    if (!vq->desc) {
+    vq->desc_user = vhost_memory_map(dev, vq->desc_phys, vq->desc_size, false);
+    if (!vq->desc_user) {
         goto fail;
     }
-    vq->avail = vhost_memory_map(dev, vq->avail_phys, vq->avail_size, false);
-    if (!vq->avail) {
+    vq->avail_user = vhost_memory_map(dev, vq->avail_phys, vq->avail_size,
+                                      false);
+    if (!vq->avail_user) {
         goto fail;
     }
-    vq->used = vhost_memory_map(dev, vq->used_phys, vq->used_size, true);
-    if (!vq->used) {
+    vq->used_user = vhost_memory_map(dev, vq->used_phys, vq->used_size, true);
+    if (!vq->used_user) {
         goto fail;
     }
 
@@ -594,7 +595,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 
         j = 0;
         r = vhost_verify_ring_part_mapping(
-                vq->desc, vq->desc_phys, vq->desc_size,
+                vq->desc_user, vq->desc_phys, vq->desc_size,
                 reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
@@ -602,7 +603,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 
         j++;
         r = vhost_verify_ring_part_mapping(
-                vq->avail, vq->avail_phys, vq->avail_size,
+                vq->avail_user, vq->avail_phys, vq->avail_size,
                 reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
@@ -610,7 +611,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
 
         j++;
         r = vhost_verify_ring_part_mapping(
-                vq->used, vq->used_phys, vq->used_size,
+                vq->used_user, vq->used_phys, vq->used_size,
                 reg_hva, reg_gpa, reg_size);
         if (r) {
             break;
@@ -1106,9 +1107,9 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
         addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail_phys;
         addr.used_user_addr = (uint64_t)(unsigned long)vq->used_phys;
     } else {
-        addr.desc_user_addr = (uint64_t)(unsigned long)vq->desc;
-        addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail;
-        addr.used_user_addr = (uint64_t)(unsigned long)vq->used;
+        addr.desc_user_addr = (uint64_t)(unsigned long)vq->desc_user;
+        addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail_user;
+        addr.used_user_addr = (uint64_t)(unsigned long)vq->used_user;
     }
     addr.index = idx;
     addr.log_guest_addr = vq->used_phys;

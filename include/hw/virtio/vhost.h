@@ -24,9 +24,9 @@ struct vhost_inflight {
 struct vhost_virtqueue {
     int kick;
     int call;
-    void *desc;
-    void *avail;
-    void *used;
+    void *desc_user;
+    void *avail_user;
+    void *used_user;
     int num;
     unsigned long long desc_phys;
     unsigned desc_size;
