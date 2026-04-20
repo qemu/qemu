@@ -518,9 +518,6 @@ static int vhost_vrings_map(struct vhost_dev *dev,
     }
 
     if (vhost_dev_has_iommu(dev)) {
-        vq->desc = (void *)(uintptr_t)vq->desc_phys;
-        vq->avail = (void *)(uintptr_t)vq->avail_phys;
-        vq->used = (void *)(uintptr_t)vq->used_phys;
         return 1;
     }
 
@@ -1104,7 +1101,7 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
     int r;
     memset(&addr, 0, sizeof(struct vhost_vring_addr));
 
-    if (phys) {
+    if (phys || vhost_dev_has_iommu(dev)) {
         addr.desc_user_addr = (uint64_t)(unsigned long)vq->desc_phys;
         addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail_phys;
         addr.used_user_addr = (uint64_t)(unsigned long)vq->used_phys;
