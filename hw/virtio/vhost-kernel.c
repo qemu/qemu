@@ -1,5 +1,5 @@
 /*
- * vhost-backend
+ * vhost-kernel
  *
  * Copyright (c) 2013 Virtual Open Systems Sarl.
  *
