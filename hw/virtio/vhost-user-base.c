@@ -118,9 +118,13 @@ static uint64_t vub_get_features(VirtIODevice *vdev,
                                  uint64_t requested_features, Error **errp)
 {
     VHostUserBase *vub = VHOST_USER_BASE(vdev);
+    uint64_t backend_features = vhost_dev_features(&vub->vhost_dev);
+
     /* This should be set when the vhost connection initialises */
-    g_assert(vub->vhost_dev.features);
-    return vub->vhost_dev.features & ~(1ULL << VHOST_USER_F_PROTOCOL_FEATURES);
+    g_assert(backend_features);
+    virtio_clear_feature(&backend_features, VHOST_USER_F_PROTOCOL_FEATURES);
+
+    return backend_features;
 }
 
 /*

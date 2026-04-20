@@ -54,8 +54,8 @@ void vhost_net_ack_features_ex(struct vhost_net *net, const uint64_t *features)
 {
     virtio_features_clear(net->dev.acked_features_ex);
     if (net->backend == -1) {
-        net->dev.acked_features =
-           net->dev.features & (1ULL << VHOST_USER_F_PROTOCOL_FEATURES);
+        net->dev.acked_features = (vhost_dev_features(&net->dev) &
+            (1ULL << VHOST_USER_F_PROTOCOL_FEATURES));
     } else if (!qemu_has_vnet_hdr(net->nc)) {
         net->dev.acked_features = 1ULL << VHOST_NET_F_VIRTIO_NET_HDR;
     }
@@ -282,15 +282,15 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
     if (backend_kernel) {
         if (!qemu_has_vnet_hdr_len(options->net_backend,
                                sizeof(struct virtio_net_hdr_mrg_rxbuf))) {
-            net->dev.features &= ~(1ULL << VIRTIO_NET_F_MRG_RXBUF);
+            vhost_dev_clear_feature(&net->dev, VIRTIO_NET_F_MRG_RXBUF);
         }
 
         if (!qemu_has_vnet_hdr(options->net_backend) &&
-            (~net->dev.features & (1ULL << VHOST_NET_F_VIRTIO_NET_HDR))) {
-            fprintf(stderr, "vhost lacks feature mask 0x%llx for backend\n",
-                    ~net->dev.features & (1ULL << VHOST_NET_F_VIRTIO_NET_HDR));
-             goto fail;
-         }
+            !vhost_dev_has_feature(&net->dev, VHOST_NET_F_VIRTIO_NET_HDR)) {
+            fprintf(stderr, "vhost lacks VHOST_NET_F_VIRTIO_NET_HDR "
+                    "feature for backend\n");
+            goto fail;
+        }
     }
 
     /* Set sane init value. Override when guest acks. */
@@ -298,7 +298,7 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         virtio_features_from_u64(features,
                                  options->get_acked_features(net->nc));
         if (virtio_features_andnot(missing_features, features,
-                                   net->dev.features_ex)) {
+                                   vhost_dev_features_ex(&net->dev))) {
             fprintf(stderr, "vhost lacks feature mask 0x" VIRTIO_FEATURES_FMT
                     " for backend\n", VIRTIO_FEATURES_PR(missing_features));
             goto fail;

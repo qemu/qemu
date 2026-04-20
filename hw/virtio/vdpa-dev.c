@@ -224,7 +224,7 @@ static uint64_t vhost_vdpa_device_get_features(VirtIODevice *vdev,
                                                Error **errp)
 {
     VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
-    uint64_t backend_features = s->dev.features;
+    uint64_t backend_features = vhost_dev_features(&s->dev);
 
     if (!virtio_has_feature(features, VIRTIO_F_IOMMU_PLATFORM)) {
         virtio_clear_feature(&backend_features, VIRTIO_F_IOMMU_PLATFORM);

@@ -1249,7 +1249,7 @@ static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
     int i;
 
-    if (!virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+    if (!vhost_dev_has_feature(dev, VHOST_USER_F_PROTOCOL_FEATURES)) {
         /*
          * For vhost-user devices, if VHOST_USER_F_PROTOCOL_FEATURES has not
          * been negotiated, the rings start directly in the enabled state,
@@ -1488,7 +1488,7 @@ static int vhost_user_set_features(struct vhost_dev *dev,
      * Don't lose VHOST_USER_F_PROTOCOL_FEATURES, which is vhost-user
      * specific.
      */
-    if (virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+    if (vhost_dev_has_feature(dev, VHOST_USER_F_PROTOCOL_FEATURES)) {
         features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
     }
 

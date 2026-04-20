@@ -257,15 +257,14 @@ static bool vhost_vdpa_get_vnet_hash_supported_types(NetClientState *nc,
 {
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
-    uint64_t features = s->vhost_vdpa.dev->features;
     int fd = s->vhost_vdpa.shared->device_fd;
     struct {
         struct vhost_vdpa_config hdr;
         uint32_t supported_hash_types;
     } config;
 
-    if (!virtio_has_feature(features, VIRTIO_NET_F_HASH_REPORT) &&
-        !virtio_has_feature(features, VIRTIO_NET_F_RSS)) {
+    if (!vhost_dev_has_feature(s->vhost_vdpa.dev, VIRTIO_NET_F_HASH_REPORT) &&
+        !vhost_dev_has_feature(s->vhost_vdpa.dev, VIRTIO_NET_F_RSS)) {
         return false;
     }
 
@@ -586,7 +585,7 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
      * If we early return in these cases SVQ will not be enabled. The migration
      * will be blocked as long as vhost-vdpa backends will not offer _F_LOG.
      */
-    if (!vhost_vdpa_net_valid_svq_features(v->dev->features, NULL)) {
+    if (!vhost_vdpa_net_valid_svq_features(vhost_dev_features(v->dev), NULL)) {
         return 0;
     }
 
