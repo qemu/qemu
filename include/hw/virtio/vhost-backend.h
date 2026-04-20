@@ -51,10 +51,9 @@ struct vhost_scsi_target;
 struct vhost_iotlb_msg;
 struct vhost_virtqueue;
 
-typedef int (*vhost_backend_init)(struct vhost_dev *dev, void *opaque,
-                                  Error **errp);
-typedef int (*vhost_backend_cleanup)(struct vhost_dev *dev);
-typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
+typedef int (*vhost_init)(struct vhost_dev *dev, void *opaque, Error **errp);
+typedef int (*vhost_cleanup)(struct vhost_dev *dev);
+typedef int (*vhost_memslots_limit)(struct vhost_dev *dev);
 
 typedef int (*vhost_net_set_backend_op)(struct vhost_dev *dev,
                                 struct vhost_vring_file *file);
@@ -131,7 +130,7 @@ typedef int (*vhost_crypto_create_session_op)(struct vhost_dev *dev,
 typedef int (*vhost_crypto_close_session_op)(struct vhost_dev *dev,
                                              uint64_t session_id);
 
-typedef bool (*vhost_backend_no_private_memslots_op)(struct vhost_dev *dev);
+typedef bool (*vhost_no_private_memslots_op)(struct vhost_dev *dev);
 
 typedef int (*vhost_get_inflight_fd_op)(struct vhost_dev *dev,
                                         uint16_t queue_size,
@@ -166,10 +165,10 @@ typedef int (*vhost_check_device_state_op)(struct vhost_dev *dev, Error **errp);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
-    vhost_backend_init vhost_backend_init;
-    vhost_backend_cleanup vhost_backend_cleanup;
-    vhost_backend_memslots_limit vhost_backend_memslots_limit;
-    vhost_backend_no_private_memslots_op vhost_backend_no_private_memslots;
+    vhost_init vhost_init;
+    vhost_cleanup vhost_cleanup;
+    vhost_memslots_limit vhost_memslots_limit;
+    vhost_no_private_memslots_op vhost_no_private_memslots;
     vhost_net_set_backend_op vhost_net_set_backend;
     vhost_net_set_mtu_op vhost_net_set_mtu;
     vhost_scsi_set_endpoint_op vhost_scsi_set_endpoint;

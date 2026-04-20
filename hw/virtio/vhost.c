@@ -58,7 +58,7 @@ unsigned int vhost_get_max_memslots(void)
     struct vhost_dev *hdev;
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
-        max = MIN(max, hdev->vhost_ops->vhost_backend_memslots_limit(hdev));
+        max = MIN(max, hdev->vhost_ops->vhost_memslots_limit(hdev));
     }
     return max;
 }
@@ -69,7 +69,7 @@ unsigned int vhost_get_free_memslots(void)
     struct vhost_dev *hdev;
 
     QLIST_FOREACH(hdev, &vhost_devices, entry) {
-        unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+        unsigned int r = hdev->vhost_ops->vhost_memslots_limit(hdev);
         unsigned int cur_free = r - hdev->mem->nregions;
 
         if (unlikely(r < hdev->mem->nregions)) {
@@ -664,8 +664,8 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
          */
         if ((memory_region_get_fd(section->mr) < 0 ||
             !qemu_ram_is_shared(section->mr->ram_block)) &&
-            dev->vhost_ops->vhost_backend_no_private_memslots &&
-            dev->vhost_ops->vhost_backend_no_private_memslots(dev)) {
+            dev->vhost_ops->vhost_no_private_memslots &&
+            dev->vhost_ops->vhost_no_private_memslots(dev)) {
             trace_vhost_reject_section(mr->name, 2);
             return false;
         }
@@ -1674,7 +1674,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     r = vhost_set_backend_type(hdev, backend_type);
     assert(r >= 0);
 
-    r = hdev->vhost_ops->vhost_backend_init(hdev, opaque, errp);
+    r = hdev->vhost_ops->vhost_init(hdev, opaque, errp);
     if (r < 0) {
         goto fail;
     }
@@ -1691,7 +1691,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         goto fail;
     }
 
-    limit = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+    limit = hdev->vhost_ops->vhost_memslots_limit(hdev);
     if (limit < MEMORY_DEVICES_SAFE_MAX_MEMSLOTS &&
         memory_devices_memslot_auto_decision_active()) {
         error_setg(errp, "some memory device (like virtio-mem)"
@@ -1809,7 +1809,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
     if (hdev->vhost_ops) {
-        hdev->vhost_ops->vhost_backend_cleanup(hdev);
+        hdev->vhost_ops->vhost_cleanup(hdev);
     }
     assert(!hdev->log);
 

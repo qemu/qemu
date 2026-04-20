@@ -3115,10 +3115,10 @@ void vhost_user_qmp_status(struct vhost_dev *dev, VirtioStatus *status)
 
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
-        .vhost_backend_init = vhost_user_backend_init,
-        .vhost_backend_cleanup = vhost_user_backend_cleanup,
-        .vhost_backend_memslots_limit = vhost_user_memslots_limit,
-        .vhost_backend_no_private_memslots = vhost_user_no_private_memslots,
+        .vhost_init = vhost_user_backend_init,
+        .vhost_cleanup = vhost_user_backend_cleanup,
+        .vhost_memslots_limit = vhost_user_memslots_limit,
+        .vhost_no_private_memslots = vhost_user_no_private_memslots,
         .vhost_set_log_base = vhost_user_set_log_base,
         .vhost_set_mem_table = vhost_user_set_mem_table,
         .vhost_set_vring_addr = vhost_user_set_vring_addr,

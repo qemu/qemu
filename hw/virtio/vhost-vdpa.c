@@ -1590,8 +1590,8 @@ static bool  vhost_vdpa_force_iommu(struct vhost_dev *dev)
 
 const VhostOps vdpa_ops = {
         .backend_type = VHOST_BACKEND_TYPE_VDPA,
-        .vhost_backend_init = vhost_vdpa_init,
-        .vhost_backend_cleanup = vhost_vdpa_cleanup,
+        .vhost_init = vhost_vdpa_init,
+        .vhost_cleanup = vhost_vdpa_cleanup,
         .vhost_set_log_base = vhost_vdpa_set_log_base,
         .vhost_set_vring_addr = vhost_vdpa_set_vring_addr,
         .vhost_set_vring_num = vhost_vdpa_set_vring_num,
@@ -1602,7 +1602,7 @@ const VhostOps vdpa_ops = {
         .vhost_get_features = vhost_vdpa_get_features,
         .vhost_set_owner = vhost_vdpa_set_owner,
         .vhost_set_vring_endian = NULL,
-        .vhost_backend_memslots_limit = vhost_vdpa_memslots_limit,
+        .vhost_memslots_limit = vhost_vdpa_memslots_limit,
         .vhost_set_mem_table = vhost_vdpa_set_mem_table,
         .vhost_set_features = vhost_vdpa_set_features,
         .vhost_reset_device = vhost_vdpa_reset_device,

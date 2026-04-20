@@ -358,9 +358,9 @@ static void vhost_kernel_set_iotlb_callback(struct vhost_dev *dev,
 
 const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
-        .vhost_backend_init = vhost_kernel_init,
-        .vhost_backend_cleanup = vhost_kernel_cleanup,
-        .vhost_backend_memslots_limit = vhost_kernel_memslots_limit,
+        .vhost_init = vhost_kernel_init,
+        .vhost_cleanup = vhost_kernel_cleanup,
+        .vhost_memslots_limit = vhost_kernel_memslots_limit,
         .vhost_net_set_backend = vhost_kernel_net_set_backend,
         .vhost_scsi_set_endpoint = vhost_kernel_scsi_set_endpoint,
         .vhost_scsi_clear_endpoint = vhost_kernel_scsi_clear_endpoint,
