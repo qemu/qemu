@@ -74,11 +74,6 @@ static bool trans_EXTS(DisasContext *ctx, arg_EXTS *a)
 {
     TCGv_i64 t0;
 
-    if (a->rt == 0) {
-        /* nop */
-        return true;
-    }
-
     t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
     tcg_gen_sextract_i64(t0, t0, a->p, a->lenm1 + 1);
@@ -90,11 +85,6 @@ static bool trans_CINS(DisasContext *ctx, arg_CINS *a)
 {
     TCGv_i64 t0;
 
-    if (a->rt == 0) {
-        /* nop */
-        return true;
-    }
-
     t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
     tcg_gen_deposit_z_i64(t0, t0, a->p, a->lenm1 + 1);
@@ -105,11 +95,6 @@ static bool trans_CINS(DisasContext *ctx, arg_CINS *a)
 static bool trans_POP(DisasContext *ctx, arg_POP *a)
 {
     TCGv_i64 t0;
-
-    if (a->rd == 0) {
-        /* nop */
-        return true;
-    }
 
     t0 = tcg_temp_new_i64();
     gen_load_gpr(t0, a->rs);
