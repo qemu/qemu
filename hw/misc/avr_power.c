@@ -73,6 +73,9 @@ static const MemoryRegionOps avr_mask_ops = {
     .impl = {
         .max_access_size = 1,
     },
+    .valid = {
+        .max_access_size = 1,
+    },
 };
 
 static void avr_mask_init(Object *dev)
