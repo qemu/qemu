@@ -200,6 +200,34 @@ static uint64_t trim_range_le(uint64_t sector, uint16_t count)
     return cpu_to_le64(((uint64_t)count << 48) + sector);
 }
 
+static uint8_t wait_dma_completion(QTestState *qts, QPCIDevice *dev,
+                                   QPCIBar bmdma_bar, QPCIBar ide_bar)
+{
+    uint8_t status;
+
+    /* Wait for the DMA transfer to complete */
+    do {
+        status = qpci_io_readb(dev, bmdma_bar, bmreg_status);
+    } while ((status & (BM_STS_ACTIVE | BM_STS_INTR)) == BM_STS_ACTIVE);
+
+    g_assert_cmpint(qtest_get_irq(qts, IDE_PRIMARY_IRQ), ==,
+                    !!(status & BM_STS_INTR));
+
+    /* Check IDE status code */
+    assert_bit_set(qpci_io_readb(dev, ide_bar, reg_status), DRDY);
+    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), BSY | DRQ);
+
+    /* Reading the status register clears the IRQ */
+    g_assert(!qtest_get_irq(qts, IDE_PRIMARY_IRQ));
+
+    /* Stop DMA transfer if still active */
+    if (status & BM_STS_ACTIVE) {
+        qpci_io_writeb(dev, bmdma_bar, bmreg_cmd, 0);
+    }
+
+    return status;
+}
+
 static int send_dma_request(QTestState *qts, int cmd, uint64_t sector,
                             int nb_sectors, PrdtEntry *prdt, int prdt_entries,
                             void(*post_exec)(QPCIDevice *dev, QPCIBar ide_bar,
@@ -280,25 +308,7 @@ static int send_dma_request(QTestState *qts, int cmd, uint64_t sector,
         qpci_io_writeb(dev, bmdma_bar, bmreg_cmd, 0);
     }
 
-    /* Wait for the DMA transfer to complete */
-    do {
-        status = qpci_io_readb(dev, bmdma_bar, bmreg_status);
-    } while ((status & (BM_STS_ACTIVE | BM_STS_INTR)) == BM_STS_ACTIVE);
-
-    g_assert_cmpint(qtest_get_irq(qts, IDE_PRIMARY_IRQ), ==,
-                    !!(status & BM_STS_INTR));
-
-    /* Check IDE status code */
-    assert_bit_set(qpci_io_readb(dev, ide_bar, reg_status), DRDY);
-    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), BSY | DRQ);
-
-    /* Reading the status register clears the IRQ */
-    g_assert(!qtest_get_irq(qts, IDE_PRIMARY_IRQ));
-
-    /* Stop DMA transfer if still active */
-    if (status & BM_STS_ACTIVE) {
-        qpci_io_writeb(dev, bmdma_bar, bmreg_cmd, 0);
-    }
+    status = wait_dma_completion(qts, dev, bmdma_bar, ide_bar);
 
     free_pci_device(dev);
 
