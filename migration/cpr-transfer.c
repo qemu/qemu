@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-migration.h"
@@ -79,6 +80,7 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp)
 void cpr_transfer_add_hup_watch(MigrationState *s, QIOChannelFunc func,
                                 void *opaque)
 {
+    assert(bql_locked());
     s->hup_source = qio_channel_create_watch(cpr_state_ioc(), G_IO_HUP);
     g_source_set_callback(s->hup_source,
                           (GSourceFunc)func,
@@ -89,9 +91,17 @@ void cpr_transfer_add_hup_watch(MigrationState *s, QIOChannelFunc func,
 
 void cpr_transfer_source_destroy(MigrationState *s)
 {
+    assert(bql_locked());
     if (s->hup_source) {
         g_source_destroy(s->hup_source);
         g_source_unref(s->hup_source);
         s->hup_source = NULL;
     }
+}
+
+bool cpr_transfer_source_active(MigrationState *s)
+{
+    /* Whenever the HUP gsource is available, it's active. */
+    assert(bql_locked());
+    return s->hup_source;
 }

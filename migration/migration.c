@@ -1502,14 +1502,19 @@ void migration_cancel(void)
     }
 
     /*
-     * If migration_connect_outgoing has not been called, then there
-     * is no path that will complete the cancellation. Do it now.
+     * This is cpr-transfer specific processing.
+     *
+     * If this is true, it means cpr-transfer migration is waiting for the
+     * destination to send HUP event on CPR channel to continue the next
+     * phase.  If so, do the cleanup proactively to avoid get stuck in
+     * CANCELLING state.
      */
-    if (setup && !s->to_dst_file) {
-        migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
-                          MIGRATION_STATUS_CANCELLED);
-        cpr_state_close();
-        cpr_transfer_source_destroy(s);
+    if (cpr_transfer_source_active(s)) {
+        assert(migrate_mode() == MIG_MODE_CPR_TRANSFER);
+        assert(setup && !s->to_dst_file);
+        migration_cleanup(s);
+        /* Now all things should have been released */
+        assert(!cpr_transfer_source_active(s));
     }
 }
 
@@ -2045,12 +2050,22 @@ static gboolean migration_connect_outgoing_cb(QIOChannel *channel,
     MigrationState *s = migrate_get_current();
     Error *local_err = NULL;
 
+    /*
+     * Detach and release the GSource right after use.  We rely on this to
+     * detect this small cpr-transfer window of "waiting for HUP event".
+     */
+    cpr_transfer_source_destroy(s);
+
     migration_connect_outgoing(s, opaque, &local_err);
 
     if (local_err) {
         migration_connect_error_propagate(s, local_err);
     }
 
+    /*
+     * This is redundant as we do cpr_transfer_source_destroy() at the
+     * entry, but it's benign; glib will just skip the detach.
+     */
     return G_SOURCE_REMOVE;
 }
 
