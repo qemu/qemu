@@ -122,7 +122,7 @@ virtio_blk_discard_write_zeroes(VirtioBlkHandler *handler, struct iovec *iov,
         }
 
         if (blk_co_pdiscard(blk, sector << VIRTIO_BLK_SECTOR_BITS,
-                            bytes) == 0) {
+                            bytes, 0) == 0) {
             return VIRTIO_BLK_S_OK;
         }
     }
