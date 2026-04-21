@@ -420,18 +420,15 @@ typedef struct TrimAIOCB {
     QEMUBH *bh;
     int ret;
     QEMUIOVector *qiov;
-    int i, j;
+    bool canceled;
 } TrimAIOCB;
 
 static void trim_aio_cancel(BlockAIOCB *acb)
 {
     TrimAIOCB *iocb = container_of(acb, TrimAIOCB, common);
 
-    /* Exit the loop so ide_issue_trim_cb will not continue  */
-    iocb->j = iocb->qiov->niov - 1;
-    iocb->i = (iocb->qiov->iov[iocb->j].iov_len / 8) - 1;
-
-    iocb->ret = -ECANCELED;
+    /* Exit the loop so ide_trim_co_entry will not continue */
+    iocb->canceled = true;
 }
 
 static const AIOCBInfo trim_aiocb_info = {
@@ -458,60 +455,55 @@ static void coroutine_fn ide_trim_co_entry(void *opaque)
 {
     TrimAIOCB *iocb = opaque;
     IDEState *s = iocb->s;
-    int ret = 0;
+    int i, j;
+    int ret;
 
     /* Paired with blk_end_request in ide_trim_bh_cb() */
     blk_co_start_request(s->blk);
 
-loop:
-    if (iocb->i >= 0) {
-        if (ret >= 0) {
-            block_acct_done(blk_get_stats(s->blk), &s->acct);
-        } else {
-            block_acct_failed(blk_get_stats(s->blk), &s->acct);
-        }
-    }
+    for (j = 0; j < iocb->qiov->niov; j++) {
+        for (i = 0; i < iocb->qiov->iov[j].iov_len / 8; i++) {
+            uint64_t *buffer = iocb->qiov->iov[j].iov_base;
 
-    if (ret >= 0) {
-        while (iocb->j < iocb->qiov->niov) {
-            int j = iocb->j;
-            while (++iocb->i < iocb->qiov->iov[j].iov_len / 8) {
-                int i = iocb->i;
-                uint64_t *buffer = iocb->qiov->iov[j].iov_base;
+            /* 6-byte LBA + 2-byte range per entry */
+            uint64_t entry = le64_to_cpu(buffer[i]);
+            uint64_t sector = entry & 0x0000ffffffffffffULL;
+            uint16_t count = entry >> 48;
 
-                /* 6-byte LBA + 2-byte range per entry */
-                uint64_t entry = le64_to_cpu(buffer[i]);
-                uint64_t sector = entry & 0x0000ffffffffffffULL;
-                uint16_t count = entry >> 48;
-
-                if (count == 0) {
-                    continue;
-                }
-
-                if (!ide_sect_range_ok(s, sector, count)) {
-                    block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_UNMAP);
-                    iocb->ret = -EINVAL;
-                    goto done;
-                }
-
-                block_acct_start(blk_get_stats(s->blk), &s->acct,
-                                 count << BDRV_SECTOR_BITS, BLOCK_ACCT_UNMAP);
-
-                /* Got an entry! Submit and exit.  */
-                ret = blk_co_pdiscard(s->blk,
-                                      sector << BDRV_SECTOR_BITS,
-                                      count << BDRV_SECTOR_BITS,
-                                      BDRV_REQ_NO_QUEUE);
-                goto loop;
+            if (count == 0) {
+                continue;
             }
 
-            iocb->j++;
-            iocb->i = -1;
+            if (iocb->canceled) {
+                iocb->ret = -ECANCELED;
+                goto done;
+            }
+
+            if (!ide_sect_range_ok(s, sector, count)) {
+                block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_UNMAP);
+                iocb->ret = -EINVAL;
+                goto done;
+            }
+
+            block_acct_start(blk_get_stats(s->blk), &s->acct,
+                             count << BDRV_SECTOR_BITS, BLOCK_ACCT_UNMAP);
+
+            /* Got an entry! Submit and exit.  */
+            ret = blk_co_pdiscard(s->blk,
+                                  sector << BDRV_SECTOR_BITS,
+                                  count << BDRV_SECTOR_BITS,
+                                  BDRV_REQ_NO_QUEUE);
+            if (ret >= 0) {
+                block_acct_done(blk_get_stats(s->blk), &s->acct);
+            } else {
+                iocb->ret = ret;
+                block_acct_failed(blk_get_stats(s->blk), &s->acct);
+                goto done;
+            }
         }
-    } else {
-        iocb->ret = ret;
     }
 
+    iocb->ret = 0;
 done:
     if (iocb->bh) {
         replay_bh_schedule_event(iocb->bh);
@@ -533,8 +525,7 @@ BlockAIOCB *ide_issue_trim(
                                    &DEVICE(dev)->mem_reentrancy_guard);
     iocb->ret = 0;
     iocb->qiov = qiov;
-    iocb->i = -1;
-    iocb->j = 0;
+    iocb->canceled = false;
 
     co = qemu_coroutine_create(ide_trim_co_entry, iocb);
     aio_co_enter(qemu_get_current_aio_context(), co);
