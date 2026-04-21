@@ -3786,6 +3786,9 @@
 #
 # @errno: error identifier (errno) to be returned; defaults to EIO
 #
+# @delay-ns: request delay before completion in nanoseconds
+#            (default: 0, since: 11.1)
+#
 # @sector: specifies the sector index which has to be affected in
 #     order to actually trigger the event; defaults to "any sector"
 #
@@ -3801,6 +3804,7 @@
             '*state': 'int',
             '*iotype': 'BlkdebugIOType',
             '*errno': 'int',
+            '*delay-ns': 'int',
             '*sector': 'int',
             '*once': 'bool',
             '*immediately': 'bool' } }
