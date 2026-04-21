@@ -215,8 +215,17 @@ typedef enum {
      */
     BDRV_REQ_NO_WAIT = 0x400,
 
+    /*
+     * Used between blk_co_start_request() and blk_end_request() to avoid
+     * that the request waits in a drained BlockBackend until the drained
+     * section ends. Waiting would cause a deadlock because drain waits for
+     * blk_end_request() to be called, but the request never completes
+     * because it waits for the drain to end.
+     */
+    BDRV_REQ_NO_QUEUE = 0x800,
+
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x7ff,
+    BDRV_REQ_MASK               = 0xfff,
 } BdrvRequestFlags;
 
 #define BDRV_O_NO_SHARE    0x0001 /* don't share permissions */
