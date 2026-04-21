@@ -420,7 +420,6 @@ typedef struct TrimAIOCB {
     QEMUBH *bh;
     int ret;
     QEMUIOVector *qiov;
-    BlockAIOCB *aiocb;
     int i, j;
 } TrimAIOCB;
 
@@ -433,11 +432,6 @@ static void trim_aio_cancel(BlockAIOCB *acb)
     iocb->i = (iocb->qiov->iov[iocb->j].iov_len / 8) - 1;
 
     iocb->ret = -ECANCELED;
-
-    if (iocb->aiocb) {
-        blk_aio_cancel_async(iocb->aiocb);
-        iocb->aiocb = NULL;
-    }
 }
 
 static const AIOCBInfo trim_aiocb_info = {
@@ -456,15 +450,20 @@ static void ide_trim_bh_cb(void *opaque)
     iocb->bh = NULL;
     qemu_aio_unref(iocb);
 
-    /* Paired with an increment in ide_issue_trim() */
-    blk_dec_in_flight(blk);
+    /* Paired with blk_co_start_request in ide_trim_co_entry() */
+    blk_end_request(blk);
 }
 
-static void ide_issue_trim_cb(void *opaque, int ret)
+static void coroutine_fn ide_trim_co_entry(void *opaque)
 {
     TrimAIOCB *iocb = opaque;
     IDEState *s = iocb->s;
+    int ret = 0;
 
+    /* Paired with blk_end_request in ide_trim_bh_cb() */
+    blk_co_start_request(s->blk);
+
+loop:
     if (iocb->i >= 0) {
         if (ret >= 0) {
             block_acct_done(blk_get_stats(s->blk), &s->acct);
@@ -499,11 +498,11 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                                  count << BDRV_SECTOR_BITS, BLOCK_ACCT_UNMAP);
 
                 /* Got an entry! Submit and exit.  */
-                iocb->aiocb = blk_aio_pdiscard(s->blk,
-                                               sector << BDRV_SECTOR_BITS,
-                                               count << BDRV_SECTOR_BITS,
-                                               ide_issue_trim_cb, opaque);
-                return;
+                ret = blk_co_pdiscard(s->blk,
+                                      sector << BDRV_SECTOR_BITS,
+                                      count << BDRV_SECTOR_BITS,
+                                      BDRV_REQ_NO_QUEUE);
+                goto loop;
             }
 
             iocb->j++;
@@ -514,7 +513,6 @@ static void ide_issue_trim_cb(void *opaque, int ret)
     }
 
 done:
-    iocb->aiocb = NULL;
     if (iocb->bh) {
         replay_bh_schedule_event(iocb->bh);
     }
@@ -527,9 +525,7 @@ BlockAIOCB *ide_issue_trim(
     IDEState *s = opaque;
     IDEDevice *dev = s->unit ? s->bus->slave : s->bus->master;
     TrimAIOCB *iocb;
-
-    /* Paired with a decrement in ide_trim_bh_cb() */
-    blk_inc_in_flight(s->blk);
+    Coroutine *co;
 
     iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
     iocb->s = s;
@@ -539,7 +535,10 @@ BlockAIOCB *ide_issue_trim(
     iocb->qiov = qiov;
     iocb->i = -1;
     iocb->j = 0;
-    ide_issue_trim_cb(iocb, 0);
+
+    co = qemu_coroutine_create(ide_trim_co_entry, iocb);
+    aio_co_enter(qemu_get_current_aio_context(), co);
+
     return &iocb->common;
 }
 
