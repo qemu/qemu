@@ -85,5 +85,5 @@ class MigrationTest(QemuSystemTest):
         with Ports() as ports:
             free_port = self._get_free_port(ports)
             dst_uri = 'exec:socat TCP-LISTEN:%u -' % free_port
-            src_uri = 'exec:socat - TCP:localhost:%u' % free_port
+            src_uri = 'exec:socat - TCP:localhost:%u,forever' % free_port
             self.migrate(dst_uri, src_uri)
