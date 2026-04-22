@@ -235,6 +235,10 @@ static uint64_t uefi_vars_read(void *opaque, hwaddr addr, unsigned size)
         uv->pio_xfer_offset += size;
         break;
     case UEFI_VARS_REG_PIO_BUFFER_CRC32C:
+        if (uv->pio_xfer_offset > uv->buf_size) {
+            retval = 0;
+            break;
+        }
         retval = crc32c(0xffffffff, uv->pio_xfer_buffer, uv->pio_xfer_offset);
         break;
     case UEFI_VARS_REG_FLAGS:
