@@ -19,13 +19,18 @@
  * sometimes when they are not (for example in variable policies).
  */
 
-gboolean uefi_str_is_valid(const uint16_t *str, size_t len,
+gboolean uefi_str_is_valid(const uint16_t *str, size_t bytes,
                            gboolean must_be_null_terminated)
 {
+    size_t chars = bytes / 2;
     size_t pos = 0;
 
+    if ((bytes % 2) != 0) {
+        return false;
+    }
+
     for (;;) {
-        if (pos == len) {
+        if (pos == chars) {
             if (must_be_null_terminated) {
                 return false;
             } else {
@@ -47,12 +52,13 @@ gboolean uefi_str_is_valid(const uint16_t *str, size_t len,
     }
 }
 
-size_t uefi_strlen(const uint16_t *str, size_t len)
+size_t uefi_strlen(const uint16_t *str, size_t bytes)
 {
+    size_t chars = bytes / 2;
     size_t pos = 0;
 
     for (;;) {
-        if (pos == len) {
+        if (pos == chars) {
             return pos;
         }
         if (str[pos] == 0) {
@@ -62,25 +68,25 @@ size_t uefi_strlen(const uint16_t *str, size_t len)
     }
 }
 
-gboolean uefi_str_equal_ex(const uint16_t *a, size_t alen,
-                           const uint16_t *b, size_t blen,
+gboolean uefi_str_equal_ex(const uint16_t *a, size_t a_bytes,
+                           const uint16_t *b, size_t b_bytes,
                            gboolean wildcards_in_a)
 {
+    size_t a_chars = a_bytes / 2;
+    size_t b_chars = b_bytes / 2;
     size_t pos = 0;
 
-    alen = alen / 2;
-    blen = blen / 2;
     for (;;) {
-        if (pos == alen && pos == blen) {
+        if (pos == a_chars && pos == b_chars) {
             return true;
         }
-        if (pos == alen && b[pos] == 0) {
+        if (pos == a_chars && b[pos] == 0) {
             return true;
         }
-        if (pos == blen && a[pos] == 0) {
+        if (pos == b_chars && a[pos] == 0) {
             return true;
         }
-        if (pos == alen || pos == blen) {
+        if (pos == a_chars || pos == b_chars) {
             return false;
         }
         if (a[pos] == 0 && b[pos] == 0) {
@@ -100,18 +106,18 @@ gboolean uefi_str_equal_ex(const uint16_t *a, size_t alen,
     }
 }
 
-gboolean uefi_str_equal(const uint16_t *a, size_t alen,
-                        const uint16_t *b, size_t blen)
+gboolean uefi_str_equal(const uint16_t *a, size_t a_bytes,
+                        const uint16_t *b, size_t b_bytes)
 {
-    return uefi_str_equal_ex(a, alen, b, blen, false);
+    return uefi_str_equal_ex(a, a_bytes, b, b_bytes, false);
 }
 
-char *uefi_ucs2_to_ascii(const uint16_t *ucs2, uint64_t ucs2_size)
+char *uefi_ucs2_to_ascii(const uint16_t *ucs2, uint64_t ucs2_bytes)
 {
-    char *str = g_malloc0(ucs2_size / 2 + 1);
+    char *str = g_malloc0(ucs2_bytes / 2 + 1);
     int i;
 
-    for (i = 0; i * 2 < ucs2_size; i++) {
+    for (i = 0; i * 2 < ucs2_bytes; i++) {
         if (ucs2[i] == 0) {
             break;
         }
