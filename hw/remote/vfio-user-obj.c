@@ -800,7 +800,8 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
         goto fail;
     }
 
-    ret = vfu_setup_device_dma(o->vfu_ctx, &dma_register, &dma_unregister);
+    ret = vfu_setup_device_dma(o->vfu_ctx, LIBVFIO_USER_MAX_DMA_REGIONS,
+                               &dma_register, &dma_unregister);
     if (ret < 0) {
         error_setg(errp, "vfu: Failed to setup DMA handlers for %s",
                    o->device);
