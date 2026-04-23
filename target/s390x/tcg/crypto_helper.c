@@ -18,6 +18,7 @@
 #include "tcg_s390x.h"
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-mmu-index.h"
 
 static uint64_t R(uint64_t x, int c)
 {
@@ -119,8 +120,8 @@ static void sha512_bda_be64(uint64_t a[8], uint64_t w[16])
     sha512_bda(a, t);
 }
 
-static void sha512_read_icv(CPUS390XState *env, uint64_t addr,
-                            uint64_t a[8], uintptr_t ra)
+static void sha512_read_icv(CPUS390XState *env, const int mmu_idx,
+                            uint64_t addr, uint64_t a[8], uintptr_t ra)
 {
     int i;
 
@@ -130,8 +131,8 @@ static void sha512_read_icv(CPUS390XState *env, uint64_t addr,
     }
 }
 
-static void sha512_write_ocv(CPUS390XState *env, uint64_t addr,
-                             uint64_t a[8], uintptr_t ra)
+static void sha512_write_ocv(CPUS390XState *env, const int mmu_idx,
+                             uint64_t addr, uint64_t a[8], uintptr_t ra)
 {
     int i;
 
@@ -141,8 +142,8 @@ static void sha512_write_ocv(CPUS390XState *env, uint64_t addr,
     }
 }
 
-static void sha512_read_block(CPUS390XState *env, uint64_t addr,
-                              uint64_t a[16], uintptr_t ra)
+static void sha512_read_block(CPUS390XState *env, const int mmu_idx,
+                              uint64_t addr, uint64_t a[16], uintptr_t ra)
 {
     int i;
 
@@ -152,8 +153,8 @@ static void sha512_read_block(CPUS390XState *env, uint64_t addr,
     }
 }
 
-static void sha512_read_mbl_be64(CPUS390XState *env, uint64_t addr,
-                                 uint8_t a[16], uintptr_t ra)
+static void sha512_read_mbl_be64(CPUS390XState *env, const int mmu_idx,
+                                 uint64_t addr, uint8_t a[16], uintptr_t ra)
 {
     int i;
 
@@ -163,8 +164,9 @@ static void sha512_read_mbl_be64(CPUS390XState *env, uint64_t addr,
     }
 }
 
-static int cpacf_sha512(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
-                      uint64_t *message_reg, uint64_t *len_reg, uint32_t type)
+static int cpacf_sha512(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
+                        uint64_t param_addr, uint64_t *message_reg,
+                        uint64_t *len_reg, uint32_t type)
 {
     enum { MAX_BLOCKS_PER_RUN = 64 }; /* Arbitrary: keep interactivity. */
     uint64_t len = *len_reg, a[8], processed = 0;
@@ -182,7 +184,7 @@ static int cpacf_sha512(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, ra);
     }
 
-    sha512_read_icv(env, param_addr, a, ra);
+    sha512_read_icv(env, mmu_idx, param_addr, a, ra);
 
     /* Process full blocks first. */
     for (; len >= 128; len -= 128, processed += 128) {
@@ -192,7 +194,7 @@ static int cpacf_sha512(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
             break;
         }
 
-        sha512_read_block(env, *message_reg + processed, w, ra);
+        sha512_read_block(env, mmu_idx, *message_reg + processed, w, ra);
         sha512_bda(a, w);
     }
 
@@ -215,13 +217,13 @@ static int cpacf_sha512(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
          * or use an additional one.
          */
         if (len < 112) {
-            sha512_read_mbl_be64(env, param_addr + 64, x + 112, ra);
+            sha512_read_mbl_be64(env, mmu_idx, param_addr + 64, x + 112, ra);
         }
         sha512_bda_be64(a, (uint64_t *)x);
 
         if (len >= 112) {
             memset(x, 0, 112);
-            sha512_read_mbl_be64(env, param_addr + 64, x + 112, ra);
+            sha512_read_mbl_be64(env, mmu_idx, param_addr + 64, x + 112, ra);
             sha512_bda_be64(a, (uint64_t *)x);
         }
 
@@ -236,14 +238,14 @@ static int cpacf_sha512(CPUS390XState *env, uintptr_t ra, uint64_t param_addr,
      * TODO: if writing fails halfway through (e.g., when crossing page
      * boundaries), we're in trouble. We'd need something like access_prepare().
      */
-    sha512_write_ocv(env, param_addr, a, ra);
+    sha512_write_ocv(env, mmu_idx, param_addr, a, ra);
     *message_reg = deposit64(*message_reg, 0, message_reg_len,
                              *message_reg + processed);
     *len_reg -= processed;
     return !len ? 0 : 3;
 }
 
-static void fill_buf_random(CPUS390XState *env, uintptr_t ra,
+static void fill_buf_random(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                             uint64_t *buf_reg, uint64_t *len_reg)
 {
     uint8_t tmp[256];
@@ -271,6 +273,7 @@ static void fill_buf_random(CPUS390XState *env, uintptr_t ra,
 uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
                      uint32_t type)
 {
+    const int mmu_idx = cpu_mmu_index(env_cpu(env), false);
     const uintptr_t ra = GETPC();
     const uint8_t mod = env->regs[0] & 0x80ULL;
     const uint8_t fc = env->regs[0] & 0x7fULL;
@@ -303,11 +306,11 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
         }
         break;
     case 3: /* CPACF_*_SHA_512 */
-        return cpacf_sha512(env, ra, env->regs[1], &env->regs[r2],
+        return cpacf_sha512(env, mmu_idx, ra, env->regs[1], &env->regs[r2],
                             &env->regs[r2 + 1], type);
     case 114: /* CPACF_PRNO_TRNG */
-        fill_buf_random(env, ra, &env->regs[r1], &env->regs[r1 + 1]);
-        fill_buf_random(env, ra, &env->regs[r2], &env->regs[r2 + 1]);
+        fill_buf_random(env, mmu_idx, ra, &env->regs[r1], &env->regs[r1 + 1]);
+        fill_buf_random(env, mmu_idx, ra, &env->regs[r2], &env->regs[r2 + 1]);
         break;
     default:
         /* we don't implement any other subfunction yet */
