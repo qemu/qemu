@@ -56,11 +56,7 @@ void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
     cpu->apic_state->cpu = cpu;
     cpu->apic_state->apicbase = APIC_DEFAULT_ADDRESS | MSR_IA32_APICBASE_ENABLE;
 
-    /*
-     * apic_common_set_id needs to check if the CPU has x2APIC
-     * feature in case APIC ID >= 255, so we need to set cpu->apic_state->cpu
-     * before setting APIC ID
-     */
+    /* cpu must be set before realize, which validates the APIC ID */
     qdev_prop_set_uint32(DEVICE(cpu->apic_state), "id", cpu->apic_id);
 }
 
