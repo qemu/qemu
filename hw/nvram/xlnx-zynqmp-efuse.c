@@ -724,11 +724,11 @@ static void zynqmp_efuse_reg_write(void *opaque, hwaddr addr,
 {
     RegisterInfoArray *reg_array = opaque;
     XlnxZynqMPEFuse *s;
-    Object *dev;
+    DeviceState *dev;
 
     assert(reg_array != NULL);
 
-    dev = reg_array->mem.owner;
+    dev = register_array_get_owner(reg_array);
     assert(dev);
 
     s = XLNX_ZYNQMP_EFUSE(dev);

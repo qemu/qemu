@@ -209,4 +209,15 @@ RegisterInfoArray *register_init_block64(DeviceState *owner,
                                          bool debug_enabled,
                                          uint64_t memory_size);
 
+/**
+ * register_array_get_owner
+ *
+ * Retrieve the device owning the register info array @reg_array.
+ *
+ * @reg_array The register info array to retrieve the owner from
+ *
+ * Returns: the device owning @reg_array
+ */
+DeviceState *register_array_get_owner(const RegisterInfoArray *reg_array);
+
 #endif
