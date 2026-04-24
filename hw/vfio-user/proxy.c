@@ -1190,8 +1190,8 @@ static bool check_migr(VFIOUserProxy *proxy, QObject *qobj, Error **errp)
     QDict *qdict = qobject_to(QDict, qobj);
 
     if (qdict == NULL) {
-        error_setg(errp, "malformed %s", VFIO_USER_CAP_MAX_FDS);
-        return true;
+        error_setg(errp, "malformed %s", VFIO_USER_CAP_MIGR);
+        return false;
     }
     return caps_parse(proxy, qdict, caps_migr, errp);
 }
