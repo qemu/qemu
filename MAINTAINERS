@@ -4428,7 +4428,7 @@ F: subprojects/libvduse/
 F: block/export/vduse-blk.c
 F: block/export/vduse-blk.h
 
-Replication
+COLO block replication
 M: Lukas Straub <lukasstraub2@web.de>
 S: Maintained
 F: replication*
