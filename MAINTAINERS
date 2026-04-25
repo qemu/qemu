@@ -4429,7 +4429,8 @@ F: block/export/vduse-blk.c
 F: block/export/vduse-blk.h
 
 Replication
-S: Orphan
+M: Lukas Straub <lukasstraub2@web.de>
+S: Maintained
 F: replication*
 F: block/replication.c
 F: tests/unit/test-replication.c
