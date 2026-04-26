@@ -677,9 +677,8 @@ FloatPartsN partsN(mul)(const FloatPartsN *a, const FloatPartsN *b,
  * Requires A and C extracted into a double-sized structure to provide the
  * extra space for the widening multiply.
  */
-static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
-                                   FloatPartsN *c,
-                                   int flags, float_status *s)
+FloatPartsN partsN(muladd)(const FloatPartsN *a, const FloatPartsN *b,
+                           const FloatPartsN *c, int flags, float_status *s)
 {
     int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
     int c_mask = float_cmask(c->cls);
@@ -717,10 +716,13 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
         }
 
         /* Narrow with sticky bit, for proper rounding later. */
-        fracN(truncjam)(a, &p_widen);
-        a->sign = p_widen.sign;
-        a->exp = p_widen.exp;
-        return a;
+        FloatPartsN r = {
+            .sign = p_widen.sign,
+            .exp = p_widen.exp,
+            .cls = float_class_normal,
+        };
+        fracN(truncjam)(&r, &p_widen);
+        return r;
     }
 
     /*
@@ -730,8 +732,7 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
      * off to the target-specific pick-a-NaN routine.
      */
     if (unlikely(abc_mask & float_cmask_anynan)) {
-        *a = partsN(pick_nan_muladd)(a, b, c, s, ab_mask, abc_mask);
-        return a;
+        return partsN(pick_nan_muladd)(a, b, c, s, ab_mask, abc_mask);
     }
 
     if (unlikely(ab_mask == float_cmask_infzero)) {
@@ -748,9 +749,7 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
         }
         /* Inf + C == Inf */
         record_denormals_used(abc_mask, s);
-        a->sign = p_sign;
-        a->cls = float_class_inf;
-        return a;
+        return (FloatPartsN){ .sign = p_sign, .cls = float_class_inf };
     }
     record_denormals_used(abc_mask, s);
 
@@ -766,19 +765,20 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
     if (!(c_mask & float_cmask_zero)
         || p_sign == c_sign
         || (flags & float_muladd_suppress_add_product_zero)) {
-        c->sign = c_sign;
-        return c;
+        FloatPartsN r = *c;
+        r.sign = c_sign;
+        return r;
     }
 
  return_sub_zero:
     /* 0 - 0 == -0 for round_down, +0 otherwise. */
-    a->sign = s->float_rounding_mode == float_round_down;
-    a->cls = float_class_zero;
-    return a;
+    return (FloatPartsN){
+        .sign = s->float_rounding_mode == float_round_down,
+        .cls = float_class_zero
+    };
 
  d_nan:
-    *a = partsN(default_nan)(s);
-    return a;
+    return partsN(default_nan)(s);
 }
 
 /*

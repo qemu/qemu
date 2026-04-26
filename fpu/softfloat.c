@@ -1906,18 +1906,18 @@ float16 float16_muladd_scalbn(float16 a, float16 b, float16 c,
     FloatParts64 pa = float16_unpack_canonical(a, status);
     FloatParts64 pb = float16_unpack_canonical(b, status);
     FloatParts64 pc = float16_unpack_canonical(c, status);
-    FloatParts64 *pr = parts64_muladd(&pa, &pb, &pc, flags, status);
+    FloatParts64 pr = parts64_muladd(&pa, &pb, &pc, flags, status);
 
     /* Before rounding, scale. */
     if (scale) {
-        *pr = parts64_scalbn(pr, scale, status);
+        pr = parts64_scalbn(&pr, scale, status);
     }
-    parts64_uncanon(pr, status, &float16_params, false);
+    parts64_uncanon(&pr, status, &float16_params, false);
     /* After rounding, apply negate result, especially for -0.0. */
-    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
-        pr->sign ^= 1;
+    if ((flags & float_muladd_negate_result) && !is_nan(pr.cls)) {
+        pr.sign ^= 1;
     }
-    return pack_raw64(pr, &float16_params);
+    return pack_raw64(&pr, &float16_params);
 }
 
 float16 float16_muladd(float16 a, float16 b, float16 c,
@@ -1933,18 +1933,18 @@ float32_muladd_scalbn(float32 a, float32 b, float32 c,
     FloatParts64 pa = float32_unpack_canonical(a, status);
     FloatParts64 pb = float32_unpack_canonical(b, status);
     FloatParts64 pc = float32_unpack_canonical(c, status);
-    FloatParts64 *pr = parts64_muladd(&pa, &pb, &pc, flags, status);
+    FloatParts64 pr = parts64_muladd(&pa, &pb, &pc, flags, status);
 
     /* Before rounding, scale. */
     if (scale) {
-        *pr = parts64_scalbn(pr, scale, status);
+        pr = parts64_scalbn(&pr, scale, status);
     }
-    parts64_uncanon(pr, status, &float32_params, false);
+    parts64_uncanon(&pr, status, &float32_params, false);
     /* After rounding, apply negate result, especially for -0.0. */
-    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
-        pr->sign ^= 1;
+    if ((flags & float_muladd_negate_result) && !is_nan(pr.cls)) {
+        pr.sign ^= 1;
     }
-    return pack_raw64(pr, &float32_params);
+    return pack_raw64(&pr, &float32_params);
 }
 
 float64 QEMU_SOFTFLOAT_ATTR
@@ -1954,18 +1954,18 @@ float64_muladd_scalbn(float64 a, float64 b, float64 c,
     FloatParts64 pa = float64_unpack_canonical(a, status);
     FloatParts64 pb = float64_unpack_canonical(b, status);
     FloatParts64 pc = float64_unpack_canonical(c, status);
-    FloatParts64 *pr = parts64_muladd(&pa, &pb, &pc, flags, status);
+    FloatParts64 pr = parts64_muladd(&pa, &pb, &pc, flags, status);
 
     /* Before rounding, scale. */
     if (scale) {
-        *pr = parts64_scalbn(pr, scale, status);
+        pr = parts64_scalbn(&pr, scale, status);
     }
-    parts64_uncanon(pr, status, &float64_params, false);
+    parts64_uncanon(&pr, status, &float64_params, false);
     /* After rounding, apply negate result, especially for -0.0. */
-    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
-        pr->sign ^= 1;
+    if ((flags & float_muladd_negate_result) && !is_nan(pr.cls)) {
+        pr.sign ^= 1;
     }
-    return pack_raw64(pr, &float64_params);
+    return pack_raw64(&pr, &float64_params);
 }
 
 static bool force_soft_fma;
@@ -2115,14 +2115,14 @@ float64 float64r32_muladd(float64 a, float64 b, float64 c,
     FloatParts64 pa = float64_unpack_canonical(a, status);
     FloatParts64 pb = float64_unpack_canonical(b, status);
     FloatParts64 pc = float64_unpack_canonical(c, status);
-    FloatParts64 *pr = parts64_muladd(&pa, &pb, &pc, flags, status);
+    FloatParts64 pr = parts64_muladd(&pa, &pb, &pc, flags, status);
 
     /* Round before applying negate result. */
-    parts64_uncanon(pr, status, &float32_params, false);
-    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
-        pr->sign ^= 1;
+    parts64_uncanon(&pr, status, &float32_params, false);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr.cls)) {
+        pr.sign ^= 1;
     }
-    return float64r32_pack_raw(pr);
+    return float64r32_pack_raw(&pr);
 }
 
 bfloat16 bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
@@ -2131,14 +2131,14 @@ bfloat16 bfloat16_muladd(bfloat16 a, bfloat16 b, bfloat16 c,
     FloatParts64 pa = bfloat16_unpack_canonical(a, status);
     FloatParts64 pb = bfloat16_unpack_canonical(b, status);
     FloatParts64 pc = bfloat16_unpack_canonical(c, status);
-    FloatParts64 *pr = parts64_muladd(&pa, &pb, &pc, flags, status);
+    FloatParts64 pr = parts64_muladd(&pa, &pb, &pc, flags, status);
 
     /* Round before applying negate result. */
-    parts64_uncanon(pr, status, &bfloat16_params, false);
-    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
-        pr->sign ^= 1;
+    parts64_uncanon(&pr, status, &bfloat16_params, false);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr.cls)) {
+        pr.sign ^= 1;
     }
-    return pack_raw64(pr, &bfloat16_params);
+    return pack_raw64(&pr, &bfloat16_params);
 }
 
 float128 float128_muladd(float128 a, float128 b, float128 c,
@@ -2147,14 +2147,14 @@ float128 float128_muladd(float128 a, float128 b, float128 c,
     FloatParts128 pa = float128_unpack_canonical(a, status);
     FloatParts128 pb = float128_unpack_canonical(b, status);
     FloatParts128 pc = float128_unpack_canonical(c, status);
-    FloatParts128 *pr = parts128_muladd(&pa, &pb, &pc, flags, status);
+    FloatParts128 pr = parts128_muladd(&pa, &pb, &pc, flags, status);
 
     /* Round before applying negate result. */
-    parts128_uncanon(pr, status, &float128_params, false);
-    if ((flags & float_muladd_negate_result) && !is_nan(pr->cls)) {
-        pr->sign ^= 1;
+    parts128_uncanon(&pr, status, &float128_params, false);
+    if ((flags & float_muladd_negate_result) && !is_nan(pr.cls)) {
+        pr.sign ^= 1;
     }
-    return float128_pack_raw(pr);
+    return float128_pack_raw(&pr);
 }
 
 /*
@@ -5126,7 +5126,7 @@ float32 float32_exp2(float32 a, float_status *status)
     rp = float64_unpack_canonical(float64_one, status);
     for (int i = 0; i < 15; i++) {
         tp = float64_unpack_canonical(float32_exp2_coefficients[i], status);
-        rp = *parts64_muladd(&tp, &xnp, &rp, 0, status);
+        rp = parts64_muladd(&tp, &xnp, &rp, 0, status);
         xnp = parts64_mul(&xnp, &xp, status);
     }
 
@@ -5175,7 +5175,7 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
         n->sign = a->sign ^ b->sign;
         *cc = 0;
     } else {
-        FloatParts64 *q, q_buf, *r_precise, r_precise_buf;
+        FloatParts64 *q, q_buf, r_precise;
         int float_exception_flags = 0;
         bool is_q_smallish;
         uint32_t r_flags;
@@ -5205,12 +5205,11 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
                                     0, fmt->frac_size);
 
         /* Compute precise remainder */
-        r_precise_buf = *b;
-        r_precise = parts64_muladd(&r_precise_buf, n, a,
+        r_precise = parts64_muladd(b, n, a,
                                    float_muladd_negate_product, status);
 
         /* Round remainder to the target format */
-        *r = *r_precise;
+        *r = r_precise;
         status->float_exception_flags = 0;
         *r = parts64_round_to_fmt(r, status, fmt);
         r_flags = status->float_exception_flags;
@@ -5234,17 +5233,17 @@ static void parts_s390_divide_to_integer(FloatParts64 *a, FloatParts64 *b,
                          * toward zero) or incremented.
                          */
                         saved_r_sign = r->sign;
-                        saved_r_precise_sign = r_precise->sign;
+                        saved_r_precise_sign = r_precise.sign;
                         r->sign = false;
-                        r_precise->sign = false;
-                        if (parts64_compare(r, r_precise, status, true) <
+                        r_precise.sign = false;
+                        if (parts64_compare(r, &r_precise, status, true) <
                             float_relation_equal) {
                             *dxc = 0x8;
                         } else {
                             *dxc = 0xc;
                         }
                         r->sign = saved_r_sign;
-                        r_precise->sign = saved_r_precise_sign;
+                        r_precise.sign = saved_r_precise_sign;
                     }
                 }
             }

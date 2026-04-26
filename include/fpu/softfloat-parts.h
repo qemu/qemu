@@ -202,6 +202,15 @@ FloatParts64 parts64_mul(const FloatParts64 *a, const FloatParts64 *b,
 FloatParts128 parts128_mul(const FloatParts128 *a, const FloatParts128 *b,
                            float_status *s);
 
+FloatParts64 parts64_muladd(const FloatParts64 *a,
+                            const FloatParts64 *b,
+                            const FloatParts64 *c,
+                            int flags, float_status *s);
+FloatParts128 parts128_muladd(const FloatParts128 *a,
+                              const FloatParts128 *b,
+                              const FloatParts128 *c,
+                              int flags, float_status *s);
+
 FloatParts64 parts64_round_to_int(const FloatParts64 *a,
                                   FloatRoundMode rmode,
                                   int scale, float_status *s,
