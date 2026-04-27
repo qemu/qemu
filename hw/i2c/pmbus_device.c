@@ -23,8 +23,10 @@ uint16_t pmbus_data2direct_mode(PMBusCoefficients c, uint32_t value)
 uint32_t pmbus_direct_mode2data(PMBusCoefficients c, uint16_t value)
 {
     /* X = (Y * 10^-R - b) / m */
-    uint32_t x = (value / pow(10, c.R) - c.b) / c.m;
-    return x;
+    double x = (value / pow(10, c.R) - c.b) / c.m;
+    return (x > 0
+              ? (x < G_MAXUINT32 ? (uint32_t)x : G_MAXUINT32)
+              : 0);
 }
 
 uint16_t pmbus_data2linear_mode(uint16_t value, int exp)
