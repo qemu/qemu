@@ -1392,6 +1392,9 @@ count_single_write_clusters(BlockDriverState *bs, int nb_clusters,
  * the same cluster. In this case we need to wait until the previous
  * request has completed and updated the L2 table accordingly.
  *
+ * If allow_shortening == true, instead of waiting for a dependency, *cur_bytes
+ * can be shortened so that the cluster allocations don't overlap.
+ *
  * Returns:
  *   0       if there was no dependency. *cur_bytes indicates the number of
  *           bytes from guest_offset that can be read before the next
@@ -1403,7 +1406,9 @@ count_single_write_clusters(BlockDriverState *bs, int nb_clusters,
  */
 static int coroutine_fn handle_dependencies(BlockDriverState *bs,
                                             uint64_t guest_offset,
-                                            uint64_t *cur_bytes, QCowL2Meta **m)
+                                            uint64_t *cur_bytes,
+                                            bool allow_shortening,
+                                            QCowL2Meta **m)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowL2Meta *old_alloc;
@@ -1434,7 +1439,7 @@ static int coroutine_fn handle_dependencies(BlockDriverState *bs,
 
         /* Conflict */
 
-        if (start < old_start) {
+        if (start < old_start && allow_shortening) {
             /* Stop at the start of a running allocation */
             bytes = old_start - start;
         } else {
@@ -1467,6 +1472,29 @@ static int coroutine_fn handle_dependencies(BlockDriverState *bs,
     *cur_bytes = bytes;
 
     return 0;
+}
+
+static void coroutine_mixed_fn wait_for_dependencies(BlockDriverState *bs,
+                                                     uint64_t guest_offset,
+                                                     uint64_t bytes)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QCowL2Meta *m = NULL;
+    int ret;
+
+    /*
+     * Discard has some non-coroutine callers (creating internal snapshots and
+     * make empty). They are calling from qemu-img or in a drained section, so
+     * we know that no writes can be in progress.
+     */
+    if (!qemu_in_coroutine()) {
+        assert(QLIST_EMPTY(&s->cluster_allocs));
+        return;
+    }
+
+    do {
+        ret = handle_dependencies(bs, guest_offset, &bytes, false, &m);
+    } while (ret == -EAGAIN);
 }
 
 /*
@@ -1840,7 +1868,7 @@ again:
          *         the right synchronisation between the in-flight request and
          *         the new one.
          */
-        ret = handle_dependencies(bs, start, &cur_bytes, m);
+        ret = handle_dependencies(bs, start, &cur_bytes, true, m);
         if (ret == -EAGAIN) {
             /* Currently handle_dependencies() doesn't yield if we already had
              * an allocation. If it did, we would have to clean up the L2Meta
@@ -1999,6 +2027,15 @@ int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
     uint64_t nb_clusters;
     int64_t cleared;
     int ret;
+
+    /*
+     * If we're touching a cluster for which allocating writes are in flight,
+     * wait for them to complete to avoid conflicting metadata updates.
+     *
+     * We don't need to allocate a QCowL2Meta for the discard operation because
+     * s->lock is held for the duration of the whole operation.
+     */
+    wait_for_dependencies(bs, offset, bytes);
 
     /* Caller must pass aligned values, except at image end */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
@@ -2159,6 +2196,15 @@ int coroutine_fn qcow2_subcluster_zeroize(BlockDriverState *bs, uint64_t offset,
     unsigned head, tail;
     int64_t cleared;
     int ret;
+
+    /*
+     * If we're touching a cluster for which allocating writes are in flight,
+     * wait for them to complete to avoid conflicting metadata updates.
+     *
+     * We don't need to allocate a QCowL2Meta for the zeroize operation because
+     * s->lock is held for the duration of the whole operation.
+     */
+    wait_for_dependencies(bs, offset, bytes);
 
     /* If we have to stay in sync with an external data file, zero out
      * s->data_file first. */
