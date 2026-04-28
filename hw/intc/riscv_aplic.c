@@ -892,6 +892,44 @@ static const MemoryRegionOps riscv_aplic_ops = {
     }
 };
 
+static void riscv_aplic_reset_enter(Object *obj, ResetType type)
+{
+    RISCVAPLICState *aplic = RISCV_APLIC(obj);
+    int i;
+
+    aplic->domaincfg = 0;
+    memset(aplic->sourcecfg, 0, sizeof(uint32_t) * aplic->num_irqs);
+    memset(aplic->target, 0, sizeof(uint32_t) * aplic->num_irqs);
+    if (!aplic->msimode) {
+        for (i = 0; i < aplic->num_irqs; i++) {
+            aplic->target[i] = 1;
+        }
+    }
+
+    for (i = 0; i < aplic->num_irqs ; i++) {
+        riscv_aplic_set_enabled_raw(aplic, i, false);
+    }
+
+    /* Need to unlock [ms]msicfgaddrh.L */
+    aplic->mmsicfgaddr = 0;
+    aplic->mmsicfgaddrH = 0;
+    aplic->smsicfgaddr = 0;
+    aplic->smsicfgaddrH = 0;
+
+    if (!aplic->msimode) {
+        /* Reset IDC registers only in non-MSI mode */
+        for (i = 0; i < aplic->num_harts; i++) {
+            aplic->idelivery[i] = 0;
+            aplic->iforce[i] = 0;
+            aplic->ithreshold[i] = 0;
+        }
+
+        for (i = 0; i < aplic->num_harts; i++) {
+            qemu_irq_lower(aplic->external_irqs[i]);
+        }
+    }
+}
+
 static void riscv_aplic_realize(DeviceState *dev, Error **errp)
 {
     uint32_t i;
@@ -925,11 +963,6 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
         aplic->sourcecfg = g_new0(uint32_t, aplic->num_irqs);
         aplic->state = g_new0(uint32_t, aplic->num_irqs);
         aplic->target = g_new0(uint32_t, aplic->num_irqs);
-        if (!aplic->msimode) {
-            for (i = 0; i < aplic->num_irqs; i++) {
-                aplic->target[i] = 1;
-            }
-        }
         aplic->idelivery = g_new0(uint32_t, aplic->num_harts);
         aplic->iforce = g_new0(uint32_t, aplic->num_harts);
         aplic->ithreshold = g_new0(uint32_t, aplic->num_harts);
@@ -1014,9 +1047,11 @@ static const VMStateDescription vmstate_riscv_aplic = {
 static void riscv_aplic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_props(dc, riscv_aplic_properties);
     dc->realize = riscv_aplic_realize;
+    rc->phases.enter = riscv_aplic_reset_enter;
     dc->vmsd = &vmstate_riscv_aplic;
 }
 
