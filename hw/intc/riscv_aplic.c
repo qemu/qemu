@@ -35,6 +35,7 @@
 #include "system/tcg.h"
 #include "kvm/kvm_riscv.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #define APLIC_MAX_IDC                  (1UL << 14)
 #define APLIC_MAX_SOURCE               1024
@@ -626,6 +627,7 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
 static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint32_t irq, word, idc;
+    uint64_t val = 0;
     RISCVAPLICState *aplic = opaque;
 
     /* Reads must be 4 byte words */
@@ -634,18 +636,18 @@ static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     if (addr == APLIC_DOMAINCFG) {
-        return APLIC_DOMAINCFG_RDONLY | aplic->domaincfg |
-               (aplic->msimode ? APLIC_DOMAINCFG_DM : 0);
+        val = APLIC_DOMAINCFG_RDONLY | aplic->domaincfg |
+              (aplic->msimode ? APLIC_DOMAINCFG_DM : 0);
     } else if ((APLIC_SOURCECFG_BASE <= addr) &&
             (addr < (APLIC_SOURCECFG_BASE + (aplic->num_irqs - 1) * 4))) {
         irq  = ((addr - APLIC_SOURCECFG_BASE) >> 2) + 1;
-        return aplic->sourcecfg[irq];
+        val = aplic->sourcecfg[irq];
     } else if (aplic->mmode && aplic->msimode &&
                (addr == APLIC_MMSICFGADDR)) {
-        return aplic->mmsicfgaddr;
+        val = aplic->mmsicfgaddr;
     } else if (aplic->mmode && aplic->msimode &&
                (addr == APLIC_MMSICFGADDRH)) {
-        return aplic->mmsicfgaddrH;
+        val = aplic->mmsicfgaddrH;
     } else if (aplic->mmode && aplic->msimode &&
                (addr == APLIC_SMSICFGADDR)) {
         /*
@@ -657,64 +659,73 @@ static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
          *     only zero in at least one of the supervisor-level child
          * domains).
          */
-        return (aplic->num_children) ? aplic->smsicfgaddr : 0;
+        val = (aplic->num_children) ? aplic->smsicfgaddr : 0;
     } else if (aplic->mmode && aplic->msimode &&
                (addr == APLIC_SMSICFGADDRH)) {
-        return (aplic->num_children) ? aplic->smsicfgaddrH : 0;
+        val = (aplic->num_children) ? aplic->smsicfgaddrH : 0;
     } else if ((APLIC_SETIP_BASE <= addr) &&
             (addr < (APLIC_SETIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIP_BASE) >> 2;
-        return riscv_aplic_read_pending_word(aplic, word);
+        val = riscv_aplic_read_pending_word(aplic, word);
     } else if (addr == APLIC_SETIPNUM) {
-        return 0;
+        val = 0;
     } else if ((APLIC_CLRIP_BASE <= addr) &&
             (addr < (APLIC_CLRIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_CLRIP_BASE) >> 2;
-        return riscv_aplic_read_input_word(aplic, word);
+        val = riscv_aplic_read_input_word(aplic, word);
     } else if (addr == APLIC_CLRIPNUM) {
-        return 0;
+        val = 0;
     } else if ((APLIC_SETIE_BASE <= addr) &&
             (addr < (APLIC_SETIE_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIE_BASE) >> 2;
-        return riscv_aplic_read_enabled_word(aplic, word);
+        val = riscv_aplic_read_enabled_word(aplic, word);
     } else if (addr == APLIC_SETIENUM) {
-        return 0;
+        val = 0;
     } else if ((APLIC_CLRIE_BASE <= addr) &&
             (addr < (APLIC_CLRIE_BASE + aplic->bitfield_words * 4))) {
-        return 0;
+        val = 0;
     } else if (addr == APLIC_CLRIENUM) {
-        return 0;
+        val = 0;
     } else if (addr == APLIC_SETIPNUM_LE) {
-        return 0;
+        val = 0;
     } else if (addr == APLIC_SETIPNUM_BE) {
-        return 0;
+        val = 0;
     } else if (addr == APLIC_GENMSI) {
-        return (aplic->msimode) ? aplic->genmsi : 0;
+        val = (aplic->msimode) ? aplic->genmsi : 0;
     } else if ((APLIC_TARGET_BASE <= addr) &&
             (addr < (APLIC_TARGET_BASE + (aplic->num_irqs - 1) * 4))) {
         irq = ((addr - APLIC_TARGET_BASE) >> 2) + 1;
         if (!riscv_aplic_source_active(aplic, irq)) {
-            return 0;
+            val = 0;
+        } else {
+            val = aplic->target[irq];
         }
-        return aplic->target[irq];
     } else if (!aplic->msimode && (APLIC_IDC_BASE <= addr) &&
             (addr < (APLIC_IDC_BASE + aplic->num_harts * APLIC_IDC_SIZE))) {
         idc = (addr - APLIC_IDC_BASE) / APLIC_IDC_SIZE;
         switch (addr - (APLIC_IDC_BASE + idc * APLIC_IDC_SIZE)) {
         case APLIC_IDC_IDELIVERY:
-            return aplic->idelivery[idc];
+            val = aplic->idelivery[idc];
+            break;
         case APLIC_IDC_IFORCE:
-            return aplic->iforce[idc];
+            val = aplic->iforce[idc];
+            break;
         case APLIC_IDC_ITHRESHOLD:
-            return aplic->ithreshold[idc];
+            val = aplic->ithreshold[idc];
+            break;
         case APLIC_IDC_TOPI:
-            return riscv_aplic_idc_topi(aplic, idc);
+            val = riscv_aplic_idc_topi(aplic, idc);
+            break;
         case APLIC_IDC_CLAIMI:
-            return riscv_aplic_idc_claimi(aplic, idc);
+            val = riscv_aplic_idc_claimi(aplic, idc);
+            break;
         default:
             goto err;
         };
     }
+
+    trace_riscv_aplic_read(addr, size, val);
+    return val;
 
 err:
     qemu_log_mask(LOG_GUEST_ERROR,
@@ -733,6 +744,8 @@ static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
     if ((addr & 0x3) != 0) {
         goto err;
     }
+
+    trace_riscv_aplic_write(addr, size, value);
 
     if (addr == APLIC_DOMAINCFG) {
         /* Only IE bit writable at the moment */
