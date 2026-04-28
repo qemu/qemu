@@ -591,14 +591,14 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
         }
         break;
     case APLIC_SOURCECFG_SM_LEVEL_HIGH:
-        if ((level > 0) && !(state & APLIC_ISTATE_PENDING)) {
-            riscv_aplic_set_pending_raw(aplic, irq, true);
+        if ((level > 0) != !!(state & APLIC_ISTATE_PENDING)) {
+            riscv_aplic_set_pending_raw(aplic, irq, level > 0);
             update = true;
         }
         break;
     case APLIC_SOURCECFG_SM_LEVEL_LOW:
-        if ((level <= 0) && !(state & APLIC_ISTATE_PENDING)) {
-            riscv_aplic_set_pending_raw(aplic, irq, true);
+        if ((level <= 0) != !!(state & APLIC_ISTATE_PENDING)) {
+            riscv_aplic_set_pending_raw(aplic, irq, level <= 0);
             update = true;
         }
         break;
