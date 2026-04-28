@@ -2644,6 +2644,10 @@ get_timeout:
             if (ret < 0) {
                 return ret;
             }
+            /* special case: destination address is NULL, return 0 */
+            if (optval_addr) {
+                len = 0;
+            }
             if (len == sizeof(struct target__kernel_sock_timeval)) {
                 if (copy_to_user_timeval64(optval_addr, &tv)) {
                     return -TARGET_EFAULT;
@@ -2844,7 +2848,10 @@ get_timeout:
         }
         if (len > lv)
             len = lv;
-        if (len == 4) {
+        if (!optval_addr) {
+            /* writing to NULL does not give error */
+            len = 0;
+        } else if (len == 4) {
             if (put_user_u32(val, optval_addr))
                 return -TARGET_EFAULT;
         } else {
@@ -2877,18 +2884,24 @@ get_timeout:
                 return -TARGET_EINVAL;
             lv = sizeof(lv);
             ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
+write_ret:
             if (ret < 0)
                 return ret;
-            if (len < sizeof(int) && len > 0 && val >= 0 && val < 255) {
+            if (!optval_addr) {
+                len = 0;
+            } else if (len < sizeof(int) && len > 0 && val >= 0 && val < 255) {
                 len = 1;
-                if (put_user_u32(len, optlen)
-                    || put_user_u8(val, optval_addr))
+                if (put_user_u8(val, optval_addr)) {
                     return -TARGET_EFAULT;
+                }
             } else {
                 if (len > sizeof(int))
                     len = sizeof(int);
-                if (put_user_u32(len, optlen)
-                    || put_user_u32(val, optval_addr))
+                if (put_user_u32(val, optval_addr)) {
+                    return -TARGET_EFAULT;
+                }
+            }
+            if (put_user_u32(len, optlen)) {
                     return -TARGET_EFAULT;
             }
             break;
@@ -2939,20 +2952,7 @@ get_timeout:
                 return -TARGET_EINVAL;
             lv = sizeof(lv);
             ret = get_errno(getsockopt(sockfd, level, optname, &val, &lv));
-            if (ret < 0)
-                return ret;
-            if (len < sizeof(int) && len > 0 && val >= 0 && val < 255) {
-                len = 1;
-                if (put_user_u32(len, optlen)
-                    || put_user_u8(val, optval_addr))
-                    return -TARGET_EFAULT;
-            } else {
-                if (len > sizeof(int))
-                    len = sizeof(int);
-                if (put_user_u32(len, optlen)
-                    || put_user_u32(val, optval_addr))
-                    return -TARGET_EFAULT;
-            }
+            goto write_ret;
             break;
         default:
             ret = -TARGET_ENOPROTOOPT;
@@ -2986,8 +2986,14 @@ get_timeout:
             if (ret < 0) {
                 return ret;
             }
-            if (put_user_u32(lv, optlen)
-                || put_user_u32(val, optval_addr)) {
+            if (optval_addr) {
+                if (put_user_u32(val, optval_addr)) {
+                    return -TARGET_EFAULT;
+                }
+            } else {
+                lv = 0;
+            }
+            if (put_user_u32(lv, optlen)) {
                 return -TARGET_EFAULT;
             }
             break;
