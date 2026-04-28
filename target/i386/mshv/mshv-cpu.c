@@ -1906,6 +1906,18 @@ void mshv_arch_init_vcpu(CPUState *cpu)
                       + sizeof(hv_input_get_vp_registers)
                       > HV_HYP_PAGE_SIZE));
 
+    /* mmap the registers page */
+    void *rp = mmap(NULL, page, PROT_READ | PROT_WRITE,
+                    MAP_SHARED, mshv_vcpufd(cpu),
+                    MSHV_VP_MMAP_OFFSET_REGISTERS * page);
+    if (rp == MAP_FAILED) {
+        warn_report("register page mmap failed, falling back to hypercalls: %s",
+                    strerror(errno));
+        env->regs_page = NULL;
+    } else {
+        env->regs_page = (struct hv_vp_register_page *) rp;
+    }
+
     state->hvcall_args.base = mem;
     state->hvcall_args.input_page = mem;
     state->hvcall_args.output_page = (uint8_t *)mem + page;
@@ -1944,6 +1956,11 @@ void mshv_arch_destroy_vcpu(CPUState *cpu)
     CPUX86State *env = &x86_cpu->env;
     AccelCPUState *state = cpu->accel;
 
+    /* Unmap the register page */
+    if (env->regs_page) {
+        munmap(env->regs_page, HV_HYP_PAGE_SIZE);
+        env->regs_page = NULL;
+    }
     g_free(state->hvcall_args.base);
     state->hvcall_args = (MshvHvCallArgs){0};
     g_clear_pointer(&env->emu_mmio_buf, g_free);

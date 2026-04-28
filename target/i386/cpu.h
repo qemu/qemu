@@ -1983,6 +1983,9 @@ typedef struct CPUCaches {
         CPUCacheInfo *l3_cache;
 } CPUCaches;
 
+struct kvm_msrs;
+struct hv_vp_register_page;
+
 typedef struct CPUArchState {
     /* standard registers */
     target_ulong regs[CPU_NB_EREGS];
@@ -2289,6 +2292,10 @@ typedef struct CPUArchState {
     QEMUTimer *xen_periodic_timer;
     QemuMutex xen_timers_lock;
 #endif
+#if defined(CONFIG_MSHV)
+    /* Shared register page */
+    struct hv_vp_register_page *regs_page;
+#endif
 #if defined(CONFIG_HVF) || defined(CONFIG_MSHV) || defined(CONFIG_WHPX)
     void *emu_mmio_buf;
 #endif
@@ -2314,8 +2321,6 @@ typedef struct CPUArchState {
     /* Bitmap of available CPU topology levels for this CPU. */
     DECLARE_BITMAP(avail_cpu_topo, CPU_TOPOLOGY_LEVEL__MAX);
 } CPUX86State;
-
-struct kvm_msrs;
 
 /**
  * X86CPU:
