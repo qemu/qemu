@@ -457,14 +457,50 @@ static int set_standard_regs(const CPUState *cpu)
     return 0;
 }
 
+static void mshv_set_standard_regs_vp_page(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+
+    env->regs_page->rax = env->regs[R_EAX];
+    env->regs_page->rbx = env->regs[R_EBX];
+    env->regs_page->rcx = env->regs[R_ECX];
+    env->regs_page->rdx = env->regs[R_EDX];
+    env->regs_page->rsi = env->regs[R_ESI];
+    env->regs_page->rdi = env->regs[R_EDI];
+    env->regs_page->rsp = env->regs[R_ESP];
+    env->regs_page->rbp = env->regs[R_EBP];
+    env->regs_page->r8  = env->regs[R_R8];
+    env->regs_page->r9  = env->regs[R_R9];
+    env->regs_page->r10 = env->regs[R_R10];
+    env->regs_page->r11 = env->regs[R_R11];
+    env->regs_page->r12 = env->regs[R_R12];
+    env->regs_page->r13 = env->regs[R_R13];
+    env->regs_page->r14 = env->regs[R_R14];
+    env->regs_page->r15 = env->regs[R_R15];
+    env->regs_page->rip = env->eip;
+    lflags_to_rflags(env);
+    env->regs_page->rflags = env->eflags;
+
+    env->regs_page->dirty |= (1u << HV_X64_REGISTER_CLASS_GENERAL)
+                                | (1u << HV_X64_REGISTER_CLASS_IP)
+                                | (1u << HV_X64_REGISTER_CLASS_FLAGS);
+}
+
 static int store_regs(CPUState *cpu)
 {
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
     int ret;
 
-    ret = set_standard_regs(cpu);
-    if (ret < 0) {
-        error_report("Failed to store standard registers");
-        return -1;
+    /* Use register vp page to optimize registers access */
+    if (env->regs_page && env->regs_page->isvalid != 0) {
+        mshv_set_standard_regs_vp_page(cpu);
+    } else {
+        ret = set_standard_regs(cpu);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     ret = set_special_regs(cpu);
