@@ -24,7 +24,6 @@
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/pci.h"
 #include "hw/core/iommu.h"
-#include "hw/core/hw-error.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

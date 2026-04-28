@@ -16,7 +16,6 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/core/boards.h"
-#include "hw/core/hw-error.h"
 #include "hw/nvram/fw_cfg.h"
 #include "pci.h"
 #include "pci-quirks.h"
