@@ -15,18 +15,21 @@
 #include "qtest_aspeed.h"
 #include "hw/i2c/aspeed_i2c.h"
 
+static bool aspeed_i2c_is_master_enabled(QTestState *s, uint32_t baseaddr)
+{
+    return qtest_readl(s, baseaddr + A_I2CC_FUN_CTRL) & A_I2CD_MASTER_EN;
+}
+
 static void aspeed_i2c_startup(QTestState *s, uint32_t baseaddr,
                                uint8_t slave_addr, uint8_t reg)
 {
     uint32_t v;
-    static int once;
 
-    if (!once) {
+    if (!aspeed_i2c_is_master_enabled(s, baseaddr)) {
         /* one time: enable master */
        qtest_writel(s, baseaddr + A_I2CC_FUN_CTRL, 0);
        v = qtest_readl(s, baseaddr + A_I2CC_FUN_CTRL) | A_I2CD_MASTER_EN;
        qtest_writel(s, baseaddr + A_I2CC_FUN_CTRL, v);
-       once = 1;
     }
 
     /* select device */
