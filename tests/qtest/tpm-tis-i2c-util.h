@@ -27,4 +27,8 @@ uint32_t tpm_tis_i2c_readl(QTestState *s, uint8_t locty, uint8_t reg);
 void tpm_tis_i2c_writeb(QTestState *s, uint8_t locty, uint8_t reg, uint8_t v);
 void tpm_tis_i2c_writel(QTestState *s, uint8_t locty, uint8_t reg, uint32_t v);
 
+void tpm_tis_i2c_transfer(QTestState *s,
+                          const unsigned char *req, size_t req_size,
+                          unsigned char *rsp, size_t rsp_size);
+
 #endif /* TESTS_TPM_TIS_I2C_UTIL_H */
