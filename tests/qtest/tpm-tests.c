@@ -49,8 +49,8 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
     args = g_strdup_printf(
         "%s "
         "-chardev socket,id=chr,path=%s "
-        "-tpmdev emulator,id=dev,chardev=chr "
-        "-device %s,tpmdev=dev",
+        "-tpmdev emulator,id=tpm0,chardev=chr "
+        "-device %s,tpmdev=tpm0",
         machine_options ? : "", addr->u.q_unix.path, ifmodel);
 
     s = qtest_start(args);
