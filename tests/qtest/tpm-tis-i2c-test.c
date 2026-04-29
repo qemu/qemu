@@ -20,6 +20,7 @@
 #include "hw/pci/pci_ids.h"
 #include "qtest_aspeed.h"
 #include "tpm-emu.h"
+#include "tpm-tis-i2c-util.h"
 
 #define DEBUG_TIS_TEST 0
 
@@ -36,58 +37,9 @@
 #define DPRINTF_STS \
     DPRINTF("%s: %d: sts = 0x%08x\n", __func__, __LINE__, sts)
 
-#define I2C_SLAVE_ADDR   0x2e
-#define I2C_DEV_BUS_NUM  10
-
 static const uint8_t TPM_CMD[12] =
     "\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00";
 
-static uint32_t aspeed_bus_addr;
-
-static uint8_t cur_locty = 0xff;
-
-static void tpm_tis_i2c_set_locty(uint8_t locty)
-{
-    if (cur_locty != locty) {
-        cur_locty = locty;
-        aspeed_i2c_writeb(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR,
-                          TPM_I2C_REG_LOC_SEL, locty);
-    }
-}
-
-static uint8_t tpm_tis_i2c_readb(uint8_t locty, uint8_t reg)
-{
-    tpm_tis_i2c_set_locty(locty);
-    return aspeed_i2c_readb(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
-}
-
-static uint16_t tpm_tis_i2c_readw(uint8_t locty, uint8_t reg)
-{
-    tpm_tis_i2c_set_locty(locty);
-    return aspeed_i2c_readw(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
-}
-
-static uint32_t tpm_tis_i2c_readl(uint8_t locty, uint8_t reg)
-{
-    tpm_tis_i2c_set_locty(locty);
-    return aspeed_i2c_readl(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
-}
-
-static void tpm_tis_i2c_writeb(uint8_t locty, uint8_t reg, uint8_t v)
-{
-    if (reg != TPM_I2C_REG_LOC_SEL) {
-        tpm_tis_i2c_set_locty(locty);
-    }
-    aspeed_i2c_writeb(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg, v);
-}
-
-static void tpm_tis_i2c_writel(uint8_t locty, uint8_t reg, uint32_t v)
-{
-    if (reg != TPM_I2C_REG_LOC_SEL) {
-        tpm_tis_i2c_set_locty(locty);
-    }
-    aspeed_i2c_writel(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg, v);
-}
 
 static void tpm_tis_i2c_test_basic(const void *data)
 {
