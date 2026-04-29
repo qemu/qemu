@@ -54,10 +54,14 @@ void tpm_util_crb_transfer(QTestState *s,
 void tpm_util_startup(QTestState *s, tx_func *tx)
 {
     unsigned char buffer[1024];
-    static const unsigned char tpm_startup[] =
-        "\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00";
-    static const unsigned char tpm_startup_resp[] =
-        "\x80\x01\x00\x00\x00\x0a\x00\x00\x00\x00";
+    static const unsigned char tpm_startup[] = {
+        0x80, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00,
+        0x01, 0x44, 0x00, 0x00
+    };
+    static const unsigned char tpm_startup_resp[] = {
+        0x80, 0x01, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00,
+        0x00, 0x00
+    };
 
     tx(s, tpm_startup, sizeof(tpm_startup), buffer, sizeof(buffer));
 
@@ -68,16 +72,23 @@ void tpm_util_startup(QTestState *s, tx_func *tx)
 void tpm_util_pcrextend(QTestState *s, tx_func *tx)
 {
     unsigned char buffer[1024];
-    static const unsigned char tpm_pcrextend[] =
-        "\x80\x02\x00\x00\x00\x41\x00\x00\x01\x82\x00\x00\x00\x0a\x00\x00"
-        "\x00\x09\x40\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00"
-        "\x0b\x74\x65\x73\x74\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-        "\x00";
+    static const unsigned char tpm_pcrextend[] = {
+        0x80, 0x02, 0x00, 0x00, 0x00, 0x41, 0x00, 0x00,
+        0x01, 0x82, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00,
+        0x00, 0x09, 0x40, 0x00, 0x00, 0x09, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+        0x0b, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00
+    };
 
-    static const unsigned char tpm_pcrextend_resp[] =
-        "\x80\x02\x00\x00\x00\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-        "\x01\x00\x00";
+    static const unsigned char tpm_pcrextend_resp[] = {
+        0x80, 0x02, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00
+    };
 
     tx(s, tpm_pcrextend, sizeof(tpm_pcrextend), buffer, sizeof(buffer));
 
@@ -89,9 +100,11 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
                       const unsigned char *exp_resp, size_t exp_resp_size)
 {
     unsigned char buffer[1024];
-    static const unsigned char tpm_pcrread[] =
-        "\x80\x01\x00\x00\x00\x14\x00\x00\x01\x7e\x00\x00\x00\x01\x00\x0b"
-        "\x03\x00\x04\x00";
+    static const unsigned char tpm_pcrread[] = {
+        0x80, 0x01, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00,
+        0x01, 0x7e, 0x00, 0x00, 0x00, 0x01, 0x00, 0x0b,
+        0x03, 0x00, 0x04, 0x00
+    };
 
     tx(s, tpm_pcrread, sizeof(tpm_pcrread), buffer, sizeof(buffer));
 
