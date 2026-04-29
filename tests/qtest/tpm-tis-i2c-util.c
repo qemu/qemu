@@ -20,45 +20,45 @@ uint32_t aspeed_bus_addr;
 
 static uint8_t cur_locty = 0xff;
 
-static void tpm_tis_i2c_set_locty(uint8_t locty)
+static void tpm_tis_i2c_set_locty(QTestState *s, uint8_t locty)
 {
     if (cur_locty != locty) {
         cur_locty = locty;
-        aspeed_i2c_writeb(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR,
+        aspeed_i2c_writeb(s, aspeed_bus_addr, I2C_SLAVE_ADDR,
                           TPM_I2C_REG_LOC_SEL, locty);
     }
 }
 
-uint8_t tpm_tis_i2c_readb(uint8_t locty, uint8_t reg)
+uint8_t tpm_tis_i2c_readb(QTestState *s, uint8_t locty, uint8_t reg)
 {
-    tpm_tis_i2c_set_locty(locty);
-    return aspeed_i2c_readb(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
+    tpm_tis_i2c_set_locty(s, locty);
+    return aspeed_i2c_readb(s, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
 }
 
-uint16_t tpm_tis_i2c_readw(uint8_t locty, uint8_t reg)
+uint16_t tpm_tis_i2c_readw(QTestState *s, uint8_t locty, uint8_t reg)
 {
-    tpm_tis_i2c_set_locty(locty);
+    tpm_tis_i2c_set_locty(s, locty);
     return aspeed_i2c_readw(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
 }
 
-uint32_t tpm_tis_i2c_readl(uint8_t locty, uint8_t reg)
+uint32_t tpm_tis_i2c_readl(QTestState *s, uint8_t locty, uint8_t reg)
 {
-    tpm_tis_i2c_set_locty(locty);
-    return aspeed_i2c_readl(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
+    tpm_tis_i2c_set_locty(s, locty);
+    return aspeed_i2c_readl(s, aspeed_bus_addr, I2C_SLAVE_ADDR, reg);
 }
 
-void tpm_tis_i2c_writeb(uint8_t locty, uint8_t reg, uint8_t v)
+void tpm_tis_i2c_writeb(QTestState *s, uint8_t locty, uint8_t reg, uint8_t v)
 {
     if (reg != TPM_I2C_REG_LOC_SEL) {
-        tpm_tis_i2c_set_locty(locty);
+        tpm_tis_i2c_set_locty(s, locty);
     }
-    aspeed_i2c_writeb(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg, v);
+    aspeed_i2c_writeb(s, aspeed_bus_addr, I2C_SLAVE_ADDR, reg, v);
 }
 
-void tpm_tis_i2c_writel(uint8_t locty, uint8_t reg, uint32_t v)
+void tpm_tis_i2c_writel(QTestState *s, uint8_t locty, uint8_t reg, uint32_t v)
 {
     if (reg != TPM_I2C_REG_LOC_SEL) {
-        tpm_tis_i2c_set_locty(locty);
+        tpm_tis_i2c_set_locty(s, locty);
     }
-    aspeed_i2c_writel(global_qtest, aspeed_bus_addr, I2C_SLAVE_ADDR, reg, v);
+    aspeed_i2c_writel(s, aspeed_bus_addr, I2C_SLAVE_ADDR, reg, v);
 }

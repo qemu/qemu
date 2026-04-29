@@ -50,62 +50,64 @@ static void tpm_tis_i2c_test_basic(const void *data)
      * All register accesses below must work without locality 0 being the
      * active locality. Therefore, ensure access is released.
      */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_ACCESS,
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_ACCESS,
                        TPM_TIS_ACCESS_ACTIVE_LOCALITY);
-    access = tpm_tis_i2c_readb(0, TPM_I2C_REG_ACCESS);
+    access = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_ACCESS);
     g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                 TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
     /* read interrupt capability -- none are supported */
-    v = tpm_tis_i2c_readl(0, TPM_I2C_REG_INT_CAPABILITY);
+    v = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_INT_CAPABILITY);
     g_assert_cmpint(v, ==, 0);
 
     /* try to enable all interrupts */
-    tpm_tis_i2c_writel(0, TPM_I2C_REG_INT_ENABLE, 0xffffffff);
-    v = tpm_tis_i2c_readl(0, TPM_I2C_REG_INT_ENABLE);
+    tpm_tis_i2c_writel(global_qtest, 0, TPM_I2C_REG_INT_ENABLE, 0xffffffff);
+    v = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_INT_ENABLE);
     /* none could be enabled */
     g_assert_cmpint(v, ==, 0);
 
     /* enable csum */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_DATA_CSUM_ENABLE, TPM_DATA_CSUM_ENABLED);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE,
+                       TPM_DATA_CSUM_ENABLED);
     /* check csum enable register has bit 0 set */
-    v = tpm_tis_i2c_readb(0, TPM_I2C_REG_DATA_CSUM_ENABLE);
+    v = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE);
     g_assert_cmpint(v, ==, TPM_DATA_CSUM_ENABLED);
     /* reading it as 32bit register returns same result */
-    v = tpm_tis_i2c_readl(0, TPM_I2C_REG_DATA_CSUM_ENABLE);
+    v = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE);
     g_assert_cmpint(v, ==, TPM_DATA_CSUM_ENABLED);
 
     /* disable csum */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_DATA_CSUM_ENABLE, 0);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE, 0);
     /* check csum enable register has bit 0 clear */
-    v = tpm_tis_i2c_readb(0, TPM_I2C_REG_DATA_CSUM_ENABLE);
+    v = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE);
     g_assert_cmpint(v, ==, 0);
 
     /* write to unsupported register '1' */
-    tpm_tis_i2c_writel(0, 1, 0x12345678);
-    v = tpm_tis_i2c_readl(0, 1);
+    tpm_tis_i2c_writel(global_qtest, 0, 1, 0x12345678);
+    v = tpm_tis_i2c_readl(global_qtest, 0, 1);
     g_assert_cmpint(v, ==, 0xffffffff);
 
     /* request use of locality */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_ACCESS, TPM_TIS_ACCESS_REQUEST_USE);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_ACCESS,
+                       TPM_TIS_ACCESS_REQUEST_USE);
 
     /* read byte from STS + 3 */
-    v = tpm_tis_i2c_readb(0, TPM_I2C_REG_STS + 3);
+    v = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_STS + 3);
     g_assert_cmpint(v, ==, 0);
 
     /* check STS after writing to STS + 3 */
-    v = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_STS + 3, 0xf);
-    v2 = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+    v = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_STS + 3, 0xf);
+    v2 = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
     g_assert_cmpint(v, ==, v2);
 
     /* release access */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_ACCESS,
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_ACCESS,
                        TPM_TIS_ACCESS_ACTIVE_LOCALITY);
 
     /* select locality 5 -- must not be possible */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_LOC_SEL, 5);
-    v = tpm_tis_i2c_readb(0, TPM_I2C_REG_LOC_SEL);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_LOC_SEL, 5);
+    v = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_LOC_SEL);
     g_assert_cmpint(v, ==, 0);
 }
 
@@ -118,11 +120,12 @@ static void tpm_tis_i2c_test_check_localities(const void *data)
     uint32_t rid;
 
     for (locty = 0; locty < TPM_TIS_NUM_LOCALITIES; locty++) {
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
-        capability = tpm_tis_i2c_readl(locty, TPM_I2C_REG_INTF_CAPABILITY);
+        capability = tpm_tis_i2c_readl(global_qtest, locty,
+                                       TPM_I2C_REG_INTF_CAPABILITY);
         i2c_cap = (TPM_I2C_CAP_INTERFACE_TYPE |
                    TPM_I2C_CAP_INTERFACE_VER  |
                    TPM_I2C_CAP_TPM2_FAMILY    |
@@ -131,15 +134,15 @@ static void tpm_tis_i2c_test_check_localities(const void *data)
                    TPM_I2C_CAP_DEV_ADDR_CHANGE);
         g_assert_cmpint(capability, ==, i2c_cap);
 
-        didvid = tpm_tis_i2c_readl(locty, TPM_I2C_REG_DID_VID);
+        didvid = tpm_tis_i2c_readl(global_qtest, locty, TPM_I2C_REG_DID_VID);
         g_assert_cmpint(didvid, ==, (1 << 16) | PCI_VENDOR_ID_IBM);
 
-        rid = tpm_tis_i2c_readl(locty, TPM_I2C_REG_RID);
+        rid = tpm_tis_i2c_readl(global_qtest, locty, TPM_I2C_REG_RID);
         g_assert_cmpint(rid, !=, 0);
         g_assert_cmpint(rid, !=, 0xffffffff);
 
         /* locality selection must be at locty */
-        l = tpm_tis_i2c_readb(locty, TPM_I2C_REG_LOC_SEL);
+        l = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_LOC_SEL);
         g_assert_cmpint(l, ==, locty);
     }
 }
@@ -151,23 +154,23 @@ static void tpm_tis_i2c_test_check_access_reg(const void *data)
 
     /* do not test locality 4 (hw only) */
     for (locty = 0; locty < TPM_TIS_NUM_LOCALITIES - 1; locty++) {
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
         /* request use of locality */
-        tpm_tis_i2c_writeb(locty, TPM_I2C_REG_ACCESS,
+        tpm_tis_i2c_writeb(global_qtest, locty, TPM_I2C_REG_ACCESS,
                            TPM_TIS_ACCESS_REQUEST_USE);
 
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
         /* release access */
-        tpm_tis_i2c_writeb(locty, TPM_I2C_REG_ACCESS,
+        tpm_tis_i2c_writeb(global_qtest, locty, TPM_I2C_REG_ACCESS,
                            TPM_TIS_ACCESS_ACTIVE_LOCALITY);
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
     }
@@ -186,14 +189,14 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
     for (locty = 0; locty < TPM_TIS_NUM_LOCALITIES - 1; locty++) {
         pending_request_flag = 0;
 
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
         /* request use of locality */
-        tpm_tis_i2c_writeb(locty,
+        tpm_tis_i2c_writeb(global_qtest, locty,
                            TPM_I2C_REG_ACCESS, TPM_TIS_ACCESS_REQUEST_USE);
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
@@ -201,14 +204,14 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
         /* lower localities cannot seize access */
         for (l = 0; l < locty; l++) {
             /* lower locality is not active */
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         pending_request_flag |
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* try to request use from 'l' */
-            tpm_tis_i2c_writeb(l,
+            tpm_tis_i2c_writeb(global_qtest, l,
                                TPM_I2C_REG_ACCESS,
                                TPM_TIS_ACCESS_REQUEST_USE);
 
@@ -216,7 +219,7 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
              * requesting use from 'l' was not possible;
              * we must see REQUEST_USE and possibly PENDING_REQUEST
              */
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_REQUEST_USE |
@@ -227,17 +230,17 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
              * locality 'locty' must be unchanged;
              * we must see PENDING_REQUEST
              */
-            access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                         TPM_TIS_ACCESS_PENDING_REQUEST |
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* try to seize from 'l' */
-            tpm_tis_i2c_writeb(l,
+            tpm_tis_i2c_writeb(global_qtest, l,
                                TPM_I2C_REG_ACCESS, TPM_TIS_ACCESS_SEIZE);
             /* seize from 'l' was not possible */
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_REQUEST_USE |
@@ -245,7 +248,7 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* locality 'locty' must be unchanged */
-            access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                         TPM_TIS_ACCESS_PENDING_REQUEST |
@@ -264,14 +267,14 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
          */
         for (l = locty + 1; l < TPM_TIS_NUM_LOCALITIES - 1; l++) {
             /* try to 'request use' from 'l' */
-            tpm_tis_i2c_writeb(l, TPM_I2C_REG_ACCESS,
+            tpm_tis_i2c_writeb(global_qtest, l, TPM_I2C_REG_ACCESS,
                                TPM_TIS_ACCESS_REQUEST_USE);
 
             /*
              * requesting use from 'l' was not possible; we should see
              * REQUEST_USE and may see PENDING_REQUEST
              */
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_REQUEST_USE |
@@ -282,7 +285,7 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
              * locality 'l-1' must be unchanged; we should always
              * see PENDING_REQUEST from 'l' requesting access
              */
-            access = tpm_tis_i2c_readb(l - 1, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l - 1, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_ACTIVE_LOCALITY |
@@ -290,10 +293,11 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* try to seize from 'l' */
-            tpm_tis_i2c_writeb(l, TPM_I2C_REG_ACCESS, TPM_TIS_ACCESS_SEIZE);
+            tpm_tis_i2c_writeb(global_qtest, l, TPM_I2C_REG_ACCESS,
+                                TPM_TIS_ACCESS_SEIZE);
 
             /* seize from 'l' was possible */
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_ACTIVE_LOCALITY |
@@ -301,7 +305,7 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* l - 1 should show that it has BEEN_SEIZED */
-            access = tpm_tis_i2c_readb(l - 1, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l - 1, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_BEEN_SEIZED |
@@ -309,10 +313,10 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* clear the BEEN_SEIZED flag and make sure it's gone */
-            tpm_tis_i2c_writeb(l - 1, TPM_I2C_REG_ACCESS,
+            tpm_tis_i2c_writeb(global_qtest, l - 1, TPM_I2C_REG_ACCESS,
                                TPM_TIS_ACCESS_BEEN_SEIZED);
 
-            access = tpm_tis_i2c_readb(l - 1, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l - 1, TPM_I2C_REG_ACCESS);
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         pending_request_flag |
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
@@ -330,22 +334,22 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
         /* release access from l - 1; this activates locty - 1 */
         l--;
 
-        access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
         DPRINTF_ACCESS;
 
         DPRINTF("%s: %d: relinquishing control on l = %d\n",
                 __func__, __LINE__, l);
-        tpm_tis_i2c_writeb(l, TPM_I2C_REG_ACCESS,
+        tpm_tis_i2c_writeb(global_qtest, l, TPM_I2C_REG_ACCESS,
                            TPM_TIS_ACCESS_ACTIVE_LOCALITY);
 
-        access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
         DPRINTF_ACCESS;
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     pending_request_flag |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
         for (l = locty - 1; l >= 0; l--) {
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_ACTIVE_LOCALITY |
@@ -353,7 +357,7 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
             /* release this locality */
-            tpm_tis_i2c_writeb(l, TPM_I2C_REG_ACCESS,
+            tpm_tis_i2c_writeb(global_qtest, l, TPM_I2C_REG_ACCESS,
                                TPM_TIS_ACCESS_ACTIVE_LOCALITY);
 
             if (l == 1) {
@@ -363,7 +367,7 @@ static void tpm_tis_i2c_test_check_access_reg_seize(const void *data)
 
         /* no locality may be active now */
         for (l = 0; l < TPM_TIS_NUM_LOCALITIES - 1; l++) {
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
@@ -384,14 +388,14 @@ static void tpm_tis_i2c_test_check_access_reg_release(const void *data)
     for (locty = TPM_TIS_NUM_LOCALITIES - 2; locty >= 0; locty--) {
         pending_request_flag = 0;
 
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
         /* request use of locality */
-        tpm_tis_i2c_writeb(locty, TPM_I2C_REG_ACCESS,
+        tpm_tis_i2c_writeb(global_qtest, locty, TPM_I2C_REG_ACCESS,
                            TPM_TIS_ACCESS_REQUEST_USE);
-        access = tpm_tis_i2c_readb(locty, TPM_I2C_REG_ACCESS);
+        access = tpm_tis_i2c_readb(global_qtest, locty, TPM_I2C_REG_ACCESS);
         g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                     TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                     TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
@@ -405,9 +409,9 @@ static void tpm_tis_i2c_test_check_access_reg_release(const void *data)
              * request use of locality 'l' -- we MUST see REQUEST USE and
              * may see PENDING_REQUEST
              */
-            tpm_tis_i2c_writeb(l, TPM_I2C_REG_ACCESS,
+            tpm_tis_i2c_writeb(global_qtest, l, TPM_I2C_REG_ACCESS,
                                TPM_TIS_ACCESS_REQUEST_USE);
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_REQUEST_USE |
@@ -416,7 +420,7 @@ static void tpm_tis_i2c_test_check_access_reg_release(const void *data)
             pending_request_flag = TPM_TIS_ACCESS_PENDING_REQUEST;
         }
         /* release locality 'locty' */
-        tpm_tis_i2c_writeb(locty, TPM_I2C_REG_ACCESS,
+        tpm_tis_i2c_writeb(global_qtest, locty, TPM_I2C_REG_ACCESS,
                            TPM_TIS_ACCESS_ACTIVE_LOCALITY);
         /*
          * highest locality should now be active; release it and make sure the
@@ -427,16 +431,16 @@ static void tpm_tis_i2c_test_check_access_reg_release(const void *data)
                 continue;
             }
             /* 'l' should be active now */
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                         TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                         pending_request_flag |
                                         TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
             /* 'l' relinquishes access */
-            tpm_tis_i2c_writeb(l, TPM_I2C_REG_ACCESS,
+            tpm_tis_i2c_writeb(global_qtest, l, TPM_I2C_REG_ACCESS,
                                TPM_TIS_ACCESS_ACTIVE_LOCALITY);
-            access = tpm_tis_i2c_readb(l, TPM_I2C_REG_ACCESS);
+            access = tpm_tis_i2c_readb(global_qtest, l, TPM_I2C_REG_ACCESS);
             DPRINTF_ACCESS;
             if (l == 1 || (locty <= 1 && l == 2)) {
                 pending_request_flag = 0;
@@ -460,22 +464,24 @@ static void tpm_tis_i2c_test_check_transmit(const void *data)
     size_t i;
 
     /* enable csum */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_DATA_CSUM_ENABLE, TPM_DATA_CSUM_ENABLED);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE,
+                       TPM_DATA_CSUM_ENABLED);
     /* check csum enable register has bit 0 set */
-    v = tpm_tis_i2c_readb(0, TPM_I2C_REG_DATA_CSUM_ENABLE);
+    v = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE);
     g_assert_cmpint(v, ==, TPM_DATA_CSUM_ENABLED);
     /* reading it as 32bit register returns same result */
-    v = tpm_tis_i2c_readl(0, TPM_I2C_REG_DATA_CSUM_ENABLE);
+    v = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_ENABLE);
     g_assert_cmpint(v, ==, TPM_DATA_CSUM_ENABLED);
 
     /* request use of locality 0 */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_ACCESS, TPM_TIS_ACCESS_REQUEST_USE);
-    access = tpm_tis_i2c_readb(0, TPM_I2C_REG_ACCESS);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_ACCESS,
+                       TPM_TIS_ACCESS_REQUEST_USE);
+    access = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_ACCESS);
     g_assert_cmpint(access, ==, TPM_TIS_ACCESS_TPM_REG_VALID_STS |
                                 TPM_TIS_ACCESS_ACTIVE_LOCALITY |
                                 TPM_TIS_ACCESS_TPM_ESTABLISHMENT);
 
-    sts = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+    sts = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
     DPRINTF_STS;
 
     g_assert_cmpint(sts & 0xff, ==, 0);
@@ -484,21 +490,22 @@ static void tpm_tis_i2c_test_check_transmit(const void *data)
     g_assert_cmpint(bcount, >=, 128);
 
     /* read bcount from STS + 1 must work also */
-    bcount2 = tpm_tis_i2c_readw(0, TPM_I2C_REG_STS + 1);
+    bcount2 = tpm_tis_i2c_readw(global_qtest, 0, TPM_I2C_REG_STS + 1);
     g_assert_cmpint(bcount, ==, bcount2);
 
     /* ic2 must have bits 26-31 zero */
     g_assert_cmpint(sts & (0x1f << 26), ==, 0);
 
-    tpm_tis_i2c_writel(0, TPM_I2C_REG_STS, TPM_TIS_STS_COMMAND_READY);
-    sts = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+    tpm_tis_i2c_writel(global_qtest, 0, TPM_I2C_REG_STS,
+                       TPM_TIS_STS_COMMAND_READY);
+    sts = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
     DPRINTF_STS;
     g_assert_cmpint(sts & 0xff, ==, TPM_TIS_STS_COMMAND_READY);
 
     /* transmit command */
     for (i = 0; i < sizeof(TPM_CMD); i++) {
-        tpm_tis_i2c_writeb(0, TPM_I2C_REG_DATA_FIFO, TPM_CMD[i]);
-        sts = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+        tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_DATA_FIFO, TPM_CMD[i]);
+        sts = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
         DPRINTF_STS;
         if (i < sizeof(TPM_CMD) - 1) {
             g_assert_cmpint(sts & 0xff, ==,
@@ -509,21 +516,21 @@ static void tpm_tis_i2c_test_check_transmit(const void *data)
         g_assert_cmpint((sts >> 8) & 0xffff, ==, --bcount);
     }
     /* read the checksum */
-    csum = tpm_tis_i2c_readw(0, TPM_I2C_REG_DATA_CSUM_GET);
+    csum = tpm_tis_i2c_readw(global_qtest, 0, TPM_I2C_REG_DATA_CSUM_GET);
     g_assert_cmpint(csum, ==, 0x6733);
 
     /* start processing */
-    tpm_tis_i2c_writeb(0, TPM_I2C_REG_STS, TPM_TIS_STS_TPM_GO);
+    tpm_tis_i2c_writeb(global_qtest, 0, TPM_I2C_REG_STS, TPM_TIS_STS_TPM_GO);
 
     uint64_t end_time = g_get_monotonic_time() + 50 * G_TIME_SPAN_SECOND;
     do {
-        sts = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+        sts = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
         if ((sts & TPM_TIS_STS_DATA_AVAILABLE) != 0) {
             break;
         }
     } while (g_get_monotonic_time() < end_time);
 
-    sts = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+    sts = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
     DPRINTF_STS;
     g_assert_cmpint(sts & 0xff, == ,
                     TPM_TIS_STS_VALID | TPM_TIS_STS_DATA_AVAILABLE);
@@ -534,8 +541,8 @@ static void tpm_tis_i2c_test_check_transmit(const void *data)
     g_assert_cmpint(sizeof(tpm_msg), ==, bcount);
 
     for (i = 0; i < sizeof(tpm_msg); i++) {
-        tpm_msg[i] = tpm_tis_i2c_readb(0, TPM_I2C_REG_DATA_FIFO);
-        sts = tpm_tis_i2c_readl(0, TPM_I2C_REG_STS);
+        tpm_msg[i] = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_DATA_FIFO);
+        sts = tpm_tis_i2c_readl(global_qtest, 0, TPM_I2C_REG_STS);
         DPRINTF_STS;
         if (sts & TPM_TIS_STS_DATA_AVAILABLE) {
             g_assert_cmpint((sts >> 8) & 0xffff, ==, --bcount);
@@ -544,9 +551,9 @@ static void tpm_tis_i2c_test_check_transmit(const void *data)
     g_assert_cmpmem(tpm_msg, sizeof(tpm_msg), s->tpm_msg, sizeof(*s->tpm_msg));
 
     /* relinquish use of locality 0 */
-    tpm_tis_i2c_writeb(0,
+    tpm_tis_i2c_writeb(global_qtest, 0,
                        TPM_I2C_REG_ACCESS, TPM_TIS_ACCESS_ACTIVE_LOCALITY);
-    access = tpm_tis_i2c_readb(0, TPM_I2C_REG_ACCESS);
+    access = tpm_tis_i2c_readb(global_qtest, 0, TPM_I2C_REG_ACCESS);
 }
 
 int main(int argc, char **argv)

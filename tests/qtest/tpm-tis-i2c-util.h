@@ -20,11 +20,11 @@ extern uint32_t aspeed_bus_addr;
 #define I2C_SLAVE_ADDR   0x2e
 #define I2C_DEV_BUS_NUM  10
 
-uint8_t tpm_tis_i2c_readb(uint8_t locty, uint8_t reg);
-uint16_t tpm_tis_i2c_readw(uint8_t locty, uint8_t reg);
-uint32_t tpm_tis_i2c_readl(uint8_t locty, uint8_t reg);
+uint8_t tpm_tis_i2c_readb(QTestState *s, uint8_t locty, uint8_t reg);
+uint16_t tpm_tis_i2c_readw(QTestState *s, uint8_t locty, uint8_t reg);
+uint32_t tpm_tis_i2c_readl(QTestState *s, uint8_t locty, uint8_t reg);
 
-void tpm_tis_i2c_writeb(uint8_t locty, uint8_t reg, uint8_t v);
-void tpm_tis_i2c_writel(uint8_t locty, uint8_t reg, uint32_t v);
+void tpm_tis_i2c_writeb(QTestState *s, uint8_t locty, uint8_t reg, uint8_t v);
+void tpm_tis_i2c_writel(QTestState *s, uint8_t locty, uint8_t reg, uint32_t v);
 
 #endif /* TESTS_TPM_TIS_I2C_UTIL_H */
