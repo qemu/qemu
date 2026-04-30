@@ -242,6 +242,13 @@ deprecated; use the new name ``dtb-randomness`` instead. The new name
 better reflects the way this property affects all random data within
 the device tree blob, not just the ``kaslr-seed`` node.
 
+RISC-V Shakti machine (since 11.1)
+''''''''''''''''''''''''''''''''''
+
+The RISC-V ``shakti_c`` machine hasn't had meaningful contributions since 2021
+and is currently unmaintained. The machine is scheduled to be removed as it
+appears to have no users.
+
 
 Backend options
 ---------------

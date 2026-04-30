@@ -83,6 +83,7 @@ static void shakti_c_machine_class_init(ObjectClass *klass, const void *data)
     mc->init = shakti_c_machine_state_init;
     mc->default_cpu_type = TYPE_RISCV_CPU_SHAKTI_C;
     mc->valid_cpu_types = valid_cpu_types;
+    mc->deprecation_reason = "Currently unmaintained with no known users";
     mc->default_ram_id = "riscv.shakti.c.ram";
 }
 
