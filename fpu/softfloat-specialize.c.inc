@@ -84,6 +84,11 @@ static inline bool get_tininess_before_rounding(const float_status *status)
     return status->tininess_before_rounding;
 }
 
+static inline bool get_ftz_before_rounding(const float_status *status)
+{
+    return status->ftz_before_rounding;
+}
+
 /*----------------------------------------------------------------------------
 | For the deconstructed floating-point with fraction FRAC, return true
 | if the fraction represents a signalling NaN; otherwise false.

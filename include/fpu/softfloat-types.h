@@ -341,10 +341,8 @@ typedef enum __attribute__((__packed__)) {
  * configure it matches the default for tininess_before_rounding
  * (i.e. "after rounding").
  */
-typedef enum __attribute__((__packed__)) {
-    float_ftz_after_rounding = 0,
-    float_ftz_before_rounding = 1,
-} FloatFTZDetection;
+#define float_ftz_after_rounding   false
+#define float_ftz_before_rounding  true
 
 /*
  * floatx80 is primarily used by x86 and m68k, and there are
@@ -416,7 +414,7 @@ typedef struct float_status {
     /* should denormalised results go to zero and set output_denormal_flushed? */
     bool flush_to_zero;
     /* do we detect and flush denormal results before or after rounding? */
-    FloatFTZDetection ftz_detection;
+    bool ftz_before_rounding;
     /* should denormalised inputs go to zero and set input_denormal_flushed? */
     bool flush_inputs_to_zero;
     bool default_nan_mode;
