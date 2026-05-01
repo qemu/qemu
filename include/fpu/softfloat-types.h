@@ -327,7 +327,7 @@ typedef enum __attribute__((__packed__)) {
      * This is a flag which can be ORed in with any of the above
      * DNaN behaviour options.
      */
-    float_infzeronan_suppress_invalid = (1 << 7),
+    float_infzeronan_suppress_invalid = (1 << 2),
 } FloatInfZeroNaNRule;
 
 /*
@@ -402,22 +402,39 @@ typedef enum __attribute__((__packed__)) {
  */
 
 typedef struct float_status {
-    FloatExceptionFlags float_exception_flags;
-    FloatRoundMode float_rounding_mode;
-    FloatX80RoundPrec floatx80_rounding_precision;
-    FloatX80Behaviour floatx80_behaviour;
-    Float2NaNPropRule float_2nan_prop_rule;
-    Float3NaNPropRule float_3nan_prop_rule;
-    FloatInfZeroNaNRule float_infzeronan_rule;
-    FloatSNaNRule float_snan_rule;
-    bool tininess_before_rounding;
+    FloatExceptionFlags float_exception_flags : 16;
+
+    /*
+     * Floating point status controls.
+     * Items that, in general, may be updated by writes to an architectural
+     * floating point control register.
+     */
+    FloatRoundMode float_rounding_mode : 3;
+    FloatX80RoundPrec floatx80_rounding_precision : 2;
     /* should denormalised results go to zero and set output_denormal_flushed? */
-    bool flush_to_zero;
-    /* do we detect and flush denormal results before or after rounding? */
-    bool ftz_before_rounding;
+    bool flush_to_zero : 1;
     /* should denormalised inputs go to zero and set input_denormal_flushed? */
-    bool flush_inputs_to_zero;
-    bool default_nan_mode;
+    bool flush_inputs_to_zero : 1;
+    /* should default nans be produced instead of propagating an input nan? */
+    bool default_nan_mode : 1;
+    /* should overflowed results subtract re_bias to its exponent? */
+    bool rebias_overflow : 1;
+    /* should underflowed results add re_bias to its exponent? */
+    bool rebias_underflow : 1;
+
+    /*
+     * Floating point behaviour controls.
+     * Items that, in general, will be set at cpu realization because
+     * the behaviour is baked into the specific hardware implementation.
+     */
+    bool tininess_before_rounding : 1;
+    /* do we detect and flush denormal results before or after rounding? */
+    bool ftz_before_rounding : 1;
+    FloatSNaNRule float_snan_rule : 2;
+    Float2NaNPropRule float_2nan_prop_rule : 3;
+    Float3NaNPropRule float_3nan_prop_rule : 7;
+    FloatInfZeroNaNRule float_infzeronan_rule: 3;
+    FloatX80Behaviour floatx80_behaviour : 5;
     /*
      * The pattern to use for the default NaN. Here the high bit specifies
      * the default NaN's sign bit, and bits 6..0 specify the high bits of the
@@ -427,11 +444,7 @@ typedef struct float_status {
      * this to the correct non-zero value, or we will assert when trying to
      * create a default NaN.
      */
-    uint8_t default_nan_pattern;
-    /* should overflowed results subtract re_bias to its exponent? */
-    bool rebias_overflow;
-    /* should underflowed results add re_bias to its exponent? */
-    bool rebias_underflow;
+    unsigned default_nan_pattern : 8;
 } float_status;
 
 #endif /* SOFTFLOAT_TYPES_H */
