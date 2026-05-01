@@ -1011,7 +1011,7 @@ void run_test(void)
 
                     verCases_tininessCode = 0;
                     slowfloat_detectTininess = tmode;
-                    qsf.tininess_before_rounding = sf_tininess_to_qemu(tmode);
+                    set_float_detect_tininess(sf_tininess_to_qemu(tmode), &qsf);
 
                     if (attrs & FUNC_EFF_TININESSMODE ||
                         ((attrs & FUNC_EFF_TININESSMODE_REDUCEDPREC) &&

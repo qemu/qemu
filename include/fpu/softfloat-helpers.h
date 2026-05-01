@@ -132,11 +132,6 @@ static inline void set_snan_rule(FloatSNaNRule val, float_status *status)
     status->float_snan_rule = val;
 }
 
-static inline bool get_float_detect_tininess(const float_status *status)
-{
-    return status->tininess_before_rounding;
-}
-
 static inline FloatRoundMode get_float_rounding_mode(const float_status *status)
 {
     return status->float_rounding_mode;

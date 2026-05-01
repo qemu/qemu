@@ -418,7 +418,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         exp = 0;
         fracN(clear)(p);
     } else {
-        bool is_tiny = s->tininess_before_rounding || exp < 0;
+        bool is_tiny = get_tininess_before_rounding(s) || exp < 0;
         bool has_pseudo_denormals = fmt->has_explicit_bit &&
             (get_floatx80_behaviour(s) & floatx80_pseudo_denormal_valid);
 
