@@ -675,7 +675,7 @@ static void parse_args(int argc, char *argv[])
             soft_status.flush_inputs_to_zero = 1;
             break;
         case 'Z':
-            soft_status.flush_to_zero = 1;
+            set_flush_to_zero(true, &soft_status);
             break;
         }
     }

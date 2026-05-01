@@ -411,7 +411,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             p->frac_lo &= ~round_mask;
         }
         fracN(shr)(p, frac_shift);
-    } else if (s->flush_to_zero &&
+    } else if (get_flush_to_zero(s) &&
                s->ftz_detection == float_ftz_before_rounding) {
         flags |= float_flag_output_denormal_flushed;
         p->cls = float_class_zero;
@@ -462,7 +462,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         fracN(shr)(p, frac_shift);
 
         if (is_tiny) {
-            if (s->flush_to_zero) {
+            if (get_flush_to_zero(s)) {
                 assert(s->ftz_detection == float_ftz_after_rounding);
                 flags |= float_flag_output_denormal_flushed;
                 p->cls = float_class_zero;
