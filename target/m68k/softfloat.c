@@ -35,7 +35,7 @@ static floatx80 propagateFloatx80NaNOneArg(floatx80 a, float_status *status)
         a = floatx80_silence_nan(a, status);
     }
 
-    if (status->default_nan_mode) {
+    if (get_default_nan_mode(status)) {
         return floatx80_default_nan(status);
     }
 

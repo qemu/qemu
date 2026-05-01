@@ -690,11 +690,11 @@ uint32_t HELPER(recpe_f16)(uint32_t input, float_status *fpst)
         float16 nan = f16;
         if (float16_is_signaling_nan(f16, fpst)) {
             float_raise(float_flag_invalid, fpst);
-            if (!fpst->default_nan_mode) {
+            if (!get_default_nan_mode(fpst)) {
                 nan = float16_silence_nan(f16, fpst);
             }
         }
-        if (fpst->default_nan_mode) {
+        if (get_default_nan_mode(fpst)) {
             nan =  float16_default_nan(fpst);
         }
         return nan;
@@ -743,11 +743,11 @@ static float32 do_recpe_f32(float32 input, float_status *fpst, bool rpres)
         float32 nan = f32;
         if (float32_is_signaling_nan(f32, fpst)) {
             float_raise(float_flag_invalid, fpst);
-            if (!fpst->default_nan_mode) {
+            if (!get_default_nan_mode(fpst)) {
                 nan = float32_silence_nan(f32, fpst);
             }
         }
-        if (fpst->default_nan_mode) {
+        if (get_default_nan_mode(fpst)) {
             nan =  float32_default_nan(fpst);
         }
         return nan;
@@ -802,11 +802,11 @@ float64 HELPER(recpe_f64)(float64 input, float_status *fpst)
         float64 nan = f64;
         if (float64_is_signaling_nan(f64, fpst)) {
             float_raise(float_flag_invalid, fpst);
-            if (!fpst->default_nan_mode) {
+            if (!get_default_nan_mode(fpst)) {
                 nan = float64_silence_nan(f64, fpst);
             }
         }
-        if (fpst->default_nan_mode) {
+        if (get_default_nan_mode(fpst)) {
             nan =  float64_default_nan(fpst);
         }
         return nan;
@@ -945,11 +945,11 @@ uint32_t HELPER(rsqrte_f16)(uint32_t input, float_status *s)
         float16 nan = f16;
         if (float16_is_signaling_nan(f16, s)) {
             float_raise(float_flag_invalid, s);
-            if (!s->default_nan_mode) {
+            if (!get_default_nan_mode(s)) {
                 nan = float16_silence_nan(f16, s);
             }
         }
-        if (s->default_nan_mode) {
+        if (get_default_nan_mode(s)) {
             nan =  float16_default_nan(s);
         }
         return nan;
@@ -994,11 +994,11 @@ static float32 do_rsqrte_f32(float32 input, float_status *s, bool rpres)
         float32 nan = f32;
         if (float32_is_signaling_nan(f32, s)) {
             float_raise(float_flag_invalid, s);
-            if (!s->default_nan_mode) {
+            if (!get_default_nan_mode(s)) {
                 nan = float32_silence_nan(f32, s);
             }
         }
-        if (s->default_nan_mode) {
+        if (get_default_nan_mode(s)) {
             nan =  float32_default_nan(s);
         }
         return nan;
@@ -1056,11 +1056,11 @@ float64 HELPER(rsqrte_f64)(float64 input, float_status *s)
         float64 nan = f64;
         if (float64_is_signaling_nan(f64, s)) {
             float_raise(float_flag_invalid, s);
-            if (!s->default_nan_mode) {
+            if (!get_default_nan_mode(s)) {
                 nan = float64_silence_nan(f64, s);
             }
         }
-        if (s->default_nan_mode) {
+        if (get_default_nan_mode(s)) {
             nan =  float64_default_nan(s);
         }
         return nan;

@@ -20,14 +20,14 @@ FloatPartsN partsN(return_nan)(const FloatPartsN *a, float_status *s)
     switch (a->cls) {
     case float_class_snan:
         float_raise(float_flag_invalid | float_flag_invalid_snan, s);
-        if (s->default_nan_mode) {
+        if (get_default_nan_mode(s)) {
             return partsN(default_nan)(s);
         } else {
             return partsN(silence_nan)(a, s);
         }
         break;
     case float_class_qnan:
-        if (s->default_nan_mode) {
+        if (get_default_nan_mode(s)) {
             return partsN(default_nan)(s);
         }
         break;
@@ -49,7 +49,7 @@ FloatPartsN partsN(pick_nan)(const FloatPartsN *a, const FloatPartsN *b,
         have_snan = true;
     }
 
-    if (s->default_nan_mode) {
+    if (get_default_nan_mode(s)) {
         return partsN(default_nan)(s);
     }
 
@@ -134,7 +134,7 @@ static FloatPartsN partsN(pick_nan_muladd)(const FloatPartsN *a,
         float_raise(float_flag_invalid | float_flag_invalid_imz, s);
     }
 
-    if (s->default_nan_mode) {
+    if (get_default_nan_mode(s)) {
         /*
          * We guarantee not to require the target to tell us how to
          * pick a NaN if we're always returning the default NaN.
