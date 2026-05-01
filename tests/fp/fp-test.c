@@ -996,7 +996,7 @@ void run_test(void)
 
                 verCases_roundingPrecision = 0;
                 slow_extF80_roundingPrecision = prec80;
-                qsf.floatx80_rounding_precision = qsf_prec80;
+                set_floatx80_rounding_precision(qsf_prec80, &qsf);
 
                 if (attrs & FUNC_EFF_ROUNDINGPRECISION) {
                     verCases_roundingPrecision = prec80;
