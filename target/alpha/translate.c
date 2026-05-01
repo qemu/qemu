@@ -34,7 +34,6 @@
 #undef  HELPER_H
 
 #undef ALPHA_DEBUG_DISAS
-#define CONFIG_SOFTFLOAT_INLINE
 
 #ifdef ALPHA_DEBUG_DISAS
 #  define LOG_DISAS(...) qemu_log_mask(CPU_LOG_TB_IN_ASM, ## __VA_ARGS__)
@@ -578,15 +577,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
         break;
     }
 
-#if defined(CONFIG_SOFTFLOAT_INLINE)
-    /* ??? The "fpu/softfloat.h" interface is to call set_float_rounding_mode.
-       With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
-       sets the one field.  */
-    tcg_gen_st8_i32(tmp, tcg_env,
-                    offsetof(CPUAlphaState, fp_status.float_rounding_mode));
-#else
-    gen_helper_setroundmode(tmp);
-#endif
+    gen_helper_setroundmode(tcg_env, tmp);
 }
 
 static void gen_qual_flushzero(DisasContext *ctx, int fn11)
@@ -609,12 +600,7 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
         tcg_gen_movi_i32(tmp, 1);
     }
 
-#if defined(CONFIG_SOFTFLOAT_INLINE)
-    tcg_gen_st8_i32(tmp, tcg_env,
-                    offsetof(CPUAlphaState, fp_status.flush_to_zero));
-#else
-    gen_helper_setflushzero(tmp);
-#endif
+    gen_helper_setflushzero(tcg_env, tmp);
 }
 
 static TCGv_i64 gen_ieee_input(DisasContext *ctx, int reg, int fn11, int is_cmp)
