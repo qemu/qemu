@@ -358,7 +358,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             switch (fmt->exp_max_kind) {
             case float_expmax_ieee:
                 flags |= float_flag_overflow;
-                if (s->rebias_overflow) {
+                if (get_float_rebias_overflow(s)) {
                     exp -= fmt->exp_re_bias;
                 } else if (overflow_norm) {
                     flags |= float_flag_inexact;
@@ -398,7 +398,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             }
         }
         fracN(shr)(p, frac_shift);
-    } else if (unlikely(s->rebias_underflow)) {
+    } else if (unlikely(get_float_rebias_underflow(s))) {
         flags |= float_flag_underflow;
         exp += fmt->exp_re_bias;
         if (p->frac_lo & round_mask) {

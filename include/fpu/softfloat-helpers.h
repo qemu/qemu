@@ -131,6 +131,16 @@ static inline void set_snan_rule(FloatSNaNRule val, float_status *status)
     status->float_snan_rule = val;
 }
 
+static inline void set_float_rebias_overflow(bool val, float_status *status)
+{
+    status->rebias_overflow = val;
+}
+
+static inline void set_float_rebias_underflow(bool val, float_status *status)
+{
+    status->rebias_underflow = val;
+}
+
 static inline FloatRoundMode get_float_rounding_mode(const float_status *status)
 {
     return status->float_rounding_mode;
