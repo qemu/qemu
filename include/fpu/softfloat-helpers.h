@@ -172,11 +172,6 @@ get_float_infzeronan_rule(const float_status *status)
     return status->float_infzeronan_rule;
 }
 
-static inline uint8_t get_float_default_nan_pattern(const float_status *status)
-{
-    return status->default_nan_pattern;
-}
-
 static inline bool get_flush_to_zero(const float_status *status)
 {
     return status->flush_to_zero;

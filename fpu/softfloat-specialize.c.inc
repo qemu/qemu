@@ -89,6 +89,11 @@ static inline bool get_ftz_before_rounding(const float_status *status)
     return status->ftz_before_rounding;
 }
 
+static inline uint8_t get_float_default_nan_pattern(const float_status *status)
+{
+    return status->default_nan_pattern;
+}
+
 /*----------------------------------------------------------------------------
 | For the deconstructed floating-point with fraction FRAC, return true
 | if the fraction represents a signalling NaN; otherwise false.
@@ -121,7 +126,7 @@ FloatParts64 parts64_default_nan(float_status *status)
 {
     bool sign = 0;
     uint64_t frac;
-    uint8_t dnan_pattern = status->default_nan_pattern;
+    uint8_t dnan_pattern = get_float_default_nan_pattern(status);
 
     assert(dnan_pattern != 0);
 
