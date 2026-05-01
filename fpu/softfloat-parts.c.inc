@@ -297,7 +297,8 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     const uint64_t roundeven_mask = round_mask | frac_lsb;
     uint64_t inc;
     bool overflow_norm = saturate;
-    int exp, flags = 0;
+    int exp;
+    FloatExceptionFlags flags = 0;
 
     switch (s->float_rounding_mode) {
     case float_round_nearest_even_max:
@@ -1256,7 +1257,7 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
                                      int scale, int64_t min, int64_t max,
                                      float_status *s)
 {
-    int flags = 0;
+    FloatExceptionFlags flags = 0;
     uint64_t r;
 
     switch (p->cls) {
@@ -1324,7 +1325,7 @@ static int64_t partsN(float_to_sint)(FloatPartsN *p, FloatRoundMode rmode,
 static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
                                       int scale, uint64_t max, float_status *s)
 {
-    int flags = 0;
+    FloatExceptionFlags flags = 0;
     uint64_t r;
 
     switch (p->cls) {

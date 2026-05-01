@@ -64,7 +64,8 @@ static inline void set_float_rounding_mode(FloatRoundMode val,
     status->float_rounding_mode = val;
 }
 
-static inline void set_float_exception_flags(int val, float_status *status)
+static inline void
+set_float_exception_flags(FloatExceptionFlags val, float_status *status)
 {
     status->float_exception_flags = val;
 }
@@ -146,7 +147,8 @@ static inline FloatRoundMode get_float_rounding_mode(const float_status *status)
     return status->float_rounding_mode;
 }
 
-static inline int get_float_exception_flags(const float_status *status)
+static inline FloatExceptionFlags
+get_float_exception_flags(const float_status *status)
 {
     return status->float_exception_flags;
 }

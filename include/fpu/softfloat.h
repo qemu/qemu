@@ -101,7 +101,7 @@ typedef enum {
 | Routine to raise any or all of the software IEC/IEEE floating-point
 | exception flags.
 *----------------------------------------------------------------------------*/
-static inline void float_raise(uint16_t flags, float_status *status)
+static inline void float_raise(FloatExceptionFlags flags, float_status *status)
 {
     status->float_exception_flags |= flags;
 }

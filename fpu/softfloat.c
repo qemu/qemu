@@ -2976,7 +2976,7 @@ static int64_t float128_to_int64_scalbn(float128 a, FloatRoundMode rmode,
 static Int128 float128_to_int128_scalbn(float128 a, FloatRoundMode rmode,
                                         int scale, float_status *s)
 {
-    int flags = 0;
+    FloatExceptionFlags flags = 0;
     Int128 r;
     FloatParts128 p = float128_unpack_canonical(a, s);
 

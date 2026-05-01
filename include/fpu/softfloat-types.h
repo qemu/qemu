@@ -181,6 +181,8 @@ enum {
     float_flag_input_denormal_used = 0x4000,
 };
 
+typedef uint16_t FloatExceptionFlags;
+
 /*
  * Rounding precision for floatx80.
  */
@@ -385,7 +387,7 @@ typedef enum __attribute__((__packed__)) {
  */
 
 typedef struct float_status {
-    uint16_t float_exception_flags;
+    FloatExceptionFlags float_exception_flags;
     FloatRoundMode float_rounding_mode;
     FloatX80RoundPrec floatx80_rounding_precision;
     FloatX80Behaviour floatx80_behaviour;
