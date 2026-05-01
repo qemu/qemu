@@ -1018,7 +1018,7 @@ static inline bool floatx80_is_infinity(floatx80 a, float_status *status)
     bool intbit = a.low >> 63;
 
     if (!intbit &&
-        !(status->floatx80_behaviour & floatx80_pseudo_inf_valid)) {
+        !(get_floatx80_behaviour(status) & floatx80_pseudo_inf_valid)) {
         return false;
     }
     return (a.high & 0x7fff) == 0x7fff && !(a.low << 1);
@@ -1112,6 +1112,8 @@ static inline bool floatx80_unordered_quiet(floatx80 a, floatx80 b,
 *----------------------------------------------------------------------------*/
 static inline bool floatx80_invalid_encoding(floatx80 a, float_status *s)
 {
+    FloatX80Behaviour rule = get_floatx80_behaviour(s);
+
     if ((a.low >> 63) || (a.high & 0x7fff) == 0) {
         /* Anything with the Integer bit set or the exponent 0 is valid */
         return false;
@@ -1119,12 +1121,12 @@ static inline bool floatx80_invalid_encoding(floatx80 a, float_status *s)
 
     if ((a.high & 0x7fff) == 0x7fff) {
         if (a.low) {
-            return !(s->floatx80_behaviour & floatx80_pseudo_nan_valid);
+            return !(rule & floatx80_pseudo_nan_valid);
         } else {
-            return !(s->floatx80_behaviour & floatx80_pseudo_inf_valid);
+            return !(rule & floatx80_pseudo_inf_valid);
         }
     } else {
-        return !(s->floatx80_behaviour & floatx80_unnormal_valid);
+        return !(rule & floatx80_unnormal_valid);
     }
 }
 

@@ -221,7 +221,7 @@ floatx80 floatx80_default_inf(bool zSign, float_status *status)
      * Whether the Integer bit is set in the default Infinity is
      * target dependent.
      */
-    bool z = status->floatx80_behaviour & floatx80_default_inf_int_bit_is_zero;
+    bool z = get_floatx80_behaviour(status) & floatx80_default_inf_int_bit_is_zero;
     return packFloatx80(zSign, 0x7fff, z ? 0 : (1ULL << 63));
 }
 

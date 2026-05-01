@@ -213,7 +213,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
      * how we uncanonicalize results.
      */
     bool has_pseudo_denormals = fmt->has_explicit_bit &&
-        (status->floatx80_behaviour & floatx80_pseudo_denormal_valid);
+        (get_floatx80_behaviour(status) & floatx80_pseudo_denormal_valid);
 
     if (unlikely(p->exp == 0)) {
         if (likely(fracN(eqz)(p))) {
@@ -420,7 +420,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     } else {
         bool is_tiny = s->tininess_before_rounding || exp < 0;
         bool has_pseudo_denormals = fmt->has_explicit_bit &&
-            (s->floatx80_behaviour & floatx80_pseudo_denormal_valid);
+            (get_floatx80_behaviour(s) & floatx80_pseudo_denormal_valid);
 
         if (!is_tiny) {
             FloatPartsN discard;
