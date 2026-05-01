@@ -615,7 +615,7 @@ static void set_soft_precision(enum rounding rounding)
     default:
         g_assert_not_reached();
     }
-    soft_status.float_rounding_mode = mode;
+    set_float_rounding_mode(mode, &soft_status);
 }
 
 static void parse_args(int argc, char *argv[])

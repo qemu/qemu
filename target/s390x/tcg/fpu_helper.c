@@ -62,7 +62,7 @@ static int s390_get_bfp_rounding_mode(CPUS390XState *env, int m3)
     switch (m3) {
     case 0:
         /* current mode */
-        return env->fpu_status.float_rounding_mode;
+        return get_float_rounding_mode(&env->fpu_status);
     case 1:
         /* round to nearest with ties away from 0 */
         return float_round_ties_away;
@@ -634,7 +634,7 @@ uint32_t HELPER(cxb)(CPUS390XState *env, Int128 a, Int128 b)
 
 int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3)
 {
-    int ret = env->fpu_status.float_rounding_mode;
+    int ret = get_float_rounding_mode(&env->fpu_status);
 
     set_float_rounding_mode(s390_get_bfp_rounding_mode(env, m3),
                             &env->fpu_status);

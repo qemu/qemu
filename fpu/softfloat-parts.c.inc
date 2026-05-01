@@ -300,7 +300,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
     int exp;
     FloatExceptionFlags flags = 0;
 
-    switch (s->float_rounding_mode) {
+    switch (get_float_rounding_mode(s)) {
     case float_round_nearest_even_max:
         overflow_norm = true;
         /* fall through */
@@ -431,7 +431,7 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
 
         if (p->frac_lo & round_mask) {
             /* Need to recompute round-to-even/round-to-odd. */
-            switch (s->float_rounding_mode) {
+            switch (get_float_rounding_mode(s)) {
             case float_round_nearest_even:
                 if (N > 64 && frac_lsb == 0) {
                     inc = ((p->frac_hi & 1) ||
@@ -558,7 +558,7 @@ FloatPartsN partsN(addsub)(const FloatPartsN *a_orig,
 
         if (ab_mask == float_cmask_zero) {
             /* 0 - 0 */
-            a.sign = s->float_rounding_mode == float_round_down;
+            a.sign = get_float_rounding_mode(s) == float_round_down;
             return a;
         }
 
@@ -763,7 +763,7 @@ FloatPartsN partsN(muladd)(const FloatPartsN *a, const FloatPartsN *b,
  return_sub_zero:
     /* 0 - 0 == -0 for round_down, +0 otherwise. */
     return (FloatPartsN){
-        .sign = s->float_rounding_mode == float_round_down,
+        .sign = get_float_rounding_mode(s) == float_round_down,
         .cls = float_class_zero
     };
 

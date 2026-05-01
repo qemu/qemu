@@ -168,7 +168,7 @@ WRAP_SF_TO_128(qemu_f64_to_f128M, float64_to_float128, float64)
     {                                                                   \
         type *ap = (type *)&a;                                          \
                                                                         \
-        qsf.float_rounding_mode = sf_rounding_to_qemu(round);           \
+        set_float_rounding_mode(sf_rounding_to_qemu(round), &qsf);      \
         return func(*ap, &qsf);                                         \
     }
 
@@ -328,7 +328,7 @@ WRAP_INT_TO_80(qemu_i64_to_extF80M, int64_to_floatx80, int64_t)
         floatx80 a;                                                     \
                                                                         \
         a = soft_to_qemu80(*ap);                                        \
-        qsf.float_rounding_mode = sf_rounding_to_qemu(round);           \
+        set_float_rounding_mode(sf_rounding_to_qemu(round), &qsf);      \
         return func(a, &qsf);                                           \
     }
 
@@ -360,7 +360,7 @@ WRAP_80_TO_INT_MINMAG(qemu_extF80M_to_i64_r_minMag,
         float128 a;                                                     \
                                                                         \
         a = soft_to_qemu128(*ap);                                       \
-        qsf.float_rounding_mode = sf_rounding_to_qemu(round);           \
+        set_float_rounding_mode(sf_rounding_to_qemu(round), &qsf);      \
         return func(a, &qsf);                                           \
     }
 
@@ -414,7 +414,7 @@ WRAP_INT_TO_128(qemu_i64_to_f128M, int64_to_float128, int64_t)
         type *ap = (type *)&a;                                          \
         type ret;                                                       \
                                                                         \
-        qsf.float_rounding_mode = sf_rounding_to_qemu(round);           \
+        set_float_rounding_mode(sf_rounding_to_qemu(round), &qsf);      \
         ret = func(*ap, &qsf);                                          \
         return *(type##_t *)&ret;                                       \
     }
@@ -431,7 +431,7 @@ static void qemu_extF80M_roundToInt(const extFloat80_t *ap, uint_fast8_t round,
     floatx80 ret;
 
     a = soft_to_qemu80(*ap);
-    qsf.float_rounding_mode = sf_rounding_to_qemu(round);
+    set_float_rounding_mode(sf_rounding_to_qemu(round), &qsf);
     ret = floatx80_round_to_int(a, &qsf);
     *res = qemu_to_soft80(ret);
 }
@@ -443,7 +443,7 @@ static void qemu_f128M_roundToInt(const float128_t *ap, uint_fast8_t round,
     float128 ret;
 
     a = soft_to_qemu128(*ap);
-    qsf.float_rounding_mode = sf_rounding_to_qemu(round);
+    set_float_rounding_mode(sf_rounding_to_qemu(round), &qsf);
     ret = float128_round_to_int(a, &qsf);
     *res = qemu_to_soft128(ret);
 }

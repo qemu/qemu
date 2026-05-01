@@ -485,7 +485,7 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
 
 uint64_t helper_cvttq(CPUAlphaState *env, uint64_t a)
 {
-    return do_cvttq(env, a, FP_STATUS.float_rounding_mode);
+    return do_cvttq(env, a, get_float_rounding_mode(&FP_STATUS));
 }
 
 uint64_t helper_cvttq_c(CPUAlphaState *env, uint64_t a)

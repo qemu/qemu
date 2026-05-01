@@ -315,7 +315,7 @@ static float64 accum_round_float64(Accum a, float_status *fp_status)
     if ((int128_gethi(a.mant) == 0) && (int128_getlo(a.mant) == 0)
         && ((a.guard | a.round | a.sticky) == 0)) {
         /* result zero */
-        switch (fp_status->float_rounding_mode) {
+        switch (get_float_rounding_mode(fp_status)) {
         case float_round_down:
             return zero_float64(1);
         default:
@@ -362,7 +362,7 @@ static float64 accum_round_float64(Accum a, float_status *fp_status)
     /* OK, we're relatively canonical... now we need to round */
     if (a.guard || a.round || a.sticky) {
         float_raise(float_flag_inexact, fp_status);
-        switch (fp_status->float_rounding_mode) {
+        switch (get_float_rounding_mode(fp_status)) {
         case float_round_to_zero:
             /* Chop and we're done */
             break;
@@ -401,7 +401,7 @@ static float64 accum_round_float64(Accum a, float_status *fp_status)
         /* Yep, inf result */
         float_raise(float_flag_overflow, fp_status);
         float_raise(float_flag_inexact, fp_status);
-        switch (fp_status->float_rounding_mode) {
+        switch (get_float_rounding_mode(fp_status)) {
         case float_round_to_zero:
             return maxfinite_float64(a.sign);
         case float_round_up:

@@ -1616,7 +1616,7 @@ void helper_xsaddqp(CPUPPCState *env, uint32_t opcode,
 
     tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        tstat.float_rounding_mode = float_round_to_odd;
+        set_float_rounding_mode(float_round_to_odd, &tstat);
     }
 
     set_float_exception_flags(0, &tstat);
@@ -1688,7 +1688,7 @@ void helper_xsmulqp(CPUPPCState *env, uint32_t opcode,
     helper_reset_fpstatus(env);
     tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        tstat.float_rounding_mode = float_round_to_odd;
+        set_float_rounding_mode(float_round_to_odd, &tstat);
     }
 
     set_float_exception_flags(0, &tstat);
@@ -1762,7 +1762,7 @@ void helper_xsdivqp(CPUPPCState *env, uint32_t opcode,
     helper_reset_fpstatus(env);
     tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        tstat.float_rounding_mode = float_round_to_odd;
+        set_float_rounding_mode(float_round_to_odd, &tstat);
     }
 
     set_float_exception_flags(0, &tstat);
@@ -2095,7 +2095,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *s1, ppc_vsr_t *s2,\
     float_status tstat = env->fp_status;                                       \
     set_float_exception_flags(0, &tstat);                                      \
     if (ro) {                                                                  \
-        tstat.float_rounding_mode = float_round_to_odd;                        \
+        set_float_rounding_mode(float_round_to_odd, &tstat);                   \
     }                                                                          \
     t.f128 = float128_muladd(s1->f128, s3->f128, s2->f128, maddflgs, &tstat);  \
     env->fp_status.float_exception_flags |= tstat.float_exception_flags;       \
@@ -2706,7 +2706,7 @@ void helper_XSCVQPDP(CPUPPCState *env, uint32_t ro, ppc_vsr_t *xt,
 
     tstat = env->fp_status;
     if (ro != 0) {
-        tstat.float_rounding_mode = float_round_to_odd;
+        set_float_rounding_mode(float_round_to_odd, &tstat);
     }
 
     t.VsrD(0) = float128_to_float64(xb->f128, &tstat);
@@ -3306,7 +3306,7 @@ void helper_xssqrtqp(CPUPPCState *env, uint32_t opcode,
 
     tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        tstat.float_rounding_mode = float_round_to_odd;
+        set_float_rounding_mode(float_round_to_odd, &tstat);
     }
 
     set_float_exception_flags(0, &tstat);
@@ -3332,7 +3332,7 @@ void helper_xssubqp(CPUPPCState *env, uint32_t opcode,
 
     tstat = env->fp_status;
     if (unlikely(Rc(opcode) != 0)) {
-        tstat.float_rounding_mode = float_round_to_odd;
+        set_float_rounding_mode(float_round_to_odd, &tstat);
     }
 
     set_float_exception_flags(0, &tstat);

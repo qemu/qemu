@@ -4270,9 +4270,9 @@ static uint64_t frec7(uint64_t f, int exp_size, int frac_size,
             s->float_exception_flags |= (float_flag_inexact |
                                          float_flag_overflow);
 
-            if ((s->float_rounding_mode == float_round_to_zero) ||
-                ((s->float_rounding_mode == float_round_down) && !sign) ||
-                ((s->float_rounding_mode == float_round_up) && sign)) {
+            if ((get_float_rounding_mode(s) == float_round_to_zero) ||
+                ((get_float_rounding_mode(s) == float_round_down) && !sign) ||
+                ((get_float_rounding_mode(s) == float_round_up) && sign)) {
                 /* Return greatest/negative finite value. */
                 return (sign << (exp_size + frac_size)) |
                        (MAKE_64BIT_MASK(frac_size, exp_size) - 1);

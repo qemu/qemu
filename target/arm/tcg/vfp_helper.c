@@ -423,10 +423,10 @@ ftype HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift,      \
                                                      float_status *fpst) \
     {                                                                  \
         ftype ret;                                                     \
-        FloatRoundMode oldmode = fpst->float_rounding_mode;            \
-        fpst->float_rounding_mode = float_round_nearest_even;          \
+        FloatRoundMode oldmode = get_float_rounding_mode(fpst);        \
+        set_float_rounding_mode(float_round_nearest_even, fpst);       \
         ret = itype##_to_##float##fsz##_scalbn(x, -shift, fpst);       \
-        fpst->float_rounding_mode = oldmode;                           \
+        set_float_rounding_mode(oldmode, fpst);                        \
         return ret;                                                    \
     }
 
@@ -663,7 +663,7 @@ static uint64_t call_recip_estimate(int *exp, int exp_off, uint64_t frac,
 
 static bool round_to_inf(float_status *fpst, bool sign_bit)
 {
-    switch (fpst->float_rounding_mode) {
+    switch (get_float_rounding_mode(fpst)) {
     case float_round_nearest_even: /* Round to Nearest */
         return true;
     case float_round_up: /* Round to +Inf */

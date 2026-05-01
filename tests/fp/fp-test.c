@@ -967,7 +967,7 @@ void run_test(void)
 
             verCases_roundingCode = 0;
             slowfloat_roundingMode = rmode;
-            qsf.float_rounding_mode = sf_rounding_to_qemu(rmode);
+            set_float_rounding_mode(sf_rounding_to_qemu(rmode), &qsf);
 
             if (attrs & (FUNC_ARG_ROUNDINGMODE | FUNC_EFF_ROUNDINGMODE)) {
                 /* print rounding mode if the op is affected by it */
