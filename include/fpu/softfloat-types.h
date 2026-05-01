@@ -193,6 +193,23 @@ typedef enum __attribute__((__packed__)) {
 } FloatX80RoundPrec;
 
 /*
+ * Define how the architecture discriminates signaling NaNs.
+ * This done with the most significant bit of the fraction.
+ *
+ * In IEEE 754-1985 this was implementation defined, but in IEEE 754-2008
+ * the msb must be 0.  But setting the msb to 1 got baked into HPPA, SH4,
+ * and pre-2008 MIPS.
+ *
+ * Further, some architectures (or modes of architectures) do not detect
+ * signaling NaNs at all.
+ */
+typedef enum __attribute__((__packed__)) {
+    float_snan_bit_is_zero,
+    float_snan_bit_is_one,
+    float_snan_never,
+} FloatSNaNRule;
+
+/*
  * 2-input NaN propagation rule. Individual architectures have
  * different rules for which input NaN is propagated to the output
  * when there is more than one NaN on the input.
@@ -394,6 +411,7 @@ typedef struct float_status {
     Float2NaNPropRule float_2nan_prop_rule;
     Float3NaNPropRule float_3nan_prop_rule;
     FloatInfZeroNaNRule float_infzeronan_rule;
+    FloatSNaNRule float_snan_rule;
     bool tininess_before_rounding;
     /* should denormalised results go to zero and set output_denormal_flushed? */
     bool flush_to_zero;
@@ -412,13 +430,6 @@ typedef struct float_status {
      * create a default NaN.
      */
     uint8_t default_nan_pattern;
-    /*
-     * The flags below are not used on all specializations and may
-     * constant fold away (see snan_bit_is_one()/no_signalling_nans() in
-     * softfloat-specialize.inc.c)
-     */
-    bool snan_bit_is_one;
-    bool no_signaling_nans;
     /* should overflowed results subtract re_bias to its exponent? */
     bool rebias_overflow;
     /* should underflowed results add re_bias to its exponent? */

@@ -79,26 +79,6 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
-/*
- * Define whether architecture deviates from IEEE in not supporting
- * signaling NaNs (so all NaNs are treated as quiet).
- */
-static inline bool no_signaling_nans(float_status *status)
-{
-    return status->no_signaling_nans;
-}
-
-/* Define how the architecture discriminates signaling NaNs.
- * This done with the most significant bit of the fraction.
- * In IEEE 754-1985 this was implementation defined, but in IEEE 754-2008
- * the msb must be zero.  MIPS is (so far) unique in supporting both the
- * 2008 revision and backward compatibility with their original choice.
- */
-static inline bool snan_bit_is_one(float_status *status)
-{
-    return status->snan_bit_is_one;
-}
-
 /*----------------------------------------------------------------------------
 | For the deconstructed floating-point with fraction FRAC, return true
 | if the fraction represents a signalling NaN; otherwise false.
@@ -106,11 +86,15 @@ static inline bool snan_bit_is_one(float_status *status)
 
 static bool frac_msb_is_snan(bool msb, float_status *status)
 {
-    if (no_signaling_nans(status)) {
+    switch (get_snan_rule(status)) {
+    case float_snan_never:
         return false;
-    } else {
-        return msb == snan_bit_is_one(status);
+    case float_snan_bit_is_one:
+        return msb;
+    case float_snan_bit_is_zero:
+        return !msb;
     }
+    g_assert_not_reached();
 }
 
 static bool parts_is_snan_frac(uint64_t frac, float_status *status)
@@ -172,14 +156,18 @@ FloatParts128 parts128_default_nan(float_status *status)
 
 static uint64_t parts_silence_nan_frac(uint64_t frac, float_status *status)
 {
-    g_assert(!no_signaling_nans(status));
-
-    /* The only snan_bit_is_one target without default_nan_mode is HPPA. */
-    if (snan_bit_is_one(status)) {
+    switch (get_snan_rule(status)) {
+    case float_snan_bit_is_zero:
+        frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+        break;
+    case float_snan_bit_is_one:
+        /* The only snan_bit_is_one target without default_nan_mode is HPPA. */
         frac &= ~(1ULL << (DECOMPOSED_BINARY_POINT - 1));
         frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 2);
-    } else {
-        frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+        break;
+    case float_snan_never:
+    default:
+        g_assert_not_reached();
     }
     return frac;
 }
@@ -390,7 +378,7 @@ bool floatx80_is_signaling_nan(floatx80 a, float_status *status)
 floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
 {
     /* None of the targets that have snan_bit_is_one use floatx80.  */
-    assert(!snan_bit_is_one(status));
+    assert(get_snan_rule(status) == float_snan_bit_is_zero);
     a.low |= UINT64_C(0xC000000000000000);
     return a;
 }

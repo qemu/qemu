@@ -127,14 +127,9 @@ static inline void set_default_nan_mode(bool val, float_status *status)
     status->default_nan_mode = val;
 }
 
-static inline void set_snan_bit_is_one(bool val, float_status *status)
+static inline void set_snan_rule(FloatSNaNRule val, float_status *status)
 {
-    status->snan_bit_is_one = val;
-}
-
-static inline void set_no_signaling_nans(bool val, float_status *status)
-{
-    status->no_signaling_nans = val;
+    status->float_snan_rule = val;
 }
 
 static inline bool get_float_detect_tininess(const float_status *status)
@@ -201,6 +196,11 @@ static inline bool get_flush_inputs_to_zero(const float_status *status)
 static inline bool get_default_nan_mode(const float_status *status)
 {
     return status->default_nan_mode;
+}
+
+static inline FloatSNaNRule get_snan_rule(float_status *status)
+{
+    return status->float_snan_rule;
 }
 
 static inline FloatFTZDetection get_float_ftz_detection(const float_status *status)
