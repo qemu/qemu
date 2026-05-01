@@ -218,7 +218,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
     if (unlikely(p->exp == 0)) {
         if (likely(fracN(eqz)(p))) {
             p->cls = float_class_zero;
-        } else if (status->flush_inputs_to_zero) {
+        } else if (get_flush_inputs_to_zero(status)) {
             float_raise(float_flag_input_denormal_flushed, status);
             p->cls = float_class_zero;
             fracN(clear)(p);

@@ -151,7 +151,7 @@ void helper_ieee_input_cmp(CPUAlphaState *env, uint64_t val)
 void helper_ieee_input_s(CPUAlphaState *env, uint64_t val)
 {
     if (unlikely(2 * val - 1 < 0x1fffffffffffffull)
-        && !env->fp_status.flush_inputs_to_zero) {
+        && !get_flush_inputs_to_zero(&env->fp_status)) {
         arith_excp(env, GETPC(), EXC_M_INV | EXC_M_SWC, 0);
     }
 }

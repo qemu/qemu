@@ -672,7 +672,7 @@ static void parse_args(int argc, char *argv[])
             tester = val;
             break;
         case 'z':
-            soft_status.flush_inputs_to_zero = 1;
+            set_flush_inputs_to_zero(true, &soft_status);
             break;
         case 'Z':
             set_flush_to_zero(true, &soft_status);
