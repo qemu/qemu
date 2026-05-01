@@ -53,7 +53,7 @@ FloatPartsN partsN(pick_nan)(const FloatPartsN *a, const FloatPartsN *b,
         return partsN(default_nan)(s);
     }
 
-    switch (s->float_2nan_prop_rule) {
+    switch (get_float_2nan_prop_rule(s)) {
     case float_2nan_prop_s_ab:
         if (have_snan) {
             ret = is_snan(a->cls) ? a : b;
