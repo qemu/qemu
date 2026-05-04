@@ -40,6 +40,11 @@ class AST2600Machine(AspeedTest):
             'i3ctransfer -d /dev/bus/i3c/5-1234567890ab -r 8 | grep 0x | xargs',
             '0x12 0x34 0x56 0x78 0x90 0xab 0xcd 0xef')
 
+    def do_ast2600_usb_ehci_test(self):
+        exec_command_and_wait_for_pattern(self,
+            'lsusb',
+            'QEMU QEMU USB Keyboard')
+
     def test_arm_ast2600_evb_sdk(self):
         self.set_machine('ast2600-evb')
         self.require_netdev('user')
@@ -54,6 +59,7 @@ class AST2600Machine(AspeedTest):
         self.vm.add_args('-netdev', 'user,id=net1')
         self.vm.add_args('-device',
             'mock-i3c-target,bus=dw.i3c.5,pid=0xab9078563412')
+        self.vm.add_args('-device', 'usb-kbd,bus=usb-bus.1')
         self.do_test_arm_aspeed_sdk_start(
             self.scratch_file("ast2600-default-image", "image-bmc"))
 
@@ -81,6 +87,7 @@ class AST2600Machine(AspeedTest):
              '/sbin/hwclock -f /dev/rtc1', year)
         self.do_ast2600_pcie_test()
         self.do_ast2600_i3c_test()
+        self.do_ast2600_usb_ehci_test()
 
 
 if __name__ == '__main__':
