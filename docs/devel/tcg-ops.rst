@@ -769,11 +769,6 @@ specifies the length of the element (if applicable) in log2 8-bit units.
      - | Similarly, for a constant.
        | Smaller values will be replicated to host register size by the expanders.
 
-   * - dup2_vec *v0*, *r1*, *r2*
-
-     - | Duplicate *r2*:*r1* into TYPE/64 copies across *v0*. This opcode is
-         only present for 32-bit hosts.
-
    * - add_vec *v0*, *v1*, *v2*
 
      - | *v0* = *v1* + *v2*, in elements across the vector.
