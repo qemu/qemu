@@ -816,9 +816,15 @@ specifies the length of the element (if applicable) in log2 8-bit units.
 
    * - and_vec *v0*, *v1*, *v2*
 
+       nand_vec *v0*, *v1*, *v2*
+
        or_vec *v0*, *v1*, *v2*
 
+       nor_vec *v0*, *v1*, *v2*
+
        xor_vec *v0*, *v1*, *v2*
+
+       eqv_vec *v0*, *v1*, *v2*
 
        andc_vec *v0*, *v1*, *v2*
 
@@ -851,6 +857,8 @@ specifies the length of the element (if applicable) in log2 8-bit units.
        shrs_vec *v0*, *v1*, *s2*
 
        sars_vec *v0*, *v1*, *s2*
+
+       rotls_vec *v0*, *v1*, *s2*
 
      - | Similarly for logical and arithmetic right shift, and left rotate.
 
