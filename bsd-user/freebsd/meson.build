@@ -4,6 +4,7 @@ bsd_syscall_nr = custom_target('bsd-syscall-h',
     command: [sh, meson.current_source_dir() / 'scripts/syscallhdr.sh', '@INPUT@', '@OUTPUT@', 'FREEBSD'])
 
 bsd_user_ss.add(files(
+  'os-extattr.c',
   'os-proc.c',
   'os-socket.c',
   'os-stat.c',
