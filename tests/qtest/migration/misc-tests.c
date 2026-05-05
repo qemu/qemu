@@ -28,9 +28,11 @@ static void test_baddest(char *name, MigrateCommon *args)
 
     args->start.hide_stderr = true;
 
-    if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
     }
+
+    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
     migrate_qmp(from, to, "tcp:127.0.0.1:0", NULL, "{}");
     wait_for_migration_fail(from, false);
     migrate_end(from, to, false);
@@ -52,8 +54,7 @@ static void test_analyze_script(char *name, MigrateCommon *args)
         return;
     }
 
-    /* dummy url */
-    if (migrate_start(&from, &to, "tcp:127.0.0.1:0", &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
     }
 
@@ -69,6 +70,7 @@ static void test_analyze_script(char *name, MigrateCommon *args)
     uri = g_strdup_printf("exec:cat > %s", file);
 
     migrate_ensure_converge(from);
+    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
     migrate_qmp(from, to, uri, NULL, "{}");
     wait_for_migration_complete(from);
 
@@ -178,12 +180,14 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
     QTestState *from, *to;
     QObject *channels;
 
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
     }
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
+
+    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
 
     /*
      * 'uri' and 'channels' validation is checked even before the migration
@@ -248,7 +252,6 @@ static void test_validate_caps_pair(char *test_path, MigrateCommon *args)
 
 static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer",
     args->connect_uri = "tcp:127.0.0.1:0",
     args->connect_channels = ("[ { ""'channel-type': 'main',"
                               "    'addr': { 'transport': 'socket',"
@@ -263,7 +266,6 @@ static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 
 static void test_validate_uri_channels_none_set(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start.hide_stderr = true;
 
     do_test_validate_uri_channel(args);
