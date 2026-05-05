@@ -832,14 +832,7 @@ int test_precopy_common(MigrateCommon *args)
     QTestState *from, *to;
     void *data_hook = NULL;
     QObject *channels = NULL;
-
-    assert(!args->connect_uri);
-
-    if (args->listen_uri) {
-        args->connect_uri = args->listen_uri;
-    } else {
-        args->listen_uri = "tcp:127.0.0.1:0";
-    }
+    const char *listen_uri = args->uri ?: "tcp:127.0.0.1:0";
 
     if (migrate_start(&from, &to, &args->start)) {
         return -1;
@@ -849,7 +842,7 @@ int test_precopy_common(MigrateCommon *args)
         data_hook = args->start_hook(from, to);
     }
 
-    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
+    migrate_incoming_qmp(to, listen_uri, NULL, "{}");
 
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
@@ -879,11 +872,11 @@ int test_precopy_common(MigrateCommon *args)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, channels, "{}");
+        migrate_qmp_fail(from, args->uri, channels, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, channels, "{}");
+    migrate_qmp(from, to, args->uri, channels, "{}");
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
@@ -947,7 +940,7 @@ void test_precopy_unix_common(MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
 
-    args->listen_uri = uri;
+    args->uri = uri;
     test_precopy_common(args);
 }
 
@@ -994,9 +987,9 @@ void test_file_common(MigrateCommon *args, bool stop_src)
         return;
     }
 
-    if (!args->connect_uri) {
+    if (!args->uri) {
         uri = g_strdup_printf("file:%s/%s", tmpfs, FILE_TEST_FILENAME);
-        args->connect_uri = uri;
+        args->uri = uri;
     }
 
     /*
@@ -1006,7 +999,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
      */
     g_assert_false(args->live);
 
-    if (g_strrstr(args->connect_uri, "offset=")) {
+    if (g_strrstr(args->uri, "offset=")) {
         check_offset = true;
         /*
          * This comes before the start_hook because it's equivalent to
@@ -1029,18 +1022,18 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, NULL, "{}");
+        migrate_qmp_fail(from, args->uri, NULL, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, args->uri, NULL, "{}");
     wait_for_migration_complete(from);
 
     /*
      * We need to wait for the source to finish before starting the
      * destination.
      */
-    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
     wait_for_migration_complete(to);
 
     if (stop_src) {

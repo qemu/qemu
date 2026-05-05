@@ -55,12 +55,12 @@ static int test_colo_common(MigrateCommon *args,
         data_hook = args->start_hook(from, to);
     }
 
-    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
 
     migrate_ensure_converge(from);
     wait_for_serial("src_serial");
 
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, NULL, NULL, "{}");
 
     wait_for_migration_status(from, "colo", NULL);
     wait_for_resume(to, get_dst());
@@ -105,7 +105,7 @@ static void test_colo_plain_common(MigrateCommon *args,
                                    bool failover_during_checkpoint,
                                    bool primary_failover)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
+    args->uri = "tcp:127.0.0.1:0";
     test_colo_common(args, failover_during_checkpoint, primary_failover);
 }
 
@@ -113,7 +113,7 @@ static void test_colo_multifd_common(MigrateCommon *args,
                                      bool failover_during_checkpoint,
                                      bool primary_failover)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
+    args->uri = "tcp:127.0.0.1:0";
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
     test_colo_common(args, failover_during_checkpoint, primary_failover);
 }

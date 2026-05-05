@@ -163,16 +163,14 @@ typedef struct {
     /* Optional: fine tune start parameters */
     MigrateStart start;
 
-    /* Required: the URI for the dst QEMU to listen on */
-    const char *listen_uri;
-
     /*
-     * Optional: the URI for the src QEMU to connect to
-     * If NULL, then it will query the dst QEMU for its actual
-     * listening address and use that as the connect address.
-     * This allows for dynamically picking a free TCP port.
+     * Optional: the migration URI. If NULL, the common code should
+     * provide a default. For socket migration, the source QEMU may
+     * query the dst QEMU for the listening address and use that as
+     * the connection address. This allows for dynamically picking a
+     * free TCP port.
      */
-    const char *connect_uri;
+    const char *uri;
 
     /*
      * Optional: JSON-formatted list of src QEMU URIs. If a port is

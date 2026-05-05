@@ -196,7 +196,7 @@ static void do_test_validate_uri_channel(MigrateCommon *args)
     channels = args->connect_channels ?
                qobject_from_json(args->connect_channels, &error_abort) :
                NULL;
-    migrate_qmp_fail(from, args->connect_uri, channels, "{}");
+    migrate_qmp_fail(from, args->uri, channels, "{}");
 
     migrate_end(from, to, false);
 }
@@ -252,7 +252,7 @@ static void test_validate_caps_pair(char *test_path, MigrateCommon *args)
 
 static void test_validate_uri_channels_both_set(char *name, MigrateCommon *args)
 {
-    args->connect_uri = "tcp:127.0.0.1:0",
+    args->uri = "tcp:127.0.0.1:0",
     args->connect_channels = ("[ { ""'channel-type': 'main',"
                               "    'addr': { 'transport': 'socket',"
                               "              'type': 'inet',"

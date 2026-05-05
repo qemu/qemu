@@ -161,7 +161,7 @@ static void __test_precopy_rdma_plain(MigrateCommon *args, bool ipv6)
      **/
     g_autofree char *uri = g_strdup_printf("rdma:%s:29200", buffer);
 
-    args->listen_uri = uri;
+    args->uri = uri;
 
     test_precopy_common(args);
 }
@@ -253,7 +253,7 @@ static void migrate_hook_end_fd(QTestState *from,
 
 static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "fd:fd-mig";
+    args->uri = "fd:fd-mig";
     args->start_hook = migrate_hook_start_fd;
     args->end_hook = migrate_hook_end_fd;
 
@@ -970,7 +970,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     args->start.hide_stderr = true;
     args->start.use_dirty_ring = true;
 
-    args->connect_uri = uri;
+    args->uri = uri;
 
     /* Start src, dst vm */
     if (migrate_start(&from, &to, &args->start)) {
@@ -981,8 +981,8 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     migrate_dirty_limit_wait_showup(from, dirtylimit_period, dirtylimit_value);
 
     /* Start migrate */
-    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
+    migrate_qmp(from, to, args->uri, NULL, "{}");
 
     /* Wait for dirty limit throttle begin */
     throttle_us_per_full = 0;
@@ -1014,8 +1014,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     /* Assert dirty limit is not in service */
     g_assert_cmpint(throttle_us_per_full, ==, 0);
 
-    args->listen_uri = uri;
-    args->connect_uri = uri;
+    args->uri = uri;
 
     args->start.only_target = true;
     args->start.use_dirty_ring = true;
@@ -1026,8 +1025,8 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     }
 
     /* Start migrate */
-    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
+    migrate_qmp(from, to, args->uri, NULL, "{}");
 
     /* Wait for dirty limit throttle begin */
     throttle_us_per_full = 0;

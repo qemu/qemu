@@ -35,7 +35,7 @@ static void test_mode_reboot(char *name, MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
 
-    args->connect_uri = uri;
+    args->uri = uri;
     args->start_hook = migrate_hook_start_mode_reboot;
 
     args->start.mem_type = MEM_TYPE_SHMEM;
@@ -226,7 +226,7 @@ static void test_cpr_exec(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
-    g_autofree char *connect_uri = g_strdup(args->connect_uri);
+    g_autofree char *connect_uri = g_strdup(args->uri);
     g_autofree char *filename = g_strdup_printf("%s/%s", tmpfs,
                                                 FILE_TEST_FILENAME);
 
@@ -280,7 +280,7 @@ static void test_mode_exec(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
-    args->connect_uri = uri;
+    args->uri = uri;
     args->start_hook = test_mode_exec_start;
 
     args->start.only_source = true;
