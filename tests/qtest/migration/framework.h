@@ -242,9 +242,6 @@ void test_postcopy_recovery_common(MigrateCommon *args,
 int test_precopy_common(MigrateCommon *args);
 void test_precopy_unix_common(MigrateCommon *args);
 void test_file_common(MigrateCommon *args, bool stop_src);
-void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
-                                                    QTestState *to,
-                                                    const char *method);
 
 typedef struct QTestMigrationState QTestMigrationState;
 QTestMigrationState *get_src(void);

@@ -1063,15 +1063,6 @@ finish:
     migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
 }
 
-void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
-                                                    QTestState *to,
-                                                    const char *method)
-{
-    migrate_set_parameter_str(from, "multifd-compression", method);
-    migrate_set_parameter_str(to, "multifd-compression", method);
-    return NULL;
-}
-
 QTestMigrationState *get_src(void)
 {
     return &src_state;
