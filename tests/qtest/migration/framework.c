@@ -934,6 +934,15 @@ finish:
     return 0;
 }
 
+void test_precopy_unix_common(MigrateCommon *args)
+{
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+
+    args->listen_uri = uri;
+    args->connect_uri = uri;
+    test_precopy_common(args);
+}
+
 static void file_dirty_offset_region(void)
 {
     g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);

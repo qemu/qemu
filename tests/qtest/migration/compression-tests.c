@@ -123,10 +123,6 @@ migrate_hook_start_xbzrle(QTestState *from,
 
 static void test_precopy_unix_xbzrle(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->connect_uri = uri;
-    args->listen_uri = uri;
     args->start_hook = migrate_hook_start_xbzrle;
     args->iterations = 2;
     /*
@@ -137,7 +133,7 @@ static void test_precopy_unix_xbzrle(char *name, MigrateCommon *args)
 
     args->start.caps[MIGRATION_CAPABILITY_XBZRLE] = true;
 
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void *

@@ -424,14 +424,10 @@ static void test_multifd_postcopy_preempt_recovery_tls_psk(char *name,
 
 static void test_precopy_unix_tls_psk(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->connect_uri = uri;
-    args->listen_uri = uri;
     args->start_hook = migrate_hook_start_tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 #ifdef CONFIG_TASN1
@@ -454,14 +450,10 @@ static void test_precopy_unix_tls_x509_default_host(char *name,
 static void test_precopy_unix_tls_x509_override_host(char *name,
                                                      MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->connect_uri = uri;
-    args->listen_uri = uri;
     args->start_hook = migrate_hook_start_tls_x509_override_host;
     args->end_hook = migrate_hook_end_tls_x509;
 
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 #endif /* CONFIG_TASN1 */
 

@@ -37,62 +37,40 @@ static char *tmpfs;
 
 static void test_precopy_unix_plain(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     /*
      * The simplest use case of precopy, covering smoke tests of
      * get-dirty-log dirty tracking.
      */
     args->live = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void test_precopy_unix_suspend_live(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     /*
      * despite being live, the test is fast because the src
      * suspends immediately.
      */
     args->live = true;
-
     args->start.suspend_me = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void test_precopy_unix_suspend_notlive(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     args->start.suspend_me = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void test_precopy_unix_dirty_ring(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     /*
      * Besides the precopy/unix basic test, cover dirty ring interface
      * rather than get-dirty-log.
      */
     args->live = true;
-
     args->start.use_dirty_ring = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 #ifdef CONFIG_RDMA
