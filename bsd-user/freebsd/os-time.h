@@ -635,5 +635,178 @@ static inline abi_long do_freebsd_ppoll(CPUArchState *env, abi_long arg1,
 }
 
 /* kqueue(2) */
+static inline abi_long do_freebsd_kqueue(void)
+{
+
+    return get_errno(kqueue());
+}
+
+/* kevent(2) */
+/* XXX Maybe some day, consolidate these two... */
+static inline abi_long do_freebsd_freebsd11_kevent(abi_long arg1,
+    abi_ulong arg2, abi_long arg3, abi_ulong arg4, abi_long arg5, abi_long arg6)
+{
+    abi_long ret;
+    struct kevent *changelist = NULL, *eventlist = NULL;
+    struct target_freebsd11_kevent *target_changelist, *target_eventlist;
+    struct timespec ts;
+    int i;
+
+    if (arg3 != 0) {
+        target_changelist = lock_user(VERIFY_READ, arg2,
+                                      sizeof(*target_changelist) * arg3, 1);
+        if (target_changelist == NULL) {
+            return -TARGET_EFAULT;
+        }
+
+        changelist = alloca(sizeof(struct kevent) * arg3);
+        memset(changelist, '\0', sizeof(struct kevent) * arg3);
+        for (i = 0; i < arg3; i++) {
+            __get_user(changelist[i].ident, &target_changelist[i].ident);
+            __get_user(changelist[i].filter, &target_changelist[i].filter);
+            __get_user(changelist[i].flags, &target_changelist[i].flags);
+            __get_user(changelist[i].fflags, &target_changelist[i].fflags);
+            __get_user(changelist[i].data, &target_changelist[i].data);
+            /* __get_user(changelist[i].udata, &target_changelist[i].udata); */
+#if TARGET_ABI_BITS == 32
+            changelist[i].udata = (void *)(uintptr_t)target_changelist[i].udata;
+            tswap32s((uint32_t *)&changelist[i].udata);
+#else
+            changelist[i].udata = (void *)(uintptr_t)target_changelist[i].udata;
+            tswap64s((uint64_t *)&changelist[i].udata);
+#endif
+        }
+        unlock_user(target_changelist, arg2, 0);
+    }
+
+    if (arg5 != 0) {
+        eventlist = alloca(sizeof(struct kevent) * arg5);
+    }
+    if (arg6 != 0) {
+        if (t2h_freebsd_timespec(&ts, arg6)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(safe_kevent(arg1, changelist, arg3, eventlist, arg5,
+                                arg6 != 0 ? &ts : NULL));
+
+    if (arg5 == 0) {
+        return ret;
+    }
+
+    if (!is_error(ret)) {
+        target_eventlist = lock_user(VERIFY_WRITE, arg4,
+                                     sizeof(*target_eventlist) * arg5, 0);
+        if (target_eventlist == NULL) {
+            return -TARGET_EFAULT;
+        }
+        for (i = 0; i < ret; i++) {
+            __put_user(eventlist[i].ident, &target_eventlist[i].ident);
+            __put_user(eventlist[i].filter, &target_eventlist[i].filter);
+            __put_user(eventlist[i].flags, &target_eventlist[i].flags);
+            __put_user(eventlist[i].fflags, &target_eventlist[i].fflags);
+            __put_user(eventlist[i].data, &target_eventlist[i].data);
+            /* __put_user(eventlist[i].udata, &target_eventlist[i].udata);*/
+#if TARGET_ABI_BITS == 32
+            tswap32s((uint32_t *)&eventlist[i].udata);
+            target_eventlist[i].udata = (uintptr_t)eventlist[i].udata;
+#else
+            tswap64s((uint64_t *)&eventlist[i].udata);
+            target_eventlist[i].udata = (uintptr_t)eventlist[i].udata;
+#endif
+        }
+        unlock_user(target_eventlist, arg4,
+                    sizeof(*target_eventlist) * ret);
+    }
+    return ret;
+}
+
+/* kevent(2) */
+static inline abi_long do_freebsd_kevent(abi_long arg1, abi_ulong arg2,
+        abi_long arg3, abi_ulong arg4, abi_long arg5, abi_long arg6)
+{
+    abi_long ret;
+    struct kevent *changelist = NULL, *eventlist = NULL;
+    struct target_freebsd_kevent *target_changelist, *target_eventlist;
+    struct timespec ts;
+    int i;
+
+    if (arg3 != 0) {
+        target_changelist = lock_user(VERIFY_READ, arg2,
+                sizeof(struct target_freebsd_kevent) * arg3, 1);
+        if (target_changelist == NULL) {
+            return -TARGET_EFAULT;
+        }
+
+        changelist = alloca(sizeof(struct kevent) * arg3);
+        for (i = 0; i < arg3; i++) {
+            __get_user(changelist[i].ident, &target_changelist[i].ident);
+            __get_user(changelist[i].filter, &target_changelist[i].filter);
+            __get_user(changelist[i].flags, &target_changelist[i].flags);
+            __get_user(changelist[i].fflags, &target_changelist[i].fflags);
+            __get_user(changelist[i].data, &target_changelist[i].data);
+            /* __get_user(changelist[i].udata, &target_changelist[i].udata); */
+#if TARGET_ABI_BITS == 32
+            changelist[i].udata = (void *)(uintptr_t)target_changelist[i].udata;
+            tswap32s((uint32_t *)&changelist[i].udata);
+#else
+            changelist[i].udata = (void *)(uintptr_t)target_changelist[i].udata;
+            tswap64s((uint64_t *)&changelist[i].udata);
+#endif
+            __get_user(changelist[i].ext[0], &target_changelist[i].ext[0]);
+            __get_user(changelist[i].ext[1], &target_changelist[i].ext[1]);
+            __get_user(changelist[i].ext[2], &target_changelist[i].ext[2]);
+            __get_user(changelist[i].ext[3], &target_changelist[i].ext[3]);
+        }
+        unlock_user(target_changelist, arg2, 0);
+    }
+
+    if (arg5 != 0) {
+        eventlist = alloca(sizeof(struct kevent) * arg5);
+    }
+    if (arg6 != 0) {
+        if (t2h_freebsd_timespec(&ts, arg6)) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(safe_kevent(arg1, changelist, arg3, eventlist, arg5,
+                                arg6 != 0 ? &ts : NULL));
+
+    if (arg5 == 0) {
+        return ret;
+    }
+
+    if (!is_error(ret)) {
+        target_eventlist = lock_user(VERIFY_WRITE, arg4,
+            sizeof(struct target_freebsd_kevent) * arg5, 0);
+        if (target_eventlist == NULL) {
+            return -TARGET_EFAULT;
+        }
+        for (i = 0; i < ret; i++) {
+            __put_user(eventlist[i].ident, &target_eventlist[i].ident);
+            __put_user(eventlist[i].filter, &target_eventlist[i].filter);
+            __put_user(eventlist[i].flags, &target_eventlist[i].flags);
+            __put_user(eventlist[i].fflags, &target_eventlist[i].fflags);
+            __put_user(eventlist[i].data, &target_eventlist[i].data);
+            /* __put_user(eventlist[i].udata, &target_eventlist[i].udata);*/
+#if TARGET_ABI_BITS == 32
+            tswap32s((uint32_t *)&eventlist[i].udata);
+            target_eventlist[i].udata = (uintptr_t)eventlist[i].udata;
+#else
+            tswap64s((uint64_t *)&eventlist[i].udata);
+            target_eventlist[i].udata = (uintptr_t)eventlist[i].udata;
+#endif
+            __put_user(eventlist[i].ext[0], &target_eventlist[i].ext[0]);
+            __put_user(eventlist[i].ext[1], &target_eventlist[i].ext[1]);
+            __put_user(eventlist[i].ext[2], &target_eventlist[i].ext[2]);
+            __put_user(eventlist[i].ext[3], &target_eventlist[i].ext[3]);
+        }
+        unlock_user(target_eventlist, arg4,
+                sizeof(struct target_freebsd_kevent) * ret);
+    }
+    return ret;
+}
+
+/* sigtimedwait(2) */
 
 #endif /* FREEBSD_OS_TIME_H */
