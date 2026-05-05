@@ -90,40 +90,22 @@ static void test_analyze_script(char *name, MigrateCommon *args)
 }
 #endif
 
-static void test_ignore_shared(char *name, MigrateCommon *args)
+static void ignore_shared_assert_skipped(QTestState *from, QTestState *to,
+                                         void *data)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-    QTestState *from, *to;
-
-    args->start.mem_type = MEM_TYPE_SHMEM;
-    args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
-
-    if (migrate_start(&from, &to, uri, &args->start)) {
-        return;
-    }
-
-    migrate_ensure_non_converge(from);
-    migrate_prepare_for_dirty_mem(from);
-
-    /* Wait for the first serial output from the source */
-    wait_for_serial("src_serial");
-
-    migrate_qmp(from, to, uri, NULL, "{}");
-
-    migrate_wait_for_dirty_mem(from, to);
-
-    wait_for_stop(from, get_src());
-
-    qtest_qmp_eventwait(to, "RESUME");
-
-    wait_for_serial("dest_serial");
-    wait_for_migration_complete(from);
-
     /* Check whether shared RAM has been really skipped */
     g_assert_cmpint(
         read_ram_property_int(from, "transferred"), <, 4 * 1024 * 1024);
+}
 
-    migrate_end(from, to, true);
+static void test_ignore_shared(char *name, MigrateCommon *args)
+{
+    args->live = true;
+    args->start.mem_type = MEM_TYPE_SHMEM;
+    args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
+    args->end_hook = ignore_shared_assert_skipped;
+
+    test_precopy_unix_common(args);
 }
 
 static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
