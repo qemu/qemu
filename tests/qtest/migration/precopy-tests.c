@@ -268,7 +268,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     int64_t percentage;
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
 
-    if (migrate_start(&from, &to, uri, &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
     }
 
@@ -284,6 +284,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
 
     wait_for_serial("src_serial");
 
+    migrate_incoming_qmp(to, uri, NULL, "{}");
     migrate_qmp(from, to, uri, NULL, "{}");
 
     /* Wait until throttling begins */
