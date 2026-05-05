@@ -9,6 +9,7 @@ bsd_user_ss.add(files(
   'os-stat.c',
   'os-sys.c',
   'os-syscall.c',
+  'os-thread.c',
   'os-time.c'),
   bsd_syscall_nr
 )
