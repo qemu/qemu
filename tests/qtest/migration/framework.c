@@ -834,6 +834,10 @@ int test_precopy_common(MigrateCommon *args)
     void *data_hook = NULL;
     QObject *channels = NULL;
 
+    if (!args->listen_uri) {
+        args->listen_uri = "tcp:127.0.0.1:0";
+    }
+
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return -1;
     }

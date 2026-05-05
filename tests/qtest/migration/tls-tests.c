@@ -459,7 +459,6 @@ static void test_precopy_unix_tls_x509_override_host(char *name,
 
 static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_psk_match;
     args->end_hook = migrate_hook_end_tls_psk;
 
@@ -468,7 +467,6 @@ static void test_precopy_tcp_tls_psk_match(char *name, MigrateCommon *args)
 
 static void test_precopy_tcp_tls_psk_mismatch(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_psk_mismatch;
     args->end_hook = migrate_hook_end_tls_psk;
     args->result = MIG_TEST_FAIL;
@@ -488,7 +486,6 @@ static void *migrate_hook_start_no_tls(QTestState *from, QTestState *to)
 
 static void test_precopy_tcp_no_tls(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_no_tls;
     /* the no_tls start hook requires no cleanup actions */
     args->end_hook = NULL;
@@ -529,7 +526,6 @@ static void test_precopy_tcp_tls_no_hostname(char *name, MigrateCommon *args)
 static void test_precopy_tcp_tls_x509_default_host(char *name,
                                                    MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_default_host;
     args->end_hook = migrate_hook_end_tls_x509;
 
@@ -539,7 +535,6 @@ static void test_precopy_tcp_tls_x509_default_host(char *name,
 static void test_precopy_tcp_tls_x509_override_host(char *name,
                                                     MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_override_host;
     args->end_hook = migrate_hook_end_tls_x509;
 
@@ -563,7 +558,6 @@ static void test_precopy_tcp_tls_x509_mismatch_host(char *name,
 static void test_precopy_tcp_tls_x509_friendly_client(char *name,
                                                       MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_friendly_client;
     args->end_hook = migrate_hook_end_tls_x509;
 
@@ -573,7 +567,6 @@ static void test_precopy_tcp_tls_x509_friendly_client(char *name,
 static void test_precopy_tcp_tls_x509_hostile_client(char *name,
                                                      MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_hostile_client;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;
@@ -586,7 +579,6 @@ static void test_precopy_tcp_tls_x509_hostile_client(char *name,
 static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
                                                         MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_allow_anon_client;
     args->end_hook = migrate_hook_end_tls_x509;
 
@@ -596,7 +588,6 @@ static void test_precopy_tcp_tls_x509_allow_anon_client(char *name,
 static void test_precopy_tcp_tls_x509_reject_anon_client(char *name,
                                                          MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     args->start_hook = migrate_hook_start_tls_x509_reject_anon_client;
     args->end_hook = migrate_hook_end_tls_x509;
     args->result = MIG_TEST_FAIL;

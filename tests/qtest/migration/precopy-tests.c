@@ -180,14 +180,11 @@ static void test_precopy_rdma_plain_ipv6(char *name, MigrateCommon *args)
 
 static void test_precopy_tcp_plain(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     test_precopy_common(args);
 }
 
 static void test_precopy_tcp_switchover_ack(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     /*
      * Source VM must be running in order to consider the switchover ACK
      * when deciding to do switchover or not.
