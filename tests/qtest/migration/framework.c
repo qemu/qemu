@@ -971,9 +971,15 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     QTestState *from, *to;
     void *data_hook = NULL;
     bool check_offset = false;
+    g_autofree char *uri = NULL;
 
     if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
+    }
+
+    if (!args->connect_uri) {
+        uri = g_strdup_printf("file:%s/%s", tmpfs, FILE_TEST_FILENAME);
+        args->connect_uri = uri;
     }
 
     /*
