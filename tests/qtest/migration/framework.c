@@ -308,7 +308,7 @@ static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
     return opts;
 }
 
-int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
+int migrate_args(char **from, char **to, MigrateStart *args)
 {
     /* options for source and target */
     g_autofree gchar *arch_opts = NULL;
@@ -423,11 +423,11 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "-name target,debug-threads=on "
                                  "%s "
                                  "-serial file:%s/dest_serial "
-                                 "-incoming %s "
+                                 "-incoming defer "
                                  "%s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
-                                 memory_backend, tmpfs, uri,
+                                 memory_backend, tmpfs,
                                  events,
                                  arch_opts ? arch_opts : "",
                                  args->opts_target ? args->opts_target : "",
@@ -474,8 +474,7 @@ static void migrate_mem_type_cleanup(MemType type)
     }
 }
 
-int migrate_start(QTestState **from, QTestState **to, const char *uri,
-                  MigrateStart *args)
+int migrate_start(QTestState **from, QTestState **to, MigrateStart *args)
 {
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
@@ -490,7 +489,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
     src_state.suspend_me = args->suspend_me;
 
-    if (migrate_args(&cmd_source, &cmd_target, uri, args)) {
+    if (migrate_args(&cmd_source, &cmd_target, args)) {
         return -1;
     }
 
@@ -563,7 +562,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME] = true;
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return -1;
     }
 
@@ -842,7 +841,7 @@ int test_precopy_common(MigrateCommon *args)
         args->listen_uri = "tcp:127.0.0.1:0";
     }
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return -1;
     }
 
@@ -991,7 +990,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     bool check_offset = false;
     g_autofree char *uri = NULL;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 

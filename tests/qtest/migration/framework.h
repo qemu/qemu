@@ -231,9 +231,8 @@ void wait_for_serial(const char *side);
 void migrate_prepare_for_dirty_mem(QTestState *from);
 void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
 
-int migrate_args(char **from, char **to, const char *uri, MigrateStart *args);
-int migrate_start(QTestState **from, QTestState **to, const char *uri,
-                  MigrateStart *args);
+int migrate_args(char **from, char **to, MigrateStart *args);
+int migrate_start(QTestState **from, QTestState **to, MigrateStart *args);
 void migrate_end(QTestState *from, QTestState *to, bool test_dest);
 
 void test_postcopy_common(MigrateCommon *args);

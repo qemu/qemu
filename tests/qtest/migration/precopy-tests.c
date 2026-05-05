@@ -268,7 +268,7 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     int64_t percentage;
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -414,7 +414,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
 
     args->start.hide_stderr = true;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -460,7 +460,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
 
     args->start.only_target = true;
 
-    if (migrate_start(&from, &to2, "defer", &args->start)) {
+    if (migrate_start(&from, &to2, &args->start)) {
         return;
     }
 
@@ -634,7 +634,7 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
 
     args->start.hide_stderr = true;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -973,7 +973,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     args->connect_uri = uri;
 
     /* Start src, dst vm */
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -1021,7 +1021,7 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     args->start.use_dirty_ring = true;
 
     /* Restart dst vm, src vm already show up so we needn't wait anymore */
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
