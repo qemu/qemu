@@ -45,7 +45,7 @@ static int test_colo_common(MigrateCommon *args,
     args->start.caps[MIGRATION_CAPABILITY_RETURN_PATH] = true;
     args->start.caps[MIGRATION_CAPABILITY_X_COLO] = true;
 
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return -1;
     }
 
@@ -54,6 +54,8 @@ static int test_colo_common(MigrateCommon *args,
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
     }
+
+    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
 
     migrate_ensure_converge(from);
     wait_for_serial("src_serial");
@@ -107,17 +109,11 @@ static void test_colo_plain_common(MigrateCommon *args,
     test_colo_common(args, failover_during_checkpoint, primary_failover);
 }
 
-static void *hook_start_multifd(QTestState *from, QTestState *to)
-{
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-}
-
 static void test_colo_multifd_common(MigrateCommon *args,
                                      bool failover_during_checkpoint,
                                      bool primary_failover)
 {
-    args->listen_uri = "defer";
-    args->start_hook = hook_start_multifd;
+    args->listen_uri = "tcp:127.0.0.1:0";
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
     test_colo_common(args, failover_during_checkpoint, primary_failover);
 }

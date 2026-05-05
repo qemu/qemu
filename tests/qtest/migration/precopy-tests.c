@@ -162,7 +162,6 @@ static void __test_precopy_rdma_plain(MigrateCommon *args, bool ipv6)
     g_autofree char *uri = g_strdup_printf("rdma:%s:29200", buffer);
 
     args->listen_uri = uri;
-    args->connect_uri = uri;
 
     test_precopy_common(args);
 }
@@ -214,9 +213,6 @@ static void *migrate_hook_start_fd(QTestState *from,
                                  "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[0]);
 
-    /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "fd:fd-mig", NULL, "{}");
-
     /* Send the 2nd socket to the target */
     qtest_qmp_fds_assert_success(from, &pair[1], 1,
                                  "{ 'execute': 'getfd',"
@@ -257,8 +253,7 @@ static void migrate_hook_end_fd(QTestState *from,
 
 static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
-    args->connect_uri = "fd:fd-mig";
+    args->listen_uri = "fd:fd-mig";
     args->start_hook = migrate_hook_start_fd;
     args->end_hook = migrate_hook_end_fd;
 
@@ -354,7 +349,6 @@ migrate_hook_start_precopy_tcp_multifd_no_zero_page(QTestState *from,
 
 static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     /*
      * Multifd is more complicated than most of the features, it
@@ -370,7 +364,6 @@ static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_zero_page_legacy;
     /*
      * Multifd is more complicated than most of the features, it
@@ -386,7 +379,6 @@ static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_no_zero_page;
     /*
      * Multifd is more complicated than most of the features, it
@@ -402,7 +394,6 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     args->live = true;
     args->connect_channels = ("[ { 'channel-type': 'main',"

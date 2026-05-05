@@ -33,7 +33,6 @@ migrate_hook_start_precopy_tcp_multifd_zstd(QTestState *from,
 
 static void test_multifd_tcp_zstd(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_zstd;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -43,7 +42,6 @@ static void test_multifd_tcp_zstd(char *name, MigrateCommon *args)
 
 static void test_multifd_postcopy_tcp_zstd(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_zstd,
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -66,7 +64,6 @@ migrate_hook_start_precopy_tcp_multifd_qatzip(QTestState *from,
 
 static void test_multifd_tcp_qatzip(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_qatzip;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -85,7 +82,6 @@ migrate_hook_start_precopy_tcp_multifd_qpl(QTestState *from,
 
 static void test_multifd_tcp_qpl(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_qpl;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -104,7 +100,6 @@ migrate_hook_start_precopy_tcp_multifd_uadk(QTestState *from,
 
 static void test_multifd_tcp_uadk(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_uadk;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
@@ -152,7 +147,6 @@ migrate_hook_start_precopy_tcp_multifd_zlib(QTestState *from,
 
 static void test_multifd_tcp_zlib(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_zlib;
 
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;

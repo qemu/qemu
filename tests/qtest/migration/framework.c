@@ -834,17 +834,23 @@ int test_precopy_common(MigrateCommon *args)
     void *data_hook = NULL;
     QObject *channels = NULL;
 
-    if (!args->listen_uri) {
+    assert(!args->connect_uri);
+
+    if (args->listen_uri) {
+        args->connect_uri = args->listen_uri;
+    } else {
         args->listen_uri = "tcp:127.0.0.1:0";
     }
 
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return -1;
     }
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
     }
+
+    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
 
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
@@ -943,7 +949,6 @@ void test_precopy_unix_common(MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
 
     args->listen_uri = uri;
-    args->connect_uri = uri;
     test_precopy_common(args);
 }
 
@@ -1064,10 +1069,6 @@ void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
 {
     migrate_set_parameter_str(from, "multifd-compression", method);
     migrate_set_parameter_str(to, "multifd-compression", method);
-
-    /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
-
     return NULL;
 }
 
