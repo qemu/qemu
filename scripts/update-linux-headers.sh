@@ -60,6 +60,7 @@ cp_portable() {
                                      -e 'drm.h' \
                                      -e 'limits' \
                                      -e 'linux/const' \
+                                     -e 'linux/typelimits' \
                                      -e 'linux/kernel' \
                                      -e 'linux/sysinfo' \
                                      -e 'asm/setup_data.h' \
@@ -251,6 +252,7 @@ for i in "$hdrdir"/include/linux/*virtio*.h \
          "$hdrdir/include/linux/pci_regs.h" \
          "$hdrdir/include/linux/ethtool.h" \
          "$hdrdir/include/linux/const.h" \
+         "$hdrdir/include/linux/typelimits.h" \
          "$hdrdir/include/linux/kernel.h" \
          "$hdrdir/include/linux/kvm_para.h" \
          "$hdrdir/include/linux/vhost_types.h" \
