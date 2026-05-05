@@ -55,6 +55,10 @@ ssize_t safe_pwrite(int fd, void *buf, size_t nbytes, off_t offset);
 ssize_t safe_writev(int fd, const struct iovec *iov, int iovcnt);
 ssize_t safe_pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset);
 
+int safe_ppoll(struct pollfd *fds, nfds_t nfds,
+               const struct timespec *restrict timeout,
+               const sigset_t *restrict newsigmask);
+
 /* read(2) */
 static abi_long do_bsd_read(abi_long arg1, abi_long arg2, abi_long arg3)
 {
@@ -920,6 +924,138 @@ static abi_long do_bsd_undelete(abi_long arg1)
 
     LOCK_PATH(p, arg1);
     ret = get_errno(undelete(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* poll(2) */
+static abi_long do_bsd_poll(abi_long arg1, abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    nfds_t i, nfds = arg2;
+    int timeout = arg3;
+    struct pollfd *pfd;
+    struct target_pollfd *target_pfd;
+    struct timespec ts, *pts = NULL;
+
+    target_pfd = lock_user(VERIFY_WRITE, arg1,
+            sizeof(struct target_pollfd) * nfds, 1);
+    if (!target_pfd) {
+        return -TARGET_EFAULT;
+    }
+    pfd = alloca(sizeof(struct pollfd) * nfds);
+    for (i = 0; i < nfds; i++) {
+        pfd[i].fd = tswap32(target_pfd[i].fd);
+        pfd[i].events = tswap16(target_pfd[i].events);
+    }
+
+    if (timeout != INFTIM) {
+        ts.tv_sec = timeout / 1000;
+        ts.tv_nsec = (timeout % 1000) * 1000000;
+        pts = &ts;
+    }
+
+    ret = get_errno(safe_ppoll(pfd, nfds, pts, NULL));
+
+    if (!is_error(ret)) {
+        for (i = 0; i < nfds; i++) {
+            target_pfd[i].revents = tswap16(pfd[i].revents);
+        }
+    }
+    unlock_user(target_pfd, arg1, sizeof(struct target_pollfd) * nfds);
+
+    return ret;
+}
+
+/* lseek(2) */
+static abi_long do_bsd_lseek(CPUArchState *env, abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    abi_long ret;
+#if TARGET_ABI_BITS == 32
+    int64_t res;
+
+    /* 32-bit arch's use two 32 registers for 64 bit return value */
+    if (regpairs_aligned(env) != 0) {
+        res = lseek(arg1, target_arg64(arg3, arg4), arg5);
+    } else {
+        res = lseek(arg1, target_arg64(arg2, arg3), arg4);
+    }
+    if (res == -1) {
+        ret = get_errno(res);
+        set_second_rval(env, 0xFFFFFFFF);
+    } else {
+#ifdef TARGET_BIG_ENDIAN
+        ret = ((res >> 32) & 0xFFFFFFFF);
+        set_second_rval(env, res & 0xFFFFFFFF);
+#else
+        ret = res & 0xFFFFFFFF;
+        set_second_rval(env, (res >> 32) & 0xFFFFFFFF);
+#endif
+    }
+#else
+    ret = get_errno(lseek(arg1, arg2, arg3));
+#endif
+    return ret;
+}
+
+/* pipe(2) */
+static abi_long do_bsd_pipe(CPUArchState *env, abi_ulong pipedes)
+{
+    abi_long ret;
+    int host_pipe[2];
+    int host_ret = pipe(host_pipe);
+
+    if (host_ret != -1) {
+        set_second_rval(env, host_pipe[1]);
+        ret = host_pipe[0];
+    } else {
+        ret = get_errno(host_ret);
+    }
+    return ret;
+}
+
+/* swapon(2) */
+static abi_long do_bsd_swapon(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(swapon(path(p)));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+#ifdef TARGET_FREEBSD_NR_freebsd13_swapoff
+/* swapoff(2) */
+static abi_long do_freebsd13_swapoff(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(swapoff(path(p), 0));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+#endif
+
+/* swapoff(2) */
+static abi_long do_bsd_swapoff(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+#ifdef TARGET_FREEBSD_NR_freebsd13_swapoff
+    ret = get_errno(swapoff(path(p), arg2));
+#else
+    ret = get_errno(swapoff(path(p)));
+#endif
     UNLOCK_PATH(p, arg1);
 
     return ret;

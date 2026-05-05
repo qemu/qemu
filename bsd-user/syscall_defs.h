@@ -547,6 +547,12 @@ struct target_in_addr {
 #define safe_ioctl(...) safe_syscall(SYS_ioctl, __VA_ARGS__)
 #define safe_fcntl(...) safe_syscall(SYS_fcntl, __VA_ARGS__)
 
+struct target_pollfd {
+    int32_t fd;         /* file descriptor */
+    int16_t events;     /* requested events */
+    int16_t revents;    /* returned events */
+};
+
 /* So far all target and host bitmasks are the same */
 #undef  target_to_host_bitmask
 #define target_to_host_bitmask(x, tbl) (x)
