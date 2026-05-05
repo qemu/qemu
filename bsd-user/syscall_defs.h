@@ -640,6 +640,127 @@ struct target_specialfd_eventfd {
 };
 
 /*
+ * FreeBSD thread and user mutex support.
+ */
+
+/* sys/thr.h */
+#define TARGET_THR_SUSPENDED    0x0001
+#define TARGET_THR_SYSTEM_SCOPE 0x0002
+
+struct target_freebsd_thr_param {
+    abi_ulong   start_func; /* thread entry function. */
+    abi_ulong   arg;        /* argument for entry function. */
+    abi_ulong   stack_base; /* stack base address. */
+    abi_ulong   stack_size; /* stack size. */
+    abi_ulong   tls_base;   /* tls base address. */
+    abi_ulong   tls_size;   /* tls size. */
+    abi_ulong   child_tid;  /* address to store new TID. */
+    abi_ulong   parent_tid; /* parent access the new TID here. */
+    int32_t     flags;      /* thread flags. */
+    abi_ulong   rtp;        /* Real-time scheduling priority. */
+    abi_ulong   spare[3];   /* spares. */
+};
+
+/* sys/rtprio.h */
+struct target_freebsd_rtprio {
+    uint16_t    type;
+    uint16_t    prio;
+};
+
+typedef struct {
+    CPUArchState *env;
+    long parent_tid;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    pthread_t thread;
+    sigset_t sigmask;
+    struct target_freebsd_thr_param param;
+} new_freebsd_thread_info_t;
+
+/* sys/utmx.h */
+/* op code for _umtx_op */
+#define TARGET_UMTX_OP_LOCK                 0
+#define TARGET_UMTX_OP_UNLOCK               1
+#define TARGET_UMTX_OP_WAIT                 2
+#define TARGET_UMTX_OP_WAKE                 3
+#define TARGET_UMTX_OP_MUTEX_TRYLOCK        4
+#define TARGET_UMTX_OP_MUTEX_LOCK           5
+#define TARGET_UMTX_OP_MUTEX_UNLOCK         6
+#define TARGET_UMTX_OP_SET_CEILING          7
+#define TARGET_UMTX_OP_CV_WAIT              8
+#define TARGET_UMTX_OP_CV_SIGNAL            9
+#define TARGET_UMTX_OP_CV_BROADCAST         10
+#define TARGET_UMTX_OP_WAIT_UINT            11
+#define TARGET_UMTX_OP_RW_RDLOCK            12
+#define TARGET_UMTX_OP_RW_WRLOCK            13
+#define TARGET_UMTX_OP_RW_UNLOCK            14
+#define TARGET_UMTX_OP_WAIT_UINT_PRIVATE    15
+#define TARGET_UMTX_OP_WAKE_PRIVATE         16
+#define TARGET_UMTX_OP_MUTEX_WAIT           17
+#define TARGET_UMTX_OP_MUTEX_WAKE           18
+#define TARGET_UMTX_OP_SEM_WAIT             19
+#define TARGET_UMTX_OP_SEM_WAKE             20
+#define TARGET_UMTX_OP_NWAKE_PRIVATE        21
+#define TARGET_UMTX_OP_MUTEX_WAKE2          22
+#define TARGET_UMTX_OP_SEM2_WAIT            23
+#define TARGET_UMTX_OP_SEM2_WAKE            24
+#define TARGET_UMTX_OP_SHM                  25
+#define TARGET_UMTX_OP_ROBUST_LISTS         26
+
+/* flags for UMTX_OP_CV_WAIT */
+#define TARGET_CVWAIT_CHECK_UNPARKING       0x01
+#define TARGET_CVWAIT_ABSTIME               0x02
+#define TARGET_CVWAIT_CLOCKID               0x04
+
+#define TARGET_UMTX_UNOWNED                 0x0
+#define TARGET_UMUTEX_UNOWNED               0x0
+#define TARGET_UMTX_CONTESTED               (abi_ulong)(-1)
+#define TARGET_UMUTEX_CONTESTED             0x80000000U
+
+/* flags for umutex */
+#define TARGET_UMUTEX_ERROR_CHECK   0x0002  /* Error-checking mutex */
+#define TARGET_UMUTEX_PRIO_INHERIT  0x0004  /* Priority inherited mutex */
+#define TARGET_UMUTEX_PRIO_PROTECT  0x0008  /* Priority protect mutex */
+
+#define TARGET_UMUTEX_TRY           1
+#define TARGET_UMUTEX_WAIT          2
+
+/* urwlock flags */
+#define TARGET_URWLOCK_PREFER_READER    0x0002
+#define TARGET_URWLOCK_WRITE_OWNER      0x80000000U
+#define TARGET_URWLOCK_WRITE_WAITERS    0x40000000U
+#define TARGET_URWLOCK_READ_WAITERS     0x20000000U
+#define TARGET_URWLOCK_MAX_READERS      0x1fffffffU
+#define TARGET_URWLOCK_READER_COUNT(c)  ((c) & TARGET_URWLOCK_MAX_READERS)
+
+/*
+ * sys/acl.h
+ */
+#define TARGET_FREEBSD_ACL_MAX_ENTRIES          254
+
+/* vaild acl_type_t arguments */
+#define TARGET_FREEBSD_ACL_TYPE_ACCESS_OLD      0x00000000
+#define TARGET_FREEBSD_ACL_TYPE_DEFAULT_OLD     0x00000001
+#define TARGET_FREEBSD_ACL_TYPE_ACCESS          0x00000002
+#define TARGET_FREEBSD_ACL_TYPE_DEFAULT         0x00000003
+#define TARGET_FREEBSD_ACL_TYPE_NFS4            0x00000004
+
+struct target_freebsd_acl_entry {
+    uint32_t    ae_tag;
+    uint32_t    ae_id;
+    uint32_t    ae_perm;
+    uint16_t    ae_entry_type;
+    uint16_t    ae_flags;
+};
+
+struct target_freebsd_acl {
+    uint32_t            acl_maxcnt;
+    uint32_t            acl_cnt;
+    int32_t             acl_spare[4];
+    struct target_freebsd_acl_entry  acl_entry[TARGET_FREEBSD_ACL_MAX_ENTRIES];
+};
+
+/*
  *  sys/uuid.h
  */
 
