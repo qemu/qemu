@@ -1021,11 +1021,12 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     args->start.use_dirty_ring = true;
 
     /* Restart dst vm, src vm already show up so we needn't wait anymore */
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return;
     }
 
     /* Start migrate */
+    migrate_incoming_qmp(to, args->listen_uri, NULL, "{}");
     migrate_qmp(from, to, args->connect_uri, NULL, "{}");
 
     /* Wait for dirty limit throttle begin */
