@@ -1869,9 +1869,40 @@ static void icc_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * at a priority outside the Non-secure range (128..255), since this
      * would otherwise allow malicious NS code to block delivery of S interrupts
      * by writing a bad value to these registers.
+     *
+     * The NS priority range (128..255) maps to APR bits starting at
+     * aprbit = 0x80 >> (8 - prebits). Depending on prebits, this boundary
+     * may fall within AP1R0 or AP1R1, so we cannot simply WI the entire
+     * register. Instead we calculate which bits within each register
+     * correspond to the Secure range and preserve those, while allowing
+     * NS code to modify only the NS range bits.
+     *
+     *   prebits=4: num_aprs=1, NS starts at AP1R0[8]
+     *   prebits=5: num_aprs=1, NS starts at AP1R0[16]
+     *   prebits=6: num_aprs=2, NS starts at AP1R1[0]
+     *   prebits=7: num_aprs=4, NS starts at AP1R2[0]
      */
-    if (grp == GICV3_G1NS && regno < 2 && arm_feature(env, ARM_FEATURE_EL3)) {
-        return;
+    if (grp == GICV3_G1NS && arm_feature(env, ARM_FEATURE_EL3)) {
+        int ns_start_bit = 0x80 >> (8 - cs->prebits);
+        int ns_start_regno = ns_start_bit / 32;
+        int ns_start_regbit = ns_start_bit % 32;
+
+        if (regno < ns_start_regno) {
+            /* This entire register is in the Secure range: WI */
+            return;
+        } else if (regno == ns_start_regno && ns_start_regbit > 0) {
+            /*
+             * This register is split: low bits are Secure, high bits are NS.
+             * Preserve the Secure bits (below ns_start_regbit) from the
+             * current value, and take the NS bits (at and above
+             * ns_start_regbit) from the written value.
+             */
+            uint32_t secure_mask = MAKE_64BIT_MASK(0, ns_start_regbit);
+
+            value = (cs->icc_apr[grp][regno] & secure_mask) |
+                    (value & ~secure_mask);
+        }
+        /* else: regno > ns_start_regno, entire register is NS: allow write */
     }
 
     if (cs->nmi_support) {
