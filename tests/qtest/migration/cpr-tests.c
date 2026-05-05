@@ -36,7 +36,6 @@ static void test_mode_reboot(char *name, MigrateCommon *args)
                                            FILE_TEST_FILENAME);
 
     args->connect_uri = uri;
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_mode_reboot;
 
     args->start.mem_type = MEM_TYPE_SHMEM;
