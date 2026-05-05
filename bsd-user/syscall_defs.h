@@ -418,6 +418,16 @@ struct target_freebsd_flock {
 /* user: vfork(2) semantics, clear signals */
 #define TARGET_RFSPAWN (1U << 31)
 
+/* sys/specialfd.h */
+enum target_specialfd_type {
+    TARGET_SPECIALFD_EVENT         = 1,
+};
+
+struct target_specialfd_eventfd {
+    unsigned int initval;
+    int flags;
+};
+
 /*
  *  sys/uuid.h
  */
