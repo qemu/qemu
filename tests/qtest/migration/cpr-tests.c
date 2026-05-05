@@ -60,7 +60,7 @@ static int test_transfer(MigrateCommon *args, const char *cpr_channel,
     obj = migrate_str_to_channel(cpr_channel);
     qlist_append(channels_list, obj);
 
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, "defer", &args->start)) {
         return -1;
     }
 
@@ -128,11 +128,17 @@ static void test_mode_transfer_common(MigrateCommon *args, bool incoming_defer)
     int cpr_sockfd = qtest_socket_server(cpr_path);
     g_assert(cpr_sockfd >= 0);
 
-    opts_target = g_strdup_printf("-incoming cpr,addr.transport=socket,"
-                                  "addr.type=fd,addr.str=%d %s",
-                                  cpr_sockfd, opts);
+    if (incoming_defer) {
+        opts_target = g_strdup_printf("-incoming cpr,addr.transport=socket,"
+                                      "addr.type=fd,addr.str=%d %s",
+                                      cpr_sockfd, opts);
+    } else {
+        opts_target = g_strdup_printf("-incoming %s "
+                                      "-incoming cpr,addr.transport=socket,"
+                                      "addr.type=fd,addr.str=%d %s",
+                                      uri, cpr_sockfd, opts);
+    }
 
-    args->listen_uri = incoming_defer ? "defer" : uri;
     args->connect_channels = connect_channels;
 
     args->start.opts_source = opts;
@@ -224,7 +230,7 @@ static void test_cpr_exec(MigrateCommon *args)
     g_autofree char *filename = g_strdup_printf("%s/%s", tmpfs,
                                                 FILE_TEST_FILENAME);
 
-    if (migrate_start(&from, NULL, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, NULL, "defer", &args->start)) {
         return;
     }
 
@@ -274,10 +280,7 @@ static void test_mode_exec(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
-    g_autofree char *listen_uri = g_strdup_printf("defer");
-
     args->connect_uri = uri;
-    args->listen_uri = listen_uri;
     args->start_hook = test_mode_exec_start;
 
     args->start.only_source = true;
