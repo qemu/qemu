@@ -20,7 +20,6 @@
 #include "ppc-util.h"
 #include "qapi/error.h"
 #include "qobject/qjson.h"
-#include "qobject/qlist.h"
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -833,10 +832,7 @@ int test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
-    QObject *in_channels = NULL;
-    QObject *out_channels = NULL;
-
-    g_assert(!args->cpr_channel || args->connect_channels);
+    QObject *channels = NULL;
 
     if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
         return -1;
@@ -869,40 +865,16 @@ int test_precopy_common(MigrateCommon *args)
         }
     }
 
-    /*
-     * The cpr channel must be included in outgoing channels, but not in
-     * migrate-incoming channels.
-     */
     if (args->connect_channels) {
-        if (args->start.defer_target_connect &&
-            !strcmp(args->listen_uri, "defer")) {
-            in_channels = qobject_from_json(args->connect_channels,
-                                            &error_abort);
-        }
-        out_channels = qobject_from_json(args->connect_channels, &error_abort);
-
-        if (args->cpr_channel) {
-            QList *channels_list = qobject_to(QList, out_channels);
-            QObject *obj = migrate_str_to_channel(args->cpr_channel);
-
-            qlist_append(channels_list, obj);
-        }
+        channels = qobject_from_json(args->connect_channels, &error_abort);
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, out_channels, "{}");
+        migrate_qmp_fail(from, args->connect_uri, channels, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, out_channels, "{}");
-
-    if (args->start.defer_target_connect) {
-        qtest_connect(to);
-        qtest_qmp_handshake(to, NULL);
-        if (!strcmp(args->listen_uri, "defer")) {
-            migrate_incoming_qmp(to, args->connect_uri, in_channels, "{}");
-        }
-    }
+    migrate_qmp(from, to, args->connect_uri, channels, "{}");
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
