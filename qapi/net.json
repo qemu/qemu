@@ -265,6 +265,52 @@
     'if': 'CONFIG_PASST' }
 
 ##
+# @NetdevUserDomainSuffix:
+#
+# @str: DNS domain name suffix for host name lookup, similar to
+#     resolv.conf(5)
+#
+# Since: 1.2
+##
+{ 'struct': 'NetdevUserDomainSuffix',
+  'data': {
+    'str': 'str' } }
+
+##
+# @NetdevUserHostForward:
+#
+# @str: Host port forwarding rule
+#
+# TODO: This string gets parsed by slirp_hostfwd().  We fail to
+#    document syntax and semantics here.  We do in qemu-options.hx.
+#    Parsing structured configuration from strings is a no-no for QMP.
+#    This should really be a struct.  Not sure it's worth the bother
+#    now.
+#
+# Since: 1.2
+##
+{ 'struct': 'NetdevUserHostForward',
+  'data': {
+    'str': 'str' } }
+
+##
+# @NetdevUserGuestForward:
+#
+# @str: Guest port forwarding rule
+#
+# TODO: This string gets parsed by slirp_guestfwd().  We fail to
+#    document syntax and semantics here.  We do in qemu-options.hx.
+#    Parsing structured configuration from strings is a no-no for QMP.
+#    This should really be a struct.  Not sure it's worth the bother
+#    now.
+#
+# Since: 1.2
+##
+{ 'struct': 'NetdevUserGuestForward',
+  'data': {
+    'str': 'str' } }
+
+##
 # @NetdevUserOptions:
 #
 # Use the user mode network stack which requires no administrator
@@ -340,7 +386,7 @@
     '*bootfile':  'str',
     '*dhcpstart': 'str',
     '*dns':       'str',
-    '*dnssearch': ['String'],
+    '*dnssearch': ['NetdevUserDomainSuffix'],
     '*domainname': 'str',
     '*ipv6-prefix':      'str',
     '*ipv6-prefixlen':   'int',
@@ -348,8 +394,8 @@
     '*ipv6-dns':         'str',
     '*smb':       'str',
     '*smbserver': 'str',
-    '*hostfwd':   ['String'],
-    '*guestfwd':  ['String'],
+    '*hostfwd':   ['NetdevUserHostForward'],
+    '*guestfwd':  ['NetdevUserGuestForward'],
     '*tftp-server-name': 'str' } }
 
 ##
