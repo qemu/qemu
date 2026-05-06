@@ -856,7 +856,8 @@ static ssize_t coroutine_fn GRAPH_RDLOCK
 fuse_co_init(FuseExport *exp, struct fuse_init_out *out,
              const struct fuse_init_in *in)
 {
-    const uint32_t supported_flags = FUSE_ASYNC_READ | FUSE_ASYNC_DIO;
+    uint32_t supported_flags = FUSE_ASYNC_READ | FUSE_ASYNC_DIO;
+    uint32_t flags2 = 0;
 
     if (in->major != 7) {
         error_report("FUSE major version mismatch: We have 7, but kernel has %"
@@ -871,13 +872,21 @@ fuse_co_init(FuseExport *exp, struct fuse_init_out *out,
         return -EINVAL;
     }
 
+    if (!using_old_fuse_init_in(in)) {
+        /* The flags2 flags must be shifted down by 32 bits. */
+        const uint32_t supported_flags2 = FUSE_DIRECT_IO_ALLOW_MMAP >> 32;
+        /* flags2 is only considered if FUSE_INIT_EXT is set. */
+        supported_flags = supported_flags | FUSE_INIT_EXT;
+        flags2 = in->flags2 & supported_flags2;
+    }
+
     *out = (struct fuse_init_out) {
         .major = 7,
         .minor = MIN(FUSE_KERNEL_MINOR_VERSION, in->minor),
         .max_readahead = in->max_readahead,
         .max_write = FUSE_MAX_WRITE_BYTES,
         .flags = in->flags & supported_flags,
-        .flags2 = 0,
+        .flags2 = flags2,
 
         /* libfuse maximum: 2^16 - 1 */
         .max_background = UINT16_MAX,
