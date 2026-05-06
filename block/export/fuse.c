@@ -51,23 +51,16 @@
 #define FUSE_MAX_READ_BYTES (MIN(BDRV_REQUEST_MAX_BYTES, 1 * 1024 * 1024))
 #define FUSE_MAX_WRITE_BYTES (64 * 1024)
 
-/*
- * fuse_init_in structure before 7.36.  We don't need the flags2 field added
- * there, so we can work with the smaller older structure to stay compatible
- * with older kernels.
- */
-struct fuse_init_in_compat {
-    uint32_t major;
-    uint32_t minor;
-    uint32_t max_readahead;
-    uint32_t flags;
-};
-
 typedef struct FuseRequestInHeader {
     struct fuse_in_header common;
     /* All supported requests */
     union {
-        struct fuse_init_in_compat init;
+        /*
+         * When using_old_fuse_init_in() is true, then the smaller older struct
+         * is used by the kernel. The flags2 member and other new members must
+         * be treated as absent then.
+         */
+        struct fuse_init_in init;
         struct fuse_open_in open;
         struct fuse_setattr_in setattr;
         struct fuse_read_in read;
@@ -630,6 +623,16 @@ static int clone_fuse_fd(int fd, Error **errp)
 }
 
 /**
+ * Check whether the smaller older fuse_init_in structure from before protocol
+ * version 7.36 is used. The flags2 member and other new members must be treated
+ * as absent then.
+ */
+static bool using_old_fuse_init_in(const struct fuse_init_in *in)
+{
+    return in->major < 7 || (in->major == 7 && in->minor < 36);
+}
+
+/**
  * Try to read a single request from the FUSE FD.
  * Takes a FuseQueue pointer in `opaque`.
  *
@@ -691,6 +694,31 @@ static void coroutine_fn co_read_from_fuse_fd(void *opaque)
     if (op_hdr_len < 0) {
         fuse_write_err(fuse_fd, &in_hdr->common, op_hdr_len);
         goto no_request;
+    }
+
+    /*
+     * If the request is of type FUSE_INIT, need to check the version to
+     * actually determine the length of the fuse_init_in structure used by the
+     * kernel. In protocol version 7.36, the structure was extended.
+     */
+    if (in_hdr->common.opcode == FUSE_INIT) {
+        /* Length of the fuse_init_in structure before 7.36. */
+        size_t old_init_hdr_len = 16;
+
+        /*
+         * Expect at least the size of the smaller older structure to ensure the
+         * version can be checked.
+         */
+        if (unlikely(ret < sizeof(in_hdr->common) + old_init_hdr_len)) {
+            error_report("FUSE_INIT request truncated, read only %zi bytes",
+                         ret);
+            fuse_write_err(fuse_fd, &in_hdr->common, -EINVAL);
+            goto no_request;
+        }
+
+        if (using_old_fuse_init_in(&in_hdr->init)) {
+            op_hdr_len = old_init_hdr_len;
+        }
     }
 
     if (unlikely(ret < sizeof(in_hdr->common) + op_hdr_len)) {
@@ -826,7 +854,7 @@ static bool is_regular_file(const char *path, Error **errp)
  */
 static ssize_t coroutine_fn GRAPH_RDLOCK
 fuse_co_init(FuseExport *exp, struct fuse_init_out *out,
-             const struct fuse_init_in_compat *in)
+             const struct fuse_init_in *in)
 {
     const uint32_t supported_flags = FUSE_ASYNC_READ | FUSE_ASYNC_DIO;
 
