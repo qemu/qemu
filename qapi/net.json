@@ -115,7 +115,7 @@
     'str': 'str' } }
 
 ##
-# @NetDevPasstOptions:
+# @NetdevPasstOptions:
 #
 # Unprivileged user-mode network connectivity using passt
 #
@@ -191,7 +191,7 @@
 #
 # Since: 10.1
 ##
-{ 'struct': 'NetDevPasstOptions',
+{ 'struct': 'NetdevPasstOptions',
   'data': {
     '*path':               'str',
     '*quiet':              'bool',
@@ -877,7 +877,7 @@
   'discriminator': 'type',
   'data': {
     'nic':      'NetLegacyNicOptions',
-    'passt':    { 'type': 'NetDevPasstOptions',
+    'passt':    { 'type': 'NetdevPasstOptions',
                   'if': 'CONFIG_PASST' },
     'user':     'NetdevUserOptions',
     'tap':      'NetdevTapOptions',

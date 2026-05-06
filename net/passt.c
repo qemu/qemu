@@ -495,7 +495,7 @@ static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
 }
 #endif
 
-static GPtrArray *net_passt_decode_args(const NetDevPasstOptions *passt,
+static GPtrArray *net_passt_decode_args(const NetdevPasstOptions *passt,
                                         gchar *pidfile, Error **errp)
 {
     GPtrArray *args = g_ptr_array_new_with_free_func(g_free);
