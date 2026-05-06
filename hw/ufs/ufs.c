@@ -556,6 +556,31 @@ static bool ufs_mcq_create_sq(UfsHc *u, uint8_t qid, uint32_t attr)
     return true;
 }
 
+static bool ufs_mcq_sq_has_outstanding_req(UfsSq *sq)
+{
+    UfsRequest *req;
+    uint16_t free_reqs = 0;
+
+    QTAILQ_FOREACH(req, &sq->req_list, entry)
+    {
+        free_reqs++;
+    }
+
+    return free_reqs != sq->size;
+}
+
+static void ufs_mcq_free_sq(UfsSq *sq)
+{
+    qemu_bh_delete(sq->bh);
+
+    for (int i = 0; i < sq->size; i++) {
+        ufs_clear_req(&sq->req[i]);
+    }
+
+    g_free(sq->req);
+    g_free(sq);
+}
+
 static bool ufs_mcq_delete_sq(UfsHc *u, uint8_t qid)
 {
     UfsSq *sq;
@@ -572,9 +597,12 @@ static bool ufs_mcq_delete_sq(UfsHc *u, uint8_t qid)
 
     sq = u->sq[qid];
 
-    qemu_bh_delete(sq->bh);
-    g_free(sq->req);
-    g_free(sq);
+    if (ufs_mcq_sq_has_outstanding_req(sq)) {
+        trace_ufs_err_mcq_delete_sq_busy(qid);
+        return false;
+    }
+
+    ufs_mcq_free_sq(sq);
     u->sq[qid] = NULL;
     return true;
 }
@@ -617,6 +645,12 @@ static bool ufs_mcq_create_cq(UfsHc *u, uint8_t qid, uint32_t attr)
     return true;
 }
 
+static void ufs_mcq_free_cq(UfsCq *cq)
+{
+    qemu_bh_delete(cq->bh);
+    g_free(cq);
+}
+
 static bool ufs_mcq_delete_cq(UfsHc *u, uint8_t qid)
 {
     UfsCq *cq;
@@ -640,8 +674,7 @@ static bool ufs_mcq_delete_cq(UfsHc *u, uint8_t qid)
 
     cq = u->cq[qid];
 
-    qemu_bh_delete(cq->bh);
-    g_free(cq);
+    ufs_mcq_free_cq(cq);
     u->cq[qid] = NULL;
     return true;
 }
@@ -1884,12 +1917,14 @@ static void ufs_exit(PCIDevice *pci_dev)
 
     for (int i = 0; i < ARRAY_SIZE(u->sq); i++) {
         if (u->sq[i]) {
-            ufs_mcq_delete_sq(u, i);
+            ufs_mcq_free_sq(u->sq[i]);
+            u->sq[i] = NULL;
         }
     }
     for (int i = 0; i < ARRAY_SIZE(u->cq); i++) {
         if (u->cq[i]) {
-            ufs_mcq_delete_cq(u, i);
+            ufs_mcq_free_cq(u->cq[i]);
+            u->cq[i] = NULL;
         }
     }
 }
