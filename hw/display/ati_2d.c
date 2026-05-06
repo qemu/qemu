@@ -69,18 +69,28 @@ typedef struct {
 static void ati_set_dirty(VGACommonState *vga, const ATI2DCtx *ctx)
 {
     DisplaySurface *ds = qemu_console_surface(vga->con);
+    unsigned int bypp = ctx->bpp / 8;
+    hwaddr dirty_start = ctx->dst_offset + ctx->dst.x * bypp +
+                         ctx->dst.y * ctx->dst_stride;
+    hwaddr dirty_end = dirty_start + ctx->dst.width * bypp +
+                       (ctx->dst.height - 1) * ctx->dst_stride;
+    /*
+     * The blit may be outside of the visible screen (e.g. virtual desktops.)
+     * Dirty only the intersection of the visible screen and the blit.
+     */
+    hwaddr vis_start = vga->vbe_start_addr * 4;
+    hwaddr vis_end = vis_start + vga->vbe_regs[VBE_DISPI_INDEX_YRES] *
+                       vga->vbe_line_offset;
+    hwaddr start = MAX(vis_start, dirty_start);
+    hwaddr end = MIN(vis_end, dirty_end);
 
     (void)ds;
     DPRINTF("%p %u ds: %p %d %d rop: %x\n", vga->vram_ptr, vga->vbe_start_addr,
             surface_data(ds), surface_stride(ds), surface_bits_per_pixel(ds),
             ctx->rop3 >> 16);
-    if (ctx->dst_bits >= vga->vram_ptr + vga->vbe_start_addr &&
-        ctx->dst_bits < vga->vram_ptr + vga->vbe_start_addr +
-        vga->vbe_regs[VBE_DISPI_INDEX_YRES] * vga->vbe_line_offset) {
-        memory_region_set_dirty(&vga->vram,
-                                vga->vbe_start_addr + ctx->dst_offset +
-                                ctx->dst.y * ctx->dst_stride,
-                                ctx->dst.height * ctx->dst_stride);
+
+    if (start < end) {
+        memory_region_set_dirty(&vga->vram, start, end - start);
     }
 }
 
