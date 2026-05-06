@@ -104,17 +104,6 @@
     '*vectors': 'uint32' } }
 
 ##
-# @String:
-#
-# A fat type wrapping 'str', to be embedded in lists.
-#
-# Since: 1.2
-##
-{ 'struct': 'String',
-  'data': {
-    'str': 'str' } }
-
-##
 # @PasstSearch:
 #
 # @str: DNS domain name suffix for host name lookup, or "none".  See
