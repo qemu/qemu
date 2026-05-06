@@ -115,6 +115,41 @@
     'str': 'str' } }
 
 ##
+# @PasstSearch:
+#
+# @str: DNS domain name suffix for host name lookup, or "none".  See
+#     passt(1) option --search.
+#
+# Since: 10.1
+##
+{ 'struct': 'PasstSearch',
+  'data': {
+    'str': 'str' } }
+
+##
+# @PasstPortForward:
+#
+# @str: passt port forwarding specification, see passt(1) option
+#     --tcp-ports and --udp-ports.
+#
+# Since: 10.1
+##
+{ 'struct': 'PasstPortForward',
+  'data': {
+    'str': 'str' } }
+
+##
+# @PasstParameter:
+#
+# @str: Additional arguments for the passt executable, see passt(1)
+#
+# Since: 10.1
+##
+{ 'struct': 'PasstParameter',
+  'data': {
+    'str': 'str' } }
+
+##
 # @NetdevPasstOptions:
 #
 # Unprivileged user-mode network connectivity using passt
@@ -206,7 +241,7 @@
     '*outbound-if4':       'str',
     '*outbound-if6':       'str',
     '*dns':                'str',
-    '*search':             ['String'],
+    '*search':             ['PasstSearch'],
     '*fqdn':               'str',
     '*dhcp-dns':           'bool',
     '*dhcp-search':        'bool',
@@ -224,9 +259,9 @@
     '*freebind':           'bool',
     '*ipv4':               'bool',
     '*ipv6':               'bool',
-    '*tcp-ports':          ['String'],
-    '*udp-ports':          ['String'],
-    '*param':             ['String'] },
+    '*tcp-ports':          ['PasstPortForward'],
+    '*udp-ports':          ['PasstPortForward'],
+    '*param':              ['PasstParameter'] },
     'if': 'CONFIG_PASST' }
 
 ##
