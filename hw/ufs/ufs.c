@@ -506,6 +506,8 @@ static bool ufs_mcq_create_sq(UfsHc *u, uint8_t qid, uint32_t attr)
     UfsMcqReg *reg = &u->mcq_reg[qid];
     UfsSq *sq;
     uint8_t cqid = FIELD_EX32(attr, SQATTR, CQID);
+    uint16_t qsize =
+        ((FIELD_EX32(attr, SQATTR, SIZE) + 1) << 2) / sizeof(UfsSqEntry);
 
     if (qid >= u->params.mcq_maxq) {
         trace_ufs_err_mcq_create_sq_invalid_sqid(qid);
@@ -527,12 +529,17 @@ static bool ufs_mcq_create_sq(UfsHc *u, uint8_t qid, uint32_t attr)
         return false;
     }
 
+    if (!qsize) {
+        trace_ufs_err_mcq_create_sq_invalid_size(qid);
+        return false;
+    }
+
     sq = g_malloc0(sizeof(*sq));
     sq->u = u;
     sq->sqid = qid;
     sq->cq = u->cq[cqid];
     sq->addr = ((uint64_t)reg->squba << 32) | reg->sqlba;
-    sq->size = ((FIELD_EX32(attr, SQATTR, SIZE) + 1) << 2) / sizeof(UfsSqEntry);
+    sq->size = qsize;
 
     sq->bh = qemu_bh_new_guarded(ufs_mcq_process_sq, sq,
                                  &DEVICE(u)->mem_reentrancy_guard);
@@ -576,6 +583,8 @@ static bool ufs_mcq_create_cq(UfsHc *u, uint8_t qid, uint32_t attr)
 {
     UfsMcqReg *reg = &u->mcq_reg[qid];
     UfsCq *cq;
+    uint16_t qsize =
+        ((FIELD_EX32(attr, CQATTR, SIZE) + 1) << 2) / sizeof(UfsCqEntry);
 
     if (qid >= u->params.mcq_maxq) {
         trace_ufs_err_mcq_create_cq_invalid_cqid(qid);
@@ -587,11 +596,16 @@ static bool ufs_mcq_create_cq(UfsHc *u, uint8_t qid, uint32_t attr)
         return false;
     }
 
+    if (!qsize) {
+        trace_ufs_err_mcq_create_cq_invalid_size(qid);
+        return false;
+    }
+
     cq = g_malloc0(sizeof(*cq));
     cq->u = u;
     cq->cqid = qid;
     cq->addr = ((uint64_t)reg->cquba << 32) | reg->cqlba;
-    cq->size = ((FIELD_EX32(attr, CQATTR, SIZE) + 1) << 2) / sizeof(UfsCqEntry);
+    cq->size = qsize;
 
     cq->bh = qemu_bh_new_guarded(ufs_mcq_process_cq, cq,
                                  &DEVICE(u)->mem_reentrancy_guard);
