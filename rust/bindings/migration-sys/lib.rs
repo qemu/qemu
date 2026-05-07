@@ -114,12 +114,4 @@ impl VMStateField {
         assert!((self.flags.0 & VMStateFlags::VMS_ARRAY.0) != 0);
         self.with_varray_flag_unchecked(flag)
     }
-
-    #[must_use]
-    pub const fn with_varray_multiply(mut self, num: u32) -> Self {
-        assert!(num <= 0x7FFF_FFFFu32);
-        self.flags = VMStateFlags(self.flags.0 | VMStateFlags::VMS_MULTIPLY_ELEMENTS.0);
-        self.num = num as i32;
-        self
-    }
 }

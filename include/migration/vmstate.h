@@ -105,7 +105,7 @@ enum VMStateFlags {
     VMS_ARRAY_OF_POINTER = 0x040,
 
     /* The field is an array of variable size. The uint16_t at opaque
-     * + VMStateField.num_offset (subject to VMS_MULTIPLY_ELEMENTS)
+     * + VMStateField.num_offset
      * contains the number of entries in the array. See the VMS_ARRAY
      * description regarding array handling in general. May not be
      * combined with VMS_ARRAY or any other VMS_VARRAY*. */
@@ -126,14 +126,14 @@ enum VMStateFlags {
     VMS_MULTIPLY         = 0x200,
 
     /* The field is an array of variable size. The uint8_t at opaque +
-     * VMStateField.num_offset (subject to VMS_MULTIPLY_ELEMENTS)
+     * VMStateField.num_offset
      * contains the number of entries in the array. See the VMS_ARRAY
      * description regarding array handling in general. May not be
      * combined with VMS_ARRAY or any other VMS_VARRAY*. */
     VMS_VARRAY_UINT8     = 0x400,
 
     /* The field is an array of variable size. The uint32_t at opaque
-     * + VMStateField.num_offset (subject to VMS_MULTIPLY_ELEMENTS)
+     * + VMStateField.num_offset
      * contains the number of entries in the array. See the VMS_ARRAY
      * description regarding array handling in general. May not be
      * combined with VMS_ARRAY or any other VMS_VARRAY*. */
@@ -149,12 +149,6 @@ enum VMStateFlags {
      * currently supported, e.g. VMS_ALLOC|VMS_ARRAY_OF_POINTER won't
      * cause the individual entries to be allocated. */
     VMS_ALLOC            = 0x2000,
-
-    /* Multiply the number of entries given by the integer at opaque +
-     * VMStateField.num_offset (see VMS_VARRAY*) with VMStateField.num
-     * to determine the number of entries in the array. Only valid in
-     * combination with one of VMS_VARRAY*. */
-    VMS_MULTIPLY_ELEMENTS = 0x4000,
 
     /* A structure field that is like VMS_STRUCT, but uses
      * VMStateField.struct_version_id to tell which version of the
@@ -444,16 +438,6 @@ extern const VMStateInfo vmstate_info_qlist;
     .size       = sizeof(_type),                                            \
     .flags      = VMS_ARRAY,                                                \
     .offset     = vmstate_offset_2darray(_state, _field, _type, _n1, _n2),  \
-}
-
-#define VMSTATE_VARRAY_MULTIPLY(_field, _state, _field_num, _multiply, _info, _type) { \
-    .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
-    .num        = (_multiply),                                       \
-    .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_VARRAY_UINT32|VMS_MULTIPLY_ELEMENTS,           \
-    .offset     = vmstate_offset_varray(_state, _field, _type),      \
 }
 
 #define VMSTATE_SUB_ARRAY(_field, _state, _start, _num, _version, _info, _type) { \

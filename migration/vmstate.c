@@ -100,10 +100,6 @@ static int vmstate_n_elems(void *opaque, const VMStateField *field)
         n_elems = *(uint8_t *)(opaque + field->num_offset);
     }
 
-    if (field->flags & VMS_MULTIPLY_ELEMENTS) {
-        n_elems *= field->num;
-    }
-
     trace_vmstate_n_elems(field->name, n_elems);
     return n_elems;
 }
