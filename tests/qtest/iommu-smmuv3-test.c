@@ -64,6 +64,11 @@ static void run_smmuv3_translation(const QSMMUTestConfig *cfg)
         g_test_skip("virt machine not available");
         return;
     }
+    if (!qtest_has_device("arm-gicv3")) {
+        /* This can happen for a KVM-only build: qtest uses the TCG GICv3 */
+        g_test_skip("gicv3 not available");
+        return;
+    }
 
     /* Initialize QEMU environment for SMMU testing */
     qts = qtest_init("-machine virt,acpi=off,gic-version=3,iommu=smmuv3 "
