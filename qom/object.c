@@ -774,7 +774,7 @@ object_new_with_props_helper(const char *typename,
         return NULL;
     }
 
-    klass = object_class_by_name(typename);
+    klass = module_object_class_by_name(typename);
     if (!klass) {
         error_setg(errp, "invalid object type: %s", typename);
         return NULL;
