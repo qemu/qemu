@@ -838,18 +838,10 @@ static void pnv_reset(MachineState *machine, ResetType type)
          * crash
          */
 
-        MpiplProcDumpArea proc_area;
-
-        proc_area.version = PROC_DUMP_AREA_VERSION_P9;
-        proc_area.thread_size = cpu_to_be32(sizeof(MpiplPreservedCPUState));
-
-        /* These are to be allocated & assigned by the firmware */
-        proc_area.alloc_addr = 0;
-        proc_area.alloc_size = 0;
-
-        /* These get assigned after crash, when QEMU preserves the registers */
-        proc_area.dest_addr = 0;
-        proc_area.act_size = 0;
+        MpiplProcDumpArea proc_area = {
+            .version = PROC_DUMP_AREA_VERSION_P9,
+            .thread_size = cpu_to_be32(sizeof(MpiplPreservedCPUState)),
+        };
 
         cpu_physical_memory_write(PROC_DUMP_AREA_OFF, &proc_area,
                 sizeof(proc_area));
