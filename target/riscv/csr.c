@@ -398,6 +398,10 @@ static RISCVException scountinhibit_pred(CPURISCVState *env, int csrno)
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
+    if (!get_field(env->menvcfg, MENVCFG_CDE)) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
     if (env->virt_enabled) {
         return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
     }
