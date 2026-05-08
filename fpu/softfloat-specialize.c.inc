@@ -104,14 +104,19 @@ static inline bool snan_bit_is_one(float_status *status)
 | if the fraction represents a signalling NaN; otherwise false.
 *----------------------------------------------------------------------------*/
 
-static bool parts_is_snan_frac(uint64_t frac, float_status *status)
+static bool frac_msb_is_snan(bool msb, float_status *status)
 {
     if (no_signaling_nans(status)) {
         return false;
     } else {
-        bool msb = extract64(frac, DECOMPOSED_BINARY_POINT - 1, 1);
         return msb == snan_bit_is_one(status);
     }
+}
+
+static bool parts_is_snan_frac(uint64_t frac, float_status *status)
+{
+    bool msb = extract64(frac, DECOMPOSED_BINARY_POINT - 1, 1);
+    return frac_msb_is_snan(msb, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -238,11 +243,7 @@ floatx80 floatx80_default_inf(bool zSign, float_status *status)
 
 static bool float16_nan_is_snan(float16 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return false;
-    }
-    bool frac_msb_is_one = (a >> 9) & 1;
-    return frac_msb_is_one == snan_bit_is_one(status);
+    return frac_msb_is_snan((a >> 9) & 1, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -271,11 +272,7 @@ bool float16_is_signaling_nan(float16 a_, float_status *status)
 
 static bool bfloat16_nan_is_snan(bfloat16 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return false;
-    }
-    bool frac_msb_is_one = (a >> 6) & 1;
-    return frac_msb_is_one == snan_bit_is_one(status);
+    return frac_msb_is_snan((a >> 6) & 1, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -302,11 +299,7 @@ bool bfloat16_is_signaling_nan(bfloat16 a_, float_status *status)
 
 static bool float32_nan_is_snan(float32 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return false;
-    }
-    bool frac_msb_is_one = (a >> 22) & 1;
-    return frac_msb_is_one == snan_bit_is_one(status);
+    return frac_msb_is_snan((a >> 22) & 1, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -335,11 +328,7 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
 
 static bool float64_nan_is_snan(float64 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return false;
-    }
-    bool frac_msb_is_one = (a >> 51) & 1;
-    return frac_msb_is_one == snan_bit_is_one(status);
+    return frac_msb_is_snan((a >> 51) & 1, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -370,11 +359,7 @@ bool float64_is_signaling_nan(float64 a_, float_status *status)
 
 static bool floatx80_nan_is_snan(floatx80 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return false;
-    }
-    bool frac_msb_is_one = (a.low >> 62) & 1;
-    return frac_msb_is_one == snan_bit_is_one(status);
+    return frac_msb_is_snan((a.low >> 62) & 1, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -416,11 +401,7 @@ floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
 
 static bool float128_nan_is_snan(float128 a, float_status *status)
 {
-    if (no_signaling_nans(status)) {
-        return false;
-    }
-    bool frac_msb_is_one = (a.high >> 47) & 1;
-    return frac_msb_is_one == snan_bit_is_one(status);
+    return frac_msb_is_snan((a.high >> 47) & 1, status);
 }
 
 /*----------------------------------------------------------------------------
