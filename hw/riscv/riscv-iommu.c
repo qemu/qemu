@@ -807,7 +807,7 @@ static bool riscv_iommu_validate_device_ctx(RISCVIOMMUState *s,
         }
 
         if (ctx->tc & RISCV_IOMMU_DC_TC_SXL) {
-            if (fsc_mode == RISCV_IOMMU_CAP_SV32 &&
+            if (fsc_mode == RISCV_IOMMU_DC_FSC_IOSATP_MODE_SV32 &&
                 !(s->cap & RISCV_IOMMU_CAP_SV32)) {
                 return false;
             }
