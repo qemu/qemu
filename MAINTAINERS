@@ -4268,12 +4268,6 @@ L: qemu-block@nongnu.org
 S: Odd Fixes
 F: block/curl.c
 
-GLUSTER
-L: qemu-block@nongnu.org
-L: integration@gluster.org
-S: Odd Fixes
-F: block/gluster.c
-
 Null Block Driver
 M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org

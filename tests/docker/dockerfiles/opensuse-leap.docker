@@ -34,7 +34,6 @@ RUN zypper update -y && \
            glib2-devel \
            glibc-locale \
            glibc-static \
-           glusterfs-devel \
            gtk-vnc-devel \
            gtk3-devel \
            hostname \

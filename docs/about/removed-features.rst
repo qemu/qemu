@@ -1429,6 +1429,13 @@ The corresponding upstream server project is no longer maintained.
 Users are recommended to switch to an alternative distributed block
 device driver such as RBD.
 
+``gluster`` backend (removed in 11.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+According to https://marc.info/?l=fedora-devel-list&m=171934833215726
+the GlusterFS development effectively ended.
+
+
 VFIO devices
 ------------
 

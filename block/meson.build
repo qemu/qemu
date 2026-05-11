@@ -109,7 +109,6 @@ modsrc = []
 foreach m : [
   [blkio, 'blkio', files('blkio.c')],
   [curl, 'curl', files('curl.c')],
-  [glusterfs, 'gluster', files('gluster.c')],
   [libiscsi, 'iscsi', files('iscsi.c')],
   [libnfs, 'nfs', files('nfs.c')],
   [libssh, 'ssh', files('ssh.c')],
