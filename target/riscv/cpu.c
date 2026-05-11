@@ -2542,7 +2542,7 @@ static RISCVCPUImpliedExtsRule ZVKNG_IMPLIED = {
 static RISCVCPUImpliedExtsRule ZVKNHB_IMPLIED = {
     .ext = CPU_CFG_OFFSET(ext_zvknhb),
     .implied_multi_exts = {
-        CPU_CFG_OFFSET(ext_zve64x),
+        CPU_CFG_OFFSET(ext_zve64x), CPU_CFG_OFFSET(ext_zvknha),
 
         RISCV_IMPLIED_EXTS_RULE_END
     },
