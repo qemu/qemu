@@ -4148,15 +4148,6 @@ M: WANG Xuerui <git@xen0n.name>
 S: Maintained
 F: tcg/loongarch64/
 
-MIPS TCG target
-M: Philippe Mathieu-Daudé <philmd@linaro.org>
-R: Aurelien Jarno <aurelien@aurel32.net>
-R: Huacai Chen <chenhuacai@kernel.org>
-R: Jiaxun Yang <jiaxun.yang@flygoat.com>
-R: Aleksandar Rikalo <arikalo@gmail.com>
-S: Odd Fixes
-F: tcg/mips64/
-
 PPC TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Odd Fixes

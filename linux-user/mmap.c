@@ -1351,7 +1351,7 @@ static inline abi_ulong target_shmlba(CPUArchState *cpu_env)
 }
 #endif
 
-#if defined(__mips__) || defined(__sparc__)
+#if defined(__sparc__)
 #define HOST_FORCE_SHMLBA 1
 #else
 #define HOST_FORCE_SHMLBA 0

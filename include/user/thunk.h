@@ -115,7 +115,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
         if (is_host) {
 #if defined(HOST_X86_64)
             return 8;
-#elif defined(HOST_MIPS) || defined(HOST_SPARC64)
+#elif defined(HOST_SPARC64)
             return 4;
 #elif defined(HOST_PPC)
             return sizeof(void *);
