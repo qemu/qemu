@@ -101,6 +101,7 @@ void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt)
     cnt->users--;
     if (cnt->users == 0) {
         QTAILQ_REMOVE(&s->zpci_dma_limit, cnt, link);
+        g_free(cnt);
     }
 }
 
