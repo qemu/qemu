@@ -63,6 +63,7 @@
 #include "system/dirtylimit.h"
 #include "qemu/sockets.h"
 #include "system/kvm.h"
+#include "math.h"
 
 #define NOTIFIER_ELEM_INIT(array, elem)    \
     [elem] = NOTIFIER_WITH_RETURN_LIST_INITIALIZER((array)[elem])
@@ -1044,12 +1045,29 @@ static bool migrate_show_downtime(MigrationState *s)
 /* Return expected downtime (unit: milliseconds) */
 int64_t migration_downtime_calc_expected(MigrationState *s)
 {
+    double expected_ms;
+
     if (mig_stats.dirty_sync_count <= 1) {
         return migrate_downtime_limit();
     }
 
-    return mig_stats.dirty_bytes_last_sync /
+    expected_ms = mig_stats.dirty_bytes_last_sync /
         migration_get_switchover_bw(s) * 1000;
+
+    /*
+     * If we haven't been able to transfer any data, the result here could
+     * be NaN (for 0 / 0) or infinity (something else / 0).
+     *
+     * Return INT64_MAX as our best approximation to "this will take
+     * forever to complete". If the problem is transient (e.g. we just
+     * haven't started to transfer yet) we'll recalculate to a more
+     * accurate figure later.
+     */
+    if (isnan(expected_ms) || expected_ms >= (double)INT64_MAX) {
+        return INT64_MAX;
+    }
+
+    return (int64_t) expected_ms;
 }
 
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
