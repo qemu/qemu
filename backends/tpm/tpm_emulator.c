@@ -364,6 +364,7 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     ptm_setbuffersize psbs;
+    size_t tpm_buffersize;
 
     if (tpm_emulator_stop_tpm(tb, errp) < 0) {
         return -1;
@@ -387,8 +388,18 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
         return -1;
     }
 
+    tpm_buffersize = be32_to_cpu(psbs.u.resp.buffersize);
+    /* Reject different buffer size used by the TPM than what was requested. */
+    if (wanted_size != 0 && wanted_size != tpm_buffersize) {
+        error_setg(errp,
+                   "tpm-emulator: TPM did not accept the requested buffer size "
+                   "of %zu bytes but adjusted it to %zu bytes",
+                   wanted_size, tpm_buffersize);
+        return -1;
+    }
+
     if (actual_size) {
-        *actual_size = be32_to_cpu(psbs.u.resp.buffersize);
+        *actual_size = tpm_buffersize;
     }
 
     trace_tpm_emulator_set_buffer_size(
