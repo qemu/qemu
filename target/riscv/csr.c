@@ -3177,7 +3177,7 @@ static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
 {
     const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
     uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE |
-                    MENVCFG_CBZE | MENVCFG_CDE;
+                    MENVCFG_CBZE;
     bool stce_changed = false;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
