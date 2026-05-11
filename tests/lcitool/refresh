@@ -265,18 +265,6 @@ try:
                         trailer=cross_build("i686-linux-gnu-",
                                             "i386-softmmu,i386-linux-user"))
 
-    # mips no longer supported in debian-13
-    # https://www.debian.org/releases/trixie/release-notes/issues.html#mips-architectures-removed
-    generate_dockerfile("debian-mips64el-cross", "debian-12",
-                        cross="mips64el",
-                        trailer=cross_build("mips64el-linux-gnuabi64-",
-                                            "mips64el-softmmu,mips64el-linux-user"))
-
-    generate_dockerfile("debian-mipsel-cross", "debian-12",
-                        cross="mipsel",
-                        trailer=cross_build("mipsel-linux-gnu-",
-                                            "mipsel-softmmu,mipsel-linux-user"))
-
     generate_dockerfile("debian-ppc64el-cross", "debian-13",
                         cross="ppc64le",
                         trailer=cross_build("powerpc64le-linux-gnu-",

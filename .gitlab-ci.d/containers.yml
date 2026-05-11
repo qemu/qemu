@@ -48,7 +48,6 @@ weekly-container-builds:
     - arm64-debian-cross-container
     - hexagon-cross-container
     - loongarch-debian-cross-container
-    - mips64el-debian-cross-container
     - ppc64el-debian-cross-container
     - riscv64-debian-cross-container
     - s390x-debian-cross-container
