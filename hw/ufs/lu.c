@@ -101,6 +101,10 @@ static int ufs_emulate_report_luns(UfsRequest *req, uint8_t *outbuf,
         return SCSI_COMMAND_FAIL;
     }
 
+    if (outbuf_len < 8) {
+        return SCSI_COMMAND_FAIL;
+    }
+    memset(outbuf, 0, 8);
     len += 8;
 
     for (uint8_t lun = 0; lun < UFS_MAX_LUS; ++lun) {
