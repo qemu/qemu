@@ -938,6 +938,12 @@ From 10.0, QEMU has disabled configuration of 64-bit guests on 32-bit hosts.
 Debian 12 "Bookworm" removed support for 32-bit MIPS, making it hard to
 maintain our cross-compilation CI tests of the architecture.
 
+64-bit MIPS (removed in 11.1)
+'''''''''''''''''''''''''''''
+
+Debian 13 "Trixie" removed support for MIPS, making it hard to maintain our
+cross-compilation CI tests of the architecture.
+
 32-bit PPC (removed in 10.2)
 ''''''''''''''''''''''''''''
 

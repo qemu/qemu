@@ -177,14 +177,6 @@ The ``info capture`` command is deprecated and will be removed in a future relea
 Host Architectures
 ------------------
 
-MIPS (since 10.2)
-'''''''''''''''''
-
-MIPS is not supported by Debian 13 ("Trixie") and newer, making it hard to
-maintain our cross-compilation CI tests of the architecture. As we no longer
-have CI coverage support may bitrot away before the deprecation process
-completes.
-
 TCG Plugin support not enabled by default with TCI (since 9.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

@@ -301,22 +301,6 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 }
 #endif /* CONFIG_DARWIN */
 
-#elif defined(__mips__)
-
-#ifdef __OpenBSD__
-#include <machine/sysarch.h>
-#else
-#include <sys/cachectl.h>
-#endif
-
-void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
-{
-    if (rx != rw) {
-        cacheflush((void *)rw, len, DCACHE);
-    }
-    cacheflush((void *)rx, len, ICACHE);
-}
-
 #elif defined(__powerpc__)
 
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)

@@ -399,8 +399,6 @@ elif check_define _ARCH_PPC64 ; then
   else
     cpu="ppc64"
   fi
-elif check_define __mips64 ; then
-  cpu="mips64"
 elif check_define __s390__ ; then
   if check_define __s390x__ ; then
     cpu="s390x"
@@ -444,12 +442,6 @@ case "$cpu" in
     cpu=loongarch64
     host_arch=loongarch64
     linux_arch=loongarch
-    ;;
-
-  mips64*|mipsisa64*)
-    cpu=mips64
-    host_arch=mips64
-    linux_arch=mips
     ;;
 
   ppc64)
@@ -1244,11 +1236,6 @@ EOF
         rust_osvariant=${rust_osvariant}eabi
       fi
       ;;
-
-    mips64)
-      # e.g. mips64-unknown-linux-gnuabi64
-      rust_osvariant=${rust_osvariant}abi64
-      ;;
     esac
     ;;
 
@@ -1279,12 +1266,6 @@ EOF
     # preserve ISA version (armv7 etc.) from $raw_cpu if passed via --cpu
     rust_arch=$raw_cpu
     test "$rust_arch" = arm && test "$rust_os" != linux && rust_arch=armv7
-    ;;
-
-  mips)
-    # preserve ISA version (mipsisa64r6 etc.) and include endianness
-    rust_arch=${raw_cpu%el}
-    test "$bigendian" = no && rust_arch=${rust_arch}el
     ;;
 
   riscv64)

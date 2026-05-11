@@ -55,7 +55,7 @@ qapi_trace_events = []
 bsd_oses = ['gnu/kfreebsd', 'freebsd', 'netbsd', 'openbsd', 'dragonfly', 'darwin']
 supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux', 'emscripten']
 supported_cpus = ['ppc64', 's390x', 'riscv64', 'x86_64',
-  'aarch64', 'loongarch64', 'mips64', 'sparc64', 'wasm64']
+  'aarch64', 'loongarch64', 'sparc64', 'wasm64']
 
 cpu = host_machine.cpu_family()
 
@@ -5013,14 +5013,6 @@ if host_arch == 'unknown'
     message('configure has succeeded and you can continue to build, but')
     message('QEMU will use a slow interpreter to emulate the target CPU.')
   endif
-elif host_arch == 'mips'
-  message()
-  warning('DEPRECATED HOST CPU')
-  message()
-  message('Support for CPU host architecture ' + cpu + ' is going to be')
-  message('dropped as soon as the QEMU project stops supporting Debian 12')
-  message('("Bookworm"). Going forward, the QEMU project will not guarantee')
-  message('that QEMU will compile or work on this host CPU.')
 endif
 
 if not supported_oses.contains(host_os)
