@@ -25,6 +25,7 @@
 #include "hw/core/irq.h"
 #include "system/kvm.h"
 #include "kvm_mips.h"
+#include "target/mips/cpu.h"
 
 static void cpu_mips_irq_request(void *opaque, int irq, int level)
 {

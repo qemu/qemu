@@ -51,6 +51,7 @@
 #include "system/runstate.h"
 #include "system/system.h"
 #include "qemu/error-report.h"
+#include "target/mips/cpu.h"
 
 #define PM_CNTL_MODE          0x10
 
