@@ -103,6 +103,7 @@ cp_portable() {
         -e 's/__kernel_ulong_t/unsigned long/' \
         -e 's/struct ethhdr/struct eth_header/' \
         -e '/\#define _LINUX_ETHTOOL_H/a \\n\#include "net/eth.h"' \
+        -e '/\#define _LINUX_VIRTIO_RING_H/a \\n\#define VIRTIO_RING_NO_LEGACY' \
         "$f" > "$to/$header";
 }
 
