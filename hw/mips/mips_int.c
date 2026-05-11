@@ -23,8 +23,6 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "hw/core/irq.h"
-#include "system/kvm.h"
-#include "kvm_mips.h"
 #include "target/mips/cpu.h"
 
 static void cpu_mips_irq_request(void *opaque, int irq, int level)
@@ -43,10 +41,6 @@ static void cpu_mips_irq_request(void *opaque, int irq, int level)
         env->CP0_Cause |= 1 << (irq + CP0Ca_IP);
     } else {
         env->CP0_Cause &= ~(1 << (irq + CP0Ca_IP));
-    }
-
-    if (kvm_enabled() && (irq == 2 || irq == 3)) {
-        kvm_mips_set_interrupt(cpu, irq, level);
     }
 
     if (env->CP0_Cause & CP0Ca_IP_mask) {

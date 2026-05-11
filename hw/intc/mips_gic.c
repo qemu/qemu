@@ -15,9 +15,7 @@
 #include "qapi/error.h"
 #include "hw/core/sysbus.h"
 #include "system/memory.h"
-#include "system/kvm.h"
 #include "system/reset.h"
-#include "kvm_mips.h"
 #include "hw/intc/mips_gic.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
@@ -45,14 +43,7 @@ static void mips_gic_set_vp_irq(MIPSGICState *gic, int vp, int pin)
         ored_level |= (gic->vps[vp].pend & GIC_VP_MASK_CMP_MSK) >>
                       GIC_VP_MASK_CMP_SHF;
     }
-    if (kvm_enabled())  {
-        kvm_mips_set_ipi_interrupt(env_archcpu(gic->vps[vp].env),
-                                   pin + GIC_CPU_PIN_OFFSET,
-                                   ored_level);
-    } else {
-        qemu_set_irq(gic->vps[vp].env->irq[pin + GIC_CPU_PIN_OFFSET],
-                     ored_level);
-    }
+    qemu_set_irq(gic->vps[vp].env->irq[pin + GIC_CPU_PIN_OFFSET], ored_level);
 }
 
 static void gic_update_pin_for_irq(MIPSGICState *gic, int n_IRQ)

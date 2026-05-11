@@ -483,12 +483,6 @@ S: Supported
 F: target/arm/kvm.c
 F: tests/functional/aarch64/test_kvm.py
 
-MIPS KVM CPUs
-M: Huacai Chen <chenhuacai@kernel.org>
-S: Odd Fixes
-F: target/mips/kvm*
-F: target/mips/system/
-
 PPC KVM CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Harsh Prateek Bora <harshpb@linux.ibm.com>

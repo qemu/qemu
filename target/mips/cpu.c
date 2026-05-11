@@ -25,9 +25,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internal.h"
-#include "kvm_mips.h"
 #include "qemu/module.h"
-#include "system/kvm.h"
 #include "system/qtest.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
@@ -415,9 +413,6 @@ static void mips_cpu_reset_hold(Object *obj, ResetType type)
     if (semihosting_get_argc()) {
         /* UHI interface can be used to obtain argc and argv */
         env->active_tc.gpr[4] = -1;
-    }
-    if (kvm_enabled()) {
-        kvm_mips_reset_vcpu(cpu);
     }
 #endif
 }

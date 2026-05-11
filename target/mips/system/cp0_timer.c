@@ -23,7 +23,6 @@
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
 #include "qemu/timer.h"
-#include "system/kvm.h"
 #include "internal.h"
 
 /* MIPS R4K timer */
@@ -84,8 +83,7 @@ void cpu_mips_store_count(CPUMIPSState *env, uint32_t count)
 {
     /*
      * This gets called from cpu_state_reset(), potentially before timer init.
-     * So env->timer may be NULL, which is also the case with KVM enabled so
-     * treat timer as disabled in that case.
+     * So env->timer may be NULL, so treat timer as disabled in that case.
      */
     MIPSCPU *cpu = env_archcpu(env);
     if (env->CP0_Cause & (1 << CP0Ca_DC) || !env->timer) {
@@ -141,11 +139,5 @@ void cpu_mips_clock_init(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
 
-    /*
-     * If we're in KVM mode, don't create the periodic timer, that is handled in
-     * kernel.
-     */
-    if (!kvm_enabled()) {
-        env->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &mips_timer_cb, env);
-    }
+    env->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &mips_timer_cb, env);
 }

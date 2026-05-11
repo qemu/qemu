@@ -45,7 +45,6 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/usb/usb.h"
 #include "net/net.h"
-#include "system/kvm.h"
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "system/runstate.h"
@@ -157,21 +156,6 @@ static const MemoryRegionOps loongson3_pm_ops = {
 
 static uint64_t get_cpu_freq_hz(const MIPSCPU *cpu)
 {
-#ifdef CONFIG_KVM
-    int ret;
-    uint64_t freq;
-    struct kvm_one_reg freq_reg = {
-        .id = KVM_REG_MIPS_COUNT_HZ,
-        .addr = (uintptr_t)(&freq)
-    };
-
-    if (kvm_enabled()) {
-        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_ONE_REG, &freq_reg);
-        if (ret >= 0) {
-            return freq * 2;
-        }
-    }
-#endif
     return DEF_LOONGSON3_FREQ;
 }
 
@@ -511,23 +495,13 @@ static void mips_loongson3_virt_init(MachineState *machine)
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
     MemoryRegion *iocsr = g_new(MemoryRegion, 1);
 
-    /* TODO: TCG will support all CPU types */
-    if (!kvm_enabled()) {
-        if (!machine->cpu_type) {
-            machine->cpu_type = MIPS_CPU_TYPE_NAME("Loongson-3A1000");
-        }
-        if (!cpu_type_supports_isa(machine->cpu_type, INSN_LOONGSON3A)) {
-            error_report("Loongson-3/TCG needs a Loongson-3 series cpu");
-            exit(1);
-        }
-    } else {
-        if (!machine->cpu_type) {
-            machine->cpu_type = MIPS_CPU_TYPE_NAME("Loongson-3A4000");
-        }
-        if (!strstr(machine->cpu_type, "Loongson-3A4000")) {
-            error_report("Loongson-3/KVM needs cpu type Loongson-3A4000");
-            exit(1);
-        }
+    /* TODO: Support all CPU types */
+    if (!machine->cpu_type) {
+        machine->cpu_type = MIPS_CPU_TYPE_NAME("Loongson-3A1000");
+    }
+    if (!cpu_type_supports_isa(machine->cpu_type, INSN_LOONGSON3A)) {
+        error_report("Loongson-3/TCG needs a Loongson-3 series cpu");
+        exit(1);
     }
 
     if (ram_size < 512 * MiB) {
@@ -545,16 +519,13 @@ static void mips_loongson3_virt_init(MachineState *machine)
 
     memory_region_init(iocsr, OBJECT(machine), "loongson3.iocsr", UINT32_MAX);
 
-    /* IPI controller is in kernel for KVM */
-    if (!kvm_enabled()) {
-        ipi = qdev_new(TYPE_LOONGSON_IPI);
-        qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
-        memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));
-        memory_region_add_subregion(iocsr, MAIL_SEND_ADDR,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
-    }
+    ipi = qdev_new(TYPE_LOONGSON_IPI);
+    qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+    memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));
+    memory_region_add_subregion(iocsr, MAIL_SEND_ADDR,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
 
     liointc = qdev_new("loongson.liointc");
     sysbus_realize_and_unref(SYS_BUS_DEVICE(liointc), &error_fatal);
@@ -575,6 +546,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
         int node = i / LOONGSON3_CORE_PER_NODE;
         int core = i % LOONGSON3_CORE_PER_NODE;
         int ip;
+        hwaddr ipi_base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
 
         /* init CPUs */
         cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk, false);
@@ -584,12 +556,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
         cpu_mips_clock_init(cpu);
         qemu_register_reset(i ? generic_cpu_reset : main_cpu_reset, cpu);
 
-        if (!kvm_enabled()) {
-            hwaddr base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
-            base += core * 0x100;
-            qdev_connect_gpio_out(ipi, i, cpu->env.irq[6]);
-            sysbus_mmio_map(SYS_BUS_DEVICE(ipi), i + 2, base);
-        }
+        qdev_connect_gpio_out(ipi, i, cpu->env.irq[6]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(ipi), i + 2, ipi_base + core * 0x100);
 
         if (ase_lcsr_available(&MIPS_CPU(cpu)->env)) {
             MemoryRegion *core_iocsr = g_new(MemoryRegion, 1);
