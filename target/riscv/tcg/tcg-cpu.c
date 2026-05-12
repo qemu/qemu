@@ -1155,10 +1155,11 @@ static void riscv_cpu_update_misa_c(RISCVCPU *cpu)
 static void riscv_cpu_update_misa_x(RISCVCPU *cpu)
 {
     CPURISCVState *env = &cpu->env;
-    const RISCVCPUMultiExtConfig *arr = riscv_cpu_vendor_exts;
+    const RISCVIsaExtData *edata;
 
-    for (int i = 0; arr[i].name != NULL; i++) {
-        if (isa_ext_is_enabled(cpu, arr[i].offset)) {
+    for (edata = isa_edata_arr; edata && edata->name; edata++) {
+        if (edata->name[0] == 'x'
+            && isa_ext_is_enabled(cpu, edata->ext_enable_offset)) {
             riscv_cpu_set_misa_ext(env, env->misa_ext | RVX);
             break;
         }
