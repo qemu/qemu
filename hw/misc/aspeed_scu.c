@@ -128,8 +128,8 @@
 #define AST2600_HW_STRAP2         TO_REG(0x510)
 #define AST2600_HW_STRAP2_CLR     TO_REG(0x514)
 #define AST2600_HW_STRAP2_PROT    TO_REG(0x518)
-#define AST2600_RNG_CTRL          TO_REG(0x524)
-#define AST2600_RNG_DATA          TO_REG(0x540)
+#define AST2600_RNG_CTRL          TO_REG(0x520)
+#define AST2600_RNG_DATA          TO_REG(0x524)
 #define AST2600_CHIP_ID0          TO_REG(0x5B0)
 #define AST2600_CHIP_ID1          TO_REG(0x5B4)
 
