@@ -106,8 +106,6 @@ struct omap_dma_s {
     struct omap_mpu_state_s *mpu;
     omap_clk clk;
     qemu_irq irq[4];
-    void (*intr_update)(struct omap_dma_s *s);
-    int omap_3_1_mapping_disabled;
 
     uint32_t gcr;
     uint32_t ocp;
@@ -134,7 +132,27 @@ struct omap_dma_s {
 
 static inline void omap_dma_interrupts_update(struct omap_dma_s *s)
 {
-    s->intr_update(s);
+    struct omap_dma_channel_s *ch = s->ch;
+
+    /* First three interrupts are shared between two channels each. */
+    if (ch[0].status | ch[6].status) {
+        qemu_irq_raise(ch[0].irq);
+    }
+    if (ch[1].status | ch[7].status) {
+        qemu_irq_raise(ch[1].irq);
+    }
+    if (ch[2].status | ch[8].status) {
+        qemu_irq_raise(ch[2].irq);
+    }
+    if (ch[3].status) {
+        qemu_irq_raise(ch[3].irq);
+    }
+    if (ch[4].status) {
+        qemu_irq_raise(ch[4].irq);
+    }
+    if (ch[5].status) {
+        qemu_irq_raise(ch[5].irq);
+    }
 }
 
 static void omap_dma_channel_load(struct omap_dma_channel_s *ch)
@@ -292,32 +310,6 @@ static void omap_dma_channel_end_prog(struct omap_dma_s *s,
             omap_dma_activate_channel(s, ch);
         }
     }
-}
-
-static void omap_dma_interrupts_3_1_update(struct omap_dma_s *s)
-{
-    struct omap_dma_channel_s *ch = s->ch;
-
-    /* First three interrupts are shared between two channels each. */
-    if (ch[0].status | ch[6].status)
-        qemu_irq_raise(ch[0].irq);
-    if (ch[1].status | ch[7].status)
-        qemu_irq_raise(ch[1].irq);
-    if (ch[2].status | ch[8].status)
-        qemu_irq_raise(ch[2].irq);
-    if (ch[3].status)
-        qemu_irq_raise(ch[3].irq);
-    if (ch[4].status)
-        qemu_irq_raise(ch[4].irq);
-    if (ch[5].status)
-        qemu_irq_raise(ch[5].irq);
-}
-
-static void omap_dma_enable_3_1_mapping(struct omap_dma_s *s)
-{
-    s->omap_3_1_mapping_disabled = 0;
-    s->chans = 9;
-    s->intr_update = omap_dma_interrupts_3_1_update;
 }
 
 static void omap_dma_process_request(struct omap_dma_s *s, int request)
@@ -660,7 +652,6 @@ void omap_dma_reset(struct soc_dma_s *dma)
     s->lcd_ch.condition = 0;
     s->lcd_ch.interrupts = 0;
     s->lcd_ch.dual = 0;
-    omap_dma_enable_3_1_mapping(s);
     for (i = 0; i < s->chans; i ++) {
         s->ch[i].suspend = 0;
         s->ch[i].prefetch = 0;
@@ -1193,6 +1184,7 @@ struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
     s->clk = clk;
     s->lcd_ch.irq = lcd_irq;
     s->lcd_ch.mpu = mpu;
+    s->chans = 9;
 
     s->dma = soc_dma_init(9);
     s->dma->freq = omap_clk_getrate(clk);
