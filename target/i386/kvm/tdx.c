@@ -1403,7 +1403,7 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
     uint64_t reg_mask = run->system_event.data[R_ECX];
     char *message = NULL;
     uint64_t *tmp;
-    uint64_t gpa = -1ull;
+    uint64_t gpa = 0;
     bool has_gpa = false;
 
     if (error_code & 0xffff) {

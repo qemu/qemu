@@ -706,7 +706,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
                           " error code: 0x%" PRIx32 " error message:\"%s\"\n",
                           info->u.tdx.error_code, message);
             g_free(message);
-            if (info->u.tdx.gpa != -1ull) {
+            if (info->u.tdx.has_gpa) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Additional error information "
                               "can be found at gpa page: 0x%" PRIx64 "\n",
                               info->u.tdx.gpa);
