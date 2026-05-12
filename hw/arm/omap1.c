@@ -1846,7 +1846,6 @@ struct omap_mpuio_s {
     qemu_irq kbd_irq;
     qemu_irq *in;
     qemu_irq handler[16];
-    qemu_irq wakeup;
     MemoryRegion iomem;
 
     uint16_t inputs;
@@ -2074,14 +2073,13 @@ static void omap_mpuio_onoff(void *opaque, int line, int on)
 
 static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
                 hwaddr base,
-                qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
+                qemu_irq kbd_int, qemu_irq gpio_int,
                 omap_clk clk)
 {
     struct omap_mpuio_s *s = g_new0(struct omap_mpuio_s, 1);
 
     s->irq = gpio_int;
     s->kbd_irq = kbd_int;
-    s->wakeup = wakeup;
     s->in = qemu_allocate_irqs(omap_mpuio_set, s, 16);
     omap_mpuio_reset(s);
 
@@ -3693,16 +3691,6 @@ static void omap_setup_dsp_mapping(MemoryRegion *system_memory,
     }
 }
 
-void omap_mpu_wakeup(void *opaque, int irq, int req)
-{
-    struct omap_mpu_state_s *mpu = opaque;
-    CPUState *cpu = CPU(mpu->cpu);
-
-    if (cpu->halted) {
-        cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
-    }
-}
-
 static const struct dma_irq_map omap1_dma_irq_map[] = {
     { 0, OMAP_INT_DMA_CH0_6 },
     { 0, OMAP_INT_DMA_CH1_7 },
@@ -3764,8 +3752,6 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     s->cpu = ARM_CPU(cpu_create(cpu_type));
     s->sdram_size = memory_region_size(dram);
     s->sram_size = OMAP15XX_SRAM_SIZE;
-
-    s->wakeup = qemu_allocate_irq(omap_mpu_wakeup, s, 0);
 
     /* Clocks */
     omap_clk_init(s);
@@ -3912,7 +3898,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     s->mpuio = omap_mpuio_init(system_memory, 0xfffb5000,
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_KEYBOARD),
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_MPUIO),
-                               s->wakeup, omap_findclk(s, "clk32-kHz"));
+                               omap_findclk(s, "clk32-kHz"));
 
     s->gpio = qdev_new("omap-gpio");
     omap_gpio_set_clk(OMAP1_GPIO(s->gpio), omap_findclk(s, "arm_gpio_ck"));
