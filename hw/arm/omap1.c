@@ -3789,7 +3789,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     }
     s->dma = omap_dma_init(0xfffed800, dma_irqs, system_memory,
                            qdev_get_gpio_in(s->ih[0], OMAP_INT_DMA_LCD),
-                           s, omap_findclk(s, "dma_ck"), omap_dma_3_1);
+                           s, omap_findclk(s, "dma_ck"));
 
     s->port[emiff    ].addr_valid = omap_validate_emiff_addr;
     s->port[emifs    ].addr_valid = omap_validate_emifs_addr;

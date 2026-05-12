@@ -1169,14 +1169,12 @@ static void omap_dma_clk_update(void *opaque, int line, int on)
 }
 
 struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
-                MemoryRegion *sysmem,
-                qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
-                enum omap_dma_model model)
+                                MemoryRegion *sysmem,
+                                qemu_irq lcd_irq,
+                                struct omap_mpu_state_s *mpu, omap_clk clk)
 {
     int num_irqs, memsize, i;
     struct omap_dma_s *s = g_new0(struct omap_dma_s, 1);
-
-    assert(model == omap_dma_3_1);
 
     num_irqs = 6;
     memsize = 0x800;

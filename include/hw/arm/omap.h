@@ -172,17 +172,11 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 #define OMAP_INT_310_McBSP2RX_OF       31
 
 /* omap_dma.c */
-enum omap_dma_model {
-    omap_dma_3_0,
-    omap_dma_3_1,
-    omap_dma_3_2,
-};
-
 struct soc_dma_s;
 struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
-                MemoryRegion *sysmem,
-                qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
-                enum omap_dma_model model);
+                                MemoryRegion *sysmem,
+                                qemu_irq lcd_irq,
+                                struct omap_mpu_state_s *mpu, omap_clk clk);
 void omap_dma_reset(struct soc_dma_s *s);
 
 struct dma_irq_map {
