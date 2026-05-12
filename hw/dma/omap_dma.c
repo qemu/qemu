@@ -73,9 +73,6 @@ struct omap_dma_channel_s {
     int fs;
     int bs;
 
-    /* compatibility */
-    int omap_3_1_compatible_disable;
-
     qemu_irq irq;
     struct omap_dma_channel_s *sibling;
 
@@ -144,7 +141,6 @@ static void omap_dma_channel_load(struct omap_dma_channel_s *ch)
 {
     struct omap_dma_reg_set_s *a = &ch->active_set;
     int i, normal;
-    int omap_3_1 = !ch->omap_3_1_compatible_disable;
 
     /*
      * TODO: verify address ranges and alignment
@@ -177,14 +173,14 @@ static void omap_dma_channel_load(struct omap_dma_channel_s *ch)
             break;
         case single_index:
             a->elem_delta[i] = ch->data_type +
-                    ch->element_index[omap_3_1 ? 0 : i] - 1;
+                    ch->element_index[0] - 1;
             a->frame_delta[i] = 0;
             break;
         case double_index:
             a->elem_delta[i] = ch->data_type +
-                    ch->element_index[omap_3_1 ? 0 : i] - 1;
-            a->frame_delta[i] = ch->frame_index[omap_3_1 ? 0 : i] -
-                    ch->element_index[omap_3_1 ? 0 : i];
+                    ch->element_index[0] - 1;
+            a->frame_delta[i] = ch->frame_index[0] -
+                    ch->element_index[0];
             break;
         default:
             break;
@@ -442,20 +438,13 @@ static void omap_dma_transfer_generic(struct soc_dma_ch_s *dma)
                 /* End of Block */
                 /* Disable the channel */
 
-                if (ch->omap_3_1_compatible_disable) {
+                if (!ch->auto_init)
                     omap_dma_disable_channel(s, ch);
-                    if (ch->link_enabled)
-                        omap_dma_enable_channel(s,
-                                        &s->ch[ch->link_next_ch]);
-                } else {
-                    if (!ch->auto_init)
-                        omap_dma_disable_channel(s, ch);
-                    else if (ch->repeat || ch->end_prog)
-                        omap_dma_channel_load(ch);
-                    else {
-                        ch->waiting_end_prog = 1;
-                        omap_dma_deactivate_channel(s, ch);
-                    }
+                else if (ch->repeat || ch->end_prog)
+                    omap_dma_channel_load(ch);
+                else {
+                    ch->waiting_end_prog = 1;
+                    omap_dma_deactivate_channel(s, ch);
                 }
 
                 if (ch->interrupts & END_BLOCK_INTR)
@@ -610,19 +599,13 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
             /* End of Block */
             /* Disable the channel */
 
-            if (ch->omap_3_1_compatible_disable) {
+            if (!ch->auto_init)
                 omap_dma_disable_channel(s, ch);
-                if (ch->link_enabled)
-                    omap_dma_enable_channel(s, &s->ch[ch->link_next_ch]);
-            } else {
-                if (!ch->auto_init)
-                    omap_dma_disable_channel(s, ch);
-                else if (ch->repeat || ch->end_prog)
-                    omap_dma_channel_load(ch);
-                else {
-                    ch->waiting_end_prog = 1;
-                    omap_dma_deactivate_channel(s, ch);
-                }
+            else if (ch->repeat || ch->end_prog)
+                omap_dma_channel_load(ch);
+            else {
+                ch->waiting_end_prog = 1;
+                omap_dma_deactivate_channel(s, ch);
             }
 
             if (ch->interrupts & END_BLOCK_INTR)
@@ -711,7 +694,6 @@ void omap_dma_reset(struct soc_dma_s *dma)
         s->ch[i].cpc = 0x0000;
         s->ch[i].fs = 0;
         s->ch[i].bs = 0;
-        s->ch[i].omap_3_1_compatible_disable = 0;
         memset(&s->ch[i].active_set, 0, sizeof(s->ch[i].active_set));
         s->ch[i].priority = 0;
         s->ch[i].interleave_disabled = 0;
@@ -752,7 +734,7 @@ static int omap_dma_ch_reg_read(struct omap_dma_s *s,
     case 0x06:  /* SYS_DMA_CSR_CH0 */
         *value = ch->status;
         ch->status &= SYNC;
-        if (!ch->omap_3_1_compatible_disable && ch->sibling) {
+        if (ch->sibling) {
             *value |= (ch->sibling->status & 0x3f) << 6;
             ch->sibling->status &= SYNC;
         }
@@ -791,11 +773,8 @@ static int omap_dma_ch_reg_read(struct omap_dma_s *s,
         *value = ch->element_index[0];
         break;
 
-    case 0x18:  /* SYS_DMA_CPC_CH0 or DMA_CSAC */
-        if (ch->omap_3_1_compatible_disable)
-            *value = ch->active_set.src & 0xffff;   /* CSAC */
-        else
-            *value = ch->cpc;
+    case 0x18:  /* SYS_DMA_CPC_CH0 */
+        *value = ch->cpc;
         break;
 
     case 0x1a:  /* DMA_CDAC */
