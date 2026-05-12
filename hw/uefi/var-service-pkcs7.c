@@ -113,9 +113,9 @@ static gnutls_datum_t *build_pkcs7(void *data)
 
     memcpy(&auth, data, sizeof(auth));
     pkcs7 = g_new(gnutls_datum_t, 1);
-    pkcs7->size = auth.hdr_length - 24;
+    pkcs7->size = auth.hdr_length - (sizeof(auth) - sizeof(auth.timestamp));
     pkcs7->data = g_malloc(pkcs7->size);
-    memcpy(pkcs7->data, data + 16 + 24, pkcs7->size);
+    memcpy(pkcs7->data, data + sizeof(auth), pkcs7->size);
 
     wrap_pkcs7(pkcs7);
 
