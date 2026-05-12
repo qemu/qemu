@@ -291,35 +291,12 @@ static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 }
 #endif /* _WIN32 */
 
-/*
- * The way auto_converge works, we need to do too many passes to
- * run this test.  Auto_converge logic is only run once every
- * three iterations, so:
- *
- * - 3 iterations without auto_converge enabled
- * - 3 iterations with pct = 5
- * - 3 iterations with pct = 30
- * - 3 iterations with pct = 55
- * - 3 iterations with pct = 80
- * - 3 iterations with pct = 95 (max(95, 80 + 25))
- *
- * To make things even worse, we need to run the initial stage at
- * 3MB/s so we enter autoconverge even when host is (over)loaded.
- */
 static void test_auto_converge(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
     int64_t percentage;
-
-    /*
-     * We want the test to be stable and as fast as possible.
-     * E.g., with 1Gb/s bandwidth migration may pass without throttling,
-     * so we need to decrease a bandwidth.
-     */
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
-    uint64_t prev_dirty_sync_cnt, dirty_sync_cnt;
-    int max_try_count, hit = 0;
 
     if (migrate_start(&from, &to, uri, &args->start)) {
         return;
@@ -330,21 +307,16 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     migrate_set_parameter_int(from, "cpu-throttle-increment", inc_pct);
     migrate_set_parameter_int(from, "max-cpu-throttle", max_pct);
 
-    /*
-     * Set the initial parameters so that the migration could not converge
-     * without throttling.
-     */
     migrate_ensure_non_converge(from);
 
     /* To check remaining size after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);
 
-    /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
     migrate_qmp(from, to, uri, NULL, "{}");
 
-    /* Wait for throttling begins */
+    /* Wait until throttling begins */
     percentage = 0;
     do {
         percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
@@ -357,36 +329,8 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     /* The first percentage of throttling should be at least init_pct */
     g_assert_cmpint(percentage, >=, init_pct);
 
-    /*
-     * End the loop when the dirty sync count greater than 1.
-     */
-    while ((dirty_sync_cnt = get_migration_pass(from)) < 2) {
-        usleep(1000 * 1000);
-    }
-
-    prev_dirty_sync_cnt = dirty_sync_cnt;
-
-    /*
-     * The RAMBlock dirty sync count must changes in 5 seconds, here we set
-     * the timeout to 10 seconds to ensure it changes.
-     *
-     * Note that migrate_ensure_non_converge set the max-bandwidth to 3MB/s,
-     * while the qtest mem is >= 100MB, one iteration takes at least 33s (100/3)
-     * to complete; this ensures that the RAMBlock dirty sync occurs.
-     */
-    max_try_count = 10;
-    while (--max_try_count) {
-        dirty_sync_cnt = get_migration_pass(from);
-        if (dirty_sync_cnt != prev_dirty_sync_cnt) {
-            hit = 1;
-            break;
-        }
-        prev_dirty_sync_cnt = dirty_sync_cnt;
-        sleep(1);
-    }
-    g_assert_cmpint(hit, ==, 1);
-
-    /* Now, when we tested that throttling works, let it converge */
+    /* throttling always ignores the first pass */
+    assert(get_migration_pass(from) == 2);
     migrate_ensure_converge(from);
 
     /*
