@@ -802,10 +802,11 @@ static void build_rimt(GArray *table_data, BIOSLinker *linker,
         range = &g_array_index(iommu_idmaps, AcpiRimtIdMapping, i);
         if (virt_is_iommu_sys_enabled(s)) {
             range->source_id_base = 0;
+            range->num_ids = 0x10000;
         } else {
             range->source_id_base = s->pci_iommu_bdf + 1;
+            range->num_ids = 0xffff - s->pci_iommu_bdf;
         }
-        range->num_ids = 0xffff - s->pci_iommu_bdf;
         build_rimt_id_mapping(table_data, range->source_id_base,
                               range->num_ids, iommu_offset);
     }
