@@ -1510,8 +1510,8 @@ static void riscv_cpu_add_profiles(Object *cpu_obj)
 static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    const RISCVCPUMultiExtConfig *multi_ext_cfg = opaque;
     RISCVCPU *cpu = RISCV_CPU(obj);
+    uint32_t cfg_offset = *(uint32_t *)opaque;
     bool vendor_cpu = riscv_cpu_is_vendor(obj);
     bool prev_val, value;
 
@@ -1519,9 +1519,9 @@ static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    cpu_cfg_ext_add_user_opt(multi_ext_cfg->offset, value);
+    cpu_cfg_ext_add_user_opt(cfg_offset, value);
 
-    prev_val = isa_ext_is_enabled(cpu, multi_ext_cfg->offset);
+    prev_val = isa_ext_is_enabled(cpu, cfg_offset);
 
     if (value == prev_val) {
         return;
@@ -1535,17 +1535,17 @@ static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
     }
 
     if (value) {
-        cpu_bump_multi_ext_priv_ver(&cpu->env, multi_ext_cfg->offset);
+        cpu_bump_multi_ext_priv_ver(&cpu->env, cfg_offset);
     }
 
-    isa_ext_update_enabled(cpu, multi_ext_cfg->offset, value);
+    isa_ext_update_enabled(cpu, cfg_offset, value);
 }
 
 static void cpu_get_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    const RISCVCPUMultiExtConfig *multi_ext_cfg = opaque;
-    bool value = isa_ext_is_enabled(RISCV_CPU(obj), multi_ext_cfg->offset);
+    uint32_t cfg_offset = *(uint32_t *)opaque;
+    bool value = isa_ext_is_enabled(RISCV_CPU(obj), cfg_offset);
 
     visit_type_bool(v, name, &value, errp);
 }
@@ -1558,7 +1558,7 @@ static void cpu_add_multi_ext_prop(Object *cpu_obj,
     object_property_add(cpu_obj, multi_cfg->name, "bool",
                         cpu_get_multi_ext_cfg,
                         cpu_set_multi_ext_cfg,
-                        NULL, (void *)multi_cfg);
+                        NULL, (void *)&multi_cfg->offset);
 
     if (!generic_cpu) {
         return;
