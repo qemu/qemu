@@ -317,28 +317,11 @@ static void omap_dma_interrupts_3_1_update(struct omap_dma_s *s)
         qemu_irq_raise(ch[5].irq);
 }
 
-static void omap_dma_interrupts_3_2_update(struct omap_dma_s *s)
-{
-    struct omap_dma_channel_s *ch = s->ch;
-    int i;
-
-    for (i = s->chans; i; ch ++, i --)
-        if (ch->status)
-            qemu_irq_raise(ch->irq);
-}
-
 static void omap_dma_enable_3_1_mapping(struct omap_dma_s *s)
 {
     s->omap_3_1_mapping_disabled = 0;
     s->chans = 9;
     s->intr_update = omap_dma_interrupts_3_1_update;
-}
-
-static void omap_dma_disable_3_1_mapping(struct omap_dma_s *s)
-{
-    s->omap_3_1_mapping_disabled = 1;
-    s->chans = 16;
-    s->intr_update = omap_dma_interrupts_3_2_update;
 }
 
 static void omap_dma_process_request(struct omap_dma_s *s, int request)
@@ -1106,98 +1089,6 @@ static int omap_dma_3_1_lcd_read(struct omap_dma_lcd_channel_s *s, int offset,
     return 0;
 }
 
-static int omap_dma_sys_write(struct omap_dma_s *s, int offset, uint16_t value)
-{
-    switch (offset) {
-    case 0x400: /* SYS_DMA_GCR */
-        s->gcr = value;
-        break;
-
-    case 0x404: /* DMA_GSCR */
-        if (value & 0x8)
-            omap_dma_disable_3_1_mapping(s);
-        else
-            omap_dma_enable_3_1_mapping(s);
-        break;
-
-    case 0x408: /* DMA_GRST */
-        if (value & 0x1)
-            omap_dma_reset(s->dma);
-        break;
-
-    default:
-        return 1;
-    }
-    return 0;
-}
-
-static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
-                uint16_t *ret)
-{
-    switch (offset) {
-    case 0x400: /* SYS_DMA_GCR */
-        *ret = s->gcr;
-        break;
-
-    case 0x404: /* DMA_GSCR */
-        *ret = s->omap_3_1_mapping_disabled << 3;
-        break;
-
-    case 0x408: /* DMA_GRST */
-        *ret = 0;
-        break;
-
-    case 0x442: /* DMA_HW_ID */
-    case 0x444: /* DMA_PCh2_ID */
-    case 0x446: /* DMA_PCh0_ID */
-    case 0x448: /* DMA_PCh1_ID */
-    case 0x44a: /* DMA_PChG_ID */
-    case 0x44c: /* DMA_PChD_ID */
-        *ret = 1;
-        break;
-
-    case 0x44e: /* DMA_CAPS_0_U */
-        *ret = (s->caps[0] >> 16) & 0xffff;
-        break;
-    case 0x450: /* DMA_CAPS_0_L */
-        *ret = (s->caps[0] >>  0) & 0xffff;
-        break;
-
-    case 0x452: /* DMA_CAPS_1_U */
-        *ret = (s->caps[1] >> 16) & 0xffff;
-        break;
-    case 0x454: /* DMA_CAPS_1_L */
-        *ret = (s->caps[1] >>  0) & 0xffff;
-        break;
-
-    case 0x456: /* DMA_CAPS_2 */
-        *ret = s->caps[2];
-        break;
-
-    case 0x458: /* DMA_CAPS_3 */
-        *ret = s->caps[3];
-        break;
-
-    case 0x45a: /* DMA_CAPS_4 */
-        *ret = s->caps[4];
-        break;
-
-    case 0x460: /* DMA_PCh2_SR */
-    case 0x480: /* DMA_PCh0_SR */
-    case 0x482: /* DMA_PCh1_SR */
-    case 0x4c0: /* DMA_PChD_SR_0 */
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: Physical Channel Status Registers not implemented\n",
-                      __func__);
-        *ret = 0xff;
-        break;
-
-    default:
-        return 1;
-    }
-    return 0;
-}
-
 static uint64_t omap_dma_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct omap_dma_s *s = opaque;
@@ -1225,10 +1116,9 @@ static uint64_t omap_dma_read(void *opaque, hwaddr addr, unsigned size)
 
     case 0x404 ... 0x4fe:
         break;
-    case 0x400:
-        if (omap_dma_sys_read(s, addr, &ret))
-            break;
-        return ret;
+    case 0x400: /* SYS_DMA_GCR */
+        return s->gcr;
+        break;
 
     case 0xb00 ... 0xbfe:
         break;
@@ -1265,9 +1155,8 @@ static void omap_dma_write(void *opaque, hwaddr addr,
 
     case 0x404 ... 0x4fe:
         break;
-    case 0x400:
-        if (omap_dma_sys_write(s, addr, value))
-            break;
+    case 0x400: /* SYS_DMA_GCR */
+        s->gcr = value;
         return;
 
     case 0xb00 ... 0xbfe:
