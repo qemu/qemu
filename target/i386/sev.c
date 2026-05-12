@@ -160,10 +160,6 @@ struct SevCommonStateClass {
  *
  * The SevGuestState object is used for creating and managing a SEV
  * guest.
- *
- * # $QEMU \
- *         -object sev-guest,id=sev0 \
- *         -machine ...,memory-encryption=sev0
  */
 struct SevGuestState {
     SevCommonState parent_obj;
