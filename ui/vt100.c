@@ -438,7 +438,7 @@ static void vt100_clear_xy(QemuVT100 *vt, int x, int y)
 #define BH_UTF8_ACCEPT 0
 #define BH_UTF8_REJECT 12
 
-static uint32_t bh_utf8_decode(uint32_t *state, uint32_t *codep, uint32_t byte)
+static uint32_t bh_utf8_decode(uint32_t *state, uint32_t *codep, uint8_t byte)
 {
     static const uint8_t utf8d[] = {
         /* character class lookup */
