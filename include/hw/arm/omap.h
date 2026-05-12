@@ -542,24 +542,7 @@ void omap_mmc_set_clk(DeviceState *dev, omap_clk clk);
 /* omap_i2c.c */
 I2CBus *omap_i2c_bus(DeviceState *omap_i2c);
 
-#define cpu_is_omap310(cpu)        (cpu->mpu_model == omap310)
-#define cpu_is_omap1510(cpu)       (cpu->mpu_model == omap1510)
-#define cpu_is_omap1610(cpu)       (cpu->mpu_model == omap1610)
-#define cpu_is_omap1710(cpu)       (cpu->mpu_model == omap1710)
-
-#define cpu_is_omap15xx(cpu)       \
-        (cpu_is_omap310(cpu) || cpu_is_omap1510(cpu))
-#define cpu_is_omap16xx(cpu)       \
-        (cpu_is_omap1610(cpu) || cpu_is_omap1710(cpu))
-
 struct omap_mpu_state_s {
-    enum omap_mpu_model {
-        omap310,
-        omap1510,
-        omap1610,
-        omap1710,
-    } mpu_model;
-
     ARMCPU *cpu;
 
     qemu_irq *drq;
@@ -571,7 +554,6 @@ struct omap_mpu_state_s {
     MemoryRegion id_iomem;
     MemoryRegion id_iomem_e18;
     MemoryRegion id_iomem_ed4;
-    MemoryRegion id_iomem_e20;
     MemoryRegion mpui_iomem;
     MemoryRegion tcmi_iomem;
     MemoryRegion clkm_iomem;

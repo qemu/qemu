@@ -948,8 +948,6 @@ static void omap_pin_cfg_init(MemoryRegion *system_memory,
 static uint64_t omap_id_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
-
     if (size != 4) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: read at offset 0x%" HWADDR_PRIx
                       " with bad width %d\n", __func__, addr, size);
@@ -968,25 +966,10 @@ static uint64_t omap_id_read(void *opaque, hwaddr addr,
         return 0xcafeb574;
 
     case 0xfffed400:    /* JTAG_ID_LSB */
-        switch (s->mpu_model) {
-        case omap310:
-            return 0x03310315;
-        case omap1510:
-            return 0x03310115;
-        default:
-            hw_error("%s: bad mpu model\n", __func__);
-        }
-        break;
+        return 0x03310315; /* omap310 */
 
     case 0xfffed404:    /* JTAG_ID_MSB */
-        switch (s->mpu_model) {
-        case omap310:
-            return 0xfb57402f;
-        case omap1510:
-            return 0xfb47002f;
-        default:
-            hw_error("%s: bad mpu model\n", __func__);
-        }
+        return 0xfb57402f; /* omap310 */
         break;
     }
 
@@ -1022,11 +1005,6 @@ static void omap_id_init(MemoryRegion *memory, struct omap_mpu_state_s *mpu)
     memory_region_init_alias(&mpu->id_iomem_ed4, NULL, "omap-id-ed4", &mpu->id_iomem,
                              0xfffed400, 0x100);
     memory_region_add_subregion(memory, 0xfffed400, &mpu->id_iomem_ed4);
-    if (!cpu_is_omap15xx(mpu)) {
-        memory_region_init_alias(&mpu->id_iomem_ed4, NULL, "omap-id-e20",
-                                 &mpu->id_iomem, 0xfffe2000, 0x800);
-        memory_region_add_subregion(memory, 0xfffe2000, &mpu->id_iomem_e20);
-    }
 }
 
 /* MPUI Control (Dummy) */
@@ -3819,7 +3797,6 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     MemoryRegion *system_memory = get_system_memory();
 
     /* Core */
-    s->mpu_model = omap310;
     s->cpu = ARM_CPU(cpu_create(cpu_type));
     s->sdram_size = memory_region_size(dram);
     s->sram_size = OMAP15XX_SRAM_SIZE;
@@ -3974,7 +3951,6 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
                                s->wakeup, omap_findclk(s, "clk32-kHz"));
 
     s->gpio = qdev_new("omap-gpio");
-    qdev_prop_set_int32(s->gpio, "mpu_model", s->mpu_model);
     omap_gpio_set_clk(OMAP1_GPIO(s->gpio), omap_findclk(s, "arm_gpio_ck"));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s->gpio), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(s->gpio), 0,
