@@ -249,6 +249,13 @@ The RISC-V ``shakti_c`` machine hasn't had meaningful contributions since 2021
 and is currently unmaintained. The machine is scheduled to be removed as it
 appears to have no users.
 
+``memory-encryption`` machine property (since 11.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``confidential-guest-support`` instead. The ``memory-encryption`` object
+was an early implementation of memory encryption support in QEMU, but it has
+been superseded by the more comprehensive ``confidential-guest-support``
+object.
 
 Backend options
 ---------------
