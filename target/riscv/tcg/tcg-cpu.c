@@ -454,7 +454,7 @@ static void riscv_cpu_disable_priv_spec_isa_exts(RISCVCPU *cpu)
     }
 }
 
-static void riscv_cpu_update_named_features(RISCVCPU *cpu)
+static void riscv_cpu_update_cfg(RISCVCPU *cpu)
 {
     if (cpu->env.priv_ver >= PRIV_VERSION_1_11_0) {
         cpu->cfg.has_priv_1_11 = true;
@@ -1181,7 +1181,7 @@ void riscv_tcg_cpu_finalize_features(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    riscv_cpu_update_named_features(cpu);
+    riscv_cpu_update_cfg(cpu);
     riscv_cpu_validate_profiles(cpu);
 
     if (cpu->cfg.ext_smepmp && !cpu->cfg.pmp) {
