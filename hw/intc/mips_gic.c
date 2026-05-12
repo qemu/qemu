@@ -317,9 +317,13 @@ static void gic_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
         /* up to 32 bytes per a pin */
         irq_src = (addr - GIC_SH_MAP0_VP_OFS) / 32;
         OFFSET_CHECK(irq_src < gic->num_irq);
-        data = data ? ctz64(data) : -1;
-        OFFSET_CHECK(data < gic->num_vps);
-        gic->irq_state[irq_src].map_vp = data;
+        if (ctz64(data) >= gic->num_vps) {
+            qemu_log_mask(LOG_GUEST_ERROR, "Bad data value 0x%" PRIx64
+                          " at MAP VP register offset 0x%" PRIx64 "\n",
+                          data, addr);
+            break;
+        }
+        gic->irq_state[irq_src].map_vp = ctz64(data);
         break;
     case VP_LOCAL_SECTION_OFS ... (VP_LOCAL_SECTION_OFS + GIC_VL_BRK_GROUP):
         gic_write_vp(gic, vp_index, addr - VP_LOCAL_SECTION_OFS, data, size);
