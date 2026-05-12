@@ -35,10 +35,7 @@
 #define OMAP_LOCALBUS_BASE 0x30000000
 #define OMAP_MPUI_BASE     0xe1000000
 
-#define OMAP730_SRAM_SIZE  0x00032000
 #define OMAP15XX_SRAM_SIZE 0x00030000
-#define OMAP16XX_SRAM_SIZE 0x00004000
-#define OMAP1611_SRAM_SIZE 0x0003e800
 #define OMAP_CS0_SIZE      0x04000000
 #define OMAP_CS1_SIZE      0x04000000
 #define OMAP_CS2_SIZE      0x04000000
@@ -130,16 +127,6 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
  * Common OMAP-15xx IRQ numbers for level 1 interrupt handler
  */
 #define OMAP_INT_15XX_IH2_IRQ      0
-#define OMAP_INT_15XX_LB_MMU       17
-#define OMAP_INT_15XX_LOCAL_BUS    29
-
-/*
- * OMAP-1510 specific IRQ numbers for level 1 interrupt handler
- */
-#define OMAP_INT_1510_SPI_TX       4
-#define OMAP_INT_1510_SPI_RX       5
-#define OMAP_INT_1510_DSP_MAILBOX1 10
-#define OMAP_INT_1510_DSP_MAILBOX2 11
 
 /*
  * OMAP-310 specific IRQ numbers for level 1 interrupt handler
@@ -148,42 +135,6 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 #define OMAP_INT_310_McBSP2_RX     5
 #define OMAP_INT_310_HSB_MAILBOX1  12
 #define OMAP_INT_310_HSAB_MMU      18
-
-/*
- * OMAP-1610 specific IRQ numbers for level 1 interrupt handler
- */
-#define OMAP_INT_1610_IH2_IRQ      0
-#define OMAP_INT_1610_IH2_FIQ      2
-#define OMAP_INT_1610_McBSP2_TX    4
-#define OMAP_INT_1610_McBSP2_RX    5
-#define OMAP_INT_1610_DSP_MAILBOX1 10
-#define OMAP_INT_1610_DSP_MAILBOX2 11
-#define OMAP_INT_1610_LCD_LINE     12
-#define OMAP_INT_1610_GPTIMER1     17
-#define OMAP_INT_1610_GPTIMER2     18
-#define OMAP_INT_1610_SSR_FIFO_0   29
-
-/*
- * OMAP-730 specific IRQ numbers for level 1 interrupt handler
- */
-#define OMAP_INT_730_IH2_FIQ       0
-#define OMAP_INT_730_IH2_IRQ       1
-#define OMAP_INT_730_USB_NON_ISO   2
-#define OMAP_INT_730_USB_ISO       3
-#define OMAP_INT_730_ICR           4
-#define OMAP_INT_730_EAC           5
-#define OMAP_INT_730_GPIO_BANK1    6
-#define OMAP_INT_730_GPIO_BANK2    7
-#define OMAP_INT_730_GPIO_BANK3    8
-#define OMAP_INT_730_McBSP2TX      10
-#define OMAP_INT_730_McBSP2RX      11
-#define OMAP_INT_730_McBSP2RX_OVF  12
-#define OMAP_INT_730_LCD_LINE      14
-#define OMAP_INT_730_GSM_PROTECT   15
-#define OMAP_INT_730_TIMER3        16
-#define OMAP_INT_730_GPIO_BANK5    17
-#define OMAP_INT_730_GPIO_BANK6    18
-#define OMAP_INT_730_SPGIO_WR      29
 
 /*
  * Common IRQ numbers for level 2 interrupt handler
@@ -210,15 +161,6 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 #define OMAP_INT_DSP_MMU       28
 
 /*
- * OMAP-1510 specific IRQ numbers for level 2 interrupt handler
- */
-#define OMAP_INT_1510_BT_MCSI1TX   16
-#define OMAP_INT_1510_BT_MCSI1RX   17
-#define OMAP_INT_1510_SoSSI_MATCH  19
-#define OMAP_INT_1510_MEM_STICK    27
-#define OMAP_INT_1510_COM_SPI_RO   31
-
-/*
  * OMAP-310 specific IRQ numbers for level 2 interrupt handler
  */
 #define OMAP_INT_310_FAC               0
@@ -228,103 +170,6 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 #define OMAP_INT_310_USB_W2FC_ISO      29
 #define OMAP_INT_310_USB_W2FC_NON_ISO  30
 #define OMAP_INT_310_McBSP2RX_OF       31
-
-/*
- * OMAP-1610 specific IRQ numbers for level 2 interrupt handler
- */
-#define OMAP_INT_1610_FAC          0
-#define OMAP_INT_1610_USB_HHC_2    7
-#define OMAP_INT_1610_USB_OTG      8
-#define OMAP_INT_1610_SoSSI        9
-#define OMAP_INT_1610_BT_MCSI1TX   16
-#define OMAP_INT_1610_BT_MCSI1RX   17
-#define OMAP_INT_1610_SoSSI_MATCH  19
-#define OMAP_INT_1610_MEM_STICK    27
-#define OMAP_INT_1610_McBSP2RX_OF  31
-#define OMAP_INT_1610_STI          32
-#define OMAP_INT_1610_STI_WAKEUP   33
-#define OMAP_INT_1610_GPTIMER3     34
-#define OMAP_INT_1610_GPTIMER4     35
-#define OMAP_INT_1610_GPTIMER5     36
-#define OMAP_INT_1610_GPTIMER6     37
-#define OMAP_INT_1610_GPTIMER7     38
-#define OMAP_INT_1610_GPTIMER8     39
-#define OMAP_INT_1610_GPIO_BANK2   40
-#define OMAP_INT_1610_GPIO_BANK3   41
-#define OMAP_INT_1610_MMC2         42
-#define OMAP_INT_1610_CF           43
-#define OMAP_INT_1610_WAKE_UP_REQ  46
-#define OMAP_INT_1610_GPIO_BANK4   48
-#define OMAP_INT_1610_SPI          49
-#define OMAP_INT_1610_DMA_CH6      53
-#define OMAP_INT_1610_DMA_CH7      54
-#define OMAP_INT_1610_DMA_CH8      55
-#define OMAP_INT_1610_DMA_CH9      56
-#define OMAP_INT_1610_DMA_CH10     57
-#define OMAP_INT_1610_DMA_CH11     58
-#define OMAP_INT_1610_DMA_CH12     59
-#define OMAP_INT_1610_DMA_CH13     60
-#define OMAP_INT_1610_DMA_CH14     61
-#define OMAP_INT_1610_DMA_CH15     62
-#define OMAP_INT_1610_NAND         63
-
-/*
- * OMAP-730 specific IRQ numbers for level 2 interrupt handler
- */
-#define OMAP_INT_730_HW_ERRORS         0
-#define OMAP_INT_730_NFIQ_PWR_FAIL     1
-#define OMAP_INT_730_CFCD              2
-#define OMAP_INT_730_CFIREQ            3
-#define OMAP_INT_730_I2C               4
-#define OMAP_INT_730_PCC               5
-#define OMAP_INT_730_MPU_EXT_NIRQ      6
-#define OMAP_INT_730_SPI_100K_1        7
-#define OMAP_INT_730_SYREN_SPI         8
-#define OMAP_INT_730_VLYNQ             9
-#define OMAP_INT_730_GPIO_BANK4        10
-#define OMAP_INT_730_McBSP1TX          11
-#define OMAP_INT_730_McBSP1RX          12
-#define OMAP_INT_730_McBSP1RX_OF       13
-#define OMAP_INT_730_UART_MODEM_IRDA_2 14
-#define OMAP_INT_730_UART_MODEM_1      15
-#define OMAP_INT_730_MCSI              16
-#define OMAP_INT_730_uWireTX           17
-#define OMAP_INT_730_uWireRX           18
-#define OMAP_INT_730_SMC_CD            19
-#define OMAP_INT_730_SMC_IREQ          20
-#define OMAP_INT_730_HDQ_1WIRE         21
-#define OMAP_INT_730_TIMER32K          22
-#define OMAP_INT_730_MMC_SDIO          23
-#define OMAP_INT_730_UPLD              24
-#define OMAP_INT_730_USB_HHC_1         27
-#define OMAP_INT_730_USB_HHC_2         28
-#define OMAP_INT_730_USB_GENI          29
-#define OMAP_INT_730_USB_OTG           30
-#define OMAP_INT_730_CAMERA_IF         31
-#define OMAP_INT_730_RNG               32
-#define OMAP_INT_730_DUAL_MODE_TIMER   33
-#define OMAP_INT_730_DBB_RF_EN         34
-#define OMAP_INT_730_MPUIO_KEYPAD      35
-#define OMAP_INT_730_SHA1_MD5          36
-#define OMAP_INT_730_SPI_100K_2        37
-#define OMAP_INT_730_RNG_IDLE          38
-#define OMAP_INT_730_MPUIO             39
-#define OMAP_INT_730_LLPC_LCD_CTRL_OFF 40
-#define OMAP_INT_730_LLPC_OE_FALLING   41
-#define OMAP_INT_730_LLPC_OE_RISING    42
-#define OMAP_INT_730_LLPC_VSYNC        43
-#define OMAP_INT_730_WAKE_UP_REQ       46
-#define OMAP_INT_730_DMA_CH6           53
-#define OMAP_INT_730_DMA_CH7           54
-#define OMAP_INT_730_DMA_CH8           55
-#define OMAP_INT_730_DMA_CH9           56
-#define OMAP_INT_730_DMA_CH10          57
-#define OMAP_INT_730_DMA_CH11          58
-#define OMAP_INT_730_DMA_CH12          59
-#define OMAP_INT_730_DMA_CH13          60
-#define OMAP_INT_730_DMA_CH14          61
-#define OMAP_INT_730_DMA_CH15          62
-#define OMAP_INT_730_NAND              63
 
 /* omap_dma.c */
 enum omap_dma_model {
@@ -437,42 +282,12 @@ struct omap_dma_lcd_channel_s {
 #define OMAP_DMA_CAMERA_IF_RX      20
 #define OMAP_DMA_MMC_TX            21
 #define OMAP_DMA_MMC_RX            22
-#define OMAP_DMA_NAND              23  /* Not in OMAP310 */
-#define OMAP_DMA_IRQ_LCD_LINE      24  /* Not in OMAP310 */
-#define OMAP_DMA_MEMORY_STICK      25  /* Not in OMAP310 */
 #define OMAP_DMA_USB_W2FC_RX0      26
 #define OMAP_DMA_USB_W2FC_RX1      27
 #define OMAP_DMA_USB_W2FC_RX2      28
 #define OMAP_DMA_USB_W2FC_TX0      29
 #define OMAP_DMA_USB_W2FC_TX1      30
 #define OMAP_DMA_USB_W2FC_TX2      31
-
-/* These are only for 1610 */
-#define OMAP_DMA_CRYPTO_DES_IN         32
-#define OMAP_DMA_SPI_TX                33
-#define OMAP_DMA_SPI_RX                34
-#define OMAP_DMA_CRYPTO_HASH           35
-#define OMAP_DMA_CCP_ATTN              36
-#define OMAP_DMA_CCP_FIFO_NOT_EMPTY    37
-#define OMAP_DMA_CMT_APE_TX_CHAN_0     38
-#define OMAP_DMA_CMT_APE_RV_CHAN_0     39
-#define OMAP_DMA_CMT_APE_TX_CHAN_1     40
-#define OMAP_DMA_CMT_APE_RV_CHAN_1     41
-#define OMAP_DMA_CMT_APE_TX_CHAN_2     42
-#define OMAP_DMA_CMT_APE_RV_CHAN_2     43
-#define OMAP_DMA_CMT_APE_TX_CHAN_3     44
-#define OMAP_DMA_CMT_APE_RV_CHAN_3     45
-#define OMAP_DMA_CMT_APE_TX_CHAN_4     46
-#define OMAP_DMA_CMT_APE_RV_CHAN_4     47
-#define OMAP_DMA_CMT_APE_TX_CHAN_5     48
-#define OMAP_DMA_CMT_APE_RV_CHAN_5     49
-#define OMAP_DMA_CMT_APE_TX_CHAN_6     50
-#define OMAP_DMA_CMT_APE_RV_CHAN_6     51
-#define OMAP_DMA_CMT_APE_TX_CHAN_7     52
-#define OMAP_DMA_CMT_APE_RV_CHAN_7     53
-#define OMAP_DMA_MMC2_TX               54
-#define OMAP_DMA_MMC2_RX               55
-#define OMAP_DMA_CRYPTO_DES_OUT        56
 
 struct omap_uart_s;
 struct omap_uart_s *omap_uart_init(hwaddr base,
