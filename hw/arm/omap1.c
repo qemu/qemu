@@ -3710,16 +3710,6 @@ static const struct dma_irq_map omap1_dma_irq_map[] = {
     { 0, OMAP_INT_DMA_CH3 },
     { 0, OMAP_INT_DMA_CH4 },
     { 0, OMAP_INT_DMA_CH5 },
-    { 1, OMAP_INT_1610_DMA_CH6 },
-    { 1, OMAP_INT_1610_DMA_CH7 },
-    { 1, OMAP_INT_1610_DMA_CH8 },
-    { 1, OMAP_INT_1610_DMA_CH9 },
-    { 1, OMAP_INT_1610_DMA_CH10 },
-    { 1, OMAP_INT_1610_DMA_CH11 },
-    { 1, OMAP_INT_1610_DMA_CH12 },
-    { 1, OMAP_INT_1610_DMA_CH13 },
-    { 1, OMAP_INT_1610_DMA_CH14 },
-    { 1, OMAP_INT_1610_DMA_CH15 }
 };
 
 /* DMA ports for OMAP1 */
