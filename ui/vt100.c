@@ -61,7 +61,7 @@ static void image_bitblt(pixman_image_t *image,
                            xs, ys, 0, 0, xd, yd, w, h);
 }
 
-static void vt100_putcharxy(QemuVT100 *vt, int x, int y, int ch,
+static void vt100_putcharxy(QemuVT100 *vt, int x, int y, uint8_t ch,
                             TextAttributes *t_attrib)
 {
     static pixman_image_t *glyphs[256];
@@ -468,7 +468,7 @@ static uint32_t bh_utf8_decode(uint32_t *state, uint32_t *codep, uint32_t byte)
     return *state;
 }
 
-static void vt100_put_one(QemuVT100 *vt, int ch)
+static void vt100_put_one(QemuVT100 *vt, uint8_t ch)
 {
     TextCell *c;
     int y1;
@@ -606,7 +606,7 @@ static void vt100_restore_cursor(QemuVT100 *vt)
     vt->t_attrib = vt->t_attrib_saved;
 }
 
-static void vt100_putchar(QemuVT100 *vt, int ch)
+static void vt100_putchar(QemuVT100 *vt, uint8_t ch)
 {
     int i;
     int x, y;
