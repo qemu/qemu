@@ -216,34 +216,6 @@ struct omap_dma_lcd_channel_s {
     hwaddr src_f2_top;
     hwaddr src_f2_bottom;
 
-    /* Used in OMAP DMA 3.2 gigacell */
-    unsigned char brust_f1;
-    unsigned char pack_f1;
-    unsigned char data_type_f1;
-    unsigned char brust_f2;
-    unsigned char pack_f2;
-    unsigned char data_type_f2;
-    unsigned char end_prog;
-    unsigned char repeat;
-    unsigned char auto_init;
-    unsigned char priority;
-    unsigned char fs;
-    unsigned char running;
-    unsigned char bs;
-    unsigned char omap_3_1_compatible_disable;
-    unsigned char dst;
-    unsigned char lch_type;
-    int16_t element_index_f1;
-    int16_t element_index_f2;
-    int32_t frame_index_f1;
-    int32_t frame_index_f2;
-    uint16_t elements_f1;
-    uint16_t frames_f1;
-    uint16_t elements_f2;
-    uint16_t frames_f2;
-    omap_dma_addressing_t mode_f1;
-    omap_dma_addressing_t mode_f2;
-
     /* Destination port is fixed.  */
     int interrupts;
     int condition;
