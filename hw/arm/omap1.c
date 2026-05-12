@@ -25,7 +25,6 @@
 #include "target/arm/cpu.h"
 #include "system/address-spaces.h"
 #include "exec/cpu-common.h"
-#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/boot.h"
@@ -2093,31 +2092,6 @@ static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
     omap_clk_adduser(clk, qemu_allocate_irq(omap_mpuio_onoff, s, 0));
 
     return s;
-}
-
-qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s)
-{
-    return s->in;
-}
-
-void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler)
-{
-    if (line >= 16 || line < 0)
-        hw_error("%s: No GPIO line %i\n", __func__, line);
-    s->handler[line] = handler;
-}
-
-void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
-{
-    if (row >= 5 || row < 0)
-        hw_error("%s: No key %i-%i\n", __func__, col, row);
-
-    if (down)
-        s->buttons[row] |= 1 << col;
-    else
-        s->buttons[row] &= ~(1 << col);
-
-    omap_mpuio_kbd_update(s);
 }
 
 /* MicroWire Interface */

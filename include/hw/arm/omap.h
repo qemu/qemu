@@ -486,9 +486,6 @@ struct omap_uart_s *omap_uart_init(hwaddr base,
 void omap_uart_reset(struct omap_uart_s *s);
 
 struct omap_mpuio_s;
-qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
-void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler);
-void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);
 
 struct omap_uwire_s;
 
