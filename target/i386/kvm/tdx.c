@@ -571,6 +571,9 @@ typedef struct TdxXFAMDep {
  * - AMX alias bits, their type is "CPUID_Enabled & Native" which means their
  * value is determined by the CPUID bit they are aliased to.
  *
+ * - AVX10_VL_MASK, their type is "XFAM & CPUID_Enabled & Native" which means
+ * their value is determined by both the corresponding XFAM bit and CPUID bit.
+ *
  * For simplicity, relax the dependency to related XFAM bit.
  * tdx_check_features() will eventually catch the unsupported configurations.
  */
@@ -579,6 +582,7 @@ TdxXFAMDep tdx_xfam_deps[] = {
     { XSTATE_YMM_BIT,       { FEAT_7_0_EBX, CPUID_7_0_EBX_AVX2 } },
     { XSTATE_OPMASK_BIT,    { FEAT_7_0_ECX, CPUID_7_0_ECX_AVX512_VBMI } },
     { XSTATE_OPMASK_BIT,    { FEAT_7_0_EDX, CPUID_7_0_EDX_AVX512_FP16 } },
+    { XSTATE_OPMASK_BIT,    { FEAT_24_0_EBX, CPUID_24_0_EBX_AVX10_VL_MASK } },
     { XSTATE_PT_BIT,        { FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT } },
     { XSTATE_PKRU_BIT,      { FEAT_7_0_ECX, CPUID_7_0_ECX_PKU } },
     { XSTATE_CET_U_BIT,     { FEAT_7_0_ECX, CPUID_7_0_ECX_CET_SHSTK } },
