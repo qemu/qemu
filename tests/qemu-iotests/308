@@ -53,6 +53,8 @@ _supported_proto file # We create the FUSE export manually
 _supported_os Linux # We need /dev/urandom
 _require_disk_usage
 
+_flaky_test https://gitlab.com/qemu-project/qemu/-/work_items/3514
+
 # $1: Export ID
 # $2: Options (beyond the node-name and ID)
 # $3: Expected return value (defaults to 'return')

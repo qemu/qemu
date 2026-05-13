@@ -48,6 +48,8 @@ _unsupported_fmt qcow vdi vhdx vmdk vpc vvfat parallels
 _supported_proto generic
 _supported_os Linux
 
+_flaky_test https://gitlab.com/qemu-project/qemu/-/work_items/3515
+
 size=64M
 _make_test_img $size
 
