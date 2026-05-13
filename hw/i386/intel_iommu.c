@@ -4201,7 +4201,7 @@ static const Property vtd_properties[] = {
                       VTD_HOST_ADDRESS_WIDTH),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
     DEFINE_PROP_BOOL("scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
-    DEFINE_PROP_BOOL("flts", IntelIOMMUState, fsts, FALSE),
+    DEFINE_PROP_BOOL("fsts", IntelIOMMUState, fsts, FALSE),
     DEFINE_PROP_BOOL("snoop-control", IntelIOMMUState, snoop_control, false),
     DEFINE_PROP_BOOL("x-pasid-mode", IntelIOMMUState, pasid, false),
     DEFINE_PROP_BOOL("svm", IntelIOMMUState, svm, false),
@@ -5563,20 +5563,20 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     }
 
     if (!s->scalable_mode && s->fsts) {
-        error_setg(errp, "flts is only available in scalable mode");
+        error_setg(errp, "fsts is only available in scalable mode");
         return false;
     }
 
     if (!s->fsts && s->aw_bits != VTD_HOST_AW_39BIT &&
         s->aw_bits != VTD_HOST_AW_48BIT) {
         error_setg(errp, "%s: supported values for aw-bits are: %d, %d",
-                   s->scalable_mode ? "Scalable mode(flts=off)" : "Legacy mode",
+                   s->scalable_mode ? "Scalable mode(fsts=off)" : "Legacy mode",
                    VTD_HOST_AW_39BIT, VTD_HOST_AW_48BIT);
         return false;
     }
 
     if (s->fsts && s->aw_bits != VTD_HOST_AW_48BIT) {
-        error_setg(errp, "Scalable mode(flts=on): supported value for "
+        error_setg(errp, "Scalable mode(fsts=on): supported value for "
                    "aw-bits is: %d", VTD_HOST_AW_48BIT);
         return false;
     }
@@ -5593,7 +5593,7 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
         }
 
         if (!s->fsts) {
-            error_setg(errp, "Need to set flts for svm");
+            error_setg(errp, "Need to set fsts for svm");
             return false;
         }
 

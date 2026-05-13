@@ -54,7 +54,7 @@ static const char *qvtd_iommu_args(QVTDTransMode mode)
 {
     switch (mode) {
     case QVTD_TM_SCALABLE_FLT:
-        return "-device intel-iommu,scalable-mode=on,flts=on ";
+        return "-device intel-iommu,scalable-mode=on,fsts=on ";
     case QVTD_TM_SCALABLE_PT:
     case QVTD_TM_SCALABLE_SLT:
         return "-device intel-iommu,scalable-mode=on ";
