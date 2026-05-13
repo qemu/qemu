@@ -1030,7 +1030,7 @@ bool migration_is_running(void)
 
 static bool migration_is_active(void)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     return (s->state == MIGRATION_STATUS_ACTIVE ||
             s->state == MIGRATION_STATUS_POSTCOPY_DEVICE ||
@@ -1657,7 +1657,7 @@ bool migration_in_bg_snapshot(void)
 
 bool migration_thread_is_self(void)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     return qemu_thread_is_self(&s->thread);
 }
@@ -3095,7 +3095,7 @@ static MigThrError postcopy_pause(MigrationState *s)
 
 void migration_file_set_error(int ret, Error *err)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
         if (s->to_dst_file) {
