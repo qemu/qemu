@@ -91,16 +91,14 @@ typedef struct DisasContext {
     bool is_pa20;
     bool insn_start_updated;
 
-#ifdef CONFIG_USER_ONLY
-    MemOp unalign;
-#endif
+    MemOp mo_align;
 } DisasContext;
 
 #ifdef CONFIG_USER_ONLY
-#define UNALIGN(C)       (C)->unalign
+#define UNALIGN(C)       ((C)->mo_align)
 #define MMU_DISABLED(C)  false
 #else
-#define UNALIGN(C)       MO_ALIGN
+#define UNALIGN(C)       ((C)->mo_align)
 #define MMU_DISABLED(C)  MMU_IDX_MMU_DISABLED((C)->mmu_idx)
 #endif
 
@@ -4654,12 +4652,13 @@ static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 #ifdef CONFIG_USER_ONLY
     ctx->privilege = PRIV_USER;
     ctx->mmu_idx = MMU_USER_IDX;
-    ctx->unalign = (ctx->tb_flags & TB_FLAG_UNALIGN ? MO_UNALN : MO_ALIGN);
+    ctx->mo_align = (ctx->tb_flags & TB_FLAG_UNALIGN) ? MO_UNALN : MO_ALIGN;
 #else
     ctx->privilege = (ctx->tb_flags >> TB_FLAG_PRIV_SHIFT) & 3;
     ctx->mmu_idx = (ctx->tb_flags & PSW_D
                     ? PRIV_P_TO_MMU_IDX(ctx->privilege, ctx->tb_flags & PSW_P)
                     : ctx->tb_flags & PSW_W ? MMU_ABS_W_IDX : MMU_ABS_IDX);
+    ctx->mo_align = MO_ALIGN;
 #endif
 
     cs_base = ctx->base.tb->cs_base;
