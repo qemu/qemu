@@ -978,6 +978,9 @@ void vt100_init(QemuVT100 *vt,
 
 void vt100_fini(QemuVT100 *vt)
 {
+    if (!QTAILQ_IN_USE(vt, list)) {
+        return;
+    }
     QTAILQ_REMOVE(&vt100s, vt, list);
     fifo8_destroy(&vt->out_fifo);
     g_free(vt->cells);
