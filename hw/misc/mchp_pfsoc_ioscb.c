@@ -53,6 +53,8 @@
 #define IOSCB_MAILBOX_BASE          0x07020800
 #define IOSCB_CFG_BASE              0x07080000
 #define IOSCB_CCC_BASE              0x08000000
+#define IOSCB_PLL_NW0_BASE          0x08100000
+#define IOSCB_PLL_NW1_BASE          0x08200000
 #define IOSCB_PLL_MSS_BASE          0x0E001000
 #define IOSCB_CFM_MSS_BASE          0x0E002000
 #define IOSCB_PLL_DDR_BASE          0x0E010000
@@ -92,6 +94,16 @@ static const MemoryRegionOps mchp_pfsoc_dummy_ops = {
 /* All PLL modules in IOSCB have the same register layout */
 
 #define PLL_CTRL    0x04
+#define PLL_REF_FB  0x08
+#define PLL_DIV_0_1 0x10
+#define PLL_DIV_2_3 0x14
+#define PLL_CTRL2   0x18
+#define PLL_CAL     0x1c
+#define PLL_PHADJ   0x20
+#define SSCG_REG_0  0x24
+#define SSCG_REG_1  0x28
+#define SSCG_REG_2  0x2c
+#define SSCG_REG_3  0x30
 
 static uint64_t mchp_pfsoc_pll_read(void *opaque, hwaddr offset,
                                     unsigned size)
@@ -103,6 +115,22 @@ static uint64_t mchp_pfsoc_pll_read(void *opaque, hwaddr offset,
         /* PLL is locked */
         val = BIT(25);
         break;
+    case PLL_DIV_0_1:
+    case PLL_DIV_2_3:
+        val = 0x01000100; /* return valid post divider values */
+        break;
+    case PLL_CTRL2:
+        val = 0x00001110;
+        break;
+    case PLL_REF_FB:
+        val = 0x00000100; /* RFDIV := 1 */
+        break;
+    case SSCG_REG_2:
+        val = 0x00000001; /* INTIN := 1 */
+        break;
+    case PLL_PHADJ:
+        val = 0x00000401;
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read "
                       "(size %d, offset 0x%" HWADDR_PRIx ")\n",
@@ -113,9 +141,18 @@ static uint64_t mchp_pfsoc_pll_read(void *opaque, hwaddr offset,
     return val;
 }
 
+static void mchp_pfsoc_pll_write(void *opaque, hwaddr offset,
+                                 uint64_t value, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                       "(size %d, value 0x%" PRIx64
+                       ", offset 0x%" HWADDR_PRIx ")\n",
+                       __func__, size, value, offset);
+}
+
 static const MemoryRegionOps mchp_pfsoc_pll_ops = {
     .read = mchp_pfsoc_pll_read,
-    .write = mchp_pfsoc_dummy_write,
+    .write = mchp_pfsoc_pll_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -239,6 +276,14 @@ static void mchp_pfsoc_ioscb_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->ccc, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
                           "mchp.pfsoc.ioscb.ccc", IOSCB_CCC_REG_SIZE);
     memory_region_add_subregion(&s->container, IOSCB_CCC_BASE, &s->ccc);
+
+    memory_region_init_io(&s->pll_nw_0, OBJECT(s), &mchp_pfsoc_pll_ops, s,
+                          "mchp.pfsoc.ioscb.pll_nw_0", IOSCB_SUBMOD_REG_SIZE);
+    memory_region_add_subregion(&s->container, IOSCB_PLL_NW0_BASE, &s->pll_nw_0);
+
+    memory_region_init_io(&s->pll_nw_1, OBJECT(s), &mchp_pfsoc_pll_ops, s,
+                          "mchp.pfsoc.ioscb.pll_nw_1", IOSCB_SUBMOD_REG_SIZE);
+    memory_region_add_subregion(&s->container, IOSCB_PLL_NW1_BASE, &s->pll_nw_1);
 
     memory_region_init_io(&s->pll_mss, OBJECT(s), &mchp_pfsoc_pll_ops, s,
                           "mchp.pfsoc.ioscb.pll_mss", IOSCB_SUBMOD_REG_SIZE);
