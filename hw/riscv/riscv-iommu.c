@@ -49,7 +49,8 @@ struct RISCVIOMMUSpace {
     IOMMUMemoryRegion iova_mr;  /* IOVA memory region for attached device */
     AddressSpace iova_as;       /* IOVA address space for attached device */
     RISCVIOMMUState *iommu;     /* Managing IOMMU device state */
-    uint32_t devid;             /* Requester identifier, AKA device_id */
+    PCIBus *bus;                /* PCI bus of the requester */
+    uint8_t devfn;              /* Requester identifier, AKA device_id */
     bool notifier;              /* IOMMU unmap notifier enabled */
     QLIST_ENTRY(RISCVIOMMUSpace) list;
 };
@@ -73,6 +74,15 @@ struct RISCVIOMMUEntry {
 
 /* IOMMU index for transactions without process_id specified. */
 #define RISCV_IOMMU_NOPROCID 0
+
+static uint32_t riscv_iommu_space_devid(RISCVIOMMUSpace *as)
+{
+    uint32_t devid = PCI_BUILD_BDF(pci_bus_num(as->bus), as->devfn);
+
+    /* FIXME: PCIe bus remapping for attached endpoints. */
+    devid |= as->iommu->bus << 8;
+    return devid;
+}
 
 static uint8_t riscv_iommu_get_icvec_vector(uint32_t icvec, uint32_t vec_type)
 {
@@ -1379,15 +1389,13 @@ static void riscv_iommu_ctx_put(RISCVIOMMUState *s, void *ref)
 }
 
 /* Find or allocate address space for a given device */
-static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, uint32_t devid)
+static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, PCIBus *bus,
+                                            int devfn)
 {
     RISCVIOMMUSpace *as;
 
-    /* FIXME: PCIe bus remapping for attached endpoints. */
-    devid |= s->bus << 8;
-
     QLIST_FOREACH(as, &s->spaces, list) {
-        if (as->devid == devid) {
+        if (as->bus == bus && as->devfn == devfn) {
             break;
         }
     }
@@ -1397,10 +1405,11 @@ static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, uint32_t devid)
         as = g_new0(RISCVIOMMUSpace, 1);
 
         as->iommu = s;
-        as->devid = devid;
+        as->bus = bus;
+        as->devfn = devfn;
 
         snprintf(name, sizeof(name), "riscv-iommu-%04x:%02x.%d-iova",
-            PCI_BUS_NUM(as->devid), PCI_SLOT(as->devid), PCI_FUNC(as->devid));
+            pci_bus_num(bus), PCI_SLOT(devfn), PCI_FUNC(devfn));
 
         /* IOVA address space, untranslated addresses */
         memory_region_init_iommu(&as->iova_mr, sizeof(as->iova_mr),
@@ -1410,8 +1419,8 @@ static AddressSpace *riscv_iommu_space(RISCVIOMMUState *s, uint32_t devid)
 
         QLIST_INSERT_HEAD(&s->spaces, as, list);
 
-        trace_riscv_iommu_new(s->parent_obj.id, PCI_BUS_NUM(as->devid),
-                PCI_SLOT(as->devid), PCI_FUNC(as->devid));
+        trace_riscv_iommu_new(s->parent_obj.id, pci_bus_num(bus),
+                PCI_SLOT(devfn), PCI_FUNC(devfn));
     }
     return &as->iova_as;
 }
@@ -1732,7 +1741,7 @@ static void riscv_iommu_ats(RISCVIOMMUState *s,
     pid = get_field(cmd->dword0, RISCV_IOMMU_CMD_ATS_PID);
 
     QLIST_FOREACH(as, &s->spaces, list) {
-        if (as->devid == devid) {
+        if (riscv_iommu_space_devid(as) == devid) {
             break;
         }
     }
@@ -2745,8 +2754,9 @@ static IOMMUTLBEntry riscv_iommu_memory_region_translate(
         .addr_mask = ~0ULL,
         .perm = flag,
     };
+    uint32_t devid = riscv_iommu_space_devid(as);
 
-    ctx = riscv_iommu_ctx(as->iommu, as->devid, iommu_idx, &ref);
+    ctx = riscv_iommu_ctx(as->iommu, devid, iommu_idx, &ref);
     if (ctx == NULL) {
         /* Translation disabled or invalid. */
         iotlb.addr_mask = 0;
@@ -2758,8 +2768,8 @@ static IOMMUTLBEntry riscv_iommu_memory_region_translate(
     }
 
     /* Trace all dma translations with original access flags. */
-    trace_riscv_iommu_dma(as->iommu->parent_obj.id, PCI_BUS_NUM(as->devid),
-                          PCI_SLOT(as->devid), PCI_FUNC(as->devid), iommu_idx,
+    trace_riscv_iommu_dma(as->iommu->parent_obj.id, PCI_BUS_NUM(devid),
+                          PCI_SLOT(devid), PCI_FUNC(devid), iommu_idx,
                           IOMMU_FLAG_STR[flag & IOMMU_RW], iotlb.iova,
                           iotlb.translated_addr);
 
@@ -2807,7 +2817,7 @@ static AddressSpace *riscv_iommu_find_as(PCIBus *bus, void *opaque, int devfn)
 
     /* Find first matching IOMMU */
     while (s != NULL && as == NULL) {
-        as = riscv_iommu_space(s, PCI_BUILD_BDF(pci_bus_num(bus), devfn));
+        as = riscv_iommu_space(s, bus, devfn);
         s = s->iommus.le_next;
     }
 
