@@ -329,20 +329,42 @@ badframe:
     return -QEMU_ESIGRETURN;
 }
 
+/*
+ * "or r0,r0" nop used by the Linux kernel inline sigreturn trampolines to
+ * avoid a hardware bug (OR_R0_R0 in arch/sh/kernel/signal_32.c).  Five of
+ * these nops follow TRAP_NOARG, placing the syscall number word 14 bytes
+ * past the MOVW(7) instruction (at MOVW(7)'s load offset).  This yields the
+ * fixed 16-byte layout that libunwind's unw_is_signal_frame detects:
+ *   [MOVW(7), TRAP_NOARG, 5x NOP_OR, .word syscall_nr]
+ */
+#define NOP_OR 0x200b
+
 void setup_sigtramp(abi_ulong sigtramp_page)
 {
-    uint16_t *tramp = lock_user(VERIFY_WRITE, sigtramp_page, 2 * 6, 0);
+    uint16_t *tramp = lock_user(VERIFY_WRITE, sigtramp_page, 2 * 16, 0);
     assert(tramp != NULL);
 
+    /* sigreturn trampoline (non-RT) at offset 0 */
     default_sigreturn = sigtramp_page;
-    __put_user(MOVW(2), &tramp[0]);
+    __put_user(MOVW(7), &tramp[0]);
     __put_user(TRAP_NOARG, &tramp[1]);
-    __put_user(TARGET_NR_sigreturn, &tramp[2]);
+    __put_user(NOP_OR, &tramp[2]);
+    __put_user(NOP_OR, &tramp[3]);
+    __put_user(NOP_OR, &tramp[4]);
+    __put_user(NOP_OR, &tramp[5]);
+    __put_user(NOP_OR, &tramp[6]);
+    __put_user(TARGET_NR_sigreturn, &tramp[7]);
 
-    default_rt_sigreturn = sigtramp_page + 6;
-    __put_user(MOVW(2), &tramp[3]);
-    __put_user(TRAP_NOARG, &tramp[4]);
-    __put_user(TARGET_NR_rt_sigreturn, &tramp[5]);
+    /* rt_sigreturn trampoline at offset 16 */
+    default_rt_sigreturn = sigtramp_page + 16;
+    __put_user(MOVW(7), &tramp[8]);
+    __put_user(TRAP_NOARG, &tramp[9]);
+    __put_user(NOP_OR, &tramp[10]);
+    __put_user(NOP_OR, &tramp[11]);
+    __put_user(NOP_OR, &tramp[12]);
+    __put_user(NOP_OR, &tramp[13]);
+    __put_user(NOP_OR, &tramp[14]);
+    __put_user(TARGET_NR_rt_sigreturn, &tramp[15]);
 
-    unlock_user(tramp, sigtramp_page, 2 * 6);
+    unlock_user(tramp, sigtramp_page, 2 * 16);
 }
