@@ -57,7 +57,7 @@ struct target_sigframe
 
 struct target_ucontext {
     target_ulong tuc_flags;
-    struct target_ucontext *tuc_link;
+    abi_ulong tuc_link;
     target_stack_t tuc_stack;
     struct target_sigcontext tuc_mcontext;
     target_sigset_t tuc_sigmask;        /* mask last for extensibility */
@@ -237,7 +237,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Create the ucontext.  */
     __put_user(0, &frame->uc.tuc_flags);
-    __put_user(0, (unsigned long *)&frame->uc.tuc_link);
+    __put_user(0, &frame->uc.tuc_link);
     target_save_altstack(&frame->uc.tuc_stack, regs);
     setup_sigcontext(&frame->uc.tuc_mcontext,
                      regs, set->sig[0]);
