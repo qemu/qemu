@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "hw/core/sysbus.h"
@@ -3659,7 +3660,6 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case DMAR_RTADDR_REG_HI:
-        assert(size == 4);
         val = vtd_get_quad_raw(s, DMAR_RTADDR_REG) >> 32;
         break;
 
@@ -3674,12 +3674,10 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case DMAR_IQA_REG_HI:
-        assert(size == 4);
         val = s->iq >> 32;
         break;
 
     case DMAR_PEUADDR_REG:
-        assert(size == 4);
         val = vtd_get_long_raw(s, DMAR_PEUADDR_REG);
         break;
 
@@ -3725,7 +3723,6 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_CCMD_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         vtd_handle_ccmd_write(s);
         break;
@@ -3741,13 +3738,11 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_IOTLB_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         vtd_handle_iotlb_write(s);
         break;
 
     case DMAR_PEUADDR_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
@@ -3761,27 +3756,35 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_IVA_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
     /* Fault Status Register, 32-bit */
     case DMAR_FSTS_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         vtd_handle_fsts_write(s);
         break;
 
     /* Fault Event Control Register, 32-bit */
     case DMAR_FECTL_REG:
-        assert(size == 4);
+        /*
+         * 32-bit register at an 8-byte-aligned offset: a well-formed
+         * 8-byte guest access reaches this handler.  vtd_set_long()
+         * takes uint32_t and truncates the high half -- undefined per
+         * the VT-d spec but harmless here.  Flag it under
+         * -d guest_errors so the guest-side bug surfaces.
+         */
+        if (size != 4) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid %u-byte access to 32-bit reg "
+                          "addr=0x%" PRIx64 "\n", __func__, size, addr);
+        }
         vtd_set_long(s, addr, val);
         vtd_handle_fectl_write(s);
         break;
 
     /* Fault Event Data Register, 32-bit */
     case DMAR_FEDATA_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
@@ -3800,13 +3803,11 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
 
     /* Fault Event Upper Address Register, 32-bit */
     case DMAR_FEUADDR_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
     /* Protected Memory Enable Register, 32-bit */
     case DMAR_PMEN_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
@@ -3820,7 +3821,6 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_RTADDR_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
@@ -3835,7 +3835,6 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_IQT_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         /* 19:63 of IQT_REG is RsvdZ, do nothing here */
         break;
@@ -3851,39 +3850,57 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_IQA_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
     /* Invalidation Completion Status Register, 32-bit */
     case DMAR_ICS_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         vtd_handle_ics_write(s);
         break;
 
     /* Invalidation Event Control Register, 32-bit */
     case DMAR_IECTL_REG:
-        assert(size == 4);
+        /*
+         * 32-bit register at an 8-byte-aligned offset: a well-formed
+         * 8-byte guest access reaches this handler.  vtd_set_long()
+         * takes uint32_t and truncates the high half -- undefined per
+         * the VT-d spec but harmless here.  Flag it under
+         * -d guest_errors so the guest-side bug surfaces.
+         */
+        if (size != 4) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid %u-byte access to 32-bit reg "
+                          "addr=0x%" PRIx64 "\n", __func__, size, addr);
+        }
         vtd_set_long(s, addr, val);
         vtd_handle_iectl_write(s);
         break;
 
     /* Invalidation Event Data Register, 32-bit */
     case DMAR_IEDATA_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
     /* Invalidation Event Address Register, 32-bit */
     case DMAR_IEADDR_REG:
-        assert(size == 4);
+        /*
+         * 32-bit register at an 8-byte-aligned offset: a well-formed
+         * 8-byte guest access reaches this handler.  vtd_set_long()
+         * takes uint32_t and truncates the high half -- undefined per
+         * the VT-d spec but harmless here.  Flag it under
+         * -d guest_errors so the guest-side bug surfaces.
+         */
+        if (size != 4) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid %u-byte access to 32-bit reg "
+                          "addr=0x%" PRIx64 "\n", __func__, size, addr);
+        }
         vtd_set_long(s, addr, val);
         break;
 
     /* Invalidation Event Upper Address Register, 32-bit */
     case DMAR_IEUADDR_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
@@ -3897,7 +3914,6 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_FRCD_REG_0_1:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
@@ -3912,7 +3928,6 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_FRCD_REG_0_3:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         /* May clear bit 127 (Fault), update PPF */
         vtd_update_fsts_ppf(s);
@@ -3927,18 +3942,27 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
         break;
 
     case DMAR_IRTA_REG_HI:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         break;
 
     case DMAR_PRS_REG:
-        assert(size == 4);
         vtd_set_long(s, addr, val);
         vtd_handle_prs_write(s);
         break;
 
     case DMAR_PECTL_REG:
-        assert(size == 4);
+        /*
+         * 32-bit register at an 8-byte-aligned offset: a well-formed
+         * 8-byte guest access reaches this handler.  vtd_set_long()
+         * takes uint32_t and truncates the high half -- undefined per
+         * the VT-d spec but harmless here.  Flag it under
+         * -d guest_errors so the guest-side bug surfaces.
+         */
+        if (size != 4) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: invalid %u-byte access to 32-bit reg "
+                          "addr=0x%" PRIx64 "\n", __func__, size, addr);
+        }
         vtd_set_long(s, addr, val);
         vtd_handle_pectl_write(s);
         break;
