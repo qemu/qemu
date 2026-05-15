@@ -3965,7 +3965,7 @@ static bool arm_cpu_get_phys_addr(CPUARMState *env, vaddr addr,
         result->attrs.debug = 1;
         result->lg_page_size = res.f.lg_page_size;
     }
-    return !ok;
+    return ok;
 }
 
 bool arm_cpu_translate_for_debug(CPUState *cs, vaddr addr,
@@ -3975,12 +3975,7 @@ bool arm_cpu_translate_for_debug(CPUState *cs, vaddr addr,
     CPUARMState *env = &cpu->env;
     ARMMMUIdx mmu_idx = arm_mmu_idx(env);
 
-    /*
-     * Note that this function returns true on translation success,
-     * but arm_cpu_get_phys_addr() and all the other get_phys_addr
-     * style functions in this file return true on failure.
-     */
-    if (!arm_cpu_get_phys_addr(env, addr, result, mmu_idx)) {
+    if (arm_cpu_get_phys_addr(env, addr, result, mmu_idx)) {
         return true;
     }
 
@@ -3992,10 +3987,10 @@ bool arm_cpu_translate_for_debug(CPUState *cs, vaddr addr,
     switch (mmu_idx) {
     case ARMMMUIdx_E10_1:
     case ARMMMUIdx_E10_1_PAN:
-        return !arm_cpu_get_phys_addr(env, addr, result, ARMMMUIdx_E10_0);
+        return arm_cpu_get_phys_addr(env, addr, result, ARMMMUIdx_E10_0);
     case ARMMMUIdx_E20_2:
     case ARMMMUIdx_E20_2_PAN:
-        return !arm_cpu_get_phys_addr(env, addr, result, ARMMMUIdx_E20_0);
+        return arm_cpu_get_phys_addr(env, addr, result, ARMMMUIdx_E20_0);
     default:
         /* translation failed */
         return false;
