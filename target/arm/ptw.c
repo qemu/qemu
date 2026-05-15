@@ -3571,7 +3571,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 
     /* If S1 fails, return early.  */
     if (ret) {
-        return ret;
+        return !ret;
     }
 
     ipa = result->f.phys_addr;
@@ -3602,7 +3602,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 
     /* If S2 fails, return early.  */
     if (ret) {
-        return ret;
+        return !ret;
     }
 
     /*
@@ -3656,7 +3656,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
         result->f.attrs.space = arm_secure_to_space(result->f.attrs.secure);
     }
 
-    return false;
+    return true;
 }
 
 static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
@@ -3724,7 +3724,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
         ptw->in_mmu_idx = mmu_idx = s1_mmu_idx;
         if (arm_feature(env, ARM_FEATURE_EL2) &&
             !regime_translation_disabled(env, ARMMMUIdx_Stage2, ptw->in_space)) {
-            return get_phys_addr_twostage(env, ptw, address, access_type,
+            return !get_phys_addr_twostage(env, ptw, address, access_type,
                                           memop, result, fi);
         }
         /* fall through */
