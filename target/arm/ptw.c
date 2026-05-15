@@ -2465,7 +2465,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env,
         /* MPU disabled.  */
         result->f.phys_addr = address;
         result->f.prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        return false;
+        return true;
     }
 
     result->f.phys_addr = address;
@@ -2484,7 +2484,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env,
     }
     if (n < 0) {
         fi->type = ARMFault_Background;
-        return true;
+        return false;
     }
 
     if (access_type == MMU_INST_FETCH) {
@@ -2497,12 +2497,12 @@ static bool get_phys_addr_pmsav5(CPUARMState *env,
     case 0:
         fi->type = ARMFault_Permission;
         fi->level = 1;
-        return true;
+        return false;
     case 1:
         if (is_user) {
             fi->type = ARMFault_Permission;
             fi->level = 1;
-            return true;
+            return false;
         }
         result->f.prot = PAGE_READ | PAGE_WRITE;
         break;
@@ -2519,7 +2519,7 @@ static bool get_phys_addr_pmsav5(CPUARMState *env,
         if (is_user) {
             fi->type = ARMFault_Permission;
             fi->level = 1;
-            return true;
+            return false;
         }
         result->f.prot = PAGE_READ;
         break;
@@ -2530,10 +2530,10 @@ static bool get_phys_addr_pmsav5(CPUARMState *env,
         /* Bad permission.  */
         fi->type = ARMFault_Permission;
         fi->level = 1;
-        return true;
+        return false;
     }
     result->f.prot |= PAGE_EXEC;
-    return false;
+    return true;
 }
 
 static void get_phys_addr_pmsav7_default(CPUARMState *env, ARMMMUIdx mmu_idx,
@@ -3763,7 +3763,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
                                        result, fi);
         } else {
             /* Pre-v7 MPU */
-            ret = get_phys_addr_pmsav5(env, ptw, address, access_type,
+            ret = !get_phys_addr_pmsav5(env, ptw, address, access_type,
                                        result, fi);
         }
         qemu_log_mask(CPU_LOG_MMU, "PMSA MPU lookup for %s at 0x%08" PRIx32
