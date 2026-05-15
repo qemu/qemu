@@ -3506,7 +3506,7 @@ static bool get_phys_addr_disabled(CPUARMState *env,
                 fi->type = ARMFault_AddressSize;
                 fi->level = 0;
                 fi->stage2 = false;
-                return 1;
+                return false;
             }
 
             /*
@@ -3548,7 +3548,7 @@ static bool get_phys_addr_disabled(CPUARMState *env,
     result->f.lg_page_size = TARGET_PAGE_BITS;
     result->cacheattrs.shareability = shareability;
     result->cacheattrs.attrs = memattr;
-    return false;
+    return true;
 }
 
 static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
@@ -3682,7 +3682,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     case ARMMMUIdx_Phys_Root:
     case ARMMMUIdx_Phys_Realm:
         /* Checking Phys early avoids special casing later vs regime_el. */
-        return get_phys_addr_disabled(env, ptw, address, access_type,
+        return !get_phys_addr_disabled(env, ptw, address, access_type,
                                       result, fi);
 
     case ARMMMUIdx_Stage1_E0:
@@ -3782,7 +3782,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     /* Definitely a real MMU, not an MPU */
 
     if (regime_translation_disabled(env, mmu_idx, ptw->in_space)) {
-        return get_phys_addr_disabled(env, ptw, address, access_type,
+        return !get_phys_addr_disabled(env, ptw, address, access_type,
                                       result, fi);
     }
 
