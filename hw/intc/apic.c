@@ -648,13 +648,6 @@ static void apic_deliver(APICCommonState *s, uint32_t dest, uint8_t dest_mode,
     APICCommonState *apic_iter;
     uint32_t deliver_bitmask_size = max_apic_words * sizeof(uint32_t);
     g_autofree uint32_t *deliver_bitmask = g_new(uint32_t, max_apic_words);
-    uint32_t current_apic_id;
-
-    if (is_x2apic_mode(s)) {
-        current_apic_id = s->initial_apic_id;
-    } else {
-        current_apic_id = s->id;
-    }
 
     switch (dest_shorthand) {
     case 0:
@@ -662,14 +655,20 @@ static void apic_deliver(APICCommonState *s, uint32_t dest, uint8_t dest_mode,
         break;
     case 1:
         memset(deliver_bitmask, 0x00, deliver_bitmask_size);
-        apic_set_bit(deliver_bitmask, current_apic_id);
+        /*
+         * The self and all-but-self cases do not use apic_match_dest() and
+         * directly fill in deliver_bitmask; the bitmask's indexes in turn
+         * map to local_apics[] slots which are never changed even if the
+         * xAPIC id is modified.  So use s->initial_apic_id instead of s->id.
+         */
+        apic_set_bit(deliver_bitmask, s->initial_apic_id);
         break;
     case 2:
         memset(deliver_bitmask, 0xff, deliver_bitmask_size);
         break;
     case 3:
         memset(deliver_bitmask, 0xff, deliver_bitmask_size);
-        apic_reset_bit(deliver_bitmask, current_apic_id);
+        apic_reset_bit(deliver_bitmask, s->initial_apic_id);
         break;
     }
 
