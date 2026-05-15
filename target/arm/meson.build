@@ -11,7 +11,6 @@ arm_user_ss.add(files('gdbstub.c'))
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'cpu64.c',
-  'gdbstub64.c'
 ))
 
 arm_common_ss.add(files(
@@ -23,6 +22,9 @@ arm_common_user_system_ss.add(files(
   'debug_helper.c',
   'helper.c',
   'vfp_fpscr.c',
+))
+arm_common_user_system_ss.add(when: 'TARGET_AARCH64', if_true: files(
+  'gdbstub64.c'
 ))
 
 arm_common_system_ss.add(files(
