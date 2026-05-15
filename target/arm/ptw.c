@@ -1842,7 +1842,7 @@ static bool lpae_block_desc_valid(ARMCPU *cpu, bool ds,
 /**
  * get_phys_addr_lpae: perform one stage of page table walk, LPAE format
  *
- * Returns false if the translation was successful. Otherwise, phys_ptr,
+ * Returns true if the translation was successful. Otherwise, phys_ptr,
  * attrs, prot and page_size may not be filled in, and the populated fsr
  * value provides information on why the translation aborted, in the format
  * of a long-format DFSR/IFSR fault register, with the following caveat:
@@ -2432,7 +2432,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
 
     result->f.phys_addr = descaddr;
     result->f.lg_page_size = ctz64(page_size);
-    return false;
+    return true;
 
  do_translation_fault:
     fi->type = ARMFault_Translation;
@@ -2445,7 +2445,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         fi->stage2 = regime_is_stage2(mmu_idx);
     }
     fi->s1ns = fault_s1ns(ptw->cur_space, mmu_idx);
-    return true;
+    return false;
 }
 
 static bool get_phys_addr_pmsav5(CPUARMState *env,
@@ -3787,7 +3787,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
     }
 
     if (regime_using_lpae_format(env, mmu_idx)) {
-        return get_phys_addr_lpae(env, ptw, address, access_type,
+        return !get_phys_addr_lpae(env, ptw, address, access_type,
                                   memop, result, fi);
     } else if (arm_feature(env, ARM_FEATURE_V7) ||
                regime_sctlr(env, mmu_idx) & SCTLR_XP) {
