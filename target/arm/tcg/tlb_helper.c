@@ -361,9 +361,9 @@ bool arm_cpu_tlb_fill_align(CPUState *cs, CPUTLBEntryFull *out, vaddr address,
         fi->type = ARMFault_Alignment;
     } else if (address & ((1 << memop_alignment_bits(memop)) - 1)) {
         fi->type = ARMFault_Alignment;
-    } else if (!get_phys_addr(&cpu->env, address, access_type, memop,
-                              core_to_arm_mmu_idx(&cpu->env, mmu_idx),
-                              &res, fi)) {
+    } else if (get_phys_addr(&cpu->env, address, access_type, memop,
+                             core_to_arm_mmu_idx(&cpu->env, mmu_idx),
+                             &res, fi)) {
         res.f.extra.arm.pte_attrs = res.cacheattrs.attrs;
         res.f.extra.arm.shareability = res.cacheattrs.shareability;
         *out = res.f;

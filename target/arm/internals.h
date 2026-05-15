@@ -1500,7 +1500,7 @@ typedef struct GetPhysAddrResult {
  * by doing a translation table walk on MMU based systems or using the
  * MPU state on MPU based systems.
  *
- * Returns false if the translation was successful. Otherwise, phys_ptr, attrs,
+ * Returns true if the translation was successful. Otherwise, phys_ptr, attrs,
  * prot and page_size may not be filled in, and the populated fsr value provides
  * information on why the translation aborted, in the format of a
  * DFSR/IFSR fault register, with the following caveats:

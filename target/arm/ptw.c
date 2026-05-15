@@ -3939,7 +3939,7 @@ bool get_phys_addr(CPUARMState *env, vaddr address,
         .in_prot_check = 1 << access_type,
     };
 
-    return !get_phys_addr_gpc(env, &ptw, address, access_type,
+    return get_phys_addr_gpc(env, &ptw, address, access_type,
                              memop, result, fi);
 }
 
