@@ -35,7 +35,6 @@ arm_ss.add(files(
 ))
 
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
-  'cpu64.c',
   'gengvec64.c',
   'translate-a64.c',
   'translate-sve.c',
@@ -79,6 +78,9 @@ arm_common_user_system_ss.add(
   'translate-vfp.c',
   'vec_helper.c',
   'vfp_helper.c',
+))
+arm_common_user_system_ss.add(when: 'TARGET_AARCH64', if_true: files(
+  'cpu64.c',
 ))
 
 arm_common_system_ss.add(files(
