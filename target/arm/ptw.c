@@ -667,7 +667,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
         };
         GetPhysAddrResult s2 = { };
 
-        if (get_phys_addr_gpc(env, &s2ptw, addr, MMU_DATA_LOAD, 0, &s2, fi)) {
+        if (!get_phys_addr_gpc(env, &s2ptw, addr, MMU_DATA_LOAD, 0, &s2, fi)) {
             goto fail;
         }
 
@@ -3806,7 +3806,7 @@ static bool get_phys_addr_gpc(CPUARMState *env, S1Translate *ptw,
 {
     if (!get_phys_addr_nogpc(env, ptw, address, access_type,
                             memop, result, fi)) {
-        return true;
+        return false;
     }
 
     if (FIELD_EX64(env->cp15.gpccr_el3, GPCCR, GPC)) {
@@ -3826,11 +3826,11 @@ static bool get_phys_addr_gpc(CPUARMState *env, S1Translate *ptw,
                                           result->f.attrs.space, ptw->in_space,
                                           fi)) {
             fi->type = ARMFault_GPCFOnOutput;
-            return true;
+            return false;
         }
     }
 
-    return false;
+    return true;
 }
 
 bool get_phys_addr_for_at(CPUARMState *env, vaddr address,
@@ -3939,7 +3939,7 @@ bool get_phys_addr(CPUARMState *env, vaddr address,
         .in_prot_check = 1 << access_type,
     };
 
-    return get_phys_addr_gpc(env, &ptw, address, access_type,
+    return !get_phys_addr_gpc(env, &ptw, address, access_type,
                              memop, result, fi);
 }
 
@@ -3956,16 +3956,16 @@ static bool arm_cpu_get_phys_addr(CPUARMState *env, vaddr addr,
     };
     GetPhysAddrResult res = {};
     ARMMMUFaultInfo fi = {};
-    bool fault = get_phys_addr_gpc(env, &ptw, addr, MMU_DATA_LOAD, 0, &res, &fi);
+    bool ok = get_phys_addr_gpc(env, &ptw, addr, MMU_DATA_LOAD, 0, &res, &fi);
 
-    if (!fault) {
+    if (ok) {
         /* translation succeeded */
         result->physaddr = res.f.phys_addr;
         result->attrs = res.f.attrs;
         result->attrs.debug = 1;
         result->lg_page_size = res.f.lg_page_size;
     }
-    return fault;
+    return !ok;
 }
 
 bool arm_cpu_translate_for_debug(CPUState *cs, vaddr addr,
