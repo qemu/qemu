@@ -3961,6 +3961,7 @@ static bool arm_cpu_get_phys_addr(CPUARMState *env, vaddr addr,
         /* translation succeeded */
         result->physaddr = res.f.phys_addr;
         result->attrs = res.f.attrs;
+        result->attrs.debug = 1;
         result->lg_page_size = res.f.lg_page_size;
     }
     return fault;
