@@ -2844,6 +2844,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
      * If the region hit doesn't cover the entire TARGET_PAGE the address
      * is within, then we set the result page_size to 1 to force the
      * memory system to use a subpage.
+     * Return true on success, false on fault.
      */
     ARMCPU *cpu = env_archcpu(env);
     bool is_user = regime_is_user(mmu_idx);
@@ -2944,7 +2945,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                 if (arm_feature(env, ARM_FEATURE_M)) {
                     fi->level = 1;
                 }
-                return true;
+                return false;
             }
 
             matchregion = n;
@@ -2958,7 +2959,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
         } else {
             fi->type = ARMFault_Permission;
         }
-        return true;
+        return false;
     }
 
     if (matchregion == -1) {
@@ -3020,7 +3021,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
     if (arm_feature(env, ARM_FEATURE_M)) {
         fi->level = 1;
     }
-    return (prot_check & ~result->f.prot) != 0;
+    return (prot_check & ~result->f.prot) == 0;
 }
 
 static bool v8m_is_sau_exempt(CPUARMState *env,
@@ -3222,7 +3223,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
         }
     }
 
-    ret = !pmsav8_mpu_lookup(env, address, access_type, ptw->in_prot_check,
+    ret = pmsav8_mpu_lookup(env, address, access_type, ptw->in_prot_check,
                             mmu_idx, secure, result, fi, NULL);
     /*
      * For two-stage PMSA translations, s2prot holds the stage 2
