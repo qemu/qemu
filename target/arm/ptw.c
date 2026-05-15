@@ -3191,7 +3191,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
                 result->f.lg_page_size = sattrs.subpage ? 0 : TARGET_PAGE_BITS;
                 result->f.phys_addr = address;
                 result->f.prot = 0;
-                return true;
+                return false;
             }
         } else {
             /*
@@ -3217,12 +3217,12 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
                 result->f.lg_page_size = sattrs.subpage ? 0 : TARGET_PAGE_BITS;
                 result->f.phys_addr = address;
                 result->f.prot = 0;
-                return true;
+                return false;
             }
         }
     }
 
-    ret = pmsav8_mpu_lookup(env, address, access_type, ptw->in_prot_check,
+    ret = !pmsav8_mpu_lookup(env, address, access_type, ptw->in_prot_check,
                             mmu_idx, secure, result, fi, NULL);
     /*
      * For two-stage PMSA translations, s2prot holds the stage 2
@@ -3755,7 +3755,7 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
 
         if (arm_feature(env, ARM_FEATURE_V8)) {
             /* PMSAv8 */
-            ret = get_phys_addr_pmsav8(env, ptw, address, access_type,
+            ret = !get_phys_addr_pmsav8(env, ptw, address, access_type,
                                        result, fi);
         } else if (arm_feature(env, ARM_FEATURE_V7)) {
             /* PMSAv7 */
