@@ -3325,12 +3325,14 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
             goto out;
         }
     } else {
-        char *dir_name = g_path_get_dirname(fidp->path.data);
+        g_autofree char *dir_name = g_path_get_dirname(fidp->path.data);
         V9fsPath dir_path;
 
         v9fs_path_init(&dir_path);
-        v9fs_path_sprintf(&dir_path, "%s", dir_name);
-        g_free(dir_name);
+        err = v9fs_path_sprintf(&dir_path, "%s", dir_name);
+        if (err < 0) {
+            goto out;
+        }
 
         err = v9fs_co_name_to_path(pdu, &dir_path, name->data, &new_path);
         v9fs_path_free(&dir_path);
@@ -3351,7 +3353,10 @@ static int coroutine_fn v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
     while (g_hash_table_iter_next(&iter, &fid, (gpointer *) &tfidp)) {
         if (v9fs_path_is_ancestor(&fidp->path, &tfidp->path)) {
             /* replace the name */
-            v9fs_fix_path(&tfidp->path, &new_path, strlen(fidp->path.data));
+            if (v9fs_fix_path(&tfidp->path, &new_path,
+                              strlen(fidp->path.data)) < 0) {
+                clunk_fid(s, tfidp->fid);
+            }
         }
     }
 out:
@@ -3448,7 +3453,10 @@ static int coroutine_fn v9fs_fix_fid_paths(V9fsPDU *pdu, V9fsPath *olddir,
     while (g_hash_table_iter_next(&iter, &fid, (gpointer *) &tfidp)) {
         if (v9fs_path_is_ancestor(&oldpath, &tfidp->path)) {
             /* replace the name */
-            v9fs_fix_path(&tfidp->path, &newpath, strlen(oldpath.data));
+            if (v9fs_fix_path(&tfidp->path, &newpath,
+                              strlen(oldpath.data)) < 0) {
+                clunk_fid(s, tfidp->fid);
+            }
         }
     }
 out:

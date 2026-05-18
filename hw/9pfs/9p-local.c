@@ -1261,26 +1261,35 @@ static int local_name_to_path(FsContext *ctx, V9fsPath *dir_path,
         } else if (!strcmp(name, "..")) {
             if (!strcmp(dir_path->data, ".")) {
                 /* ".." relative to the root is "." */
-                v9fs_path_sprintf(target, ".");
+                if (v9fs_path_sprintf(target, ".") < 0) {
+                    return -1;
+                }
             } else {
-                char *tmp = g_path_get_dirname(dir_path->data);
+                g_autofree char *tmp = g_path_get_dirname(dir_path->data);
                 /* Symbolic links are resolved by the client. We can assume
                  * that ".." relative to "foo/bar" is equivalent to "foo"
                  */
-                v9fs_path_sprintf(target, "%s", tmp);
-                g_free(tmp);
+                if (v9fs_path_sprintf(target, "%s", tmp) < 0) {
+                    return -1;
+                }
             }
         } else {
             assert(!strchr(name, '/'));
-            v9fs_path_sprintf(target, "%s/%s", dir_path->data, name);
+            if (v9fs_path_sprintf(target, "%s/%s", dir_path->data, name) < 0) {
+                return -1;
+            }
         }
     } else if (!strcmp(name, "/") || !strcmp(name, ".") ||
                !strcmp(name, "..")) {
             /* This is the root fid */
-        v9fs_path_sprintf(target, ".");
+        if (v9fs_path_sprintf(target, ".") < 0) {
+            return -1;
+        }
     } else {
         assert(!strchr(name, '/'));
-        v9fs_path_sprintf(target, "./%s", name);
+        if (v9fs_path_sprintf(target, "./%s", name) < 0) {
+            return -1;
+        }
     }
     return 0;
 }
