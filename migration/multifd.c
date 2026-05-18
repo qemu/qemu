@@ -210,9 +210,9 @@ static int multifd_recv_initial_packet(QIOChannel *c, Error **errp)
         return -1;
     }
 
-    if (msg.id > migrate_multifd_channels()) {
-        error_setg(errp, "multifd: received channel id %u is greater than "
-                   "number of channels %u", msg.id, migrate_multifd_channels());
+    if (msg.id >= migrate_multifd_channels()) {
+        error_setg(errp, "multifd: received channel id %u exceeds "
+                   "channel count %u", msg.id, migrate_multifd_channels());
         return -1;
     }
 
