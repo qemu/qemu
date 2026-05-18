@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "libqos/virtio.h"
 #include "libqos/virtio-9p-client.h"
 
 #define twalk(...) v9fs_twalk((TWalkOpt) __VA_ARGS__)
@@ -752,6 +753,72 @@ static void fs_use_after_unlink(void *obj, void *data,
     g_assert_cmpint(attr.size, ==, 2001);
 }
 
+/* https://gitlab.com/qemu-project/qemu/-/issues/3358 */
+static void fs_deep_absolute_path(void *obj, void *data,
+                                  QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    v9fs_set_allocator(t_alloc);
+
+    if (!g_test_slow()) {
+        g_test_skip("This is a slow test, run with -m slow");
+        return;
+    }
+
+    GString *path = g_string_new("/");
+    char name[256];
+    uint32_t current_fid = 0;
+
+    tattach({ .client = v9p });
+
+    /* Create deep directory structure until absolute path length
+     * exceeds 16-bit range.
+     */
+    while (path->len <= 65536) {
+        /* use 255-byte name (NAME_MAX) to reduce iterations to ~257 */
+        memset(name, 'A', 255);
+        name[255] = '\0';
+
+        /* create the directory relative to current FID */
+        tmkdir({
+            .client = v9p,
+            .dfid = current_fid,
+            .name = name
+        });
+
+        /* just for locally tracking the current path length */
+        g_string_append(path, name);
+        g_string_append(path, "/");
+
+        /* acquire new FID for the newly created directory */
+        char *wnames[] = { name };
+        current_fid = twalk({
+            .client = v9p,
+            .fid = current_fid,
+            .nwname = 1,
+            .wnames = wnames
+        }).newfid;
+
+        /* Reset descriptor pool to avoid exhaustion. The simplified
+         * virtio test driver does never free descriptors back to the pool
+         * after use, so we must manually reset it for the required high
+         * amount of 9p requests here.
+         */
+        qvirtqueue_reset_pool(v9p->vq);
+    }
+
+    /* check if the deepest directory is accessible */
+    v9fs_attr attr = {};
+    tgetattr({
+        .client = v9p,
+        .fid = current_fid,
+        .request_mask = P9_GETATTR_BASIC,
+        .rgetattr.attr = &attr
+    });
+
+    g_string_free(path, TRUE);
+}
+
 static void cleanup_9p_local_driver(void *data)
 {
     /* remove previously created test dir when test is completed */
@@ -819,6 +886,8 @@ static void register_virtio_9p_test(void)
                  &opts);
     qos_add_test("local/use_after_unlink", "virtio-9p", fs_use_after_unlink,
                  &opts);
+    qos_add_test("local/deep_absolute_path", "virtio-9p",
+                 fs_deep_absolute_path, &opts);
 }
 
 libqos_init(register_virtio_9p_test);
