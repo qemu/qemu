@@ -1358,16 +1358,23 @@ static RISCVIOMMUContext *riscv_iommu_ctx(RISCVIOMMUState *s,
 
     int fault = riscv_iommu_ctx_fetch(s, ctx);
     if (!fault) {
-        if (g_hash_table_size(ctx_cache) >= LIMIT_CACHE_CTX) {
+        if (mode != RISCV_IOMMU_DDTP_MODE_BARE) {
+            if (g_hash_table_size(ctx_cache) >= LIMIT_CACHE_CTX) {
+                g_hash_table_unref(ctx_cache);
+                ctx_cache = g_hash_table_new_full(riscv_iommu_ctx_hash,
+                                                  riscv_iommu_ctx_equal,
+                                                  g_free, NULL);
+                g_hash_table_ref(ctx_cache);
+                g_hash_table_unref(qatomic_xchg(&s->ctx_cache, ctx_cache));
+            }
+
+            g_hash_table_add(ctx_cache, ctx);
+            *ref = ctx_cache;
+        } else {
             g_hash_table_unref(ctx_cache);
-            ctx_cache = g_hash_table_new_full(riscv_iommu_ctx_hash,
-                                              riscv_iommu_ctx_equal,
-                                              g_free, NULL);
-            g_hash_table_ref(ctx_cache);
-            g_hash_table_unref(qatomic_xchg(&s->ctx_cache, ctx_cache));
+            /* Remember ctx so it can be freed */
+            *ref = ctx;
         }
-        g_hash_table_add(ctx_cache, ctx);
-        *ref = ctx_cache;
         return ctx;
     }
 
