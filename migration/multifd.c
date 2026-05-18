@@ -362,13 +362,15 @@ bool multifd_send(MultiFDSendData **send_data)
     /* We wait here, until at least one channel is ready */
     qemu_sem_wait(&multifd_send_state->channels_ready);
 
+    int thread_count = migrate_multifd_channels();
+
     /*
      * next_channel can remain from a previous migration that was
      * using more channels, so ensure it doesn't overflow if the
      * limit is lower now.
      */
-    next_channel %= migrate_multifd_channels();
-    for (i = next_channel;; i = (i + 1) % migrate_multifd_channels()) {
+    next_channel %= thread_count;
+    for (i = next_channel;; i = (i + 1) % thread_count) {
         if (multifd_send_should_exit()) {
             return false;
         }
@@ -378,7 +380,7 @@ bool multifd_send(MultiFDSendData **send_data)
          * sender thread can clear it.
          */
         if (qatomic_read(&p->pending_job) == false) {
-            next_channel = (i + 1) % migrate_multifd_channels();
+            next_channel = (i + 1) % thread_count;
             break;
         }
     }
@@ -998,6 +1000,7 @@ bool multifd_recv(void)
     int i;
     static int next_recv_channel;
     MultiFDRecvParams *p = NULL;
+    int thread_count = migrate_multifd_channels();
     MultiFDRecvData *data = multifd_recv_state->data;
 
     /*
@@ -1005,8 +1008,8 @@ bool multifd_recv(void)
      * using more channels, so ensure it doesn't overflow if the
      * limit is lower now.
      */
-    next_recv_channel %= migrate_multifd_channels();
-    for (i = next_recv_channel;; i = (i + 1) % migrate_multifd_channels()) {
+    next_recv_channel %= thread_count;
+    for (i = next_recv_channel;; i = (i + 1) % thread_count) {
         if (multifd_recv_should_exit()) {
             return false;
         }
@@ -1014,7 +1017,7 @@ bool multifd_recv(void)
         p = &multifd_recv_state->params[i];
 
         if (qatomic_read(&p->pending_job) == false) {
-            next_recv_channel = (i + 1) % migrate_multifd_channels();
+            next_recv_channel = (i + 1) % thread_count;
             break;
         }
     }
