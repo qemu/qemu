@@ -60,6 +60,16 @@ parameters.
   the SMART / Health information extended log become available in the
   controller. We emulate version 5 of this log page.
 
+``model`` (default: ``QEMU NVMe Ctrl``)
+  Override the default reported model, which can be used when needing
+  to more closely impersonate a particular device type. The model name
+  can be a maximum of 40 characters in length.
+
+``firmware-version`` (default: current QEMU version number)
+  Override the default reported firmware version, which can be used when
+  needing to more closely impersonate a particular device type. The version
+  can be a maximum of 8 characters in length.
+
 Additional Namespaces
 ---------------------
 
