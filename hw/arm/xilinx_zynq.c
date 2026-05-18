@@ -201,6 +201,17 @@ static void zynq_set_boot_mode(Object *obj, const char *str,
     m->boot_mode = mode;
 }
 
+static void ddr_ctrl_init(uint32_t base)
+{
+    DeviceState *dev;
+    SysBusDevice *busdev;
+
+    dev = qdev_new("zynq.ddr-ctlr");
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(busdev, &error_fatal);
+    sysbus_mmio_map(busdev, 0, base);
+}
+
 static void zynq_init(MachineState *machine)
 {
     ZynqMachineState *zynq_machine = ZYNQ_MACHINE(machine);
@@ -312,6 +323,8 @@ static void zynq_init(MachineState *machine)
     sysbus_create_varargs("cadence_ttc", 0xF8002000,
             pic[69-GIC_INTERNAL], pic[70-GIC_INTERNAL], pic[71-GIC_INTERNAL], NULL);
 
+    ddr_ctrl_init(0xF8006000);
+
     gem_init(0xE000B000, pic[54 - GIC_INTERNAL]);
     gem_init(0xE000C000, pic[77 - GIC_INTERNAL]);
 
@@ -392,9 +405,6 @@ static void zynq_init(MachineState *machine)
 
     /* System Watchdog Timer Registers */
     create_unimplemented_device("zynq.swdt", 0xF8005000, 4 * KiB);
-
-    /* DDR memory controller */
-    create_unimplemented_device("zynq.ddrc", 0xF8006000, 4 * KiB);
 
     /* AXI_HP Interface (AFI) */
     create_unimplemented_device("zynq.axi_hp0", 0xF8008000, 0x28);
