@@ -4,7 +4,7 @@ FROM fedora:latest
 MAINTAINER John Snow <jsnow@redhat.com>
 
 # Please keep this list sorted alphabetically
-ENV PACKAGES \
+ENV PACKAGES="\
     gcc \
     make \
     python3 \
@@ -15,7 +15,8 @@ ENV PACKAGES \
     python3.11 \
     python3.12 \
     python3.13 \
-    python3.9
+    python3.9 \
+    "
 
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
