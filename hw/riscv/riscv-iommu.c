@@ -1390,7 +1390,16 @@ static RISCVIOMMUContext *riscv_iommu_ctx(RISCVIOMMUState *s,
 
 static void riscv_iommu_ctx_put(RISCVIOMMUState *s, void *ref)
 {
-    if (ref) {
+    unsigned mode = get_field(s->ddtp, RISCV_IOMMU_DDTP_MODE);
+
+    if (!ref) {
+        return;
+    }
+
+    /* ref is pointing to ctx in Bare mode. Bare mode ctx is not cached */
+    if (mode == RISCV_IOMMU_DDTP_MODE_BARE) {
+        g_free(ref);
+    } else {
         g_hash_table_unref((GHashTable *)ref);
     }
 }
