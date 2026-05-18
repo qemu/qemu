@@ -611,13 +611,15 @@ static int multifd_zero_copy_flush(QIOChannel *c)
 int multifd_send_sync_main(MultiFDSyncReq req)
 {
     int i;
+    int thread_count;
     bool flush_zero_copy;
 
     assert(req != MULTIFD_SYNC_NONE);
 
+    thread_count = migrate_multifd_channels();
     flush_zero_copy = migrate_zero_copy_send();
 
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         if (multifd_send_should_exit()) {
@@ -634,7 +636,7 @@ int multifd_send_sync_main(MultiFDSyncReq req)
         qatomic_set(&p->pending_sync, req);
         qemu_sem_post(&p->sem);
     }
-    for (i = 0; i < migrate_multifd_channels(); i++) {
+    for (i = 0; i < thread_count; i++) {
         MultiFDSendParams *p = &multifd_send_state->params[i];
 
         if (multifd_send_should_exit()) {
