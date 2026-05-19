@@ -22,9 +22,6 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_CURL
         "block-", "curl",
 #endif
-#ifdef CONFIG_GLUSTERFS
-        "block-", "gluster",
-#endif
 #ifdef CONFIG_LIBISCSI
         "block-", "iscsi",
 #endif

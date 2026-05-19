@@ -108,7 +108,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libgbm-dev:ppc64el \
                       libgcrypt20-dev:ppc64el \
                       libglib2.0-dev:ppc64el \
-                      libglusterfs-dev:ppc64el \
                       libgnutls28-dev:ppc64el \
                       libgtk-3-dev:ppc64el \
                       libgtk-vnc-2.0-dev:ppc64el \

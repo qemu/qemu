@@ -4268,12 +4268,6 @@ L: qemu-block@nongnu.org
 S: Odd Fixes
 F: block/curl.c
 
-GLUSTER
-L: qemu-block@nongnu.org
-L: integration@gluster.org
-S: Odd Fixes
-F: block/gluster.c
-
 Null Block Driver
 M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
@@ -4434,8 +4428,9 @@ F: subprojects/libvduse/
 F: block/export/vduse-blk.c
 F: block/export/vduse-blk.h
 
-Replication
-S: Orphan
+COLO block replication
+M: Lukas Straub <lukasstraub2@web.de>
+S: Maintained
 F: replication*
 F: block/replication.c
 F: tests/unit/test-replication.c

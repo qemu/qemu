@@ -106,7 +106,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libgbm-dev:mips64el \
                       libgcrypt20-dev:mips64el \
                       libglib2.0-dev:mips64el \
-                      libglusterfs-dev:mips64el \
                       libgnutls28-dev:mips64el \
                       libgtk-3-dev:mips64el \
                       libgtk-vnc-2.0-dev:mips64el \

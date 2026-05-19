@@ -71,6 +71,8 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
 
 void blk_inc_in_flight(BlockBackend *blk);
 void blk_dec_in_flight(BlockBackend *blk);
+void coroutine_fn blk_co_start_request(BlockBackend *blk);
+void blk_end_request(BlockBackend *blk);
 
 bool coroutine_fn GRAPH_RDLOCK blk_co_is_inserted(BlockBackend *blk);
 bool co_wrapper_mixed_bdrv_rdlock blk_is_inserted(BlockBackend *blk);
@@ -216,9 +218,9 @@ int co_wrapper_mixed blk_zone_append(BlockBackend *blk, int64_t *offset,
                                          BdrvRequestFlags flags);
 
 int co_wrapper_mixed blk_pdiscard(BlockBackend *blk, int64_t offset,
-                                  int64_t bytes);
+                                  int64_t bytes, BdrvRequestFlags flags);
 int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
-                                 int64_t bytes);
+                                 int64_t bytes, BdrvRequestFlags flags);
 
 int co_wrapper_mixed blk_flush(BlockBackend *blk);
 int coroutine_fn blk_co_flush(BlockBackend *blk);

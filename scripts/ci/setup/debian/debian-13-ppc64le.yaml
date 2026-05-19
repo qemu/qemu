@@ -50,7 +50,6 @@ packages:
   - libgbm-dev
   - libgcrypt20-dev
   - libglib2.0-dev
-  - libglusterfs-dev
   - libgnutls28-dev
   - libgtk-3-dev
   - libgtk-vnc-2.0-dev

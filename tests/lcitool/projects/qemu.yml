@@ -31,7 +31,6 @@ packages:
  - glib2
  - glib2-native
  - glib2-static
- - glusterfs
  - gnutls
  - gtk3
  - gtk-vnc

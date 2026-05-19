@@ -794,30 +794,28 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
             continue;
         }
 
-        monitor_printf(mon, "%s:", stats->value->device);
-        monitor_printf(mon, " rd_bytes=%" PRId64
-                       " wr_bytes=%" PRId64
-                       " rd_operations=%" PRId64
-                       " wr_operations=%" PRId64
-                       " flush_operations=%" PRId64
-                       " wr_total_time_ns=%" PRId64
-                       " rd_total_time_ns=%" PRId64
-                       " flush_total_time_ns=%" PRId64
-                       " rd_merged=%" PRId64
-                       " wr_merged=%" PRId64
-                       " idle_time_ns=%" PRId64
-                       "\n",
-                       stats->value->stats->rd_bytes,
-                       stats->value->stats->wr_bytes,
-                       stats->value->stats->rd_operations,
-                       stats->value->stats->wr_operations,
-                       stats->value->stats->flush_operations,
-                       stats->value->stats->wr_total_time_ns,
-                       stats->value->stats->rd_total_time_ns,
-                       stats->value->stats->flush_total_time_ns,
-                       stats->value->stats->rd_merged,
-                       stats->value->stats->wr_merged,
+        monitor_printf(mon, "%s%s: idle_time_ns=%" PRId64 "\n",
+                       stats != stats_list ? "\n" : "",
+                       stats->value->device,
                        stats->value->stats->idle_time_ns);
+        monitor_printf(mon, "       %24s %16s %24s %10s\n", "bytes",
+                       "operations", "total_time_ns", "merged");
+        monitor_printf(mon, "Read:  %24" PRId64 " %16" PRId64 " %24" PRId64
+                       " %10" PRId64 "\n",
+                       stats->value->stats->rd_bytes,
+                       stats->value->stats->rd_operations,
+                       stats->value->stats->rd_total_time_ns,
+                       stats->value->stats->rd_merged);
+        monitor_printf(mon, "Write: %24" PRId64 " %16" PRId64 " %24" PRId64
+                       " %10" PRId64 "\n",
+                       stats->value->stats->wr_bytes,
+                       stats->value->stats->wr_operations,
+                       stats->value->stats->wr_total_time_ns,
+                       stats->value->stats->wr_merged);
+        monitor_printf(mon, "Flush: %24s %16" PRId64 " %24" PRId64 "\n",
+                       "",
+                       stats->value->stats->flush_operations,
+                       stats->value->stats->flush_total_time_ns);
     }
 
     qapi_free_BlockStatsList(stats_list);

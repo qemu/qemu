@@ -270,11 +270,11 @@ static void test_sync_op_blk_pdiscard(BlockBackend *blk)
     int ret;
 
     /* Early success: UNMAP not supported */
-    ret = blk_pdiscard(blk, 0, 512);
+    ret = blk_pdiscard(blk, 0, 512, 0);
     g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = blk_pdiscard(blk, -2, 512);
+    ret = blk_pdiscard(blk, -2, 512, 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 

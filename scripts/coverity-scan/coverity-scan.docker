@@ -61,7 +61,6 @@ exec "$@"' > /usr/bin/nosync && \
                glib2-static \
                glibc-langpack-en \
                glibc-static \
-               glusterfs-api-devel \
                gnutls-devel \
                gtk3-devel \
                hostname \

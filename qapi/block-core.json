@@ -3334,18 +3334,12 @@
 #
 # @snapshot-access: Since 7.0
 #
-# Features:
-#
-# @deprecated: Member @gluster is deprecated because GlusterFS
-#     development ceased.
-#
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
             'cloop', 'compress', 'copy-before-write', 'copy-on-read', 'dmg',
             'file', 'snapshot-access', 'ftp', 'ftps',
-            {'name': 'gluster', 'features': [ 'deprecated' ] },
             {'name': 'host_cdrom', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             {'name': 'host_device', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             'http', 'https',
@@ -3919,6 +3913,9 @@
 #
 # @errno: error identifier (errno) to be returned; defaults to EIO
 #
+# @delay-ns: request delay before completion in nanoseconds
+#            (default: 0, since: 11.1)
+#
 # @sector: specifies the sector index which has to be affected in
 #     order to actually trigger the event; defaults to "any sector"
 #
@@ -3934,6 +3931,7 @@
             '*state': 'int',
             '*iotype': 'BlkdebugIOType',
             '*errno': 'int',
+            '*delay-ns': 'int',
             '*sector': 'int',
             '*once': 'bool',
             '*immediately': 'bool' } }
@@ -4113,30 +4111,6 @@
             'vote-threshold': 'int',
             '*rewrite-corrupted': 'bool',
             '*read-pattern': 'QuorumReadPattern' } }
-
-##
-# @BlockdevOptionsGluster:
-#
-# Driver specific block device options for Gluster
-#
-# @volume: name of gluster volume where VM image resides
-#
-# @path: absolute path to image file in gluster volume
-#
-# @server: gluster servers description
-#
-# @debug: libgfapi log level (default '4' which is Error) (Since 2.8)
-#
-# @logfile: libgfapi log file (default /dev/stderr) (Since 2.8)
-#
-# Since: 2.9
-##
-{ 'struct': 'BlockdevOptionsGluster',
-  'data': { 'volume': 'str',
-            'path': 'str',
-            'server': ['SocketAddress'],
-            '*debug': 'int',
-            '*logfile': 'str' } }
 
 ##
 # @BlockdevOptionsIoUring:
@@ -4871,7 +4845,6 @@
       'file':       'BlockdevOptionsFile',
       'ftp':        'BlockdevOptionsCurlFtp',
       'ftps':       'BlockdevOptionsCurlFtps',
-      'gluster':    'BlockdevOptionsGluster',
       'host_cdrom':  { 'type': 'BlockdevOptionsFile',
                        'if': 'HAVE_HOST_BLOCK_DEVICE' },
       'host_device': { 'type': 'BlockdevOptionsFile',
@@ -5141,26 +5114,6 @@
             '*preallocation':       'PreallocMode',
             '*nocow':               'bool',
             '*extent-size-hint':    'size'} }
-
-##
-# @BlockdevCreateOptionsGluster:
-#
-# Driver specific image creation options for gluster.
-#
-# @location: Where to store the new image file
-#
-# @size: Size of the virtual disk in bytes
-#
-# @preallocation: Preallocation mode for the new image (default: off;
-#     allowed values: off, falloc (if CONFIG_GLUSTERFS_FALLOCATE),
-#     full (if CONFIG_GLUSTERFS_ZEROFILL))
-#
-# Since: 2.12
-##
-{ 'struct': 'BlockdevCreateOptionsGluster',
-  'data': { 'location':         'BlockdevOptionsGluster',
-            'size':             'size',
-            '*preallocation':   'PreallocMode' } }
 
 ##
 # @BlockdevCreateOptionsLUKS:
@@ -5589,7 +5542,6 @@
   'discriminator': 'driver',
   'data': {
       'file':           'BlockdevCreateOptionsFile',
-      'gluster':        'BlockdevCreateOptionsGluster',
       'luks':           'BlockdevCreateOptionsLUKS',
       'nfs':            'BlockdevCreateOptionsNfs',
       'parallels':      'BlockdevCreateOptionsParallels',
