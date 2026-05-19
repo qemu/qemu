@@ -74,7 +74,7 @@ static void initialize_debug_host(CPUDebug *s)
     s->info.print_insn = print_insn_little_mips;
 #elif defined(__m68k__)
     s->info.print_insn = print_insn_m68k;
-#elif defined(__s390__)
+#elif defined(__s390x__)
     s->info.cap_arch = CS_ARCH_SYSZ;
     s->info.cap_insn_unit = 2;
     s->info.cap_insn_split = 6;

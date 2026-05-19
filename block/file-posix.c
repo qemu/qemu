@@ -79,7 +79,7 @@
 #include <linux/hdreg.h>
 #include <linux/magic.h>
 #include <scsi/sg.h>
-#ifdef __s390__
+#ifdef __s390x__
 #include <asm/dasd.h>
 #endif
 #ifndef FS_NOCOW_FL
