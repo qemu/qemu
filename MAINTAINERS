@@ -2973,7 +2973,7 @@ M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
-F: hw/s390x/storage-keys.h
+F: include/hw/s390x/storage-keys.h
 F: hw/s390x/s390-skeys*.c
 L: qemu-s390x@nongnu.org
 
@@ -2982,7 +2982,7 @@ M: Halil Pasic <pasic@linux.ibm.com>
 M: Christian Borntraeger <borntraeger@linux.ibm.com>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
-F: hw/s390x/storage-attributes.h
+F: include/hw/s390x/storage-attributes.h
 F: hw/s390x/s390-stattrib*.c
 L: qemu-s390x@nongnu.org
 
