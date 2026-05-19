@@ -2475,6 +2475,16 @@ void tcg_gen_concat_i64_i128(TCGv_i128 ret, TCGv_i64 lo, TCGv_i64 hi)
     tcg_gen_mov_i64(TCGV128_HIGH(ret), hi);
 }
 
+TCGv_i128 tcg_zero_i128(void)
+{
+    TCGv_i64 zero64 = tcg_constant_i64(0);
+    TCGv_i128 zero128 = tcg_temp_new_i128();
+
+    tcg_gen_concat_i64_i128(zero128, zero64, zero64);
+
+    return zero128;
+}
+
 void tcg_gen_mov_i128(TCGv_i128 dst, TCGv_i128 src)
 {
     if (dst != src) {
