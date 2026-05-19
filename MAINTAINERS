@@ -3259,7 +3259,7 @@ F: util/qemu-option.c
 Coverity model
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
-F: scripts/coverity-model.c
+F: scripts/coverity-scan/model.c
 
 Coverity Scan integration
 M: Peter Maydell <peter.maydell@linaro.org>
