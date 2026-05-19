@@ -24,6 +24,7 @@
 /* cpr state container for all information to be saved. */
 
 CprState cpr_state;
+static GHashTable *cpr_fds_hash;
 
 /****************************************************************************/
 
@@ -48,6 +49,84 @@ static const VMStateDescription vmstate_cpr_fd = {
     }
 };
 
+static guint cpr_fd_hash(gconstpointer v)
+{
+    const CprFd *elem = v;
+
+    return g_str_hash(elem->name) ^ elem->id;
+}
+
+static gboolean cpr_fd_equal(gconstpointer a, gconstpointer b)
+{
+    const CprFd *elem_a = a;
+    const CprFd *elem_b = b;
+
+    return !strcmp(elem_a->name, elem_b->name) && elem_a->id == elem_b->id;
+}
+
+static void cpr_fd_destroy(gpointer data)
+{
+    CprFd *elem = data;
+
+    g_free(elem->name);
+    g_free(elem);
+}
+
+static GHashTable *get_cpr_fds_hash(void)
+{
+    if (!cpr_fds_hash) {
+        cpr_fds_hash = g_hash_table_new_full(cpr_fd_hash, cpr_fd_equal,
+                                             cpr_fd_destroy, NULL);
+    }
+
+    return cpr_fds_hash;
+}
+
+static void cpr_fd_hash_insert(CprFd *elem)
+{
+    /* Use the same CprFd as key and value. */
+    g_hash_table_insert(get_cpr_fds_hash(), elem, elem);
+}
+
+static int cpr_fd_pre_save(void *opaque)
+{
+    CprState *state = (CprState *)opaque;
+    GHashTableIter iter;
+    CprFd *elem;
+
+    QLIST_INIT(&state->fds);
+
+    g_hash_table_iter_init(&iter, get_cpr_fds_hash());
+    while (g_hash_table_iter_next(&iter, (gpointer *)&elem, NULL)) {
+        QLIST_INSERT_HEAD(&state->fds, elem, next);
+    }
+
+    return 0;
+}
+
+static int cpr_fd_post_load(void *opaque, int version_id)
+{
+    CprState *state = (CprState *)opaque;
+    CprFd *elem;
+
+    while ((elem = QLIST_FIRST(&state->fds))) {
+        QLIST_REMOVE(elem, next);
+
+        /*
+         * Preserve legacy QLIST lookup semantics if duplicate keys exist in
+         * the incoming stream: the first matching entry wins.
+         */
+        if (g_hash_table_contains(get_cpr_fds_hash(), elem)) {
+            cpr_fd_destroy(elem);
+            continue;
+        }
+
+        cpr_fd_hash_insert(elem);
+    }
+
+    return 0;
+}
+
 void cpr_save_fd(const char *name, int id, int fd)
 {
     CprFd *elem = g_new0(CprFd, 1);
@@ -57,37 +136,34 @@ void cpr_save_fd(const char *name, int id, int fd)
     elem->namelen = strlen(name) + 1;
     elem->id = id;
     elem->fd = fd;
-    QLIST_INSERT_HEAD(&cpr_state.fds, elem, next);
+    cpr_fd_hash_insert(elem);
 }
 
-static CprFd *find_fd(CprFdList *head, const char *name, int id)
+static CprFd *find_fd(const char *name, int id)
 {
-    CprFd *elem;
+    CprFd key = {
+        .name = (char *)name,
+        .id = id,
+    };
 
-    QLIST_FOREACH(elem, head, next) {
-        if (!strcmp(elem->name, name) && elem->id == id) {
-            return elem;
-        }
-    }
-    return NULL;
+    return g_hash_table_lookup(get_cpr_fds_hash(), &key);
 }
 
 void cpr_delete_fd(const char *name, int id)
 {
-    CprFd *elem = find_fd(&cpr_state.fds, name, id);
+    CprFd key = {
+        .name = (char *)name,
+        .id = id,
+    };
 
-    if (elem) {
-        QLIST_REMOVE(elem, next);
-        g_free(elem->name);
-        g_free(elem);
-    }
+    g_hash_table_remove(get_cpr_fds_hash(), &key);
 
     trace_cpr_delete_fd(name, id);
 }
 
 int cpr_find_fd(const char *name, int id)
 {
-    CprFd *elem = find_fd(&cpr_state.fds, name, id);
+    CprFd *elem = find_fd(name, id);
     int fd = elem ? elem->fd : -1;
 
     trace_cpr_find_fd(name, id, fd);
@@ -96,7 +172,7 @@ int cpr_find_fd(const char *name, int id)
 
 void cpr_resave_fd(const char *name, int id, int fd)
 {
-    CprFd *elem = find_fd(&cpr_state.fds, name, id);
+    CprFd *elem = find_fd(name, id);
     int old_fd = elem ? elem->fd : -1;
 
     if (old_fd < 0) {
@@ -125,9 +201,11 @@ int cpr_open_fd(const char *path, int flags, const char *name, int id,
 
 bool cpr_walk_fd(cpr_walk_fd_cb cb)
 {
+    GHashTableIter iter;
     CprFd *elem;
 
-    QLIST_FOREACH(elem, &cpr_state.fds, next) {
+    g_hash_table_iter_init(&iter, get_cpr_fds_hash());
+    while (g_hash_table_iter_next(&iter, (gpointer *)&elem, NULL)) {
         g_assert(elem->fd >= 0);
         if (!cb(elem->fd)) {
             return false;
@@ -141,6 +219,8 @@ static const VMStateDescription vmstate_cpr_state = {
     .name = CPR_STATE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = cpr_fd_pre_save,
+    .post_load = cpr_fd_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_QLIST_V(fds, CprState, 1, vmstate_cpr_fd, CprFd, next),
         VMSTATE_END_OF_LIST()
