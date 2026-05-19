@@ -499,6 +499,8 @@ const FloatFmt float8_e4m3_params = {
 
 /* 110 << frac_shift, with the implicit bit set */
 #define E4M3_NORMAL_FRAC_MAX  0xe000000000000000ull
+/* 111 << frac_shift, no implicit bit */
+#define E4M3_NAN_FRAC         0x7000000000000000ull
 
 const FloatFmt float8_e5m2_params = {
     FLOAT_PARAMS(5, 2)

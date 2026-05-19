@@ -278,11 +278,16 @@ static void partsN(uncanon_e4m3_overflow)(FloatPartsN *p, float_status *s,
                                           const FloatFmt *fmt, bool saturate)
 {
     assert(N == 64);
+    p->exp = fmt->exp_max;
     if (saturate) {
-        p->exp = fmt->exp_max;
         p->frac_hi = E4M3_NORMAL_FRAC_MAX;
     } else {
-        *p = partsN(default_nan)(s);
+        /*
+         * The class isn't actually used after this point in uncanon,
+         * but for clarity while debugging, don't leave it set to normal.
+         */
+        p->cls = float_class_qnan;
+        p->frac_hi = E4M3_NAN_FRAC;
     }
 }
 
@@ -507,9 +512,24 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
             return;
         case float_class_qnan:
         case float_class_snan:
-            assert(fmt->exp_max_kind != float_expmax_normal);
             p->exp = fmt->exp_max;
-            fracN(shr)(p, fmt->frac_shift);
+            switch (fmt->exp_max_kind) {
+            case float_expmax_e4m3:
+                /*
+                 * There is only one NaN encoding for E4M3, and with a
+                 * conversion from another format, the input NaN fraction
+                 * may not apply.
+                 */
+                assert(N == 64);
+                p->frac_hi = E4M3_NAN_FRAC;
+                /* fall through */
+            case float_expmax_ieee:
+                fracN(shr)(p, fmt->frac_shift);
+                break;
+            case float_expmax_normal:
+            default:
+                g_assert_not_reached();
+            }
             return;
         default:
             break;
