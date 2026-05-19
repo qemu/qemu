@@ -104,6 +104,11 @@ static inline bool get_float_rebias_underflow(const float_status *status)
     return status->rebias_underflow;
 }
 
+static inline bool get_float_e4m3_nan_is_snan(const float_status *status)
+{
+    return status->e4m3_nan_is_snan;
+}
+
 /*----------------------------------------------------------------------------
 | For the deconstructed floating-point with fraction FRAC, return true
 | if the fraction represents a signalling NaN; otherwise false.

@@ -246,7 +246,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
         case float_expmax_e4m3:
             if (p->frac_hi == 0b111) {
                 fracN(shl)(p, fmt->frac_shift);
-                p->cls = (parts_is_snan_frac(p->frac_hi, status)
+                p->cls = (get_float_e4m3_nan_is_snan(status)
                           ? float_class_snan : float_class_qnan);
                 return;
             }

@@ -431,6 +431,11 @@ typedef struct float_status {
     /* do we detect and flush denormal results before or after rounding? */
     bool ftz_before_rounding : 1;
     FloatSNaNRule float_snan_rule : 2;
+    /*
+     * Overriding float_snan_rule, is the single NaN representation for
+     * the OCP E4M3 format an SNaN or QNaN?
+     */
+    bool e4m3_nan_is_snan : 1;
     Float2NaNPropRule float_2nan_prop_rule : 3;
     Float3NaNPropRule float_3nan_prop_rule : 7;
     FloatInfZeroNaNRule float_infzeronan_rule: 3;

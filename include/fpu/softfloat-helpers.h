@@ -131,6 +131,11 @@ static inline void set_snan_rule(FloatSNaNRule val, float_status *status)
     status->float_snan_rule = val;
 }
 
+static inline void set_float_e4m3_nan_is_snan(bool val, float_status *status)
+{
+    status->e4m3_nan_is_snan = val;
+}
+
 static inline void set_float_rebias_overflow(bool val, float_status *status)
 {
     status->rebias_overflow = val;
