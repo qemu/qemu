@@ -159,7 +159,6 @@ static int microvm_ioapics(MicrovmMachineState *mms)
 
 static void microvm_devices_init(MicrovmMachineState *mms)
 {
-    const char *default_firmware;
     X86MachineState *x86ms = X86_MACHINE(mms);
     ISABus *isa_bus;
     GSIState *gsi_state;
@@ -276,10 +275,12 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         serial_hds_isa_init(isa_bus, 0, 1);
     }
 
-    default_firmware = x86_machine_is_acpi_enabled(x86ms)
-            ? MICROVM_BIOS_FILENAME
-            : MICROVM_QBOOT_FILENAME;
-    x86_bios_rom_init(x86ms, default_firmware, get_system_memory(), true);
+    if (!x86ms->igvm) {
+        const char *default_firmware = x86_machine_is_acpi_enabled(x86ms)
+                ? MICROVM_BIOS_FILENAME
+                : MICROVM_QBOOT_FILENAME;
+        x86_bios_rom_init(x86ms, default_firmware, get_system_memory(), true);
+    }
 }
 
 static void microvm_memory_init(MicrovmMachineState *mms)
@@ -717,6 +718,16 @@ static void microvm_class_init(ObjectClass *oc, const void *data)
 
     compat_props_add(mc->compat_props, microvm_properties,
                      G_N_ELEMENTS(microvm_properties));
+
+#if defined(CONFIG_IGVM)
+    object_class_property_add_link(oc, "igvm-cfg",
+                                   TYPE_IGVM_CFG,
+                                   offsetof(X86MachineState, igvm),
+                                   object_property_allow_set_link,
+                                   OBJ_PROP_LINK_STRONG);
+    object_class_property_set_description(oc, "igvm-cfg",
+                                          "Set IGVM configuration");
+#endif
 }
 
 static const TypeInfo microvm_machine_info = {
