@@ -41,6 +41,9 @@ static const int elroy_hpa_offsets[ELROY_NUM] = {
 static const char elroy_rope_nr[ELROY_NUM] = {
             0, 1, 4, 6 }; /* busnum path, e.g. [10:6] */
 
+/* Astro version numbers */
+enum { ID_ASTRO_1_0 = 0, ID_ASTRO_2_1 = 9, ID_ASTRO_3_0 = 2 };
+
 /*
  * Helper functions
  */
@@ -738,7 +741,7 @@ static MemTxResult astro_chip_read_with_attrs(void *opaque, hwaddr addr,
     switch ((addr >> 3) << 3) {
     /* R2I registers */
     case 0x0000:        /* ID */
-        val = (0x01 << 3) | 0x01ULL;
+        val = ID_ASTRO_2_1;
         break;
     case 0x0008:        /* IOC_CTRL */
         val = s->ioc_ctrl;
