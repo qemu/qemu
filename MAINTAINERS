@@ -4171,7 +4171,7 @@ F: disas/riscv*.[ch]
 S390 TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
-F: tcg/s390/
+F: tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SPARC TCG target
