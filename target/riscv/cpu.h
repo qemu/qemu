@@ -259,7 +259,7 @@ struct CPUArchState {
     /* shadow stack register for zicfiss extension */
     uint64_t ssp;
     /* env place holder for extra word 2 during unwind */
-    target_ulong excp_uw2;
+    uint64_t excp_uw2;
     /* sw check code for sw check exception */
     target_ulong sw_check_code;
 #ifdef CONFIG_USER_ONLY
