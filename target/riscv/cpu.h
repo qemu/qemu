@@ -261,7 +261,7 @@ struct CPUArchState {
     /* env place holder for extra word 2 during unwind */
     uint64_t excp_uw2;
     /* sw check code for sw check exception */
-    target_ulong sw_check_code;
+    uint8_t sw_check_code;
 #ifdef CONFIG_USER_ONLY
     uint32_t elf_flags;
 #endif
