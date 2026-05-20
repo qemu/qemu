@@ -767,7 +767,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 }
 
 - (void) toggleKey: (int)keycode {
-    qkbd_state_key_event(kbd, keycode, !qkbd_state_key_get(kbd, keycode));
+    unsigned int lnx = qemu_input_map_qcode_to_linux[keycode];
+    qkbd_state_key_event(kbd, lnx, !qkbd_state_key_get(kbd, lnx));
 }
 
 // Does the work of sending input to the monitor
@@ -889,34 +890,62 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
      */
     if (!!(modifiers & NSEventModifierFlagCapsLock) !=
         qkbd_state_modifier_get(kbd, QKBD_MOD_CAPSLOCK)) {
-        qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, true);
-        qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, false);
+        qkbd_state_key_event(kbd,
+                             qemu_input_map_qcode_to_linux[Q_KEY_CODE_CAPS_LOCK],
+                             true);
+        qkbd_state_key_event(kbd,
+                             qemu_input_map_qcode_to_linux[Q_KEY_CODE_CAPS_LOCK],
+                             false);
     }
 
     if (!(modifiers & NSEventModifierFlagShift)) {
-        qkbd_state_key_event(kbd, Q_KEY_CODE_SHIFT, false);
-        qkbd_state_key_event(kbd, Q_KEY_CODE_SHIFT_R, false);
+        qkbd_state_key_event(kbd,
+                             qemu_input_map_qcode_to_linux[Q_KEY_CODE_SHIFT],
+                             false);
+        qkbd_state_key_event(kbd,
+                             qemu_input_map_qcode_to_linux[Q_KEY_CODE_SHIFT_R],
+                             false);
     }
     if (!(modifiers & NSEventModifierFlagControl)) {
-        qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL, false);
-        qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL_R, false);
+        qkbd_state_key_event(kbd,
+                             qemu_input_map_qcode_to_linux[Q_KEY_CODE_CTRL],
+                             false);
+        qkbd_state_key_event(kbd,
+                             qemu_input_map_qcode_to_linux[Q_KEY_CODE_CTRL_R],
+                             false);
     }
     if (!(modifiers & NSEventModifierFlagOption)) {
         if (swap_opt_cmd) {
-            qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
-            qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_META_L],
+                                 false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_META_R],
+                                 false);
         } else {
-            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
-            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_ALT],
+                                 false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_ALT_R],
+                                 false);
         }
     }
     if (!(modifiers & NSEventModifierFlagCommand)) {
         if (swap_opt_cmd) {
-            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
-            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_ALT],
+                                 false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_ALT_R],
+                                 false);
         } else {
-            qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
-            qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_META_L],
+                                 false);
+            qkbd_state_key_event(kbd,
+                                 qemu_input_map_qcode_to_linux[Q_KEY_CODE_META_R],
+                                 false);
         }
     }
 
@@ -1023,7 +1052,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             }
 
             if (qemu_console_is_graphic(dcl.con)) {
-                qkbd_state_key_event(kbd, keycode, true);
+                qkbd_state_key_event(kbd,
+                                     qemu_input_map_qcode_to_linux[keycode],
+                                     true);
             } else {
                 [self handleMonitorInput: event];
             }
@@ -1038,7 +1069,9 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
             }
 
             if (qemu_console_is_graphic(dcl.con)) {
-                qkbd_state_key_event(kbd, keycode, false);
+                qkbd_state_key_event(kbd,
+                                     qemu_input_map_qcode_to_linux[keycode],
+                                     false);
             }
             return true;
         case NSEventTypeScrollWheel:

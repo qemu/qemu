@@ -257,7 +257,8 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
         for (i = 0; i < keysym2code->count; i++) {
             QKeyCode qcode = qemu_input_key_number_to_qcode
                 (keysym2code->keycodes[i]);
-            if (kbd && qkbd_state_key_get(kbd, qcode)) {
+            unsigned int lnx = qemu_input_map_qcode_to_linux[qcode];
+            if (kbd && qkbd_state_key_get(kbd, lnx)) {
                 return keysym2code->keycodes[i];
             }
         }
