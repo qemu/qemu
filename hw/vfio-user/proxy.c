@@ -933,7 +933,7 @@ VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp)
     qemu_cond_init(&proxy->close_cv);
 
     if (vfio_user_iothread == NULL) {
-        vfio_user_iothread = iothread_create("VFIO user", errp);
+        vfio_user_iothread = iothread_create("vfio-user", errp);
     }
 
     proxy->ctx = iothread_get_aio_context(vfio_user_iothread);
