@@ -112,6 +112,7 @@ unaligned_pc: unaligned_pc.c
 
 # Compile for v66 so that the ELF selects a v66 CPU; the test then
 # exercises revision gating by executing a v68 .word instruction.
+run-check_rev_gating: QEMU_OPTS += -cpu v66
 check_rev_gating: check_rev_gating.c
 	$(CC) $(CFLAGS) -mv66 -O2 $< -o $@ $(LDFLAGS)
 
