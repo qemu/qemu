@@ -161,6 +161,30 @@ $QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG" "$TEST_IMG.copy"
 TEST_IMG="$TEST_IMG.copy" _img_info --format-specific \
     | _filter_irrelevant_img_info
 
+echo
+echo "=== Check --remove-all ==="
+echo
+
+# Start from a fresh image so prior state does not bleed into the assertions
+_rm_test_img "$TEST_IMG"
+_make_test_img 10M
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" b0
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" b1
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" b2
+_img_info --format-specific | _filter_irrelevant_img_info
+
+# Sweep every bitmap in a single command, no BITMAP positional
+echo
+$QEMU_IMG bitmap --remove-all -f $IMGFMT "$TEST_IMG"
+_img_info --format-specific | _filter_irrelevant_img_info
+
+# Wipe + recreate in one invocation: only 'fresh' should remain
+echo
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" b0
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" b1
+$QEMU_IMG bitmap --remove-all --add -f $IMGFMT "$TEST_IMG" fresh
+_img_info --format-specific | _filter_irrelevant_img_info
+
 # success, all done
 echo '*** done'
 rm -f $seq.full

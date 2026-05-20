@@ -301,14 +301,18 @@ Command description:
   For write tests, by default a buffer filled with zeros is written. This can be
   overridden with a pattern byte specified by *PATTERN*.
 
-.. option:: bitmap (--merge SOURCE | --add | --remove | --clear | --enable | --disable)... [-b SOURCE_FILE [-F SOURCE_FMT]] [-g GRANULARITY] [--object OBJECTDEF] [--image-opts | -f FMT] FILENAME BITMAP
+.. option:: bitmap (--merge SOURCE | --add | --remove | --remove-all | --clear | --enable | --disable)... [-b SOURCE_FILE [-F SOURCE_FMT]] [-g GRANULARITY] [--object OBJECTDEF] [--image-opts | -f FMT] FILENAME [BITMAP]
 
-  Perform one or more modifications of the persistent bitmap *BITMAP*
-  in the disk image *FILENAME*.  The various modifications are:
+  Perform one or more modifications of persistent bitmaps in the disk
+  image *FILENAME*.  Most operations require *BITMAP* to be specified;
+  ``--remove-all`` operates on all bitmaps and does not take *BITMAP*.
+  The various modifications are:
 
   ``--add`` to create *BITMAP*, enabled to record future edits.
 
   ``--remove`` to remove *BITMAP*.
+
+  ``--remove-all`` to remove all bitmaps.
 
   ``--clear`` to clear *BITMAP*.
 
