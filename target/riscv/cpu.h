@@ -193,7 +193,7 @@ FIELD(VTYPE, VSEW, 3, 3)
 FIELD(VTYPE, VTA, 6, 1)
 FIELD(VTYPE, VMA, 7, 1)
 FIELD(VTYPE, ALTFMT, 8, 1)
-FIELD(VTYPE, RESERVED, 9, sizeof(target_ulong) * 8 - 10)
+FIELD(VTYPE, RESERVED, 9, sizeof(uint64_t) * 8 - 10)
 
 typedef struct PMUCTRState {
     /* Current value of a counter */
@@ -219,11 +219,11 @@ struct CPUArchState {
 
     /* vector coprocessor state. */
     uint64_t vreg[32 * RV_VLEN_MAX / 64] QEMU_ALIGNED(16);
-    target_ulong vxrm;
-    target_ulong vxsat;
-    target_ulong vl;
-    target_ulong vstart;
-    target_ulong vtype;
+    uint64_t vtype;
+    uint32_t vl;
+    uint32_t vstart;
+    uint8_t vxrm;
+    uint8_t vxsat;
     bool vill;
 
     target_ulong pc;

@@ -38,8 +38,9 @@
 #include "tcg/tcg-cpu.h"
 
 /* global register indices */
-static TCGv cpu_gpr[32], cpu_gprh[32], cpu_pc, cpu_vl, cpu_vstart;
+static TCGv cpu_gpr[32], cpu_gprh[32], cpu_pc;
 static TCGv_i64 cpu_fpr[32]; /* assume F and D extensions */
+static TCGv_i32 cpu_vl, cpu_vstart;
 static TCGv load_res;
 static TCGv load_val;
 
@@ -1480,6 +1481,10 @@ void riscv_translate_init(void)
     size_t field_offset = 0;
 #endif
 
+    /* 32 bits in size, no offset needed */
+    size_t vl_offset = offsetof(CPURISCVState, vl);
+    size_t vstart_offset = offsetof(CPURISCVState, vstart);
+
     for (i = 1; i < 32; i++) {
         cpu_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPURISCVState, gpr[i]) + field_offset,
@@ -1495,9 +1500,8 @@ void riscv_translate_init(void)
     }
 
     cpu_pc = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, pc), "pc");
-    cpu_vl = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, vl), "vl");
-    cpu_vstart = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, vstart),
-                            "vstart");
+    cpu_vl = tcg_global_mem_new_i32(tcg_env, vl_offset, "vl");
+    cpu_vstart = tcg_global_mem_new_i32(tcg_env, vstart_offset, "vstart");
     load_res = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, load_res),
                              "load_res");
     load_val = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, load_val),

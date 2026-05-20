@@ -285,7 +285,7 @@ vext_continuous_ldst_host(CPURISCVState *env, vext_ldst_elem_fn_host *ldst_host,
     }
 }
 
-static void vext_set_tail_elems_1s(target_ulong vl, void *vd,
+static void vext_set_tail_elems_1s(uint32_t vl, void *vd,
                                    uint32_t desc, uint32_t nf,
                                    uint32_t esz, uint32_t max_elems)
 {
@@ -387,6 +387,12 @@ vext_page_ldst_us(CPURISCVState *env, void *vd, target_ulong addr,
     uint32_t size = (elems * nf) << log2_esz;
     uint32_t evl = env->vstart + elems;
     MMUAccessType access_type = is_load ? MMU_DATA_LOAD : MMU_DATA_STORE;
+
+    /*
+     * Maximum vector length is VLMAX == 2^16 == LMUL * VL / SEW, and
+     * occurs for LMUL == 8, SEW == 8, VL == 2^16.
+     */
+    g_assert(env->vstart < UINT16_MAX && UINT16_MAX - env->vstart >= elems);
 
     /* Check page permission/pmp/watchpoint/etc. */
     probe_pages(env, addr, size, ra, access_type, mmu_index, &host, &flags,
@@ -2224,12 +2230,12 @@ GEN_VEXT_VMERGE_VX(vmerge_vxm_d, int64_t, H8)
  * define common macros for fixed point here.
  */
 typedef void opivv2_rm_fn(void *vd, void *vs1, void *vs2, int i,
-                          CPURISCVState *env, int vxrm);
+                          CPURISCVState *env, uint8_t vxrm);
 
 #define OPIVV2_RM(NAME, TD, T1, T2, TX1, TX2, HD, HS1, HS2, OP)     \
 static inline void                                                  \
 do_##NAME(void *vd, void *vs1, void *vs2, int i,                    \
-          CPURISCVState *env, int vxrm)                             \
+          CPURISCVState *env, uint8_t vxrm)                         \
 {                                                                   \
     TX1 s1 = *((T1 *)vs1 + HS1(i));                                 \
     TX2 s2 = *((T2 *)vs2 + HS2(i));                                 \
@@ -2239,7 +2245,7 @@ do_##NAME(void *vd, void *vs1, void *vs2, int i,                    \
 static inline void
 vext_vv_rm_1(void *vd, void *v0, void *vs1, void *vs2,
              CPURISCVState *env,
-             uint32_t vl, uint32_t vm, int vxrm,
+             uint32_t vl, uint32_t vm, uint8_t vxrm,
              opivv2_rm_fn *fn, uint32_t vma, uint32_t esz)
 {
     for (uint32_t i = env->vstart; i < vl; i++) {
@@ -2298,7 +2304,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,     \
                  do_##NAME, ESZ);                               \
 }
 
-static inline uint8_t saddu8(CPURISCVState *env, int vxrm, uint8_t a,
+static inline uint8_t saddu8(CPURISCVState *env, uint8_t vxrm, uint8_t a,
                              uint8_t b)
 {
     uint8_t res = a + b;
@@ -2309,7 +2315,7 @@ static inline uint8_t saddu8(CPURISCVState *env, int vxrm, uint8_t a,
     return res;
 }
 
-static inline uint16_t saddu16(CPURISCVState *env, int vxrm, uint16_t a,
+static inline uint16_t saddu16(CPURISCVState *env, uint8_t vxrm, uint16_t a,
                                uint16_t b)
 {
     uint16_t res = a + b;
@@ -2320,7 +2326,7 @@ static inline uint16_t saddu16(CPURISCVState *env, int vxrm, uint16_t a,
     return res;
 }
 
-static inline uint32_t saddu32(CPURISCVState *env, int vxrm, uint32_t a,
+static inline uint32_t saddu32(CPURISCVState *env, uint8_t vxrm, uint32_t a,
                                uint32_t b)
 {
     uint32_t res = a + b;
@@ -2331,7 +2337,7 @@ static inline uint32_t saddu32(CPURISCVState *env, int vxrm, uint32_t a,
     return res;
 }
 
-static inline uint64_t saddu64(CPURISCVState *env, int vxrm, uint64_t a,
+static inline uint64_t saddu64(CPURISCVState *env, uint8_t vxrm, uint64_t a,
                                uint64_t b)
 {
     uint64_t res = a + b;
@@ -2352,12 +2358,12 @@ GEN_VEXT_VV_RM(vsaddu_vv_w, 4)
 GEN_VEXT_VV_RM(vsaddu_vv_d, 8)
 
 typedef void opivx2_rm_fn(void *vd, target_long s1, void *vs2, int i,
-                          CPURISCVState *env, int vxrm);
+                          CPURISCVState *env, uint8_t vxrm);
 
 #define OPIVX2_RM(NAME, TD, T1, T2, TX1, TX2, HD, HS2, OP)          \
 static inline void                                                  \
 do_##NAME(void *vd, target_long s1, void *vs2, int i,               \
-          CPURISCVState *env, int vxrm)                             \
+          CPURISCVState *env, uint8_t vxrm)                         \
 {                                                                   \
     TX2 s2 = *((T2 *)vs2 + HS2(i));                                 \
     *((TD *)vd + HD(i)) = OP(env, vxrm, s2, (TX1)(T1)s1);           \
@@ -2366,7 +2372,7 @@ do_##NAME(void *vd, target_long s1, void *vs2, int i,               \
 static inline void
 vext_vx_rm_1(void *vd, void *v0, target_long s1, void *vs2,
              CPURISCVState *env,
-             uint32_t vl, uint32_t vm, int vxrm,
+             uint32_t vl, uint32_t vm, uint8_t vxrm,
              opivx2_rm_fn *fn, uint32_t vma, uint32_t esz)
 {
     for (uint32_t i = env->vstart; i < vl; i++) {
@@ -2435,7 +2441,8 @@ GEN_VEXT_VX_RM(vsaddu_vx_h, 2)
 GEN_VEXT_VX_RM(vsaddu_vx_w, 4)
 GEN_VEXT_VX_RM(vsaddu_vx_d, 8)
 
-static inline int8_t sadd8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
+static inline int8_t sadd8(CPURISCVState *env, uint8_t vxrm, int8_t a,
+                           int8_t b)
 {
     int8_t res = a + b;
     if ((res ^ a) & (res ^ b) & INT8_MIN) {
@@ -2445,7 +2452,7 @@ static inline int8_t sadd8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
     return res;
 }
 
-static inline int16_t sadd16(CPURISCVState *env, int vxrm, int16_t a,
+static inline int16_t sadd16(CPURISCVState *env, uint8_t vxrm, int16_t a,
                              int16_t b)
 {
     int16_t res = a + b;
@@ -2456,7 +2463,7 @@ static inline int16_t sadd16(CPURISCVState *env, int vxrm, int16_t a,
     return res;
 }
 
-static inline int32_t sadd32(CPURISCVState *env, int vxrm, int32_t a,
+static inline int32_t sadd32(CPURISCVState *env, uint8_t vxrm, int32_t a,
                              int32_t b)
 {
     int32_t res = a + b;
@@ -2467,7 +2474,7 @@ static inline int32_t sadd32(CPURISCVState *env, int vxrm, int32_t a,
     return res;
 }
 
-static inline int64_t sadd64(CPURISCVState *env, int vxrm, int64_t a,
+static inline int64_t sadd64(CPURISCVState *env, uint8_t vxrm, int64_t a,
                              int64_t b)
 {
     int64_t res = a + b;
@@ -2496,7 +2503,7 @@ GEN_VEXT_VX_RM(vsadd_vx_h, 2)
 GEN_VEXT_VX_RM(vsadd_vx_w, 4)
 GEN_VEXT_VX_RM(vsadd_vx_d, 8)
 
-static inline uint8_t ssubu8(CPURISCVState *env, int vxrm, uint8_t a,
+static inline uint8_t ssubu8(CPURISCVState *env, uint8_t vxrm, uint8_t a,
                              uint8_t b)
 {
     uint8_t res = a - b;
@@ -2507,7 +2514,7 @@ static inline uint8_t ssubu8(CPURISCVState *env, int vxrm, uint8_t a,
     return res;
 }
 
-static inline uint16_t ssubu16(CPURISCVState *env, int vxrm, uint16_t a,
+static inline uint16_t ssubu16(CPURISCVState *env, uint8_t vxrm, uint16_t a,
                                uint16_t b)
 {
     uint16_t res = a - b;
@@ -2518,7 +2525,7 @@ static inline uint16_t ssubu16(CPURISCVState *env, int vxrm, uint16_t a,
     return res;
 }
 
-static inline uint32_t ssubu32(CPURISCVState *env, int vxrm, uint32_t a,
+static inline uint32_t ssubu32(CPURISCVState *env, uint8_t vxrm, uint32_t a,
                                uint32_t b)
 {
     uint32_t res = a - b;
@@ -2529,7 +2536,7 @@ static inline uint32_t ssubu32(CPURISCVState *env, int vxrm, uint32_t a,
     return res;
 }
 
-static inline uint64_t ssubu64(CPURISCVState *env, int vxrm, uint64_t a,
+static inline uint64_t ssubu64(CPURISCVState *env, uint8_t vxrm, uint64_t a,
                                uint64_t b)
 {
     uint64_t res = a - b;
@@ -2558,7 +2565,8 @@ GEN_VEXT_VX_RM(vssubu_vx_h, 2)
 GEN_VEXT_VX_RM(vssubu_vx_w, 4)
 GEN_VEXT_VX_RM(vssubu_vx_d, 8)
 
-static inline int8_t ssub8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
+static inline int8_t ssub8(CPURISCVState *env, uint8_t vxrm, int8_t a,
+                           int8_t b)
 {
     int8_t res = a - b;
     if ((res ^ a) & (a ^ b) & INT8_MIN) {
@@ -2568,7 +2576,7 @@ static inline int8_t ssub8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
     return res;
 }
 
-static inline int16_t ssub16(CPURISCVState *env, int vxrm, int16_t a,
+static inline int16_t ssub16(CPURISCVState *env, uint8_t vxrm, int16_t a,
                              int16_t b)
 {
     int16_t res = a - b;
@@ -2579,7 +2587,7 @@ static inline int16_t ssub16(CPURISCVState *env, int vxrm, int16_t a,
     return res;
 }
 
-static inline int32_t ssub32(CPURISCVState *env, int vxrm, int32_t a,
+static inline int32_t ssub32(CPURISCVState *env, uint8_t vxrm, int32_t a,
                              int32_t b)
 {
     int32_t res = a - b;
@@ -2590,7 +2598,7 @@ static inline int32_t ssub32(CPURISCVState *env, int vxrm, int32_t a,
     return res;
 }
 
-static inline int64_t ssub64(CPURISCVState *env, int vxrm, int64_t a,
+static inline int64_t ssub64(CPURISCVState *env, uint8_t vxrm, int64_t a,
                              int64_t b)
 {
     int64_t res = a - b;
@@ -2620,7 +2628,7 @@ GEN_VEXT_VX_RM(vssub_vx_w, 4)
 GEN_VEXT_VX_RM(vssub_vx_d, 8)
 
 /* Vector Single-Width Averaging Add and Subtract */
-static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift)
+static inline uint8_t get_round(uint8_t vxrm, uint64_t v, uint8_t shift)
 {
     uint8_t d = extract64(v, shift, 1);
     uint8_t d1;
@@ -2632,22 +2640,30 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift)
 
     d1 = extract64(v, shift - 1, 1);
     D1 = extract64(v, 0, shift);
-    if (vxrm == 0) { /* round-to-nearest-up (add +0.5 LSB) */
+    switch (vxrm) {
+    case 0:
+        /* round-to-nearest-up (add +0.5 LSB) */
         return d1;
-    } else if (vxrm == 1) { /* round-to-nearest-even */
+    case 1:
+        /* round-to-nearest-even */
         if (shift > 1) {
             D2 = extract64(v, 0, shift - 1);
             return d1 & ((D2 != 0) | d);
         } else {
             return d1 & d;
         }
-    } else if (vxrm == 3) { /* round-to-odd (OR bits into LSB, aka "jam") */
+    case 2:
+        /* round-down (truncate) */
+        return 0;
+    case 3:
+        /* round-to-odd (OR bits into LSB, aka "jam") */
         return !d & (D1 != 0);
+    default:
+        g_assert_not_reached();
     }
-    return 0; /* round-down (truncate) */
 }
 
-static inline int32_t aadd32(CPURISCVState *env, int vxrm, int32_t a,
+static inline int32_t aadd32(CPURISCVState *env, uint8_t vxrm, int32_t a,
                              int32_t b)
 {
     int64_t res = (int64_t)a + b;
@@ -2656,7 +2672,7 @@ static inline int32_t aadd32(CPURISCVState *env, int vxrm, int32_t a,
     return (res >> 1) + round;
 }
 
-static inline int64_t aadd64(CPURISCVState *env, int vxrm, int64_t a,
+static inline int64_t aadd64(CPURISCVState *env, uint8_t vxrm, int64_t a,
                              int64_t b)
 {
     int64_t res = a + b;
@@ -2685,7 +2701,7 @@ GEN_VEXT_VX_RM(vaadd_vx_h, 2)
 GEN_VEXT_VX_RM(vaadd_vx_w, 4)
 GEN_VEXT_VX_RM(vaadd_vx_d, 8)
 
-static inline uint32_t aaddu32(CPURISCVState *env, int vxrm,
+static inline uint32_t aaddu32(CPURISCVState *env, uint8_t vxrm,
                                uint32_t a, uint32_t b)
 {
     uint64_t res = (uint64_t)a + b;
@@ -2694,7 +2710,7 @@ static inline uint32_t aaddu32(CPURISCVState *env, int vxrm,
     return (res >> 1) + round;
 }
 
-static inline uint64_t aaddu64(CPURISCVState *env, int vxrm,
+static inline uint64_t aaddu64(CPURISCVState *env, uint8_t vxrm,
                                uint64_t a, uint64_t b)
 {
     uint64_t res = a + b;
@@ -2722,7 +2738,7 @@ GEN_VEXT_VX_RM(vaaddu_vx_h, 2)
 GEN_VEXT_VX_RM(vaaddu_vx_w, 4)
 GEN_VEXT_VX_RM(vaaddu_vx_d, 8)
 
-static inline int32_t asub32(CPURISCVState *env, int vxrm, int32_t a,
+static inline int32_t asub32(CPURISCVState *env, uint8_t vxrm, int32_t a,
                              int32_t b)
 {
     int64_t res = (int64_t)a - b;
@@ -2731,7 +2747,7 @@ static inline int32_t asub32(CPURISCVState *env, int vxrm, int32_t a,
     return (res >> 1) + round;
 }
 
-static inline int64_t asub64(CPURISCVState *env, int vxrm, int64_t a,
+static inline int64_t asub64(CPURISCVState *env, uint8_t vxrm, int64_t a,
                              int64_t b)
 {
     int64_t res = (int64_t)a - b;
@@ -2760,7 +2776,7 @@ GEN_VEXT_VX_RM(vasub_vx_h, 2)
 GEN_VEXT_VX_RM(vasub_vx_w, 4)
 GEN_VEXT_VX_RM(vasub_vx_d, 8)
 
-static inline uint32_t asubu32(CPURISCVState *env, int vxrm,
+static inline uint32_t asubu32(CPURISCVState *env, uint8_t vxrm,
                                uint32_t a, uint32_t b)
 {
     int64_t res = (int64_t)a - b;
@@ -2769,7 +2785,7 @@ static inline uint32_t asubu32(CPURISCVState *env, int vxrm,
     return (res >> 1) + round;
 }
 
-static inline uint64_t asubu64(CPURISCVState *env, int vxrm,
+static inline uint64_t asubu64(CPURISCVState *env, uint8_t vxrm,
                                uint64_t a, uint64_t b)
 {
     uint64_t res = (uint64_t)a - b;
@@ -2798,7 +2814,8 @@ GEN_VEXT_VX_RM(vasubu_vx_w, 4)
 GEN_VEXT_VX_RM(vasubu_vx_d, 8)
 
 /* Vector Single-Width Fractional Multiply with Rounding and Saturation */
-static inline int8_t vsmul8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
+static inline int8_t vsmul8(CPURISCVState *env, uint8_t vxrm, int8_t a,
+                            int8_t b)
 {
     uint8_t round;
     int16_t res;
@@ -2818,7 +2835,7 @@ static inline int8_t vsmul8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
     }
 }
 
-static int16_t vsmul16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
+static int16_t vsmul16(CPURISCVState *env, uint8_t vxrm, int16_t a, int16_t b)
 {
     uint8_t round;
     int32_t res;
@@ -2838,7 +2855,7 @@ static int16_t vsmul16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
     }
 }
 
-static int32_t vsmul32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+static int32_t vsmul32(CPURISCVState *env, uint8_t vxrm, int32_t a, int32_t b)
 {
     uint8_t round;
     int64_t res;
@@ -2858,7 +2875,7 @@ static int32_t vsmul32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
     }
 }
 
-static int64_t vsmul64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+static int64_t vsmul64(CPURISCVState *env, uint8_t vxrm, int64_t a, int64_t b)
 {
     uint8_t round;
     uint64_t hi_64, lo_64;
@@ -2906,7 +2923,7 @@ GEN_VEXT_VX_RM(vsmul_vx_d, 8)
 
 /* Vector Single-Width Scaling Shift Instructions */
 static inline uint8_t
-vssrl8(CPURISCVState *env, int vxrm, uint8_t a, uint8_t b)
+vssrl8(CPURISCVState *env, uint8_t vxrm, uint8_t a, uint8_t b)
 {
     uint8_t round, shift = b & 0x7;
     uint8_t res;
@@ -2916,7 +2933,7 @@ vssrl8(CPURISCVState *env, int vxrm, uint8_t a, uint8_t b)
     return res;
 }
 static inline uint16_t
-vssrl16(CPURISCVState *env, int vxrm, uint16_t a, uint16_t b)
+vssrl16(CPURISCVState *env, uint8_t vxrm, uint16_t a, uint16_t b)
 {
     uint8_t round, shift = b & 0xf;
 
@@ -2924,7 +2941,7 @@ vssrl16(CPURISCVState *env, int vxrm, uint16_t a, uint16_t b)
     return (a >> shift) + round;
 }
 static inline uint32_t
-vssrl32(CPURISCVState *env, int vxrm, uint32_t a, uint32_t b)
+vssrl32(CPURISCVState *env, uint8_t vxrm, uint32_t a, uint32_t b)
 {
     uint8_t round, shift = b & 0x1f;
 
@@ -2932,7 +2949,7 @@ vssrl32(CPURISCVState *env, int vxrm, uint32_t a, uint32_t b)
     return (a >> shift) + round;
 }
 static inline uint64_t
-vssrl64(CPURISCVState *env, int vxrm, uint64_t a, uint64_t b)
+vssrl64(CPURISCVState *env, uint8_t vxrm, uint64_t a, uint64_t b)
 {
     uint8_t round, shift = b & 0x3f;
 
@@ -2958,7 +2975,7 @@ GEN_VEXT_VX_RM(vssrl_vx_w, 4)
 GEN_VEXT_VX_RM(vssrl_vx_d, 8)
 
 static inline int8_t
-vssra8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
+vssra8(CPURISCVState *env, uint8_t vxrm, int8_t a, int8_t b)
 {
     uint8_t round, shift = b & 0x7;
 
@@ -2966,7 +2983,7 @@ vssra8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
     return (a >> shift) + round;
 }
 static inline int16_t
-vssra16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
+vssra16(CPURISCVState *env, uint8_t vxrm, int16_t a, int16_t b)
 {
     uint8_t round, shift = b & 0xf;
 
@@ -2974,7 +2991,7 @@ vssra16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
     return (a >> shift) + round;
 }
 static inline int32_t
-vssra32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+vssra32(CPURISCVState *env, uint8_t vxrm, int32_t a, int32_t b)
 {
     uint8_t round, shift = b & 0x1f;
 
@@ -2982,7 +2999,7 @@ vssra32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
     return (a >> shift) + round;
 }
 static inline int64_t
-vssra64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+vssra64(CPURISCVState *env, uint8_t vxrm, int64_t a, int64_t b)
 {
     uint8_t round, shift = b & 0x3f;
 
@@ -3010,7 +3027,7 @@ GEN_VEXT_VX_RM(vssra_vx_d, 8)
 
 /* Vector Narrowing Fixed-Point Clip Instructions */
 static inline int8_t
-vnclip8(CPURISCVState *env, int vxrm, int16_t a, int8_t b)
+vnclip8(CPURISCVState *env, uint8_t vxrm, int16_t a, int8_t b)
 {
     uint8_t round, shift = b & 0xf;
     int16_t res;
@@ -3029,7 +3046,7 @@ vnclip8(CPURISCVState *env, int vxrm, int16_t a, int8_t b)
 }
 
 static inline int16_t
-vnclip16(CPURISCVState *env, int vxrm, int32_t a, int16_t b)
+vnclip16(CPURISCVState *env, uint8_t vxrm, int32_t a, int16_t b)
 {
     uint8_t round, shift = b & 0x1f;
     int32_t res;
@@ -3048,7 +3065,7 @@ vnclip16(CPURISCVState *env, int vxrm, int32_t a, int16_t b)
 }
 
 static inline int32_t
-vnclip32(CPURISCVState *env, int vxrm, int64_t a, int32_t b)
+vnclip32(CPURISCVState *env, uint8_t vxrm, int64_t a, int32_t b)
 {
     uint8_t round, shift = b & 0x3f;
     int64_t res;
@@ -3081,7 +3098,7 @@ GEN_VEXT_VX_RM(vnclip_wx_h, 2)
 GEN_VEXT_VX_RM(vnclip_wx_w, 4)
 
 static inline uint8_t
-vnclipu8(CPURISCVState *env, int vxrm, uint16_t a, uint8_t b)
+vnclipu8(CPURISCVState *env, uint8_t vxrm, uint16_t a, uint8_t b)
 {
     uint8_t round, shift = b & 0xf;
     uint16_t res;
@@ -3097,7 +3114,7 @@ vnclipu8(CPURISCVState *env, int vxrm, uint16_t a, uint8_t b)
 }
 
 static inline uint16_t
-vnclipu16(CPURISCVState *env, int vxrm, uint32_t a, uint16_t b)
+vnclipu16(CPURISCVState *env, uint8_t vxrm, uint32_t a, uint16_t b)
 {
     uint8_t round, shift = b & 0x1f;
     uint32_t res;
@@ -3113,7 +3130,7 @@ vnclipu16(CPURISCVState *env, int vxrm, uint32_t a, uint16_t b)
 }
 
 static inline uint32_t
-vnclipu32(CPURISCVState *env, int vxrm, uint64_t a, uint32_t b)
+vnclipu32(CPURISCVState *env, uint8_t vxrm, uint64_t a, uint32_t b)
 {
     uint8_t round, shift = b & 0x3f;
     uint64_t res;

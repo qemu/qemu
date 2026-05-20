@@ -203,7 +203,7 @@ static bool do_vsetvl(DisasContext *s, int rd, int rs1, TCGv s2)
 
     if (rd == 0 && rs1 == 0) {
         s1 = tcg_temp_new();
-        tcg_gen_mov_tl(s1, cpu_vl);
+        tcg_gen_ext_i32_tl(s1, cpu_vl);
     } else if (rs1 == 0) {
         /* As the mask is at least one bit, RV_VLEN_MAX is >= VLMAX */
         s1 = tcg_constant_tl(RV_VLEN_MAX);
@@ -1213,9 +1213,9 @@ static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t nf,
                 tcg_gen_qemu_st_i64(t8, addr, s->mem_idx, MO_LEUQ | atomicity);
             }
             if (i == size - 8) {
-                tcg_gen_movi_tl(cpu_vstart, 0);
+                tcg_gen_movi_i32(cpu_vstart, 0);
             } else {
-                tcg_gen_addi_tl(cpu_vstart, cpu_vstart, 8 >> log2_esz);
+                tcg_gen_addi_i32(cpu_vstart, cpu_vstart, 8 >> log2_esz);
             }
         }
     } else {
@@ -2426,7 +2426,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
                            s->cfg_ptr->vlenb, data,                     \
                            (s->altfmt ? gen_helper_##BFA_HELPER :       \
                                         fns[s->sew - 1]));              \
-        tcg_gen_movi_tl(cpu_vstart, 0);                                 \
+        tcg_gen_movi_i32(cpu_vstart, 0);                                \
         finalize_rvv_inst(s);                                           \
                                                                         \
         return true;                                                    \
@@ -3641,7 +3641,7 @@ static bool trans_vmv_x_s(DisasContext *s, arg_vmv_x_s *a)
         vec_element_loadi(s, t1, a->rs2, 0, true);
         tcg_gen_trunc_i64_tl(dest, t1);
         gen_set_gpr(s, a->rd, dest);
-        tcg_gen_movi_tl(cpu_vstart, 0);
+        tcg_gen_movi_i32(cpu_vstart, 0);
         finalize_rvv_inst(s);
         return true;
     }
@@ -3658,7 +3658,7 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
         TCGv s1;
         TCGLabel *over = gen_new_label();
 
-        tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
+        tcg_gen_brcond_i32(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
 
         t1 = tcg_temp_new_i64();
 
@@ -3670,7 +3670,7 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
         tcg_gen_ext_tl_i64(t1, s1);
         vec_element_storei_tail(s, a->rd, t1);
         gen_set_label(over);
-        tcg_gen_movi_tl(cpu_vstart, 0);
+        tcg_gen_movi_i32(cpu_vstart, 0);
         finalize_rvv_inst(s);
         return true;
     }
@@ -3698,7 +3698,7 @@ static bool trans_vfmv_f_s(DisasContext *s, arg_vfmv_f_s *a)
         }
 
         mark_fs_dirty(s);
-        tcg_gen_movi_tl(cpu_vstart, 0);
+        tcg_gen_movi_i32(cpu_vstart, 0);
         finalize_rvv_inst(s);
         return true;
     }
@@ -3719,7 +3719,7 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
         TCGLabel *over = gen_new_label();
 
         /* if vstart >= vl, skip vector register write back */
-        tcg_gen_brcond_tl(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
+        tcg_gen_brcond_i32(TCG_COND_GEU, cpu_vstart, cpu_vl, over);
 
         /* NaN-box f[rs1] */
         t1 = tcg_temp_new_i64();
@@ -3728,7 +3728,7 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
         vec_element_storei_tail(s, a->rd, t1);
 
         gen_set_label(over);
-        tcg_gen_movi_tl(cpu_vstart, 0);
+        tcg_gen_movi_i32(cpu_vstart, 0);
         finalize_rvv_inst(s);
         return true;
     }
@@ -3793,7 +3793,7 @@ static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
                                                                         \
         fns[s->sew](dest, mask, src1, src2, tcg_env, desc);             \
                                                                         \
-        tcg_gen_movi_tl(cpu_vstart, 0);                                 \
+        tcg_gen_movi_i32(cpu_vstart, 0);                                \
         finalize_rvv_inst(s);                                           \
                                                                         \
         return true;                                                    \
