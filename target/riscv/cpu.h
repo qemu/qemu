@@ -229,12 +229,12 @@ typedef struct PMUCTRState {
 } PMUCTRState;
 
 typedef struct PMUFixedCtrState {
-        /* Track cycle and icount for each privilege mode */
-        uint64_t counter[4];
-        uint64_t counter_prev[4];
-        /* Track cycle and icount for each privilege mode when V = 1*/
-        uint64_t counter_virt[2];
-        uint64_t counter_virt_prev[2];
+    /* Track cycle and icount for each privilege mode */
+    uint64_t counter[4];
+    uint64_t counter_prev[4];
+    /* Track cycle and icount for each privilege mode when V = 1*/
+    uint64_t counter_virt[2];
+    uint64_t counter_virt_prev[2];
 } PMUFixedCtrState;
 
 struct CPUArchState {
