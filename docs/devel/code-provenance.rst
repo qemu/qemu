@@ -99,13 +99,13 @@ Other commit tags
 While the ``Signed-off-by`` tag is mandatory, there are a number of other tags
 that are commonly used during QEMU development:
 
- * **``Reviewed-by``**: when a QEMU community member reviews a patch on the
+ * **Reviewed-by**: when a QEMU community member reviews a patch on the
    mailing list, if they consider the patch acceptable, they should send an
    email reply containing a ``Reviewed-by`` tag. Subsystem maintainers who
    review a patch should add this even if they are also adding their
    ``Signed-off-by`` to the same commit.
 
- * **``Acked-by``**: when a QEMU subsystem maintainer approves a patch that
+ * **Acked-by**: when a QEMU subsystem maintainer approves a patch that
    touches their subsystem, but intends to allow a different maintainer to
    queue it and send a pull request, they would send a mail containing a
    ``Acked-by`` tag. Where a patch touches multiple subsystems, ``Acked-by``
@@ -113,18 +113,18 @@ that are commonly used during QEMU development:
    maintainer wants to indicate they have done a full review they should use
    a ``Reviewed-by`` tag.
 
- * **``Tested-by``**: when a QEMU community member has functionally tested the
+ * **Tested-by**: when a QEMU community member has functionally tested the
    behaviour of the patch in some manner, they should send an email reply
    containing a ``Tested-by`` tag.
 
- * **``Reported-by``**: when a QEMU community member reports a problem via the
+ * **Reported-by**: when a QEMU community member reports a problem via the
    mailing list, or some other informal channel that is not the issue tracker,
    it is good practice to credit them by including a ``Reported-by`` tag on
    any patch fixing the issue. When the problem is reported via the GitLab
    issue tracker, however, it is sufficient to just include a link to the
    issue.
 
- * **``Suggested-by``**: when a reviewer or other 3rd party makes non-trivial
+ * **Suggested-by**: when a reviewer or other 3rd party makes non-trivial
    suggestions for how to change a patch, it is good practice to credit them
    by including a ``Suggested-by`` tag.
 
