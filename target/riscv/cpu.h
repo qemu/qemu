@@ -905,7 +905,12 @@ RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env);
 RISCVPmPmm riscv_pm_get_vm_ldst_pmm(CPURISCVState *env);
 uint32_t riscv_pm_get_pmlen(RISCVPmPmm pmm);
 
-#include "target/riscv/csr.h"
+/*
+ * Externally facing CSR access functions, wrappers around riscv_csr*().
+ */
+
+RISCVException riscv_csr_write_i64(CPURISCVState *env, int csrno, uint64_t val);
+RISCVException riscv_csr_read_i64(CPURISCVState *env, int csrn, uint64_t *res);
 
 /*
  * The event id are encoded based on the encoding specified in the
