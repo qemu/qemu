@@ -9,7 +9,7 @@
  */
 
 /**
- * Reference Specs: https://www.jedec.org/, 4.0
+ * Reference Specs: https://www.jedec.org/, 4.1
  *
  * Usage
  * -----
@@ -29,8 +29,8 @@
 #include "trace.h"
 #include "ufs.h"
 
-/* The QEMU-UFS device follows spec version 4.0 */
-#define UFS_SPEC_VER 0x0400
+/* The QEMU-UFS device follows spec version 4.1 */
+#define UFS_SPEC_VER 0x0410
 #define UFS_MAX_NUTRS 32
 #define UFS_MAX_NUTMRS 8
 #define UFS_MCQ_QCFGPTR 2
@@ -375,7 +375,12 @@ static void ufs_process_uiccmd(UfsHc *u, uint32_t val)
         u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UTMRLRDY, 1);
         u->reg.ucmdarg2 = UFS_UIC_CMD_RESULT_SUCCESS;
         break;
-    /* TODO: Revisit it when Power Management is implemented */
+    /*
+     * TODO: Revisit after PM implementation
+     * Power Management is not supported in current QEMU-UFS,
+     * So Write Booster's Flush during Hibern8 operation is also remained
+     * as not considered.
+     */
     case UFS_UIC_CMD_DME_HIBER_ENTER:
         u->reg.is = FIELD_DP32(u->reg.is, IS, UHES, 1);
         u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UPMCRS, UFS_PWR_LOCAL);
@@ -940,6 +945,32 @@ static const MemoryRegionOps ufs_mmio_ops = {
     },
 };
 
+static void ufs_wb_update_ee_status(UfsHc *u, uint16_t *ee_status)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t curr_bytes = wb->curr_bytes - wb->pinned_curr_bytes;
+    uint64_t used_bytes = wb->used_bytes - wb->pinned_used_bytes;
+
+    if (curr_bytes != 0 && used_bytes >= curr_bytes) {
+        *ee_status |= MASK_EE_WB_FLUSH_NEEDED;
+    } else {
+        *ee_status &= ~MASK_EE_WB_FLUSH_NEEDED;
+    }
+
+    if (u->attributes.wb_buffer_resize_hint != UFS_WB_HINT_KEEP) {
+        *ee_status |= MASK_EE_WB_RESIZE_HINT;
+    } else {
+        *ee_status &= ~MASK_EE_WB_RESIZE_HINT;
+    }
+
+    if (wb->pinned_used_bytes != 0 &&
+        wb->pinned_used_bytes >= wb->pinned_curr_bytes) {
+        *ee_status |= MASK_EE_PINNED_WB_FULL;
+    } else {
+        *ee_status &= ~MASK_EE_PINNED_WB_FULL;
+    }
+}
+
 static void ufs_update_ee_status(UfsHc *u)
 {
     uint16_t ee_status = be16_to_cpu(u->attributes.exception_event_status);
@@ -957,6 +988,8 @@ static void ufs_update_ee_status(UfsHc *u)
     } else {
         ee_status &= ~MASK_EE_TOO_LOW_TEMP;
     }
+
+    ufs_wb_update_ee_status(u, &ee_status);
 
     u->attributes.exception_event_status = cpu_to_be16(ee_status);
 }
@@ -1064,10 +1097,16 @@ static const int flag_permission[UFS_QUERY_FLAG_IDN_COUNT] = {
     [UFS_QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL] = UFS_QUERY_FLAG_READ,
     [UFS_QUERY_FLAG_IDN_BUSY_RTC] = UFS_QUERY_FLAG_READ,
     [UFS_QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE] = UFS_QUERY_FLAG_READ,
-    /* Write Booster is not supported */
-    [UFS_QUERY_FLAG_IDN_WB_EN] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN] = UFS_QUERY_FLAG_READ,
+    [UFS_QUERY_FLAG_IDN_WB_EN] = UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET |
+                                 UFS_QUERY_FLAG_CLEAR | UFS_QUERY_FLAG_TOGGLE,
+    [UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN] =
+        UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET | UFS_QUERY_FLAG_CLEAR |
+        UFS_QUERY_FLAG_TOGGLE,
+    /* TODO: Revisit after PM implementation */
     [UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8] = UFS_QUERY_FLAG_READ,
+    [UFS_QUERY_FLAG_IDN_UNPIN_EN] = UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET |
+                                    UFS_QUERY_FLAG_CLEAR |
+                                    UFS_QUERY_FLAG_TOGGLE,
 };
 
 static inline QueryRespCode ufs_flag_check_idn_valid(uint8_t idn, int op)
@@ -1086,6 +1125,122 @@ static inline QueryRespCode ufs_flag_check_idn_valid(uint8_t idn, int op)
     }
 
     return UFS_QUERY_RESULT_SUCCESS;
+}
+
+static uint32_t ufs_read_flag_value(UfsHc *u, uint8_t idn)
+{
+    switch (idn) {
+    case UFS_QUERY_FLAG_IDN_FDEVICEINIT:
+        return u->flags.device_init;
+    case UFS_QUERY_FLAG_IDN_PERMANENT_WPE:
+        return u->flags.permanent_wp_en;
+    case UFS_QUERY_FLAG_IDN_PWR_ON_WPE:
+        return u->flags.power_on_wp_en;
+    case UFS_QUERY_FLAG_IDN_BKOPS_EN:
+        return u->flags.background_ops_en;
+    case UFS_QUERY_FLAG_IDN_LIFE_SPAN_MODE_ENABLE:
+        return u->flags.device_life_span_mode_en;
+    case UFS_QUERY_FLAG_IDN_PURGE_ENABLE:
+        return u->flags.purge_enable;
+    case UFS_QUERY_FLAG_IDN_REFRESH_ENABLE:
+        return u->flags.refresh_enable;
+    case UFS_QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL:
+        return u->flags.phy_resource_removal;
+    case UFS_QUERY_FLAG_IDN_BUSY_RTC:
+        return u->flags.busy_rtc;
+    case UFS_QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE:
+        return u->flags.permanently_disable_fw_update;
+    case UFS_QUERY_FLAG_IDN_WB_EN:
+        return u->flags.wb_en;
+    case UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN:
+        return u->flags.wb_buffer_flush_en;
+    case UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8:
+        return u->flags.wb_buffer_flush_during_hibernate;
+    case UFS_QUERY_FLAG_IDN_UNPIN_EN:
+        return u->flags.unpin_en;
+    default:
+        g_assert_not_reached();
+        return 0;
+    }
+}
+
+static QueryRespCode ufs_write_flag_value(UfsHc *u, uint8_t idn, uint8_t value)
+{
+    switch (idn) {
+    case UFS_QUERY_FLAG_IDN_FDEVICEINIT:
+        u->flags.device_init = 0;
+        break;
+    case UFS_QUERY_FLAG_IDN_PERMANENT_WPE:
+        u->flags.permanent_wp_en = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_PWR_ON_WPE:
+        u->flags.power_on_wp_en = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_BKOPS_EN:
+        u->flags.background_ops_en = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_LIFE_SPAN_MODE_ENABLE:
+        u->flags.device_life_span_mode_en = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_PURGE_ENABLE:
+        u->flags.purge_enable = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_REFRESH_ENABLE:
+        u->flags.refresh_enable = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL:
+        u->flags.phy_resource_removal = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE:
+        u->flags.permanently_disable_fw_update = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_WB_EN:
+        u->flags.wb_en = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN:
+        u->flags.wb_buffer_flush_en = value;
+        break;
+    case UFS_QUERY_FLAG_IDN_UNPIN_EN:
+        u->flags.unpin_en = value;
+        break;
+    default:
+        return UFS_QUERY_RESULT_INVALID_VALUE;
+    }
+
+    return UFS_QUERY_RESULT_SUCCESS;
+}
+
+static QueryRespCode ufs_exec_query_flag(UfsRequest *req, int op)
+{
+    UfsHc *u = req->hc;
+    uint8_t idn = req->req_upiu.qr.idn;
+    uint8_t value;
+    QueryRespCode ret;
+
+    ret = ufs_flag_check_idn_valid(idn, op);
+    if (ret) {
+        return ret;
+    }
+
+    if (op == UFS_QUERY_FLAG_READ) {
+        value = ufs_read_flag_value(u, idn);
+        ret = UFS_QUERY_RESULT_SUCCESS;
+    } else if (op == UFS_QUERY_FLAG_SET) {
+        value = 1;
+        ret = ufs_write_flag_value(u, idn, value);
+    } else if (op == UFS_QUERY_FLAG_CLEAR) {
+        value = 0;
+        ret = ufs_write_flag_value(u, idn, value);
+    } else if (op == UFS_QUERY_FLAG_TOGGLE) {
+        value = !(ufs_read_flag_value(u, idn));
+        ret = ufs_write_flag_value(u, idn, value);
+    } else {
+        trace_ufs_err_query_invalid_opcode(op);
+        return UFS_QUERY_RESULT_INVALID_OPCODE;
+    }
+
+    req->rsp_upiu.qr.value = cpu_to_be32(value);
+    return ret;
 }
 
 static const int attr_permission[UFS_QUERY_ATTR_IDN_COUNT] = {
@@ -1125,10 +1280,35 @@ static const int attr_permission[UFS_QUERY_ATTR_IDN_COUNT] = {
     [UFS_QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE] = UFS_QUERY_ATTR_READ,
     [UFS_QUERY_ATTR_IDN_WB_BUFF_LIFE_TIME_EST] = UFS_QUERY_ATTR_READ,
     [UFS_QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_EXT_IID_EN] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_HOST_HINT_CACHE_SIZE] = UFS_QUERY_ATTR_READ,
     /* refresh operation is not supported */
     [UFS_QUERY_ATTR_IDN_REFRESH_STATUS] = UFS_QUERY_ATTR_READ,
     [UFS_QUERY_ATTR_IDN_REFRESH_FREQ] = UFS_QUERY_ATTR_READ,
     [UFS_QUERY_ATTR_IDN_REFRESH_UNIT] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_TIMESTAMP] = UFS_QUERY_ATTR_WRITE,
+    [UFS_QUERY_ATTR_IDN_DEVICE_LEVEL_EXCEPTION_ID] = UFS_QUERY_ATTR_READ,
+    /* host initiated defragmentation is not supported */
+    [UFS_QUERY_ATTR_IDN_DEFRAG_OP] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_HID_AVAIL_SIZE] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_HID_SIZE] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_HID_PROG_RATIO] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_HID_STATE] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_WB_BUFF_RESIZE_HINT] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_WB_BUFF_RESIZE_EN] = UFS_QUERY_ATTR_WRITE,
+    [UFS_QUERY_ATTR_IDN_WB_BUFF_RESIZE_STATUS] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_WB_BUFF_PARTIAL_FLUSH_MODE] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
+    [UFS_QUERY_ATTR_IDN_MAX_FIFO_WB_PARTIAL_FLUSH_MODE] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
+    [UFS_QUERY_ATTR_IDN_CURR_FIFO_WB_PARTIAL_FLUSH_MODE] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_PINNED_WB_BUFF_CURR_ALLOC_UNITS] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_PINNED_WB_BUFF_AVAIL_PERCENT] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_PINNED_WB_CUMM_WRITTEN_SIZE] = UFS_QUERY_ATTR_READ,
+    [UFS_QUERY_ATTR_IDN_PINNED_WB_NUM_ALLOC_UNITS] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
+    [UFS_QUERY_ATTR_IDN_NON_PINNED_WB_MIN_NUM_ALLOC_UNITS] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
 };
 
 static inline QueryRespCode ufs_attr_check_idn_valid(uint8_t idn, int op)
@@ -1149,39 +1329,6 @@ static inline QueryRespCode ufs_attr_check_idn_valid(uint8_t idn, int op)
     return UFS_QUERY_RESULT_SUCCESS;
 }
 
-static QueryRespCode ufs_exec_query_flag(UfsRequest *req, int op)
-{
-    UfsHc *u = req->hc;
-    uint8_t idn = req->req_upiu.qr.idn;
-    uint32_t value;
-    QueryRespCode ret;
-
-    ret = ufs_flag_check_idn_valid(idn, op);
-    if (ret) {
-        return ret;
-    }
-
-    if (idn == UFS_QUERY_FLAG_IDN_FDEVICEINIT) {
-        value = 0;
-    } else if (op == UFS_QUERY_FLAG_READ) {
-        value = *(((uint8_t *)&u->flags) + idn);
-    } else if (op == UFS_QUERY_FLAG_SET) {
-        value = 1;
-    } else if (op == UFS_QUERY_FLAG_CLEAR) {
-        value = 0;
-    } else if (op == UFS_QUERY_FLAG_TOGGLE) {
-        value = *(((uint8_t *)&u->flags) + idn);
-        value = !value;
-    } else {
-        trace_ufs_err_query_invalid_opcode(op);
-        return UFS_QUERY_RESULT_INVALID_OPCODE;
-    }
-
-    *(((uint8_t *)&u->flags) + idn) = value;
-    req->rsp_upiu.qr.value = cpu_to_be32(value);
-    return UFS_QUERY_RESULT_SUCCESS;
-}
-
 static inline uint8_t ufs_read_device_temp(UfsHc *u)
 {
     uint8_t feat_sup = u->device_desc.ufs_features_support;
@@ -1199,6 +1346,29 @@ static inline uint8_t ufs_read_device_temp(UfsHc *u)
     }
 
     return 0;
+}
+
+static inline uint32_t ufs_wb_read_flush_status(UfsHc *u)
+{
+    uint32_t value = u->attributes.wb_buffer_flush_status;
+
+    if (value == UFS_WB_FLUSH_SUSPENDED || value == UFS_WB_FLUSH_COMPLETED ||
+        value == UFS_WB_FLUSH_FAILED) {
+        u->attributes.wb_buffer_flush_status = UFS_WB_FLUSH_IDLE;
+    }
+
+    return value;
+}
+
+static inline uint32_t ufs_wb_read_resize_status(UfsHc *u)
+{
+    uint32_t value = u->attributes.wb_buffer_resize_status;
+
+    if (value == UFS_WB_RESIZE_COMPLETED || value == UFS_WB_RESIZE_FAILED) {
+        u->attributes.wb_buffer_resize_status = UFS_WB_RESIZE_IDLE;
+    }
+
+    return value;
 }
 
 static uint32_t ufs_read_attr_value(UfsHc *u, uint8_t idn)
@@ -1255,21 +1425,183 @@ static uint32_t ufs_read_attr_value(UfsHc *u, uint8_t idn)
     case UFS_QUERY_ATTR_IDN_THROTTLING_STATUS:
         return u->attributes.throttling_status;
     case UFS_QUERY_ATTR_IDN_WB_FLUSH_STATUS:
-        return u->attributes.wb_buffer_flush_status;
+        return ufs_wb_read_flush_status(u);
     case UFS_QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE:
         return u->attributes.available_wb_buffer_size;
     case UFS_QUERY_ATTR_IDN_WB_BUFF_LIFE_TIME_EST:
         return u->attributes.wb_buffer_life_time_est;
     case UFS_QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE:
         return be32_to_cpu(u->attributes.current_wb_buffer_size);
+    case UFS_QUERY_ATTR_IDN_EXT_IID_EN:
+        return u->attributes.ext_iid_en;
+    case UFS_QUERY_ATTR_IDN_HOST_HINT_CACHE_SIZE:
+        return be16_to_cpu(u->attributes.host_hint_cache_size);
     case UFS_QUERY_ATTR_IDN_REFRESH_STATUS:
         return u->attributes.refresh_status;
     case UFS_QUERY_ATTR_IDN_REFRESH_FREQ:
         return u->attributes.refresh_freq;
     case UFS_QUERY_ATTR_IDN_REFRESH_UNIT:
         return u->attributes.refresh_unit;
+    case UFS_QUERY_ATTR_IDN_DEVICE_LEVEL_EXCEPTION_ID:
+        return be64_to_cpu(u->attributes.device_level_exception_id);
+    case UFS_QUERY_ATTR_IDN_DEFRAG_OP:
+        return u->attributes.defrag_op;
+    case UFS_QUERY_ATTR_IDN_HID_AVAIL_SIZE:
+        return be32_to_cpu(u->attributes.hid_avail_size);
+    case UFS_QUERY_ATTR_IDN_HID_SIZE:
+        return be32_to_cpu(u->attributes.hid_size);
+    case UFS_QUERY_ATTR_IDN_HID_PROG_RATIO:
+        return u->attributes.hid_prog_ratio;
+    case UFS_QUERY_ATTR_IDN_HID_STATE:
+        return u->attributes.hid_state;
+    case UFS_QUERY_ATTR_IDN_WB_BUFF_RESIZE_HINT:
+        return u->attributes.wb_buffer_resize_hint;
+    case UFS_QUERY_ATTR_IDN_WB_BUFF_RESIZE_STATUS:
+        return ufs_wb_read_resize_status(u);
+    case UFS_QUERY_ATTR_IDN_WB_BUFF_PARTIAL_FLUSH_MODE:
+        return u->attributes.wb_buffer_partial_flush_mode;
+    case UFS_QUERY_ATTR_IDN_MAX_FIFO_WB_PARTIAL_FLUSH_MODE:
+        return be32_to_cpu(u->attributes.max_fifo_wb_partial_flush_mode);
+    case UFS_QUERY_ATTR_IDN_CURR_FIFO_WB_PARTIAL_FLUSH_MODE:
+        return be32_to_cpu(u->attributes.curr_fifo_wb_partial_flush_mode);
+    case UFS_QUERY_ATTR_IDN_PINNED_WB_BUFF_CURR_ALLOC_UNITS:
+        return be32_to_cpu(u->attributes.pinned_wb_buffer_curr_alloc_units);
+    case UFS_QUERY_ATTR_IDN_PINNED_WB_BUFF_AVAIL_PERCENT:
+        return u->attributes.pinned_wb_buffer_avail_percent;
+    case UFS_QUERY_ATTR_IDN_PINNED_WB_CUMM_WRITTEN_SIZE:
+        return be32_to_cpu(u->attributes.pinned_wb_cumm_written_size);
+    case UFS_QUERY_ATTR_IDN_PINNED_WB_NUM_ALLOC_UNITS:
+        return be32_to_cpu(u->attributes.pinned_wb_num_alloc_units);
+    case UFS_QUERY_ATTR_IDN_NON_PINNED_WB_MIN_NUM_ALLOC_UNITS:
+        return be32_to_cpu(u->attributes.non_pinned_wb_min_num_alloc_units);
     }
     return 0;
+}
+
+static void ufs_wb_resize_op(UfsHc *u, uint32_t value)
+{
+    if (u->attributes.wb_buffer_resize_status == UFS_WB_RESIZE_IN_PROGRESS) {
+        return;
+    }
+
+    if (value == UFS_WB_IDLE) {
+        return;
+    }
+
+    u->attributes.wb_buffer_resize_en = value;
+    u->attributes.wb_buffer_resize_status = UFS_WB_RESIZE_IN_PROGRESS;
+    u->attributes.wb_buffer_resize_hint = UFS_WB_HINT_KEEP;
+}
+
+void ufs_wb_update_avail_buffer(UfsHc *u)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t non_pinned_curr_bytes, non_pinned_used_bytes;
+    uint32_t units;
+
+    units = ufs_byte_to_unit(u, wb->fifo_curr_bytes);
+    u->attributes.curr_fifo_wb_partial_flush_mode = cpu_to_be32(units);
+
+    units = ufs_byte_to_unit(u, wb->pinned_curr_bytes);
+    u->attributes.pinned_wb_buffer_curr_alloc_units = cpu_to_be32(units);
+
+    if (wb->pinned_curr_bytes <= wb->pinned_used_bytes)
+        u->attributes.pinned_wb_buffer_avail_percent = 0;
+    else
+        u->attributes.pinned_wb_buffer_avail_percent =
+            (wb->pinned_curr_bytes - wb->pinned_used_bytes) * 10 /
+            wb->pinned_curr_bytes;
+
+    non_pinned_curr_bytes = wb->curr_bytes - wb->pinned_curr_bytes;
+    non_pinned_used_bytes = wb->used_bytes - wb->pinned_used_bytes;
+
+    units = ufs_byte_to_unit(u, non_pinned_curr_bytes);
+    u->attributes.current_wb_buffer_size = cpu_to_be32(units);
+
+    if (!non_pinned_curr_bytes)
+        u->attributes.available_wb_buffer_size = 0;
+    else
+        u->attributes.available_wb_buffer_size =
+            (non_pinned_curr_bytes - non_pinned_used_bytes) * 10 /
+            non_pinned_curr_bytes;
+
+    assert(wb->curr_bytes >= wb->pinned_curr_bytes);
+    assert(wb->used_bytes >= wb->pinned_used_bytes);
+}
+
+static void ufs_wb_sync_buffer_size(UfsHc *u)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t avail_bytes;
+
+    wb->fifo_curr_bytes = MIN(wb->curr_bytes, wb->fifo_max_bytes);
+    avail_bytes = wb->curr_bytes - wb->used_bytes + wb->pinned_used_bytes;
+
+    if ((u->attributes.wb_buffer_partial_flush_mode != UFS_WB_FLUSH_PINNED) ||
+        (wb->curr_bytes <= wb->non_pinned_min_bytes)) {
+        wb->pinned_curr_bytes = 0;
+        wb->pinned_used_bytes = 0;
+
+    } else if (avail_bytes <= wb->pinned_max_bytes) {
+        wb->pinned_curr_bytes = avail_bytes;
+        wb->pinned_used_bytes =
+            MIN(wb->pinned_curr_bytes, wb->pinned_used_bytes);
+
+    } else {
+        wb->pinned_curr_bytes = wb->pinned_max_bytes;
+        wb->pinned_used_bytes =
+            MIN(wb->pinned_curr_bytes, wb->pinned_used_bytes);
+    }
+
+    ufs_wb_update_avail_buffer(u);
+}
+
+static bool ufs_wb_max_fifo(UfsHc *u, uint32_t value)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t fifo_max_bytes = ufs_unit_to_byte(u, value);
+
+    if (fifo_max_bytes > wb->max_bytes) {
+        return false;
+    }
+
+    u->attributes.max_fifo_wb_partial_flush_mode = cpu_to_be32(value);
+    wb->fifo_max_bytes = fifo_max_bytes;
+    ufs_wb_sync_buffer_size(u);
+
+    return true;
+}
+
+static bool ufs_wb_pinned_max_size(UfsHc *u, uint32_t value)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t pinned_max_bytes = ufs_unit_to_byte(u, value);
+
+    if (wb->max_bytes < wb->non_pinned_min_bytes + pinned_max_bytes) {
+        return false;
+    }
+
+    u->attributes.pinned_wb_num_alloc_units = cpu_to_be32(value);
+    wb->pinned_max_bytes = pinned_max_bytes;
+    ufs_wb_sync_buffer_size(u);
+
+    return true;
+}
+
+static bool ufs_wb_pinned_min_size(UfsHc *u, uint32_t value)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t non_pinned_min_bytes = ufs_unit_to_byte(u, value);
+
+    if (wb->max_bytes < non_pinned_min_bytes + wb->pinned_max_bytes) {
+        return false;
+    }
+
+    u->attributes.non_pinned_wb_min_num_alloc_units = cpu_to_be32(value);
+    wb->non_pinned_min_bytes = non_pinned_min_bytes;
+    ufs_wb_sync_buffer_size(u);
+
+    return true;
 }
 
 static QueryRespCode ufs_write_attr_value(UfsHc *u, uint8_t idn, uint32_t value)
@@ -1305,6 +1637,40 @@ static QueryRespCode ufs_write_attr_value(UfsHc *u, uint8_t idn, uint32_t value)
     case UFS_QUERY_ATTR_IDN_PSA_DATA_SIZE:
         u->attributes.psa_data_size = cpu_to_be32(value);
         break;
+    case UFS_QUERY_ATTR_IDN_TIMESTAMP:
+        u->attributes.timestamp = cpu_to_be64(value);
+        break;
+    case UFS_QUERY_ATTR_IDN_WB_BUFF_RESIZE_EN:
+        if (value >= UFS_WB_RESIZE_OP_MAX) {
+            return UFS_QUERY_RESULT_INVALID_VALUE;
+        }
+        ufs_wb_resize_op(u, value);
+        break;
+    case UFS_QUERY_ATTR_IDN_WB_BUFF_PARTIAL_FLUSH_MODE:
+        if (value >= UFS_WB_FLUSH_MODE_MAX) {
+            return UFS_QUERY_RESULT_INVALID_VALUE;
+        }
+        u->attributes.wb_buffer_partial_flush_mode = value;
+        ufs_wb_sync_buffer_size(u);
+        break;
+    case UFS_QUERY_ATTR_IDN_MAX_FIFO_WB_PARTIAL_FLUSH_MODE:
+        if (!ufs_wb_max_fifo(u, value)) {
+            return UFS_QUERY_RESULT_INVALID_VALUE;
+        }
+        break;
+    case UFS_QUERY_ATTR_IDN_PINNED_WB_NUM_ALLOC_UNITS:
+        if (!ufs_wb_pinned_max_size(u, value)) {
+            return UFS_QUERY_RESULT_INVALID_VALUE;
+        }
+        break;
+    case UFS_QUERY_ATTR_IDN_NON_PINNED_WB_MIN_NUM_ALLOC_UNITS:
+        if (!ufs_wb_pinned_min_size(u, value)) {
+            return UFS_QUERY_RESULT_INVALID_VALUE;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+        return 0;
     }
     return UFS_QUERY_RESULT_SUCCESS;
 }
@@ -1720,6 +2086,197 @@ static void ufs_sendback_req(void *opaque)
     ufs_irq_check(u);
 }
 
+static inline uint64_t ufs_wb_total_flush_bytes(UfsHc *u)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t no_flush_bytes;
+
+    switch (u->attributes.wb_buffer_partial_flush_mode) {
+    case UFS_WB_FLUSH_NONE:
+        no_flush_bytes = 0;
+        break;
+    case UFS_WB_FLUSH_FIFO:
+        no_flush_bytes = wb->fifo_curr_bytes;
+        break;
+    case UFS_WB_FLUSH_PINNED:
+        no_flush_bytes = (u->flags.unpin_en) ? 0 : wb->pinned_used_bytes;
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+    if (wb->used_bytes < no_flush_bytes) {
+        return 0;
+    }
+
+    return wb->used_bytes - no_flush_bytes;
+}
+
+#define UFS_WB_FLUSH_BYTES (4096 * 1024)
+static void ufs_wb_process_flush(UfsHc *u)
+{
+    UfsWb *wb = &u->wb;
+    uint64_t flush_bytes, total_flush_bytes;
+
+    switch (u->attributes.wb_buffer_flush_status) {
+    case UFS_WB_FLUSH_IDLE:
+    case UFS_WB_FLUSH_SUSPENDED:
+        if (!u->flags.wb_buffer_flush_en || !ufs_wb_total_flush_bytes(u)) {
+            break;
+        }
+
+        u->attributes.wb_buffer_flush_status = UFS_WB_FLUSH_IN_PROGRESS;
+        /* fallthrough */
+    case UFS_WB_FLUSH_IN_PROGRESS:
+        if (!u->flags.wb_buffer_flush_en) {
+            u->attributes.wb_buffer_flush_status = UFS_WB_FLUSH_SUSPENDED;
+            break;
+        }
+
+        total_flush_bytes = ufs_wb_total_flush_bytes(u);
+        if (!total_flush_bytes) {
+            u->attributes.wb_buffer_flush_status = UFS_WB_FLUSH_COMPLETED;
+            break;
+        }
+
+        /* Flush Pinned first */
+        if (wb->pinned_used_bytes && u->flags.unpin_en) {
+            flush_bytes = MIN(wb->pinned_used_bytes, UFS_WB_FLUSH_BYTES);
+            wb->pinned_used_bytes -= flush_bytes;
+            wb->used_bytes -= flush_bytes;
+        } else {
+            flush_bytes = MIN(total_flush_bytes, UFS_WB_FLUSH_BYTES);
+            wb->used_bytes -= flush_bytes;
+        }
+
+        u->attributes.wb_buffer_flush_status = UFS_WB_FLUSH_COMPLETED;
+        /* fallthrough */
+    case UFS_WB_FLUSH_COMPLETED:
+        if (ufs_wb_total_flush_bytes(u)) {
+            u->attributes.wb_buffer_flush_status =
+                (u->flags.wb_buffer_flush_en) ? UFS_WB_FLUSH_IN_PROGRESS :
+                                                UFS_WB_FLUSH_IDLE;
+        }
+    }
+}
+
+static void ufs_wb_process_resize(UfsHc *u)
+{
+    UfsWb *wb = &u->wb;
+
+    if (u->attributes.wb_buffer_resize_status != UFS_WB_RESIZE_IN_PROGRESS) {
+        return;
+    }
+
+    switch (u->attributes.wb_buffer_resize_en) {
+    case UFS_WB_IDLE:
+        /* Do nothing. Complete resize directly. */
+        break;
+    case UFS_WB_DECREASE:
+        if (wb->curr_bytes <= wb->min_bytes ||
+            wb->curr_bytes <= wb->used_bytes) {
+            u->attributes.wb_buffer_resize_status = UFS_WB_RESIZE_FAILED;
+            return;
+        }
+
+        if (wb->curr_bytes - wb->used_bytes >= wb->resize_bytes) {
+            wb->curr_bytes -= wb->resize_bytes;
+        } else {
+            wb->curr_bytes = wb->used_bytes;
+        }
+
+        if (wb->curr_bytes < wb->min_bytes) {
+            wb->curr_bytes = wb->min_bytes;
+        }
+
+        break;
+    case UFS_WB_INCREASE:
+        if (wb->curr_bytes >= wb->max_bytes) {
+            u->attributes.wb_buffer_resize_status = UFS_WB_RESIZE_FAILED;
+            return;
+        }
+
+        wb->curr_bytes += wb->resize_bytes;
+        if (wb->curr_bytes >= wb->max_bytes) {
+            wb->curr_bytes = wb->max_bytes;
+        }
+
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+    u->attributes.wb_buffer_resize_status = UFS_WB_RESIZE_COMPLETED;
+}
+
+static void ufs_process_idle(UfsHc *u)
+{
+    ufs_wb_process_flush(u);
+    ufs_wb_process_resize(u);
+    ufs_wb_sync_buffer_size(u);
+}
+
+static inline bool ufs_check_idle(UfsHc *u)
+{
+    return !u->reg.utrldbr;
+}
+
+static inline bool ufs_mcq_check_idle(UfsHc *u)
+{
+    if (!u->params.mcq) {
+        return true;
+    }
+
+    for (int qid = 0; qid < ARRAY_SIZE(u->sq); qid++) {
+        if (!u->sq[qid]) {
+            continue;
+        }
+
+        if (!ufs_mcq_sq_empty(u, qid)) {
+            return false;
+        }
+
+        /* internal ongoing MCQ request check */
+        UfsSq *sq = u->sq[qid];
+        for (int i = 0; i < sq->size; i++) {
+            if (sq->req[i].state != UFS_REQUEST_IDLE) {
+                return false;
+            }
+        }
+    }
+
+    for (int qid = 0; qid < ARRAY_SIZE(u->cq); qid++) {
+        if (!u->cq[qid]) {
+            continue;
+        }
+
+        if (!ufs_mcq_cq_empty(u, qid)) {
+            return false;
+        }
+
+        if (!QTAILQ_EMPTY(&u->cq[qid]->req_list)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+#define UFS_IDLE_TIMER_TICK 100 /* 0.1s */
+static void ufs_idle_timer_cb(void *opaque)
+{
+    UfsHc *u = opaque;
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT);
+
+    if (ufs_check_idle(u) && ufs_mcq_check_idle(u)) {
+        ufs_process_idle(u);
+    }
+
+    timer_mod(&u->idle_timer, now + UFS_IDLE_TIMER_TICK);
+}
+
 static bool ufs_check_constraints(UfsHc *u, Error **errp)
 {
     if (u->params.nutrs > UFS_MAX_NUTRS) {
@@ -1736,6 +2293,11 @@ static bool ufs_check_constraints(UfsHc *u, Error **errp)
 
     if (u->params.mcq_maxq >= UFS_MAX_MCQ_QNUM) {
         error_setg(errp, "mcq-maxq must be less than %d", UFS_MAX_MCQ_QNUM);
+        return false;
+    }
+
+    if (u->params.wb_min_size > u->params.wb_max_size) {
+        error_setg(errp, "wb-min-size must be less than or equal wb-max-size");
         return false;
     }
 
@@ -1777,11 +2339,54 @@ static void ufs_init_state(UfsHc *u)
     }
 }
 
+static void ufs_wb_init(UfsHc *u)
+{
+    UfsWb *wb = &u->wb;
+    uint32_t max_units = u->params.wb_max_size;
+    uint32_t min_units = u->params.wb_min_size;
+
+    wb->max_bytes = ufs_unit_to_byte(u, max_units);
+    wb->min_bytes = ufs_unit_to_byte(u, min_units);
+
+    wb->curr_bytes = wb->max_bytes;
+    wb->used_bytes = 0;
+    wb->resize_bytes = (wb->max_bytes - wb->min_bytes) / 10;
+
+    u->attributes.wb_buffer_flush_status = UFS_WB_FLUSH_IDLE;
+    u->attributes.available_wb_buffer_size = 0xA;
+    u->attributes.wb_buffer_life_time_est = 0x1;
+    u->attributes.current_wb_buffer_size = cpu_to_be32(max_units);
+
+    u->attributes.wb_buffer_resize_hint = UFS_WB_HINT_KEEP;
+    u->attributes.wb_buffer_resize_status = UFS_WB_RESIZE_IDLE;
+
+    u->attributes.wb_buffer_partial_flush_mode = UFS_WB_FLUSH_NONE;
+
+    u->attributes.max_fifo_wb_partial_flush_mode = cpu_to_be32(max_units);
+    u->attributes.curr_fifo_wb_partial_flush_mode = cpu_to_be32(max_units);
+
+    wb->fifo_max_bytes = ufs_unit_to_byte(u, max_units);
+    wb->fifo_curr_bytes = ufs_unit_to_byte(u, max_units);
+
+    u->attributes.pinned_wb_num_alloc_units = cpu_to_be32(max_units);
+    u->attributes.non_pinned_wb_min_num_alloc_units = 0;
+
+    wb->pinned_curr_bytes = 0;
+    wb->pinned_used_bytes = 0;
+    wb->pinned_max_bytes = ufs_unit_to_byte(u, max_units);
+    wb->non_pinned_min_bytes = 0;
+    wb->pinned_total_written_bytes = 0;
+}
+
 static void ufs_init_hc(UfsHc *u)
 {
     uint32_t cap = 0;
     uint32_t mcqconfig = 0;
     uint32_t mcqcap = 0;
+    uint32_t ext_wb_sup = WB_RESIZE | WB_FIFO | WB_PINNED;
+    uint32_t ext_ufs_feat_sup =
+        UFS_DEV_WB_SUPPORT | UFS_DEV_HIGH_TEMP_NOTIF | UFS_DEV_LOW_TEMP_NOTIF;
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL_RT);
 
     u->reg_size = pow2ceil(ufs_reg_size(u));
 
@@ -1842,8 +2447,13 @@ static void ufs_init_hc(UfsHc *u)
         UFS_DEV_LOW_TEMP_NOTIF;
     u->device_desc.queue_depth = u->params.nutrs;
     u->device_desc.product_revision_level = 0x04;
+    u->device_desc.extended_wb_support |= cpu_to_be16(ext_wb_sup);
     u->device_desc.extended_ufs_features_support =
-        cpu_to_be32(UFS_DEV_HIGH_TEMP_NOTIF | UFS_DEV_LOW_TEMP_NOTIF);
+        cpu_to_be32((ext_ufs_feat_sup));
+    u->device_desc.write_booster_buffer_preserve_user_space_en = 0x01;
+    u->device_desc.write_booster_buffer_type = 0x01;
+    u->device_desc.num_shared_write_booster_buffer_alloc_units =
+        cpu_to_be32(u->params.wb_max_size);
 
     memset(&u->geometry_desc, 0, sizeof(GeometryDescriptor));
     u->geometry_desc.length = sizeof(GeometryDescriptor);
@@ -1859,6 +2469,14 @@ static void ufs_init_hc(UfsHc *u)
         0x0; /* out-of-order data transfer is not supported */
     u->geometry_desc.max_context_id_number = 0x5;
     u->geometry_desc.supported_memory_types = cpu_to_be16(0x8001);
+    u->geometry_desc.write_booster_buffer_max_n_alloc_units =
+        cpu_to_be32(u->params.wb_max_size);
+    u->geometry_desc.device_max_write_booster_l_us = 0x1;
+    u->geometry_desc.write_booster_buffer_cap_adj_fac = 0x3;
+    u->geometry_desc.supported_write_booster_buffer_user_space_reduction_types =
+        0x1;
+    u->geometry_desc.supported_write_booster_buffer_types =
+        0x1; /* lu-dedicated buffer type is not supported */
 
     memset(&u->attributes, 0, sizeof(u->attributes));
     u->attributes.max_data_in_size = 0x08;
@@ -1873,11 +2491,16 @@ static void ufs_init_hc(UfsHc *u)
     memset(&u->flags, 0, sizeof(u->flags));
     u->flags.permanently_disable_fw_update = 1;
 
+    ufs_wb_init(u);
+
     /*
      * The temperature value is fixed to UFS_TEMPERATURE and does not change
      * dynamically
      */
     u->temperature = UFS_TEMPERATURE;
+
+    timer_init_ms(&u->idle_timer, QEMU_CLOCK_VIRTUAL_RT, ufs_idle_timer_cb, u);
+    timer_mod(&u->idle_timer, now + UFS_IDLE_TIMER_TICK);
 }
 
 static void ufs_realize(PCIDevice *pci_dev, Error **errp)
@@ -1904,6 +2527,8 @@ static void ufs_realize(PCIDevice *pci_dev, Error **errp)
 static void ufs_exit(PCIDevice *pci_dev)
 {
     UfsHc *u = UFS(pci_dev);
+
+    timer_del(&u->idle_timer);
 
     qemu_free_irq(u->irq);
 
@@ -1935,6 +2560,8 @@ static const Property ufs_props[] = {
     DEFINE_PROP_UINT8("nutmrs", UfsHc, params.nutmrs, 8),
     DEFINE_PROP_BOOL("mcq", UfsHc, params.mcq, false),
     DEFINE_PROP_UINT8("mcq-maxq", UfsHc, params.mcq_maxq, 2),
+    DEFINE_PROP_UINT32("wb-max-size", UfsHc, params.wb_max_size, 0x400),
+    DEFINE_PROP_UINT32("wb-min-size", UfsHc, params.wb_min_size, 0x100),
 };
 
 static const VMStateDescription ufs_vmstate = {

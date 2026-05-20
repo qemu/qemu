@@ -91,6 +91,8 @@ typedef struct UfsParams {
     bool mcq; /* Multiple Command Queue support */
     uint8_t mcq_qcfgptr; /* MCQ Queue Configuration Pointer in MCQCAP */
     uint8_t mcq_maxq; /* MCQ Maximum number of Queues */
+    uint32_t wb_max_size; /* WB Maximum allocation units */
+    uint32_t wb_min_size; /* WB Minimum allocation units */
 } UfsParams;
 
 /*
@@ -117,6 +119,26 @@ typedef struct UfsCq {
     QEMUBH *bh;
     QTAILQ_HEAD(, UfsRequest) req_list;
 } UfsCq;
+
+/*
+ * Extended features
+ */
+typedef struct UfsWb {
+    uint64_t max_bytes;
+    uint64_t min_bytes;
+    uint64_t curr_bytes;
+    uint64_t used_bytes;
+    uint64_t resize_bytes;
+
+    uint64_t fifo_max_bytes;
+    uint64_t fifo_curr_bytes;
+
+    uint64_t pinned_max_bytes;
+    uint64_t non_pinned_min_bytes;
+    uint64_t pinned_curr_bytes;
+    uint64_t pinned_used_bytes;
+    uint64_t pinned_total_written_bytes;
+} UfsWb;
 
 typedef struct UfsHc {
     PCIDevice parent_obj;
@@ -147,7 +169,12 @@ typedef struct UfsHc {
     UfsSq *sq[UFS_MAX_MCQ_QNUM];
     UfsCq *cq[UFS_MAX_MCQ_QNUM];
 
+    /* Extended features */
+    UfsWb wb;
+
     uint8_t temperature;
+
+    QEMUTimer idle_timer;
 } UfsHc;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
@@ -216,6 +243,27 @@ static inline bool ufs_mcq_cq_full(UfsHc *u, uint32_t qid)
     return tail == ufs_mcq_cq_head(u, qid);
 }
 
+static inline uint64_t ufs_unit_to_byte(UfsHc *u, uint32_t unit)
+{
+    return (uint64_t)unit * u->geometry_desc.allocation_unit_size *
+           be32_to_cpu(u->geometry_desc.segment_size) * BDRV_SECTOR_SIZE;
+}
+
+static inline uint32_t ufs_byte_to_unit(UfsHc *u, uint64_t byte)
+{
+    return byte / BDRV_SECTOR_SIZE /
+           be32_to_cpu(u->geometry_desc.segment_size) /
+           u->geometry_desc.allocation_unit_size;
+}
+
+static inline bool ufs_is_write_req(UfsRequest *req)
+{
+    uint8_t cmd = req->req_upiu.sc.cdb[0];
+
+    /* UFS 4.1 Specifiaction doesn't support WRITE_12 */
+    return (cmd == WRITE_6) || (cmd == WRITE_10) || (cmd == WRITE_16);
+}
+
 #define TYPE_UFS "ufs"
 #define UFS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_UFS)
 
@@ -248,5 +296,6 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint16_t data_segment_length);
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
+void ufs_wb_update_avail_buffer(UfsHc *u);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
 #endif /* HW_UFS_UFS_H */
