@@ -27,6 +27,7 @@
 
 #include <X11/Xlib.h>
 
-const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen);
+const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen,
+                                          bool *evdev);
 
 #endif
