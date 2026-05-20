@@ -286,8 +286,9 @@ void helper_sc_probe_write(CPURISCVState *env, target_ulong addr,
 target_ulong helper_sret(CPURISCVState *env)
 {
     uint64_t mstatus;
-    target_ulong prev_priv, prev_virt = env->virt_enabled;
-    const target_ulong src_priv = env->priv;
+    privilege_mode_t prev_priv;
+    bool prev_virt = env->virt_enabled;
+    const privilege_mode_t src_priv = env->priv;
     const bool src_virt = env->virt_enabled;
 
     if (!(env->priv >= PRV_S)) {
@@ -339,7 +340,7 @@ target_ulong helper_sret(CPURISCVState *env)
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
 
-        prev_virt = get_field(hstatus, HSTATUS_SPV);
+        prev_virt = !!(get_field(hstatus, HSTATUS_SPV));
         hstatus = set_field(hstatus, HSTATUS_SPV, 0);
 
         env->hstatus = hstatus;
@@ -369,7 +370,7 @@ target_ulong helper_sret(CPURISCVState *env)
 }
 
 static void check_ret_from_m_mode(CPURISCVState *env, target_ulong retpc,
-                                  target_ulong prev_priv,
+                                  privilege_mode_t prev_priv,
                                   uintptr_t ra)
 {
     if (!(env->priv >= PRV_M)) {
@@ -388,8 +389,8 @@ static void check_ret_from_m_mode(CPURISCVState *env, target_ulong retpc,
     }
 }
 static target_ulong ssdbltrp_mxret(CPURISCVState *env, target_ulong mstatus,
-                                   target_ulong prev_priv,
-                                   target_ulong prev_virt)
+                                   privilege_mode_t prev_priv,
+                                   bool prev_virt)
 {
     /* If returning to U, VS or VU, sstatus.sdt = 0 */
     if (prev_priv == PRV_U || (prev_virt &&
@@ -408,13 +409,13 @@ target_ulong helper_mret(CPURISCVState *env)
 {
     target_ulong retpc = env->mepc & get_xepc_mask(env);
     uint64_t mstatus = env->mstatus;
-    target_ulong prev_priv = get_field(mstatus, MSTATUS_MPP);
+    privilege_mode_t prev_priv = get_field(mstatus, MSTATUS_MPP);
     uintptr_t ra = GETPC();
 
     check_ret_from_m_mode(env, retpc, prev_priv, ra);
 
-    target_ulong prev_virt = get_field(env->mstatus, MSTATUS_MPV) &&
-                             (prev_priv != PRV_M);
+    bool prev_virt = !!(get_field(env->mstatus, MSTATUS_MPV) &&
+                     (prev_priv != PRV_M));
     mstatus = set_field(mstatus, MSTATUS_MIE,
                         get_field(mstatus, MSTATUS_MPIE));
     mstatus = set_field(mstatus, MSTATUS_MPIE, 1);
@@ -457,14 +458,14 @@ target_ulong helper_mret(CPURISCVState *env)
 target_ulong helper_mnret(CPURISCVState *env)
 {
     target_ulong retpc = env->mnepc;
-    target_ulong prev_priv = get_field(env->mnstatus, MNSTATUS_MNPP);
-    target_ulong prev_virt;
+    privilege_mode_t prev_priv = get_field(env->mnstatus, MNSTATUS_MNPP);
+    bool prev_virt;
     uintptr_t ra = GETPC();
 
     check_ret_from_m_mode(env, retpc, prev_priv, ra);
 
-    prev_virt = get_field(env->mnstatus, MNSTATUS_MNPV) &&
-                (prev_priv != PRV_M);
+    prev_virt = !!(get_field(env->mnstatus, MNSTATUS_MNPV) &&
+                (prev_priv != PRV_M));
     env->mnstatus = set_field(env->mnstatus, MNSTATUS_NMIE, true);
 
     /*

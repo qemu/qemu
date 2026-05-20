@@ -43,9 +43,9 @@
 #define MMU_2STAGE_BIT      (1 << 2)
 #define MMU_IDX_SS_WRITE    (1 << 3)
 
-static inline int mmuidx_priv(int mmu_idx)
+static inline privilege_mode_t mmuidx_priv(int mmu_idx)
 {
-    int ret = mmu_idx & 3;
+    privilege_mode_t ret = mmu_idx & 3;
     if (ret == MMUIdx_S_SUM) {
         ret = PRV_S;
     }

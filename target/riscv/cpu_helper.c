@@ -44,7 +44,7 @@ int riscv_env_mmu_index(CPURISCVState *env, bool ifetch)
     return 0;
 #else
     bool virt = env->virt_enabled;
-    int mode = env->priv;
+    privilege_mode_t mode = env->priv;
     bool mode_modified = false;
 
     /* All priv -> mmu_idx mapping are here */
@@ -165,7 +165,7 @@ bool riscv_env_smode_dbltrp_enabled(CPURISCVState *env, bool virt)
 RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env)
 {
 #ifndef CONFIG_USER_ONLY
-    int priv_mode;
+    privilege_mode_t priv_mode;
     bool virt;
 
     riscv_cpu_eff_priv(env, &priv_mode, &virt);
@@ -217,7 +217,7 @@ RISCVPmPmm riscv_pm_get_pmm(CPURISCVState *env)
 RISCVPmPmm riscv_pm_get_vm_ldst_pmm(CPURISCVState *env)
 {
 #ifndef CONFIG_USER_ONLY
-    int priv_mode;
+    privilege_mode_t priv_mode;
 
     if (!riscv_cpu_cfg(env)->ext_ssnpm ||
         get_field(env->mstatus, MSTATUS_MXR) ||
@@ -245,7 +245,7 @@ bool riscv_cpu_virt_mem_enabled(CPURISCVState *env, bool is_vm_ldst)
 #ifndef CONFIG_USER_ONLY
     int satp_mode = 0;
     uint64_t satp;
-    int priv_mode;
+    privilege_mode_t priv_mode;
     bool virt = false;
 
     if (!is_vm_ldst) {
@@ -816,7 +816,7 @@ void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(void *),
     env->rdtime_fn_arg = arg;
 }
 
-void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
+void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, privilege_mode_t priv,
                                    int (*rmw_fn)(void *arg,
                                                  target_ulong reg,
                                                  target_ulong *val,
@@ -849,7 +849,7 @@ void riscv_ctr_clear(CPURISCVState *env)
     memset(env->ctr_data, 0x0, sizeof(env->ctr_data));
 }
 
-static uint64_t riscv_ctr_priv_to_mask(target_ulong priv, bool virt)
+static uint64_t riscv_ctr_priv_to_mask(privilege_mode_t priv, bool virt)
 {
     switch (priv) {
     case PRV_M:
@@ -869,7 +869,8 @@ static uint64_t riscv_ctr_priv_to_mask(target_ulong priv, bool virt)
     g_assert_not_reached();
 }
 
-static uint64_t riscv_ctr_get_control(CPURISCVState *env, target_long priv,
+static uint64_t riscv_ctr_get_control(CPURISCVState *env,
+                                      privilege_mode_t priv,
                                       bool virt)
 {
     switch (priv) {
@@ -891,10 +892,11 @@ static uint64_t riscv_ctr_get_control(CPURISCVState *env, target_long priv,
  * and src privilege is less than target privilege. This includes the virtual
  * state as well.
  */
-static bool riscv_ctr_check_xte(CPURISCVState *env, target_long src_prv,
+static bool riscv_ctr_check_xte(CPURISCVState *env,
+                                privilege_mode_t src_prv,
                                 bool src_virt)
 {
-    target_long tgt_prv = env->priv;
+    privilege_mode_t tgt_prv = env->priv;
     bool res = true;
 
     /*
@@ -980,7 +982,7 @@ static bool riscv_ctr_check_xte(CPURISCVState *env, target_long src_prv,
  *    idx = (sctrstatus.WRPTR - entry - 1) & (depth - 1);
  */
 void riscv_ctr_add_entry(CPURISCVState *env, target_long src, target_long dst,
-    enum CTRType type, target_ulong src_priv, bool src_virt)
+    enum CTRType type, privilege_mode_t src_priv, bool src_virt)
 {
     bool tgt_virt = env->virt_enabled;
     uint64_t src_mask = riscv_ctr_priv_to_mask(src_priv, src_virt);
@@ -1078,7 +1080,8 @@ void riscv_ctr_add_entry(CPURISCVState *env, target_long src, target_long dst,
     env->sctrstatus = set_field(env->sctrstatus, SCTRSTATUS_WRPTR_MASK, head);
 }
 
-void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en)
+void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
+                        bool virt_en)
 {
     g_assert(newpriv <= PRV_M && newpriv != PRV_RESERVED);
 
@@ -1141,7 +1144,7 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en)
  */
 static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
                                     int size, MMUAccessType access_type,
-                                    int mode)
+                                    privilege_mode_t mode)
 {
     pmp_priv_t pmp_priv;
     bool pmp_has_privs;
@@ -1165,7 +1168,7 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
 
 /* Returns 'true' if a svukte address check is needed */
 static bool do_svukte_check(CPURISCVState *env, bool first_stage,
-                             int mode, bool virt)
+                            privilege_mode_t mode, bool virt)
 {
     /* Svukte extension depends on Sv39. */
     if (!(env_archcpu(env)->cfg.ext_svukte ||
@@ -1248,7 +1251,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
      */
     MemTxResult res;
     MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
-    int mode = mmuidx_priv(mmu_idx);
+    privilege_mode_t mode = mmuidx_priv(mmu_idx);
     bool virt = mmuidx_2stage(mmu_idx);
     bool use_background = false;
     hwaddr ppn;
@@ -1861,7 +1864,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     bool two_stage_lookup = mmuidx_2stage(mmu_idx);
     bool two_stage_indirect_error = false;
     int ret = TRANSLATE_FAIL;
-    int mode = mmuidx_priv(mmu_idx);
+    privilege_mode_t mode = mmuidx_priv(mmu_idx);
     /* default TLB page size */
     hwaddr tlb_size = TARGET_PAGE_SIZE;
 
@@ -2250,7 +2253,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool always_storeamo = (env->excp_uw2 & RISCV_UW2_ALWAYS_STORE_AMO);
     bool vsmode_exc;
     uint64_t s;
-    int mode;
+    privilege_mode_t mode;
 
     /*
      * cs->exception is 32-bits wide unlike mcause which is XLEN-bits wide
@@ -2266,7 +2269,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool smode_double_trap = false;
     uint64_t hdeleg = async ? env->hideleg : env->hedeleg;
     const bool prev_virt = env->virt_enabled;
-    const target_ulong prev_priv = env->priv;
+    const privilege_mode_t prev_priv = env->priv;
     uint64_t last_pc = env->pc;
     target_ulong tval = 0;
     target_ulong tinst = 0;

@@ -110,6 +110,12 @@ typedef struct riscv_cpu_profile {
 
 extern RISCVCPUProfile *riscv_profiles[];
 
+/*
+ * Type large enough to hold all PRV_* fields, update CPUArchState::priv
+ * migration field if changing this type.
+ */
+typedef uint8_t privilege_mode_t;
+
 /* Privileged specification version */
 #define PRIV_VER_1_10_0_STR "v1.10.0"
 #define PRIV_VER_1_11_0_STR "v1.11.0"
@@ -266,7 +272,7 @@ struct CPUArchState {
     uint32_t elf_flags;
 #endif
 
-    target_ulong priv;
+    privilege_mode_t priv;
     /* CSRs for execution environment configuration */
     uint64_t menvcfg;
     uint64_t senvcfg;
@@ -642,7 +648,7 @@ void riscv_cpu_interrupt(CPURISCVState *env);
 #define BOOL_TO_MASK(x) (-!!(x)) /* helper for riscv_cpu_update_mip value */
 void riscv_cpu_set_rdtime_fn(CPURISCVState *env, uint64_t (*fn)(void *),
                              void *arg);
-void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
+void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, privilege_mode_t priv,
                                    int (*rmw_fn)(void *arg,
                                                  target_ulong reg,
                                                  target_ulong *val,
@@ -653,10 +659,11 @@ void riscv_cpu_set_aia_ireg_rmw_fn(CPURISCVState *env, uint32_t priv,
 RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit);
 #endif /* !CONFIG_USER_ONLY */
 
-void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv, bool virt_en);
+void riscv_cpu_set_mode(CPURISCVState *env, privilege_mode_t newpriv,
+                        bool virt_en);
 
 void riscv_ctr_add_entry(CPURISCVState *env, target_long src, target_long dst,
-    enum CTRType type, target_ulong prev_priv, bool prev_virt);
+    enum CTRType type, privilege_mode_t prev_priv, bool prev_virt);
 void riscv_ctr_clear(CPURISCVState *env);
 
 void riscv_translate_init(void);
@@ -724,9 +731,9 @@ static inline const RISCVCPUConfig *riscv_cpu_cfg(CPURISCVState *env)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static inline int cpu_address_mode(CPURISCVState *env)
+static inline privilege_mode_t cpu_address_mode(CPURISCVState *env)
 {
-    int mode = env->priv;
+    privilege_mode_t mode = env->priv;
 
     if (mode == PRV_M && get_field(env->mstatus, MSTATUS_MPRV)) {
         mode = get_field(env->mstatus, MSTATUS_MPP);
@@ -734,7 +741,7 @@ static inline int cpu_address_mode(CPURISCVState *env)
     return mode;
 }
 
-static inline RISCVMXL cpu_get_xl(CPURISCVState *env, target_ulong mode)
+static inline RISCVMXL cpu_get_xl(CPURISCVState *env, privilege_mode_t mode)
 {
     RISCVMXL xl = env->misa_mxl;
     /*
@@ -780,7 +787,7 @@ static inline RISCVMXL cpu_address_xl(CPURISCVState *env)
 #ifdef CONFIG_USER_ONLY
     return env->xl;
 #else
-    int mode = cpu_address_mode(env);
+    privilege_mode_t mode = cpu_address_mode(env);
 
     return cpu_get_xl(env, mode);
 #endif
@@ -818,9 +825,9 @@ static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
  * Returns true if the effective privilege mode is modified.
  */
 static inline QEMU_ALWAYS_INLINE
-bool riscv_cpu_eff_priv(CPURISCVState *env, int *priv, bool *virt)
+bool riscv_cpu_eff_priv(CPURISCVState *env, privilege_mode_t *priv, bool *virt)
 {
-    int mode = env->priv;
+    privilege_mode_t mode = env->priv;
     bool virt_enabled = false;
     bool mode_modified = false;
 

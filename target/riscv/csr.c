@@ -374,7 +374,7 @@ static RISCVException aia_smode(CPURISCVState *env, int csrno)
 static RISCVException aia_smode32(CPURISCVState *env, int csrno)
 {
     int ret;
-    int csr_priv = get_field(csrno, 0x300);
+    privilege_mode_t csr_priv = get_field(csrno, 0x300);
 
     if (csr_priv == PRV_M && !riscv_cpu_cfg(env)->ext_smaia) {
         return RISCV_EXCP_ILLEGAL_INST;
@@ -2671,7 +2671,8 @@ static RISCVException rmw_xireg_aia(CPURISCVState *env, int csrno,
     bool virt = false, isel_reserved = false;
     int ret = -EINVAL;
     uint8_t *iprio;
-    target_ulong priv, vgein;
+    privilege_mode_t priv;
+    uint32_t vgein;
 
     /* VS-mode CSR number passed in has already been translated */
     switch (csrno) {
@@ -2956,7 +2957,8 @@ static RISCVException rmw_xtopei(CPURISCVState *env, int csrno,
 {
     bool virt;
     int ret = -EINVAL;
-    target_ulong priv, vgein;
+    privilege_mode_t priv;
+    uint32_t vgein;
 
     /* Translate CSR number for VS-mode */
     csrno = aia_xlate_vs_csrno(env, csrno);
@@ -5647,7 +5649,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    int csr_priv, effective_priv = env->priv;
+    privilege_mode_t csr_priv, effective_priv = env->priv;
 
     if (riscv_has_ext(env, RVH) && env->priv == PRV_S &&
         !env->virt_enabled) {
