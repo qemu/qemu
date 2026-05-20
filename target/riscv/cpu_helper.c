@@ -34,7 +34,7 @@
 #include "semihosting/common-semi.h"
 #include "exec/icount.h"
 #include "cpu_bits.h"
-#include "debug.h"
+#include "target/riscv/debug.h"
 #include "pmp.h"
 #include "qemu/plugin.h"
 
