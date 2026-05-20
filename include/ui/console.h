@@ -108,7 +108,6 @@ bool qemu_mouse_set(int index, Error **errp);
 #define QEMU_KEY_CTRL_PAGEDOWN   0xe407
 
 void qemu_text_console_put_keysym(QemuTextConsole *s, int keysym);
-bool qemu_text_console_put_qcode(QemuTextConsole *s, int qcode, bool ctrl);
 bool qemu_text_console_put_linux(QemuTextConsole *s, unsigned int lnx,
                                  bool ctrl);
 void qemu_text_console_put_string(QemuTextConsole *s, const char *str, int len);

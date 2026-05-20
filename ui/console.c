@@ -328,12 +328,6 @@ static const int ctrl_linux_to_keysym[] = {
     [KEY_PAGEDOWN]   = QEMU_KEY_CTRL_PAGEDOWN,
 };
 
-bool qemu_text_console_put_qcode(QemuTextConsole *s, int qcode, bool ctrl)
-{
-    unsigned int lnx = qemu_input_map_qcode_to_linux[qcode];
-    return qemu_text_console_put_linux(s, lnx, ctrl);
-}
-
 bool qemu_text_console_put_linux(QemuTextConsole *s, unsigned int lnx,
                                  bool ctrl)
 {
