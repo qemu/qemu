@@ -23,21 +23,9 @@ void replay_save_input_event(QemuInputEvent *evt)
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        replay_put_dword(evt->key.key.type);
-
-        switch (evt->key.key.type) {
-        case KEY_VALUE_KIND_NUMBER:
-            replay_put_qword(evt->key.key.u.number.data);
-            replay_put_byte(evt->key.down);
-            break;
-        case KEY_VALUE_KIND_QCODE:
-            replay_put_dword(evt->key.key.u.qcode.data);
-            replay_put_byte(evt->key.down);
-            break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
-        }
+        replay_put_dword(KEY_VALUE_KIND_QCODE);
+        replay_put_dword(evt->key.key);
+        replay_put_byte(evt->key.down);
         break;
     case INPUT_EVENT_KIND_BTN:
         replay_put_dword(evt->btn.button);
@@ -71,19 +59,14 @@ QemuInputEvent *replay_read_input_event(void)
     evt->type = replay_get_dword();
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        evt->key.key.type = replay_get_dword();
-
-        switch (evt->key.key.type) {
+        switch (replay_get_dword()) {
         case KEY_VALUE_KIND_NUMBER:
-            evt->key.key.u.number.data = replay_get_qword();
+            evt->key.key = qemu_input_key_number_to_qcode(replay_get_qword());
             evt->key.down = replay_get_byte();
             break;
         case KEY_VALUE_KIND_QCODE:
-            evt->key.key.u.qcode.data = (QKeyCode)replay_get_dword();
+            evt->key.key = (QKeyCode)replay_get_dword();
             evt->key.down = replay_get_byte();
-            break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
             break;
         }
         break;

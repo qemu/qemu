@@ -311,7 +311,7 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
     KBDState *s = (KBDState *)dev;
     int qcode, keycode;
 
-    qcode = qemu_input_key_value_to_qcode(&evt->key.key);
+    qcode = evt->key.key;
     if (qcode >= ARRAY_SIZE(qcode_to_adb_keycode)) {
         return;
     }

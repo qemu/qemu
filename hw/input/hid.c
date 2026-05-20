@@ -227,9 +227,8 @@ static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
     int scancodes[3], i, count;
     int slot;
 
-    count = qemu_input_key_value_to_scancode(&evt->key.key,
-                                             evt->key.down,
-                                             scancodes);
+    count = qemu_input_qcode_to_scancode(evt->key.key, evt->key.down,
+                                         scancodes);
     if (hs->n + count > QUEUE_LENGTH) {
         trace_hid_kbd_queue_full();
         return;

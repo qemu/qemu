@@ -19,7 +19,7 @@ static void stellaris_gamepad_event(DeviceState *dev, QemuConsole *src,
                                     QemuInputEvent *evt)
 {
     StellarisGamepad *s = STELLARIS_GAMEPAD(dev);
-    int qcode = qemu_input_key_value_to_qcode(&evt->key.key);
+    int qcode = evt->key.key;
     int i;
 
     for (i = 0; i < s->num_buttons; i++) {

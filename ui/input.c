@@ -180,8 +180,7 @@ void qmp_input_send_event(const char *device,
                 g_assert_not_reached();
             }
 
-            evt.key.key.type = KEY_VALUE_KIND_QCODE;
-            evt.key.key.u.qcode.data = code;
+            evt.key.key = code;
             evt.key.down = qapi->u.key.data->down;
             break;
         }
@@ -215,7 +214,7 @@ void qmp_input_send_event(const char *device,
 static void qemu_input_event_trace(QemuConsole *src, QemuInputEvent *evt)
 {
     const char *name;
-    int qcode, idx = -1;
+    int idx = -1;
     QemuInputKeyEvent *key;
     InputBtnEvent *btn;
     InputMoveEvent *move;
@@ -227,21 +226,8 @@ static void qemu_input_event_trace(QemuConsole *src, QemuInputEvent *evt)
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
         key = &evt->key;
-        switch (evt->key.key.type) {
-        case KEY_VALUE_KIND_NUMBER:
-            qcode = qemu_input_key_number_to_qcode(key->key.u.number.data);
-            name = QKeyCode_str(qcode);
-            trace_input_event_key_number(idx, key->key.u.number.data,
-                                         name, key->down);
-            break;
-        case KEY_VALUE_KIND_QCODE:
-            name = QKeyCode_str(key->key.u.qcode.data);
-            trace_input_event_key_qcode(idx, name, key->down);
-            break;
-        case KEY_VALUE_KIND__MAX:
-            /* keep gcc happy */
-            break;
-        }
+        name = QKeyCode_str(key->key);
+        trace_input_event_key_qcode(idx, name, key->down);
         break;
     case INPUT_EVENT_KIND_BTN:
         btn = &evt->btn;
@@ -357,12 +343,6 @@ void qemu_input_event_send_impl(QemuConsole *src, QemuInputEvent *evt)
 
 void qemu_input_event_send(QemuConsole *src, QemuInputEvent *evt)
 {
-    /* Expect all parts of QEMU to send events with QCodes exclusively.
-     * Key numbers are only supported as end-user input via QMP */
-    assert(!(evt->type == INPUT_EVENT_KIND_KEY &&
-             evt->key.key.type == KEY_VALUE_KIND_NUMBER));
-
-
     /*
      * 'sysrq' was mistakenly added to hack around the fact that
      * the ps2 driver was not generating correct scancodes sequences
@@ -372,8 +352,8 @@ void qemu_input_event_send(QemuConsole *src, QemuInputEvent *evt)
      * need to deal with this mistake
      */
     if (evt->type == INPUT_EVENT_KIND_KEY &&
-        evt->key.key.u.qcode.data == Q_KEY_CODE_SYSRQ) {
-        evt->key.key.u.qcode.data = Q_KEY_CODE_PRINT;
+        evt->key.key == Q_KEY_CODE_SYSRQ) {
+        evt->key.key = Q_KEY_CODE_PRINT;
     }
 
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
@@ -414,7 +394,7 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
     QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_KEY,
         .key = {
-            .key = *key,
+            .key = qemu_input_key_value_to_qcode(key),
             .down = down,
         },
     };
