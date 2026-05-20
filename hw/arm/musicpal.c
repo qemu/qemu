@@ -24,6 +24,7 @@
 #include "hw/core/ptimer.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/block/flash.h"
+#include "standard-headers/linux/input-event-codes.h"
 #include "ui/console.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/bitbang_i2c.h"
@@ -1069,40 +1070,39 @@ static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
                                QemuInputEvent *evt)
 {
     musicpal_key_state *s = MUSICPAL_KEY(dev);
-    int qcode = qemu_input_linux_to_qcode(evt->key.key);
     uint32_t event = 0;
     int i;
 
-    switch (qcode) {
-    case Q_KEY_CODE_UP:
+    switch (evt->key.key) {
+    case KEY_UP:
         event = MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_NAV_INV;
         break;
 
-    case Q_KEY_CODE_DOWN:
+    case KEY_DOWN:
         event = MP_KEY_WHEEL_NAV;
         break;
 
-    case Q_KEY_CODE_LEFT:
+    case KEY_LEFT:
         event = MP_KEY_WHEEL_VOL | MP_KEY_WHEEL_VOL_INV;
         break;
 
-    case Q_KEY_CODE_RIGHT:
+    case KEY_RIGHT:
         event = MP_KEY_WHEEL_VOL;
         break;
 
-    case Q_KEY_CODE_F:
+    case KEY_F:
         event = MP_KEY_BTN_FAVORITS;
         break;
 
-    case Q_KEY_CODE_TAB:
+    case KEY_TAB:
         event = MP_KEY_BTN_VOLUME;
         break;
 
-    case Q_KEY_CODE_RET:
+    case KEY_ENTER:
         event = MP_KEY_BTN_NAVIGATION;
         break;
 
-    case Q_KEY_CODE_M:
+    case KEY_M:
         event = MP_KEY_BTN_MENU;
         break;
     }
