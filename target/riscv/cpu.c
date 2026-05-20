@@ -1084,9 +1084,9 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
         }
 
         /* Update HGEIP CSR */
-        env->hgeip &= ~((target_ulong)1 << irq);
+        env->hgeip &= ~(1ULL << irq);
         if (level) {
-            env->hgeip |= (target_ulong)1 << irq;
+            env->hgeip |= 1ULL << irq;
         }
 
         /* Update mip.SGEIP bit */

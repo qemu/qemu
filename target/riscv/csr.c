@@ -3786,7 +3786,7 @@ static RISCVException rmw_mip64(CPURISCVState *env, int csrno,
 
     if (csrno != CSR_HVIP) {
         gin = get_field(env->hstatus, HSTATUS_VGEIN);
-        old_mip |= (env->hgeip & ((target_ulong)1 << gin)) ? MIP_VSEIP : 0;
+        old_mip |= (env->hgeip & (1ULL << gin)) ? MIP_VSEIP : 0;
         old_mip |= env->vstime_irq ? MIP_VSTIP : 0;
     }
 
@@ -4971,7 +4971,7 @@ static RISCVException write_hgeie(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
     /* Only GEILEN:1 bits implemented and BIT0 is never implemented */
-    val &= ((((target_ulong)1) << env->geilen) - 1) << 1;
+    val &= ((1ULL << env->geilen) - 1) << 1;
     env->hgeie = val;
     /* Update mip.SGEIP bit */
     riscv_cpu_update_mip(env, MIP_SGEIP,
