@@ -256,7 +256,7 @@ X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
 F: tests/tcg/hexagon/
 F: disas/hexagon.c
-F: configs/targets/hexagon-linux-user/default.mak
+F: configs/targets/hexagon-linux-user.mak
 F: tests/docker/dockerfiles/debian-hexagon-cross.docker
 F: gdbstub/gdb-xml/hexagon*.xml
 T: git https://github.com/qualcomm/qemu.git hex-next
