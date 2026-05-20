@@ -56,7 +56,7 @@ struct ADBMouseClass {
 #define ADB_MOUSE_BUTTON_RIGHT  0x02
 
 static void adb_mouse_handle_event(DeviceState *dev, QemuConsole *src,
-                                   InputEvent *evt)
+                                   QemuInputEvent *evt)
 {
     MouseState *s = (MouseState *)dev;
     InputMoveEvent *move;

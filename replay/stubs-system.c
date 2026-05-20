@@ -2,7 +2,7 @@
 #include "system/replay.h"
 #include "ui/input.h"
 
-void replay_input_event(QemuConsole *src, InputEvent *evt)
+void replay_input_event(QemuConsole *src, QemuInputEvent *evt)
 {
     qemu_input_event_send_impl(src, evt);
 }

@@ -1066,7 +1066,7 @@ struct musicpal_key_state {
 };
 
 static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
-                               InputEvent *evt)
+                               QemuInputEvent *evt)
 {
     musicpal_key_state *s = MUSICPAL_KEY(dev);
     InputKeyEvent *key = evt->u.key.data;

@@ -242,7 +242,8 @@ static void nextkbd_put_keycode(NextKBDState *s, int keycode)
     /* s->update_irq(s->update_arg, 1); */
 }
 
-static void nextkbd_event(DeviceState *dev, QemuConsole *src, InputEvent *evt)
+static void nextkbd_event(DeviceState *dev, QemuConsole *src,
+                          QemuInputEvent *evt)
 {
     NextKBDState *s = NEXTKBD(dev);
     int qcode, keycode;

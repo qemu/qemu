@@ -110,7 +110,7 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
 }
 
 static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
-                               InputEvent *evt)
+                               QemuInputEvent *evt)
 {
     static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,

@@ -126,7 +126,7 @@ void replay_bh_schedule_event(QEMUBH *bh);
 void replay_bh_schedule_oneshot_event(AioContext *ctx,
     QEMUBHFunc *cb, void *opaque);
 /*! Adds input event to the queue */
-void replay_input_event(QemuConsole *src, InputEvent *evt);
+void replay_input_event(QemuConsole *src, QemuInputEvent *evt);
 /*! Adds input sync event to the queue */
 void replay_input_sync_event(void);
 /*! Adds block layer event to the queue */

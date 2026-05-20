@@ -200,7 +200,7 @@ static int xenfb_send_position(struct XenInput *xenfb,
  * already has code for dealing with this...
  */
 static void xenfb_key_event(DeviceState *dev, QemuConsole *src,
-                            InputEvent *evt)
+                            QemuInputEvent *evt)
 {
     struct XenInput *xenfb = (struct XenInput *)dev;
     InputKeyEvent *key = evt->u.key.data;
@@ -227,7 +227,7 @@ static void xenfb_key_event(DeviceState *dev, QemuConsole *src,
  * the button state.
  */
 static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
-                              InputEvent *evt)
+                              QemuInputEvent *evt)
 {
     struct XenInput *xenfb = (struct XenInput *)dev;
     InputBtnEvent *btn;

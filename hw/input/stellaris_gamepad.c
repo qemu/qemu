@@ -16,7 +16,7 @@
 #include "ui/console.h"
 
 static void stellaris_gamepad_event(DeviceState *dev, QemuConsole *src,
-                                    InputEvent *evt)
+                                    QemuInputEvent *evt)
 {
     StellarisGamepad *s = STELLARIS_GAMEPAD(dev);
     InputKeyEvent *key = evt->u.key.data;

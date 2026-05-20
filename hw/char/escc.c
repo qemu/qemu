@@ -794,7 +794,7 @@ static const VMStateDescription vmstate_escc = {
 };
 
 static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
-                                InputEvent *evt)
+                                QemuInputEvent *evt)
 {
     ESCCChannelState *s = (ESCCChannelState *)dev;
     int qcode, keycode;
@@ -954,7 +954,7 @@ static void handle_kbd_command(ESCCChannelState *s, int val)
 }
 
 static void sunmouse_handle_event(DeviceState *dev, QemuConsole *src,
-                                  InputEvent *evt)
+                                  QemuInputEvent *evt)
 {
     ESCCChannelState *s = (ESCCChannelState *)dev;
     InputMoveEvent *move;

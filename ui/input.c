@@ -30,7 +30,7 @@ struct QemuInputEventQueue {
     QEMUTimer *timer;
     uint32_t delay_ms;
     QemuConsole *src;
-    InputEvent *evt;
+    QemuInputEvent *evt;
     QTAILQ_ENTRY(QemuInputEventQueue) node;
 };
 
@@ -174,7 +174,7 @@ void qmp_input_send_event(const char *device,
     qemu_input_event_sync();
 }
 
-static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
+static void qemu_input_event_trace(QemuConsole *src, QemuInputEvent *evt)
 {
     const char *name;
     int qcode, idx = -1;
@@ -283,7 +283,7 @@ static void qemu_input_queue_delay(QemuInputEventQueueHead *queue,
 }
 
 static void qemu_input_queue_event(QemuInputEventQueueHead *queue,
-                                   QemuConsole *src, InputEvent *evt)
+                                   QemuConsole *src, QemuInputEvent *evt)
 {
     QemuInputEventQueue *item = g_new0(QemuInputEventQueue, 1);
 
@@ -303,7 +303,7 @@ static void qemu_input_queue_sync(QemuInputEventQueueHead *queue)
     queue_count++;
 }
 
-void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt)
+void qemu_input_event_send_impl(QemuConsole *src, QemuInputEvent *evt)
 {
     QemuInputHandlerState *s;
 
@@ -318,7 +318,7 @@ void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt)
     s->events++;
 }
 
-void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
+void qemu_input_event_send(QemuConsole *src, QemuInputEvent *evt)
 {
     /* Expect all parts of QEMU to send events with QCodes exclusively.
      * Key numbers are only supported as end-user input via QMP */
@@ -372,9 +372,9 @@ void qemu_input_event_sync(void)
     replay_input_sync_event();
 }
 
-static InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
+static QemuInputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
 {
-    InputEvent *evt = g_new0(InputEvent, 1);
+    QemuInputEvent *evt = g_new0(QemuInputEvent, 1);
     evt->u.key.data = g_new0(InputKeyEvent, 1);
     evt->type = INPUT_EVENT_KIND_KEY;
     evt->u.key.data->key = key;
@@ -384,7 +384,7 @@ static InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
 
 void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
 {
-    InputEvent *evt;
+    QemuInputEvent *evt;
     evt = qemu_input_event_new_key(key, down);
     if (QTAILQ_EMPTY(&kbd_queue)) {
         qemu_input_event_send(src, evt);
@@ -435,7 +435,7 @@ void qemu_input_queue_btn(QemuConsole *src, InputButton btn, bool down)
         .button = btn,
         .down = down,
     };
-    InputEvent evt = {
+    QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_BTN,
         .u.btn.data = &bevt,
     };
@@ -486,7 +486,7 @@ void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value)
         .axis = axis,
         .value = value,
     };
-    InputEvent evt = {
+    QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_REL,
         .u.rel.data = &move,
     };
@@ -503,7 +503,7 @@ void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value,
                                        INPUT_EVENT_ABS_MIN,
                                        INPUT_EVENT_ABS_MAX),
     };
-    InputEvent evt = {
+    QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_ABS,
         .u.abs.data = &move,
     };
@@ -519,7 +519,7 @@ void qemu_input_queue_mtt(QemuConsole *src, InputMultiTouchType type,
         .slot = slot,
         .tracking_id = tracking_id,
     };
-    InputEvent evt = {
+    QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_MTT,
         .u.mtt.data = &mtt,
     };
@@ -539,7 +539,7 @@ void qemu_input_queue_mtt_abs(QemuConsole *src, InputAxis axis, int value,
                                        INPUT_EVENT_ABS_MIN,
                                        INPUT_EVENT_ABS_MAX),
     };
-    InputEvent evt = {
+    QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_MTT,
         .u.mtt.data = &mtt,
     };

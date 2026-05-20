@@ -146,7 +146,7 @@ static void wctablet_queue_event(TabletChardev *tablet)
 }
 
 static void wctablet_input_event(DeviceState *dev, QemuConsole *src,
-                                InputEvent *evt)
+                                 QemuInputEvent *evt)
 {
     TabletChardev *tablet = (TabletChardev *)dev;
     InputMoveEvent *move;

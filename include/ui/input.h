@@ -19,7 +19,7 @@ typedef struct QemuInputHandler QemuInputHandler;
 typedef struct QemuInputHandlerState QemuInputHandlerState;
 
 typedef void (*QemuInputHandlerEvent)(DeviceState *dev, QemuConsole *src,
-                                      InputEvent *evt);
+                                      QemuInputEvent *evt);
 typedef void (*QemuInputHandlerSync)(DeviceState *dev);
 
 struct QemuInputHandler {
@@ -37,8 +37,8 @@ void qemu_input_handler_unregister(QemuInputHandlerState *s);
 void qemu_input_handler_bind(QemuInputHandlerState *s,
                              const char *device_id, int head,
                              Error **errp);
-void qemu_input_event_send(QemuConsole *src, InputEvent *evt);
-void qemu_input_event_send_impl(QemuConsole *src, InputEvent *evt);
+void qemu_input_event_send(QemuConsole *src, QemuInputEvent *evt);
+void qemu_input_event_send_impl(QemuConsole *src, QemuInputEvent *evt);
 void qemu_input_event_sync(void);
 void qemu_input_event_sync_impl(void);
 

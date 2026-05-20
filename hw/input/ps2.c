@@ -310,7 +310,7 @@ static void ps2_put_keycode(void *opaque, int keycode)
 }
 
 static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
-                               InputEvent *evt)
+                               QemuInputEvent *evt)
 {
     PS2KbdState *s = (PS2KbdState *)dev;
     InputKeyEvent *key = evt->u.key.data;
@@ -787,7 +787,7 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
 }
 
 static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
-                            InputEvent *evt)
+                            QemuInputEvent *evt)
 {
     static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = PS2_MOUSE_BUTTON_LEFT,

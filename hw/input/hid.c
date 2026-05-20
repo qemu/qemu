@@ -108,7 +108,7 @@ void hid_set_next_idle(HIDState *hs)
 }
 
 static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
-                              InputEvent *evt)
+                              QemuInputEvent *evt)
 {
     static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = 0x01,
@@ -226,7 +226,7 @@ static void hid_pointer_sync(DeviceState *dev)
 }
 
 static void hid_keyboard_event(DeviceState *dev, QemuConsole *src,
-                               InputEvent *evt)
+                               QemuInputEvent *evt)
 {
     HIDState *hs = (HIDState *)dev;
     int scancodes[3], i, count;

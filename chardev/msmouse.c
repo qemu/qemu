@@ -122,7 +122,7 @@ static void msmouse_queue_event(MouseChardev *mouse)
 }
 
 static void msmouse_input_event(DeviceState *dev, QemuConsole *src,
-                                InputEvent *evt)
+                                QemuInputEvent *evt)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(dev);
     InputMoveEvent *move;

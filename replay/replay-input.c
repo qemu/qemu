@@ -17,7 +17,7 @@
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-ui.h"
 
-void replay_save_input_event(InputEvent *evt)
+void replay_save_input_event(QemuInputEvent *evt)
 {
     InputKeyEvent *key;
     InputBtnEvent *btn;
@@ -73,9 +73,9 @@ void replay_save_input_event(InputEvent *evt)
     }
 }
 
-InputEvent *replay_read_input_event(void)
+QemuInputEvent *replay_read_input_event(void)
 {
-    InputEvent evt;
+    QemuInputEvent evt;
     KeyValue keyValue;
     InputKeyEvent key;
     key.key = &keyValue;
@@ -135,7 +135,7 @@ InputEvent *replay_read_input_event(void)
     return QAPI_CLONE(InputEvent, &evt);
 }
 
-void replay_input_event(QemuConsole *src, InputEvent *evt)
+void replay_input_event(QemuConsole *src, QemuInputEvent *evt)
 {
     if (replay_mode == REPLAY_MODE_PLAY) {
         /* Nothing */

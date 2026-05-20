@@ -306,7 +306,7 @@ static bool adb_kbd_has_data(ADBDevice *d)
 
 /* This is where keyboard events enter this file */
 static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
-                               InputEvent *evt)
+                               QemuInputEvent *evt)
 {
     KBDState *s = (KBDState *)dev;
     int qcode, keycode;

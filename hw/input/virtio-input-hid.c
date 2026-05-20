@@ -79,7 +79,7 @@ static void virtio_input_extend_config(VirtIOInput *vinput,
 }
 
 static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
-                                      InputEvent *evt)
+                                      QemuInputEvent *evt)
 {
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
     virtio_input_event event;

@@ -41,7 +41,7 @@ static void replay_run_event(Event *event)
         ((QEMUBHFunc *)event->opaque)(event->opaque2);
         break;
     case REPLAY_ASYNC_EVENT_INPUT:
-        qemu_input_event_send_impl(NULL, (InputEvent *)event->opaque);
+        qemu_input_event_send_impl(NULL, (QemuInputEvent *)event->opaque);
         qapi_free_InputEvent((InputEvent *)event->opaque);
         break;
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
@@ -143,7 +143,7 @@ void replay_bh_schedule_oneshot_event(AioContext *ctx,
     }
 }
 
-void replay_add_input_event(struct InputEvent *event)
+void replay_add_input_event(QemuInputEvent *event)
 {
     replay_add_event(REPLAY_ASYNC_EVENT_INPUT, event, NULL, 0);
 }
