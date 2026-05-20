@@ -386,7 +386,7 @@ static const char * const riscv_intr_names[] = {
     [IRQ_PMU_OVF] = "counter_overflow",
 };
 
-const char *riscv_cpu_get_trap_name(target_ulong cause, bool async)
+const char *riscv_cpu_get_trap_name(uint64_t cause, bool async)
 {
     if (async) {
         if ((cause < ARRAY_SIZE(riscv_intr_names)) && riscv_intr_names[cause]) {
