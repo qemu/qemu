@@ -165,25 +165,10 @@ void qmp_input_send_event(const char *device,
         evt.type = qapi->type;
 
         switch (qapi->type) {
-        case INPUT_EVENT_KIND_KEY: {
-            KeyValue *key = qapi->u.key.data->key;
-            QKeyCode code;
-
-            switch (key->type) {
-            case KEY_VALUE_KIND_NUMBER:
-                code = qemu_input_key_number_to_qcode(key->u.number.data);
-                break;
-            case KEY_VALUE_KIND_QCODE:
-                code = key->u.qcode.data;
-                break;
-            default:
-                g_assert_not_reached();
-            }
-
-            evt.key.key = code;
+        case INPUT_EVENT_KIND_KEY:
+            evt.key.key = qemu_input_key_value_to_linux(qapi->u.key.data->key);
             evt.key.down = qapi->u.key.data->down;
             break;
-        }
 
         case INPUT_EVENT_KIND_BTN:
             evt.btn = *qapi->u.btn.data;
@@ -226,7 +211,7 @@ static void qemu_input_event_trace(QemuConsole *src, QemuInputEvent *evt)
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
         key = &evt->key;
-        name = QKeyCode_str(key->key);
+        name = QKeyCode_str(qemu_input_linux_to_qcode(key->key));
         trace_input_event_key_qcode(idx, name, key->down);
         break;
     case INPUT_EVENT_KIND_BTN:
@@ -343,19 +328,6 @@ void qemu_input_event_send_impl(QemuConsole *src, QemuInputEvent *evt)
 
 void qemu_input_event_send(QemuConsole *src, QemuInputEvent *evt)
 {
-    /*
-     * 'sysrq' was mistakenly added to hack around the fact that
-     * the ps2 driver was not generating correct scancodes sequences
-     * when 'alt+print' was pressed. This flaw is now fixed and the
-     * 'sysrq' key serves no further purpose. We normalize it to
-     * 'print', so that downstream receivers of the event don't
-     * need to deal with this mistake
-     */
-    if (evt->type == INPUT_EVENT_KIND_KEY &&
-        evt->key.key == Q_KEY_CODE_SYSRQ) {
-        evt->key.key = Q_KEY_CODE_PRINT;
-    }
-
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
@@ -391,15 +363,22 @@ void qemu_input_event_sync(void)
 
 void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
 {
+    unsigned int lnx = qemu_input_key_value_to_linux(key);
+
+    g_free(key);
+    qemu_input_event_send_key_linux(src, lnx, down);
+}
+
+void qemu_input_event_send_key_linux(QemuConsole *src, unsigned int lnx,
+                                     bool down)
+{
     QemuInputEvent evt = {
         .type = INPUT_EVENT_KIND_KEY,
         .key = {
-            .key = qemu_input_key_value_to_qcode(key),
+            .key = lnx,
             .down = down,
         },
     };
-
-    g_free(key);
 
     if (QTAILQ_EMPTY(&kbd_queue)) {
         qemu_input_event_send(src, &evt);
@@ -412,8 +391,8 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
 
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
 {
-    QKeyCode code = qemu_input_key_number_to_qcode(num);
-    qemu_input_event_send_key_qcode(src, code, down);
+    unsigned int lnx = qemu_input_key_number_to_linux(num);
+    qemu_input_event_send_key_linux(src, lnx, down);
 }
 
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)

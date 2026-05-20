@@ -203,7 +203,7 @@ static void xenfb_key_event(DeviceState *dev, QemuConsole *src,
                             QemuInputEvent *evt)
 {
     struct XenInput *xenfb = (struct XenInput *)dev;
-    int qcode = evt->key.key;
+    int qcode = qemu_input_linux_to_qcode(evt->key.key);
     int lnx;
 
     if (qcode < qemu_input_map_qcode_to_linux_len) {

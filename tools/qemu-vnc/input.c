@@ -83,10 +83,17 @@ void qemu_input_event_send_key_delay(uint32_t delay_ms)
 
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
 {
+    unsigned int lnx = qemu_input_map_qcode_to_linux[q];
+    qemu_input_event_send_key_linux(src, lnx, down);
+}
+
+void qemu_input_event_send_key_linux(QemuConsole *src, unsigned int lnx,
+                                     bool down)
+{
     QemuDBusDisplay1Keyboard *kbd;
     guint qnum;
 
-    trace_qemu_vnc_key_event(q, down);
+    trace_qemu_vnc_key_event(lnx, down);
 
     if (!src) {
         return;
@@ -96,10 +103,10 @@ void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
         return;
     }
 
-    if (q >= qemu_input_map_qcode_to_qnum_len) {
+    if (lnx >= qemu_input_map_linux_to_qnum_len) {
         return;
     }
-    qnum = qemu_input_map_qcode_to_qnum[q];
+    qnum = qemu_input_map_linux_to_qnum[lnx];
 
     if (down) {
         qemu_dbus_display1_keyboard_call_press(

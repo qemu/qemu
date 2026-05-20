@@ -12,7 +12,7 @@ qemu_vnc_cursor_define(int width, int height, int hot_x, int hot_y) "w=%d h=%d h
 qemu_vnc_input_abs(uint32_t x, uint32_t y) "x=%u y=%u"
 qemu_vnc_input_btn(int button, bool press) "button=%d press=%d"
 qemu_vnc_input_rel(int dx, int dy) "dx=%d dy=%d"
-qemu_vnc_key_event(int qcode, bool down) "qcode=%d down=%d"
+qemu_vnc_key_event(unsigned int lnx, bool down) "lnx=%u down=%d"
 qemu_vnc_owner_appeared(const char *name) "peer=%s"
 qemu_vnc_owner_vanished(const char *name) "peer=%s"
 qemu_vnc_scanout(uint32_t width, uint32_t height, uint32_t stride, uint32_t format) "w=%u h=%u stride=%u fmt=0x%x"
