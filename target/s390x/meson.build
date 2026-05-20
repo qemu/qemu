@@ -22,7 +22,6 @@ gen_features_h = custom_target('gen-features.h',
 
 s390x_common_ss.add(gen_features_h)
 s390x_common_ss.add(files(
-  'cpu_models_user.c',
   'gdbstub.c',
 ))
 
@@ -39,6 +38,11 @@ s390x_common_system_ss.add(files(
   'mmu_helper.c',
   'sigp.c',
   'cpu-system.c',
+  'cpu_models_system.c',
+))
+
+s390x_user_ss.add(files(
+  'cpu_models_user.c',
 ))
 
 subdir('tcg')

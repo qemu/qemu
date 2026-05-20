@@ -60,6 +60,7 @@ cp_portable() {
                                      -e 'drm.h' \
                                      -e 'limits' \
                                      -e 'linux/const' \
+                                     -e 'linux/typelimits' \
                                      -e 'linux/kernel' \
                                      -e 'linux/sysinfo' \
                                      -e 'asm/setup_data.h' \
@@ -103,6 +104,7 @@ cp_portable() {
         -e 's/__kernel_ulong_t/unsigned long/' \
         -e 's/struct ethhdr/struct eth_header/' \
         -e '/\#define _LINUX_ETHTOOL_H/a \\n\#include "net/eth.h"' \
+        -e '/\#define _LINUX_VIRTIO_RING_H/a \\n\#define VIRTIO_RING_NO_LEGACY' \
         "$f" > "$to/$header";
 }
 
@@ -250,6 +252,7 @@ for i in "$hdrdir"/include/linux/*virtio*.h \
          "$hdrdir/include/linux/pci_regs.h" \
          "$hdrdir/include/linux/ethtool.h" \
          "$hdrdir/include/linux/const.h" \
+         "$hdrdir/include/linux/typelimits.h" \
          "$hdrdir/include/linux/kernel.h" \
          "$hdrdir/include/linux/kvm_para.h" \
          "$hdrdir/include/linux/vhost_types.h" \

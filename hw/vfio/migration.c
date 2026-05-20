@@ -320,6 +320,18 @@ static void vfio_migration_cleanup(VFIODevice *vbasedev)
     migration->data_fd = -1;
 }
 
+static bool vfio_migration_check_overflow(VFIODevice *vbasedev, uint64_t size,
+                                          const char *name)
+{
+    if (size > INT64_MAX) {
+        error_report("%s: Estimated %s size overflow: 0x%"PRIx64,
+                     vbasedev->name, name, size);
+        return true;
+    }
+
+    return false;
+}
+
 static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
 {
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature) +
@@ -329,7 +341,7 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
     struct vfio_device_feature_mig_data_size *mig_data_size =
         (struct vfio_device_feature_mig_data_size *)feature->data;
     VFIOMigration *migration = vbasedev->migration;
-    int ret;
+    int ret = 0;
 
     feature->argsz = sizeof(buf);
     feature->flags =
@@ -347,7 +359,10 @@ static int vfio_query_stop_copy_size(VFIODevice *vbasedev)
                          vbasedev->name, ret);
     } else {
         migration->stopcopy_size = mig_data_size->stop_copy_length;
-        ret = 0;
+        if (vfio_migration_check_overflow(vbasedev, migration->stopcopy_size,
+                                          "stop copy size")) {
+            ret = -ERANGE;
+        }
     }
 
     trace_vfio_query_stop_copy_size(vbasedev->name,
@@ -361,7 +376,7 @@ static int vfio_query_precopy_size(VFIOMigration *migration)
     struct vfio_precopy_info precopy = {
         .argsz = sizeof(precopy),
     };
-    int ret;
+    int ret = 0;
 
     if (ioctl(migration->data_fd, VFIO_MIG_GET_PRECOPY_INFO, &precopy)) {
         migration->precopy_init_size = 0;
@@ -370,9 +385,18 @@ static int vfio_query_precopy_size(VFIOMigration *migration)
         warn_report_once("VFIO device %s ioctl(VFIO_MIG_GET_PRECOPY_INFO) "
                          "failed (%d)", migration->vbasedev->name, ret);
     } else {
+        bool overflow;
+
         migration->precopy_init_size = precopy.initial_bytes;
         migration->precopy_dirty_size = precopy.dirty_bytes;
-        ret = 0;
+
+        overflow  = vfio_migration_check_overflow(migration->vbasedev,
+                         migration->precopy_init_size,  "precopy init size");
+        overflow |= vfio_migration_check_overflow(migration->vbasedev,
+                         migration->precopy_dirty_size, "precopy dirty size");
+        if (overflow) {
+            ret = -ERANGE;
+        }
     }
 
     trace_vfio_query_precopy_size(migration->vbasedev->name,

@@ -24,7 +24,6 @@
 
 #include "exec/cpu-common.h"
 #include "hw/vfio/vfio-device.h"
-#include "hw/core/hw-error.h"
 #include "qapi/error.h"
 #include "vfio-helpers.h"
 
