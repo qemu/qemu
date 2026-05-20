@@ -59,8 +59,6 @@ static void adb_mouse_handle_event(DeviceState *dev, QemuConsole *src,
                                    QemuInputEvent *evt)
 {
     MouseState *s = (MouseState *)dev;
-    InputMoveEvent *move;
-    InputBtnEvent *btn;
     static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = ADB_MOUSE_BUTTON_LEFT,
         [INPUT_BUTTON_RIGHT]  = ADB_MOUSE_BUTTON_RIGHT,
@@ -68,21 +66,19 @@ static void adb_mouse_handle_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
-        if (move->axis == INPUT_AXIS_X) {
-            s->dx += move->value;
-        } else if (move->axis == INPUT_AXIS_Y) {
-            s->dy += move->value;
+        if (evt->rel.axis == INPUT_AXIS_X) {
+            s->dx += evt->rel.value;
+        } else if (evt->rel.axis == INPUT_AXIS_Y) {
+            s->dy += evt->rel.value;
         }
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        if (bmap[btn->button]) {
-            if (btn->down) {
-                s->buttons_state |= bmap[btn->button];
+        if (bmap[evt->btn.button]) {
+            if (evt->btn.down) {
+                s->buttons_state |= bmap[evt->btn.button];
             } else {
-                s->buttons_state &= ~bmap[btn->button];
+                s->buttons_state &= ~bmap[evt->btn.button];
             }
         }
         break;

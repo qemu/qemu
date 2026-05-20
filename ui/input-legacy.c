@@ -118,39 +118,36 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
     };
     QEMUPutMouseEntry *s = (QEMUPutMouseEntry *)dev;
-    InputBtnEvent *btn;
-    InputMoveEvent *move;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        if (btn->down) {
-            s->buttons |= bmap[btn->button];
+        if (evt->btn.down) {
+            s->buttons |= bmap[evt->btn.button];
         } else {
-            s->buttons &= ~bmap[btn->button];
+            s->buttons &= ~bmap[evt->btn.button];
         }
-        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_UP) {
+        if (evt->btn.down && evt->btn.button == INPUT_BUTTON_WHEEL_UP) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
                                     -1,
                                     s->buttons);
         }
-        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+        if (evt->btn.down && evt->btn.button == INPUT_BUTTON_WHEEL_DOWN) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
                                     1,
                                     s->buttons);
         }
-        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_RIGHT) {
+        if (evt->btn.down && evt->btn.button == INPUT_BUTTON_WHEEL_RIGHT) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
                                     -2,
                                     s->buttons);
         }
-        if (btn->down && btn->button == INPUT_BUTTON_WHEEL_LEFT) {
+        if (evt->btn.down && evt->btn.button == INPUT_BUTTON_WHEEL_LEFT) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
@@ -159,12 +156,10 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
-        s->axis[move->axis] = move->value;
+        s->axis[evt->abs.axis] = evt->abs.value;
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
-        s->axis[move->axis] += move->value;
+        s->axis[evt->rel.axis] += evt->rel.value;
         break;
     default:
         break;

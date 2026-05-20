@@ -19,25 +19,20 @@
 
 void replay_save_input_event(QemuInputEvent *evt)
 {
-    InputKeyEvent *key;
-    InputBtnEvent *btn;
-    InputMoveEvent *move;
-    InputMultiTouchEvent *mtt;
     replay_put_dword(evt->type);
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        key = evt->u.key.data;
-        replay_put_dword(key->key->type);
+        replay_put_dword(evt->key.key.type);
 
-        switch (key->key->type) {
+        switch (evt->key.key.type) {
         case KEY_VALUE_KIND_NUMBER:
-            replay_put_qword(key->key->u.number.data);
-            replay_put_byte(key->down);
+            replay_put_qword(evt->key.key.u.number.data);
+            replay_put_byte(evt->key.down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            replay_put_dword(key->key->u.qcode.data);
-            replay_put_byte(key->down);
+            replay_put_dword(evt->key.key.u.qcode.data);
+            replay_put_byte(evt->key.down);
             break;
         case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
@@ -45,27 +40,23 @@ void replay_save_input_event(QemuInputEvent *evt)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        replay_put_dword(btn->button);
-        replay_put_byte(btn->down);
+        replay_put_dword(evt->btn.button);
+        replay_put_byte(evt->btn.down);
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
-        replay_put_dword(move->axis);
-        replay_put_qword(move->value);
+        replay_put_dword(evt->rel.axis);
+        replay_put_qword(evt->rel.value);
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
-        replay_put_dword(move->axis);
-        replay_put_qword(move->value);
+        replay_put_dword(evt->abs.axis);
+        replay_put_qword(evt->abs.value);
         break;
     case INPUT_EVENT_KIND_MTT:
-        mtt = evt->u.mtt.data;
-        replay_put_dword(mtt->type);
-        replay_put_qword(mtt->slot);
-        replay_put_qword(mtt->tracking_id);
-        replay_put_dword(mtt->axis);
-        replay_put_qword(mtt->value);
+        replay_put_dword(evt->mtt.type);
+        replay_put_qword(evt->mtt.slot);
+        replay_put_qword(evt->mtt.tracking_id);
+        replay_put_dword(evt->mtt.axis);
+        replay_put_qword(evt->mtt.value);
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
@@ -75,29 +66,21 @@ void replay_save_input_event(QemuInputEvent *evt)
 
 QemuInputEvent *replay_read_input_event(void)
 {
-    QemuInputEvent evt;
-    KeyValue keyValue;
-    InputKeyEvent key;
-    key.key = &keyValue;
-    InputBtnEvent btn;
-    InputMoveEvent rel;
-    InputMoveEvent abs;
-    InputMultiTouchEvent mtt;
+    QemuInputEvent *evt = g_new(QemuInputEvent, 1);
 
-    evt.type = replay_get_dword();
-    switch (evt.type) {
+    evt->type = replay_get_dword();
+    switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        evt.u.key.data = &key;
-        evt.u.key.data->key->type = replay_get_dword();
+        evt->key.key.type = replay_get_dword();
 
-        switch (evt.u.key.data->key->type) {
+        switch (evt->key.key.type) {
         case KEY_VALUE_KIND_NUMBER:
-            evt.u.key.data->key->u.number.data = replay_get_qword();
-            evt.u.key.data->down = replay_get_byte();
+            evt->key.key.u.number.data = replay_get_qword();
+            evt->key.down = replay_get_byte();
             break;
         case KEY_VALUE_KIND_QCODE:
-            evt.u.key.data->key->u.qcode.data = (QKeyCode)replay_get_dword();
-            evt.u.key.data->down = replay_get_byte();
+            evt->key.key.u.qcode.data = (QKeyCode)replay_get_dword();
+            evt->key.down = replay_get_byte();
             break;
         case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
@@ -105,34 +88,30 @@ QemuInputEvent *replay_read_input_event(void)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        evt.u.btn.data = &btn;
-        evt.u.btn.data->button = (InputButton)replay_get_dword();
-        evt.u.btn.data->down = replay_get_byte();
+        evt->btn.button = (InputButton)replay_get_dword();
+        evt->btn.down = replay_get_byte();
         break;
     case INPUT_EVENT_KIND_REL:
-        evt.u.rel.data = &rel;
-        evt.u.rel.data->axis = (InputAxis)replay_get_dword();
-        evt.u.rel.data->value = replay_get_qword();
+        evt->rel.axis = (InputAxis)replay_get_dword();
+        evt->rel.value = replay_get_qword();
         break;
     case INPUT_EVENT_KIND_ABS:
-        evt.u.abs.data = &abs;
-        evt.u.abs.data->axis = (InputAxis)replay_get_dword();
-        evt.u.abs.data->value = replay_get_qword();
+        evt->abs.axis = (InputAxis)replay_get_dword();
+        evt->abs.value = replay_get_qword();
         break;
     case INPUT_EVENT_KIND_MTT:
-        evt.u.mtt.data = &mtt;
-        evt.u.mtt.data->type = (InputMultiTouchType)replay_get_dword();
-        evt.u.mtt.data->slot = replay_get_qword();
-        evt.u.mtt.data->tracking_id = replay_get_qword();
-        evt.u.mtt.data->axis = (InputAxis)replay_get_dword();
-        evt.u.mtt.data->value = replay_get_qword();
+        evt->mtt.type = (InputMultiTouchType)replay_get_dword();
+        evt->mtt.slot = replay_get_qword();
+        evt->mtt.tracking_id = replay_get_qword();
+        evt->mtt.axis = (InputAxis)replay_get_dword();
+        evt->mtt.value = replay_get_qword();
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
         break;
     }
 
-    return QAPI_CLONE(InputEvent, &evt);
+    return evt;
 }
 
 void replay_input_event(QemuConsole *src, QemuInputEvent *evt)
@@ -140,7 +119,9 @@ void replay_input_event(QemuConsole *src, QemuInputEvent *evt)
     if (replay_mode == REPLAY_MODE_PLAY) {
         /* Nothing */
     } else if (replay_mode == REPLAY_MODE_RECORD) {
-        replay_add_input_event(QAPI_CLONE(InputEvent, evt));
+        QemuInputEvent *clone = g_new(QemuInputEvent, 1);
+        *clone = *evt;
+        replay_add_input_event(clone);
     } else {
         qemu_input_event_send_impl(src, evt);
     }

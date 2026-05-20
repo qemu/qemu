@@ -42,7 +42,7 @@ static void replay_run_event(Event *event)
         break;
     case REPLAY_ASYNC_EVENT_INPUT:
         qemu_input_event_send_impl(NULL, (QemuInputEvent *)event->opaque);
-        qapi_free_InputEvent((InputEvent *)event->opaque);
+        g_free(event->opaque);
         break;
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
         qemu_input_event_sync_impl();

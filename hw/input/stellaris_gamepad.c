@@ -19,14 +19,13 @@ static void stellaris_gamepad_event(DeviceState *dev, QemuConsole *src,
                                     QemuInputEvent *evt)
 {
     StellarisGamepad *s = STELLARIS_GAMEPAD(dev);
-    InputKeyEvent *key = evt->u.key.data;
-    int qcode = qemu_input_key_value_to_qcode(key->key);
+    int qcode = qemu_input_key_value_to_qcode(&evt->key.key);
     int i;
 
     for (i = 0; i < s->num_buttons; i++) {
-        if (s->keycodes[i] == qcode && s->pressed[i] != key->down) {
-            s->pressed[i] = key->down;
-            qemu_set_irq(s->irqs[i], key->down);
+        if (s->keycodes[i] == qcode && s->pressed[i] != evt->key.down) {
+            s->pressed[i] = evt->key.down;
+            qemu_set_irq(s->irqs[i], evt->key.down);
         }
     }
 }

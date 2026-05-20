@@ -247,16 +247,15 @@ static void nextkbd_event(DeviceState *dev, QemuConsole *src,
 {
     NextKBDState *s = NEXTKBD(dev);
     int qcode, keycode;
-    bool key_down = evt->u.key.data->down;
 
-    qcode = qemu_input_key_value_to_qcode(evt->u.key.data->key);
+    qcode = qemu_input_key_value_to_qcode(&evt->key.key);
     if (qcode >= ARRAY_SIZE(qcode_to_nextkbd_keycode)) {
         return;
     }
 
     /* Shift key currently has no keycode, so handle separately */
     if (qcode == Q_KEY_CODE_SHIFT) {
-        if (key_down) {
+        if (evt->key.down) {
             s->shift |= KD_LSHIFT;
         } else {
             s->shift &= ~KD_LSHIFT;
@@ -264,7 +263,7 @@ static void nextkbd_event(DeviceState *dev, QemuConsole *src,
     }
 
     if (qcode == Q_KEY_CODE_SHIFT_R) {
-        if (key_down) {
+        if (evt->key.down) {
             s->shift |= KD_RSHIFT;
         } else {
             s->shift &= ~KD_RSHIFT;
@@ -277,7 +276,7 @@ static void nextkbd_event(DeviceState *dev, QemuConsole *src,
     }
 
     /* If key release event, create keyboard break code */
-    if (!key_down) {
+    if (!evt->key.down) {
         keycode |= 0x80;
     }
 

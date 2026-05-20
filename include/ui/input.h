@@ -18,6 +18,22 @@
 typedef struct QemuInputHandler QemuInputHandler;
 typedef struct QemuInputHandlerState QemuInputHandlerState;
 
+typedef struct QemuInputKeyEvent {
+    KeyValue key;
+    bool down;
+} QemuInputKeyEvent;
+
+typedef struct QemuInputEvent {
+    InputEventKind type;
+    union {
+        QemuInputKeyEvent key;
+        InputBtnEvent btn;
+        InputMoveEvent rel;
+        InputMoveEvent abs;
+        InputMultiTouchEvent mtt;
+    };
+} QemuInputEvent;
+
 typedef void (*QemuInputHandlerEvent)(DeviceState *dev, QemuConsole *src,
                                       QemuInputEvent *evt);
 typedef void (*QemuInputHandlerSync)(DeviceState *dev);

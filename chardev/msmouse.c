@@ -125,8 +125,6 @@ static void msmouse_input_event(DeviceState *dev, QemuConsole *src,
                                 QemuInputEvent *evt)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(dev);
-    InputMoveEvent *move;
-    InputBtnEvent *btn;
 
     /* Ignore events if serial mouse powered down. */
     if (!MSMOUSE_PWR(mouse->tiocm)) {
@@ -135,14 +133,12 @@ static void msmouse_input_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
-        mouse->axis[move->axis] += move->value;
+        mouse->axis[evt->rel.axis] += evt->rel.value;
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        mouse->btns[btn->button] = btn->down;
-        mouse->btnc[btn->button] = true;
+        mouse->btns[evt->btn.button] = evt->btn.down;
+        mouse->btnc[evt->btn.button] = true;
         break;
 
     default:

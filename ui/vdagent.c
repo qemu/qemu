@@ -241,22 +241,19 @@ static void vdagent_pointer_event(DeviceState *dev, QemuConsole *src,
     };
 
     VDAgentChardev *vd = container_of(dev, struct VDAgentChardev, mouse_dev);
-    InputMoveEvent *move;
-    InputBtnEvent *btn;
     uint32_t xres, yres;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
         xres = qemu_console_get_width(src, 1024);
         yres = qemu_console_get_height(src, 768);
-        if (move->axis == INPUT_AXIS_X) {
-            vd->mouse_x = qemu_input_scale_axis(move->value,
+        if (evt->abs.axis == INPUT_AXIS_X) {
+            vd->mouse_x = qemu_input_scale_axis(evt->abs.value,
                                                 INPUT_EVENT_ABS_MIN,
                                                 INPUT_EVENT_ABS_MAX,
                                                 0, xres);
-        } else if (move->axis == INPUT_AXIS_Y) {
-            vd->mouse_y = qemu_input_scale_axis(move->value,
+        } else if (evt->abs.axis == INPUT_AXIS_Y) {
+            vd->mouse_y = qemu_input_scale_axis(evt->abs.value,
                                                 INPUT_EVENT_ABS_MIN,
                                                 INPUT_EVENT_ABS_MAX,
                                                 0, yres);
@@ -265,11 +262,10 @@ static void vdagent_pointer_event(DeviceState *dev, QemuConsole *src,
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        if (btn->down) {
-            vd->mouse_btn |= bmap[btn->button];
+        if (evt->btn.down) {
+            vd->mouse_btn |= bmap[evt->btn.button];
         } else {
-            vd->mouse_btn &= ~bmap[btn->button];
+            vd->mouse_btn &= ~bmap[evt->btn.button];
         }
         break;
 

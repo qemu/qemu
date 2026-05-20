@@ -1069,8 +1069,7 @@ static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
                                QemuInputEvent *evt)
 {
     musicpal_key_state *s = MUSICPAL_KEY(dev);
-    InputKeyEvent *key = evt->u.key.data;
-    int qcode = qemu_input_key_value_to_qcode(key->key);
+    int qcode = qemu_input_key_value_to_qcode(&evt->key.key);
     uint32_t event = 0;
     int i;
 
@@ -1113,14 +1112,14 @@ static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
      * but do not repeat already-pressed buttons for the other key inputs.
      */
     if (!(event & (MP_KEY_WHEEL_NAV | MP_KEY_WHEEL_VOL))) {
-        if (key->down && (s->pressed_keys & event)) {
+        if (evt->key.down && (s->pressed_keys & event)) {
             event = 0;
         }
     }
 
     if (event) {
         /* Raise GPIO pin first if repeating a key */
-        if (key->down && (s->pressed_keys & event)) {
+        if (evt->key.down && (s->pressed_keys & event)) {
             for (i = 0; i <= 7; i++) {
                 if (event & (1 << i)) {
                     qemu_set_irq(s->out[i], 1);
@@ -1129,10 +1128,10 @@ static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
         }
         for (i = 0; i <= 7; i++) {
             if (event & (1 << i)) {
-                qemu_set_irq(s->out[i], !key->down);
+                qemu_set_irq(s->out[i], !evt->key.down);
             }
         }
-        if (key->down) {
+        if (evt->key.down) {
             s->pressed_keys |= event;
         } else {
             s->pressed_keys &= ~event;

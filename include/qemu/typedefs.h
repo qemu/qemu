@@ -94,7 +94,7 @@ typedef struct QBool QBool;
 typedef struct QDict QDict;
 typedef struct QEMUBH QEMUBH;
 typedef struct QemuConsole QemuConsole;
-typedef struct InputEvent QemuInputEvent;
+typedef struct QemuInputEvent QemuInputEvent;
 typedef struct QEMUCursor QEMUCursor;
 typedef struct QEMUFile QEMUFile;
 typedef struct QemuMutex QemuMutex;

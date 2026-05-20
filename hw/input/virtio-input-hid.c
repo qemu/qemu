@@ -84,80 +84,71 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
     virtio_input_event event;
     int qcode;
-    InputKeyEvent *key;
-    InputMoveEvent *move;
-    InputBtnEvent *btn;
-    InputMultiTouchEvent *mtt;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        key = evt->u.key.data;
-        qcode = qemu_input_key_value_to_qcode(key->key);
+        qcode = qemu_input_key_value_to_qcode(&evt->key.key);
         if (qcode < qemu_input_map_qcode_to_linux_len &&
             qemu_input_map_qcode_to_linux[qcode]) {
             event.type  = cpu_to_le16(EV_KEY);
             event.code  = cpu_to_le16(qemu_input_map_qcode_to_linux[qcode]);
-            event.value = cpu_to_le32(key->down ? 1 : 0);
+            event.value = cpu_to_le32(evt->key.down ? 1 : 0);
             virtio_input_send(vinput, &event);
         } else {
-            if (key->down) {
+            if (evt->key.down) {
                 fprintf(stderr, "%s: unmapped key: %d [%s]\n", __func__,
                         qcode, QKeyCode_str(qcode));
             }
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        if ((btn->button == INPUT_BUTTON_WHEEL_UP ||
-             btn->button == INPUT_BUTTON_WHEEL_DOWN) &&
-            btn->down) {
+        if ((evt->btn.button == INPUT_BUTTON_WHEEL_UP ||
+             evt->btn.button == INPUT_BUTTON_WHEEL_DOWN) &&
+            evt->btn.down) {
             event.type  = cpu_to_le16(EV_REL);
             event.code  = cpu_to_le16(REL_WHEEL);
-            event.value = cpu_to_le32(btn->button == INPUT_BUTTON_WHEEL_UP
+            event.value = cpu_to_le32(evt->btn.button == INPUT_BUTTON_WHEEL_UP
                                       ? 1 : -1);
             virtio_input_send(vinput, &event);
-        } else if (keymap_button[btn->button]) {
+        } else if (keymap_button[evt->btn.button]) {
             event.type  = cpu_to_le16(EV_KEY);
-            event.code  = cpu_to_le16(keymap_button[btn->button]);
-            event.value = cpu_to_le32(btn->down ? 1 : 0);
+            event.code  = cpu_to_le16(keymap_button[evt->btn.button]);
+            event.value = cpu_to_le32(evt->btn.down ? 1 : 0);
             virtio_input_send(vinput, &event);
         } else {
-            if (btn->down) {
+            if (evt->btn.down) {
                 fprintf(stderr, "%s: unmapped button: %d [%s]\n", __func__,
-                        btn->button,
-                        InputButton_str(btn->button));
+                        evt->btn.button,
+                        InputButton_str(evt->btn.button));
             }
         }
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
         event.type  = cpu_to_le16(EV_REL);
-        event.code  = cpu_to_le16(axismap_rel[move->axis]);
-        event.value = cpu_to_le32(move->value);
+        event.code  = cpu_to_le16(axismap_rel[evt->rel.axis]);
+        event.value = cpu_to_le32(evt->rel.value);
         virtio_input_send(vinput, &event);
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
         event.type  = cpu_to_le16(EV_ABS);
-        event.code  = cpu_to_le16(axismap_abs[move->axis]);
-        event.value = cpu_to_le32(move->value);
+        event.code  = cpu_to_le16(axismap_abs[evt->abs.axis]);
+        event.value = cpu_to_le32(evt->abs.value);
         virtio_input_send(vinput, &event);
         break;
     case INPUT_EVENT_KIND_MTT:
-        mtt = evt->u.mtt.data;
-        if (mtt->type == INPUT_MULTI_TOUCH_TYPE_DATA) {
+        if (evt->mtt.type == INPUT_MULTI_TOUCH_TYPE_DATA) {
             event.type  = cpu_to_le16(EV_ABS);
-            event.code  = cpu_to_le16(axismap_tch[mtt->axis]);
-            event.value = cpu_to_le32(mtt->value);
+            event.code  = cpu_to_le16(axismap_tch[evt->mtt.axis]);
+            event.value = cpu_to_le32(evt->mtt.value);
             virtio_input_send(vinput, &event);
         } else {
             event.type  = cpu_to_le16(EV_ABS);
             event.code  = cpu_to_le16(ABS_MT_SLOT);
-            event.value = cpu_to_le32(mtt->slot);
+            event.value = cpu_to_le32(evt->mtt.slot);
             virtio_input_send(vinput, &event);
             event.type  = cpu_to_le16(EV_ABS);
             event.code  = cpu_to_le16(ABS_MT_TRACKING_ID);
-            event.value = cpu_to_le32(mtt->tracking_id);
+            event.value = cpu_to_le32(evt->mtt.tracking_id);
             virtio_input_send(vinput, &event);
         }
         break;

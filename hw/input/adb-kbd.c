@@ -311,7 +311,7 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
     KBDState *s = (KBDState *)dev;
     int qcode, keycode;
 
-    qcode = qemu_input_key_value_to_qcode(evt->u.key.data->key);
+    qcode = qemu_input_key_value_to_qcode(&evt->key.key);
     if (qcode >= ARRAY_SIZE(qcode_to_adb_keycode)) {
         return;
     }
@@ -321,7 +321,7 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
         trace_adb_device_kbd_no_key();
         return;
     }
-    if (evt->u.key.data->down == false) { /* if key release event */
+    if (evt->key.down == false) { /* if key release event */
         keycode = keycode | 0x80;   /* create keyboard break code */
     }
 
