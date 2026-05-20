@@ -753,7 +753,7 @@ static void finalize_rvv_inst(DisasContext *ctx)
     ctx->vstart_eq_zero = true;
 }
 
-static void gen_set_rm(DisasContext *ctx, int rm)
+static void gen_set_rm(DisasContext *ctx, uint8_t rm)
 {
     if (ctx->frm == rm) {
         return;
@@ -770,7 +770,7 @@ static void gen_set_rm(DisasContext *ctx, int rm)
     gen_helper_set_rounding_mode(tcg_env, tcg_constant_i32(rm));
 }
 
-static void gen_set_rm_chkfrm(DisasContext *ctx, int rm)
+static void gen_set_rm_chkfrm(DisasContext *ctx, uint8_t rm)
 {
     if (ctx->frm == rm && ctx->frm_valid) {
         return;
