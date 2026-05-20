@@ -435,14 +435,14 @@ OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
 Device Life-cycle
 =================
 
-As class initialisation cannot fail devices have an two additional
+As class initialisation cannot fail, devices have two additional
 methods to handle the creation of dynamic devices. The ``realize``
 function is called with ``Error **`` pointer which should be set if
 the device cannot complete its setup. Otherwise on successful
 completion of the ``realize`` method the device object is added to the
 QOM tree and made visible to the guest.
 
-The reverse function is ``unrealize`` and should be were clean-up
+The reverse function is ``unrealize`` and should be where clean-up
 code lives to tidy up after the system is done with the device.
 
 All devices can be instantiated by C code, however only some can
