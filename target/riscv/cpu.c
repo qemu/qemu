@@ -76,7 +76,7 @@ bool riscv_cpu_option_set(RISCVCPU *cpu, const char *optname)
 
 #ifndef CONFIG_USER_ONLY
 /* This is used in runtime only. */
-void cpu_set_exception_base(int vp_index, target_ulong address)
+void cpu_set_exception_base(int vp_index, uint64_t address)
 {
     RISCVCPU *cpu;
     CPUState *cs = qemu_get_cpu(vp_index);

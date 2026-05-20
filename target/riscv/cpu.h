@@ -681,7 +681,7 @@ uint8_t riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, uint8_t);
 
 #ifndef CONFIG_USER_ONLY
-void cpu_set_exception_base(int vp_index, target_ulong address);
+void cpu_set_exception_base(int vp_index, uint64_t address);
 #endif
 
 FIELD(TB_FLAGS, MEM_IDX, 0, 3)
