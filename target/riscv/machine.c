@@ -439,7 +439,7 @@ static const VMStateDescription vmstate_mseccfg = {
     .minimum_version_id = 1,
     .needed = mseccfg_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINTTL(env.mseccfg, RISCVCPU),
+        VMSTATE_UINT64(env.mseccfg, RISCVCPU),
         VMSTATE_END_OF_LIST()
     }
 };
