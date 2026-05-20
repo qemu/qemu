@@ -30,6 +30,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/char/escc.h"
+#include "standard-headers/linux/input-event-codes.h"
 #include "ui/console.h"
 
 #include "qemu/cutils.h"
@@ -804,7 +805,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
     trace_escc_sunkbd_event_in(qcode, QKeyCode_str(qcode),
                                evt->key.down);
 
-    if (qcode == Q_KEY_CODE_CAPS_LOCK) {
+    if (evt->key.key == KEY_CAPSLOCK) {
         if (evt->key.down) {
             s->caps_lock_mode ^= 1;
             if (s->caps_lock_mode == 2) {
@@ -818,7 +819,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
         }
     }
 
-    if (qcode == Q_KEY_CODE_NUM_LOCK) {
+    if (evt->key.key == KEY_NUMLOCK) {
         if (evt->key.down) {
             s->num_lock_mode ^= 1;
             if (s->num_lock_mode == 2) {
@@ -832,11 +833,11 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
         }
     }
 
-    if (qcode >= qemu_input_map_qcode_to_sun_len) {
+    if (evt->key.key >= qemu_input_map_linux_to_sun_len) {
         return;
     }
 
-    keycode = qemu_input_map_qcode_to_sun[qcode];
+    keycode = qemu_input_map_linux_to_sun[evt->key.key];
     if (!evt->key.down) {
         keycode |= 0x80;
     }
