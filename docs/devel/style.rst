@@ -469,7 +469,7 @@ for a time/space trade-off like ``tlb_mmu_resize_locked`` in the
 SoftMMU TLB code.
 
 If the lifetime of the allocation is within the function and there are
-multiple exist paths you can also improve the readability of the code
+multiple exit paths you can also improve the readability of the code
 by using ``g_autofree`` and related annotations. See :ref:`autofree-ref`
 for more details.
 
