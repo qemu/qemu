@@ -3,7 +3,8 @@
 #include "qemu/envlist.h"
 
 struct envlist_entry {
-    const char *ev_var;            /* actual env value */
+    const char *ev_var;            /* actual env value: "NAME=VALUE" */
+    size_t ev_name_len;            /* length of NAME (offset of '=') */
     QLIST_ENTRY(envlist_entry) ev_link;
 };
 
@@ -11,6 +12,13 @@ struct envlist {
     QLIST_HEAD(, envlist_entry) el_entries; /* actual entries */
     size_t el_count;                        /* number of entries */
 };
+
+static inline bool envlist_name_eq(const struct envlist_entry *entry,
+                                   const char *name, size_t name_len)
+{
+    return entry->ev_name_len == name_len &&
+           memcmp(entry->ev_var, name, name_len) == 0;
+}
 
 /*
  * Allocates new envlist and returns pointer to it.
@@ -67,7 +75,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
     /* find out first equals sign in given env */
     if ((eq_sign = strchr(env, '=')) == NULL)
         return (EINVAL);
-    envname_len = eq_sign - env + 1;
+    envname_len = eq_sign - env;
 
     /*
      * If there already exists variable with given name
@@ -76,8 +84,9 @@ envlist_setenv(envlist_t *envlist, const char *env)
      */
     for (entry = envlist->el_entries.lh_first; entry != NULL;
         entry = entry->ev_link.le_next) {
-        if (strncmp(entry->ev_var, env, envname_len) == 0)
+        if (envlist_name_eq(entry, env, envname_len)) {
             break;
+        }
     }
 
     if (entry != NULL) {
@@ -90,6 +99,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
 
     entry = g_malloc(sizeof(*entry));
     entry->ev_var = g_strdup(env);
+    entry->ev_name_len = envname_len;
     QLIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
 
     return (0);
@@ -119,8 +129,9 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
     envname_len = strlen(env);
     for (entry = envlist->el_entries.lh_first; entry != NULL;
         entry = entry->ev_link.le_next) {
-        if (strncmp(entry->ev_var, env, envname_len) == 0)
+        if (envlist_name_eq(entry, env, envname_len)) {
             break;
+        }
     }
     if (entry != NULL) {
         QLIST_REMOVE(entry, ev_link);
