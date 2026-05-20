@@ -83,23 +83,13 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
 {
     VirtIOInput *vinput = VIRTIO_INPUT(dev);
     virtio_input_event event;
-    int qcode;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        qcode = qemu_input_linux_to_qcode(evt->key.key);
-        if (qcode < qemu_input_map_qcode_to_linux_len &&
-            qemu_input_map_qcode_to_linux[qcode]) {
-            event.type  = cpu_to_le16(EV_KEY);
-            event.code  = cpu_to_le16(qemu_input_map_qcode_to_linux[qcode]);
-            event.value = cpu_to_le32(evt->key.down ? 1 : 0);
-            virtio_input_send(vinput, &event);
-        } else {
-            if (evt->key.down) {
-                fprintf(stderr, "%s: unmapped key: %d [%s]\n", __func__,
-                        qcode, QKeyCode_str(qcode));
-            }
-        }
+        event.type  = cpu_to_le16(EV_KEY);
+        event.code  = cpu_to_le16(evt->key.key);
+        event.value = cpu_to_le32(evt->key.down ? 1 : 0);
+        virtio_input_send(vinput, &event);
         break;
     case INPUT_EVENT_KIND_BTN:
         if ((evt->btn.button == INPUT_BUTTON_WHEEL_UP ||
@@ -293,12 +283,28 @@ static void virtio_keyboard_init(Object *obj)
 {
     VirtIOInputHID *vhid = VIRTIO_INPUT_HID(obj);
     VirtIOInput *vinput = VIRTIO_INPUT(obj);
+    virtio_input_config ext = {
+        .select = VIRTIO_INPUT_CFG_EV_BITS,
+        .subsel = EV_KEY,
+        .size = DIV_ROUND_UP(KEY_REPLY, 8)
+    };
+    unsigned int i;
 
     vhid->handler = &virtio_keyboard_handler;
     virtio_input_init_config(vinput, virtio_keyboard_config);
-    virtio_input_extend_config(vinput, qemu_input_map_qcode_to_linux,
-                               qemu_input_map_qcode_to_linux_len,
-                               VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
+
+    /*
+     * Cover as many keys as possible since we cannot tell what keys the host
+     * supports. This follows Linux xen-kbdfront's approach:
+     * https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/diff/drivers/input/xen-kbdfront.c?id=4ee36dc08e5c4d16d078f59acd6d9d536f9718dd
+     *
+     * Stop before KEY_REPLY for migration compatibility.
+     */
+    for (i = KEY_ESC; i < KEY_REPLY; i++) {
+        ext.u.bitmap[i / 8] |= (1 << (i % 8));
+    }
+
+    virtio_input_add_config(vinput, &ext);
 }
 
 static const TypeInfo virtio_keyboard_info = {
