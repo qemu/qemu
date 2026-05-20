@@ -339,11 +339,11 @@ dbus_kbd_press(DBusDisplayConsole *ddc,
                GDBusMethodInvocation *invocation,
                guint arg_keycode)
 {
-    QKeyCode qcode = qemu_input_key_number_to_qcode(arg_keycode);
+    unsigned int lnx = qemu_input_key_number_to_linux(arg_keycode);
 
     trace_dbus_kbd_press(arg_keycode);
 
-    qkbd_state_key_event(ddc->kbd, qemu_input_map_qcode_to_linux[qcode], true);
+    qkbd_state_key_event(ddc->kbd, lnx, true);
 
     qemu_dbus_display1_keyboard_complete_press(ddc->iface_kbd, invocation);
 
@@ -355,11 +355,11 @@ dbus_kbd_release(DBusDisplayConsole *ddc,
                  GDBusMethodInvocation *invocation,
                  guint arg_keycode)
 {
-    QKeyCode qcode = qemu_input_key_number_to_qcode(arg_keycode);
+    unsigned int lnx = qemu_input_key_number_to_linux(arg_keycode);
 
     trace_dbus_kbd_release(arg_keycode);
 
-    qkbd_state_key_event(ddc->kbd, qemu_input_map_qcode_to_linux[qcode], false);
+    qkbd_state_key_event(ddc->kbd, lnx, false);
 
     qemu_dbus_display1_keyboard_complete_release(ddc->iface_kbd, invocation);
 
