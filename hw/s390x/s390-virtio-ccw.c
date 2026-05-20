@@ -946,7 +946,7 @@ static void ccw_machine_11_0_class_options(MachineClass *mc)
      * keep legacy virtio-pci enabled.
      */
     static GlobalProperty compat[] = {
-        { TYPE_VIRTIO_PCI, "disable-legacy", "off" },
+        { TYPE_VIRTIO_PCI, "disable-legacy", "off", .optional = true },
     };
     ccw_machine_11_1_class_options(mc);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
