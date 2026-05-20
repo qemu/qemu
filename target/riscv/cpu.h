@@ -235,8 +235,8 @@ struct CPUArchState {
     uint8_t frm;
     float_status fp_status;
 
-    target_ulong badaddr;
-    target_ulong bins;
+    uint64_t badaddr;
+    uint64_t bins;
 
     target_ulong guest_phys_fault_addr;
 
