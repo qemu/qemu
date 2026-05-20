@@ -365,14 +365,6 @@ void qemu_input_event_sync(void)
     replay_input_sync_event();
 }
 
-void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
-{
-    unsigned int lnx = qemu_input_key_value_to_linux(key);
-
-    g_free(key);
-    qemu_input_event_send_key_linux(src, lnx, down);
-}
-
 void qemu_input_event_send_key_linux(QemuConsole *src, unsigned int lnx,
                                      bool down)
 {
@@ -397,14 +389,6 @@ void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
 {
     unsigned int lnx = qemu_input_key_number_to_linux(num);
     qemu_input_event_send_key_linux(src, lnx, down);
-}
-
-void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
-{
-    KeyValue *key = g_new0(KeyValue, 1);
-    key->type = KEY_VALUE_KIND_QCODE;
-    key->u.qcode.data = q;
-    qemu_input_event_send_key(src, key, down);
 }
 
 void qemu_input_event_send_key_delay(uint32_t delay_ms)

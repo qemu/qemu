@@ -58,18 +58,13 @@ void qemu_input_event_send_impl(QemuConsole *src, QemuInputEvent *evt);
 void qemu_input_event_sync(void);
 void qemu_input_event_sync_impl(void);
 
-void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down);
 void qemu_input_event_send_key_linux(QemuConsole *src, unsigned int lnx,
                                      bool down);
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down);
-void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down);
 void qemu_input_event_send_key_delay(uint32_t delay_ms);
 int qemu_input_key_number_to_qcode(unsigned int nr);
 unsigned int qemu_input_key_number_to_linux(unsigned int nr);
-int qemu_input_key_value_to_number(const KeyValue *value);
-int qemu_input_key_value_to_qcode(const KeyValue *value);
 unsigned int qemu_input_key_value_to_linux(const KeyValue *value);
-int qemu_input_qcode_to_scancode(QKeyCode qcode, bool down, int *codes);
 int qemu_input_linux_to_scancode(unsigned int lnx, bool down, int *codes);
 int qemu_input_linux_to_qcode(unsigned int lnx);
 
@@ -109,29 +104,17 @@ void qemu_input_check_mode_change(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
 
-extern const guint qemu_input_map_atset1_to_qcode_len;
-extern const guint16 qemu_input_map_atset1_to_qcode[];
-
 extern const guint qemu_input_map_atset1_to_linux_len;
 extern const guint16 qemu_input_map_atset1_to_linux[];
 
 extern const guint qemu_input_map_linux_to_qcode_len;
 extern const guint16 qemu_input_map_linux_to_qcode[];
 
-extern const guint qemu_input_map_qcode_to_atset1_len;
-extern const guint16 qemu_input_map_qcode_to_atset1[];
-
 extern const guint qemu_input_map_linux_to_atset1_len;
 extern const guint16 qemu_input_map_linux_to_atset1[];
 
-extern const guint qemu_input_map_qcode_to_atset2_len;
-extern const guint16 qemu_input_map_qcode_to_atset2[];
-
 extern const guint qemu_input_map_linux_to_atset2_len;
 extern const guint16 qemu_input_map_linux_to_atset2[];
-
-extern const guint qemu_input_map_qcode_to_atset3_len;
-extern const guint16 qemu_input_map_qcode_to_atset3[];
 
 extern const guint qemu_input_map_linux_to_atset3_len;
 extern const guint16 qemu_input_map_linux_to_atset3[];
@@ -139,65 +122,32 @@ extern const guint16 qemu_input_map_linux_to_atset3[];
 extern const guint qemu_input_map_qcode_to_linux_len;
 extern const guint16 qemu_input_map_qcode_to_linux[];
 
-extern const guint qemu_input_map_qcode_to_qnum_len;
-extern const guint16 qemu_input_map_qcode_to_qnum[];
-
 extern const guint qemu_input_map_linux_to_qnum_len;
 extern const guint16 qemu_input_map_linux_to_qnum[];
-
-extern const guint qemu_input_map_qcode_to_sun_len;
-extern const guint16 qemu_input_map_qcode_to_sun[];
 
 extern const guint qemu_input_map_linux_to_sun_len;
 extern const guint16 qemu_input_map_linux_to_sun[];
 
-extern const guint qemu_input_map_qnum_to_qcode_len;
-extern const guint16 qemu_input_map_qnum_to_qcode[];
-
 extern const guint qemu_input_map_qnum_to_linux_len;
 extern const guint16 qemu_input_map_qnum_to_linux[];
-
-extern const guint qemu_input_map_usb_to_qcode_len;
-extern const guint16 qemu_input_map_usb_to_qcode[];
 
 extern const guint qemu_input_map_usb_to_linux_len;
 extern const guint16 qemu_input_map_usb_to_linux[];
 
-extern const guint qemu_input_map_win32_to_qcode_len;
-extern const guint16 qemu_input_map_win32_to_qcode[];
-
 extern const guint qemu_input_map_win32_to_linux_len;
 extern const guint16 qemu_input_map_win32_to_linux[];
-
-extern const guint qemu_input_map_x11_to_qcode_len;
-extern const guint16 qemu_input_map_x11_to_qcode[];
 
 extern const guint qemu_input_map_x11_to_linux_len;
 extern const guint16 qemu_input_map_x11_to_linux[];
 
-extern const guint qemu_input_map_xorgevdev_to_qcode_len;
-extern const guint16 qemu_input_map_xorgevdev_to_qcode[];
-
-extern const guint qemu_input_map_xorgkbd_to_qcode_len;
-extern const guint16 qemu_input_map_xorgkbd_to_qcode[];
-
 extern const guint qemu_input_map_xorgkbd_to_linux_len;
 extern const guint16 qemu_input_map_xorgkbd_to_linux[];
-
-extern const guint qemu_input_map_xorgxquartz_to_qcode_len;
-extern const guint16 qemu_input_map_xorgxquartz_to_qcode[];
 
 extern const guint qemu_input_map_xorgxquartz_to_linux_len;
 extern const guint16 qemu_input_map_xorgxquartz_to_linux[];
 
-extern const guint qemu_input_map_xorgxwin_to_qcode_len;
-extern const guint16 qemu_input_map_xorgxwin_to_qcode[];
-
 extern const guint qemu_input_map_xorgxwin_to_linux_len;
 extern const guint16 qemu_input_map_xorgxwin_to_linux[];
-
-extern const guint qemu_input_map_osx_to_qcode_len;
-extern const guint16 qemu_input_map_osx_to_qcode[];
 
 extern const guint qemu_input_map_osx_to_linux_len;
 extern const guint16 qemu_input_map_osx_to_linux[];

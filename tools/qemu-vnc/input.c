@@ -81,12 +81,6 @@ void qemu_input_event_send_key_delay(uint32_t delay_ms)
 {
 }
 
-void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
-{
-    unsigned int lnx = qemu_input_map_qcode_to_linux[q];
-    qemu_input_event_send_key_linux(src, lnx, down);
-}
-
 void qemu_input_event_send_key_linux(QemuConsole *src, unsigned int lnx,
                                      bool down)
 {
