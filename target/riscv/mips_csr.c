@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "cpu_vendorid.h"
+#include "target/riscv/csr.h"
 
 /* Static MIPS CSR state storage */
 static struct {

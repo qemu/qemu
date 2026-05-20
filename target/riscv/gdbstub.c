@@ -21,6 +21,7 @@
 #include "gdbstub/helpers.h"
 #include "cpu.h"
 #include "internals.h"
+#include "target/riscv/csr.h"
 
 struct TypeSize {
     const char *gdb_type;
