@@ -15,9 +15,7 @@
 #include "qapi/error.h"
 #include "hw/core/sysbus.h"
 #include "system/memory.h"
-#include "system/kvm.h"
 #include "system/reset.h"
-#include "kvm_mips.h"
 #include "hw/intc/mips_gic.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
@@ -45,14 +43,7 @@ static void mips_gic_set_vp_irq(MIPSGICState *gic, int vp, int pin)
         ored_level |= (gic->vps[vp].pend & GIC_VP_MASK_CMP_MSK) >>
                       GIC_VP_MASK_CMP_SHF;
     }
-    if (kvm_enabled())  {
-        kvm_mips_set_ipi_interrupt(env_archcpu(gic->vps[vp].env),
-                                   pin + GIC_CPU_PIN_OFFSET,
-                                   ored_level);
-    } else {
-        qemu_set_irq(gic->vps[vp].env->irq[pin + GIC_CPU_PIN_OFFSET],
-                     ored_level);
-    }
+    qemu_set_irq(gic->vps[vp].env->irq[pin + GIC_CPU_PIN_OFFSET], ored_level);
 }
 
 static void gic_update_pin_for_irq(MIPSGICState *gic, int n_IRQ)
@@ -326,9 +317,13 @@ static void gic_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
         /* up to 32 bytes per a pin */
         irq_src = (addr - GIC_SH_MAP0_VP_OFS) / 32;
         OFFSET_CHECK(irq_src < gic->num_irq);
-        data = data ? ctz64(data) : -1;
-        OFFSET_CHECK(data < gic->num_vps);
-        gic->irq_state[irq_src].map_vp = data;
+        if (ctz64(data) >= gic->num_vps) {
+            qemu_log_mask(LOG_GUEST_ERROR, "Bad data value 0x%" PRIx64
+                          " at MAP VP register offset 0x%" PRIx64 "\n",
+                          data, addr);
+            break;
+        }
+        gic->irq_state[irq_src].map_vp = ctz64(data);
         break;
     case VP_LOCAL_SECTION_OFS ... (VP_LOCAL_SECTION_OFS + GIC_VL_BRK_GROUP):
         gic_write_vp(gic, vp_index, addr - VP_LOCAL_SECTION_OFS, data, size);

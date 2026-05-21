@@ -55,7 +55,6 @@
 #include "system/system.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "system/kvm.h"
 #include "semihosting/semihost.h"
 #include "hw/mips/cps.h"
 #include "hw/core/qdev-clock.h"

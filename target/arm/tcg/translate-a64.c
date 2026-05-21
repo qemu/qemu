@@ -4804,12 +4804,9 @@ static bool do_STG(DisasContext *s, arg_ldst_tag *a, bool is_zero, bool is_pair)
 
     if (is_zero) {
         TCGv_i64 clean_addr = clean_data_tbi(s, addr);
-        TCGv_i64 zero64 = tcg_constant_i64(0);
-        TCGv_i128 zero128 = tcg_temp_new_i128();
+        TCGv_i128 zero128 = tcg_zero_i128();
         int mem_index = get_mem_index(s);
         MemOp mop = finalize_memop(s, MO_128 | MO_ALIGN);
-
-        tcg_gen_concat_i64_i128(zero128, zero64, zero64);
 
         /* This is 1 or 2 atomic 16-byte operations. */
         tcg_gen_qemu_st_i128(zero128, clean_addr, mem_index, mop);

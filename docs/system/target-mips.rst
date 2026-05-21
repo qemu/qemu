@@ -76,8 +76,6 @@ The Loongson-3 virtual platform emulation supports:
 
 -  GPEX and virtio as peripheral devices
 
--  Both KVM and TCG supported
-
 .. include:: cpu-models-mips.rst.inc
 
 .. _nanoMIPS-System-emulator:

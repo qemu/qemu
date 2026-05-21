@@ -126,7 +126,6 @@ int get_physical_address(CPUMIPSState *env, hwaddr *physical,
     int KX = (env->CP0_Status & (1 << CP0St_KX)) != 0;
 #endif
     int ret = TLBRET_MATCH;
-    /* effective address (modified for KVM T&E kernel segments) */
     target_ulong address = real_address;
 
     if (address <= USEG_LIMIT) {

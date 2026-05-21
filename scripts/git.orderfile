@@ -39,3 +39,7 @@ qga/*.json
 # code
 *.c
 *.c.inc
+
+# Generated Dockerfiles
+tests/lcitool/refresh
+tests/docker/dockerfiles/*

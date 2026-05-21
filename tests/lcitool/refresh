@@ -77,7 +77,7 @@ def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
         trailer = "\n".join(add_user_mapping)
 
     if enable_rust:
-        trailer += "\nENV ENABLE_RUST 1\n"
+        trailer += "\nENV ENABLE_RUST=1\n"
     generate(filename, cmd, trailer)
 
 
@@ -169,7 +169,8 @@ debian_all_test_cross_compilers = [
     "  dpkg-dev\\\n",
     "  gdb-multiarch\\\n",
     "  libclang-rt-dev\n",
-    "ENV AVAILABLE_COMPILERS gcc-aarch64-linux-gnu \\\n",
+    "ENV AVAILABLE_COMPILERS=\"\\\n",
+    "  gcc-aarch64-linux-gnu \\\n",
     "  libc6-dev-arm64-cross \\\n",
     "  gcc-arm-linux-gnueabihf \\\n",
     "  libc6-dev-armhf-cross \\\n",
@@ -190,7 +191,8 @@ debian_all_test_cross_compilers = [
     "  gcc-s390x-linux-gnu \\\n",
     "  libc6-dev-s390x-cross\\\n",
     "  gcc-sh4-linux-gnu \\\n",
-    "  libc6-dev-sh4-cross\n",
+    "  libc6-dev-sh4-cross \\\n",
+    "  \"\n",
     "RUN if dpkg-architecture -e amd64; then \\\n",
     "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-hppa-linux-gnu libc6-dev-hppa-cross\"; \\\n",
     "  export AVAILABLE_COMPILERS=\"${AVAILABLE_COMPILERS} gcc-m68k-linux-gnu libc6-dev-m68k-cross\"; \\\n",
@@ -202,8 +204,8 @@ debian_all_test_cross_compilers = [
     "apt install -y --no-install-recommends \\\n",
     "${AVAILABLE_COMPILERS} && \\\n",
     "dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt\n",
-    "ENV QEMU_CONFIGURE_OPTS --disable-docs\n",
-    "ENV DEF_TARGET_LIST aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user\n",
+    "ENV QEMU_CONFIGURE_OPTS=--disable-docs\n",
+    "ENV DEF_TARGET_LIST=aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user\n",
 ]
 
 def cross_build(prefix, targets):
@@ -262,18 +264,6 @@ try:
                         cross="i686",
                         trailer=cross_build("i686-linux-gnu-",
                                             "i386-softmmu,i386-linux-user"))
-
-    # mips no longer supported in debian-13
-    # https://www.debian.org/releases/trixie/release-notes/issues.html#mips-architectures-removed
-    generate_dockerfile("debian-mips64el-cross", "debian-12",
-                        cross="mips64el",
-                        trailer=cross_build("mips64el-linux-gnuabi64-",
-                                            "mips64el-softmmu,mips64el-linux-user"))
-
-    generate_dockerfile("debian-mipsel-cross", "debian-12",
-                        cross="mipsel",
-                        trailer=cross_build("mipsel-linux-gnu-",
-                                            "mipsel-softmmu,mipsel-linux-user"))
 
     generate_dockerfile("debian-ppc64el-cross", "debian-13",
                         cross="ppc64le",
