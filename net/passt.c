@@ -495,7 +495,7 @@ static int net_passt_vhost_user_init(NetPasstState *s, Error **errp)
 }
 #endif
 
-static GPtrArray *net_passt_decode_args(const NetDevPasstOptions *passt,
+static GPtrArray *net_passt_decode_args(const NetdevPasstOptions *passt,
                                         gchar *pidfile, Error **errp)
 {
     GPtrArray *args = g_ptr_array_new_with_free_func(g_free);
@@ -637,7 +637,7 @@ static GPtrArray *net_passt_decode_args(const NetDevPasstOptions *passt,
     }
 
     if (passt->has_search && passt->search) {
-        const StringList *list = passt->search;
+        const PasstSearchList *list = passt->search;
         GString *domains = g_string_new(list->value->str);
 
         list = list->next;
@@ -652,7 +652,7 @@ static GPtrArray *net_passt_decode_args(const NetDevPasstOptions *passt,
     }
 
     if (passt->has_tcp_ports && passt->tcp_ports) {
-        const StringList *list = passt->tcp_ports;
+        const PasstPortForwardList *list = passt->tcp_ports;
         GString *tcp_ports = g_string_new(list->value->str);
 
         list = list->next;
@@ -667,7 +667,7 @@ static GPtrArray *net_passt_decode_args(const NetDevPasstOptions *passt,
     }
 
     if (passt->has_udp_ports && passt->udp_ports) {
-        const StringList *list = passt->udp_ports;
+        const PasstPortForwardList *list = passt->udp_ports;
         GString *udp_ports = g_string_new(list->value->str);
 
         list = list->next;
@@ -682,7 +682,7 @@ static GPtrArray *net_passt_decode_args(const NetDevPasstOptions *passt,
     }
 
     if (passt->has_param && passt->param) {
-        const StringList *list = passt->param;
+        const PasstParameterList *list = passt->param;
 
         while (list) {
             g_ptr_array_add(args, g_strdup(list->value->str));
