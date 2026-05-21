@@ -22,6 +22,7 @@
 
 import iotests
 import os
+import json
 
 interval_length = 10
 nsec_per_sec = 1000000000
@@ -45,13 +46,21 @@ class BlockDeviceStatsTestCase(iotests.QMPTestCase):
     wr_highest_offset = 0
     account_invalid = False
     account_failed = False
+    stats_in_device = False
+    use_blockdev = False
 
     def blockstats(self, device):
         result = self.vm.qmp("query-blockstats")
         for r in result['return']:
-            if r['device'] == device:
+            if r['device'] == device or r['node-name'] == device:
                 return r['stats']
         raise Exception("Device not found for blockstats: %s" % device)
+
+    def qemu_io(self, cmd):
+        if self.use_blockdev:
+            self.vm.hmp_qemu_io("virtio0/virtio-backend", cmd, qdev=True)
+        else:
+            self.vm.hmp_qemu_io("drive0", cmd)
 
     def create_blkdebug_file(self):
         file = open(blkdebug_file, 'w')
@@ -73,17 +82,54 @@ sector = "%d"
 
     @iotests.skip_if_unsupported(required_drivers)
     def setUp(self):
-        drive_args = []
-        drive_args.append("stats-intervals.0=%d" % interval_length)
-        drive_args.append("stats-account-invalid=%s" %
-                          (self.account_invalid and "on" or "off"))
-        drive_args.append("stats-account-failed=%s" %
-                          (self.account_failed and "on" or "off"))
-        drive_args.append("file.image.read-zeroes=on")
         self.create_blkdebug_file()
-        self.vm = iotests.VM().add_drive('blkdebug:%s:%s://' %
-                                         (blkdebug_file, self.test_driver),
-                                         ','.join(drive_args))
+        self.vm = iotests.VM()
+
+        drive_args = [
+            "file.image.read-zeroes=on",
+        ]
+        if self.stats_in_device:
+            interface = "none"
+            dev_args = {
+                "driver": "virtio-blk",
+                "id": "virtio0",
+                "drive": "drive0",
+                "stats-intervals": [ interval_length ],
+                "account-invalid": "on" if self.account_invalid else "off",
+                "account-failed": "on" if self.account_failed else "off",
+            }
+            self.vm.add_device(json.dumps(dev_args))
+        else:
+            assert not self.use_blockdev
+            interface = "virtio"
+            drive_args += [
+                "stats-intervals.0=%d" % interval_length,
+                "stats-account-invalid=%s" %
+                    (self.account_invalid and "on" or "off"),
+                "stats-account-failed=%s" %
+                    (self.account_failed and "on" or "off"),
+            ]
+
+        if self.use_blockdev:
+            blockdev_args = {
+                "node-name": "drive0",
+                "driver": "raw",
+                "file": {
+                    "driver": "blkdebug",
+                    "config": blkdebug_file,
+                    "image": {
+                        "driver": self.test_driver,
+                        "read-zeroes": True,
+                    },
+                },
+            }
+            self.vm.add_blockdev(json.dumps(blockdev_args))
+        else:
+            self.vm.add_drive('blkdebug:%s:%s://' %
+                              (blkdebug_file, self.test_driver),
+                              ','.join(drive_args),
+                              interface=interface)
+
         self.vm.launch()
         # Set an initial value for the clock
         self.vm.qtest("clock_step %d" % nsec_per_sec)
@@ -261,7 +307,7 @@ sector = "%d"
 
         # Now perform all operations
         for op in ops:
-            self.vm.hmp_qemu_io("drive0", op)
+            self.qemu_io(op)
 
         # Update the expected totals
         self.total_rd_bytes += rd_ops * rd_size
@@ -328,6 +374,12 @@ sector = "%d"
         # All values must be sane before doing any I/O
         self.check_values()
 
+class BlockDeviceStatsTestDevice(BlockDeviceStatsTestCase):
+    stats_in_device = True
+
+class BlockDeviceStatsTestBlockdev(BlockDeviceStatsTestCase):
+    stats_in_device = True
+    use_blockdev = True
 
 class BlockDeviceStatsTestAccountInvalid(BlockDeviceStatsTestCase):
     account_invalid = True
@@ -340,6 +392,17 @@ class BlockDeviceStatsTestAccountFailed(BlockDeviceStatsTestCase):
 class BlockDeviceStatsTestAccountBoth(BlockDeviceStatsTestCase):
     account_invalid = True
     account_failed = True
+
+class BlockDeviceStatsTestAccountBothDevice(BlockDeviceStatsTestCase):
+    account_invalid = True
+    account_failed = True
+    stats_in_device = True
+
+class BlockDeviceStatsTestAccountBothBlockdev(BlockDeviceStatsTestCase):
+    account_invalid = True
+    account_failed = True
+    stats_in_device = True
+    use_blockdev = True
 
 class BlockDeviceStatsTestCoroutine(BlockDeviceStatsTestCase):
     test_driver = "null-co"
