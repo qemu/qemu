@@ -118,34 +118,6 @@ fn test_vmstate_varray_uint16_unsafe() {
     assert!(foo_fields[2].field_exists.is_none());
 }
 
-#[test]
-fn test_vmstate_varray_multiply() {
-    let foo_fields: &[VMStateField] =
-        unsafe { slice::from_raw_parts(VMSTATE_FOOA.as_ref().fields, 5) };
-
-    // 4th VMStateField ("arr_mul") in VMSTATE_FOOA (corresponding to
-    // VMSTATE_VARRAY_MULTIPLY)
-    assert_eq!(
-        unsafe { CStr::from_ptr(foo_fields[3].name) }.to_bytes_with_nul(),
-        b"arr_mul\0"
-    );
-    assert_eq!(foo_fields[3].offset, 6);
-    assert_eq!(foo_fields[3].num_offset, 12);
-    assert_eq!(foo_fields[3].info, unsafe { &vmstate_info_int8 });
-    assert_eq!(foo_fields[3].version_id, 0);
-    assert_eq!(foo_fields[3].size, 1);
-    assert_eq!(foo_fields[3].num, 16);
-    assert_eq!(
-        foo_fields[3].flags.0,
-        VMStateFlags::VMS_VARRAY_UINT32.0 | VMStateFlags::VMS_MULTIPLY_ELEMENTS.0
-    );
-    assert!(foo_fields[3].vmsd.is_null());
-    assert!(foo_fields[3].field_exists.is_none());
-
-    // The last VMStateField in VMSTATE_FOOA.
-    assert_eq!(foo_fields[4].flags, VMStateFlags::VMS_END);
-}
-
 // =========================== Test VMSTATE_FOOB ===========================
 // Test the use cases of the vmstate macro, corresponding to the following C
 // macro variants:
@@ -254,33 +226,6 @@ fn test_vmstate_struct_varray_uint8() {
     );
     assert_eq!(foo_fields[2].vmsd, VMSTATE_FOOA.as_ref());
     assert!(foo_fields[2].field_exists.is_none());
-}
-
-#[test]
-fn test_vmstate_struct_varray_uint32_multiply() {
-    let foo_fields: &[VMStateField] =
-        unsafe { slice::from_raw_parts(VMSTATE_FOOB.as_ref().fields, 7) };
-
-    // 4th VMStateField ("arr_a_mul") in VMSTATE_FOOB (corresponding to
-    // (no C version) MULTIPLY variant of VMSTATE_STRUCT_VARRAY_UINT32)
-    assert_eq!(
-        unsafe { CStr::from_ptr(foo_fields[3].name) }.to_bytes_with_nul(),
-        b"arr_a_mul\0"
-    );
-    assert_eq!(foo_fields[3].offset, 64);
-    assert_eq!(foo_fields[3].num_offset, 124);
-    assert!(foo_fields[3].info.is_null()); // VMSTATE_STRUCT_VARRAY_UINT8 doesn't set info field.
-    assert_eq!(foo_fields[3].version_id, 2);
-    assert_eq!(foo_fields[3].size, 20);
-    assert_eq!(foo_fields[3].num, 32);
-    assert_eq!(
-        foo_fields[3].flags.0,
-        VMStateFlags::VMS_STRUCT.0
-            | VMStateFlags::VMS_VARRAY_UINT32.0
-            | VMStateFlags::VMS_MULTIPLY_ELEMENTS.0
-    );
-    assert_eq!(foo_fields[3].vmsd, VMSTATE_FOOA.as_ref());
-    assert!(foo_fields[3].field_exists.is_none());
 }
 
 #[test]

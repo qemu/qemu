@@ -512,6 +512,11 @@ struct MigrationState {
 
     bool postcopy_package_loaded;
 
+    /*
+     * When set, it means cpr-transfer is waiting for the HUP signal from
+     * destination to continue the 2nd step of migration via the main
+     * channel.
+     */
     GSource *hup_source;
 
     /*

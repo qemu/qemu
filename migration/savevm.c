@@ -347,10 +347,10 @@ static bool configuration_validate_capabilities(SaveState *state)
 {
     bool ret = true;
     MigrationState *s = migrate_get_current();
-    unsigned long *source_caps_bm;
+    DECLARE_BITMAP(source_caps_bm, MIGRATION_CAPABILITY__MAX);
     int i;
 
-    source_caps_bm = bitmap_new(MIGRATION_CAPABILITY__MAX);
+    bitmap_zero(source_caps_bm, MIGRATION_CAPABILITY__MAX);
     for (i = 0; i < state->caps_count; i++) {
         MigrationCapability capability = state->capabilities[i];
         set_bit(capability, source_caps_bm);
@@ -373,7 +373,6 @@ static bool configuration_validate_capabilities(SaveState *state)
         }
     }
 
-    g_free(source_caps_bm);
     return ret;
 }
 

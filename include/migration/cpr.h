@@ -57,6 +57,7 @@ QEMUFile *cpr_transfer_input(MigrationChannel *channel, Error **errp);
 void cpr_transfer_add_hup_watch(MigrationState *s, QIOChannelFunc func,
                                 void *opaque);
 void cpr_transfer_source_destroy(MigrationState *s);
+bool cpr_transfer_source_active(MigrationState *s);
 
 void cpr_exec_init(void);
 QEMUFile *cpr_exec_output(Error **errp);

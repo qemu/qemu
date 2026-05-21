@@ -37,62 +37,40 @@ static char *tmpfs;
 
 static void test_precopy_unix_plain(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     /*
      * The simplest use case of precopy, covering smoke tests of
      * get-dirty-log dirty tracking.
      */
     args->live = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void test_precopy_unix_suspend_live(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     /*
      * despite being live, the test is fast because the src
      * suspends immediately.
      */
     args->live = true;
-
     args->start.suspend_me = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void test_precopy_unix_suspend_notlive(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     args->start.suspend_me = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 static void test_precopy_unix_dirty_ring(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
-
-    args->listen_uri = uri;
-    args->connect_uri = uri;
     /*
      * Besides the precopy/unix basic test, cover dirty ring interface
      * rather than get-dirty-log.
      */
     args->live = true;
-
     args->start.use_dirty_ring = true;
-
-    test_precopy_common(args);
+    test_precopy_unix_common(args);
 }
 
 #ifdef CONFIG_RDMA
@@ -183,8 +161,7 @@ static void __test_precopy_rdma_plain(MigrateCommon *args, bool ipv6)
      **/
     g_autofree char *uri = g_strdup_printf("rdma:%s:29200", buffer);
 
-    args->listen_uri = uri;
-    args->connect_uri = uri;
+    args->uri = uri;
 
     test_precopy_common(args);
 }
@@ -202,14 +179,11 @@ static void test_precopy_rdma_plain_ipv6(char *name, MigrateCommon *args)
 
 static void test_precopy_tcp_plain(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
-
     test_precopy_common(args);
 }
 
 static void test_precopy_tcp_switchover_ack(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "tcp:127.0.0.1:0";
     /*
      * Source VM must be running in order to consider the switchover ACK
      * when deciding to do switchover or not.
@@ -238,9 +212,6 @@ static void *migrate_hook_start_fd(QTestState *from,
                                  "{ 'execute': 'getfd',"
                                  "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[0]);
-
-    /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "fd:fd-mig", NULL, "{}");
 
     /* Send the 2nd socket to the target */
     qtest_qmp_fds_assert_success(from, &pair[1], 1,
@@ -282,8 +253,7 @@ static void migrate_hook_end_fd(QTestState *from,
 
 static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
-    args->connect_uri = "fd:fd-mig";
+    args->uri = "fd:fd-mig";
     args->start_hook = migrate_hook_start_fd;
     args->end_hook = migrate_hook_end_fd;
 
@@ -291,37 +261,14 @@ static void test_precopy_fd_socket(char *name, MigrateCommon *args)
 }
 #endif /* _WIN32 */
 
-/*
- * The way auto_converge works, we need to do too many passes to
- * run this test.  Auto_converge logic is only run once every
- * three iterations, so:
- *
- * - 3 iterations without auto_converge enabled
- * - 3 iterations with pct = 5
- * - 3 iterations with pct = 30
- * - 3 iterations with pct = 55
- * - 3 iterations with pct = 80
- * - 3 iterations with pct = 95 (max(95, 80 + 25))
- *
- * To make things even worse, we need to run the initial stage at
- * 3MB/s so we enter autoconverge even when host is (over)loaded.
- */
 static void test_auto_converge(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
     int64_t percentage;
-
-    /*
-     * We want the test to be stable and as fast as possible.
-     * E.g., with 1Gb/s bandwidth migration may pass without throttling,
-     * so we need to decrease a bandwidth.
-     */
     const int64_t init_pct = 5, inc_pct = 25, max_pct = 95;
-    uint64_t prev_dirty_sync_cnt, dirty_sync_cnt;
-    int max_try_count, hit = 0;
 
-    if (migrate_start(&from, &to, uri, &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -330,21 +277,17 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     migrate_set_parameter_int(from, "cpu-throttle-increment", inc_pct);
     migrate_set_parameter_int(from, "max-cpu-throttle", max_pct);
 
-    /*
-     * Set the initial parameters so that the migration could not converge
-     * without throttling.
-     */
     migrate_ensure_non_converge(from);
 
     /* To check remaining size after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);
 
-    /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
+    migrate_incoming_qmp(to, uri, NULL, "{}");
     migrate_qmp(from, to, uri, NULL, "{}");
 
-    /* Wait for throttling begins */
+    /* Wait until throttling begins */
     percentage = 0;
     do {
         percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
@@ -357,36 +300,8 @@ static void test_auto_converge(char *name, MigrateCommon *args)
     /* The first percentage of throttling should be at least init_pct */
     g_assert_cmpint(percentage, >=, init_pct);
 
-    /*
-     * End the loop when the dirty sync count greater than 1.
-     */
-    while ((dirty_sync_cnt = get_migration_pass(from)) < 2) {
-        usleep(1000 * 1000);
-    }
-
-    prev_dirty_sync_cnt = dirty_sync_cnt;
-
-    /*
-     * The RAMBlock dirty sync count must changes in 5 seconds, here we set
-     * the timeout to 10 seconds to ensure it changes.
-     *
-     * Note that migrate_ensure_non_converge set the max-bandwidth to 3MB/s,
-     * while the qtest mem is >= 100MB, one iteration takes at least 33s (100/3)
-     * to complete; this ensures that the RAMBlock dirty sync occurs.
-     */
-    max_try_count = 10;
-    while (--max_try_count) {
-        dirty_sync_cnt = get_migration_pass(from);
-        if (dirty_sync_cnt != prev_dirty_sync_cnt) {
-            hit = 1;
-            break;
-        }
-        prev_dirty_sync_cnt = dirty_sync_cnt;
-        sleep(1);
-    }
-    g_assert_cmpint(hit, ==, 1);
-
-    /* Now, when we tested that throttling works, let it converge */
+    /* throttling always ignores the first pass */
+    assert(get_migration_pass(from) == 2);
     migrate_ensure_converge(from);
 
     /*
@@ -409,17 +324,9 @@ static void test_auto_converge(char *name, MigrateCommon *args)
 }
 
 static void *
-migrate_hook_start_precopy_tcp_multifd(QTestState *from,
-                                       QTestState *to)
-{
-    return migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
-}
-
-static void *
 migrate_hook_start_precopy_tcp_multifd_zero_page_legacy(QTestState *from,
                                                         QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
     migrate_set_parameter_str(from, "zero-page-detection", "legacy");
     return NULL;
 }
@@ -428,15 +335,12 @@ static void *
 migrate_hook_start_precopy_tcp_multifd_no_zero_page(QTestState *from,
                                                     QTestState *to)
 {
-    migrate_hook_start_precopy_tcp_multifd_common(from, to, "none");
     migrate_set_parameter_str(from, "zero-page-detection", "none");
     return NULL;
 }
 
 static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     /*
      * Multifd is more complicated than most of the features, it
      * directly takes guest page buffers when sending, make sure
@@ -451,7 +355,6 @@ static void test_multifd_tcp_uri_none(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_zero_page_legacy;
     /*
      * Multifd is more complicated than most of the features, it
@@ -467,7 +370,6 @@ static void test_multifd_tcp_zero_page_legacy(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_precopy_tcp_multifd_no_zero_page;
     /*
      * Multifd is more complicated than most of the features, it
@@ -483,8 +385,6 @@ static void test_multifd_tcp_no_zero_page(char *name, MigrateCommon *args)
 
 static void test_multifd_tcp_channels_none(char *name, MigrateCommon *args)
 {
-    args->listen_uri = "defer";
-    args->start_hook = migrate_hook_start_precopy_tcp_multifd;
     args->live = true;
     args->connect_channels = ("[ { 'channel-type': 'main',"
                              "    'addr': { 'transport': 'socket',"
@@ -514,7 +414,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
 
     args->start.hide_stderr = true;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -560,7 +460,7 @@ static void test_multifd_tcp_cancel(MigrateCommon *args, bool postcopy_ram)
 
     args->start.only_target = true;
 
-    if (migrate_start(&from, &to2, "defer", &args->start)) {
+    if (migrate_start(&from, &to2, &args->start)) {
         return;
     }
 
@@ -734,7 +634,7 @@ static void test_cancel_src_after_status(char *test_path, MigrateCommon *args)
 
     args->start.hide_stderr = true;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -1070,10 +970,10 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     args->start.hide_stderr = true;
     args->start.use_dirty_ring = true;
 
-    args->connect_uri = uri;
+    args->uri = uri;
 
     /* Start src, dst vm */
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -1081,8 +981,8 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     migrate_dirty_limit_wait_showup(from, dirtylimit_period, dirtylimit_value);
 
     /* Start migrate */
-    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
+    migrate_qmp(from, to, args->uri, NULL, "{}");
 
     /* Wait for dirty limit throttle begin */
     throttle_us_per_full = 0;
@@ -1114,19 +1014,19 @@ static void test_dirty_limit(char *name, MigrateCommon *args)
     /* Assert dirty limit is not in service */
     g_assert_cmpint(throttle_us_per_full, ==, 0);
 
-    args->listen_uri = uri;
-    args->connect_uri = uri;
+    args->uri = uri;
 
     args->start.only_target = true;
     args->start.use_dirty_ring = true;
 
     /* Restart dst vm, src vm already show up so we needn't wait anymore */
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
     /* Start migrate */
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
+    migrate_qmp(from, to, args->uri, NULL, "{}");
 
     /* Wait for dirty limit throttle begin */
     throttle_us_per_full = 0;

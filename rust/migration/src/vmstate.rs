@@ -159,8 +159,7 @@ macro_rules! vmstate_of {
             )$(.with_varray_flag($crate::call_func_with_field!(
                     $crate::vmstate::vmstate_varray_flag,
                     $struct_name,
-                    $($num).+))
-               $(.with_varray_multiply($factor))?)?
+                    $($num).+)))?
         }
     };
 }

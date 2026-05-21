@@ -20,7 +20,6 @@
 #include "ppc-util.h"
 #include "qapi/error.h"
 #include "qobject/qjson.h"
-#include "qobject/qlist.h"
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -309,7 +308,7 @@ static char *migrate_mem_type_get_opts(MemType type, const char *memory_size)
     return opts;
 }
 
-int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
+int migrate_args(char **from, char **to, MigrateStart *args)
 {
     /* options for source and target */
     g_autofree gchar *arch_opts = NULL;
@@ -424,11 +423,11 @@ int migrate_args(char **from, char **to, const char *uri, MigrateStart *args)
                                  "-name target,debug-threads=on "
                                  "%s "
                                  "-serial file:%s/dest_serial "
-                                 "-incoming %s "
+                                 "-incoming defer "
                                  "%s %s %s %s",
                                  kvm_opts ? kvm_opts : "",
                                  machine, machine_opts,
-                                 memory_backend, tmpfs, uri,
+                                 memory_backend, tmpfs,
                                  events,
                                  arch_opts ? arch_opts : "",
                                  args->opts_target ? args->opts_target : "",
@@ -475,8 +474,7 @@ static void migrate_mem_type_cleanup(MemType type)
     }
 }
 
-int migrate_start(QTestState **from, QTestState **to, const char *uri,
-                  MigrateStart *args)
+int migrate_start(QTestState **from, QTestState **to, MigrateStart *args)
 {
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
@@ -491,7 +489,7 @@ int migrate_start(QTestState **from, QTestState **to, const char *uri,
     bootfile_create(qtest_get_arch(), tmpfs, args->suspend_me);
     src_state.suspend_me = args->suspend_me;
 
-    if (migrate_args(&cmd_source, &cmd_target, uri, args)) {
+    if (migrate_args(&cmd_source, &cmd_target, args)) {
         return -1;
     }
 
@@ -564,7 +562,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME] = true;
     args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] = true;
 
-    if (migrate_start(&from, &to, "defer", &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return -1;
     }
 
@@ -833,18 +831,18 @@ int test_precopy_common(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
-    QObject *in_channels = NULL;
-    QObject *out_channels = NULL;
+    QObject *channels = NULL;
+    const char *listen_uri = args->uri ?: "tcp:127.0.0.1:0";
 
-    g_assert(!args->cpr_channel || args->connect_channels);
-
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return -1;
     }
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
     }
+
+    migrate_incoming_qmp(to, listen_uri, NULL, "{}");
 
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
@@ -869,40 +867,16 @@ int test_precopy_common(MigrateCommon *args)
         }
     }
 
-    /*
-     * The cpr channel must be included in outgoing channels, but not in
-     * migrate-incoming channels.
-     */
     if (args->connect_channels) {
-        if (args->start.defer_target_connect &&
-            !strcmp(args->listen_uri, "defer")) {
-            in_channels = qobject_from_json(args->connect_channels,
-                                            &error_abort);
-        }
-        out_channels = qobject_from_json(args->connect_channels, &error_abort);
-
-        if (args->cpr_channel) {
-            QList *channels_list = qobject_to(QList, out_channels);
-            QObject *obj = migrate_str_to_channel(args->cpr_channel);
-
-            qlist_append(channels_list, obj);
-        }
+        channels = qobject_from_json(args->connect_channels, &error_abort);
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, out_channels, "{}");
+        migrate_qmp_fail(from, args->uri, channels, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, out_channels, "{}");
-
-    if (args->start.defer_target_connect) {
-        qtest_connect(to);
-        qtest_qmp_handshake(to, NULL);
-        if (!strcmp(args->listen_uri, "defer")) {
-            migrate_incoming_qmp(to, args->connect_uri, in_channels, "{}");
-        }
-    }
+    migrate_qmp(from, to, args->uri, channels, "{}");
 
     if (args->result != MIG_TEST_SUCCEED) {
         bool allow_active = args->result == MIG_TEST_FAIL;
@@ -962,6 +936,14 @@ finish:
     return 0;
 }
 
+void test_precopy_unix_common(MigrateCommon *args)
+{
+    g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+
+    args->uri = uri;
+    test_precopy_common(args);
+}
+
 static void file_dirty_offset_region(void)
 {
     g_autofree char *path = g_strdup_printf("%s/%s", tmpfs, FILE_TEST_FILENAME);
@@ -999,9 +981,15 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     QTestState *from, *to;
     void *data_hook = NULL;
     bool check_offset = false;
+    g_autofree char *uri = NULL;
 
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
+    }
+
+    if (!args->uri) {
+        uri = g_strdup_printf("file:%s/%s", tmpfs, FILE_TEST_FILENAME);
+        args->uri = uri;
     }
 
     /*
@@ -1011,7 +999,7 @@ void test_file_common(MigrateCommon *args, bool stop_src)
      */
     g_assert_false(args->live);
 
-    if (g_strrstr(args->connect_uri, "offset=")) {
+    if (g_strrstr(args->uri, "offset=")) {
         check_offset = true;
         /*
          * This comes before the start_hook because it's equivalent to
@@ -1034,18 +1022,18 @@ void test_file_common(MigrateCommon *args, bool stop_src)
     }
 
     if (args->result == MIG_TEST_QMP_ERROR) {
-        migrate_qmp_fail(from, args->connect_uri, NULL, "{}");
+        migrate_qmp_fail(from, args->uri, NULL, "{}");
         goto finish;
     }
 
-    migrate_qmp(from, to, args->connect_uri, NULL, "{}");
+    migrate_qmp(from, to, args->uri, NULL, "{}");
     wait_for_migration_complete(from);
 
     /*
      * We need to wait for the source to finish before starting the
      * destination.
      */
-    migrate_incoming_qmp(to, args->connect_uri, NULL, "{}");
+    migrate_incoming_qmp(to, args->uri, NULL, "{}");
     wait_for_migration_complete(to);
 
     if (stop_src) {
@@ -1065,19 +1053,6 @@ finish:
     }
 
     migrate_end(from, to, args->result == MIG_TEST_SUCCEED);
-}
-
-void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
-                                                    QTestState *to,
-                                                    const char *method)
-{
-    migrate_set_parameter_str(from, "multifd-compression", method);
-    migrate_set_parameter_str(to, "multifd-compression", method);
-
-    /* Start incoming migration from the 1st socket */
-    migrate_incoming_qmp(to, "tcp:127.0.0.1:0", NULL, "{}");
-
-    return NULL;
 }
 
 QTestMigrationState *get_src(void)

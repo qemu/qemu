@@ -63,6 +63,7 @@
 #include "system/dirtylimit.h"
 #include "qemu/sockets.h"
 #include "system/kvm.h"
+#include "math.h"
 
 #define NOTIFIER_ELEM_INIT(array, elem)    \
     [elem] = NOTIFIER_WITH_RETURN_LIST_INITIALIZER((array)[elem])
@@ -1029,7 +1030,7 @@ bool migration_is_running(void)
 
 static bool migration_is_active(void)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     return (s->state == MIGRATION_STATUS_ACTIVE ||
             s->state == MIGRATION_STATUS_POSTCOPY_DEVICE ||
@@ -1044,12 +1045,29 @@ static bool migrate_show_downtime(MigrationState *s)
 /* Return expected downtime (unit: milliseconds) */
 int64_t migration_downtime_calc_expected(MigrationState *s)
 {
+    double expected_ms;
+
     if (mig_stats.dirty_sync_count <= 1) {
         return migrate_downtime_limit();
     }
 
-    return mig_stats.dirty_bytes_last_sync /
+    expected_ms = mig_stats.dirty_bytes_last_sync /
         migration_get_switchover_bw(s) * 1000;
+
+    /*
+     * If we haven't been able to transfer any data, the result here could
+     * be NaN (for 0 / 0) or infinity (something else / 0).
+     *
+     * Return INT64_MAX as our best approximation to "this will take
+     * forever to complete". If the problem is transient (e.g. we just
+     * haven't started to transfer yet) we'll recalculate to a more
+     * accurate figure later.
+     */
+    if (isnan(expected_ms) || expected_ms >= (double)INT64_MAX) {
+        return INT64_MAX;
+    }
+
+    return (int64_t) expected_ms;
 }
 
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
@@ -1502,14 +1520,19 @@ void migration_cancel(void)
     }
 
     /*
-     * If migration_connect_outgoing has not been called, then there
-     * is no path that will complete the cancellation. Do it now.
+     * This is cpr-transfer specific processing.
+     *
+     * If this is true, it means cpr-transfer migration is waiting for the
+     * destination to send HUP event on CPR channel to continue the next
+     * phase.  If so, do the cleanup proactively to avoid get stuck in
+     * CANCELLING state.
      */
-    if (setup && !s->to_dst_file) {
-        migrate_set_state(&s->state, MIGRATION_STATUS_CANCELLING,
-                          MIGRATION_STATUS_CANCELLED);
-        cpr_state_close();
-        cpr_transfer_source_destroy(s);
+    if (cpr_transfer_source_active(s)) {
+        assert(migrate_mode() == MIG_MODE_CPR_TRANSFER);
+        assert(setup && !s->to_dst_file);
+        migration_cleanup(s);
+        /* Now all things should have been released */
+        assert(!cpr_transfer_source_active(s));
     }
 }
 
@@ -1634,7 +1657,7 @@ bool migration_in_bg_snapshot(void)
 
 bool migration_thread_is_self(void)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     return qemu_thread_is_self(&s->thread);
 }
@@ -2045,12 +2068,22 @@ static gboolean migration_connect_outgoing_cb(QIOChannel *channel,
     MigrationState *s = migrate_get_current();
     Error *local_err = NULL;
 
+    /*
+     * Detach and release the GSource right after use.  We rely on this to
+     * detect this small cpr-transfer window of "waiting for HUP event".
+     */
+    cpr_transfer_source_destroy(s);
+
     migration_connect_outgoing(s, opaque, &local_err);
 
     if (local_err) {
         migration_connect_error_propagate(s, local_err);
     }
 
+    /*
+     * This is redundant as we do cpr_transfer_source_destroy() at the
+     * entry, but it's benign; glib will just skip the detach.
+     */
     return G_SOURCE_REMOVE;
 }
 
@@ -3062,7 +3095,7 @@ static MigThrError postcopy_pause(MigrationState *s)
 
 void migration_file_set_error(int ret, Error *err)
 {
-    MigrationState *s = current_migration;
+    MigrationState *s = migrate_get_current();
 
     WITH_QEMU_LOCK_GUARD(&s->qemu_file_lock) {
         if (s->to_dst_file) {

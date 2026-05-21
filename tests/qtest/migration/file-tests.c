@@ -47,8 +47,7 @@ static void test_file_connect_outgoing_fd_leak(char *name, MigrateCommon *args)
         return;
     }
 
-    args->listen_uri = "defer";
-    if (migrate_start(&from, &to, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, &to, &args->start)) {
         return;
     }
 
@@ -67,11 +66,6 @@ static void test_file_connect_outgoing_fd_leak(char *name, MigrateCommon *args)
 
 static void test_precopy_file(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
     test_file_common(args, true);
 }
 
@@ -113,8 +107,7 @@ static void test_precopy_file_offset_fdset(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
                                            FILE_TEST_OFFSET);
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
+    args->uri = uri;
     args->start_hook = migrate_hook_start_file_offset_fdset;
 
     test_file_common(args, false);
@@ -127,9 +120,7 @@ static void test_precopy_file_offset(char *name, MigrateCommon *args)
                                            FILE_TEST_FILENAME,
                                            FILE_TEST_OFFSET);
 
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
+    args->uri = uri;
     test_file_common(args, false);
 }
 
@@ -139,8 +130,7 @@ static void test_precopy_file_offset_bad(char *name, MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("file:%s/%s,offset=0x20M",
                                            tmpfs, FILE_TEST_FILENAME);
 
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
+    args->uri = uri;
     args->result = MIG_TEST_QMP_ERROR;
 
     test_file_common(args, false);
@@ -148,12 +138,6 @@ static void test_precopy_file_offset_bad(char *name, MigrateCommon *args)
 
 static void test_precopy_file_mapped_ram_live(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
     args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
     test_file_common(args, false);
@@ -161,12 +145,6 @@ static void test_precopy_file_mapped_ram_live(char *name, MigrateCommon *args)
 
 static void test_precopy_file_mapped_ram(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
     args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
     test_file_common(args, true);
@@ -174,11 +152,6 @@ static void test_precopy_file_mapped_ram(char *name, MigrateCommon *args)
 
 static void test_multifd_file_mapped_ram_live(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
     args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
@@ -187,12 +160,6 @@ static void test_multifd_file_mapped_ram_live(char *name, MigrateCommon *args)
 
 static void test_multifd_file_mapped_ram(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
     args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
     args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
 
@@ -210,10 +177,6 @@ static void *migrate_hook_start_multifd_mapped_ram_dio(QTestState *from,
 
 static void test_multifd_file_mapped_ram_dio(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
     args->start_hook = migrate_hook_start_multifd_mapped_ram_dio;
 
     args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
@@ -284,8 +247,7 @@ static void test_multifd_file_mapped_ram_fdset(char *name, MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
                                            FILE_TEST_OFFSET);
 
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
+    args->uri = uri;
     args->start_hook = migrate_hook_start_multifd_mapped_ram_fdset;
     args->end_hook = migrate_hook_end_multifd_mapped_ram_fdset;
 
@@ -300,8 +262,7 @@ static void test_multifd_file_mapped_ram_fdset_dio(char *name,
 {
     g_autofree char *uri = g_strdup_printf("file:/dev/fdset/1,offset=%d",
                                            FILE_TEST_OFFSET);
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
+    args->uri = uri;
     args->start_hook = migrate_hook_start_multifd_mapped_ram_fdset_dio;
     args->end_hook = migrate_hook_end_multifd_mapped_ram_fdset;
 
@@ -329,11 +290,6 @@ static void migration_test_add_file_smoke(MigrationTestEnv *env)
 static void
 test_precopy_file_mapped_ram_ignore_shared(char *name, MigrateCommon *args)
 {
-    g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
-                                           FILE_TEST_FILENAME);
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
-
     args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
     args->start.caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED] = true;
 

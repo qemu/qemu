@@ -59,29 +59,23 @@ vmstate_field_exists(const VMStateDescription *vmsd, const VMStateField *field,
  * array of a VMS_ARRAY_OF_POINTER VMSD field.  It's needed because we
  * can't dereference the NULL pointer.
  */
-static const VMStateField *
-vmsd_create_ptr_marker_field(const VMStateField *field)
+static void
+vmsd_init_ptr_marker_field(VMStateField *fake, const VMStateField *field)
 {
-    VMStateField *fake = g_new0(VMStateField, 1);
-
     /* It can only happen on an array of pointers! */
     assert(field->flags & VMS_ARRAY_OF_POINTER);
 
-    /* Some of fake's properties should match the original's */
-    fake->name = field->name;
-    fake->version_id = field->version_id;
-
-    /* Do not need "field_exists" check as it always exists */
-    fake->field_exists = NULL;
-
-    /* See vmstate_info_ptr_marker - use 1 byte to represent ptr status */
-    fake->size = 1;
-    fake->info = &vmstate_info_ptr_marker;
-    fake->flags = VMS_SINGLE;
-
-    /* All the rest fields shouldn't matter.. */
-
-    return (const VMStateField *)fake;
+    /* See vmstate_info_ptr_marker - 1 byte represents ptr status */
+    *fake = (VMStateField) {
+        .name = field->name,
+        .version_id = field->version_id,
+        /* Marker always exists, no field_exists callback needed */
+        .field_exists = NULL,
+        .size = 1,
+        .info = &vmstate_info_ptr_marker,
+        .flags = VMS_SINGLE,
+        /* All other fields stay zero-initialised */
+    };
 }
 
 static int vmstate_n_elems(void *opaque, const VMStateField *field)
@@ -98,10 +92,6 @@ static int vmstate_n_elems(void *opaque, const VMStateField *field)
         n_elems = *(uint16_t *)(opaque + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT8) {
         n_elems = *(uint8_t *)(opaque + field->num_offset);
-    }
-
-    if (field->flags & VMS_MULTIPLY_ELEMENTS) {
-        n_elems *= field->num;
     }
 
     trace_vmstate_n_elems(field->name, n_elems);
@@ -680,6 +670,7 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
             for (i = 0; i < n_elems; i++) {
                 void *curr_elem = first_elem + size * i;
                 const VMStateField *inner_field;
+                VMStateField marker_field;
                 /* maximum number of elements to compress in the JSON blob */
                 int max_elems = vmsd_can_compress(field) ? (n_elems - i) : 1;
                 bool use_marker_field, is_null = false;
@@ -693,7 +684,8 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 use_marker_field = use_dynamic_array || is_null;
 
                 if (use_marker_field) {
-                    inner_field = vmsd_create_ptr_marker_field(field);
+                    vmsd_init_ptr_marker_field(&marker_field, field);
+                    inner_field = &marker_field;
                 } else {
                     inner_field = field;
                 }
@@ -729,11 +721,6 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
                 ok = vmstate_save_field_with_vmdesc(f, curr_elem, size, vmsd,
                                                     inner_field, vmdesc_loop,
                                                     i, max_elems, errp);
-
-                /* If we used a fake temp field.. free it now */
-                if (use_marker_field) {
-                    g_clear_pointer((gpointer *)&inner_field, g_free);
-                }
 
                 if (!ok) {
                     goto out;

@@ -15,6 +15,9 @@
 #include "migration/framework.h"
 #include "migration/migration-qmp.h"
 #include "migration/migration-util.h"
+#include "qapi/error.h"
+#include "qobject/qjson.h"
+#include "qobject/qlist.h"
 
 
 static char *tmpfs;
@@ -32,8 +35,7 @@ static void test_mode_reboot(char *name, MigrateCommon *args)
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
 
-    args->connect_uri = uri;
-    args->listen_uri = "defer";
+    args->uri = uri;
     args->start_hook = migrate_hook_start_mode_reboot;
 
     args->start.mem_type = MEM_TYPE_SHMEM;
@@ -42,10 +44,56 @@ static void test_mode_reboot(char *name, MigrateCommon *args)
     test_file_common(args, true);
 }
 
-static void *test_mode_transfer_start(QTestState *from, QTestState *to)
+static int test_transfer(MigrateCommon *args, const char *cpr_channel,
+                         bool incoming_defer)
 {
+    QTestState *from, *to;
+    QObject *obj, *out_channels = qobject_from_json(args->connect_channels,
+                                                    &error_abort);
+    QList *channels_list;
+
+    /*
+     * The cpr channel must be included in outgoing channels, but not in
+     * migrate-incoming channels.
+     */
+    channels_list = qobject_to(QList, out_channels);
+    obj = migrate_str_to_channel(cpr_channel);
+    qlist_append(channels_list, obj);
+
+    if (migrate_start(&from, &to, &args->start)) {
+        return -1;
+    }
+
     migrate_set_parameter_str(from, "mode", "cpr-transfer");
-    return NULL;
+
+    wait_for_serial("src_serial");
+
+    qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
+    wait_for_stop(from, get_src());
+    migrate_ensure_converge(from);
+
+    migrate_qmp(from, to, NULL, out_channels, "{}");
+
+    qtest_connect(to);
+    qtest_qmp_handshake(to, NULL);
+    if (incoming_defer) {
+        QObject *in_channels = qobject_from_json(args->connect_channels,
+                                                 &error_abort);
+
+        migrate_incoming_qmp(to, NULL, in_channels, "{}");
+    }
+
+    wait_for_migration_complete(from);
+    wait_for_migration_complete(to);
+
+    qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
+
+    wait_for_resume(to, get_dst());
+    wait_for_serial("dest_serial");
+
+    migrate_end(from, to, true);
+
+    return 0;
 }
 
 /*
@@ -80,21 +128,25 @@ static void test_mode_transfer_common(MigrateCommon *args, bool incoming_defer)
     int cpr_sockfd = qtest_socket_server(cpr_path);
     g_assert(cpr_sockfd >= 0);
 
-    opts_target = g_strdup_printf("-incoming cpr,addr.transport=socket,"
-                                  "addr.type=fd,addr.str=%d %s",
-                                  cpr_sockfd, opts);
+    if (incoming_defer) {
+        opts_target = g_strdup_printf("-incoming cpr,addr.transport=socket,"
+                                      "addr.type=fd,addr.str=%d %s",
+                                      cpr_sockfd, opts);
+    } else {
+        opts_target = g_strdup_printf("-incoming %s "
+                                      "-incoming cpr,addr.transport=socket,"
+                                      "addr.type=fd,addr.str=%d %s",
+                                      uri, cpr_sockfd, opts);
+    }
 
-    args->listen_uri = incoming_defer ? "defer" : uri;
     args->connect_channels = connect_channels;
-    args->cpr_channel = cpr_channel;
-    args->start_hook = test_mode_transfer_start;
 
     args->start.opts_source = opts;
     args->start.opts_target = opts_target;
     args->start.defer_target_connect = true;
     args->start.mem_type = MEM_TYPE_MEMFD;
 
-    if (test_precopy_common(args) < 0) {
+    if (test_transfer(args, cpr_channel, incoming_defer) < 0) {
         close(cpr_sockfd);
         unlink(cpr_path);
     }
@@ -127,7 +179,7 @@ static void set_cpr_exec_args(QTestState *who, MigrateCommon *args)
      */
     g_assert(args->start.hide_stderr == false);
 
-    ret = migrate_args(&from_args, &to_args, args->listen_uri, &args->start);
+    ret = migrate_args(&from_args, &to_args, &args->start);
     g_assert(!ret);
     qtest_from_args = qtest_qemu_args(from_args);
 
@@ -174,11 +226,11 @@ static void test_cpr_exec(MigrateCommon *args)
 {
     QTestState *from, *to;
     void *data_hook = NULL;
-    g_autofree char *connect_uri = g_strdup(args->connect_uri);
+    g_autofree char *connect_uri = g_strdup(args->uri);
     g_autofree char *filename = g_strdup_printf("%s/%s", tmpfs,
                                                 FILE_TEST_FILENAME);
 
-    if (migrate_start(&from, NULL, args->listen_uri, &args->start)) {
+    if (migrate_start(&from, NULL, &args->start)) {
         return;
     }
 
@@ -228,10 +280,7 @@ static void test_mode_exec(char *name, MigrateCommon *args)
 {
     g_autofree char *uri = g_strdup_printf("file:%s/%s", tmpfs,
                                            FILE_TEST_FILENAME);
-    g_autofree char *listen_uri = g_strdup_printf("defer");
-
-    args->connect_uri = uri;
-    args->listen_uri = listen_uri;
+    args->uri = uri;
     args->start_hook = test_mode_exec_start;
 
     args->start.only_source = true;

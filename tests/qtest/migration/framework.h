@@ -163,16 +163,14 @@ typedef struct {
     /* Optional: fine tune start parameters */
     MigrateStart start;
 
-    /* Required: the URI for the dst QEMU to listen on */
-    const char *listen_uri;
-
     /*
-     * Optional: the URI for the src QEMU to connect to
-     * If NULL, then it will query the dst QEMU for its actual
-     * listening address and use that as the connect address.
-     * This allows for dynamically picking a free TCP port.
+     * Optional: the migration URI. If NULL, the common code should
+     * provide a default. For socket migration, the source QEMU may
+     * query the dst QEMU for the listening address and use that as
+     * the connection address. This allows for dynamically picking a
+     * free TCP port.
      */
-    const char *connect_uri;
+    const char *uri;
 
     /*
      * Optional: JSON-formatted list of src QEMU URIs. If a port is
@@ -180,9 +178,6 @@ typedef struct {
      * automatically converted to the correct destination port.
      */
     const char *connect_channels;
-
-    /* Optional: the cpr migration channel, in JSON or dotted keys format */
-    const char *cpr_channel;
 
     /* Optional: callback to run at start to set migration parameters */
     TestMigrateStartHook start_hook;
@@ -234,19 +229,16 @@ void wait_for_serial(const char *side);
 void migrate_prepare_for_dirty_mem(QTestState *from);
 void migrate_wait_for_dirty_mem(QTestState *from, QTestState *to);
 
-int migrate_args(char **from, char **to, const char *uri, MigrateStart *args);
-int migrate_start(QTestState **from, QTestState **to, const char *uri,
-                  MigrateStart *args);
+int migrate_args(char **from, char **to, MigrateStart *args);
+int migrate_start(QTestState **from, QTestState **to, MigrateStart *args);
 void migrate_end(QTestState *from, QTestState *to, bool test_dest);
 
 void test_postcopy_common(MigrateCommon *args);
 void test_postcopy_recovery_common(MigrateCommon *args,
                                    PostcopyRecoveryFailStage fail_stage);
 int test_precopy_common(MigrateCommon *args);
+void test_precopy_unix_common(MigrateCommon *args);
 void test_file_common(MigrateCommon *args, bool stop_src);
-void *migrate_hook_start_precopy_tcp_multifd_common(QTestState *from,
-                                                    QTestState *to,
-                                                    const char *method);
 
 typedef struct QTestMigrationState QTestMigrationState;
 QTestMigrationState *get_src(void);
