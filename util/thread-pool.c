@@ -493,5 +493,5 @@ bool thread_pool_adjust_max_threads_to_work(ThreadPool *pool)
 {
     QEMU_LOCK_GUARD(&pool->cur_work_lock);
 
-    return thread_pool_set_max_threads(pool, pool->cur_work);
+    return thread_pool_set_max_threads(pool, MAX(pool->cur_work, 1));
 }
