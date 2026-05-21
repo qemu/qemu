@@ -19,5 +19,12 @@
 #endif
 
 #define HAVE_ELF_HWCAP          1
+#define HAVE_ELF_CORE_DUMP      1
+
+/* Mirrors struct user_regs_struct: pc followed by x1 (ra) .. x31 (t6). */
+typedef struct target_elf_gregset_t {
+    abi_ulong pc;
+    abi_ulong regs[31];
+} target_elf_gregset_t;
 
 #endif
