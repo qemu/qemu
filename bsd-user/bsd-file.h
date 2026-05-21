@@ -113,7 +113,7 @@ static abi_long do_bsd_preadv(CPUArchState *env, abi_long arg1,
     abi_long arg2, abi_long arg3, abi_long arg4, abi_long arg5, abi_long arg6)
 {
     abi_long ret;
-    struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 1);
+    struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
 
     if (vec != NULL) {
         if (regpairs_aligned(env) != 0) {
@@ -121,7 +121,7 @@ static abi_long do_bsd_preadv(CPUArchState *env, abi_long arg1,
             arg5 = arg6;
         }
         ret = get_errno(safe_preadv(arg1, vec, arg3, target_arg64(arg4, arg5)));
-        unlock_iovec(vec, arg2, arg3, 0);
+        unlock_iovec(vec, arg2, arg3, 1);
     } else {
         ret = -host_to_target_errno(errno);
     }
