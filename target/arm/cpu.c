@@ -1768,6 +1768,7 @@ static void arm_clear_aarch64_idregs(ARMCPU *cpu)
     SET_IDREG(&cpu->isar, ID_AA64AFR1, 0);
     SET_IDREG(&cpu->isar, ID_AA64ZFR0, 0);
     SET_IDREG(&cpu->isar, ID_AA64SMFR0, 0);
+    SET_IDREG(&cpu->isar, ID_AA64FPFR0, 0);
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
