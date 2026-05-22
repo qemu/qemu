@@ -742,6 +742,9 @@ void arm_emulate_firmware_reset(CPUState *cpustate, int target_el)
             if (cpu_isar_feature(aa64_mec, cpu)) {
                 env->cp15.scr_el3 |= SCR_MECEN;
             }
+            if (cpu_isar_feature(aa64_fpmr, cpu)) {
+                env->cp15.scr_el3 |= SCR_ENFPM;
+            }
         }
 
         if (target_el == 2) {
