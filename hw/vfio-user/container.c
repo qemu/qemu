@@ -309,7 +309,12 @@ static bool vfio_user_device_attach(const char *name, VFIODevice *vbasedev,
         return false;
     }
 
-    return vfio_user_device_get(container, vbasedev, errp);
+    if (!vfio_user_device_get(container, vbasedev, errp)) {
+        vfio_user_container_disconnect(container);
+        return false;
+    }
+
+    return true;
 }
 
 static void vfio_user_device_detach(VFIODevice *vbasedev)
