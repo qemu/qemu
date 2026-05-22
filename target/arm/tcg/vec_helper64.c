@@ -178,3 +178,7 @@ DO_3OP(gvec_famax_s, float32_famax, float32)
 DO_3OP(gvec_famin_s, float32_famin, float32)
 DO_3OP(gvec_famax_d, float64_famax, float64)
 DO_3OP(gvec_famin_d, float64_famin, float64)
+
+DO_3OP(gvec_fscale_h, float16_scalbn, int16_t)
+DO_3OP(gvec_fscale_s, float32_scalbn, int32_t)
+DO_3OP(gvec_fscale_d, scalbn_d, int64_t)
