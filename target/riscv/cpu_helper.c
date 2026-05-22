@@ -1424,7 +1424,22 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         }
 
         if (res != MEMTX_OK) {
-            return TRANSLATE_FAIL;
+            /*
+             * The result of address_space_* APIs above does not take into
+             * consideration reject reads, putting all errors in the same
+             * cathegory (DECODE_ERROR), although there's a clear
+             * distinction between a rejected read versus other errors
+             * (see memory_region_dispatch_read() ->
+             * memory_region_access_valid()).  This is something that
+             * we might have to deal with core QEMU logic some other
+             * day.
+             *
+             * For this particular error path, given that we made checks
+             * w.r.t legal PTE address before calling those APIs, we'll
+             * assume that anything != MEMTX_OK means a rejected read,
+             * i.e. a PMA error.
+             */
+            return TRANSLATE_PMA_FAIL;
         }
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
@@ -1704,7 +1719,8 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
 }
 
 static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
-                                MMUAccessType access_type, bool pmp_violation,
+                                MMUAccessType access_type,
+                                bool pmp_pma_violation,
                                 bool first_stage, bool two_stage,
                                 bool two_stage_indirect)
 {
@@ -1712,7 +1728,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 
     switch (access_type) {
     case MMU_INST_FETCH:
-        if (pmp_violation) {
+        if (pmp_pma_violation) {
             cs->exception_index = RISCV_EXCP_INST_ACCESS_FAULT;
         } else if (env->virt_enabled && !first_stage) {
             cs->exception_index = RISCV_EXCP_INST_GUEST_PAGE_FAULT;
@@ -1721,7 +1737,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
         }
         break;
     case MMU_DATA_LOAD:
-        if (pmp_violation) {
+        if (pmp_pma_violation) {
             cs->exception_index = RISCV_EXCP_LOAD_ACCESS_FAULT;
         } else if (two_stage && !first_stage) {
             cs->exception_index = RISCV_EXCP_LOAD_GUEST_ACCESS_FAULT;
@@ -1730,7 +1746,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
         }
         break;
     case MMU_DATA_STORE:
-        if (pmp_violation) {
+        if (pmp_pma_violation) {
             cs->exception_index = RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
         } else if (two_stage && !first_stage) {
             cs->exception_index = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
@@ -1856,7 +1872,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     vaddr im_address;
     hwaddr pa = 0;
     int prot, prot2, prot_pmp;
-    bool pmp_violation = false;
+    bool pmp_pma_violation = false;
     bool first_stage_error = true;
     bool two_stage_lookup = mmuidx_2stage(mmu_idx);
     bool two_stage_indirect_error = false;
@@ -1956,8 +1972,8 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         }
     }
 
-    if (ret == TRANSLATE_PMP_FAIL) {
-        pmp_violation = true;
+    if (ret == TRANSLATE_PMP_FAIL || ret == TRANSLATE_PMA_FAIL) {
+        pmp_pma_violation = true;
     }
 
     if (ret == TRANSLATE_SUCCESS) {
@@ -1984,7 +2000,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         cpu_check_watchpoint(cs, address, size, MEMTXATTRS_UNSPECIFIED,
                              wp_access, retaddr);
 
-        raise_mmu_exception(env, address, access_type, pmp_violation,
+        raise_mmu_exception(env, address, access_type, pmp_pma_violation,
                             first_stage_error, two_stage_lookup,
                             two_stage_indirect_error);
         cpu_loop_exit_restore(cs, retaddr);
