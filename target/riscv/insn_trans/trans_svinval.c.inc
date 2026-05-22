@@ -22,11 +22,19 @@
     }                                      \
 } while (0)
 
+/* Test if priv level is M or S. */
+#define REQUIRE_PRIV_MS(ctx) do {          \
+    if (ctx->priv == PRV_U) {              \
+        return false;                      \
+    }                                      \
+} while (0)
+
 static bool trans_sinval_vma(DisasContext *ctx, arg_sinval_vma *a)
 {
     REQUIRE_SVINVAL(ctx);
     /* Do the same as sfence.vma currently */
     REQUIRE_EXT(ctx, RVS);
+    REQUIRE_PRIV_MS(ctx);
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
     gen_helper_tlb_flush(tcg_env);
@@ -39,6 +47,7 @@ static bool trans_sfence_w_inval(DisasContext *ctx, arg_sfence_w_inval *a)
 {
     REQUIRE_SVINVAL(ctx);
     REQUIRE_EXT(ctx, RVS);
+    REQUIRE_PRIV_MS(ctx);
     /* Do nothing currently */
     return true;
 }
@@ -47,6 +56,7 @@ static bool trans_sfence_inval_ir(DisasContext *ctx, arg_sfence_inval_ir *a)
 {
     REQUIRE_SVINVAL(ctx);
     REQUIRE_EXT(ctx, RVS);
+    REQUIRE_PRIV_MS(ctx);
     /* Do nothing currently */
     return true;
 }
@@ -56,6 +66,7 @@ static bool trans_hinval_vvma(DisasContext *ctx, arg_hinval_vvma *a)
     REQUIRE_SVINVAL(ctx);
     /* Do the same as hfence.vvma currently */
     REQUIRE_EXT(ctx, RVH);
+    REQUIRE_PRIV_MS(ctx);
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
     gen_helper_hyp_tlb_flush(tcg_env);
@@ -69,6 +80,7 @@ static bool trans_hinval_gvma(DisasContext *ctx, arg_hinval_gvma *a)
     REQUIRE_SVINVAL(ctx);
     /* Do the same as hfence.gvma currently */
     REQUIRE_EXT(ctx, RVH);
+    REQUIRE_PRIV_MS(ctx);
 #ifndef CONFIG_USER_ONLY
     decode_save_opc(ctx, 0);
     gen_helper_hyp_gvma_tlb_flush(tcg_env);
