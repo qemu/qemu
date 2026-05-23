@@ -2495,7 +2495,10 @@ static void ram_state_reset(RAMState *rs)
 
     rs->last_seen_block = NULL;
     rs->last_page = 0;
-    rs->last_version = ram_list.version;
+
+    /* Read version before ram_list.blocks */
+    rs->last_version = qatomic_load_acquire(&ram_list.version);
+
     rs->xbzrle_started = false;
 
     ram_page_hint_reset(&rs->page_hint);
@@ -3270,12 +3273,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
      */
     WITH_QEMU_LOCK_GUARD(&rs->bitmap_mutex) {
         WITH_RCU_READ_LOCK_GUARD() {
-            if (ram_list.version != rs->last_version) {
+            if (qatomic_read(&ram_list.version) != rs->last_version) {
                 ram_state_reset(rs);
             }
-
-            /* Read version before ram_list.blocks */
-            smp_rmb();
 
             ret = rdma_registration_start(f, RAM_CONTROL_ROUND);
             if (ret < 0) {

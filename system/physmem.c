@@ -839,12 +839,12 @@ found:
     /* It is safe to write mru_block outside the BQL.  This
      * is what happens:
      *
-     *     mru_block = xxx
+     *     qatomic_set(&mru_block, xxx)
      *     rcu_read_unlock()
      *                                        xxx removed from list
      *                  rcu_read_lock()
      *                  read mru_block
-     *                                        mru_block = NULL;
+     *                                        qatomic_set(&mru_block, NULL);
      *                                        call_rcu(reclaim_ramblock, xxx);
      *                  rcu_read_unlock()
      *
@@ -852,7 +852,7 @@ found:
      * when it was placed into the list.  Here we're just making an extra
      * copy of the pointer.
      */
-    ram_list.mru_block = block;
+    qatomic_set(&ram_list.mru_block, block);
     return block;
 }
 
@@ -2260,11 +2260,10 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
     } else { /* list is empty */
         QLIST_INSERT_HEAD_RCU(&ram_list.blocks, new_block, next);
     }
-    ram_list.mru_block = NULL;
+    qatomic_set(&ram_list.mru_block, NULL);
 
     /* Write list before version */
-    smp_wmb();
-    ram_list.version++;
+    qatomic_store_release(&ram_list.version, ram_list.version + 1);
     qemu_mutex_unlock_ramlist();
 
     physical_memory_set_dirty_range(new_block->offset,
@@ -2608,10 +2607,9 @@ void qemu_ram_free(RAMBlock *block)
     name = cpr_name(block->mr);
     cpr_delete_fd(name, 0);
     QLIST_REMOVE_RCU(block, next);
-    ram_list.mru_block = NULL;
+    qatomic_set(&ram_list.mru_block, NULL);
     /* Write list before version */
-    smp_wmb();
-    ram_list.version++;
+    qatomic_store_release(&ram_list.version, ram_list.version + 1);
     call_rcu(block, reclaim_ramblock, rcu);
     qemu_mutex_unlock_ramlist();
 }
