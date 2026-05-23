@@ -1,0 +1,18 @@
+include $(BUILD_DIR)/tests/tcg/sh4-linux-user/config-target.mak
+
+SUBDIR = $(SRC_PATH)/linux-user/sh4
+VPATH += $(SUBDIR)
+
+all: $(SUBDIR)/vdso-le.so $(SUBDIR)/vdso-be.so
+
+LDFLAGS = -nostdlib -shared -Wl,-h,linux-gate.so.1 \
+	  -Wl,--build-id=sha1 -Wl,--hash-style=both \
+	  -Wl,-T,$(SUBDIR)/vdso.ld
+
+$(SUBDIR)/vdso-le.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC) -o $@ $(LDFLAGS) -ml $<
+
+CC_BE = sh4eb-unknown-linux-gnu-gcc
+
+$(SUBDIR)/vdso-be.so: vdso.S vdso.ld vdso-asmoffset.h
+	$(CC_BE) -o $@ $(LDFLAGS) $<

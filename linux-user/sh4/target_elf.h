@@ -15,6 +15,7 @@
 
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_CORE_DUMP      1
+#define HAVE_VDSO_IMAGE_INFO    1
 
 /*
  * See linux kernel: arch/sh/include/asm/elf.h, where
