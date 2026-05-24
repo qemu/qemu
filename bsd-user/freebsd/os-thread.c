@@ -16,7 +16,6 @@
 #include "target_arch_thread.h"
 #include "qemu/guest-random.h"
 #include "tcg/startup.h"
-#include "exec/tb-flush.h"
 
 #include "os-thread.h"
 
@@ -1622,10 +1621,7 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
      * generate code for parallel execution and flush old translations.
      * Do this now so that the copy gets CF_PARALLEL too.
      */
-    if (!(cpu->tcg_cflags & CF_PARALLEL)) {
-        cpu->tcg_cflags |= CF_PARALLEL;
-        tb_flush__exclusive_or_serial();
-    }
+    begin_parallel_context(cpu);
 
     new_env = cpu_copy(env);
 
