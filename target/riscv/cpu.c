@@ -97,8 +97,24 @@ static void riscv_cpu_cfg_merge(RISCVCPUConfig *dest, const RISCVCPUConfig *src)
 #include "cpu_cfg_fields.h.inc"
 }
 
+/* Use this for regular user facing extensions */
 #define ISA_EXT_DATA_ENTRY(_name, _min_ver, _prop) \
-    {#_name, _min_ver, CPU_CFG_OFFSET(_prop)}
+    {#_name, #_name, _min_ver, CPU_CFG_OFFSET(_prop)}
+
+/*
+ * Same as above but for experimental extensions. We'll add a
+ * "x-" right after "_name" when creating the user property.
+ */
+#define ISA_EXPERIMENTAL_EXT_DATA_ENTRY(_name, _min_ver, _prop) \
+    {#_name, "x-" #_name, _min_ver, CPU_CFG_OFFSET(_prop)}
+
+/*
+ * Internal extensions are extensions we will declare in the
+ * riscv,isa DT but they don't have an user property, i.e.
+ * users/management can't enable/disable them.
+ */
+#define ISA_INTERNAL_EXT_DATA_ENTRY(_name, _min_ver, _prop) \
+    {#_name, NULL, _min_ver, CPU_CFG_OFFSET(_prop)}
 
 /*
  * Here are the ordering rules of extension naming defined by RISC-V
@@ -121,13 +137,13 @@ static void riscv_cpu_cfg_merge(RISCVCPUConfig *dest, const RISCVCPUConfig *src)
  * instead.
  */
 const RISCVIsaExtData isa_edata_arr[] = {
-    ISA_EXT_DATA_ENTRY(zic64b, PRIV_VERSION_1_12_0, ext_zic64b),
+    ISA_INTERNAL_EXT_DATA_ENTRY(zic64b, PRIV_VERSION_1_12_0, ext_zic64b),
     ISA_EXT_DATA_ENTRY(zicbom, PRIV_VERSION_1_12_0, ext_zicbom),
     ISA_EXT_DATA_ENTRY(zicbop, PRIV_VERSION_1_12_0, ext_zicbop),
     ISA_EXT_DATA_ENTRY(zicboz, PRIV_VERSION_1_12_0, ext_zicboz),
-    ISA_EXT_DATA_ENTRY(ziccamoa, PRIV_VERSION_1_11_0, has_priv_1_11),
-    ISA_EXT_DATA_ENTRY(ziccif, PRIV_VERSION_1_11_0, has_priv_1_11),
-    ISA_EXT_DATA_ENTRY(zicclsm, PRIV_VERSION_1_11_0, has_priv_1_11),
+    ISA_INTERNAL_EXT_DATA_ENTRY(ziccamoa, PRIV_VERSION_1_11_0, has_priv_1_11),
+    ISA_INTERNAL_EXT_DATA_ENTRY(ziccif, PRIV_VERSION_1_11_0, has_priv_1_11),
+    ISA_INTERNAL_EXT_DATA_ENTRY(zicclsm, PRIV_VERSION_1_11_0, has_priv_1_11),
     ISA_EXT_DATA_ENTRY(ziccrse, PRIV_VERSION_1_11_0, ext_ziccrse),
     ISA_EXT_DATA_ENTRY(zicfilp, PRIV_VERSION_1_12_0, ext_zicfilp),
     ISA_EXT_DATA_ENTRY(zicfiss, PRIV_VERSION_1_13_0, ext_zicfiss),
@@ -141,7 +157,7 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zilsd, PRIV_VERSION_1_12_0, ext_zilsd),
     ISA_EXT_DATA_ENTRY(zimop, PRIV_VERSION_1_13_0, ext_zimop),
     ISA_EXT_DATA_ENTRY(zmmul, PRIV_VERSION_1_12_0, ext_zmmul),
-    ISA_EXT_DATA_ENTRY(za64rs, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(za64rs, PRIV_VERSION_1_12_0, has_priv_1_12),
     ISA_EXT_DATA_ENTRY(zaamo, PRIV_VERSION_1_12_0, ext_zaamo),
     ISA_EXT_DATA_ENTRY(zabha, PRIV_VERSION_1_13_0, ext_zabha),
     ISA_EXT_DATA_ENTRY(zacas, PRIV_VERSION_1_12_0, ext_zacas),
@@ -211,17 +227,19 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zhinx, PRIV_VERSION_1_12_0, ext_zhinx),
     ISA_EXT_DATA_ENTRY(zhinxmin, PRIV_VERSION_1_12_0, ext_zhinxmin),
     ISA_EXT_DATA_ENTRY(sdtrig, PRIV_VERSION_1_12_0, debug),
-    ISA_EXT_DATA_ENTRY(shcounterenw, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(sha, PRIV_VERSION_1_12_0, ext_sha),
-    ISA_EXT_DATA_ENTRY(shgatpa, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(shtvala, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(shvsatpa, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(shvstvala, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(shvstvecd, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(shcounterenw, PRIV_VERSION_1_12_0,
+                                has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(sha, PRIV_VERSION_1_12_0, ext_sha),
+    ISA_INTERNAL_EXT_DATA_ENTRY(shgatpa, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(shtvala, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(shvsatpa, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(shvstvala, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(shvstvecd, PRIV_VERSION_1_12_0, has_priv_1_12),
     ISA_EXT_DATA_ENTRY(smaia, PRIV_VERSION_1_12_0, ext_smaia),
     ISA_EXT_DATA_ENTRY(smcdeleg, PRIV_VERSION_1_13_0, ext_smcdeleg),
     ISA_EXT_DATA_ENTRY(smcntrpmf, PRIV_VERSION_1_12_0, ext_smcntrpmf),
     ISA_EXT_DATA_ENTRY(smcsrind, PRIV_VERSION_1_13_0, ext_smcsrind),
+    ISA_EXT_DATA_ENTRY(smctr, PRIV_VERSION_1_12_0, ext_smctr),
     ISA_EXT_DATA_ENTRY(smdbltrp, PRIV_VERSION_1_13_0, ext_smdbltrp),
     ISA_EXT_DATA_ENTRY(smepmp, PRIV_VERSION_1_12_0, ext_smepmp),
     ISA_EXT_DATA_ENTRY(smpmpmt, PRIV_VERSION_1_12_0, ext_smpmpmt),
@@ -231,30 +249,31 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(smstateen, PRIV_VERSION_1_12_0, ext_smstateen),
     ISA_EXT_DATA_ENTRY(ssaia, PRIV_VERSION_1_12_0, ext_ssaia),
     ISA_EXT_DATA_ENTRY(ssccfg, PRIV_VERSION_1_13_0, ext_ssccfg),
-    ISA_EXT_DATA_ENTRY(ssccptr, PRIV_VERSION_1_11_0, has_priv_1_11),
+    ISA_INTERNAL_EXT_DATA_ENTRY(ssccptr, PRIV_VERSION_1_11_0, has_priv_1_11),
     ISA_EXT_DATA_ENTRY(sscofpmf, PRIV_VERSION_1_12_0, ext_sscofpmf),
-    ISA_EXT_DATA_ENTRY(sscounterenw, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(sscounterenw, PRIV_VERSION_1_12_0,
+                                has_priv_1_12),
     ISA_EXT_DATA_ENTRY(sscsrind, PRIV_VERSION_1_12_0, ext_sscsrind),
+    ISA_EXT_DATA_ENTRY(ssctr, PRIV_VERSION_1_12_0, ext_ssctr),
     ISA_EXT_DATA_ENTRY(ssdbltrp, PRIV_VERSION_1_13_0, ext_ssdbltrp),
     ISA_EXT_DATA_ENTRY(ssnpm, PRIV_VERSION_1_13_0, ext_ssnpm),
     ISA_EXT_DATA_ENTRY(sspm, PRIV_VERSION_1_13_0, ext_sspm),
-    ISA_EXT_DATA_ENTRY(ssstateen, PRIV_VERSION_1_12_0, ext_ssstateen),
-    ISA_EXT_DATA_ENTRY(ssstrict, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(ssstateen, PRIV_VERSION_1_12_0, ext_ssstateen),
+    ISA_INTERNAL_EXT_DATA_ENTRY(ssstrict, PRIV_VERSION_1_12_0, has_priv_1_12),
     ISA_EXT_DATA_ENTRY(sstc, PRIV_VERSION_1_12_0, ext_sstc),
-    ISA_EXT_DATA_ENTRY(sstvala, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(sstvecd, PRIV_VERSION_1_12_0, has_priv_1_12),
-    ISA_EXT_DATA_ENTRY(ssu64xl, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(sstvala, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(sstvecd, PRIV_VERSION_1_12_0, has_priv_1_12),
+    ISA_INTERNAL_EXT_DATA_ENTRY(ssu64xl, PRIV_VERSION_1_12_0, has_priv_1_12),
     ISA_EXT_DATA_ENTRY(supm, PRIV_VERSION_1_13_0, ext_supm),
     ISA_EXT_DATA_ENTRY(svade, PRIV_VERSION_1_11_0, ext_svade),
-    ISA_EXT_DATA_ENTRY(smctr, PRIV_VERSION_1_12_0, ext_smctr),
-    ISA_EXT_DATA_ENTRY(ssctr, PRIV_VERSION_1_12_0, ext_ssctr),
     ISA_EXT_DATA_ENTRY(svadu, PRIV_VERSION_1_12_0, ext_svadu),
     ISA_EXT_DATA_ENTRY(svinval, PRIV_VERSION_1_12_0, ext_svinval),
     ISA_EXT_DATA_ENTRY(svnapot, PRIV_VERSION_1_12_0, ext_svnapot),
     ISA_EXT_DATA_ENTRY(svpbmt, PRIV_VERSION_1_12_0, ext_svpbmt),
     ISA_EXT_DATA_ENTRY(svrsw60t59b, PRIV_VERSION_1_13_0, ext_svrsw60t59b),
-    ISA_EXT_DATA_ENTRY(svukte, PRIV_VERSION_1_13_0, ext_svukte),
+    ISA_EXPERIMENTAL_EXT_DATA_ENTRY(svukte, PRIV_VERSION_1_13_0, ext_svukte),
     ISA_EXT_DATA_ENTRY(svvptc, PRIV_VERSION_1_13_0, ext_svvptc),
+    ISA_EXT_DATA_ENTRY(xlrbr, PRIV_VERSION_1_13_0, ext_xlrbr),
     ISA_EXT_DATA_ENTRY(xmipscbop, PRIV_VERSION_1_12_0, ext_xmipscbop),
     ISA_EXT_DATA_ENTRY(xmipscmov, PRIV_VERSION_1_12_0, ext_xmipscmov),
     ISA_EXT_DATA_ENTRY(xmipslsp, PRIV_VERSION_1_12_0, ext_xmipslsp),
@@ -756,10 +775,14 @@ static void riscv_cpu_reset_hold(Object *obj, ResetType type)
 
     /*
      * Clear mseccfg and unlock all the PMP entries upon reset.
-     * This is allowed as per the priv and smepmp specifications
-     * and is needed to clear stale entries across reboots.
+     * This is required as per the priv, smepmp, and other security
+     * extension specifications that share this CSR, and is needed
+     * to clear stale entries across reboots.
      */
-    if (riscv_cpu_cfg(env)->ext_smepmp) {
+    if (riscv_cpu_cfg(env)->ext_smepmp ||
+        riscv_cpu_cfg(env)->ext_zkr ||
+        riscv_cpu_cfg(env)->ext_smmpm ||
+        riscv_cpu_cfg(env)->ext_zicfilp) {
         env->mseccfg = 0;
     }
 
@@ -1228,191 +1251,6 @@ const char *riscv_get_misa_ext_description(uint32_t bit)
     g_assert(val != NULL);
     return val;
 }
-
-#define MULTI_EXT_CFG_BOOL(_name, _prop, _defval) \
-    {.name = _name, .offset = CPU_CFG_OFFSET(_prop), \
-     .enabled = _defval}
-
-const RISCVCPUMultiExtConfig riscv_cpu_extensions[] = {
-    /* Defaults for standard extensions */
-    MULTI_EXT_CFG_BOOL("sscofpmf", ext_sscofpmf, false),
-    MULTI_EXT_CFG_BOOL("smcntrpmf", ext_smcntrpmf, false),
-    MULTI_EXT_CFG_BOOL("smcsrind", ext_smcsrind, false),
-    MULTI_EXT_CFG_BOOL("smcdeleg", ext_smcdeleg, false),
-    MULTI_EXT_CFG_BOOL("sscsrind", ext_sscsrind, false),
-    MULTI_EXT_CFG_BOOL("ssccfg", ext_ssccfg, false),
-    MULTI_EXT_CFG_BOOL("smctr", ext_smctr, false),
-    MULTI_EXT_CFG_BOOL("ssctr", ext_ssctr, false),
-    MULTI_EXT_CFG_BOOL("zifencei", ext_zifencei, true),
-    MULTI_EXT_CFG_BOOL("zicfilp", ext_zicfilp, false),
-    MULTI_EXT_CFG_BOOL("zicfiss", ext_zicfiss, false),
-    MULTI_EXT_CFG_BOOL("zicsr", ext_zicsr, true),
-    MULTI_EXT_CFG_BOOL("zihintntl", ext_zihintntl, true),
-    MULTI_EXT_CFG_BOOL("zihintpause", ext_zihintpause, true),
-    MULTI_EXT_CFG_BOOL("zimop", ext_zimop, false),
-    MULTI_EXT_CFG_BOOL("zcmop", ext_zcmop, false),
-    MULTI_EXT_CFG_BOOL("zacas", ext_zacas, false),
-    MULTI_EXT_CFG_BOOL("zama16b", ext_zama16b, false),
-    MULTI_EXT_CFG_BOOL("zabha", ext_zabha, false),
-    MULTI_EXT_CFG_BOOL("zaamo", ext_zaamo, false),
-    MULTI_EXT_CFG_BOOL("zalasr", ext_zalasr, false),
-    MULTI_EXT_CFG_BOOL("zalrsc", ext_zalrsc, false),
-    MULTI_EXT_CFG_BOOL("zawrs", ext_zawrs, true),
-    MULTI_EXT_CFG_BOOL("zfa", ext_zfa, true),
-    MULTI_EXT_CFG_BOOL("zfbfmin", ext_zfbfmin, false),
-    MULTI_EXT_CFG_BOOL("zfh", ext_zfh, false),
-    MULTI_EXT_CFG_BOOL("zfhmin", ext_zfhmin, false),
-    MULTI_EXT_CFG_BOOL("zve32f", ext_zve32f, false),
-    MULTI_EXT_CFG_BOOL("zve32x", ext_zve32x, false),
-    MULTI_EXT_CFG_BOOL("zve64f", ext_zve64f, false),
-    MULTI_EXT_CFG_BOOL("zve64d", ext_zve64d, false),
-    MULTI_EXT_CFG_BOOL("zve64x", ext_zve64x, false),
-    MULTI_EXT_CFG_BOOL("zvfbfa", ext_zvfbfa, false),
-    MULTI_EXT_CFG_BOOL("zvfbfmin", ext_zvfbfmin, false),
-    MULTI_EXT_CFG_BOOL("zvfbfwma", ext_zvfbfwma, false),
-    MULTI_EXT_CFG_BOOL("zvfh", ext_zvfh, false),
-    MULTI_EXT_CFG_BOOL("zvfhmin", ext_zvfhmin, false),
-    MULTI_EXT_CFG_BOOL("sstc", ext_sstc, true),
-    MULTI_EXT_CFG_BOOL("ssnpm", ext_ssnpm, false),
-    MULTI_EXT_CFG_BOOL("sspm", ext_sspm, false),
-    MULTI_EXT_CFG_BOOL("supm", ext_supm, false),
-
-    MULTI_EXT_CFG_BOOL("smaia", ext_smaia, false),
-    MULTI_EXT_CFG_BOOL("smdbltrp", ext_smdbltrp, false),
-    MULTI_EXT_CFG_BOOL("smepmp", ext_smepmp, false),
-    MULTI_EXT_CFG_BOOL("smpmpmt", ext_smpmpmt, false),
-    MULTI_EXT_CFG_BOOL("smrnmi", ext_smrnmi, false),
-    MULTI_EXT_CFG_BOOL("smmpm", ext_smmpm, false),
-    MULTI_EXT_CFG_BOOL("smnpm", ext_smnpm, false),
-    MULTI_EXT_CFG_BOOL("smstateen", ext_smstateen, false),
-    MULTI_EXT_CFG_BOOL("ssaia", ext_ssaia, false),
-    MULTI_EXT_CFG_BOOL("ssdbltrp", ext_ssdbltrp, false),
-    MULTI_EXT_CFG_BOOL("svade", ext_svade, false),
-    MULTI_EXT_CFG_BOOL("svadu", ext_svadu, true),
-    MULTI_EXT_CFG_BOOL("svinval", ext_svinval, false),
-    MULTI_EXT_CFG_BOOL("svnapot", ext_svnapot, false),
-    MULTI_EXT_CFG_BOOL("svpbmt", ext_svpbmt, false),
-    MULTI_EXT_CFG_BOOL("svrsw60t59b", ext_svrsw60t59b, false),
-    MULTI_EXT_CFG_BOOL("svvptc", ext_svvptc, true),
-
-    MULTI_EXT_CFG_BOOL("zicntr", ext_zicntr, true),
-    MULTI_EXT_CFG_BOOL("zihpm", ext_zihpm, true),
-    MULTI_EXT_CFG_BOOL("zilsd", ext_zilsd, false),
-
-    MULTI_EXT_CFG_BOOL("zba", ext_zba, true),
-    MULTI_EXT_CFG_BOOL("zbb", ext_zbb, true),
-    MULTI_EXT_CFG_BOOL("zbc", ext_zbc, true),
-    MULTI_EXT_CFG_BOOL("zbkb", ext_zbkb, false),
-    MULTI_EXT_CFG_BOOL("zbkc", ext_zbkc, false),
-    MULTI_EXT_CFG_BOOL("zbkx", ext_zbkx, false),
-    MULTI_EXT_CFG_BOOL("zbs", ext_zbs, true),
-    MULTI_EXT_CFG_BOOL("zk", ext_zk, false),
-    MULTI_EXT_CFG_BOOL("zkn", ext_zkn, false),
-    MULTI_EXT_CFG_BOOL("zknd", ext_zknd, false),
-    MULTI_EXT_CFG_BOOL("zkne", ext_zkne, false),
-    MULTI_EXT_CFG_BOOL("zknh", ext_zknh, false),
-    MULTI_EXT_CFG_BOOL("zkr", ext_zkr, false),
-    MULTI_EXT_CFG_BOOL("zks", ext_zks, false),
-    MULTI_EXT_CFG_BOOL("zksed", ext_zksed, false),
-    MULTI_EXT_CFG_BOOL("zksh", ext_zksh, false),
-    MULTI_EXT_CFG_BOOL("zkt", ext_zkt, false),
-    MULTI_EXT_CFG_BOOL("ztso", ext_ztso, false),
-
-    MULTI_EXT_CFG_BOOL("zdinx", ext_zdinx, false),
-    MULTI_EXT_CFG_BOOL("zfinx", ext_zfinx, false),
-    MULTI_EXT_CFG_BOOL("zhinx", ext_zhinx, false),
-    MULTI_EXT_CFG_BOOL("zhinxmin", ext_zhinxmin, false),
-
-    MULTI_EXT_CFG_BOOL("zicbom", ext_zicbom, true),
-    MULTI_EXT_CFG_BOOL("zicbop", ext_zicbop, true),
-    MULTI_EXT_CFG_BOOL("zicboz", ext_zicboz, true),
-
-    MULTI_EXT_CFG_BOOL("zmmul", ext_zmmul, false),
-
-    MULTI_EXT_CFG_BOOL("zca", ext_zca, false),
-    MULTI_EXT_CFG_BOOL("zcb", ext_zcb, false),
-    MULTI_EXT_CFG_BOOL("zcd", ext_zcd, false),
-    MULTI_EXT_CFG_BOOL("zce", ext_zce, false),
-    MULTI_EXT_CFG_BOOL("zcf", ext_zcf, false),
-    MULTI_EXT_CFG_BOOL("zcmp", ext_zcmp, false),
-    MULTI_EXT_CFG_BOOL("zcmt", ext_zcmt, false),
-    MULTI_EXT_CFG_BOOL("zicond", ext_zicond, false),
-    MULTI_EXT_CFG_BOOL("zclsd", ext_zclsd, false),
-
-    /* Vector cryptography extensions */
-    MULTI_EXT_CFG_BOOL("zvbb", ext_zvbb, false),
-    MULTI_EXT_CFG_BOOL("zvbc", ext_zvbc, false),
-    MULTI_EXT_CFG_BOOL("zvkb", ext_zvkb, false),
-    MULTI_EXT_CFG_BOOL("zvkg", ext_zvkg, false),
-    MULTI_EXT_CFG_BOOL("zvkned", ext_zvkned, false),
-    MULTI_EXT_CFG_BOOL("zvknha", ext_zvknha, false),
-    MULTI_EXT_CFG_BOOL("zvknhb", ext_zvknhb, false),
-    MULTI_EXT_CFG_BOOL("zvksed", ext_zvksed, false),
-    MULTI_EXT_CFG_BOOL("zvksh", ext_zvksh, false),
-    MULTI_EXT_CFG_BOOL("zvkt", ext_zvkt, false),
-    MULTI_EXT_CFG_BOOL("zvkn", ext_zvkn, false),
-    MULTI_EXT_CFG_BOOL("zvknc", ext_zvknc, false),
-    MULTI_EXT_CFG_BOOL("zvkng", ext_zvkng, false),
-    MULTI_EXT_CFG_BOOL("zvks", ext_zvks, false),
-    MULTI_EXT_CFG_BOOL("zvksc", ext_zvksc, false),
-    MULTI_EXT_CFG_BOOL("zvksg", ext_zvksg, false),
-
-    { },
-};
-
-const RISCVCPUMultiExtConfig riscv_cpu_vendor_exts[] = {
-    MULTI_EXT_CFG_BOOL("xtheadba", ext_xtheadba, false),
-    MULTI_EXT_CFG_BOOL("xtheadbb", ext_xtheadbb, false),
-    MULTI_EXT_CFG_BOOL("xtheadbs", ext_xtheadbs, false),
-    MULTI_EXT_CFG_BOOL("xtheadcmo", ext_xtheadcmo, false),
-    MULTI_EXT_CFG_BOOL("xtheadcondmov", ext_xtheadcondmov, false),
-    MULTI_EXT_CFG_BOOL("xtheadfmemidx", ext_xtheadfmemidx, false),
-    MULTI_EXT_CFG_BOOL("xtheadfmv", ext_xtheadfmv, false),
-    MULTI_EXT_CFG_BOOL("xtheadmac", ext_xtheadmac, false),
-    MULTI_EXT_CFG_BOOL("xtheadmemidx", ext_xtheadmemidx, false),
-    MULTI_EXT_CFG_BOOL("xtheadmempair", ext_xtheadmempair, false),
-    MULTI_EXT_CFG_BOOL("xtheadsync", ext_xtheadsync, false),
-    MULTI_EXT_CFG_BOOL("xventanacondops", ext_XVentanaCondOps, false),
-    MULTI_EXT_CFG_BOOL("xmipscbop", ext_xmipscbop, false),
-    MULTI_EXT_CFG_BOOL("xmipscmov", ext_xmipscmov, false),
-    MULTI_EXT_CFG_BOOL("xmipslsp", ext_xmipslsp, false),
-    MULTI_EXT_CFG_BOOL("xlrbr", ext_xlrbr, false),
-
-    { },
-};
-
-/* These are experimental so mark with 'x-' */
-const RISCVCPUMultiExtConfig riscv_cpu_experimental_exts[] = {
-    MULTI_EXT_CFG_BOOL("x-svukte", ext_svukte, false),
-
-    { },
-};
-
-/*
- * 'Named features' is the name we give to extensions that we
- * don't want to expose to users. They are either immutable
- * (always enabled/disable) or they'll vary depending on
- * the resulting CPU state.
- *
- * Some of them are always enabled depending on priv version
- * of the CPU and are declared directly in isa_edata_arr[].
- * The ones listed here have special checks during finalize()
- * time and require their own flags like regular extensions.
- * See riscv_cpu_update_named_features() for more info.
- */
-const RISCVCPUMultiExtConfig riscv_cpu_named_features[] = {
-    MULTI_EXT_CFG_BOOL("zic64b", ext_zic64b, true),
-    MULTI_EXT_CFG_BOOL("ssstateen", ext_ssstateen, true),
-    MULTI_EXT_CFG_BOOL("sha", ext_sha, true),
-
-    /*
-     * 'ziccrse' has its own flag because the KVM driver
-     * wants to enable/disable it on its own accord.
-     */
-    MULTI_EXT_CFG_BOOL("ziccrse", ext_ziccrse, true),
-
-    { },
-};
 
 static void cpu_set_prop_err(RISCVCPU *cpu, const char *propname,
                              Error **errp)
@@ -2542,7 +2380,7 @@ static RISCVCPUImpliedExtsRule ZVKNG_IMPLIED = {
 static RISCVCPUImpliedExtsRule ZVKNHB_IMPLIED = {
     .ext = CPU_CFG_OFFSET(ext_zvknhb),
     .implied_multi_exts = {
-        CPU_CFG_OFFSET(ext_zve64x),
+        CPU_CFG_OFFSET(ext_zve64x), CPU_CFG_OFFSET(ext_zvknha),
 
         RISCV_IMPLIED_EXTS_RULE_END
     },
@@ -2571,6 +2409,17 @@ static RISCVCPUImpliedExtsRule ZVKSG_IMPLIED = {
     .ext = CPU_CFG_OFFSET(ext_zvksg),
     .implied_multi_exts = {
         CPU_CFG_OFFSET(ext_zvks), CPU_CFG_OFFSET(ext_zvkg),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
+static RISCVCPUImpliedExtsRule SHA_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_sha),
+    .implied_misa_exts = RVH,
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_smstateen),
+        CPU_CFG_OFFSET(ext_ssstateen),
 
         RISCV_IMPLIED_EXTS_RULE_END
     },
@@ -2624,6 +2473,15 @@ static RISCVCPUImpliedExtsRule SSCTR_IMPLIED = {
     },
 };
 
+static RISCVCPUImpliedExtsRule SSSTATEEN_IMPLIED = {
+    .ext = CPU_CFG_OFFSET(ext_ssstateen),
+    .implied_multi_exts = {
+        CPU_CFG_OFFSET(ext_smstateen),
+
+        RISCV_IMPLIED_EXTS_RULE_END
+    },
+};
+
 static RISCVCPUImpliedExtsRule ZVFBFA_IMPLIED = {
     .ext = CPU_CFG_OFFSET(ext_zvfbfa),
     .implied_multi_exts = {
@@ -2650,8 +2508,9 @@ RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[] = {
     &ZVFBFA_IMPLIED, &ZVFBFMIN_IMPLIED, &ZVFBFWMA_IMPLIED,
     &ZVFH_IMPLIED, &ZVFHMIN_IMPLIED, &ZVKN_IMPLIED,
     &ZVKNC_IMPLIED, &ZVKNG_IMPLIED, &ZVKNHB_IMPLIED,
-    &ZVKS_IMPLIED,  &ZVKSC_IMPLIED, &ZVKSG_IMPLIED, &SSCFG_IMPLIED,
-    &SUPM_IMPLIED, &SSPM_IMPLIED, &SMCTR_IMPLIED, &SSCTR_IMPLIED,
+    &ZVKS_IMPLIED,  &ZVKSC_IMPLIED, &ZVKSG_IMPLIED, &SHA_IMPLIED,
+    &SSCFG_IMPLIED, &SUPM_IMPLIED, &SSPM_IMPLIED, &SMCTR_IMPLIED,
+    &SSCTR_IMPLIED, &SSSTATEEN_IMPLIED,
     NULL
 };
 
@@ -3058,6 +2917,26 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_BASE32, TYPE_RISCV_DYNAMIC_CPU,
         .cfg.max_satp_mode = VM_1_10_SV32,
         .misa_mxl_max = MXL_RV32,
+
+        /*  Default extensions as of QEMU 11.1.  */
+        .cfg.ext_zicbom = true,
+        .cfg.ext_zicbop = true,
+        .cfg.ext_zicboz = true,
+        .cfg.ext_zicntr = true,
+        .cfg.ext_zicsr = true,
+        .cfg.ext_zifencei = true,
+        .cfg.ext_zihintntl = true,
+        .cfg.ext_zihintpause = true,
+        .cfg.ext_zihpm = true,
+        .cfg.ext_zawrs = true,
+        .cfg.ext_zfa = true,
+        .cfg.ext_zba = true,
+        .cfg.ext_zbb = true,
+        .cfg.ext_zbc = true,
+        .cfg.ext_zbs = true,
+        .cfg.ext_sstc = true,
+        .cfg.ext_svadu = true,
+        .cfg.ext_svvptc = true,
     ),
 
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_IBEX, TYPE_RISCV_VENDOR_CPU,
@@ -3110,6 +2989,26 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_BASE64, TYPE_RISCV_DYNAMIC_CPU,
         .cfg.max_satp_mode = VM_1_10_SV57,
         .misa_mxl_max = MXL_RV64,
+
+        /*  Default extensions as of QEMU 11.1.  */
+        .cfg.ext_zicbom = true,
+        .cfg.ext_zicbop = true,
+        .cfg.ext_zicboz = true,
+        .cfg.ext_zicntr = true,
+        .cfg.ext_zicsr = true,
+        .cfg.ext_zifencei = true,
+        .cfg.ext_zihintntl = true,
+        .cfg.ext_zihintpause = true,
+        .cfg.ext_zihpm = true,
+        .cfg.ext_zawrs = true,
+        .cfg.ext_zfa = true,
+        .cfg.ext_zba = true,
+        .cfg.ext_zbb = true,
+        .cfg.ext_zbc = true,
+        .cfg.ext_zbs = true,
+        .cfg.ext_sstc = true,
+        .cfg.ext_svadu = true,
+        .cfg.ext_svvptc = true,
     ),
 
     DEFINE_RISCV_CPU(TYPE_RISCV_CPU_SIFIVE_E51, TYPE_RISCV_CPU_SIFIVE_E,

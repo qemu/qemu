@@ -342,6 +342,23 @@ static const MemoryRegionOps riscv_imsic_ops = {
     }
 };
 
+static void riscv_imsic_reset_enter(Object *obj, ResetType type)
+{
+    RISCVIMSICState *imsic = RISCV_IMSIC(obj);
+    int i;
+
+    memset(imsic->eidelivery, 0, sizeof(uint32_t) * imsic->num_pages);
+    memset(imsic->eithreshold, 0, sizeof(uint32_t) * imsic->num_pages);
+
+    for (i = 0; i < imsic->num_eistate; i++) {
+        imsic->eistate[i] &= ~IMSIC_EISTATE_ENABLED;
+    }
+
+    for (i = 0; i < imsic->num_pages; i++) {
+        qemu_irq_lower(imsic->external_irqs[i]);
+    }
+}
+
 static void riscv_imsic_realize(DeviceState *dev, Error **errp)
 {
     RISCVIMSICState *imsic = RISCV_IMSIC(dev);
@@ -425,9 +442,11 @@ static const VMStateDescription vmstate_riscv_imsic = {
 static void riscv_imsic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_props(dc, riscv_imsic_properties);
     dc->realize = riscv_imsic_realize;
+    rc->phases.enter = riscv_imsic_reset_enter;
     dc->vmsd = &vmstate_riscv_imsic;
 }
 

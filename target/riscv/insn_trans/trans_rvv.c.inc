@@ -3283,6 +3283,7 @@ GEN_OPIVV_TRANS(vredxor_vs, reduction_check)
 static bool reduction_widen_check(DisasContext *s, arg_rmrr *a)
 {
     return reduction_check(s, a) && (s->sew < MO_64) &&
+           !is_overlapped(a->rs1, 1, a->rs2, 1 << MAX(s->lmul, 0)) &&
            ((s->sew + 1) <= (s->cfg_ptr->elen >> 4));
 }
 
@@ -3606,37 +3607,21 @@ static void vec_element_loadi(DisasContext *s, TCGv_i64 dest,
     load_element(dest, tcg_env, endian_ofs(s, vreg, idx), s->sew, sign);
 }
 
-/* Integer Scalar Move Instruction */
+typedef void gen_helper_vset_velem0(TCGv_ptr, TCGv_i64, TCGv_env, TCGv_i32);
 
-static void store_element(TCGv_i64 val, TCGv_ptr base,
-                          int ofs, int sew)
+static void vec_element_storei_tail(DisasContext *s, int vreg, TCGv_i64 val)
 {
-    switch (sew) {
-    case MO_8:
-        tcg_gen_st8_i64(val, base, ofs);
-        break;
-    case MO_16:
-        tcg_gen_st16_i64(val, base, ofs);
-        break;
-    case MO_32:
-        tcg_gen_st32_i64(val, base, ofs);
-        break;
-    case MO_64:
-        tcg_gen_st_i64(val, base, ofs);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
+    static gen_helper_vset_velem0 * const fns[4] = {
+        gen_helper_vset_velem0_b, gen_helper_vset_velem0_h,
+        gen_helper_vset_velem0_w, gen_helper_vset_velem0_d,
+    };
+    TCGv_ptr dest = tcg_temp_new_ptr();
+    uint32_t data = FIELD_DP32(0, VDATA, VTA, s->vta);
+    TCGv_i32 desc = tcg_constant_i32(simd_desc(s->cfg_ptr->vlenb,
+                                              s->cfg_ptr->vlenb, data));
 
-/*
- * Store vreg[idx] = val.
- * The index must be in range of VLMAX.
- */
-static void vec_element_storei(DisasContext *s, int vreg,
-                               int idx, TCGv_i64 val)
-{
-    store_element(val, tcg_env, endian_ofs(s, vreg, idx), s->sew);
+    tcg_gen_addi_ptr(dest, tcg_env, vreg_ofs(s, vreg));
+    fns[s->sew](dest, val, tcg_env, desc);
 }
 
 /* vmv.x.s rd, vs2 # x[rd] = vs2[0] */
@@ -3683,7 +3668,7 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
          */
         s1 = get_gpr(s, a->rs1, EXT_NONE);
         tcg_gen_ext_tl_i64(t1, s1);
-        vec_element_storei(s, a->rd, 0, t1);
+        vec_element_storei_tail(s, a->rd, t1);
         gen_set_label(over);
         tcg_gen_movi_tl(cpu_vstart, 0);
         finalize_rvv_inst(s);
@@ -3740,7 +3725,7 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
         t1 = tcg_temp_new_i64();
         do_nanbox(s, t1, cpu_fpr[a->rs1]);
 
-        vec_element_storei(s, a->rd, 0, t1);
+        vec_element_storei_tail(s, a->rd, t1);
 
         gen_set_label(over);
         tcg_gen_movi_tl(cpu_vstart, 0);

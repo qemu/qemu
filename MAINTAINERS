@@ -4055,6 +4055,8 @@ S: Supported
 F: hw/i386/amd_iommu*
 
 OpenSBI Firmware
+M: Alistair Francis <Alistair.Francis@wdc.com>
+R: Daniel Henrique Barboza <daniel.barboza@oss.qualcomm.com>
 L: qemu-riscv@nongnu.org
 S: Supported
 F: pc-bios/opensbi-*
