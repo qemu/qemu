@@ -967,7 +967,7 @@ void run_test(void)
 
             verCases_roundingCode = 0;
             slowfloat_roundingMode = rmode;
-            qsf.float_rounding_mode = sf_rounding_to_qemu(rmode);
+            set_float_rounding_mode(sf_rounding_to_qemu(rmode), &qsf);
 
             if (attrs & (FUNC_ARG_ROUNDINGMODE | FUNC_EFF_ROUNDINGMODE)) {
                 /* print rounding mode if the op is affected by it */
@@ -996,7 +996,7 @@ void run_test(void)
 
                 verCases_roundingPrecision = 0;
                 slow_extF80_roundingPrecision = prec80;
-                qsf.floatx80_rounding_precision = qsf_prec80;
+                set_floatx80_rounding_precision(qsf_prec80, &qsf);
 
                 if (attrs & FUNC_EFF_ROUNDINGPRECISION) {
                     verCases_roundingPrecision = prec80;
@@ -1011,7 +1011,7 @@ void run_test(void)
 
                     verCases_tininessCode = 0;
                     slowfloat_detectTininess = tmode;
-                    qsf.tininess_before_rounding = sf_tininess_to_qemu(tmode);
+                    set_float_detect_tininess(sf_tininess_to_qemu(tmode), &qsf);
 
                     if (attrs & FUNC_EFF_TININESSMODE ||
                         ((attrs & FUNC_EFF_TININESSMODE_REDUCEDPREC) &&

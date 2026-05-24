@@ -601,7 +601,7 @@ void glue(helper_cvtph2ps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
 void glue(helper_cvtps2ph, SUFFIX)(CPUX86State *env, Reg *d, Reg *s, int mode)
 {
     int i;
-    FloatRoundMode prev_rounding_mode = env->sse_status.float_rounding_mode;
+    FloatRoundMode prev_rounding_mode = get_float_rounding_mode(&env->sse_status);
     if (!(mode & (1 << 2))) {
         set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
@@ -613,7 +613,7 @@ void glue(helper_cvtps2ph, SUFFIX)(CPUX86State *env, Reg *d, Reg *s, int mode)
         d->Q(i) = 0;
     }
 
-    env->sse_status.float_rounding_mode = prev_rounding_mode;
+    set_float_rounding_mode(prev_rounding_mode, &env->sse_status);
 }
 #endif
 
@@ -1715,10 +1715,9 @@ void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   uint32_t mode)
 {
     int old_flags = get_float_exception_flags(&env->sse_status);
-    signed char prev_rounding_mode;
+    FloatRoundMode prev_rounding_mode = get_float_rounding_mode(&env->sse_status);
     int i;
 
-    prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
         set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
@@ -1732,17 +1731,16 @@ void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-    env->sse_status.float_rounding_mode = prev_rounding_mode;
+    set_float_rounding_mode(prev_rounding_mode, &env->sse_status);
 }
 
 void glue(helper_roundpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   uint32_t mode)
 {
     int old_flags = get_float_exception_flags(&env->sse_status);
-    signed char prev_rounding_mode;
+    FloatRoundMode prev_rounding_mode = get_float_rounding_mode(&env->sse_status);
     int i;
 
-    prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
         set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
@@ -1756,7 +1754,7 @@ void glue(helper_roundpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-    env->sse_status.float_rounding_mode = prev_rounding_mode;
+    set_float_rounding_mode(prev_rounding_mode, &env->sse_status);
 }
 
 #if SHIFT == 1
@@ -1764,10 +1762,9 @@ void glue(helper_roundss, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
                                   uint32_t mode)
 {
     int old_flags = get_float_exception_flags(&env->sse_status);
-    signed char prev_rounding_mode;
+    FloatRoundMode prev_rounding_mode = get_float_rounding_mode(&env->sse_status);
     int i;
 
-    prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
         set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
@@ -1782,17 +1779,16 @@ void glue(helper_roundss, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-    env->sse_status.float_rounding_mode = prev_rounding_mode;
+    set_float_rounding_mode(prev_rounding_mode, &env->sse_status);
 }
 
 void glue(helper_roundsd, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
                                   uint32_t mode)
 {
     int old_flags = get_float_exception_flags(&env->sse_status);
-    signed char prev_rounding_mode;
+    FloatRoundMode prev_rounding_mode = get_float_rounding_mode(&env->sse_status);
     int i;
 
-    prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
         set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
@@ -1807,7 +1803,7 @@ void glue(helper_roundsd, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
                                   ~float_flag_inexact,
                                   &env->sse_status);
     }
-    env->sse_status.float_rounding_mode = prev_rounding_mode;
+    set_float_rounding_mode(prev_rounding_mode, &env->sse_status);
 }
 #endif
 

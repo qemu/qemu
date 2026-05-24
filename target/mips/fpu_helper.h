@@ -35,7 +35,8 @@ static inline void restore_snan_bit_mode(CPUMIPSState *env)
      * With nan2008, SNaNs are silenced in the usual way.
      * Before that, SNaNs are not silenced; default nans are produced.
      */
-    set_snan_bit_is_one(!nan2008, &env->active_fpu.fp_status);
+    set_snan_rule(nan2008 ? float_snan_bit_is_zero : float_snan_bit_is_one,
+                  &env->active_fpu.fp_status);
     set_default_nan_mode(!nan2008, &env->active_fpu.fp_status);
     /*
      * For MIPS systems that conform to IEEE754-1985, the (inf,zero,nan)

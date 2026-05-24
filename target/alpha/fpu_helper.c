@@ -40,7 +40,7 @@ void helper_setflushzero(CPUAlphaState *env, uint32_t val)
 
 static uint32_t soft_to_fpcr_exc(CPUAlphaState *env)
 {
-    uint8_t exc = get_float_exception_flags(&FP_STATUS);
+    FloatExceptionFlags exc = get_float_exception_flags(&FP_STATUS);
     uint32_t ret = 0;
 
     if (unlikely(exc)) {
@@ -151,7 +151,7 @@ void helper_ieee_input_cmp(CPUAlphaState *env, uint64_t val)
 void helper_ieee_input_s(CPUAlphaState *env, uint64_t val)
 {
     if (unlikely(2 * val - 1 < 0x1fffffffffffffull)
-        && !env->fp_status.flush_inputs_to_zero) {
+        && !get_flush_inputs_to_zero(&env->fp_status)) {
         arith_excp(env, GETPC(), EXC_M_INV | EXC_M_SWC, 0);
     }
 }
@@ -455,7 +455,7 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
     float64 fa;
     int64_t ret;
     uint32_t exc = 0;
-    int flags;
+    FloatExceptionFlags flags;
 
     fa = t_to_float64(a);
     ret = float64_to_int64_modulo(fa, roundmode, &FP_STATUS);
@@ -485,7 +485,7 @@ static uint64_t do_cvttq(CPUAlphaState *env, uint64_t a, int roundmode)
 
 uint64_t helper_cvttq(CPUAlphaState *env, uint64_t a)
 {
-    return do_cvttq(env, a, FP_STATUS.float_rounding_mode);
+    return do_cvttq(env, a, get_float_rounding_mode(&FP_STATUS));
 }
 
 uint64_t helper_cvttq_c(CPUAlphaState *env, uint64_t a)

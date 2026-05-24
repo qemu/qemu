@@ -1183,11 +1183,11 @@ void helper_f2xm1(CPUX86State *env)
         bool asign, bsign;
         int32_t n, aexp, bexp;
         uint64_t asig0, asig1, asig2, bsig0, bsig1;
-        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        FloatRoundMode save_mode = get_float_rounding_mode(&env->fp_status);
         FloatX80RoundPrec save_prec =
-            env->fp_status.floatx80_rounding_precision;
-        env->fp_status.float_rounding_mode = float_round_nearest_even;
-        env->fp_status.floatx80_rounding_precision = floatx80_precision_x;
+            get_floatx80_rounding_precision(&env->fp_status);
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        set_floatx80_rounding_precision(floatx80_precision_x, &env->fp_status);
 
         /* Find the nearest multiple of 1/32 to the argument.  */
         tmp = floatx80_scalbn(ST0, 5, &env->fp_status);
@@ -1202,7 +1202,7 @@ void helper_f2xm1(CPUX86State *env)
              */
             ST0 = f2xm1_table[n].t;
             set_float_exception_flags(float_flag_inexact, &env->fp_status);
-            env->fp_status.float_rounding_mode = save_mode;
+            set_float_rounding_mode(save_mode, &env->fp_status);
         } else {
             /*
              * Compute the lower parts of a polynomial expansion for
@@ -1282,7 +1282,7 @@ void helper_f2xm1(CPUX86State *env)
                     asign = bsign;
                 }
             }
-            env->fp_status.float_rounding_mode = save_mode;
+            set_float_rounding_mode(save_mode, &env->fp_status);
             /* This result is inexact.  */
             asig1 |= 1;
             ST0 = normalizeRoundAndPackFloatx80(floatx80_precision_x,
@@ -1290,7 +1290,7 @@ void helper_f2xm1(CPUX86State *env)
                                                 &env->fp_status);
         }
 
-        env->fp_status.floatx80_rounding_precision = save_prec;
+        set_floatx80_rounding_precision(save_prec, &env->fp_status);
     }
     merge_exception_flags(env, old_flags);
 }
@@ -1406,10 +1406,10 @@ void helper_fpatan(CPUX86State *env)
          * (and underflowing where appropriate).
          */
         FloatX80RoundPrec save_prec =
-            env->fp_status.floatx80_rounding_precision;
-        env->fp_status.floatx80_rounding_precision = floatx80_precision_x;
+            get_floatx80_rounding_precision(&env->fp_status);
+        set_floatx80_rounding_precision(floatx80_precision_x, &env->fp_status);
         ST1 = floatx80_div(ST1, ST0, &env->fp_status);
-        env->fp_status.floatx80_rounding_precision = save_prec;
+        set_floatx80_rounding_precision(save_prec, &env->fp_status);
         if (!floatx80_is_zero(ST1) &&
             !(get_float_exception_flags(&env->fp_status) &
               float_flag_inexact)) {
@@ -1483,11 +1483,12 @@ void helper_fpatan(CPUX86State *env)
             uint64_t azsig0, azsig1;
             uint64_t azsig2, azsig3, axsig0, axsig1;
             floatx80 x8;
-            FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+            FloatRoundMode save_mode = get_float_rounding_mode(&env->fp_status);
             FloatX80RoundPrec save_prec =
-                env->fp_status.floatx80_rounding_precision;
-            env->fp_status.float_rounding_mode = float_round_nearest_even;
-            env->fp_status.floatx80_rounding_precision = floatx80_precision_x;
+                get_floatx80_rounding_precision(&env->fp_status);
+            set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+            set_floatx80_rounding_precision(floatx80_precision_x,
+                                            &env->fp_status);
 
             if (arg0_exp == 0) {
                 normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
@@ -1793,8 +1794,8 @@ void helper_fpatan(CPUX86State *env)
                 }
             }
 
-            env->fp_status.float_rounding_mode = save_mode;
-            env->fp_status.floatx80_rounding_precision = save_prec;
+            set_float_rounding_mode(save_mode, &env->fp_status);
+            set_floatx80_rounding_precision(save_prec, &env->fp_status);
         }
         /* This result is inexact.  */
         rsig1 |= 1;
@@ -2121,11 +2122,11 @@ void helper_fyl2xp1(CPUX86State *env)
     } else {
         int32_t aexp;
         uint64_t asig0, asig1, asig2;
-        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        FloatRoundMode save_mode = get_float_rounding_mode(&env->fp_status);
         FloatX80RoundPrec save_prec =
-            env->fp_status.floatx80_rounding_precision;
-        env->fp_status.float_rounding_mode = float_round_nearest_even;
-        env->fp_status.floatx80_rounding_precision = floatx80_precision_x;
+            get_floatx80_rounding_precision(&env->fp_status);
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        set_floatx80_rounding_precision(floatx80_precision_x, &env->fp_status);
 
         helper_fyl2x_common(env, ST0, &aexp, &asig0, &asig1);
         /*
@@ -2139,11 +2140,11 @@ void helper_fyl2xp1(CPUX86State *env)
         aexp += arg1_exp - 0x3ffe;
         /* This result is inexact.  */
         asig1 |= 1;
-        env->fp_status.float_rounding_mode = save_mode;
+        set_float_rounding_mode(save_mode, &env->fp_status);
         ST1 = normalizeRoundAndPackFloatx80(floatx80_precision_x,
                                             arg0_sign ^ arg1_sign, aexp,
                                             asig0, asig1, &env->fp_status);
-        env->fp_status.floatx80_rounding_precision = save_prec;
+        set_floatx80_rounding_precision(save_prec, &env->fp_status);
     }
     fpop(env);
     merge_exception_flags(env, old_flags);
@@ -2224,11 +2225,11 @@ void helper_fyl2x(CPUX86State *env)
     } else {
         int32_t int_exp;
         floatx80 arg0_m1;
-        FloatRoundMode save_mode = env->fp_status.float_rounding_mode;
+        FloatRoundMode save_mode = get_float_rounding_mode(&env->fp_status);
         FloatX80RoundPrec save_prec =
-            env->fp_status.floatx80_rounding_precision;
-        env->fp_status.float_rounding_mode = float_round_nearest_even;
-        env->fp_status.floatx80_rounding_precision = floatx80_precision_x;
+            get_floatx80_rounding_precision(&env->fp_status);
+        set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+        set_floatx80_rounding_precision(floatx80_precision_x, &env->fp_status);
 
         if (arg0_exp == 0) {
             normalizeFloatx80Subnormal(arg0_sig, &arg0_exp, &arg0_sig);
@@ -2245,7 +2246,7 @@ void helper_fyl2x(CPUX86State *env)
                                floatx80_one, &env->fp_status);
         if (floatx80_is_zero(arg0_m1)) {
             /* Exact power of 2; multiply by ST1.  */
-            env->fp_status.float_rounding_mode = save_mode;
+            set_float_rounding_mode(save_mode, &env->fp_status);
             ST1 = floatx80_mul(int32_to_floatx80(int_exp, &env->fp_status),
                                ST1, &env->fp_status);
         } else {
@@ -2284,13 +2285,13 @@ void helper_fyl2x(CPUX86State *env)
             aexp += arg1_exp - 0x3ffe;
             /* This result is inexact.  */
             asig1 |= 1;
-            env->fp_status.float_rounding_mode = save_mode;
+            set_float_rounding_mode(save_mode, &env->fp_status);
             ST1 = normalizeRoundAndPackFloatx80(floatx80_precision_x,
                                                 asign ^ arg1_sign, aexp,
                                                 asig0, asig1, &env->fp_status);
         }
 
-        env->fp_status.floatx80_rounding_precision = save_prec;
+        set_floatx80_rounding_precision(save_prec, &env->fp_status);
     }
     fpop(env);
     merge_exception_flags(env, old_flags);
@@ -2368,14 +2369,14 @@ void helper_fscale(CPUX86State *env)
         }
     } else {
         int n;
-        FloatX80RoundPrec save = env->fp_status.floatx80_rounding_precision;
+        FloatX80RoundPrec save = get_floatx80_rounding_precision(&env->fp_status);
         int save_flags = get_float_exception_flags(&env->fp_status);
         set_float_exception_flags(0, &env->fp_status);
         n = floatx80_to_int32_round_to_zero(ST1, &env->fp_status);
         set_float_exception_flags(save_flags, &env->fp_status);
-        env->fp_status.floatx80_rounding_precision = floatx80_precision_x;
+        set_floatx80_rounding_precision(floatx80_precision_x, &env->fp_status);
         ST0 = floatx80_scalbn(ST0, n, &env->fp_status);
-        env->fp_status.floatx80_rounding_precision = save;
+        set_floatx80_rounding_precision(save, &env->fp_status);
     }
     merge_exception_flags(env, old_flags);
 }
