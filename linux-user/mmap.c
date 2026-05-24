@@ -1282,7 +1282,7 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
     case TARGET_MADV_KEEPONFORK:    /* parisc */
         advice = MADV_KEEPONFORK;
         break;
-    /* we do not care about the other MADV_xxx values yet */
+    /* all other MADV_xxx values are the same across architectures */
     }
 
     /*
@@ -1307,6 +1307,19 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
      */
     mmap_lock();
     switch (advice) {
+    case MADV_NORMAL:
+    case MADV_RANDOM:
+    case MADV_SEQUENTIAL:
+    case MADV_WILLNEED:
+    case MADV_DOFORK:
+    case MADV_FREE:
+    case MADV_COLD:
+    case MADV_PAGEOUT:
+        ret = 0; /* OK */
+        break;
+    case MADV_REMOVE:
+        ret = -EOPNOTSUPP;
+        break;
     case MADV_DONTDUMP:
         page_set_flags(start, start + len - 1, PAGE_DONTDUMP, 0);
         break;
@@ -1324,6 +1337,25 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
                 page_reset_target_data(start, start + len - 1);
             }
         }
+        break;
+    case MADV_DONTFORK:
+    case MADV_HWPOISON:
+    case MADV_MERGEABLE:
+    case MADV_UNMERGEABLE:
+    case MADV_HUGEPAGE:
+    case MADV_NOHUGEPAGE:
+    case MADV_POPULATE_READ:
+    case MADV_POPULATE_WRITE:
+#ifdef MADV_COLLAPSE
+    case MADV_COLLAPSE:
+#endif
+    case -1:    /* BoringSSL uses -1 to check if the environment is broken */
+        ret = -EINVAL;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "Unhandled madvise(%d) call.\n", advice);
+        ret = -EINVAL; /* not yet known advise */
+        break;
     }
     mmap_unlock();
 
