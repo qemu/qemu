@@ -662,6 +662,15 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     printf("\n");
 #endif
     mmap_unlock();
+    /*
+     * If we're mapping shared memory, ensure we generate code for parallel
+     * execution and flush old translations.  This will work up to the level
+     * supported by the host -- anything that requires EXCP_ATOMIC will not
+     * be atomic with respect to an external process.
+     */
+    if ((flags & MAP_TYPE) != MAP_PRIVATE) {
+        begin_parallel_context(thread_cpu);
+    }
     return start;
 fail:
     mmap_unlock();
