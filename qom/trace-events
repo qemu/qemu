@@ -1,5 +1,13 @@
 # See docs/devel/tracing.rst for syntax documentation.
 
 # object.c
-object_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
-object_class_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
+object_dynamic_cast_assert(void *obj, const char *type, const char *target, const char *file, int line, const char *func) "obj=%p type=%s->%s (%s:%d:%s)"
+object_finalize(void *obj, const char *type) "obj=%p type=%s"
+object_new(void *obj, const char *type) "obj=%p type=%s"
+object_property_add(void *obj, const char *type, const char *name, void *value) "obj=%p type=%s name=%s value=%p"
+object_property_add_child(void *obj, const char *type, const char *name, void *child, const char *childtype) "obj=%p type=%s name=%s child=%p child-type=%s"
+object_property_del(void *obj, const char *type, const char *name, void *value) "obj=%p type=%s name=%s value=%p"
+object_property_del_child(void *obj, const char *type, void *child, const char *childtype) "obj=%p type=%s child=%p child-type=%s"
+object_property_parse(void *obj, const char *type, const char *name, const char *value) "obj=%p type=%s prop=%s value=%s"
+object_class_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "type=%s->%s (%s:%d:%s)"
+object_class_property_add(const char *type, const char *name, void *value) "type=%s name=%s value=%p"

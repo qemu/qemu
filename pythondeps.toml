@@ -36,7 +36,7 @@ sphinx_rtd_theme = { accepted = ">=0.5", installed = "1.2.2" }
 # only include dependencies that can be guaranteed via configure from
 # system packages, or python packages we vendor.
 [tooling]
-"qemu.qmp" = { accepted = ">=0.0.5", installed = "0.0.5" }
+"qemu.qmp" = { accepted = ">=0.0.5", installed = "0.0.6" }
 "qemu" = { path = "python/" }
 # NB: The following dependencies should be a little bit more modern than
 # the versions listed here, but we are still using Debian 11 for several

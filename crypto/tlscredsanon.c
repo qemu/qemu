@@ -73,6 +73,8 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
                                              box->dh_params);
         }
     } else {
+        box = qcrypto_tls_creds_box_new_client(GNUTLS_CRD_ANON);
+
         ret = gnutls_anon_allocate_client_credentials(&box->data.anonclient);
         if (ret < 0) {
             error_setg(errp, "Cannot allocate credentials: %s",

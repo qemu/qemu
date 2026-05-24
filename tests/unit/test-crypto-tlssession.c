@@ -24,6 +24,7 @@
 #include "crypto-tls-psk-helpers.h"
 #include "crypto/tlscredsx509.h"
 #include "crypto/tlscredspsk.h"
+#include "crypto/tlscredsanon.h"
 #include "crypto/tlssession.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
@@ -123,6 +124,121 @@ static void test_crypto_tls_session_psk(void)
     serverCreds = test_tls_creds_psk_create(
         QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
         WORKDIR);
+    g_assert(serverCreds != NULL);
+
+    /* Now the real part of the test, setup the sessions */
+    clientSess = qcrypto_tls_session_new(
+        clientCreds, NULL, NULL,
+        QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT, &error_abort);
+    g_assert(clientSess != NULL);
+
+    serverSess = qcrypto_tls_session_new(
+        serverCreds, NULL, NULL,
+        QCRYPTO_TLS_CREDS_ENDPOINT_SERVER, &error_abort);
+    g_assert(serverSess != NULL);
+
+    /* For handshake to work, we need to set the I/O callbacks
+     * to read/write over the socketpair
+     */
+    qcrypto_tls_session_set_callbacks(serverSess,
+                                      testWrite, testRead,
+                                      &channel[0]);
+    qcrypto_tls_session_set_callbacks(clientSess,
+                                      testWrite, testRead,
+                                      &channel[1]);
+
+    /*
+     * Finally we loop around & around doing handshake on each
+     * session until we get an error, or the handshake completes.
+     * This relies on the socketpair being nonblocking to avoid
+     * deadlocking ourselves upon handshake
+     */
+    do {
+        int rv;
+        if (!serverShake) {
+            rv = qcrypto_tls_session_handshake(serverSess,
+                                               &error_abort);
+            g_assert(rv >= 0);
+            if (rv == QCRYPTO_TLS_HANDSHAKE_COMPLETE) {
+                serverShake = true;
+            }
+        }
+        if (!clientShake) {
+            rv = qcrypto_tls_session_handshake(clientSess,
+                                               &error_abort);
+            g_assert(rv >= 0);
+            if (rv == QCRYPTO_TLS_HANDSHAKE_COMPLETE) {
+                clientShake = true;
+            }
+        }
+    } while (!clientShake || !serverShake);
+
+
+    /* Finally make sure the server & client validation is successful. */
+    g_assert(qcrypto_tls_session_check_credentials(serverSess,
+                                                   &error_abort) == 0);
+    g_assert(qcrypto_tls_session_check_credentials(clientSess,
+                                                   &error_abort) == 0);
+
+    object_unparent(OBJECT(serverCreds));
+    object_unparent(OBJECT(clientCreds));
+
+    qcrypto_tls_session_free(serverSess);
+    qcrypto_tls_session_free(clientSess);
+
+    close(channel[0]);
+    close(channel[1]);
+}
+
+
+static QCryptoTLSCreds *test_tls_creds_anon_create(
+    QCryptoTLSCredsEndpoint endpoint)
+{
+    Object *parent = object_get_objects_root();
+    Object *creds = object_new_with_props(
+        TYPE_QCRYPTO_TLS_CREDS_ANON,
+        parent,
+        (endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER ?
+         "testtlscredsserver" : "testtlscredsclient"),
+        &error_abort,
+        "endpoint", (endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_SERVER ?
+                     "server" : "client"),
+        "priority", "NORMAL",
+        NULL
+        );
+    return QCRYPTO_TLS_CREDS(creds);
+}
+
+
+static void test_crypto_tls_session_anon(void)
+{
+    QCryptoTLSCreds *clientCreds;
+    QCryptoTLSCreds *serverCreds;
+    QCryptoTLSSession *clientSess = NULL;
+    QCryptoTLSSession *serverSess = NULL;
+    int channel[2];
+    bool clientShake = false;
+    bool serverShake = false;
+    int ret;
+
+    /* We'll use this for our fake client-server connection */
+    ret = qemu_socketpair(AF_UNIX, SOCK_STREAM, 0, channel);
+    g_assert(ret == 0);
+
+    /*
+     * We have an evil loop to do the handshake in a single
+     * thread, so we need these non-blocking to avoid deadlock
+     * of ourselves
+     */
+    qemu_set_blocking(channel[0], false, &error_abort);
+    qemu_set_blocking(channel[1], false, &error_abort);
+
+    clientCreds = test_tls_creds_anon_create(
+        QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT);
+    g_assert(clientCreds != NULL);
+
+    serverCreds = test_tls_creds_anon_create(
+        QCRYPTO_TLS_CREDS_ENDPOINT_SERVER);
     g_assert(serverCreds != NULL);
 
     /* Now the real part of the test, setup the sessions */
@@ -421,9 +537,11 @@ int main(int argc, char **argv)
     test_tls_init(KEYFILE);
     test_tls_psk_init(PSKFILE);
 
-    /* Simple initial test using Pre-Shared Keys. */
+    /* Simple initial tests using Pre-Shared Keys & anon creds */
     g_test_add_func("/qcrypto/tlssession/psk",
                     test_crypto_tls_session_psk);
+    g_test_add_func("/qcrypto/tlssession/anon",
+                    test_crypto_tls_session_anon);
 
     /* More complex tests using X.509 certificates. */
 # define TEST_SESS_REG(name, caCrt,                                     \

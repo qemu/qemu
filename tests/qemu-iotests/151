@@ -308,6 +308,7 @@ class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
 class TestLowThrottledWithNbdExport(TestThrottledWithNbdExportBase):
     iops = 16
 
+    @iotests.skip_flaky("https://gitlab.com/qemu-project/qemu/-/work_items/3513")
     def testUnderLoad(self):
         '''
         Throttle the source node, then issue a whole bunch of external requests
