@@ -247,9 +247,9 @@ static const MemoryRegionOps aspeed_wdt_ops = {
     .valid.unaligned = false,
 };
 
-static void aspeed_wdt_reset(DeviceState *dev)
+static void aspeed_wdt_reset_hold(Object *obj, ResetType type)
 {
-    AspeedWDTState *s = ASPEED_WDT(dev);
+    AspeedWDTState *s = ASPEED_WDT(obj);
     AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(s);
 
     s->regs[WDT_STATUS] = awc->default_status;
@@ -310,10 +310,11 @@ static const Property aspeed_wdt_properties[] = {
 static void aspeed_wdt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->desc = "ASPEED Watchdog Controller";
     dc->realize = aspeed_wdt_realize;
-    device_class_set_legacy_reset(dc, aspeed_wdt_reset);
+    rc->phases.hold = aspeed_wdt_reset_hold;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_aspeed_wdt;
     device_class_set_props(dc, aspeed_wdt_properties);
