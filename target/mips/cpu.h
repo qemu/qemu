@@ -1377,6 +1377,9 @@ static inline void cpu_get_tb_cpu_state(CPUMIPSState *env, vaddr *pc,
                             MIPS_HFLAG_HWRENA_ULR);
 }
 
+/* fpu.c */
+void cpu_mips_restore_fp_status(CPUMIPSState *env);
+
 /**
  * mips_cpu_create_with_clock:
  * @typename: a MIPS CPU type.
