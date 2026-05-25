@@ -713,9 +713,9 @@ static void aspeed_smc_flash_update_ctrl(AspeedSMCFlash *fl, uint32_t value)
     }
 }
 
-static void aspeed_smc_reset(DeviceState *d)
+static void aspeed_smc_reset_hold(Object *obj, ResetType type)
 {
-    AspeedSMCState *s = ASPEED_SMC(d);
+    AspeedSMCState *s = ASPEED_SMC(obj);
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
     int i;
 
@@ -1304,9 +1304,10 @@ static const Property aspeed_smc_properties[] = {
 static void aspeed_smc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_smc_realize;
-    device_class_set_legacy_reset(dc, aspeed_smc_reset);
+    rc->phases.hold = aspeed_smc_reset_hold;
     device_class_set_props(dc, aspeed_smc_properties);
     dc->vmsd = &vmstate_aspeed_smc;
 }
