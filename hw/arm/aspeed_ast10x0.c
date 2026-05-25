@@ -21,7 +21,7 @@
 
 static const hwaddr aspeed_soc_ast1030_memmap[] = {
     [ASPEED_DEV_SRAM0]     = 0x00000000,
-    [ASPEED_DEV_SECSRAM]   = 0x79000000,
+    [ASPEED_DEV_SRAM1]     = 0x79000000, /* SEC SRAM */
     [ASPEED_DEV_IOMEM]     = 0x7E600000,
     [ASPEED_DEV_PWM]       = 0x7E610000,
     [ASPEED_DEV_FMC]       = 0x7E620000,
@@ -249,14 +249,16 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
     memory_region_add_subregion(s->memory,
                                 sc->memmap[ASPEED_DEV_SRAM0],
                                 &s->sram[0]);
-    memory_region_init_ram(&s->secsram, OBJECT(s), "sec.sram",
-                           sc->secsram_size, &err);
+
+    /* Internal SEC SRAM */
+    memory_region_init_ram(&s->sram[1], OBJECT(s), "sec.sram",
+                           sc->sram_size[1], &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return false;
     }
-    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SECSRAM],
-                                &s->secsram);
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM1],
+                                &s->sram[1]);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
@@ -494,7 +496,7 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, const void *data)
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev = AST1030_A1_SILICON_REV;
     sc->sram_size[0] = 0xc0000;
-    sc->secsram_size = 0x40000; /* 256 * KiB */
+    sc->sram_size[1] = 0x40000; /* SEC SRAM 256 * KiB */
     sc->spis_num = 2;
     sc->ehcis_num = 0;
     sc->wdts_num = 4;
@@ -522,7 +524,7 @@ static void aspeed_soc_ast1060_class_init(ObjectClass *klass, const void *data)
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev = AST1060_A2_SILICON_REV;
     sc->sram_size[0] = 0xc0000;
-    sc->secsram_size = 0x40000; /* 256 * KiB */
+    sc->sram_size[1] = 0x40000; /* SEC SRAM 256 * KiB */
     sc->spis_num = 2;
     sc->wdts_num = 4;
     sc->uarts_num = 1;
