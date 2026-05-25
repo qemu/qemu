@@ -441,18 +441,26 @@ Use ``tio`` or another terminal emulator to connect to the consoles:
    $ tio /dev/pts/57
 
 
-Aspeed MiniBMC and Platform Root of Trust processor family boards (``ast1030-evb``, ``ast1060-evb``)
-====================================================================================================
+Aspeed Bridge IC and Platform Root of Trust processor family boards (``ast1030-evb``, ``ast1040-evb``, ``ast1060-evb``)
+=======================================================================================================================
 
-The QEMU Aspeed machines model mini BMCs and Platform Root of Trust processors of various Aspeed
-evaluation boards. They are based on different releases of the Aspeed SoC : the AST1030 (MiniBMC)
-and AST1060 (Platform Root of Trust Processor), both integrating an Arm Cortex M4F CPU (200MHz).
+The QEMU Aspeed machines model Bridge ICs and Platform Root of Trust processors
+of various Aspeed evaluation boards. They are based on different members of
+the Aspeed AST10x0 SoC family:
+
+- AST1030 : Bridge IC
+- AST1040 : Bridge IC
+- AST1060 : Platform Root of Trust processor
+
+The AST1030 and AST1060 integrate an Arm Cortex-M4F CPU running at 200 MHz.
+The AST1040 integrates an Arm Cortex-M4F CPU running at 400 MHz.
 
 The SoC comes with SRAM, SPI, I2C, etc.
 
 AST10x0 SoC based machines :
 
 - ``ast1030-evb``          Aspeed AST1030 Evaluation board (Cortex-M4F)
+- ``ast1040-evb``          Aspeed AST1040 Evaluation board (Cortex-M4F)
 - ``ast1060-evb``          Aspeed AST1060 Evaluation board (Cortex-M4F)
 
 Supported devices
