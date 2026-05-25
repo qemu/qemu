@@ -1160,9 +1160,9 @@ static const VMStateDescription aspeed_i2c_vmstate = {
     }
 };
 
-static void aspeed_i2c_reset(DeviceState *dev)
+static void aspeed_i2c_reset_hold(Object *obj, ResetType type)
 {
-    AspeedI2CState *s = ASPEED_I2C(dev);
+    AspeedI2CState *s = ASPEED_I2C(obj);
 
     s->intr_status = 0;
 }
@@ -1363,9 +1363,10 @@ static const Property aspeed_i2c_properties[] = {
 static void aspeed_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &aspeed_i2c_vmstate;
-    device_class_set_legacy_reset(dc, aspeed_i2c_reset);
+    rc->phases.hold = aspeed_i2c_reset_hold;
     device_class_set_props(dc, aspeed_i2c_properties);
     dc->realize = aspeed_i2c_realize;
     dc->desc = "Aspeed I2C Controller";
@@ -1506,9 +1507,9 @@ static const TypeInfo aspeed_i2c_bus_slave_info = {
     .class_init     = aspeed_i2c_bus_slave_class_init,
 };
 
-static void aspeed_i2c_bus_reset(DeviceState *dev)
+static void aspeed_i2c_bus_reset_hold(Object *obj, ResetType type)
 {
-    AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
+    AspeedI2CBus *s = ASPEED_I2C_BUS(obj);
 
     memset(s->regs, 0, sizeof(s->regs));
     s->pending_intr_sts = 0;
@@ -1556,10 +1557,11 @@ static const Property aspeed_i2c_bus_properties[] = {
 static void aspeed_i2c_bus_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->desc = "Aspeed I2C Bus";
     dc->realize = aspeed_i2c_bus_realize;
-    device_class_set_legacy_reset(dc, aspeed_i2c_bus_reset);
+    rc->phases.hold = aspeed_i2c_bus_reset_hold;
     device_class_set_props(dc, aspeed_i2c_bus_properties);
 }
 
