@@ -420,7 +420,7 @@ static void restore_user_regs(CPUPPCState *env,
             __get_user(*fpr, &frame->mc_fregs[i]);
         }
         __get_user(fpscr, &frame->mc_fregs[32]);
-        env->fpscr = (uint32_t) fpscr;
+        ppc_store_fpscr(env, (uint32_t) fpscr);
     }
 
 #if !defined(TARGET_PPC64)
