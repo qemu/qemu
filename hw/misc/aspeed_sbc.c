@@ -261,9 +261,9 @@ static const MemoryRegionOps aspeed_sbc_ops = {
     },
 };
 
-static void aspeed_sbc_reset(DeviceState *dev)
+static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
 {
-    struct AspeedSBCState *s = ASPEED_SBC(dev);
+    AspeedSBCState *s = ASPEED_SBC(obj);
 
     memset(s->regs, 0, sizeof(s->regs));
 
@@ -330,9 +330,10 @@ static const Property aspeed_sbc_properties[] = {
 static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_sbc_realize;
-    device_class_set_legacy_reset(dc, aspeed_sbc_reset);
+    rc->phases.hold = aspeed_sbc_reset_hold;
     dc->vmsd = &vmstate_aspeed_sbc;
     device_class_set_props(dc, aspeed_sbc_properties);
 }
