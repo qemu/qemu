@@ -1105,6 +1105,15 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
                     continue;
                 }
             }
+
+            /* Skip quiesced CPUs - they are in RTAS stopped state and
+             * should not be reset. This prevents kdump hangs when CPUs
+             * are hotplugged but not yet started by the guest.
+             */
+            if (c->env.quiesced) {
+                continue;
+            }
+
             run_on_cpu(cs, spapr_do_system_reset_on_cpu, RUN_ON_CPU_NULL);
         }
         return H_SUCCESS;

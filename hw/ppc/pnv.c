@@ -838,18 +838,10 @@ static void pnv_reset(MachineState *machine, ResetType type)
          * crash
          */
 
-        MpiplProcDumpArea proc_area;
-
-        proc_area.version = PROC_DUMP_AREA_VERSION_P9;
-        proc_area.thread_size = cpu_to_be32(sizeof(MpiplPreservedCPUState));
-
-        /* These are to be allocated & assigned by the firmware */
-        proc_area.alloc_addr = 0;
-        proc_area.alloc_size = 0;
-
-        /* These get assigned after crash, when QEMU preserves the registers */
-        proc_area.dest_addr = 0;
-        proc_area.act_size = 0;
+        MpiplProcDumpArea proc_area = {
+            .version = PROC_DUMP_AREA_VERSION_P9,
+            .thread_size = cpu_to_be32(sizeof(MpiplPreservedCPUState)),
+        };
 
         cpu_physical_memory_write(PROC_DUMP_AREA_OFF, &proc_area,
                 sizeof(proc_area));
@@ -3478,8 +3470,6 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power10_v2.0");
     compat_props_add(mc->compat_props, phb_compat, G_N_ELEMENTS(phb_compat));
 
-    mc->alias = "powernv";
-
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
     pmc->max_smt_threads = 4;
@@ -3555,6 +3545,8 @@ static void pnv_machine_power11_class_init(ObjectClass *oc, const void *data)
 
     mc->desc = "IBM PowerNV (Non-Virtualized) Power11";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power11_v2.0");
+
+    mc->alias = "powernv";
 
     object_class_property_add_bool(oc, "big-core",
                                    pnv_machine_get_big_core,
