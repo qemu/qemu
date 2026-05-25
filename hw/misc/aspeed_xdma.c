@@ -129,9 +129,9 @@ static void aspeed_xdma_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &xdma->iomem);
 }
 
-static void aspeed_xdma_reset(DeviceState *dev)
+static void aspeed_xdma_reset_hold(Object *obj, ResetType type)
 {
-    AspeedXDMAState *xdma = ASPEED_XDMA(dev);
+    AspeedXDMAState *xdma = ASPEED_XDMA(obj);
     AspeedXDMAClass *axc = ASPEED_XDMA_GET_CLASS(xdma);
 
     xdma->bmc_cmdq_readp_set = 0;
@@ -220,9 +220,10 @@ static const TypeInfo aspeed_2400_xdma_info = {
 static void aspeed_xdma_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
+    ResettableClass *rc = RESETTABLE_CLASS(classp);
 
     dc->realize = aspeed_xdma_realize;
-    device_class_set_legacy_reset(dc, aspeed_xdma_reset);
+    rc->phases.hold = aspeed_xdma_reset_hold;
     dc->vmsd = &aspeed_xdma_vmstate;
 }
 
