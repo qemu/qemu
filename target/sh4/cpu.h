@@ -397,4 +397,7 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, vaddr *pc,
 #endif
 }
 
+/* Set FPSCR and the derived float_status rounding/flush-to-zero state. */
+void cpu_load_fpscr(CPUSH4State *env, uint32_t val);
+
 #endif /* SH4_CPU_H */
