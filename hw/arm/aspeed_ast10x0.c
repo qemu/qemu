@@ -20,7 +20,7 @@
 #define ASPEED_SOC_IOMEM_SIZE 0x00200000
 
 static const hwaddr aspeed_soc_ast1030_memmap[] = {
-    [ASPEED_DEV_SRAM]      = 0x00000000,
+    [ASPEED_DEV_SRAM0]     = 0x00000000,
     [ASPEED_DEV_SECSRAM]   = 0x79000000,
     [ASPEED_DEV_IOMEM]     = 0x7E600000,
     [ASPEED_DEV_PWM]       = 0x7E610000,
@@ -247,7 +247,7 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
         return false;
     }
     memory_region_add_subregion(s->memory,
-                                sc->memmap[ASPEED_DEV_SRAM],
+                                sc->memmap[ASPEED_DEV_SRAM0],
                                 &s->sram[0]);
     memory_region_init_ram(&s->secsram, OBJECT(s), "sec.sram",
                            sc->secsram_size, &err);

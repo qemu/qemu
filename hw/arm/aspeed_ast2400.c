@@ -38,7 +38,7 @@ static const hwaddr aspeed_soc_ast2400_memmap[] = {
     [ASPEED_DEV_XDMA]   = 0x1E6E7000,
     [ASPEED_DEV_VIDEO]  = 0x1E700000,
     [ASPEED_DEV_ADC]    = 0x1E6E9000,
-    [ASPEED_DEV_SRAM]   = 0x1E720000,
+    [ASPEED_DEV_SRAM0]  = 0x1E720000,
     [ASPEED_DEV_SDHCI]  = 0x1E740000,
     [ASPEED_DEV_GPIO]   = 0x1E780000,
     [ASPEED_DEV_RTC]    = 0x1E781000,
@@ -75,7 +75,7 @@ static const hwaddr aspeed_soc_ast2500_memmap[] = {
     [ASPEED_DEV_XDMA]   = 0x1E6E7000,
     [ASPEED_DEV_ADC]    = 0x1E6E9000,
     [ASPEED_DEV_VIDEO]  = 0x1E700000,
-    [ASPEED_DEV_SRAM]   = 0x1E720000,
+    [ASPEED_DEV_SRAM0]  = 0x1E720000,
     [ASPEED_DEV_SDHCI]  = 0x1E740000,
     [ASPEED_DEV_GPIO]   = 0x1E780000,
     [ASPEED_DEV_RTC]    = 0x1E781000,
@@ -286,7 +286,7 @@ static void aspeed_ast2400_soc_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(s->memory,
-                                sc->memmap[ASPEED_DEV_SRAM], &s->sram[0]);
+                                sc->memmap[ASPEED_DEV_SRAM0], &s->sram[0]);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
