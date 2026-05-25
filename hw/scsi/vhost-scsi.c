@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "standard-headers/linux/vhost_types.h"
 #include <linux/vhost.h>
 #include <sys/ioctl.h>
 #include "qapi/error.h"
