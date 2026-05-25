@@ -123,9 +123,9 @@ static void aspeed_peci_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq);
 }
 
-static void aspeed_peci_reset(DeviceState *dev)
+static void aspeed_peci_reset_hold(Object *obj, ResetType type)
 {
-    AspeedPECIState *s = ASPEED_PECI(dev);
+    AspeedPECIState *s = ASPEED_PECI(obj);
 
     memset(s->regs, 0, sizeof(s->regs));
 }
@@ -133,9 +133,10 @@ static void aspeed_peci_reset(DeviceState *dev)
 static void aspeed_peci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_peci_realize;
-    device_class_set_legacy_reset(dc, aspeed_peci_reset);
+    rc->phases.hold = aspeed_peci_reset_hold;
     dc->desc = "Aspeed PECI Controller";
 }
 
