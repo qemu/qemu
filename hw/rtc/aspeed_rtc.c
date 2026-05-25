@@ -120,9 +120,9 @@ static void aspeed_rtc_write(void *opaque, hwaddr addr,
     trace_aspeed_rtc_write(addr, val);
 }
 
-static void aspeed_rtc_reset(DeviceState *d)
+static void aspeed_rtc_reset_hold(Object *obj, ResetType type)
 {
-    AspeedRtcState *rtc = ASPEED_RTC(d);
+    AspeedRtcState *rtc = ASPEED_RTC(obj);
 
     rtc->offset = 0;
     memset(rtc->reg, 0, sizeof(rtc->reg));
@@ -159,10 +159,11 @@ static void aspeed_rtc_realize(DeviceState *dev, Error **errp)
 static void aspeed_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_rtc_realize;
     dc->vmsd = &vmstate_aspeed_rtc;
-    device_class_set_legacy_reset(dc, aspeed_rtc_reset);
+    rc->phases.hold = aspeed_rtc_reset_hold;
 }
 
 static const TypeInfo aspeed_rtc_info = {
