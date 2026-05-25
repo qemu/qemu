@@ -116,12 +116,6 @@ class UpdateSubprojects:
             patch_dir = config["wrap-file"]["patch_directory"]
             patch_dir = os.path.join("packagefiles", patch_dir)
             _, ver = registry_namever.rsplit("-", 1)
-            subprocess.run(
-                ["meson", "rewrite", "kwargs", "set", "project", "/", "version", ver],
-                cwd=patch_dir,
-                env=env,
-                check=True,
-            )
 
         subprocess.run(
             ["meson", "subprojects", "download", wrap_name],
