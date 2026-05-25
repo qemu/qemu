@@ -204,7 +204,7 @@ void helper_macw(CPUSH4State *env, int32_t arg0, int32_t arg1)
     }
 }
 
-void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
+void cpu_load_fpscr(CPUSH4State *env, uint32_t val)
 {
     env->fpscr = val & FPSCR_MASK;
     if ((val & FPSCR_RM_MASK) == FPSCR_RM_ZERO) {
@@ -213,6 +213,11 @@ void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
         set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
     }
     set_flush_to_zero((val & FPSCR_DN) != 0, &env->fp_status);
+}
+
+void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
+{
+    cpu_load_fpscr(env, val);
 }
 
 static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
