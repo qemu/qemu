@@ -1430,9 +1430,9 @@ static const MemoryRegionOps aspeed_gpio_2700_ops = {
     .valid.max_access_size = 4,
 };
 
-static void aspeed_gpio_reset(DeviceState *dev)
+static void aspeed_gpio_reset_hold(Object *obj, ResetType type)
 {
-    AspeedGPIOState *s = ASPEED_GPIO(dev);
+    AspeedGPIOState *s = ASPEED_GPIO(obj);
 
     /* TODO: respect the reset tolerance registers */
     memset(s->sets, 0, sizeof(s->sets));
@@ -1533,9 +1533,10 @@ static const VMStateDescription vmstate_aspeed_gpio = {
 static void aspeed_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_gpio_realize;
-    device_class_set_legacy_reset(dc, aspeed_gpio_reset);
+    rc->phases.hold = aspeed_gpio_reset_hold;
     dc->desc = "Aspeed GPIO Controller";
     dc->vmsd = &vmstate_aspeed_gpio;
 }
