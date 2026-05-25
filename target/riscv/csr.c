@@ -590,7 +590,7 @@ static RISCVException sstc(CPURISCVState *env, int csrno)
 {
     bool hmode_check = false;
 
-    if (!riscv_cpu_cfg(env)->ext_sstc || !env->rdtime_fn) {
+    if (!riscv_cpu_cfg(env)->ext_sstc) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -605,6 +605,10 @@ static RISCVException sstc(CPURISCVState *env, int csrno)
 
     if (env->debugger) {
         return RISCV_EXCP_NONE;
+    }
+
+    if (!env->rdtime_fn) {
+        return RISCV_EXCP_ILLEGAL_INST;
     }
 
     if (env->priv == PRV_M) {
