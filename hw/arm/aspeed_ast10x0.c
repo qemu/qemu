@@ -240,14 +240,15 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
     /* Internal SRAM */
     sram_name = g_strdup_printf("aspeed.sram.%d",
                                 CPU(a->armv7m.cpu)->cpu_index);
-    memory_region_init_ram(&s->sram, OBJECT(s), sram_name, sc->sram_size, &err);
+    memory_region_init_ram(&s->sram[0], OBJECT(s), sram_name, sc->sram_size,
+                           &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return false;
     }
     memory_region_add_subregion(s->memory,
                                 sc->memmap[ASPEED_DEV_SRAM],
-                                &s->sram);
+                                &s->sram[0]);
     memory_region_init_ram(&s->secsram, OBJECT(s), "sec.sram",
                            sc->secsram_size, &err);
     if (err != NULL) {

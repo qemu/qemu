@@ -60,6 +60,7 @@
 #define ASPEED_PCIE_NUM  3
 #define ASPEED_INTC_NUM  2
 #define ASPEED_IOEXP_NUM 2
+#define ASPEED_SRAM_NUM 1
 
 struct AspeedSoCState {
     DeviceState parent;
@@ -67,7 +68,7 @@ struct AspeedSoCState {
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
-    MemoryRegion sram;
+    MemoryRegion sram[ASPEED_SRAM_NUM];
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
     MemoryRegion vbootrom;
