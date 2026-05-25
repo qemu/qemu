@@ -834,10 +834,10 @@ static void aspeed_timer_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void aspeed_timer_reset(DeviceState *dev)
+static void aspeed_timer_reset_hold(Object *obj, ResetType type)
 {
     int i;
-    AspeedTimerCtrlState *s = ASPEED_TIMER(dev);
+    AspeedTimerCtrlState *s = ASPEED_TIMER(obj);
 
     for (i = 0; i < ASPEED_TIMER_NR_TIMERS; i++) {
         AspeedTimer *t = &s->timers[i];
@@ -898,9 +898,10 @@ static const Property aspeed_timer_properties[] = {
 static void timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_timer_realize;
-    device_class_set_legacy_reset(dc, aspeed_timer_reset);
+    rc->phases.hold = aspeed_timer_reset_hold;
     dc->desc = "ASPEED Timer";
     dc->vmsd = &vmstate_aspeed_timer_state;
     device_class_set_props(dc, aspeed_timer_properties);
