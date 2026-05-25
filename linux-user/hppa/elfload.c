@@ -16,6 +16,19 @@ const char *get_elf_platform(CPUState *cs)
     return "PARISC";
 }
 
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUArchState *env)
+{
+    int i;
+
+    memset(r, 0, sizeof(*r));
+    for (i = 0; i < 32; i++) {
+        r->gr[i] = tswapal(env->gr[i]);
+    }
+    r->iaoq[0] = tswapal(env->iaoq_f);
+    r->iaoq[1] = tswapal(env->iaoq_b);
+    r->sar     = tswapal(env->cr[CR_SAR]);
+}
+
 bool init_guest_commpage(void)
 {
     /* If reserved_va, then we have already mapped 0 page on the host. */

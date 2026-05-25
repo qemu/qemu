@@ -3,11 +3,20 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "loader.h"
+#include "target_elf.h"
 
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
     return "max";
+}
+
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPURISCVState *env)
+{
+    r->pc = tswapal(env->pc);
+    for (int i = 0; i < 31; i++) {
+        r->regs[i] = tswapal(env->gpr[i + 1]);
+    }
 }
 
 abi_ulong get_elf_hwcap(CPUState *cs)

@@ -131,18 +131,20 @@ const char *get_elf_base_platform(CPUState *cs)
 #undef MATCH_PLATFORM_INSN
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
+#ifndef TARGET_MIPS64
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
 {
     for (int i = 1; i < ARRAY_SIZE(env->active_tc.gpr); i++) {
-        r->pt.regs[i] = tswapl(env->active_tc.gpr[i]);
+        r->pt.regs[i] = tswap32(env->active_tc.gpr[i]);
     }
 
     r->pt.regs[26] = 0;
     r->pt.regs[27] = 0;
-    r->pt.lo = tswapl(env->active_tc.LO[0]);
-    r->pt.hi = tswapl(env->active_tc.HI[0]);
-    r->pt.cp0_epc = tswapl(env->active_tc.PC);
-    r->pt.cp0_badvaddr = tswapl(env->CP0_BadVAddr);
-    r->pt.cp0_status = tswapl(env->CP0_Status);
-    r->pt.cp0_cause = tswapl(env->CP0_Cause);
+    r->pt.lo = tswap32(env->active_tc.LO[0]);
+    r->pt.hi = tswap32(env->active_tc.HI[0]);
+    r->pt.cp0_epc = tswap32(env->active_tc.PC);
+    r->pt.cp0_badvaddr = tswap32(env->CP0_BadVAddr);
+    r->pt.cp0_status = tswap32(env->CP0_Status);
+    r->pt.cp0_cause = tswap32(env->CP0_Cause);
 }
+#endif

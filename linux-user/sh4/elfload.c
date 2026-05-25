@@ -5,6 +5,20 @@
 #include "loader.h"
 #include "target_elf.h"
 
+#if TARGET_BIG_ENDIAN
+# include "vdso-be.c.inc"
+#else
+# include "vdso-le.c.inc"
+#endif
+
+const VdsoImageInfo *get_vdso_image_info(uint32_t elf_flags G_GNUC_UNUSED)
+{
+#if TARGET_BIG_ENDIAN
+    return &vdso_be_image_info;
+#else
+    return &vdso_le_image_info;
+#endif
+}
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
