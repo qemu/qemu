@@ -172,7 +172,7 @@ struct AspeedSoCClass {
     /** valid_cpu_types: NULL terminated array of a single CPU type. */
     const char * const *valid_cpu_types;
     uint32_t silicon_rev;
-    uint64_t sram_size;
+    uint64_t sram_size[ASPEED_SRAM_NUM];
     uint64_t secsram_size;
     int pcie_num;
     int spis_num;

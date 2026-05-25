@@ -240,8 +240,8 @@ static bool aspeed_soc_ast10x0_realize(Aspeed10x0SoCState *a, Error **errp)
     /* Internal SRAM */
     sram_name = g_strdup_printf("aspeed.sram.%d",
                                 CPU(a->armv7m.cpu)->cpu_index);
-    memory_region_init_ram(&s->sram[0], OBJECT(s), sram_name, sc->sram_size,
-                           &err);
+    memory_region_init_ram(&s->sram[0], OBJECT(s), sram_name,
+                           sc->sram_size[0], &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return false;
@@ -493,7 +493,7 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, const void *data)
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev = AST1030_A1_SILICON_REV;
-    sc->sram_size = 0xc0000;
+    sc->sram_size[0] = 0xc0000;
     sc->secsram_size = 0x40000; /* 256 * KiB */
     sc->spis_num = 2;
     sc->ehcis_num = 0;
@@ -521,7 +521,7 @@ static void aspeed_soc_ast1060_class_init(ObjectClass *klass, const void *data)
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev = AST1060_A2_SILICON_REV;
-    sc->sram_size = 0xc0000;
+    sc->sram_size[0] = 0xc0000;
     sc->secsram_size = 0x40000; /* 256 * KiB */
     sc->spis_num = 2;
     sc->wdts_num = 4;

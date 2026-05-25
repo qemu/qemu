@@ -778,8 +778,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
 
     /* SRAM */
     name = g_strdup_printf("aspeed.sram.%d", CPU(&a->cpu[0])->cpu_index);
-    if (!memory_region_init_ram(&s->sram[0], OBJECT(s), name, sc->sram_size,
-                                errp)) {
+    if (!memory_region_init_ram(&s->sram[0], OBJECT(s), name,
+                                sc->sram_size[0], errp)) {
         return;
     }
     memory_region_add_subregion(s->memory,
@@ -1151,7 +1151,7 @@ static void aspeed_soc_ast2700a1_class_init(ObjectClass *oc, const void *data)
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev  = AST2700_A1_SILICON_REV;
-    sc->sram_size    = 0x20000;
+    sc->sram_size[0] = 0x20000;
     sc->pcie_num     = 3;
     sc->spis_num     = 3;
     sc->sgpio_num    = 2;
@@ -1181,7 +1181,7 @@ static void aspeed_soc_ast2700a2_class_init(ObjectClass *oc, const void *data)
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev  = AST2700_A2_SILICON_REV;
-    sc->sram_size    = 0x20000;
+    sc->sram_size[0] = 0x20000;
     sc->pcie_num     = 3;
     sc->spis_num     = 3;
     sc->sgpio_num    = 2;
