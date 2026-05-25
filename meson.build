@@ -135,12 +135,7 @@ if have_rust
 
   rustfmt = find_program('rustfmt', required: false)
 
-  rustc_lint_args = run_command(rustc_args, '--lints',
-     capture: true, check: true).stdout().strip().splitlines()
-  if get_option('strict_rust_lints')
-    rustc_lint_args += ['-Dwarnings', '-Funknown_lints']
-  endif
-
+  rustc_lint_args = get_option('strict_rust_lints') ?  ['-Dwarnings', '-Funknown_lints'] : []
   add_project_arguments(rustc_lint_args + ['--cfg', 'MESON'],
       native: false, language: 'rust')
   add_project_arguments(rustc_lint_args + ['--cfg', 'MESON'],

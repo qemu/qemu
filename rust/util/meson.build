@@ -1,8 +1,5 @@
-_util_rs = static_library(
-  'util',
-  'src/lib.rs',
-  dependencies: [anyhow_rs, libc_rs, foreign_rs, glib_sys_rs, common_rs, util_sys_rs],
-)
+_util_rs = cargo_ws.package('util').library()
+cargo_ws.package('util').override_dependency(declare_dependency(link_with: _util_rs))
 
 util_rs = declare_dependency(link_with: [_util_rs], dependencies: [qemuutil, qom])
 

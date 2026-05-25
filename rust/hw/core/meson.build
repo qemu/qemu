@@ -1,11 +1,5 @@
-_hwcore_rs = static_library(
-  'hwcore',
-  'src/lib.rs',
-  override_options: ['rust_std=2021', 'build.rust_std=2021'],
-  rust_abi: 'rust',
-  link_with: [_bql_rs, _chardev_rs, _migration_rs, _qom_rs, _util_rs],
-  dependencies: [glib_sys_rs, qemu_macros, common_rs, hwcore_sys_rs],
-)
+_hwcore_rs = cargo_ws.package('hwcore').library()
+cargo_ws.package('hwcore').override_dependency(declare_dependency(link_with: _hwcore_rs))
 
 hwcore_rs = declare_dependency(link_with: [_hwcore_rs],
   dependencies: [qom_rs, hwcore])

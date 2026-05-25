@@ -1,13 +1,9 @@
 _common_cfg = run_command(rustc_args,
-  '--config-headers', config_host_h, '--features', files('Cargo.toml'),
+  '--config-headers', config_host_h, files('Cargo.toml'),
   capture: true, check: true).stdout().strip().splitlines()
 
-_common_rs = static_library(
-  'common',
-  'src/lib.rs',
-  rust_args: _common_cfg,
-  dependencies: [libc_rs, qemu_macros],
-)
+_common_rs = cargo_ws.package('common').library(rust_args: _common_cfg)
+cargo_ws.package('common').override_dependency(declare_dependency(link_with: _common_rs))
 
 common_rs = declare_dependency(link_with: [_common_rs])
 

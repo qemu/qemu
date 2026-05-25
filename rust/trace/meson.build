@@ -7,11 +7,8 @@ lib_rs = configure_file(
     'MESON_BUILD_ROOT': meson.project_build_root(),
   })
 
-_trace_rs = static_library(
-  'trace',             # Library name,
-  lib_rs,
-  trace_rs_targets,         # List of generated `.rs` custom targets
-  dependencies: [libc_rs, probe_rs],
-)
+_trace_rs = cargo_ws.package('trace').library(
+  structured_sources([lib_rs, trace_rs_targets]))
+cargo_ws.package('trace').override_dependency(declare_dependency(link_with: _trace_rs))
 
 trace_rs = declare_dependency(link_with: _trace_rs)

@@ -5,17 +5,6 @@ else
 endif
 
 cargo_ws = import('rust').workspace()
-anyhow_rs = cargo_ws.subproject('anyhow').dependency()
-bilge_rs = cargo_ws.subproject('bilge').dependency()
-bilge_impl_rs = cargo_ws.subproject('bilge-impl').dependency()
-foreign_rs = cargo_ws.subproject('foreign').dependency()
-glib_sys_rs = cargo_ws.subproject('glib-sys').dependency()
-libc_rs = cargo_ws.subproject('libc').dependency()
-probe_rs = cargo_ws.subproject('probe').dependency()
-quote_rs_native = cargo_ws.subproject('quote').dependency()
-syn_rs_native = cargo_ws.subproject('syn').dependency()
-proc_macro2_rs_native = cargo_ws.subproject('proc-macro2').dependency()
-attrs_rs_native = cargo_ws.subproject('attrs').dependency()
 
 genrs = []
 
