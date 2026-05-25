@@ -562,6 +562,7 @@ static uint32_t aspeed_silicon_revs[] = {
     AST1060_A2_SILICON_REV,
     AST2700_A1_SILICON_REV,
     AST2700_A2_SILICON_REV,
+    AST1040_A0_SILICON_REV,
 };
 
 bool is_supported_silicon_rev(uint32_t silicon_rev)
