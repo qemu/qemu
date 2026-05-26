@@ -20,6 +20,7 @@ common = { path = "../../common" }
 migration-sys = { path = "../migration-sys" }
 util-sys = { path = "../util-sys" }
 qom-sys = { path = "../qom-sys" }
+hwcore-sys = { path = "../hwcore-sys" }
 
 [lints]
 workspace = true

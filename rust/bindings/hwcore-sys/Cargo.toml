@@ -21,7 +21,6 @@ chardev-sys = { path = "../chardev-sys" }
 qom-sys = { path = "../qom-sys" }
 migration-sys = { path = "../migration-sys" }
 util-sys = { path = "../util-sys" }
-system-sys = { path = "../system-sys" }
 
 [lints]
 workspace = true
