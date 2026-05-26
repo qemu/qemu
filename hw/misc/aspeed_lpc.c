@@ -384,9 +384,9 @@ static const MemoryRegionOps aspeed_lpc_ops = {
     },
 };
 
-static void aspeed_lpc_reset(DeviceState *dev)
+static void aspeed_lpc_reset_hold(Object *obj, ResetType type)
 {
-    struct AspeedLPCState *s = ASPEED_LPC(dev);
+    AspeedLPCState *s = ASPEED_LPC(obj);
 
     s->subdevice_irqs_pending = 0;
 
@@ -461,9 +461,10 @@ static const Property aspeed_lpc_properties[] = {
 static void aspeed_lpc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_lpc_realize;
-    device_class_set_legacy_reset(dc, aspeed_lpc_reset);
+    rc->phases.hold = aspeed_lpc_reset_hold;
     dc->desc = "Aspeed LPC Controller",
     dc->vmsd = &vmstate_aspeed_lpc;
     device_class_set_props(dc, aspeed_lpc_properties);

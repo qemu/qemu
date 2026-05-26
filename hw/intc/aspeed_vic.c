@@ -291,9 +291,9 @@ static const MemoryRegionOps aspeed_vic_ops = {
     .valid.unaligned = false,
 };
 
-static void aspeed_vic_reset(DeviceState *dev)
+static void aspeed_vic_reset_hold(Object *obj, ResetType type)
 {
-    AspeedVICState *s = ASPEED_VIC(dev);
+    AspeedVICState *s = ASPEED_VIC(obj);
 
     s->level = 0;
     s->raw = 0;
@@ -342,8 +342,9 @@ static const VMStateDescription vmstate_aspeed_vic = {
 static void aspeed_vic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     dc->realize = aspeed_vic_realize;
-    device_class_set_legacy_reset(dc, aspeed_vic_reset);
+    rc->phases.hold = aspeed_vic_reset_hold;
     dc->desc = "ASPEED Interrupt Controller (New)";
     dc->vmsd = &vmstate_aspeed_vic;
 }

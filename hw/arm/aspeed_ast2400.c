@@ -38,7 +38,7 @@ static const hwaddr aspeed_soc_ast2400_memmap[] = {
     [ASPEED_DEV_XDMA]   = 0x1E6E7000,
     [ASPEED_DEV_VIDEO]  = 0x1E700000,
     [ASPEED_DEV_ADC]    = 0x1E6E9000,
-    [ASPEED_DEV_SRAM]   = 0x1E720000,
+    [ASPEED_DEV_SRAM0]  = 0x1E720000,
     [ASPEED_DEV_SDHCI]  = 0x1E740000,
     [ASPEED_DEV_GPIO]   = 0x1E780000,
     [ASPEED_DEV_RTC]    = 0x1E781000,
@@ -75,7 +75,7 @@ static const hwaddr aspeed_soc_ast2500_memmap[] = {
     [ASPEED_DEV_XDMA]   = 0x1E6E7000,
     [ASPEED_DEV_ADC]    = 0x1E6E9000,
     [ASPEED_DEV_VIDEO]  = 0x1E700000,
-    [ASPEED_DEV_SRAM]   = 0x1E720000,
+    [ASPEED_DEV_SRAM0]  = 0x1E720000,
     [ASPEED_DEV_SDHCI]  = 0x1E740000,
     [ASPEED_DEV_GPIO]   = 0x1E780000,
     [ASPEED_DEV_RTC]    = 0x1E781000,
@@ -281,12 +281,12 @@ static void aspeed_ast2400_soc_realize(DeviceState *dev, Error **errp)
 
     /* SRAM */
     sram_name = g_strdup_printf("aspeed.sram.%d", CPU(&a->cpu[0])->cpu_index);
-    if (!memory_region_init_ram(&s->sram, OBJECT(s), sram_name, sc->sram_size,
-                                errp)) {
+    if (!memory_region_init_ram(&s->sram[0], OBJECT(s), sram_name,
+                                sc->sram_size[0], errp)) {
         return;
     }
     memory_region_add_subregion(s->memory,
-                                sc->memmap[ASPEED_DEV_SRAM], &s->sram);
+                                sc->memmap[ASPEED_DEV_SRAM0], &s->sram[0]);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
@@ -533,7 +533,7 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, const void *data)
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev  = AST2400_A1_SILICON_REV;
-    sc->sram_size    = 0x8000;
+    sc->sram_size[0] = 0x8000;
     sc->spis_num     = 1;
     sc->ehcis_num    = 1;
     sc->wdts_num     = 2;
@@ -560,7 +560,7 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, const void *data)
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->silicon_rev  = AST2500_A1_SILICON_REV;
-    sc->sram_size    = 0x9000;
+    sc->sram_size[0] = 0x9000;
     sc->spis_num     = 2;
     sc->ehcis_num    = 2;
     sc->wdts_num     = 3;

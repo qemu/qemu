@@ -624,9 +624,9 @@ static const MemoryRegionOps aspeed_hace_ops = {
     },
 };
 
-static void aspeed_hace_reset(DeviceState *dev)
+static void aspeed_hace_reset_hold(Object *obj, ResetType type)
 {
-    struct AspeedHACEState *s = ASPEED_HACE(dev);
+    AspeedHACEState *s = ASPEED_HACE(obj);
     AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
 
     if (s->hash_ctx != NULL) {
@@ -687,10 +687,11 @@ static void aspeed_hace_unrealize(DeviceState *dev)
 static void aspeed_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_hace_realize;
     dc->unrealize = aspeed_hace_unrealize;
-    device_class_set_legacy_reset(dc, aspeed_hace_reset);
+    rc->phases.hold = aspeed_hace_reset_hold;
     device_class_set_props(dc, aspeed_hace_properties);
     dc->vmsd = &vmstate_aspeed_hace;
 }

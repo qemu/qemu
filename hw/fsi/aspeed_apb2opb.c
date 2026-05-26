@@ -302,9 +302,9 @@ static void fsi_aspeed_apb2opb_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void fsi_aspeed_apb2opb_reset(DeviceState *dev)
+static void fsi_aspeed_apb2opb_reset_hold(Object *obj, ResetType type)
 {
-    AspeedAPB2OPBState *s = ASPEED_APB2OPB(dev);
+    AspeedAPB2OPBState *s = ASPEED_APB2OPB(obj);
 
     memcpy(s->regs, aspeed_apb2opb_reset, ASPEED_APB2OPB_NR_REGS);
 }
@@ -312,10 +312,11 @@ static void fsi_aspeed_apb2opb_reset(DeviceState *dev)
 static void fsi_aspeed_apb2opb_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->desc = "ASPEED APB2OPB Bridge";
     dc->realize = fsi_aspeed_apb2opb_realize;
-    device_class_set_legacy_reset(dc, fsi_aspeed_apb2opb_reset);
+    rc->phases.hold = fsi_aspeed_apb2opb_reset_hold;
 }
 
 static const TypeInfo aspeed_apb2opb_info = {

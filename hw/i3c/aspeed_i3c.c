@@ -162,9 +162,9 @@ I3CBus *aspeed_i3c_get_bus(AspeedI3CState *s, uint8_t bus_num)
     g_assert_not_reached();
 }
 
-static void aspeed_i3c_reset(DeviceState *dev)
+static void aspeed_i3c_reset_hold(Object *obj, ResetType type)
 {
-    AspeedI3CState *s = ASPEED_I3C(dev);
+    AspeedI3CState *s = ASPEED_I3C(obj);
     memset(s->regs, 0, sizeof(s->regs));
 }
 
@@ -238,9 +238,10 @@ static const VMStateDescription vmstate_aspeed_i3c = {
 static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_i3c_realize;
-    device_class_set_legacy_reset(dc, aspeed_i3c_reset);
+    rc->phases.hold = aspeed_i3c_reset_hold;
     dc->desc = "Aspeed I3C Controller";
     dc->vmsd = &vmstate_aspeed_i3c;
 }

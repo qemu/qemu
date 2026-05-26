@@ -60,6 +60,7 @@
 #define ASPEED_PCIE_NUM  3
 #define ASPEED_INTC_NUM  2
 #define ASPEED_IOEXP_NUM 2
+#define ASPEED_SRAM_NUM 2
 
 struct AspeedSoCState {
     DeviceState parent;
@@ -67,7 +68,7 @@ struct AspeedSoCState {
     MemoryRegion *memory;
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
-    MemoryRegion sram;
+    MemoryRegion sram[ASPEED_SRAM_NUM];
     MemoryRegion spi_boot_container;
     MemoryRegion spi_boot;
     MemoryRegion vbootrom;
@@ -88,7 +89,6 @@ struct AspeedSoCState {
     AspeedSBCState sbc;
     AspeedSLIState sli;
     AspeedSLIState sliio;
-    MemoryRegion secsram;
     UnimplementedDeviceState sbc_unimplemented;
     AspeedSDMCState sdmc;
     AspeedPWMState pwm;
@@ -171,8 +171,7 @@ struct AspeedSoCClass {
     /** valid_cpu_types: NULL terminated array of a single CPU type. */
     const char * const *valid_cpu_types;
     uint32_t silicon_rev;
-    uint64_t sram_size;
-    uint64_t secsram_size;
+    uint64_t sram_size[ASPEED_SRAM_NUM];
     int pcie_num;
     int spis_num;
     int sgpio_num;
@@ -224,10 +223,10 @@ enum {
     ASPEED_DEV_SCU,
     ASPEED_DEV_ADC,
     ASPEED_DEV_SBC,
-    ASPEED_DEV_SECSRAM,
     ASPEED_DEV_EMMC_BC,
     ASPEED_DEV_VIDEO,
-    ASPEED_DEV_SRAM,
+    ASPEED_DEV_SRAM0,
+    ASPEED_DEV_SRAM1,
     ASPEED_DEV_SDHCI,
     ASPEED_DEV_GPIO,
     ASPEED_DEV_GPIO_1_8V,

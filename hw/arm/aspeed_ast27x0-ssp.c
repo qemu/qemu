@@ -20,7 +20,7 @@
 
 static const hwaddr aspeed_soc_ast27x0ssp_memmap[] = {
     [ASPEED_DEV_SDRAM]     =  0x00000000,
-    [ASPEED_DEV_SRAM]      =  0x70000000,
+    [ASPEED_DEV_SRAM0]     =  0x70000000,
     [ASPEED_DEV_INTC]      =  0x72100000,
     [ASPEED_DEV_SCU]       =  0x72C02000,
     [ASPEED_DEV_TIMER1]    =  0x72C10000,
@@ -182,7 +182,7 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
     /* SRAM */
     memory_region_init_alias(&s->sram_alias, OBJECT(s), "sram.alias",
                              s->sram, 0, memory_region_size(s->sram));
-    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM],
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SRAM0],
                                 &s->sram_alias);
 
     /* SCU */

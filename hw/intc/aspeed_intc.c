@@ -692,9 +692,9 @@ static void aspeed_intc_instance_init(Object *obj)
     }
 }
 
-static void aspeed_intc_reset(DeviceState *dev)
+static void aspeed_intc_reset_hold(Object *obj, ResetType type)
 {
-    AspeedINTCState *s = ASPEED_INTC(dev);
+    AspeedINTCState *s = ASPEED_INTC(obj);
     AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(s);
 
     memset(s->regs, 0, aic->nr_regs << 2);
@@ -746,12 +746,13 @@ static void aspeed_intc_unrealize(DeviceState *dev)
 static void aspeed_intc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     AspeedINTCClass *aic = ASPEED_INTC_CLASS(klass);
 
     dc->desc = "ASPEED INTC Controller";
     dc->realize = aspeed_intc_realize;
     dc->unrealize = aspeed_intc_unrealize;
-    device_class_set_legacy_reset(dc, aspeed_intc_reset);
+    rc->phases.hold = aspeed_intc_reset_hold;
     dc->vmsd = NULL;
 
     aic->reg_ops = &aspeed_intc_ops;

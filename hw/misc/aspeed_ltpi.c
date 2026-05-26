@@ -112,9 +112,9 @@ static const MemoryRegionOps aspeed_ltpi_ctrl_ops = {
     },
 };
 
-static void aspeed_ltpi_reset(DeviceState *dev)
+static void aspeed_ltpi_reset_hold(Object *obj, ResetType type)
 {
-    AspeedLTPIState *s = ASPEED_LTPI(dev);
+    AspeedLTPIState *s = ASPEED_LTPI(obj);
 
     memset(s->ctrl_regs, 0, sizeof(s->ctrl_regs));
     memset(s->phy_regs, 0, sizeof(s->phy_regs));
@@ -173,9 +173,10 @@ static void aspeed_ltpi_realize(DeviceState *dev, Error **errp)
 static void aspeed_ltpi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     dc->realize = aspeed_ltpi_realize;
     dc->vmsd = &vmstate_aspeed_ltpi;
-    device_class_set_legacy_reset(dc, aspeed_ltpi_reset);
+    rc->phases.hold = aspeed_ltpi_reset_hold;
 }
 
 static const TypeInfo aspeed_ltpi_info = {

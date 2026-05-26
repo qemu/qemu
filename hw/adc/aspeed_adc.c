@@ -253,9 +253,9 @@ static const uint32_t aspeed_adc_resets[ASPEED_ADC_NR_REGS] = {
     [CLOCK_CONTROL]      = 0x0000000f,
 };
 
-static void aspeed_adc_engine_reset(DeviceState *dev)
+static void aspeed_adc_engine_reset_hold(Object *obj, ResetType type)
 {
-    AspeedADCEngineState *s = ASPEED_ADC_ENGINE(dev);
+    AspeedADCEngineState *s = ASPEED_ADC_ENGINE(obj);
 
     memcpy(s->regs, aspeed_adc_resets, sizeof(aspeed_adc_resets));
 }
@@ -295,9 +295,10 @@ static const Property aspeed_adc_engine_properties[] = {
 static void aspeed_adc_engine_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = aspeed_adc_engine_realize;
-    device_class_set_legacy_reset(dc, aspeed_adc_engine_reset);
+    rc->phases.hold = aspeed_adc_engine_reset_hold;
     device_class_set_props(dc, aspeed_adc_engine_properties);
     dc->desc = "Aspeed Analog-to-Digital Engine";
     dc->vmsd = &vmstate_aspeed_adc_engine;
