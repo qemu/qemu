@@ -209,6 +209,9 @@ static inline void begin_parallel_context(CPUState *cs)
  */
 void init_main_thread(CPUState *cs, struct image_info *info);
 
+/* Clone cpu state */
+CPUArchState *cpu_copy(CPUArchState *env);
+
 /*
  * Include target-specific struct and function definitions;
  * they may need access to the target-independent structures
