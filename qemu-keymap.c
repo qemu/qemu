@@ -11,6 +11,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/notify.h"
+#include "standard-headers/linux/input-event-codes.h"
 #include "ui/input.h"
 
 #include <xkbcommon/xkbcommon.h>
@@ -32,19 +33,17 @@ static FILE *outfile;
 
 /* ------------------------------------------------------------------------ */
 
-static uint32_t qcode_to_number(uint32_t qcode)
+static uint32_t linux_to_number(uint32_t lnx)
 {
-    KeyValue keyvalue;
     uint32_t number;
 
-    keyvalue.type = KEY_VALUE_KIND_QCODE;
-    keyvalue.u.qcode.data = qcode;
-    number = qemu_input_key_value_to_number(&keyvalue);
+    assert(lnx < qemu_input_map_linux_to_qnum_len);
+    number = qemu_input_map_linux_to_qnum[lnx];
     assert(number != 0);
     return number;
 }
 
-static void print_sym(xkb_keysym_t sym, uint32_t qcode, const char *mod)
+static void print_sym(xkb_keysym_t sym, uint32_t lnx, const char *mod)
 {
     char name[64];
 
@@ -54,7 +53,7 @@ static void print_sym(xkb_keysym_t sym, uint32_t qcode, const char *mod)
     xkb_keysym_get_name(sym, name, sizeof(name));
 
     /* TODO: make ui/keymap.c parser accept QKeyCode names */
-    fprintf(outfile, "%s 0x%02x%s\n", name, qcode_to_number(qcode), mod);
+    fprintf(outfile, "%s 0x%02x%s\n", name, linux_to_number(lnx), mod);
 }
 
 static void walk_map(struct xkb_keymap *map, xkb_keycode_t code, void *data)
@@ -84,37 +83,37 @@ static void walk_map(struct xkb_keymap *map, xkb_keycode_t code, void *data)
     fprintf(outfile, "# evdev %d (0x%x), QKeyCode \"%s\", number 0x%x\n",
             evdev, evdev,
             QKeyCode_str(qcode),
-            qcode_to_number(qcode));
+            linux_to_number(evdev));
 
     /*
      * check which modifier states generate which keysyms
      */
     xkb_state_update_mask(state,  0, 0, 0,  0, 0, 0);
     kbase = xkb_state_key_get_one_sym(state, code);
-    print_sym(kbase, qcode, "");
+    print_sym(kbase, evdev, "");
 
     xkb_state_update_mask(state,  0, 0, numlock,  0, 0, 0);
     knumlock = xkb_state_key_get_one_sym(state, code);
     if (kbase != knumlock) {
-        print_sym(knumlock, qcode, " numlock");
+        print_sym(knumlock, evdev, " numlock");
     }
 
     xkb_state_update_mask(state,  shift, 0, 0,  0, 0, 0);
     kshift = xkb_state_key_get_one_sym(state, code);
     if (kbase != kshift && knumlock != kshift) {
-        print_sym(kshift, qcode, " shift");
+        print_sym(kshift, evdev, " shift");
     }
 
     xkb_state_update_mask(state,  altgr, 0, 0,  0, 0, 0);
     kaltgr = xkb_state_key_get_one_sym(state, code);
     if (kbase != kaltgr) {
-        print_sym(kaltgr, qcode, " altgr");
+        print_sym(kaltgr, evdev, " altgr");
     }
 
     xkb_state_update_mask(state,  altgr | shift, 0, 0,  0, 0, 0);
     kaltgrshift = xkb_state_key_get_one_sym(state, code);
     if (kshift != kaltgrshift && kaltgr != kaltgrshift) {
-        print_sym(kaltgrshift, qcode, " shift altgr");
+        print_sym(kaltgrshift, evdev, " shift altgr");
     }
 }
 
@@ -251,16 +250,16 @@ int main(int argc, char *argv[])
             "# keysyms.  So append them here.\n"
             "#\n"
             "\n");
-    print_sym(XKB_KEY_Print,            Q_KEY_CODE_SYSRQ,      "");
-    print_sym(XKB_KEY_Sys_Req,          Q_KEY_CODE_SYSRQ,      "");
-    print_sym(XKB_KEY_Execute,          Q_KEY_CODE_SYSRQ,      "");
+    print_sym(XKB_KEY_Print,            KEY_SYSRQ,    "");
+    print_sym(XKB_KEY_Sys_Req,          KEY_SYSRQ,    "");
+    print_sym(XKB_KEY_Execute,          KEY_SYSRQ,    "");
 
-    print_sym(XKB_KEY_KP_Decimal,       Q_KEY_CODE_KP_DECIMAL, " numlock");
-    print_sym(XKB_KEY_KP_Separator,     Q_KEY_CODE_KP_DECIMAL, " numlock");
+    print_sym(XKB_KEY_KP_Decimal,       KEY_KPDOT,    " numlock");
+    print_sym(XKB_KEY_KP_Separator,     KEY_KPDOT,    " numlock");
 
-    print_sym(XKB_KEY_Alt_R,            Q_KEY_CODE_ALT_R,      "");
-    print_sym(XKB_KEY_ISO_Level3_Shift, Q_KEY_CODE_ALT_R,      "");
-    print_sym(XKB_KEY_Mode_switch,      Q_KEY_CODE_ALT_R,      "");
+    print_sym(XKB_KEY_Alt_R,            KEY_RIGHTALT, "");
+    print_sym(XKB_KEY_ISO_Level3_Shift, KEY_RIGHTALT, "");
+    print_sym(XKB_KEY_Mode_switch,      KEY_RIGHTALT, "");
 
     fprintf(outfile,
             "\n"

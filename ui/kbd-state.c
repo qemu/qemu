@@ -5,6 +5,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitmap.h"
+#include "standard-headers/linux/input-event-codes.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "ui/kbd-state.h"
@@ -12,15 +13,15 @@
 struct QKbdState {
     QemuConsole *con;
     int key_delay_ms;
-    DECLARE_BITMAP(keys, Q_KEY_CODE__MAX);
+    DECLARE_BITMAP(keys, KEY_CNT);
     DECLARE_BITMAP(mods, QKBD_MOD__MAX);
 };
 
 static void qkbd_state_modifier_update(QKbdState *kbd,
-                                      QKeyCode qcode1, QKeyCode qcode2,
+                                       unsigned int lnx1, unsigned int lnx2,
                                       QKbdModifier mod)
 {
-    if (test_bit(qcode1, kbd->keys) || test_bit(qcode2, kbd->keys)) {
+    if (test_bit(lnx1, kbd->keys) || test_bit(lnx2, kbd->keys)) {
         set_bit(mod, kbd->mods);
     } else {
         clear_bit(mod, kbd->mods);
@@ -32,14 +33,20 @@ bool qkbd_state_modifier_get(QKbdState *kbd, QKbdModifier mod)
     return test_bit(mod, kbd->mods);
 }
 
-bool qkbd_state_key_get(QKbdState *kbd, QKeyCode qcode)
+bool qkbd_state_key_get(QKbdState *kbd, unsigned int lnx)
 {
-    return test_bit(qcode, kbd->keys);
+    return lnx < KEY_CNT && test_bit(lnx, kbd->keys);
 }
 
-void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down)
+void qkbd_state_key_event(QKbdState *kbd, unsigned int lnx, bool down)
 {
-    bool state = test_bit(qcode, kbd->keys);
+    bool state;
+
+    if (lnx >= KEY_CNT) {
+        return;
+    }
+
+    state = test_bit(lnx, kbd->keys);
 
     if (down == false  /* got key-up event   */ &&
         state == false /* key is not pressed */) {
@@ -59,35 +66,35 @@ void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down)
 
     /* update key and modifier state */
     if (down) {
-        set_bit(qcode, kbd->keys);
+        set_bit(lnx, kbd->keys);
     } else {
-        clear_bit(qcode, kbd->keys);
+        clear_bit(lnx, kbd->keys);
     }
-    switch (qcode) {
-    case Q_KEY_CODE_SHIFT:
-    case Q_KEY_CODE_SHIFT_R:
-        qkbd_state_modifier_update(kbd, Q_KEY_CODE_SHIFT, Q_KEY_CODE_SHIFT_R,
+    switch (lnx) {
+    case KEY_LEFTSHIFT:
+    case KEY_RIGHTSHIFT:
+        qkbd_state_modifier_update(kbd, KEY_LEFTSHIFT, KEY_RIGHTSHIFT,
                                    QKBD_MOD_SHIFT);
         break;
-    case Q_KEY_CODE_CTRL:
-    case Q_KEY_CODE_CTRL_R:
-        qkbd_state_modifier_update(kbd, Q_KEY_CODE_CTRL, Q_KEY_CODE_CTRL_R,
+    case KEY_LEFTCTRL:
+    case KEY_RIGHTCTRL:
+        qkbd_state_modifier_update(kbd, KEY_LEFTCTRL, KEY_RIGHTCTRL,
                                    QKBD_MOD_CTRL);
         break;
-    case Q_KEY_CODE_ALT:
-        qkbd_state_modifier_update(kbd, Q_KEY_CODE_ALT, Q_KEY_CODE_ALT,
+    case KEY_LEFTALT:
+        qkbd_state_modifier_update(kbd, KEY_LEFTALT, KEY_LEFTALT,
                                    QKBD_MOD_ALT);
         break;
-    case Q_KEY_CODE_ALT_R:
-        qkbd_state_modifier_update(kbd, Q_KEY_CODE_ALT_R, Q_KEY_CODE_ALT_R,
+    case KEY_RIGHTALT:
+        qkbd_state_modifier_update(kbd, KEY_RIGHTALT, KEY_RIGHTALT,
                                    QKBD_MOD_ALTGR);
         break;
-    case Q_KEY_CODE_CAPS_LOCK:
+    case KEY_CAPSLOCK:
         if (down) {
             change_bit(QKBD_MOD_CAPSLOCK, kbd->mods);
         }
         break;
-    case Q_KEY_CODE_NUM_LOCK:
+    case KEY_NUMLOCK:
         if (down) {
             change_bit(QKBD_MOD_NUMLOCK, kbd->mods);
         }
@@ -99,7 +106,7 @@ void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down)
 
     /* send to guest */
     if (qemu_console_is_graphic(kbd->con)) {
-        qemu_input_event_send_key_qcode(kbd->con, qcode, down);
+        qemu_input_event_send_key_linux(kbd->con, lnx, down);
         if (kbd->key_delay_ms) {
             qemu_input_event_send_key_delay(kbd->key_delay_ms);
         }
@@ -108,11 +115,11 @@ void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down)
 
 void qkbd_state_lift_all_keys(QKbdState *kbd)
 {
-    int qcode;
+    unsigned int lnx;
 
-    for (qcode = 0; qcode < Q_KEY_CODE__MAX; qcode++) {
-        if (test_bit(qcode, kbd->keys)) {
-            qkbd_state_key_event(kbd, qcode, false);
+    for (lnx = 0; lnx < KEY_CNT; lnx++) {
+        if (test_bit(lnx, kbd->keys)) {
+            qkbd_state_key_event(kbd, lnx, false);
         }
     }
 }

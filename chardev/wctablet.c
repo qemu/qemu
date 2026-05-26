@@ -146,21 +146,17 @@ static void wctablet_queue_event(TabletChardev *tablet)
 }
 
 static void wctablet_input_event(DeviceState *dev, QemuConsole *src,
-                                InputEvent *evt)
+                                 QemuInputEvent *evt)
 {
     TabletChardev *tablet = (TabletChardev *)dev;
-    InputMoveEvent *move;
-    InputBtnEvent *btn;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
-        tablet->axis[move->axis] = move->value;
+        tablet->axis[evt->abs.axis] = evt->abs.value;
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        tablet->btns[btn->button] = btn->down;
+        tablet->btns[evt->btn.button] = evt->btn.down;
         break;
 
     default:

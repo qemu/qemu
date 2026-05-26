@@ -52,11 +52,13 @@ void qkbd_state_free(QKbdState *kbd);
  * This function takes care to not send suspious events (keyup event
  * for a key not pressed for example).
  *
+ * This function drops events with key codes outside the defined range.
+ *
  * @kbd: state tracker state.
- * @qcode: the key pressed or released.
+ * @lnx: the key pressed or released.
  * @down: true for key down events, false otherwise.
  */
-void qkbd_state_key_event(QKbdState *kbd, QKeyCode qcode, bool down);
+void qkbd_state_key_event(QKbdState *kbd, unsigned int lnx, bool down);
 
 /**
  * qkbd_state_set_delay: set key press delay.
@@ -72,12 +74,12 @@ void qkbd_state_set_delay(QKbdState *kbd, int delay_ms);
 /**
  * qkbd_state_key_get: get key state.
  *
- * Returns true when the key is down.
+ * Returns true when the key code is in the defined range and the key is down.
  *
  * @kbd: state tracker state.
- * @qcode: the key to query.
+ * @lnx: the key to query.
  */
-bool qkbd_state_key_get(QKbdState *kbd, QKeyCode qcode);
+bool qkbd_state_key_get(QKbdState *kbd, unsigned int lnx);
 
 /**
  * qkbd_state_modifier_get: get modifier state.

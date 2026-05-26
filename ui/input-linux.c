@@ -166,8 +166,7 @@ static void input_linux_handle_keyboard(InputLinux *il,
 
         /* send event to guest when grab is active */
         if (il->grab_active && !input_linux_should_skip(il, event)) {
-            int qcode = qemu_input_linux_to_qcode(event->code);
-            qemu_input_event_send_key_qcode(NULL, qcode, event->value);
+            qemu_input_event_send_key_linux(NULL, event->code, event->value);
         }
 
         /* hotkey -> record switch request ... */

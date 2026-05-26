@@ -191,30 +191,14 @@ static int xenfb_send_position(struct XenInput *xenfb,
     return xenfb_kbd_event(xenfb, &event);
 }
 
-/*
- * Send a key event from the client to the guest OS
- * QEMU gives us a QCode.
- * We have to turn this into a Linux Input layer keycode.
- *
- * Wish we could just send scancodes straight to the guest which
- * already has code for dealing with this...
- */
+/* Send a key event from the client to the guest OS */
 static void xenfb_key_event(DeviceState *dev, QemuConsole *src,
-                            InputEvent *evt)
+                            QemuInputEvent *evt)
 {
     struct XenInput *xenfb = (struct XenInput *)dev;
-    InputKeyEvent *key = evt->u.key.data;
-    int qcode = qemu_input_key_value_to_qcode(key->key);
-    int lnx;
 
-    if (qcode < qemu_input_map_qcode_to_linux_len) {
-        lnx = qemu_input_map_qcode_to_linux[qcode];
-
-        if (lnx) {
-            trace_xenfb_key_event(xenfb, lnx, key->down);
-            xenfb_send_key(xenfb, key->down, lnx);
-        }
-    }
+    trace_xenfb_key_event(xenfb, evt->key.key, evt->key.down);
+    xenfb_send_key(xenfb, evt->key.down, evt->key.key);
 }
 
 /*
@@ -227,35 +211,32 @@ static void xenfb_key_event(DeviceState *dev, QemuConsole *src,
  * the button state.
  */
 static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
-                              InputEvent *evt)
+                              QemuInputEvent *evt)
 {
     struct XenInput *xenfb = (struct XenInput *)dev;
-    InputBtnEvent *btn;
-    InputMoveEvent *move;
     QemuConsole *con;
     DisplaySurface *surface;
     int scale;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        switch (btn->button) {
+        switch (evt->btn.button) {
         case INPUT_BUTTON_LEFT:
-            xenfb_send_key(xenfb, btn->down, BTN_LEFT);
+            xenfb_send_key(xenfb, evt->btn.down, BTN_LEFT);
             break;
         case INPUT_BUTTON_RIGHT:
-            xenfb_send_key(xenfb, btn->down, BTN_LEFT + 1);
+            xenfb_send_key(xenfb, evt->btn.down, BTN_LEFT + 1);
             break;
         case INPUT_BUTTON_MIDDLE:
-            xenfb_send_key(xenfb, btn->down, BTN_LEFT + 2);
+            xenfb_send_key(xenfb, evt->btn.down, BTN_LEFT + 2);
             break;
         case INPUT_BUTTON_WHEEL_UP:
-            if (btn->down) {
+            if (evt->btn.down) {
                 xenfb->wheel--;
             }
             break;
         case INPUT_BUTTON_WHEEL_DOWN:
-            if (btn->down) {
+            if (evt->btn.down) {
                 xenfb->wheel++;
             }
             break;
@@ -265,9 +246,8 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
         break;
 
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
         if (xenfb->raw_pointer_wanted) {
-            xenfb->axis[move->axis] = move->value;
+            xenfb->axis[evt->abs.axis] = evt->abs.value;
         } else {
             con = qemu_console_lookup_by_index(0);
             if (!con) {
@@ -275,7 +255,7 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
                 return;
             }
             surface = qemu_console_surface(con);
-            switch (move->axis) {
+            switch (evt->abs.axis) {
             case INPUT_AXIS_X:
                 scale = surface_width(surface) - 1;
                 break;
@@ -285,13 +265,12 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
             default:
                 g_assert_not_reached();
             }
-            xenfb->axis[move->axis] = move->value * scale / 0x7fff;
+            xenfb->axis[evt->abs.axis] = evt->abs.value * scale / 0x7fff;
         }
         break;
 
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
-        xenfb->axis[move->axis] += move->value;
+        xenfb->axis[evt->rel.axis] += evt->rel.value;
         break;
 
     default:

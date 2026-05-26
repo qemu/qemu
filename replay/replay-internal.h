@@ -171,11 +171,11 @@ void replay_add_event(ReplayAsyncEventKind event_kind, void *opaque,
 /* Input events */
 
 /*! Saves input event to the log */
-void replay_save_input_event(InputEvent *evt);
+void replay_save_input_event(QemuInputEvent *evt);
 /*! Reads input event from the log */
-InputEvent *replay_read_input_event(void);
+QemuInputEvent *replay_read_input_event(void);
 /*! Adds input event to the queue */
-void replay_add_input_event(struct InputEvent *event);
+void replay_add_input_event(QemuInputEvent *event);
 /*! Adds input sync event to the queue */
 void replay_add_input_sync_event(void);
 

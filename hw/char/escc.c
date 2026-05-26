@@ -30,6 +30,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/char/escc.h"
+#include "standard-headers/linux/input-event-codes.h"
 #include "ui/console.h"
 
 #include "qemu/cutils.h"
@@ -794,20 +795,18 @@ static const VMStateDescription vmstate_escc = {
 };
 
 static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
-                                InputEvent *evt)
+                                QemuInputEvent *evt)
 {
     ESCCChannelState *s = (ESCCChannelState *)dev;
     int qcode, keycode;
-    InputKeyEvent *key;
 
     assert(evt->type == INPUT_EVENT_KIND_KEY);
-    key = evt->u.key.data;
-    qcode = qemu_input_key_value_to_qcode(key->key);
+    qcode = qemu_input_linux_to_qcode(evt->key.key);
     trace_escc_sunkbd_event_in(qcode, QKeyCode_str(qcode),
-                               key->down);
+                               evt->key.down);
 
-    if (qcode == Q_KEY_CODE_CAPS_LOCK) {
-        if (key->down) {
+    if (evt->key.key == KEY_CAPSLOCK) {
+        if (evt->key.down) {
             s->caps_lock_mode ^= 1;
             if (s->caps_lock_mode == 2) {
                 return; /* Drop second press */
@@ -820,8 +819,8 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
         }
     }
 
-    if (qcode == Q_KEY_CODE_NUM_LOCK) {
-        if (key->down) {
+    if (evt->key.key == KEY_NUMLOCK) {
+        if (evt->key.down) {
             s->num_lock_mode ^= 1;
             if (s->num_lock_mode == 2) {
                 return; /* Drop second press */
@@ -834,12 +833,12 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
         }
     }
 
-    if (qcode >= qemu_input_map_qcode_to_sun_len) {
+    if (evt->key.key >= qemu_input_map_linux_to_sun_len) {
         return;
     }
 
-    keycode = qemu_input_map_qcode_to_sun[qcode];
-    if (!key->down) {
+    keycode = qemu_input_map_linux_to_sun[evt->key.key];
+    if (!evt->key.down) {
         keycode |= 0x80;
     }
     trace_escc_sunkbd_event_out(keycode);
@@ -954,11 +953,9 @@ static void handle_kbd_command(ESCCChannelState *s, int val)
 }
 
 static void sunmouse_handle_event(DeviceState *dev, QemuConsole *src,
-                                  InputEvent *evt)
+                                  QemuInputEvent *evt)
 {
     ESCCChannelState *s = (ESCCChannelState *)dev;
-    InputMoveEvent *move;
-    InputBtnEvent *btn;
     static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = 0x4,
         [INPUT_BUTTON_MIDDLE] = 0x2,
@@ -967,21 +964,19 @@ static void sunmouse_handle_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
-        if (move->axis == INPUT_AXIS_X) {
-            s->sunmouse_dx += move->value;
-        } else if (move->axis == INPUT_AXIS_Y) {
-            s->sunmouse_dy -= move->value;
+        if (evt->rel.axis == INPUT_AXIS_X) {
+            s->sunmouse_dx += evt->rel.value;
+        } else if (evt->rel.axis == INPUT_AXIS_Y) {
+            s->sunmouse_dy -= evt->rel.value;
         }
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
-        if (bmap[btn->button]) {
-            if (btn->down) {
-                s->sunmouse_buttons |= bmap[btn->button];
+        if (bmap[evt->btn.button]) {
+            if (evt->btn.down) {
+                s->sunmouse_buttons |= bmap[evt->btn.button];
             } else {
-                s->sunmouse_buttons &= ~bmap[btn->button];
+                s->sunmouse_buttons &= ~bmap[evt->btn.button];
             }
             /* Indicate we have a supported button event */
             s->sunmouse_buttons |= 0x80;

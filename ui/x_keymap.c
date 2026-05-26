@@ -52,11 +52,12 @@ static gboolean check_for_xquartz(Display *dpy)
     return match;
 }
 
-const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
+const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen,
+                                          bool *evdev)
 {
     XkbDescPtr desc;
     const gchar *keycodes = NULL;
-    const guint16 *map;
+    const guint16 *map = NULL;
 
     /* There is no easy way to determine what X11 server
      * and platform & keyboard driver is in use. Thus we
@@ -81,24 +82,26 @@ const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
         XkbFreeKeyboard(desc, XkbGBN_AllComponentsMask, True);
     }
 
+    *maplen = 0;
+    *evdev = false;
+
     if (check_for_xwin(dpy)) {
         trace_xkeymap_keymap("xwin");
-        *maplen = qemu_input_map_xorgxwin_to_qcode_len;
-        map = qemu_input_map_xorgxwin_to_qcode;
+        *maplen = qemu_input_map_xorgxwin_to_linux_len;
+        map = qemu_input_map_xorgxwin_to_linux;
     } else if (check_for_xquartz(dpy)) {
         trace_xkeymap_keymap("xquartz");
-        *maplen = qemu_input_map_xorgxquartz_to_qcode_len;
-        map = qemu_input_map_xorgxquartz_to_qcode;
+        *maplen = qemu_input_map_xorgxquartz_to_linux_len;
+        map = qemu_input_map_xorgxquartz_to_linux;
     } else if ((keycodes && g_str_has_prefix(keycodes, "evdev")) ||
                (XKeysymToKeycode(dpy, XK_Page_Up) == 0x70)) {
         trace_xkeymap_keymap("evdev");
-        *maplen = qemu_input_map_xorgevdev_to_qcode_len;
-        map = qemu_input_map_xorgevdev_to_qcode;
+        *evdev = true;
     } else if ((keycodes && g_str_has_prefix(keycodes, "xfree86")) ||
                (XKeysymToKeycode(dpy, XK_Page_Up) == 0x63)) {
         trace_xkeymap_keymap("kbd");
-        *maplen = qemu_input_map_xorgkbd_to_qcode_len;
-        map = qemu_input_map_xorgkbd_to_qcode;
+        *maplen = qemu_input_map_xorgkbd_to_linux_len;
+        map = qemu_input_map_xorgkbd_to_linux;
     } else {
         trace_xkeymap_keymap("NULL");
         g_warning("Unknown X11 keycode mapping '%s'.\n"
@@ -110,7 +113,6 @@ const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
                   "  - xprop -root\n"
                   "  - xdpyinfo\n",
                   keycodes ? keycodes : "<null>");
-        map = NULL;
     }
     if (keycodes) {
         XFree((void *)keycodes);
