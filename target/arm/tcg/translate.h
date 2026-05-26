@@ -199,6 +199,8 @@ typedef struct DisasContext {
     uint8_t gm_blocksize;
     /* True if the current insn_start has been updated. */
     bool insn_start_updated;
+    /* FPMR access exception EL or 0 if enabled. */
+    uint8_t fpmr_el;
     /* Offset from VNCR_EL2 when FEAT_NV2 redirects this reg to memory */
     uint32_t nv2_redirect_offset;
 } DisasContext;
@@ -865,10 +867,22 @@ static inline void gen_restore_rmode(TCGv_i32 old, TCGv_ptr fpst)
     static bool trans_##NAME(DisasContext *s, arg_##NAME *a) \
     { return dc_isar_feature(FEAT, s) && FUNC(s, __VA_ARGS__); }
 
+/* For SVE insns which are not valid in Streaming SVE mode */
 #define TRANS_FEAT_NONSTREAMING(NAME, FEAT, FUNC, ...)            \
     static bool trans_##NAME(DisasContext *s, arg_##NAME *a)      \
     {                                                             \
         s->is_nonstreaming = true;                                \
+        return dc_isar_feature(FEAT, s) && FUNC(s, __VA_ARGS__);  \
+    }
+
+/*
+ * For SVE insns which are only valid in Streaming SVE mode when
+ * SME2 is implemented
+ */
+#define TRANS_FEAT_STREAMING_SME2(NAME, FEAT, FUNC, ...)          \
+    static bool trans_##NAME(DisasContext *s, arg_##NAME *a)      \
+    {                                                             \
+        s->is_nonstreaming = !dc_isar_feature(aa64_sme2, s);      \
         return dc_isar_feature(FEAT, s) && FUNC(s, __VA_ARGS__);  \
     }
 

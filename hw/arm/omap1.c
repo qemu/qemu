@@ -25,7 +25,6 @@
 #include "target/arm/cpu.h"
 #include "system/address-spaces.h"
 #include "exec/cpu-common.h"
-#include "hw/core/hw-error.h"
 #include "hw/core/irq.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/boot.h"
@@ -948,8 +947,6 @@ static void omap_pin_cfg_init(MemoryRegion *system_memory,
 static uint64_t omap_id_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
-
     if (size != 4) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: read at offset 0x%" HWADDR_PRIx
                       " with bad width %d\n", __func__, addr, size);
@@ -968,25 +965,10 @@ static uint64_t omap_id_read(void *opaque, hwaddr addr,
         return 0xcafeb574;
 
     case 0xfffed400:    /* JTAG_ID_LSB */
-        switch (s->mpu_model) {
-        case omap310:
-            return 0x03310315;
-        case omap1510:
-            return 0x03310115;
-        default:
-            hw_error("%s: bad mpu model\n", __func__);
-        }
-        break;
+        return 0x03310315; /* omap310 */
 
     case 0xfffed404:    /* JTAG_ID_MSB */
-        switch (s->mpu_model) {
-        case omap310:
-            return 0xfb57402f;
-        case omap1510:
-            return 0xfb47002f;
-        default:
-            hw_error("%s: bad mpu model\n", __func__);
-        }
+        return 0xfb57402f; /* omap310 */
         break;
     }
 
@@ -1022,11 +1004,6 @@ static void omap_id_init(MemoryRegion *memory, struct omap_mpu_state_s *mpu)
     memory_region_init_alias(&mpu->id_iomem_ed4, NULL, "omap-id-ed4", &mpu->id_iomem,
                              0xfffed400, 0x100);
     memory_region_add_subregion(memory, 0xfffed400, &mpu->id_iomem_ed4);
-    if (!cpu_is_omap15xx(mpu)) {
-        memory_region_init_alias(&mpu->id_iomem_ed4, NULL, "omap-id-e20",
-                                 &mpu->id_iomem, 0xfffe2000, 0x800);
-        memory_region_add_subregion(memory, 0xfffe2000, &mpu->id_iomem_e20);
-    }
 }
 
 /* MPUI Control (Dummy) */
@@ -1869,7 +1846,6 @@ struct omap_mpuio_s {
     qemu_irq kbd_irq;
     qemu_irq *in;
     qemu_irq handler[16];
-    qemu_irq wakeup;
     MemoryRegion iomem;
 
     uint16_t inputs;
@@ -2097,14 +2073,13 @@ static void omap_mpuio_onoff(void *opaque, int line, int on)
 
 static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
                 hwaddr base,
-                qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
+                qemu_irq kbd_int, qemu_irq gpio_int,
                 omap_clk clk)
 {
     struct omap_mpuio_s *s = g_new0(struct omap_mpuio_s, 1);
 
     s->irq = gpio_int;
     s->kbd_irq = kbd_int;
-    s->wakeup = wakeup;
     s->in = qemu_allocate_irqs(omap_mpuio_set, s, 16);
     omap_mpuio_reset(s);
 
@@ -2115,31 +2090,6 @@ static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
     omap_clk_adduser(clk, qemu_allocate_irq(omap_mpuio_onoff, s, 0));
 
     return s;
-}
-
-qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s)
-{
-    return s->in;
-}
-
-void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler)
-{
-    if (line >= 16 || line < 0)
-        hw_error("%s: No GPIO line %i\n", __func__, line);
-    s->handler[line] = handler;
-}
-
-void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down)
-{
-    if (row >= 5 || row < 0)
-        hw_error("%s: No key %i-%i\n", __func__, col, row);
-
-    if (down)
-        s->buttons[row] |= 1 << col;
-    else
-        s->buttons[row] &= ~(1 << col);
-
-    omap_mpuio_kbd_update(s);
 }
 
 /* MicroWire Interface */
@@ -3741,16 +3691,6 @@ static void omap_setup_dsp_mapping(MemoryRegion *system_memory,
     }
 }
 
-void omap_mpu_wakeup(void *opaque, int irq, int req)
-{
-    struct omap_mpu_state_s *mpu = opaque;
-    CPUState *cpu = CPU(mpu->cpu);
-
-    if (cpu->halted) {
-        cpu_interrupt(cpu, CPU_INTERRUPT_EXITTB);
-    }
-}
-
 static const struct dma_irq_map omap1_dma_irq_map[] = {
     { 0, OMAP_INT_DMA_CH0_6 },
     { 0, OMAP_INT_DMA_CH1_7 },
@@ -3758,16 +3698,6 @@ static const struct dma_irq_map omap1_dma_irq_map[] = {
     { 0, OMAP_INT_DMA_CH3 },
     { 0, OMAP_INT_DMA_CH4 },
     { 0, OMAP_INT_DMA_CH5 },
-    { 1, OMAP_INT_1610_DMA_CH6 },
-    { 1, OMAP_INT_1610_DMA_CH7 },
-    { 1, OMAP_INT_1610_DMA_CH8 },
-    { 1, OMAP_INT_1610_DMA_CH9 },
-    { 1, OMAP_INT_1610_DMA_CH10 },
-    { 1, OMAP_INT_1610_DMA_CH11 },
-    { 1, OMAP_INT_1610_DMA_CH12 },
-    { 1, OMAP_INT_1610_DMA_CH13 },
-    { 1, OMAP_INT_1610_DMA_CH14 },
-    { 1, OMAP_INT_1610_DMA_CH15 }
 };
 
 /* DMA ports for OMAP1 */
@@ -3819,12 +3749,9 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     MemoryRegion *system_memory = get_system_memory();
 
     /* Core */
-    s->mpu_model = omap310;
     s->cpu = ARM_CPU(cpu_create(cpu_type));
     s->sdram_size = memory_region_size(dram);
     s->sram_size = OMAP15XX_SRAM_SIZE;
-
-    s->wakeup = qemu_allocate_irq(omap_mpu_wakeup, s, 0);
 
     /* Clocks */
     omap_clk_init(s);
@@ -3862,7 +3789,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     }
     s->dma = omap_dma_init(0xfffed800, dma_irqs, system_memory,
                            qdev_get_gpio_in(s->ih[0], OMAP_INT_DMA_LCD),
-                           s, omap_findclk(s, "dma_ck"), omap_dma_3_1);
+                           s, omap_findclk(s, "dma_ck"));
 
     s->port[emiff    ].addr_valid = omap_validate_emiff_addr;
     s->port[emifs    ].addr_valid = omap_validate_emifs_addr;
@@ -3971,10 +3898,9 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     s->mpuio = omap_mpuio_init(system_memory, 0xfffb5000,
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_KEYBOARD),
                                qdev_get_gpio_in(s->ih[1], OMAP_INT_MPUIO),
-                               s->wakeup, omap_findclk(s, "clk32-kHz"));
+                               omap_findclk(s, "clk32-kHz"));
 
     s->gpio = qdev_new("omap-gpio");
-    qdev_prop_set_int32(s->gpio, "mpu_model", s->mpu_model);
     omap_gpio_set_clk(OMAP1_GPIO(s->gpio), omap_findclk(s, "arm_gpio_ck"));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(s->gpio), &error_fatal);
     sysbus_connect_irq(SYS_BUS_DEVICE(s->gpio), 0,

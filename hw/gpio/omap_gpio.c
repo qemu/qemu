@@ -45,7 +45,6 @@ struct Omap1GpioState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    int mpu_model;
     void *clk;
     struct omap_gpio_s omap1;
 };
@@ -228,17 +227,12 @@ void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk)
     gpio->clk = clk;
 }
 
-static const Property omap_gpio_properties[] = {
-    DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
-};
-
 static void omap_gpio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = omap_gpio_realize;
     device_class_set_legacy_reset(dc, omap_gpif_reset);
-    device_class_set_props(dc, omap_gpio_properties);
     /* Reason: pointer property "clk" */
     dc->user_creatable = false;
 }

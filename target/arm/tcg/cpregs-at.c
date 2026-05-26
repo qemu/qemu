@@ -31,17 +31,17 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     bool format64 = false;
     ARMMMUFaultInfo fi = {};
     GetPhysAddrResult res = {};
-    bool ret = get_phys_addr_for_at(env, value, prot_check,
-                                    mmu_idx, ss, &res, &fi);
+    bool ok = get_phys_addr_for_at(env, value, prot_check,
+                                   mmu_idx, ss, &res, &fi);
 
     /*
      * ATS operations only do S1 or S1+S2 translations, so we never
      * have to deal with the ARMCacheAttrs format for S2 only.
      * (Note that res fields are only valid on ptw success.)
      */
-    assert(ret || !res.cacheattrs.is_s2_format);
+    assert(!ok || !res.cacheattrs.is_s2_format);
 
-    if (ret) {
+    if (!ok) {
         /*
          * Some kinds of translation fault must cause exceptions rather
          * than being reported in the PAR.
@@ -144,7 +144,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
     if (format64) {
         /* Create a 64-bit PAR */
         par64 = (1 << 11); /* LPAE bit always set */
-        if (!ret) {
+        if (ok) {
             par64 |= res.f.phys_addr & ~0xfffULL;
             if (!res.f.attrs.secure) {
                 par64 |= (1 << 9); /* NS */
@@ -169,7 +169,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
          * translation table format (with WnR always clear).
          * Convert it to a 32-bit PAR.
          */
-        if (!ret) {
+        if (ok) {
             /* We do not set any attribute bits in the PAR */
             if (res.f.lg_page_size == 24
                 && arm_feature(env, ARM_FEATURE_V7)) {
