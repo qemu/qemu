@@ -848,7 +848,7 @@ static bool pgb_try_mmap_set(const PGBAddrs *ga, uintptr_t base, uintptr_t brk)
  * pgb_addr_set:
  * @ga: output set of guest addrs
  * @guest_loaddr: guest image low address
- * @guest_loaddr: guest image high address
+ * @guest_hiaddr: guest image high address
  * @identity: create for identity mapping
  *
  * Fill in @ga with the image, COMMPAGE and NULL page.
