@@ -98,7 +98,7 @@ static void parse_hexstr(void *dest, char *src, int len)
     uint8_t *data = dest;
     size_t i;
 
-    for (i = 0; i < len; i += 2) {
+    for (i = 0; i + 1 < len; i += 2) {
         *(data++) =
             parse_hexchar(src[i]) << 4 |
             parse_hexchar(src[i + 1]);
