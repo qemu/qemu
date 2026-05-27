@@ -941,7 +941,7 @@ static int vtd_ce_get_pasid_entry(IntelIOMMUState *s, VTDContextEntry *ce,
     dma_addr_t pasid_dir_base;
 
     if (pasid == PCI_NO_PASID) {
-        pasid = PASID_0;
+        pasid = IOMMU_NO_PASID;
     }
     pasid_dir_base = VTD_CE_GET_PASID_DIR_TABLE(ce);
     return vtd_get_pe_from_pasid_table(s, pasid_dir_base, pasid, pe);
@@ -958,7 +958,7 @@ static int vtd_ce_get_pasid_fpd(IntelIOMMUState *s,
     VTDPASIDEntry pe;
 
     if (pasid == PCI_NO_PASID) {
-        pasid = PASID_0;
+        pasid = IOMMU_NO_PASID;
     }
     pasid_dir_base = VTD_CE_GET_PASID_DIR_TABLE(ce);
 
@@ -1501,9 +1501,9 @@ static int vtd_ce_pasid_0_check(IntelIOMMUState *s, VTDContextEntry *ce)
 
     /*
      * Make sure in Scalable Mode, a present context entry
-     * has valid pasid entry setting at PASID_0.
+     * has valid pasid entry setting at IOMMU_NO_PASID.
      */
-    return vtd_ce_get_pasid_entry(s, ce, &pe, PASID_0);
+    return vtd_ce_get_pasid_entry(s, ce, &pe, IOMMU_NO_PASID);
 }
 
 /* Map a device to its corresponding domain (context-entry) */
@@ -1564,7 +1564,7 @@ int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
         }
     } else {
         /*
-         * Check if the programming of pasid setting of PASID_0
+         * Check if the programming of pasid setting of IOMMU_NO_PASID
          * is valid, and thus avoids to check pasid entry fetching
          * result in future helper function calling.
          */
@@ -2123,7 +2123,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     vtd_iommu_lock(s);
 
     if (pasid == PCI_NO_PASID && s->root_scalable) {
-        pasid = PASID_0;
+        pasid = IOMMU_NO_PASID;
     }
 
     /* Try to fetch pte from IOTLB */
@@ -2488,7 +2488,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 }
 
 /*
- * There is no pasid field in iotlb invalidation descriptor, so PCI_NO_PASID
+ * There is no pasid field in iotlb invalidation descriptor, so IOMMU_NO_PASID
  * is passed as parameter. Piotlb invalidation supports pasid, pasid in its
  * descriptor is passed which should not be PCI_NO_PASID.
  */
@@ -2509,10 +2509,10 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
              * In legacy mode, vtd_as->pasid == pasid is always true.
              * In scalable mode, for vtd address space backing a PCI
              * device without pasid, needs to compare pasid with
-             * PASID_0 of this device.
+             * IOMMU_NO_PASID of this device.
              */
             if (!(vtd_as->pasid == pasid ||
-                  (vtd_as->pasid == PCI_NO_PASID && pasid == PASID_0))) {
+                  (vtd_as->pasid == PCI_NO_PASID && pasid == IOMMU_NO_PASID))) {
                 continue;
             }
 
@@ -2564,7 +2564,7 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
     vtd_iommu_unlock(s);
-    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, PCI_NO_PASID);
+    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, IOMMU_NO_PASID);
 }
 
 /* Flush IOTLB
@@ -3023,7 +3023,7 @@ static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
             domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            if ((vtd_as->pasid != PCI_NO_PASID || pasid != PASID_0) &&
+            if ((vtd_as->pasid != PCI_NO_PASID || pasid != IOMMU_NO_PASID) &&
                 vtd_as->pasid != pasid) {
                 continue;
             }
