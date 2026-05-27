@@ -2109,6 +2109,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     bool is_fpd_set = false;
     bool reads = true;
     bool writes = true;
+    bool is_pasid = pasid != PCI_NO_PASID;
     uint8_t access_flags, pgtt;
     VTDIOTLBEntry *iotlb_entry;
     uint64_t xlat, size;
@@ -2235,7 +2236,7 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     if (ret_fr) {
         if (!vtd_is_recoverable_fault(-ret_fr, iommu_idx)) {
             vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
-                            addr, is_write, pasid != PCI_NO_PASID, pasid);
+                            addr, is_write, is_pasid, pasid);
         }
         goto error;
     }
