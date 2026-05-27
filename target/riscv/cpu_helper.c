@@ -1370,6 +1370,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     target_ulong pte;
     hwaddr pte_addr;
     const hwaddr base_root = base;
+    const bool be = mo_endian_env(env) == MO_BE;
     int i;
 
  restart:
@@ -1418,9 +1419,11 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         }
 
         if (riscv_cpu_mxl(env) == MXL_RV32) {
-            pte = address_space_ldl_le(cs->as, pte_addr, attrs, &res);
+            pte = be ? address_space_ldl_be(cs->as, pte_addr, attrs, &res)
+                     : address_space_ldl_le(cs->as, pte_addr, attrs, &res);
         } else {
-            pte = address_space_ldq_le(cs->as, pte_addr, attrs, &res);
+            pte = be ? address_space_ldq_be(cs->as, pte_addr, attrs, &res)
+                     : address_space_ldq_le(cs->as, pte_addr, attrs, &res);
         }
 
         if (res != MEMTX_OK) {
@@ -1679,15 +1682,15 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         uint64_t old_pte;
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
-            uint32_t cmp = cpu_to_le32(pte);
-            uint32_t val = cpu_to_le32(updated_pte);
+            uint32_t cmp = be ? cpu_to_be32(pte) : cpu_to_le32(pte);
+            uint32_t val = be ? cpu_to_be32(updated_pte) : cpu_to_le32(updated_pte);
             old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, cmp, val);
-            old_pte = le32_to_cpu(old_pte);
+            old_pte = be ? be32_to_cpu(old_pte) : le32_to_cpu(old_pte);
         } else {
-            uint64_t cmp = cpu_to_le64(pte);
-            uint64_t val = cpu_to_le64(updated_pte);
+            uint64_t cmp = be ? cpu_to_be64(pte) : cpu_to_le64(pte);
+            uint64_t val = be ? cpu_to_be64(updated_pte) : cpu_to_le64(updated_pte);
             old_pte = qatomic_cmpxchg((uint64_t *)pte_pa, cmp, val);
-            old_pte = le64_to_cpu(old_pte);
+            old_pte = be ? be64_to_cpu(old_pte) : le64_to_cpu(old_pte);
         }
         if (old_pte != pte) {
             goto restart;
