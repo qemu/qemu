@@ -454,40 +454,36 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                uint64_t kernel_entry,
                                uint64_t fdt_load_addr)
 {
-    int i;
     const bool rv32 = riscv_is_32bit(harts);
     uint32_t reset_vec[CODE_WORDS + DATA_WORDS];
 
-    /* .text */
-    reset_vec[0] = 0x00000297;                  /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
-    reset_vec[1] = 0x02828613;                  /*     addi   a2, t0, %pcrel_lo(1b) */
+    /* .text (RISC-V instructions are always little-endian) */
+    reset_vec[0] = const_le32(0x00000297);      /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
+    reset_vec[1] = const_le32(0x02828613);      /*     addi   a2, t0, %pcrel_lo(1b) */
+    reset_vec[2] = const_le32(0xf1402573);      /*     csrr   a0, mhartid  */
     if (harts->harts[0].cfg.ext_zicsr) {
-        reset_vec[2] = 0xf1402573;              /*     csrr   a0, mhartid  */
+        reset_vec[2] = const_le32(0xf1402573);  /*     csrr   a0, mhartid  */
     } else {
         /*
          * The Zicsr extension has been disabled, so let's ensure we don't
          * run the CSR instruction. Let's fill the address with a non
          * compressed nop.
          */
-        reset_vec[2] = 0x00000013;              /*     addi   x0, x0, 0 */
+        reset_vec[2] = const_le32(0x00000013);  /*     addi   x0, x0, 0 */
     }
     if (rv32) {
-        reset_vec[3] = 0x0202a583;              /*     lw     a1, 32(t0) */
-        reset_vec[4] = 0x0182a283;              /*     lw     t0, 24(t0) */
+        reset_vec[3] = const_le32(0x0202a583);  /*     lw     a1, 32(t0) */
+        reset_vec[4] = const_le32(0x0182a283);  /*     lw     t0, 24(t0) */
     } else {
-        reset_vec[3] = 0x0202b583;              /*     ld     a1, 32(t0) */
-        reset_vec[4] = 0x0182b283;              /*     ld     t0, 24(t0) */
+        reset_vec[3] = const_le32(0x0202b583);  /*     ld     a1, 32(t0) */
+        reset_vec[4] = const_le32(0x0182b283);  /*     ld     t0, 24(t0) */
     }
-    reset_vec[5] = 0x00028067;                  /*     jr     t0 */
+    reset_vec[5] = const_le32(0x00028067);      /*     jr     t0 */
 
     /* .data */
-    stq_p(&reset_vec[6], start_addr);           /* start:       .dword */
-    stq_p(&reset_vec[8], fdt_load_addr);        /* fdt_laddr:   .dword */
+    stq_le_p(&reset_vec[6], start_addr);        /* start:       .dword */
+    stq_le_p(&reset_vec[8], fdt_load_addr);     /* fdt_laddr:   .dword */
 
-    /* copy in the reset vector in little_endian byte order */
-    for (i = 0; i < ARRAY_SIZE(reset_vec); i++) {
-        reset_vec[i] = cpu_to_le32(reset_vec[i]);
-    }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
                           rom_base, &address_space_memory);
     riscv_rom_copy_firmware_info(machine, harts,
