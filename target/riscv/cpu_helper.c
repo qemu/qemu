@@ -1675,16 +1675,18 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
             return TRANSLATE_FAIL;
         }
 
-        target_ulong *pte_pa = qemu_map_ram_ptr(mr->ram_block, addr1);
-        target_ulong old_pte;
+        void *pte_pa = qemu_map_ram_ptr(mr->ram_block, addr1);
+        uint64_t old_pte;
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
-            old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, cpu_to_le32(pte),
-                                      cpu_to_le32(updated_pte));
+            uint32_t cmp = cpu_to_le32(pte);
+            uint32_t val = cpu_to_le32(updated_pte);
+            old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, cmp, val);
             old_pte = le32_to_cpu(old_pte);
         } else {
-            old_pte = qatomic_cmpxchg(pte_pa, cpu_to_le64(pte),
-                                      cpu_to_le64(updated_pte));
+            uint64_t cmp = cpu_to_le64(pte);
+            uint64_t val = cpu_to_le64(updated_pte);
+            old_pte = qatomic_cmpxchg((uint64_t *)pte_pa, cmp, val);
             old_pte = le64_to_cpu(old_pte);
         }
         if (old_pte != pte) {
