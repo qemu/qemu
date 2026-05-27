@@ -27,6 +27,8 @@ enum {
 	MSHV_PT_BIT_X2APIC,
 	MSHV_PT_BIT_GPA_SUPER_PAGES,
 	MSHV_PT_BIT_CPU_AND_XSAVE_FEATURES,
+	MSHV_PT_BIT_NESTED_VIRTUALIZATION,
+	MSHV_PT_BIT_SMT_ENABLED_GUEST,
 	MSHV_PT_BIT_COUNT,
 };
 
@@ -355,7 +357,7 @@ struct mshv_vtl_sint_post_msg {
 
 struct mshv_vtl_ram_disposition {
 	__u64 start_pfn;
-	__u64 last_pfn;
+	__u64 last_pfn; /* last_pfn is excluded from the range [start_pfn, last_pfn) */
 };
 
 struct mshv_vtl_set_poll_file {

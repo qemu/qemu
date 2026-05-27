@@ -468,21 +468,6 @@ no_mmap:
     return ret;
 }
 
-void vfio_region_unmap(VFIORegion *region)
-{
-    int i;
-
-    if (!region->mem) {
-        return;
-    }
-
-    for (i = 0; i < region->nr_mmaps; i++) {
-        if (region->mmaps[i].mmap) {
-            vfio_subregion_unmap(region, i);
-        }
-    }
-}
-
 void vfio_region_exit(VFIORegion *region)
 {
     int i;

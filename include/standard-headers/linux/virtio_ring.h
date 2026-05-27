@@ -1,5 +1,7 @@
 #ifndef _LINUX_VIRTIO_RING_H
 #define _LINUX_VIRTIO_RING_H
+
+#define VIRTIO_RING_NO_LEGACY
 /* An interface for efficient virtio implementation, currently for use by KVM,
  * but hopefully others soon.  Do NOT change this since it will
  * break existing servers and clients.
@@ -31,7 +33,6 @@
  * SUCH DAMAGE.
  *
  * Copyright Rusty Russell IBM Corporation 2007. */
-#include <stdint.h>
 #include "standard-headers/linux/types.h"
 #include "standard-headers/linux/virtio_types.h"
 
@@ -200,7 +201,7 @@ static inline void vring_init(struct vring *vr, unsigned int num, void *p,
 	vr->num = num;
 	vr->desc = p;
 	vr->avail = (struct vring_avail *)((char *)p + num * sizeof(struct vring_desc));
-	vr->used = (void *)(((uintptr_t)&vr->avail->ring[num] + sizeof(__virtio16)
+	vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + sizeof(__virtio16)
 		+ align-1) & ~(align - 1));
 }
 
