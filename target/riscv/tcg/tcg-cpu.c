@@ -848,6 +848,16 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
                                      riscv_cpu_is_32bit(cpu)));
         }
     }
+
+    if (cpu->cfg.ext_svnapot && cpu->cfg.max_satp_mode < VM_1_10_SV39) {
+        cpu->cfg.ext_svnapot = false;
+        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_svnapot))) {
+            warn_report("svnapot requires at least satp sv39, "
+                        "current satp mode: %s",
+                        satp_mode_str(cpu->cfg.max_satp_mode,
+                                      riscv_cpu_is_32bit(cpu)));
+        }
+    }
 #endif
     /*
      * Disable isa extensions based on priv spec after we
