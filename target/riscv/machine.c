@@ -22,7 +22,8 @@
 #include "system/kvm.h"
 #include "migration/cpu.h"
 #include "exec/icount.h"
-#include "debug.h"
+#include "target/riscv/debug.h"
+#include "hw/riscv/machines-qom.h"
 
 static bool pmp_needed(void *opaque)
 {
@@ -521,4 +522,20 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_mseccfg,
         NULL
     }
+};
+
+const InterfaceInfo riscv32_machine_interfaces[] = {
+    { TYPE_TARGET_RISCV32_MACHINE },
+    { }
+};
+
+const InterfaceInfo riscv64_machine_interfaces[] = {
+    { TYPE_TARGET_RISCV64_MACHINE },
+    { }
+};
+
+const InterfaceInfo riscv32_64_machine_interfaces[] = {
+    { TYPE_TARGET_RISCV32_MACHINE },
+    { TYPE_TARGET_RISCV64_MACHINE },
+    { }
 };

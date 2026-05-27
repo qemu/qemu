@@ -15,7 +15,7 @@ static const char nop_func[] = {
     0x1e, 0xff, 0x2f, 0xe1,     /* bx lr */
 #elif defined(__riscv)
     0x67, 0x80, 0x00, 0x00,     /* ret */
-#elif defined(__s390__)
+#elif defined(__s390x__)
     0x07, 0xfe,                 /* br %r14 */
 #elif defined(__i386__) || defined(__x86_64__)
     0xc3,                       /* ret */
