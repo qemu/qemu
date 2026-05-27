@@ -1667,27 +1667,30 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         hwaddr l = sxlen_bytes, addr1;
         mr = address_space_translate(cs->as, pte_addr, &addr1, &l,
                                      false, MEMTXATTRS_UNSPECIFIED);
-        if (memory_region_is_ram(mr)) {
-            target_ulong *pte_pa = qemu_map_ram_ptr(mr->ram_block, addr1);
-            target_ulong old_pte;
-            if (riscv_cpu_sxl(env) == MXL_RV32) {
-                old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, cpu_to_le32(pte), cpu_to_le32(updated_pte));
-                old_pte = le32_to_cpu(old_pte);
-            } else {
-                old_pte = qatomic_cmpxchg(pte_pa, cpu_to_le64(pte), cpu_to_le64(updated_pte));
-                old_pte = le64_to_cpu(old_pte);
-            }
-            if (old_pte != pte) {
-                goto restart;
-            }
-            pte = updated_pte;
-        } else {
+        if (!memory_region_is_ram(mr)) {
             /*
              * Misconfigured PTE in ROM (AD bits are not preset) or
              * PTE is in IO space and can't be updated atomically.
              */
             return TRANSLATE_FAIL;
         }
+
+        target_ulong *pte_pa = qemu_map_ram_ptr(mr->ram_block, addr1);
+        target_ulong old_pte;
+
+        if (riscv_cpu_sxl(env) == MXL_RV32) {
+            old_pte = qatomic_cmpxchg((uint32_t *)pte_pa, cpu_to_le32(pte),
+                                      cpu_to_le32(updated_pte));
+            old_pte = le32_to_cpu(old_pte);
+        } else {
+            old_pte = qatomic_cmpxchg(pte_pa, cpu_to_le64(pte),
+                                      cpu_to_le64(updated_pte));
+            old_pte = le64_to_cpu(old_pte);
+        }
+        if (old_pte != pte) {
+            goto restart;
+        }
+        pte = updated_pte;
     }
 
     /* For superpage mappings, make a fake leaf PTE for the TLB's benefit. */
