@@ -207,7 +207,7 @@ static void vtd_flush_host_piotlb_locked(gpointer key, gpointer value,
         return;
     }
 
-    assert(vtd_as->pasid == PCI_NO_PASID);
+    assert(vtd_as->pasid == IOMMU_NO_PASID);
 
     /* Nothing to do if there is no first stage HWPT attached */
     if (!pc_entry->valid ||
