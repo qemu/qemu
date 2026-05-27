@@ -831,11 +831,8 @@ static void riscv_cpu_disas_set_info(const CPUState *s, disassemble_info *info)
     info->target_info = &cpu->cfg;
 
     /*
-     * A couple of bits in MSTATUS set the endianness:
-     *  - MSTATUS_UBE (User-mode),
-     *  - MSTATUS_SBE (Supervisor-mode),
-     *  - MSTATUS_MBE (Machine-mode)
-     * but we don't implement that yet.
+     * RISC-V instructions are always little-endian, regardless of the
+     * data endianness configured via MSTATUS UBE/SBE/MBE bits.
      */
     info->endian = BFD_ENDIAN_LITTLE;
 
