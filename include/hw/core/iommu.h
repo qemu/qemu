@@ -20,9 +20,20 @@
 enum viommu_flags {
     /* vIOMMU needs nesting parent HWPT to create nested HWPT */
     VIOMMU_FLAG_WANT_NESTING_PARENT = BIT_ULL(0),
+    /*
+     * vIOMMU supports PASID capability, VFIO checks this flag and synthesize
+     * a PASID capability.
+     */
     VIOMMU_FLAG_PASID_SUPPORTED = BIT_ULL(1),
     /* vIOMMU needs dirty tracking on the nesting parent HWPT for nested use */
     VIOMMU_FLAG_WANT_NESTING_DIRTY_TRACKING = BIT_ULL(2),
+    /*
+     * vIOMMU requests other sub-system like VFIO to create a HWPT that can be
+     * used with PASID attachment. VIOMMU_FLAG_PASID_SUPPORTED can't be used
+     * for this purpose as PASID attachment is needed by VTD IOMMU but not ARM
+     * SMMU.
+     */
+    VIOMMU_FLAG_WANT_PASID_ATTACH = BIT_ULL(3),
 };
 
 /* Host IOMMU quirks. Extracted from host IOMMU capabilities */
