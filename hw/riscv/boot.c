@@ -407,21 +407,31 @@ void riscv_rom_copy_firmware_info(MachineState *machine,
     struct fw_dynamic_info64 dinfo64;
     void *dinfo_ptr = NULL;
     size_t dinfo_len;
+    const bool rv32 = riscv_is_32bit(harts);
+    const bool be = harts->harts[0].cfg.big_endian;
 
-    if (riscv_is_32bit(harts)) {
-        dinfo32.magic = cpu_to_le32(FW_DYNAMIC_INFO_MAGIC_VALUE);
-        dinfo32.version = cpu_to_le32(FW_DYNAMIC_INFO_VERSION);
-        dinfo32.next_mode = cpu_to_le32(FW_DYNAMIC_INFO_NEXT_MODE_S);
-        dinfo32.next_addr = cpu_to_le32(kernel_entry);
+    if (rv32) {
+        dinfo32.magic = be ? cpu_to_be32(FW_DYNAMIC_INFO_MAGIC_VALUE)
+                           : cpu_to_le32(FW_DYNAMIC_INFO_MAGIC_VALUE);
+        dinfo32.version = be ? cpu_to_be32(FW_DYNAMIC_INFO_VERSION)
+                             : cpu_to_le32(FW_DYNAMIC_INFO_VERSION);
+        dinfo32.next_mode = be ? cpu_to_be32(FW_DYNAMIC_INFO_NEXT_MODE_S)
+                               : cpu_to_le32(FW_DYNAMIC_INFO_NEXT_MODE_S);
+        dinfo32.next_addr = be ? cpu_to_be32(kernel_entry)
+                               : cpu_to_le32(kernel_entry);
         dinfo32.options = 0;
         dinfo32.boot_hart = 0;
         dinfo_ptr = &dinfo32;
         dinfo_len = sizeof(dinfo32);
     } else {
-        dinfo64.magic = cpu_to_le64(FW_DYNAMIC_INFO_MAGIC_VALUE);
-        dinfo64.version = cpu_to_le64(FW_DYNAMIC_INFO_VERSION);
-        dinfo64.next_mode = cpu_to_le64(FW_DYNAMIC_INFO_NEXT_MODE_S);
-        dinfo64.next_addr = cpu_to_le64(kernel_entry);
+        dinfo64.magic = be ? cpu_to_be64(FW_DYNAMIC_INFO_MAGIC_VALUE)
+                           : cpu_to_le64(FW_DYNAMIC_INFO_MAGIC_VALUE);
+        dinfo64.version = be ? cpu_to_be64(FW_DYNAMIC_INFO_VERSION)
+                             : cpu_to_le64(FW_DYNAMIC_INFO_VERSION);
+        dinfo64.next_mode = be ? cpu_to_be64(FW_DYNAMIC_INFO_NEXT_MODE_S)
+                               : cpu_to_le64(FW_DYNAMIC_INFO_NEXT_MODE_S);
+        dinfo64.next_addr = be ? cpu_to_be64(kernel_entry)
+                               : cpu_to_le64(kernel_entry);
         dinfo64.options = 0;
         dinfo64.boot_hart = 0;
         dinfo_ptr = &dinfo64;
@@ -455,6 +465,7 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                uint64_t fdt_load_addr)
 {
     const bool rv32 = riscv_is_32bit(harts);
+    const bool big_endian = harts->harts[0].cfg.big_endian;
     uint32_t reset_vec[CODE_WORDS + DATA_WORDS];
 
     /* .text (RISC-V instructions are always little-endian) */
@@ -480,9 +491,14 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
     }
     reset_vec[5] = const_le32(0x00028067);      /*     jr     t0 */
 
-    /* .data */
-    stq_le_p(&reset_vec[6], start_addr);        /* start:       .dword */
-    stq_le_p(&reset_vec[8], fdt_load_addr);     /* fdt_laddr:   .dword */
+    /* .data (must match the firmware's data endianness) */
+    if (big_endian) {
+        stq_be_p(&reset_vec[6], start_addr);    /* start:       .dword */
+        stq_be_p(&reset_vec[8], fdt_load_addr); /* fdt_laddr:   .dword */
+    } else {
+        stq_le_p(&reset_vec[6], start_addr);
+        stq_le_p(&reset_vec[8], fdt_load_addr);
+    }
 
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
                           rom_base, &address_space_memory);
