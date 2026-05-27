@@ -28,6 +28,7 @@ void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s, uint16_t domain_id,
                                       uint32_t pasid, hwaddr addr,
                                       uint64_t npages, bool ih);
 void vtd_accel_pasid_cache_sync(IntelIOMMUState *s, VTDPASIDCacheInfo *pc_info);
+void vtd_accel_pasid_cache_reset(IntelIOMMUState *s);
 void vtd_iommu_ops_update_accel(PCIIOMMUOps *ops);
 #else
 static inline bool vtd_check_hiod_accel(IntelIOMMUState *s,
@@ -59,6 +60,10 @@ static inline void vtd_flush_host_piotlb_all_locked(IntelIOMMUState *s,
 
 static inline void vtd_accel_pasid_cache_sync(IntelIOMMUState *s,
                                               VTDPASIDCacheInfo *pc_info)
+{
+}
+
+static inline void vtd_accel_pasid_cache_reset(IntelIOMMUState *s)
 {
 }
 
