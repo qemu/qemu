@@ -3113,10 +3113,10 @@ static bool vtd_process_piotlb_desc(IntelIOMMUState *s,
     return true;
 }
 
-static inline int vtd_dev_get_pe_from_pasid(VTDAddressSpace *vtd_as,
-                                            VTDPASIDEntry *pe)
+static int vtd_dev_get_pe_from_pasid(IntelIOMMUState *s, PCIBus *bus,
+                                     uint8_t devfn, uint32_t pasid,
+                                     VTDPASIDEntry *pe)
 {
-    IntelIOMMUState *s = vtd_as->iommu_state;
     VTDContextEntry ce;
     int ret;
 
@@ -3124,13 +3124,12 @@ static inline int vtd_dev_get_pe_from_pasid(VTDAddressSpace *vtd_as,
         return -VTD_FR_RTADDR_INV_TTM;
     }
 
-    ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus), vtd_as->devfn,
-                                   &ce);
+    ret = vtd_dev_to_context_entry(s, pci_bus_num(bus), devfn, &ce);
     if (ret) {
         return ret;
     }
 
-    return vtd_ce_get_pasid_entry(s, &ce, pe, vtd_as->pasid);
+    return vtd_ce_get_pasid_entry(s, &ce, pe, pasid);
 }
 
 static int vtd_pasid_entry_compare(VTDPASIDEntry *p1, VTDPASIDEntry *p2)
@@ -3151,7 +3150,8 @@ static void vtd_pasid_cache_sync_locked(gpointer key, gpointer value,
     const char *err_prefix = "Attaching to HWPT failed: ";
     Error *local_err = NULL;
 
-    if (vtd_dev_get_pe_from_pasid(vtd_as, &pe)) {
+    if (vtd_dev_get_pe_from_pasid(vtd_as->iommu_state, vtd_as->bus,
+                                  vtd_as->devfn, vtd_as->pasid, &pe)) {
         if (!pc_entry->valid) {
             return;
         }
