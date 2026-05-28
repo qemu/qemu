@@ -790,6 +790,9 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         if (cpu_isar_feature(aa64_fpmr, cpu)) {
             valid_mask |= SCR_ENFPM;
         }
+        if (cpu_isar_feature(aa64_rng_trap, cpu)) {
+            valid_mask |= SCR_TRNDR;
+        }
     } else {
         valid_mask &= ~(SCR_RW | SCR_ST);
         if (cpu_isar_feature(aa32_ras, cpu)) {
@@ -5170,6 +5173,21 @@ static uint64_t id_aa64pfr0_read(CPUARMState *env, const ARMCPRegInfo *ri)
     }
     return pfr0;
 }
+
+static uint64_t id_aa64isar0_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = env_archcpu(env);
+    uint64_t isar0 = GET_IDREG(&cpu->isar, ID_AA64ISAR0);
+
+    /*
+     * When FEAT_RNG_TRAP is active (SCR_EL3.TRNDR set), ID_AA64ISAR0_EL1.RNDR
+     * reads as 1 regardless of whether FEAT_RNG is implemented.
+     */
+    if (env->cp15.scr_el3 & SCR_TRNDR) {
+        isar0 = FIELD_DP64(isar0, ID_AA64ISAR0, RNDR, 1);
+    }
+    return isar0;
+}
 #endif
 
 /*
@@ -5304,6 +5322,22 @@ static const ARMCPRegInfo pauth_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, keys.apib.hi) },
 };
 
+static CPAccessResult access_rndr(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  bool isread)
+{
+    if (env->cp15.scr_el3 & SCR_TRNDR) {
+        return CP_ACCESS_TRAP_EL3;
+    }
+    /*
+     * Note that FEAT_RNG_TRAP may be implemented without FEAT_RNG.
+     * In that case, if the trap is not enabled, the read undefs.
+     */
+    if (!cpu_isar_feature(aa64_rndr, env_archcpu(env))) {
+        return CP_ACCESS_UNDEFINED;
+    }
+    return CP_ACCESS_OK;
+}
+
 static uint64_t rndr_readfn(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     Error *err = NULL;
@@ -5335,11 +5369,11 @@ static const ARMCPRegInfo rndr_reginfo[] = {
     { .name = "RNDR", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
       .opc0 = 3, .opc1 = 3, .crn = 2, .crm = 4, .opc2 = 0,
-      .access = PL0_R, .readfn = rndr_readfn },
+      .access = PL0_R, .accessfn = access_rndr, .readfn = rndr_readfn },
     { .name = "RNDRRS", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_NO_RAW | ARM_CP_SUPPRESS_TB_END | ARM_CP_IO,
       .opc0 = 3, .opc1 = 3, .crn = 2, .crm = 4, .opc2 = 1,
-      .access = PL0_R, .readfn = rndr_readfn },
+      .access = PL0_R, .accessfn = access_rndr, .readfn = rndr_readfn },
 };
 
 static void dccvap_writefn(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -6522,11 +6556,24 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .access = PL1_R, .type = ARM_CP_CONST,
               .accessfn = access_tid3,
               .resetvalue = 0 },
+            /*
+             * ID_AA64ISAR0_EL1 is not a plain ARM_CP_CONST in system
+             * emulation because the RNDR field depends on SCR_EL3.TRNDR
+             * at read time when FEAT_RNG_TRAP is implemented.
+             */
             { .name = "ID_AA64ISAR0_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 0,
-              .access = PL1_R, .type = ARM_CP_CONST,
+              .access = PL1_R,
+#ifdef CONFIG_USER_ONLY
+              .type = ARM_CP_CONST,
+              .resetvalue = GET_IDREG(isar, ID_AA64ISAR0)
+#else
+              .type = ARM_CP_NO_RAW,
               .accessfn = access_tid3,
-              .resetvalue = GET_IDREG(isar, ID_AA64ISAR0)},
+              .readfn = id_aa64isar0_read,
+              .writefn = arm_cp_write_ignore
+#endif
+            },
             { .name = "ID_AA64ISAR1_EL1", .state = ARM_CP_STATE_AA64,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 6, .opc2 = 1,
               .access = PL1_R, .type = ARM_CP_CONST,
@@ -7454,7 +7501,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     if (cpu_isar_feature(aa64_pauth, cpu)) {
         define_arm_cp_regs(cpu, pauth_reginfo);
     }
-    if (cpu_isar_feature(aa64_rndr, cpu)) {
+    if (cpu_isar_feature(aa64_rndr, cpu) ||
+        cpu_isar_feature(aa64_rng_trap, cpu)) {
         define_arm_cp_regs(cpu, rndr_reginfo);
     }
     /* Data Cache clean instructions up to PoP */
