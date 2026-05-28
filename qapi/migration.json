@@ -804,10 +804,6 @@
 # Migration parameters enumeration.  The enumeration values mirror the
 # members of @MigrationParameters.
 #
-# @cpr-exec-command: Command to start the new QEMU process when @mode
-#     is @cpr-exec.  The first list element is the program's filename,
-#     the remainder its arguments.  (Since 10.2)
-#
 # Features:
 #
 # @unstable: Members @x-checkpoint-delay, @x-rdma-chunk-size, and
