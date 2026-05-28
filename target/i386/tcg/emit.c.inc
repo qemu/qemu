@@ -3332,17 +3332,21 @@ static bool gen_eflags_adcox(DisasContext *s, X86DecodedInsn *decode, bool want_
      * to be followed by rotations within the same basic block.
      */
     switch (s->cc_op) {
+    case CC_OP_ADCX:
+    case CC_OP_ADOX:
     case CC_OP_ADCOX:
         /* No need to compute the full EFLAGS, CF/OF are already isolated.  */
-        tcg_gen_mov_tl(decode->cc_src, cpu_cc_src);
-        if (need_flags) {
+        if (s->cc_op != CC_OP_ADCX && need_flags) {
             tcg_gen_mov_tl(decode->cc_src2, cpu_cc_src2);
             got_of = true;
         }
-        if (want_carry || need_flags) {
+        if (s->cc_op != CC_OP_ADOX && (want_carry || need_flags)) {
             tcg_gen_mov_tl(decode->cc_dst, cpu_cc_dst);
             got_cf = true;
         }
+        /* fallthrough */
+    case CC_OP_EFLAGS:
+        tcg_gen_mov_tl(decode->cc_src, cpu_cc_src);
         break;
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
