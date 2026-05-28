@@ -100,19 +100,9 @@ static void tpm_tis_sysbus_initfn(Object *obj)
 {
     TPMStateSysBus *sbdev = TPM_TIS_SYSBUS(obj);
     TPMState *s = &sbdev->state;
-    size_t host_page_size = qemu_real_host_page_size();
-
-    memory_region_init_io(&s->mmio, obj, &tpm_tis_memory_ops,
-                          s, "tpm-tis-mmio",
-                          TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-
-    s->ppi.buf = qemu_memalign(host_page_size,
-                                ROUND_UP(TPM_PPI_ADDR_SIZE, host_page_size));
-    memory_region_init_ram_device_ptr(&s->ppi.ram, obj, "tpm-ppi",
-                                      TPM_PPI_ADDR_SIZE, s->ppi.buf);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->ppi.ram);
 }
 
@@ -120,6 +110,7 @@ static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
 {
     TPMStateSysBus *sbdev = TPM_TIS_SYSBUS(dev);
     TPMState *s = &sbdev->state;
+    const size_t host_page_size = qemu_real_host_page_size();
 
     if (!tpm_find()) {
         error_setg(errp, "at most one TPM device is permitted");
@@ -131,6 +122,13 @@ static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
+    s->ppi.buf = qemu_memalign(host_page_size,
+                               ROUND_UP(TPM_PPI_ADDR_SIZE, host_page_size));
+    memory_region_init_io(&s->mmio, OBJECT(dev), &tpm_tis_memory_ops,
+                          s, "tpm-tis-mmio",
+                          TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
+    memory_region_init_ram_device_ptr(&s->ppi.ram, OBJECT(dev), "tpm-ppi",
+                                      TPM_PPI_ADDR_SIZE, s->ppi.buf);
     vmstate_register_ram(&s->ppi.ram, dev);
 }
 
