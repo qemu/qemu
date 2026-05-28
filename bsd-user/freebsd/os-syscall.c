@@ -97,6 +97,7 @@ safe_syscall3(ssize_t, sendmsg, int, s, const struct msghdr *, msg, int, flags);
 safe_syscall1(int, thr_suspend, struct timespec *, timeout);
 safe_syscall5(int, _umtx_op, void *, obj, int, op, unsigned long, val, void *,
     uaddr, void *, uaddr2);
+safe_syscall2(int, sigfastblock, int, cmd, void *, ptr);
 
 /* used in os-time */
 safe_syscall2(int, nanosleep, const struct timespec *, rqtp, struct timespec *,
@@ -1173,6 +1174,10 @@ static abi_long freebsd_syscall(CPUArchState *env, int num, abi_long arg1,
 
     case TARGET_FREEBSD_NR__umtx_op: /* undocumented */
         ret = do_freebsd__umtx_op(arg1, arg2, arg3, arg4, arg5);
+        break;
+
+    case TARGET_FREEBSD_NR_sigfastblock: /* internal */
+        ret = do_freebsd_sigfastblock(arg1, arg2);
         break;
 
         /*

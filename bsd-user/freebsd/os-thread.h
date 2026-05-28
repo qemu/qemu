@@ -17,6 +17,7 @@
 
 int safe_thr_suspend(struct timespec *timeout);
 int safe__umtx_op(void *, int, unsigned long, void *, void *);
+int safe_sigfastblock(int, void *);
 
 #if HOST_BIG_ENDIAN == TARGET_BIG_ENDIAN && \
     (TARGET_ABI_BITS == HOST_LONG_BITS || defined(UMTX_OP__32BIT))
@@ -591,6 +592,16 @@ static inline abi_long do_freebsd__umtx_op(abi_ulong obj, int op, abi_ulong val,
         return -TARGET_EINVAL;
     }
     return ret;
+}
+
+static inline abi_long do_freebsd_sigfastblock(abi_long cmd, abi_long ptr)
+{
+    void *hostptr = g2h_untagged(ptr);
+
+    if (hostptr == NULL) {
+        return -TARGET_EFAULT;
+    }
+    return get_errno(safe_sigfastblock(cmd, hostptr));
 }
 
 #endif /* FREEBSD_OS_THREAD_H */
