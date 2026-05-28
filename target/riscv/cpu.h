@@ -491,6 +491,15 @@ struct CPUArchState {
     uint64_t hstateen[SMSTATEEN_MAX_COUNT];
     uint64_t sstateen[SMSTATEEN_MAX_COUNT];
     uint64_t henvcfg;
+
+    /* RNMI */
+    uint64_t mnscratch;
+    uint64_t mnepc;
+    uint64_t mncause; /* mncause without bit XLEN-1 set to 1 */
+    uint64_t mnstatus;
+    uint64_t rnmip;
+    uint64_t rnmi_irqvec;
+    uint64_t rnmi_excpvec;
 #endif
 
     /* Fields from here on are preserved across CPU reset. */
@@ -509,15 +518,6 @@ struct CPUArchState {
     uint64_t kvm_timer_state;
     uint64_t kvm_timer_frequency;
 #endif /* CONFIG_KVM */
-
-    /* RNMI */
-    uint64_t mnscratch;
-    uint64_t mnepc;
-    uint64_t mncause; /* mncause without bit XLEN-1 set to 1 */
-    uint64_t mnstatus;
-    uint64_t rnmip;
-    uint64_t rnmi_irqvec;
-    uint64_t rnmi_excpvec;
 };
 
 /*
