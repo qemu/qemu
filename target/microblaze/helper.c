@@ -280,18 +280,14 @@ void mb_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-hwaddr mb_cpu_get_phys_addr_attrs_debug(CPUState *cs, vaddr addr,
-                                        MemTxAttrs *attrs)
+bool mb_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                TranslateForDebugResult *result)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     hwaddr paddr = 0;
     MicroBlazeMMULookup lu;
     int mmu_idx = cpu_mmu_index(cs, false);
     unsigned int hit;
-
-    /* Caller doesn't initialize */
-    *attrs = (MemTxAttrs) {};
-    attrs->secure = mb_cpu_access_is_secure(cpu, MMU_DATA_LOAD);
 
     if (mmu_idx != MMU_NOMMU_IDX) {
         hit = mmu_translate(cpu, &lu, addr, 0, 0);
@@ -303,7 +299,13 @@ hwaddr mb_cpu_get_phys_addr_attrs_debug(CPUState *cs, vaddr addr,
         paddr = addr;
     }
 
-    return paddr;
+    *result = (TranslateForDebugResult) {
+        .physaddr = paddr,
+        .lg_page_size = TARGET_PAGE_BITS,
+        .attrs.secure = mb_cpu_access_is_secure(cpu, MMU_DATA_LOAD),
+        .attrs.debug = 1,
+    };
+    return true;
 }
 
 bool mb_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
