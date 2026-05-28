@@ -50,5 +50,5 @@ system_ss.add(when: qpl, if_true: files('multifd-qpl.c'))
 system_ss.add(when: uadk, if_true: files('multifd-uadk.c'))
 system_ss.add(when: qatzip, if_true: files('multifd-qatzip.c'))
 system_ss.add(when: 'CONFIG_VFIO',
-              if_true: files('vfio.c'),
-              if_false: files('vfio-stub.c'))
+              if_true: files('vfio.c'))
+stub_ss.add(files('vfio-stub.c'))
