@@ -3730,6 +3730,19 @@ subdir('fsdev')
 subdir('dump')
 subdir('accel')
 
+subdir('backends')
+subdir('configs/targets')
+subdir('disas')
+subdir('migration')
+subdir('monitor')
+subdir('net')
+subdir('replay')
+subdir('stats')
+subdir('tcg')
+subdir('fpu')
+subdir('plugins')
+subdir('ebpf')
+
 if have_system
   subdir('hw')
 else
@@ -3837,19 +3850,6 @@ system_ss.add(files('page-vary-system.c'))
 
 common_ss.add(files('target-info.c'))
 system_ss.add(files('target-info-qom.c'))
-
-subdir('backends')
-subdir('configs/targets')
-subdir('disas')
-subdir('migration')
-subdir('monitor')
-subdir('net')
-subdir('replay')
-subdir('stats')
-subdir('tcg')
-subdir('fpu')
-subdir('plugins')
-subdir('ebpf')
 
 if 'CONFIG_TCG' in config_all_accel
   subdir('contrib/plugins')
