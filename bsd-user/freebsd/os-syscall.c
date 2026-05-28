@@ -1592,6 +1592,12 @@ static abi_long freebsd_syscall(CPUArchState *env, int num, abi_long arg1,
         ret = do_freebsd_kenv(arg1, arg2, arg3, arg4);
         break;
 
+#ifdef TARGET_FREEBSD_NR_exterrctl
+    case TARGET_FREEBSD_NR_exterrctl:
+        ret = do_freebsd_exterrctl(arg1, arg2, arg3);
+        break;
+#endif
+
     /* XXX */
     case TARGET_FREEBSD_NR_cap_rights_limit:
     case TARGET_FREEBSD_NR_cap_ioctls_limit:

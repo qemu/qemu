@@ -9,6 +9,9 @@
 #define OS_MISC_H
 
 #include <sys/cpuset.h>
+#ifdef TARGET_FREEBSD_NR_exterrctl
+#include <sys/exterrvar.h>
+#endif
 #include <sys/random.h>
 #include <sched.h>
 #include <kenv.h>
@@ -537,5 +540,18 @@ static inline abi_long do_freebsd_kenv(abi_long action, abi_ulong name,
 
     return ret;
 }
+
+#ifdef TARGET_FREEBSD_NR_exterrctl
+static inline abi_long do_freebsd_exterrctl(abi_long op, abi_long flags, abi_long ptr)
+{
+    void *hostptr = 0;
+
+    if (op == EXTERRCTL_ENABLE) {
+        hostptr = g2h_untagged(ptr);
+    }
+
+    return get_errno(exterrctl(op, flags, hostptr));
+}
+#endif
 
 #endif /* OS_MISC_H */
