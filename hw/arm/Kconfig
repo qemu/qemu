@@ -289,6 +289,7 @@ config ZYNQ
     select XILINX_AXI
     select XILINX_SPI
     select XILINX_SPIPS
+    select XLNX_ZYNQ_DDRC
     select ZYNQ_DEVCFG
 
 config ARM_V7M
