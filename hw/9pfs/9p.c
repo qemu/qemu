@@ -3638,6 +3638,11 @@ static void coroutine_fn v9fs_wstat(void *opaque)
             err = -EOPNOTSUPP;
             goto out;
         }
+        if (name_is_illegal(v9stat.name.data)) {
+            err = -ENOENT;
+            goto out;
+        }
+
         v9fs_path_write_lock(s);
         err = v9fs_complete_rename(pdu, fidp, -1, &v9stat.name);
         v9fs_path_unlock(s);
