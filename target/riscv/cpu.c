@@ -572,7 +572,7 @@ static void riscv_dump_csr(CPURISCVState *env, int csrno, FILE *f)
      * to do the filtering of the registers that are present.
      */
     if (res == RISCV_EXCP_NONE) {
-        qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
+        qemu_fprintf(f, " %-13s " TARGET_FMT_lx "\n",
                      csr_ops[csrno].name, val);
     }
 }
@@ -601,17 +601,17 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     uint8_t *p;
 
 #if !defined(CONFIG_USER_ONLY)
-    qemu_fprintf(f, " %s %s\n", "priv   =  ", riscv_priv_str(env->priv));
+    qemu_fprintf(f, " %-13s %s\n", "priv", riscv_priv_str(env->priv));
 
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s %d\n", "V      =  ", env->virt_enabled);
+        qemu_fprintf(f, " %-13s %d\n", "V", env->virt_enabled);
     }
 
     if (cpu->cfg.ext_zicfilp) {
-        qemu_fprintf(f, " %s %d\n", "elp    =  ", env->elp);
+        qemu_fprintf(f, " %-13s %d\n", "elp", env->elp);
     }
 #endif
-    qemu_fprintf(f, " %s %" PRIx64 "\n", "pc      ", env->pc);
+    qemu_fprintf(f, " %-13s %" PRIx64 "\n", "pc", env->pc);
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < ARRAY_SIZE(csr_ops); i++) {
         int csrno = i;
