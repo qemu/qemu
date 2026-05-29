@@ -2536,6 +2536,7 @@ FIELD(TBFLAG_A64, GCSSTR_EL, 43, 2)
 FIELD(TBFLAG_A64, FPMR_EL, 45, 2)
 FIELD(TBFLAG_A64, MTE_STORE_ONLY, 47, 1)
 FIELD(TBFLAG_A64, MTE0_STORE_ONLY, 48, 1)
+FIELD(TBFLAG_A64, MTX, 49, 2)
 
 /*
  * Helpers for using the above. Note that only the A64 accessors use
