@@ -1823,6 +1823,25 @@ static bool name_is_illegal(const char *name)
     return !*name || strchr(name, '/') != NULL;
 }
 
+static int check_name(const char *name, V9fsPDU *pdu)
+{
+    int request_type = pdu->id;
+
+    if (name_is_illegal(name)) {
+        return -ENOENT;
+    }
+    if (!strcmp(name, ".") || !strcmp(name, "..")) {
+        /*
+         * TODO: The different error codes here are just there to preserve
+         * pre-existing behaviour of 9p server. In future it might make sense to
+         * consolidate this and e.g. just return -EINVAL for everyone.
+         */
+        return (request_type == P9_TRENAME || request_type == P9_TRENAMEAT ||
+                request_type == P9_TWSTAT) ? -EISDIR : -EEXIST;
+    }
+    return 0;
+}
+
 static bool same_stat_id(const struct stat *a, const struct stat *b)
 {
     return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
@@ -2173,13 +2192,8 @@ static void coroutine_fn v9fs_lcreate(void *opaque)
     }
     trace_v9fs_lcreate(pdu->tag, pdu->id, dfid, flags, mode, gid);
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EEXIST;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
@@ -2861,13 +2875,8 @@ static void coroutine_fn v9fs_create(void *opaque)
     }
     trace_v9fs_create(pdu->tag, pdu->id, fid, name.data, perm, mode);
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EEXIST;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
@@ -3055,13 +3064,8 @@ static void coroutine_fn v9fs_symlink(void *opaque)
     }
     trace_v9fs_symlink(pdu->tag, pdu->id, dfid, name.data, symname.data, gid);
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EEXIST;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
@@ -3148,13 +3152,8 @@ static void coroutine_fn v9fs_link(void *opaque)
     }
     trace_v9fs_link(pdu->tag, pdu->id, dfid, oldfid, name.data);
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EEXIST;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
@@ -3385,13 +3384,8 @@ static void coroutine_fn v9fs_rename(void *opaque)
         goto out_nofid;
     }
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EISDIR;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
@@ -3526,14 +3520,12 @@ static void coroutine_fn v9fs_renameat(void *opaque)
         goto out_err;
     }
 
-    if (name_is_illegal(old_name.data) || name_is_illegal(new_name.data)) {
-        err = -ENOENT;
+    err = check_name(old_name.data, pdu);
+    if (err < 0) {
         goto out_err;
     }
-
-    if (!strcmp(".", old_name.data) || !strcmp("..", old_name.data) ||
-        !strcmp(".", new_name.data) || !strcmp("..", new_name.data)) {
-        err = -EISDIR;
+    err = check_name(new_name.data, pdu);
+    if (err < 0) {
         goto out_err;
     }
 
@@ -3638,12 +3630,8 @@ static void coroutine_fn v9fs_wstat(void *opaque)
             err = -EOPNOTSUPP;
             goto out;
         }
-        if (name_is_illegal(v9stat.name.data)) {
-            err = -ENOENT;
-            goto out;
-        }
-        if (!strcmp(".", v9stat.name.data) || !strcmp("..", v9stat.name.data)) {
-            err = -EISDIR;
+        err = check_name(v9stat.name.data, pdu);
+        if (err < 0) {
             goto out;
         }
 
@@ -3776,13 +3764,8 @@ static void coroutine_fn v9fs_mknod(void *opaque)
     }
     trace_v9fs_mknod(pdu->tag, pdu->id, fid, mode, major, minor);
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EEXIST;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
@@ -3938,13 +3921,8 @@ static void coroutine_fn v9fs_mkdir(void *opaque)
     }
     trace_v9fs_mkdir(pdu->tag, pdu->id, fid, name.data, mode, gid);
 
-    if (name_is_illegal(name.data)) {
-        err = -ENOENT;
-        goto out_nofid;
-    }
-
-    if (!strcmp(".", name.data) || !strcmp("..", name.data)) {
-        err = -EEXIST;
+    err = check_name(name.data, pdu);
+    if (err < 0) {
         goto out_nofid;
     }
 
