@@ -83,4 +83,18 @@ static inline bool in6_equal_net(const struct in6_addr *a,
 
 int net_parse_macaddr(uint8_t *macaddr, const char *p);
 
+/*
+ * Close all @fds and free @fds itself
+ */
+void net_free_fds(int *fds, int nfds);
+
+/*
+ * Parse @fds_param, where monitor fds are separated by a colon.
+ * @nfds must be non-NULL. If *@nfds is zero - set it accordingly.
+ * If *@nfds is non-zero - check that we have exactly *@nfds fds
+ * and fail otherwise.
+ */
+int net_parse_fds(const char *fds_param, int **fds, int expected_nfds,
+                  Error **errp);
+
 #endif /* QEMU_NET_UTIL_H */
