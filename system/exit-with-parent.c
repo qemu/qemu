@@ -109,6 +109,7 @@ exit_with_parent_loop(void *vp)
         /* Behave like Linux and FreeBSD above, as if SIGTERM was sent */
         qemu_system_killed(SIGTERM, ppid);
     }
+    close(fd);
 
     return NULL;
 }

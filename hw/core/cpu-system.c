@@ -63,15 +63,8 @@ bool cpu_translate_for_debug(CPUState *cpu, vaddr addr,
         return cpu->cc->sysemu_ops->translate_for_debug(cpu, addr, result);
     } else {
         /* Fallbacks for CPUs which don't implement translate_for_debug */
-        if (cpu->cc->sysemu_ops->get_phys_addr_attrs_debug) {
-            result->physaddr =
-                cpu->cc->sysemu_ops->get_phys_addr_attrs_debug(cpu, addr,
-                                                               &result->attrs);
-        } else {
-            result->physaddr
-                = cpu->cc->sysemu_ops->get_phys_addr_debug(cpu, addr);
-            result->attrs = MEMTXATTRS_UNSPECIFIED;
-        }
+        result->physaddr = cpu->cc->sysemu_ops->get_phys_addr_debug(cpu, addr);
+        result->attrs = MEMTXATTRS_UNSPECIFIED;
         if (result->physaddr == -1) {
             return false;
         }

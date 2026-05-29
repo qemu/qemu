@@ -247,7 +247,7 @@ struct whpx_register_set {
  *          e. Let the affected CPU run in the exclusive mode.
  *          f. Restore the original handler and the exception exit bitmap.
  *        Note that handling all corner cases related to IDT/GDT is harder
- *        than it may seem. See x86_cpu_get_phys_addr_attrs_debug() for a
+ *        than it may seem. See x86_cpu_translate_for_debug() for a
  *        rough idea.
  *
  *     3. In order to properly support guest-level debugging in parallel with

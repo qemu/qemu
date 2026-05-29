@@ -271,8 +271,8 @@ ERST
         .name       = "screendump",
         .args_type  = "filename:F,format:-fs,device:s?,head:i?",
         .params     = "filename [-f format] [device [head]]",
-        .help       = "save screen from head 'head' of display device 'device'"
-                      "in specified format 'format' as image 'filename'."
+        .help       = "save screen from head 'head' of display device 'device' "
+                      "in specified format 'format' as image 'filename'. "
                       "Currently only 'png' and 'ppm' formats are supported.",
          .cmd        = hmp_screendump,
         .coroutine  = true,

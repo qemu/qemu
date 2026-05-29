@@ -40,20 +40,6 @@ typedef struct SysemuCPUOps {
      */
     hwaddr (*get_phys_addr_debug)(CPUState *cpu, vaddr addr);
     /**
-     * @get_phys_addr_attrs_debug: Callback for obtaining a physical address
-     *       and the associated memory transaction attributes to use for the
-     *       access.
-     *
-     * This must be able to handle a non-page-aligned address, and will
-     * return the physical address corresponding to that address.
-     *
-     * CPUs should prefer to implement translate_for_debug instead of
-     * this (and must do so if their translations are not always valid
-     * for a complete target page).
-     */
-    hwaddr (*get_phys_addr_attrs_debug)(CPUState *cpu, vaddr addr,
-                                        MemTxAttrs *attrs);
-    /**
      * @translate_for_debug: Callback for translating a virtual address into
      * a physical address for debug purposes.
      * The implementation should fill in @result with the physical address,

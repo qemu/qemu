@@ -698,7 +698,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         }
 
         address_space_write(first_cpu->as, addr, MEMTXATTRS_UNSPECIFIED, data,
-                            len);
+                            out_len);
 
         qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "endianness") == 0) {
