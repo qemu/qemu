@@ -577,6 +577,22 @@ static void riscv_dump_csr(CPURISCVState *env, int csrno, FILE *f)
     }
 }
 
+#if !defined(CONFIG_USER_ONLY)
+static const char *riscv_priv_str(uint32_t priv)
+{
+    switch (priv) {
+    case PRV_M:
+        return "M";
+    case PRV_S:
+        return "S";
+    case PRV_U:
+        return "U";
+    }
+
+    return "?";
+}
+#endif
+
 static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -585,8 +601,14 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     uint8_t *p;
 
 #if !defined(CONFIG_USER_ONLY)
+    qemu_fprintf(f, " %s %s\n", "priv   =  ", riscv_priv_str(env->priv));
+
     if (riscv_has_ext(env, RVH)) {
         qemu_fprintf(f, " %s %d\n", "V      =  ", env->virt_enabled);
+    }
+
+    if (cpu->cfg.ext_zicfilp) {
+        qemu_fprintf(f, " %s %d\n", "elp    =  ", env->elp);
     }
 #endif
     qemu_fprintf(f, " %s %" PRIx64 "\n", "pc      ", env->pc);
