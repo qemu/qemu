@@ -3766,6 +3766,7 @@ F: tests/qtest/intel-iommu-test.c
 AMD-Vi Emulation
 S: Orphan
 F: hw/i386/amd_iommu.?
+F: tests/qtest/amd-iommu-test.c
 
 OpenSBI Firmware
 L: qemu-riscv@nongnu.org
