@@ -101,22 +101,7 @@ int strstart(const char *str, const char *val, const char **ptr);
  *          false otherwise.
  */
 int stristart(const char *str, const char *val, const char **ptr);
-/**
- * qemu_strnlen:
- * @s: string
- * @max_len: maximum number of bytes in @s to scan
- *
- * Return the length of the string @s, like strlen(), but do not
- * examine more than @max_len bytes of the memory pointed to by @s.
- * If no NUL terminator is found within @max_len bytes, then return
- * @max_len instead.
- *
- * This function has the same behaviour as the POSIX strnlen()
- * function.
- *
- * Returns: length of @s in bytes, or @max_len, whichever is smaller.
- */
-int qemu_strnlen(const char *s, int max_len);
+
 /**
  * qemu_strsep:
  * @input: pointer to string to parse
