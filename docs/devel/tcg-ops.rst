@@ -563,9 +563,9 @@ Load/Store
 
        ld16u_i32/i64 *t0*, *t1*, *offset*
 
-       ld32s_i64 t0, *t1*, *offset*
+       ld32s_i64 *t0*, *t1*, *offset*
 
-       ld32u_i64 t0, *t1*, *offset*
+       ld32u_i64 *t0*, *t1*, *offset*
 
      - | *t0* = read(*t1* + *offset*)
        |
@@ -598,19 +598,19 @@ Multiword arithmetic support
      - | Compute *t0* = *t1* + *t2* and in addition output to the
          carry bit provided by the host architecture.
 
-   * - addci *t0, *t1*, *t2*
+   * - addci *t0*, *t1*, *t2*
 
      - | Compute *t0* = *t1* + *t2* + *C*, where *C* is the
          input carry bit provided by the host architecture.
          The output carry bit need not be computed.
 
-   * - addcio *t0, *t1*, *t2*
+   * - addcio *t0*, *t1*, *t2*
 
      - | Compute *t0* = *t1* + *t2* + *C*, where *C* is the
          input carry bit provided by the host architecture,
          and also compute the output carry bit.
 
-   * - addc1o *t0, *t1*, *t2*
+   * - addc1o *t0*, *t1*, *t2*
 
      - | Compute *t0* = *t1* + *t2* + 1, and in addition output to the
          carry bit provided by the host architecture.  This is akin to
@@ -630,19 +630,19 @@ Multiword arithmetic support
          identical to the borrow bit.  Thus the addc\* and subb\*
          opcodes must not be mixed.
 
-   * - subbi *t0, *t1*, *t2*
+   * - subbi *t0*, *t1*, *t2*
 
      - | Compute *t0* = *t1* - *t2* - *B*, where *B* is the
          input borrow bit provided by the host architecture.
          The output borrow bit need not be computed.
 
-   * - subbio *t0, *t1*, *t2*
+   * - subbio *t0*, *t1*, *t2*
 
      - | Compute *t0* = *t1* - *t2* - *B*, where *B* is the
          input borrow bit provided by the host architecture,
          and also compute the output borrow bit.
 
-   * - subb1o *t0, *t1*, *t2*
+   * - subb1o *t0*, *t1*, *t2*
 
      - | Compute *t0* = *t1* - *t2* - 1, and in addition output to the
          borrow bit provided by the host architecture.  This is akin to
