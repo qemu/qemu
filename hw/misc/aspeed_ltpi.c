@@ -179,16 +179,13 @@ static void aspeed_ltpi_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = aspeed_ltpi_reset_hold;
 }
 
-static const TypeInfo aspeed_ltpi_info = {
-    .name          = TYPE_ASPEED_LTPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedLTPIState),
-    .class_init    = aspeed_ltpi_class_init,
+static const TypeInfo aspeed_ltpi_types[] = {
+    {
+        .name          = TYPE_ASPEED_LTPI,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedLTPIState),
+        .class_init    = aspeed_ltpi_class_init,
+    }
 };
 
-static void aspeed_ltpi_register_types(void)
-{
-    type_register_static(&aspeed_ltpi_info);
-}
-
-type_init(aspeed_ltpi_register_types);
+DEFINE_TYPES(aspeed_ltpi_types)
