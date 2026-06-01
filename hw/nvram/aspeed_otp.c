@@ -174,16 +174,13 @@ static void aspeed_otp_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_otp_properties);
 }
 
-static const TypeInfo aspeed_otp_info = {
-    .name          = TYPE_ASPEED_OTP,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(AspeedOTPState),
-    .class_init    = aspeed_otp_class_init,
+static const TypeInfo aspeed_otp_types[] = {
+    {
+        .name          = TYPE_ASPEED_OTP,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(AspeedOTPState),
+        .class_init    = aspeed_otp_class_init,
+    }
 };
 
-static void aspeed_otp_register_types(void)
-{
-    type_register_static(&aspeed_otp_info);
-}
-
-type_init(aspeed_otp_register_types)
+DEFINE_TYPES(aspeed_otp_types)
