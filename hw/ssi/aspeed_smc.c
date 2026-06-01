@@ -1312,16 +1312,6 @@ static void aspeed_smc_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_smc;
 }
 
-static const TypeInfo aspeed_smc_info = {
-    .name           = TYPE_ASPEED_SMC,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_init  = aspeed_smc_instance_init,
-    .instance_size  = sizeof(AspeedSMCState),
-    .class_size     = sizeof(AspeedSMCClass),
-    .class_init     = aspeed_smc_class_init,
-    .abstract       = true,
-};
-
 static void aspeed_smc_flash_realize(DeviceState *dev, Error **errp)
 {
     AspeedSMCFlash *s = ASPEED_SMC_FLASH(dev);
@@ -1357,13 +1347,6 @@ static void aspeed_smc_flash_class_init(ObjectClass *klass, const void *data)
     dc->realize = aspeed_smc_flash_realize;
     device_class_set_props(dc, aspeed_smc_flash_properties);
 }
-
-static const TypeInfo aspeed_smc_flash_info = {
-    .name           = TYPE_ASPEED_SMC_FLASH,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedSMCFlash),
-    .class_init     = aspeed_smc_flash_class_init,
-};
 
 /*
  * The Segment Registers of the AST2400 and AST2500 have a 8MB
@@ -1415,12 +1398,6 @@ static void aspeed_2400_smc_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2400_smc_info = {
-    .name =  "aspeed.smc-ast2400",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2400_smc_class_init,
-};
-
 static const uint32_t aspeed_2400_fmc_resets[ASPEED_SMC_R_MAX] = {
     /*
      * CE0 and CE1 types are HW strapped in SCU70. Do it here to
@@ -1466,12 +1443,6 @@ static void aspeed_2400_fmc_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2400_fmc_info = {
-    .name =  "aspeed.fmc-ast2400",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2400_fmc_class_init,
-};
-
 static const AspeedSegments aspeed_2400_spi1_segments[] = {
     { 0x30000000, 64 * MiB },
 };
@@ -1505,12 +1476,6 @@ static void aspeed_2400_spi1_class_init(ObjectClass *klass, const void *data)
     asc->addr_width        = aspeed_2400_spi1_addr_width;
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
-
-static const TypeInfo aspeed_2400_spi1_info = {
-    .name =  "aspeed.spi1-ast2400",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2400_spi1_class_init,
-};
 
 static const uint32_t aspeed_2500_fmc_resets[ASPEED_SMC_R_MAX] = {
     [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
@@ -1552,12 +1517,6 @@ static void aspeed_2500_fmc_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2500_fmc_info = {
-    .name =  "aspeed.fmc-ast2500",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2500_fmc_class_init,
-};
-
 static const AspeedSegments aspeed_2500_spi1_segments[] = {
     { 0x30000000, 32 * MiB }, /* start address is readonly */
     { 0x32000000, 96 * MiB }, /* end address is readonly */
@@ -1588,12 +1547,6 @@ static void aspeed_2500_spi1_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2500_spi1_info = {
-    .name =  "aspeed.spi1-ast2500",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2500_spi1_class_init,
-};
-
 static const AspeedSegments aspeed_2500_spi2_segments[] = {
     { 0x38000000, 32 * MiB }, /* start address is readonly */
     { 0x3A000000, 96 * MiB }, /* end address is readonly */
@@ -1623,12 +1576,6 @@ static void aspeed_2500_spi2_class_init(ObjectClass *klass, const void *data)
     asc->dma_ctrl          = aspeed_smc_dma_ctrl;
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
-
-static const TypeInfo aspeed_2500_spi2_info = {
-    .name =  "aspeed.spi2-ast2500",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2500_spi2_class_init,
-};
 
 /*
  * The Segment Registers of the AST2600 have a 1MB unit. The address
@@ -1712,12 +1659,6 @@ static void aspeed_2600_fmc_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2600_fmc_info = {
-    .name =  "aspeed.fmc-ast2600",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2600_fmc_class_init,
-};
-
 static const AspeedSegments aspeed_2600_spi1_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
     { 0x0, 0 }, /* disabled */
@@ -1751,12 +1692,6 @@ static void aspeed_2600_spi1_class_init(ObjectClass *klass, const void *data)
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
-
-static const TypeInfo aspeed_2600_spi1_info = {
-    .name =  "aspeed.spi1-ast2600",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2600_spi1_class_init,
-};
 
 static const AspeedSegments aspeed_2600_spi2_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
@@ -1792,12 +1727,6 @@ static void aspeed_2600_spi2_class_init(ObjectClass *klass, const void *data)
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
-
-static const TypeInfo aspeed_2600_spi2_info = {
-    .name =  "aspeed.spi2-ast2600",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2600_spi2_class_init,
-};
 
 /*
  * The FMC Segment Registers of the AST1030 have a 512KB unit.
@@ -1877,12 +1806,6 @@ static void aspeed_1030_fmc_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_1030_fmc_info = {
-    .name =  "aspeed.fmc-ast1030",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_1030_fmc_class_init,
-};
-
 static const AspeedSegments aspeed_1030_spi1_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
     { 0x0, 0 }, /* disabled */
@@ -1916,11 +1839,6 @@ static void aspeed_1030_spi1_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_1030_spi1_info = {
-    .name =  "aspeed.spi1-ast1030",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_1030_spi1_class_init,
-};
 static const AspeedSegments aspeed_1030_spi2_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
     { 0x0, 0 }, /* disabled */
@@ -1953,12 +1871,6 @@ static void aspeed_1030_spi2_class_init(ObjectClass *klass, const void *data)
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
     asc->reg_ops           = &aspeed_smc_flash_ops;
 }
-
-static const TypeInfo aspeed_1030_spi2_info = {
-    .name =  "aspeed.spi2-ast1030",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_1030_spi2_class_init,
-};
 
 /*
  * The FMC Segment Registers of the AST2700 have a 64KB unit.
@@ -2061,12 +1973,6 @@ static void aspeed_2700_fmc_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2700_fmc_info = {
-    .name =  "aspeed.fmc-ast2700",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2700_fmc_class_init,
-};
-
 static const AspeedSegments aspeed_2700_spi0_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
     { 128 * MiB, 128 * MiB }, /* start address is readonly */
@@ -2102,12 +2008,6 @@ static void aspeed_2700_spi0_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2700_spi0_info = {
-    .name =  "aspeed.spi0-ast2700",
-    .parent = TYPE_ASPEED_SMC,
-    .class_init = aspeed_2700_spi0_class_init,
-};
-
 static const AspeedSegments aspeed_2700_spi1_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
     { 0x0, 0 }, /* disabled */
@@ -2141,12 +2041,6 @@ static void aspeed_2700_spi1_class_init(ObjectClass *klass, const void *data)
     asc->dma_ctrl          = aspeed_2600_smc_dma_ctrl;
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
-
-static const TypeInfo aspeed_2700_spi1_info = {
-        .name =  "aspeed.spi1-ast2700",
-        .parent = TYPE_ASPEED_SMC,
-        .class_init = aspeed_2700_spi1_class_init,
-};
 
 static const AspeedSegments aspeed_2700_spi2_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
@@ -2182,32 +2076,102 @@ static void aspeed_2700_spi2_class_init(ObjectClass *klass, const void *data)
     asc->reg_ops           = &aspeed_2700_smc_flash_ops;
 }
 
-static const TypeInfo aspeed_2700_spi2_info = {
-        .name =  "aspeed.spi2-ast2700",
-        .parent = TYPE_ASPEED_SMC,
+static const TypeInfo aspeed_smc_types[] = {
+    {
+        .name           = TYPE_ASPEED_SMC_FLASH,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(AspeedSMCFlash),
+        .class_init     = aspeed_smc_flash_class_init,
+    },
+    {
+        .name           = TYPE_ASPEED_SMC,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_init  = aspeed_smc_instance_init,
+        .instance_size  = sizeof(AspeedSMCState),
+        .class_size     = sizeof(AspeedSMCClass),
+        .class_init     = aspeed_smc_class_init,
+        .abstract       = true,
+    },
+    {
+        .name       = "aspeed.fmc-ast1030",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_1030_fmc_class_init,
+    },
+    {
+        .name       = "aspeed.spi1-ast1030",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_1030_spi1_class_init,
+    },
+    {
+        .name       = "aspeed.spi2-ast1030",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_1030_spi2_class_init,
+    },
+    {
+        .name       = "aspeed.smc-ast2400",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2400_smc_class_init,
+    },
+    {
+        .name       = "aspeed.fmc-ast2400",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2400_fmc_class_init,
+    },
+    {
+        .name       = "aspeed.spi1-ast2400",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2400_spi1_class_init,
+    },
+    {
+        .name       = "aspeed.fmc-ast2500",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2500_fmc_class_init,
+    },
+    {
+        .name       = "aspeed.spi1-ast2500",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2500_spi1_class_init,
+    },
+    {
+        .name       = "aspeed.spi2-ast2500",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2500_spi2_class_init,
+    },
+    {
+        .name       = "aspeed.fmc-ast2600",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2600_fmc_class_init,
+    },
+    {
+        .name       = "aspeed.spi1-ast2600",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2600_spi1_class_init,
+    },
+    {
+        .name       = "aspeed.spi2-ast2600",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2600_spi2_class_init,
+    },
+    {
+        .name       = "aspeed.fmc-ast2700",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2700_fmc_class_init,
+    },
+    {
+        .name       = "aspeed.spi0-ast2700",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2700_spi0_class_init,
+    },
+    {
+        .name       = "aspeed.spi1-ast2700",
+        .parent     = TYPE_ASPEED_SMC,
+        .class_init = aspeed_2700_spi1_class_init,
+    },
+    {
+        .name       = "aspeed.spi2-ast2700",
+        .parent     = TYPE_ASPEED_SMC,
         .class_init = aspeed_2700_spi2_class_init,
+    }
 };
 
-static void aspeed_smc_register_types(void)
-{
-    type_register_static(&aspeed_smc_flash_info);
-    type_register_static(&aspeed_smc_info);
-    type_register_static(&aspeed_2400_smc_info);
-    type_register_static(&aspeed_2400_fmc_info);
-    type_register_static(&aspeed_2400_spi1_info);
-    type_register_static(&aspeed_2500_fmc_info);
-    type_register_static(&aspeed_2500_spi1_info);
-    type_register_static(&aspeed_2500_spi2_info);
-    type_register_static(&aspeed_2600_fmc_info);
-    type_register_static(&aspeed_2600_spi1_info);
-    type_register_static(&aspeed_2600_spi2_info);
-    type_register_static(&aspeed_1030_fmc_info);
-    type_register_static(&aspeed_1030_spi1_info);
-    type_register_static(&aspeed_1030_spi2_info);
-    type_register_static(&aspeed_2700_fmc_info);
-    type_register_static(&aspeed_2700_spi0_info);
-    type_register_static(&aspeed_2700_spi1_info);
-    type_register_static(&aspeed_2700_spi2_info);
-}
-
-type_init(aspeed_smc_register_types)
+DEFINE_TYPES(aspeed_smc_types)
