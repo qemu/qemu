@@ -696,14 +696,6 @@ static void aspeed_hace_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_hace;
 }
 
-static const TypeInfo aspeed_hace_info = {
-    .name = TYPE_ASPEED_HACE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedHACEState),
-    .class_init = aspeed_hace_class_init,
-    .class_size = sizeof(AspeedHACEClass)
-};
-
 static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -717,12 +709,6 @@ static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
     ahc->key_mask = 0x0FFFFFC0;
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
-
-static const TypeInfo aspeed_ast2400_hace_info = {
-    .name = TYPE_ASPEED_AST2400_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2400_hace_class_init,
-};
 
 static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -738,12 +724,6 @@ static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
-static const TypeInfo aspeed_ast2500_hace_info = {
-    .name = TYPE_ASPEED_AST2500_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2500_hace_class_init,
-};
-
 static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -758,12 +738,6 @@ static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
     ahc->hash_mask = 0x00147FFF;
 }
 
-static const TypeInfo aspeed_ast2600_hace_info = {
-    .name = TYPE_ASPEED_AST2600_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2600_hace_class_init,
-};
-
 static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -777,12 +751,6 @@ static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
     ahc->key_mask = 0x7FFFFFF8;
     ahc->hash_mask = 0x00147FFF;
 }
-
-static const TypeInfo aspeed_ast1030_hace_info = {
-    .name = TYPE_ASPEED_AST1030_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast1030_hace_class_init,
-};
 
 static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -823,20 +791,39 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
     ahc->has_dma64 = true;
 }
 
-static const TypeInfo aspeed_ast2700_hace_info = {
-    .name = TYPE_ASPEED_AST2700_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2700_hace_class_init,
+static const TypeInfo aspeed_hace_types[] = {
+    {
+        .name = TYPE_ASPEED_HACE,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedHACEState),
+        .class_init = aspeed_hace_class_init,
+        .class_size = sizeof(AspeedHACEClass),
+    },
+    {
+        .name = TYPE_ASPEED_AST1030_HACE,
+        .parent = TYPE_ASPEED_HACE,
+        .class_init = aspeed_ast1030_hace_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_AST2400_HACE,
+        .parent = TYPE_ASPEED_HACE,
+        .class_init = aspeed_ast2400_hace_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_AST2500_HACE,
+        .parent = TYPE_ASPEED_HACE,
+        .class_init = aspeed_ast2500_hace_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_AST2600_HACE,
+        .parent = TYPE_ASPEED_HACE,
+        .class_init = aspeed_ast2600_hace_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_AST2700_HACE,
+        .parent = TYPE_ASPEED_HACE,
+        .class_init = aspeed_ast2700_hace_class_init,
+    }
 };
 
-static void aspeed_hace_register_types(void)
-{
-    type_register_static(&aspeed_ast2400_hace_info);
-    type_register_static(&aspeed_ast2500_hace_info);
-    type_register_static(&aspeed_ast2600_hace_info);
-    type_register_static(&aspeed_ast1030_hace_info);
-    type_register_static(&aspeed_ast2700_hace_info);
-    type_register_static(&aspeed_hace_info);
-}
-
-type_init(aspeed_hace_register_types);
+DEFINE_TYPES(aspeed_hace_types)
