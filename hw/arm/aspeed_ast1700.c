@@ -260,17 +260,14 @@ static void aspeed_ast1700_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_ast1700_props);
 }
 
-static const TypeInfo aspeed_ast1700_info = {
-    .name          = TYPE_ASPEED_AST1700,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedAST1700SoCState),
-    .class_init    = aspeed_ast1700_class_init,
-    .instance_init = aspeed_ast1700_instance_init,
+static const TypeInfo aspeed_ast1700_types[] = {
+    {
+        .name          = TYPE_ASPEED_AST1700,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedAST1700SoCState),
+        .class_init    = aspeed_ast1700_class_init,
+        .instance_init = aspeed_ast1700_instance_init,
+    }
 };
 
-static void aspeed_ast1700_register_types(void)
-{
-    type_register_static(&aspeed_ast1700_info);
-}
-
-type_init(aspeed_ast1700_register_types);
+DEFINE_TYPES(aspeed_ast1700_types)
