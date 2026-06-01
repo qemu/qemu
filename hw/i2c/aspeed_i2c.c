@@ -1372,16 +1372,6 @@ static void aspeed_i2c_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Aspeed I2C Controller";
 }
 
-static const TypeInfo aspeed_i2c_info = {
-    .name          = TYPE_ASPEED_I2C,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_i2c_instance_init,
-    .instance_size = sizeof(AspeedI2CState),
-    .class_init    = aspeed_i2c_class_init,
-    .class_size = sizeof(AspeedI2CClass),
-    .abstract   = true,
-};
-
 static int aspeed_i2c_bus_new_slave_event(AspeedI2CBus *bus,
                                           enum i2c_event event)
 {
@@ -1500,13 +1490,6 @@ static void aspeed_i2c_bus_slave_class_init(ObjectClass *klass,
     sc->send_async = aspeed_i2c_bus_slave_send_async;
 }
 
-static const TypeInfo aspeed_i2c_bus_slave_info = {
-    .name           = TYPE_ASPEED_I2C_BUS_SLAVE,
-    .parent         = TYPE_I2C_SLAVE,
-    .instance_size  = sizeof(AspeedI2CBusSlave),
-    .class_init     = aspeed_i2c_bus_slave_class_init,
-};
-
 static void aspeed_i2c_bus_reset_hold(Object *obj, ResetType type)
 {
     AspeedI2CBus *s = ASPEED_I2C_BUS(obj);
@@ -1565,13 +1548,6 @@ static void aspeed_i2c_bus_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_i2c_bus_properties);
 }
 
-static const TypeInfo aspeed_i2c_bus_info = {
-    .name           = TYPE_ASPEED_I2C_BUS,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedI2CBus),
-    .class_init     = aspeed_i2c_bus_class_init,
-};
-
 static qemu_irq aspeed_2400_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
     return bus->controller->irq;
@@ -1605,12 +1581,6 @@ static void aspeed_2400_i2c_class_init(ObjectClass *klass, const void *data)
     aic->mem_size = 0x1000;
 }
 
-static const TypeInfo aspeed_2400_i2c_info = {
-    .name = TYPE_ASPEED_2400_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2400_i2c_class_init,
-};
-
 static qemu_irq aspeed_2500_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
     return bus->controller->irq;
@@ -1640,12 +1610,6 @@ static void aspeed_2500_i2c_class_init(ObjectClass *klass, const void *data)
     aic->mem_size = 0x1000;
 }
 
-static const TypeInfo aspeed_2500_i2c_info = {
-    .name = TYPE_ASPEED_2500_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2500_i2c_class_init,
-};
-
 static qemu_irq aspeed_2600_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
     return bus->irq;
@@ -1669,12 +1633,6 @@ static void aspeed_2600_i2c_class_init(ObjectClass *klass, const void *data)
     aic->mem_size = 0x1000;
 }
 
-static const TypeInfo aspeed_2600_i2c_info = {
-    .name = TYPE_ASPEED_2600_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2600_i2c_class_init,
-};
-
 static void aspeed_1030_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1692,12 +1650,6 @@ static void aspeed_1030_i2c_class_init(ObjectClass *klass, const void *data)
     aic->has_dma = true;
     aic->mem_size = 0x10000;
 }
-
-static const TypeInfo aspeed_1030_i2c_info = {
-    .name = TYPE_ASPEED_1030_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_1030_i2c_class_init,
-};
 
 static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
 {
@@ -1720,25 +1672,56 @@ static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
     aic->has_dma64 = true;
 }
 
-static const TypeInfo aspeed_2700_i2c_info = {
-    .name = TYPE_ASPEED_2700_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2700_i2c_class_init,
+static const TypeInfo aspeed_i2c_types[] = {
+    {
+        .name           = TYPE_ASPEED_I2C_BUS,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(AspeedI2CBus),
+        .class_init     = aspeed_i2c_bus_class_init,
+    },
+    {
+        .name           = TYPE_ASPEED_I2C_BUS_SLAVE,
+        .parent         = TYPE_I2C_SLAVE,
+        .instance_size  = sizeof(AspeedI2CBusSlave),
+        .class_init     = aspeed_i2c_bus_slave_class_init,
+    },
+    {
+        .name          = TYPE_ASPEED_I2C,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_init = aspeed_i2c_instance_init,
+        .instance_size = sizeof(AspeedI2CState),
+        .class_init    = aspeed_i2c_class_init,
+        .class_size = sizeof(AspeedI2CClass),
+        .abstract   = true,
+    },
+    {
+        .name = TYPE_ASPEED_1030_I2C,
+        .parent = TYPE_ASPEED_I2C,
+        .class_init = aspeed_1030_i2c_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2400_I2C,
+        .parent = TYPE_ASPEED_I2C,
+        .class_init = aspeed_2400_i2c_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2500_I2C,
+        .parent = TYPE_ASPEED_I2C,
+        .class_init = aspeed_2500_i2c_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2600_I2C,
+        .parent = TYPE_ASPEED_I2C,
+        .class_init = aspeed_2600_i2c_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2700_I2C,
+        .parent = TYPE_ASPEED_I2C,
+        .class_init = aspeed_2700_i2c_class_init,
+    }
 };
 
-static void aspeed_i2c_register_types(void)
-{
-    type_register_static(&aspeed_i2c_bus_info);
-    type_register_static(&aspeed_i2c_bus_slave_info);
-    type_register_static(&aspeed_i2c_info);
-    type_register_static(&aspeed_2400_i2c_info);
-    type_register_static(&aspeed_2500_i2c_info);
-    type_register_static(&aspeed_2600_i2c_info);
-    type_register_static(&aspeed_1030_i2c_info);
-    type_register_static(&aspeed_2700_i2c_info);
-}
-
-type_init(aspeed_i2c_register_types)
+DEFINE_TYPES(aspeed_i2c_types)
 
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr)
