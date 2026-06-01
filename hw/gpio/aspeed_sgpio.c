@@ -321,26 +321,21 @@ static void aspeed_sgpio_2700_class_init(ObjectClass *klass, const void *data)
     agc->reg_ops = &aspeed_sgpio_2700_ops;
 }
 
-static const TypeInfo aspeed_sgpio_info = {
-    .name           = TYPE_ASPEED_SGPIO,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedSGPIOState),
-    .class_size     = sizeof(AspeedSGPIOClass),
-    .class_init     = aspeed_sgpio_class_init,
-    .abstract       = true,
+static const TypeInfo aspeed_sgpio_types[] = {
+    {
+        .name           = TYPE_ASPEED_SGPIO,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(AspeedSGPIOState),
+        .class_size     = sizeof(AspeedSGPIOClass),
+        .class_init     = aspeed_sgpio_class_init,
+        .abstract       = true,
+    },
+    {
+        .name           = TYPE_ASPEED_SGPIO "-ast2700",
+        .parent         = TYPE_ASPEED_SGPIO,
+        .class_init     = aspeed_sgpio_2700_class_init,
+        .instance_init  = aspeed_sgpio_init,
+    }
 };
 
-static const TypeInfo aspeed_sgpio_ast2700_info = {
-    .name           = TYPE_ASPEED_SGPIO "-ast2700",
-    .parent         = TYPE_ASPEED_SGPIO,
-    .class_init     = aspeed_sgpio_2700_class_init,
-    .instance_init  = aspeed_sgpio_init,
-};
-
-static void aspeed_sgpio_register_types(void)
-{
-    type_register_static(&aspeed_sgpio_info);
-    type_register_static(&aspeed_sgpio_ast2700_info);
-}
-
-type_init(aspeed_sgpio_register_types);
+DEFINE_TYPES(aspeed_sgpio_types)
