@@ -167,12 +167,6 @@ static void aspeed_2600_xdma_class_init(ObjectClass *klass, const void *data)
         XDMA_AST2600_IRQ_STATUS_DS_COMP;
 }
 
-static const TypeInfo aspeed_2600_xdma_info = {
-    .name = TYPE_ASPEED_2600_XDMA,
-    .parent = TYPE_ASPEED_XDMA,
-    .class_init = aspeed_2600_xdma_class_init,
-};
-
 static void aspeed_2500_xdma_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -187,12 +181,6 @@ static void aspeed_2500_xdma_class_init(ObjectClass *klass, const void *data)
     axc->intr_ctrl_mask = XDMA_IRQ_ENG_CTRL_W_MASK;
     axc->intr_status = XDMA_IRQ_ENG_STAT;
     axc->intr_complete = XDMA_IRQ_ENG_STAT_US_COMP | XDMA_IRQ_ENG_STAT_DS_COMP;
-};
-
-static const TypeInfo aspeed_2500_xdma_info = {
-    .name = TYPE_ASPEED_2500_XDMA,
-    .parent = TYPE_ASPEED_XDMA,
-    .class_init = aspeed_2500_xdma_class_init,
 };
 
 static void aspeed_2400_xdma_class_init(ObjectClass *klass, const void *data)
@@ -211,12 +199,6 @@ static void aspeed_2400_xdma_class_init(ObjectClass *klass, const void *data)
     axc->intr_complete = XDMA_IRQ_ENG_STAT_US_COMP | XDMA_IRQ_ENG_STAT_DS_COMP;
 };
 
-static const TypeInfo aspeed_2400_xdma_info = {
-    .name = TYPE_ASPEED_2400_XDMA,
-    .parent = TYPE_ASPEED_XDMA,
-    .class_init = aspeed_2400_xdma_class_init,
-};
-
 static void aspeed_xdma_class_init(ObjectClass *classp, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(classp);
@@ -227,20 +209,30 @@ static void aspeed_xdma_class_init(ObjectClass *classp, const void *data)
     dc->vmsd = &aspeed_xdma_vmstate;
 }
 
-static const TypeInfo aspeed_xdma_info = {
-    .name          = TYPE_ASPEED_XDMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedXDMAState),
-    .class_init    = aspeed_xdma_class_init,
-    .class_size    = sizeof(AspeedXDMAClass),
-    .abstract      = true,
+static const TypeInfo aspeed_xdma_types[] = {
+    {
+        .name          = TYPE_ASPEED_XDMA,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedXDMAState),
+        .class_init    = aspeed_xdma_class_init,
+        .class_size    = sizeof(AspeedXDMAClass),
+        .abstract      = true,
+    },
+    {
+        .name = TYPE_ASPEED_2400_XDMA,
+        .parent = TYPE_ASPEED_XDMA,
+        .class_init = aspeed_2400_xdma_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2500_XDMA,
+        .parent = TYPE_ASPEED_XDMA,
+        .class_init = aspeed_2500_xdma_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2600_XDMA,
+        .parent = TYPE_ASPEED_XDMA,
+        .class_init = aspeed_2600_xdma_class_init,
+    }
 };
 
-static void aspeed_xdma_register_type(void)
-{
-    type_register_static(&aspeed_xdma_info);
-    type_register_static(&aspeed_2400_xdma_info);
-    type_register_static(&aspeed_2500_xdma_info);
-    type_register_static(&aspeed_2600_xdma_info);
-}
-type_init(aspeed_xdma_register_type);
+DEFINE_TYPES(aspeed_xdma_types)
