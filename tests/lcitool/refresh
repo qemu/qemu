@@ -304,11 +304,6 @@ try:
                         trailer="".join(debian_all_test_cross_compilers))
 
     #
-    # Cirrus packages lists for GitLab
-    #
-    generate_cirrus("freebsd-14")
-
-    #
     # GitLab packages lists
     #
     generate_vars("macos-14")
