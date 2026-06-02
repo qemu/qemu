@@ -551,8 +551,8 @@ mappings to distribution package names for a wide variety of third
 party projects.  ``lcitool`` applies the mappings to a list of build
 pre-requisites in ``tests/lcitool/projects/qemu.yml``, determines the
 list of native packages to install on each distribution, and uses them
-to generate build environments (dockerfiles and Cirrus CI variable files)
-that are consistent across OS distribution.
+to generate build environments (dockerfiles) that are consistent across OS
+distribution.
 
 
 Adding new build pre-requisites
