@@ -308,6 +308,7 @@ extern const VMStateInfo vmstate_info_bitmap;
 extern const VMStateInfo vmstate_info_qtailq;
 extern const VMStateInfo vmstate_info_gtree;
 extern const VMStateInfo vmstate_info_qlist;
+extern const VMStateInfo vmstate_info_g_byte_array;
 
 #define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 /*
@@ -955,6 +956,15 @@ extern const VMStateInfo vmstate_info_qlist;
     .info         = &vmstate_info_qlist,                                 \
     .offset       = offsetof(_state, _field),                            \
     .start        = offsetof(_type, _next),                              \
+}
+
+#define VMSTATE_GBYTEARRAY(_field, _state, _version) {                   \
+    .name         = (stringify(_field)),                                 \
+    .version_id   = (_version),                                          \
+    .size         = sizeof(GByteArray),                                  \
+    .info         = &vmstate_info_g_byte_array,                          \
+    .flags        = VMS_SINGLE,                                          \
+    .offset       = vmstate_offset_pointer(_state, _field, GByteArray),  \
 }
 
 /* _f : field name
