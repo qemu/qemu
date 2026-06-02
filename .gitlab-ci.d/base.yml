@@ -52,10 +52,6 @@ variables:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
 
-    # Cirrus jobs can't run unless the creds / target repo are set
-    - if: '$QEMU_JOB_CIRRUS && ($CIRRUS_GITHUB_REPO == null || $CIRRUS_API_TOKEN == null)'
-      when: never
-
     # Publishing jobs should only run on the default branch in upstream
     - if: '$QEMU_JOB_PUBLISH == "1" && $CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
       when: never

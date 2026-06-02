@@ -81,12 +81,6 @@ def generate_dockerfile(host, target, project="qemu", cross=None, trailer=None,
     generate(filename, cmd, trailer)
 
 
-def generate_cirrus(target, trailer=None):
-    filename = Path(src_dir, ".gitlab-ci.d", "cirrus", target + ".vars")
-    cmd = lcitool_cmd + ["variables", "--format", "shell", target, "qemu"]
-    generate(filename, cmd, trailer)
-
-
 def generate_vars(target, trailer=None):
     filename = Path(src_dir, ".gitlab-ci.d", target + ".vars")
     cmd = lcitool_cmd + ["variables", "--format", "shell", target, "qemu"]
