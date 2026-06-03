@@ -619,6 +619,15 @@ void sparc64_set_context(CPUSPARCState *env)
             }
         }
         target_to_host_sigset_internal(&set, &target_set);
+        /*
+         * set_sigmask() requires the caller to have first called
+         * block_signals() so that process_pending_signals() is guaranteed
+         * to run after the mask change.  Without this, a guest signal that
+         * is pending-and-blocked at setcontext time is left undelivered
+         * even after its mask bit is cleared, because signal_pending stays
+         * 0 and the post-trap process_pending_signals() loop never enters.
+         */
+        block_signals();
         set_sigmask(&set);
     }
     env->pc = pc;
