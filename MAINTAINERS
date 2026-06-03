@@ -2715,7 +2715,7 @@ F: include/hw/i2c/i2c_mux_pca954x.h
 pcf8574
 S: Orphan
 F: hw/gpio/pcf8574.c
-F: include/gpio/pcf8574.h
+F: include/hw/gpio/pcf8574.h
 
 Generic Loader
 M: Alistair Francis <alistair@alistair23.me>
