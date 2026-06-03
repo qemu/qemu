@@ -3265,7 +3265,7 @@ R: Ani Sinha <anisinha@redhat.com>
 F: dump/
 F: hw/misc/vmcoreinfo.c
 F: include/hw/misc/vmcoreinfo.h
-F: include/qemu/win_dump_defs
+F: include/qemu/win_dump_defs.h
 F: include/system/dump-arch.h
 F: include/system/dump.h
 F: qapi/dump.json
