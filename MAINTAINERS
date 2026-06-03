@@ -729,7 +729,7 @@ F: hw/ide/ahci-allwinner.c
 F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
 F: docs/system/arm/cubieboard.rst
-F: hw/misc/axp209.c
+F: hw/misc/axp2xx.c
 F: tests/functional/arm/test_cubieboard.py
 
 Allwinner-h3
