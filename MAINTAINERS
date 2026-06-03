@@ -4166,7 +4166,6 @@ M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
 F: tcg/tci/
 F: tcg/tci.c
-F: disas/tci.c
 
 Block drivers
 -------------
