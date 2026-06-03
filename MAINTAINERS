@@ -3963,7 +3963,7 @@ M: Jamin Lin <jamin_lin@aspeedtech.com>
 R: Nabih Estefan <nabihestefan@google.com>
 S: Maintained
 F: hw/i3c/*.c
-F: hw/i3c/.h
+F: hw/i3c/*.h
 F: hw/i3c/Kconfig
 F: hw/i3c/meson.build
 F: hw/i3c/trace-events
