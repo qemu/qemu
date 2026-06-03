@@ -2235,7 +2235,7 @@ ACPI/HEST/GHES/ARM processor CPER
 M: Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 L: linux-edac@vger.kernel.org
 S: Maintained
-F: hw/arm/ghes_cper.c
+F: hw/acpi/ghes_cper.c
 F: hw/acpi/ghes_cper_stub.c
 F: qapi/acpi-hest.json
 F: scripts/ghes_inject.py
