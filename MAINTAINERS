@@ -2837,7 +2837,7 @@ F: docs/interop/vhost-user-gpu.rst
 F: contrib/vhost-user-gpu
 F: hw/display/vhost-user-*
 
-qemu-vnc:
+qemu-vnc
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
 F: tools/qemu-vnc
@@ -4461,7 +4461,7 @@ F: include/hw/remote/iommu.h
 F: tests/functional/multiprocess.py
 F: tests/functional/*/*multiprocess.py
 
-VFIO-USER:
+VFIO-USER
 M: John Levon <john.levon@nutanix.com>
 M: Thanos Makatos <thanos.makatos@nutanix.com>
 M: Cédric Le Goater <clg@redhat.com>
@@ -4473,7 +4473,7 @@ F: include/hw/vfio-user/*
 F: subprojects/libvfio-user
 F: tests/functional/x86_64/test_vfio_user_client.py
 
-EBPF:
+EBPF
 M: Jason Wang <jasowang@redhat.com>
 R: Yuri Benditovich <ybendito@redhat.com>
 S: Maintained
