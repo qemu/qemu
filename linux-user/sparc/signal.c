@@ -656,6 +656,24 @@ void sparc64_set_context(CPUSPARCState *env)
     __get_user(env->regwptr[WREG_FP], &(ucp->tuc_mcontext.mc_fp));
     __get_user(env->regwptr[WREG_I7], &(ucp->tuc_mcontext.mc_i7));
 
+    /*
+     * The kernel's do_rt_sigreturn loads L and I registers from the
+     * register save area (RSA) at the new O6+STACK_BIAS.  Unlike the
+     * kernel, QEMU has no kernel-mode path that triggers a window fill,
+     * so we must do it explicitly here.  I6 and I7 are already restored
+     * from mc_fp and mc_i7 above; restore L0-L7 and I0-I5 from the RSA.
+     */
+    {
+        abi_ulong sp_ptr = env->regwptr[WREG_O6];
+        /* LP64 O6 is biased (8-byte-aligned - 2047); low bit set. ILP32 O6 is 4-byte-aligned. */
+        if (sp_ptr & 3)
+            sp_ptr += TARGET_STACK_BIAS;
+        for (i = 0; i < 8; i++)
+            get_user_ual(env->regwptr[WREG_L0 + i], sp_ptr + i * 8);
+        for (i = 0; i < 6; i++)  /* I0-I5; I6=FP and I7 already restored */
+            get_user_ual(env->regwptr[WREG_I0 + i], sp_ptr + 64 + i * 8);
+    }
+
     fpup = &ucp->tuc_mcontext.mc_fpregs;
 
     __get_user(fenab, &(fpup->mcfpu_enab));
