@@ -4,7 +4,34 @@
 #include "qemu.h"
 #include "loader.h"
 #include "elf.h"
+#include "target_elf.h"
 
+
+void elf_core_copy_regs(target_elf_gregset_t *r, const CPUArchState *env)
+{
+    CPUSPARCState *e = (CPUSPARCState *)env;
+    int i;
+
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+    for (i = 0; i < 8; i++) {
+        r->regs[i]     = tswap64(env->gregs[i]);
+        r->regs[8 + i] = tswap64(env->regwptr[WREG_O0 + i]);
+    }
+    r->regs[16] = tswap64(sparc64_tstate(e));
+    r->regs[17] = tswap64(env->pc);
+    r->regs[18] = tswap64(env->npc);
+    r->regs[19] = tswap64(env->y);
+#else
+    r->regs[0] = tswap32(cpu_get_psr(e));
+    r->regs[1] = tswap32(env->pc);
+    r->regs[2] = tswap32(env->npc);
+    r->regs[3] = tswap32(env->y);
+    for (i = 0; i < 8; i++) {
+        r->regs[4 + i]  = tswap32(env->gregs[i]);
+        r->regs[12 + i] = tswap32(env->regwptr[WREG_O0 + i]);
+    }
+#endif
+}
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
