@@ -2297,7 +2297,7 @@ F: hw/ssi/*
 F: hw/block/m25p80*
 F: include/hw/ssi/ssi.h
 X: hw/ssi/xilinx_*
-F: tests/qtest/m25p80-test.c
+F: tests/qtest/aspeed_smc-test.c
 
 Xilinx SPI
 M: Alistair Francis <alistair@alistair23.me>
