@@ -111,6 +111,7 @@ static void aspeed_soc_ast1040_init(Object *obj)
 
     object_initialize_child(obj, "adc", &s->adc, TYPE_ASPEED_2700_ADC);
     object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
+    object_initialize_child(obj, "gpio", &s->gpio, "aspeed.gpio-ast2700");
 
     object_initialize_child(obj, "pwm", &s->pwm, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "espi", &s->espi, TYPE_UNIMPLEMENTED_DEVICE);
@@ -210,6 +211,15 @@ static void aspeed_soc_ast1040_realize(DeviceState *dev_soc, Error **errp)
                     sc->memmap[ASPEED_DEV_PECI]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peci), 0,
                        aspeed_soc_ast1040_get_irq(s, ASPEED_DEV_PECI));
+
+    /* GPIO */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->gpio), 0,
+                    sc->memmap[ASPEED_DEV_GPIO]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio), 0,
+                       aspeed_soc_ast1040_get_irq(s, ASPEED_DEV_GPIO));
 
     /* Unimplemented peripherals */
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->pwm),
