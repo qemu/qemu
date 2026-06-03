@@ -2539,11 +2539,9 @@ F: hw/virtio/vhost-user-device*
 vhost-user-rng
 M: Mathieu Poirier <mathieu.poirier@linaro.org>
 S: Supported
-F: docs/system/devices/vhost-user-rng.rst
 F: hw/virtio/vhost-user-rng.c
 F: hw/virtio/vhost-user-rng-pci.c
 F: include/hw/virtio/vhost-user-rng.h
-F: tools/vhost-user-rng/*
 
 vhost-user-gpio
 M: Alex Bennée <alex.bennee@linaro.org>
