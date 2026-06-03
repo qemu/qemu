@@ -31,6 +31,7 @@ static const hwaddr aspeed_soc_ast1040_memmap[] = {
     [ASPEED_DEV_SGPIOM0]   = 0x74C0C000,
     [ASPEED_DEV_SGPIOM1]   = 0x74C0D000,
     [ASPEED_DEV_I2C]       = 0x74C0F000,
+    [ASPEED_DEV_PECI]      = 0x74C1F000,
     [ASPEED_DEV_I3C]       = 0x74C20000,
     [ASPEED_DEV_UART0]     = 0x74C33000,
     [ASPEED_DEV_UART1]     = 0x74C33100,
@@ -76,6 +77,7 @@ static const int aspeed_soc_ast1040_irqmap[] = {
     [ASPEED_DEV_UART11]    = 146,
     [ASPEED_DEV_UART12]    = 147,
     [ASPEED_DEV_JTAG0]     = 162,
+    [ASPEED_DEV_PECI]      = 164,
 };
 
 static qemu_irq aspeed_soc_ast1040_get_irq(AspeedSoCState *s, int dev)
@@ -108,6 +110,7 @@ static void aspeed_soc_ast1040_init(Object *obj)
     }
 
     object_initialize_child(obj, "adc", &s->adc, TYPE_ASPEED_2700_ADC);
+    object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
 
     object_initialize_child(obj, "pwm", &s->pwm, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "espi", &s->espi, TYPE_UNIMPLEMENTED_DEVICE);
@@ -198,6 +201,15 @@ static void aspeed_soc_ast1040_realize(DeviceState *dev_soc, Error **errp)
                     sc->memmap[ASPEED_DEV_ADC]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->adc), 0,
                        aspeed_soc_ast1040_get_irq(s, ASPEED_DEV_ADC));
+
+    /* PECI */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->peci), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->peci), 0,
+                    sc->memmap[ASPEED_DEV_PECI]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peci), 0,
+                       aspeed_soc_ast1040_get_irq(s, ASPEED_DEV_PECI));
 
     /* Unimplemented peripherals */
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->pwm),
