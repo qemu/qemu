@@ -694,7 +694,7 @@ F: scripts/nsis.py
 Darwin (macOS, iOS)
 M: Philippe Mathieu-Daudé <philmd@mailo.com>
 S: Odd Fixes
-F: .gitlab-ci.d/cirrus/macos-*
+F: .gitlab-ci.d/macos*
 F: */*.m
 F: scripts/entitlement.sh
 
