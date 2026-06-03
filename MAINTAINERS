@@ -4473,7 +4473,7 @@ F: .github/workflows/lockdown.yml
 F: .gitlab-ci.yml
 F: .gitlab-ci.d/
 F: .travis.yml
-F: docs/devel/ci*
+F: docs/devel/testing/ci*
 F: scripts/ci/
 F: tests/docker/
 F: tests/vm/
