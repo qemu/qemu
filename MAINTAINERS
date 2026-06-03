@@ -2534,7 +2534,7 @@ vhost-user-stubs
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: hw/virtio/vhost-user-base.c
-F: hw/virtio/vhost-user-device*
+F: hw/virtio/vhost-user-test-device*
 
 vhost-user-rng
 M: Mathieu Poirier <mathieu.poirier@linaro.org>
