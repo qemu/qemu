@@ -3573,7 +3573,7 @@ F: docs/qdev-device-use.txt
 F: hw/core/qdev*
 F: hw/core/bus.c
 F: hw/core/sysbus.c
-F: include/hw/qdev*
+F: include/hw/core/qdev*
 F: include/monitor/qdev.h
 F: qapi/qdev.json
 F: system/qdev-monitor.c
