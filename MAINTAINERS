@@ -3416,7 +3416,6 @@ S: Maintained
 F: monitor/monitor-internal.h
 F: monitor/monitor.c
 F: monitor/hmp*
-F: hmp.h
 F: hmp-commands*.hx
 F: include/monitor/hmp.h
 F: include/monitor/hmp-completion.h
