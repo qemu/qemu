@@ -3314,11 +3314,16 @@ void pci_setup_iommu(PCIBus *bus, const PCIIOMMUOps *ops, void *opaque)
  * IOMMU ops are returned, avoiding the use of the parent’s IOMMU when
  * it's not appropriate.
  */
-void pci_setup_iommu_per_bus(PCIBus *bus, const PCIIOMMUOps *ops,
-                             void *opaque)
+bool pci_setup_iommu_per_bus(PCIBus *bus, const PCIIOMMUOps *ops,
+                             void *opaque, Error **errp)
 {
+    if (bus->iommu_per_bus) {
+        error_setg(errp, "An iommu is already attached to this bus");
+        return false;
+    }
     pci_setup_iommu(bus, ops, opaque);
     bus->iommu_per_bus = true;
+    return true;
 }
 
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
