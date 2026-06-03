@@ -107,6 +107,8 @@ static void aspeed_soc_ast1040_init(Object *obj)
         object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_SERIAL_MM);
     }
 
+    object_initialize_child(obj, "adc", &s->adc, TYPE_ASPEED_2700_ADC);
+
     object_initialize_child(obj, "pwm", &s->pwm, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "espi", &s->espi, TYPE_UNIMPLEMENTED_DEVICE);
     object_initialize_child(obj, "udc", &s->udc, TYPE_UNIMPLEMENTED_DEVICE);
@@ -187,6 +189,15 @@ static void aspeed_soc_ast1040_realize(DeviceState *dev_soc, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
                            aspeed_soc_ast1040_get_irq(s, uart));
     }
+
+    /* ADC */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->adc), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->adc), 0,
+                    sc->memmap[ASPEED_DEV_ADC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->adc), 0,
+                       aspeed_soc_ast1040_get_irq(s, ASPEED_DEV_ADC));
 
     /* Unimplemented peripherals */
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->pwm),
