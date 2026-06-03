@@ -471,7 +471,6 @@ S: Supported
 F: */*/kvm*
 F: accel/kvm/
 F: accel/stubs/kvm-stub.c
-F: include/hw/kvm/
 F: include/system/kvm*.h
 F: scripts/kvm/kvm_flightrecorder
 
