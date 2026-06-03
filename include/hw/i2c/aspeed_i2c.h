@@ -209,13 +209,9 @@ REG32(I2CS_DMA_LEN, 0x2c)
     FIELD(I2CS_DMA_LEN, TX_BUF_LEN_W1T, 15, 1)
     FIELD(I2CS_DMA_LEN, TX_BUF_LEN, 0, 11)
 REG32(I2CM_DMA_TX_ADDR, 0x30)
-    FIELD(I2CM_DMA_TX_ADDR, ADDR, 0, 31)
 REG32(I2CM_DMA_RX_ADDR, 0x34)
-    FIELD(I2CM_DMA_RX_ADDR, ADDR, 0, 31)
 REG32(I2CS_DMA_TX_ADDR, 0x38)
-    FIELD(I2CS_DMA_TX_ADDR, ADDR, 0, 31)
 REG32(I2CS_DMA_RX_ADDR, 0x3c)
-    FIELD(I2CS_DMA_RX_ADDR, ADDR, 0, 31)
 REG32(I2CS_DEV_ADDR, 0x40)
 REG32(I2CM_DMA_LEN_STS, 0x48)
     FIELD(I2CM_DMA_LEN_STS, RX_LEN, 16, 13)
@@ -303,6 +299,7 @@ struct AspeedI2CClass {
     bool has_share_pool;
     uint64_t mem_size;
     bool has_dma64;
+    uint32_t dma_addr_lo_mask;
 };
 
 static inline bool aspeed_i2c_is_new_mode(AspeedI2CState *s)
