@@ -1132,8 +1132,8 @@ static const MemoryRegionOps aspeed_i2c_bus_pool_ops = {
 
 static const VMStateDescription aspeed_i2c_bus_vmstate = {
     .name = TYPE_ASPEED_I2C,
-    .version_id = 7,
-    .minimum_version_id = 6,
+    .version_id = 8,
+    .minimum_version_id = 8,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, AspeedI2CBus, ASPEED_I2C_NEW_NUM_REG),
         VMSTATE_UINT32_V(pending_intr_sts, AspeedI2CBus, 7),
@@ -1145,8 +1145,8 @@ static const VMStateDescription aspeed_i2c_bus_vmstate = {
 
 static const VMStateDescription aspeed_i2c_vmstate = {
     .name = TYPE_ASPEED_I2C,
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(intr_status, AspeedI2CState),
         VMSTATE_STRUCT_ARRAY(busses, AspeedI2CState,
@@ -1250,37 +1250,37 @@ static void aspeed_i2c_instance_init(Object *obj)
  * Address Definitions (AST2700)
  *   0x000 ... 0x0FF: Global Register
  *   0x100 ... 0x19F: Device 0
- *   0x1A0 ... 0x1BF: Device 0 buffer
+ *   0x1C0 ... 0x1FF: Device 0 buffer
  *   0x200 ... 0x29F: Device 1
- *   0x2A0 ... 0x2BF: Device 1 buffer
+ *   0x2C0 ... 0x2FF: Device 1 buffer
  *   0x300 ... 0x39F: Device 2
- *   0x3A0 ... 0x3BF: Device 2 buffer
+ *   0x3C0 ... 0x3FF: Device 2 buffer
  *   0x400 ... 0x49F: Device 3
- *   0x4A0 ... 0x4BF: Device 3 buffer
+ *   0x4C0 ... 0x4FF: Device 3 buffer
  *   0x500 ... 0x59F: Device 4
- *   0x5A0 ... 0x5BF: Device 4 buffer
+ *   0x5C0 ... 0x5FF: Device 4 buffer
  *   0x600 ... 0x69F: Device 5
- *   0x6A0 ... 0x6BF: Device 5 buffer
+ *   0x6C0 ... 0x6FF: Device 5 buffer
  *   0x700 ... 0x79F: Device 6
- *   0x7A0 ... 0x7BF: Device 6 buffer
+ *   0x7C0 ... 0x7FF: Device 6 buffer
  *   0x800 ... 0x89F: Device 7
- *   0x8A0 ... 0x8BF: Device 7 buffer
+ *   0x8C0 ... 0x8FF: Device 7 buffer
  *   0x900 ... 0x99F: Device 8
- *   0x9A0 ... 0x9BF: Device 8 buffer
+ *   0x9C0 ... 0x9FF: Device 8 buffer
  *   0xA00 ... 0xA9F: Device 9
- *   0xAA0 ... 0xABF: Device 9 buffer
+ *   0xAC0 ... 0xAFF: Device 9 buffer
  *   0xB00 ... 0xB9F: Device 10
- *   0xBA0 ... 0xBBF: Device 10 buffer
+ *   0xBC0 ... 0xBFF: Device 10 buffer
  *   0xC00 ... 0xC9F: Device 11
- *   0xCA0 ... 0xCBF: Device 11 buffer
+ *   0xCC0 ... 0xCFF: Device 11 buffer
  *   0xD00 ... 0xD9F: Device 12
- *   0xDA0 ... 0xDBF: Device 12 buffer
+ *   0xDC0 ... 0xDFF: Device 12 buffer
  *   0xE00 ... 0xE9F: Device 13
- *   0xEA0 ... 0xEBF: Device 13 buffer
+ *   0xEC0 ... 0xEFF: Device 13 buffer
  *   0xF00 ... 0xF9F: Device 14
- *   0xFA0 ... 0xFBF: Device 14 buffer
+ *   0xFC0 ... 0xFFF: Device 14 buffer
  *   0x1000 ... 0x109F: Device 15
- *   0x10A0 ... 0x10BF: Device 15 buffer
+ *   0x10C0 ... 0x10BF: Device 15 buffer
  */
 static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
 {
@@ -1666,9 +1666,9 @@ static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
     aic->reg_gap_size = 0x60;
     aic->gap = -1; /* no gap */
     aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
-    aic->pool_size = 0x20;
-    aic->pool_gap_size = 0xe0;
-    aic->pool_base = 0x1a0;
+    aic->pool_size = 0x40;
+    aic->pool_gap_size = 0xc0;
+    aic->pool_base = 0x1c0;
     aic->bus_pool_base = aspeed_2500_i2c_bus_pool_base;
     aic->has_dma = true;
     aic->mem_size = 0x2000;
