@@ -541,8 +541,8 @@ F: include/system/cpus.h
 F: include/accel/accel-*.h
 F: accel/accel-*.?
 F: accel/dummy-cpus.?
-F: accel/Makefile.objs
-F: accel/stubs/Makefile.objs
+F: accel/meson.build
+F: accel/stubs/meson.build
 F: cpu-common.c
 F: cpu-target.c
 F: qapi/accelerator.json
