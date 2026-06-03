@@ -4346,7 +4346,6 @@ F: block/file-win32.c
 F: block/win32-aio.c
 
 Linux io_uring
-M: Julia Suvorova <jusual@redhat.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 R: Stefano Garzarella <sgarzare@redhat.com>
 L: qemu-block@nongnu.org
