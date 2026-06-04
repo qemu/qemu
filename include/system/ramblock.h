@@ -103,7 +103,8 @@ struct RamBlockAttributes {
 
 /* @offset: the offset within the RAMBlock */
 int ram_block_discard_range(RAMBlock *rb, uint64_t offset, size_t length);
-/* @offset: the offset within the RAMBlock */
+int ram_block_discard_shared_range(RAMBlock *rb, uint64_t offset,
+                                   size_t length);
 int ram_block_discard_guest_memfd_range(RAMBlock *rb, uint64_t offset,
                                         size_t length);
 
