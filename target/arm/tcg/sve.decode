@@ -1941,6 +1941,13 @@ FCVTLT_hs_m     01100100 10 0010 01 101 ... ..... .....  @rd_pg_rn_e0
 FCVTNT_ds_m     01100100 11 0010 10 101 ... ..... .....  @rd_pg_rn_e0
 FCVTLT_sd_m     01100100 11 0010 11 101 ... ..... .....  @rd_pg_rn_e0
 
+FCVTXNT_ds_z    01100100 00 0000 10 101 ... ..... .....  @rd_pg_rn_e0
+FCVTNT_sh_z     01100100 10 0000 00 101 ... ..... .....  @rd_pg_rn_e0
+FCVTNT_ds_z     01100100 11 0000 10 101 ... ..... .....  @rd_pg_rn_e0
+BFCVTNT_z       01100100 10 0000 10 101 ... ..... .....  @rd_pg_rn_e0
+FCVTLT_hs_z     01100100 10 0000 01 101 ... ..... .....  @rd_pg_rn_e0
+FCVTLT_sd_z     01100100 11 0000 11 101 ... ..... .....  @rd_pg_rn_e0
+
 ### SVE2 floating-point convert to integer
 FLOGB_m         01100101 00 011 esz:2 0101 pg:3 rn:5 rd:5  &rpr_esz
 
