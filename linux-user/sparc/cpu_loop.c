@@ -22,6 +22,7 @@
 #include "user-internals.h"
 #include "user/cpu_loop.h"
 #include "signal-common.h"
+#include "sparc/cpu_loop.h"
 
 #define SPARC64_STACK_BIAS 2047
 
@@ -119,7 +120,7 @@ static void restore_window(CPUSPARCState *env)
 #endif
 }
 
-static void flush_windows(CPUSPARCState *env)
+void flush_windows(CPUSPARCState *env)
 {
     int offset, cwp1;
 

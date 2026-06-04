@@ -2445,6 +2445,9 @@ static int wmr_write_region(void *opaque, vaddr start,
  * handler (provided that target process haven't registered
  * handler for that) that does the dump when signal is received.
  */
+#ifdef TARGET_SPARC
+#include "sparc/cpu_loop.h"
+#endif
 static int elf_core_dump(int signr, const CPUArchState *env)
 {
     const CPUState *cpu = env_cpu_const(env);
@@ -2467,6 +2470,12 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
     cpu_list_lock();
     mmap_lock();
+
+#ifdef TARGET_SPARC
+    CPU_FOREACH(cpu_iter) {
+        flush_windows(cpu_env(cpu_iter));
+    }
+#endif
 
     /* By unprotecting, we merge vmas that might be split. */
     walk_memory_regions(NULL, wmr_page_unprotect_regions);
