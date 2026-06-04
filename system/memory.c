@@ -1771,6 +1771,7 @@ static void memory_region_finalize(Object *obj)
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
     g_free(mr->ioeventfds);
+    object_unref(mr->rdm);
 }
 
 Object *memory_region_owner(const MemoryRegion *mr)
@@ -2084,11 +2085,18 @@ int memory_region_add_ram_discard_source(MemoryRegion *mr,
 int memory_region_del_ram_discard_source(MemoryRegion *mr,
                                           RamDiscardSource *source)
 {
+    int ret;
     g_assert(mr->rdm);
 
-    return ram_discard_manager_del_source(mr->rdm, source);
-
-    /* if there is no source and no listener left, we could free rdm */
+    ret = ram_discard_manager_del_source(mr->rdm, source);
+    if (ret != 0) {
+        return ret;
+    }
+    if (QLIST_EMPTY(&mr->rdm->source_list) && QLIST_EMPTY(&mr->rdm->rdl_list)) {
+        object_unref(mr->rdm);
+        mr->rdm = NULL;
+    }
+    return 0;
 }
 
 /* Called with rcu_read_lock held.  */
