@@ -400,6 +400,14 @@ NOT_zpz_m       00000100 .. 011 110 101 ... ..... .....         @rd_pg_rn
 FABS_m          00000100 .. 011 100 101 ... ..... .....         @rd_pg_rn
 FNEG_m          00000100 .. 011 101 101 ... ..... .....         @rd_pg_rn
 
+CLS_z           00000100 .. 001 000 101 ... ..... .....         @rd_pg_rn
+CLZ_z           00000100 .. 001 001 101 ... ..... .....         @rd_pg_rn
+CNT_zpz_z       00000100 .. 001 010 101 ... ..... .....         @rd_pg_rn
+CNOT_z          00000100 .. 001 011 101 ... ..... .....         @rd_pg_rn
+NOT_zpz_z       00000100 .. 001 110 101 ... ..... .....         @rd_pg_rn
+FABS_z          00000100 .. 001 100 101 ... ..... .....         @rd_pg_rn
+FNEG_z          00000100 .. 001 101 101 ... ..... .....         @rd_pg_rn
+
 # SVE integer unary operations (predicated)
 # Note esz > original size for extensions.
 ABS_m           00000100 .. 010 110 101 ... ..... .....         @rd_pg_rn
