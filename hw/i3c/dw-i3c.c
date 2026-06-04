@@ -1830,6 +1830,27 @@ static void dw_i3c_realize(DeviceState *dev, Error **errp)
     bc->ibi_finish = dw_i3c_ibi_finish;
 }
 
+/*
+ * The *-queue-capacity-bytes properties shipped in v11.0.0 under names that
+ * implied a byte count, but the values are 32-bit word counts (they are passed
+ * straight to fifo32_create()).  They were renamed to *-queue-capacity-words;
+ * keep the old names working as aliases so existing command lines using e.g.
+ * -global driver=dw.i3c,property=tx-rx-queue-capacity-bytes,... don't break.
+ */
+static void dw_i3c_init(Object *obj)
+{
+    static const char *const alias[][2] = {
+        { "command-response-queue-capacity-bytes",
+          "command-response-queue-capacity-words" },
+        { "tx-rx-queue-capacity-bytes", "tx-rx-queue-capacity-words" },
+        { "ibi-queue-capacity-bytes", "ibi-queue-capacity-words" },
+    };
+
+    for (int i = 0; i < ARRAY_SIZE(alias); i++) {
+        object_property_add_alias(obj, alias[i][0], obj, alias[i][1]);
+    }
+}
+
 static const Property dw_i3c_properties[] = {
     DEFINE_PROP_UINT8("device-id", DWI3C, cfg.id, 0),
     DEFINE_PROP_UINT8("command-response-queue-capacity-words", DWI3C,
@@ -1868,6 +1889,7 @@ static const TypeInfo dw_i3c_types[] = {
         .name = TYPE_DW_I3C,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(DWI3C),
+        .instance_init = dw_i3c_init,
         .class_init = dw_i3c_class_init,
     },
 };
