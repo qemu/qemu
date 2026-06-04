@@ -1263,6 +1263,9 @@ FRINTI_z        01100100 .. 011 001 111 ... ..... .....         @rd_pg_rn
 FRECPX_m        01100101 .. 001 100 101 ... ..... .....         @rd_pg_rn
 FSQRT_m         01100101 .. 001 101 101 ... ..... .....         @rd_pg_rn
 
+FRECPX_z        01100100 .. 011 011 100 ... ..... .....         @rd_pg_rn
+FSQRT_z         01100100 .. 011 011 101 ... ..... .....         @rd_pg_rn
+
 # SVE integer convert to floating-point
 SCVTF_hh_m      01100101 01 010 01 0 101 ... ..... .....        @rd_pg_rn_e0
 SCVTF_sh_m      01100101 01 010 10 0 101 ... ..... .....        @rd_pg_rn_e0

@@ -4736,6 +4736,8 @@ static gen_helper_gvec_3_ptr * const frecpx_fns[] = {
 };
 TRANS_FEAT(FRECPX_m, aa64_sme_or_sve, gen_gvec_fpst_arg_zpz,
            frecpx_fns[a->esz], a, 0, select_ah_fpst(s, a->esz))
+TRANS_FEAT(FRECPX_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           frecpx_fns[a->esz], a, 1, select_ah_fpst(s, a->esz))
 
 static gen_helper_gvec_3_ptr * const fsqrt_fns[] = {
     NULL,                   gen_helper_sve_fsqrt_h,
@@ -4743,6 +4745,9 @@ static gen_helper_gvec_3_ptr * const fsqrt_fns[] = {
 };
 TRANS_FEAT(FSQRT_m, aa64_sme_or_sve, gen_gvec_fpst_arg_zpz,
            fsqrt_fns[a->esz], a, 0,
+           a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
+TRANS_FEAT(FSQRT_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           fsqrt_fns[a->esz], a, 1,
            a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
 
 TRANS_FEAT(SCVTF_hh_m, aa64_sme_or_sve, gen_gvec_fpst_arg_zpz,
