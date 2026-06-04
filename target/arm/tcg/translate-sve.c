@@ -811,12 +811,14 @@ static gen_helper_gvec_3 * const sve_abs_fns[4] = {
     gen_helper_sve_abs_s, gen_helper_sve_abs_d,
 };
 TRANS_FEAT(ABS_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_abs_fns[a->esz], a, 0)
+TRANS_FEAT(ABS_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz, sve_abs_fns[a->esz], a, 1)
 
 static gen_helper_gvec_3 * const sve_neg_fns[4] = {
     gen_helper_sve_neg_b, gen_helper_sve_neg_h,
     gen_helper_sve_neg_s, gen_helper_sve_neg_d,
 };
 TRANS_FEAT(NEG_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_neg_fns[a->esz], a, 0)
+TRANS_FEAT(NEG_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz, sve_neg_fns[a->esz], a, 1)
 
 static gen_helper_gvec_3 * const sve_rbit_fns[4] = {
     gen_helper_sve_rbit_b, gen_helper_sve_rbit_h,
@@ -873,6 +875,8 @@ static gen_helper_gvec_3 * const sxtb_fns[4] = {
 };
 TRANS_FEAT(SXTB_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz,
            sxtb_fns[a->esz], a, 0)
+TRANS_FEAT(SXTB_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           sxtb_fns[a->esz], a, 1)
 
 static gen_helper_gvec_3 * const uxtb_fns[4] = {
     NULL,                  gen_helper_sve_uxtb_h,
@@ -880,23 +884,34 @@ static gen_helper_gvec_3 * const uxtb_fns[4] = {
 };
 TRANS_FEAT(UXTB_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz,
            uxtb_fns[a->esz], a, 0)
+TRANS_FEAT(UXTB_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           uxtb_fns[a->esz], a, 1)
 
 static gen_helper_gvec_3 * const sxth_fns[4] = {
     NULL, NULL, gen_helper_sve_sxth_s, gen_helper_sve_sxth_d
 };
 TRANS_FEAT(SXTH_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz,
            sxth_fns[a->esz], a, 0)
+TRANS_FEAT(SXTH_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           sxth_fns[a->esz], a, 1)
 
 static gen_helper_gvec_3 * const uxth_fns[4] = {
     NULL, NULL, gen_helper_sve_uxth_s, gen_helper_sve_uxth_d
 };
 TRANS_FEAT(UXTH_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz,
            uxth_fns[a->esz], a, 0)
+TRANS_FEAT(UXTH_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           uxth_fns[a->esz], a, 1)
 
 TRANS_FEAT(SXTW_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz,
            a->esz == 3 ? gen_helper_sve_sxtw_d : NULL, a, 0)
+TRANS_FEAT(SXTW_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           a->esz == 3 ? gen_helper_sve_sxtw_d : NULL, a, 1)
+
 TRANS_FEAT(UXTW_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz,
            a->esz == 3 ? gen_helper_sve_uxtw_d : NULL, a, 0)
+TRANS_FEAT(UXTW_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           a->esz == 3 ? gen_helper_sve_uxtw_d : NULL, a, 1)
 
 static gen_helper_gvec_3 * const addqv_fns[4] = {
     gen_helper_sve2p1_addqv_b, gen_helper_sve2p1_addqv_h,

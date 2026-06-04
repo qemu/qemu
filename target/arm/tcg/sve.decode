@@ -411,6 +411,15 @@ UXTH_m          00000100 .. 010 011 101 ... ..... .....         @rd_pg_rn
 SXTW_m          00000100 .. 010 100 101 ... ..... .....         @rd_pg_rn
 UXTW_m          00000100 .. 010 101 101 ... ..... .....         @rd_pg_rn
 
+ABS_z           00000100 .. 000 110 101 ... ..... .....         @rd_pg_rn
+NEG_z           00000100 .. 000 111 101 ... ..... .....         @rd_pg_rn
+SXTB_z          00000100 .. 000 000 101 ... ..... .....         @rd_pg_rn
+UXTB_z          00000100 .. 000 001 101 ... ..... .....         @rd_pg_rn
+SXTH_z          00000100 .. 000 010 101 ... ..... .....         @rd_pg_rn
+UXTH_z          00000100 .. 000 011 101 ... ..... .....         @rd_pg_rn
+SXTW_z          00000100 .. 000 100 101 ... ..... .....         @rd_pg_rn
+UXTW_z          00000100 .. 000 101 101 ... ..... .....         @rd_pg_rn
+
 ### SVE Floating Point Compare - Vectors Group
 
 # SVE floating-point compare vectors
