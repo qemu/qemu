@@ -2261,8 +2261,10 @@ int memory_region_add_ram_discard_source(MemoryRegion *mr, RamDiscardSource *sou
  *
  * @mr: the #MemoryRegion
  * @source: #RamDiscardSource to remove
+ *
+ * Returns: 0 on success, or a negative error code on failure.
  */
-void memory_region_del_ram_discard_source(MemoryRegion *mr, RamDiscardSource *source);
+int memory_region_del_ram_discard_source(MemoryRegion *mr, RamDiscardSource *source);
 
 /**
  * memory_region_find: translate an address/size relative to a

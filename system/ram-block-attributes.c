@@ -90,7 +90,8 @@ ram_block_attributes_notify_discard(RamBlockAttributes *attr,
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(attr->ram_block->mr);
 
-    ram_discard_manager_notify_discard(rdm, offset, size);
+    ram_discard_manager_notify_discard(rdm, RAM_DISCARD_SOURCE(attr),
+                                       offset, size);
 }
 
 static int
@@ -99,7 +100,8 @@ ram_block_attributes_notify_populate(RamBlockAttributes *attr,
 {
     RamDiscardManager *rdm = memory_region_get_ram_discard_manager(attr->ram_block->mr);
 
-    return ram_discard_manager_notify_populate(rdm, offset, size);
+    return ram_discard_manager_notify_populate(rdm, RAM_DISCARD_SOURCE(attr),
+                                               offset, size);
 }
 
 int ram_block_attributes_state_change(RamBlockAttributes *attr,

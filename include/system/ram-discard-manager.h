@@ -170,30 +170,96 @@ struct RamDiscardSourceClass {
  * becoming discarded in a different granularity than it was populated and the
  * other way around.
  */
+
+typedef struct RamDiscardSourceEntry RamDiscardSourceEntry;
+
+struct RamDiscardSourceEntry {
+    RamDiscardSource *rds;
+    QLIST_ENTRY(RamDiscardSourceEntry) next;
+};
+
 struct RamDiscardManager {
     Object parent;
 
-    RamDiscardSource *rds;
     MemoryRegion *mr;
+    QLIST_HEAD(, RamDiscardSourceEntry) source_list;
+    uint64_t min_granularity;
     QLIST_HEAD(, RamDiscardListener) rdl_list;
 };
 
-RamDiscardManager *ram_discard_manager_new(MemoryRegion *mr,
-                                           RamDiscardSource *rds);
+RamDiscardManager *ram_discard_manager_new(MemoryRegion *mr);
+
+/**
+ * ram_discard_manager_add_source:
+ *
+ * Register a #RamDiscardSource with the #RamDiscardManager. The manager
+ * aggregates state from all registered sources using AND semantics: a region
+ * is considered populated only if ALL sources report it as populated.
+ *
+ * If listeners are already registered, they will be notified about any
+ * regions that become discarded due to adding this source. Specifically,
+ * for each region that the new source reports as discarded, if all other
+ * sources reported it as populated, listeners receive a discard notification.
+ *
+ * If any listener rejects the notification (returns an error), previously
+ * notified listeners are rolled back with populate notifications and the
+ * source is not added.
+ *
+ * @rdm: the #RamDiscardManager
+ * @source: the #RamDiscardSource to add
+ *
+ * Returns: 0 on success, -EBUSY if @source is already registered, or a
+ *          negative error code if a listener rejected the state change.
+ */
+int ram_discard_manager_add_source(RamDiscardManager *rdm,
+                                   RamDiscardSource *source);
+
+/**
+ * ram_discard_manager_del_source:
+ *
+ * Unregister a #RamDiscardSource from the #RamDiscardManager.
+ *
+ * If listeners are already registered, they will be notified about any
+ * regions that become populated due to removing this source. Specifically,
+ * for each region that the removed source reported as discarded, if all
+ * remaining sources report it as populated, listeners receive a populate
+ * notification.
+ *
+ * If any listener rejects the notification (returns an error), previously
+ * notified listeners are rolled back with discard notifications and the
+ * source is not removed.
+ *
+ * @rdm: the #RamDiscardManager
+ * @source: the #RamDiscardSource to remove
+ *
+ * Returns: 0 on success, -ENOENT if @source is not registered, or a
+ *          negative error code if a listener rejected the state change.
+ */
+int ram_discard_manager_del_source(RamDiscardManager *rdm,
+                                   RamDiscardSource *source);
+
 
 uint64_t ram_discard_manager_get_min_granularity(const RamDiscardManager *rdm,
                                                  const MemoryRegion *mr);
 
+/**
+ * ram_discard_manager_is_populated:
+ *
+ * Check if the given memory region section is populated.
+ * If the manager has no sources, it is considered populated.
+ *
+ * @rdm: the #RamDiscardManager
+ * @section: the #MemoryRegionSection to check
+ *
+ * Returns: true if the section is populated, false otherwise.
+ */
 bool ram_discard_manager_is_populated(const RamDiscardManager *rdm,
                                       const MemoryRegionSection *section);
 
 /**
  * ram_discard_manager_replay_populated:
  *
- * Iterate the given #MemoryRegionSection at minimum granularity, calling
- * #RamDiscardSourceClass.is_populated for each chunk, and invoke @replay_fn
- * for each contiguous populated range. In case any call fails, no further
- * calls are made.
+ * Call @replay_fn on regions that are populated in all sources.
  *
  * @rdm: the #RamDiscardManager
  * @section: the #MemoryRegionSection
@@ -210,10 +276,7 @@ int ram_discard_manager_replay_populated(const RamDiscardManager *rdm,
 /**
  * ram_discard_manager_replay_discarded:
  *
- * Iterate the given #MemoryRegionSection at minimum granularity, calling
- * #RamDiscardSourceClass.is_populated for each chunk, and invoke @replay_fn
- * for each contiguous discarded range. In case any call fails, no further
- * calls are made.
+ * Call @replay_fn on regions that are discarded in any sources.
  *
  * @rdm: the #RamDiscardManager
  * @section: the #MemoryRegionSection
@@ -234,31 +297,61 @@ void ram_discard_manager_register_listener(RamDiscardManager *rdm,
 void ram_discard_manager_unregister_listener(RamDiscardManager *rdm,
                                              RamDiscardListener *rdl);
 
-/*
- * Note: later refactoring should take the source into account and the manager
- *       should be able to aggregate multiple sources.
+/**
+ * ram_discard_manager_notify_populate:
+ *
+ * Notify listeners that a region is about to be populated by a source.
+ * For multi-source aggregation, only notifies when all sources agree
+ * the region is populated (intersection).
+ *
+ * @rdm: the #RamDiscardManager
+ * @source: the #RamDiscardSource that is populating
+ * @offset: offset within the memory region
+ * @size: size of the region being populated
+ *
+ * Returns 0 on success, or a negative error if any listener rejects.
  */
 int ram_discard_manager_notify_populate(RamDiscardManager *rdm,
+                                        RamDiscardSource *source,
                                         uint64_t offset, uint64_t size);
 
-/*
- * Note: later refactoring should take the source into account and the manager
- *       should be able to aggregate multiple sources.
+/**
+ * ram_discard_manager_notify_discard:
+ *
+ * Notify listeners that a region has been discarded by a source.
+ * For multi-source aggregation, always notifies immediately
+ * (union semantics - any source discarding makes region discarded).
+ *
+ * @rdm: the #RamDiscardManager
+ * @source: the #RamDiscardSource that is discarding
+ * @offset: offset within the memory region
+ * @size: size of the region being discarded
  */
 void ram_discard_manager_notify_discard(RamDiscardManager *rdm,
+                                        RamDiscardSource *source,
                                         uint64_t offset, uint64_t size);
 
-/*
- * Note: later refactoring should take the source into account and the manager
- *       should be able to aggregate multiple sources.
- */
-void ram_discard_manager_notify_discard_all(RamDiscardManager *rdm);
-
-/*
- * Replay populated sections to all registered listeners.
+/**
+ * ram_discard_manager_notify_discard_all:
  *
- * Note: later refactoring should take the source into account and the manager
- *       should be able to aggregate multiple sources.
+ * Notify listeners that all regions have been discarded by a source.
+ *
+ * @rdm: the #RamDiscardManager
+ * @source: the #RamDiscardSource that is discarding
+ */
+void ram_discard_manager_notify_discard_all(RamDiscardManager *rdm,
+                                            RamDiscardSource *source);
+
+/**
+ * ram_discard_manager_replay_populated_to_listeners:
+ *
+ * Replay populated sections to all registered listeners.
+ * For multi-source aggregation, only replays regions where all sources
+ * are populated (intersection).
+ *
+ * @rdm: the #RamDiscardManager
+ *
+ * Returns 0 on success, or a negative error if any notification failed.
  */
 int ram_discard_manager_replay_populated_to_listeners(RamDiscardManager *rdm);
 

@@ -2073,21 +2073,22 @@ int memory_region_add_ram_discard_source(MemoryRegion *mr,
                                          RamDiscardSource *source)
 {
     g_assert(memory_region_is_ram(mr));
-    if (mr->rdm) {
-        return -EBUSY;
+
+    if (!mr->rdm) {
+        mr->rdm = ram_discard_manager_new(mr);
     }
 
-    mr->rdm = ram_discard_manager_new(mr, RAM_DISCARD_SOURCE(source));
-    return 0;
+    return ram_discard_manager_add_source(mr->rdm, source);
 }
 
-void memory_region_del_ram_discard_source(MemoryRegion *mr,
+int memory_region_del_ram_discard_source(MemoryRegion *mr,
                                           RamDiscardSource *source)
 {
-    g_assert(mr->rdm->rds == source);
+    g_assert(mr->rdm);
 
-    object_unref(mr->rdm);
-    mr->rdm = NULL;
+    return ram_discard_manager_del_source(mr->rdm, source);
+
+    /* if there is no source and no listener left, we could free rdm */
 }
 
 /* Called with rcu_read_lock held.  */
