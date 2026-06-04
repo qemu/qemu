@@ -8595,6 +8595,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
                   float_status *status, uint32_t desc)                        \
 {                                                                             \
     intptr_t i = simd_oprsz(desc);                                            \
+    bool zeroing = simd_data(desc) & 1;                                       \
     uint64_t *g = vg;                                                         \
     do {                                                                      \
         uint64_t pg = g[(i - 1) >> 6];                                        \
@@ -8603,6 +8604,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
             if (likely((pg >> (i & 63)) & 1)) {                               \
                 TYPEW nn = *(TYPEW *)(vn + HW(i));                            \
                 *(TYPEN *)(vd + HN(i + sizeof(TYPEN))) = OP(nn, status);      \
+            } else if (zeroing) {                                             \
+                *(TYPEN *)(vd + HN(i + sizeof(TYPEN))) = 0;                   \
             }                                                                 \
         } while (i & 63);                                                     \
     } while (i != 0);                                                         \
@@ -8617,6 +8620,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
                   float_status *status, uint32_t desc)                        \
 {                                                                             \
     intptr_t i = simd_oprsz(desc);                                            \
+    bool zeroing = simd_data(desc) & 1;                                       \
     uint64_t *g = vg;                                                         \
     do {                                                                      \
         uint64_t pg = g[(i - 1) >> 6];                                        \
@@ -8625,6 +8629,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
             if (likely((pg >> (i & 63)) & 1)) {                               \
                 TYPEN nn = *(TYPEN *)(vn + HN(i + sizeof(TYPEN)));            \
                 *(TYPEW *)(vd + HW(i)) = OP(nn, status);                      \
+            } else if (zeroing) {                                             \
+                *(TYPEW *)(vd + HW(i)) = 0;                                   \
             }                                                                 \
         } while (i & 63);                                                     \
     } while (i != 0);                                                         \
