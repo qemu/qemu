@@ -181,9 +181,9 @@ struct DWI3C {
 
     struct {
         uint8_t id;
-        uint8_t cmd_resp_queue_capacity_bytes;
-        uint16_t tx_rx_queue_capacity_bytes;
-        uint8_t ibi_queue_capacity_bytes;
+        uint8_t cmd_resp_queue_capacity_words;
+        uint16_t tx_rx_queue_capacity_words;
+        uint8_t ibi_queue_capacity_words;
         uint8_t num_addressable_devices;
         uint16_t dev_addr_table_pointer;
         uint16_t dev_addr_table_depth;
