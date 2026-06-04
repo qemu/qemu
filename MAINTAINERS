@@ -3363,6 +3363,8 @@ F: system/memory-internal.h
 F: system/ram-block-attributes.c
 F: system/ram-discard-manager.c
 F: scripts/coccinelle/memory-region-housekeeping.cocci
+F: tests/unit/test-ram-discard-manager.c
+F: tests/unit/test-ram-discard-manager-stubs.c
 
 Memory devices
 M: David Hildenbrand <david@kernel.org>
