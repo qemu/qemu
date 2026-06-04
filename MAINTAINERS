@@ -3350,6 +3350,7 @@ F: include/system/memory.h
 F: include/system/memory_cached.h
 F: include/system/memory_ldst*
 F: include/system/physmem.h
+F: include/system/ram-discard-manager.h
 F: include/system/ramblock.h
 F: include/system/memory_mapping.h
 F: system/dma-helpers.c
@@ -3360,6 +3361,7 @@ F: system/physmem.c
 F: system/memory_ldst*
 F: system/memory-internal.h
 F: system/ram-block-attributes.c
+F: system/ram-discard-manager.c
 F: scripts/coccinelle/memory-region-housekeeping.cocci
 
 Memory devices
