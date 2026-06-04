@@ -2582,7 +2582,6 @@ static void reclaim_ramblock(RAMBlock *block)
     }
 
     if (block->guest_memfd >= 0) {
-        ram_block_attributes_destroy(block->attributes);
         close(block->guest_memfd);
         ram_block_coordinated_discard_require(false);
     }
@@ -2610,6 +2609,7 @@ void qemu_ram_free(RAMBlock *block)
     qatomic_set(&ram_list.mru_block, NULL);
     /* Write list before version */
     qatomic_store_release(&ram_list.version, ram_list.version + 1);
+    g_clear_pointer(&block->attributes, ram_block_attributes_destroy);
     call_rcu(block, reclaim_ramblock, rcu);
     qemu_mutex_unlock_ramlist();
 }
