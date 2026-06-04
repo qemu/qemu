@@ -3089,6 +3089,8 @@ TRANS_FEAT(REVW_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
 
 TRANS_FEAT(REVD_m, aa64_sme_or_sve2p1, gen_gvec_ool_arg_zpz,
            gen_helper_sme_revd_q, a, 0)
+TRANS_FEAT(REVD_z, aa64_sme2p2_or_sve2p2, gen_gvec_ool_arg_zpz,
+           gen_helper_sme_revd_q, a, 1)
 
 TRANS_FEAT(SPLICE, aa64_sme_or_sve, gen_gvec_ool_arg_zpzz,
            gen_helper_sve_splice, a, a->esz)

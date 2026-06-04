@@ -971,6 +971,7 @@ DO_ZPZ_D(sve_revw_d, uint64_t, wswap64)
 void HELPER(sme_revd_q)(void *vd, void *vn, void *vg, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    bool zeroing = simd_data(desc) & 1;
     uint64_t *d = vd, *n = vn;
     uint8_t *pg = vg;
 
@@ -980,6 +981,9 @@ void HELPER(sme_revd_q)(void *vd, void *vn, void *vg, uint32_t desc)
             uint64_t n1 = n[i + 1];
             d[i + 0] = n1;
             d[i + 1] = n0;
+        } else if (zeroing) {
+            d[i + 0] = 0;
+            d[i + 1] = 0;
         }
     }
 }

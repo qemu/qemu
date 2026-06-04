@@ -734,6 +734,7 @@ REVB_z          00000101 .. 1001 00 101 ... ..... .....         @rd_pg_rn
 REVH_z          00000101 .. 1001 01 101 ... ..... .....         @rd_pg_rn
 REVW_z          00000101 .. 1001 10 101 ... ..... .....         @rd_pg_rn
 RBIT_z          00000101 .. 1001 11 101 ... ..... .....         @rd_pg_rn
+REVD_z          00000101 00 1011 10 101 ... ..... .....         @rd_pg_rn_e0
 
 # SVE vector splice (predicated, destructive)
 SPLICE          00000101 .. 101 100 100 ... ..... .....         @rdn_pg_rm
