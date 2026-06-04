@@ -1545,6 +1545,11 @@ URSQRTE_m       01000100 .. 000 001 101 ... ..... .....  @rd_pg_rn
 SQABS_m         01000100 .. 001 000 101 ... ..... .....  @rd_pg_rn
 SQNEG_m         01000100 .. 001 001 101 ... ..... .....  @rd_pg_rn
 
+URECPE_z        01000100 .. 000 010 101 ... ..... .....  @rd_pg_rn
+URSQRTE_z       01000100 .. 000 011 101 ... ..... .....  @rd_pg_rn
+SQABS_z         01000100 .. 001 010 101 ... ..... .....  @rd_pg_rn
+SQNEG_z         01000100 .. 001 011 101 ... ..... .....  @rd_pg_rn
+
 ### SVE2 saturating/rounding bitwise shift left (predicated)
 
 SRSHL           01000100 .. 000 010 100 ... ..... .....  @rdn_pg_rm
