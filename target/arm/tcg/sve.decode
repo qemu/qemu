@@ -1242,6 +1242,21 @@ FCVTZU_sd_m     01100101 11 011 10 1 101 ... ..... .....        @rd_pg_rn_e0
 FCVTZS_dd_m     01100101 11 011 11 0 101 ... ..... .....        @rd_pg_rn_e0
 FCVTZU_dd_m     01100101 11 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
 
+FCVTZS_hh_z     01100100 01 011 11 0 110 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_hh_z     01100100 01 011 11 0 111 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_hs_z     01100100 01 011 11 1 100 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_hs_z     01100100 01 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_hd_z     01100100 01 011 11 1 110 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_hd_z     01100100 01 011 11 1 111 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_ss_z     01100100 10 011 11 1 100 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_ss_z     01100100 10 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_sd_z     01100100 11 011 11 1 100 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_sd_z     01100100 11 011 11 1 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_ds_z     01100100 11 011 11 0 100 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_ds_z     01100100 11 011 11 0 101 ... ..... .....        @rd_pg_rn_e0
+FCVTZS_dd_z     01100100 11 011 11 1 110 ... ..... .....        @rd_pg_rn_e0
+FCVTZU_dd_z     01100100 11 011 11 1 111 ... ..... .....        @rd_pg_rn_e0
+
 # SVE floating-point round to integral value
 FRINTN_m        01100101 .. 000 000 101 ... ..... .....         @rd_pg_rn
 FRINTP_m        01100101 .. 000 001 101 ... ..... .....         @rd_pg_rn
@@ -1950,6 +1965,7 @@ FCVTLT_sd_z     01100100 11 0000 11 101 ... ..... .....  @rd_pg_rn_e0
 
 ### SVE2 floating-point convert to integer
 FLOGB_m         01100101 00 011 esz:2 0101 pg:3 rn:5 rd:5  &rpr_esz
+FLOGB_z         01100100 00 011 1101 esz:2 pg:3 rn:5 rd:5  &rpr_esz
 
 ### SVE2 floating-point multiply-add long (vectors)
 FMLALB_zzzw     01100100 10 1 ..... 10 0 00 0 ..... .....  @rda_rn_rm_ex esz=2

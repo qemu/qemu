@@ -4654,6 +4654,37 @@ TRANS_FEAT(FCVTZS_dd_m, aa64_sme_or_sve, gen_gvec_fpst_arg_zpz,
 TRANS_FEAT(FCVTZU_dd_m, aa64_sme_or_sve, gen_gvec_fpst_arg_zpz,
            gen_helper_sve_fcvtzu_dd, a, 0, FPST_A64)
 
+TRANS_FEAT(FCVTZS_hh_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_hh, a, 1, FPST_A64_F16)
+TRANS_FEAT(FCVTZU_hh_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_hh, a, 1, FPST_A64_F16)
+TRANS_FEAT(FCVTZS_hs_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_hs, a, 1, FPST_A64_F16)
+TRANS_FEAT(FCVTZU_hs_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_hs, a, 1, FPST_A64_F16)
+TRANS_FEAT(FCVTZS_hd_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_hd, a, 1, FPST_A64_F16)
+TRANS_FEAT(FCVTZU_hd_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_hd, a, 1, FPST_A64_F16)
+
+TRANS_FEAT(FCVTZS_ss_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_ss, a, 1, FPST_A64)
+TRANS_FEAT(FCVTZU_ss_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_ss, a, 1, FPST_A64)
+TRANS_FEAT(FCVTZS_sd_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_sd, a, 1, FPST_A64)
+TRANS_FEAT(FCVTZU_sd_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_sd, a, 1, FPST_A64)
+TRANS_FEAT(FCVTZS_ds_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_ds, a, 1, FPST_A64)
+TRANS_FEAT(FCVTZU_ds_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_ds, a, 1, FPST_A64)
+
+TRANS_FEAT(FCVTZS_dd_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzs_dd, a, 1, FPST_A64)
+TRANS_FEAT(FCVTZU_dd_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           gen_helper_sve_fcvtzu_dd, a, 1, FPST_A64)
+
 static gen_helper_gvec_3_ptr * const frint_fns[] = {
     NULL,
     gen_helper_sve_frint_h,
@@ -8134,8 +8165,10 @@ static gen_helper_gvec_3_ptr * const flogb_fns[] = {
     NULL,               gen_helper_flogb_h,
     gen_helper_flogb_s, gen_helper_flogb_d
 };
-TRANS_FEAT(FLOGB_m, aa64_sme_or_sve2, gen_gvec_fpst_arg_zpz, flogb_fns[a->esz],
-           a, 0, a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
+TRANS_FEAT(FLOGB_m, aa64_sme_or_sve2, gen_gvec_fpst_arg_zpz,
+           flogb_fns[a->esz], a, 0, a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
+TRANS_FEAT(FLOGB_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,
+           flogb_fns[a->esz], a, 1, a->esz == MO_16 ? FPST_A64_F16 : FPST_A64)
 
 static bool do_FMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sub, bool sel)
 {
