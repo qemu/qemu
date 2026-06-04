@@ -51,6 +51,12 @@ typedef struct RamDiscardManager RamDiscardManager;
 DECLARE_OBJ_CHECKERS(RamDiscardManager, RamDiscardManagerClass,
                      RAM_DISCARD_MANAGER, TYPE_RAM_DISCARD_MANAGER);
 
+#define TYPE_RAM_DISCARD_SOURCE "ram-discard-source"
+typedef struct RamDiscardSourceClass RamDiscardSourceClass;
+typedef struct RamDiscardSource RamDiscardSource;
+DECLARE_OBJ_CHECKERS(RamDiscardSource, RamDiscardSourceClass,
+                     RAM_DISCARD_SOURCE, TYPE_RAM_DISCARD_SOURCE);
+
 #ifdef CONFIG_FUZZ
 void fuzz_dma_read_cb(size_t addr,
                       size_t len,
@@ -592,8 +598,8 @@ static inline void ram_discard_listener_init(RamDiscardListener *rdl,
 /**
  * typedef ReplayRamDiscardState:
  *
- * The callback handler for #RamDiscardManagerClass.replay_populated/
- * #RamDiscardManagerClass.replay_discarded to invoke on populated/discarded
+ * The callback handler for #RamDiscardSourceClass.replay_populated/
+ * #RamDiscardSourceClass.replay_discarded to invoke on populated/discarded
  * parts.
  *
  * @section: the #MemoryRegionSection of populated/discarded part
@@ -605,7 +611,90 @@ typedef int (*ReplayRamDiscardState)(MemoryRegionSection *section,
                                      void *opaque);
 
 /*
- * RamDiscardManagerClass:
+ * RamDiscardSourceClass:
+ *
+ * A #RamDiscardSource provides information about which parts of a specific
+ * RAM #MemoryRegion are currently populated (accessible) vs discarded.
+ *
+ * This is an interface that state providers (like virtio-mem or
+ * RamBlockAttributes) implement to provide discard state information. A
+ * #RamDiscardManager wraps sources and manages listener registrations and
+ * notifications.
+ */
+struct RamDiscardSourceClass {
+    /* private */
+    InterfaceClass parent_class;
+
+    /* public */
+
+    /**
+     * @get_min_granularity:
+     *
+     * Get the minimum granularity in which listeners will get notified
+     * about changes within the #MemoryRegion via the #RamDiscardSource.
+     *
+     * @rds: the #RamDiscardSource
+     * @mr: the #MemoryRegion
+     *
+     * Returns the minimum granularity.
+     */
+    uint64_t (*get_min_granularity)(const RamDiscardSource *rds,
+                                    const MemoryRegion *mr);
+
+    /**
+     * @is_populated:
+     *
+     * Check whether the given #MemoryRegionSection is completely populated
+     * (i.e., no parts are currently discarded) via the #RamDiscardSource.
+     * There are no alignment requirements.
+     *
+     * @rds: the #RamDiscardSource
+     * @section: the #MemoryRegionSection
+     *
+     * Returns whether the given range is completely populated.
+     */
+    bool (*is_populated)(const RamDiscardSource *rds,
+                         const MemoryRegionSection *section);
+
+    /**
+     * @replay_populated:
+     *
+     * Call the #ReplayRamDiscardState callback for all populated parts within
+     * the #MemoryRegionSection via the #RamDiscardSource.
+     *
+     * In case any call fails, no further calls are made.
+     *
+     * @rds: the #RamDiscardSource
+     * @section: the #MemoryRegionSection
+     * @replay_fn: the #ReplayRamDiscardState callback
+     * @opaque: pointer to forward to the callback
+     *
+     * Returns 0 on success, or a negative error if any notification failed.
+     */
+    int (*replay_populated)(const RamDiscardSource *rds,
+                            MemoryRegionSection *section,
+                            ReplayRamDiscardState replay_fn, void *opaque);
+
+    /**
+     * @replay_discarded:
+     *
+     * Call the #ReplayRamDiscardState callback for all discarded parts within
+     * the #MemoryRegionSection via the #RamDiscardSource.
+     *
+     * @rds: the #RamDiscardSource
+     * @section: the #MemoryRegionSection
+     * @replay_fn: the #ReplayRamDiscardState callback
+     * @opaque: pointer to forward to the callback
+     *
+     * Returns 0 on success, or a negative error if any notification failed.
+     */
+    int (*replay_discarded)(const RamDiscardSource *rds,
+                            MemoryRegionSection *section,
+                            ReplayRamDiscardState replay_fn, void *opaque);
+};
+
+/**
+ * RamDiscardManager:
  *
  * A #RamDiscardManager coordinates which parts of specific RAM #MemoryRegion
  * regions are currently populated to be used/accessed by the VM, notifying
@@ -625,7 +714,7 @@ typedef int (*ReplayRamDiscardState)(MemoryRegionSection *section,
  * Technologies that support discarding of RAM don't have to bother and can
  * simply map the whole #MemoryRegion.
  *
- * An example #RamDiscardManager is virtio-mem, which logically (un)plugs
+ * An example #RamDiscardSource is virtio-mem, which logically (un)plugs
  * memory within an assigned RAM #MemoryRegion, coordinated with the VM.
  * Logically unplugging memory consists of discarding RAM. The VM agreed to not
  * access unplugged (discarded) memory - especially via DMA. virtio-mem will
@@ -638,108 +727,12 @@ typedef int (*ReplayRamDiscardState)(MemoryRegionSection *section,
  * becoming discarded in a different granularity than it was populated and the
  * other way around.
  */
-struct RamDiscardManagerClass {
-    /* private */
-    InterfaceClass parent_class;
+struct RamDiscardManager {
+    Object parent;
 
-    /* public */
-
-    /**
-     * @get_min_granularity:
-     *
-     * Get the minimum granularity in which listeners will get notified
-     * about changes within the #MemoryRegion via the #RamDiscardManager.
-     *
-     * @rdm: the #RamDiscardManager
-     * @mr: the #MemoryRegion
-     *
-     * Returns the minimum granularity.
-     */
-    uint64_t (*get_min_granularity)(const RamDiscardManager *rdm,
-                                    const MemoryRegion *mr);
-
-    /**
-     * @is_populated:
-     *
-     * Check whether the given #MemoryRegionSection is completely populated
-     * (i.e., no parts are currently discarded) via the #RamDiscardManager.
-     * There are no alignment requirements.
-     *
-     * @rdm: the #RamDiscardManager
-     * @section: the #MemoryRegionSection
-     *
-     * Returns whether the given range is completely populated.
-     */
-    bool (*is_populated)(const RamDiscardManager *rdm,
-                         const MemoryRegionSection *section);
-
-    /**
-     * @replay_populated:
-     *
-     * Call the #ReplayRamDiscardState callback for all populated parts within
-     * the #MemoryRegionSection via the #RamDiscardManager.
-     *
-     * In case any call fails, no further calls are made.
-     *
-     * @rdm: the #RamDiscardManager
-     * @section: the #MemoryRegionSection
-     * @replay_fn: the #ReplayRamDiscardState callback
-     * @opaque: pointer to forward to the callback
-     *
-     * Returns 0 on success, or a negative error if any notification failed.
-     */
-    int (*replay_populated)(const RamDiscardManager *rdm,
-                            MemoryRegionSection *section,
-                            ReplayRamDiscardState replay_fn, void *opaque);
-
-    /**
-     * @replay_discarded:
-     *
-     * Call the #ReplayRamDiscardState callback for all discarded parts within
-     * the #MemoryRegionSection via the #RamDiscardManager.
-     *
-     * @rdm: the #RamDiscardManager
-     * @section: the #MemoryRegionSection
-     * @replay_fn: the #ReplayRamDiscardState callback
-     * @opaque: pointer to forward to the callback
-     *
-     * Returns 0 on success, or a negative error if any notification failed.
-     */
-    int (*replay_discarded)(const RamDiscardManager *rdm,
-                            MemoryRegionSection *section,
-                            ReplayRamDiscardState replay_fn, void *opaque);
-
-    /**
-     * @register_listener:
-     *
-     * Register a #RamDiscardListener for the given #MemoryRegionSection and
-     * immediately notify the #RamDiscardListener about all populated parts
-     * within the #MemoryRegionSection via the #RamDiscardManager.
-     *
-     * In case any notification fails, no further notifications are triggered
-     * and an error is logged.
-     *
-     * @rdm: the #RamDiscardManager
-     * @rdl: the #RamDiscardListener
-     * @section: the #MemoryRegionSection
-     */
-    void (*register_listener)(RamDiscardManager *rdm,
-                              RamDiscardListener *rdl,
-                              MemoryRegionSection *section);
-
-    /**
-     * @unregister_listener:
-     *
-     * Unregister a previously registered #RamDiscardListener via the
-     * #RamDiscardManager after notifying the #RamDiscardListener about all
-     * populated parts becoming unpopulated within the registered
-     * #MemoryRegionSection.
-     *
-     * @rdm: the #RamDiscardManager
-     * @rdl: the #RamDiscardListener
-     */
-    void (*unregister_listener)(RamDiscardManager *rdm,
-                                RamDiscardListener *rdl);
+    RamDiscardSource *rds;
+    MemoryRegion *mr;
+    QLIST_HEAD(, RamDiscardListener) rdl_list;
 };
 
 uint64_t ram_discard_manager_get_min_granularity(const RamDiscardManager *rdm,
@@ -751,8 +744,8 @@ bool ram_discard_manager_is_populated(const RamDiscardManager *rdm,
 /**
  * ram_discard_manager_replay_populated:
  *
- * A wrapper to call the #RamDiscardManagerClass.replay_populated callback
- * of the #RamDiscardManager.
+ * A wrapper to call the #RamDiscardSourceClass.replay_populated callback
+ * of the #RamDiscardSource sources.
  *
  * @rdm: the #RamDiscardManager
  * @section: the #MemoryRegionSection
@@ -769,8 +762,8 @@ int ram_discard_manager_replay_populated(const RamDiscardManager *rdm,
 /**
  * ram_discard_manager_replay_discarded:
  *
- * A wrapper to call the #RamDiscardManagerClass.replay_discarded callback
- * of the #RamDiscardManager.
+ * A wrapper to call the #RamDiscardSourceClass.replay_discarded callback
+ * of the #RamDiscardSource sources.
  *
  * @rdm: the #RamDiscardManager
  * @section: the #MemoryRegionSection
@@ -790,6 +783,34 @@ void ram_discard_manager_register_listener(RamDiscardManager *rdm,
 
 void ram_discard_manager_unregister_listener(RamDiscardManager *rdm,
                                              RamDiscardListener *rdl);
+
+/*
+ * Note: later refactoring should take the source into account and the manager
+ *       should be able to aggregate multiple sources.
+ */
+int ram_discard_manager_notify_populate(RamDiscardManager *rdm,
+                                        uint64_t offset, uint64_t size);
+
+ /*
+  * Note: later refactoring should take the source into account and the manager
+  *       should be able to aggregate multiple sources.
+  */
+void ram_discard_manager_notify_discard(RamDiscardManager *rdm,
+                                        uint64_t offset, uint64_t size);
+
+/*
+ * Note: later refactoring should take the source into account and the manager
+ *       should be able to aggregate multiple sources.
+ */
+void ram_discard_manager_notify_discard_all(RamDiscardManager *rdm);
+
+/*
+ * Replay populated sections to all registered listeners.
+ *
+ * Note: later refactoring should take the source into account and the manager
+ *       should be able to aggregate multiple sources.
+ */
+int ram_discard_manager_replay_populated_to_listeners(RamDiscardManager *rdm);
 
 /**
  * memory_translate_iotlb: Extract addresses from a TLB entry.
@@ -2504,18 +2525,22 @@ static inline bool memory_region_has_ram_discard_manager(MemoryRegion *mr)
 }
 
 /**
- * memory_region_set_ram_discard_manager: set the #RamDiscardManager for a
+ * memory_region_add_ram_discard_source: add a #RamDiscardSource for a
  * #MemoryRegion
  *
- * This function must not be called for a mapped #MemoryRegion, a #MemoryRegion
- * that does not cover RAM, or a #MemoryRegion that already has a
- * #RamDiscardManager assigned. Return 0 if the rdm is set successfully.
+ * @mr: the #MemoryRegion
+ * @source: #RamDiscardSource to add
+ */
+int memory_region_add_ram_discard_source(MemoryRegion *mr, RamDiscardSource *source);
+
+/**
+ * memory_region_del_ram_discard_source: remove a #RamDiscardSource for a
+ * #MemoryRegion
  *
  * @mr: the #MemoryRegion
- * @rdm: #RamDiscardManager to set
+ * @source: #RamDiscardSource to remove
  */
-int memory_region_set_ram_discard_manager(MemoryRegion *mr,
-                                          RamDiscardManager *rdm);
+void memory_region_del_ram_discard_source(MemoryRegion *mr, RamDiscardSource *source);
 
 /**
  * memory_region_find: translate an address/size relative to a

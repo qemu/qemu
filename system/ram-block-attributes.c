@@ -18,7 +18,7 @@ OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(RamBlockAttributes,
                                           ram_block_attributes,
                                           RAM_BLOCK_ATTRIBUTES,
                                           OBJECT,
-                                          { TYPE_RAM_DISCARD_MANAGER },
+                                          { TYPE_RAM_DISCARD_SOURCE },
                                           { })
 
 static size_t
@@ -32,34 +32,8 @@ ram_block_attributes_get_block_size(void)
     return qemu_real_host_page_size();
 }
 
-
-static bool
-ram_block_attributes_rdm_is_populated(const RamDiscardManager *rdm,
-                                      const MemoryRegionSection *section)
-{
-    const RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
-    const size_t block_size = ram_block_attributes_get_block_size();
-    const uint64_t first_bit = section->offset_within_region / block_size;
-    const uint64_t last_bit =
-        first_bit + int128_get64(section->size) / block_size - 1;
-    unsigned long first_discarded_bit;
-
-    first_discarded_bit = find_next_zero_bit(attr->bitmap, last_bit + 1,
-                                           first_bit);
-    return first_discarded_bit > last_bit;
-}
-
 typedef int (*ram_block_attributes_section_cb)(MemoryRegionSection *s,
                                                void *arg);
-
-static int
-ram_block_attributes_notify_populate_cb(MemoryRegionSection *section,
-                                        void *arg)
-{
-    RamDiscardListener *rdl = arg;
-
-    return rdl->notify_populate(rdl, section);
-}
 
 static int
 ram_block_attributes_for_each_populated_section(const RamBlockAttributes *attr,
@@ -144,60 +118,13 @@ ram_block_attributes_for_each_discarded_section(const RamBlockAttributes *attr,
     return ret;
 }
 
-static uint64_t
-ram_block_attributes_rdm_get_min_granularity(const RamDiscardManager *rdm,
-                                             const MemoryRegion *mr)
-{
-    const RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
-
-    g_assert(mr == attr->ram_block->mr);
-    return ram_block_attributes_get_block_size();
-}
-
-static void
-ram_block_attributes_rdm_register_listener(RamDiscardManager *rdm,
-                                           RamDiscardListener *rdl,
-                                           MemoryRegionSection *section)
-{
-    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
-    int ret;
-
-    g_assert(section->mr == attr->ram_block->mr);
-    rdl->section = memory_region_section_new_copy(section);
-
-    QLIST_INSERT_HEAD(&attr->rdl_list, rdl, next);
-
-    ret = ram_block_attributes_for_each_populated_section(attr, section, rdl,
-                                    ram_block_attributes_notify_populate_cb);
-    if (ret) {
-        error_report("%s: Failed to register RAM discard listener: %s",
-                     __func__, strerror(-ret));
-        exit(1);
-    }
-}
-
-static void
-ram_block_attributes_rdm_unregister_listener(RamDiscardManager *rdm,
-                                             RamDiscardListener *rdl)
-{
-    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
-
-    g_assert(rdl->section);
-    g_assert(rdl->section->mr == attr->ram_block->mr);
-
-    rdl->notify_discard(rdl, rdl->section);
-
-    memory_region_section_free_copy(rdl->section);
-    rdl->section = NULL;
-    QLIST_REMOVE(rdl, next);
-}
 
 typedef struct RamBlockAttributesReplayData {
     ReplayRamDiscardState fn;
     void *opaque;
 } RamBlockAttributesReplayData;
 
-static int ram_block_attributes_rdm_replay_cb(MemoryRegionSection *section,
+static int ram_block_attributes_rds_replay_cb(MemoryRegionSection *section,
                                               void *arg)
 {
     RamBlockAttributesReplayData *data = arg;
@@ -205,32 +132,59 @@ static int ram_block_attributes_rdm_replay_cb(MemoryRegionSection *section,
     return data->fn(section, data->opaque);
 }
 
+/* RamDiscardSource interface implementation */
+static uint64_t
+ram_block_attributes_rds_get_min_granularity(const RamDiscardSource *rds,
+                                             const MemoryRegion *mr)
+{
+    const RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rds);
+
+    g_assert(mr == attr->ram_block->mr);
+    return ram_block_attributes_get_block_size();
+}
+
+static bool
+ram_block_attributes_rds_is_populated(const RamDiscardSource *rds,
+                                      const MemoryRegionSection *section)
+{
+    const RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rds);
+    const size_t block_size = ram_block_attributes_get_block_size();
+    const uint64_t first_bit = section->offset_within_region / block_size;
+    const uint64_t last_bit =
+        first_bit + int128_get64(section->size) / block_size - 1;
+    unsigned long first_discarded_bit;
+
+    first_discarded_bit = find_next_zero_bit(attr->bitmap, last_bit + 1,
+                                           first_bit);
+    return first_discarded_bit > last_bit;
+}
+
 static int
-ram_block_attributes_rdm_replay_populated(const RamDiscardManager *rdm,
+ram_block_attributes_rds_replay_populated(const RamDiscardSource *rds,
                                           MemoryRegionSection *section,
                                           ReplayRamDiscardState replay_fn,
                                           void *opaque)
 {
-    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
+    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rds);
     RamBlockAttributesReplayData data = { .fn = replay_fn, .opaque = opaque };
 
     g_assert(section->mr == attr->ram_block->mr);
     return ram_block_attributes_for_each_populated_section(attr, section, &data,
-                                            ram_block_attributes_rdm_replay_cb);
+        ram_block_attributes_rds_replay_cb);
 }
 
 static int
-ram_block_attributes_rdm_replay_discarded(const RamDiscardManager *rdm,
+ram_block_attributes_rds_replay_discarded(const RamDiscardSource *rds,
                                           MemoryRegionSection *section,
                                           ReplayRamDiscardState replay_fn,
                                           void *opaque)
 {
-    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rdm);
+    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(rds);
     RamBlockAttributesReplayData data = { .fn = replay_fn, .opaque = opaque };
 
     g_assert(section->mr == attr->ram_block->mr);
     return ram_block_attributes_for_each_discarded_section(attr, section, &data,
-                                            ram_block_attributes_rdm_replay_cb);
+        ram_block_attributes_rds_replay_cb);
 }
 
 static bool
@@ -257,42 +211,23 @@ ram_block_attributes_is_valid_range(RamBlockAttributes *attr, uint64_t offset,
     return true;
 }
 
-static void ram_block_attributes_notify_discard(RamBlockAttributes *attr,
-                                                uint64_t offset,
-                                                uint64_t size)
+static void
+ram_block_attributes_notify_discard(RamBlockAttributes *attr,
+                                    uint64_t offset,
+                                    uint64_t size)
 {
-    RamDiscardListener *rdl;
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(attr->ram_block->mr);
 
-    QLIST_FOREACH(rdl, &attr->rdl_list, next) {
-        MemoryRegionSection tmp = *rdl->section;
-
-        if (!memory_region_section_intersect_range(&tmp, offset, size)) {
-            continue;
-        }
-        rdl->notify_discard(rdl, &tmp);
-    }
+    ram_discard_manager_notify_discard(rdm, offset, size);
 }
 
 static int
 ram_block_attributes_notify_populate(RamBlockAttributes *attr,
                                      uint64_t offset, uint64_t size)
 {
-    RamDiscardListener *rdl;
-    int ret = 0;
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(attr->ram_block->mr);
 
-    QLIST_FOREACH(rdl, &attr->rdl_list, next) {
-        MemoryRegionSection tmp = *rdl->section;
-
-        if (!memory_region_section_intersect_range(&tmp, offset, size)) {
-            continue;
-        }
-        ret = rdl->notify_populate(rdl, &tmp);
-        if (ret) {
-            break;
-        }
-    }
-
-    return ret;
+    return ram_discard_manager_notify_populate(rdm, offset, size);
 }
 
 int ram_block_attributes_state_change(RamBlockAttributes *attr,
@@ -376,7 +311,8 @@ RamBlockAttributes *ram_block_attributes_create(RAMBlock *ram_block)
     attr = RAM_BLOCK_ATTRIBUTES(object_new(TYPE_RAM_BLOCK_ATTRIBUTES));
 
     attr->ram_block = ram_block;
-    if (memory_region_set_ram_discard_manager(mr, RAM_DISCARD_MANAGER(attr))) {
+
+    if (memory_region_add_ram_discard_source(mr, RAM_DISCARD_SOURCE(attr))) {
         object_unref(OBJECT(attr));
         return NULL;
     }
@@ -391,15 +327,12 @@ void ram_block_attributes_destroy(RamBlockAttributes *attr)
     g_assert(attr);
 
     g_free(attr->bitmap);
-    memory_region_set_ram_discard_manager(attr->ram_block->mr, NULL);
+    memory_region_del_ram_discard_source(attr->ram_block->mr, RAM_DISCARD_SOURCE(attr));
     object_unref(OBJECT(attr));
 }
 
 static void ram_block_attributes_init(Object *obj)
 {
-    RamBlockAttributes *attr = RAM_BLOCK_ATTRIBUTES(obj);
-
-    QLIST_INIT(&attr->rdl_list);
 }
 
 static void ram_block_attributes_finalize(Object *obj)
@@ -409,12 +342,10 @@ static void ram_block_attributes_finalize(Object *obj)
 static void ram_block_attributes_class_init(ObjectClass *klass,
                                             const void *data)
 {
-    RamDiscardManagerClass *rdmc = RAM_DISCARD_MANAGER_CLASS(klass);
+    RamDiscardSourceClass *rdsc = RAM_DISCARD_SOURCE_CLASS(klass);
 
-    rdmc->get_min_granularity = ram_block_attributes_rdm_get_min_granularity;
-    rdmc->register_listener = ram_block_attributes_rdm_register_listener;
-    rdmc->unregister_listener = ram_block_attributes_rdm_unregister_listener;
-    rdmc->is_populated = ram_block_attributes_rdm_is_populated;
-    rdmc->replay_populated = ram_block_attributes_rdm_replay_populated;
-    rdmc->replay_discarded = ram_block_attributes_rdm_replay_discarded;
+    rdsc->get_min_granularity = ram_block_attributes_rds_get_min_granularity;
+    rdsc->is_populated = ram_block_attributes_rds_is_populated;
+    rdsc->replay_populated = ram_block_attributes_rds_replay_populated;
+    rdsc->replay_discarded = ram_block_attributes_rds_replay_discarded;
 }

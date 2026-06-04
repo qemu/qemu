@@ -16,6 +16,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "qemu/target-info-qapi.h"
+#include "system/memory.h"
 #include "system/numa.h"
 #include "system/system.h"
 #include "system/ramblock.h"
@@ -324,74 +325,31 @@ static int virtio_mem_for_each_unplugged_section(const VirtIOMEM *vmem,
     return ret;
 }
 
-static int virtio_mem_notify_populate_cb(MemoryRegionSection *s, void *arg)
-{
-    RamDiscardListener *rdl = arg;
-
-    return rdl->notify_populate(rdl, s);
-}
-
 static void virtio_mem_notify_unplug(VirtIOMEM *vmem, uint64_t offset,
                                      uint64_t size)
 {
-    RamDiscardListener *rdl;
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(&vmem->memdev->mr);
 
-    QLIST_FOREACH(rdl, &vmem->rdl_list, next) {
-        MemoryRegionSection tmp = *rdl->section;
-
-        if (!memory_region_section_intersect_range(&tmp, offset, size)) {
-            continue;
-        }
-        rdl->notify_discard(rdl, &tmp);
-    }
+    ram_discard_manager_notify_discard(rdm, offset, size);
 }
 
 static int virtio_mem_notify_plug(VirtIOMEM *vmem, uint64_t offset,
                                   uint64_t size)
 {
-    RamDiscardListener *rdl, *rdl2;
-    int ret = 0;
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(&vmem->memdev->mr);
 
-    QLIST_FOREACH(rdl, &vmem->rdl_list, next) {
-        MemoryRegionSection tmp = *rdl->section;
-
-        if (!memory_region_section_intersect_range(&tmp, offset, size)) {
-            continue;
-        }
-        ret = rdl->notify_populate(rdl, &tmp);
-        if (ret) {
-            break;
-        }
-    }
-
-    if (ret) {
-        /* Notify all already-notified listeners. */
-        QLIST_FOREACH(rdl2, &vmem->rdl_list, next) {
-            MemoryRegionSection tmp = *rdl2->section;
-
-            if (rdl2 == rdl) {
-                break;
-            }
-            if (!memory_region_section_intersect_range(&tmp, offset, size)) {
-                continue;
-            }
-            rdl2->notify_discard(rdl2, &tmp);
-        }
-    }
-    return ret;
+    return ram_discard_manager_notify_populate(rdm, offset, size);
 }
 
 static void virtio_mem_notify_unplug_all(VirtIOMEM *vmem)
 {
-    RamDiscardListener *rdl;
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(&vmem->memdev->mr);
 
     if (!vmem->size) {
         return;
     }
 
-    QLIST_FOREACH(rdl, &vmem->rdl_list, next) {
-        rdl->notify_discard(rdl, rdl->section);
-    }
+    ram_discard_manager_notify_discard_all(rdm);
 }
 
 static bool virtio_mem_is_range_plugged(const VirtIOMEM *vmem,
@@ -1037,13 +995,9 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /*
-     * Set ourselves as RamDiscardManager before the plug handler maps the
-     * memory region and exposes it via an address space.
-     */
-    if (memory_region_set_ram_discard_manager(&vmem->memdev->mr,
-                                              RAM_DISCARD_MANAGER(vmem))) {
-        error_setg(errp, "Failed to set RamDiscardManager");
+    if (memory_region_add_ram_discard_source(&vmem->memdev->mr,
+                                             RAM_DISCARD_SOURCE(vmem))) {
+        error_setg(errp, "Failed to add RAM discard source");
         ram_block_coordinated_discard_require(false);
         return;
     }
@@ -1062,7 +1016,8 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         ret = ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb));
         if (ret) {
             error_setg_errno(errp, -ret, "Unexpected error discarding RAM");
-            memory_region_set_ram_discard_manager(&vmem->memdev->mr, NULL);
+            memory_region_del_ram_discard_source(&vmem->memdev->mr,
+                                                 RAM_DISCARD_SOURCE(vmem));
             ram_block_coordinated_discard_require(false);
             return;
         }
@@ -1147,7 +1102,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
      * The unplug handler unmapped the memory region, it cannot be
      * found via an address space anymore. Unset ourselves.
      */
-    memory_region_set_ram_discard_manager(&vmem->memdev->mr, NULL);
+    memory_region_del_ram_discard_source(&vmem->memdev->mr, RAM_DISCARD_SOURCE(vmem));
     ram_block_coordinated_discard_require(false);
 }
 
@@ -1175,9 +1130,7 @@ static int virtio_mem_activate_memslot_range_cb(VirtIOMEM *vmem, void *arg,
 
 static int virtio_mem_post_load_bitmap(VirtIOMEM *vmem)
 {
-    RamDiscardListener *rdl;
-    int ret;
-
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(&vmem->memdev->mr);
     /*
      * We restored the bitmap and updated the requested size; activate all
      * memslots (so listeners register) before notifying about plugged blocks.
@@ -1195,14 +1148,7 @@ static int virtio_mem_post_load_bitmap(VirtIOMEM *vmem)
      * We started out with all memory discarded and our memory region is mapped
      * into an address space. Replay, now that we updated the bitmap.
      */
-    QLIST_FOREACH(rdl, &vmem->rdl_list, next) {
-        ret = virtio_mem_for_each_plugged_section(vmem, rdl->section, rdl,
-                                                 virtio_mem_notify_populate_cb);
-        if (ret) {
-            return ret;
-        }
-    }
-    return 0;
+    return ram_discard_manager_replay_populated_to_listeners(rdm);
 }
 
 static int virtio_mem_post_load(void *opaque, int version_id)
@@ -1650,7 +1596,6 @@ static void virtio_mem_instance_init(Object *obj)
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
 
     notifier_list_init(&vmem->size_change_notifiers);
-    QLIST_INIT(&vmem->rdl_list);
 
     object_property_add(obj, VIRTIO_MEM_SIZE_PROP, "size", virtio_mem_get_size,
                         NULL, NULL, NULL);
@@ -1694,19 +1639,19 @@ static const Property virtio_mem_legacy_guests_properties[] = {
                             unplugged_inaccessible, ON_OFF_AUTO_ON),
 };
 
-static uint64_t virtio_mem_rdm_get_min_granularity(const RamDiscardManager *rdm,
+static uint64_t virtio_mem_rds_get_min_granularity(const RamDiscardSource *rds,
                                                    const MemoryRegion *mr)
 {
-    const VirtIOMEM *vmem = VIRTIO_MEM(rdm);
+    const VirtIOMEM *vmem = VIRTIO_MEM(rds);
 
     g_assert(mr == &vmem->memdev->mr);
     return vmem->block_size;
 }
 
-static bool virtio_mem_rdm_is_populated(const RamDiscardManager *rdm,
+static bool virtio_mem_rds_is_populated(const RamDiscardSource *rds,
                                         const MemoryRegionSection *s)
 {
-    const VirtIOMEM *vmem = VIRTIO_MEM(rdm);
+    const VirtIOMEM *vmem = VIRTIO_MEM(rds);
     uint64_t start_gpa = vmem->addr + s->offset_within_region;
     uint64_t end_gpa = start_gpa + int128_get64(s->size);
 
@@ -1727,19 +1672,19 @@ struct VirtIOMEMReplayData {
     void *opaque;
 };
 
-static int virtio_mem_rdm_replay_populated_cb(MemoryRegionSection *s, void *arg)
+static int virtio_mem_rds_replay_cb(MemoryRegionSection *s, void *arg)
 {
     struct VirtIOMEMReplayData *data = arg;
 
     return data->fn(s, data->opaque);
 }
 
-static int virtio_mem_rdm_replay_populated(const RamDiscardManager *rdm,
+static int virtio_mem_rds_replay_populated(const RamDiscardSource *rds,
                                            MemoryRegionSection *s,
                                            ReplayRamDiscardState replay_fn,
                                            void *opaque)
 {
-    const VirtIOMEM *vmem = VIRTIO_MEM(rdm);
+    const VirtIOMEM *vmem = VIRTIO_MEM(rds);
     struct VirtIOMEMReplayData data = {
         .fn = replay_fn,
         .opaque = opaque,
@@ -1747,23 +1692,15 @@ static int virtio_mem_rdm_replay_populated(const RamDiscardManager *rdm,
 
     g_assert(s->mr == &vmem->memdev->mr);
     return virtio_mem_for_each_plugged_section(vmem, s, &data,
-                                            virtio_mem_rdm_replay_populated_cb);
+                                            virtio_mem_rds_replay_cb);
 }
 
-static int virtio_mem_rdm_replay_discarded_cb(MemoryRegionSection *s,
-                                              void *arg)
-{
-    struct VirtIOMEMReplayData *data = arg;
-
-    return data->fn(s, data->opaque);
-}
-
-static int virtio_mem_rdm_replay_discarded(const RamDiscardManager *rdm,
+static int virtio_mem_rds_replay_discarded(const RamDiscardSource *rds,
                                            MemoryRegionSection *s,
                                            ReplayRamDiscardState replay_fn,
                                            void *opaque)
 {
-    const VirtIOMEM *vmem = VIRTIO_MEM(rdm);
+    const VirtIOMEM *vmem = VIRTIO_MEM(rds);
     struct VirtIOMEMReplayData data = {
         .fn = replay_fn,
         .opaque = opaque,
@@ -1771,41 +1708,7 @@ static int virtio_mem_rdm_replay_discarded(const RamDiscardManager *rdm,
 
     g_assert(s->mr == &vmem->memdev->mr);
     return virtio_mem_for_each_unplugged_section(vmem, s, &data,
-                                                 virtio_mem_rdm_replay_discarded_cb);
-}
-
-static void virtio_mem_rdm_register_listener(RamDiscardManager *rdm,
-                                             RamDiscardListener *rdl,
-                                             MemoryRegionSection *s)
-{
-    VirtIOMEM *vmem = VIRTIO_MEM(rdm);
-    int ret;
-
-    g_assert(s->mr == &vmem->memdev->mr);
-    rdl->section = memory_region_section_new_copy(s);
-
-    QLIST_INSERT_HEAD(&vmem->rdl_list, rdl, next);
-    ret = virtio_mem_for_each_plugged_section(vmem, rdl->section, rdl,
-                                              virtio_mem_notify_populate_cb);
-    if (ret) {
-        error_report("%s: Replaying plugged ranges failed: %s", __func__,
-                     strerror(-ret));
-    }
-}
-
-static void virtio_mem_rdm_unregister_listener(RamDiscardManager *rdm,
-                                               RamDiscardListener *rdl)
-{
-    VirtIOMEM *vmem = VIRTIO_MEM(rdm);
-
-    g_assert(rdl->section->mr == &vmem->memdev->mr);
-    if (vmem->size) {
-        rdl->notify_discard(rdl, rdl->section);
-    }
-
-    memory_region_section_free_copy(rdl->section);
-    rdl->section = NULL;
-    QLIST_REMOVE(rdl, next);
+                                                 virtio_mem_rds_replay_cb);
 }
 
 static void virtio_mem_unplug_request_check(VirtIOMEM *vmem, Error **errp)
@@ -1837,7 +1740,7 @@ static void virtio_mem_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOMEMClass *vmc = VIRTIO_MEM_CLASS(klass);
-    RamDiscardManagerClass *rdmc = RAM_DISCARD_MANAGER_CLASS(klass);
+    RamDiscardSourceClass *rdsc = RAM_DISCARD_SOURCE_CLASS(klass);
 
     device_class_set_props(dc, virtio_mem_properties);
     if (virtio_mem_has_legacy_guests()) {
@@ -1861,12 +1764,10 @@ static void virtio_mem_class_init(ObjectClass *klass, const void *data)
     vmc->remove_size_change_notifier = virtio_mem_remove_size_change_notifier;
     vmc->unplug_request_check = virtio_mem_unplug_request_check;
 
-    rdmc->get_min_granularity = virtio_mem_rdm_get_min_granularity;
-    rdmc->is_populated = virtio_mem_rdm_is_populated;
-    rdmc->replay_populated = virtio_mem_rdm_replay_populated;
-    rdmc->replay_discarded = virtio_mem_rdm_replay_discarded;
-    rdmc->register_listener = virtio_mem_rdm_register_listener;
-    rdmc->unregister_listener = virtio_mem_rdm_unregister_listener;
+    rdsc->get_min_granularity = virtio_mem_rds_get_min_granularity;
+    rdsc->is_populated = virtio_mem_rds_is_populated;
+    rdsc->replay_populated = virtio_mem_rds_replay_populated;
+    rdsc->replay_discarded = virtio_mem_rds_replay_discarded;
 }
 
 static const TypeInfo virtio_mem_info = {
@@ -1878,7 +1779,7 @@ static const TypeInfo virtio_mem_info = {
     .class_init = virtio_mem_class_init,
     .class_size = sizeof(VirtIOMEMClass),
     .interfaces = (const InterfaceInfo[]) {
-        { TYPE_RAM_DISCARD_MANAGER },
+        { TYPE_RAM_DISCARD_SOURCE },
         { }
     },
 };

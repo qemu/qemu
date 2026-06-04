@@ -99,8 +99,6 @@ struct RamBlockAttributes {
     /* 1-setting of the bitmap represents ram is populated (shared) */
     unsigned bitmap_size;
     unsigned long *bitmap;
-
-    QLIST_HEAD(, RamDiscardListener) rdl_list;
 };
 
 /* @offset: the offset within the RAMBlock */
