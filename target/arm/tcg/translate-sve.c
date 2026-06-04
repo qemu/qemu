@@ -776,24 +776,74 @@ TRANS_FEAT(SEL_zpzz, aa64_sme_or_sve, do_sel_z, a->rd, a->rn, a->rm, a->pg, a->e
  *** SVE Integer Arithmetic - Unary Predicated Group
  */
 
-#define DO_ZPZ(NAME, FEAT, name) \
-    static gen_helper_gvec_3 * const name##_fns[4] = {              \
-        gen_helper_##name##_b, gen_helper_##name##_h,               \
-        gen_helper_##name##_s, gen_helper_##name##_d,               \
-    };                                                              \
-    TRANS_FEAT(NAME, FEAT, gen_gvec_ool_arg_zpz, name##_fns[a->esz], a, 0)
+static gen_helper_gvec_3 * const sve_cls_fns[4] = {
+    gen_helper_sve_cls_b, gen_helper_sve_cls_h,
+    gen_helper_sve_cls_s, gen_helper_sve_cls_d,
+};
+TRANS_FEAT(CLS_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_cls_fns[a->esz], a, 0)
 
-DO_ZPZ(CLS_m, aa64_sme_or_sve, sve_cls)
-DO_ZPZ(CLZ_m, aa64_sme_or_sve, sve_clz)
-DO_ZPZ(CNT_zpz_m, aa64_sme_or_sve, sve_cnt_zpz)
-DO_ZPZ(CNOT_m, aa64_sme_or_sve, sve_cnot)
-DO_ZPZ(NOT_zpz_m, aa64_sme_or_sve, sve_not_zpz)
-DO_ZPZ(ABS_m, aa64_sme_or_sve, sve_abs)
-DO_ZPZ(NEG_m, aa64_sme_or_sve, sve_neg)
-DO_ZPZ(RBIT_m, aa64_sme_or_sve, sve_rbit)
-DO_ZPZ(ORQV, aa64_sme2p1_or_sve2p1, sve2p1_orqv)
-DO_ZPZ(EORQV, aa64_sme2p1_or_sve2p1, sve2p1_eorqv)
-DO_ZPZ(ANDQV, aa64_sme2p1_or_sve2p1, sve2p1_andqv)
+static gen_helper_gvec_3 * const sve_clz_fns[4] = {
+    gen_helper_sve_clz_b, gen_helper_sve_clz_h,
+    gen_helper_sve_clz_s, gen_helper_sve_clz_d,
+};
+TRANS_FEAT(CLZ_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_clz_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve_cnt_zpz_fns[4] = {
+    gen_helper_sve_cnt_zpz_b, gen_helper_sve_cnt_zpz_h,
+    gen_helper_sve_cnt_zpz_s, gen_helper_sve_cnt_zpz_d,
+};
+TRANS_FEAT(CNT_zpz_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_cnt_zpz_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve_cnot_fns[4] = {
+    gen_helper_sve_cnot_b, gen_helper_sve_cnot_h,
+    gen_helper_sve_cnot_s, gen_helper_sve_cnot_d,
+};
+TRANS_FEAT(CNOT_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_cnot_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve_not_zpz_fns[4] = {
+    gen_helper_sve_not_zpz_b, gen_helper_sve_not_zpz_h,
+    gen_helper_sve_not_zpz_s, gen_helper_sve_not_zpz_d,
+};
+TRANS_FEAT(NOT_zpz_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_not_zpz_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve_abs_fns[4] = {
+    gen_helper_sve_abs_b, gen_helper_sve_abs_h,
+    gen_helper_sve_abs_s, gen_helper_sve_abs_d,
+};
+TRANS_FEAT(ABS_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_abs_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve_neg_fns[4] = {
+    gen_helper_sve_neg_b, gen_helper_sve_neg_h,
+    gen_helper_sve_neg_s, gen_helper_sve_neg_d,
+};
+TRANS_FEAT(NEG_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_neg_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve_rbit_fns[4] = {
+    gen_helper_sve_rbit_b, gen_helper_sve_rbit_h,
+    gen_helper_sve_rbit_s, gen_helper_sve_rbit_d,
+};
+TRANS_FEAT(RBIT_m, aa64_sme_or_sve, gen_gvec_ool_arg_zpz, sve_rbit_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve2p1_orqv_fns[4] = {
+    gen_helper_sve2p1_orqv_b, gen_helper_sve2p1_orqv_h,
+    gen_helper_sve2p1_orqv_s, gen_helper_sve2p1_orqv_d,
+};
+TRANS_FEAT(ORQV, aa64_sme2p1_or_sve2p1, gen_gvec_ool_arg_zpz,
+           sve2p1_orqv_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve2p1_eorqv_fns[4] = {
+    gen_helper_sve2p1_eorqv_b, gen_helper_sve2p1_eorqv_h,
+    gen_helper_sve2p1_eorqv_s, gen_helper_sve2p1_eorqv_d,
+};
+TRANS_FEAT(EORQV, aa64_sme2p1_or_sve2p1, gen_gvec_ool_arg_zpz,
+           sve2p1_eorqv_fns[a->esz], a, 0)
+
+static gen_helper_gvec_3 * const sve2p1_andqv_fns[4] = {
+    gen_helper_sve2p1_andqv_b, gen_helper_sve2p1_andqv_h,
+    gen_helper_sve2p1_andqv_s, gen_helper_sve2p1_andqv_d,
+};
+TRANS_FEAT(ANDQV, aa64_sme2p1_or_sve2p1, gen_gvec_ool_arg_zpz,
+           sve2p1_andqv_fns[a->esz], a, 0)
 
 static gen_helper_gvec_3 * const fabs_fns[4] = {
     NULL,                  gen_helper_sve_fabs_h,
