@@ -20,27 +20,29 @@
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
                         uint64_t *dir_width, unsigned int level)
 {
+    CPUSysState *sys = env_sys(env);
+
     switch (level) {
     case 1:
-        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_BASE);
-        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR1_WIDTH);
+        *dir_base = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, DIR1_BASE);
+        *dir_width = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, DIR1_WIDTH);
         break;
     case 2:
-        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_BASE);
-        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, DIR2_WIDTH);
+        *dir_base = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, DIR2_BASE);
+        *dir_width = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, DIR2_WIDTH);
         break;
     case 3:
-        *dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_BASE);
-        *dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR3_WIDTH);
+        *dir_base = FIELD_EX64(sys->CSR_PWCH, CSR_PWCH, DIR3_BASE);
+        *dir_width = FIELD_EX64(sys->CSR_PWCH, CSR_PWCH, DIR3_WIDTH);
         break;
     case 4:
-        *dir_base = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_BASE);
-        *dir_width = FIELD_EX64(env->CSR_PWCH, CSR_PWCH, DIR4_WIDTH);
+        *dir_base = FIELD_EX64(sys->CSR_PWCH, CSR_PWCH, DIR4_BASE);
+        *dir_width = FIELD_EX64(sys->CSR_PWCH, CSR_PWCH, DIR4_WIDTH);
         break;
     default:
         /* level may be zero for ldpte */
-        *dir_base = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTBASE);
-        *dir_width = FIELD_EX64(env->CSR_PWCL, CSR_PWCL, PTWIDTH);
+        *dir_base = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, PTBASE);
+        *dir_width = FIELD_EX64(sys->CSR_PWCL, CSR_PWCL, PTWIDTH);
         break;
     }
 }
@@ -156,13 +158,13 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
     vaddr address;
     TLBRet ret;
     MemTxResult ret1;
-
+    CPUSysState *sys = env_sys(env);
 
     address = context->addr;
     if ((address >> 63) & 0x1) {
-        base = env->CSR_PGDH;
+        base = sys->CSR_PGDH;
     } else {
-        base = env->CSR_PGDL;
+        base = sys->CSR_PGDL;
     }
     base &= palen_mask;
 
@@ -315,8 +317,9 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     int kernel_mode = mmu_idx == MMU_KERNEL_IDX;
     uint32_t plv, base_c, base_v;
     int64_t addr_high;
-    uint8_t da = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, DA);
-    uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
+    CPUSysState *sys = env_sys(env);
+    uint8_t da = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, DA);
+    uint8_t pg = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PG);
     vaddr address;
 
     /* Check PG and DA */
@@ -337,12 +340,12 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     /* Check direct map window */
     for (int i = 0; i < 4; i++) {
         if (is_la64(env)) {
-            base_c = FIELD_EX64(env->CSR_DMW[i], CSR_DMW_64, VSEG);
+            base_c = FIELD_EX64(sys->CSR_DMW[i], CSR_DMW_64, VSEG);
         } else {
-            base_c = FIELD_EX64(env->CSR_DMW[i], CSR_DMW_32, VSEG);
+            base_c = FIELD_EX64(sys->CSR_DMW[i], CSR_DMW_32, VSEG);
         }
-        if ((plv & env->CSR_DMW[i]) && (base_c == base_v)) {
-            context->physical = dmw_va2pa(env, address, env->CSR_DMW[i]);
+        if ((plv & sys->CSR_DMW[i]) && (base_c == base_v)) {
+            context->physical = dmw_va2pa(env, address, sys->CSR_DMW[i]);
             context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
             context->mmu_index = MMU_DA_IDX;
             return TLBRET_MATCH;
