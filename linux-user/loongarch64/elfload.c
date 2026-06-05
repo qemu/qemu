@@ -67,6 +67,8 @@ const char *get_elf_platform(CPUState *cs)
 
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPULoongArchState *env)
 {
+    CPUSysState *sys = env_sys((CPULoongArchState *)env);
+
     r->pt.regs[0] = 0;
 
     for (int i = 1; i < ARRAY_SIZE(env->gpr); i++) {
@@ -74,5 +76,5 @@ void elf_core_copy_regs(target_elf_gregset_t *r, const CPULoongArchState *env)
     }
 
     r->pt.csr_era = tswapreg(env->pc);
-    r->pt.csr_badv = tswapreg(env->CSR_BADV);
+    r->pt.csr_badv = tswapreg(sys->CSR_BADV);
 }
