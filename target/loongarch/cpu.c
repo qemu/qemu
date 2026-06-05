@@ -761,7 +761,7 @@ static void loongarch_cpu_dump_csr(CPUState *cs, FILE *f)
 {
 #ifndef CONFIG_USER_ONLY
     CPULoongArchState *env = cpu_env(cs);
-    CSRInfo *csr_info;
+    const CSRInfo *csr_info;
     int64_t *addr;
     int i, j, len, col = 0;
 
@@ -783,7 +783,7 @@ static void loongarch_cpu_dump_csr(CPUState *cs, FILE *f)
             qemu_fprintf(f, " CSR%03d:", col);
         }
 
-        addr = (void *)env + csr_info->offset;
+        addr = (void *)env + get_csr_offset(csr_info, 0);
         qemu_fprintf(f, " %s ", csr_info->name);
         len = strlen(csr_info->name);
         for (; len < 6; len++) {

@@ -27,4 +27,8 @@ typedef struct {
 
 CSRInfo *get_csr(unsigned int csr_num);
 bool set_csr_flag(unsigned int csr_num, int flag);
+static inline unsigned int get_csr_offset(const CSRInfo *csr, int vm_level)
+{
+    return csr->offset;
+}
 #endif /* TARGET_LOONGARCH_CSR_H */
