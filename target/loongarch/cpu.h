@@ -317,6 +317,8 @@ typedef struct  LoongArchBT {
 #define CPU_VENDOR_LOONGSON   "Loongson"
 #define CPU_MODEL_3A5000      "3A5000"
 #define CPU_MODEL_1C101       "1C101"
+struct CPUArchState;
+typedef struct CPUArchState CPUSysState;
 
 typedef struct CPUArchState {
     uint64_t gpr[32];
@@ -415,6 +417,7 @@ typedef struct CPUArchState {
     AddressSpace *address_space_iocsr;
     uint32_t mp_state;
 #endif
+    CPUSysState *sys_state;
 } CPULoongArchState;
 
 typedef struct LoongArchCPUTopo {
@@ -480,6 +483,16 @@ struct LoongArchCPUClass {
 #define MMU_KERNEL_IDX   MMU_PLV_KERNEL
 #define MMU_USER_IDX     MMU_PLV_USER
 #define MMU_DA_IDX       4
+
+static inline CPUSysState *env_sys(CPULoongArchState *env)
+{
+    return env->sys_state;
+}
+
+static inline void set_sys_state(CPULoongArchState *env, CPUSysState *sys)
+{
+    env->sys_state = sys;
+}
 
 static inline bool is_la64(CPULoongArchState *env)
 {
