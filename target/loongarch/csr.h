@@ -8,6 +8,9 @@
 
 #include "cpu-csr.h"
 
+#define CSR_OFFSET(id)                  offsetof(CPULoongArchState, id)
+#define CPU_CSR_OFFSET(id, vm_level)    CSR_OFFSET(id)
+
 typedef void (*GenCSRFunc)(void);
 enum {
     CSRFL_READONLY = (1 << 0),
