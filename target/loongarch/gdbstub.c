@@ -34,6 +34,7 @@ void write_fcc(CPULoongArchState *env, uint64_t val)
 int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPULoongArchState *env = cpu_env(cs);
+    CPUSysState *sys = env_sys(env);
 
     if (0 <= n && n <= 34) {
         uint64_t val;
@@ -46,7 +47,7 @@ int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         } else if (n == 33) {
             val = env->pc;
         } else /* if (n == 34) */ {
-            val = env->CSR_BADV;
+            val = sys->CSR_BADV;
         }
 
         if (is_la64(env)) {
