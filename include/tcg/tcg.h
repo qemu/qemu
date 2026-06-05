@@ -447,7 +447,7 @@ static inline bool temp_readonly(TCGTemp *ts)
 
 extern __thread TCGContext *tcg_ctx;
 extern const void *tcg_code_gen_epilogue;
-extern uintptr_t tcg_splitwx_diff;
+extern ptrdiff_t tcg_splitwx_diff;
 extern TCGv_env tcg_env;
 
 bool in_code_gen_buffer(const void *p);
