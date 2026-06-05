@@ -14,6 +14,7 @@ enum {
     CSRFL_EXITTB   = (1 << 1),
     CSRFL_IO       = (1 << 2),
     CSRFL_UNUSED   = (1 << 3),
+    CSRFL_BASIC    = (1 << 4),
 };
 
 typedef struct {

@@ -17,11 +17,11 @@
     [LOONGARCH_CSR_##NAME(N)] = {                             \
         .name   = (stringify(NAME##N)),                       \
         .offset = offsetof(CPULoongArchState, CSR_##NAME[N]), \
-        .flags = 0, .readfn = NULL, .writefn = NULL           \
+        .flags = CSRFL_BASIC, .readfn = NULL, .writefn = NULL           \
     }
 
 #define CSR_OFF_FLAGS(NAME, FL)   CSR_OFF_FUNCS(NAME, FL, NULL, NULL)
-#define CSR_OFF(NAME)             CSR_OFF_FLAGS(NAME, 0)
+#define CSR_OFF(NAME)             CSR_OFF_FLAGS(NAME, CSRFL_BASIC)
 
 static CSRInfo csr_info[] = {
     CSR_OFF_FLAGS(CRMD, CSRFL_EXITTB),
@@ -144,7 +144,7 @@ CSRInfo *get_csr(unsigned int csr_num)
     }
 
     csr = &csr_info[csr_num];
-    if (csr->offset == 0) {
+    if (csr->flags == 0) {
         return NULL;
     }
 
