@@ -282,7 +282,7 @@ static void loongarch_la464_initfn(Object *obj)
     uint32_t data = 0, field;
     int i;
 
-    set_sys_state(env, env);
+    set_sys_state(env, &env->sys_states[0]);
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -412,7 +412,7 @@ static void loongarch_la132_initfn(Object *obj)
     uint32_t data = 0;
     int i;
 
-    set_sys_state(env, env);
+    set_sys_state(env, &env->sys_states[0]);
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }

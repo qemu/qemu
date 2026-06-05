@@ -317,23 +317,7 @@ typedef struct  LoongArchBT {
 #define CPU_VENDOR_LOONGSON   "Loongson"
 #define CPU_MODEL_3A5000      "3A5000"
 #define CPU_MODEL_1C101       "1C101"
-struct CPUArchState;
-typedef struct CPUArchState CPUSysState;
-
-typedef struct CPUArchState {
-    uint64_t gpr[32];
-    uint64_t pc;
-
-    fpr_t fpr[32];
-    bool cf[8];
-    uint32_t fcsr0;
-    lbt_t  lbt;
-
-    uint32_t cpucfg[21];
-    uint32_t pv_features;
-    uint64_t vendor_id;
-    uint64_t cpu_id;
-
+typedef struct CPUSysState {
     /* LoongArch CSRs */
     uint64_t CSR_CRMD;
     uint64_t CSR_PRMD;
@@ -395,6 +379,23 @@ typedef struct CPUArchState {
     uint64_t CSR_MSGIS[N_MSGIS];
     uint64_t CSR_MSGIR;
     uint64_t CSR_MSGIE;
+} CPUSysState;
+
+typedef struct CPUArchState {
+    uint64_t gpr[32];
+    uint64_t pc;
+
+    fpr_t fpr[32];
+    bool cf[8];
+    uint32_t fcsr0;
+    lbt_t  lbt;
+
+    uint32_t cpucfg[21];
+    uint32_t pv_features;
+    uint64_t vendor_id;
+    uint64_t cpu_id;
+    CPUSysState sys_states[1];
+
     struct {
         uint64_t guest_addr;
     } stealtime;
