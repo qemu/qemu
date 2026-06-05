@@ -503,8 +503,9 @@ static inline bool is_va32(CPULoongArchState *env)
 {
     /* VA32 if !LA64 or VA32L[1-3] */
     bool va32 = !is_la64(env);
-    uint64_t plv = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
-    if (plv >= 1 && (FIELD_EX64(env->CSR_MISC, CSR_MISC, VA32) & (1 << plv))) {
+    CPUSysState *sys = env_sys(env);
+    uint64_t plv = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PLV);
+    if (plv >= 1 && (FIELD_EX64(sys->CSR_MISC, CSR_MISC, VA32) & (1 << plv))) {
         va32 = true;
     }
     return va32;
