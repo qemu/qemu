@@ -90,9 +90,9 @@ static int stsi_topology_fill_sysib(S390TopologyList *topology_list,
     int last_drawer = -1;
     int last_book = -1;
     int last_socket = -1;
-    int drawer_id = 0;
-    int book_id = 0;
-    int socket_id = 0;
+    int drawer_id = 1;
+    int book_id = 1;
+    int socket_id = 1;
     int n = sizeof(SysIB_151x);
 
     QTAILQ_FOREACH(entry, topology_list, next) {
@@ -103,12 +103,12 @@ static int stsi_topology_fill_sysib(S390TopologyList *topology_list,
         if (level > 3 && drawer_change) {
             SYSIB_GUARD(n, sizeof(SYSIBContainerListEntry));
             p = fill_container(p, 3, drawer_id++);
-            book_id = 0;
+            book_id = 1;
         }
         if (level > 2 && book_change) {
             SYSIB_GUARD(n, sizeof(SYSIBContainerListEntry));
             p = fill_container(p, 2, book_id++);
-            socket_id = 0;
+            socket_id = 1;
         }
         if (socket_change) {
             SYSIB_GUARD(n, sizeof(SYSIBContainerListEntry));
