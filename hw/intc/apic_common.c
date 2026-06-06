@@ -257,6 +257,19 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     static DeviceState *vapic;
     uint32_t instance_id = s->initial_apic_id;
 
+    if (!s->cpu) {
+        error_setg(errp, "APIC is not attached to a CPU");
+        return;
+    }
+
+    if (s->initial_apic_id >= 255 &&
+        !cpu_has_x2apic_feature(&s->cpu->env)) {
+        error_setg(errp, "APIC ID %d requires x2APIC feature in CPU",
+                   s->initial_apic_id);
+        error_append_hint(errp, "Try x2apic=on in -cpu.\n");
+        return;
+    }
+
     /* Normally initial APIC ID should be no more than hundreds */
     assert(instance_id != VMSTATE_INSTANCE_ID_ANY);
 
@@ -410,7 +423,6 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
     APICCommonState *s = APIC_COMMON(obj);
     DeviceState *dev = DEVICE(obj);
     uint32_t value;
-    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -418,15 +430,6 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
     }
 
     if (!visit_type_uint32(v, name, &value, errp)) {
-        return;
-    }
-
-    if (value >= 255 && !cpu_has_x2apic_feature(&s->cpu->env)) {
-        error_setg(&local_err,
-                   "APIC ID %d requires x2APIC feature in CPU",
-                   value);
-        error_append_hint(&local_err, "Try x2apic=on in -cpu.\n");
-        error_propagate(errp, local_err);
         return;
     }
 

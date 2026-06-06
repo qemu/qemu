@@ -427,6 +427,14 @@ char *qtest_vhmp(QTestState *s, const char *fmt, va_list ap)
 void qtest_module_load(QTestState *s, const char *prefix, const char *libname);
 
 /**
+ * qtest_qom_tests:
+ * @s: #QTestState instance to operate on.
+ *
+ * Run QOM property get/set round-trip tests on all non-abstract types.
+ */
+void qtest_qom_tests(QTestState *s);
+
+/**
  * qtest_get_irq:
  * @s: #QTestState instance to operate on.
  * @num: Interrupt to observe.
