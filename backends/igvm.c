@@ -198,8 +198,8 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
             error_setg(
                 errp,
                 "Processing of IGVM file failed: Could not prepare memory "
-                "at address 0x%" PRIx64 ": region size exceeded",
-                addr);
+                "at address 0x%" PRIx64 ": region size 0x%" PRIx64 " exceeded",
+                addr, size);
             return NULL;
         }
         return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
