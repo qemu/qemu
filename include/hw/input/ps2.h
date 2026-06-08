@@ -26,6 +26,7 @@
 #define HW_PS2_H
 
 #include "hw/core/sysbus.h"
+#include "ui/input.h"
 
 #define PS2_MOUSE_BUTTON_LEFT   0x01
 #define PS2_MOUSE_BUTTON_RIGHT  0x02
@@ -59,6 +60,7 @@ struct PS2State {
     PS2Queue queue;
     int32_t write_cmd;
     qemu_irq irq;
+    QemuInputHandlerState *hs;
 };
 
 #define TYPE_PS2_DEVICE "ps2-device"
