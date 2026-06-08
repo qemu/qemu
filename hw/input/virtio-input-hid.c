@@ -12,6 +12,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-input.h"
+#include "ui/input.h"
 
 #include "ui/console.h"
 
@@ -208,7 +209,7 @@ static void virtio_input_hid_handle_status(VirtIOInput *vinput,
         } else {
             vhid->ledstate &= ~ledbit;
         }
-        kbd_put_ledstate(vhid->ledstate);
+        qemu_input_handler_set_leds_mask(vhid->hs, vhid->ledstate);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
