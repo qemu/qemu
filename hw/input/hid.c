@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "ui/console.h"
+#include "ui/input.h"
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
 #include "migration/vmstate.h"
@@ -470,7 +471,7 @@ int hid_keyboard_write(HIDState *hs, uint8_t *buf, int len)
         if (hs->kbd.leds & 0x02) {
             ledstate |= QEMU_CAPS_LOCK_LED;
         }
-        kbd_put_ledstate(ledstate);
+        qemu_input_handler_set_leds_mask(hs->s, ledstate);
         return 1;
     }
     return 0;
