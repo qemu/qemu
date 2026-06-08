@@ -577,7 +577,7 @@ static void ps2_set_ledstate(PS2KbdState *s, int ledstate)
 {
     trace_ps2_set_ledstate(s, ledstate);
     s->ledstate = ledstate;
-    kbd_put_ledstate(ledstate);
+    qemu_input_handler_set_leds_mask(PS2_DEVICE(s)->hs, ledstate);
 }
 
 static void ps2_reset_keyboard(PS2KbdState *s)
@@ -1108,7 +1108,7 @@ static int ps2_kbd_ledstate_post_load(void *opaque, int version_id)
 {
     PS2KbdState *s = opaque;
 
-    kbd_put_ledstate(s->ledstate);
+    qemu_input_handler_set_leds_mask(PS2_DEVICE(s)->hs, s->ledstate);
     return 0;
 }
 
