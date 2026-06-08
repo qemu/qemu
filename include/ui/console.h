@@ -54,15 +54,6 @@ enum qemu_color_names {
 #define ATTR2CHTYPE(c, fg, bg, bold) \
     ((bold) << 21 | (bg) << 11 | (fg) << 8 | (c))
 
-typedef void QEMUPutLEDEvent(void *opaque, int ledstate);
-
-typedef struct QEMUPutLEDEntry QEMUPutLEDEntry;
-
-QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func, void *opaque);
-void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry);
-
-void kbd_put_ledstate(int ledstate);
-
 bool qemu_mouse_set(int index, Error **errp);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
