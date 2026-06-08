@@ -13,58 +13,43 @@
 #include "trace.h"
 #include "qemu-vnc.h"
 
-struct QEMUPutLEDEntry {
-    QEMUPutLEDEvent *put_led;
-    void *opaque;
-    QTAILQ_ENTRY(QEMUPutLEDEntry) next;
-};
-
 static NotifierList mouse_mode_notifiers =
     NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
-static QTAILQ_HEAD(, QEMUPutLEDEntry) led_handlers =
-    QTAILQ_HEAD_INITIALIZER(led_handlers);
+static NotifierList led_notifiers =
+    NOTIFIER_LIST_INITIALIZER(led_notifiers);
 
 /* Track the target console for pending mouse events (used by sync) */
 static QemuConsole *mouse_target;
 
-QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func,
-                                            void *opaque)
-{
-    QEMUPutLEDEntry *s;
+/*
+ * The D-Bus Keyboard.Modifiers property uses the same
+ * bit layout as QEMU's LED constants.
+ */
+static guint modifiers;
 
-    s = g_new0(QEMUPutLEDEntry, 1);
-    s->put_led = func;
-    s->opaque = opaque;
-    QTAILQ_INSERT_TAIL(&led_handlers, s, next);
-    return s;
+void qemu_input_led_notifier_add(Notifier *n)
+{
+    notifier_list_add(&led_notifiers, n);
 }
 
-void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry)
+void qemu_input_led_notifier_remove(Notifier *n)
 {
-    if (!entry) {
-        return;
-    }
-    QTAILQ_REMOVE(&led_handlers, entry, next);
-    g_free(entry);
+    notifier_remove(n);
+}
+
+uint32_t qemu_input_get_leds_mask(const QemuConsole *con)
+{
+    return modifiers;
 }
 
 static void
 on_keyboard_modifiers_changed(GObject *gobject, GParamSpec *pspec,
                               gpointer user_data)
 {
-    guint modifiers;
-    QEMUPutLEDEntry *cursor;
-
     modifiers = qemu_dbus_display1_keyboard_get_modifiers(
         QEMU_DBUS_DISPLAY1_KEYBOARD(gobject));
 
-    /*
-     * The D-Bus Keyboard.Modifiers property uses the same
-     * bit layout as QEMU's LED constants.
-     */
-    QTAILQ_FOREACH(cursor, &led_handlers, next) {
-        cursor->put_led(cursor->opaque, modifiers);
-    }
+    notifier_list_notify(&led_notifiers, NULL);
 }
 
 void qemu_add_mouse_mode_change_notifier(Notifier *notify)

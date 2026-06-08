@@ -1820,9 +1820,10 @@ static void vnc_led_state_change(VncState *vs)
     vnc_flush(vs);
 }
 
-static void kbd_leds(void *opaque, int ledstate)
+static void kbd_leds(Notifier *notifier, void *data)
 {
-    VncDisplay *vd = opaque;
+    VncDisplay *vd = container_of(notifier, VncDisplay, led_notifier);
+    int ledstate = qemu_input_get_leds_mask(vd->dcl.con);
     VncState *client;
 
     trace_vnc_key_guest_leds((ledstate & QEMU_CAPS_LOCK_LED),
@@ -3489,8 +3490,7 @@ static void vnc_display_close(VncDisplay *vd)
     g_free(vd->tlsauthzid);
     vd->tlsauthzid = NULL;
     if (vd->lock_key_sync) {
-        qemu_remove_led_event_handler(vd->led);
-        vd->led = NULL;
+        qemu_input_led_notifier_remove(&vd->led_notifier);
     }
 #ifdef CONFIG_VNC_SASL
     if (vd->sasl.authz) {
@@ -4221,7 +4221,8 @@ static bool vnc_display_open(VncDisplay *vd, Error **errp)
 #endif
     vd->lock_key_sync = lock_key_sync;
     if (lock_key_sync) {
-        vd->led = qemu_add_led_event_handler(kbd_leds, vd);
+        vd->led_notifier.notify = kbd_leds;
+        qemu_input_led_notifier_add(&vd->led_notifier);
     }
     vd->ledstate = 0;
 
