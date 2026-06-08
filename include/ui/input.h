@@ -151,4 +151,15 @@ extern const guint16 qemu_input_map_xorgxwin_to_linux[];
 extern const guint qemu_input_map_osx_to_linux_len;
 extern const guint16 qemu_input_map_osx_to_linux[];
 
+/**
+ * qemu_input_get_leds_mask() - get the LED mask for the given console
+ * @con: a QemuConsole or NULL
+ *
+ * If @con is NULL, returns the LED state mask for the default console.
+ */
+uint32_t qemu_input_get_leds_mask(const QemuConsole *con);
+void qemu_input_handler_set_leds_mask(QemuInputHandlerState *s, uint32_t leds_mask);
+void qemu_input_led_notifier_add(Notifier *n);
+void qemu_input_led_notifier_remove(Notifier *n);
+
 #endif /* INPUT_H */
