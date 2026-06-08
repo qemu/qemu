@@ -1127,6 +1127,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
         /* All fractional */
         switch (rmode) {
         case float_round_nearest_even:
+        case float_round_nearest_even_max:
             one = false;
             if (a->exp == -1) {
                 FloatPartsN tmp;
@@ -1149,6 +1150,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
             one = a->sign;
             break;
         case float_round_to_odd:
+        case float_round_to_odd_inf:
             one = true;
             break;
         default:
@@ -1195,6 +1197,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
 
     switch (rmode) {
     case float_round_nearest_even:
+    case float_round_nearest_even_max:
         inc = ((a->frac_lo & rnd_even_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
         break;
     case float_round_ties_away:
@@ -1210,6 +1213,7 @@ static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
         inc = a->sign ? rnd_mask : 0;
         break;
     case float_round_to_odd:
+    case float_round_to_odd_inf:
         inc = a->frac_lo & frac_lsb ? 0 : rnd_mask;
         break;
     default:
