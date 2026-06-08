@@ -56,21 +56,6 @@ struct QEMUPutLEDEntry {
 static QTAILQ_HEAD(, QEMUPutLEDEntry) led_handlers =
     QTAILQ_HEAD_INITIALIZER(led_handlers);
 
-int index_from_key(const char *key, size_t key_length)
-{
-    int i;
-
-    for (i = 0; i < Q_KEY_CODE__MAX; i++) {
-        if (!strncmp(key, QKeyCode_str(i), key_length) &&
-            !QKeyCode_str(i)[key_length]) {
-            break;
-        }
-    }
-
-    /* Return Q_KEY_CODE__MAX if the key is invalid */
-    return i;
-}
-
 void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                   Error **errp)
 {
