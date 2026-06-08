@@ -338,14 +338,6 @@ static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_sbc_properties);
 }
 
-static const TypeInfo aspeed_sbc_info = {
-    .name = TYPE_ASPEED_SBC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedSBCState),
-    .instance_init = aspeed_sbc_instance_init,
-    .class_init = aspeed_sbc_class_init,
-    .class_size = sizeof(AspeedSBCClass)
-};
 
 static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, const void *data)
 {
@@ -356,12 +348,6 @@ static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, const void *data)
     sc->has_otp = true;
 }
 
-static const TypeInfo aspeed_ast2600_sbc_info = {
-    .name = TYPE_ASPEED_AST2600_SBC,
-    .parent = TYPE_ASPEED_SBC,
-    .class_init = aspeed_ast2600_sbc_class_init,
-};
-
 static void aspeed_ast10x0_sbc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -371,17 +357,25 @@ static void aspeed_ast10x0_sbc_class_init(ObjectClass *klass, const void *data)
     sc->has_otp = true;
 }
 
-static const TypeInfo aspeed_ast10x0_sbc_info = {
-    .name = TYPE_ASPEED_AST10X0_SBC,
-    .parent = TYPE_ASPEED_SBC,
-    .class_init = aspeed_ast10x0_sbc_class_init,
+static const TypeInfo aspeed_sbc_types[] = {
+    {
+        .name = TYPE_ASPEED_SBC,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedSBCState),
+        .instance_init = aspeed_sbc_instance_init,
+        .class_init = aspeed_sbc_class_init,
+        .class_size = sizeof(AspeedSBCClass),
+    },
+    {
+        .name = TYPE_ASPEED_AST10X0_SBC,
+        .parent = TYPE_ASPEED_SBC,
+        .class_init = aspeed_ast10x0_sbc_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_AST2600_SBC,
+        .parent = TYPE_ASPEED_SBC,
+        .class_init = aspeed_ast2600_sbc_class_init,
+    }
 };
 
-static void aspeed_sbc_register_types(void)
-{
-    type_register_static(&aspeed_ast2600_sbc_info);
-    type_register_static(&aspeed_ast10x0_sbc_info);
-    type_register_static(&aspeed_sbc_info);
-}
-
-type_init(aspeed_sbc_register_types);
+DEFINE_TYPES(aspeed_sbc_types)

@@ -106,16 +106,13 @@ static void aspeed_pwm_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_pwm;
 }
 
-static const TypeInfo aspeed_pwm_info = {
-    .name = TYPE_ASPEED_PWM,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedPWMState),
-    .class_init = aspeed_pwm_class_init,
+static const TypeInfo aspeed_pwm_types[] = {
+    {
+        .name = TYPE_ASPEED_PWM,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedPWMState),
+        .class_init = aspeed_pwm_class_init,
+    }
 };
 
-static void aspeed_pwm_register_types(void)
-{
-    type_register_static(&aspeed_pwm_info);
-}
-
-type_init(aspeed_pwm_register_types);
+DEFINE_TYPES(aspeed_pwm_types)

@@ -907,15 +907,6 @@ static void timer_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_timer_properties);
 }
 
-static const TypeInfo aspeed_timer_info = {
-    .name = TYPE_ASPEED_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedTimerCtrlState),
-    .class_init = timer_class_init,
-    .class_size = sizeof(AspeedTimerClass),
-    .abstract   = true,
-};
-
 static void aspeed_2400_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -925,12 +916,6 @@ static void aspeed_2400_timer_class_init(ObjectClass *klass, const void *data)
     awc->read = aspeed_2400_timer_read;
     awc->write = aspeed_2400_timer_write;
 }
-
-static const TypeInfo aspeed_2400_timer_info = {
-    .name = TYPE_ASPEED_2400_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2400_timer_class_init,
-};
 
 static void aspeed_2500_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -942,12 +927,6 @@ static void aspeed_2500_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2500_timer_write;
 }
 
-static const TypeInfo aspeed_2500_timer_info = {
-    .name = TYPE_ASPEED_2500_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2500_timer_class_init,
-};
-
 static void aspeed_2600_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -957,12 +936,6 @@ static void aspeed_2600_timer_class_init(ObjectClass *klass, const void *data)
     awc->read = aspeed_2600_timer_read;
     awc->write = aspeed_2600_timer_write;
 }
-
-static const TypeInfo aspeed_2600_timer_info = {
-    .name = TYPE_ASPEED_2600_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2600_timer_class_init,
-};
 
 static void aspeed_1030_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -974,12 +947,6 @@ static void aspeed_1030_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2600_timer_write;
 }
 
-static const TypeInfo aspeed_1030_timer_info = {
-    .name = TYPE_ASPEED_1030_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_1030_timer_class_init,
-};
-
 static void aspeed_2700_timer_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -990,20 +957,40 @@ static void aspeed_2700_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2700_timer_write;
 }
 
-static const TypeInfo aspeed_2700_timer_info = {
-    .name = TYPE_ASPEED_2700_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2700_timer_class_init,
+static const TypeInfo aspeed_timer_types[] = {
+    {
+        .name = TYPE_ASPEED_TIMER,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedTimerCtrlState),
+        .class_init = timer_class_init,
+        .class_size = sizeof(AspeedTimerClass),
+        .abstract   = true,
+    },
+    {
+        .name = TYPE_ASPEED_1030_TIMER,
+        .parent = TYPE_ASPEED_TIMER,
+        .class_init = aspeed_1030_timer_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2400_TIMER,
+        .parent = TYPE_ASPEED_TIMER,
+        .class_init = aspeed_2400_timer_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2500_TIMER,
+        .parent = TYPE_ASPEED_TIMER,
+        .class_init = aspeed_2500_timer_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2600_TIMER,
+        .parent = TYPE_ASPEED_TIMER,
+        .class_init = aspeed_2600_timer_class_init,
+    },
+    {
+        .name = TYPE_ASPEED_2700_TIMER,
+        .parent = TYPE_ASPEED_TIMER,
+        .class_init = aspeed_2700_timer_class_init,
+    }
 };
 
-static void aspeed_timer_register_types(void)
-{
-    type_register_static(&aspeed_timer_info);
-    type_register_static(&aspeed_2400_timer_info);
-    type_register_static(&aspeed_2500_timer_info);
-    type_register_static(&aspeed_2600_timer_info);
-    type_register_static(&aspeed_1030_timer_info);
-    type_register_static(&aspeed_2700_timer_info);
-}
-
-type_init(aspeed_timer_register_types)
+DEFINE_TYPES(aspeed_timer_types)

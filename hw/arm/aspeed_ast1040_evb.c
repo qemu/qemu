@@ -14,6 +14,7 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/core/qdev-clock.h"
 #include "system/system.h"
+#include "hw/i2c/smbus_eeprom.h"
 
 #define AST1040_INTERNAL_FLASH_SIZE (4 * MiB)
 /* Main SYSCLK frequency in Hz (400MHz) */
@@ -38,10 +39,23 @@ static void aspeed_bic_machine_init(MachineState *machine)
     aspeed_connect_serial_hds_to_uarts(bmc);
     qdev_realize(DEVICE(bmc->soc), NULL, &error_abort);
 
+    if (amc->i2c_init) {
+        amc->i2c_init(bmc);
+    }
+
     armv7m_load_kernel(ARM_CPU(first_cpu),
                        machine->kernel_filename,
                        0,
                        AST1040_INTERNAL_FLASH_SIZE);
+}
+
+static void ast1040_evb_i2c_init(AspeedMachineState *bmc)
+{
+    AspeedSoCState *soc = bmc->soc;
+    uint8_t *eeprom_buf = g_malloc0(256);
+
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 0), 0x50, eeprom_buf);
+    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 1), "tmp105", 0x4d);
 }
 
 static void aspeed_machine_ast1040_evb_class_init(ObjectClass *oc,
@@ -55,6 +69,7 @@ static void aspeed_machine_ast1040_evb_class_init(ObjectClass *oc,
     amc->hw_strap1 = 0;
     amc->hw_strap2 = 0;
     mc->init = aspeed_bic_machine_init;
+    amc->i2c_init = ast1040_evb_i2c_init;
     mc->default_ram_size = 0;
     amc->macs_mask = 0;
     amc->uart_default = ASPEED_DEV_UART12;

@@ -1620,66 +1620,51 @@ static void aspeed_gpio_2700_class_init(ObjectClass *klass, const void *data)
     agc->reg_ops = &aspeed_gpio_2700_ops;
 }
 
-static const TypeInfo aspeed_gpio_info = {
-    .name           = TYPE_ASPEED_GPIO,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedGPIOState),
-    .class_size     = sizeof(AspeedGPIOClass),
-    .class_init     = aspeed_gpio_class_init,
-    .abstract       = true,
+static const TypeInfo aspeed_gpio_types[] = {
+    {
+        .name           = TYPE_ASPEED_GPIO,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(AspeedGPIOState),
+        .class_size     = sizeof(AspeedGPIOClass),
+        .class_init     = aspeed_gpio_class_init,
+        .abstract       = true,
+    },
+    {
+        .name           = TYPE_ASPEED_GPIO "-ast1030",
+        .parent         = TYPE_ASPEED_GPIO,
+        .class_init     = aspeed_gpio_1030_class_init,
+        .instance_init  = aspeed_gpio_init,
+    },
+    {
+        .name           = TYPE_ASPEED_GPIO "-ast2400",
+        .parent         = TYPE_ASPEED_GPIO,
+        .class_init     = aspeed_gpio_ast2400_class_init,
+        .instance_init  = aspeed_gpio_init,
+    },
+    {
+        .name           = TYPE_ASPEED_GPIO "-ast2500",
+        .parent         = TYPE_ASPEED_GPIO,
+        .class_init     = aspeed_gpio_2500_class_init,
+        .instance_init  = aspeed_gpio_init,
+    },
+    {
+        .name           = TYPE_ASPEED_GPIO "-ast2600",
+        .parent         = TYPE_ASPEED_GPIO,
+        .class_init     = aspeed_gpio_ast2600_3_3v_class_init,
+        .instance_init  = aspeed_gpio_init,
+    },
+    {
+        .name           = TYPE_ASPEED_GPIO "-ast2600-1_8v",
+        .parent         = TYPE_ASPEED_GPIO,
+        .class_init     = aspeed_gpio_ast2600_1_8v_class_init,
+        .instance_init  = aspeed_gpio_init,
+    },
+    {
+        .name           = TYPE_ASPEED_GPIO "-ast2700",
+        .parent         = TYPE_ASPEED_GPIO,
+        .class_init     = aspeed_gpio_2700_class_init,
+        .instance_init  = aspeed_gpio_init,
+    }
 };
 
-static const TypeInfo aspeed_gpio_ast2400_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2400",
-    .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_ast2400_class_init,
-    .instance_init  = aspeed_gpio_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2500_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2500",
-    .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_2500_class_init,
-    .instance_init  = aspeed_gpio_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2600_3_3v_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2600",
-    .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_ast2600_3_3v_class_init,
-    .instance_init  = aspeed_gpio_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2600_1_8v_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2600-1_8v",
-    .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_ast2600_1_8v_class_init,
-    .instance_init  = aspeed_gpio_init,
-};
-
-static const TypeInfo aspeed_gpio_ast1030_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast1030",
-    .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_1030_class_init,
-    .instance_init  = aspeed_gpio_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2700_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2700",
-    .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_2700_class_init,
-    .instance_init  = aspeed_gpio_init,
-};
-
-static void aspeed_gpio_register_types(void)
-{
-    type_register_static(&aspeed_gpio_info);
-    type_register_static(&aspeed_gpio_ast2400_info);
-    type_register_static(&aspeed_gpio_ast2500_info);
-    type_register_static(&aspeed_gpio_ast2600_3_3v_info);
-    type_register_static(&aspeed_gpio_ast2600_1_8v_info);
-    type_register_static(&aspeed_gpio_ast1030_info);
-    type_register_static(&aspeed_gpio_ast2700_info);
-}
-
-type_init(aspeed_gpio_register_types);
+DEFINE_TYPES(aspeed_gpio_types)

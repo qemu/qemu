@@ -470,17 +470,14 @@ static void aspeed_lpc_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_lpc_properties);
 }
 
-static const TypeInfo aspeed_lpc_info = {
-    .name = TYPE_ASPEED_LPC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedLPCState),
-    .class_init = aspeed_lpc_class_init,
-    .instance_init = aspeed_lpc_init,
+static const TypeInfo aspeed_lpc_types[] = {
+    {
+        .name = TYPE_ASPEED_LPC,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedLPCState),
+        .class_init = aspeed_lpc_class_init,
+        .instance_init = aspeed_lpc_init,
+    }
 };
 
-static void aspeed_lpc_register_types(void)
-{
-    type_register_static(&aspeed_lpc_info);
-}
-
-type_init(aspeed_lpc_register_types);
+DEFINE_TYPES(aspeed_lpc_types)

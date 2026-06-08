@@ -319,20 +319,17 @@ static void fsi_aspeed_apb2opb_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = fsi_aspeed_apb2opb_reset_hold;
 }
 
-static const TypeInfo aspeed_apb2opb_info = {
-    .name = TYPE_ASPEED_APB2OPB,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = fsi_aspeed_apb2opb_init,
-    .instance_size = sizeof(AspeedAPB2OPBState),
-    .class_init = fsi_aspeed_apb2opb_class_init,
+static const TypeInfo aspeed_apb2opb_types[] = {
+    {
+        .name = TYPE_ASPEED_APB2OPB,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_init = fsi_aspeed_apb2opb_init,
+        .instance_size = sizeof(AspeedAPB2OPBState),
+        .class_init = fsi_aspeed_apb2opb_class_init,
+    }
 };
 
-static void aspeed_apb2opb_register_types(void)
-{
-    type_register_static(&aspeed_apb2opb_info);
-}
-
-type_init(aspeed_apb2opb_register_types);
+DEFINE_TYPES(aspeed_apb2opb_types)
 
 static void fsi_opb_init(Object *o)
 {
@@ -363,17 +360,14 @@ static void fsi_opb_class_init(ObjectClass *klass, const void *data)
     bc->unrealize = fsi_opb_unrealize;
 }
 
-static const TypeInfo opb_info = {
-    .name = TYPE_OP_BUS,
-    .parent = TYPE_BUS,
-    .instance_init = fsi_opb_init,
-    .instance_size = sizeof(OPBus),
-    .class_init = fsi_opb_class_init,
+static const TypeInfo fsi_opb_types[] = {
+    {
+        .name = TYPE_OP_BUS,
+        .parent = TYPE_BUS,
+        .instance_init = fsi_opb_init,
+        .instance_size = sizeof(OPBus),
+        .class_init = fsi_opb_class_init,
+    }
 };
 
-static void fsi_opb_register_types(void)
-{
-    type_register_static(&opb_info);
-}
-
-type_init(fsi_opb_register_types);
+DEFINE_TYPES(fsi_opb_types)

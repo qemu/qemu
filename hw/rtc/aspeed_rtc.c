@@ -166,16 +166,13 @@ static void aspeed_rtc_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = aspeed_rtc_reset_hold;
 }
 
-static const TypeInfo aspeed_rtc_info = {
-    .name          = TYPE_ASPEED_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedRtcState),
-    .class_init    = aspeed_rtc_class_init,
+static const TypeInfo aspeed_rtc_types[] = {
+    {
+        .name          = TYPE_ASPEED_RTC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedRtcState),
+        .class_init    = aspeed_rtc_class_init,
+    }
 };
 
-static void aspeed_rtc_register_types(void)
-{
-    type_register_static(&aspeed_rtc_info);
-}
-
-type_init(aspeed_rtc_register_types)
+DEFINE_TYPES(aspeed_rtc_types)

@@ -349,16 +349,13 @@ static void aspeed_vic_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_vic;
 }
 
-static const TypeInfo aspeed_vic_info = {
-    .name = TYPE_ASPEED_VIC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedVICState),
-    .class_init = aspeed_vic_class_init,
+static const TypeInfo aspeed_vic_types[] = {
+    {
+        .name = TYPE_ASPEED_VIC,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedVICState),
+        .class_init = aspeed_vic_class_init,
+    }
 };
 
-static void aspeed_vic_register_types(void)
-{
-    type_register_static(&aspeed_vic_info);
-}
-
-type_init(aspeed_vic_register_types);
+DEFINE_TYPES(aspeed_vic_types)
