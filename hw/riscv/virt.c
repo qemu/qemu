@@ -900,8 +900,7 @@ static void create_fdt_pcie(RISCVVirtState *s,
 
     if (virt_is_iommu_sys_enabled(s)) {
         qemu_fdt_setprop_cells(ms->fdt, name, "iommu-map",
-                               0, iommu_sys_phandle, 0, 0, 0,
-                               iommu_sys_phandle, 0, 0xffff);
+                               0, iommu_sys_phandle, 0, 0x10000);
     }
 
     create_pcie_irq_map(s, ms->fdt, name, irq_pcie_phandle);
