@@ -26,6 +26,25 @@
 #include <igvm/igvm.h>
 #include <igvm/igvm_defs.h>
 
+#ifndef IGVM_VHT_OPTIONAL_BIT
+#define IGVM_VHT_OPTIONAL_BIT (1U << 31)
+#endif
+
+/*
+ * Bit 31 of the variable header type indicates that the header is
+ * optional and can be safely ignored by a loader that does not
+ * support it. If the bit is clear, the file cannot be loaded.
+ * https://docs.rs/igvm_defs/0.4.0/igvm_defs/struct.IgvmVariableHeaderType.html
+ */
+static IgvmVariableHeaderType igvm_vht_type(IgvmVariableHeaderType type)
+{
+    return type & ~IGVM_VHT_OPTIONAL_BIT;
+}
+
+static bool igvm_vht_optional(IgvmVariableHeaderType type)
+{
+    return !!(type & IGVM_VHT_OPTIONAL_BIT);
+}
 
 /*
  * Some directives are specific to particular confidential computing platforms.
@@ -132,12 +151,14 @@ static struct QIGVMHandler handlers[] = {
       qigvm_directive_madt },
 };
 
-static int qigvm_handler(QIgvm *ctx, IgvmVariableHeaderType type, Error **errp)
+static int qigvm_handler(QIgvm *ctx, IgvmVariableHeaderType raw_type,
+                         Error **errp)
 {
     size_t handler;
     IgvmHandle header_handle;
     const uint8_t *header_data;
     int result;
+    IgvmVariableHeaderType type = igvm_vht_type(raw_type);
 
     for (handler = 0; handler < G_N_ELEMENTS(handlers); handler++) {
         if (handlers[handler].type != type) {
@@ -166,6 +187,13 @@ static int qigvm_handler(QIgvm *ctx, IgvmVariableHeaderType type, Error **errp)
         igvm_free_buffer(ctx->file, header_handle);
         return result;
     }
+
+    if (igvm_vht_optional(raw_type)) {
+        warn_report("IGVM: Skipping unsupported optional header type 0x%"
+                    PRIX32, type);
+        return 0;
+    }
+
     error_setg(errp,
                "IGVM: Unknown header type encountered when processing file: "
                "(type 0x%X)",
@@ -787,6 +815,7 @@ static int qigvm_supported_platform_compat_mask(QIgvm *ctx, Error **errp)
          header_index++) {
         IgvmVariableHeaderType typ = igvm_get_header_type(
             ctx->file, IGVM_HEADER_SECTION_PLATFORM, header_index);
+        typ = igvm_vht_type(typ);
         if (typ == IGVM_VHT_SUPPORTED_PLATFORM) {
             header_handle = igvm_get_header(
                 ctx->file, IGVM_HEADER_SECTION_PLATFORM, header_index);
@@ -945,10 +974,10 @@ int qigvm_process_file(IgvmCfg *cfg, MachineState *machine_state,
     for (ctx.current_header_index = 0;
          ctx.current_header_index < (unsigned)header_count;
          ctx.current_header_index++) {
-        IgvmVariableHeaderType type = igvm_get_header_type(
+        IgvmVariableHeaderType raw_type = igvm_get_header_type(
             ctx.file, IGVM_HEADER_SECTION_DIRECTIVE, ctx.current_header_index);
-        if (!onlyVpContext || (type == IGVM_VHT_VP_CONTEXT)) {
-            if (qigvm_handler(&ctx, type, errp) < 0) {
+        if (!onlyVpContext || igvm_vht_type(raw_type) == IGVM_VHT_VP_CONTEXT) {
+            if (qigvm_handler(&ctx, raw_type, errp) < 0) {
                 goto cleanup_parameters;
             }
         }
