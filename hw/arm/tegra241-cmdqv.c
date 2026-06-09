@@ -16,6 +16,79 @@
 #include "tegra241-cmdqv.h"
 #include "trace.h"
 
+/*
+ * Read a VCMDQ Page 0 register (control/status) using VCMDQ0_* offsets.
+ *
+ * The caller normalizes the MMIO offset such that @offset0 always refers
+ * to a VCMDQ0_* register, while @index selects the VCMDQ instance.
+ */
+static uint64_t tegra241_cmdqv_read_vcmdq_page0(Tegra241CMDQV *cmdqv,
+                                                hwaddr offset0, int index,
+                                                bool direct)
+{
+    uint64_t val = 0;
+
+    switch (offset0) {
+    case A_VCMDQ0_CONS_INDX:
+        val = cmdqv->vcmdq_cons_indx[index];
+        break;
+    case A_VCMDQ0_PROD_INDX:
+        val = cmdqv->vcmdq_prod_indx[index];
+        break;
+    case A_VCMDQ0_CONFIG:
+        val = cmdqv->vcmdq_config[index];
+        break;
+    case A_VCMDQ0_STATUS:
+        val = cmdqv->vcmdq_status[index];
+        break;
+    case A_VCMDQ0_GERROR:
+        val = cmdqv->vcmdq_gerror[index];
+        break;
+    case A_VCMDQ0_GERRORN:
+        val = cmdqv->vcmdq_gerrorn[index];
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled read access at 0x%" PRIx64 "\n",
+                      __func__, offset0);
+    }
+    trace_tegra241_cmdqv_read_vcmdq_page0(index, direct ? "direct" : "vi",
+                                          offset0, val);
+    return val;
+}
+
+/*
+ * Read a VCMDQ Page 1 register (base / DRAM address) using VCMDQ0_* offsets.
+ */
+static uint64_t tegra241_cmdqv_read_vcmdq_page1(Tegra241CMDQV *cmdqv,
+                                                hwaddr offset0, int index,
+                                                bool direct)
+{
+    uint64_t val = 0;
+
+    switch (offset0) {
+    case A_VCMDQ0_BASE_L:
+        val = cmdqv->vcmdq_base[index];
+        break;
+    case A_VCMDQ0_BASE_H:
+        val = cmdqv->vcmdq_base[index] >> 32;
+        break;
+    case A_VCMDQ0_CONS_INDX_BASE_DRAM_L:
+        val = cmdqv->vcmdq_cons_indx_base[index];
+        break;
+    case A_VCMDQ0_CONS_INDX_BASE_DRAM_H:
+        val = cmdqv->vcmdq_cons_indx_base[index] >> 32;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled read access at 0x%" PRIx64 "\n",
+                      __func__, offset0);
+    }
+    trace_tegra241_cmdqv_read_vcmdq_page1(index, direct ? "direct" : "vi",
+                                          offset0, val);
+    return val;
+}
+
 static uint64_t tegra241_cmdqv_config_vintf_read(Tegra241CMDQV *cmdqv,
                                                  hwaddr offset)
 {
@@ -93,6 +166,7 @@ static uint64_t tegra241_cmdqv_read_mmio(void *opaque, hwaddr offset,
 {
     Tegra241CMDQV *cmdqv = (Tegra241CMDQV *)opaque;
     uint64_t val = 0;
+    int index;
 
     if (offset >= TEGRA241_CMDQV_IO_LEN) {
         qemu_log_mask(LOG_UNIMP,
@@ -126,6 +200,35 @@ static uint64_t tegra241_cmdqv_read_mmio(void *opaque, hwaddr offset,
     case A_VINTF0_CONFIG ... A_VINTF0_LVCMDQ_ERR_MAP_3:
         val = tegra241_cmdqv_config_vintf_read(cmdqv, offset);
         break;
+    case A_VI_VCMDQ0_CONS_INDX ... A_VI_VCMDQ1_GERRORN:
+        /*
+         * VINTF Page0 registers are hardware aliases of VCMDQ Page0 registers.
+         * Translate the VINTF aperture offset to its VCMDQ Page0 equivalent
+         * before dispatching to the Page 0 helper.
+         */
+        offset -= CMDQV_VINTF_PAGE0_BASE - CMDQV_VCMDQ_PAGE0_BASE;
+        index = (offset - CMDQV_VCMDQ_PAGE0_BASE) / CMDQV_VCMDQ_STRIDE;
+        return tegra241_cmdqv_read_vcmdq_page0(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, false);
+    case A_VCMDQ0_CONS_INDX ... A_VCMDQ1_GERRORN:
+        /*
+         * Decode a per-VCMDQ Page 0 access. Each VCMDQ occupies a
+         * CMDQV_VCMDQ_STRIDE-byte window; extract the index and normalize
+         * to the VCMDQ0_* offset before calling the Page 0 helper.
+         */
+        index = (offset - CMDQV_VCMDQ_PAGE0_BASE) / CMDQV_VCMDQ_STRIDE;
+        return tegra241_cmdqv_read_vcmdq_page0(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, true);
+    case A_VI_VCMDQ0_BASE_L ... A_VI_VCMDQ1_CONS_INDX_BASE_DRAM_H:
+        /* Same VINTF-to-VCMDQ translation as VINTF Page0 case above. */
+        offset -= CMDQV_VINTF_PAGE1_BASE - CMDQV_VCMDQ_PAGE1_BASE;
+        index = (offset - CMDQV_VCMDQ_PAGE1_BASE) / CMDQV_VCMDQ_STRIDE;
+        return tegra241_cmdqv_read_vcmdq_page1(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, false);
+    case A_VCMDQ0_BASE_L ... A_VCMDQ1_CONS_INDX_BASE_DRAM_H:
+        index = (offset - CMDQV_VCMDQ_PAGE1_BASE) / CMDQV_VCMDQ_STRIDE;
+        return tegra241_cmdqv_read_vcmdq_page1(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, true);
     default:
         qemu_log_mask(LOG_UNIMP, "%s unhandled read access at 0x%" PRIx64 "\n",
                       __func__, offset);
