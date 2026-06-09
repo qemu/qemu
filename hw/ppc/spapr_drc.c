@@ -25,6 +25,7 @@
 #include "hw/ppc/spapr_nvdimm.h"
 #include "exec/cpu-common.h"
 #include "system/device_tree.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "trace.h"
 
@@ -1150,7 +1151,7 @@ out:
 static void configure_connector_st(target_ulong addr, target_ulong offset,
                                    const void *buf, size_t len)
 {
-    cpu_physical_memory_write(ppc64_phys_to_real(addr + offset),
+    physical_memory_write(ppc64_phys_to_real(addr + offset),
                               buf, MIN(len, CC_WA_LEN - offset));
 }
 

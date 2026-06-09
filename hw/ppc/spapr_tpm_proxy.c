@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "hw/ppc/spapr.h"
 #include "hw/core/qdev-properties.h"
@@ -69,7 +70,7 @@ static ssize_t tpm_execute(SpaprTpmProxy *tpm_proxy, target_ulong *args)
         }
     }
 
-    cpu_physical_memory_read(data_in, buf_in, data_in_size);
+    physical_memory_read(data_in, buf_in, data_in_size);
 
     do {
         ret = write(tpm_proxy->host_fd, buf_in, data_in_size);
@@ -94,7 +95,7 @@ static ssize_t tpm_execute(SpaprTpmProxy *tpm_proxy, target_ulong *args)
         return H_RESOURCE;
     }
 
-    cpu_physical_memory_write(data_out, buf_out, ret);
+    physical_memory_write(data_out, buf_out, ret);
     args[0] = ret;
 
     return H_SUCCESS;

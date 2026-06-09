@@ -40,6 +40,7 @@
 #include "system/cpus.h"
 #include "qemu/guest-random.h"
 #include "hw/core/nmi.h"
+#include "system/physmem.h"
 #include "system/replay.h"
 #include "system/runstate.h"
 #include "system/cpu-timers.h"
@@ -898,7 +899,7 @@ void qmp_pmemsave(uint64_t addr, uint64_t size, const char *filename,
         l = sizeof(buf);
         if (l > size)
             l = size;
-        cpu_physical_memory_read(addr, buf, l);
+        physical_memory_read(addr, buf, l);
         if (fwrite(buf, 1, l, f) != l) {
             error_setg(errp, "writing memory to '%s' failed",
                        filename);

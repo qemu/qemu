@@ -13,6 +13,7 @@
 #include "target/ppc/cpu.h"
 #include "system/cpus.h"
 #include "system/dma.h"
+#include "system/physmem.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive2.h"
@@ -1170,7 +1171,7 @@ static void xive2_tctx_accept_el(XivePresenter *xptr, XiveTCTX *tctx,
         report_data[0] = (rd >> 8) & 0xff;
         report_data[1] = rd & 0xff;
     }
-    cpu_physical_memory_write(phys_addr, report_data, REPORT_LINE_GEN1_SIZE);
+    physical_memory_write(phys_addr, report_data, REPORT_LINE_GEN1_SIZE);
 }
 
 void xive2_tm_ack_os_el(XivePresenter *xptr, XiveTCTX *tctx,

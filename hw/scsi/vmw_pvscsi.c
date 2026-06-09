@@ -34,7 +34,7 @@
 #include "scsi/constants.h"
 #include "hw/pci/msi.h"
 #include "hw/core/qdev-properties.h"
-#include "exec/cpu-common.h"
+#include "system/physmem.h"
 #include "vmw_pvscsi.h"
 #include "trace.h"
 #include "qom/object.h"
@@ -395,7 +395,7 @@ pvscsi_cmp_ring_put(PVSCSIState *s, struct PVSCSIRingCmpDesc *cmp_desc)
 
     cmp_descr_pa = pvscsi_ring_pop_cmp_descr(&s->rings);
     trace_pvscsi_cmp_ring_put(cmp_descr_pa);
-    cpu_physical_memory_write(cmp_descr_pa, cmp_desc, sizeof(*cmp_desc));
+    physical_memory_write(cmp_descr_pa, cmp_desc, sizeof(*cmp_desc));
 }
 
 static void
@@ -405,7 +405,7 @@ pvscsi_msg_ring_put(PVSCSIState *s, struct PVSCSIRingMsgDesc *msg_desc)
 
     msg_descr_pa = pvscsi_ring_pop_msg_descr(&s->rings);
     trace_pvscsi_msg_ring_put(msg_descr_pa);
-    cpu_physical_memory_write(msg_descr_pa, msg_desc, sizeof(*msg_desc));
+    physical_memory_write(msg_descr_pa, msg_desc, sizeof(*msg_desc));
 }
 
 static void
@@ -480,7 +480,7 @@ pvscsi_get_next_sg_elem(PVSCSISGState *sg)
 {
     struct PVSCSISGElement elem;
 
-    cpu_physical_memory_read(sg->elemAddr, &elem, sizeof(elem));
+    physical_memory_read(sg->elemAddr, &elem, sizeof(elem));
     if ((elem.flags & ~PVSCSI_KNOWN_FLAGS) != 0) {
         /*
             * There is PVSCSI_SGE_FLAG_CHAIN_ELEMENT flag described in
@@ -501,7 +501,7 @@ pvscsi_write_sense(PVSCSIRequest *r, uint8_t *sense, int len)
 {
     r->cmp.senseLen = MIN(r->req.senseLen, len);
     r->sense_key = sense[(sense[0] & 2) ? 1 : 2];
-    cpu_physical_memory_write(r->req.senseAddr, sense, r->cmp.senseLen);
+    physical_memory_write(r->req.senseAddr, sense, r->cmp.senseLen);
 }
 
 static void
@@ -758,7 +758,7 @@ pvscsi_process_io(PVSCSIState *s)
         smp_rmb();
 
         trace_pvscsi_process_io(next_descr_pa);
-        cpu_physical_memory_read(next_descr_pa, &descr, sizeof(descr));
+        physical_memory_read(next_descr_pa, &descr, sizeof(descr));
         pvscsi_process_request_descriptor(s, &descr);
     }
 

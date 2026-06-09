@@ -28,6 +28,7 @@
 #include "exec/cpu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 
@@ -668,7 +669,7 @@ static bool set_ind_bit_atomic(uint64_t ind_loc, uint8_t to_be_set)
     /* avoid  multiple fetches */
     uint8_t volatile *ind_addr;
 
-    ind_addr = cpu_physical_memory_map(ind_loc, &len, true);
+    ind_addr = physical_memory_map(ind_loc, &len, true);
     if (!ind_addr) {
         s390_pci_generate_error_event(ERR_EVENT_AIRERR, 0, 0, 0, 0);
         return false;
@@ -678,7 +679,7 @@ static bool set_ind_bit_atomic(uint64_t ind_loc, uint8_t to_be_set)
         expected = actual;
         actual = qatomic_cmpxchg(ind_addr, expected, expected | to_be_set);
     } while (actual != expected);
-    cpu_physical_memory_unmap((void *)ind_addr, len, 1, len);
+    physical_memory_unmap((void *)ind_addr, len, 1, len);
 
     return (actual & to_be_set) ? false : true;
 }

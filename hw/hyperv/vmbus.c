@@ -21,6 +21,7 @@
 #include "hw/core/sysbus.h"
 #include "exec/cpu-common.h"
 #include "system/kvm.h"
+#include "system/physmem.h"
 #include "trace.h"
 
 enum {
@@ -750,7 +751,7 @@ static int vmbus_channel_notify_guest(VMBusChannel *chan)
         return hyperv_set_event_flag(chan->notify_route, chan->id);
     }
 
-    int_map = cpu_physical_memory_map(addr, &len, 1);
+    int_map = physical_memory_map(addr, &len, 1);
     if (len != TARGET_PAGE_SIZE / 2) {
         res = -ENXIO;
         goto unmap;
@@ -764,7 +765,7 @@ static int vmbus_channel_notify_guest(VMBusChannel *chan)
     }
 
 unmap:
-    cpu_physical_memory_unmap(int_map, len, 1, dirty);
+    physical_memory_unmap(int_map, len, 1, dirty);
     return res;
 }
 
@@ -2249,7 +2250,7 @@ static void vmbus_signal_event(EventNotifier *e)
 
     addr = vmbus->int_page_gpa + TARGET_PAGE_SIZE / 2;
     len = TARGET_PAGE_SIZE / 2;
-    int_map = cpu_physical_memory_map(addr, &len, 1);
+    int_map = physical_memory_map(addr, &len, 1);
     if (len != TARGET_PAGE_SIZE / 2) {
         goto unmap;
     }
@@ -2265,7 +2266,7 @@ static void vmbus_signal_event(EventNotifier *e)
     }
 
 unmap:
-    cpu_physical_memory_unmap(int_map, len, 1, is_dirty);
+    physical_memory_unmap(int_map, len, 1, is_dirty);
 }
 
 static void vmbus_dev_realize(DeviceState *dev, Error **errp)

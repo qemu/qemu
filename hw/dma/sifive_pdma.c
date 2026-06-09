@@ -30,6 +30,7 @@
 #include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "system/dma.h"
+#include "system/physmem.h"
 #include "hw/dma/sifive_pdma.h"
 
 #define DMA_CONTROL         0x000
@@ -121,16 +122,16 @@ static void sifive_pdma_run(SiFivePDMAState *s, int ch)
     s->chan[ch].exec_src = src;
 
     for (n = 0; n < bytes / size; n++) {
-        cpu_physical_memory_read(s->chan[ch].exec_src, buf, size);
-        cpu_physical_memory_write(s->chan[ch].exec_dst, buf, size);
+        physical_memory_read(s->chan[ch].exec_src, buf, size);
+        physical_memory_write(s->chan[ch].exec_dst, buf, size);
         s->chan[ch].exec_src += size;
         s->chan[ch].exec_dst += size;
         s->chan[ch].exec_bytes -= size;
     }
 
     if (remainder) {
-        cpu_physical_memory_read(s->chan[ch].exec_src, buf, remainder);
-        cpu_physical_memory_write(s->chan[ch].exec_dst, buf, remainder);
+        physical_memory_read(s->chan[ch].exec_src, buf, remainder);
+        physical_memory_write(s->chan[ch].exec_dst, buf, remainder);
         s->chan[ch].exec_src += remainder;
         s->chan[ch].exec_dst += remainder;
         s->chan[ch].exec_bytes -= remainder;

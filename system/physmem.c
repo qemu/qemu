@@ -3477,13 +3477,13 @@ MemTxResult address_space_set(const AddressSpace *as, hwaddr addr,
     return error;
 }
 
-void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len)
+void physical_memory_read(hwaddr addr, void *buf, hwaddr len)
 {
     address_space_read(&address_space_memory, addr,
                        MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
-void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len)
+void physical_memory_write(hwaddr addr, const void *buf, hwaddr len)
 {
     address_space_write(&address_space_memory, addr,
                         MEMTXATTRS_UNSPECIFIED, buf, len);
@@ -3808,16 +3808,14 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     address_space_notify_map_clients(as);
 }
 
-void *cpu_physical_memory_map(hwaddr addr,
-                              hwaddr *plen,
-                              bool is_write)
+void *physical_memory_map(hwaddr addr, hwaddr *plen, bool is_write)
 {
     return address_space_map(&address_space_memory, addr, plen, is_write,
                              MEMTXATTRS_UNSPECIFIED);
 }
 
-void cpu_physical_memory_unmap(void *buffer, hwaddr len,
-                               bool is_write, hwaddr access_len)
+void physical_memory_unmap(void *buffer, hwaddr len,
+                           bool is_write, hwaddr access_len)
 {
     return address_space_unmap(&address_space_memory, buffer, len, is_write, access_len);
 }

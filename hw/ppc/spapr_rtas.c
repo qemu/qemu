@@ -32,6 +32,7 @@
 #include "system/device_tree.h"
 #include "system/cpus.h"
 #include "system/hw_accel.h"
+#include "system/physmem.h"
 #include "system/runstate.h"
 #include "system/qtest.h"
 #include "kvm_ppc.h"
@@ -279,7 +280,7 @@ static inline int sysparm_st(target_ulong addr, target_ulong len,
         return RTAS_OUT_SYSPARM_PARAM_ERROR;
     }
     stw_be_phys(&address_space_memory, phys, vallen);
-    cpu_physical_memory_write(phys + 2, val, MIN(len - 2, vallen));
+    physical_memory_write(phys + 2, val, MIN(len - 2, vallen));
     return RTAS_OUT_SUCCESS;
 }
 
@@ -441,7 +442,7 @@ static void rtas_ibm_os_term(PowerPCCPU *cpu,
         return trigger_fadump_boot(spapr, rets);
     }
 
-    cpu_physical_memory_read(msgaddr, msg, sizeof(msg) - 1);
+    physical_memory_read(msgaddr, msg, sizeof(msg) - 1);
     msg[sizeof(msg) - 1] = 0;
 
     error_report("OS terminated: %s", msg);

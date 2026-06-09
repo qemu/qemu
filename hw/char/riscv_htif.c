@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "system/address-spaces.h"
 #include "system/dma.h"
+#include "system/physmem.h"
 #include "system/runstate.h"
 #include "exec/cpu-common.h"
 #include "trace.h"
@@ -209,12 +210,12 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
                 return;
             } else {
                 uint64_t syscall[8];
-                cpu_physical_memory_read(payload, syscall, sizeof(syscall));
+                physical_memory_read(payload, syscall, sizeof(syscall));
                 if (le64_to_cpu(syscall[0]) == PK_SYS_WRITE &&
                     le64_to_cpu(syscall[1]) == HTIF_DEV_CONSOLE &&
                     le64_to_cpu(syscall[3]) == HTIF_CONSOLE_CMD_PUTC) {
                     uint8_t ch;
-                    cpu_physical_memory_read(le64_to_cpu(syscall[2]), &ch, 1);
+                    physical_memory_read(le64_to_cpu(syscall[2]), &ch, 1);
                     /*
                      * XXX this blocks entire thread. Rewrite to use
                      * qemu_chr_fe_write and background I/O callbacks

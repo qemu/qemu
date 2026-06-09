@@ -23,7 +23,7 @@
 #include "hw/arm/omap.h"
 #include "hw/core/irq.h"
 #include "hw/arm/soc_dma.h"
-#include "exec/cpu-common.h"
+#include "system/physmem.h"
 
 struct omap_dma_channel_s {
     /* transfer data */
@@ -348,12 +348,12 @@ static void omap_dma_transfer_generic(struct soc_dma_ch_s *dma)
         /* Transfer a single element */
         /* FIXME: check the endianness */
         if (!ch->constant_fill)
-            cpu_physical_memory_read(a->src, value, ch->data_type);
+            physical_memory_read(a->src, value, ch->data_type);
         else
             *(uint32_t *) value = ch->color;
 
         if (!ch->transparent_copy || *(uint32_t *) value != ch->color)
-            cpu_physical_memory_write(a->dest, value, ch->data_type);
+            physical_memory_write(a->dest, value, ch->data_type);
 
         a->src += a->elem_delta[0];
         a->dest += a->elem_delta[1];

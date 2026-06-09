@@ -32,6 +32,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/physmem.h"
 #include "hw/core/irq.h"
 #include "hw/net/mii.h"
 #include "hw/core/qdev-properties.h"
@@ -431,7 +432,7 @@ static ssize_t open_eth_receive(NetClientState *nc,
         }
 #endif
 
-        cpu_physical_memory_write(desc->buf_ptr, buf, copy_size);
+        physical_memory_write(desc->buf_ptr, buf, copy_size);
 
         if (GET_REGBIT(s, MODER, PAD) && copy_size < minfl) {
             if (minfl - copy_size > fcsl) {
@@ -443,7 +444,7 @@ static ssize_t open_eth_receive(NetClientState *nc,
                 size_t zero_sz = minfl - copy_size < sizeof(zero) ?
                     minfl - copy_size : sizeof(zero);
 
-                cpu_physical_memory_write(desc->buf_ptr + copy_size,
+                physical_memory_write(desc->buf_ptr + copy_size,
                         zero, zero_sz);
                 copy_size += zero_sz;
             }
@@ -453,7 +454,7 @@ static ssize_t open_eth_receive(NetClientState *nc,
          * Don't do it if the frame is cut at the MAXFL or padded with 4 or
          * more bytes to the MINFL.
          */
-        cpu_physical_memory_write(desc->buf_ptr + copy_size, zero, fcsl);
+        physical_memory_write(desc->buf_ptr + copy_size, zero, fcsl);
         copy_size += fcsl;
 
         SET_FIELD(desc->len_flags, RXD_LEN, copy_size);
@@ -509,7 +510,7 @@ static void open_eth_start_xmit(OpenEthState *s, desc *tx)
     if (len > tx_len) {
         len = tx_len;
     }
-    cpu_physical_memory_read(tx->buf_ptr, buf, len);
+    physical_memory_read(tx->buf_ptr, buf, len);
     if (tx_len > len) {
         memset(buf + len, 0, tx_len - len);
     }

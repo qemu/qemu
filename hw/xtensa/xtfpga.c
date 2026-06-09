@@ -35,6 +35,7 @@
 #include "hw/core/qdev-properties.h"
 #include "elf.h"
 #include "system/memory.h"
+#include "system/physmem.h"
 #include "exec/tswap.h"
 #include "hw/char/serial-mm.h"
 #include "net/net.h"
@@ -370,7 +371,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
                 exit(EXIT_FAILURE);
             }
 
-            cpu_physical_memory_write(cur_lowmem, fdt, fdt_size);
+            physical_memory_write(cur_lowmem, fdt, fdt_size);
             cur_tagptr = put_tag(cur_tagptr, BP_TAG_FDT,
                                  sizeof(dtb_addr), &dtb_addr);
             cur_lowmem = QEMU_ALIGN_UP(cur_lowmem + fdt_size, 4 * KiB);
@@ -449,7 +450,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
 
             memcpy(boot + 4, &entry_pc, sizeof(entry_pc));
             memcpy(boot + 8, &entry_a2, sizeof(entry_a2));
-            cpu_physical_memory_write(env->pc, boot, boot_sz);
+            physical_memory_write(env->pc, boot, boot_sz);
         }
     } else {
         if (flash) {

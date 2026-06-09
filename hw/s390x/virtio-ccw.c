@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "system/kvm.h"
+#include "system/physmem.h"
 #include "net/net.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
@@ -834,7 +835,7 @@ static uint8_t virtio_set_ind_atomic(SubchDev *sch, uint64_t ind_loc,
     /* avoid  multiple fetches */
     uint8_t volatile *ind_addr;
 
-    ind_addr = cpu_physical_memory_map(ind_loc, &len, true);
+    ind_addr = physical_memory_map(ind_loc, &len, true);
     if (!ind_addr) {
         error_report("%s(%x.%x.%04x): unable to access indicator",
                      __func__, sch->cssid, sch->ssid, sch->schid);
@@ -846,7 +847,7 @@ static uint8_t virtio_set_ind_atomic(SubchDev *sch, uint64_t ind_loc,
         actual = qatomic_cmpxchg(ind_addr, expected, expected | to_be_set);
     } while (actual != expected);
     trace_virtio_ccw_set_ind(ind_loc, actual, actual | to_be_set);
-    cpu_physical_memory_unmap((void *)ind_addr, len, 1, len);
+    physical_memory_unmap((void *)ind_addr, len, 1, len);
 
     return actual;
 }

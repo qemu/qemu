@@ -25,6 +25,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "system/physmem.h"
 #include "system/qtest.h"
 #include "system/system.h"
 #include "system/numa.h"
@@ -843,11 +844,11 @@ static void pnv_reset(MachineState *machine, ResetType type)
             .thread_size = cpu_to_be32(sizeof(MpiplPreservedCPUState)),
         };
 
-        cpu_physical_memory_write(PROC_DUMP_AREA_OFF, &proc_area,
+        physical_memory_write(PROC_DUMP_AREA_OFF, &proc_area,
                 sizeof(proc_area));
     }
 
-    cpu_physical_memory_write(PNV_FDT_ADDR, fdt, fdt_totalsize(fdt));
+    physical_memory_write(PNV_FDT_ADDR, fdt, fdt_totalsize(fdt));
 
     /* Free previous device tree set by pnv_init/reset/machine_init_done */
     g_free(machine->fdt);

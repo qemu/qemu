@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "etsec.h"
 #include "registers.h"
+#include "system/physmem.h"
 #include "exec/cpu-common.h"
 
 /* #define ETSEC_RING_DEBUG */
@@ -111,7 +112,7 @@ static void read_buffer_descriptor(eTSEC         *etsec,
     assert(bd != NULL);
 
     RING_DEBUG("READ Buffer Descriptor @ 0x" HWADDR_FMT_plx"\n", addr);
-    cpu_physical_memory_read(addr,
+    physical_memory_read(addr,
                              bd,
                              sizeof(eTSEC_rxtx_bd));
 
@@ -143,7 +144,7 @@ static void write_buffer_descriptor(eTSEC         *etsec,
     }
 
     RING_DEBUG("Write Buffer Descriptor @ 0x" HWADDR_FMT_plx"\n", addr);
-    cpu_physical_memory_write(addr,
+    physical_memory_write(addr,
                               bd,
                               sizeof(eTSEC_rxtx_bd));
 }
@@ -240,7 +241,7 @@ static void process_tx_bd(eTSEC         *etsec,
     etsec->tx_buffer = g_realloc(etsec->tx_buffer,
                                     etsec->tx_buffer_len + bd->length);
     tmp_buff = etsec->tx_buffer + etsec->tx_buffer_len;
-    cpu_physical_memory_read(bd->bufptr + tbdbth, tmp_buff, bd->length);
+    physical_memory_read(bd->bufptr + tbdbth, tmp_buff, bd->length);
 
     /* Update buffer length */
     etsec->tx_buffer_len += bd->length;
@@ -401,7 +402,7 @@ static void fill_rx_bd(eTSEC          *etsec,
     /* This operation will only write FCB */
     if (etsec->rx_fcb_size != 0) {
 
-        cpu_physical_memory_write(bufptr, etsec->rx_fcb, etsec->rx_fcb_size);
+        physical_memory_write(bufptr, etsec->rx_fcb, etsec->rx_fcb_size);
 
         bufptr             += etsec->rx_fcb_size;
         bd->length         += etsec->rx_fcb_size;
@@ -417,7 +418,7 @@ static void fill_rx_bd(eTSEC          *etsec,
 
     /* This operation can only write packet data and no padding */
     if (to_write > 0) {
-        cpu_physical_memory_write(bufptr, *buf, to_write);
+        physical_memory_write(bufptr, *buf, to_write);
 
         *buf   += to_write;
         bufptr += to_write;
@@ -439,7 +440,7 @@ static void fill_rx_bd(eTSEC          *etsec,
             etsec->rx_padding -= rem;
             *size             -= rem;
             bd->length        += rem;
-            cpu_physical_memory_write(bufptr, padd, rem);
+            physical_memory_write(bufptr, padd, rem);
         }
     }
 }

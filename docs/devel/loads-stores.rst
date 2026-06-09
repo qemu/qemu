@@ -439,7 +439,7 @@ Regexes for git grep:
  - ``\<ldu\?[bwlq]\(_[bl]e\)\?_phys\>``
  - ``\<st[bwlq]\(_[bl]e\)\?_phys\>``
 
-``cpu_physical_memory_*``
+``physical_memory_*``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These are convenience functions which are identical to
@@ -455,12 +455,12 @@ users are hardware device models. For new code they are better avoided:
   rather than using the system address space
 * some machines do not use this global address space at all
 
-``cpu_physical_memory_read``
+``physical_memory_read``
 
-``cpu_physical_memory_write``
+``physical_memory_write``
 
 Regexes for git grep:
- - ``\<cpu_physical_memory_\(read\|write\)\>``
+ - ``\<physical_memory_\(read\|write\)\>``
 
 ``cpu_memory_rw_debug``
 ~~~~~~~~~~~~~~~~~~~~~~~

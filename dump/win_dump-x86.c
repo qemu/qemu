@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "system/dump.h"
+#include "system/physmem.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"
@@ -55,7 +56,7 @@ static size_t write_run(uint64_t base_page, uint64_t page_count,
     while (size) {
         len = size;
 
-        buf = cpu_physical_memory_map(addr, &len, false);
+        buf = physical_memory_map(addr, &len, false);
         if (!buf) {
             error_setg(errp, "win-dump: failed to map physical range"
                              " 0x%016" PRIx64 "-0x%016" PRIx64, addr, addr + size - 1);
@@ -64,7 +65,7 @@ static size_t write_run(uint64_t base_page, uint64_t page_count,
 
         l = qemu_write_full(fd, buf, len);
         eno = errno;
-        cpu_physical_memory_unmap(buf, addr, false, len);
+        physical_memory_unmap(buf, addr, false, len);
         if (l != len) {
             error_setg_errno(errp, eno, "win-dump: failed to save memory");
             return 0;

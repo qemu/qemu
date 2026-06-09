@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/tcg.h"
@@ -431,7 +432,7 @@ static uint64_t s390_ipl_map_iplb_chain(IplParameterBlock *iplb_chain)
     uint64_t len = sizeof(IplParameterBlock) * count;
     uint64_t chain_addr = find_iplb_chain_addr(ipl->bios_start_addr, count);
 
-    cpu_physical_memory_write(chain_addr, iplb_chain, len);
+    physical_memory_write(chain_addr, iplb_chain, len);
     return chain_addr;
 }
 
@@ -722,13 +723,13 @@ static void s390_ipl_prepare_qipl(S390CPU *cpu)
     uint8_t *addr;
     uint64_t len = 4096;
 
-    addr = cpu_physical_memory_map(cpu->env.psa, &len, true);
+    addr = physical_memory_map(cpu->env.psa, &len, true);
     if (!addr || len < QIPL_ADDRESS + sizeof(QemuIplParameters)) {
         error_report("Cannot set QEMU IPL parameters");
         return;
     }
     memcpy(addr + QIPL_ADDRESS, &ipl->qipl, sizeof(QemuIplParameters));
-    cpu_physical_memory_unmap(addr, len, 1, len);
+    physical_memory_unmap(addr, len, 1, len);
 }
 
 int s390_ipl_prepare_pv_header(struct S390PVResponse *pv_resp, Error **errp)
@@ -738,7 +739,7 @@ int s390_ipl_prepare_pv_header(struct S390PVResponse *pv_resp, Error **errp)
     void *hdr = g_malloc(ipib_pv->pv_header_len);
     int rc;
 
-    cpu_physical_memory_read(ipib_pv->pv_header_addr, hdr,
+    physical_memory_read(ipib_pv->pv_header_addr, hdr,
                              ipib_pv->pv_header_len);
     rc = s390_pv_set_sec_parms((uintptr_t)hdr, ipib_pv->pv_header_len,
                                pv_resp, errp);
