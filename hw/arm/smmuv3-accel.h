@@ -10,10 +10,43 @@
 #define HW_ARM_SMMUV3_ACCEL_H
 
 #include "hw/arm/smmu-common.h"
+#include "hw/arm/smmuv3.h"
 #include "system/iommufd.h"
 #ifdef CONFIG_LINUX
 #include <linux/iommufd.h>
 #endif
+
+/*
+ * CMDQ-Virtualization (CMDQV) hardware support, extends the SMMUv3 to
+ * support multiple VCMDQs with virtualization capabilities.
+ * CMDQV specific behavior is factored behind this ops interface.
+ */
+typedef struct SMMUv3AccelCmdqvOps {
+    /**
+     * @probe: Mandatory. Vendor-specific device probing.
+     */
+    bool (*probe)(SMMUv3State *s, HostIOMMUDeviceIOMMUFD *idev, Error **errp);
+    /**
+     * @init: Optional callback. Initialize CMDQV hardware.
+     */
+    bool (*init)(SMMUv3State *s, Error **errp);
+    /**
+     * @alloc_viommu: Mandatory. Allocate CMDQV viommu resources.
+     */
+    bool (*alloc_viommu)(SMMUv3State *s,
+                         HostIOMMUDeviceIOMMUFD *idev,
+                         uint32_t *out_viommu_id,
+                         Error **errp);
+    /**
+     * @free_viommu: Optional callback. Free CMDQV viommu resources.
+     * If NULL, the viommu_id is freed directly via iommufd_backend_free_id().
+     */
+    void (*free_viommu)(SMMUv3State *s);
+    /**
+     * @reset: Optional callback. Reset CMDQV state.
+     */
+    void (*reset)(SMMUv3State *s);
+} SMMUv3AccelCmdqvOps;
 
 /*
  * Represents an accelerated SMMU instance backed by an iommufd vIOMMU object.
@@ -27,6 +60,7 @@ typedef struct SMMUv3AccelState {
     QLIST_HEAD(, SMMUv3AccelDevice) device_list;
     bool auto_mode;
     bool auto_finalised;
+    const SMMUv3AccelCmdqvOps *cmdqv_ops;
 } SMMUv3AccelState;
 
 typedef struct SMMUS1Hwpt {
