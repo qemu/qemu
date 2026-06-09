@@ -120,6 +120,104 @@ static uint64_t tegra241_cmdqv_config_vintf_read(Tegra241CMDQV *cmdqv,
     }
 }
 
+/*
+ * Write a VCMDQ Page 0 register (control/status) using VCMDQ0_* offsets.
+ *
+ * The caller normalizes the MMIO offset such that @offset0 always refers
+ * to a VCMDQ0_* register, while @index selects the VCMDQ instance.
+ *
+ * Page 0 registers are all 32-bit; this helper is only called for 4-byte
+ * writes.
+ */
+static void tegra241_cmdqv_write_vcmdq_page0(Tegra241CMDQV *cmdqv,
+                                             hwaddr offset0, int index,
+                                             uint32_t value, bool direct)
+{
+    switch (offset0) {
+    case A_VCMDQ0_CONS_INDX:
+        cmdqv->vcmdq_cons_indx[index] = value;
+        break;
+    case A_VCMDQ0_PROD_INDX:
+        /* VCMDQ is functional only once allocated to a VINTF; cache only. */
+        cmdqv->vcmdq_prod_indx[index] = value;
+        break;
+    case A_VCMDQ0_CONFIG:
+        if (value & R_VCMDQ0_CONFIG_CMDQ_EN_MASK) {
+            cmdqv->vcmdq_status[index] |= R_VCMDQ0_STATUS_CMDQ_EN_OK_MASK;
+        } else {
+            cmdqv->vcmdq_status[index] &= ~R_VCMDQ0_STATUS_CMDQ_EN_OK_MASK;
+        }
+        cmdqv->vcmdq_config[index] = value;
+        break;
+    case A_VCMDQ0_GERRORN:
+        /* VCMDQ is functional only once allocated to a VINTF; cache only. */
+        cmdqv->vcmdq_gerrorn[index] = value;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled write access at 0x%" PRIx64 "\n",
+                      __func__, offset0);
+    }
+    trace_tegra241_cmdqv_write_vcmdq_page0(index, direct ? "direct" : "vi",
+                                           offset0, value);
+}
+
+/*
+ * Write a VCMDQ Page 1 register (base / DRAM address) - 4-byte access.
+ */
+static void tegra241_cmdqv_write_vcmdq_page1(Tegra241CMDQV *cmdqv,
+                                             hwaddr offset0, int index,
+                                             uint32_t value, bool direct)
+{
+    switch (offset0) {
+    case A_VCMDQ0_BASE_L:
+        cmdqv->vcmdq_base[index] =
+            deposit64(cmdqv->vcmdq_base[index], 0, 32, value);
+        break;
+    case A_VCMDQ0_BASE_H:
+        cmdqv->vcmdq_base[index] =
+            deposit64(cmdqv->vcmdq_base[index], 32, 32, value);
+        break;
+    case A_VCMDQ0_CONS_INDX_BASE_DRAM_L:
+        cmdqv->vcmdq_cons_indx_base[index] =
+            deposit64(cmdqv->vcmdq_cons_indx_base[index], 0, 32, value);
+        break;
+    case A_VCMDQ0_CONS_INDX_BASE_DRAM_H:
+        cmdqv->vcmdq_cons_indx_base[index] =
+            deposit64(cmdqv->vcmdq_cons_indx_base[index], 32, 32, value);
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled write access at 0x%" PRIx64 "\n",
+                      __func__, offset0);
+    }
+    trace_tegra241_cmdqv_write_vcmdq_page1(index, direct ? "direct" : "vi",
+                                           offset0, value);
+}
+
+/*
+ * Write a VCMDQ Page 1 register - 8-byte access at BASE_L or DRAM_L.
+ */
+static void tegra241_cmdqv_write_vcmdq_page1_64(Tegra241CMDQV *cmdqv,
+                                                hwaddr offset0, int index,
+                                                uint64_t value, bool direct)
+{
+    switch (offset0) {
+    case A_VCMDQ0_BASE_L:
+        cmdqv->vcmdq_base[index] = value;
+        break;
+    case A_VCMDQ0_CONS_INDX_BASE_DRAM_L:
+        cmdqv->vcmdq_cons_indx_base[index] = value;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled 64-bit write at 0x%" PRIx64 "\n",
+                      __func__, offset0);
+    }
+    trace_tegra241_cmdqv_write_vcmdq_page1(index, direct ? "direct" : "vi",
+                                           offset0, value);
+}
+
 static void tegra241_cmdqv_config_vintf_write(Tegra241CMDQV *cmdqv,
                                               hwaddr offset, uint64_t value)
 {
@@ -243,6 +341,8 @@ out:
 static void tegra241_cmdqv_writel_mmio(Tegra241CMDQV *cmdqv, hwaddr offset,
                                        uint32_t value)
 {
+    int index;
+
     switch (offset) {
     case A_CONFIG:
         cmdqv->config = value;
@@ -261,6 +361,39 @@ static void tegra241_cmdqv_writel_mmio(Tegra241CMDQV *cmdqv, hwaddr offset,
     case A_VINTF0_CONFIG ... A_VINTF0_LVCMDQ_ERR_MAP_3:
         tegra241_cmdqv_config_vintf_write(cmdqv, offset, value);
         break;
+    case A_VI_VCMDQ0_CONS_INDX ... A_VI_VCMDQ1_GERRORN:
+        /*
+         * VINTF Page0 registers are hardware aliases of VCMDQ Page0 registers.
+         * Translate the VINTF aperture offset to its VCMDQ Page0 equivalent
+         * before dispatching to the Page 0 helper.
+         */
+        offset -= CMDQV_VINTF_PAGE0_BASE - CMDQV_VCMDQ_PAGE0_BASE;
+        index = (offset - CMDQV_VCMDQ_PAGE0_BASE) / CMDQV_VCMDQ_STRIDE;
+        tegra241_cmdqv_write_vcmdq_page0(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, value, false);
+        break;
+    case A_VCMDQ0_CONS_INDX ... A_VCMDQ1_GERRORN:
+        /*
+         * Decode a per-VCMDQ Page 0 access. Each VCMDQ occupies a
+         * CMDQV_VCMDQ_STRIDE-byte window; extract the index and normalize
+         * to the VCMDQ0_* offset before calling the Page 0 helper.
+         */
+        index = (offset - CMDQV_VCMDQ_PAGE0_BASE) / CMDQV_VCMDQ_STRIDE;
+        tegra241_cmdqv_write_vcmdq_page0(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, value, true);
+        break;
+    case A_VI_VCMDQ0_BASE_L ... A_VI_VCMDQ1_CONS_INDX_BASE_DRAM_H:
+        /* Same VINTF-to-VCMDQ translation as VINTF Page0 case above. */
+        offset -= CMDQV_VINTF_PAGE1_BASE - CMDQV_VCMDQ_PAGE1_BASE;
+        index = (offset - CMDQV_VCMDQ_PAGE1_BASE) / CMDQV_VCMDQ_STRIDE;
+        tegra241_cmdqv_write_vcmdq_page1(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, value, false);
+        break;
+    case A_VCMDQ0_BASE_L ... A_VCMDQ1_CONS_INDX_BASE_DRAM_H:
+        index = (offset - CMDQV_VCMDQ_PAGE1_BASE) / CMDQV_VCMDQ_STRIDE;
+        tegra241_cmdqv_write_vcmdq_page1(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, value, true);
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s unhandled write access at 0x%" PRIx64 "\n",
                       __func__, offset);
@@ -268,14 +401,36 @@ static void tegra241_cmdqv_writel_mmio(Tegra241CMDQV *cmdqv, hwaddr offset,
 }
 
 /*
- * 8-byte MMIO write handler.
+ * 8-byte MMIO write handler. Only Page 1 BASE / CONS_INDX_BASE_DRAM accept
+ * full 64-bit writes; other offsets are write-ignored.
  */
 static void tegra241_cmdqv_writell_mmio(Tegra241CMDQV *cmdqv, hwaddr offset,
                                         uint64_t value)
 {
-    qemu_log_mask(LOG_UNIMP,
+    int index;
+
+    switch (offset) {
+    case A_VI_VCMDQ0_BASE_L ... A_VI_VCMDQ1_CONS_INDX_BASE_DRAM_H:
+        /*
+         * VINTF Page1 registers are hardware aliases of VCMDQ Page1 registers.
+         * Translate the VINTF aperture offset to its VCMDQ Page1 equivalent
+         * before dispatching to the Page 1 helper.
+         */
+        offset -= CMDQV_VINTF_PAGE1_BASE - CMDQV_VCMDQ_PAGE1_BASE;
+        index = (offset - CMDQV_VCMDQ_PAGE1_BASE) / CMDQV_VCMDQ_STRIDE;
+        tegra241_cmdqv_write_vcmdq_page1_64(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, value, false);
+        break;
+    case A_VCMDQ0_BASE_L ... A_VCMDQ1_CONS_INDX_BASE_DRAM_H:
+        index = (offset - CMDQV_VCMDQ_PAGE1_BASE) / CMDQV_VCMDQ_STRIDE;
+        tegra241_cmdqv_write_vcmdq_page1_64(cmdqv,
+                offset - index * CMDQV_VCMDQ_STRIDE, index, value, true);
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
                       "%s unhandled 64-bit write at 0x%" PRIx64 " (WI)\n",
                       __func__, offset);
+    }
 }
 
 static void tegra241_cmdqv_write_mmio(void *opaque, hwaddr offset,
