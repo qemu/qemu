@@ -102,8 +102,8 @@ static int qigvm_initialization_guest_policy(QIgvm *ctx,
                                        Error **errp);
 
 struct QIGVMHandler {
-    uint32_t type;
-    uint32_t section;
+    IgvmVariableHeaderType type;
+    IgvmHeaderSection section;
     int (*handler)(QIgvm *ctx, const uint8_t *header_data, Error **errp);
 };
 
@@ -132,7 +132,7 @@ static struct QIGVMHandler handlers[] = {
       qigvm_directive_madt },
 };
 
-static int qigvm_handler(QIgvm *ctx, uint32_t type, Error **errp)
+static int qigvm_handler(QIgvm *ctx, IgvmVariableHeaderType type, Error **errp)
 {
     size_t handler;
     IgvmHandle header_handle;
