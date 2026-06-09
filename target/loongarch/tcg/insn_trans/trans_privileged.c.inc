@@ -106,6 +106,7 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
     TCGv dest;
     const CSRInfo *csr;
     GenCSRRead readfn;
+    tcg_target_long offset;
 
     if (check_plv(ctx)) {
         return false;
@@ -121,7 +122,8 @@ static bool trans_csrrd(DisasContext *ctx, arg_csrrd *a)
         if (readfn) {
             readfn(dest, tcg_env);
         } else {
-            tcg_gen_ld_tl(dest, tcg_env, csr->offset);
+            offset = get_csr_offset(csr, 0);
+            tcg_gen_ld_tl(dest, tcg_env, offset);
         }
     }
     gen_set_gpr(a->rd, dest, EXT_NONE);
@@ -133,6 +135,7 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
     TCGv dest, src1;
     const CSRInfo *csr;
     GenCSRWrite writefn;
+    tcg_target_long offset;
 
     if (check_plv(ctx)) {
         return false;
@@ -154,8 +157,9 @@ static bool trans_csrwr(DisasContext *ctx, arg_csrwr *a)
         writefn(dest, tcg_env, src1);
     } else {
         dest = tcg_temp_new();
-        tcg_gen_ld_tl(dest, tcg_env, csr->offset);
-        tcg_gen_st_tl(src1, tcg_env, csr->offset);
+        offset = get_csr_offset(csr, 0);
+        tcg_gen_ld_tl(dest, tcg_env, offset);
+        tcg_gen_st_tl(src1, tcg_env, offset);
     }
     gen_set_gpr(a->rd, dest, EXT_NONE);
     return true;
@@ -166,6 +170,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     TCGv src1, mask, oldv, newv, temp;
     const CSRInfo *csr;
     GenCSRWrite writefn;
+    tcg_target_long offset;
 
     if (check_plv(ctx)) {
         return false;
@@ -191,7 +196,8 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     newv = tcg_temp_new();
     temp = tcg_temp_new();
 
-    tcg_gen_ld_tl(oldv, tcg_env, csr->offset);
+    offset = get_csr_offset(csr, 0);
+    tcg_gen_ld_tl(oldv, tcg_env, offset);
     tcg_gen_and_tl(newv, src1, mask);
     tcg_gen_andc_tl(temp, oldv, mask);
     tcg_gen_or_tl(newv, newv, temp);
@@ -200,7 +206,7 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     if (writefn) {
         writefn(oldv, tcg_env, newv);
     } else {
-        tcg_gen_st_tl(newv, tcg_env, csr->offset);
+        tcg_gen_st_tl(newv, tcg_env, offset);
     }
     gen_set_gpr(a->rd, oldv, EXT_NONE);
     return true;

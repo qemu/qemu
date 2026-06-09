@@ -35,10 +35,12 @@ static void do_set_vcpu_dintc_irq(CPUState *cs, run_on_cpu_data data)
 {
     int irq = data.host_int;
     CPULoongArchState *env;
+    CPUSysState *sys;
 
     env = &LOONGARCH_CPU(cs)->env;
+    sys = env_sys(env);
     cpu_synchronize_state(cs);
-    set_bit(irq, (unsigned long *)&env->CSR_MSGIS);
+    set_bit(irq, (unsigned long *)&sys->CSR_MSGIS);
 }
 
 static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
