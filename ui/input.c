@@ -580,7 +580,6 @@ bool qemu_mouse_set(int index, Error **errp)
     }
 
     qemu_input_handler_activate(s);
-    notifier_list_notify(&mouse_mode_notifiers, NULL);
     return true;
 }
 
