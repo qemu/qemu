@@ -440,6 +440,44 @@ bool smmuv3_accel_issue_inv_cmd(SMMUv3State *bs, void *cmd, SMMUDevice *sdev,
                    sizeof(Cmd), &entry_num, cmd, errp);
 }
 
+bool smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
+                                      void *buf, size_t size, Error **errp)
+{
+    uint32_t last_seq = veventq->last_event_seq;
+    uint32_t id = veventq->veventq_id;
+    struct iommufd_vevent_header *hdr;
+    ssize_t bytes;
+
+    bytes = read(veventq->veventq_fd, buf, size);
+    if (bytes <= 0) {
+        if (errno == EAGAIN || errno == EINTR) {
+            return true;
+        }
+        error_setg(errp, "vEVENTQ(type %u id %u): read failed (%m)", type, id);
+        return false;
+    }
+    hdr = (struct iommufd_vevent_header *)buf;
+    if (bytes == sizeof(*hdr) &&
+        (hdr->flags & IOMMU_VEVENTQ_FLAG_LOST_EVENTS)) {
+        error_setg(errp, "vEVENTQ(type %u id %u): overflowed", type, id);
+        veventq->event_start = false;
+        return false;
+    }
+    if (bytes < size) {
+        error_setg(errp, "vEVENTQ(type %u id %u): short read(%zd/%zd bytes)",
+                          type, id, bytes, size);
+        return false;
+    }
+    /* Check sequence in hdr for lost events if any */
+    if (veventq->event_start && (hdr->sequence - last_seq != 1)) {
+        warn_report("vEVENTQ(type %u id %u): lost %u event(s)",
+                    type, id, hdr->sequence - last_seq - 1);
+    }
+    veventq->last_event_seq = hdr->sequence;
+    veventq->event_start = true;
+    return true;
+}
+
 static void smmuv3_accel_event_read(void *opaque)
 {
     SMMUv3State *s = opaque;
@@ -448,39 +486,14 @@ static void smmuv3_accel_event_read(void *opaque)
         struct iommufd_vevent_header hdr;
         struct iommu_vevent_arm_smmuv3 vevent;
     } buf;
-    enum iommu_veventq_type type = IOMMU_VEVENTQ_TYPE_ARM_SMMUV3;
-    uint32_t id = veventq->veventq_id;
-    uint32_t last_seq = veventq->last_event_seq;
-    ssize_t bytes;
+    Error *local_err = NULL;
 
-    bytes = read(veventq->veventq_fd, &buf, sizeof(buf));
-    if (bytes <= 0) {
-        if (errno == EAGAIN || errno == EINTR) {
-            return;
-        }
-        error_report_once("vEVENTQ(type %u id %u): read failed (%m)", type, id);
+    if (!smmuv3_accel_event_read_validate(veventq,
+                                          IOMMU_VEVENTQ_TYPE_ARM_SMMUV3, &buf,
+                                          sizeof(buf), &local_err)) {
+        warn_report_err_once(local_err);
         return;
     }
-
-    if (bytes == sizeof(buf.hdr) &&
-        (buf.hdr.flags & IOMMU_VEVENTQ_FLAG_LOST_EVENTS)) {
-        error_report_once("vEVENTQ(type %u id %u): overflowed", type, id);
-        veventq->event_start = false;
-        return;
-    }
-    if (bytes < sizeof(buf)) {
-        error_report_once("vEVENTQ(type %u id %u): short read(%zd/%zd bytes)",
-                          type, id, bytes, sizeof(buf));
-        return;
-    }
-
-    /* Check sequence in hdr for lost events if any */
-    if (veventq->event_start && (buf.hdr.sequence - last_seq != 1)) {
-        error_report_once("vEVENTQ(type %u id %u): lost %u event(s)",
-                          type, id, buf.hdr.sequence - last_seq - 1);
-    }
-    veventq->last_event_seq = buf.hdr.sequence;
-    veventq->event_start = true;
     smmuv3_propagate_event(s, (Evt *)&buf.vevent);
 }
 
