@@ -7,6 +7,106 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+/*
+ * Tegra241 CMDQV - overview
+ * =========================
+ *
+ * NVIDIA Tegra241 extends SMMUv3 with a Command Queue Virtualization (CMDQ-V)
+ * block. It lets a guest issue SMMU invalidation commands directly to
+ * dedicated hardware queues (vCMDQs) without trapping into the hypervisor on
+ * the fast path. vCMDQs are exclusively allocated to Virtual Interfaces
+ * (VINTFs); the host kernel allocates one VINTF per emulated SMMUv3 instance
+ * via iommufd. QEMU emulates the CMDQV MMIO region and drives the host kernel
+ * calls (VIOMMU_ALLOC, HW_QUEUE_ALLOC, mmap); the actual command processing
+ * happens on real hardware.
+ *
+ * A vCMDQ becomes functional only once allocated to the host VINTF; until then
+ * no command processing happens, and trapped register accesses fall back to a
+ * QEMU-side cache. After allocation, the cached register state is migrated to
+ * the hardware and command processing runs on the host; guest accesses to the
+ * live control/status registers then bypass QEMU and reach the host directly.
+ *
+ * MMIO layout (64KB pages, total TEGRA241_CMDQV_IO_LEN)
+ * -----------------------------------------------------
+ *   0x00000  CMDQV Config page: QEMU-trapped.
+ *   0x10000  Direct vCMDQ Page 0 (control/status): QEMU-trapped and routed
+ *            to either the mmap'd host VINTF Page 0 (if the vCMDQ has been
+ *            allocated to a VINTF) or a per-vCMDQ register cache (otherwise).
+ *   0x20000  Direct vCMDQ Page 1 (BASE / DRAM addresses): QEMU-trapped.
+ *   0x30000  VINTF Page 0 (per-VINTF control/status): the guest's virtual
+ *            VINTF Page 0 aperture, backed by the host VINTF Page 0 (mmap'd
+ *            via iommufd) and installed into guest MMIO as a RAM-device
+ *            subregion when VINTF is enabled; subsequent accesses bypass QEMU.
+ *   0x40000  VINTF Page 1 (per-VINTF BASE): QEMU-trapped. Although this is
+ *            a HW alias of the direct Page 1, the kernel only exposes mmap
+ *            for the host VINTF Page 0; the host VINTF Page 1 is not mmap'd
+ *            and stays trapped.
+ *
+ * The direct vCMDQ apertures (0x10000/0x20000) are HW aliases of the VINTF
+ * apertures (0x30000/0x40000); they expose the same per-vCMDQ register slots
+ * under different addressing.
+ *
+ * The direct vCMDQ Page 0 stays trapped rather than aliased to the host VINTF
+ * Page 0 mmap. The CMDQV architecture allows software to program a vCMDQ
+ * through the direct aperture before allocating it to a VINTF; aliasing to
+ * the host VINTF Page 0 mmap would route those accesses into unallocated
+ * logical slots where the hardware silently drops them, so trapping keeps
+ * accesses well-defined for an unallocated vCMDQ.
+ *
+ * Lifecycle (driven by guest events)
+ * ----------------------------------
+ * 1. First vfio-pci device attach (.set_iommu_device) triggers:
+ *    - tegra241_cmdqv_probe(): IOMMU_GET_HW_INFO confirms host CMDQV support.
+ *    - IOMMU_VIOMMU_ALLOC: the kernel allocates and enables a VINTF for this
+ *      VM, configures the VM's VMID (from its stage-2 HWPT) in VINTF_CONFIG,
+ *      forces HYP_OWN=0, and returns the mmap offset/length for the host
+ *      VINTF Page 0, which QEMU then mmap()s.
+ *
+ * 2. Guest writes VINTF_CONFIG.ENABLE = 1:
+ *    QEMU installs the mmap'd host VINTF Page 0 into guest MMIO as the guest's
+ *    virtual VINTF Page 0 aperture (a RAM-device subregion) and reports
+ *    STATUS.ENABLE_OK = 1. The aperture is now a direct window onto the host
+ *    page, so accesses no longer trap into QEMU; a vCMDQ within it operates as
+ *    a real command queue only once it has been allocated (step 3).
+ *
+ * 3. Guest completes vCMDQ setup (BASE, CMDQ_ALLOC_MAP.ALLOC, CMDQV_EN,
+ *    VINTF.ENABLE, in any order; each precondition write retries the HW queue
+ *    allocation):
+ *    IOMMU_HW_QUEUE_ALLOC grants the guest a new host vCMDQ in this VM's
+ *    VINTF, binding the guest BASE GPA (translated through stage-2 and pinned
+ *    by the kernel) to it.
+ *
+ * 4. Guest SMMU driver programs a Stream Table Entry for a passthrough
+ *    device: IOMMU_VDEVICE_ALLOC programs SID_MATCH/SID_REPLACE in this VM's
+ *    VINTF so that the HW translates the device's guest vSID into its host
+ *    pSID. Commands referencing unmapped SIDs are rejected by HW.
+ *
+ *    This reflects the current accel SMMUv3 design, which allocates the
+ *    vDEVICE when the guest programs the STE.
+ *
+ * Per-VM isolation
+ * ----------------
+ * - Each VM has its own iommufd FD; all iommufd objects (VINTF, vdevices,
+ *   hw_queues, mmap regions) belong to that FD. Cross-FD lookups fail, so
+ *   one VM cannot reach another VM's IDs.
+ * - IOMMU_VIOMMU_ALLOC configures the VM's VMID in VINTF_CONFIG; the CMDQV
+ *   hardware substitutes / checks VMID on every command the guest issues.
+ * - The kernel allocates the VINTF with HYP_OWN = 0, which restricts the
+ *   guest to a safe subset of commands.
+ * - IOMMU_VDEVICE_ALLOC populates SID_MATCH/SID_REPLACE so invalidations
+ *   only reach the host StreamIDs assigned to this VM (see step 4).
+ * - IOMMU_HW_QUEUE_ALLOC binds each vCMDQ to a single VINTF, so a guest
+ *   cannot reach a vCMDQ that belongs to another VM.
+ *
+ * Limits exposed to the guest
+ * ---------------------------
+ * One VINTF per emulated SMMUv3 and two vCMDQs per VINTF. The HW maximum
+ * vCMDQ size is 8MiB, but the size QEMU exposes to the guest may be smaller.
+ * The queue must be physically contiguous in host memory, so QEMU caps the
+ * exposed size to the host memory-backend page size. Use hugepage backing to
+ * reach the 8MiB maximum.
+ */
+
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 
