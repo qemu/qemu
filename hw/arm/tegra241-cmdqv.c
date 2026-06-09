@@ -8,21 +8,200 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 
 #include "hw/arm/smmuv3.h"
 #include "hw/arm/smmuv3-common.h"
 #include "smmuv3-accel.h"
 #include "tegra241-cmdqv.h"
+#include "trace.h"
+
+static uint64_t tegra241_cmdqv_config_vintf_read(Tegra241CMDQV *cmdqv,
+                                                 hwaddr offset)
+{
+    int i;
+
+    switch (offset) {
+    case A_VINTF0_CONFIG:
+        return cmdqv->vintf_config;
+    case A_VINTF0_STATUS:
+        return cmdqv->vintf_status;
+    case A_VINTF0_SID_MATCH_0 ... A_VINTF0_SID_MATCH_15:
+        i = (offset - A_VINTF0_SID_MATCH_0) / 4;
+        return cmdqv->vintf_sid_match[i];
+    case A_VINTF0_SID_REPLACE_0 ... A_VINTF0_SID_REPLACE_15:
+        i = (offset - A_VINTF0_SID_REPLACE_0) / 4;
+        return cmdqv->vintf_sid_replace[i];
+    case A_VINTF0_LVCMDQ_ERR_MAP_0 ... A_VINTF0_LVCMDQ_ERR_MAP_3:
+        i = (offset - A_VINTF0_LVCMDQ_ERR_MAP_0) / 4;
+        return cmdqv->vintf_cmdq_err_map[i];
+    default:
+        /*
+         * GLB_FILT_CFG_0 (offset 0xC) and GLB_FILT_DATA_0 (offset 0x10) are
+         * filter config and filter data registers. They are not required for
+         * normal VINTF operation and are not emulated.
+         */
+        qemu_log_mask(LOG_UNIMP, "%s unhandled read access at 0x%" PRIx64 "\n",
+                      __func__, offset);
+        return 0;
+    }
+}
+
+static void tegra241_cmdqv_config_vintf_write(Tegra241CMDQV *cmdqv,
+                                              hwaddr offset, uint64_t value)
+{
+    int i;
+
+    switch (offset) {
+    case A_VINTF0_CONFIG:
+        /*
+         * Mask out HYP_OWN on guest writes. This bit selects Hypervisor (1) vs
+         * Guest (0) ownership of the CMDQ. Force it to 0 so the VINTF always
+         * remains guest-owned.
+         */
+        value &= ~R_VINTF0_CONFIG_HYP_OWN_MASK;
+
+        cmdqv->vintf_config = value;
+        if (value & R_VINTF0_CONFIG_ENABLE_MASK) {
+            cmdqv->vintf_status |= R_VINTF0_STATUS_ENABLE_OK_MASK;
+        } else {
+            cmdqv->vintf_status &= ~R_VINTF0_STATUS_ENABLE_OK_MASK;
+        }
+        break;
+    case A_VINTF0_SID_MATCH_0 ... A_VINTF0_SID_MATCH_15:
+        i = (offset - A_VINTF0_SID_MATCH_0) / 4;
+        cmdqv->vintf_sid_match[i] = value;
+        break;
+    case A_VINTF0_SID_REPLACE_0 ... A_VINTF0_SID_REPLACE_15:
+        i = (offset - A_VINTF0_SID_REPLACE_0) / 4;
+        cmdqv->vintf_sid_replace[i] = value;
+        break;
+    default:
+        /*
+         * GLB_FILT_CFG_0 (offset 0xC) and GLB_FILT_DATA_0 (offset 0x10) are
+         * filter config and filter data registers. They are not required for
+         * normal VINTF operation and are not emulated.
+         */
+        qemu_log_mask(LOG_UNIMP, "%s unhandled write access at 0x%" PRIx64 "\n",
+                      __func__, offset);
+        return;
+    }
+}
 
 static uint64_t tegra241_cmdqv_read_mmio(void *opaque, hwaddr offset,
                                          unsigned size)
 {
-    return 0;
+    Tegra241CMDQV *cmdqv = (Tegra241CMDQV *)opaque;
+    uint64_t val = 0;
+
+    if (offset >= TEGRA241_CMDQV_IO_LEN) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s offset 0x%" PRIx64 " off limit (0x%x)\n", __func__,
+                      offset, TEGRA241_CMDQV_IO_LEN);
+        goto out;
+    }
+
+    switch (offset) {
+    case A_CONFIG:
+        val = cmdqv->config;
+        break;
+    case A_PARAM:
+        val = cmdqv->param;
+        break;
+    case A_STATUS:
+        val = cmdqv->status;
+        break;
+    case A_VI_ERR_MAP_0 ... A_VI_ERR_MAP_1:
+        val = cmdqv->vi_err_map[(offset - A_VI_ERR_MAP_0) / 4];
+        break;
+    case A_VI_INT_MASK_0 ... A_VI_INT_MASK_1:
+        val = cmdqv->vi_int_mask[(offset - A_VI_INT_MASK_0) / 4];
+        break;
+    case A_CMDQ_ERR_MAP_0 ... A_CMDQ_ERR_MAP_3:
+        val = cmdqv->cmdq_err_map[(offset - A_CMDQ_ERR_MAP_0) / 4];
+        break;
+    case A_CMDQ_ALLOC_MAP_0 ... A_CMDQ_ALLOC_MAP_1:
+        val = cmdqv->cmdq_alloc_map[(offset - A_CMDQ_ALLOC_MAP_0) / 4];
+        break;
+    case A_VINTF0_CONFIG ... A_VINTF0_LVCMDQ_ERR_MAP_3:
+        val = tegra241_cmdqv_config_vintf_read(cmdqv, offset);
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s unhandled read access at 0x%" PRIx64 "\n",
+                      __func__, offset);
+    }
+
+out:
+    trace_tegra241_cmdqv_read_mmio(offset, val, size);
+    return val;
+}
+
+/* 4-byte MMIO write handler. */
+static void tegra241_cmdqv_writel_mmio(Tegra241CMDQV *cmdqv, hwaddr offset,
+                                       uint32_t value)
+{
+    switch (offset) {
+    case A_CONFIG:
+        cmdqv->config = value;
+        if (value & R_CONFIG_CMDQV_EN_MASK) {
+            cmdqv->status |= R_STATUS_CMDQV_ENABLED_MASK;
+        } else {
+            cmdqv->status &= ~R_STATUS_CMDQV_ENABLED_MASK;
+        }
+        break;
+    case A_VI_INT_MASK_0 ... A_VI_INT_MASK_1:
+        cmdqv->vi_int_mask[(offset - A_VI_INT_MASK_0) / 4] = value;
+        break;
+    case A_CMDQ_ALLOC_MAP_0 ... A_CMDQ_ALLOC_MAP_1:
+        cmdqv->cmdq_alloc_map[(offset - A_CMDQ_ALLOC_MAP_0) / 4] = value;
+        break;
+    case A_VINTF0_CONFIG ... A_VINTF0_LVCMDQ_ERR_MAP_3:
+        tegra241_cmdqv_config_vintf_write(cmdqv, offset, value);
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s unhandled write access at 0x%" PRIx64 "\n",
+                      __func__, offset);
+    }
+}
+
+/*
+ * 8-byte MMIO write handler.
+ */
+static void tegra241_cmdqv_writell_mmio(Tegra241CMDQV *cmdqv, hwaddr offset,
+                                        uint64_t value)
+{
+    qemu_log_mask(LOG_UNIMP,
+                      "%s unhandled 64-bit write at 0x%" PRIx64 " (WI)\n",
+                      __func__, offset);
 }
 
 static void tegra241_cmdqv_write_mmio(void *opaque, hwaddr offset,
                                       uint64_t value, unsigned size)
 {
+    Tegra241CMDQV *cmdqv = (Tegra241CMDQV *)opaque;
+
+    if (offset >= TEGRA241_CMDQV_IO_LEN) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s offset 0x%" PRIx64 " off limit (0x%x)\n", __func__,
+                      offset, TEGRA241_CMDQV_IO_LEN);
+        goto out;
+    }
+
+    switch (size) {
+    case 4:
+        tegra241_cmdqv_writel_mmio(cmdqv, offset, value);
+        break;
+    case 8:
+        tegra241_cmdqv_writell_mmio(cmdqv, offset, value);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s bad write size %u at 0x%" PRIx64 "\n",
+                      __func__, size, offset);
+    }
+
+out:
+    trace_tegra241_cmdqv_write_mmio(offset, value, size);
 }
 
 static void tegra241_cmdqv_free_viommu(SMMUv3State *s)
