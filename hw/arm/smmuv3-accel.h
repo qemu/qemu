@@ -16,6 +16,11 @@
 #include <linux/iommufd.h>
 #endif
 
+typedef enum SMMUv3AccelCmdqvType {
+    SMMUV3_CMDQV_NONE = 0,
+    SMMUV3_CMDQV_TEGRA241,
+} SMMUv3AccelCmdqvType;
+
 /*
  * CMDQ-Virtualization (CMDQV) hardware support, extends the SMMUv3 to
  * support multiple VCMDQs with virtualization capabilities.
@@ -42,6 +47,10 @@ typedef struct SMMUv3AccelCmdqvOps {
      * If NULL, the viommu_id is freed directly via iommufd_backend_free_id().
      */
     void (*free_viommu)(SMMUv3State *s);
+    /**
+     * @get_type: Optional callback. Return the CMDQV implementation type.
+     */
+    SMMUv3AccelCmdqvType (*get_type)(void);
     /**
      * @reset: Optional callback. Reset CMDQV state.
      */
@@ -90,5 +99,6 @@ bool smmuv3_accel_alloc_veventq(SMMUv3State *s, Error **errp);
 bool smmuv3_accel_event_read_validate(IOMMUFDVeventq *veventq, uint32_t type,
                                       void *buf, size_t size, Error **errp);
 void smmuv3_accel_reset(SMMUv3State *s);
+SMMUv3AccelCmdqvType smmuv3_accel_cmdqv_type(Object *obj);
 
 #endif /* HW_ARM_SMMUV3_ACCEL_H */
