@@ -179,6 +179,8 @@ static void raspi_peripherals_base_init(Object *obj)
                             &s->orgated_i2c_irq, TYPE_OR_IRQ);
     object_property_set_int(OBJECT(&s->orgated_i2c_irq), "num-lines",
                             ORGATED_I2C_IRQ_COUNT, &error_abort);
+    object_initialize_child(obj, "orgated-i2c-irq-splitter",
+                            &s->orgated_i2c_irq_splitter, TYPE_SPLIT_IRQ);
 }
 
 static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
@@ -504,7 +506,14 @@ void bcm_soc_peripherals_common_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[n]), 0,
                            qdev_get_gpio_in(DEVICE(&s->orgated_i2c_irq), n));
     }
+
+    qdev_prop_set_uint32(DEVICE(&s->orgated_i2c_irq_splitter), "num-lines", 2);
+    if (!qdev_realize(DEVICE(&s->orgated_i2c_irq_splitter), NULL, errp)) {
+        return;
+    }
     qdev_connect_gpio_out(DEVICE(&s->orgated_i2c_irq), 0,
+                          qdev_get_gpio_in(DEVICE(&s->orgated_i2c_irq_splitter), 0));
+    qdev_connect_gpio_out(DEVICE(&s->orgated_i2c_irq_splitter), 0,
                           qdev_get_gpio_in_named(DEVICE(&s->ic),
                                                  BCM2835_IC_GPU_IRQ,
                                                  INTERRUPT_I2C));
