@@ -41,6 +41,10 @@ static void tegra241_cmdqv_free_viommu(SMMUv3State *s)
         g_free(veventq);
         cmdqv->veventq = NULL;
     }
+    if (cmdqv->vintf_page0) {
+        munmap(cmdqv->vintf_page0, VINTF_PAGE_SIZE);
+        cmdqv->vintf_page0 = NULL;
+    }
     iommufd_backend_free_id(viommu->iommufd, viommu->viommu_id);
 }
 
@@ -60,13 +64,20 @@ tegra241_cmdqv_alloc_viommu(SMMUv3State *s, HostIOMMUDeviceIOMMUFD *idev,
         return false;
     }
 
+    if (!iommufd_backend_viommu_mmap(idev->iommufd, viommu_id, VINTF_PAGE_SIZE,
+                                     cmdqv->cmdqv_data->out_vintf_mmap_offset,
+                                     &cmdqv->vintf_page0, errp)) {
+        error_append_hint(errp, "Tegra241 CMDQV: failed to mmap VINTF page0");
+        goto free_viommu;
+    }
+
     if (!iommufd_backend_alloc_veventq(idev->iommufd, viommu_id,
                                        IOMMU_VEVENTQ_TYPE_TEGRA241_CMDQV,
                                        1 << SMMU_EVENTQS, &veventq_id,
                                        &veventq_fd,
                                        errp)) {
         error_append_hint(errp, "Tegra241 CMDQV: failed to alloc veventq");
-        goto free_viommu;
+        goto munmap_page0;
     }
 
     veventq = g_new(IOMMUFDVeventq, 1);
@@ -77,6 +88,9 @@ tegra241_cmdqv_alloc_viommu(SMMUv3State *s, HostIOMMUDeviceIOMMUFD *idev,
     *out_viommu_id = viommu_id;
     return true;
 
+munmap_page0:
+    munmap(cmdqv->vintf_page0, VINTF_PAGE_SIZE);
+    cmdqv->vintf_page0 = NULL;
 free_viommu:
     iommufd_backend_free_id(idev->iommufd, viommu_id);
     return false;

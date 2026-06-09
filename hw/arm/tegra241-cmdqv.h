@@ -25,6 +25,8 @@
  */
 #define TEGRA241_CMDQV_IO_LEN 0x50000
 
+#define VINTF_PAGE_SIZE 0x10000
+
 struct iommu_viommu_tegra241_cmdqv;
 
 typedef struct Tegra241CMDQV {
@@ -33,6 +35,7 @@ typedef struct Tegra241CMDQV {
     MemoryRegion mmio_cmdqv;
     qemu_irq irq;
     IOMMUFDVeventq *veventq;
+    void *vintf_page0;
 } Tegra241CMDQV;
 
 const SMMUv3AccelCmdqvOps *tegra241_cmdqv_get_ops(void);
