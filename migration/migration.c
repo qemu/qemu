@@ -297,7 +297,7 @@ void migration_object_init(void)
 {
     /* This can only be called once. */
     assert(!current_migration);
-    current_migration = MIGRATION_OBJ(object_new(TYPE_MIGRATION));
+    current_migration = MIGRATION(object_new(TYPE_MIGRATION));
 
     /*
      * Init the migrate incoming object as well no matter whether
@@ -3975,7 +3975,7 @@ static void migration_class_init(ObjectClass *klass, const void *data)
 
 static void migration_instance_finalize(Object *obj)
 {
-    MigrationState *ms = MIGRATION_OBJ(obj);
+    MigrationState *ms = MIGRATION(obj);
 
     qapi_free_BitmapMigrationNodeAliasList(ms->parameters.block_bitmap_mapping);
     qapi_free_strList(ms->parameters.cpr_exec_command);
@@ -3993,7 +3993,7 @@ static void migration_instance_finalize(Object *obj)
 
 static void migration_instance_init(Object *obj)
 {
-    MigrationState *ms = MIGRATION_OBJ(obj);
+    MigrationState *ms = MIGRATION(obj);
 
     ms->state = MIGRATION_STATUS_NONE;
     ms->mbps = -1;
@@ -4040,7 +4040,6 @@ static const TypeInfo migration_type = {
      */
     .parent = TYPE_DEVICE,
     .class_init = migration_class_init,
-    .class_size = sizeof(MigrationClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
     .instance_finalize = migration_instance_finalize,
