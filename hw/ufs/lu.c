@@ -154,15 +154,29 @@ static void ufs_wb_process_write_req(UfsRequest *req, uint32_t transfered_len)
     ufs_wb_update_avail_buffer(u);
 }
 
+#define UFS_HID_MAX_FRAGMENTS 1024
+static void ufs_hid_count_fragments(UfsRequest *req)
+{
+    UfsHc *u = req->hc;
+
+    if (!ufs_is_write_req(req)) {
+        return;
+    }
+
+    u->hid_fragment_count =
+        MIN(u->hid_fragment_count + 1, UFS_HID_MAX_FRAGMENTS);
+}
+
 static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
 {
     UfsRequest *req = scsi_req->hba_private;
     int16_t status = scsi_req->status;
     uint32_t transfered_len = scsi_req->cmd.xfer - resid;
 
-    /* WB accounting should only happen for successful commands */
+    /* WB / HID accounting should only happen for successful commands */
     if (status == GOOD) {
         ufs_wb_process_write_req(req, transfered_len);
+        ufs_hid_count_fragments(req);
     }
 
     ufs_build_scsi_response_upiu(req, scsi_req->sense, scsi_req->sense_len,
