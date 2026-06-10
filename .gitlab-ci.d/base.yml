@@ -52,6 +52,11 @@ variables:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
 
+    # macOS jobs can't run in forks until gitlab opens up runner availability
+    # to all tiers https://gitlab.com/groups/gitlab-org/-/work_items/8267
+    - if: '$QEMU_JOB_MACOS == "1" && $CI_PROJECT_NAMESPACE != $QEMU_CI_UPSTREAM'
+      when: never
+
     # Publishing jobs should only run on the default branch in upstream
     - if: '$QEMU_JOB_PUBLISH == "1" && $CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
       when: never
