@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Test that a FUSE export can be mmap()-ed with MAP_SHARED
+#
+# Copyright (C) 2026 Proxmox Server Solutions GmbH
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+import itertools
+import mmap
+from mmap import MAP_SHARED
+from pathlib import Path
+
+import iotests
+from iotests import qemu_img, qemu_io, QemuStorageDaemon
+
+def test_fuse_support(mount_point):
+    test_qsd = QemuStorageDaemon('--blockdev', 'null-co,node-name=node0',
+                                 qmp=True)
+    res = test_qsd.qmp('block-export-add', {
+        'id': 'exp0',
+        'type': 'fuse',
+        'node-name': 'node0',
+        'mountpoint': mount_point,
+        'allow-other': 'off'
+    })
+    test_qsd.stop()
+    if 'error' in res:
+        assert (res['error']['desc'] ==
+                "Parameter 'type' does not accept value 'fuse'")
+        iotests.notrun('No FUSE support')
+
+# Shared mmap when using direct IO is only supported for Linux kernels >= 6.6
+# with commit e78662e818f94 ("fuse: add a new fuse init flag to relax
+# estrictions in no cache mode").
+def test_linux_kernel_support():
+    [major, minor] = map(int, os.uname().release.split('.')[:2])
+    if major < 6 or (major == 6 and minor < 6):
+        iotests.notrun('No kernel support for shared mmap with direct IO')
+
+image_size = 1 * 1024 * 1024
+image = os.path.join(iotests.test_dir, 'image.' + iotests.imgfmt)
+fuse_mount_point = os.path.join(iotests.test_dir, 'export.fuse')
+Path(fuse_mount_point).touch()
+
+test_fuse_support(fuse_mount_point)
+test_linux_kernel_support()
+
+class TestMmapShared(iotests.QMPTestCase):
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, image, str(image_size))
+        qemu_io(image, '-c', f'write -P 23 0 {image_size}')
+
+        self.qsd = QemuStorageDaemon(qmp=True)
+
+        self.qsd.cmd('blockdev-add', {
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': image
+            }
+        })
+
+        self.qsd.cmd('block-export-add', {
+            'id': 'exp0',
+            'type': 'fuse',
+            'node-name': 'node0',
+            'mountpoint': fuse_mount_point,
+            'writable': True,
+            'allow-other': 'off'
+        })
+
+    def tearDown(self):
+        self.stop_qsd()
+        os.remove(image)
+        os.remove(fuse_mount_point)
+
+    def stop_qsd(self):
+        if self.qsd:
+            self.qsd.stop()
+            self.qsd = None
+
+    def test_mmap_shared(self):
+        with open(fuse_mount_point, 'r+b') as file:
+            with mmap.mmap(file.fileno(), image_size, flags=MAP_SHARED) as mm:
+                buf = bytearray(image_size)
+                buf[:] = itertools.repeat(23, image_size)
+                assert mm.read(image_size) == buf
+                buf[:] = itertools.repeat(42, image_size)
+                mm.seek(0)
+                mm.write(buf)
+                mm.flush()
+        self.stop_qsd()
+        qemu_io(image, '-c', f'read -P 42 0 {image_size}')
+
+if __name__ == '__main__':
+    # LUKS would require key-secret in blockdev-add
+    iotests.main(supported_fmts=['generic'],
+                 unsupported_fmts=['luks'],
+                 supported_protocols=['file'],
+                 supported_platforms=['linux'])
