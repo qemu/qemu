@@ -458,7 +458,7 @@ int net_init_af_xdp(const Netdev *netdev,
     g_autofree int *sock_fds = NULL;
     int i, queues;
     Error *err = NULL;
-    AFXDPState *s;
+    AFXDPState *s = NULL;
     bool inhibit;
 
     ifindex = if_nametoindex(opts->ifname);
