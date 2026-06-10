@@ -45,6 +45,7 @@ struct QemuInputHandler {
     QemuInputHandlerSync   sync;
 };
 
+G_GNUC_WARN_UNUSED_RESULT
 QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
                                             const QemuInputHandler *handler);
 void qemu_input_handler_activate(QemuInputHandlerState *s);
