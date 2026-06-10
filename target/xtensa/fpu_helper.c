@@ -64,56 +64,7 @@ void xtensa_use_first_nan(CPUXtensaState *env, bool use_first)
                              &env->fp_status);
 }
 
-void HELPER(wur_fpu2k_fcr)(CPUXtensaState *env, uint32_t v)
-{
-    static const int rounding_mode[] = {
-        float_round_nearest_even,
-        float_round_to_zero,
-        float_round_up,
-        float_round_down,
-    };
-
-    env->uregs[FCR] = v & 0xfffff07f;
-    set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
-}
-
-void HELPER(wur_fpu_fcr)(CPUXtensaState *env, uint32_t v)
-{
-    static const int rounding_mode[] = {
-        float_round_nearest_even,
-        float_round_to_zero,
-        float_round_up,
-        float_round_down,
-    };
-
-    if (v & 0xfffff000) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "MBZ field of FCR is written non-zero: %08x\n", v);
-    }
-    env->uregs[FCR] = v & 0x0000007f;
-    set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
-}
-
-void HELPER(wur_fpu_fsr)(CPUXtensaState *env, uint32_t v)
-{
-    uint32_t flags = v >> XTENSA_FSR_FLAGS_SHIFT;
-    int fef = 0;
-    unsigned i;
-
-    if (v & 0xfffff000) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "MBZ field of FSR is written non-zero: %08x\n", v);
-    }
-    env->uregs[FSR] = v & 0x00000f80;
-    for (i = 0; i < ARRAY_SIZE(xtensa_fp_flag_map); ++i) {
-        if (flags & xtensa_fp_flag_map[i].xtensa_fp_flag) {
-            fef |= xtensa_fp_flag_map[i].softfloat_fp_flag;
-        }
-    }
-    set_float_exception_flags(fef, &env->fp_status);
-}
-
-uint32_t HELPER(rur_fpu_fsr)(CPUXtensaState *env)
+uint32_t cpu_get_fsr(CPUXtensaState *env)
 {
     uint32_t flags = 0;
     int fef = get_float_exception_flags(&env->fp_status);
@@ -124,8 +75,66 @@ uint32_t HELPER(rur_fpu_fsr)(CPUXtensaState *env)
             flags |= xtensa_fp_flag_map[i].xtensa_fp_flag;
         }
     }
-    env->uregs[FSR] = flags << XTENSA_FSR_FLAGS_SHIFT;
     return flags << XTENSA_FSR_FLAGS_SHIFT;
+}
+
+void cpu_set_fcr(CPUXtensaState *env, uint32_t v)
+{
+    static const FloatRoundMode rounding_mode[] = {
+        float_round_nearest_even,
+        float_round_to_zero,
+        float_round_up,
+        float_round_down,
+    };
+
+    env->uregs[FCR] = v & 0xfffff07f;
+    set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
+}
+
+void cpu_set_fsr(CPUXtensaState *env, uint32_t v)
+{
+    uint32_t flags = v >> XTENSA_FSR_FLAGS_SHIFT;
+    int fef = 0;
+    unsigned i;
+
+    env->uregs[FSR] = v & 0x00000f80;
+    for (i = 0; i < ARRAY_SIZE(xtensa_fp_flag_map); ++i) {
+        if (flags & xtensa_fp_flag_map[i].xtensa_fp_flag) {
+            fef |= xtensa_fp_flag_map[i].softfloat_fp_flag;
+        }
+    }
+    set_float_exception_flags(fef, &env->fp_status);
+}
+
+void HELPER(wur_fpu2k_fcr)(CPUXtensaState *env, uint32_t v)
+{
+    cpu_set_fcr(env, v);
+}
+
+void HELPER(wur_fpu_fcr)(CPUXtensaState *env, uint32_t v)
+{
+    if (v & 0xfffff000) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "MBZ field of FCR is written non-zero: %08x\n", v);
+    }
+    cpu_set_fcr(env, v & 0x0000007f);
+}
+
+void HELPER(wur_fpu_fsr)(CPUXtensaState *env, uint32_t v)
+{
+    if (v & 0xfffff000) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "MBZ field of FSR is written non-zero: %08x\n", v);
+    }
+    cpu_set_fsr(env, v);
+}
+
+uint32_t HELPER(rur_fpu_fsr)(CPUXtensaState *env)
+{
+    uint32_t fsr = cpu_get_fsr(env);
+
+    env->uregs[FSR] = fsr;
+    return fsr;
 }
 
 float64 HELPER(abs_d)(float64 v)
