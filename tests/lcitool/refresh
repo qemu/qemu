@@ -231,10 +231,6 @@ try:
     generate_dockerfile("opensuse-leap", "opensuse-leap-16")
     generate_dockerfile("ubuntu2404", "ubuntu-2404",
                         trailer="".join(ubuntu2404_rust_extras))
-    generate_dockerfile("ubuntu2204", "ubuntu-2204",
-                        trailer="".join(ubuntu2404_rust_extras),
-                        # https://bugs.launchpad.net/ubuntu/+source/rustc-1.83/+bug/2120318
-                        enable_rust=False)
 
     #
     # Non-fatal Rust-enabled build
