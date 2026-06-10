@@ -422,6 +422,57 @@ static void test_co_rwlock_downgrade(void)
 }
 
 /*
+ * Check that a wake delivered before the sleeper parks is not lost.
+ *
+ * qemu_co_sleep_wake() is fire-and-forget: a caller cancelling a
+ * sleep/work loop may call it in the window after the sleeper has
+ * decided to sleep but before it has published itself inside
+ * qemu_co_sleep(). The wake must be sticky and shorten the next sleep
+ * rather than being dropped (which would block until the full sleep
+ * duration expired).
+ *
+ * No threads, timers or AioContext are needed: coroutines are
+ * cooperative, so ordering the wake before the sleep deterministically
+ * reproduces the state the racing waker would otherwise produce.
+ */
+
+typedef struct {
+    QemuCoSleep w;
+    bool completed;
+} CoSleepWakeData;
+
+static void coroutine_fn co_sleep_wake_entry(void *opaque)
+{
+    CoSleepWakeData *d = opaque;
+
+    /*
+     * The wake was already delivered before we got here. qemu_co_sleep()
+     * must consume it and return without yielding.
+     */
+    qemu_co_sleep(&d->w);
+    d->completed = true;
+}
+
+static void test_co_sleep_wake_before_sleep(void)
+{
+    CoSleepWakeData d = { .w = { 0 }, .completed = false };
+    Coroutine *co = qemu_coroutine_create(co_sleep_wake_entry, &d);
+
+    /* Waker runs first, while no sleeper is parked on w. */
+    qemu_co_sleep_wake(&d.w);
+
+    /*
+     * Entering runs qemu_co_sleep(), which consumes the pending wake and
+     * returns without yielding, so the coroutine runs straight to
+     * completion in this single enter. With the pre-fix primitive the wake
+     * is dropped, qemu_co_sleep() parks, and completed stays false.
+     */
+    qemu_coroutine_enter(co);
+
+    g_assert(d.completed);
+}
+
+/*
  * Check that creation, enter, and return work
  */
 
@@ -660,6 +711,8 @@ int main(int argc, char **argv)
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
     g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
     g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
+    g_test_add_func("/locking/co-sleep/wake-before-sleep",
+                    test_co_sleep_wake_before_sleep);
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);
