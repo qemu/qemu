@@ -3172,34 +3172,36 @@ static void do_##NAME(void *vd, void *vs1, void *vs2, int i,   \
     *((TD *)vd + HD(i)) = OP(s2, s1, &env->fp_status);         \
 }
 
-#define GEN_VEXT_VV_ENV(NAME, ESZ)                        \
-void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
-                  void *vs2, CPURISCVState *env,          \
-                  uint32_t desc)                          \
-{                                                         \
-    uint32_t vm = vext_vm(desc);                          \
-    uint32_t vl = env->vl;                                \
-    uint32_t total_elems =                                \
-        vext_get_total_elems(env, desc, ESZ);             \
-    uint32_t vta = vext_vta(desc);                        \
-    uint32_t vma = vext_vma(desc);                        \
-    uint32_t i;                                           \
-                                                          \
-    VSTART_CHECK_EARLY_EXIT(env, vl);                     \
-                                                          \
-    for (i = env->vstart; i < vl; i++) {                  \
-        if (!vm && !vext_elem_mask(v0, i)) {              \
-            /* set masked-off elements to 1s */           \
-            vext_set_elems_1s(vd, vma, i * ESZ,           \
-                              (i + 1) * ESZ);             \
-            continue;                                     \
-        }                                                 \
-        do_##NAME(vd, vs1, vs2, i, env);                  \
-    }                                                     \
-    env->vstart = 0;                                      \
-    /* set tail elements to 1s */                         \
-    vext_set_elems_1s(vd, vta, vl * ESZ,                  \
-                      total_elems * ESZ);                 \
+#define GEN_VEXT_VV_ENV(NAME, ESZ)                           \
+void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,  \
+                  CPURISCVState *env, uint32_t desc)         \
+{                                                            \
+    uint32_t vm = vext_vm(desc);                             \
+    uint32_t vl = env->vl;                                   \
+    uint32_t total_elems =                                   \
+        vext_get_total_elems(env, desc, ESZ);                \
+    uint32_t vta = vext_vta(desc);                           \
+    uint32_t vma = vext_vma(desc);                           \
+    uint32_t i;                                              \
+    FloatExceptionFlags pre_fflag =                          \
+        get_float_exception_flags(&env->fp_status);          \
+                                                             \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                        \
+                                                             \
+    for (i = env->vstart; i < vl; i++) {                     \
+        if (!vm && !vext_elem_mask(v0, i)) {                 \
+            /* set masked-off elements to 1s */              \
+            vext_set_elems_1s(vd, vma, i * ESZ,              \
+                              (i + 1) * ESZ);                \
+            continue;                                        \
+        }                                                    \
+        do_##NAME(vd, vs1, vs2, i, env);                     \
+    }                                                        \
+    env->vstart = 0;                                         \
+    /* set tail elements to 1s */                            \
+    vext_set_elems_1s(vd, vta, vl * ESZ,                     \
+                      total_elems * ESZ);                    \
+    riscv_cpu_check_fflags(env, pre_fflag);                  \
 }
 
 RVVCALL(OPFVV2, vfadd_vv_h_bf16, OP_UUU_H, H2, H2, H2, bfloat16_add)
@@ -3219,34 +3221,36 @@ static void do_##NAME(void *vd, uint64_t s1, void *vs2, int i, \
     *((TD *)vd + HD(i)) = OP(s2, (TX1)(T1)s1, &env->fp_status);\
 }
 
-#define GEN_VEXT_VF(NAME, ESZ)                            \
-void HELPER(NAME)(void *vd, void *v0, uint64_t s1,        \
-                  void *vs2, CPURISCVState *env,          \
-                  uint32_t desc)                          \
-{                                                         \
-    uint32_t vm = vext_vm(desc);                          \
-    uint32_t vl = env->vl;                                \
-    uint32_t total_elems =                                \
-        vext_get_total_elems(env, desc, ESZ);             \
-    uint32_t vta = vext_vta(desc);                        \
-    uint32_t vma = vext_vma(desc);                        \
-    uint32_t i;                                           \
-                                                          \
-    VSTART_CHECK_EARLY_EXIT(env, vl);                     \
-                                                          \
-    for (i = env->vstart; i < vl; i++) {                  \
-        if (!vm && !vext_elem_mask(v0, i)) {              \
-            /* set masked-off elements to 1s */           \
-            vext_set_elems_1s(vd, vma, i * ESZ,           \
-                              (i + 1) * ESZ);             \
-            continue;                                     \
-        }                                                 \
-        do_##NAME(vd, s1, vs2, i, env);                   \
-    }                                                     \
-    env->vstart = 0;                                      \
-    /* set tail elements to 1s */                         \
-    vext_set_elems_1s(vd, vta, vl * ESZ,                  \
-                      total_elems * ESZ);                 \
+#define GEN_VEXT_VF(NAME, ESZ)                                   \
+void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,    \
+                  CPURISCVState *env, uint32_t desc)             \
+{                                                                \
+    uint32_t vm = vext_vm(desc);                                 \
+    uint32_t vl = env->vl;                                       \
+    uint32_t total_elems =                                       \
+        vext_get_total_elems(env, desc, ESZ);                    \
+    uint32_t vta = vext_vta(desc);                               \
+    uint32_t vma = vext_vma(desc);                               \
+    uint32_t i;                                                  \
+    FloatExceptionFlags pre_fflag =                              \
+        get_float_exception_flags(&env->fp_status);              \
+                                                                 \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                            \
+                                                                 \
+    for (i = env->vstart; i < vl; i++) {                         \
+        if (!vm && !vext_elem_mask(v0, i)) {                     \
+            /* set masked-off elements to 1s */                  \
+            vext_set_elems_1s(vd, vma, i * ESZ,                  \
+                              (i + 1) * ESZ);                    \
+            continue;                                            \
+        }                                                        \
+        do_##NAME(vd, s1, vs2, i, env);                          \
+    }                                                            \
+    env->vstart = 0;                                             \
+    /* set tail elements to 1s */                                \
+    vext_set_elems_1s(vd, vta, vl * ESZ,                         \
+                      total_elems * ESZ);                        \
+    riscv_cpu_check_fflags(env, pre_fflag);                      \
 }
 
 RVVCALL(OPFVF2, vfadd_vf_h_bf16, OP_UUU_H, H2, H2, bfloat16_add)
@@ -3993,35 +3997,38 @@ static void do_##NAME(void *vd, void *vs2, int i,      \
     *((TD *)vd + HD(i)) = OP(s2, &env->fp_status);     \
 }
 
-#define GEN_VEXT_V_ENV(NAME, ESZ)                      \
-void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
-                  CPURISCVState *env, uint32_t desc)   \
-{                                                      \
-    uint32_t vm = vext_vm(desc);                       \
-    uint32_t vl = env->vl;                             \
-    uint32_t total_elems =                             \
-        vext_get_total_elems(env, desc, ESZ);          \
-    uint32_t vta = vext_vta(desc);                     \
-    uint32_t vma = vext_vma(desc);                     \
-    uint32_t i;                                        \
-                                                       \
-    VSTART_CHECK_EARLY_EXIT(env, vl);                  \
-                                                       \
-    if (vl == 0) {                                     \
-        return;                                        \
-    }                                                  \
-    for (i = env->vstart; i < vl; i++) {               \
-        if (!vm && !vext_elem_mask(v0, i)) {           \
-            /* set masked-off elements to 1s */        \
-            vext_set_elems_1s(vd, vma, i * ESZ,        \
-                              (i + 1) * ESZ);          \
-            continue;                                  \
-        }                                              \
-        do_##NAME(vd, vs2, i, env);                    \
-    }                                                  \
-    env->vstart = 0;                                   \
-    vext_set_elems_1s(vd, vta, vl * ESZ,               \
-                      total_elems * ESZ);              \
+#define GEN_VEXT_V_ENV(NAME, ESZ)                            \
+void HELPER(NAME)(void *vd, void *v0, void *vs2,             \
+                  CPURISCVState *env, uint32_t desc)         \
+{                                                            \
+    uint32_t vm = vext_vm(desc);                             \
+    uint32_t vl = env->vl;                                   \
+    uint32_t total_elems =                                   \
+        vext_get_total_elems(env, desc, ESZ);                \
+    uint32_t vta = vext_vta(desc);                           \
+    uint32_t vma = vext_vma(desc);                           \
+    uint32_t i;                                              \
+    FloatExceptionFlags pre_fflag =                          \
+        get_float_exception_flags(&env->fp_status);          \
+                                                             \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                        \
+                                                             \
+    if (vl == 0) {                                           \
+        return;                                              \
+    }                                                        \
+    for (i = env->vstart; i < vl; i++) {                     \
+        if (!vm && !vext_elem_mask(v0, i)) {                 \
+            /* set masked-off elements to 1s */              \
+            vext_set_elems_1s(vd, vma, i * ESZ,              \
+                              (i + 1) * ESZ);                \
+            continue;                                        \
+        }                                                    \
+        do_##NAME(vd, vs2, i, env);                          \
+    }                                                        \
+    env->vstart = 0;                                         \
+    vext_set_elems_1s(vd, vta, vl * ESZ,                     \
+                      total_elems * ESZ);                    \
+    riscv_cpu_check_fflags(env, pre_fflag);                  \
 }
 
 RVVCALL(OPFVV1, vfsqrt_v_h, OP_UU_H, H2, H2, float16_sqrt)
@@ -4610,6 +4617,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     uint32_t vta_all_1s = vext_vta_all_1s(desc);              \
     uint32_t vma = vext_vma(desc);                            \
     uint32_t i;                                               \
+    FloatExceptionFlags pre_fflag =                           \
+        get_float_exception_flags(&env->fp_status);           \
                                                               \
     VSTART_CHECK_EARLY_EXIT(env, vl);                         \
                                                               \
@@ -4636,6 +4645,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
             vext_set_elem_mask(vd, i, 1);                     \
         }                                                     \
     }                                                         \
+    riscv_cpu_check_fflags(env, pre_fflag);                   \
 }
 
 GEN_VEXT_CMP_VV_ENV(vmfeq_vv_h_bf16, uint16_t, H2, bfloat16_eq_quiet)
@@ -4653,6 +4663,8 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
     uint32_t vta_all_1s = vext_vta_all_1s(desc);                    \
     uint32_t vma = vext_vma(desc);                                  \
     uint32_t i;                                                     \
+    FloatExceptionFlags pre_fflag =                                 \
+        get_float_exception_flags(&env->fp_status);                 \
                                                                     \
     VSTART_CHECK_EARLY_EXIT(env, vl);                               \
                                                                     \
@@ -4678,6 +4690,7 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
             vext_set_elem_mask(vd, i, 1);                           \
         }                                                           \
     }                                                               \
+    riscv_cpu_check_fflags(env, pre_fflag);                         \
 }
 
 GEN_VEXT_CMP_VF(vmfeq_vf_h_bf16, uint16_t, H2, bfloat16_eq_quiet)
@@ -5151,34 +5164,36 @@ GEN_VEXT_RED(vwredsumu_vs_h, uint32_t, uint16_t, H4, H2, DO_ADD)
 GEN_VEXT_RED(vwredsumu_vs_w, uint64_t, uint32_t, H8, H4, DO_ADD)
 
 /* Vector Single-Width Floating-Point Reduction Instructions */
-#define GEN_VEXT_FRED(NAME, TD, TS2, HD, HS2, OP)          \
-void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
-                  void *vs2, CPURISCVState *env,           \
-                  uint32_t desc)                           \
-{                                                          \
-    uint32_t vm = vext_vm(desc);                           \
-    uint32_t vl = env->vl;                                 \
-    uint32_t esz = sizeof(TD);                             \
-    uint32_t vlenb = simd_maxsz(desc);                     \
-    uint32_t vta = vext_vta(desc);                         \
-    uint32_t i;                                            \
-    TD s1 =  *((TD *)vs1 + HD(0));                         \
-                                                           \
-    VSTART_CHECK_EARLY_EXIT(env, vl);                      \
-                                                           \
-    for (i = env->vstart; i < vl; i++) {                   \
-        TS2 s2 = *((TS2 *)vs2 + HS2(i));                   \
-        if (!vm && !vext_elem_mask(v0, i)) {               \
-            continue;                                      \
-        }                                                  \
-        s1 = OP(s1, (TD)s2, &env->fp_status);              \
-    }                                                      \
-    if (vl > 0) {                                          \
-        *((TD *)vd + HD(0)) = s1;                          \
-    }                                                      \
-    env->vstart = 0;                                       \
-    /* set tail elements to 1s */                          \
-    vext_set_elems_1s(vd, vta, esz, vlenb);                \
+#define GEN_VEXT_FRED(NAME, TD, TS2, HD, HS2, OP)            \
+void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,  \
+                  CPURISCVState *env, uint32_t desc)         \
+{                                                            \
+    uint32_t vm = vext_vm(desc);                             \
+    uint32_t vl = env->vl;                                   \
+    uint32_t esz = sizeof(TD);                               \
+    uint32_t vlenb = simd_maxsz(desc);                       \
+    uint32_t vta = vext_vta(desc);                           \
+    uint32_t i;                                              \
+    FloatExceptionFlags pre_fflag =                          \
+        get_float_exception_flags(&env->fp_status);          \
+    TD s1 =  *((TD *)vs1 + HD(0));                           \
+                                                             \
+    VSTART_CHECK_EARLY_EXIT(env, vl);                        \
+                                                             \
+    for (i = env->vstart; i < vl; i++) {                     \
+        TS2 s2 = *((TS2 *)vs2 + HS2(i));                     \
+        if (!vm && !vext_elem_mask(v0, i)) {                 \
+            continue;                                        \
+        }                                                    \
+        s1 = OP(s1, (TD)s2, &env->fp_status);                \
+    }                                                        \
+    if (vl > 0) {                                            \
+        *((TD *)vd + HD(0)) = s1;                            \
+    }                                                        \
+    env->vstart = 0;                                         \
+    /* set tail elements to 1s */                            \
+    vext_set_elems_1s(vd, vta, esz, vlenb);                  \
+    riscv_cpu_check_fflags(env, pre_fflag);                  \
 }
 
 /* Unordered sum */
