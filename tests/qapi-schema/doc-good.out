@@ -54,15 +54,15 @@ event EVT_BOXED Object
     boxed=True
     feature feat3
 doc freeform
-    body=
+    Plain
 *******
 Section
 *******
 doc freeform
-    body=
+    Plain
 Just text, no heading.
 doc freeform
-    body=
+    Plain
 Subsection
 ==========
 
@@ -106,84 +106,84 @@ Examples:
 - *verbatim*
 - {braces}
 doc symbol=Enum
-    body=
+    Plain
 
-    arg=one
+    Member=one
 The _one_ {and only}, description on the same line
-    arg=two
+    Member=two
 
-    feature=enum-feat
+    Feature=enum-feat
 Also _one_ {and only}
-    feature=enum-member-feat
+    Feature=enum-member-feat
 a member feature
-    section=Plain
+    Plain
 @two is undocumented
 doc symbol=Base
-    body=
+    Plain
 
-    arg=base1
+    Member=base1
  description starts on a new line,
  minimally indented
 doc symbol=Variant1
-    body=
+    Plain
 A paragraph
 
 Another paragraph
 
 @var1 is undocumented
-    arg=var1
+    Member=var1
 
-    feature=variant1-feat
+    Feature=variant1-feat
 a feature
-    feature=member-feat
+    Feature=member-feat
 a member feature
 doc symbol=Variant2
-    body=
+    Plain
 
 doc symbol=Object
-    body=
+    Plain
 
-    feature=union-feat1
+    Feature=union-feat1
 a feature
 doc symbol=Alternate
-    body=
+    Plain
 
-    arg=i
+    Member=i
 description starts on the same line
     remainder indented the same
     @b is undocumented
-    arg=b
+    Member=b
 
-    feature=alt-feat
+    Feature=alt-feat
 a feature
 doc freeform
-    body=
+    Plain
 Another subsection
 ==================
 doc symbol=cmd
-    body=
+    Plain
 
-    arg=arg1
+    Member=arg1
     description starts on a new line,
     indented
-    arg=arg2
+    Member=arg2
 description starts on the same line
     remainder indented differently
-    arg=arg3
+    Member=arg3
 
-    feature=cmd-feat1
+    Feature=cmd-feat1
 a feature
-    feature=cmd-feat2
+    Feature=cmd-feat2
 another feature
-    section=Plain
+    Plain
 .. note:: @arg3 is undocumented
-    section=Returns
+    Returns
 @Object
-    section=Errors
+    Errors
 some
-    section=Todo
+    Todo
 frobnicate
-    section=Plain
+    Plain
 .. admonition:: Notes
 
  - Lorem ipsum dolor sit amet
@@ -207,23 +207,23 @@ Examples::
 
 Note::
     Ceci n'est pas une note
-    section=Since
+    Since
 2.10
 doc symbol=cmd-boxed
-    body=
+    Plain
 If you're bored enough to read this, go see a video of boxed cats
-    feature=cmd-feat1
+    Feature=cmd-feat1
 a feature
-    feature=cmd-feat2
+    Feature=cmd-feat2
 another feature
-    section=Plain
+    Plain
 .. qmp-example::
 
    -> "this example"
 
    <- ... has no title ...
 doc symbol=EVT_BOXED
-    body=
+    Plain
 
-    feature=feat3
+    Feature=feat3
 a feature
