@@ -676,6 +676,7 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
 
 uint8_t riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, uint8_t);
+void riscv_cpu_check_fflags(CPURISCVState *env, FloatExceptionFlags);
 
 #ifndef CONFIG_USER_ONLY
 void cpu_set_exception_base(int vp_index, uint64_t address);
