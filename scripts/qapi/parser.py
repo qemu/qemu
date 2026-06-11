@@ -555,7 +555,7 @@ class QAPISchemaParser:
                     break
                 # Non-blank line, first of a section
                 if line == 'Features:':
-                    if doc.features:
+                    if doc.has_features:
                         raise QAPIParseError(
                             self, "duplicated 'Features:' line")
                     self.accept(False)
@@ -570,7 +570,7 @@ class QAPISchemaParser:
                         if text:
                             doc.append_line(text)
                         line = self.get_doc_indented(doc)
-                    if not doc.features:
+                    if not doc.has_features:
                         raise QAPIParseError(
                             self, 'feature descriptions expected')
                     no_more_args = True
@@ -740,6 +740,10 @@ class QAPIDoc:
         self.errors: Optional[QAPIDoc.Section] = None
         # "Since" section
         self.since: Optional[QAPIDoc.Section] = None
+
+    @property
+    def has_features(self) -> bool:
+        return bool(self.features)
 
     def end(self) -> None:
         for section in self.all_sections:
