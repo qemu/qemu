@@ -866,6 +866,13 @@ class QAPIDoc:
         self._features[feature.name].connect(feature)
 
     def ensure_returns(self, info: QAPISourceInfo) -> None:
+        # This is more complicated than it ought to be.  The doc
+        # parser should already know where a generated RETURNS section
+        # should go.  It currently doesn't, mostly because it accepts
+        # tagged sections in any order.
+        #
+        # TODO: Tighten doc syntax and simplify.
+
         if any(s.kind == QAPIDoc.Kind.RETURNS for s in self.all_sections):
             return
 
