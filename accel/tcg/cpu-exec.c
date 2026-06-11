@@ -26,7 +26,6 @@
 #include "accel/tcg/helper-retaddr.h"
 #include "trace.h"
 #include "disas/disas.h"
-#include "exec/cpu-common.h"
 #include "exec/cpu-interrupt.h"
 #include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
@@ -46,6 +45,9 @@
 #include "tb-context.h"
 #include "tb-internal.h"
 #include "internal-common.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "accel/tcg/iommu.h"
+#endif
 
 /* -icount align implementation. */
 

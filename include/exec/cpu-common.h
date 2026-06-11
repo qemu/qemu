@@ -34,9 +34,6 @@ unsigned int cpu_list_generation_id_get(void);
 
 int cpu_get_free_index(void);
 
-void tcg_iommu_init_notifier_list(CPUState *cpu);
-void tcg_iommu_free_notifier_list(CPUState *cpu);
-
 /**
  * cpu_address_space_init:
  * @cpu: CPU to add this address space to
