@@ -20,6 +20,7 @@
 #include "exec/hwaddr.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
+#include "system/address-spaces.h"
 #include "system/cpus.h"
 #include "system/runstate.h"
 #include "system/replay.h"
@@ -453,12 +454,10 @@ int gdb_target_memory_rw_debug(CPUState *cpu, hwaddr addr,
                                uint8_t *buf, int len, bool is_write)
 {
     if (phy_memory_mode) {
-        if (is_write) {
-            cpu_physical_memory_write(addr, buf, len);
-        } else {
-            cpu_physical_memory_read(addr, buf, len);
-        }
-        return 0;
+        MemTxResult res = address_space_rw(&address_space_memory, addr,
+                                           MEMTXATTRS_UNSPECIFIED, buf, len,
+                                           is_write);
+        return res == MEMTX_OK ? 0 : -1;
     }
 
     if (cpu->cc->memory_rw_debug) {
