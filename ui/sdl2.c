@@ -862,7 +862,8 @@ static void sdl2_set_hint_x11_force_egl(void)
     }
 
     /* Prefer EGL over GLX to get dma-buf support. */
-    egl_display = eglGetDisplay((EGLNativeDisplayType)x_disp);
+    egl_display = qemu_egl_get_display((EGLNativeDisplayType)x_disp,
+                                       EGL_PLATFORM_X11_KHR);
 
     if (egl_display != EGL_NO_DISPLAY) {
         /*
