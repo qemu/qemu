@@ -1359,6 +1359,7 @@ F: hw/intc/loongarch_*.c
 F: hw/intc/loongson_ipi_common.c
 F: hw/rtc/ls7a_rtc.c
 F: gdbstub/gdb-xml/loongarch*.xml
+F: tests/qtest/migration/loongarch64/
 
 M68K Machines
 -------------

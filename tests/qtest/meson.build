@@ -155,7 +155,8 @@ qtests_loongarch64 = qtests_filter + \
   (config_all_devices.has_key('CONFIG_LOONGARCH_VIRT') ? ['numa-test'] : []) + \
   (unpack_edk2_blobs ? ['bios-tables-test'] : []) + \
   ['boot-serial-test',
-   'cpu-plug-test']
+   'cpu-plug-test',
+   'migration-test']
 
 qtests_m68k = ['boot-serial-test'] + \
   qtests_filter
