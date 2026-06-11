@@ -106,8 +106,6 @@ Examples:
 - *verbatim*
 - {braces}
 doc symbol=Enum
-    Plain
-
     Member=one
 The _one_ {and only}, description on the same line
     Member=two
@@ -119,8 +117,6 @@ a member feature
     Plain
 @two is undocumented
 doc symbol=Base
-    Plain
-
     Member=base1
  description starts on a new line,
  minimally indented
@@ -138,16 +134,10 @@ a feature
     Feature=member-feat
 a member feature
 doc symbol=Variant2
-    Plain
-
 doc symbol=Object
-    Plain
-
     Feature=union-feat1
 a feature
 doc symbol=Alternate
-    Plain
-
     Member=i
 description starts on the same line
     remainder indented the same
@@ -161,8 +151,6 @@ doc freeform
 Another subsection
 ==================
 doc symbol=cmd
-    Plain
-
     Member=arg1
     description starts on a new line,
     indented
@@ -223,7 +211,5 @@ another feature
 
    <- ... has no title ...
 doc symbol=EVT_BOXED
-    Plain
-
     Feature=feat3
 a feature
