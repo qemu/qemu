@@ -466,7 +466,7 @@ void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
     }
 }
 
-bool qemu_input_is_absolute(QemuConsole *con)
+bool qemu_input_is_absolute(const QemuConsole *con)
 {
     QemuInputHandlerState *s;
 

@@ -160,7 +160,7 @@ void qemu_input_event_sync(void)
     }
 }
 
-bool qemu_input_is_absolute(QemuConsole *con)
+bool qemu_input_is_absolute(const QemuConsole *con)
 {
     QemuDBusDisplay1Mouse *mouse;
 
