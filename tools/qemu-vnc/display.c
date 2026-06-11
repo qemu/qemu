@@ -433,7 +433,7 @@ bool console_setup(GDBusConnection *bus, const char *bus_name,
     return true;
 }
 
-QemuDBusDisplay1Keyboard *console_get_keyboard(QemuConsole *con)
+QemuDBusDisplay1Keyboard *console_get_keyboard(const QemuConsole *con)
 {
     ConsoleData *cd;
 
@@ -444,7 +444,7 @@ QemuDBusDisplay1Keyboard *console_get_keyboard(QemuConsole *con)
     return cd ? cd->keyboard_proxy : NULL;
 }
 
-QemuDBusDisplay1Mouse *console_get_mouse(QemuConsole *con)
+QemuDBusDisplay1Mouse *console_get_mouse(const QemuConsole *con)
 {
     ConsoleData *cd;
 

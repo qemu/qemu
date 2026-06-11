@@ -26,8 +26,8 @@ void input_setup(QemuDBusDisplay1Keyboard *kbd,
                  QemuDBusDisplay1Mouse *mouse);
 bool console_setup(GDBusConnection *bus, const char *bus_name,
                    const char *console_path);
-QemuDBusDisplay1Keyboard *console_get_keyboard(QemuConsole *con);
-QemuDBusDisplay1Mouse *console_get_mouse(QemuConsole *con);
+QemuDBusDisplay1Keyboard *console_get_keyboard(const QemuConsole *con);
+QemuDBusDisplay1Mouse *console_get_mouse(const QemuConsole *con);
 
 void audio_setup(GDBusObjectManager *manager);
 void clipboard_setup(GDBusObjectManager *manager, GDBusConnection *bus);
