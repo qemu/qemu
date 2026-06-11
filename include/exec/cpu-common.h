@@ -64,11 +64,52 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
  */
 void cpu_destroy_address_spaces(CPUState *cpu);
 
+/**
+ * cpu_physical_memory_read: Read from the legacy global address space.
+ *
+ * This function access the legacy global #address_space_memory address
+ * space and does not say whether the operation succeeded or failed.
+ *
+ * @addr: address within the legacy global address space
+ * @buf: buffer with the data transferred
+ * @len: length of the data transferred
+ */
 void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len);
+/**
+ * cpu_physical_memory_write: Write to the legacy global address space.
+ *
+ * This function access the legacy global #address_space_memory address
+ * space and does not say whether the operation succeeded or failed.
+ *
+ * @addr: address within the legacy global address space
+ * @buf: buffer with the data transferred
+ * @len: the number of bytes to write
+ */
 void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len);
+/**
+ * cpu_physical_memory_map: Map guest physical memory region into host virtual
+ *                          address.
+ *
+ * Map a memory region from the legacy global #address_space_memory address
+ * space. May return %NULL and set *@plen to zero(0), if resources needed to
+ * perform the mapping are exhausted.
+ *
+ * @addr: address within that address space
+ * @len: pointer to length of buffer; updated on return
+ * @is_write: whether the translation operation is for write
+ */
 void *cpu_physical_memory_map(hwaddr addr,
                               hwaddr *plen,
                               bool is_write);
+/**
+ * cpu_physical_memory_unmap: Unmaps a memory region previously mapped by
+ *                            cpu_physical_memory_map()
+ *
+ * @buffer: host pointer as returned by cpu_physical_memory_map()
+ * @len: buffer length as returned by cpu_physical_memory_map()
+ * @is_write: whether the translation operation is for write
+ * @access_len: amount of data actually transferred
+ */
 void cpu_physical_memory_unmap(void *buffer, hwaddr len,
                                bool is_write, hwaddr access_len);
 
