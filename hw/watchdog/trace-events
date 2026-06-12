@@ -33,3 +33,12 @@ spapr_watchdog_expired(uint64_t num, unsigned action) "num=%" PRIu64 " action=%u
 # watchdog.c
 watchdog_perform_action(unsigned int action) "action=%u"
 watchdog_set_action(unsigned int action) "action=%u"
+
+# k230_wdt.c
+k230_wdt_read(uint64_t addr, uint32_t data) "K230 WDT read: [0x%" PRIx64 "] -> 0x%" PRIx32
+k230_wdt_write(uint64_t addr, uint64_t data) "K230 WDT write: [0x%" PRIx64 "] <- 0x%" PRIx64
+k230_wdt_timeout(void) "K230 WDT timeout"
+k230_wdt_interrupt(void) "K230 WDT interrupt"
+k230_wdt_reset(void) "K230 WDT system reset"
+k230_wdt_restart(void) "K230 WDT restart"
+k230_wdt_reset_device(void) "K230 WDT device reset"

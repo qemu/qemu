@@ -148,3 +148,4 @@ config K230
     select RISCV_IMSIC
     select SERIAL_MM
     select UNIMP
+    select K230_WDT

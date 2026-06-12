@@ -1791,7 +1791,9 @@ M: Chao Liu <chao.liu.zevorn@gmail.com>
 L: qemu-riscv@nongnu.org
 S: Maintained
 F: hw/riscv/k230.c
+F: hw/watchdog/k230_wdt.c
 F: include/hw/riscv/k230.h
+F: include/hw/watchdog/k230_wdt.h
 
 RX Machines
 -----------
