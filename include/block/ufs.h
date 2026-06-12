@@ -951,6 +951,23 @@ enum attr_idn {
     UFS_QUERY_ATTR_IDN_COUNT,
 };
 
+/* HID (Host Initiated Defragmentation) operation values for bDefragOperation */
+enum ufs_hid_op {
+    UFS_HID_OP_DISABLE = 0x00,
+    UFS_HID_OP_ANALYSIS = 0x01,
+    UFS_HID_OP_DEFRAG = 0x02,
+};
+
+/* HID state values for bHIDState */
+enum ufs_hid_state {
+    UFS_HID_STATE_IDLE = 0x00,
+    UFS_HID_STATE_ANALYSIS_IN_PROGRESS = 0x01,
+    UFS_HID_STATE_DEFRAG_REQUIRED = 0x02,
+    UFS_HID_STATE_DEFRAG_IN_PROGRESS = 0x03,
+    UFS_HID_STATE_DEFRAG_COMPLETED = 0x04,
+    UFS_HID_STATE_DEFRAG_NOT_REQUIRED = 0x05,
+};
+
 /* Descriptor idn for Query requests */
 enum desc_idn {
     UFS_QUERY_DESC_IDN_DEVICE = 0x0,
@@ -1142,6 +1159,7 @@ enum {
 /* Possible values for dExtendedUFSFeaturesSupport */
 enum {
     UFS_DEV_WB_SUPPORT = BIT(8),
+    UFS_DEV_HID_SUPPORT = BIT(13),
 };
 
 /* WriteBooster buffer mode */
