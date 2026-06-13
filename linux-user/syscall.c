@@ -741,6 +741,11 @@ safe_syscall5(ssize_t, preadv, int, fd, const struct iovec *, iov, int, iovcnt,
               unsigned long, pos_l, unsigned long, pos_h)
 safe_syscall5(ssize_t, pwritev, int, fd, const struct iovec *, iov, int, iovcnt,
               unsigned long, pos_l, unsigned long, pos_h)
+safe_syscall6(ssize_t, preadv2, int, fd, const struct iovec *, iov, int, iovcnt,
+              unsigned long, pos_l, unsigned long, pos_h, __kernel_rwf_t, flags)
+safe_syscall6(ssize_t, pwritev2, int, fd, const struct iovec *, iov,
+              int, iovcnt, unsigned long, pos_l, unsigned long, pos_h,
+              __kernel_rwf_t, flags)
 safe_syscall3(int, connect, int, fd, const struct sockaddr *, addr,
               socklen_t, addrlen)
 safe_syscall6(ssize_t, sendto, int, fd, const void *, buf, size_t, len,
@@ -11901,6 +11906,39 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 
                 target_to_host_low_high(arg4, arg5, &low, &high);
                 ret = get_errno(safe_pwritev(arg1, vec, arg3, low, high));
+                unlock_iovec(vec, arg2, arg3, 0);
+            } else {
+                ret = -host_to_target_errno(errno);
+           }
+        }
+        return ret;
+#endif
+#if defined(TARGET_NR_preadv2)
+    case TARGET_NR_preadv2:
+        {
+            struct iovec *vec = lock_iovec(VERIFY_WRITE, arg2, arg3, 0);
+            if (vec != NULL) {
+                unsigned long low, high;
+
+                target_to_host_low_high(arg4, arg5, &low, &high);
+                ret = get_errno(safe_preadv2(arg1, vec, arg3, low, high, arg6));
+                unlock_iovec(vec, arg2, arg3, 1);
+            } else {
+                ret = -host_to_target_errno(errno);
+           }
+        }
+        return ret;
+#endif
+#if defined(TARGET_NR_pwritev2)
+    case TARGET_NR_pwritev2:
+        {
+            struct iovec *vec = lock_iovec(VERIFY_READ, arg2, arg3, 1);
+            if (vec != NULL) {
+                unsigned long low, high;
+
+                target_to_host_low_high(arg4, arg5, &low, &high);
+                ret = get_errno(safe_pwritev2(arg1, vec, arg3, low, high,
+                                              arg6));
                 unlock_iovec(vec, arg2, arg3, 0);
             } else {
                 ret = -host_to_target_errno(errno);
