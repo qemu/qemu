@@ -46,6 +46,9 @@ static QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "dmode",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "max_xattr",
+            .type = QEMU_OPT_NUMBER,
         },
 
         THROTTLE_OPTS,
@@ -91,6 +94,9 @@ static QemuOptsList qemu_virtfs_opts = {
             .type = QEMU_OPT_NUMBER,
         }, {
             .name = "dmode",
+            .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "max_xattr",
             .type = QEMU_OPT_NUMBER,
         },
 
