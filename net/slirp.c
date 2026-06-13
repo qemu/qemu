@@ -54,7 +54,8 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
     const char *p, *p1;
     int len;
     p = *pp;
-    p1 = strchr(p, sep);
+    /* negative sep means to search -sep from the end of buf */
+    p1 = sep >= 0 ? strchr(p, sep) : strrchr(p, -sep);
     if (!p1)
         return -1;
     len = p1 - p;
@@ -848,7 +849,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 
 #if !defined(WIN32) && SLIRP_CHECK_VERSION(4, 7, 0)
     if (is_unix) {
-        if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
+        if (get_str_sep(buf, sizeof(buf), &p, 0 - '-') < 0) {
             fail_reason = "Missing - separator";
             goto fail_syntax;
         }

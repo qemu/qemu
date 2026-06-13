@@ -902,14 +902,13 @@ static void check_old_packet_regular(void *opaque)
 void colo_notify_compares_event(void *opaque, int event, Error **errp)
 {
     CompareState *s;
-    qemu_mutex_lock(&colo_compare_mutex);
+    QEMU_LOCK_GUARD(&colo_compare_mutex);
 
     if (!colo_compare_active) {
-        qemu_mutex_unlock(&colo_compare_mutex);
         return;
     }
 
-    qemu_mutex_lock(&event_mtx);
+    QEMU_LOCK_GUARD(&event_mtx);
     QTAILQ_FOREACH(s, &net_compares, next) {
         s->event = event;
         qemu_bh_schedule(s->event_bh);
@@ -919,9 +918,6 @@ void colo_notify_compares_event(void *opaque, int event, Error **errp)
     while (event_unhandled_count > 0) {
         qemu_cond_wait(&event_complete_cond, &event_mtx);
     }
-
-    qemu_mutex_unlock(&event_mtx);
-    qemu_mutex_unlock(&colo_compare_mutex);
 }
 
 static void colo_compare_timer_init(CompareState *s)
