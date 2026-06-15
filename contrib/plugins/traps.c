@@ -23,7 +23,7 @@ typedef struct {
 
 static struct qemu_plugin_scoreboard *traps;
 
-static void vcpu_discon(qemu_plugin_id_t id, unsigned int vcpu_index,
+static void vcpu_discon(unsigned int vcpu_index,
                         enum qemu_plugin_discon_type type, uint64_t from_pc,
                         uint64_t to_pc, void *userdata)
 {
