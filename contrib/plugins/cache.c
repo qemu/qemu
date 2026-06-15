@@ -462,7 +462,7 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
     g_mutex_unlock(&l2_ucache_locks[cache_idx]);
 }
 
-static void vcpu_tb_trans(struct qemu_plugin_tb *tb)
+static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
 {
     size_t n_insns;
     size_t i;
@@ -844,7 +844,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
     l1_icache_locks = g_new0(GMutex, cores);
     l2_ucache_locks = use_l2 ? g_new0(GMutex, cores) : NULL;
 
-    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
+    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
 
     miss_ht = g_hash_table_new_full(g_int64_hash, g_int64_equal, NULL, insn_free);

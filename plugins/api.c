@@ -195,9 +195,10 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
 }
 
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
-                                           qemu_plugin_vcpu_tb_trans_cb_t cb)
+                                           qemu_plugin_vcpu_tb_trans_cb_t cb,
+                                           void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_TB_TRANS, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_TB_TRANS, cb, userdata);
 }
 
 void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,

@@ -418,13 +418,16 @@ enum qemu_plugin_cond {
 /**
  * typedef qemu_plugin_vcpu_tb_trans_cb_t - translation callback
  * @tb: opaque handle used for querying and instrumenting a block.
+ * @userdata: any plugin data to pass to the @cb
  */
-typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(struct qemu_plugin_tb *tb);
+typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(struct qemu_plugin_tb *tb,
+                                               void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_tb_trans_cb() - register a translate cb
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: any plugin data to pass to the @cb
  *
  * The @cb function is called every time a translation occurs. The @cb
  * function is passed an opaque qemu_plugin_type which it can query
@@ -435,7 +438,8 @@ typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(struct qemu_plugin_tb *tb);
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
-                                           qemu_plugin_vcpu_tb_trans_cb_t cb);
+                                           qemu_plugin_vcpu_tb_trans_cb_t cb,
+                                           void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_tb_exec_cb() - register execution callback
