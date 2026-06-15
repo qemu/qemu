@@ -78,9 +78,10 @@ void qemu_plugin_register_vcpu_init_cb(qemu_plugin_id_t id,
 }
 
 void qemu_plugin_register_vcpu_exit_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb)
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXIT, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_EXIT, cb, userdata);
 }
 
 static bool tb_is_mem_only(void)
