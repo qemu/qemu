@@ -511,15 +511,6 @@ static void gic_icc_apr_el1_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     }
 }
 
-static uint64_t gic_icc_hapr_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    /*
-     * ICC_HAPR_EL1 reports the current running priority, which can be
-     * calculated from the APR register.
-     */
-    return gic_running_prio(env, gicv5_current_phys_domain(env));
-}
-
 /* ICC_CR0_EL1 is also banked */
 static uint64_t gic_icc_cr0_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -927,11 +918,6 @@ static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
         .readfn = gic_icc_pcr_el1_read,
         .writefn = gic_icc_pcr_el1_write,
         .resetfn = gic_icc_pcr_el1_reset,
-    },
-    {   .name = "ICC_HAPR_EL1", .state = ARM_CP_STATE_AA64,
-        .opc0 = 3, .opc1 = 1, .crn = 12, .crm = 0, .opc2 = 3,
-        .access = PL1_R, .type = ARM_CP_IO | ARM_CP_NO_RAW,
-        .readfn = gic_icc_hapr_el1_read, .raw_writefn = arm_cp_write_ignore,
     },
 };
 
