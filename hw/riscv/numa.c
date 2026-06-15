@@ -25,21 +25,21 @@
 #include "hw/riscv/numa.h"
 #include "system/device_tree.h"
 
-static bool numa_enabled(const MachineState *ms)
+bool riscv_numa_enabled(const MachineState *ms)
 {
     return (ms->numa_state && ms->numa_state->num_nodes) ? true : false;
 }
 
 int riscv_socket_count(const MachineState *ms)
 {
-    return (numa_enabled(ms)) ? ms->numa_state->num_nodes : 1;
+    return (riscv_numa_enabled(ms)) ? ms->numa_state->num_nodes : 1;
 }
 
 int riscv_socket_first_hartid(const MachineState *ms, int socket_id)
 {
     int i, first_hartid = ms->smp.cpus;
 
-    if (!numa_enabled(ms)) {
+    if (!riscv_numa_enabled(ms)) {
         return (!socket_id) ? 0 : -1;
     }
 
@@ -59,7 +59,7 @@ int riscv_socket_last_hartid(const MachineState *ms, int socket_id)
 {
     int i, last_hartid = -1;
 
-    if (!numa_enabled(ms)) {
+    if (!riscv_numa_enabled(ms)) {
         return (!socket_id) ? ms->smp.cpus - 1 : -1;
     }
 
@@ -79,7 +79,7 @@ int riscv_socket_hart_count(const MachineState *ms, int socket_id)
 {
     int first_hartid, last_hartid;
 
-    if (!numa_enabled(ms)) {
+    if (!riscv_numa_enabled(ms)) {
         return (!socket_id) ? ms->smp.cpus : -1;
     }
 
@@ -104,7 +104,7 @@ bool riscv_socket_check_hartids(const MachineState *ms, int socket_id)
 {
     int i, first_hartid, last_hartid;
 
-    if (!numa_enabled(ms)) {
+    if (!riscv_numa_enabled(ms)) {
         return (!socket_id) ? true : false;
     }
 
@@ -132,7 +132,7 @@ uint64_t riscv_socket_mem_offset(const MachineState *ms, int socket_id)
     int i;
     uint64_t mem_offset = 0;
 
-    if (!numa_enabled(ms)) {
+    if (!riscv_numa_enabled(ms)) {
         return 0;
     }
 
@@ -148,7 +148,7 @@ uint64_t riscv_socket_mem_offset(const MachineState *ms, int socket_id)
 
 uint64_t riscv_socket_mem_size(const MachineState *ms, int socket_id)
 {
-    if (!numa_enabled(ms)) {
+    if (!riscv_numa_enabled(ms)) {
         return (!socket_id) ? ms->ram_size : 0;
     }
 
@@ -159,7 +159,7 @@ uint64_t riscv_socket_mem_size(const MachineState *ms, int socket_id)
 void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
                                int socket_id)
 {
-    if (numa_enabled(ms)) {
+    if (riscv_numa_enabled(ms)) {
         qemu_fdt_setprop_cell(ms->fdt, node_name, "numa-node-id", socket_id);
     }
 }
@@ -170,7 +170,7 @@ void riscv_socket_fdt_write_distance_matrix(const MachineState *ms)
     g_autofree uint32_t *dist_matrix = NULL;
     uint32_t dist_matrix_size;
 
-    if (numa_enabled(ms) && ms->numa_state->have_numa_distance) {
+    if (riscv_numa_enabled(ms) && ms->numa_state->have_numa_distance) {
         dist_matrix_size = riscv_socket_count(ms) * riscv_socket_count(ms);
         dist_matrix_size *= (3 * sizeof(uint32_t));
         dist_matrix = g_malloc0(dist_matrix_size);
