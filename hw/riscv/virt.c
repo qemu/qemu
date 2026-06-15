@@ -302,42 +302,6 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
     }
 }
 
-static void create_fdt_socket_clint(RISCVVirtState *s,
-                                    int socket,
-                                    uint32_t *intc_phandles)
-{
-    int cpu;
-    g_autofree char *clint_name = NULL;
-    g_autofree uint32_t *clint_cells = NULL;
-    hwaddr clint_addr;
-    MachineState *ms = MACHINE(s);
-    static const char * const clint_compat[2] = {
-        "sifive,clint0", "riscv,clint0"
-    };
-
-    clint_cells = g_new0(uint32_t, s->soc[socket].num_harts * 4);
-
-    for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
-        clint_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
-        clint_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_SOFT);
-        clint_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandles[cpu]);
-        clint_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_M_TIMER);
-    }
-
-    clint_addr = s->memmap[VIRT_CLINT].base +
-                 s->memmap[VIRT_CLINT].size * socket;
-    clint_name = g_strdup_printf("/soc/clint@%"HWADDR_PRIx, clint_addr);
-    qemu_fdt_add_subnode(ms->fdt, clint_name);
-    qemu_fdt_setprop_string_array(ms->fdt, clint_name, "compatible",
-                                  (char **)&clint_compat,
-                                  ARRAY_SIZE(clint_compat));
-    qemu_fdt_setprop_sized_cells(ms->fdt, clint_name, "reg",
-        2, clint_addr, 2, s->memmap[VIRT_CLINT].size);
-    qemu_fdt_setprop(ms->fdt, clint_name, "interrupts-extended",
-        clint_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 4);
-    riscv_socket_fdt_write_id(ms, clint_name, socket);
-}
-
 static void create_fdt_socket_aclint(RISCVVirtState *s,
                                      int socket,
                                      uint32_t *intc_phandles)
@@ -728,6 +692,7 @@ static void create_fdt_sockets(RISCVVirtState *s,
     uint32_t xplic_phandles[MAX_NODES];
     g_autofree uint32_t *intc_phandles = NULL;
     int socket_count = riscv_socket_count(ms);
+    bool numa_enabled = riscv_numa_enabled(ms);
 
     qemu_fdt_add_subnode(ms->fdt, "/cpus");
     qemu_fdt_setprop_cell(ms->fdt, "/cpus", "timebase-frequency",
@@ -762,8 +727,13 @@ static void create_fdt_sockets(RISCVVirtState *s,
             create_fdt_socket_aclint(s, socket,
                                      &intc_phandles[phandle_pos]);
         } else if (tcg_enabled()) {
-            create_fdt_socket_clint(s, socket,
-                                    &intc_phandles[phandle_pos]);
+            hwaddr clintaddr = s->memmap[VIRT_CLINT].base +
+                               s->memmap[VIRT_CLINT].size * socket;
+
+            create_fdt_socket_clint(ms->fdt, clintaddr,
+                                    s->memmap[VIRT_CLINT].size,
+                                    socket, &intc_phandles[phandle_pos],
+                                    s->soc[socket].num_harts, numa_enabled);
         }
     }
 

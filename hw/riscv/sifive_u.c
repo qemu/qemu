@@ -105,9 +105,6 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     uint32_t plic_phandle, prci_phandle, gpio_phandle, phandle = 1;
     uint32_t hfclk_phandle, rtcclk_phandle, phy_phandle;
     static const char * const ethclk_names[2] = { "pclk", "hclk" };
-    static const char * const clint_compat[2] = {
-        "sifive,clint0", "riscv,clint0"
-    };
     static const char * const plic_compat[2] = {
         "sifive,plic-1.0.0", "riscv,plic0"
     };
@@ -180,25 +177,9 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
         g_free(nodename);
     }
 
-    cells =  g_new0(uint32_t, ms->smp.cpus * 4);
-    for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
-        cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
-        cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_SOFT);
-        cells[cpu * 4 + 2] = cpu_to_be32(intc_phandles[cpu]);
-        cells[cpu * 4 + 3] = cpu_to_be32(IRQ_M_TIMER);
-    }
-    nodename = g_strdup_printf("/soc/clint@%lx",
-        (long)memmap[SIFIVE_U_DEV_CLINT].base);
-    qemu_fdt_add_subnode(fdt, nodename);
-    qemu_fdt_setprop_string_array(fdt, nodename, "compatible",
-        (char **)&clint_compat, ARRAY_SIZE(clint_compat));
-    qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_DEV_CLINT].base,
-        0x0, memmap[SIFIVE_U_DEV_CLINT].size);
-    qemu_fdt_setprop(fdt, nodename, "interrupts-extended",
-        cells, ms->smp.cpus * sizeof(uint32_t) * 4);
-    g_free(cells);
-    g_free(nodename);
+    create_fdt_socket_clint(fdt, memmap[SIFIVE_U_DEV_CLINT].base,
+                            memmap[SIFIVE_U_DEV_CLINT].size, 0,
+                            intc_phandles, ms->smp.cpus, false);
 
     nodename = g_strdup_printf("/soc/otp@%lx",
         (long)memmap[SIFIVE_U_DEV_OTP].base);

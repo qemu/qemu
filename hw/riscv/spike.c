@@ -58,13 +58,10 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     unsigned long clint_addr;
     int cpu, socket;
     MachineState *ms = MACHINE(s);
-    uint32_t *clint_cells;
     uint32_t cpu_phandle, phandle = 1;
-    char *clint_name, *clust_name;
+    char *clust_name;
     char *core_name, *cpu_name, *intc_name;
-    static const char * const clint_compat[2] = {
-        "sifive,clint0", "riscv,clint0"
-    };
+    bool numa_enabled = riscv_numa_enabled(ms);
 
     fdt = ms->fdt = create_board_device_tree("ucbbar,spike-bare,qemu",
         "ucbbar,spike-bare-dev", &fdt_size);
@@ -136,29 +133,11 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
         create_fdt_socket_memory(fdt, memaddr, memsize, socket,
                                  riscv_numa_enabled(ms));
 
-        clint_cells =  g_new0(uint32_t, s->soc[socket].num_harts * 4);
-
-        for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
-            clint_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
-            clint_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_SOFT);
-            clint_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandles[cpu]);
-            clint_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_M_TIMER);
-        }
-
         clint_addr = memmap[SPIKE_CLINT].base +
             (memmap[SPIKE_CLINT].size * socket);
-        clint_name = g_strdup_printf("/soc/clint@%lx", clint_addr);
-        qemu_fdt_add_subnode(fdt, clint_name);
-        qemu_fdt_setprop_string_array(fdt, clint_name, "compatible",
-            (char **)&clint_compat, ARRAY_SIZE(clint_compat));
-        qemu_fdt_setprop_cells(fdt, clint_name, "reg",
-            0x0, clint_addr, 0x0, memmap[SPIKE_CLINT].size);
-        qemu_fdt_setprop(fdt, clint_name, "interrupts-extended",
-            clint_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 4);
-        riscv_socket_fdt_write_id(ms, clint_name, socket);
-
-        g_free(clint_name);
-        g_free(clint_cells);
+        create_fdt_socket_clint(fdt, clint_addr, memmap[SPIKE_CLINT].size,
+                                socket, intc_phandles,
+                                s->soc[socket].num_harts, numa_enabled);
         g_free(clust_name);
     }
 
