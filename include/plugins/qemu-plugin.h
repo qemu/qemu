@@ -879,14 +879,12 @@ typedef bool
 /**
  * typedef qemu_plugin_vcpu_syscall_ret_cb_t - vCPU syscall return callback
  * function type
- * @id: plugin id
  * @vcpu_index: the executing vCPU
  * @num: the syscall number
  * @ret: the syscall return value
  */
 typedef void
-(*qemu_plugin_vcpu_syscall_ret_cb_t)(qemu_plugin_id_t id,
-                                     unsigned int vcpu_index,
+(*qemu_plugin_vcpu_syscall_ret_cb_t)(unsigned int vcpu_index,
                                      int64_t num, int64_t ret);
 
 /**

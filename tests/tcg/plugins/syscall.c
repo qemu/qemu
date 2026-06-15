@@ -151,7 +151,7 @@ static void vcpu_syscall(unsigned int vcpu_index,
     }
 }
 
-static void vcpu_syscall_ret(qemu_plugin_id_t id, unsigned int vcpu_idx,
+static void vcpu_syscall_ret(unsigned int vcpu_idx,
                              int64_t num, int64_t ret)
 {
     if (statistics) {
