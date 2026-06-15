@@ -152,7 +152,8 @@ static void vcpu_syscall(unsigned int vcpu_index,
 }
 
 static void vcpu_syscall_ret(unsigned int vcpu_idx,
-                             int64_t num, int64_t ret)
+                             int64_t num, int64_t ret,
+                             void *userdata)
 {
     if (statistics) {
         SyscallStats *entry;
@@ -273,7 +274,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     }
 
     qemu_plugin_register_vcpu_syscall_cb(id, vcpu_syscall, NULL);
-    qemu_plugin_register_vcpu_syscall_ret_cb(id, vcpu_syscall_ret);
+    qemu_plugin_register_vcpu_syscall_ret_cb(id, vcpu_syscall_ret, NULL);
     qemu_plugin_register_vcpu_syscall_filter_cb(id, vcpu_syscall_filter, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
     return 0;

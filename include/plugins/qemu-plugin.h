@@ -882,10 +882,12 @@ typedef bool
  * @vcpu_index: the executing vCPU
  * @num: the syscall number
  * @ret: the syscall return value
+ * @userdata: user data for callback
  */
 typedef void
 (*qemu_plugin_vcpu_syscall_ret_cb_t)(unsigned int vcpu_index,
-                                     int64_t num, int64_t ret);
+                                     int64_t num, int64_t ret,
+                                     void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_syscall_cb() - register a syscall entry callback
@@ -925,6 +927,7 @@ qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
  * callback
  * @id: plugin id
  * @cb: callback of type qemu_plugin_vcpu_syscall_ret_cb_t
+ * @userdata: user data for callback
  *
  * This registers a callback for every syscall executed by the guest. The @cb
  * function is executed upon return from the host syscall before execution is
@@ -933,7 +936,8 @@ qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
 QEMU_PLUGIN_API
 void
 qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
-                                         qemu_plugin_vcpu_syscall_ret_cb_t cb);
+                                         qemu_plugin_vcpu_syscall_ret_cb_t cb,
+                                         void *userdata);
 
 /**
  * qemu_plugin_insn_disas() - return disassembly string for instruction
