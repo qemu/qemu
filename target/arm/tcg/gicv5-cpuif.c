@@ -4,6 +4,11 @@
  * Copyright (c) 2025 Linaro Limited
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * The cpu interface is defined in IHI 111701
+ * (ARM Generic Interrupt Controller Architecture Specification,
+ * GIC architecture version 5):
+ * https://developer.arm.com/documentation/111701/latest
  */
 
 #include "qemu/osdep.h"
