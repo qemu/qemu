@@ -59,7 +59,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     int cpu, socket;
     MachineState *ms = MACHINE(s);
     uint32_t *clint_cells;
-    uint32_t cpu_phandle, intc_phandle, phandle = 1;
+    uint32_t cpu_phandle, phandle = 1;
     char *clint_name, *clust_name;
     char *core_name, *cpu_name, *intc_name;
     static const char * const clint_compat[2] = {
@@ -84,14 +84,14 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     qemu_fdt_add_subnode(fdt, "/cpus/cpu-map");
 
     for (socket = (riscv_socket_count(ms) - 1); socket >= 0; socket--) {
+        g_autofree uint32_t *intc_phandles = g_new0(uint32_t,
+                                                    s->soc[socket].num_harts);
         hwaddr memaddr = memmap[SPIKE_DRAM].base +
                          riscv_socket_mem_offset(ms, socket);
         uint64_t memsize =  riscv_socket_mem_size(ms, socket);
 
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
         qemu_fdt_add_subnode(fdt, clust_name);
-
-        clint_cells =  g_new0(uint32_t, s->soc[socket].num_harts * 4);
 
         for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
             cpu_phandle = phandle++;
@@ -113,19 +113,16 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
             riscv_socket_fdt_write_id(ms, cpu_name, socket);
             qemu_fdt_setprop_cell(fdt, cpu_name, "phandle", cpu_phandle);
 
+            intc_phandles[cpu] = phandle++;
+
             intc_name = g_strdup_printf("%s/interrupt-controller", cpu_name);
             qemu_fdt_add_subnode(fdt, intc_name);
-            intc_phandle = phandle++;
-            qemu_fdt_setprop_cell(fdt, intc_name, "phandle", intc_phandle);
+            qemu_fdt_setprop_cell(fdt, intc_name, "phandle",
+                                  intc_phandles[cpu]);
             qemu_fdt_setprop_string(fdt, intc_name, "compatible",
                 "riscv,cpu-intc");
             qemu_fdt_setprop(fdt, intc_name, "interrupt-controller", NULL, 0);
             qemu_fdt_setprop_cell(fdt, intc_name, "#interrupt-cells", 1);
-
-            clint_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandle);
-            clint_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_SOFT);
-            clint_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandle);
-            clint_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_M_TIMER);
 
             core_name = g_strdup_printf("%s/core%d", clust_name, cpu);
             qemu_fdt_add_subnode(fdt, core_name);
@@ -138,6 +135,15 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
 
         create_fdt_socket_memory(fdt, memaddr, memsize, socket,
                                  riscv_numa_enabled(ms));
+
+        clint_cells =  g_new0(uint32_t, s->soc[socket].num_harts * 4);
+
+        for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
+            clint_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
+            clint_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_SOFT);
+            clint_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandles[cpu]);
+            clint_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_M_TIMER);
+        }
 
         clint_addr = memmap[SPIKE_CLINT].base +
             (memmap[SPIKE_CLINT].size * socket);
