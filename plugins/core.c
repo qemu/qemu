@@ -96,8 +96,7 @@ static void plugin_vcpu_cb__simple(CPUState *cpu, enum qemu_plugin_event ev)
         /* iterate safely; plugins might uninstall themselves at any time */
         QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
             qemu_plugin_vcpu_simple_cb_t func = cb->f.vcpu_simple;
-
-            func(cb->ctx->id, cpu->cpu_index);
+            func(cpu->cpu_index);
         }
         break;
     default:
@@ -306,8 +305,7 @@ static void plugin_vcpu_for_each(gpointer k, gpointer v, gpointer udata)
 {
     struct plugin_for_each_args *args = udata;
     int cpu_index = *(int *)k;
-
-    args->cb(args->ctx->id, cpu_index);
+    args->cb(cpu_index);
 }
 
 void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,

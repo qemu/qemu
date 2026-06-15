@@ -89,7 +89,7 @@ static void update_system_time(vCPUTime *vcpu)
     g_mutex_unlock(&global_state_lock);
 }
 
-static void vcpu_init(qemu_plugin_id_t id, unsigned int cpu_index)
+static void vcpu_init(unsigned int cpu_index)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     vcpu->total_insn = 0;
@@ -97,7 +97,7 @@ static void vcpu_init(qemu_plugin_id_t id, unsigned int cpu_index)
     vcpu->last_quantum_time = now_ns();
 }
 
-static void vcpu_exit(qemu_plugin_id_t id, unsigned int cpu_index)
+static void vcpu_exit(unsigned int cpu_index)
 {
     vCPUTime *vcpu = qemu_plugin_scoreboard_find(vcpus, cpu_index);
     update_system_time(vcpu);

@@ -149,11 +149,9 @@ typedef void (*qemu_plugin_udata_cb_t)(void *userdata);
 
 /**
  * typedef qemu_plugin_vcpu_simple_cb_t - vcpu callback
- * @id: the unique qemu_plugin_id_t
  * @vcpu_index: the current vcpu context
  */
-typedef void (*qemu_plugin_vcpu_simple_cb_t)(qemu_plugin_id_t id,
-                                             unsigned int vcpu_index);
+typedef void (*qemu_plugin_vcpu_simple_cb_t)(unsigned int vcpu_index);
 
 /**
  * typedef qemu_plugin_vcpu_udata_cb_t - vcpu callback
