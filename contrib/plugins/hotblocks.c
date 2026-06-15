@@ -70,7 +70,7 @@ static void exec_count_free(gpointer key, gpointer value, gpointer user_data)
     qemu_plugin_scoreboard_free(cnt->exec_count);
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     g_autoptr(GString) report = g_string_new("collected ");
     GList *counts, *sorted_counts, *it;

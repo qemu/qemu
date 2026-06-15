@@ -121,7 +121,7 @@ static void stats_mem(void)
     g_assert(inl_per_vcpu == expected);
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *udata)
+static void plugin_exit(void *udata)
 {
     const unsigned int num_cpus = qemu_plugin_num_vcpus();
     g_autoptr(GString) stats = g_string_new("");

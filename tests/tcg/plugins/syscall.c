@@ -207,7 +207,7 @@ static gint comp_func(gconstpointer ea, gconstpointer eb, gpointer d)
 }
 
 /* ************************************************************************* */
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     if (!statistics) {
         return;

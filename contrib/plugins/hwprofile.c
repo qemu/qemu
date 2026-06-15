@@ -106,7 +106,7 @@ static void fmt_dev_record(GString *s, DeviceCounts *rec)
     g_string_append_c(s, '\n');
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     g_autoptr(GString) report = g_string_new("");
     GList *counts;

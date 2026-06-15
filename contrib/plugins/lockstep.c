@@ -77,7 +77,7 @@ static char *path_to_unlink;
 
 static bool verbose;
 
-static void plugin_cleanup(qemu_plugin_id_t id, void *userdata)
+static void plugin_cleanup(void *userdata)
 {
     /* Free our block data */
     g_slist_free_full(blocks, &g_free);
@@ -90,7 +90,7 @@ static void plugin_cleanup(qemu_plugin_id_t id, void *userdata)
     }
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     g_autoptr(GString) out = g_string_new("No divergence :-)\n");
     g_string_append_printf(out, "Executed %ld/%d blocks\n",
@@ -98,7 +98,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_string_append_printf(out, "Executed ~%ld instructions\n", insn_count);
     qemu_plugin_outs(out->str);
 
-    plugin_cleanup(id, NULL);
+    plugin_cleanup(NULL);
 }
 
 /*
@@ -393,6 +393,6 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     our_id = id;
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
-    qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
+    qemu_plugin_register_atexit_cb(id, plugin_exit, (void *)id);
     return 0;
 }

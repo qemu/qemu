@@ -694,7 +694,7 @@ finish:
     g_list_free(miss_insns);
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     log_stats();
     log_top_insns();

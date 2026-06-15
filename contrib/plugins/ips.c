@@ -124,7 +124,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         quantum_insn, max_insn_per_quantum, NULL);
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *udata)
+static void plugin_exit(void *udata)
 {
     qemu_plugin_scoreboard_free(vcpus);
 }

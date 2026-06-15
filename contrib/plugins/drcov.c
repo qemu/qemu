@@ -86,7 +86,7 @@ static void count_block(gpointer data, gpointer user_data)
     }
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     unsigned long count = 0;
     g_mutex_lock(&lock);

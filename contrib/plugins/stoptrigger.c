@@ -93,7 +93,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     }
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     g_hash_table_destroy(addrs_ht);
     qemu_plugin_scoreboard_free(insn_count_sb);

@@ -928,7 +928,7 @@ static void vcpu_end(unsigned int vcpu_index)
     memset(cpu, 0, sizeof(Cpu));
 }
 
-static void at_exit(qemu_plugin_id_t id, void *data)
+static void at_exit(void *data)
 {
     bool system_emulation = (bool) data;
     g_autoptr(GArray) traces = g_array_new(0, 0, sizeof(Trace *));

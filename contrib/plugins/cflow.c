@@ -134,7 +134,7 @@ static gboolean filter_non_branches(gpointer key, gpointer value,
     return node->dest_count == 0;
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     g_autoptr(GString) result = g_string_new("collected ");
     GList *data;

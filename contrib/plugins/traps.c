@@ -44,7 +44,7 @@ static void vcpu_discon(qemu_plugin_id_t id, unsigned int vcpu_index,
     }
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     g_autoptr(GString) report;
     report = g_string_new("VCPU, interrupts, exceptions, hostcalls\n");
