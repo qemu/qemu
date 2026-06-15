@@ -297,18 +297,20 @@ void qemu_plugin_vcpu_exit_hook(CPUState *cpu)
 
 struct plugin_for_each_args {
     struct qemu_plugin_ctx *ctx;
-    qemu_plugin_vcpu_simple_cb_t cb;
+    qemu_plugin_vcpu_udata_cb_t cb;
+    void *userdata;
 };
 
 static void plugin_vcpu_for_each(gpointer k, gpointer v, gpointer udata)
 {
     struct plugin_for_each_args *args = udata;
     int cpu_index = *(int *)k;
-    args->cb(cpu_index);
+    args->cb(cpu_index, args->userdata);
 }
 
 void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
-                               qemu_plugin_vcpu_simple_cb_t cb)
+                               qemu_plugin_vcpu_udata_cb_t cb,
+                               void *userdata)
 {
     struct plugin_for_each_args args;
 
@@ -318,6 +320,7 @@ void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
     qemu_rec_mutex_lock(&plugin.lock);
     args.ctx = plugin_id_to_ctx_locked(id);
     args.cb = cb;
+    args.userdata = userdata;
     g_hash_table_foreach(plugin.cpu_ht, plugin_vcpu_for_each, &args);
     qemu_rec_mutex_unlock(&plugin.lock);
 }
