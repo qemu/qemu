@@ -77,7 +77,7 @@ static char *path_to_unlink;
 
 static bool verbose;
 
-static void plugin_cleanup(qemu_plugin_id_t id)
+static void plugin_cleanup(qemu_plugin_id_t id, void *userdata)
 {
     /* Free our block data */
     g_slist_free_full(blocks, &g_free);
@@ -98,7 +98,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_string_append_printf(out, "Executed ~%ld instructions\n", insn_count);
     qemu_plugin_outs(out->str);
 
-    plugin_cleanup(id);
+    plugin_cleanup(id, NULL);
 }
 
 /*
@@ -189,7 +189,7 @@ static void report_divergance(ExecState *us, ExecState *them)
         }
         qemu_plugin_outs(out->str);
         qemu_plugin_outs("giving up\n");
-        qemu_plugin_uninstall(our_id, plugin_cleanup);
+        qemu_plugin_uninstall(our_id, plugin_cleanup, NULL);
     }
 }
 
@@ -212,7 +212,7 @@ static void vcpu_tb_exec(unsigned int cpu_index, void *udata)
         qemu_plugin_outs(bytes < 0 ?
                          "problem writing to socket" :
                          "wrote less than expected to socket");
-        qemu_plugin_uninstall(our_id, plugin_cleanup);
+        qemu_plugin_uninstall(our_id, plugin_cleanup, NULL);
         return;
     }
 
@@ -225,7 +225,7 @@ static void vcpu_tb_exec(unsigned int cpu_index, void *udata)
         qemu_plugin_outs(bytes < 0 ?
                          "problem reading from socket" :
                          "read less than expected");
-        qemu_plugin_uninstall(our_id, plugin_cleanup);
+        qemu_plugin_uninstall(our_id, plugin_cleanup, NULL);
         return;
     }
 

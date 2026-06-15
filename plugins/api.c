@@ -51,14 +51,16 @@
 
 /* Uninstall and Reset handlers */
 
-void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
+void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb,
+                           void *userdata)
 {
-    plugin_reset_uninstall(id, cb, false);
+    plugin_reset_uninstall(id, cb, userdata, false);
 }
 
-void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
+void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb,
+                       void *userdata)
 {
-    plugin_reset_uninstall(id, cb, true);
+    plugin_reset_uninstall(id, cb, userdata, true);
 }
 
 /*
