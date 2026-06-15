@@ -56,11 +56,9 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     void *fdt;
     int fdt_size;
     unsigned long clint_addr;
-    int cpu, socket;
+    int socket;
     MachineState *ms = MACHINE(s);
-    uint32_t cpu_phandle, phandle = 1;
-    char *clust_name;
-    char *core_name, *cpu_name, *intc_name;
+    uint32_t phandle = 1;
     bool numa_enabled = riscv_numa_enabled(ms);
 
     fdt = ms->fdt = create_board_device_tree("ucbbar,spike-bare,qemu",
@@ -82,48 +80,11 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
                          riscv_socket_mem_offset(ms, socket);
         uint64_t memsize =  riscv_socket_mem_size(ms, socket);
 
-        clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
-        qemu_fdt_add_subnode(fdt, clust_name);
-
-        for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
-            cpu_phandle = phandle++;
-
-            cpu_name = g_strdup_printf("/cpus/cpu@%d",
-                s->soc[socket].hartid_base + cpu);
-            qemu_fdt_add_subnode(fdt, cpu_name);
-            if (is_32_bit) {
-                qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv32");
-            } else {
-                qemu_fdt_setprop_string(fdt, cpu_name, "mmu-type", "riscv,sv48");
-            }
-            riscv_isa_write_fdt(&s->soc[socket].harts[cpu], fdt, cpu_name);
-            qemu_fdt_setprop_string(fdt, cpu_name, "compatible", "riscv");
-            qemu_fdt_setprop_string(fdt, cpu_name, "status", "okay");
-            qemu_fdt_setprop_cell(fdt, cpu_name, "reg",
-                s->soc[socket].hartid_base + cpu);
-            qemu_fdt_setprop_string(fdt, cpu_name, "device_type", "cpu");
-            riscv_socket_fdt_write_id(ms, cpu_name, socket);
-            qemu_fdt_setprop_cell(fdt, cpu_name, "phandle", cpu_phandle);
-
-            intc_phandles[cpu] = phandle++;
-
-            intc_name = g_strdup_printf("%s/interrupt-controller", cpu_name);
-            qemu_fdt_add_subnode(fdt, intc_name);
-            qemu_fdt_setprop_cell(fdt, intc_name, "phandle",
-                                  intc_phandles[cpu]);
-            qemu_fdt_setprop_string(fdt, intc_name, "compatible",
-                "riscv,cpu-intc");
-            qemu_fdt_setprop(fdt, intc_name, "interrupt-controller", NULL, 0);
-            qemu_fdt_setprop_cell(fdt, intc_name, "#interrupt-cells", 1);
-
-            core_name = g_strdup_printf("%s/core%d", clust_name, cpu);
-            qemu_fdt_add_subnode(fdt, core_name);
-            qemu_fdt_setprop_cell(fdt, core_name, "cpu", cpu_phandle);
-
-            g_free(core_name);
-            g_free(intc_name);
-            g_free(cpu_name);
-        }
+        create_fdt_socket_cpus(fdt, (&s->soc[socket])->harts, socket,
+                               s->soc[socket].num_harts,
+                               s->soc[socket].hartid_base,
+                               &phandle, intc_phandles, numa_enabled,
+                               is_32_bit);
 
         create_fdt_socket_memory(fdt, memaddr, memsize, socket,
                                  riscv_numa_enabled(ms));
@@ -133,7 +94,6 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
         create_fdt_socket_clint(fdt, clint_addr, memmap[SPIKE_CLINT].size,
                                 socket, intc_phandles,
                                 s->soc[socket].num_harts, numa_enabled);
-        g_free(clust_name);
     }
 
     riscv_socket_fdt_write_distance_matrix(ms);
