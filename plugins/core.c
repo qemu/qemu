@@ -137,35 +137,13 @@ static void plugin_vcpu_cb__discon(CPUState *cpu,
  * have type information
  */
 QEMU_DISABLE_CFI
-static void plugin_cb__simple(enum qemu_plugin_event ev)
-{
-    struct qemu_plugin_cb *cb, *next;
-
-    switch (ev) {
-    case QEMU_PLUGIN_EV_FLUSH:
-        QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
-            qemu_plugin_simple_cb_t func = cb->f.simple;
-
-            func(cb->ctx->id);
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-/*
- * Disable CFI checks.
- * The callback function has been loaded from an external library so we do not
- * have type information
- */
-QEMU_DISABLE_CFI
 static void plugin_cb__udata(enum qemu_plugin_event ev)
 {
     struct qemu_plugin_cb *cb, *next;
 
     switch (ev) {
     case QEMU_PLUGIN_EV_ATEXIT:
+    case QEMU_PLUGIN_EV_FLUSH:
         QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
             qemu_plugin_udata_cb_t func = cb->f.udata;
 
@@ -690,9 +668,10 @@ void qemu_plugin_register_vcpu_discon_cb(qemu_plugin_id_t id,
 }
 
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
-                                   qemu_plugin_simple_cb_t cb)
+                                   qemu_plugin_udata_cb_t cb,
+                                   void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_FLUSH, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_FLUSH, cb, userdata);
 }
 
 static bool free_dyn_cb_arr(void *p, uint32_t h, void *userp)
@@ -706,7 +685,7 @@ void qemu_plugin_flush_cb(void)
     qht_iter_remove(&plugin.dyn_cb_arr_ht, free_dyn_cb_arr, NULL);
     qht_reset(&plugin.dyn_cb_arr_ht);
 
-    plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
+    plugin_cb__udata(QEMU_PLUGIN_EV_FLUSH);
 }
 
 void exec_inline_op(enum plugin_dyn_cb_type type,

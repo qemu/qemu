@@ -973,6 +973,7 @@ void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
  * qemu_plugin_register_flush_cb() - register code cache flush callback
  * @id: plugin ID
  * @cb: callback
+ * @userdata: user data for callback
  *
  * The @cb function is called every time the code cache is flushed.
  * The callback can be used to free resources associated with existing
@@ -981,7 +982,8 @@ void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
-                                   qemu_plugin_simple_cb_t cb);
+                                   qemu_plugin_udata_cb_t cb,
+                                   void *userdata);
 
 /**
  * qemu_plugin_register_atexit_cb() - register exit callback
