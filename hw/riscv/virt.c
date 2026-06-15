@@ -694,14 +694,9 @@ static void create_fdt_sockets(RISCVVirtState *s,
     int socket_count = riscv_socket_count(ms);
     bool numa_enabled = riscv_numa_enabled(ms);
 
-    qemu_fdt_add_subnode(ms->fdt, "/cpus");
-    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "timebase-frequency",
-                          kvm_enabled() ?
-                          kvm_riscv_get_timebase_frequency(&s->soc->harts[0]) :
-                          RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ);
-    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#size-cells", 0x0);
-    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#address-cells", 0x1);
-    qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
+    fdt_create_cpu_socket_subnode(ms->fdt,
+        kvm_enabled() ? kvm_riscv_get_timebase_frequency(&s->soc->harts[0]) :
+                        RISCV_ACLINT_DEFAULT_TIMEBASE_FREQ);
 
     intc_phandles = g_new0(uint32_t, ms->smp.cpus);
 

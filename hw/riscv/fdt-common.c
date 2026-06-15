@@ -83,3 +83,13 @@ void create_fdt_socket_clint(void *fdt, hwaddr addr, uint64_t size,
         qemu_fdt_setprop_cell(fdt, clint_name, "numa-node-id", socket_id);
     }
 }
+
+void fdt_create_cpu_socket_subnode(void *fdt, uint64_t timebase_frequency)
+{
+    qemu_fdt_add_subnode(fdt, "/cpus");
+    qemu_fdt_setprop_cell(fdt, "/cpus", "timebase-frequency",
+                          timebase_frequency);
+    qemu_fdt_setprop_cell(fdt, "/cpus", "#size-cells", 0x0);
+    qemu_fdt_setprop_cell(fdt, "/cpus", "#address-cells", 0x1);
+    qemu_fdt_add_subnode(fdt, "/cpus/cpu-map");
+}

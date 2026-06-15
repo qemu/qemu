@@ -18,4 +18,5 @@ void create_fdt_clint(void *fdt, hwaddr addr, uint64_t size,
 void create_fdt_socket_clint(void *fdt, hwaddr addr, uint64_t size,
                              int socket_id, uint32_t *intc_phandles,
                              int num_harts, bool numa_enabled);
+void fdt_create_cpu_socket_subnode(void *fdt, uint64_t timebase_frequency);
 #endif
