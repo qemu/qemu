@@ -363,14 +363,98 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
-static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
+class Plugin
 {
-}
+    public:
+    void tb_exec(std::atomic<uint64_t> &count)
+    {
+        count++;
+    }
+
+    void tb_trans(struct qemu_plugin_tb *tb)
+    {
+        auto vaddr = qemu_plugin_tb_vaddr(tb);
+
+        TbData *data = [&]() {
+            std::lock_guard l(tb_trans_lock);
+            auto [it, is_new] = tb_data.try_emplace(vaddr);
+            TbData &in = it->second;
+            if (is_new) {
+                in.first = 0;
+                in.second = this;
+            }
+            return &in;
+        } ();
+
+        qemu_plugin_register_vcpu_tb_exec_cb(
+            tb,
+            [](unsigned int cpu_index, void *udata) {
+                auto &[counter, p] = *static_cast<TbData*>(udata);
+                p->tb_exec(counter);
+            },
+            QEMU_PLUGIN_CB_NO_REGS,
+            data);
+    }
+
+    void at_exit()
+    {
+        std::vector<std::pair<Vaddr, uint64_t>> v;
+        for (auto &[vaddr, data] : tb_data) {
+            uint64_t count = data.first;
+            v.push_back({vaddr, count});
+        }
+        std::sort(v.begin(), v.end(),
+                  [](const auto &a, const auto &b) {
+                    return a.second > b.second;
+                  });
+        std::stringstream ss;
+        ss << "Top 10 executed TB are:\n";
+        size_t idx = 0;
+        for (auto &tb : v) {
+            if (idx >= 10) {
+                break;
+            }
+            ss << std::hex << "0x" << tb.first << std::dec << ": "
+               << tb.second << '\n';
+            ++idx;
+        }
+        qemu_plugin_outs(ss.str().c_str());
+    }
+
+    private:
+    using Vaddr = uint64_t;
+    using Counter = std::atomic<uint64_t>;
+    using TbData = std::pair<Counter, Plugin*>;
+    std::unordered_map<Vaddr, TbData> tb_data;
+    std::mutex tb_trans_lock;
+};
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info,
                                            int argc, char **argv)
 {
-    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
+    Plugin *plugin = new Plugin;
+
+    /*
+     * We can register a cb with any function, which may be a free
+     * function, a static class function, or a captureless lambda.
+     */
+    qemu_plugin_register_vcpu_tb_trans_cb(
+        id,
+        [](struct qemu_plugin_tb *tb, void *userdata) {
+            Plugin *p = static_cast<Plugin*>(userdata);
+            p->tb_trans(tb);
+        },
+        plugin);
+
+    qemu_plugin_register_atexit_cb(
+        id,
+        [](void *userdata) {
+            Plugin *p = static_cast<Plugin*>(userdata);
+            p->at_exit();
+            delete p;
+        },
+        plugin);
+
     return 0;
 }
