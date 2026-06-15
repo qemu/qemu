@@ -80,11 +80,15 @@ typedef uint64_t qemu_plugin_id_t;
  * - added disconinuity callback API (for interrupts, exceptions, host calls)
  * - added syscall filter callback API, which allows skipping syscalls and
  *   setting custom syscall return values
+ *
+ * version 7:
+ * - add userdata to all plugin callbacks, allowing maintenance of state
+ *   externally, and easing interfacing with other languages.
  */
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 6
+#define QEMU_PLUGIN_VERSION 7
 
 /**
  * struct qemu_info_t - system information for plugins
