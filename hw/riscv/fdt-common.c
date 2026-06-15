@@ -189,3 +189,14 @@ void create_fdt_socket_cpus(void *fdt, RISCVCPU *socket_harts,
                                        is_32_bit);
     }
 }
+
+void
+create_fdt_socket_cpu_sifive(void *fdt, char *clust_name,
+                             int cpu_id, int socket_id,
+                             int socket_hartid_base, uint32_t *phandle,
+                             uint32_t *intc_phandles)
+{
+    create_fdt_socket_cpu_internal(fdt, clust_name, NULL, cpu_id,
+                                   socket_id, socket_hartid_base,
+                                   phandle, intc_phandles, false, false);
+}
