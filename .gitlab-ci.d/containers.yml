@@ -13,10 +13,10 @@ amd64-debian-container:
   variables:
     NAME: debian
 
-amd64-ubuntu2204-container:
+amd64-ubuntu2404-container:
   extends: .container_job_template
   variables:
-    NAME: ubuntu2204
+    NAME: ubuntu2404
 
 amd64-opensuse-leap-container:
   extends: .container_job_template
@@ -58,7 +58,7 @@ weekly-container-builds:
     # containers
     - amd64-alpine-container
     - amd64-debian-container
-    - amd64-ubuntu2204-container
+    - amd64-ubuntu2404-container
     - amd64-opensuse-leap-container
     - python-container
     - amd64-fedora-rust-nightly-container

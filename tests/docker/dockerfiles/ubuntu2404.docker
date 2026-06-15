@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all ubuntu-2204 qemu
+#  $ lcitool dockerfile --layers all ubuntu-2404 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM docker.io/library/ubuntu:22.04
+FROM docker.io/library/ubuntu:24.04
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
@@ -13,6 +13,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     eatmydata apt-get install --no-install-recommends -y \
                       bash \
                       bc \
+                      bindgen \
                       bison \
                       bsdextrautils \
                       bzip2 \
@@ -32,7 +33,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       git \
                       hostname \
                       libaio-dev \
-                      libasan6 \
+                      libasan8 \
                       libasound2-dev \
                       libattr1-dev \
                       libbpf-dev \
@@ -43,7 +44,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libcap-ng-dev \
                       libcapstone-dev \
                       libcbor-dev \
-                      libclang-dev \
+                      libclang-rt-dev \
                       libcmocka-dev \
                       libcurl4-gnutls-dev \
                       libdaxctl-dev \
@@ -99,6 +100,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libvdeplug-dev \
                       libvirglrenderer-dev \
                       libvte-2.91-dev \
+                      libxdp-dev \
                       libxen-dev \
                       libzstd-dev \
                       llvm \
@@ -166,3 +168,5 @@ ARG USER
 ARG UID
 RUN if [ "${USER}" ]; then \
   id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi
+
+ENV ENABLE_RUST=1
