@@ -565,6 +565,7 @@ static void gic_icc_pcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     value &= R_ICC_PCR_PRIORITY_MASK;
     env->gicv5_cpuif.icc_pcr[domain] = value;
+    gicv5_update_irq_fiq(env);
 }
 
 static void gic_icc_pcr_el1_reset(CPUARMState *env, const ARMCPRegInfo *ri)
