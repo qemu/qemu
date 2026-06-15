@@ -2520,6 +2520,13 @@ F: include/system/rng*.h
 F: backends/rng*.c
 F: tests/qtest/virtio-rng-test.c
 
+virtio-rtc
+M: Kuan-Wei Chiu <visitorckw@gmail.com>
+S: Maintained
+F: hw/virtio/virtio-rtc.c
+F: hw/virtio/virtio-rtc-pci.c
+F: include/hw/virtio/virtio-rtc.h
+
 virtio-nsm
 M: Alexander Graf <graf@amazon.com>
 M: Dorjoy Chowdhury <dorjoychy111@gmail.com>
@@ -3192,8 +3199,8 @@ F: tests/qtest/migration/cpr*
 F: docs/devel/migration/CPR.rst
 
 Compute Express Link
-M: Jonathan Cameron <jonathan.cameron@huawei.com>
-R: Fan Ni <fan.ni@samsung.com>
+M: Jonathan Cameron <jic23@kernel.org>
+L: linux-cxl@vger.kernel.org
 S: Supported
 F: hw/cxl/
 F: hw/mem/cxl_type3.c
@@ -4038,6 +4045,7 @@ M: Alejandro Jimenez <alejandro.j.jimenez@oracle.com>
 R: Sairaj Kodilkar <sarunkod@amd.com>
 S: Supported
 F: hw/i386/amd_iommu*
+F: tests/qtest/amd-iommu-test.c
 
 OpenSBI Firmware
 M: Alistair Francis <Alistair.Francis@wdc.com>

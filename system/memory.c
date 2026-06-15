@@ -1652,6 +1652,20 @@ bool memory_region_init_ram_from_fd(MemoryRegion *mr, Object *owner,
                                 false, errp);
     return memory_region_set_ram_block(mr, rb);
 }
+#else
+bool memory_region_init_ram_from_fd(MemoryRegion *mr,
+                                    Object *owner,
+                                    const char *name,
+                                    uint64_t size,
+                                    uint32_t ram_flags,
+                                    int fd,
+                                    ram_addr_t offset,
+                                    Error **errp)
+{
+    error_setg(errp,
+               "memory_region_init_ram_from_fd is not supported on this platform");
+    return false;
+}
 #endif
 
 static void memory_region_set_ram_ptr(MemoryRegion *mr, uint64_t size,

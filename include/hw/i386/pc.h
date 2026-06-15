@@ -45,6 +45,7 @@ typedef struct PCMachineState {
     const char *south_bridge;
 
     bool acpi_build_enabled;
+    bool wdat_enabled;
     bool smbus_enabled;
     bool sata_enabled;
     bool hpet_enabled;

@@ -76,6 +76,11 @@ config VIRTIO_MEM
     depends on VIRTIO_MEM_SUPPORTED
     select VIRTIO_MD
 
+config VIRTIO_RTC
+    bool
+    default y
+    depends on VIRTIO
+
 config VHOST_VSOCK_COMMON
     bool
     depends on VIRTIO

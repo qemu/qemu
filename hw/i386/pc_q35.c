@@ -331,6 +331,18 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+static bool pc_q35_machine_get_wdat(Object *o, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(o);
+    return pcms->wdat_enabled;
+}
+
+static void pc_q35_machine_set_wdat(Object *o, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(o);
+    pcms->wdat_enabled = value;
+}
+
 #define DEFINE_Q35_MACHINE(major, minor) \
     DEFINE_PC_VER_MACHINE(pc_q35, "pc-q35", pc_q35_init, false, NULL, major, minor);
 
@@ -343,6 +355,7 @@ static void pc_q35_init(MachineState *machine)
 static void pc_q35_machine_options(MachineClass *m)
 {
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    ObjectClass *oc = OBJECT_CLASS(m);
     pcmc->pci_root_uid = 0;
     pcmc->default_cpu_version = 1;
 
@@ -361,6 +374,11 @@ static void pc_q35_machine_options(MachineClass *m)
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_UEFI_VARS_X64);
+    object_class_property_add_bool(oc, "wdat",
+        pc_q35_machine_get_wdat, pc_q35_machine_set_wdat);
+    object_class_property_set_description(oc, "wdat",
+        "Enable WDAT watchdog support. Default: off");
+
     compat_props_add(m->compat_props,
                      pc_q35_compat_defaults, pc_q35_compat_defaults_len);
 }

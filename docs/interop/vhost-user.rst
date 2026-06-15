@@ -164,8 +164,16 @@ A vring address description
 
 :log: a 64-bit guest address for logging
 
-Note that a ring address is an IOVA if ``VIRTIO_F_IOMMU_PLATFORM`` has
-been negotiated. Otherwise it is a user address.
+.. Note::
+   When ``VIRTIO_F_IOMMU_PLATFORM`` is negotiated, ring addresses are IOVAs.
+
+   Otherwise, when ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES`` is negotiated, the
+   ring addresses are guest physical addresses for frontend messages. That
+   does not apply to backend replies.
+
+   Finally, when neither ``VIRTIO_F_IOMMU_PLATFORM`` nor
+   ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES`` features are negotiated, ring
+   addresses are user virtual addresses.
 
 .. _memory_region_description:
 
@@ -180,7 +188,9 @@ Memory region description
 
 :size: a 64-bit size
 
-:user address: a 64-bit user address
+:user address: a 64-bit user address. When ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES``
+  is negotiated, this field contain guest physical address instead and must
+  duplicate ``guest address`` field.
 
 :mmap offset: a 64-bit offset where region starts in the mapped memory
 
@@ -252,7 +262,9 @@ An IOTLB message
 
 :size: a 64-bit size
 
-:user address: a 64-bit user address
+:user address: a 64-bit user address. When ``VHOST_USER_PROTOCOL_F_GPA_ADDRESSES``
+  is negotiated, this field contain guest physical address instead, except for
+  ``VHOST_USER_BACKEND_IOTLB_MSG``, where it's user address anyway.
 
 :permissions flags: an 8-bit value:
   - 0: No access
@@ -350,6 +362,44 @@ Device state transfer parameters
   In the future, additional phases might be added e.g. to allow
   iterative migration while the device is running.
 
+MMAP request
+^^^^^^^^^^^^
+
++-------+---------+-----------+------------+-----+-------+
+| shmid | padding | fd_offset | shm_offset | len | flags |
++-------+---------+-----------+------------+-----+-------+
+
+:shmid: a 8-bit shared memory region identifier
+
+:fd_offset: a 64-bit offset of this area from the start
+            of the supplied file descriptor
+
+:shm_offset: a 64-bit offset from the start of the
+             pointed shared memory region
+
+:len: a 64-bit size of the memory to map
+
+:flags: a 64-bit value:
+
+  - 0: Pages are mapped read-only
+  - 1: Pages are mapped read-write
+
+VIRTIO Shared Memory Region configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
++-------------+---------+------------+----+--------------+
+| num regions | padding | mem size 0 | .. | mem size 255 |
++-------------+---------+------------+----+--------------+
+
+:num regions: a 32-bit number of regions
+
+:padding: 32-bit
+
+:mem size: an array of 256 64-bit fields representing the size of each
+           VIRTIO Shared Memory Region. ``num regions`` specifies the
+           number of valid regions (non-zero size). The array index
+           corresponds to the shared memory ID (shmid).
+
 C structure
 -----------
 
@@ -366,11 +416,17 @@ In QEMU the vhost-user message is implemented with the following struct:
           struct vhost_vring_state state;
           struct vhost_vring_addr addr;
           VhostUserMemory memory;
+          VhostUserMemRegMsg mem_reg;
           VhostUserLog log;
           struct vhost_iotlb_msg iotlb;
           VhostUserConfig config;
+          VhostUserCryptoSession session;
           VhostUserVringArea area;
           VhostUserInflight inflight;
+          VhostUserShared object;
+          VhostUserTransferDeviceState transfer_state;
+          VhostUserMMap mmap;
+          VhostUserShMemConfig shmem;
       };
   } QEMU_PACKED VhostUserMsg;
 
@@ -656,7 +712,10 @@ destination, following the usual protocol for establishing a connection
 to a vhost-user back-end: This includes, for example, setting up memory
 mappings and kick and call FDs as necessary, negotiating protocol
 features, or setting the initial vring base indices (to the same value
-as on the source side, so that operation can resume).
+as on the source side, so that operation can resume). The vhost-user front-end
+may also write to the kick FDs of vrings containing unused buffers or send
+``VHOST_USER_VRING_KICK`` if negotiated to start those vrings in the destination
+since the driver likely already kicked them in the source and won't do it again.
 
 Both on the source and on the destination side, after the respective
 front-end has seen all data transferred (when the transfer FD has been
@@ -1063,6 +1122,8 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_SHARED_OBJECT           18
   #define VHOST_USER_PROTOCOL_F_DEVICE_STATE            19
   #define VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT 20
+  #define VHOST_USER_PROTOCOL_F_GPA_ADDRESSES           21
+  #define VHOST_USER_PROTOCOL_F_SHMEM_MAP               22
 
 Front-end message types
 -----------------------
@@ -1268,7 +1329,7 @@ Front-end message types
   How to suspend an in-flight request depends on the implementation of the back-end
   but it typically can be done by aborting or cancelling the underlying I/O
   request. The ``VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT``
-  protocol feature must only be neogotiated if
+  protocol feature must only be negotiated if
   ``VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD`` is also negotiated.
 
 ``VHOST_USER_SET_VRING_KICK``
@@ -1750,6 +1811,28 @@ Front-end message types
   Using this function requires prior negotiation of the
   ``VHOST_USER_PROTOCOL_F_DEVICE_STATE`` feature.
 
+``VHOST_USER_GET_SHMEM_CONFIG``
+  :id: 44
+  :equivalent ioctl: N/A
+  :request payload: N/A
+  :reply payload: ``struct VhostUserShMemConfig``
+
+  When the ``VHOST_USER_PROTOCOL_F_SHMEM`` protocol feature has been
+  successfully negotiated, this message can be submitted by the front-end
+  to gather the VIRTIO Shared Memory Region configuration. The back-end will
+  respond with the number of VIRTIO Shared Memory Regions it requires, and
+  each shared memory region size in an array. The shared memory IDs are
+  represented by the array index. The information returned shall comply
+  with the following rules:
+
+  * The shared information will remain valid and unchanged for the entire
+    lifetime of the connection.
+
+  * The Shared Memory Region size must be a multiple of the page size
+    supported by mmap(2).
+
+  * The size may be 0 if the region is unused.
+
 Back-end message types
 ----------------------
 
@@ -1883,6 +1966,46 @@ is sent by the front-end.
   shared table given a UUID. Frontend will reply passing the fd and a zero
   when the operation is successful, or non-zero otherwise. Note that if the
   operation fails, no fd is sent to the backend.
+
+``VHOST_USER_BACKEND_SHMEM_MAP``
+  :id: 9
+  :equivalent ioctl: N/A
+  :request payload: fd and ``struct VhostUserMMap``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SHMEM`` protocol feature has been
+  successfully negotiated, this message can be submitted by the backends to
+  advertise a new mapping to be made in a given VIRTIO Shared Memory Region.
+  Upon receiving the message, the front-end will mmap the given fd into the
+  VIRTIO Shared Memory Region with the requested ``shmid``.
+
+  If ``VHOST_USER_PROTOCOL_F_REPLY_ACK`` is negotiated, and
+  back-end set the ``VHOST_USER_NEED_REPLY`` flag, the front-end
+  must respond with zero when operation is successfully completed,
+  or non-zero otherwise.
+
+  Mapping over an already existing map is not allowed and requests shall fail.
+  Therefore, the memory range in the request must correspond with a valid,
+  free region of the VIRTIO Shared Memory Region. Also, note that mappings
+  consume resources and that the request can fail when there are no resources
+  available. Lastly, mappings are automatically unmapped by the front-end
+  across device reset operation.
+
+``VHOST_USER_BACKEND_SHMEM_UNMAP``
+  :id: 10
+  :equivalent ioctl: N/A
+  :request payload: ``struct VhostUserMMap``
+  :reply payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_SHMEM`` protocol feature has been
+  successfully negotiated, this message can be submitted by the backends so
+  that the front-end un-mmaps a given range (``shm_offset``, ``len``) in the
+  VIRTIO Shared Memory Region with the requested ``shmid``. Note that the
+  given range shall correspond to the entirety of a valid mapped region.
+
+  If ``VHOST_USER_PROTOCOL_F_REPLY_ACK`` is negotiated, and the back-end
+  sets the ``VHOST_USER_NEED_REPLY`` flag, the front-end must respond with
+  zero when operation is successfully completed, or non-zero otherwise.
 
 .. _reply_ack:
 

@@ -104,7 +104,6 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     v->dev.vqs = vqs;
     v->dev.vq_index = 0;
     v->dev.vq_index_end = v->dev.nvqs;
-    v->dev.backend_features = 0;
     v->started = false;
 
     ret = vhost_vdpa_get_iova_range(v->vhostfd, &iova_range);
@@ -225,7 +224,7 @@ static uint64_t vhost_vdpa_device_get_features(VirtIODevice *vdev,
                                                Error **errp)
 {
     VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
-    uint64_t backend_features = s->dev.features;
+    uint64_t backend_features = vhost_dev_features(&s->dev);
 
     if (!virtio_has_feature(features, VIRTIO_F_IOMMU_PLATFORM)) {
         virtio_clear_feature(&backend_features, VIRTIO_F_IOMMU_PLATFORM);

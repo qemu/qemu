@@ -45,10 +45,6 @@
 #define AMDVI_CAPAB_FLAG_IOTLBSUP     (1 << 24)
 #define AMDVI_CAPAB_INIT_TYPE         (3 << 16)
 
-/* No. of used MMIO registers */
-#define AMDVI_MMIO_REGS_HIGH  7
-#define AMDVI_MMIO_REGS_LOW   8
-
 /* MMIO registers */
 #define AMDVI_MMIO_DEVICE_TABLE       0x0000
 #define AMDVI_MMIO_COMMAND_BASE       0x0008
@@ -57,6 +53,7 @@
 #define AMDVI_MMIO_EXCL_BASE          0x0020
 #define AMDVI_MMIO_EXCL_LIMIT         0x0028
 #define AMDVI_MMIO_EXT_FEATURES       0x0030
+#define AMDVI_MMIO_XT_GEN_INTR        0x0170
 #define AMDVI_MMIO_COMMAND_HEAD       0x2000
 #define AMDVI_MMIO_COMMAND_TAIL       0x2008
 #define AMDVI_MMIO_EVENT_HEAD         0x2010
@@ -106,6 +103,8 @@
 #define AMDVI_MMIO_CONTROL_COMWAITINTEN   (1ULL << 4)
 #define AMDVI_MMIO_CONTROL_CMDBUFLEN      (1ULL << 12)
 #define AMDVI_MMIO_CONTROL_GAEN           (1ULL << 17)
+#define AMDVI_MMIO_CONTROL_XTEN           (1ULL << 50)
+#define AMDVI_MMIO_CONTROL_INTCAPXTEN     (1ULL << 51)
 
 /* MMIO status register bits */
 #define AMDVI_MMIO_STATUS_CMDBUF_RUN  (1 << 4)
@@ -186,17 +185,16 @@
 
 #define IOMMU_PTE_PRESENT(pte)          ((pte) & AMDVI_PTE_PR)
 
-/* Using level=0 for leaf PTE at 4K page size */
-#define PT_LEVEL_SHIFT(level)           (12 + ((level) * 9))
+/* Using level=1 for leaf PTE at 4K page size */
+#define PT_LEVEL_SHIFT(level)           (12 + (((level) - 1) * 9))
 
 /* Return IOVA bit group used to index the Page Table at specific level */
 #define PT_LEVEL_INDEX(level, iova)     (((iova) >> PT_LEVEL_SHIFT(level)) & \
                                         GENMASK64(8, 0))
 
-/* Return the max address for a specified level i.e. max_oaddr */
-#define PT_LEVEL_MAX_ADDR(x)    (((x) < 5) ? \
-                                ((1ULL << PT_LEVEL_SHIFT((x + 1))) - 1) : \
-                                (~(0ULL)))
+/* Return the maximum output address for a specified page table level */
+#define PT_LEVEL_MAX_ADDR(level)    (((level) > 5) ? (~(0ULL)) : \
+                                    ((1ULL << PT_LEVEL_SHIFT((level) + 1)) - 1))
 
 /* Extract the NextLevel field from PTE/PDE */
 #define PTE_NEXT_LEVEL(pte)     (((pte) & AMDVI_PTE_NEXT_LEVEL_MASK) >> 9)
@@ -342,6 +340,20 @@ struct irte_ga {
   union irte_ga_hi hi;
 };
 
+union mmio_xt_intr {
+    uint64_t val;
+    struct {
+        uint64_t rsvd_1:2,
+                 destination_mode:1,
+                 rsvd_2:5,
+                 destination_lo:24,
+                 vector:8,
+                 delivery_mode:1,
+                 rsvd_3:15,
+                 destination_hi:8;
+    };
+};
+
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
 
@@ -418,7 +430,9 @@ struct AMDVIState {
 
     /* Interrupt remapping */
     bool ga_enabled;
-    bool xtsup;
+    bool xtsup;     /* xtsup=on command line */
+    bool xten;      /* guest controlled, x2apic mode enabled */
+    bool intcapxten; /* guest controlled, IOMMU x2apic interrupts enabled */
 
     /* DMA address translation */
     bool dma_remap;

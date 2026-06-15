@@ -257,15 +257,14 @@ static bool vhost_vdpa_get_vnet_hash_supported_types(NetClientState *nc,
 {
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
-    uint64_t features = s->vhost_vdpa.dev->features;
     int fd = s->vhost_vdpa.shared->device_fd;
     struct {
         struct vhost_vdpa_config hdr;
         uint32_t supported_hash_types;
     } config;
 
-    if (!virtio_has_feature(features, VIRTIO_NET_F_HASH_REPORT) &&
-        !virtio_has_feature(features, VIRTIO_NET_F_RSS)) {
+    if (!vhost_dev_has_feature(s->vhost_vdpa.dev, VIRTIO_NET_F_HASH_REPORT) &&
+        !vhost_dev_has_feature(s->vhost_vdpa.dev, VIRTIO_NET_F_RSS)) {
         return false;
     }
 
@@ -397,6 +396,7 @@ static int vhost_vdpa_net_data_start(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
     struct vhost_vdpa *v = &s->vhost_vdpa;
+    bool has_cvq = v->dev->vq_index_end % 2;
 
     assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
 
@@ -406,31 +406,21 @@ static int vhost_vdpa_net_data_start(NetClientState *nc)
         v->shadow_vqs_enabled = false;
     }
 
+    if (!has_cvq) {
+        for (int i = 0; i < v->dev->nvqs; ++i) {
+            int ret = vhost_vdpa_set_vring_ready(v, i + v->dev->vq_index);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+
     if (v->index == 0) {
         v->shared->shadow_data = v->shadow_vqs_enabled;
         vhost_vdpa_net_data_start_first(s);
         return 0;
     }
 
-    return 0;
-}
-
-static int vhost_vdpa_net_data_load(NetClientState *nc)
-{
-    VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
-    struct vhost_vdpa *v = &s->vhost_vdpa;
-    bool has_cvq = v->dev->vq_index_end % 2;
-
-    if (has_cvq) {
-        return 0;
-    }
-
-    for (int i = 0; i < v->dev->nvqs; ++i) {
-        int ret = vhost_vdpa_set_vring_ready(v, i + v->dev->vq_index);
-        if (ret < 0) {
-            return ret;
-        }
-    }
     return 0;
 }
 
@@ -450,7 +440,6 @@ static NetClientInfo net_vhost_vdpa_info = {
         .size = sizeof(VhostVDPAState),
         .receive = vhost_vdpa_receive,
         .start = vhost_vdpa_net_data_start,
-        .load = vhost_vdpa_net_data_load,
         .stop = vhost_vdpa_net_client_stop,
         .cleanup = vhost_vdpa_cleanup,
         .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
@@ -586,7 +575,7 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
      * If we early return in these cases SVQ will not be enabled. The migration
      * will be blocked as long as vhost-vdpa backends will not offer _F_LOG.
      */
-    if (!vhost_vdpa_net_valid_svq_features(v->dev->features, NULL)) {
+    if (!vhost_vdpa_net_valid_svq_features(vhost_dev_features(v->dev), NULL)) {
         return 0;
     }
 

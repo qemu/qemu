@@ -176,8 +176,6 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
         hmp_virtio_dump_features(mon, s->vhost_dev->features);
         monitor_printf(mon, "    Acked features:\n");
         hmp_virtio_dump_features(mon, s->vhost_dev->acked_features);
-        monitor_printf(mon, "    Backend features:\n");
-        hmp_virtio_dump_features(mon, s->vhost_dev->backend_features);
         monitor_printf(mon, "    Protocol features:\n");
         hmp_virtio_dump_protocols(mon, s->vhost_dev->protocol_features);
     }
@@ -205,15 +203,12 @@ void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "  call:                 %"PRId64"\n", s->call);
     monitor_printf(mon, "  VRing:\n");
     monitor_printf(mon, "    num:         %"PRId64"\n", s->num);
-    monitor_printf(mon, "    desc:        0x%016"PRIx64"\n", s->desc);
     monitor_printf(mon, "    desc_phys:   0x%016"PRIx64"\n",
                    s->desc_phys);
     monitor_printf(mon, "    desc_size:   %"PRId32"\n", s->desc_size);
-    monitor_printf(mon, "    avail:       0x%016"PRIx64"\n", s->avail);
     monitor_printf(mon, "    avail_phys:  0x%016"PRIx64"\n",
                    s->avail_phys);
     monitor_printf(mon, "    avail_size:  %"PRId32"\n", s->avail_size);
-    monitor_printf(mon, "    used:        0x%016"PRIx64"\n", s->used);
     monitor_printf(mon, "    used_phys:   0x%016"PRIx64"\n",
                    s->used_phys);
     monitor_printf(mon, "    used_size:   %"PRId32"\n", s->used_size);
