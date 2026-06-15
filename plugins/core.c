@@ -590,7 +590,7 @@ qemu_plugin_vcpu_syscall_filter(CPUState *cpu, int64_t num, uint64_t a1,
     QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
         qemu_plugin_vcpu_syscall_filter_cb_t func = cb->f.vcpu_syscall_filter;
 
-        if (func(cb->ctx->id, cpu->cpu_index, num, a1, a2, a3, a4,
+        if (func(cpu->cpu_index, num, a1, a2, a3, a4,
                  a5, a6, a7, a8, sysret)) {
             filtered = true;
             break;
