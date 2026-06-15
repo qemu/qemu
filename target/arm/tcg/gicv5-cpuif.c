@@ -950,7 +950,7 @@ void define_gicv5_cpuif_regs(ARMCPU *cpu)
                 .name = name, .state = ARM_CP_STATE_AA64,
                 .opc0 = 3, .opc1 = 0, .crn = 12,
                 .crm = 14 + (i >> 3), .opc2 = i & 7,
-                .access = PL1_RW, .type = ARM_CP_IO,
+                .access = PL1_RW, .type = ARM_CP_IO | ARM_CP_NO_RAW,
                 .fieldoffset = offsetof(CPUARMState, gicv5_cpuif.ppi_priority[i]),
                 .writefn = gic_ppi_priority_write, .raw_writefn = raw_write,
             };
