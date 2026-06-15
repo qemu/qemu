@@ -840,12 +840,14 @@ void qemu_plugin_update_ns(const void *handle, int64_t time);
  * @a6: the 6th syscall argument
  * @a7: the 7th syscall argument
  * @a8: the 8th syscall argument
+ * @userdata: user data for callback
  */
 typedef void
 (*qemu_plugin_vcpu_syscall_cb_t)(unsigned int vcpu_index,
                                  int64_t num, uint64_t a1, uint64_t a2,
                                  uint64_t a3, uint64_t a4, uint64_t a5,
-                                 uint64_t a6, uint64_t a7, uint64_t a8);
+                                 uint64_t a6, uint64_t a7, uint64_t a8,
+                                 void *userdata);
 
 /**
  * typedef qemu_plugin_vcpu_syscall_filter_cb_t - vCPU syscall filter callback
@@ -891,13 +893,15 @@ typedef void
  * qemu_plugin_register_vcpu_syscall_cb() - register a syscall entry callback
  * @id: plugin id
  * @cb: callback of type qemu_plugin_vcpu_syscall_cb_t
+ * @userdata: user data for callback
  *
  * This registers a callback for every syscall executed by the guest. The @cb
  * function is executed before a syscall is handled by the host.
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,
-                                          qemu_plugin_vcpu_syscall_cb_t cb);
+                                          qemu_plugin_vcpu_syscall_cb_t cb,
+                                          void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_syscall_filter_cb() - register a syscall filter

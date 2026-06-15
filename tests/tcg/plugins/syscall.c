@@ -128,7 +128,8 @@ static void hexdump(const GByteArray *data)
 static void vcpu_syscall(unsigned int vcpu_index,
                          int64_t num, uint64_t a1, uint64_t a2,
                          uint64_t a3, uint64_t a4, uint64_t a5,
-                         uint64_t a6, uint64_t a7, uint64_t a8)
+                         uint64_t a6, uint64_t a7, uint64_t a8,
+                         void *userdata)
 {
     if (statistics) {
         SyscallStats *entry;
@@ -271,7 +272,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         memory_buffer = g_byte_array_new();
     }
 
-    qemu_plugin_register_vcpu_syscall_cb(id, vcpu_syscall);
+    qemu_plugin_register_vcpu_syscall_cb(id, vcpu_syscall, NULL);
     qemu_plugin_register_vcpu_syscall_ret_cb(id, vcpu_syscall_ret);
     qemu_plugin_register_vcpu_syscall_filter_cb(id, vcpu_syscall_filter);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
