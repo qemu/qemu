@@ -144,7 +144,7 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
 
     if (!(env->gicv5_cpuif.icc_cr0[domain] & R_ICC_CR0_EN_MASK)) {
         /* If cpuif is disabled there is no HPPI */
-        return (GICv5PendingIrq) { .intid = 0, .prio = PRIO_IDLE };
+        return GICV5_PENDING_IRQ_NONE;
     }
 
     irs_hppi = gicv5_get_hppi(gic, domain, env->gicv5_iaffid);
@@ -168,7 +168,7 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
     if (best.prio == PRIO_IDLE ||
         best.prio > env->gicv5_cpuif.icc_pcr[domain] ||
         best.prio >= gic_running_prio(env, domain)) {
-        return (GICv5PendingIrq) { .intid = 0, .prio = PRIO_IDLE };
+        return GICV5_PENDING_IRQ_NONE;
     }
     return best;
 }
@@ -258,8 +258,7 @@ static void gic_recalc_ppi_hppi(CPUARMState *env)
      * enabled, pending and not active.
      */
     for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_hppi); i++) {
-        env->gicv5_cpuif.ppi_hppi[i].intid = 0;
-        env->gicv5_cpuif.ppi_hppi[i].prio = PRIO_IDLE;
+        env->gicv5_cpuif.ppi_hppi[i] = GICV5_PENDING_IRQ_NONE;
     };
 
     for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_active); i++) {

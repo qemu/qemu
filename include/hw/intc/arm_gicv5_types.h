@@ -105,6 +105,10 @@ typedef struct GICv5PendingIrq {
     uint8_t prio;
 } GICv5PendingIrq;
 
+/* A GICv5PendingIrq struct initializer for "no pending interrupt" */
+#define GICV5_PENDING_IRQ_NONE \
+    ((GICv5PendingIrq) { .intid = 0, .prio = PRIO_IDLE })
+
 /* Fields in a generic 32-bit INTID, per R_TJPHS */
 FIELD(INTID, ID, 0, 24)
 FIELD(INTID, TYPE, 29, 3)

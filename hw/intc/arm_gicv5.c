@@ -429,8 +429,7 @@ static void irs_recalc_hppi(GICv5 *s, GICv5Domain domain, uint32_t iaffid)
     ARMCPU *cpu = cpuidx >= 0 ? cs->cpus[cpuidx] : NULL;
     GICv5PendingIrq best;
 
-    best.intid = 0;
-    best.prio = PRIO_IDLE;
+    best = GICV5_PENDING_IRQ_NONE;
 
     if (!cpu) {
         /* Nothing happens for iaffids targeting nonexistent CPUs */
@@ -526,8 +525,7 @@ static void irs_recall_hppis(GICv5 *s, GICv5Domain domain)
     GICv5Common *cs = ARM_GICV5_COMMON(s);
 
     for (int i = 0; i < cs->num_cpus; i++) {
-        s->hppi[domain][i].intid = 0;
-        s->hppi[domain][i].prio = PRIO_IDLE;
+        s->hppi[domain][i] = GICV5_PENDING_IRQ_NONE;
         gicv5_forward_interrupt(cs->cpus[i], domain);
     }
 }
