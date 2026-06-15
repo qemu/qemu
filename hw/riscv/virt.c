@@ -231,77 +231,6 @@ static void create_pcie_irq_map(RISCVVirtState *s, void *fdt, char *nodename,
                            0x1800, 0, 0, 0x7);
 }
 
-static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
-                                   char *clust_name, uint32_t *phandle,
-                                   uint32_t *intc_phandles)
-{
-    int cpu;
-    uint32_t cpu_phandle;
-    MachineState *ms = MACHINE(s);
-    bool is_32_bit = riscv_is_32bit(&s->soc[0]);
-
-    for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
-        RISCVCPU *cpu_ptr = &s->soc[socket].harts[cpu];
-        int8_t satp_mode_max = cpu_ptr->cfg.max_satp_mode;
-        g_autofree char *cpu_name = NULL;
-        g_autofree char *core_name = NULL;
-        g_autofree char *intc_name = NULL;
-        g_autofree char *sv_name = NULL;
-
-        cpu_phandle = (*phandle)++;
-
-        cpu_name = g_strdup_printf("/cpus/cpu@%d",
-            s->soc[socket].hartid_base + cpu);
-        qemu_fdt_add_subnode(ms->fdt, cpu_name);
-
-        if (satp_mode_max != -1) {
-            sv_name = g_strdup_printf("riscv,%s",
-                                      satp_mode_str(satp_mode_max, is_32_bit));
-            qemu_fdt_setprop_string(ms->fdt, cpu_name, "mmu-type", sv_name);
-        }
-
-        riscv_isa_write_fdt(cpu_ptr, ms->fdt, cpu_name);
-
-        if (cpu_ptr->cfg.ext_zicbom) {
-            qemu_fdt_setprop_cell(ms->fdt, cpu_name, "riscv,cbom-block-size",
-                                  cpu_ptr->cfg.cbom_blocksize);
-        }
-
-        if (cpu_ptr->cfg.ext_zicboz) {
-            qemu_fdt_setprop_cell(ms->fdt, cpu_name, "riscv,cboz-block-size",
-                                  cpu_ptr->cfg.cboz_blocksize);
-        }
-
-        if (cpu_ptr->cfg.ext_zicbop) {
-            qemu_fdt_setprop_cell(ms->fdt, cpu_name, "riscv,cbop-block-size",
-                                  cpu_ptr->cfg.cbop_blocksize);
-        }
-
-        qemu_fdt_setprop_string(ms->fdt, cpu_name, "compatible", "riscv");
-        qemu_fdt_setprop_string(ms->fdt, cpu_name, "status", "okay");
-        qemu_fdt_setprop_cell(ms->fdt, cpu_name, "reg",
-            s->soc[socket].hartid_base + cpu);
-        qemu_fdt_setprop_string(ms->fdt, cpu_name, "device_type", "cpu");
-        riscv_socket_fdt_write_id(ms, cpu_name, socket);
-        qemu_fdt_setprop_cell(ms->fdt, cpu_name, "phandle", cpu_phandle);
-
-        intc_phandles[cpu] = (*phandle)++;
-
-        intc_name = g_strdup_printf("%s/interrupt-controller", cpu_name);
-        qemu_fdt_add_subnode(ms->fdt, intc_name);
-        qemu_fdt_setprop_cell(ms->fdt, intc_name, "phandle",
-            intc_phandles[cpu]);
-        qemu_fdt_setprop_string(ms->fdt, intc_name, "compatible",
-            "riscv,cpu-intc");
-        qemu_fdt_setprop(ms->fdt, intc_name, "interrupt-controller", NULL, 0);
-        qemu_fdt_setprop_cell(ms->fdt, intc_name, "#interrupt-cells", 1);
-
-        core_name = g_strdup_printf("%s/core%d", clust_name, cpu);
-        qemu_fdt_add_subnode(ms->fdt, core_name);
-        qemu_fdt_setprop_cell(ms->fdt, core_name, "cpu", cpu_phandle);
-    }
-}
-
 static void create_fdt_socket_aclint(RISCVVirtState *s,
                                      int socket,
                                      uint32_t *intc_phandles)
@@ -693,6 +622,7 @@ static void create_fdt_sockets(RISCVVirtState *s,
     g_autofree uint32_t *intc_phandles = NULL;
     int socket_count = riscv_socket_count(ms);
     bool numa_enabled = riscv_numa_enabled(ms);
+    bool is_32_bit = riscv_is_32bit(&s->soc[0]);
 
     fdt_create_cpu_socket_subnode(ms->fdt,
         kvm_enabled() ? kvm_riscv_get_timebase_frequency(&s->soc->harts[0]) :
@@ -702,18 +632,17 @@ static void create_fdt_sockets(RISCVVirtState *s,
 
     phandle_pos = ms->smp.cpus;
     for (socket = (socket_count - 1); socket >= 0; socket--) {
-        g_autofree char *clust_name = NULL;
         hwaddr memaddr = s->memmap[VIRT_DRAM].base +
                          riscv_socket_mem_offset(ms, socket);
         uint64_t memsize = riscv_socket_mem_size(ms, socket);
 
         phandle_pos -= s->soc[socket].num_harts;
 
-        clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
-        qemu_fdt_add_subnode(ms->fdt, clust_name);
-
-        create_fdt_socket_cpus(s, socket, clust_name, phandle,
-                               &intc_phandles[phandle_pos]);
+        create_fdt_socket_cpus(ms->fdt, (&s->soc[socket])->harts, socket,
+                               s->soc[socket].num_harts,
+                               s->soc[socket].hartid_base,
+                               phandle, &intc_phandles[phandle_pos],
+                               numa_enabled, is_32_bit);
 
         create_fdt_socket_memory(ms->fdt, memaddr, memsize,
                                  socket, riscv_numa_enabled(ms));
