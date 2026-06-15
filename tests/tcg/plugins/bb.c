@@ -56,7 +56,7 @@ static void plugin_exit(void *p)
     qemu_plugin_scoreboard_free(counts);
 }
 
-static void vcpu_idle(unsigned int cpu_index)
+static void vcpu_idle(unsigned int cpu_index, void *userdata)
 {
     CPUCount *count = qemu_plugin_scoreboard_find(counts, cpu_index);
     g_autoptr(GString) report = g_string_new("");
@@ -124,7 +124,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         counts, CPUCount, insn_count);
 
     if (idle_report) {
-        qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle);
+        qemu_plugin_register_vcpu_idle_cb(id, vcpu_idle, NULL);
     }
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
