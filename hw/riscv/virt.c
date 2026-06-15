@@ -36,6 +36,7 @@
 #include "hw/riscv/riscv-iommu-bits.h"
 #include "hw/riscv/virt.h"
 #include "hw/riscv/boot.h"
+#include "hw/riscv/fdt-common.h"
 #include "hw/riscv/machines-qom.h"
 #include "hw/riscv/numa.h"
 #include "kvm/kvm_riscv.h"
@@ -1150,22 +1151,8 @@ static void create_fdt(RISCVVirtState *s)
     uint8_t rng_seed[32];
     g_autofree char *name = NULL;
 
-    ms->fdt = create_device_tree(&s->fdt_size);
-    if (!ms->fdt) {
-        error_report("create_device_tree() failed");
-        exit(1);
-    }
-
-    qemu_fdt_setprop_string(ms->fdt, "/", "model", "riscv-virtio,qemu");
-    qemu_fdt_setprop_string(ms->fdt, "/", "compatible", "riscv-virtio");
-    qemu_fdt_setprop_cell(ms->fdt, "/", "#size-cells", 0x2);
-    qemu_fdt_setprop_cell(ms->fdt, "/", "#address-cells", 0x2);
-
-    qemu_fdt_add_subnode(ms->fdt, "/soc");
-    qemu_fdt_setprop(ms->fdt, "/soc", "ranges", NULL, 0);
-    qemu_fdt_setprop_string(ms->fdt, "/soc", "compatible", "simple-bus");
-    qemu_fdt_setprop_cell(ms->fdt, "/soc", "#size-cells", 0x2);
-    qemu_fdt_setprop_cell(ms->fdt, "/soc", "#address-cells", 0x2);
+    ms->fdt = create_board_device_tree("riscv-virtio,qemu", "riscv-virtio",
+                                       &s->fdt_size);
 
     /*
      * The "/soc/pci@..." node is needed for PCIE hotplugs
