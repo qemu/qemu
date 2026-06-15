@@ -25,7 +25,7 @@ static struct qemu_plugin_scoreboard *traps;
 
 static void vcpu_discon(qemu_plugin_id_t id, unsigned int vcpu_index,
                         enum qemu_plugin_discon_type type, uint64_t from_pc,
-                        uint64_t to_pc)
+                        uint64_t to_pc, void *userdata)
 {
     TrapCounters *rec = qemu_plugin_scoreboard_find(traps, vcpu_index);
     switch (type) {
@@ -75,7 +75,8 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
     traps = qemu_plugin_scoreboard_new(sizeof(TrapCounters));
 
     qemu_plugin_register_vcpu_discon_cb(id, QEMU_PLUGIN_DISCON_ALL,
-                                        vcpu_discon);
+                                        vcpu_discon,
+                                        NULL);
 
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
 

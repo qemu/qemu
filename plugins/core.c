@@ -122,8 +122,7 @@ static void plugin_vcpu_cb__discon(CPUState *cpu,
         /* iterate safely; plugins might uninstall themselves at any time */
         QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
             qemu_plugin_vcpu_discon_cb_t func = cb->f.vcpu_discon;
-
-            func(cb->ctx->id, cpu->cpu_index, type, from, to);
+            func(cb->ctx->id, cpu->cpu_index, type, from, to, cb->udata);
         }
     }
     qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
@@ -656,16 +655,17 @@ void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
 
 void qemu_plugin_register_vcpu_discon_cb(qemu_plugin_id_t id,
                                          enum qemu_plugin_discon_type type,
-                                         qemu_plugin_vcpu_discon_cb_t cb)
+                                         qemu_plugin_vcpu_discon_cb_t cb,
+                                         void *userdata)
 {
     if (type & QEMU_PLUGIN_DISCON_INTERRUPT) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INTERRUPT, cb);
+        plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_INTERRUPT, cb, userdata);
     }
     if (type & QEMU_PLUGIN_DISCON_EXCEPTION) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXCEPTION, cb);
+        plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_EXCEPTION, cb, userdata);
     }
     if (type & QEMU_PLUGIN_DISCON_HOSTCALL) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_HOSTCALL, cb);
+        plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_HOSTCALL, cb, userdata);
     }
 }
 
