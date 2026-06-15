@@ -591,7 +591,7 @@ qemu_plugin_vcpu_syscall_filter(CPUState *cpu, int64_t num, uint64_t a1,
         qemu_plugin_vcpu_syscall_filter_cb_t func = cb->f.vcpu_syscall_filter;
 
         if (func(cpu->cpu_index, num, a1, a2, a3, a4,
-                 a5, a6, a7, a8, sysret)) {
+                 a5, a6, a7, a8, sysret, cb->udata)) {
             filtered = true;
             break;
         }
