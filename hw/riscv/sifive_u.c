@@ -98,7 +98,6 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
                        bool is_32_bit)
 {
     MachineState *ms = MACHINE(s);
-    uint64_t mem_size = ms->ram_size;
     void *fdt;
     int cpu;
     uint32_t *cells;
@@ -138,14 +137,8 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     qemu_fdt_setprop_cell(fdt, nodename, "#clock-cells", 0x0);
     g_free(nodename);
 
-    nodename = g_strdup_printf("/memory@%lx",
-        (long)memmap[SIFIVE_U_DEV_DRAM].base);
-    qemu_fdt_add_subnode(fdt, nodename);
-    qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        memmap[SIFIVE_U_DEV_DRAM].base >> 32, memmap[SIFIVE_U_DEV_DRAM].base,
-        mem_size >> 32, mem_size);
-    qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
-    g_free(nodename);
+    create_fdt_socket_memory(fdt, memmap[SIFIVE_U_DEV_DRAM].base,
+                             ms->ram_size, 0, false);
 
     qemu_fdt_add_subnode(fdt, "/cpus");
     qemu_fdt_setprop_cell(fdt, "/cpus", "timebase-frequency",

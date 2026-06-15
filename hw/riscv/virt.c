@@ -302,22 +302,6 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
     }
 }
 
-static void create_fdt_socket_memory(RISCVVirtState *s, int socket)
-{
-    g_autofree char *mem_name = NULL;
-    hwaddr addr;
-    uint64_t size;
-    MachineState *ms = MACHINE(s);
-
-    addr = s->memmap[VIRT_DRAM].base + riscv_socket_mem_offset(ms, socket);
-    size = riscv_socket_mem_size(ms, socket);
-    mem_name = g_strdup_printf("/memory@%"HWADDR_PRIx, addr);
-    qemu_fdt_add_subnode(ms->fdt, mem_name);
-    qemu_fdt_setprop_sized_cells(ms->fdt, mem_name, "reg", 2, addr, 2, size);
-    qemu_fdt_setprop_string(ms->fdt, mem_name, "device_type", "memory");
-    riscv_socket_fdt_write_id(ms, mem_name, socket);
-}
-
 static void create_fdt_socket_clint(RISCVVirtState *s,
                                     int socket,
                                     uint32_t *intc_phandles)
@@ -759,6 +743,10 @@ static void create_fdt_sockets(RISCVVirtState *s,
     phandle_pos = ms->smp.cpus;
     for (socket = (socket_count - 1); socket >= 0; socket--) {
         g_autofree char *clust_name = NULL;
+        hwaddr memaddr = s->memmap[VIRT_DRAM].base +
+                         riscv_socket_mem_offset(ms, socket);
+        uint64_t memsize = riscv_socket_mem_size(ms, socket);
+
         phandle_pos -= s->soc[socket].num_harts;
 
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
@@ -767,7 +755,8 @@ static void create_fdt_sockets(RISCVVirtState *s,
         create_fdt_socket_cpus(s, socket, clust_name, phandle,
                                &intc_phandles[phandle_pos]);
 
-        create_fdt_socket_memory(s, socket);
+        create_fdt_socket_memory(ms->fdt, memaddr, memsize,
+                                 socket, riscv_numa_enabled(ms));
 
         if (virt_aclint_allowed() && s->have_aclint) {
             create_fdt_socket_aclint(s, socket,

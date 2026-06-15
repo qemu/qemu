@@ -55,13 +55,12 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
 {
     void *fdt;
     int fdt_size;
-    uint64_t addr, size;
     unsigned long clint_addr;
     int cpu, socket;
     MachineState *ms = MACHINE(s);
     uint32_t *clint_cells;
     uint32_t cpu_phandle, intc_phandle, phandle = 1;
-    char *mem_name, *clint_name, *clust_name;
+    char *clint_name, *clust_name;
     char *core_name, *cpu_name, *intc_name;
     static const char * const clint_compat[2] = {
         "sifive,clint0", "riscv,clint0"
@@ -85,6 +84,10 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     qemu_fdt_add_subnode(fdt, "/cpus/cpu-map");
 
     for (socket = (riscv_socket_count(ms) - 1); socket >= 0; socket--) {
+        hwaddr memaddr = memmap[SPIKE_DRAM].base +
+                         riscv_socket_mem_offset(ms, socket);
+        uint64_t memsize =  riscv_socket_mem_size(ms, socket);
+
         clust_name = g_strdup_printf("/cpus/cpu-map/cluster%d", socket);
         qemu_fdt_add_subnode(fdt, clust_name);
 
@@ -133,15 +136,8 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
             g_free(cpu_name);
         }
 
-        addr = memmap[SPIKE_DRAM].base + riscv_socket_mem_offset(ms, socket);
-        size = riscv_socket_mem_size(ms, socket);
-        mem_name = g_strdup_printf("/memory@%lx", (long)addr);
-        qemu_fdt_add_subnode(fdt, mem_name);
-        qemu_fdt_setprop_cells(fdt, mem_name, "reg",
-            addr >> 32, addr, size >> 32, size);
-        qemu_fdt_setprop_string(fdt, mem_name, "device_type", "memory");
-        riscv_socket_fdt_write_id(ms, mem_name, socket);
-        g_free(mem_name);
+        create_fdt_socket_memory(fdt, memaddr, memsize, socket,
+                                 riscv_numa_enabled(ms));
 
         clint_addr = memmap[SPIKE_CLINT].base +
             (memmap[SPIKE_CLINT].size * socket);

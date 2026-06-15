@@ -11,4 +11,6 @@
 
 void *create_board_device_tree(const char *model, const char *compatible,
                                int *fdt_size);
+void create_fdt_socket_memory(void *fdt, hwaddr addr, uint64_t size,
+                              int socket_id, bool numa_enabled);
 #endif
