@@ -56,7 +56,6 @@ int qemu_plugin_load_list(QemuPluginList *head, Error **errp);
 
 union qemu_plugin_cb_sig {
     qemu_plugin_udata_cb_t               udata;
-    qemu_plugin_vcpu_simple_cb_t         vcpu_simple;
     qemu_plugin_vcpu_udata_cb_t          vcpu_udata;
     qemu_plugin_vcpu_discon_cb_t         vcpu_discon;
     qemu_plugin_vcpu_tb_trans_cb_t       vcpu_tb_trans;

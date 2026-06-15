@@ -148,12 +148,6 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
 typedef void (*qemu_plugin_udata_cb_t)(void *userdata);
 
 /**
- * typedef qemu_plugin_vcpu_simple_cb_t - vcpu callback
- * @vcpu_index: the current vcpu context
- */
-typedef void (*qemu_plugin_vcpu_simple_cb_t)(unsigned int vcpu_index);
-
-/**
  * typedef qemu_plugin_vcpu_udata_cb_t - vcpu callback
  * @vcpu_index: the current vcpu context
  * @userdata: a pointer to some user data supplied when the callback
