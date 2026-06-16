@@ -213,7 +213,10 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
     nodename = g_strdup_printf("/soc/interrupt-controller@%lx",
         (long)memmap[SIFIVE_U_DEV_PLIC].base);
     qemu_fdt_add_subnode(fdt, nodename);
-    qemu_fdt_setprop_cell(fdt, nodename, "#interrupt-cells", 1);
+    qemu_fdt_setprop_cell(fdt, nodename, "#interrupt-cells",
+                          SIFIVE_U_PLIC_INT_CELLS);
+    qemu_fdt_setprop_cell(fdt, nodename, "#address-cells",
+                          SIFIVE_U_PLIC_ADDR_CELLS);
     qemu_fdt_setprop_string_array(fdt, nodename, "compatible",
         (char **)&plic_compat, ARRAY_SIZE(plic_compat));
     qemu_fdt_setprop(fdt, nodename, "interrupt-controller", NULL, 0);
