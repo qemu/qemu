@@ -13,11 +13,13 @@
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "exec/tlb-flags.h"
+#ifdef CONFIG_TCG
 #include "accel/tcg/probe.h"
+#include "target/arm/tcg/idau.h"
+#endif
 #include "cpu.h"
 #include "internals.h"
 #include "cpu-features.h"
-#include "target/arm/tcg/idau.h"
 
 typedef struct S1Translate {
     /*
@@ -2818,6 +2820,8 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
     return (ptw->in_prot_check & ~result->f.prot) == 0;
 }
 
+#ifdef CONFIG_TCG
+
 static uint32_t *regime_rbar(CPUARMState *env, ARMMMUIdx mmu_idx,
                              uint32_t secure)
 {
@@ -3246,6 +3250,20 @@ static bool get_phys_addr_pmsav8(CPUARMState *env,
     }
     return ret;
 }
+
+#else /* !CONFIG_TCG */
+
+static bool get_phys_addr_pmsav8(CPUARMState *env,
+                                 S1Translate *ptw,
+                                 uint32_t address,
+                                 MMUAccessType access_type,
+                                 GetPhysAddrResult *result,
+                                 ARMMMUFaultInfo *fi)
+{
+    g_assert_not_reached();
+}
+
+#endif /* !CONFIG_TCG */
 
 /*
  * Translate from the 4-bit stage 2 representation of
