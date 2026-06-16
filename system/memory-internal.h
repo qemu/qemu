@@ -14,7 +14,6 @@
 #ifndef MEMORY_INTERNAL_H
 #define MEMORY_INTERNAL_H
 
-#ifndef CONFIG_USER_ONLY
 static inline AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv)
 {
     return fv->dispatch;
@@ -56,5 +55,4 @@ static inline MemOp devend_memop(enum device_endian end)
     return devend_big_endian(end) ? MO_BE : MO_LE;
 }
 
-#endif
 #endif
