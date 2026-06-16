@@ -22,7 +22,7 @@
 
 #include "exec/vaddr.h"
 #include "exec/mmu-access-type.h"
-
+#include "accel/tcg/cpu-loop.h"
 
 /**
  * adjust_signal_pc:

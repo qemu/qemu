@@ -14,6 +14,7 @@
 #include <sys/procdesc.h>
 #include <sys/wait.h>
 
+#include "accel/tcg/cpu-loop.h"
 #include "target_arch_cpu.h"
 
 pid_t safe_wait4(pid_t wpid, int *status, int options, struct rusage *rusage);
