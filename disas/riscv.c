@@ -985,6 +985,11 @@ typedef enum {
     rv_op_ssamoswap_d = 953,
     rv_op_c_sspush = 954,
     rv_op_c_sspopchk = 955,
+    rv_op_cbo_inval = 956,
+    rv_op_cbo_clean = 957,
+    rv_op_cbo_flush = 958,
+    rv_op_cbo_zero = 959,
+    rv_op_mnret = 960,
 } rv_op;
 
 /* register names */
@@ -2255,6 +2260,11 @@ const rv_opcode_data rvi_opcode_data[] = {
       rv_op_sspush, 0 },
     { "c.sspopchk", rv_codec_cmop_ss, rv_fmt_rs1, NULL, rv_op_sspopchk,
       rv_op_sspopchk, 0 },
+   { "cbo.inval", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
+   { "cbo.clean", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
+   { "cbo.flush", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
+   { "cbo.zero", rv_codec_r, rv_fmt_rs1, NULL, 0, 0, 0 },
+   { "mnret", rv_codec_none, rv_fmt_none, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2876,7 +2886,26 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             switch ((inst >> 12) & 0b111) {
             case 0: op = rv_op_fence; break;
             case 1: op = rv_op_fence_i; break;
-            case 2: op = rv_op_lq; break;
+            case 2:
+               /*
+                * 'lq' shares the "(...) 010 ..... 0001111" opcode space
+                * with 'cbo' insns.  Check the next 5 bits to select
+                * what we want:
+                *
+                * cbo_inval  0000000 00000 ..... 010 00000 0001111
+                * cbo_clean  0000000 00001 ..... 010 00000 0001111
+                * cbo_flush  0000000 00010 ..... 010 00000 0001111
+                * cbo_zero   0000000 00100 ..... 010 00000 0001111
+                *
+                * Anything that doesn't match these will default to 'lq'.
+                */
+               switch ((inst >> 17) & 0b11111) {
+               case 0: op = rv_op_cbo_inval; break;
+               case 1: op = rv_op_cbo_clean; break;
+               case 2: op = rv_op_cbo_flush; break;
+               case 4: op = rv_op_cbo_zero; break;
+               default: op = rv_op_lq; break;
+               }
             }
             break;
         case 4:
@@ -4050,6 +4079,11 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                     case 64: op = rv_op_mret; break;
                     }
                     break;
+                case 1792:
+                    switch ((inst >> 15) & 0b1111111111) {
+                    case 64: op = rv_op_mnret; break;
+                    }
+                    break;
                 case 1952:
                     switch ((inst >> 15) & 0b1111111111) {
                     case 576: op = rv_op_dret; break;
@@ -5057,26 +5091,10 @@ static bool check_constraints(rv_decode *dec, const rvc_constraint *c)
     return true;
 }
 
-/* instruction length */
-
+/* Same as insn_len() from target/riscv/internals.h */
 static size_t inst_length(rv_inst inst)
 {
-    /* NOTE: supports maximum instruction size of 64-bits */
-
-    /*
-     * instruction length coding
-     *
-     *      aa - 16 bit aa != 11
-     *   bbb11 - 32 bit bbb != 111
-     *  011111 - 48 bit
-     * 0111111 - 64 bit
-     */
-
-    return (inst &      0b11) != 0b11      ? 2
-         : (inst &   0b11100) != 0b11100   ? 4
-         : (inst &  0b111111) == 0b011111  ? 6
-         : (inst & 0b1111111) == 0b0111111 ? 8
-         : 0;
+    return (inst & 3) == 3 ? 4 : 2;
 }
 
 /* format instruction */

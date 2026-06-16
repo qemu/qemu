@@ -22,6 +22,7 @@
 #include "qemu/ctype.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
+#include "target/riscv/csr.h"
 #include "cpu_bits.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
@@ -248,7 +249,7 @@ static bool reg_is_ulong_integer(CPURISCVState *env, const char *name,
                                  target_ulong *val, bool is_gprh)
 {
     const char * const *reg_names;
-    target_ulong *vals;
+    uint64_t *vals;
 
     if (is_gprh) {
         reg_names = riscv_int_regnamesh;

@@ -35,6 +35,7 @@
 #include "system/tcg.h"
 #include "cpu-qom.h"
 #include "cpu.h"
+#include "target/riscv/csr.h"
 
 static void riscv_cpu_add_definition(gpointer data, gpointer user_data)
 {

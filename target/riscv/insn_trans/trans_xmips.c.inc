@@ -47,7 +47,7 @@ static bool trans_ccmov(DisasContext *ctx, arg_ccmov *a)
 /* Load Doubleword Pair. */
 static bool trans_ldp(DisasContext *ctx, arg_ldp *a)
 {
-    MemOp memop = MO_SQ | mo_endian(ctx);
+    MemOp memop = MO_SQ | ctx->mo_endianness;
 
     REQUIRE_XMIPSLSP(ctx);
     REQUIRE_64_OR_128BIT(ctx);
@@ -71,7 +71,7 @@ static bool trans_ldp(DisasContext *ctx, arg_ldp *a)
 /* Load Word Pair. */
 static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
 {
-    MemOp memop = MO_SL | mo_endian(ctx);
+    MemOp memop = MO_SL | ctx->mo_endianness;
 
     REQUIRE_XMIPSLSP(ctx);
 
@@ -94,7 +94,7 @@ static bool trans_lwp(DisasContext *ctx, arg_lwp *a)
 /* Store Doubleword Pair. */
 static bool trans_sdp(DisasContext *ctx, arg_sdp *a)
 {
-    MemOp memop = MO_UQ | mo_endian(ctx);
+    MemOp memop = MO_UQ | ctx->mo_endianness;
 
     REQUIRE_XMIPSLSP(ctx);
     REQUIRE_64_OR_128BIT(ctx);
@@ -116,7 +116,7 @@ static bool trans_sdp(DisasContext *ctx, arg_sdp *a)
 /* Store Word Pair. */
 static bool trans_swp(DisasContext *ctx, arg_swp *a)
 {
-    MemOp memop = MO_SL | mo_endian(ctx);
+    MemOp memop = MO_SL | ctx->mo_endianness;
 
     REQUIRE_XMIPSLSP(ctx);
 

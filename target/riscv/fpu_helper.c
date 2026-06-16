@@ -23,10 +23,10 @@
 #include "fpu/softfloat.h"
 #include "internals.h"
 
-target_ulong riscv_cpu_get_fflags(CPURISCVState *env)
+uint8_t riscv_cpu_get_fflags(CPURISCVState *env)
 {
     int soft = get_float_exception_flags(&env->fp_status);
-    target_ulong hard = 0;
+    uint8_t hard = 0;
 
     hard |= (soft & float_flag_inexact) ? FPEXC_NX : 0;
     hard |= (soft & float_flag_underflow) ? FPEXC_UF : 0;
@@ -37,7 +37,7 @@ target_ulong riscv_cpu_get_fflags(CPURISCVState *env)
     return hard;
 }
 
-void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong hard)
+void riscv_cpu_set_fflags(CPURISCVState *env, uint8_t hard)
 {
     int soft = 0;
 
@@ -50,9 +50,25 @@ void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong hard)
     set_float_exception_flags(soft, &env->fp_status);
 }
 
+#ifndef CONFIG_USER_ONLY
+void riscv_cpu_check_fflags(CPURISCVState *env,
+                            FloatExceptionFlags pre_fflag)
+{
+    if (get_float_exception_flags(&env->fp_status) & ~pre_fflag) {
+        env->mstatus |= MSTATUS_FS;
+        if (env->virt_enabled) {
+            env->mstatus_hs |= MSTATUS_FS;
+        }
+    }
+}
+#else
+void riscv_cpu_check_fflags(CPURISCVState *env,
+                            FloatExceptionFlags pre_fflag) {}
+#endif
+
 void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
 {
-    int softrm;
+    FloatRoundMode softrm;
 
     if (rm == RISCV_FRM_DYN) {
         rm = env->frm;
@@ -82,7 +98,7 @@ void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
 
 void helper_set_rounding_mode_chkfrm(CPURISCVState *env, uint32_t rm)
 {
-    int softrm;
+    FloatRoundMode softrm;
 
     /* Always validate frm, even if rm != DYN. */
     if (unlikely(env->frm >= 5)) {
@@ -286,59 +302,86 @@ target_ulong helper_fle_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
-    return float32_le(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_le(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fleq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
-    return float32_le_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_le_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_flt_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
-    return float32_lt(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_lt(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fltq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
-    return float32_lt_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_lt_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_feq_s(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
     float32 frs2 = check_nanbox_s(env, rs2);
-    return float32_eq_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_eq_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_w_s(CPURISCVState *env, uint64_t rs1)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
-    return float32_to_int32(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_to_int32(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_wu_s(CPURISCVState *env, uint64_t rs1)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
-    return (int32_t)float32_to_uint32(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = (int32_t)float32_to_uint32(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_l_s(CPURISCVState *env, uint64_t rs1)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
-    return float32_to_int64(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_to_int64(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_lu_s(CPURISCVState *env, uint64_t rs1)
 {
     float32 frs1 = check_nanbox_s(env, rs1);
-    return float32_to_uint64(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float32_to_uint64(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 uint64_t helper_fcvt_s_w(CPURISCVState *env, target_ulong rs1)
@@ -453,52 +496,83 @@ uint64_t helper_fsqrt_d(CPURISCVState *env, uint64_t frs1)
 
 target_ulong helper_fle_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
-    return float64_le(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_le(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fleq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
-    return float64_le_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_le_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_flt_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
-    return float64_lt(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_lt(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fltq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
-    return float64_lt_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_lt_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_feq_d(CPURISCVState *env, uint64_t frs1, uint64_t frs2)
 {
-    return float64_eq_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_eq_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_w_d(CPURISCVState *env, uint64_t frs1)
 {
-    return float64_to_int32(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_to_int32(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 uint64_t helper_fcvtmod_w_d(CPURISCVState *env, uint64_t value)
 {
-    return float64_to_int32_modulo(value, float_round_to_zero, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    uint64_t ret = float64_to_int32_modulo(value, float_round_to_zero,
+                                           &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_wu_d(CPURISCVState *env, uint64_t frs1)
 {
-    return (int32_t)float64_to_uint32(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = (int32_t)float64_to_uint32(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_l_d(CPURISCVState *env, uint64_t frs1)
 {
-    return float64_to_int64(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_to_int64(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_lu_d(CPURISCVState *env, uint64_t frs1)
 {
-    return float64_to_uint64(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float64_to_uint64(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 uint64_t helper_fcvt_d_w(CPURISCVState *env, target_ulong rs1)
@@ -619,35 +693,50 @@ target_ulong helper_fle_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
-    return float16_le(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_le(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fleq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
-    return float16_le_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_le_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_flt_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
-    return float16_lt(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_lt(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fltq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
-    return float16_lt_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_lt_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_feq_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
     float16 frs2 = check_nanbox_h(env, rs2);
-    return float16_eq_quiet(frs1, frs2, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_eq_quiet(frs1, frs2, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fclass_h(CPURISCVState *env, uint64_t rs1)
@@ -683,25 +772,37 @@ uint64_t helper_froundnx_h(CPURISCVState *env, uint64_t rs1)
 target_ulong helper_fcvt_w_h(CPURISCVState *env, uint64_t rs1)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
-    return float16_to_int32(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_to_int32(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_wu_h(CPURISCVState *env, uint64_t rs1)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
-    return (int32_t)float16_to_uint32(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = (int32_t)float16_to_uint32(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_l_h(CPURISCVState *env, uint64_t rs1)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
-    return float16_to_int64(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_to_int64(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 target_ulong helper_fcvt_lu_h(CPURISCVState *env, uint64_t rs1)
 {
     float16 frs1 = check_nanbox_h(env, rs1);
-    return float16_to_uint64(frs1, &env->fp_status);
+    FloatExceptionFlags pre_fflag = get_float_exception_flags(&env->fp_status);
+    target_ulong ret = float16_to_uint64(frs1, &env->fp_status);
+    riscv_cpu_check_fflags(env, pre_fflag);
+    return ret;
 }
 
 uint64_t helper_fcvt_h_w(CPURISCVState *env, target_ulong rs1)

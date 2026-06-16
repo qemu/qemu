@@ -114,7 +114,8 @@ static bool riscv_pmu_counter_enabled(RISCVCPU *cpu, uint32_t ctr_idx)
  *  new priv and new virt values are passed in as arguments.
  */
 static void riscv_pmu_icount_update_priv(CPURISCVState *env,
-                                         target_ulong newpriv, bool new_virt)
+                                         privilege_mode_t newpriv,
+                                         bool new_virt)
 {
     uint64_t *snapshot_prev, *snapshot_new;
     uint64_t current_icount;
@@ -154,7 +155,8 @@ static void riscv_pmu_icount_update_priv(CPURISCVState *env,
 }
 
 static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
-                                        target_ulong newpriv, bool new_virt)
+                                        privilege_mode_t newpriv,
+                                        bool new_virt)
 {
     uint64_t *snapshot_prev, *snapshot_new;
     uint64_t current_ticks;
@@ -189,7 +191,8 @@ static void riscv_pmu_cycle_update_priv(CPURISCVState *env,
     counter_arr[env->priv] += delta;
 }
 
-void riscv_pmu_update_fixed_ctrs(CPURISCVState *env, target_ulong newpriv,
+void riscv_pmu_update_fixed_ctrs(CPURISCVState *env,
+                                 privilege_mode_t newpriv,
                                  bool new_virt)
 {
     riscv_pmu_cycle_update_priv(env, newpriv, new_virt);

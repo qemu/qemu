@@ -25,8 +25,6 @@
 #include "exec/breakpoint.h"
 #include "exec/target_long.h"
 
-#define RV_MAX_TRIGGERS         2
-
 /* register index of tdata CSRs */
 enum {
     TDATA1 = 0,
