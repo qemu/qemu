@@ -29,9 +29,11 @@
 #include "exec/vaddr.h"
 #include "exec/breakpoint.h"
 #include "exec/memop.h"
+#ifdef CONFIG_TCG
 #include "accel/tcg/tb-cpu-state.h"
-#include "hw/core/registerfields.h"
 #include "tcg/tcg-gvec-desc.h"
+#endif
+#include "hw/core/registerfields.h"
 #include "system/memory.h"
 #include "syndrome.h"
 #include "cpu-features.h"
