@@ -62,18 +62,6 @@ void list_cpus(void);
 #include "qemu/atomic.h"
 
 /**
- * cpu_restore_state:
- * @cpu: the cpu context
- * @host_pc: the host pc within the translation
- * @return: true if state was restored, false otherwise
- *
- * Attempt to restore the state for a fault occurring in translated
- * code. If @host_pc is not in translated code no state is
- * restored and the function returns false.
- */
-bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc);
-
-/**
  * cpu_loop_exit_requested:
  * @cpu: The CPU state to be tested
  *

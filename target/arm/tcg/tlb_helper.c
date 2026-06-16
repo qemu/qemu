@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "helper.h"
+#include "accel/tcg/cpu-loop.h"
 #include "internals.h"
 #include "cpu-features.h"
 #include "hw/intc/armv7m_nvic.h"
