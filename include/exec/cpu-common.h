@@ -73,7 +73,7 @@ void list_cpus(void);
  * call can be used to check if it makes sense to return to the main loop
  * or to continue executing the interruptible instruction.
  */
-static inline bool cpu_loop_exit_requested(CPUState *cpu)
+static inline bool cpu_loop_exit_requested(const CPUState *cpu)
 {
     return (int32_t)qatomic_read(&cpu->neg.icount_decr.u32) < 0;
 }
