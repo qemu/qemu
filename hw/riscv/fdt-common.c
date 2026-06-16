@@ -200,3 +200,33 @@ create_fdt_socket_cpu_sifive(void *fdt, char *clust_name,
                                    socket_id, socket_hartid_base,
                                    phandle, intc_phandles, false, false);
 }
+
+void create_fdt_plic(void *fdt, hwaddr addr, uint64_t size,
+                     uint32_t plic_phandle, uint32_t int_cells,
+                     uint32_t addr_cells, uint32_t *plic_cells,
+                     uint32_t cells_size, uint32_t ndev_sources,
+                     bool numa_enabled, int socket_id)
+{
+    g_autofree char *nodename = NULL;
+    static const char * const plic_compat[2] = {
+        "sifive,plic-1.0.0", "riscv,plic0"
+    };
+
+    nodename = g_strdup_printf("/soc/interrupt-controller@%"HWADDR_PRIx, addr);
+
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_cell(fdt, nodename, "#interrupt-cells", int_cells);
+    qemu_fdt_setprop_cell(fdt, nodename, "#address-cells", addr_cells);
+    qemu_fdt_setprop_string_array(fdt, nodename, "compatible",
+        (char **)&plic_compat, ARRAY_SIZE(plic_compat));
+    qemu_fdt_setprop(fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop(fdt, nodename, "interrupts-extended",
+                     plic_cells, cells_size);
+    qemu_fdt_setprop_sized_cells(fdt, nodename, "reg",
+                                 2, addr, 2, size);
+    qemu_fdt_setprop_cell(fdt, nodename, "riscv,ndev", ndev_sources);
+    if (numa_enabled) {
+        qemu_fdt_setprop_cell(fdt, nodename, "numa-node-id", socket_id);
+    }
+    qemu_fdt_setprop_cell(fdt, nodename, "phandle", plic_phandle);
+}
