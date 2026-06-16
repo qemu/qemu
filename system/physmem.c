@@ -3592,7 +3592,7 @@ void address_space_register_map_client(AddressSpace *as, QEMUBH *bh)
     }
 }
 
-void cpu_exec_init_all(void)
+void machine_memory_init(void)
 {
     qemu_mutex_init(&ram_list.mutex);
     /* The data structures we set up here depend on knowing the page size,
