@@ -23,6 +23,7 @@
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
 #include "exec/helper-proto.h"
+#include "accel/tcg/cpu-loop.h"
 #include "exception.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/boards.h"
