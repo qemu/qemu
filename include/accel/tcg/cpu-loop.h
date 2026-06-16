@@ -18,4 +18,6 @@
  */
 int cpu_exec(CPUState *cpu);
 
+void cpu_exec_step_atomic(CPUState *cpu);
+
 #endif
