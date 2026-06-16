@@ -335,7 +335,7 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
     plic_phandles[socket] = (*phandle)++;
     plic_addr = s->memmap[VIRT_PLIC].base +
                 (s->memmap[VIRT_PLIC].size * socket);
-    plic_name = g_strdup_printf("/soc/plic@%lx", plic_addr);
+    plic_name = g_strdup_printf("/soc/interrupt-controller@%lx", plic_addr);
     qemu_fdt_add_subnode(ms->fdt, plic_name);
     qemu_fdt_setprop_cell(ms->fdt, plic_name,
         "#interrupt-cells", FDT_PLIC_INT_CELLS);
