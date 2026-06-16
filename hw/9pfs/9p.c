@@ -3908,6 +3908,10 @@ static void coroutine_fn v9fs_lock(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
+    if (!fid_has_valid_file_handle(pdu->s, fidp)) {
+        err = -EBADF;
+        goto out;
+    }
     err = v9fs_co_fstat(pdu, fidp, &stbuf);
     if (err < 0) {
         goto out;
@@ -3952,6 +3956,10 @@ static void coroutine_fn v9fs_getlock(void *opaque)
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
+    }
+    if (!fid_has_valid_file_handle(pdu->s, fidp)) {
+        err = -EBADF;
+        goto out;
     }
     err = v9fs_co_fstat(pdu, fidp, &stbuf);
     if (err < 0) {
