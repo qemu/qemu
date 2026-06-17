@@ -864,6 +864,8 @@ struct MemoryRegion {
 
     /* For devices designed to perform re-entrant IO into their own IO MRs */
     bool disable_reentrancy_guard;
+    /* RAM device region that does not require IOMMU mapping for P2P */
+    bool ram_device_skip_iommu_map;
 };
 
 struct IOMMUMemoryRegion {
@@ -1742,6 +1744,25 @@ static inline bool memory_region_is_romd(const MemoryRegion *mr)
  * @mr: the memory region being queried
  */
 bool memory_region_is_protected(const MemoryRegion *mr);
+
+/**
+ * memory_region_skip_iommu_map: check whether a memory region is excluded
+ *                               from IOMMU mapping
+ *
+ * Returns %true if @mr is a RAM device region marked to skip IOMMU mapping.
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_skip_iommu_map(const MemoryRegion *mr);
+
+/**
+ * memory_region_set_skip_iommu_map: mark a RAM device region to skip IOMMU
+ *                                   mapping
+ *
+ * @mr: the memory region being modified
+ * @skip: %true to skip IOMMU mapping, %false to allow it
+ */
+void memory_region_set_skip_iommu_map(MemoryRegion *mr, bool skip);
 
 /**
  * memory_region_has_guest_memfd: check whether a memory region has guest_memfd

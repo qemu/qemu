@@ -1516,7 +1516,12 @@ static inline bool isar_feature_aa64_sve2(const ARMISARegisters *id)
 
 static inline bool isar_feature_aa64_sve2p1(const ARMISARegisters *id)
 {
-    return FIELD_EX64_IDREG(id, ID_AA64ZFR0, SVEVER) >=2;
+    return FIELD_EX64_IDREG(id, ID_AA64ZFR0, SVEVER) >= 2;
+}
+
+static inline bool isar_feature_aa64_sve2p2(const ARMISARegisters *id)
+{
+    return FIELD_EX64_IDREG(id, ID_AA64ZFR0, SVEVER) >= 3;
 }
 
 static inline bool isar_feature_aa64_sve2_aes(const ARMISARegisters *id)
@@ -1625,6 +1630,11 @@ static inline bool isar_feature_aa64_sme2p1(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, SMEVER) >= 2;
 }
 
+static inline bool isar_feature_aa64_sme2p2(const ARMISARegisters *id)
+{
+    return FIELD_EX64_IDREG(id, ID_AA64SMFR0, SMEVER) >= 3;
+}
+
 static inline bool isar_feature_aa64_f8cvt(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64FPFR0, F8CVT);
@@ -1686,6 +1696,11 @@ static inline bool isar_feature_aa64_sme2_or_sve2p1(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sme2p1_or_sve2p1(const ARMISARegisters *id)
 {
     return isar_feature_aa64_sme2p1(id) || isar_feature_aa64_sve2p1(id);
+}
+
+static inline bool isar_feature_aa64_sme2p2_or_sve2p2(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme2p2(id) || isar_feature_aa64_sve2p2(id);
 }
 
 static inline bool isar_feature_aa64_sme2_i16i64(const ARMISARegisters *id)

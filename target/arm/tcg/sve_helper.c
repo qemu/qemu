@@ -823,18 +823,20 @@ DO_ZPZW(sve_lsl_zpzw_s, uint32_t, uint64_t, H1_4, DO_LSL)
 
 #undef DO_ZPZW
 
-/* Fully general two-operand expander, controlled by a predicate.
- */
+/* Fully general two-operand expander, controlled by a predicate.  */
 #define DO_ZPZ(NAME, TYPE, H, OP)                               \
 void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)  \
 {                                                               \
     intptr_t i, opr_sz = simd_oprsz(desc);                      \
+    bool zeroing = simd_data(desc) & 1;                         \
     for (i = 0; i < opr_sz; ) {                                 \
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));         \
         do {                                                    \
             if (pg & 1) {                                       \
                 TYPE nn = *(TYPE *)(vn + H(i));                 \
                 *(TYPE *)(vd + H(i)) = OP(nn);                  \
+            } else if (zeroing) {                               \
+                *(TYPE *)(vd + H(i)) = 0;                       \
             }                                                   \
             i += sizeof(TYPE), pg >>= sizeof(TYPE);             \
         } while (i & 15);                                       \
@@ -846,12 +848,15 @@ void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)  \
 void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)  \
 {                                                               \
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;                  \
+    bool zeroing = simd_data(desc) & 1;                         \
     TYPE *d = vd, *n = vn;                                      \
     uint8_t *pg = vg;                                           \
     for (i = 0; i < opr_sz; i += 1) {                           \
         if (pg[H1(i)] & 1) {                                    \
             TYPE nn = n[i];                                     \
             d[i] = OP(nn);                                      \
+        } else if (zeroing) {                                   \
+            d[i] = 0;                                           \
         }                                                       \
     }                                                           \
 }
@@ -966,6 +971,7 @@ DO_ZPZ_D(sve_revw_d, uint64_t, wswap64)
 void HELPER(sme_revd_q)(void *vd, void *vn, void *vg, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc) / 8;
+    bool zeroing = simd_data(desc) & 1;
     uint64_t *d = vd, *n = vn;
     uint8_t *pg = vg;
 
@@ -975,6 +981,9 @@ void HELPER(sme_revd_q)(void *vd, void *vn, void *vg, uint32_t desc)
             uint64_t n1 = n[i + 1];
             d[i + 0] = n1;
             d[i + 1] = n0;
+        } else if (zeroing) {
+            d[i + 0] = 0;
+            d[i + 1] = 0;
         }
     }
 }
@@ -4831,7 +4840,8 @@ DO_ZPZS_FP(sve_ah_fmins_h, float16, H1_2, helper_vfp_ah_minh)
 DO_ZPZS_FP(sve_ah_fmins_s, float32, H1_4, helper_vfp_ah_mins)
 DO_ZPZS_FP(sve_ah_fmins_d, float64, H1_8, helper_vfp_ah_mind)
 
-/* Fully general two-operand expander, controlled by a predicate,
+/*
+ * Fully general two-operand expander, controlled by a predicate,
  * With the extra float_status parameter.
  */
 #define DO_ZPZ_FP(NAME, TYPE, H, OP)                                  \
@@ -4839,6 +4849,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                       \
                   float_status *status, uint32_t desc)                \
 {                                                                     \
     intptr_t i = simd_oprsz(desc);                                    \
+    bool zeroing = simd_data(desc) & 1;                               \
     uint64_t *g = vg;                                                 \
     do {                                                              \
         uint64_t pg = g[(i - 1) >> 6];                                \
@@ -4847,6 +4858,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                       \
             if (likely((pg >> (i & 63)) & 1)) {                       \
                 TYPE nn = *(TYPE *)(vn + H(i));                       \
                 *(TYPE *)(vd + H(i)) = OP(nn, status);                \
+            } else if (zeroing) {                                     \
+                *(TYPE *)(vd + H(i)) = 0;                             \
             }                                                         \
         } while (i & 63);                                             \
     } while (i != 0);                                                 \
@@ -5003,6 +5016,11 @@ DO_ZPZ_FP(sve_frint_d, uint64_t, H1_8, helper_rintd)
 DO_ZPZ_FP(sve_frintx_h, uint16_t, H1_2, float16_round_to_int)
 DO_ZPZ_FP(sve_frintx_s, uint32_t, H1_4, float32_round_to_int)
 DO_ZPZ_FP(sve_frintx_d, uint64_t, H1_8, float64_round_to_int)
+
+DO_ZPZ_FP(sve2p2_frint32_s, uint32_t, H1_4, helper_frint32_s)
+DO_ZPZ_FP(sve2p2_frint64_s, uint32_t, H1_4, helper_frint64_s)
+DO_ZPZ_FP(sve2p2_frint32_d, uint64_t, H1_8, helper_frint32_d)
+DO_ZPZ_FP(sve2p2_frint64_d, uint64_t, H1_8, helper_frint64_d)
 
 DO_ZPZ_FP(sve_frecpx_h, uint16_t, H1_2, helper_frecpx_f16)
 DO_ZPZ_FP(sve_frecpx_s, uint32_t, H1_4, helper_frecpx_f32)
@@ -8577,6 +8595,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
                   float_status *status, uint32_t desc)                        \
 {                                                                             \
     intptr_t i = simd_oprsz(desc);                                            \
+    bool zeroing = simd_data(desc) & 1;                                       \
     uint64_t *g = vg;                                                         \
     do {                                                                      \
         uint64_t pg = g[(i - 1) >> 6];                                        \
@@ -8585,6 +8604,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
             if (likely((pg >> (i & 63)) & 1)) {                               \
                 TYPEW nn = *(TYPEW *)(vn + HW(i));                            \
                 *(TYPEN *)(vd + HN(i + sizeof(TYPEN))) = OP(nn, status);      \
+            } else if (zeroing) {                                             \
+                *(TYPEN *)(vd + HN(i + sizeof(TYPEN))) = 0;                   \
             }                                                                 \
         } while (i & 63);                                                     \
     } while (i != 0);                                                         \
@@ -8599,6 +8620,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
                   float_status *status, uint32_t desc)                        \
 {                                                                             \
     intptr_t i = simd_oprsz(desc);                                            \
+    bool zeroing = simd_data(desc) & 1;                                       \
     uint64_t *g = vg;                                                         \
     do {                                                                      \
         uint64_t pg = g[(i - 1) >> 6];                                        \
@@ -8607,6 +8629,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vg,                               \
             if (likely((pg >> (i & 63)) & 1)) {                               \
                 TYPEN nn = *(TYPEN *)(vn + HN(i + sizeof(TYPEN)));            \
                 *(TYPEW *)(vd + HW(i)) = OP(nn, status);                      \
+            } else if (zeroing) {                                             \
+                *(TYPEW *)(vd + HW(i)) = 0;                                   \
             }                                                                 \
         } while (i & 63);                                                     \
     } while (i != 0);                                                         \
