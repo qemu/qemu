@@ -80,11 +80,15 @@ typedef uint64_t qemu_plugin_id_t;
  * - added disconinuity callback API (for interrupts, exceptions, host calls)
  * - added syscall filter callback API, which allows skipping syscalls and
  *   setting custom syscall return values
+ *
+ * version 7:
+ * - add userdata to all plugin callbacks, allowing maintenance of state
+ *   externally, and easing interfacing with other languages.
  */
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 6
+#define QEMU_PLUGIN_VERSION 7
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -137,34 +141,15 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            int argc, char **argv);
 
 /**
- * typedef qemu_plugin_simple_cb_t - simple callback
- * @id: the unique qemu_plugin_id_t
- *
- * This callback passes no information aside from the unique @id.
- */
-typedef void (*qemu_plugin_simple_cb_t)(qemu_plugin_id_t id);
-
-/**
  * typedef qemu_plugin_udata_cb_t - callback with user data
- * @id: the unique qemu_plugin_id_t
- * @userdata: a pointer to some user data supplied when the callback
- * was registered.
+ * @userdata: user data for callback
  */
-typedef void (*qemu_plugin_udata_cb_t)(qemu_plugin_id_t id, void *userdata);
-
-/**
- * typedef qemu_plugin_vcpu_simple_cb_t - vcpu callback
- * @id: the unique qemu_plugin_id_t
- * @vcpu_index: the current vcpu context
- */
-typedef void (*qemu_plugin_vcpu_simple_cb_t)(qemu_plugin_id_t id,
-                                             unsigned int vcpu_index);
+typedef void (*qemu_plugin_udata_cb_t)(void *userdata);
 
 /**
  * typedef qemu_plugin_vcpu_udata_cb_t - vcpu callback
  * @vcpu_index: the current vcpu context
- * @userdata: a pointer to some user data supplied when the callback
- * was registered.
+ * @userdata: user data for callback
  */
 typedef void (*qemu_plugin_vcpu_udata_cb_t)(unsigned int vcpu_index,
                                             void *userdata);
@@ -193,12 +178,12 @@ enum qemu_plugin_discon_type {
 
 /**
  * typedef qemu_plugin_vcpu_discon_cb_t - vcpu discontinuity callback
- * @id: plugin ID
  * @vcpu_index: the current vcpu context
  * @type: the type of discontinuity
  * @from_pc: the source of the discontinuity, e.g. the PC before the
  *           transition
  * @to_pc: the PC pointing to the next instruction to be executed
+ * @userdata: user data for callback
  *
  * The exact semantics of @from_pc depends on the @type of discontinuity. For
  * interrupts, @from_pc will point to the next instruction which would have
@@ -208,15 +193,16 @@ enum qemu_plugin_discon_type {
  * observable via general instruction exec callbacks. The same may be the case
  * for some host calls such as hypervisor call "exceptions".
  */
-typedef void (*qemu_plugin_vcpu_discon_cb_t)(qemu_plugin_id_t id,
-                                             unsigned int vcpu_index,
+typedef void (*qemu_plugin_vcpu_discon_cb_t)(unsigned int vcpu_index,
                                              enum qemu_plugin_discon_type type,
-                                             uint64_t from_pc, uint64_t to_pc);
+                                             uint64_t from_pc, uint64_t to_pc,
+                                             void *userdata);
 
 /**
  * qemu_plugin_uninstall() - Uninstall a plugin
  * @id: this plugin's opaque ID
  * @cb: callback to be called once the plugin has been removed
+ * @userdata: user data for callback
  *
  * Do NOT assume that the plugin has been uninstalled once this function
  * returns. Plugins are uninstalled asynchronously, and therefore the given
@@ -225,12 +211,14 @@ typedef void (*qemu_plugin_vcpu_discon_cb_t)(qemu_plugin_id_t id,
  * Note: Calling this function from qemu_plugin_install() is a bug.
  */
 QEMU_PLUGIN_API
-void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);
+void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb,
+                           void *userdata);
 
 /**
  * qemu_plugin_reset() - Reset a plugin
  * @id: this plugin's opaque ID
  * @cb: callback to be called once the plugin has been reset
+ * @userdata: user data for callback
  *
  * Unregisters all callbacks for the plugin given by @id.
  *
@@ -239,12 +227,14 @@ void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);
  * callbacks until @cb is called.
  */
 QEMU_PLUGIN_API
-void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);
+void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb,
+                       void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_init_cb() - register a vCPU initialization callback
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a vCPU is initialized.
  *
@@ -252,12 +242,14 @@ void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_init_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb);
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_exit_cb() - register a vCPU exit callback
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a vCPU exits.
  *
@@ -265,35 +257,41 @@ void qemu_plugin_register_vcpu_init_cb(qemu_plugin_id_t id,
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_exit_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb);
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_idle_cb() - register a vCPU idle callback
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a vCPU idles.
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb);
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_resume_cb() - register a vCPU resume callback
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a vCPU resumes execution.
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
-                                         qemu_plugin_vcpu_simple_cb_t cb);
+                                         qemu_plugin_vcpu_udata_cb_t cb,
+                                         void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_discon_cb() - register a discontinuity callback
  * @id: plugin ID
  * @type: types of discontinuities for which to call the callback
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a vCPU receives a discontinuity event
  * of the specified type(s), after the vCPU was prepared to handle the event.
@@ -303,7 +301,8 @@ void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_discon_cb(qemu_plugin_id_t id,
                                          enum qemu_plugin_discon_type type,
-                                         qemu_plugin_vcpu_discon_cb_t cb);
+                                         qemu_plugin_vcpu_discon_cb_t cb,
+                                         void *userdata);
 
 /** struct qemu_plugin_tb - Opaque handle for a translation block */
 struct qemu_plugin_tb;
@@ -416,16 +415,17 @@ enum qemu_plugin_cond {
 
 /**
  * typedef qemu_plugin_vcpu_tb_trans_cb_t - translation callback
- * @id: unique plugin id
  * @tb: opaque handle used for querying and instrumenting a block.
+ * @userdata: any plugin data to pass to the @cb
  */
-typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
-                                               struct qemu_plugin_tb *tb);
+typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(struct qemu_plugin_tb *tb,
+                                               void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_tb_trans_cb() - register a translate cb
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a translation occurs. The @cb
  * function is passed an opaque qemu_plugin_type which it can query
@@ -436,14 +436,15 @@ typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
-                                           qemu_plugin_vcpu_tb_trans_cb_t cb);
+                                           qemu_plugin_vcpu_tb_trans_cb_t cb,
+                                           void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_tb_exec_cb() - register execution callback
  * @tb: the opaque qemu_plugin_tb handle for the translation
  * @cb: callback function
  * @flags: does the plugin read or write the CPU's registers?
- * @userdata: any plugin data to pass to the @cb?
+ * @userdata: user data for callback
  *
  * The @cb function is called every time a translated unit executes.
  */
@@ -461,7 +462,7 @@ void qemu_plugin_register_vcpu_tb_exec_cb(struct qemu_plugin_tb *tb,
  * @entry: first operand for condition
  * @imm: second operand for condition
  * @flags: does the plugin read or write the CPU's registers?
- * @userdata: any plugin data to pass to the @cb?
+ * @userdata: user data for callback
  *
  * The @cb function is called when a translated unit executes if
  * entry @cond imm is true.
@@ -511,7 +512,7 @@ void qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
  * @insn: the opaque qemu_plugin_insn handle for an instruction
  * @cb: callback function
  * @flags: does the plugin read or write the CPU's registers?
- * @userdata: any plugin data to pass to the @cb?
+ * @userdata: user data for callback
  *
  * The @cb function is called every time an instruction is executed
  */
@@ -529,7 +530,7 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
  * @cond: condition to enable callback
  * @entry: first operand for condition
  * @imm: second operand for condition
- * @userdata: any plugin data to pass to the @cb?
+ * @userdata: user data for callback
  *
  * The @cb function is called when an instruction executes if
  * entry @cond imm is true.
@@ -745,7 +746,7 @@ const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h);
  * @vcpu_index: the executing vCPU
  * @info: an opaque handle for further queries about the memory
  * @vaddr: the virtual address of the transaction
- * @userdata: any user data attached to the callback
+ * @userdata: user data for callback
  */
 typedef void (*qemu_plugin_vcpu_mem_cb_t) (unsigned int vcpu_index,
                                            qemu_plugin_meminfo_t info,
@@ -758,7 +759,7 @@ typedef void (*qemu_plugin_vcpu_mem_cb_t) (unsigned int vcpu_index,
  * @cb: callback of type qemu_plugin_vcpu_mem_cb_t
  * @flags: (currently unused) callback flags
  * @rw: monitor reads, writes or both
- * @userdata: opaque pointer for userdata
+ * @userdata: user data for callback
  *
  * This registers a full callback for every memory access generated by
  * an instruction. If the instruction doesn't access memory no
@@ -827,7 +828,6 @@ void qemu_plugin_update_ns(const void *handle, int64_t time);
 
 /**
  * typedef qemu_plugin_vcpu_syscall_cb_t - vCPU syscall callback function type
- * @id: plugin id
  * @vcpu_index: the executing vCPU
  * @num: the syscall number
  * @a1: the 1st syscall argument
@@ -838,17 +838,18 @@ void qemu_plugin_update_ns(const void *handle, int64_t time);
  * @a6: the 6th syscall argument
  * @a7: the 7th syscall argument
  * @a8: the 8th syscall argument
+ * @userdata: user data for callback
  */
 typedef void
-(*qemu_plugin_vcpu_syscall_cb_t)(qemu_plugin_id_t id, unsigned int vcpu_index,
+(*qemu_plugin_vcpu_syscall_cb_t)(unsigned int vcpu_index,
                                  int64_t num, uint64_t a1, uint64_t a2,
                                  uint64_t a3, uint64_t a4, uint64_t a5,
-                                 uint64_t a6, uint64_t a7, uint64_t a8);
+                                 uint64_t a6, uint64_t a7, uint64_t a8,
+                                 void *userdata);
 
 /**
  * typedef qemu_plugin_vcpu_syscall_filter_cb_t - vCPU syscall filter callback
  * function type
- * @id: plugin id
  * @vcpu_index: the executing vCPU
  * @num: the syscall number
  * @a1: the 1st syscall argument
@@ -860,48 +861,52 @@ typedef void
  * @a7: the 7th syscall argument
  * @a8: the 8th syscall argument
  * @sysret: reference of the syscall return value, must set this if filtered
+ * @userdata: user data for callback
  *
  * Returns true if you want to filter this syscall (i.e. stop it being
  * handled further), otherwise returns false.
  */
 typedef bool
-(*qemu_plugin_vcpu_syscall_filter_cb_t)(qemu_plugin_id_t id,
-                                        unsigned int vcpu_index,
+(*qemu_plugin_vcpu_syscall_filter_cb_t)(unsigned int vcpu_index,
                                         int64_t num, uint64_t a1, uint64_t a2,
                                         uint64_t a3, uint64_t a4, uint64_t a5,
                                         uint64_t a6, uint64_t a7, uint64_t a8,
-                                        uint64_t *sysret);
+                                        uint64_t *sysret,
+                                        void *userdata);
 
 /**
  * typedef qemu_plugin_vcpu_syscall_ret_cb_t - vCPU syscall return callback
  * function type
- * @id: plugin id
  * @vcpu_index: the executing vCPU
  * @num: the syscall number
  * @ret: the syscall return value
+ * @userdata: user data for callback
  */
 typedef void
-(*qemu_plugin_vcpu_syscall_ret_cb_t)(qemu_plugin_id_t id,
-                                     unsigned int vcpu_index,
-                                     int64_t num, int64_t ret);
+(*qemu_plugin_vcpu_syscall_ret_cb_t)(unsigned int vcpu_index,
+                                     int64_t num, int64_t ret,
+                                     void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_syscall_cb() - register a syscall entry callback
  * @id: plugin id
  * @cb: callback of type qemu_plugin_vcpu_syscall_cb_t
+ * @userdata: user data for callback
  *
  * This registers a callback for every syscall executed by the guest. The @cb
  * function is executed before a syscall is handled by the host.
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,
-                                          qemu_plugin_vcpu_syscall_cb_t cb);
+                                          qemu_plugin_vcpu_syscall_cb_t cb,
+                                          void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_syscall_filter_cb() - register a syscall filter
  * callback
  * @id: plugin id
  * @cb: callback of type qemu_plugin_vcpu_syscall_filter_cb_t
+ * @userdata: user data for callback
  *
  * This registers a callback for every syscall executed by the guest. The @cb
  * function is executed before a syscall is handled by the host. If the
@@ -912,13 +917,15 @@ void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,
 QEMU_PLUGIN_API
 void
 qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
-                                            qemu_plugin_vcpu_syscall_filter_cb_t cb);
+                                            qemu_plugin_vcpu_syscall_filter_cb_t cb,
+                                            void *userdata);
 
 /**
  * qemu_plugin_register_vcpu_syscall_ret_cb() - register a syscall entry
  * callback
  * @id: plugin id
  * @cb: callback of type qemu_plugin_vcpu_syscall_ret_cb_t
+ * @userdata: user data for callback
  *
  * This registers a callback for every syscall executed by the guest. The @cb
  * function is executed upon return from the host syscall before execution is
@@ -927,7 +934,8 @@ qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
 QEMU_PLUGIN_API
 void
 qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
-                                         qemu_plugin_vcpu_syscall_ret_cb_t cb);
+                                         qemu_plugin_vcpu_syscall_ret_cb_t cb,
+                                         void *userdata);
 
 /**
  * qemu_plugin_insn_disas() - return disassembly string for instruction
@@ -952,6 +960,7 @@ const char *qemu_plugin_insn_symbol(const struct qemu_plugin_insn *insn);
  * qemu_plugin_vcpu_for_each() - iterate over the existing vCPU
  * @id: plugin ID
  * @cb: callback function
+ * @userdata: user data for callback
  *
  * The @cb function is called once for each existing vCPU.
  *
@@ -959,12 +968,14 @@ const char *qemu_plugin_insn_symbol(const struct qemu_plugin_insn *insn);
  */
 QEMU_PLUGIN_API
 void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
-                               qemu_plugin_vcpu_simple_cb_t cb);
+                               qemu_plugin_vcpu_udata_cb_t cb,
+                               void *userdata);
 
 /**
  * qemu_plugin_register_flush_cb() - register code cache flush callback
  * @id: plugin ID
  * @cb: callback
+ * @userdata: user data for callback
  *
  * The @cb function is called every time the code cache is flushed.
  * The callback can be used to free resources associated with existing
@@ -973,7 +984,8 @@ void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
  */
 QEMU_PLUGIN_API
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
-                                   qemu_plugin_simple_cb_t cb);
+                                   qemu_plugin_udata_cb_t cb,
+                                   void *userdata);
 
 /**
  * qemu_plugin_register_atexit_cb() - register exit callback

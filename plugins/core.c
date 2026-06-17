@@ -84,20 +84,18 @@ void plugin_unregister_cb__locked(struct qemu_plugin_ctx *ctx,
  * have type information
  */
 QEMU_DISABLE_CFI
-static void plugin_vcpu_cb__simple(CPUState *cpu, enum qemu_plugin_event ev)
+static void plugin_vcpu_cb__udata(CPUState *cpu, enum qemu_plugin_event ev)
 {
     struct qemu_plugin_cb *cb, *next;
 
     switch (ev) {
     case QEMU_PLUGIN_EV_VCPU_INIT:
-    case QEMU_PLUGIN_EV_VCPU_EXIT:
     case QEMU_PLUGIN_EV_VCPU_IDLE:
     case QEMU_PLUGIN_EV_VCPU_RESUME:
-        /* iterate safely; plugins might uninstall themselves at any time */
+    case QEMU_PLUGIN_EV_VCPU_EXIT:
         QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
-            qemu_plugin_vcpu_simple_cb_t func = cb->f.vcpu_simple;
-
-            func(cb->ctx->id, cpu->cpu_index);
+            qemu_plugin_vcpu_udata_cb_t func = cb->f.vcpu_udata;
+            func(cpu->cpu_index, cb->udata);
         }
         break;
     default:
@@ -124,34 +122,10 @@ static void plugin_vcpu_cb__discon(CPUState *cpu,
         /* iterate safely; plugins might uninstall themselves at any time */
         QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
             qemu_plugin_vcpu_discon_cb_t func = cb->f.vcpu_discon;
-
-            func(cb->ctx->id, cpu->cpu_index, type, from, to);
+            func(cpu->cpu_index, type, from, to, cb->udata);
         }
     }
     qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
-}
-
-/*
- * Disable CFI checks.
- * The callback function has been loaded from an external library so we do not
- * have type information
- */
-QEMU_DISABLE_CFI
-static void plugin_cb__simple(enum qemu_plugin_event ev)
-{
-    struct qemu_plugin_cb *cb, *next;
-
-    switch (ev) {
-    case QEMU_PLUGIN_EV_FLUSH:
-        QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
-            qemu_plugin_simple_cb_t func = cb->f.simple;
-
-            func(cb->ctx->id);
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
 }
 
 /*
@@ -166,10 +140,11 @@ static void plugin_cb__udata(enum qemu_plugin_event ev)
 
     switch (ev) {
     case QEMU_PLUGIN_EV_ATEXIT:
+    case QEMU_PLUGIN_EV_FLUSH:
         QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
             qemu_plugin_udata_cb_t func = cb->f.udata;
 
-            func(cb->ctx->id, cb->udata);
+            func(cb->udata);
         }
         break;
     default:
@@ -294,7 +269,7 @@ static void qemu_plugin_vcpu_init__async(CPUState *cpu, run_on_cpu_data unused)
     qemu_rec_mutex_unlock(&plugin.lock);
 
     qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS);
-    plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_INIT);
+    plugin_vcpu_cb__udata(cpu, QEMU_PLUGIN_EV_VCPU_INIT);
     qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
 }
 
@@ -309,7 +284,7 @@ void qemu_plugin_vcpu_exit_hook(CPUState *cpu)
     bool success;
 
     qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS);
-    plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_EXIT);
+    plugin_vcpu_cb__udata(cpu, QEMU_PLUGIN_EV_VCPU_EXIT);
     qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
 
     assert(cpu->cpu_index != UNASSIGNED_CPU_INDEX);
@@ -321,19 +296,20 @@ void qemu_plugin_vcpu_exit_hook(CPUState *cpu)
 
 struct plugin_for_each_args {
     struct qemu_plugin_ctx *ctx;
-    qemu_plugin_vcpu_simple_cb_t cb;
+    qemu_plugin_vcpu_udata_cb_t cb;
+    void *userdata;
 };
 
 static void plugin_vcpu_for_each(gpointer k, gpointer v, gpointer udata)
 {
     struct plugin_for_each_args *args = udata;
     int cpu_index = *(int *)k;
-
-    args->cb(args->ctx->id, cpu_index);
+    args->cb(cpu_index, args->userdata);
 }
 
 void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
-                               qemu_plugin_vcpu_simple_cb_t cb)
+                               qemu_plugin_vcpu_udata_cb_t cb,
+                               void *userdata)
 {
     struct plugin_for_each_args args;
 
@@ -343,6 +319,7 @@ void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id,
     qemu_rec_mutex_lock(&plugin.lock);
     args.ctx = plugin_id_to_ctx_locked(id);
     args.cb = cb;
+    args.userdata = userdata;
     g_hash_table_foreach(plugin.cpu_ht, plugin_vcpu_for_each, &args);
     qemu_rec_mutex_unlock(&plugin.lock);
 }
@@ -511,7 +488,7 @@ void qemu_plugin_tb_trans_cb(CPUState *cpu, struct qemu_plugin_tb *tb)
         qemu_plugin_vcpu_tb_trans_cb_t func = cb->f.vcpu_tb_trans;
 
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS);
-        func(cb->ctx->id, tb);
+        func(tb, cb->udata);
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
     }
 }
@@ -557,7 +534,7 @@ qemu_plugin_vcpu_syscall(CPUState *cpu, int64_t num, uint64_t a1, uint64_t a2,
         qemu_plugin_vcpu_syscall_cb_t func = cb->f.vcpu_syscall;
 
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS_PC);
-        func(cb->ctx->id, cpu->cpu_index, num, a1, a2, a3, a4, a5, a6, a7, a8);
+        func(cpu->cpu_index, num, a1, a2, a3, a4, a5, a6, a7, a8, cb->udata);
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
     }
 }
@@ -581,7 +558,7 @@ void qemu_plugin_vcpu_syscall_ret(CPUState *cpu, int64_t num, int64_t ret)
         qemu_plugin_vcpu_syscall_ret_cb_t func = cb->f.vcpu_syscall_ret;
 
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS_PC);
-        func(cb->ctx->id, cpu->cpu_index, num, ret);
+        func(cpu->cpu_index, num, ret, cb->udata);
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
     }
 }
@@ -613,8 +590,8 @@ qemu_plugin_vcpu_syscall_filter(CPUState *cpu, int64_t num, uint64_t a1,
     QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
         qemu_plugin_vcpu_syscall_filter_cb_t func = cb->f.vcpu_syscall_filter;
 
-        if (func(cb->ctx->id, cpu->cpu_index, num, a1, a2, a3, a4,
-                 a5, a6, a7, a8, sysret)) {
+        if (func(cpu->cpu_index, num, a1, a2, a3, a4,
+                 a5, a6, a7, a8, sysret, cb->udata)) {
             filtered = true;
             break;
         }
@@ -630,7 +607,7 @@ void qemu_plugin_vcpu_idle_cb(CPUState *cpu)
     /* idle and resume cb may be called before init, ignore in this case */
     if (cpu->cpu_index < plugin.num_vcpus) {
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS_PC);
-        plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_IDLE);
+        plugin_vcpu_cb__udata(cpu, QEMU_PLUGIN_EV_VCPU_IDLE);
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
     }
 }
@@ -639,7 +616,7 @@ void qemu_plugin_vcpu_resume_cb(CPUState *cpu)
 {
     if (cpu->cpu_index < plugin.num_vcpus) {
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_RW_REGS_PC);
-        plugin_vcpu_cb__simple(cpu, QEMU_PLUGIN_EV_VCPU_RESUME);
+        plugin_vcpu_cb__udata(cpu, QEMU_PLUGIN_EV_VCPU_RESUME);
         qemu_plugin_set_cb_flags(cpu, QEMU_PLUGIN_CB_NO_REGS);
     }
 }
@@ -663,36 +640,40 @@ void qemu_plugin_vcpu_hostcall_cb(CPUState *cpu, uint64_t from)
 }
 
 void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb)
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_IDLE, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_IDLE, cb, userdata);
 }
 
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
-                                         qemu_plugin_vcpu_simple_cb_t cb)
+                                         qemu_plugin_vcpu_udata_cb_t cb,
+                                         void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_RESUME, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_RESUME, cb, userdata);
 }
 
 void qemu_plugin_register_vcpu_discon_cb(qemu_plugin_id_t id,
                                          enum qemu_plugin_discon_type type,
-                                         qemu_plugin_vcpu_discon_cb_t cb)
+                                         qemu_plugin_vcpu_discon_cb_t cb,
+                                         void *userdata)
 {
     if (type & QEMU_PLUGIN_DISCON_INTERRUPT) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INTERRUPT, cb);
+        plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_INTERRUPT, cb, userdata);
     }
     if (type & QEMU_PLUGIN_DISCON_EXCEPTION) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXCEPTION, cb);
+        plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_EXCEPTION, cb, userdata);
     }
     if (type & QEMU_PLUGIN_DISCON_HOSTCALL) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_HOSTCALL, cb);
+        plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_HOSTCALL, cb, userdata);
     }
 }
 
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
-                                   qemu_plugin_simple_cb_t cb)
+                                   qemu_plugin_udata_cb_t cb,
+                                   void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_FLUSH, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_FLUSH, cb, userdata);
 }
 
 static bool free_dyn_cb_arr(void *p, uint32_t h, void *userp)
@@ -706,7 +687,7 @@ void qemu_plugin_flush_cb(void)
     qht_iter_remove(&plugin.dyn_cb_arr_ht, free_dyn_cb_arr, NULL);
     qht_reset(&plugin.dyn_cb_arr_ht);
 
-    plugin_cb__simple(QEMU_PLUGIN_EV_FLUSH);
+    plugin_cb__udata(QEMU_PLUGIN_EV_FLUSH);
 }
 
 void exec_inline_op(enum plugin_dyn_cb_type type,

@@ -2423,7 +2423,8 @@ sub process {
 #  3. inside a curly brace -- = { [0...10] = 5 }
 #  4. after a comma -- [1] = 5, [2] = 6
 #  5. in a macro definition -- #define abc(x) [x] = y
-		while ($line =~ /(.*?\s)\[/g) {
+		my $cpp = $realfile =~ /(\.cpp)$/;
+		while (!$cpp && $line =~ /(.*?\s)\[/g) {
 			my ($where, $prefix) = ($-[1], $1);
 			if ($prefix !~ /$Type\s+$/ &&
 			    ($where != 0 || $prefix !~ /^.\s+$/) &&
@@ -2619,6 +2620,31 @@ sub process {
 
 						# Ignore :: in C++
 						if ($op eq '::') {
+							$ok = 1;
+						}
+
+						# Ignore * in C++: templates and
+						# pointer types are incorrectly
+						# flagged. Example:
+						# static_cast<T*>
+						if ($op eq '*') {
+							$ok = 1;
+						}
+
+						# Ignore & in C++: & means a
+						# reference, and this create
+						# issues with some constructions.
+						# Example:
+						# auto &[first, second] = pair;
+						if ($op eq '&') {
+							$ok = 1;
+						}
+
+						# Ignore >> in C++
+						# checkpatch is confused by
+						# >> closing templates. Example:
+						# vector<pair<A, B>>
+						if ($op eq '>>') {
 							$ok = 1;
 						}
 					}

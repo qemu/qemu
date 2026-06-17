@@ -121,7 +121,7 @@ static void stats_mem(void)
     g_assert(inl_per_vcpu == expected);
 }
 
-static void plugin_exit(qemu_plugin_id_t id, void *udata)
+static void plugin_exit(void *udata)
 {
     const unsigned int num_cpus = qemu_plugin_num_vcpus();
     g_autoptr(GString) stats = g_string_new("");
@@ -223,7 +223,7 @@ static void vcpu_mem_access(unsigned int cpu_index,
     g_mutex_unlock(&mem_lock);
 }
 
-static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
+static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
 {
     void *tb_store = tb;
     qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
@@ -303,7 +303,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
     data_tb = qemu_plugin_scoreboard_u64_in_struct(data, CPUData, data_tb);
     data_mem = qemu_plugin_scoreboard_u64_in_struct(data, CPUData, data_mem);
 
-    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
+    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
 
     return 0;

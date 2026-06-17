@@ -96,9 +96,9 @@ static void report_mismatch(const char *pc_name, unsigned int vcpu_index,
     g_free(report);
 }
 
-static void vcpu_discon(qemu_plugin_id_t id, unsigned int vcpu_index,
+static void vcpu_discon(unsigned int vcpu_index,
                         enum qemu_plugin_discon_type type, uint64_t from_pc,
-                        uint64_t to_pc)
+                        uint64_t to_pc, void *userdata)
 {
     struct cpu_state *state = qemu_plugin_scoreboard_find(states, vcpu_index);
 
@@ -147,7 +147,7 @@ static void insn_exec(unsigned int vcpu_index, void *userdata)
     }
 }
 
-static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
+static void vcpu_tb_trans(struct qemu_plugin_tb *tb, void *userdata)
 {
     size_t n_insns = qemu_plugin_tb_n_insns(tb);
     for (size_t i = 0; i < n_insns; i++) {
@@ -214,8 +214,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                                     has_from);
 
     qemu_plugin_register_vcpu_discon_cb(id, QEMU_PLUGIN_DISCON_ALL,
-                                        vcpu_discon);
-    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
+                                        vcpu_discon, NULL);
+    qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans, NULL);
 
     return 0;
 }

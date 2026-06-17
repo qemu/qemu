@@ -125,10 +125,11 @@ static void hexdump(const GByteArray *data)
     qemu_plugin_outs(out->str);
 }
 
-static void vcpu_syscall(qemu_plugin_id_t id, unsigned int vcpu_index,
+static void vcpu_syscall(unsigned int vcpu_index,
                          int64_t num, uint64_t a1, uint64_t a2,
                          uint64_t a3, uint64_t a4, uint64_t a5,
-                         uint64_t a6, uint64_t a7, uint64_t a8)
+                         uint64_t a6, uint64_t a7, uint64_t a8,
+                         void *userdata)
 {
     if (statistics) {
         SyscallStats *entry;
@@ -150,8 +151,9 @@ static void vcpu_syscall(qemu_plugin_id_t id, unsigned int vcpu_index,
     }
 }
 
-static void vcpu_syscall_ret(qemu_plugin_id_t id, unsigned int vcpu_idx,
-                             int64_t num, int64_t ret)
+static void vcpu_syscall_ret(unsigned int vcpu_idx,
+                             int64_t num, int64_t ret,
+                             void *userdata)
 {
     if (statistics) {
         SyscallStats *entry;
@@ -170,11 +172,11 @@ static void vcpu_syscall_ret(qemu_plugin_id_t id, unsigned int vcpu_idx,
     }
 }
 
-static bool vcpu_syscall_filter(qemu_plugin_id_t id, unsigned int vcpu_index,
+static bool vcpu_syscall_filter(unsigned int vcpu_index,
                                 int64_t num, uint64_t a1, uint64_t a2,
                                 uint64_t a3, uint64_t a4, uint64_t a5,
                                 uint64_t a6, uint64_t a7, uint64_t a8,
-                                uint64_t *sysret)
+                                uint64_t *sysret, void *userdata)
 {
     /* Special syscall to test the filter functionality. */
     if (num == 4096 && a1 == 0x66CCFF) {
@@ -207,7 +209,7 @@ static gint comp_func(gconstpointer ea, gconstpointer eb, gpointer d)
 }
 
 /* ************************************************************************* */
-static void plugin_exit(qemu_plugin_id_t id, void *p)
+static void plugin_exit(void *p)
 {
     if (!statistics) {
         return;
@@ -271,9 +273,9 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         memory_buffer = g_byte_array_new();
     }
 
-    qemu_plugin_register_vcpu_syscall_cb(id, vcpu_syscall);
-    qemu_plugin_register_vcpu_syscall_ret_cb(id, vcpu_syscall_ret);
-    qemu_plugin_register_vcpu_syscall_filter_cb(id, vcpu_syscall_filter);
+    qemu_plugin_register_vcpu_syscall_cb(id, vcpu_syscall, NULL);
+    qemu_plugin_register_vcpu_syscall_ret_cb(id, vcpu_syscall_ret, NULL);
+    qemu_plugin_register_vcpu_syscall_filter_cb(id, vcpu_syscall_filter, NULL);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
     return 0;
 }

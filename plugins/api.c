@@ -51,14 +51,16 @@
 
 /* Uninstall and Reset handlers */
 
-void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
+void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb,
+                           void *userdata)
 {
-    plugin_reset_uninstall(id, cb, false);
+    plugin_reset_uninstall(id, cb, userdata, false);
 }
 
-void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
+void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb,
+                       void *userdata)
 {
-    plugin_reset_uninstall(id, cb, true);
+    plugin_reset_uninstall(id, cb, userdata, true);
 }
 
 /*
@@ -69,15 +71,17 @@ void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
  */
 
 void qemu_plugin_register_vcpu_init_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb)
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INIT, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_INIT, cb, userdata);
 }
 
 void qemu_plugin_register_vcpu_exit_cb(qemu_plugin_id_t id,
-                                       qemu_plugin_vcpu_simple_cb_t cb)
+                                       qemu_plugin_vcpu_udata_cb_t cb,
+                                       void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXIT, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_EXIT, cb, userdata);
 }
 
 static bool tb_is_mem_only(void)
@@ -191,29 +195,33 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
 }
 
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
-                                           qemu_plugin_vcpu_tb_trans_cb_t cb)
+                                           qemu_plugin_vcpu_tb_trans_cb_t cb,
+                                           void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_TB_TRANS, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_TB_TRANS, cb, userdata);
 }
 
 void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,
-                                          qemu_plugin_vcpu_syscall_cb_t cb)
+                                          qemu_plugin_vcpu_syscall_cb_t cb,
+                                          void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_SYSCALL, cb, userdata);
 }
 
 void
 qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
-                                         qemu_plugin_vcpu_syscall_ret_cb_t cb)
+                                         qemu_plugin_vcpu_syscall_ret_cb_t cb,
+                                         void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL_RET, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_SYSCALL_RET, cb, userdata);
 }
 
 void
 qemu_plugin_register_vcpu_syscall_filter_cb(qemu_plugin_id_t id,
-                                            qemu_plugin_vcpu_syscall_filter_cb_t cb)
+                                            qemu_plugin_vcpu_syscall_filter_cb_t cb,
+                                            void *userdata)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL_FILTER, cb);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_VCPU_SYSCALL_FILTER, cb, userdata);
 }
 
 /*
