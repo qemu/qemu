@@ -41,6 +41,13 @@ class TuxRunRiscV64Test(TuxRunBaselineTest):
         self.common_tuxrun(kernel_asset=self.ASSET_RISCV64_KERNEL,
                            rootfs_asset=self.ASSET_RISCV64_ROOTFS)
 
+    def test_riscv64_aia(self):
+        self.set_machine('virt')
+        self.vm.set_machine('virt,aia=aplic-imsic')
+        self.cpu='max'
+        self.common_tuxrun(kernel_asset=self.ASSET_RISCV64_KERNEL,
+                           rootfs_asset=self.ASSET_RISCV64_ROOTFS)
+
     def test_riscv64_rv32(self):
         self.set_machine('virt')
         self.cpu='rv32'
