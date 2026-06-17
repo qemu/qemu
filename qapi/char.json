@@ -821,7 +821,7 @@
 #
 # Change a character device backend
 #
-# @id: the chardev's ID, must exist
+# @id: the chardev's ID
 #
 # @backend: new backend type and parameters
 #
@@ -862,7 +862,7 @@
 #
 # Remove a character device backend
 #
-# @id: the chardev's ID, must exist and not be in use
+# @id: the chardev's ID, must not be in use
 #
 # Since: 1.4
 #
@@ -879,7 +879,7 @@
 #
 # Send a break to a character device
 #
-# @id: the chardev's ID, must exist
+# @id: the chardev's ID
 #
 # Since: 2.10
 #
