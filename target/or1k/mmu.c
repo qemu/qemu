@@ -24,6 +24,7 @@
 #include "exec/cputlb.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
+#include "accel/tcg/cpu-loop.h"
 #include "qemu/host-utils.h"
 #include "hw/core/loader.h"
 

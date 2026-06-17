@@ -40,6 +40,7 @@
 #include "qemu/plugin.h"
 #include "qemu/log.h"
 #include "system/memory.h"
+#include "accel/tcg/cpu-loop.h"
 #include "tcg/tcg.h"
 #include "exec/cpu-common.h"
 #include "exec/gdbstub.h"

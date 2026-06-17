@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "accel/tcg/cpu-loop.h"
 #include "cpu.h"
 #include "internal.h"
 

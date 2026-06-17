@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "exec/breakpoint.h"
 #include "exec/watchpoint.h"
+#include "accel/tcg/cpu-loop.h"
 #include "target/s390x/cpu.h"
 #include "target/s390x/s390x-internal.h"
 #include "tcg_s390x.h"
