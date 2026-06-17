@@ -38,7 +38,9 @@ static TraceEventGroup *event_groups;
 static size_t nevent_groups;
 static uint32_t next_id;
 static uint32_t next_vcpu_id;
+#ifdef CONFIG_TRACE_SIMPLE
 static bool init_trace_on_startup;
+#endif
 static char *trace_opts_file;
 
 QemuOptsList qemu_trace_opts = {
@@ -295,7 +297,9 @@ void trace_opt_parse(const char *optstr)
         trace_enable_events(qemu_opt_get(opts, "enable"));
     }
     trace_init_events(qemu_opt_get(opts, "events"));
+#ifdef CONFIG_TRACE_SIMPLE
     init_trace_on_startup = true;
+#endif
     g_free(trace_opts_file);
     trace_opts_file = g_strdup(qemu_opt_get(opts, "file"));
     qemu_opts_del(opts);
