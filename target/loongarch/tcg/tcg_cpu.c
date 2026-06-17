@@ -13,6 +13,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "exec/translation-block.h"
 #include "exec/target_page.h"
+#include "tcg/debug-assert.h"
 #include "tcg_loongarch.h"
 #include "internals.h"
 

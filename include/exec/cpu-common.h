@@ -10,7 +10,6 @@
 
 #include "qemu/thread.h"
 #include "hw/core/cpu.h"
-#include "tcg/debug-assert.h"
 #include "exec/page-protection.h"
 
 #define EXCP_INTERRUPT  0x10000 /* async interruption */
