@@ -8,6 +8,7 @@
 #ifndef CPU_COMMON_H
 #define CPU_COMMON_H
 
+#include "qemu/thread.h"
 #include "exec/vaddr.h"
 #include "hw/core/cpu.h"
 #include "tcg/debug-assert.h"
