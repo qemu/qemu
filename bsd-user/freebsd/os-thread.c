@@ -1629,6 +1629,9 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
 
     new_env = cpu_copy(env);
 
+    /* Init regs that differ from the parent. */
+    target_cpu_clone_regs(new_env, 0);
+
     new_cpu = env_cpu(new_env);
     new_cpu->opaque = ts;
     ts->bprm = parent_ts->bprm;
