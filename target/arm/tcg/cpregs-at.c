@@ -4,6 +4,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/page-protection.h"
 #include "cpu.h"
 #include "cpu-features.h"
 #include "internals.h"

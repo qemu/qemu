@@ -11,6 +11,7 @@
 #include "system/tcg.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-mmu-index.h"
+#include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "internals.h"
 #include "cpu-csr.h"

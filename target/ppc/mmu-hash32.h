@@ -3,6 +3,7 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#include "exec/page-protection.h"
 #include "system/memory.h"
 
 bool ppc_hash32_xlate(PowerPCCPU *cpu, vaddr eaddr, MMUAccessType access_type,
