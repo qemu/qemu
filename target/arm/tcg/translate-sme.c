@@ -1170,6 +1170,14 @@ static bool do_fdot(DisasContext *s, arg_azz_n *a, bool multi)
 TRANS_FEAT(FDOT_n1, aa64_sme2, do_fdot, a, false)
 TRANS_FEAT(FDOT_nn, aa64_sme2, do_fdot, a, true)
 
+static bool do_fdot_fp8(DisasContext *s, arg_azz_n *a, bool multi)
+{
+    return do_azz_acc_fp8(s, a->n, 1, a->rv, a->off, a->zn, a->zm,
+                          0, 0, multi, gen_helper_gvec_fdot_sb);
+}
+
+TRANS_FEAT(FDOT_n1_sb, aa64_sme_f8f32, do_fdot_fp8, a, false)
+
 static bool do_fdot_nx(DisasContext *s, arg_azx_n *a)
 {
     return do_azz_acc_fp(s, a->n, 1, a->rv, a->off, a->zn, a->zm,
