@@ -616,6 +616,25 @@ TRANS_FEAT(BFMOPA_w, aa64_sme, do_outprod_env, a, MO_32,
            : !s->fpcr_ah ? gen_helper_sme_bfmops_w
            : gen_helper_sme_ah_bfmops_w)
 
+static bool trans_FMOPA_sb(DisasContext *s, arg_op *a)
+{
+    if (!dc_isar_feature(aa64_sme_f8f32, s)) {
+        return false;
+    }
+    if (fpmr_access_check(s) && sme_smza_enabled_check(s)) {
+        int svl = streaming_vec_reg_size(s);
+        uint32_t desc = simd_desc(svl, svl, 0);
+
+        gen_helper_sme_fmopa_sb(get_tile(s, MO_32, a->zad),
+                                vec_full_reg_ptr(s, a->zn),
+                                vec_full_reg_ptr(s, a->zm),
+                                pred_full_reg_ptr(s, a->pn),
+                                pred_full_reg_ptr(s, a->pm),
+                                tcg_env, tcg_constant_i32(desc));
+    }
+    return true;
+}
+
 TRANS_FEAT(SMOPA_s, aa64_sme, do_outprod, a, MO_32, gen_helper_sme_smopa_s)
 TRANS_FEAT(UMOPA_s, aa64_sme, do_outprod, a, MO_32, gen_helper_sme_umopa_s)
 TRANS_FEAT(SUMOPA_s, aa64_sme, do_outprod, a, MO_32, gen_helper_sme_sumopa_s)
