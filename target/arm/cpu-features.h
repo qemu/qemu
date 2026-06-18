@@ -1524,7 +1524,7 @@ static inline bool isar_feature_aa64_sve2p2(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64ZFR0, SVEVER) >= 3;
 }
 
-static inline bool isar_feature_aa64_sve2_aes(const ARMISARegisters *id)
+static inline bool isar_feature_aa64_sve_aes(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64ZFR0, AES) != 0;
 }
