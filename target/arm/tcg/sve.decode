@@ -693,7 +693,6 @@ TBXQ            00000101 .. 1 ..... 001 101 ..... .....         @rd_rn_rm
 ### SVE Permute - Predicated Group
 
 # SVE compress active elements
-# Note esz >= 2
 COMPACT         00000101 .. 100001 100 ... ..... .....          @rd_pg_rn
 
 # SVE conditionally broadcast element to vector

@@ -3657,6 +3657,8 @@ void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)        \
     }                                                                 \
 }
 
+DO_COMPACT(sve_compact_b, uint8_t, H1)
+DO_COMPACT(sve_compact_h, uint16_t, H1_2)
 DO_COMPACT(sve_compact_s, uint32_t, H1_4)
 DO_COMPACT(sve_compact_d, uint64_t, H1_8)
 
