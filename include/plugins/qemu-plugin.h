@@ -871,7 +871,7 @@ typedef bool
                                         int64_t num, uint64_t a1, uint64_t a2,
                                         uint64_t a3, uint64_t a4, uint64_t a5,
                                         uint64_t a6, uint64_t a7, uint64_t a8,
-                                        uint64_t *sysret,
+                                        int64_t *sysret,
                                         void *userdata);
 
 /**
