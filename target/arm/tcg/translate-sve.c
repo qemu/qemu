@@ -7169,7 +7169,7 @@ static bool do_trans_pmull(DisasContext *s, arg_rrr_esz *a, bool sel)
         if (!dc_isar_feature(aa64_sve2_pmull128, s)) {
             return false;
         }
-        s->is_nonstreaming = true;
+        s->is_nonstreaming = !dc_isar_feature(aa64_ssve_aes, s);
     }
     return gen_gvec_ool_arg_zzz(s, fns[a->esz], a, sel);
 }
@@ -8174,15 +8174,17 @@ TRANS_FEAT(SDOT_zzzz_2s, aa64_sme2_or_sve2p1, gen_gvec_ool_arg_zzzz,
 TRANS_FEAT(UDOT_zzzz_2s, aa64_sme2_or_sve2p1, gen_gvec_ool_arg_zzzz,
            gen_helper_gvec_udot_2h, a, 0)
 
-TRANS_FEAT_NONSTREAMING(AESMC, aa64_sve_aes, gen_gvec_ool_zz,
-                        gen_helper_crypto_aesmc, a->rd, a->rd, 0)
-TRANS_FEAT_NONSTREAMING(AESIMC, aa64_sve_aes, gen_gvec_ool_zz,
-                        gen_helper_crypto_aesimc, a->rd, a->rd, 0)
+TRANS_FEAT_STREAMING_IF(AESMC, aa64_sve_aes, aa64_ssve_aes,
+                        gen_gvec_ool_zz, gen_helper_crypto_aesmc,
+                        a->rd, a->rd, 0)
+TRANS_FEAT_STREAMING_IF(AESIMC, aa64_sve_aes, aa64_ssve_aes,
+                        gen_gvec_ool_zz, gen_helper_crypto_aesimc,
+                        a->rd, a->rd, 0)
 
-TRANS_FEAT_NONSTREAMING(AESE, aa64_sve_aes, gen_gvec_ool_arg_zzz,
-                        gen_helper_crypto_aese, a, 0)
-TRANS_FEAT_NONSTREAMING(AESD, aa64_sve_aes, gen_gvec_ool_arg_zzz,
-                        gen_helper_crypto_aesd, a, 0)
+TRANS_FEAT_STREAMING_IF(AESE, aa64_sve_aes, aa64_ssve_aes,
+                        gen_gvec_ool_arg_zzz, gen_helper_crypto_aese, a, 0)
+TRANS_FEAT_STREAMING_IF(AESD, aa64_sve_aes, aa64_ssve_aes,
+                        gen_gvec_ool_arg_zzz, gen_helper_crypto_aesd, a, 0)
 
 TRANS_FEAT_NONSTREAMING(SM4E, aa64_sve2_sm4, gen_gvec_ool_arg_zzz,
                         gen_helper_crypto_sm4e, a, 0)
