@@ -1177,6 +1177,7 @@ static bool do_fdot_fp8(DisasContext *s, arg_azz_n *a, bool multi)
 }
 
 TRANS_FEAT(FDOT_n1_sb, aa64_sme_f8f32, do_fdot_fp8, a, false)
+TRANS_FEAT(FDOT_nn_sb, aa64_sme_f8f32, do_fdot_fp8, a, true)
 
 static bool do_fdot_nx(DisasContext *s, arg_azx_n *a)
 {
