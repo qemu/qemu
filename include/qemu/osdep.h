@@ -384,6 +384,17 @@ void QEMU_ERROR("code path is reachable")
 #define TIME_MAX TYPE_MAXIMUM(time_t)
 #endif
 
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
+/*
+ * Use the same value as Linux for now.
+ */
+#ifndef IOV_MAX
+#define IOV_MAX 1024
+#endif
+
 /* Mac OSX has a <stdint.h> bug that incorrectly defines SIZE_MAX with
  * the wrong type. Our replacement isn't usable in preprocessor
  * expressions, but it is sufficient for our needs. */
@@ -661,10 +672,6 @@ struct iovec {
     void *iov_base;
     size_t iov_len;
 };
-/*
- * Use the same value as Linux for now.
- */
-#define IOV_MAX 1024
 
 ssize_t readv(int fd, const struct iovec *iov, int iov_cnt);
 ssize_t writev(int fd, const struct iovec *iov, int iov_cnt);
