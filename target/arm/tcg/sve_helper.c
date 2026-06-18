@@ -4328,6 +4328,36 @@ uint64_t HELPER(sve2p1_cntp_c)(uint32_t png, uint32_t desc)
     return count >> p.lg2_stride;
 }
 
+uint64_t HELPER(sve_firstp)(void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t words = DIV_ROUND_UP(FIELD_EX32(pred_desc, PREDDESC, OPRSZ), 8);
+    intptr_t esz = FIELD_EX32(pred_desc, PREDDESC, ESZ);
+    uint64_t *n = vn, *g = vg, mask = pred_esz_masks[esz];
+
+    for (intptr_t i = 0; i < words; ++i) {
+        uint64_t t = n[i] & g[i] & mask;
+        if (t) {
+            return (i * 64 + ctz64(t)) >> esz;
+        }
+    }
+    return -1;
+}
+
+uint64_t HELPER(sve_lastp)(void *vn, void *vg, uint32_t pred_desc)
+{
+    intptr_t words = DIV_ROUND_UP(FIELD_EX32(pred_desc, PREDDESC, OPRSZ), 8);
+    intptr_t esz = FIELD_EX32(pred_desc, PREDDESC, ESZ);
+    uint64_t *n = vn, *g = vg, mask = pred_esz_masks[esz];
+
+    for (intptr_t i = words - 1; i >= 0; --i) {
+        uint64_t t = n[i] & g[i] & mask;
+        if (t) {
+            return (i * 64 + (63 - clz64(t))) >> esz;
+        }
+    }
+    return -1;
+}
+
 /* C.f. Arm pseudocode EncodePredCount */
 static uint64_t encode_pred_count(uint32_t elements, uint32_t count,
                                   uint32_t esz, bool invert)

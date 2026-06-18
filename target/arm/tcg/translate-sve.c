@@ -3481,6 +3481,62 @@ static bool trans_SINCDECP_z(DisasContext *s, arg_incdec2_pred *a)
     return true;
 }
 
+static bool do_firstp_lastp(DisasContext *s, arg_rpr_esz *a, bool firstp)
+{
+    if (sve_access_check(s)) {
+        unsigned psz = pred_full_reg_size(s);
+        TCGv_i64 v = cpu_reg(s, a->rd);
+
+        if (psz <= 8) {
+            uint64_t psz_mask;
+
+            tcg_gen_ld_i64(v, tcg_env, pred_full_reg_offset(s, a->rn));
+            if (a->rn != a->pg) {
+                TCGv_i64 g = tcg_temp_new_i64();
+                tcg_gen_ld_i64(g, tcg_env, pred_full_reg_offset(s, a->pg));
+                tcg_gen_and_i64(v, v, g);
+            }
+
+            /*
+             * Reduce the pred_esz_masks value simply to reduce the
+             * size of the code generated here.
+             */
+            psz_mask = MAKE_64BIT_MASK(0, psz * 8);
+            tcg_gen_andi_i64(v, v, pred_esz_masks[a->esz] & psz_mask);
+
+            if (firstp) {
+                tcg_gen_ctzi_i64(v, v, -1);
+            } else {
+                tcg_gen_clzi_i64(v, v, 64);
+                tcg_gen_subfi_i64(v, 63, v);
+            }
+            tcg_gen_sari_i64(v, v, a->esz);
+        } else {
+            TCGv_ptr t_pn = tcg_temp_new_ptr();
+            TCGv_ptr t_pg = tcg_temp_new_ptr();
+            unsigned desc = 0;
+            TCGv_i32 t_desc;
+
+            desc = FIELD_DP32(desc, PREDDESC, OPRSZ, psz);
+            desc = FIELD_DP32(desc, PREDDESC, ESZ, a->esz);
+
+            tcg_gen_addi_ptr(t_pn, tcg_env, pred_full_reg_offset(s, a->rn));
+            tcg_gen_addi_ptr(t_pg, tcg_env, pred_full_reg_offset(s, a->pg));
+            t_desc = tcg_constant_i32(desc);
+
+            if (firstp) {
+                gen_helper_sve_firstp(v, t_pn, t_pg, t_desc);
+            } else {
+                gen_helper_sve_lastp(v, t_pn, t_pg, t_desc);
+            }
+        }
+    }
+    return true;
+}
+
+TRANS_FEAT(FIRSTP, aa64_sme2p2_or_sve2p2, do_firstp_lastp, a, true)
+TRANS_FEAT(LASTP, aa64_sme2p2_or_sve2p2, do_firstp_lastp, a, false)
+
 /*
  *** SVE Integer Compare Scalars Group
  */
