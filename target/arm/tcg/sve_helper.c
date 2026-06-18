@@ -3671,6 +3671,32 @@ void HELPER(sve_compact_d)(void *vd, void *vn, void *vg, uint32_t desc)
     }
 }
 
+#define DO_EXPAND(NAME, TYPE, H)                                      \
+void HELPER(NAME)(void *vd, void *vn, void *vg, uint32_t desc)        \
+{                                                                     \
+    intptr_t oprsz = simd_oprsz(desc);                                \
+    ARMVectorReg tmp_n = *(ARMVectorReg *)vn;                         \
+    for (intptr_t i = 0, j = 0; i < oprsz; ) {                        \
+        uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));               \
+        do {                                                          \
+            TYPE nn = 0;                                              \
+            if (pg & 1) {                                             \
+                nn = *(TYPE *)((void *)&tmp_n + H(j));                \
+                j += sizeof(TYPE);                                    \
+            }                                                         \
+            *(TYPE *)(vd + H(i)) = nn;                                \
+            i += sizeof(TYPE);                                        \
+            pg >>= sizeof(TYPE);                                      \
+        } while (i & 15);                                             \
+    }                                                                 \
+}
+
+DO_EXPAND(sve_expand_b, uint8_t, H1)
+DO_EXPAND(sve_expand_h, uint16_t, H1_2)
+DO_EXPAND(sve_expand_s, uint32_t, H1_4)
+DO_EXPAND(sve_expand_d, uint64_t, H1_8)
+
+#undef DO_EXPAND
 /* Similar to the ARM LastActiveElement pseudocode function, except the
  * result is multiplied by the element size.  This includes the not found
  * indication; e.g. not found for esz=3 is -8.
