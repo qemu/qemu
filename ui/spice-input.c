@@ -33,6 +33,7 @@ typedef struct QemuSpiceKbd {
     int ledstate;
     bool emul0;
     size_t pauseseq;
+    Notifier led_notifier;
 } QemuSpiceKbd;
 
 static void kbd_push_key(SpiceKbdInstance *sin, uint8_t frag);
@@ -86,18 +87,20 @@ static uint8_t kbd_get_leds(SpiceKbdInstance *sin)
     return kbd->ledstate;
 }
 
-static void kbd_leds(void *opaque, int ledstate)
+static void kbd_leds(Notifier *notifier, void *data)
 {
-    QemuSpiceKbd *kbd = opaque;
+    QemuSpiceKbd *kbd = container_of(notifier, QemuSpiceKbd, led_notifier);
+    /* spice has no associated console support */
+    uint32_t leds_mask = qemu_input_get_leds_mask(NULL);
 
     kbd->ledstate = 0;
-    if (ledstate & QEMU_SCROLL_LOCK_LED) {
+    if (leds_mask & QEMU_SCROLL_LOCK_LED) {
         kbd->ledstate |= SPICE_KEYBOARD_MODIFIER_FLAGS_SCROLL_LOCK;
     }
-    if (ledstate & QEMU_NUM_LOCK_LED) {
+    if (leds_mask & QEMU_NUM_LOCK_LED) {
         kbd->ledstate |= SPICE_KEYBOARD_MODIFIER_FLAGS_NUM_LOCK;
     }
-    if (ledstate & QEMU_CAPS_LOCK_LED) {
+    if (leds_mask & QEMU_CAPS_LOCK_LED) {
         kbd->ledstate |= SPICE_KEYBOARD_MODIFIER_FLAGS_CAPS_LOCK;
     }
     spice_server_kbd_leds(&kbd->sin, kbd->ledstate);
@@ -247,7 +250,8 @@ void qemu_spice_input_init(void)
     kbd = g_malloc0(sizeof(*kbd));
     kbd->sin.base.sif = &kbd_interface.base;
     qemu_spice.add_interface(&kbd->sin.base);
-    qemu_add_led_event_handler(kbd_leds, kbd);
+    kbd->led_notifier.notify = kbd_leds;
+    qemu_input_led_notifier_add(&kbd->led_notifier);
 
     pointer = g_malloc0(sizeof(*pointer));
     pointer->mouse.base.sif  = &mouse_interface.base;

@@ -1062,6 +1062,7 @@ struct musicpal_key_state {
     SysBusDevice parent_obj;
     /*< public >*/
 
+    QemuInputHandlerState *hs;
     uint32_t pressed_keys;
     qemu_irq out[8];
 };
@@ -1158,7 +1159,16 @@ static const QemuInputHandler musicpal_key_handler = {
 
 static void musicpal_key_realize(DeviceState *dev, Error **errp)
 {
-    qemu_input_handler_register(dev, &musicpal_key_handler);
+    musicpal_key_state *s = MUSICPAL_KEY(dev);
+
+    s->hs = qemu_input_handler_register(dev, &musicpal_key_handler);
+}
+
+static void musicpal_key_unrealize(DeviceState *dev)
+{
+    musicpal_key_state *s = MUSICPAL_KEY(dev);
+
+    g_clear_pointer(&s->hs, qemu_input_handler_unregister);
 }
 
 static const VMStateDescription musicpal_key_vmsd = {
@@ -1177,6 +1187,7 @@ static void musicpal_key_class_init(ObjectClass *klass, const void *data)
 
     dc->vmsd = &musicpal_key_vmsd;
     dc->realize = musicpal_key_realize;
+    dc->unrealize = musicpal_key_unrealize;
 }
 
 static const TypeInfo musicpal_key_info = {

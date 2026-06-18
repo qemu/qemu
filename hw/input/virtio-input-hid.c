@@ -6,11 +6,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 
 #include "hw/virtio/virtio.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/virtio/virtio-input.h"
+#include "ui/input.h"
 
 #include "ui/console.h"
 
@@ -107,9 +109,9 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
             virtio_input_send(vinput, &event);
         } else {
             if (evt->btn.down) {
-                fprintf(stderr, "%s: unmapped button: %d [%s]\n", __func__,
-                        evt->btn.button,
-                        InputButton_str(evt->btn.button));
+                qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: unmapped button: %d [%s]\n", __func__,
+                    evt->btn.button, InputButton_str(evt->btn.button));
             }
         }
         break;
@@ -207,11 +209,12 @@ static void virtio_input_hid_handle_status(VirtIOInput *vinput,
         } else {
             vhid->ledstate &= ~ledbit;
         }
-        kbd_put_ledstate(vhid->ledstate);
+        qemu_input_handler_set_leds_mask(vhid->hs, vhid->ledstate);
         break;
     default:
-        fprintf(stderr, "%s: unknown type %d\n", __func__,
-                le16_to_cpu(event->type));
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: unknown type %d\n", __func__,
+            le16_to_cpu(event->type));
         break;
     }
 }

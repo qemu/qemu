@@ -55,10 +55,11 @@ void hmp_mouse_move(Monitor *mon, const QDict *qdict)
 
 void hmp_mouse_button(Monitor *mon, const QDict *qdict)
 {
+    /* HMP mouse_button bitmask: 1=L, 2=R, 4=M */
     static uint32_t bmap[INPUT_BUTTON__MAX] = {
-        [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
-        [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
-        [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
+        [INPUT_BUTTON_LEFT]       = 0x01,
+        [INPUT_BUTTON_MIDDLE]     = 0x04,
+        [INPUT_BUTTON_RIGHT]      = 0x02,
     };
     int button_state = qdict_get_int(qdict, "button_state");
 
@@ -349,6 +350,21 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
     }
 }
 #endif
+
+static int index_from_key(const char *key, size_t key_length)
+{
+    int i;
+
+    for (i = 0; i < Q_KEY_CODE__MAX; i++) {
+        if (!strncmp(key, QKeyCode_str(i), key_length) &&
+            !QKeyCode_str(i)[key_length]) {
+            break;
+        }
+    }
+
+    /* Return Q_KEY_CODE__MAX if the key is invalid */
+    return i;
+}
 
 void hmp_sendkey(Monitor *mon, const QDict *qdict)
 {

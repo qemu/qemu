@@ -8,6 +8,7 @@
 
 #ifdef CONFIG_PIXMAN
 #include <pixman.h>
+#include "qemu-pixman-helpers.h"
 #else
 #include "pixman-minimal.h"
 #endif

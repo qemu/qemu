@@ -45,6 +45,7 @@ struct QemuInputHandler {
     QemuInputHandlerSync   sync;
 };
 
+G_GNUC_WARN_UNUSED_RESULT
 QemuInputHandlerState *qemu_input_handler_register(DeviceState *dev,
                                             const QemuInputHandler *handler);
 void qemu_input_handler_activate(QemuInputHandlerState *s);
@@ -72,7 +73,7 @@ void qemu_input_queue_btn(QemuConsole *src, InputButton btn, bool down);
 void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
                                uint32_t button_old, uint32_t button_new);
 
-bool qemu_input_is_absolute(QemuConsole *con);
+bool qemu_input_is_absolute(const QemuConsole *con);
 int qemu_input_scale_axis(int value,
                           int min_in, int max_in,
                           int min_out, int max_out);
@@ -100,7 +101,6 @@ void qemu_input_touch_event(QemuConsole *con,
                             InputMultiTouchType type,
                             Error **errp);
 
-void qemu_input_check_mode_change(void);
 void qemu_add_mouse_mode_change_notifier(Notifier *notify);
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify);
 
@@ -151,5 +151,16 @@ extern const guint16 qemu_input_map_xorgxwin_to_linux[];
 
 extern const guint qemu_input_map_osx_to_linux_len;
 extern const guint16 qemu_input_map_osx_to_linux[];
+
+/**
+ * qemu_input_get_leds_mask() - get the LED mask for the given console
+ * @con: a QemuConsole or NULL
+ *
+ * If @con is NULL, returns the LED state mask for the default console.
+ */
+uint32_t qemu_input_get_leds_mask(const QemuConsole *con);
+void qemu_input_handler_set_leds_mask(QemuInputHandlerState *s, uint32_t leds_mask);
+void qemu_input_led_notifier_add(Notifier *n);
+void qemu_input_led_notifier_remove(Notifier *n);
 
 #endif /* INPUT_H */

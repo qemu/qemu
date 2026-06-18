@@ -113,6 +113,8 @@ typedef struct pixman_color {
     uint16_t    alpha;
 } pixman_color_t;
 
+#include "qemu-pixman-helpers.h"
+
 static inline uint32_t *create_bits(pixman_format_code_t format,
                                     int width,
                                     int height,
@@ -120,28 +122,9 @@ static inline uint32_t *create_bits(pixman_format_code_t format,
 {
     int stride = 0;
     size_t buf_size = 0;
-    int bpp = PIXMAN_FORMAT_BPP(format);
 
-    /*
-     * Calculate the following while checking for overflow truncation:
-     * stride = ((width * bpp + 0x1f) >> 5) * sizeof(uint32_t);
-     */
-
-    if (unlikely(__builtin_mul_overflow(width, bpp, &stride))) {
-        return NULL;
-    }
-
-    if (unlikely(__builtin_add_overflow(stride, 0x1f, &stride))) {
-        return NULL;
-    }
-
-    stride >>= 5;
-
-    stride *= sizeof(uint32_t);
-
-    if (unlikely(__builtin_mul_overflow((size_t) height,
-                                        (size_t) stride,
-                                        &buf_size))) {
+    if (!qemu_pixman_image_calc_size(format, width, height,
+                                     &stride, &buf_size)) {
         return NULL;
     }
 

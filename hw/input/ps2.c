@@ -577,7 +577,7 @@ static void ps2_set_ledstate(PS2KbdState *s, int ledstate)
 {
     trace_ps2_set_ledstate(s, ledstate);
     s->ledstate = ledstate;
-    kbd_put_ledstate(ledstate);
+    qemu_input_handler_set_leds_mask(PS2_DEVICE(s)->hs, ledstate);
 }
 
 static void ps2_reset_keyboard(PS2KbdState *s)
@@ -1108,7 +1108,7 @@ static int ps2_kbd_ledstate_post_load(void *opaque, int version_id)
 {
     PS2KbdState *s = opaque;
 
-    kbd_put_ledstate(s->ledstate);
+    qemu_input_handler_set_leds_mask(PS2_DEVICE(s)->hs, s->ledstate);
     return 0;
 }
 
@@ -1233,7 +1233,16 @@ static const QemuInputHandler ps2_keyboard_handler = {
 
 static void ps2_kbd_realize(DeviceState *dev, Error **errp)
 {
-    qemu_input_handler_register(dev, &ps2_keyboard_handler);
+    PS2State *s = PS2_DEVICE(dev);
+
+    s->hs = qemu_input_handler_register(dev, &ps2_keyboard_handler);
+}
+
+static void ps2_kbd_unrealize(DeviceState *dev)
+{
+    PS2State *s = PS2_DEVICE(dev);
+
+    g_clear_pointer(&s->hs, qemu_input_handler_unregister);
 }
 
 static const QemuInputHandler ps2_mouse_handler = {
@@ -1245,7 +1254,16 @@ static const QemuInputHandler ps2_mouse_handler = {
 
 static void ps2_mouse_realize(DeviceState *dev, Error **errp)
 {
-    qemu_input_handler_register(dev, &ps2_mouse_handler);
+    PS2State *s = PS2_DEVICE(dev);
+
+    s->hs = qemu_input_handler_register(dev, &ps2_mouse_handler);
+}
+
+static void ps2_mouse_unrealize(DeviceState *dev)
+{
+    PS2State *s = PS2_DEVICE(dev);
+
+    g_clear_pointer(&s->hs, qemu_input_handler_unregister);
 }
 
 static void ps2_kbd_class_init(ObjectClass *klass, const void *data)
@@ -1255,6 +1273,7 @@ static void ps2_kbd_class_init(ObjectClass *klass, const void *data)
     PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
 
     dc->realize = ps2_kbd_realize;
+    dc->unrealize = ps2_kbd_unrealize;
     resettable_class_set_parent_phases(rc, NULL, ps2_kbd_reset_hold, NULL,
                                        &ps2dc->parent_phases);
     dc->vmsd = &vmstate_ps2_keyboard;
@@ -1274,6 +1293,7 @@ static void ps2_mouse_class_init(ObjectClass *klass, const void *data)
     PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
 
     dc->realize = ps2_mouse_realize;
+    dc->unrealize = ps2_mouse_unrealize;
     resettable_class_set_parent_phases(rc, NULL, ps2_mouse_reset_hold, NULL,
                                        &ps2dc->parent_phases);
     dc->vmsd = &vmstate_ps2_mouse;

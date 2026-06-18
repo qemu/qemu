@@ -65,6 +65,7 @@ typedef struct {
 struct NextKBDState {
     SysBusDevice sbd;
     MemoryRegion mr;
+    QemuInputHandlerState *hs;
     KBDQueue queue;
     uint16_t shift;
 };
@@ -304,7 +305,14 @@ static void nextkbd_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->mr, OBJECT(dev), &kbd_ops, s, "next.kbd", 0x1000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
 
-    qemu_input_handler_register(dev, &nextkbd_handler);
+    s->hs = qemu_input_handler_register(dev, &nextkbd_handler);
+}
+
+static void nextkbd_unrealize(DeviceState *dev)
+{
+    NextKBDState *s = NEXTKBD(dev);
+
+    g_clear_pointer(&s->hs, qemu_input_handler_unregister);
 }
 
 static const VMStateDescription nextkbd_vmstate = {
@@ -319,6 +327,7 @@ static void nextkbd_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->vmsd = &nextkbd_vmstate;
     dc->realize = nextkbd_realize;
+    dc->unrealize = nextkbd_unrealize;
     device_class_set_legacy_reset(dc, nextkbd_reset);
 }
 

@@ -30,14 +30,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(QemuFixedTextConsole, QEMU_FIXED_TEXT_CONSOLE)
 #define QEMU_IS_FIXED_TEXT_CONSOLE(c) \
     object_dynamic_cast(OBJECT(c), TYPE_QEMU_FIXED_TEXT_CONSOLE)
 
-/* keyboard/mouse support */
-
-#define MOUSE_EVENT_LBUTTON 0x01
-#define MOUSE_EVENT_RBUTTON 0x02
-#define MOUSE_EVENT_MBUTTON 0x04
-#define MOUSE_EVENT_WHEELUP 0x08
-#define MOUSE_EVENT_WHEELDN 0x10
-
 /* identical to the ps/2 keyboard bits */
 #define QEMU_SCROLL_LOCK_LED (1 << 0)
 #define QEMU_NUM_LOCK_LED    (1 << 1)
@@ -61,25 +53,6 @@ enum qemu_color_names {
 /* Convert to curses char attributes */
 #define ATTR2CHTYPE(c, fg, bg, bold) \
     ((bold) << 21 | (bg) << 11 | (fg) << 8 | (c))
-
-typedef void QEMUPutKBDEvent(void *opaque, int keycode);
-typedef void QEMUPutLEDEvent(void *opaque, int ledstate);
-typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);
-
-typedef struct QEMUPutMouseEntry QEMUPutMouseEntry;
-typedef struct QEMUPutKbdEntry QEMUPutKbdEntry;
-typedef struct QEMUPutLEDEntry QEMUPutLEDEntry;
-
-QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
-                                                void *opaque, int absolute,
-                                                const char *name);
-void qemu_remove_mouse_event_handler(QEMUPutMouseEntry *entry);
-void qemu_activate_mouse_event_handler(QEMUPutMouseEntry *entry);
-
-QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func, void *opaque);
-void qemu_remove_led_event_handler(QEMUPutLEDEntry *entry);
-
-void kbd_put_ledstate(int ledstate);
 
 bool qemu_mouse_set(int index, Error **errp);
 
@@ -449,9 +422,6 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 bool vnc_display_reload_certs(const char *id,  Error **errp);
 bool vnc_display_update(DisplayUpdateOptionsVNC *arg, Error **errp);
 void vnc_cleanup(void);
-
-/* input.c */
-int index_from_key(const char *key, size_t key_length);
 
 #ifdef CONFIG_LINUX
 /* udmabuf.c */

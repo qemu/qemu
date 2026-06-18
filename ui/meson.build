@@ -53,7 +53,6 @@ libui = static_library('qemuui', libui_sources + genh,
 ui = declare_dependency(objects: libui.extract_all_objects(recursive: false), dependencies: [pixman])
 system_ss.add(png)
 system_ss.add(files(
-  'input-legacy.c',
   'input-barrier.c',
   'input.c',
   'ui-hmp-cmds.c',

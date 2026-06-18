@@ -40,6 +40,7 @@ struct KBDState {
     ADBDevice parent_obj;
     /*< public >*/
 
+    QemuInputHandlerState *hs;
     uint8_t data[128];
     int rptr, wptr, count;
 };
@@ -51,6 +52,7 @@ struct ADBKeyboardClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
+    DeviceUnrealize parent_unrealize;
 };
 
 /* The adb keyboard doesn't have every key imaginable */
@@ -361,9 +363,20 @@ static const QemuInputHandler adb_keyboard_handler = {
 
 static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
 {
+    KBDState *s = ADB_KEYBOARD(dev);
     ADBKeyboardClass *akc = ADB_KEYBOARD_GET_CLASS(dev);
+
     akc->parent_realize(dev, errp);
-    qemu_input_handler_register(dev, &adb_keyboard_handler);
+    s->hs = qemu_input_handler_register(dev, &adb_keyboard_handler);
+}
+
+static void adb_kbd_unrealizefn(DeviceState *dev)
+{
+    KBDState *s = ADB_KEYBOARD(dev);
+    ADBKeyboardClass *akc = ADB_KEYBOARD_GET_CLASS(dev);
+
+    g_clear_pointer(&s->hs, qemu_input_handler_unregister);
+    akc->parent_unrealize(dev);
 }
 
 static void adb_kbd_initfn(Object *obj)
@@ -381,6 +394,8 @@ static void adb_kbd_class_init(ObjectClass *oc, const void *data)
 
     device_class_set_parent_realize(dc, adb_kbd_realizefn,
                                     &akc->parent_realize);
+    device_class_set_parent_unrealize(dc, adb_kbd_unrealizefn,
+                                    &akc->parent_unrealize);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_kbd_request;

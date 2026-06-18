@@ -520,8 +520,8 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, EGLNativeWindowType win)
  * platform extensions (EGL_KHR_platform_gbm and friends) yet it doesn't seem
  * like mesa will be able to advertise these (even though it can do EGL 1.5).
  */
-static EGLDisplay qemu_egl_get_display(EGLNativeDisplayType native,
-                                       EGLenum platform)
+EGLDisplay qemu_egl_get_display(EGLNativeDisplayType native,
+                                EGLenum platform)
 {
     EGLDisplay dpy = EGL_NO_DISPLAY;
 
