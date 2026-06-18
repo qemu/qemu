@@ -24,6 +24,7 @@
 #include "internal.h"
 #include "exec/helper-proto.h"
 #include "exec/translation-block.h"
+#include "accel/tcg/cpu-loop.h"
 
 target_ulong exception_resume_pc(CPUMIPSState *env)
 {

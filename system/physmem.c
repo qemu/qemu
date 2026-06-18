@@ -3416,7 +3416,7 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
                                   mr_addr, l, mr);
 }
 
-MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_read_full(const AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs, void *buf, hwaddr len)
 {
     MemTxResult result = MEMTX_OK;
@@ -3431,7 +3431,7 @@ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
     return result;
 }
 
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_write(const AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
                                 const void *buf, hwaddr len)
 {
@@ -3447,8 +3447,9 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
     return result;
 }
 
-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                             void *buf, hwaddr len, bool is_write)
+MemTxResult address_space_rw(const AddressSpace *as, hwaddr addr,
+                             MemTxAttrs attrs, void *buf,
+                             hwaddr len, bool is_write)
 {
     if (is_write) {
         return address_space_write(as, addr, attrs, buf, len);
@@ -3457,7 +3458,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
     }
 }
 
-MemTxResult address_space_set(AddressSpace *as, hwaddr addr,
+MemTxResult address_space_set(const AddressSpace *as, hwaddr addr,
                               uint8_t c, hwaddr len, MemTxAttrs attrs)
 {
 #define FILLBUF_SIZE 512
@@ -3476,13 +3477,13 @@ MemTxResult address_space_set(AddressSpace *as, hwaddr addr,
     return error;
 }
 
-void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len)
+void physical_memory_read(hwaddr addr, void *buf, hwaddr len)
 {
     address_space_read(&address_space_memory, addr,
                        MEMTXATTRS_UNSPECIFIED, buf, len);
 }
 
-void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len)
+void physical_memory_write(hwaddr addr, const void *buf, hwaddr len)
 {
     address_space_write(&address_space_memory, addr,
                         MEMTXATTRS_UNSPECIFIED, buf, len);
@@ -3514,7 +3515,8 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
     return MEMTX_OK;
 }
 
-void address_space_flush_icache_range(AddressSpace *as, hwaddr addr, hwaddr len)
+void address_space_flush_icache_range(AddressSpace *as,
+                                      hwaddr addr, hwaddr len)
 {
     /*
      * This function should do the same thing as an icache flush that was
@@ -3565,7 +3567,7 @@ address_space_unregister_map_client_do(AddressSpaceMapClient *client)
     g_free(client);
 }
 
-static void address_space_notify_map_clients_locked(AddressSpace *as)
+static void address_space_notify_map_clients_locked(const AddressSpace *as)
 {
     AddressSpaceMapClient *client;
 
@@ -3590,7 +3592,7 @@ void address_space_register_map_client(AddressSpace *as, QEMUBH *bh)
     }
 }
 
-void cpu_exec_init_all(void)
+void machine_memory_init(void)
 {
     qemu_mutex_init(&ram_list.mutex);
     /* The data structures we set up here depend on knowing the page size,
@@ -3646,7 +3648,7 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, hwaddr len,
     return true;
 }
 
-bool address_space_access_valid(AddressSpace *as, hwaddr addr,
+bool address_space_access_valid(const AddressSpace *as, hwaddr addr,
                                 hwaddr len, bool is_write,
                                 MemTxAttrs attrs)
 {
@@ -3806,16 +3808,14 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     address_space_notify_map_clients(as);
 }
 
-void *cpu_physical_memory_map(hwaddr addr,
-                              hwaddr *plen,
-                              bool is_write)
+void *physical_memory_map(hwaddr addr, hwaddr *plen, bool is_write)
 {
     return address_space_map(&address_space_memory, addr, plen, is_write,
                              MEMTXATTRS_UNSPECIFIED);
 }
 
-void cpu_physical_memory_unmap(void *buffer, hwaddr len,
-                               bool is_write, hwaddr access_len)
+void physical_memory_unmap(void *buffer, hwaddr len,
+                           bool is_write, hwaddr access_len)
 {
     return address_space_unmap(&address_space_memory, buffer, len, is_write, access_len);
 }
@@ -3829,7 +3829,7 @@ void cpu_physical_memory_unmap(void *buffer, hwaddr len,
 #include "memory_ldst.c.inc"
 
 int64_t address_space_cache_init(MemoryRegionCache *cache,
-                                 AddressSpace *as,
+                                 const AddressSpace *as,
                                  hwaddr addr,
                                  hwaddr len,
                                  bool is_write)
@@ -3876,7 +3876,7 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     return l;
 }
 
-void address_space_cache_invalidate(MemoryRegionCache *cache,
+void address_space_cache_invalidate(const MemoryRegionCache *cache,
                                     hwaddr addr,
                                     hwaddr access_len)
 {
@@ -3907,7 +3907,7 @@ void address_space_cache_destroy(MemoryRegionCache *cache)
  * address_space_cache_init.
  */
 static inline MemoryRegion *address_space_translate_cached(
-    MemoryRegionCache *cache, hwaddr addr, hwaddr *xlat,
+    const MemoryRegionCache *cache, hwaddr addr, hwaddr *xlat,
     hwaddr *plen, bool is_write, MemTxAttrs attrs)
 {
     MemoryRegionSection section;
@@ -3988,7 +3988,7 @@ static MemTxResult address_space_read_continue_cached(MemTxAttrs attrs,
  * out of line function when the target is an MMIO or IOMMU region.
  */
 MemTxResult
-address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
+address_space_read_cached_slow(const MemoryRegionCache *cache, hwaddr addr,
                                    void *buf, hwaddr len)
 {
     hwaddr mr_addr, l;
@@ -4005,7 +4005,7 @@ address_space_read_cached_slow(MemoryRegionCache *cache, hwaddr addr,
  * out of line function when the target is an MMIO or IOMMU region.
  */
 MemTxResult
-address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
+address_space_write_cached_slow(const MemoryRegionCache *cache, hwaddr addr,
                                     const void *buf, hwaddr len)
 {
     hwaddr mr_addr, l;
@@ -4018,7 +4018,7 @@ address_space_write_cached_slow(MemoryRegionCache *cache, hwaddr addr,
                                                buf, len, mr_addr, l, mr);
 }
 
-#define ARG1_DECL                MemoryRegionCache *cache
+#define ARG1_DECL                const MemoryRegionCache *cache
 #define ARG1                     cache
 #define SUFFIX                   _cached_slow
 #define TRANSLATE(...)           address_space_translate_cached(cache, __VA_ARGS__)

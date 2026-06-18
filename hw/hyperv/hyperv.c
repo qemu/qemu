@@ -17,6 +17,7 @@
 #include "exec/cpu-common.h"
 #include "linux/kvm.h"
 #include "system/kvm.h"
+#include "system/physmem.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "qemu/lockable.h"
@@ -622,7 +623,7 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast)
     }
 
     len = sizeof(*msg);
-    msg = cpu_physical_memory_map(param, &len, 0);
+    msg = physical_memory_map(param, &len, 0);
     if (len < sizeof(*msg)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto unmap;
@@ -643,7 +644,7 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast)
     }
 
 unmap:
-    cpu_physical_memory_unmap(msg, len, 0, 0);
+    physical_memory_unmap(msg, len, 0, 0);
     return ret;
 }
 
@@ -766,7 +767,7 @@ uint16_t hyperv_hcall_reset_dbg_session(uint64_t outgpa)
     }
 
     len = sizeof(*reset_dbg_session);
-    reset_dbg_session = cpu_physical_memory_map(outgpa, &len, 1);
+    reset_dbg_session = physical_memory_map(outgpa, &len, 1);
     if (!reset_dbg_session || len < sizeof(*reset_dbg_session)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -789,7 +790,7 @@ uint16_t hyperv_hcall_reset_dbg_session(uint64_t outgpa)
            sizeof(reset_dbg_session->target_mac));
 cleanup:
     if (reset_dbg_session) {
-        cpu_physical_memory_unmap(reset_dbg_session,
+        physical_memory_unmap(reset_dbg_session,
                                   sizeof(*reset_dbg_session), 1, len);
     }
 
@@ -811,14 +812,14 @@ uint16_t hyperv_hcall_retreive_dbg_data(uint64_t ingpa, uint64_t outgpa,
     }
 
     in_len = sizeof(*debug_data_in);
-    debug_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    debug_data_in = physical_memory_map(ingpa, &in_len, 0);
     if (!debug_data_in || in_len < sizeof(*debug_data_in)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
     }
 
     out_len = sizeof(*debug_data_out);
-    debug_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    debug_data_out = physical_memory_map(outgpa, &out_len, 1);
     if (!debug_data_out || out_len < sizeof(*debug_data_out)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -844,12 +845,12 @@ uint16_t hyperv_hcall_retreive_dbg_data(uint64_t ingpa, uint64_t outgpa,
         debug_data_in->count - msg.u.recv.retrieved_count;
 cleanup:
     if (debug_data_out) {
-        cpu_physical_memory_unmap(debug_data_out, sizeof(*debug_data_out), 1,
+        physical_memory_unmap(debug_data_out, sizeof(*debug_data_out), 1,
                                   out_len);
     }
 
     if (debug_data_in) {
-        cpu_physical_memory_unmap(debug_data_in, sizeof(*debug_data_in), 0,
+        physical_memory_unmap(debug_data_in, sizeof(*debug_data_in), 0,
                                   in_len);
     }
 
@@ -870,7 +871,7 @@ uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
     }
 
     in_len = sizeof(*post_data_in);
-    post_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    post_data_in = physical_memory_map(ingpa, &in_len, 0);
     if (!post_data_in || in_len < sizeof(*post_data_in)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -882,7 +883,7 @@ uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
     }
 
     out_len = sizeof(*post_data_out);
-    post_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    post_data_out = physical_memory_map(outgpa, &out_len, 1);
     if (!post_data_out || out_len < sizeof(*post_data_out)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -902,12 +903,12 @@ uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
                                          HV_STATUS_SUCCESS;
 cleanup:
     if (post_data_out) {
-        cpu_physical_memory_unmap(post_data_out,
+        physical_memory_unmap(post_data_out,
                                   sizeof(*post_data_out), 1, out_len);
     }
 
     if (post_data_in) {
-        cpu_physical_memory_unmap(post_data_in,
+        physical_memory_unmap(post_data_in,
                                   sizeof(*post_data_in), 0, in_len);
     }
 

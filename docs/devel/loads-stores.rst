@@ -439,26 +439,28 @@ Regexes for git grep:
  - ``\<ldu\?[bwlq]\(_[bl]e\)\?_phys\>``
  - ``\<st[bwlq]\(_[bl]e\)\?_phys\>``
 
-``cpu_physical_memory_*``
+``physical_memory_*``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These are convenience functions which are identical to
-``address_space_*`` but operate specifically on the system address space,
-always pass a ``MEMTXATTRS_UNSPECIFIED`` set of memory attributes and
-ignore whether the memory transaction succeeded or failed.
-For new code they are better avoided:
+``address_space_*`` but operate specifically on the legacy global
+``&address_space_memory`` address space (which might not be used by all
+machines), always pass a ``MEMTXATTRS_UNSPECIFIED`` set of memory attributes
+and ignore whether the memory transaction succeeded or failed. Expected
+users are hardware device models. For new code they are better avoided:
 
 * there is likely to be behaviour you need to model correctly for a
   failed read or write operation
 * a device should usually perform operations on its own AddressSpace
   rather than using the system address space
+* some machines do not use this global address space at all
 
-``cpu_physical_memory_read``
+``physical_memory_read``
 
-``cpu_physical_memory_write``
+``physical_memory_write``
 
 Regexes for git grep:
- - ``\<cpu_physical_memory_\(read\|write\)\>``
+ - ``\<physical_memory_\(read\|write\)\>``
 
 ``cpu_memory_rw_debug``
 ~~~~~~~~~~~~~~~~~~~~~~~

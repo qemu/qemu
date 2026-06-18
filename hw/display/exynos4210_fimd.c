@@ -28,6 +28,7 @@
 #include "hw/core/sysbus.h"
 #include "exec/cpu-common.h"
 #include "migration/vmstate.h"
+#include "system/physmem.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "qemu/bswap.h"
@@ -1076,7 +1077,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     }
 
     if (w->host_fb_addr) {
-        cpu_physical_memory_unmap(w->host_fb_addr, w->fb_len, 0, 0);
+        physical_memory_unmap(w->host_fb_addr, w->fb_len, 0, 0);
         w->host_fb_addr = NULL;
         w->fb_len = 0;
     }
@@ -1115,7 +1116,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
         goto error_return;
     }
 
-    w->host_fb_addr = cpu_physical_memory_map(fb_start_addr, &fb_mapped_len,
+    w->host_fb_addr = physical_memory_map(fb_start_addr, &fb_mapped_len,
                                               false);
     if (!w->host_fb_addr) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1127,7 +1128,7 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
         qemu_log_mask(LOG_GUEST_ERROR,
                       "FIMD: Window %u mapped framebuffer length is less than "
                       "expected\n", win);
-        cpu_physical_memory_unmap(w->host_fb_addr, fb_mapped_len, 0, 0);
+        physical_memory_unmap(w->host_fb_addr, fb_mapped_len, 0, 0);
         goto error_return;
     }
     memory_region_set_log(w->mem_section.mr, true, DIRTY_MEMORY_VGA);

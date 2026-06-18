@@ -14,6 +14,7 @@
 #include "exec/hwaddr.h"
 #include "exec/cpu-common.h"
 #include "exec/cpu-interrupt.h"
+#include "system/physmem.h"
 #include "system/system.h"
 #include "system/qtest.h"
 #include "hw/core/irq.h"
@@ -585,7 +586,7 @@ static void nextdma_write(void *opaque, uint8_t *buf, int size, int type)
         base_addr = next_state->dma[type].next_initbuf;
     }
 
-    cpu_physical_memory_write(base_addr, buf, size);
+    physical_memory_write(base_addr, buf, size);
 
     next_state->dma[type].next_initbuf = 0;
 

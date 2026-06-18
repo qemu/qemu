@@ -25,6 +25,7 @@
 #include "exec/translation-block.h"
 #include "system/tcg.h"
 #include "system/replay.h"
+#include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/cpu-ops.h"
 #include "hw/core/cpu.h"
 #include "internal-common.h"

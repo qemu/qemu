@@ -30,6 +30,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/char/serial-mm.h"
 #include "hw/block/flash.h"
+#include "system/physmem.h"
 #include "system/system.h"
 #include "system/reset.h"
 #include "hw/core/boards.h"
@@ -174,7 +175,7 @@ static int xilinx_load_device_tree(MachineState *machine,
                                 machine->kernel_cmdline);
     if (r < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
-    cpu_physical_memory_write(addr, fdt, fdt_size);
+    physical_memory_write(addr, fdt, fdt_size);
 
     /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
     machine->fdt = fdt;

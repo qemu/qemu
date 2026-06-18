@@ -23,6 +23,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-loop.h"
 #include "tcg/helper-tcg.h"
 
 /* Secure Virtual Machine helpers */

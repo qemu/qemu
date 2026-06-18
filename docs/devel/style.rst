@@ -519,7 +519,6 @@ QEMU provides other useful string functions:
 
     int strstart(const char *str, const char *val, const char **ptr)
     int stristart(const char *str, const char *val, const char **ptr)
-    int qemu_strnlen(const char *s, int max_len)
 
 There are also replacement character processing macros for isxyz and toxyz,
 so instead of e.g. isalnum you should use qemu_isalnum.

@@ -20,6 +20,8 @@
 #ifndef TCG_TCG_GVEC_DESC_H
 #define TCG_TCG_GVEC_DESC_H
 
+#include "qemu/bitops.h"
+
 /*
  * This configuration allows MAXSZ to represent 2048 bytes, and
  * OPRSZ to match MAXSZ, or represent the smaller values 8, 16, or 32.

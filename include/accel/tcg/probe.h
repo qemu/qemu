@@ -7,6 +7,10 @@
 #ifndef ACCEL_TCG_PROBE_H
 #define ACCEL_TCG_PROBE_H
 
+#ifndef CONFIG_TCG
+#error Can only include this header with TCG
+#endif
+
 #include "exec/mmu-access-type.h"
 #include "exec/vaddr.h"
 

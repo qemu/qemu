@@ -28,6 +28,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/uuid.h"
 #include "exec/cpu-common.h"
+#include "system/physmem.h"
 
 #define ACPI_HW_ERROR_FW_CFG_FILE           "etc/hardware_errors"
 #define ACPI_HW_ERROR_ADDR_FW_CFG_FILE      "etc/hardware_errors_addr"
@@ -432,9 +433,7 @@ static void get_hw_error_offsets(uint64_t ghes_addr,
      * the source ID, as it is stored inside the HEST table.
      */
 
-    cpu_physical_memory_read(ghes_addr, cper_addr,
-                             sizeof(*cper_addr));
-
+    physical_memory_read(ghes_addr, cper_addr, sizeof(*cper_addr));
     *cper_addr = le64_to_cpu(*cper_addr);
 
     /*
@@ -456,8 +455,7 @@ static bool get_ghes_source_offsets(uint16_t source_id,
 
     hest_addr += ACPI_DESC_HEADER_OFFSET;
 
-    cpu_physical_memory_read(hest_addr, &num_sources,
-                             sizeof(num_sources));
+    physical_memory_read(hest_addr, &num_sources, sizeof(num_sources));
     num_sources = le32_to_cpu(num_sources);
 
     err_source_entry = hest_addr + sizeof(num_sources);
@@ -469,7 +467,7 @@ static bool get_ghes_source_offsets(uint16_t source_id,
         uint64_t addr = err_source_entry;
         uint16_t type, src_id;
 
-        cpu_physical_memory_read(addr, &type, sizeof(type));
+        physical_memory_read(addr, &type, sizeof(type));
         type = le16_to_cpu(type);
 
         /* For now, we only know the size of GHESv2 table */
@@ -480,7 +478,7 @@ static bool get_ghes_source_offsets(uint16_t source_id,
 
         /* Compare CPER source ID at the GHESv2 structure */
         addr += sizeof(type);
-        cpu_physical_memory_read(addr, &src_id, sizeof(src_id));
+        physical_memory_read(addr, &src_id, sizeof(src_id));
         if (le16_to_cpu(src_id) == source_id) {
             break;
         }
@@ -496,17 +494,17 @@ static bool get_ghes_source_offsets(uint16_t source_id,
     hest_err_block_addr = err_source_entry + GHES_ERR_STATUS_ADDR_OFF +
                           GAS_ADDR_OFFSET;
 
-    cpu_physical_memory_read(hest_err_block_addr, &error_block_addr,
+    physical_memory_read(hest_err_block_addr, &error_block_addr,
                              sizeof(error_block_addr));
     error_block_addr = le64_to_cpu(error_block_addr);
 
-    cpu_physical_memory_read(error_block_addr, cper_addr,
+    physical_memory_read(error_block_addr, cper_addr,
                              sizeof(*cper_addr));
     *cper_addr = le64_to_cpu(*cper_addr);
 
     hest_read_ack_addr = err_source_entry + GHES_READ_ACK_ADDR_OFF +
                          GAS_ADDR_OFFSET;
-    cpu_physical_memory_read(hest_read_ack_addr, read_ack_start_addr,
+    physical_memory_read(hest_read_ack_addr, read_ack_start_addr,
                              sizeof(*read_ack_start_addr));
     *read_ack_start_addr = le64_to_cpu(*read_ack_start_addr);
 
@@ -535,7 +533,7 @@ bool ghes_record_cper_errors(AcpiGhesState *ags, const void *cper, size_t len,
             return false;
     }
 
-    cpu_physical_memory_read(read_ack_register_addr,
+    physical_memory_read(read_ack_register_addr,
                              &read_ack_register, sizeof(read_ack_register));
 
     /* zero means OSPM does not acknowledge the error */
@@ -551,11 +549,11 @@ bool ghes_record_cper_errors(AcpiGhesState *ags, const void *cper, size_t len,
      * Clear the Read Ack Register, OSPM will write 1 to this register when
      * it acknowledges the error.
      */
-    cpu_physical_memory_write(read_ack_register_addr,
+    physical_memory_write(read_ack_register_addr,
                               &read_ack_register, sizeof(uint64_t));
 
     /* Write the generic error data entry into guest memory */
-    cpu_physical_memory_write(cper_addr, cper, len);
+    physical_memory_write(cper_addr, cper, len);
 
     notifier_list_notify(&acpi_generic_error_notifiers, &source_id);
 

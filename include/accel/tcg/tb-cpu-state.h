@@ -6,6 +6,10 @@
 #ifndef EXEC_TB_CPU_STATE_H
 #define EXEC_TB_CPU_STATE_H
 
+#ifndef CONFIG_TCG
+#error Can only include this header with TCG
+#endif
+
 #include "exec/vaddr.h"
 
 typedef struct TCGTBCPUState {

@@ -5,8 +5,8 @@
 #include "qapi/error.h"
 #include "hw/xen/xen_pt.h"
 #include "hw/xen/xen_igd.h"
-#include "exec/cpu-common.h"
 #include "xen-host-pci-device.h"
+#include "system/physmem.h"
 
 static unsigned long igd_guest_opregion;
 static unsigned long igd_host_opregion;
@@ -223,7 +223,7 @@ void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
     }
 
     /* Currently we fixed this address as a primary for legacy BIOS. */
-    cpu_physical_memory_write(0xc0000, bios, bios_size);
+    physical_memory_write(0xc0000, bios, bios_size);
 }
 
 uint32_t igd_read_opregion(XenPCIPassthroughState *s)

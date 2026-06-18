@@ -54,7 +54,7 @@
 
 void strpadcpy(char *buf, int buf_size, const char *str, char pad)
 {
-    int len = qemu_strnlen(str, buf_size);
+    size_t len = strnlen(str, buf_size);
     memcpy(buf, str, len);
     memset(buf + len, pad, buf_size - len);
 }
@@ -116,19 +116,6 @@ int stristart(const char *str, const char *val, const char **ptr)
     if (ptr)
         *ptr = p;
     return 1;
-}
-
-/* XXX: use host strnlen if available ? */
-int qemu_strnlen(const char *s, int max_len)
-{
-    int i;
-
-    for(i = 0; i < max_len; i++) {
-        if (s[i] == '\0') {
-            break;
-        }
-    }
-    return i;
 }
 
 char *qemu_strsep(char **input, const char *delim)

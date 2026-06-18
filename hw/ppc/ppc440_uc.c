@@ -18,6 +18,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/pci/pci.h"
 #include "exec/cpu-common.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "target/ppc/cpu.h"
 #include "ppc440.h"
@@ -606,9 +607,9 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                     width = 1 << ((val & DMA0_CR_PW) >> 25);
                     xferlen = count * width;
                     wlen = rlen = xferlen;
-                    rptr = cpu_physical_memory_map(dma->ch[chnl].sa, &rlen,
+                    rptr = physical_memory_map(dma->ch[chnl].sa, &rlen,
                                                    false);
-                    wptr = cpu_physical_memory_map(dma->ch[chnl].da, &wlen,
+                    wptr = physical_memory_map(dma->ch[chnl].da, &wlen,
                                                    true);
                     if (rptr && rlen == xferlen && wptr && wlen == xferlen) {
                         if (!(val & DMA0_CR_DEC) &&
@@ -631,10 +632,10 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                         }
                     }
                     if (wptr) {
-                        cpu_physical_memory_unmap(wptr, wlen, 1, didx);
+                        physical_memory_unmap(wptr, wlen, 1, didx);
                     }
                     if (rptr) {
-                        cpu_physical_memory_unmap(rptr, rlen, 0, sidx);
+                        physical_memory_unmap(rptr, rlen, 0, sidx);
                     }
                 }
             }

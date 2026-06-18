@@ -21,6 +21,7 @@
 #include "exec/log.h"
 #include "system/tcg.h"
 #include "qemu/plugin.h"
+#include "accel/tcg/cpu-loop.h"
 #include "internal-common.h"
 
 bool tcg_allowed;

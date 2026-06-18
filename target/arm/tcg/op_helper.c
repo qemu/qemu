@@ -23,6 +23,7 @@
 #include "helper.h"
 #include "internals.h"
 #include "cpu-features.h"
+#include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/probe.h"
 #include "cpregs.h"
 

@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "accel/tcg/cpu-loop.h"
 #include "cpu.h"
 #include "qemu/log.h"
 #include "system/runstate.h"

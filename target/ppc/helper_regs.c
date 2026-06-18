@@ -27,7 +27,6 @@
 #include "power8-pmu.h"
 #include "cpu-models.h"
 #include "spr_common.h"
-#include "accel/tcg/cpu-ops.h"
 #include "internal.h"
 
 /* Swap temporary saved registers with GPRs */
@@ -261,6 +260,7 @@ void hreg_update_pmu_hflags(CPUPPCState *env)
     env->hflags |= hreg_compute_pmu_hflags_value(env);
 }
 
+#ifdef CONFIG_TCG
 TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs)
 {
     CPUPPCState *env = cpu_env(cs);
@@ -277,6 +277,7 @@ TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs)
 
     return (TCGTBCPUState){ .pc = env->nip, .flags = hflags_current };
 }
+#endif /* CONFIG_TCG */
 
 #ifndef CONFIG_USER_ONLY
 void cpu_interrupt_exittb(CPUState *cs)

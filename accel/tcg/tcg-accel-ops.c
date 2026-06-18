@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
+#include "accel/tcg/cpu-loop.h"
 #include "system/tcg.h"
 #include "system/replay.h"
 #include "exec/icount.h"

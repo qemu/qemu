@@ -27,6 +27,7 @@
 #include "time_helper.h"
 #include "exec/cputlb.h"
 #include "exec/icount.h"
+#include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/getpc.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"

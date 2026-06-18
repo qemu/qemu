@@ -28,6 +28,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/qemu-print.h"
 #include "system/memory.h"
+#include "accel/tcg/cpu-loop.h"
 #include "qemu/plugin.h"
 
 

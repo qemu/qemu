@@ -43,7 +43,7 @@ abi_long target_strlen(abi_ulong guest_addr1)
 {
     uint8_t *ptr;
     abi_ulong guest_addr;
-    int max_len, len;
+    size_t max_len, len;
 
     guest_addr = guest_addr1;
     for (;;) {
@@ -51,7 +51,7 @@ abi_long target_strlen(abi_ulong guest_addr1)
         ptr = lock_user(VERIFY_READ, guest_addr, max_len, 1);
         if (!ptr)
             return -TARGET_EFAULT;
-        len = qemu_strnlen((const char *)ptr, max_len);
+        len = strnlen((const char *)ptr, max_len);
         unlock_user(ptr, guest_addr, 0);
         guest_addr += len;
         /* we don't allow wrapping or integer overflow */

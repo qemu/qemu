@@ -21,6 +21,7 @@
 #include "qemu/log.h"
 #include "target/ppc/cpu.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-loop.h"
 #include "exec/helper-proto.h"
 #include "system/runstate.h"
 

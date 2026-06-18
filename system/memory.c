@@ -889,7 +889,8 @@ static void address_space_update_ioeventfds(AddressSpace *as)
  * range `cmr'.  Only the part that has intersection of the specified
  * FlatRange will be sent.
  */
-static void flat_range_coalesced_io_notify(FlatRange *fr, AddressSpace *as,
+static void flat_range_coalesced_io_notify(FlatRange *fr,
+                                           const AddressSpace *as,
                                            CoalescedMemoryRange *cmr, bool add)
 {
     AddrRange tmp;
@@ -913,7 +914,7 @@ static void flat_range_coalesced_io_notify(FlatRange *fr, AddressSpace *as,
     }
 }
 
-static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
+static void flat_range_coalesced_io_del(FlatRange *fr, const AddressSpace *as)
 {
     CoalescedMemoryRange *cmr;
 
@@ -922,7 +923,7 @@ static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
     }
 }
 
-static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
+static void flat_range_coalesced_io_add(FlatRange *fr, const AddressSpace *as)
 {
     MemoryRegion *mr = fr->mr;
     CoalescedMemoryRange *cmr;
@@ -940,7 +941,8 @@ static void
 flat_range_coalesced_io_notify_listener_add_del(FlatRange *fr,
                                                 MemoryRegionSection *mrs,
                                                 MemoryListener *listener,
-                                                AddressSpace *as, bool add)
+                                                const AddressSpace *as,
+                                                bool add)
 {
     CoalescedMemoryRange *cmr;
     MemoryRegion *mr = fr->mr;
@@ -3007,7 +3009,7 @@ void memory_global_dirty_log_stop(unsigned int flags)
 }
 
 static void listener_add_address_space(MemoryListener *listener,
-                                       AddressSpace *as)
+                                       const AddressSpace *as)
 {
     unsigned i;
     FlatView *view;
@@ -3072,7 +3074,7 @@ static void listener_add_address_space(MemoryListener *listener,
 }
 
 static void listener_del_address_space(MemoryListener *listener,
-                                       AddressSpace *as)
+                                       const AddressSpace *as)
 {
     unsigned i;
     FlatView *view;
@@ -3177,7 +3179,7 @@ void memory_listener_unregister(MemoryListener *listener)
     listener->address_space = NULL;
 }
 
-void address_space_remove_listeners(AddressSpace *as)
+void address_space_remove_listeners(const AddressSpace *as)
 {
     while (!QTAILQ_EMPTY(&as->listeners)) {
         memory_listener_unregister(QTAILQ_FIRST(&as->listeners));

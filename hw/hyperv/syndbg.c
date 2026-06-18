@@ -20,6 +20,7 @@
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/hyperv/hyperv-proto.h"
 #include "exec/cpu-common.h"
+#include "system/physmem.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "net/checksum.h"
@@ -62,10 +63,10 @@ static void set_pending_state(HvSynDbg *syndbg, bool has_pending)
     }
 
     out_len = 1;
-    out_data = cpu_physical_memory_map(syndbg->pending_page_gpa, &out_len, 1);
+    out_data = physical_memory_map(syndbg->pending_page_gpa, &out_len, 1);
     if (out_data) {
         *(uint8_t *)out_data = !!has_pending;
-        cpu_physical_memory_unmap(out_data, out_len, 1, out_len);
+        physical_memory_unmap(out_data, out_len, 1, out_len);
     }
 }
 
@@ -110,7 +111,7 @@ static uint16_t handle_send_msg(HvSynDbg *syndbg, uint64_t ingpa,
     int sent_count;
 
     data_len = count;
-    debug_data = cpu_physical_memory_map(ingpa, &data_len, 0);
+    debug_data = physical_memory_map(ingpa, &data_len, 0);
     if (!debug_data || data_len < count) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -135,7 +136,7 @@ static uint16_t handle_send_msg(HvSynDbg *syndbg, uint64_t ingpa,
     ret = HV_STATUS_SUCCESS;
 cleanup:
     if (debug_data) {
-        cpu_physical_memory_unmap(debug_data, count, 0, data_len);
+        physical_memory_unmap(debug_data, count, 0, data_len);
     }
 
     return ret;
@@ -224,7 +225,7 @@ static uint16_t handle_recv_msg(HvSynDbg *syndbg, uint64_t outgpa,
         out_len += UDP_PKT_HEADER_SIZE;
     }
     out_requested_len = out_len;
-    out_data = cpu_physical_memory_map(outgpa, &out_len, 1);
+    out_data = physical_memory_map(outgpa, &out_len, 1);
     ret = HV_STATUS_INSUFFICIENT_MEMORY;
     if (!out_data || out_len < out_requested_len) {
         goto cleanup_out_data;
@@ -243,7 +244,7 @@ static uint16_t handle_recv_msg(HvSynDbg *syndbg, uint64_t outgpa,
 
 cleanup_out_data:
     if (out_data) {
-        cpu_physical_memory_unmap(out_data, out_len, 1, out_len);
+        physical_memory_unmap(out_data, out_len, 1, out_len);
     }
     return ret;
 }

@@ -35,6 +35,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
 #include "qemu/nvdimm-utils.h"
+#include "system/physmem.h"
 #include "trace.h"
 #include "exec/cpu-common.h"
 
@@ -515,7 +516,7 @@ nvdimm_dsm_function0(uint32_t supported_func, hwaddr dsm_mem_addr)
         .len = cpu_to_le32(sizeof(func0)),
         .supported_func = cpu_to_le32(supported_func),
     };
-    cpu_physical_memory_write(dsm_mem_addr, &func0, sizeof(func0));
+    physical_memory_write(dsm_mem_addr, &func0, sizeof(func0));
 }
 
 static void
@@ -525,7 +526,7 @@ nvdimm_dsm_no_payload(uint32_t func_ret_status, hwaddr dsm_mem_addr)
         .len = cpu_to_le32(sizeof(out)),
         .func_ret_status = cpu_to_le32(func_ret_status),
     };
-    cpu_physical_memory_write(dsm_mem_addr, &out, sizeof(out));
+    physical_memory_write(dsm_mem_addr, &out, sizeof(out));
 }
 
 #define NVDIMM_DSM_RET_STATUS_SUCCESS        0 /* Success */
@@ -580,7 +581,7 @@ exit:
     read_fit_out->func_ret_status = cpu_to_le32(func_ret_status);
     memcpy(read_fit_out->fit, fit->data + read_fit->offset, read_len);
 
-    cpu_physical_memory_write(dsm_mem_addr, read_fit_out, size);
+    physical_memory_write(dsm_mem_addr, read_fit_out, size);
 
     g_free(read_fit_out);
 }
@@ -666,7 +667,7 @@ static void nvdimm_dsm_label_size(NVDIMMDevice *nvdimm, hwaddr dsm_mem_addr)
     label_size_out.label_size = cpu_to_le32(label_size);
     label_size_out.max_xfer = cpu_to_le32(mxfer);
 
-    cpu_physical_memory_write(dsm_mem_addr, &label_size_out,
+    physical_memory_write(dsm_mem_addr, &label_size_out,
                               sizeof(label_size_out));
 }
 
@@ -735,7 +736,7 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
     nvc->read_label_data(nvdimm, get_label_data_out->out_buf,
                          get_label_data->length, get_label_data->offset);
 
-    cpu_physical_memory_write(dsm_mem_addr, get_label_data_out, size);
+    physical_memory_write(dsm_mem_addr, get_label_data_out, size);
     g_free(get_label_data_out);
 }
 
@@ -845,7 +846,7 @@ nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
      * this by copying DSM memory to QEMU local memory.
      */
     in = g_new(NvdimmDsmIn, 1);
-    cpu_physical_memory_read(dsm_mem_addr, in, sizeof(*in));
+    physical_memory_read(dsm_mem_addr, in, sizeof(*in));
 
     in->revision = le32_to_cpu(in->revision);
     in->function = le32_to_cpu(in->function);

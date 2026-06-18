@@ -29,6 +29,7 @@
 #include "hw/char/serial-mm.h"
 #include "hw/pci/pci.h"
 #include "system/block-backend-io.h"
+#include "system/physmem.h"
 #include "system/system.h"
 #include "system/kvm.h"
 #include "system/reset.h"
@@ -661,7 +662,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
 
 done:
     if (!dry_run) {
-        cpu_physical_memory_write(addr, fdt, fdt_size);
+        physical_memory_write(addr, fdt, fdt_size);
 
         /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
         g_free(machine->fdt);

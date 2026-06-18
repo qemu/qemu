@@ -6,6 +6,7 @@
 
 #include "user/abitypes.h"
 #include "user/page-protection.h"
+#include "exec/page-protection.h"
 
 #include "syscall_defs.h"
 #include "target_syscall.h"

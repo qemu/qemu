@@ -23,6 +23,7 @@
 #include "qemu/module.h"
 #include "qemu/qemu-print.h"
 #include "accel/tcg/cpu-mmu-index.h"
+#include "accel/tcg/cpu-ops.h"
 #include "exec/translation-block.h"
 #include "hw/core/qdev-properties.h"
 #include "qapi/visitor.h"

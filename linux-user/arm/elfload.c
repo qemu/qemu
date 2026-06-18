@@ -2,6 +2,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "exec/page-protection.h"
 #include "loader.h"
 #include "user-internals.h"
 #include "target_elf.h"

@@ -22,6 +22,7 @@
 #include "hw/i2c/smbus_eeprom.h"
 #include "exec/cpu-common.h"
 #include "system/block-backend.h"
+#include "system/physmem.h"
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "kvm_ppc.h"
@@ -231,7 +232,7 @@ static void create_bd_info(hwaddr addr, ram_addr_t ram_size)
     bd->bi_busfreq =    cpu_to_be32(BUS_FREQ_HZ);
     bd->bi_baudrate =   cpu_to_be32(115200);
 
-    cpu_physical_memory_write(addr, bd, sizeof(*bd));
+    physical_memory_write(addr, bd, sizeof(*bd));
 }
 
 static void amigaone_cpu_reset(void *opaque)
@@ -386,7 +387,7 @@ static void amigaone_init(MachineState *machine)
         size_t len = strlen(machine->kernel_cmdline);
 
         loadaddr = bi->bd_info + 1 * MiB;
-        cpu_physical_memory_write(loadaddr, machine->kernel_cmdline, len + 1);
+        physical_memory_write(loadaddr, machine->kernel_cmdline, len + 1);
         bi->cmdline_start = loadaddr;
         bi->cmdline_end = loadaddr + len + 1; /* including terminating '\0' */
     }

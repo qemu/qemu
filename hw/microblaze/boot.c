@@ -32,6 +32,7 @@
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
 #include "system/device_tree.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "exec/cpu-common.h"
 #include "hw/core/boards.h"
@@ -106,7 +107,7 @@ static int microblaze_load_dtb(hwaddr addr,
                               initrd_end);
     }
 
-    cpu_physical_memory_write(addr, fdt, fdt_size);
+    physical_memory_write(addr, fdt, fdt_size);
     g_free(fdt);
     return fdt_size;
 }

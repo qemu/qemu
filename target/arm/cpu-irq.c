@@ -8,10 +8,11 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "accel/tcg/cpu-ops.h"
 #include "internals.h"
 
 #ifdef CONFIG_TCG
+#include "accel/tcg/cpu-ops.h"
+
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                                      unsigned int target_el,
                                      unsigned int cur_el, bool secure,

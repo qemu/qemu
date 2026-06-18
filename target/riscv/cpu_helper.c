@@ -29,6 +29,7 @@
 #include "system/memory.h"
 #include "instmap.h"
 #include "tcg/tcg-op.h"
+#include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/cpu-ops.h"
 #include "trace.h"
 #include "semihosting/common-semi.h"

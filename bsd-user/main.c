@@ -39,6 +39,7 @@
 #include "user/guest-base.h"
 #include "user/page-protection.h"
 #include "accel/accel-ops.h"
+#include "accel/tcg/cpu-loop.h"
 #include "tcg/startup.h"
 #include "qemu/timer.h"
 #include "qemu/envlist.h"

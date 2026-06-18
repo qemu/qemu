@@ -19,6 +19,7 @@
 #include "system/kvm.h"
 #include "system/runstate.h"
 #include "system/hw_accel.h"
+#include "system/physmem.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
 #include "hw/core/sysbus.h"
@@ -85,7 +86,7 @@ static uint64_t kvmclock_current_nsec(KVMClockState *s)
     }
 
     kvmclock_struct_pa = env->system_time_msr & ~1ULL;
-    cpu_physical_memory_read(kvmclock_struct_pa, &time, sizeof(time));
+    physical_memory_read(kvmclock_struct_pa, &time, sizeof(time));
 
     assert(time.tsc_timestamp <= migration_tsc);
     delta = migration_tsc - time.tsc_timestamp;

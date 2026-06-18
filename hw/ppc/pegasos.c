@@ -21,6 +21,7 @@
 #include "hw/ide/pci.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/core/qdev-properties.h"
+#include "system/physmem.h"
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "system/qtest.h"
@@ -314,22 +315,22 @@ static void pegasos_init(MachineState *machine)
 
 static void pegasos_superio_write(uint8_t addr, uint8_t val)
 {
-    cpu_physical_memory_write(0xfe0003f0, &addr, 1);
-    cpu_physical_memory_write(0xfe0003f1, &val, 1);
+    physical_memory_write(0xfe0003f0, &addr, 1);
+    physical_memory_write(0xfe0003f1, &val, 1);
 }
 
 static void pegasos1_pci_config_write(PegasosMachineState *pm, int bus,
                                       uint32_t addr, uint32_t len, uint32_t val)
 {
     addr |= BIT(31);
-    cpu_physical_memory_write(0xfec00cf8, &addr, 4);
-    cpu_physical_memory_write(0xfee00cfc, &val, len);
+    physical_memory_write(0xfec00cf8, &addr, 4);
+    physical_memory_write(0xfee00cfc, &val, len);
 }
 
 static void pegasos1_chipset_reset(PegasosMachineState *pm)
 {
     uint8_t elcr = 0x2e;
-    cpu_physical_memory_write(0xfe0004d1, &elcr, sizeof(elcr));
+    physical_memory_write(0xfe0004d1, &elcr, sizeof(elcr));
 
     pegasos1_pci_config_write(pm, 0, PCI_COMMAND, 2, PCI_COMMAND_IO |
                               PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);

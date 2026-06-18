@@ -24,6 +24,7 @@
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "exec/log.h"
+#include "accel/tcg/cpu-loop.h"
 #include "qemu/plugin.h"
 
 #if !defined(CONFIG_USER_ONLY)

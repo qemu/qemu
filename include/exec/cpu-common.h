@@ -8,11 +8,8 @@
 #ifndef CPU_COMMON_H
 #define CPU_COMMON_H
 
-#include "exec/vaddr.h"
-#include "exec/hwaddr.h"
+#include "qemu/thread.h"
 #include "hw/core/cpu.h"
-#include "tcg/debug-assert.h"
-#include "exec/page-protection.h"
 
 #define EXCP_INTERRUPT  0x10000 /* async interruption */
 #define EXCP_HLT        0x10001 /* hlt instruction reached */
@@ -20,9 +17,6 @@
 #define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
 #define EXCP_YIELD      0x10004 /* cpu wants to yield timeslice to another */
 #define EXCP_ATOMIC     0x10005 /* stop-the-world and emulate atomic */
-
-void cpu_exec_init_all(void);
-void cpu_exec_step_atomic(CPUState *cpu);
 
 #define REAL_HOST_PAGE_ALIGN(addr) ROUND_UP((addr), qemu_real_host_page_size())
 
@@ -34,9 +28,6 @@ void cpu_list_unlock(void);
 unsigned int cpu_list_generation_id_get(void);
 
 int cpu_get_free_index(void);
-
-void tcg_iommu_init_notifier_list(CPUState *cpu);
-void tcg_iommu_free_notifier_list(CPUState *cpu);
 
 /**
  * cpu_address_space_init:
@@ -64,44 +55,11 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
  */
 void cpu_destroy_address_spaces(CPUState *cpu);
 
-void cpu_physical_memory_read(hwaddr addr, void *buf, hwaddr len);
-void cpu_physical_memory_write(hwaddr addr, const void *buf, hwaddr len);
-void *cpu_physical_memory_map(hwaddr addr,
-                              hwaddr *plen,
-                              bool is_write);
-void cpu_physical_memory_unmap(void *buffer, hwaddr len,
-                               bool is_write, hwaddr access_len);
-
 /* vl.c */
 void list_cpus(void);
 
 #ifdef CONFIG_TCG
 #include "qemu/atomic.h"
-
-/**
- * cpu_unwind_state_data:
- * @cpu: the cpu context
- * @host_pc: the host pc within the translation
- * @data: output data
- *
- * Attempt to load the unwind state for a host pc occurring in
- * translated code.  If @host_pc is not in translated code, the
- * function returns false; otherwise @data is loaded.
- * This is the same unwind info as given to restore_state_to_opc.
- */
-bool cpu_unwind_state_data(CPUState *cpu, uintptr_t host_pc, uint64_t *data);
-
-/**
- * cpu_restore_state:
- * @cpu: the cpu context
- * @host_pc: the host pc within the translation
- * @return: true if state was restored, false otherwise
- *
- * Attempt to restore the state for a fault occurring in translated
- * code. If @host_pc is not in translated code no state is
- * restored and the function returns false.
- */
-bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc);
 
 /**
  * cpu_loop_exit_requested:
@@ -115,19 +73,11 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc);
  * call can be used to check if it makes sense to return to the main loop
  * or to continue executing the interruptible instruction.
  */
-static inline bool cpu_loop_exit_requested(CPUState *cpu)
+static inline bool cpu_loop_exit_requested(const CPUState *cpu)
 {
     return (int32_t)qatomic_read(&cpu->neg.icount_decr.u32) < 0;
 }
-
-G_NORETURN void cpu_loop_exit_noexc(CPUState *cpu);
-G_NORETURN void cpu_loop_exit_atomic(CPUState *cpu, uintptr_t pc);
-G_NORETURN void cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);
 #endif /* CONFIG_TCG */
-G_NORETURN void cpu_loop_exit(CPUState *cpu);
-
-/* accel/tcg/cpu-exec.c */
-int cpu_exec(CPUState *cpu);
 
 /**
  * env_archcpu(env)

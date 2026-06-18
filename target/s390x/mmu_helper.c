@@ -24,6 +24,9 @@
 #include "system/kvm.h"
 #include "system/tcg.h"
 #include "system/memory.h"
+#ifdef CONFIG_TCG
+#include "accel/tcg/cpu-loop.h"
+#endif
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "hw/core/hw-error.h"
