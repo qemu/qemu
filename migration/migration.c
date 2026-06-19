@@ -1643,6 +1643,12 @@ bool migration_in_incoming_postcopy(void)
     return ps >= POSTCOPY_INCOMING_DISCARD && ps < POSTCOPY_INCOMING_END;
 }
 
+bool migration_guest_ram_loading(void)
+{
+    return runstate_check(RUN_STATE_INMIGRATE) ||
+           migration_in_incoming_postcopy();
+}
+
 bool migration_incoming_postcopy_advised(void)
 {
     PostcopyState ps = postcopy_state_get();
