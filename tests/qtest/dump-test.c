@@ -174,8 +174,51 @@ static void test_dump_invalid_protocol(void)
     qtest_quit(qts);
 }
 
+/*
+ * Requesting win-dmp without a Windows dump header in vmcoreinfo must be
+ * rejected with a clear error -- and must leave the VM usable, rather than
+ * produce a bogus dump.
+ */
+static void test_dump_win_dmp_unavailable(void)
+{
+    QTestState *qts = dump_test_start();
+    g_autofree char *tmp = NULL;
+    g_autofree char *proto = NULL;
+    g_autofree char *path = NULL;
+    GError *err = NULL;
+    QDict *resp, *error;
+    const char *desc;
+    int fd;
+
+    fd = g_file_open_tmp("dump-test-XXXXXX", &tmp, &err);
+    g_assert_no_error(err);
+    close(fd);
+    proto = g_strdup_printf("file:%s", tmp);
+
+    resp = qtest_qmp(qts,
+        "{ 'execute': 'dump-guest-memory',"
+        "  'arguments': { 'paging': false, 'protocol': %s,"
+        "                 'format': 'win-dmp' } }", proto);
+    error = qdict_get_qdict(resp, "error");
+    g_assert_nonnull(error);
+    desc = qdict_get_try_str(error, "desc");
+    g_assert_nonnull(desc);
+    g_assert_nonnull(strstr(desc, "vmcoreinfo"));
+    qobject_unref(resp);
+    unlink(tmp);
+
+    /* the failed request must not wedge the VM: a plain dump still works */
+    path = do_dump(qts, NULL);
+    assert_valid_elf_core(path);
+    unlink(path);
+
+    qtest_quit(qts);
+}
+
 int main(int argc, char **argv)
 {
+    const char *arch = qtest_get_arch();
+
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/dump/query-capability", test_query_capability);
@@ -183,6 +226,12 @@ int main(int argc, char **argv)
     qtest_add_func("/dump/kdump-zlib", test_dump_kdump_zlib);
     qtest_add_func("/dump/kdump-raw-zlib", test_dump_kdump_raw_zlib);
     qtest_add_func("/dump/invalid-protocol", test_dump_invalid_protocol);
+
+    /* win-dmp is an x86_64-only format */
+    if (g_str_equal(arch, "x86_64")) {
+        qtest_add_func("/dump/win-dmp-unavailable",
+                       test_dump_win_dmp_unavailable);
+    }
 
     return g_test_run();
 }
