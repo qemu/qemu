@@ -43,6 +43,7 @@
 #include "system/physmem.h"
 #include "system/replay.h"
 #include "system/runstate.h"
+#include "migration/misc.h"
 #include "system/cpu-timers.h"
 #include "system/whpx.h"
 #include "hw/core/boards.h"
@@ -843,6 +844,11 @@ void qmp_memsave(uint64_t addr, uint64_t size, const char *filename,
     uint8_t buf[1024];
     uint64_t orig_addr = addr, orig_size = size;
 
+    if (migration_guest_ram_loading()) {
+        error_setg(errp, "Guest memory access not allowed during migration");
+        return;
+    }
+
     if (!has_cpu) {
         cpu_index = 0;
     }
@@ -888,6 +894,11 @@ void qmp_pmemsave(uint64_t addr, uint64_t size, const char *filename,
     FILE *f;
     uint64_t l;
     uint8_t buf[1024];
+
+    if (migration_guest_ram_loading()) {
+        error_setg(errp, "Guest memory access not allowed during migration");
+        return;
+    }
 
     f = fopen(filename, "wb");
     if (!f) {
