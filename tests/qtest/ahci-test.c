@@ -1565,6 +1565,31 @@ static int ahci_cb_cmp_buff(AHCIQState *ahci, AHCICommand *cmd,
     return 0;
 }
 
+static int ahci_cb_cmp_raw(AHCIQState *ahci, AHCICommand *cmd,
+                           const AHCIOpts *opts)
+{
+    unsigned char *tx = opts->opaque;
+    unsigned char *rx;
+    unsigned i, nsectors;
+
+    if (!opts->size) {
+        return 0;
+    }
+
+    nsectors = opts->size / ATAPI_RAW_SECTOR_SIZE;
+    rx = g_malloc0(opts->size);
+    qtest_bufread(ahci->parent->qts, opts->buffer, rx, opts->size);
+    /* Each raw sector carries its 2048-byte payload past a 16-byte header. */
+    for (i = 0; i < nsectors; i++) {
+        g_assert_cmphex(memcmp(rx + i * ATAPI_RAW_SECTOR_SIZE + 16,
+                               tx + i * ATAPI_SECTOR_SIZE,
+                               ATAPI_SECTOR_SIZE), ==, 0);
+    }
+    g_free(rx);
+
+    return 0;
+}
+
 static void ahci_test_cdrom(int nsectors, bool dma, uint8_t cmd,
                             bool override_bcl, uint16_t bcl)
 {
@@ -1623,6 +1648,47 @@ static void test_cdrom_pio(void)
 static void test_cdrom_pio_multi(void)
 {
     ahci_test_cdrom_read10(3, false);
+}
+
+static void ahci_test_cdrom_raw(int nsectors, bool dma)
+{
+    AHCIQState *ahci;
+    unsigned char *tx;
+    char *iso;
+    int fd;
+    AHCIOpts opts = {
+        .size = (uint64_t)ATAPI_RAW_SECTOR_SIZE * nsectors,
+        .atapi = true,
+        .atapi_dma = dma,
+        .atapi_raw = true,
+        .set_bcl = true,
+        .bcl = ATAPI_RAW_SECTOR_SIZE, /* one raw sector per DRQ burst */
+        .post_cb = ahci_cb_cmp_raw,
+    };
+    uint64_t iso_size = (uint64_t)ATAPI_SECTOR_SIZE * (nsectors + 1);
+
+    fd = prepare_iso(iso_size, &tx, &iso);
+    opts.opaque = tx;
+
+    ahci = ahci_boot_and_enable("-drive if=none,id=drive0,file=%s,format=raw "
+                                "-M q35 "
+                                "-device ide-cd,drive=drive0 ", iso);
+
+    ahci_exec(ahci, ahci_port_select(ahci), CMD_ATAPI_READ_CD, &opts);
+
+    g_free(tx);
+    ahci_shutdown(ahci);
+    remove_iso(fd, iso);
+}
+
+static void test_cdrom_dma_raw(void)
+{
+    ahci_test_cdrom_raw(3, true);
+}
+
+static void test_cdrom_pio_raw(void)
+{
+    ahci_test_cdrom_raw(3, false);
 }
 
 /*
@@ -2100,8 +2166,10 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ahci/cdrom/dma/single", test_cdrom_dma);
     qtest_add_func("/ahci/cdrom/dma/multi", test_cdrom_dma_multi);
+    qtest_add_func("/ahci/cdrom/dma/raw", test_cdrom_dma_raw);
     qtest_add_func("/ahci/cdrom/pio/single", test_cdrom_pio);
     qtest_add_func("/ahci/cdrom/pio/multi", test_cdrom_pio_multi);
+    qtest_add_func("/ahci/cdrom/pio/raw", test_cdrom_pio_raw);
 
     qtest_add_func("/ahci/cdrom/pio/bcl", test_atapi_bcl);
     qtest_add_func("/ahci/cdrom/eject", test_atapi_tray);
