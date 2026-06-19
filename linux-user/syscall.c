@@ -14619,7 +14619,7 @@ static bool send_through_syscall_filters(CPUState *cpu, int num,
                                          abi_long arg7, abi_long arg8,
                                          abi_long *sysret)
 {
-    uint64_t sysret64 = 0;
+    int64_t sysret64 = 0;
     bool filtered = qemu_plugin_vcpu_syscall_filter(cpu, num, arg1, arg2,
                                                     arg3, arg4, arg5, arg6,
                                                     arg7, arg8, &sysret64);
