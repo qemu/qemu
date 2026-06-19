@@ -342,7 +342,7 @@ static void set_cc_op_1(DisasContext *s, CCOp op, bool dirty)
         tcg_gen_discard_tl(cpu_cc_src2);
     }
     if (dead & USES_CC_SRCT) {
-        tcg_gen_discard_tl(s->cc_srcT);
+        s->cc_srcT = NULL;
     }
 
     if (dirty && s->cc_op == CC_OP_DYNAMIC) {
@@ -1236,6 +1236,7 @@ static void gen_lods(DisasContext *s, MemOp ot, TCGv dshift)
 
 static void gen_scas(DisasContext *s, MemOp ot, TCGv dshift)
 {
+    s->cc_srcT = tcg_temp_new();
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     tcg_gen_mov_tl(cpu_cc_src, s->T1);
@@ -1248,6 +1249,7 @@ static void gen_scas(DisasContext *s, MemOp ot, TCGv dshift)
 
 static void gen_cmps(DisasContext *s, MemOp ot, TCGv dshift)
 {
+    s->cc_srcT = tcg_temp_new();
     gen_string_movl_A0_EDI(s);
     gen_op_ld_v(s, ot, s->T1, s->A0);
     gen_string_movl_A0_ESI(s);
@@ -3484,7 +3486,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->T1 = tcg_temp_new();
     dc->A0 = tcg_temp_new();
 
-    dc->cc_srcT = tcg_temp_new();
+    dc->cc_srcT = NULL;
 }
 
 static void i386_tr_tb_start(DisasContextBase *db, CPUState *cpu)
