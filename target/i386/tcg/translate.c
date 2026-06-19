@@ -640,23 +640,17 @@ static inline void gen_string_movl_A0_EDI(DisasContext *s)
     gen_lea_v_seg(s, cpu_regs[R_EDI], R_ES, -1);
 }
 
-static TCGv gen_ext_tl(TCGv dst, TCGv src, MemOp size, bool sign)
-{
-    if (size == MO_TL) {
-        return src;
-    }
-    if (!dst) {
-        dst = tcg_temp_new();
-    }
-    tcg_gen_ext_tl(dst, src, size | (sign ? MO_SIGN : 0));
-    return dst;
-}
-
 static void gen_op_j_ecx(DisasContext *s, TCGCond cond, TCGLabel *label1)
 {
-    TCGv tmp = gen_ext_tl(NULL, cpu_regs[R_ECX], s->aflag, false);
+    TCGv cmpval;
+    if (s->aflag == MO_TL) {
+        cmpval = cpu_regs[R_ECX];
+    } else {
+        cmpval = tcg_temp_new();
+        tcg_gen_ext_tl(cmpval, cpu_regs[R_ECX], s->aflag);
+    }
 
-    tcg_gen_brcondi_tl(cond, tmp, 0, label1);
+    tcg_gen_brcondi_tl(cond, cmpval, 0, label1);
 }
 
 static inline void gen_op_jz_ecx(DisasContext *s, TCGLabel *label1)

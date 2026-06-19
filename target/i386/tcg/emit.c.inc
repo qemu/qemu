@@ -1686,10 +1686,6 @@ static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
         ot_full |= MO_SIGN;
     }
 
-    /*
-     * cmpv will be moved to cc_src *after* cpu_regs[] is written back, so use
-     * tcg_gen_ext_tl instead of gen_ext_tl.
-     */
     tcg_gen_ext_tl(cmpv, cpu_regs[decode->op[1].n], ot_full);
 
     /*
