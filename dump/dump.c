@@ -30,6 +30,7 @@
 #include "qemu/main-loop.h"
 #include "hw/misc/vmcoreinfo.h"
 #include "migration/blocker.h"
+#include "migration/misc.h"
 #include "hw/core/cpu.h"
 #include "win_dump.h"
 #include "qemu/range.h"
@@ -2080,8 +2081,8 @@ void qmp_dump_guest_memory(bool paging, const char *protocol,
     bool detach_p = false;
     bool kdump_raw = false;
 
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
-        error_setg(errp, "Dump not allowed during incoming migration.");
+    if (migration_guest_ram_loading()) {
+        error_setg(errp, "Dump not allowed during migration.");
         return;
     }
 
