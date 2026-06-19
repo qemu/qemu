@@ -18,11 +18,10 @@
 #include "qemu/win_dump_defs.h"
 #include "win_dump.h"
 #include "cpu.h"
-
-bool win_dump_available(Error **errp)
-{
-    return true;
-}
+#include "qemu/bswap.h"
+#include "hw/misc/vmcoreinfo.h"
+#include "migration/misc.h"
+#include "standard-headers/linux/qemu_fw_cfg.h"
 
 static size_t win_dump_ptr_size(bool x64)
 {
@@ -402,6 +401,46 @@ static void restore_context(WinDumpHeader *h, bool x64,
             warn_report("win-dump: failed to restore CPU #%d context", i);
         }
     }
+}
+
+bool win_dump_available(Error **errp)
+{
+    VMCoreInfoState *vmci = vmcoreinfo_find();
+    g_autofree uint8_t *note = NULL;
+    Error *local_err = NULL;
+    WinDumpHeader *h;
+    uint32_t size;
+    bool x64 = true;
+
+    if (migration_guest_ram_loading()) {
+        error_setg(errp, "win-dump: not available during migration");
+        return false;
+    }
+
+    if (!vmci || !vmci->has_vmcoreinfo ||
+        le16_to_cpu(vmci->vmcoreinfo.guest_format) !=
+            FW_CFG_VMCOREINFO_FORMAT_ELF) {
+        error_setg(errp, "win-dump: no vmcoreinfo note from the guest");
+        return false;
+    }
+
+    size = le32_to_cpu(vmci->vmcoreinfo.size);
+    if (size != VMCOREINFO_WIN_DUMP_NOTE_SIZE32 &&
+        size != VMCOREINFO_WIN_DUMP_NOTE_SIZE64) {
+        error_setg(errp, "win-dump: invalid vmcoreinfo note size");
+        return false;
+    }
+
+    note = g_malloc(size);
+    physical_memory_read(le64_to_cpu(vmci->vmcoreinfo.paddr), note, size);
+
+    h = (void *)(note + VMCOREINFO_ELF_NOTE_HDR_SIZE);
+    if (!check_header(h, &x64, &local_err)) {
+        error_propagate(errp, local_err);
+        return false;
+    }
+
+    return true;
 }
 
 void create_win_dump(DumpState *s, Error **errp)
