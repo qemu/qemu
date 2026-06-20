@@ -14,6 +14,7 @@
 #include "signal-common.h"
 #include "target_arch_cpu.h"
 #include "target_arch_thread.h"
+#include "qemu/guest-random.h"
 #include "tcg/startup.h"
 #include "exec/tb-flush.h"
 
@@ -142,7 +143,7 @@ void *new_freebsd_thread_start(void *arg)
     target_thread_set_upcall(env, info->param.start_func, info->param.arg,
         info->param.stack_base, info->param.stack_size);
     target_cpu_set_tls(env, info->param.tls_base);
-
+    qemu_guest_random_seed_thread_part2(cpu->random_seed);
     /* Enable signals */
     sigprocmask(SIG_SETMASK, &info->sigmask, NULL);
     /* Signal to the parent that we're ready. */
@@ -1657,6 +1658,7 @@ abi_long do_freebsd_thr_new(CPUArchState *env,
      */
     sigfillset(&sigmask);
     sigprocmask(SIG_BLOCK, &sigmask, &info.sigmask);
+    cpu->random_seed = qemu_guest_random_seed_thread_part1();
 
     ret = pthread_create(&info.thread, &attr, new_freebsd_thread_start, &info);
 
