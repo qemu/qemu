@@ -100,6 +100,17 @@ typedef struct CPUArchState {
     target_ulong stack_start;
 
     uint8_t slot_cancelled;
+
+#ifndef CONFIG_USER_ONLY
+    /* Some system registers are per thread and some are global. */
+    uint32_t t_sreg[NUM_SREGS];
+
+    uint32_t greg[NUM_GREGS];
+    uint32_t wait_next_pc;
+
+    /* This alias of CPUState.cpu_index is used by imported sources: */
+    uint32_t threadId;
+#endif
     target_ulong new_value_usr;
 
     MemLog mem_log_stores[STORES_MAX];

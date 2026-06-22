@@ -299,6 +299,11 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
     /* Default NaN value: sign bit set, all frac bits set */
     set_float_default_nan_pattern(0b11111111, &env->fp_status);
+#ifndef CONFIG_USER_ONLY
+    memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
+    memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
+    env->wait_next_pc = 0;
+#endif
     env->cause_code = HEX_EVENT_NONE;
 }
 
