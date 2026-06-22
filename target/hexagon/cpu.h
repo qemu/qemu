@@ -38,10 +38,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #include "hw/core/registerfields.h"
 #include "qemu/bitmap.h"
 
-#ifndef CONFIG_USER_ONLY
-#error "Hexagon does not support system emulation"
-#endif
-
+#include "target/hexagon/reg_fields.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64

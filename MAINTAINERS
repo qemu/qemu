@@ -256,6 +256,7 @@ F: linux-user/hexagon/
 F: tests/tcg/hexagon/
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user.mak
+F: configs/targets/hexagon-softmmu.mak
 F: tests/docker/dockerfiles/debian-hexagon-cross.docker
 F: gdbstub/gdb-xml/hexagon*.xml
 F: docs/system/target-hexagon.rst
