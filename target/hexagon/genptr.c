@@ -31,6 +31,10 @@
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
 #include "gen_tcg_hvx.h"
+#ifndef CONFIG_USER_ONLY
+#include "gen_tcg_sys.h"
+#endif
+
 #include "genptr.h"
 
 TCGv gen_read_reg(TCGv result, int num)
