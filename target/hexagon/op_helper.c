@@ -1480,6 +1480,12 @@ void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
     g_assert_not_reached();
 }
 
+
+void HELPER(pending_interrupt)(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    hex_interrupt_update(env);
+}
 #endif
 
 

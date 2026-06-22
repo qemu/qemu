@@ -95,4 +95,20 @@
         gen_helper_stop(tcg_env); \
     } while (0)
 
+/*
+ * rte (return from exception)
+ *     Clear the EX bit in SSR
+ *     Jump to ELR
+ */
+#define fGEN_TCG_J2_rte(SHORTCODE) \
+    do { \
+        TCGv_i32 new_ssr = tcg_temp_new_i32(); \
+        tcg_gen_deposit_tl(new_ssr, hex_t_sreg[HEX_SREG_SSR], \
+                           tcg_constant_tl(0), \
+                           reg_field_info[SSR_EX].offset, \
+                           reg_field_info[SSR_EX].width); \
+        gen_log_sreg_write(ctx, HEX_SREG_SSR, new_ssr); \
+        gen_jumpr(ctx, hex_t_sreg[HEX_SREG_ELR]); \
+    } while (0)
+
 #endif
