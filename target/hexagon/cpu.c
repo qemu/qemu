@@ -34,6 +34,7 @@
 #include "sys_macros.h"
 #include "accel/tcg/cpu-ldst.h"
 #include "qemu/main-loop.h"
+#include "hex_interrupts.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
