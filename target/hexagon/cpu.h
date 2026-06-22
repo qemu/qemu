@@ -52,6 +52,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
 #define VSTORES_MAX 2
 #define MAX_TLB_ENTRIES 1024
+#define THREADS_MAX 8
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
 #ifndef CONFIG_USER_ONLY
