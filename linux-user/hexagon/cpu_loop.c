@@ -63,6 +63,13 @@ void cpu_loop(CPUHexagonState *env)
             break;
         case HEX_EVENT_PRECISE:
             switch (env->cause_code) {
+            case HEX_CAUSE_FETCH_NO_UPAGE:
+            case HEX_CAUSE_PRIV_NO_UREAD:
+            case HEX_CAUSE_PRIV_NO_UWRITE:
+            force_sig_fault(TARGET_SIGSEGV, TARGET_SEGV_MAPERR,
+                    env->gpr[HEX_REG_PC]);
+
+            break;
             case HEX_CAUSE_PRIV_USER_NO_GINSN:
             case HEX_CAUSE_PRIV_USER_NO_SINSN:
             case HEX_CAUSE_INVALID_PACKET:
