@@ -341,4 +341,6 @@ FIELD(PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED,     3, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED,     4, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,        5, 2)
 
+void gen_framecheck(DisasContext *ctx, TCGv_i32 addr, TCGv_i32 ea);
+
 #endif

@@ -97,6 +97,10 @@
 #define fTRAP(TRAPTYPE, IMM) \
     register_trap_exception(env, TRAPTYPE, IMM, PC)
 
+#ifdef QEMU_GENERATE
+#define fFRAMECHECK(ADDR, EA) gen_framecheck(ctx, ADDR, EA)
+#endif
+
 #define fVIRTINSN_SPSWAP(IMM, REG)
 #define fVIRTINSN_GETIE(IMM, REG) { REG = 0xdeafbeef; }
 #define fVIRTINSN_SETIE(IMM, REG)

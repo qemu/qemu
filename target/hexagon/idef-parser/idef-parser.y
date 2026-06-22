@@ -404,6 +404,9 @@ control_statement : frame_check
                   ;
 
 frame_check : FCHK '(' rvalue ',' rvalue ')' ';'
+              {
+                  gen_framecheck(c, &@1, &$3, &$5);
+              }
             ;
 
 cancel_statement : LOAD_CANCEL

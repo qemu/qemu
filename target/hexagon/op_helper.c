@@ -1393,6 +1393,42 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 }
 
 #ifndef CONFIG_USER_ONLY
+void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
+                                  uint32_t badva)
+{
+    /*
+     * Per section 7.3.1 of the V67 Programmer's Reference,
+     * stack limit exception isn't raised in monitor mode.
+     */
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+    CPUState *cs;
+
+    if (GET_SSR_FIELD(SSR_EX, ssr) ||
+        !GET_SSR_FIELD(SSR_UM, ssr)) {
+        return;
+    }
+
+    cs = env_cpu(env);
+    cs->exception_index = HEX_EVENT_PRECISE;
+    env->cause_code = HEX_CAUSE_STACK_LIMIT;
+    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+
+    if (slot == 0) {
+        env->t_sreg[HEX_SREG_BADVA0] = badva;
+        SET_SSR_FIELD(env, SSR_V0, 1);
+        SET_SSR_FIELD(env, SSR_V1, 0);
+        SET_SSR_FIELD(env, SSR_BVS, 0);
+    } else if (slot == 1) {
+        env->t_sreg[HEX_SREG_BADVA1] = badva;
+        SET_SSR_FIELD(env, SSR_V0, 0);
+        SET_SSR_FIELD(env, SSR_V1, 1);
+        SET_SSR_FIELD(env, SSR_BVS, 1);
+    } else {
+        g_assert_not_reached();
+    }
+    cpu_loop_exit_restore(cs, 0);
+}
+
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
     g_assert_not_reached();

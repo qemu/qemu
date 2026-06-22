@@ -538,9 +538,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #ifdef CONFIG_USER_ONLY
 #define fFRAMECHECK(ADDR, EA) do { } while (0) /* Not modelled in linux-user */
-#else
-/* System mode not implemented yet */
-#define fFRAMECHECK(ADDR, EA)  g_assert_not_reached();
 #endif
 
 #ifdef QEMU_GENERATE
