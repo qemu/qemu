@@ -46,7 +46,7 @@ typedef struct DisasContext {
     int greg_log_idx;
     int sreg_log[SREG_WRITES_MAX];
     int sreg_log_idx;
-    TCGv_i32 t_sreg_new_value[NUM_SREGS];
+    TCGv_i32 t_sreg_new_value[HEX_SREG_GLB_START];
     TCGv_i32 greg_new_value[NUM_GREGS];
 #endif
     int preg_log[PRED_WRITES_MAX];
