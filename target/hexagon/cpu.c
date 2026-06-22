@@ -33,6 +33,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "sys_macros.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "qemu/main-loop.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -310,6 +311,28 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
 }
 
 
+#ifndef CONFIG_USER_ONLY
+void hexagon_cpu_soft_reset(CPUHexagonState *env)
+{
+    HexagonCPU *cpu;
+
+    BQL_LOCK_GUARD();
+    env->t_sreg[HEX_SREG_SSR] = 0;
+    hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
+
+    cpu = env_archcpu(env);
+    if (cpu->globalregs) {
+        uint32_t evb =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_EVB,
+                                   env->threadId);
+        env->gpr[HEX_REG_PC] = evb;
+    } else {
+        env->gpr[HEX_REG_PC] = cpu->boot_addr;
+    }
+}
+#endif
+
+
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);
@@ -339,9 +362,10 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
+    hexagon_cpu_soft_reset(env);
+    env->cause_code = HEX_EVENT_NONE;
     env->gpr[HEX_REG_PC] = cpu->boot_addr;
 #endif
-    env->cause_code = HEX_EVENT_NONE;
 }
 
 static void hexagon_cpu_disas_set_info(const CPUState *cs,
