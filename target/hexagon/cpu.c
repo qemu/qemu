@@ -400,7 +400,6 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 }
 #endif
 
-
 static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 {
     CPUState *cs = CPU(obj);

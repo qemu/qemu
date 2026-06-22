@@ -162,6 +162,10 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                                  OBJECT(tlb_dev), &error_fatal);
         qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
     }
+
+    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
+                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
+                          &address_space_memory);
 }
 
 static void init_mc(MachineClass *mc)
