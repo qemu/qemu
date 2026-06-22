@@ -1878,13 +1878,25 @@ uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 }
 
 uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
+
 {
-    g_assert_not_reached();
+    return hexagon_greg_read(env, reg);
 }
 
 uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
+
 {
-    g_assert_not_reached();
+    if (reg == HEX_GREG_G0 || reg == HEX_GREG_G2) {
+        return (uint64_t)(env->greg[reg]) |
+               (((uint64_t)(env->greg[reg + 1])) << 32);
+    }
+    switch (reg) {
+    case HEX_GREG_GPCYCLELO:
+        return hexagon_get_sys_pcycle_count(env);
+    default:
+        return (uint64_t)hexagon_greg_read(env, reg) |
+               ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
+    }
 }
 
 /*

@@ -220,6 +220,7 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
  * not stopped.
  */
 bool hexagon_thread_is_enabled(CPUHexagonState *thread_env);
+uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
 void hexagon_cpu_soft_reset(CPUHexagonState *env);
 #endif
 

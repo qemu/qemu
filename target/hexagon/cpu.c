@@ -770,6 +770,25 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 #endif
 }
 
+#ifndef CONFIG_USER_ONLY
+uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
+{
+    if (reg <= HEX_GREG_G3) {
+        return env->greg[reg];
+    }
+    switch (reg) {
+    case HEX_GREG_GPCYCLELO:
+        return hexagon_get_sys_pcycle_count_low(env);
+    case HEX_GREG_GPCYCLEHI:
+        return hexagon_get_sys_pcycle_count_high(env);
+    default:
+        qemu_log_mask(LOG_UNIMP, "reading greg %" PRId32
+                " not yet supported.\n", reg);
+        return 0;
+    }
+}
+#endif
+
 static void hexagon_cpu_class_base_init(ObjectClass *c, const void *data)
 {
     HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(c);
