@@ -142,6 +142,13 @@ static const uint8_t kernel_stm32vldiscovery[] = {
     0x04, 0x38, 0x01, 0x40                  /* 0x40013804 = USART1 TXD */
 };
 
+static const uint8_t bios_hexagon[] = {
+    0x00, 0x40, 0x00, 0x01,                 /* immext(#0x10000000) */
+    0x00, 0xc0, 0x00, 0x78,                 /* r0 = ##0x10000000 */
+    0x54, 0xc0, 0x00, 0x3c,                 /* memb(r0+#0) = #0x54 Write 'T' */
+    0xf8, 0xff, 0xff, 0x59                  /* jump 0x0 ; Loop back to start */
+};
+
 typedef struct testdef {
     const char *arch;       /* Target architecture */
     const char *machine;    /* Name of the machine */
@@ -194,6 +201,7 @@ static const testdef_t tests[] = {
     { "arm", "microbit", "", "T", sizeof(kernel_nrf51), kernel_nrf51 },
     { "arm", "stm32vldiscovery", "", "T",
       sizeof(kernel_stm32vldiscovery), kernel_stm32vldiscovery },
+    { "hexagon", "virt", "", "TT", sizeof(bios_hexagon), NULL, bios_hexagon },
 
     { NULL }
 };
