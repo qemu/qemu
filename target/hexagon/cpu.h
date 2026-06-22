@@ -49,8 +49,26 @@
 #define VSTORES_MAX 2
 
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
+#ifndef CONFIG_USER_ONLY
+#define CPU_INTERRUPT_SWI      CPU_INTERRUPT_TGT_INT_0
 
-#define MMU_USER_IDX 0
+#define HEX_CPU_MODE_USER    1
+#define HEX_CPU_MODE_GUEST   2
+#define HEX_CPU_MODE_MONITOR 3
+
+#define HEX_EXE_MODE_OFF     1
+#define HEX_EXE_MODE_RUN     2
+#define HEX_EXE_MODE_WAIT    3
+#define HEX_EXE_MODE_DEBUG   4
+#endif
+
+#define MMU_USER_IDX         0
+#ifndef CONFIG_USER_ONLY
+#define MMU_GUEST_IDX        1
+#define MMU_KERNEL_IDX       2
+
+#endif
+
 
 #define HEXAGON_CPU_IRQ_0 0
 #define HEXAGON_CPU_IRQ_1 1
@@ -112,6 +130,7 @@ typedef struct CPUArchState {
     uint32_t threadId;
     uint64_t t_cycle_count;
 #endif
+    uint32_t next_PC;
     target_ulong new_value_usr;
 
     MemLog mem_log_stores[STORES_MAX];
@@ -164,6 +183,7 @@ struct ArchCPU {
 #include "cpu_bits.h"
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
+FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, PCYCLE_ENABLED, 4, 1)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,

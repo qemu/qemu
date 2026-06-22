@@ -307,6 +307,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
     env->wait_next_pc = 0;
+    env->next_PC = 0;
 #endif
     env->cause_code = HEX_EVENT_NONE;
 }
