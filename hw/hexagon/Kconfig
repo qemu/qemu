@@ -2,3 +2,13 @@ config HEX_DSP
     bool
     default y
     depends on HEXAGON
+
+config HEX_VIRT
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select DEVICE_TREE
+    select VIRTIO_MMIO
+    select PL011
+    select VIRTIO_BLK
+    select VIRTIO_SCSI
