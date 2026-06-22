@@ -110,6 +110,14 @@ static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
                  hexagon_regnames[regnum], value);
 }
 
+#ifndef CONFIG_USER_ONLY
+static void print_t_sreg(FILE *f, const CPUHexagonState *env, int regnum)
+{
+    qemu_fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n",
+                 hexagon_sregnames[regnum], env->t_sreg[regnum]);
+}
+#endif
+
 static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
                        bool skip_if_zero)
 {
@@ -209,8 +217,7 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
     qemu_fprintf(f, "  cs0 = 0x00000000\n");
     qemu_fprintf(f, "  cs1 = 0x00000000\n");
 #else
-    print_reg(f, env, HEX_REG_CAUSE);
-    print_reg(f, env, HEX_REG_BADVA);
+    print_t_sreg(f, env, HEX_SREG_BADVA);
     print_reg(f, env, HEX_REG_CS0);
     print_reg(f, env, HEX_REG_CS1);
 #endif
