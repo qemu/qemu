@@ -1590,6 +1590,64 @@ static void hexagon_wait_thread(CPUHexagonState *env, uint32_t PC)
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
 }
 
+static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
+{
+    uint32_t schedcfg;
+    uint32_t schedcfg_en;
+    int int_number;
+    CPUState *cs;
+    uint32_t lowest_th_prio = 0; /* 0 is highest prio */
+    uint32_t bestwait_reg;
+    uint32_t best_prio;
+    HexagonCPU *cpu;
+
+    BQL_LOCK_GUARD();
+    qemu_log_mask(CPU_LOG_INT, "%s: check resched\n", __func__);
+    cpu = env_archcpu(env);
+    schedcfg = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SCHEDCFG,
+                               env->threadId) : 0;
+    schedcfg_en = GET_FIELD(SCHEDCFG_EN, schedcfg);
+    int_number = GET_FIELD(SCHEDCFG_INTNO, schedcfg);
+
+    if (!schedcfg_en) {
+        return;
+    }
+
+    CPU_FOREACH(cs) {
+        HexagonCPU *thread = HEXAGON_CPU(cs);
+        CPUHexagonState *thread_env = &(thread->env);
+        uint32_t th_prio = GET_FIELD(
+            STID_PRIO, thread_env->t_sreg[HEX_SREG_STID]);
+        if (!hexagon_thread_is_enabled(thread_env)) {
+            continue;
+        }
+
+        lowest_th_prio = (lowest_th_prio > th_prio)
+            ? lowest_th_prio
+            : th_prio;
+    }
+
+    bestwait_reg = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_BESTWAIT,
+                               env->threadId) : 0;
+    best_prio = GET_FIELD(BESTWAIT_PRIO, bestwait_reg);
+
+    /*
+     * If the lowest priority thread is lower priority than the
+     * value in the BESTWAIT register, we must raise the reschedule
+     * interrupt on the lowest priority thread.
+     */
+    if (lowest_th_prio > best_prio) {
+        qemu_log_mask(CPU_LOG_INT,
+                "%s: raising resched int %u,"
+                " cur PC 0x%" PRIx32 "\n",
+                __func__, (unsigned)int_number, env->gpr[HEX_REG_PC]);
+        SET_SYSTEM_FIELD(env, HEX_SREG_BESTWAIT, BESTWAIT_PRIO, ~0);
+        hex_raise_interrupts(env, 1 << int_number, CPU_INTERRUPT_SWI);
+    }
+}
+
 void HELPER(wait)(CPUHexagonState *env, uint32_t PC)
 {
     BQL_LOCK_GUARD();
@@ -1698,8 +1756,27 @@ uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
     g_assert_not_reached();
 }
 
+/*
+ * setprio/resched - hardware-assisted scheduler helpers for managing
+ * the run queue and interrupt steering.
+ */
 void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
 {
+    CPUState *cs;
+
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+        if (thread == found_env->threadId) {
+            SET_SYSTEM_FIELD(found_env, HEX_SREG_STID, STID_PRIO, prio);
+            qemu_log_mask(CPU_LOG_INT,
+                          "%s: tid %" PRIu32 " prio = 0x%" PRIx32 "\n",
+                          __func__, found_env->threadId, prio);
+            resched(env);
+            return;
+        }
+    }
     g_assert_not_reached();
 }
 
