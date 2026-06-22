@@ -334,7 +334,6 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);
-
     mcc->parent_realize(dev, errp);
 }
 

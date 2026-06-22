@@ -20,6 +20,7 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/probe.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
@@ -1452,17 +1453,43 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
 
 void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+        HexagonCPU *cpu = env_archcpu(env);
+        if (cpu->globalregs) {
+            hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
+        }
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
+                                                    uint32_t reg)
+{
+    HexagonCPU *cpu;
+
+    g_assert(bql_locked());
+    if (reg < HEX_SREG_GLB_START) {
+        return env->t_sreg[reg];
+    }
+    cpu = env_archcpu(env);
+    return cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, reg, env->threadId) : 0;
 }
 
 uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+    return sreg_read(env, reg);
 }
 
 uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
-    g_assert_not_reached();
+    BQL_LOCK_GUARD();
+
+    return deposit64((uint64_t) sreg_read(env, reg), 32, 32,
+        sreg_read(env, reg + 1));
 }
 
 uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
