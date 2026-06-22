@@ -53,6 +53,7 @@ source arm/Kconfig
 source cpu/Kconfig
 source alpha/Kconfig
 source avr/Kconfig
+source hexagon/Kconfig
 source hppa/Kconfig
 source i386/Kconfig
 source loongarch/Kconfig

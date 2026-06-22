@@ -1344,6 +1344,18 @@ F: pc-bios/hppa-firmware.img
 F: roms/seabios-hppa/
 F: tests/functional/hppa/
 
+Hexagon Machines
+----------------
+V66G_1024, V68N_1024, sa8775-cdsp0
+M: Brian Cain <brian.cain@oss.qualcomm.com>
+R: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
+S: Supported
+F: hw/hexagon/
+F: include/hw/hexagon/
+F: configs/devices/hexagon-softmmu/default.mak
+F: docs/system/hexagon/
+F: docs/devel/hexagon-sys.rst
+
 LoongArch Machines
 ------------------
 Virt

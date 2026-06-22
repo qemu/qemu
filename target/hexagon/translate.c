@@ -32,6 +32,7 @@
 #include "translate.h"
 #include "genptr.h"
 #include "printinsn.h"
+#include "exec/target_page.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"

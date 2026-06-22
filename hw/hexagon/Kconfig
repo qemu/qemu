@@ -1,0 +1,4 @@
+config HEX_DSP
+    bool
+    default y
+    depends on HEXAGON
