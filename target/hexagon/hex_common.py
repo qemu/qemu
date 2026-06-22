@@ -33,6 +33,41 @@ tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
 
+
+def is_sysemu_tag(tag):
+    return bool(attribdict[tag] & {"A_PRIV", "A_GUEST"})
+
+
+def tag_ignore(tag):
+    tag_skips = (
+        "Y6_diag",
+        "Y6_diag0",
+        "Y6_diag1",
+    )
+    attr_skips = {
+        "A_FAKEINSN",
+        "A_MAPPING",
+        "A_CONDMAPPING",
+    }
+    return tag in tag_skips or attribdict[tag] & attr_skips
+
+
+def get_sys_tags():
+    return sorted(
+        tag for tag in frozenset(tags) if is_sysemu_tag(tag)
+    )
+
+
+def get_user_tags():
+    return sorted(
+        tag for tag in frozenset(tags) if not is_sysemu_tag(tag)
+    )
+
+
+def get_all_tags():
+    return get_user_tags() + get_sys_tags()
+
+
 # We should do this as a hash for performance,
 # but to keep order let's keep it as a list.
 def uniquify(seq):
@@ -369,12 +404,16 @@ class Single(Scalar):
         return "s32"
     def helper_arg_type(self):
         return "int32_t"
+    def is_pair(self):
+        return False
 
 class Pair(Scalar):
     def helper_proto_type(self):
         return "s64"
     def helper_arg_type(self):
         return "int64_t"
+    def is_pair(self):
+        return True
 
 class Hvx:
     def is_scalar_reg(self):
@@ -1010,6 +1049,109 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
             ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
 
+class GuestRegister(Register):
+    pass
+
+class GuestDest(GuestRegister, Single, Dest):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i32 {self.reg_tcg()} = tcg_temp_new_i32();
+        """))
+    def gen_write(self, f, tag):
+        f.write(code_fmt(f"""\
+            gen_log_greg_write(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_greg_write(ctx, {self.reg_num});
+        """))
+
+class GuestSource(GuestRegister, Single, OldSource):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i32 {self.reg_tcg()} = tcg_temp_new_i32();
+            gen_read_greg({self.reg_tcg()}, {self.reg_num});
+        """))
+    def analyze_read(self, f, regno):
+        pass
+
+class GuestPairDest(GuestRegister, Pair, Dest):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
+        """))
+    def gen_write(self, f, tag):
+        f.write(code_fmt(f"""\
+            gen_log_greg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_greg_write_pair(ctx, {self.reg_num});
+        """))
+
+class GuestPairSource(GuestRegister, Pair, OldSource):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
+            gen_read_greg_pair({self.reg_tcg()}, {self.reg_num});
+        """))
+    def analyze_read(self, f, regno):
+        pass
+
+class SystemDest(Register, Single, Dest):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i32 {self.reg_tcg()} = tcg_temp_new_i32();
+        """))
+    def gen_write(self, f, tag):
+        f.write(code_fmt(f"""\
+            gen_log_sreg_write(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_sreg_write(ctx, {self.reg_num});
+        """))
+
+class SystemSource(Register, Single, OldSource):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i32 {self.reg_tcg()} = tcg_temp_new_i32();
+            gen_read_sreg({self.reg_tcg()}, {self.reg_num});
+        """))
+    def analyze_read(self, f, regno):
+        pass
+
+class SystemPairDest(Register, Pair, Dest):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
+        """))
+    def gen_write(self, f, tag):
+        f.write(code_fmt(f"""\
+            gen_log_sreg_write_pair(ctx, {self.reg_num}, {self.reg_tcg()});
+        """))
+    def analyze_write(self, f, tag, regno):
+        f.write(code_fmt(f"""\
+            ctx_log_sreg_write_pair(ctx, {self.reg_num});
+        """))
+
+class SystemPairSource(Register, Pair, OldSource):
+    def decl_tcg(self, f, tag, regno):
+        self.decl_reg_num(f, regno)
+        f.write(code_fmt(f"""\
+            TCGv_i64 {self.reg_tcg()} = tcg_temp_new_i64();
+            gen_read_sreg_pair({self.reg_tcg()}, {self.reg_num});
+        """))
+    def analyze_read(self, f, regno):
+        pass
+
 def init_registers():
     regs = {
         GprDest("R", "d"),
@@ -1056,6 +1198,16 @@ def init_registers():
         QRegSource("Q", "u"),
         QRegSource("Q", "v"),
         QRegReadWrite("Q", "x"),
+
+        # system regs
+        GuestDest("G", "d"),
+        GuestSource("G", "s"),
+        GuestPairDest("G", "dd"),
+        GuestPairSource("G", "ss"),
+        SystemDest("S", "d"),
+        SystemSource("S", "s"),
+        SystemPairDest("S", "dd"),
+        SystemPairSource("S", "ss"),
     }
     for reg in regs:
         registers[f"{reg.regtype}{reg.regid}"] = reg
