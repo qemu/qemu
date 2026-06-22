@@ -631,8 +631,18 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fCONSTLL(A) A##LL
 #define fECHO(A) (A)
 
-#define fTRAP(TRAPTYPE, IMM) helper_raise_exception(env, HEX_EXCP_TRAP0)
+#ifdef CONFIG_USER_ONLY
+#define fTRAP(TRAPTYPE, IMM) \
+    do { \
+        hexagon_raise_exception_err(env, HEX_EVENT_TRAP0, PC); \
+    } while (0)
+#endif
+
+#define fDO_TRACE(SREG)
+#define fBREAK()
+#define fUNPAUSE()
 #define fPAUSE(IMM)
+#define fDCFETCH(REG)
 
 #define fALIGN_REG_FIELD_VALUE(FIELD, VAL) \
     ((VAL) << reg_field_info[FIELD].offset)
@@ -654,5 +664,18 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fBRANCH_SPECULATE_STALL(DOTNEWVAL, JUMP_COND, SPEC_DIR, HINTBITNUM, \
                                 STRBITNUM) /* Nothing */
 
+#ifdef CONFIG_USER_ONLY
+/*
+ * This macro can only be true in guest mode.
+ * In user mode, the 4 VIRTINSN's can't be reached
+ */
+#define fTRAP1_VIRTINSN(IMM)       (false)
+#define fVIRTINSN_SPSWAP(IMM, REG) g_assert_not_reached()
+#define fVIRTINSN_GETIE(IMM, REG)  g_assert_not_reached()
+#define fVIRTINSN_SETIE(IMM, REG)  g_assert_not_reached()
+#define fVIRTINSN_RTE(IMM, REG)    g_assert_not_reached()
+#endif
+
+#define fPREDUSE_TIMING()
 
 #endif

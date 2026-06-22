@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "macros.h"
+#include "sys_macros.h"
 #include "arch.h"
 #include "hex_arch_types.h"
 #include "fma_emu.h"
@@ -32,6 +33,9 @@
 #include "mmvec/macros.h"
 #include "op_helper.h"
 #include "translate.h"
+#ifndef CONFIG_USER_ONLY
+#include "hexswi.h"
+#endif
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
