@@ -16,10 +16,81 @@
 #include "target/hexagon/cpu.h"
 #include "target/hexagon/hex_regs.h"
 #include "qemu/log.h"
+#include "trace.h"
 #include "qapi/error.h"
 
 #define IMMUTABLE (~0)
 #define INVALID_REG_VAL 0xdeadbeef
+
+static const char *hex_sreg_names[] = {
+    [HEX_SREG_SGP0] = "sgp0",
+    [HEX_SREG_SGP1] = "sgp1",
+    [HEX_SREG_STID] = "stid",
+    [HEX_SREG_ELR] = "elr",
+    [HEX_SREG_BADVA0] = "badva0",
+    [HEX_SREG_BADVA1] = "badva1",
+    [HEX_SREG_SSR] = "ssr",
+    [HEX_SREG_CCR] = "ccr",
+    [HEX_SREG_HTID] = "htid",
+    [HEX_SREG_BADVA] = "badva",
+    [HEX_SREG_IMASK] = "imask",
+    [HEX_SREG_GEVB] = "gevb",
+    [HEX_SREG_EVB] = "evb",
+    [HEX_SREG_MODECTL] = "modectl",
+    [HEX_SREG_SYSCFG] = "syscfg",
+    [HEX_SREG_IPENDAD] = "ipendad",
+    [HEX_SREG_VID] = "vid",
+    [HEX_SREG_VID1] = "vid1",
+    [HEX_SREG_BESTWAIT] = "bestwait",
+    [HEX_SREG_IEL] = "iel",
+    [HEX_SREG_SCHEDCFG] = "schedcfg",
+    [HEX_SREG_IAHL] = "iahl",
+    [HEX_SREG_CFGBASE] = "cfgbase",
+    [HEX_SREG_DIAG] = "diag",
+    [HEX_SREG_REV] = "rev",
+    [HEX_SREG_PCYCLELO] = "pcyclelo",
+    [HEX_SREG_PCYCLEHI] = "pcyclehi",
+    [HEX_SREG_ISDBST] = "isdbst",
+    [HEX_SREG_ISDBCFG0] = "isdbcfg0",
+    [HEX_SREG_ISDBCFG1] = "isdbcfg1",
+    [HEX_SREG_LIVELOCK] = "livelock",
+    [HEX_SREG_BRKPTPC0] = "brkptpc0",
+    [HEX_SREG_BRKPTCFG0] = "brkptcfg0",
+    [HEX_SREG_BRKPTPC1] = "brkptpc1",
+    [HEX_SREG_BRKPTCFG1] = "brkptcfg1",
+    [HEX_SREG_ISDBMBXIN] = "isdbmbxin",
+    [HEX_SREG_ISDBMBXOUT] = "isdbmbxout",
+    [HEX_SREG_ISDBEN] = "isdben",
+    [HEX_SREG_ISDBGPR] = "isdbgpr",
+    [HEX_SREG_PMUCNT4] = "pmucnt4",
+    [HEX_SREG_PMUCNT5] = "pmucnt5",
+    [HEX_SREG_PMUCNT6] = "pmucnt6",
+    [HEX_SREG_PMUCNT7] = "pmucnt7",
+    [HEX_SREG_PMUCNT0] = "pmucnt0",
+    [HEX_SREG_PMUCNT1] = "pmucnt1",
+    [HEX_SREG_PMUCNT2] = "pmucnt2",
+    [HEX_SREG_PMUCNT3] = "pmucnt3",
+    [HEX_SREG_PMUEVTCFG] = "pmuevtcfg",
+    [HEX_SREG_PMUSTID0] = "pmustid0",
+    [HEX_SREG_PMUEVTCFG1] = "pmuevtcfg1",
+    [HEX_SREG_PMUSTID1] = "pmustid1",
+    [HEX_SREG_TIMERLO] = "timerlo",
+    [HEX_SREG_TIMERHI] = "timerhi",
+    [HEX_SREG_PMUCFG] = "pmucfg",
+    [HEX_SREG_S59] = "s59",
+    [HEX_SREG_S60] = "s60",
+    [HEX_SREG_S61] = "s61",
+    [HEX_SREG_S62] = "s62",
+    [HEX_SREG_S63] = "s63",
+};
+
+static const char *get_sreg_name(uint32_t reg)
+{
+    if (reg < ARRAY_SIZE(hex_sreg_names) && hex_sreg_names[reg]) {
+        return hex_sreg_names[reg];
+    }
+    return "UNKNOWN";
+}
 
 /* Global system register mutability masks */
 static const uint32_t global_sreg_immut_masks[NUM_SREGS] = {
@@ -77,6 +148,7 @@ uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg,
 
     value = s->regs[reg];
 
+    trace_hexagon_globalreg_read(htid, get_sreg_name(reg), value);
     return value;
 }
 
@@ -89,6 +161,7 @@ void hexagon_globalreg_write(HexagonGlobalRegState *s, uint32_t reg,
     g_assert(reg < NUM_SREGS);
     g_assert(reg >= HEX_SREG_GLB_START);
     s->regs[reg] = value;
+    trace_hexagon_globalreg_write(htid, get_sreg_name(reg), value);
 }
 
 uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
