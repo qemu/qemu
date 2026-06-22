@@ -1436,7 +1436,22 @@ void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    uint32_t ipendad;
+    uint32_t iad;
+    HexagonCPU *cpu;
+
+    BQL_LOCK_GUARD();
+    cpu = env_archcpu(env);
+    ipendad = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                               env->threadId) : 0;
+    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
+    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
+    if (cpu->globalregs) {
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
+    hex_interrupt_update(env);
 }
 
 void HELPER(swi)(CPUHexagonState *env, uint32_t mask)
