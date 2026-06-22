@@ -8,6 +8,14 @@
 #define HEXAGON_CPU_HELPER_H
 
 uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index);
+void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old);
+int get_cpu_mode(CPUHexagonState *env);
+int get_exe_mode(CPUHexagonState *env);
+void clear_wait_mode(CPUHexagonState *env);
+void hexagon_ssr_set_cause(CPUHexagonState *env, uint32_t cause);
+void hexagon_start_threads(CPUHexagonState *env, uint32_t mask);
+void hexagon_stop_thread(CPUHexagonState *env);
+void hexagon_resume_threads(CPUHexagonState *env, uint32_t mask);
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env);
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env);
