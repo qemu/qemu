@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "user-internals.h"
 #include "user/cpu_loop.h"
+#include "target/hexagon/internal.h"
 #include "signal-common.h"
 #include "internal.h"
 
@@ -58,6 +59,21 @@ void cpu_loop(CPUHexagonState *env)
                 env->gpr[HEX_REG_PC] -= 4;
             } else if (ret != -QEMU_ESIGRETURN && ret != -QEMU_ESETPC) {
                 env->gpr[0] = ret;
+            }
+            break;
+        case HEX_EVENT_PRECISE:
+            switch (env->cause_code) {
+            case HEX_CAUSE_PRIV_USER_NO_GINSN:
+            case HEX_CAUSE_PRIV_USER_NO_SINSN:
+            case HEX_CAUSE_INVALID_PACKET:
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC,
+                    env->gpr[HEX_REG_PC]);
+            break;
+            default:
+                EXCP_DUMP(env, "\nqemu: unhandled CPU precise exception "
+                    "cause code 0x%x - aborting\n",
+                    env->cause_code);
+                exit(EXIT_FAILURE);
             }
             break;
         case HEX_CAUSE_PC_NOT_ALIGNED:
