@@ -110,6 +110,7 @@ typedef struct CPUArchState {
 
     /* This alias of CPUState.cpu_index is used by imported sources: */
     uint32_t threadId;
+    uint64_t t_cycle_count;
 #endif
     target_ulong new_value_usr;
 
