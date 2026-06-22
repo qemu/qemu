@@ -495,6 +495,12 @@ static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+static vaddr hexagon_pointer_wrap(CPUState *cs, int mmu_idx,
+                                  vaddr result, vaddr base)
+{
+    return result;
+}
+
 #endif
 
 static const TCGCPUOps hexagon_tcg_ops = {
@@ -509,6 +515,8 @@ static const TCGCPUOps hexagon_tcg_ops = {
     .mmu_index = hexagon_cpu_mmu_index,
 #ifndef CONFIG_USER_ONLY
     .cpu_exec_interrupt = hexagon_cpu_exec_interrupt,
+    .pointer_wrap = hexagon_pointer_wrap,
+    .cpu_exec_reset = cpu_reset,
 #endif /* !CONFIG_USER_ONLY */
 };
 
