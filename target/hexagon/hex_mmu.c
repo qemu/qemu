@@ -206,8 +206,8 @@ void hex_tlb_unlock(CPUHexagonState *env)
         (env->tlb_lock_state != HEX_LOCK_OWNER)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "thread %" PRIu32 " attempted to tlbunlock"
-                      " without having the lock, tlb_lock state = %d\n",
-                      env->threadId, env->tlb_lock_state);
+                      " without having the lock, tlb_lock state = %u\n",
+                      env->threadId, (unsigned)env->tlb_lock_state);
         g_assert(env->tlb_lock_state != HEX_LOCK_WAITING);
         return;
     }

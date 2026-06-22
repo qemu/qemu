@@ -148,6 +148,9 @@
 #define fSET_TLB_LOCK()       hex_tlb_lock(env);
 #define fCLEAR_TLB_LOCK()     hex_tlb_unlock(env);
 
+#define fSET_K0_LOCK()        hex_k0_lock(env);
+#define fCLEAR_K0_LOCK()      hex_k0_unlock(env);
+
 #define fTLB_IDXMASK(INDEX) \
     ((INDEX) & (fPOW2_ROUNDUP( \
         fCAST4u(hexagon_tlb_get_num_entries(env_archcpu(env)->tlb))) - 1))
