@@ -56,17 +56,54 @@ uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t val)
 {
-    g_assert_not_reached();
+    uint64_t old;
+
+    g_assert(bql_locked());
+    old = hexagon_get_sys_pcycle_count(env);
+    old = deposit64(old, 32, 32, val);
+    hexagon_set_sys_pcycle_count(env, old);
 }
 
 void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t val)
 {
-    g_assert_not_reached();
+    uint64_t old;
+
+    g_assert(bql_locked());
+    old = hexagon_get_sys_pcycle_count(env);
+    old = deposit64(old, 0, 32, val);
+    hexagon_set_sys_pcycle_count(env, old);
 }
 
 void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t val)
 {
-    g_assert_not_reached();
+    CPUState *cs;
+    uint64_t total;
+    int num_threads;
+    int64_t delta, per_thread, remainder;
+
+    g_assert(bql_locked());
+    total = hexagon_get_sys_pcycle_count(env);
+
+    /* Count active threads */
+    num_threads = 0;
+    CPU_FOREACH(cs) {
+        num_threads++;
+    }
+    g_assert(num_threads > 0);
+
+    /*
+     * Distribute the delta evenly across all threads.
+     * Any remainder goes to the calling thread.
+     */
+    delta = (int64_t)(val - total);
+    per_thread = delta / num_threads;
+    remainder = delta - per_thread * num_threads;
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        thread_env->t_cycle_count += per_thread;
+    }
+    env->t_cycle_count += remainder;
 }
 
 static void hexagon_resume_thread(CPUHexagonState *env)
