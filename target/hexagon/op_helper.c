@@ -1499,12 +1499,44 @@ void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
 
 uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
 {
-    g_assert_not_reached();
+    CPUState *cs;
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+        if (found_env->threadId == tid) {
+            uint32_t imask = found_env->t_sreg[HEX_SREG_IMASK];
+            qemu_log_mask(CPU_LOG_INT, "%s: tid " TARGET_FMT_lx
+                          " imask = 0x%" PRIx32 "\n", __func__,
+                          env->threadId,
+                          (uint32_t)GET_FIELD(IMASK_MASK, imask));
+            return GET_FIELD(IMASK_MASK, imask);
+        }
+    }
+    return 0;
 }
 
 void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
 {
-    g_assert_not_reached();
+    CPUState *cs;
+
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+
+        if (tid == found_env->threadId) {
+            SET_SYSTEM_FIELD(found_env, HEX_SREG_IMASK, IMASK_MASK, imask);
+            qemu_log_mask(CPU_LOG_INT, "%s: tid " TARGET_FMT_lx
+                          " imask 0x%" PRIx32 "\n",
+                          __func__, found_env->threadId, imask);
+            hex_interrupt_update(found_env);
+            return;
+        }
+    }
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "setimask used with an invalid tid near PC: 0x%"
+                  PRIx32 "\n", env->next_PC);
 }
 
 void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
