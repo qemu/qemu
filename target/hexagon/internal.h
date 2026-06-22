@@ -30,6 +30,10 @@ void hexagon_debug_qreg(CPUHexagonState *env, int regnum);
 void hexagon_debug(CPUHexagonState *env);
 
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
+#ifndef CONFIG_USER_ONLY
+extern const char * const hexagon_sregnames[];
+extern const char * const hexagon_gregnames[];
+#endif
 
 void G_NORETURN do_raise_exception(CPUHexagonState *env,
         uint32_t exception,
