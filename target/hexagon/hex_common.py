@@ -1068,6 +1068,10 @@ class GuestDest(GuestRegister, Single, Dest):
         """))
 
 class GuestSource(GuestRegister, Single, OldSource):
+    def decl_reg_num(self, f, regno):
+        f.write(code_fmt(f"""\
+            const int {self.reg_num} G_GNUC_UNUSED = insn->regno[{regno}];
+        """))
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
@@ -1093,6 +1097,10 @@ class GuestPairDest(GuestRegister, Pair, Dest):
         """))
 
 class GuestPairSource(GuestRegister, Pair, OldSource):
+    def decl_reg_num(self, f, regno):
+        f.write(code_fmt(f"""\
+            const int {self.reg_num} G_GNUC_UNUSED = insn->regno[{regno}];
+        """))
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
@@ -1118,6 +1126,10 @@ class SystemDest(Register, Single, Dest):
         """))
 
 class SystemSource(Register, Single, OldSource):
+    def decl_reg_num(self, f, regno):
+        f.write(code_fmt(f"""\
+            const int {self.reg_num} G_GNUC_UNUSED = insn->regno[{regno}];
+        """))
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
@@ -1143,6 +1155,10 @@ class SystemPairDest(Register, Pair, Dest):
         """))
 
 class SystemPairSource(Register, Pair, OldSource):
+    def decl_reg_num(self, f, regno):
+        f.write(code_fmt(f"""\
+            const int {self.reg_num} G_GNUC_UNUSED = insn->regno[{regno}];
+        """))
     def decl_tcg(self, f, tag, regno):
         self.decl_reg_num(f, regno)
         f.write(code_fmt(f"""\
