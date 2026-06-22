@@ -33,17 +33,25 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
 
 uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    uint64_t total = 0;
+    CPUState *cs;
+
+    g_assert(bql_locked());
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread_env = cpu_env(cs);
+        total += thread_env->t_cycle_count;
+    }
+    return total;
 }
 
 uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return (uint32_t)(hexagon_get_sys_pcycle_count(env) >> 32);
 }
 
 uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
 {
-    g_assert_not_reached();
+    return (uint32_t)(hexagon_get_sys_pcycle_count(env));
 }
 
 void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t val)

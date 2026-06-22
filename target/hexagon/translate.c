@@ -61,6 +61,9 @@ TCGv_i64 hex_store_val64[STORES_MAX];
 TCGv hex_llsc_addr;
 TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
+#ifndef CONFIG_USER_ONLY
+TCGv_i64 hex_cycle_count;
+#endif
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
@@ -128,6 +131,15 @@ static void gen_exception_raw(int excp)
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp));
 }
 
+#ifndef CONFIG_USER_ONLY
+static void gen_pcycle_counters(DisasContext *ctx)
+{
+    if (ctx->pcycle_enabled) {
+        tcg_gen_addi_i64(hex_cycle_count, hex_cycle_count, ctx->num_cycles);
+    }
+}
+#endif
+
 static void gen_exec_counters(DisasContext *ctx)
 {
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
@@ -136,6 +148,9 @@ static void gen_exec_counters(DisasContext *ctx)
                     hex_gpr[HEX_REG_QEMU_INSN_CNT], ctx->num_insns);
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_HVX_CNT],
                     hex_gpr[HEX_REG_QEMU_HVX_CNT], ctx->num_hvx_insns);
+#ifndef CONFIG_USER_ONLY
+    gen_pcycle_counters(ctx);
+#endif
 }
 
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
@@ -810,6 +825,8 @@ static void gen_commit_hvx(DisasContext *ctx)
     }
 }
 
+#define PCYCLES_PER_PACKET 1
+
 static void update_exec_counters(DisasContext *ctx)
 {
     int num_real_insns = 0;
@@ -829,6 +846,7 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_packets++;
     ctx->num_insns += num_real_insns;
     ctx->num_hvx_insns += num_hvx_insns;
+    ctx->num_cycles += PCYCLES_PER_PACKET;
 }
 
 static void gen_commit_packet(DisasContext *ctx)
@@ -978,6 +996,10 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
     ctx->short_circuit = hex_cpu->short_circuit;
     ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
+#ifndef CONFIG_USER_ONLY
+    ctx->num_cycles = 0;
+    ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
+#endif
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -1121,6 +1143,10 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
     hex_llsc_val_i64 = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
+#ifndef CONFIG_USER_ONLY
+    hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
+        offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
+#endif
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(tcg_env,

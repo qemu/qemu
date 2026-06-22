@@ -268,6 +268,10 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
         hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
     }
 
+#ifndef CONFIG_USER_ONLY
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
+#endif
+
     return (TCGTBCPUState){ .pc = pc, .flags = hex_flags };
 }
 
