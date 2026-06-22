@@ -2107,6 +2107,14 @@ F: hw/net/can/xlnx-*
 F: include/hw/net/xlnx-*
 F: tests/qtest/xlnx-can*-test*
 
+FlexCAN
+M: Matyas Bobek <matyas.bobek@gmail.com>
+M: Pavel Pisa <pisa@cmp.felk.cvut.cz>
+S: Maintained
+F: hw/net/can/flexcan.c
+F: hw/net/can/flexcan_regs.h
+F: include/hw/net/flexcan.h
+
 EDU
 M: Jiri Slaby <jslaby@suse.cz>
 S: Maintained

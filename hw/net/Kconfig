@@ -157,3 +157,8 @@ config CAN_CTUCANFD_PCI
     default y if PCI_DEVICES
     depends on PCI && CAN_CTUCANFD
     select CAN_BUS
+
+config CAN_FLEXCAN
+    bool
+    depends on IMX
+    select CAN_BUS
