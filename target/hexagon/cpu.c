@@ -54,6 +54,9 @@ static const Property hexagon_cpu_properties[] = {
 #ifndef CONFIG_USER_ONLY
     DEFINE_PROP_LINK("tlb", HexagonCPU, tlb, TYPE_HEXAGON_TLB,
                      HexagonTLBState *),
+    DEFINE_PROP_UINT32("exec-start-addr", HexagonCPU, boot_addr, 0xffffffff),
+    DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
+        TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
     DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, lldb_compat, false),
@@ -336,6 +339,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
+    env->gpr[HEX_REG_PC] = cpu->boot_addr;
 #endif
     env->cause_code = HEX_EVENT_NONE;
 }

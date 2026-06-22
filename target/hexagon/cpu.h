@@ -197,6 +197,8 @@ struct ArchCPU {
     bool short_circuit;
 #ifndef CONFIG_USER_ONLY
     HexagonTLBState *tlb;
+    uint32_t boot_addr;
+    HexagonGlobalRegState *globalregs;
     uint32_t htid;
 #endif
 };
