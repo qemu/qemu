@@ -282,6 +282,11 @@ extern TCGv_i64 hex_llsc_val_i64;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
+#ifndef CONFIG_USER_ONLY
+extern TCGv_i32 hex_greg[NUM_GREGS];
+extern TCGv_i32 hex_t_sreg[NUM_SREGS];
+#endif
+
 
 void hex_gen_exception_end_tb(DisasContext *ctx, int excp);
 

@@ -66,6 +66,8 @@ TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
 
 #ifndef CONFIG_USER_ONLY
+TCGv_i32 hex_greg[NUM_GREGS];
+TCGv_i32 hex_t_sreg[NUM_SREGS];
 TCGv_i32 hex_cause_code;
 #endif
 
@@ -1084,6 +1086,20 @@ void hexagon_translate_init(void)
 
     opcode_init();
 
+#ifndef CONFIG_USER_ONLY
+    for (i = 0; i < NUM_GREGS; i++) {
+            hex_greg[i] = tcg_global_mem_new_i32(tcg_env,
+                offsetof(CPUHexagonState, greg[i]),
+                hexagon_gregnames[i]);
+    }
+    for (i = 0; i < NUM_SREGS; i++) {
+        if (i < HEX_SREG_GLB_START) {
+            hex_t_sreg[i] = tcg_global_mem_new_i32(tcg_env,
+                offsetof(CPUHexagonState, t_sreg[i]),
+                hexagon_sregnames[i]);
+        }
+    }
+#endif
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(tcg_env,
             offsetof(CPUHexagonState, gpr[i]),
