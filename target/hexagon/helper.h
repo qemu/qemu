@@ -123,4 +123,8 @@ DEF_HELPER_2(greg_read, i32, env, i32)
 DEF_HELPER_2(greg_read_pair, i64, env, i32)
 DEF_HELPER_3(sreg_write_masked, void, env, i32, i32)
 DEF_HELPER_3(setprio, void, env, i32, i32)
+DEF_HELPER_2(start, void, env, i32)
+DEF_HELPER_1(stop, void, env)
+DEF_HELPER_2(wait, void, env, i32)
+DEF_HELPER_2(resume, void, env, i32)
 #endif
