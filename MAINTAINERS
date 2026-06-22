@@ -2114,6 +2114,7 @@ S: Maintained
 F: hw/net/can/flexcan.c
 F: hw/net/can/flexcan_regs.h
 F: include/hw/net/flexcan.h
+F: tests/qtest/flexcan-test.c
 
 EDU
 M: Jiri Slaby <jslaby@suse.cz>
