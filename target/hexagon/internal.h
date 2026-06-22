@@ -31,4 +31,8 @@ void hexagon_debug(CPUHexagonState *env);
 
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 
+#ifndef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_hexagon_cpu;
+#endif
+
 #endif
