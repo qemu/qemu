@@ -98,4 +98,6 @@ is not yet implemented in QEMU hexagon.
 Hexagon Features
 ================
 .. toctree::
+   hexagon/emulation
    hexagon/cdsp
+
