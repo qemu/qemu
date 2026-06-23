@@ -388,6 +388,105 @@ static void test_cancel_concluded(void)
     cancel_common(s);
 }
 
+typedef struct PauseCountJob {
+    BlockJob common;
+    int n;
+    bool should_complete;
+} PauseCountJob;
+
+static void pause_count_job_complete(Job *job, Error **errp)
+{
+    PauseCountJob *s = container_of(job, PauseCountJob, common.job);
+    s->should_complete = true;
+}
+
+static int coroutine_fn pause_count_job_run(Job *job, Error **errp)
+{
+    PauseCountJob *s = container_of(job, PauseCountJob, common.job);
+
+    while (!s->should_complete) {
+        if (job_is_cancelled(&s->common.job)) {
+            return 0;
+        }
+        s->n++;
+        /*
+         * Yields; while a pause is pending the yield is skipped and the job
+         * parks in job_pause_point() instead.
+         */
+        job_sleep_ns(&s->common.job, 10 * 1000 * 1000);
+    }
+
+    return 0;
+}
+
+static const BlockJobDriver pause_count_job_driver = {
+    .job_driver = {
+        .instance_size = sizeof(PauseCountJob),
+        .free          = block_job_free,
+        .user_resume   = block_job_user_resume,
+        .run           = pause_count_job_run,
+        .complete      = pause_count_job_complete,
+    },
+};
+
+/*
+ * A job that has reached its pause point must stay paused while a pause is
+ * still pending (pause_count > 0). An overlapping drain re-enters the job (one
+ * drain's job_resume() wakes it while the next drain's job_pause() is already
+ * counted); the job must not run or clear job->paused, otherwise
+ * job_set_aio_context() can observe paused == false and abort.
+ */
+static void test_pause_keeps_paused(void)
+{
+    BlockBackend *blk;
+    BlockJob *bjob;
+    PauseCountJob *s;
+    Job *job;
+    int n0;
+
+    blk = create_blk(NULL);
+    bjob = mk_job(blk, "job0", &pause_count_job_driver, true,
+                  JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
+    s = container_of(bjob, PauseCountJob, common);
+    job = &bjob->job;
+    WITH_JOB_LOCK_GUARD() {
+        job_ref_locked(job);
+    }
+
+    job_start(job);
+
+    /* Pause the running job; it parks in job_pause_point() with paused set. */
+    WITH_JOB_LOCK_GUARD() {
+        job_pause_locked(job);
+        g_assert_true(job->paused);
+        g_assert_cmpint(job->status, ==, JOB_STATUS_PAUSED);
+    }
+    n0 = s->n;
+
+    /*
+     * Spurious wake while the pause is still pending. The job must stay parked:
+     * the bug clears job->paused, runs an iteration (s->n advances) and
+     * re-pauses, exposing a paused == false window.
+     */
+    job_enter(job);
+    WITH_JOB_LOCK_GUARD() {
+        g_assert_true(job->paused);
+    }
+    g_assert_cmpint(s->n, ==, n0);
+
+    /* Resume and tear down. */
+    WITH_JOB_LOCK_GUARD() {
+        job_resume_locked(job);
+    }
+    job_cancel_sync(job, true);
+    WITH_JOB_LOCK_GUARD() {
+        Job *dummy = job;
+        job_dismiss_locked(&dummy, &error_abort);
+        job_unref_locked(job);
+    }
+    destroy_blk(blk);
+}
+
 int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
@@ -402,5 +501,6 @@ int main(int argc, char **argv)
     g_test_add_func("/blockjob/cancel/standby", test_cancel_standby);
     g_test_add_func("/blockjob/cancel/pending", test_cancel_pending);
     g_test_add_func("/blockjob/cancel/concluded", test_cancel_concluded);
+    g_test_add_func("/blockjob/pause/keep_paused", test_pause_keeps_paused);
     return g_test_run();
 }
