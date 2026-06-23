@@ -81,6 +81,7 @@ EGLContext qemu_egl_init_ctx(void);
 bool qemu_egl_has_dmabuf(void);
 
 bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp);
+void egl_cleanup(void);
 
 const char *qemu_egl_get_error_string(void);
 
