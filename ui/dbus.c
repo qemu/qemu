@@ -142,6 +142,9 @@ dbus_display_finalize(Object *o)
 {
     DBusDisplay *dd = DBUS_DISPLAY(o);
 
+    if (dd->console_notifier.notify) {
+        qemu_console_remove_notifier(&dd->console_notifier);
+    }
     if (dd->notifier.notify) {
         dbus_display_notifier_remove(&dd->notifier);
     }
@@ -164,14 +167,35 @@ dbus_display_finalize(Object *o)
     dbus_display = NULL;
 }
 
-static bool
-dbus_display_add_console(DBusDisplay *dd, int idx, Error **errp)
+static void
+dbus_update_console_ids(DBusDisplay *dd)
 {
-    QemuConsole *con;
+    g_autoptr(GArray) arr = g_array_new(FALSE, FALSE, sizeof(guint32));
+
+    for (guint i = 0; i < dd->consoles->len; i++) {
+        DBusDisplayConsole *ddc = g_ptr_array_index(dd->consoles, i);
+        guint32 idx = dbus_display_console_get_index(ddc);
+        g_array_append_val(arr, idx);
+    }
+
+    g_object_set(dd->iface, "console-ids",
+        g_variant_new_fixed_array(G_VARIANT_TYPE("u"),
+            arr->data, arr->len,
+            sizeof(guint32)),
+        NULL);
+}
+
+static bool
+dbus_display_add_console(DBusDisplay *dd, QemuConsole *con, Error **errp)
+{
     DBusDisplayConsole *dbus_console;
 
-    con = qemu_console_lookup_by_index(idx);
-    assert(con);
+    for (guint i = 0; i < dd->consoles->len; i++) {
+        DBusDisplayConsole *ddc = g_ptr_array_index(dd->consoles, i);
+        if (dbus_display_console_get_qemu_console(ddc) == con) {
+            return true;
+        }
+    }
 
     if (qemu_console_is_graphic(con) &&
         dd->gl_mode != DISPLAY_GL_MODE_OFF) {
@@ -179,10 +203,50 @@ dbus_display_add_console(DBusDisplay *dd, int idx, Error **errp)
     }
 
     dbus_console = dbus_display_console_new(dd, con);
-    g_ptr_array_insert(dd->consoles, idx, dbus_console);
+    g_ptr_array_add(dd->consoles, dbus_console);
     g_dbus_object_manager_server_export(dd->server,
                                         G_DBUS_OBJECT_SKELETON(dbus_console));
+    dbus_update_console_ids(dd);
     return true;
+}
+
+static void
+dbus_display_remove_console(DBusDisplay *dd, QemuConsole *con)
+{
+    for (guint i = 0; i < dd->consoles->len; i++) {
+        DBusDisplayConsole *ddc = g_ptr_array_index(dd->consoles, i);
+        if (dbus_display_console_get_qemu_console(ddc) == con) {
+            if (display_opengl) {
+                qemu_console_set_display_gl_ctx(con, NULL);
+            }
+            g_dbus_object_manager_server_unexport(
+                dd->server,
+                g_dbus_object_get_object_path(G_DBUS_OBJECT(ddc)));
+            g_ptr_array_remove_index(dd->consoles, i);
+            dbus_update_console_ids(dd);
+            break;
+        }
+    }
+}
+
+static void
+dbus_console_notify(Notifier *n, void *data)
+{
+    DBusDisplay *dd = container_of(n, DBusDisplay, console_notifier);
+    QemuConsoleEvent *event = data;
+
+    switch (event->type) {
+    case QEMU_CONSOLE_ADDED: {
+        Error *err = NULL;
+        if (!dbus_display_add_console(dd, event->con, &err)) {
+            error_report_err(err);
+        }
+        break;
+    }
+    case QEMU_CONSOLE_REMOVED:
+        dbus_display_remove_console(dd, event->con);
+        break;
+    }
 }
 
 static void
@@ -191,8 +255,6 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
     DBusDisplay *dd = DBUS_DISPLAY(uc);
     g_autoptr(GError) err = NULL;
     g_autofree char *uuid = qemu_uuid_unparse_strdup(&qemu_uuid);
-    g_autoptr(GArray) consoles = NULL;
-    GVariant *console_ids;
     int idx;
 
     if (!object_resolve_path_type("", TYPE_DBUS_DISPLAY, NULL)) {
@@ -233,27 +295,24 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
         }
     }
 
-    consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
     for (idx = 0;; idx++) {
-        if (!qemu_console_lookup_by_index(idx)) {
+        QemuConsole *con = qemu_console_lookup_by_index(idx);
+        if (!con) {
             break;
         }
-        if (!dbus_display_add_console(dd, idx, errp)) {
+        if (!dbus_display_add_console(dd, con, errp)) {
             return;
         }
-        g_array_append_val(consoles, idx);
     }
 
-    console_ids = g_variant_new_from_data(
-        G_VARIANT_TYPE("au"),
-        consoles->data, consoles->len * sizeof(guint32), TRUE,
-        (GDestroyNotify)g_array_unref, consoles);
-    g_steal_pointer(&consoles);
     g_object_set(dd->iface,
                  "name", qemu_name ?: "QEMU " QEMU_VERSION,
                  "uuid", uuid,
-                 "console-ids", console_ids,
                  NULL);
+    dbus_update_console_ids(dd);
+
+    dd->console_notifier.notify = dbus_console_notify;
+    qemu_console_add_notifier(&dd->console_notifier);
 
     if (dd->bus) {
         g_dbus_object_manager_server_set_connection(dd->server, dd->bus);
