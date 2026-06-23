@@ -120,6 +120,7 @@ struct GtkDisplayState {
 
     GPtrArray *vcs;
 
+    GtkWidget *vc_menu_separator;
     GtkWidget *show_tabs_item;
     GtkWidget *untabify_item;
     GtkWidget *show_menubar_item;
