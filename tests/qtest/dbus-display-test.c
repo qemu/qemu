@@ -7,6 +7,8 @@
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 #include "libqtest.h"
+#include "qobject/qdict.h"
+#include "qobject/qstring.h"
 #include "ui/dbus-display1.h"
 
 static GDBusConnection*
@@ -38,11 +40,11 @@ test_dbus_p2p_from_fd(int fd)
 }
 
 static void
-test_setup(QTestState **qts, GDBusConnection **conn)
+test_setup_args(QTestState **qts, GDBusConnection **conn, const char *args)
 {
     int pair[2];
 
-    *qts = qtest_init("-display dbus,p2p=yes -name dbus-test");
+    *qts = qtest_init(args);
 
     g_assert_cmpint(qemu_socketpair(AF_UNIX, SOCK_STREAM, 0, pair), ==, 0);
 
@@ -50,6 +52,12 @@ test_setup(QTestState **qts, GDBusConnection **conn)
 
     *conn = test_dbus_p2p_from_fd(pair[0]);
     g_dbus_connection_start_message_processing(*conn);
+}
+
+static void
+test_setup(QTestState **qts, GDBusConnection **conn)
+{
+    test_setup_args(qts, conn, "-display dbus,p2p=yes -name dbus-test");
 }
 
 static void
@@ -360,6 +368,92 @@ test_dbus_display_keyboard(void)
     qtest_quit(qts);
 }
 
+static gsize
+get_console_ids_count(GDBusConnection *conn)
+{
+    g_autoptr(GError) err = NULL;
+    g_autoptr(QemuDBusDisplay1VMProxy) vm = NULL;
+    GVariant *console_ids;
+    gsize n_ids = 0;
+
+    vm = QEMU_DBUS_DISPLAY1_VM_PROXY(
+        qemu_dbus_display1_vm_proxy_new_sync(
+            conn,
+            G_DBUS_PROXY_FLAGS_NONE,
+            NULL,
+            DBUS_DISPLAY1_ROOT "/VM",
+            NULL,
+            &err));
+    g_assert_no_error(err);
+
+    console_ids = qemu_dbus_display1_vm_get_console_ids(
+        QEMU_DBUS_DISPLAY1_VM(vm));
+    if (console_ids) {
+        n_ids = g_variant_n_children(console_ids);
+    }
+    return n_ids;
+}
+
+static void
+wait_device_event(QTestState *qts, const char *event_name, const char *id)
+{
+    QDict *resp, *data;
+    QString *qstr;
+
+    for (;;) {
+        resp = qtest_qmp_eventwait_ref(qts, event_name);
+        data = qdict_get_qdict(resp, "data");
+        if (!data || !qdict_get(data, "device")) {
+            qobject_unref(resp);
+            continue;
+        }
+        qstr = qobject_to(QString, qdict_get(data, "device"));
+        if (!strcmp(qstring_get_str(qstr), id)) {
+            qobject_unref(resp);
+            break;
+        }
+        qobject_unref(resp);
+    }
+}
+
+static void
+test_dbus_display_hotplug(void)
+{
+    g_autoptr(GDBusConnection) conn = NULL;
+    QTestState *qts = NULL;
+    gsize n;
+
+    test_setup_args(&qts, &conn,
+        "-machine q35"
+        " -device pcie-root-port,id=rp0"
+        " -display dbus,p2p=yes"
+        " -name dbus-test");
+
+    n = get_console_ids_count(conn);
+    g_assert_cmpuint(n, ==, 1);
+
+    qtest_qmp_device_add(qts, "bochs-display", "bochs0",
+                         "{'bus': 'rp0'}");
+
+    n = get_console_ids_count(conn);
+    g_assert_cmpuint(n, ==, 2);
+
+    /*
+     * On q35, PCI device removal is ACPI-based and requires guest
+     * acknowledgement. Since qtest has no guest OS, issue the delete
+     * request and force removal via system reset.
+     */
+    qtest_qmp_device_del_send(qts, "bochs0");
+    qtest_system_reset_nowait(qts);
+    wait_device_event(qts, "DEVICE_DELETED", "bochs0");
+
+    n = get_console_ids_count(conn);
+    g_assert_cmpuint(n, ==, 1);
+
+    g_clear_object(&conn);
+    qtest_quit(qts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -369,6 +463,9 @@ main(int argc, char **argv)
     qtest_add_data_func("/dbus-display/console", GINT_TO_POINTER(false), test_dbus_display_console);
     qtest_add_data_func("/dbus-display/console/map", GINT_TO_POINTER(true), test_dbus_display_console);
     qtest_add_func("/dbus-display/keyboard", test_dbus_display_keyboard);
+    if (qtest_has_machine("q35") && qtest_has_device("bochs-display")) {
+        qtest_add_func("/dbus-display/hotplug", test_dbus_display_hotplug);
+    }
 
     return g_test_run();
 }
