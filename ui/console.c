@@ -42,6 +42,7 @@
 #include "qemu/memfd.h"
 #include "ui/vt100.h"
 #include "vgafont.h"
+#include "ui/qemu-spice.h"
 
 #include "console-priv.h"
 
@@ -575,7 +576,7 @@ void qemu_console_set_display_gl_ctx(QemuConsole *con, DisplayGLCtx *gl)
 {
     /* display has opengl support */
     assert(con);
-    if (con->gl) {
+    if (gl && con->gl) {
         error_report("The console already has an OpenGL context.");
         exit(1);
     }
@@ -1412,6 +1413,23 @@ void qemu_display_init(DisplayState *ds, DisplayOptions *opts)
     }
     assert(dpys[opts->type] != NULL);
     dpys[opts->type]->init(ds, opts);
+}
+
+void qemu_display_cleanup(void)
+{
+    int i;
+
+    for (i = 0; i < DISPLAY_TYPE__MAX; i++) {
+        if (dpys[i] && dpys[i]->cleanup) {
+            dpys[i]->cleanup();
+        }
+    }
+#ifdef CONFIG_VNC
+    vnc_cleanup();
+#endif
+#ifdef CONFIG_SPICE
+    qemu_spice.cleanup();
+#endif
 }
 
 const char *qemu_display_get_vc(DisplayOptions *opts)
