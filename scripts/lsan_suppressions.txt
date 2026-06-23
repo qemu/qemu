@@ -20,3 +20,8 @@ leak:libfontconfig.so
 # https://github.com/GNOME/glib/blob/main/tools/glib.supp
 # This avoids false positive leak reports for the qga-ssh-test.
 leak:g_set_user_dirs
+
+# spice_server_add_interface allocates internal channel data that
+# spice_server_destroy does not free
+# https://gitlab.freedesktop.org/spice/spice/-/merge_requests/246
+leak:spice_server_add_interface

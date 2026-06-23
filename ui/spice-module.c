@@ -62,6 +62,10 @@ static int qemu_spice_display_add_client_stub(int csock, int skipauth,
     return -1;
 }
 
+static void qemu_spice_cleanup_stub(void)
+{
+}
+
 struct QemuSpiceOps qemu_spice = {
     .init         = qemu_spice_init_stub,
     .display_init = qemu_spice_display_init_stub,
@@ -69,6 +73,7 @@ struct QemuSpiceOps qemu_spice = {
     .set_passwd   = qemu_spice_set_passwd_stub,
     .set_pw_expire = qemu_spice_set_pw_expire_stub,
     .display_add_client = qemu_spice_display_add_client_stub,
+    .cleanup = qemu_spice_cleanup_stub,
 };
 
 #ifdef CONFIG_SPICE

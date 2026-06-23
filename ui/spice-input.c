@@ -242,24 +242,41 @@ static void mouse_mode_notifier(Notifier *notifier, void *data)
     pointer->absolute = is_absolute;
 }
 
+static QemuSpiceKbd *spice_kbd;
+static QemuSpicePointer *spice_pointer;
+
 void qemu_spice_input_init(void)
 {
-    QemuSpiceKbd *kbd;
-    QemuSpicePointer *pointer;
+    spice_kbd = g_new0(QemuSpiceKbd, 1);
+    spice_kbd->sin.base.sif = &kbd_interface.base;
+    qemu_spice.add_interface(&spice_kbd->sin.base);
+    spice_kbd->led_notifier.notify = kbd_leds;
+    qemu_input_led_notifier_add(&spice_kbd->led_notifier);
 
-    kbd = g_malloc0(sizeof(*kbd));
-    kbd->sin.base.sif = &kbd_interface.base;
-    qemu_spice.add_interface(&kbd->sin.base);
-    kbd->led_notifier.notify = kbd_leds;
-    qemu_input_led_notifier_add(&kbd->led_notifier);
+    spice_pointer = g_new0(QemuSpicePointer, 1);
+    spice_pointer->mouse.base.sif  = &mouse_interface.base;
+    spice_pointer->tablet.base.sif = &tablet_interface.base;
+    qemu_spice.add_interface(&spice_pointer->mouse.base);
 
-    pointer = g_malloc0(sizeof(*pointer));
-    pointer->mouse.base.sif  = &mouse_interface.base;
-    pointer->tablet.base.sif = &tablet_interface.base;
-    qemu_spice.add_interface(&pointer->mouse.base);
+    spice_pointer->absolute = false;
+    spice_pointer->mouse_mode.notify = mouse_mode_notifier;
+    qemu_add_mouse_mode_change_notifier(&spice_pointer->mouse_mode);
+    mouse_mode_notifier(&spice_pointer->mouse_mode, NULL);
+}
 
-    pointer->absolute = false;
-    pointer->mouse_mode.notify = mouse_mode_notifier;
-    qemu_add_mouse_mode_change_notifier(&pointer->mouse_mode);
-    mouse_mode_notifier(&pointer->mouse_mode, NULL);
+void qemu_spice_input_cleanup(void)
+{
+    if (spice_pointer) {
+        qemu_remove_mouse_mode_change_notifier(&spice_pointer->mouse_mode);
+        if (spice_pointer->absolute) {
+            spice_server_remove_interface(&spice_pointer->tablet.base);
+        }
+        spice_server_remove_interface(&spice_pointer->mouse.base);
+        g_clear_pointer(&spice_pointer, g_free);
+    }
+    if (spice_kbd) {
+        qemu_input_led_notifier_remove(&spice_kbd->led_notifier);
+        spice_server_remove_interface(&spice_kbd->sin.base);
+        g_clear_pointer(&spice_kbd, g_free);
+    }
 }
