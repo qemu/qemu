@@ -1851,6 +1851,12 @@ static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
         case PREFIX_SS_SEG_OVERRIDE:
         case PREFIX_DS_SEG_OVERRIDE:
         case PREFIX_ES_SEG_OVERRIDE:
+            if (x86_is_long_mode(env_cpu(env))) {
+                /* ES/CS/SS/DS segment overrides are ignored in long mode */
+                decode->rex.rex = 0;
+                break;
+            }
+            /* fall through when not in long mode */
         case PREFIX_FS_SEG_OVERRIDE:
         case PREFIX_GS_SEG_OVERRIDE:
             decode->segment_override = byte;
