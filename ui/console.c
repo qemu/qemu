@@ -70,6 +70,7 @@ struct DisplayState {
     bool refreshing;
 
     QLIST_HEAD(, DisplayChangeListener) listeners;
+    NotifierList console_notifiers;
 };
 
 static DisplayState *display_state;
@@ -83,6 +84,16 @@ static bool console_compatible_with(QemuConsole *con,
                                     DisplayChangeListener *dcl, Error **errp);
 static QemuConsole *qemu_graphic_console_lookup_unused(void);
 static void dpy_set_ui_info_timer(void *opaque);
+
+void qemu_console_notify(QemuConsoleEventType type, QemuConsole *con)
+{
+    DisplayState *ds = get_alloc_displaystate();
+    QemuConsoleEvent event = {
+        .type = type,
+        .con = con,
+    };
+    notifier_list_notify(&ds->console_notifiers, &event);
+}
 
 static void gui_update(void *opaque)
 {
@@ -1056,8 +1067,20 @@ static DisplayState *get_alloc_displaystate(void)
 {
     if (!display_state) {
         display_state = g_new0(DisplayState, 1);
+        notifier_list_init(&display_state->console_notifiers);
     }
     return display_state;
+}
+
+void qemu_console_add_notifier(Notifier *notifier)
+{
+    DisplayState *ds = get_alloc_displaystate();
+    notifier_list_add(&ds->console_notifiers, notifier);
+}
+
+void qemu_console_remove_notifier(Notifier *notifier)
+{
+    notifier_remove(notifier);
 }
 
 /*
