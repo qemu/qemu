@@ -10,6 +10,10 @@ leak:/lib64/libtcmalloc_minimal.so.4
 # libxkbcommon also leaks in qemu-keymap
 leak:/lib64/libxkbcommon.so.0
 
+# libfontconfig leaks are notorious, for ex
+# https://gitlab.freedesktop.org/fontconfig/fontconfig/-/work_items/519
+leak:libfontconfig.so
+
 # g_set_user_dirs() deliberately leaks the previous cached g_get_user_*
 # values. This is documented in upstream glib's valgrind-format
 # suppression file:
