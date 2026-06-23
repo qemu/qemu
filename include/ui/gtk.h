@@ -140,6 +140,7 @@ struct GtkDisplayState {
 
     GdkCursor *null_cursor;
     Notifier mouse_mode_notifier;
+    VMChangeStateEntry *vmse;
     gboolean free_scale;
     gboolean keep_aspect_ratio;
 
@@ -225,6 +226,7 @@ int gd_gl_area_make_current(DisplayGLCtx *dgc,
 
 /* gtk-clipboard.c */
 void gd_clipboard_init(GtkDisplayState *gd);
+void gd_clipboard_cleanup(GtkDisplayState *gd);
 
 void gd_update_scale(VirtualConsole *vc, int ww, int wh, int fbw, int fbh);
 
