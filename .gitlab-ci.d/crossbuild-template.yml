@@ -3,12 +3,6 @@
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
   timeout: 80m
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - section_start setup "Pre-script setup"
-    - JOBS=$(expr $(nproc) + 1)
-    - cat /packages.txt
-    - section_end setup
   script:
     - !reference [.base_meson_ccache_job_template, script]
     - mkdir build
@@ -48,9 +42,6 @@
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
   timeout: 60m
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - JOBS=$(expr $(nproc) + 1)
   script:
     - !reference [.base_meson_ccache_job_template, script]
     - mkdir build
@@ -73,9 +64,6 @@
   extends: .base_meson_ccache_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - JOBS=$(expr $(nproc) + 1)
   script:
     - !reference [.base_meson_ccache_job_template, script]
     - mkdir build

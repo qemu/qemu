@@ -3,12 +3,6 @@
   extends: .base_meson_ccache_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - section_start setup "Pre-script setup"
-    - JOBS=$(expr $(nproc) + 1)
-    - cat /packages.txt
-    - section_end setup
   script:
     - !reference [.base_meson_ccache_job_template, script]
     - du -sh .git
@@ -74,11 +68,6 @@
 
 .native_test_job_template:
   extends: .common_test_job_template
-  before_script:
-    # Prevent logs from the build job that run earlier
-    # from being duplicated in the test job artifacts
-    - rm -f build/meson-logs/*
-
 
 .functional_test_job_template:
   extends: .common_test_job_template
@@ -96,27 +85,18 @@
       - build/tests/functional/*/*/*.log
     reports:
       junit: build/meson-logs/*.junit.xml
-  before_script:
-    - export QEMU_TEST_ALLOW_UNTRUSTED_CODE=1
-    - export QEMU_TEST_CACHE_DIR=${CI_PROJECT_DIR}/functional-cache
-    # Prevent logs from the build job that run earlier
-    # from being duplicated in the test job artifacts
-    - rm -f build/meson-logs/*
   after_script:
     - cd build
     - du -chs ${CI_PROJECT_DIR}/*-cache
   variables:
     QEMU_JOB_FUNCTIONAL: 1
+    QEMU_TEST_ALLOW_UNTRUSTED_CODE: 1
+    QEMU_TEST_CACHE_DIR: ${CI_PROJECT_DIR}/functional-cache
 
 .wasm_build_job_template:
   extends: .base_meson_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - section_start setup "Pre-script setup"
-    - JOBS=$(expr $(nproc) + 1)
-    - section_end setup
   script:
     - du -sh .git
     - mkdir build

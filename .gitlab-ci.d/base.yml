@@ -148,6 +148,15 @@ variables:
       - build/meson-logs
     reports:
       junit: build/meson-logs/*.junit.xml
+  before_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start setup "Pre-script setup"
+    - JOBS=$(expr $(nproc) + 1)
+    # Prevent logs (if any) from prior build job artifacts
+    # from being duplicated in the new job artifacts
+    - rm -f build/meson-logs/*
+    - test -f /packages.txt && cat /packages.txt
+    - section_end setup
 
 .base_meson_ccache_job_template:
   extends: .base_meson_job_template
