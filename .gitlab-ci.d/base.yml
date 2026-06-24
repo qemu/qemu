@@ -146,6 +146,7 @@ variables:
     expire_in: 7 days
     paths:
       - build/meson-logs
+      - ci-runner-env
     reports:
       junit: build/meson-logs/*.junit.xml
   before_script:
@@ -155,7 +156,15 @@ variables:
     # Prevent logs (if any) from prior build job artifacts
     # from being duplicated in the new job artifacts
     - rm -f build/meson-logs/*
-    - test -f /packages.txt && cat /packages.txt
+    - mkdir -p ci-runner-env
+    - test -f /packages.txt && cp /packages.txt ci-runner-env/packages.txt
+    - cp /proc/mounts ci-runner-env/mounts.txt
+    - cp /proc/cpuinfo ci-runner-env/cpuinfo.txt
+    - cp /proc/meminfo ci-runner-env/meminfo.txt
+    - ls -l /dev > ci-runner-env/devices.txt
+    - uname -a > ci-runner-env/kernel.txt
+    - id -a > ci-runner-env/user.txt
+    - printenv | sort > ci-runner-env/environ.txt
     - section_end setup
 
 .base_meson_ccache_job_template:

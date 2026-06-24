@@ -38,6 +38,7 @@
     paths:
       - build
       - .git-submodule-status
+      - ci-runner-env
     exclude:
       - build/**/*.p
       - build/**/*.a.p
@@ -83,6 +84,7 @@
     paths:
       - build/meson-logs
       - build/tests/functional/*/*/*.log
+      - ci-runner-env
     reports:
       junit: build/meson-logs/*.junit.xml
   after_script:
