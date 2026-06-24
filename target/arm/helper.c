@@ -1413,10 +1413,10 @@ void gt_rme_post_el_change(ARMCPU *cpu, void *ignored)
 
 static uint64_t gt_phys_raw_cnt_offset(CPUARMState *env)
 {
-    if ((env->cp15.scr_el3 & SCR_ECVEN) &&
-        FIELD_EX64(env->cp15.cnthctl_el2, CNTHCTL, ECV) &&
-        arm_is_el2_enabled(env) &&
-        (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
+    if ((!arm_feature(env, ARM_FEATURE_EL3) || (env->cp15.scr_el3 & SCR_ECVEN))
+        && FIELD_EX64(env->cp15.cnthctl_el2, CNTHCTL, ECV)
+        && arm_is_el2_enabled(env)
+        && (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         return env->cp15.cntpoff_el2;
     }
     return 0;
