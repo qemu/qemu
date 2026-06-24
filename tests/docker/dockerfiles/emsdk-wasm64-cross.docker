@@ -19,7 +19,9 @@ ENV CXXFLAGS="$CFLAGS"
 ENV LDFLAGS="-sWASM_BIGINT -sASYNCIFY=1 -L$TARGET/lib"
 RUN apt-get update && apt-get install -y \
     autoconf \
+    bison \
     build-essential \
+    flex \
     libglib2.0-dev \
     libtool \
     pkgconf \
