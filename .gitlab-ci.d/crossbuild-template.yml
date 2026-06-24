@@ -119,15 +119,3 @@
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
     - section_end test
-
-# We can still run some tests on some of our cross build jobs. They can add this
-# template to their extends to save the build logs and test results
-.cross_test_artifacts:
-  artifacts:
-    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-    when: always
-    expire_in: 7 days
-    paths:
-      - build/meson-logs
-    reports:
-      junit: build/meson-logs/*.junit.xml
