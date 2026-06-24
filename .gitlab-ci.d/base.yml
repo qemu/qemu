@@ -148,3 +148,19 @@ variables:
       - build/meson-logs
     reports:
       junit: build/meson-logs/*.junit.xml
+
+.base_meson_ccache_job_template:
+  extends: .base_meson_job_template
+  cache:
+    paths:
+      - ccache
+    key: "$CI_JOB_NAME"
+    when: always
+  script:
+    - export CCACHE_BASEDIR="$(pwd)"
+    - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
+    - export CCACHE_MAXSIZE="500M"
+    - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
+    - ccache --zero-stats
+  after_script:
+    - ccache --show-stats

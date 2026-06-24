@@ -1,13 +1,8 @@
 
 .native_build_job_template:
-  extends: .base_meson_job_template
+  extends: .base_meson_ccache_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  cache:
-    paths:
-      - ccache
-    key: "$CI_JOB_NAME"
-    when: always
   before_script:
     - source scripts/ci/gitlab-ci-section
     - section_start setup "Pre-script setup"
@@ -15,14 +10,10 @@
     - cat /packages.txt
     - section_end setup
   script:
-    - export CCACHE_BASEDIR="$(pwd)"
-    - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
-    - export CCACHE_MAXSIZE="500M"
-    - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
+    - !reference [.base_meson_ccache_job_template, script]
     - du -sh .git
     - mkdir build
     - cd build
-    - ccache --zero-stats
     - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs --enable-fdt=system
           --disable-debug-info
@@ -43,7 +34,6 @@
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
     - section_end test
-    - ccache --show-stats
 
 # We jump some hoops in common_test_job_template to avoid
 # rebuilding all the object files we skip in the artifacts
