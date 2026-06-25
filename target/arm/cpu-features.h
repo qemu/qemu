@@ -1610,6 +1610,11 @@ static inline bool isar_feature_aa64_sme_f8f32(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, F8F32);
 }
 
+static inline bool isar_feature_aa64_sme_f8f16(const ARMISARegisters *id)
+{
+    return FIELD_EX64_IDREG(id, ID_AA64SMFR0, F8F16);
+}
+
 static inline bool isar_feature_aa64_sme_f16f16(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, F16F16);
@@ -1779,6 +1784,12 @@ static inline bool
 isar_feature_aa64_sme2_or_sve2_lut(const ARMISARegisters *id)
 {
     return isar_feature_aa64_sme2_or_sve2(id) && isar_feature_aa64_lut(id);
+}
+
+static inline bool
+isar_feature_aa64_sme_f16f16_or_f8f16(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme_f16f16(id) || isar_feature_aa64_sme_f8f16(id);
 }
 
 /*

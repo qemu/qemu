@@ -1335,9 +1335,9 @@ static bool do_faddsub(DisasContext *s, arg_az_n *a, ARMFPStatusFlavour fpst,
     return true;
 }
 
-TRANS_FEAT(FADD_nn_h, aa64_sme_f16f16, do_faddsub, a,
+TRANS_FEAT(FADD_nn_h, aa64_sme_f16f16_or_f8f16, do_faddsub, a,
            FPST_ZA_F16, gen_helper_gvec_fadd_h)
-TRANS_FEAT(FSUB_nn_h, aa64_sme_f16f16, do_faddsub, a,
+TRANS_FEAT(FSUB_nn_h, aa64_sme_f16f16_or_f8f16, do_faddsub, a,
            FPST_ZA_F16, gen_helper_gvec_fsub_h)
 
 TRANS_FEAT(FADD_nn_s, aa64_sme2, do_faddsub, a,
