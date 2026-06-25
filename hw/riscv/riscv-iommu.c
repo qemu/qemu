@@ -2609,9 +2609,11 @@ static void riscv_iommu_realize(DeviceState *dev, Error **errp)
 
     /* Set power-on register state */
     stq_le_p(&s->regs[RISCV_IOMMU_REG_CAP], s->cap);
+
     stq_le_p(&s->regs[RISCV_IOMMU_REG_FCTL], 0);
     stq_le_p(&s->regs_ro[RISCV_IOMMU_REG_FCTL],
-             ~(RISCV_IOMMU_FCTL_BE | RISCV_IOMMU_FCTL_WSI));
+             ~(RISCV_IOMMU_FCTL_GXL | RISCV_IOMMU_FCTL_WSI));
+
     stq_le_p(&s->regs_ro[RISCV_IOMMU_REG_DDTP],
         ~(RISCV_IOMMU_DDTP_PPN | RISCV_IOMMU_DDTP_MODE));
     stq_le_p(&s->regs_ro[RISCV_IOMMU_REG_CQB],
