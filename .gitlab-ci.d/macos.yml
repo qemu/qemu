@@ -36,6 +36,7 @@ aarch64-macos-15-build:
   extends: .macos_job_template
   image: macos-15-xcode-16
   variables:
+    QEMU_JOB_MACOS: 1
     NAME: macos-15
     PATH_EXTRA: /opt/homebrew/gettext/bin
     PKG_CONFIG_PATH: /opt/homebrew/curl/lib/pkgconfig:/opt/homebrew/ncurses/lib/pkgconfig:/opt/homebrew/readline/lib/pkgconfig
@@ -52,6 +53,7 @@ aarch64-macos-26-build:
   extends: .macos_job_template
   image: macos-26-xcode-26
   variables:
+    QEMU_JOB_MACOS: 1
     NAME: macos-26
     DYLD_LIBRARY_PATH: /opt/homebrew/opt/expat/lib/
     PATH_EXTRA: /opt/homebrew/gettext/bin

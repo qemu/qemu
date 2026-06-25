@@ -125,6 +125,13 @@ QEMU_JOB_FUNCTIONAL
 
 The job runs the functional test suite
 
+QEMU_JOB_MACOS
+~~~~~~~~~~~~~~
+
+The job requires access to the macOS shared runners, which are
+only available to Premium/Ultimate tiers. This includes OSS project
+members, but not forks.
+
 Contributor controlled runtime variables
 ----------------------------------------
 
