@@ -19,6 +19,7 @@
 #include "bootfile.h"
 #include "i386/a-b-bootblock.h"
 #include "aarch64/a-b-kernel.h"
+#include "loongarch64/a-b-kernel.h"
 #include "ppc64/a-b-kernel.h"
 #include "s390x/a-b-bios.h"
 
@@ -57,6 +58,9 @@ char *bootfile_create(const char *arch, const char *dir, bool suspend_me)
         content = aarch64_kernel;
         len = sizeof(aarch64_kernel);
         g_assert(sizeof(aarch64_kernel) <= ARM_TEST_MAX_KERNEL_SIZE);
+    } else if (strcmp(arch, "loongarch64") == 0) {
+        content = loongarch64_kernel;
+        len = sizeof(loongarch64_kernel);
     } else {
         g_assert_not_reached();
     }

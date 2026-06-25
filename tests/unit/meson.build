@@ -138,7 +138,13 @@ if have_system
     'test-bufferiszero': [],
     'test-smp-parse': [qom, meson.project_source_root() / 'hw/core/machine-smp.c'],
     'test-vmstate': [migration, io],
-    'test-yank': ['socket-helpers.c', qom, io, chardev]
+    'test-yank': ['socket-helpers.c', qom, io, chardev],
+    'test-ram-discard-manager': [
+      'test-ram-discard-manager.c',
+      'test-ram-discard-manager-stubs.c',
+      meson.project_source_root() / 'system/ram-discard-manager.c',
+      genh, qemuutil, qom
+    ],
   }
   if config_host_data.get('CONFIG_INOTIFY1')
     tests += {'test-util-filemonitor': []}

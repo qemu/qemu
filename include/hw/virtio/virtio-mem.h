@@ -118,9 +118,6 @@ struct VirtIOMEM {
     /* notifiers to notify when "size" changes */
     NotifierList size_change_notifiers;
 
-    /* listeners to notify on plug/unplug activity. */
-    QLIST_HEAD(, RamDiscardListener) rdl_list;
-
     /* Catch system resets -> qemu_devices_reset() only. */
     VirtioMemSystemReset *system_reset;
 };

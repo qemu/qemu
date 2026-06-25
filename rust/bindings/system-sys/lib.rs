@@ -20,7 +20,7 @@
 
 use common::Zeroable;
 use hwcore_sys::{qemu_irq, DeviceClass, DeviceState};
-use qom_sys::{InterfaceClass, Object, ObjectClass};
+use qom_sys::{Object, ObjectClass};
 use util_sys::{Error, EventNotifier, QEMUBH};
 
 #[cfg(MESON)]
