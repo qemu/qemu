@@ -154,6 +154,7 @@ dbus_display_console_dispose(GObject *object)
 
     qemu_input_led_notifier_remove(&ddc->led_notifier);
     qemu_console_unregister_listener(&ddc->dcl);
+    qemu_remove_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
     g_clear_object(&ddc->iface_touch);
     g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
@@ -530,6 +531,11 @@ dbus_mouse_mode_change(Notifier *notify, void *data)
 int dbus_display_console_get_index(DBusDisplayConsole *ddc)
 {
     return qemu_console_get_index(ddc->dcl.con);
+}
+
+QemuConsole *dbus_display_console_get_qemu_console(DBusDisplayConsole *ddc)
+{
+    return ddc->dcl.con;
 }
 
 DBusDisplayConsole *

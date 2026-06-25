@@ -26,6 +26,7 @@ typedef struct SpiceInfo SpiceInfo;
 
 struct QemuSpiceOps {
     void (*init)(void);
+    void (*cleanup)(void);
     void (*display_init)(void);
     int (*migrate_info)(const char *h, int p, int t, const char *s);
     int (*set_passwd)(const char *passwd,

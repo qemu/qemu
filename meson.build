@@ -545,6 +545,8 @@ if get_option('asan')
   if cc.has_argument('-fsanitize=address')
     qemu_cflags = ['-fsanitize=address'] + qemu_cflags
     qemu_ldflags = ['-fsanitize=address'] + qemu_ldflags
+    # Ensure complete stack traces for LSan suppressions to match correctly.
+    qemu_cflags += ['-fno-omit-frame-pointer']
   else
     error('Your compiler does not support -fsanitize=address')
   endif

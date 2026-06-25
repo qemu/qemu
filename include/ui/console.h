@@ -403,6 +403,7 @@ struct QemuDisplay {
     DisplayType type;
     void (*early_init)(DisplayOptions *opts);
     void (*init)(DisplayState *ds, DisplayOptions *opts);
+    void (*cleanup)(void);
     const char *vc;
 };
 
@@ -411,7 +412,26 @@ bool qemu_display_find_default(DisplayOptions *opts);
 void qemu_display_early_init(DisplayOptions *opts);
 void qemu_display_init(DisplayState *ds, DisplayOptions *opts);
 const char *qemu_display_get_vc(DisplayOptions *opts);
+void qemu_display_cleanup(void);
 void qemu_display_help(void);
+
+/*
+ * Console notifications:
+ * Handlers must be idempotent, it may notify multiple times.
+ */
+typedef enum {
+    QEMU_CONSOLE_ADDED,
+    QEMU_CONSOLE_REMOVED,
+} QemuConsoleEventType;
+
+typedef struct QemuConsoleEvent {
+    QemuConsoleEventType type;
+    QemuConsole *con;
+} QemuConsoleEvent;
+
+void qemu_console_add_notifier(Notifier *notifier);
+void qemu_console_remove_notifier(Notifier *notifier);
+void qemu_console_notify(QemuConsoleEventType type, QemuConsole *con);
 
 /* vnc.c */
 void vnc_display_add_client(const char *id, int csock, bool skipauth);

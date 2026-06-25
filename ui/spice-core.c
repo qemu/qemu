@@ -651,12 +651,15 @@ static void vm_change_state_handler(void *opaque, bool running,
     }
 }
 
+static VMChangeStateEntry *vm_change_entry;
+
 void qemu_spice_display_init_done(void)
 {
     if (runstate_is_running()) {
         qemu_spice_display_start();
     }
-    qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
+    vm_change_entry =
+        qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
 }
 
 static void qemu_spice_init(void)
@@ -894,7 +897,8 @@ static int qemu_spice_add_interface(SpiceBaseInstance *sin)
         spice_server = spice_server_new();
         spice_server_set_sasl_appname(spice_server, "qemu");
         spice_server_init(spice_server, &core_interface);
-        qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
+        vm_change_entry =
+            qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     }
 
     return spice_server_add_interface(spice_server, sin);
@@ -1005,8 +1009,25 @@ int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
     return spice_display_is_running;
 }
 
+static void qemu_spice_cleanup(void)
+{
+    if (!spice_server) {
+        return;
+    }
+
+    qemu_spice_display_cleanup();
+    qemu_spice_input_cleanup();
+    migration_remove_notifier(&migration_state);
+    g_clear_pointer(&spice_consoles, g_slist_free);
+    g_clear_pointer(&auth_passwd, g_free);
+    g_clear_pointer(&spice_server, spice_server_destroy);
+    g_clear_pointer(&vm_change_entry, qemu_del_vm_change_state_handler);
+    using_spice = 0;
+}
+
 static struct QemuSpiceOps real_spice_ops = {
     .init         = qemu_spice_init,
+    .cleanup      = qemu_spice_cleanup,
     .display_init = qemu_spice_display_init,
     .migrate_info = qemu_spice_migrate_info,
     .set_passwd   = qemu_spice_set_passwd,

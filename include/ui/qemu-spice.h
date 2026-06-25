@@ -27,19 +27,14 @@
 #include "qemu/config-file.h"
 
 void qemu_spice_input_init(void);
+void qemu_spice_input_cleanup(void);
 void qemu_spice_display_init(void);
+void qemu_spice_display_cleanup(void);
 void qemu_spice_display_init_done(void);
 bool qemu_spice_have_display_interface(QemuConsole *con);
 int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con);
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject);
-
-#else  /* CONFIG_SPICE */
-
-#include "qemu/error-report.h"
-
-#define spice_displays 0
-
 #endif /* CONFIG_SPICE */
 
 static inline bool qemu_using_spice(Error **errp)

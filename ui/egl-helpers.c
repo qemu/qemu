@@ -733,3 +733,22 @@ bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp)
     display_opengl = 1;
     return true;
 }
+
+void egl_cleanup(void)
+{
+    if (qemu_egl_rn_ctx) {
+        eglDestroyContext(qemu_egl_display, qemu_egl_rn_ctx);
+        qemu_egl_rn_ctx = NULL;
+    }
+
+#ifdef CONFIG_GBM
+    g_clear_pointer(&qemu_egl_rn_gbm_dev, gbm_device_destroy);
+    g_clear_fd(&qemu_egl_rn_fd, NULL);
+#endif
+
+    if (qemu_egl_display) {
+        eglReleaseThread();
+        eglTerminate(qemu_egl_display);
+        qemu_egl_display = NULL;
+    }
+}

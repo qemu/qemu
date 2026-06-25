@@ -34,6 +34,8 @@ bool spice_opengl;
 bool spice_remote_client;
 int spice_max_refresh_rate;
 
+static GPtrArray *spice_displays;
+
 int qemu_spice_rect_is_empty(const QXLRect* r)
 {
     return r->top == r->bottom || r->left == r->right;
@@ -1421,6 +1423,54 @@ static void qemu_spice_display_init_one(QemuConsole *con)
         qemu_console_set_display_gl_ctx(con, &ssd->dgc);
     }
     qemu_console_register_listener(con, &ssd->dcl, ops);
+    g_ptr_array_add(spice_displays, ssd);
+}
+
+void qemu_spice_display_cleanup(void)
+{
+    if (!spice_displays) {
+        return;
+    }
+
+    for (guint i = 0; i < spice_displays->len; i++) {
+        SimpleSpiceDisplay *ssd = g_ptr_array_index(spice_displays, i);
+        SimpleSpiceUpdate *update;
+
+        qemu_console_unregister_listener(&ssd->dcl);
+#ifdef HAVE_SPICE_GL
+        if (spice_opengl) {
+            qemu_console_set_display_gl_ctx(ssd->dcl.con, NULL);
+        }
+#endif
+
+        if (ssd->ds) {
+            qemu_spice_destroy_host_primary(ssd);
+        }
+        qemu_spice_del_memslot(ssd, MEMSLOT_GROUP_HOST, 0);
+        spice_server_remove_interface(&ssd->qxl.base);
+
+        while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
+            QTAILQ_REMOVE(&ssd->updates, update, next);
+            qemu_spice_destroy_update(ssd, update);
+        }
+        g_clear_pointer(&ssd->ptr_define, g_free);
+        g_clear_pointer(&ssd->ptr_move, g_free);
+        g_clear_pointer(&ssd->cursor, cursor_unref);
+        g_clear_pointer(&ssd->surface, pixman_image_unref);
+        g_clear_pointer(&ssd->mirror, pixman_image_unref);
+        g_clear_pointer(&ssd->buf, g_free);
+#ifdef HAVE_SPICE_GL
+        g_clear_pointer(&ssd->gl_unblock_bh, qemu_bh_delete);
+        g_clear_pointer(&ssd->gl_unblock_timer, timer_free);
+        g_clear_pointer(&ssd->gls, qemu_gl_fini_shader);
+        egl_fb_destroy(&ssd->guest_fb);
+        egl_fb_destroy(&ssd->blit_fb);
+        egl_fb_destroy(&ssd->cursor_fb);
+#endif
+        qemu_mutex_destroy(&ssd->lock);
+        g_free(ssd);
+    }
+    g_clear_pointer(&spice_displays, g_ptr_array_unref);
 }
 
 void qemu_spice_display_init(void)
@@ -1430,6 +1480,8 @@ void qemu_spice_display_init(void)
     QemuConsole *spice_con, *con;
     const char *str;
     int i;
+
+    spice_displays = g_ptr_array_new();
 
     str = qemu_opt_get(opts, "display");
     if (str) {

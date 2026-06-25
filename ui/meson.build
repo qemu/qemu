@@ -42,13 +42,14 @@ libui_sources = files(
     'kbd-state.c',
     'keymaps.c',
     'qemu-pixman.c',
+    'spice-module.c',
     'vgafont.c',
   )
 if pixman.found()
   libui_sources += files('cp437.c', 'vt100.c')
 endif
 libui = static_library('qemuui', libui_sources + genh,
-  dependencies: [pixman],
+  dependencies: [pixman, spice_headers],
   build_by_default: false)
 ui = declare_dependency(objects: libui.extract_all_objects(recursive: false), dependencies: [pixman])
 system_ss.add(png)
@@ -64,7 +65,6 @@ system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('con
 if dbus_display
   system_ss.add(files('dbus-module.c'))
 endif
-system_ss.add([spice_headers, files('spice-module.c')])
 system_ss.add(when: spice_protocol, if_true: files('vdagent.c'))
 
 if host_os == 'linux'
