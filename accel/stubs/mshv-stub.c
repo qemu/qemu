@@ -13,6 +13,7 @@
 #include "system/mshv.h"
 
 bool mshv_allowed;
+MshvState *mshv_state;
 
 int mshv_irqchip_add_msi_route(AccelRouteChange *c, int vector, PCIDevice *dev)
 {
