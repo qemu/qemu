@@ -1121,6 +1121,15 @@ static bool do_fmlall_fp8(DisasContext *s, arg_azz_n *a, bool multi)
 TRANS_FEAT(FMLALL_n1_b, aa64_sme_f8f32, do_fmlall_fp8, a, false)
 TRANS_FEAT(FMLALL_nn_b, aa64_sme_f8f32, do_fmlall_fp8, a, true)
 
+static bool do_fmlal_fp8(DisasContext *s, arg_azz_n *a, bool multi)
+{
+    return do_azz_acc_fp8(s, a->n, 2, a->rv, a->off, a->zn, a->zm,
+                          0, 0, multi, gen_helper_gvec_fmla_hb);
+}
+
+TRANS_FEAT(FMLAL_n1_hb, aa64_sme_f8f16, do_fmlal_fp8, a, false)
+TRANS_FEAT(FMLAL_nn_hb, aa64_sme_f8f16, do_fmlal_fp8, a, true)
+
 static bool do_fmlal_nx(DisasContext *s, arg_azx_n *a, bool sub)
 {
     return do_azz_acc_fp(s, a->n, 2, a->rv, a->off, a->zn, a->zm,
