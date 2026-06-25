@@ -76,9 +76,13 @@ struct RISCVIOMMUState {
 
     /* MMIO Hardware Interface */
     MemoryRegion regs_mr;
-    uint8_t *regs_rw;  /* register state (user write) */
+    uint8_t *regs;  /* current register state */
     uint8_t *regs_wc;  /* write-1-to-clear mask */
-    uint8_t *regs_ro;  /* read-only mask */
+    /*
+     * read-only mask. NOTE: bits not present in this RO
+     * mask are assumed to be read and write.
+     */
+    uint8_t *regs_ro;
 
     QLIST_ENTRY(RISCVIOMMUState) iommus;
     QLIST_HEAD(, RISCVIOMMUSpace) spaces;
@@ -120,39 +124,39 @@ struct RISCVIOMMUContext {
 static inline uint32_t riscv_iommu_reg_mod32(RISCVIOMMUState *s,
     unsigned idx, uint32_t set, uint32_t clr)
 {
-    uint32_t val = ldl_le_p(s->regs_rw + idx);
-    stl_le_p(s->regs_rw + idx, (val & ~clr) | set);
+    uint32_t val = ldl_le_p(s->regs + idx);
+    stl_le_p(s->regs + idx, (val & ~clr) | set);
     return val;
 }
 
 static inline void riscv_iommu_reg_set32(RISCVIOMMUState *s, unsigned idx,
                                          uint32_t set)
 {
-    stl_le_p(s->regs_rw + idx, set);
+    stl_le_p(s->regs + idx, set);
 }
 
 static inline uint32_t riscv_iommu_reg_get32(RISCVIOMMUState *s, unsigned idx)
 {
-    return ldl_le_p(s->regs_rw + idx);
+    return ldl_le_p(s->regs + idx);
 }
 
 static inline uint64_t riscv_iommu_reg_mod64(RISCVIOMMUState *s, unsigned idx,
                                              uint64_t set, uint64_t clr)
 {
-    uint64_t val = ldq_le_p(s->regs_rw + idx);
-    stq_le_p(s->regs_rw + idx, (val & ~clr) | set);
+    uint64_t val = ldq_le_p(s->regs + idx);
+    stq_le_p(s->regs + idx, (val & ~clr) | set);
     return val;
 }
 
 static inline void riscv_iommu_reg_set64(RISCVIOMMUState *s, unsigned idx,
                                          uint64_t set)
 {
-    stq_le_p(s->regs_rw + idx, set);
+    stq_le_p(s->regs + idx, set);
 }
 
 static inline uint64_t riscv_iommu_reg_get64(RISCVIOMMUState *s,
-    unsigned idx)
+                                             unsigned idx)
 {
-    return ldq_le_p(s->regs_rw + idx);
+    return ldq_le_p(s->regs + idx);
 }
 #endif
