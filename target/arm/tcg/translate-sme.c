@@ -1107,10 +1107,10 @@ static bool do_fmlal(DisasContext *s, arg_azz_n *a, bool sub, bool multi)
                          multi, FPST_ENV, gen_helper_sve2_fmlal_zzzw_s);
 }
 
-TRANS_FEAT(FMLAL_n1, aa64_sme2, do_fmlal, a, false, false)
-TRANS_FEAT(FMLSL_n1, aa64_sme2, do_fmlal, a, true, false)
-TRANS_FEAT(FMLAL_nn, aa64_sme2, do_fmlal, a, false, true)
-TRANS_FEAT(FMLSL_nn, aa64_sme2, do_fmlal, a, true, true)
+TRANS_FEAT(FMLAL_n1_sh, aa64_sme2, do_fmlal, a, false, false)
+TRANS_FEAT(FMLSL_n1_sh, aa64_sme2, do_fmlal, a, true, false)
+TRANS_FEAT(FMLAL_nn_sh, aa64_sme2, do_fmlal, a, false, true)
+TRANS_FEAT(FMLSL_nn_sh, aa64_sme2, do_fmlal, a, true, true)
 
 static bool do_fmlall_fp8(DisasContext *s, arg_azz_n *a, bool multi)
 {
@@ -1128,8 +1128,8 @@ static bool do_fmlal_nx(DisasContext *s, arg_azx_n *a, bool sub)
                          false, FPST_ENV, gen_helper_sve2_fmlal_zzxw_s);
 }
 
-TRANS_FEAT(FMLAL_nx, aa64_sme2, do_fmlal_nx, a, false)
-TRANS_FEAT(FMLSL_nx, aa64_sme2, do_fmlal_nx, a, true)
+TRANS_FEAT(FMLAL_nx_sh, aa64_sme2, do_fmlal_nx, a, false)
+TRANS_FEAT(FMLSL_nx_sh, aa64_sme2, do_fmlal_nx, a, true)
 
 static bool do_bfmlal(DisasContext *s, arg_azz_n *a, bool sub, bool multi)
 {
