@@ -893,6 +893,41 @@ void HELPER(sme_fmopa_sb)(void *vza, void *vzn, void *vzm, void *vpn,
     }
 }
 
+void HELPER(sme_fmopa_hb)(void *vza, void *vzn, void *vzm, void *vpn,
+                          void *vpm, CPUARMState *env, uint32_t desc)
+{
+    FP8MulContext ctx = fp8_mul_start(env, 0xf);
+    intptr_t oprsz = simd_maxsz(desc);
+    uint16_t *pn = vpn, *pm = vpm;
+
+    for (intptr_t row = 0; row < oprsz; ) {
+        uint16_t prow = pn[H2(row >> 4)];
+        do {
+            void *vza_row = vza + tile_vslice_offset(row);
+            uint16_t n = *(uint16_t *)(vzn + H1_2(row));
+
+            n &= expand_pred_b(prow & 3);
+
+            for (intptr_t col = 0; col < oprsz; ) {
+                uint16_t pcol = pm[H2(col >> 4)];
+                do {
+                    if (prow & pcol & 0x3) {
+                        uint16_t *a = vza_row + H1_2(col);
+                        uint16_t m = *(uint16_t *)(vzm + H1_2(col));
+
+                        m &= expand_pred_b(pcol & 3);
+                        *a = f8dotadd_h(n, m, 2, *a, &ctx);
+                    }
+                    col += 2;
+                    pcol >>= 2;
+                } while (col & 15);
+            }
+            row += 2;
+            prow >>= 2;
+        } while (row & 15);
+    }
+}
+
 void HELPER(sme_fvdot_idx_sb)(void *vd, void *vn, void *vm,
                               CPUARMState *env, uint32_t desc)
 {
