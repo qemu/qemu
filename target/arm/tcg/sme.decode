@@ -791,6 +791,19 @@ FMLALL_nx_b     11000001 0001 .... 1 .. 0.. ...10 00.. .    @azx_4x1_i4_o1
 FDOT_nx_b       11000001 0101 .... 0 .. 0.. ....1 11 ...    @azx_2x1_i2_o3
 FDOT_nx_b       11000001 0101 .... 1 .. 0.. ...00 01 ...    @azx_4x1_i2_o3
 
+%idx4_15_10_3   15:1 10:2 3:1
+%idx4_10_2      10:2 2:2
+@azx_1x1_i4_o3x2 ........ .... zm:4 . .. . .. zn:5 .. ...    \
+                 &azx_n n=1 rv=%mova_rv off=%off3_x2 idx=%idx4_15_10_3
+@azx_2x2_i4_o3x2 ........ .... zm:4 . .. . .. .... .. .. ..  \
+                 &azx_n n=2 rv=%mova_rv zn=%zn_ax2 off=%off2_x2 idx=%idx4_10_2
+@azx_4x4_i4_o3x2 ........ .... zm:4 . .. . .. ... ... .. ..  \
+                 &azx_n n=4 rv=%mova_rv zn=%zn_ax4 off=%off2_x2 idx=%idx4_10_2
+
+FMLAL_nx_hb     11000001 1100 .... . .. 0.. ..... 0. ...    @azx_1x1_i4_o3x2
+FMLAL_nx_hb     11000001 1001 .... 0 .. 1.. ....1 1.. ..    @azx_2x2_i4_o3x2
+FMLAL_nx_hb     11000001 1001 .... 1 .. 1.. ...01 0.. ..    @azx_4x4_i4_o3x2
+
 %idx2_10_3      10:1 3:1
 @azx_4x2_i2_o3  ........ .... zm:4 . .. ... .... ... off:3 \
                 &azx_n n=4 rv=%mova_rv zn=%zn_ax2 idx=%idx2_10_3
