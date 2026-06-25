@@ -950,3 +950,26 @@ void HELPER(sme_fvdot_idx_sb)(void *vd, void *vn, void *vm,
         } while (++i & 3);
     } while (i < elements);
 }
+
+void HELPER(sme_fvdot_idx_hb)(void *vd, void *vn, void *vm,
+                              CPUARMState *env, uint32_t desc)
+{
+    FP8MulContext ctx = fp8_mul_start(env, 0xf);
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t elements = oprsz / sizeof(float16);
+    int idx_n = extract32(desc, SIMD_DATA_SHIFT, 1);
+    int idx_m = extract32(desc, SIMD_DATA_SHIFT + 1, 3);
+    float16 *d = vd;
+    uint8_t *n0 = vn;
+    uint8_t *n1 = vn + sizeof(ARMVectorReg);
+    uint16_t *m = vm;
+    intptr_t i = 0;
+
+    do {
+        uint16_t mm = m[H2(2 * i + idx_m)];
+        do {
+            uint16_t nn = n0[H1(4 * i + idx_n)] | (n1[H1(4 * i + idx_n)] << 8);
+            d[H2(i)] = f8dotadd_h(nn, mm, 2, d[H2(i)], &ctx);
+        } while (++i & 7);
+    } while (i < elements);
+}
