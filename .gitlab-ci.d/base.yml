@@ -134,3 +134,51 @@ variables:
         QEMU_CI_CONTAINER_TAG: $CI_COMMIT_REF_SLUG
 
     - when: on_success
+
+# Any job running meson should capture meson logs
+# by default. Some jobs might override the artifacts
+# to capture further files
+.base_meson_job_template:
+  extends: .base_job_template
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    when: always
+    expire_in: 7 days
+    paths:
+      - build/meson-logs
+      - ci-runner-env
+    reports:
+      junit: build/meson-logs/*.junit.xml
+  before_script:
+    - source scripts/ci/gitlab-ci-section
+    - section_start setup "Pre-script setup"
+    - JOBS=$(expr $(nproc) + 1)
+    # Prevent logs (if any) from prior build job artifacts
+    # from being duplicated in the new job artifacts
+    - rm -f build/meson-logs/*
+    - mkdir -p ci-runner-env
+    - test -f /packages.txt && cp /packages.txt ci-runner-env/packages.txt
+    - cp /proc/mounts ci-runner-env/mounts.txt
+    - cp /proc/cpuinfo ci-runner-env/cpuinfo.txt
+    - cp /proc/meminfo ci-runner-env/meminfo.txt
+    - ls -l /dev > ci-runner-env/devices.txt
+    - uname -a > ci-runner-env/kernel.txt
+    - id -a > ci-runner-env/user.txt
+    - printenv | sort > ci-runner-env/environ.txt
+    - section_end setup
+
+.base_meson_ccache_job_template:
+  extends: .base_meson_job_template
+  cache:
+    paths:
+      - ccache
+    key: "$CI_JOB_NAME"
+    when: always
+  script:
+    - export CCACHE_BASEDIR="$(pwd)"
+    - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
+    - export CCACHE_MAXSIZE="500M"
+    - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
+    - ccache --zero-stats
+  after_script:
+    - ccache --show-stats

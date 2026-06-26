@@ -1,27 +1,12 @@
 .cross_system_build_job:
-  extends: .base_job_template
+  extends: .base_meson_ccache_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  cache:
-    paths:
-      - ccache
-    key: "$CI_JOB_NAME"
-    when: always
   timeout: 80m
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - section_start setup "Pre-script setup"
-    - JOBS=$(expr $(nproc) + 1)
-    - cat /packages.txt
-    - section_end setup
   script:
-    - export CCACHE_BASEDIR="$(pwd)"
-    - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
-    - export CCACHE_MAXSIZE="500M"
-    - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
+    - !reference [.base_meson_ccache_job_template, script]
     - mkdir build
     - cd build
-    - ccache --zero-stats
     - section_start configure "Running configure"
     - ../configure --enable-werror --disable-docs --enable-fdt=system
         --disable-user $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS
@@ -46,7 +31,6 @@
       mv -v qemu-setup*.exe qemu-setup-${version}.exe;
       fi
     - section_end installer
-    - ccache --show-stats
 
 # Job to cross-build specific accelerators.
 #
@@ -54,22 +38,12 @@
 # KVM), and set extra options (such disabling other accelerators) via the
 # $EXTRA_CONFIGURE_OPTS variable.
 .cross_accel_build_job:
-  extends: .base_job_template
+  extends: .base_meson_ccache_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
   timeout: 60m
-  cache:
-    paths:
-      - ccache/
-    key: "$CI_JOB_NAME"
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - JOBS=$(expr $(nproc) + 1)
   script:
-    - export CCACHE_BASEDIR="$(pwd)"
-    - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
-    - export CCACHE_MAXSIZE="500M"
-    - export PATH="$CCACHE_WRAPPERSDIR:$PATH"
+    - !reference [.base_meson_ccache_job_template, script]
     - mkdir build
     - cd build
     - section_start configure "Running configure"
@@ -87,20 +61,11 @@
     - section_end test
 
 .cross_user_build_job:
-  extends: .base_job_template
+  extends: .base_meson_ccache_job_template
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:$QEMU_CI_CONTAINER_TAG
-  cache:
-    paths:
-      - ccache/
-    key: "$CI_JOB_NAME"
-  before_script:
-    - source scripts/ci/gitlab-ci-section
-    - JOBS=$(expr $(nproc) + 1)
   script:
-    - export CCACHE_BASEDIR="$(pwd)"
-    - export CCACHE_DIR="$CCACHE_BASEDIR/ccache"
-    - export CCACHE_MAXSIZE="500M"
+    - !reference [.base_meson_ccache_job_template, script]
     - mkdir build
     - cd build
     - section_start configure "Running configure"
@@ -119,15 +84,3 @@
         $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
     - section_end test
-
-# We can still run some tests on some of our cross build jobs. They can add this
-# template to their extends to save the build logs and test results
-.cross_test_artifacts:
-  artifacts:
-    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-    when: always
-    expire_in: 7 days
-    paths:
-      - build/meson-logs
-    reports:
-      junit: build/meson-logs/*.junit.xml
