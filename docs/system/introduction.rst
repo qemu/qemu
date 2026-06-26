@@ -1,6 +1,15 @@
 Introduction
 ============
 
+.. note::
+   QEMU supports many different target CPU architectures and many
+   different machine types for each architecture. Options, properties,
+   and command lines that work for one architecture or machine type
+   will not necessarily work on another. The examples shown in this
+   manual are specific to the architecture and machine type being
+   demonstrated. When in doubt, consult the documentation for your
+   specific target architecture and machine type.
+
 .. _Accelerators:
 
 Virtualisation Accelerators
