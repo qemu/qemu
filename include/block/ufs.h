@@ -1333,7 +1333,11 @@ typedef struct QEMU_PACKED UfsCqEntry {
     uint8_t status;
     uint8_t error;
     uint16_t rsvd1;
-    uint32_t rsvd2[3];
+    uint8_t task_tag;
+    uint8_t lun;
+    uint8_t iid_ext_iid;
+    uint8_t rsvd2;
+    uint32_t rsvd3[2];
 } UfsCqEntry;
 
 static inline void _ufs_check_size(void)

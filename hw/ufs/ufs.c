@@ -520,6 +520,12 @@ static void ufs_mcq_process_cq(void *opaque)
         req->cqe.prdt_off = cpu_to_le16(prdt_off);
         req->cqe.status = status;
         req->cqe.error = 0;
+        /*
+         * From UFSHCI 4.1 the host derives the request tag from cqe.task_tag
+         * rather than decoding it from utp_addr.
+         */
+        req->cqe.task_tag = req->req_upiu.header.task_tag;
+        req->cqe.lun = req->req_upiu.header.lun;
 
         ret = ufs_addr_write(u, cq->addr + tail, &req->cqe, sizeof(req->cqe));
         if (ret) {
