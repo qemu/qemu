@@ -363,8 +363,8 @@ sev_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
     trace_kvm_memcrypt_register_region(host, max_size);
     r = kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_REG_REGION, &range);
     if (r) {
-        error_report("%s: failed to register region (%p+%#zx) error '%s'",
-                     __func__, host, max_size, strerror(errno));
+        error_report("SEV: Failed to register region (%p+%#zx) error '%s'",
+                     host, max_size, strerror(errno));
         exit(1);
     }
 }
@@ -393,8 +393,8 @@ sev_ram_block_removed(RAMBlockNotifier *n, void *host, size_t size,
     trace_kvm_memcrypt_unregister_region(host, max_size);
     r = kvm_vm_ioctl(kvm_state, KVM_MEMORY_ENCRYPT_UNREG_REGION, &range);
     if (r) {
-        error_report("%s: failed to unregister region (%p+%#zx)",
-                     __func__, host, max_size);
+        error_report("SEV: Failed to unregister region (%p+%#zx)",
+                     host, max_size);
     }
 }
 
@@ -518,44 +518,39 @@ static int check_sev_features(SevCommonState *sev_common, uint64_t sev_features,
 {
     if (sev_features && !sev_es_enabled()) {
         error_setg(errp,
-                   "%s: SEV features require either SEV-ES or SEV-SNP to be enabled",
-                   __func__);
+                   "SEV: SEV features require either SEV-ES or SEV-SNP to be enabled");
         return -1;
     }
 
     if (sev_features & ~sev_common->supported_sev_features) {
         error_setg(errp,
-                   "%s: VMSA contains unsupported sev_features: %lX, "
+                   "SEV: VMSA contains unsupported sev_features: %lX, "
                    "supported features: %lX",
-                   __func__, sev_features, sev_common->supported_sev_features);
+                   sev_features, sev_common->supported_sev_features);
         return -1;
     }
 
     if (sev_snp_enabled()) {
         if (!(sev_features & SVM_SEV_FEAT_SNP_ACTIVE)) {
             error_setg(errp,
-                       "%s: SEV_SNP is enabled but is not enabled in VMSA sev_features",
-                       __func__);
+                       "SEV: SEV_SNP is enabled but is not enabled in VMSA sev_features");
             return -1;
         }
         if (SEV_SNP_GUEST(sev_common)->tsc_khz &&
             !(sev_features & SVM_SEV_FEAT_SECURE_TSC)) {
             error_setg(errp,
-                       "%s: TSC frequency can only be set if Secure TSC is enabled",
-                       __func__);
+                       "SEV: TSC frequency can only be set if Secure TSC is enabled");
             return -1;
         }
     } else {
         if (sev_features && sev_es_enabled()) {
             error_setg(errp,
-                       "%s: SEV features are not supported with SEV-ES at this time",
-                       __func__);
+                       "SEV: SEV features are not supported with SEV-ES at this time");
             return -1;
         }
         if (sev_features & SVM_SEV_FEAT_SNP_ACTIVE) {
             error_setg(errp,
-                       "%s: SEV_SNP is not enabled but is enabled in VMSA sev_features",
-                       __func__);
+                       "SEV: SEV_SNP is not enabled but is enabled in VMSA sev_features");
             return -1;
         }
     }
@@ -578,8 +573,8 @@ static int check_vmsa_supported(SevCommonState *sev_common, hwaddr gpa,
      */
     if (gpa != KVM_VMSA_GPA) {
         error_setg(errp,
-                "%s: The VMSA GPA must be %lX but is specified as %lX",
-                __func__, KVM_VMSA_GPA, gpa);
+                "SEV: The VMSA GPA must be %lX but is specified as %lX",
+                KVM_VMSA_GPA, gpa);
         return -1;
     }
 
@@ -634,11 +629,10 @@ static int check_vmsa_supported(SevCommonState *sev_common, hwaddr gpa,
 
     if (!buffer_is_zero(&vmsa_check, sizeof(vmsa_check))) {
         error_setg(errp,
-                "%s: The VMSA contains fields that are not "
+                "SEV: The VMSA contains fields that are not "
                 "synchronized with KVM. Continuing would result in "
                 "either unpredictable guest behavior, or a "
-                "mismatched launch measurement.",
-                __func__);
+                "mismatched launch measurement.");
         return -1;
     }
     return 0;
@@ -1115,8 +1109,8 @@ sev_snp_launch_start(SevCommonState *sev_common)
             rc = kvm_vm_ioctl(kvm_state, KVM_SET_TSC_KHZ, sev_snp_guest->tsc_khz);
         }
         if (rc < 0) {
-            error_report("%s: Unable to set Secure TSC frequency to %u kHz ret=%d",
-                         __func__, sev_snp_guest->tsc_khz, rc);
+            error_report("SEV: Unable to set Secure TSC frequency to %u kHz ret=%d",
+                         sev_snp_guest->tsc_khz, rc);
             return 1;
         }
     }
@@ -1124,8 +1118,8 @@ sev_snp_launch_start(SevCommonState *sev_common)
     rc = sev_ioctl(sev_common->sev_fd, KVM_SEV_SNP_LAUNCH_START,
                    start, &fw_error);
     if (rc < 0) {
-        error_report("%s: SNP_LAUNCH_START ret=%d fw_error=%d '%s'",
-                __func__, rc, fw_error, fw_error_to_str(fw_error));
+        error_report("SEV: SNP_LAUNCH_START ret=%d fw_error=%d '%s'",
+                     rc, fw_error, fw_error_to_str(fw_error));
         return 1;
     }
 
@@ -1167,8 +1161,8 @@ sev_launch_start(SevCommonState *sev_common)
     trace_kvm_sev_launch_start(start.policy, session, dh_cert);
     rc = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_START, &start, &fw_error);
     if (rc < 0) {
-        error_report("%s: LAUNCH_START ret=%d fw_error=%d '%s'",
-                __func__, ret, fw_error, fw_error_to_str(fw_error));
+        error_report("SEV: LAUNCH_START ret=%d fw_error=%d '%s'",
+                     ret, fw_error, fw_error_to_str(fw_error));
         goto out;
     }
 
@@ -1341,7 +1335,7 @@ static int sev_launch_update_data(SevCommonState *sev_common, hwaddr gpa,
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_UPDATE_DATA,
                     &update, &fw_error);
     if (ret) {
-        error_setg(errp, "%s: LAUNCH_UPDATE ret=%d fw_error=%d '%s'", __func__,
+        error_setg(errp, "SEV: LAUNCH_UPDATE ret=%d fw_error=%d '%s'",
                    ret, fw_error, fw_error_to_str(fw_error));
     }
 
@@ -1366,8 +1360,8 @@ sev_launch_update_vmsa(SevGuestState *sev_guest)
     ret = sev_ioctl(SEV_COMMON(sev_guest)->sev_fd, KVM_SEV_LAUNCH_UPDATE_VMSA,
                     NULL, &fw_error);
     if (ret) {
-        error_report("%s: LAUNCH_UPDATE_VMSA ret=%d fw_error=%d '%s'",
-                __func__, ret, fw_error, fw_error_to_str(fw_error));
+        error_report("SEV: LAUNCH_UPDATE_VMSA ret=%d fw_error=%d '%s'",
+                     ret, fw_error, fw_error_to_str(fw_error));
     }
 
     return ret;
@@ -1399,8 +1393,8 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_MEASURE,
                     &measurement, &error);
     if (!measurement.len) {
-        error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
-                     __func__, ret, error, fw_error_to_str(errno));
+        error_report("SEV: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
+                     ret, error, fw_error_to_str(errno));
         return;
     }
 
@@ -1411,8 +1405,8 @@ sev_launch_get_measure(Notifier *notifier, void *unused)
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_MEASURE,
                     &measurement, &error);
     if (ret) {
-        error_report("%s: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
-                     __func__, ret, error, fw_error_to_str(errno));
+        error_report("SEV: LAUNCH_MEASURE ret=%d fw_error=%d '%s'",
+                     ret, error, fw_error_to_str(errno));
         return;
     }
 
@@ -1467,8 +1461,8 @@ sev_launch_finish(SevCommonState *sev_common)
     ret = sev_ioctl(sev_common->sev_fd, KVM_SEV_LAUNCH_FINISH, 0,
                     &error);
     if (ret) {
-        error_report("%s: LAUNCH_FINISH ret=%d fw_error=%d '%s'",
-                     __func__, ret, error, fw_error_to_str(error));
+        error_report("SEV: LAUNCH_FINISH ret=%d fw_error=%d '%s'",
+                     ret, error, fw_error_to_str(error));
         exit(1);
     }
 
@@ -1627,8 +1621,8 @@ snp_populate_metadata_pages(SevSnpGuestState *sev_snp,
 
         hva = gpa2hva(&mr, desc->base, desc->len, NULL);
         if (!hva) {
-            error_report("%s: Failed to get HVA for GPA 0x%x sz 0x%x",
-                         __func__, desc->base, desc->len);
+            error_report("SEV: Failed to get HVA for GPA 0x%x sz 0x%x",
+                         desc->base, desc->len);
             exit(1);
         }
 
@@ -1644,8 +1638,8 @@ snp_populate_metadata_pages(SevSnpGuestState *sev_snp,
         }
 
         if (ret) {
-            error_report("%s: Failed to add metadata page gpa 0x%x+%x type %d",
-                         __func__, desc->base, desc->len, desc->type);
+            error_report("SEV: Failed to add metadata page gpa 0x%x+%x type %d",
+                         desc->base, desc->len, desc->type);
             exit(1);
         }
     }
@@ -1674,7 +1668,7 @@ sev_snp_launch_finish(SevCommonState *sev_common)
          */
         metadata = pc_system_get_ovmf_sev_metadata_ptr();
         if (metadata == NULL) {
-            error_report("%s: Failed to locate SEV metadata header", __func__);
+            error_report("SEV: SNP_LAUNCH_FINISH failed to locate SEV metadata header");
             exit(1);
         }
 
@@ -1812,8 +1806,7 @@ static int sev_init_supported_features(ConfidentialGuestSupport *cgs,
         .addr = (unsigned long)&sev_common->supported_sev_features,
     };
     if (kvm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr) < 0) {
-        error_setg(errp, "%s: failed to query supported sev_features",
-                   __func__);
+        error_setg(errp, "SEV: failed to query supported sev_features");
         return -1;
     }
     if (sev_snp_enabled()) {
@@ -1851,8 +1844,8 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
      * comparison against the host value accomplishes that.
      */
     if (host_cbitpos != sev_common->cbitpos) {
-        error_setg(errp, "%s: cbitpos check failed, host '%d' requested '%d'",
-                   __func__, host_cbitpos, sev_common->cbitpos);
+        error_setg(errp, "SEV: cbitpos check failed, host '%d' requested '%d'",
+                   host_cbitpos, sev_common->cbitpos);
         return -1;
     }
 
@@ -1863,9 +1856,9 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
      */
     if (sev_common->reduced_phys_bits < 1 ||
         sev_common->reduced_phys_bits > 63) {
-        error_setg(errp, "%s: reduced_phys_bits check failed,"
+        error_setg(errp, "SEV: reduced_phys_bits check failed,"
                    " it should be in the range of 1 to 63, requested '%d'",
-                   __func__, sev_common->reduced_phys_bits);
+                   sev_common->reduced_phys_bits);
         return -1;
     }
 
@@ -1881,8 +1874,8 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     ret = sev_platform_ioctl(sev_common->sev_fd, SEV_PLATFORM_STATUS, &status,
                              &fw_error);
     if (ret) {
-        error_setg(errp, "%s: failed to get platform status ret=%d "
-                   "fw_error='%d: %s'", __func__, ret, fw_error,
+        error_setg(errp, "SEV: failed to get platform status ret=%d "
+                   "fw_error='%d: %s'", ret, fw_error,
                    fw_error_to_str(fw_error));
         return -1;
     }
@@ -1892,17 +1885,15 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 
     if (sev_es_enabled()) {
         if (!kvm_kernel_irqchip_allowed()) {
-            error_setg(errp, "%s: SEV-ES guests require in-kernel irqchip"
-                       "support", __func__);
+            error_setg(errp, "SEV: SEV-ES guests require in-kernel irqchip support");
             return -1;
         }
     }
 
     if (sev_es_enabled() && !sev_snp_enabled()) {
         if (!(status.flags & SEV_STATUS_FLAGS_CONFIG_ES)) {
-            error_setg(errp, "%s: guest policy requires SEV-ES, but "
-                         "host SEV-ES support unavailable",
-                         __func__);
+            error_setg(errp, "SEV: guest policy requires SEV-ES, but "
+                             "host SEV-ES support unavailable");
             return -1;
         }
     }
@@ -1949,8 +1940,7 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
              */
             if (sev_common->sev_features & ~SVM_SEV_FEAT_SNP_ACTIVE) {
                 error_setg(errp,
-                           "%s: SEV features can't be specified when using IGVM files",
-                           __func__);
+                           "SEV: SEV features can't be specified when using IGVM files");
                 return -1;
             }
             if (IGVM_CFG_GET_CLASS(x86machine->igvm)
@@ -1974,21 +1964,20 @@ static int sev_common_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         break;
     }
     default:
-        error_setg(errp, "%s: host kernel does not support the requested SEV configuration.",
-                   __func__);
+        error_setg(errp, "SEV: host kernel does not support the requested SEV configuration.");
         return -1;
     }
 
     if (ret) {
-        error_setg(errp, "%s: failed to initialize ret=%d fw_error=%d '%s'",
-                   __func__, ret, fw_error, fw_error_to_str(fw_error));
+        error_setg(errp, "SEV: failed to initialize ret=%d fw_error=%d '%s'",
+                   ret, fw_error, fw_error_to_str(fw_error));
         return -1;
     }
 
     ret = klass->launch_start(sev_common);
 
     if (ret) {
-        error_setg(errp, "%s: failed to create encryption context", __func__);
+        error_setg(errp, "SEV: failed to create encryption context");
         return -1;
     }
 
@@ -2016,7 +2005,7 @@ static int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
      */
     ret = ram_block_discard_disable(true);
     if (ret) {
-        error_setg(errp, "%s: cannot disable RAM discard", __func__);
+        error_setg(errp, "SEV: cannot disable RAM discard");
         return -1;
     }
 
@@ -2620,8 +2609,7 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
             const struct sev_es_save_area *sa =
                 (const struct sev_es_save_area *)ptr;
             if (len < sizeof(*sa)) {
-                error_setg(errp, "%s: invalid VMSA length encountered",
-                           __func__);
+                error_setg(errp, "SEV: invalid VMSA length encountered");
                 return -1;
             }
             sev_common->sev_features = sa->sev_features;
@@ -2630,8 +2618,8 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
     }
 
     if (!sev_enabled()) {
-        error_setg(errp, "%s: attempt to configure guest memory, but SEV "
-                     "is not enabled", __func__);
+        error_setg(errp, "SEV: attempt to configure guest memory, but SEV "
+                         "is not enabled");
         return -1;
     }
 
@@ -2643,9 +2631,8 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
     case CGS_PAGE_TYPE_VMSA:
         if (!sev_es_enabled()) {
             error_setg(errp,
-                       "%s: attempt to configure initial VMSA, but SEV-ES "
-                       "is not supported",
-                       __func__);
+                       "SEV: attempt to configure initial VMSA, but SEV-ES "
+                       "is not supported");
             return -1;
         }
         if (check_vmsa_supported(sev_common, gpa,
@@ -2666,9 +2653,8 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
     case CGS_PAGE_TYPE_SECRETS:
         if (!sev_snp_enabled()) {
             error_setg(errp,
-                       "%s: attempt to configure secrets page, but SEV-SNP "
-                       "is not supported",
-                       __func__);
+                       "SEV: attempt to configure secrets page, but SEV-SNP "
+                       "is not supported");
             return -1;
         }
         return snp_launch_update_data(gpa, ptr, len,
@@ -2678,8 +2664,8 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
         if (kvm_convert_memory(gpa, len, true) < 0) {
             error_setg(
                 errp,
-                "%s: failed to configure required memory. gpa: %lX, type: %d",
-                __func__, gpa, memory_type);
+                "SEV: failed to configure required memory. gpa: %lX, type: %d",
+                gpa, memory_type);
             return -1;
         }
         return 0;
@@ -2687,14 +2673,13 @@ static int cgs_set_guest_state(hwaddr gpa, uint8_t *ptr, uint64_t len,
     case CGS_PAGE_TYPE_CPUID:
         if (!sev_snp_enabled()) {
             error_setg(errp,
-                       "%s: attempt to configure CPUID page, but SEV-SNP "
-                       "is not supported",
-                       __func__);
+                       "SEV: attempt to configure CPUID page, but SEV-SNP "
+                       "is not supported");
             return -1;
         }
         return snp_launch_update_cpuid(gpa, ptr, len, errp);
     }
-    error_setg(errp, "%s: failed to update guest. gpa: %lX, type: %d", __func__,
+    error_setg(errp, "SEV: failed to update guest. gpa: %lX, type: %d",
                gpa, memory_type);
     return -1;
 }
@@ -2750,8 +2735,8 @@ static int cgs_set_guest_policy(ConfidentialGuestPolicyType policy_type,
     }
 
     if (policy_type != GUEST_POLICY_SEV) {
-        error_setg(errp, "%s: Invalid guest policy type provided for SEV: %d",
-        __func__, policy_type);
+        error_setg(errp, "SEV: Invalid guest policy type provided for SEV: %d",
+                   policy_type);
         return -1;
     }
     /*
@@ -2784,14 +2769,12 @@ static int cgs_set_guest_policy(ConfidentialGuestPolicyType policy_type,
                 (struct sev_snp_id_authentication *)policy_data2;
 
             if (policy_data1_size != KVM_SEV_SNP_ID_BLOCK_SIZE) {
-                error_setg(errp, "%s: Invalid SEV-SNP ID block: incorrect size",
-                           __func__);
+                error_setg(errp, "SEV: Invalid SEV-SNP ID block: incorrect size");
                 return -1;
             }
             if (policy_data2_size != KVM_SEV_SNP_ID_AUTH_SIZE) {
                 error_setg(errp,
-                           "%s: Invalid SEV-SNP ID auth block: incorrect size",
-                           __func__);
+                           "SEV: Invalid SEV-SNP ID auth block: incorrect size");
                 return -1;
             }
             assert(policy_data1 != NULL);
@@ -2821,8 +2804,8 @@ static int cgs_set_guest_policy(ConfidentialGuestPolicyType policy_type,
         SevGuestState *sev_guest = SEV_GUEST(MACHINE(qdev_get_machine())->cgs);
         /* Only the policy flags are supported for SEV and SEV-ES */
         if ((policy_data1_size > 0) || (policy_data2_size > 0) || !sev_guest) {
-            error_setg(errp, "%s: An ID block/ID auth block has been provided "
-                             "but SEV-SNP is not enabled", __func__);
+            error_setg(errp, "SEV: An ID block/ID auth block has been provided "
+                             "but SEV-SNP is not enabled");
             return -1;
         }
 
