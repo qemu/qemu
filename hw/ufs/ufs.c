@@ -363,8 +363,32 @@ static void ufs_process_db(UfsHc *u, uint32_t val)
     qemu_bh_schedule(u->doorbell_bh);
 }
 
+/*
+ * Return canned PA layer attribute values. The emulated link has no PHY,
+ * so these are purely declarative: a single lane in HS-Gear 4, FAST_MODE.
+ */
+static uint32_t ufs_uic_dme_get_value(uint16_t attr_id)
+{
+    switch (attr_id) {
+    case UFS_ATTR_PA_AVAILTXDATALANES:
+    case UFS_ATTR_PA_AVAILRXDATALANES:
+    case UFS_ATTR_PA_CONNECTEDTXDATALANES:
+    case UFS_ATTR_PA_CONNECTEDRXDATALANES:
+        return 1;
+    case UFS_ATTR_PA_MAXRXHSGEAR:
+    case UFS_ATTR_PA_MAXRXPWMGEAR:
+        return 4;
+    case UFS_ATTR_PA_PWRMODE:
+        return (1 << 4) | 1;
+    default:
+        return 0;
+    }
+}
+
 static void ufs_process_uiccmd(UfsHc *u, uint32_t val)
 {
+    uint16_t attr_id;
+
     trace_ufs_process_uiccmd(val, u->reg.ucmdarg1, u->reg.ucmdarg2,
                              u->reg.ucmdarg3);
     /*
@@ -377,6 +401,22 @@ static void ufs_process_uiccmd(UfsHc *u, uint32_t val)
         u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UTRLRDY, 1);
         u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UTMRLRDY, 1);
         u->reg.ucmdarg2 = UFS_UIC_CMD_RESULT_SUCCESS;
+        break;
+    case UFS_UIC_CMD_DME_GET:
+    case UFS_UIC_CMD_DME_PEER_GET:
+        attr_id = (u->reg.ucmdarg1 >> 16) & 0xFFFF;
+        u->reg.ucmdarg3 = ufs_uic_dme_get_value(attr_id);
+        u->reg.ucmdarg2 = UFS_UIC_CMD_RESULT_SUCCESS;
+        break;
+    case UFS_UIC_CMD_DME_SET:
+    case UFS_UIC_CMD_DME_PEER_SET:
+        attr_id = (u->reg.ucmdarg1 >> 16) & 0xFFFF;
+        u->reg.ucmdarg2 = UFS_UIC_CMD_RESULT_SUCCESS;
+        /* DME_SET(PA_PWRMODE) is a power-mode-change trigger. */
+        if (val == UFS_UIC_CMD_DME_SET && attr_id == UFS_ATTR_PA_PWRMODE) {
+            u->reg.is = FIELD_DP32(u->reg.is, IS, UPMS, 1);
+            u->reg.hcs = FIELD_DP32(u->reg.hcs, HCS, UPMCRS, UFS_PWR_LOCAL);
+        }
         break;
     /*
      * TODO: Revisit after PM implementation
