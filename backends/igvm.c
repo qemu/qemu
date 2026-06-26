@@ -62,7 +62,8 @@ struct QEMU_PACKED sev_id_authentication {
 #define IGVM_SEV_ID_BLOCK_VERSION 1
 
 QIgvmParameterData*
-qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index)
+qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index,
+                       Error **errp)
 {
     QIgvmParameterData *param_entry;
     QTAILQ_FOREACH(param_entry, &igvm->parameter_data, next)
@@ -71,7 +72,8 @@ qigvm_find_param_entry(QIgvm *igvm, uint32_t parameter_area_index)
             return param_entry;
         }
     }
-    warn_report("IGVM: No parameter area for index %u", parameter_area_index);
+    error_setg(errp, "IGVM: parameter area index %u not found",
+                   parameter_area_index);
     return NULL;
 }
 
@@ -500,9 +502,10 @@ static int qigvm_directive_parameter_insert(QIgvm *ctx,
         return 0;
     }
 
-    param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
+    param_entry = qigvm_find_param_entry(ctx,
+                                         param->parameter_area_index, errp);
     if (param_entry == NULL) {
-        return 0;
+        return -1;
     }
 
     region = qigvm_prepare_memory(ctx, param->gpa, param_entry->size,
@@ -573,9 +576,10 @@ static int qigvm_directive_memory_map(QIgvm *ctx, const uint8_t *header_data,
     }
 
     /* Find the parameter area that should hold the memory map */
-    param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
+    param_entry = qigvm_find_param_entry(ctx,
+                                         param->parameter_area_index, errp);
     if (param_entry == NULL) {
-        return 0;
+        return -1;
     }
 
     max_entry_count = param_entry->size / sizeof(IGVM_VHS_MEMORY_MAP_ENTRY);
@@ -632,9 +636,10 @@ static int qigvm_directive_vp_count(QIgvm *ctx, const uint8_t *header_data,
     uint32_t *vp_count;
     CPUState *cpu;
 
-    param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
+    param_entry = qigvm_find_param_entry(ctx,
+                                         param->parameter_area_index, errp);
     if (param_entry == NULL) {
-        return 0;
+        return -1;
     }
 
     vp_count = (uint32_t *)(param_entry->data + param->byte_offset);
@@ -655,9 +660,10 @@ static int qigvm_directive_environment_info(QIgvm *ctx,
     QIgvmParameterData *param_entry;
     IgvmEnvironmentInfo *environmental_state;
 
-    param_entry = qigvm_find_param_entry(ctx, param->parameter_area_index);
+    param_entry = qigvm_find_param_entry(ctx,
+                                         param->parameter_area_index, errp);
     if (param_entry == NULL) {
-        return 0;
+        return -1;
     }
 
     environmental_state =
