@@ -1880,6 +1880,10 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
         switch (cmd_opcode) {
         case RISCV_IOMMU_CMD(RISCV_IOMMU_CMD_IOFENCE_FUNC_C,
                              RISCV_IOMMU_CMD_IOFENCE_OPCODE):
+            if (cmd.dword0 & RISCV_IOMMU_CMD_IOFENCE_RESERVED) {
+                goto cmd_ill;
+            }
+
             res = riscv_iommu_iofence(s,
                 cmd.dword0 & RISCV_IOMMU_CMD_IOFENCE_AV, cmd.dword1 << 2,
                 get_field(cmd.dword0, RISCV_IOMMU_CMD_IOFENCE_DATA));
