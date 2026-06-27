@@ -94,16 +94,60 @@ Boot options
 ------------
 
 The Nuvoton machines can boot from an OpenBMC firmware image, or directly into
-a kernel using the ``-kernel`` option. OpenBMC images for ``quanta-gsj`` and
-possibly others can be downloaded from the OpenBMC jenkins :
+a kernel using the ``-kernel`` option. OpenBMC machine names do not always
+match QEMU machine names. Check the OpenBMC supported-machine list and Jenkins
+for currently available source and pre-built images.
+
+Known OpenBMC (v2.18.0) target names for QEMU Nuvoton machines per:
+
+   https://github.com/openbmc/openbmc/blob/2.18.0/meta-phosphor/docs/supported-machines.md
+
+.. list-table::
+   :header-rows: 1
+
+   * - QEMU machine
+     - OpenBMC machine
+   * - ``npcm750-evb``
+     - ``evb-npcm750``
+   * - ``npcm845-evb``
+     - ``evb-npcm845``
+   * - ``quanta-gbs-bmc``
+     - ``gbs``
+   * - ``kudo-bmc``
+     - ``kudo``
+   * - ``mori-bmc``
+     - ``mori``
+
+As of June 2026, the latest OpenBMC release, ``2.18.0``, no longer lists a
+``gsj`` machine. To build an image for QEMU's ``quanta-gsj`` machine, use an
+older OpenBMC release that still contains ``meta-quanta/meta-gsj``. The
+``2.14.0`` release contains the ``gsj`` machine:
+
+   https://github.com/openbmc/openbmc/tree/2.14.0/meta-quanta/meta-gsj
+
+Some pre-built OpenBMC images for QEMU Nuvoton machines may be available on
+Jenkins:
 
    https://jenkins.openbmc.org/
 
-The firmware image should be attached as an MTD drive. Example :
+To find a pre-built MTD image on Jenkins, start from the Jenkins home page and
+open the ``latest-master`` job. Select the matrix configuration whose
+``target`` matches the OpenBMC machine name, for example
+``label=docker-builder,target=gbs``, then open its latest successful build's
+artifacts. The MTD image is usually published under
+``openbmc/build/tmp/deploy/images/<machine>/`` as
+``obmc-phosphor-image-<machine>-<timestamp>.static.mtd``. If Jenkins does not
+list a matching target, or the build artifacts do not include an MTD image,
+there is no current pre-built MTD image for that machine.
+
+The firmware image should be attached as an MTD drive. Example:
 
 .. code-block:: bash
 
-  $ qemu-system-arm -machine quanta-gsj -nographic \
-      -drive file=image-bmc,if=mtd,bus=0,unit=0,format=raw
+  $ qemu-system-arm -machine quanta-gbs-bmc -nographic \
+      -drive file=obmc-phosphor-image-gbs-xxxxxx.static.mtd,if=mtd,bus=0,unit=0,format=raw
 
 The default root password for test images is usually ``0penBmc``.
+
+For other machines that don't have pre-built images on Jenkins, build an image
+from source by following the OpenBMC build documentation.
