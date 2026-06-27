@@ -308,6 +308,9 @@ struct riscv_iommu_dc {
 #define RISCV_IOMMU_DC_IOHGATP_GSCID    GENMASK_ULL(59, 44)
 #define RISCV_IOMMU_DC_IOHGATP_MODE     RISCV_IOMMU_ATP_MODE_FIELD
 
+#define RISCV_IOMMU_DC_TC_RESERVED      (GENMASK_ULL(23, 12) \
+                                         | GENMASK_ULL(63, 32))
+
 enum riscv_iommu_dc_iohgatp_modes {
     RISCV_IOMMU_DC_IOHGATP_MODE_BARE = 0,
     RISCV_IOMMU_DC_IOHGATP_MODE_SV32X4 = 8,
