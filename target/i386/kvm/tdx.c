@@ -560,19 +560,29 @@ typedef struct TdxXFAMDep {
 } TdxXFAMDep;
 
 /*
- * Note, only the CPUID bits whose virtualization type are "XFAM & Native" are
- * defiend here.
+ * Note, usually the CPUID bits whose virtualization type are "XFAM & Native"
+ * are defined here while "XFAM & Configured & Native" are not. Because the
+ * latter are reported as configurable bits by KVM when they are supported.
+ * And they are not supported when not in the configurable bits list from KVM
+ * even if the corresponding XFAM bit is supported.
  *
- * For those whose virtualization type are "XFAM & Configured & Native", they
- * are reported as configurable bits. And they are not supported if not in the
- * configureable bits list from KVM even if the corresponding XFAM bit is
- * supported.
+ * Special cases:
+ *
+ * - AMX alias bits, their type is "CPUID_Enabled & Native" which means their
+ * value is determined by the CPUID bit they are aliased to.
+ *
+ * - AVX10_VL_MASK, their type is "XFAM & CPUID_Enabled & Native" which means
+ * their value is determined by both the corresponding XFAM bit and CPUID bit.
+ *
+ * For simplicity, relax the dependency to related XFAM bit.
+ * tdx_check_features() will eventually catch the unsupported configurations.
  */
 TdxXFAMDep tdx_xfam_deps[] = {
     { XSTATE_YMM_BIT,       { FEAT_1_ECX, CPUID_EXT_FMA } },
     { XSTATE_YMM_BIT,       { FEAT_7_0_EBX, CPUID_7_0_EBX_AVX2 } },
     { XSTATE_OPMASK_BIT,    { FEAT_7_0_ECX, CPUID_7_0_ECX_AVX512_VBMI } },
     { XSTATE_OPMASK_BIT,    { FEAT_7_0_EDX, CPUID_7_0_EDX_AVX512_FP16 } },
+    { XSTATE_OPMASK_BIT,    { FEAT_24_0_EBX, CPUID_24_0_EBX_AVX10_VL_MASK } },
     { XSTATE_PT_BIT,        { FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT } },
     { XSTATE_PKRU_BIT,      { FEAT_7_0_ECX, CPUID_7_0_ECX_PKU } },
     { XSTATE_CET_U_BIT,     { FEAT_7_0_ECX, CPUID_7_0_ECX_CET_SHSTK } },
@@ -580,6 +590,10 @@ TdxXFAMDep tdx_xfam_deps[] = {
     { XSTATE_XTILE_CFG_BIT, { FEAT_7_0_EDX, CPUID_7_0_EDX_AMX_BF16 } },
     { XSTATE_XTILE_CFG_BIT, { FEAT_7_0_EDX, CPUID_7_0_EDX_AMX_TILE } },
     { XSTATE_XTILE_CFG_BIT, { FEAT_7_0_EDX, CPUID_7_0_EDX_AMX_INT8 } },
+    { XSTATE_XTILE_CFG_BIT, { FEAT_1E_1_EAX, CPUID_1E_1_EAX_AMX_INT8_ALIAS } },
+    { XSTATE_XTILE_CFG_BIT, { FEAT_1E_1_EAX, CPUID_1E_1_EAX_AMX_BF16_ALIAS } },
+    { XSTATE_XTILE_CFG_BIT, { FEAT_1E_1_EAX, CPUID_1E_1_EAX_AMX_COMPLEX_ALIAS } },
+    { XSTATE_XTILE_CFG_BIT, { FEAT_1E_1_EAX, CPUID_1E_1_EAX_AMX_FP16_ALIAS } },
 };
 
 static struct kvm_cpuid_entry2 *find_in_supported_entry(uint32_t function,
@@ -1403,7 +1417,7 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run)
     uint64_t reg_mask = run->system_event.data[R_ECX];
     char *message = NULL;
     uint64_t *tmp;
-    uint64_t gpa = -1ull;
+    uint64_t gpa = 0;
     bool has_gpa = false;
 
     if (error_code & 0xffff) {

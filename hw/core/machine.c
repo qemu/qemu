@@ -497,6 +497,8 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
     Object *cgs =
         object_resolve_path_component(object_get_objects_root(), value);
 
+    warn_report("memory-encryption is deprecated, use confidential-guest-support instead");
+
     if (!cgs) {
         error_setg(errp, "No such memory encryption object '%s'", value);
         return;

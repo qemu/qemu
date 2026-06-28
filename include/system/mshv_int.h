@@ -14,7 +14,24 @@
 #ifndef QEMU_MSHV_INT_H
 #define QEMU_MSHV_INT_H
 
+#include "hw/hyperv/hvhdk.h"
+
 #define MSHV_MSR_ENTRIES_COUNT 64
+
+/*
+ * Interruption-type encoding, used by the hypervisor in
+ * hv_x64_pending_interruption_register.interruption_type
+ * See TLFS 6.0 section 7.9.2, p55
+ * https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/tlfs/tlfs
+ */
+#define MSHV_HV_INTERRUPTION_TYPE_EXT_INT     0
+#define MSHV_HV_INTERRUPTION_TYPE_NMI         2
+#define MSHV_HV_INTERRUPTION_TYPE_HW_EXC      3
+#define MSHV_HV_INTERRUPTION_TYPE_SW_INT      4
+#define MSHV_HV_INTERRUPTION_TYPE_PRIV_SW_EXC 5
+#define MSHV_HV_INTERRUPTION_TYPE_SW_EXC      6
+
+#define MSHV_DIRTY_PAGES_BATCH_SIZE 0x10000
 
 typedef struct hyperv_message hv_message;
 
@@ -48,6 +65,12 @@ struct MshvState {
     int nr_as;
     MshvAddressSpace *as;
     int fd;
+    /* irqchip routing */
+    struct mshv_user_irq_table *irq_routes;
+    int nr_allocated_irq_routes;
+    unsigned long *used_gsi_bitmap;
+    unsigned int gsi_count;
+    union hv_partition_processor_features processor_features;
 };
 
 typedef struct MshvMsiControl {
@@ -58,19 +81,6 @@ typedef struct MshvMsiControl {
 #define mshv_vcpufd(cpu) (cpu->accel->cpufd)
 
 /* cpu */
-typedef struct MshvFPU {
-    uint8_t fpr[8][16];
-    uint16_t fcw;
-    uint16_t fsw;
-    uint8_t ftwx;
-    uint8_t pad1;
-    uint16_t last_opcode;
-    uint64_t last_ip;
-    uint64_t last_dp;
-    uint8_t xmm[16][16];
-    uint32_t mxcsr;
-    uint32_t pad2;
-} MshvFPU;
 
 typedef enum MshvVmExit {
     MshvVmExitIgnore   = 0,
@@ -81,19 +91,20 @@ typedef enum MshvVmExit {
 void mshv_init_mmio_emu(void);
 int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd);
 void mshv_remove_vcpu(int vm_fd, int cpu_fd);
-int mshv_configure_vcpu(const CPUState *cpu, const MshvFPU *fpu, uint64_t xcr0);
-int mshv_get_standard_regs(CPUState *cpu);
-int mshv_get_special_regs(CPUState *cpu);
+int mshv_configure_vcpu(const CPUState *cpu);
 int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit);
-int mshv_load_regs(CPUState *cpu);
-int mshv_store_regs(CPUState *cpu);
 int mshv_set_generic_regs(const CPUState *cpu, const hv_register_assoc *assocs,
                           size_t n_regs);
-int mshv_arch_put_registers(const CPUState *cpu);
+int mshv_get_generic_regs(CPUState *cpu, hv_register_assoc *assocs,
+                          size_t n_regs);
+int mshv_arch_store_vcpu_state(const CPUState *cpu);
+int mshv_arch_load_vcpu_state(CPUState *cpu);
 void mshv_arch_init_vcpu(CPUState *cpu);
 void mshv_arch_destroy_vcpu(CPUState *cpu);
 void mshv_arch_amend_proc_features(
     union hv_partition_synthetic_processor_features *features);
+void mshv_arch_disable_partition_proc_features(
+     union hv_partition_processor_features *disabled_features);
 int mshv_arch_post_init_vm(int vm_fd);
 
 typedef struct mshv_root_hvcall mshv_root_hvcall;
@@ -113,24 +124,13 @@ int mshv_guest_mem_write(uint64_t gpa, const uint8_t *data, uintptr_t size,
                          bool is_secure_mode);
 void mshv_set_phys_mem(MshvMemoryListener *mml, MemoryRegionSection *section,
                        bool add);
+void mshv_log_sync(MemoryListener *listener, MemoryRegionSection *section);
+bool mshv_log_global_start(MemoryListener *listener, Error **errp);
+void mshv_log_global_stop(MemoryListener *listener);
 
 /* msr */
-typedef struct MshvMsrEntry {
-  uint32_t index;
-  uint32_t reserved;
-  uint64_t data;
-} MshvMsrEntry;
-
-typedef struct MshvMsrEntries {
-    MshvMsrEntry entries[MSHV_MSR_ENTRIES_COUNT];
-    uint32_t nmsrs;
-} MshvMsrEntries;
-
-int mshv_configure_msr(const CPUState *cpu, const MshvMsrEntry *msrs,
-                       size_t n_msrs);
-
-/* interrupt */
-void mshv_init_msicontrol(void);
-int mshv_reserve_ioapic_msi_routes(int vm_fd);
+int mshv_init_msrs(const CPUState *cpu);
+int mshv_get_msrs(CPUState *cpu);
+int mshv_set_msrs(const CPUState *cpu);
 
 #endif
