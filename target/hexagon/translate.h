@@ -41,6 +41,14 @@ typedef struct DisasContext {
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
     bool implicit_usr_write;
+#ifndef CONFIG_USER_ONLY
+    int greg_log[GREG_WRITES_MAX];
+    int greg_log_idx;
+    int sreg_log[SREG_WRITES_MAX];
+    int sreg_log_idx;
+    TCGv_i32 t_sreg_new_value[HEX_SREG_GLB_START];
+    TCGv_i32 greg_new_value[NUM_GREGS];
+#endif
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
     DECLARE_BITMAP(pregs_written, NUM_PREGS);
@@ -77,9 +85,39 @@ typedef struct DisasContext {
     TCGv new_pred_value[NUM_PREGS];
     TCGv branch_taken;
     TCGv dczero_addr;
+    bool pcycle_enabled;
+    uint32_t num_cycles;
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);
+
+#ifndef CONFIG_USER_ONLY
+static inline void ctx_log_greg_write(DisasContext *ctx, int rnum)
+{
+    assert(rnum <= HEX_GREG_G3);
+    ctx->greg_log[ctx->greg_log_idx] = rnum;
+    ctx->greg_log_idx++;
+}
+
+static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)
+{
+    assert(!(rnum % 2));
+    ctx_log_greg_write(ctx, rnum);
+    ctx_log_greg_write(ctx, rnum + 1);
+}
+
+static inline void ctx_log_sreg_write(DisasContext *ctx, int rnum)
+{
+    ctx->sreg_log[ctx->sreg_log_idx] = rnum;
+    ctx->sreg_log_idx++;
+}
+
+static inline void ctx_log_sreg_write_pair(DisasContext *ctx, int rnum)
+{
+    ctx_log_sreg_write(ctx, rnum);
+    ctx_log_sreg_write(ctx, rnum + 1);
+}
+#endif
 
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
@@ -282,6 +320,13 @@ extern TCGv_i64 hex_llsc_val_i64;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
+#ifndef CONFIG_USER_ONLY
+extern TCGv_i32 hex_greg[NUM_GREGS];
+extern TCGv_i32 hex_t_sreg[NUM_SREGS];
+#endif
+
+
+void hex_gen_exception_end_tb(DisasContext *ctx, int excp);
 
 void process_store(DisasContext *ctx, int slot_num);
 
@@ -294,5 +339,7 @@ FIELD(PROBE_PKT_SCALAR_HVX_STORES, HAS_HVX_STORES, 2, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED,     3, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED,     4, 1)
 FIELD(PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,        5, 2)
+
+void gen_framecheck(DisasContext *ctx, TCGv_i32 addr, TCGv_i32 ea);
 
 #endif

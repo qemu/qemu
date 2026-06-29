@@ -71,7 +71,7 @@ typedef struct QDevAlias
                               QEMU_ARCH_SPARC | \
                               QEMU_ARCH_XTENSA)
 #define QEMU_ARCH_VIRTIO_CCW (QEMU_ARCH_S390X)
-#define QEMU_ARCH_VIRTIO_MMIO (QEMU_ARCH_M68K)
+#define QEMU_ARCH_VIRTIO_MMIO (QEMU_ARCH_M68K | QEMU_ARCH_HEXAGON)
 
 /* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {

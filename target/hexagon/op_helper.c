@@ -20,36 +20,59 @@
 #include "accel/tcg/cpu-ldst.h"
 #include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/probe.h"
+#include "qemu/main-loop.h"
+#include "cpu.h"
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
-#include "cpu.h"
+#include "exec/cpu-interrupt.h"
 #include "internal.h"
 #include "macros.h"
+#include "sys_macros.h"
 #include "arch.h"
 #include "hex_arch_types.h"
 #include "fma_emu.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
 #include "op_helper.h"
+#include "cpu_helper.h"
 #include "translate.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/hexagon/hexagon_globalreg.h"
+#include "hex_mmu.h"
+#include "hw/hexagon/hexagon_tlb.h"
+#include "hex_interrupts.h"
+#include "hexswi.h"
+#endif
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
 
 /* Exceptions processing helpers */
+G_NORETURN
+void do_raise_exception(CPUHexagonState *env, uint32_t exception,
+                        uint32_t PC, uintptr_t retaddr)
+{
+    CPUState *cs = env_cpu(env);
+    qemu_log_mask(CPU_LOG_INT, "%s: 0x%08" PRIx32 ", @ %08" PRIx32 "\n",
+                  __func__, exception, PC);
+    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
+
+    env->gpr[HEX_REG_PC] = PC;
+    cs->exception_index = exception;
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,
                                             uintptr_t pc)
 {
-    CPUState *cs = env_cpu(env);
-    qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
-    cs->exception_index = exception;
-    cpu_loop_exit_restore(cs, pc);
+    do_raise_exception(env, exception, pc, 0);
 }
 
-G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
+G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp,
+                                        uint32_t PC)
 {
-    hexagon_raise_exception_err(env, excp, 0);
+    hexagon_raise_exception_err(env, excp, PC);
 }
 
 void log_store32(CPUHexagonState *env, target_ulong addr,
@@ -1205,6 +1228,131 @@ float64 HELPER(dfmpyhh)(CPUHexagonState *env, float64 RxxV,
     return RxxV;
 }
 
+#ifndef CONFIG_USER_ONLY
+void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
+{
+    BQL_LOCK_GUARD();
+    hexagon_modify_ssr(env, new, old);
+}
+
+static void hex_k0_lock(CPUHexagonState *env)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
+    target_ulong syscfg;
+
+    BQL_LOCK_GUARD();
+    g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
+
+    syscfg = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG,
+                               env->threadId) : 0;
+    if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
+        if (env->k0_lock_state == HEX_LOCK_QUEUED) {
+            env->next_PC += 4;
+            env->k0_lock_count++;
+            env->k0_lock_state = HEX_LOCK_OWNER;
+            SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
+            return;
+        }
+        if (env->k0_lock_state == HEX_LOCK_OWNER) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "Double k0lock at PC: 0x%" PRIx32
+                          ", thread may hang\n",
+                          env->next_PC);
+            env->next_PC += 4;
+            cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+            cpu_loop_exit(cs);
+            return;
+        }
+        env->k0_lock_state = HEX_LOCK_WAITING;
+        cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+        cpu_loop_exit(cs);
+    } else {
+        env->next_PC += 4;
+        env->k0_lock_count++;
+        env->k0_lock_state = HEX_LOCK_OWNER;
+        SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
+    }
+}
+
+static void hex_k0_unlock(CPUHexagonState *env)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    unsigned int this_threadId = env->threadId;
+    CPUHexagonState *unlock_thread = NULL;
+    CPUState *cs;
+    target_ulong syscfg;
+
+    BQL_LOCK_GUARD();
+    g_assert((env->k0_lock_count == 0) || (env->k0_lock_count == 1));
+
+    /* Nothing to do if the k0 isn't locked by this thread */
+    syscfg = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG,
+                               env->threadId) : 0;
+    if ((GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg) == 0) ||
+        (env->k0_lock_state != HEX_LOCK_OWNER)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "thread %" PRIu32 " attempted to unlock k0 without"
+                      " having the lock, k0_lock state = %u,"
+                      " syscfg:k0 = %" PRIu32 "\n",
+                      env->threadId, (unsigned)env->k0_lock_state,
+                      (uint32_t)GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg));
+        g_assert(env->k0_lock_state != HEX_LOCK_WAITING);
+        return;
+    }
+
+    env->k0_lock_count--;
+    env->k0_lock_state = HEX_LOCK_UNLOCKED;
+    SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 0);
+
+    /* Look for a thread to unlock */
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread = cpu_env(cs);
+
+        /*
+         * The hardware implements round-robin fairness, so we look for threads
+         * starting at env->threadId + 1 and incrementing modulo the number of
+         * threads.
+         *
+         * To implement this, we check if thread is a earlier in the modulo
+         * sequence than unlock_thread.
+         *     if unlock thread is higher than this thread
+         *         thread must be between this thread and unlock_thread
+         *     else
+         *         thread higher than this thread is ahead of unlock_thread
+         *         thread must be lower then unlock thread
+         */
+        if (thread->k0_lock_state == HEX_LOCK_WAITING) {
+            if (!unlock_thread) {
+                unlock_thread = thread;
+            } else if (unlock_thread->threadId > this_threadId) {
+                if (this_threadId < thread->threadId &&
+                    thread->threadId < unlock_thread->threadId) {
+                    unlock_thread = thread;
+                }
+            } else {
+                if (thread->threadId > this_threadId) {
+                    unlock_thread = thread;
+                }
+                if (thread->threadId < unlock_thread->threadId) {
+                    unlock_thread = thread;
+                }
+            }
+        }
+    }
+    if (unlock_thread) {
+        cs = env_cpu(unlock_thread);
+        unlock_thread->k0_lock_state = HEX_LOCK_QUEUED;
+        SET_SYSCFG_FIELD(unlock_thread, SYSCFG_K0LOCK, 1);
+        cpu_interrupt(cs, CPU_INTERRUPT_K0_UNLOCK);
+    }
+
+}
+#endif
+
+
 /* Histogram instructions */
 
 void HELPER(vhist)(CPUHexagonState *env)
@@ -1369,6 +1517,420 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
         }
     }
 }
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
+                                  uint32_t badva)
+{
+    /*
+     * Per section 7.3.1 of the V67 Programmer's Reference,
+     * stack limit exception isn't raised in monitor mode.
+     */
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+    CPUState *cs;
+
+    if (GET_SSR_FIELD(SSR_EX, ssr) ||
+        !GET_SSR_FIELD(SSR_UM, ssr)) {
+        return;
+    }
+
+    cs = env_cpu(env);
+    cs->exception_index = HEX_EVENT_PRECISE;
+    env->cause_code = HEX_CAUSE_STACK_LIMIT;
+    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+
+    if (slot == 0) {
+        env->t_sreg[HEX_SREG_BADVA0] = badva;
+        SET_SSR_FIELD(env, SSR_V0, 1);
+        SET_SSR_FIELD(env, SSR_V1, 0);
+        SET_SSR_FIELD(env, SSR_BVS, 0);
+    } else if (slot == 1) {
+        env->t_sreg[HEX_SREG_BADVA1] = badva;
+        SET_SSR_FIELD(env, SSR_V0, 0);
+        SET_SSR_FIELD(env, SSR_V1, 1);
+        SET_SSR_FIELD(env, SSR_BVS, 1);
+    } else {
+        g_assert_not_reached();
+    }
+    cpu_loop_exit_restore(cs, 0);
+}
+
+void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
+{
+    g_assert_not_reached();
+}
+
+void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
+{
+    uint32_t ipendad;
+    uint32_t iad;
+    HexagonCPU *cpu;
+
+    BQL_LOCK_GUARD();
+    cpu = env_archcpu(env);
+    ipendad = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                               env->threadId) : 0;
+    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
+    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
+    if (cpu->globalregs) {
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
+    hex_interrupt_update(env);
+}
+
+void HELPER(swi)(CPUHexagonState *env, uint32_t mask)
+{
+    BQL_LOCK_GUARD();
+    hex_raise_interrupts(env, mask, CPU_INTERRUPT_SWI);
+}
+
+void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
+{
+    BQL_LOCK_GUARD();
+    hex_clear_interrupts(env, mask, CPU_INTERRUPT_SWI);
+}
+
+void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
+{
+    uint32_t modectl;
+    uint32_t thread_enabled_mask;
+    CPUState *cpu;
+    HexagonCPU *hex_cpu;
+
+    BQL_LOCK_GUARD();
+    hex_cpu = env_archcpu(env);
+    modectl = hex_cpu->globalregs ?
+        hexagon_globalreg_read(hex_cpu->globalregs, HEX_SREG_MODECTL,
+                               env->threadId) : 0;
+    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+
+    CPU_FOREACH(cpu) {
+        CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
+        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
+        if (thread_enabled_mask & thread_id_mask) {
+            uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
+            uint32_t intbitpos = (src >> 16) & 0xF;
+            uint32_t val = (src >> thread_env->threadId) & 0x1;
+            imask = deposit32(imask, intbitpos, 1, val);
+            thread_env->t_sreg[HEX_SREG_IMASK] = imask;
+
+            qemu_log_mask(CPU_LOG_INT, "%s: thread " TARGET_FMT_ld
+               ", new imask 0x%" PRIx32 "\n", __func__,
+               thread_env->threadId, imask);
+        }
+    }
+    hex_interrupt_update(env);
+}
+
+uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
+{
+    uint32_t modectl;
+    uint32_t thread_enabled_mask;
+    uint32_t intbitpos;
+    uint32_t dest_reg;
+    CPUState *cpu;
+    HexagonCPU *hex_cpu;
+
+    BQL_LOCK_GUARD();
+    hex_cpu = env_archcpu(env);
+    modectl = hex_cpu->globalregs ?
+        hexagon_globalreg_read(hex_cpu->globalregs, HEX_SREG_MODECTL,
+                               env->threadId) : 0;
+    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
+    /* src fields are in same position as modectl, but mean different things */
+    intbitpos = GET_FIELD(MODECTL_W, src);
+    dest_reg = 0;
+    CPU_FOREACH(cpu) {
+        CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
+        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
+        if (thread_enabled_mask & thread_id_mask) {
+            uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
+            dest_reg |= ((imask >> intbitpos) & 0x1) << thread_env->threadId;
+        }
+    }
+
+    return dest_reg;
+}
+
+void HELPER(start)(CPUHexagonState *env, uint32_t imask)
+{
+    hexagon_start_threads(env, imask);
+}
+
+void HELPER(stop)(CPUHexagonState *env)
+{
+    hexagon_stop_thread(env);
+}
+
+static void set_wait_mode(CPUHexagonState *env)
+{
+    HexagonCPU *cpu;
+    uint32_t modectl;
+    uint32_t thread_wait_mask;
+
+    g_assert(bql_locked());
+
+    cpu = env_archcpu(env);
+    if (!cpu->globalregs) {
+        return;
+    }
+    modectl =
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_MODECTL,
+                               env->threadId);
+    thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
+    thread_wait_mask |= 0x1 << env->threadId;
+    SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
+}
+
+static void hexagon_wait_thread(CPUHexagonState *env, uint32_t PC)
+{
+    CPUState *cs;
+
+    g_assert(bql_locked());
+
+    if (qemu_loglevel_mask(LOG_GUEST_ERROR) &&
+        (env->k0_lock_state != HEX_LOCK_UNLOCKED ||
+         env->tlb_lock_state != HEX_LOCK_UNLOCKED)) {
+        qemu_log("WARNING: executing wait() with acquired lock"
+                 "may lead to deadlock\n");
+    }
+    g_assert(get_exe_mode(env) != HEX_EXE_MODE_WAIT);
+
+    cs = env_cpu(env);
+    /*
+     * The addtion of cpu_has_work is borrowed from arm's wfi helper
+     * and is critical for our stability
+     */
+    if ((cs->exception_index != HEX_EVENT_NONE) ||
+        (cpu_has_work(cs))) {
+        qemu_log_mask(CPU_LOG_INT,
+            "%s: thread %" PRIu32 " skipping WAIT mode, have some work\n",
+            __func__, env->threadId);
+        return;
+    }
+    set_wait_mode(env);
+    env->wait_next_pc = PC + 4;
+
+    cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+}
+
+static inline QEMU_ALWAYS_INLINE void resched(CPUHexagonState *env)
+{
+    uint32_t schedcfg;
+    uint32_t schedcfg_en;
+    int int_number;
+    CPUState *cs;
+    uint32_t lowest_th_prio = 0; /* 0 is highest prio */
+    uint32_t bestwait_reg;
+    uint32_t best_prio;
+    HexagonCPU *cpu;
+
+    BQL_LOCK_GUARD();
+    qemu_log_mask(CPU_LOG_INT, "%s: check resched\n", __func__);
+    cpu = env_archcpu(env);
+    schedcfg = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SCHEDCFG,
+                               env->threadId) : 0;
+    schedcfg_en = GET_FIELD(SCHEDCFG_EN, schedcfg);
+    int_number = GET_FIELD(SCHEDCFG_INTNO, schedcfg);
+
+    if (!schedcfg_en) {
+        return;
+    }
+
+    CPU_FOREACH(cs) {
+        HexagonCPU *thread = HEXAGON_CPU(cs);
+        CPUHexagonState *thread_env = &(thread->env);
+        uint32_t th_prio = GET_FIELD(
+            STID_PRIO, thread_env->t_sreg[HEX_SREG_STID]);
+        if (!hexagon_thread_is_enabled(thread_env)) {
+            continue;
+        }
+
+        lowest_th_prio = (lowest_th_prio > th_prio)
+            ? lowest_th_prio
+            : th_prio;
+    }
+
+    bestwait_reg = cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_BESTWAIT,
+                               env->threadId) : 0;
+    best_prio = GET_FIELD(BESTWAIT_PRIO, bestwait_reg);
+
+    /*
+     * If the lowest priority thread is lower priority than the
+     * value in the BESTWAIT register, we must raise the reschedule
+     * interrupt on the lowest priority thread.
+     */
+    if (lowest_th_prio > best_prio) {
+        qemu_log_mask(CPU_LOG_INT,
+                "%s: raising resched int %u,"
+                " cur PC 0x%" PRIx32 "\n",
+                __func__, (unsigned)int_number, env->gpr[HEX_REG_PC]);
+        SET_SYSTEM_FIELD(env, HEX_SREG_BESTWAIT, BESTWAIT_PRIO, ~0);
+        hex_raise_interrupts(env, 1 << int_number, CPU_INTERRUPT_SWI);
+    }
+}
+
+void HELPER(resched)(CPUHexagonState *env)
+{
+    resched(env);
+}
+
+void HELPER(wait)(CPUHexagonState *env, uint32_t PC)
+{
+    BQL_LOCK_GUARD();
+
+    if (!fIN_DEBUG_MODE(env->threadId)) {
+        hexagon_wait_thread(env, PC);
+    }
+}
+
+void HELPER(resume)(CPUHexagonState *env, uint32_t mask)
+{
+    BQL_LOCK_GUARD();
+    hexagon_resume_threads(env, mask);
+}
+
+uint32_t HELPER(getimask)(CPUHexagonState *env, uint32_t tid)
+{
+    CPUState *cs;
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+        if (found_env->threadId == tid) {
+            uint32_t imask = found_env->t_sreg[HEX_SREG_IMASK];
+            qemu_log_mask(CPU_LOG_INT, "%s: tid " TARGET_FMT_lx
+                          " imask = 0x%" PRIx32 "\n", __func__,
+                          env->threadId,
+                          (uint32_t)GET_FIELD(IMASK_MASK, imask));
+            return GET_FIELD(IMASK_MASK, imask);
+        }
+    }
+    return 0;
+}
+
+void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
+{
+    CPUState *cs;
+
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+
+        if (tid == found_env->threadId) {
+            SET_SYSTEM_FIELD(found_env, HEX_SREG_IMASK, IMASK_MASK, imask);
+            qemu_log_mask(CPU_LOG_INT, "%s: tid " TARGET_FMT_lx
+                          " imask 0x%" PRIx32 "\n",
+                          __func__, found_env->threadId, imask);
+            hex_interrupt_update(found_env);
+            return;
+        }
+    }
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "setimask used with an invalid tid near PC: 0x%"
+                  PRIx32 "\n", env->next_PC);
+}
+
+void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    BQL_LOCK_GUARD();
+    if (reg < HEX_SREG_GLB_START) {
+        env->t_sreg[reg] = val;
+    } else {
+        HexagonCPU *cpu = env_archcpu(env);
+        if (cpu->globalregs) {
+            hexagon_globalreg_write_masked(cpu->globalregs, reg, val);
+        }
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
+                                                    uint32_t reg)
+{
+    HexagonCPU *cpu;
+
+    g_assert(bql_locked());
+    if (reg < HEX_SREG_GLB_START) {
+        return env->t_sreg[reg];
+    }
+    cpu = env_archcpu(env);
+    return cpu->globalregs ?
+        hexagon_globalreg_read(cpu->globalregs, reg, env->threadId) : 0;
+}
+
+uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
+{
+    BQL_LOCK_GUARD();
+    return sreg_read(env, reg);
+}
+
+uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
+{
+    BQL_LOCK_GUARD();
+
+    return deposit64((uint64_t) sreg_read(env, reg), 32, 32,
+        sreg_read(env, reg + 1));
+}
+
+uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
+
+{
+    return hexagon_greg_read(env, reg);
+}
+
+uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
+
+{
+    if (reg == HEX_GREG_G0 || reg == HEX_GREG_G2) {
+        return (uint64_t)(env->greg[reg]) |
+               (((uint64_t)(env->greg[reg + 1])) << 32);
+    }
+    switch (reg) {
+    case HEX_GREG_GPCYCLELO:
+        return hexagon_get_sys_pcycle_count(env);
+    default:
+        return (uint64_t)hexagon_greg_read(env, reg) |
+               ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
+    }
+}
+
+/*
+ * setprio/resched - hardware-assisted scheduler helpers for managing
+ * the run queue and interrupt steering.
+ */
+void HELPER(setprio)(CPUHexagonState *env, uint32_t thread, uint32_t prio)
+{
+    CPUState *cs;
+
+    BQL_LOCK_GUARD();
+    CPU_FOREACH(cs) {
+        HexagonCPU *found_cpu = HEXAGON_CPU(cs);
+        CPUHexagonState *found_env = &found_cpu->env;
+        if (thread == found_env->threadId) {
+            SET_SYSTEM_FIELD(found_env, HEX_SREG_STID, STID_PRIO, prio);
+            qemu_log_mask(CPU_LOG_INT,
+                          "%s: tid %" PRIu32 " prio = 0x%" PRIx32 "\n",
+                          __func__, found_env->threadId, prio);
+            resched(env);
+            return;
+        }
+    }
+    g_assert_not_reached();
+}
+
+
+void HELPER(pending_interrupt)(CPUHexagonState *env)
+{
+    BQL_LOCK_GUARD();
+    hex_interrupt_update(env);
+}
+#endif
+
 
 /* These macros can be referenced in the generated helper functions */
 #define warn(...) /* Nothing */

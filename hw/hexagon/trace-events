@@ -1,0 +1,3 @@
+# Hexagon global register access
+hexagon_globalreg_read(uint32_t htid, const char *reg_name, uint32_t value) "htid=%u reg=%s value=0x%x"
+hexagon_globalreg_write(uint32_t htid, const char *reg_name, uint32_t value) "htid=%u reg=%s value=0x%x"

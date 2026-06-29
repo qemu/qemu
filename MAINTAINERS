@@ -256,8 +256,12 @@ F: linux-user/hexagon/
 F: tests/tcg/hexagon/
 F: disas/hexagon.c
 F: configs/targets/hexagon-linux-user.mak
+F: configs/targets/hexagon-softmmu.mak
 F: tests/docker/dockerfiles/debian-hexagon-cross.docker
 F: gdbstub/gdb-xml/hexagon*.xml
+F: docs/system/target-hexagon.rst
+F: docs/system/hexagon/
+F: docs/devel/hexagon-sys.rst
 T: git https://github.com/qualcomm/qemu.git hex-next
 
 Hexagon idef-parser
@@ -1340,6 +1344,18 @@ F: include/hw/pci-host/dino.h
 F: pc-bios/hppa-firmware.img
 F: roms/seabios-hppa/
 F: tests/functional/hppa/
+
+Hexagon Machines
+----------------
+V66G_1024, V68N_1024, sa8775-cdsp0
+M: Brian Cain <brian.cain@oss.qualcomm.com>
+R: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
+S: Supported
+F: hw/hexagon/
+F: include/hw/hexagon/
+F: configs/devices/hexagon-softmmu/default.mak
+F: docs/system/hexagon/
+F: docs/devel/hexagon-sys.rst
 
 LoongArch Machines
 ------------------
