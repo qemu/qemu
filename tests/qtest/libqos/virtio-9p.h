@@ -45,6 +45,12 @@ struct QVirtio9PDevice {
 };
 
 /**
+ * Add required test specific args to the QEMU command line for the 9pfs
+ * 'synth' fs driver.
+ */
+void virtio_9p_add_synth_driver_args(GString *cmd_line, const char *args);
+
+/**
  * Creates the directory for the 9pfs 'local' filesystem driver to access.
  */
 void virtio_9p_create_local_test_dir(void);

@@ -241,6 +241,9 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RUNLINKAT ? "RUNLINKAT" :
         id == P9_RFLUSH ? "RFLUSH" :
         id == P9_RREADDIR ? "RREADDIR" :
+        id == P9_RREAD ? "RREAD" :
+        id == P9_RCLUNK ? "RCLUNK" :
+        id == P9_RXATTRCREATE ? "RXATTRCREATE" :
         "<unknown>";
 }
 
@@ -1101,5 +1104,126 @@ TunlinkatRes v9fs_tunlinkat(TunlinkatOpt opt)
 void v9fs_runlinkat(P9Req *req)
 {
     v9fs_req_recv(req, P9_RUNLINKAT);
+    v9fs_req_free(req);
+}
+
+/* size[4] Tread tag[2] fid[4] offset[8] count[4] */
+TReadRes v9fs_tread(TReadOpt opt)
+{
+    P9Req *req;
+    uint32_t err;
+
+    g_assert(opt.client);
+
+    uint32_t body_size = 4 + 8 + 4;
+
+    req = v9fs_req_init(opt.client, body_size, P9_TREAD, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint64_write(req, opt.offset);
+    v9fs_uint32_write(req, opt.count);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rread(req, opt.rread.count, opt.rread.data);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TReadRes) {
+        .req = req,
+        .count = opt.rread.count ? *opt.rread.count : 0
+    };
+}
+
+/* size[4] Rread tag[2] count[4] data[count] */
+void v9fs_rread(P9Req *req, uint32_t *count, void *data)
+{
+    v9fs_req_recv(req, P9_RREAD);
+    v9fs_uint32_read(req, count);
+    if (data && *count > 0) {
+        v9fs_memread(req, data, *count);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tclunk tag[2] fid[4] */
+TClunkRes v9fs_tclunk(TClunkOpt opt)
+{
+    P9Req *req;
+    uint32_t err;
+
+    g_assert(opt.client);
+
+    req = v9fs_req_init(opt.client, 4, P9_TCLUNK, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rclunk(req);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TClunkRes) { .req = req };
+}
+
+/* size[4] Rclunk tag[2] */
+void v9fs_rclunk(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RCLUNK);
+    v9fs_req_free(req);
+}
+
+/* size[4] Txattrcreate tag[2] fid[4] name[s] attr_size[8] flags[4] */
+TXattrCreateRes v9fs_txattrcreate(TXattrCreateOpt opt)
+{
+    P9Req *req;
+    uint32_t err;
+
+    g_assert(opt.client);
+    g_assert(opt.name);
+
+    uint32_t body_size = 4 + 8 + 4;
+    uint16_t string_size = v9fs_string_size(opt.name);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(opt.client, body_size, P9_TXATTRCREATE, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_string_write(req, opt.name);
+    v9fs_uint64_write(req, opt.size);
+    v9fs_uint32_write(req, opt.flags);
+    v9fs_req_send(req);
+
+    err = 0;
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rxattrcreate(req);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TXattrCreateRes) { .req = req, .err = err };
+}
+
+/* size[4] Rxattrcreate tag[2] */
+void v9fs_rxattrcreate(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RXATTRCREATE);
     v9fs_req_free(req);
 }

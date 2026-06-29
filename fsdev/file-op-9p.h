@@ -81,6 +81,11 @@ typedef struct ExtendedOps {
 
 #define V9FS_SEC_MASK               0x0000003C
 
+/*
+ * Limits the maximum amount of simultaneously open xattr FIDs to prevent
+ * host memory exhaustion (as each xattr FID contains a xattr value buffer).
+ */
+#define V9FS_MAX_XATTR_DEFAULT  1024
 
 typedef struct FileOperations FileOperations;
 typedef struct XattrOperations XattrOperations;
@@ -96,6 +101,8 @@ typedef struct FsDriverEntry {
     FsThrottle fst;
     mode_t fmode;
     mode_t dmode;
+    /* temporary storage for parse_opts only */
+    uint32_t max_xattr;
 } FsDriverEntry;
 
 struct FsContext {
@@ -109,6 +116,10 @@ struct FsContext {
     void *private;
     mode_t fmode;
     mode_t dmode;
+    /* max. amount of simultaneously open xattr FIDs */
+    uint32_t xattr_fid_limit;
+    /* current amount of open xattr FIDs */
+    uint32_t xattr_fid_count;
 };
 
 struct V9fsPath {
