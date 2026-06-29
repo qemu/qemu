@@ -1772,7 +1772,8 @@ static void vmcoreinfo_update_phys_base(DumpState *s)
         if (prefix && g_str_has_prefix(lines[i], prefix)) {
             if (qemu_strtou64(lines[i] + strlen(prefix), NULL, 16,
                               &phys_base) < 0) {
-                warn_report("Failed to read %s", prefix);
+                warn_report("failed to parse %s in VMCOREINFO: '%s'",
+                            prefix, lines[i] + strlen(prefix));
             } else {
                 s->dump_info.phys_base = phys_base;
             }
