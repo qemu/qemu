@@ -2291,7 +2291,7 @@ F: hw/char/
 F: include/hw/char/
 
 Network devices
-M: Jason Wang <jasowang@redhat.com>
+M: Jason Wang <jasowangio@gmail.com>
 S: Odd Fixes
 F: hw/net/
 F: include/hw/net/
@@ -3464,7 +3464,7 @@ F: include/qemu/qemu-print.h
 F: util/qemu-print.c
 
 Network device backends
-M: Jason Wang <jasowang@redhat.com>
+M: Jason Wang <jasowangio@gmail.com>
 S: Maintained
 F: net/
 F: include/net/
@@ -4061,7 +4061,7 @@ F: target/i386/igvm.c
 
 VT-d Emulation
 M: Michael S. Tsirkin <mst@redhat.com>
-R: Jason Wang <jasowang@redhat.com>
+R: Jason Wang <jasowangio@gmail.com>
 R: Yi Liu <yi.l.liu@intel.com>
 R: Clément Mathieu--Drif <clement.mathieu--drif@bull.com>
 S: Supported
@@ -4496,7 +4496,7 @@ F: subprojects/libvfio-user.wrap
 F: tests/functional/x86_64/test_vfio_user_client.py
 
 EBPF
-M: Jason Wang <jasowang@redhat.com>
+M: Jason Wang <jasowangio@gmail.com>
 R: Yuri Benditovich <ybendito@redhat.com>
 S: Maintained
 F: docs/devel/ebpf_rss.rst
