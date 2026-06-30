@@ -115,6 +115,7 @@ bool vring_notify(VRing *vr)
         break;
     case S390_IPL_TYPE_PCI:
         vr->cookie = virtio_pci_notify(vr->id);
+        break;
     default:
         return 1;
     }
