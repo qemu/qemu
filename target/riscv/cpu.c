@@ -646,6 +646,7 @@ static void rv64_tt_ascalon_cpu_init(Object *obj)
     cpu->cfg.ext_zba = true;
     cpu->cfg.ext_zbb = true;
     cpu->cfg.ext_zbs = true;
+    cpu->cfg.ext_zkr = true;
     cpu->cfg.ext_zkt = true;
     cpu->cfg.ext_zvbb = true;
     cpu->cfg.ext_zvbc = true;
