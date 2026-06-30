@@ -377,8 +377,16 @@ static void tt_atlantis_machine_done(Notifier *notifier, void *data)
     if (machine->kernel_filename) {
         riscv_load_kernel(machine, &boot_info, kernel_start_addr,
                           true, NULL);
+        kernel_entry = boot_info.image_low_addr;
+    } else {
+        /* If we aren't loading a payload, OpenSBI thinks we are trying to boot
+         * address 0, which fails `sbi_domain_check_addr()` as that is where
+         * OpenSBI is running. Instead point OpenSBI to the end of the region
+         * where it was loaded, which avoids the early hang, allowing the
+         * system to proceed with the OpenSBI boot output.
+         */
+        kernel_entry = kernel_start_addr;
     }
-    kernel_entry = boot_info.image_low_addr;
 
     fdt_load_addr = riscv_compute_fdt_addr(s->memmap[TT_ATL_DDR_LO].base,
                                            s->memmap[TT_ATL_DDR_LO].size,
