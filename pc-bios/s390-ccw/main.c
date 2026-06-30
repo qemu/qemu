@@ -52,7 +52,8 @@ void write_subsystem_identification(void)
 
 void write_iplb_location(void)
 {
-    if (cutype == CU_TYPE_VIRTIO && virtio_get_device_type() != VIRTIO_ID_NET) {
+    if (virtio_is_supported(virtio_get_device()) &&
+        virtio_get_device_type() != VIRTIO_ID_NET) {
         lowcore->ptr_iplb = ptr2u32(&iplb);
     }
 }
