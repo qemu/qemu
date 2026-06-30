@@ -424,7 +424,8 @@ static void k230_direct_boot(K230MachineState *s, MachineState *machine)
 
     riscv_load_fdt(K230_DIRECT_DTB_ADDR, machine->fdt);
 
-    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
+    firmware_end_addr = riscv_find_and_load_firmware(machine, &boot_info,
+                                                     firmware_name,
                                                      &start_addr, NULL);
     if (firmware_end_addr > K230_DIRECT_KERNEL_ADDR) {
         error_report("K230 firmware overlaps kernel address 0x%x",
@@ -442,13 +443,16 @@ static void k230_firmware_boot(K230MachineState *s, MachineState *machine)
 {
     const char *firmware_name = riscv_default_firmware_name(&s->soc.c908_cpu);
     hwaddr start_addr = memmap[K230_DEV_DDRC].base;
+    RISCVBootInfo boot_info = {0};
 
     if (machine->dtb || (machine->kernel_cmdline && *machine->kernel_cmdline)) {
         error_report("K230 firmware boot does not support -dtb or -append");
         exit(EXIT_FAILURE);
     }
 
-    riscv_find_and_load_firmware(machine, firmware_name, &start_addr, NULL);
+    riscv_boot_info_init(&boot_info, &s->soc.c908_cpu);
+    riscv_find_and_load_firmware(machine, &boot_info, firmware_name,
+                                 &start_addr, NULL);
 
     riscv_setup_rom_reset_vec(machine, &s->soc.c908_cpu, start_addr,
                               memmap[K230_DEV_BOOTROM].base,

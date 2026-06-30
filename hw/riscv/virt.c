@@ -1310,7 +1310,10 @@ static void virt_machine_done(Notifier *notifier, void *data)
         }
     }
 
-    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
+    riscv_boot_info_init(&boot_info, &s->soc[0]);
+
+    firmware_end_addr = riscv_find_and_load_firmware(machine, &boot_info,
+                                                     firmware_name,
                                                      &start_addr, NULL);
 
     pflash_blk0 = pflash_cfi01_get_blk(s->flash[0]);
@@ -1332,8 +1335,6 @@ static void virt_machine_done(Notifier *notifier, void *data)
             kernel_entry = s->memmap[VIRT_FLASH].base;
         }
     }
-
-    riscv_boot_info_init(&boot_info, &s->soc[0]);
 
     if (machine->kernel_filename && !kernel_entry) {
         kernel_start_addr = riscv_calc_kernel_start_addr(&boot_info,
