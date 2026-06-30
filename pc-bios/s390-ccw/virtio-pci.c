@@ -325,6 +325,20 @@ static int enable_pci_bus_master(void)
     return 0;
 }
 
+bool virtio_pci_is_supported(VDev *vdev)
+{
+    if (vdev->vendor_id == PCI_VENDOR_VIRTIO) {
+        switch (vdev->dev_type) {
+        case VIRTIO_ID_BLOCK:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    return false;
+}
+
 int virtio_pci_setup(VDev *vdev)
 {
     VRing *vr;
@@ -334,6 +348,11 @@ int virtio_pci_setup(VDev *vdev)
 
     vdev->guessed_disk_nature = VIRTIO_GDN_NONE;
     vdev->cmd_vr_idx = 0;
+
+    if (!virtio_pci_is_supported(vdev)) {
+        puts("Virtio PCI unsupported for this device ID");
+        return -ENODEV;
+    }
 
     if (virtio_pci_read_pci_cap_config()) {
         puts("Invalid virtio PCI capabilities");

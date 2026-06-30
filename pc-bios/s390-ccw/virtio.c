@@ -247,6 +247,8 @@ bool virtio_is_supported(VDev *vdev)
     case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_ccw_is_supported(vdev);
+    case S390_IPL_TYPE_PCI:
+        return virtio_pci_is_supported(vdev);
     default:
         return false;
     }

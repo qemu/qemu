@@ -56,6 +56,8 @@
 
 #define VIRTIO_F_VERSION_1          1   /* Feature bit 32 */
 
+#define PCI_VENDOR_VIRTIO           0x1af4
+
 struct VirtioPciCap {
     uint8_t bar;     /* Which PCIAS it's in */
     uint32_t off;    /* Offset within bar */
@@ -65,6 +67,7 @@ typedef struct VirtioPciCap  VirtioPciCap;
 void virtio_pci_id2type(VDev *vdev, uint16_t device_id);
 int virtio_pci_reset(VDev *vdev);
 long virtio_pci_notify(VRing *vr);
+bool virtio_pci_is_supported(VDev *vdev);
 int virtio_pci_setup(VDev *vdev);
 int virtio_pci_setup_device(void);
 
