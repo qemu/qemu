@@ -1790,6 +1790,18 @@ F: hw/*/*sifive*.c
 F: include/hw/*/*sifive*.h
 F: tests/functional/riscv64/test_sifive_u.py
 
+Tenstorrent Machines
+M: Joel Stanley <joel@jms.id.au>
+M: Nicholas Piggin <npiggin@gmail.com>
+R: Anirudh Srinivasan <asrinivasan@oss.tenstorrent.com>
+R: Michael Ellerman <mpe@kernel.org>
+R: Portia Stephens <portias@oss.tenstorrent.com>
+L: qemu-riscv@nongnu.org
+S: Supported
+F: docs/system/riscv/tt_*.rst
+F: hw/riscv/tt_*.c
+F: include/hw/riscv/tt_*.h
+
 AMD Microblaze-V Generic Board
 M: Sai Pavan Boddu <sai.pavan.boddu@amd.com>
 S: Maintained
