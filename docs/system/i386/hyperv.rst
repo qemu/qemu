@@ -71,8 +71,11 @@ Existing enlightenments
   by the guest when it crashes, HV_X64_MSR_CRASH_P0..HV_X64_MSR_CRASH_P5 MSRs
   contain additional crash information. This information is outputted in QEMU log
   and through QAPI.
-  Note: unlike under genuine Hyper-V, write to HV_X64_MSR_CRASH_CTL causes guest
-  to shutdown. This effectively blocks crash dump generation by Windows.
+  Note: unlike under genuine Hyper-V, write to HV_X64_MSR_CRASH_CTL triggers
+  ``qemu_system_guest_panicked()`` via ``KVM_SYSTEM_EVENT_CRASH`` and the
+  resulting action depends on the ``-action panic=...`` policy (default:
+  ``shutdown``). With the default action, this effectively blocks crash dump
+  generation by Windows.
 
 ``hv-time``
   Enables two Hyper-V-specific clocksources available to the guest: MSR-based
@@ -304,8 +307,9 @@ currently implemented Hyper-V enlightenments with the following exceptions:
   ``hv-version-id-snumber`` can be left unchanged, guests are not supposed to
   behave differently when different Hyper-V version is presented to them.
 - ``hv-crash`` must only be enabled if the crash information is consumed via
-  QAPI by higher levels of the virtualization stack. Enabling this feature
-  effectively prevents Windows from creating dumps upon crashes.
+  QAPI by higher levels of the virtualization stack. With the default
+  ``-action panic=shutdown`` policy, enabling this feature effectively
+  prevents Windows from creating dumps upon crashes.
 - ``hv-reenlightenment`` can only be used on hardware which supports TSC
   scaling or when guest migration is not needed.
 - ``hv-spinlocks`` should be set to e.g. 0xfff when host CPUs are overcommited
