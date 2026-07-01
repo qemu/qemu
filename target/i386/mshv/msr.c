@@ -328,7 +328,7 @@ int mshv_get_msrs(CPUState *cpu)
 {
     int ret = 0;
     size_t n_assocs = MSHV_MSR_TOTAL_COUNT;
-    struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT];
+    struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT] = { 0 };
     size_t i, j;
     uint32_t name;
     X86CPU *x86cpu = X86_CPU(cpu);
@@ -409,7 +409,7 @@ static void load_from_env(const CPUState *cpu, struct hv_register_assoc *assocs,
 int mshv_set_msrs(const CPUState *cpu)
 {
     size_t n_assocs = MSHV_MSR_TOTAL_COUNT;
-    struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT];
+    struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT] = { 0 };
     int ret;
     size_t i, j;
     X86CPU *x86cpu = X86_CPU(cpu);
