@@ -1079,7 +1079,7 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
     CPUX86State *env = &x86_cpu->env;
     uint32_t eax, ebx, ecx, edx;
     uint32_t leaf, subleaf;
-    uint32_t max_basic_leaf, max_extended_leaf;
+    uint32_t max_basic_leaf, max_extended_leaf, max_subleaf_7;
     uint32_t max_subleaf = 0x20;
     uint32_t leaves_with_subleaves[] = {0x04, 0x07, 0x0d, 0x0f, 0x10};
     int n_subleaf_leaves = ARRAY_SIZE(leaves_with_subleaves);
@@ -1117,14 +1117,31 @@ static void collect_cpuid_entries(const CPUState *cpu, GList **cpuid_entries)
             continue;
         }
 
+        /*
+         * Valid subleaves for are reported in 7.0:EAX. We need to register all
+         * subleaves to the maximum subleaf, even if they are 0. Otherwise the
+         * host will supply its own values for a unregistered subleaf, which
+         * can result in an inconsistent feature set.
+         */
+        if (leaf == 0x07) {
+            cpu_x86_cpuid(env, leaf, 0, &max_subleaf_7, &ebx, &ecx, &edx);
+            for (subleaf = 0; subleaf <= max_subleaf_7; subleaf++) {
+                cpu_x86_cpuid(env, leaf, subleaf, &eax, &ebx, &ecx, &edx);
+                add_cpuid_entry(cpuid_entries, leaf, subleaf,
+                                eax, ebx, ecx, edx);
+            }
+            continue;
+        }
+
         subleaf = 0;
         while (subleaf < max_subleaf) {
             cpu_x86_cpuid(env, leaf, subleaf, &eax, &ebx, &ecx, &edx);
 
+            /* register the "terminator" to the guest, before breaking */
+            add_cpuid_entry(cpuid_entries, leaf, subleaf, eax, ebx, ecx, edx);
             if (eax == 0 && ebx == 0 && ecx == 0 && edx == 0) {
                 break;
             }
-            add_cpuid_entry(cpuid_entries, leaf, subleaf, eax, ebx, ecx, edx);
             subleaf++;
         }
     }
