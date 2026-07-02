@@ -30,4 +30,9 @@ void create_fdt_socket_cpu_sifive(void *fdt, char *clust_name,
                                   int cpu_id, int socket_id,
                                   int socket_hartid_base, uint32_t *phandle,
                                   uint32_t *intc_phandles);
+void create_fdt_plic(void *fdt, hwaddr addr, uint64_t size,
+                     uint32_t plic_phandle, uint32_t int_cells,
+                     uint32_t addr_cells, uint32_t *plic_cells,
+                     uint32_t cells_size, uint32_t ndev_sources,
+                     bool numa_enabled, int socket);
 #endif
