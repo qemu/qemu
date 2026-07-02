@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Test how fuse exports behave with regard to O_TRUNC.
+#
+# Copyright (C) 2026 Proxmox Server Solutions GmbH
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+import subprocess
+from pathlib import Path
+
+import iotests
+from iotests import qemu_img, QemuStorageDaemon
+
+fuse_mount_point = os.path.join(iotests.test_dir, 'export.fuse')
+image_size = 1 * 1024 * 1024
+image = os.path.join(iotests.test_dir, 'image.' + iotests.imgfmt)
+
+def check_fuse_support():
+    Path(fuse_mount_point).touch()
+    test_qsd = QemuStorageDaemon('--blockdev', 'null-co,node-name=node0',
+                                 qmp=True)
+    res = test_qsd.qmp('block-export-add', {
+        'id': 'exp0',
+        'type': 'fuse',
+        'node-name': 'node0',
+        'mountpoint': fuse_mount_point,
+        'allow-other': 'off'
+    })
+    test_qsd.stop()
+    os.remove(fuse_mount_point)
+    if 'error' in res:
+        assert (res['error']['desc'] ==
+                "Parameter 'type' does not accept value 'fuse'")
+        iotests.notrun('No FUSE support')
+
+def check_sudo_support():
+    try:
+        subprocess.run(['sudo', '-n', 'losetup', '--version'],
+                       capture_output=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    try:
+        subprocess.run(['sudo', '-n', 'chmod', '--version'],
+                       capture_output=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return True
+
+check_fuse_support()
+
+class TestTruncateBase(iotests.QMPTestCase):
+    growable = False
+    supports_preconditions = True
+
+    def evaluate_preconditions(self):
+        return
+
+    def add_blockdev(self):
+        qemu_img('create', '-f', iotests.imgfmt, image, str(image_size))
+        self.qsd.cmd('blockdev-add', {
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': image
+            }
+        })
+
+    def cleanup_blockdev(self):
+        os.remove(image)
+
+    def add_export(self):
+        self.qsd.cmd('block-export-add', {
+            'id': 'exp0',
+            'type': 'fuse',
+            'node-name': 'node0',
+            'mountpoint': fuse_mount_point,
+            'growable': self.growable,
+            'writable': True,
+            'allow-other': 'off'
+        })
+
+    def stop_qsd(self):
+        if self.qsd:
+            self.qsd.cmd('block-export-del', {'id': 'exp0'})
+            self.qsd.stop()
+            self.qsd = None
+
+    def setUp(self):
+        self.evaluate_preconditions()
+        if not self.supports_preconditions:
+            return
+        Path(fuse_mount_point).touch()
+        self.qsd = QemuStorageDaemon(qmp=True)
+        self.add_blockdev()
+        self.add_export()
+
+    def tearDown(self):
+        if not self.supports_preconditions:
+            return
+        self.stop_qsd()
+        self.cleanup_blockdev()
+        os.remove(fuse_mount_point)
+
+class TestTruncateFileGrowable(TestTruncateBase):
+    growable = True
+
+    def test_o_trunc(self):
+        with open(fuse_mount_point, 'w+b') as file:
+            file.seek(0, os.SEEK_END)
+            self.assertEqual(file.tell(), 0)
+            file.write(b"test")
+        self.stop_qsd()
+
+class TestTruncateFileNotGrowable(TestTruncateBase):
+    growable = False
+
+    def test_o_trunc(self):
+        with open(fuse_mount_point, 'w+b') as file:
+            file.seek(0, os.SEEK_END)
+            self.assertEqual(file.tell(), image_size)
+            file.seek(0, os.SEEK_SET)
+            file.write(b"test")
+        self.stop_qsd()
+
+class TestTruncateBlockdev(TestTruncateBase):
+    growable = False
+
+    def evaluate_preconditions(self):
+        self.supports_preconditions = check_sudo_support()
+
+    def add_blockdev(self):
+        qemu_img('create', '-f', iotests.imgfmt, image, str(image_size))
+        res = subprocess.run(['sudo', '-n', 'losetup', '--show', '-f', image],
+                             check=True, capture_output=True, text=True)
+        self.loopdev = res.stdout.strip()
+        subprocess.run(['sudo', '-n', 'chmod', 'go+rw', self.loopdev],
+                       check=True, capture_output=True)
+        self.qsd.cmd('blockdev-add', {
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'host_device',
+                'filename': self.loopdev
+            }
+        })
+
+    def cleanup_blockdev(self):
+        subprocess.run(['sudo', '-n', 'losetup', '--detach', self.loopdev],
+                       check=True, capture_output=True)
+        os.remove(image)
+
+    def test_o_trunc(self):
+        if not self.supports_preconditions:
+            iotests.case_notrun('No passwordless sudo for losetup and chmod')
+            return
+
+        with open(fuse_mount_point, 'w+b') as file:
+            file.seek(0, os.SEEK_END)
+            self.assertEqual(file.tell(), image_size)
+            file.seek(0, os.SEEK_SET)
+            file.write(b"test")
+        self.stop_qsd()
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['raw'],
+                 supported_protocols=['file'],
+                 supported_platforms=['linux'])
