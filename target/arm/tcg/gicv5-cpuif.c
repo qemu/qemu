@@ -4,6 +4,11 @@
  * Copyright (c) 2025 Linaro Limited
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * The cpu interface is defined in IHI 111701
+ * (ARM Generic Interrupt Controller Architecture Specification,
+ * GIC architecture version 5):
+ * https://developer.arm.com/documentation/111701/latest
  */
 
 #include "qemu/osdep.h"
@@ -139,7 +144,7 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
 
     if (!(env->gicv5_cpuif.icc_cr0[domain] & R_ICC_CR0_EN_MASK)) {
         /* If cpuif is disabled there is no HPPI */
-        return (GICv5PendingIrq) { .intid = 0, .prio = PRIO_IDLE };
+        return GICV5_PENDING_IRQ_NONE;
     }
 
     irs_hppi = gicv5_get_hppi(gic, domain, env->gicv5_iaffid);
@@ -163,7 +168,7 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
     if (best.prio == PRIO_IDLE ||
         best.prio > env->gicv5_cpuif.icc_pcr[domain] ||
         best.prio >= gic_running_prio(env, domain)) {
-        return (GICv5PendingIrq) { .intid = 0, .prio = PRIO_IDLE };
+        return GICV5_PENDING_IRQ_NONE;
     }
     return best;
 }
@@ -253,8 +258,7 @@ static void gic_recalc_ppi_hppi(CPUARMState *env)
      * enabled, pending and not active.
      */
     for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_hppi); i++) {
-        env->gicv5_cpuif.ppi_hppi[i].intid = 0;
-        env->gicv5_cpuif.ppi_hppi[i].prio = PRIO_IDLE;
+        env->gicv5_cpuif.ppi_hppi[i] = GICV5_PENDING_IRQ_NONE;
     };
 
     for (int i = 0; i < ARRAY_SIZE(env->gicv5_cpuif.ppi_active); i++) {
@@ -506,15 +510,6 @@ static void gic_icc_apr_el1_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     }
 }
 
-static uint64_t gic_icc_hapr_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    /*
-     * ICC_HAPR_EL1 reports the current running priority, which can be
-     * calculated from the APR register.
-     */
-    return gic_running_prio(env, gicv5_current_phys_domain(env));
-}
-
 /* ICC_CR0_EL1 is also banked */
 static uint64_t gic_icc_cr0_el1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -560,6 +555,7 @@ static void gic_icc_pcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     value &= R_ICC_PCR_PRIORITY_MASK;
     env->gicv5_cpuif.icc_pcr[domain] = value;
+    gicv5_update_irq_fiq(env);
 }
 
 static void gic_icc_pcr_el1_reset(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -922,11 +918,6 @@ static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
         .writefn = gic_icc_pcr_el1_write,
         .resetfn = gic_icc_pcr_el1_reset,
     },
-    {   .name = "ICC_HAPR_EL1", .state = ARM_CP_STATE_AA64,
-        .opc0 = 3, .opc1 = 1, .crn = 12, .crm = 0, .opc2 = 3,
-        .access = PL1_R, .type = ARM_CP_IO | ARM_CP_NO_RAW,
-        .readfn = gic_icc_hapr_el1_read, .raw_writefn = arm_cp_write_ignore,
-    },
 };
 
 void define_gicv5_cpuif_regs(ARMCPU *cpu)
@@ -944,7 +935,7 @@ void define_gicv5_cpuif_regs(ARMCPU *cpu)
                 .name = name, .state = ARM_CP_STATE_AA64,
                 .opc0 = 3, .opc1 = 0, .crn = 12,
                 .crm = 14 + (i >> 3), .opc2 = i & 7,
-                .access = PL1_RW, .type = ARM_CP_IO,
+                .access = PL1_RW, .type = ARM_CP_IO | ARM_CP_NO_RAW,
                 .fieldoffset = offsetof(CPUARMState, gicv5_cpuif.ppi_priority[i]),
                 .writefn = gic_ppi_priority_write, .raw_writefn = raw_write,
             };

@@ -1,3 +1,21 @@
+# flexcan.c
+flexcan_irq_update(const char *inst, uint32_t mb_irqs1, uint32_t mb_irqs2, int setting) "%s: irqs1 0x%08x irqs2 0x%08x request %i"
+flexcan_set_mcr(const char *inst, const char *enabled, const char *freeze, const char *fifo, const char *rdy, const char *sync) "%s: %s %s %s %s %s"
+flexcan_mb_write(const char *inst, int mbidx, const char *code, int is_mailbox, uint32_t ctrl, uint32_t id) "%s: mbidx %i code %s is_mailbox %i ctrl 0x%08x id 0x%08x"
+flexcan_mb_lock(const char *inst, int mbidx, int had_rx_code) "%s: mbidx %i had_rx_code %i"
+flexcan_mb_unlock(const char *inst, int mbidx, const char *pending_frame) "%s: mbidx %i%s"
+flexcan_fifo_pop(const char *inst, int non_empty_before, int non_empty_after) "%s: non_empty before %i non_empty_after %i"
+flexcan_fifo_push(const char *inst, int n_occupied) "%s: n_slots_occupied %i"
+flexcan_reset(const char *inst) "%s: resetting"
+flexcan_mem_op(const char *inst, const char *op, uint32_t v, int offset, const char *reg_name, int size) "%s: %s 0x%08x at offset %i register %s size %i"
+flexcan_get_timestamp(const char *inst, int64_t time_elapsed_ms, uint32_t bitrate, uint64_t cycles, uint32_t shift, uint32_t timestamp) "%s: time_elapsed %" PRIi64 "ms bitrate %ub/s cycles %" PRIu64 " shift %u timestamp 0x%04x"
+flexcan_get_bitrate(const char *inst, uint32_t pe_freq, uint32_t prediv, uint32_t s_freq, uint32_t tseg1, uint32_t tseg2, uint32_t quata_per_bit, uint32_t bitrate) "%s: pe_freq %uHz prescaler %u s_freq %uHz tseg1 %uq tseg2 %uq total %uq/b bitrate %ub/s"
+flexcan_timer_start(const char *inst, uint32_t bitrate, uint32_t value) "%s: bitrate %ub/s value 0x%04x"
+flexcan_timer_stop(const char *inst, uint32_t bitrate, uint32_t value) "%s: bitrate %ub/s value 0x%04x"
+flexcan_timer_overflow(const char *inst, int64_t current_time, int64_t timer_start, int64_t elapsed_ns) "%s: current_time %" PRIi64 "timer_start %" PRIi64 "elapsed_ns %" PRIi64
+flexcan_mb_rx_check_mb(const char *inst, int mbidx, const char *code, int is_matched, int is_ftr, int is_serviced, int is_locked) "%s: checking mb %i code %s is_matched %i is_free_to_receive %i is_serviced %i is_locked %i"
+flexcan_receive(const char *inst, size_t n_frames) "%s: received %zu frames"
+
 # xlnx-zynqmp-can.c
 xlnx_can_update_irq(uint32_t isr, uint32_t ier, uint32_t irq) "ISR: 0x%08x IER: 0x%08x IRQ: 0x%08x"
 xlnx_can_reset(uint32_t val) "Resetting controller with value = 0x%08x"
