@@ -629,6 +629,18 @@ enum {
 #define UFS_MASK_UIC_COMMAND_RESULT 0xFF
 
 /*
+ * MIPI UniPro PHY Adapter (PA) layer attribute IDs accessed via
+ * DME_GET / DME_SET / DME_PEER_{GET,SET} UIC commands.
+ */
+#define UFS_ATTR_PA_AVAILTXDATALANES 0x1520
+#define UFS_ATTR_PA_AVAILRXDATALANES 0x1540
+#define UFS_ATTR_PA_CONNECTEDTXDATALANES 0x1561
+#define UFS_ATTR_PA_PWRMODE 0x1571
+#define UFS_ATTR_PA_CONNECTEDRXDATALANES 0x1581
+#define UFS_ATTR_PA_MAXRXPWMGEAR 0x1586
+#define UFS_ATTR_PA_MAXRXHSGEAR 0x1587
+
+/*
  * Request Descriptor Definitions
  */
 
@@ -1321,7 +1333,11 @@ typedef struct QEMU_PACKED UfsCqEntry {
     uint8_t status;
     uint8_t error;
     uint16_t rsvd1;
-    uint32_t rsvd2[3];
+    uint8_t task_tag;
+    uint8_t lun;
+    uint8_t iid_ext_iid;
+    uint8_t rsvd2;
+    uint32_t rsvd3[2];
 } UfsCqEntry;
 
 static inline void _ufs_check_size(void)
