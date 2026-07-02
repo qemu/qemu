@@ -117,6 +117,9 @@ void migration_file_set_error(int ret, Error *err);
 /* True if incoming migration entered POSTCOPY_INCOMING_DISCARD */
 bool migration_in_incoming_postcopy(void);
 
+/* True while the destination still receives guest RAM (precopy or postcopy) */
+bool migration_guest_ram_loading(void);
+
 /* True if incoming migration entered POSTCOPY_INCOMING_ADVISE */
 bool migration_incoming_postcopy_advised(void);
 
