@@ -4202,82 +4202,82 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
 
 static uint32_t operand_rd(rv_inst inst)
 {
-    return (inst << 52) >> 59;
+    return extract32(inst, 7, 5);
 }
 
 static uint32_t operand_rs1(rv_inst inst)
 {
-    return (inst << 44) >> 59;
+    return extract32(inst, 15, 5);
 }
 
 static uint32_t operand_rs2(rv_inst inst)
 {
-    return (inst << 39) >> 59;
+    return extract32(inst, 20, 5);
 }
 
 static uint32_t operand_rs3(rv_inst inst)
 {
-    return (inst << 32) >> 59;
+    return extract32(inst, 27, 5);
 }
 
 static uint32_t operand_aq(rv_inst inst)
 {
-    return (inst << 37) >> 63;
+    return extract32(inst, 26, 1);
 }
 
 static uint32_t operand_rl(rv_inst inst)
 {
-    return (inst << 38) >> 63;
+    return extract32(inst, 25, 1);
 }
 
 static uint32_t operand_pred(rv_inst inst)
 {
-    return (inst << 36) >> 60;
+    return extract32(inst, 24, 4);
 }
 
 static uint32_t operand_succ(rv_inst inst)
 {
-    return (inst << 40) >> 60;
+    return extract32(inst, 20, 4);
 }
 
 static uint32_t operand_rm(rv_inst inst)
 {
-    return (inst << 49) >> 61;
+    return extract32(inst, 12, 3);
 }
 
 static uint32_t operand_shamt5(rv_inst inst)
 {
-    return (inst << 39) >> 59;
+    return extract32(inst, 20, 5);
 }
 
 static uint32_t operand_shamt6(rv_inst inst)
 {
-    return (inst << 38) >> 58;
+    return extract32(inst, 20, 6);
 }
 
 static uint32_t operand_shamt7(rv_inst inst)
 {
-    return (inst << 37) >> 57;
+    return extract32(inst, 20, 7);
 }
 
 static uint32_t operand_crdq(rv_inst inst)
 {
-    return (inst << 59) >> 61;
+    return extract32(inst, 2, 3);
 }
 
 static uint32_t operand_crs1q(rv_inst inst)
 {
-    return (inst << 54) >> 61;
+    return extract32(inst, 7, 3);
 }
 
 static uint32_t operand_crs1rdq(rv_inst inst)
 {
-    return (inst << 54) >> 61;
+    return extract32(inst, 7, 3);
 }
 
 static uint32_t operand_crs2q(rv_inst inst)
 {
-    return (inst << 59) >> 61;
+    return extract32(inst, 2, 3);
 }
 
 static uint32_t calculate_xreg(uint32_t sreg)
@@ -4287,80 +4287,80 @@ static uint32_t calculate_xreg(uint32_t sreg)
 
 static uint32_t operand_sreg1(rv_inst inst)
 {
-    return calculate_xreg((inst << 54) >> 61);
+    return calculate_xreg(extract32(inst, 7, 3));
 }
 
 static uint32_t operand_sreg2(rv_inst inst)
 {
-    return calculate_xreg((inst << 59) >> 61);
+    return calculate_xreg(extract32(inst, 2, 3));
 }
 
 static uint32_t operand_crd(rv_inst inst)
 {
-    return (inst << 52) >> 59;
+    return extract32(inst, 7, 5);
 }
 
 static uint32_t operand_crs1(rv_inst inst)
 {
-    return (inst << 52) >> 59;
+    return extract32(inst, 7, 5);
 }
 
 static uint32_t operand_crs1rd(rv_inst inst)
 {
-    return (inst << 52) >> 59;
+    return extract32(inst, 7, 5);
 }
 
 static uint32_t operand_crs2(rv_inst inst)
 {
-    return (inst << 57) >> 59;
+    return extract32(inst, 2, 5);
 }
 
 static uint32_t operand_cimmsh5(rv_inst inst)
 {
-    return (inst << 57) >> 59;
+    return extract32(inst, 2, 5);
 }
 
 static uint32_t operand_csr12(rv_inst inst)
 {
-    return (inst << 32) >> 52;
+    return extract32(inst, 20, 12);
 }
 
 static int32_t operand_imm12(rv_inst inst)
 {
-    return ((int64_t)inst << 32) >> 52;
+    return sextract32(inst, 20, 12);
 }
 
 static int32_t operand_imm20(rv_inst inst)
 {
-    return (((int64_t)inst << 32) >> 44) << 12;
+    return sextract32(inst, 12, 20) << 12;
 }
 
 static int32_t operand_jimm20(rv_inst inst)
 {
-    return (((int64_t)inst << 32) >> 63) << 20 |
-        ((inst << 33) >> 54) << 1 |
-        ((inst << 43) >> 63) << 11 |
-        ((inst << 44) >> 56) << 12;
+    return sextract32(inst, 31, 1) << 20 |
+        extract32(inst, 21, 10) << 1 |
+        extract32(inst, 20, 1) << 11 |
+        extract32(inst, 12, 8) << 12;
 }
 
 static int32_t operand_simm12(rv_inst inst)
 {
-    return (((int64_t)inst << 32) >> 57) << 5 |
-        (inst << 52) >> 59;
+    return sextract32(inst, 25, 7) << 5 |
+        extract32(inst, 7, 5);
 }
 
 static int32_t operand_sbimm12(rv_inst inst)
 {
-    return (((int64_t)inst << 32) >> 63) << 12 |
-        ((inst << 33) >> 58) << 5 |
-        ((inst << 52) >> 60) << 1 |
-        ((inst << 56) >> 63) << 11;
+    return sextract32(inst, 31, 1) << 12 |
+        extract32(inst, 25, 6) << 5 |
+        extract32(inst, 8, 4) << 1 |
+        extract32(inst, 7, 1) << 11;
 }
 
 static uint32_t operand_cimmshl6(rv_inst inst, rv_isa isa)
 {
-    int imm = ((inst << 51) >> 63) << 5 |
-        (inst << 57) >> 59;
+    int imm = extract32(inst, 12, 1) << 5 |
+        extract32(inst, 2, 5);
     if (isa == rv128) {
         imm = imm ? imm : 64;
     }
@@ -4369,8 +4369,8 @@ static uint32_t operand_cimmshl6(rv_inst inst, rv_isa isa)
 
 static uint32_t operand_cimmshr6(rv_inst inst, rv_isa isa)
 {
-    int imm = ((inst << 51) >> 63) << 5 |
-        (inst << 57) >> 59;
+    int imm = extract32(inst, 12, 1) << 5 |
+        extract32(inst, 2, 5);
     if (isa == rv128) {
         imm = imm | (imm & 32) << 1;
         imm = imm ? imm : 64;
@@ -4380,116 +4380,116 @@ static uint32_t operand_cimmshr6(rv_inst inst, rv_isa isa)
 
 static int32_t operand_cimmi(rv_inst inst)
 {
-    return (((int64_t)inst << 51) >> 63) << 5 |
-        (inst << 57) >> 59;
+    return sextract32(inst, 12, 1) << 5 |
+        extract32(inst, 2, 5);
 }
 
 static int32_t operand_cimmui(rv_inst inst)
 {
-    return (((int64_t)inst << 51) >> 63) << 17 |
-        ((inst << 57) >> 59) << 12;
+    return sextract32(inst, 12, 1) << 17 |
+        extract32(inst, 2, 5) << 12;
 }
 
 static uint32_t operand_cimmlwsp(rv_inst inst)
 {
-    return ((inst << 51) >> 63) << 5 |
-        ((inst << 57) >> 61) << 2 |
-        ((inst << 60) >> 62) << 6;
+    return extract32(inst, 12, 1) << 5 |
+        extract32(inst, 4, 3) << 2 |
+        extract32(inst, 2, 2) << 6;
 }
 
 static uint32_t operand_cimmldsp(rv_inst inst)
 {
-    return ((inst << 51) >> 63) << 5 |
-        ((inst << 57) >> 62) << 3 |
-        ((inst << 59) >> 61) << 6;
+    return extract32(inst, 12, 1) << 5 |
+        extract32(inst, 5, 2) << 3 |
+        extract32(inst, 2, 3) << 6;
 }
 
 static uint32_t operand_cimmlqsp(rv_inst inst)
 {
-    return ((inst << 51) >> 63) << 5 |
-        ((inst << 57) >> 63) << 4 |
-        ((inst << 58) >> 60) << 6;
+    return extract32(inst, 12, 1) << 5 |
+        extract32(inst, 6, 1) << 4 |
+        extract32(inst, 2, 4) << 6;
 }
 
 static int32_t operand_cimm16sp(rv_inst inst)
 {
-    return (((int64_t)inst << 51) >> 63) << 9 |
-        ((inst << 57) >> 63) << 4 |
-        ((inst << 58) >> 63) << 6 |
-        ((inst << 59) >> 62) << 7 |
-        ((inst << 61) >> 63) << 5;
+    return sextract32(inst, 12, 1) << 9 |
+        extract32(inst, 6, 1) << 4 |
+        extract32(inst, 5, 1) << 6 |
+        extract32(inst, 3, 2) << 7 |
+        extract32(inst, 2, 1) << 5;
 }
 
 static int32_t operand_cimmj(rv_inst inst)
 {
-    return (((int64_t)inst << 51) >> 63) << 11 |
-        ((inst << 52) >> 63) << 4 |
-        ((inst << 53) >> 62) << 8 |
-        ((inst << 55) >> 63) << 10 |
-        ((inst << 56) >> 63) << 6 |
-        ((inst << 57) >> 63) << 7 |
-        ((inst << 58) >> 61) << 1 |
-        ((inst << 61) >> 63) << 5;
+    return sextract32(inst, 12, 1) << 11 |
+        extract32(inst, 11, 1) << 4 |
+        extract32(inst, 9, 2) << 8 |
+        extract32(inst, 8, 1) << 10 |
+        extract32(inst, 7, 1) << 6 |
+        extract32(inst, 6, 1) << 7 |
+        extract32(inst, 3, 3) << 1 |
+        extract32(inst, 2, 1) << 5;
 }
 
 static int32_t operand_cimmb(rv_inst inst)
 {
-    return (((int64_t)inst << 51) >> 63) << 8 |
-        ((inst << 52) >> 62) << 3 |
-        ((inst << 57) >> 62) << 6 |
-        ((inst << 59) >> 62) << 1 |
-        ((inst << 61) >> 63) << 5;
+    return sextract32(inst, 12, 1) << 8 |
+        extract32(inst, 10, 2) << 3 |
+        extract32(inst, 5, 2) << 6 |
+        extract32(inst, 3, 2) << 1 |
+        extract32(inst, 2, 1) << 5;
 }
 
 static uint32_t operand_cimmswsp(rv_inst inst)
 {
-    return ((inst << 51) >> 60) << 2 |
-        ((inst << 55) >> 62) << 6;
+    return extract32(inst, 9, 4) << 2 |
+        extract32(inst, 7, 2) << 6;
 }
 
 static uint32_t operand_cimmsdsp(rv_inst inst)
 {
-    return ((inst << 51) >> 61) << 3 |
-        ((inst << 54) >> 61) << 6;
+    return extract32(inst, 10, 3) << 3 |
+        extract32(inst, 7, 3) << 6;
 }
 
 static uint32_t operand_cimmsqsp(rv_inst inst)
 {
-    return ((inst << 51) >> 62) << 4 |
-        ((inst << 53) >> 60) << 6;
+    return extract32(inst, 11, 2) << 4 |
+        extract32(inst, 7, 4) << 6;
 }
 
 static uint32_t operand_cimm4spn(rv_inst inst)
 {
-    return ((inst << 51) >> 62) << 4 |
-        ((inst << 53) >> 60) << 6 |
-        ((inst << 57) >> 63) << 2 |
-        ((inst << 58) >> 63) << 3;
+    return extract32(inst, 11, 2) << 4 |
+        extract32(inst, 7, 4) << 6 |
+        extract32(inst, 6, 1) << 2 |
+        extract32(inst, 5, 1) << 3;
 }
 
 static uint32_t operand_cimmw(rv_inst inst)
 {
-    return ((inst << 51) >> 61) << 3 |
-        ((inst << 57) >> 63) << 2 |
-        ((inst << 58) >> 63) << 6;
+    return extract32(inst, 10, 3) << 3 |
+        extract32(inst, 6, 1) << 2 |
+        extract32(inst, 5, 1) << 6;
 }
 
 static uint32_t operand_cimmd(rv_inst inst)
 {
-    return ((inst << 51) >> 61) << 3 |
-        ((inst << 57) >> 62) << 6;
+    return extract32(inst, 10, 3) << 3 |
+        extract32(inst, 5, 2) << 6;
 }
 
 static uint32_t operand_cimmq(rv_inst inst)
 {
-    return ((inst << 51) >> 62) << 4 |
-        ((inst << 53) >> 63) << 8 |
-        ((inst << 57) >> 62) << 6;
+    return extract32(inst, 11, 2) << 4 |
+        extract32(inst, 10, 1) << 8 |
+        extract32(inst, 5, 2) << 6;
 }
 
 static int32_t operand_vimm(rv_inst inst)
 {
-    return (int64_t)(inst << 44) >> 59;
+    return sextract32(inst, 15, 5);
 }
 
 static uint32_t operand_vuimm(rv_inst inst)
@@ -4499,54 +4499,54 @@ static uint32_t operand_vuimm(rv_inst inst)
 
 static uint32_t operand_vzimm11(rv_inst inst)
 {
-    return (inst << 33) >> 53;
+    return extract32(inst, 20, 11);
 }
 
 static uint32_t operand_vzimm10(rv_inst inst)
 {
-    return (inst << 34) >> 54;
+    return extract32(inst, 20, 10);
 }
 
 static uint32_t operand_vzimm6(rv_inst inst)
 {
-    return ((inst << 37) >> 63) << 5 |
-        ((inst << 44) >> 59);
+    return extract32(inst, 26, 1) << 5 |
+        extract32(inst, 15, 5);
 }
 
 static uint32_t operand_bs(rv_inst inst)
 {
-    return (inst << 32) >> 62;
+    return extract32(inst, 30, 2);
 }
 
 static uint32_t operand_rnum(rv_inst inst)
 {
-    return (inst << 40) >> 60;
+    return extract32(inst, 20, 4);
 }
 
 static uint32_t operand_vm(rv_inst inst)
 {
-    return (inst << 38) >> 63;
+    return extract32(inst, 25, 1);
 }
 
 static uint32_t operand_uimm_c_lb(rv_inst inst)
 {
-    return (((inst << 58) >> 63) << 1) |
-        ((inst << 57) >> 63);
+    return extract32(inst, 5, 1) << 1 |
+        extract32(inst, 6, 1);
 }
 
 static uint32_t operand_uimm_c_lh(rv_inst inst)
 {
-    return (((inst << 58) >> 63) << 1);
+    return extract32(inst, 5, 1) << 1;
 }
 
 static uint32_t operand_zcmp_spimm(rv_inst inst)
 {
-    return ((inst << 60) >> 62) << 4;
+    return extract32(inst, 2, 2) << 4;
 }
 
 static uint32_t operand_zcmp_rlist(rv_inst inst)
 {
-    return ((inst << 56) >> 60);
+    return extract32(inst, 4, 4);
 }
 
 static uint32_t operand_imm6(rv_inst inst)
@@ -4556,17 +4556,17 @@ static uint32_t operand_imm6(rv_inst inst)
 
 static uint32_t operand_imm2(rv_inst inst)
 {
-    return (inst << 37) >> 62;
+    return extract32(inst, 25, 2);
 }
 
 static uint32_t operand_immh(rv_inst inst)
 {
-    return (inst << 32) >> 58;
+    return extract32(inst, 26, 6);
 }
 
 static uint32_t operand_imml(rv_inst inst)
 {
-    return (inst << 38) >> 58;
+    return extract32(inst, 20, 6);
 }
 
 static uint32_t calculate_stack_adj(rv_isa isa, uint32_t rlist, uint32_t spimm)
@@ -4585,12 +4585,12 @@ static uint32_t operand_zcmp_stack_adj(rv_inst inst, rv_isa isa)
 
 static uint32_t operand_tbl_index(rv_inst inst)
 {
-    return ((inst << 54) >> 56);
+    return extract32(inst, 2, 8);
 }
 
 static uint32_t operand_lpl(rv_inst inst)
 {
-    return inst >> 12;
+    return extract32(inst, 12, 20);
 }
 
 /* decode operands */
