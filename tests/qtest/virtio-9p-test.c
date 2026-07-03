@@ -402,7 +402,7 @@ static void do_local_xattr_limit(QVirtio9P *v9p, int max_xattr)
     /*
      * this file must be created for the test to work with the 'local' fs driver
      */
-    g_file_set_contents(test_file, "", 0, NULL);
+    g_assert(g_file_set_contents(test_file, "", 0, NULL));
 
     /* the actual test code shared with the 'synth' fs driver tests */
     do_xattr_limit(v9p, max_xattr, false);
