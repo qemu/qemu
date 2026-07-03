@@ -38,11 +38,17 @@
 /*
  * xattr size to be used for xattr tests
  *
- * 64k is the max. xattr size supported by the Linux kernel, However btrfs
- * for instance supports only 16219 bytes. So let's be conservative and
- * just use 8k for the xattr tests.
+ * 64k is the max. xattr size supported by the Linux kernel on high-level VFS
+ * layer. However filesystems impose their own limits:
+ *
+ * - btrfs: 16219 bytes
+ *
+ * - ext4: blocksize - 56 bytes (~4KB) if no ea_inode capability enabled,
+ *         64k if ea_inode enabled
+ *
+ * So let's be conservative and just use 1k for the xattr tests.
  */
-#define TEST_XATTR_SIZE (8 * 1024)
+#define TEST_XATTR_SIZE (1 * 1024)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
