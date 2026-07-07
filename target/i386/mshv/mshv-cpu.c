@@ -485,7 +485,7 @@ static int set_standard_regs(const CPUState *cpu)
     return 0;
 }
 
-static void mshv_set_standard_regs_vp_page(CPUState *cpu)
+static void set_standard_regs_vp_page(CPUState *cpu)
 {
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
@@ -515,29 +515,26 @@ static void mshv_set_standard_regs_vp_page(CPUState *cpu)
                                 | (1u << HV_X64_REGISTER_CLASS_FLAGS);
 }
 
-static int store_regs(CPUState *cpu)
+static void store_regs(CPUState *cpu)
 {
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
-    int ret;
 
-    /* Use register vp page to optimize registers access */
-    if (env->regs_page && env->regs_page->isvalid != 0) {
-        mshv_set_standard_regs_vp_page(cpu);
-    } else {
-        ret = set_standard_regs(cpu);
-        if (ret < 0) {
-            return ret;
-        }
+    /* Check register page pointer and abort if in unexpected state */
+    if (!env->regs_page) {
+        error_report(
+                "store regs: register page not set for vcpu %d",
+                cpu->cpu_index);
+        abort();
+    }
+    if (env->regs_page->isvalid == 0) {
+        error_report(
+                "store regs: register page invalid for vcpu %d",
+                cpu->cpu_index);
+        abort();
     }
 
-    ret = set_special_regs(cpu);
-    if (ret < 0) {
-        error_report("Failed to store speical registers");
-        return ret;
-    }
-
-    return 0;
+    set_standard_regs_vp_page(cpu);
 }
 
 static void populate_standard_regs(const hv_register_assoc *assocs,
@@ -1590,14 +1587,13 @@ static int set_memory_info(const struct hyperv_message *msg,
     return 0;
 }
 
-static int emulate_instruction(CPUState *cpu,
+static void emulate_instruction(CPUState *cpu,
                                const uint8_t *insn_bytes, size_t insn_len,
                                uint64_t gva, uint64_t gpa)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
     struct x86_decode decode = { 0 };
-    int ret;
     x86_insn_stream stream = { .bytes = insn_bytes, .len = insn_len };
 
     load_regs(cpu);
@@ -1605,13 +1601,7 @@ static int emulate_instruction(CPUState *cpu,
     decode_instruction_stream(env, &decode, &stream);
     exec_instruction(env, &decode);
 
-    ret = store_regs(cpu);
-    if (ret < 0) {
-        error_report("failed to store registers");
-        return -1;
-    }
-
-    return 0;
+    store_regs(cpu);
 }
 
 static int handle_mmio(CPUState *cpu, const struct hyperv_message *msg,
@@ -1647,13 +1637,9 @@ static int handle_mmio(CPUState *cpu, const struct hyperv_message *msg,
 
     instruction_bytes = info.instruction_bytes;
 
-    ret = emulate_instruction(cpu, instruction_bytes, insn_len,
+    emulate_instruction(cpu, instruction_bytes, insn_len,
                               info.guest_virtual_address,
                               info.guest_physical_address);
-    if (ret < 0) {
-        error_report("failed to emulate mmio");
-        return -1;
-    }
 
     *exit_reason = MshvVmExitIgnore;
 
