@@ -330,6 +330,123 @@ static void test_ext_vref(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmphex(reading, ==, 0x8000);
 }
 
+/* Interrupt status set on limit violation; persists while fault remains */
+static void test_interrupt_status(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t status;
+
+    i2c_set8(dev, REG_LIMIT_BASE, 0x10);
+    g_test_message("Set ch0 high limit = 0x10");
+
+    qmp_adc128d818_set("ain0", 2560);
+    g_test_message("Injected ain0 = 2560 mV (exceeds limit)");
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_START | CONFIG_INT_ENABLE);
+
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("INT_STATUS = 0x%02x (expect bit 0 set)", status);
+    g_assert_cmphex(status & 0x01u, ==, 0x01);
+
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("INT_STATUS after re-read = 0x%02x (expect bit 0 still set)",
+             status);
+    g_assert_cmphex(status & 0x01u, ==, 0x01);
+
+    qmp_adc128d818_set("ain0", 80);
+    g_test_message("Injected ain0 = 80 mV (within limit)");
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("INT_STATUS after fault cleared = 0x%02x "
+                   "(expect bit 0 clear)", status);
+    g_assert_cmphex(status & 0x01u, ==, 0x00);
+}
+
+/* INT_CLEAR stops the round-robin monitoring loop */
+static void test_int_clear(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t status;
+
+    i2c_set8(dev, REG_LIMIT_BASE, 0x10);
+    qmp_adc128d818_set("ain0", 2560);
+
+    i2c_set8(dev, REG_CONFIG,
+             CONFIG_START | CONFIG_INT_ENABLE | CONFIG_INT_CLEAR);
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("INT_STATUS with INT_CLEAR set = 0x%02x (expect 0x00)",
+                   status);
+    g_assert_cmphex(status, ==, 0x00);
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_START | CONFIG_INT_ENABLE);
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("INT_STATUS after INT_CLEAR cleared = 0x%02x (expect bit 0)",
+             status);
+    g_assert_cmphex(status & 0x01u, ==, 0x01);
+}
+
+/* Low-limit interrupt triggers correctly */
+static void test_low_limit(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t status;
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_INITIALIZATION);
+
+    i2c_set8(dev, REG_LIMIT_BASE + 3u, 0x80);
+    g_test_message("Set ch1 low limit = 0x80");
+
+    i2c_set8(dev, REG_LIMIT_BASE + 5u, 0x80);
+    g_test_message("Set ch2 low limit = 0x80");
+
+    qmp_adc128d818_set("ain1", 640);
+    qmp_adc128d818_set("ain2", 1280);
+    qmp_adc128d818_set("ain0", 1280);
+    i2c_set8(dev, REG_CONFIG, CONFIG_START | CONFIG_INT_ENABLE);
+
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("INT_STATUS = 0x%02x (expect bits 1 and 2 set)", status);
+    g_assert_cmphex(status & 0x02u, ==, 0x02);
+    g_assert_cmphex(status & 0x04u, ==, 0x04);
+
+    g_assert_cmphex(status & 0x01u, ==, 0x00);
+}
+
+/* Temperature high-limit interrupt with hysteresis */
+static void test_temp_hysteresis(void *obj, void *data,
+                                 QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t status;
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_INITIALIZATION);
+
+    i2c_set8(dev, REG_LIMIT_BASE + 7u * 2u, 0x32);
+    i2c_set8(dev, REG_LIMIT_BASE + 7u * 2u + 1u, 0x28);
+
+    qmp_adc128d818_set("temperature", 25000);
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("25 C: INT_STATUS = 0x%02x (temp bit expect clear)", status);
+    g_assert_cmphex(status & 0x80u, ==, 0x00);
+
+    qmp_adc128d818_set("temperature", 55000);
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("55 C: INT_STATUS = 0x%02x (temp bit expect set)", status);
+    g_assert_cmphex(status & 0x80u, ==, 0x80);
+
+    qmp_adc128d818_set("temperature", 45000);
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("45 C (hysteresis): INT_STATUS = 0x%02x "
+                   "(temp bit expect set)", status);
+    g_assert_cmphex(status & 0x80u, ==, 0x80);
+
+    qmp_adc128d818_set("temperature", 35000);
+    status = i2c_get8(dev, REG_INT_STATUS);
+    g_test_message("35 C: INT_STATUS = 0x%02x (temp bit expect clear)", status);
+    g_assert_cmphex(status & 0x80u, ==, 0x00);
+}
+
 static void adc128d818_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -354,5 +471,9 @@ static void adc128d818_register_nodes(void)
     qos_add_test("temperature-edges", "adc128d818", test_temperature_edges,
                  NULL);
     qos_add_test("ext-vref", "adc128d818", test_ext_vref, NULL);
+    qos_add_test("interrupt-status", "adc128d818", test_interrupt_status, NULL);
+    qos_add_test("int-clear", "adc128d818", test_int_clear, NULL);
+    qos_add_test("low-limit", "adc128d818", test_low_limit, NULL);
+    qos_add_test("temp-hysteresis", "adc128d818", test_temp_hysteresis, NULL);
 }
 libqos_init(adc128d818_register_nodes);
