@@ -150,6 +150,186 @@ static void test_ain_property(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmpint(value, ==, 37500);
 }
 
+/* Voltage conversion */
+static void test_voltage_conversion(void *obj, void *data,
+                                    QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint16_t reading;
+
+    qmp_adc128d818_set("ain0", 1280);
+    g_test_message("Injected ain0 = 1280 mV");
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+
+    reading = i2c_get16(dev, REG_CH_READING_BASE);
+    g_test_message("Read ch0: raw 0x%04x -> %u mV", reading,
+             (reading >> 4u) * INTERNAL_VREF_MV / 4096u);
+    g_assert_cmphex(reading, ==, 0x8000);
+
+    qmp_adc128d818_set("ain1", 2560);
+    g_test_message("Injected ain1 = 2560 mV");
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 1u);
+    g_test_message("Read ch1: raw 0x%04x -> %u mV", reading,
+             (reading >> 4u) * INTERNAL_VREF_MV / 4096u);
+    g_assert_cmphex(reading, ==, 0xFFF0);
+
+    qmp_adc128d818_set("ain2", 0);
+    g_test_message("Injected ain2 = 0 mV");
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 2u);
+    g_test_message("Read ch2: raw 0x%04x -> %u mV", reading,
+             (reading >> 4u) * INTERNAL_VREF_MV / 4096u);
+    g_assert_cmphex(reading, ==, 0x0000);
+}
+
+/* Temperature conversion (mode 0, channel 7 = temperature) */
+static void
+test_temperature_conversion(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint16_t reading;
+
+    qmp_adc128d818_set("temperature", 25000);
+    g_test_message("Injected temperature = 25000 mC (25.0 deg C)");
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("Read ch7: raw 0x%04x -> %d mC", reading,
+             (int16_t)(reading & 0xFF80u) * 500 / 128);
+    g_assert_cmphex(reading, ==, 0x1900);
+}
+
+/* Channels with distinct voltages */
+static void test_all_channels(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    static const uint16_t ain_mv[NUM_CHANNELS] = {
+        0, 320, 640, 960, 1280, 1920, 2240, 2560
+    };
+    static const uint16_t expect[NUM_CHANNELS] = {
+        0x0000, 0x2000, 0x4000, 0x6000, 0x8000, 0xC000, 0xE000, 0xFFF0
+    };
+    uint16_t reading;
+    unsigned ch;
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_INITIALIZATION);
+    i2c_set8(dev, REG_ADV_CONFIG, ADV_CONFIG_MODE_1);
+
+    for (ch = 0u; ch < NUM_CHANNELS; ch++) {
+        char name[8];
+        snprintf(name, sizeof(name), "ain%u", ch);
+        qmp_adc128d818_set(name, ain_mv[ch]);
+    }
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+
+    for (ch = 0u; ch < NUM_CHANNELS; ch++) {
+        reading = i2c_get16(dev, REG_CH_READING_BASE + ch);
+        g_test_message("ch%u: ain %u mV -> raw 0x%04x (expect 0x%04x)",
+                 ch, ain_mv[ch], reading, expect[ch]);
+        g_assert_cmphex(reading, ==, expect[ch]);
+    }
+}
+
+/* Voltage conversion edge cases */
+static void test_voltage_edges(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint16_t reading;
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_INITIALIZATION);
+    i2c_set8(dev, REG_ADV_CONFIG, ADV_CONFIG_MODE_1);
+
+    qmp_adc128d818_set("ain0", 3000);
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+
+    reading = i2c_get16(dev, REG_CH_READING_BASE);
+    g_test_message("Over-range 3000 mV: raw 0x%04x (expect 0xFFF0)", reading);
+    g_assert_cmphex(reading, ==, 0xFFF0);
+
+    qmp_adc128d818_set("ain1", 1);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 1u);
+    g_test_message("1 mV: raw 0x%04x (expect 0x0010)", reading);
+    g_assert_cmphex(reading, ==, 0x0010);
+
+    qmp_adc128d818_set("ain2", 640);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 2u);
+    g_test_message("640 mV (quarter): raw 0x%04x (expect 0x4000)", reading);
+    g_assert_cmphex(reading, ==, 0x4000);
+
+    qmp_adc128d818_set("ain3", 1920);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 3u);
+    g_test_message("1920 mV (3/4): raw 0x%04x (expect 0xC000)", reading);
+    g_assert_cmphex(reading, ==, 0xC000);
+}
+
+/* Temperature conversion edge cases */
+static void test_temperature_edges(void *obj, void *data,
+                                   QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint16_t reading;
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_INITIALIZATION);
+
+    qmp_adc128d818_set("temperature", 0);
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("0 C: raw 0x%04x (expect 0x0000)", reading);
+    g_assert_cmphex(reading, ==, 0x0000);
+
+    qmp_adc128d818_set("temperature", -25000);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("-25 C: raw 0x%04x (expect 0xE700)", reading);
+    g_assert_cmphex(reading, ==, 0xE700);
+
+    qmp_adc128d818_set("temperature", 127500);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("+127.5 C: raw 0x%04x (expect 0x7F80)", reading);
+    g_assert_cmphex(reading, ==, 0x7F80);
+
+    qmp_adc128d818_set("temperature", -128000);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("-128 C: raw 0x%04x (expect 0x8000)", reading);
+    g_assert_cmphex(reading, ==, 0x8000);
+
+    qmp_adc128d818_set("temperature", 200000);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("200 C (clamped): raw 0x%04x (expect 0x7F80)", reading);
+    g_assert_cmphex(reading, ==, 0x7F80);
+
+    qmp_adc128d818_set("temperature", -200000);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 7u);
+    g_test_message("-200 C (clamped): raw 0x%04x (expect 0x8000)", reading);
+    g_assert_cmphex(reading, ==, 0x8000);
+}
+
+/* External voltage reference */
+static void test_ext_vref(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint16_t reading;
+
+    i2c_set8(dev, REG_CONFIG, CONFIG_INITIALIZATION);
+    i2c_set8(dev, REG_ADV_CONFIG, ADV_CONFIG_MODE_1);
+
+    qmp_adc128d818_set("ext-vref-mv", 4096);
+    i2c_set8(dev, REG_ADV_CONFIG, ADV_CONFIG_EXT_REF_EN | ADV_CONFIG_MODE_1);
+
+    qmp_adc128d818_set("ain0", 1000);
+    i2c_set8(dev, REG_CONFIG, CONFIG_START);
+
+    reading = i2c_get16(dev, REG_CH_READING_BASE);
+    g_test_message("1000 mV / 4096 mV VREF: raw 0x%04x (expect 0x3E80)",
+                   reading);
+    g_assert_cmphex(reading, ==, 0x3E80);
+
+    qmp_adc128d818_set("ain1", 2048);
+    reading = i2c_get16(dev, REG_CH_READING_BASE + 1u);
+    g_test_message("2048 mV / 4096 mV VREF: raw 0x%04x (expect 0x8000)",
+                   reading);
+    g_assert_cmphex(reading, ==, 0x8000);
+}
+
 static void adc128d818_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -165,5 +345,14 @@ static void adc128d818_register_nodes(void)
     qos_add_test("defaults", "adc128d818", test_defaults, NULL);
     qos_add_test("soft-reset", "adc128d818", test_soft_reset, NULL);
     qos_add_test("ain-property", "adc128d818", test_ain_property, NULL);
+    qos_add_test("voltage-conversion", "adc128d818", test_voltage_conversion,
+                 NULL);
+    qos_add_test("temperature-conversion", "adc128d818",
+                 test_temperature_conversion, NULL);
+    qos_add_test("all-channels", "adc128d818", test_all_channels, NULL);
+    qos_add_test("voltage-edges", "adc128d818", test_voltage_edges, NULL);
+    qos_add_test("temperature-edges", "adc128d818", test_temperature_edges,
+                 NULL);
+    qos_add_test("ext-vref", "adc128d818", test_ext_vref, NULL);
 }
 libqos_init(adc128d818_register_nodes);
