@@ -2154,6 +2154,7 @@ void mshv_arch_init_vcpu(CPUState *cpu)
     CPUX86State *env = &x86_cpu->env;
     AccelCPUState *state = cpu->accel;
     size_t page = HV_HYP_PAGE_SIZE, xsave_len;
+    void *regs_page;
     void *mem = qemu_memalign(page, 2 * page);
     int ret;
     X86XSaveHeader *header;
@@ -2165,15 +2166,20 @@ void mshv_arch_init_vcpu(CPUState *cpu)
                       > HV_HYP_PAGE_SIZE));
 
     /* mmap the registers page */
-    void *rp = mmap(NULL, page, PROT_READ | PROT_WRITE,
+    regs_page = mmap(NULL, page, PROT_READ | PROT_WRITE,
                     MAP_SHARED, mshv_vcpufd(cpu),
                     MSHV_VP_MMAP_OFFSET_REGISTERS * page);
-    if (rp == MAP_FAILED) {
-        warn_report("register page mmap failed, falling back to hypercalls: %s",
-                    strerror(errno));
-        env->regs_page = NULL;
-    } else {
-        env->regs_page = (struct hv_vp_register_page *) rp;
+    if (regs_page == MAP_FAILED) {
+        /* This shouldn't fail, so we treat it as a fatal error */
+        error_report("register page mmap failed: %s", strerror(errno));
+        abort();
+    }
+    env->regs_page = (struct hv_vp_register_page *) regs_page;
+
+    if (env->regs_page->version != HV_VP_REGISTER_PAGE_VERSION_1) {
+        error_report("register page version mismatch: got %u, expected %u",
+                     env->regs_page->version, HV_VP_REGISTER_PAGE_VERSION_1);
+        abort();
     }
 
     state->hvcall_args.base = mem;
