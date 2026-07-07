@@ -9,6 +9,8 @@
 #ifndef HW_HYPERV_HVGDK_H
 #define HW_HYPERV_HVGDK_H
 
+#include "hvgdk_mini.h"
+
 #define HVGDK_H_VERSION         (25125)
 
 enum hv_unimplemented_msr_action {
