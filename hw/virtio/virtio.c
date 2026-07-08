@@ -3505,7 +3505,7 @@ int coroutine_mixed_fn
 virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 {
     int i, ret;
-    int32_t config_len;
+    uint32_t config_len;
     uint32_t num;
     uint32_t features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -3553,6 +3553,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     qemu_get_buffer(f, vdev->config, MIN(config_len, vdev->config_len));
 
     while (config_len > vdev->config_len) {
+        if (qemu_file_get_error(f)) {
+            return -1;
+        }
         qemu_get_byte(f);
         config_len--;
     }
