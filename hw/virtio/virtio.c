@@ -3320,7 +3320,7 @@ static int virtio_set_features_nocheck(VirtIODevice *vdev, const uint64_t *val)
     virtio_features_and(tmp, val, vdev->host_features_ex);
 
     if (k->set_features_ex) {
-        k->set_features_ex(vdev, val);
+        k->set_features_ex(vdev, tmp);
     } else if (k->set_features) {
         bad = bad || virtio_features_use_ex(tmp);
         k->set_features(vdev, tmp[0]);
