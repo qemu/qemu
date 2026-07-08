@@ -1680,36 +1680,56 @@ static void virtqueue_undo_map_desc(AddressSpace *as,
     }
 }
 
-static void virtqueue_map_iovec(VirtIODevice *vdev, struct iovec *sg,
+static bool virtqueue_map_iovec(VirtIODevice *vdev, struct iovec *sg,
                                 hwaddr *addr, unsigned int num_sg,
                                 bool is_write)
 {
     unsigned int i;
     hwaddr len;
+    DMADirection dir = is_write ? DMA_DIRECTION_FROM_DEVICE :
+                                 DMA_DIRECTION_TO_DEVICE;
 
     for (i = 0; i < num_sg; i++) {
         len = sg[i].iov_len;
-        sg[i].iov_base = dma_memory_map(vdev->dma_as,
-                                        addr[i], &len, is_write ?
-                                        DMA_DIRECTION_FROM_DEVICE :
-                                        DMA_DIRECTION_TO_DEVICE,
-                                        MEMTXATTRS_UNSPECIFIED);
+        sg[i].iov_base = dma_memory_map(vdev->dma_as, addr[i], &len,
+                                        dir, MEMTXATTRS_UNSPECIFIED);
         if (!sg[i].iov_base) {
             error_report("virtio: error trying to map MMIO memory");
-            exit(1);
+            goto err_undo_map;
         }
         if (len != sg[i].iov_len) {
             error_report("virtio: unexpected memory split");
-            exit(1);
+            dma_memory_unmap(vdev->dma_as, sg[i].iov_base, len, dir, 0);
+            goto err_undo_map;
         }
     }
+    return true;
+
+err_undo_map:
+    while (i-- > 0) {
+        dma_memory_unmap(vdev->dma_as, sg[i].iov_base, sg[i].iov_len,
+                         dir, 0);
+    }
+    return false;
 }
 
-void virtqueue_map(VirtIODevice *vdev, VirtQueueElement *elem)
+bool virtqueue_map(VirtIODevice *vdev, VirtQueueElement *elem)
 {
-    virtqueue_map_iovec(vdev, elem->in_sg, elem->in_addr, elem->in_num, true);
-    virtqueue_map_iovec(vdev, elem->out_sg, elem->out_addr, elem->out_num,
-                                                                        false);
+    if (!virtqueue_map_iovec(vdev, elem->in_sg, elem->in_addr,
+                             elem->in_num, true)) {
+        return false;
+    }
+    if (!virtqueue_map_iovec(vdev, elem->out_sg, elem->out_addr,
+                             elem->out_num, false)) {
+        unsigned int i;
+        for (i = 0; i < elem->in_num; i++) {
+            dma_memory_unmap(vdev->dma_as, elem->in_sg[i].iov_base,
+                             elem->in_sg[i].iov_len,
+                             DMA_DIRECTION_FROM_DEVICE, 0);
+        }
+        return false;
+    }
+    return true;
 }
 
 static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_num)
@@ -2206,7 +2226,10 @@ void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
         qemu_get_be32s(f, &elem->ndescs);
     }
 
-    virtqueue_map(vdev, elem);
+    if (!virtqueue_map(vdev, elem)) {
+        g_free(elem);
+        return NULL;
+    }
     return elem;
 }
 
