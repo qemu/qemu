@@ -1117,6 +1117,8 @@ static bool vfio_pci_load_rom(VFIOPCIDevice *vdev)
         }
     }
 
+    vfio_rom_quirk_setup(vdev);
+
     return true;
 }
 

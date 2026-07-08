@@ -1597,3 +1597,10 @@ bool vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp)
 
     return true;
 }
+
+void vfio_rom_quirk_setup(VFIOPCIDevice *vdev)
+{
+#ifdef CONFIG_VFIO_IGD
+    vfio_igd_legacy_rom_quirk(vdev);
+#endif
+}
