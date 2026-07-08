@@ -3584,6 +3584,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
             return -1;
         }
         qemu_get_byte(f);
+        if (qemu_file_get_error(f)) {
+            return -1;
+        }
         config_len--;
     }
 
