@@ -1692,6 +1692,13 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_Q_ENABLE:
         if (val == 1) {
+            if (proxy->vqs[vdev->queue_sel].enabled) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: queue %d already enabled - "
+                              "reset queue before re-enabling\n",
+                              __func__, vdev->queue_sel);
+                break;
+            }
             virtio_queue_set_num(vdev, vdev->queue_sel,
                                  proxy->vqs[vdev->queue_sel].num);
             virtio_queue_set_rings(vdev, vdev->queue_sel,
