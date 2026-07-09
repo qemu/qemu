@@ -533,7 +533,9 @@ config ASPEED_SOC
     bool
     default y
     depends on TCG && ARM
+    imply GENERIC_LOADER
     imply PCI_DEVICES
+    imply E1000E_PCI_EXPRESS
     select DS1338
     select FTGMAC100
     select I2C
