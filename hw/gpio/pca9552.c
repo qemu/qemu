@@ -492,16 +492,6 @@ static void pca955x_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pca955x_properties);
 }
 
-static const TypeInfo pca955x_info = {
-    .name          = TYPE_PCA955X,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_init = pca955x_initfn,
-    .instance_size = sizeof(PCA955xState),
-    .class_init    = pca955x_class_init,
-    .class_size    = sizeof(PCA955xClass),
-    .abstract      = true,
-};
-
 static void pca9552_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -526,23 +516,26 @@ static void pca9535_class_init(ObjectClass *oc, const void *data)
     pc->has_led_support = false;
 }
 
-static const TypeInfo pca9552_info = {
-    .name          = TYPE_PCA9552,
-    .parent        = TYPE_PCA955X,
-    .class_init    = pca9552_class_init,
+static const TypeInfo pca955x_types[] = {
+    {
+        .name          = TYPE_PCA955X,
+        .parent        = TYPE_I2C_SLAVE,
+        .instance_init = pca955x_initfn,
+        .instance_size = sizeof(PCA955xState),
+        .class_init    = pca955x_class_init,
+        .class_size    = sizeof(PCA955xClass),
+        .abstract      = true,
+    },
+    {
+        .name          = TYPE_PCA9552,
+        .parent        = TYPE_PCA955X,
+        .class_init    = pca9552_class_init,
+    },
+    {
+        .name          = TYPE_PCA9535,
+        .parent        = TYPE_PCA955X,
+        .class_init    = pca9535_class_init,
+    }
 };
 
-static const TypeInfo pca9535_info = {
-    .name          = TYPE_PCA9535,
-    .parent        = TYPE_PCA955X,
-    .class_init    = pca9535_class_init,
-};
-
-static void pca955x_register_types(void)
-{
-    type_register_static(&pca955x_info);
-    type_register_static(&pca9552_info);
-    type_register_static(&pca9535_info);
-}
-
-type_init(pca955x_register_types)
+DEFINE_TYPES(pca955x_types)
