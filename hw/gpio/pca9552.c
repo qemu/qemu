@@ -488,7 +488,7 @@ static void pca955x_realize(DeviceState *dev, Error **errp)
     PCA955xState *s = PCA955X(dev);
 
     if (!s->description) {
-        s->description = g_strdup("pca-unspecified");
+        s->description = g_strdup(object_get_typename(OBJECT(dev)));
     }
 
     qdev_init_gpio_out(dev, s->gpio_out, k->pin_count);
