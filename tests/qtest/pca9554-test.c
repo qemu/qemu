@@ -25,6 +25,48 @@ static void test_reset_defaults(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmphex(i2c_get8(dev, PCA9554_CONFIG), ==, 0xFF);
 }
 
+/*
+ * A pin configured as output (config=0) drives its OUTPUT register level onto
+ * the pin (push-pull), which the INPUT register reflects. A pin configured as
+ * input (config=1) floats high through its pull-up.
+ */
+static void test_output_drives_input(void *obj, void *data,
+                                     QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    /* Low nibble output, high nibble input (pull-up). */
+    i2c_set8(dev, PCA9554_CONFIG, 0xF0);
+    i2c_set8(dev, PCA9554_OUTPUT, 0xFA);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xFA);
+
+    /* All outputs, driven low then high. */
+    i2c_set8(dev, PCA9554_CONFIG, 0x00);
+    i2c_set8(dev, PCA9554_OUTPUT, 0x00);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x00);
+
+    i2c_set8(dev, PCA9554_OUTPUT, 0xFF);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xFF);
+}
+
+/*
+ * With all pins configured as inputs the pull-ups make the INPUT register read
+ * all ones regardless of the OUTPUT register; switching a pin to output with
+ * output=0 drives it low.
+ */
+static void test_input_pullup(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xFF);
+
+    i2c_set8(dev, PCA9554_OUTPUT, 0x00);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xFF);
+
+    i2c_set8(dev, PCA9554_CONFIG, 0x00);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x00);
+}
+
 static void pca9554_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -36,6 +78,9 @@ static void pca9554_register_nodes(void)
     qos_node_consumes("pca9554", "i2c-bus", &opts);
 
     qos_add_test("reset-defaults", "pca9554", test_reset_defaults, NULL);
+    qos_add_test("output-drives-input", "pca9554", test_output_drives_input,
+                 NULL);
+    qos_add_test("input-pullup", "pca9554", test_input_pullup, NULL);
 }
 
 libqos_init(pca9554_register_nodes);
