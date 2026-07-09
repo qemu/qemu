@@ -373,7 +373,7 @@ static void colo_rewriter_cleanup(NetFilterState *nf)
         g_free(s->incoming_queue);
     }
 
-    g_hash_table_destroy(s->connection_track_table);
+    g_clear_pointer(&s->connection_track_table, g_hash_table_destroy);
 }
 
 static void colo_rewriter_setup(NetFilterState *nf, Error **errp)
