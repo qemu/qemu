@@ -167,9 +167,12 @@ static void pca955x_update_pin_input(PCA955xState *s)
             /* PCA9535: Simple GPIO behavior */
             uint8_t config_reg = PCA9535_CONFIG0 + (i / 8);
             uint8_t output_reg = PCA9535_OUTPUT0 + (i / 8);
-            uint8_t polarity_reg = PCA9535_POLARITY0 + (i / 8);
 
-            /* Check if pin is configured as input */
+            /*
+             * The input register holds the raw pin logic level; the
+             * polarity inversion register is only applied when the input
+             * port is read (see pca955x_read()).
+             */
             if (s->regs[config_reg] & bit_mask) {
                 /* Input mode - reflect external state */
                 if (s->ext_state[i] == PCA9552_PIN_LOW) {
@@ -179,12 +182,8 @@ static void pca955x_update_pin_input(PCA955xState *s)
                 }
             } else {
                 /* Output mode - reflect output register value */
-                uint8_t output_bit = s->regs[output_reg] & bit_mask;
-                uint8_t polarity_bit = s->regs[polarity_reg] & bit_mask;
-
-                /* Apply polarity inversion if set */
                 s->regs[input_reg] = (s->regs[input_reg] & ~bit_mask) |
-                                    ((output_bit ^ polarity_bit) & bit_mask);
+                                     (s->regs[output_reg] & bit_mask);
             }
         }
 
@@ -204,6 +203,18 @@ static uint8_t pca955x_read(PCA955xState *s, uint8_t reg)
         qemu_log_mask(LOG_GUEST_ERROR, "%s: unexpected read to register %d\n",
                       __func__, reg);
         return 0xFF;
+    }
+
+    /*
+     * On the GPIO variants, reading an input port returns the raw pin
+     * levels XORed with the polarity inversion register, as specified by
+     * the datasheet.
+     */
+    if (!k->has_led_support &&
+        (reg == PCA9535_INPUT0 || reg == PCA9535_INPUT1)) {
+        uint8_t polarity_reg = PCA9535_POLARITY0 + (reg - PCA9535_INPUT0);
+
+        return s->regs[reg] ^ s->regs[polarity_reg];
     }
 
     return s->regs[reg];
