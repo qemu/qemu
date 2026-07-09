@@ -259,13 +259,25 @@ static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
 }
 
 /*
- * When Auto-Increment is on, the register address is incremented
- * after each byte is sent to or received by the device. The index
- * rollovers to 0 when the maximum register address is reached.
+ * Advance the command pointer after each byte sent to or received from the
+ * device.
+ *
+ * The LED variant auto-increments only when the AI bit (bit 4) is set in the
+ * command byte, rolling over to 0 once the maximum register address is
+ * reached.
+ *
+ * The GPIO variants auto-increment on every access, toggling bit 0 so the
+ * pointer stays within the addressed register pair
+ * (input/output/polarity/config), as specified by their datasheet.
  */
 static void pca955x_autoinc(PCA955xState *s)
 {
     PCA955xClass *k = PCA955X_GET_CLASS(s);
+
+    if (!k->has_led_support) {
+        s->pointer ^= 0x1;
+        return;
+    }
 
     if (s->pointer != 0xFF && s->pointer & PCA9552_AUTOINC) {
         uint8_t reg = s->pointer & 0xf;
@@ -275,12 +287,25 @@ static void pca955x_autoinc(PCA955xState *s)
     }
 }
 
+/*
+ * The LED variant addresses its registers with a 4-bit command field, while
+ * the GPIO variants only decode 3 bits (the command wraps into the 8-register
+ * window).
+ */
+static inline uint8_t pca955x_cmd_reg(PCA955xState *s)
+{
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
+
+    return s->pointer & (k->has_led_support ? 0xf : 0x7);
+}
+
 static uint8_t pca955x_recv(I2CSlave *i2c)
 {
     PCA955xState *s = PCA955X(i2c);
+    PCA955xClass *k = PCA955X_GET_CLASS(s);
     uint8_t ret;
 
-    ret = pca955x_read(s, s->pointer & 0xf);
+    ret = pca955x_read(s, pca955x_cmd_reg(s));
 
     /*
      * From the Specs:
@@ -292,7 +317,7 @@ static uint8_t pca955x_recv(I2CSlave *i2c)
      * I don't know what should be done in this case, so throw an
      * error.
      */
-    if (s->pointer == PCA9552_AUTOINC) {
+    if (k->has_led_support && s->pointer == PCA9552_AUTOINC) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Autoincrement read starting with register 0\n",
                       __func__);
@@ -312,7 +337,7 @@ static int pca955x_send(I2CSlave *i2c, uint8_t data)
         s->pointer = data;
         s->len++;
     } else {
-        pca955x_write(s, s->pointer & 0xf, data);
+        pca955x_write(s, pca955x_cmd_reg(s), data);
 
         pca955x_autoinc(s);
     }
