@@ -34,7 +34,7 @@ OBJECT_DECLARE_TYPE(PCA955xState, PCA955xClass, PCA955X)
 
 struct PCA955xState {
     /*< private >*/
-    I2CSlave i2c;
+    I2CSlave parent_obj;
     /*< public >*/
 
     uint8_t len;
@@ -401,7 +401,7 @@ static const VMStateDescription pca9552_vmstate = {
         VMSTATE_UINT8(pointer, PCA955xState),
         VMSTATE_UINT8_ARRAY(regs, PCA955xState, PCA955X_NR_REGS),
         VMSTATE_UINT8_ARRAY(ext_state, PCA955xState, PCA955X_PIN_COUNT_MAX),
-        VMSTATE_I2C_SLAVE(i2c, PCA955xState),
+        VMSTATE_I2C_SLAVE(parent_obj, PCA955xState),
         VMSTATE_END_OF_LIST()
     }
 };
