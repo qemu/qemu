@@ -102,6 +102,33 @@ static void test_polarity_with_output(void *obj, void *data,
     g_assert_cmphex(i2c_get8(dev, PCA9554_OUTPUT), ==, 0xA5);
 }
 
+/*
+ * The PCA9554 has no auto-increment: the command pointer never advances, so
+ * multi-byte reads and writes all target the addressed register.
+ */
+static void test_no_autoincrement(void *obj, void *data,
+                                  QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t buf[2];
+
+    /* Distinct values in adjacent registers. */
+    i2c_set8(dev, PCA9554_OUTPUT, 0xAA);
+    i2c_set8(dev, PCA9554_POLARITY, 0x33);
+
+    /* Two reads from OUTPUT return OUTPUT twice, not OUTPUT then POLARITY. */
+    i2c_read_block(dev, PCA9554_OUTPUT, buf, 2);
+    g_assert_cmphex(buf[0], ==, 0xAA);
+    g_assert_cmphex(buf[1], ==, 0xAA);
+
+    /* The second written byte overwrites OUTPUT; POLARITY is untouched. */
+    buf[0] = 0x12;
+    buf[1] = 0x34;
+    i2c_write_block(dev, PCA9554_OUTPUT, buf, 2);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_OUTPUT), ==, 0x34);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_POLARITY), ==, 0x33);
+}
+
 static void pca9554_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -120,6 +147,7 @@ static void pca9554_register_nodes(void)
                  NULL);
     qos_add_test("polarity-with-output", "pca9554", test_polarity_with_output,
                  NULL);
+    qos_add_test("no-autoincrement", "pca9554", test_no_autoincrement, NULL);
 }
 
 libqos_init(pca9554_register_nodes);
