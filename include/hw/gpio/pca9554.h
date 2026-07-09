@@ -12,12 +12,14 @@
 #include "qom/object.h"
 
 #define TYPE_PCA9554 "pca9554"
+#define TYPE_PCA9536 "pca9536"
 typedef struct PCA9554State PCA9554State;
 DECLARE_INSTANCE_CHECKER(PCA9554State, PCA9554,
                          TYPE_PCA9554)
 
 #define PCA9554_NR_REGS 4
 #define PCA9554_PIN_COUNT 8
+#define PCA9536_PIN_COUNT 4
 
 struct PCA9554State {
     /*< private >*/
