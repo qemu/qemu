@@ -139,6 +139,87 @@ static void test_polarity_with_output(void *obj, void *data,
     g_assert_cmphex(i2c_get8(dev, PCA9535_OUTPUT0), ==, 0xA5);
 }
 
+/*
+ * The PCA9555 auto-increments by toggling bit 0 of the command pointer
+ * within a register pair. Reading two bytes from INPUT0 should yield
+ * INPUT0 then INPUT1.
+ */
+static void test_auto_increment_read(void *obj, void *data,
+                                     QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t buf[2];
+
+    i2c_set8(dev, PCA9535_CONFIG0, 0x00);
+    i2c_set8(dev, PCA9535_CONFIG1, 0x00);
+    i2c_set8(dev, PCA9535_OUTPUT0, 0xAA);
+    i2c_set8(dev, PCA9535_OUTPUT1, 0x55);
+
+    i2c_read_block(dev, PCA9535_INPUT0, buf, 2);
+    g_assert_cmphex(buf[0], ==, 0xAA);
+    g_assert_cmphex(buf[1], ==, 0x55);
+
+    i2c_read_block(dev, PCA9535_OUTPUT0, buf, 2);
+    g_assert_cmphex(buf[0], ==, 0xAA);
+    g_assert_cmphex(buf[1], ==, 0x55);
+}
+
+/*
+ * Auto-increment write: writing two data bytes after a command byte
+ * should write to port 0 then port 1 of the addressed register pair.
+ */
+static void test_auto_increment_write(void *obj, void *data,
+                                      QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t buf[2];
+
+    buf[0] = 0x12;
+    buf[1] = 0x34;
+    i2c_write_block(dev, PCA9535_OUTPUT0, buf, 2);
+
+    g_assert_cmphex(i2c_get8(dev, PCA9535_OUTPUT0), ==, 0x12);
+    g_assert_cmphex(i2c_get8(dev, PCA9535_OUTPUT1), ==, 0x34);
+
+    buf[0] = 0x0F;
+    buf[1] = 0xF0;
+    i2c_write_block(dev, PCA9535_CONFIG0, buf, 2);
+
+    g_assert_cmphex(i2c_get8(dev, PCA9535_CONFIG0), ==, 0x0F);
+    g_assert_cmphex(i2c_get8(dev, PCA9535_CONFIG1), ==, 0xF0);
+}
+
+/*
+ * Auto-increment toggles within the pair: starting from port 1 should
+ * wrap back to port 0 (toggle bit 0).
+ */
+static void test_auto_increment_toggle(void *obj, void *data,
+                                       QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+    uint8_t buf[2];
+
+    i2c_set8(dev, PCA9535_OUTPUT0, 0xAA);
+    i2c_set8(dev, PCA9535_OUTPUT1, 0x55);
+
+    i2c_read_block(dev, PCA9535_OUTPUT1, buf, 2);
+    g_assert_cmphex(buf[0], ==, 0x55);
+    g_assert_cmphex(buf[1], ==, 0xAA);
+}
+
+/*
+ * Verify the command byte wraps at 3 bits: register addresses
+ * beyond 7 should alias to the same register (bits [2:0] only).
+ */
+static void test_command_wrapping(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    i2c_set8(dev, PCA9535_OUTPUT0, 0x42);
+
+    g_assert_cmphex(i2c_get8(dev, 0x0A), ==, 0x42);
+}
+
 static void pca9555_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -158,6 +239,13 @@ static void pca9555_register_nodes(void)
                  NULL);
     qos_add_test("polarity-with-output", "pca9555", test_polarity_with_output,
                  NULL);
+    qos_add_test("auto-increment-read", "pca9555", test_auto_increment_read,
+                 NULL);
+    qos_add_test("auto-increment-write", "pca9555", test_auto_increment_write,
+                 NULL);
+    qos_add_test("auto-increment-toggle", "pca9555", test_auto_increment_toggle,
+                 NULL);
+    qos_add_test("command-wrapping", "pca9555", test_command_wrapping, NULL);
 }
 
 libqos_init(pca9555_register_nodes);
