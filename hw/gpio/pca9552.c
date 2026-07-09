@@ -406,9 +406,9 @@ static const VMStateDescription pca9552_vmstate = {
     }
 };
 
-static void pca9552_reset(DeviceState *dev)
+static void pca9552_reset_hold(Object *obj, ResetType type)
 {
-    PCA955xState *s = PCA955X(dev);
+    PCA955xState *s = PCA955X(obj);
 
     s->regs[PCA9552_PSC0] = 0xFF;
     s->regs[PCA9552_PWM0] = 0x80;
@@ -426,9 +426,9 @@ static void pca9552_reset(DeviceState *dev)
     s->len = 0;
 }
 
-static void pca9535_reset(DeviceState *dev)
+static void pca9535_reset_hold(Object *obj, ResetType type)
 {
-    PCA955xState *s = PCA955X(dev);
+    PCA955xState *s = PCA955X(obj);
 
     s->regs[PCA9535_INPUT0] = 0xFF;   /* All inputs high (pull-ups) */
     s->regs[PCA9535_INPUT1] = 0xFF;   /* All inputs high (pull-ups) */
@@ -514,9 +514,10 @@ static void pca955x_class_init(ObjectClass *klass, const void *data)
 static void pca9552_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
     PCA955xClass *pc = PCA955X_CLASS(oc);
 
-    device_class_set_legacy_reset(dc, pca9552_reset);
+    rc->phases.hold = pca9552_reset_hold;
     dc->vmsd = &pca9552_vmstate;
     pc->max_reg = PCA9552_LS3;
     pc->pin_count = 16;
@@ -526,9 +527,10 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
 static void pca95x5_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
     PCA955xClass *pc = PCA955X_CLASS(oc);
 
-    device_class_set_legacy_reset(dc, pca9535_reset);
+    rc->phases.hold = pca9535_reset_hold;
     dc->vmsd = &pca9552_vmstate;
     pc->max_reg = PCA9535_CONFIG1;
     pc->pin_count = 16;
