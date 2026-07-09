@@ -9352,22 +9352,11 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     }
 }
 
-#define BLOCKER_FEATURES_MAX_LEN 256
-
-static inline void nvme_add_blocker_feature(char *blocker_features,
-                                            const char *feature)
-{
-    if (strlen(blocker_features) > 0) {
-        g_strlcat(blocker_features, ", ", BLOCKER_FEATURES_MAX_LEN);
-    }
-    g_strlcat(blocker_features, feature, BLOCKER_FEATURES_MAX_LEN);
-}
-
 static bool nvme_set_migration_blockers(NvmeCtrl *n, PCIDevice *pci_dev,
                                         Error **errp)
 {
     uint64_t unsupported_cap, cap = ldq_le_p(&n->bar.cap);
-    char blocker_features[BLOCKER_FEATURES_MAX_LEN] = "";
+    g_autoptr(GPtrArray) blocker_features = g_ptr_array_new();
     bool adm_cmd_security_checked = false;
     bool cmd_io_mgmt_checked = false;
     bool cmd_zone_checked = false;
@@ -9416,15 +9405,15 @@ static bool nvme_set_migration_blockers(NvmeCtrl *n, PCIDevice *pci_dev,
             }
 
             if (namespaces_num > 1) {
-                nvme_add_blocker_feature(blocker_features,
-                                         "Namespace Attachment");
+                g_ptr_array_add(blocker_features,
+                                (void *) "Namespace Attachment");
             }
 
             break;
         }
         case NVME_ADM_CMD_VIRT_MNGMT:
             if (n->params.sriov_max_vfs) {
-                nvme_add_blocker_feature(blocker_features, "SR-IOV");
+                g_ptr_array_add(blocker_features, (void *) "SR-IOV");
             }
 
             break;
@@ -9435,7 +9424,7 @@ static bool nvme_set_migration_blockers(NvmeCtrl *n, PCIDevice *pci_dev,
             }
 
             if (pci_dev->spdm_port) {
-                nvme_add_blocker_feature(blocker_features, "SPDM");
+                g_ptr_array_add(blocker_features, (void *) "SPDM");
             }
 
             adm_cmd_security_checked = true;
@@ -9469,7 +9458,7 @@ static bool nvme_set_migration_blockers(NvmeCtrl *n, PCIDevice *pci_dev,
 
             /* check for NVME_IOMS_MO_RUH_UPDATE */
             if (n->subsys->params.fdp.enabled) {
-                nvme_add_blocker_feature(blocker_features, "FDP");
+                g_ptr_array_add(blocker_features, (void *) "FDP");
             }
 
             cmd_io_mgmt_checked = true;
@@ -9504,8 +9493,8 @@ static bool nvme_set_migration_blockers(NvmeCtrl *n, PCIDevice *pci_dev,
                 }
 
                 if (ns->params.zoned) {
-                    nvme_add_blocker_feature(blocker_features,
-                                             "Zoned Namespace");
+                    g_ptr_array_add(blocker_features,
+                                    (void *) "Zoned Namespace");
                     break;
                 }
             }
@@ -9525,24 +9514,28 @@ static bool nvme_set_migration_blockers(NvmeCtrl *n, PCIDevice *pci_dev,
      * covered by unsupported_cap check.
      */
     if (NVME_CAP_CMBS(cap)) {
-        nvme_add_blocker_feature(blocker_features, "CMB");
+        g_ptr_array_add(blocker_features, (void *) "CMB");
         cap &= ~((uint64_t)CAP_CMBS_MASK << CAP_CMBS_SHIFT);
     }
 
     if (NVME_CAP_PMRS(cap)) {
-        nvme_add_blocker_feature(blocker_features, "PMR");
+        g_ptr_array_add(blocker_features, (void *) "PMR");
         cap &= ~((uint64_t)CAP_PMRS_MASK << CAP_PMRS_SHIFT);
     }
 
     unsupported_cap = cap & ~NVME_MIGRATION_SUPPORTED_CAP_BITS;
     if (unsupported_cap) {
-        nvme_add_blocker_feature(blocker_features, "unknown capability");
+        g_ptr_array_add(blocker_features, (void *) "unknown capability");
     }
 
     assert(n->migration_blocker == NULL);
-    if (strlen(blocker_features) > 0) {
+    if (blocker_features->len > 0) {
+        g_autofree char *blocker_list = NULL;
+
+        g_ptr_array_add(blocker_features, NULL);
+        blocker_list = g_strjoinv(", ", (void *)blocker_features->pdata);
         error_setg(&n->migration_blocker,
-                   "Migration is not supported for %s", blocker_features);
+                   "Migration is not supported for %s", blocker_list);
         if (migrate_add_blocker(&n->migration_blocker, errp) < 0) {
             return false;
         }
