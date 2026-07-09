@@ -99,6 +99,46 @@ static void test_port_independence(void *obj, void *data,
     g_assert_cmphex(i2c_get8(dev, PCA9535_OUTPUT1), ==, 0xAA);
 }
 
+/*
+ * Polarity inversion: reading INPUT with polarity bits set should
+ * return the XOR of the actual input state and the polarity register.
+ */
+static void test_polarity_inversion(void *obj, void *data,
+                                    QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT0), ==, 0xFF);
+
+    i2c_set8(dev, PCA9535_POLARITY0, 0xFF);
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT0), ==, 0x00);
+
+    i2c_set8(dev, PCA9535_POLARITY0, 0x0F);
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT0), ==, 0xF0);
+
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT1), ==, 0xFF);
+
+    i2c_set8(dev, PCA9535_POLARITY1, 0xAA);
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT1), ==, 0x55);
+}
+
+/* Polarity inversion combined with output-driven pins. */
+static void test_polarity_with_output(void *obj, void *data,
+                                      QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    i2c_set8(dev, PCA9535_CONFIG0, 0x00);
+    i2c_set8(dev, PCA9535_OUTPUT0, 0xA5);
+
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT0), ==, 0xA5);
+
+    i2c_set8(dev, PCA9535_POLARITY0, 0xFF);
+    g_assert_cmphex(i2c_get8(dev, PCA9535_INPUT0), ==, 0x5A);
+
+    g_assert_cmphex(i2c_get8(dev, PCA9535_OUTPUT0), ==, 0xA5);
+}
+
 static void pca9555_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -114,6 +154,10 @@ static void pca9555_register_nodes(void)
                  NULL);
     qos_add_test("input-pullup", "pca9555", test_input_pullup, NULL);
     qos_add_test("port-independence", "pca9555", test_port_independence, NULL);
+    qos_add_test("polarity-inversion", "pca9555", test_polarity_inversion,
+                 NULL);
+    qos_add_test("polarity-with-output", "pca9555", test_polarity_with_output,
+                 NULL);
 }
 
 libqos_init(pca9555_register_nodes);
