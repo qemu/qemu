@@ -33,6 +33,7 @@ struct PCA9554State {
     qemu_irq gpio_out[PCA9554_PIN_COUNT];
     uint8_t ext_state[PCA9554_PIN_COUNT];
     char *description; /* For debugging purpose only */
+    bool hw_dir; /* Honor pin direction */
 };
 
 #endif

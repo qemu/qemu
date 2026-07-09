@@ -154,6 +154,14 @@ static int pca9554_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
+static void pca9554_set_ext_state(PCA9554State *s, int pin, int level)
+{
+    if (s->ext_state[pin] != level) {
+        s->ext_state[pin] = level;
+        pca9554_update_pin_input(s);
+    }
+}
+
 static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
@@ -171,9 +179,13 @@ static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    state = pca9554_read(s, PCA9554_CONFIG);
-    state |= pca9554_read(s, PCA9554_OUTPUT);
-    state = (state >> pin) & 0x1;
+    /*
+     * Report the physical pin level. The input register is kept in sync by
+     * pca9554_update_pin_input(): output pins mirror the OUTPUT register and
+     * input pins reflect the externally driven (or pulled-up) level, so it
+     * holds the wire level regardless of the configured direction.
+     */
+    state = (s->regs[PCA9554_INPUT] >> pin) & 0x1;
     visit_type_str(v, name, (char **)&pin_state[state], errp);
 }
 
@@ -208,20 +220,34 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    /* First, modify the output register bit */
-    val = pca9554_read(s, PCA9554_OUTPUT);
-    mask = 0x1 << pin;
-    if (state == PCA9554_PIN_LOW) {
-        val &= ~(mask);
+    if (s->hw_dir) {
+        /* Warn and ignore if the guest has configured this pin as output */
+        if (!((s->regs[PCA9554_CONFIG] >> pin) & 0x1)) {
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: pin %d is configured as output, "
+                          "ignoring external set\n",
+                          s->description, pin);
+            return;
+        }
+        /* Drive the external input level */
+        pca9554_set_ext_state(s, pin, state != PCA9554_PIN_LOW);
     } else {
-        val |= mask;
-    }
-    pca9554_write(s, PCA9554_OUTPUT, val);
+        /* Legacy behavior: force output mode and drive */
+        /* First, modify the output register bit */
+        val = pca9554_read(s, PCA9554_OUTPUT);
+        mask = 0x1 << pin;
+        if (state == PCA9554_PIN_LOW) {
+            val &= ~(mask);
+        } else {
+            val |= mask;
+        }
+        pca9554_write(s, PCA9554_OUTPUT, val);
 
-    /* Then, clear the config register bit for output mode */
-    val = pca9554_read(s, PCA9554_CONFIG);
-    val &= ~mask;
-    pca9554_write(s, PCA9554_CONFIG, val);
+        /* Then, clear the config register bit for output mode */
+        val = pca9554_read(s, PCA9554_CONFIG);
+        val &= ~mask;
+        pca9554_write(s, PCA9554_CONFIG, val);
+    }
 }
 
 static const VMStateDescription pca9554_vmstate = {
@@ -271,14 +297,6 @@ static void pca9554_initfn(Object *obj)
     }
 }
 
-static void pca9554_set_ext_state(PCA9554State *s, int pin, int level)
-{
-    if (s->ext_state[pin] != level) {
-        s->ext_state[pin] = level;
-        pca9554_update_pin_input(s);
-    }
-}
-
 static void pca9554_gpio_in_handler(void *opaque, int pin, int level)
 {
     PCA9554State *s = PCA9554(opaque);
@@ -303,6 +321,7 @@ static void pca9554_realize(DeviceState *dev, Error **errp)
 
 static const Property pca9554_properties[] = {
     DEFINE_PROP_STRING("description", PCA9554State, description),
+    DEFINE_PROP_BOOL("hw-dir", PCA9554State, hw_dir, false),
 };
 
 static void pca9554_class_init(ObjectClass *klass, const void *data)
