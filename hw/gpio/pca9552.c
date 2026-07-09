@@ -523,7 +523,7 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
     pc->has_led_support = true;
 }
 
-static void pca9535_class_init(ObjectClass *oc, const void *data)
+static void pca95x5_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCA955xClass *pc = PCA955X_CLASS(oc);
@@ -553,7 +553,12 @@ static const TypeInfo pca955x_types[] = {
     {
         .name          = TYPE_PCA9535,
         .parent        = TYPE_PCA955X,
-        .class_init    = pca9535_class_init,
+        .class_init    = pca95x5_class_init,
+    },
+    {
+        .name          = TYPE_PCA9555,
+        .parent        = TYPE_PCA955X,
+        .class_init    = pca95x5_class_init,
     }
 };
 
