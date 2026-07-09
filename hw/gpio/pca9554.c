@@ -280,7 +280,7 @@ static void pca9554_initfn(Object *obj)
         char *name;
 
         name = g_strdup_printf("pin%d", pin);
-        object_property_add(obj, name, "bool", pca9554_get_pin, pca9554_set_pin,
+        object_property_add(obj, name, "str", pca9554_get_pin, pca9554_set_pin,
                             NULL, NULL);
         g_free(name);
     }
