@@ -129,6 +129,66 @@ static void test_no_autoincrement(void *obj, void *data,
     g_assert_cmphex(i2c_get8(dev, PCA9554_POLARITY), ==, 0x33);
 }
 
+/*
+ * The PCA9536 shares the PCA9554 register map but only has four pins, so its
+ * reset defaults and pin logic are masked to the low nibble.
+ */
+static void test_pca9536_reset_defaults(void *obj, void *data,
+                                        QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x0F);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_OUTPUT), ==, 0x0F);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_POLARITY), ==, 0x00);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_CONFIG), ==, 0x0F);
+}
+
+/* Only the four low pins are driven; the upper nibble stays low. */
+static void test_pca9536_output_drives_input(void *obj, void *data,
+                                             QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    i2c_set8(dev, PCA9554_CONFIG, 0x00);
+
+    i2c_set8(dev, PCA9554_OUTPUT, 0x0A);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x0A);
+
+    i2c_set8(dev, PCA9554_OUTPUT, 0x00);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x00);
+}
+
+/*
+ * The four upper bits address pins that do not exist on the PCA9536, so writes
+ * to the register map discard them: the writable registers read back with bits
+ * [7:4] cleared, and driving them onto the pins never surfaces in INPUT.
+ */
+static void test_pca9536_ignores_upper_bits(void *obj, void *data,
+                                            QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    /* Bits [7:4] are dropped on write; bits [3:0] survive. */
+    i2c_set8(dev, PCA9554_OUTPUT, 0xFA);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_OUTPUT), ==, 0x0A);
+
+    i2c_set8(dev, PCA9554_POLARITY, 0xF5);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_POLARITY), ==, 0x05);
+
+    i2c_set8(dev, PCA9554_CONFIG, 0xF3);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_CONFIG), ==, 0x03);
+
+    /*
+     * With all four pins as outputs, driving 0xFF only affects the low
+     * nibble.
+     */
+    i2c_set8(dev, PCA9554_POLARITY, 0x00);
+    i2c_set8(dev, PCA9554_CONFIG, 0x00);
+    i2c_set8(dev, PCA9554_OUTPUT, 0xFF);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x0F);
+}
+
 static void pca9554_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -148,6 +208,16 @@ static void pca9554_register_nodes(void)
     qos_add_test("polarity-with-output", "pca9554", test_polarity_with_output,
                  NULL);
     qos_add_test("no-autoincrement", "pca9554", test_no_autoincrement, NULL);
+
+    qos_node_create_driver("pca9536", i2c_device_create);
+    qos_node_consumes("pca9536", "i2c-bus", &opts);
+
+    qos_add_test("reset-defaults", "pca9536", test_pca9536_reset_defaults,
+                 NULL);
+    qos_add_test("output-drives-input", "pca9536",
+                 test_pca9536_output_drives_input, NULL);
+    qos_add_test("ignores-upper-bits", "pca9536",
+                 test_pca9536_ignores_upper_bits, NULL);
 }
 
 libqos_init(pca9554_register_nodes);
