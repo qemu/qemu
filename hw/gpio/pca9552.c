@@ -1,7 +1,10 @@
 /*
- * PCA9552 I2C LED blinker
+ * PCA955X I2C LED blinker and I/O expanders
  *
  *     https://www.nxp.com/docs/en/application-note/AN264.pdf
+ *     https://www.nxp.com/docs/en/data-sheet/PCA9552.pdf
+ *     https://www.nxp.com/docs/en/data-sheet/PCA9555.pdf
+ *     https://www.nxp.com/docs/en/data-sheet/PCA9535_PCA9535C.pdf
  *
  * Copyright (c) 2017-2018, IBM Corporation.
  * Copyright (c) 2020 Philippe Mathieu-Daudé
@@ -12,9 +15,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "hw/core/qdev-properties.h"
+#include "hw/i2c/i2c.h"
 #include "hw/gpio/pca9552.h"
 #include "hw/gpio/pca9552_regs.h"
 #include "hw/core/irq.h"
@@ -23,6 +26,25 @@
 #include "qapi/visitor.h"
 #include "trace.h"
 #include "qom/object.h"
+
+#define PCA955X_NR_REGS 10
+#define PCA955X_PIN_COUNT_MAX 16
+
+OBJECT_DECLARE_TYPE(PCA955xState, PCA955xClass, PCA955X)
+
+struct PCA955xState {
+    /*< private >*/
+    I2CSlave i2c;
+    /*< public >*/
+
+    uint8_t len;
+    uint8_t pointer;
+
+    uint8_t regs[PCA955X_NR_REGS];
+    qemu_irq gpio_out[PCA955X_PIN_COUNT_MAX];
+    uint8_t ext_state[PCA955X_PIN_COUNT_MAX];
+    char *description; /* For debugging purpose only */
+};
 
 struct PCA955xClass {
     /*< private >*/
@@ -33,10 +55,7 @@ struct PCA955xClass {
     uint8_t max_reg;
     bool has_led_support;
 };
-typedef struct PCA955xClass PCA955xClass;
 
-DECLARE_CLASS_CHECKERS(PCA955xClass, PCA955X,
-                       TYPE_PCA955X)
 /*
  * Note:  The LED_ON and LED_OFF configuration values for the PCA955X
  *        chips are the reverse of the PCA953X family of chips.
