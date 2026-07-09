@@ -67,6 +67,41 @@ static void test_input_pullup(void *obj, void *data, QGuestAllocator *alloc)
     g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x00);
 }
 
+/*
+ * Polarity inversion: reading INPUT returns the XOR of the pin levels and the
+ * polarity register.
+ */
+static void test_polarity_inversion(void *obj, void *data,
+                                    QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xFF);
+
+    i2c_set8(dev, PCA9554_POLARITY, 0xFF);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x00);
+
+    i2c_set8(dev, PCA9554_POLARITY, 0x0F);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xF0);
+}
+
+/* Polarity inversion combined with output-driven pins. */
+static void test_polarity_with_output(void *obj, void *data,
+                                      QGuestAllocator *alloc)
+{
+    QI2CDevice *dev = (QI2CDevice *)obj;
+
+    i2c_set8(dev, PCA9554_CONFIG, 0x00);
+    i2c_set8(dev, PCA9554_OUTPUT, 0xA5);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0xA5);
+
+    i2c_set8(dev, PCA9554_POLARITY, 0xFF);
+    g_assert_cmphex(i2c_get8(dev, PCA9554_INPUT), ==, 0x5A);
+
+    /* Inversion only affects the INPUT read, not the OUTPUT register. */
+    g_assert_cmphex(i2c_get8(dev, PCA9554_OUTPUT), ==, 0xA5);
+}
+
 static void pca9554_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
@@ -81,6 +116,10 @@ static void pca9554_register_nodes(void)
     qos_add_test("output-drives-input", "pca9554", test_output_drives_input,
                  NULL);
     qos_add_test("input-pullup", "pca9554", test_input_pullup, NULL);
+    qos_add_test("polarity-inversion", "pca9554", test_polarity_inversion,
+                 NULL);
+    qos_add_test("polarity-with-output", "pca9554", test_polarity_with_output,
+                 NULL);
 }
 
 libqos_init(pca9554_register_nodes);
