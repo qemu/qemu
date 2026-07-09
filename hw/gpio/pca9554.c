@@ -43,43 +43,32 @@ static void pca9554_update_pin_input(PCA9554State *s)
     int i;
     uint8_t config = s->regs[PCA9554_CONFIG];
     uint8_t output = s->regs[PCA9554_OUTPUT];
-    uint8_t internal_state = config | output;
 
     for (i = 0; i < pc->pin_count; i++) {
         uint8_t bit_mask = 1 << i;
-        uint8_t internal_pin_state = (internal_state >> i) & 0x1;
         uint8_t old_value = s->regs[PCA9554_INPUT] & bit_mask;
         uint8_t new_value;
 
-        switch (internal_pin_state) {
-        case PCA9554_PIN_LOW:
-            s->regs[PCA9554_INPUT] &= ~bit_mask;
-            break;
-        case PCA9554_PIN_HIZ:
+        if (config & bit_mask) {
             /*
-             * pullup sets it to a logical 1 unless
-             * external device drives it low.
+             * Input: the pin is Hi-Z with a pull-up, so it reads high
+             * unless an external device drives it low.
              */
             if (s->ext_state[i] == PCA9554_PIN_LOW) {
                 s->regs[PCA9554_INPUT] &= ~bit_mask;
             } else {
-                s->regs[PCA9554_INPUT] |=  bit_mask;
+                s->regs[PCA9554_INPUT] |= bit_mask;
             }
-            break;
-        default:
-            break;
+        } else {
+            /* Output: the push-pull stage drives the output register level. */
+            s->regs[PCA9554_INPUT] = (s->regs[PCA9554_INPUT] & ~bit_mask) |
+                                     (output & bit_mask);
         }
 
         /* drive the per-pin GPIO output only if the pin level changed */
         new_value = s->regs[PCA9554_INPUT] & bit_mask;
         if (new_value != old_value) {
-            if (new_value) {
-                /* changed from 0 to 1 */
-                qemu_set_irq(s->gpio_out[i], 1);
-            } else {
-                /* changed from 1 to 0 */
-                qemu_set_irq(s->gpio_out[i], 0);
-            }
+            qemu_set_irq(s->gpio_out[i], !!new_value);
         }
     }
 }
