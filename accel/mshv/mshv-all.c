@@ -203,6 +203,14 @@ static int create_partition(int mshv_fd, int *vm_fd)
 
     /* enable all */
     disabled_xsave_features.as_uint64 = 0;
+    /*
+     * AMX TILE XSAVE state (XTILE_DATA) is 8KB, which exceeds the
+     * current fixed 4KB XSAVE buffer size.
+     */
+    disabled_xsave_features.amx_tile_support = 1;
+    disabled_xsave_features.amx_bf16_support = 1;
+    disabled_xsave_features.amx_int8_support = 1;
+    disabled_xsave_features.amx_fp16_support = 1;
 
     /*
      * query host for supported processor features and disable unsupported

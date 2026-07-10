@@ -2156,6 +2156,22 @@ uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
          */
         ret &= ~CPUID_7_0_ECX_LA57;
     }
+    if (func == 0x07 && idx == 0 && reg == R_EDX) {
+        /*
+         * AMX TILE XSAVE state (XTILE_DATA) is 8KB, which exceeds the
+         * current fixed 4KB XSAVE buffer size. Filter until buffer
+         * sizing is computed dynamically from CPUID.
+         */
+        ret &= ~CPUID_7_0_EDX_AMX_TILE;
+        ret &= ~CPUID_7_0_EDX_AMX_BF16;
+        ret &= ~CPUID_7_0_EDX_AMX_INT8;
+    }
+    if (func == 0x07 && idx == 1 && reg == R_EAX) {
+        ret &= ~CPUID_7_1_EAX_AMX_FP16;
+    }
+    if (func == 0x07 && idx == 1 && reg == R_EDX) {
+        ret &= ~CPUID_7_1_EDX_AMX_COMPLEX;
+    }
 
     return ret;
 }
