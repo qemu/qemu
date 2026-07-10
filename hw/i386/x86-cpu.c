@@ -22,6 +22,7 @@
  */
 #include "qemu/osdep.h"
 #include "system/whpx.h"
+#include "system/mshv.h"
 #include "system/cpu-timers.h"
 #include "trace.h"
 
@@ -44,6 +45,11 @@ static void pic_irq_request(void *opaque, int irq, int level)
     X86CPU *cpu = X86_CPU(cs);
 
     trace_x86_pic_interrupt(irq, level);
+
+    if (mshv_irqchip_in_kernel()) {
+        return;
+    }
+
     if (cpu_is_apic_enabled(cpu->apic_state) && !kvm_irqchip_in_kernel() &&
         !whpx_irqchip_in_kernel()) {
         CPU_FOREACH(cs) {

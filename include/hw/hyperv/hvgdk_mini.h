@@ -168,6 +168,7 @@ typedef enum hv_register_name {
     /* Available */
 
     HV_X64_REGISTER_SPEC_CTRL       = 0x00080084,
+    HV_X64_REGISTER_TSC_DEADLINE    = 0x00080095,
     HV_X64_REGISTER_TSC_ADJUST      = 0x00080096,
 
     /* CET / Shadow Stack */
@@ -930,6 +931,7 @@ struct hv_cpuid {
 #define IA32_MSR_DEBUG_CTL        0x1D9
 #define IA32_MSR_SPEC_CTRL        0x00000048
 #define IA32_MSR_TSC_ADJUST       0x0000003b
+#define IA32_MSR_TSC_DEADLINE     0x000006e0
 
 #define IA32_MSR_MISC_ENABLE 0x000001a0
 

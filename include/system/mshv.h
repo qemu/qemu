@@ -41,9 +41,11 @@
 extern bool mshv_allowed;
 #define mshv_enabled() (mshv_allowed)
 #define mshv_msi_via_irqfd_enabled() mshv_enabled()
+#define mshv_irqchip_in_kernel() mshv_enabled()
 #else /* CONFIG_MSHV_IS_POSSIBLE */
 #define mshv_enabled() false
 #define mshv_msi_via_irqfd_enabled() mshv_enabled()
+#define mshv_irqchip_in_kernel() mshv_enabled()
 #endif
 
 #define TYPE_MSHV_ACCEL ACCEL_CLASS_NAME("mshv")

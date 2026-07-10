@@ -38,8 +38,8 @@ i386_ss.add(when: 'CONFIG_X86_FW_OVMF', if_true: files('pc_sysfw_ovmf.c'),
 i386_ss.add(when: 'CONFIG_TDX', if_true: files('tdvf.c', 'tdvf-hob.c'))
 
 subdir('kvm')
-subdir('xen')
 subdir('mshv')
+subdir('xen')
 
 i386_ss.add_all(xenpv_ss)
 

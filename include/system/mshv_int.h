@@ -105,9 +105,15 @@ void mshv_arch_amend_proc_features(
 void mshv_arch_disable_partition_proc_features(
      union hv_partition_processor_features *disabled_features);
 int mshv_arch_post_init_vm(int vm_fd);
-
+int mshv_get_vp_state(int cpu_fd, struct mshv_get_set_vp_state *state);
+int mshv_set_vp_state(int cpu_fd, const struct mshv_get_set_vp_state *state);
 typedef struct mshv_root_hvcall mshv_root_hvcall;
 int mshv_hvcall(int fd, const mshv_root_hvcall *args);
+
+/* apic */
+int mshv_init_lint(CPUState *cpu);
+int mshv_set_lapic(const CPUState *cpu);
+int mshv_get_lapic(CPUState *cpu);
 
 /* memory */
 typedef struct MshvMemoryRegion {

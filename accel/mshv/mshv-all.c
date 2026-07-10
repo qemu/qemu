@@ -813,6 +813,7 @@ static void mshv_accel_ops_class_init(ObjectClass *oc, const void *data)
     ops->synchronize_state = mshv_cpu_synchronize;
     ops->synchronize_pre_loadvm = mshv_cpu_synchronize_pre_loadvm;
     ops->cpus_are_resettable = mshv_cpus_are_resettable;
+    ops->cpu_thread_is_idle = mshv_vcpu_thread_is_idle;
     ops->handle_interrupt = generic_handle_interrupt;
 }
 

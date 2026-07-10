@@ -21,7 +21,6 @@
 #include "hw/hyperv/hvgdk.h"
 #include "hw/hyperv/hvgdk_mini.h"
 #include "hw/hyperv/hvhdk_mini.h"
-#include "hw/i386/apic_internal.h"
 
 #include "cpu.h"
 #include "host-cpu.h"
@@ -955,6 +954,11 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
         return ret;
     }
 
+    ret = mshv_get_lapic(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
     ret = mshv_get_msrs(cpu);
     if (ret < 0) {
         return ret;
@@ -1377,116 +1381,6 @@ static int set_xc_reg(const CPUState *cpu)
     return 0;
 }
 
-static int get_vp_state(int cpu_fd, struct mshv_get_set_vp_state *state)
-{
-    int ret;
-
-    ret = ioctl(cpu_fd, MSHV_GET_VP_STATE, state);
-    if (ret < 0) {
-        error_report("failed to get partition state: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int get_lapic(const CPUState *cpu,
-                     struct hv_local_interrupt_controller_state *state)
-{
-    int ret;
-    size_t size = 4096;
-    /* buffer aligned to 4k, as *state requires that */
-    void *buffer = qemu_memalign(size, size);
-    struct mshv_get_set_vp_state mshv_state = { 0 };
-    int cpu_fd = mshv_vcpufd(cpu);
-
-    mshv_state.buf_ptr = (uint64_t) buffer;
-    mshv_state.buf_sz = size;
-    mshv_state.type = MSHV_VP_STATE_LAPIC;
-
-    ret = get_vp_state(cpu_fd, &mshv_state);
-    if (ret == 0) {
-        memcpy(state, buffer, sizeof(*state));
-    }
-    qemu_vfree(buffer);
-    if (ret < 0) {
-        error_report("failed to get lapic");
-        return -1;
-    }
-
-    return 0;
-}
-
-static uint32_t set_apic_delivery_mode(uint32_t reg, uint32_t mode)
-{
-    return ((reg) & ~0x700) | ((mode) << 8);
-}
-
-static int set_vp_state(int cpu_fd, const struct mshv_get_set_vp_state *state)
-{
-    int ret;
-
-    ret = ioctl(cpu_fd, MSHV_SET_VP_STATE, state);
-    if (ret < 0) {
-        error_report("failed to set partition state: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int set_lapic(const CPUState *cpu,
-                     const struct hv_local_interrupt_controller_state *state)
-{
-    int ret;
-    size_t size = 4096;
-    /* buffer aligned to 4k, as *state requires that */
-    void *buffer = qemu_memalign(size, size);
-    struct mshv_get_set_vp_state mshv_state = { 0 };
-    int cpu_fd = mshv_vcpufd(cpu);
-
-    if (!state) {
-        error_report("lapic state is NULL");
-        return -1;
-    }
-    memcpy(buffer, state, sizeof(*state));
-
-    mshv_state.buf_ptr = (uint64_t) buffer;
-    mshv_state.buf_sz = size;
-    mshv_state.type = MSHV_VP_STATE_LAPIC;
-
-    ret = set_vp_state(cpu_fd, &mshv_state);
-    qemu_vfree(buffer);
-    if (ret < 0) {
-        error_report("failed to set lapic: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int init_lint(const CPUState *cpu)
-{
-    int ret;
-    uint32_t *lvt_lint0, *lvt_lint1;
-
-    struct hv_local_interrupt_controller_state lapic_state = { 0 };
-    ret = get_lapic(cpu, &lapic_state);
-    if (ret < 0) {
-        return ret;
-    }
-
-    lvt_lint0 = &lapic_state.apic_lvt_lint0;
-    *lvt_lint0 = set_apic_delivery_mode(*lvt_lint0, APIC_DM_EXTINT);
-
-    lvt_lint1 = &lapic_state.apic_lvt_lint1;
-    *lvt_lint1 = set_apic_delivery_mode(*lvt_lint1, APIC_DM_NMI);
-
-    /* TODO: should we skip setting lapic if the values are the same? */
-
-    return set_lapic(cpu, &lapic_state);
-}
-
 int mshv_arch_store_vcpu_state(const CPUState *cpu)
 {
     int ret;
@@ -1507,6 +1401,12 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
     }
 
     ret = set_xsave_state(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* INVARIANT: special regs (APIC_BASE) must be restored before LAPIC */
+    ret = mshv_set_lapic(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -2100,7 +2000,7 @@ void mshv_arch_init_vcpu(CPUState *cpu)
     ret = mshv_init_msrs(cpu);
     assert(ret == 0);
 
-    ret = init_lint(cpu);
+    ret = mshv_init_lint(cpu);
     assert(ret == 0);
 }
 
@@ -2245,6 +2145,33 @@ static void mshv_cpu_xsave_init(void)
             esa->ecx = ecx;
         }
     }
+}
+
+int mshv_set_vp_state(int cpu_fd, const struct mshv_get_set_vp_state *state)
+{
+    int ret;
+
+    ret = ioctl(cpu_fd, MSHV_SET_VP_STATE, state);
+    if (ret < 0) {
+        error_report("failed to set partition state: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int mshv_get_vp_state(int cpu_fd, struct mshv_get_set_vp_state *state)
+{
+    int ret;
+
+    ret = ioctl(cpu_fd, MSHV_GET_VP_STATE, state);
+    if (ret < 0) {
+        error_report("failed to get partition state: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
 }
 
 static void mshv_cpu_instance_init(CPUState *cs)

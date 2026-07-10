@@ -60,6 +60,8 @@ static const MshvMsrEnvMap msr_env_map[] = {
                              offsetof(CPUX86State, tsc_aux) },
     { IA32_MSR_TSC_ADJUST,   HV_X64_REGISTER_TSC_ADJUST,
                              offsetof(CPUX86State, tsc_adjust) },
+    { IA32_MSR_TSC_DEADLINE, HV_X64_REGISTER_TSC_DEADLINE,
+                             offsetof(CPUX86State, tsc_deadline) },
 
     /* Hyper-V per-partition MSRs */
     { HV_X64_MSR_HYPERCALL,     HV_X64_REGISTER_HYPERCALL,
