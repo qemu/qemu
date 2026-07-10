@@ -13,7 +13,7 @@
 static bool
 mem_alloc_bo(struct vugbm_buffer *buf)
 {
-    buf->mmap = g_malloc(buf->width * buf->height * 4);
+    buf->mmap = g_malloc((uint64_t)buf->width * buf->height * 4);
     buf->stride = buf->width * 4;
     return true;
 }
@@ -53,7 +53,8 @@ struct udmabuf_create {
 static size_t
 udmabuf_get_size(struct vugbm_buffer *buf)
 {
-    return ROUND_UP(buf->width * buf->height * 4, qemu_real_host_page_size());
+    return ROUND_UP((uint64_t)buf->width * buf->height * 4,
+                    qemu_real_host_page_size());
 }
 
 static bool
@@ -293,6 +294,12 @@ bool
 vugbm_buffer_create(struct vugbm_buffer *buffer, struct vugbm_device *dev,
                     uint32_t width, uint32_t height)
 {
+    uint64_t size = (uint64_t)width * height * 4;
+    if (size > UINT32_MAX) {
+        g_warning("buffer dimensions too large: %ux%u", width, height);
+        return false;
+    }
+
     buffer->dev = dev;
     buffer->width = width;
     buffer->height = height;
