@@ -621,17 +621,13 @@ static int mshv_cpu_exec(CPUState *cpu)
 }
 
 /*
- * The signal handler is triggered when QEMU's main thread receives a SIG_IPI
- * (SIGUSR1). This signal causes the current CPU thread to be kicked, forcing a
- * VM exit on the CPU. The VM exit generates an exit reason that breaks the loop
- * (see mshv_cpu_exec). If the exit is due to a Ctrl+A+x command, the system
- * will shut down. For other cases, the system will continue running.
+ * We need a dummy handler to make SIG_IPI a deliverable signal. The kernel
+ * handler will be woken up by the caught signal and instruct the hypervisor
+ * to suspend execution (the concrete mechanism differs between schedulers)
+ * and return to userspace.
  */
-static void sa_ipi_handler(int sig)
+static void dummy_handler(int sig)
 {
-    /* TODO: call IOCTL to set_immediate_exit, once implemented. */
-
-    qemu_cpu_kick_self();
 }
 
 static void init_signal(CPUState *cpu)
@@ -641,7 +637,7 @@ static void init_signal(CPUState *cpu)
     sigset_t set;
 
     memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = sa_ipi_handler;
+    sigact.sa_handler = dummy_handler;
     sigaction(SIG_IPI, &sigact, NULL);
 
     pthread_sigmask(SIG_BLOCK, NULL, &set);
