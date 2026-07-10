@@ -142,7 +142,7 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgo alg,
 #include "cipher-gcrypt.c.inc"
 #elif defined CONFIG_NETTLE
 #include "cipher-nettle.c.inc"
-#elif defined CONFIG_GNUTLS
+#elif defined CONFIG_GNUTLS_CRYPTO
 #include "cipher-gnutls.c.inc"
 #else
 #include "cipher-stub.c.inc"
