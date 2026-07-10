@@ -293,6 +293,16 @@ static void mshv_send_msi(MSIMessage *msi)
     delivery     = (data >> MSI_DATA_DELIVERY_MODE_SHIFT) &
                    MSI_DATA_DELIVERY_MODE_MASK;
 
+    /*
+     * Vector 0 is not a valid interrupt vector (0-15 are reserved for CPU
+     * exceptions). This can trigger during machine reset, if hpet_reset()
+     * forces the PIT to pulse GSI 2 before IOAPIC's own reset has masked its
+     * redirection entries.
+     */
+    if (vector == 0) {
+        return;
+    }
+
     mshv_request_interrupt(mshv_state, delivery, vector, dest, dest_mode,
                            trigger_mode);
 }
