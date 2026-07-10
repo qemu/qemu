@@ -388,7 +388,13 @@ vg_resource_create_2d(VuGpu *g,
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
         return;
     }
-    vugbm_buffer_create(&res->buffer, &g->gdev, c2d.width, c2d.height);
+    if (!vugbm_buffer_create(&res->buffer, &g->gdev, c2d.width, c2d.height)) {
+        g_critical("%s: buffer creation failed %d %d %d",
+                   __func__, c2d.resource_id, c2d.width, c2d.height);
+        g_free(res);
+        cmd->error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
+        return;
+    }
     res->image = pixman_image_create_bits(pformat,
                                           c2d.width,
                                           c2d.height,
