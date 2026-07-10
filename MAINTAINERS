@@ -620,6 +620,7 @@ R: Wei Liu <wei.liu@kernel.org>
 R: Doru Blânzeanu <dblanzeanu@linux.microsoft.com>
 S: Supported
 F: target/i386/mshv/
+F: hw/i386/mshv/
 
 X86 Instruction Emulator
 M: Roman Bolshakov <rbolshakov@ddn.com>

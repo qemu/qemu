@@ -60,54 +60,6 @@ static int init_mshv(int *mshv_fd)
     return 0;
 }
 
-/* freeze 1 to pause, 0 to resume */
-static int set_time_freeze(int vm_fd, int freeze)
-{
-    int ret;
-    struct hv_input_set_partition_property in = {0};
-    in.property_code = HV_PARTITION_PROPERTY_TIME_FREEZE;
-    in.property_value = freeze;
-
-    struct mshv_root_hvcall args = {0};
-    args.code = HVCALL_SET_PARTITION_PROPERTY;
-    args.in_sz = sizeof(in);
-    args.in_ptr = (uint64_t)&in;
-
-    ret = mshv_hvcall(vm_fd, &args);
-    if (ret < 0) {
-        error_report("Failed to set time freeze");
-        return -1;
-    }
-
-    return 0;
-}
-
-static int pause_vm(int vm_fd)
-{
-    int ret;
-
-    ret = set_time_freeze(vm_fd, 1);
-    if (ret < 0) {
-        error_report("Failed to pause partition: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int resume_vm(int vm_fd)
-{
-    int ret;
-
-    ret = set_time_freeze(vm_fd, 0);
-    if (ret < 0) {
-        error_report("Failed to resume partition: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
 static int get_host_partition_property(int mshv_fd, uint32_t property_code,
                                        uint64_t *value)
 {
@@ -329,9 +281,6 @@ static int create_vm(int mshv_fd, int *vm_fd)
     if (ret < 0) {
         return -1;
     }
-
-    /* Always create a frozen partition */
-    pause_vm(*vm_fd);
 
     return 0;
 }
@@ -578,13 +527,6 @@ static int mshv_init(AccelState *as, MachineState *ms)
         return -1;
     }
 
-    ret = resume_vm(vm_fd);
-    if (ret < 0) {
-        close(mshv_fd);
-        close(vm_fd);
-        return -1;
-    }
-
     s->vm = vm_fd;
     s->fd = mshv_fd;
 
@@ -605,6 +547,8 @@ static int mshv_init(AccelState *as, MachineState *ms)
     memory_listener_register(&mshv_io_listener, &address_space_io);
 
     register_savevm_live("mshv", 0, 1, &savevm_mshv, s);
+
+    mshv_clock_init();
 
     return 0;
 }
@@ -641,6 +585,13 @@ static int mshv_cpu_exec(CPUState *cpu)
                 break;
             }
             cpu->vcpu_dirty = false;
+        }
+
+        /* Corresponding store-release is in cpu_exit. */
+        if (qatomic_load_acquire(&cpu->exit_request)) {
+            trace_mshv_interrupt_exit_request(cpu->cpu_index);
+            ret = EXCP_INTERRUPT;
+            break;
         }
 
         ret = mshv_run_vcpu(mshv_state->vm, cpu, &mshv_msg, &exit_reason);

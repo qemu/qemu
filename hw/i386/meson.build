@@ -39,6 +39,7 @@ i386_ss.add(when: 'CONFIG_TDX', if_true: files('tdvf.c', 'tdvf-hob.c'))
 
 subdir('kvm')
 subdir('xen')
+subdir('mshv')
 
 i386_ss.add_all(xenpv_ss)
 
