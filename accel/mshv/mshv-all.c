@@ -60,6 +60,20 @@ static int init_mshv(int *mshv_fd)
     return 0;
 }
 
+static int mshv_load_cleanup(void *opaque)
+{
+    int ret;
+
+    ret = mshv_arch_set_partition_msrs(first_cpu);
+    if (ret < 0) {
+        error_report("Failed to set partition MSRs: %s", strerror(-ret));
+        return -1;
+    }
+
+    return 0;
+}
+
+
 static int get_host_partition_property(int mshv_fd, uint32_t property_code,
                                        uint64_t *value)
 {
@@ -496,6 +510,7 @@ static int mshv_init_vcpu(CPUState *cpu)
 }
 
 static SaveVMHandlers savevm_mshv = {
+    .load_cleanup = mshv_load_cleanup,
 };
 
 static int mshv_init(AccelState *as, MachineState *ms)
