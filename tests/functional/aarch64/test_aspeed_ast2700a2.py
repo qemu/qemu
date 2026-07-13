@@ -121,6 +121,11 @@ class AST2x00MachineSDK(QemuSystemTest):
             'ip addr show dev eth2',
             'inet 10.0.2.15/24')
 
+    def do_ast2700_usb_ehci_test(self):
+        exec_command_and_wait_for_pattern(self,
+            'lsusb',
+            'QEMU QEMU USB Keyboard')
+
     def start_ast2700_test(self, name, bus_id):
         num_cpu = 4
         load_images_list = [
@@ -164,10 +169,12 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.archive_extract(self.ASSET_SDK_V1101_AST2700A2)
         self.vm.add_args('-device', 'e1000e,netdev=net1,bus=pcie.2')
         self.vm.add_args('-netdev', 'user,id=net1')
+        self.vm.add_args('-device', 'usb-kbd,bus=usb-bus.3')
         self.start_ast2700_test('ast2700-default-image', 1)
         self.verify_openbmc_boot_and_login('ast2700-default')
         self.do_ast2700_i2c_test(1)
         self.do_ast2700_pcie_test()
+        self.do_ast2700_usb_ehci_test()
 
     def test_aarch64_ast2700a2_evb_sdk_vbootrom_v11_01(self):
         self.set_machine('ast2700a2-evb')
