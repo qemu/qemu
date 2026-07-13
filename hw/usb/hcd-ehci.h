@@ -141,6 +141,9 @@ typedef struct EHCIqtd {
 #define QTD_BUFPTR_SH                 12
 } EHCIqtd;
 
+/* QH overlay: altnext_qtd, token, bufptr[5], bufptr_hi[5] */
+#define EHCI_QH_OVERLAY_COUNT 12
+
 /*
  * EHCI spec version 1.0 Section 3.6
  */
@@ -194,6 +197,7 @@ typedef struct EHCIqh {
 #define BUFPTR_FRAMETAG_MASK          0x0000001f
 #define BUFPTR_SBYTES_MASK            0x00000fe0
 #define BUFPTR_SBYTES_SH              5
+    uint32_t bufptr_hi[5];
 } EHCIqh;
 
 enum async_state {
