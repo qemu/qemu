@@ -139,6 +139,7 @@ typedef struct EHCIqtd {
     uint32_t bufptr[5];               /* Standard buffer pointer */
 #define QTD_BUFPTR_MASK               0xfffff000
 #define QTD_BUFPTR_SH                 12
+    uint32_t bufptr_hi[5];
 } EHCIqtd;
 
 /* QH overlay: altnext_qtd, token, bufptr[5], bufptr_hi[5] */
