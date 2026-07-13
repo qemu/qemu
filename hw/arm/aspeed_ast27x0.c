@@ -873,6 +873,8 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         object_property_set_int(OBJECT(&s->ehci[i]), "ctrldssegment-default",
                                 sc->memmap[ASPEED_DEV_SDRAM] >> 32,
                                 &error_abort);
+        object_property_set_bool(OBJECT(&s->ehci[i]), "caps-64bit-addr", true,
+                                 &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), errp)) {
             return;
         }
