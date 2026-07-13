@@ -1109,6 +1109,15 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
         }
         break;
 
+    case CTRLDSSEGMENT:
+        if (!s->caps_64bit_addr) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "ehci: write to CTRLDSSEGMENT while "
+                          "64-bit addressing capability is disabled\n");
+            return;
+        }
+        break;
+
     case ASYNCLISTADDR:
         if (ehci_async_enabled(s)) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -2554,6 +2563,9 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
                    s->maxframes);
         return;
     }
+    if (s->caps_64bit_addr) {
+        s->caps[0x08] |= BIT(0);
+    }
 
     memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
     memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
@@ -2613,7 +2625,7 @@ void usb_ehci_init(EHCIState *s, DeviceState *dev)
     s->caps[0x05] = 0x00;        /* No companion ports at present */
     s->caps[0x06] = 0x00;
     s->caps[0x07] = 0x00;
-    s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
+    s->caps[0x08] = 0x80;        /* We can cache whole frame */
     s->caps[0x0a] = 0x00;
     s->caps[0x0b] = 0x00;
 
