@@ -1823,7 +1823,7 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
         warn_report("Skipping active siTD");
     }
 
-    ehci_set_fetch_addr(ehci, async, sitd.next);
+    ehci_set_fetch_addr(ehci, async, ehci_get_desc_addr(ehci, sitd.next));
     ehci_set_state(ehci, async, EST_FETCHENTRY);
     return 1;
 }
