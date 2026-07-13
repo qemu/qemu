@@ -63,6 +63,7 @@ typedef struct EHCIitd {
 #define ITD_BUFPTR_MAXPKT_SH     0
 #define ITD_BUFPTR_MULT_MASK     0x00000003
 #define ITD_BUFPTR_MULT_SH       0
+    uint32_t bufptr_hi[7];
 } EHCIitd;
 
 /*

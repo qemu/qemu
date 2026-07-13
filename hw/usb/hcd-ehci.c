@@ -105,6 +105,7 @@ typedef enum {
  */
 #define EHCI_QH_DWORDS_32   (offsetof(EHCIqh, bufptr_hi) / sizeof(uint32_t))
 #define EHCI_QTD_DWORDS_32  (offsetof(EHCIqtd, bufptr_hi) / sizeof(uint32_t))
+#define EHCI_ITD_DWORDS_32  (offsetof(EHCIitd, bufptr_hi) / sizeof(uint32_t))
 
 static const char *ehci_state_names[] = {
     [EST_INACTIVE]     = "INACTIVE",
@@ -182,6 +183,11 @@ static uint32_t ehci_qh_dwords(const EHCIState *s)
 static uint32_t ehci_qtd_dwords(const EHCIState *s)
 {
     return s->caps_64bit_addr ? (sizeof(EHCIqtd) >> 2) : EHCI_QTD_DWORDS_32;
+}
+
+static uint32_t ehci_itd_dwords(const EHCIState *s)
+{
+    return s->caps_64bit_addr ? (sizeof(EHCIitd) >> 2) : EHCI_ITD_DWORDS_32;
 }
 
 static void ehci_trace_usbsts(uint32_t mask, int state)
@@ -1486,7 +1492,8 @@ static int ehci_process_itd(EHCIState *ehci,
                 return -1;
             }
 
-            ptr1 = (itd->bufptr[pg] & ITD_BUFPTR_MASK);
+            ptr1 = ehci_get_buf_addr(ehci, itd->bufptr_hi[pg],
+                                     itd->bufptr[pg], ITD_BUFPTR_MASK);
             qemu_sglist_init(&ehci->isgl, ehci->device, 2, ehci->as);
             if (off + len > 4096) {
                 /* transfer crosses page border */
@@ -1494,7 +1501,9 @@ static int ehci_process_itd(EHCIState *ehci,
                     qemu_sglist_destroy(&ehci->isgl);
                     return -1;  /* avoid page pg + 1 */
                 }
-                ptr2 = (itd->bufptr[pg + 1] & ITD_BUFPTR_MASK);
+                ptr2 = ehci_get_buf_addr(ehci, itd->bufptr_hi[pg + 1],
+                                         itd->bufptr[pg + 1],
+                                         ITD_BUFPTR_MASK);
                 uint32_t len2 = off + len - 4096;
                 uint32_t len1 = len - len2;
                 qemu_sglist_add(&ehci->isgl, ptr1 + off, len1);
@@ -1774,8 +1783,9 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
     assert(!async);
     entry = ehci_get_fetch_addr(ehci, async);
 
+    memset(&itd, 0, sizeof(itd));
     if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &itd,
-                   sizeof(EHCIitd) >> 2) < 0) {
+                   ehci_itd_dwords(ehci)) < 0) {
         return -1;
     }
     ehci_trace_itd(ehci, entry, &itd);
@@ -1785,8 +1795,8 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
     }
 
     put_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &itd,
-               sizeof(EHCIitd) >> 2);
-    ehci_set_fetch_addr(ehci, async, itd.next);
+               ehci_itd_dwords(ehci));
+    ehci_set_fetch_addr(ehci, async, ehci_get_desc_addr(ehci, itd.next));
     ehci_set_state(ehci, async, EST_FETCHENTRY);
 
     return 1;
