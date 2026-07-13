@@ -1162,6 +1162,7 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
                           "64-bit addressing capability is disabled\n");
             return;
         }
+        val |= s->ctrldssegment_default;
         break;
 
     case ASYNCLISTADDR:
