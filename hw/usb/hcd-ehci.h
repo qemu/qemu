@@ -208,7 +208,7 @@ struct EHCIPacket {
     QTAILQ_ENTRY(EHCIPacket) next;
 
     EHCIqtd qtd;           /* copy of current QTD (being worked on) */
-    uint32_t qtdaddr;      /* address QTD read from                 */
+    uint64_t qtdaddr;      /* address QTD read from                 */
 
     USBPacket packet;
     QEMUSGList sgl;
@@ -229,8 +229,8 @@ struct EHCIQueue {
      * when guest removes an entry (doorbell, handshake sequence)
      */
     EHCIqh qh;             /* copy of current QH (being worked on) */
-    uint32_t qhaddr;       /* address QH read from                 */
-    uint32_t qtdaddr;      /* address QTD read from                */
+    uint64_t qhaddr;       /* address QH read from                 */
+    uint64_t qtdaddr;      /* address QTD read from                */
     int last_pid;          /* pid of last packet executed          */
     USBDevice *dev;
     QTAILQ_HEAD(, EHCIPacket) packets;
@@ -256,6 +256,11 @@ struct EHCIState {
 
     /* properties */
     uint32_t maxframes;
+    /*
+     * Controls migration stream compatibility for old machine types.
+     * Old machine types only transfer 32-bit fetch addresses.
+     */
+    bool migrate_fetch_addr_64bit;
 
     /*
      *  EHCI spec version 1.0 Section 2.3
@@ -293,9 +298,18 @@ struct EHCIState {
     EHCIQueueHead aqueues;
     EHCIQueueHead pqueues;
 
-    /* which address to look at next */
-    uint32_t a_fetch_addr;
-    uint32_t p_fetch_addr;
+    /*
+     * which address to look at next
+     *
+     * Migration compatibility fields for old machine types that only
+     * support 32-bit fetch addresses in the migration stream.
+     *
+     * New machine types migrate the full 64-bit runtime fetch address.
+     */
+    uint32_t migrate_a_fetch_addr;
+    uint32_t migrate_p_fetch_addr;
+    uint64_t a_fetch_addr;
+    uint64_t p_fetch_addr;
 
     USBPacket ipacket;
     QEMUSGList isgl;
@@ -308,7 +322,9 @@ struct EHCIState {
 };
 
 #define DEFINE_EHCI_COMMON_PROPERTIES(_state) \
-    DEFINE_PROP_UINT32("maxframes", _state, ehci.maxframes, 128)
+    DEFINE_PROP_UINT32("maxframes", _state, ehci.maxframes, 128), \
+    DEFINE_PROP_BOOL("x-migrate-fetch-addr-64bit", _state, \
+                     ehci.migrate_fetch_addr_64bit, true)
 
 extern const VMStateDescription vmstate_ehci;
 

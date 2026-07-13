@@ -72,7 +72,7 @@ typedef enum {
 } EHCI_STATES;
 
 /* macros for accessing fields within next link pointer entry */
-#define NLPTR_GET(x)             ((x) & 0xffffffe0)
+#define NLPTR_GET(x)             ((x) & ~0x1fULL)
 #define NLPTR_TYPE_GET(x)        (((x) >> 1) & 3)
 #define NLPTR_TBIT(x)            ((x) & 1)  /* 1=invalid, 0=valid */
 
@@ -287,7 +287,7 @@ static int ehci_get_state(EHCIState *s, int async)
     return async ? s->astate : s->pstate;
 }
 
-static void ehci_set_fetch_addr(EHCIState *s, int async, uint32_t addr)
+static void ehci_set_fetch_addr(EHCIState *s, int async, uint64_t addr)
 {
     if (async) {
         s->a_fetch_addr = addr;
@@ -296,7 +296,7 @@ static void ehci_set_fetch_addr(EHCIState *s, int async, uint32_t addr)
     }
 }
 
-static int ehci_get_fetch_addr(EHCIState *s, int async)
+static uint64_t ehci_get_fetch_addr(EHCIState *s, int async)
 {
     return async ? s->a_fetch_addr : s->p_fetch_addr;
 }
@@ -373,7 +373,7 @@ static inline bool ehci_periodic_enabled(EHCIState *s)
 }
 
 /* Get an array of dwords from main memory */
-static inline int get_dwords(EHCIState *ehci, uint32_t addr,
+static inline int get_dwords(EHCIState *ehci, uint64_t addr,
                              uint32_t *buf, int num)
 {
     int i;
@@ -395,7 +395,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
 }
 
 /* Put an array of dwords in to main memory */
-static inline int put_dwords(EHCIState *ehci, uint32_t addr,
+static inline int put_dwords(EHCIState *ehci, uint64_t addr,
                              uint32_t *buf, int num)
 {
     int i;
@@ -549,7 +549,7 @@ static void ehci_free_packet(EHCIPacket *p)
 
 /* queue management */
 
-static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
+static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint64_t addr, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q;
@@ -622,7 +622,7 @@ static void ehci_free_queue(EHCIQueue *q, const char *warn)
     g_free(q);
 }
 
-static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
+static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint64_t addr,
                                         int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
@@ -1135,7 +1135,7 @@ static void ehci_flush_qh(EHCIQueue *q)
 {
     uint32_t *qh = (uint32_t *) &q->qh;
     uint32_t dwords = sizeof(EHCIqh) >> 2;
-    uint32_t addr = NLPTR_GET(q->qhaddr);
+    uint64_t addr = NLPTR_GET(q->qhaddr);
 
     put_dwords(q->ehci, addr + 3 * sizeof(uint32_t), qh + 3, dwords - 3);
 }
@@ -1406,12 +1406,13 @@ static int ehci_execute(EHCIPacket *p, const char *action)
 /* 4.7.2 */
 static int ehci_process_itd(EHCIState *ehci,
                             EHCIitd *itd,
-                            uint32_t addr)
+                            uint64_t addr)
 {
     USBDevice *dev;
     USBEndpoint *ep;
     uint32_t i, len, pid, dir, devaddr, endp;
-    uint32_t pg, off, ptr1, ptr2, max, mult;
+    uint32_t pg, off, max, mult;
+    uint64_t ptr1, ptr2;
 
     ehci->periodic_sched_active = PERIODIC_ACTIVE;
 
@@ -1528,7 +1529,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
     EHCIqh qh;
     int i = 0;
     int again = 0;
-    uint32_t entry = ehci->asynclistaddr;
+    uint64_t entry = ehci->asynclistaddr;
 
     /* set reclamation flag at start event (4.8.6) */
     if (async) {
@@ -1578,7 +1579,7 @@ out:
 static int ehci_state_fetchentry(EHCIState *ehci, int async)
 {
     int again = 0;
-    uint32_t entry = ehci_get_fetch_addr(ehci, async);
+    uint64_t entry = ehci_get_fetch_addr(ehci, async);
 
     if (NLPTR_TBIT(entry)) {
         ehci_set_state(ehci, async, EST_ACTIVE);
@@ -1611,8 +1612,8 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
     default:
         /* TODO: handle FSTN type */
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "FETCHENTRY: entry at 0x%x is of type %u "
-                      "which is not supported yet\n",
+                      "FETCHENTRY: entry at %" PRIx64 " is of type %" PRIu64
+                      " which is not supported yet\n",
                       entry, NLPTR_TYPE_GET(entry));
         return -1;
     }
@@ -1623,7 +1624,7 @@ out:
 
 static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 {
-    uint32_t entry;
+    uint64_t entry;
     EHCIQueue *q;
     EHCIqh qh;
 
@@ -1712,7 +1713,7 @@ out:
 
 static int ehci_state_fetchitd(EHCIState *ehci, int async)
 {
-    uint32_t entry;
+    uint64_t entry;
     EHCIitd itd;
 
     assert(!async);
@@ -1738,7 +1739,7 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
 
 static int ehci_state_fetchsitd(EHCIState *ehci, int async)
 {
-    uint32_t entry;
+    uint64_t entry;
     EHCIsitd sitd;
 
     assert(!async);
@@ -1802,7 +1803,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     EHCIqtd qtd;
     EHCIPacket *p;
     int again = 1;
-    uint32_t addr;
+    uint64_t addr;
 
     addr = NLPTR_GET(q->qtdaddr);
     if (get_dwords(q->ehci, addr +  8, &qtd.token,   1) < 0) {
@@ -1885,7 +1886,7 @@ static int ehci_fill_queue(EHCIPacket *p)
     USBEndpoint *ep = p->packet.ep;
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
-    uint32_t qtdaddr;
+    uint64_t qtdaddr;
 
     for (;;) {
         if (NLPTR_TBIT(qtd.next) != 0) {
@@ -2008,7 +2009,8 @@ static int ehci_state_executing(EHCIQueue *q)
 static int ehci_state_writeback(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
-    uint32_t *qtd, addr;
+    uint32_t *qtd;
+    uint64_t addr;
     int again = 0;
 
     /*  Write back the QTD from the QH area */
@@ -2414,6 +2416,18 @@ static USBBusOps ehci_bus_ops_standalone = {
     .wakeup_endpoint = ehci_wakeup_endpoint,
 };
 
+static bool ehci_fetch_addr_64_needed(void *opaque, int version_id)
+{
+    EHCIState *s = opaque;
+
+    return s->migrate_fetch_addr_64bit;
+}
+
+static bool ehci_fetch_addr_32_needed(void *opaque, int version_id)
+{
+    return !ehci_fetch_addr_64_needed(opaque, version_id);
+}
+
 static int usb_ehci_pre_save(void *opaque)
 {
     EHCIState *ehci = opaque;
@@ -2423,6 +2437,11 @@ static int usb_ehci_pre_save(void *opaque)
     new_frindex = ehci->frindex & ~7;
     ehci->last_run_ns -= (ehci->frindex - new_frindex) * UFRAME_TIMER_NS;
     ehci->frindex = new_frindex;
+
+    if (!ehci->migrate_fetch_addr_64bit) {
+        ehci->migrate_a_fetch_addr = ehci->a_fetch_addr;
+        ehci->migrate_p_fetch_addr = ehci->p_fetch_addr;
+    }
 
     return 0;
 }
@@ -2442,6 +2461,11 @@ static int usb_ehci_post_load(void *opaque, int version_id)
         } else {
             companion->dev = NULL;
         }
+    }
+
+    if (!s->migrate_fetch_addr_64bit) {
+        s->a_fetch_addr = s->migrate_a_fetch_addr;
+        s->p_fetch_addr = s->migrate_p_fetch_addr;
     }
 
     return 0;
@@ -2504,8 +2528,14 @@ const VMStateDescription vmstate_ehci = {
         /* schedule state */
         VMSTATE_UINT32(astate, EHCIState),
         VMSTATE_UINT32(pstate, EHCIState),
-        VMSTATE_UINT32(a_fetch_addr, EHCIState),
-        VMSTATE_UINT32(p_fetch_addr, EHCIState),
+        VMSTATE_UINT32_TEST(migrate_a_fetch_addr, EHCIState,
+                            ehci_fetch_addr_32_needed),
+        VMSTATE_UINT32_TEST(migrate_p_fetch_addr, EHCIState,
+                            ehci_fetch_addr_32_needed),
+        VMSTATE_UINT64_TEST(a_fetch_addr, EHCIState,
+                            ehci_fetch_addr_64_needed),
+        VMSTATE_UINT64_TEST(p_fetch_addr, EHCIState,
+                            ehci_fetch_addr_64_needed),
         VMSTATE_END_OF_LIST()
     }
 };
