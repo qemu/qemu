@@ -22,12 +22,18 @@ uint64_t cpu_loongarch_get_constant_timer_counter(LoongArchCPU *cpu)
 
 uint64_t cpu_loongarch_get_constant_timer_ticks(LoongArchCPU *cpu)
 {
+    CPULoongArchState *env = &cpu->env;
+    CPUSysState *sys = env_sys(env);
     uint64_t now, expire;
 
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    expire = timer_expire_time_ns(&cpu->timer);
+    if ((sys->CSR_TCFG & CONSTANT_TIMER_ENABLE) &&
+        (sys->CSR_TVAL < sys->CSR_TCFG)) {
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        expire = timer_expire_time_ns(&cpu->timer);
+        sys->CSR_TVAL = (expire - now) / TIMER_PERIOD;
+    }
 
-    return (expire - now) / TIMER_PERIOD;
+    return sys->CSR_TVAL;
 }
 
 void cpu_loongarch_store_constant_timer_config(LoongArchCPU *cpu,
@@ -42,8 +48,10 @@ void cpu_loongarch_store_constant_timer_config(LoongArchCPU *cpu,
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         next = now + (value & CONSTANT_TIMER_TICK_MASK) * TIMER_PERIOD;
         timer_mod(&cpu->timer, next);
+        sys->CSR_TVAL = sys->CSR_TCFG & CONSTANT_TIMER_TICK_MASK;
     } else {
         timer_del(&cpu->timer);
+        sys->CSR_TVAL = 0;
     }
 }
 
@@ -58,8 +66,9 @@ void loongarch_constant_timer_cb(void *opaque)
         now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         next = now + (sys->CSR_TCFG & CONSTANT_TIMER_TICK_MASK) * TIMER_PERIOD;
         timer_mod(&cpu->timer, next);
+        sys->CSR_TVAL = sys->CSR_TCFG & CONSTANT_TIMER_TICK_MASK;
     } else {
-        sys->CSR_TCFG = FIELD_DP64(sys->CSR_TCFG, CSR_TCFG, EN, 0);
+        sys->CSR_TVAL = CONSTANT_TIMER_TICK_MASK;
     }
 
     loongarch_cpu_set_irq(opaque, IRQ_TIMER, 1);
