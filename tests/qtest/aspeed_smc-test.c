@@ -56,6 +56,10 @@ static void test_palmetto_bmc(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_page_mem_fast_read);
     qtest_add_data_func("/ast2400/smc/write_page_fast_read",
                         data, aspeed_smc_test_write_page_fast_read);
+    qtest_add_data_func("/ast2400/smc/read_page_mem_dor",
+                        data, aspeed_smc_test_read_page_mem_dor);
+    qtest_add_data_func("/ast2400/smc/write_page_dor",
+                        data, aspeed_smc_test_write_page_dor);
     /*
      * Block protect tests must be run last because the block protect
      * state is not cleared by reset_memory() and silently prevents
@@ -112,6 +116,10 @@ static void test_ast2500_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_page_mem_fast_read);
     qtest_add_data_func("/ast2500/smc/write_page_fast_read",
                         data, aspeed_smc_test_write_page_fast_read);
+    qtest_add_data_func("/ast2500/smc/read_page_mem_dor",
+                        data, aspeed_smc_test_read_page_mem_dor);
+    qtest_add_data_func("/ast2500/smc/write_page_dor",
+                        data, aspeed_smc_test_write_page_dor);
 }
 
 static void test_ast2600_evb(AspeedSMCTestData *data)
@@ -159,6 +167,10 @@ static void test_ast2600_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_page_mem_fast_read);
     qtest_add_data_func("/ast2600/smc/write_page_fast_read",
                         data, aspeed_smc_test_write_page_fast_read);
+    qtest_add_data_func("/ast2600/smc/read_page_mem_dor",
+                        data, aspeed_smc_test_read_page_mem_dor);
+    qtest_add_data_func("/ast2600/smc/write_page_dor",
+                        data, aspeed_smc_test_write_page_dor);
 }
 
 static void test_ast1030_evb(AspeedSMCTestData *data)
@@ -206,6 +218,10 @@ static void test_ast1030_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_page_mem_fast_read);
     qtest_add_data_func("/ast1030/smc/write_page_fast_read",
                         data, aspeed_smc_test_write_page_fast_read);
+    qtest_add_data_func("/ast1030/smc/read_page_mem_dor",
+                        data, aspeed_smc_test_read_page_mem_dor);
+    qtest_add_data_func("/ast1030/smc/write_page_dor",
+                        data, aspeed_smc_test_write_page_dor);
 }
 
 int main(int argc, char **argv)
