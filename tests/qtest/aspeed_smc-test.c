@@ -4,23 +4,7 @@
  *
  * Copyright (C) 2016 IBM Corp.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "qemu/osdep.h"
@@ -68,6 +52,15 @@ static void test_palmetto_bmc(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_status_reg);
     qtest_add_data_func("/ast2400/smc/status_reg_write_protection",
                         data, aspeed_smc_test_status_reg_write_protection);
+    qtest_add_data_func("/ast2400/smc/read_page_mem_fast_read",
+                        data, aspeed_smc_test_read_page_mem_fast_read);
+    qtest_add_data_func("/ast2400/smc/write_page_fast_read",
+                        data, aspeed_smc_test_write_page_fast_read);
+    /*
+     * Block protect tests must be run last because the block protect
+     * state is not cleared by reset_memory() and silently prevents
+     * subsequent flash writes.
+     */
     qtest_add_data_func("/ast2400/smc/write_block_protect",
                         data, aspeed_smc_test_write_block_protect);
     qtest_add_data_func("/ast2400/smc/write_block_protect_bottom_bit",
@@ -115,6 +108,10 @@ static void test_ast2500_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_status_reg);
     qtest_add_data_func("/ast2500/smc/write_page_qpi",
                         data, aspeed_smc_test_write_page_qpi);
+    qtest_add_data_func("/ast2500/smc/read_page_mem_fast_read",
+                        data, aspeed_smc_test_read_page_mem_fast_read);
+    qtest_add_data_func("/ast2500/smc/write_page_fast_read",
+                        data, aspeed_smc_test_write_page_fast_read);
 }
 
 static void test_ast2600_evb(AspeedSMCTestData *data)
@@ -158,6 +155,10 @@ static void test_ast2600_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_status_reg);
     qtest_add_data_func("/ast2600/smc/write_page_qpi",
                         data, aspeed_smc_test_write_page_qpi);
+    qtest_add_data_func("/ast2600/smc/read_page_mem_fast_read",
+                        data, aspeed_smc_test_read_page_mem_fast_read);
+    qtest_add_data_func("/ast2600/smc/write_page_fast_read",
+                        data, aspeed_smc_test_write_page_fast_read);
 }
 
 static void test_ast1030_evb(AspeedSMCTestData *data)
@@ -201,6 +202,10 @@ static void test_ast1030_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_status_reg);
     qtest_add_data_func("/ast1030/smc/write_page_qpi",
                         data, aspeed_smc_test_write_page_qpi);
+    qtest_add_data_func("/ast1030/smc/read_page_mem_fast_read",
+                        data, aspeed_smc_test_read_page_mem_fast_read);
+    qtest_add_data_func("/ast1030/smc/write_page_fast_read",
+                        data, aspeed_smc_test_write_page_fast_read);
 }
 
 int main(int argc, char **argv)

@@ -4,23 +4,7 @@
  *
  * Copyright (C) 2016 IBM Corp.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
 
 #include "qemu/osdep.h"
@@ -104,6 +88,23 @@ static void spi_ctrl_setmode(const AspeedSMCTestData *data, uint8_t mode,
     uint32_t ctrl = spi_readl(data, ctrl_reg);
     ctrl &= ~(CTRL_USERMODE | 0xff << 16);
     ctrl |= mode | (cmd << 16);
+    spi_writel(data, ctrl_reg, ctrl);
+}
+
+/* Set FREADMODE with a fast read command and 1 dummy byte */
+static void spi_ctrl_set_fast_read(const AspeedSMCTestData *data, uint8_t cmd)
+{
+    uint32_t ctrl_reg = R_CTRL0 + data->cs * 4;
+    uint32_t ctrl = spi_readl(data, ctrl_reg);
+    uint32_t iomode = 0;
+
+    ctrl &= ~(CTRL_USERMODE | (0xff << 16) |
+              (0x3 << CTRL_DUMMY_LOW_SHIFT) |
+              (0x1 << CTRL_DUMMY_HIGH_SHIFT) |
+              CTRL_IO_MODE_MASK);
+    ctrl |= CTRL_FREADMODE | (cmd << 16) |
+            (1 << CTRL_DUMMY_LOW_SHIFT) |
+            iomode;
     spi_writel(data, ctrl_reg, ctrl);
 }
 
@@ -697,3 +698,43 @@ void aspeed_smc_test_write_page_qpi(const void *data)
     flash_reset(test_data);
 }
 
+static void read_page_mem_fast_read(const AspeedSMCTestData *data,
+                                uint32_t addr, uint32_t *page)
+{
+    int i;
+
+    spi_ctrl_set_fast_read(data, FAST_READ);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(flash_readl(data, addr + i * 4));
+    }
+}
+
+void aspeed_smc_test_read_page_mem_fast_read(const void *data)
+{
+    test_read_page_mem(data, read_page_mem_fast_read);
+}
+
+static void read_page_fast_read(const AspeedSMCTestData *data,
+                                uint32_t addr, uint32_t *page)
+{
+    int i;
+
+    spi_ctrl_start_user(data);
+
+    flash_writeb(data, 0, EN_4BYTE_ADDR);
+    flash_writeb(data, 0, FAST_READ);
+    flash_writel(data, 0, make_be32(addr));
+    /* 1 dummy byte for standard SPI fast-read */
+    flash_writeb(data, 0, 0x00);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(flash_readl(data, 0));
+    }
+    spi_ctrl_stop_user(data);
+}
+
+void aspeed_smc_test_write_page_fast_read(const void *data)
+{
+    test_write_page(data, read_page_fast_read);
+}
