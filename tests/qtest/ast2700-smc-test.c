@@ -60,6 +60,10 @@ static void test_ast2700_evb(AspeedSMCTestData *data)
                         data, aspeed_smc_test_read_page_mem_dor);
     qtest_add_data_func("/ast2700/smc/write_page_dor",
                         data, aspeed_smc_test_write_page_dor);
+    qtest_add_data_func("/ast2700/smc/read_page_mem_qor",
+                        data, aspeed_smc_test_read_page_mem_qor);
+    qtest_add_data_func("/ast2700/smc/write_page_qor",
+                        data, aspeed_smc_test_write_page_qor);
 }
 
 int main(int argc, char **argv)

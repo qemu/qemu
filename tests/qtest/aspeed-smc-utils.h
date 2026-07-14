@@ -28,6 +28,7 @@
 #define   CTRL_FREADMODE       0x1
 #define   CTRL_WRITEMODE       0x2
 #define   CTRL_USERMODE        0x3
+#define   CTRL_IO_QUAD_DATA     BIT(30)
 #define   CTRL_IO_DUAL_DATA     BIT(29)
 #define   CTRL_DUMMY_LOW_SHIFT   6
 #define   CTRL_DUMMY_HIGH_SHIFT  14
@@ -44,6 +45,7 @@ enum {
     READ = 0x03,
     FAST_READ = 0x0b,
     DOR = 0x3b,
+    QOR = 0x6b,
     PP = 0x02,
     WRSR = 0x1,
     WREN = 0x6,
@@ -83,5 +85,7 @@ void aspeed_smc_test_read_page_mem_fast_read(const void *data);
 void aspeed_smc_test_write_page_fast_read(const void *data);
 void aspeed_smc_test_read_page_mem_dor(const void *data);
 void aspeed_smc_test_write_page_dor(const void *data);
+void aspeed_smc_test_read_page_mem_qor(const void *data);
+void aspeed_smc_test_write_page_qor(const void *data);
 
 #endif /* TESTS_ASPEED_SMC_UTILS_H */

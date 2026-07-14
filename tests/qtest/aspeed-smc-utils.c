@@ -100,6 +100,8 @@ static void spi_ctrl_set_fast_read(const AspeedSMCTestData *data, uint8_t cmd)
 
     if (cmd == DOR) {
         iomode = CTRL_IO_DUAL_DATA;
+    } else if (cmd == QOR) {
+        iomode = CTRL_IO_QUAD_DATA;
     }
 
     ctrl &= ~(CTRL_USERMODE | (0xff << 16) |
@@ -782,4 +784,45 @@ static void read_page_dor(const AspeedSMCTestData *data,
 void aspeed_smc_test_write_page_dor(const void *data)
 {
     test_write_page(data, read_page_dor);
+}
+
+static void read_page_mem_qor(const AspeedSMCTestData *data,
+                              uint32_t addr, uint32_t *page)
+{
+    int i;
+
+    spi_ctrl_set_fast_read(data, QOR);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(flash_readl(data, addr + i * 4));
+    }
+}
+
+void aspeed_smc_test_read_page_mem_qor(const void *data)
+{
+    test_read_page_mem(data, read_page_mem_qor);
+}
+
+static void read_page_qor(const AspeedSMCTestData *data,
+                          uint32_t addr, uint32_t *page)
+{
+    int i;
+
+    spi_ctrl_start_user(data);
+
+    flash_writeb(data, 0, EN_4BYTE_ADDR);
+    flash_writeb(data, 0, QOR);
+    flash_writel(data, 0, make_be32(addr));
+    /* 1 dummy byte for standard SPI QOR */
+    flash_writeb(data, 0, 0x00);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(flash_readl(data, 0));
+    }
+    spi_ctrl_stop_user(data);
+}
+
+void aspeed_smc_test_write_page_qor(const void *data)
+{
+    test_write_page(data, read_page_qor);
 }
