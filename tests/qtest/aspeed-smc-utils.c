@@ -186,6 +186,9 @@ static void read_page_mem(const AspeedSMCTestData *data, uint32_t addr,
     }
 }
 
+typedef void (*read_page_mem_fn)(const AspeedSMCTestData *data,
+                                 uint32_t addr, uint32_t *page);
+
 static void write_page_mem(const AspeedSMCTestData *data, uint32_t addr,
                            uint32_t write_value)
 {
@@ -327,9 +330,9 @@ void aspeed_smc_test_erase_all(const void *data)
     flash_reset(test_data);
 }
 
-void aspeed_smc_test_write_page(const void *data)
+static void test_write_page(const AspeedSMCTestData *test_data,
+                            read_page_mem_fn reader)
 {
-    const AspeedSMCTestData *test_data = (const AspeedSMCTestData *)data;
     uint32_t my_page_addr = test_data->page_addr;
     uint32_t some_page_addr = my_page_addr + FLASH_PAGE_SIZE;
     uint32_t page[FLASH_PAGE_SIZE / 4];
@@ -350,13 +353,13 @@ void aspeed_smc_test_write_page(const void *data)
     spi_ctrl_stop_user(test_data);
 
     /* Check what was written */
-    read_page(test_data, my_page_addr, page);
+    reader(test_data, my_page_addr, page);
     for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, my_page_addr + i * 4);
     }
 
     /* Check some other page. It should be full of 0xff */
-    read_page(test_data, some_page_addr, page);
+    reader(test_data, some_page_addr, page);
     for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
@@ -364,9 +367,14 @@ void aspeed_smc_test_write_page(const void *data)
     flash_reset(test_data);
 }
 
-void aspeed_smc_test_read_page_mem(const void *data)
+void aspeed_smc_test_write_page(const void *data)
 {
-    const AspeedSMCTestData *test_data = (const AspeedSMCTestData *)data;
+    test_write_page(data, read_page);
+}
+
+static void test_read_page_mem(const AspeedSMCTestData *test_data,
+                               read_page_mem_fn reader)
+{
     uint32_t my_page_addr = test_data->page_addr;
     uint32_t some_page_addr = my_page_addr + FLASH_PAGE_SIZE;
     uint32_t page[FLASH_PAGE_SIZE / 4];
@@ -393,18 +401,23 @@ void aspeed_smc_test_read_page_mem(const void *data)
     spi_conf_remove(test_data, 1 << (CONF_ENABLE_W0 + test_data->cs));
 
     /* Check what was written */
-    read_page_mem(test_data, my_page_addr, page);
+    reader(test_data, my_page_addr, page);
     for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, my_page_addr + i * 4);
     }
 
     /* Check some other page. It should be full of 0xff */
-    read_page_mem(test_data, some_page_addr, page);
+    reader(test_data, some_page_addr, page);
     for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
         g_assert_cmphex(page[i], ==, 0xffffffff);
     }
 
     flash_reset(test_data);
+}
+
+void aspeed_smc_test_read_page_mem(const void *data)
+{
+    test_read_page_mem(data, read_page_mem);
 }
 
 void aspeed_smc_test_write_page_mem(const void *data)
