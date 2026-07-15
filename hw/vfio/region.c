@@ -316,13 +316,12 @@ static bool vfio_region_create_dma_buf(VFIORegion *region, Error **errp)
     ret = vfio_device_get_feature(vbasedev, feature);
     if (ret < 0) {
         if (ret == -ENOTTY) {
-            warn_report_once("VFIO dma-buf not supported in kernel: "
-                             "PCI BAR IOMMU mappings may fail");
+            warn_report_once("VFIO dma-buf not supported in kernel, "
+                             "using mmap fallback, P2P DMA will not work");
             return true;
         }
-        /* P2P DMA or exposing device memory use cases are not supported. */
-        error_setg_errno(errp, -ret, "%s: failed to create dma-buf: "
-                         "PCI BAR IOMMU mappings may fail",
+        error_setg_errno(errp, -ret, "%s: dma-buf unavailable, "
+                         "using mmap fallback, P2P DMA will not work",
                          memory_region_name(region->mem));
         return false;
     }
@@ -443,7 +442,7 @@ int vfio_region_mmap(VFIORegion *region)
     }
 
     if (!vfio_region_create_dma_buf(region, &local_err)) {
-        error_report_err(local_err);
+        warn_report_err_once(local_err);
     }
 
     return 0;
