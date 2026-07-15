@@ -103,6 +103,8 @@ struct SDHCIState {
      * to be protected. Set wp_inverted to invert the signal.
      */
     bool wp_inverted;
+    /* Indicate that SDMA transfer is paused due to hitting the boundary */
+    bool sdma_boundary_paused;
 };
 typedef struct SDHCIState SDHCIState;
 

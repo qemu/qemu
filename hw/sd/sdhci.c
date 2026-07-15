@@ -307,6 +307,7 @@ static void sdhci_reset(SDHCIState *s)
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
     s->pending_insert_state = false;
+    s->sdma_boundary_paused = false;
     if (object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_BE) ||
             object_dynamic_cast(OBJECT(s), TYPE_FSL_ESDHC_LE)) {
         s->norintstsen = 0x013f;
@@ -414,6 +415,7 @@ static void sdhci_end_transfer(SDHCIState *s)
         s->norintsts |= SDHC_NIS_TRSCMP;
     }
 
+    s->sdma_boundary_paused = false;
     sdhci_update_irq(s);
 }
 
@@ -681,6 +683,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
     if (s->blkcnt == 0) {
         sdhci_end_transfer(s);
     } else {
+        s->sdma_boundary_paused = true;
         sdhci_update_irq(s);
     }
 }
@@ -715,6 +718,15 @@ static void sdhci_sdma_transfer(SDHCIState *s)
     } else {
         sdhci_sdma_transfer_multi_blocks(s);
     }
+}
+
+static bool sdhci_sdma_transfer_active(SDHCIState *s)
+{
+    return TRANSFERRING_DATA(s->prnsts) &&
+            (s->trnmod & SDHC_TRNS_DMA) &&
+            s->blkcnt &&
+            (s->blksize & BLOCK_SIZE_MASK) &&
+            SDHC_DMA_TYPE(s->hostctl1) == SDHC_CTRL_SDMA;
 }
 
 typedef struct ADMADescr {
@@ -1164,6 +1176,7 @@ static inline void sdhci_reset_write(SDHCIState *s, uint8_t value)
                 SDHC_DATA_INHIBIT | SDHC_DAT_LINE_ACTIVE);
         s->blkgap &= ~(SDHC_STOP_AT_GAP_REQ | SDHC_CONTINUE_REQ);
         s->stopped_state = sdhc_not_stopped;
+        s->sdma_boundary_paused = false;
         s->norintsts &= ~(SDHC_NIS_WBUFRDY | SDHC_NIS_RBUFRDY |
                 SDHC_NIS_DMA | SDHC_NIS_TRSCMP | SDHC_NIS_BLKGAP);
         break;
@@ -1185,7 +1198,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 
     switch (offset & ~0x3) {
     case SDHC_SYSAD:
-        if (!TRANSFERRING_DATA(s->prnsts)) {
+        if (!TRANSFERRING_DATA(s->prnsts) || s->sdma_boundary_paused) {
             s->sdmasysad = (s->sdmasysad & mask) | value;
             MASKED_WRITE(s->sdmasysad, mask, value);
             /* Writing to last byte of sdmasysad might trigger transfer */
@@ -1464,6 +1477,31 @@ static bool sdhci_pending_insert_vmstate_needed(void *opaque)
     return s->pending_insert_state;
 }
 
+static bool sdhci_sdma_boundary_paused_vmstate_needed(void *opaque)
+{
+    SDHCIState *s = opaque;
+
+    return s->sdma_boundary_paused;
+}
+
+static int sdhci_pre_load(void *opaque)
+{
+    SDHCIState *s = opaque;
+
+    s->sdma_boundary_paused = false;
+    return 0;
+}
+
+static int sdhci_post_load(void *opaque, int version_id)
+{
+    SDHCIState *s = opaque;
+
+    if (!s->sdma_boundary_paused) {
+        s->sdma_boundary_paused = sdhci_sdma_transfer_active(s);
+    }
+    return 0;
+}
+
 static const VMStateDescription sdhci_pending_insert_vmstate = {
     .name = "sdhci/pending-insert",
     .version_id = 1,
@@ -1475,10 +1513,23 @@ static const VMStateDescription sdhci_pending_insert_vmstate = {
     },
 };
 
+static const VMStateDescription sdhci_sdma_boundary_paused_vmstate = {
+    .name = "sdhci/sdma_boundary_paused",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sdhci_sdma_boundary_paused_vmstate_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(sdma_boundary_paused, SDHCIState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 const VMStateDescription sdhci_vmstate = {
     .name = "sdhci",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = sdhci_pre_load,
+    .post_load = sdhci_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(sdmasysad, SDHCIState),
         VMSTATE_UINT16(blksize, SDHCIState),
@@ -1512,6 +1563,7 @@ const VMStateDescription sdhci_vmstate = {
     },
     .subsections = (const VMStateDescription * const []) {
         &sdhci_pending_insert_vmstate,
+        &sdhci_sdma_boundary_paused_vmstate,
         NULL
     },
 };
