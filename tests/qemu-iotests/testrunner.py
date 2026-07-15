@@ -26,7 +26,7 @@ import contextlib
 import json
 import shutil
 import sys
-from multiprocessing import Pool
+from multiprocessing import get_context
 from typing import List, Optional, Any, Sequence, Dict
 from testenv import TestEnv
 
@@ -125,7 +125,7 @@ class TestRunner(contextlib.AbstractContextManager['TestRunner']):
         assert TestRunner.shared_self is None
         TestRunner.shared_self = self
 
-        with Pool(jobs) as p:
+        with get_context('fork').Pool(jobs) as p:
             results = p.starmap(self.proc_run_test,
                                 zip(tests, [test_field_width] * len(tests)))
 
