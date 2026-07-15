@@ -89,9 +89,7 @@ output=$(_send_qemu_cmd $QEMU_HANDLE \
     'return' \
     | grep -v 'option allow_other only allowed if')
 
-if echo "$output" | grep -q "Parameter 'type' does not accept value 'fuse'"; then
-    _notrun 'No FUSE support'
-fi
+_notrun_on_fuse_error "$output"
 echo "$output"
 
 echo

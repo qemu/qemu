@@ -77,6 +77,8 @@ fuse_export_add()
         _notrun "allow_other not supported"
     fi
 
+    _notrun_on_fuse_error "$output"
+
     echo "$output"
 }
 
