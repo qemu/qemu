@@ -35,7 +35,7 @@ qemu_img('bitmap', '--add', base, 'bitmap0')
 # Just assert that our method of checking bitmaps in the image works.
 assert 'bitmaps' in qemu_img_info(base)['format-specific']['data']
 
-vm = iotests.VM().add_drive(top, 'backing.node-name=base')
+vm = iotests.VM().add_drive(top, 'node-name=top,backing.node-name=base')
 vm.launch()
 
 log('Trying to remove persistent bitmap from r-o base node, should fail:')
@@ -65,6 +65,33 @@ new_base_opts['options'][0]['read-only'] = True
 result = vm.qmp('blockdev-reopen', **new_base_opts)
 if result != {'return': {}}:
     log('Failed to reopen: ' + str(result))
+
+log('Adding a persistent bitmap to the r-o base node, should fail:')
+vm.qmp_log('block-dirty-bitmap-add', node='base', name='bitmap1',
+          persistent=True)
+
+log('Same add inside a transaction, preceded by an otherwise valid')
+log('action: the whole transaction must fail and roll back the')
+log('already-succeeded first action too:')
+vm.qmp_log('transaction', actions=[
+    {'type': 'block-dirty-bitmap-add',
+     'data': {'node': 'top', 'name': 'bitmap2', 'persistent': True}},
+    {'type': 'block-dirty-bitmap-add',
+     'data': {'node': 'base', 'name': 'bitmap1', 'persistent': True}},
+])
+
+log('bitmap2 on the rw top node must not have survived the rollback:')
+vm.qmp_log('block-dirty-bitmap-remove', node='top', name='bitmap2')
+
+log('Marking the rw top node inactive:')
+vm.qmp_log('blockdev-set-active', **{'node-name': 'top', 'active': False})
+
+log('Adding a persistent bitmap to a rw but inactive node, should fail:')
+vm.qmp_log('block-dirty-bitmap-add', node='top', name='bitmap3',
+          persistent=True)
+
+log('Reactivating the top node:')
+vm.qmp_log('blockdev-set-active', **{'node-name': 'top', 'active': True})
 
 vm.shutdown()
 

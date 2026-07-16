@@ -4,3 +4,23 @@ Trying to remove persistent bitmap from r-o base node, should fail:
 Remove persistent bitmap from base node reopened to RW:
 {"execute": "block-dirty-bitmap-remove", "arguments": {"name": "bitmap0", "node": "base"}}
 {"return": {}}
+Adding a persistent bitmap to the r-o base node, should fail:
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmap1", "node": "base", "persistent": true}}
+{"error": {"class": "GenericError", "desc": "Cannot add a persistent bitmap to read-only or inactive node 'base'"}}
+Same add inside a transaction, preceded by an otherwise valid
+action: the whole transaction must fail and roll back the
+already-succeeded first action too:
+{"execute": "transaction", "arguments": {"actions": [{"data": {"name": "bitmap2", "node": "top", "persistent": true}, "type": "block-dirty-bitmap-add"}, {"data": {"name": "bitmap1", "node": "base", "persistent": true}, "type": "block-dirty-bitmap-add"}]}}
+{"error": {"class": "GenericError", "desc": "Cannot add a persistent bitmap to read-only or inactive node 'base'"}}
+bitmap2 on the rw top node must not have survived the rollback:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "bitmap2", "node": "top"}}
+{"error": {"class": "GenericError", "desc": "Dirty bitmap 'bitmap2' not found"}}
+Marking the rw top node inactive:
+{"execute": "blockdev-set-active", "arguments": {"active": false, "node-name": "top"}}
+{"return": {}}
+Adding a persistent bitmap to a rw but inactive node, should fail:
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmap3", "node": "top", "persistent": true}}
+{"error": {"class": "GenericError", "desc": "Cannot add a persistent bitmap to read-only or inactive node 'top'"}}
+Reactivating the top node:
+{"execute": "blockdev-set-active", "arguments": {"active": true, "node-name": "top"}}
+{"return": {}}
