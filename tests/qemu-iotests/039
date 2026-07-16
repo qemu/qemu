@@ -85,6 +85,17 @@ $QEMU_IO -r -c "read -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 _qcow2_dump_header | grep incompatible_features
 
 echo
+echo "== Read-only open must not crash on close =="
+
+# We must not try to write the QCOW2 header to a read-only image.
+$QEMU_IMG info --image-opts \
+    "driver=$IMGFMT,read-only=on,file.driver=file,file.filename=$TEST_IMG,file.read-only=off" \
+    > /dev/null
+
+# The dirty bit must still be set: this open never wrote any guest data
+_qcow2_dump_header | grep incompatible_features
+
+echo
 echo "== Repairing the image file must succeed =="
 
 _check_test_img -r all
