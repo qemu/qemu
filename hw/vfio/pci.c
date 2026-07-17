@@ -346,6 +346,11 @@ static bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
+    if (pin > PCI_NUM_PINS) {
+        error_setg(errp, "invalid PCI interrupt pin %d", pin);
+        return false;
+    }
+
     /*
      * Do not alter interrupt state during vfio_realize and cpr load.
      * The incoming state is cleared thereafter.
