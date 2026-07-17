@@ -279,6 +279,11 @@ static bool vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
         return true;
     }
 
+    if (pin > PCI_NUM_PINS) {
+        error_setg(errp, "invalid PCI interrupt pin %d", pin);
+        return false;
+    }
+
     vfio_disable_interrupts(vdev);
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
