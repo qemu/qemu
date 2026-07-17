@@ -930,6 +930,11 @@ static void aspeed_ast2700_scu_reset_hold(Object *obj, ResetType type)
     s->regs[AST2700_HW_STRAP1] = s->hw_strap1;
 }
 
+static void aspeed_2700_scu_realize(DeviceState *dev, Error **errp)
+{
+    aspeed_scu_realize(dev, errp);
+}
+
 static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -937,6 +942,7 @@ static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
 
     dc->desc = "ASPEED 2700 System Control Unit";
+    dc->realize = aspeed_2700_scu_realize;
     rc->phases.hold = aspeed_ast2700_scu_reset_hold;
     asc->resets = ast2700_a0_resets;
     asc->calc_hpll = aspeed_2600_scu_calc_hpll;
@@ -1161,7 +1167,7 @@ static const TypeInfo aspeed_scu_types[] = {
     {
         .name = TYPE_ASPEED_2700_SCU,
         .parent = TYPE_ASPEED_SCU,
-        .instance_size = sizeof(AspeedSCUState),
+        .instance_size = sizeof(Aspeed2700SCUState),
         .class_init = aspeed_2700_scu_class_init,
     },
     {
