@@ -435,12 +435,12 @@ static void aspeed_soc_ast2700_init(Object *obj)
 
     object_initialize_child(obj, "gic", &a->gic, gicv3_class_name());
 
-    object_initialize_child(obj, "scu", &s->scu, TYPE_ASPEED_2700_SCU);
-    qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev",
+    object_initialize_child(obj, "scu", &a->scu, TYPE_ASPEED_2700_SCU);
+    qdev_prop_set_uint32(DEVICE(&a->scu), "silicon-rev",
                          sc->silicon_rev);
-    object_property_add_alias(obj, "hw-strap1", OBJECT(&s->scu),
+    object_property_add_alias(obj, "hw-strap1", OBJECT(&a->scu),
                               "hw-strap1");
-    object_property_add_alias(obj, "hw-prot-key", OBJECT(&s->scu),
+    object_property_add_alias(obj, "hw-prot-key", OBJECT(&a->scu),
                               "hw-prot-key");
 
     object_initialize_child(obj, "scuio", &s->scuio, TYPE_ASPEED_2700_SCUIO);
@@ -808,10 +808,10 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                                 sc->memmap[ASPEED_DEV_VBOOTROM], &s->vbootrom);
 
     /* SCU */
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&a->scu), errp)) {
         return;
     }
-    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&s->scu), 0,
+    aspeed_mmio_map(s->memory, SYS_BUS_DEVICE(&a->scu), 0,
                     sc->memmap[ASPEED_DEV_SCU]);
 
     /* SCU1 */
@@ -934,7 +934,7 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
         AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
         hwaddr wdt_offset = sc->memmap[ASPEED_DEV_WDT] + i * awc->iosize;
 
-        object_property_set_link(OBJECT(&s->wdt[i]), "scu", OBJECT(&s->scu),
+        object_property_set_link(OBJECT(&s->wdt[i]), "scu", OBJECT(&a->scu),
                                  &error_abort);
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->wdt[i]), errp)) {
             return;
@@ -1037,7 +1037,7 @@ static void aspeed_soc_ast2700_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_ast2700_get_irq(s, ASPEED_DEV_EMMC));
 
     /* Timer */
-    object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&s->scu),
+    object_property_set_link(OBJECT(&s->timerctrl), "scu", OBJECT(&a->scu),
                              &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->timerctrl), errp)) {
         return;

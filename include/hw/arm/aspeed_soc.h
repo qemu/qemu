@@ -151,6 +151,7 @@ struct Aspeed27x0SoCState {
     AspeedINTCState intcioexp[ASPEED_IOEXP_NUM];
     GICv3State gic;
     MemoryRegion dram_empty;
+    Aspeed2700SCUState scu;
 };
 
 #define TYPE_ASPEED27X0_SOC "aspeed27x0-soc"
