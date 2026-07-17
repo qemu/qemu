@@ -27,6 +27,7 @@ static const hwaddr aspeed_soc_ast27x0tsp_memmap[] = {
     [ASPEED_DEV_TIMER1]    =  0x72C10000,
     [ASPEED_DEV_UART4]     =  0x72C1A000,
     [ASPEED_DEV_IPC0]      =  0x72C1C000,
+    [ASPEED_DEV_FMC]       =  0x74000000,
     [ASPEED_DEV_PRIC1]     =  0x74100000,
     [ASPEED_DEV_SCUIO]     =  0x74C02000,
     [ASPEED_DEV_OTP]       =  0x74C07000,
@@ -177,6 +178,12 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    if (!a->fmc) {
+        error_setg(errp, TYPE_ASPEED27X0TSP_COPROCESSOR
+                   ": 'fmc' link is not set");
+        return;
+    }
+
     /* AST27X0 TSP Core */
     armv7m = DEVICE(&a->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 256);
@@ -269,6 +276,13 @@ static void aspeed_soc_ast27x0tsp_realize(DeviceState *dev_soc, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(s->uart), 0,
                        aspeed_soc_ast27x0tsp_get_irq(s, s->uart_dev));
 
+    /* FMC */
+    memory_region_init_alias(&a->fmc_alias, OBJECT(a), "fmc.alias",
+                             &a->fmc->mmio, 0,
+                             memory_region_size(&a->fmc->mmio));
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_FMC],
+                                &a->fmc_alias);
+
     aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->timerctrl),
                                   "aspeed.timerctrl",
                                   sc->memmap[ASPEED_DEV_TIMER1], 0x200);
@@ -294,6 +308,8 @@ static const Property aspeed_27x0_coprocessor_properties[] = {
                      TYPE_ASPEED_2700_SCU, Aspeed2700SCUState *),
     DEFINE_PROP_LINK("scuio", Aspeed27x0CoprocessorState, scuio,
                      TYPE_ASPEED_SCU, AspeedSCUState *),
+    DEFINE_PROP_LINK("fmc", Aspeed27x0CoprocessorState, fmc, TYPE_ASPEED_SMC,
+                     AspeedSMCState *),
 };
 
 static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass,

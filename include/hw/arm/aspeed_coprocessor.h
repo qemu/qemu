@@ -49,10 +49,17 @@ struct Aspeed27x0CoprocessorState {
 
     ARMv7MState armv7m;
 
+    /*
+     * SCU, SCUIO and FMC are not owned by this coprocessor: they are
+     * shared with the main PSP SoC, and only aliased into this
+     * coprocessor's own address space here.
+     */
     MemoryRegion scu_alias;
     MemoryRegion scuio_alias;
+    MemoryRegion fmc_alias;
     Aspeed2700SCUState *scu;
     AspeedSCUState *scuio;
+    AspeedSMCState *fmc;
 };
 
 #define TYPE_ASPEED27X0SSP_COPROCESSOR "aspeed27x0ssp-coprocessor"
