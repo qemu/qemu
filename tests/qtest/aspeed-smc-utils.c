@@ -57,6 +57,28 @@ static inline uint32_t flash_readl(const AspeedSMCTestData *data,
     return qtest_readl(data->s, data->flash_base + offset);
 }
 
+/*
+ * Data FIFO port, in spi_base's register bank (not flash_base). Accesses
+ * through the FIFO require the complete user-mode transaction (opcode,
+ * address, and data). Assumes CS0, whose FIFO slot is at R_DATA_FIFO.
+ */
+static inline void datafifo_writeb(const AspeedSMCTestData *data,
+                                   uint8_t value)
+{
+    qtest_writeb(data->s, data->spi_base + R_DATA_FIFO, value);
+}
+
+static inline void datafifo_writel(const AspeedSMCTestData *data,
+                                   uint32_t value)
+{
+    spi_writel(data, R_DATA_FIFO, value);
+}
+
+static inline uint32_t datafifo_readl(const AspeedSMCTestData *data)
+{
+    return spi_readl(data, R_DATA_FIFO);
+}
+
 static void spi_conf(const AspeedSMCTestData *data, uint32_t value)
 {
     uint32_t conf = spi_readl(data, R_CONF);
@@ -825,4 +847,84 @@ static void read_page_qor(const AspeedSMCTestData *data,
 void aspeed_smc_test_write_page_qor(const void *data)
 {
     test_write_page(data, read_page_qor);
+}
+
+void aspeed_smc_test_write_page_datafifo(const void *data)
+{
+    const AspeedSMCTestData *test_data = (const AspeedSMCTestData *)data;
+    uint32_t my_page_addr = test_data->page_addr;
+    uint32_t some_page_addr = my_page_addr + FLASH_PAGE_SIZE;
+    uint32_t page[FLASH_PAGE_SIZE / 4];
+    int i;
+
+    spi_conf(test_data, 1 << (CONF_ENABLE_W0 + test_data->cs));
+
+    /*
+     * Send the complete user-mode transaction (opcode, address, data)
+     * through the Data FIFO port.
+     */
+    spi_ctrl_start_user(test_data);
+    datafifo_writeb(test_data, EN_4BYTE_ADDR);
+    datafifo_writeb(test_data, WREN);
+    datafifo_writeb(test_data, PP);
+    datafifo_writel(test_data, make_be32(my_page_addr));
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        datafifo_writel(test_data, make_be32(my_page_addr + i * 4));
+    }
+    spi_ctrl_stop_user(test_data);
+
+    /* Check what was written, using the regular read path */
+    read_page(test_data, my_page_addr, page);
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        g_assert_cmphex(page[i], ==, my_page_addr + i * 4);
+    }
+
+    /* Check some other page. It should be full of 0xff */
+    read_page(test_data, some_page_addr, page);
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        g_assert_cmphex(page[i], ==, 0xffffffff);
+    }
+
+    flash_reset(test_data);
+}
+
+void aspeed_smc_test_read_page_datafifo(const void *data)
+{
+    const AspeedSMCTestData *test_data = (const AspeedSMCTestData *)data;
+    uint32_t my_page_addr = test_data->page_addr;
+    uint32_t page[FLASH_PAGE_SIZE / 4];
+    int i;
+
+    spi_conf(test_data, 1 << (CONF_ENABLE_W0 + test_data->cs));
+
+    /* Write the page the regular way */
+    spi_ctrl_start_user(test_data);
+    flash_writeb(test_data, 0, EN_4BYTE_ADDR);
+    flash_writeb(test_data, 0, WREN);
+    flash_writeb(test_data, 0, PP);
+    flash_writel(test_data, 0, make_be32(my_page_addr));
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        flash_writel(test_data, 0, make_be32(my_page_addr + i * 4));
+    }
+    spi_ctrl_stop_user(test_data);
+
+    /*
+     * Read it back through the data FIFO port, again sending the whole
+     * transaction (opcode, address, data) through it.
+     */
+    spi_ctrl_start_user(test_data);
+    datafifo_writeb(test_data, EN_4BYTE_ADDR);
+    datafifo_writeb(test_data, READ);
+    datafifo_writel(test_data, make_be32(my_page_addr));
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        page[i] = make_be32(datafifo_readl(test_data));
+    }
+    spi_ctrl_stop_user(test_data);
+
+    for (i = 0; i < FLASH_PAGE_SIZE / 4; i++) {
+        g_assert_cmphex(page[i], ==, my_page_addr + i * 4);
+    }
+
+    flash_reset(test_data);
 }

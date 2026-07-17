@@ -33,6 +33,8 @@
 #define   CTRL_DUMMY_LOW_SHIFT   6
 #define   CTRL_DUMMY_HIGH_SHIFT  14
 #define SR_WEL BIT(1)
+/* Data fifo */
+#define R_DATA_FIFO 0x200
 
 /*
  * Flash commands
@@ -87,5 +89,7 @@ void aspeed_smc_test_read_page_mem_dor(const void *data);
 void aspeed_smc_test_write_page_dor(const void *data);
 void aspeed_smc_test_read_page_mem_qor(const void *data);
 void aspeed_smc_test_write_page_qor(const void *data);
+void aspeed_smc_test_write_page_datafifo(const void *data);
+void aspeed_smc_test_read_page_datafifo(const void *data);
 
 #endif /* TESTS_ASPEED_SMC_UTILS_H */
