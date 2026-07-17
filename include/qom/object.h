@@ -1802,8 +1802,8 @@ void object_property_allow_set_link(const Object *obj, const char *name,
  * property is read-only and cannot be set. Care must be taken to handle NULL
  * values for @val.
  *
- * Ownership of the pointer that @child points to is transferred to the
- * link property.  The reference count for *@child is
+ * Ownership of the pointer that @targetp points to is transferred to the
+ * link property.  The reference count for *@targetp is
  * managed by the property from after the function returns till the
  * property is deleted with object_property_del().  If the
  * @flags %OBJ_PROP_LINK_STRONG bit is set,
