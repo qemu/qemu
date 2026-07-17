@@ -20,10 +20,8 @@ struct AspeedCoprocessorState {
     MemoryRegion *sram;
     MemoryRegion sram_alias;
     MemoryRegion uart_alias;
-    MemoryRegion scu_alias;
     Clock *sysclk;
 
-    AspeedSCUState *scu;
     AspeedSCUState scuio;
     AspeedTimerCtrlState timerctrl;
     SerialMM *uart;
@@ -52,6 +50,9 @@ struct Aspeed27x0CoprocessorState {
     UnimplementedDeviceState otp;
 
     ARMv7MState armv7m;
+
+    MemoryRegion scu_alias;
+    Aspeed2700SCUState *scu;
 };
 
 #define TYPE_ASPEED27X0SSP_COPROCESSOR "aspeed27x0ssp-coprocessor"

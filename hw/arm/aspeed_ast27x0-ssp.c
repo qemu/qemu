@@ -167,6 +167,12 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
         return;
     }
 
+    if (!a->scu) {
+        error_setg(errp, TYPE_ASPEED27X0SSP_COPROCESSOR
+                   ": 'scu' link is not set");
+        return;
+    }
+
     /* AST27X0 SSP Core */
     armv7m = DEVICE(&a->armv7m);
     qdev_prop_set_uint32(armv7m, "num-irq", 256);
@@ -195,11 +201,11 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
                                 &s->sram_alias);
 
     /* SCU */
-    memory_region_init_alias(&s->scu_alias, OBJECT(s), "scu.alias",
-                             &s->scu->iomem, 0,
-                             memory_region_size(&s->scu->iomem));
+    memory_region_init_alias(&a->scu_alias, OBJECT(a), "scu.alias",
+                             &a->scu->parent_obj.iomem, 0,
+                             memory_region_size(&a->scu->parent_obj.iomem));
     memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SCU],
-                                &s->scu_alias);
+                                &a->scu_alias);
 
     /* INTC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&a->intc[0]), errp)) {
@@ -275,6 +281,11 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
                                   sc->memmap[ASPEED_DEV_OTP], 0x800);
 }
 
+static const Property aspeed_27x0_coprocessor_properties[] = {
+    DEFINE_PROP_LINK("scu", Aspeed27x0CoprocessorState, scu,
+                     TYPE_ASPEED_2700_SCU, Aspeed2700SCUState *),
+};
+
 static void aspeed_soc_ast27x0ssp_class_init(ObjectClass *klass,
                                              const void *data)
 {
@@ -288,6 +299,7 @@ static void aspeed_soc_ast27x0ssp_class_init(ObjectClass *klass,
     /* Reason: The Aspeed Coprocessor can only be instantiated from a board */
     dc->user_creatable = false;
     dc->realize = aspeed_soc_ast27x0ssp_realize;
+    device_class_set_props(dc, aspeed_27x0_coprocessor_properties);
 
     sc->valid_cpu_types = valid_cpu_types;
     sc->irqmap = aspeed_soc_ast27x0ssp_irqmap;
