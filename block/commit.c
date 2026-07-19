@@ -128,8 +128,9 @@ static void commit_clean(Job *job)
     blk_unref(s->top);
 }
 
-static int commit_iteration(CommitBlockJob *s, int64_t offset,
-                            int64_t *requested_bytes, void *buf)
+static int coroutine_fn
+commit_iteration(CommitBlockJob *s, int64_t offset,
+                 int64_t *requested_bytes, void *buf)
 {
     BlockErrorAction action;
     int64_t bytes = *requested_bytes;
