@@ -617,6 +617,11 @@ void virtio_gpu_update_scanout(VirtIOGPU *g,
     scanout->fb = *fb;
 }
 
+static uint32_t virtio_gpu_format_bytes_pp(pixman_format_code_t format)
+{
+    return DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
+}
+
 static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
                                       uint32_t scanout_id,
                                       struct virtio_gpu_framebuffer *fb,
@@ -625,6 +630,7 @@ static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
                                       uint32_t *error)
 {
     struct virtio_gpu_scanout *scanout;
+    uint32_t bytes_pp = virtio_gpu_format_bytes_pp(fb->format);
     uint8_t *data;
 
     scanout = &g->parent_obj.scanout[scanout_id];
@@ -646,10 +652,10 @@ static bool virtio_gpu_do_set_scanout(VirtIOGPU *g,
         return false;
     }
 
-    if (fb->stride < (uint64_t)fb->width * fb->bytes_pp) {
+    if (fb->stride < (uint64_t)fb->width * bytes_pp) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: stride %u too small for width %u at %u bpp\n",
-                      __func__, fb->stride, fb->width, fb->bytes_pp);
+                      __func__, fb->stride, fb->width, bytes_pp);
         *error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
         return false;
     }
@@ -720,6 +726,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_framebuffer fb = { 0 };
     struct virtio_gpu_set_scanout ss;
+    uint32_t bytes_pp;
 
     VIRTIO_GPU_FILL_CMD(ss);
     virtio_gpu_bswap_32(&ss, sizeof(ss));
@@ -745,11 +752,11 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     }
 
     fb.format = pixman_image_get_format(res->image);
-    fb.bytes_pp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(fb.format), 8);
+    bytes_pp = virtio_gpu_format_bytes_pp(fb.format);
     fb.width  = pixman_image_get_width(res->image);
     fb.height = pixman_image_get_height(res->image);
     fb.stride = pixman_image_get_stride(res->image);
-    fb.offset = ss.r.x * fb.bytes_pp + ss.r.y * fb.stride;
+    fb.offset = ss.r.x * bytes_pp + ss.r.y * fb.stride;
 
     virtio_gpu_do_set_scanout(g, ss.scanout_id,
                               &fb, res, &ss.r, &cmd->error);
@@ -760,6 +767,7 @@ bool virtio_gpu_scanout_blob_to_fb(struct virtio_gpu_framebuffer *fb,
                                    uint64_t blob_size)
 {
     uint64_t fbend;
+    uint32_t bytes_pp;
 
     fb->format = virtio_gpu_get_pixman_format(ss->format);
     if (!fb->format) {
@@ -769,15 +777,15 @@ bool virtio_gpu_scanout_blob_to_fb(struct virtio_gpu_framebuffer *fb,
         return false;
     }
 
-    fb->bytes_pp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(fb->format), 8);
+    bytes_pp = virtio_gpu_format_bytes_pp(fb->format);
     fb->width = ss->width;
     fb->height = ss->height;
     fb->stride = ss->strides[0];
 
-    if (fb->stride < (uint64_t)fb->width * fb->bytes_pp) {
+    if (fb->stride < (uint64_t)fb->width * bytes_pp) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: stride %u too small for width %u at %u bpp\n",
-                      __func__, fb->stride, fb->width, fb->bytes_pp);
+                      __func__, fb->stride, fb->width, bytes_pp);
         return false;
     }
 
@@ -788,7 +796,7 @@ bool virtio_gpu_scanout_blob_to_fb(struct virtio_gpu_framebuffer *fb,
         return false;
     }
 
-    fb->offset = ss->offsets[0] + ss->r.x * fb->bytes_pp + ss->r.y * fb->stride;
+    fb->offset = ss->offsets[0] + ss->r.x * bytes_pp + ss->r.y * fb->stride;
 
     fbend = fb->offset;
     fbend += (uint64_t) fb->stride * ss->r.height;
@@ -1238,8 +1246,7 @@ static const VMStateDescription vmstate_virtio_gpu_scanout = {
         VMSTATE_UINT32(cursor.pos.y, struct virtio_gpu_scanout),
         VMSTATE_UINT32_TEST(fb.format, struct virtio_gpu_scanout,
                             scanout_vmstate_after_v2),
-        VMSTATE_UINT32_TEST(fb.bytes_pp, struct virtio_gpu_scanout,
-                            scanout_vmstate_after_v2),
+        VMSTATE_UNUSED_TEST(scanout_vmstate_after_v2, 4),
         VMSTATE_UINT32_TEST(fb.width, struct virtio_gpu_scanout,
                             scanout_vmstate_after_v2),
         VMSTATE_UINT32_TEST(fb.height, struct virtio_gpu_scanout,
