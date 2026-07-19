@@ -65,7 +65,6 @@ struct virtio_gpu_simple_resource {
 
 struct virtio_gpu_framebuffer {
     pixman_format_code_t format;
-    uint32_t bytes_pp;
     uint32_t width, height;
     uint32_t stride;
     uint32_t offset;
