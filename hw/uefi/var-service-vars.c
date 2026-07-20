@@ -47,6 +47,20 @@ static int uefi_vars_pre_load(void *opaque)
     return 0;
 }
 
+static int uefi_vars_post_load(void *opaque, int version_id)
+{
+    uefi_variable *var = opaque;
+
+    if (!uefi_str_is_valid(var->name, var->name_size, true) ||
+        var->attributes & ~EFI_VARIABLE_ATTRIBUTE_SUPPORTED ||
+        (var->digest_size != 0 &&
+         var->digest_size != 32 /* AUTHVAR_DIGEST_SIZE */)) {
+        error_report("invalid uefi variable");
+        return -1;
+    }
+    return 0;
+}
+
 static bool uefi_vars_digest_is_needed(void *opaque)
 {
     uefi_variable *var = opaque;
@@ -72,6 +86,7 @@ const VMStateDescription vmstate_uefi_variable_digest = {
 const VMStateDescription vmstate_uefi_variable = {
     .name = "uefi-variable",
     .pre_load = uefi_vars_pre_load,
+    .post_load = uefi_vars_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_ARRAY_V(guid.data, uefi_variable, sizeof(QemuUUID), 0),
         VMSTATE_UINT32(name_size, uefi_variable),

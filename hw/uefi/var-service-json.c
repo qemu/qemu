@@ -18,6 +18,7 @@
 #include "qobject/qobject.h"
 #include "qobject/qjson.h"
 
+#include "qapi/error.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
@@ -249,6 +250,10 @@ void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
     if (!(*errp)) {
         uefi_vars_from_qapi(uv, vs);
         uefi_vars_update_storage(uv);
+        if (uv->used_storage > uv->max_storage) {
+            error_setg(errp, "out of variable memory (%" PRId64 " > %" PRId64 ")",
+                       uv->used_storage, uv->max_storage);
+        }
     }
 
     qapi_free_UefiVarStore(vs);

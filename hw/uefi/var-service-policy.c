@@ -7,6 +7,7 @@
  * https://github.com/tianocore/edk2/blob/master/MdeModulePkg/Library/VariablePolicyLib/ReadMe.md
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "system/dma.h"
 #include "migration/vmstate.h"
 
@@ -16,14 +17,18 @@
 
 #include "trace.h"
 
-static void calc_policy(uefi_var_policy *pol);
+static int check_calc_policy(uefi_var_policy *pol);
 
 static int uefi_var_policy_post_load(void *opaque, int version_id)
 {
     uefi_var_policy *pol = opaque;
+    int rc;
 
-    calc_policy(pol);
-    return 0;
+    rc = check_calc_policy(pol);
+    if (rc != 0) {
+        error_report("invalid uefi variable policy");
+    }
+    return rc;
 }
 
 const VMStateDescription vmstate_uefi_var_policy = {
@@ -80,32 +85,45 @@ static uefi_var_policy *wildcard_find_policy(uefi_vars_state *uv,
     return NULL;
 }
 
-static void calc_policy(uefi_var_policy *pol)
+static int check_calc_policy(uefi_var_policy *pol)
 {
     variable_policy_entry *pe = pol->entry;
     unsigned int i;
 
+    if (pol->entry_size != pe->size ||
+        pe->offset_to_name >= pe->size) {
+        return -1;
+    }
+
     pol->name = (void *)pol->entry + pe->offset_to_name;
     pol->name_size = pe->size - pe->offset_to_name;
+
+    if (!uefi_str_is_valid(pol->name, pol->name_size, false)) {
+        return -1;
+    }
 
     for (i = 0; i < pol->name_size / 2; i++) {
         if (pol->name[i] == '#') {
             pol->hashmarks++;
         }
     }
+
+    return 0;
 }
 
 uefi_var_policy *uefi_vars_add_policy(uefi_vars_state *uv,
                                       variable_policy_entry *pe)
 {
     uefi_var_policy *pol, *p;
+    int rc;
 
     pol = g_new0(uefi_var_policy, 1);
     pol->entry = g_malloc(pe->size);
     memcpy(pol->entry, pe, pe->size);
     pol->entry_size = pe->size;
 
-    calc_policy(pol);
+    rc = check_calc_policy(pol);
+    g_assert(rc == 0);
 
     /* keep list sorted by priority, add to tail of priority group */
     QTAILQ_FOREACH(p, &uv->var_policies, next) {
