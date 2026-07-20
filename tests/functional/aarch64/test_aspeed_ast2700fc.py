@@ -51,7 +51,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.enable_ast2700_pcie2()
         wait_for_console_pattern(self, 'Starting kernel ...')
 
-        wait_for_console_pattern(self, f'{name} login:')
+        wait_for_console_pattern(self, 'login:')
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
         exec_command_and_wait_for_pattern(self, '0penBmc', f'root@{name}:~#')
 

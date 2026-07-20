@@ -63,7 +63,7 @@ class AST2600Machine(AspeedTest):
         self.do_test_arm_aspeed_sdk_start(
             self.scratch_file("ast2600-default-image", "image-bmc"))
 
-        self.wait_for_console_pattern('ast2600-default login:')
+        self.wait_for_console_pattern('login:')
 
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
         exec_command_and_wait_for_pattern(self, '0penBmc',
