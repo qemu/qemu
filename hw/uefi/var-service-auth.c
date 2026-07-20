@@ -298,6 +298,13 @@ efi_status uefi_vars_check_secure_boot(uefi_vars_state *uv, uefi_variable *var)
         return EFI_WRITE_PROTECTED;
     }
 
+    /* reject SetupMode updates */
+    if (qemu_uuid_is_equal(&var->guid, &EfiGlobalVariable) &&
+        uefi_str_equal(var->name, var->name_size,
+                       name_setup_mode, sizeof(name_setup_mode))) {
+        return EFI_WRITE_PROTECTED;
+    }
+
     return EFI_SUCCESS;
 }
 
