@@ -7130,7 +7130,7 @@ static gint ppc_cpu_list_compare(gconstpointer a, gconstpointer b, gpointer d)
         } else if (pcc_a->pvr > pcc_b->pvr) {
             return 1;
         } else {
-            return 0;
+            return strcmp(name_a, name_b);
         }
     }
 }
