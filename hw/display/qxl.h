@@ -83,6 +83,7 @@ struct PCIQXLDevice {
 
     /* thread signaling */
     QEMUBH             *update_irq;
+    VMChangeStateEntry *vmstate_handler;
 
     /* ram pci bar */
     QXLRam             *ram;
