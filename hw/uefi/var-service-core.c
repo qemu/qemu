@@ -5,6 +5,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/crc32c.h"
+#include "qemu/error-report.h"
 #include "system/dma.h"
 #include "migration/vmstate.h"
 
@@ -28,9 +29,20 @@ static int uefi_vars_post_load(void *opaque, int version_id)
 {
     uefi_vars_state *uv = opaque;
 
-    uefi_vars_update_storage(uv);
-    uefi_vars_json_save(uv);
+    if (uv->buf_size > MAX_BUFFER_SIZE) {
+        error_report("invalid buffer size");
+        return -1;
+    }
     uv->buffer = g_malloc(uv->buf_size);
+
+    uefi_vars_update_storage(uv);
+    if (uv->used_storage > uv->max_storage) {
+        error_report("out of variable memory (%" PRId64 " > %" PRId64 ")",
+                     uv->used_storage, uv->max_storage);
+        return -1;
+    }
+
+    uefi_vars_json_save(uv);
     return 0;
 }
 
