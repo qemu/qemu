@@ -37,37 +37,6 @@ const VMStateDescription vmstate_uefi_var_policy = {
     },
 };
 
-static void print_policy_entry(variable_policy_entry *pe)
-{
-    uint16_t *name = (void *)pe + pe->offset_to_name;
-
-    fprintf(stderr, "%s:\n", __func__);
-
-    fprintf(stderr, "    name ´");
-    while (*name) {
-        fprintf(stderr, "%c", *name);
-        name++;
-    }
-    fprintf(stderr, "', version=%d.%d, size=%d\n",
-            pe->version >> 16, pe->version & 0xffff, pe->size);
-
-    if (pe->min_size) {
-        fprintf(stderr, "    size min=%d\n", pe->min_size);
-    }
-    if (pe->max_size != UINT32_MAX) {
-        fprintf(stderr, "    size max=%u\n", pe->max_size);
-    }
-    if (pe->attributes_must_have) {
-        fprintf(stderr, "    attr must=0x%x\n", pe->attributes_must_have);
-    }
-    if (pe->attributes_cant_have) {
-        fprintf(stderr, "    attr cant=0x%x\n", pe->attributes_cant_have);
-    }
-    if (pe->lock_policy_type) {
-        fprintf(stderr, "    lock policy type %d\n", pe->lock_policy_type);
-    }
-}
-
 static gboolean wildcard_str_equal(uefi_var_policy *pol,
                                    uefi_variable *var)
 {
@@ -173,7 +142,6 @@ efi_status uefi_vars_policy_check(uefi_vars_state *uv,
     pe = pol->entry;
 
     uefi_trace_variable(__func__, var->guid, var->name, var->name_size);
-    print_policy_entry(pe);
 
     if ((var->attributes & pe->attributes_must_have) != pe->attributes_must_have) {
         trace_uefi_vars_policy_deny("must-have-attr");
