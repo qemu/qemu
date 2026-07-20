@@ -136,10 +136,10 @@ static void xen_9pfs_out_sg(Xen9pfsRing *ring,
     }
 }
 
-static ssize_t xen_9pfs_pdu_vmarshal(V9fsPDU *pdu,
-                                     size_t offset,
-                                     const char *fmt,
-                                     va_list ap)
+static ssize_t coroutine_fn xen_9pfs_pdu_vmarshal(V9fsPDU *pdu,
+                                                  size_t offset,
+                                                  const char *fmt,
+                                                  va_list ap)
 {
     Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
     struct iovec in_sg[2];
@@ -161,10 +161,10 @@ static ssize_t xen_9pfs_pdu_vmarshal(V9fsPDU *pdu,
     return ret;
 }
 
-static ssize_t xen_9pfs_pdu_vunmarshal(V9fsPDU *pdu,
-                                       size_t offset,
-                                       const char *fmt,
-                                       va_list ap)
+static ssize_t coroutine_fn xen_9pfs_pdu_vunmarshal(V9fsPDU *pdu,
+                                                    size_t offset,
+                                                    const char *fmt,
+                                                    va_list ap)
 {
     Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
     struct iovec out_sg[2];
@@ -185,10 +185,10 @@ static ssize_t xen_9pfs_pdu_vunmarshal(V9fsPDU *pdu,
     return ret;
 }
 
-static void xen_9pfs_init_out_iov_from_pdu(V9fsPDU *pdu,
-                                           struct iovec **piov,
-                                           unsigned int *pniov,
-                                           size_t size)
+static void coroutine_fn xen_9pfs_init_out_iov_from_pdu(V9fsPDU *pdu,
+                                                        struct iovec **piov,
+                                                        unsigned int *pniov,
+                                                        size_t size)
 {
     Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
     Xen9pfsRing *ring = &xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings];
@@ -202,10 +202,10 @@ static void xen_9pfs_init_out_iov_from_pdu(V9fsPDU *pdu,
     *pniov = num;
 }
 
-static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
-                                          struct iovec **piov,
-                                          unsigned int *pniov,
-                                          size_t size)
+static void coroutine_fn xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
+                                                       struct iovec **piov,
+                                                       unsigned int *pniov,
+                                                       size_t size)
 {
     Xen9pfsDev *xen_9pfs = container_of(pdu->s, Xen9pfsDev, state);
     Xen9pfsRing *ring = &xen_9pfs->rings[pdu->tag % xen_9pfs->num_rings];
@@ -234,7 +234,7 @@ again:
     *pniov = num;
 }
 
-static void xen_9pfs_push_and_notify(V9fsPDU *pdu)
+static void coroutine_fn xen_9pfs_push_and_notify(V9fsPDU *pdu)
 {
     RING_IDX prod;
     Xen9pfsDev *priv = container_of(pdu->s, Xen9pfsDev, state);

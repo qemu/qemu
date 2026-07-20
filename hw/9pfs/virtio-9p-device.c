@@ -28,7 +28,7 @@
 #include "qemu/module.h"
 #include "system/qtest.h"
 
-static void virtio_9p_push_and_notify(V9fsPDU *pdu)
+static void coroutine_fn virtio_9p_push_and_notify(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
@@ -117,8 +117,8 @@ static void virtio_9p_reset(VirtIODevice *vdev)
     v9fs_reset(&v->state);
 }
 
-static ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
-                                   const char *fmt, va_list ap)
+static ssize_t coroutine_fn
+virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, va_list ap)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
@@ -135,8 +135,8 @@ static ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
     return ret;
 }
 
-static ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
-                                     const char *fmt, va_list ap)
+static ssize_t coroutine_fn
+virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, va_list ap)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
@@ -152,8 +152,9 @@ static ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
     return ret;
 }
 
-static void virtio_init_in_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
-                                        unsigned int *pniov, size_t size)
+static void coroutine_fn
+virtio_init_in_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
+                            unsigned int *pniov, size_t size)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
@@ -172,8 +173,9 @@ static void virtio_init_in_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
     *pniov = elem->in_num;
 }
 
-static void virtio_init_out_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
-                                         unsigned int *pniov, size_t size)
+static void coroutine_fn
+virtio_init_out_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
+                             unsigned int *pniov, size_t size)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
@@ -192,13 +194,13 @@ static void virtio_init_out_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
     *pniov = elem->out_num;
 }
 
-static size_t virtio_9p_msize_limit(V9fsState *s)
+static size_t coroutine_fn virtio_9p_msize_limit(V9fsState *s)
 {
     const size_t guestPageSize = 4096;
     return (VIRTQUEUE_MAX_SIZE - 2) * guestPageSize;
 }
 
-static size_t virtio_9p_response_buffer_size(V9fsPDU *pdu)
+static size_t coroutine_fn virtio_9p_response_buffer_size(V9fsPDU *pdu)
 {
     V9fsState *s = pdu->s;
     V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);

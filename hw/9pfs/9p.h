@@ -472,17 +472,21 @@ void pdu_submit(V9fsPDU *pdu, P9MsgHeader *hdr);
 void v9fs_reset(V9fsState *s);
 
 struct V9fsTransport {
-    ssize_t     (*pdu_vmarshal)(V9fsPDU *pdu, size_t offset, const char *fmt,
-                                va_list ap);
-    ssize_t     (*pdu_vunmarshal)(V9fsPDU *pdu, size_t offset, const char *fmt,
-                                  va_list ap);
-    void        (*init_in_iov_from_pdu)(V9fsPDU *pdu, struct iovec **piov,
-                                        unsigned int *pniov, size_t size);
-    void        (*init_out_iov_from_pdu)(V9fsPDU *pdu, struct iovec **piov,
-                                         unsigned int *pniov, size_t size);
-    void        (*push_and_notify)(V9fsPDU *pdu);
-    size_t      (*msize_limit)(V9fsState *s);
-    size_t      (*response_buffer_size)(V9fsPDU *pdu);
+    ssize_t     coroutine_fn (*pdu_vmarshal)(V9fsPDU *pdu, size_t offset,
+                                             const char *fmt, va_list ap);
+    ssize_t     coroutine_fn (*pdu_vunmarshal)(V9fsPDU *pdu, size_t offset,
+                                               const char *fmt, va_list ap);
+    void        coroutine_fn (*init_in_iov_from_pdu)(V9fsPDU *pdu,
+                                                     struct iovec **piov,
+                                                     unsigned int *pniov,
+                                                     size_t size);
+    void        coroutine_fn (*init_out_iov_from_pdu)(V9fsPDU *pdu,
+                                                      struct iovec **piov,
+                                                      unsigned int *pniov,
+                                                      size_t size);
+    void        coroutine_fn (*push_and_notify)(V9fsPDU *pdu);
+    size_t      coroutine_fn (*msize_limit)(V9fsState *s);
+    size_t      coroutine_fn (*response_buffer_size)(V9fsPDU *pdu);
 };
 
 #endif
