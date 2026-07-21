@@ -103,7 +103,7 @@ static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
 
     if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
         DeviceState *dev = DEVICE(obj);
-        if (dev->realized) { /* count only realized DIMMs */
+        if (qdev_is_realized(dev)) { /* count only realized DIMMs */
             PCDIMMDevice *d = PC_DIMM(obj);
             set_bit(d->slot, bitmap);
         }
