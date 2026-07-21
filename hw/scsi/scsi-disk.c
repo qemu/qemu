@@ -1524,7 +1524,7 @@ static void scsi_disk_emulate_read_data(SCSIRequest *req)
 static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
                                        uint8_t *inbuf, int inlen)
 {
-    uint8_t mode_current[SCSI_MAX_MODE_LEN];
+    uint8_t mode_current[SCSI_MAX_MODE_LEN] = { 0 };
     uint8_t mode_changeable[SCSI_MAX_MODE_LEN];
     uint8_t *p;
     int len, expected_len, changeable_len, i;
@@ -1543,21 +1543,21 @@ static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
     }
 
     p = mode_current;
-    memset(mode_current, 0, inlen + 2);
     len = mode_sense_page(s, page, &p, 0);
-    if (len < 0 || len != expected_len) {
+    /* The guest may send a truncated page, but not a longer one.  */
+    if (len < 0 || expected_len > len) {
         return -1;
     }
 
     p = mode_changeable;
-    memset(mode_changeable, 0, inlen + 2);
+    memset(mode_changeable, 0, len);
     changeable_len = mode_sense_page(s, page, &p, 1);
     assert(changeable_len == len);
 
     /* Check that unchangeable bits are the same as what MODE SENSE
      * would return.
      */
-    for (i = 2; i < len; i++) {
+    for (i = 2; i < expected_len; i++) {
         if (((mode_current[i] ^ inbuf[i - 2]) & ~mode_changeable[i]) != 0) {
             return -1;
         }
@@ -1565,11 +1565,15 @@ static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
     return 0;
 }
 
-static void scsi_disk_apply_mode_select(SCSIDiskState *s, int page, uint8_t *p)
+/* Note p may be truncated, so check any bytes you access against len.  */
+static void scsi_disk_apply_mode_select(SCSIDiskState *s, int page,
+                                        uint8_t *p, int len)
 {
     switch (page) {
     case MODE_PAGE_CACHING:
-        blk_set_enable_write_cache(s->qdev.conf.blk, (p[0] & 4) != 0);
+        if (len > 0) {
+            blk_set_enable_write_cache(s->qdev.conf.blk, (p[0] & 4) != 0);
+        }
         break;
 
     default:
@@ -1612,6 +1616,7 @@ static int mode_select_pages(SCSIDiskReq *r, uint8_t *p, int len, bool change)
                 goto invalid_param_len;
             }
             trace_scsi_disk_mode_select_page_truncated(page, page_len, len);
+            page_len = len;
         }
 
         if (!change) {
@@ -1619,7 +1624,7 @@ static int mode_select_pages(SCSIDiskReq *r, uint8_t *p, int len, bool change)
                 goto invalid_param;
             }
         } else {
-            scsi_disk_apply_mode_select(s, page, p);
+            scsi_disk_apply_mode_select(s, page, p, page_len);
         }
 
         p += page_len;
