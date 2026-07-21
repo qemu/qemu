@@ -424,7 +424,7 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     uint32_t value;
 
-    if (dev->realized) {
+    if (qdev_is_realized(dev)) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
