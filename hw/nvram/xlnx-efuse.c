@@ -233,7 +233,7 @@ static void efuse_prop_set_drive(Object *obj, Visitor *v, const char *name,
     qdev_prop_drive.set(obj, v, name, opaque, errp);
 
     /* Fill initial data if backend is attached after realized */
-    if (dev->realized) {
+    if (qdev_is_realized(dev)) {
         efuse_bdrv_read(XLNX_EFUSE(obj), errp);
     }
 }
