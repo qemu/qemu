@@ -124,6 +124,11 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
     }
     trace_vfio_user_get_region_info(msgp->index, msgp->flags, msgp->size);
 
+    if (msgp->argsz < sizeof(*info)) {
+        error_printf("vfio_user_get_region_info reply argsz too small\n");
+        return -EINVAL;
+    }
+
     memcpy(info, &msgp->argsz, info->argsz);
 
     /*
