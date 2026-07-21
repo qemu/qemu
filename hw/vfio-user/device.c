@@ -129,6 +129,16 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
         return -EINVAL;
     }
 
+    /*
+     * The server can respond with a larger argsz in the reply to request a
+     * larger buffer on the next iteration via vfio_device_get_region_info().
+     * Reject values that would trigger an oversized realloc.
+     */
+    if (msgp->argsz > proxy->max_xfer_size) {
+        error_printf("vfio_user_get_region_info reply argsz too large\n");
+        return -E2BIG;
+    }
+
     memcpy(info, &msgp->argsz, info->argsz);
 
     /*
