@@ -1321,7 +1321,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         return -1;
     }
 
-    assert(length < 256);
+    assert(length + 2 <= SCSI_MAX_MODE_LEN);
     (*p_outbuf)[0] = page;
     (*p_outbuf)[1] = length;
     *p_outbuf += length + 2;
