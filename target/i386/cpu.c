@@ -10387,7 +10387,7 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     BitProperty *fp = opaque;
     bool value;
 
-    if (dev->realized) {
+    if (qdev_is_realized(dev)) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
