@@ -763,6 +763,10 @@ static int virtio_queue_packed_empty_rcu(VirtQueue *vq)
     struct VRingPackedDesc desc;
     VRingMemoryRegionCaches *cache;
 
+    if (virtio_device_disabled(vq->vdev)) {
+        return 1;
+    }
+
     if (unlikely(!vq->vring.desc)) {
         return 1;
     }
