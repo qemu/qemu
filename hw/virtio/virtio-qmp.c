@@ -659,7 +659,7 @@ static int query_dev_child(Object *child, void *opaque)
 {
     VirtioInfoList **vdevs = opaque;
     Object *dev = object_dynamic_cast(child, TYPE_VIRTIO_DEVICE);
-    if (dev != NULL && DEVICE(dev)->realized) {
+    if (dev != NULL && qdev_is_realized(DEVICE(dev))) {
         VirtIODevice *vdev = VIRTIO_DEVICE(dev);
         VirtioInfo *info = g_new(VirtioInfo, 1);
 
@@ -688,7 +688,7 @@ VirtIODevice *qmp_find_virtio_device(const char *path)
     /* Verify the canonical path is a realized virtio device */
     Object *dev = object_dynamic_cast(object_resolve_path(path, NULL),
                                       TYPE_VIRTIO_DEVICE);
-    if (!dev || !DEVICE(dev)->realized) {
+    if (!dev || !qdev_is_realized(DEVICE(dev))) {
         return NULL;
     }
     return VIRTIO_DEVICE(dev);
