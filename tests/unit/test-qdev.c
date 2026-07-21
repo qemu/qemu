@@ -78,6 +78,16 @@ static void test_qdev_free_properties(void)
     object_unref(mt);
 }
 
+static void test_qdev_double_realization(void)
+{
+    MyDev *mt = STATIC_TYPE(object_new(TYPE_MY_DEV));
+
+    qdev_realize(DEVICE(mt), NULL, &error_fatal);
+    qdev_realize(DEVICE(mt), NULL, &error_fatal);
+    object_unparent(OBJECT(mt));
+    object_unref(OBJECT(mt));
+}
+
 
 int main(int argc, char **argv)
 {
@@ -89,6 +99,9 @@ int main(int argc, char **argv)
 
     g_test_add_func("/qdev/free-properties",
                     test_qdev_free_properties);
+
+    g_test_add_func("/qdev/double-realization",
+                    test_qdev_double_realization);
 
     g_test_run();
 
