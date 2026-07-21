@@ -59,7 +59,7 @@ static int memory_device_build_list(Object *obj, void *opaque)
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         DeviceState *dev = DEVICE(obj);
-        if (dev->realized) { /* only realized memory devices matter */
+        if (qdev_is_realized(dev)) {
             *list = g_slist_insert_sorted(*list, dev, memory_device_addr_sort);
         }
     }
@@ -326,7 +326,7 @@ static int memory_device_plugged_size(Object *obj, void *opaque)
         const MemoryDeviceState *md = MEMORY_DEVICE(obj);
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(obj);
 
-        if (dev->realized && !memory_device_is_empty(md)) {
+        if (qdev_is_realized(dev) && !memory_device_is_empty(md)) {
             *size += mdc->get_plugged_size(md, &error_abort);
         }
     }
