@@ -829,7 +829,7 @@ iommufd_cdev_dep_get_realized_vpdev(struct vfio_pci_dependent_device *dep_dev,
 
     vbasedev_tmp = iommufd_cdev_pci_find_by_devid(dep_dev->devid);
     if (!vfio_pci_from_vfio_device(vbasedev_tmp) ||
-        !vbasedev_tmp->dev->realized) {
+        !qdev_is_realized(vbasedev_tmp->dev)) {
         return NULL;
     }
 

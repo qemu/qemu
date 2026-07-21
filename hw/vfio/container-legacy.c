@@ -1075,7 +1075,7 @@ static int vfio_legacy_pci_hot_reset(VFIODevice *vbasedev, bool single)
 
         /* Prep dependent devices for reset and clear our marker. */
         QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
-            if (!vbasedev_iter->dev->realized ||
+            if (!qdev_is_realized(vbasedev_iter->dev) ||
                 !vfio_pci_from_vfio_device(vbasedev_iter)) {
                 continue;
             }
@@ -1160,7 +1160,7 @@ out:
         }
 
         QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
-            if (!vbasedev_iter->dev->realized ||
+            if (!qdev_is_realized(vbasedev_iter->dev) ||
                 !vfio_pci_from_vfio_device(vbasedev_iter)) {
                 continue;
             }
