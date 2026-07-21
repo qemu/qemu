@@ -173,7 +173,8 @@ static int vfio_user_device_io_get_region_info(VFIODevice *vbasedev,
 
     /* cap_offset in valid area */
     if ((info->flags & VFIO_REGION_INFO_FLAG_CAPS) &&
-        (info->cap_offset < sizeof(*info) || info->cap_offset > info->argsz)) {
+        (info->cap_offset < sizeof(*info)
+         || info->cap_offset + sizeof(struct vfio_info_cap_header) > info->argsz)) {
         return -EINVAL;
     }
 
