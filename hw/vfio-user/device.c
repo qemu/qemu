@@ -96,6 +96,10 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
         error_printf("vfio_user_get_region_info argsz too large\n");
         return -E2BIG;
     }
+    if (size > proxy->max_xfer_size) {
+        error_printf("vfio_user_get_region_info argsz too large\n");
+        return -E2BIG;
+    }
 
     if (fds != NULL && fds->send_fds != 0) {
         error_printf("vfio_user_get_region_info can't send FDs\n");
