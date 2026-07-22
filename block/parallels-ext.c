@@ -168,14 +168,17 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
         goto fail;
     }
 
-    l1_table = g_new(uint64_t, bf.l1_size);
-    for (i = 0; i < bf.l1_size; i++, data += sizeof(uint64_t)) {
-        l1_table[i] = ldq_le_p(data);
-    }
+    if (bf.l1_size != 0) {
+        l1_table = g_new(uint64_t, bf.l1_size);
+        for (i = 0; i < bf.l1_size; i++, data += sizeof(uint64_t)) {
+            l1_table[i] = ldq_le_p(data);
+        }
 
-    ret = parallels_load_bitmap_data(bs, l1_table, bf.l1_size, bitmap, errp);
-    if (ret < 0) {
-        goto fail;
+        ret = parallels_load_bitmap_data(bs, l1_table, bf.l1_size, bitmap,
+                                         errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* We support format extension only for RO parallels images. */
