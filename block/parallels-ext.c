@@ -169,7 +169,13 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
     }
 
     if (bf.l1_size != 0) {
-        l1_table = g_new(uint64_t, bf.l1_size);
+        l1_table = g_try_new(uint64_t, bf.l1_size);
+        if (!l1_table) {
+            error_setg(errp, "Failed to allocate the bitmap L1 table "
+                       "(%" PRIu32 " entries)", bf.l1_size);
+            goto fail;
+        }
+
         for (i = 0; i < bf.l1_size; i++, data += sizeof(uint64_t)) {
             l1_table[i] = ldq_le_p(data);
         }
