@@ -30,28 +30,24 @@
 
 
 /*
- * The algorithms here are similar to those in Bochs.  After an ALU
- * operation, CC_DST can be used to compute ZF, SF and PF, whereas
- * CC_SRC is used to compute AF, CF and OF.  In reality, SF and PF are the
- * XOR of the value computed from CC_DST and the value found in bits 7 and 2
- * of CC_SRC; this way the same logic can be used to compute the flags
- * both before and after an ALU operation.
+ * The emulator always encodes flags in the same way as CC_OP_CCMPB + MO_TL.
+ * While for arithmetic operations ZF/SF/PF are computed from the same value,
+ * ZF=1 may be inconsistent with PF/SF for arbitrary RFLAGS values so CC_SRC2
+ * is used for SF and PF.  CC_SRC holds a carry-out vector that is used to
+ * compute AF, CF and OF.
  *
  * Compared to the TCG CC_OP codes, this avoids conditionals when converting
  * to and from the RFLAGS representation.
+ *
+ * The underlying ideas ultimately descend from Bochs, but with significant
+ * simplifications obtained by storing flags in three words rather than two.
  */
 
 #define LF_SIGN_BIT    (TARGET_LONG_BITS - 1)
 
-#define LF_BIT_PD      (2)          /* lazy Parity Delta, same bit as PF */
-#define LF_BIT_AF      (3)          /* lazy Adjust flag */
-#define LF_BIT_SD      (7)          /* lazy Sign Flag Delta, same bit as SF */
 #define LF_BIT_CF      (TARGET_LONG_BITS - 1) /* lazy Carry Flag */
 #define LF_BIT_PO      (TARGET_LONG_BITS - 2) /* lazy Partial Overflow = CF ^ OF */
 
-#define LF_MASK_PD     ((target_ulong)0x01 << LF_BIT_PD)
-#define LF_MASK_AF     ((target_ulong)0x01 << LF_BIT_AF)
-#define LF_MASK_SD     ((target_ulong)0x01 << LF_BIT_SD)
 #define LF_MASK_CF     ((target_ulong)0x01 << LF_BIT_CF)
 #define LF_MASK_PO     ((target_ulong)0x01 << LF_BIT_PO)
 
@@ -59,19 +55,15 @@
 /* OSZAPC */
 /* ******************* */
 
-/* use carries to fill in AF, PO and CF, while ensuring PD and SD are clear.
- * for full-word operations just clear PD and SD; for smaller operand
- * sizes only keep AF in the low byte and shift the carries left to
- * place PO and CF in the top two bits.
+/*
+ * For arithmetic operations ZF/SF/PF are consistent so DST == SRC2.
+ * For operations that are not full-word, keep AF in the low byte and shift
+ * the carries left to place PO and CF in the top two bits.
  */
 #define SET_FLAGS_OSZAPC_SIZE(size, lf_carries, lf_result) { \
-    env->cc_dst = (target_ulong)(int##size##_t)(lf_result); \
-    target_ulong temp = (lf_carries); \
-    if ((size) == TARGET_LONG_BITS) { \
-        temp = temp & ~(LF_MASK_PD | LF_MASK_SD); \
-    } else { \
-        temp = (temp & LF_MASK_AF) | (temp << (TARGET_LONG_BITS - (size))); \
-    } \
+    env->cc_dst = env->cc_src2 = (target_ulong)(int##size##_t)(lf_result); \
+    target_ulong temp = (lf_carries) & MAKE_64BIT_MASK(0, size); \
+    temp |= temp << (TARGET_LONG_BITS - (size)); \
     env->cc_src = temp; \
 }
 
@@ -93,13 +85,9 @@
 /* same as setting OSZAPC, but preserve CF and flip PO if the old value of CF
  * did not match the high bit of lf_carries. */
 #define SET_FLAGS_OSZAP_SIZE(size, lf_carries, lf_result) { \
-    env->cc_dst = (target_ulong)(int##size##_t)(lf_result); \
-    target_ulong temp = (lf_carries); \
-    if ((size) == TARGET_LONG_BITS) { \
-        temp = (temp & ~(LF_MASK_PD | LF_MASK_SD)); \
-    } else { \
-        temp = (temp & LF_MASK_AF) | (temp << (TARGET_LONG_BITS - (size))); \
-    } \
+    env->cc_dst = env->cc_src2 = (target_ulong)(int##size##_t)(lf_result); \
+    target_ulong temp = (lf_carries) & MAKE_64BIT_MASK(0, size); \
+    temp |= temp << (TARGET_LONG_BITS - (size)); \
     target_ulong cf_changed = ((target_long)(env->cc_src ^ temp)) < 0; \
     env->cc_src = temp ^ (cf_changed * (LF_MASK_PO | LF_MASK_CF)); \
 }
@@ -255,7 +243,7 @@ void SET_FLAGS_OSZAPC_LOGIC8(CPUX86State *env, uint8_t v1, uint8_t v2,
 
 static inline uint32_t get_PF(CPUX86State *env)
 {
-    return ((parity8(env->cc_dst) - 1) ^ env->cc_src) & CC_P;
+    return (parity8(env->cc_src2) - 1) & CC_P;
 }
 
 static inline uint32_t get_OF(CPUX86State *env)
@@ -283,8 +271,7 @@ static inline uint32_t get_ZF(CPUX86State *env)
 
 static inline uint32_t get_SF(CPUX86State *env)
 {
-    return ((env->cc_dst >> (LF_SIGN_BIT - LF_BIT_SD)) ^
-            env->cc_src) & CC_S;
+    return (target_long)env->cc_src2 < 0 ? CC_S : 0;
 }
 
 void lflags_to_rflags(CPUX86State *env)
@@ -304,16 +291,14 @@ void rflags_to_lflags(CPUX86State *env)
 {
     target_ulong cf_af, cf_xor_of;
 
-    /* Leave the low byte zero so that parity is always even...  */
-    env->cc_dst = !(env->eflags & CC_Z) << 8;
-
-    /* ... and therefore cc_src always uses opposite polarity.  */
-    env->cc_src = CC_P;
-    env->cc_src ^= env->eflags & (CC_S | CC_P);
+    /* compute DST and SRC2 that reconstruct ZF/SF/PF.  */
+    env->cc_dst = ~env->eflags & CC_Z;     /* DST = 0 if ZF=1 */
+    env->cc_src2 = ~env->eflags & CC_P;    /* odd parity if PF=0 */
+    env->cc_src2 ^= -!!(env->eflags & CC_S);
 
     /* rotate right by one to move CF and AF into the carry-out positions */
     cf_af = env->eflags & (CC_C | CC_A);
-    env->cc_src |= ((cf_af >> 1) | (cf_af << (TARGET_LONG_BITS - 1)));
+    env->cc_src = ((cf_af >> 1) | (cf_af << (TARGET_LONG_BITS - 1)));
 
     cf_xor_of = ((env->eflags & (CC_C | CC_O)) + (CC_O - CC_C)) & CC_O;
     env->cc_src |= -cf_xor_of & LF_MASK_PO;
