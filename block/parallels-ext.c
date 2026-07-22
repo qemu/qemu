@@ -70,20 +70,11 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
     uint64_t offset, limit;
     uint64_t bm_size = bdrv_dirty_bitmap_size(bitmap);
     uint8_t *buf = NULL;
-    uint64_t i, tab_size =
-        DIV_ROUND_UP(bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size),
-                     s->cluster_size);
-
-    if (tab_size != l1_size) {
-        error_setg(errp, "Bitmap table size %" PRIu32 " does not correspond "
-                   "to bitmap size and cluster size. Expected %" PRIu64,
-                   l1_size, tab_size);
-        return -EINVAL;
-    }
+    uint64_t i;
 
     buf = qemu_blockalign(bs, s->cluster_size);
     limit = bdrv_dirty_bitmap_serialization_coverage(s->cluster_size, bitmap);
-    for (i = 0, offset = 0; i < tab_size; ++i, offset += limit) {
+    for (i = 0, offset = 0; i < l1_size; ++i, offset += limit) {
         uint64_t count = MIN(bm_size - offset, limit);
         uint64_t entry = l1_table[i];
 
@@ -124,12 +115,14 @@ static BdrvDirtyBitmap * GRAPH_RDLOCK
 parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
                       Error **errp)
 {
+    BDRVParallelsState *s = bs->opaque;
     int ret;
     ParallelsDirtyBitmapFeature bf;
     g_autofree uint64_t *l1_table = NULL;
     BdrvDirtyBitmap *bitmap;
     QemuUUID uuid;
     char uuidstr[UUID_STR_LEN];
+    uint64_t bm_size, tab_size;
     int i;
 
     if (data_size < sizeof(bf)) {
@@ -164,6 +157,17 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
         return NULL;
     }
 
+    bm_size = bdrv_dirty_bitmap_size(bitmap);
+    tab_size = DIV_ROUND_UP(
+        bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size),
+        s->cluster_size);
+    if (tab_size != bf.l1_size) {
+        error_setg(errp, "Bitmap table size %" PRIu32 " does not correspond "
+                   "to bitmap size and cluster size. Expected %" PRIu64,
+                   bf.l1_size, tab_size);
+        goto fail;
+    }
+
     l1_table = g_new(uint64_t, bf.l1_size);
     for (i = 0; i < bf.l1_size; i++, data += sizeof(uint64_t)) {
         l1_table[i] = ldq_le_p(data);
@@ -171,8 +175,7 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
 
     ret = parallels_load_bitmap_data(bs, l1_table, bf.l1_size, bitmap, errp);
     if (ret < 0) {
-        bdrv_release_dirty_bitmap(bitmap);
-        return NULL;
+        goto fail;
     }
 
     /* We support format extension only for RO parallels images. */
@@ -180,6 +183,10 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
     bdrv_dirty_bitmap_set_readonly(bitmap, true);
 
     return bitmap;
+
+fail:
+    bdrv_release_dirty_bitmap(bitmap);
+    return NULL;
 }
 
 static int GRAPH_RDLOCK
