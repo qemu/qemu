@@ -1328,6 +1328,12 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         return -EFBIG;
     }
 
+    if ((uint64_t)s->bat_size * s->tracks < bs->total_sectors) {
+        error_setg(errp, "Invalid image: Catalog size too small for "
+                   "advertised disk size");
+        return -EINVAL;
+    }
+
     size = bat_entry_off(s->bat_size);
     s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file->bs));
     s->header = qemu_try_blockalign(bs->file->bs, s->header_size);

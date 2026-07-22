@@ -225,6 +225,27 @@ echo "== an unallocated cluster still reads as zeroes =="
 # Clear image
 _make_test_img $SIZE
 
+echo "== TEST OVERSIZED VIRTUAL DISK CHECK =="
+
+BAT_ENTRIES_OFFSET=32
+NB_SECTORS_OFFSET=36
+
+TRACKS=$(peek_file_le $TEST_IMG $CLUSTER_SIZE_OFFSET 4)
+BAT_ENTRIES=$(peek_file_le $TEST_IMG $BAT_ENTRIES_OFFSET 4)
+COVERED_SECTORS=$((BAT_ENTRIES * TRACKS))
+
+echo "== advertise one more cluster than the BAT covers =="
+poke_file_le "$TEST_IMG" $NB_SECTORS_OFFSET 8 $((COVERED_SECTORS + TRACKS))
+
+echo "== open must fail cleanly instead of aborting =="
+_img_info
+
+echo "== write into the uncovered range must fail cleanly too =="
+{ $QEMU_IO -c "write -P 0x41 $((COVERED_SECTORS * 512)) $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
 echo "== TEST BAT ENTRY POINTING OUTSIDE IMAGE =="
 
 echo "== corrupt image: point first cluster far outside the file =="

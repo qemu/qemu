@@ -141,6 +141,13 @@ virtual size: 4 MiB (4194304 bytes)
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== TEST OVERSIZED VIRTUAL DISK CHECK ==
+== advertise one more cluster than the BAT covers ==
+== open must fail cleanly instead of aborting ==
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid image: Catalog size too small for advertised disk size
+== write into the uncovered range must fail cleanly too ==
+qemu-io: can't open device TEST_DIR/t.parallels: Invalid image: Catalog size too small for advertised disk size
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
 == TEST BAT ENTRY POINTING OUTSIDE IMAGE ==
 == corrupt image: point first cluster far outside the file ==
 == read-only read must return zeroes, not an I/O error ==
