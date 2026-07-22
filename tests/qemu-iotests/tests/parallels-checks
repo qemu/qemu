@@ -44,6 +44,7 @@ _supported_os Linux
 SIZE=$((4 * 1024 * 1024))
 IMGFMT=parallels
 CLUSTER_SIZE_OFFSET=28
+BAT_ENTRIES_OFFSET=32
 DATA_OFF_OFFSET=48
 BAT_OFFSET=64
 
@@ -198,6 +199,28 @@ _check_test_img -r all
 
 echo "== check first cluster =="
 { $QEMU_IO -r -c "read -P 0x55 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST HUGE BAT TABLE OPEN =="
+
+# Overflows a single read request, but stays under parallels_open()'s
+# own catalog-size cap.
+BAT_ENTRIES=536870896
+HEADER_SIZE=$((64 + 4 * BAT_ENTRIES))
+
+echo "== advertise a BAT table larger than BDRV_REQUEST_MAX_BYTES =="
+poke_file "$TEST_IMG" "$BAT_ENTRIES_OFFSET" "\xf0\xff\xff\x1f"
+
+echo "== grow the file to match, without writing real data =="
+truncate -s $HEADER_SIZE "$TEST_IMG"
+
+echo "== open must succeed: the header/BAT read is chunked =="
+_img_info
+
+echo "== an unallocated cluster still reads as zeroes =="
+{ $QEMU_IO -r -c "read -P 0x00 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"

@@ -52,6 +52,7 @@
 #define HEADER_VERSION 2
 #define HEADER_INUSE_MAGIC  (0x746F6E59)
 #define MAX_PARALLELS_IMAGE_FACTOR (1ull << 32)
+#define PARALLELS_HEADER_READ_CHUNK (64 * 1024 * 1024)
 
 static QEnumLookup prealloc_mode_lookup = {
     .array = (const char *const[]) {
@@ -1241,7 +1242,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
     int ret, i;
-    uint32_t size;
+    uint32_t size, header_off;
     int64_t file_nb_sectors, sector;
     uint32_t data_start;
     bool need_check = false;
@@ -1311,9 +1312,17 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         return -ENOMEM;
     }
 
-    ret = bdrv_pread(bs->file, 0, s->header_size, s->header, 0);
-    if (ret < 0) {
-        goto fail;
+    /* A single request s->header_size large exceeds BDRV_REQUEST_MAX_BYTES. */
+    for (header_off = 0; header_off < s->header_size;
+         header_off += PARALLELS_HEADER_READ_CHUNK) {
+        uint32_t chunk = MIN(s->header_size - header_off,
+                             PARALLELS_HEADER_READ_CHUNK);
+
+        ret = bdrv_pread(bs->file, header_off, chunk,
+                         (uint8_t *)s->header + header_off, 0);
+        if (ret < 0) {
+            goto fail;
+        }
     }
     s->bat_bitmap = (uint32_t *)(s->header + 1);
 

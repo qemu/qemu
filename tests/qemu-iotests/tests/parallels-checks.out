@@ -129,4 +129,15 @@ No errors were found on the image.
 == check first cluster ==
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== TEST HUGE BAT TABLE OPEN ==
+== advertise a BAT table larger than BDRV_REQUEST_MAX_BYTES ==
+== grow the file to match, without writing real data ==
+== open must succeed: the header/BAT read is chunked ==
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 4 MiB (4194304 bytes)
+== an unallocated cluster still reads as zeroes ==
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done
