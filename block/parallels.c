@@ -1240,7 +1240,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
-    int ret, size, i;
+    int ret, i;
+    uint32_t size;
     int64_t file_nb_sectors, sector;
     uint32_t data_start;
     bool need_check = false;
