@@ -5064,8 +5064,7 @@ static int kvm_get_msrs(X86CPU *cpu)
      * we're migrating to.
      */
 
-    if (cpu->fill_mtrr_mask) {
-        assert(cpu->phys_bits <= 52);
+    if (cpu->fill_mtrr_mask && cpu->phys_bits < 52) {
         mtrr_top_bits = MAKE_64BIT_MASK(cpu->phys_bits, 52 - cpu->phys_bits);
     } else {
         mtrr_top_bits = 0;
