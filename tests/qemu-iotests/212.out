@@ -69,14 +69,14 @@ virtual size: 0 B (0 bytes)
 
 === Maximum size ===
 
-{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "parallels", "file": "node0", "size": 4503599627369984}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "parallels", "file": "node0", "size": 562949952372736}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 4 PiB (4503599627369984 bytes)
+virtual size: 512 TiB (562949952372736 bytes)
 
 === Invalid sizes ===
 
@@ -107,6 +107,12 @@ Job failed: Image size is too large for this cluster size
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "parallels", "file": "node0", "size": 4503599627370497}}}
 {"return": {}}
 Job failed: Image size is too large for this cluster size
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "parallels", "file": "node0", "size": 4503599627369984}}}
+{"return": {}}
+Job failed: Catalog too large
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 

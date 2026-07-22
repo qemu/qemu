@@ -999,7 +999,8 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
     BlockdevCreateOptionsParallels *parallels_opts;
     BlockDriverState *bs;
     BlockBackend *blk;
-    int64_t total_size, cl_size;
+    int64_t total_size, cl_size, bat_count;
+    uint64_t cylinders;
     uint32_t bat_entries, bat_sectors;
     ParallelsHeader header;
     uint8_t tmp[BDRV_SECTOR_SIZE];
@@ -1017,14 +1018,20 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
         cl_size = DEFAULT_CLUSTER_SIZE;
     }
 
-    /* XXX What is the real limit here? This is an insanely large maximum. */
+    /* Bounds cl_size so the multiplication below can't overflow int64_t. */
     if (cl_size >= INT64_MAX / MAX_PARALLELS_IMAGE_FACTOR) {
         error_setg(errp, "Cluster size is too large");
         return -EINVAL;
     }
-    if (total_size >= MAX_PARALLELS_IMAGE_FACTOR * cl_size) {
+    if (cl_size <= 0 || total_size >= MAX_PARALLELS_IMAGE_FACTOR * cl_size) {
         error_setg(errp, "Image size is too large for this cluster size");
         return -E2BIG;
+    }
+
+    bat_count = DIV_ROUND_UP(total_size, cl_size);
+    if (bat_count > INT_MAX / (int64_t)sizeof(uint32_t)) {
+        error_setg(errp, "Catalog too large");
+        return -EFBIG;
     }
 
     if (!QEMU_IS_ALIGNED(total_size, BDRV_SECTOR_SIZE)) {
@@ -1052,7 +1059,7 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create image format */
-    bat_entries = DIV_ROUND_UP(total_size, cl_size);
+    bat_entries = bat_count;
     bat_sectors = DIV_ROUND_UP(bat_entry_off(bat_entries), cl_size);
     bat_sectors = (bat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
 
@@ -1061,8 +1068,12 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
     header.version = cpu_to_le32(HEADER_VERSION);
     /* don't care much about geometry, it is not used on image level */
     header.heads = cpu_to_le32(HEADS_NUMBER);
-    header.cylinders = cpu_to_le32(total_size / BDRV_SECTOR_SIZE
-                                   / HEADS_NUMBER / SEC_IN_CYL);
+    cylinders = total_size / BDRV_SECTOR_SIZE / HEADS_NUMBER / SEC_IN_CYL;
+    /* Write only by spec, do not care */
+    if (cylinders >= UINT32_MAX) {
+        cylinders = UINT32_MAX;
+    }
+    header.cylinders = cpu_to_le32(cylinders);
     header.tracks = cpu_to_le32(cl_size >> BDRV_SECTOR_BITS);
     header.bat_entries = cpu_to_le32(bat_entries);
     header.nb_sectors = cpu_to_le64(DIV_ROUND_UP(total_size, BDRV_SECTOR_SIZE));
