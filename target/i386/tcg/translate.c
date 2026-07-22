@@ -828,13 +828,21 @@ static void gen_compute_eflags(DisasContext *s)
     set_cc_op(s, CC_OP_EFLAGS);
 }
 
+typedef enum {
+    /* imm is valid and reg2 is a constant */
+    CC_PREPARE_IMM,
+    /* imm is invalid */
+    CC_PREPARE_REG,
+    /* imm and reg2 are 0, and reg is known to be 0/1 */
+    CC_PREPARE_DIRECT,
+} CCPrepareRHS;
+
 typedef struct CCPrepare {
     TCGCond cond;
     TCGv reg;
     TCGv reg2;
     target_ulong imm;
-    bool use_reg2;
-    bool no_setcond;
+    CCPrepareRHS rhs_type;
 } CCPrepare;
 
 static CCPrepare gen_prepare_sign_nz(TCGv src, MemOp size)
@@ -871,7 +879,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
         tcg_gen_ext_tl(s->cc_srcT, s->cc_srcT, size);
         tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size);
         return (CCPrepare) { .cond = TCG_COND_LTU, .reg = s->cc_srcT,
-                             .reg2 = cpu_cc_src, .use_reg2 = true };
+                             .reg2 = cpu_cc_src, .rhs_type = CC_PREPARE_REG };
 
     case CC_OP_ADDB ... CC_OP_ADDQ:
         /* (DATA_TYPE)CC_DST < (DATA_TYPE)CC_SRC */
@@ -879,7 +887,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
         tcg_gen_ext_tl(cpu_cc_dst, cpu_cc_dst, size);
         tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size);
         return (CCPrepare) { .cond = TCG_COND_LTU, .reg = cpu_cc_dst,
-                             .reg2 = cpu_cc_src, .use_reg2 = true };
+                             .reg2 = cpu_cc_src, .rhs_type = CC_PREPARE_REG };
 
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
     case CC_OP_POPCNT:
@@ -888,7 +896,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     case CC_OP_INCB ... CC_OP_INCQ:
     case CC_OP_DECB ... CC_OP_DECQ:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src,
-                             .no_setcond = true };
+                             .rhs_type = CC_PREPARE_DIRECT };
 
     case CC_OP_SHLB ... CC_OP_SHLQ:
         /* (CC_SRC >> (DATA_BITS - 1)) & 1 */
@@ -913,7 +921,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
     case CC_OP_ADCX:
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_dst,
-                             .no_setcond = true };
+                             .rhs_type = CC_PREPARE_DIRECT };
 
     case CC_OP_EFLAGS:
     case CC_OP_SARB ... CC_OP_SARQ:
@@ -931,7 +939,7 @@ static CCPrepare gen_prepare_eflags_c(DisasContext *s, TCGv reg)
        gen_helper_cc_compute_c(reg, cpu_cc_dst, cpu_cc_src,
                                cpu_cc_src2, cpu_cc_op);
        return (CCPrepare) { .cond = TCG_COND_NE, .reg = reg,
-                            .no_setcond = true };
+                            .rhs_type = CC_PREPARE_DIRECT };
     }
 }
 
@@ -970,7 +978,7 @@ static CCPrepare gen_prepare_eflags_o(DisasContext *s, TCGv reg)
     case CC_OP_ADOX:
     case CC_OP_ADCOX:
         return (CCPrepare) { .cond = TCG_COND_NE, .reg = cpu_cc_src2,
-                             .no_setcond = true };
+                             .rhs_type = CC_PREPARE_DIRECT };
     case CC_OP_SBB_SELF:
     case CC_OP_LOGICB ... CC_OP_LOGICQ:
     case CC_OP_POPCNT:
@@ -1032,7 +1040,7 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
             tcg_gen_ext_tl(s->cc_srcT, s->cc_srcT, size);
             tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size);
             cc = (CCPrepare) { .cond = TCG_COND_LEU, .reg = s->cc_srcT,
-                               .reg2 = cpu_cc_src, .use_reg2 = true };
+                               .reg2 = cpu_cc_src, .rhs_type = CC_PREPARE_REG };
             break;
         case JCC_L:
             cond = TCG_COND_LT;
@@ -1043,7 +1051,7 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
             tcg_gen_ext_tl(s->cc_srcT, s->cc_srcT, size | MO_SIGN);
             tcg_gen_ext_tl(cpu_cc_src, cpu_cc_src, size | MO_SIGN);
             cc = (CCPrepare) { .cond = cond, .reg = s->cc_srcT,
-                               .reg2 = cpu_cc_src, .use_reg2 = true };
+                               .reg2 = cpu_cc_src, .rhs_type = CC_PREPARE_REG };
             break;
 
         default:
@@ -1128,6 +1136,9 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
         break;
     }
 
+    if (cc.rhs_type != CC_PREPARE_REG) {
+        cc.reg2 = tcg_constant_tl(cc.imm);
+    }
     if (inv) {
         cc.cond = tcg_invert_cond(cc.cond);
     }
@@ -1138,7 +1149,7 @@ static void gen_neg_setcc(DisasContext *s, int b, TCGv reg)
 {
     CCPrepare cc = gen_prepare_cc(s, b, reg);
 
-    if (cc.no_setcond) {
+    if (cc.rhs_type == CC_PREPARE_DIRECT) {
         if (cc.cond == TCG_COND_EQ) {
             tcg_gen_addi_tl(reg, cc.reg, -1);
         } else {
@@ -1147,18 +1158,14 @@ static void gen_neg_setcc(DisasContext *s, int b, TCGv reg)
         return;
     }
 
-    if (cc.use_reg2) {
-        tcg_gen_negsetcond_tl(cc.cond, reg, cc.reg, cc.reg2);
-    } else {
-        tcg_gen_negsetcondi_tl(cc.cond, reg, cc.reg, cc.imm);
-    }
+    tcg_gen_negsetcond_tl(cc.cond, reg, cc.reg, cc.reg2);
 }
 
 static void gen_setcc(DisasContext *s, int b, TCGv reg)
 {
     CCPrepare cc = gen_prepare_cc(s, b, reg);
 
-    if (cc.no_setcond) {
+    if (cc.rhs_type == CC_PREPARE_DIRECT) {
         if (cc.cond == TCG_COND_EQ) {
             tcg_gen_xori_tl(reg, cc.reg, 1);
         } else {
@@ -1167,11 +1174,7 @@ static void gen_setcc(DisasContext *s, int b, TCGv reg)
         return;
     }
 
-    if (cc.use_reg2) {
-        tcg_gen_setcond_tl(cc.cond, reg, cc.reg, cc.reg2);
-    } else {
-        tcg_gen_setcondi_tl(cc.cond, reg, cc.reg, cc.imm);
-    }
+    tcg_gen_setcond_tl(cc.cond, reg, cc.reg, cc.reg2);
 }
 
 static inline void gen_compute_eflags_c(DisasContext *s, TCGv reg)
@@ -1185,11 +1188,7 @@ static inline void gen_jcc_noeob(DisasContext *s, int b, TCGLabel *l1)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
 
-    if (cc.use_reg2) {
-        tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
-    } else {
-        tcg_gen_brcondi_tl(cc.cond, cc.reg, cc.imm, l1);
-    }
+    tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
 }
 
 /* Generate a conditional jump to label 'l1' according to jump opcode
@@ -1206,11 +1205,7 @@ static inline void gen_jcc(DisasContext *s, int b, TCGLabel *l1)
      * it's cheaper to just compute the flags)!
      */
     gen_update_cc_op(s);
-    if (cc.use_reg2) {
-        tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
-    } else {
-        tcg_gen_brcondi_tl(cc.cond, cc.reg, cc.imm, l1);
-    }
+    tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
 }
 
 static void gen_stos(DisasContext *s, MemOp ot, TCGv dshift)
@@ -1716,10 +1711,6 @@ static void gen_conditional_jump_labels(DisasContext *s, target_long diff,
 static void gen_cmovcc(DisasContext *s, int b, TCGv dest, TCGv src)
 {
     CCPrepare cc = gen_prepare_cc(s, b, NULL);
-
-    if (!cc.use_reg2) {
-        cc.reg2 = tcg_constant_tl(cc.imm);
-    }
 
     tcg_gen_movcond_tl(cc.cond, dest, cc.reg, cc.reg2, src, dest);
 }
