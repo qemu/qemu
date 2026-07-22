@@ -119,6 +119,7 @@ static uint32_t bat_entry_off(uint32_t idx)
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
     uint32_t index, offset;
+    int64_t cluster_off;
 
     index = sector_num / s->tracks;
     offset = sector_num % s->tracks;
@@ -127,7 +128,14 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     if ((index >= s->bat_size) || (s->bat_bitmap[index] == 0)) {
         return -1;
     }
-    return bat2sect(s, index) + offset;
+
+    cluster_off = bat2sect(s, index);
+    if (cluster_off < s->data_start || cluster_off + s->tracks > s->data_end) {
+        /* Cluster is outside of the image file or overlaps the header. */
+        return -1;
+    }
+
+    return cluster_off + offset;
 }
 
 static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
@@ -703,18 +711,22 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
 {
     BDRVParallelsState *s = bs->opaque;
     uint32_t i;
-    int64_t off, high_off, size;
+    int64_t off, high_off, size, data_start_off;
 
     size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
         res->check_errors++;
         return size;
     }
+    data_start_off = s->data_start << BDRV_SECTOR_BITS;
 
     high_off = 0;
     for (i = 0; i < s->bat_size; i++) {
         off = bat2sect(s, i) << BDRV_SECTOR_BITS;
-        if (off + s->cluster_size > size) {
+        if (off == 0) {
+            continue;
+        }
+        if (off < data_start_off || off + s->cluster_size > size) {
             fprintf(stderr, "%s cluster %u is outside image\n",
                     fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
             res->corruptions++;
@@ -1398,11 +1410,18 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     for (i = 0; i < s->bat_size; i++) {
         sector = bat2sect(s, i);
+        if (sector == 0) {
+            continue; /* not allocated */
+        }
+        if (sector < data_start || sector + s->tracks > file_nb_sectors) {
+            /* Cluster is outside of the image file or overlaps the header. */
+            need_check = true;
+            continue;
+        }
         if (sector + s->tracks > s->data_end) {
             s->data_end = sector + s->tracks;
         }
     }
-    need_check = need_check || s->data_end > file_nb_sectors;
 
     if (!need_check) {
         ret = parallels_fill_used_bitmap(bs);

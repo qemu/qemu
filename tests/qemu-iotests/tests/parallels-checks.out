@@ -140,4 +140,39 @@ virtual size: 4 MiB (4194304 bytes)
 == an unallocated cluster still reads as zeroes ==
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== TEST BAT ENTRY POINTING OUTSIDE IMAGE ==
+== corrupt image: point first cluster far outside the file ==
+== read-only read must return zeroes, not an I/O error ==
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== write must allocate a fresh cluster instead of trusting the entry ==
+Repairing cluster 0 is outside image
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== file did not grow anywhere near the bogus offset ==
+file size sane: yes
+== data reads back correctly ==
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
+cluster size: 512, data offset (sectors): 2
+== TEST BAT ENTRY POINTING BEFORE DATA AREA ==
+== corrupt image: point first cluster into the BAT table itself ==
+== qemu-img check detects it without repairing ==
+ERROR cluster 0 is outside image
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+== bytes at the victim offset before write ==
+0
+== write must allocate a fresh cluster instead of clobbering the BAT ==
+Repairing cluster 0 is outside image
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== bytes at the victim offset are unchanged ==
+0
+== data reads back correctly ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done
