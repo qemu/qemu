@@ -3100,7 +3100,6 @@ static void sd_blk_size_error(SDState *sd, int64_t blk_size,
 static void sd_realize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SDMMC_COMMON(dev);
-    int64_t blk_size = -ENOMEDIUM;
     int ret;
 
     switch (sd->spec_version) {
@@ -3118,32 +3117,32 @@ static void sd_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        blk_size = blk_getlength(sd->blk);
-    }
-    if (blk_size >= 0) {
-        blk_size -= sd->boot_part_size * 2 + sd->rpmb_part_size;
-        if (blk_size > SDSC_MAX_CAPACITY) {
-            if (sd_is_emmc(sd) &&
-                !QEMU_IS_ALIGNED(blk_size, 1 << HWBLOCK_SHIFT)) {
-                int64_t blk_size_aligned =
-                    ((blk_size >> HWBLOCK_SHIFT) + 1) << HWBLOCK_SHIFT;
-                sd_blk_size_error(sd, blk_size, blk_size_aligned,
-                                  "multiples of 512", errp);
+        int64_t blk_size = blk_getlength(sd->blk);
+        if (blk_size >= 0) {
+            blk_size -= sd->boot_part_size * 2 + sd->rpmb_part_size;
+            if (blk_size > SDSC_MAX_CAPACITY) {
+                if (sd_is_emmc(sd) &&
+                    !QEMU_IS_ALIGNED(blk_size, 1 << HWBLOCK_SHIFT)) {
+                    int64_t blk_size_aligned =
+                        ((blk_size >> HWBLOCK_SHIFT) + 1) << HWBLOCK_SHIFT;
+                    sd_blk_size_error(sd, blk_size, blk_size_aligned,
+                                      "multiples of 512", errp);
+                    return;
+                } else if (!sd_is_emmc(sd) &&
+                    !QEMU_IS_ALIGNED(blk_size, 512 * KiB)) {
+                    int64_t blk_size_aligned = ((blk_size >> 19) + 1) << 19;
+                    sd_blk_size_error(sd, blk_size, blk_size_aligned,
+                                      "multiples of 512K", errp);
+                    return;
+                }
+            } else if (blk_size > 0 && !is_power_of_2(blk_size)) {
+                sd_blk_size_error(sd, blk_size, pow2ceil(blk_size),
+                                  "a power of 2", errp);
                 return;
-            } else if (!sd_is_emmc(sd) &&
-                !QEMU_IS_ALIGNED(blk_size, 512 * KiB)) {
-                int64_t blk_size_aligned = ((blk_size >> 19) + 1) << 19;
-                sd_blk_size_error(sd, blk_size, blk_size_aligned,
-                                  "multiples of 512K", errp);
+            } else if (blk_size < 0) {
+                error_setg(errp, "eMMC image smaller than boot partitions");
                 return;
             }
-        } else if (blk_size > 0 && !is_power_of_2(blk_size)) {
-            sd_blk_size_error(sd, blk_size, pow2ceil(blk_size), "a power of 2",
-                              errp);
-            return;
-        } else if (blk_size < 0) {
-            error_setg(errp, "eMMC image smaller than boot partitions");
-            return;
         }
 
         ret = blk_set_perm(sd->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
