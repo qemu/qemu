@@ -786,6 +786,12 @@ static bool sdhci_sdma_transfer_active(SDHCIState *s)
             SDHC_DMA_TYPE(s->hostctl1) == SDHC_CTRL_SDMA;
 }
 
+static void sdhci_resume_sdma_transfer(SDHCIState *s)
+{
+    s->sdma_boundary_paused = false;
+    sdhci_sdma_transfer(s);
+}
+
 typedef struct ADMADescr {
     hwaddr addr;
     uint16_t length;
@@ -1257,14 +1263,15 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 
     switch (offset & ~0x3) {
     case SDHC_SYSAD:
-        if (!TRANSFERRING_DATA(s->prnsts) || s->sdma_boundary_paused) {
+        if (!TRANSFERRING_DATA(s->prnsts) ||
+            (!sdhci_version4_enabled(s) && s->sdma_boundary_paused)) {
             s->sdmasysad = (s->sdmasysad & mask) | value;
             MASKED_WRITE(s->sdmasysad, mask, value);
-            /* Writing to last byte of sdmasysad might trigger transfer */
-            if (!(mask & 0xFF000000) && s->blkcnt &&
-                (s->blksize & BLOCK_SIZE_MASK) &&
-                SDHC_DMA_TYPE(s->hostctl1) == SDHC_CTRL_SDMA) {
-                sdhci_sdma_transfer(s);
+            /* A completed selected-address write resumes stopped SDMA */
+            if (!sdhci_version4_enabled(s) && !(mask & 0xff000000) &&
+                s->sdma_boundary_paused &&
+                sdhci_sdma_transfer_active(s)) {
+                sdhci_resume_sdma_transfer(s);
             }
         }
         break;
@@ -1401,10 +1408,23 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
     case SDHC_ADMASYSADDR:
         s->admasysaddr = (s->admasysaddr & (0xFFFFFFFF00000000ULL |
                 (uint64_t)mask)) | (uint64_t)value;
+        if (sdhci_version4_enabled(s) &&
+            !sdhci_64bit_addressing_enabled(s) &&
+            !(mask & 0xff000000) && s->sdma_boundary_paused &&
+            sdhci_sdma_transfer_active(s)) {
+            sdhci_resume_sdma_transfer(s);
+        }
         break;
     case SDHC_ADMASYSADDR + 4:
         s->admasysaddr = (s->admasysaddr & (0x00000000FFFFFFFFULL |
                 ((uint64_t)mask << 32))) | ((uint64_t)value << 32);
+        /* A completed selected-address write resumes boundary-stopped SDMA */
+        if (sdhci_version4_enabled(s) &&
+            sdhci_64bit_addressing_enabled(s) &&
+            !(mask & 0xff000000) && s->sdma_boundary_paused &&
+            sdhci_sdma_transfer_active(s)) {
+            sdhci_resume_sdma_transfer(s);
+        }
         break;
     case SDHC_FEAER:
         s->acmd12errsts |= value;
