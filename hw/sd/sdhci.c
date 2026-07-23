@@ -1358,11 +1358,24 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         }
         sdhci_update_irq(s);
         break;
-    case SDHC_ACMD12ERRSTS:
-        MASKED_WRITE(s->acmd12errsts, mask, value & UINT16_MAX);
-        if (s->uhs_mode >= UHS_I) {
-            MASKED_WRITE(s->hostctl2, mask >> 16, value >> 16);
+    case SDHC_ACMD12ERRSTS: {
+        uint16_t hostctl2_mask = mask >> 16;
+        uint16_t hostctl2_value = value >> 16;
 
+        MASKED_WRITE(s->acmd12errsts, mask, value & UINT16_MAX);
+        if (s->uhs_mode < UHS_I) {
+            /*
+             * VERSION4 is writable even without UHS-I. Preserve all other
+             * Host Control 2 bits when UHS-I is not supported.
+             */
+            uint16_t independent = R_SDHC_HOSTCTL2_VERSION4_MASK;
+
+            hostctl2_mask |= ~independent;
+            hostctl2_value &= independent;
+        }
+        MASKED_WRITE(s->hostctl2, hostctl2_mask, hostctl2_value);
+
+        if (s->uhs_mode >= UHS_I) {
             if (FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, V18_ENA)) {
                 sdbus_set_voltage(&s->sdbus, SD_VOLTAGE_1_8V);
             } else {
@@ -1370,6 +1383,7 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
             }
         }
         break;
+    }
 
     case SDHC_CAPAB:
     case SDHC_CAPAB + 4:
