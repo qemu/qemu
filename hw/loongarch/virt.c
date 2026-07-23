@@ -1465,7 +1465,6 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "loongarch.ram";
     mc->desc = "QEMU LoongArch Virtual Machine";
     mc->max_cpus = LOONGARCH_MAX_CPUS;
-    mc->is_default = 1;
     mc->default_kernel_irqchip_split = false;
     mc->block_default_type = IF_VIRTIO;
     mc->default_boot_order = "c";
@@ -1546,6 +1545,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
         MACHINE_VER_DEPRECATION(__VA_ARGS__); \
         if (latest) { \
             mc->alias = "virt"; \
+            mc->is_default = true; \
         } \
     } \
     static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
@@ -1600,7 +1600,14 @@ static void machvirt_machine_init(void)
 
 type_init(machvirt_machine_init);
 
-static void virt_machine_11_1_options(MachineClass *mc)
+static void virt_machine_11_2_options(MachineClass *mc)
 {
 }
-DEFINE_VIRT_MACHINE_AS_LATEST(11, 1)
+DEFINE_VIRT_MACHINE_AS_LATEST(11, 2)
+
+static void virt_machine_11_1_options(MachineClass *mc)
+{
+    virt_machine_11_2_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_11_1, hw_compat_11_1_len);
+}
+DEFINE_VIRT_MACHINE(11, 1)
