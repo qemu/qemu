@@ -227,6 +227,23 @@ static bool sdhci_update_irq(SDHCIState *s)
     return pending;
 }
 
+static uint8_t sdhci_get_dma_type(SDHCIState *s)
+{
+    uint8_t type = SDHC_DMA_TYPE(s->hostctl1);
+
+    /*
+     * In version 4 mode, the legacy ADMA2_32 encoding selects ADMA2,
+     * while ADDRESSING_64 determines its address width.
+     */
+    if (type == SDHC_CTRL_ADMA2_32 &&
+        FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, VERSION4) &&
+        FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, ADDRESSING_64)) {
+        return SDHC_CTRL_ADMA2_64;
+    }
+
+    return type;
+}
+
 static void sdhci_raise_insertion_irq(void *opaque)
 {
     SDHCIState *s = (SDHCIState *)opaque;
@@ -781,7 +798,7 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
     uint32_t adma1 = 0;
     uint64_t adma2 = 0;
     hwaddr entry_addr = (hwaddr)s->admasysaddr;
-    switch (SDHC_DMA_TYPE(s->hostctl1)) {
+    switch (sdhci_get_dma_type(s)) {
     case SDHC_CTRL_ADMA2_32:
         dma_memory_read(s->dma_as, entry_addr, &adma2, sizeof(adma2),
                         MEMTXATTRS_UNSPECIFIED);
@@ -818,7 +835,9 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
                         MEMTXATTRS_UNSPECIFIED);
         dscr->addr = le64_to_cpu(dscr->addr);
         dscr->attr &= (uint8_t) ~0xC0;
-        dscr->incr = 12;
+        /* Version 4 pads 64-bit ADMA2 descriptors from 96 to 128 bits */
+        dscr->incr = FIELD_EX32(s->hostctl2, SDHC_HOSTCTL2, VERSION4) ?
+                     16 : 12;
         break;
     }
 }
@@ -998,7 +1017,7 @@ static void sdhci_data_transfer(void *opaque)
     SDHCIState *s = (SDHCIState *)opaque;
 
     if (s->trnmod & SDHC_TRNS_DMA) {
-        switch (SDHC_DMA_TYPE(s->hostctl1)) {
+        switch (sdhci_get_dma_type(s)) {
         case SDHC_CTRL_SDMA:
             sdhci_sdma_transfer(s);
             break;
