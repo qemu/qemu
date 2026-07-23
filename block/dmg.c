@@ -559,6 +559,12 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    /* There must be at least one chunk */
+    if (s->n_chunks == 0) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
     /* initialize zlib engine */
     s->compressed_chunk = qemu_try_blockalign(bs->file->bs,
                                               ds.max_compressed_size + 1);
