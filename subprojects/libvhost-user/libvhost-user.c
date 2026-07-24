@@ -1379,6 +1379,12 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
     vq->counter = 0;
 
     if (unlikely(vq->inflight->used_idx != vq->used_idx)) {
+        if (vq->inflight->last_batch_head >= vq->inflight->desc_num) {
+            vu_panic(dev, "vu_check_queue_inflights: last_batch_head %u "
+                     "out of range (desc_num %u)",
+                     vq->inflight->last_batch_head, vq->inflight->desc_num);
+            return -1;
+        }
         vq->inflight->desc[vq->inflight->last_batch_head].inflight = 0;
 
         barrier();
