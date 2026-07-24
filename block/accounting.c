@@ -318,10 +318,9 @@ double block_acct_queue_depth(BlockAcctTimedStats *stats,
     uint64_t sum, elapsed;
 
     assert(type < BLOCK_MAX_IOTYPE);
+    assert(qemu_mutex_trylock(&stats->stats->lock) == -EBUSY);
 
-    qemu_mutex_lock(&stats->stats->lock);
     sum = timed_average_sum(&stats->latency[type], &elapsed);
-    qemu_mutex_unlock(&stats->stats->lock);
 
     return (double) sum / elapsed;
 }
