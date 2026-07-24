@@ -1080,7 +1080,7 @@ void riscv_trigger_unrealize(CPURISCVState *env)
     g_free(env->cpu_watchpoint);
 
     for (int i = 0; i < env->num_triggers; i++) {
-        timer_del(env->itrigger_timer[i]);
+        timer_free(env->itrigger_timer[i]);
     }
     g_free(env->itrigger_timer);
 }
