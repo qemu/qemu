@@ -1464,7 +1464,8 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
         switch (TRB_TYPE(*trb)) {
         case TR_DATA:
             if ((!(trb->control & TRB_TR_DIR)) != (!in_xfer)) {
-                DPRINTF("xhci: data direction mismatch for TR_DATA\n");
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "xhci: data direction mismatch for TR_DATA\n");
                 goto err;
             }
             /* fallthrough */
@@ -1474,7 +1475,8 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
             chunk = trb->status & 0x1ffff;
             if (trb->control & TRB_TR_IDT) {
                 if (chunk > 8 || in_xfer) {
-                    DPRINTF("xhci: invalid immediate data TRB\n");
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "xhci: invalid immediate data TRB\n");
                     goto err;
                 }
                 qemu_sglist_add(&xfer->sgl, trb->addr, chunk);
@@ -1617,7 +1619,9 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         }
     }
 
-    xhci_xfer_create_sgl(xfer, dir == USB_TOKEN_IN); /* Also sets int_req */
+    if (xhci_xfer_create_sgl(xfer, dir == USB_TOKEN_IN) < 0) {  /* Also sets int_req */
+        return -1;
+    }
     usb_packet_setup(&xfer->packet, dir, ep, xfer->streamid,
                      xfer->trbs[0].addr, false, xfer->int_req);
     if (usb_packet_map(&xfer->packet, &xfer->sgl)) {
