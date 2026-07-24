@@ -32,19 +32,13 @@ subprojects=(
   attrs-0.2-rs
   berkeley-softfloat-3
   berkeley-testfloat-3
-  bilge-0.2-rs
-  bilge-impl-0.2-rs
   bitfield-0.9-rs
-  either-1-rs
   foreign-0.3-rs
   glib-sys-0.21-rs
-  itertools-0.11-rs
   keycodemapdb
   libc-0.2-rs
   libvfio-user
   probe-0.5-rs
-  proc-macro-error-1-rs
-  proc-macro-error-attr-1-rs
   proc-macro2-1-rs
   quote-1-rs
   syn-2-rs
