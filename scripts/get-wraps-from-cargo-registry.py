@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-get-wraps-from-cargo-registry.py - Update Meson subprojects from a global registry
+get-wraps-from-cargo-registry.py - Update Meson subprojects from a Cargo
+registry or from the versions pinned in Cargo.lock.
 """
 
 # Copyright (C) 2025 Red Hat, Inc.
@@ -18,6 +19,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 
 
 def get_name_and_semver(namever: str) -> tuple[str, str]:
@@ -75,6 +77,49 @@ class CargoRegistry(CrateSource):
         return True
 
 
+class CargoLock(CrateSource):
+    """Locate crates by the versions pinned in a Cargo.lock file."""
+
+    origin = "crates.io"
+
+    def __init__(self, path: str):
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+
+        self.versions: dict[str, list[str]] = {}
+        self.checksums: dict[str, str] = {}
+        for pkg in data.get("package", []):
+            # workspace members have neither a checksum nor a crates.io tarball
+            if "checksum" not in pkg:
+                continue
+            name, version = pkg["name"], pkg["version"]
+            self.versions.setdefault(name, []).append(version)
+            self.checksums[f"{name}-{version}"] = pkg["checksum"]
+
+    def find(self, namever: str) -> str | None:
+        """Find pinned crate matching name and semver prefix"""
+        name, semver = get_name_and_semver(namever)
+        versions = sorted(self.versions.get(name, []))
+
+        # exact version match
+        if semver in versions:
+            return f"{name}-{semver}"
+
+        # semver match
+        matches = [v for v in versions if v.startswith(f"{semver}.")]
+        return f"{name}-{matches[0]}" if matches else None
+
+    def rewrite_source(self, section: configparser.SectionProxy, orig_namever: str, new_namever: str) -> bool:
+        # rewrite the download keys to fetch the pinned version from crates.io.
+        if orig_namever == new_namever:
+            return False
+        name, version = get_name_and_semver(new_namever)
+        section["source_url"] = f"https://crates.io/api/v1/crates/{name}/{version}/download"
+        section["source_filename"] = f"{new_namever}.tar.gz"
+        section["source_hash"] = self.checksums[new_namever]
+        return True
+
+
 class UpdateSubprojects:
     cargo_registry: str
     source: CrateSource
@@ -104,12 +149,13 @@ class UpdateSubprojects:
             print("   This may affect the build process - please review the differences.")
 
     def update_subproject(self, wrap_file: str, source_namever: str) -> None:
-        """Modify [wrap-file] section to point to self.cargo_registry."""
+        """Modify [wrap-file] section to use the crate resolved as `source_namever`."""
         assert wrap_file.endswith("-rs.wrap")
         wrap_name = wrap_file[:-5]
 
         env = os.environ.copy()
-        env["MESON_PACKAGE_CACHE_DIR"] = self.cargo_registry
+        if self.cargo_registry:
+            env["MESON_PACKAGE_CACHE_DIR"] = self.cargo_registry
 
         config = configparser.ConfigParser()
         config.read(wrap_file)
@@ -158,8 +204,14 @@ class UpdateSubprojects:
             description="Replace Meson subprojects with packages in a Cargo registry"
         )
         parser.add_argument(
+            "--cargo-lock",
+            action='store_true',
+            default=False,
+            help="Update wraps from Cargo.lock",
+        )
+        parser.add_argument(
             "--cargo-registry",
-            default=os.environ.get("CARGO_REGISTRY"),
+            default=None,
             help="Path to Cargo registry (default: CARGO_REGISTRY env var)",
         )
         parser.add_argument(
@@ -170,9 +222,15 @@ class UpdateSubprojects:
         )
 
         args = parser.parse_args()
-        if not args.cargo_registry:
-            print("error: CARGO_REGISTRY environment variable not set and --cargo-registry not provided")
+        if args.cargo_registry and args.cargo_lock:
+            print("error: --cargo-registry and --cargo-lock are incompatible")
             sys.exit(1)
+        if not args.cargo_registry and not args.cargo_lock:
+            args.cargo_registry = os.environ.get("CARGO_REGISTRY")
+            if not args.cargo_registry:
+                print("error: CARGO_REGISTRY environment variable not set and " +
+                      "--cargo-registry or --cargo-lock not provided")
+                sys.exit(1)
 
         return args
 
@@ -180,7 +238,10 @@ class UpdateSubprojects:
         self.cargo_registry = args.cargo_registry
         self.dry_run = args.dry_run
         self.top_srcdir = os.getcwd()
-        self.source = CargoRegistry(args.cargo_registry)
+        if args.cargo_lock:
+            self.source = CargoLock(os.path.join(self.top_srcdir, "Cargo.lock"))
+        else:
+            self.source = CargoRegistry(args.cargo_registry)
 
     def main(self) -> None:
         if not os.path.exists("subprojects"):
@@ -193,7 +254,7 @@ class UpdateSubprojects:
 
             source_namever = self.source.find(namever)
             if not source_namever:
-                print(f"No installed crate found for {wrap_file}")
+                print(f"No crate found for {wrap_file}")
                 continue
 
             self.update_subproject(wrap_file, source_namever)
