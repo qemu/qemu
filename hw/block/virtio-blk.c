@@ -755,7 +755,8 @@ static void virtio_blk_zone_append_complete(void *opaque, int ret)
 {
     ZoneCmdData *data = opaque;
     VirtIOBlockReq *req = data->req;
-    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
+    VirtIOBlock *s = req->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int64_t append_sector, n;
     uint8_t err_status = VIRTIO_BLK_S_OK;
 
@@ -778,6 +779,11 @@ static void virtio_blk_zone_append_complete(void *opaque, int ret)
 
 out:
     virtio_blk_req_complete(req, err_status);
+    if (err_status == VIRTIO_BLK_S_OK) {
+        block_acct_done(blk_get_stats(s->blk), &req->acct);
+    } else {
+        block_acct_failed(blk_get_stats(s->blk), &req->acct);
+    }
     g_free(req);
     g_free(data);
 }
