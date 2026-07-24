@@ -30,6 +30,7 @@
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_BUS "virtio-bus"
+#define VIRTIO_QUEUE_SIZE_OVERRIDE "x-override-queue-size"
 typedef struct VirtioBusClass VirtioBusClass;
 typedef struct VirtioBusState VirtioBusState;
 DECLARE_OBJ_CHECKERS(VirtioBusState, VirtioBusClass,

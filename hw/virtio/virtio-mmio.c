@@ -172,10 +172,7 @@ static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
                 >> (32 * proxy->host_features_sel);
         }
     case VIRTIO_MMIO_QUEUE_NUM_MAX:
-        if (!virtio_queue_get_num(vdev, vdev->queue_sel)) {
-            return 0;
-        }
-        return VIRTQUEUE_MAX_SIZE;
+        return virtio_queue_get_max_num(vdev, vdev->queue_sel);
     case VIRTIO_MMIO_QUEUE_PFN:
         if (!proxy->legacy) {
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -738,6 +735,8 @@ static const Property virtio_mmio_properties[] = {
     DEFINE_PROP_BOOL("force-legacy", VirtIOMMIOProxy, legacy, true),
     DEFINE_PROP_BIT("ioeventfd", VirtIOMMIOProxy, flags,
                     VIRTIO_IOMMIO_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT16(VIRTIO_QUEUE_SIZE_OVERRIDE, VirtIOMMIOProxy,
+                       override_queue_size, 0),
 };
 
 static void virtio_mmio_realizefn(DeviceState *d, Error **errp)
