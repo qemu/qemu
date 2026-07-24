@@ -318,6 +318,13 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int ret, bool acct_failed)
         return true;
 
     case BLOCK_ERROR_ACTION_IGNORE:
+        /*
+         * The caller may have already finalized the accounting cookie
+         * (e.g. scsi_dma_complete() for ret < 0), but calling
+         * block_acct_done() afterwards is fine (just a no-op).  Just
+         * make sure all cookies are indeed accounted at some point.
+         */
+        block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
         return false;
 
     case BLOCK_ERROR_ACTION_STOP:
