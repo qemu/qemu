@@ -898,6 +898,7 @@ static void ide_dma_cb(void *opaque, int ret)
 
     if (ret == -EINVAL) {
         ide_dma_error(s);
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
         return;
     }
 
@@ -968,7 +969,7 @@ static void ide_dma_cb(void *opaque, int ret)
     if ((s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) &&
         !ide_sect_range_ok(s, sector_num, n)) {
         ide_dma_error(s);
-        block_acct_invalid(blk_get_stats(s->blk), s->acct.type);
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
         return;
     }
 
