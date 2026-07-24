@@ -2389,7 +2389,6 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
     trace_pci_nvme_compare_mdata_cb(nvme_cid(req));
 
     if (ret) {
-        block_acct_failed(stats, acct);
         req->status = NVME_UNRECOVERED_READ;
 
         trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), req->status);
@@ -2444,9 +2443,14 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
         goto out;
     }
 
-    block_acct_done(stats, acct);
 
 out:
+    if (req->status == NVME_SUCCESS) {
+        block_acct_done(stats, acct);
+    } else {
+        block_acct_failed(stats, acct);
+    }
+
     qemu_iovec_destroy(&ctx->data.iov);
     g_free(ctx->data.bounce);
 
@@ -2474,7 +2478,6 @@ static void nvme_compare_data_cb(void *opaque, int ret)
     trace_pci_nvme_compare_data_cb(nvme_cid(req));
 
     if (ret) {
-        block_acct_failed(stats, acct);
         req->status = NVME_UNRECOVERED_READ;
 
         trace_pci_nvme_err_aio(nvme_cid(req), strerror(-ret), req->status);
@@ -2513,9 +2516,13 @@ static void nvme_compare_data_cb(void *opaque, int ret)
         return;
     }
 
-    block_acct_done(stats, acct);
-
 out:
+    if (req->status == NVME_SUCCESS) {
+        block_acct_done(stats, acct);
+    } else {
+        block_acct_failed(stats, acct);
+    }
+
     qemu_iovec_destroy(&ctx->data.iov);
     g_free(ctx->data.bounce);
     g_free(ctx);
