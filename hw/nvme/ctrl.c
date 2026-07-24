@@ -2802,8 +2802,6 @@ static const AIOCBInfo nvme_copy_aiocb_info = {
 static void nvme_copy_done(NvmeCopyAIOCB *iocb)
 {
     NvmeRequest *req = iocb->req;
-    NvmeNamespace *ns = req->ns;
-    BlockAcctStats *stats = blk_get_stats(ns->blkconf.blk);
 
     if (iocb->idx != iocb->nr) {
         req->cqe.result = cpu_to_le32(iocb->idx);
@@ -2812,14 +2810,6 @@ static void nvme_copy_done(NvmeCopyAIOCB *iocb)
     qemu_iovec_destroy(&iocb->iov);
     g_free(iocb->bounce);
     g_free(iocb->ranges);
-
-    if (iocb->ret < 0) {
-        block_acct_failed(stats, &iocb->acct.read);
-        block_acct_failed(stats, &iocb->acct.write);
-    } else {
-        block_acct_done(stats, &iocb->acct.read);
-        block_acct_done(stats, &iocb->acct.write);
-    }
 
     iocb->common.cb(iocb->common.opaque, iocb->ret);
     qemu_aio_unref(iocb);
@@ -2951,6 +2941,7 @@ static void nvme_copy_out_completed_cb(void *opaque, int ret)
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *dns = req->ns;
+    BlockAcctStats *stats = blk_get_stats(dns->blkconf.blk);
     uint32_t nlb;
 
     nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, NULL,
@@ -2959,10 +2950,12 @@ static void nvme_copy_out_completed_cb(void *opaque, int ret)
     if (ret < 0) {
         iocb->ret = ret;
         req->status = NVME_WRITE_FAULT;
-        goto out;
-    } else if (iocb->ret < 0) {
+    }
+    if (iocb->ret < 0) {
+        block_acct_failed(stats, &iocb->acct.write);
         goto out;
     }
+    block_acct_done(stats, &iocb->acct.write);
 
     if (dns->params.zoned) {
         nvme_advance_zone_wp(dns, iocb->zone, nlb);
@@ -2979,11 +2972,18 @@ static void nvme_copy_out_cb(void *opaque, int ret)
     NvmeCopyAIOCB *iocb = opaque;
     NvmeRequest *req = iocb->req;
     NvmeNamespace *dns = req->ns;
+    BlockAcctStats *stats = blk_get_stats(dns->blkconf.blk);
     uint32_t nlb;
     size_t mlen;
     uint8_t *mbounce;
 
-    if (ret < 0 || iocb->ret < 0 || !dns->lbaf.ms) {
+    if (ret < 0 || iocb->ret < 0) {
+        block_acct_failed(stats, &iocb->acct.write);
+        goto out;
+    }
+    block_acct_done(stats, &iocb->acct.write);
+
+    if (!dns->lbaf.ms) {
         goto out;
     }
 
@@ -2996,6 +2996,7 @@ static void nvme_copy_out_cb(void *opaque, int ret)
     qemu_iovec_reset(&iocb->iov);
     qemu_iovec_add(&iocb->iov, mbounce, mlen);
 
+    block_acct_start(stats, &iocb->acct.write, mlen, BLOCK_ACCT_WRITE);
     iocb->aiocb = blk_aio_pwritev(dns->blkconf.blk, nvme_moff(dns, iocb->slba),
                                   &iocb->iov, 0, nvme_copy_out_completed_cb,
                                   iocb);
@@ -3012,6 +3013,7 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
     NvmeRequest *req = iocb->req;
     NvmeNamespace *sns = iocb->sns;
     NvmeNamespace *dns = req->ns;
+    BlockAcctStats *sstats = blk_get_stats(sns->blkconf.blk);
     NvmeCopyCmd *copy = NULL;
     uint8_t *mbounce = NULL;
     uint32_t nlb;
@@ -3024,10 +3026,12 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
     if (ret < 0) {
         iocb->ret = ret;
         req->status = NVME_UNRECOVERED_READ;
-        goto out;
-    } else if (iocb->ret < 0) {
+    }
+    if (iocb->ret < 0) {
+        block_acct_failed(sstats, &iocb->acct.read);
         goto out;
     }
+    block_acct_done(sstats, &iocb->acct.read);
 
     nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
                                  &nlb, NULL, &apptag, &appmask, &reftag);
@@ -3102,7 +3106,7 @@ static void nvme_copy_in_completed_cb(void *opaque, int ret)
     qemu_iovec_reset(&iocb->iov);
     qemu_iovec_add(&iocb->iov, iocb->bounce, len);
 
-    block_acct_start(blk_get_stats(dns->blkconf.blk), &iocb->acct.write, 0,
+    block_acct_start(blk_get_stats(dns->blkconf.blk), &iocb->acct.write, len,
                      BLOCK_ACCT_WRITE);
 
     iocb->aiocb = blk_aio_pwritev(dns->blkconf.blk, nvme_l2b(dns, iocb->slba),
@@ -3121,20 +3125,29 @@ static void nvme_copy_in_cb(void *opaque, int ret)
 {
     NvmeCopyAIOCB *iocb = opaque;
     NvmeNamespace *sns = iocb->sns;
+    BlockAcctStats *stats = blk_get_stats(sns->blkconf.blk);
     uint64_t slba;
     uint32_t nlb;
+    size_t mlen;
 
-    if (ret < 0 || iocb->ret < 0 || !sns->lbaf.ms) {
+    if (ret < 0 || iocb->ret < 0) {
+        block_acct_failed(stats, &iocb->acct.read);
+        goto out;
+    }
+    block_acct_done(stats, &iocb->acct.read);
+
+    if (!sns->lbaf.ms) {
         goto out;
     }
 
     nvme_copy_source_range_parse(iocb->ranges, iocb->idx, iocb->format, &slba,
                                  &nlb, NULL, NULL, NULL, NULL);
 
+    mlen = nvme_m2b(sns, nlb);
     qemu_iovec_reset(&iocb->iov);
-    qemu_iovec_add(&iocb->iov, iocb->bounce + nvme_l2b(sns, nlb),
-                   nvme_m2b(sns, nlb));
+    qemu_iovec_add(&iocb->iov, iocb->bounce + nvme_l2b(sns, nlb), mlen);
 
+    block_acct_start(stats, &iocb->acct.read, mlen, BLOCK_ACCT_READ);
     iocb->aiocb = blk_aio_preadv(sns->blkconf.blk, nvme_moff(sns, slba),
                                  &iocb->iov, 0, nvme_copy_in_completed_cb,
                                  iocb);
@@ -3342,7 +3355,7 @@ static void nvme_do_copy(NvmeCopyAIOCB *iocb)
     assert(len <= blen);
     qemu_iovec_add(&iocb->iov, iocb->bounce, len);
 
-    block_acct_start(blk_get_stats(sns->blkconf.blk), &iocb->acct.read, 0,
+    block_acct_start(blk_get_stats(sns->blkconf.blk), &iocb->acct.read, len,
                      BLOCK_ACCT_READ);
 
     iocb->aiocb = blk_aio_preadv(sns->blkconf.blk, nvme_l2b(sns, slba),
