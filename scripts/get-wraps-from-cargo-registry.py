@@ -47,20 +47,20 @@ class UpdateSubprojects:
         matches = sorted(glob.glob(f"{path}.*"))
         return os.path.basename(matches[0]) if matches else None
 
-    def compare_build_rs(self, orig_dir: str, registry_namever: str) -> None:
+    def compare_build_rs(self, orig_dir: str, source_namever: str) -> None:
         """Warn if the build.rs in the original directory differs from the registry version."""
         orig_build_rs = os.path.join(orig_dir, "build.rs")
-        new_build_rs = os.path.join(self.cargo_registry, registry_namever, "build.rs")
+        new_build_rs = os.path.join(self.cargo_registry, source_namever, "build.rs")
 
         msg = None
         if os.path.isfile(orig_build_rs) != os.path.isfile(new_build_rs):
             if os.path.isfile(orig_build_rs):
-                msg = f"build.rs removed in {registry_namever}"
+                msg = f"build.rs removed in {source_namever}"
             if os.path.isfile(new_build_rs):
-                msg = f"build.rs added in {registry_namever}"
+                msg = f"build.rs added in {source_namever}"
 
         elif os.path.isfile(orig_build_rs) and not filecmp.cmp(orig_build_rs, new_build_rs, shallow=False):
-            msg = f"build.rs changed from {orig_dir} to {registry_namever}"
+            msg = f"build.rs changed from {orig_dir} to {source_namever}"
             # diff exits non-zero when the files differ, which is expected here
             subprocess.run(["diff", "-u", orig_build_rs, new_build_rs])
 
@@ -68,7 +68,7 @@ class UpdateSubprojects:
             print(f"⚠️  Warning: {msg}")
             print("   This may affect the build process - please review the differences.")
 
-    def update_subproject(self, wrap_file: str, registry_namever: str) -> None:
+    def update_subproject(self, wrap_file: str, source_namever: str) -> None:
         """Modify [wrap-file] section to point to self.cargo_registry."""
         assert wrap_file.endswith("-rs.wrap")
         wrap_name = wrap_file[:-5]
@@ -83,18 +83,18 @@ class UpdateSubprojects:
 
         # do not download the wrap, always use the local copy
         orig_dir = config["wrap-file"]["directory"]
-        if os.path.exists(orig_dir) and orig_dir != registry_namever:
-            self.compare_build_rs(orig_dir, registry_namever)
+        if os.path.exists(orig_dir) and orig_dir != source_namever:
+            self.compare_build_rs(orig_dir, source_namever)
 
         if self.dry_run:
-            if orig_dir == registry_namever:
+            if orig_dir == source_namever:
                 print(f"Will install {orig_dir} from registry.")
             else:
-                print(f"Will replace {orig_dir} with {registry_namever}.")
+                print(f"Will replace {orig_dir} with {source_namever}.")
             self.changes += 1
             return
 
-        config["wrap-file"]["directory"] = registry_namever
+        config["wrap-file"]["directory"] = source_namever
         for key in list(config["wrap-file"].keys()):
             if key.startswith("source"):
                 del config["wrap-file"][key]
@@ -111,10 +111,10 @@ class UpdateSubprojects:
         with open(wrap_file, "w") as f:
             config.write(f)
 
-        if orig_dir == registry_namever:
+        if orig_dir == source_namever:
             print(f"Installing {orig_dir} from registry.")
         else:
-            print(f"Replacing {orig_dir} with {registry_namever}.")
+            print(f"Replacing {orig_dir} with {source_namever}.")
 
         subprocess.run(
             ["meson", "subprojects", "download", wrap_name],
@@ -162,12 +162,12 @@ class UpdateSubprojects:
         for wrap_file in sorted(glob.glob("*-rs.wrap")):
             namever = wrap_file[:-8]  # Remove '-rs.wrap'
 
-            registry_namever = self.find_installed_crate(namever)
-            if not registry_namever:
+            source_namever = self.find_installed_crate(namever)
+            if not source_namever:
                 print(f"No installed crate found for {wrap_file}")
                 continue
 
-            self.update_subproject(wrap_file, registry_namever)
+            self.update_subproject(wrap_file, source_namever)
 
         if self.changes:
             if self.dry_run:
