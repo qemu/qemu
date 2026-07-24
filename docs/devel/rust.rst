@@ -21,15 +21,11 @@ invokes rustc directly, building static libraries that are then linked
 together with the C code.  This is completely automatic when you run
 ``make`` or ``ninja``.
 
-However, QEMU's build system also tries to be easy to use for people who
-are accustomed to the more "normal" Cargo-based development workflow.
-In particular:
-
-* the set of warnings and lints that are used to build QEMU always
-  comes from the ``Cargo.toml`` workspace file
-
-* it is also possible to use ``cargo`` for common Rust-specific coding
-  tasks, in particular to invoke ``clippy``, ``rustfmt`` and ``rustdoc``.
+However, Meson is able to consume ``Cargo.toml`` files and tries
+to be easy to use for people who are accustomed to the more "normal"
+Cargo-based development workflow.  In the case of QEMU, in addition,
+it is possible to use ``cargo`` for common Rust-specific coding
+tasks, in particular to invoke ``clippy``, ``rustfmt`` and ``rustdoc``.
 
 To this end, QEMU includes a ``build.rs`` build script that picks up
 generated sources from QEMU's build directory and puts it in Cargo's
@@ -466,63 +462,38 @@ Adding dependencies
 Generally, the set of dependent crates is kept small.  Think twice before
 adding a new external crate, especially if it comes with a large set of
 dependencies itself.  Sometimes QEMU only needs a small subset of the
-functionality; see for example QEMU's ``assertions`` module.
+functionality; see for example QEMU's ``assertions`` module.  Also,
+choose a version of the crate that works with QEMU's minimum supported
+Rust version (|msrv|).
 
 On top of this recommendation, adding external crates to QEMU is a
 slightly complicated process, mostly due to the need to teach Meson how
-to build them.  While Meson has initial support for parsing ``Cargo.lock``
-files, it is still highly experimental and is therefore not used.
+to download them.  While QEMU uses Meson's support for parsing ``Cargo.toml``
+files, it ships ``.wrap`` files instead of using ``Cargo.lock``; this way,
+distros can adjust the set of dependencies to the exact versions they use.
+The versions specified in QEMU's ``Cargo.lock`` must be the same as the
+one in the wrap file.
 
-Therefore, external crates must be added as subprojects for Meson to
-learn how to build them, as well as to the relevant ``Cargo.toml`` files.
-The versions specified in ``Cargo.lock`` must be the same as the
-subprojects; note that the QEMU source tree forms a Cargo `workspace`__,
-and therefore there is a single lock file for the whole build.
-
-__ https://doc.rust-lang.org/cargo/reference/workspaces.html#virtual-workspace
-
-Choose a version of the crate that works with QEMU's minimum supported
-Rust version (|msrv|).
-
-Second, a new ``wrap`` file must be added to teach Meson how to download the
-crate.  The wrap file must be named ``NAME-SEMVER-rs.wrap``, where ``NAME``
+The wrap file must be named ``NAME-SEMVER-rs.wrap``, where ``NAME``
 is the name of the crate and ``SEMVER`` is the version up to and including the
 first non-zero number.  For example, a crate with version ``0.2.3`` will use
 ``0.2`` for its ``SEMVER``, while a crate with version ``1.0.84`` will use ``1``.
 
-Third, the Meson rules to build the crate must be added at
-``subprojects/NAME-SEMVER-rs/meson.build``.  Generally this includes:
+Usually, Meson is able to figure out how to build the crate, and also handles
+cross compilation correctly.  For crates that have a ``build.rs`` file,
+equivalent rules must be added to
+``subprojects/packagefiles/NAME-SEMVER-rs/meson/meson.build``.
+The file can modify the ``extra_args`` and ``extra_deps`` variables,
+which contain respectively the compiler arguments and external dependencies
+for the crate.
 
-* ``subproject`` and ``dependency`` lines for all dependent crates
+After every change to the ``meson/meson.build`` file you have to update the
+patched version with ``meson subprojects update --reset ``NAME-SEMVER-rs``.
+This might be automated in the future.
 
-* a ``static_library`` or ``rust.proc_macro`` line to perform the actual build
-
-* ``declare_dependency`` and a ``meson.override_dependency`` lines to expose
-  the result to QEMU and to other subprojects
-
-Remember to add ``native: true`` to ``dependency``, ``static_library`` and
-``meson.override_dependency`` for dependencies of procedural macros.
-If a crate is needed in both procedural macros and QEMU binaries, everything
-apart from ``subproject`` must be duplicated to build both native and
-non-native versions of the crate.
-
-It's important to specify the right compiler options.  These include:
-
-* the language edition (which can be found in the ``Cargo.toml`` file)
-
-* the ``--cfg`` (which have to be "reverse engineered" from the ``build.rs``
-  file of the crate).
-
-* usually, a ``--cap-lints allow`` argument to hide warnings from rustc
-  or clippy.
-
-After every change to the ``meson.build`` file you have to update the patched
-version with ``meson subprojects update --reset ``NAME-SEMVER-rs``.  This might
-be automated in the future.
-
-Also, after every change to the ``meson.build`` file it is strongly suggested to
-do a dummy change to the ``.wrap`` file (for example adding a comment like
-``# version 2``), which will help Meson notice that the subproject is out of date.
+Also, after every change to the file it is strongly suggested to do a dummy
+change to the ``.wrap`` file (for example adding a comment like ``# version 2``),
+which will help Meson notice that the subproject is out of date.
 
 As a last step, add the new subproject to ``scripts/archive-source.sh``,
 ``scripts/make-release`` and ``subprojects/.gitignore``.
