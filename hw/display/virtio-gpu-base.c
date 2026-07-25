@@ -195,6 +195,11 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
         return false;
     }
 
+    g->enabled_output_bitmask = 1;
+
+    g->req_state[0].width = g->conf.xres;
+    g->req_state[0].height = g->conf.yres;
+
     for (output_idx = 0, node = g->conf.outputs;
          node; output_idx++, node = node->next) {
         if (output_idx == g->conf.max_outputs) {
@@ -206,6 +211,17 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
             error_setg(errp, "invalid output name '%s' > %d",
                        node->value->name, EDID_NAME_MAX_LENGTH);
             return false;
+        }
+        if (node->value->has_xres != node->value->has_yres) {
+            error_setg(errp,
+                       "must set both outputs[%zd].xres and outputs[%zd].yres",
+                       output_idx, output_idx);
+            return false;
+        }
+        if (node->value->has_xres && node->value->has_yres) {
+            g->enabled_output_bitmask |= (1 << output_idx);
+            g->req_state[output_idx].width = node->value->xres;
+            g->req_state[output_idx].height = node->value->yres;
         }
     }
 
@@ -227,27 +243,6 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
     } else {
         virtio_add_queue(vdev, 64, ctrl_cb);
         virtio_add_queue(vdev, 16, cursor_cb);
-    }
-
-    g->enabled_output_bitmask = 1;
-
-    g->req_state[0].width = g->conf.xres;
-    g->req_state[0].height = g->conf.yres;
-
-    for (output_idx = 0, node = g->conf.outputs;
-         node && output_idx < g->conf.max_outputs;
-         output_idx++, node = node->next) {
-        if (node->value->has_xres != node->value->has_yres) {
-            error_setg(errp,
-                       "must set both outputs[%zd].xres and outputs[%zd].yres",
-                       output_idx, output_idx);
-            return false;
-        }
-        if (node->value->has_xres && node->value->has_yres) {
-            g->enabled_output_bitmask |= (1 << output_idx);
-            g->req_state[output_idx].width = node->value->xres;
-            g->req_state[output_idx].height = node->value->yres;
-        }
     }
 
     g->hw_ops = &virtio_gpu_ops;
