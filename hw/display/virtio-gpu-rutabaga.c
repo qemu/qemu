@@ -9,6 +9,7 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/virtio/virtio-iommu.h"
+#include "migration/blocker.h"
 
 #include <glib/gmem.h>
 #include <rutabaga_gfx/rutabaga_gfx_ffi.h>
@@ -1078,6 +1079,7 @@ static void virtio_gpu_rutabaga_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
 {
+    ERRP_GUARD();
     uint32_t num_capsets;
     VirtIOGPUBase *bdev = VIRTIO_GPU_BASE(qdev);
     VirtIOGPU *gpudev = VIRTIO_GPU(qdev);
@@ -1087,12 +1089,17 @@ static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
     return;
 #endif
 
-    if (!virtio_gpu_rutabaga_init(gpudev, errp)) {
+    error_setg(&bdev->migration_blocker, "rutabaga is not yet migratable");
+    if (migrate_add_blocker(&bdev->migration_blocker, errp) < 0) {
         return;
     }
 
+    if (!virtio_gpu_rutabaga_init(gpudev, errp)) {
+        goto fail;
+    }
+
     if (!virtio_gpu_rutabaga_get_num_capsets(gpudev, &num_capsets, errp)) {
-        return;
+        goto fail;
     }
 
     bdev->conf.flags |= (1 << VIRTIO_GPU_FLAG_RUTABAGA_ENABLED);
@@ -1101,6 +1108,12 @@ static void virtio_gpu_rutabaga_realize(DeviceState *qdev, Error **errp)
 
     bdev->virtio_config.num_capsets = num_capsets;
     virtio_gpu_device_realize(qdev, errp);
+    if (!*errp) {
+        return;
+    }
+
+fail:
+    migrate_del_blocker(&bdev->migration_blocker);
 }
 
 static const Property virtio_gpu_rutabaga_properties[] = {
