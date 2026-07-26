@@ -717,26 +717,6 @@ static inline bool is_desc_avail(uint16_t flags, bool wrap_counter)
     return (avail != used) && (avail == wrap_counter);
 }
 
-/* Fetch avail_idx from VQ memory only when we really need to know if
- * guest has added some buffers.
- * Called within rcu_read_lock().  */
-static int virtio_queue_empty_rcu(VirtQueue *vq)
-{
-    if (virtio_device_disabled(vq->vdev)) {
-        return 1;
-    }
-
-    if (unlikely(!vq->vring.avail)) {
-        return 1;
-    }
-
-    if (vq->shadow_avail_idx != vq->last_avail_idx) {
-        return 0;
-    }
-
-    return vring_avail_idx(vq) == vq->last_avail_idx;
-}
-
 static int virtio_queue_split_empty(VirtQueue *vq)
 {
     bool empty;
@@ -1773,12 +1753,14 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
     address_space_cache_init_empty(&indirect_desc_cache);
 
     RCU_READ_LOCK_GUARD();
-    if (virtio_queue_empty_rcu(vq)) {
+    if (unlikely(!vq->vring.avail)) {
         goto done;
     }
-    /* Needed after virtio_queue_empty(), see comment in
-     * virtqueue_num_heads(). */
-    smp_rmb();
+
+    rc = virtqueue_num_heads(vq, vq->last_avail_idx);
+    if (rc <= 0) {
+        goto done;
+    }
 
     /* When we start there are none of either input nor output. */
     out_num = in_num = elem_entries = 0;
