@@ -746,6 +746,10 @@ warn_flags = [
   '-Wno-typedef-redefinition',
 ]
 
+if get_option('optimization') == 'g'
+  warn_flags += ['-Wno-error=maybe-uninitialized']
+endif
+
 if host_os != 'darwin'
   tsa_has_cleanup = cc.compiles('''
     struct __attribute__((capability("mutex"))) mutex {};
