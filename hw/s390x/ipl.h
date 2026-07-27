@@ -124,6 +124,12 @@ static inline bool ipl_valid_pv_components(IplParameterBlock *iplb)
         return false;
     }
 
+    if (offsetof(IplParameterBlock, pv.components) +
+        ipib_pv->num_comp * sizeof(IPLBlockPVComp) >
+        be32_to_cpu(iplb->len)) {
+        return false;
+    }
+
     for (i = 0; i < ipib_pv->num_comp; i++) {
         /* Addr must be 4k aligned */
         if (ipib_pv->components[i].addr & ~TARGET_PAGE_MASK) {
