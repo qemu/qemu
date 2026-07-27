@@ -879,22 +879,22 @@ static bool flexcan_can_receive(CanBusClientState *client)
  */
 static void flexcan_fifo_pop(FlexcanState *s)
 {
-    if (s->regs.fifo.mb_back.can_ctrl != 0) {
+    if (s->regs.mbs[0].can_ctrl != 0) {
         /* move queue elements forward */
-        memmove(&s->regs.fifo.mb_back, &s->regs.fifo.mbs_queue[0],
-                sizeof(s->regs.fifo.mbs_queue));
+        memmove(&s->regs.mbs[0], &s->regs.mbs[1],
+                sizeof(s->regs.mbs[0]) * (FLEXCAN_FIFO_DEPTH - 1));
 
         /* clear the first-in slot */
         memset(&s->regs.mbs[FLEXCAN_FIFO_DEPTH - 1], 0,
                sizeof(FlexcanRegsMessageBuffer));
 
         trace_flexcan_fifo_pop(DEVICE(s)->canonical_path, 1,
-                               s->regs.fifo.mb_back.can_ctrl != 0);
+                               s->regs.mbs[0].can_ctrl != 0);
     } else {
         trace_flexcan_fifo_pop(DEVICE(s)->canonical_path, 0, 0);
     }
 
-    if (s->regs.fifo.mb_back.can_ctrl != 0) {
+    if (s->regs.mbs[0].can_ctrl != 0) {
         flexcan_irq_iflag_set(s, I_FIFO_AVAILABLE);
     } else {
         flexcan_irq_iflag_clear(s, I_FIFO_AVAILABLE);
