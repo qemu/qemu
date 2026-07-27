@@ -81,10 +81,7 @@ typedef struct FlexcanRegs {
     uint32_t _rx14mask;          /* 0xAA8 */
     uint32_t _rx15mask;          /* 0xAAC */
     uint32_t tx_smb[4];          /* 0xAB0 */
-    union {                      /* 0xAC0, used for SMB emulation */
-        uint32_t rx_smb0_raw[4];
-        FlexcanRegsMessageBuffer rx_smb0;
-    };
+    FlexcanRegsMessageBuffer rx_smb0; /* 0xAC0, used for SMB emulation */
     uint32_t rx_smb1[4];         /* 0xAD0 */
     uint32_t mecr;               /* 0xAE0 */
     uint32_t erriar;             /* 0xAE4 */

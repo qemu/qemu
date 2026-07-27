@@ -106,7 +106,11 @@ static const FlexcanRegs flexcan_regs_write_mask = {
     .gfwr_mx6 = 0xFFFFFFFF,
     ._reserved6 = {0},
     ._reserved8 = {0},
-    .rx_smb0_raw = {0, 0, 0, 0},
+    .rx_smb0 = {
+        .can_ctrl = 0,
+        .can_id = 0,
+        .data = { 0, 0 },
+    },
     .rx_smb1 = {0, 0, 0, 0},
 };
 static const FlexcanRegs flexcan_regs_reset_mask = {
@@ -145,7 +149,11 @@ static const FlexcanRegs flexcan_regs_reset_mask = {
     .gfwr_mx6 = 0,
     ._reserved6 = {0},
     ._reserved8 = {0},
-    .rx_smb0_raw = {0, 0, 0, 0},
+    .rx_smb0 = {
+        .can_ctrl = 0,
+        .can_id = 0,
+        .data = { 0, 0 },
+    },
     .rx_smb1 = {0, 0, 0, 0},
 };
 
