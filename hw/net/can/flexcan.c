@@ -134,7 +134,11 @@ static const FlexcanRegs flexcan_regs_reset_mask = {
     ._reserved2 = 0,
     .dbg1 = 0,
     .dbg2 = 0,
-    .mb = {0xFFFFFFFF},
+    .mbs = { [0 ... FLEXCAN_MAILBOX_COUNT - 1] = {
+        .can_ctrl = 0xFFFFFFFF,
+        .can_id = 0xFFFFFFFF,
+        .data = { 0xFFFFFFFF, 0xFFFFFFFF },
+    } },
     ._reserved4 = {0},
     .rximr = {0xFFFFFFFF},
     ._reserved5 = {0},
