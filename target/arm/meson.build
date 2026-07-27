@@ -37,6 +37,7 @@ arm_system_ss.add(when: 'CONFIG_HVF', if_true: files('hyp_gdbstub.c'))
 arm_user_ss.add(files('cpu.c'))
 arm_stubs_ss.add(files(
   'cpu32-stubs.c',
+  'gicv5-stubs.c',
   'kvm-stub.c'
 ))
 arm_user_ss.add(files(
