@@ -140,7 +140,7 @@ static const FlexcanRegs flexcan_regs_reset_mask = {
         .data = { 0xFFFFFFFF, 0xFFFFFFFF },
     } },
     ._reserved4 = {0},
-    .rximr = {0xFFFFFFFF},
+    .rximr = { [0 ... 63] = 0xFFFFFFFF },
     ._reserved5 = {0},
     .gfwr_mx6 = 0,
     ._reserved6 = {0},
