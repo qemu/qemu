@@ -243,7 +243,8 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *ebh)
     SCLPConsoleLM *scon = SCLPLM_CONSOLE(event);
 
     len = be16_to_cpu(data->mdb.header.length);
-    if (len < sizeof(data->mdb.header)) {
+    if (len < sizeof(data->mdb.header) ||
+        len > be16_to_cpu(data->header.length) - sizeof(EventBufferHeader)) {
         return SCLP_RC_INCONSISTENT_LENGTHS;
     }
     len -= sizeof(data->mdb.header);
