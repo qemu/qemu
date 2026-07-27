@@ -65,6 +65,7 @@ struct VirtIOIOMMU {
     GTree *domains;
     QemuRecMutex mutex;
     GTree *endpoints;
+    QEMUTimer *cmd_timer;
     bool boot_bypass;
     Notifier machine_done;
     bool granule_frozen;

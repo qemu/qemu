@@ -993,6 +993,18 @@ static int virtio_iommu_handle_probe(VirtIOIOMMU *s,
     return ret ? ret : virtio_iommu_probe(s, &req, buf);
 }
 
+static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq);
+
+static void virtio_iommu_handle_command_timer(void *opaque)
+{
+    VirtIOIOMMU *s = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+
+    if (virtio_device_started(vdev, vdev->status) && !vdev->broken) {
+        virtio_iommu_handle_command(vdev, s->req_vq);
+    }
+}
+
 static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOIOMMU *s = VIRTIO_IOMMU(vdev);
@@ -1003,9 +1015,16 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
     struct iovec *iov;
     void *buf = NULL;
     size_t sz;
+    unsigned int batch = 0;
 
     for (;;) {
         size_t output_size = sizeof(tail);
+
+        if (++batch > virtio_queue_get_num(vdev, virtio_get_queue_index(vq))) {
+            timer_mod(s->cmd_timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) + 1);
+            break;
+        }
 
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
@@ -1416,6 +1435,8 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     s->req_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE,
                              virtio_iommu_handle_command);
     s->event_vq = virtio_add_queue(vdev, VIOMMU_DEFAULT_QUEUE_SIZE, NULL);
+    s->cmd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
+                                virtio_iommu_handle_command_timer, s);
 
     /*
      * config.bypass is needed to get initial address space early, such as
@@ -1498,6 +1519,7 @@ static void virtio_iommu_device_unrealize(DeviceState *dev)
 
     qemu_rec_mutex_destroy(&s->mutex);
 
+    timer_free(s->cmd_timer);
     virtio_delete_queue(s->req_vq);
     virtio_delete_queue(s->event_vq);
     virtio_cleanup(vdev);
@@ -1508,6 +1530,8 @@ static void virtio_iommu_device_reset_exit(Object *obj, ResetType type)
     VirtIOIOMMU *s = VIRTIO_IOMMU(obj);
 
     trace_virtio_iommu_device_reset_exit();
+
+    timer_del(s->cmd_timer);
 
     if (s->domains) {
         g_tree_destroy(s->domains);
@@ -1628,6 +1652,11 @@ static int iommu_post_load(void *opaque, int version_id)
      * still correct.
      */
     virtio_iommu_switch_address_space_all(s);
+
+    if (virtio_device_started(VIRTIO_DEVICE(s), VIRTIO_DEVICE(s)->status)) {
+        timer_mod(s->cmd_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) + 1);
+    }
     return 0;
 }
 

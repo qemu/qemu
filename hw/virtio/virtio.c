@@ -763,6 +763,10 @@ static int virtio_queue_packed_empty_rcu(VirtQueue *vq)
     struct VRingPackedDesc desc;
     VRingMemoryRegionCaches *cache;
 
+    if (virtio_device_disabled(vq->vdev)) {
+        return 1;
+    }
+
     if (unlikely(!vq->vring.desc)) {
         return 1;
     }
@@ -1475,7 +1479,7 @@ static void virtqueue_packed_get_avail_bytes(VirtQueue *vq,
         }
 
         if (desc.flags & VRING_DESC_F_INDIRECT) {
-            if (desc.len % sizeof(VRingPackedDesc)) {
+            if (!desc.len || (desc.len % sizeof(VRingPackedDesc))) {
                 virtio_error(vdev, "Invalid size for indirect buffer table");
                 goto err;
             }
@@ -1927,7 +1931,7 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
     vring_packed_desc_read(vdev, &desc, desc_cache, i, true);
     id = desc.id;
     if (desc.flags & VRING_DESC_F_INDIRECT) {
-        if (desc.len % sizeof(VRingPackedDesc)) {
+        if (!desc.len || (desc.len % sizeof(VRingPackedDesc))) {
             virtio_error(vdev, "Invalid size for indirect buffer table");
             goto done;
         }
@@ -2418,6 +2422,11 @@ void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
         num < 0) {
         return;
     }
+    if (num > vdev->vq[n].vring.num_default) {
+        virtio_error(vdev, "virtio: queue %d size %d exceeds max size %u",
+                     n, num, vdev->vq[n].vring.num_default);
+        return;
+    }
     vdev->vq[n].vring.num = num;
 }
 
@@ -2567,6 +2576,17 @@ VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
 
     if (i == VIRTIO_QUEUE_MAX || queue_size > VIRTQUEUE_MAX_SIZE)
         abort();
+
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    if (qbus && qbus->parent &&
+        object_property_find(OBJECT(qbus->parent), VIRTIO_QUEUE_SIZE_OVERRIDE)) {
+        int override = object_property_get_int(OBJECT(qbus->parent),
+                                               VIRTIO_QUEUE_SIZE_OVERRIDE,
+                                               &error_abort);
+        if (override) {
+            queue_size = override;
+        }
+    }
 
     vdev->vq[i].vring.num = queue_size;
     vdev->vq[i].vring.num_default = queue_size;
@@ -2789,14 +2809,6 @@ static bool virtio_packed_virtqueue_needed(void *opaque)
 
 static bool virtio_ringsize_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
-    int i;
-
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        if (vdev->vq[i].vring.num != vdev->vq[i].vring.num_default) {
-            return true;
-        }
-    }
     return false;
 }
 
@@ -2885,7 +2897,7 @@ static const VMStateDescription vmstate_ringsize = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(vring.num_default, struct VirtQueue),
+        VMSTATE_UNUSED(sizeof(uint32_t)),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -3320,7 +3332,7 @@ static int virtio_set_features_nocheck(VirtIODevice *vdev, const uint64_t *val)
     virtio_features_and(tmp, val, vdev->host_features_ex);
 
     if (k->set_features_ex) {
-        k->set_features_ex(vdev, val);
+        k->set_features_ex(vdev, tmp);
     } else if (k->set_features) {
         bad = bad || virtio_features_use_ex(tmp);
         k->set_features(vdev, tmp[0]);
@@ -3497,7 +3509,7 @@ int coroutine_mixed_fn
 virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 {
     int i, ret;
-    int32_t config_len;
+    uint32_t config_len;
     uint32_t num;
     uint32_t features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -3545,6 +3557,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     qemu_get_buffer(f, vdev->config, MIN(config_len, vdev->config_len));
 
     while (config_len > vdev->config_len) {
+        if (qemu_file_get_error(f)) {
+            return -1;
+        }
         qemu_get_byte(f);
         config_len--;
     }
@@ -3565,6 +3580,12 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     for (i = 0; i < num; i++) {
         vdev->vq[i].vring.num = qemu_get_be32(f);
+        if (vdev->vq[i].vring.num > vdev->vq[i].vring.num_default) {
+            error_report("VQ %d vring.num %u exceeds allocated max %u",
+                         i, vdev->vq[i].vring.num,
+                         vdev->vq[i].vring.num_default);
+            return -1;
+        }
         if (k->has_variable_vring_alignment) {
             vdev->vq[i].vring.align = qemu_get_be32(f);
         }

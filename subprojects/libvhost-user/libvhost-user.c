@@ -1200,6 +1200,12 @@ vu_set_vring_num_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     DPRINT("State.index: %u\n", index);
     DPRINT("State.num:   %u\n", num);
+
+    if (index >= dev->max_queues) {
+        vu_panic(dev, "Invalid vring_num index: %u", index);
+        return false;
+    }
+
     dev->vq[index].vring.num = num;
 
     return false;
@@ -1210,7 +1216,7 @@ vu_set_vring_addr_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
     struct vhost_vring_addr addr = vmsg->payload.addr, *vra = &addr;
     unsigned int index = vra->index;
-    VuVirtq *vq = &dev->vq[index];
+    VuVirtq *vq;
 
     DPRINT("vhost_vring_addr:\n");
     DPRINT("    index:  %d\n", vra->index);
@@ -1220,6 +1226,12 @@ vu_set_vring_addr_exec(VuDev *dev, VhostUserMsg *vmsg)
     DPRINT("    avail_user_addr:  0x%016" PRIx64 "\n", (uint64_t)vra->avail_user_addr);
     DPRINT("    log_guest_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->log_guest_addr);
 
+    if (index >= dev->max_queues) {
+        vu_panic(dev, "Invalid vring_addr index: %u", index);
+        return false;
+    }
+
+    vq = &dev->vq[index];
     vq->vra = *vra;
     vq->vring.flags = vra->flags;
     vq->vring.log_guest_addr = vra->log_guest_addr;
@@ -1256,6 +1268,12 @@ vu_set_vring_base_exec(VuDev *dev, VhostUserMsg *vmsg)
 
     DPRINT("State.index: %u\n", index);
     DPRINT("State.num:   %u\n", num);
+
+    if (index >= dev->max_queues) {
+        vu_panic(dev, "Invalid vring_base index: %u", index);
+        return false;
+    }
+
     dev->vq[index].shadow_avail_idx = dev->vq[index].last_avail_idx = num;
 
     return false;
@@ -1267,6 +1285,14 @@ vu_get_vring_base_exec(VuDev *dev, VhostUserMsg *vmsg)
     unsigned int index = vmsg->payload.state.index;
 
     DPRINT("State.index: %u\n", index);
+
+    if (index >= dev->max_queues) {
+        vu_panic(dev, "Invalid vring_base index: %u", index);
+        vmsg->payload.state.num = 0;
+        vmsg->size = sizeof(vmsg->payload.state);
+        return true;
+    }
+
     vmsg->payload.state.num = dev->vq[index].last_avail_idx;
     vmsg->size = sizeof(vmsg->payload.state);
 
@@ -1353,6 +1379,12 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
     vq->counter = 0;
 
     if (unlikely(vq->inflight->used_idx != vq->used_idx)) {
+        if (vq->inflight->last_batch_head >= vq->inflight->desc_num) {
+            vu_panic(dev, "vu_check_queue_inflights: last_batch_head %u "
+                     "out of range (desc_num %u)",
+                     vq->inflight->last_batch_head, vq->inflight->desc_num);
+            return -1;
+        }
         vq->inflight->desc[vq->inflight->last_batch_head].inflight = 0;
 
         barrier();
@@ -1376,6 +1408,13 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
 
         for (i = 0; i < vq->inflight->desc_num; i++) {
             if (vq->inflight->desc[i].inflight) {
+                /*
+                 * We earlier counted exactly vq->inuse in flight -
+                 * what is going on?
+                 */
+                if (vq->resubmit_num >= vq->inuse) {
+                    return -1;
+                }
                 vq->resubmit_list[vq->resubmit_num].index = i;
                 vq->resubmit_list[vq->resubmit_num].counter =
                                         vq->inflight->desc[i].counter;
@@ -1998,12 +2037,23 @@ vu_get_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
 
     if (vmsg->size != sizeof(vmsg->payload.inflight)) {
         vu_panic(dev, "Invalid get_inflight_fd message:%d", vmsg->size);
+        vmsg_close_fds(vmsg);
+        vmsg->fd_num = 0;
         vmsg->payload.inflight.mmap_size = 0;
         return true;
     }
 
     num_queues = vmsg->payload.inflight.num_queues;
     queue_size = vmsg->payload.inflight.queue_size;
+
+    if (num_queues > dev->max_queues) {
+        vu_panic(dev, "Invalid get_inflight_fd num_queues: %"PRId16,
+                 num_queues);
+        vmsg_close_fds(vmsg);
+        vmsg->fd_num = 0;
+        vmsg->payload.inflight.mmap_size = 0;
+        return true;
+    }
 
     DPRINT("set_inflight_fd num_queues: %"PRId16"\n", num_queues);
     DPRINT("set_inflight_fd queue_size: %"PRId16"\n", queue_size);
@@ -2052,6 +2102,7 @@ vu_set_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
         vmsg->size != sizeof(vmsg->payload.inflight)) {
         vu_panic(dev, "Invalid set_inflight_fd message size:%d fds:%d",
                  vmsg->size, vmsg->fd_num);
+        vmsg_close_fds(vmsg);
         return false;
     }
 
@@ -2060,6 +2111,13 @@ vu_set_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
     mmap_offset = vmsg->payload.inflight.mmap_offset;
     num_queues = vmsg->payload.inflight.num_queues;
     queue_size = vmsg->payload.inflight.queue_size;
+
+    if (num_queues > dev->max_queues) {
+        vu_panic(dev, "Invalid set_inflight_fd num_queues: %"PRId16,
+                 num_queues);
+        close(fd);
+        return false;
+    }
 
     DPRINT("set_inflight_fd mmap_size: %"PRId64"\n", mmap_size);
     DPRINT("set_inflight_fd mmap_offset: %"PRId64"\n", mmap_offset);
@@ -2071,6 +2129,7 @@ vu_set_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
 
     if (rc == MAP_FAILED) {
         vu_panic(dev, "set_inflight_fd mmap error: %s", strerror(errno));
+        close(fd);
         return false;
     }
 

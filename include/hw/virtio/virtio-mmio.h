@@ -69,6 +69,7 @@ struct VirtIOMMIOProxy {
     /* Fields only used for non-legacy (v2) devices */
     uint32_t guest_features[2];
     VirtIOMMIOQueue vqs[VIRTIO_QUEUE_MAX];
+    uint16_t override_queue_size;
 };
 
 #endif
