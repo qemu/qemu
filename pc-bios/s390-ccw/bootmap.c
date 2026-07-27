@@ -902,7 +902,7 @@ static inline long iso_get_file_size(uint32_t load_rba)
         if (dir_rem[level] == 0) {
             /* Nothing remaining */
             level--;
-            if (virtio_read(sec_loc[level], temp)) {
+            if (level >= 0 && virtio_read(sec_loc[level], temp)) {
                 puts("Failed to read ISO directory");
                 return -EIO;
             }
