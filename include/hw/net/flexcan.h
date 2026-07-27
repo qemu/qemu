@@ -65,10 +65,8 @@ typedef struct FlexcanRegs {
     uint32_t dbg1;               /* 0x58, unused */
     uint32_t dbg2;               /* 0x5C, unused */
     uint32_t _reserved3[8];      /* 0x60 */
-    union {                      /* 0x80 - not affected by soft reset */
-        uint32_t mb[sizeof(FlexcanRegsMessageBuffer) * FLEXCAN_MAILBOX_COUNT];
-        FlexcanRegsMessageBuffer mbs[FLEXCAN_MAILBOX_COUNT];
-    };
+    /* 0x80 - not affected by soft reset */
+    FlexcanRegsMessageBuffer mbs[FLEXCAN_MAILBOX_COUNT];
     uint32_t _reserved4[256];    /* 0x480 */
     uint32_t rximr[64];          /* 0x880 - not affected by soft reset */
     uint32_t _reserved5[24];     /* 0x980 */
