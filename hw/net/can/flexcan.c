@@ -1151,6 +1151,8 @@ static void flexcan_mem_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     FlexcanState *s = opaque;
+    const int mbid = (addr - offsetof(FlexcanRegs, mbs)) /
+        sizeof(s->regs.mbs[0]);
     uint32_t write_mask = ((const uint32_t *)
         &flexcan_regs_write_mask)[addr / 4];
     uint32_t old_value = s->regs_raw[addr / 4];
@@ -1208,11 +1210,8 @@ static void flexcan_mem_write(void *opaque, hwaddr addr, uint64_t val,
     default:
         s->regs_raw[addr / 4] = (val & write_mask) | (old_value & ~write_mask);
 
-        if (addr >= offsetof(FlexcanRegs, mb) &&
-            addr < offsetof(FlexcanRegs, _reserved4)) {
+        if (0 <= mbid && mbid < ARRAY_SIZE(s->regs.mbs)) {
             /* access to mailbox */
-            int mbid = (addr - offsetof(FlexcanRegs, mb)) /
-                            sizeof(FlexcanRegsMessageBuffer);
 
             if (s->locked_mbidx == mbid) {
                 flexcan_mb_unlock(s);
