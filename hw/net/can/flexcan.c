@@ -1075,7 +1075,7 @@ static enum FlexcanRx flexcan_mb_rx(FlexcanState *s, const qemu_can_frame *buf)
         }
     }
 
-    if (last_not_free_to_receive_mbid >= -1) {
+    if (last_not_free_to_receive_mbid >= 0) {
         if (last_not_free_to_receive_locked) {
             /*
              * copy to temporary mailbox (SMB)
