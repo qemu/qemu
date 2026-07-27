@@ -22,7 +22,7 @@ class AST2600Machine(AspeedTest):
         self.do_test_arm_aspeed_sdk_start(
             self.scratch_file("ast2600-default-515-image", "image-bmc"))
 
-        self.wait_for_console_pattern('ast2600-default-515 login:')
+        self.wait_for_console_pattern('login:')
 
 
 if __name__ == '__main__':

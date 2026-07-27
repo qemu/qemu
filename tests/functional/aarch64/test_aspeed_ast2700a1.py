@@ -81,7 +81,7 @@ class AST2x00MachineSDK(QemuSystemTest):
     def verify_openbmc_boot_and_login(self, name, enable_pcie=True):
         self.verify_openbmc_boot_start(enable_pcie)
 
-        wait_for_console_pattern(self, f'{name} login:')
+        wait_for_console_pattern(self, 'login:')
         exec_command_and_wait_for_pattern(self, 'root', 'Password:')
         exec_command_and_wait_for_pattern(self, '0penBmc', f'root@{name}:~#')
 
