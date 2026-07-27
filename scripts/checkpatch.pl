@@ -1539,6 +1539,8 @@ sub process {
 
 	our $clean = 1;
 	my $signoff = 0;
+	my $author_email = '';
+	my %commit_trailers = ();
 	my $is_patch = 0;
 
 	my $in_header_lines = $file ? 0 : 1;
@@ -1795,6 +1797,14 @@ sub process {
 		    ERROR("Author email address is mangled by the mailing list\n" . $herecurr);
 		}
 
+# Extract author email for trailer checks
+		if ($in_header_lines && $line =~ /^(?:Author|From):\s*(.*)/) {
+			my $author_info = $1;
+			if ($author_info =~ /<([^>]+)>/) {
+				$author_email = $1;
+			}
+		}
+
 #check the patch for a signoff:
 		if ($line =~ /^\s*signed-off-by:/i) {
 			# This is a signoff, if ugly, so do not double report.
@@ -1821,6 +1831,28 @@ sub process {
 			     \bclaude\b.*(?:opus|sonnet|fable|haiku|anthropic\.com)/xi))) {
 			ERROR("QEMU does not allow using AI for contributions, " .
 				"see docs/devel/code-provenance.rst\n" . $herecurr);
+		}
+
+# Check for duplicate trailers and self-review
+		if (!$in_header_lines &&
+		    $line =~ /^\s*([A-Z][a-zA-Z]*(?:-[a-zA-Z]+)*):\s*(.+)/) {
+			my $trailer_type = $1;
+			my $trailer_value = $2;
+			$trailer_value =~ s/\s+$//;
+			my $trailer_key = lc("$trailer_type: $trailer_value");
+
+			if (exists $commit_trailers{$trailer_key}) {
+				WARN("Duplicate '$trailer_type' trailer\n" .
+					$herecurr);
+			}
+			$commit_trailers{$trailer_key} = 1;
+
+			if ($trailer_type =~ /^(?:Reviewed|Tested|Acked)-by$/ &&
+			    $author_email ne '' &&
+			    $trailer_value =~ /<\Q$author_email\E>/i) {
+				WARN("$trailer_type from the patch author\n" .
+					$herecurr);
+			}
 		}
 
 # Check SPDX-License-Identifier references a permitted license
