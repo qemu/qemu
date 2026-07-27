@@ -1239,14 +1239,12 @@ static void flexcan_mem_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t flexcan_mem_read(void *opqaue, hwaddr addr, unsigned size)
 {
     FlexcanState *s = opqaue;
+    const int mbid = (addr - offsetof(FlexcanRegs, mbs)) /
+        sizeof(s->regs.mbs[0]);
     uint32_t rv = s->regs_raw[addr >> 2];
 
-    if (addr >= offsetof(FlexcanRegs, mb) &&
-        addr < offsetof(FlexcanRegs, _reserved4)) {
+    if (0 <= mbid && mbid < ARRAY_SIZE(s->regs.mbs)) {
         /* reading from mailbox */
-        hwaddr offset = addr - offsetof(FlexcanRegs, mb);
-        int mbid = offset / sizeof(FlexcanRegsMessageBuffer);
-
         if (addr % 16 == 0 && s->locked_mbidx != mbid) {
             /* reading control word locks the mailbox */
             flexcan_mb_unlock(s);
