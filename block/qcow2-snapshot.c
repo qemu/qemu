@@ -740,12 +740,6 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
                           ROUND_UP(sn->vm_state_size, s->cluster_size),
                           QCOW2_DISCARD_NEVER, false);
 
-#ifdef DEBUG_ALLOC
-    {
-      BdrvCheckResult result = {0};
-      qcow2_check_refcounts(bs, &result, 0);
-    }
-#endif
     return 0;
 
 fail:
@@ -893,12 +887,6 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto fail;
     }
 
-#ifdef DEBUG_ALLOC
-    {
-        BdrvCheckResult result = {0};
-        qcow2_check_refcounts(bs, &result, 0);
-    }
-#endif
     return 0;
 
 fail:
@@ -975,12 +963,6 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
         return ret;
     }
 
-#ifdef DEBUG_ALLOC
-    {
-        BdrvCheckResult result = {0};
-        qcow2_check_refcounts(bs, &result, 0);
-    }
-#endif
     return 0;
 }
 

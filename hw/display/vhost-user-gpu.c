@@ -119,6 +119,31 @@ static VhostUserGpuMsg m __attribute__ ((unused));
 
 static void vhost_user_gpu_update_blocked(VhostUserGPU *g, bool blocked);
 
+static size_t
+vhost_user_gpu_min_payload_size(VhostUserGpuRequest request)
+{
+    switch (request) {
+    case VHOST_USER_GPU_CURSOR_POS:
+    case VHOST_USER_GPU_CURSOR_POS_HIDE:
+        return sizeof(VhostUserGpuCursorPos);
+    case VHOST_USER_GPU_CURSOR_UPDATE:
+        return sizeof(VhostUserGpuCursorUpdate);
+    case VHOST_USER_GPU_GET_EDID:
+        return sizeof(VhostUserGpuEdidRequest);
+    case VHOST_USER_GPU_SCANOUT:
+        return sizeof(VhostUserGpuScanout);
+    case VHOST_USER_GPU_DMABUF_SCANOUT:
+        return sizeof(VhostUserGpuDMABUFScanout);
+    case VHOST_USER_GPU_DMABUF_SCANOUT2:
+        return sizeof(VhostUserGpuDMABUFScanout2);
+    case VHOST_USER_GPU_DMABUF_UPDATE:
+    case VHOST_USER_GPU_UPDATE:
+        return sizeof(VhostUserGpuUpdate);
+    default:
+        return 0;
+    }
+}
+
 static void
 vhost_user_gpu_handle_cursor(VhostUserGPU *g, VhostUserGpuMsg *msg)
 {
@@ -322,6 +347,14 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         if (m->scanout_id >= g->parent_obj.conf.max_outputs) {
             break;
         }
+
+        if ((uint64_t)m->width * m->height >
+            (msg->size - sizeof(VhostUserGpuUpdate)) / sizeof(uint32_t)) {
+            error_report("vhost-user-gpu: update payload too small"
+                         " for %ux%u", m->width, m->height);
+            break;
+        }
+
         s = &g->parent_obj.scanout[m->scanout_id];
         con = s->con;
         pixman_image_t *image =
@@ -395,6 +428,11 @@ vhost_user_gpu_chr_read(void *opaque)
     msg->request = request;
     msg->flags = flags;
     msg->size = size;
+
+    if (size < vhost_user_gpu_min_payload_size(request)) {
+        error_report("vhost-user-gpu: message %d payload too small", request);
+        goto end;
+    }
 
     if (request == VHOST_USER_GPU_CURSOR_UPDATE ||
         request == VHOST_USER_GPU_CURSOR_POS ||
