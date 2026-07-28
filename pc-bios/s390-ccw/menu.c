@@ -16,6 +16,7 @@
 #include "s390-ccw.h"
 #include "sclp.h"
 #include "s390-time.h"
+#include "helper.h"
 
 #define KEYCODE_NO_INP '\0'
 #define KEYCODE_ESCAPE '\033'
@@ -25,6 +26,9 @@
 /* Offsets from zipl fields to zipl banner start */
 #define ZIPL_TIMEOUT_OFFSET 138
 #define ZIPL_FLAG_OFFSET    140
+
+/* Max printable chars for a zipl boot menu entry */
+#define ZIPL_ENTRY_MAX 80
 
 #define TOD_CLOCK_MILLISECOND   0x3e8000
 
@@ -179,8 +183,12 @@ int menu_get_boot_index(bool *valid_entries)
 /* Returns the entry number that was printed, or -1 on invalid entry */
 static int zipl_print_entry(const char *data, size_t len)
 {
-    char buf[len + 2];
+    char buf[ZIPL_ENTRY_MAX + 2];
     const char *p;
+
+    if (len > ZIPL_ENTRY_MAX) {
+        len = ZIPL_ENTRY_MAX;
+    }
 
     ebcdic_to_ascii(data, buf, len);
     buf[len] = '\n';
@@ -196,7 +204,7 @@ static int zipl_print_entry(const char *data, size_t len)
     return atoi(p);
 }
 
-int menu_get_zipl_boot_index(const char *menu_data)
+int menu_get_zipl_boot_index(const char *menu_data, const char *menu_data_end)
 {
     size_t len;
     int entry;
@@ -212,13 +220,22 @@ int menu_get_zipl_boot_index(const char *menu_data)
         timeout = zipl_timeout * 1000;
     }
 
-    /* Print banner */
+    if (menu_data >= menu_data_end) {
+        return 0; /* Boot default */
+    }
+
+    /* Skip banner */
+    len = strnlen(menu_data, menu_data_end - menu_data);
+    menu_data += len + 1;
+    if (menu_data >= menu_data_end || !(*menu_data)) {
+        return 0; /* No entries, boot default */
+    }
+
     puts("s390-ccw zIPL Boot Menu\n");
-    menu_data += strlen(menu_data) + 1;
 
     /* Print entries */
-    while (*menu_data) {
-        len = strlen(menu_data);
+    while (menu_data < menu_data_end && *menu_data) {
+        len = strnlen(menu_data, menu_data_end - menu_data);
         entry = zipl_print_entry(menu_data, len);
         menu_data += len + 1;
 
