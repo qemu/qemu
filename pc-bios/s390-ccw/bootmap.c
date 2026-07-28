@@ -61,6 +61,7 @@ static uint8_t _s2[MAX_SECTOR_SIZE * 3] __attribute__((__aligned__(PAGE_SIZE)));
 static void *s2_prev_blk = _s2;
 static void *s2_cur_blk = _s2 + MAX_SECTOR_SIZE;
 static void *s2_next_blk = _s2 + MAX_SECTOR_SIZE * 2;
+static void *s2_end = _s2 + sizeof(_s2);
 
 static inline int verify_boot_info(BootInfo *bip)
 {
@@ -308,7 +309,8 @@ static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
                 }
             }
 
-            return menu_get_zipl_boot_index(s2_cur_blk + banner_offset);
+            return menu_get_zipl_boot_index(s2_cur_blk + banner_offset,
+                                            s2_end);
         }
 
         prev_block_nr = cur_block_nr;
