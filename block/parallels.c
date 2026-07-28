@@ -52,6 +52,7 @@
 #define HEADER_VERSION 2
 #define HEADER_INUSE_MAGIC  (0x746F6E59)
 #define MAX_PARALLELS_IMAGE_FACTOR (1ull << 32)
+#define PARALLELS_HEADER_READ_CHUNK (64 * 1024 * 1024)
 
 static QEnumLookup prealloc_mode_lookup = {
     .array = (const char *const[]) {
@@ -118,6 +119,7 @@ static uint32_t bat_entry_off(uint32_t idx)
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
     uint32_t index, offset;
+    int64_t cluster_off;
 
     index = sector_num / s->tracks;
     offset = sector_num % s->tracks;
@@ -126,7 +128,14 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     if ((index >= s->bat_size) || (s->bat_bitmap[index] == 0)) {
         return -1;
     }
-    return bat2sect(s, index) + offset;
+
+    cluster_off = bat2sect(s, index);
+    if (cluster_off < s->data_start || cluster_off + s->tracks > s->data_end) {
+        /* Cluster is outside of the image file or overlaps the header. */
+        return -1;
+    }
+
+    return cluster_off + offset;
 }
 
 static int cluster_remainder(BDRVParallelsState *s, int64_t sector_num,
@@ -702,18 +711,22 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
 {
     BDRVParallelsState *s = bs->opaque;
     uint32_t i;
-    int64_t off, high_off, size;
+    int64_t off, high_off, size, data_start_off;
 
     size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
         res->check_errors++;
         return size;
     }
+    data_start_off = s->data_start << BDRV_SECTOR_BITS;
 
     high_off = 0;
     for (i = 0; i < s->bat_size; i++) {
         off = bat2sect(s, i) << BDRV_SECTOR_BITS;
-        if (off + s->cluster_size > size) {
+        if (off == 0) {
+            continue;
+        }
+        if (off < data_start_off || off + s->cluster_size > size) {
             fprintf(stderr, "%s cluster %u is outside image\n",
                     fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
             res->corruptions++;
@@ -998,7 +1011,8 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
     BlockdevCreateOptionsParallels *parallels_opts;
     BlockDriverState *bs;
     BlockBackend *blk;
-    int64_t total_size, cl_size;
+    int64_t total_size, cl_size, bat_count;
+    uint64_t cylinders;
     uint32_t bat_entries, bat_sectors;
     ParallelsHeader header;
     uint8_t tmp[BDRV_SECTOR_SIZE];
@@ -1016,14 +1030,20 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
         cl_size = DEFAULT_CLUSTER_SIZE;
     }
 
-    /* XXX What is the real limit here? This is an insanely large maximum. */
+    /* Bounds cl_size so the multiplication below can't overflow int64_t. */
     if (cl_size >= INT64_MAX / MAX_PARALLELS_IMAGE_FACTOR) {
         error_setg(errp, "Cluster size is too large");
         return -EINVAL;
     }
-    if (total_size >= MAX_PARALLELS_IMAGE_FACTOR * cl_size) {
+    if (cl_size <= 0 || total_size >= MAX_PARALLELS_IMAGE_FACTOR * cl_size) {
         error_setg(errp, "Image size is too large for this cluster size");
         return -E2BIG;
+    }
+
+    bat_count = DIV_ROUND_UP(total_size, cl_size);
+    if (bat_count > INT_MAX / (int64_t)sizeof(uint32_t)) {
+        error_setg(errp, "Catalog too large");
+        return -EFBIG;
     }
 
     if (!QEMU_IS_ALIGNED(total_size, BDRV_SECTOR_SIZE)) {
@@ -1051,7 +1071,7 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create image format */
-    bat_entries = DIV_ROUND_UP(total_size, cl_size);
+    bat_entries = bat_count;
     bat_sectors = DIV_ROUND_UP(bat_entry_off(bat_entries), cl_size);
     bat_sectors = (bat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
 
@@ -1060,8 +1080,12 @@ parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
     header.version = cpu_to_le32(HEADER_VERSION);
     /* don't care much about geometry, it is not used on image level */
     header.heads = cpu_to_le32(HEADS_NUMBER);
-    header.cylinders = cpu_to_le32(total_size / BDRV_SECTOR_SIZE
-                                   / HEADS_NUMBER / SEC_IN_CYL);
+    cylinders = total_size / BDRV_SECTOR_SIZE / HEADS_NUMBER / SEC_IN_CYL;
+    /* Write only by spec, do not care */
+    if (cylinders >= UINT32_MAX) {
+        cylinders = UINT32_MAX;
+    }
+    header.cylinders = cpu_to_le32(cylinders);
     header.tracks = cpu_to_le32(cl_size >> BDRV_SECTOR_BITS);
     header.bat_entries = cpu_to_le32(bat_entries);
     header.nb_sectors = cpu_to_le64(DIV_ROUND_UP(total_size, BDRV_SECTOR_SIZE));
@@ -1240,7 +1264,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
-    int ret, size, i;
+    int ret, i;
+    uint32_t size, header_off;
     int64_t file_nb_sectors, sector;
     uint32_t data_start;
     bool need_check = false;
@@ -1303,6 +1328,12 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         return -EFBIG;
     }
 
+    if ((uint64_t)s->bat_size * s->tracks < bs->total_sectors) {
+        error_setg(errp, "Invalid image: Catalog size too small for "
+                   "advertised disk size");
+        return -EINVAL;
+    }
+
     size = bat_entry_off(s->bat_size);
     s->header_size = ROUND_UP(size, bdrv_opt_mem_align(bs->file->bs));
     s->header = qemu_try_blockalign(bs->file->bs, s->header_size);
@@ -1310,9 +1341,17 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         return -ENOMEM;
     }
 
-    ret = bdrv_pread(bs->file, 0, s->header_size, s->header, 0);
-    if (ret < 0) {
-        goto fail;
+    /* A single request s->header_size large exceeds BDRV_REQUEST_MAX_BYTES. */
+    for (header_off = 0; header_off < s->header_size;
+         header_off += PARALLELS_HEADER_READ_CHUNK) {
+        uint32_t chunk = MIN(s->header_size - header_off,
+                             PARALLELS_HEADER_READ_CHUNK);
+
+        ret = bdrv_pread(bs->file, header_off, chunk,
+                         (uint8_t *)s->header + header_off, 0);
+        if (ret < 0) {
+            goto fail;
+        }
     }
     s->bat_bitmap = (uint32_t *)(s->header + 1);
 
@@ -1377,11 +1416,18 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     for (i = 0; i < s->bat_size; i++) {
         sector = bat2sect(s, i);
+        if (sector == 0) {
+            continue; /* not allocated */
+        }
+        if (sector < data_start || sector + s->tracks > file_nb_sectors) {
+            /* Cluster is outside of the image file or overlaps the header. */
+            need_check = true;
+            continue;
+        }
         if (sector + s->tracks > s->data_end) {
             s->data_end = sector + s->tracks;
         }
     }
-    need_check = need_check || s->data_end > file_nb_sectors;
 
     if (!need_check) {
         ret = parallels_fill_used_bitmap(bs);

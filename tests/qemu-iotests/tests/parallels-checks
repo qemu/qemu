@@ -44,6 +44,7 @@ _supported_os Linux
 SIZE=$((4 * 1024 * 1024))
 IMGFMT=parallels
 CLUSTER_SIZE_OFFSET=28
+BAT_ENTRIES_OFFSET=32
 DATA_OFF_OFFSET=48
 BAT_OFFSET=64
 
@@ -198,6 +199,107 @@ _check_test_img -r all
 
 echo "== check first cluster =="
 { $QEMU_IO -r -c "read -P 0x55 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST HUGE BAT TABLE OPEN =="
+
+# Overflows a single read request, but stays under parallels_open()'s
+# own catalog-size cap.
+BAT_ENTRIES=536870896
+HEADER_SIZE=$((64 + 4 * BAT_ENTRIES))
+
+echo "== advertise a BAT table larger than BDRV_REQUEST_MAX_BYTES =="
+poke_file "$TEST_IMG" "$BAT_ENTRIES_OFFSET" "\xf0\xff\xff\x1f"
+
+echo "== grow the file to match, without writing real data =="
+truncate -s $HEADER_SIZE "$TEST_IMG"
+
+echo "== open must succeed: the header/BAT read is chunked =="
+_img_info
+
+echo "== an unallocated cluster still reads as zeroes =="
+{ $QEMU_IO -r -c "read -P 0x00 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST OVERSIZED VIRTUAL DISK CHECK =="
+
+BAT_ENTRIES_OFFSET=32
+NB_SECTORS_OFFSET=36
+
+TRACKS=$(peek_file_le $TEST_IMG $CLUSTER_SIZE_OFFSET 4)
+BAT_ENTRIES=$(peek_file_le $TEST_IMG $BAT_ENTRIES_OFFSET 4)
+COVERED_SECTORS=$((BAT_ENTRIES * TRACKS))
+
+echo "== advertise one more cluster than the BAT covers =="
+poke_file_le "$TEST_IMG" $NB_SECTORS_OFFSET 8 $((COVERED_SECTORS + TRACKS))
+
+echo "== open must fail cleanly instead of aborting =="
+_img_info
+
+echo "== write into the uncovered range must fail cleanly too =="
+{ $QEMU_IO -c "write -P 0x41 $((COVERED_SECTORS * 512)) $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST BAT ENTRY POINTING OUTSIDE IMAGE =="
+
+echo "== corrupt image: point first cluster far outside the file =="
+poke_file_le "$TEST_IMG" $BAT_OFFSET 4 1000000
+
+echo "== read-only read must return zeroes, not an I/O error =="
+{ $QEMU_IO -r -c "read -P 0x00 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== write must allocate a fresh cluster instead of trusting the entry =="
+{ $QEMU_IO -c "write -P 0x77 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== file did not grow anywhere near the bogus offset =="
+file_size=`stat --printf="%s" "$TEST_IMG"`
+if [ "$file_size" -lt $((16 * 1024 * 1024)) ]; then
+    echo "file size sane: yes"
+else
+    echo "file size sane: no ($file_size bytes)"
+fi
+
+echo "== data reads back correctly =="
+{ $QEMU_IO -r -c "read -P 0x77 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image, with a small cluster size so the BAT table itself spans
+# more than one cluster and there is room to point before data_off.
+_make_test_img -o cluster_size=512 65536
+
+SMALL_CLUSTER_SIZE=$(peek_file_le $TEST_IMG $CLUSTER_SIZE_OFFSET 4)
+SMALL_CLUSTER_SIZE=$((SMALL_CLUSTER_SIZE * 512))
+DATA_OFF=$(peek_file_le $TEST_IMG $DATA_OFF_OFFSET 4)
+echo "cluster size: $SMALL_CLUSTER_SIZE, data offset (sectors): $DATA_OFF"
+
+# Cluster index 1 starts at this byte offset, which must be < data_off
+# in sectors * 512 for this test to actually exercise the bug.
+VICTIM_OFFSET=$SMALL_CLUSTER_SIZE
+
+echo "== TEST BAT ENTRY POINTING BEFORE DATA AREA =="
+
+echo "== corrupt image: point first cluster into the BAT table itself =="
+poke_file_le "$TEST_IMG" $BAT_OFFSET 4 1
+
+echo "== qemu-img check detects it without repairing =="
+_check_test_img
+
+echo "== bytes at the victim offset before write =="
+echo "$(peek_file_le "$TEST_IMG" $VICTIM_OFFSET 4)"
+
+echo "== write must allocate a fresh cluster instead of clobbering the BAT =="
+{ $QEMU_IO -c "write -P 0x88 0 $SMALL_CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== bytes at the victim offset are unchanged =="
+echo "$(peek_file_le "$TEST_IMG" $VICTIM_OFFSET 4)"
+
+echo "== data reads back correctly =="
+{ $QEMU_IO -r -c "read -P 0x88 0 $SMALL_CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"
