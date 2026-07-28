@@ -375,9 +375,9 @@ static int vfu_object_mr_rw(MemoryRegion *mr, uint8_t *buf, hwaddr offset,
         ram_ptr = memory_region_get_ram_ptr(mr);
 
         if (is_write) {
-            memmove((ram_ptr + offset), buf, size);
+            qemu_ram_move((ram_ptr + offset), buf, size);
         } else {
-            memmove(buf, (ram_ptr + offset), size);
+            qemu_ram_move(buf, (ram_ptr + offset), size);
         }
 
         return 0;
