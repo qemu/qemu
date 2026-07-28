@@ -375,9 +375,9 @@ static int vfu_object_mr_rw(MemoryRegion *mr, uint8_t *buf, hwaddr offset,
         ram_ptr = memory_region_get_ram_ptr(mr);
 
         if (is_write) {
-            memcpy((ram_ptr + offset), buf, size);
+            memmove((ram_ptr + offset), buf, size);
         } else {
-            memcpy(buf, (ram_ptr + offset), size);
+            memmove(buf, (ram_ptr + offset), size);
         }
 
         return 0;
