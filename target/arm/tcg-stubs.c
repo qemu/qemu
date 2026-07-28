@@ -43,7 +43,3 @@ void vfp_clear_float_status_exc_flags(CPUARMState *env)
 void vfp_set_fpcr_to_host(CPUARMState *env, uint32_t val, uint32_t mask)
 {
 }
-
-void gicv5_update_ppi_state(CPUARMState *env, int ppi, bool level)
-{
-}

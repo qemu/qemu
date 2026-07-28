@@ -106,7 +106,11 @@ static const FlexcanRegs flexcan_regs_write_mask = {
     .gfwr_mx6 = 0xFFFFFFFF,
     ._reserved6 = {0},
     ._reserved8 = {0},
-    .rx_smb0_raw = {0, 0, 0, 0},
+    .rx_smb0 = {
+        .can_ctrl = 0,
+        .can_id = 0,
+        .data = { 0, 0 },
+    },
     .rx_smb1 = {0, 0, 0, 0},
 };
 static const FlexcanRegs flexcan_regs_reset_mask = {
@@ -134,14 +138,22 @@ static const FlexcanRegs flexcan_regs_reset_mask = {
     ._reserved2 = 0,
     .dbg1 = 0,
     .dbg2 = 0,
-    .mb = {0xFFFFFFFF},
+    .mbs = { [0 ... FLEXCAN_MAILBOX_COUNT - 1] = {
+        .can_ctrl = 0xFFFFFFFF,
+        .can_id = 0xFFFFFFFF,
+        .data = { 0xFFFFFFFF, 0xFFFFFFFF },
+    } },
     ._reserved4 = {0},
-    .rximr = {0xFFFFFFFF},
+    .rximr = { [0 ... 63] = 0xFFFFFFFF },
     ._reserved5 = {0},
     .gfwr_mx6 = 0,
     ._reserved6 = {0},
     ._reserved8 = {0},
-    .rx_smb0_raw = {0, 0, 0, 0},
+    .rx_smb0 = {
+        .can_ctrl = 0,
+        .can_id = 0,
+        .data = { 0, 0 },
+    },
     .rx_smb1 = {0, 0, 0, 0},
 };
 
@@ -879,22 +891,22 @@ static bool flexcan_can_receive(CanBusClientState *client)
  */
 static void flexcan_fifo_pop(FlexcanState *s)
 {
-    if (s->regs.fifo.mb_back.can_ctrl != 0) {
+    if (s->regs.mbs[0].can_ctrl != 0) {
         /* move queue elements forward */
-        memmove(&s->regs.fifo.mb_back, &s->regs.fifo.mbs_queue[0],
-                sizeof(s->regs.fifo.mbs_queue));
+        memmove(&s->regs.mbs[0], &s->regs.mbs[1],
+                sizeof(s->regs.mbs[0]) * (FLEXCAN_FIFO_DEPTH - 1));
 
         /* clear the first-in slot */
         memset(&s->regs.mbs[FLEXCAN_FIFO_DEPTH - 1], 0,
                sizeof(FlexcanRegsMessageBuffer));
 
         trace_flexcan_fifo_pop(DEVICE(s)->canonical_path, 1,
-                               s->regs.fifo.mb_back.can_ctrl != 0);
+                               s->regs.mbs[0].can_ctrl != 0);
     } else {
         trace_flexcan_fifo_pop(DEVICE(s)->canonical_path, 0, 0);
     }
 
-    if (s->regs.fifo.mb_back.can_ctrl != 0) {
+    if (s->regs.mbs[0].can_ctrl != 0) {
         flexcan_irq_iflag_set(s, I_FIFO_AVAILABLE);
     } else {
         flexcan_irq_iflag_clear(s, I_FIFO_AVAILABLE);
@@ -1075,7 +1087,7 @@ static enum FlexcanRx flexcan_mb_rx(FlexcanState *s, const qemu_can_frame *buf)
         }
     }
 
-    if (last_not_free_to_receive_mbid >= -1) {
+    if (last_not_free_to_receive_mbid >= 0) {
         if (last_not_free_to_receive_locked) {
             /*
              * copy to temporary mailbox (SMB)
@@ -1151,6 +1163,8 @@ static void flexcan_mem_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     FlexcanState *s = opaque;
+    const int mbid = (addr - offsetof(FlexcanRegs, mbs)) /
+        sizeof(s->regs.mbs[0]);
     uint32_t write_mask = ((const uint32_t *)
         &flexcan_regs_write_mask)[addr / 4];
     uint32_t old_value = s->regs_raw[addr / 4];
@@ -1208,11 +1222,8 @@ static void flexcan_mem_write(void *opaque, hwaddr addr, uint64_t val,
     default:
         s->regs_raw[addr / 4] = (val & write_mask) | (old_value & ~write_mask);
 
-        if (addr >= offsetof(FlexcanRegs, mb) &&
-            addr < offsetof(FlexcanRegs, _reserved4)) {
+        if (0 <= mbid && mbid < ARRAY_SIZE(s->regs.mbs)) {
             /* access to mailbox */
-            int mbid = (addr - offsetof(FlexcanRegs, mb)) /
-                            sizeof(FlexcanRegsMessageBuffer);
 
             if (s->locked_mbidx == mbid) {
                 flexcan_mb_unlock(s);
@@ -1240,14 +1251,12 @@ static void flexcan_mem_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t flexcan_mem_read(void *opqaue, hwaddr addr, unsigned size)
 {
     FlexcanState *s = opqaue;
+    const int mbid = (addr - offsetof(FlexcanRegs, mbs)) /
+        sizeof(s->regs.mbs[0]);
     uint32_t rv = s->regs_raw[addr >> 2];
 
-    if (addr >= offsetof(FlexcanRegs, mb) &&
-        addr < offsetof(FlexcanRegs, _reserved4)) {
+    if (0 <= mbid && mbid < ARRAY_SIZE(s->regs.mbs)) {
         /* reading from mailbox */
-        hwaddr offset = addr - offsetof(FlexcanRegs, mb);
-        int mbid = offset / sizeof(FlexcanRegsMessageBuffer);
-
         if (addr % 16 == 0 && s->locked_mbidx != mbid) {
             /* reading control word locks the mailbox */
             flexcan_mb_unlock(s);

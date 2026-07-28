@@ -35,16 +35,6 @@ typedef struct FlexcanRegsMessageBuffer {
     uint32_t data[2];
 } FlexcanRegsMessageBuffer;
 
-/* RX FIFO view of message buffer registers */
-typedef struct FlexcanRegsRXFifo {
-    /* 6 message buffer deep queue, queue back first */
-    FlexcanRegsMessageBuffer mb_back;
-    FlexcanRegsMessageBuffer mbs_queue[FLEXCAN_FIFO_DEPTH - 1];
-
-    /* number of filter elements active depends on ctrl2 | FLEXCAN_CTRL2_RFFN */
-    uint32_t                 filter_table_els[128];
-} FlexcanRegsRXFifo;
-
 /* FlexCAN register in hw layout */
 typedef struct FlexcanRegs {
     uint32_t mcr;                /* 0x00 */
@@ -75,11 +65,8 @@ typedef struct FlexcanRegs {
     uint32_t dbg1;               /* 0x58, unused */
     uint32_t dbg2;               /* 0x5C, unused */
     uint32_t _reserved3[8];      /* 0x60 */
-    union {                      /* 0x80 - not affected by soft reset */
-        uint32_t mb[sizeof(FlexcanRegsMessageBuffer) * FLEXCAN_MAILBOX_COUNT];
-        FlexcanRegsMessageBuffer mbs[FLEXCAN_MAILBOX_COUNT];
-        FlexcanRegsRXFifo fifo;
-    };
+    /* 0x80 - not affected by soft reset */
+    FlexcanRegsMessageBuffer mbs[FLEXCAN_MAILBOX_COUNT];
     uint32_t _reserved4[256];    /* 0x480 */
     uint32_t rximr[64];          /* 0x880 - not affected by soft reset */
     uint32_t _reserved5[24];     /* 0x980 */
@@ -94,10 +81,7 @@ typedef struct FlexcanRegs {
     uint32_t _rx14mask;          /* 0xAA8 */
     uint32_t _rx15mask;          /* 0xAAC */
     uint32_t tx_smb[4];          /* 0xAB0 */
-    union {                      /* 0xAC0, used for SMB emulation */
-        uint32_t rx_smb0_raw[4];
-        FlexcanRegsMessageBuffer rx_smb0;
-    };
+    FlexcanRegsMessageBuffer rx_smb0; /* 0xAC0, used for SMB emulation */
     uint32_t rx_smb1[4];         /* 0xAD0 */
     uint32_t mecr;               /* 0xAE0 */
     uint32_t erriar;             /* 0xAE4 */

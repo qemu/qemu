@@ -37,7 +37,9 @@ arm_system_ss.add(when: 'CONFIG_HVF', if_true: files('hyp_gdbstub.c'))
 arm_user_ss.add(files('cpu.c'))
 arm_stubs_ss.add(files(
   'cpu32-stubs.c',
-  'kvm-stub.c'
+  'gicv5-stubs.c',
+  'kvm-stub.c',
+  'tcg-stubs.c',
 ))
 arm_user_ss.add(files(
   'el2-stubs.c',
@@ -64,8 +66,6 @@ subdir('whpx')
 
 if 'CONFIG_TCG' in config_all_accel
    subdir('tcg')
-else
-    arm_common_system_ss.add(files('tcg-stubs.c'))
 endif
 
 arm_user_ss.add_all(arm_common_user_system_ss)

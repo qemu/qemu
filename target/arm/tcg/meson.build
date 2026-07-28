@@ -91,6 +91,9 @@ arm_common_system_ss.add(files(
   'tlb_helper.c',
   'tlb-insns.c',
 ))
+arm_common_system_ss.add(when: 'CONFIG_ARM_GICV5', if_true: files(
+  'gicv5-cpuif.c',
+))
 arm_user_ss.add(files(
   'tlb_helper.c',
 ))
