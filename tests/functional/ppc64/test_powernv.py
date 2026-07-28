@@ -90,6 +90,7 @@ class PowernvMachine(LinuxKernelTest):
 
     def test_linux_remote_interrupts(self):
         self.require_accelerator("tcg")
+        self.require_netdev('user')
         self.set_machine('powernv')
 
         # Have below setup in this test:
