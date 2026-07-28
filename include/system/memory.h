@@ -2718,15 +2718,8 @@ static inline bool memory_region_supports_direct_access(const MemoryRegion *mr)
     if (memory_region_is_romd(mr)) {
         return true;
     }
-    if (!memory_region_is_ram(mr)) {
-        return false;
-    }
-    /*
-     * RAM DEVICE regions can be accessed directly using memcpy, but it might
-     * be MMIO and access using mempy can be wrong (e.g., using instructions not
-     * intended for MMIO access). So we treat this as IO.
-     */
-    return !memory_region_is_ram_device(mr);
+
+    return memory_region_is_ram(mr);
 }
 
 static inline bool memory_access_is_direct(const MemoryRegion *mr,
