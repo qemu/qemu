@@ -951,7 +951,8 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
                       trigger_type);
         break;
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d is unassigned\n",
+                trigger_type);
     }
 }
 
