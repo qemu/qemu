@@ -166,6 +166,7 @@ enum {
     ERROR_XFR_PARITY_ERROR  = -3,
     ERROR_XFR_OVERRUN       = -4,
     ERROR_HW_ERROR          = -5,
+    ERROR_CMD_SLOT_BUSY     = -32,
 };
 
 /* 6.2.6 RDR_to_PC_SlotStatus definitions */
@@ -946,6 +947,13 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     if (ccid_card_status(s) != ICC_STATUS_PRESENT_ACTIVE) {
         DPRINTF(s, 1,
                 "usb-ccid: not sending apdu to client, no card connected\n");
+        ccid_write_data_block_error(s, recv->hdr.bSlot, recv->hdr.bSeq);
+        return;
+    }
+    if (s->pending_answers_num > 0) {
+        DPRINTF(s, D_WARN,
+                "usb-ccid: slot already busy, rejecting apdu\n");
+        ccid_report_error_failed(s, ERROR_CMD_SLOT_BUSY);
         ccid_write_data_block_error(s, recv->hdr.bSlot, recv->hdr.bSeq);
         return;
     }
