@@ -63,7 +63,8 @@ class MigrationTest(QemuSystemTest):
         self.assert_dest_vm(dst_vm)
 
     def migrate(self, dst_uri, src_uri=None):
-        dst_vm = self.get_vm('-incoming', 'defer', name="dst-qemu")
+        dst_vm = self.get_vm("dst-qemu")
+        dst_vm.add_args('-incoming', 'defer')
         self.configure_machine(dst_vm)
         dst_vm.launch()
 
