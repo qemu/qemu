@@ -75,6 +75,13 @@ int jump_to_IPL_code(uint64_t address)
                  "diag %%r1,%%r1,0x308\n\t"
                  : : : "1", "memory");
     puts("IPL code jump failed");
+
+    /*
+     * A failed jump only occurs in extreme conditions, so abort the IPL entirely.
+     * This also prevents attempts to boot from the chain area if it has been
+     * overwritten with component data.
+     */
+    qipl.chain_len = 0;
     return -1;
 }
 

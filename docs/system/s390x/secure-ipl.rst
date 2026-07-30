@@ -39,3 +39,18 @@ Configuration:
 .. code-block:: shell
 
     qemu-system-s390x -machine s390-ccw-virtio ...
+
+Audit Mode
+^^^^^^^^^^
+
+When the certificate store is populated with at least one certificate
+and no additional secure IPL parameters are provided on the command
+line, then secure IPL will proceed in "audit mode". All secure IPL
+operations will be performed with signature verification errors reported
+as non-disruptive warnings.
+
+Configuration:
+
+.. code-block:: shell
+
+    qemu-system-s390x -machine s390-ccw-virtio,boot-certs.0.path=/.../qemu/certs,boot-certs.1.path=/another/path/cert.pem ...

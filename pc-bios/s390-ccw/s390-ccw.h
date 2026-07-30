@@ -40,6 +40,22 @@ typedef unsigned long long u64;
                             ((b) == 0 ? (a) : (MIN(a, b))))
 #endif
 
+/*
+ * Round number down to multiple. Requires that d be a power of 2.
+ * Works even if d is a smaller type than n.
+ */
+#ifndef ROUND_DOWN
+#define ROUND_DOWN(n, d) ((n) & -(0 ? (n) : (d)))
+#endif
+
+/*
+ * Round number up to multiple. Requires that d be a power of 2.
+ * Works even if d is a smaller type than n.
+ */
+#ifndef ROUND_UP
+#define ROUND_UP(n, d) ROUND_DOWN((n) + (d) - 1, (d))
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 #include "cio.h"
@@ -64,6 +80,8 @@ void sclp_print(const char *string);
 void sclp_set_write_mask(uint32_t receive_mask, uint32_t send_mask);
 void sclp_setup(void);
 void sclp_get_loadparm_ascii(char *loadparm);
+bool sclp_is_diag320_on(void);
+bool sclp_is_fac_ipl_flag_on(uint16_t fac_ipl_flag);
 int sclp_read(char *str, size_t count);
 
 /* bootmap.c */
@@ -71,9 +89,11 @@ void zipl_load(void);
 
 typedef enum ZiplBootMode {
     ZIPL_BOOT_MODE_NORMAL = 0,
+    ZIPL_BOOT_MODE_SECURE_AUDIT = 1,
 } ZiplBootMode;
 
 extern ZiplBootMode boot_mode;
+ZiplBootMode get_boot_mode(uint8_t hdr_flags);
 
 /* jump2ipl.c */
 void write_reset_psw(uint64_t psw);

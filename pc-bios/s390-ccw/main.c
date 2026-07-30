@@ -20,6 +20,7 @@
 #include "dasd-ipl.h"
 #include "clp.h"
 #include "virtio-pci.h"
+#include "secure-ipl.h"
 
 static SubChannelId blk_schid = { .one = 1 };
 static char loadparm_str[LOADPARM_LEN + 1];
@@ -386,6 +387,8 @@ static void probe_boot_device(void)
 
 void main(void)
 {
+    int vcssb_len;
+
     iplb = &ipl_blocks.iplb;
 
     copy_qipl();
@@ -397,7 +400,21 @@ void main(void)
         probe_boot_device();
     }
 
-    boot_mode = ZIPL_BOOT_MODE_NORMAL;
+    boot_mode = get_boot_mode(iplb->hdr_flags);
+    switch (boot_mode) {
+    case ZIPL_BOOT_MODE_SECURE_AUDIT:
+        if (!secure_ipl_supported()) {
+            panic("Unable to boot in audit mode");
+        }
+
+        vcssb_len = zipl_secure_get_vcssb();
+        if (vcssb_len == 0) {
+            panic("Failed to query certificate storage information!");
+        }
+        break;
+    default:
+        break;
+    }
 
     while (have_iplb) {
         boot_setup();
