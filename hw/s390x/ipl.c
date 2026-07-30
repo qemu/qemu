@@ -851,7 +851,8 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
              * Secure IPL without specifying a boot device.
              * IPLB is not generated if no boot device is defined.
              */
-            if (s390_has_certificate() && !ipl->iplb_valid) {
+            if ((s390_has_certificate() || s390_secure_boot_enabled()) &&
+                !ipl->iplb_valid) {
                 error_report("No boot device defined for Secure IPL");
                 exit(1);
             }
