@@ -1381,13 +1381,20 @@ static int ccid_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int ccid_pre_save(void *opaque)
+static bool ccid_pre_save(void *opaque, Error **errp)
 {
     USBCCIDState *s = opaque;
 
+    if (s->pending_answers_num || s->bulk_in_pending_num ||
+        s->current_bulk_in) {
+        error_setg(errp, "usb-ccid has pending queue state which cannot be "
+                   "migrated safely");
+        return false;
+    }
+
     s->state_vmstate = s->dev.state;
 
-    return 0;
+    return true;
 }
 
 static const VMStateDescription bulk_in_vmstate = {
@@ -1430,7 +1437,7 @@ static const VMStateDescription ccid_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ccid_post_load,
-    .pre_save = ccid_pre_save,
+    .pre_save_errp = ccid_pre_save,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(dev, USBCCIDState, 1, usb_device_vmstate, USBDevice),
         VMSTATE_UINT8(debug, USBCCIDState),
