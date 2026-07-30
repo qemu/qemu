@@ -2127,41 +2127,6 @@ uint64_t helper_octeon_cp2_mf_crc_iv_reflect(CPUMIPSState *env)
     return octeon_crc_reflect32_by_byte(env->octeon_crypto.crc_iv);
 }
 
-uint64_t helper_octeon_cp2_mf_gfm_mul_reflect0(CPUMIPSState *env)
-{
-    return revbit64(env->octeon_crypto.gfm_mul[0]);
-}
-
-uint64_t helper_octeon_cp2_mf_gfm_mul_reflect1(CPUMIPSState *env)
-{
-    return revbit64(env->octeon_crypto.gfm_mul[1]);
-}
-
-uint64_t helper_octeon_cp2_mf_gfm_resinp_reflect0(CPUMIPSState *env)
-{
-    return revbit64(env->octeon_crypto.gfm_resinp[0]);
-}
-
-uint64_t helper_octeon_cp2_mf_gfm_resinp_reflect1(CPUMIPSState *env)
-{
-    return revbit64(env->octeon_crypto.gfm_resinp[1]);
-}
-
-void helper_octeon_cp2_mt_gfm_mul_reflect0(CPUMIPSState *env, uint64_t value)
-{
-    env->octeon_crypto.gfm_mul[0] = revbit64(value);
-}
-
-void helper_octeon_cp2_mt_gfm_mul_reflect1(CPUMIPSState *env, uint64_t value)
-{
-    env->octeon_crypto.gfm_mul[1] = revbit64(value);
-}
-
-void helper_octeon_cp2_mt_gfm_xor0_reflect(CPUMIPSState *env, uint64_t value)
-{
-    env->octeon_crypto.gfm_resinp[0] ^= revbit64(value);
-}
-
 static void octeon_gfm_xormul1_common(MIPSOcteonCryptoState *crypto,
                                       uint64_t value)
 {
