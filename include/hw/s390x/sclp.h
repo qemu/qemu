@@ -136,9 +136,11 @@ typedef struct ReadInfo {
     uint32_t hmfai;
     uint8_t  _reserved7[134 - 128];     /* 128-133 */
     uint8_t  fac134;
-    uint8_t  _reserved8[139 - 135];     /* 135-138 */
+    uint8_t  _reserved8;
+    uint8_t  fac_ipl[2];                /* 136-137 */
+    uint8_t  _reserved9;
     uint8_t  fac139;
-    uint8_t  _reserved9[144 - 140];     /* 140-143 */
+    uint8_t  _reserved10[144 - 140];    /* 140-143 */
     struct CPUEntry entries[];
     /*
      * When the Extended-Length SCCB (ELS) feature is enabled the
