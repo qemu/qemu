@@ -765,13 +765,13 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
     usb_wakeup(s->bulk, 0);
 }
 
-static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
+static bool ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
                                   const uint8_t *data, uint32_t len)
 {
     CCID_DataBlock *p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
 
     if (p == NULL) {
-        return;
+        return false;
     }
     p->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_DataBlock;
     p->b.hdr.dwLength = cpu_to_le32(len);
@@ -788,6 +788,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     }
     ccid_reset_error_status(s);
     usb_wakeup(s->bulk, 0);
+    return true;
 }
 
 static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
@@ -796,19 +797,26 @@ static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
     s->bError = error;
 }
 
-static void ccid_write_data_block_answer(USBCCIDState *s,
-    const uint8_t *data, uint32_t len)
+static Answer *ccid_peek_next_answer(USBCCIDState *s);
+
+static bool ccid_write_data_block_answer(USBCCIDState *s,
+                                         const uint8_t *data, uint32_t len)
 {
-    uint8_t seq;
     uint8_t slot;
+    uint8_t seq;
+    Answer *answer;
 
     if (!ccid_has_pending_answers(s)) {
         DPRINTF(s, D_WARN, "error: no pending answer to return to guest\n");
         ccid_report_error_failed(s, ERROR_ICC_MUTE);
-        return;
+        return false;
+    }
+    answer = ccid_peek_next_answer(s);
+    if (!ccid_write_data_block(s, answer->slot, answer->seq, data, len)) {
+        return false;
     }
     ccid_remove_pending_answer(s, &slot, &seq);
-    ccid_write_data_block(s, slot, seq, data, len);
+    return true;
 }
 
 static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
@@ -1008,6 +1016,18 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     CCID_Header *ccid_header;
     uint32_t payload_len;
 
+    /*
+     * Every accepted command either queues a response immediately or commits a
+     * slot to a later APDU response. Apply backpressure before consuming the
+     * first packet when all response slots are committed.
+     */
+    if (s->bulk_out_pos == 0 && /* start of message */
+        s->bulk_in_pending_num + s->pending_answers_num >=
+            BULK_IN_PENDING_NUM) {
+        p->status = USB_RET_NAK;
+        return;
+    }
+
     if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
         goto err;
     }
@@ -1190,7 +1210,9 @@ static void ccid_unrealize(USBDevice *dev)
 static void ccid_flush_pending_answers(USBCCIDState *s)
 {
     while (ccid_has_pending_answers(s)) {
-        ccid_write_data_block_answer(s, NULL, 0);
+        if (!ccid_write_data_block_answer(s, NULL, 0)) {
+            break;
+        }
     }
 }
 
