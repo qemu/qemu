@@ -308,7 +308,6 @@ struct USBCCIDState {
     uint8_t  bmCommandStatus;
     uint8_t  bProtocolNum;
     CCID_ProtocolDataStructure abProtocolDataStructure;
-    uint32_t ulProtocolDataStructureSize;
     uint32_t state_vmstate;
     uint8_t  bmSlotICCState;
     uint8_t  powered;
@@ -766,9 +765,8 @@ static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
 static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_Parameter *h;
-    uint32_t len = s->ulProtocolDataStructureSize;
 
-    h = ccid_reserve_recv_buf(s, sizeof(CCID_Parameter) + len);
+    h = ccid_reserve_recv_buf(s, sizeof(CCID_Parameter));
     if (h == NULL) {
         return;
     }
@@ -1451,7 +1449,7 @@ static const VMStateDescription ccid_vmstate = {
         VMSTATE_UINT8(bmCommandStatus, USBCCIDState),
         VMSTATE_UINT8(bProtocolNum, USBCCIDState),
         VMSTATE_BUFFER(abProtocolDataStructure.data, USBCCIDState),
-        VMSTATE_UINT32(ulProtocolDataStructureSize, USBCCIDState),
+        VMSTATE_UNUSED(4), /* was ulProtocolDataStructureSize */
         VMSTATE_STRUCT_ARRAY(bulk_in_pending, USBCCIDState,
                        BULK_IN_PENDING_NUM, 1, bulk_in_vmstate, BulkIn),
         VMSTATE_UINT32(bulk_in_pending_start, USBCCIDState),
