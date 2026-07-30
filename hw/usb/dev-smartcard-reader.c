@@ -312,6 +312,8 @@ struct USBCCIDState {
     uint8_t  notify_slot_change;
     uint8_t  debug;
     bool accurate_message_length;
+    bool migrate_pending_answers;
+    bool pending_answers_loaded;
 };
 
 static uint32_t ccid_bulk_in_pending_num(USBCCIDState *s)
@@ -1409,16 +1411,35 @@ static void ccid_realize(USBDevice *dev, Error **errp)
     s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
 }
 
+static int ccid_pre_load(void *opaque)
+{
+    USBCCIDState *s = opaque;
+
+    s->pending_answers_loaded = false;
+    return 0;
+}
+
 static int ccid_post_load(void *opaque, int version_id)
 {
     USBCCIDState *s = opaque;
     int i;
 
-    if (s->bulk_in_pending_end - s->bulk_in_pending_start > BULK_IN_PENDING_NUM) {
+    if (!s->pending_answers_loaded) {
+        /*
+         * Version 1 did not migrate the pending_answers[] queue indices.
+         * The historical interpretation of pending_answers[] as starting at
+         * element zero.
+         */
+        if (s->pending_answers_num > PENDING_ANSWERS_NUM) {
+            return -EINVAL;
+        }
+        s->pending_answers_start = 0;
+        s->pending_answers_end = s->pending_answers_num;
+    } else if (s->pending_answers_end - s->pending_answers_start > PENDING_ANSWERS_NUM) {
         return -EINVAL;
     }
 
-    if (s->pending_answers_num > PENDING_ANSWERS_NUM) {
+    if (s->bulk_in_pending_end - s->bulk_in_pending_start > BULK_IN_PENDING_NUM) {
         return -EINVAL;
     }
 
@@ -1447,12 +1468,14 @@ static bool ccid_pre_save(void *opaque, Error **errp)
 {
     USBCCIDState *s = opaque;
 
-    if (ccid_pending_answers_num(s) || ccid_bulk_in_pending_num(s)) {
+    if (!s->migrate_pending_answers &&
+        (ccid_pending_answers_num(s) || ccid_bulk_in_pending_num(s))) {
         error_setg(errp, "usb-ccid has pending queue state which cannot be "
                    "migrated safely");
         return false;
     }
 
+    s->pending_answers_num = ccid_pending_answers_num(s);
     s->state_vmstate = s->dev.state;
 
     return true;
@@ -1493,10 +1516,43 @@ static const VMStateDescription usb_device_vmstate = {
     }
 };
 
+static bool ccid_pending_answers_needed(void *opaque)
+{
+    USBCCIDState *s = opaque;
+
+    if (!s->migrate_pending_answers) {
+        return false;
+    }
+
+    return ccid_pending_answers_num(s) > 0;
+}
+
+static int ccid_pending_answers_post_load(void *opaque, int version_id)
+{
+    USBCCIDState *s = opaque;
+
+    s->pending_answers_loaded = true;
+    return 0;
+}
+
+static const VMStateDescription ccid_pending_answers_vmstate = {
+    .name = "usb-ccid/pending-answers",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ccid_pending_answers_needed,
+    .post_load = ccid_pending_answers_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(pending_answers_start, USBCCIDState),
+        VMSTATE_UINT32(pending_answers_end, USBCCIDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription ccid_vmstate = {
     .name = "usb-ccid",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = ccid_pre_load,
     .post_load = ccid_post_load,
     .pre_save_errp = ccid_pre_save,
     .fields = (const VMStateField[]) {
@@ -1523,13 +1579,19 @@ static const VMStateDescription ccid_vmstate = {
         VMSTATE_UNUSED(1), /* was migration_state */
         VMSTATE_UINT32(state_vmstate, USBCCIDState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &ccid_pending_answers_vmstate,
+        NULL
+    },
 };
 
 static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
     DEFINE_PROP_BOOL("x-accurate-message-length", USBCCIDState,
                      accurate_message_length, true),
+    DEFINE_PROP_BOOL("x-migrate-pending-answers", USBCCIDState,
+                     migrate_pending_answers, true),
 };
 
 static void ccid_class_initfn(ObjectClass *klass, const void *data)
