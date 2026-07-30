@@ -116,4 +116,14 @@ static inline bool verify_signature(IplDeviceComponentEntry comp_entry,
     return false;
 }
 
+static inline bool intersects(uint64_t addr0, uint64_t size0,
+                              uint64_t addr1, uint64_t size1)
+{
+    if (addr1 > addr0) {
+        return addr1 - addr0 < size0;
+    }
+
+    return addr0 - addr1 < size1;
+}
+
 #endif /* _PC_BIOS_S390_CCW_SECURE_IPL_H */
