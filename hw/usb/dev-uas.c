@@ -360,6 +360,7 @@ static void usb_uas_send_status_bh(void *opaque)
     UASDevice *uas = opaque;
     UASStatus *st;
     USBPacket *p;
+    uint32_t length;
 
     while ((st = QTAILQ_FIRST(&uas->results)) != NULL) {
         if (uas_using_streams(uas)) {
@@ -374,7 +375,14 @@ static void usb_uas_send_status_bh(void *opaque)
             break;
         }
 
-        usb_packet_copy(p, &st->status, st->length);
+        length = st->length;
+        if (length > p->iov.size) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "usb uas: packet (%zd) too small for status (%d)\n",
+                          p->iov.size, length);
+            length = p->iov.size;
+        }
+        usb_packet_copy(p, &st->status, length);
         QTAILQ_REMOVE(&uas->results, st, next);
         g_free(st);
 
@@ -876,7 +884,14 @@ static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
                 break;
             }
         }
-        usb_packet_copy(p, &st->status, st->length);
+        length = st->length;
+        if (length > p->iov.size) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "usb uas: packet (%zd) too small for status (%d)\n",
+                          p->iov.size, length);
+            length = p->iov.size;
+        }
+        usb_packet_copy(p, &st->status, length);
         QTAILQ_REMOVE(&uas->results, st, next);
         g_free(st);
         break;
