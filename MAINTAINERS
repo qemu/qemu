@@ -2160,6 +2160,7 @@ F: docs/specs/edu.rst
 
 IDE
 M: John Snow <jsnow@redhat.com>
+M: Denis V. Lunev <den@openvz.org>
 L: qemu-block@nongnu.org
 S: Odd Fixes
 F: include/hw/ide/
