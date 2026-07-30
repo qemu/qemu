@@ -574,13 +574,16 @@ static void ccid_remove_pending_answer(USBCCIDState *s,
 
 static void ccid_bulk_in_clear(USBCCIDState *s)
 {
-    if (s->current_bulk_in != NULL) {
-        s->current_bulk_in->pos = 0;
-        s->current_bulk_in = NULL;
+    int i;
+
+    for (i = 0; i < BULK_IN_PENDING_NUM; i++) {
+        s->bulk_in_pending[i].len = 0;
+        s->bulk_in_pending[i].pos = 0;
     }
     s->bulk_in_pending_start = 0;
     s->bulk_in_pending_end = 0;
     s->bulk_in_pending_num = 0;
+    s->current_bulk_in = NULL;
 }
 
 static void ccid_bulk_in_release(USBCCIDState *s)
@@ -623,26 +626,6 @@ static void *ccid_reserve_recv_buf(USBCCIDState *s, uint16_t len)
     s->bulk_in_pending_num++;
     bulk_in->len = len;
     return bulk_in->data;
-}
-
-static void ccid_reset(USBCCIDState *s)
-{
-    ccid_bulk_in_clear(s);
-    ccid_clear_pending_answers(s);
-}
-
-static void ccid_detach(USBCCIDState *s)
-{
-    ccid_reset(s);
-}
-
-static void ccid_handle_reset(USBDevice *dev)
-{
-    USBCCIDState *s = USB_CCID_DEV(dev);
-
-    DPRINTF(s, 1, "Reset\n");
-
-    ccid_reset(s);
 }
 
 static const char *ccid_control_to_str(USBCCIDState *s, int request)
@@ -920,6 +903,31 @@ static void ccid_reset_parameters(USBCCIDState *s)
 {
    s->bProtocolNum = 0; /* T=0 */
    s->abProtocolDataStructure = defaultProtocolDataStructure;
+}
+
+static void ccid_reset(USBCCIDState *s)
+{
+    ccid_bulk_in_clear(s);
+    ccid_clear_pending_answers(s);
+    s->bulk_out_pos = 0;
+    s->last_answer_error = 0;
+    s->notify_slot_change = false;
+    ccid_reset_error_status(s);
+    ccid_reset_parameters(s);
+}
+
+static void ccid_detach(USBCCIDState *s)
+{
+    ccid_reset(s);
+}
+
+static void ccid_handle_reset(USBDevice *dev)
+{
+    USBCCIDState *s = USB_CCID_DEV(dev);
+
+    DPRINTF(s, 1, "Reset\n");
+
+    ccid_reset(s);
 }
 
 /* NOTE: only a single slot is supported (SLOT_0) */
@@ -1353,14 +1361,6 @@ static void ccid_realize(USBDevice *dev, Error **errp)
     s->dev.speedmask = USB_SPEED_MASK_FULL;
     s->notify_slot_change = false;
     s->powered = true;
-    s->pending_answers_num = 0;
-    s->last_answer_error = 0;
-    s->bulk_in_pending_start = 0;
-    s->bulk_in_pending_end = 0;
-    s->current_bulk_in = NULL;
-    ccid_reset_error_status(s);
-    s->bulk_out_pos = 0;
-    ccid_reset_parameters(s);
     ccid_reset(s);
     s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
 }
