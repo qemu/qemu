@@ -756,7 +756,7 @@ static bool do_z2z_n1_fpst(DisasContext *s, arg_z2z_en *a,
         return false;
     }
     /* These insns use MO_8 to encode BFloat16. */
-    if (esz == MO_8 && !dc_isar_feature(aa64_sme_b16b16, s)) {
+    if (esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
         return false;
     }
     if (!sme_sm_enabled_check(s)) {
@@ -793,7 +793,7 @@ static bool do_z2z_nn_fpst(DisasContext *s, arg_z2z_en *a,
     if (fn == NULL) {
         return false;
     }
-    if (esz == MO_8 && !dc_isar_feature(aa64_sme_b16b16, s)) {
+    if (esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
         return false;
     }
     if (!sme_sm_enabled_check(s)) {
@@ -1850,7 +1850,7 @@ static bool trans_FCLAMP(DisasContext *s, arg_zzz_en *a)
         return false;
     }
     /* This insn uses MO_8 to encode BFloat16. */
-    if (a->esz == MO_8 && !dc_isar_feature(aa64_sme_b16b16, s)) {
+    if (a->esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
         return false;
     }
     if (!sme_sm_enabled_check(s)) {
