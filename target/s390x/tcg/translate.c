@@ -4350,13 +4350,6 @@ static DisasJumpType op_st(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
-static DisasJumpType op_st64(DisasContext *s, DisasOps *o)
-{
-    tcg_gen_qemu_st_i64(o->in1, o->in2, get_mem_index(s),
-                        MO_BEUQ | s->insn->data);
-    return DISAS_NEXT;
-}
-
 static DisasJumpType op_stam(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_constant_i32(get_field(s, r1));
