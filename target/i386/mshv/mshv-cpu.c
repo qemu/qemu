@@ -2091,15 +2091,65 @@ static int handle_exception_interrupt(CPUState *cpu,
     return 0;
 }
 
+/*
+ * Flip RFLAGS.TF like WHPX. Set it only on the live register, not env->eflags,
+ * so a later store won't put it back.
+ */
+static int arch_set_single_step(CPUState *cpu, bool enable)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    hv_register_assoc assoc = { .name = HV_X64_REGISTER_RFLAGS };
+    uint64_t rflags;
+    int ret;
+
+    if (env->regs_page && env->regs_page->isvalid != 0) {
+        rflags = env->regs_page->rflags;
+        rflags = enable ? (rflags | TF_MASK) : (rflags & ~TF_MASK);
+        env->regs_page->rflags = rflags;
+        env->regs_page->dirty |= (1u << HV_X64_REGISTER_CLASS_FLAGS);
+        return 0;
+    }
+
+    ret = mshv_get_generic_regs(cpu, &assoc, 1);
+    if (ret < 0) {
+        return ret;
+    }
+    rflags = assoc.value.reg64;
+    rflags = enable ? (rflags | TF_MASK) : (rflags & ~TF_MASK);
+    assoc.value.reg64 = rflags;
+    return mshv_set_generic_regs(cpu, &assoc, 1);
+}
+
 int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 {
     int ret;
     enum MshvVmExit exit_reason;
     int cpu_fd = mshv_vcpufd(cpu);
+    bool single_step;
+
+    /* enable single stepping by flipping RFLAGS.TF */
+    single_step = cpu_single_stepping(cpu);
+    if (single_step) {
+        ret = arch_set_single_step(cpu, true);
+        if (ret < 0) {
+            error_report("Failed to arm single-step (TF) on vcpu %d: %s",
+                         cpu->cpu_index, strerror(-ret));
+            *exit = MshvVmExitShutdown;
+            return -1;
+        }
+    }
 
     ret = ioctl(cpu_fd, MSHV_RUN_VP, msg);
     if (ret < 0) {
         return MshvVmExitShutdown;
+    }
+
+    /* disable single stepping by flipping RFLAGS.TF */
+    if (single_step && arch_set_single_step(cpu, false) < 0) {
+        error_report("Failed to clear single-step (TF) on vcpu %d",
+                     cpu->cpu_index);
+        return -1;
     }
 
     switch (msg->header.message_type) {
