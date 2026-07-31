@@ -530,13 +530,13 @@
 /* LOAD LOGICAL HALFWORD */
     C(0xb995, LLHR,    RRE,   EI,  0, r2_16u, 0, r1_32, mov2, 0)
     C(0xb985, LLGHR,   RRE,   EI,  0, r2_16u, 0, r1, mov2, 0)
-    C(0xe395, LLH,     RXY_a, EI,  0, a2, new, r1_32, ld16u, 0)
-    C(0xe391, LLGH,    RXY_a, Z,   0, a2, r1, 0, ld16u, 0)
+    D(0xe395, LLH,     RXY_a, EI,  0, a2, new, r1_32, ld, 0, MO_BEUW)
+    D(0xe391, LLGH,    RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BEUW)
 /* LOAD LOGICAL HALFWORD HIGH */
-    C(0xe3c6, LLHH,    RXY_a, HW,  0, a2, new, r1_32h, ld16u, 0)
+    D(0xe3c6, LLHH,    RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_BEUW)
 /* LOAD LOGICAL HALFWORD RELATIVE LONG */
-    C(0xc402, LLHRL,   RIL_b, GIE, 0, ri2, new, r1_32, ld16u, 0)
-    C(0xc406, LLGHRL,  RIL_b, GIE, 0, ri2, r1, 0, ld16u, 0)
+    D(0xc402, LLHRL,   RIL_b, GIE, 0, ri2, new, r1_32, ld, 0, MO_BEUW)
+    D(0xc406, LLGHRL,  RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BEUW)
 /* LOAD LOGICAL IMMEDIATE */
     D(0xc00e, LLIHF,   RIL_a, EI, 0, i2_32u_shl, 0, r1, mov2, 0, 32)
     D(0xc00f, LLILF,   RIL_a, EI, 0, i2_32u_shl, 0, r1, mov2, 0, 0)
