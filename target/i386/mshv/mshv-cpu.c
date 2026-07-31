@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/memalign.h"
 
 #include "system/mshv.h"
@@ -27,6 +28,7 @@
 #include "emulate/x86_decode.h"
 #include "emulate/x86_emu.h"
 #include "emulate/x86_flags.h"
+#include "gdbstub/enums.h"
 
 #include "accel/accel-cpu-target.h"
 
@@ -2023,6 +2025,72 @@ static int handle_pio(CPUState *cpu, const struct hyperv_message *msg)
     return handle_pio_non_str(cpu, &info);
 }
 
+/* Re-inject a guest-owned #DB via a pending event */
+static int reinject_exception(CPUState *cpu,
+    const struct hv_x64_exception_intercept_message *info)
+{
+    hv_register_assoc assoc = { .name = HV_REGISTER_PENDING_EVENT0 };
+
+    assoc.value.pending_exception_event.event_pending = 1;
+    assoc.value.pending_exception_event.event_type =
+        HV_X64_PENDING_EVENT_EXCEPTION;
+    assoc.value.pending_exception_event.exception_parameter =
+        info->exception_parameter;
+    assoc.value.pending_exception_event.vector = info->exception_vector;
+
+    return mshv_set_generic_regs(cpu, &assoc, 1);
+}
+
+/* Check if the intercepted #DB has been set by gdb. */
+static bool is_debug_exception(CPUState *cpu, const hv_message *msg)
+{
+    struct hv_x64_exception_intercept_message *info = (void *)msg->payload;
+
+    /* Only #DB is intercepted */
+    if (info->exception_vector != EXCP01_DB) {
+        return false;
+    }
+
+    /* INT1 hit: RIP points at the breakpoint */
+    if (mshv_find_sw_breakpoint(cpu, info->header.rip) != NULL) {
+        return true;
+    }
+
+    /* Check if single stepping */
+    if (cpu_single_stepping(cpu)) {
+        return true;
+    }
+
+    /* The guest's own #DB; caller re-injects it. */
+    return false;
+}
+
+static int handle_exception_interrupt(CPUState *cpu,
+                                       const struct hyperv_message *msg,
+                                       MshvVmExit *exit_reason)
+{
+    int ret;
+
+    if (is_debug_exception(cpu, msg)) {
+        /* Exit early reporting debug exception */
+        *exit_reason = MshvVmExitDebug;
+        return 0;
+    }
+
+    /* Not ours - hand the #DB back to the guest and keep running. */
+    ret = reinject_exception(cpu,
+        (struct hv_x64_exception_intercept_message *) msg->payload);
+    if (ret < 0) {
+        error_report("failed to reinject exception on vcpu %d",
+                     cpu->cpu_index);
+        return -1;
+    }
+
+    *exit_reason = MshvVmExitIgnore;
+
+    return 0;
+}
+
 int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
 {
     int ret;
@@ -2051,6 +2119,16 @@ int mshv_run_vcpu(int vm_fd, CPUState *cpu, hv_message *msg, MshvVmExit *exit)
             return MshvVmExitSpecial;
         }
         return MshvVmExitIgnore;
+    case HVMSG_X64_EXCEPTION_INTERCEPT:
+        bql_lock();
+        ret = handle_exception_interrupt(cpu, msg, &exit_reason);
+        bql_unlock();
+        if (ret < 0) {
+            error_report("failed to handle exception intercept");
+            return -1;
+        }
+        *exit = exit_reason;
+        return exit_reason;
     default:
         break;
     }
@@ -2064,6 +2142,32 @@ void mshv_remove_vcpu(int vm_fd, int cpu_fd)
     close(cpu_fd);
 }
 
+int mshv_arch_insert_sw_breakpoint(CPUState *cpu, struct MshvSwBreakpoint *bp)
+{
+    static const uint8_t int1 = 0xf1;
+
+    if (cpu_memory_rw_debug(cpu, bp->pc, (uint8_t *)&bp->saved_insn, 1, 0) ||
+        cpu_memory_rw_debug(cpu, bp->pc, (uint8_t *)&int1, 1, 1)) {
+        return -EINVAL;
+    }
+    return 0;
+}
+
+int mshv_arch_remove_sw_breakpoint(CPUState *cpu, struct MshvSwBreakpoint *bp)
+{
+    uint8_t int1;
+
+    if (cpu_memory_rw_debug(cpu, bp->pc, &int1, 1, 0)) {
+        return -EINVAL;
+    }
+    if (int1 != 0xf1) {
+        return 0;
+    }
+    if (cpu_memory_rw_debug(cpu, bp->pc, (uint8_t *)&bp->saved_insn, 1, 1)) {
+        return -EINVAL;
+    }
+    return 0;
+}
 
 int mshv_create_vcpu(int vm_fd, uint8_t vp_index, int *cpu_fd)
 {

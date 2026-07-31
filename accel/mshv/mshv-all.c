@@ -29,6 +29,7 @@
 
 #include "qemu/accel.h"
 #include "qemu/guest-random.h"
+#include "gdbstub/enums.h"
 #include "accel/accel-ops.h"
 #include "accel/accel-cpu-ops.h"
 #include "exec/cpu-common.h"
@@ -563,6 +564,10 @@ static int mshv_init(AccelState *as, MachineState *ms)
     s->nr_as = 1;
     s->as = g_new0(MshvAddressSpace, s->nr_as);
 
+    QTAILQ_INIT(&s->sw_breakpoints);
+
+    as->gdbstub.sstep_flags = SSTEP_ENABLE;
+
     mshv_state = s;
 
     mshv_init_irq_routing(s);
@@ -589,6 +594,158 @@ static int mshv_destroy_vcpu(CPUState *cpu)
     mshv_arch_destroy_vcpu(cpu);
     g_clear_pointer(&cpu->accel, g_free);
     return 0;
+}
+
+struct MshvSwBreakpoint *mshv_find_sw_breakpoint(CPUState *cpu, vaddr pc)
+{
+    struct MshvSwBreakpoint *bp;
+
+    QTAILQ_FOREACH(bp, &mshv_state->sw_breakpoints, entry) {
+        if (bp->pc == pc) {
+            return bp;
+        }
+    }
+    return NULL;
+}
+
+static int mshv_install_exception_intercept(int vm_fd, uint16_t vector)
+{
+    struct hv_input_install_intercept in = {0};
+    struct mshv_root_hvcall args = {0};
+    int ret;
+
+    in.access_type = 1 << HV_X64_INTERCEPT_ACCESS_TYPE_EXECUTE;
+    in.intercept_type = HV_INTERCEPT_TYPE_EXCEPTION;
+    in.intercept_parameter.as_uint64 = vector;
+
+    args.code = HVCALL_INSTALL_INTERCEPT;
+    args.in_sz = sizeof(in);
+    args.in_ptr = (uint64_t)&in;
+
+    ret = mshv_hvcall(vm_fd, &args);
+    if (ret < 0) {
+        error_report("Failed to install exception intercept for vector %u",
+                     vector);
+    }
+    return ret;
+}
+
+/*
+ * Install the #DB intercept. This is a permanent, partition-wide latch: it is
+ * installed once on the first debug use and stays for the lifetime of the VM.
+ */
+static int mshv_init_exception_intercept(void)
+{
+    int ret;
+
+    if (mshv_state->exception_intercepts_installed) {
+        return 0;
+    }
+
+    /* Only #DB is needed: gdb breakpoints are INT1 (0xf1) */
+    ret = mshv_install_exception_intercept(mshv_state->vm, 1); /* #DB */
+    if (ret < 0) {
+        return ret;
+    }
+
+    mshv_state->exception_intercepts_installed = true;
+    return 0;
+}
+
+static void mshv_update_guest_debug(CPUState *cpu)
+{
+    int ret;
+
+    if (cpu_single_stepping(cpu)) {
+        /* Installs exception intercept only on the first call */
+        ret = mshv_init_exception_intercept();
+        if (ret < 0) {
+            error_report("Failed to install exception intercept for #DB");
+            abort();
+        }
+    }
+}
+
+static int mshv_insert_gdbstub_breakpoint(CPUState *cpu, GdbBreakpointType type,
+                                          vaddr addr, vaddr len)
+{
+    struct MshvSwBreakpoint *bp;
+    int err;
+
+    /* We don't use the guest's debug registers. */
+    if (type != GDB_BREAKPOINT_SW) {
+        return -ENOSYS;
+    }
+
+    bp = mshv_find_sw_breakpoint(cpu, addr);
+    if (bp) {
+        bp->use_count++;
+        return 0;
+    }
+
+    bp = g_new(struct MshvSwBreakpoint, 1);
+    bp->pc = addr;
+    bp->use_count = 1;
+    err = mshv_arch_insert_sw_breakpoint(cpu, bp);
+    if (err) {
+        g_free(bp);
+        return err;
+    }
+
+    QTAILQ_INSERT_HEAD(&mshv_state->sw_breakpoints, bp, entry);
+
+    /* Installs exception intercept only on the first call */
+    return mshv_init_exception_intercept();
+}
+
+static int mshv_remove_gdbstub_breakpoint(CPUState *cpu, GdbBreakpointType type,
+                                          vaddr addr, vaddr len)
+{
+    struct MshvSwBreakpoint *bp;
+    int err;
+
+    if (type != GDB_BREAKPOINT_SW) {
+        return -ENOSYS;
+    }
+
+    bp = mshv_find_sw_breakpoint(cpu, addr);
+    if (!bp) {
+        return -ENOENT;
+    }
+
+    if (bp->use_count > 1) {
+        bp->use_count--;
+        return 0;
+    }
+
+    err = mshv_arch_remove_sw_breakpoint(cpu, bp);
+    if (err) {
+        return err;
+    }
+
+    QTAILQ_REMOVE(&mshv_state->sw_breakpoints, bp, entry);
+    g_free(bp);
+
+    return 0;
+}
+
+static void mshv_remove_all_gdbstub_breakpoints(CPUState *cpu)
+{
+    struct MshvSwBreakpoint *bp, *next;
+    CPUState *tmpcpu;
+
+    QTAILQ_FOREACH_SAFE(bp, &mshv_state->sw_breakpoints, entry, next) {
+        if (mshv_arch_remove_sw_breakpoint(cpu, bp) != 0) {
+            /* Fall back to whichever CPU still has it mapped. */
+            CPU_FOREACH(tmpcpu) {
+                if (mshv_arch_remove_sw_breakpoint(tmpcpu, bp) == 0) {
+                    break;
+                }
+            }
+        }
+        QTAILQ_REMOVE(&mshv_state->sw_breakpoints, bp, entry);
+        g_free(bp);
+    }
 }
 
 static int mshv_cpu_exec(CPUState *cpu)
@@ -627,6 +784,9 @@ static int mshv_cpu_exec(CPUState *cpu)
 
         switch (exit_reason) {
         case MshvVmExitIgnore:
+            break;
+        case MshvVmExitDebug:
+            ret = EXCP_DEBUG;
             break;
         default:
             ret = EXCP_INTERRUPT;
@@ -695,7 +855,10 @@ static void *mshv_vcpu_thread(void *arg)
     do {
         qemu_process_cpu_events(cpu);
         if (cpu_can_run(cpu)) {
-            mshv_cpu_exec(cpu);
+            ret = mshv_cpu_exec(cpu);
+            if (ret == EXCP_DEBUG) {
+                cpu_handle_guest_debug(cpu);
+            }
         }
     } while (!cpu->unplug || cpu_can_run(cpu));
 
@@ -840,6 +1003,11 @@ static void mshv_accel_ops_class_init(ObjectClass *oc, const void *data)
     ops->cpus_are_resettable = mshv_cpus_are_resettable;
     ops->cpu_thread_is_idle = mshv_vcpu_thread_is_idle;
     ops->handle_interrupt = generic_handle_interrupt;
+
+    ops->update_guest_debug = mshv_update_guest_debug;
+    ops->insert_gdbstub_breakpoint = mshv_insert_gdbstub_breakpoint;
+    ops->remove_gdbstub_breakpoint = mshv_remove_gdbstub_breakpoint;
+    ops->remove_all_gdbstub_breakpoints = mshv_remove_all_gdbstub_breakpoints;
 }
 
 static const TypeInfo mshv_accel_ops_type = {
