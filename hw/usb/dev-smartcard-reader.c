@@ -769,7 +769,13 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
 static bool ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
                                   const uint8_t *data, uint32_t len)
 {
-    CCID_DataBlock *p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
+    CCID_DataBlock *p;
+
+    if (len > BULK_IN_BUF_SIZE - sizeof(*p)) {
+        DPRINTF(s, D_WARN, "data block is too large (%u bytes)\n", len);
+        return false;
+    }
+    p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
 
     if (p == NULL) {
         return false;
@@ -813,6 +819,14 @@ static bool ccid_write_data_block_answer(USBCCIDState *s,
         return false;
     }
     answer = ccid_peek_next_answer(s);
+    if (len > BULK_IN_BUF_SIZE - sizeof(CCID_DataBlock)) {
+        DPRINTF(s, D_WARN,
+                "APDU response is too large (%u bytes), returning an error\n",
+                len);
+        ccid_report_error_failed(s, ERROR_HW_ERROR);
+        data = NULL;
+        len = 0;
+    }
     if (!ccid_write_data_block(s, answer->slot, answer->seq, data, len)) {
         return false;
     }
