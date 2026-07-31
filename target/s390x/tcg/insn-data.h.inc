@@ -481,10 +481,10 @@
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
-    C(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld8s, 0)
-    C(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld8s, 0)
+    D(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld, 0, MO_SB)
+    D(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld, 0, MO_SB)
 /* LOAD BYTE HIGH */
-    C(0xe3c0, LBH,     RXY_a, HW,  0, a2, new, r1_32h, ld8s, 0)
+    D(0xe3c0, LBH,     RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_SB)
 /* LOAD COMPLEMENT */
     C(0x1300, LCR,     RR_a,  Z,   0, r2, new, r1_32, neg, neg32)
     C(0xb903, LCGR,    RRE,   Z,   0, r2, r1, 0, neg, neg64)
