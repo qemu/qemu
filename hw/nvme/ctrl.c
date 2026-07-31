@@ -2811,6 +2811,7 @@ static void nvme_copy_done(NvmeCopyAIOCB *iocb)
 
     qemu_iovec_destroy(&iocb->iov);
     g_free(iocb->bounce);
+    g_free(iocb->ranges);
 
     if (iocb->ret < 0) {
         block_acct_failed(stats, &iocb->acct.read);
