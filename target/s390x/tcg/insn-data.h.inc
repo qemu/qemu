@@ -498,17 +498,17 @@
 /* LOAD HALFWORD */
     C(0xb927, LHR,     RRE,   EI,  0, r2_16s, 0, r1_32, mov2, 0)
     C(0xb907, LGHR,    RRE,   EI,  0, r2_16s, 0, r1, mov2, 0)
-    C(0x4800, LH,      RX_a,  Z,   0, a2, new, r1_32, ld16s, 0)
-    C(0xe378, LHY,     RXY_a, LD,  0, a2, new, r1_32, ld16s, 0)
-    C(0xe315, LGH,     RXY_a, Z,   0, a2, r1, 0, ld16s, 0)
+    D(0x4800, LH,      RX_a,  Z,   0, a2, new, r1_32, ld, 0, MO_BESW)
+    D(0xe378, LHY,     RXY_a, LD,  0, a2, new, r1_32, ld, 0, MO_BESW)
+    D(0xe315, LGH,     RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BESW)
 /* LOAD HALFWORD HIGH */
-    C(0xe3c4, LHH,     RXY_a, HW,  0, a2, new, r1_32h, ld16s, 0)
+    D(0xe3c4, LHH,     RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_BESW)
 /* LOAD HALFWORD IMMEDIATE */
     C(0xa708, LHI,     RI_a,  Z,   0, i2, 0, r1_32, mov2, 0)
     C(0xa709, LGHI,    RI_a,  Z,   0, i2, 0, r1, mov2, 0)
 /* LOAD HALFWORD RELATIVE LONG */
-    C(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld16s, 0)
-    C(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld16s, 0)
+    D(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld, 0, MO_BESW)
+    D(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BESW)
 /* LOAD HIGH */
     D(0xe3ca, LFH,     RXY_a, HW,  0, a2, new, r1_32h, ld32u, 0, 0)
 /* LOAG HIGH AND TRAP */
