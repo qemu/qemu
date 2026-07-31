@@ -314,6 +314,7 @@ struct USBCCIDState {
     uint8_t  powered;
     uint8_t  notify_slot_change;
     uint8_t  debug;
+    bool accurate_message_length;
 };
 
 /*
@@ -326,7 +327,7 @@ struct USBCCIDState {
  *   0dc3:1004 Athena Smartcard Solutions, Inc.
  */
 
-static const uint8_t qemu_ccid_descriptor[] = {
+static uint8_t qemu_ccid_descriptor[] = {
         /* Smart Card Device Class Descriptor */
         0x36,       /* u8  bLength; */
         0x21,       /* u8  bDescriptorType; Functional */
@@ -387,7 +388,10 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      * u32 dwMaxCCIDMessageLength; For extended APDU in
                      * [261 + 10 , 65544 + 10]. Otherwise the minimum is
                      * wMaxPacketSize of the Bulk-OUT endpoint
+                     *
+                     * Corrected to BULK_IN_BUF_SIZE when x-accurate-message-length
                      */
+#define CCID_DESC_OFFSET_DW_MAX_MSG_LEN 44
         0x12, 0x00, 0x01, 0x00,
         0xFF,       /*
                      * u8  bClassGetResponse; Significant only for CCID that
@@ -1333,6 +1337,10 @@ static void ccid_realize(USBDevice *dev, Error **errp)
 {
     USBCCIDState *s = USB_CCID_DEV(dev);
 
+    if (s->accurate_message_length) {
+        stl_le_p(&qemu_ccid_descriptor[CCID_DESC_OFFSET_DW_MAX_MSG_LEN],
+                 BULK_IN_BUF_SIZE);
+    }
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     qbus_init(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev), NULL);
@@ -1449,6 +1457,8 @@ static const VMStateDescription ccid_vmstate = {
 
 static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
+    DEFINE_PROP_BOOL("x-accurate-message-length", USBCCIDState,
+                     accurate_message_length, true),
 };
 
 static void ccid_class_initfn(ObjectClass *klass, const void *data)
