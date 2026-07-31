@@ -3235,10 +3235,14 @@ static bool trans_YIELD(DisasContext *s, arg_YIELD *a)
      * the next round-robin scheduled vCPU gets a crack.  When running in
      * MTTCG we don't generate jumps to the helper as it won't affect the
      * scheduling of other vCPUs.
+     * This is a NOP hint on older architectures.
      */
-    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-        gen_update_pc(s, curr_insn_len(s));
-        s->base.is_jmp = DISAS_YIELD;
+    if (arm_dc_feature(s, ARM_FEATURE_M) ||
+        arm_dc_feature(s, ARM_FEATURE_V6K)) {
+        if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
+            gen_update_pc(s, curr_insn_len(s));
+            s->base.is_jmp = DISAS_YIELD;
+        }
     }
     return true;
 }
@@ -3280,17 +3284,30 @@ static bool trans_SEVL(DisasContext *s, arg_SEV *a)
 
 static bool trans_WFE(DisasContext *s, arg_WFE *a)
 {
-    /* For WFE, halt the vCPU until an event. */
-    gen_update_pc(s, curr_insn_len(s));
-    s->base.is_jmp = DISAS_WFE;
+    /*
+     * For WFE, halt the vCPU until an event. This is a NOP
+     * hint on older architectures, with the same conditions
+     * as SEV.
+     */
+    if (arm_dc_feature(s, ARM_FEATURE_M) ||
+        arm_dc_feature(s, ARM_FEATURE_V6K)) {
+        gen_update_pc(s, curr_insn_len(s));
+        s->base.is_jmp = DISAS_WFE;
+    }
     return true;
 }
 
 static bool trans_WFI(DisasContext *s, arg_WFI *a)
 {
-    /* For WFI, halt the vCPU until an IRQ. */
-    gen_update_pc(s, curr_insn_len(s));
-    s->base.is_jmp = DISAS_WFI;
+    /*
+     * For WFI, halt the vCPU until an IRQ. This is a NOP
+     * hint on older architectures.
+     */
+    if (arm_dc_feature(s, ARM_FEATURE_M) ||
+        arm_dc_feature(s, ARM_FEATURE_V6K)) {
+        gen_update_pc(s, curr_insn_len(s));
+        s->base.is_jmp = DISAS_WFI;
+    }
     return true;
 }
 
