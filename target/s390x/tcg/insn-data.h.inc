@@ -868,12 +868,12 @@
     D(0xeb2d, STCMY,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 0)
     D(0xeb2c, STCMH,   RSY_b, Z,   r1_o, a2, 0, 0, stcm, 0, 32)
 /* STORE HALFWORD */
-    C(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st16, 0)
-    C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
+    D(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st, 0, MO_BEUW)
+    D(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st, 0, MO_BEUW)
 /* STORE HALFWORD HIGH */
-    C(0xe3c7, STHH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st16, 0)
+    D(0xe3c7, STHH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st, 0, MO_BEUW)
 /* STORE HALFWORD RELATIVE LONG */
-    C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+    D(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st, 0, MO_BEUW)
 /* STORE HIGH */
     D(0xe3cb, STFH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st32, 0, 0)
 /* STORE ON CONDITION */
