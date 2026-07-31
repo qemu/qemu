@@ -993,6 +993,7 @@ static const char *ccid_message_type_to_str(uint8_t type)
 static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
+    uint32_t payload_len;
 
     if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
         goto err;
@@ -1005,17 +1006,18 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     }
 
     ccid_header = (CCID_Header *)s->bulk_out_data;
-    if ((s->bulk_out_pos - 10 < ccid_header->dwLength) &&
+    payload_len = le32_to_cpu(ccid_header->dwLength);
+    if ((s->bulk_out_pos - 10 < payload_len) &&
         (p->iov.size == CCID_MAX_PACKET_SIZE)) {
         DPRINTF(s, D_VERBOSE,
                 "usb-ccid: bulk_in: expecting more packets (%u/%u)\n",
-                s->bulk_out_pos - 10, ccid_header->dwLength);
+                s->bulk_out_pos - 10, payload_len);
         return;
     }
-    if (s->bulk_out_pos - 10 != ccid_header->dwLength) {
+    if (s->bulk_out_pos - 10 != payload_len) {
         DPRINTF(s, 1,
                 "usb-ccid: bulk_in: message size mismatch (got %u, expected %u)\n",
-                s->bulk_out_pos - 10, ccid_header->dwLength);
+                s->bulk_out_pos - 10, payload_len);
         goto err;
     }
 
