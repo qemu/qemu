@@ -5762,13 +5762,6 @@ static void in2_m2_16s(DisasContext *s, DisasOps *o)
 }
 #define SPEC_in2_m2_16s 0
 
-static void in2_m2_16u(DisasContext *s, DisasOps *o)
-{
-    in2_a2(s, o);
-    tcg_gen_qemu_ld_i64(o->in2, o->in2, get_mem_index(s), MO_BEUW);
-}
-#define SPEC_in2_m2_16u 0
-
 static void in2_m2_32s(DisasContext *s, DisasOps *o)
 {
     in2_a2(s, o);
