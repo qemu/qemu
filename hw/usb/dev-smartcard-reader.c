@@ -840,6 +840,9 @@ static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
     }
     i = 1 + !!(atr[1] & 0x10) + !!(atr[1] & 0x20) + !!(atr[1] & 0x40);
     i += !!(atr[1] & 0x80);
+    if (i >= len) {
+        return 0;
+    }
     return atr[i] & 0x0f;
 }
 
