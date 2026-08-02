@@ -748,19 +748,20 @@ static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
 static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_Parameter *h;
+    uint32_t dwLength = s->bProtocolNum == 1 ? 7 : 5;
 
-    h = ccid_reserve_recv_buf(s, sizeof(CCID_Parameter));
+    h = ccid_reserve_recv_buf(s, sizeof(h->b) + sizeof(h->bProtocolNum) + dwLength);
     if (h == NULL) {
         return;
     }
     h->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_Parameters;
-    h->b.hdr.dwLength = 0;
+    h->b.hdr.dwLength = cpu_to_le32(dwLength);
     h->b.hdr.bSlot = recv->bSlot;
     h->b.hdr.bSeq = recv->bSeq;
     h->b.bStatus = ccid_calc_status(s);
     h->b.bError = s->bError;
     h->bProtocolNum = s->bProtocolNum;
-    h->abProtocolDataStructure = s->abProtocolDataStructure;
+    memcpy(&h->abProtocolDataStructure, &s->abProtocolDataStructure, dwLength);
     ccid_reset_error_status(s);
     usb_wakeup(s->bulk, 0);
 }
