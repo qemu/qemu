@@ -169,6 +169,7 @@ enum {
     ERROR_CMD_SLOT_BUSY     = -32,
     ERROR_BAD_DWLENGTH      = 1,
     ERROR_SLOT_NOT_EXIST    = 5,
+    ERROR_PROTOCOL_INVALID  = 7,
 };
 
 /* 6.2.6 RDR_to_PC_SlotStatus definitions */
@@ -330,6 +331,7 @@ struct USBCCIDState {
     bool migrate_pending_answers;
     bool pending_answers_loaded;
     bool pin_support;
+    bool t1_support;
 };
 
 static uint32_t ccid_bulk_in_pending_num(USBCCIDState *s)
@@ -368,6 +370,7 @@ static uint8_t qemu_ccid_descriptor[] = {
                      */
         0x07,       /* u8  bVoltageSupport; 01h - 5.0v, 02h - 3.0, 03 - 1.8 */
 
+#define CCID_DESC_OFFSET_DW_PROTOCOLS 0x06
         0x01, 0x00, /* u32 dwProtocols; RRRR PPPP. RRRR = 0000h.*/
         0x00, 0x00, /* PPPP: 0001h = Protocol T=0, 0002h = Protocol T=1 */
                     /* u32 dwDefaultClock; in kHZ (0x0fa0 is 4 MHz) */
@@ -968,7 +971,7 @@ static void ccid_set_parameters(USBCCIDState *s, CCID_Header *recv)
     uint32_t protocol_num = ph->bProtocolNum & 3;
 
     if (protocol_num != 0 && protocol_num != 1) {
-        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_report_error_failed(s, ERROR_PROTOCOL_INVALID);
         return;
     }
     s->bProtocolNum = protocol_num;
@@ -1546,6 +1549,9 @@ static void ccid_realize(USBDevice *dev, Error **errp)
     if (!s->pin_support) {
         qemu_ccid_descriptor[CCID_DESC_OFFSET_B_PIN_SUPPORT] = 0;
     }
+    if (s->t1_support) {
+        qemu_ccid_descriptor[CCID_DESC_OFFSET_DW_PROTOCOLS] |= 0x2;
+    }
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     qbus_init(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev), NULL);
@@ -1742,6 +1748,8 @@ static const Property ccid_properties[] = {
                      accurate_message_length, true),
     DEFINE_PROP_BOOL("x-pin-support", USBCCIDState,
                      pin_support, false),
+    DEFINE_PROP_BOOL("x-t1-support", USBCCIDState,
+                     t1_support, true),
     DEFINE_PROP_BOOL("x-migrate-pending-answers", USBCCIDState,
                      migrate_pending_answers, true),
 };

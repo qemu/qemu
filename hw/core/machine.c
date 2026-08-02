@@ -59,6 +59,7 @@ GlobalProperty hw_compat_11_0[] = {
     { "migration", "switchover-ack-legacy", "on" },
     { "usb-ccid", "x-accurate-message-length", "off" },
     { "usb-ccid", "x-pin-support", "on" },
+    { "usb-ccid", "x-t1-support", "off" },
     { "usb-ccid", "x-migrate-pending-answers", "off" },
 };
 const size_t hw_compat_11_0_len = G_N_ELEMENTS(hw_compat_11_0);
