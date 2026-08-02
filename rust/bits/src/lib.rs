@@ -320,7 +320,7 @@ macro_rules! bits {
 
         impl ::std::ops::SubAssign<$struct_name> for $struct_name {
             fn sub_assign(&mut self, rhs: $struct_name) {
-                self.0 = self.0 - rhs.0
+                self.0 &= !rhs.0
             }
         }
 
@@ -442,5 +442,12 @@ mod test {
             InterruptMask::E ^ InterruptMask::BE,
             InterruptMask::OE | InterruptMask::PE | InterruptMask::FE
         );
+    }
+
+    #[test]
+    pub fn test_sub_assign() {
+        let mut op1 = InterruptMask::E;
+        op1 -= InterruptMask::RI;
+        assert_eq!(op1, InterruptMask::E - InterruptMask::RI);
     }
 }
