@@ -232,6 +232,19 @@ typedef struct QEMU_PACKED CCID_DataBlock {
     uint8_t      abData[];
 } CCID_DataBlock;
 
+typedef struct QEMU_PACKED CCID_Escape {
+    CCID_BULK_IN b;
+    uint8_t      bRFU;
+    uint8_t      abData[];
+} CCID_Escape;
+
+typedef struct QEMU_PACKED CCID_DataRateAndClockFrequency {
+    CCID_BULK_IN b;
+    uint8_t      bRFU;
+    uint32_t     dwClockFrequency;
+    uint32_t     dwDataRate;
+} CCID_DataRateAndClockFrequency;
+
 /* 6.1.4 PC_to_RDR_XfrBlock */
 typedef struct QEMU_PACKED CCID_XferBlock {
     CCID_Header  hdr;
@@ -739,6 +752,43 @@ static void ccid_reset_error_status(USBCCIDState *s)
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
 }
 
+static void ccid_write_escape(USBCCIDState *s, CCID_Header *recv)
+{
+    CCID_Escape *h = ccid_reserve_recv_buf(s, sizeof(*h));
+    if (h == NULL) {
+        return;
+    }
+    h->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_Escape;
+    h->b.hdr.dwLength = 0;
+    h->b.hdr.bSlot = recv->bSlot;
+    h->b.hdr.bSeq = recv->bSeq;
+    h->b.bStatus = ccid_calc_status(s);
+    h->b.bError = s->bError;
+    h->bRFU = 0;
+    ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
+}
+
+static void ccid_write_data_rate_and_clock(USBCCIDState *s, CCID_Header *recv)
+{
+    CCID_DataRateAndClockFrequency *h = ccid_reserve_recv_buf(s, sizeof(*h));
+    if (h == NULL) {
+        return;
+    }
+    h->b.hdr.bMessageType =
+        CCID_MESSAGE_TYPE_RDR_to_PC_DataRateAndClockFrequency;
+    h->b.hdr.dwLength = cpu_to_le32(8);
+    h->b.hdr.bSlot = recv->bSlot;
+    h->b.hdr.bSeq = recv->bSeq;
+    h->b.bStatus = ccid_calc_status(s);
+    h->b.bError = s->bError;
+    h->bRFU = 0;
+    h->dwClockFrequency = 0;
+    h->dwDataRate = 0;
+    ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
+}
+
 static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_SlotStatus *h = ccid_reserve_recv_buf(s, sizeof(CCID_SlotStatus));
@@ -1122,6 +1172,18 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical:
         ccid_report_error_failed(s, 0);
         ccid_write_slot_status(s, ccid_header);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Secure:
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_write_data_block_error(s, ccid_header->bSlot, ccid_header->bSeq);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Escape:
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_write_escape(s, ccid_header);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_write_data_rate_and_clock(s, ccid_header);
         break;
     default:
         DPRINTF(s, 1,
