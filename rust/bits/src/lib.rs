@@ -215,7 +215,9 @@ macro_rules! bits {
         impl ::std::fmt::Binary for $struct_name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 // If no width, use the highest valid bit
-                let width = f.width().unwrap_or((Self::VALID__.ilog2() + 1) as usize);
+                let width = f
+                    .width()
+                    .unwrap_or(Self::VALID__.checked_ilog2().map_or(1, |bit| (bit + 1) as usize));
                 write!(f, "{:0>width$.precision$b}", self.0,
                        width = width,
                        precision = f.precision().unwrap_or(width))
@@ -412,6 +414,12 @@ mod test {
         }
     }
 
+    bits! {
+        pub struct EmptyMask(u32) {
+            NONE = 0,
+        }
+    }
+
     #[test]
     pub fn test_not() {
         assert_eq!(
@@ -449,5 +457,10 @@ mod test {
         let mut op1 = InterruptMask::E;
         op1 -= InterruptMask::RI;
         assert_eq!(op1, InterruptMask::E - InterruptMask::RI);
+    }
+
+    #[test]
+    pub fn test_bit_display_empty() {
+        assert_eq!(format!("{:b}", EmptyMask::NONE), "0");
     }
 }
