@@ -1046,6 +1046,7 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     if (ccid_card_status(s) != ICC_STATUS_PRESENT_ACTIVE) {
         DPRINTF(s, 1,
                 "usb-ccid: not sending apdu to client, no card connected\n");
+        ccid_report_error_failed(s, ERROR_ICC_MUTE);
         ccid_write_data_block_error(s, recv->hdr.bSlot, recv->hdr.bSeq);
         return;
     }
