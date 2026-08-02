@@ -167,6 +167,7 @@ enum {
     ERROR_XFR_OVERRUN       = -4,
     ERROR_HW_ERROR          = -5,
     ERROR_CMD_SLOT_BUSY     = -32,
+    ERROR_SLOT_NOT_EXIST    = 5,
 };
 
 /* 6.2.6 RDR_to_PC_SlotStatus definitions */
@@ -1087,6 +1088,35 @@ static const char *ccid_message_type_to_str(uint8_t type)
     return "unknown";
 }
 
+/*
+ * Send the spec-mandated response type for the given command with the
+ * error already staged via ccid_report_error_failed().
+ */
+static void ccid_write_error_response(USBCCIDState *s, CCID_Header *recv)
+{
+    switch (recv->bMessageType) {
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_XfrBlock:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Secure:
+        ccid_write_data_block_error(s, recv->bSlot, recv->bSeq);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_GetParameters:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_ResetParameters:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters:
+        ccid_write_parameters(s, recv);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Escape:
+        ccid_write_escape(s, recv);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        ccid_write_data_rate_and_clock(s, recv);
+        break;
+    default:
+        ccid_write_slot_status(s, recv);
+        break;
+    }
+}
+
 static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
@@ -1128,6 +1158,14 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
                 "usb-ccid: bulk_in: message size mismatch (got %u, expected %u)\n",
                 s->bulk_out_pos - 10, payload_len);
         goto err;
+    }
+
+    if (ccid_header->bSlot != 0) {
+        DPRINTF(s, 1, "usb-ccid: bad slot %d\n", ccid_header->bSlot);
+        ccid_report_error_failed(s, ERROR_SLOT_NOT_EXIST);
+        ccid_write_error_response(s, ccid_header);
+        s->bulk_out_pos = 0;
+        return;
     }
 
     DPRINTF(s, D_MORE_INFO, "%s %x %s\n", __func__,
