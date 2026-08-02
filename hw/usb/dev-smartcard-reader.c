@@ -848,6 +848,7 @@ static bool ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     p->b.hdr.bSeq = seq;
     p->b.bStatus = ccid_calc_status(s);
     p->b.bError = s->bError;
+    p->bChainParameter = 0;
     if (p->b.bError) {
         DPRINTF(s, D_VERBOSE, "error %d\n", p->b.bError);
     }
