@@ -328,6 +328,7 @@ struct USBCCIDState {
     bool accurate_message_length;
     bool migrate_pending_answers;
     bool pending_answers_loaded;
+    bool pin_support;
 };
 
 static uint32_t ccid_bulk_in_pending_num(USBCCIDState *s)
@@ -436,10 +437,14 @@ static uint8_t qemu_ccid_descriptor[] = {
                      * u16 wLcdLayout; XXYY Number of lines (XX) and chars per
                      * line for LCD display used for PIN entry. 0000 - no LCD
                      */
-        0x01,       /*
+                    /*
                      * u8  bPINSupport; 01h PIN Verification,
                      *                  02h PIN Modification
+                     *
+                     * Corrected to 0 when !x-pin-support
                      */
+#define CCID_DESC_OFFSET_B_PIN_SUPPORT 52
+        0x01,
         0x01,       /* u8  bMaxCCIDBusySlots; */
 };
 
@@ -1498,6 +1503,9 @@ static void ccid_realize(USBDevice *dev, Error **errp)
         stl_le_p(&qemu_ccid_descriptor[CCID_DESC_OFFSET_DW_MAX_MSG_LEN],
                  BULK_IN_BUF_SIZE);
     }
+    if (!s->pin_support) {
+        qemu_ccid_descriptor[CCID_DESC_OFFSET_B_PIN_SUPPORT] = 0;
+    }
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     qbus_init(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev), NULL);
@@ -1692,6 +1700,8 @@ static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
     DEFINE_PROP_BOOL("x-accurate-message-length", USBCCIDState,
                      accurate_message_length, true),
+    DEFINE_PROP_BOOL("x-pin-support", USBCCIDState,
+                     pin_support, false),
     DEFINE_PROP_BOOL("x-migrate-pending-answers", USBCCIDState,
                      migrate_pending_answers, true),
 };
