@@ -327,7 +327,7 @@ static void aspeed_set_bmc_console(Object *obj, const char *value, Error **errp)
     int uart_first = aspeed_uart_first(sc->uarts_base);
     int uart_last = aspeed_uart_last(sc->uarts_base, sc->uarts_num);
 
-    if (sscanf(value, "uart%u", &val) != 1) {
+    if (sscanf(value, "uart%d", &val) != 1 || val < 0) {
         error_setg(errp, "Bad value for \"uart\" property");
         return;
     }
