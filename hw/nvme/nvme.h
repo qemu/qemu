@@ -764,6 +764,8 @@ void nvme_atomic_configure_max_write_size(bool dn, uint16_t awun,
 void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
                                        uint16_t nabspf, NvmeAtomic *atomic);
 
+void nvme_ctrl_notify_ns_resize(NvmeCtrl *ctrl, NvmeNamespace *ns);
+
 extern const VMStateDescription nvme_vmstate_atomic;
 extern const VMStateDescription nvme_vmstate_ns;
 

@@ -163,6 +163,69 @@ lbaf_found:
     return 0;
 }
 
+static void nvme_ns_resize_cb(void *opaque)
+{
+    NvmeNamespace *ns = opaque;
+    int64_t size;
+    int cntlid, notified_ctrls;
+
+    size = blk_getlength(ns->blkconf.blk);
+    if (size < 0) {
+        error_report("can't get size of block device %s: %s",
+                     blk_name(ns->blkconf.blk), strerror(-size));
+        return;
+    }
+
+    ns->size = size;
+    nvme_ns_init_format(ns);
+
+    if (!ns->attached) {
+        return;
+    }
+
+    /*
+     * Okay, the namespace is attached so we need to notify all controllers
+     * about size change.
+     *
+     * Let's just take ns->subsys, iterate over all controllers and find
+     * to which of them our namespace is attached.
+     */
+
+    assert(ns->subsys);
+
+    notified_ctrls = 0;
+    for (cntlid = 0; cntlid < ARRAY_SIZE(ns->subsys->ctrls); cntlid++) {
+        NvmeCtrl *ctrl;
+
+        /* notified everyone? */
+        if (notified_ctrls == ns->attached) {
+            break;
+        }
+
+        ctrl = nvme_subsys_ctrl(ns->subsys, cntlid);
+        if (!ctrl) {
+            continue;
+        }
+
+        for (uint32_t nsid = 1; nsid <= NVME_MAX_NAMESPACES; nsid++) {
+            NvmeNamespace *ns_iter = ctrl->namespaces[nsid];
+
+            if (!ns_iter || ns_iter != ns) {
+                continue;
+            }
+
+            nvme_ctrl_notify_ns_resize(ctrl, ns);
+
+            notified_ctrls++;
+            break;
+        }
+    }
+}
+
+static const BlockDevOps nvme_ns_block_ops = {
+    .resize_cb     = nvme_ns_resize_cb,
+};
+
 static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 {
     bool read_only;
@@ -172,9 +235,11 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
     }
 
     read_only = !blk_supports_write_perm(ns->blkconf.blk);
-    if (!blkconf_apply_backend_options(&ns->blkconf, read_only, false, errp)) {
+    if (!blkconf_apply_backend_options(&ns->blkconf, read_only, true, errp)) {
         return -1;
     }
+
+    blk_set_dev_ops(ns->blkconf.blk, &nvme_ns_block_ops, ns);
 
     if (ns->blkconf.discard_granularity == -1) {
         ns->blkconf.discard_granularity =
