@@ -1505,7 +1505,7 @@ static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
 {
     if (skip_drain) {
         assert(vhost_user_has_protocol_feature(dev,
-               VHOST_USER_PROTOCOL_F_GET_VRING_BASE_INFLIGHT));
+               VHOST_USER_PROTOCOL_F_GET_VRING_BASE_SKIP_DRAIN));
     }
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
