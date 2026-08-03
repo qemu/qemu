@@ -295,14 +295,13 @@ struct USBCCIDState {
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
     uint32_t bulk_in_pending_start;
     uint32_t bulk_in_pending_end; /* first free */
-    uint32_t bulk_in_pending_num;
     uint8_t  bulk_out_data[BULK_OUT_DATA_SIZE];
     uint32_t bulk_out_pos;
     uint64_t last_answer_error;
     Answer pending_answers[PENDING_ANSWERS_NUM];
     uint32_t pending_answers_start;
     uint32_t pending_answers_end;
-    uint32_t pending_answers_num;
+    uint32_t pending_answers_num; /* for migration compatibility */
     uint8_t  bError;
     uint8_t  bmCommandStatus;
     uint8_t  bProtocolNum;
@@ -314,6 +313,20 @@ struct USBCCIDState {
     uint8_t  debug;
     bool accurate_message_length;
 };
+
+static uint32_t ccid_bulk_in_pending_num(USBCCIDState *s)
+{
+    uint32_t n = s->bulk_in_pending_end - s->bulk_in_pending_start;
+    assert(n <= BULK_IN_PENDING_NUM);
+    return n;
+}
+
+static uint32_t ccid_pending_answers_num(USBCCIDState *s)
+{
+    uint32_t n = s->pending_answers_end - s->pending_answers_start;
+    assert(n <= PENDING_ANSWERS_NUM);
+    return n;
+}
 
 /*
  * CCID Spec chapter 4: CCID uses a standard device descriptor per Chapter 9,
@@ -513,12 +526,11 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
 
 static bool ccid_has_pending_answers(USBCCIDState *s)
 {
-    return s->pending_answers_num > 0;
+    return ccid_pending_answers_num(s) > 0;
 }
 
 static void ccid_clear_pending_answers(USBCCIDState *s)
 {
-    s->pending_answers_num = 0;
     s->pending_answers_start = 0;
     s->pending_answers_end = 0;
 }
@@ -533,7 +545,7 @@ static void ccid_print_pending_answers(USBCCIDState *s)
         DPRINTF(s, D_VERBOSE, " empty\n");
         return;
     }
-    for (i = s->pending_answers_start, count = s->pending_answers_num ;
+    for (i = s->pending_answers_start, count = ccid_pending_answers_num(s) ;
          count > 0; count--, i++) {
         answer = &s->pending_answers[i % PENDING_ANSWERS_NUM];
         if (count == 1) {
@@ -548,8 +560,7 @@ static void ccid_add_pending_answer(USBCCIDState *s, CCID_Header *hdr)
 {
     Answer *answer;
 
-    assert(s->pending_answers_num < PENDING_ANSWERS_NUM);
-    s->pending_answers_num++;
+    assert(ccid_pending_answers_num(s) < PENDING_ANSWERS_NUM);
     answer =
         &s->pending_answers[(s->pending_answers_end++) % PENDING_ANSWERS_NUM];
     answer->slot = hdr->bSlot;
@@ -562,8 +573,7 @@ static void ccid_remove_pending_answer(USBCCIDState *s,
 {
     Answer *answer;
 
-    assert(s->pending_answers_num > 0);
-    s->pending_answers_num--;
+    assert(ccid_pending_answers_num(s) > 0);
     answer =
         &s->pending_answers[(s->pending_answers_start++) % PENDING_ANSWERS_NUM];
     *slot = answer->slot;
@@ -581,24 +591,22 @@ static void ccid_bulk_in_clear(USBCCIDState *s)
     }
     s->bulk_in_pending_start = 0;
     s->bulk_in_pending_end = 0;
-    s->bulk_in_pending_num = 0;
 }
 
 static void ccid_bulk_in_release(USBCCIDState *s)
 {
     BulkIn *bulk_in;
 
-    assert(s->bulk_in_pending_num > 0);
+    assert(ccid_bulk_in_pending_num(s) > 0);
     bulk_in =
         &s->bulk_in_pending[s->bulk_in_pending_start % BULK_IN_PENDING_NUM];
     bulk_in->pos = 0;
     s->bulk_in_pending_start++;
-    s->bulk_in_pending_num--;
 }
 
 static BulkIn *ccid_bulk_in_peek(USBCCIDState *s)
 {
-    if (s->bulk_in_pending_num == 0) {
+    if (ccid_bulk_in_pending_num(s) == 0) {
         return NULL;
     }
     return &s->bulk_in_pending[
@@ -618,14 +626,13 @@ static void *ccid_reserve_recv_buf(USBCCIDState *s, uint16_t len)
                            __func__, len, BULK_IN_BUF_SIZE);
         return NULL;
     }
-    if (s->bulk_in_pending_num >= BULK_IN_PENDING_NUM) {
+    if (ccid_bulk_in_pending_num(s) >= BULK_IN_PENDING_NUM) {
         DPRINTF(s, D_WARN, "usb-ccid.c: %s: No free bulk_in buffers. "
                            "discarding message.\n", __func__);
         return NULL;
     }
     bulk_in =
         &s->bulk_in_pending[(s->bulk_in_pending_end++) % BULK_IN_PENDING_NUM];
-    s->bulk_in_pending_num++;
     bulk_in->len = len;
     return bulk_in->data;
 }
@@ -988,7 +995,7 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
         ccid_write_data_block_error(s, recv->hdr.bSlot, recv->hdr.bSeq);
         return;
     }
-    if (s->pending_answers_num > 0) {
+    if (ccid_pending_answers_num(s) > 0) {
         DPRINTF(s, D_WARN,
                 "usb-ccid: slot already busy, rejecting apdu\n");
         ccid_report_error_failed(s, ERROR_CMD_SLOT_BUSY);
@@ -1039,7 +1046,7 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
      * first packet when all response slots are committed.
      */
     if (s->bulk_out_pos == 0 && /* start of message */
-        s->bulk_in_pending_num + s->pending_answers_num >=
+        ccid_bulk_in_pending_num(s) + ccid_pending_answers_num(s) >=
             BULK_IN_PENDING_NUM) {
         p->status = USB_RET_NAK;
         return;
@@ -1233,7 +1240,7 @@ static void ccid_flush_pending_answers(USBCCIDState *s)
 
 static Answer *ccid_peek_next_answer(USBCCIDState *s)
 {
-    return s->pending_answers_num == 0
+    return ccid_pending_answers_num(s) == 0
         ? NULL
         : &s->pending_answers[s->pending_answers_start % PENDING_ANSWERS_NUM];
 }
@@ -1440,7 +1447,7 @@ static bool ccid_pre_save(void *opaque, Error **errp)
 {
     USBCCIDState *s = opaque;
 
-    if (s->pending_answers_num || s->bulk_in_pending_num) {
+    if (ccid_pending_answers_num(s) || ccid_bulk_in_pending_num(s)) {
         error_setg(errp, "usb-ccid has pending queue state which cannot be "
                    "migrated safely");
         return false;
@@ -1512,7 +1519,7 @@ static const VMStateDescription ccid_vmstate = {
         VMSTATE_UINT32(bulk_in_pending_end, USBCCIDState),
         VMSTATE_STRUCT_ARRAY(pending_answers, USBCCIDState,
                         PENDING_ANSWERS_NUM, 1, answer_vmstate, Answer),
-        VMSTATE_UINT32(pending_answers_num, USBCCIDState),
+        VMSTATE_UINT32(pending_answers_num, USBCCIDState), /* for compatibility */
         VMSTATE_UNUSED(1), /* was migration_state */
         VMSTATE_UINT32(state_vmstate, USBCCIDState),
         VMSTATE_END_OF_LIST()
