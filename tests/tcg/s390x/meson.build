@@ -73,6 +73,7 @@ tests += {
   'stckf.c': {},
   'ts.c': {},
   'ex-smc.c': {'cflags': ['-Wl,--no-warn-rwx-segments']},
+  'load-store-reversed.c': {},
 }
 
 foreach src: tests_s390x_pgm
