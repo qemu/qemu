@@ -1142,11 +1142,11 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         return;
     }
 
-    if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
+    if (usb_packet_size(p) + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
         goto err;
     }
-    usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
-    s->bulk_out_pos += p->iov.size;
+    usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, usb_packet_size(p));
+    s->bulk_out_pos += usb_packet_size(p);
     if (s->bulk_out_pos < 10) {
         DPRINTF(s, 1, "%s: header incomplete\n", __func__);
         goto err;
@@ -1155,7 +1155,7 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     ccid_header = (CCID_Header *)s->bulk_out_data;
     payload_len = le32_to_cpu(ccid_header->dwLength);
     if ((s->bulk_out_pos - 10 < payload_len) &&
-        (p->iov.size == CCID_MAX_PACKET_SIZE)) {
+        (usb_packet_size(p) == CCID_MAX_PACKET_SIZE)) {
         DPRINTF(s, D_VERBOSE,
                 "usb-ccid: bulk_in: expecting more packets (%u/%u)\n",
                 s->bulk_out_pos - 10, payload_len);
@@ -1298,7 +1298,7 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
     bulk_in = ccid_bulk_in_peek(s);
     if (bulk_in != NULL) {
         assert(bulk_in->pos <= bulk_in->len);
-        len = MIN(bulk_in->len - bulk_in->pos, p->iov.size);
+        len = MIN(bulk_in->len - bulk_in->pos, usb_packet_size(p));
         if (len) {
             usb_packet_copy(p, bulk_in->data + bulk_in->pos, len);
         }
@@ -1314,12 +1314,12 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
     if (len) {
         DPRINTF(s, D_MORE_INFO,
                 "%s: %zd/%d req/act to guest (BULK_IN)\n",
-                __func__, p->iov.size, len);
+                __func__, usb_packet_size(p), len);
     }
-    if (len < p->iov.size) {
+    if (len < usb_packet_size(p)) {
         DPRINTF(s, 1,
                 "%s: returning short (EREMOTEIO) %d < %zd\n",
-                __func__, len, p->iov.size);
+                __func__, len, usb_packet_size(p));
     }
 }
 
@@ -1340,7 +1340,7 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
             break;
         case CCID_INT_IN_EP:
             if (s->notify_slot_change) {
-                if (p->iov.size < 2) {
+                if (usb_packet_size(p) < 2) {
                     p->status = USB_RET_STALL;
                     break;
                 }
@@ -1353,7 +1353,7 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
                 DPRINTF(s, D_INFO,
                         "handle_data: int_in: notify_slot_change %X, "
                         "requested len %zd\n",
-                        s->bmSlotICCState, p->iov.size);
+                        s->bmSlotICCState, usb_packet_size(p));
             } else {
                 p->status = USB_RET_NAK;
             }
