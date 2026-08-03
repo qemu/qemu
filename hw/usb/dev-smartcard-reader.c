@@ -296,7 +296,6 @@ struct USBCCIDState {
     uint32_t bulk_in_pending_start;
     uint32_t bulk_in_pending_end; /* first free */
     uint32_t bulk_in_pending_num;
-    BulkIn *current_bulk_in;
     uint8_t  bulk_out_data[BULK_OUT_DATA_SIZE];
     uint32_t bulk_out_pos;
     uint64_t last_answer_error;
@@ -583,24 +582,27 @@ static void ccid_bulk_in_clear(USBCCIDState *s)
     s->bulk_in_pending_start = 0;
     s->bulk_in_pending_end = 0;
     s->bulk_in_pending_num = 0;
-    s->current_bulk_in = NULL;
 }
 
 static void ccid_bulk_in_release(USBCCIDState *s)
 {
-    assert(s->current_bulk_in != NULL);
-    s->current_bulk_in->pos = 0;
-    s->current_bulk_in = NULL;
+    BulkIn *bulk_in;
+
+    assert(s->bulk_in_pending_num > 0);
+    bulk_in =
+        &s->bulk_in_pending[s->bulk_in_pending_start % BULK_IN_PENDING_NUM];
+    bulk_in->pos = 0;
+    s->bulk_in_pending_start++;
     s->bulk_in_pending_num--;
 }
 
-static void ccid_bulk_in_get(USBCCIDState *s)
+static BulkIn *ccid_bulk_in_peek(USBCCIDState *s)
 {
-    if (s->current_bulk_in != NULL || s->bulk_in_pending_num == 0) {
-        return;
+    if (s->bulk_in_pending_num == 0) {
+        return NULL;
     }
-    s->current_bulk_in =
-        &s->bulk_in_pending[(s->bulk_in_pending_start++) % BULK_IN_PENDING_NUM];
+    return &s->bulk_in_pending[
+        s->bulk_in_pending_start % BULK_IN_PENDING_NUM];
 }
 
 static void *ccid_reserve_recv_buf(USBCCIDState *s, uint16_t len)
@@ -1135,18 +1137,17 @@ err:
 static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
 {
     int len = 0;
+    BulkIn *bulk_in;
 
-    ccid_bulk_in_get(s);
-    if (s->current_bulk_in != NULL) {
-        assert(s->current_bulk_in->pos <= s->current_bulk_in->len);
-        len = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
-                  p->iov.size);
+    bulk_in = ccid_bulk_in_peek(s);
+    if (bulk_in != NULL) {
+        assert(bulk_in->pos <= bulk_in->len);
+        len = MIN(bulk_in->len - bulk_in->pos, p->iov.size);
         if (len) {
-            usb_packet_copy(p, s->current_bulk_in->data +
-                            s->current_bulk_in->pos, len);
+            usb_packet_copy(p, bulk_in->data + bulk_in->pos, len);
         }
-        s->current_bulk_in->pos += len;
-        if (s->current_bulk_in->pos == s->current_bulk_in->len
+        bulk_in->pos += len;
+        if (bulk_in->pos == bulk_in->len
             && (len != CCID_MAX_PACKET_SIZE || len < p->iov.size)) {
             ccid_bulk_in_release(s);
         }
@@ -1439,8 +1440,7 @@ static bool ccid_pre_save(void *opaque, Error **errp)
 {
     USBCCIDState *s = opaque;
 
-    if (s->pending_answers_num || s->bulk_in_pending_num ||
-        s->current_bulk_in) {
+    if (s->pending_answers_num || s->bulk_in_pending_num) {
         error_setg(errp, "usb-ccid has pending queue state which cannot be "
                    "migrated safely");
         return false;
