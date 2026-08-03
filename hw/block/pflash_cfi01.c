@@ -1030,6 +1030,16 @@ static int pflash_post_load(void *opaque, int version_id)
 {
     PFlashCFI01 *pfl = opaque;
 
+    /*
+     * ROMD mode is not in the VMState; derive it from the migrated
+     * cmd and wcycle.  Only (wcycle == 0, cmd == 0x00) is read-array.
+     */
+    if (pfl->wcycle == 0 && pfl->cmd == 0x00) {
+        memory_region_rom_device_set_romd(&pfl->mem, true);
+    } else {
+        memory_region_rom_device_set_romd(&pfl->mem, false);
+    }
+
     if (!pfl->ro) {
         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
                                                         pfl);
