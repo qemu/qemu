@@ -264,7 +264,7 @@ typedef struct QEMU_PACKED CCID_IccPowerOn {
 
 typedef struct QEMU_PACKED CCID_IccPowerOff {
     CCID_Header hdr;
-    uint16_t    abRFU;
+    uint8_t     abRFU[3];
 } CCID_IccPowerOff;
 
 typedef struct QEMU_PACKED CCID_SetParameters {
