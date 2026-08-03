@@ -167,6 +167,7 @@ enum {
     ERROR_XFR_OVERRUN       = -4,
     ERROR_HW_ERROR          = -5,
     ERROR_CMD_SLOT_BUSY     = -32,
+    ERROR_BAD_DWLENGTH      = 1,
     ERROR_SLOT_NOT_EXIST    = 5,
 };
 
@@ -1180,9 +1181,15 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
             ccid_message_type_to_str(ccid_header->bMessageType));
     switch (ccid_header->bMessageType) {
     case CCID_MESSAGE_TYPE_PC_to_RDR_GetSlotStatus:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_write_slot_status(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         DPRINTF(s, 1, "%s: PowerOn: %d\n", __func__,
                 ((CCID_IccPowerOn *)(ccid_header))->bPowerSelect);
         s->powered = true;
@@ -1193,6 +1200,9 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         ccid_write_data_block_atr(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOff:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         s->powered = false;
         ccid_write_slot_status(s, ccid_header);
@@ -1200,21 +1210,38 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     case CCID_MESSAGE_TYPE_PC_to_RDR_XfrBlock:
         ccid_on_apdu_from_guest(s, (CCID_XferBlock *)s->bulk_out_data);
         break;
-    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters: {
+        CCID_SetParameters *ph = (CCID_SetParameters *)s->bulk_out_data;
+        uint32_t protocol_num = ph->bProtocolNum & 3;
+        uint32_t expected = (protocol_num == 1) ? 7 : 5;
+
+        if (protocol_num <= 1 && payload_len != expected) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         ccid_set_parameters(s, ccid_header);
         ccid_write_parameters(s, ccid_header);
         break;
+    }
     case CCID_MESSAGE_TYPE_PC_to_RDR_ResetParameters:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         ccid_reset_parameters(s);
         ccid_write_parameters(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_GetParameters:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         ccid_write_parameters(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_report_error_failed(s, 0);
         ccid_write_slot_status(s, ccid_header);
         break;
@@ -1227,6 +1254,9 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         ccid_write_escape(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        if (payload_len != 8) {
+            goto bad_length;
+        }
         ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
         ccid_write_data_rate_and_clock(s, ccid_header);
         break;
@@ -1242,6 +1272,16 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         ccid_write_slot_status(s, ccid_header);
         break;
     }
+    s->bulk_out_pos = 0;
+    return;
+
+bad_length:
+    DPRINTF(s, 1,
+            "usb-ccid: bad dwLength %u for %s\n",
+            payload_len,
+            ccid_message_type_to_str(ccid_header->bMessageType));
+    ccid_report_error_failed(s, ERROR_BAD_DWLENGTH);
+    ccid_write_error_response(s, ccid_header);
     s->bulk_out_pos = 0;
     return;
 
