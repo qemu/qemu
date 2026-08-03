@@ -110,7 +110,7 @@ static void vu_media_stop(VirtIODevice *vdev)
         return;
     }
 
-    vhost_dev_stop(&media->vhost_dev, vdev, true);
+    vhost_dev_stop(&media->vhost_dev, vdev, true, false);
 
     ret = k->set_guest_notifiers(qbus->parent, media->vhost_dev.nvqs, false);
     if (ret < 0) {
