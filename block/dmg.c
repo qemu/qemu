@@ -312,6 +312,21 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
             goto fail;
         }
 
+        /*
+         * Uncompressed chunk length must match sector count. Compressed chunks
+         * are validated during dmg_read_chunk() since the uncompressed size is
+         * not known ahead of time.
+         */
+        if (s->types[i] == UDRW) {
+            if (s->sectorcounts[i] != DIV_ROUND_UP(s->lengths[i], 512)) {
+                error_report("length %" PRIu64 " for chunk %" PRIu32
+                             " is inconsistent with sector count %" PRIu64,
+                             s->lengths[i], i, s->sectorcounts[i]);
+                ret = -EINVAL;
+                goto fail;
+            }
+        }
+
         update_max_chunk_size(s, i, &ds->max_compressed_size,
                               &ds->max_sectors_per_chunk);
         offset += 40;
@@ -559,6 +574,12 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    /* There must be at least one chunk */
+    if (s->n_chunks == 0) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
     /* initialize zlib engine */
     s->compressed_chunk = qemu_try_blockalign(bs->file->bs,
                                               ds.max_compressed_size + 1);
@@ -609,7 +630,10 @@ static inline int is_sector_in_chunk(BDRVDMGState *s,
 static inline uint32_t search_chunk(BDRVDMGState *s, uint64_t sector_num)
 {
     /* binary search */
-    uint32_t chunk1 = 0, chunk2 = s->n_chunks, chunk3;
+    uint32_t chunk1 = 0, chunk2 = s->n_chunks - 1, chunk3;
+    if (s->n_chunks == 0) {
+        goto err; /* should never happen */
+    }
     while (chunk1 <= chunk2) {
         chunk3 = (chunk1 + chunk2) / 2;
         if (s->sectors[chunk3] > sector_num) {
@@ -712,6 +736,16 @@ dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
                                 s->uncompressed_chunk, 0);
             if (ret < 0) {
                 return -1;
+            }
+
+            /*
+             * Zero the unread part of the last sector when chunk length is
+             * unaligned to avoid exposing uninitialized memory. Valid image
+             * files may never hit this case, but cover it to be safe.
+             */
+            if (s->lengths[chunk] & 511) {
+                size_t trailing_bytes = 512 - (s->lengths[chunk] & 511);
+                memset(s->uncompressed_chunk + s->lengths[chunk], 0, trailing_bytes);
             }
             break;
         case UDZE: /* zeros */

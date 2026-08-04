@@ -196,6 +196,12 @@ static void fd_init(FDrive *drv)
 
 #define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
 
+/* Is a diskette present in the drive? */
+static bool fd_media_present(FDrive *drv)
+{
+    return drv->blk != NULL && blk_is_inserted(drv->blk);
+}
+
 static int fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
                           uint8_t last_sect, uint8_t num_sides)
 {
@@ -222,6 +228,7 @@ static int fd_offset(FDrive *drv)
  * returns 2 if track is invalid
  * returns 3 if sector is invalid
  * returns 4 if seek is disabled
+ * returns 5 if no floppy is inserted
  */
 static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
                    int enable_seek)
@@ -258,7 +265,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
 #endif
         drv->head = head;
         if (drv->track != track) {
-            if (drv->blk != NULL && blk_is_inserted(drv->blk)) {
+            if (fd_media_present(drv)) {
                 drv->media_changed = 0;
             }
             ret = 1;
@@ -267,8 +274,8 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
         drv->sect = sect;
     }
 
-    if (drv->blk == NULL || !blk_is_inserted(drv->blk)) {
-        ret = 2;
+    if (!fd_media_present(drv)) {
+        ret = 5;
     }
 
     return ret;
@@ -1476,14 +1483,24 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
                                   NUM_SIDES(cur_drv)));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
-        /* sect too big */
+        /* track/head out of range */
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
         return;
+    case 5:
+        /*
+         * No medium: there is no address mark to be found.  Guests that tell
+         * an absent diskette from an unreadable one rely on ST1.MA.
+         */
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+        fdctrl->fifo[3] = kt;
+        fdctrl->fifo[4] = kh;
+        fdctrl->fifo[5] = ks;
+        return;
     case 3:
-        /* track too big */
+        /* sector too big */
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_EC, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
@@ -1791,14 +1808,21 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
                                   NUM_SIDES(cur_drv)));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
-        /* sect too big */
+        /* track/head out of range */
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
         fdctrl->fifo[5] = ks;
         return;
+    case 5:
+        /* no medium */
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+        fdctrl->fifo[3] = kt;
+        fdctrl->fifo[4] = kh;
+        fdctrl->fifo[5] = ks;
+        return;
     case 3:
-        /* track too big */
+        /* sector too big */
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_EC, 0x00);
         fdctrl->fifo[3] = kt;
         fdctrl->fifo[4] = kh;
@@ -1936,7 +1960,10 @@ static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
 
 static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
 {
-    FDrive *cur_drv = get_cur_drv(fdctrl);
+    FDrive *cur_drv;
+
+    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
+    cur_drv = get_cur_drv(fdctrl);
 
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     timer_mod(fdctrl->result_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -2303,6 +2330,18 @@ static void fdctrl_result_timer(void *opaque)
     FDCtrl *fdctrl = opaque;
     FDrive *cur_drv = get_cur_drv(fdctrl);
 
+    /*
+     * An empty drive has no address marks to read.  Completing READ ID
+     * successfully, with the made-up sector ID left over from the "spinning"
+     * emulation below, tells the guest that a diskette is still present after
+     * it has been ejected.  The only error path left was a data rate mismatch,
+     * and media_rate is never reset when the medium is removed.
+     */
+    if (!fd_media_present(cur_drv)) {
+        FLOPPY_DPRINTF("read id on empty drive\n");
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+        return;
+    }
     /* Pretend we are spinning.
      * This is needed for Coherent, which uses READ ID to check for
      * sector interleaving.

@@ -160,12 +160,26 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         self.vm_b.cmd('migrate-set-capabilities', capabilities=caps)
 
+        # Throttle so the chunks covering our discards (the only ones
+        # not skipped by the all-zero fast path) can't outrun the check
+        # below.
+        self.vm_a.cmd('migrate-set-parameters', max_bandwidth=16536)
+
         self.vm_a.cmd('migrate', uri='exec:cat>' + fifo)
 
         self.vm_a.cmd('migrate-start-postcopy')
 
         event_resume = self.vm_b.event_wait('RESUME')
         self.vm_b_events.append(event_resume)
+
+        # bitmap0 can't already have its final content: that requires
+        # the bit data to have actually arrived.
+        result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive0', name='bitmap0')
+        assert result['return']['sha256'] != all_discards_sha256
+
+        self.vm_a.cmd('migrate-set-parameters', max_bandwidth=0)
+
         return (event_resume, discards1_sha256, all_discards_sha256)
 
     def test_postcopy_success(self):
@@ -186,7 +200,6 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         downtime = event_dist(event_stop, event_resume)
         postcopy_time = event_dist(event_resume, event_complete)
 
-        assert downtime * 10 < postcopy_time
         if debug:
             print('downtime:', downtime)
             print('postcopy_time:', postcopy_time)

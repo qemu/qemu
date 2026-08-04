@@ -64,6 +64,12 @@ enum {
 
     DSKCHG  = 0x80,
 };
+enum {
+    ST0_IC_MASK  = 0xc0,    /* interrupt code */
+    ST0_IC_ABNTERM = 0x40,  /* abnormal termination */
+
+    ST1_MA       = 0x01,    /* missing address mark */
+};
 
 static char *test_image;
 
@@ -270,6 +276,21 @@ static void test_cmos(void)
     g_assert(cmos == 0x40 || cmos == 0x50);
 }
 
+static void media_insert(void)
+{
+    qtest_qmp_assert_success(global_qtest,
+                             "{'execute':'blockdev-change-medium', 'arguments':{"
+                             " 'id':'floppy0', 'filename': %s, 'format': 'raw' }}",
+                             test_image);
+}
+
+static void media_eject(void)
+{
+    qtest_qmp_assert_success(global_qtest,
+                             "{'execute':'eject', 'arguments':{"
+                             " 'id':'floppy0' }}");
+}
+
 static void test_no_media_on_start(void)
 {
     uint8_t dir;
@@ -301,10 +322,7 @@ static void test_media_insert(void)
 
     /* Insert media in drive. DSKCHK should not be reset until a step pulse
      * is sent. */
-    qtest_qmp_assert_success(global_qtest,
-                             "{'execute':'blockdev-change-medium', 'arguments':{"
-                             " 'id':'floppy0', 'filename': %s, 'format': 'raw' }}",
-                             test_image);
+    media_insert();
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -333,9 +351,7 @@ static void test_media_change(void)
 
     /* Eject the floppy and check that DSKCHG is set. Reading it out doesn't
      * reset the bit. */
-    qtest_qmp_assert_success(global_qtest,
-                             "{'execute':'eject', 'arguments':{"
-                             " 'id':'floppy0' }}");
+    media_eject();
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
@@ -414,6 +430,9 @@ static void test_read_id(void)
     uint8_t st0;
     uint8_t msr;
 
+    /* READ ID reads an address mark, so it needs a medium in the drive. */
+    media_insert();
+
     /* Seek to track 0 and check with READ ID */
     send_seek(0);
 
@@ -491,6 +510,42 @@ static void test_read_id(void)
     g_assert_cmpint(cyl, ==, 8);
     g_assert_cmpint(head, ==, 1);
     g_assert_cmpint(st0, ==, head << 2);
+
+    /* Leave the drive empty, the way the machine starts up. */
+    media_eject();
+}
+
+/*
+ * An empty drive spins no diskette, so READ ID finds no address mark and must
+ * terminate abnormally.  Reporting success (with a made-up sector ID) would
+ * tell the guest that a medium is still present after it has been ejected.
+ */
+static void test_read_id_no_media(void)
+{
+    uint8_t drive = 0;
+    uint8_t head = 0;
+    uint8_t st0, st1;
+
+    floppy_send(CMD_READ_ID);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    floppy_send(head << 2 | drive);
+
+    while (!get_irq(FLOPPY_IRQ)) {
+        clock_step(1000000000LL / 50);
+    }
+
+    st0 = floppy_recv();
+    st1 = floppy_recv();
+    floppy_recv();                  /* ST2 */
+    floppy_recv();                  /* cylinder */
+    floppy_recv();                  /* head */
+    floppy_recv();                  /* sector */
+    g_assert(get_irq(FLOPPY_IRQ));
+    floppy_recv();                  /* sector size */
+    g_assert(!get_irq(FLOPPY_IRQ));
+
+    g_assert_cmpint(st0 & ST0_IC_MASK, ==, ST0_IC_ABNTERM);
+    g_assert_cmpint(st1 & ST1_MA, ==, ST1_MA);
 }
 
 static void test_read_no_dma_1(void)
@@ -625,6 +680,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/sense_interrupt", test_sense_interrupt);
     qtest_add_func("/fdc/relative_seek", test_relative_seek);
     qtest_add_func("/fdc/read_id", test_read_id);
+    qtest_add_func("/fdc/read_id_no_media", test_read_id_no_media);
     qtest_add_func("/fdc/verify", test_verify);
     qtest_add_func("/fdc/media_insert", test_media_insert);
     qtest_add_func("/fdc/read_no_dma_1", test_read_no_dma_1);

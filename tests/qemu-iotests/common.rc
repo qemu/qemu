@@ -981,6 +981,20 @@ _require_drivers()
     done
 }
 
+# Skip if FUSE is unusable: not compiled in, or the export failed to
+# mount. $1 is the failing 'block-export-add' reply.
+_notrun_on_fuse_error()
+{
+    case "$1" in
+        *"Parameter 'type' does not accept value 'fuse'"*)
+            _notrun "No FUSE support"
+            ;;
+        *"Failed to mount FUSE session"*)
+            _notrun "FUSE not usable in this environment"
+            ;;
+    esac
+}
+
 # Check that we have a file system that allows huge (but very sparse) files
 #
 _require_large_file()

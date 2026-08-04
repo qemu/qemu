@@ -859,6 +859,18 @@ fuse_co_init(FuseExport *exp, struct fuse_init_out *out,
     uint32_t supported_flags = FUSE_ASYNC_READ | FUSE_ASYNC_DIO;
     uint32_t flags2 = 0;
 
+    if (!exp->growable) {
+        /*
+         * Back when libfuse was used, it would always set this flag and thus
+         * the kernel did not execute a truncate itself and passed along O_TRUNC
+         * to user space. Continue setting the flag for backwards compatibility
+         * when the export is not growable to avoid issues with O_TRUNC, i.e.
+         * blockdev-based exports running into ENOTSUP and file-based exports
+         * with growable=off to be truncated and then stuck with size 0.
+         */
+        supported_flags = FUSE_ATOMIC_O_TRUNC;
+    }
+
     if (in->major != 7) {
         error_report("FUSE major version mismatch: We have 7, but kernel has %"
                      PRIu32, in->major);

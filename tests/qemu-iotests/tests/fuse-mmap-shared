@@ -28,9 +28,12 @@ def test_fuse_support(mount_point):
     })
     test_qsd.stop()
     if 'error' in res:
-        assert (res['error']['desc'] ==
-                "Parameter 'type' does not accept value 'fuse'")
-        iotests.notrun('No FUSE support')
+        desc = res['error']['desc']
+        if desc == "Parameter 'type' does not accept value 'fuse'":
+            iotests.notrun('No FUSE support')
+        if 'Failed to mount FUSE session' in desc:
+            iotests.notrun('FUSE not usable in this environment')
+        assert False, desc
 
 # Shared mmap when using direct IO is only supported for Linux kernels >= 6.6
 # with commit e78662e818f94 ("fuse: add a new fuse init flag to relax

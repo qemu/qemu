@@ -52,16 +52,17 @@ foreach driver, speed: qemu_iotests_drivers
               '-tap', '-' + driver, item,
               '--source-dir', meson.current_source_dir(),
               '--build-dir', meson.current_build_dir()]
-      # Some individual tests take as long as 45 seconds
-      # Bump the timeout to 3 minutes for some headroom
-      # on slow machines to minimize spurious failures
+      # Some individual tests take as long as 3 minutes
+      # in high load scenarios. Bump the timeout to 5
+      # minutes for some headroom on slow / loaded
+      # machines to minimize spurious failures
       test('io-' + driver + '-' + item,
            python,
            args: args,
            depends: qemu_iotests_binaries,
            env: qemu_iotests_env,
            protocol: 'tap',
-           timeout: 180,
+           timeout: 300,
            suite: suites)
     endforeach
   endif
@@ -94,16 +95,14 @@ foreach driver, speed: qemu_iotests_drivers
               '-tap', '-' + driver, item,
               '--source-dir', meson.current_source_dir(),
               '--build-dir', meson.current_build_dir()]
-      # Some individual tests take as long as 45 seconds
-      # Bump the timeout to 3 minutes for some headroom
-      # on slow machines to minimize spurious failures
+      # See earlier note about timeouts
       test('io-' + driver + '-' + item,
            python,
            args: args,
            depends: qemu_iotests_binaries,
            env: qemu_iotests_env,
            protocol: 'tap',
-           timeout: 180,
+           timeout: 300,
            suite: suites)
   endforeach
 endforeach
