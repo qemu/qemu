@@ -322,16 +322,14 @@ def coroutine_to_jmpbuf(co):
 def init_coredump():
     global coredump
 
-    files = gdb.execute('info files', False, True).split('\n')
+    files = gdb.execute('info files', False, True)
 
-    if not 'core dump' in files[1]:
+    match = re.search(r"core dump file:\s*`([^']+)'", files)
+    if match is None:
         return False
 
-    core_path = re.search("`(.*)'", files[2]).group(1)
-    exec_path = re.match('^Symbols from "(.*)".$', files[0]).group(1)
-
     if coredump is None:
-        coredump = Coredump(core_path, exec_path)
+        coredump = Coredump(match.group(1), gdb.current_progspace().filename)
 
     return True
 
@@ -361,6 +359,9 @@ class CoroutineCommand(gdb.Command):
         if argc == 0 or argc > 2 or (argc == 2 and argv[1] != '--detailed'):
             return self._usage()
         detailed = True if argc == 2 else False
+
+        if gdb.selected_thread() is None:
+            raise gdb.GdbError('No stack.')
 
         is_coredump = init_coredump()
         if detailed and not is_coredump:
@@ -399,6 +400,9 @@ class CoroutineBt(gdb.Command):
         if argc > 1 or (argc == 1 and argv[0] != '--detailed'):
             return self._usage()
         detailed = True if argc == 1 else False
+
+        if gdb.selected_thread() is None:
+            raise gdb.GdbError('No stack.')
 
         is_coredump = init_coredump()
         if detailed and not is_coredump:
