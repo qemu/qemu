@@ -1132,8 +1132,7 @@ err:
     s->bulk_out_pos = 0;
 }
 
-static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p,
-    unsigned int max_packet_size)
+static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
 {
     int len = 0;
 
@@ -1148,7 +1147,7 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p,
         }
         s->current_bulk_in->pos += len;
         if (s->current_bulk_in->pos == s->current_bulk_in->len
-            && len != max_packet_size) {
+            && (len != CCID_MAX_PACKET_SIZE || len < p->iov.size)) {
             ccid_bulk_in_release(s);
         }
     } else {
@@ -1180,7 +1179,7 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case CCID_BULK_IN_EP:
-            ccid_bulk_in_copy_to_guest(s, p, dev->ep_ctl.max_packet_size);
+            ccid_bulk_in_copy_to_guest(s, p);
             break;
         case CCID_INT_IN_EP:
             if (s->notify_slot_change) {
