@@ -265,18 +265,21 @@ def dump_backtrace_live(regs):
     selected_frame = gdb.selected_frame()
     gdb.newest_frame().select()
 
-    for i in regs:
-        old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
+    try:
+        for i in regs:
+            old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
 
-    for i in regs:
-        gdb.execute('set $%s = %s' % (i, regs[i]))
+        for i in regs:
+            gdb.execute('set $%s = %s' % (i, regs[i]))
 
-    gdb.execute('bt')
-
-    for i in regs:
-        gdb.execute('set $%s = %s' % (i, old[i]))
-
-    selected_frame.select()
+        gdb.execute('bt')
+    finally:
+        try:
+            for i in old:
+                gdb.execute('set $%s = %s' % (i, old[i]))
+        finally:
+            # restore previously selected frame in any case
+            selected_frame.select()
 
 def bt_jmpbuf(jmpbuf, detailed=False):
     '''Backtrace a jmpbuf'''
