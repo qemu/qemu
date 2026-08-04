@@ -14,7 +14,7 @@
     - echo "TAG:$TAG"
     - echo "COMMON_TAG:$COMMON_TAG"
     - docker build --tag "$TAG" --cache-from "$TAG" --cache-from "$COMMON_TAG"
-      --build-arg BUILDKIT_INLINE_CACHE=1
+      --build-arg BUILDKIT_INLINE_CACHE=1 --provenance=false
       -f "tests/docker/dockerfiles/$NAME.docker" "."
     - docker push "$TAG"
   after_script:
