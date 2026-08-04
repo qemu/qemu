@@ -38,6 +38,13 @@
 # @win-dmp: Windows full crashdump format, can be used instead of ELF
 #     converting (since 2.13)
 #
+# Features:
+#
+# @allowed-by-guest: If present, @win-dmp is listed by
+#     `query-dump-guest-memory-capability`, and accepted by
+#     `dump-guest-memory`, only when the guest has published a Windows
+#     dump header through the vmcoreinfo device (since 11.1)
+#
 # Since: 2.0
 ##
 { 'enum': 'DumpGuestMemoryFormat',
@@ -45,7 +52,7 @@
       'elf',
       'kdump-zlib', 'kdump-lzo', 'kdump-snappy',
       'kdump-raw-zlib', 'kdump-raw-lzo', 'kdump-raw-snappy',
-      'win-dmp' ] }
+      { 'name': 'win-dmp', 'features': ['allowed-by-guest'] } ] }
 
 ##
 # @dump-guest-memory:

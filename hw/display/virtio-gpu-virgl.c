@@ -560,7 +560,7 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
     }
     g->parent_obj.enable = 1;
 
-    if (ss.resource_id && ss.r.width && ss.r.height) {
+    if (ss.resource_id) {
         struct virgl_renderer_resource_info info;
         void *d3d_tex2d = NULL;
 
@@ -579,6 +579,11 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
                           "%s: illegal resource specified %d\n",
                           __func__, ss.resource_id);
             cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+            return;
+        }
+        if (!virtio_gpu_check_scanout_bounds(ss.scanout_id, ss.resource_id,
+                                             info.width, info.height, &ss.r,
+                                             &cmd->error)) {
             return;
         }
         qemu_console_resize(g->parent_obj.scanout[ss.scanout_id].con,
@@ -987,16 +992,9 @@ static void virgl_cmd_set_scanout_blob(VirtIOGPU *g,
         return;
     }
 
-    if (ss.width < 16 ||
-        ss.height < 16 ||
-        ss.r.x + ss.r.width > ss.width ||
-        ss.r.y + ss.r.height > ss.height) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout %d bounds for"
-                      " resource %d, rect (%d,%d)+%d,%d, fb %d %d\n",
-                      __func__, ss.scanout_id, ss.resource_id,
-                      ss.r.x, ss.r.y, ss.r.width, ss.r.height,
-                      ss.width, ss.height);
-        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
+    if (!virtio_gpu_check_scanout_bounds(ss.scanout_id, ss.resource_id,
+                                         ss.width, ss.height, &ss.r,
+                                         &cmd->error)) {
         return;
     }
 
