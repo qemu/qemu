@@ -306,7 +306,7 @@ def bt_jmpbuf(jmpbuf, is_coredump, detailed=False):
         # but only works with live sessions.
         dump_backtrace_live(regs)
     elif detailed:
-        # Obtain detailed trace by patching regs in copied coredump
+        # Obtain detailed trace by patching regs in the coredump in place
         dump_backtrace_patched(regs)
     else:
         # Obtain a non-detailed trace by poor man's unwind
@@ -342,9 +342,9 @@ class CoroutineCommand(gdb.Command):
         Usage: qemu coroutine COROPTR [--detailed]
         Show backtrace for a coroutine specified by COROPTR
 
-          --detailed       obtain detailed trace by copying coredump, patching
-                           regs in it, and runing gdb subprocess to get
-                           backtrace from the patched coredump
+          --detailed       obtain detailed trace by patching regs in the
+                           coredump in place, and running gdb subprocess to
+                           get backtrace from the patched coredump
         """)
 
     def __init__(self):
@@ -380,9 +380,9 @@ class CoroutineBt(gdb.Command):
 
         Usage: qemu bt [--detailed]
 
-          --detailed       obtain detailed trace by copying coredump, patching
-                           regs in it, and runing gdb subprocess to get
-                           backtrace from the patched coredump
+          --detailed       obtain detailed trace by patching regs in the
+                           coredump in place, and running gdb subprocess to
+                           get backtrace from the patched coredump
         """)
 
     def __init__(self):
