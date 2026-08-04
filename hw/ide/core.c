@@ -2988,6 +2988,25 @@ static const VMStateDescription vmstate_ide_drive_chs_translation = {
     }
 };
 
+static bool ide_reset_reverts_needed(void *opaque)
+{
+    IDEState *s = opaque;
+
+    return s->reset_reverts && ide_chs_translation_needed(opaque);
+}
+
+/* The flag decides nothing on the default geometry, so it travels with one */
+static const VMStateDescription vmstate_ide_drive_reset_reverts = {
+    .name = "ide_drive/reset_reverts",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ide_reset_reverts_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(reset_reverts, IDEState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_ide_tray_state = {
     .name = "ide_drive/tray_state",
     .version_id = 1,
@@ -3052,6 +3071,7 @@ const VMStateDescription vmstate_ide_drive = {
     .subsections = (const VMStateDescription * const []) {
         &vmstate_ide_drive_pio_state,
         &vmstate_ide_drive_chs_translation,
+        &vmstate_ide_drive_reset_reverts,
         &vmstate_ide_tray_state,
         &vmstate_ide_atapi_gesn_state,
         NULL
