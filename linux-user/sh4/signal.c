@@ -206,6 +206,8 @@ void setup_frame(int sig, struct target_sigaction *ka,
         __put_user(set->sig[i + 1], &frame->extramask[i]);
     }
 
+    regs->fpscr = FPSCR_PR;
+
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
@@ -257,6 +259,8 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     for(i = 0; i < TARGET_NSIG_WORDS; i++) {
         __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);
     }
+
+    regs->fpscr = FPSCR_PR;
 
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
