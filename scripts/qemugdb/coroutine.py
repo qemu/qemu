@@ -313,7 +313,16 @@ def bt_jmpbuf(jmpbuf, is_coredump, detailed=False):
         dump_backtrace(regs)
 
 def co_cast(co):
-    return co.cast(gdb.lookup_type('CoroutineUContext').pointer())
+    # Unscoped type lookup expands every symtab in the binary.
+    # Better scope it to the symtab of the ucontext backend
+    sym = gdb.lookup_static_symbol('co_tls_current')
+    if sym is not None:
+        co_type = gdb.lookup_type('CoroutineUContext',
+                                  sym.symtab.static_block())
+    else:
+        co_type = gdb.lookup_type('CoroutineUContext')
+
+    return co.cast(co_type.pointer())
 
 def coroutine_to_jmpbuf(co):
     coroutine_pointer = co_cast(co)
@@ -416,7 +425,8 @@ class CoroutineBt(gdb.Command):
             co_ptr = gdb.parse_and_eval("qemu_coroutine_self()")
         else:
             # Fallback to use hard-coded ucontext vars if it's coredump
-            co_ptr = gdb.parse_and_eval("co_tls_current")
+            sym = gdb.lookup_static_symbol("co_tls_current")
+            co_ptr = sym.value() if sym else gdb.parse_and_eval("co_tls_current")
 
         if co_ptr == False:
             return
