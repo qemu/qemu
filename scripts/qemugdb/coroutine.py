@@ -90,7 +90,7 @@ class Coredump:
         int_regs = {k: int(v) for k, v in regs.items()}
         patched_ptregs.update(int_regs)
 
-        with open(self.coredump, 'ab') as f:
+        with open(self.coredump, 'r+b') as f:
             gdb.write(f'assume pt_regs at 0x{self._ptregs_offset:x}\n')
             f.seek(self._ptregs_offset, 0)
             gdb.write('writing regs:\n')
@@ -106,7 +106,7 @@ class Coredump:
             return
 
         gdb.write(f'\nrestoring original regs in core file {self.coredump}\n')
-        with open(self.coredump, 'ab') as f:
+        with open(self.coredump, 'r+b') as f:
             gdb.write(f'assume pt_regs at 0x{self._ptregs_offset:x}\n')
             f.seek(self._ptregs_offset, 0)
             f.write(struct.pack(f"={len(PT_REGS)}q",
