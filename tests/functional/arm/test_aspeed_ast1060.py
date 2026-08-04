@@ -11,18 +11,18 @@ from qemu_test import Asset, exec_command_and_wait_for_pattern
 
 
 class AST1060Machine(AspeedTest):
-    ASSET_ASPEED_AST1060_PROT_3_05 = Asset(
+    ASSET_ASPEED_AST1060_PROT_3_07 = Asset(
         ('https://github.com/AspeedTech-BMC'
-         '/aspeed-zephyr-project/releases/download/v03.05'
-         '/ast1060_prot_v03.05.tgz'),
-         '63b36d7420290726ca80477de254474b7cb79539a42819bb1fe2665d598dadb5')
+         '/aspeed-zephyr-project/releases/download/v03.07'
+         '/ast1060_prot_v03.07.tgz'),
+         '55a7f51f0b77051a0ef2ada993a16c5033768e1b8e8be3babfc52c303eecd07f')
 
-    def test_arm_ast1060_prot_3_05(self):
+    def test_arm_ast1060_prot_3_07(self):
         self.set_machine('ast1060-evb')
 
         kernel_name = "ast1060_prot/zephyr.bin"
         kernel_file = self.archive_extract(
-            self.ASSET_ASPEED_AST1060_PROT_3_05, member=kernel_name)
+            self.ASSET_ASPEED_AST1060_PROT_3_07, member=kernel_name)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_file, '-nographic')
@@ -35,7 +35,7 @@ class AST1060Machine(AspeedTest):
         self.vm.set_machine("ast1060-evb")
 
         kernel_name = "ast1060_prot/zephyr.bin"
-        kernel_file = self.archive_extract(self.ASSET_ASPEED_AST1060_PROT_3_05,
+        kernel_file = self.archive_extract(self.ASSET_ASPEED_AST1060_PROT_3_07,
                                            member=kernel_name)
         otp_img = self.generate_otpmem_image()
 
