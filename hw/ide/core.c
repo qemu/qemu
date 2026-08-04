@@ -2879,6 +2879,13 @@ static int ide_drive_post_load(void *opaque, int version_id)
 {
     IDEState *s = opaque;
 
+    /* Only a disk has a translation; an empty slot and ATAPI keep these zero */
+    if (s->blk && s->drive_kind != IDE_CD &&
+        (s->heads < 1 || s->heads > 16 ||
+         s->sectors < 1 || s->sectors > 255)) {
+        return -EINVAL;
+    }
+
     if (s->blk && s->identify_set) {
         blk_set_enable_write_cache(s->blk, !!(s->identify_data[85] & (1 << 5)));
     }
@@ -2962,6 +2969,25 @@ static const VMStateDescription vmstate_ide_atapi_gesn_state = {
     }
 };
 
+static bool ide_chs_translation_needed(void *opaque)
+{
+    IDEState *s = opaque;
+
+    return s->heads != s->drive_heads || s->sectors != s->drive_sectors;
+}
+
+static const VMStateDescription vmstate_ide_drive_chs_translation = {
+    .name = "ide_drive/chs_translation",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ide_chs_translation_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_INT32(heads, IDEState),
+        VMSTATE_INT32(sectors, IDEState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_ide_tray_state = {
     .name = "ide_drive/tray_state",
     .version_id = 1,
@@ -3025,6 +3051,7 @@ const VMStateDescription vmstate_ide_drive = {
     },
     .subsections = (const VMStateDescription * const []) {
         &vmstate_ide_drive_pio_state,
+        &vmstate_ide_drive_chs_translation,
         &vmstate_ide_tray_state,
         &vmstate_ide_atapi_gesn_state,
         NULL
