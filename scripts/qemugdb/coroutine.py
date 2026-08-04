@@ -235,13 +235,24 @@ def dump_backtrace_patched(regs):
     out = run_with_pty(cmd).split('----split----')[1]
     gdb.write(out)
 
+def read_word(addr):
+    '''
+    Read a 64-bit word, None if that memory isn't accessible.
+    '''
+    try:
+        # gdb.parse_and_eval() returns lazy values.  Force memory access
+        # by wrapping in int()
+        return int(gdb.parse_and_eval(f"*(uint64_t *){hex(addr)}"))
+    except gdb.MemoryError:
+        return None
+
 def dump_backtrace(regs):
     '''
     Backtrace dump with raw registers, mimic GDB command 'bt'.
     '''
     # Here only rbp and rip that matter..
-    rbp = regs['rbp']
-    rip = regs['rip']
+    rbp = int(regs['rbp'])
+    rip = int(regs['rip'])
     i = 0
 
     while rbp:
@@ -250,8 +261,14 @@ def dump_backtrace(regs):
         # instruction instead of the CALL.  Here -1 would work for any
         # sized CALL instruction.
         print(f"#{i}  {hex(rip)} in {symbol_lookup(rip if i == 0 else rip-1)}")
-        rip = gdb.parse_and_eval(f"*(uint64_t *)(uint64_t)({hex(rbp)} + 8)")
-        rbp = gdb.parse_and_eval(f"*(uint64_t *)(uint64_t)({hex(rbp)})")
+
+        # The 'rbp != NULL' condition is insufficient: the outermost glibc
+        # frames might leave garbage in rbp if built without frame pointers.
+        # Break the loop on the frame that leads nowhere.
+        rip, rbp = read_word(rbp + 8), read_word(rbp)
+        if rip is None or rbp is None:
+            break
+
         i += 1
 
 def dump_backtrace_live(regs):
