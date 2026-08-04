@@ -2863,6 +2863,18 @@ static int transfer_end_table_idx(EndTransferFunc *fn)
     return -1;
 }
 
+static int ide_drive_pre_load(void *opaque)
+{
+    IDEState *s = opaque;
+
+    /* The subsections below are sent only where the guest replaced these */
+    s->heads = s->drive_heads;
+    s->sectors = s->drive_sectors;
+    s->reset_reverts = false;
+
+    return 0;
+}
+
 static int ide_drive_post_load(void *opaque, int version_id)
 {
     IDEState *s = opaque;
@@ -2986,6 +2998,7 @@ const VMStateDescription vmstate_ide_drive = {
     .name = "ide_drive",
     .version_id = 3,
     .minimum_version_id = 0,
+    .pre_load = ide_drive_pre_load,
     .post_load = ide_drive_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_INT32(mult_sectors, IDEState),
