@@ -281,20 +281,19 @@ def dump_backtrace_live(regs):
             # restore previously selected frame in any case
             selected_frame.select()
 
-def bt_jmpbuf(jmpbuf, detailed=False):
+def bt_jmpbuf(jmpbuf, is_coredump, detailed=False):
     '''Backtrace a jmpbuf'''
     regs = get_jmpbuf_regs(jmpbuf)
-    try:
+    if not is_coredump:
         # This reuses gdb's "bt" command, which can be slightly prettier
         # but only works with live sessions.
         dump_backtrace_live(regs)
-    except:
-        if detailed:
-            # Obtain detailed trace by patching regs in copied coredump
-            dump_backtrace_patched(regs)
-        else:
-            # If above doesn't work, fallback to poor man's unwind
-            dump_backtrace(regs)
+    elif detailed:
+        # Obtain detailed trace by patching regs in copied coredump
+        dump_backtrace_patched(regs)
+    else:
+        # Obtain a non-detailed trace by poor man's unwind
+        dump_backtrace(regs)
 
 def co_cast(co):
     return co.cast(gdb.lookup_type('CoroutineUContext').pointer())
@@ -353,7 +352,7 @@ class CoroutineCommand(gdb.Command):
 
         try:
             bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])),
-                      detailed=detailed)
+                      is_coredump, detailed=detailed)
         finally:
             coredump.restore_regs()
 
@@ -390,10 +389,10 @@ class CoroutineBt(gdb.Command):
 
         gdb.execute("bt")
 
-        try:
+        if not is_coredump:
             # This only works with a live session
             co_ptr = gdb.parse_and_eval("qemu_coroutine_self()")
-        except:
+        else:
             # Fallback to use hard-coded ucontext vars if it's coredump
             co_ptr = gdb.parse_and_eval("co_tls_current")
 
@@ -407,7 +406,8 @@ class CoroutineBt(gdb.Command):
                 if co_ptr == 0:
                     break
                 gdb.write("\nCoroutine at " + str(co_ptr) + ":\n")
-                bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), detailed=detailed)
+                bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), is_coredump,
+                          detailed=detailed)
         finally:
             coredump.restore_regs()
 
