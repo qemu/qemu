@@ -354,7 +354,8 @@ class CoroutineCommand(gdb.Command):
             bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])),
                       is_coredump, detailed=detailed)
         finally:
-            coredump.restore_regs()
+            if is_coredump:
+                coredump.restore_regs()
 
 class CoroutineBt(gdb.Command):
     __doc__ = textwrap.dedent("""\
@@ -409,7 +410,8 @@ class CoroutineBt(gdb.Command):
                 bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), is_coredump,
                           detailed=detailed)
         finally:
-            coredump.restore_regs()
+            if is_coredump:
+                coredump.restore_regs()
 
 class CoroutineSPFunction(gdb.Function):
     def __init__(self):
