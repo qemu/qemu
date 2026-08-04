@@ -328,7 +328,7 @@ def coroutine_to_jmpbuf(co):
     coroutine_pointer = co_cast(co)
     return coroutine_pointer['env']['__jmpbuf']
 
-def init_coredump():
+def init_coredump(detailed=False):
     global coredump
 
     files = gdb.execute('info files', False, True)
@@ -337,7 +337,8 @@ def init_coredump():
     if match is None:
         return False
 
-    if coredump is None:
+    # The object is only needed to patch the coredump
+    if detailed and coredump is None:
         coredump = Coredump(match.group(1), gdb.current_progspace().filename)
 
     return True
@@ -372,7 +373,7 @@ class CoroutineCommand(gdb.Command):
         if gdb.selected_thread() is None:
             raise gdb.GdbError('No stack.')
 
-        is_coredump = init_coredump()
+        is_coredump = init_coredump(detailed)
         if detailed and not is_coredump:
             gdb.write('--detailed is only valid when debugging core dumps\n')
             return
@@ -381,7 +382,7 @@ class CoroutineCommand(gdb.Command):
             bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])),
                       is_coredump, detailed=detailed)
         finally:
-            if is_coredump:
+            if coredump is not None:
                 coredump.restore_regs()
 
 class CoroutineBt(gdb.Command):
@@ -413,7 +414,7 @@ class CoroutineBt(gdb.Command):
         if gdb.selected_thread() is None:
             raise gdb.GdbError('No stack.')
 
-        is_coredump = init_coredump()
+        is_coredump = init_coredump(detailed)
         if detailed and not is_coredump:
             gdb.write('--detailed is only valid when debugging core dumps\n')
             return
@@ -441,7 +442,7 @@ class CoroutineBt(gdb.Command):
                 bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), is_coredump,
                           detailed=detailed)
         finally:
-            if is_coredump:
+            if coredump is not None:
                 coredump.restore_regs()
 
 class CoroutineSPFunction(gdb.Function):
