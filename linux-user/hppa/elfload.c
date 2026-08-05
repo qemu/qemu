@@ -17,6 +17,13 @@ const char *get_elf_platform(CPUState *cs)
     return "PARISC";
 }
 
+void elf_core_copy_fpregs(target_elf_fpregset_t *r, const CPUArchState *env)
+{
+    for (int i = 0; i < 32; i++) {
+        r->fpr[i] = tswap64(env->fr[i]);
+    }
+}
+
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUArchState *env)
 {
     int i;
