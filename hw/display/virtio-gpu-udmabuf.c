@@ -39,8 +39,11 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
         return;
     }
 
-    list = g_malloc0(sizeof(struct udmabuf_create_list) +
-                     sizeof(struct udmabuf_create_item) * res->iov_cnt);
+    list = g_try_malloc0(sizeof(struct udmabuf_create_list) +
+                         sizeof(struct udmabuf_create_item) * res->iov_cnt);
+    if (!list) {
+        return;
+    }
 
     for (i = 0; i < res->iov_cnt; i++) {
         rcu_read_lock();
