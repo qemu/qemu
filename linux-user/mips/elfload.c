@@ -130,6 +130,14 @@ const char *get_elf_base_platform(CPUState *cs)
 
 #undef MATCH_PLATFORM_INSN
 
+void elf_core_copy_fpregs(target_elf_fpregset_t *r, const CPUMIPSState *env)
+{
+    for (int i = 0; i < 32; i++) {
+        r->fpr[i] = tswap64(env->active_fpu.fpr[i].d);
+    }
+    r->fcsr = tswap32(env->active_fpu.fcr31);
+}
+
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
 #ifndef TARGET_MIPS64
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUMIPSState *env)
