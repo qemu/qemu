@@ -25,4 +25,16 @@ typedef struct target_elf_gregset_t {
     struct target_pt_regs pt;
 } target_elf_gregset_t;
 
+#define HAVE_ELF_CORE_FPREGS    1
+
+/*
+ * Matches struct user_fpu_struct from arch/sh/include/asm/user.h.
+ */
+typedef struct target_elf_fpregset_t {
+    uint32_t fpregs[16];
+    uint32_t xfpregs[16];
+    uint32_t fpscr;
+    uint32_t fpul;
+} target_elf_fpregset_t;
+
 #endif
