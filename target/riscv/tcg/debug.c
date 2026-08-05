@@ -77,6 +77,11 @@ static int access_size[SIZE_NUM] = {
     [6 ... 15] = -1,
 };
 
+static bool debug_trigger_version_1_0(CPURISCVState *env)
+{
+    return riscv_cpu_cfg(env)->ext_sdtrig;
+}
+
 static inline target_ulong extract_trigger_type(CPURISCVState *env,
                                                 target_ulong tdata1)
 {
@@ -684,6 +689,17 @@ itrigger_set_count(CPURISCVState *env, int index, int value)
                                    ITRIGGER_COUNT, value);
 }
 
+static inline void
+itrigger_set_pending(CPURISCVState *env, int index, int val)
+{
+    if (!debug_trigger_version_1_0(env)) {
+        return;
+    }
+
+    env->tdata1[index] = set_field(env->tdata1[index],
+                                   ITRIGGER_PENDING, val);
+}
+
 static bool check_itrigger_priv(CPURISCVState *env, int index)
 {
     target_ulong tdata1 = env->tdata1[index];
@@ -735,8 +751,25 @@ void helper_itrigger_match(CPURISCVState *env)
         }
         itrigger_set_count(env, i, count--);
         if (!count) {
+            /*
+             * From the 1.0 spec: "When pending is set, the trigger
+             * fires just before any further instructions are executed
+             * in a mode where the trigger is enabled. As the trigger
+             * fires, pending is cleared."
+             *
+             * And: "This bit becomes set when count is decremented
+             * from 1 to 0. It is cleared when the trigger fires,
+             * which will happen just before executing the next
+             * instruction in one of the enabled modes".
+             *
+             * Note that itrigger_set_pending() is a no-op if we're
+             * running debug 0.13.
+             */
+            itrigger_set_pending(env, i, 1);
+
             env->itrigger_enabled = riscv_itrigger_enabled(env);
             do_trigger_action(env, i);
+            itrigger_set_pending(env, i, 0);
         }
     }
 }
