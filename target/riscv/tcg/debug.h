@@ -45,6 +45,9 @@ typedef enum {
     TRIGGER_TYPE_NUM
 } trigger_type_t;
 
+#define TINFO_VERSION_OFFSET 24
+#define TINFO_VERSION_LEN     8
+
 /* actions */
 typedef enum {
     DBG_ACTION_NONE = -1,           /* sentinel value */
