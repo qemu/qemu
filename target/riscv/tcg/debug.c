@@ -584,9 +584,14 @@ static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
     warn_always_zero_bit(ctrl, TYPE6_MATCH, "match");
     warn_always_zero_bit(ctrl, TYPE6_CHAIN, "chain");
     warn_always_zero_bit(ctrl, TYPE6_ACTION, "action");
-    warn_always_zero_bit(ctrl, TYPE6_TIMING, "timing");
     warn_always_zero_bit(ctrl, TYPE6_SELECT, "select");
     warn_always_zero_bit(ctrl, TYPE6_HIT, "hit");
+
+    if (debug_trigger_version_1_0(env)) {
+        warn_always_zero_bit(ctrl, TYPE6_TIMING, "timing");
+    } else {
+        warn_always_zero_bit(ctrl, TYPE6_TIMING_0_13, "timing");
+    }
 
     /* validate size encoding */
     size = extract32(ctrl, 16, 4);
