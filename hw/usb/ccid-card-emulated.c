@@ -580,6 +580,8 @@ static void emulated_unrealize(CCIDCardState *base)
     qemu_mutex_destroy(&card->handle_apdu_mutex);
     qemu_mutex_destroy(&card->vreader_mutex);
     qemu_mutex_destroy(&card->event_list_mutex);
+
+    vcard_emul_finalize();
 }
 
 static const Property emulated_card_properties[] = {
