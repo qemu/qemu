@@ -4,6 +4,7 @@ config HEX_DSP
     depends on HEXAGON
     select CPU_CLUSTER
     select HEX_L2VIC
+    select HEX_QTIMER
 
 config HEX_VIRT
     bool

@@ -11,6 +11,7 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/intc/hex-l2vic.h"
+#include "hw/timer/qct-qtimer.h"
 #include "hw/cpu/cluster.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
@@ -19,6 +20,11 @@
 #include "system/address-spaces.h"
 
 #define HEX_L2VIC_CPU_IRQS 8
+
+/* Number of QTimer frames instantiated for every Hexagon machine. */
+#define HEX_QTIMER_NR_FRAMES 3
+
+#define HEX_QTIMER_L2VIC_IRQ_BASE 2
 
 static DeviceState *l2vic_create(HexagonCommonMachineState *hms,
                                  const struct hexagon_machine_config *m_cfg)
@@ -43,6 +49,25 @@ static void l2vic_connect_cpu(DeviceState *l2vic, DeviceState *cpu)
     }
 }
 
+static DeviceState *qtimer_create(HexagonCommonMachineState *hms,
+                                  const struct hexagon_machine_config *m_cfg)
+{
+    DeviceState *qtimer = qdev_new(TYPE_QCT_QTIMER);
+
+    object_property_add_child(OBJECT(hms), "qtimer", OBJECT(qtimer));
+    qdev_prop_set_uint32(qtimer, "nr_frames", HEX_QTIMER_NR_FRAMES);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(qtimer), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 0, m_cfg->csr_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(qtimer), 1, m_cfg->qtmr_region);
+    for (unsigned int i = 0; i < HEX_QTIMER_NR_FRAMES; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(qtimer), i,
+                           qdev_get_gpio_in(hms->l2vic,
+                                            HEX_QTIMER_L2VIC_IRQ_BASE + i));
+    }
+
+    return qtimer;
+}
+
 static DeviceState *globalreg_create(HexagonCommonMachineState *hms,
                                      const struct hexagon_machine_config *m_cfg,
                                      Rev_t rev)
@@ -53,6 +78,8 @@ static DeviceState *globalreg_create(HexagonCommonMachineState *hms,
     qdev_prop_set_uint64(glob_regs, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs, "dsp-rev", rev);
     object_property_set_link(OBJECT(glob_regs), "l2vic", OBJECT(hms->l2vic),
+                             &error_fatal);
+    object_property_set_link(OBJECT(glob_regs), "qtimer", OBJECT(hms->qtimer),
                              &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs), &error_fatal);
 
@@ -110,6 +137,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
 
     hms->cluster = cluster_create(hms);
     hms->l2vic = l2vic_create(hms, m_cfg);
+    hms->qtimer = qtimer_create(hms, m_cfg);
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
     hms->tlb = tlb_create(hms, m_cfg);
 }

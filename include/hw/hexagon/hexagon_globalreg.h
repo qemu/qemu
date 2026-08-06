@@ -11,6 +11,7 @@
 #include "hw/core/qdev.h"
 #include "hw/core/sysbus.h"
 #include "hw/intc/hex-l2vic.h"
+#include "hw/timer/qct-qtimer.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
 
@@ -25,6 +26,9 @@ struct HexagonGlobalRegState {
 
     /* L2VIC interface used to back the VID/VID1 registers */
     HexL2VicInterface *l2vic;
+
+    /* QTimer interface used to back the TIMERLO/TIMERHI registers */
+    QctQtimerInterface *qtimer;
 
     /* Global performance cycle counter base */
     uint64_t g_pcycle_base;

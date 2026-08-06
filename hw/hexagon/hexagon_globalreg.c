@@ -12,6 +12,7 @@
 #include "hw/core/sysbus.h"
 #include "hw/core/resettable.h"
 #include "hw/intc/hex-l2vic.h"
+#include "hw/timer/qct-qtimer.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
@@ -141,10 +142,20 @@ static inline bool is_vid_reg(uint32_t reg)
     return reg == HEX_SREG_VID || reg == HEX_SREG_VID1;
 }
 
+static inline bool is_timer_reg(uint32_t reg)
+{
+    return reg == HEX_SREG_TIMERLO || reg == HEX_SREG_TIMERHI;
+}
+
 static uint32_t get_reg_value(HexagonGlobalRegState *s, uint32_t reg)
 {
     if (is_vid_reg(reg)) {
         return l2vic_read_vid(s->l2vic, reg == HEX_SREG_VID ? 0 : 1);
+    }
+    if (is_timer_reg(reg)) {
+        return reg == HEX_SREG_TIMERLO ?
+                qct_qtimer_get_timer_lo(s->qtimer) :
+                qct_qtimer_get_timer_hi(s->qtimer);
     }
     return s->regs[reg];
 }
@@ -289,6 +300,10 @@ static void hexagon_globalreg_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "hexagon_globalreg: 'l2vic' link property not set");
         return;
     }
+    if (!s->qtimer) {
+        error_setg(errp, "hexagon_globalreg: 'qtimer' link property not set");
+        return;
+    }
 }
 
 static const VMStateDescription vmstate_hexagon_globalreg = {
@@ -312,6 +327,8 @@ static const VMStateDescription vmstate_hexagon_globalreg = {
 static const Property hexagon_globalreg_properties[] = {
     DEFINE_PROP_LINK("l2vic", HexagonGlobalRegState, l2vic,
                      TYPE_HEX_L2VIC_INTERFACE, HexL2VicInterface *),
+    DEFINE_PROP_LINK("qtimer", HexagonGlobalRegState, qtimer,
+                     TYPE_QCT_QTIMER_INTERFACE, QctQtimerInterface *),
     DEFINE_PROP_UINT32("boot-evb", HexagonGlobalRegState, boot_evb, 0x0),
     DEFINE_PROP_UINT64("config-table-addr", HexagonGlobalRegState,
                        config_table_addr, 0xffffffffULL),

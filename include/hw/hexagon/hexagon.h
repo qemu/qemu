@@ -159,6 +159,7 @@ struct HexagonCommonMachineState {
     MemoryRegion vtcm;
     DeviceState *cluster;
     DeviceState *l2vic;
+    DeviceState *qtimer;
     DeviceState *glob_regs;
     DeviceState *tlb;
 };
