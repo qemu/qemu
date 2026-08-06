@@ -10,6 +10,7 @@
 
 #include "hw/core/qdev.h"
 #include "hw/core/sysbus.h"
+#include "hw/intc/hex-l2vic.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
 
@@ -21,6 +22,9 @@ struct HexagonGlobalRegState {
 
     /* Array of system registers */
     uint32_t regs[NUM_SREGS];
+
+    /* L2VIC interface used to back the VID/VID1 registers */
+    HexL2VicInterface *l2vic;
 
     /* Global performance cycle counter base */
     uint64_t g_pcycle_base;

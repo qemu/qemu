@@ -270,7 +270,7 @@ static void virt_init(MachineState *ms)
     hex_subsys_realize_cluster(&vms->parent_obj);
 
     for (int i = 0; i < ms->smp.cpus; i++) {
-        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpus[i]));
+        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpus[i]), (i == 0));
     }
 
     fdt_add_cpu_nodes(vms);

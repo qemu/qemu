@@ -11,6 +11,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/sysbus.h"
 #include "hw/core/resettable.h"
+#include "hw/intc/hex-l2vic.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "target/hexagon/cpu.h"
@@ -135,8 +136,16 @@ static inline uint32_t apply_write_mask(uint32_t new_val, uint32_t cur_val,
     return new_val;
 }
 
+static inline bool is_vid_reg(uint32_t reg)
+{
+    return reg == HEX_SREG_VID || reg == HEX_SREG_VID1;
+}
+
 static uint32_t get_reg_value(HexagonGlobalRegState *s, uint32_t reg)
 {
+    if (is_vid_reg(reg)) {
+        return l2vic_read_vid(s->l2vic, reg == HEX_SREG_VID ? 0 : 1);
+    }
     return s->regs[reg];
 }
 
@@ -144,6 +153,9 @@ static void set_reg_value(HexagonGlobalRegState *s, uint32_t reg,
                           uint32_t value)
 {
     s->regs[reg] = value;
+    if (is_vid_reg(reg)) {
+        l2vic_update_vid(s->l2vic, reg == HEX_SREG_VID ? 0 : 1, value);
+    }
 }
 
 uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg,
@@ -269,6 +281,16 @@ static void hexagon_globalreg_reset_hold(Object *obj, ResetType type)
     do_hexagon_globalreg_reset(s);
 }
 
+static void hexagon_globalreg_realize(DeviceState *dev, Error **errp)
+{
+    HexagonGlobalRegState *s = HEXAGON_GLOBALREG(dev);
+
+    if (!s->l2vic) {
+        error_setg(errp, "hexagon_globalreg: 'l2vic' link property not set");
+        return;
+    }
+}
+
 static const VMStateDescription vmstate_hexagon_globalreg = {
     .name = "hexagon_globalreg",
     .version_id = 1,
@@ -288,6 +310,8 @@ static const VMStateDescription vmstate_hexagon_globalreg = {
 };
 
 static const Property hexagon_globalreg_properties[] = {
+    DEFINE_PROP_LINK("l2vic", HexagonGlobalRegState, l2vic,
+                     TYPE_HEX_L2VIC_INTERFACE, HexL2VicInterface *),
     DEFINE_PROP_UINT32("boot-evb", HexagonGlobalRegState, boot_evb, 0x0),
     DEFINE_PROP_UINT64("config-table-addr", HexagonGlobalRegState,
                        config_table_addr, 0xffffffffULL),
@@ -308,6 +332,7 @@ static void hexagon_globalreg_class_init(ObjectClass *klass, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = hexagon_globalreg_reset_hold;
+    dc->realize = hexagon_globalreg_realize;
     dc->vmsd = &vmstate_hexagon_globalreg;
     dc->user_creatable = false;
     device_class_set_props(dc, hexagon_globalreg_properties);

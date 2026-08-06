@@ -139,7 +139,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
     hex_subsys_realize_cluster(hms);
 
     for (int i = 0; i < machine->smp.cpus; i++) {
-        hex_subsys_realize_cpu(hms, DEVICE(cpus[i]));
+        hex_subsys_realize_cpu(hms, DEVICE(cpus[i]), (i == 0));
     }
 }
 

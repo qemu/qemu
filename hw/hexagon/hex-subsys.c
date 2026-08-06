@@ -10,12 +10,38 @@
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/intc/hex-l2vic.h"
 #include "hw/cpu/cluster.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev.h"
 #include "hw/core/sysbus.h"
 #include "system/address-spaces.h"
+
+#define HEX_L2VIC_CPU_IRQS 8
+
+static DeviceState *l2vic_create(HexagonCommonMachineState *hms,
+                                 const struct hexagon_machine_config *m_cfg)
+{
+    DeviceState *l2vic = qdev_new(TYPE_HEX_L2VIC);
+
+    object_property_add_child(OBJECT(hms), "l2vic", OBJECT(l2vic));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(l2vic), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic), 0, m_cfg->l2vic_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(l2vic), 1,
+                    m_cfg->cfgtable.fastl2vic_base << 16);
+
+    return l2vic;
+}
+
+static void l2vic_connect_cpu(DeviceState *l2vic, DeviceState *cpu)
+{
+    int i;
+
+    for (i = 0; i < HEX_L2VIC_CPU_IRQS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(l2vic), i, qdev_get_gpio_in(cpu, i));
+    }
+}
 
 static DeviceState *globalreg_create(HexagonCommonMachineState *hms,
                                      const struct hexagon_machine_config *m_cfg,
@@ -26,6 +52,8 @@ static DeviceState *globalreg_create(HexagonCommonMachineState *hms,
     object_property_add_child(OBJECT(hms), "global-regs", OBJECT(glob_regs));
     qdev_prop_set_uint64(glob_regs, "config-table-addr", m_cfg->cfgbase);
     qdev_prop_set_uint32(glob_regs, "dsp-rev", rev);
+    object_property_set_link(OBJECT(glob_regs), "l2vic", OBJECT(hms->l2vic),
+                             &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs), &error_fatal);
 
     return glob_regs;
@@ -81,6 +109,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     }
 
     hms->cluster = cluster_create(hms);
+    hms->l2vic = l2vic_create(hms, m_cfg);
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
     hms->tlb = tlb_create(hms, m_cfg);
 }
@@ -91,6 +120,8 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
     object_property_set_link(OBJECT(cpu), "global-regs",
                              OBJECT(hms->glob_regs), &error_fatal);
     object_property_set_link(OBJECT(cpu), "tlb", OBJECT(hms->tlb),
+                             &error_fatal);
+    object_property_set_link(OBJECT(cpu), "l2vic", OBJECT(hms->l2vic),
                              &error_fatal);
 }
 
@@ -105,7 +136,12 @@ void hex_subsys_realize_cluster(HexagonCommonMachineState *hms)
     qdev_realize_and_unref(hms->cluster, NULL, &error_fatal);
 }
 
-void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
+void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu,
+                            bool boot_cpu)
 {
     qdev_realize_and_unref(cpu, NULL, &error_fatal);
+
+    if (boot_cpu) {
+        l2vic_connect_cpu(hms->l2vic, cpu);
+    }
 }

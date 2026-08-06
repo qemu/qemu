@@ -18,7 +18,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
 /*
  * Parent a CPU into the subsystem's cluster and wire its links.  Call for
  * every CPU before hex_subsys_realize_cluster(), then realize each CPU with
- * hex_subsys_realize_cpu().
+ * hex_subsys_realize_cpu().  CPU[0] receives the L2VIC outputs.
  */
 void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu);
 
@@ -26,6 +26,7 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu);
 void hex_subsys_realize_cluster(HexagonCommonMachineState *hms);
 
 /* Realize a CPU previously parented via hex_subsys_add_cpu(). */
-void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu);
+void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu,
+                            bool boot_cpu);
 
 #endif /* HW_HEXAGON_HEX_SUBSYS_H */
