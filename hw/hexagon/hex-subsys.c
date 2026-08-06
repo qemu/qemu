@@ -10,6 +10,7 @@
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/cpu/cluster.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev.h"
@@ -42,6 +43,16 @@ static DeviceState *tlb_create(HexagonCommonMachineState *hms,
     return tlb;
 }
 
+static DeviceState *cluster_create(HexagonCommonMachineState *hms)
+{
+    DeviceState *cluster = qdev_new(TYPE_CPU_CLUSTER);
+
+    object_property_add_child(OBJECT(hms), "cluster", OBJECT(cluster));
+    qdev_prop_set_uint32(cluster, "cluster-id", 0);
+
+    return cluster;
+}
+
 void hex_subsys_create(HexagonCommonMachineState *hms,
                        const struct hexagon_machine_config *m_cfg, Rev_t rev)
 {
@@ -69,15 +80,32 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
                                     &hms->vtcm);
     }
 
+    hms->cluster = cluster_create(hms);
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
     hms->tlb = tlb_create(hms, m_cfg);
 }
 
-void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
+void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
 {
+    object_property_add_child(OBJECT(hms->cluster), "cpu[*]", OBJECT(cpu));
     object_property_set_link(OBJECT(cpu), "global-regs",
                              OBJECT(hms->glob_regs), &error_fatal);
     object_property_set_link(OBJECT(cpu), "tlb", OBJECT(hms->tlb),
                              &error_fatal);
+}
+
+void hex_subsys_realize_cluster(HexagonCommonMachineState *hms)
+{
+    /*
+     * The cluster must be realized after its CPUs have been parented into it
+     * (see hex_subsys_add_cpu()) but before any CPU is itself realized, since
+     * qdev_realize_and_unref() on a CPU latches cluster_index into the TCG
+     * cflags at that point.
+     */
+    qdev_realize_and_unref(hms->cluster, NULL, &error_fatal);
+}
+
+void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
+{
     qdev_realize_and_unref(cpu, NULL, &error_fatal);
 }

@@ -246,6 +246,8 @@ static void virt_init(MachineState *ms)
 
     fdt_add_hvx(vms, m_cfg);
 
+    g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, ms->smp.cpus);
+
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
@@ -261,7 +263,14 @@ static void virt_init(MachineState *ms)
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpu));
+        hex_subsys_add_cpu(&vms->parent_obj, DEVICE(cpu));
+        cpus[i] = cpu;
+    }
+
+    hex_subsys_realize_cluster(&vms->parent_obj);
+
+    for (int i = 0; i < ms->smp.cpus; i++) {
+        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpus[i]));
     }
 
     fdt_add_cpu_nodes(vms);

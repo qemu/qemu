@@ -118,6 +118,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     hex_subsys_create(hms, m_cfg, rev);
 
+    g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, machine->smp.cpus);
+
     for (int i = 0; i < machine->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
@@ -130,7 +132,14 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             hexagon_init_bootstrap(dms, cpu);
         }
-        hex_subsys_realize_cpu(hms, DEVICE(cpu));
+        hex_subsys_add_cpu(hms, DEVICE(cpu));
+        cpus[i] = cpu;
+    }
+
+    hex_subsys_realize_cluster(hms);
+
+    for (int i = 0; i < machine->smp.cpus; i++) {
+        hex_subsys_realize_cpu(hms, DEVICE(cpus[i]));
     }
 }
 

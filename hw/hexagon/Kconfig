@@ -2,6 +2,7 @@ config HEX_DSP
     bool
     default y
     depends on HEXAGON
+    select CPU_CLUSTER
 
 config HEX_VIRT
     bool

@@ -15,7 +15,17 @@
 void hex_subsys_create(HexagonCommonMachineState *hms,
                        const struct hexagon_machine_config *m_cfg, Rev_t rev);
 
-/* Realize a CPU into the subsystem. */
+/*
+ * Parent a CPU into the subsystem's cluster and wire its links.  Call for
+ * every CPU before hex_subsys_realize_cluster(), then realize each CPU with
+ * hex_subsys_realize_cpu().
+ */
+void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu);
+
+/* Realize the CPU cluster, once all CPUs have been parented into it. */
+void hex_subsys_realize_cluster(HexagonCommonMachineState *hms);
+
+/* Realize a CPU previously parented via hex_subsys_add_cpu(). */
 void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu);
 
 #endif /* HW_HEXAGON_HEX_SUBSYS_H */
