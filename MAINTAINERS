@@ -252,6 +252,7 @@ S: Supported
 F: target/hexagon/
 F: hw/intc/hex-l2vic.c
 F: include/hw/intc/hex-l2vic.h
+F: tests/qtest/l2vic-test.c
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
