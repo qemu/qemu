@@ -58,6 +58,38 @@ class ArchTestsUart(QemuSystemTest):
         """
         self.run_uart_test("test_int_steering")
 
+    def test_cache(self) -> None:
+        """Tests cache operations: dckill/ickill, l2kill, dczeroa,
+        dccleaninva, cache disable/enable, barriers, and dcinva/dccleana.
+        """
+        self.run_uart_test("test_cache")
+
+    def test_l2vic(self) -> None:
+        """Tests the L2VIC interrupt controller: enable readback,
+        interrupt type readback, VID capture, and the fast interface.
+        """
+        self.run_uart_test("test_l2vic")
+
+    def test_threads(self) -> None:
+        """Tests hardware thread management: start/stop, MODECTL state,
+        per-thread HTID, shared memory, wait/resume, STID priority, and
+        SCHEDCFG/BESTWAIT readback.
+        """
+        self.run_uart_test("test_threads")
+
+    def test_tlb_mmu(self) -> None:
+        """Tests TLB/MMU operations: write/read/probe/invalidate,
+        global entries, multiple entries, overwrite, ASID matching,
+        and permission checks.
+        """
+        self.run_uart_test("test_tlb_mmu")
+
+    def test_user_mode(self) -> None:
+        """Tests user mode / privilege transitions: supervisor mode,
+        SSR UM/IE/XE/CE/PE bits, and the trap0 user-mode exit handler.
+        """
+        self.run_uart_test("test_user_mode")
+
 
 if __name__ == "__main__":
     QemuSystemTest.main()
