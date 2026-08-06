@@ -75,6 +75,30 @@ static void create_fdt(HexagonVirtMachineState *vms)
     qemu_fdt_setprop(fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 }
 
+static int32_t fdt_add_l2vic(HexagonVirtMachineState *vms,
+                             const struct hexagon_machine_config *m_cfg)
+{
+    MachineState *ms = MACHINE(vms);
+    int32_t l2vic_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+    char *nodename = g_strdup_printf("/soc/interrupt-controller@%x",
+                                     m_cfg->l2vic_base);
+    const char compat[] = "qcom,h2-pic\0hvm-pic";
+
+    qemu_fdt_setprop_cell(ms->fdt, "/soc", "interrupt-parent", l2vic_phandle);
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 0x1);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0,
+                           m_cfg->l2vic_base, m_cfg->l2vic_size);
+    qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", l2vic_phandle);
+
+    g_free(nodename);
+    return l2vic_phandle;
+}
+
 static void fdt_add_hvx(HexagonVirtMachineState *vms,
                         const struct hexagon_machine_config *m_cfg)
 {
@@ -175,13 +199,16 @@ static void fdt_add_cpu_nodes(const HexagonVirtMachineState *vms)
     }
 }
 
-static void create_virtio_devices(HexagonVirtMachineState *vms)
+static void create_virtio_devices(HexagonVirtMachineState *vms,
+                                  int32_t l2vic_phandle)
 {
+    MachineState *ms = MACHINE(vms);
     hwaddr size = base_memmap[VIRT_MMIO].size;
 
     for (int i = 0; i < VIRTIO_DEV_COUNT; i++) {
         int irq = VIRTIO_IRQ_BASE + i;
         hwaddr base = base_memmap[VIRT_MMIO].base + i * size;
+        char *nodename = g_strdup_printf("/soc/virtio_mmio@%" PRIx64, base);
         DeviceState *dev = qdev_new("virtio-mmio");
         SysBusDevice *s = SYS_BUS_DEVICE(dev);
 
@@ -192,6 +219,16 @@ static void create_virtio_devices(HexagonVirtMachineState *vms)
         sysbus_connect_irq(s, 0,
                            qdev_get_gpio_in(vms->parent_obj.l2vic, irq));
         vms->virtio_mmio[i] = dev;
+
+        qemu_fdt_add_subnode(ms->fdt, nodename);
+        qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                                "virtio,mmio");
+        qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", irq);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
+                              l2vic_phandle);
+
+        g_free(nodename);
     }
 }
 
@@ -251,6 +288,7 @@ static void virt_init(MachineState *ms)
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
     const struct hexagon_machine_config *m_cfg = &v68n_1024;
     int32_t clk_phandle;
+    int32_t l2vic_phandle;
 
     create_fdt(vms);
     qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs", ms->kernel_cmdline);
@@ -272,7 +310,8 @@ static void virt_init(MachineState *ms)
 
     fdt_add_hvx(vms, m_cfg);
 
-    create_virtio_devices(vms);
+    l2vic_phandle = fdt_add_l2vic(vms, m_cfg);
+    create_virtio_devices(vms, l2vic_phandle);
 
     g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, ms->smp.cpus);
 
