@@ -156,6 +156,7 @@ struct HexagonCommonMachineState {
 
     MemoryRegion ram;
     MemoryRegion cfgtable_rom;
+    MemoryRegion vtcm;
 };
 
 #endif

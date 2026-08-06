@@ -75,11 +75,6 @@ static void fdt_add_hvx(HexagonVirtMachineState *vms,
     const MachineState *ms = MACHINE(vms);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
     if (vtcm_size_bytes > 0) {
-        memory_region_init_ram(&vms->vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
-                               &error_fatal);
-        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.vtcm_base << 16,
-                                    &vms->vtcm);
-
         qemu_fdt_add_subnode(ms->fdt, "/soc/vtcm");
         qemu_fdt_setprop_string(ms->fdt, "/soc/vtcm", "compatible",
                                 "qcom,hexagon_vtcm");

@@ -29,4 +29,12 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
                           sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
                           &address_space_memory);
+
+    if (m_cfg->cfgtable.vtcm_size_kb > 0) {
+        memory_region_init_ram(&hms->vtcm, NULL, "vtcm.ram",
+                               m_cfg->cfgtable.vtcm_size_kb * 1024,
+                               &error_fatal);
+        memory_region_add_subregion(sysmem, m_cfg->cfgtable.vtcm_base << 16,
+                                    &hms->vtcm);
+    }
 }

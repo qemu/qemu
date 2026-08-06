@@ -17,7 +17,6 @@ struct HexagonVirtMachineState {
     int fdt_size;
     MemoryRegion *sys;
     MemoryRegion tcm;
-    MemoryRegion vtcm;
     MemoryRegion bios;
     Clock *apb_clk;
 };
