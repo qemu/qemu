@@ -39,6 +39,7 @@ enum {
  * VIRTIO_IRQ_BASE + VIRTIO_DEV_COUNT - 1
  */
 static const int VIRTIO_IRQ_BASE = 16;
+static const int VIRT_UART0_IRQ = 15;
 
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
@@ -143,7 +144,7 @@ static int32_t fdt_add_clocks(const HexagonVirtMachineState *vms)
 }
 
 static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
-                         int32_t clk_phandle)
+                         int32_t clk_phandle, int32_t l2vic_phandle)
 {
     char *nodename;
     hwaddr base = base_memmap[uart].base;
@@ -161,6 +162,8 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
     qdev_connect_clock_in(dev, "clk", vms->apb_clk);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
+    sysbus_connect_irq(s, 0,
+                       qdev_get_gpio_in(vms->parent_obj.l2vic, VIRT_UART0_IRQ));
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -168,6 +171,9 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", VIRT_UART0_IRQ);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
+                          l2vic_phandle);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clk_phandle,
                            clk_phandle);
     qemu_fdt_setprop(ms->fdt, nodename, "clock-names", clocknames,
@@ -342,7 +348,7 @@ static void virt_init(MachineState *ms)
 
     fdt_add_cpu_nodes(vms);
     clk_phandle = fdt_add_clocks(vms);
-    fdt_add_uart(vms, VIRT_UART0, clk_phandle);
+    fdt_add_uart(vms, VIRT_UART0, clk_phandle, l2vic_phandle);
 
     hexagon_load_fdt(vms);
 }
