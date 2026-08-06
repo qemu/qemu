@@ -52,6 +52,12 @@ class ArchTestsUart(QemuSystemTest):
         """
         self.run_uart_test("test_guest_mode")
 
+    def test_int_steering(self) -> None:
+        """Tests interrupt steering via priority-based routing to
+        specific threads using STID priority and iassignw.
+        """
+        self.run_uart_test("test_int_steering")
+
 
 if __name__ == "__main__":
     QemuSystemTest.main()
