@@ -15,7 +15,6 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hex-subsys.h"
-#include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/core/loader.h"
 #include "qapi/error.h"
@@ -109,7 +108,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(machine);
     HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(machine);
-    DeviceState *glob_regs_dev;
     DeviceState *tlb_dev;
 
     memset(&hexagon_binfo, 0, sizeof(hexagon_binfo));
@@ -120,14 +118,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     machine->enable_graphics = 0;
 
-    hex_subsys_create(hms, m_cfg);
-
-    glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
-    object_property_add_child(OBJECT(machine), "global-regs",
-                              OBJECT(glob_regs_dev));
-    qdev_prop_set_uint64(glob_regs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(glob_regs_dev, "dsp-rev", rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs_dev), &error_fatal);
+    hex_subsys_create(hms, m_cfg, rev);
 
     tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
     object_property_add_child(OBJECT(machine), "tlb", OBJECT(tlb_dev));
@@ -147,11 +138,9 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         if (i == 0) {
             hexagon_init_bootstrap(dms, cpu);
         }
-        object_property_set_link(OBJECT(cpu), "global-regs",
-                                 OBJECT(glob_regs_dev), &error_fatal);
         object_property_set_link(OBJECT(cpu), "tlb",
                                  OBJECT(tlb_dev), &error_fatal);
-        qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+        hex_subsys_realize_cpu(hms, DEVICE(cpu));
     }
 }
 

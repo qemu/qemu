@@ -8,11 +8,29 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/hexagon/hex-subsys.h"
+#include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/core/loader.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev.h"
+#include "hw/core/sysbus.h"
 #include "system/address-spaces.h"
 
+static DeviceState *globalreg_create(HexagonCommonMachineState *hms,
+                                     const struct hexagon_machine_config *m_cfg,
+                                     Rev_t rev)
+{
+    DeviceState *glob_regs = qdev_new(TYPE_HEXAGON_GLOBALREG);
+
+    object_property_add_child(OBJECT(hms), "global-regs", OBJECT(glob_regs));
+    qdev_prop_set_uint64(glob_regs, "config-table-addr", m_cfg->cfgbase);
+    qdev_prop_set_uint32(glob_regs, "dsp-rev", rev);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs), &error_fatal);
+
+    return glob_regs;
+}
+
 void hex_subsys_create(HexagonCommonMachineState *hms,
-                       const struct hexagon_machine_config *m_cfg)
+                       const struct hexagon_machine_config *m_cfg, Rev_t rev)
 {
     MachineState *machine = MACHINE(hms);
     MemoryRegion *sysmem = get_system_memory();
@@ -37,4 +55,13 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
         memory_region_add_subregion(sysmem, m_cfg->cfgtable.vtcm_base << 16,
                                     &hms->vtcm);
     }
+
+    hms->glob_regs = globalreg_create(hms, m_cfg, rev);
+}
+
+void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
+{
+    object_property_set_link(OBJECT(cpu), "global-regs",
+                             OBJECT(hms->glob_regs), &error_fatal);
+    qdev_realize_and_unref(cpu, NULL, &error_fatal);
 }
