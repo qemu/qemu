@@ -128,3 +128,8 @@ imx_epit_get_freq(uint32_t freq) "ptimer frequency is %u"
 imx_epit_read(const char *name, uint32_t value) "(%s) = 0x%08x"
 imx_epit_write(const char *name, uint64_t value) "(%s, value = 0x%08" PRIx64 ")"
 imx_epit_cmp(uint32_t sr) "sr was %d"
+
+# qct-qtimer.c
+qtimer_interrupt(void) "qtimer interrupt line updated"
+qtimer_read(uint64_t offset) "offset 0x%" PRIx64
+qtimer_write(uint64_t offset, uint64_t value) "offset 0x%" PRIx64 " value 0x%" PRIx64
