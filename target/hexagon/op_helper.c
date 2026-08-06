@@ -40,6 +40,7 @@
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hex_mmu.h"
 #include "hw/hexagon/hexagon_tlb.h"
+#include "hw/intc/hex-l2vic.h"
 #include "hex_interrupts.h"
 #include "hexswi.h"
 #endif
@@ -1564,7 +1565,20 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
 
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
-    g_assert_not_reached();
+    uint32_t ipendad;
+    uint32_t iad;
+    HexagonCPU *cpu;
+
+    BQL_LOCK_GUARD();
+    cpu = env_archcpu(env);
+    ipendad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                      env->threadId);
+    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
+    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
+    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                            ipendad, env->threadId);
+    l2vic_clear_interrupt(cpu->l2vic);
+    hex_interrupt_update(env);
 }
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)

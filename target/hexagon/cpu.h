@@ -39,6 +39,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #include "qemu/bitmap.h"
 
 #include "target/hexagon/reg_fields.h"
+#include "hw/intc/hex-l2vic.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
@@ -198,6 +199,7 @@ struct ArchCPU {
     uint32_t boot_addr;
     HexagonGlobalRegState *globalregs;
     uint32_t htid;
+    HexL2VicInterface *l2vic;
 #endif
 };
 
