@@ -255,6 +255,7 @@ F: include/hw/intc/hex-l2vic.h
 F: tests/qtest/l2vic-test.c
 F: hw/timer/qct-qtimer.c
 F: include/hw/timer/qct-qtimer.h
+F: tests/qtest/qct-qtimer-test.c
 X: target/hexagon/idef-parser/
 X: target/hexagon/gen_idef_parser_funcs.py
 F: linux-user/hexagon/
