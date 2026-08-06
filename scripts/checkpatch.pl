@@ -21,6 +21,7 @@ use Getopt::Long qw(:config no_auto_abbrev);
 my $quiet = 0;
 my $tree = 1;
 my $chk_signoff = 1;
+my $chk_fixes_tag = 1;
 my $chk_patch = undef;
 my $chk_branch = undef;
 my $tst_only;
@@ -54,6 +55,7 @@ Options:
   -q, --quiet                quiet
   --no-tree                  run without a qemu tree
   --no-signoff               do not check for 'Signed-off-by' line
+  --no-fixes-tag             do not check for 'Fixes:' tag
   --patch                    treat FILE as patchfile
   --branch                   treat args as GIT revision list
   --emacs                    emacs compile window format
@@ -94,6 +96,7 @@ GetOptions(
 	'q|quiet+'		=> \$quiet,
 	'tree!'			=> \$tree,
 	'signoff!'		=> \$chk_signoff,
+	'fixes-tag!'		=> \$chk_fixes_tag,
 	'patch!'		=> \$chk_patch,
 	'branch!'		=> \$chk_branch,
 	'emacs!'		=> \$emacs,
@@ -441,6 +444,10 @@ sub build_types {
 build_types();
 
 $chk_signoff = 0 if ($file);
+$chk_fixes_tag = 0 if ($file);
+
+my $gitroot = $ENV{'GIT_DIR'};
+$gitroot = ".git" if !defined($gitroot);
 
 my @rawlines = ();
 my @lines = ();
@@ -559,6 +566,24 @@ sub which {
 	}
 
 	return "";
+}
+
+sub git_commit_info {
+	my ($commit, $id, $desc) = @_;
+
+	return ($id, $desc) if ((which("git") eq "") || !(-e "$gitroot"));
+
+	my $output = `git log --no-color --format='%H %s' -1 $commit 2>/dev/null`;
+	if ($? != 0) {
+		$id = undef;
+	} else {
+		chomp $output;
+		$output =~ s/^\s*//gm;
+		$id = substr($output, 0, 12);
+		$desc = substr($output, 41);
+	}
+
+	return ($id, $desc);
 }
 
 sub expand_tabs {
@@ -1852,6 +1877,47 @@ sub process {
 			    $trailer_value =~ /<\Q$author_email\E>/i) {
 				WARN("$trailer_type from the patch author\n" .
 					$herecurr);
+			}
+		}
+
+# Check Fixes: tag format and commit validity
+		if ($chk_fixes_tag &&
+		    $line =~ /^\s*(fixes:?)\s*(?:commit\s*)?([0-9a-f]{5,40})\s*(.*)?/i) {
+			my $tag = $1;
+			my $orig_commit = $2;
+			my $title = $3;
+
+			if ($line !~ /^\s*Fixes:\s+CVE/i) {
+				my $tag_case = not ($tag eq "Fixes:");
+				my $tag_space = not ($line =~ /^fixes:? [0-9a-f]{5,40}/i);
+				my $id_length = not ($orig_commit =~ /^[0-9a-f]{12,40}$/);
+				my $id_case = not ($orig_commit !~ /[A-F]/);
+
+				my $id = "0123456789ab";
+				my $description = "commit title";
+				my $has_quotes = 0;
+
+				if (defined $title && $title =~ /^\("(.*?)"\)$/) {
+					$description = $1 if ($1);
+					$has_quotes = 1;
+				} elsif (defined $title && $title =~ /^\(?(.*?)\)?$/) {
+					$description = $1 if ($1);
+				}
+
+				my ($cid, $ctitle) = git_commit_info($orig_commit, $id, $description);
+
+				if (defined($cid) && ($ctitle ne $description || $tag_case || $tag_space || $id_length || $id_case || !$has_quotes)) {
+					my $fixed = "Fixes: $cid (\"$ctitle\")";
+					WARN("Please use correct Fixes: style 'Fixes: <12+ chars of sha1> (\"<title line>\")'" .
+						" - ie: '$fixed'\n" . $herecurr);
+				}
+				if (which("git") ne "" && -e "$gitroot") {
+					my $hash = defined($cid) ? $cid : $orig_commit;
+					`git merge-base --is-ancestor $hash master 2>/dev/null`;
+					if ($? != 0) {
+						WARN("Fixes: commit $hash is not an ancestor of master\n" . $herecurr);
+					}
+				}
 			}
 		}
 
