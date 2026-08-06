@@ -14,7 +14,6 @@
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hex-subsys.h"
-#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
@@ -225,7 +224,6 @@ static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
     const struct hexagon_machine_config *m_cfg = &v68n_1024;
-    DeviceState *tlb_dev;
     int32_t clk_phandle;
 
     create_fdt(vms);
@@ -248,12 +246,6 @@ static void virt_init(MachineState *ms)
 
     fdt_add_hvx(vms, m_cfg);
 
-    tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
-    object_property_add_child(OBJECT(ms), "tlb", OBJECT(tlb_dev));
-    qdev_prop_set_uint32(tlb_dev, "num-entries",
-                         m_cfg->cfgtable.jtlb_size_entries);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
-
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
@@ -269,8 +261,6 @@ static void virt_init(MachineState *ms)
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        object_property_set_link(OBJECT(cpu), "tlb",
-                                 OBJECT(tlb_dev), &error_fatal);
         hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpu));
     }
 

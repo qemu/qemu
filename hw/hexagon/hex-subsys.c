@@ -9,6 +9,7 @@
 #include "qapi/error.h"
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_tlb.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev.h"
@@ -27,6 +28,18 @@ static DeviceState *globalreg_create(HexagonCommonMachineState *hms,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(glob_regs), &error_fatal);
 
     return glob_regs;
+}
+
+static DeviceState *tlb_create(HexagonCommonMachineState *hms,
+                               const struct hexagon_machine_config *m_cfg)
+{
+    DeviceState *tlb = qdev_new(TYPE_HEXAGON_TLB);
+
+    object_property_add_child(OBJECT(hms), "tlb", OBJECT(tlb));
+    qdev_prop_set_uint32(tlb, "num-entries", m_cfg->cfgtable.jtlb_size_entries);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb), &error_fatal);
+
+    return tlb;
 }
 
 void hex_subsys_create(HexagonCommonMachineState *hms,
@@ -57,11 +70,14 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     }
 
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
+    hms->tlb = tlb_create(hms, m_cfg);
 }
 
 void hex_subsys_realize_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
 {
     object_property_set_link(OBJECT(cpu), "global-regs",
                              OBJECT(hms->glob_regs), &error_fatal);
+    object_property_set_link(OBJECT(cpu), "tlb", OBJECT(hms->tlb),
+                             &error_fatal);
     qdev_realize_and_unref(cpu, NULL, &error_fatal);
 }
