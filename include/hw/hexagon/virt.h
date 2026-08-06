@@ -11,6 +11,8 @@
 #include "hw/hexagon/hexagon.h"
 #include "target/hexagon/cpu.h"
 
+#define VIRTIO_DEV_COUNT 8
+
 struct HexagonVirtMachineState {
     HexagonCommonMachineState parent_obj;
 
@@ -19,6 +21,7 @@ struct HexagonVirtMachineState {
     MemoryRegion tcm;
     MemoryRegion bios;
     Clock *apb_clk;
+    DeviceState *virtio_mmio[VIRTIO_DEV_COUNT];
 };
 
 void hexagon_load_fdt(const struct HexagonVirtMachineState *vms);
