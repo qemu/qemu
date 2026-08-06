@@ -14,6 +14,7 @@
 #include "hw/core/boards.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/core/loader.h"
@@ -108,7 +109,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 {
     HexagonCommonMachineState *hms = HEXAGON_COMMON_MACHINE(machine);
     HexagonDspMachineState *dms = HEXAGON_DSP_MACHINE(machine);
-    MemoryRegion *address_space;
     DeviceState *glob_regs_dev;
     DeviceState *tlb_dev;
 
@@ -120,16 +120,7 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
 
     machine->enable_graphics = 0;
 
-    address_space = get_system_memory();
-
-    memory_region_init_rom(&hms->cfgtable_rom, NULL, "config_table.rom",
-                           sizeof(m_cfg->cfgtable), &error_fatal);
-    memory_region_add_subregion(address_space, m_cfg->cfgbase,
-                                &hms->cfgtable_rom);
-
-    memory_region_init_ram(&hms->ram, NULL, "ddr.ram",
-                           machine->ram_size, &error_fatal);
-    memory_region_add_subregion(address_space, 0x0, &hms->ram);
+    hex_subsys_create(hms, m_cfg);
 
     glob_regs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
     object_property_add_child(OBJECT(machine), "global-regs",
@@ -162,10 +153,6 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
                                  OBJECT(tlb_dev), &error_fatal);
         qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
     }
-
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
-                          &address_space_memory);
 }
 
 static void init_mc(MachineClass *mc)

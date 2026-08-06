@@ -13,6 +13,7 @@
 #include "hw/core/clock.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/core/loader.h"
@@ -244,9 +245,7 @@ static void virt_init(MachineState *ms)
     vms->apb_clk = clock_new(OBJECT(ms), "apb-pclk");
     clock_set_hz(vms->apb_clk, 24000000);
 
-    memory_region_init_ram(&vms->parent_obj.ram, NULL, "ddr.ram",
-                           ms->ram_size, &error_fatal);
-    memory_region_add_subregion(vms->sys, 0x0, &vms->parent_obj.ram);
+    hex_subsys_create(&vms->parent_obj, m_cfg);
 
     if (m_cfg->l2tcm_size) {
         memory_region_init_ram(&vms->tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
@@ -255,11 +254,6 @@ static void virt_init(MachineState *ms)
                                     &vms->tcm);
     }
 
-    memory_region_init_rom(&vms->parent_obj.cfgtable_rom, NULL,
-                           "config_table.rom", sizeof(m_cfg->cfgtable),
-                           &error_fatal);
-    memory_region_add_subregion(vms->sys, m_cfg->cfgbase,
-                                &vms->parent_obj.cfgtable_rom);
     fdt_add_hvx(vms, m_cfg);
 
     gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
@@ -301,10 +295,6 @@ static void virt_init(MachineState *ms)
     fdt_add_cpu_nodes(vms);
     clk_phandle = fdt_add_clocks(vms);
     fdt_add_uart(vms, VIRT_UART0, clk_phandle);
-
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
-                          &address_space_memory);
 
     hexagon_load_fdt(vms);
 }
