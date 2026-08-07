@@ -317,6 +317,34 @@ TEST_VEC_OP2(vand, vand, , d, 8, &)
 TEST_VEC_OP2(vor, vor, , d, 8, |)
 TEST_VEC_OP1(vnot, vnot, , d, 8, ~)
 
+#define TEST_VEC_ABSDIFF(NAME, INTRINSIC, SRC_FIELD, DST_FIELD, \
+                         CHECK_FIELD, FIELDSZ) \
+static inline void test_##NAME(void) \
+{ \
+    HVX_Vector v0; \
+    HVX_Vector v1; \
+    HVX_Vector vres; \
+    for (int i = 0; i < BUFSIZE; i++) { \
+        memcpy(&v0, &buffer0[i], sizeof(MMVector)); \
+        memcpy(&v1, &buffer1[i], sizeof(MMVector)); \
+        vres = INTRINSIC(v0, v1); \
+        memcpy(&output[i], &vres, sizeof(MMVector)); \
+    } \
+    for (int i = 0; i < BUFSIZE; i++) { \
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES / FIELDSZ; j++) { \
+            int64_t diff = (int64_t)buffer0[i].SRC_FIELD[j] - \
+                           (int64_t)buffer1[i].SRC_FIELD[j]; \
+            expect[i].DST_FIELD[j] = diff < 0 ? -diff : diff; \
+        } \
+    } \
+    check_output_##CHECK_FIELD(__LINE__, BUFSIZE); \
+}
+
+TEST_VEC_ABSDIFF(vabsdiffub, Q6_Vub_vabsdiff_VubVub, ub, ub, b, 1)
+TEST_VEC_ABSDIFF(vabsdiffuh, Q6_Vuh_vabsdiff_VuhVuh, uh, uh, h, 2)
+TEST_VEC_ABSDIFF(vabsdiffh,  Q6_Vuh_vabsdiff_VhVh,   h,  uh, h, 2)
+TEST_VEC_ABSDIFF(vabsdiffw,  Q6_Vuw_vabsdiff_VwVw,   w,  uw, w, 4)
+
 TEST_PRED_OP2(pred_or, or, |, "")
 TEST_PRED_OP2(pred_or_n, or, |, "!")
 TEST_PRED_OP2(pred_and, and, &, "")
@@ -574,6 +602,11 @@ int main()
     test_vadduwsat();
     test_vsubuwsat_dv();
     test_vsubwsat();
+
+    test_vabsdiffub();
+    test_vabsdiffuh();
+    test_vabsdiffh();
+    test_vabsdiffw();
 
     test_load_tmp_predicated();
     test_load_cur_predicated();
