@@ -234,6 +234,93 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_sub(MO_32, VddV_off, VuuV_off, VvvV_off, \
                      sizeof(MMVector) * 2, sizeof(MMVector) * 2)
 
+#define fGEN_TCG_V6_vaddbsat(SHORTCODE) \
+    tcg_gen_gvec_ssadd(MO_8, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vaddhsat(SHORTCODE) \
+    tcg_gen_gvec_ssadd(MO_16, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vaddwsat(SHORTCODE) \
+    tcg_gen_gvec_ssadd(MO_32, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vaddubsat(SHORTCODE) \
+    tcg_gen_gvec_usadd(MO_8, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vadduhsat(SHORTCODE) \
+    tcg_gen_gvec_usadd(MO_16, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vadduwsat(SHORTCODE) \
+    tcg_gen_gvec_usadd(MO_32, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_PAIR_ADDSUB(OP, VECE, DST, SRC_A, SRC_B) \
+    tcg_gen_gvec_##OP(VECE, DST, SRC_A, SRC_B, \
+                     2 * VECTOR_SIZE_BYTE, 2 * VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vaddbsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(ssadd, MO_8, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vaddhsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(ssadd, MO_16, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vaddwsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(ssadd, MO_32, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vaddubsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(usadd, MO_8, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vadduhsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(usadd, MO_16, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vadduwsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(usadd, MO_32, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vsubbsat(SHORTCODE) \
+    tcg_gen_gvec_sssub(MO_8, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vsubhsat(SHORTCODE) \
+    tcg_gen_gvec_sssub(MO_16, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vsubwsat(SHORTCODE) \
+    tcg_gen_gvec_sssub(MO_32, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vsububsat(SHORTCODE) \
+    tcg_gen_gvec_ussub(MO_8, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vsubuhsat(SHORTCODE) \
+    tcg_gen_gvec_ussub(MO_16, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vsubuwsat(SHORTCODE) \
+    tcg_gen_gvec_ussub(MO_32, VdV_off, VuV_off, VvV_off, \
+                       VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vsubbsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(sssub, MO_8, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vsubhsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(sssub, MO_16, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vsubwsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(sssub, MO_32, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vsububsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(ussub, MO_8, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vsubuhsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(ussub, MO_16, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vsubuwsat_dv(SHORTCODE) \
+    fGEN_TCG_PAIR_ADDSUB(ussub, MO_32, VddV_off, VuuV_off, VvvV_off)
 /* Vector shift right - various forms */
 #define fGEN_TCG_V6_vasrh(SHORTCODE) \
     do { \
