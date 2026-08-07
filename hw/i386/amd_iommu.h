@@ -243,9 +243,14 @@
 #define AMDVI_PAGE_SHIFT_4K 12
 #define AMDVI_PAGE_MASK_4K      GENMASK64(63, 12)
 
-#define AMDVI_MAX_GVA_ADDR      (2UL << 5)
-#define AMDVI_MAX_PH_ADDR       (40UL << 8)
-#define AMDVI_MAX_VA_ADDR       (48UL << 15)
+/*
+ * IOMMU Capability Offset 10h: Miscellaneous Information Register 0.
+ * VAsize[21:15], PAsize[14:8], and GVAsize[7:5].
+ * These fields use the same layout in the IVRS IVinfo Field.
+ */
+#define AMDVI_VA_SIZE_64        (64UL << 15)
+#define AMDVI_PA_SIZE_52        (52UL << 8)
+#define AMDVI_GVA_SIZE_48       (2UL << 5)
 
 /* Completion Wait data size */
 #define AMDVI_COMPLETION_DATA_SIZE    8

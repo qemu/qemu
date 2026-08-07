@@ -1858,7 +1858,9 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
      */
     build_append_int_noprefix(table_data,
                              (1UL << 0) | /* EFRSup */
-                             (40UL << 8), /* PASize */
+                             AMDVI_GVA_SIZE_48 | /* GVASize:     010b = 48 bits */
+                             AMDVI_PA_SIZE_52 |  /* PASize: 011_0100b = 52 bits */
+                             AMDVI_VA_SIZE_64,   /* VASize: 100_0000b = 64 bits */
                              4);
     /* reserved */
     build_append_int_noprefix(table_data, 0, 8);
