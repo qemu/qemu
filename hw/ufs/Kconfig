@@ -7,3 +7,7 @@ config UFS_PCI
     default y if PCI_DEVICES
     depends on PCI
     select UFS
+
+config UFS_SYSBUS
+    bool
+    select UFS
