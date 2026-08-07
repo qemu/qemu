@@ -382,7 +382,7 @@ int decompact_xsave_area(const void *buf, size_t buflen, CPUX86State *env)
 
         size = eax;
         dst_off = ebx;
-        align64 = (ecx & (1u << 1)) != 0;
+        align64 = (ecx & ESA_FEATURE_ALIGN64_MASK) != 0;
         supervisor = (ecx & ESA_FEATURE_XSS_MASK) != 0;
 
         /* Component is in the layout but unknown to the guest CPUID model */
@@ -394,7 +394,7 @@ int decompact_xsave_area(const void *buf, size_t buflen, CPUX86State *env)
              */
             host_cpuid(0xD, i, &eax, &ebx, &ecx, &edx);
             size = eax;
-            align64 = (ecx & (1u << 1)) != 0;
+            align64 = (ecx & ESA_FEATURE_ALIGN64_MASK) != 0;
             if (size == 0) {
                 error_report("xsave component %zu: size unknown to both "
                              "guest and host CPUID", i);
@@ -530,7 +530,7 @@ int compact_xsave_area(CPUX86State *env, void *buf, size_t buflen)
         host_cpuid(0xD, i, &eax, &ebx, &ecx, &edx);
         size = eax;
         src_off = ebx;
-        align64 = (ecx >> 1) & 1;
+        align64 = (ecx & ESA_FEATURE_ALIGN64_MASK) != 0;
 
         if (size == 0) {
             /* Component in host xcr0 but unknown - shouldn't happen */
