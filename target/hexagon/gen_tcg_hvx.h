@@ -321,6 +321,11 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 
 #define fGEN_TCG_V6_vsubuwsat_dv(SHORTCODE) \
     fGEN_TCG_PAIR_ADDSUB(ussub, MO_32, VddV_off, VuuV_off, VvvV_off)
+
+#define fGEN_TCG_V6_vmpyih(SHORTCODE) \
+    tcg_gen_gvec_mul(MO_16, VdV_off, VuV_off, VvV_off, \
+                     VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
 /* Vector shift right - various forms */
 #define fGEN_TCG_V6_vasrh(SHORTCODE) \
     do { \
