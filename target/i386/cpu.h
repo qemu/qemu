@@ -1606,6 +1606,11 @@ typedef enum {
     CC_OP_BLSIL,
     CC_OP_BLSIQ,
 
+    CC_OP_CCMPB, /* Z via CC_DST, P,S via CC_SRC2, carry-out in CC_SRC */
+    CC_OP_CCMPW,
+    CC_OP_CCMPL,
+    CC_OP_CCMPQ,
+
     /*
      * Note that only CC_OP_POPCNT (i.e. the one with MO_TL size)
      * is used or implemented, because the translation needs

@@ -1583,7 +1583,7 @@ static void decode_63(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint
 static void decode_group1(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
     static const X86GenFunc group1_gen[8] = {
-        gen_ADD, gen_OR, gen_ADC, gen_SBB, gen_AND, gen_SUB, gen_XOR, gen_SUB,
+        gen_ADD, gen_OR, gen_ADC, gen_SBB, gen_AND, gen_SUB, gen_XOR, gen_CMP,
     };
     int op = (get_modrm(s, env) >> 3) & 7;
     entry->gen = group1_gen[op];
@@ -1630,8 +1630,8 @@ static void decode_group3(DisasContext *s, CPUX86State *env, X86OpEntry *entry, 
 {
     static const X86OpEntry opcodes_grp3[16] = {
         /* 0xf6 */
-        [0x00] = X86_OP_ENTRYrr(AND, E,b, I,b),
-        [0x01] = X86_OP_ENTRYrr(AND, E,b, I,b),
+        [0x00] = X86_OP_ENTRYrr(TEST, E,b, I,b),
+        [0x01] = X86_OP_ENTRYrr(TEST, E,b, I,b),
         [0x02] = X86_OP_ENTRY1(NOT,  E,b,      lock),
         [0x03] = X86_OP_ENTRY1(NEG,  E,b,      lock),
         [0x04] = X86_OP_ENTRYrr(MUL, E,b, 0,b, zextT0),
@@ -1640,8 +1640,8 @@ static void decode_group3(DisasContext *s, CPUX86State *env, X86OpEntry *entry, 
         [0x07] = X86_OP_ENTRYr(IDIV, E,b),
 
         /* 0xf7 */
-        [0x08] = X86_OP_ENTRYrr(AND, E,v, I,z),
-        [0x09] = X86_OP_ENTRYrr(AND, E,v, I,z),
+        [0x08] = X86_OP_ENTRYrr(TEST, E,v, I,z),
+        [0x09] = X86_OP_ENTRYrr(TEST, E,v, I,z),
         [0x0a] = X86_OP_ENTRY1(NOT,  E,v,      lock),
         [0x0b] = X86_OP_ENTRY1(NEG,  E,v,      lock),
         [0x0c] = X86_OP_ENTRYrr(MUL, E,v, 0,v, zextT0),
@@ -1780,8 +1780,8 @@ static const X86OpEntry opcodes_root[256] = {
     [0x81] = X86_OP_GROUP2(group1, E,v, I,z),
     [0x82] = X86_OP_GROUP2(group1, E,b, I,b, chk(i64)),
     [0x83] = X86_OP_GROUP2(group1, E,v, I,b),
-    [0x84] = X86_OP_ENTRYrr(AND, E,b, G,b),
-    [0x85] = X86_OP_ENTRYrr(AND, E,v, G,v),
+    [0x84] = X86_OP_ENTRYrr(TEST, E,b, G,b),
+    [0x85] = X86_OP_ENTRYrr(TEST, E,v, G,v),
     [0x86] = X86_OP_ENTRY2(XCHG, E,b, G,b, xchg),
     [0x87] = X86_OP_ENTRY2(XCHG, E,v, G,v, xchg),
 
@@ -1871,12 +1871,12 @@ static const X86OpEntry opcodes_root[256] = {
     [0x2E] = {},
     [0x2F] = X86_OP_ENTRY0(DAS, chk(i64)),
 
-    [0x38] = X86_OP_ENTRYrr(SUB, E,b, G,b),
-    [0x39] = X86_OP_ENTRYrr(SUB, E,v, G,v),
-    [0x3A] = X86_OP_ENTRYrr(SUB, G,b, E,b),
-    [0x3B] = X86_OP_ENTRYrr(SUB, G,v, E,v),
-    [0x3C] = X86_OP_ENTRYrr(SUB, 0,b, I,b),   /* AL, Ib */
-    [0x3D] = X86_OP_ENTRYrr(SUB, 0,v, I,z),   /* rAX, Iz */
+    [0x38] = X86_OP_ENTRYrr(CMP, E,b, G,b),
+    [0x39] = X86_OP_ENTRYrr(CMP, E,v, G,v),
+    [0x3A] = X86_OP_ENTRYrr(CMP, G,b, E,b),
+    [0x3B] = X86_OP_ENTRYrr(CMP, G,v, E,v),
+    [0x3C] = X86_OP_ENTRYrr(CMP, 0,b, I,b),   /* AL, Ib */
+    [0x3D] = X86_OP_ENTRYrr(CMP, 0,v, I,z),   /* rAX, Iz */
     [0x3E] = {},
     [0x3F] = X86_OP_ENTRY0(AAS, chk(i64)),
 
@@ -1935,8 +1935,8 @@ static const X86OpEntry opcodes_root[256] = {
     [0x9E] = X86_OP_ENTRY0(SAHF),
     [0x9F] = X86_OP_ENTRY0(LAHF),
 
-    [0xA8] = X86_OP_ENTRYrr(AND, 0,b, I,b),   /* AL, Ib */
-    [0xA9] = X86_OP_ENTRYrr(AND, 0,v, I,z),   /* rAX, Iz */
+    [0xA8] = X86_OP_ENTRYrr(TEST, 0,b, I,b),   /* AL, Ib */
+    [0xA9] = X86_OP_ENTRYrr(TEST, 0,v, I,z),   /* rAX, Iz */
     [0xAA] = X86_OP_ENTRYwr(STOS, Y,b, 0,b),
     [0xAB] = X86_OP_ENTRYwr(STOS, Y,v, 0,v),
     /* Manual writeback because REP LODS (!) has to write EAX/RAX after every LODS.  */
