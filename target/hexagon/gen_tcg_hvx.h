@@ -326,6 +326,22 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_mul(MO_16, VdV_off, VuV_off, VvV_off, \
                      VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
+#define fGEN_TCG_V6_vabsdiffub(SHORTCODE) \
+    gen_gvec_uabsdiff(MO_8, VdV_off, VuV_off, VvV_off, \
+                     VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vabsdiffuh(SHORTCODE) \
+    gen_gvec_uabsdiff(MO_16, VdV_off, VuV_off, VvV_off, \
+                     VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vabsdiffh(SHORTCODE) \
+    gen_gvec_sabsdiff(MO_16, VdV_off, VuV_off, VvV_off, \
+                     VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
+#define fGEN_TCG_V6_vabsdiffw(SHORTCODE) \
+    gen_gvec_sabsdiff(MO_32, VdV_off, VuV_off, VvV_off, \
+                     VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
+
 /* Vector shift right - various forms */
 #define fGEN_TCG_V6_vasrh(SHORTCODE) \
     do { \

@@ -35,6 +35,7 @@
 #include "mmvec/macros.h"
 #include "op_helper.h"
 #include "cpu_helper.h"
+#include "tcg/tcg-gvec-desc.h"
 #include "translate.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
@@ -1961,3 +1962,23 @@ void HELPER(pending_interrupt)(CPUHexagonState *env)
     printf("ERROR: bogus helper: " #tag "\n")
 
 #include "helper_funcs_generated.c.inc"
+
+#define DO_ABSDIFF(NAME, TYPE, UTYPE) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
+{ \
+    intptr_t i, oprsz = simd_oprsz(desc); \
+    UTYPE *d = vd; \
+    TYPE *n = vn, *m = vm; \
+    \
+    for (i = 0; i < oprsz / sizeof(TYPE); i++) { \
+        d[i] = n[i] < m[i] ? (UTYPE)m[i] - (UTYPE)n[i] \
+                           : (UTYPE)n[i] - (UTYPE)m[i]; \
+    } \
+}
+
+DO_ABSDIFF(gvec_sabsdiff_h, int16_t, uint16_t)
+DO_ABSDIFF(gvec_sabsdiff_w, int32_t, uint32_t)
+DO_ABSDIFF(gvec_uabsdiff_b, uint8_t, uint8_t)
+DO_ABSDIFF(gvec_uabsdiff_h, uint16_t, uint16_t)
+
+#undef DO_ABSDIFF
