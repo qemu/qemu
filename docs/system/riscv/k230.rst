@@ -20,11 +20,15 @@ The ``k230`` machine supports the following devices:
 * Platform-Level Interrupt Controller (PLIC)
 * 2 K230 Watchdog Timer
 * 5 UART
+* K230 DDRC CFG and DDR PHY
 
 Boot options
 ------------
 The ``k230`` machine supports K230 SDK boot through M-mode U-Boot, which then
 starts OpenSBI/Linux with ``bootm``. It also supports direct Linux boot.
+
+The DDRC CFG and DDR PHY models allow the K230 SDK U-Boot SPL to complete DDR
+initialization before loading the next boot stage.
 
 K230 SDK Linux kernels use T-HEAD C9xx private MAEE page table attributes. QEMU
 does not implement MAEE in the generic RISC-V MMU, so such kernels need to be
