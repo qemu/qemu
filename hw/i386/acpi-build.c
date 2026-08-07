@@ -1938,8 +1938,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     build_append_int_noprefix(table_data,
                              (1UL << 0) | /* HtTunEn      */
                              (1UL << 4) | /* iotblSup     */
-                             (1UL << 6) | /* PrefSup      */
-                             (1UL << 7),  /* PPRSup       */
+                             (1UL << 6),  /* PrefSup      */
                              1);
 
     /* IVHD length */
