@@ -1,6 +1,6 @@
 # ufs.c
-ufs_irq_raise(void) "INTx"
-ufs_irq_lower(void) "INTx"
+ufs_irq_raise(void) "IRQ"
+ufs_irq_lower(void) "IRQ"
 ufs_mmio_read(uint64_t addr, uint64_t data, unsigned size) "addr 0x%"PRIx64" data 0x%"PRIx64" size %d"
 ufs_mmio_write(uint64_t addr, uint64_t data, unsigned size) "addr 0x%"PRIx64" data 0x%"PRIx64" size %d"
 ufs_process_db(uint32_t slot) "UTRLDBR slot %"PRIu32""

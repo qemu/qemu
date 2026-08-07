@@ -11,9 +11,11 @@
 #ifndef HW_UFS_UFS_H
 #define HW_UFS_UFS_H
 
-#include "hw/pci/pci_device.h"
+#include "hw/core/qdev.h"
 #include "hw/scsi/scsi.h"
 #include "block/ufs.h"
+#include "scsi/constants.h"
+#include "system/dma.h"
 
 #define UFS_MAX_LUS 32
 #define UFS_MAX_MCQ_QNUM 32
@@ -27,6 +29,7 @@ typedef struct UfsBusClass {
 
 typedef struct UfsBus {
     BusState parent_bus;
+    struct UfsHc *hc;
 } UfsBus;
 
 #define TYPE_UFS_BUS "ufs-bus"
@@ -141,7 +144,8 @@ typedef struct UfsWb {
 } UfsWb;
 
 typedef struct UfsHc {
-    PCIDevice parent_obj;
+    DeviceState *dev;
+    AddressSpace *dma_as;
     UfsBus bus;
     MemoryRegion iomem;
     UfsReg reg;
@@ -268,9 +272,6 @@ static inline bool ufs_is_write_req(UfsRequest *req)
     return (cmd == WRITE_6) || (cmd == WRITE_10) || (cmd == WRITE_16);
 }
 
-#define TYPE_UFS "ufs"
-#define UFS(obj) OBJECT_CHECK(UfsHc, (obj), TYPE_UFS)
-
 #define TYPE_UFS_LU "ufs-lu"
 #define UFSLU(obj) OBJECT_CHECK(UfsLu, (obj), TYPE_UFS_LU)
 
@@ -302,4 +303,7 @@ void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
 void ufs_wb_update_avail_buffer(UfsHc *u);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
+bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as,
+                 Error **errp);
+void ufs_unrealize(UfsHc *u);
 #endif /* HW_UFS_UFS_H */

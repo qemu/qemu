@@ -1,4 +1,9 @@
+config UFS
+    bool
+    select SCSI
+
 config UFS_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+    select UFS
