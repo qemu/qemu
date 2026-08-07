@@ -174,7 +174,11 @@
 #define AMDVI_DTE_QUAD3_RESERVED        (GENMASK64(14, 0) | GENMASK64(53, 48))
 
 /* AMDVI paging mode */
+#define AMDVI_GATS_MODE_SHIFT           (12)
+#define AMDVI_GATS_MODE_MASK            (3ULL <<  12)
 #define AMDVI_GATS_MODE                 (2ULL <<  12)
+#define AMDVI_HATS_MODE_SHIFT           (10)
+#define AMDVI_HATS_MODE_MASK            (3ULL <<  10)
 #define AMDVI_HATS_MODE                 (2ULL <<  10)
 #define AMDVI_HATS_MODE_RESERVED        (3ULL <<  10)
 
@@ -295,6 +299,13 @@
 #define AMDVI_DEV_NMI_PASS_MASK         (1ULL << 58)
 #define AMDVI_DEV_LINT0_PASS_MASK       (1ULL << 62)
 #define AMDVI_DEV_LINT1_PASS_MASK       (1ULL << 63)
+
+#define AMDVI_IVHD_FEATURE_REPORT_HATS_SHIFT        (30)
+#define AMDVI_IVHD_FEATURE_REPORT_GATS_SHIFT        (28)
+#define AMDVI_IVHD_FEATURE_REPORT_GA_SUP_SHIFT      (6)
+#define AMDVI_IVHD_FEATURE_REPORT_IA_SUP_SHIFT      (5)
+#define AMDVI_IVHD_FEATURE_REPORT_GT_SUP_SHIFT      (2)
+#define AMDVI_IVHD_FEATURE_REPORT_XT_SUP_SHIFT      (0)
 
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
 OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
