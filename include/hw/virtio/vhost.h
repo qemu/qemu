@@ -310,10 +310,13 @@ void vhost_dev_set_config_notifier(struct vhost_dev *dev,
  */
 bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n);
 
-/* Mask/unmask events from this vq.
+/**
+ * vhost_virtqueue_mask(): mask/unmask events from this vq.
+ *
+ * Returns: 0 on success, a negative errno on failure.
  */
-void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
-                          bool mask);
+int vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
+                         bool mask);
 
 /**
  * vhost_get_features_ex() - sanitize the extended features set
