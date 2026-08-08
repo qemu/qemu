@@ -1848,13 +1848,16 @@ F: hw/misc/k230_ddr.c
 F: hw/riscv/k230.c
 F: hw/watchdog/k230_wdt.c
 F: hw/dma/k230_gsdma.c
+F: hw/misc/k230_decomp_gzip.c
 F: include/hw/misc/k230_ddr.h
 F: include/hw/riscv/k230.h
 F: include/hw/watchdog/k230_wdt.h
 F: include/hw/dma/k230_gsdma.h
+F: include/hw/misc/k230_decomp_gzip.h
 F: tests/functional/riscv64/test_k230.py
 F: tests/qtest/k230-ddr-test.c
 F: tests/qtest/k230-wdt-test.c
+F: tests/qtest/k230-gsdma-test.c
 
 RX Machines
 -----------
