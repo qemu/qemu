@@ -14,6 +14,7 @@
 
 #define CS_ARCH_ARM     -1
 #define CS_ARCH_ARM64   -1
+#define CS_ARCH_M68K    -1
 #define CS_ARCH_MIPS    -1
 #define CS_ARCH_X86     -1
 #define CS_ARCH_PPC     -1
@@ -28,6 +29,12 @@
 #define CS_MODE_THUMB            0
 #define CS_MODE_MCLASS           0
 #define CS_MODE_V8               0
+#define CS_MODE_M68K_000         0
+#define CS_MODE_M68K_010         0
+#define CS_MODE_M68K_020         0
+#define CS_MODE_M68K_030         0
+#define CS_MODE_M68K_040         0
+#define CS_MODE_M68K_060         0
 #define CS_MODE_MICRO            0
 #define CS_MODE_MIPS3            0
 #define CS_MODE_MIPS32R6         0
@@ -42,6 +49,19 @@
 #define CS_ARCH_LOONGARCH       -1
 #define CS_MODE_LOONGARCH32      0
 #define CS_MODE_LOONGARCH64      0
+#endif
+
+#if CS_API_MAJOR < 6
+#define CS_MODE_M68K_CF_ISA_A    0
+#define CS_MODE_M68K_CF_ISA_A_PLUS 0
+#define CS_MODE_M68K_CF_ISA_B    0
+#define CS_MODE_M68K_CF_ISA_C    0
+#define CS_MODE_M68K_CF_USP      0
+#define CS_MODE_M68K_CF_DIV      0
+#define CS_MODE_M68K_CF_MAC      0
+#define CS_MODE_M68K_CF_EMAC     0
+#define CS_MODE_M68K_CF_EMAC_B   0
+#define CS_MODE_M68K_CF_FPU      0
 #endif
 
 #if CS_API_MAJOR < 5

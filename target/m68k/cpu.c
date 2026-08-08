@@ -22,7 +22,7 @@
 #include "accel/tcg/cpu-ops.h"
 #include "fpu/softfloat.h"
 #include "qapi/error.h"
-
+#include "disas/capstone.h"
 #ifndef CONFIG_USER_ONLY
 #include "migration/vmstate.h"
 #include "monitor/hmp.h"
@@ -182,9 +182,72 @@ static void m68k_cpu_reset_hold(Object *obj, ResetType type)
 
 static void m68k_cpu_disas_set_info(const CPUState *cs, disassemble_info *info)
 {
+    CPUM68KState *env = cpu_env((CPUState *)cs);
+    int cap_mode = 0;
+
     info->print_insn = print_insn_m68k;
     info->endian = BFD_ENDIAN_BIG;
     info->mach = 0;
+
+    /* m68k support in capstone prior to v6 is unusably bad */
+    if (CS_API_MAJOR < 6) {
+        return;
+    }
+
+    info->cap_arch = CS_ARCH_M68K;
+    info->cap_insn_unit = 2;
+
+    if (m68k_feature(env, M68K_FEATURE_M68K)) {
+        /*
+         * m68k insns may have up to 11 words, and 5 words are common.
+         * Choosing 12 bytes splits after 6 words and disassembly
+         * uses no more than 2 lines.
+         */
+        info->cap_insn_split = 12;
+        if (m68k_feature(env, M68K_FEATURE_M68060)) {
+            cap_mode = CS_MODE_M68K_060;
+        } else if (m68k_feature(env, M68K_FEATURE_M68040)) {
+            cap_mode = CS_MODE_M68K_040;
+        } else if (m68k_feature(env, M68K_FEATURE_M68030)) {
+            cap_mode = CS_MODE_M68K_030;
+        } else if (m68k_feature(env, M68K_FEATURE_M68020)) {
+            cap_mode = CS_MODE_M68K_020;
+        } else if (m68k_feature(env, M68K_FEATURE_M68010)) {
+            cap_mode = CS_MODE_M68K_010;
+        } else {
+            cap_mode = CS_MODE_M68K_000;
+        }
+    } else {
+        /* ColdFire insns may have up to 3 words. */
+        info->cap_insn_split = 6;
+        if (m68k_feature(env, M68K_FEATURE_CF_ISA_A)) {
+            cap_mode |= CS_MODE_M68K_CF_ISA_A;
+            cap_mode |= CS_MODE_M68K_CF_DIV;
+        }
+        if (m68k_feature(env, M68K_FEATURE_CF_ISA_B)) {
+            cap_mode |= CS_MODE_M68K_CF_ISA_B;
+        }
+        if (m68k_feature(env, M68K_FEATURE_CF_ISA_APLUSC)) {
+            cap_mode |= CS_MODE_M68K_CF_ISA_A_PLUS;
+            cap_mode |= CS_MODE_M68K_CF_ISA_C;
+        }
+        if (m68k_feature(env, M68K_FEATURE_USP)) {
+            cap_mode |= CS_MODE_M68K_CF_USP;
+        }
+        if (m68k_feature(env, M68K_FEATURE_CF_FPU)) {
+            cap_mode |= CS_MODE_M68K_CF_FPU;
+        }
+        if (m68k_feature(env, M68K_FEATURE_CF_MAC)) {
+            cap_mode |= CS_MODE_M68K_CF_MAC;
+        }
+        if (m68k_feature(env, M68K_FEATURE_CF_EMAC)) {
+            cap_mode |= CS_MODE_M68K_CF_EMAC;
+        }
+        if (m68k_feature(env, M68K_FEATURE_CF_EMAC_B)) {
+            cap_mode |= CS_MODE_M68K_CF_EMAC_B;
+        }
+    }
+    info->cap_mode = cap_mode;
 }
 
 /* CPU models */
