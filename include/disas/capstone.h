@@ -71,4 +71,11 @@
 #define CS_MODE_RISCV_VENTANA    0
 #endif
 
+#if CS_API_MAJOR < 5
+#define CS_ARCH_SH              -1
+#define CS_MODE_SHFPU            0
+#define CS_MODE_SH4              0
+#define CS_MODE_SH4A             0
+#endif
+
 #endif /* QEMU_CAPSTONE_H */
