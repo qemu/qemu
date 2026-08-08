@@ -78,4 +78,15 @@
 #define CS_MODE_SH4A             0
 #endif
 
+#if CS_API_MAJOR < 5
+#define CS_ARCH_TRICORE         -1
+#define CS_MODE_TRICORE_110      0
+#define CS_MODE_TRICORE_120      0
+#define CS_MODE_TRICORE_130      0
+#define CS_MODE_TRICORE_131      0
+#define CS_MODE_TRICORE_160      0
+#define CS_MODE_TRICORE_161      0
+#define CS_MODE_TRICORE_162      0
+#endif
+
 #endif /* QEMU_CAPSTONE_H */
