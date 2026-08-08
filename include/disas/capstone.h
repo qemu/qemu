@@ -40,6 +40,12 @@
 
 #endif /* CONFIG_CAPSTONE */
 
+#if CS_API_MAJOR < 6
+#define CS_ARCH_LOONGARCH       -1
+#define CS_MODE_LOONGARCH32      0
+#define CS_MODE_LOONGARCH64      0
+#endif
+
 #if CS_API_MAJOR < 5
 #define CS_ARCH_RISCV           -1
 #define CS_MODE_RISCV32          0
