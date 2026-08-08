@@ -95,7 +95,7 @@ static cs_err cap_disas_start(disassemble_info *info, csh *handle)
                   (uintptr_t)&cap_skipdata_riscv);
         break;
 
-    case CS_ARCH_SYSZ:
+    case CS_ARCH_SYSTEMZ:
         cs_option(*handle, CS_OPT_SKIPDATA_SETUP,
                   (uintptr_t)&cap_skipdata_s390x);
         break;

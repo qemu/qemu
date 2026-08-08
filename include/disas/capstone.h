@@ -4,7 +4,6 @@
 #ifdef CONFIG_CAPSTONE
 
 #define CAPSTONE_AARCH64_COMPAT_HEADER
-#define CAPSTONE_SYSTEMZ_COMPAT_HEADER
 #include <capstone.h>
 
 #else
@@ -19,7 +18,6 @@
 #define CS_ARCH_X86     -1
 #define CS_ARCH_PPC     -1
 #define CS_ARCH_SPARC   -1
-#define CS_ARCH_SYSZ    -1
 
 #define CS_MODE_LITTLE_ENDIAN    0
 #define CS_MODE_BIG_ENDIAN       0
@@ -82,6 +80,15 @@
 #define CS_MODE_SHFPU            0
 #define CS_MODE_SH4              0
 #define CS_MODE_SH4A             0
+#endif
+
+#if CS_API_MAJOR == 0
+#define CS_ARCH_SYSTEMZ         -1
+#elif CS_API_MAJOR < 6
+#define CS_ARCH_SYSTEMZ          CS_ARCH_SYSZ
+#endif
+#if CS_API_MAJOR < 6
+#define CS_MODE_SYSTEMZ_ARCH14   0
 #endif
 
 #if CS_API_MAJOR < 5
