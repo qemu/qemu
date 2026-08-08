@@ -5121,7 +5121,8 @@ static void vtd_init(IntelIOMMUState *s)
     }
 
     if (s->svm) {
-        s->ecap |= VTD_ECAP_PRS | VTD_ECAP_PDS | VTD_ECAP_NWFS;
+        s->ecap |= VTD_ECAP_PRS | VTD_ECAP_PDS | VTD_ECAP_NWFS |
+                   VTD_ECAP_SMPWCS;
     }
 
     vtd_reset_caches(s);
