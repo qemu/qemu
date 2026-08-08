@@ -297,6 +297,11 @@ target_ulong helper_sret(CPURISCVState *env)
     const target_ulong src_priv = env->priv;
     const bool src_virt = env->virt_enabled;
 
+    if ((env->virt_enabled && env->priv < PRV_S) ||
+        (env->virt_enabled && get_field(env->hstatus, HSTATUS_VTSR))) {
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
+    }
+
     if (!(env->priv >= PRV_S)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
@@ -310,10 +315,6 @@ target_ulong helper_sret(CPURISCVState *env)
 
     if (get_field(env->mstatus, MSTATUS_TSR) && !(env->priv >= PRV_M)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-    }
-
-    if (env->virt_enabled && get_field(env->hstatus, HSTATUS_VTSR)) {
-        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     }
 
     mstatus = env->mstatus;
