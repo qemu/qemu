@@ -107,8 +107,9 @@ static void cap_dump_insn_units(disassemble_info *info, cs_insn *insn,
 {
     fprintf_function print = info->fprintf_func;
     FILE *stream = info->stream;
+    int unit = MIN(info->cap_insn_unit, n - i);
 
-    switch (info->cap_insn_unit) {
+    switch (unit) {
     case 4:
         if (info->endian == BFD_ENDIAN_BIG) {
             for (; i < n; i += 4) {
@@ -139,6 +140,11 @@ static void cap_dump_insn_units(disassemble_info *info, cs_insn *insn,
             print(stream, " %02x", insn->bytes[i]);
         }
         break;
+    }
+
+    if (unit < info->cap_insn_unit) {
+        int width = (info->cap_insn_unit - unit) * 2;
+        print(stream, "%*s", width, "");
     }
 }
 
