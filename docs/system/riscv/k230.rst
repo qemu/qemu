@@ -21,6 +21,7 @@ The ``k230`` machine supports the following devices:
 * 2 K230 Watchdog Timer
 * 5 UART
 * K230 DDRC CFG and DDR PHY
+* System Direct Memory Access (SDMA)
 
 Boot options
 ------------

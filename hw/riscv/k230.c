@@ -116,6 +116,7 @@ static void k230_soc_init(Object *obj)
     s->ddr_cfg.phy = &s->ddr_phy;
     object_initialize_child(obj, "k230-wdt0", &s->wdt[0], TYPE_K230_WDT);
     object_initialize_child(obj, "k230-wdt1", &s->wdt[1], TYPE_K230_WDT);
+    object_initialize_child(obj, "k230-gsdma", &s->gsdma, TYPE_K230_GSDMA);
 
     qdev_prop_set_uint32(DEVICE(cpu0), "hartid-base", 0);
     qdev_prop_set_string(DEVICE(cpu0), "cpu-type", TYPE_RISCV_CPU_THEAD_C908);
@@ -222,6 +223,14 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->wdt[1]), 0,
                        qdev_get_gpio_in(DEVICE(s->c908_plic), K230_WDT1_IRQ));
 
+    /* Gsdma */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gsdma), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gsdma), 0, memmap[K230_DEV_GSDMA].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gsdma), 0,
+                       qdev_get_gpio_in(DEVICE(s->c908_plic), K230_GSDMA_IRQ));
+
     /* unimplemented devices */
     create_unimplemented_device("kpu.l2-cache",
                                 memmap[K230_DEV_KPU_L2_CACHE].base,
@@ -236,9 +245,6 @@ static void k230_soc_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("2d-engine.ai",
                                 memmap[K230_DEV_AI_2D_ENGINE].base,
                                 memmap[K230_DEV_AI_2D_ENGINE].size);
-
-    create_unimplemented_device("gsdma", memmap[K230_DEV_GSDMA].base,
-                                memmap[K230_DEV_GSDMA].size);
 
     create_unimplemented_device("dma", memmap[K230_DEV_DMA].base,
                                 memmap[K230_DEV_DMA].size);
