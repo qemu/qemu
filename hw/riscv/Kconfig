@@ -163,3 +163,4 @@ config K230
     select UNIMP
     select K230_WDT
     select K230_GSDMA
+    select K230_DECOMP_GZIP
