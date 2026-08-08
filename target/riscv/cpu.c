@@ -39,6 +39,7 @@
 #include "system/tcg.h"
 #include "kvm/kvm_riscv.h"
 #include "tcg/tcg-cpu.h"
+#include "disas/capstone.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "target/riscv/tcg/debug.h"
 #endif
@@ -1099,6 +1100,7 @@ static void riscv_cpu_disas_set_info(const CPUState *s, disassemble_info *info)
 {
     const RISCVCPU *cpu = RISCV_CPU(s);
     const CPURISCVState *env = &cpu->env;
+    int cap_mode;
 
     info->target_info = &cpu->cfg;
 
@@ -1111,16 +1113,93 @@ static void riscv_cpu_disas_set_info(const CPUState *s, disassemble_info *info)
     switch (env->xl) {
     case MXL_RV32:
         info->print_insn = print_insn_riscv32;
+        cap_mode = CS_MODE_RISCV32;
         break;
     case MXL_RV64:
         info->print_insn = print_insn_riscv64;
+        cap_mode = CS_MODE_RISCV64;
         break;
     case MXL_RV128:
         info->print_insn = print_insn_riscv128;
-        break;
+        /* capstone v6 doesn't support RV128 */
+        return;
     default:
         g_assert_not_reached();
     }
+
+    info->cap_arch = CS_ARCH_RISCV;
+    info->cap_insn_unit = 4;
+    info->cap_insn_split = 4;
+
+    /*
+     * Capstone compresses some features together. See RISCV_getFeatureBits,
+     * which maps LLVM feature bits to capstone bits.
+     */
+    if (riscv_has_ext(env, RVC) || cpu->cfg.ext_zca) {
+        cap_mode |= CS_MODE_RISCV_C;
+    }
+    if (riscv_has_ext(env, RVF)) {
+        cap_mode |= CS_MODE_RISCV_FD;
+    }
+    if (riscv_has_ext(env, RVV)) {
+        cap_mode |= CS_MODE_RISCV_V;
+    }
+    if (cpu->cfg.ext_zfinx || cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinx) {
+        cap_mode |= CS_MODE_RISCV_ZFINX;
+    }
+    if (cpu->cfg.ext_zcmp || cpu->cfg.ext_zcmt || cpu->cfg.ext_zce) {
+        cap_mode |= CS_MODE_RISCV_ZCMP_ZCMT_ZCE;
+    }
+    if (cpu->cfg.ext_zicfiss) {
+        cap_mode |= CS_MODE_RISCV_ZICFISS;
+    }
+    if (riscv_has_ext(env, RVE)) {
+        cap_mode |= CS_MODE_RISCV_E;
+    }
+    if (riscv_has_ext(env, RVA)) {
+        cap_mode |= CS_MODE_RISCV_A;
+    }
+    if (cpu->cfg.ext_xlrbr) {
+        cap_mode |= CS_MODE_RISCV_BITMANIP;
+    }
+    if (cpu->cfg.ext_zba) {
+        cap_mode |= CS_MODE_RISCV_ZBA;
+    }
+    if (cpu->cfg.ext_zbb) {
+        cap_mode |= CS_MODE_RISCV_ZBB;
+    }
+    if (cpu->cfg.ext_zbc) {
+        cap_mode |= CS_MODE_RISCV_ZBC;
+    }
+    if (cpu->cfg.ext_zbkb) {
+        cap_mode |= CS_MODE_RISCV_ZBKB;
+    }
+    if (cpu->cfg.ext_zbkc) {
+        cap_mode |= CS_MODE_RISCV_ZBKC;
+    }
+    if (cpu->cfg.ext_zbkx) {
+        cap_mode |= CS_MODE_RISCV_ZBKX;
+    }
+    if (cpu->cfg.ext_zbs) {
+        cap_mode |= CS_MODE_RISCV_ZBS;
+    }
+    if (cpu->cfg.ext_xtheadba ||
+        cpu->cfg.ext_xtheadbb ||
+        cpu->cfg.ext_xtheadbs ||
+        cpu->cfg.ext_xtheadcmo ||
+        cpu->cfg.ext_xtheadcondmov ||
+        cpu->cfg.ext_xtheadfmemidx ||
+        cpu->cfg.ext_xtheadfmv ||
+        cpu->cfg.ext_xtheadmac ||
+        cpu->cfg.ext_xtheadmemidx ||
+        cpu->cfg.ext_xtheadmempair ||
+        cpu->cfg.ext_xtheadsync) {
+        cap_mode |= CS_MODE_RISCV_THEAD;
+    }
+    if (cpu->cfg.ext_XVentanaCondOps) {
+        cap_mode |= CS_MODE_RISCV_VENTANA;
+    }
+    info->cap_mode = cap_mode;
 }
 
 #ifndef CONFIG_USER_ONLY

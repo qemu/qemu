@@ -11,6 +11,8 @@
 
 /* Just enough to allow backends to init without ifdefs.  */
 
+#define CS_API_MAJOR     0
+
 #define CS_ARCH_ARM     -1
 #define CS_ARCH_ARM64   -1
 #define CS_ARCH_MIPS    -1
@@ -37,4 +39,36 @@
 #define CS_MODE_MIPS64           0
 
 #endif /* CONFIG_CAPSTONE */
+
+#if CS_API_MAJOR < 5
+#define CS_ARCH_RISCV           -1
+#define CS_MODE_RISCV32          0
+#define CS_MODE_RISCV64          0
+#define CS_MODE_RISCV_C          0
+#elif CS_API_MAJOR == 5
+/* The C symbol name changed between v5 and v6 */
+#define CS_MODE_RISCV_C          CS_MODE_RISCVC
+#endif
+#if CS_API_MAJOR < 6
+#define CS_MODE_RISCV_FD         0
+#define CS_MODE_RISCV_V          0
+#define CS_MODE_RISCV_ZFINX      0
+#define CS_MODE_RISCV_ZCMP_ZCMT_ZCE  0
+#define CS_MODE_RISCV_ZICFISS    0
+#define CS_MODE_RISCV_E          0
+#define CS_MODE_RISCV_A          0
+#define CS_MODE_RISCV_COREV      0
+#define CS_MODE_RISCV_THEAD      0
+#define CS_MODE_RISCV_SIFIVE     0
+#define CS_MODE_RISCV_BITMANIP   0
+#define CS_MODE_RISCV_ZBA        0
+#define CS_MODE_RISCV_ZBB        0
+#define CS_MODE_RISCV_ZBC        0
+#define CS_MODE_RISCV_ZBKB       0
+#define CS_MODE_RISCV_ZBKC       0
+#define CS_MODE_RISCV_ZBKX       0
+#define CS_MODE_RISCV_ZBS        0
+#define CS_MODE_RISCV_VENTANA    0
+#endif
+
 #endif /* QEMU_CAPSTONE_H */

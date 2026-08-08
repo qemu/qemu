@@ -49,6 +49,20 @@ static const cs_opt_skipdata cap_skipdata_s390x = {
     .callback = cap_skipdata_s390x_cb
 };
 
+/* Similarly for RISCV */
+static size_t CAPSTONE_API
+cap_skipdata_riscv_cb(const uint8_t *code, size_t code_size,
+                      size_t offset, void *user_data)
+{
+    /* See insn_len() from target/riscv/internals.h */
+    return (code[offset] & 3) == 3 ? 4 : 2;
+}
+
+static const cs_opt_skipdata cap_skipdata_riscv = {
+    .mnemonic = ".byte",
+    .callback = cap_skipdata_riscv_cb
+};
+
 /*
  * Initialize the Capstone library.
  *
@@ -76,6 +90,11 @@ static cs_err cap_disas_start(disassemble_info *info, csh *handle)
     cs_option(*handle, CS_OPT_SKIPDATA, CS_OPT_ON);
 
     switch (info->cap_arch) {
+    case CS_ARCH_RISCV:
+        cs_option(*handle, CS_OPT_SKIPDATA_SETUP,
+                  (uintptr_t)&cap_skipdata_riscv);
+        break;
+
     case CS_ARCH_SYSZ:
         cs_option(*handle, CS_OPT_SKIPDATA_SETUP,
                   (uintptr_t)&cap_skipdata_s390x);
