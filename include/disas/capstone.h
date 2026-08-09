@@ -29,6 +29,7 @@
 #define CS_MODE_THUMB            0
 #define CS_MODE_MCLASS           0
 #define CS_MODE_V8               0
+#define CS_MODE_V9               0
 #define CS_MODE_M68K_000         0
 #define CS_MODE_M68K_010         0
 #define CS_MODE_M68K_020         0
@@ -36,11 +37,10 @@
 #define CS_MODE_M68K_040         0
 #define CS_MODE_M68K_060         0
 #define CS_MODE_MICRO            0
+#define CS_MODE_MIPS2            0
 #define CS_MODE_MIPS3            0
-#define CS_MODE_MIPS32R6         0
-#define CS_MODE_MIPSGP64         0
-#define CS_MODE_V9               0
 #define CS_MODE_MIPS32           0
+#define CS_MODE_MIPS32R6         0
 #define CS_MODE_MIPS64           0
 
 #endif /* CONFIG_CAPSTONE */
@@ -62,6 +62,24 @@
 #define CS_MODE_M68K_CF_EMAC     0
 #define CS_MODE_M68K_CF_EMAC_B   0
 #define CS_MODE_M68K_CF_FPU      0
+#endif
+
+#if CS_API_MAJOR < 6
+#define CS_MODE_MIPS16           0
+#define CS_MODE_MIPS1            0
+#define CS_MODE_MIPS32R2         0
+#define CS_MODE_MIPS32R3         0
+#define CS_MODE_MIPS32R5         0
+#define CS_MODE_MIPS4            0
+#define CS_MODE_MIPS5            0
+#define CS_MODE_MIPS64R2         0
+#define CS_MODE_MIPS64R3         0
+#define CS_MODE_MIPS64R5         0
+#define CS_MODE_MIPS64R6         0
+#define CS_MODE_OCTEON           0
+#define CS_MODE_OCTEONP          0
+#define CS_MODE_NANOMIPS         0
+#define CS_MODE_MIPS_PTR64       0
 #endif
 
 #if CS_API_MAJOR < 5
