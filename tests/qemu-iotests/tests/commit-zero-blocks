@@ -23,8 +23,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# creator
-owner=libvirt-e6954efa@volkihar.be
 
 seq=`basename $0`
 echo "QA output created by $seq"

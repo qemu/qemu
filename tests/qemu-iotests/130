@@ -21,8 +21,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-# creator
-owner=kwolf@redhat.com
 
 seq="$(basename $0)"
 echo "QA output created by $seq"
