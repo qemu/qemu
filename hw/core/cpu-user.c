@@ -38,6 +38,11 @@ void cpu_exec_init(CPUState *cpu)
     /* nothing to do */
 }
 
+void cpu_exec_realize(CPUState *cpu, Error **errp)
+{
+    /* nothing to do */
+}
+
 void cpu_vmstate_register(CPUState *cpu)
 {
     assert(qdev_get_vmsd(DEVICE(cpu)) == NULL ||
