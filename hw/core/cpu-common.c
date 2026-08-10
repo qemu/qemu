@@ -246,9 +246,8 @@ bool cpu_common_realize(CPUState *cpu, Error **errp)
     return true;
 }
 
-static void cpu_exec_realize(DeviceState *dev, Error **errp)
+static void cpu_exec_realize(CPUState *cpu, Error **errp)
 {
-    CPUState *cpu = CPU(dev);
     Object *machine = qdev_get_machine();
 
     /* qdev_get_machine() can return something that's not TYPE_MACHINE
@@ -264,10 +263,15 @@ static void cpu_exec_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (dev->hotplugged) {
+    if (DEVICE(cpu)->hotplugged) {
         cpu_synchronize_post_init(cpu);
         cpu_resume(cpu);
     }
+}
+
+static void cpu_common_realizefn(DeviceState *dev, Error **errp)
+{
+    cpu_exec_realize(CPU(dev), errp);
 
     /* NOTE: latest generic point where the cpu is fully realized */
 }
@@ -379,7 +383,7 @@ static void cpu_common_class_init(ObjectClass *klass, const void *data)
     k->gdb_read_register = cpu_common_gdb_read_register;
     k->gdb_write_register = cpu_common_gdb_write_register;
     set_bit(DEVICE_CATEGORY_CPU, dc->categories);
-    dc->realize = cpu_exec_realize;
+    dc->realize = cpu_common_realizefn;
     dc->unrealize = cpu_common_unrealizefn;
     rc->phases.hold = cpu_common_reset_hold;
     rc->phases.exit = cpu_common_reset_exit;
