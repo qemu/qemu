@@ -8,10 +8,33 @@
 #include <glib/gstdio.h>
 #include <locale.h>
 #include <pwd.h>
+#include <grp.h>
 
 #include "commands-common-ssh.h"
 #include "qapi/error.h"
 #include "qga-qapi-commands.h"
+
+typedef struct EffectiveUserInfo {
+    uid_t uid;
+    gid_t gid;
+} EffectiveUserInfo;
+
+typedef EffectiveUserInfo *PEffectiveUserInfo;
+
+static void rollback_effective_info(PEffectiveUserInfo info)
+{
+    if (info) {
+        /* There is nothing to do in case  when rollback to original user/group IDs
+         * fails. In that case, the process will be terminated by the kernel
+         * and systemd should restart the daemon again.
+         */
+        assert(seteuid(info->uid) == 0);
+        assert(setegid(info->gid) == 0);
+        g_free(info);
+    }
+}
+
+G_DEFINE_AUTO_CLEANUP_FREE_FUNC(PEffectiveUserInfo, rollback_effective_info, NULL);
 
 #ifdef QGA_BUILD_UNIT_TEST
 static struct passwd *
@@ -112,6 +135,36 @@ write_authkeys(const char *path, const GStrv keys,
     return true;
 }
 
+static PEffectiveUserInfo set_privileges_to_user(const struct passwd *p, Error **errp)
+{
+    g_auto(PEffectiveUserInfo) info = g_new0(EffectiveUserInfo, 1);
+
+    info->uid = geteuid();
+    info->gid = getegid();
+
+#ifndef QGA_BUILD_UNIT_TEST
+    /* The initgroups requires CAP_SETGID. During build time unit tests, we can't do this. */
+    if (initgroups(p->pw_name, p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set group for user '%s'",
+                         p->pw_name);
+        return NULL;
+    }
+#endif
+
+    if (setegid(p->pw_gid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective group ID for user '%s'",
+                         p->pw_name);
+        return NULL;
+    }
+    if (seteuid(p->pw_uid) == -1) {
+        error_setg_errno(errp, errno, "failed to set effective user ID for user '%s'",
+                         p->pw_name);
+        return NULL;
+    }
+
+    return g_steal_pointer(&info);
+}
+
 void
 qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
                                   bool has_reset, bool reset,
@@ -123,6 +176,7 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     g_auto(GStrv) authkeys = NULL;
     strList *k;
     size_t nkeys, nauthkeys;
+    g_auto(PEffectiveUserInfo) effective_user_info = NULL;
 
     reset = has_reset && reset;
 
@@ -132,6 +186,11 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
+        return;
+    }
+
+    effective_user_info = set_privileges_to_user(p, errp);
+    if (effective_user_info == NULL) {
         return;
     }
 
@@ -172,6 +231,7 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
     g_auto(GStrv) authkeys = NULL;
     GStrv a;
     size_t nkeys = 0;
+    g_auto(PEffectiveUserInfo) effective_user_info = NULL;
 
     if (!check_openssh_pub_keys(keys, NULL, errp)) {
         return;
@@ -179,6 +239,11 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
+        return;
+    }
+
+    effective_user_info = set_privileges_to_user(p, errp);
+    if (effective_user_info == NULL) {
         return;
     }
 
@@ -219,9 +284,15 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
     g_auto(GStrv) authkeys = NULL;
     g_autoptr(GuestAuthorizedKeys) ret = NULL;
     int i;
+    g_auto(PEffectiveUserInfo) effective_user_info = NULL;
 
     p = get_passwd_entry(username, errp);
     if (p == NULL) {
+        return NULL;
+    }
+
+    effective_user_info = set_privileges_to_user(p, errp);
+    if (effective_user_info == NULL) {
         return NULL;
     }
 
