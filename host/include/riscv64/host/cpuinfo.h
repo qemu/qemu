@@ -12,6 +12,7 @@
 #define CPUINFO_ZBS             (1u << 3)
 #define CPUINFO_ZICOND          (1u << 4)
 #define CPUINFO_ZVE64X          (1u << 5)
+#define CPUINFO_ZBKB            (1u << 6)
 
 /* Initialized with a constructor. */
 extern unsigned cpuinfo;
