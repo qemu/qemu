@@ -246,6 +246,9 @@ typedef enum {
     OPC_XNOR   = 0x40004033,
     OPC_ZEXT_H = 0x0800403b,
 
+    /* Zbkb: Bit Manipulation for Cryptography */
+    OPC_BREV8  = 0x68705013,
+
     /* Zicond: integer conditional operations */
     OPC_CZERO_EQZ = 0x0e005033,
     OPC_CZERO_NEZ = 0x0e007033,
@@ -2469,8 +2472,20 @@ static const TCGOutOpUnary outop_bswap64 = {
     .out_rr = tgen_bswap64,
 };
 
+static TCGConstraintSetIndex cset_revbit8(TCGType type, unsigned flags)
+{
+    return cpuinfo & CPUINFO_ZBKB ? C_O1_I1(r, r) : C_NotImplemented;
+}
+
+static void tgen_revbit8(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+{
+    tcg_out_opc_imm(s, OPC_BREV8, a0, a1, 0);
+}
+
 static const TCGOutOpUnary outop_revbit8 = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_revbit8,
+    .out_rr = tgen_revbit8,
 };
 
 static const TCGOutOpBswap outop_revbit32 = {
