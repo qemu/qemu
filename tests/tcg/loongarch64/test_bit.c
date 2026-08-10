@@ -2,62 +2,23 @@
 #include <inttypes.h>
 
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof(*(X)))
-#define TEST_CLO(N)                                     \
-static uint64_t test_clo_##N(uint64_t rj)               \
-{                                                       \
-    uint64_t rd = 0;                                    \
-                                                        \
-    asm volatile("clo."#N" %0, %1\n\t"                  \
-                 : "=r"(rd)                             \
-                 : "r"(rj)                              \
-                 : );                                   \
-    return rd;                                          \
+
+#define TEST(C, I)                                       \
+static uint64_t test_##C(uint64_t rj)                    \
+{                                                        \
+    uint64_t rd;                                         \
+    asm volatile(I " %0, %1\n\t" : "=r"(rd) : "r"(rj));  \
+    return rd;                                           \
 }
 
-#define TEST_CLZ(N)                                     \
-static uint64_t test_clz_##N(uint64_t rj)               \
-{                                                       \
-    uint64_t rd = 0;                                    \
-                                                        \
-    asm volatile("clz."#N" %0, %1\n\t"                  \
-                 : "=r"(rd)                             \
-                 : "r"(rj)                              \
-                 : );                                   \
-    return rd;                                          \
-}
-
-#define TEST_CTO(N)                                     \
-static uint64_t test_cto_##N(uint64_t rj)               \
-{                                                       \
-    uint64_t rd = 0;                                    \
-                                                        \
-    asm volatile("cto."#N" %0, %1\n\t"                  \
-                 : "=r"(rd)                             \
-                 : "r"(rj)                              \
-                 : );                                   \
-    return rd;                                          \
-}
-
-#define TEST_CTZ(N)                                     \
-static uint64_t test_ctz_##N(uint64_t rj)               \
-{                                                       \
-    uint64_t rd = 0;                                    \
-                                                        \
-    asm volatile("ctz."#N" %0, %1\n\t"                  \
-                 : "=r"(rd)                             \
-                 : "r"(rj)                              \
-                 : );                                   \
-    return rd;                                          \
-}
-
-TEST_CLO(w)
-TEST_CLO(d)
-TEST_CLZ(w)
-TEST_CLZ(d)
-TEST_CTO(w)
-TEST_CTO(d)
-TEST_CTZ(w)
-TEST_CTZ(d)
+TEST(clo_w, "clo.w")
+TEST(clo_d, "clo.d")
+TEST(clz_w, "clz.w")
+TEST(clz_d, "clz.d")
+TEST(cto_w, "cto.w")
+TEST(cto_d, "cto.d")
+TEST(ctz_w, "ctz.w")
+TEST(ctz_d, "ctz.d")
 
 struct vector {
     uint64_t (*func)(uint64_t);
