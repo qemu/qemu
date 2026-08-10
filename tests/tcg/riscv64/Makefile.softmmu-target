@@ -41,5 +41,27 @@ comma:= ,
 run-test-crc32: test-crc32
 	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)xlrbr=true $(QEMU_OPTS)$<)
 
+# Zicclsm: misaligned load/store support. Assemble one source twice: the
+# default build expects every misaligned access to succeed (zicclsm=true),
+# the -DZICCLSM_DISABLED build expects every one to trap (zicclsm=false).
+ZICCLSM_MARCH = -march=rv64gcv_zfh
+CLEANFILES += test-zicclsm test-zicclsm-off
+
+test-zicclsm: test-zicclsm.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) $(ZICCLSM_MARCH) $< -Wa,--noexecstack -c -o test-zicclsm.o
+	$(LD) $(LDFLAGS) test-zicclsm.o -o $@
+
+test-zicclsm-off: test-zicclsm.S $(LINK_SCRIPT)
+	$(CC) $(CFLAGS) $(ZICCLSM_MARCH) -DZICCLSM_DISABLED $< -Wa,--noexecstack -c -o test-zicclsm-off.o
+	$(LD) $(LDFLAGS) test-zicclsm-off.o -o $@
+
+EXTRA_RUNS += run-test-zicclsm
+run-test-zicclsm: test-zicclsm
+	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)v=true$(comma)zfh=true$(comma)zicclsm=true $(QEMU_OPTS)$<)
+
+EXTRA_RUNS += run-test-zicclsm-off
+run-test-zicclsm-off: test-zicclsm-off
+	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)v=true$(comma)zfh=true$(comma)zicclsm=false $(QEMU_OPTS)$<)
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
