@@ -19,6 +19,10 @@ TEST(cto_w, "cto.w")
 TEST(cto_d, "cto.d")
 TEST(ctz_w, "ctz.w")
 TEST(ctz_d, "ctz.d")
+TEST(bitrev_4b, "bitrev.4b")
+TEST(bitrev_8b, "bitrev.8b")
+TEST(bitrev_w, "bitrev.w")
+TEST(bitrev_d, "bitrev.d")
 
 struct vector {
     uint64_t (*func)(uint64_t);
@@ -35,6 +39,10 @@ static struct vector vectors[] = {
     {test_cto_d, 0xabd28a64000000, 0},
     {test_ctz_w, 0xfaffff42392476ab, 0},
     {test_ctz_d, 0xabd28a64000000, 26},
+    {test_bitrev_4b, 0xdeadbeef11223344, 0xffffffff8844cc22},
+    {test_bitrev_8b, 0x1122334455667788, 0x8844cc22aa66ee11},
+    {test_bitrev_w,  0xdeadbeef89abcdef, 0xfffffffff7b3d591},
+    {test_bitrev_d,  0x0123456789abcdef, 0xf7b3d591e6a2c480},
 };
 
 int main()
