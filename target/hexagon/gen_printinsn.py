@@ -28,13 +28,14 @@ import argparse
 ##     Generate data for printing each instruction (format string + operands)
 ##
 def regprinter(m):
-    str = m.group(1)
-    str += ":".join(["%d"] * len(m.group(2)))
-    str += m.group(3)
     if ("S" in m.group(1)) and (len(m.group(2)) == 1):
-        str += "/%s"
+        str = "%s"
     elif ("C" in m.group(1)) and (len(m.group(2)) == 1):
-        str += "/%s"
+        str = "%s"
+    else:
+        str = m.group(1)
+        str += ":".join(["%d"] * len(m.group(2)))
+        str += m.group(3)
     return str
 
 
@@ -142,11 +143,12 @@ def main():
                     else:
                         regno = ri
                     if len(b) == 1:
-                        f.write(f", insn->regno[{regno}]")
                         if "S" in a:
                             f.write(f", sreg2str(insn->regno[{regno}])")
                         elif "C" in a:
                             f.write(f", creg2str(insn->regno[{regno}])")
+                        else:
+                            f.write(f", insn->regno[{regno}]")
                     elif len(b) == 2:
                         f.write(f", insn->regno[{regno}] + 1" f", insn->regno[{regno}]")
                     else:
