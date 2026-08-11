@@ -229,6 +229,12 @@ int main(int argc, char **argv)
     qtest_add_func("ast2500/hace/sha256", test_sha256_ast2500);
     qtest_add_func("ast2500/hace/md5", test_md5_ast2500);
 
+    /*
+     * The AST2500 crypto engine uses direct access mode and supports ECB/CBC.
+     */
+    aspeed_add_crypto_tests("ast2500", "-machine ast2500-evb", 0x1e6e3000,
+                            0x80000000, CRYPT_MODE_ECB | CRYPT_MODE_CBC);
+
     qtest_add_func("ast2400/hace/addresses", test_addresses_ast2400);
     qtest_add_func("ast2400/hace/sha512", test_sha512_ast2400);
     qtest_add_func("ast2400/hace/sha256", test_sha256_ast2400);

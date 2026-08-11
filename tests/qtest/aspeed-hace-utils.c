@@ -9,6 +9,7 @@
 #include "libqtest.h"
 #include "qemu/bitops.h"
 #include "qemu/bswap.h"
+#include "crypto/cipher.h"
 #include "aspeed-hace-utils.h"
 
 /*
@@ -643,5 +644,329 @@ void aspeed_test_addresses(const char *machine, const uint32_t base,
     g_assert_cmphex(qtest_readl(s, base + HACE_HASH_DATA_LEN), ==, 0);
 
     qtest_quit(s);
+}
+
+/*
+ * Crypto engine register layout (offsets from the HACE base).
+ */
+#define HACE_CRYPTO_SRC          0x00
+#define HACE_CRYPTO_DEST         0x04
+#define HACE_CRYPTO_CONTEXT      0x08
+#define HACE_CRYPTO_DATA_LEN     0x0c
+#define HACE_CRYPTO_CMD          0x10
+
+/* Crypto command bits */
+#define HACE_CMD_ENCRYPT         BIT(7)
+#define HACE_CMD_ISR_EN          BIT(12)
+#define HACE_CMD_DES_SELECT      BIT(16)
+#define HACE_CMD_TRIPLE_DES      BIT(17)
+#define HACE_CMD_SRC_SG_CTRL     BIT(18)
+#define HACE_CMD_DST_SG_CTRL     BIT(19)
+#define HACE_CMD_OP_MODE_MASK    (0x7 << 4)
+#define HACE_CMD_ECB             (0x0 << 4)
+#define HACE_CMD_CBC             (0x1 << 4)
+#define HACE_CMD_AES128          (0x0 << 2)
+
+/* Context buffer layout: IV (DES at +8), key at +0x10 */
+#define HACE_CTX_KEY_OFFSET      0x10
+#define HACE_CTX_SIZE            0x30
+
+/*
+ * Crypto known-answer test vectors, taken verbatim from the Linux kernel
+ * crypto self-test templates in crypto/testmgr.h:
+ *
+ *   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/crypto/testmgr.h?h=v6.18
+ *
+ * The originating template is noted above each block. CTR and the longer CBC
+ * vectors are truncated to a single block (still a valid known-answer test as
+ * the first block only depends on the IV).
+ */
+
+/* aes_tv_template[0] (FIPS-197) */
+static const uint8_t aes128_ecb_key[16] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+static const uint8_t aes128_ecb_ptext[16] = {
+    0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+    0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
+static const uint8_t aes128_ecb_ctext[16] = {
+    0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30,
+    0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a };
+
+/* aes_cbc_tv_template[0] (RFC 3602) */
+static const uint8_t aes128_cbc_key[16] = {
+    0x06, 0xa9, 0x21, 0x40, 0x36, 0xb8, 0xa1, 0x5b,
+    0x51, 0x2e, 0x03, 0xd5, 0x34, 0x12, 0x00, 0x06 };
+static const uint8_t aes128_cbc_iv[16] = {
+    0x3d, 0xaf, 0xba, 0x42, 0x9d, 0x9e, 0xb4, 0x30,
+    0xb4, 0x22, 0xda, 0x80, 0x2c, 0x9f, 0xac, 0x41 };
+static const uint8_t aes128_cbc_ptext[16] = {
+    0x53, 0x69, 0x6e, 0x67, 0x6c, 0x65, 0x20, 0x62,
+    0x6c, 0x6f, 0x63, 0x6b, 0x20, 0x6d, 0x73, 0x67 };
+static const uint8_t aes128_cbc_ctext[16] = {
+    0xe3, 0x53, 0x77, 0x9c, 0x10, 0x79, 0xae, 0xb8,
+    0x27, 0x08, 0x94, 0x2d, 0xbe, 0x77, 0x18, 0x1a };
+static const uint8_t aes128_cbc_ivout[16] = {
+    0xe3, 0x53, 0x77, 0x9c, 0x10, 0x79, 0xae, 0xb8,
+    0x27, 0x08, 0x94, 0x2d, 0xbe, 0x77, 0x18, 0x1a };
+
+/* des_tv_template[0] (Applied Cryptography) */
+static const uint8_t des_ecb_key[8] = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+static const uint8_t des_ecb_ptext[8] = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xe7 };
+static const uint8_t des_ecb_ctext[8] = {
+    0xc9, 0x57, 0x44, 0x25, 0x6a, 0x5e, 0xd3, 0x1d };
+
+/* des_cbc_tv_template[0] (OpenSSL), first block */
+static const uint8_t des_cbc_key[8] = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+static const uint8_t des_cbc_iv[8] = {
+    0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10 };
+static const uint8_t des_cbc_ptext[8] = {
+    0x37, 0x36, 0x35, 0x34, 0x33, 0x32, 0x31, 0x20 };
+static const uint8_t des_cbc_ctext[8] = {
+    0xcc, 0xd1, 0x73, 0xff, 0xab, 0x20, 0x39, 0xf4 };
+
+/* des3_ede_tv_template[0] (OpenSSL) */
+static const uint8_t tdes_ecb_key[24] = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10 };
+static const uint8_t tdes_ecb_ptext[8] = {
+    0x73, 0x6f, 0x6d, 0x65, 0x64, 0x61, 0x74, 0x61 };
+static const uint8_t tdes_ecb_ctext[8] = {
+    0x18, 0xd7, 0x48, 0xe5, 0x63, 0x62, 0x05, 0x72 };
+
+/* des3_ede_cbc_tv_template[0] (OpenSSL), first block */
+static const uint8_t tdes_cbc_key[24] = {
+    0xe9, 0xc0, 0xff, 0x2e, 0x76, 0x0b, 0x64, 0x24,
+    0x44, 0x4d, 0x99, 0x5a, 0x12, 0xd6, 0x40, 0xc0,
+    0xea, 0xc2, 0x84, 0xe8, 0x14, 0x95, 0xdb, 0xe8 };
+static const uint8_t tdes_cbc_iv[8] = {
+    0x7d, 0x33, 0x88, 0x93, 0x0f, 0x93, 0xb2, 0x42 };
+static const uint8_t tdes_cbc_ptext[8] = {
+    0x6f, 0x54, 0x20, 0x6f, 0x61, 0x4d, 0x79, 0x6e };
+static const uint8_t tdes_cbc_ctext[8] = {
+    0x0e, 0x2d, 0xb6, 0x97, 0x3c, 0x56, 0x33, 0xf4 };
+
+typedef struct CryptTest {
+    QCryptoCipherMode mode;
+    QCryptoCipherAlgo alg;
+    /* expected context IV after encrypt, or NULL */
+    const uint8_t *iv_out;
+    const uint8_t *ptext;
+    const uint8_t *ctext;
+    const uint8_t *key;
+    const uint8_t *iv;
+    const char *name;
+    size_t keylen;
+    /* algorithm | mode | key size selection */
+    uint32_t cmd;
+    size_t ivlen;
+    size_t len;
+} CryptTest;
+
+static const CryptTest crypt_tests[] = {
+    {
+        .name = "aes128-ecb",
+        .cmd = HACE_CMD_AES128 | HACE_CMD_ECB,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = aes128_ecb_key,
+        .keylen = sizeof(aes128_ecb_key),
+        .ptext = aes128_ecb_ptext,
+        .ctext = aes128_ecb_ctext,
+        .len = sizeof(aes128_ecb_ptext),
+    },
+    {
+        .name = "aes128-cbc",
+        .cmd = HACE_CMD_AES128 | HACE_CMD_CBC,
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .mode = QCRYPTO_CIPHER_MODE_CBC,
+        .key = aes128_cbc_key,
+        .keylen = sizeof(aes128_cbc_key),
+        .iv = aes128_cbc_iv,
+        .ivlen = sizeof(aes128_cbc_iv),
+        .ptext = aes128_cbc_ptext,
+        .ctext = aes128_cbc_ctext,
+        .iv_out = aes128_cbc_ivout,
+        .len = sizeof(aes128_cbc_ptext),
+    },
+    {
+        .name = "des-ecb",
+        .cmd = HACE_CMD_DES_SELECT | HACE_CMD_ECB,
+        .alg = QCRYPTO_CIPHER_ALGO_DES,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = des_ecb_key,
+        .keylen = sizeof(des_ecb_key),
+        .ptext = des_ecb_ptext,
+        .ctext = des_ecb_ctext,
+        .len = sizeof(des_ecb_ptext),
+    },
+    {
+        .name = "des-cbc",
+        .cmd = HACE_CMD_DES_SELECT | HACE_CMD_CBC,
+        .alg = QCRYPTO_CIPHER_ALGO_DES,
+        .mode = QCRYPTO_CIPHER_MODE_CBC,
+        .key = des_cbc_key,
+        .keylen = sizeof(des_cbc_key),
+        .iv = des_cbc_iv,
+        .ivlen = sizeof(des_cbc_iv),
+        .ptext = des_cbc_ptext,
+        .ctext = des_cbc_ctext,
+        .len = sizeof(des_cbc_ptext),
+    },
+    {
+        .name = "des3_ede-ecb",
+        .cmd = HACE_CMD_DES_SELECT | HACE_CMD_TRIPLE_DES | HACE_CMD_ECB,
+        .alg = QCRYPTO_CIPHER_ALGO_3DES,
+        .mode = QCRYPTO_CIPHER_MODE_ECB,
+        .key = tdes_ecb_key,
+        .keylen = sizeof(tdes_ecb_key),
+        .ptext = tdes_ecb_ptext,
+        .ctext = tdes_ecb_ctext,
+        .len = sizeof(tdes_ecb_ptext),
+    },
+    {
+        .name = "des3_ede-cbc",
+        .cmd = HACE_CMD_DES_SELECT | HACE_CMD_TRIPLE_DES | HACE_CMD_CBC,
+        .alg = QCRYPTO_CIPHER_ALGO_3DES,
+        .mode = QCRYPTO_CIPHER_MODE_CBC,
+        .key = tdes_cbc_key,
+        .keylen = sizeof(tdes_cbc_key),
+        .iv = tdes_cbc_iv,
+        .ivlen = sizeof(tdes_cbc_iv),
+        .ptext = tdes_cbc_ptext,
+        .ctext = tdes_cbc_ctext,
+        .len = sizeof(tdes_cbc_ptext),
+    },
+};
+
+/* DRAM offsets for the crypto test source, destination and context buffers. */
+#define CRYPT_OFF_SRC   0x10000
+#define CRYPT_OFF_DST   0x20000
+#define CRYPT_OFF_CTX   0x30000
+
+/* Describes one registered crypto test (qtest_add_data_func() data pointer). */
+typedef struct AspeedCryptoTest {
+    const char *machine;
+    uint64_t dram;
+    uint32_t base;
+    int index;
+} AspeedCryptoTest;
+
+/* Map a command's operation mode (HACE10[6:4]) to a CRYPT_MODE_* flag. */
+static uint32_t crypt_mode_flag(uint32_t cmd)
+{
+    switch (cmd & HACE_CMD_OP_MODE_MASK) {
+    case HACE_CMD_ECB:
+        return CRYPT_MODE_ECB;
+    case HACE_CMD_CBC:
+        return CRYPT_MODE_CBC;
+    default:
+        return 0;
+    }
+}
+
+static void crypt_write_ctx(QTestState *s, uint64_t ctx_addr,
+                            const CryptTest *t)
+{
+    size_t iv_off = (t->cmd & HACE_CMD_DES_SELECT) ? 8 : 0;
+    uint8_t ctx[HACE_CTX_SIZE] = { 0 };
+
+    if (t->iv) {
+        memcpy(ctx + iv_off, t->iv, t->ivlen);
+    }
+    memcpy(ctx + HACE_CTX_KEY_OFFSET, t->key, t->keylen);
+    qtest_memwrite(s, ctx_addr, ctx, sizeof(ctx));
+}
+
+/* Run one crypto operation in direct access mode and read back the result. */
+static void crypt_run_direct(QTestState *s, uint32_t base, uint64_t dram,
+                             const CryptTest *t, bool encrypt, uint8_t *out)
+{
+    const uint8_t *in = encrypt ? t->ptext : t->ctext;
+    uint32_t cmd = t->cmd | HACE_CMD_ISR_EN;
+    uint64_t src = dram + CRYPT_OFF_SRC;
+    uint64_t dst = dram + CRYPT_OFF_DST;
+    uint64_t ctx = dram + CRYPT_OFF_CTX;
+
+    if (encrypt) {
+        cmd |= HACE_CMD_ENCRYPT;
+    }
+
+    crypt_write_ctx(s, ctx, t);
+    qtest_memwrite(s, src, in, t->len);
+
+    qtest_writel(s, base + HACE_CRYPTO_SRC, (uint32_t)src);
+    qtest_writel(s, base + HACE_CRYPTO_DEST, (uint32_t)dst);
+    qtest_writel(s, base + HACE_CRYPTO_CONTEXT, (uint32_t)ctx);
+    qtest_writel(s, base + HACE_CRYPTO_DATA_LEN, t->len);
+    qtest_writel(s, base + HACE_CRYPTO_CMD, cmd);
+
+    g_assert_cmphex(qtest_readl(s, base + HACE_STS) & HACE_CRYPTO_ISR, ==,
+                    HACE_CRYPTO_ISR);
+    qtest_writel(s, base + HACE_STS, HACE_CRYPTO_ISR);
+
+    qtest_memread(s, dst, out, t->len);
+}
+
+static void aspeed_test_crypto_direct(const void *data)
+{
+    const AspeedCryptoTest *c = data;
+    const CryptTest *t = &crypt_tests[c->index];
+    QTestState *s = qtest_init(c->machine);
+    uint8_t out[64];
+    uint8_t iv[16];
+    size_t iv_off;
+
+    g_assert_cmpuint(t->len, <=, sizeof(out));
+
+    /* Encrypt: ptext -> ctext */
+    crypt_run_direct(s, c->base, c->dram, t, true, out);
+    g_assert_cmpmem(out, t->len, t->ctext, t->len);
+
+    if (t->iv_out) {
+        iv_off = (t->cmd & HACE_CMD_DES_SELECT) ? 8 : 0;
+        qtest_memread(s, c->dram + CRYPT_OFF_CTX + iv_off, iv, t->ivlen);
+        g_assert_cmpmem(iv, t->ivlen, t->iv_out, t->ivlen);
+    }
+
+    /* Decrypt: ctext -> ptext */
+    crypt_run_direct(s, c->base, c->dram, t, false, out);
+    g_assert_cmpmem(out, t->len, t->ptext, t->len);
+
+    qtest_quit(s);
+}
+
+void aspeed_add_crypto_tests(const char *prefix, const char *machine,
+                             uint32_t base, uint64_t dram, uint32_t modes)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(crypt_tests); i++) {
+        g_autofree char *path = NULL;
+        AspeedCryptoTest *t;
+
+        if (!(modes & crypt_mode_flag(crypt_tests[i].cmd))) {
+            continue;
+        }
+
+        if (!qcrypto_cipher_supports(crypt_tests[i].alg,
+                                     crypt_tests[i].mode)) {
+            g_printerr("# skip unsupported %s\n", crypt_tests[i].name);
+            continue;
+        }
+
+        path = g_strdup_printf("%s/hace/crypto/%s", prefix,
+                               crypt_tests[i].name);
+        t = g_new0(AspeedCryptoTest, 1);
+        t->machine = machine;
+        t->base = base;
+        t->dram = dram;
+        t->index = i;
+        qtest_add_data_func_full(path, t, aspeed_test_crypto_direct, g_free);
+    }
 }
 
