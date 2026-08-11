@@ -549,21 +549,35 @@ static bool decode_parsebits_is_loopend(uint32_t encoding32)
     return bits == 0x2;
 }
 
+/*
+ * Check that the packet's instructions can be grouped into slots: walk them
+ * in encoding order handing out slots in strictly decreasing order, and fail
+ * if an instruction has no valid slot at or below the running slot.  Two
+ * instructions may legally share a slot, so this does not require unique
+ * slots, only that every instruction fits.
+ */
 static bool has_valid_slot_assignment(Packet *pkt)
 {
-    int used_slots = 0;
-    for (int i = 0; i < pkt->num_insns; i++) {
-        int slot_mask;
-        Insn *insn = &pkt->insn[i];
-        if (decode_opcode_ends_loop(insn->opcode)) {
+    int i;
+    int slot = 3;
+
+    for (i = 0; i < pkt->num_insns; i++) {
+        SlotMask valid_slots;
+        if (decode_opcode_ends_loop(pkt->insn[i].opcode)) {
             /* We overload slot 0 for endloop. */
             continue;
         }
-        slot_mask = 1 << insn->slot;
-        if (used_slots & slot_mask) {
+        if (slot < 0) {
             return false;
         }
-        used_slots |= slot_mask;
+        valid_slots = get_valid_slots(pkt, i);
+        while (!(valid_slots & (1 << slot))) {
+            if (slot <= 0) {
+                return false;
+            }
+            slot--;
+        }
+        slot--;
     }
     return true;
 }

@@ -91,6 +91,17 @@ TCGv get_result_gpr(DisasContext *ctx, int rnum)
     }
 }
 
+TCGv gen_unalias_gpr_src(TCGv src, TCGv dst)
+{
+    if (src != dst) {
+        return src;
+    }
+
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_mov_tl(tmp, src);
+    return tmp;
+}
+
 static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
 {
     TCGv_i64 result = tcg_temp_new_i64();

@@ -115,12 +115,59 @@ static void test_swiz(void)
     check32(swiz(0x11223344), 0x44332211);
 }
 
+#define CMPY(NAME, ASM) \
+static inline uint32_t NAME##_rd_eq_rs(uint32_t x, uint32_t y) \
+{ \
+    uint32_t res; \
+    asm("r7 = %1\n\t" \
+        ASM("r7", "%2") "\n\t" \
+        "%0 = r7\n\t" \
+        : "=r"(res) : "r"(x), "r"(y) : "r7"); \
+    return res; \
+} \
+static inline uint32_t NAME##_rd_eq_rt(uint32_t x, uint32_t y) \
+{ \
+    uint32_t res; \
+    asm("r7 = %2\n\t" \
+        ASM("%1", "r7") "\n\t" \
+        "%0 = r7\n\t" \
+        : "=r"(res) : "r"(x), "r"(y) : "r7"); \
+    return res; \
+}
+
+#define CMPY_RND_SAT(RS, RT)     "r7 = cmpy(" RS "," RT "):rnd:sat"
+#define CMPY_S1_RND_SAT(RS, RT)  "r7 = cmpy(" RS "," RT "):<<1:rnd:sat"
+#define CMPYC_RND_SAT(RS, RT)    "r7 = cmpy(" RS "," RT "*):rnd:sat"
+#define CMPYC_S1_RND_SAT(RS, RT) "r7 = cmpy(" RS "," RT "*):<<1:rnd:sat"
+
+CMPY(cmpyrs_s0, CMPY_RND_SAT)
+CMPY(cmpyrs_s1, CMPY_S1_RND_SAT)
+CMPY(cmpyrsc_s0, CMPYC_RND_SAT)
+CMPY(cmpyrsc_s1, CMPYC_S1_RND_SAT)
+
+static void test_cmpy(void)
+{
+    check32(cmpyrs_s0_rd_eq_rs(0x32195ce2, 0xef862430), 0x011b105b);
+    check32(cmpyrs_s0_rd_eq_rt(0x32195ce2, 0xef862430), 0x011b105b);
+    check32(cmpyrs_s1_rd_eq_rs(0x32195ce2, 0xef862430), 0x023520b5);
+    check32(cmpyrs_s1_rd_eq_rt(0x32195ce2, 0xef862430), 0x023520b5);
+    check32(cmpyrsc_s0_rd_eq_rs(0x32195ce2, 0xef862430), 0x0d0f09e8);
+    check32(cmpyrsc_s0_rd_eq_rt(0x32195ce2, 0xef862430), 0x0d0f09e8);
+    check32(cmpyrsc_s1_rd_eq_rs(0x32195ce2, 0xef862430), 0x1a1f13d0);
+    check32(cmpyrsc_s1_rd_eq_rt(0x32195ce2, 0xef862430), 0x1a1f13d0);
+
+    /* Both halves saturate */
+    check32(cmpyrs_s1_rd_eq_rs(0x80008000, 0x80008000), 0x7fff0000);
+    check32(cmpyrsc_s1_rd_eq_rs(0x7fff8001, 0x80017fff), 0x00008000);
+}
+
 int main()
 {
     test_insert();
     test_insert_rp();
     test_asr_r_svw_trun();
     test_swiz();
+    test_cmpy();
 
     puts(err ? "FAIL" : "PASS");
     return err ? EXIT_FAILURE : EXIT_SUCCESS;

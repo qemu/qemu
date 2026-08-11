@@ -75,6 +75,21 @@ def gen_tcg_func(f, tag, regs, imms):
         f.write(f"    int {hex_common.imm_name(immlett)} = insn->immed[{i}];\n")
 
     if hex_common.is_idef_parser_enabled(tag):
+        gpr_operands = [
+            hex_common.get_register(tag, regtype, regid)
+            for regtype, regid in regs
+            if hex_common.get_register(tag, regtype, regid).may_alias_gpr()
+        ]
+        dests = [reg for reg in gpr_operands if reg.is_written()]
+        for reg in gpr_operands:
+            if reg.is_written() or not reg.is_read():
+                continue
+            src = reg.reg_tcg()
+            for dest in dests:
+                f.write(hex_common.code_fmt(f"""\
+                    {src} = gen_unalias_gpr_src({src}, {dest.reg_tcg()});
+                """))
+
         declared = []
         ## Handle registers
         for regtype, regid in regs:
