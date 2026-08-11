@@ -1005,3 +1005,46 @@ void HELPER(sme_fmop4a_hb)(void *vza, void *vzn, void *vzm,
     FP8MulContext ctx = fp8_mul_start(env, 0xf);
     sme_mop4(vza, vzn, vzm, &ctx, desc, sizeof(float16), inner_fmop4a_hb);
 }
+
+void HELPER(sme_ftmopa_hb)(void *vza, void *vzn, void *vzm, void *vzk,
+                           CPUArchState *env, uint32_t desc)
+{
+    FP8MulContext ctx = fp8_mul_start(env, 0xf);
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t dim = oprsz >> MO_16;
+    intptr_t index = simd_data(desc);
+    intptr_t ctrl_base = (index * oprsz) >> 1;
+    uint8_t *zn0 = vzn, *zn1 = vzn + sizeof(ARMVectorReg);
+    uint16_t *za = vza, *zm = vzm;
+    uint64_t *zk = vzk;
+
+    for (intptr_t row = 0; row < dim; row++) {
+        uint16_t *za_row = za + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < dim; col++) {
+            uint16_t e2 = zm[H2(col)];
+            uint16_t *e3 = za_row + H2(col);
+            uint16_t e1 = 0;
+
+            /*
+             * Four control bits select two elements.  The two elements
+             * may be non-contiguous, so assemble them locally into e1.
+             * Pseudo-code has a double loop running forward, with a
+             * test for (i < 2) to limit construction to 2 elements.
+             * Easier to run a single loop backward, shifting extra
+             * elements off the top of our uint16_t.
+             */
+            uint64_t this_ctrl = extractn(zk, ctrl_base + col * 4, 4);
+            for (int i = 3; i >= 0; i--) {
+                if (this_ctrl & (1 << i)) {
+                    bool e = i & 1;
+                    bool r = i & 2;
+                    uint8_t *p = (r ? zn1 : zn0) + H1(2 * row + e);
+                    e1 = (e1 << 8) | *p;
+                }
+            }
+
+            *e3 = f8dotadd_h(e1, e2, 2, *e3, &ctx);
+        }
+    }
+}

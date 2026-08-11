@@ -2167,3 +2167,15 @@ TRANS_FEAT(BFTMOPA_sh, aa64_sme_tmop, do_tmop_fp,
            a, MO_32, FPST_ENV, gen_helper_sme_bftmopa_sh)
 TRANS_FEAT(FTMOPA_sh, aa64_sme_tmop, do_tmop_fp,
            a, MO_32, FPST_ENV, gen_helper_sme_ftmopa_sh)
+
+static bool do_tmop_fp8(DisasContext *s, arg_tmop *a, MemOp esz,
+                        gen_helper_gvec_4_ptr *fn)
+{
+    if (!fpmr_access_check(s)) {
+        return true;
+    }
+    return do_tmop_fp(s, a, esz, FPST_ENV, fn);
+}
+
+TRANS_FEAT(FTMOPA_hb, aa64_sme_tmop_f8f16, do_tmop_fp8,
+           a, MO_16, gen_helper_sme_ftmopa_hb)
