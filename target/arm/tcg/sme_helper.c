@@ -2636,6 +2636,49 @@ void sme_mop4(void *vza, void *vzn, void *vzm, void *fn_opaque,
     }
 }
 
+/*
+ * Sparse outer product, non-widening.  ESZ in {16, 32}.
+ */
+static void sme_tmop(void *vza, void *vzn, void *vzm, uint64_t *zk,
+                     void *fn_opaque, uint32_t desc, MemOp esz,
+                     void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t index = simd_data(desc);
+    intptr_t esize = 1 << esz;
+    intptr_t host_adj = HOST_BIG_ENDIAN ? 8 - esize : 0;
+    /* Base in bits for op3[index*:csize], csize = (VL * 2) / esize. */
+    intptr_t ctrl_base = index * oprsz * 2;
+    /* Create a zero for use with the largest esz. */
+    uint32_t zero = 0;
+
+    for (intptr_t row = 0; row < oprsz; row += esize) {
+        void *vza_row = vza + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < oprsz; col += esize) {
+            void *e2 = vzm + (col ^ host_adj);
+            void *e3 = vza_row + (col ^ host_adj);
+
+            /*
+             * Two control bits select one element:
+             *   Zn[row], if [0] is set,
+             *   Zn+1[row], if [1] is set,
+             *   0, otherwise.
+             * Compute the address of that element.
+             */
+            void *e1 = &zero;
+            uint64_t this_ctrl = extractn(zk, (ctrl_base + 2 * col) >> esz, 2);
+            if (this_ctrl) {
+                e1 = vzn + (row ^ host_adj);
+                if (!(this_ctrl & 1)) {
+                    e1 += sizeof(ARMVectorReg);
+                }
+            }
+            fn(e3, e1, e2, fn_opaque);
+        }
+    }
+}
+
 static void inner_fmop4a_hh(void *vd, void *vn, void *vm, void *vinfo)
 {
     float16 *d = vd, *n = vn, *m = vm;
@@ -2690,6 +2733,12 @@ void HELPER(sme_fmop4a_ss)(void *vza, void *vzn, void *vzm,
                            float_status *fpst, uint32_t desc)
 {
     sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float32), inner_fmop4a_ss);
+}
+
+void HELPER(sme_ftmopa_ss)(void *vza, void *vzn, void *vzm, void *vzk,
+                           float_status *fpst, uint32_t desc)
+{
+    sme_tmop(vza, vzn, vzm, vzk, fpst, desc, MO_32, inner_fmop4a_ss);
 }
 
 static void inner_fmop4s_ss(void *vd, void *vn, void *vm, void *vinfo)

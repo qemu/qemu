@@ -1131,3 +1131,13 @@ UMOP4_dh        1010 0001 111. ...0 0000 00.. ..0. 1...         @mop4_o3
 
 USMOP4_sb       1000 0001 000. ...0 1000 00.. ..0. 00..         @mop4_o2
 USMOP4_dh       1010 0001 110. ...0 0000 00.. ..0. 1...         @mop4_o3
+
+# SME TMOP Sparse outer products
+
+&tmop           zad zn zm zk idx
+%tmop_zk        10:3 !function=expand_tmop_zk
+
+@tmop_o2        .... .... ... zm:5 ... ... .... idx:2 .. zad:2 \
+                &tmop zn=%zn_ax2 zk=%tmop_zk
+
+FTMOPA_ss       1000 0000 010 ..... 000 ... .... .. 00 ..       @tmop_o2
