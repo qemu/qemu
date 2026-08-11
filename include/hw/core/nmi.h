@@ -40,12 +40,11 @@ struct NMIClass {
     /**
      * raise_nmi: Callback to handle NMI notifications.
      * @ns: Class #NMIState state
-     * @errp: pointer to error object
      *
      * Called by nmi_inject() to perform the machine-specific
      * action when a NMI is requested.
      */
-    void (*raise_nmi)(NMIState *ns, Error **errp);
+    void (*raise_nmi)(NMIState *ns);
 };
 
 /**

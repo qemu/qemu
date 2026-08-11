@@ -725,7 +725,7 @@ static HotplugHandler *s390_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
-static void s390_nmi(NMIState *ns, Error **errp)
+static void s390_nmi(NMIState *ns)
 {
     s390_cpu_restart(S390_CPU(first_cpu));
 }

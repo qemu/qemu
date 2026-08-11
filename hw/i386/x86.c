@@ -147,7 +147,7 @@ static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
-static void x86_nmi(NMIState *ns, Error **errp)
+static void x86_nmi(NMIState *ns)
 {
     /* cpu index isn't used */
     CPUState *cs;

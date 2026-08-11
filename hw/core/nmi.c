@@ -23,45 +23,25 @@
 #include "hw/core/nmi.h"
 #include "qapi/error.h"
 
-struct do_nmi_s {
-    Error *err;
-    bool handled;
-};
-
 static int do_nmi(Object *o, void *opaque)
 {
-    struct do_nmi_s *ns = opaque;
+    bool *handled = opaque;
     NMIState *n = (NMIState *) object_dynamic_cast(o, TYPE_NMI);
 
     if (n) {
-        NMIClass *nc = NMI_GET_CLASS(n);
-
-        ns->handled = true;
-        nc->raise_nmi(n, &ns->err);
-        if (ns->err) {
-            return -1;
-        }
+        *handled = true;
+        NMI_GET_CLASS(n)->raise_nmi(n);
     }
 
     return 0;
 }
 
-static int nmi_children(Object *o, struct do_nmi_s *ns)
-{
-    return object_child_foreach_recursive(o, do_nmi, ns);
-}
-
 bool nmi_inject(Error **errp)
 {
-    struct do_nmi_s ns = {
-        .err = NULL,
-        .handled = false
-    };
+    bool handled = false;
 
-    if (nmi_children(object_get_root(), &ns)) {
-        error_propagate(errp, ns.err);
-        return false;
-    } else if (!ns.handled) {
+    object_child_foreach_recursive(object_get_root(), do_nmi, &handled);
+    if (!handled) {
         error_setg(errp, "machine does not provide NMIs");
         return false;
     }
