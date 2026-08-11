@@ -205,6 +205,37 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
 }
 
 
+int qcrypto_cipher_setaad(QCryptoCipher *cipher,
+                          const uint8_t *aad, size_t len,
+                          Error **errp)
+{
+    const QCryptoCipherDriver *drv = cipher->driver;
+
+    if (!drv->cipher_setaad) {
+        error_setg(errp, "The cipher mode does not support associated data");
+        return -1;
+    }
+
+    return drv->cipher_setaad(cipher, aad, len, errp);
+}
+
+
+int qcrypto_cipher_gettag(QCryptoCipher *cipher,
+                          uint8_t *tag, size_t len,
+                          Error **errp)
+{
+    const QCryptoCipherDriver *drv = cipher->driver;
+
+    if (!drv->cipher_gettag) {
+        error_setg(errp,
+                   "The cipher mode does not produce an authentication tag");
+        return -1;
+    }
+
+    return drv->cipher_gettag(cipher, tag, len, errp);
+}
+
+
 void qcrypto_cipher_free(QCryptoCipher *cipher)
 {
     if (cipher) {

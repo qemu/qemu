@@ -235,4 +235,40 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
                          const uint8_t *iv, size_t niv,
                          Error **errp);
 
+/**
+ * qcrypto_cipher_setaad:
+ * @cipher: the cipher object
+ * @aad: the associated data to authenticate
+ * @len: the length of @aad
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * For AEAD modes such as GCM, feed the associated data (AAD) that is
+ * authenticated but not encrypted. It must be called after
+ * qcrypto_cipher_setiv() and before the first encrypt/decrypt call. It is
+ * an error to call this on a mode that is not an AEAD mode.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_cipher_setaad(QCryptoCipher *cipher,
+                          const uint8_t *aad, size_t len,
+                          Error **errp);
+
+/**
+ * qcrypto_cipher_gettag:
+ * @cipher: the cipher object
+ * @tag: buffer to receive the authentication tag
+ * @len: the length of @tag
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * For AEAD modes such as GCM, read back the authentication tag computed
+ * over the associated data and the message. It must be called after the
+ * encrypt/decrypt operation. It is an error to call this on a mode that is
+ * not an AEAD mode.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_cipher_gettag(QCryptoCipher *cipher,
+                          uint8_t *tag, size_t len,
+                          Error **errp);
+
 #endif /* QCRYPTO_CIPHER_H */
