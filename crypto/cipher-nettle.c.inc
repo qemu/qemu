@@ -27,6 +27,7 @@
 #include <nettle/twofish.h>
 #include <nettle/ctr.h>
 #include <nettle/xts.h>
+#include <nettle/gcm.h>
 #ifdef CONFIG_CRYPTO_SM4
 #include <nettle/sm4.h>
 #endif
@@ -410,6 +411,125 @@ DEFINE_ECB(qcrypto_nettle_sm4,
            sm4_encrypt_native, sm4_decrypt_native)
 #endif
 
+/*
+ * GCM is an AEAD mode built on AES (128-bit block only). Drive it through the
+ * generic gcm_* interface, using the block cipher's encrypt function for both
+ * directions; associated data is fed with gcm_update() and the authentication
+ * tag is produced by gcm_digest().
+ */
+typedef struct QCryptoNettleAESGCM {
+    QCryptoCipher base;
+    struct gcm_key gcm_key;
+    struct gcm_ctx gcm_ctx;
+    union {
+        struct aes128_ctx aes128;
+        struct aes192_ctx aes192;
+        struct aes256_ctx aes256;
+    } cipher;
+    nettle_cipher_func *encrypt;
+} QCryptoNettleAESGCM;
+
+static int qcrypto_nettle_aes_gcm_setiv(QCryptoCipher *cipher,
+                                        const uint8_t *iv, size_t niv,
+                                        Error **errp)
+{
+    QCryptoNettleAESGCM *ctx = container_of(cipher, QCryptoNettleAESGCM, base);
+
+    gcm_set_iv(&ctx->gcm_ctx, &ctx->gcm_key, niv, iv);
+    return 0;
+}
+
+static int qcrypto_nettle_aes_gcm_setaad(QCryptoCipher *cipher,
+                                         const uint8_t *aad, size_t len,
+                                         Error **errp)
+{
+    QCryptoNettleAESGCM *ctx = container_of(cipher, QCryptoNettleAESGCM, base);
+
+    gcm_update(&ctx->gcm_ctx, &ctx->gcm_key, len, aad);
+    return 0;
+}
+
+static int qcrypto_nettle_aes_gcm_encrypt(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoNettleAESGCM *ctx = container_of(cipher, QCryptoNettleAESGCM, base);
+
+    gcm_encrypt(&ctx->gcm_ctx, &ctx->gcm_key, &ctx->cipher, ctx->encrypt,
+                len, out, in);
+    return 0;
+}
+
+static int qcrypto_nettle_aes_gcm_decrypt(QCryptoCipher *cipher,
+                                          const void *in, void *out,
+                                          size_t len, Error **errp)
+{
+    QCryptoNettleAESGCM *ctx = container_of(cipher, QCryptoNettleAESGCM, base);
+
+    gcm_decrypt(&ctx->gcm_ctx, &ctx->gcm_key, &ctx->cipher, ctx->encrypt,
+                len, out, in);
+    return 0;
+}
+
+static int qcrypto_nettle_aes_gcm_gettag(QCryptoCipher *cipher,
+                                         uint8_t *tag, size_t len,
+                                         Error **errp)
+{
+    QCryptoNettleAESGCM *ctx = container_of(cipher, QCryptoNettleAESGCM, base);
+
+    gcm_digest(&ctx->gcm_ctx, &ctx->gcm_key, &ctx->cipher, ctx->encrypt,
+               len, tag);
+    return 0;
+}
+
+static const struct QCryptoCipherDriver qcrypto_nettle_aes_gcm_driver = {
+    .cipher_encrypt = qcrypto_nettle_aes_gcm_encrypt,
+    .cipher_decrypt = qcrypto_nettle_aes_gcm_decrypt,
+    .cipher_setiv = qcrypto_nettle_aes_gcm_setiv,
+    .cipher_setaad = qcrypto_nettle_aes_gcm_setaad,
+    .cipher_gettag = qcrypto_nettle_aes_gcm_gettag,
+    .cipher_free = qcrypto_cipher_ctx_free,
+};
+
+static QCryptoCipher *qcrypto_nettle_aes_gcm_ctx_new(QCryptoCipherAlgo alg,
+                                                     const uint8_t *key,
+                                                     size_t nkey,
+                                                     Error **errp)
+{
+    QCryptoNettleAESGCM *ctx;
+
+    if (!qcrypto_cipher_validate_key_length(alg, QCRYPTO_CIPHER_MODE_GCM,
+                                            nkey, errp)) {
+        return NULL;
+    }
+
+    ctx = g_new0(QCryptoNettleAESGCM, 1);
+    ctx->base.driver = &qcrypto_nettle_aes_gcm_driver;
+
+    switch (alg) {
+    case QCRYPTO_CIPHER_ALGO_AES_128:
+        aes128_set_encrypt_key(&ctx->cipher.aes128, key);
+        ctx->encrypt = aes128_encrypt_native;
+        break;
+    case QCRYPTO_CIPHER_ALGO_AES_192:
+        aes192_set_encrypt_key(&ctx->cipher.aes192, key);
+        ctx->encrypt = aes192_encrypt_native;
+        break;
+    case QCRYPTO_CIPHER_ALGO_AES_256:
+        aes256_set_encrypt_key(&ctx->cipher.aes256, key);
+        ctx->encrypt = aes256_encrypt_native;
+        break;
+    default:
+        error_setg(errp, "Unsupported cipher algorithm %s with GCM mode",
+                   QCryptoCipherAlgo_str(alg));
+        g_free(ctx);
+        return NULL;
+    }
+
+    gcm_set_key(&ctx->gcm_key, &ctx->cipher, ctx->encrypt);
+    return &ctx->base;
+}
+
 bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
                              QCryptoCipherMode mode)
 {
@@ -440,6 +560,10 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
     case QCRYPTO_CIPHER_MODE_XTS:
     case QCRYPTO_CIPHER_MODE_CTR:
         return true;
+    case QCRYPTO_CIPHER_MODE_GCM:
+        return alg == QCRYPTO_CIPHER_ALGO_AES_128 ||
+               alg == QCRYPTO_CIPHER_ALGO_AES_192 ||
+               alg == QCRYPTO_CIPHER_ALGO_AES_256;
     default:
         return false;
     }
@@ -451,6 +575,10 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
                                              size_t nkey,
                                              Error **errp)
 {
+    if (mode == QCRYPTO_CIPHER_MODE_GCM) {
+        return qcrypto_nettle_aes_gcm_ctx_new(alg, key, nkey, errp);
+    }
+
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
     case QCRYPTO_CIPHER_MODE_CBC:
