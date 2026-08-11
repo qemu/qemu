@@ -725,3 +725,9 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config AXIADO_SOC
+    bool
+    select ARM_GIC
+    select CADENCE # UART
+    select UNIMP
