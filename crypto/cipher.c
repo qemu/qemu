@@ -66,6 +66,7 @@ static const bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {
     [QCRYPTO_CIPHER_MODE_CBC] = true,
     [QCRYPTO_CIPHER_MODE_XTS] = true,
     [QCRYPTO_CIPHER_MODE_CTR] = true,
+    [QCRYPTO_CIPHER_MODE_GCM] = true,
 };
 
 
