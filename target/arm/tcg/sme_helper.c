@@ -3020,6 +3020,12 @@ void HELPER(sme_fmop4a_sh)(void *vza, void *vzn, void *vzm,
     sme_mop4(vza, vzn, vzm, env, desc, sizeof(float32), inner_fmop4a_sh);
 }
 
+void HELPER(sme_ftmopa_sh)(void *vza, void *vzn, void *vzm, void *vzk,
+                           CPUArchState *env, uint32_t desc)
+{
+    sme_tmop_2way_sh(vza, vzn, vzm, vzk, env, desc, inner_fmop4a_sh);
+}
+
 static void inner_fmop4s_sh(void *vd, void *vn, void *vm, void *vinfo)
 {
     float32 *d = vd;

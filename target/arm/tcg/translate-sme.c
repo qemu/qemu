@@ -2165,3 +2165,5 @@ TRANS_FEAT(FTMOPA_ss, aa64_sme_tmop, do_tmop_fp,
 
 TRANS_FEAT(BFTMOPA_sh, aa64_sme_tmop, do_tmop_fp,
            a, MO_32, FPST_ENV, gen_helper_sme_bftmopa_sh)
+TRANS_FEAT(FTMOPA_sh, aa64_sme_tmop, do_tmop_fp,
+           a, MO_32, FPST_ENV, gen_helper_sme_ftmopa_sh)
