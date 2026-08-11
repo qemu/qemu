@@ -4,3 +4,36 @@ dirty clusters (cluster size is 64K):
 10-12
 30
 Kill NBD server
+
+--- well-formed extension
+image opened
+--- wrong extension magic
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Wrong parallels Format Extension magic: 0xab234cef23dcea86, expected: 0xab234cef23dcea87
+--- wrong extension checksum
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Wrong checksum in Format Extension header. Format extension is corrupted.
+--- unknown feature
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Unknown feature: 0x20385fae252cb34b
+--- feature flags set
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Flags for extension feature are unsupported
+--- feature data_size beyond the cluster
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Feature data_size exceedes Format Extension cluster
+--- feature payload consumes the cluster
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Can not read feature header, as remaining bytes (0) in Format Extension is less than Feature header size (24)
+--- second feature payload beyond the cluster
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Feature data_size exceedes Format Extension cluster
+--- bitmap granularity 0
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Invalid bitmap granularity 0, expected a power of two of at least 512 bytes
+--- bitmap granularity 3
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Invalid bitmap granularity 1536, expected a power of two of at least 512 bytes
+--- bitmap granularity 8388608
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Invalid bitmap granularity 4294967296, expected a power of two of at least 512 bytes
+--- bitmap L1 entry overflows
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Failed to read bitmap data cluster: Input/output error
+--- cluster_size beyond the file size
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Invalid image: Format Extension is outside the image file
+--- bitmap serialization coverage overflow
+image opened
+--- bitmap spanning two L1 entries
+Start NBD server
+dirty 32-64 GiB
+Kill NBD server
