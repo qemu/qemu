@@ -2679,6 +2679,50 @@ static void sme_tmop(void *vza, void *vzn, void *vzm, uint64_t *zk,
     }
 }
 
+/*
+ * Sparse outer product, widening 2-way, 16 to 32-bit.
+ */
+static void sme_tmop_2way_sh(uint32_t *za, uint16_t *zn0, uint32_t *zm,
+                             uint64_t *zk, void *fn_opaque, uint32_t desc,
+                             void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t dim = oprsz >> MO_32;
+    intptr_t index = simd_data(desc);
+    intptr_t ctrl_base = (index * oprsz) >> 1;
+    uint16_t *zn1 = zn0 + sizeof(ARMVectorReg) / 2;
+
+    for (intptr_t row = 0; row < dim; row++) {
+        uint32_t *za_row = za + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < dim; col++) {
+            uint32_t *e2 = zm + H4(col);
+            uint32_t *e3 = za_row + H4(col);
+            uint32_t e1 = 0;
+
+            /*
+             * Four control bits select two elements.  The two elements
+             * may be non-contiguous, so assemble them locally into e1.
+             * Pseudo-code has a double loop running forward, with a
+             * test for (i < 2) to limit construction to 2 elements.
+             * Easier to run a single loop backward, shifting extra
+             * elements off the top of our uint32_t.
+             */
+            uint64_t this_ctrl = extractn(zk, ctrl_base + col * 4, 4);
+            for (int i = 3; i >= 0; i--) {
+                if (this_ctrl & (1 << i)) {
+                    bool e = i & 1;
+                    bool r = i & 2;
+                    uint16_t *p = (r ? zn1 : zn0) + H2(2 * row + e);
+                    e1 = (e1 << 16) | *p;
+                }
+            }
+
+            fn(e3, &e1, e2, fn_opaque);
+        }
+    }
+}
+
 static void inner_fmop4a_hh(void *vd, void *vn, void *vm, void *vinfo)
 {
     float16 *d = vd, *n = vn, *m = vm;
@@ -2891,6 +2935,16 @@ void HELPER(sme_bfmop4a_sh)(void *vza, void *vzn, void *vzm,
     sme_mop4(vza, vzn, vzm, &fpst, desc, sizeof(float32),
              is_ebf(env, &fpst) ? inner_ebf_bfmop4a_sh
                                 : inner_bfmop4a_sh);
+}
+
+void HELPER(sme_bftmopa_sh)(void *vza, void *vzn, void *vzm, void *vzk,
+                            CPUArchState *env, uint32_t desc)
+{
+    float_status fpst;
+
+    sme_tmop_2way_sh(vza, vzn, vzm, vzk, &fpst, desc,
+                     is_ebf(env, &fpst) ? inner_ebf_bfmop4a_sh
+                                        : inner_bfmop4a_sh);
 }
 
 static void inner_bfmop4s_sh(void *vd, void *vn, void *vm, void *vinfo)
