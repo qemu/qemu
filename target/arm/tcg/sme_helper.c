@@ -2831,6 +2831,12 @@ void HELPER(sme_bfmop4a_hh)(void *vza, void *vzn, void *vzm,
     sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(bfloat16), inner_bfmop4a_hh);
 }
 
+void HELPER(sme_bftmopa_hh)(void *vza, void *vzn, void *vzm, void *vzk,
+                            float_status *fpst, uint32_t desc)
+{
+    sme_tmop(vza, vzn, vzm, vzk, fpst, desc, MO_16, inner_bfmop4a_hh);
+}
+
 static void inner_bfmop4s_hh(void *vd, void *vn, void *vm, void *vinfo)
 {
     bfloat16 *d = vd, *n = vn, *m = vm;
