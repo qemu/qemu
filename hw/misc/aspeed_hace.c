@@ -18,11 +18,43 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "crypto/hash.h"
+#include "crypto/cipher.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
 #include "trace.h"
 
-#define R_CRYPT_CMD     (0x10 / 4)
+/* Crypto engine registers */
+#define R_CRYPT_SRC         (0x00 / 4)
+#define R_CRYPT_DEST        (0x04 / 4)
+#define R_CRYPT_CONTEXT     (0x08 / 4)
+#define R_CRYPT_DATA_LEN    (0x0c / 4)
+/* HACE0C[27:0] holds the crypto data length */
+#define  CRYPT_DATA_LEN_MASK    0x0FFFFFFF
+#define R_CRYPT_CMD         (0x10 / 4)
+/* Crypto engine command register (HACE10) bits */
+#define  CRYPT_CMD_ENCRYPT          BIT(7)
+#define  CRYPT_CMD_ISR_EN           BIT(12)
+#define  CRYPT_CMD_DES_SELECT       BIT(16)
+#define  CRYPT_CMD_TRIPLE_DES       BIT(17)
+#define  CRYPT_CMD_SRC_SG_CTRL      BIT(18)
+/* Operation mode HACE10[6:4] */
+#define  CRYPT_CMD_OP_MODE_MASK     (0x7 << 4)
+#define  CRYPT_CMD_ECB              (0x0 << 4)
+#define  CRYPT_CMD_CBC              (0x1 << 4)
+/* AES key length HACE10[3:2] */
+#define  CRYPT_CMD_AES_KEY_LEN_MASK (0x3 << 2)
+#define  CRYPT_CMD_AES256           (0x2 << 2)
+#define  CRYPT_CMD_AES192           (0x1 << 2)
+#define  CRYPT_CMD_AES128           (0x0 << 2)
+
+/*
+ * Crypto context buffer layout (HACE08). The IV is at the start of the buffer
+ * (DES places its 8 byte IV at offset 8) and the cipher key at offset 0x10.
+ */
+#define CRYPT_CTX_IV_OFFSET         0x00
+#define CRYPT_CTX_DES_IV_OFFSET     0x08
+#define CRYPT_CTX_KEY_OFFSET        0x10
+#define CRYPT_CTX_SIZE              0x30
 
 #define R_STATUS        (0x1c / 4)
 #define HASH_IRQ        BIT(9)
@@ -65,7 +97,6 @@
 /* Other cmd bits */
 #define  HASH_IRQ_EN                    BIT(9)
 #define  HASH_SG_EN                     BIT(18)
-#define  CRYPT_IRQ_EN                   BIT(12)
 /* Scatter-gather data list */
 #define SG_LIST_LEN_SIZE                4
 #define SG_LIST_LEN_MASK                0x0FFFFFFF
@@ -501,6 +532,216 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
     }
 }
 
+static bool crypt_aes_alg(uint32_t cmd, QCryptoCipherAlgo *alg, size_t *keylen)
+{
+    switch (cmd & CRYPT_CMD_AES_KEY_LEN_MASK) {
+    case CRYPT_CMD_AES128:
+        *alg = QCRYPTO_CIPHER_ALGO_AES_128;
+        *keylen = 16;
+        break;
+    case CRYPT_CMD_AES192:
+        *alg = QCRYPTO_CIPHER_ALGO_AES_192;
+        *keylen = 24;
+        break;
+    case CRYPT_CMD_AES256:
+        *alg = QCRYPTO_CIPHER_ALGO_AES_256;
+        *keylen = 32;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * Decode the crypto command register into a libqcrypto algorithm/mode pair
+ * and the block/IV geometry. Returns false for unsupported selections.
+ */
+static bool crypt_decode_cmd(uint32_t cmd, QCryptoCipherAlgo *alg,
+                             QCryptoCipherMode *mode, size_t *keylen,
+                             size_t *blocklen, size_t *iv_offset)
+{
+    if (cmd & CRYPT_CMD_DES_SELECT) {
+        *blocklen = 8;
+        *iv_offset = CRYPT_CTX_DES_IV_OFFSET;
+        if (cmd & CRYPT_CMD_TRIPLE_DES) {
+            *alg = QCRYPTO_CIPHER_ALGO_3DES;
+            *keylen = 24;
+        } else {
+            *alg = QCRYPTO_CIPHER_ALGO_DES;
+            *keylen = 8;
+        }
+    } else {
+        *blocklen = 16;
+        *iv_offset = CRYPT_CTX_IV_OFFSET;
+        if (!crypt_aes_alg(cmd, alg, keylen)) {
+            return false;
+        }
+    }
+
+    switch (cmd & CRYPT_CMD_OP_MODE_MASK) {
+    case CRYPT_CMD_ECB:
+        *mode = QCRYPTO_CIPHER_MODE_ECB;
+        break;
+    case CRYPT_CMD_CBC:
+        *mode = QCRYPTO_CIPHER_MODE_CBC;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * Direct access mode: the source/destination register (HACE00/HACE04) points
+ * at a single contiguous buffer in DRAM. Copy @len bytes between it and the
+ * bounce buffer @buf; when @to_dram is true @buf is written out, otherwise it
+ * is read in. Returns true on success.
+ */
+static bool crypt_prepare_direct(AspeedHACEState *s, uint64_t addr,
+                                 uint8_t *buf, uint32_t len, bool to_dram)
+{
+    return !address_space_rw(&s->dram_as, addr, MEMTXATTRS_UNSPECIFIED,
+                             buf, len, to_dram);
+}
+
+/*
+ * Perform an AES/DES/3DES ECB/CBC operation in direct access mode: the source
+ * and destination are single contiguous buffers (HACE00/HACE04) and the IV/key
+ * come from the context buffer (HACE08). For CBC the resulting chaining IV is
+ * written back to the context buffer so the driver can continue the chain.
+ */
+static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
+{
+    uint32_t len = s->regs[R_CRYPT_DATA_LEN];
+    bool encrypt = cmd & CRYPT_CMD_ENCRYPT;
+    g_autoptr(QCryptoCipher) cipher = NULL;
+    g_autofree uint8_t *src_buf = NULL;
+    g_autofree uint8_t *dst_buf = NULL;
+    uint8_t ctx[CRYPT_CTX_SIZE];
+    Error *local_err = NULL;
+    QCryptoCipherMode mode;
+    QCryptoCipherAlgo alg;
+    const uint8_t *next_iv;
+    uint64_t ctx_addr;
+    uint64_t src_addr;
+    uint64_t dst_addr;
+    size_t iv_offset;
+    size_t blocklen;
+    size_t keylen;
+
+    if (len == 0) {
+        return;
+    }
+
+    if (!crypt_decode_cmd(cmd, &alg, &mode, &keylen, &blocklen, &iv_offset)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: Unsupported crypt command 0x%x\n", __func__, cmd);
+        return;
+    }
+
+    if (!qcrypto_cipher_supports(alg, mode)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: cipher mode not supported by the crypto backend\n",
+                      __func__);
+        return;
+    }
+
+    /* Fetch the IV and key from the context buffer in DRAM. */
+    ctx_addr = s->regs[R_CRYPT_CONTEXT];
+    if (address_space_read(&s->dram_as, ctx_addr, MEMTXATTRS_UNSPECIFIED,
+                           ctx, sizeof(ctx))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to read context, addr=0x%" HWADDR_PRIx "\n",
+                      __func__, ctx_addr);
+        return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("context", (char *)ctx, sizeof(ctx));
+    }
+
+    cipher = qcrypto_cipher_new(alg, mode, ctx + CRYPT_CTX_KEY_OFFSET, keylen,
+                                &local_err);
+    if (cipher == NULL) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto cipher new failed: %s\n",
+                      __func__, error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    if (mode != QCRYPTO_CIPHER_MODE_ECB &&
+        qcrypto_cipher_setiv(cipher, ctx + iv_offset, blocklen,
+                             &local_err) < 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto cipher setiv failed: %s\n",
+                      __func__, error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    src_buf = g_malloc0(len);
+    dst_buf = g_malloc0(len);
+
+    src_addr = s->regs[R_CRYPT_SRC];
+    if (!crypt_prepare_direct(s, src_addr, src_buf, len, false)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to read src, addr=0x%" HWADDR_PRIx "\n",
+                      __func__, src_addr);
+        return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("src", (char *)src_buf, len);
+    }
+
+    if (encrypt) {
+        if (qcrypto_cipher_encrypt(cipher, src_buf, dst_buf, len,
+                                   &local_err) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: encrypt failed: %s\n",
+                          __func__, error_get_pretty(local_err));
+            error_free(local_err);
+            return;
+        }
+    } else {
+        if (qcrypto_cipher_decrypt(cipher, src_buf, dst_buf, len,
+                                   &local_err) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: decrypt failed: %s\n",
+                          __func__, error_get_pretty(local_err));
+            error_free(local_err);
+            return;
+        }
+    }
+
+    dst_addr = s->regs[R_CRYPT_DEST];
+    if (!crypt_prepare_direct(s, dst_addr, dst_buf, len, true)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to write dst, addr=0x%" HWADDR_PRIx "\n",
+                      __func__, dst_addr);
+        return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("dst", (char *)dst_buf, len);
+    }
+
+    if (mode == QCRYPTO_CIPHER_MODE_CBC) {
+        /*
+         * CBC chains on the last ciphertext block: the final block of the
+         * output when encrypting, or of the input when decrypting. Write it
+         * back as the IV for the next request.
+         */
+        next_iv = (encrypt ? dst_buf : src_buf) + len - blocklen;
+        if (address_space_write(&s->dram_as, ctx_addr + iv_offset,
+                                MEMTXATTRS_UNSPECIFIED, next_iv, blocklen)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Failed to write IV, addr=0x%" HWADDR_PRIx "\n",
+                          __func__, ctx_addr + iv_offset);
+        }
+    }
+}
+
 static uint64_t aspeed_hace_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedHACEState *s = ASPEED_HACE(opaque);
@@ -531,15 +772,21 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
                 qemu_irq_lower(s->irq);
             }
         }
-        if (ahc->raise_crypt_interrupt_workaround) {
-            if (data & CRYPT_IRQ) {
-                data &= ~CRYPT_IRQ;
+        if (data & CRYPT_IRQ) {
+            data &= ~CRYPT_IRQ;
 
-                if (s->regs[addr] & CRYPT_IRQ) {
-                    qemu_irq_lower(s->irq);
-                }
+            if (s->regs[addr] & CRYPT_IRQ) {
+                qemu_irq_lower(s->irq);
             }
         }
+        break;
+    case R_CRYPT_SRC:
+    case R_CRYPT_DEST:
+    case R_CRYPT_CONTEXT:
+        data &= ahc->src_mask;
+        break;
+    case R_CRYPT_DATA_LEN:
+        data &= CRYPT_DATA_LEN_MASK;
         break;
     case R_HASH_SRC:
         data &= ahc->src_mask;
@@ -589,13 +836,19 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     }
     case R_CRYPT_CMD:
-        qemu_log_mask(LOG_UNIMP, "%s: Crypt commands not implemented\n",
-                       __func__);
-        if (ahc->raise_crypt_interrupt_workaround) {
-            s->regs[R_STATUS] |= CRYPT_IRQ;
-            if (data & CRYPT_IRQ_EN) {
-                qemu_irq_raise(s->irq);
-            }
+        /*
+         * The AST2700 crypto engine needs 64-bit DMA and AES-GCM, which are
+         * added later; until then it keeps the temporary workaround of only
+         * raising the completion interrupt without running the command.
+         */
+        if (!ahc->raise_crypt_interrupt_workaround) {
+            do_crypt_operation(s, data);
+        }
+
+        /* Hardware raises the crypt interrupt once the command finishes. */
+        s->regs[R_STATUS] |= CRYPT_IRQ;
+        if (data & CRYPT_CMD_ISR_EN) {
+            qemu_irq_raise(s->irq);
         }
         break;
     case R_HASH_SRC_HI:
