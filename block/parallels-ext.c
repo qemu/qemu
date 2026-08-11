@@ -76,8 +76,17 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
     buf = qemu_blockalign(bs, s->cluster_size);
     limit = bdrv_dirty_bitmap_serialization_coverage(s->cluster_size, bitmap);
     for (i = 0, offset = 0; i < l1_size; ++i, offset += limit) {
-        uint64_t count = MIN(bm_size - offset, limit);
-        uint64_t entry = l1_table[i];
+        uint64_t count, entry;
+
+        if (offset >= bm_size) {
+            error_setg(errp, "Bitmap L1 table covers more than the bitmap "
+                       "size %" PRIu64, bm_size);
+            ret = -EINVAL;
+            goto finish;
+        }
+
+        count = MIN(bm_size - offset, limit);
+        entry = l1_table[i];
 
         if (entry == 0) {
             /* No need to deserialize zeros because @bitmap is cleared. */
