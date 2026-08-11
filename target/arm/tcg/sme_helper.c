@@ -3168,3 +3168,17 @@ IMOP4_4WAY(usmop4a_dh, +, int64_t, uint16_t, int16_t)
 IMOP4_4WAY(usmop4s_dh, -, int64_t, uint16_t, int16_t)
 
 #undef IMOP4_4WAY
+
+#define ITMOP_4WAY(TNAME, MNAME)                                        \
+void HELPER(sme_##TNAME)(void *vza, void *vzn, void *vzm,               \
+                         void *vzk, uint32_t desc)                      \
+{                                                                       \
+    sme_tmop_4way_sb(vza, vzn, vzm, vzk, NULL, desc, inner_##MNAME);    \
+}
+
+ITMOP_4WAY(stmopa_sb, smop4a_sb)
+ITMOP_4WAY(utmopa_sb, umop4a_sb)
+ITMOP_4WAY(sutmopa_sb, sumop4a_sb)
+ITMOP_4WAY(ustmopa_sb, usmop4a_sb)
+
+#undef ITMOP_4WAY

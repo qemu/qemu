@@ -2202,3 +2202,12 @@ TRANS_FEAT(STMOPA_sh, aa64_sme_tmop, do_tmop_int,
            a, MO_32, gen_helper_sme_stmopa_sh)
 TRANS_FEAT(UTMOPA_sh, aa64_sme_tmop, do_tmop_int,
            a, MO_32, gen_helper_sme_utmopa_sh)
+
+TRANS_FEAT(STMOPA_sb, aa64_sme_tmop, do_tmop_int,
+           a, MO_32, gen_helper_sme_stmopa_sb)
+TRANS_FEAT(SUTMOPA_sb, aa64_sme_tmop, do_tmop_int,
+           a, MO_32, gen_helper_sme_sutmopa_sb)
+TRANS_FEAT(USTMOPA_sb, aa64_sme_tmop, do_tmop_int,
+           a, MO_32, gen_helper_sme_ustmopa_sb)
+TRANS_FEAT(UTMOPA_sb, aa64_sme_tmop, do_tmop_int,
+           a, MO_32, gen_helper_sme_utmopa_sb)
