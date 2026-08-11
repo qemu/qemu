@@ -41,6 +41,7 @@
 #define  CRYPT_CMD_OP_MODE_MASK     (0x7 << 4)
 #define  CRYPT_CMD_ECB              (0x0 << 4)
 #define  CRYPT_CMD_CBC              (0x1 << 4)
+#define  CRYPT_CMD_CTR              (0x4 << 4)
 /* AES key length HACE10[3:2] */
 #define  CRYPT_CMD_AES_KEY_LEN_MASK (0x3 << 2)
 #define  CRYPT_CMD_AES256           (0x2 << 2)
@@ -587,6 +588,9 @@ static bool crypt_decode_cmd(uint32_t cmd, QCryptoCipherAlgo *alg,
     case CRYPT_CMD_CBC:
         *mode = QCRYPTO_CIPHER_MODE_CBC;
         break;
+    case CRYPT_CMD_CTR:
+        *mode = QCRYPTO_CIPHER_MODE_CTR;
+        break;
     default:
         return false;
     }
@@ -651,6 +655,22 @@ static bool crypt_prepare_sg(AspeedHACEState *s, uint64_t addr,
 }
 
 /*
+ * Add @add to the big-endian counter block @ctr (@len bytes) in place, so the
+ * CTR mode counter can be advanced by the number of blocks just consumed.
+ */
+static void crypt_be_add(uint8_t *ctr, size_t len, uint64_t add)
+{
+    size_t i = len;
+
+    while (i > 0 && add) {
+        i--;
+        add += ctr[i];
+        ctr[i] = add & 0xff;
+        add >>= 8;
+    }
+}
+
+/*
  * Perform an AES/DES/3DES ECB/CBC operation. The source and destination are
  * either single contiguous buffers (direct access mode) or scatter-gather
  * lists (HACE10[18]/[19]), addressed by HACE00/HACE04; the IV/key come from
@@ -675,6 +695,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     uint64_t dst_addr;
     size_t iv_offset;
     size_t blocklen;
+    size_t buf_len;
     size_t keylen;
     bool status;
 
@@ -727,8 +748,14 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
         return;
     }
 
-    src_buf = g_malloc0(len);
-    dst_buf = g_malloc0(len);
+    /*
+     * Round the working buffers up to a whole block. Block modes are already
+     * block-aligned; the stream-like CTR mode may leave a partial final block
+     * that the engine still processes a full block at a time.
+     */
+    buf_len = QEMU_ALIGN_UP(len, blocklen);
+    src_buf = g_malloc0(buf_len);
+    dst_buf = g_malloc0(buf_len);
 
     /* Gather the source into the bounce buffer, per the selected mode. */
     src_addr = s->regs[R_CRYPT_SRC];
@@ -749,7 +776,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     }
 
     if (encrypt) {
-        if (qcrypto_cipher_encrypt(cipher, src_buf, dst_buf, len,
+        if (qcrypto_cipher_encrypt(cipher, src_buf, dst_buf, buf_len,
                                    &local_err) < 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: encrypt failed: %s\n",
                           __func__, error_get_pretty(local_err));
@@ -757,7 +784,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
             return;
         }
     } else {
-        if (qcrypto_cipher_decrypt(cipher, src_buf, dst_buf, len,
+        if (qcrypto_cipher_decrypt(cipher, src_buf, dst_buf, buf_len,
                                    &local_err) < 0) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: decrypt failed: %s\n",
                           __func__, error_get_pretty(local_err));
@@ -790,9 +817,22 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
          * output when encrypting, or of the input when decrypting. Write it
          * back as the IV for the next request.
          */
-        next_iv = (encrypt ? dst_buf : src_buf) + len - blocklen;
+        next_iv = (encrypt ? dst_buf : src_buf) + buf_len - blocklen;
         if (address_space_write(&s->dram_as, ctx_addr + iv_offset,
                                 MEMTXATTRS_UNSPECIFIED, next_iv, blocklen)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Failed to write IV, addr=0x%" HWADDR_PRIx "\n",
+                          __func__, ctx_addr + iv_offset);
+        }
+    } else if (mode == QCRYPTO_CIPHER_MODE_CTR) {
+        /*
+         * CTR chains on the counter, which advances by one per block. Add the
+         * number of blocks processed (buf_len / blocklen) and write it back.
+         */
+        crypt_be_add(ctx + iv_offset, blocklen, buf_len / blocklen);
+        if (address_space_write(&s->dram_as, ctx_addr + iv_offset,
+                                MEMTXATTRS_UNSPECIFIED, ctx + iv_offset,
+                                blocklen)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Failed to write IV, addr=0x%" HWADDR_PRIx "\n",
                           __func__, ctx_addr + iv_offset);
