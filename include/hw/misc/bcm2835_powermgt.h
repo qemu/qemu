@@ -12,6 +12,7 @@
 #define BCM2835_POWERMGT_H
 
 #include "hw/core/sysbus.h"
+#include "qemu/timer.h"
 #include "qom/object.h"
 
 #define TYPE_BCM2835_POWERMGT "bcm2835-powermgt"
@@ -24,6 +25,7 @@ struct BCM2835PowerMgtState {
     uint32_t rstc;
     uint32_t rsts;
     uint32_t wdog;
+    QEMUTimer *wdog_timer;
 };
 
 #endif
