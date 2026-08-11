@@ -48,6 +48,15 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgo alg,
         default:
             return false;
         }
+    case QCRYPTO_CIPHER_MODE_GCM:
+        switch (alg) {
+        case QCRYPTO_CIPHER_ALGO_AES_128:
+        case QCRYPTO_CIPHER_ALGO_AES_192:
+        case QCRYPTO_CIPHER_ALGO_AES_256:
+            return true;
+        default:
+            return false;
+        }
     default:
         return false;
     }
@@ -223,6 +232,147 @@ static struct QCryptoCipherDriver gnutls_driver = {
     .cipher_free = qcrypto_gnutls_cipher_free,
 };
 
+/*
+ * GCM is an AEAD stream mode: the nonce need not match the block size, the
+ * message length need not be a multiple of the block size, associated data is
+ * fed with gnutls_cipher_add_auth() and the authentication tag is read back
+ * with gnutls_cipher_tag().
+ */
+static int
+qcrypto_gnutls_cipher_encrypt_gcm(QCryptoCipher *cipher,
+                                  const void *in, void *out,
+                                  size_t len, Error **errp)
+{
+    QCryptoCipherGnutls *ctx = container_of(cipher, QCryptoCipherGnutls, base);
+    int err;
+
+    err = gnutls_cipher_encrypt2(ctx->handle, in, len, out, len);
+    if (err != 0) {
+        error_setg(errp, "Cannot encrypt data: %s", gnutls_strerror(err));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
+qcrypto_gnutls_cipher_decrypt_gcm(QCryptoCipher *cipher,
+                                  const void *in, void *out,
+                                  size_t len, Error **errp)
+{
+    QCryptoCipherGnutls *ctx = container_of(cipher, QCryptoCipherGnutls, base);
+    int err;
+
+    err = gnutls_cipher_decrypt2(ctx->handle, in, len, out, len);
+    if (err != 0) {
+        error_setg(errp, "Cannot decrypt data: %s", gnutls_strerror(err));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
+qcrypto_gnutls_cipher_setiv_gcm(QCryptoCipher *cipher,
+                                const uint8_t *iv, size_t niv,
+                                Error **errp)
+{
+    QCryptoCipherGnutls *ctx = container_of(cipher, QCryptoCipherGnutls, base);
+
+    gnutls_cipher_set_iv(ctx->handle, (void *)iv, niv);
+
+    return 0;
+}
+
+static int
+qcrypto_gnutls_cipher_setaad_gcm(QCryptoCipher *cipher,
+                                 const uint8_t *aad, size_t len,
+                                 Error **errp)
+{
+    QCryptoCipherGnutls *ctx = container_of(cipher, QCryptoCipherGnutls, base);
+    int err;
+
+    err = gnutls_cipher_add_auth(ctx->handle, aad, len);
+    if (err != 0) {
+        error_setg(errp, "Cannot add associated data: %s",
+                   gnutls_strerror(err));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
+qcrypto_gnutls_cipher_gettag_gcm(QCryptoCipher *cipher,
+                                 uint8_t *tag, size_t len,
+                                 Error **errp)
+{
+    QCryptoCipherGnutls *ctx = container_of(cipher, QCryptoCipherGnutls, base);
+    int err;
+
+    err = gnutls_cipher_tag(ctx->handle, tag, len);
+    if (err != 0) {
+        error_setg(errp, "Cannot get authentication tag: %s",
+                   gnutls_strerror(err));
+        return -1;
+    }
+
+    return 0;
+}
+
+static struct QCryptoCipherDriver gnutls_gcm_driver = {
+    .cipher_encrypt = qcrypto_gnutls_cipher_encrypt_gcm,
+    .cipher_decrypt = qcrypto_gnutls_cipher_decrypt_gcm,
+    .cipher_setiv = qcrypto_gnutls_cipher_setiv_gcm,
+    .cipher_setaad = qcrypto_gnutls_cipher_setaad_gcm,
+    .cipher_gettag = qcrypto_gnutls_cipher_gettag_gcm,
+    .cipher_free = qcrypto_gnutls_cipher_free,
+};
+
+static QCryptoCipher *
+qcrypto_gnutls_aes_gcm_ctx_new(QCryptoCipherAlgo alg, const uint8_t *key,
+                               size_t nkey, Error **errp)
+{
+    gnutls_datum_t gkey = { (unsigned char *)key, nkey };
+    gnutls_cipher_algorithm_t galg = GNUTLS_CIPHER_UNKNOWN;
+    QCryptoCipherGnutls *ctx;
+    int err;
+
+    switch (alg) {
+    case QCRYPTO_CIPHER_ALGO_AES_128:
+        galg = GNUTLS_CIPHER_AES_128_GCM;
+        break;
+    case QCRYPTO_CIPHER_ALGO_AES_192:
+        galg = GNUTLS_CIPHER_AES_192_GCM;
+        break;
+    case QCRYPTO_CIPHER_ALGO_AES_256:
+        galg = GNUTLS_CIPHER_AES_256_GCM;
+        break;
+    default:
+        error_setg(errp, "Unsupported cipher algorithm %s with GCM mode",
+                   QCryptoCipherAlgo_str(alg));
+        return NULL;
+    }
+
+    if (!qcrypto_cipher_validate_key_length(alg, QCRYPTO_CIPHER_MODE_GCM,
+                                            nkey, errp)) {
+        return NULL;
+    }
+
+    ctx = g_new0(QCryptoCipherGnutls, 1);
+    ctx->base.driver = &gnutls_gcm_driver;
+    ctx->blocksize = 16;
+
+    err = gnutls_cipher_init(&ctx->handle, galg, &gkey, NULL);
+    if (err != 0) {
+        error_setg(errp, "Cannot initialize cipher: %s", gnutls_strerror(err));
+        g_free(ctx);
+        return NULL;
+    }
+
+    return &ctx->base;
+}
+
 static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
                                              QCryptoCipherMode mode,
                                              const uint8_t *key,
@@ -233,6 +383,10 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
     gnutls_datum_t gkey = { (unsigned char *)key, nkey };
     gnutls_cipher_algorithm_t galg = GNUTLS_CIPHER_UNKNOWN;
     int err;
+
+    if (mode == QCRYPTO_CIPHER_MODE_GCM) {
+        return qcrypto_gnutls_aes_gcm_ctx_new(alg, key, nkey, errp);
+    }
 
     switch (mode) {
     case QCRYPTO_CIPHER_MODE_XTS:
