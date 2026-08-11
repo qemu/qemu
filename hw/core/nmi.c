@@ -31,6 +31,11 @@ static int do_nmi(Object *o, void *opaque)
     if (n) {
         *handled = true;
         NMI_GET_CLASS(n)->raise_nmi(n);
+        /*
+         * We expect only one object to implement TYPE_NMI, so once
+         * we've asked it to deliver the NMI we can stop looking.
+         */
+        return 1;
     }
 
     return 0;
