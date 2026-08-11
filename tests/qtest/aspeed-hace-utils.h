@@ -86,6 +86,7 @@ enum {
     CRYPT_MODE_ECB = 1 << 0,
     CRYPT_MODE_CBC = 1 << 1,
     CRYPT_MODE_CTR = 1 << 2,
+    CRYPT_MODE_GCM = 1 << 3,
 };
 
 /*

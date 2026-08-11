@@ -94,5 +94,14 @@ int main(int argc, char **argv)
     qtest_add_func("ast2700/hace/sha384_accum", test_sha384_accum_ast2700);
     qtest_add_func("ast2700/hace/sha256_accum", test_sha256_accum_ast2700);
 
+    /*
+     * The AST2700 crypto engine uses scatter-gather with 64-bit DMA and adds
+     * AES-GCM on top of the ECB/CBC/CTR modes shared with the AST2600.
+     */
+    aspeed_add_crypto_tests("ast2700", "-machine ast2700-evb", 0x12070000,
+                            0x400000000,
+                            CRYPT_MODE_ECB | CRYPT_MODE_CBC | CRYPT_MODE_CTR |
+                            CRYPT_MODE_GCM, true);
+
     return g_test_run();
 }
