@@ -239,6 +239,7 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
     while (true) {
         ParallelsFeatureHeader fh;
         BdrvDirtyBitmap *bitmap;
+        uint64_t data_size;
 
         if (remaining < sizeof(fh)) {
             error_setg(errp, "Can not read feature header, as remaining bytes "
@@ -260,7 +261,8 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
             goto fail;
         }
 
-        if (fh.data_size > remaining) {
+        data_size = QEMU_ALIGN_UP((uint64_t)fh.data_size, 8);
+        if (data_size > remaining) {
             error_setg(errp, "Feature data_size exceedes Format Extension "
                        "cluster");
             goto fail;
@@ -283,7 +285,8 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
             goto fail;
         }
 
-        pos = ext_cluster + QEMU_ALIGN_UP(pos + fh.data_size - ext_cluster, 8);
+        pos += data_size;
+        remaining -= data_size;
     }
 
 fail:
