@@ -810,6 +810,230 @@ static void test_cipher_short_plaintext(void)
     qcrypto_cipher_free(cipher);
 }
 
+typedef struct QCryptoCipherGcmTestData QCryptoCipherGcmTestData;
+struct QCryptoCipherGcmTestData {
+    const char *path;
+    QCryptoCipherAlgo alg;
+    const char *key;
+    const char *iv;
+    /* associated data, or NULL for none */
+    const char *aad;
+    const char *plaintext;
+    const char *ciphertext;
+    const char *tag;
+};
+
+/*
+ * AES-GCM test vectors from "The Galois/Counter Mode of Operation (GCM)"
+ * (McGrew & Viega, also NIST SP 800-38D), with a 96-bit IV and a 128-bit
+ * tag. Each entry's "Test case N" label is the numbered test case from that
+ * document (Appendix B / the GCM specification's test vectors).
+ */
+static QCryptoCipherGcmTestData gcm_test_data[] = {
+    {
+        /* Test case 2 */
+        .path = "/crypto/cipher/aes-gcm-128-2",
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .key = "00000000000000000000000000000000",
+        .iv = "000000000000000000000000",
+        .plaintext = "00000000000000000000000000000000",
+        .ciphertext = "0388dace60b6a392f328c2b971b2fe78",
+        .tag = "ab6e47d42cec13bdf53a67b21257bddf",
+    },
+    {
+        /* Test case 3 (no AAD) */
+        .path = "/crypto/cipher/aes-gcm-128-3",
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .key = "feffe9928665731c6d6a8f9467308308",
+        .iv = "cafebabefacedbaddecaf888",
+        .plaintext =
+            "d9313225f88406e5a55909c5aff5269a"
+            "86a7a9531534f7da2e4c303d8a318a72"
+            "1c3c0c95956809532fcf0e2449a6b525"
+            "b16aedf5aa0de657ba637b391aafd255",
+        .ciphertext =
+            "42831ec2217774244b7221b784d0d49c"
+            "e3aa212f2c02a4e035c17e2329aca12e"
+            "21d514b25466931c7d8f6a5aac84aa05"
+            "1ba30b396a0aac973d58e091473f5985",
+        .tag = "4d5c2af327cd64a62cf35abd2ba6fab4",
+    },
+    {
+        /* Test case 4 (with AAD) */
+        .path = "/crypto/cipher/aes-gcm-128-4",
+        .alg = QCRYPTO_CIPHER_ALGO_AES_128,
+        .key = "feffe9928665731c6d6a8f9467308308",
+        .iv = "cafebabefacedbaddecaf888",
+        .aad = "feedfacedeadbeeffeedfacedeadbeefabaddad2",
+        .plaintext =
+            "d9313225f88406e5a55909c5aff5269a"
+            "86a7a9531534f7da2e4c303d8a318a72"
+            "1c3c0c95956809532fcf0e2449a6b525"
+            "b16aedf5aa0de657ba637b39",
+        .ciphertext =
+            "42831ec2217774244b7221b784d0d49c"
+            "e3aa212f2c02a4e035c17e2329aca12e"
+            "21d514b25466931c7d8f6a5aac84aa05"
+            "1ba30b396a0aac973d58e091",
+        .tag = "5bc94fbc3221a5db94fae95ae7121a47",
+    },
+    {
+        /* Test case 15 (AES-256, no AAD) */
+        .path = "/crypto/cipher/aes-gcm-256-15",
+        .alg = QCRYPTO_CIPHER_ALGO_AES_256,
+        .key =
+            "feffe9928665731c6d6a8f9467308308"
+            "feffe9928665731c6d6a8f9467308308",
+        .iv = "cafebabefacedbaddecaf888",
+        .plaintext =
+            "d9313225f88406e5a55909c5aff5269a"
+            "86a7a9531534f7da2e4c303d8a318a72"
+            "1c3c0c95956809532fcf0e2449a6b525"
+            "b16aedf5aa0de657ba637b391aafd255",
+        .ciphertext =
+            "522dc1f099567d07f47f37a32a84427d"
+            "643a8cdcbfe5c0c97598a2bd2555d1aa"
+            "8cb08e48590dbb3da7b08b1056828838"
+            "c5f61e6393ba7a0abcc9f662898015ad",
+        .tag = "b094dac5d93471bdec1a502270e3cc6c",
+    },
+    {
+        /* Test case 16 (AES-256, with AAD) */
+        .path = "/crypto/cipher/aes-gcm-256-16",
+        .alg = QCRYPTO_CIPHER_ALGO_AES_256,
+        .key =
+            "feffe9928665731c6d6a8f9467308308"
+            "feffe9928665731c6d6a8f9467308308",
+        .iv = "cafebabefacedbaddecaf888",
+        .aad = "feedfacedeadbeeffeedfacedeadbeefabaddad2",
+        .plaintext =
+            "d9313225f88406e5a55909c5aff5269a"
+            "86a7a9531534f7da2e4c303d8a318a72"
+            "1c3c0c95956809532fcf0e2449a6b525"
+            "b16aedf5aa0de657ba637b39",
+        .ciphertext =
+            "522dc1f099567d07f47f37a32a84427d"
+            "643a8cdcbfe5c0c97598a2bd2555d1aa"
+            "8cb08e48590dbb3da7b08b1056828838"
+            "c5f61e6393ba7a0abcc9f662",
+        .tag = "76fc6ece0f4e1768cddf8853bb2d551b",
+    },
+};
+
+static void test_cipher_gcm(const void *opaque)
+{
+    const QCryptoCipherGcmTestData *data = opaque;
+    g_autofree uint8_t *key = NULL;
+    g_autofree uint8_t *iv = NULL;
+    g_autofree uint8_t *aad = NULL;
+    g_autofree uint8_t *ptext = NULL;
+    g_autofree uint8_t *ctext = NULL;
+    g_autofree uint8_t *tagexp = NULL;
+    g_autofree uint8_t *out = NULL;
+    uint8_t tag[16];
+    size_t nkey;
+    size_t niv;
+    size_t naad = 0;
+    size_t nptext;
+    size_t nctext;
+    size_t ntag;
+    QCryptoCipher *cipher;
+
+    nkey = unhex_string(data->key, &key);
+    niv = unhex_string(data->iv, &iv);
+    nptext = unhex_string(data->plaintext, &ptext);
+    nctext = unhex_string(data->ciphertext, &ctext);
+    ntag = unhex_string(data->tag, &tagexp);
+    if (data->aad) {
+        naad = unhex_string(data->aad, &aad);
+    }
+
+    g_assert_cmpint(nptext, ==, nctext);
+    g_assert_cmpint(ntag, ==, sizeof(tag));
+    out = g_new0(uint8_t, nptext);
+
+    /* Encrypt: plaintext -> ciphertext, then read back the tag. */
+    cipher = qcrypto_cipher_new(data->alg, QCRYPTO_CIPHER_MODE_GCM,
+                                key, nkey, &error_abort);
+    g_assert(cipher != NULL);
+    g_assert(qcrypto_cipher_setiv(cipher, iv, niv, &error_abort) == 0);
+    if (naad) {
+        g_assert(qcrypto_cipher_setaad(cipher, aad, naad, &error_abort) == 0);
+    }
+    g_assert(qcrypto_cipher_encrypt(cipher, ptext, out, nptext,
+                                    &error_abort) == 0);
+    g_assert_cmpmem(out, nptext, ctext, nctext);
+    g_assert(qcrypto_cipher_gettag(cipher, tag, sizeof(tag),
+                                   &error_abort) == 0);
+    g_assert_cmpmem(tag, sizeof(tag), tagexp, ntag);
+    qcrypto_cipher_free(cipher);
+
+    /* Decrypt: ciphertext -> plaintext, recomputed tag must match. */
+    memset(out, 0, nptext);
+    cipher = qcrypto_cipher_new(data->alg, QCRYPTO_CIPHER_MODE_GCM,
+                                key, nkey, &error_abort);
+    g_assert(cipher != NULL);
+    g_assert(qcrypto_cipher_setiv(cipher, iv, niv, &error_abort) == 0);
+    if (naad) {
+        g_assert(qcrypto_cipher_setaad(cipher, aad, naad, &error_abort) == 0);
+    }
+    g_assert(qcrypto_cipher_decrypt(cipher, ctext, out, nctext,
+                                    &error_abort) == 0);
+    g_assert_cmpmem(out, nctext, ptext, nptext);
+    g_assert(qcrypto_cipher_gettag(cipher, tag, sizeof(tag),
+                                   &error_abort) == 0);
+    g_assert_cmpmem(tag, sizeof(tag), tagexp, ntag);
+    qcrypto_cipher_free(cipher);
+}
+
+/*
+ * Corrupt one ciphertext byte and confirm the recomputed GCM tag no longer
+ * matches: the authentication tag must detect tampering.
+ */
+static void test_cipher_gcm_tamper(const void *opaque)
+{
+    const QCryptoCipherGcmTestData *data = opaque;
+    g_autofree uint8_t *key = NULL;
+    g_autofree uint8_t *iv = NULL;
+    g_autofree uint8_t *aad = NULL;
+    g_autofree uint8_t *ctext = NULL;
+    g_autofree uint8_t *tagexp = NULL;
+    g_autofree uint8_t *out = NULL;
+    uint8_t tag[16];
+    size_t nkey;
+    size_t niv;
+    size_t naad = 0;
+    size_t nctext;
+    size_t ntag;
+    QCryptoCipher *cipher;
+
+    nkey = unhex_string(data->key, &key);
+    niv = unhex_string(data->iv, &iv);
+    nctext = unhex_string(data->ciphertext, &ctext);
+    ntag = unhex_string(data->tag, &tagexp);
+    if (data->aad) {
+        naad = unhex_string(data->aad, &aad);
+    }
+    out = g_new0(uint8_t, nctext);
+
+    /* Flip one ciphertext bit before decrypting. */
+    ctext[0] ^= 0x01;
+
+    cipher = qcrypto_cipher_new(data->alg, QCRYPTO_CIPHER_MODE_GCM,
+                                key, nkey, &error_abort);
+    g_assert(cipher != NULL);
+    g_assert(qcrypto_cipher_setiv(cipher, iv, niv, &error_abort) == 0);
+    if (naad) {
+        g_assert(qcrypto_cipher_setaad(cipher, aad, naad, &error_abort) == 0);
+    }
+    g_assert(qcrypto_cipher_decrypt(cipher, ctext, out, nctext,
+                                    &error_abort) == 0);
+    g_assert(qcrypto_cipher_gettag(cipher, tag, sizeof(tag),
+                                   &error_abort) == 0);
+    g_assert(memcmp(tag, tagexp, ntag) != 0);
+    qcrypto_cipher_free(cipher);
+}
+
 int main(int argc, char **argv)
 {
     size_t i;
@@ -825,6 +1049,22 @@ int main(int argc, char **argv)
             g_printerr("# skip unsupported %s:%s\n",
                        QCryptoCipherAlgo_str(test_data[i].alg),
                        QCryptoCipherMode_str(test_data[i].mode));
+        }
+    }
+
+    for (i = 0; i < G_N_ELEMENTS(gcm_test_data); i++) {
+        if (qcrypto_cipher_supports(gcm_test_data[i].alg,
+                                    QCRYPTO_CIPHER_MODE_GCM)) {
+            g_autofree char *tamper = g_strdup_printf("%s/tamper",
+                                                      gcm_test_data[i].path);
+
+            g_test_add_data_func(gcm_test_data[i].path, &gcm_test_data[i],
+                                 test_cipher_gcm);
+            g_test_add_data_func(tamper, &gcm_test_data[i],
+                                 test_cipher_gcm_tamper);
+        } else {
+            g_printerr("# skip unsupported %s:gcm\n",
+                       QCryptoCipherAlgo_str(gcm_test_data[i].alg));
         }
     }
 
