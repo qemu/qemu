@@ -1375,6 +1375,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (ph.ext_off) {
+        int64_t ext_off = le64_to_cpu(ph.ext_off);
+
         if (flags & BDRV_O_RDWR) {
             /*
              * It's unsafe to open image RW if there is an extension (as we
@@ -1382,9 +1384,14 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
              * ignores the extension, so print warning and don't care.
              */
             warn_report("Format Extension ignored in RW mode");
+        } else if (ext_off + s->tracks > file_nb_sectors) {
+            error_setg(errp, "Invalid image: Format Extension is outside the "
+                       "image file");
+            ret = -EINVAL;
+            goto fail;
         } else {
             ret = parallels_read_format_extension(
-                    bs, le64_to_cpu(ph.ext_off) << BDRV_SECTOR_BITS, errp);
+                    bs, ext_off << BDRV_SECTOR_BITS, errp);
             if (ret < 0) {
                 goto fail;
             }
