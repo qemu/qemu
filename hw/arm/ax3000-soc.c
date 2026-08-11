@@ -33,6 +33,8 @@ static void ax3000_init(Object *obj)
         g_autofree char *name = g_strdup_printf("uart%d", i);
         object_initialize_child(obj, name, &s->uart[i], TYPE_CADENCE_UART);
     }
+
+    object_initialize_child(obj, "clk", &s->ax3000_clk, TYPE_AX3000_CLK);
 }
 
 static void ax3000_realize(DeviceState *dev, Error **errp)
@@ -157,6 +159,12 @@ static void ax3000_realize(DeviceState *dev, Error **errp)
 
     /* Timer control */
     create_unimplemented_device("ax3000.timerctrl", AX3000_TIMER_CTRL, 32);
+
+    /* Clock control */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ax3000_clk), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ax3000_clk), 0, AX3000_PLL_BASE);
 }
 
 static void ax3000_class_init(ObjectClass *oc, const void *data)

@@ -12,6 +12,7 @@
 #include "cpu.h"
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/char/cadence_uart.h"
+#include "hw/misc/axiado_clk.h"
 #include "hw/core/sysbus.h"
 #include "qemu/units.h"
 
@@ -49,6 +50,7 @@ typedef struct Ax3000SoCState {
     ARMCPU              cpu[AX3000_NUM_CPUS];
     GICv3State          gic;
     MemoryRegion        dram[AX3000_NUM_BANKS];
+    Ax3000ClkState      ax3000_clk;
     CadenceUARTState    uart[AX3000_NUM_UARTS];
 } Ax3000SoCState;
 
