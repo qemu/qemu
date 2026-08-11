@@ -323,9 +323,15 @@ int parallels_read_format_extension(BlockDriverState *bs,
 {
     BDRVParallelsState *s = bs->opaque;
     int ret;
-    uint8_t *ext_cluster = qemu_blockalign(bs, s->cluster_size);
+    uint8_t *ext_cluster;
 
     assert(ext_off > 0);
+
+    ext_cluster = qemu_try_blockalign(bs->file->bs, s->cluster_size);
+    if (!ext_cluster) {
+        error_setg(errp, "Failed to allocate the Format Extension cluster");
+        return -ENOMEM;
+    }
 
     ret = bdrv_pread(bs->file, ext_off, s->cluster_size, ext_cluster, 0);
     if (ret < 0) {
