@@ -1113,6 +1113,14 @@ static void mps2tz_common_init(MachineState *machine)
                 { /* port 7 USER AHB interface 3 */ },
                 { "eth-usb", make_eth_usb, NULL, 0x41400000, 0x200000, { 49 } },
             },
+        }, {
+            .name = "ahb_ppcexp1",
+            .ports = {
+                { /* port 0 reserved */ },
+                { "dma1", make_dma, &mms->dma[1], 0x41201000, 0x1000, { 62, 60, 61 } },
+                { "dma2", make_dma, &mms->dma[2], 0x41202000, 0x1000, { 65, 63, 64 } },
+                { "dma3", make_dma, &mms->dma[3], 0x41203000, 0x1000, { 68, 66, 67 } },
+            },
         },
     };
 
