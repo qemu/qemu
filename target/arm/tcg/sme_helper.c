@@ -3123,6 +3123,18 @@ IMOP4_2WAY(umop4s_sh, -, int32_t, uint16_t, uint16_t)
 
 #undef IMOP4_2WAY
 
+#define ITMOP_2WAY(TNAME, MNAME)                                        \
+void HELPER(sme_##TNAME)(void *vza, void *vzn, void *vzm,               \
+                         void *vzk, uint32_t desc)                      \
+{                                                                       \
+    sme_tmop_2way_sh(vza, vzn, vzm, vzk, NULL, desc, inner_##MNAME);    \
+}
+
+ITMOP_2WAY(stmopa_sh, smop4a_sh)
+ITMOP_2WAY(utmopa_sh, umop4a_sh)
+
+#undef ITMOP_2WAY
+
 #define IMOP4_4WAY(NAME, OP, TYPED, TYPEN, TYPEM)                       \
 static void inner_##NAME(void *vd, void *vn, void *vm, void *vinfo)     \
 {                                                                       \
