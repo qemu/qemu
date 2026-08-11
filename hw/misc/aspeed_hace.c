@@ -1005,14 +1005,7 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     }
     case R_CRYPT_CMD:
-        /*
-         * The AST2700 crypto engine needs 64-bit DMA and AES-GCM, which are
-         * added later; until then it keeps the temporary workaround of only
-         * raising the completion interrupt without running the command.
-         */
-        if (!ahc->raise_crypt_interrupt_workaround) {
-            do_crypt_operation(s, data);
-        }
+        do_crypt_operation(s, data);
 
         /* Hardware raises the crypt interrupt once the command finishes. */
         s->regs[R_STATUS] |= CRYPT_IRQ;
@@ -1214,12 +1207,6 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
     ahc->dest_hi_mask = 0x00000003;
     ahc->key_hi_mask = 0x00000003;
 
-    /*
-     * Currently, it does not support the CRYPT command. Instead, it only
-     * sends an interrupt to notify the firmware that the crypt command
-     * has completed. It is a temporary workaround.
-     */
-    ahc->raise_crypt_interrupt_workaround = true;
     ahc->has_dma64 = true;
 }
 
