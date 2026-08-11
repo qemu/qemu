@@ -210,6 +210,12 @@ int main(int argc, char **argv)
     qtest_add_func("ast1030/hace/sha384_accum", test_sha384_accum_ast1030);
     qtest_add_func("ast1030/hace/sha256_accum", test_sha256_accum_ast1030);
 
+    /* The AST1030 reuses the AST2600 crypto engine (scatter-gather, CTR). */
+    aspeed_add_crypto_tests("ast1030", "-machine ast1030-evb", 0x7e6d0000,
+                            0x00000000,
+                            CRYPT_MODE_ECB | CRYPT_MODE_CBC | CRYPT_MODE_CTR,
+                            true);
+
     qtest_add_func("ast2600/hace/addresses", test_addresses_ast2600);
     qtest_add_func("ast2600/hace/sha512", test_sha512_ast2600);
     qtest_add_func("ast2600/hace/sha384", test_sha384_ast2600);
