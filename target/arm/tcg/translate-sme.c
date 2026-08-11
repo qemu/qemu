@@ -2179,3 +2179,5 @@ static bool do_tmop_fp8(DisasContext *s, arg_tmop *a, MemOp esz,
 
 TRANS_FEAT(FTMOPA_hb, aa64_sme_tmop_f8f16, do_tmop_fp8,
            a, MO_16, gen_helper_sme_ftmopa_hb)
+TRANS_FEAT(FTMOPA_sb, aa64_sme_tmop_f8f32, do_tmop_fp8,
+           a, MO_32, gen_helper_sme_ftmopa_sb)

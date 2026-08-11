@@ -1048,3 +1048,10 @@ void HELPER(sme_ftmopa_hb)(void *vza, void *vzn, void *vzm, void *vzk,
         }
     }
 }
+
+void HELPER(sme_ftmopa_sb)(void *vza, void *vzn, void *vzm, void *vzk,
+                           CPUArchState *env, uint32_t desc)
+{
+    FP8MulContext ctx = fp8_mul_start(env, 0xf);
+    sme_tmop_4way_sb(vza, vzn, vzm, vzk, &ctx, desc, inner_fmop4a_sb);
+}

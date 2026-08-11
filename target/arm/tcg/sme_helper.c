@@ -2723,6 +2723,50 @@ static void sme_tmop_2way_sh(uint32_t *za, uint16_t *zn0, uint32_t *zm,
     }
 }
 
+void sme_tmop_4way_sb(uint32_t *za, uint8_t *zn0, uint32_t *zm,
+                      uint64_t *zk, void *fn_opaque, uint32_t desc,
+                      void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t dim = oprsz >> MO_32;
+    intptr_t index = simd_data(desc);
+    intptr_t ctrl_base = (index * oprsz) >> 1;
+    uint8_t *zn1 = zn0 + sizeof(ARMVectorReg);
+
+    for (intptr_t row = 0; row < dim; row++) {
+        uint32_t *za_row = za + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < dim; col++) {
+            uint32_t *e2 = zm + H4(col);
+            uint32_t *e3 = za_row + H4(col);
+            uint16_t e1l = 0, e1h = 0;
+            uint32_t e1;
+
+            /*
+             * Eight control bits select two elements from each row.
+             * The elements may be non-contiguous, so assemble them
+             * locally into e1.
+             * Pseudo-code has a triple loop running forward, with a
+             * test for (i < 2) to limit construction to 2 elements.
+             * Easier to run a single loop backward, shifting extra
+             * elements off the top.
+             */
+            uint64_t this_ctrl = extractn(zk, ctrl_base + col * 8, 8);
+            for (int e = 3; e >= 0; e--) {
+                if (this_ctrl & (0x01 << e)) {
+                    e1l = (e1l << 8) | zn0[H1(4 * row + e)];
+                }
+                if (this_ctrl & (0x10 << e)) {
+                    e1h = (e1h << 8) | zn1[H1(4 * row + e)];
+                }
+            }
+            e1 = (e1h << 16) | e1l;
+
+            fn(e3, &e1, e2, fn_opaque);
+        }
+    }
+}
+
 static void inner_fmop4a_hh(void *vd, void *vn, void *vm, void *vinfo)
 {
     float16 *d = vd, *n = vn, *m = vm;

@@ -555,4 +555,11 @@ void sme_mop4(void *vza, void *vzn, void *vzm, void *fn_opaque,
               uint32_t desc, size_t esize,
               void (*fn)(void *, void *, void *, void *));
 
+/*
+ * Perform SME sparse outer product, 4-way, 8 to 32-bit.
+ */
+void sme_tmop_4way_sb(uint32_t *za, uint8_t *zn0, uint32_t *zm,
+                      uint64_t *zk, void *fn_opaque, uint32_t desc,
+                      void (*fn)(void *, void *, void *, void *));
+
 #endif /* TARGET_ARM_VEC_INTERNAL_H */
