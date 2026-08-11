@@ -731,4 +731,5 @@ config AXIADO_SOC
     select ARM_GIC
     select CADENCE # UART
     select AXIADO_CLK
+    select AXIADO_SDHCI
     select UNIMP
