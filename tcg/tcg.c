@@ -1211,6 +1211,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_sextract, TCGOutOpExtract, outop_sextract),
     OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
     OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
+    OUTOP(INDEX_op_smax, TCGOutOpBinary, outop_smax),
+    OUTOP(INDEX_op_smin, TCGOutOpBinary, outop_smin),
     OUTOP(INDEX_op_st, TCGOutOpStore, outop_st),
     OUTOP(INDEX_op_st8, TCGOutOpStore, outop_st8),
     OUTOP(INDEX_op_st16, TCGOutOpStore, outop_st16),
@@ -1220,6 +1222,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_subbo, TCGOutOpAddSubCarry, outop_subbo),
     /* subb1o is implemented with set_borrow + subbio */
     OUTOP(INDEX_op_subb1o, TCGOutOpAddSubCarry, outop_subbio),
+    OUTOP(INDEX_op_umax, TCGOutOpBinary, outop_umax),
+    OUTOP(INDEX_op_umin, TCGOutOpBinary, outop_umin),
     OUTOP(INDEX_op_xor, TCGOutOpBinary, outop_xor),
 
     [INDEX_op_goto_ptr] = &outop_goto_ptr,
@@ -5518,6 +5522,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_sar:
     case INDEX_op_shl:
     case INDEX_op_shr:
+    case INDEX_op_smax:
+    case INDEX_op_smin:
+    case INDEX_op_umax:
+    case INDEX_op_umin:
     case INDEX_op_xor:
         {
             const TCGOutOpBinary *out =

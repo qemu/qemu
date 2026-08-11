@@ -317,6 +317,18 @@ Arithmetic
          pass 0 to *nh* to make a simple zero-extension of *nl*,
          so overflow should never occur.
 
+   * - smax *t0*, *t1*, *t2*
+
+       umax *t0*, *t1*, *t2*
+
+     - | *t0* = MAX(*t1*, *t2*), for signed and unsigned integers.
+
+   * - smin *t0*, *t1*, *t2*
+
+       umin *t0*, *t1*, *t2*
+
+     - | *t0* = MIN(*t1*, *t2*), for signed and unsigned integers.
+
 Logical
 -------
 
