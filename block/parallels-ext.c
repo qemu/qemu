@@ -290,6 +290,7 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
 
         switch (fh.magic) {
         case PARALLELS_END_OF_FEATURES_MAGIC:
+            g_slist_free(bitmaps);
             return 0;
 
         case PARALLELS_DIRTY_BITMAP_FEATURE_MAGIC:
