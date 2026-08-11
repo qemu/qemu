@@ -38,12 +38,14 @@ struct NMIClass {
     InterfaceClass parent_class;
 
     /**
-     * nmi_monitor_handler: Callback to handle NMI notifications.
-     *
+     * raise_nmi: Callback to handle NMI notifications.
      * @ns: Class #NMIState state
      * @errp: pointer to error object
+     *
+     * Called by nmi_inject() to perform the machine-specific
+     * action when a NMI is requested.
      */
-    void (*nmi_monitor_handler)(NMIState *ns, Error **errp);
+    void (*raise_nmi)(NMIState *ns, Error **errp);
 };
 
 /**
@@ -58,7 +60,7 @@ struct NMIClass {
  * and on s390 it triggers the RESTART interrupt on the first CPU.)
  *
  * The NMI is injected by looking for a QOM object which implements
- * the TYPE_NMI interface, and calling its nmi_monitor_handler method. Usually
+ * the TYPE_NMI interface, and calling its raise_nmi method. Usually
  * it is the machine model class that implements this interface.
  *
  * Not all machines implement NMI handling; this function
