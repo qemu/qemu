@@ -597,6 +597,30 @@ static uint64_t do_constant_folding_2(TCGOpcode op, TCGType type,
         }
         return (uint64_t)x % ((uint64_t)y ? : 1);
 
+    case INDEX_op_smax:
+        if (type == TCG_TYPE_I32) {
+            return MAX((int32_t)x, (int32_t)y);
+        }
+        return MAX((int64_t)x, (int64_t)y);
+
+    case INDEX_op_smin:
+        if (type == TCG_TYPE_I32) {
+            return MIN((int32_t)x, (int32_t)y);
+        }
+        return MIN((int64_t)x, (int64_t)y);
+
+    case INDEX_op_umax:
+        if (type == TCG_TYPE_I32) {
+            return MAX((uint32_t)x, (uint32_t)y);
+        }
+        return MAX((uint64_t)x, (uint64_t)y);
+
+    case INDEX_op_umin:
+        if (type == TCG_TYPE_I32) {
+            return MIN((uint32_t)x, (uint32_t)y);
+        }
+        return MIN((uint64_t)x, (uint64_t)y);
+
     default:
         g_assert_not_reached();
     }
@@ -2101,6 +2125,16 @@ static bool fold_mb(OptContext *ctx, TCGOp *op)
     return true;
 }
 
+static bool fold_minmax(OptContext *ctx, TCGOp *op, uint64_t bound)
+{
+    if (fold_const2_commutative(ctx, op) ||
+        fold_xi_to_i(ctx, op, bound) ||
+        fold_xx_to_x(ctx, op)) {
+        return true;
+    }
+    return finish_folding(ctx, op);
+}
+
 static bool fold_mov(OptContext *ctx, TCGOp *op)
 {
     return tcg_opt_gen_mov(ctx, op, op->args[0], op->args[1]);
@@ -3258,6 +3292,14 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_sextract:
             done = fold_sextract(&ctx, op);
             break;
+        case INDEX_op_smax:
+            done = fold_minmax(&ctx, op, (ctx.type == TCG_TYPE_I32
+                                          ? INT32_MAX : INT64_MAX));
+            break;
+        case INDEX_op_smin:
+            done = fold_minmax(&ctx, op, (ctx.type == TCG_TYPE_I32
+                                          ? INT32_MIN : INT64_MIN));
+            break;
         case INDEX_op_sub:
             done = fold_sub(&ctx, op);
             break;
@@ -3272,6 +3314,16 @@ void tcg_optimize(TCGContext *s)
             break;
         case INDEX_op_sub_vec:
             done = fold_sub_vec(&ctx, op);
+            break;
+        case INDEX_op_umax:
+            /*
+             * Note that 32-bit constants are stored sign extended,
+             * so (int32_t)UINT32_MAX == -1.
+             */
+            done = fold_minmax(&ctx, op, -1);
+            break;
+        case INDEX_op_umin:
+            done = fold_minmax(&ctx, op, 0);
             break;
         case INDEX_op_xor:
         case INDEX_op_xor_vec:
