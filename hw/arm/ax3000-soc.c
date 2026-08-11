@@ -36,6 +36,11 @@ static void ax3000_init(Object *obj)
 
     object_initialize_child(obj, "clk", &s->ax3000_clk, TYPE_AX3000_CLK);
     object_initialize_child(obj, "sdhci0", &s->sdhci0, TYPE_AXIADO_SDHCI);
+
+    for (int i = 0; i < AX3000_NUM_GPIOS; i++) {
+        g_autofree char *name = g_strdup_printf("gpio%d", i);
+        object_initialize_child(obj, name, &s->gpio[i], TYPE_CADENCE_GPIO);
+    }
 }
 
 static void ax3000_realize(DeviceState *dev, Error **errp)
@@ -186,6 +191,31 @@ static void ax3000_realize(DeviceState *dev, Error **errp)
                                 blk_by_legacy_dinfo(dinfo),
                                 &error_fatal);
         qdev_realize_and_unref(card, s->sdhci0.sd_bus, &error_fatal);
+    }
+
+    /* GPIOs */
+    const struct {
+        hwaddr addr;
+        unsigned int irq;
+    } gpio_table[] = {
+        { AX3000_GPIO0_BASE, AX3000_GPIO0_IRQ },
+        { AX3000_GPIO1_BASE, AX3000_GPIO1_IRQ },
+        { AX3000_GPIO2_BASE, AX3000_GPIO2_IRQ },
+        { AX3000_GPIO3_BASE, AX3000_GPIO3_IRQ },
+        { AX3000_GPIO4_BASE, AX3000_GPIO4_IRQ },
+        { AX3000_GPIO5_BASE, AX3000_GPIO5_IRQ },
+        { AX3000_GPIO6_BASE, AX3000_GPIO6_IRQ },
+        { AX3000_GPIO7_BASE, AX3000_GPIO7_IRQ }
+    };
+
+    for (int i = 0; i < AX3000_NUM_GPIOS; i++) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), errp)) {
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[i]), 0, gpio_table[i].addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[i]), 0,
+                           qdev_get_gpio_in(gic_dev, gpio_table[i].irq));
     }
 }
 
