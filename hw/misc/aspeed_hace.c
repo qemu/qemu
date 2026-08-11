@@ -608,13 +608,58 @@ static bool crypt_prepare_direct(AspeedHACEState *s, uint64_t addr,
 }
 
 /*
- * Perform an AES/DES/3DES ECB/CBC operation in direct access mode: the source
- * and destination are single contiguous buffers (HACE00/HACE04) and the IV/key
- * come from the context buffer (HACE08). For CBC the resulting chaining IV is
- * written back to the context buffer so the driver can continue the chain.
+ * Scatter-gather mode: the source/destination register points at an SG list
+ * whose entries are a length word (SG_LIST_LEN_LAST flags the final entry)
+ * followed by a DRAM address, matching the hash engine layout. Gather @len
+ * bytes into @buf, or scatter @buf back out when @to_dram is true.
+ * Returns true on success.
+ */
+static bool crypt_prepare_sg(AspeedHACEState *s, uint64_t addr,
+                             uint8_t *buf, uint32_t len, bool to_dram)
+{
+    uint32_t copied = 0;
+    uint32_t sg_addr;
+    uint32_t sg_len;
+    uint32_t entry;
+    int i;
+
+    for (i = 0; i < ASPEED_HACE_MAX_SG && copied < len; i++) {
+        entry = address_space_ldl_le(&s->dram_as, addr,
+                                     MEMTXATTRS_UNSPECIFIED, NULL);
+        sg_addr = address_space_ldl_le(&s->dram_as, addr + SG_LIST_LEN_SIZE,
+                                       MEMTXATTRS_UNSPECIFIED, NULL);
+        sg_len = entry & SG_LIST_LEN_MASK;
+
+        sg_addr &= SG_LIST_ADDR_MASK;
+        addr += SG_LIST_ENTRY_SIZE;
+
+        if (sg_len > len - copied) {
+            sg_len = len - copied;
+        }
+        if (address_space_rw(&s->dram_as, sg_addr, MEMTXATTRS_UNSPECIFIED,
+                             buf + copied, sg_len, to_dram)) {
+            return false;
+        }
+        copied += sg_len;
+
+        if (entry & SG_LIST_LEN_LAST) {
+            break;
+        }
+    }
+
+    return copied == len;
+}
+
+/*
+ * Perform an AES/DES/3DES ECB/CBC operation. The source and destination are
+ * either single contiguous buffers (direct access mode) or scatter-gather
+ * lists (HACE10[18]/[19]), addressed by HACE00/HACE04; the IV/key come from
+ * the context buffer (HACE08). For CBC the resulting chaining IV is written
+ * back to the context buffer so the driver can continue the chain.
  */
 static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
 {
+    bool sg_mode = cmd & CRYPT_CMD_SRC_SG_CTRL;
     uint32_t len = s->regs[R_CRYPT_DATA_LEN];
     bool encrypt = cmd & CRYPT_CMD_ENCRYPT;
     g_autoptr(QCryptoCipher) cipher = NULL;
@@ -631,6 +676,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     size_t iv_offset;
     size_t blocklen;
     size_t keylen;
+    bool status;
 
     if (len == 0) {
         return;
@@ -684,8 +730,14 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     src_buf = g_malloc0(len);
     dst_buf = g_malloc0(len);
 
+    /* Gather the source into the bounce buffer, per the selected mode. */
     src_addr = s->regs[R_CRYPT_SRC];
-    if (!crypt_prepare_direct(s, src_addr, src_buf, len, false)) {
+    if (sg_mode) {
+        status = crypt_prepare_sg(s, src_addr, src_buf, len, false);
+    } else {
+        status = crypt_prepare_direct(s, src_addr, src_buf, len, false);
+    }
+    if (!status) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Failed to read src, addr=0x%" HWADDR_PRIx "\n",
                       __func__, src_addr);
@@ -714,8 +766,14 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
         }
     }
 
+    /* Scatter the result back out, per the selected mode. */
     dst_addr = s->regs[R_CRYPT_DEST];
-    if (!crypt_prepare_direct(s, dst_addr, dst_buf, len, true)) {
+    if (sg_mode) {
+        status = crypt_prepare_sg(s, dst_addr, dst_buf, len, true);
+    } else {
+        status = crypt_prepare_direct(s, dst_addr, dst_buf, len, true);
+    }
+    if (!status) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Failed to write dst, addr=0x%" HWADDR_PRIx "\n",
                       __func__, dst_addr);
