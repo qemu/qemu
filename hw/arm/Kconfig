@@ -733,3 +733,9 @@ config AXIADO_SOC
     select AXIADO_CLK
     select AXIADO_SDHCI
     select UNIMP
+
+config AXIADO_EVK
+    bool
+    default y
+    depends on TCG && ARM
+    select AXIADO_SOC
