@@ -57,6 +57,11 @@
 #define CRYPT_CTX_KEY_OFFSET        0x10
 #define CRYPT_CTX_SIZE              0x30
 
+/* AST2700 64-bit DMA high address registers for the crypto command */
+#define R_CRYPT_SRC_HI      (0x80 / 4)
+#define R_CRYPT_DEST_HI     (0x84 / 4)
+#define R_CRYPT_CONTEXT_HI  (0x88 / 4)
+
 #define R_STATUS        (0x1c / 4)
 #define HASH_IRQ        BIT(9)
 #define CRYPT_IRQ       BIT(12)
@@ -670,6 +675,19 @@ static void crypt_be_add(uint8_t *ctr, size_t len, uint64_t add)
     }
 }
 
+static uint64_t crypt_get_addr(AspeedHACEState *s, int reg, int reg_hi)
+{
+    AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
+    uint64_t addr;
+
+    addr = deposit64(0, 0, 32, s->regs[reg]);
+    if (ahc->has_dma64) {
+        addr = deposit64(addr, 32, 32, s->regs[reg_hi]);
+    }
+
+    return addr;
+}
+
 /*
  * Perform an AES/DES/3DES ECB/CBC operation. The source and destination are
  * either single contiguous buffers (direct access mode) or scatter-gather
@@ -717,7 +735,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     }
 
     /* Fetch the IV and key from the context buffer in DRAM. */
-    ctx_addr = s->regs[R_CRYPT_CONTEXT];
+    ctx_addr = crypt_get_addr(s, R_CRYPT_CONTEXT, R_CRYPT_CONTEXT_HI);
     if (address_space_read(&s->dram_as, ctx_addr, MEMTXATTRS_UNSPECIFIED,
                            ctx, sizeof(ctx))) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -758,7 +776,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     dst_buf = g_malloc0(buf_len);
 
     /* Gather the source into the bounce buffer, per the selected mode. */
-    src_addr = s->regs[R_CRYPT_SRC];
+    src_addr = crypt_get_addr(s, R_CRYPT_SRC, R_CRYPT_SRC_HI);
     if (sg_mode) {
         status = crypt_prepare_sg(s, src_addr, src_buf, len, false);
     } else {
@@ -794,7 +812,7 @@ static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
     }
 
     /* Scatter the result back out, per the selected mode. */
-    dst_addr = s->regs[R_CRYPT_DEST];
+    dst_addr = crypt_get_addr(s, R_CRYPT_DEST, R_CRYPT_DEST_HI);
     if (sg_mode) {
         status = crypt_prepare_sg(s, dst_addr, dst_buf, len, true);
     } else {
@@ -956,6 +974,15 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         data &= ahc->dest_hi_mask;
         break;
     case R_HASH_KEY_BUFF_HI:
+        data &= ahc->key_hi_mask;
+        break;
+    case R_CRYPT_SRC_HI:
+        data &= ahc->src_hi_mask;
+        break;
+    case R_CRYPT_DEST_HI:
+        data &= ahc->dest_hi_mask;
+        break;
+    case R_CRYPT_CONTEXT_HI:
         data &= ahc->key_hi_mask;
         break;
     default:
