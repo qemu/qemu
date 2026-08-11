@@ -31,6 +31,7 @@
 #include "parallels.h"
 #include "crypto/hash.h"
 #include "qemu/bswap.h"
+#include "qemu/host-utils.h"
 #include "qemu/uuid.h"
 #include "qemu/memalign.h"
 
@@ -122,7 +123,7 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
     BdrvDirtyBitmap *bitmap;
     QemuUUID uuid;
     char uuidstr[UUID_STR_LEN];
-    uint64_t bm_size, tab_size;
+    uint64_t bm_size, tab_size, granularity;
     int i;
 
     if (data_size < sizeof(bf)) {
@@ -133,7 +134,7 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
     }
     memcpy(&bf, data, sizeof(bf));
     bf.size = le64_to_cpu(bf.size);
-    bf.granularity = le32_to_cpu(bf.granularity) << BDRV_SECTOR_BITS;
+    bf.granularity = le32_to_cpu(bf.granularity);
     bf.l1_size = le32_to_cpu(bf.l1_size);
     data += sizeof(bf);
     data_size -= sizeof(bf);
@@ -141,6 +142,16 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
     if (bf.size != bs->total_sectors) {
         error_setg(errp, "Bitmap size (in sectors) %" PRId64 " differs from "
                    "disk size in sectors %" PRId64, bf.size, bs->total_sectors);
+        return NULL;
+    }
+
+    /* bdrv_create_dirty_bitmap() asserts on an unusable granularity */
+    granularity = (uint64_t)bf.granularity << BDRV_SECTOR_BITS;
+    if (granularity < BDRV_SECTOR_SIZE || granularity > UINT32_MAX ||
+        !is_power_of_2(granularity)) {
+        error_setg(errp, "Invalid bitmap granularity %" PRIu64 ", expected a "
+                   "power of two of at least %" PRIu64 " bytes", granularity,
+                   (uint64_t)BDRV_SECTOR_SIZE);
         return NULL;
     }
 
@@ -152,7 +163,7 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
 
     memcpy(&uuid, bf.id, sizeof(uuid));
     qemu_uuid_unparse(&uuid, uuidstr);
-    bitmap = bdrv_create_dirty_bitmap(bs, bf.granularity, uuidstr, errp);
+    bitmap = bdrv_create_dirty_bitmap(bs, granularity, uuidstr, errp);
     if (!bitmap) {
         return NULL;
     }
