@@ -1137,7 +1137,10 @@ USMOP4_dh       1010 0001 110. ...0 0000 00.. ..0. 1...         @mop4_o3
 &tmop           zad zn zm zk idx
 %tmop_zk        10:3 !function=expand_tmop_zk
 
+@tmop_o1        .... .... ... zm:5 ... ... .... idx:2 ... zad:1 \
+                &tmop zn=%zn_ax2 zk=%tmop_zk
 @tmop_o2        .... .... ... zm:5 ... ... .... idx:2 .. zad:2 \
                 &tmop zn=%zn_ax2 zk=%tmop_zk
 
+FTMOPA_hh       1000 0001 010 ..... 000 ... .... .. 100 .       @tmop_o1
 FTMOPA_ss       1000 0000 010 ..... 000 ... .... .. 00 ..       @tmop_o2
