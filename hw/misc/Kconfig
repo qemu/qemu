@@ -257,4 +257,7 @@ config XLNX_VERSAL_TRNG
 config XLNX_ZYNQ_DDRC
     bool
 
+config AXIADO_CLK
+    bool
+
 source macio/Kconfig
