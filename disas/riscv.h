@@ -186,7 +186,6 @@ typedef struct {
     short decomp_rv32;
     short decomp_rv64;
     short decomp_rv128;
-    short decomp_data;
 } rv_opcode_data;
 
 typedef struct {
@@ -215,10 +214,6 @@ typedef struct {
 
 enum {
     rv_op_illegal = 0
-};
-
-enum {
-    rvcd_imm_nz = 0x1
 };
 
 /* instruction formats */
