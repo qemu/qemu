@@ -7,8 +7,9 @@
 #ifndef HEXAGON_MMU_H
 #define HEXAGON_MMU_H
 
+#include "exec/hwaddr.h"
+#include "exec/mmu-access-type.h"
 #include "cpu.h"
-#include "monitor/monitor.h"
 
 extern void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value);
 extern uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA);
