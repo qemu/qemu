@@ -19,6 +19,17 @@
  *   r0-r30 at indices 0-30, pc at 31, ps at 32.
  * r31 (hardwired zero) is not stored; pc occupies index 31.
  */
+/*
+ * The floating-point note holds $f0 through $f30 and then the control
+ * register in the slot $f31 would occupy; $f31 reads as zero.
+ */
+#define HAVE_ELF_CORE_FPREGS    1
+
+typedef struct target_elf_fpregset_t {
+    uint64_t fpr[31];    /* $f0-$f30 */
+    uint64_t fpcr;       /* the slot for $f31 */
+} target_elf_fpregset_t;
+
 typedef struct target_elf_gregset_t {
     abi_ulong regs[31];  /* integer registers r0-r30  [0..30] */
     abi_ulong pc;        /* program counter           [31]    */

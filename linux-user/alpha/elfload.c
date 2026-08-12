@@ -32,3 +32,13 @@ const char *get_elf_cpu_model(uint32_t eflags)
 {
     return "ev67";
 }
+
+void elf_core_copy_fpregs(target_elf_fpregset_t *r, const CPUAlphaState *env)
+{
+    int i;
+
+    for (i = 0; i < 31; i++) {
+        r->fpr[i] = tswap64(env->fir[i]);
+    }
+    r->fpcr = tswap64(cpu_alpha_load_fpcr((CPUAlphaState *)env));
+}
