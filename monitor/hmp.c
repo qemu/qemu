@@ -1519,7 +1519,8 @@ cleanup:
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
-    MonitorHMP *hmp = container_of(opaque, MonitorHMP, parent_obj);
+    Monitor *mon = opaque;
+    MonitorHMP *hmp = container_of(mon, MonitorHMP, parent_obj);
     int i;
 
     if (hmp->rs) {
