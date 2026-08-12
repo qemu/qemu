@@ -1656,7 +1656,7 @@ static uint32_t operand_lpl(rv_inst inst)
 
 /* instruction metadata */
 
-const rv_opcode_data rvi_opcode_data[] = {
+static const rv_opcode_data rvi_opcode_data[] = {
     { "illegal", rv_codec_illegal, rv_fmt_none, NULL, 0, 0, 0 },
     { "lui", rv_codec_u, rv_fmt_rd_uimm, NULL, 0, 0, 0 },
     { "auipc", rv_codec_u, rv_fmt_rd_uoffset, NULL, 0, 0, 0 },
@@ -2948,6 +2948,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
 {
     rv_inst inst = dec->inst;
     rv_opcode op = rv_op_illegal;
+
     switch ((inst >> 0) & 0b11) {
     case 0:
         switch ((inst >> 13) & 0b111) {
@@ -4590,6 +4591,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
         }
         break;
     }
+
+    dec->opcode_data = rvi_opcode_data;
     dec->op = op;
 }
 
@@ -5421,33 +5424,30 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
     };
     const rv_opcode_data *op;
 
-    dec.opcode_data = rvi_opcode_data;
     decode_inst_opcode(&dec, isa);
 
     if (dec.op == rv_op_illegal && cfg) {
         static const struct {
             bool (*guard_func)(const RISCVCPUConfig *);
-            const rv_opcode_data *opcode_data;
             void (*decode_func)(rv_decode *, rv_isa);
         } decoders[] = {
-            { has_xtheadba_p, xthead_opcode_data, decode_xtheadba },
-            { has_xtheadbb_p, xthead_opcode_data, decode_xtheadbb },
-            { has_xtheadbs_p, xthead_opcode_data, decode_xtheadbs },
-            { has_xtheadcmo_p, xthead_opcode_data, decode_xtheadcmo },
-            { has_xtheadcondmov_p, xthead_opcode_data, decode_xtheadcondmov },
-            { has_xtheadfmemidx_p, xthead_opcode_data, decode_xtheadfmemidx },
-            { has_xtheadfmv_p, xthead_opcode_data, decode_xtheadfmv },
-            { has_xtheadmac_p, xthead_opcode_data, decode_xtheadmac },
-            { has_xtheadmemidx_p, xthead_opcode_data, decode_xtheadmemidx },
-            { has_xtheadmempair_p, xthead_opcode_data, decode_xtheadmempair },
-            { has_xtheadsync_p, xthead_opcode_data, decode_xtheadsync },
-            { has_XVentanaCondOps_p, ventana_opcode_data, decode_xventanacondops },
-            { has_xlrbr_p, rv_xlrbr_opcode_data, decode_xlrbr },
+            { has_xtheadba_p, decode_xtheadba },
+            { has_xtheadbb_p, decode_xtheadbb },
+            { has_xtheadbs_p, decode_xtheadbs },
+            { has_xtheadcmo_p, decode_xtheadcmo },
+            { has_xtheadcondmov_p, decode_xtheadcondmov },
+            { has_xtheadfmemidx_p, decode_xtheadfmemidx },
+            { has_xtheadfmv_p, decode_xtheadfmv },
+            { has_xtheadmac_p, decode_xtheadmac },
+            { has_xtheadmemidx_p, decode_xtheadmemidx },
+            { has_xtheadmempair_p, decode_xtheadmempair },
+            { has_xtheadsync_p, decode_xtheadsync },
+            { has_XVentanaCondOps_p, decode_xventanacondops },
+            { has_xlrbr_p, decode_xlrbr },
         };
 
         for (size_t i = 0; i < ARRAY_SIZE(decoders); i++) {
             if (decoders[i].guard_func(cfg)) {
-                dec.opcode_data = decoders[i].opcode_data;
                 decoders[i].decode_func(&dec, isa);
                 if (dec.op != rv_op_illegal) {
                     break;

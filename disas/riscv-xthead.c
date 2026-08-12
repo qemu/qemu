@@ -127,7 +127,7 @@ typedef enum {
     rv_op_th_sync_s,
 } rv_xthead_op;
 
-const rv_opcode_data xthead_opcode_data[] = {
+static const rv_opcode_data xthead_opcode_data[] = {
     { "th.illegal", rv_codec_illegal, rv_fmt_none, NULL, 0, 0, 0 },
     /* XTheadBa */
     { "th.addsl", rv_codec_r_imm2, rv_fmt_rd_rs1_rs2_imm, NULL, 0, 0, 0 },
@@ -272,6 +272,7 @@ void decode_xtheadba(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -330,6 +331,7 @@ void decode_xtheadbb(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -356,6 +358,7 @@ void decode_xtheadbs(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -434,6 +437,7 @@ void decode_xtheadcmo(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -461,6 +465,7 @@ void decode_xtheadcondmov(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -498,6 +503,7 @@ void decode_xtheadfmemidx(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -533,6 +539,7 @@ void decode_xtheadfmv(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -564,6 +571,7 @@ void decode_xtheadmac(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -638,6 +646,7 @@ void decode_xtheadmemidx(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -672,6 +681,7 @@ void decode_xtheadmempair(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }
 
@@ -706,5 +716,6 @@ void decode_xtheadsync(rv_decode *dec, rv_isa isa)
         break;
     }
 
+    dec->opcode_data = xthead_opcode_data;
     dec->op = op;
 }

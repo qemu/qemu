@@ -24,7 +24,7 @@ typedef enum {
     rv_op_crc32c_d = 8,
 } rv_xlrbr_op;
 
-const rv_opcode_data rv_xlrbr_opcode_data[] = {
+static const rv_opcode_data xlrbr_opcode_data[] = {
     { "illegal", rv_codec_illegal, rv_fmt_none, NULL, 0, 0, 0 },
     { "crc32.b", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     { "crc32.h", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
@@ -75,5 +75,7 @@ void decode_xlrbr(rv_decode *dec, rv_isa isa)
         }
         break;
     }
+
+    dec->opcode_data = xlrbr_opcode_data;
     dec->op = op;
 }

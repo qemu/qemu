@@ -11,8 +11,6 @@
 
 #include "disas/riscv.h"
 
-extern const rv_opcode_data xthead_opcode_data[];
-
 void decode_xtheadba(rv_decode *, rv_isa);
 void decode_xtheadbb(rv_decode *, rv_isa);
 void decode_xtheadbs(rv_decode *, rv_isa);
