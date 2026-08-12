@@ -1,7 +1,6 @@
 #ifndef MONITOR_H
 #define MONITOR_H
 
-#include "block/block.h"
 #include "qapi/qapi-types-misc.h"
 #include "qemu/coroutine-core.h"
 #include "qemu/readline.h"
