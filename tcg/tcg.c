@@ -1835,7 +1835,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
     next = (void *)ROUND_UP((uintptr_t)(tb + 1), align);
 
     if (unlikely(next > s->code_gen_highwater)) {
-        if (tcg_region_alloc(s)) {
+        if (!tcg_region_alloc(s)) {
             return NULL;
         }
         goto retry;
