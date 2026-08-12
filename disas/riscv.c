@@ -5321,12 +5321,14 @@ static GString *disasm_inst(rv_isa isa, uint64_t pc, rv_inst inst,
             }
         }
     }
-    if (!op) {
+
+    if (op) {
+        decode_inst_operands(&dec, isa, op);
+        op = decode_inst_lift_pseudo(&dec, op);
+    } else {
         op = &rvi_opcode_data[rv_op_illegal];
     }
 
-    decode_inst_operands(&dec, isa, op);
-    op = decode_inst_lift_pseudo(&dec, op);
     return format_inst(24, &dec, op);
 }
 
