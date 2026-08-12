@@ -30,6 +30,7 @@
 #include "qapi/qapi-visit-control.h"
 #include "qobject/qdict.h"
 #include "qom/object_interfaces.h"
+#include "qemu/aio-wait.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "system/qtest.h"
