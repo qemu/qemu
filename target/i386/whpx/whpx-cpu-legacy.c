@@ -113,7 +113,7 @@ uint32_t whpx_get_supported_cpuid_legacy(uint32_t func, uint32_t idx,
         if (idx == 0) {
             eax = supported_xcr0;
         } else if (idx == 1) {
-            eax &= CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1;
+            eax &= CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1 | CPUID_XSAVE_XSAVES;
             if (!whpx_has_xsaves()) {
                 eax &= ~CPUID_XSAVE_XSAVES;
             }
