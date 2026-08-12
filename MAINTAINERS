@@ -3875,6 +3875,7 @@ Migration dirty limit and dirty page rate
 M: Hyman Huang <infra.ai.cloud@bitdeer.com>
 S: Maintained
 F: system/dirtylimit.c
+F: system/dirtylimit-hmp-cmds.c
 F: include/system/dirtylimit.h
 F: migration/dirtyrate.c
 F: migration/dirtyrate.h
