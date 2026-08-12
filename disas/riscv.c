@@ -326,10 +326,6 @@ typedef enum {
     rv_op_bgez = 295,
     rv_op_bltz = 296,
     rv_op_bgtz = 297,
-    rv_op_ble = 298,
-    rv_op_bleu = 299,
-    rv_op_bgt = 300,
-    rv_op_bgtu = 301,
     rv_op_j = 302,
     rv_op_ret = 303,
     rv_op_jr = 304,
@@ -1062,10 +1058,6 @@ static const rvc_constraint rvcc_blez[] = { rvc_rs1_eq_x0, rvc_end };
 static const rvc_constraint rvcc_bgez[] = { rvc_rs2_eq_x0, rvc_end };
 static const rvc_constraint rvcc_bltz[] = { rvc_rs2_eq_x0, rvc_end };
 static const rvc_constraint rvcc_bgtz[] = { rvc_rs1_eq_x0, rvc_end };
-static const rvc_constraint rvcc_ble[] = { rvc_end };
-static const rvc_constraint rvcc_bleu[] = { rvc_end };
-static const rvc_constraint rvcc_bgt[] = { rvc_end };
-static const rvc_constraint rvcc_bgtu[] = { rvc_end };
 static const rvc_constraint rvcc_j[] = { rvc_rd_eq_x0, rvc_end };
 static const rvc_constraint rvcc_ret[] = { rvc_rd_eq_x0, rvc_rs1_eq_ra,
                                            rvc_end };
@@ -1123,24 +1115,12 @@ static const rv_comp_data rvcp_bne[] = {
 static const rv_comp_data rvcp_blt[] = {
     { rv_op_bltz, rvcc_bltz },
     { rv_op_bgtz, rvcc_bgtz },
-    { rv_op_bgt, rvcc_bgt },
     { rv_op_illegal, NULL }
 };
 
 static const rv_comp_data rvcp_bge[] = {
     { rv_op_blez, rvcc_blez },
     { rv_op_bgez, rvcc_bgez },
-    { rv_op_ble, rvcc_ble },
-    { rv_op_illegal, NULL }
-};
-
-static const rv_comp_data rvcp_bltu[] = {
-    { rv_op_bgtu, rvcc_bgtu },
-    { rv_op_illegal, NULL }
-};
-
-static const rv_comp_data rvcp_bgeu[] = {
-    { rv_op_bleu, rvcc_bleu },
     { rv_op_illegal, NULL }
 };
 
@@ -1665,8 +1645,8 @@ static const rv_opcode_data rvi_opcode_data[] = {
     { "bne", rv_codec_sb, rv_fmt_rs1_rs2_offset, rvcp_bne },
     { "blt", rv_codec_sb, rv_fmt_rs1_rs2_offset, rvcp_blt },
     { "bge", rv_codec_sb, rv_fmt_rs1_rs2_offset, rvcp_bge },
-    { "bltu", rv_codec_sb, rv_fmt_rs1_rs2_offset, rvcp_bltu },
-    { "bgeu", rv_codec_sb, rv_fmt_rs1_rs2_offset, rvcp_bgeu },
+    { "bltu", rv_codec_sb, rv_fmt_rs1_rs2_offset },
+    { "bgeu", rv_codec_sb, rv_fmt_rs1_rs2_offset },
     { "lb", rv_codec_i, rv_fmt_rd_offset_rs1 },
     { "lh", rv_codec_i, rv_fmt_rd_offset_rs1 },
     { "lw", rv_codec_i, rv_fmt_rd_offset_rs1 },
@@ -1954,10 +1934,10 @@ static const rv_opcode_data rvi_opcode_data[] = {
     { "bgez", rv_codec_sb, rv_fmt_rs1_offset },
     { "bltz", rv_codec_sb, rv_fmt_rs1_offset },
     { "bgtz", rv_codec_sb, rv_fmt_rs2_offset },
-    { "ble", rv_codec_sb, rv_fmt_rs2_rs1_offset },
-    { "bleu", rv_codec_sb, rv_fmt_rs2_rs1_offset },
-    { "bgt", rv_codec_sb, rv_fmt_rs2_rs1_offset },
-    { "bgtu", rv_codec_sb, rv_fmt_rs2_rs1_offset },
+    { },
+    { },
+    { },
+    { },
     { "j", rv_codec_uj, rv_fmt_offset },
     { "ret", rv_codec_i, rv_fmt_none },
     { "jr", rv_codec_i, rv_fmt_rs1 },
