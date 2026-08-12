@@ -290,7 +290,7 @@ void hmp_info_sync_profile(Monitor *mon, const QDict *qdict)
 
 void hmp_info_history(Monitor *mon, const QDict *qdict)
 {
-    MonitorHMP *hmp = container_of(mon, MonitorHMP, parent_obj);
+    MonitorHMP *hmp = MONITOR_HMP(mon);
     int i;
     const char *str;
 

@@ -19,7 +19,7 @@
 #endif
 #include "monitor/hmp.h"
 #include "monitor/hmp-completion.h"
-#include "monitor/monitor-internal.h"
+#include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qobject/qdict.h"
@@ -343,7 +343,7 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
         return;
     }
     if (!arg) {
-        MonitorHMP *hmp = container_of(mon, MonitorHMP, parent_obj);
+        MonitorHMP *hmp = MONITOR_HMP(mon);
         monitor_read_password(hmp, hmp_change_read_arg, NULL);
     } else {
         qmp_change_vnc_password(arg, errp);
