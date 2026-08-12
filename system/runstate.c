@@ -52,6 +52,7 @@
 #include "qemu/thread.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
+#include "system/cpu-timers.h"
 #include "system/cpus.h"
 #include "system/qtest.h"
 #include "system/replay.h"
@@ -406,6 +407,159 @@ int vm_state_notify(bool running, RunState state)
         }
     }
     return ret;
+}
+
+/*
+ * True if the vm was previously suspended, and has not been woken or reset.
+ */
+static int vm_was_suspended;
+
+void vm_set_suspended(bool suspended)
+{
+    vm_was_suspended = suspended;
+}
+
+bool vm_get_suspended(void)
+{
+    return vm_was_suspended;
+}
+
+static int do_vm_stop(RunState state, bool send_stop)
+{
+    int ret = 0;
+    RunState oldstate = runstate_get();
+
+    if (runstate_is_live(oldstate)) {
+        vm_was_suspended = (oldstate == RUN_STATE_SUSPENDED);
+        runstate_set(state);
+        cpu_disable_ticks();
+        if (oldstate == RUN_STATE_RUNNING) {
+            pause_all_vcpus();
+        }
+        ret = vm_state_notify(0, state);
+        if (send_stop) {
+            qapi_event_send_stop();
+        }
+    }
+
+    bdrv_drain_all();
+    /*
+     * Even if vm_state_notify() return failure,
+     * it would be better to flush as before.
+     */
+    ret |= bdrv_flush_all();
+    trace_vm_stop_flush_all(ret);
+
+    return ret;
+}
+
+/*
+ * Special vm_stop() variant for terminating the process.  Historically clients
+ * did not expect a QMP STOP event and so we need to retain compatibility.
+ */
+int vm_shutdown(void)
+{
+    return do_vm_stop(RUN_STATE_SHUTDOWN, false);
+}
+
+
+int vm_stop(RunState state)
+{
+    if (qemu_in_vcpu_thread()) {
+        qemu_system_vmstop_request_prepare();
+        qemu_system_vmstop_request(state);
+        /*
+         * FIXME: should not return to device code in case
+         * vm_stop() has been requested.
+         */
+        cpu_stop_current();
+        return 0;
+    }
+
+    return do_vm_stop(state, true);
+}
+
+/**
+ * Prepare for (re)starting the VM.
+ * Returns 0 if the vCPUs should be restarted, -1 on an error condition,
+ * and 1 otherwise.
+ */
+int vm_prepare_start(bool step_pending)
+{
+    int ret = vm_was_suspended ? 1 : 0;
+    RunState state = vm_was_suspended ? RUN_STATE_SUSPENDED : RUN_STATE_RUNNING;
+    RunState requested;
+
+    qemu_vmstop_requested(&requested);
+    if (runstate_is_running() && requested == RUN_STATE__MAX) {
+        return -1;
+    }
+
+    /*
+     * Ensure that a STOP/RESUME pair of events is emitted if a
+     * vmstop request was pending.  The BLOCK_IO_ERROR event, for
+     * example, according to documentation is always followed by
+     * the STOP event.
+     */
+    if (runstate_is_running()) {
+        qapi_event_send_stop();
+        qapi_event_send_resume();
+        return -1;
+    }
+
+    /*
+     * WHPX accelerator needs to know whether we are going to step
+     * any CPUs, before starting the first one.
+     */
+    accel_pre_resume(MACHINE(qdev_get_machine()), step_pending);
+
+    /* We are sending this now, but the CPUs will be resumed shortly later */
+    qapi_event_send_resume();
+
+    cpu_enable_ticks();
+    runstate_set(state);
+    vm_state_notify(1, state);
+    vm_was_suspended = false;
+    return ret;
+}
+
+void vm_start(void)
+{
+    if (!vm_prepare_start(false)) {
+        resume_all_vcpus();
+    }
+}
+
+void vm_resume(RunState state)
+{
+    if (runstate_is_live(state)) {
+        vm_start();
+    } else {
+        runstate_set(state);
+    }
+}
+
+/*
+ * does a state transition even if the VM is already stopped,
+ * current state is forgotten forever
+ */
+int vm_stop_force_state(RunState state)
+{
+    if (runstate_is_live(runstate_get())) {
+        return vm_stop(state);
+    } else {
+        int ret;
+        runstate_set(state);
+
+        bdrv_drain_all();
+        /*
+         * Make sure to return an error if the flush in a previous vm_stop()
+         * failed.
+         */
+        ret = bdrv_flush_all();
+        trace_vm_stop_flush_all(ret);
+        return ret;
+    }
 }
 
 static ShutdownCause reset_requested;
