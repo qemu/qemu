@@ -15,9 +15,9 @@ typedef enum {
 } rv_ventana_op;
 
 static const rv_opcode_data ventana_opcode_data[] = {
-    { "vt.illegal", rv_codec_illegal, rv_fmt_none, NULL, 0, 0, 0 },
-    { "vt.maskc", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
-    { "vt.maskcn", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
+    { "vt.illegal", rv_codec_illegal, rv_fmt_none },
+    { "vt.maskc", rv_codec_r, rv_fmt_rd_rs1_rs2 },
+    { "vt.maskcn", rv_codec_r, rv_fmt_rd_rs1_rs2 },
 };
 
 void decode_xventanacondops(rv_decode *dec, rv_isa isa)

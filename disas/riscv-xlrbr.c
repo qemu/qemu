@@ -25,15 +25,15 @@ typedef enum {
 } rv_xlrbr_op;
 
 static const rv_opcode_data xlrbr_opcode_data[] = {
-    { "illegal", rv_codec_illegal, rv_fmt_none, NULL, 0, 0, 0 },
-    { "crc32.b", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32.h", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32.w", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32.d", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32c.b", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32c.h", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32c.w", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "crc32c.d", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
+    { "illegal", rv_codec_illegal, rv_fmt_none },
+    { "crc32.b", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32.h", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32.w", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32.d", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32c.b", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32c.h", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32c.w", rv_codec_r, rv_fmt_rd_rs1 },
+    { "crc32c.d", rv_codec_r, rv_fmt_rd_rs1 },
 };
 
 void decode_xlrbr(rv_decode *dec, rv_isa isa)
