@@ -115,7 +115,7 @@ static const WHV_REGISTER_NAME whpx_register_names[] = {
 #ifdef TARGET_X86_64
     WHvX64RegisterKernelGsBase,
 #endif
-    /* WHvX64RegisterPat, */
+    WHvX64RegisterPat,
     WHvX64RegisterSysenterCs,
     WHvX64RegisterSysenterEip,
     WHvX64RegisterSysenterEsp,
@@ -624,9 +624,8 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
         assert(whpx_register_names[idx] == WHvX64RegisterKernelGsBase);
         vcxt.values[idx++].Reg64 = env->kernelgsbase;
 #endif
-
-        /* WHvX64RegisterPat - Skipped */
-
+        assert(whpx_register_names[idx] == WHvX64RegisterPat);
+        vcxt.values[idx++].Reg64 = env->pat;
         assert(whpx_register_names[idx] == WHvX64RegisterSysenterCs);
         vcxt.values[idx++].Reg64 = env->sysenter_cs;
         assert(whpx_register_names[idx] == WHvX64RegisterSysenterEip);
@@ -962,9 +961,8 @@ void whpx_get_registers(CPUState *cpu, WHPXStateLevel level)
     assert(whpx_register_names[idx] == WHvX64RegisterKernelGsBase);
     env->kernelgsbase = vcxt.values[idx++].Reg64;
 #endif
-
-    /* WHvX64RegisterPat - Skipped */
-
+    assert(whpx_register_names[idx] == WHvX64RegisterPat);
+    env->pat = vcxt.values[idx++].Reg64;
     assert(whpx_register_names[idx] == WHvX64RegisterSysenterCs);
     env->sysenter_cs = vcxt.values[idx++].Reg64;
     assert(whpx_register_names[idx] == WHvX64RegisterSysenterEip);
