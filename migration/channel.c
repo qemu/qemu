@@ -296,9 +296,16 @@ int migration_channel_read_peek(QIOChannel *ioc,
 
         if (len == buflen) {
             break;
+        } else if (len == QIO_CHANNEL_ERR_BLOCK) {
+            qio_channel_wait_cond(ioc, G_IO_IN);
+        } else {
+            /*
+             * When partially ready, we can't use qio_channel_wait_cond()
+             * because it will return immediately.  Apply a manual wait.
+             */
+            assert(!qemu_in_coroutine());
+            g_usleep(1000);
         }
-
-        qio_channel_wait_cond(ioc, G_IO_IN);
     }
 
     return 0;
