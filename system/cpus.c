@@ -26,7 +26,6 @@
 #include "qemu/coroutine-tls.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
-#include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/qmp/qerror.h"
 #include "exec/gdbstub.h"
@@ -38,7 +37,6 @@
 #include "qemu/plugin.h"
 #include "system/cpus.h"
 #include "qemu/guest-random.h"
-#include "hw/core/nmi.h"
 #include "system/physmem.h"
 #include "system/replay.h"
 #include "system/runstate.h"
@@ -922,9 +920,3 @@ void qmp_pmemsave(uint64_t addr, uint64_t size, const char *filename,
 exit:
     fclose(f);
 }
-
-void qmp_inject_nmi(Error **errp)
-{
-    nmi_inject(errp);
-}
-

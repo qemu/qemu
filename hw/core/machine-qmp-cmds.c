@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "hw/acpi/vmgenid.h"
 #include "hw/core/boards.h"
+#include "hw/core/nmi.h"
 #include "hw/intc/intc.h"
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"
@@ -447,4 +448,9 @@ void qmp_dump_skeys(const char *filename, Error **errp)
         return;
     }
     DUMP_SKEYS_INTERFACE_CLASS(oc)->qmp_dump_skeys(filename, errp);
+}
+
+void qmp_inject_nmi(Error **errp)
+{
+    nmi_inject(errp);
 }
