@@ -730,3 +730,18 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config AXIADO_SOC
+    bool
+    select ARM_GIC
+    select CADENCE # UART
+    select AXIADO_CLK
+    select CADENCE_GPIO
+    select AXIADO_SDHCI
+    select UNIMP
+
+config AXIADO_EVK
+    bool
+    default y
+    depends on TCG && ARM
+    select AXIADO_SOC

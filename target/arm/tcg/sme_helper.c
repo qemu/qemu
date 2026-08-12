@@ -2636,6 +2636,137 @@ void sme_mop4(void *vza, void *vzn, void *vzm, void *fn_opaque,
     }
 }
 
+/*
+ * Sparse outer product, non-widening.  ESZ in {16, 32}.
+ */
+static void sme_tmop(void *vza, void *vzn, void *vzm, uint64_t *zk,
+                     void *fn_opaque, uint32_t desc, MemOp esz,
+                     void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t index = simd_data(desc);
+    intptr_t esize = 1 << esz;
+    intptr_t host_adj = HOST_BIG_ENDIAN ? 8 - esize : 0;
+    /* Base in bits for op3[index*:csize], csize = (VL * 2) / esize. */
+    intptr_t ctrl_base = index * oprsz * 2;
+    /* Create a zero for use with the largest esz. */
+    uint32_t zero = 0;
+
+    for (intptr_t row = 0; row < oprsz; row += esize) {
+        void *vza_row = vza + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < oprsz; col += esize) {
+            void *e2 = vzm + (col ^ host_adj);
+            void *e3 = vza_row + (col ^ host_adj);
+
+            /*
+             * Two control bits select one element:
+             *   Zn[row], if [0] is set,
+             *   Zn+1[row], if [1] is set,
+             *   0, otherwise.
+             * Compute the address of that element.
+             */
+            void *e1 = &zero;
+            uint64_t this_ctrl = extractn(zk, (ctrl_base + 2 * col) >> esz, 2);
+            if (this_ctrl) {
+                e1 = vzn + (row ^ host_adj);
+                if (!(this_ctrl & 1)) {
+                    e1 += sizeof(ARMVectorReg);
+                }
+            }
+            fn(e3, e1, e2, fn_opaque);
+        }
+    }
+}
+
+/*
+ * Sparse outer product, widening 2-way, 16 to 32-bit.
+ */
+static void sme_tmop_2way_sh(uint32_t *za, uint16_t *zn0, uint32_t *zm,
+                             uint64_t *zk, void *fn_opaque, uint32_t desc,
+                             void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t dim = oprsz >> MO_32;
+    intptr_t index = simd_data(desc);
+    intptr_t ctrl_base = (index * oprsz) >> 1;
+    uint16_t *zn1 = zn0 + sizeof(ARMVectorReg) / 2;
+
+    for (intptr_t row = 0; row < dim; row++) {
+        uint32_t *za_row = za + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < dim; col++) {
+            uint32_t *e2 = zm + H4(col);
+            uint32_t *e3 = za_row + H4(col);
+            uint32_t e1 = 0;
+
+            /*
+             * Four control bits select two elements.  The two elements
+             * may be non-contiguous, so assemble them locally into e1.
+             * Pseudo-code has a double loop running forward, with a
+             * test for (i < 2) to limit construction to 2 elements.
+             * Easier to run a single loop backward, shifting extra
+             * elements off the top of our uint32_t.
+             */
+            uint64_t this_ctrl = extractn(zk, ctrl_base + col * 4, 4);
+            for (int i = 3; i >= 0; i--) {
+                if (this_ctrl & (1 << i)) {
+                    bool e = i & 1;
+                    bool r = i & 2;
+                    uint16_t *p = (r ? zn1 : zn0) + H2(2 * row + e);
+                    e1 = (e1 << 16) | *p;
+                }
+            }
+
+            fn(e3, &e1, e2, fn_opaque);
+        }
+    }
+}
+
+void sme_tmop_4way_sb(uint32_t *za, uint8_t *zn0, uint32_t *zm,
+                      uint64_t *zk, void *fn_opaque, uint32_t desc,
+                      void (*fn)(void *, void *, void *, void *))
+{
+    intptr_t oprsz = simd_maxsz(desc);
+    intptr_t dim = oprsz >> MO_32;
+    intptr_t index = simd_data(desc);
+    intptr_t ctrl_base = (index * oprsz) >> 1;
+    uint8_t *zn1 = zn0 + sizeof(ARMVectorReg);
+
+    for (intptr_t row = 0; row < dim; row++) {
+        uint32_t *za_row = za + tile_vslice_offset(row);
+
+        for (intptr_t col = 0; col < dim; col++) {
+            uint32_t *e2 = zm + H4(col);
+            uint32_t *e3 = za_row + H4(col);
+            uint16_t e1l = 0, e1h = 0;
+            uint32_t e1;
+
+            /*
+             * Eight control bits select two elements from each row.
+             * The elements may be non-contiguous, so assemble them
+             * locally into e1.
+             * Pseudo-code has a triple loop running forward, with a
+             * test for (i < 2) to limit construction to 2 elements.
+             * Easier to run a single loop backward, shifting extra
+             * elements off the top.
+             */
+            uint64_t this_ctrl = extractn(zk, ctrl_base + col * 8, 8);
+            for (int e = 3; e >= 0; e--) {
+                if (this_ctrl & (0x01 << e)) {
+                    e1l = (e1l << 8) | zn0[H1(4 * row + e)];
+                }
+                if (this_ctrl & (0x10 << e)) {
+                    e1h = (e1h << 8) | zn1[H1(4 * row + e)];
+                }
+            }
+            e1 = (e1h << 16) | e1l;
+
+            fn(e3, &e1, e2, fn_opaque);
+        }
+    }
+}
+
 static void inner_fmop4a_hh(void *vd, void *vn, void *vm, void *vinfo)
 {
     float16 *d = vd, *n = vn, *m = vm;
@@ -2648,6 +2779,12 @@ void HELPER(sme_fmop4a_hh)(void *vza, void *vzn, void *vzm,
                            float_status *fpst, uint32_t desc)
 {
     sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float16), inner_fmop4a_hh);
+}
+
+void HELPER(sme_ftmopa_hh)(void *vza, void *vzn, void *vzm, void *vzk,
+                           float_status *fpst, uint32_t desc)
+{
+    sme_tmop(vza, vzn, vzm, vzk, fpst, desc, MO_16, inner_fmop4a_hh);
 }
 
 static void inner_fmop4s_hh(void *vd, void *vn, void *vm, void *vinfo)
@@ -2690,6 +2827,12 @@ void HELPER(sme_fmop4a_ss)(void *vza, void *vzn, void *vzm,
                            float_status *fpst, uint32_t desc)
 {
     sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(float32), inner_fmop4a_ss);
+}
+
+void HELPER(sme_ftmopa_ss)(void *vza, void *vzn, void *vzm, void *vzk,
+                           float_status *fpst, uint32_t desc)
+{
+    sme_tmop(vza, vzn, vzm, vzk, fpst, desc, MO_32, inner_fmop4a_ss);
 }
 
 static void inner_fmop4s_ss(void *vd, void *vn, void *vm, void *vinfo)
@@ -2776,6 +2919,12 @@ void HELPER(sme_bfmop4a_hh)(void *vza, void *vzn, void *vzm,
     sme_mop4(vza, vzn, vzm, fpst, desc, sizeof(bfloat16), inner_bfmop4a_hh);
 }
 
+void HELPER(sme_bftmopa_hh)(void *vza, void *vzn, void *vzm, void *vzk,
+                            float_status *fpst, uint32_t desc)
+{
+    sme_tmop(vza, vzn, vzm, vzk, fpst, desc, MO_16, inner_bfmop4a_hh);
+}
+
 static void inner_bfmop4s_hh(void *vd, void *vn, void *vm, void *vinfo)
 {
     bfloat16 *d = vd, *n = vn, *m = vm;
@@ -2830,6 +2979,16 @@ void HELPER(sme_bfmop4a_sh)(void *vza, void *vzn, void *vzm,
     sme_mop4(vza, vzn, vzm, &fpst, desc, sizeof(float32),
              is_ebf(env, &fpst) ? inner_ebf_bfmop4a_sh
                                 : inner_bfmop4a_sh);
+}
+
+void HELPER(sme_bftmopa_sh)(void *vza, void *vzn, void *vzm, void *vzk,
+                            CPUArchState *env, uint32_t desc)
+{
+    float_status fpst;
+
+    sme_tmop_2way_sh(vza, vzn, vzm, vzk, &fpst, desc,
+                     is_ebf(env, &fpst) ? inner_ebf_bfmop4a_sh
+                                        : inner_bfmop4a_sh);
 }
 
 static void inner_bfmop4s_sh(void *vd, void *vn, void *vm, void *vinfo)
@@ -2905,6 +3064,12 @@ void HELPER(sme_fmop4a_sh)(void *vza, void *vzn, void *vzm,
     sme_mop4(vza, vzn, vzm, env, desc, sizeof(float32), inner_fmop4a_sh);
 }
 
+void HELPER(sme_ftmopa_sh)(void *vza, void *vzn, void *vzm, void *vzk,
+                           CPUArchState *env, uint32_t desc)
+{
+    sme_tmop_2way_sh(vza, vzn, vzm, vzk, env, desc, inner_fmop4a_sh);
+}
+
 static void inner_fmop4s_sh(void *vd, void *vn, void *vm, void *vinfo)
 {
     float32 *d = vd;
@@ -2958,6 +3123,18 @@ IMOP4_2WAY(umop4s_sh, -, int32_t, uint16_t, uint16_t)
 
 #undef IMOP4_2WAY
 
+#define ITMOP_2WAY(TNAME, MNAME)                                        \
+void HELPER(sme_##TNAME)(void *vza, void *vzn, void *vzm,               \
+                         void *vzk, uint32_t desc)                      \
+{                                                                       \
+    sme_tmop_2way_sh(vza, vzn, vzm, vzk, NULL, desc, inner_##MNAME);    \
+}
+
+ITMOP_2WAY(stmopa_sh, smop4a_sh)
+ITMOP_2WAY(utmopa_sh, umop4a_sh)
+
+#undef ITMOP_2WAY
+
 #define IMOP4_4WAY(NAME, OP, TYPED, TYPEN, TYPEM)                       \
 static void inner_##NAME(void *vd, void *vn, void *vm, void *vinfo)     \
 {                                                                       \
@@ -2991,3 +3168,17 @@ IMOP4_4WAY(usmop4a_dh, +, int64_t, uint16_t, int16_t)
 IMOP4_4WAY(usmop4s_dh, -, int64_t, uint16_t, int16_t)
 
 #undef IMOP4_4WAY
+
+#define ITMOP_4WAY(TNAME, MNAME)                                        \
+void HELPER(sme_##TNAME)(void *vza, void *vzn, void *vzm,               \
+                         void *vzk, uint32_t desc)                      \
+{                                                                       \
+    sme_tmop_4way_sb(vza, vzn, vzm, vzk, NULL, desc, inner_##MNAME);    \
+}
+
+ITMOP_4WAY(stmopa_sb, smop4a_sb)
+ITMOP_4WAY(utmopa_sb, umop4a_sb)
+ITMOP_4WAY(sutmopa_sb, sumop4a_sb)
+ITMOP_4WAY(ustmopa_sb, usmop4a_sb)
+
+#undef ITMOP_4WAY

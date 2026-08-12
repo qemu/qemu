@@ -1048,6 +1048,19 @@ static void mps2tz_common_init(MachineState *machine)
     const PPCInfo an547_ppcs[] = { {
             .name = "apb_ppcexp0",
             .ports = {
+                { /* port 0 USER MEM APB0 */ },
+                { /* port 1 USER MEM APB0 */ },
+                { /* port 2 reserved */ },
+                { /* port 3 reserved */ },
+                { /* port 4 NPU APB0 */ },
+                { /* port 5 NPU APB1 */ },
+                { /* port 6 reserved */ },
+                { /* port 7 reserved */ },
+                { /* port 8 reserved */ },
+                { /* port 9 reserved */ },
+                { /* port 10 reserved */ },
+                { /* port 11 reserved */ },
+                { /* port 12 reserved */ },
                 { "ssram-mpc", make_mpc, &mms->mpc[0], 0x57000000, 0x1000 },
                 { "qspi-mpc", make_mpc, &mms->mpc[1], 0x57001000, 0x1000 },
                 { "ddr-mpc", make_mpc, &mms->mpc[2], 0x57002000, 0x1000 },
@@ -1099,6 +1112,14 @@ static void mps2tz_common_init(MachineState *machine)
                 { /* port 6 USER AHB interface 2 */ },
                 { /* port 7 USER AHB interface 3 */ },
                 { "eth-usb", make_eth_usb, NULL, 0x41400000, 0x200000, { 49 } },
+            },
+        }, {
+            .name = "ahb_ppcexp1",
+            .ports = {
+                { /* port 0 reserved */ },
+                { "dma1", make_dma, &mms->dma[1], 0x41201000, 0x1000, { 62, 60, 61 } },
+                { "dma2", make_dma, &mms->dma[2], 0x41202000, 0x1000, { 65, 63, 64 } },
+                { "dma3", make_dma, &mms->dma[3], 0x41203000, 0x1000, { 68, 66, 67 } },
             },
         },
     };

@@ -1590,6 +1590,11 @@ static inline bool isar_feature_aa64_sme_mop4(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, SMOP4);
 }
 
+static inline bool isar_feature_aa64_sme_tmop(const ARMISARegisters *id)
+{
+    return FIELD_EX64_IDREG(id, ID_AA64SMFR0, STMOP);
+}
+
 static inline bool isar_feature_aa64_ssve_aes(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, AES);
@@ -1835,6 +1840,26 @@ static inline bool isar_feature_aa64_sme_mop4_f8f16(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sme_mop4_i16i64(const ARMISARegisters *id)
 {
     return isar_feature_aa64_sme_mop4(id) && isar_feature_aa64_sme_i16i64(id);
+}
+
+static inline bool isar_feature_aa64_sme_tmop_b16b16(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme_tmop(id) && isar_feature_aa64_sme_b16b16(id);
+}
+
+static inline bool isar_feature_aa64_sme_tmop_f16f16(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme_tmop(id) && isar_feature_aa64_sme_f16f16(id);
+}
+
+static inline bool isar_feature_aa64_sme_tmop_f8f16(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme_tmop(id) && isar_feature_aa64_sme_f8f16(id);
+}
+
+static inline bool isar_feature_aa64_sme_tmop_f8f32(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme_tmop(id) && isar_feature_aa64_sme_f8f32(id);
 }
 
 /*
