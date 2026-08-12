@@ -343,8 +343,8 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
         return;
     }
     if (!arg) {
-        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, parent_obj);
-        monitor_read_password(hmp_mon, hmp_change_read_arg, NULL);
+        MonitorHMP *hmp = container_of(mon, MonitorHMP, parent_obj);
+        monitor_read_password(hmp, hmp_change_read_arg, NULL);
     } else {
         qmp_change_vnc_password(arg, errp);
     }

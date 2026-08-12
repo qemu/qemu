@@ -221,7 +221,7 @@ void monitor_data_destroy_qmp(MonitorQMP *mon);
 void coroutine_fn monitor_qmp_dispatcher_co(void *data);
 void qmp_dispatcher_co_wake(void);
 
-void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
+void handle_hmp_command(MonitorHMP *hmp, const char *cmdline);
 int hmp_compare_cmd(const char *name, const char *list);
 
 /*

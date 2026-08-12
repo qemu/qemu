@@ -49,24 +49,24 @@ OBJECT_DEFINE_TYPE(MonitorHMP, monitor_hmp, MONITOR_HMP, MONITOR);
 
 static void monitor_hmp_finalize(Object *obj)
 {
-    MonitorHMP *mon = MONITOR_HMP(obj);
-    if (mon->rs) {
-        readline_free(mon->rs);
+    MonitorHMP *hmp = MONITOR_HMP(obj);
+    if (hmp->rs) {
+        readline_free(hmp->rs);
     }
 }
 
 static bool monitor_hmp_get_readline(Object *obj, Error **errp)
 {
-    MonitorHMP *mon = MONITOR_HMP(obj);
+    MonitorHMP *hmp = MONITOR_HMP(obj);
 
-    return mon->use_readline;
+    return hmp->use_readline;
 }
 
 static void monitor_hmp_set_readline(Object *obj, bool val, Error **errp)
 {
-    MonitorHMP *mon = MONITOR_HMP(obj);
+    MonitorHMP *hmp = MONITOR_HMP(obj);
 
-    mon->use_readline = val;
+    hmp->use_readline = val;
 }
 
 int monitor_hmp_vprintf(Monitor *mon, const char *fmt, va_list ap)
@@ -128,34 +128,34 @@ static void monitor_hmp_accept_input(Monitor *mon)
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *hmp = opaque;
 
-    monitor_suspend(&mon->parent_obj);
-    handle_hmp_command(mon, cmdline);
-    monitor_resume(&mon->parent_obj);
+    monitor_suspend(&hmp->parent_obj);
+    handle_hmp_command(hmp, cmdline);
+    monitor_resume(&hmp->parent_obj);
 }
 
-void monitor_read_command(MonitorHMP *mon, int show_prompt)
+void monitor_read_command(MonitorHMP *hmp, int show_prompt)
 {
-    if (!mon->rs) {
+    if (!hmp->rs) {
         return;
     }
 
-    readline_start(mon->rs, "(qemu) ", 0, monitor_command_cb, NULL);
+    readline_start(hmp->rs, "(qemu) ", 0, monitor_command_cb, NULL);
     if (show_prompt) {
-        readline_show_prompt(mon->rs);
+        readline_show_prompt(hmp->rs);
     }
 }
 
-int monitor_read_password(MonitorHMP *mon, ReadLineFunc *readline_func,
+int monitor_read_password(MonitorHMP *hmp, ReadLineFunc *readline_func,
                           void *opaque)
 {
-    if (mon->rs) {
-        readline_start(mon->rs, "Password: ", 1, readline_func, opaque);
+    if (hmp->rs) {
+        readline_start(hmp->rs, "Password: ", 1, readline_func, opaque);
         /* prompt is printed on return from the command handler */
         return 0;
     } else {
-        monitor_printf(&mon->parent_obj,
+        monitor_printf(&hmp->parent_obj,
                        "terminal does not support password prompting\n");
         return -ENOTTY;
     }
@@ -772,12 +772,12 @@ static const HMPCommand *search_dispatch_table(const HMPCommand *disp_table,
  * Do not assume the return value points into @table!  It doesn't when
  * the command is found in a sub-command table.
  */
-static const HMPCommand *monitor_parse_command(MonitorHMP *hmp_mon,
+static const HMPCommand *monitor_parse_command(MonitorHMP *hmp,
                                                const char *cmdp_start,
                                                const char **cmdp,
                                                HMPCommand *table)
 {
-    Monitor *mon = &hmp_mon->parent_obj;
+    Monitor *mon = &hmp->parent_obj;
     const char *p;
     const HMPCommand *cmd;
     char cmdname[256];
@@ -809,7 +809,7 @@ static const HMPCommand *monitor_parse_command(MonitorHMP *hmp_mon,
     *cmdp = p;
     /* search sub command */
     if (cmd->sub_table != NULL && *p != '\0') {
-        return monitor_parse_command(hmp_mon, cmdp_start, cmdp, cmd->sub_table);
+        return monitor_parse_command(hmp, cmdp_start, cmdp, cmd->sub_table);
     }
 
     return cmd;
@@ -1254,15 +1254,15 @@ static void handle_hmp_command_co(void *opaque)
     data->done = true;
 }
 
-void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
+void handle_hmp_command(MonitorHMP *hmp, const char *cmdline)
 {
     QDict *qdict;
     const HMPCommand *cmd;
     const char *cmd_start = cmdline;
 
-    trace_handle_hmp_command(mon, cmdline);
+    trace_handle_hmp_command(hmp, cmdline);
 
-    cmd = monitor_parse_command(mon, cmdline, &cmdline,
+    cmd = monitor_parse_command(hmp, cmdline, &cmdline,
                                 hmp_cmds_for_target(false));
     if (!cmd) {
         return;
@@ -1270,17 +1270,17 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 
     if (!cmd->cmd && !cmd->cmd_info_hrt) {
         /* FIXME: is it useful to try autoload modules here ??? */
-        monitor_printf(&mon->parent_obj, "Command \"%.*s\" is not available.\n",
+        monitor_printf(&hmp->parent_obj, "Command \"%.*s\" is not available.\n",
                        (int)(cmdline - cmd_start), cmd_start);
         return;
     }
 
-    qdict = monitor_parse_arguments(&mon->parent_obj, &cmdline, cmd);
+    qdict = monitor_parse_arguments(&hmp->parent_obj, &cmdline, cmd);
     if (!qdict) {
         while (cmdline > cmd_start && qemu_isspace(cmdline[-1])) {
             cmdline--;
         }
-        monitor_printf(&mon->parent_obj,
+        monitor_printf(&hmp->parent_obj,
                        "Try \"help %.*s\" for more information\n",
                        (int)(cmdline - cmd_start), cmd_start);
         return;
@@ -1289,18 +1289,18 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
     if (!cmd->coroutine) {
         /* old_mon is non-NULL when called from qmp_human_monitor_command() */
         Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(),
-                                           &mon->parent_obj);
-        handle_hmp_command_exec(&mon->parent_obj, cmd, qdict);
+                                           &hmp->parent_obj);
+        handle_hmp_command_exec(&hmp->parent_obj, cmd, qdict);
         monitor_set_cur(qemu_coroutine_self(), old_mon);
     } else {
         HandleHmpCommandCo data = {
-            .mon = &mon->parent_obj,
+            .mon = &hmp->parent_obj,
             .cmd = cmd,
             .qdict = qdict,
             .done = false,
         };
         Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, &data);
-        monitor_set_cur(co, &mon->parent_obj);
+        monitor_set_cur(co, &hmp->parent_obj);
         aio_co_enter(qemu_get_aio_context(), co);
         AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
     }
@@ -1308,7 +1308,8 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
     qobject_unref(qdict);
 }
 
-static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
+static void cmd_completion(MonitorHMP *hmp,
+                           const char *name, const char *list)
 {
     const char *p, *pstart;
     char cmd[128];
@@ -1324,7 +1325,7 @@ static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
         }
         memcpy(cmd, pstart, len);
         cmd[len] = '\0';
-        readline_add_completion_of(mon->rs, name, cmd);
+        readline_add_completion_of(hmp->rs, name, cmd);
         if (*p == '\0') {
             break;
         }
@@ -1332,7 +1333,7 @@ static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
     }
 }
 
-static void file_completion(MonitorHMP *mon, const char *input)
+static void file_completion(MonitorHMP *hmp, const char *input)
 {
     DIR *ffs;
     struct dirent *d;
@@ -1384,7 +1385,7 @@ static void file_completion(MonitorHMP *mon, const char *input)
             if (stat(file, &sb) == 0 && S_ISDIR(sb.st_mode)) {
                 pstrcat(file, sizeof(file), "/");
             }
-            readline_add_completion(mon->rs, file);
+            readline_add_completion(hmp->rs, file);
         }
     }
     closedir(ffs);
@@ -1396,7 +1397,7 @@ static const char *next_arg_type(const char *typestr)
     return (p != NULL ? ++p : typestr);
 }
 
-static void monitor_find_completion_by_table(MonitorHMP *mon,
+static void monitor_find_completion_by_table(MonitorHMP *hmp,
                                              const HMPCommand *cmd_table,
                                              char **args,
                                              int nb_args)
@@ -1414,10 +1415,10 @@ static void monitor_find_completion_by_table(MonitorHMP *mon,
         } else {
             cmdname = args[0];
         }
-        readline_set_completion_index(mon->rs, strlen(cmdname));
+        readline_set_completion_index(hmp->rs, strlen(cmdname));
         for (cmd = cmd_table; cmd->name != NULL; cmd++) {
             if (cmd_available(cmd)) {
-                cmd_completion(mon, cmdname, cmd->name);
+                cmd_completion(hmp, cmdname, cmd->name);
             }
         }
     } else {
@@ -1434,12 +1435,12 @@ static void monitor_find_completion_by_table(MonitorHMP *mon,
 
         if (cmd->sub_table) {
             /* do the job again */
-            monitor_find_completion_by_table(mon, cmd->sub_table,
+            monitor_find_completion_by_table(hmp, cmd->sub_table,
                                              &args[1], nb_args - 1);
             return;
         }
         if (cmd->command_completion) {
-            cmd->command_completion(mon->rs, nb_args, args[nb_args - 1]);
+            cmd->command_completion(hmp->rs, nb_args, args[nb_args - 1]);
             return;
         }
 
@@ -1461,20 +1462,20 @@ static void monitor_find_completion_by_table(MonitorHMP *mon,
         switch (*ptype) {
         case 'F':
             /* file completion */
-            readline_set_completion_index(mon->rs, strlen(str));
-            file_completion(mon, str);
+            readline_set_completion_index(hmp->rs, strlen(str));
+            file_completion(hmp, str);
             break;
         case 'B':
             /* block device name completion */
-            readline_set_completion_index(mon->rs, strlen(str));
+            readline_set_completion_index(hmp->rs, strlen(str));
             while ((blk = blk_next(blk)) != NULL) {
-                readline_add_completion_of(mon->rs, str, blk_name(blk));
+                readline_add_completion_of(hmp->rs, str, blk_name(blk));
             }
             break;
         case 's':
         case 'S':
             if (!strcmp(cmd->name, "help|?")) {
-                monitor_find_completion_by_table(mon, cmd_table,
+                monitor_find_completion_by_table(hmp, cmd_table,
                                                  &args[1], nb_args - 1);
             }
             break;
@@ -1487,7 +1488,7 @@ static void monitor_find_completion_by_table(MonitorHMP *mon,
 static void monitor_find_completion(void *opaque,
                                     const char *cmdline)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *hmp = opaque;
     char *args[MAX_ARGS];
     int nb_args, len;
 
@@ -1509,7 +1510,7 @@ static void monitor_find_completion(void *opaque,
     }
 
     /* 2. auto complete according to args */
-    monitor_find_completion_by_table(mon, hmp_cmds_for_target(false),
+    monitor_find_completion_by_table(hmp, hmp_cmds_for_target(false),
                                      args, nb_args);
 
 cleanup:
@@ -1518,18 +1519,18 @@ cleanup:
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
-    MonitorHMP *mon = container_of(opaque, MonitorHMP, parent_obj);
+    MonitorHMP *hmp = container_of(opaque, MonitorHMP, parent_obj);
     int i;
 
-    if (mon->rs) {
+    if (hmp->rs) {
         for (i = 0; i < size; i++) {
-            readline_handle_byte(mon->rs, buf[i]);
+            readline_handle_byte(hmp->rs, buf[i]);
         }
     } else {
         if (size == 0 || buf[size - 1] != 0) {
-            monitor_printf(&mon->parent_obj, "corrupted command\n");
+            monitor_printf(&hmp->parent_obj, "corrupted command\n");
         } else {
-            handle_hmp_command(mon, (char *)buf);
+            handle_hmp_command(hmp, (char *)buf);
         }
     }
 }
@@ -1598,17 +1599,17 @@ static void monitor_event(void *opaque, QEMUChrEvent event)
 static void G_GNUC_PRINTF(2, 3) monitor_readline_printf(void *opaque,
                                                        const char *fmt, ...)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *hmp = opaque;
     va_list ap;
     va_start(ap, fmt);
-    monitor_vprintf(&mon->parent_obj, fmt, ap);
+    monitor_vprintf(&hmp->parent_obj, fmt, ap);
     va_end(ap);
 }
 
 static void monitor_readline_flush(void *opaque)
 {
-    MonitorHMP *mon = opaque;
-    monitor_flush(&mon->parent_obj);
+    MonitorHMP *hmp = opaque;
+    monitor_flush(&hmp->parent_obj);
 }
 
 void monitor_new_hmp(const char *id, const char *chardev_id,
@@ -1626,11 +1627,11 @@ void monitor_new_hmp(const char *id, const char *chardev_id,
 
 static void monitor_hmp_complete(UserCreatable *uc, Error **errp)
 {
-    MonitorHMP *mon = MONITOR_HMP(uc);
+    MonitorHMP *hmp = MONITOR_HMP(uc);
     UserCreatableClass *ucc_parent =
         USER_CREATABLE_CLASS(
             object_class_get_parent(
-                OBJECT_CLASS(MONITOR_HMP_GET_CLASS(mon))));
+                OBJECT_CLASS(MONITOR_HMP_GET_CLASS(hmp))));
     ERRP_GUARD();
 
     ucc_parent->complete(uc, errp);
@@ -1638,21 +1639,21 @@ static void monitor_hmp_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    if (mon->parent_obj.chardev_id) {
-        if (mon->use_readline) {
-            mon->rs = readline_init(monitor_readline_printf,
+    if (hmp->parent_obj.chardev_id) {
+        if (hmp->use_readline) {
+            hmp->rs = readline_init(monitor_readline_printf,
                                     monitor_readline_flush,
-                                    mon,
+                                    hmp,
                                     monitor_find_completion);
-            monitor_read_command(mon, 0);
+            monitor_read_command(hmp, 0);
         }
 
-        qemu_chr_fe_set_handlers(&mon->parent_obj.chr,
+        qemu_chr_fe_set_handlers(&hmp->parent_obj.chr,
                                  monitor_can_read,
                                  monitor_read,
                                  monitor_event, NULL,
-                                 &mon->parent_obj, NULL, true);
-        monitor_list_append(&mon->parent_obj);
+                                 &hmp->parent_obj, NULL, true);
+        monitor_list_append(&hmp->parent_obj);
     }
 }
 
