@@ -32,6 +32,7 @@
 #include "qom/object_interfaces.h"
 #include "qemu/aio-wait.h"
 #include "qemu/error-report.h"
+#include "qemu/lockable.h"
 #include "qemu/option.h"
 #include "system/qtest.h"
 #include "trace.h"
