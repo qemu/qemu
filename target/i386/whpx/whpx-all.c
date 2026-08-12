@@ -1079,6 +1079,31 @@ static void whpx_inject_back_gpf(CPUState *cpu)
     whpx_set_reg(cpu, WHvRegisterPendingEvent, reg);
 }
 
+static void whpx_inject_back_db(CPUState *cpu)
+{
+    WHV_VP_EXCEPTION_CONTEXT *ctx = &cpu->accel->exit_ctx.VpException;
+    WHV_REGISTER_VALUE reg = {};
+
+    if (ctx->ExceptionInfo.SoftwareException) {
+        /* TODO */
+        warn_report("Was asked to inject software exception.");
+        return;
+    }
+
+    if (ctx->ExceptionType != EXCP01_DB) {
+        warn_report("Was asked to inject exception other than debug.");
+        return;
+    }
+
+    reg.ExceptionEvent.EventPending = 1;
+    reg.ExceptionEvent.EventType = WHvX64PendingEventException;
+    reg.ExceptionEvent.DeliverErrorCode = ctx->ExceptionInfo.ErrorCodeValid;
+    reg.ExceptionEvent.Vector = ctx->ExceptionType;
+    reg.ExceptionEvent.ErrorCode = ctx->ErrorCode;
+    reg.ExceptionEvent.ExceptionParameter = ctx->ExceptionParameter;
+    whpx_set_reg(cpu, WHvRegisterPendingEvent, reg);
+}
+
 static void handle_io(CPUState *env, uint16_t port, void *buffer,
                   int direction, int size, int count)
 {
@@ -2646,11 +2671,7 @@ int whpx_vcpu_run(CPUState *cpu)
             } else if ((vcpu->exit_ctx.VpException.ExceptionType ==
                         WHvX64ExceptionTypeDebugTrapOrFault) &&
                        !cpu_single_stepping(cpu)) {
-                /*
-                 * Just finished stepping over a breakpoint, but the
-                 * gdb does not expect us to do single-stepping.
-                 * Don't do anything special.
-                 */
+                whpx_inject_back_db(cpu);
                 cpu->exception_index = EXCP_INTERRUPT;
             } else {
                 /* Another exception or debug event. Report it to GDB. */
