@@ -5547,8 +5547,11 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     Transaction *tran = tran_new();
     g_autoptr(GSList) refresh_list = NULL;
     BlockDriverState *old_bs = child->bs;
+    int64_t old_len;
 
     GLOBAL_STATE_CODE();
+
+    old_len = bdrv_getlength(old_bs);
 
     bdrv_ref(old_bs);
     bdrv_drained_begin(old_bs);
@@ -5565,6 +5568,16 @@ int bdrv_replace_child_bs(BdrvChild *child, BlockDriverState *new_bs,
     tran_finalize(tran, ret);
 
     bdrv_graph_wrunlock();
+
+    /* A parent caching the child size has to learn that it changed */
+    if (ret == 0) {
+        int64_t new_len = bdrv_getlength(new_bs);
+
+        if (new_len >= 0 && new_len != old_len) {
+            bdrv_parent_cb_resize(new_bs);
+        }
+    }
+
     bdrv_drained_end(old_bs);
     bdrv_drained_end(new_bs);
     bdrv_unref(old_bs);

@@ -197,4 +197,7 @@ void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes);
 void coroutine_fn GRAPH_RDLOCK
 bdrv_co_parent_cb_resize(BlockDriverState *bs);
 
+void co_wrapper_bdrv_rdlock
+bdrv_parent_cb_resize(BlockDriverState *bs);
+
 #endif /* BLOCK_INT_IO_H */
