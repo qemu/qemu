@@ -22,6 +22,6 @@
 #include "insn.h"
 
 void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
-                         target_ulong pc, const HexagonCPUDef *hex_def);
+                         target_ulong pc, const HexagonCPUConfig *cfg);
 
 #endif

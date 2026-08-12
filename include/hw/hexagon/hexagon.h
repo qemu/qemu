@@ -156,6 +156,12 @@ struct HexagonCommonMachineState {
 
     MemoryRegion ram;
     MemoryRegion cfgtable_rom;
+    MemoryRegion vtcm;
+    DeviceState *cluster;
+    DeviceState *l2vic;
+    DeviceState *qtimer;
+    DeviceState *glob_regs;
+    DeviceState *tlb;
 };
 
 #endif

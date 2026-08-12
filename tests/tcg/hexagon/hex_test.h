@@ -19,6 +19,8 @@
 #ifndef HEX_TEST_H
 #define HEX_TEST_H
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 static inline void __check32(int line, uint32_t val, uint32_t expect)
 {
     if (val != expect) {
@@ -109,7 +111,36 @@ static inline void __check64_ne(int line, uint64_t val, uint64_t expect)
     "usr = r2\n\t"
 
 /* Some useful floating point values */
+const uint16_t HF_INF = 0x7c00;
+const uint16_t HF_INF_neg = 0xfc00;
+const uint16_t HF_QNaN = 0x7e00;
+const uint16_t HF_SNaN = 0x7d00;
+const uint16_t HF_SNaN_neg = 0xfd00;
+const uint16_t HF_QNaN_neg = 0xfe00;
+const uint16_t HF_zero = 0x0000;
+const uint16_t HF_zero_neg = 0x8000;
+const uint16_t HF_one = 0x3c00;
+const uint16_t HF_one_recip = 0x3bf9;
+const uint16_t HF_two = 0x4000;
+const uint16_t HF_small_neg = 0x8010;
+const uint16_t HF_any = 0x3c00;
+const uint16_t HF_neg_two = 0xc000;
+
+const uint16_t BF_INF           = 0x7f80;
+const uint16_t BF_INF_neg       = 0xff80;
+const uint16_t BF_QNaN          = 0x7fc0;
+const uint16_t BF_SNaN          = 0x7f81;
+const uint16_t BF_QNaN_neg      = 0xffc0;
+const uint16_t BF_SNaN_neg      = 0xff81;
+const uint16_t BF_HEX_NaN       = 0x7fff;
+const uint16_t BF_zero          = 0x0000;
+const uint16_t BF_zero_neg      = 0x8000;
+const uint16_t BF_one           = 0x3f80;
+const uint16_t BF_two           = 0x4000;
+const uint16_t BF_four          = 0x4080;
+
 const uint32_t SF_INF =              0x7f800000;
+const uint32_t SF_INF_neg =          0xff800000;
 const uint32_t SF_QNaN =             0x7fc00000;
 const uint32_t SF_QNaN_special =     0x7f800001;
 const uint32_t SF_SNaN =             0x7fb00000;
@@ -128,6 +159,7 @@ const uint32_t SF_large_pos =        0x5afa572e;
 const uint32_t SF_any =              0x3f800000;
 const uint32_t SF_denorm =           0x00000001;
 const uint32_t SF_random =           0x346001d6;
+const uint32_t SF_neg_two =          0xc0000000;
 
 const uint64_t DF_QNaN =             0x7ff8000000000000ULL;
 const uint64_t DF_SNaN =             0x7ff7000000000000ULL;

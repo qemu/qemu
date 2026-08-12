@@ -13,8 +13,7 @@
 #include "hw/core/clock.h"
 #include "hw/core/sysbus-fdt.h"
 #include "hw/hexagon/hexagon.h"
-#include "hw/hexagon/hexagon_globalreg.h"
-#include "hw/hexagon/hexagon_tlb.h"
+#include "hw/hexagon/hex-subsys.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
@@ -31,11 +30,20 @@
 
 enum {
     VIRT_UART0,
+    VIRT_MMIO,
     VIRT_FDT,
 };
 
+/*
+ * Virtio IRQs run from VIRTIO_IRQ_BASE to
+ * VIRTIO_IRQ_BASE + VIRTIO_DEV_COUNT - 1
+ */
+static const int VIRTIO_IRQ_BASE = 16;
+static const int VIRT_UART0_IRQ = 15;
+
 static const MemMapEntry base_memmap[] = {
     [VIRT_UART0] = { 0x10000000, 0x00000200 },
+    [VIRT_MMIO] = { 0x11000000, 0x00001000 },
     [VIRT_FDT] = { 0x99800000, 0x00400000 },
 };
 
@@ -68,17 +76,36 @@ static void create_fdt(HexagonVirtMachineState *vms)
     qemu_fdt_setprop(fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 }
 
+static int32_t fdt_add_l2vic(HexagonVirtMachineState *vms,
+                             const struct hexagon_machine_config *m_cfg)
+{
+    MachineState *ms = MACHINE(vms);
+    int32_t l2vic_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+    char *nodename = g_strdup_printf("/soc/interrupt-controller@%x",
+                                     m_cfg->l2vic_base);
+    const char compat[] = "qcom,h2-pic\0hvm-pic";
+
+    qemu_fdt_setprop_cell(ms->fdt, "/soc", "interrupt-parent", l2vic_phandle);
+
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 0x1);
+    qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0,
+                           m_cfg->l2vic_base, m_cfg->l2vic_size);
+    qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", l2vic_phandle);
+
+    g_free(nodename);
+    return l2vic_phandle;
+}
+
 static void fdt_add_hvx(HexagonVirtMachineState *vms,
                         const struct hexagon_machine_config *m_cfg)
 {
     const MachineState *ms = MACHINE(vms);
     uint32_t vtcm_size_bytes = m_cfg->cfgtable.vtcm_size_kb * 1024;
     if (vtcm_size_bytes > 0) {
-        memory_region_init_ram(&vms->vtcm, NULL, "vtcm.ram", vtcm_size_bytes,
-                               &error_fatal);
-        memory_region_add_subregion(vms->sys, m_cfg->cfgtable.vtcm_base << 16,
-                                    &vms->vtcm);
-
         qemu_fdt_add_subnode(ms->fdt, "/soc/vtcm");
         qemu_fdt_setprop_string(ms->fdt, "/soc/vtcm", "compatible",
                                 "qcom,hexagon_vtcm");
@@ -117,7 +144,7 @@ static int32_t fdt_add_clocks(const HexagonVirtMachineState *vms)
 }
 
 static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
-                         int32_t clk_phandle)
+                         int32_t clk_phandle, int32_t l2vic_phandle)
 {
     char *nodename;
     hwaddr base = base_memmap[uart].base;
@@ -135,6 +162,8 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
     qdev_connect_clock_in(dev, "clk", vms->apb_clk);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
+    sysbus_connect_irq(s, 0,
+                       qdev_get_gpio_in(vms->parent_obj.l2vic, VIRT_UART0_IRQ));
 
     nodename = g_strdup_printf("/pl011@%" PRIx64, base);
     qemu_fdt_add_subnode(ms->fdt, nodename);
@@ -142,6 +171,9 @@ static void fdt_add_uart(const HexagonVirtMachineState *vms, int uart,
     /* Note that we can't use setprop_string because of the embedded NUL */
     qemu_fdt_setprop(ms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", VIRT_UART0_IRQ);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
+                          l2vic_phandle);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "clocks", clk_phandle,
                            clk_phandle);
     qemu_fdt_setprop(ms->fdt, nodename, "clock-names", clocknames,
@@ -173,7 +205,38 @@ static void fdt_add_cpu_nodes(const HexagonVirtMachineState *vms)
     }
 }
 
+static void create_virtio_devices(HexagonVirtMachineState *vms,
+                                  int32_t l2vic_phandle)
+{
+    MachineState *ms = MACHINE(vms);
+    hwaddr size = base_memmap[VIRT_MMIO].size;
 
+    for (int i = 0; i < VIRTIO_DEV_COUNT; i++) {
+        int irq = VIRTIO_IRQ_BASE + i;
+        hwaddr base = base_memmap[VIRT_MMIO].base + i * size;
+        char *nodename = g_strdup_printf("/soc/virtio_mmio@%" PRIx64, base);
+        DeviceState *dev = qdev_new("virtio-mmio");
+        SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+        object_property_add_child(OBJECT(MACHINE(vms)), "virtio-mmio[*]",
+                                  OBJECT(dev));
+        sysbus_realize_and_unref(s, &error_fatal);
+        sysbus_mmio_map(s, 0, base);
+        sysbus_connect_irq(s, 0,
+                           qdev_get_gpio_in(vms->parent_obj.l2vic, irq));
+        vms->virtio_mmio[i] = dev;
+
+        qemu_fdt_add_subnode(ms->fdt, nodename);
+        qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                                "virtio,mmio");
+        qemu_fdt_setprop_cells(ms->fdt, nodename, "reg", 0, base, size);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupts", irq);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "interrupt-parent",
+                              l2vic_phandle);
+
+        g_free(nodename);
+    }
+}
 
 void hexagon_load_fdt(const HexagonVirtMachineState *vms)
 {
@@ -230,10 +293,8 @@ static void virt_init(MachineState *ms)
 {
     HexagonVirtMachineState *vms = HEXAGON_VIRT_MACHINE(ms);
     const struct hexagon_machine_config *m_cfg = &v68n_1024;
-    DeviceState *gsregs_dev;
-    DeviceState *tlb_dev;
-    DeviceState *cpu0;
     int32_t clk_phandle;
+    int32_t l2vic_phandle;
 
     create_fdt(vms);
     qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs", ms->kernel_cmdline);
@@ -244,9 +305,7 @@ static void virt_init(MachineState *ms)
     vms->apb_clk = clock_new(OBJECT(ms), "apb-pclk");
     clock_set_hz(vms->apb_clk, 24000000);
 
-    memory_region_init_ram(&vms->parent_obj.ram, NULL, "ddr.ram",
-                           ms->ram_size, &error_fatal);
-    memory_region_add_subregion(vms->sys, 0x0, &vms->parent_obj.ram);
+    hex_subsys_create(&vms->parent_obj, m_cfg, v68_rev);
 
     if (m_cfg->l2tcm_size) {
         memory_region_init_ram(&vms->tcm, NULL, "tcm.ram", m_cfg->l2tcm_size,
@@ -255,56 +314,41 @@ static void virt_init(MachineState *ms)
                                     &vms->tcm);
     }
 
-    memory_region_init_rom(&vms->parent_obj.cfgtable_rom, NULL,
-                           "config_table.rom", sizeof(m_cfg->cfgtable),
-                           &error_fatal);
-    memory_region_add_subregion(vms->sys, m_cfg->cfgbase,
-                                &vms->parent_obj.cfgtable_rom);
     fdt_add_hvx(vms, m_cfg);
 
-    gsregs_dev = qdev_new(TYPE_HEXAGON_GLOBALREG);
-    object_property_add_child(OBJECT(ms), "global-regs", OBJECT(gsregs_dev));
-    qdev_prop_set_uint64(gsregs_dev, "config-table-addr", m_cfg->cfgbase);
-    qdev_prop_set_uint32(gsregs_dev, "dsp-rev", v68_rev);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(gsregs_dev), &error_fatal);
+    l2vic_phandle = fdt_add_l2vic(vms, m_cfg);
+    create_virtio_devices(vms, l2vic_phandle);
 
-    tlb_dev = qdev_new(TYPE_HEXAGON_TLB);
-    object_property_add_child(OBJECT(ms), "tlb", OBJECT(tlb_dev));
-    qdev_prop_set_uint32(tlb_dev, "num-entries",
-                         m_cfg->cfgtable.jtlb_size_entries);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(tlb_dev), &error_fatal);
+    g_autofree HexagonCPU **cpus = g_new(HexagonCPU *, ms->smp.cpus);
 
-    cpu0 = NULL;
     for (int i = 0; i < ms->smp.cpus; i++) {
         HexagonCPU *cpu = HEXAGON_CPU(object_new(ms->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
         if (i == 0) {
-            cpu0 = DEVICE(cpu);
             if (ms->kernel_filename) {
                 uint64_t entry = load_kernel(vms);
-                qdev_prop_set_uint32(cpu0, "exec-start-addr", entry);
+                qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", entry);
             } else if (ms->firmware) {
                 uint64_t entry = load_bios(vms);
-                qdev_prop_set_uint32(cpu0, "exec-start-addr", entry);
+                qdev_prop_set_uint32(DEVICE(cpu), "exec-start-addr", entry);
             }
         }
         qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
         qdev_prop_set_bit(DEVICE(cpu), "start-powered-off", (i != 0));
-        object_property_set_link(OBJECT(cpu), "global-regs",
-                                 OBJECT(gsregs_dev), &error_fatal);
-        object_property_set_link(OBJECT(cpu), "tlb",
-                                 OBJECT(tlb_dev), &error_fatal);
-
-        qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+        hex_subsys_add_cpu(&vms->parent_obj, DEVICE(cpu));
+        cpus[i] = cpu;
     }
+
+    hex_subsys_realize_cluster(&vms->parent_obj);
+
+    for (int i = 0; i < ms->smp.cpus; i++) {
+        hex_subsys_realize_cpu(&vms->parent_obj, DEVICE(cpus[i]), (i == 0));
+    }
+
     fdt_add_cpu_nodes(vms);
     clk_phandle = fdt_add_clocks(vms);
-    fdt_add_uart(vms, VIRT_UART0, clk_phandle);
-
-    rom_add_blob_fixed_as("config_table.rom", &m_cfg->cfgtable,
-                          sizeof(m_cfg->cfgtable), m_cfg->cfgbase,
-                          &address_space_memory);
+    fdt_add_uart(vms, VIRT_UART0, clk_phandle, l2vic_phandle);
 
     hexagon_load_fdt(vms);
 }

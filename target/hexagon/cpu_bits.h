@@ -21,6 +21,14 @@
 #include "qemu/bitops.h"
 #include "cpu-qom.h"
 
+typedef struct HexagonCPUConfig {
+    bool lldb_compat;
+    uint32_t lldb_stack_adjust;
+    bool short_circuit;
+    bool ieee_fp_extension;
+    const HexagonCPUDef *hex_def;
+} HexagonCPUConfig;
+
 #define PCALIGN 4
 #define PCALIGN_MASK (PCALIGN - 1)
 
@@ -123,7 +131,7 @@ static inline bool is_packet_end(uint32_t endocing)
     return ((bits == 0x3) || (bits == 0x0));
 }
 
-int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc, GString *buf,
-                        const HexagonCPUDef *hex_def);
+int disassemble_hexagon(uint32_t *words, int nwords, bfd_vma pc,
+                        GString *buf, const HexagonCPUConfig *cfg);
 
 #endif

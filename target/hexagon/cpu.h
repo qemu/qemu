@@ -39,6 +39,7 @@ typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 #include "qemu/bitmap.h"
 
 #include "target/hexagon/reg_fields.h"
+#include "hw/intc/hex-l2vic.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
@@ -151,6 +152,7 @@ typedef struct CPUArchState {
     MemLog mem_log_stores[STORES_MAX];
 
     float_status fp_status;
+    float_status hvx_fp_status;
 
     target_ulong llsc_addr;
     target_ulong llsc_val;
@@ -185,23 +187,21 @@ typedef struct HexagonCPUClass {
     const HexagonCPUDef *hex_def;
 } HexagonCPUClass;
 
+#include "cpu_bits.h"
+
 struct ArchCPU {
     CPUState parent_obj;
 
     CPUHexagonState env;
-
-    bool lldb_compat;
-    target_ulong lldb_stack_adjust;
-    bool short_circuit;
+    HexagonCPUConfig cfg;
 #ifndef CONFIG_USER_ONLY
     HexagonTLBState *tlb;
     uint32_t boot_addr;
     HexagonGlobalRegState *globalregs;
     uint32_t htid;
+    HexL2VicInterface *l2vic;
 #endif
 };
-
-#include "cpu_bits.h"
 
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)

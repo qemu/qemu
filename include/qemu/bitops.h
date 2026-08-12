@@ -43,10 +43,9 @@
  * be some guest-visible register view of the bit array.
  *
  * We do not currently implement uint32_t versions of find_last_bit(),
- * find_next_bit(), find_next_zero_bit(), find_first_bit() or
- * find_first_zero_bit(), because we haven't yet needed them. If you
- * need them you should implement them similarly to the 'unsigned long'
- * versions.
+ * find_next_bit(), find_next_zero_bit() or find_first_zero_bit(),
+ * because we haven't yet needed them. If you need them you should
+ * implement them similarly to the 'unsigned long' versions.
  *
  * You can declare a bitmap to be used with these functions via the
  * DECLARE_BITMAP and DECLARE_BITMAP32 macros in bitmap.h.
@@ -380,6 +379,29 @@ static inline int test_and_change_bit32(long nr, uint32_t *addr)
 static inline int test_bit32(long nr, const uint32_t *addr)
 {
     return 1U & (addr[BIT32_WORD(nr)] >> (nr & 31));
+}
+
+/**
+ * find_first_bit32 - find the first set bit in a memory region
+ * @addr: The address to start the search at
+ * @size: The maximum size to search
+ *
+ * Returns the bit number of the first set bit,
+ * or @size if there is no set bit in the bitmap.
+ */
+static inline uint32_t find_first_bit32(const uint32_t *addr, uint32_t size)
+{
+    uint32_t result;
+
+    for (result = 0; result < size; result += 32) {
+        uint32_t tmp = *addr++;
+        if (tmp) {
+            result += ctz32(tmp);
+            return result < size ? result : size;
+        }
+    }
+    /* Not found */
+    return size;
 }
 
 /**

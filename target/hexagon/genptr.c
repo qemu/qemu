@@ -37,6 +37,76 @@
 
 #include "genptr.h"
 
+static void gen_sabsdiff_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_sub_i32(t, a, b);
+    tcg_gen_sub_i32(d, b, a);
+    tcg_gen_movcond_i32(TCG_COND_LT, d, a, b, d, t);
+}
+
+static void gen_sabsdiff_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+
+    tcg_gen_smin_vec(vece, t, a, b);
+    tcg_gen_smax_vec(vece, d, a, b);
+    tcg_gen_sub_vec(vece, d, d, t);
+}
+
+void gen_gvec_sabsdiff(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_sub_vec, INDEX_op_smin_vec, INDEX_op_smax_vec, 0
+    };
+    static const GVecGen3 ops[4] = {
+        [MO_16] = { .fniv = gen_sabsdiff_vec,
+                    .fno = gen_helper_gvec_sabsdiff_h,
+                    .opt_opc = vecop_list,
+                    .vece = MO_16 },
+        [MO_32] = { .fni4 = gen_sabsdiff_i32,
+                    .fniv = gen_sabsdiff_vec,
+                    .fno = gen_helper_gvec_sabsdiff_w,
+                    .opt_opc = vecop_list,
+                    .vece = MO_32 },
+    };
+
+    tcg_debug_assert(vece == MO_16 || vece == MO_32);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &ops[vece]);
+}
+
+static void gen_uabsdiff_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+
+    tcg_gen_umin_vec(vece, t, a, b);
+    tcg_gen_umax_vec(vece, d, a, b);
+    tcg_gen_sub_vec(vece, d, d, t);
+}
+
+void gen_gvec_uabsdiff(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_sub_vec, INDEX_op_umin_vec, INDEX_op_umax_vec, 0
+    };
+    static const GVecGen3 ops[4] = {
+        [MO_8] = { .fniv = gen_uabsdiff_vec,
+                   .fno = gen_helper_gvec_uabsdiff_b,
+                   .opt_opc = vecop_list,
+                   .vece = MO_8 },
+        [MO_16] = { .fniv = gen_uabsdiff_vec,
+                    .fno = gen_helper_gvec_uabsdiff_h,
+                    .opt_opc = vecop_list,
+                    .vece = MO_16 },
+    };
+
+    tcg_debug_assert(vece == MO_8 || vece == MO_16);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &ops[vece]);
+}
+
 TCGv gen_read_reg(TCGv result, int num)
 {
     tcg_gen_mov_tl(result, hex_gpr[num]);
