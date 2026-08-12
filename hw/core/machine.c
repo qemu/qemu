@@ -51,6 +51,8 @@ GlobalProperty hw_compat_11_0[] = {
     { TYPE_ARM_SMMUV3, "ssidsize", "0" },
     { TYPE_ARM_SMMUV3, "oas", "44" },
     { "migration", "switchover-ack-legacy", "on" },
+    { "sysbus-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
+    { "pci-ehci-usb", "x-migrate-fetch-addr-64bit", "off" },
 };
 const size_t hw_compat_11_0_len = G_N_ELEMENTS(hw_compat_11_0);
 

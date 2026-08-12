@@ -18,11 +18,58 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "crypto/hash.h"
+#include "crypto/cipher.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/irq.h"
 #include "trace.h"
 
-#define R_CRYPT_CMD     (0x10 / 4)
+/* Crypto engine registers */
+#define R_CRYPT_SRC         (0x00 / 4)
+#define R_CRYPT_DEST        (0x04 / 4)
+#define R_CRYPT_CONTEXT     (0x08 / 4)
+#define R_CRYPT_DATA_LEN    (0x0c / 4)
+/* HACE0C[27:0] holds the crypto data length */
+#define  CRYPT_DATA_LEN_MASK    0x0FFFFFFF
+#define R_CRYPT_CMD         (0x10 / 4)
+/* AES-GCM associated data length (HACE14) and tag write buffer (HACE18) */
+#define R_CRYPT_GCM_ADD_LEN (0x14 / 4)
+#define R_CRYPT_GCM_TAG     (0x18 / 4)
+/* Crypto engine command register (HACE10) bits */
+#define  CRYPT_CMD_ENCRYPT          BIT(7)
+#define  CRYPT_CMD_ISR_EN           BIT(12)
+#define  CRYPT_CMD_DES_SELECT       BIT(16)
+#define  CRYPT_CMD_TRIPLE_DES       BIT(17)
+#define  CRYPT_CMD_SRC_SG_CTRL      BIT(18)
+/* Operation mode HACE10[6:4] */
+#define  CRYPT_CMD_OP_MODE_MASK     (0x7 << 4)
+#define  CRYPT_CMD_ECB              (0x0 << 4)
+#define  CRYPT_CMD_CBC              (0x1 << 4)
+#define  CRYPT_CMD_CTR              (0x4 << 4)
+#define  CRYPT_CMD_GCM              (0x5 << 4)
+/* AES key length HACE10[3:2] */
+#define  CRYPT_CMD_AES_KEY_LEN_MASK (0x3 << 2)
+#define  CRYPT_CMD_AES256           (0x2 << 2)
+#define  CRYPT_CMD_AES192           (0x1 << 2)
+#define  CRYPT_CMD_AES128           (0x0 << 2)
+
+/*
+ * Crypto context buffer layout (HACE08). The IV is at the start of the buffer
+ * (DES places its 8 byte IV at offset 8) and the cipher key at offset 0x10.
+ */
+#define CRYPT_CTX_IV_OFFSET         0x00
+#define CRYPT_CTX_DES_IV_OFFSET     0x08
+#define CRYPT_CTX_KEY_OFFSET        0x10
+#define CRYPT_CTX_SIZE              0x30
+
+/* AES-GCM uses a 96-bit IV and a 128-bit authentication tag */
+#define CRYPT_GCM_IV_LEN            12
+#define CRYPT_GCM_TAG_LEN           16
+
+/* AST2700 64-bit DMA high address registers for the crypto command */
+#define R_CRYPT_SRC_HI      (0x80 / 4)
+#define R_CRYPT_DEST_HI     (0x84 / 4)
+#define R_CRYPT_CONTEXT_HI  (0x88 / 4)
+#define R_CRYPT_GCM_TAG_HI  (0x8c / 4)
 
 #define R_STATUS        (0x1c / 4)
 #define HASH_IRQ        BIT(9)
@@ -65,7 +112,6 @@
 /* Other cmd bits */
 #define  HASH_IRQ_EN                    BIT(9)
 #define  HASH_SG_EN                     BIT(18)
-#define  CRYPT_IRQ_EN                   BIT(12)
 /* Scatter-gather data list */
 #define SG_LIST_LEN_SIZE                4
 #define SG_LIST_LEN_MASK                0x0FFFFFFF
@@ -501,6 +547,368 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
     }
 }
 
+static bool crypt_aes_alg(uint32_t cmd, QCryptoCipherAlgo *alg, size_t *keylen)
+{
+    switch (cmd & CRYPT_CMD_AES_KEY_LEN_MASK) {
+    case CRYPT_CMD_AES128:
+        *alg = QCRYPTO_CIPHER_ALGO_AES_128;
+        *keylen = 16;
+        break;
+    case CRYPT_CMD_AES192:
+        *alg = QCRYPTO_CIPHER_ALGO_AES_192;
+        *keylen = 24;
+        break;
+    case CRYPT_CMD_AES256:
+        *alg = QCRYPTO_CIPHER_ALGO_AES_256;
+        *keylen = 32;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * Decode the crypto command register into a libqcrypto algorithm/mode pair
+ * and the block/IV geometry. Returns false for unsupported selections.
+ */
+static bool crypt_decode_cmd(uint32_t cmd, QCryptoCipherAlgo *alg,
+                             QCryptoCipherMode *mode, size_t *keylen,
+                             size_t *blocklen, size_t *iv_offset)
+{
+    if (cmd & CRYPT_CMD_DES_SELECT) {
+        *blocklen = 8;
+        *iv_offset = CRYPT_CTX_DES_IV_OFFSET;
+        if (cmd & CRYPT_CMD_TRIPLE_DES) {
+            *alg = QCRYPTO_CIPHER_ALGO_3DES;
+            *keylen = 24;
+        } else {
+            *alg = QCRYPTO_CIPHER_ALGO_DES;
+            *keylen = 8;
+        }
+    } else {
+        *blocklen = 16;
+        *iv_offset = CRYPT_CTX_IV_OFFSET;
+        if (!crypt_aes_alg(cmd, alg, keylen)) {
+            return false;
+        }
+    }
+
+    switch (cmd & CRYPT_CMD_OP_MODE_MASK) {
+    case CRYPT_CMD_ECB:
+        *mode = QCRYPTO_CIPHER_MODE_ECB;
+        break;
+    case CRYPT_CMD_CBC:
+        *mode = QCRYPTO_CIPHER_MODE_CBC;
+        break;
+    case CRYPT_CMD_CTR:
+        *mode = QCRYPTO_CIPHER_MODE_CTR;
+        break;
+    case CRYPT_CMD_GCM:
+        *mode = QCRYPTO_CIPHER_MODE_GCM;
+        break;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * Direct access mode: the source/destination register (HACE00/HACE04) points
+ * at a single contiguous buffer in DRAM. Copy @len bytes between it and the
+ * bounce buffer @buf; when @to_dram is true @buf is written out, otherwise it
+ * is read in. Returns true on success.
+ */
+static bool crypt_prepare_direct(AspeedHACEState *s, uint64_t addr,
+                                 uint8_t *buf, uint32_t len, bool to_dram)
+{
+    return !address_space_rw(&s->dram_as, addr, MEMTXATTRS_UNSPECIFIED,
+                             buf, len, to_dram);
+}
+
+/*
+ * Scatter-gather mode: the source/destination register points at an SG list
+ * whose entries are a length word (SG_LIST_LEN_LAST flags the final entry)
+ * followed by a DRAM address, matching the hash engine layout. Gather @len
+ * bytes into @buf, or scatter @buf back out when @to_dram is true.
+ * Returns true on success.
+ */
+static bool crypt_prepare_sg(AspeedHACEState *s, uint64_t addr,
+                             uint8_t *buf, uint32_t len, bool to_dram)
+{
+    uint32_t copied = 0;
+    uint32_t sg_addr;
+    uint32_t sg_len;
+    uint32_t entry;
+    int i;
+
+    for (i = 0; i < ASPEED_HACE_MAX_SG && copied < len; i++) {
+        entry = address_space_ldl_le(&s->dram_as, addr,
+                                     MEMTXATTRS_UNSPECIFIED, NULL);
+        sg_addr = address_space_ldl_le(&s->dram_as, addr + SG_LIST_LEN_SIZE,
+                                       MEMTXATTRS_UNSPECIFIED, NULL);
+        sg_len = entry & SG_LIST_LEN_MASK;
+
+        sg_addr &= SG_LIST_ADDR_MASK;
+        addr += SG_LIST_ENTRY_SIZE;
+
+        if (sg_len > len - copied) {
+            sg_len = len - copied;
+        }
+        if (address_space_rw(&s->dram_as, sg_addr, MEMTXATTRS_UNSPECIFIED,
+                             buf + copied, sg_len, to_dram)) {
+            return false;
+        }
+        copied += sg_len;
+
+        if (entry & SG_LIST_LEN_LAST) {
+            break;
+        }
+    }
+
+    return copied == len;
+}
+
+/*
+ * Add @add to the big-endian counter block @ctr (@len bytes) in place, so the
+ * CTR mode counter can be advanced by the number of blocks just consumed.
+ */
+static void crypt_be_add(uint8_t *ctr, size_t len, uint64_t add)
+{
+    size_t i = len;
+
+    while (i > 0 && add) {
+        i--;
+        add += ctr[i];
+        ctr[i] = add & 0xff;
+        add >>= 8;
+    }
+}
+
+static uint64_t crypt_get_addr(AspeedHACEState *s, int reg, int reg_hi)
+{
+    AspeedHACEClass *ahc = ASPEED_HACE_GET_CLASS(s);
+    uint64_t addr;
+
+    addr = deposit64(0, 0, 32, s->regs[reg]);
+    if (ahc->has_dma64) {
+        addr = deposit64(addr, 32, 32, s->regs[reg_hi]);
+    }
+
+    return addr;
+}
+
+/*
+ * Perform an AES/DES/3DES ECB/CBC/CTR or AES-GCM operation. The source and
+ * destination are either single contiguous buffers (direct access mode) or
+ * scatter-gather lists (HACE10[18]/[19]), addressed by HACE00/HACE04; the
+ * IV/key come from the context buffer (HACE08). For CBC and CTR the resulting
+ * chaining state is written back to the context buffer so the driver can
+ * continue; for GCM the authentication tag is written to the tag buffer.
+ */
+static void do_crypt_operation(AspeedHACEState *s, uint32_t cmd)
+{
+    bool sg_mode = cmd & CRYPT_CMD_SRC_SG_CTRL;
+    uint32_t len = s->regs[R_CRYPT_DATA_LEN];
+    bool encrypt = cmd & CRYPT_CMD_ENCRYPT;
+    g_autoptr(QCryptoCipher) cipher = NULL;
+    g_autofree uint8_t *src_buf = NULL;
+    g_autofree uint8_t *dst_buf = NULL;
+    uint8_t tag[CRYPT_GCM_TAG_LEN];
+    uint8_t ctx[CRYPT_CTX_SIZE];
+    Error *local_err = NULL;
+    QCryptoCipherMode mode;
+    QCryptoCipherAlgo alg;
+    const uint8_t *next_iv;
+    uint64_t ctx_addr;
+    uint64_t src_addr;
+    uint64_t dst_addr;
+    uint64_t tag_addr;
+    uint32_t aad_len;
+    size_t iv_offset;
+    size_t blocklen;
+    size_t buf_len;
+    size_t keylen;
+    size_t ivlen;
+    bool status;
+
+    if (len == 0) {
+        return;
+    }
+
+    if (!crypt_decode_cmd(cmd, &alg, &mode, &keylen, &blocklen, &iv_offset)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: Unsupported crypt command 0x%x\n", __func__, cmd);
+        return;
+    }
+
+    if (!qcrypto_cipher_supports(alg, mode)) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: cipher mode not supported by the crypto backend\n",
+                      __func__);
+        return;
+    }
+
+    /* GCM uses a 96-bit IV; the block modes use a full-block IV. */
+    ivlen = (mode == QCRYPTO_CIPHER_MODE_GCM) ? CRYPT_GCM_IV_LEN : blocklen;
+
+    /*
+     * The hardware GCM path is only exercised without associated data (the
+     * driver falls back to software when there is any), so AAD is not modelled.
+     */
+    aad_len = s->regs[R_CRYPT_GCM_ADD_LEN];
+    if (mode == QCRYPTO_CIPHER_MODE_GCM && aad_len != 0) {
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: GCM associated data is not implemented\n", __func__);
+        return;
+    }
+
+    /* Fetch the IV and key from the context buffer in DRAM. */
+    ctx_addr = crypt_get_addr(s, R_CRYPT_CONTEXT, R_CRYPT_CONTEXT_HI);
+    if (address_space_read(&s->dram_as, ctx_addr, MEMTXATTRS_UNSPECIFIED,
+                           ctx, sizeof(ctx))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to read context, addr=0x%" HWADDR_PRIx "\n",
+                      __func__, ctx_addr);
+        return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("context", (char *)ctx, sizeof(ctx));
+    }
+
+    cipher = qcrypto_cipher_new(alg, mode, ctx + CRYPT_CTX_KEY_OFFSET, keylen,
+                                &local_err);
+    if (cipher == NULL) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto cipher new failed: %s\n",
+                      __func__, error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    if (mode != QCRYPTO_CIPHER_MODE_ECB &&
+        qcrypto_cipher_setiv(cipher, ctx + iv_offset, ivlen,
+                             &local_err) < 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto cipher setiv failed: %s\n",
+                      __func__, error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
+    /*
+     * Round the working buffers up to a whole block. Block modes are already
+     * block-aligned; the stream-like CTR mode may leave a partial final block
+     * that the engine still processes a full block at a time. GCM handles a
+     * partial final block itself, so it operates on the exact length.
+     */
+    buf_len = (mode == QCRYPTO_CIPHER_MODE_GCM) ?
+              len : QEMU_ALIGN_UP(len, blocklen);
+    src_buf = g_malloc0(buf_len);
+    dst_buf = g_malloc0(buf_len);
+
+    /* Gather the source into the bounce buffer, per the selected mode. */
+    src_addr = crypt_get_addr(s, R_CRYPT_SRC, R_CRYPT_SRC_HI);
+    if (sg_mode) {
+        status = crypt_prepare_sg(s, src_addr, src_buf, len, false);
+    } else {
+        status = crypt_prepare_direct(s, src_addr, src_buf, len, false);
+    }
+    if (!status) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to read src, addr=0x%" HWADDR_PRIx "\n",
+                      __func__, src_addr);
+        return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("src", (char *)src_buf, len);
+    }
+
+    if (encrypt) {
+        if (qcrypto_cipher_encrypt(cipher, src_buf, dst_buf, buf_len,
+                                   &local_err) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: encrypt failed: %s\n",
+                          __func__, error_get_pretty(local_err));
+            error_free(local_err);
+            return;
+        }
+    } else {
+        if (qcrypto_cipher_decrypt(cipher, src_buf, dst_buf, buf_len,
+                                   &local_err) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: decrypt failed: %s\n",
+                          __func__, error_get_pretty(local_err));
+            error_free(local_err);
+            return;
+        }
+    }
+
+    /* Scatter the result back out, per the selected mode. */
+    dst_addr = crypt_get_addr(s, R_CRYPT_DEST, R_CRYPT_DEST_HI);
+    if (sg_mode) {
+        status = crypt_prepare_sg(s, dst_addr, dst_buf, len, true);
+    } else {
+        status = crypt_prepare_direct(s, dst_addr, dst_buf, len, true);
+    }
+    if (!status) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to write dst, addr=0x%" HWADDR_PRIx "\n",
+                      __func__, dst_addr);
+        return;
+    }
+
+    if (trace_event_get_state_backends(TRACE_ASPEED_HACE_HEXDUMP)) {
+        hace_hexdump("dst", (char *)dst_buf, len);
+    }
+
+    if (mode == QCRYPTO_CIPHER_MODE_CBC) {
+        /*
+         * CBC chains on the last ciphertext block: the final block of the
+         * output when encrypting, or of the input when decrypting. Write it
+         * back as the IV for the next request.
+         */
+        next_iv = (encrypt ? dst_buf : src_buf) + buf_len - blocklen;
+        if (address_space_write(&s->dram_as, ctx_addr + iv_offset,
+                                MEMTXATTRS_UNSPECIFIED, next_iv, blocklen)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Failed to write IV, addr=0x%" HWADDR_PRIx "\n",
+                          __func__, ctx_addr + iv_offset);
+        }
+    } else if (mode == QCRYPTO_CIPHER_MODE_CTR) {
+        /*
+         * CTR chains on the counter, which advances by one per block. Add the
+         * number of blocks processed (buf_len / blocklen) and write it back.
+         */
+        crypt_be_add(ctx + iv_offset, blocklen, buf_len / blocklen);
+        if (address_space_write(&s->dram_as, ctx_addr + iv_offset,
+                                MEMTXATTRS_UNSPECIFIED, ctx + iv_offset,
+                                blocklen)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Failed to write IV, addr=0x%" HWADDR_PRIx "\n",
+                          __func__, ctx_addr + iv_offset);
+        }
+    } else if (mode == QCRYPTO_CIPHER_MODE_GCM) {
+        /*
+         * GCM authenticates the message and writes the resulting tag to the
+         * dedicated tag buffer (HACE18/HACE8C).
+         */
+        if (qcrypto_cipher_gettag(cipher, tag, sizeof(tag), &local_err) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto cipher gettag failed: "
+                          "%s\n", __func__, error_get_pretty(local_err));
+            error_free(local_err);
+            return;
+        }
+        tag_addr = crypt_get_addr(s, R_CRYPT_GCM_TAG, R_CRYPT_GCM_TAG_HI);
+        if (address_space_write(&s->dram_as, tag_addr, MEMTXATTRS_UNSPECIFIED,
+                                tag, sizeof(tag))) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Failed to write tag, addr=0x%" HWADDR_PRIx "\n",
+                          __func__, tag_addr);
+        }
+    }
+}
+
 static uint64_t aspeed_hace_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedHACEState *s = ASPEED_HACE(opaque);
@@ -531,15 +939,23 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
                 qemu_irq_lower(s->irq);
             }
         }
-        if (ahc->raise_crypt_interrupt_workaround) {
-            if (data & CRYPT_IRQ) {
-                data &= ~CRYPT_IRQ;
+        if (data & CRYPT_IRQ) {
+            data &= ~CRYPT_IRQ;
 
-                if (s->regs[addr] & CRYPT_IRQ) {
-                    qemu_irq_lower(s->irq);
-                }
+            if (s->regs[addr] & CRYPT_IRQ) {
+                qemu_irq_lower(s->irq);
             }
         }
+        break;
+    case R_CRYPT_SRC:
+    case R_CRYPT_DEST:
+    case R_CRYPT_CONTEXT:
+    case R_CRYPT_GCM_TAG:
+        data &= ahc->src_mask;
+        break;
+    case R_CRYPT_DATA_LEN:
+    case R_CRYPT_GCM_ADD_LEN:
+        data &= CRYPT_DATA_LEN_MASK;
         break;
     case R_HASH_SRC:
         data &= ahc->src_mask;
@@ -589,13 +1005,12 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     }
     case R_CRYPT_CMD:
-        qemu_log_mask(LOG_UNIMP, "%s: Crypt commands not implemented\n",
-                       __func__);
-        if (ahc->raise_crypt_interrupt_workaround) {
-            s->regs[R_STATUS] |= CRYPT_IRQ;
-            if (data & CRYPT_IRQ_EN) {
-                qemu_irq_raise(s->irq);
-            }
+        do_crypt_operation(s, data);
+
+        /* Hardware raises the crypt interrupt once the command finishes. */
+        s->regs[R_STATUS] |= CRYPT_IRQ;
+        if (data & CRYPT_CMD_ISR_EN) {
+            qemu_irq_raise(s->irq);
         }
         break;
     case R_HASH_SRC_HI:
@@ -605,6 +1020,16 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         data &= ahc->dest_hi_mask;
         break;
     case R_HASH_KEY_BUFF_HI:
+        data &= ahc->key_hi_mask;
+        break;
+    case R_CRYPT_SRC_HI:
+        data &= ahc->src_hi_mask;
+        break;
+    case R_CRYPT_DEST_HI:
+    case R_CRYPT_GCM_TAG_HI:
+        data &= ahc->dest_hi_mask;
+        break;
+    case R_CRYPT_CONTEXT_HI:
         data &= ahc->key_hi_mask;
         break;
     default:
@@ -782,12 +1207,6 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
     ahc->dest_hi_mask = 0x00000003;
     ahc->key_hi_mask = 0x00000003;
 
-    /*
-     * Currently, it does not support the CRYPT command. Instead, it only
-     * sends an interrupt to notify the firmware that the crypt command
-     * has completed. It is a temporary workaround.
-     */
-    ahc->raise_crypt_interrupt_workaround = true;
     ahc->has_dma64 = true;
 }
 

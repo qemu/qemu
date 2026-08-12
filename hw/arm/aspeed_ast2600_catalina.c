@@ -472,7 +472,16 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c0 */
     /* i2c-mux@71 (PCA9546) on i2c0 */
-    i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x71);
+    i2c_mux = i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x71);
+
+    /* i2c0mux0ch0 */
+    /* IOB0 NIC0 temperature-sensor@1f - tmp421 */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 0),
+                            TYPE_TMP421, 0x1f);
+    /* i2c0mux0ch2 */
+    /* IOB0 NIC1 temperature-sensor@1f - tmp421 */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 2),
+                            TYPE_TMP421, 0x1f);
 
     /* i2c-mux@72 (PCA9546) on i2c0 */
     i2c_mux = i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x72);
@@ -489,7 +498,16 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x73);
 
     /* i2c-mux@75 (PCA9546) on i2c0 */
-    i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x75);
+    i2c_mux = i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x75);
+
+    /* i2c0mux3ch0 */
+    /* IOB1 NIC0 temperature-sensor@1f - tmp421 */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 0),
+                            TYPE_TMP421, 0x1f);
+    /* i2c0mux3ch2 */
+    /* IOB1 NIC1 temperature-sensor@1f - tmp421 */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 2),
+                            TYPE_TMP421, 0x1f);
 
     /* i2c-mux@76 (PCA9546) on i2c0 */
     i2c_mux = i2c_slave_create_simple(i2c[0], TYPE_PCA9546, 0x76);
@@ -533,7 +551,7 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
                             TYPE_PCA9554, 0x27);
     /* io_expander6 - pca9555@25 */
     i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 6),
-                            TYPE_PCA9552, 0x25);
+                            TYPE_PCA9555, 0x25);
     /* eeprom@51 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 6), 0x51, 8 * KiB,
                           osfp_eeprom, osfp_eeprom_len);
@@ -544,14 +562,16 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
                           fio_eeprom, fio_eeprom_len);
     /* temperature-sensor@4b - tmp75 */
     i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 7), TYPE_TMP75, 0x4b);
+    /* temperature-sensor@4f - tmp75 (FIO remote) */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 7), TYPE_TMP75, 0x4f);
 
     /* &i2c2 */
     /* io_expander0 - pca9555@20 */
-    i2c_slave_create_simple(i2c[2], TYPE_PCA9552, 0x20);
+    i2c_slave_create_simple(i2c[2], TYPE_PCA9555, 0x20);
     /* io_expander0 - pca9555@21 */
-    i2c_slave_create_simple(i2c[2], TYPE_PCA9552, 0x21);
+    i2c_slave_create_simple(i2c[2], TYPE_PCA9555, 0x21);
     /* io_expander0 - pca9555@27 */
-    i2c_slave_create_simple(i2c[2], TYPE_PCA9552, 0x27);
+    i2c_slave_create_simple(i2c[2], TYPE_PCA9555, 0x27);
     /* eeprom@50 */
     at24c_eeprom_init(i2c[2], 0x50, 8 * KiB);
     /* eeprom@51 */
@@ -564,21 +584,17 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
     /* eeprom@52 */
     at24c_eeprom_init_rom(pca954x_i2c_get_bus(i2c_mux, 6), 0x52, 8 * KiB,
                           hdd_eeprom, hdd_eeprom_len);
-    /* i2c5mux0ch7 */
-    /* ina230@40 - no model */
-    /* ina230@41 - no model */
-    /* ina230@44 - no model */
-    /* ina230@45 - no model */
+    /* i2c5mux0ch7 - empty */
 
     /* &i2c6 */
     /* io_expander3 - pca9555@21 */
-    i2c_slave_create_simple(i2c[6], TYPE_PCA9552, 0x21);
+    i2c_slave_create_simple(i2c[6], TYPE_PCA9555, 0x21);
     /* rtc@6f - nct3018y */
     i2c_slave_create_simple(i2c[6], TYPE_DS1338, 0x6f);
 
     /* &i2c9 */
     /* io_expander4 - pca9555@4f */
-    i2c_slave_create_simple(i2c[9], TYPE_PCA9552, 0x4f);
+    i2c_slave_create_simple(i2c[9], TYPE_PCA9555, 0x4f);
     /* temperature-sensor@4b - tpm75 */
     i2c_slave_create_simple(i2c[9], TYPE_TMP75, 0x4b);
     /* eeprom@50 */
@@ -615,17 +631,17 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* &i2c14 */
     /* io_expander9 - pca9555@10 */
-    i2c_slave_create_simple(i2c[14], TYPE_PCA9552, 0x10);
+    i2c_slave_create_simple(i2c[14], TYPE_PCA9555, 0x10);
     /* io_expander10 - pca9555@11 */
-    i2c_slave_create_simple(i2c[14], TYPE_PCA9552, 0x11);
+    i2c_slave_create_simple(i2c[14], TYPE_PCA9555, 0x11);
     /* io_expander11 - pca9555@12 */
-    i2c_slave_create_simple(i2c[14], TYPE_PCA9552, 0x12);
+    i2c_slave_create_simple(i2c[14], TYPE_PCA9555, 0x12);
     /* io_expander12 - pca9555@13 */
-    i2c_slave_create_simple(i2c[14], TYPE_PCA9552, 0x13);
+    i2c_slave_create_simple(i2c[14], TYPE_PCA9555, 0x13);
     /* io_expander13 - pca9555@14 */
-    i2c_slave_create_simple(i2c[14], TYPE_PCA9552, 0x14);
+    i2c_slave_create_simple(i2c[14], TYPE_PCA9555, 0x14);
     /* io_expander14 - pca9555@15 */
-    i2c_slave_create_simple(i2c[14], TYPE_PCA9552, 0x15);
+    i2c_slave_create_simple(i2c[14], TYPE_PCA9555, 0x15);
 
     /* &i2c15 */
     /* temperature-sensor@1f - tmp421 */

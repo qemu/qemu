@@ -121,10 +121,12 @@
 #
 # @ctr: Counter (Since 2.8)
 #
+# @gcm: Galois/Counter Mode (Since 11.2)
+#
 # Since: 2.6
 ##
 { 'enum': 'QCryptoCipherMode',
-  'data': ['ecb', 'cbc', 'xts', 'ctr']}
+  'data': ['ecb', 'cbc', 'xts', 'ctr', 'gcm']}
 
 ##
 # @QCryptoIVGenAlgo:

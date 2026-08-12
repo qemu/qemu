@@ -20,6 +20,7 @@ OBJECT_DECLARE_TYPE(AspeedSCUState, AspeedSCUClass, ASPEED_SCU)
 #define TYPE_ASPEED_2500_SCU TYPE_ASPEED_SCU "-ast2500"
 #define TYPE_ASPEED_2600_SCU TYPE_ASPEED_SCU "-ast2600"
 #define TYPE_ASPEED_2700_SCU TYPE_ASPEED_SCU "-ast2700"
+OBJECT_DECLARE_SIMPLE_TYPE(Aspeed2700SCUState, ASPEED_2700_SCU)
 #define TYPE_ASPEED_2700_SCUIO TYPE_ASPEED_SCU "io" "-ast2700"
 #define TYPE_ASPEED_1030_SCU TYPE_ASPEED_SCU "-ast1030"
 
@@ -39,6 +40,10 @@ struct AspeedSCUState {
     uint32_t hw_strap1;
     uint32_t hw_strap2;
     uint32_t hw_prot_key;
+};
+
+struct Aspeed2700SCUState {
+    AspeedSCUState parent_obj;
 };
 
 #define AST2400_A1_SILICON_REV   0x02010303U

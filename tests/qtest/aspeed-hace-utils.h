@@ -79,5 +79,25 @@ void aspeed_test_sha512_accum(const char *machine, const uint32_t base,
 void aspeed_test_addresses(const char *machine, const uint32_t base,
                            const struct AspeedMasks *expected);
 
+/*
+ * Cipher modes a SoC's crypto engine supports, for aspeed_add_crypto_tests().
+ */
+enum {
+    CRYPT_MODE_ECB = 1 << 0,
+    CRYPT_MODE_CBC = 1 << 1,
+    CRYPT_MODE_CTR = 1 << 2,
+    CRYPT_MODE_GCM = 1 << 3,
+};
+
+/*
+ * Register the crypto known-answer tests that @modes selects (a mask of
+ * CRYPT_MODE_*) for the given machine. Each test is named
+ * "<prefix>/hace/crypto/<mode>". @sg selects scatter-gather mode (used by the
+ * AST2600 and later) instead of the AST2500 direct access mode.
+ */
+void aspeed_add_crypto_tests(const char *prefix, const char *machine,
+                             uint32_t base, uint64_t dram, uint32_t modes,
+                             bool sg);
+
 #endif /* TESTS_ASPEED_HACE_UTILS_H */
 

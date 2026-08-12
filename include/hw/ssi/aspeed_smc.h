@@ -47,7 +47,7 @@ struct AspeedSMCFlash {
 #define TYPE_ASPEED_SMC "aspeed.smc"
 OBJECT_DECLARE_TYPE(AspeedSMCState, AspeedSMCClass, ASPEED_SMC)
 
-#define ASPEED_SMC_R_MAX        (0x100 / 4)
+#define ASPEED_SMC_R_MAX        (0x300 / 4)
 #define ASPEED_SMC_CS_MAX       5
 
 struct AspeedSMCState {
@@ -114,6 +114,7 @@ struct AspeedSMCClass {
                            AspeedSegments *seg);
     void (*dma_ctrl)(AspeedSMCState *s, uint32_t value);
     int (*addr_width)(const AspeedSMCState *s);
+    int (*data_fifo_offset_to_cs)(const AspeedSMCState *s, uint32_t offset);
     const MemoryRegionOps *reg_ops;
 };
 

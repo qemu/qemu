@@ -27,8 +27,6 @@ static const Property aspeed_coprocessor_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_LINK("sram", AspeedCoprocessorState, sram, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_LINK("scu", AspeedCoprocessorState, scu, TYPE_ASPEED_SCU,
-                     AspeedSCUState *),
     DEFINE_PROP_LINK("uart", AspeedCoprocessorState, uart, TYPE_SERIAL_MM,
                      SerialMM *),
     DEFINE_PROP_INT32("uart-dev", AspeedCoprocessorState, uart_dev, 0),

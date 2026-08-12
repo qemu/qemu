@@ -4,23 +4,7 @@
  *
  * Copyright (C) 2016 IBM Corp.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
 
 #ifndef TESTS_ASPEED_SMC_UTILS_H
@@ -44,7 +28,13 @@
 #define   CTRL_FREADMODE       0x1
 #define   CTRL_WRITEMODE       0x2
 #define   CTRL_USERMODE        0x3
+#define   CTRL_IO_QUAD_DATA     BIT(30)
+#define   CTRL_IO_DUAL_DATA     BIT(29)
+#define   CTRL_DUMMY_LOW_SHIFT   6
+#define   CTRL_DUMMY_HIGH_SHIFT  14
 #define SR_WEL BIT(1)
+/* Data fifo */
+#define R_DATA_FIFO 0x200
 
 /*
  * Flash commands
@@ -55,6 +45,9 @@ enum {
     WRDI = 0x4,
     BULK_ERASE = 0xc7,
     READ = 0x03,
+    FAST_READ = 0x0b,
+    DOR = 0x3b,
+    QOR = 0x6b,
     PP = 0x02,
     WRSR = 0x1,
     WREN = 0x6,
@@ -90,5 +83,13 @@ void aspeed_smc_test_status_reg_write_protection(const void *data);
 void aspeed_smc_test_write_block_protect(const void *data);
 void aspeed_smc_test_write_block_protect_bottom_bit(const void *data);
 void aspeed_smc_test_write_page_qpi(const void *data);
+void aspeed_smc_test_read_page_mem_fast_read(const void *data);
+void aspeed_smc_test_write_page_fast_read(const void *data);
+void aspeed_smc_test_read_page_mem_dor(const void *data);
+void aspeed_smc_test_write_page_dor(const void *data);
+void aspeed_smc_test_read_page_mem_qor(const void *data);
+void aspeed_smc_test_write_page_qor(const void *data);
+void aspeed_smc_test_write_page_datafifo(const void *data);
+void aspeed_smc_test_read_page_datafifo(const void *data);
 
 #endif /* TESTS_ASPEED_SMC_UTILS_H */

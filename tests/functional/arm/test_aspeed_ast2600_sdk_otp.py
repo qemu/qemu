@@ -12,15 +12,15 @@ from qemu_test import exec_command_and_wait_for_pattern
 
 class AST2600Machine(AspeedTest):
 
-    ASSET_SDK_V1101_AST2600 = Asset(
-        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.01/ast2600-default-image.tar.gz',
-        '3c5b4d4ccf27b0d208a073f98426db54cd751b96143180cd15df1a83978f832c')
+    ASSET_SDK_V1103_AST2600 = Asset(
+        'https://github.com/AspeedTech-BMC/openbmc/releases/download/v11.03/ast2600-default-image.tar.gz',
+        '47e3656a14bf7a4de28d3dfbf48bc2325443bc42d270f3bc82646f92f6dea165')
 
     def test_arm_ast2600_otp_blockdev_device(self):
         self.vm.set_machine("ast2600-evb")
         self.require_netdev('user')
 
-        image_path = self.archive_extract(self.ASSET_SDK_V1101_AST2600)
+        image_path = self.archive_extract(self.ASSET_SDK_V1103_AST2600)
         otp_img = self.generate_otpmem_image()
 
         self.vm.set_console()

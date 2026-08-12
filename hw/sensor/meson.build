@@ -1,3 +1,4 @@
+system_ss.add(when: 'CONFIG_ADC128D818', if_true: files('adc128d818.c'))
 system_ss.add(when: 'CONFIG_TMP105', if_true: files('tmp105.c'))
 system_ss.add(when: 'CONFIG_TMP421', if_true: files('tmp421.c'))
 system_ss.add(when: 'CONFIG_DPS310', if_true: files('dps310.c'))

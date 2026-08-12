@@ -1,13 +1,14 @@
 /*
  * Facebook Anacapa
  *
- * Copyright (c) Meta Platforms, Inc. and affiliates.
+ * Copyright (c) 2026 Meta Platforms, Inc. and affiliates.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/sensor/adc128d818.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
@@ -15,7 +16,6 @@
 #include "hw/gpio/pca9552.h"
 #include "hw/nvram/eeprom_at24c.h"
 
-/* Anacapa hardware value */
 #define ANACAPA_BMC_HW_STRAP1 0x00002002
 #define ANACAPA_BMC_HW_STRAP2 0x00000000
 #define ANACAPA_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
@@ -221,6 +221,17 @@ static const uint8_t hpm_brd_id_eeprom[] = {
 };
 static const size_t hpm_brd_id_eeprom_len = sizeof(hpm_brd_id_eeprom);
 
+static void anacapa_add_adc128d818(I2CBus *bus, uint8_t addr,
+                                   const char *description)
+{
+    DeviceState *dev = DEVICE(i2c_slave_new(TYPE_ADC128D818, addr));
+    g_autofree char *childname = g_strdup_printf("0x%02x", addr);
+
+    qdev_prop_set_string(dev, "description", description);
+    object_property_add_child(OBJECT(bus), childname, OBJECT(dev));
+    i2c_slave_realize_and_unref(I2C_SLAVE(dev), bus, &error_fatal);
+}
+
 static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
 {
     /* Reference: aspeed-bmc-facebook-anacapa.dts */
@@ -242,7 +253,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     /* &i2c1 */
     /* eeprom@50 */
     at24c_eeprom_init(i2c[1], 0x50, 256 * KiB);
-    /* i2c-mux@70 (PCA9546) — 4 channels, empty */
+    /* i2c-mux@70 (PCA9546) - 4 channels, empty */
     i2c_slave_create_simple(i2c[1], TYPE_PCA9546, 0x70);
 
     /* &i2c4 */
@@ -259,7 +270,8 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_mux = i2c_slave_create_simple(i2c[8], TYPE_PCA9546, 0x72);
 
     /* i2c8mux ch0 */
-    /* adc128d818@1f — no model */
+    /* adc128d818@1f - R-PDB ADC (mode 1: 8 voltage channels) */
+    anacapa_add_adc128d818(pca954x_i2c_get_bus(i2c_mux, 0), 0x1f, "i2c8:0:1f");
     /* pca9555@22 */
     i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 0),
                             TYPE_PCA9552, 0x22);
@@ -305,7 +317,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     /* i2c-mux@71 (PCA9548) */
     i2c_mux = i2c_slave_create_simple(i2c[11], TYPE_PCA9548, 0x71);
 
-    /* i2c11mux ch0-ch4 — empty */
+    /* i2c11mux ch0-ch4 - empty */
 
     /* i2c11mux ch5 */
     /* pca9555@22 */
@@ -320,7 +332,8 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_mux = i2c_slave_create_simple(i2c[13], TYPE_PCA9548, 0x70);
 
     /* i2c13mux ch3 */
-    /* adc128d818@1f - no model */
+    /* adc128d818@1f - MB ADC (mode 1: 8 voltage channels) */
+    anacapa_add_adc128d818(pca954x_i2c_get_bus(i2c_mux, 3), 0x1f, "i2c13:3:1f");
 
     /* i2c13mux ch4 */
     /* eeprom@51 */
@@ -328,7 +341,7 @@ static void anacapa_bmc_i2c_init(AspeedMachineState *bmc)
                           hpm_brd_id_eeprom, hpm_brd_id_eeprom_len);
 
     /* i2c13mux ch7 */
-    /* nfc@28 — no model */
+    /* nfc@28 - no model */
 }
 
 static void aspeed_machine_anacapa_class_init(ObjectClass *oc,

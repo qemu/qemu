@@ -134,11 +134,9 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     return true;
 }
 
-static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
+static bool ast2700fc_ssp_init(Ast2700FCState *s, AspeedSoCState *psp,
+                               Error **errp)
 {
-    Ast2700FCState *s = AST2700FC(machine);
-    AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
-
     s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
@@ -158,7 +156,11 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->ssp), "sram",
                              OBJECT(&psp->sram), &error_abort);
     object_property_set_link(OBJECT(&s->ssp), "scu",
-                             OBJECT(&psp->scu), &error_abort);
+                             OBJECT(&s->ca35.scu), &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "scuio",
+                             OBJECT(&psp->scuio), &error_abort);
+    object_property_set_link(OBJECT(&s->ssp), "fmc",
+                             OBJECT(&psp->fmc), &error_abort);
     if (!qdev_realize(DEVICE(&s->ssp), NULL, errp)) {
         return false;
     }
@@ -166,11 +168,9 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     return true;
 }
 
-static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
+static bool ast2700fc_tsp_init(Ast2700FCState *s, AspeedSoCState *psp,
+                               Error **errp)
 {
-    Ast2700FCState *s = AST2700FC(machine);
-    AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
-
     s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
     clock_set_hz(s->tsp_sysclk, 200000000ULL);
 
@@ -190,7 +190,11 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
     object_property_set_link(OBJECT(&s->tsp), "sram",
                              OBJECT(&psp->sram), &error_abort);
     object_property_set_link(OBJECT(&s->tsp), "scu",
-                             OBJECT(&psp->scu), &error_abort);
+                             OBJECT(&s->ca35.scu), &error_abort);
+    object_property_set_link(OBJECT(&s->tsp), "scuio",
+                             OBJECT(&psp->scuio), &error_abort);
+    object_property_set_link(OBJECT(&s->tsp), "fmc",
+                             OBJECT(&psp->fmc), &error_abort);
     if (!qdev_realize(DEVICE(&s->tsp), NULL, errp)) {
         return false;
     }
@@ -200,9 +204,19 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
 
 static void ast2700fc_init(MachineState *machine)
 {
+    Ast2700FCState *s = AST2700FC(machine);
+    AspeedSoCState *psp;
+
     ast2700fc_ca35_init(machine, &error_abort);
-    ast2700fc_ssp_init(machine, &error_abort);
-    ast2700fc_tsp_init(machine, &error_abort);
+
+    /*
+     * SSP and TSP use resources owned by the PSP SoC, such as UART,
+     * SRAM, SCU and SCUIO.  Therefore the PSP SoC must be realized
+     * before the coprocessors are initialized.
+     */
+    psp = ASPEED_SOC(&s->ca35);
+    ast2700fc_ssp_init(s, psp, &error_abort);
+    ast2700fc_tsp_init(s, psp, &error_abort);
 }
 
 static void ast2700fc_class_init(ObjectClass *oc, const void *data)

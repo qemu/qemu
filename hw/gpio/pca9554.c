@@ -24,6 +24,8 @@ struct PCA9554Class {
     /*< private >*/
     I2CSlaveClass parent_class;
     /*< public >*/
+
+    uint8_t pin_count;
 };
 typedef struct PCA9554Class PCA9554Class;
 
@@ -37,46 +39,36 @@ static const char *pin_state[] = {"low", "high"};
 
 static void pca9554_update_pin_input(PCA9554State *s)
 {
+    PCA9554Class *pc = PCA9554_GET_CLASS(s);
     int i;
     uint8_t config = s->regs[PCA9554_CONFIG];
     uint8_t output = s->regs[PCA9554_OUTPUT];
-    uint8_t internal_state = config | output;
 
-    for (i = 0; i < PCA9554_PIN_COUNT; i++) {
+    for (i = 0; i < pc->pin_count; i++) {
         uint8_t bit_mask = 1 << i;
-        uint8_t internal_pin_state = (internal_state >> i) & 0x1;
         uint8_t old_value = s->regs[PCA9554_INPUT] & bit_mask;
         uint8_t new_value;
 
-        switch (internal_pin_state) {
-        case PCA9554_PIN_LOW:
-            s->regs[PCA9554_INPUT] &= ~bit_mask;
-            break;
-        case PCA9554_PIN_HIZ:
+        if (config & bit_mask) {
             /*
-             * pullup sets it to a logical 1 unless
-             * external device drives it low.
+             * Input: the pin is Hi-Z with a pull-up, so it reads high
+             * unless an external device drives it low.
              */
             if (s->ext_state[i] == PCA9554_PIN_LOW) {
                 s->regs[PCA9554_INPUT] &= ~bit_mask;
             } else {
-                s->regs[PCA9554_INPUT] |=  bit_mask;
+                s->regs[PCA9554_INPUT] |= bit_mask;
             }
-            break;
-        default:
-            break;
+        } else {
+            /* Output: the push-pull stage drives the output register level. */
+            s->regs[PCA9554_INPUT] = (s->regs[PCA9554_INPUT] & ~bit_mask) |
+                                     (output & bit_mask);
         }
 
-        /* update irq state only if pin state changed */
+        /* drive the per-pin GPIO output only if the pin level changed */
         new_value = s->regs[PCA9554_INPUT] & bit_mask;
         if (new_value != old_value) {
-            if (new_value) {
-                /* changed from 0 to 1 */
-                qemu_set_irq(s->gpio_out[i], 1);
-            } else {
-                /* changed from 1 to 0 */
-                qemu_set_irq(s->gpio_out[i], 0);
-            }
+            qemu_set_irq(s->gpio_out[i], !!new_value);
         }
     }
 }
@@ -99,6 +91,12 @@ static uint8_t pca9554_read(PCA9554State *s, uint8_t reg)
 
 static void pca9554_write(PCA9554State *s, uint8_t reg, uint8_t data)
 {
+    PCA9554Class *pc = PCA9554_GET_CLASS(s);
+    uint8_t pin_mask = (1 << pc->pin_count) - 1;
+
+    /* Variants narrower than 8 bits ignore the unimplemented upper pins. */
+    data &= pin_mask;
+
     switch (reg) {
     case PCA9554_OUTPUT:
     case PCA9554_CONFIG:
@@ -145,6 +143,14 @@ static int pca9554_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
+static void pca9554_set_ext_state(PCA9554State *s, int pin, int level)
+{
+    if (s->ext_state[pin] != level) {
+        s->ext_state[pin] = level;
+        pca9554_update_pin_input(s);
+    }
+}
+
 static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
@@ -157,14 +163,18 @@ static void pca9554_get_pin(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (pin < 0 || pin >= PCA9554_PIN_COUNT) {
+    if (pin < 0 || pin >= PCA9554_GET_CLASS(s)->pin_count) {
         error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
 
-    state = pca9554_read(s, PCA9554_CONFIG);
-    state |= pca9554_read(s, PCA9554_OUTPUT);
-    state = (state >> pin) & 0x1;
+    /*
+     * Report the physical pin level. The input register is kept in sync by
+     * pca9554_update_pin_input(): output pins mirror the OUTPUT register and
+     * input pins reflect the externally driven (or pulled-up) level, so it
+     * holds the wire level regardless of the configured direction.
+     */
+    state = (s->regs[PCA9554_INPUT] >> pin) & 0x1;
     visit_type_str(v, name, (char **)&pin_state[state], errp);
 }
 
@@ -184,7 +194,7 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "%s: error reading %s", __func__, name);
         return;
     }
-    if (pin < 0 || pin >= PCA9554_PIN_COUNT) {
+    if (pin < 0 || pin >= PCA9554_GET_CLASS(s)->pin_count) {
         error_setg(errp, "%s invalid pin %s", __func__, name);
         return;
     }
@@ -199,20 +209,34 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    /* First, modify the output register bit */
-    val = pca9554_read(s, PCA9554_OUTPUT);
-    mask = 0x1 << pin;
-    if (state == PCA9554_PIN_LOW) {
-        val &= ~(mask);
+    if (s->hw_dir) {
+        /* Warn and ignore if the guest has configured this pin as output */
+        if (!((s->regs[PCA9554_CONFIG] >> pin) & 0x1)) {
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: pin %d is configured as output, "
+                          "ignoring external set\n",
+                          s->description, pin);
+            return;
+        }
+        /* Drive the external input level */
+        pca9554_set_ext_state(s, pin, state != PCA9554_PIN_LOW);
     } else {
-        val |= mask;
-    }
-    pca9554_write(s, PCA9554_OUTPUT, val);
+        /* Legacy behavior: force output mode and drive */
+        /* First, modify the output register bit */
+        val = pca9554_read(s, PCA9554_OUTPUT);
+        mask = 0x1 << pin;
+        if (state == PCA9554_PIN_LOW) {
+            val &= ~(mask);
+        } else {
+            val |= mask;
+        }
+        pca9554_write(s, PCA9554_OUTPUT, val);
 
-    /* Then, clear the config register bit for output mode */
-    val = pca9554_read(s, PCA9554_CONFIG);
-    val &= ~mask;
-    pca9554_write(s, PCA9554_CONFIG, val);
+        /* Then, clear the config register bit for output mode */
+        val = pca9554_read(s, PCA9554_CONFIG);
+        val &= ~mask;
+        pca9554_write(s, PCA9554_CONFIG, val);
+    }
 }
 
 static const VMStateDescription pca9554_vmstate = {
@@ -232,13 +256,15 @@ static const VMStateDescription pca9554_vmstate = {
 static void pca9554_reset(DeviceState *dev)
 {
     PCA9554State *s = PCA9554(dev);
+    PCA9554Class *pc = PCA9554_GET_CLASS(s);
+    uint8_t pin_mask = (1 << pc->pin_count) - 1;
 
-    s->regs[PCA9554_INPUT] = 0xFF;
-    s->regs[PCA9554_OUTPUT] = 0xFF;
+    s->regs[PCA9554_INPUT] = pin_mask;
+    s->regs[PCA9554_OUTPUT] = pin_mask;
     s->regs[PCA9554_POLARITY] = 0x0; /* No pins are inverted */
-    s->regs[PCA9554_CONFIG] = 0xFF; /* All pins are inputs */
+    s->regs[PCA9554_CONFIG] = pin_mask; /* All pins are inputs */
 
-    memset(s->ext_state, PCA9554_PIN_HIZ, PCA9554_PIN_COUNT);
+    memset(s->ext_state, PCA9554_PIN_HIZ, pc->pin_count);
     pca9554_update_pin_input(s);
 
     s->pointer = 0x0;
@@ -247,55 +273,51 @@ static void pca9554_reset(DeviceState *dev)
 
 static void pca9554_initfn(Object *obj)
 {
+    PCA9554Class *pc = PCA9554_GET_CLASS(obj);
     int pin;
 
-    for (pin = 0; pin < PCA9554_PIN_COUNT; pin++) {
+    for (pin = 0; pin < pc->pin_count; pin++) {
         char *name;
 
         name = g_strdup_printf("pin%d", pin);
-        object_property_add(obj, name, "bool", pca9554_get_pin, pca9554_set_pin,
+        object_property_add(obj, name, "str", pca9554_get_pin, pca9554_set_pin,
                             NULL, NULL);
         g_free(name);
     }
 }
 
-static void pca9554_set_ext_state(PCA9554State *s, int pin, int level)
-{
-    if (s->ext_state[pin] != level) {
-        s->ext_state[pin] = level;
-        pca9554_update_pin_input(s);
-    }
-}
-
 static void pca9554_gpio_in_handler(void *opaque, int pin, int level)
 {
-
     PCA9554State *s = PCA9554(opaque);
+    PCA9554Class *pc = PCA9554_GET_CLASS(s);
 
-    assert((pin >= 0) && (pin < PCA9554_PIN_COUNT));
+    assert((pin >= 0) && (pin < pc->pin_count));
     pca9554_set_ext_state(s, pin, level);
 }
 
 static void pca9554_realize(DeviceState *dev, Error **errp)
 {
     PCA9554State *s = PCA9554(dev);
+    PCA9554Class *pc = PCA9554_GET_CLASS(s);
 
     if (!s->description) {
-        s->description = g_strdup("pca9554");
+        s->description = g_strdup(object_get_typename(OBJECT(dev)));
     }
 
-    qdev_init_gpio_out(dev, s->gpio_out, PCA9554_PIN_COUNT);
-    qdev_init_gpio_in(dev, pca9554_gpio_in_handler, PCA9554_PIN_COUNT);
+    qdev_init_gpio_out(dev, s->gpio_out, pc->pin_count);
+    qdev_init_gpio_in(dev, pca9554_gpio_in_handler, pc->pin_count);
 }
 
 static const Property pca9554_properties[] = {
     DEFINE_PROP_STRING("description", PCA9554State, description),
+    DEFINE_PROP_BOOL("hw-dir", PCA9554State, hw_dir, false),
 };
 
 static void pca9554_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    PCA9554Class *pc = PCA9554_CLASS(klass);
 
     k->event = pca9554_event;
     k->recv = pca9554_recv;
@@ -304,21 +326,32 @@ static void pca9554_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, pca9554_reset);
     dc->vmsd = &pca9554_vmstate;
     device_class_set_props(dc, pca9554_properties);
+
+    pc->pin_count = PCA9554_PIN_COUNT;
 }
 
-static const TypeInfo pca9554_info = {
-    .name          = TYPE_PCA9554,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_init = pca9554_initfn,
-    .instance_size = sizeof(PCA9554State),
-    .class_init    = pca9554_class_init,
-    .class_size    = sizeof(PCA9554Class),
-    .abstract      = false,
+static void pca9536_class_init(ObjectClass *klass, const void *data)
+{
+    PCA9554Class *pc = PCA9554_CLASS(klass);
+
+    pc->pin_count = PCA9536_PIN_COUNT;
+}
+
+static const TypeInfo pca9554_types[] = {
+    {
+        .name          = TYPE_PCA9554,
+        .parent        = TYPE_I2C_SLAVE,
+        .instance_init = pca9554_initfn,
+        .instance_size = sizeof(PCA9554State),
+        .class_init    = pca9554_class_init,
+        .class_size    = sizeof(PCA9554Class),
+        .abstract      = false,
+    },
+    {
+        .name          = TYPE_PCA9536,
+        .parent        = TYPE_PCA9554,
+        .class_init    = pca9536_class_init,
+    }
 };
 
-static void pca9554_register_types(void)
-{
-    type_register_static(&pca9554_info);
-}
-
-type_init(pca9554_register_types)
+DEFINE_TYPES(pca9554_types);
