@@ -4263,15 +4263,15 @@ static int parse_ramblock(QEMUFile *f, RAMBlock *block, ram_addr_t length)
     return ret;
 }
 
-static int parse_ramblocks(QEMUFile *f, ram_addr_t total_ram_bytes)
+static int parse_ramblocks(QEMUFile *f, uint64_t total_ram_bytes)
 {
     int ret = 0;
 
     /* Synchronize RAM block list */
-    while (!ret && total_ram_bytes) {
+    while (total_ram_bytes) {
         RAMBlock *block;
         char id[256];
-        ram_addr_t length;
+        uint64_t length;
         int len = qemu_get_byte(f);
 
         qemu_get_buffer(f, (uint8_t *)id, len);
@@ -4285,8 +4285,15 @@ static int parse_ramblocks(QEMUFile *f, ram_addr_t total_ram_bytes)
             error_report("Unknown ramblock \"%s\", cannot accept "
                          "migration", id);
             ret = -EINVAL;
+            break;
         }
-        total_ram_bytes -= length;
+
+        if (usub64_overflow(total_ram_bytes, length, &total_ram_bytes)) {
+            error_report("%s: RAMBlock '%s' size underflow total RAM size",
+                         __func__, block->idstr);
+            ret = -EFAULT;
+            break;
+        }
     }
 
     return ret;

@@ -2668,6 +2668,39 @@ void address_space_register_map_client(AddressSpace *as, QEMUBH *bh);
 void address_space_unregister_map_client(AddressSpace *as, QEMUBH *bh);
 
 /* Internal functions, part of the implementation of address_space_read.  */
+
+/**
+ * qemu_ram_move: move data from or to ramblock
+ *
+ * @dst: destination where the data is moved to
+ * @src: source where the data is moved from
+ * @n: length of data to be moved
+ *
+ * Move @n bytes from @src to @dst, the memory areas may overlap. This
+ * provides the same semantics as memmove(), plus an additional stronger
+ * guarantee: if @n is 1, 2 or 4 or 8 bytes, and @src and @dst are both
+ * naturally aligned for that access size, then both the load and the store
+ * will be done as a single atomic access (with the semantics of
+ * qatomic_read() and qatomic_set()).
+ *
+ * This is the underlying function that we use to implement accesses by
+ * a guest vCPU or a device DMA operation to a ram block. The atomic
+ * guarantee is needed for two major cases: (A) When the ram block is
+ * backed by a PCI BAR passed through from a host device (and so it might
+ * be hardware registers that must be accessed exactly once at the right
+ * width); (B) When an emulated device updates a data structure shared in
+ * guest memory with guest software (e.g. a network device's set of tx and
+ * rx descriptor blocks), if a write to memory is accidentally performed
+ * multiple times then it can break the guest code when it busy polls the
+ * guest memory.
+ *
+ * We don't attempt to perform the exact access when it would be unaligned
+ * because this can't be done on all host architectures. Although this is
+ * strictly speaking not doing what would happen on real hardware, we don't
+ * think there are going to be situations where that matters in practice.
+ */
+void qemu_ram_move(void *dst, const void *src, size_t n);
+
 MemTxResult address_space_read_full(const AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs, void *buf, hwaddr len);
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
@@ -2685,15 +2718,8 @@ static inline bool memory_region_supports_direct_access(const MemoryRegion *mr)
     if (memory_region_is_romd(mr)) {
         return true;
     }
-    if (!memory_region_is_ram(mr)) {
-        return false;
-    }
-    /*
-     * RAM DEVICE regions can be accessed directly using memcpy, but it might
-     * be MMIO and access using mempy can be wrong (e.g., using instructions not
-     * intended for MMIO access). So we treat this as IO.
-     */
-    return !memory_region_is_ram_device(mr);
+
+    return memory_region_is_ram(mr);
 }
 
 static inline bool memory_access_is_direct(const MemoryRegion *mr,
@@ -2741,7 +2767,7 @@ MemTxResult address_space_read(const AddressSpace *as, hwaddr addr,
             mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
             if (len == l && memory_access_is_direct(mr, false, attrs)) {
                 ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-                memcpy(buf, ptr, len);
+                qemu_ram_move(buf, ptr, len);
             } else {
                 result = flatview_read_continue(fv, addr, attrs, buf, len,
                                                 addr1, l, mr);

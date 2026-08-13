@@ -837,15 +837,33 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
     bool detach = qdict_get_try_bool(qdict, "detach", false);
     bool resume = qdict_get_try_bool(qdict, "resume", false);
     const char *uri = qdict_get_str(qdict, "uri");
+    const char *uri_cpr = qdict_get_try_str(qdict, "uri-cpr");
     Error *err = NULL;
     g_autoptr(MigrationChannelList) caps = NULL;
     g_autoptr(MigrationChannel) channel = NULL;
+    g_autoptr(MigrationChannel) channel_cpr = NULL;
 
     if (!migrate_uri_parse(uri, &channel, &err)) {
         hmp_handle_error(mon, err);
         return;
     }
     QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel));
+
+    if (uri_cpr) {
+        if (migrate_mode() != MIG_MODE_CPR_TRANSFER) {
+            error_setg(&err, "-c can only be used in cpr-transfer mode");
+            hmp_handle_error(mon, err);
+            return;
+        }
+
+        if (!migrate_uri_parse(uri_cpr, &channel_cpr, &err)) {
+            hmp_handle_error(mon, err);
+            return;
+        }
+
+        channel_cpr->channel_type = MIGRATION_CHANNEL_TYPE_CPR;
+        QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel_cpr));
+    }
 
     qmp_migrate(NULL, true, caps, true, resume, &err);
     if (hmp_handle_error(mon, err)) {
