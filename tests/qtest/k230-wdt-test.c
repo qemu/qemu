@@ -76,7 +76,7 @@ static void test_counter_restart(void)
 
 static void test_interrupt_mode(void)
 {
-    QTestState *qts = qtest_init("-machine k230 --trace k230_*,file=k230.log");
+    QTestState *qts = qtest_init("-machine k230");
 
     /* Set interrupt mode and enable watchdog */
     qtest_writel(qts, WDT_BASE + K230_WDT_CR,
