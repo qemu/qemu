@@ -80,5 +80,10 @@ EXTRA_RUNS += run-test-rv128-sstatus
 run-test-rv128-sstatus: test-rv128-sstatus
 	$(call run-test, $<, $(QEMU) -cpu x-rv128 $(QEMU_OPTS)$<)
 
+EXTRA_RUNS += run-test-vle32ff
+run-test-vle32ff: test-vle32ff
+	$(call run-test, $<, $(QEMU) -cpu rv64$(comma)v=true $(QEMU_OPTS)$<)
+test-vle32ff: CFLAGS += -march=rv64gcv
+
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS
