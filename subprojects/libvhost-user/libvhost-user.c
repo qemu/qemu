@@ -989,7 +989,13 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     close(vmsg->fds[0]);
 
     if (dev->postcopy_listening) {
-        /* Send the message back to qemu with the addresses filled in. */
+        /*
+         * Send the message back to qemu with the addresses filled in.
+         * _vu_add_mem_reg() worked on our copy of the region, so it has to be
+         * put back into the message payload.  A pointer into the payload
+         * cannot be handed out instead, VhostUserMsg is packed.
+         */
+        vmsg->payload.memreg.region = m;
         vmsg->fd_num = 0;
         DPRINT("Successfully added new region in postcopy\n");
         return true;
