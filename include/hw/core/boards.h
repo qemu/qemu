@@ -815,6 +815,9 @@ compat_props_add(GPtrArray *arr,
     }
 }
 
+extern GlobalProperty hw_compat_11_1[];
+extern const size_t hw_compat_11_1_len;
+
 extern GlobalProperty hw_compat_11_0[];
 extern const size_t hw_compat_11_0_len;
 

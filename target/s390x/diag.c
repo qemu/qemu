@@ -185,7 +185,7 @@ out:
             return false;
         }
 
-        if (kvm_enabled() && kvm_s390_get_hpage_1m()) {
+        if (kvm_enabled() && kvm_s390_get_hpage()) {
             error_report("Protected VMs can currently not be backed with "
                          "huge pages");
             env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
