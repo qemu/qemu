@@ -44,10 +44,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                        ninja-build \
                        openssh-clients \
                        python3 \
-                       python3-PyYAML \
-                       python3-numpy \
-                       python3-opencv \
-                       python3-pillow \
                        python3-pip \
                        python3-setuptools \
                        python3-sphinx \

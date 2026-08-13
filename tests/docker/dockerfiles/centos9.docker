@@ -96,9 +96,6 @@ RUN dnf --quiet distro-sync -y && \
                 pkgconfig \
                 pulseaudio-libs-devel \
                 python3 \
-                python3-PyYAML \
-                python3-numpy \
-                python3-pillow \
                 python3-pip \
                 python3-setuptools \
                 python3-sphinx \
