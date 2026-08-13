@@ -948,6 +948,20 @@ static bool
 vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
 
+    /*
+     * If we are in postcopy mode and we receive a u64 payload with a 0 value
+     * we know all the postcopy client bases have been received, and we
+     * should start generating faults.  This message carries no file
+     * descriptor, so it has to be recognised before the fd count of a real
+     * region is validated below.
+     */
+    if (dev->postcopy_listening &&
+        vmsg->size == sizeof(vmsg->payload.u64) &&
+        vmsg->payload.u64 == 0) {
+        (void)generate_faults(dev);
+        return false;
+    }
+
     if (vmsg->fd_num != 1) {
         vmsg_close_fds(vmsg);
         vu_panic(dev, "VHOST_USER_ADD_MEM_REG received %d fds - only 1 fd "
@@ -968,18 +982,6 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         vu_panic(dev, "failing attempt to hot add memory via "
                       "VHOST_USER_ADD_MEM_REG message because the backend has "
                       "no free ram slots available");
-        return false;
-    }
-
-    /*
-     * If we are in postcopy mode and we receive a u64 payload with a 0 value
-     * we know all the postcopy client bases have been received, and we
-     * should start generating faults.
-     */
-    if (dev->postcopy_listening &&
-        vmsg->size == sizeof(vmsg->payload.u64) &&
-        vmsg->payload.u64 == 0) {
-        (void)generate_faults(dev);
         return false;
     }
 
