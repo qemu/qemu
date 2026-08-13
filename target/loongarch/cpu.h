@@ -301,6 +301,7 @@ enum loongarch_features {
     LOONGARCH_FEATURE_PV_IPI,
     LOONGARCH_FEATURE_STEALTIME,
     LOONGARCH_FEATURE_PTW,
+    LOONGARCH_FEATURE_MSGINT,
 };
 
 typedef struct  LoongArchBT {

@@ -451,9 +451,6 @@ static void loongarch_max_initfn(Object *obj)
 
     cpu->ptw = ON_OFF_AUTO_AUTO;
     if (tcg_enabled()) {
-        cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
-        cpu->msgint = ON_OFF_AUTO_AUTO;
-
         uint32_t data = cpu->env.cpucfg[2];
         data = FIELD_DP32(data, CPUCFG2, HPTW, 1);
         /* Enable LA v1.1 instructions */
@@ -468,6 +465,8 @@ static void loongarch_max_initfn(Object *obj)
         data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
         cpu->env.cpucfg[3] = data;
     }
+    cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
+    cpu->msgint = ON_OFF_AUTO_AUTO;
 }
 
 #if defined(CONFIG_KVM)

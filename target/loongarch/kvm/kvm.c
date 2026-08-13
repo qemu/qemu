@@ -36,6 +36,13 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
 
+static bool kvm_cpu_has_msgint(CPUState *cs)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+
+    return FIELD_EX64(cpu->env.cpucfg[1], CPUCFG1, MSG_INT);
+}
+
 static int kvm_get_stealtime(CPUState *cs)
 {
     CPULoongArchState *env = cpu_env(cs);
@@ -362,6 +369,25 @@ static int kvm_loongarch_get_csr(CPUState *cs)
 
     ret |= kvm_loongarch_get_pmu(cs);
 
+    /*
+     * CSR register MSGIS getting must be put after CSR register CSR_ESTAT,
+     * Since register CSR_ESTAT will sync software pending MSGINT status to
+     * hardware register and modify HW CSR MSGIS registers.
+     */
+    if (kvm_cpu_has_msgint(cs)) {
+        ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(0)),
+                               &sys->CSR_MSGIS[0]);
+
+        ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(1)),
+                               &sys->CSR_MSGIS[1]);
+
+        ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(2)),
+                               &sys->CSR_MSGIS[2]);
+
+        ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(3)),
+                               &sys->CSR_MSGIS[3]);
+    }
+
     ret |= kvm_get_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_TVAL),
                            &sys->CSR_TVAL);
 
@@ -537,6 +563,20 @@ static int kvm_loongarch_put_csr(CPUState *cs, KvmPutState level)
                            &sys->CSR_DMW[3]);
 
     ret |= kvm_loongarch_put_pmu(cs);
+
+    if (kvm_cpu_has_msgint(cs)) {
+        ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(0)),
+                               &sys->CSR_MSGIS[0]);
+
+        ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(1)),
+                               &sys->CSR_MSGIS[1]);
+
+        ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(2)),
+                               &sys->CSR_MSGIS[2]);
+
+        ret |= kvm_set_one_reg(cs, KVM_IOC_CSRID(LOONGARCH_CSR_MSGIS(3)),
+                               &sys->CSR_MSGIS[3]);
+    }
 
     /*
      * timer cfg must be put at last since it is used to enable
@@ -993,6 +1033,12 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
         ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
         return (ret == 0);
 
+    case LOONGARCH_FEATURE_MSGINT:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_MSGINT;
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        return (ret == 0);
+
     default:
         return false;
     }
@@ -1166,6 +1212,28 @@ static int kvm_cpu_check_pv_features(CPUState *cs, Error **errp)
     return 0;
 }
 
+static int kvm_cpu_check_msgint(CPUState *cs, Error **errp)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    bool kvm_supported;
+
+    kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_MSGINT);
+    env->cpucfg[1] = FIELD_DP32(env->cpucfg[1], CPUCFG1, MSG_INT, 0);
+    if (cpu->msgint == ON_OFF_AUTO_ON) {
+        if (kvm_supported) {
+            env->cpucfg[1] = FIELD_DP32(env->cpucfg[1], CPUCFG1, MSG_INT, 1);
+        } else {
+            error_setg(errp, "'msgint' feature not supported by KVM on this host");
+            return -ENOTSUP;
+        }
+    } else if ((cpu->msgint == ON_OFF_AUTO_AUTO) && kvm_supported) {
+        env->cpucfg[1] = FIELD_DP32(env->cpucfg[1], CPUCFG1, MSG_INT, 1);
+    }
+
+    return 0;
+}
+
 int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
 {
     return 0;
@@ -1216,6 +1284,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     ret = kvm_cpu_check_ptw(cs, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+        return ret;
+    }
+
+    ret = kvm_cpu_check_msgint(cs, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         return ret;
