@@ -1369,7 +1369,6 @@ static int probe_access_internal(CPUState *cpu, vaddr addr,
     uint64_t tlb_addr = tlb_read_idx(entry, access_type);
     vaddr page_addr = addr & TARGET_PAGE_MASK;
     int flags = TLB_FLAGS_MASK & ~TLB_FORCE_SLOW;
-    bool force_mmio = check_mem_cbs && cpu_plugin_mem_cbs_enabled(cpu);
     CPUTLBEntryFull *full;
 
     if (!tlb_hit_page(tlb_addr, page_addr)) {
@@ -1399,16 +1398,13 @@ static int probe_access_internal(CPUState *cpu, vaddr addr,
 
     *pfull = full = &cpu->neg.tlb.d[mmu_idx].fulltlb[index];
     flags |= full->slow_flags[access_type];
-
-    /* Fold all "mmio-like" bits into TLB_MMIO.  This is not RAM.  */
-    if (unlikely(flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY | TLB_CHECK_ALIGNED))
-        || (access_type != MMU_INST_FETCH && force_mmio)) {
-        *phost = NULL;
-        return TLB_MMIO;
+    if (check_mem_cbs && cpu_plugin_mem_cbs_enabled(cpu)) {
+        flags |= TLB_FORCE_SLOW;
     }
 
-    /* Everything else is RAM. */
-    *phost = (void *)((uintptr_t)addr + entry->addend);
+    *phost = (flags & ~(TLB_WATCHPOINT | TLB_NOTDIRTY | TLB_CHECK_ALIGNED)
+              ? NULL
+              : (void *)((uintptr_t)addr + entry->addend));
     return flags;
 }
 
