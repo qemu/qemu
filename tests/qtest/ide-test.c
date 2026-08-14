@@ -1196,6 +1196,18 @@ static void cdrom_read_impl(int nblocks, unsigned flags)
     free_pci_device(dev);
 }
 
+static void ide_identify_words(QPCIDevice *dev, QPCIBar ide_bar,
+                               uint16_t buf[256])
+{
+    int i;
+
+    qpci_io_writeb(dev, ide_bar, reg_device, 0);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_IDENTIFY);
+    for (i = 0; i < 256; i++) {
+        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
+    }
+}
+
 /* Zero sectors per track has to abort (ATA-5 8.16.6), not divide by zero */
 static void test_specify_zero_sectors(void)
 {
@@ -1221,11 +1233,7 @@ static void test_specify_zero_sectors(void)
     assert_bit_set(qpci_io_readb(dev, ide_bar, reg_error), ABRT);
 
     /* The refused request has to leave the default translation in effect */
-    qpci_io_writeb(dev, ide_bar, reg_device, 0);
-    qpci_io_writeb(dev, ide_bar, reg_command, CMD_IDENTIFY);
-    for (i = 0; i < 256; i++) {
-        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
-    }
+    ide_identify_words(dev, ide_bar, buf);
     g_assert_cmpint(buf[55], ==, 16);
     g_assert_cmpint(buf[56], ==, 63);
 
@@ -1563,6 +1571,74 @@ static void test_migrate_chs_rejected(void)
     unlink(path);
 }
 
+/* Words 54 to 58 follow the translation even when the data was cached first */
+static void test_specify_identify(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+    unsigned int cyls;
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    /* Have the data built while the default translation is still in effect */
+    ide_identify_words(dev, ide_bar, buf);
+    cyls = buf[1];
+    g_assert_cmpint(buf[3], ==, 16);
+    g_assert_cmpint(buf[6], ==, 63);
+    g_assert_cmpint(buf[53] & 1, ==, 1);
+    g_assert_cmpint(buf[55], ==, 16);
+    g_assert_cmpint(buf[56], ==, 63);
+    g_assert_cmpint(buf[57] | (buf[58] << 16), ==, cyls * 16 * 63);
+
+    ide_set_translation(dev, ide_bar, 8, 32);
+
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[1], ==, cyls);
+    g_assert_cmpint(buf[3], ==, 16);
+    g_assert_cmpint(buf[4], ==, 512 * 63);
+    g_assert_cmpint(buf[6], ==, 63);
+    g_assert_cmpint(buf[55], ==, 8);
+    g_assert_cmpint(buf[56], ==, 32);
+    g_assert_cmpint(buf[57] | (buf[58] << 16), ==, cyls * 8 * 32);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
+/* Words 3 and 6 keep the drive's own geometry even if built after a change */
+static void test_specify_identify_default(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    /* No IDENTIFY DEVICE before this one, so nothing was cached yet */
+    ide_set_translation(dev, ide_bar, 8, 32);
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[3], ==, 16);
+    g_assert_cmpint(buf[4], ==, 512 * 63);
+    g_assert_cmpint(buf[6], ==, 63);
+    g_assert_cmpint(buf[55], ==, 8);
+    g_assert_cmpint(buf[56], ==, 32);
+    g_assert_cmpint(buf[57] | (buf[58] << 16), ==, buf[1] * 8 * 32);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
 static void test_cdrom_pio(void)
 {
     cdrom_read_impl(1, CDROM_PIO);
@@ -1635,6 +1711,9 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ide/read_native", test_specify);
     qtest_add_func("/ide/specify/zero_sectors", test_specify_zero_sectors);
+    qtest_add_func("/ide/specify/identify", test_specify_identify);
+    qtest_add_func("/ide/specify/identify_default",
+                   test_specify_identify_default);
     qtest_add_func("/ide/migration/chs_translation",
                    test_migrate_chs_translation);
     qtest_add_func("/ide/migration/chs_snapshot", test_migrate_chs_snapshot);
