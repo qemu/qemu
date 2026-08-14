@@ -1454,25 +1454,30 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (ph.ext_off) {
         int64_t ext_off = le64_to_cpu(ph.ext_off);
+        Error *ext_err = NULL;
 
-        if (flags & BDRV_O_RDWR) {
-            /*
-             * It's unsafe to open image RW if there is an extension (as we
-             * don't support it). But parallels driver in QEMU historically
-             * ignores the extension, so print warning and don't care.
-             */
-            warn_report("Format Extension ignored in RW mode");
-        } else if (ext_off + s->tracks > file_nb_sectors) {
-            error_setg(errp, "Invalid image: Format Extension is outside the "
-                       "image file");
-            ret = -EINVAL;
-            goto fail;
+        if (ext_off + s->tracks > file_nb_sectors) {
+            ret = -ENOENT;
+            error_setg(&ext_err, "Format Extension is outside the image file");
         } else {
-            ret = parallels_read_format_extension(
-                    bs, ext_off << BDRV_SECTOR_BITS, errp);
-            if (ret < 0) {
+            ret = parallels_read_format_extension(bs,
+                                                  ext_off << BDRV_SECTOR_BITS,
+                                                  &ext_err);
+        }
+        if (ret == -ENOENT) {
+            s->ext_end = 0;
+            warn_reportf_err(ext_err, "Dropping the Format Extension of node "
+                             "'%s', which does not look like one: ",
+                             bdrv_get_device_or_node_name(bs));
+        } else if (ret < 0) {
+            if (!s->header_unclean) {
+                error_propagate(errp, ext_err);
                 goto fail;
             }
+            s->ext_end = 0;
+            warn_reportf_err(ext_err, "Dropping the Format Extension of node "
+                             "'%s', which was not closed correctly: ",
+                             bdrv_get_device_or_node_name(bs));
         }
     }
 

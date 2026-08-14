@@ -121,8 +121,16 @@ def report(name):
         log(f'qemu-img died with signal {-exc.returncode}')
         return
 
-    log('image opened' if res.returncode == 0
-        else iotests.filter_testfiles(res.stdout).strip())
+    out = iotests.filter_generated_node_ids(
+        iotests.filter_testfiles(res.stdout))
+    if res.returncode != 0:
+        log(out.strip())
+        return
+
+    log('image opened')
+    for line in out.splitlines():
+        if 'warning' in line:
+            log(line.strip())
 
 
 def check(name, ext, tracks=1):
@@ -147,6 +155,12 @@ check('wrong extension magic',
 
 check('wrong extension checksum',
       extension(feature(0, 0), checksum=False))
+
+# An older qemu truncates the extension cluster away on close.
+with open(crafted, 'wb') as img:
+    img.write(parallels_header(1, SECTORS, SECTORS, EXT_SECTOR))
+    img.truncate(EXT_SECTOR * 512)
+report('extension cut off the end of the file')
 
 check('unknown feature', extension(feature(BITMAP_MAGIC ^ 1, 0)))
 

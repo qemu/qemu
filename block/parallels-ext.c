@@ -74,7 +74,11 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
     uint8_t *buf = NULL;
     uint64_t i;
 
-    buf = qemu_blockalign(bs, s->cluster_size);
+    buf = qemu_try_blockalign(bs->file->bs, s->cluster_size);
+    if (!buf) {
+        error_setg(errp, "Failed to allocate a bitmap data cluster");
+        return -ENOMEM;
+    }
     limit = bdrv_dirty_bitmap_serialization_coverage(s->cluster_size, bitmap);
     for (i = 0, offset = 0; i < l1_size; ++i, offset += limit) {
         uint64_t count, entry;
@@ -210,9 +214,9 @@ parallels_load_bitmap(BlockDriverState *bs, uint8_t *data, size_t data_size,
         }
     }
 
-    /* We support format extension only for RO parallels images. */
-    assert(!(bs->open_flags & BDRV_O_RDWR));
-    bdrv_dirty_bitmap_set_readonly(bitmap, true);
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        bdrv_dirty_bitmap_set_readonly(bitmap, true);
+    }
 
     return bitmap;
 
@@ -226,7 +230,7 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
                                  Error **errp)
 {
     BDRVParallelsState *s = bs->opaque;
-    int ret;
+    int ret = -EINVAL;
     int remaining = s->cluster_size;
     uint8_t *pos = ext_cluster;
     ParallelsFormatExtensionHeader eh;
@@ -243,12 +247,12 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
         error_setg(errp, "Wrong parallels Format Extension magic: 0x%" PRIx64
                    ", expected: 0x%llx", eh.magic,
                    PARALLELS_FORMAT_EXTENSION_MAGIC);
+        ret = -ENOENT;
         goto fail;
     }
 
-    ret = qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_MD5, (char *)pos, remaining,
-                             &hash, &hash_len, errp);
-    if (ret < 0) {
+    if (qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_MD5, (char *)pos, remaining,
+                           &hash, &hash_len, errp) < 0) {
         goto fail;
     }
 
@@ -256,6 +260,7 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
         memcmp(hash, eh.check_sum, sizeof(eh.check_sum)) != 0) {
         error_setg(errp, "Wrong checksum in Format Extension header. Format "
                    "extension is corrupted.");
+        ret = -ENOENT;
         goto fail;
     }
 
@@ -301,6 +306,7 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
             if (!bitmap) {
                 goto fail;
             }
+            bdrv_dirty_bitmap_set_persistence(bitmap, true);
             bitmaps = g_slist_append(bitmaps, bitmap);
             break;
 
@@ -319,7 +325,7 @@ fail:
     }
     g_slist_free(bitmaps);
 
-    return -EINVAL;
+    return ret;
 }
 
 int parallels_read_format_extension(BlockDriverState *bs,
