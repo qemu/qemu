@@ -2661,85 +2661,47 @@ static char *object_get_type(Object *obj, Error **errp)
     return g_strdup(object_get_typename(obj));
 }
 
-static void property_get_uint8_ptr(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    uint8_t value = *(uint8_t *)opaque;
-    visit_type_uint8(v, name, &value, errp);
-}
 
-static void property_set_uint8_ptr(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    uint8_t *field = opaque;
-    uint8_t value;
-
-    if (!visit_type_uint8(v, name, &value, errp)) {
-        return;
+#define OBJECT_PROPERTY_SCALAR_GETTER(type) \
+    static void property_get_##type##_ptr(Object *obj, Visitor *v, \
+                                          const char *name, \
+                                          void *opaque, Error **errp) \
+    { \
+        type##_t value = *(type##_t *)opaque; \
+        visit_type_##type(v, name, &value, errp); \
     }
 
-    *field = value;
-}
 
-static void property_get_uint16_ptr(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    uint16_t value = *(uint16_t *)opaque;
-    visit_type_uint16(v, name, &value, errp);
-}
-
-static void property_set_uint16_ptr(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    uint16_t *field = opaque;
-    uint16_t value;
-
-    if (!visit_type_uint16(v, name, &value, errp)) {
-        return;
+#define OBJECT_PROPERTY_SCALAR_SETTER(type) \
+    static void property_set_##type##_ptr(Object *obj, Visitor *v, \
+                                          const char *name, \
+                                          void *opaque, Error **errp) \
+    { \
+        type##_t *field = opaque; \
+        type##_t value; \
+        \
+        if (!visit_type_##type(v, name, &value, errp)) { \
+            return; \
+        } \
+        \
+        *field = value; \
     }
 
-    *field = value;
-}
 
-static void property_get_uint32_ptr(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    uint32_t value = *(uint32_t *)opaque;
-    visit_type_uint32(v, name, &value, errp);
-}
+#define DEFINE_OBJECT_PROPERTY_SCALAR_METHODS(type) \
+    OBJECT_PROPERTY_SCALAR_GETTER(type) \
+    OBJECT_PROPERTY_SCALAR_SETTER(type)
 
-static void property_set_uint32_ptr(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    uint32_t *field = opaque;
-    uint32_t value;
 
-    if (!visit_type_uint32(v, name, &value, errp)) {
-        return;
-    }
+DEFINE_OBJECT_PROPERTY_SCALAR_METHODS(uint8)
+DEFINE_OBJECT_PROPERTY_SCALAR_METHODS(uint16)
+DEFINE_OBJECT_PROPERTY_SCALAR_METHODS(uint32)
+DEFINE_OBJECT_PROPERTY_SCALAR_METHODS(uint64)
 
-    *field = value;
-}
+#undef OBJECT_PROPERTY_SCALAR_GETTER
+#undef OBJECT_PROPERTY_SCALAR_SETTER
+#undef DEFINE_OBJECT_PROPERTY_SCALAR_METHODS
 
-static void property_get_uint64_ptr(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    uint64_t value = *(uint64_t *)opaque;
-    visit_type_uint64(v, name, &value, errp);
-}
-
-static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
-{
-    uint64_t *field = opaque;
-    uint64_t value;
-
-    if (!visit_type_uint64(v, name, &value, errp)) {
-        return;
-    }
-
-    *field = value;
-}
 
 ObjectProperty *
 object_property_add_uint8_ptr(Object *obj, const char *name,
@@ -2762,9 +2724,10 @@ object_property_add_uint8_ptr(Object *obj, const char *name,
 }
 
 ObjectProperty *
-object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
-                                    const uint8_t *v,
-                                    ObjectPropertyFlags flags)
+object_class_static_property_add_uint8_ptr(ObjectClass *klass,
+                                           const char *name,
+                                           const uint8_t *v,
+                                           ObjectPropertyFlags flags)
 {
     ObjectPropertyAccessor *getter = NULL;
     ObjectPropertyAccessor *setter = NULL;
@@ -2802,9 +2765,10 @@ object_property_add_uint16_ptr(Object *obj, const char *name,
 }
 
 ObjectProperty *
-object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
-                                     const uint16_t *v,
-                                     ObjectPropertyFlags flags)
+object_class_static_property_add_uint16_ptr(ObjectClass *klass,
+                                            const char *name,
+                                            const uint16_t *v,
+                                            ObjectPropertyFlags flags)
 {
     ObjectPropertyAccessor *getter = NULL;
     ObjectPropertyAccessor *setter = NULL;
@@ -2842,9 +2806,10 @@ object_property_add_uint32_ptr(Object *obj, const char *name,
 }
 
 ObjectProperty *
-object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
-                                     const uint32_t *v,
-                                     ObjectPropertyFlags flags)
+object_class_static_property_add_uint32_ptr(ObjectClass *klass,
+                                            const char *name,
+                                            const uint32_t *v,
+                                            ObjectPropertyFlags flags)
 {
     ObjectPropertyAccessor *getter = NULL;
     ObjectPropertyAccessor *setter = NULL;
@@ -2882,9 +2847,10 @@ object_property_add_uint64_ptr(Object *obj, const char *name,
 }
 
 ObjectProperty *
-object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
-                                     const uint64_t *v,
-                                     ObjectPropertyFlags flags)
+object_class_static_property_add_uint64_ptr(ObjectClass *klass,
+                                            const char *name,
+                                            const uint64_t *v,
+                                            ObjectPropertyFlags flags)
 {
     ObjectPropertyAccessor *getter = NULL;
     ObjectPropertyAccessor *setter = NULL;
