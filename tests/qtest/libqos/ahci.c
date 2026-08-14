@@ -74,6 +74,7 @@ AHCICommandProp ahci_command_properties[] = {
     { .cmd = CMD_READ_MAX,       .lba28 = true },
     { .cmd = CMD_READ_MAX_EXT,   .lba48 = true },
     { .cmd = CMD_FLUSH_CACHE,    .data = false },
+    { .cmd = CMD_INIT_DP,        .data = false },
     { .cmd = CMD_PACKET,         .data = true,  .size = 16,
                                  .atapi = true, .pio = true },
     { .cmd = CMD_PACKET_ID,      .data = true,  .pio = true,
@@ -1178,6 +1179,19 @@ void ahci_command_set_size(AHCICommand *cmd, uint64_t xbytes)
 void ahci_command_set_prd_size(AHCICommand *cmd, unsigned prd_size)
 {
     ahci_command_set_sizes(cmd, cmd->xbytes, prd_size);
+}
+
+/* For a no-data command, whose count carries an argument of its own */
+void ahci_command_set_count(AHCICommand *cmd, uint16_t count)
+{
+    g_assert(!cmd->props->data);
+    cmd->fis.count = count;
+}
+
+void ahci_command_expect_error(AHCICommand *cmd, uint8_t err)
+{
+    cmd->interrupts |= AHCI_PX_IS_TFES;
+    cmd->errors |= err;
 }
 
 void ahci_command_adjust(AHCICommand *cmd, uint64_t offset, uint64_t buffer,
