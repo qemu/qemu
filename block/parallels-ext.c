@@ -335,6 +335,9 @@ parallels_parse_format_extension(BlockDriverState *bs, uint8_t *ext_cluster,
                 goto fail;
             }
             bdrv_dirty_bitmap_set_persistence(bitmap, true);
+            if (s->header_unclean) {
+                bdrv_dirty_bitmap_set_inconsistent(bitmap);
+            }
             bitmaps = g_slist_append(bitmaps, bitmap);
             break;
 
@@ -417,8 +420,14 @@ static int GRAPH_RDLOCK parallels_save_bitmap(BlockDriverState *bs,
     QemuUUID uuid;
     int ret = 0;
 
-    if (!bdrv_dirty_bitmap_get_persistence(bitmap) ||
-        bdrv_dirty_bitmap_inconsistent(bitmap)) {
+    if (!bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        return 0;
+    }
+
+    /* The format has no way to mark a stored bitmap unusable */
+    if (bdrv_dirty_bitmap_inconsistent(bitmap)) {
+        warn_report("Dropping inconsistent bitmap %s",
+                    bdrv_dirty_bitmap_name(bitmap));
         return 0;
     }
 
