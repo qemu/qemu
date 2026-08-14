@@ -1675,7 +1675,6 @@ static bool cmd_specify(IDEState *s, uint8_t cmd)
     if (s->identify_set) {
         ide_identify_chs(s);
     }
-    ide_bus_set_irq(s->bus);
 
     return true;
 }
