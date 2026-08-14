@@ -382,6 +382,9 @@ echo "== dirty a single granule of the bitmap =="
 file_size=`stat --printf="%s" "$TEST_IMG"`
 echo "file size: $file_size"
 
+echo "== the bitmap is reported by qemu-img info =="
+_img_info --format-specific
+
 echo "== the extension and its bitmap data are not a leak =="
 _check_test_img
 
@@ -424,6 +427,9 @@ $QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
 
 echo "== pretend the image was not closed correctly =="
 poke_file "$TEST_IMG" "$INUSE_OFFSET" "\x59\x6e\x6f\x74"
+
+echo "== a read-only open still reports it, marked inconsistent =="
+_img_info --format-specific
 
 echo "== the bitmap is stale, so it can not be used and is dropped =="
 $QEMU_IMG bitmap --clear -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir

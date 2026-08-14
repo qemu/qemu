@@ -241,6 +241,15 @@ qemu-img: Operation add on bitmap bitmap0 failed: Bitmap name must be a UUID to 
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 file size: 4194304
+== the bitmap is reported by qemu-img info ==
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 4 MiB (4194304 bytes)
+Format specific information:
+    bitmaps:
+        [0]:
+            name: b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45
+            granularity: 65536
 == the extension and its bitmap data are not a leak ==
 No errors were found on the image.
 == extend image by 1 cluster ==
@@ -273,6 +282,16 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 == pretend the image was not closed correctly ==
+== a read-only open still reports it, marked inconsistent ==
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 4 MiB (4194304 bytes)
+Format specific information:
+    bitmaps:
+        [0]:
+            name: b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45
+            granularity: 65536
+            inconsistent: true
 == the bitmap is stale, so it can not be used and is dropped ==
 Repairing image was not closed correctly
 qemu-img: Operation clear on bitmap b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45 failed: Bitmap 'b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45' is inconsistent and cannot be used
