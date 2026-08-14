@@ -33,7 +33,11 @@ qemu-img: Could not open 'TEST_DIR/PID-crafted': Invalid bitmap granularity 1536
 --- bitmap granularity 8388608
 qemu-img: Could not open 'TEST_DIR/PID-crafted': Invalid bitmap granularity 4294967296, expected a power of two of at least 512 bytes
 --- bitmap L1 entry overflows
-qemu-img: Could not open 'TEST_DIR/PID-crafted': Failed to read bitmap data cluster: Input/output error
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Bitmap L1 entry 0 is out of range
+--- bitmap L1 entry past the image file
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Bitmap L1 entry 0 points outside the image file
+--- bitmap L1 entry inside the header
+qemu-img: Could not open 'TEST_DIR/PID-crafted': Bitmap L1 entry 0 points before the data area of the image
 --- cluster_size beyond the file size
 image opened
 qemu-img: warning: Dropping the Format Extension of node 'NODE_NAME', which does not look like one: Format Extension is outside the image file

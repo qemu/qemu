@@ -93,9 +93,10 @@ def extension(body, magic=EXT_MAGIC, checksum=True):
     return struct.pack('<Q16s', magic, csum) + body
 
 
-def parallels_header(tracks, bat_entries, nb_sectors, ext_sector):
+def parallels_header(tracks, bat_entries, nb_sectors, ext_sector, data_off=1):
     return struct.pack('<16sIIIIIQIIIQ', b'WithouFreSpacExt', 2, 16, 0,
-                       tracks, bat_entries, nb_sectors, 0, 1, 0, ext_sector)
+                       tracks, bat_entries, nb_sectors, 0, data_off, 0,
+                       ext_sector)
 
 
 def write_sparse_image(body, tracks, nb_sectors, bat_entries, ext_sector):
@@ -133,12 +134,14 @@ def report(name):
             log(line.strip())
 
 
-def check(name, ext, tracks=1):
-    header = parallels_header(tracks, SECTORS, SECTORS, EXT_SECTOR)
+def check(name, ext, tracks=1, data_off=1, pad=0):
+    header = parallels_header(tracks, SECTORS, SECTORS, EXT_SECTOR, data_off)
     with open(crafted, 'wb') as f:
         f.write(header)
         f.write(bytes(EXT_SECTOR * 512 - len(header)))   # BAT, unallocated
         f.write(ext)
+        if pad:
+            f.truncate(EXT_SECTOR * 512 + tracks * 512 * (1 + pad))
 
     report(name)
 
@@ -191,6 +194,18 @@ for gran in (0, 3, 1 << 23):
 bf = bitmap_feature([0xffffffffffffffff])
 check('bitmap L1 entry overflows',
       extension(feature(BITMAP_MAGIC, len(bf)) + bf + feature(0, 0)))
+
+# A cluster which is not there reads back as zeroes, as short reads on the
+# protocol node are zero filled, so the bitmap would silently load as clean.
+bf = bitmap_feature([8])
+check('bitmap L1 entry past the image file',
+      extension(feature(BITMAP_MAGIC, len(bf)) + bf + feature(0, 0)))
+
+# An entry pointing at the header would deserialize the header as bitmap data.
+bf = bitmap_feature([4])
+check('bitmap L1 entry inside the header',
+      extension(feature(BITMAP_MAGIC, len(bf)) + bf + feature(0, 0)),
+      data_off=8, pad=16)
 
 # Largest cluster_size parallels_open() accepts, about 2 GiB.
 check('cluster_size beyond the file size',

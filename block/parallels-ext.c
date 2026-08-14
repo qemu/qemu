@@ -71,8 +71,16 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
     int ret = 0;
     uint64_t offset, limit;
     uint64_t bm_size = bdrv_dirty_bitmap_size(bitmap);
+    int64_t file_size, data_start_off;
     uint8_t *buf = NULL;
     uint64_t i;
+
+    file_size = bdrv_getlength(bs->file->bs);
+    if (file_size < 0) {
+        error_setg_errno(errp, -file_size, "Failed to get image file length");
+        return file_size;
+    }
+    data_start_off = s->data_start << BDRV_SECTOR_BITS;
 
     buf = qemu_try_blockalign(bs->file->bs, s->cluster_size);
     if (!buf) {
@@ -101,7 +109,27 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
         if (entry == 1) {
             bdrv_dirty_bitmap_deserialize_ones(bitmap, offset, count, false);
         } else {
-            int64_t host_off = entry << BDRV_SECTOR_BITS;
+            int64_t host_off;
+
+            if (entry > INT64_MAX / BDRV_SECTOR_SIZE) {
+                error_setg(errp, "Bitmap L1 entry %" PRIu64 " is out of range",
+                           i);
+                ret = -EINVAL;
+                goto finish;
+            }
+            host_off = entry * BDRV_SECTOR_SIZE;
+            if (host_off < data_start_off) {
+                error_setg(errp, "Bitmap L1 entry %" PRIu64 " points before "
+                           "the data area of the image", i);
+                ret = -EINVAL;
+                goto finish;
+            }
+            if (host_off > file_size - (int64_t)s->cluster_size) {
+                error_setg(errp, "Bitmap L1 entry %" PRIu64 " points outside "
+                           "the image file", i);
+                ret = -EINVAL;
+                goto finish;
+            }
 
             ret = bdrv_pread(bs->file, host_off, s->cluster_size, buf, 0);
             if (ret < 0) {
