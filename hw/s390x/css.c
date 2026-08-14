@@ -2023,8 +2023,7 @@ bool css_schid_final(int m, uint8_t cssid, uint8_t ssid, uint16_t schid)
         return true;
     }
     set = channel_subsys.css[real_cssid]->sch_set[ssid];
-    return schid > find_last_bit(set->schids_used,
-                                 (MAX_SCHID + 1) / sizeof(unsigned long));
+    return schid > find_last_bit(set->schids_used, (MAX_SCHID + 1));
 }
 
 unsigned int css_find_free_chpid(uint8_t cssid)
