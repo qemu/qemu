@@ -116,6 +116,13 @@ static uint32_t bat_entry_off(uint32_t idx)
     return sizeof(ParallelsHeader) + sizeof(uint32_t) * idx;
 }
 
+static int64_t parallels_data_end(BDRVParallelsState *s)
+{
+    int64_t data_end = s->data_start * BDRV_SECTOR_SIZE;
+    data_end += s->used_bmap_size * s->cluster_size;
+    return data_end;
+}
+
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
     uint32_t index, offset;
@@ -130,7 +137,8 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     }
 
     cluster_off = bat2sect(s, index);
-    if (cluster_off < s->data_start || cluster_off + s->tracks > s->data_end) {
+    if (cluster_off < s->data_start ||
+        cluster_off + s->tracks > parallels_data_end(s) >> BDRV_SECTOR_BITS) {
         /* Cluster is outside of the image file or overlaps the header. */
         return -1;
     }
@@ -284,15 +292,14 @@ int64_t GRAPH_RDLOCK parallels_allocate_host_clusters(BlockDriverState *bs,
 {
     BDRVParallelsState *s = bs->opaque;
     int64_t first_free, next_used, host_off, prealloc_clusters;
-    int64_t bytes, prealloc_bytes;
+    int64_t prealloc_bytes;
     uint32_t new_usedsize;
     int ret = 0;
 
     first_free = find_first_zero_bit(s->used_bmap, s->used_bmap_size);
     if (first_free == s->used_bmap_size) {
-        host_off = s->data_end * BDRV_SECTOR_SIZE;
+        host_off = parallels_data_end(s);
         prealloc_clusters = *clusters + s->prealloc_size / s->tracks;
-        bytes = *clusters * s->cluster_size;
         prealloc_bytes = prealloc_clusters * s->cluster_size;
 
         /*
@@ -323,27 +330,9 @@ int64_t GRAPH_RDLOCK parallels_allocate_host_clusters(BlockDriverState *bs,
 
         /* Not enough continuous clusters in the middle, adjust the size */
         *clusters = MIN(*clusters, next_used - first_free);
-        bytes = *clusters * s->cluster_size;
 
         host_off = s->data_start * BDRV_SECTOR_SIZE;
         host_off += first_free * s->cluster_size;
-
-        /*
-         * No need to preallocate if we are using tail area from the above
-         * branch. In the other case we are likely re-using hole. Preallocate
-         * the space if required by the prealloc_mode.
-         */
-        if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE &&
-                host_off < s->data_end * BDRV_SECTOR_SIZE) {
-            ret = bdrv_pwrite_zeroes(bs->file, host_off, bytes, 0);
-            if (ret < 0) {
-                return ret;
-            }
-        }
-    }
-
-    if (host_off + bytes > s->data_end * BDRV_SECTOR_SIZE) {
-        s->data_end = (host_off + bytes) / BDRV_SECTOR_SIZE;
     }
 
     ret = parallels_mark_used(bs, s->used_bmap, s->used_bmap_size,
@@ -749,7 +738,7 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
 {
     BDRVParallelsState *s = bs->opaque;
     uint32_t i;
-    int64_t off, high_off, size, data_start_off;
+    int64_t off, size, data_start_off;
     bool fixed = false;
 
     size = bdrv_co_getlength(bs->file->bs);
@@ -759,7 +748,6 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
     }
     data_start_off = s->data_start << BDRV_SECTOR_BITS;
 
-    high_off = 0;
     for (i = 0; i < s->bat_size; i++) {
         off = bat2sect(s, i) << BDRV_SECTOR_BITS;
         if (off == 0) {
@@ -774,10 +762,6 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
                 res->corruptions_fixed++;
                 fixed = true;
             }
-            continue;
-        }
-        if (high_off < off) {
-            high_off = off;
         }
     }
 
@@ -792,14 +776,7 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
         }
     }
 
-    if (high_off == 0) {
-        res->image_end_offset = s->data_end << BDRV_SECTOR_BITS;
-    } else {
-        res->image_end_offset = high_off + s->cluster_size;
-        s->data_end = res->image_end_offset >> BDRV_SECTOR_BITS;
-    }
-
-
+    res->image_end_offset = parallels_data_end(s);
     return 0;
 }
 
@@ -1466,8 +1443,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->data_start = data_start;
-    s->data_end = s->data_start;
-    if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
+    if (s->data_start < (s->header_size >> BDRV_SECTOR_BITS)) {
         /*
          * There is not enough unused space to fit to block align between BAT
          * and actual data. We can't avoid read-modify-write...
@@ -1530,10 +1506,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         if (sector < data_start || sector + s->tracks > file_nb_sectors) {
             /* Cluster is outside of the image file or overlaps the header. */
             need_check = true;
-            continue;
-        }
-        if (sector + s->tracks > s->data_end) {
-            s->data_end = sector + s->tracks;
+            break;
         }
     }
 
