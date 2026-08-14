@@ -1288,7 +1288,7 @@ static int parallels_probe(const uint8_t *buf, int buf_size,
     return 0;
 }
 
-static int GRAPH_RDLOCK parallels_update_header(BlockDriverState *bs)
+int GRAPH_RDLOCK parallels_update_header(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     unsigned size = MAX(bdrv_opt_mem_align(bs->file->bs),
@@ -1651,6 +1651,8 @@ static BlockDriver bdrv_parallels = {
     .bdrv_inactivate            = parallels_inactivate,
     .bdrv_co_can_store_new_dirty_bitmap =
                                   parallels_co_can_store_new_dirty_bitmap,
+    .bdrv_co_remove_persistent_dirty_bitmap =
+                                  parallels_co_remove_persistent_dirty_bitmap,
 };
 
 static void bdrv_parallels_init(void)

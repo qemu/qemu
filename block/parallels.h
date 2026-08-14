@@ -98,6 +98,7 @@ int parallels_mark_unused(BlockDriverState *bs, unsigned long *bitmap,
 
 int64_t GRAPH_RDLOCK parallels_allocate_host_clusters(BlockDriverState *bs,
                                                       int64_t *clusters);
+int GRAPH_RDLOCK parallels_update_header(BlockDriverState *bs);
 
 int GRAPH_RDLOCK
 parallels_read_format_extension(BlockDriverState *bs, int64_t ext_off,
@@ -107,5 +108,8 @@ parallels_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp);
 bool coroutine_fn GRAPH_RDLOCK
 parallels_co_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
                                         uint32_t granularity, Error **errp);
+int coroutine_fn GRAPH_RDLOCK
+parallels_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
+                                            const char *name, Error **errp);
 
 #endif

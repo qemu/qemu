@@ -689,3 +689,50 @@ bool coroutine_fn parallels_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
 
     return true;
 }
+
+int coroutine_fn
+parallels_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
+                                            const char *name, Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    BdrvDirtyBitmap *bitmap;
+    Error *err = NULL;
+    int ret;
+
+    if (bdrv_is_read_only(bs) || (bdrv_get_flags(bs) & BDRV_O_INACTIVE)) {
+        error_setg(errp, "Cannot remove persistent bitmap '%s': no write "
+                   "access to node '%s'", name, bdrv_get_node_name(bs));
+        return -EACCES;
+    }
+
+    bitmap = bdrv_find_dirty_bitmap(bs, name);
+    if (bitmap == NULL || !bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        return 0;
+    }
+
+    /* The extension is written as a whole, so drop it from what goes in */
+    bdrv_dirty_bitmap_set_persistence(bitmap, false);
+
+    ret = 0;
+    WITH_QEMU_LOCK_GUARD(&s->lock) {
+        parallels_store_persistent_dirty_bitmaps(bs, &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            ret = -EIO;
+            break;
+        }
+
+        ret = parallels_update_header(bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to update the image header");
+            break;
+        }
+    }
+
+    if (ret < 0) {
+        /* Nothing was removed, so the bitmap is as persistent as it was */
+        bdrv_dirty_bitmap_set_persistence(bitmap, true);
+    }
+
+    return ret;
+}
