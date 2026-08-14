@@ -1639,6 +1639,51 @@ static void test_specify_identify_default(void)
     ide_test_quit(qts);
 }
 
+/* A hardware reset reverts the translation (ATA-5 9.1), SRST does not (9.2) */
+static void test_specify_reset(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar, ide_bar2;
+    uint16_t buf[256];
+    char marker[9];
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+    ide_bar2 = qpci_legacy_iomap(dev, IDE_BASE2);
+
+    ide_prepare_markers(qts, dev, ide_bar);
+    ide_set_translation(dev, ide_bar, 8, 32);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    qpci_io_writeb(dev, ide_bar2, 0, IDE_CTRL_RESET);
+    qpci_io_writeb(dev, ide_bar2, 0, 0);
+    ide_wait_clear(qts, BSY);
+
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[55], ==, 8);
+    g_assert_cmpint(buf[56], ==, 32);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    qtest_qmp_assert_success(qts, "{ 'execute': 'system_reset' }");
+    qtest_qmp_eventwait(qts, "RESET");
+    qpci_device_enable(dev);
+
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[55], ==, 16);
+    g_assert_cmpint(buf[56], ==, 63);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_DEFAULT);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
 static void test_cdrom_pio(void)
 {
     cdrom_read_impl(1, CDROM_PIO);
@@ -1714,6 +1759,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/specify/identify", test_specify_identify);
     qtest_add_func("/ide/specify/identify_default",
                    test_specify_identify_default);
+    qtest_add_func("/ide/specify/reset", test_specify_reset);
     qtest_add_func("/ide/migration/chs_translation",
                    test_migrate_chs_translation);
     qtest_add_func("/ide/migration/chs_snapshot", test_migrate_chs_snapshot);
