@@ -185,7 +185,7 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
     case 0x100:
         d->regs[0].scontrol = val & 0xfff;
         if (val & 1) {
-            ide_bus_reset(&d->i.bus[0]);
+            ide_bus_reset(&d->i.bus[0], IDE_RESET_HARDWARE);
         }
         break;
     case 0x148:
@@ -194,7 +194,7 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
     case 0x180:
         d->regs[1].scontrol = val & 0xfff;
         if (val & 1) {
-            ide_bus_reset(&d->i.bus[1]);
+            ide_bus_reset(&d->i.bus[1], IDE_RESET_HARDWARE);
         }
         break;
     case 0x1c8:
@@ -243,7 +243,7 @@ static void sii3112_reset(DeviceState *dev)
 
     for (i = 0; i < 2; i++) {
         s->regs[i].confstat = 0x6515 << 16;
-        ide_bus_reset(&s->i.bus[i]);
+        ide_bus_reset(&s->i.bus[i], IDE_RESET_HARDWARE);
     }
 }
 

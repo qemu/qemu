@@ -127,7 +127,7 @@ static void via_ide_reset(DeviceState *dev)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(d->bus); i++) {
-        ide_bus_reset(&d->bus[i]);
+        ide_bus_reset(&d->bus[i], IDE_RESET_HARDWARE);
     }
 
     pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy mode */

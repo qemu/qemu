@@ -1347,7 +1347,7 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static void ide_reset(IDEState *s)
+static void ide_reset(IDEState *s, IDEResetKind kind)
 {
     trace_ide_reset(s);
 
@@ -1356,7 +1356,7 @@ static void ide_reset(IDEState *s)
         s->pio_aiocb = NULL;
     }
 
-    if (s->reset_reverts) {
+    if (kind == IDE_RESET_HARDWARE || s->reset_reverts) {
         s->reset_reverts = false;
         s->heads         = s->drive_heads;
         s->sectors       = s->drive_sectors;
@@ -1424,7 +1424,7 @@ static bool cmd_device_reset(IDEState *s, uint8_t cmd)
     ide_cancel_dma_sync(s);
 
     /* Reset any PIO commands, reset signature, etc */
-    ide_reset(s);
+    ide_reset(s, IDE_RESET_SOFTWARE);
 
     /* RESET: ATA8-ACS3 7.10.4 "Normal Outputs";
      * ATA8-ACS3 Table 184 "Device Signatures for Normal Output" */
@@ -2348,7 +2348,7 @@ static void ide_perform_srst(IDEState *s)
     ide_cancel_dma_sync(s);
 
     /* Cancel PIO callback, reset registers/signature, etc */
-    ide_reset(s);
+    ide_reset(s, IDE_RESET_SOFTWARE);
 
     /* perform diagnostic */
     cmd_exec_dev_diagnostic(s, WIN_DIAGNOSE);
@@ -2553,7 +2553,7 @@ static void ide_dummy_transfer_stop(IDEState *s)
     s->io_buffer[3] = 0xff;
 }
 
-void ide_bus_reset(IDEBus *bus)
+void ide_bus_reset(IDEBus *bus, IDEResetKind kind)
 {
     /* pending async DMA - needs the IDEState before it is reset */
     if (bus->dma->aiocb) {
@@ -2564,8 +2564,8 @@ void ide_bus_reset(IDEBus *bus)
 
     bus->unit = 0;
     bus->cmd = 0;
-    ide_reset(&bus->ifs[0]);
-    ide_reset(&bus->ifs[1]);
+    ide_reset(&bus->ifs[0], kind);
+    ide_reset(&bus->ifs[1], kind);
     ide_clear_hob(bus);
 
     /* reset dma provider too */
@@ -2679,7 +2679,7 @@ int ide_init_drive(IDEState *s, IDEDevice *dev, IDEDriveKind kind, Error **errp)
         pstrcpy(s->version, sizeof(s->version), QEMU_HW_VERSION);
     }
 
-    ide_reset(s);
+    ide_reset(s, IDE_RESET_HARDWARE);
     blk_iostatus_enable(s->blk);
     return 0;
 }
@@ -2816,7 +2816,7 @@ void ide_bus_init_output_irq(IDEBus *bus, qemu_irq irq_out)
 
     for(i = 0; i < 2; i++) {
         ide_init1(bus, i);
-        ide_reset(&bus->ifs[i]);
+        ide_reset(&bus->ifs[i], IDE_RESET_HARDWARE);
     }
     bus->irq = irq_out;
     bus->dma = &ide_dma_nop;

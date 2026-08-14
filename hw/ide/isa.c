@@ -51,7 +51,7 @@ static void isa_ide_reset(DeviceState *d)
 {
     ISAIDEState *s = ISA_IDE(d);
 
-    ide_bus_reset(&s->bus);
+    ide_bus_reset(&s->bus, IDE_RESET_HARDWARE);
 }
 
 static const VMStateDescription vmstate_ide_isa = {

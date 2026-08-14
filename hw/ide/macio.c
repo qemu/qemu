@@ -368,7 +368,7 @@ static void macio_ide_reset(DeviceState *dev)
 {
     MACIOIDEState *d = MACIO_IDE(dev);
 
-    ide_bus_reset(&d->bus);
+    ide_bus_reset(&d->bus, IDE_RESET_HARDWARE);
 }
 
 static int ide_nop_int(const IDEDMA *dma, bool is_write)

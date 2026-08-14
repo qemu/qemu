@@ -37,7 +37,7 @@
 
 static void check_cmd(AHCIState *s, int port);
 static void handle_cmd(AHCIState *s, int port, uint8_t slot);
-static void ahci_reset_port(AHCIState *s, int port);
+static void ahci_reset_port(AHCIState *s, int port, IDEResetKind kind);
 static bool ahci_write_fis_d2h(AHCIDevice *ad, bool d2h_fis_i);
 static void ahci_clear_cmd_issue(AHCIDevice *ad, uint8_t slot);
 static void ahci_init_d2h(AHCIDevice *ad);
@@ -334,7 +334,7 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     case AHCI_PORT_REG_SCR_CTL:
         if (((pr->scr_ctl & AHCI_SCR_SCTL_DET) == 1) &&
             ((val & AHCI_SCR_SCTL_DET) == 0)) {
-            ahci_reset_port(s, port);
+            ahci_reset_port(s, port, IDE_RESET_HARDWARE);
         }
         pr->scr_ctl = val;
         break;
@@ -619,7 +619,7 @@ static void ahci_set_signature(AHCIDevice *ad, uint32_t sig)
                              s->lcyl, s->hcyl, sig);
 }
 
-static void ahci_reset_port(AHCIState *s, int port)
+static void ahci_reset_port(AHCIState *s, int port, IDEResetKind kind)
 {
     AHCIDevice *d = &s->dev[port];
     AHCIPortRegs *pr = &d->port_regs;
@@ -628,7 +628,7 @@ static void ahci_reset_port(AHCIState *s, int port)
 
     trace_ahci_reset_port(s, port);
 
-    ide_bus_reset(&d->port);
+    ide_bus_reset(&d->port, kind);
     ide_state->ncq_queues = AHCI_MAX_CMDS;
 
     pr->scr_stat = 0;
@@ -1244,7 +1244,7 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
                  * COMRESET or by setting and clearing the SRST bit. Therefore,
                  * the logic for this is found in ahci_init_d2h() and not here.
                  */
-                ahci_reset_port(s, port);
+                ahci_reset_port(s, port, IDE_RESET_SOFTWARE);
             }
             break;
         }
@@ -1650,7 +1650,7 @@ void ahci_reset(AHCIState *s)
         pr->irq_mask = 0;
         pr->scr_ctl = 0;
         pr->cmd = PORT_CMD_SPIN_UP | PORT_CMD_POWER_ON;
-        ahci_reset_port(s, i);
+        ahci_reset_port(s, i, IDE_RESET_HARDWARE);
     }
 }
 
