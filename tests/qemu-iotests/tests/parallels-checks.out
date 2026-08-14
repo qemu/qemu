@@ -233,6 +233,41 @@ file size: 2097152
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== TEST FORMAT EXTENSION IS NOT LEAKED SPACE ==
+== a name which is not a UUID can not be stored, so refuse it ==
+qemu-img: Operation add on bitmap bitmap0 failed: Bitmap name must be a UUID to be stored in a parallels image: bitmap0
+== add a persistent dirty bitmap ==
+== dirty a single granule of the bitmap ==
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+file size: 4194304
+== the extension and its bitmap data are not a leak ==
+No errors were found on the image.
+== extend image by 1 cluster ==
+== a real leak is still reported ==
+ERROR space leaked at the end of the image 1048576
+
+1 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+== repair reclaims the leak only ==
+Repairing space leaked at the end of the image 1048576
+The following inconsistencies were found and repaired:
+
+    1 leaked clusters
+    0 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+file size: 4194304
+== the bitmap survived the repair ==
+qemu-img: Operation add on bitmap b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45 failed: Bitmap already exists: b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45
+== data survived the repair ==
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== dropping the bitmap makes the space reclaimable again ==
+file size: 2097152
+No errors were found on the image.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
 == TEST A DUPLICATE IN THE LAST ALLOCATED BAT ENTRY ==
 == write two clusters ==
 wrote 1048576/1048576 bytes at offset 0

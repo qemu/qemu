@@ -362,6 +362,54 @@ echo "file size: `stat --printf="%s" "$TEST_IMG"`"
 
 echo "== the first cluster survived =="
 { $QEMU_IO -c "read -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+_make_test_img $SIZE
+
+echo "== TEST FORMAT EXTENSION IS NOT LEAKED SPACE =="
+
+BITMAP=b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45
+
+echo "== a name which is not a UUID can not be stored, so refuse it =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" bitmap0 2>&1 | _filter_testdir
+
+echo "== add a persistent dirty bitmap =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+# A dirty run shorter than a cluster is stored as a bitmap data cluster
+# instead of the all-ones L1 entry, so the extension spans two clusters.
+echo "== dirty a single granule of the bitmap =="
+{ $QEMU_IO -c "write -P 0x11 0 65536" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+echo "== the extension and its bitmap data are not a leak =="
+_check_test_img
+
+echo "== extend image by 1 cluster =="
+fallocate -xl $((file_size + CLUSTER_SIZE)) "$TEST_IMG"
+
+echo "== a real leak is still reported =="
+_check_test_img
+
+echo "== repair reclaims the leak only =="
+_check_test_img -r leaks
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+echo "== the bitmap survived the repair =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+echo "== data survived the repair =="
+{ $QEMU_IO -r -c "read -P 0x11 0 65536" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== dropping the bitmap makes the space reclaimable again =="
+$QEMU_IMG bitmap --remove -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+_check_test_img
 
 # Clear image
 _make_test_img $SIZE
