@@ -323,7 +323,7 @@ static void amdvi_setevent_bits(uint64_t *buffer, uint64_t value, int start,
                                 int length)
 {
     int index = start / 64, bitpos = start % 64;
-    uint64_t mask = MAKE_64BIT_MASK(start, length);
+    uint64_t mask = MAKE_64BIT_MASK(bitpos, length);
     buffer[index] &= ~mask;
     buffer[index] |= (value << bitpos) & mask;
 }
