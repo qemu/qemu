@@ -1022,7 +1022,7 @@ static bool vmstate_needed_for_rpmb(void *opaque)
 }
 
 static const VMStateDescription emmc_rpmb_vmstate = {
-    .name = "sd-card/ext_csd_modes-state",
+    .name = "sd-card/rpmb-state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_needed_for_rpmb,
