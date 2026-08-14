@@ -1360,6 +1360,10 @@ static void ide_reset(IDEState *s)
         s->reset_reverts = false;
         s->heads         = s->drive_heads;
         s->sectors       = s->drive_sectors;
+        /* An ATAPI device takes SET FEATURES 0xCC but has no translation */
+        if (s->identify_set && s->drive_kind != IDE_CD) {
+            ide_identify_chs(s);
+        }
     }
     if (s->drive_kind == IDE_CFATA)
         s->mult_sectors = 0;
@@ -1668,6 +1672,9 @@ static bool cmd_specify(IDEState *s, uint8_t cmd)
 
     s->heads = (s->select & (ATA_DEV_HS)) + 1;
     s->sectors = s->nsector;
+    if (s->identify_set) {
+        ide_identify_chs(s);
+    }
     ide_bus_set_irq(s->bus);
 
     return true;
