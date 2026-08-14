@@ -905,6 +905,30 @@ static void ahci_test_flush(AHCIQState *ahci)
     ahci_test_nondata(ahci, CMD_FLUSH_CACHE);
 }
 
+static void ahci_test_specify(AHCIQState *ahci, uint16_t sectors,
+                              bool supported)
+{
+    AHCICommand *cmd;
+    uint8_t port;
+
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    cmd = ahci_command_create(CMD_INIT_DP);
+    ahci_command_set_count(cmd, sectors);
+    if (!supported) {
+        ahci_command_expect_error(cmd, ATA_ERR_ABRT);
+    }
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue(ahci, cmd);
+    if (!supported) {
+        ASSERT_BIT_SET(ahci_px_rreg(ahci, port, AHCI_PX_TFD),
+                       AHCI_PX_TFD_STS_ERR);
+    }
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
 static void ahci_test_max(AHCIQState *ahci)
 {
     RegD2HFIS *d2h = g_malloc0(0x20);
@@ -1009,6 +1033,21 @@ static void test_identify(void)
 
     ahci = ahci_boot_and_enable(NULL);
     ahci_test_identify(ahci);
+    ahci_shutdown(ahci);
+}
+
+static void test_specify(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot_and_enable(NULL);
+
+    /* A register FIS carries 16 bits of count, the legacy ports only eight */
+    ahci_test_specify(ahci, 0, false);
+    ahci_test_specify(ahci, 256, false);
+    ahci_test_specify(ahci, 0xffff, false);
+    ahci_test_specify(ahci, 32, true);
+
     ahci_shutdown(ahci);
 }
 
@@ -2220,6 +2259,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/migrate/dma/halted", test_migrate_halted_dma);
 
     qtest_add_func("/ahci/max", test_max);
+    qtest_add_func("/ahci/specify", test_specify);
     qtest_add_func("/ahci/reset/simple", test_reset);
     qtest_add_func("/ahci/reset/pending_callback", test_reset_pending_callback);
 
