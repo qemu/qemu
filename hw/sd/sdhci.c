@@ -598,6 +598,11 @@ static void sdhci_write_dataport(SDHCIState *s, uint32_t value, unsigned size)
  * Single DMA data transfer
  */
 
+static void sdhci_advance_sdma_address(SDHCIState *s, uint32_t bytes)
+{
+        s->sdmasysad += bytes;
+}
+
 /* Multi block SDMA transfer */
 static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
 {
@@ -641,7 +646,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
             }
             dma_memory_write(s->dma_as, s->sdmasysad, &s->fifo_buffer[begin],
                              s->data_count - begin, MEMTXATTRS_UNSPECIFIED);
-            s->sdmasysad += s->data_count - begin;
+            sdhci_advance_sdma_address(s, s->data_count - begin);
             if (s->data_count == block_size) {
                 s->data_count = 0;
             }
@@ -662,7 +667,7 @@ static void sdhci_sdma_transfer_multi_blocks(SDHCIState *s)
             }
             dma_memory_read(s->dma_as, s->sdmasysad, &s->fifo_buffer[begin],
                             s->data_count - begin, MEMTXATTRS_UNSPECIFIED);
-            s->sdmasysad += s->data_count - begin;
+            sdhci_advance_sdma_address(s, s->data_count - begin);
             if (s->data_count == block_size) {
                 sdbus_write_data(&s->sdbus, s->fifo_buffer, block_size);
                 s->data_count = 0;
