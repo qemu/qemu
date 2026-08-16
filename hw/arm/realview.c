@@ -39,10 +39,11 @@
 
 /* Board init.  */
 
-static struct arm_boot_info realview_binfo = {
-    .smp_loader_start = SMP_BOOT_ADDR,
-    .smp_bootreg_addr = SMP_BOOTREG_ADDR,
-};
+typedef struct RealViewMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
+} RealViewMachineState;
 
 /* The following two lists must be consistent.  */
 enum realview_board_type {
@@ -76,6 +77,8 @@ static void split_irq_from_named(DeviceState *src, const char* outname,
 static void realview_init(MachineState *machine,
                           enum realview_board_type board_type)
 {
+    /* All realview-* machines embed the same state as their first member */
+    RealViewMachineState *rvms = (RealViewMachineState *)machine;
     ARMCPU *cpu = NULL;
     CPUARMState *env;
     MemoryRegion *sysmem = get_system_memory();
@@ -202,7 +205,7 @@ static void realview_init(MachineState *machine,
         }
         sysbus_create_varargs("l2x0", periphbase + 0x2000, NULL);
         /* Both A9 and 11MPCore put the GIC CPU i/f at base + 0x100 */
-        realview_binfo.gic_cpu_if_addr = periphbase + 0x100;
+        rvms->bootinfo.gic_cpu_if_addr = periphbase + 0x100;
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */
@@ -387,10 +390,12 @@ static void realview_init(MachineState *machine,
                            &error_fatal);
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 
-    realview_binfo.ram_size = ram_size;
-    realview_binfo.board_id = realview_board_id[board_type];
-    realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
-    arm_load_kernel(cpu, machine, &realview_binfo);
+    rvms->bootinfo.smp_loader_start = SMP_BOOT_ADDR;
+    rvms->bootinfo.smp_bootreg_addr = SMP_BOOTREG_ADDR;
+    rvms->bootinfo.ram_size = ram_size;
+    rvms->bootinfo.board_id = realview_board_id[board_type];
+    rvms->bootinfo.loader_start = board_type == BOARD_PB_A8 ? 0x70000000 : 0;
+    arm_load_kernel(cpu, machine, &rvms->bootinfo);
 }
 
 static void realview_eb_init(MachineState *machine)
@@ -431,6 +436,7 @@ static const TypeInfo realview_eb_type = {
     .name = MACHINE_TYPE_NAME("realview-eb"),
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_class_init,
+    .instance_size = sizeof(RealViewMachineState),
     .interfaces = arm_machine_interfaces,
 };
 
@@ -453,6 +459,7 @@ static const TypeInfo realview_eb_mpcore_type = {
     .name = MACHINE_TYPE_NAME("realview-eb-mpcore"),
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_mpcore_class_init,
+    .instance_size = sizeof(RealViewMachineState),
     .interfaces = arm_machine_interfaces,
 };
 
@@ -473,6 +480,7 @@ static const TypeInfo realview_pb_a8_type = {
     .name = MACHINE_TYPE_NAME("realview-pb-a8"),
     .parent = TYPE_MACHINE,
     .class_init = realview_pb_a8_class_init,
+    .instance_size = sizeof(RealViewMachineState),
     .interfaces = arm_machine_interfaces,
 };
 
@@ -494,6 +502,7 @@ static const TypeInfo realview_pbx_a9_type = {
     .name = MACHINE_TYPE_NAME("realview-pbx-a9"),
     .parent = TYPE_MACHINE,
     .class_init = realview_pbx_a9_class_init,
+    .instance_size = sizeof(RealViewMachineState),
     .interfaces = arm_machine_interfaces,
 };
 
