@@ -103,8 +103,6 @@ static void zynq_write_board_setup(ARMCPU *cpu,
                        sizeof(board_setup_blob), BOARD_SETUP_ADDR);
 }
 
-static struct arm_boot_info zynq_binfo = {};
-
 static void gem_init(uint32_t base, qemu_irq irq)
 {
     DeviceState *dev;
@@ -268,7 +266,7 @@ static void zynq_init(MachineState *machine)
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
-    zynq_binfo.gic_cpu_if_addr = MPCORE_PERIPHBASE + 0x100;
+    zynq_machine->bootinfo.gic_cpu_if_addr = MPCORE_PERIPHBASE + 0x100;
     sysbus_create_varargs("l2x0", MPCORE_PERIPHBASE + 0x2000, NULL);
     for (n = 0; n < smp_cpus; n++) {
         /* See "hw/intc/arm_gic.h" for the IRQ line association */
@@ -444,13 +442,14 @@ static void zynq_init(MachineState *machine)
     create_unimplemented_device("zynq.qos301_dmac", 0xF8947000, 0x130);
     create_unimplemented_device("zynq.qos301_iou", 0xF8948000, 0x130);
 
-    zynq_binfo.ram_size = machine->ram_size;
-    zynq_binfo.board_id = 0xd32;
-    zynq_binfo.loader_start = 0;
-    zynq_binfo.board_setup_addr = BOARD_SETUP_ADDR;
-    zynq_binfo.write_board_setup = zynq_write_board_setup;
+    zynq_machine->bootinfo.ram_size = machine->ram_size;
+    zynq_machine->bootinfo.board_id = 0xd32;
+    zynq_machine->bootinfo.loader_start = 0;
+    zynq_machine->bootinfo.board_setup_addr = BOARD_SETUP_ADDR;
+    zynq_machine->bootinfo.write_board_setup = zynq_write_board_setup;
 
-    arm_load_kernel(zynq_machine->cpu[0], machine, &zynq_binfo);
+    arm_load_kernel(zynq_machine->cpu[0], machine,
+                    &zynq_machine->bootinfo);
 }
 
 static void zynq_machine_class_init(ObjectClass *oc, const void *data)
