@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "block/block-io.h"
 #include "block/block_int.h"
@@ -96,8 +97,9 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
         if (entry == 1) {
             bdrv_dirty_bitmap_deserialize_ones(bitmap, offset, count, false);
         } else {
-            ret = bdrv_pread(bs->file, entry << BDRV_SECTOR_BITS,
-                             s->cluster_size, buf, 0);
+            int64_t host_off = entry << BDRV_SECTOR_BITS;
+
+            ret = bdrv_pread(bs->file, host_off, s->cluster_size, buf, 0);
             if (ret < 0) {
                 error_setg_errno(errp, -ret,
                                  "Failed to read bitmap data cluster");
@@ -105,6 +107,7 @@ parallels_load_bitmap_data(BlockDriverState *bs, const uint64_t *l1_table,
             }
             bdrv_dirty_bitmap_deserialize_part(bitmap, buf, offset, count,
                                                false);
+            s->ext_end = MAX(s->ext_end, host_off + s->cluster_size);
         }
     }
     ret = 0;
@@ -328,6 +331,8 @@ int parallels_read_format_extension(BlockDriverState *bs,
 
     assert(ext_off > 0);
 
+    s->ext_end = ext_off + s->cluster_size;
+
     ext_cluster = qemu_try_blockalign(bs->file->bs, s->cluster_size);
     if (!ext_cluster) {
         error_setg(errp, "Failed to allocate the Format Extension cluster");
@@ -346,4 +351,290 @@ out:
     qemu_vfree(ext_cluster);
 
     return ret;
+}
+
+static uint64_t parallels_bitmap_l1_size(uint32_t cluster_size, uint64_t bytes,
+                                         uint32_t granularity)
+{
+    uint64_t granules = DIV_ROUND_UP(bytes, granularity);
+
+    return DIV_ROUND_UP(granules, (uint64_t)cluster_size * 8);
+}
+
+static uint64_t parallels_bitmap_feature_size(uint64_t l1_size)
+{
+    return l1_size * sizeof(uint64_t) + sizeof(ParallelsFeatureHeader) +
+           sizeof(ParallelsDirtyBitmapFeature);
+}
+
+static int GRAPH_RDLOCK parallels_save_bitmap(BlockDriverState *bs,
+                                              BdrvDirtyBitmap *bitmap,
+                                              uint8_t **buf, int *buf_size,
+                                              GArray *clusters, Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    ParallelsFeatureHeader *fh;
+    ParallelsDirtyBitmapFeature *bh;
+    uint64_t *l1_table, l1_size, granularity, limit, idx;
+    int64_t bm_size, ser_size, offset, buf_used;
+    int64_t alloc_size = 1;
+    const char *name;
+    uint8_t *bm_buf;
+    QemuUUID uuid;
+    int ret = 0;
+
+    if (!bdrv_dirty_bitmap_get_persistence(bitmap) ||
+        bdrv_dirty_bitmap_inconsistent(bitmap)) {
+        return 0;
+    }
+
+    name = bdrv_dirty_bitmap_name(bitmap);
+    ret = qemu_uuid_parse(name, &uuid);
+    if (ret < 0) {
+        error_setg(errp, "Can't save dirty bitmap: ID parsing error: '%s'",
+                   name);
+        return ret;
+    }
+
+    bm_size = bdrv_dirty_bitmap_size(bitmap);
+    granularity = bdrv_dirty_bitmap_granularity(bitmap);
+    limit = bdrv_dirty_bitmap_serialization_coverage(s->cluster_size, bitmap);
+    ser_size = bdrv_dirty_bitmap_serialization_size(bitmap, 0, bm_size);
+    l1_size = DIV_ROUND_UP(ser_size, s->cluster_size);
+
+    /* The end of features marker has to fit behind the feature as well */
+    buf_used = parallels_bitmap_feature_size(l1_size);
+    if (buf_used + (int64_t)sizeof(*fh) > *buf_size) {
+        error_setg(errp, "Can't save dirty bitmap %s: it needs %" PRId64
+                   " bytes of the Format Extension cluster, %d bytes are left",
+                   name, buf_used, *buf_size);
+        return -ENOSPC;
+    }
+
+    fh = (ParallelsFeatureHeader *)*buf;
+    bh = (ParallelsDirtyBitmapFeature *)(*buf + sizeof(*fh));
+    l1_table = (uint64_t *)((uint8_t *)bh + sizeof(*bh));
+
+    fh->magic = cpu_to_le64(PARALLELS_DIRTY_BITMAP_FEATURE_MAGIC);
+    fh->data_size = cpu_to_le32(l1_size * 8 + sizeof(*bh));
+
+    bh->l1_size = cpu_to_le32(l1_size);
+    bh->size = cpu_to_le64(bm_size >> BDRV_SECTOR_BITS);
+    bh->granularity = cpu_to_le32(granularity >> BDRV_SECTOR_BITS);
+    memcpy(bh->id, &uuid, sizeof(uuid));
+
+    bm_buf = qemu_try_blockalign(bs->file->bs, s->cluster_size);
+    if (!bm_buf) {
+        error_setg(errp, "Can't save dirty bitmap %s: allocation error", name);
+        ret = -ENOMEM;
+        goto fail;
+    }
+
+    offset = 0;
+    while ((offset = bdrv_dirty_bitmap_next_dirty(bitmap, offset,
+                                                  bm_size)) >= 0) {
+        int64_t cluster_off, end, write_size;
+
+        idx = offset / limit;
+
+        offset = QEMU_ALIGN_DOWN(offset, limit);
+        end = MIN(bm_size, offset + limit);
+        write_size = bdrv_dirty_bitmap_serialization_size(bitmap, offset,
+                                                          end - offset);
+        assert(write_size <= s->cluster_size);
+
+        bdrv_dirty_bitmap_serialize_part(bitmap, bm_buf, offset, end - offset);
+        if (write_size < s->cluster_size) {
+            memset(bm_buf + write_size, 0, s->cluster_size - write_size);
+        }
+
+        cluster_off = parallels_allocate_host_clusters(bs, &alloc_size);
+        if (cluster_off <= 0) {
+            ret = cluster_off < 0 ? cluster_off : -ENOSPC;
+            error_setg_errno(errp, -ret, "Can't save dirty bitmap %s: cluster "
+                             "allocation error", name);
+            goto fail;
+        }
+
+        ret = bdrv_pwrite(bs->file, cluster_off, s->cluster_size, bm_buf, 0);
+        if (ret < 0) {
+            parallels_mark_unused(bs, s->used_bmap, s->used_bmap_size,
+                                  cluster_off, 1);
+            error_setg_errno(errp, -ret, "Can't save dirty bitmap %s: IO error",
+                             name);
+            goto fail;
+        }
+
+        l1_table[idx] = cpu_to_le64(cluster_off >> BDRV_SECTOR_BITS);
+        s->ext_end = MAX(s->ext_end, cluster_off + s->cluster_size);
+        g_array_append_val(clusters, cluster_off);
+        offset = end;
+    }
+
+    *buf_size -= buf_used;
+    *buf += buf_used;
+    qemu_vfree(bm_buf);
+    return 0;
+
+fail:
+    /* Hand the clusters of the half written bitmap back to the allocator */
+    for (idx = 0; idx < l1_size; idx++) {
+        uint64_t entry = le64_to_cpu(l1_table[idx]);
+
+        if (entry > 1) {
+            parallels_mark_unused(bs, s->used_bmap, s->used_bmap_size,
+                                  entry << BDRV_SECTOR_BITS, 1);
+        }
+    }
+
+    /* Leave nothing behind a reader could take for a complete feature */
+    memset(fh, 0, buf_used);
+    qemu_vfree(bm_buf);
+    return ret;
+}
+
+void GRAPH_RDLOCK
+parallels_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    BdrvDirtyBitmap *bitmap;
+    ParallelsFormatExtensionHeader *eh;
+    int remaining = s->cluster_size - sizeof(*eh);
+    uint8_t *buf, *pos;
+    int64_t header_off, alloc_size = 1;
+    g_autoptr(GArray) clusters = g_array_new(false, false, sizeof(int64_t));
+    g_autofree uint8_t *hash = NULL;
+    Error *bitmap_err = NULL;
+    size_t hash_len = 0;
+    int ret;
+    guint i;
+
+    s->header->ext_off = 0;
+    s->ext_end = 0;
+
+    if (!bdrv_has_named_bitmaps(bs)) {
+        return;
+    }
+
+    buf = qemu_try_blockalign0(bs->file->bs, s->cluster_size);
+    if (!buf) {
+        error_setg(errp, "Can't save dirty bitmaps: allocation error");
+        return;
+    }
+
+    eh = (ParallelsFormatExtensionHeader *)buf;
+    pos = buf + sizeof(*eh);
+
+    eh->magic = cpu_to_le64(PARALLELS_FORMAT_EXTENSION_MAGIC);
+
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        Error *local_err = NULL;
+
+        /*
+         * The extension is written as a whole, so a bitmap which does not
+         * make it must not take with it the ones which did.
+         */
+        if (parallels_save_bitmap(bs, bitmap, &pos, &remaining, clusters,
+                                  &local_err) < 0) {
+            error_propagate(&bitmap_err, local_err);
+        }
+    }
+
+    if (pos == buf + sizeof(*eh)) {
+        /* Not a single bitmap made it, so there is nothing to point at */
+        goto end;
+    }
+
+    header_off = parallels_allocate_host_clusters(bs, &alloc_size);
+    if (header_off <= 0) {
+        ret = header_off < 0 ? header_off : -ENOSPC;
+        error_setg_errno(errp, -ret,
+                         "Can't save dirty bitmaps: cluster allocation error");
+        goto end;
+    }
+    g_array_append_val(clusters, header_off);
+
+    ret = qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_MD5,
+                             (const char *)(buf + sizeof(*eh)),
+                             s->cluster_size - sizeof(*eh),
+                             &hash, &hash_len, NULL);
+    if (ret < 0 || hash_len != sizeof(eh->check_sum)) {
+        error_setg(errp, "Can't save dirty bitmaps: hash error");
+        goto end;
+    }
+    memcpy(eh->check_sum, hash, hash_len);
+
+    ret = bdrv_pwrite(bs->file, header_off, s->cluster_size, buf, 0);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Can't save dirty bitmaps: IO error");
+        goto end;
+    }
+
+    s->header->ext_off = cpu_to_le64(header_off / BDRV_SECTOR_SIZE);
+    s->ext_end = MAX(s->ext_end, header_off + s->cluster_size);
+end:
+    for (i = 0; i < clusters->len; i++) {
+        parallels_mark_unused(bs, s->used_bmap, s->used_bmap_size,
+                              g_array_index(clusters, int64_t, i), 1);
+    }
+
+    /* A bitmap which was dropped only matters if the rest went through */
+    error_propagate(errp, bitmap_err);
+    qemu_vfree(buf);
+}
+
+bool coroutine_fn parallels_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
+                                                          const char *name,
+                                                          uint32_t granularity,
+                                                          Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    BdrvDirtyBitmap *bitmap;
+    uint64_t needed, available;
+    QemuUUID uuid;
+
+    if (bdrv_find_dirty_bitmap(bs, name)) {
+        error_setg(errp, "Bitmap already exists: %s", name);
+        return false;
+    }
+
+    if (qemu_uuid_parse(name, &uuid) < 0) {
+        error_setg(errp, "Bitmap name must be a UUID to be stored in a "
+                   "parallels image: %s", name);
+        return false;
+    }
+
+    /*
+     * One L1 entry covers a cluster worth of serialized bits, and every
+     * bitmap of the image shares the Format Extension cluster with the
+     * feature headers and the end of features marker.
+     */
+    needed = parallels_bitmap_feature_size(
+        parallels_bitmap_l1_size(s->cluster_size,
+                                 bs->total_sectors << BDRV_SECTOR_BITS,
+                                 granularity));
+
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        if (!bdrv_dirty_bitmap_get_persistence(bitmap)) {
+            continue;
+        }
+
+        needed += parallels_bitmap_feature_size(
+            parallels_bitmap_l1_size(s->cluster_size,
+                                     bdrv_dirty_bitmap_size(bitmap),
+                                     bdrv_dirty_bitmap_granularity(bitmap)));
+    }
+
+    needed += sizeof(ParallelsFeatureHeader);
+
+    available = s->cluster_size - sizeof(ParallelsFormatExtensionHeader);
+    if (needed > available) {
+        error_setg(errp, "Bitmap %s with granularity %" PRIu32 " does not fit "
+                   "into the Format Extension cluster: every bitmap of the "
+                   "image would need %" PRIu64 " bytes of it, %" PRIu64 " are "
+                   "available", name, granularity, needed, available);
+        return false;
+    }
+
+    return true;
 }

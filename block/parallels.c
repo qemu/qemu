@@ -802,6 +802,7 @@ parallels_check_unused_clusters(BlockDriverState *bs, bool truncate)
     }
 
     end_off += s->data_start * BDRV_SECTOR_SIZE;
+    end_off = MAX(end_off, s->ext_end);
 
     /*
      * A cluster in use behind the end of the file is corruption which
@@ -1555,10 +1556,19 @@ fail:
 static int GRAPH_RDLOCK parallels_inactivate(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
+    Error *err = NULL;
     int64_t leak;
 
     if (!(bs->open_flags & BDRV_O_RDWR) || (bs->open_flags & BDRV_O_INACTIVE)) {
         return 0;
+    }
+
+    parallels_store_persistent_dirty_bitmaps(bs, &err);
+    if (err != NULL) {
+        error_reportf_err(err, "Lost persistent bitmaps during "
+                          "inactivation of node '%s': ",
+                          bdrv_get_device_or_node_name(bs));
+        return -EINVAL;
     }
 
     leak = parallels_check_unused_clusters(bs, true);
@@ -1634,6 +1644,8 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_pwrite_zeroes      = parallels_co_pwrite_zeroes,
     .bdrv_co_invalidate_cache   = parallels_co_invalidate_cache,
     .bdrv_inactivate            = parallels_inactivate,
+    .bdrv_co_can_store_new_dirty_bitmap =
+                                  parallels_co_can_store_new_dirty_bitmap,
 };
 
 static void bdrv_parallels_init(void)
