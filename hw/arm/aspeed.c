@@ -24,10 +24,6 @@
 #include "hw/core/qdev-clock.h"
 #include "system/system.h"
 
-static struct arm_boot_info aspeed_board_binfo = {
-    .board_id = -1, /* device-tree-only board */
-};
-
 #define AST_SMP_MAILBOX_BASE            0x1e6e2180
 #define AST_SMP_MBOX_FIELD_ENTRY        (AST_SMP_MAILBOX_BASE + 0x0)
 #define AST_SMP_MBOX_FIELD_GOSIGN       (AST_SMP_MAILBOX_BASE + 0x4)
@@ -206,13 +202,14 @@ static void aspeed_machine_init(MachineState *machine)
         memory_region_add_subregion(get_system_memory(),
                                     AST_SMP_MAILBOX_BASE, smpboot);
 
-        aspeed_board_binfo.write_secondary_boot = aspeed_write_smpboot;
-        aspeed_board_binfo.secondary_cpu_reset_hook = aspeed_reset_secondary;
-        aspeed_board_binfo.smp_loader_start = AST_SMP_MBOX_CODE;
+        bmc->bootinfo.write_secondary_boot = aspeed_write_smpboot;
+        bmc->bootinfo.secondary_cpu_reset_hook = aspeed_reset_secondary;
+        bmc->bootinfo.smp_loader_start = AST_SMP_MBOX_CODE;
     }
 
-    aspeed_board_binfo.ram_size = machine->ram_size;
-    aspeed_board_binfo.loader_start = sc->memmap[ASPEED_DEV_SDRAM];
+    bmc->bootinfo.board_id = -1; /* device-tree-only board */
+    bmc->bootinfo.ram_size = machine->ram_size;
+    bmc->bootinfo.loader_start = sc->memmap[ASPEED_DEV_SDRAM];
 
     if (amc->i2c_init) {
         amc->i2c_init(bmc);
@@ -248,7 +245,7 @@ static void aspeed_machine_init(MachineState *machine)
         aspeed_load_vbootrom(bmc->soc, bios_name, &error_abort);
     }
 
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &bmc->bootinfo);
 }
 
 void aspeed_create_pca9552(AspeedSoCState *soc, int bus_id, int addr)
