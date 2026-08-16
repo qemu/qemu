@@ -49,6 +49,7 @@ typedef struct Exynos4BoardState {
     Exynos4210State soc;
     MemoryRegion dram0_mem;
     MemoryRegion dram1_mem;
+    struct arm_boot_info bootinfo;
 } Exynos4BoardState;
 
 static int exynos4_board_id[EXYNOS4_NUM_OF_BOARDS] = {
@@ -64,12 +65,6 @@ static int exynos4_board_smp_bootreg_addr[EXYNOS4_NUM_OF_BOARDS] = {
 static unsigned long exynos4_board_ram_size[EXYNOS4_NUM_OF_BOARDS] = {
     [EXYNOS4_BOARD_NURI]     = 1 * GiB,
     [EXYNOS4_BOARD_SMDKC210] = 1 * GiB,
-};
-
-static struct arm_boot_info exynos4_board_binfo = {
-    .loader_start     = EXYNOS4210_BASE_BOOT_ADDR,
-    .smp_loader_start = EXYNOS4210_SMP_BOOT_ADDR,
-    .write_secondary_boot = exynos4210_write_secondary,
 };
 
 static void lan9215_init(uint32_t base, qemu_irq irq)
@@ -113,14 +108,15 @@ static Exynos4BoardState *
 exynos4_boards_init_common(MachineState *machine,
                            Exynos4BoardType board_type)
 {
-    Exynos4BoardState *s = g_new(Exynos4BoardState, 1);
+    Exynos4BoardState *s = g_new0(Exynos4BoardState, 1);
 
-    exynos4_board_binfo.ram_size = exynos4_board_ram_size[board_type];
-    exynos4_board_binfo.board_id = exynos4_board_id[board_type];
-    exynos4_board_binfo.smp_bootreg_addr =
-            exynos4_board_smp_bootreg_addr[board_type];
-    exynos4_board_binfo.gic_cpu_if_addr =
-            EXYNOS4210_SMP_PRIVATE_BASE_ADDR + 0x100;
+    s->bootinfo.loader_start = EXYNOS4210_BASE_BOOT_ADDR;
+    s->bootinfo.smp_loader_start = EXYNOS4210_SMP_BOOT_ADDR;
+    s->bootinfo.write_secondary_boot = exynos4210_write_secondary;
+    s->bootinfo.ram_size = exynos4_board_ram_size[board_type];
+    s->bootinfo.board_id = exynos4_board_id[board_type];
+    s->bootinfo.smp_bootreg_addr = exynos4_board_smp_bootreg_addr[board_type];
+    s->bootinfo.gic_cpu_if_addr = EXYNOS4210_SMP_PRIVATE_BASE_ADDR + 0x100;
 
     exynos4_boards_init_ram(s, get_system_memory(),
                             exynos4_board_ram_size[board_type]);
@@ -137,7 +133,7 @@ static void nuri_init(MachineState *machine)
     Exynos4BoardState *s = exynos4_boards_init_common(machine,
                                                       EXYNOS4_BOARD_NURI);
 
-    arm_load_kernel(s->soc.cpu[0], machine, &exynos4_board_binfo);
+    arm_load_kernel(s->soc.cpu[0], machine, &s->bootinfo);
 }
 
 static void smdkc210_init(MachineState *machine)
@@ -147,7 +143,7 @@ static void smdkc210_init(MachineState *machine)
 
     lan9215_init(SMDK_LAN9118_BASE_ADDR,
             qemu_irq_invert(s->soc.irq_table[exynos4210_get_irq(37, 1)]));
-    arm_load_kernel(s->soc.cpu[0], machine, &exynos4_board_binfo);
+    arm_load_kernel(s->soc.cpu[0], machine, &s->bootinfo);
 }
 
 static const char * const valid_cpu_types[] = {
