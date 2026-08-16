@@ -2048,6 +2048,12 @@ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
             error_setg(errp, "Cannot use compression with mapped-ram");
             return false;
         }
+
+        if (migrate_postcopy_ram()) {
+            error_setg(errp, "Cannot migrate with fast snapshot load "
+                             "enabled(mapped-ram + postcopy-ram)");
+            return false;
+        }
     }
 
     if (migrate_mode_is_cpr()) {

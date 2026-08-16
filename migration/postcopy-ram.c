@@ -84,6 +84,11 @@ int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
                                             &pnd, errp);
 }
 
+bool postcopy_notifier_list_empty(void)
+{
+    return notifier_with_return_list_empty(&postcopy_notifier_list);
+}
+
 /*
  * NOTE: this routine is not thread safe, we can't call it concurrently. But it
  * should be good enough for migration's purposes.
