@@ -364,22 +364,20 @@ static void npcm7xx_write_secondary_boot(ARMCPU *cpu,
                        NPCM7XX_SMP_LOADER_START);
 }
 
-static struct arm_boot_info npcm7xx_binfo = {
-    .loader_start           = NPCM7XX_LOADER_START,
-    .smp_loader_start       = NPCM7XX_SMP_LOADER_START,
-    .smp_bootreg_addr       = NPCM7XX_SMP_BOOTREG_ADDR,
-    .gic_cpu_if_addr        = NPCM7XX_GIC_CPU_IF_ADDR,
-    .write_secondary_boot   = npcm7xx_write_secondary_boot,
-    .board_id               = -1,
-    .board_setup_addr       = NPCM7XX_BOARD_SETUP_ADDR,
-    .write_board_setup      = npcm7xx_write_board_setup,
-};
-
-void npcm7xx_load_kernel(MachineState *machine, NPCM7xxState *soc)
+void npcm7xx_load_kernel(MachineState *machine, NPCM7xxState *soc,
+                         struct arm_boot_info *binfo)
 {
-    npcm7xx_binfo.ram_size = machine->ram_size;
+    binfo->loader_start = NPCM7XX_LOADER_START;
+    binfo->smp_loader_start = NPCM7XX_SMP_LOADER_START;
+    binfo->smp_bootreg_addr = NPCM7XX_SMP_BOOTREG_ADDR;
+    binfo->gic_cpu_if_addr = NPCM7XX_GIC_CPU_IF_ADDR;
+    binfo->write_secondary_boot = npcm7xx_write_secondary_boot;
+    binfo->board_id = -1;
+    binfo->board_setup_addr = NPCM7XX_BOARD_SETUP_ADDR;
+    binfo->write_board_setup = npcm7xx_write_board_setup;
+    binfo->ram_size = machine->ram_size;
 
-    arm_load_kernel(&soc->cpu[0], machine, &npcm7xx_binfo);
+    arm_load_kernel(&soc->cpu[0], machine, binfo);
 }
 
 static void npcm7xx_init_fuses(NPCM7xxState *s)
