@@ -1200,13 +1200,18 @@ static const TypeInfo musicpal_key_info = {
 
 #define FLASH_SECTOR_SIZE   (64 * KiB)
 
-static struct arm_boot_info musicpal_binfo = {
-    .loader_start = 0x0,
-    .board_id = 0x20e,
+#define TYPE_MUSICPAL_MACHINE MACHINE_TYPE_NAME("musicpal")
+OBJECT_DECLARE_SIMPLE_TYPE(MusicPalMachineState, MUSICPAL_MACHINE)
+
+struct MusicPalMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
 };
 
 static void musicpal_init(MachineState *machine)
 {
+    MusicPalMachineState *mpms = MUSICPAL_MACHINE(machine);
     ARMCPU *cpu;
     DeviceState *dev;
     DeviceState *pic;
@@ -1341,8 +1346,10 @@ static void musicpal_init(MachineState *machine)
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(pic, MP_AUDIO_IRQ));
 
-    musicpal_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
-    arm_load_kernel(cpu, machine, &musicpal_binfo);
+    mpms->bootinfo.loader_start = 0x0;
+    mpms->bootinfo.board_id = 0x20e;
+    mpms->bootinfo.ram_size = MP_RAM_DEFAULT_SIZE;
+    arm_load_kernel(cpu, machine, &mpms->bootinfo);
 }
 
 static void musicpal_machine_init(MachineClass *mc)
@@ -1357,7 +1364,9 @@ static void musicpal_machine_init(MachineClass *mc)
     machine_add_audiodev_property(mc);
 }
 
-DEFINE_MACHINE_ARM("musicpal", musicpal_machine_init)
+DEFINE_MACHINE_EXTENDED("musicpal", MACHINE, MusicPalMachineState,
+                        musicpal_machine_init, false,
+                        arm_machine_interfaces)
 
 static void mv88w8618_wlan_class_init(ObjectClass *klass, const void *data)
 {
