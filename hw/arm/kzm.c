@@ -54,16 +54,12 @@
 typedef struct IMX31KZM {
     FslIMX31State soc;
     MemoryRegion ram_alias;
+    struct arm_boot_info bootinfo;
 } IMX31KZM;
 
 #define KZM_RAM_ADDR            (FSL_IMX31_SDRAM0_ADDR)
 #define KZM_FPGA_ADDR           (FSL_IMX31_CS4_ADDR + 0x1040)
 #define KZM_LAN9118_ADDR        (FSL_IMX31_CS5_ADDR)
-
-static struct arm_boot_info kzm_binfo = {
-    .loader_start = KZM_RAM_ADDR,
-    .board_id = 1722,
-};
 
 static void kzm_init(MachineState *machine)
 {
@@ -125,10 +121,12 @@ static void kzm_init(MachineState *machine)
                        14745600, serial_hd(2), DEVICE_NATIVE_ENDIAN);
     }
 
-    kzm_binfo.ram_size = machine->ram_size;
+    s->bootinfo.loader_start = KZM_RAM_ADDR;
+    s->bootinfo.board_id = 1722;
+    s->bootinfo.ram_size = machine->ram_size;
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->soc.cpu, machine, &kzm_binfo);
+        arm_load_kernel(&s->soc.cpu, machine, &s->bootinfo);
     }
 }
 
