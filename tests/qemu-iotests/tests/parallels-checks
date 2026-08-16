@@ -335,6 +335,39 @@ echo "== both of them survive the close =="
               -c "read -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
               "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST A CLUSTER WHICH RUNS PAST THE END OF THE FILE =="
+
+echo "== write two clusters =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== cut the second one in half =="
+file_size=`stat --printf="%s" "$TEST_IMG"`
+truncate -s $((file_size - CLUSTER_SIZE / 2)) "$TEST_IMG"
+
+echo "== the check completes and reports the cluster =="
+_check_test_img
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST A DUPLICATE IN THE LAST ALLOCATED BAT ENTRY =="
+
+echo "== write two clusters =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== point the second entry at the first cluster =="
+poke_file "$TEST_IMG" "$(($BAT_OFFSET + 4))" "\x01\x00\x00\x00"
+
+echo "== the check completes and reports the duplicate =="
+_check_test_img
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

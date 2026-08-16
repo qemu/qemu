@@ -872,14 +872,16 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
     buf = qemu_blockalign(bs, s->cluster_size);
 
     for (i = 0; i < s->bat_size; i++) {
+        int used;
+
         host_off = bat2sect(s, i) << BDRV_SECTOR_BITS;
         if (host_off == 0) {
             continue;
         }
 
-        ret = parallels_mark_used(bs, bitmap, bitmap_size, host_off, 1);
-        assert(ret != -E2BIG);
-        if (ret == 0) {
+        used = parallels_mark_used(bs, bitmap, bitmap_size, host_off, 1);
+        if (used == 0 || used == -E2BIG) {
+            /* parallels_check_outside_image() reports the -E2BIG one */
             continue;
         }
 
@@ -937,8 +939,8 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
          * considered, and the bitmap size doesn't change. This specifically
          * means that -E2BIG is OK.
          */
-        ret = parallels_mark_used(bs, bitmap, bitmap_size, host_off, 1);
-        if (ret == -EBUSY) {
+        used = parallels_mark_used(bs, bitmap, bitmap_size, host_off, 1);
+        if (used == -EBUSY) {
             res->check_errors++;
             goto out_repair_bat;
         }

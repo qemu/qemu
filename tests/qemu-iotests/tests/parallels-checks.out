@@ -199,4 +199,38 @@ read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== TEST A CLUSTER WHICH RUNS PAST THE END OF THE FILE ==
+== write two clusters ==
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== cut the second one in half ==
+== the check completes and reports the cluster ==
+ERROR cluster 1 is outside image
+ERROR space leaked at the end of the image 524288
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+
+1 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4194304
+== TEST A DUPLICATE IN THE LAST ALLOCATED BAT ENTRY ==
+== write two clusters ==
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+== point the second entry at the first cluster ==
+== the check completes and reports the duplicate ==
+ERROR space leaked at the end of the image 1048576
+ERROR duplicate offset in BAT entry 1
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+
+1 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
 *** done
