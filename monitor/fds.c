@@ -29,6 +29,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
+#include "qemu/lockable.h"
 #include "system/runstate.h"
 
 /* file descriptors passed via SCM_RIGHTS */

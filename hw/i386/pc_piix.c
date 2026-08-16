@@ -667,6 +667,7 @@ static void xenfv_machine_4_2_options(MachineClass *m)
 {
     pc_i440fx_machine_4_2_options(m);
     m->desc = "Xen Fully-virtualized PC";
+    m->alias = "xenfv";
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen,suppress-vmdesc=on";
 }

@@ -714,7 +714,7 @@ static void set_feature(Object *obj, Visitor *v, const char *name,
     S390CPU *cpu = S390_CPU(obj);
     bool value;
 
-    if (dev->realized) {
+    if (qdev_is_realized(dev)) {
         error_setg(errp, "Attempt to set property '%s' on '%s' after "
                    "it was realized", name, object_get_typename(obj));
         return;
@@ -770,7 +770,7 @@ static void set_feature_group(Object *obj, Visitor *v, const char *name,
     S390CPU *cpu = S390_CPU(obj);
     bool value;
 
-    if (dev->realized) {
+    if (qdev_is_realized(dev)) {
         error_setg(errp, "Attempt to set property '%s' on '%s' after "
                    "it was realized", name, object_get_typename(obj));
         return;

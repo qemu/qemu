@@ -22,55 +22,35 @@
 #include "qemu/osdep.h"
 #include "hw/core/nmi.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
-#include "monitor/monitor.h"
-
-struct do_nmi_s {
-    int cpu_index;
-    Error *err;
-    bool handled;
-};
-
-static void nmi_children(Object *o, struct do_nmi_s *ns);
 
 static int do_nmi(Object *o, void *opaque)
 {
-    struct do_nmi_s *ns = opaque;
+    bool *handled = opaque;
     NMIState *n = (NMIState *) object_dynamic_cast(o, TYPE_NMI);
 
     if (n) {
-        NMIClass *nc = NMI_GET_CLASS(n);
-
-        ns->handled = true;
-        nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);
-        if (ns->err) {
-            return -1;
-        }
+        *handled = true;
+        NMI_GET_CLASS(n)->raise_nmi(n);
+        /*
+         * We expect only one object to implement TYPE_NMI, so once
+         * we've asked it to deliver the NMI we can stop looking.
+         */
+        return 1;
     }
-    nmi_children(o, ns);
 
     return 0;
 }
 
-static void nmi_children(Object *o, struct do_nmi_s *ns)
+bool nmi_inject(Error **errp)
 {
-    object_child_foreach(o, do_nmi, ns);
-}
+    bool handled = false;
 
-void nmi_monitor_handle(int cpu_index, Error **errp)
-{
-    struct do_nmi_s ns = {
-        .cpu_index = cpu_index,
-        .err = NULL,
-        .handled = false
-    };
-
-    nmi_children(object_get_root(), &ns);
-    if (ns.handled) {
-        error_propagate(errp, ns.err);
-    } else {
+    object_child_foreach_recursive(object_get_root(), do_nmi, &handled);
+    if (!handled) {
         error_setg(errp, "machine does not provide NMIs");
+        return false;
     }
+    return true;
 }
 
 static const TypeInfo nmi_info = {

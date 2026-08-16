@@ -23,13 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "monitor/monitor.h"
 #include "qemu/coroutine-tls.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-machine.h"
-#include "qapi/qapi-commands-misc.h"
-#include "qapi/qapi-events-run-state.h"
-#include "qapi/qmp/qerror.h"
 #include "exec/gdbstub.h"
 #include "accel/accel-cpu-ops.h"
 #include "system/hw_accel.h"
@@ -39,11 +34,9 @@
 #include "qemu/plugin.h"
 #include "system/cpus.h"
 #include "qemu/guest-random.h"
-#include "hw/core/nmi.h"
 #include "system/physmem.h"
 #include "system/replay.h"
 #include "system/runstate.h"
-#include "migration/misc.h"
 #include "system/cpu-timers.h"
 #include "system/whpx.h"
 #include "hw/core/boards.h"
@@ -276,58 +269,6 @@ void cpu_interrupt(CPUState *cpu, int mask)
     g_assert(bql_locked());
 
     cpus_accel->handle_interrupt(cpu, mask);
-}
-
-/*
- * True if the vm was previously suspended, and has not been woken or reset.
- */
-static int vm_was_suspended;
-
-void vm_set_suspended(bool suspended)
-{
-    vm_was_suspended = suspended;
-}
-
-bool vm_get_suspended(void)
-{
-    return vm_was_suspended;
-}
-
-static int do_vm_stop(RunState state, bool send_stop)
-{
-    int ret = 0;
-    RunState oldstate = runstate_get();
-
-    if (runstate_is_live(oldstate)) {
-        vm_was_suspended = (oldstate == RUN_STATE_SUSPENDED);
-        runstate_set(state);
-        cpu_disable_ticks();
-        if (oldstate == RUN_STATE_RUNNING) {
-            pause_all_vcpus();
-        }
-        ret = vm_state_notify(0, state);
-        if (send_stop) {
-            qapi_event_send_stop();
-        }
-    }
-
-    bdrv_drain_all();
-    /*
-     * Even if vm_state_notify() return failure,
-     * it would be better to flush as before.
-     */
-    ret |= bdrv_flush_all();
-    trace_vm_stop_flush_all(ret);
-
-    return ret;
-}
-
-/* Special vm_stop() variant for terminating the process.  Historically clients
- * did not expect a QMP STOP event and so we need to retain compatibility.
- */
-int vm_shutdown(void)
-{
-    return do_vm_stop(RUN_STATE_SHUTDOWN, false);
 }
 
 bool cpu_can_run(CPUState *cpu)
@@ -740,192 +681,3 @@ void cpu_stop_current(void)
         cpu_exit(current_cpu);
     }
 }
-
-int vm_stop(RunState state)
-{
-    if (qemu_in_vcpu_thread()) {
-        qemu_system_vmstop_request_prepare();
-        qemu_system_vmstop_request(state);
-        /*
-         * FIXME: should not return to device code in case
-         * vm_stop() has been requested.
-         */
-        cpu_stop_current();
-        return 0;
-    }
-
-    return do_vm_stop(state, true);
-}
-
-/**
- * Prepare for (re)starting the VM.
- * Returns 0 if the vCPUs should be restarted, -1 on an error condition,
- * and 1 otherwise.
- */
-int vm_prepare_start(bool step_pending)
-{
-    int ret = vm_was_suspended ? 1 : 0;
-    RunState state = vm_was_suspended ? RUN_STATE_SUSPENDED : RUN_STATE_RUNNING;
-    RunState requested;
-
-    qemu_vmstop_requested(&requested);
-    if (runstate_is_running() && requested == RUN_STATE__MAX) {
-        return -1;
-    }
-
-    /* Ensure that a STOP/RESUME pair of events is emitted if a
-     * vmstop request was pending.  The BLOCK_IO_ERROR event, for
-     * example, according to documentation is always followed by
-     * the STOP event.
-     */
-    if (runstate_is_running()) {
-        qapi_event_send_stop();
-        qapi_event_send_resume();
-        return -1;
-    }
-
-    /*
-     * WHPX accelerator needs to know whether we are going to step
-     * any CPUs, before starting the first one.
-     */
-    accel_pre_resume(MACHINE(qdev_get_machine()), step_pending);
-
-    /* We are sending this now, but the CPUs will be resumed shortly later */
-    qapi_event_send_resume();
-
-    cpu_enable_ticks();
-    runstate_set(state);
-    vm_state_notify(1, state);
-    vm_was_suspended = false;
-    return ret;
-}
-
-void vm_start(void)
-{
-    if (!vm_prepare_start(false)) {
-        resume_all_vcpus();
-    }
-}
-
-void vm_resume(RunState state)
-{
-    if (runstate_is_live(state)) {
-        vm_start();
-    } else {
-        runstate_set(state);
-    }
-}
-
-/* does a state transition even if the VM is already stopped,
-   current state is forgotten forever */
-int vm_stop_force_state(RunState state)
-{
-    if (runstate_is_live(runstate_get())) {
-        return vm_stop(state);
-    } else {
-        int ret;
-        runstate_set(state);
-
-        bdrv_drain_all();
-        /* Make sure to return an error if the flush in a previous vm_stop()
-         * failed. */
-        ret = bdrv_flush_all();
-        trace_vm_stop_flush_all(ret);
-        return ret;
-    }
-}
-
-void qmp_memsave(uint64_t addr, uint64_t size, const char *filename,
-                 bool has_cpu, int64_t cpu_index, Error **errp)
-{
-    FILE *f;
-    uint64_t l;
-    CPUState *cpu;
-    uint8_t buf[1024];
-    uint64_t orig_addr = addr, orig_size = size;
-
-    if (migration_guest_ram_loading()) {
-        error_setg(errp, "Guest memory access not allowed during migration");
-        return;
-    }
-
-    if (!has_cpu) {
-        cpu_index = 0;
-    }
-
-    cpu = qemu_get_cpu(cpu_index);
-    if (cpu == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                   "a CPU number");
-        return;
-    }
-
-    f = fopen(filename, "wb");
-    if (!f) {
-        error_setg_file_open(errp, errno, filename);
-        return;
-    }
-
-    while (size != 0) {
-        l = sizeof(buf);
-        if (l > size)
-            l = size;
-        if (cpu_memory_rw_debug(cpu, addr, buf, l, 0) != 0) {
-            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRIu64
-                             " specified", orig_addr, orig_size);
-            goto exit;
-        }
-        if (fwrite(buf, 1, l, f) != l) {
-            error_setg(errp, "writing memory to '%s' failed",
-                       filename);
-            goto exit;
-        }
-        addr += l;
-        size -= l;
-    }
-
-exit:
-    fclose(f);
-}
-
-void qmp_pmemsave(uint64_t addr, uint64_t size, const char *filename,
-                  Error **errp)
-{
-    FILE *f;
-    uint64_t l;
-    uint8_t buf[1024];
-
-    if (migration_guest_ram_loading()) {
-        error_setg(errp, "Guest memory access not allowed during migration");
-        return;
-    }
-
-    f = fopen(filename, "wb");
-    if (!f) {
-        error_setg_file_open(errp, errno, filename);
-        return;
-    }
-
-    while (size != 0) {
-        l = sizeof(buf);
-        if (l > size)
-            l = size;
-        physical_memory_read(addr, buf, l);
-        if (fwrite(buf, 1, l, f) != l) {
-            error_setg(errp, "writing memory to '%s' failed",
-                       filename);
-            goto exit;
-        }
-        addr += l;
-        size -= l;
-    }
-
-exit:
-    fclose(f);
-}
-
-void qmp_inject_nmi(Error **errp)
-{
-    nmi_monitor_handle(monitor_get_cpu_index(monitor_cur()), errp);
-}
-

@@ -253,7 +253,7 @@ static int xscom_dt_child(Object *child, void *opaque)
         /*
          * Only "realized" devices should be configured in the DT
          */
-        if (xc->dt_xscom && DEVICE(child)->realized) {
+        if (xc->dt_xscom && qdev_is_realized(DEVICE(child))) {
             _FDT((xc->dt_xscom(xd, args->fdt, args->xscom_offset)));
         }
     }

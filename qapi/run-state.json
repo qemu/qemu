@@ -317,8 +317,10 @@
 #
 # @none: nothing is done
 #
-# @inject-nmi: a non-maskable interrupt is injected into the first
-#     VCPU (all VCPUS on x86) (since 2.4)
+# @inject-nmi: a non-maskable interrupt is injected (machine
+#     specific: for example on s390x CCW only the first vCPU
+#     receives the NMI, but on x86 machines all vCPUs receive
+#     it).  (since 2.4)
 #
 # Since: 2.1
 ##

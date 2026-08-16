@@ -59,13 +59,13 @@ void vfio_device_reset_handler(void *opaque)
 
     trace_vfio_device_reset_handler();
     QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
-        if (vbasedev->dev->realized) {
+        if (qdev_is_realized(vbasedev->dev)) {
             vbasedev->ops->vfio_compute_needs_reset(vbasedev);
         }
     }
 
     QLIST_FOREACH(vbasedev, &vfio_device_list, global_next) {
-        if (vbasedev->dev->realized && vbasedev->needs_reset) {
+        if (qdev_is_realized(vbasedev->dev) && vbasedev->needs_reset) {
             vbasedev->ops->vfio_hot_reset_multi(vbasedev);
         }
     }

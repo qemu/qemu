@@ -23,7 +23,8 @@
  */
 
 #include "qemu/osdep.h"
-
+#include "qemu/aio-wait.h"
+#include "qemu/lockable.h"
 #include "chardev/char-io.h"
 #include "monitor-internal.h"
 #include "qapi/error.h"

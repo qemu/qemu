@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "block/qapi.h"
+#include "block/block-global-state.h"
 #include "migration/snapshot.h"
 #include "monitor/hmp.h"
 #include "monitor/hmp-completion.h"

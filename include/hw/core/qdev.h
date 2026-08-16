@@ -437,7 +437,7 @@ DeviceState *qdev_try_new(const char *name);
  * Context: May be called outside big qemu lock.
  * Return: true if the device has been fully constructed, false otherwise.
  */
-static inline bool qdev_is_realized(DeviceState *dev)
+static inline bool qdev_is_realized(const DeviceState *dev)
 {
     return qatomic_load_acquire(&dev->realized);
 }

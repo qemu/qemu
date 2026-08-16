@@ -1453,7 +1453,7 @@ static void virtio_mem_set_requested_size(Object *obj, Visitor *v,
      * The block size and memory backend are not fixed until the device was
      * realized. realize() will verify these properties then.
      */
-    if (DEVICE(obj)->realized) {
+    if (qdev_is_realized(DEVICE(obj))) {
         if (!QEMU_IS_ALIGNED(value, vmem->block_size)) {
             error_setg(errp, "'%s' has to be multiples of '%s' (0x%" PRIx64
                        ")", name, VIRTIO_MEM_BLOCK_SIZE_PROP,
@@ -1507,7 +1507,7 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
     uint64_t value;
 
-    if (DEVICE(obj)->realized) {
+    if (qdev_is_realized(DEVICE(obj))) {
         error_setg(errp, "'%s' cannot be changed", name);
         return;
     }
