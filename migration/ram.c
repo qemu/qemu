@@ -4133,7 +4133,7 @@ static bool read_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
                                               block->pages_offset + offset);
             } else {
                 read = qemu_get_buffer_at(f, host, size,
-                                          block->pages_offset + offset);
+                                          block->pages_offset + offset, errp);
             }
 
             if (!read) {
@@ -4202,8 +4202,8 @@ static void parse_ramblock_mapped_ram(QEMUFile *f, RAMBlock *block,
     bitmap_size = BITS_TO_LONGS(num_pages) * sizeof(unsigned long);
 
     if (qemu_get_buffer_at(f, (uint8_t *)block->file_bmap, bitmap_size,
-                           header.bitmap_offset) != bitmap_size) {
-        error_setg(errp, "Error reading dirty bitmap");
+                           header.bitmap_offset, errp) != bitmap_size) {
+        error_prepend(errp, "Error reading dirty bitmap");
         return;
     }
 
