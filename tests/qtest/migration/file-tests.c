@@ -190,6 +190,25 @@ static void test_multifd_file_mapped_ram_dio(char *name, MigrateCommon *args)
     test_file_common(args, true);
 }
 
+static void *migrate_hook_start_postcopy_mapped_ram(QTestState *from,
+                                                    QTestState *to)
+{
+    migrate_set_capability(
+        to, MigrationCapability_lookup.array[MIGRATION_CAPABILITY_POSTCOPY_RAM],
+        true);
+
+    return NULL;
+}
+
+static void test_postcopy_file_mapped_ram(char *name, MigrateCommon *args)
+{
+    args->start.caps[MIGRATION_CAPABILITY_MAPPED_RAM] = true;
+
+    args->start_hook = migrate_hook_start_postcopy_mapped_ram;
+
+    test_file_common(args, false);
+}
+
 #ifndef _WIN32
 static void migrate_hook_end_multifd_mapped_ram_fdset(QTestState *from,
                                                       QTestState *to,
@@ -329,6 +348,11 @@ void migration_test_add_file(MigrationTestEnv *env)
                        test_precopy_file_mapped_ram_ignore_shared);
     migration_test_add("/migration/multifd/file/mapped-ram/live",
                        test_multifd_file_mapped_ram_live);
+
+    if (env->has_uffd) {
+        migration_test_add("/migration/postcopy/file/mapped-ram",
+                           test_postcopy_file_mapped_ram);
+    }
 
 #ifndef _WIN32
     migration_test_add("/migration/multifd/file/mapped-ram/fdset",
