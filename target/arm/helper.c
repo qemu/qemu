@@ -573,14 +573,20 @@ static void cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          */
         if (cpu_isar_feature(aa32_vfp_simd, env_archcpu(env))) {
             /* VFP coprocessor: cp10 & cp11 [23:20] */
-            mask |= R_CPACR_ASEDIS_MASK |
-                    R_CPACR_D32DIS_MASK |
+            mask |= R_CPACR_D32DIS_MASK |
                     R_CPACR_CP11_MASK |
                     R_CPACR_CP10_MASK;
 
             if (!arm_feature(env, ARM_FEATURE_NEON)) {
                 /* ASEDIS [31] bit is RAO/WI */
                 value |= R_CPACR_ASEDIS_MASK;
+                mask |= R_CPACR_ASEDIS_MASK;
+            } else if (arm_feature(env, ARM_FEATURE_NEON_TRAPS)) {
+                /*
+                 * bit is present unless CPU doesn't implement ASEDIS
+                 * (in which case it is RAZ/WI; this is the Cortex-A8)
+                 */
+                mask |= R_CPACR_ASEDIS_MASK;
             }
 
             /*
@@ -4124,6 +4130,13 @@ uint64_t arm_hcrx_el2_eff(CPUARMState *env)
 static void cptr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
+    if (!arm_feature(env, ARM_FEATURE_NEON_TRAPS)) {
+        /*
+         * If CPU doesn't implement HCPTR.TASE it's RAZ/WI.  Note that
+         * NSACR.NSASEDIS being 1 overrides this.
+         */
+        value &= ~R_HCPTR_TASE_MASK;
+    }
     /*
      * For A-profile AArch32 EL3, if NSACR.CP10
      * is 0 then HCPTR.{TCP11,TCP10} ignore writes and read as 1.

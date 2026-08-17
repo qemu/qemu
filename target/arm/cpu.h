@@ -2177,6 +2177,13 @@ enum arm_features {
      * CPU types added in future.
      */
     ARM_FEATURE_BACKCOMPAT_CNTFRQ, /* 62.5MHz timer default */
+    /*
+     * ARM_FEATURE_NEON_TRAPS should be set if the CPU implements the
+     * CPACR.ASEDIS and HCPTR.TASE bits for trapping A32 Neon.  This
+     * is architecturally IMPDEF, but seems to be implemented by all
+     * ARM_FEATURE_NEON CPUs except the Cortex-A8.
+     */
+    ARM_FEATURE_NEON_TRAPS,
 };
 
 static inline int arm_feature(const CPUARMState *env, int feature)
