@@ -743,6 +743,12 @@ static void ahci_unmap_clb_address(AHCIDevice *ad)
     /* Cancel in-flight reads that would complete against a cleared cur_cmd. */
     ide_cancel_dma_sync(ide_bus_active_if(&ad->port));
 
+    /*
+     * Whatever survives the cancel must not be left pointing into the
+     * mapping this function is about to drop.
+     */
+    ad->cur_cmd = NULL;
+
     if (ad->lst == NULL) {
         trace_ahci_unmap_clb_address_null(ad->hba, ad->port_no);
         return;
