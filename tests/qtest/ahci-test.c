@@ -1794,6 +1794,76 @@ static void test_atapi_engine_restart_dma(void)
 }
 
 /*
+ * Regression test: a PIO write outlives the command list it was issued from.
+ * ide_cancel_dma_sync() does not reach s->pio_aiocb, so the second DRQ phase
+ * runs from the write completion after PxCLB has been unmapped and must not
+ * touch the command header any more.
+ */
+static void test_write_engine_stop_in_flight(void)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    unsigned char *tx;
+    unsigned char *rx;
+    uint64_t ptr;
+    uint8_t port;
+    size_t bufsize = AHCI_SECTOR_SIZE * 2;
+    size_t i;
+
+    ahci = ahci_boot_and_enable("-drive file=blkdebug::%s,if=none,id=drive0,"
+                                "format=%s,cache=writeback "
+                                "-M q35 "
+                                "-device ide-hd,drive=drive0 ",
+                                tmp_path, imgfmt);
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    tx = g_malloc(bufsize);
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
+    ptr = ahci_alloc(ahci, bufsize);
+    g_assert(ptr);
+    qtest_memwrite(ahci->parent->qts, ptr, tx, bufsize);
+
+    /* Zero the second sector, which the abandoned command must not reach. */
+    rx = g_malloc0(AHCI_SECTOR_SIZE);
+    ahci_io(ahci, port, CMD_WRITE_DMA, rx, AHCI_SECTOR_SIZE, 1);
+
+    /* Suspend the backend write so the first sector stays in flight. */
+    g_free(qtest_hmp(ahci->parent->qts,
+                     "qemu-io drive0 \"break write_aio wr\""));
+
+    cmd = ahci_command_create(CMD_WRITE_PIO);
+    ahci_command_adjust(cmd, 0, ptr, bufsize, 0);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+
+    /* Drop the command list while the write is still outstanding. */
+    ahci_px_clr(ahci, port, AHCI_PX_CMD, AHCI_PX_CMD_ST);
+
+    g_free(qtest_hmp(ahci->parent->qts, "qemu-io drive0 \"resume wr\""));
+
+    /* Round-trip through the device to confirm qemu is still alive. */
+    ahci_px_rreg(ahci, port, AHCI_PX_TFD);
+
+    /*
+     * The second DRQ phase never fetched its data, so the sector it would
+     * have carried has to be untouched rather than hold a copy of the first.
+     */
+    ahci_px_set(ahci, port, AHCI_PX_CMD, AHCI_PX_CMD_ST);
+    memset(rx, 0xff, AHCI_SECTOR_SIZE);
+    ahci_io(ahci, port, CMD_READ_DMA, rx, AHCI_SECTOR_SIZE, 1);
+    for (i = 0; i < AHCI_SECTOR_SIZE; i++) {
+        g_assert_cmpint(rx[i], ==, 0);
+    }
+
+    ahci_command_free(cmd);
+    ahci_free(ahci, ptr);
+    g_free(rx);
+    g_free(tx);
+    ahci_shutdown(ahci);
+}
+
+/*
  * Regression test: a multi-sector ATAPI read fetches its later sectors from
  * inside the first read's completion; a concurrent drain (as a guest reset
  * triggers via bdrv_drain_all_begin) must not wedge on that nested read.
@@ -2281,6 +2351,8 @@ int main(int argc, char **argv)
                    test_atapi_engine_restart_pio);
     qtest_add_func("/ahci/cdrom/engine_restart/dma",
                    test_atapi_engine_restart_dma);
+    qtest_add_func("/ahci/io/pio/engine_stop",
+                   test_write_engine_stop_in_flight);
     qtest_add_func("/ahci/cdrom/drain/pio", test_atapi_drain_pio);
     qtest_add_func("/ahci/cdrom/drain/dma", test_atapi_drain_dma);
 
