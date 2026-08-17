@@ -306,15 +306,25 @@ bool vfp_access_check(DisasContext *s)
 
 /*
  * Access check for Neon; this is for instructions which can be
- * trapped by CPACR.ASEDIS and HCPTR.TASE. Support for those traps
- * is optional and we currently do not implement them, so this
- * is identical to a VFP access check for now.
+ * trapped by CPACR.ASEDIS and HCPTR.TASE.
  */
 bool neon_access_check(DisasContext *s)
 {
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
         return vfp_access_check_m(s, false);
     } else {
+        /*
+         * If the Neon-specific trap bits request a trap to a lower EL
+         * than the general FP trap bits, the trap to the lower EL
+         * has priority.
+         */
+        if (s->neon_excp_el &&
+            (!s->fp_excp_el || s->neon_excp_el < s->fp_excp_el)) {
+            uint32_t syn = syn_a32_fp_access_trap(1, 0xe, 1, 0);
+
+            gen_exception_insn_el(s, 0, EXCP_UDEF, syn, s->neon_excp_el);
+            return false;
+        }
         return vfp_access_check_a(s, false, true);
     }
 }

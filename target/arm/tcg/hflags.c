@@ -164,6 +164,86 @@ static bool sme_fa64(CPUARMState *env, int el)
     return true;
 }
 
+static int neon_exception_el(CPUARMState *env, int cur_el)
+{
+    /*
+     * Return the EL to trap to for A32 Neon specific traps
+     * (CPACR.ASEDIS and HCPTR.TASE). In the pseudocode these are
+     * checked in the same function as the more general trap bits that
+     * we handle in fp_exception_el(). Fortunately it is always the
+     * case that if the trap/enable bits specify taking an exception
+     * to different ELs for the Neon-specific insns and the general fp
+     * insns then the trap to the lower of the two ELs has priority,
+     * so we can calculate the two target ELs separately and pick the
+     * right destination later.  Compare AArch32_CheckAdvSIMDOrFPEnabled().
+     *
+     * CPACR doesn't exist before v6, but neither does Neon, so we can
+     * assume that if we're here testing this then the register exists.
+     * HCPTR always exists if EL2 is present.
+     */
+    uint64_t hcr_el2 = arm_hcr_el2_eff(env);
+    bool cpacr_asedis = FIELD_EX64(env->cp15.cpacr_el1, CPACR, ASEDIS);
+    bool hcptr_tase = FIELD_EX64(env->cp15.cptr_el[2], HCPTR, TASE);
+    bool have_aarch32_el3 =
+        arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3);
+
+    if (!arm_feature(env, ARM_FEATURE_NEON_TRAPS)) {
+        /* This CPU doesn't implement the trap bits (Cortex-A8) */
+        return 0;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL2) && arm_el_is_aa64(env, 2)) {
+        /*
+         * The AArch64 CPTR_EL2 has no equivalent to HCPTR.TASE; only
+         * an AArch32 EL2 can trap Neon specifically.
+         */
+        hcptr_tase = false;
+    }
+
+    /*
+     * We know we're in AArch32, but if this is EL0 and EL1 is AArch64
+     * then CPACR_EL1 applies rather than CPACR, and it doesn't have
+     * ASEDIS (instead using the same bit for TCPAC).
+     */
+    if (cur_el == 0 && arm_el_is_aa64(env, 1)) {
+        cpacr_asedis = false;
+    }
+
+    /* CPACR is ignored if E2H+TGE are both set */
+    if ((hcr_el2 & (HCR_E2H | HCR_TGE)) == (HCR_E2H | HCR_TGE)) {
+        cpacr_asedis = false;
+    }
+
+    /*
+     * NSACR.NSASEDIS makes the effective values of HCPTR.TASE and
+     * CPACR.ASEDIS be 1 in NonSecure state. NSACR has no
+     * effect unless EL3 exists and is AArch32.
+     */
+    if (have_aarch32_el3 && cur_el <= 2 && !arm_is_secure_below_el3(env)) {
+        if (FIELD_EX32(env->cp15.nsacr, NSACR, NSASEDIS)) {
+            cpacr_asedis = true;
+            hcptr_tase = true;
+        }
+    }
+
+    if (cpacr_asedis) {
+        if (have_aarch32_el3 && (cur_el == 3 || arm_is_secure_below_el3(env))) {
+            /* Trap from Secure PL0 or PL1 to Secure PL1 */
+            return 3;
+        }
+        if (cur_el <= 1) {
+            /* trap from EL0 or EL1 to EL1 */
+            return 1;
+        }
+    }
+
+    /* HCPTR.TASE traps to EL2, including for execution at EL2 */
+    if (hcptr_tase && cur_el <= 2) {
+        return 2;
+    }
+    return 0;
+}
+
 static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
                                         ARMMMUIdx mmu_idx)
 {
@@ -208,6 +288,8 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
         && !sme_fa64(env, el)) {
         DP_TBFLAG_A32(flags, SME_TRAP_NONSTREAMING, 1);
     }
+
+    DP_TBFLAG_A32(flags, NEONEXC_EL, neon_exception_el(env, el));
 
     return rebuild_hflags_common_32(env, fp_el, mmu_idx, flags);
 }
