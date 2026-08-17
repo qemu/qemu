@@ -292,7 +292,7 @@ static void ide_atapi_identify(IDEState *s)
         put_le16(p + 76, (1 << 8));
     }
 
-    put_le16(p + 80, 0x1e); /* support up to ATA/ATAPI-4 */
+    put_le16(p + 80, 0x70); /* support up to ATA/ATAPI-6 */
     if (s->wwn) {
         put_le16(p + 84, (1 << 8)); /* supports WWN for words 108-111 */
         put_le16(p + 87, (1 << 8)); /* WWN enabled */
@@ -300,6 +300,10 @@ static void ide_atapi_identify(IDEState *s)
 
 #ifdef USE_DMA_CDROM
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
+    if (!s->ncq_queues) {
+        /* word 93 is parallel ATA only, a SATA device reports zero */
+        put_le16(p + 93, 0x600f);
+    }
 #endif
 
     if (s->wwn) {
