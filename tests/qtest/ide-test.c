@@ -1571,6 +1571,83 @@ static void test_migrate_chs_rejected(void)
     unlink(path);
 }
 
+/* A PIO transfer window reaching past the io_buffer has to be refused */
+static void test_migrate_pio_state_rejected(void)
+{
+    const char *name = "ide_drive/pio_state";
+    /* IDE_DMA_BUF_SECTORS * 512 + 4, the length of the streamed io_buffer */
+    const gsize io_buffer_len = 256 * 512 + 4;
+    /* cur_io_buffer_offset and cur_io_buffer_len, big endian */
+    const uint8_t in_bounds[8] = { 0, 0, 0, 0, 0, 0, 0x02, 0 };
+    const uint8_t past_the_end[8] = { 0, 0x02, 0, 0x04, 0, 0, 0x10, 0 };
+    QTestState *src, *dst;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    g_autofree char *path = NULL;
+    g_autofree char *uri = NULL;
+    g_autofree char *dst_args = NULL;
+    g_autofree char *stream = NULL;
+    char *window;
+    gsize len;
+    int fd;
+
+    fd = g_file_open_tmp("qtest-ide-stream.XXXXXX", &path, NULL);
+    g_assert(fd >= 0);
+    close(fd);
+    uri = g_strdup_printf("file:%s", path);
+
+    src = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(src, &bmdma_bar, &ide_bar);
+
+    /* WRITE SECTOR(S) waits in DRQ for the data, so pio_state is streamed */
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 1);
+    qpci_io_writeb(dev, ide_bar, reg_lba_low, 0);
+    qpci_io_writeb(dev, ide_bar, reg_lba_middle, 0);
+    qpci_io_writeb(dev, ide_bar, reg_lba_high, 0);
+    qpci_io_writeb(dev, ide_bar, reg_device, LBA);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_WRITE);
+    assert_bit_set(qpci_io_readb(dev, ide_bar, reg_status), DRQ);
+
+    qtest_qmp_assert_success(src, "{ 'execute': 'migrate',"
+                             " 'arguments': { 'uri': %s } }", uri);
+    qtest_qmp_eventwait(src, "STOP");
+    ide_migration_wait(src, "completed");
+    free_pci_device(dev);
+    ide_test_quit(src);
+
+    /*
+     * Behind the name come the version and req_nb_sectors as big endian 32
+     * bit, then the io_buffer array, then the transfer window this rewrites.
+     * Asserting the window the source streamed keeps that arithmetic honest.
+     */
+    g_assert(g_file_get_contents(path, &stream, &len, NULL));
+    window = ide_stream_find(stream, len, name);
+    g_assert(window);
+    window += strlen(name) + 8 + io_buffer_len;
+    g_assert_cmpint(window - stream + sizeof(past_the_end), <=, len);
+    g_assert_cmpint(memcmp(window, in_bounds, sizeof(in_bounds)), ==, 0);
+    memcpy(window, past_the_end, sizeof(past_the_end));
+    g_assert(g_file_set_contents(path, stream, len, NULL));
+
+    dst_args = g_strdup_printf(
+        "-machine pc "
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 -incoming defer",
+        tmp_path[0]);
+    dst = qtest_init(dst_args);
+
+    qtest_qmp_assert_success(dst, "{ 'execute': 'migrate-incoming',"
+                             " 'arguments': { 'uri': %s,"
+                             " 'exit-on-error': false } }", uri);
+    ide_migration_wait(dst, "failed");
+
+    qtest_quit(dst);
+    unlink(path);
+}
+
 /* Words 54 to 58 follow the translation even when the data was cached first */
 static void test_specify_identify(void)
 {
@@ -1764,6 +1841,8 @@ int main(int argc, char **argv)
                    test_migrate_chs_translation);
     qtest_add_func("/ide/migration/chs_snapshot", test_migrate_chs_snapshot);
     qtest_add_func("/ide/migration/chs_rejected", test_migrate_chs_rejected);
+    qtest_add_func("/ide/migration/pio_state_rejected",
+                   test_migrate_pio_state_rejected);
 
     qtest_add_func("/ide/identify", test_identify);
 
