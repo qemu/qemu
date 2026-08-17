@@ -273,6 +273,7 @@ stored = file_path('stored')
 copy = file_path('copy')
 STORED = '9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69'
 OTHER = '11111111-2222-3333-4444-555555555555'
+MERGED = '22222222-3333-4444-5555-666666666666'
 
 
 def read_header(off, fmt):
@@ -434,3 +435,41 @@ log('--- and the image is still readable')
 info_out = qemu_img('info', '-f', iotests.imgfmt, stored, check=False)
 log('image opened' if info_out.returncode == 0
     else iotests.filter_testfiles(info_out.stdout).strip())
+
+
+# qemu-img-bitmaps drives these for qcow2 alone, as it is built on a
+# backing chain and a rebase, which parallels has neither of.
+
+log('--- bitmaps can not be preserved into raw')
+make_image(STORED)
+raw_out = qemu_img('convert', '--bitmaps', '-f', iotests.imgfmt, '-O',
+                   'raw', stored, copy, check=False)
+log('    ' + iotests.filter_testfiles(raw_out.stdout).strip())
+
+log('--- convert --bitmaps carries the bitmaps into the copy')
+make_image(STORED, OTHER)
+qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x11 1M 64k', stored)
+qemu_img('convert', '--bitmaps', '-f', iotests.imgfmt, '-O', iotests.imgfmt,
+         stored, copy)
+copy_info = iotests.qemu_img_info('-f', iotests.imgfmt, copy)
+copy_data = copy_info.get('format-specific', {}).get('data', {})
+log('    %d bitmaps in the copy' % len(copy_data.get('bitmaps', [])))
+
+log('--- merging one bitmap into a new one')
+qemu_img('bitmap', '--add', '--merge', STORED, '-f', iotests.imgfmt,
+         stored, MERGED)
+log('    %d bitmaps stored' % len(bitmaps_reported()))
+
+log('--- clearing a bitmap keeps it in the image')
+qemu_img('bitmap', '--clear', '-f', iotests.imgfmt, stored, STORED)
+log('    %d bitmaps stored' % len(bitmaps_reported()))
+
+log('--- remove-all sweeps every bitmap of the image')
+qemu_img('bitmap', '--remove-all', '-f', iotests.imgfmt, stored)
+log('    %d bitmaps after remove-all' % len(bitmaps_reported()))
+
+log('--- remove-all with --add leaves only the new bitmap')
+make_image(STORED, OTHER)
+qemu_img('bitmap', '--remove-all', '--add', '-f', iotests.imgfmt,
+         stored, MERGED)
+log('    ' + ' '.join(bitmaps_reported()))

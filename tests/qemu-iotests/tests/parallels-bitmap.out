@@ -92,3 +92,15 @@ read 65536/65536 bytes at offset 0
     0 bitmaps stored
 --- and the image is still readable
 image opened
+--- bitmaps can not be preserved into raw
+    qemu-img: Format driver 'raw' does not support bitmaps
+--- convert --bitmaps carries the bitmaps into the copy
+    2 bitmaps in the copy
+--- merging one bitmap into a new one
+    3 bitmaps stored
+--- clearing a bitmap keeps it in the image
+    3 bitmaps stored
+--- remove-all sweeps every bitmap of the image
+    0 bitmaps after remove-all
+--- remove-all with --add leaves only the new bitmap
+    22222222-3333-4444-5555-666666666666
