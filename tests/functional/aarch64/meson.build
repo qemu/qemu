@@ -25,6 +25,10 @@ tests_aarch64_system_quick = [
   'vmstate',
 ]
 
+if igvm.found()
+  tests_aarch64_system_quick += [ 'vm_launch_update_aarch' ]
+endif
+
 tests_aarch64_system_thorough = [
   'aspeed_ast2700a1',
   'aspeed_ast2700a2',
