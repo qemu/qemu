@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Test parallels load bitmap
+# Test parallels dirty bitmaps
 #
 # Copyright (c) 2021 Virtuozzo International GmbH.
 #
