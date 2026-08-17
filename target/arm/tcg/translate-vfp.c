@@ -210,8 +210,7 @@ static void gen_update_fp_context(DisasContext *s)
 /*
  * Return true if a VFP insn is OK to access the registers indicated
  * by regmask, false if it should UNDEF. This checks whether the
- * D16-D31 regs are implemented by the CPU. Eventually we will also check
- * CPACR.D32DIS.
+ * D16-D31 regs are implemented by the CPU and not disabled by CPACR.D32DIS.
  * Note that Neon insns accessing D16..D31 do not need to check D32DIS,
  * so this function is for VFP insns only.
  *
@@ -219,9 +218,7 @@ static void gen_update_fp_context(DisasContext *s)
  */
 static bool vfp_dregs_ok(DisasContext *s, int dregmask)
 {
-    int invalid_dreg_mask = dc_isar_feature(aa32_simd_r32, s) ? 0 : 0x10;
-
-    return !(dregmask & invalid_dreg_mask);
+    return !(dregmask & s->invalid_vfp_dreg_mask);
 }
 
 /*

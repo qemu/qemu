@@ -6342,6 +6342,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ARMCPU *cpu = env_archcpu(env);
     CPUARMTBFlags tb_flags = arm_tbflags_from_tb(dc->base.tb);
     uint32_t condexec, core_mmu_idx;
+    bool d32dis = false;
 
     dc->isar = &cpu->isar;
     dc->condjmp = 0;
@@ -6404,7 +6405,12 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         dc->sme_trap_nonstreaming =
             EX_TBFLAG_A32(tb_flags, SME_TRAP_NONSTREAMING);
         dc->neon_excp_el = EX_TBFLAG_A32(tb_flags, NEONEXC_EL);
+        d32dis = EX_TBFLAG_A32(tb_flags, D32DIS);
     }
+
+    dc->invalid_vfp_dreg_mask =
+        (d32dis || !dc_isar_feature(aa32_simd_r32, dc)) ? 0x10 : 0;
+
     dc->lse2 = false; /* applies only to aarch64 */
     dc->cp_regs = cpu->cp_regs;
     dc->features = env->features;

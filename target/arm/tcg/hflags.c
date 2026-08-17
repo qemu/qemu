@@ -244,6 +244,24 @@ static int neon_exception_el(CPUARMState *env, int cur_el)
     return 0;
 }
 
+static bool arm_d32dis(CPUARMState *env, int cur_el)
+{
+    bool cpacr_d32dis = FIELD_EX64(env->cp15.cpacr_el1, CPACR, D32DIS);
+
+    if (!arm_feature(env, ARM_FEATURE_D32DIS)) {
+        return false;
+    }
+
+    /* If NSACR.NSD32DIS is set, CPACR.D32DIS acts as 1 in NonSecure */
+    if ((arm_feature(env, ARM_FEATURE_EL3) && !arm_el_is_aa64(env, 3) &&
+         cur_el <= 2 && !arm_is_secure_below_el3(env))) {
+        if (FIELD_EX32(env->cp15.nsacr, NSACR, NSD32DIS)) {
+            cpacr_d32dis = true;
+        }
+    }
+    return cpacr_d32dis;
+}
+
 static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
                                         ARMMMUIdx mmu_idx)
 {
@@ -290,6 +308,8 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
     }
 
     DP_TBFLAG_A32(flags, NEONEXC_EL, neon_exception_el(env, el));
+
+    DP_TBFLAG_A32(flags, D32DIS, arm_d32dis(env, el));
 
     return rebuild_hflags_common_32(env, fp_el, mmu_idx, flags);
 }
