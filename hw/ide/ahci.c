@@ -906,12 +906,12 @@ static int prdt_tbl_entry_size(const AHCI_SG *tbl)
 static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
                                 AHCICmdHdr *cmd, int64_t limit, uint64_t offset)
 {
-    uint16_t opts = le16_to_cpu(cmd->opts);
-    uint16_t prdtl = le16_to_cpu(cmd->prdtl);
-    uint64_t cfis_addr = le64_to_cpu(cmd->tbl_addr);
-    uint64_t prdt_addr = cfis_addr + 0x80;
-    dma_addr_t prdt_len = (prdtl * sizeof(AHCI_SG));
-    dma_addr_t real_prdt_len = prdt_len;
+    uint16_t opts;
+    uint16_t prdtl;
+    uint64_t cfis_addr;
+    uint64_t prdt_addr;
+    dma_addr_t prdt_len;
+    dma_addr_t real_prdt_len;
     uint8_t *prdt;
     int i;
     int r = 0;
@@ -922,6 +922,18 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     BusState *qbus = BUS(bus);
 
     trace_ahci_populate_sglist(ad->hba, ad->port_no);
+
+    if (!cmd) {
+        trace_ahci_populate_sglist_no_cmd(ad->hba, ad->port_no);
+        return -1;
+    }
+
+    opts = le16_to_cpu(cmd->opts);
+    prdtl = le16_to_cpu(cmd->prdtl);
+    cfis_addr = le64_to_cpu(cmd->tbl_addr);
+    prdt_addr = cfis_addr + 0x80;
+    prdt_len = (prdtl * sizeof(AHCI_SG));
+    real_prdt_len = prdt_len;
 
     if (!prdtl) {
         trace_ahci_populate_sglist_no_prdtl(ad->hba, ad->port_no, opts);
@@ -1371,17 +1383,26 @@ out:
 }
 
 /* Transfer PIO data between RAM and device */
-static void ahci_pio_transfer(const IDEDMA *dma)
+static bool ahci_pio_transfer(const IDEDMA *dma)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
     uint32_t size = (uint32_t)(s->data_end - s->data_ptr);
     /* write == ram -> device */
-    uint16_t opts = le16_to_cpu(ad->cur_cmd->opts);
-    int is_write = opts & AHCI_CMD_WRITE;
-    int is_atapi = opts & AHCI_CMD_ATAPI;
+    uint16_t opts;
+    int is_write;
+    int is_atapi;
     int has_sglist = 0;
     bool pio_fis_i;
+
+    if (ad->cur_cmd == NULL) {
+        trace_ahci_pio_transfer_no_cmd(ad->hba, ad->port_no);
+        return false;
+    }
+
+    opts = le16_to_cpu(ad->cur_cmd->opts);
+    is_write = opts & AHCI_CMD_WRITE;
+    is_atapi = opts & AHCI_CMD_ATAPI;
 
     /* The PIO Setup FIS is received prior to transfer, but the interrupt
      * is only triggered after data is received.
@@ -1430,6 +1451,8 @@ out:
     if (pio_fis_i) {
         ahci_trigger_irq(ad->hba, ad, AHCI_PORT_IRQ_BIT_PSS);
     }
+
+    return true;
 }
 
 static void ahci_start_dma(const IDEDMA *dma, IDEState *s,
@@ -1491,6 +1514,10 @@ static int32_t ahci_dma_prepare_buf(const IDEDMA *dma, int32_t limit)
 static void ahci_commit_buf(const IDEDMA *dma, uint32_t tx_bytes)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
+
+    if (ad->cur_cmd == NULL) {
+        return;
+    }
 
     tx_bytes += le32_to_cpu(ad->cur_cmd->status);
     ad->cur_cmd->status = cpu_to_le32(tx_bytes);

@@ -80,6 +80,7 @@ static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
 }
 
 static void ide_dummy_transfer_stop(IDEState *s);
+static void ide_transfer_halt(IDEState *s);
 
 const MemoryRegionPortio ide_portio_list[] = {
     { 0, 8, 1, .read = ide_ioport_read, .write = ide_ioport_write },
@@ -568,7 +569,15 @@ bool ide_transfer_start_norecurse(IDEState *s, uint8_t *buf, int size,
         s->end_transfer_func = end_transfer_func;
         return false;
     }
-    s->bus->dma->ops->pio_transfer(s->bus->dma);
+    if (!s->bus->dma->ops->pio_transfer(s->bus->dma)) {
+        /*
+         * No data reached the buffer, so the caller must not act on it. A
+         * write would otherwise commit whatever the previous phase left
+         * there to the next sector.
+         */
+        ide_transfer_halt(s);
+        return false;
+    }
     return true;
 }
 

@@ -10,6 +10,7 @@ typedef struct IDEDMA IDEDMA;
 
 typedef void DMAStartFunc(const IDEDMA *, IDEState *, BlockCompletionFunc *);
 typedef void DMAVoidFunc(const IDEDMA *);
+typedef bool DMABoolFunc(const IDEDMA *);
 typedef int DMAIntFunc(const IDEDMA *, bool);
 typedef int32_t DMAInt32Func(const IDEDMA *, int32_t len);
 typedef void DMAu32Func(const IDEDMA *, uint32_t);
@@ -17,7 +18,7 @@ typedef void DMAStopFunc(const IDEDMA *, bool);
 
 struct IDEDMAOps {
     DMAStartFunc *start_dma;
-    DMAVoidFunc *pio_transfer;
+    DMABoolFunc *pio_transfer;
     DMAInt32Func *prepare_buf;
     DMAu32Func *commit_buf;
     DMAIntFunc *rw_buf;
