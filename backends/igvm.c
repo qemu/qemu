@@ -1120,6 +1120,7 @@ void qigvm_cleanup_memory(IgvmCfg *cfg)
 
     QTAILQ_FOREACH_SAFE(imr, &cfg->memory_regions, next, tmp)
     {
+        trace_qigvm_cleanup_memory(imr->mr->name);
         memory_region_del_subregion(get_system_memory(), imr->mr);
         vmstate_unregister_ram(imr->mr, NULL);
         QTAILQ_REMOVE(&cfg->memory_regions, imr, next);
