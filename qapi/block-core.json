@@ -2353,7 +2353,9 @@
 # @persistent: the bitmap is persistent, i.e. it will be saved to the
 #     corresponding block device image file on its close.  For now
 #     only Qcow2 disks support persistent bitmaps.  Default is false
-#     for `block-dirty-bitmap-add`.  (Since: 2.10)
+#     for `block-dirty-bitmap-add`.  This fails if the node is
+#     read-only or inactive, since such a bitmap could never be
+#     stored.  (Since: 2.10)
 #
 # @disabled: the bitmap is created in the disabled state, which means
 #     that it will not track drive changes.  The bitmap may be enabled

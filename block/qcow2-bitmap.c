@@ -1487,6 +1487,15 @@ int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
         goto out;
     }
 
+    if (!can_write(bs)) {
+        error_setg(errp, "Cannot remove persistent bitmap '%s': "
+                   "no write access to node '%s'", name,
+                   bdrv_get_node_name(bs));
+        ret = -EACCES;
+        bm = NULL;
+        goto out;
+    }
+
     QSIMPLEQ_REMOVE(bm_list, bm, Qcow2Bitmap, entry);
 
     ret = update_ext_header_and_dir(bs, bm_list);

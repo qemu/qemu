@@ -612,7 +612,7 @@ uint64_t bdrv_dirty_bitmap_serialization_coverage(int serialized_chunk_size,
                                                   const BdrvDirtyBitmap *bitmap)
 {
     uint64_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
-    uint64_t limit = granularity * (serialized_chunk_size << 3);
+    uint64_t limit = granularity * ((uint64_t)serialized_chunk_size << 3);
 
     assert(QEMU_IS_ALIGNED(limit,
                            bdrv_dirty_bitmap_serialization_align(bitmap)));
