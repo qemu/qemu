@@ -1334,6 +1334,7 @@ static void handle_cmd(AHCIState *s, int port, uint8_t slot)
     AHCICmdHdr *cmd;
     uint8_t *cmd_fis;
     dma_addr_t cmd_len;
+    uint8_t cfl;
 
     if (s->dev[port].port.ifs[0].status & (BUSY_STAT|DRQ_STAT)) {
         /* Engine currently busy, try again later */
@@ -1346,6 +1347,14 @@ static void handle_cmd(AHCIState *s, int port, uint8_t slot)
         return;
     }
     cmd = get_cmd_header(s, port, slot);
+
+    /* AHCI 1.3.1: a CFL below 2 dwords or above 16 is illegal */
+    cfl = le16_to_cpu(cmd->opts) & AHCI_CMD_HDR_CMD_FIS_LEN;
+    if (cfl < 2 || cfl > 16) {
+        trace_handle_cmd_badcfl(s, port, le16_to_cpu(cmd->opts));
+        return;
+    }
+
     /* remember current slot handle for later */
     s->dev[port].cur_cmd = cmd;
 

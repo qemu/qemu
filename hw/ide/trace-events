@@ -106,6 +106,7 @@ handle_reg_h2d_fis_res(void *s, int port, char b0, char b1, char b2) "ahci(%p)[%
 handle_cmd_busy(void *s, int port) "ahci(%p)[%d]: engine busy"
 handle_cmd_nolist(void *s, int port) "ahci(%p)[%d]: handle_cmd called without s->dev[port].lst"
 handle_cmd_badport(void *s, int port) "ahci(%p)[%d]: guest accessed unused port"
+handle_cmd_badcfl(void *s, int port, uint16_t opts) "ahci(%p)[%d]: guest provided an invalid cmd FIS length: 0x%04x"
 handle_cmd_badfis(void *s, int port) "ahci(%p)[%d]: guest provided an invalid cmd FIS"
 handle_cmd_badmap(void *s, int port, uint64_t len) "ahci(%p)[%d]: dma_memory_map failed, 0x%02"PRIx64" != 0x80"
 handle_cmd_unhandled_fis(void *s, int port, uint8_t b0, uint8_t b1, uint8_t b2) "ahci(%p)[%d]: unhandled FIS type. cmd_fis: 0x%02x-%02x-%02x"
