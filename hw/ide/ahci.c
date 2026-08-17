@@ -1428,7 +1428,7 @@ static bool ahci_pio_transfer(const IDEDMA *dma)
         goto out;
     }
 
-    if (ahci_dma_prepare_buf(dma, size)) {
+    if (ahci_dma_prepare_buf(dma, size) > 0) {
         has_sglist = 1;
     }
 
