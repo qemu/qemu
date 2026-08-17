@@ -95,6 +95,7 @@ typedef struct DisasContext {
     int max_any_vl;  /* maximum implemented vector length */
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int invalid_vfp_dreg_mask; /* mask for whether VFP D16..D31 should UNDEF */
+    int invalid_neon_dreg_mask; /* ditto, for Neon */
     int vec_len;
     int vec_stride;
     bool v7m_handler_mode;

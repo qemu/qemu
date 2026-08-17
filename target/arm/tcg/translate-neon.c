@@ -118,11 +118,24 @@ static void neon_store_element64(int reg, int ele, MemOp size, TCGv_i64 var)
     }
 }
 
+/*
+ * Return true if a Neon insn is OK to access the registers indicated
+ * by regmask, false if it should UNDEF. This checks whether the
+ * D16-D31 regs are implemented by the CPU.
+ * Note that Neon insns accessing D16..D31 do not need to check D32DIS.
+ *
+ * @regmask should be the logical OR of the Dregs being accessed.
+ */
+static bool neon_dregs_ok(DisasContext *s, int dregmask)
+{
+    return !(dregmask & s->invalid_neon_dreg_mask);
+}
+
 static bool do_neon_ddda(DisasContext *s, int q, int vd, int vn, int vm,
                          int data, gen_helper_gvec_4 *fn_gvec)
 {
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (((vd | vn | vm) & 0x10) && !dc_isar_feature(aa32_simd_r32, s)) {
+    if (!neon_dregs_ok(s, vd | vn | vm)) {
         return false;
     }
 
@@ -152,7 +165,7 @@ static bool do_neon_ddda_env(DisasContext *s, int q, int vd, int vn, int vm,
                              int data, gen_helper_gvec_4_ptr *fn_gvec)
 {
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (((vd | vn | vm) & 0x10) && !dc_isar_feature(aa32_simd_r32, s)) {
+    if (!neon_dregs_ok(s, vd | vn | vm)) {
         return false;
     }
 
@@ -184,7 +197,7 @@ static bool do_neon_ddda_fpst(DisasContext *s, int q, int vd, int vn, int vm,
                               gen_helper_gvec_4_ptr *fn_gvec_ptr)
 {
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (((vd | vn | vm) & 0x10) && !dc_isar_feature(aa32_simd_r32, s)) {
+    if (!neon_dregs_ok(s, vd | vn | vm)) {
         return false;
     }
 
@@ -240,8 +253,7 @@ static bool trans_VCADD(DisasContext *s, arg_VCADD *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -310,8 +322,7 @@ static bool trans_VFML(DisasContext *s, arg_VFML *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        (a->vd & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd)) {
         return false;
     }
 
@@ -398,14 +409,14 @@ static bool trans_VDOT_b16_scal(DisasContext *s, arg_VDOT_b16_scal *a)
 static bool trans_VFML_scalar(DisasContext *s, arg_VFML_scalar *a)
 {
     int opr_sz;
+    int dregmask = a->vd | (a->q ? a->vn : 0);
 
     if (!dc_isar_feature(aa32_fhm, s)) {
         return false;
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd & 0x10) || (a->q && (a->vn & 0x10)))) {
+    if (!neon_dregs_ok(s, dregmask)) {
         return false;
     }
 
@@ -478,7 +489,7 @@ static bool trans_VLDST_multiple(DisasContext *s, arg_VLDST_multiple *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist */
-    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd)) {
         return false;
     }
     if (a->itype > 10) {
@@ -580,7 +591,7 @@ static bool trans_VLD_all_lanes(DisasContext *s, arg_VLD_all_lanes *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist */
-    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd)) {
         return false;
     }
 
@@ -672,7 +683,7 @@ static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist */
-    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd)) {
         return false;
     }
 
@@ -789,8 +800,7 @@ static bool do_3same(DisasContext *s, arg_3same *a, GVecGen3Fn fn)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -1067,8 +1077,7 @@ static bool do_vector_2sh(DisasContext *s, arg_2reg_shift *a, GVecGen2iFn *fn)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -1117,8 +1126,7 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -1168,8 +1176,7 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -1293,8 +1300,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -1383,8 +1389,7 @@ static bool do_fp_2sh(DisasContext *s, arg_2reg_shift *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -1428,7 +1433,7 @@ static bool do_1reg_imm(DisasContext *s, arg_1reg_imm *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd)) {
         return false;
     }
 
@@ -1485,8 +1490,7 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -1592,8 +1596,7 @@ static bool do_narrow_3d(DisasContext *s, arg_3diff *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -1682,8 +1685,7 @@ static bool do_long_3d(DisasContext *s, arg_3diff *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -1944,8 +1946,7 @@ static bool trans_VMULL_P_3d(DisasContext *s, arg_3diff *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2027,8 +2028,7 @@ static bool do_2scalar(DisasContext *s, arg_2scalar *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2125,8 +2125,7 @@ static bool do_2scalar_fp_vec(DisasContext *s, arg_2scalar *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2222,8 +2221,7 @@ static bool do_vqrdmlah_2sc(DisasContext *s, arg_2scalar *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2293,8 +2291,7 @@ static bool do_2scalar_long(DisasContext *s, arg_2scalar *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2438,8 +2435,7 @@ static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2507,8 +2503,7 @@ static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vn | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vn | a->vm)) {
         return false;
     }
 
@@ -2546,8 +2541,7 @@ static bool trans_VDUP_scalar(DisasContext *s, arg_VDUP_scalar *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2577,8 +2571,7 @@ static bool do_zip_uzp(DisasContext *s, arg_2misc *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2647,8 +2640,7 @@ static bool do_vmovn(DisasContext *s, arg_2misc *a,
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2711,8 +2703,7 @@ static bool trans_VSHLL(DisasContext *s, arg_2misc *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2755,8 +2746,7 @@ static bool trans_VCVT_B16_F32(DisasContext *s, arg_2misc *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2795,8 +2785,7 @@ static bool trans_VCVT_F16_F32(DisasContext *s, arg_2misc *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2841,8 +2830,7 @@ static bool trans_VCVT_F32_F16(DisasContext *s, arg_2misc *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -2887,8 +2875,7 @@ static bool do_2misc_vec(DisasContext *s, arg_2misc *a, GVecGen2Fn *fn)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -3015,8 +3002,7 @@ static bool do_2misc(DisasContext *s, arg_2misc *a, NeonGenOneOpFn *fn)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -3219,8 +3205,7 @@ static bool trans_VSWP(DisasContext *s, arg_2misc *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 
@@ -3292,8 +3277,7 @@ static bool trans_VTRN(DisasContext *s, arg_2misc *a)
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
-    if (!dc_isar_feature(aa32_simd_r32, s) &&
-        ((a->vd | a->vm) & 0x10)) {
+    if (!neon_dregs_ok(s, a->vd | a->vm)) {
         return false;
     }
 

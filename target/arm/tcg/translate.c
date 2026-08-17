@@ -6410,6 +6410,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     dc->invalid_vfp_dreg_mask =
         (d32dis || !dc_isar_feature(aa32_simd_r32, dc)) ? 0x10 : 0;
+    dc->invalid_neon_dreg_mask = !dc_isar_feature(aa32_simd_r32, dc) ? 0x10 : 0;
 
     dc->lse2 = false; /* applies only to aarch64 */
     dc->cp_regs = cpu->cp_regs;
