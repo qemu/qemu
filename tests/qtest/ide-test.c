@@ -104,6 +104,7 @@ enum {
     CMD_FLUSH_CACHE = 0xe7,
     CMD_IDENTIFY    = 0xec,
     CMD_PACKET      = 0xa0,
+    CMD_IDENTIFY_PACKET = 0xa1,
     CMD_READ_NATIVE = 0xf8,  /* READ NATIVE MAX ADDRESS */
 
     CMDF_ABORT      = 0x100,
@@ -1571,6 +1572,72 @@ static void test_migrate_chs_rejected(void)
     unlink(path);
 }
 
+/*
+ * A device advertising UDMA5 has to claim a standard that defines it, and a
+ * parallel attachment has to report the cable word (ACS-3 7.12.7.47).
+ */
+static void test_identify_udma(bool packet)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+    int i;
+
+    if (packet) {
+        qts = ide_test_start("-device ide-cd,bus=ide.0");
+    } else {
+        qts = ide_test_start(
+            "-blockdev driver=file,node-name=hda,filename=%s "
+            "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+            tmp_path[0]);
+    }
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    qpci_io_writeb(dev, ide_bar, reg_device, 0);
+    qpci_io_writeb(dev, ide_bar, reg_command,
+                   packet ? CMD_IDENTIFY_PACKET : CMD_IDENTIFY);
+    for (i = 0; i < 256; i++) {
+        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
+    }
+
+    /* UDMA5 supported and selected */
+    assert_bit_set(buf[88], 1 << 5);
+    assert_bit_set(buf[88], 1 << 13);
+
+    /* UDMA5 arrived in ATA/ATAPI-6, so word 80 has to reach bit 6 */
+    assert_bit_set(buf[80], 1 << 6);
+    if (packet) {
+        /* Bits 3:1 are obsolete in IDENTIFY PACKET DEVICE data */
+        assert_bit_clear(buf[80], 0x0e);
+    }
+
+    /* Word 93: reserved bit clear, fixed bit set, 80-conductor cable */
+    assert_bit_clear(buf[93], 1 << 15);
+    assert_bit_set(buf[93], 1 << 14);
+    assert_bit_set(buf[93], 1 << 13);
+    assert_bit_set(buf[93], 1 << 0);
+    /* Device 0 clears the device 1 result */
+    assert_bit_clear(buf[93], 0x1f00);
+    if (packet) {
+        /* the disk path has yet to gain this */
+        assert_bit_set(buf[93], 1 << 3);
+    }
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
+static void test_identify_udma_ata(void)
+{
+    test_identify_udma(false);
+}
+
+static void test_identify_udma_atapi(void)
+{
+    test_identify_udma(true);
+}
+
 /* A PIO transfer window reaching past the io_buffer has to be refused */
 static void test_migrate_pio_state_rejected(void)
 {
@@ -1843,6 +1910,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/migration/chs_rejected", test_migrate_chs_rejected);
     qtest_add_func("/ide/migration/pio_state_rejected",
                    test_migrate_pio_state_rejected);
+    qtest_add_func("/ide/identify/udma", test_identify_udma_ata);
+    qtest_add_func("/ide/identify/udma_atapi", test_identify_udma_atapi);
 
     qtest_add_func("/ide/identify", test_identify);
 
