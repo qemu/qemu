@@ -688,7 +688,7 @@ void aarch64_cpu_lpa2_finalize(ARMCPU *cpu, Error **errp)
 
 static void aarch64_a57_initfn(Object *obj)
 {
-    aarch64_aa32_a57_init(ARM_CPU(obj), false);
+    aarch64_aa32_a57_init(ARM_CPU(obj), true);
 }
 
 static void aarch64_a53_initfn(Object *obj)
