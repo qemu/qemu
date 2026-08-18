@@ -206,8 +206,8 @@ static void cpu_max_initfn(Object *obj)
          * '-cpu max' for TCG: we currently do this as
          * "A57 with extra things"
          */
-        aarch64_aa32_a57_init(cpu, aarch64_enabled);
         if (!aarch64_enabled) {
+            aarch64_aa32_a57_init(cpu, false);
             aa32_max_features(cpu);
 #ifdef CONFIG_USER_ONLY
             /*
