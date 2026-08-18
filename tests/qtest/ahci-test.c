@@ -1794,6 +1794,78 @@ static void test_atapi_engine_restart_dma(void)
 }
 
 /*
+ * Regression test: an unplug runs no device reset, so it is the last chance to
+ * detach an outstanding request. Its completion would otherwise walk the
+ * AHCIDevice array that ahci_uninit() has freed, which each of the NCQ, DMA
+ * and PIO completions reaches by a different route.
+ *
+ * The ACPI ejection register is what a guest writes to finish a PCI unplug.
+ * -M pc is what puts it in reach: q35 has no ACPI hotplug on pcie.0, so the
+ * unplug never happens there. Unlike the pciehp attention button this reaches
+ * the unplug with no secondary bus reset, which is the ordering that leaves a
+ * request outstanding.
+ */
+static void test_unplug_in_flight(uint8_t ide_cmd)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    uint64_t ptr;
+    uint8_t port;
+    QTestState *qts;
+
+    /*
+     * The latency keeps the backend read in flight across the unplug. A
+     * blkdebug breakpoint cannot stand in for it: cancelling a suspended
+     * request waits for it, so the unplug would never return.
+     */
+    ahci = ahci_boot_and_enable(
+        "-M pc "
+        "-blockdev driver=null-co,node-name=drive0,read-zeroes=on,"
+        "latency-ns=100000000 "
+        "-device ich9-ahci,addr=1f.2,id=ahci0 "
+        "-device ide-hd,drive=drive0,bus=ahci0.0 ");
+    qts = ahci->parent->qts;
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    ptr = ahci_alloc(ahci, AHCI_SECTOR_SIZE);
+    g_assert(ptr);
+
+    cmd = ahci_command_create(ide_cmd);
+    ahci_command_adjust(cmd, 0, ptr, AHCI_SECTOR_SIZE, 0);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+
+    /* Eject slot 0x1f of the root bus, which frees the AHCIDevice array. */
+    qtest_outl(qts, 0xae10, 0);
+    qtest_outl(qts, 0xae08, 1u << 0x1f);
+    qtest_qmp_eventwait(qts, "DEVICE_DELETED");
+
+    /* Four times the backend latency, so the completion has surely run. */
+    g_usleep(400 * 1000);
+    qtest_qmp_assert_success(qts, "{ 'execute': 'query-status' }");
+
+    ahci_command_free(cmd);
+    ahci_free(ahci, ptr);
+    ahci_shutdown(ahci);
+}
+
+static void test_unplug_ncq(void)
+{
+    test_unplug_in_flight(READ_FPDMA_QUEUED);
+}
+
+static void test_unplug_dma(void)
+{
+    test_unplug_in_flight(CMD_READ_DMA);
+}
+
+static void test_unplug_pio(void)
+{
+    test_unplug_in_flight(CMD_READ_PIO);
+}
+
+/*
  * Regression test: a PIO write outlives the command list it was issued from.
  * ide_cancel_dma_sync() does not reach s->pio_aiocb, so the second DRQ phase
  * runs from the write completion after PxCLB has been unmapped and must not
@@ -2351,6 +2423,9 @@ int main(int argc, char **argv)
                    test_atapi_engine_restart_pio);
     qtest_add_func("/ahci/cdrom/engine_restart/dma",
                    test_atapi_engine_restart_dma);
+    qtest_add_func("/ahci/io/ncq/unplug", test_unplug_ncq);
+    qtest_add_func("/ahci/io/dma/unplug", test_unplug_dma);
+    qtest_add_func("/ahci/io/pio/unplug", test_unplug_pio);
     qtest_add_func("/ahci/io/pio/engine_stop",
                    test_write_engine_stop_in_flight);
     qtest_add_func("/ahci/cdrom/drain/pio", test_atapi_drain_pio);
