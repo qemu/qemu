@@ -148,16 +148,28 @@ static uint64_t vmstate_size(void *opaque, const VMStateField *field)
     return size;
 }
 
-static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
-                                 void *opaque)
+static bool vmstate_handle_alloc(void *ptr, const VMStateField *field,
+                                 uint64_t n, uint64_t size, Error **errp)
 {
+    void *p;
+
     if (field->flags & VMS_POINTER && field->flags & VMS_ALLOC) {
-        uint64_t size = vmstate_size(opaque, field);
-        size *= vmstate_n_elems(opaque, field);
-        if (size) {
-            *(void **)ptr = g_malloc(size);
-        }
+        if (size && n) {
+            if (umul64_overflow(size, n, &size)) {
+                error_setg(errp, "%s: field '%s' multiply overflow",
+                           __func__, field->name);
+                return false;
+            }
+            p = g_try_malloc(size);
+            if (!p) {
+                error_setg(errp, "%s: Could not allocate memory for field '%s'",
+                           __func__, field->name);
+                return false;
+            }
+            *(void **)ptr = p;
+         }
     }
+    return true;
 }
 
 static bool vmstate_ptr_marker_load(QEMUFile *f, bool *load_field,
@@ -367,7 +379,9 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
             uint64_t n_elems = vmstate_n_elems(opaque, field);
             uint64_t size = vmstate_size(opaque, field);
 
-            vmstate_handle_alloc(first_elem, field, opaque);
+            if (!vmstate_handle_alloc(first_elem, field, n_elems, size, errp)) {
+                return false;
+            }
             if (field->flags & VMS_POINTER) {
                 first_elem = *(void **)first_elem;
                 assert(first_elem || !n_elems || !size);
