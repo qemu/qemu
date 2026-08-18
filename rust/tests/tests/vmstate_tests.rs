@@ -461,7 +461,7 @@ fn test_vmstate_validate() {
     assert_eq!(foo_fields[0].num, 0);
     assert_eq!(
         foo_fields[0].flags.0,
-        VMStateFlags::VMS_ARRAY.0 | VMStateFlags::VMS_MUST_EXIST.0
+        VMStateFlags::VMS_NO_STATE.0 | VMStateFlags::VMS_MUST_EXIST.0
     );
     assert!(foo_fields[0].vmsd.is_null());
     assert!(unsafe { foo_fields[0].field_exists.unwrap()(foo_d_p, 0) });

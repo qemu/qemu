@@ -109,6 +109,12 @@ enum VMStateFlags {
      */
     VMS_ARRAY_OF_POINTER = 0x040,
 
+    /*
+     * The field contains no data. Used for special cases such as
+     * invoking a custom VMStateInfo.
+     */
+    VMS_NO_STATE = 0x080,
+
     /* The size of the individual entries (a single array entry if
      * VMS_ARRAY or VMS_VARRAY are set, or the field itself if
      * neither is set) is variable (i.e. not known at compile-time),
@@ -454,8 +460,7 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_VALIDATE(_name, _test) { \
     .name         = (_name),                                         \
     .field_exists = (_test),                                         \
-    .flags        = VMS_ARRAY | VMS_MUST_EXIST,                      \
-    .num          = 0, /* 0 elements: no data, only run _test */     \
+    .flags        = VMS_MUST_EXIST | VMS_NO_STATE,                   \
 }
 
 #define VMSTATE_POINTER(_field, _state, _version, _info, _type) {    \

@@ -110,12 +110,16 @@ static uint64_t vmstate_read_from_offset(const VMStateStructMember *member,
 
 static uint64_t vmstate_n_elems(void *opaque, const VMStateField *field)
 {
-    uint64_t n_elems = 1;
+    uint64_t n_elems;
 
     if (field->flags & VMS_ARRAY) {
         n_elems = field->num;
     } else if (field->flags & VMS_VARRAY) {
         n_elems = vmstate_read_from_offset(&field->num_indirect, opaque);
+    } else if (field->flags & VMS_MUST_EXIST && field->flags & VMS_NO_STATE) {
+        n_elems = 0;
+    } else {
+        n_elems = 1;
     }
 
     trace_vmstate_n_elems(field->name, n_elems);
