@@ -65,7 +65,7 @@ fn test_vmstate_uint16() {
         b"elem\0"
     );
     assert_eq!(foo_fields[0].offset, 16);
-    assert_eq!(foo_fields[0].num_offset, 0);
+    assert_eq!(foo_fields[0].num_indirect.size, 0);
     assert_eq!(foo_fields[0].info, unsafe { &vmstate_info_int8 });
     assert_eq!(foo_fields[0].version_id, 0);
     assert_eq!(foo_fields[0].size, 1);
@@ -86,7 +86,7 @@ fn test_vmstate_unused() {
         b"unused\0"
     );
     assert_eq!(foo_fields[1].offset, 0);
-    assert_eq!(foo_fields[1].num_offset, 0);
+    assert_eq!(foo_fields[1].num_indirect.size, 0);
     assert_eq!(foo_fields[1].info, unsafe { &vmstate_info_unused_buffer });
     assert_eq!(foo_fields[1].version_id, 0);
     assert_eq!(foo_fields[1].size, 8);
@@ -108,7 +108,7 @@ fn test_vmstate_varray_uint16_unsafe() {
         b"arr\0"
     );
     assert_eq!(foo_fields[2].offset, 0);
-    assert_eq!(foo_fields[2].num_offset, 4);
+    assert_eq!(foo_fields[2].num_indirect.offset, 4);
     assert_eq!(foo_fields[2].info, unsafe { &vmstate_info_uint8 });
     assert_eq!(foo_fields[2].version_id, 0);
     assert_eq!(foo_fields[2].size, 1);
@@ -172,7 +172,7 @@ fn test_vmstate_bool_v() {
         b"val\0"
     );
     assert_eq!(foo_fields[0].offset, 136);
-    assert_eq!(foo_fields[0].num_offset, 0);
+    assert_eq!(foo_fields[0].num_indirect.size, 0);
     assert_eq!(foo_fields[0].info, unsafe { &vmstate_info_bool });
     assert_eq!(foo_fields[0].version_id, 2);
     assert_eq!(foo_fields[0].size, 1);
@@ -193,7 +193,7 @@ fn test_vmstate_uint64() {
         b"wrap\0"
     );
     assert_eq!(foo_fields[1].offset, 128);
-    assert_eq!(foo_fields[1].num_offset, 0);
+    assert_eq!(foo_fields[1].num_indirect.size, 0);
     assert_eq!(foo_fields[1].info, unsafe { &vmstate_info_uint64 });
     assert_eq!(foo_fields[1].version_id, 0);
     assert_eq!(foo_fields[1].size, 8);
@@ -215,7 +215,7 @@ fn test_vmstate_struct_varray_uint8() {
         b"arr_a\0"
     );
     assert_eq!(foo_fields[2].offset, 0);
-    assert_eq!(foo_fields[2].num_offset, 60);
+    assert_eq!(foo_fields[2].num_indirect.offset, 60);
     assert!(foo_fields[2].info.is_null()); // VMSTATE_STRUCT_VARRAY_UINT8 doesn't set info field.
     assert_eq!(foo_fields[2].version_id, 1);
     assert_eq!(foo_fields[2].size, 20);
@@ -240,7 +240,7 @@ fn test_vmstate_macro_array() {
         b"arr_i64\0"
     );
     assert_eq!(foo_fields[4].offset, 144);
-    assert_eq!(foo_fields[4].num_offset, 0);
+    assert_eq!(foo_fields[4].num_indirect.size, 0);
     assert_eq!(foo_fields[4].info, unsafe { &vmstate_info_int64 });
     assert_eq!(foo_fields[4].version_id, 0);
     assert_eq!(foo_fields[4].size, 8);
@@ -264,7 +264,7 @@ fn test_vmstate_struct_varray_uint8_wrapper() {
         unsafe { CStr::from_ptr(foo_fields[5].name) }.to_bytes_with_nul(),
         b"arr_a_wrap\0"
     );
-    assert_eq!(foo_fields[5].num_offset, 228);
+    assert_eq!(foo_fields[5].num_indirect.offset, 228);
     assert!(unsafe { foo_fields[5].field_exists.unwrap()(foo_b_p, 0) });
 
     // The last VMStateField in VMSTATE_FOOB.
@@ -316,7 +316,7 @@ fn test_vmstate_pointer() {
         b"ptr\0"
     );
     assert_eq!(foo_fields[0].offset, 0);
-    assert_eq!(foo_fields[0].num_offset, 0);
+    assert_eq!(foo_fields[0].num_indirect.size, 0);
     assert_eq!(foo_fields[0].info, unsafe { &vmstate_info_int32 });
     assert_eq!(foo_fields[0].version_id, 2);
     assert_eq!(foo_fields[0].size, 4);
@@ -341,7 +341,7 @@ fn test_vmstate_struct_pointer() {
         b"ptr_a\0"
     );
     assert_eq!(foo_fields[1].offset, PTR_SIZE);
-    assert_eq!(foo_fields[1].num_offset, 0);
+    assert_eq!(foo_fields[1].num_indirect.size, 0);
     assert_eq!(foo_fields[1].vmsd, VMSTATE_FOOA.as_ref());
     assert_eq!(foo_fields[1].version_id, 0);
     assert_eq!(foo_fields[1].size, size_of::<FooA>());
@@ -366,7 +366,7 @@ fn test_vmstate_macro_array_of_pointer() {
         b"arr_ptr\0"
     );
     assert_eq!(foo_fields[2].offset, 2 * PTR_SIZE);
-    assert_eq!(foo_fields[2].num_offset, 0);
+    assert_eq!(foo_fields[2].num_indirect.size, 0);
     assert_eq!(foo_fields[2].info, unsafe { &vmstate_info_uint8 });
     assert_eq!(foo_fields[2].version_id, 0);
     assert_eq!(foo_fields[2].size, PTR_SIZE);
@@ -391,7 +391,7 @@ fn test_vmstate_macro_array_of_pointer_wrapped() {
         b"arr_ptr_wrap\0"
     );
     assert_eq!(foo_fields[3].offset, (FOO_ARRAY_MAX + 2) * PTR_SIZE);
-    assert_eq!(foo_fields[3].num_offset, 0);
+    assert_eq!(foo_fields[3].num_indirect.size, 0);
     assert_eq!(foo_fields[3].info, unsafe { &vmstate_info_uint8 });
     assert_eq!(foo_fields[3].version_id, 0);
     assert_eq!(foo_fields[3].size, PTR_SIZE);
@@ -454,7 +454,7 @@ fn test_vmstate_validate() {
         b"foo_d_0\0"
     );
     assert_eq!(foo_fields[0].offset, 0);
-    assert_eq!(foo_fields[0].num_offset, 0);
+    assert_eq!(foo_fields[0].num_indirect.size, 0);
     assert!(foo_fields[0].info.is_null());
     assert_eq!(foo_fields[0].version_id, 0);
     assert_eq!(foo_fields[0].size, 0);

@@ -78,32 +78,57 @@ vmsd_init_ptr_marker_field(VMStateField *fake, const VMStateField *field)
     };
 }
 
-static int vmstate_n_elems(void *opaque, const VMStateField *field)
+static uint64_t vmstate_read_from_offset(const VMStateStructMember *member,
+                                         void *opaque)
 {
-    int n_elems = 1;
+    uint8_t *ptr = (uint8_t *)opaque + member->offset;
+
+    switch (member->size) {
+    case 1: {
+        uint8_t v;
+        memcpy(&v, ptr, 1);
+        return v;
+    }
+    case 2: {
+        uint16_t v;
+        memcpy(&v, ptr, 2);
+        return v;
+    }
+    case 4: {
+        uint32_t v;
+        memcpy(&v, ptr, 4);
+        return v;
+    }
+    case 8: {
+        uint64_t v;
+        memcpy(&v, ptr, 8);
+        return v;
+    }
+    }
+    g_assert_not_reached();
+}
+
+static uint64_t vmstate_n_elems(void *opaque, const VMStateField *field)
+{
+    uint64_t n_elems = 1;
 
     if (field->flags & VMS_ARRAY) {
         n_elems = field->num;
-    } else if (field->flags & VMS_VARRAY_INT32) {
-        n_elems = *(int32_t *)(opaque + field->num_offset);
-    } else if (field->flags & VMS_VARRAY_UINT32) {
-        n_elems = *(uint32_t *)(opaque + field->num_offset);
-    } else if (field->flags & VMS_VARRAY_UINT16) {
-        n_elems = *(uint16_t *)(opaque + field->num_offset);
-    } else if (field->flags & VMS_VARRAY_UINT8) {
-        n_elems = *(uint8_t *)(opaque + field->num_offset);
+    } else if (field->flags & (VMS_VARRAY_INT32 | VMS_VARRAY_UINT32
+                               | VMS_VARRAY_UINT16 | VMS_VARRAY_UINT8)) {
+        n_elems = vmstate_read_from_offset(&field->num_indirect, opaque);
     }
 
     trace_vmstate_n_elems(field->name, n_elems);
     return n_elems;
 }
 
-static int vmstate_size(void *opaque, const VMStateField *field)
+static uint64_t vmstate_size(void *opaque, const VMStateField *field)
 {
-    int size;
+    uint64_t size;
 
     if (field->flags & VMS_VBUFFER) {
-        size = *(int32_t *)(opaque + field->size_offset);
+        size = vmstate_read_from_offset(&field->size_indirect, opaque);
         if (field->flags & VMS_MULTIPLY) {
             size *= field->size;
         }
@@ -124,7 +149,7 @@ static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
                                  void *opaque)
 {
     if (field->flags & VMS_POINTER && field->flags & VMS_ALLOC) {
-        gsize size = vmstate_size(opaque, field);
+        uint64_t size = vmstate_size(opaque, field);
         size *= vmstate_n_elems(opaque, field);
         if (size) {
             *(void **)ptr = g_malloc(size);
@@ -335,8 +360,9 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
 
         if (exists) {
             void *first_elem = opaque + field->offset;
-            int i, n_elems = vmstate_n_elems(opaque, field);
-            int size = vmstate_size(opaque, field);
+            int i;
+            uint64_t n_elems = vmstate_n_elems(opaque, field);
+            uint64_t size = vmstate_size(opaque, field);
 
             vmstate_handle_alloc(first_elem, field, opaque);
             if (field->flags & VMS_POINTER) {
@@ -650,8 +676,9 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
     while (field->name) {
         if (vmstate_field_exists(vmsd, field, opaque, version_id)) {
             void *first_elem = opaque + field->offset;
-            int i, n_elems = vmstate_n_elems(opaque, field);
-            int size = vmstate_size(opaque, field);
+            int i;
+            uint64_t n_elems = vmstate_n_elems(opaque, field);
+            uint64_t size = vmstate_size(opaque, field);
             JSONWriter *vmdesc_loop = vmdesc;
             bool is_prev_null = false;
             /*

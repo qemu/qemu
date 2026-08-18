@@ -873,14 +873,14 @@ static void vmstate_check(const VMStateDescription *vmsd)
                      * Size must be provided because dest QEMU needs that
                      * info to know what to allocate
                      */
-                    assert(field->size || field->size_offset);
+                    assert(field->size != 0 || field->size_indirect.size != 0);
                 } else {
                     /*
                      * Otherwise size info isn't useful (because it's
                      * always the size of host pointer), detect accidental
                      * setup of sizes in this case.
                      */
-                    assert(field->size == 0 && field->size_offset == 0);
+                    assert(field->size == 0 && field->size_indirect.size == 0);
                 }
                 /*
                  * VMS_ARRAY_OF_POINTER must be used only together with one

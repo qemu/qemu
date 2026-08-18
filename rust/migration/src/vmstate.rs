@@ -41,7 +41,7 @@ use common::{
 };
 
 use crate::bindings::{self, VMStateFlags};
-pub use crate::bindings::{MigrationPriority, VMStateField};
+pub use crate::bindings::{MigrationPriority, VMStateField, VMStateStructMember};
 
 /// This macro is used to call a function with a generic argument bound
 /// to the type of a field.  The function must take a
@@ -119,6 +119,23 @@ pub const fn vmstate_varray_flag<T: VMState>(_: PhantomData<T>) -> VMStateFlags 
     T::VARRAY_FLAG
 }
 
+pub const OPAQUE: &[u8; 1048576] = &[0; 1048576];
+
+pub const fn size_of_ptr_type<T>(_: *const T) -> usize {
+    ::core::mem::size_of::<T>()
+}
+
+#[macro_export]
+macro_rules! size_of_field_type {
+    ($struct_name:ty, $($field_name:ident).+) => {
+        $crate::vmstate::size_of_ptr_type(unsafe {
+            ::core::ptr::addr_of!(
+                (*$crate::vmstate::OPAQUE.as_ptr().cast::<$struct_name>()).$($field_name).+
+            )
+        })
+    };
+}
+
 /// Return the `VMStateField` for a field of a struct.  The field must be
 /// visible in the current scope.
 ///
@@ -146,7 +163,10 @@ macro_rules! vmstate_of {
                 .as_bytes()
                 .as_ptr().cast::<::std::os::raw::c_char>(),
             offset: ::std::mem::offset_of!($struct_name, $($field_name).+),
-            $(num_offset: ::std::mem::offset_of!($struct_name, $($num).+),)?
+	    $(num_indirect: $crate::vmstate::VMStateStructMember {
+                offset: ::std::mem::offset_of!($struct_name, $($num).+) as u32,
+		size: $crate::size_of_field_type!($struct_name, $($num).+) as u8,
+            },)?
             $(field_exists: $crate::vmstate_exist_fn!($struct_name, $test_fn),)?
             // The calls to `call_func_with_field!` are the magic that
             // computes most of the VMStateField from the type of the field.
