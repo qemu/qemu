@@ -362,16 +362,9 @@ static void a15_daughterboard_init(VexpressMachineState *vms,
     MachineState *machine = MACHINE(vms);
     MemoryRegion *sysmem = get_system_memory();
 
-    {
-        /* We have to use a separate 64 bit variable here to avoid the gcc
-         * "comparison is always false due to limited range of data type"
-         * warning if we are on a host where ram_addr_t is 32 bits.
-         */
-        uint64_t rsz = ram_size;
-        if (rsz > (30ULL * 1024 * 1024 * 1024)) {
-            error_report("vexpress-a15: cannot model more than 30GB RAM");
-            exit(1);
-        }
+    if (ram_size > (30ULL * 1024 * 1024 * 1024)) {
+        error_report("vexpress-a15: cannot model more than 30GB RAM");
+        exit(1);
     }
 
     /* RAM is from 0x80000000 upwards; there is no low-memory alias for it. */
