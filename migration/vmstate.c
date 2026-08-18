@@ -114,8 +114,7 @@ static uint64_t vmstate_n_elems(void *opaque, const VMStateField *field)
 
     if (field->flags & VMS_ARRAY) {
         n_elems = field->num;
-    } else if (field->flags & (VMS_VARRAY_INT32 | VMS_VARRAY_UINT32
-                               | VMS_VARRAY_UINT16 | VMS_VARRAY_UINT8)) {
+    } else if (field->flags & VMS_VARRAY) {
         n_elems = vmstate_read_from_offset(&field->num_indirect, opaque);
     }
 

@@ -884,11 +884,9 @@ static void vmstate_check(const VMStateDescription *vmsd)
                 }
                 /*
                  * VMS_ARRAY_OF_POINTER must be used only together with one
-                 * of VMS_(V)ARRAY* flags.
+                 * of VMS_(V)ARRAY flags.
                  */
-                assert(field->flags & (VMS_ARRAY | VMS_VARRAY_INT32 |
-                                       VMS_VARRAY_UINT16 | VMS_VARRAY_UINT8 |
-                                       VMS_VARRAY_UINT32));
+                assert(field->flags & (VMS_ARRAY | VMS_VARRAY));
             }
 
             if (field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC) {

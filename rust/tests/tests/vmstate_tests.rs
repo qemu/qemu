@@ -113,7 +113,7 @@ fn test_vmstate_varray_uint16_unsafe() {
     assert_eq!(foo_fields[2].version_id, 0);
     assert_eq!(foo_fields[2].size, 1);
     assert_eq!(foo_fields[2].num, 0);
-    assert_eq!(foo_fields[2].flags, VMStateFlags::VMS_VARRAY_UINT16);
+    assert_eq!(foo_fields[2].flags, VMStateFlags::VMS_VARRAY);
     assert!(foo_fields[2].vmsd.is_null());
     assert!(foo_fields[2].field_exists.is_none());
 }
@@ -222,7 +222,7 @@ fn test_vmstate_struct_varray_uint8() {
     assert_eq!(foo_fields[2].num, 0);
     assert_eq!(
         foo_fields[2].flags.0,
-        VMStateFlags::VMS_STRUCT.0 | VMStateFlags::VMS_VARRAY_UINT8.0
+        VMStateFlags::VMS_STRUCT.0 | VMStateFlags::VMS_VARRAY.0
     );
     assert_eq!(foo_fields[2].vmsd, VMSTATE_FOOA.as_ref());
     assert!(foo_fields[2].field_exists.is_none());

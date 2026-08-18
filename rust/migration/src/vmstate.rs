@@ -250,9 +250,9 @@ impl_vmstate_scalar!(vmstate_info_int8, i8);
 impl_vmstate_scalar!(vmstate_info_int16, i16);
 impl_vmstate_scalar!(vmstate_info_int32, i32);
 impl_vmstate_scalar!(vmstate_info_int64, i64);
-impl_vmstate_scalar!(vmstate_info_uint8, u8, VMS_VARRAY_UINT8);
-impl_vmstate_scalar!(vmstate_info_uint16, u16, VMS_VARRAY_UINT16);
-impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY_UINT32);
+impl_vmstate_scalar!(vmstate_info_uint8, u8, VMS_VARRAY);
+impl_vmstate_scalar!(vmstate_info_uint16, u16, VMS_VARRAY);
+impl_vmstate_scalar!(vmstate_info_uint32, u32, VMS_VARRAY);
 impl_vmstate_scalar!(vmstate_info_uint64, u64);
 impl_vmstate_scalar!(vmstate_info_timer, util::timer::Timer);
 
