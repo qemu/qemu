@@ -893,6 +893,25 @@ static void vmstate_check(const VMStateDescription *vmsd)
                 assert(field->flags & VMS_ARRAY_OF_POINTER);
             }
 
+            /*
+             * The VMS*ARRAY flags and VMS_VBUFFER affect allocation,
+             * they must have the proper fields set and no other
+             * vmstate types can set those fields, otherwise it won't
+             * be picked-up due to the missing flag.
+             */
+
+            if (field->flags & (VMS_ARRAY | VMS_VARRAY)) {
+                assert(field->num > 0 || field->num_indirect.size != 0);
+            } else {
+                assert(field->num == 0 && field->num_indirect.size == 0);
+            }
+
+            if (field->flags & VMS_VBUFFER) {
+                assert(field->size_indirect.size != 0);
+            } else {
+                assert(field->size_indirect.size == 0);
+            }
+
             if (field->flags & (VMS_STRUCT | VMS_VSTRUCT)) {
                 /* Recurse to sub structures */
                 vmstate_check(field->vmsd);
