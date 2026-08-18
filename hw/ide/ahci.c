@@ -619,12 +619,37 @@ static void ahci_set_signature(AHCIDevice *ad, uint32_t sig)
                              s->lcyl, s->hcyl, sig);
 }
 
+static void ahci_cancel_ncq_requests(AHCIDevice *ad)
+{
+    int i;
+
+    for (i = 0; i < AHCI_MAX_CMDS; i++) {
+        NCQTransferState *ncq_tfs = &ad->ncq_tfs[i];
+        ncq_tfs->halt = false;
+        if (!ncq_tfs->used) {
+            continue;
+        }
+
+        if (ncq_tfs->aiocb) {
+            blk_aio_cancel(ncq_tfs->aiocb);
+            ncq_tfs->aiocb = NULL;
+        }
+
+        /* Maybe we just finished the request thanks to blk_aio_cancel() */
+        if (!ncq_tfs->used) {
+            continue;
+        }
+
+        qemu_sglist_destroy(&ncq_tfs->sglist);
+        ncq_tfs->used = 0;
+    }
+}
+
 static void ahci_reset_port(AHCIState *s, int port, IDEResetKind kind)
 {
     AHCIDevice *d = &s->dev[port];
     AHCIPortRegs *pr = &d->port_regs;
     IDEState *ide_state = &d->port.ifs[0];
-    int i;
 
     trace_ahci_reset_port(s, port);
 
@@ -645,27 +670,7 @@ static void ahci_reset_port(AHCIState *s, int port, IDEResetKind kind)
         return;
     }
 
-    /* reset ncq queue */
-    for (i = 0; i < AHCI_MAX_CMDS; i++) {
-        NCQTransferState *ncq_tfs = &s->dev[port].ncq_tfs[i];
-        ncq_tfs->halt = false;
-        if (!ncq_tfs->used) {
-            continue;
-        }
-
-        if (ncq_tfs->aiocb) {
-            blk_aio_cancel(ncq_tfs->aiocb);
-            ncq_tfs->aiocb = NULL;
-        }
-
-        /* Maybe we just finished the request thanks to blk_aio_cancel() */
-        if (!ncq_tfs->used) {
-            continue;
-        }
-
-        qemu_sglist_destroy(&ncq_tfs->sglist);
-        ncq_tfs->used = 0;
-    }
+    ahci_cancel_ncq_requests(d);
 
     s->dev[port].port_state = STATE_RUN;
     if (ide_state->drive_kind == IDE_CD) {
@@ -1659,8 +1664,29 @@ void ahci_uninit(AHCIState *s)
     for (i = 0; i < s->ports; i++) {
         AHCIDevice *ad = &s->dev[i];
 
+        /*
+         * Unplug does not go through a reset, so this is the only chance to
+         * detach the requests and the bottom half that would otherwise walk
+         * s->dev after it is freed below.
+         */
+        ahci_cancel_ncq_requests(ad);
+        if (ad->check_bh) {
+            qemu_bh_delete(ad->check_bh);
+            ad->check_bh = NULL;
+        }
+
         for (j = 0; j < 2; j++) {
-            ide_exit(&ad->port.ifs[j]);
+            IDEState *ide_state = &ad->port.ifs[j];
+
+            /*
+             * Everything the port still owns points into the allocation this
+             * function frees, io_buffer included, so nothing may be left in
+             * flight once ide_exit() has run.
+             */
+            if (ide_state->blk) {
+                blk_drain(ide_state->blk);
+            }
+            ide_exit(ide_state);
         }
         object_unparent(OBJECT(&ad->port));
     }
