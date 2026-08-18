@@ -202,22 +202,8 @@ static void cpu_max_initfn(Object *obj)
     }
 
     if (tcg_enabled()) {
-        /*
-         * '-cpu max' for TCG: we currently do this as
-         * "A57 with extra things"
-         */
         if (!aarch64_enabled) {
-            aarch64_aa32_a57_init(cpu, false);
-            aa32_max_features(cpu);
-#ifdef CONFIG_USER_ONLY
-            /*
-             * Break with true ARMv8 and add back old-style VFP short-vector
-             * support. Only do this for user-mode, where -cpu max is the default,
-             * so that older v6 and v7 programs are more likely to work without
-             * adjustment.
-             */
-            cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
-#endif
+            aarch32_max_tcg_init(cpu);
         } else {
             aarch64_max_tcg_initfn(obj);
         }

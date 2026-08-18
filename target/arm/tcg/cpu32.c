@@ -748,3 +748,18 @@ static void arm_tcg_cpu_register_types(void)
 type_init(arm_tcg_cpu_register_types)
 
 #endif /* !CONFIG_USER_ONLY || !TARGET_AARCH64 */
+
+void aarch32_max_tcg_init(ARMCPU *cpu)
+{
+    aarch64_aa32_a57_init(cpu, false);
+    aa32_max_features(cpu);
+#ifdef CONFIG_USER_ONLY
+    /*
+     * Break with true ARMv8 and add back old-style VFP short-vector
+     * support. Only do this for user-mode, where -cpu max is the default,
+     * so that older v6 and v7 programs are more likely to work without
+     * adjustment.
+     */
+    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
+#endif
+}
