@@ -243,6 +243,18 @@ static uint32_t pflash_devid_query(PFlashCFI01 *pfl, hwaddr offset)
     return resp;
 }
 
+static void pflash_set_to_read_array_mode(PFlashCFI01 *pfl)
+{
+    /*
+     * Reset the flash device to its "just read the data" mode.
+     * The command 0x00 is not assigned by the CFI open standard,
+     * but QEMU historically uses it for the READ_ARRAY command (0xff).
+     */
+    pfl->wcycle = 0;
+    pfl->cmd = 0x00;
+    memory_region_rom_device_set_romd(&pfl->mem, true);
+}
+
 static uint32_t pflash_data_read(PFlashCFI01 *pfl, hwaddr offset,
                                  int width, int be)
 {
@@ -270,12 +282,7 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
     default:
         /* This should never happen : reset state & treat it as a read */
         trace_pflash_read_unknown_state(pfl->name, pfl->cmd);
-        pfl->wcycle = 0;
-        /*
-         * The command 0x00 is not assigned by the CFI open standard,
-         * but QEMU historically uses it for the READ_ARRAY command (0xff).
-         */
-        pfl->cmd = 0x00;
+        pflash_set_to_read_array_mode(pfl);
         /* fall through to read code */
     case 0x00: /* This model reset value for READ_ARRAY (not CFI compliant) */
         /* Flash area read */
@@ -652,9 +659,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
 
  mode_read_array:
     trace_pflash_mode_read_array(pfl->name);
-    memory_region_rom_device_set_romd(&pfl->mem, true);
-    pfl->wcycle = 0;
-    pfl->cmd = 0x00; /* This model reset value for READ_ARRAY (not CFI) */
+    pflash_set_to_read_array_mode(pfl);
 }
 
 
@@ -873,13 +878,7 @@ static void pflash_cfi01_system_reset(DeviceState *dev)
     PFlashCFI01 *pfl = PFLASH_CFI01(dev);
 
     trace_pflash_reset(pfl->name);
-    /*
-     * The command 0x00 is not assigned by the CFI open standard,
-     * but QEMU historically uses it for the READ_ARRAY command (0xff).
-     */
-    pfl->cmd = 0x00;
-    pfl->wcycle = 0;
-    memory_region_rom_device_set_romd(&pfl->mem, true);
+    pflash_set_to_read_array_mode(pfl);
     /*
      * The WSM ready timer occurs at most 150ns after system reset.
      * This model deliberately ignores this delay.
