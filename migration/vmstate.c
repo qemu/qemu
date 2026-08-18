@@ -126,14 +126,20 @@ static uint64_t vmstate_n_elems(void *opaque, const VMStateField *field)
     return n_elems;
 }
 
-static uint64_t vmstate_size(void *opaque, const VMStateField *field)
+static bool vmstate_size(void *opaque, const VMStateField *field,
+                         uint64_t *sz, Error **errp)
 {
     uint64_t size;
 
+    *sz = 0;
+
     if (field->flags & VMS_VBUFFER) {
         size = vmstate_read_from_offset(&field->size_indirect, opaque);
-        if (field->flags & VMS_MULTIPLY) {
-            size *= field->size;
+        if ((field->flags & VMS_MULTIPLY) &&
+            umul64_overflow(size, field->size, &size)) {
+            error_setg(errp, "%s: VMState field '%s' multiply overflow",
+                       __func__, field->name);
+            return false;
         }
     } else if (field->flags & VMS_ARRAY_OF_POINTER) {
         /*
@@ -145,7 +151,8 @@ static uint64_t vmstate_size(void *opaque, const VMStateField *field)
         size = field->size;
     }
 
-    return size;
+    *sz = size;
+    return true;
 }
 
 static bool vmstate_handle_alloc(void *ptr, const VMStateField *field,
@@ -377,7 +384,11 @@ bool vmstate_load_vmsd(QEMUFile *f, const VMStateDescription *vmsd,
             void *first_elem = opaque + field->offset;
             int i;
             uint64_t n_elems = vmstate_n_elems(opaque, field);
-            uint64_t size = vmstate_size(opaque, field);
+            uint64_t size;
+
+            if (!vmstate_size(opaque, field, &size, errp)) {
+                return false;
+            }
 
             if (!vmstate_handle_alloc(first_elem, field, n_elems, size, errp)) {
                 return false;
@@ -695,15 +706,20 @@ static bool vmstate_save_vmsd_v(QEMUFile *f, const VMStateDescription *vmsd,
             void *first_elem = opaque + field->offset;
             int i;
             uint64_t n_elems = vmstate_n_elems(opaque, field);
-            uint64_t size = vmstate_size(opaque, field);
+            uint64_t size;
             JSONWriter *vmdesc_loop = vmdesc;
             bool is_prev_null = false;
+
             /*
              * When this is enabled, it means we will always push a ptr
              * marker first for each element saying if it's populated.
              */
             bool use_dynamic_array =
                 field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC;
+
+            if (!vmstate_size(opaque, field, &size, errp)) {
+                return false;
+            }
 
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);
             if (field->flags & VMS_POINTER) {
