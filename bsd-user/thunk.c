@@ -134,13 +134,7 @@ const argtype *thunk_convert(void *dst, const void *src,
     case TYPE_ULONGLONG:
         *(uint64_t *)dst = tswap64(*(uint64_t *)src);
         break;
-#if HOST_LONG_BITS == 32 && TARGET_ABI_BITS == 32
-    case TYPE_LONG:
-    case TYPE_ULONG:
-    case TYPE_PTRVOID:
-        *(uint32_t *)dst = tswap32(*(uint32_t *)src);
-        break;
-#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_PTRVOID:
@@ -155,26 +149,11 @@ const argtype *thunk_convert(void *dst, const void *src,
             *(uint32_t *)dst = tswap32(*(uint64_t *)src & 0xffffffff);
         }
         break;
-#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 64
+#elif TARGET_ABI_BITS == 64
     case TYPE_LONG:
     case TYPE_ULONG:
     case TYPE_PTRVOID:
         *(uint64_t *)dst = tswap64(*(uint64_t *)src);
-        break;
-#elif HOST_LONG_BITS == 32 && TARGET_ABI_BITS == 64
-    case TYPE_LONG:
-    case TYPE_ULONG:
-    case TYPE_PTRVOID:
-        if (to_host) {
-            *(uint32_t *)dst = tswap64(*(uint64_t *)src);
-        } else {
-            if (type == TYPE_LONG) {
-                /* sign extension */
-                *(uint64_t *)dst = tswap64(*(int32_t *)src);
-            } else {
-                *(uint64_t *)dst = tswap64(*(uint32_t *)src);
-            }
-        }
         break;
 #else
 #warning unsupported conversion
@@ -283,17 +262,7 @@ const argtype *thunk_print(void *arg, const argtype *type_ptr)
     case TYPE_ULONGLONG:
         qemu_log("%" PRIu64, tswap64(*(uint64_t *)arg));
         break;
-#if HOST_LONG_BITS == 32 && TARGET_ABI_BITS == 32
-    case TYPE_PTRVOID:
-        qemu_log("0x%" PRIx32, tswap32(*(uint32_t *)arg));
-        break;
-    case TYPE_LONG:
-        qemu_log("%" PRId32, tswap32(*(uint32_t *)arg));
-        break;
-    case TYPE_ULONG:
-        qemu_log("%" PRIu32, tswap32(*(uint32_t *)arg));
-        break;
-#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32
     case TYPE_PTRVOID:
         qemu_log("0x%" PRIx32, tswap32(*(uint64_t *)arg & 0xffffffff));
         break;
@@ -302,16 +271,6 @@ const argtype *thunk_print(void *arg, const argtype *type_ptr)
         break;
     case TYPE_ULONG:
         qemu_log("%" PRIu32, tswap32(*(uint64_t *)arg & 0xffffffff));
-        break;
-#elif HOST_LONG_BITS == 64 && TARGET_ABI_BITS == 64
-    case TYPE_PTRVOID:
-        qemu_log("0x%" PRIx64, tswap64(*(uint64_t *)arg));
-        break;
-    case TYPE_LONG:
-        qemu_log("%" PRId64, tswap64(*(uint64_t *)arg));
-        break;
-    case TYPE_ULONG:
-        qemu_log("%" PRIu64, tswap64(*(uint64_t *)arg));
         break;
 #else
     case TYPE_PTRVOID:
