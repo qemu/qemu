@@ -128,8 +128,6 @@ struct target_msgbuf {
  * sys/timex.h
  */
 
-typedef abi_long target_freebsd_suseconds_t;
-
 /* compare to sys/timespec.h */
 struct target_freebsd_timespec {
     target_time_t   tv_sec;     /* seconds */
@@ -151,7 +149,7 @@ struct target_freebsd__umtx_time {
 
 struct target_freebsd_timeval {
     target_time_t       tv_sec; /* seconds */
-    target_freebsd_suseconds_t  tv_usec;/* and microseconds */
+    target_suseconds_t  tv_usec;/* and microseconds */
 #if !defined(TARGET_I386) && TARGET_ABI_BITS == 32
     abi_long _pad;
 #endif
