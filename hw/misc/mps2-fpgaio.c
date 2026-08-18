@@ -31,6 +31,7 @@
 REG32(LED0, 0)
 REG32(DBGCTRL, 4)
 REG32(BUTTON, 8)
+REG32(GPIOALT2, 0xc)
 REG32(CLK1HZ, 0x10)
 REG32(CLK100HZ, 0x14)
 REG32(COUNTER, 0x18)
@@ -142,6 +143,9 @@ static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
          */
         r = 0;
         break;
+    case A_GPIOALT2:
+        r = s->gpioalt2;
+        break;
     case A_PRESCALE:
         r = s->prescale;
         break;
@@ -209,6 +213,14 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
         qemu_log_mask(LOG_UNIMP,
                       "MPS2 FPGAIO: DBGCTRL unimplemented\n");
         s->dbgctrl = value;
+        break;
+    case A_GPIOALT2:
+        if (!s->has_gpioalt2) {
+            goto bad_offset;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                      "MPS2 FPGAIO: GPIOALT2 unimplemented\n");
+        s->gpioalt2 = value;
         break;
     case A_PRESCALE:
         resync_counter(s);
@@ -301,6 +313,24 @@ static void mps2_fpgaio_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static bool needed_gpioalt2(void *opaque)
+{
+    MPS2FPGAIO *s = MPS2_FPGAIO(opaque);
+
+    return s->has_gpioalt2;
+}
+
+static const VMStateDescription mps2_fpgaio_gpioalt2_vmstate = {
+    .name = "mps2-fpgaio/gpioalt2",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = needed_gpioalt2,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(gpioalt2, MPS2FPGAIO),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription mps2_fpgaio_vmstate = {
     .name = "mps2-fpgaio",
     .version_id = 3,
@@ -317,6 +347,10 @@ static const VMStateDescription mps2_fpgaio_vmstate = {
         VMSTATE_INT64(pscntr_sync_ticks, MPS2FPGAIO),
         VMSTATE_END_OF_LIST()
     },
+    .subsections = (const VMStateDescription * const []) {
+        &mps2_fpgaio_gpioalt2_vmstate,
+        NULL
+    }
 };
 
 static const Property mps2_fpgaio_properties[] = {
@@ -326,6 +360,7 @@ static const Property mps2_fpgaio_properties[] = {
     DEFINE_PROP_UINT32("num-leds", MPS2FPGAIO, num_leds, 2),
     DEFINE_PROP_BOOL("has-switches", MPS2FPGAIO, has_switches, false),
     DEFINE_PROP_BOOL("has-dbgctrl", MPS2FPGAIO, has_dbgctrl, false),
+    DEFINE_PROP_BOOL("has-gpioalt2", MPS2FPGAIO, has_gpioalt2, false),
 };
 
 static void mps2_fpgaio_class_init(ObjectClass *klass, const void *data)
