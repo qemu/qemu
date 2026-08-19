@@ -100,9 +100,6 @@ config MUSCA
     select SPLIT_IRQ
     select UNIMP
 
-config MARVELL_88W8618
-    bool
-
 config NETDUINO2
     bool
     default y
