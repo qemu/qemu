@@ -2014,8 +2014,8 @@ static uint64_t riscv_write_uxl(CPURISCVState *env, uint64_t val,
     RISCVMXL xl = riscv_cpu_mxl(env);
     uint64_t uxl = get_field(val, field);
 
-    if (uxl == MXL_RV128) {
-        uxl = xl == MXL_RV128 ? MXL_RV64 : xl;
+    if (xl != MXL_RV128 && uxl == MXL_RV128) {
+        uxl = xl;
         val = set_field(val, field, uxl);
     }
 
