@@ -36,6 +36,7 @@
 #include "net/net.h"
 #include "clients.h"
 #include "monitor/monitor.h"
+#include "system/runstate.h"
 #include "system/system.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
@@ -92,6 +93,8 @@ struct TAPState {
     Notifier exit;
 
     int queue_index;
+    bool enable_poll_on_resume;
+    VMChangeStateEntry *vmstate;
 };
 
 static void launch_script(const char *setup_script, const char *ifname,
@@ -145,8 +148,29 @@ static void tap_update_fd_handler(TAPState *s)
 
 static void tap_read_poll(TAPState *s, bool enable)
 {
+    if (enable && runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+        s->enable_poll_on_resume = true;
+        return;
+    }
     s->read_poll = enable;
     tap_update_fd_handler(s);
+}
+
+static void tap_vm_state_change(void *opaque, bool running, RunState state)
+{
+    TAPState *s = opaque;
+
+    if (running) {
+        if (s->enable_poll_on_resume) {
+            tap_read_poll(s, true);
+            s->enable_poll_on_resume = false;
+        }
+    } else if (state == RUN_STATE_FINISH_MIGRATE) {
+        if (s->read_poll) {
+            s->enable_poll_on_resume = true;
+            tap_read_poll(s, false);
+        }
+    }
 }
 
 static void tap_write_poll(TAPState *s, bool enable)
@@ -377,6 +401,11 @@ static void tap_cleanup(NetClientState *nc)
         tap_exit_notify(&s->exit, NULL);
         qemu_remove_exit_notifier(&s->exit);
         s->exit.notify = NULL;
+    }
+
+    if (s->vmstate) {
+        qemu_del_vm_change_state_handler(s->vmstate);
+        s->vmstate = NULL;
     }
 
     tap_read_poll(s, false);
@@ -817,6 +846,9 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     bool sndbuf_required = tap->has_sndbuf;
     int sndbuf =
         (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
+
+    s->enable_poll_on_resume = false;
+    s->vmstate = qemu_add_vm_change_state_handler(tap_vm_state_change, s);
 
     if (!tap_set_sndbuf(fd, sndbuf, sndbuf_required ? errp : NULL) &&
         sndbuf_required) {
