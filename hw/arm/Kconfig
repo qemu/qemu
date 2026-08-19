@@ -155,7 +155,6 @@ config REALVIEW
     select ARM11MPCORE
     select ARM_TIMER
     select VERSATILE_PCI
-    select WM8750 # audio codec
     select LSI_SCSI_PCI
     select PCI
     select PL011 # UART
