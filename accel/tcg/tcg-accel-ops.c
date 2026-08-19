@@ -77,13 +77,14 @@ void tcg_cpu_destroy(CPUState *cpu)
 
 int tcg_cpu_exec(CPUState *cpu)
 {
-    int ret;
+    int excp;
+
     assert(tcg_enabled());
     cpu_exec_start(cpu);
-    ret = cpu_exec(cpu);
+    excp = cpu_exec(cpu);
     cpu_exec_end(cpu);
 
-    return ret;
+    return excp;
 }
 
 static void tcg_cpu_reset_hold(CPUState *cpu)

@@ -90,11 +90,12 @@ static void *mttcg_cpu_thread_fn(void *arg)
         qemu_process_cpu_events(cpu);
 
         if (cpu_can_run(cpu)) {
-            int r;
+            int excp;
+
             bql_unlock();
-            r = tcg_cpu_exec(cpu);
+            excp = tcg_cpu_exec(cpu);
             bql_lock();
-            switch (r) {
+            switch (excp) {
             case EXCP_DEBUG:
                 cpu_handle_guest_debug(cpu);
                 break;

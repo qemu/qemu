@@ -687,7 +687,7 @@ static inline void cpu_handle_debug_exception(CPUState *cpu)
     }
 }
 
-static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
+static inline bool cpu_handle_exception(CPUState *cpu, int *excp)
 {
     if (cpu->exception_index < 0) {
 #ifndef CONFIG_USER_ONLY
@@ -703,8 +703,8 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
 
     if (cpu->exception_index >= EXCP_INTERRUPT) {
         /* exit request from the cpu execution loop */
-        *ret = cpu->exception_index;
-        if (*ret == EXCP_DEBUG) {
+        *excp = cpu->exception_index;
+        if (*excp == EXCP_DEBUG) {
             cpu_handle_debug_exception(cpu);
         }
         cpu->exception_index = -1;
@@ -720,7 +720,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     if (tcg_ops->fake_user_interrupt) {
         tcg_ops->fake_user_interrupt(cpu);
     }
-    *ret = cpu->exception_index;
+    *excp = cpu->exception_index;
     cpu->exception_index = -1;
     return true;
 #else
@@ -738,13 +738,13 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
              * raised when single-stepping so that GDB doesn't miss the
              * next instruction.
              */
-            *ret = EXCP_DEBUG;
+            *excp = EXCP_DEBUG;
             cpu_handle_debug_exception(cpu);
             return true;
         }
     } else if (!replay_has_interrupt()) {
         /* give a chance to iothread in replay mode */
-        *ret = EXCP_INTERRUPT;
+        *excp = EXCP_INTERRUPT;
         return true;
     }
 #endif
@@ -935,10 +935,10 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 static int __attribute__((noinline))
 cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
 {
-    int ret;
+    int excp;
 
     /* if an exception is pending, we execute it here */
-    while (!cpu_handle_exception(cpu, &ret)) {
+    while (!cpu_handle_exception(cpu, &excp)) {
         TranslationBlock *last_tb = NULL;
         int tb_exit = 0;
 
@@ -1006,7 +1006,7 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
             align_clocks(sc, cpu);
         }
     }
-    return ret;
+    return excp;
 }
 
 static int cpu_exec_setjmp(CPUState *cpu, SyncClocks *sc)
@@ -1021,7 +1021,7 @@ static int cpu_exec_setjmp(CPUState *cpu, SyncClocks *sc)
 
 int cpu_exec(CPUState *cpu)
 {
-    int ret;
+    int excp;
     SyncClocks sc = { 0 };
 
     /* replay_interrupt may need current_cpu */
@@ -1042,10 +1042,10 @@ int cpu_exec(CPUState *cpu)
      */
     init_delay_params(&sc, cpu);
 
-    ret = cpu_exec_setjmp(cpu, &sc);
+    excp = cpu_exec_setjmp(cpu, &sc);
 
     cpu_exec_exit(cpu);
-    return ret;
+    return excp;
 }
 
 bool tcg_exec_realizefn(CPUState *cpu, Error **errp)
