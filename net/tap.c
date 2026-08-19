@@ -92,19 +92,35 @@ static void launch_script(const char *setup_script, const char *ifname,
 static void tap_send(void *opaque);
 static void tap_writable(void *opaque);
 
-static char *tap_parse_script(const char *script_arg, const char *default_path)
+static bool tap_is_explicit_no_script(const char *script_arg_value)
 {
-    g_autofree char *res = g_strdup(script_arg);
-
-    if (!res) {
-        res = get_relocated_path(default_path);
+    if (!script_arg_value) {
+        return false;
     }
 
-    if (res[0] == '\0' || strcmp(res, "no") == 0) {
+    if (script_arg_value[0] == '\0') {
+        return true;
+    }
+
+    if (strcmp(script_arg_value, "no") == 0) {
+        return true;
+    }
+
+    return false;
+}
+
+static char *tap_parse_script(const char *script_arg_value,
+                              const char *default_path)
+{
+    if (tap_is_explicit_no_script(script_arg_value)) {
         return NULL;
     }
 
-    return g_steal_pointer(&res);
+    if (!script_arg_value) {
+        return get_relocated_path(default_path);
+    }
+
+    return g_strdup(script_arg_value);
 }
 
 static void tap_update_fd_handler(TAPState *s)
