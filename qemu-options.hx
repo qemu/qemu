@@ -3022,7 +3022,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                use network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
     "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
     "                to deconfigure it\n"
-    "                use '[down]script=no' to disable script execution\n"
+    "                use '[down]script=no' or '[down]script=' to disable script execution\n"
     "                use network helper 'helper' (default=" DEFAULT_BRIDGE_HELPER ") to\n"
     "                configure it\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
@@ -3558,9 +3558,10 @@ SRST
     Use the network script file to configure it and the network script
     dfile to deconfigure it. If name is not provided, the OS
     automatically provides one. The default network configure script is
-    ``/etc/qemu-ifup`` and the default network deconfigure script is
-    ``/etc/qemu-ifdown``. Use ``script=no`` or ``downscript=no`` to
-    disable script execution.
+    ``<sysconfdir>/qemu-ifup`` and the default network deconfigure script is
+    ``<sysconfdir>/qemu-ifdown``, where ``<sysconfdir>`` is the system
+    configuration directory at build time (typically ``/etc``).
+    Use ``[down]script=no`` or ``[down]script=`` to disable script execution.
 
     If running QEMU as an unprivileged user, use the network helper
     to configure the TAP interface and attach it to the bridge.

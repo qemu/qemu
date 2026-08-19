@@ -399,9 +399,15 @@
 # @fds: multiple file descriptors of already opened multiqueue capable
 #     tap
 #
-# @script: script to initialize the interface
+# @script: script to initialize the interface.  An empty string or
+#     "no" disables script execution.  Defaults to
+#     ``<sysconfdir>/qemu-ifup``, where ``<sysconfdir>`` is the
+#     system configuration directory at build time (typically /etc).
 #
-# @downscript: script to shut down the interface
+# @downscript: script to shut down the interface.  An empty string or
+#     "no" disables script execution.  Defaults to
+#     ``<sysconfdir>/qemu-ifdown``, where ``<sysconfdir>`` is the
+#     system configuration directory at build time (typically /etc).
 #
 # @br: bridge name (since 2.8)
 #
