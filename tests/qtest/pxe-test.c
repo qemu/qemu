@@ -108,6 +108,10 @@ static void test_batch(const testdef_t *tests, bool ipv6)
         const testdef_t *test = &tests[i];
         char *testname;
 
+        if (!qtest_has_machine(test->machine)) {
+            continue;
+        }
+
         if (!qtest_has_device(test->model)) {
             continue;
         }
