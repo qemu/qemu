@@ -260,6 +260,19 @@ migration_capabilities_and_transport_compatible(MigrationAddress *addr,
                                        errp);
     }
 
+    if (migrate_local() && migrate_mode() != MIG_MODE_CPR_EXEC &&
+        (addr->transport != MIGRATION_ADDRESS_TYPE_SOCKET ||
+         (addr->u.socket.type != SOCKET_ADDRESS_TYPE_UNIX &&
+          addr->u.socket.type != SOCKET_ADDRESS_TYPE_FD))) {
+        /*
+         * For SOCKET_ADDRESS_TYPE_FD we do check the fd itself later
+         * in migration_fd_valid().
+         */
+        error_setg(errp,
+                   "local migration requires a UNIX domain socket channel");
+        return false;
+    }
+
     return true;
 }
 

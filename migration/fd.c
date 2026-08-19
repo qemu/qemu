@@ -39,6 +39,20 @@ static bool fd_is_pipe(int fd)
 
 static bool migration_fd_valid(int fd, Error **errp)
 {
+    if (migrate_local() && migrate_mode() != MIG_MODE_CPR_EXEC) {
+        struct sockaddr_storage ss;
+        socklen_t sslen = sizeof(ss);
+
+        if (getsockname(fd, (struct sockaddr *)&ss, &sslen) < 0 ||
+            ss.ss_family != AF_UNIX) {
+            error_setg(errp,
+                       "local migration requires a UNIX domain socket channel");
+            return false;
+        }
+
+        return true;
+    }
+
     if (fd_is_socket(fd) || fd_is_pipe(fd)) {
         return true;
     }
