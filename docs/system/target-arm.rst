@@ -87,7 +87,6 @@ Board-specific documentation
    arm/cubieboard
    arm/emcraft-sf2
    arm/exynos
-   arm/musicpal
    arm/kzm
    arm/nrf
    arm/nuvoton

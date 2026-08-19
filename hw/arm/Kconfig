@@ -103,18 +103,6 @@ config MUSCA
 config MARVELL_88W8618
     bool
 
-config MUSICPAL
-    bool
-    default y
-    depends on TCG && ARM
-    select OR_IRQ
-    select BITBANG_I2C
-    select MARVELL_88W8618
-    select PTIMER
-    select PFLASH_CFI02
-    select SERIAL_MM
-    select WM8750
-
 config NETDUINO2
     bool
     default y
