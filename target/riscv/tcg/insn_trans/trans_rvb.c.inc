@@ -522,7 +522,7 @@ static void gen_packw(TCGv ret, TCGv src1, TCGv src2)
 static bool trans_brev8(DisasContext *ctx, arg_brev8 *a)
 {
     REQUIRE_ZBKB(ctx);
-    return gen_unary(ctx, a, EXT_NONE, gen_helper_brev8);
+    return gen_unary(ctx, a, EXT_NONE, tcg_gen_revbit8_tl);
 }
 
 static bool trans_pack(DisasContext *ctx, arg_pack *a)

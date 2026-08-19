@@ -36,7 +36,7 @@ static void sigill_handler(int signo, siginfo_t *si, void *data)
 /* Called both as constructor and (possibly) via other constructors. */
 unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
-    unsigned left = CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZBS
+    unsigned left = CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZBS | CPUINFO_ZBKB
                   | CPUINFO_ZICOND | CPUINFO_ZVE64X;
     unsigned info = cpuinfo;
 
@@ -61,6 +61,9 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
     (defined(__riscv_vector) || defined(__riscv_zve64x))
     info |= CPUINFO_ZVE64X;
 #endif
+#if defined(__riscv_arch_test) && defined(__riscv_zbkb)
+    info |= CPUINFO_ZBKB;
+#endif
     left &= ~info;
 
 #ifdef CONFIG_ASM_HWPROBE_H
@@ -76,7 +79,8 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
             info |= pair.value & RISCV_HWPROBE_EXT_ZBA ? CPUINFO_ZBA : 0;
             info |= pair.value & RISCV_HWPROBE_EXT_ZBB ? CPUINFO_ZBB : 0;
             info |= pair.value & RISCV_HWPROBE_EXT_ZBS ? CPUINFO_ZBS : 0;
-            left &= ~(CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZBS);
+            info |= pair.value & RISCV_HWPROBE_EXT_ZBKB ? CPUINFO_ZBKB : 0;
+            left &= ~(CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZBS | CPUINFO_ZBKB);
 #ifdef RISCV_HWPROBE_EXT_ZICOND
             info |= pair.value & RISCV_HWPROBE_EXT_ZICOND ? CPUINFO_ZICOND : 0;
             left &= ~CPUINFO_ZICOND;
@@ -129,6 +133,15 @@ unsigned __attribute__((constructor)) cpuinfo_init(void)
                          : : : "memory");
             info |= got_sigill ? 0 : CPUINFO_ZBS;
             left &= ~CPUINFO_ZBS;
+        }
+
+        if (left & CPUINFO_ZBKB) {
+            /* Probe for Zbkb: brev8 zero,zero. */
+            got_sigill = 0;
+            asm volatile(".insn i 0x13, 5, zero, zero, 0x687"
+                         : : : "memory");
+            info |= got_sigill ? 0 : CPUINFO_ZBKB;
+            left &= ~CPUINFO_ZBKB;
         }
 
         if (left & CPUINFO_ZICOND) {

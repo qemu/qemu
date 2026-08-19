@@ -24,6 +24,7 @@
 #include "qemu/error-report.h"
 #include "tcg/debug-assert.h"
 #include "accel/tcg/cpu-ops.h"
+#include "disas/capstone.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
@@ -33,6 +34,35 @@ static inline void set_feature(CPUTriCoreState *env, int feature)
 static const gchar *tricore_gdb_arch_name(CPUState *cs)
 {
     return "tricore";
+}
+
+static void tricore_disas_set_info(const CPUState *cpu, disassemble_info *info)
+{
+    CPUTriCoreState *env = cpu_env((CPUState *)cpu);
+
+    info->endian = BFD_ENDIAN_LITTLE;
+    info->cap_arch = CS_ARCH_TRICORE;
+    info->cap_insn_unit = 4;
+    info->cap_insn_split = 4;
+
+    /*
+     * Possible capstone bug: the isa levels are not additive.
+     * Work around by settiing only one.
+     * Note that TriCore 1.3.0 is the earliest we support.
+     */
+    if (tricore_has_feature(env, TRICORE_FEATURE_162)) {
+        info->cap_mode = CS_MODE_TRICORE_162;
+    } else if (tricore_has_feature(env, TRICORE_FEATURE_161)) {
+        info->cap_mode = CS_MODE_TRICORE_161;
+    } else if (tricore_has_feature(env, TRICORE_FEATURE_16)) {
+        info->cap_mode = CS_MODE_TRICORE_160;
+    } else if (tricore_has_feature(env, TRICORE_FEATURE_131)) {
+        info->cap_mode = CS_MODE_TRICORE_131;
+    } else if (tricore_has_feature(env, TRICORE_FEATURE_13)) {
+        info->cap_mode = CS_MODE_TRICORE_130;
+    } else {
+        g_assert_not_reached();
+    }
 }
 
 static void tricore_cpu_set_pc(CPUState *cs, vaddr value)
@@ -214,6 +244,7 @@ static void tricore_cpu_class_init(ObjectClass *c, const void *data)
     cc->gdb_write_register = tricore_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 44;
     cc->gdb_arch_name = tricore_gdb_arch_name;
+    cc->disas_set_info = tricore_disas_set_info;
 
     cc->dump_state = tricore_cpu_dump_state;
     cc->set_pc = tricore_cpu_set_pc;

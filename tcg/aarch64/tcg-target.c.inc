@@ -152,6 +152,8 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_ORRI 0x1000
 #define TCG_CT_CONST_ANDI 0x2000
 #define TCG_CT_CONST_CMP  0x4000
+#define TCG_CT_CONST_S8   0x8000
+#define TCG_CT_CONST_U8   0x10000
 
 #define ALL_GENERAL_REGS  0xffffffffu
 #define ALL_VECTOR_REGS   0xffffffff00000000ull
@@ -320,6 +322,12 @@ static bool tcg_target_const_match(int64_t val, int ct,
     if ((ct & TCG_CT_CONST_LIMM) && is_limm(val)) {
         return 1;
     }
+    if ((ct & TCG_CT_CONST_S8) && val == (int8_t)val) {
+        return 1;
+    }
+    if ((ct & TCG_CT_CONST_U8) && val == (uint8_t)val) {
+        return 1;
+    }
     if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
     }
@@ -472,6 +480,12 @@ typedef enum {
     Iaddsub_imm_SUBI  = 0x51000000,
     Iaddsub_imm_SUBSI = 0x71000000,
 
+    /* Min/max immediate instructions. */
+    Iminmax_imm_SMAXI = 0x11c00000,
+    Iminmax_imm_UMAXI = 0x11c40000,
+    Iminmax_imm_SMINI = 0x11c80000,
+    Iminmax_imm_UMINI = 0x11cc0000,
+
     /* Bitfield instructions.  */
     Ibitfield_BFM     = 0x33000000,
     Ibitfield_SBFM    = 0x13000000,
@@ -521,6 +535,8 @@ typedef enum {
 
     /* Data-processing (1 source) instructions.  */
     Irr_sf_CLZ         = 0x5ac01000,
+    Irr_sf_CTZ         = 0x5ac01800,
+    Irr_sf_CNT         = 0x5ac01c00,
     Irr_sf_RBIT        = 0x5ac00000,
     Irr_sf_REV         = 0x5ac00000, /* + size << 10 */
 
@@ -533,6 +549,10 @@ typedef enum {
     Irrr_UMULH         = 0x9bc07c00,
     Irrr_UDIV          = 0x1ac00800,
     Irrr_SDIV          = 0x1ac00c00,
+    Irrr_SMAX          = 0x1ac00600,
+    Irrr_UMAX          = 0x1ac00640,
+    Irrr_SMIN          = 0x1ac00680,
+    Irrr_UMIN          = 0x1ac006c0,
 
     /* Data-processing (3 source) instructions.  */
     Irrrr_MADD         = 0x1b000000,
@@ -735,6 +755,13 @@ static void tcg_out_insn_addsub_imm(TCGContext *s, AArch64Insn insn,
         aimm |= 1 << 12;  /* apply LSL 12 */
     }
     tcg_out32(s, insn | ext << 31 | aimm << 10 | rn << 5 | rd);
+}
+
+static void tcg_out_insn_minmax_imm(TCGContext *s, AArch64Insn insn,
+                                    TCGType ext, TCGReg rd, TCGReg rn,
+                                    uint8_t imm)
+{
+    tcg_out32(s, insn | ext << 31 | imm << 10 | rn << 5 | rd);
 }
 
 /* This function can be used for both 3.4.2 (Bitfield) and 3.4.4
@@ -2187,24 +2214,30 @@ static const TCGOutOpBinary outop_andc = {
     .out_rrr = tgen_andc,
 };
 
-static void tgen_clz(TCGContext *s, TCGType type,
-                     TCGReg a0, TCGReg a1, TCGReg a2)
+static void tgen_clzctz(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                        TCGReg a2, AArch64Insn insn)
 {
     tcg_out_cmp(s, type, TCG_COND_NE, a1, 0, true);
-    tcg_out_insn(s, rr_sf, CLZ, type, TCG_REG_TMP0, a1);
+    tcg_out_insn_rr_sf(s, insn, type, TCG_REG_TMP0, a1);
     tcg_out_insn(s, csel, CSEL, type, a0, TCG_REG_TMP0, a2, TCG_COND_NE);
 }
 
-static void tgen_clzi(TCGContext *s, TCGType type,
-                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+static void tgen_clz(TCGContext *s, TCGType type,
+                     TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tgen_clzctz(s, type, a0, a1, a2, Irr_sf_CLZ);
+}
+
+static void tgen_clzctzi(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                         tcg_target_long a2, AArch64Insn insn)
 {
     if (a2 == (type == TCG_TYPE_I32 ? 32 : 64)) {
-        tcg_out_insn(s, rr_sf, CLZ, type, a0, a1);
+        tcg_out_insn_rr_sf(s, insn, type, a0, a1);
         return;
     }
 
     tcg_out_cmp(s, type, TCG_COND_NE, a1, 0, true);
-    tcg_out_insn(s, rr_sf, CLZ, type, a0, a1);
+    tcg_out_insn_rr_sf(s, insn, type, a0, a1);
 
     switch (a2) {
     case -1:
@@ -2220,28 +2253,54 @@ static void tgen_clzi(TCGContext *s, TCGType type,
     }
 }
 
+static void tgen_clzi(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tgen_clzctzi(s, type, a0, a1, a2, Irr_sf_CLZ);
+}
+
 static const TCGOutOpBinary outop_clz = {
     .base.static_constraint = C_O1_I2(r, r, rAL),
     .out_rrr = tgen_clz,
     .out_rri = tgen_clzi,
 };
 
+static TCGConstraintSetIndex cset_ctpop(TCGType type, unsigned flags)
+{
+    return cpuinfo & CPUINFO_CSSC ? C_O1_I1(r, r) : C_NotImplemented;
+}
+
+static void tgen_ctpop(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+{
+    tcg_out_insn(s, rr_sf, CNT, type, a0, a1);
+}
+
 static const TCGOutOpUnary outop_ctpop = {
-    .base.static_constraint = C_NotImplemented,
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_ctpop,
+    .out_rr = tgen_ctpop,
 };
 
 static void tgen_ctz(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
-    tcg_out_insn(s, rr_sf, RBIT, type, TCG_REG_TMP0, a1);
-    tgen_clz(s, type, a0, TCG_REG_TMP0, a2);
+    if (cpuinfo & CPUINFO_CSSC) {
+        tgen_clzctz(s, type, a0, a1, a2, Irr_sf_CTZ);
+    } else {
+        tcg_out_insn(s, rr_sf, RBIT, type, TCG_REG_TMP0, a1);
+        tgen_clzctz(s, type, a0, TCG_REG_TMP0, a2, Irr_sf_CLZ);
+    }
 }
 
 static void tgen_ctzi(TCGContext *s, TCGType type,
                       TCGReg a0, TCGReg a1, tcg_target_long a2)
 {
-    tcg_out_insn(s, rr_sf, RBIT, type, TCG_REG_TMP0, a1);
-    tgen_clzi(s, type, a0, TCG_REG_TMP0, a2);
+    if (cpuinfo & CPUINFO_CSSC) {
+        tgen_clzctzi(s, type, a0, a1, a2, Irr_sf_CTZ);
+    } else {
+        tcg_out_insn(s, rr_sf, RBIT, type, TCG_REG_TMP0, a1);
+        tgen_clzctzi(s, type, a0, TCG_REG_TMP0, a2, Irr_sf_CLZ);
+    }
 }
 
 static const TCGOutOpBinary outop_ctz = {
@@ -2592,6 +2651,92 @@ static void tcg_out_set_borrow(TCGContext *s)
                  TCG_REG_XZR, TCG_REG_XZR, TCG_REG_XZR);
 }
 
+static TCGConstraintSetIndex cset_sminmax(TCGType type, unsigned flags)
+{
+    return cpuinfo & CPUINFO_CSSC ? C_O1_I2(r, r, rS) : C_NotImplemented;
+}
+
+static void tgen_smax(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_insn(s, rrr, SMAX, type, a0, a1, a2);
+}
+
+static void tgen_smaxi(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_insn(s, minmax_imm, SMAXI, type, a0, a1, a2);
+}
+
+static const TCGOutOpBinary outop_smax = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_sminmax,
+    .out_rrr = tgen_smax,
+    .out_rri = tgen_smaxi,
+};
+
+static void tgen_smin(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_insn(s, rrr, SMIN, type, a0, a1, a2);
+}
+
+static void tgen_smini(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_insn(s, minmax_imm, SMINI, type, a0, a1, a2);
+}
+
+static const TCGOutOpBinary outop_smin = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_sminmax,
+    .out_rrr = tgen_smin,
+    .out_rri = tgen_smini,
+};
+
+static TCGConstraintSetIndex cset_uminmax(TCGType type, unsigned flags)
+{
+    return cpuinfo & CPUINFO_CSSC ? C_O1_I2(r, r, rU) : C_NotImplemented;
+}
+
+static void tgen_umax(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_insn(s, rrr, UMAX, type, a0, a1, a2);
+}
+
+static void tgen_umaxi(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_insn(s, minmax_imm, UMAXI, type, a0, a1, a2);
+}
+
+static const TCGOutOpBinary outop_umax = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_uminmax,
+    .out_rrr = tgen_umax,
+    .out_rri = tgen_umaxi,
+};
+
+static void tgen_umin(TCGContext *s, TCGType type,
+                      TCGReg a0, TCGReg a1, TCGReg a2)
+{
+    tcg_out_insn(s, rrr, UMIN, type, a0, a1, a2);
+}
+
+static void tgen_umini(TCGContext *s, TCGType type,
+                       TCGReg a0, TCGReg a1, tcg_target_long a2)
+{
+    tcg_out_insn(s, minmax_imm, UMINI, type, a0, a1, a2);
+}
+
+static const TCGOutOpBinary outop_umin = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_uminmax,
+    .out_rrr = tgen_umin,
+    .out_rri = tgen_umini,
+};
+
 static void tgen_xor(TCGContext *s, TCGType type,
                      TCGReg a0, TCGReg a1, TCGReg a2)
 {
@@ -2650,6 +2795,34 @@ static void tgen_bswap64(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 static const TCGOutOpUnary outop_bswap64 = {
     .base.static_constraint = C_O1_I1(r, r),
     .out_rr = tgen_bswap64,
+};
+
+static const TCGOutOpUnary outop_revbit8 = {
+    .base.static_constraint = C_NotImplemented,
+};
+
+static void tgen_revbit32(TCGContext *s, TCGType type,
+                          TCGReg a0, TCGReg a1, unsigned flags)
+{
+    tcg_out_insn(s, rr_sf, RBIT, TCG_TYPE_I32, a0, a1);
+    if (flags & TCG_BSWAP_OS) {
+        tcg_out_ext32s(s, a0, a0);
+    }
+}
+
+static const TCGOutOpBswap outop_revbit32 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_revbit32,
+};
+
+static void tgen_revbit64(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
+{
+    tcg_out_insn(s, rr_sf, RBIT, TCG_TYPE_I64, a0, a1);
+}
+
+static const TCGOutOpUnary outop_revbit64 = {
+    .base.static_constraint = C_O1_I1(r, r),
+    .out_rr = tgen_revbit64,
 };
 
 static void tgen_neg(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)

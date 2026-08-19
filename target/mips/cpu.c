@@ -30,6 +30,7 @@
 #include "system/qtest.h"
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-clock.h"
+#include "disas/capstone.h"
 #include "fpu_helper.h"
 #ifndef CONFIG_USER_ONLY
 #include "semihosting/semihost.h"
@@ -488,15 +489,66 @@ static void mips_cpu_disas_set_info(const CPUState *cs, disassemble_info *info)
 {
     const MIPSCPU *cpu = MIPS_CPU(cs);
     const CPUMIPSState *env = &cpu->env;
+    bool is64 = env->hflags & MIPS_HFLAG_64;
+    int cap_mode = 0;
 
-    if (!(env->insn_flags & ISA_NANOMIPS32)) {
+    if (env->insn_flags & ISA_NANOMIPS32) {
+        info->print_insn = print_insn_nanomips;
+        info->endian = BFD_ENDIAN_LITTLE;
+        /* nanomips has 16, 32 and 48-bit insns */
+        info->cap_insn_unit = 2;
+        info->cap_insn_split = 6;
+        cap_mode = CS_MODE_NANOMIPS;
+    } else {
         info->endian = TARGET_BIG_ENDIAN ? BFD_ENDIAN_BIG
                                          : BFD_ENDIAN_LITTLE;
         info->print_insn = TARGET_BIG_ENDIAN ? print_insn_big_mips
                                              : print_insn_little_mips;
-    } else {
-        info->print_insn = print_insn_nanomips;
-        info->endian = BFD_ENDIAN_LITTLE;
+
+        if (env->hflags & MIPS_HFLAG_M16) {
+            cap_mode = (env->insn_flags & ASE_MICROMIPS
+                        ? CS_MODE_MICRO : CS_MODE_MIPS16);
+            /* Beware unsupported capstone mode */
+            if (cap_mode == 0) {
+                return;
+            }
+            info->cap_insn_unit = 2;
+        } else {
+            info->cap_insn_unit = 4;
+        }
+        info->cap_insn_split = 4;
+
+        cap_mode |= is64 ? CS_MODE_MIPS64 : CS_MODE_MIPS32;
+        if (env->insn_flags & ISA_MIPS_R6) {
+            cap_mode |= is64 ? CS_MODE_MIPS64R6 : CS_MODE_MIPS32R6;
+        } else if (env->insn_flags & ISA_MIPS_R5) {
+            cap_mode |= is64 ? CS_MODE_MIPS64R5 : CS_MODE_MIPS32R5;
+        } else if (env->insn_flags & ISA_MIPS_R3) {
+            cap_mode |= is64 ? CS_MODE_MIPS64R3 : CS_MODE_MIPS32R3;
+        } else if (env->insn_flags & ISA_MIPS_R2) {
+            cap_mode |= is64 ? CS_MODE_MIPS64R2 : CS_MODE_MIPS32R2;
+        } else if (env->insn_flags & ISA_MIPS5) {
+            cap_mode |= CS_MODE_MIPS5;
+        } else if (env->insn_flags & ISA_MIPS4) {
+            cap_mode |= CS_MODE_MIPS4;
+        } else if (env->insn_flags & ISA_MIPS3) {
+            cap_mode |= CS_MODE_MIPS3;
+        } else if (env->insn_flags & ISA_MIPS2) {
+            cap_mode |= CS_MODE_MIPS2;
+        } else if (env->insn_flags & ISA_MIPS1) {
+            cap_mode |= CS_MODE_MIPS1;
+        }
+        if (env->insn_flags & INSN_OCTEON) {
+            cap_mode |= CS_MODE_OCTEON | CS_MODE_OCTEONP;
+        }
+        if (is64 && !(env->hflags & MIPS_HFLAG_AWRAP)) {
+            cap_mode |= CS_MODE_MIPS_PTR64;
+        }
+    }
+    /* Beware unsupported capstone mode */
+    if (cap_mode) {
+        info->cap_arch = CS_ARCH_MIPS;
+        info->cap_mode = cap_mode;
     }
 }
 

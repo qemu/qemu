@@ -1161,6 +1161,45 @@ void tcg_gen_ext16u_i32(TCGv_i32 ret, TCGv_i32 arg)
 }
 
 /*
+ * Internal helper for bit and byte reversal.
+ * Given a repeating matched block of 1's and 0's, swap the bits within
+ * those two blocks.  E.g.  mask=00ff00ff, shift the input bits left and
+ * right 8 bits.
+ */
+static void gen_bitswap_i32(TCGv_i32 ret, TCGv_i32 arg, uint32_t mask)
+{
+    TCGv_i32 t0 = tcg_temp_ebb_new_i32();
+    TCGv_i32 t1 = tcg_temp_ebb_new_i32();
+    int sh = cto32(mask);
+
+    tcg_gen_andi_i32(t0, arg, mask);
+    tcg_gen_shri_i32(t1, arg, sh);
+    tcg_gen_shli_i32(t0, t0, sh);
+    tcg_gen_andi_i32(t1, t1, mask);
+    tcg_gen_or_i32(ret, t0, t1);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+}
+
+/* Similarly for 64-bit operands. */
+static void gen_bitswap_i64(TCGv_i64 ret, TCGv_i64 arg, uint64_t mask)
+{
+    TCGv_i64 t0 = tcg_temp_ebb_new_i64();
+    TCGv_i64 t1 = tcg_temp_ebb_new_i64();
+    int sh = cto64(mask);
+
+    tcg_gen_andi_i64(t0, arg, mask);
+    tcg_gen_shri_i64(t1, arg, sh);
+    tcg_gen_shli_i64(t0, t0, sh);
+    tcg_gen_andi_i64(t1, t1, mask);
+    tcg_gen_or_i64(ret, t0, t1);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+}
+
+/*
  * bswap16_i32: 16-bit byte swap on the low bits of a 32-bit value.
  *
  * Byte pattern: xxab -> yyba
@@ -1213,23 +1252,8 @@ void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg)
     if (tcg_op_supported(INDEX_op_bswap32, TCG_TYPE_I32, 0)) {
         tcg_gen_op3i_i32(INDEX_op_bswap32, ret, arg, 0);
     } else {
-        TCGv_i32 t0 = tcg_temp_ebb_new_i32();
-        TCGv_i32 t1 = tcg_temp_ebb_new_i32();
-        TCGv_i32 t2 = tcg_constant_i32(0x00ff00ff);
-
-                                        /* arg = abcd */
-        tcg_gen_shri_i32(t0, arg, 8);   /*  t0 = .abc */
-        tcg_gen_and_i32(t1, arg, t2);   /*  t1 = .b.d */
-        tcg_gen_and_i32(t0, t0, t2);    /*  t0 = .a.c */
-        tcg_gen_shli_i32(t1, t1, 8);    /*  t1 = b.d. */
-        tcg_gen_or_i32(ret, t0, t1);    /* ret = badc */
-
-        tcg_gen_shri_i32(t0, ret, 16);  /*  t0 = ..ba */
-        tcg_gen_shli_i32(t1, ret, 16);  /*  t1 = dc.. */
-        tcg_gen_or_i32(ret, t0, t1);    /* ret = dcba */
-
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(t1);
+        gen_bitswap_i32(ret, arg, 0x00ff00ff);
+        tcg_gen_hswap_i32(ret, ret);
     }
 }
 
@@ -1244,24 +1268,64 @@ void tcg_gen_hswap_i32(TCGv_i32 ret, TCGv_i32 arg)
     tcg_gen_rotli_i32(ret, arg, 16);
 }
 
+void tcg_gen_revbit8_i32(TCGv_i32 ret, TCGv_i32 arg)
+{
+    if (tcg_op_supported(INDEX_op_revbit8, TCG_TYPE_I32, 0)) {
+        tcg_gen_op2_i32(INDEX_op_revbit8, ret, arg);
+    } else if (tcg_op_supported(INDEX_op_revbit32, TCG_TYPE_I32, 0)) {
+        tcg_gen_op2_i32(INDEX_op_revbit32, ret, arg);
+        tcg_gen_bswap32_i32(ret, ret);
+    } else {
+        gen_bitswap_i32(ret, arg, 0x55555555u);
+        gen_bitswap_i32(ret, ret, 0x33333333u);
+        gen_bitswap_i32(ret, ret, 0x0f0f0f0fu);
+    }
+}
+
+void tcg_gen_revbit32_i32(TCGv_i32 ret, TCGv_i32 arg)
+{
+    if (tcg_op_supported(INDEX_op_revbit32, TCG_TYPE_I32, 0)) {
+        tcg_gen_op3i_i32(INDEX_op_revbit32, ret, arg, 0);
+    } else {
+        tcg_gen_revbit8_i32(ret, arg);
+        tcg_gen_bswap32_i32(ret, ret);
+    }
+}
+
 void tcg_gen_smin_i32(TCGv_i32 ret, TCGv_i32 a, TCGv_i32 b)
 {
-    tcg_gen_movcond_i32(TCG_COND_LT, ret, a, b, a, b);
+    if (tcg_op_supported(INDEX_op_smin, TCG_TYPE_I32, 0)) {
+        tcg_gen_op3_i32(INDEX_op_smin, ret, a, b);
+    } else {
+        tcg_gen_movcond_i32(TCG_COND_LT, ret, a, b, a, b);
+    }
 }
 
 void tcg_gen_umin_i32(TCGv_i32 ret, TCGv_i32 a, TCGv_i32 b)
 {
-    tcg_gen_movcond_i32(TCG_COND_LTU, ret, a, b, a, b);
+    if (tcg_op_supported(INDEX_op_umin, TCG_TYPE_I32, 0)) {
+        tcg_gen_op3_i32(INDEX_op_umin, ret, a, b);
+    } else {
+        tcg_gen_movcond_i32(TCG_COND_LTU, ret, a, b, a, b);
+    }
 }
 
 void tcg_gen_smax_i32(TCGv_i32 ret, TCGv_i32 a, TCGv_i32 b)
 {
-    tcg_gen_movcond_i32(TCG_COND_LT, ret, a, b, b, a);
+    if (tcg_op_supported(INDEX_op_smax, TCG_TYPE_I32, 0)) {
+        tcg_gen_op3_i32(INDEX_op_smax, ret, a, b);
+    } else {
+        tcg_gen_movcond_i32(TCG_COND_LT, ret, a, b, b, a);
+    }
 }
 
 void tcg_gen_umax_i32(TCGv_i32 ret, TCGv_i32 a, TCGv_i32 b)
 {
-    tcg_gen_movcond_i32(TCG_COND_LTU, ret, a, b, b, a);
+    if (tcg_op_supported(INDEX_op_umax, TCG_TYPE_I32, 0)) {
+        tcg_gen_op3_i32(INDEX_op_umax, ret, a, b);
+    } else {
+        tcg_gen_movcond_i32(TCG_COND_LTU, ret, a, b, b, a);
+    }
 }
 
 void tcg_gen_abs_i32(TCGv_i32 ret, TCGv_i32 a)
@@ -1771,14 +1835,9 @@ void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
     } else {
         TCGv_i64 t0 = tcg_temp_ebb_new_i64();
         TCGv_i64 t1 = tcg_temp_ebb_new_i64();
-        TCGv_i64 t2 = tcg_constant_i64(0x00ff00ff);
 
-                                            /* arg = xxxxabcd */
-        tcg_gen_shri_i64(t0, arg, 8);       /*  t0 = .xxxxabc */
-        tcg_gen_and_i64(t1, arg, t2);       /*  t1 = .....b.d */
-        tcg_gen_and_i64(t0, t0, t2);        /*  t0 = .....a.c */
-        tcg_gen_shli_i64(t1, t1, 8);        /*  t1 = ....b.d. */
-        tcg_gen_or_i64(ret, t0, t1);        /* ret = ....badc */
+                                                /* arg = xxxxabcd */
+        gen_bitswap_i64(ret, arg, 0x00ff00ff);  /* ret = ....badc */
 
         tcg_gen_shli_i64(t1, ret, 48);      /*  t1 = dc...... */
         tcg_gen_shri_i64(t0, ret, 16);      /*  t0 = ......ba */
@@ -1805,32 +1864,8 @@ void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
     if (tcg_op_supported(INDEX_op_bswap64, TCG_TYPE_I64, 0)) {
         tcg_gen_op3i_i64(INDEX_op_bswap64, ret, arg, 0);
     } else {
-        TCGv_i64 t0 = tcg_temp_ebb_new_i64();
-        TCGv_i64 t1 = tcg_temp_ebb_new_i64();
-        TCGv_i64 t2 = tcg_temp_ebb_new_i64();
-
-                                        /* arg = abcdefgh */
-        tcg_gen_movi_i64(t2, 0x00ff00ff00ff00ffull);
-        tcg_gen_shri_i64(t0, arg, 8);   /*  t0 = .abcdefg */
-        tcg_gen_and_i64(t1, arg, t2);   /*  t1 = .b.d.f.h */
-        tcg_gen_and_i64(t0, t0, t2);    /*  t0 = .a.c.e.g */
-        tcg_gen_shli_i64(t1, t1, 8);    /*  t1 = b.d.f.h. */
-        tcg_gen_or_i64(ret, t0, t1);    /* ret = badcfehg */
-
-        tcg_gen_movi_i64(t2, 0x0000ffff0000ffffull);
-        tcg_gen_shri_i64(t0, ret, 16);  /*  t0 = ..badcfe */
-        tcg_gen_and_i64(t1, ret, t2);   /*  t1 = ..dc..hg */
-        tcg_gen_and_i64(t0, t0, t2);    /*  t0 = ..ba..fe */
-        tcg_gen_shli_i64(t1, t1, 16);   /*  t1 = dc..hg.. */
-        tcg_gen_or_i64(ret, t0, t1);    /* ret = dcbahgfe */
-
-        tcg_gen_shri_i64(t0, ret, 32);  /*  t0 = ....dcba */
-        tcg_gen_shli_i64(t1, ret, 32);  /*  t1 = hgfe.... */
-        tcg_gen_or_i64(ret, t0, t1);    /* ret = hgfedcba */
-
-        tcg_temp_free_i64(t0);
-        tcg_temp_free_i64(t1);
-        tcg_temp_free_i64(t2);
+        gen_bitswap_i64(ret, arg, 0x00ff00ff00ff00ffull);
+        tcg_gen_hswap_i64(ret, ret);
     }
 }
 
@@ -1842,20 +1877,8 @@ void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
  */
 void tcg_gen_hswap_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
-    uint64_t m = 0x0000ffff0000ffffull;
-    TCGv_i64 t0 = tcg_temp_ebb_new_i64();
-    TCGv_i64 t1 = tcg_temp_ebb_new_i64();
-
-                                        /* arg = abcdefgh */
-    tcg_gen_rotli_i64(t1, arg, 32);     /*  t1 = efghabcd */
-    tcg_gen_andi_i64(t0, t1, m);        /*  t0 = ..gh..cd */
-    tcg_gen_shli_i64(t0, t0, 16);       /*  t0 = gh..cd.. */
-    tcg_gen_shri_i64(t1, t1, 16);       /*  t1 = ..efghab */
-    tcg_gen_andi_i64(t1, t1, m);        /*  t1 = ..ef..ab */
-    tcg_gen_or_i64(ret, t0, t1);        /* ret = ghefcdab */
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
+    gen_bitswap_i64(ret, ret, 0x0000ffff0000ffffull);
+    tcg_gen_wswap_i64(ret, ret);
 }
 
 /*
@@ -1867,6 +1890,57 @@ void tcg_gen_wswap_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
     /* Swapping 2 32-bit elements is a rotate. */
     tcg_gen_rotli_i64(ret, arg, 32);
+}
+
+void tcg_gen_revbit32_i64(TCGv_i64 ret, TCGv_i64 arg, int flags)
+{
+    /* Only one extension flag may be present. */
+    tcg_debug_assert(!(flags & TCG_BSWAP_OS) || !(flags & TCG_BSWAP_OZ));
+
+    if (tcg_op_supported(INDEX_op_revbit32, TCG_TYPE_I64, 0)) {
+        tcg_gen_op3i_i64(INDEX_op_revbit32, ret, arg, flags);
+    } else if (tcg_op_supported(INDEX_op_revbit64, TCG_TYPE_I64, 0)) {
+        tcg_gen_op2_i64(INDEX_op_revbit64, ret, arg);
+        if (flags & TCG_BSWAP_OS) {
+            tcg_gen_sari_i64(ret, ret, 32);
+        } else {
+            tcg_gen_shri_i64(ret, ret, 32);
+        }
+    } else {
+        if (tcg_op_supported(INDEX_op_revbit8, TCG_TYPE_I64, 0)) {
+            tcg_gen_op2_i64(INDEX_op_revbit8, ret, arg);
+        } else {
+            gen_bitswap_i64(ret, arg, 0x55555555ull);
+            gen_bitswap_i64(ret, ret, 0x33333333ull);
+            gen_bitswap_i64(ret, ret, 0x0f0f0f0full);
+            flags |= TCG_BSWAP_IZ;
+        }
+        tcg_gen_bswap32_i64(ret, ret, flags);
+    }
+}
+
+void tcg_gen_revbit8_i64(TCGv_i64 ret, TCGv_i64 arg)
+{
+    if (tcg_op_supported(INDEX_op_revbit8, TCG_TYPE_I64, 0)) {
+        tcg_gen_op2_i64(INDEX_op_revbit8, ret, arg);
+    } else if (tcg_op_supported(INDEX_op_revbit64, TCG_TYPE_I64, 0)) {
+        tcg_gen_op2_i64(INDEX_op_revbit64, ret, arg);
+        tcg_gen_bswap64_i64(ret, ret);
+    } else {
+        gen_bitswap_i64(ret, arg, 0x5555555555555555ull);
+        gen_bitswap_i64(ret, ret, 0x3333333333333333ull);
+        gen_bitswap_i64(ret, ret, 0x0f0f0f0f0f0f0f0full);
+    }
+}
+
+void tcg_gen_revbit64_i64(TCGv_i64 ret, TCGv_i64 arg)
+{
+    if (tcg_op_supported(INDEX_op_revbit64, TCG_TYPE_I64, 0)) {
+        tcg_gen_op2_i64(INDEX_op_revbit64, ret, arg);
+    } else {
+        tcg_gen_revbit8_i64(ret, arg);
+        tcg_gen_bswap64_i64(ret, ret);
+    }
 }
 
 void tcg_gen_not_i64(TCGv_i64 ret, TCGv_i64 arg)
@@ -2415,22 +2489,38 @@ void tcg_gen_mulsu2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 arg1, TCGv_i64 arg2)
 
 void tcg_gen_smin_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 {
-    tcg_gen_movcond_i64(TCG_COND_LT, ret, a, b, a, b);
+    if (tcg_op_supported(INDEX_op_smin, TCG_TYPE_I64, 0)) {
+        tcg_gen_op3_i64(INDEX_op_smin, ret, a, b);
+    } else {
+        tcg_gen_movcond_i64(TCG_COND_LT, ret, a, b, a, b);
+    }
 }
 
 void tcg_gen_umin_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 {
-    tcg_gen_movcond_i64(TCG_COND_LTU, ret, a, b, a, b);
+    if (tcg_op_supported(INDEX_op_umin, TCG_TYPE_I64, 0)) {
+        tcg_gen_op3_i64(INDEX_op_umin, ret, a, b);
+    } else {
+        tcg_gen_movcond_i64(TCG_COND_LTU, ret, a, b, a, b);
+    }
 }
 
 void tcg_gen_smax_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 {
-    tcg_gen_movcond_i64(TCG_COND_LT, ret, a, b, b, a);
+    if (tcg_op_supported(INDEX_op_smax, TCG_TYPE_I64, 0)) {
+        tcg_gen_op3_i64(INDEX_op_smax, ret, a, b);
+    } else {
+        tcg_gen_movcond_i64(TCG_COND_LT, ret, a, b, b, a);
+    }
 }
 
 void tcg_gen_umax_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 {
-    tcg_gen_movcond_i64(TCG_COND_LTU, ret, a, b, b, a);
+    if (tcg_op_supported(INDEX_op_umax, TCG_TYPE_I64, 0)) {
+        tcg_gen_op3_i64(INDEX_op_umax, ret, a, b);
+    } else {
+        tcg_gen_movcond_i64(TCG_COND_LTU, ret, a, b, b, a);
+    }
 }
 
 void tcg_gen_abs_i64(TCGv_i64 ret, TCGv_i64 a)

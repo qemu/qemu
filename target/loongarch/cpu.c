@@ -29,6 +29,7 @@
 #include <linux/kvm.h>
 #endif
 #include "tcg/tcg_loongarch.h"
+#include "disas/capstone.h"
 
 const char * const regnames[32] = {
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
@@ -694,8 +695,15 @@ static void loongarch_cpu_reset_hold(Object *obj, ResetType type)
 static void loongarch_cpu_disas_set_info(const CPUState *cs,
                                          disassemble_info *info)
 {
+    CPULoongArchState *env = cpu_env((CPUState *)cs);
+
     info->endian = BFD_ENDIAN_LITTLE;
     info->print_insn = print_insn_loongarch;
+
+    info->cap_arch = CS_ARCH_LOONGARCH;
+    info->cap_insn_unit = 4;
+    info->cap_insn_split = 4;
+    info->cap_mode = is_la64(env) ? CS_MODE_LOONGARCH64 : CS_MODE_LOONGARCH32;
 }
 
 static void loongarch_cpu_realizefn(DeviceState *dev, Error **errp)

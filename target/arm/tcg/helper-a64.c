@@ -69,11 +69,6 @@ int64_t HELPER(sdiv64)(int64_t num, int64_t den)
     return num / den;
 }
 
-uint64_t HELPER(rbit64)(uint64_t x)
-{
-    return revbit64(x);
-}
-
 void HELPER(msr_i_spsel)(CPUARMState *env, uint32_t imm)
 {
     update_spsel(env, imm);

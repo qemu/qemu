@@ -28,6 +28,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "accel/tcg/cpu-ops.h"
 #include "tcg/tcg.h"
+#include "disas/capstone.h"
 
 static void superh_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -167,10 +168,23 @@ static void superh_cpu_reset_hold(Object *obj, ResetType type)
 static void superh_cpu_disas_set_info(const CPUState *cpu,
                                       disassemble_info *info)
 {
+    const CPUSH4State *env = cpu_env((CPUState *)cpu);
+
     info->endian = TARGET_BIG_ENDIAN ? BFD_ENDIAN_BIG
                                      : BFD_ENDIAN_LITTLE;
     info->mach = bfd_mach_sh4;
     info->print_insn = print_insn_sh;
+
+    info->cap_arch = CS_ARCH_SH;
+    info->cap_insn_unit = 2;
+    info->cap_insn_split = 2;
+    /*
+     * Possible capstone bug: the isa levels are not additive:
+     * least significant bit wins, so SH4 overrides SH4A.
+     * Work around by setting one or the other but not both.
+     */
+    info->cap_mode = CS_MODE_SHFPU
+        | (env->features & SH_FEATURE_SH4A ? CS_MODE_SH4A : CS_MODE_SH4);
 }
 
 static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)

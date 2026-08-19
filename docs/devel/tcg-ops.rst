@@ -317,6 +317,18 @@ Arithmetic
          pass 0 to *nh* to make a simple zero-extension of *nl*,
          so overflow should never occur.
 
+   * - smax *t0*, *t1*, *t2*
+
+       umax *t0*, *t1*, *t2*
+
+     - | *t0* = MAX(*t1*, *t2*), for signed and unsigned integers.
+
+   * - smin *t0*, *t1*, *t2*
+
+       umin *t0*, *t1*, *t2*
+
+     - | *t0* = MIN(*t1*, *t2*), for signed and unsigned integers.
+
 Logical
 -------
 
@@ -495,6 +507,22 @@ Misc
          into 32-bit output *t0*.  Depending on the host, this may be a simple shift,
          or may require additional canonicalization.
 
+   * - revbit8 *dest*, *t1*
+
+     - | Reverse the 8 bits within each byte of input *t1* with
+       | output in *dest*; the byte order is unchanged.
+
+   * - revbit32 *dest*, *t1*, *flags*
+
+     - | Reverse the 32 bits of the lower 32 bits of input *t1*
+       | with output in *dest*.  On TCG_TYPE_I64, *flags* control
+       | any required sign or zero extension of the result in
+       | the same way as for bswap32.
+       | On TCG_TYPE_I32, *flags* should be zero.
+
+   * - revbit64 *dest*, *t1*
+
+     - | Reverse the 64 bits of input *t1* with output in *dest*.
 
 Conditional moves
 -----------------

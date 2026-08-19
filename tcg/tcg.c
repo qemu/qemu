@@ -1203,6 +1203,7 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_qemu_st2, TCGOutOpQemuLdSt2, outop_qemu_st2),
     OUTOP(INDEX_op_rems, TCGOutOpBinary, outop_rems),
     OUTOP(INDEX_op_remu, TCGOutOpBinary, outop_remu),
+    OUTOP(INDEX_op_revbit32, TCGOutOpBswap, outop_revbit32),
     OUTOP(INDEX_op_rotl, TCGOutOpBinary, outop_rotl),
     OUTOP(INDEX_op_rotr, TCGOutOpBinary, outop_rotr),
     OUTOP(INDEX_op_sar, TCGOutOpBinary, outop_sar),
@@ -1210,6 +1211,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_sextract, TCGOutOpExtract, outop_sextract),
     OUTOP(INDEX_op_shl, TCGOutOpBinary, outop_shl),
     OUTOP(INDEX_op_shr, TCGOutOpBinary, outop_shr),
+    OUTOP(INDEX_op_smax, TCGOutOpBinary, outop_smax),
+    OUTOP(INDEX_op_smin, TCGOutOpBinary, outop_smin),
     OUTOP(INDEX_op_st, TCGOutOpStore, outop_st),
     OUTOP(INDEX_op_st8, TCGOutOpStore, outop_st8),
     OUTOP(INDEX_op_st16, TCGOutOpStore, outop_st16),
@@ -1219,6 +1222,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_subbo, TCGOutOpAddSubCarry, outop_subbo),
     /* subb1o is implemented with set_borrow + subbio */
     OUTOP(INDEX_op_subb1o, TCGOutOpAddSubCarry, outop_subbio),
+    OUTOP(INDEX_op_umax, TCGOutOpBinary, outop_umax),
+    OUTOP(INDEX_op_umin, TCGOutOpBinary, outop_umin),
     OUTOP(INDEX_op_xor, TCGOutOpBinary, outop_xor),
 
     [INDEX_op_goto_ptr] = &outop_goto_ptr,
@@ -1230,6 +1235,8 @@ static const TCGOutOp * const all_outop[NB_OPS] = {
     OUTOP(INDEX_op_extrh_i64_i32, TCGOutOpUnary, outop_extrh_i64_i32),
     OUTOP(INDEX_op_ld32u, TCGOutOpLoad, outop_ld32u),
     OUTOP(INDEX_op_ld32s, TCGOutOpLoad, outop_ld32s),
+    OUTOP(INDEX_op_revbit8, TCGOutOpUnary, outop_revbit8),
+    OUTOP(INDEX_op_revbit64, TCGOutOpUnary, outop_revbit64),
     OUTOP(INDEX_op_st32, TCGOutOpStore, outop_st),
 };
 
@@ -1279,7 +1286,7 @@ void tcg_register_thread(void)
     qatomic_set(&tcg_ctxs[n], s);
 
     if (n > 0) {
-        tcg_region_initial_alloc(s);
+        tcg_region_thread_initial_alloc(s);
     }
 
     tcg_ctx = s;
@@ -1830,18 +1837,24 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
     TranslationBlock *tb;
     void *next;
 
- retry:
-    tb = (void *)ROUND_UP((uintptr_t)s->code_gen_ptr, align);
-    next = (void *)ROUND_UP((uintptr_t)(tb + 1), align);
+    while (1) {
+        tb = (void *)ROUND_UP((uintptr_t)s->code_gen_ptr, align);
 
-    if (unlikely(next > s->code_gen_highwater)) {
-        if (tcg_region_alloc(s)) {
+        /*
+         * Note that code_gen_ptr can be NULL after vCPU hotplug.
+         * See tcg_region_thread_initial_alloc.
+         */
+        if (tb) {
+            next = (void *)ROUND_UP((uintptr_t)(tb + 1), align);
+            if (next <= s->code_gen_highwater) {
+                qatomic_set(&s->code_gen_ptr, next);
+                return tb;
+            }
+        }
+        if (!tcg_region_alloc(s)) {
             return NULL;
         }
-        goto retry;
     }
-    qatomic_set(&s->code_gen_ptr, next);
-    return tb;
 }
 
 void tcg_prologue_init(void)
@@ -2944,6 +2957,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             case INDEX_op_bswap16:
             case INDEX_op_bswap32:
             case INDEX_op_bswap64:
+            case INDEX_op_revbit32:
                 {
                     TCGArg flags = op->args[k];
                     const char *name = NULL;
@@ -2951,7 +2965,7 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                     if (flags < ARRAY_SIZE(bswap_flag_name)) {
                         name = bswap_flag_name[flags];
                     }
-                    if (name) {
+                    if (name && name[0]) {
                         col += ne_fprintf(f, ",%s", name);
                     } else {
                         col += ne_fprintf(f, ",$0x%" TCG_PRIlx, flags);
@@ -5508,6 +5522,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_sar:
     case INDEX_op_shl:
     case INDEX_op_shr:
+    case INDEX_op_smax:
+    case INDEX_op_smin:
+    case INDEX_op_umax:
+    case INDEX_op_umin:
     case INDEX_op_xor:
         {
             const TCGOutOpBinary *out =
@@ -5575,6 +5593,8 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     case INDEX_op_ctpop:
     case INDEX_op_neg:
     case INDEX_op_not:
+    case INDEX_op_revbit8:
+    case INDEX_op_revbit64:
         {
             const TCGOutOpUnary *out =
                 container_of(all_outop[op->opc], TCGOutOpUnary, base);
@@ -5587,6 +5607,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
 
     case INDEX_op_bswap16:
     case INDEX_op_bswap32:
+    case INDEX_op_revbit32:
         {
             const TCGOutOpBswap *out =
                 container_of(all_outop[op->opc], TCGOutOpBswap, base);

@@ -115,6 +115,10 @@ typedef TCGv_i64 TCGv;
 #define tcg_gen_bswap_tl tcg_gen_bswap64_i64
 #define tcg_gen_hswap_tl tcg_gen_hswap_i64
 #define tcg_gen_wswap_tl tcg_gen_wswap_i64
+#define tcg_gen_revbit8_tl tcg_gen_revbit8_i64
+#define tcg_gen_revbit32_tl tcg_gen_revbit32_i64
+#define tcg_gen_revbit64_tl tcg_gen_revbit64_i64
+#define tcg_gen_revbit_tl tcg_gen_revbit64_i64
 #define tcg_gen_concat_tl_i64 tcg_gen_concat32_i64
 #define tcg_gen_extr_i64_tl tcg_gen_extr32_i64
 #define tcg_gen_andc_tl tcg_gen_andc_i64
@@ -234,6 +238,9 @@ typedef TCGv_i64 TCGv;
 #define tcg_gen_bswap32_tl(D, S, F) tcg_gen_bswap32_i32(D, S)
 #define tcg_gen_bswap_tl tcg_gen_bswap32_i32
 #define tcg_gen_hswap_tl tcg_gen_hswap_i32
+#define tcg_gen_revbit8_tl tcg_gen_revbit8_i32
+#define tcg_gen_revbit32_tl(D, S, F) tcg_gen_revbit32_i32(D, S)
+#define tcg_gen_revbit_tl tcg_gen_revbit32_i32
 #define tcg_gen_concat_tl_i64 tcg_gen_concat_i32_i64
 #define tcg_gen_extr_i64_tl tcg_gen_extr_i64_i32
 #define tcg_gen_andc_tl tcg_gen_andc_i32
