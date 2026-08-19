@@ -48,6 +48,18 @@ static bool aprofile_require_alignment(CPUARMState *env, int el, uint64_t sctlr)
     }
 
     /*
+     * Pre-v6 had a completely different model for unaligned accesses,
+     * which doesn't include taking unaligned faults for Device memory.
+     * v6 has the new model only when SCTLR.U is set. Later architecture
+     * versions repurpose the SCTLR bit for something else, so we mustn't
+     * test it except for actual v6 CPUs.
+     */
+    if (!arm_feature(env, ARM_FEATURE_V6) ||
+        (!arm_feature(env, ARM_FEATURE_V7) && !(sctlr & SCTLR_U))) {
+        return false;
+    }
+
+    /*
      * With VMSA, if translation is disabled, then the default memory type
      * is Device(-nGnRnE) instead of Normal, which requires that alignment
      * be enforced.  Since this affects all ram, it is most efficient
