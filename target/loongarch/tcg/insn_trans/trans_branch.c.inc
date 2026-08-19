@@ -66,6 +66,8 @@ static bool gen_cz_bc(DisasContext *ctx, arg_c_offs *a, TCGCond cond)
     TCGv src1 = tcg_temp_new();
     TCGv src2 = tcg_constant_tl(0);
 
+    CHECK_FPE;
+
     tcg_gen_ld8u_tl(src1, tcg_env,
                     offsetof(CPULoongArchState, cf[a->cj]));
     gen_bc(ctx, src1, src2, a->offs, cond);
