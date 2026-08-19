@@ -653,9 +653,9 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     qemu_spin_unlock(&tb_next->jmp_lock);
 }
 
+#ifndef CONFIG_USER_ONLY
 static inline bool cpu_handle_halt(CPUState *cpu)
 {
-#ifndef CONFIG_USER_ONLY
     if (cpu->halted) {
         const TCGCPUOps *tcg_ops = cpu->cc->tcg_ops;
         bool leave_halt = tcg_ops->cpu_exec_halt(cpu);
@@ -666,10 +666,10 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 
         cpu->halted = 0;
     }
-#endif /* !CONFIG_USER_ONLY */
 
     return false;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 static inline void cpu_handle_debug_exception(CPUState *cpu)
 {
@@ -1027,9 +1027,11 @@ int cpu_exec(CPUState *cpu)
     /* replay_interrupt may need current_cpu */
     current_cpu = cpu;
 
+#ifndef CONFIG_USER_ONLY
     if (cpu_handle_halt(cpu)) {
         return EXCP_HALTED;
     }
+#endif
 
     RCU_READ_LOCK_GUARD();
     cpu_exec_enter(cpu);
