@@ -61,6 +61,7 @@ HEX_TESTS += multiple-writes
 HEX_TESTS += privileged-insn
 HEX_TESTS += unaligned_pc
 HEX_TESTS += unaligned_data
+HEX_TESTS += icinva
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
@@ -104,6 +105,7 @@ circ: circ.c hex_test.h
 dual_stores: dual_stores.c hex_test.h
 fpstuff: fpstuff.c hex_test.h
 hex_sigsegv: hex_sigsegv.c hex_test.h
+icinva: icinva.c hex_test.h
 load_align: load_align.c hex_test.h
 load_unpack: load_unpack.c hex_test.h
 mem_noshuf_exception: mem_noshuf_exception.c hex_test.h
