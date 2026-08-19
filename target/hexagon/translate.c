@@ -354,6 +354,9 @@ static bool pkt_ends_tb(Packet *pkt)
     if (pkt->pkt_has_cof) {
         return true;
     }
+    if (check_for_attrib(pkt, A_ICFLUSHOP)) {
+        return true;
+    }
 #ifndef CONFIG_USER_ONLY
     /* System mode instructions that end TLB */
     if (check_for_opcode(pkt, Y2_swi) ||

@@ -115,6 +115,7 @@ DEF_HELPER_FLAGS_4(gvec_uabsdiff_h, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 
 #if defined(CONFIG_USER_ONLY)
 DEF_HELPER_FLAGS_0(utimer, TCG_CALL_NO_RWG, i64)
+DEF_HELPER_5(insn_cache_op, void, env, i32, int, int, i32)
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
