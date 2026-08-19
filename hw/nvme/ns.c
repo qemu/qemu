@@ -792,6 +792,10 @@ static void nvme_ns_unrealize(DeviceState *dev)
     nvme_ns_shutdown(ns);
     nvme_ns_cleanup(ns);
 
+    if (!ns->params.shared && ns->bootindex >= 0) {
+        del_boot_device_path(DEVICE(ns->ctrl), ns->bootindex_suffix);
+    }
+
     /* Symmetric with nvme_ns_realize() which sets subsys->namespaces[nsid]. */
     if (subsys && nsid && subsys->namespaces[nsid] == ns) {
         subsys->namespaces[nsid] = NULL;
@@ -956,6 +960,19 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
     if (!ns->params.shared) {
         ns->ctrl = n;
+
+        /*
+         * Register the boot device path using the NVMe controller
+         * so the OFW path includes the controller's PCI address:
+         *   /pci@i0cf8/pci1b36,0010@<slot>,0/namespace@<nsid>,0
+         */
+        if (ns->bootindex >= 0) {
+            del_boot_device_path(dev, NULL);
+            snprintf(ns->bootindex_suffix, sizeof(ns->bootindex_suffix),
+                     "/namespace@%" PRIu32 ",0", nsid);
+            add_boot_device_path(ns->bootindex, DEVICE(n),
+                                 ns->bootindex_suffix);
+        }
     }
 }
 
@@ -1182,10 +1199,8 @@ static void nvme_ns_instance_init(Object *obj)
 {
     NvmeNamespace *ns = NVME_NS(obj);
 
-    sprintf(ns->bootindex_suffix, "/namespace@%" PRIu32 ",0", ns->params.nsid);
-
     device_add_bootindex_property(obj, &ns->bootindex, "bootindex",
-                                  ns->bootindex_suffix, DEVICE(obj));
+                                  NULL, DEVICE(obj));
 }
 
 static const TypeInfo nvme_ns_info = {
