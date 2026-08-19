@@ -37,16 +37,14 @@ static bool fd_is_pipe(int fd)
     return S_ISFIFO(statbuf.st_mode);
 }
 
-static bool migration_fd_valid(int fd)
+static bool migration_fd_valid(int fd, Error **errp)
 {
-    if (fd_is_socket(fd)) {
+    if (fd_is_socket(fd) || fd_is_pipe(fd)) {
         return true;
     }
 
-    if (fd_is_pipe(fd)) {
-        return true;
-    }
-
+    error_setg(errp, "fd: migration to a file is not supported."
+               " Use file: instead.");
     return false;
 }
 
@@ -59,9 +57,7 @@ QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
         goto out;
     }
 
-    if (!migration_fd_valid(fd)) {
-        error_setg(errp, "fd: migration to a file is not supported."
-                   " Use file: instead.");
+    if (!migration_fd_valid(fd, errp)) {
         close(fd);
         goto out;
     }
@@ -95,9 +91,7 @@ void fd_connect_incoming(const char *fdname, Error **errp)
         return;
     }
 
-    if (!migration_fd_valid(fd)) {
-        error_setg(errp, "fd: migration to a file is not supported."
-                   " Use file: instead.");
+    if (!migration_fd_valid(fd, errp)) {
         close(fd);
         return;
     }
