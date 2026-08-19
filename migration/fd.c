@@ -62,6 +62,7 @@ QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
     if (!migration_fd_valid(fd)) {
         error_setg(errp, "fd: migration to a file is not supported."
                    " Use file: instead.");
+        close(fd);
         goto out;
     }
 
@@ -97,6 +98,7 @@ void fd_connect_incoming(const char *fdname, Error **errp)
     if (!migration_fd_valid(fd)) {
         error_setg(errp, "fd: migration to a file is not supported."
                    " Use file: instead.");
+        close(fd);
         return;
     }
 
