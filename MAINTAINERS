@@ -1765,6 +1765,21 @@ F: include/hw/ppc/vof*
 F: pc-bios/vof/*
 F: pc-bios/vof*
 
+PowerPC RAS (Reliability, Availability and Serviceability)
+M: Aditya Gupta <adityag@linux.ibm.com>
+R: Sourabh Jain <sourabhjain@linux.ibm.com>
+R: Hari Bathini <hbathini@linux.ibm.com>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ppc/spapr_events.c
+F: hw/ppc/spapr_fadump.c
+F: hw/ppc/spapr_pci_vfio.c
+F: hw/ppc/spapr_rtas.c
+F: hw/ppc/pnv_mpipl.c
+F: include/hw/ppc/spapr_fadump.h
+F: include/hw/ppc/pnv_mpipl.h
+F: tests/functional/ppc64/test_fadump.py
+
 RISC-V Machines
 ---------------
 OpenTitan
@@ -3401,23 +3416,6 @@ F: scripts/coccinelle/error_propagate_null.cocci
 F: scripts/coccinelle/remove_local_err.cocci
 F: scripts/coccinelle/use-error_fatal.cocci
 F: scripts/coccinelle/errp-guard.cocci
-
-Firmware Assisted Dump (fadump) for sPAPR (pseries)
-M: Aditya Gupta <adityag@linux.ibm.com>
-R: Sourabh Jain <sourabhjain@linux.ibm.com>
-S: Maintained
-F: include/hw/ppc/spapr_fadump.h
-F: hw/ppc/spapr_fadump.c
-F: tests/functional/ppc64/test_fadump.py
-
-Memory-Preserving Initial Program Load (MPIPL) for PowerNV
-M: Aditya Gupta <adityag@linux.ibm.com>
-R: Hari Bathini <hbathini@linux.ibm.com>
-R: Sourabh <sourabhjain@linux.ibm.com>
-S: Maintained
-F: include/hw/ppc/pnv_mpipl.h
-F: hw/ppc/pnv_mpipl.c
-F: tests/functional/ppc64/test_fadump.py
 
 GDB stub
 M: Alex Bennée <alex.bennee@linaro.org>
