@@ -43,7 +43,6 @@
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "hw/virtio/vhost.h"
-#include "qom/object.h"
 
 #include "net/tap.h"
 #include "net/util.h"
@@ -91,6 +90,8 @@ struct TAPState {
     VHostNetState *vhost_net;
     unsigned host_vnet_hdr_len;
     Notifier exit;
+
+    int queue_index;
 };
 
 static void launch_script(const char *setup_script, const char *ifname,
@@ -419,10 +420,29 @@ static VHostNetState *tap_get_vhost_net(NetClientState *nc)
 }
 
 
+static char *tap_vmstate_if_get_id(VMStateIf *obj)
+{
+    TAPState *s = TAP_NETDEV(obj);
+    char *res = g_strdup_printf("%s/%d", s->nc.name, s->queue_index);
+    return res;
+}
+
+static void tap_class_init(ObjectClass *klass, const void *data)
+{
+    VMStateIfClass *vc = VMSTATE_IF_CLASS(klass);
+
+    vc->get_id = tap_vmstate_if_get_id;
+}
+
 static const TypeInfo tap_netdev_info = {
     .name = TYPE_TAP_NETDEV,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(TAPState),
+    .class_init = tap_class_init,
+    .interfaces = (const InterfaceInfo[]) {
+        { TYPE_VMSTATE_IF },
+        { }
+    },
 };
 
 static void tap_net_client_destructor(NetClientState *nc)
@@ -455,12 +475,15 @@ static NetClientInfo net_tap_info = {
 
 static TAPState *new_tap(NetClientState *peer,
                          const char *model,
-                         const char *name)
+                         const char *name,
+                         int queue_index)
 {
     TAPState *s = TAP_NETDEV(object_new(TYPE_TAP_NETDEV));
 
     qemu_net_client_setup(&s->nc, &net_tap_info, peer, model, name,
                           tap_net_client_destructor, true);
+
+    s->queue_index = queue_index;
 
     return s;
 }
@@ -469,10 +492,11 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
                                  int fd,
-                                 int vnet_hdr)
+                                 int vnet_hdr,
+                                 int queue_index)
 {
     NetOffloads ol = {};
-    TAPState *s = new_tap(peer, model, name);
+    TAPState *s = new_tap(peer, model, name, queue_index);
 
     s->fd = fd;
     s->host_vnet_hdr_len = vnet_hdr ? sizeof(struct virtio_net_hdr) : 0;
@@ -709,7 +733,7 @@ int net_init_bridge(const Netdev *netdev, const char *name,
         close(fd);
         return -1;
     }
-    s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr);
+    s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr, 0);
 
     qemu_set_info_str(&s->nc, "helper=%s,br=%s", helper, br);
 
@@ -785,10 +809,11 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *name,
                              const char *ifname, const char *script,
                              const char *downscript, int vhostfd,
-                             int vnet_hdr, int fd, Error **errp)
+                             int vnet_hdr, int fd, int queue_index,
+                             Error **errp)
 {
     TAPState *s = net_tap_fd_init(peer, tap->helper ? "bridge" : "tap",
-                                  name, fd, vnet_hdr);
+                                  name, fd, vnet_hdr, queue_index);
     bool sndbuf_required = tap->has_sndbuf;
     int sndbuf =
         (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
@@ -989,7 +1014,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             if (!net_init_tap_one(tap, peer, name, ifname,
                                   NULL, NULL,
                                   vhost_fds ? vhost_fds[i] : -1,
-                                  vnet_hdr, fds[i], errp)) {
+                                  vnet_hdr, fds[i], i, errp)) {
                 goto fail;
             }
         }
@@ -1024,7 +1049,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                                   i >= 1 ? NULL : script,
                                   i >= 1 ? NULL : downscript,
                                   vhost_fds ? vhost_fds[i] : -1,
-                                  vnet_hdr, fd, errp)) {
+                                  vnet_hdr, fd, i, errp)) {
                 goto fail;
             }
         }
