@@ -125,6 +125,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
+        qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
+
         /*
          * CPU #0 is the only CPU running at boot, others must be
          * explicitly enabled via start instruction.
