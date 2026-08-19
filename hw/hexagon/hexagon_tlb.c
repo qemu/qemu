@@ -69,8 +69,6 @@ static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
     "1G",
 };
 
-#define INVALID_MASK 0xffffffffLL
-
 static const uint64_t encmask_2_mask[] = {
     0x0fffLL,                           /* 4k,   0000 */
     0x3fffLL,                           /* 16k,  0001 */
@@ -82,19 +80,25 @@ static const uint64_t encmask_2_mask[] = {
     0x3ffffffLL,                        /* 64m,  0111 */
     0xfffffffLL,                        /* 256m, 1000 */
     0x3fffffffLL,                       /* 1g,   1001 */
-    INVALID_MASK,                       /* RSVD, 1010 */
 };
+
+/*
+ * The page size is encoded as the position of the lowest set bit of
+ * PPD[9:0].  Bits outside that field belong to the cacheability and
+ * permission fields and must not take part in the decode.  An all-zero
+ * field denotes the smallest page, matching get_pgsize() in the reference
+ * simulator.
+ */
+#define PGSIZE_FIELD_MASK ((1 << NUM_PGSIZE_TYPES) - 1)
 
 static inline tlb_pgsize_t hex_tlb_pgsize_type(uint64_t entry)
 {
-    if (entry == 0) {
-        qemu_log_mask(CPU_LOG_MMU, "%s: Supplied TLB entry was 0!\n",
-                      __func__);
-        return 0;
+    uint32_t field = GET_PTE_PPD(entry) & PGSIZE_FIELD_MASK;
+
+    if (field == 0) {
+        return PGSIZE_4K;
     }
-    tlb_pgsize_t size = ctz64(entry);
-    g_assert(size < NUM_PGSIZE_TYPES);
-    return size;
+    return ctz32(field);
 }
 
 static inline uint64_t hex_tlb_page_size_bytes(uint64_t entry)
