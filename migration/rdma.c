@@ -3360,6 +3360,14 @@ int rdma_registration_handle(QEMUFile *f)
             reg_resp.repeat = head.repeat;
             registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
 
+            /* Making sure the register buffers to read are valid */
+            if (head.len != head.repeat * sizeof(RDMARegister)) {
+                error_report("%s: Invalid RDMA_CONTROL_REGISTER_REQUEST "
+                             "(head.repeat=%"PRIu32", head.len=%"PRIu32")",
+                             __func__, head.repeat, head.len);
+                goto err;
+            }
+
             for (int count = 0; count < head.repeat; count++) {
                 uint64_t chunk;
                 uint8_t *chunk_start, *chunk_end;
