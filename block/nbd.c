@@ -466,20 +466,19 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie,
             error_setg(errp, "server dropped connection");
         }
         if (ret < 0) {
-            nbd_channel_error(s, ret);
-            return ret;
+            goto err;
         }
         if (nbd_reply_is_structured(&s->reply) &&
             s->info.mode < NBD_MODE_STRUCTURED) {
-            nbd_channel_error(s, -EINVAL);
+            ret = -EINVAL;
             error_setg(errp, "unexpected structured reply");
-            return -EINVAL;
+            goto err;
         }
         ind2 = COOKIE_TO_INDEX(s->reply.cookie);
         if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].coroutine) {
-            nbd_channel_error(s, -EINVAL);
+            ret = -EINVAL;
             error_setg(errp, "unexpected cookie value");
-            return -EINVAL;
+            goto err;
         }
         if (s->reply.cookie == cookie) {
             /* We are done */
@@ -487,6 +486,13 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie,
         }
         nbd_recv_coroutine_wake_one(&s->requests[ind2]);
     }
+
+err:
+    /* Waiters look at this cookie, so do not leave a rejected one behind. */
+    s->reply.cookie = 0;
+    nbd_channel_error(s, ret);
+
+    return ret;
 }
 
 static int coroutine_fn GRAPH_RDLOCK
