@@ -631,7 +631,6 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
     if (dbus_call_scanout_dmabuf(ddl, dmabuf)) {
         ddl->scanout_dmabuf = NULL;
     }
-    qemu_dmabuf_close(dmabuf);
 #endif
 
 #ifdef WIN32

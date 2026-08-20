@@ -61,10 +61,18 @@ QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
 
 void qemu_dmabuf_free(QemuDmaBuf *dmabuf)
 {
+    int i;
+
     if (dmabuf == NULL) {
         return;
     }
 
+    for (i = 0; i < dmabuf->num_planes; i++) {
+        if (dmabuf->fd[i] >= 0) {
+            close(dmabuf->fd[i]);
+            dmabuf->fd[i] = -1;
+        }
+    }
     g_free(dmabuf);
 }
 
@@ -88,20 +96,6 @@ void qemu_dmabuf_dup_fds(QemuDmaBuf *dmabuf, int *fds, int nfds)
 
     for (i = 0; i < dmabuf->num_planes; i++) {
         fds[i] = dmabuf->fd[i] >= 0 ? dup(dmabuf->fd[i]) : -1;
-    }
-}
-
-void qemu_dmabuf_close(QemuDmaBuf *dmabuf)
-{
-    int i;
-
-    assert(dmabuf != NULL);
-
-    for (i = 0; i < dmabuf->num_planes; i++) {
-        if (dmabuf->fd[i] >= 0) {
-            close(dmabuf->fd[i]);
-            dmabuf->fd[i] = -1;
-        }
     }
 }
 
