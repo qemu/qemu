@@ -142,8 +142,6 @@ enum {
     RDMA_CONTROL_REGISTER_REQUEST,    /* dynamic page registration */
     RDMA_CONTROL_REGISTER_RESULT,     /* key to use after registration */
     RDMA_CONTROL_REGISTER_FINISHED,   /* current iteration finished */
-    RDMA_CONTROL_UNREGISTER_REQUEST,  /* dynamic UN-registration */
-    RDMA_CONTROL_UNREGISTER_FINISHED, /* unpinning finished */
     RDMA_CONTROL_NUM,
 };
 
@@ -232,8 +230,6 @@ static const char *control_desc(unsigned int rdma_control)
         [RDMA_CONTROL_REGISTER_REQUEST] = "REGISTER REQUEST",
         [RDMA_CONTROL_REGISTER_RESULT] = "REGISTER RESULT",
         [RDMA_CONTROL_REGISTER_FINISHED] = "REGISTER FINISHED",
-        [RDMA_CONTROL_UNREGISTER_REQUEST] = "UNREGISTER REQUEST",
-        [RDMA_CONTROL_UNREGISTER_FINISHED] = "UNREGISTER FINISHED",
     };
 
     if (rdma_control >= RDMA_CONTROL_NUM) {
@@ -369,9 +365,6 @@ typedef struct RDMAContext {
 
     int total_registrations;
     int total_writes;
-
-    int unregister_current, unregister_next;
-    uint64_t unregistrations[RDMA_SIGNALED_SEND_MAX];
 
     GHashTable *blockmap;
 
@@ -1184,91 +1177,6 @@ static int qemu_rdma_reg_control(RDMAContext *rdma, int idx)
         return 0;
     }
     return -1;
-}
-
-/*
- * Perform a non-optimized memory unregistration after every transfer
- * for demonstration purposes, only if pin-all is not requested.
- *
- * Potential optimizations:
- * 1. Start a new thread to run this function continuously
-        - for bit clearing
-        - and for receipt of unregister messages
- * 2. Use an LRU.
- * 3. Use workload hints.
- */
-static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
-{
-    Error *err = NULL;
-
-    while (rdma->unregistrations[rdma->unregister_current]) {
-        int ret;
-        uint64_t wr_id = rdma->unregistrations[rdma->unregister_current];
-        uint64_t chunk =
-            (wr_id & RDMA_WRID_CHUNK_MASK) >> RDMA_WRID_CHUNK_SHIFT;
-        uint64_t index =
-            (wr_id & RDMA_WRID_BLOCK_MASK) >> RDMA_WRID_BLOCK_SHIFT;
-        RDMALocalBlock *block =
-            &(rdma->local_ram_blocks.block[index]);
-        RDMARegister reg = { .current_index = index };
-        RDMAControlHeader resp = { .type = RDMA_CONTROL_UNREGISTER_FINISHED,
-                                 };
-        RDMAControlHeader head = { .len = sizeof(RDMARegister),
-                                   .type = RDMA_CONTROL_UNREGISTER_REQUEST,
-                                   .repeat = 1,
-                                 };
-
-        trace_qemu_rdma_unregister_waiting_proc(chunk,
-                                                rdma->unregister_current);
-
-        rdma->unregistrations[rdma->unregister_current] = 0;
-        rdma->unregister_current++;
-
-        if (rdma->unregister_current == RDMA_SIGNALED_SEND_MAX) {
-            rdma->unregister_current = 0;
-        }
-
-
-        /*
-         * Unregistration is speculative (because migration is single-threaded
-         * and we cannot break the protocol's inifinband message ordering).
-         * Thus, if the memory is currently being used for transmission,
-         * then abort the attempt to unregister and try again
-         * later the next time a completion is received for this memory.
-         */
-        clear_bit(chunk, block->unregister_bitmap);
-
-        if (test_bit(chunk, block->transit_bitmap)) {
-            trace_qemu_rdma_unregister_waiting_inflight(chunk);
-            continue;
-        }
-
-        trace_qemu_rdma_unregister_waiting_send(chunk);
-
-        ret = ibv_dereg_mr(block->pmr[chunk]);
-        block->pmr[chunk] = NULL;
-        block->remote_keys[chunk] = 0;
-
-        if (ret != 0) {
-            error_report("unregistration chunk failed: %s",
-                         strerror(ret));
-            return -1;
-        }
-        rdma->total_registrations--;
-
-        reg.key.chunk = chunk;
-        register_to_network(rdma, &reg);
-        ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                      &resp, NULL, NULL, &err);
-        if (ret < 0) {
-            error_report_err(err);
-            return -1;
-        }
-
-        trace_qemu_rdma_unregister_waiting_complete(chunk);
-    }
-
-    return 0;
 }
 
 static uint64_t qemu_rdma_make_wrid(uint64_t wr_id, uint64_t index,
@@ -2757,8 +2665,6 @@ static int qemu_rdma_drain_cq(RDMAContext *rdma)
         }
     }
 
-    qemu_rdma_unregister_waiting(rdma);
-
     return 0;
 }
 
@@ -3336,10 +3242,6 @@ int rdma_registration_handle(QEMUFile *f)
                                .type = RDMA_CONTROL_REGISTER_RESULT,
                                .repeat = 0,
                              };
-    RDMAControlHeader unreg_resp = { .len = 0,
-                               .type = RDMA_CONTROL_UNREGISTER_FINISHED,
-                               .repeat = 0,
-                             };
     RDMAControlHeader blocks = { .type = RDMA_CONTROL_RAM_BLOCKS_RESULT,
                                  .repeat = 1 };
     QIOChannelRDMA *rioc;
@@ -3551,41 +3453,6 @@ int rdma_registration_handle(QEMUFile *f)
 
             ret = qemu_rdma_post_send_control(rdma,
                             (uint8_t *) results, &reg_resp, &err);
-
-            if (ret < 0) {
-                error_report_err(err);
-                goto err;
-            }
-            break;
-        case RDMA_CONTROL_UNREGISTER_REQUEST:
-            trace_rdma_registration_handle_unregister(head.repeat);
-            unreg_resp.repeat = head.repeat;
-            registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
-
-            for (int count = 0; count < head.repeat; count++) {
-                reg = &registers[count];
-                network_to_register(reg);
-
-                trace_rdma_registration_handle_unregister_loop(count,
-                           reg->current_index, reg->key.chunk);
-
-                block = &(rdma->local_ram_blocks.block[reg->current_index]);
-
-                ret = ibv_dereg_mr(block->pmr[reg->key.chunk]);
-                block->pmr[reg->key.chunk] = NULL;
-
-                if (ret != 0) {
-                    error_report("rdma unregistration chunk failed: %s",
-                                 strerror(errno));
-                    goto err;
-                }
-
-                rdma->total_registrations--;
-
-                trace_rdma_registration_handle_unregister_success(reg->key.chunk);
-            }
-
-            ret = qemu_rdma_post_send_control(rdma, NULL, &unreg_resp, &err);
 
             if (ret < 0) {
                 error_report_err(err);
