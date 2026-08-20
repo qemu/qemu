@@ -198,7 +198,6 @@ typedef struct RDMALocalBlock {
     unsigned int   src_index;       /* (Only used on dest) */
     int            nb_chunks;
     unsigned long *transit_bitmap;
-    unsigned long *unregister_bitmap;
 } RDMALocalBlock;
 
 /*
@@ -577,8 +576,6 @@ static void rdma_add_block(RDMAContext *rdma, const char *block_name,
     block->nb_chunks = ram_chunk_index(host_addr, host_addr + length) + 1UL;
     block->transit_bitmap = bitmap_new(block->nb_chunks);
     bitmap_clear(block->transit_bitmap, 0, block->nb_chunks);
-    block->unregister_bitmap = bitmap_new(block->nb_chunks);
-    bitmap_clear(block->unregister_bitmap, 0, block->nb_chunks);
     block->remote_keys = g_new0(uint32_t, block->nb_chunks);
 
     if (rdma->blockmap) {
@@ -662,9 +659,6 @@ static void rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
 
     g_free(block->transit_bitmap);
     block->transit_bitmap = NULL;
-
-    g_free(block->unregister_bitmap);
-    block->unregister_bitmap = NULL;
 
     g_free(block->remote_keys);
     block->remote_keys = NULL;
