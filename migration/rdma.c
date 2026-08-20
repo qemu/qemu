@@ -144,6 +144,7 @@ enum {
     RDMA_CONTROL_REGISTER_FINISHED,   /* current iteration finished */
     RDMA_CONTROL_UNREGISTER_REQUEST,  /* dynamic UN-registration */
     RDMA_CONTROL_UNREGISTER_FINISHED, /* unpinning finished */
+    RDMA_CONTROL_NUM,
 };
 
 
@@ -235,7 +236,7 @@ static const char *control_desc(unsigned int rdma_control)
         [RDMA_CONTROL_UNREGISTER_FINISHED] = "UNREGISTER FINISHED",
     };
 
-    if (rdma_control > RDMA_CONTROL_UNREGISTER_FINISHED) {
+    if (rdma_control >= RDMA_CONTROL_NUM) {
         return "??BAD CONTROL VALUE??";
     }
 
