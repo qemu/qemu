@@ -68,6 +68,15 @@ static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
     }
     irq_num = FIELD_EX64(msg_addr, MSG_ADDR, IRQ_NUM);
 
+    if (kvm_irqchip_in_kernel()) {
+        MSIMessage msg;
+
+        msg.address = msg_addr;
+        msg.data = val;
+        kvm_irqchip_send_msi(kvm_state, msg);
+        return;
+    }
+
     async_run_on_cpu(cs, do_set_vcpu_dintc_irq,
                          RUN_ON_CPU_HOST_INT(irq_num));
     qemu_set_irq(s->cpu[cpu_num].parent_irq, 1);
@@ -108,6 +117,10 @@ static void loongarch_dintc_realize(DeviceState *dev, Error **errp)
         s->cpu[i].arch_id = id_list->cpus[i].arch_id;
         s->cpu[i].cpu = CPU(id_list->cpus[i].cpu);
         qdev_init_gpio_out(dev, &s->cpu[i].parent_irq, 1);
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        kvm_dintc_realize(dev, errp);
     }
 
     return;
