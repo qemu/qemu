@@ -13,6 +13,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/mshv.h"
+#include "system/whpx.h"
 #include "system/numa.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
@@ -182,8 +184,15 @@ void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg)
     uint64_t *val;
 
     cpu_x86_cpuid(env, 1, 0, &unused, &unused, &ecx, &edx);
-    if (ecx & CPUID_EXT_VMX) {
-        feature_control_bits |= FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
+
+    /*
+     * Hyper-V in 26100 disallows this bit to be set.
+     * Otherwise a #GP gets raised.
+     */
+    if (!(whpx_enabled())) {
+        if (ecx & CPUID_EXT_VMX) {
+            feature_control_bits |= FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
+        }
     }
 
     if ((edx & (CPUID_EXT2_MCE | CPUID_EXT2_MCA)) ==

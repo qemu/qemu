@@ -1,9 +1,5 @@
-_qom_rs = static_library(
-  'qom',
-  'src/lib.rs',
-  link_with: [_bql_rs, _migration_rs],
-  dependencies: [common_rs, glib_sys_rs, qemu_macros, qom_sys_rs],
-)
+_qom_rs = cargo_ws.package('qom').library()
+cargo_ws.package('qom').override_dependency(declare_dependency(link_with: _qom_rs))
 
 qom_rs = declare_dependency(link_with: [_qom_rs], dependencies: [qemu_macros, qom, qemuutil])
 

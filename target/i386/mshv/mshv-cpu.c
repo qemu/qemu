@@ -21,7 +21,6 @@
 #include "hw/hyperv/hvgdk.h"
 #include "hw/hyperv/hvgdk_mini.h"
 #include "hw/hyperv/hvhdk_mini.h"
-#include "hw/i386/apic_internal.h"
 
 #include "cpu.h"
 #include "host-cpu.h"
@@ -35,6 +34,11 @@
 #include "trace.h"
 
 #include <sys/ioctl.h>
+
+#define MSHV_MP_STATE_RUNNABLE       0
+#define MSHV_MP_STATE_UNINITIALIZED  1
+#define MSHV_MP_STATE_INIT_RECEIVED  2
+#define MSHV_MP_STATE_HALTED         3
 
 #define MAX_REGISTER_COUNT (MAX_CONST(ARRAY_SIZE(STANDARD_REGISTER_NAMES), \
                             MAX_CONST(ARRAY_SIZE(SPECIAL_REGISTER_NAMES), \
@@ -111,6 +115,39 @@ static enum hv_register_name FPU_REGISTER_NAMES[26] = {
 };
 
 static int set_special_regs(const CPUState *cpu);
+
+static int get_synic_state(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    int cpu_fd = mshv_vcpufd(cpu);
+    int ret;
+
+    ret = mshv_get_synthetic_timers(cpu_fd, env->hv_synthetic_timers_state);
+    if (ret < 0) {
+        error_report("failed to get synthetic timers");
+        return -1;
+    }
+
+    /* SIMP/SIEFP can only be read when SynIC is enabled */
+    if (!mshv_synic_enabled(cpu)) {
+        return 0;
+    }
+
+    ret = mshv_get_simp(cpu_fd, env->hv_simp_page);
+    if (ret < 0) {
+        error_report("failed to get simp state");
+        return -1;
+    }
+
+    ret = mshv_get_siefp(cpu_fd, env->hv_siefp_page);
+    if (ret < 0) {
+        error_report("failed to get siefp state");
+        return -1;
+    }
+
+    return 0;
+}
 
 static int get_xsave_state(CPUState *cpu)
 {
@@ -918,6 +955,76 @@ static int set_vcpu_events(const CPUState *cpu)
     return 0;
 }
 
+static int get_mp_state(CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    struct hv_register_assoc assoc = {
+        .name = HV_REGISTER_INTERNAL_ACTIVITY_STATE,
+    };
+    union hv_internal_activity_register activity;
+    int ret;
+
+    ret = mshv_get_generic_regs(cpu, &assoc, 1);
+    if (ret < 0) {
+        error_report("failed to get internal activity state");
+        return -1;
+    }
+
+    activity.as_uint64 = assoc.value.reg64;
+
+    /*
+     * map MSHV activity state to KVM mp_state values, which are used as the
+     * shared representation in env->mp_state and serialized by vmstate_x86_cpu.
+     */
+
+    if (activity.startup_suspend) {
+        env->mp_state = MSHV_MP_STATE_UNINITIALIZED;
+    } else if (activity.halt_suspend) {
+        env->mp_state = MSHV_MP_STATE_HALTED;
+    } else {
+        env->mp_state = MSHV_MP_STATE_RUNNABLE;
+    }
+
+    cpu->halted = (env->mp_state == MSHV_MP_STATE_HALTED);
+
+    return 0;
+}
+
+int mshv_arch_set_mp_state(const CPUState *cpu)
+{
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
+    union hv_internal_activity_register activity = { 0 };
+    struct hv_register_assoc assoc = {
+        .name = HV_REGISTER_INTERNAL_ACTIVITY_STATE,
+    };
+    int ret;
+
+    switch (env->mp_state) {
+    case MSHV_MP_STATE_HALTED:
+        activity.halt_suspend = 1;
+        break;
+    case MSHV_MP_STATE_UNINITIALIZED:
+    case MSHV_MP_STATE_INIT_RECEIVED:
+        activity.startup_suspend = 1;
+        break;
+    case MSHV_MP_STATE_RUNNABLE:
+    default:
+        break;
+    }
+
+    assoc.value.reg64 = activity.as_uint64;
+
+    ret = mshv_set_generic_regs(cpu, &assoc, 1);
+    if (ret < 0) {
+        error_report("failed to set internal activity state");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int update_hflags(CPUState *cpu)
 {
     X86CPU *x86cpu = X86_CPU(cpu);
@@ -950,7 +1057,12 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
         return ret;
     }
 
-    ret = get_fpu(cpu);
+    ret = get_xsave_state(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = mshv_get_lapic(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -960,12 +1072,22 @@ int mshv_arch_load_vcpu_state(CPUState *cpu)
         return ret;
     }
 
-    ret = get_xsave_state(cpu);
+    ret = get_fpu(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = get_synic_state(cpu);
     if (ret < 0) {
         return ret;
     }
 
     ret = get_vcpu_events(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = get_mp_state(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1377,114 +1499,37 @@ static int set_xc_reg(const CPUState *cpu)
     return 0;
 }
 
-static int get_vp_state(int cpu_fd, struct mshv_get_set_vp_state *state)
+static int set_synic_state(const CPUState *cpu)
 {
-    int ret;
-
-    ret = ioctl(cpu_fd, MSHV_GET_VP_STATE, state);
-    if (ret < 0) {
-        error_report("failed to get partition state: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int get_lapic(const CPUState *cpu,
-                     struct hv_local_interrupt_controller_state *state)
-{
-    int ret;
-    size_t size = 4096;
-    /* buffer aligned to 4k, as *state requires that */
-    void *buffer = qemu_memalign(size, size);
-    struct mshv_get_set_vp_state mshv_state = { 0 };
+    X86CPU *x86cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86cpu->env;
     int cpu_fd = mshv_vcpufd(cpu);
+    int ret;
 
-    mshv_state.buf_ptr = (uint64_t) buffer;
-    mshv_state.buf_sz = size;
-    mshv_state.type = MSHV_VP_STATE_LAPIC;
-
-    ret = get_vp_state(cpu_fd, &mshv_state);
-    if (ret == 0) {
-        memcpy(state, buffer, sizeof(*state));
-    }
-    qemu_vfree(buffer);
+    ret = mshv_set_synthetic_timers(cpu_fd, env->hv_synthetic_timers_state);
     if (ret < 0) {
-        error_report("failed to get lapic");
+        error_report("failed to set synthetic timers state");
+        return -1;
+    }
+
+    /* SIMP/SIEFP can only be written when SynIC is enabled */
+    if (!mshv_synic_enabled(cpu)) {
+        return 0;
+    }
+
+    ret = mshv_set_simp(cpu_fd, env->hv_simp_page);
+    if (ret < 0) {
+        error_report("failed to set simp state");
+        return -1;
+    }
+
+    ret = mshv_set_siefp(cpu_fd, env->hv_siefp_page);
+    if (ret < 0) {
+        error_report("failed to set siefp state");
         return -1;
     }
 
     return 0;
-}
-
-static uint32_t set_apic_delivery_mode(uint32_t reg, uint32_t mode)
-{
-    return ((reg) & ~0x700) | ((mode) << 8);
-}
-
-static int set_vp_state(int cpu_fd, const struct mshv_get_set_vp_state *state)
-{
-    int ret;
-
-    ret = ioctl(cpu_fd, MSHV_SET_VP_STATE, state);
-    if (ret < 0) {
-        error_report("failed to set partition state: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int set_lapic(const CPUState *cpu,
-                     const struct hv_local_interrupt_controller_state *state)
-{
-    int ret;
-    size_t size = 4096;
-    /* buffer aligned to 4k, as *state requires that */
-    void *buffer = qemu_memalign(size, size);
-    struct mshv_get_set_vp_state mshv_state = { 0 };
-    int cpu_fd = mshv_vcpufd(cpu);
-
-    if (!state) {
-        error_report("lapic state is NULL");
-        return -1;
-    }
-    memcpy(buffer, state, sizeof(*state));
-
-    mshv_state.buf_ptr = (uint64_t) buffer;
-    mshv_state.buf_sz = size;
-    mshv_state.type = MSHV_VP_STATE_LAPIC;
-
-    ret = set_vp_state(cpu_fd, &mshv_state);
-    qemu_vfree(buffer);
-    if (ret < 0) {
-        error_report("failed to set lapic: %s", strerror(errno));
-        return -1;
-    }
-
-    return 0;
-}
-
-static int init_lint(const CPUState *cpu)
-{
-    int ret;
-    uint32_t *lvt_lint0, *lvt_lint1;
-
-    struct hv_local_interrupt_controller_state lapic_state = { 0 };
-    ret = get_lapic(cpu, &lapic_state);
-    if (ret < 0) {
-        return ret;
-    }
-
-    lvt_lint0 = &lapic_state.apic_lvt_lint0;
-    *lvt_lint0 = set_apic_delivery_mode(*lvt_lint0, APIC_DM_EXTINT);
-
-    lvt_lint1 = &lapic_state.apic_lvt_lint1;
-    *lvt_lint1 = set_apic_delivery_mode(*lvt_lint1, APIC_DM_NMI);
-
-    /* TODO: should we skip setting lapic if the values are the same? */
-
-    return set_lapic(cpu, &lapic_state);
 }
 
 int mshv_arch_store_vcpu_state(const CPUState *cpu)
@@ -1506,7 +1551,13 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
-    ret = set_fpu(cpu);
+    ret = set_xsave_state(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* INVARIANT: special regs (APIC_BASE) must be restored before LAPIC */
+    ret = mshv_set_lapic(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1516,7 +1567,13 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
         return ret;
     }
 
-    ret = set_xsave_state(cpu);
+    /* INVARIANT: legacy FPU state must be restored after XSAVE */
+    ret = set_fpu(cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = set_synic_state(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1527,6 +1584,21 @@ int mshv_arch_store_vcpu_state(const CPUState *cpu)
     }
 
     return 0;
+}
+
+int mshv_arch_set_partition_msrs(const CPUState *cpu)
+{
+    CPUX86State *env = &X86_CPU(cpu)->env;
+    struct hv_register_assoc assocs[] = {
+        { .name = HV_REGISTER_GUEST_OS_ID,
+          .value.reg64 = env->msr_hv_guest_os_id },
+        { .name = HV_REGISTER_REFERENCE_TSC,
+          .value.reg64 = env->msr_hv_tsc },
+        { .name = HV_X64_REGISTER_HYPERCALL,
+          .value.reg64 = env->msr_hv_hypercall },
+    };
+
+    return mshv_set_generic_regs(cpu, assocs, ARRAY_SIZE(assocs));
 }
 
 void mshv_arch_amend_proc_features(
@@ -2099,7 +2171,7 @@ void mshv_arch_init_vcpu(CPUState *cpu)
     ret = mshv_init_msrs(cpu);
     assert(ret == 0);
 
-    ret = init_lint(cpu);
+    ret = mshv_init_lint(cpu);
     assert(ret == 0);
 }
 
@@ -2155,6 +2227,22 @@ uint32_t mshv_get_supported_cpuid(uint32_t func, uint32_t idx, int reg)
          * walk in x86_mmu.c works w/ 5-level paging.
          */
         ret &= ~CPUID_7_0_ECX_LA57;
+    }
+    if (func == 0x07 && idx == 0 && reg == R_EDX) {
+        /*
+         * AMX TILE XSAVE state (XTILE_DATA) is 8KB, which exceeds the
+         * current fixed 4KB XSAVE buffer size. Filter until buffer
+         * sizing is computed dynamically from CPUID.
+         */
+        ret &= ~CPUID_7_0_EDX_AMX_TILE;
+        ret &= ~CPUID_7_0_EDX_AMX_BF16;
+        ret &= ~CPUID_7_0_EDX_AMX_INT8;
+    }
+    if (func == 0x07 && idx == 1 && reg == R_EAX) {
+        ret &= ~CPUID_7_1_EAX_AMX_FP16;
+    }
+    if (func == 0x07 && idx == 1 && reg == R_EDX) {
+        ret &= ~CPUID_7_1_EDX_AMX_COMPLEX;
     }
 
     return ret;
@@ -2228,6 +2316,33 @@ static void mshv_cpu_xsave_init(void)
             esa->ecx = ecx;
         }
     }
+}
+
+int mshv_set_vp_state(int cpu_fd, const struct mshv_get_set_vp_state *state)
+{
+    int ret;
+
+    ret = ioctl(cpu_fd, MSHV_SET_VP_STATE, state);
+    if (ret < 0) {
+        error_report("failed to set partition state: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int mshv_get_vp_state(int cpu_fd, struct mshv_get_set_vp_state *state)
+{
+    int ret;
+
+    ret = ioctl(cpu_fd, MSHV_GET_VP_STATE, state);
+    if (ret < 0) {
+        error_report("failed to get partition state: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
 }
 
 static void mshv_cpu_instance_init(CPUState *cs)

@@ -1,8 +1,5 @@
-_bits_rs = static_library(
-  'bits',
-  'src/lib.rs',
-  dependencies: [qemu_macros],
-)
+_bits_rs = cargo_ws.package('bits').library()
+cargo_ws.package('bits').override_dependency(declare_dependency(link_with: _bits_rs))
 
 bits_rs = declare_dependency(link_with: _bits_rs)
 

@@ -60,6 +60,8 @@ static const MshvMsrEnvMap msr_env_map[] = {
                              offsetof(CPUX86State, tsc_aux) },
     { IA32_MSR_TSC_ADJUST,   HV_X64_REGISTER_TSC_ADJUST,
                              offsetof(CPUX86State, tsc_adjust) },
+    { IA32_MSR_TSC_DEADLINE, HV_X64_REGISTER_TSC_DEADLINE,
+                             offsetof(CPUX86State, tsc_deadline) },
 
     /* Hyper-V per-partition MSRs */
     { HV_X64_MSR_HYPERCALL,     HV_X64_REGISTER_HYPERCALL,
@@ -329,6 +331,7 @@ int mshv_get_msrs(CPUState *cpu)
     struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT];
     size_t i, j;
     uint32_t name;
+    X86CPU *x86cpu = X86_CPU(cpu);
 
     set_hv_name_in_assocs(assocs, n_assocs);
 
@@ -354,6 +357,26 @@ int mshv_get_msrs(CPUState *cpu)
     }
 
     store_in_env(cpu, assocs, n_assocs);
+
+    /* Read SINT MSRs only if SynIC is enabled */
+    if (mshv_synic_enabled(cpu)) {
+        QEMU_BUILD_BUG_ON(MSHV_MSR_TOTAL_COUNT < HV_SINT_COUNT);
+
+        for (i = 0; i < HV_SINT_COUNT; i++) {
+            assocs[i].name = HV_REGISTER_SINT0 + i;
+        }
+
+        ret = mshv_get_generic_regs(cpu, assocs, HV_SINT_COUNT);
+        if (ret < 0) {
+            error_report("Failed to get SynIC SINT MSRs");
+            return -errno;
+        }
+
+        for (i = 0; i < HV_SINT_COUNT; i++) {
+            uint64_t hv_sint_value = assocs[i].value.reg64;
+            x86cpu->env.msr_hv_synic_sint[i] = hv_sint_value;
+        }
+    }
 
     return 0;
 }
@@ -389,6 +412,7 @@ int mshv_set_msrs(const CPUState *cpu)
     struct hv_register_assoc assocs[MSHV_MSR_TOTAL_COUNT];
     int ret;
     size_t i, j;
+    X86CPU *x86cpu = X86_CPU(cpu);
 
     load_from_env(cpu, assocs, n_assocs);
 
@@ -419,6 +443,22 @@ int mshv_set_msrs(const CPUState *cpu)
     if (ret < 0) {
         error_report("Failed to set MSRs");
         return -errno;
+    }
+
+    /* SINT MSRs can only be written if SCONTROL has been set, so we split */
+    if (mshv_synic_enabled(cpu)) {
+        QEMU_BUILD_BUG_ON(MSHV_MSR_TOTAL_COUNT < HV_SINT_COUNT);
+
+        for (i = 0; i < HV_SINT_COUNT; i++) {
+            assocs[i].name        = HV_REGISTER_SINT0 + i;
+            assocs[i].value.reg64 = x86cpu->env.msr_hv_synic_sint[i];
+        }
+
+        ret = mshv_set_generic_regs(cpu, assocs, HV_SINT_COUNT);
+        if (ret < 0) {
+            error_report("Failed to set SynIC SINT MSRs");
+            return -errno;
+        }
     }
 
     return 0;

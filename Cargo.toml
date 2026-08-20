@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "hw/char/pl011",
-    "hw/timer/hpet",
-    "tests",
+    "rust/hw/char/pl011",
+    "rust/hw/timer/hpet",
+    "rust/tests",
 ]
 
 [workspace.package]
@@ -101,5 +101,6 @@ used_underscore_binding = "deny"
 #wildcard_imports = "deny"   # still have many bindings::* imports
 
 # these may have false positives
+enum_variant_names = "allow"
 #option_if_let_else = "deny"
 cognitive_complexity = "deny"

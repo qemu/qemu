@@ -1,13 +1,5 @@
-_qemu_macros_rs = rust.proc_macro(
-  'qemu_macros',
-  files('src/lib.rs'),
-  dependencies: [
-    attrs_rs_native,
-    proc_macro2_rs_native,
-    quote_rs_native,
-    syn_rs_native,
-  ],
-)
+_qemu_macros_rs = cargo_ws.package('qemu_macros').proc_macro()
+cargo_ws.package('qemu_macros').override_dependency(declare_dependency(link_with: _qemu_macros_rs))
 
 qemu_macros = declare_dependency(
   link_with: _qemu_macros_rs,

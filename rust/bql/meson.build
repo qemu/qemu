@@ -1,17 +1,10 @@
-_bql_cfg = run_command(rustc_args,
-  '--config-headers', config_host_h, '--features', files('Cargo.toml'),
-  capture: true, check: true).stdout().strip().splitlines()
-
+_bql_cfg = []
 if get_option('debug_mutex')
   _bql_cfg += ['--cfg', 'feature="debug_cell"']
 endif
 
-_bql_rs = static_library(
-  'bql',
-  'src/lib.rs',
-  rust_args: _bql_cfg,
-  dependencies: [glib_sys_rs, util_sys_rs],
-)
+_bql_rs = cargo_ws.package('bql').library(rust_args: _bql_cfg)
+cargo_ws.package('bql').override_dependency(declare_dependency(link_with: _bql_rs))
 
 bql_rs = declare_dependency(link_with: [_bql_rs],
   dependencies: [qemuutil])

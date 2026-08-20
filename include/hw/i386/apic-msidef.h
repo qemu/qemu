@@ -13,6 +13,7 @@
 #define  MSI_DATA_VECTOR_MASK           0x000000ff
 
 #define MSI_DATA_DELIVERY_MODE_SHIFT    8
+#define MSI_DATA_DELIVERY_MODE_MASK     7
 #define MSI_DATA_LEVEL_SHIFT            14
 #define MSI_DATA_TRIGGER_SHIFT          15
 

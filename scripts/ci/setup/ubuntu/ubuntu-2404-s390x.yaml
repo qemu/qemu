@@ -104,9 +104,6 @@ packages:
   - openssh-client
   - pkgconf
   - python3
-  - python3-numpy
-  - python3-opencv
-  - python3-pillow
   - python3-pip
   - python3-setuptools
   - python3-sphinx
@@ -114,7 +111,6 @@ packages:
   - python3-tomli
   - python3-venv
   - python3-wheel
-  - python3-yaml
   - rpm2cpio
   - rustc-1.83
   - sed

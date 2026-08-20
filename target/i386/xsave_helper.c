@@ -332,7 +332,7 @@ int decompact_xsave_area(const void *buf, size_t buflen, CPUX86State *env)
     size_t i;
     uint32_t eax, ebx, ecx, edx;
     uint32_t size, dst_off;
-    bool align64;
+    bool align64, supervisor;
     uint64_t guest_xcr0, *xstate_bv;
 
     compacted_xstate_bv = *(uint64_t *)(buf + XSAVE_XSTATE_BV_OFFSET);
@@ -382,7 +382,8 @@ int decompact_xsave_area(const void *buf, size_t buflen, CPUX86State *env)
 
         size = eax;
         dst_off = ebx;
-        align64 = (ecx & (1u << 1)) != 0;
+        align64 = (ecx & ESA_FEATURE_ALIGN64_MASK) != 0;
+        supervisor = (ecx & ESA_FEATURE_XSS_MASK) != 0;
 
         /* Component is in the layout but unknown to the guest CPUID model */
         if (size == 0) {
@@ -393,7 +394,7 @@ int decompact_xsave_area(const void *buf, size_t buflen, CPUX86State *env)
              */
             host_cpuid(0xD, i, &eax, &ebx, &ecx, &edx);
             size = eax;
-            align64 = (ecx & (1u << 1)) != 0;
+            align64 = (ecx & ESA_FEATURE_ALIGN64_MASK) != 0;
             if (size == 0) {
                 error_report("xsave component %zu: size unknown to both "
                              "guest and host CPUID", i);
@@ -433,8 +434,14 @@ int decompact_xsave_area(const void *buf, size_t buflen, CPUX86State *env)
             return -E2BIG;
         }
 
-        /* Copy components marked present in XSTATE_BV to guest model */
-        if (((compacted_xstate_bv >> i) & 1) != 0) {
+        /*
+         * Copy components marked present in XSTATE_BV to guest model.
+         *
+         * NB: Supervisor state is skipped b/c there is no slot in the
+         * standard format XSAVE buffer (CET state is migrated via MSRs,
+         * others supervisor state isn't migrated).
+         */
+        if (((compacted_xstate_bv >> i) & 1) != 0 && !supervisor) {
             memcpy(env->xsave_buf + dst_off, buf + xsave_offset, size);
         }
 
@@ -523,7 +530,7 @@ int compact_xsave_area(CPUX86State *env, void *buf, size_t buflen)
         host_cpuid(0xD, i, &eax, &ebx, &ecx, &edx);
         size = eax;
         src_off = ebx;
-        align64 = (ecx >> 1) & 1;
+        align64 = (ecx & ESA_FEATURE_ALIGN64_MASK) != 0;
 
         if (size == 0) {
             /* Component in host xcr0 but unknown - shouldn't happen */

@@ -603,23 +603,33 @@ static void decode_0F77(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
 
 static void decode_0F78(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
-    static const X86OpEntry opcodes_0F78[4] = {
-        {},
-        X86_OP_ENTRY3(EXTRQ_i,       V,x, None,None, I,w,  cpuid(SSE4A)), /* AMD extension */
-        {},
-        X86_OP_ENTRY3(INSERTQ_i,     V,x, U,x, I,w,        cpuid(SSE4A)), /* AMD extension */
-    };
-    *entry = *decode_by_prefix(s, opcodes_0F78);
+    static const X86OpEntry opcodes_0F78_f2 =
+        X86_OP_ENTRY3(INSERTQ_i,     V,x, U,x, I,w,        cpuid(SSE4A)); /* AMD extension */
+    static const X86OpEntry opcodes_0F78_66 =
+        X86_OP_ENTRY3(EXTRQ_i,       U,x, None,None, I,w,  cpuid(SSE4A)); /* AMD extension */
+
+    entry->gen = NULL;
+    if (s->prefix & PREFIX_REPNZ) {
+        *entry = opcodes_0F78_f2;
+    } else if (s->prefix & PREFIX_REPZ) {
+        /* undefined */
+    } else if (s->prefix & PREFIX_DATA) {
+        int op = (get_modrm(s, env) >> 3) & 7;
+        if (op == 0) {
+            *entry = opcodes_0F78_66;
+        }
+    }
 }
 
 static void decode_0F79(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
 {
+    entry->gen = NULL;
     if (s->prefix & PREFIX_REPNZ) {
         entry->gen = gen_INSERTQ_r; /* AMD extension */
+    } else if (s->prefix & PREFIX_REPZ) {
+        /* undefined */
     } else if (s->prefix & PREFIX_DATA) {
         entry->gen = gen_EXTRQ_r; /* AMD extension */
-    } else {
-        entry->gen = NULL;
     };
 }
 
@@ -1614,6 +1624,7 @@ static void decode_group3(DisasContext *s, CPUX86State *env, X86OpEntry *entry, 
     static const X86OpEntry opcodes_grp3[16] = {
         /* 0xf6 */
         [0x00] = X86_OP_ENTRYrr(AND, E,b, I,b),
+        [0x01] = X86_OP_ENTRYrr(AND, E,b, I,b),
         [0x02] = X86_OP_ENTRY1(NOT,  E,b,      lock),
         [0x03] = X86_OP_ENTRY1(NEG,  E,b,      lock),
         [0x04] = X86_OP_ENTRYrr(MUL, E,b, 0,b, zextT0),
@@ -1623,6 +1634,7 @@ static void decode_group3(DisasContext *s, CPUX86State *env, X86OpEntry *entry, 
 
         /* 0xf7 */
         [0x08] = X86_OP_ENTRYrr(AND, E,v, I,z),
+        [0x09] = X86_OP_ENTRYrr(AND, E,v, I,z),
         [0x0a] = X86_OP_ENTRY1(NOT,  E,v,      lock),
         [0x0b] = X86_OP_ENTRY1(NEG,  E,v,      lock),
         [0x0c] = X86_OP_ENTRYrr(MUL, E,v, 0,v, zextT0),
@@ -2806,16 +2818,24 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         s->prefix |= PREFIX_LOCK;
         goto next_byte;
     case 0x2e:
-        s->override = R_CS;
+        if (!CODE64(s)) {
+            s->override = R_CS;
+        }
         goto next_byte;
     case 0x36:
-        s->override = R_SS;
+        if (!CODE64(s)) {
+            s->override = R_SS;
+        }
         goto next_byte;
     case 0x3e:
-        s->override = R_DS;
+        if (!CODE64(s)) {
+            s->override = R_DS;
+        }
         goto next_byte;
     case 0x26:
-        s->override = R_ES;
+        if (!CODE64(s)) {
+            s->override = R_ES;
+        }
         goto next_byte;
     case 0x64:
         s->override = R_FS;
