@@ -3198,6 +3198,28 @@ static int dest_ram_sort_func(const void *a, const void *b)
     return (a_index < b_index) ? -1 : (a_index != b_index);
 }
 
+static bool rdma_compress_range_check(RDMALocalBlock *block,
+                                      RDMACompress *comp)
+{
+    uint64_t block_end = block->offset + block->length;
+    uint64_t comp_end;
+
+    if (uadd64_overflow(comp->offset, comp->length, &comp_end)) {
+        goto fail;
+    }
+
+    if (comp->offset < block->offset || comp_end > block_end) {
+        goto fail;
+    }
+
+    return true;
+fail:
+    error_report("%s: compress request range outside range"
+                 " (block=%s, offset=%"PRIu64", length=%"PRIu64")",
+                 __func__, block->block_name, comp->offset, comp->length);
+    return false;
+}
+
 /*
  * During each iteration of the migration, we listen for instructions
  * by the source VM to perform dynamic page registrations before they
@@ -3277,7 +3299,9 @@ int rdma_registration_handle(QEMUFile *f)
                 goto err;
             }
             block = &(rdma->local_ram_blocks.block[comp->block_idx]);
-
+            if (!rdma_compress_range_check(block, comp)) {
+                goto err;
+            }
             host_addr = block->local_host_addr +
                             (comp->offset - block->offset);
             if (comp->value) {
