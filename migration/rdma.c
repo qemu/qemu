@@ -196,7 +196,6 @@ typedef struct RDMALocalBlock {
     uint32_t       remote_rkey;     /* rkeys for non-chunk-level registration */
     int            index;           /* which block are we */
     unsigned int   src_index;       /* (Only used on dest) */
-    bool           is_ram_block;
     int            nb_chunks;
     unsigned long *transit_bitmap;
     unsigned long *unregister_bitmap;
@@ -279,7 +278,6 @@ static void network_to_dest_block(RDMADestBlock *db)
  */
 typedef struct RDMALocalBlocks {
     int nb_blocks;
-    bool     init;             /* main memory init complete */
     RDMALocalBlock *block;
 } RDMALocalBlocks;
 
@@ -441,14 +439,12 @@ static void register_to_network(RDMAContext *rdma, RDMARegister *reg)
     RDMALocalBlock *local_block;
     local_block  = &rdma->local_ram_blocks.block[reg->current_index];
 
-    if (local_block->is_ram_block) {
-        /*
-         * current_addr as passed in is an address in the local ram_addr_t
-         * space, we need to translate this for the destination
-         */
-        reg->key.current_addr -= local_block->offset;
-        reg->key.current_addr += rdma->dest_blocks[reg->current_index].offset;
-    }
+    /*
+     * current_addr as passed in is an address in the local ram_addr_t
+     * space, we need to translate this for the destination
+     */
+    reg->key.current_addr -= local_block->offset;
+    reg->key.current_addr += rdma->dest_blocks[reg->current_index].offset;
     reg->key.current_addr = htonll(reg->key.current_addr);
     reg->current_index = htonl(reg->current_index);
     reg->chunks = htonll(reg->chunks);
@@ -585,8 +581,6 @@ static void rdma_add_block(RDMAContext *rdma, const char *block_name,
     bitmap_clear(block->unregister_bitmap, 0, block->nb_chunks);
     block->remote_keys = g_new0(uint32_t, block->nb_chunks);
 
-    block->is_ram_block = local->init ? false : true;
-
     if (rdma->blockmap) {
         g_hash_table_insert(rdma->blockmap, (void *)(uintptr_t)block_offset, block);
     }
@@ -634,7 +628,6 @@ static void qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     trace_rdma_init_ram_blocks(local->nb_blocks);
     rdma->dest_blocks = g_new0(RDMADestBlock,
                                rdma->local_ram_blocks.nb_blocks);
-    local->init = true;
 }
 
 /*
@@ -1767,19 +1760,10 @@ retry:
     chunk = ram_chunk_index(block->local_host_addr,
                             (uint8_t *)(uintptr_t)sge.addr);
     chunk_start = ram_chunk_start(block, chunk);
+    chunks = length / chunk_size;
 
-    if (block->is_ram_block) {
-        chunks = length / chunk_size;
-
-        if (chunks && ((length % chunk_size) == 0)) {
-            chunks--;
-        }
-    } else {
-        chunks = block->length / chunk_size;
-
-        if (chunks && ((block->length % chunk_size) == 0)) {
-            chunks--;
-        }
+    if (chunks && ((length % chunk_size) == 0)) {
+        chunks--;
     }
 
     trace_rdma_write_one_top(chunks + 1,
@@ -1804,7 +1788,7 @@ retry:
         }
     }
 
-    if (!rdma->pin_all || !block->is_ram_block) {
+    if (!rdma->pin_all) {
         if (!block->remote_keys[chunk]) {
             /*
              * This chunk has not yet been registered, so first check to see
@@ -1853,11 +1837,7 @@ retry:
              * Otherwise, tell other side to register.
              */
             reg.current_index = current_index;
-            if (block->is_ram_block) {
-                reg.key.current_addr = current_addr;
-            } else {
-                reg.key.chunk = chunk;
-            }
+            reg.key.current_addr = current_addr;
             reg.chunks = chunks;
 
             trace_rdma_write_one_sendreg(chunk, sge.length, current_index,
@@ -3408,30 +3388,17 @@ int rdma_registration_handle(QEMUFile *f)
                     goto err;
                 }
                 block = &(rdma->local_ram_blocks.block[reg->current_index]);
-                if (block->is_ram_block) {
-                    if (block->offset > reg->key.current_addr) {
-                        error_report("rdma: bad register address for block %s"
-                            " offset: %" PRIx64 " current_addr: %" PRIx64,
-                            block->block_name, block->offset,
-                            reg->key.current_addr);
-                        goto err;
-                    }
-                    host_addr = (block->local_host_addr +
-                                (reg->key.current_addr - block->offset));
-                    chunk = ram_chunk_index(block->local_host_addr,
-                                            (uint8_t *) host_addr);
-                } else {
-                    chunk = reg->key.chunk;
-                    host_addr = block->local_host_addr +
-                        (reg->key.chunk * migrate_rdma_chunk_size());
-                    /* Check for particularly bad chunk value */
-                    if (host_addr < (void *)block->local_host_addr) {
-                        error_report("rdma: bad chunk for block %s"
-                            " chunk: %" PRIx64,
-                            block->block_name, reg->key.chunk);
-                        goto err;
-                    }
+                if (block->offset > reg->key.current_addr) {
+                    error_report("rdma: bad register address for block %s"
+                        " offset: %" PRIx64 " current_addr: %" PRIx64,
+                        block->block_name, block->offset,
+                        reg->key.current_addr);
+                    goto err;
                 }
+                host_addr = (block->local_host_addr +
+                            (reg->key.current_addr - block->offset));
+                chunk = ram_chunk_index(block->local_host_addr,
+                                        (uint8_t *) host_addr);
                 chunk_start = ram_chunk_start(block, chunk);
                 chunk_end = ram_chunk_end(block, chunk + reg->chunks);
                 /* avoid "-Waddress-of-packed-member" warning */
