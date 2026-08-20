@@ -418,19 +418,30 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
+static void virtio_gpu_release_scanout_dmabuf(VirtIOGPU *g, int scanout_id)
+{
+    struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
+    g_autoptr(QemuDmaBuf) dmabuf = scanout->dmabuf;
+
+    if (!dmabuf) {
+        return;
+    }
+
+    scanout->dmabuf = NULL;
+    qemu_console_gl_release_dmabuf(scanout->con, dmabuf);
+}
+
 void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
 {
     struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
     struct virtio_gpu_simple_resource *res;
 
-    if (scanout->resource_id == 0) {
-        return;
-    }
-
     res = virtio_gpu_find_resource(g, scanout->resource_id);
     if (res) {
         res->scanout_bitmask &= ~(1 << scanout_id);
     }
+
+    virtio_gpu_release_scanout_dmabuf(g, scanout_id);
 
     qemu_console_set_surface(scanout->con, NULL);
     scanout->resource_id = 0;
