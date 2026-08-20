@@ -160,30 +160,19 @@ bool virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
     return true;
 }
 
-static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
-{
-    struct virtio_gpu_scanout *scanout;
-
-    scanout = &g->parent_obj.scanout[dmabuf->scanout_id];
-    qemu_console_gl_release_dmabuf(scanout->con, dmabuf->buf);
-    g_clear_pointer(&dmabuf->buf, qemu_dmabuf_free);
-    QTAILQ_REMOVE(&g->dmabuf.bufs, dmabuf, next);
-    g_free(dmabuf);
-}
-
 void virtio_gpu_fini_udmabuf(VirtIOGPU *g, struct virtio_gpu_simple_resource *res)
 {
     int max_outputs = g->parent_obj.conf.max_outputs;
     int i;
 
     for (i = 0; i < max_outputs; i++) {
-        VGPUDMABuf *dmabuf = g->dmabuf.primary[i];
+        struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[i];
 
-        if (dmabuf &&
-            qemu_dmabuf_get_num_planes(dmabuf->buf) > 0 &&
-            qemu_dmabuf_get_fds(dmabuf->buf, NULL)[0] == res->dmabuf_fd &&
+        if (scanout->dmabuf &&
+            qemu_dmabuf_get_num_planes(scanout->dmabuf) > 0 &&
+            qemu_dmabuf_get_fds(scanout->dmabuf, NULL)[0] == res->dmabuf_fd &&
             res->dmabuf_fd != -1) {
-            qemu_dmabuf_close(dmabuf->buf);
+            qemu_dmabuf_close(scanout->dmabuf);
             res->dmabuf_fd = -1;
             res->share_handle = SHAREABLE_NONE;
         }
@@ -192,31 +181,23 @@ void virtio_gpu_fini_udmabuf(VirtIOGPU *g, struct virtio_gpu_simple_resource *re
     virtio_gpu_destroy_udmabuf(res);
 }
 
-static VGPUDMABuf
-*virtio_gpu_create_dmabuf(VirtIOGPU *g,
-                          uint32_t scanout_id,
-                          struct virtio_gpu_simple_resource *res,
-                          struct virtio_gpu_framebuffer *fb,
-                          struct virtio_gpu_rect *r)
+static QemuDmaBuf *
+virtio_gpu_create_dmabuf(struct virtio_gpu_simple_resource *res,
+                         struct virtio_gpu_framebuffer *fb,
+                         struct virtio_gpu_rect *r)
 {
-    VGPUDMABuf *dmabuf;
     uint32_t offset = 0;
 
     if (res->dmabuf_fd < 0) {
         return NULL;
     }
 
-    dmabuf = g_new0(VGPUDMABuf, 1);
-    dmabuf->buf = qemu_dmabuf_new(r->width, r->height,
-                                  &offset, &fb->stride,
-                                  r->x, r->y, fb->width, fb->height,
-                                  qemu_pixman_to_drm_format(fb->format),
-                                  DRM_FORMAT_MOD_INVALID, &res->dmabuf_fd,
-                                  1, true, false);
-    dmabuf->scanout_id = scanout_id;
-    QTAILQ_INSERT_HEAD(&g->dmabuf.bufs, dmabuf, next);
-
-    return dmabuf;
+    return qemu_dmabuf_new(r->width, r->height,
+                           &offset, &fb->stride,
+                           r->x, r->y, fb->width, fb->height,
+                           qemu_pixman_to_drm_format(fb->format),
+                           DRM_FORMAT_MOD_INVALID, &res->dmabuf_fd,
+                           1, true, false);
 }
 
 int virtio_gpu_update_dmabuf(VirtIOGPU *g,
@@ -226,26 +207,25 @@ int virtio_gpu_update_dmabuf(VirtIOGPU *g,
                              struct virtio_gpu_rect *r)
 {
     struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
-    VGPUDMABuf *new_primary, *old_primary = NULL;
+    QemuDmaBuf *new_primary, *old_primary;
     uint32_t width, height;
 
-    new_primary = virtio_gpu_create_dmabuf(g, scanout_id, res, fb, r);
+    new_primary = virtio_gpu_create_dmabuf(res, fb, r);
     if (!new_primary) {
         return -EINVAL;
     }
 
-    if (g->dmabuf.primary[scanout_id]) {
-        old_primary = g->dmabuf.primary[scanout_id];
-    }
+    old_primary = scanout->dmabuf;
 
-    width = qemu_dmabuf_get_width(new_primary->buf);
-    height = qemu_dmabuf_get_height(new_primary->buf);
-    g->dmabuf.primary[scanout_id] = new_primary;
+    width = qemu_dmabuf_get_width(new_primary);
+    height = qemu_dmabuf_get_height(new_primary);
+    scanout->dmabuf = new_primary;
     qemu_console_resize(scanout->con, width, height);
-    qemu_console_gl_scanout_dmabuf(scanout->con, new_primary->buf);
+    qemu_console_gl_scanout_dmabuf(scanout->con, new_primary);
 
     if (old_primary) {
-        virtio_gpu_free_dmabuf(g, old_primary);
+        qemu_console_gl_release_dmabuf(scanout->con, old_primary);
+        qemu_dmabuf_free(old_primary);
     }
 
     return 0;

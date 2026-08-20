@@ -85,6 +85,7 @@ struct virtio_gpu_framebuffer {
 struct virtio_gpu_scanout {
     QemuConsole *con;
     DisplaySurface *ds;
+    QemuDmaBuf *dmabuf;
     uint32_t width, height;
     int x, y;
     int invalidate;
@@ -189,12 +190,6 @@ struct VirtIOGPUBaseClass {
     DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1280), \
     DEFINE_PROP_UINT32("yres", _state, _conf.yres, 800)
 
-typedef struct VGPUDMABuf {
-    QemuDmaBuf *buf;
-    uint32_t scanout_id;
-    QTAILQ_ENTRY(VGPUDMABuf) next;
-} VGPUDMABuf;
-
 struct VirtIOGPU {
     VirtIOGPUBase parent_obj;
 
@@ -225,11 +220,6 @@ struct VirtIOGPU {
         uint32_t req_3d;
         uint32_t bytes_3d;
     } stats;
-
-    struct {
-        QTAILQ_HEAD(, VGPUDMABuf) bufs;
-        VGPUDMABuf *primary[VIRTIO_GPU_MAX_SCANOUTS];
-    } dmabuf;
 
     GArray *capset_ids;
 };
