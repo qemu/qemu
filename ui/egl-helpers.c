@@ -25,7 +25,7 @@
 #include "trace.h"
 #include "standard-headers/drm/drm_fourcc.h"
 
-EGLDisplay *qemu_egl_display;
+EGLDisplay qemu_egl_display;
 EGLConfig qemu_egl_config;
 DisplayGLMode qemu_egl_mode;
 bool qemu_egl_angle_d3d;
