@@ -141,12 +141,12 @@ static void ide_identify(IDEState *s)
     /* Words 1, 3 and 6 describe the default translation (ATA-5 8.16.8) */
     put_le16(p + 1, s->cylinders);
     put_le16(p + 3, s->drive_heads);
-    put_le16(p + 4, 512 * s->drive_sectors); /* XXX: retired, remove ? */
-    put_le16(p + 5, 512); /* XXX: retired, remove ? */
+    put_le16(p + 4, 512 * s->drive_sectors); /* ATA-1 unformatted bytes/trk */
+    put_le16(p + 5, 512); /* ATA-1 unformatted bytes per sector */
     put_le16(p + 6, s->drive_sectors);
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
-    put_le16(p + 20, 3); /* XXX: retired, remove ? */
-    put_le16(p + 21, 512); /* cache size in sectors */
+    put_le16(p + 20, 3); /* ATA-1 buffer type: dual ported, read caching */
+    put_le16(p + 21, 512); /* ATA-1 buffer size in 512 byte increments */
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((char *)(p + 23), s->version, 8); /* firmware version */
     padstr((char *)(p + 27), s->drive_model_str, 40); /* model */
