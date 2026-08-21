@@ -581,13 +581,19 @@ static void icp_control_init(Object *obj)
 
 /* Board init.  */
 
-static struct arm_boot_info integrator_binfo = {
-    .loader_start = 0x0,
-    .board_id = 0x113,
+#define TYPE_INTEGRATORCP_MACHINE MACHINE_TYPE_NAME("integratorcp")
+OBJECT_DECLARE_SIMPLE_TYPE(IntegratorcpMachineState,
+                           INTEGRATORCP_MACHINE)
+
+struct IntegratorcpMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
 };
 
 static void integratorcp_init(MachineState *machine)
 {
+    IntegratorcpMachineState *icms = INTEGRATORCP_MACHINE(machine);
     ram_addr_t ram_size = machine->ram_size;
     Object *cpuobj;
     ARMCPU *cpu;
@@ -680,8 +686,10 @@ static void integratorcp_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xc0000000);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[22]);
 
-    integrator_binfo.ram_size = ram_size;
-    arm_load_kernel(cpu, machine, &integrator_binfo);
+    icms->bootinfo.loader_start = 0x0;
+    icms->bootinfo.board_id = 0x113;
+    icms->bootinfo.ram_size = ram_size;
+    arm_load_kernel(cpu, machine, &icms->bootinfo);
 }
 
 static void integratorcp_machine_init(MachineClass *mc)
@@ -696,7 +704,9 @@ static void integratorcp_machine_init(MachineClass *mc)
     machine_add_audiodev_property(mc);
 }
 
-DEFINE_MACHINE_ARM("integratorcp", integratorcp_machine_init)
+DEFINE_MACHINE_EXTENDED("integratorcp", MACHINE, IntegratorcpMachineState,
+                        integratorcp_machine_init, false,
+                        arm_machine_interfaces)
 
 static const Property core_properties[] = {
     DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),

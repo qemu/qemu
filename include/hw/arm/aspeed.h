@@ -12,6 +12,7 @@
 #include "hw/core/boards.h"
 #include "qom/object.h"
 #include "hw/arm/aspeed_soc.h"
+#include "hw/arm/boot.h"
 
 typedef struct AspeedMachineState AspeedMachineState;
 
@@ -42,6 +43,7 @@ struct AspeedMachineState {
     char *fmc_model;
     char *spi_model;
     uint32_t hw_strap1;
+    struct arm_boot_info bootinfo;
 };
 
 struct AspeedMachineClass {

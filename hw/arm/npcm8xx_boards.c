@@ -198,7 +198,7 @@ static void npcm845_evb_init(MachineState *machine)
     npcm8xx_connect_flash(&soc->fiu[0], 0, "w25q256", drive_get(IF_MTD, 0, 0));
     npcm845_evb_i2c_init(soc);
     npcm845_evb_fan_init(NPCM8XX_MACHINE(machine), soc);
-    npcm8xx_load_kernel(machine, soc);
+    npcm8xx_load_kernel(machine, soc, &NPCM8XX_MACHINE(machine)->bootinfo);
 }
 
 static void npcm8xx_set_soc_type(NPCM8xxMachineClass *nmc, const char *type)

@@ -20,6 +20,15 @@
 #include "qapi/error.h"
 #include <libfdt.h>
 
+#define TYPE_IMX8MM_EVK_MACHINE MACHINE_TYPE_NAME("imx8mm-evk")
+OBJECT_DECLARE_SIMPLE_TYPE(Imx8mmEvkMachineState, IMX8MM_EVK_MACHINE)
+
+struct Imx8mmEvkMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
+};
+
 static void imx8mm_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
 {
     int i, offset;
@@ -60,7 +69,7 @@ static void imx8mm_evk_modify_dtb(const struct arm_boot_info *info, void *fdt)
 
 static void imx8mm_evk_init(MachineState *machine)
 {
-    static struct arm_boot_info boot_info;
+    Imx8mmEvkMachineState *ims = IMX8MM_EVK_MACHINE(machine);
     FslImx8mmState *s;
 
     if (machine->ram_size > FSL_IMX8MM_RAM_SIZE_MAX) {
@@ -69,13 +78,11 @@ static void imx8mm_evk_init(MachineState *machine)
         exit(1);
     }
 
-    boot_info = (struct arm_boot_info) {
-        .loader_start = FSL_IMX8MM_RAM_START,
-        .board_id = -1,
-        .ram_size = machine->ram_size,
-        .psci_conduit = QEMU_PSCI_CONDUIT_SMC,
-        .modify_dtb = imx8mm_evk_modify_dtb,
-    };
+    ims->bootinfo.loader_start = FSL_IMX8MM_RAM_START;
+    ims->bootinfo.board_id = -1;
+    ims->bootinfo.ram_size = machine->ram_size;
+    ims->bootinfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
+    ims->bootinfo.modify_dtb = imx8mm_evk_modify_dtb;
 
     s = FSL_IMX8MM(object_new_with_props(TYPE_FSL_IMX8MM, OBJECT(machine),
                                          "soc", &error_fatal, NULL));
@@ -103,7 +110,7 @@ static void imx8mm_evk_init(MachineState *machine)
     }
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->cpu[0], machine, &boot_info);
+        arm_load_kernel(&s->cpu[0], machine, &ims->bootinfo);
     }
 }
 
@@ -127,4 +134,6 @@ static void imx8mm_evk_machine_init(MachineClass *mc)
     mc->get_default_cpu_type = imx8mm_evk_get_default_cpu_type;
 }
 
-DEFINE_MACHINE_AARCH64("imx8mm-evk", imx8mm_evk_machine_init)
+DEFINE_MACHINE_EXTENDED("imx8mm-evk", MACHINE, Imx8mmEvkMachineState,
+                        imx8mm_evk_machine_init, false,
+                        aarch64_machine_interfaces)

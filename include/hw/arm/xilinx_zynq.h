@@ -14,6 +14,7 @@
 
 #include "target/arm/cpu-qom.h"
 #include "hw/core/qdev-clock.h"
+#include "hw/arm/boot.h"
 
 #define TYPE_ZYNQ_MACHINE MACHINE_TYPE_NAME("xilinx-zynq-a9")
 OBJECT_DECLARE_SIMPLE_TYPE(ZynqMachineState, ZYNQ_MACHINE)
@@ -25,6 +26,7 @@ struct ZynqMachineState {
     Clock *ps_clk;
     ARMCPU *cpu[ZYNQ_MAX_CPUS];
     uint8_t boot_mode;
+    struct arm_boot_info bootinfo;
 };
 
 #endif /* QEMU_ARM_ZYNQ_H */

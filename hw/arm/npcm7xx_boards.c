@@ -374,7 +374,7 @@ static void npcm750_evb_init(MachineState *machine)
     npcm7xx_connect_flash(&soc->fiu[0], 0, "w25q256", drive_get(IF_MTD, 0, 0));
     npcm750_evb_i2c_init(soc);
     npcm750_evb_fan_init(NPCM7XX_MACHINE(machine), soc);
-    npcm7xx_load_kernel(machine, soc);
+    npcm7xx_load_kernel(machine, soc, &NPCM7XX_MACHINE(machine)->bootinfo);
 }
 
 static void quanta_gsj_init(MachineState *machine)
@@ -390,7 +390,7 @@ static void quanta_gsj_init(MachineState *machine)
                           drive_get(IF_MTD, 0, 0));
     quanta_gsj_i2c_init(soc);
     quanta_gsj_fan_init(NPCM7XX_MACHINE(machine), soc);
-    npcm7xx_load_kernel(machine, soc);
+    npcm7xx_load_kernel(machine, soc, &NPCM7XX_MACHINE(machine)->bootinfo);
 }
 
 static void quanta_gbs_init(MachineState *machine)
@@ -408,7 +408,7 @@ static void quanta_gbs_init(MachineState *machine)
 
     quanta_gbs_i2c_init(soc);
     sdhci_attach_drive(&soc->mmc.sdhci, 0);
-    npcm7xx_load_kernel(machine, soc);
+    npcm7xx_load_kernel(machine, soc, &NPCM7XX_MACHINE(machine)->bootinfo);
 }
 
 static void kudo_bmc_init(MachineState *machine)
@@ -427,7 +427,7 @@ static void kudo_bmc_init(MachineState *machine)
 
     kudo_bmc_i2c_init(soc);
     sdhci_attach_drive(&soc->mmc.sdhci, 0);
-    npcm7xx_load_kernel(machine, soc);
+    npcm7xx_load_kernel(machine, soc, &NPCM7XX_MACHINE(machine)->bootinfo);
 }
 
 static void mori_bmc_init(MachineState *machine)
@@ -442,7 +442,7 @@ static void mori_bmc_init(MachineState *machine)
     npcm7xx_connect_flash(&soc->fiu[1], 0, "mx66u51235f",
                           drive_get(IF_MTD, 3, 0));
 
-    npcm7xx_load_kernel(machine, soc);
+    npcm7xx_load_kernel(machine, soc, &NPCM7XX_MACHINE(machine)->bootinfo);
 }
 
 static void npcm7xx_set_soc_type(NPCM7xxMachineClass *nmc, const char *type)

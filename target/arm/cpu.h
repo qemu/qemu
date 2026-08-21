@@ -2177,6 +2177,15 @@ enum arm_features {
      * CPU types added in future.
      */
     ARM_FEATURE_BACKCOMPAT_CNTFRQ, /* 62.5MHz timer default */
+    /*
+     * ARM_FEATURE_NEON_TRAPS should be set if the CPU implements the
+     * CPACR.ASEDIS and HCPTR.TASE bits for trapping A32 Neon.  This
+     * is architecturally IMPDEF, but seems to be implemented by all
+     * ARM_FEATURE_NEON CPUs except the Cortex-A8.
+     */
+    ARM_FEATURE_NEON_TRAPS,
+    /* Does the CPU implement CPACR.D32DIS ? */
+    ARM_FEATURE_D32DIS,
 };
 
 static inline int arm_feature(const CPUARMState *env, int feature)
@@ -2499,6 +2508,14 @@ FIELD(TBFLAG_A32, NS, 10, 1)
  * This requires an SME trap from AArch32 mode when using NEON.
  */
 FIELD(TBFLAG_A32, SME_TRAP_NONSTREAMING, 11, 1)
+/*
+ * Target EL for a Neon-disabled exception via CPACR.ASEDIS, HCPTR.TASE.
+ * If FPEXC_EL indicates a trap to a lower EL than this, that will
+ * take precedence.
+ */
+FIELD(TBFLAG_A32, NEONEXC_EL, 12, 2)
+/* Should VFP insns touching D16..D31 UNDEF? (CPACR.D32DIS) */
+FIELD(TBFLAG_A32, D32DIS, 14, 1)
 
 /*
  * Bit usage when in AArch32 state, for M-profile only.

@@ -28,10 +28,18 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
 
-static struct arm_boot_info orangepi_binfo;
+#define TYPE_ORANGEPI_MACHINE MACHINE_TYPE_NAME("orangepi-pc")
+OBJECT_DECLARE_SIMPLE_TYPE(OrangePiMachineState, ORANGEPI_MACHINE)
+
+struct OrangePiMachineState {
+    MachineState parent;
+
+    struct arm_boot_info bootinfo;
+};
 
 static void orangepi_init(MachineState *machine)
 {
+    OrangePiMachineState *opms = ORANGEPI_MACHINE(machine);
     AwH3State *h3;
     DriveInfo *di;
     BlockBackend *blk;
@@ -98,10 +106,10 @@ static void orangepi_init(MachineState *machine)
         /* Use Boot ROM to copy data from SD card to SRAM */
         allwinner_h3_bootrom_setup(h3, blk);
     }
-    orangepi_binfo.loader_start = h3->memmap[AW_H3_DEV_SDRAM];
-    orangepi_binfo.ram_size = machine->ram_size;
-    orangepi_binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
-    arm_load_kernel(&h3->cpus[0], machine, &orangepi_binfo);
+    opms->bootinfo.loader_start = h3->memmap[AW_H3_DEV_SDRAM];
+    opms->bootinfo.ram_size = machine->ram_size;
+    opms->bootinfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
+    arm_load_kernel(&h3->cpus[0], machine, &opms->bootinfo);
 }
 
 static void orangepi_machine_init(MachineClass *mc)
@@ -125,4 +133,6 @@ static void orangepi_machine_init(MachineClass *mc)
     mc->auto_create_sdcard = true;
 }
 
-DEFINE_MACHINE_ARM("orangepi-pc", orangepi_machine_init)
+DEFINE_MACHINE_EXTENDED("orangepi-pc", MACHINE, OrangePiMachineState,
+                        orangepi_machine_init, false,
+                        arm_machine_interfaces)

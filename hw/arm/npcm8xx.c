@@ -357,22 +357,20 @@ static const struct {
     },
 };
 
-static struct arm_boot_info npcm8xx_binfo = {
-    .loader_start           = NPCM8XX_LOADER_START,
-    .smp_loader_start       = NPCM8XX_SMP_LOADER_START,
-    .smp_bootreg_addr       = NPCM8XX_SMP_BOOTREG_ADDR,
-    .gic_cpu_if_addr        = NPCM8XX_GICC_BA,
-    .secure_boot            = false,
-    .board_id               = -1,
-    .board_setup_addr       = NPCM8XX_BOARD_SETUP_ADDR,
-    .psci_conduit           = QEMU_PSCI_CONDUIT_SMC,
-};
-
-void npcm8xx_load_kernel(MachineState *machine, NPCM8xxState *soc)
+void npcm8xx_load_kernel(MachineState *machine, NPCM8xxState *soc,
+                         struct arm_boot_info *binfo)
 {
-    npcm8xx_binfo.ram_size = machine->ram_size;
+    binfo->loader_start = NPCM8XX_LOADER_START;
+    binfo->smp_loader_start = NPCM8XX_SMP_LOADER_START;
+    binfo->smp_bootreg_addr = NPCM8XX_SMP_BOOTREG_ADDR;
+    binfo->gic_cpu_if_addr = NPCM8XX_GICC_BA;
+    binfo->secure_boot = false;
+    binfo->board_id = -1;
+    binfo->board_setup_addr = NPCM8XX_BOARD_SETUP_ADDR;
+    binfo->psci_conduit = QEMU_PSCI_CONDUIT_SMC;
+    binfo->ram_size = machine->ram_size;
 
-    arm_load_kernel(&soc->cpu[0], machine, &npcm8xx_binfo);
+    arm_load_kernel(&soc->cpu[0], machine, binfo);
 }
 
 static void npcm8xx_init_fuses(NPCM8xxState *s)

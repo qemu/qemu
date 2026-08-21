@@ -61,9 +61,8 @@
 typedef struct IMX25PDK {
     FslIMX25State soc;
     MemoryRegion ram_alias;
+    struct arm_boot_info bootinfo;
 } IMX25PDK;
-
-static struct arm_boot_info imx25_pdk_binfo;
 
 static void imx25_pdk_init(MachineState *machine)
 {
@@ -114,9 +113,9 @@ static void imx25_pdk_init(MachineState *machine)
         alias_offset += ram[i].size;
     }
 
-    imx25_pdk_binfo.ram_size = machine->ram_size;
-    imx25_pdk_binfo.loader_start = FSL_IMX25_SDRAM0_ADDR;
-    imx25_pdk_binfo.board_id = 1771;
+    s->bootinfo.ram_size = machine->ram_size;
+    s->bootinfo.loader_start = FSL_IMX25_SDRAM0_ADDR;
+    s->bootinfo.board_id = 1771;
 
     for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
         BusState *bus;
@@ -138,7 +137,7 @@ static void imx25_pdk_init(MachineState *machine)
      * fail.
      */
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->soc.cpu, machine, &imx25_pdk_binfo);
+        arm_load_kernel(&s->soc.cpu, machine, &s->bootinfo);
     }
 }
 

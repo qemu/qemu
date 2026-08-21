@@ -236,6 +236,7 @@ static const TypeInfo axiado_soc_types[] = {
         .instance_size  = sizeof(Ax3000SoCState),
         .instance_init  = ax3000_init,
         .class_init     = ax3000_class_init,
+        .class_size     = sizeof(Ax3000SoCClass),
     }
 };
 

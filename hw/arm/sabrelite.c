@@ -25,17 +25,11 @@ struct SabreliteMachineState {
 
     FslIMX6State soc;
     CanBusState *canbus[FSL_IMX6_NUM_CANS];
+    struct arm_boot_info bootinfo;
 };
 
 #define TYPE_SABRELITE_MACHINE MACHINE_TYPE_NAME("sabrelite")
 OBJECT_DECLARE_SIMPLE_TYPE(SabreliteMachineState, SABRELITE_MACHINE)
-
-static struct arm_boot_info sabrelite_binfo = {
-    /* DDR memory start */
-    .loader_start = FSL_IMX6_MMDC_ADDR,
-    /* No board ID, we boot from DT tree */
-    .board_id = -1,
-};
 
 /* No need to do any particular setup for secondary boot */
 static void sabrelite_write_secondary(ARMCPU *cpu,
@@ -110,13 +104,17 @@ static void sabrelite_init(MachineState *machine)
         }
     }
 
-    sabrelite_binfo.ram_size = machine->ram_size;
-    sabrelite_binfo.secure_boot = true;
-    sabrelite_binfo.write_secondary_boot = sabrelite_write_secondary;
-    sabrelite_binfo.secondary_cpu_reset_hook = sabrelite_reset_secondary;
+    /* DDR memory start */
+    s->bootinfo.loader_start = FSL_IMX6_MMDC_ADDR;
+    /* No board ID, we boot from DT tree */
+    s->bootinfo.board_id = -1;
+    s->bootinfo.ram_size = machine->ram_size;
+    s->bootinfo.secure_boot = true;
+    s->bootinfo.write_secondary_boot = sabrelite_write_secondary;
+    s->bootinfo.secondary_cpu_reset_hook = sabrelite_reset_secondary;
 
     if (!qtest_enabled()) {
-        arm_load_kernel(&s->soc.cpu[0], machine, &sabrelite_binfo);
+        arm_load_kernel(&s->soc.cpu[0], machine, &s->bootinfo);
     }
 }
 

@@ -88,11 +88,14 @@ typedef struct DisasContext {
     int sve_excp_el; /* SVE exception EL or 0 if enabled */
     int sme_excp_el; /* SME exception EL or 0 if enabled */
     int zt0_excp_el; /* ZT0 exception EL or 0 if enabled */
+    int neon_excp_el; /* A32 Neon exception EL or 0 if enabled */
     int vl;          /* current vector length in bytes */
     int svl;         /* current streaming vector length in bytes */
     int max_svl;     /* maximum implemented streaming vector length */
     int max_any_vl;  /* maximum implemented vector length */
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
+    int invalid_vfp_dreg_mask; /* mask for whether VFP D16..D31 should UNDEF */
+    int invalid_neon_dreg_mask; /* ditto, for Neon */
     int vec_len;
     int vec_stride;
     bool v7m_handler_mode;
