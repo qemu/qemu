@@ -29,18 +29,36 @@ def get_name_and_semver(namever: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
-class UpdateSubprojects:
-    cargo_registry: str
-    top_srcdir: str
-    dry_run: bool
-    changes: int = 0
+class CrateSource:
+    """Class for locating crate versions and pointing wrap files at them.
+       Subclasses know where the source of a crate comes from and how to
+       rewrite the ``[wrap-file]`` to consume it."""
 
-    def find_installed_crate(self, namever: str) -> str | None:
+    origin: str
+
+    def find(self, namever: str) -> str | None:
+        """Resolve a 'name-semver' prefix to a concrete 'name-version'."""
+        raise NotImplementedError
+
+    def rewrite_source(self, section: configparser.SectionProxy, orig_namever: str, source_namever: str) -> bool:
+        """Update the download-related keys of a [wrap-file] section."""
+        raise NotImplementedError
+
+
+class CargoRegistry(CrateSource):
+    """Locate crates already extracted in a local Cargo registry directory."""
+
+    origin = "the Cargo registry"
+
+    def __init__(self, path: str):
+        self.path = path
+
+    def find(self, namever: str) -> str | None:
         """Find installed crate matching name and semver prefix"""
         name, semver = get_name_and_semver(namever)
 
         # exact version match
-        path = os.path.join(self.cargo_registry, f"{name}-{semver}")
+        path = os.path.join(self.path, f"{name}-{semver}")
         if os.path.exists(path):
             return f"{name}-{semver}"
 
@@ -55,6 +73,14 @@ class UpdateSubprojects:
             if key.startswith("source"):
                 del section[key]
         return True
+
+
+class UpdateSubprojects:
+    cargo_registry: str
+    source: CrateSource
+    top_srcdir: str
+    dry_run: bool
+    changes: int = 0
 
     def compare_build_rs(self, orig_dir: str, source_namever: str) -> None:
         """Warn if the build.rs in the original directory differs from the registry version."""
@@ -102,7 +128,7 @@ class UpdateSubprojects:
             return
 
         section["directory"] = source_namever
-        if self.rewrite_source(section, orig_dir, source_namever):
+        if self.source.rewrite_source(section, orig_dir, source_namever):
             with open(wrap_file, "w") as f:
                 config.write(f)
 
@@ -110,9 +136,9 @@ class UpdateSubprojects:
             config.write(f)
 
         if orig_dir == source_namever:
-            print(f"Installing {orig_dir} from registry.")
+            print(f"👉 Installing {orig_dir} from {self.source.origin}.")
         else:
-            print(f"Replacing {orig_dir} with {source_namever}.")
+            print(f"👉 Replacing {orig_dir} with {source_namever}.")
 
         subprocess.run(
             ["meson", "subprojects", "download", wrap_name],
@@ -154,6 +180,7 @@ class UpdateSubprojects:
         self.cargo_registry = args.cargo_registry
         self.dry_run = args.dry_run
         self.top_srcdir = os.getcwd()
+        self.source = CargoRegistry(args.cargo_registry)
 
     def main(self) -> None:
         if not os.path.exists("subprojects"):
@@ -164,7 +191,7 @@ class UpdateSubprojects:
         for wrap_file in sorted(glob.glob("*-rs.wrap")):
             namever = wrap_file[:-8]  # Remove '-rs.wrap'
 
-            source_namever = self.find_installed_crate(namever)
+            source_namever = self.source.find(namever)
             if not source_namever:
                 print(f"No installed crate found for {wrap_file}")
                 continue
