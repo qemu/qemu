@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-get-wraps-from-cargo-registry.py - Update Meson subprojects from a Cargo
+update-cargo-wraps.py - Update Meson subprojects from a Cargo
 registry or from the versions pinned in Cargo.lock.
 """
 
