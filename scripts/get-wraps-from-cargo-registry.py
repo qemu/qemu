@@ -113,9 +113,6 @@ class UpdateSubprojects:
             print(f"Installing {orig_dir} from registry.")
         else:
             print(f"Replacing {orig_dir} with {registry_namever}.")
-            patch_dir = config["wrap-file"]["patch_directory"]
-            patch_dir = os.path.join("packagefiles", patch_dir)
-            _, ver = registry_namever.rsplit("-", 1)
 
         subprocess.run(
             ["meson", "subprojects", "download", wrap_name],
