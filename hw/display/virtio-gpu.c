@@ -436,7 +436,7 @@ void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
     struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
 
     virtio_gpu_release_scanout_dmabuf(g, scanout_id);
-
+    qemu_console_gl_scanout_disable(scanout->con);
     qemu_console_set_surface(scanout->con, NULL);
     scanout->resource_id = 0;
     scanout->ds = NULL;
