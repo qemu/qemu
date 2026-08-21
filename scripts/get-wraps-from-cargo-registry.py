@@ -59,8 +59,10 @@ class UpdateSubprojects:
             if os.path.isfile(new_build_rs):
                 msg = f"build.rs added in {registry_namever}"
 
-        elif os.path.isfile(orig_build_rs) and not filecmp.cmp(orig_build_rs, new_build_rs):
+        elif os.path.isfile(orig_build_rs) and not filecmp.cmp(orig_build_rs, new_build_rs, shallow=False):
             msg = f"build.rs changed from {orig_dir} to {registry_namever}"
+            # diff exits non-zero when the files differ, which is expected here
+            subprocess.run(["diff", "-u", orig_build_rs, new_build_rs])
 
         if msg:
             print(f"⚠️  Warning: {msg}")
