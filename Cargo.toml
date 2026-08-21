@@ -17,7 +17,7 @@ authors = ["The QEMU Project Developers <qemu-devel@nongnu.org>"]
 
 [workspace.dependencies]
 anyhow = "~1.0"
-foreign = "~0.3.1"
+foreign = "~0.4.0"
 libc = "0.2.162"
 glib-sys = { version = "0.21.2", features = ["v2_66"] }
 

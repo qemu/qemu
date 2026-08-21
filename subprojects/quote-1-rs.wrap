@@ -1,9 +1,7 @@
 [wrap-file]
-directory = quote-1.0.36
-source_url = https://crates.io/api/v1/crates/quote/1.0.36/download
-source_filename = quote-1.0.36.0.tar.gz
-source_hash = 0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7
+directory = quote-1.0.47
+source_url = https://crates.io/api/v1/crates/quote/1.0.47/download
+source_filename = quote-1.0.47.tar.gz
+source_hash = 1fbf4db142a473a8d80c26bbf18454ed458bf8d26c8219c331daecfdbd079001
 method = cargo
 
-# bump this version number on every change to meson.build or the patches:
-# v2

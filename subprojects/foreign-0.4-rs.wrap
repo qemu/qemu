@@ -1,0 +1,7 @@
+[wrap-file]
+directory = foreign-0.4.0
+source_url = https://crates.io/api/v1/crates/foreign/0.4.0/download
+source_filename = foreign-0.4.0.tar.gz
+source_hash = 2292704c239c26962ac5c32d53057c442ca5a2bf017fca5c95c342271058e4c2
+method = cargo
+
