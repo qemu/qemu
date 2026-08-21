@@ -1,0 +1,45 @@
+
+=== This is the readme file for all IGVM file bundles provided ===
+=== All IGVM files are covered by GPL v2 or later ===
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Small IGVM file bundles required for tesing vm-launch-update device
+===================================================================
+
+This directory contains IGVM files required for launchupdate-test.c.
+These IGVM bundles can be built from the following repository:
+
+https://gitlab.com/anisinha/virt-firmware-rs
+
+Just type "make" in the top of the repository. The built IGVM files
+can be found in the target/x86_64-unknown-none/debug directory.
+
+$ ls -l ./target/x86_64-unknown-none/debug/*.igvm
+-rw-r--r--. 1 anisinha anisinha 153624 Jun  8 10:05 ./target/x86_64-unknown-none/debug/hello.igvm
+-rw-r--r--. 1 anisinha anisinha 157848 Jun  8 10:05 ./target/x86_64-unknown-none/debug/igvmtest.igvm
+-rw-r--r--. 1 anisinha anisinha 987384 Jun  8 10:05 ./target/x86_64-unknown-none/debug/mefisto.igvm
+-rw-r--r--. 1 anisinha anisinha 368312 Jun  8 10:05 ./target/x86_64-unknown-none/debug/qemuinit.igvm
+-rw-r--r--. 1 anisinha anisinha 223944 Jun  8 10:05 ./target/x86_64-unknown-none/debug/snptest.igvm
+
+The IGVM bundles for sev-snp testing are also kept in a seperate directory /snp_igvm_bundles in the
+above repository for use without requiring to build from source:
+
+$ virtfirmware-rs/snp_igvm_bundles$ ls -l
+total 388
+-rw-r--r-- 1 anisinha anisinha 199176 Aug  7 00:58 snptest.igvm
+-rw-r--r-- 1 anisinha anisinha 195048 Aug  6 06:10 snptest-nohello.igvm
+
+Following files are used by the tests/qtest/launchupdate-test.c for non-coco case:
+
+hello.igvm
+qemuinit.igvm
+
+For confidential case (that is when COCO=1 is passed in the environment), the following
+IGVM bundles are used:
+
+snptest-nohello.igvm
+snptest.igvm
+
+The IGVM bundles used by the confidential case are not checked into the QEMU
+repository. Users who wish to test the confidential case can use the IGVM
+bundles from https://gitlab.com/anisinha/virt-firmware-rs as mentioned above.
