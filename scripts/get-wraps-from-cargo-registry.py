@@ -48,6 +48,14 @@ class UpdateSubprojects:
         matches = sorted(glob.glob(f"{path}.*"))
         return os.path.basename(matches[0]) if matches else None
 
+    def rewrite_source(self, section: configparser.SectionProxy, orig_namever: str, registry_namever: str) -> bool:
+        # the registry already holds the extracted sources, so Meson does not
+        # download anything: drop the source_* keys.
+        for key in list(section.keys()):
+            if key.startswith("source"):
+                del section[key]
+        return True
+
     def compare_build_rs(self, orig_dir: str, source_namever: str) -> None:
         """Warn if the build.rs in the original directory differs from the registry version."""
         orig_build_rs = os.path.join(orig_dir, "build.rs")
@@ -82,7 +90,8 @@ class UpdateSubprojects:
         if "wrap-file" not in config:
             return
 
-        orig_dir = config["wrap-file"]["directory"]
+        section = config["wrap-file"]
+        orig_dir = section["directory"]
 
         if self.dry_run:
             if orig_dir == source_namever:
@@ -92,10 +101,10 @@ class UpdateSubprojects:
             self.changes += 1
             return
 
-        config["wrap-file"]["directory"] = source_namever
-        for key in list(config["wrap-file"].keys()):
-            if key.startswith("source"):
-                del config["wrap-file"][key]
+        section["directory"] = source_namever
+        if self.rewrite_source(section, orig_dir, source_namever):
+            with open(wrap_file, "w") as f:
+                config.write(f)
 
         with open(wrap_file, "w") as f:
             config.write(f)
