@@ -93,6 +93,11 @@ struct OHCIState {
     bool async_complete;
 
     void (*ohci_die)(OHCIState *ohci);
+    void (*media_error)(OHCIState *ohci);
+    void (*descriptor_error)(OHCIState *ohci);
+
+    bool big_endian;
+    bool consistency_check;
 };
 
 #define TYPE_SYSBUS_OHCI "sysbus-ohci"
