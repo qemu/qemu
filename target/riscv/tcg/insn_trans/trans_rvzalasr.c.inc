@@ -86,6 +86,14 @@ static bool gen_store_release(DisasContext *ctx, arg_sb_aqrl *a, MemOp memop)
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL | bar);
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
+
+    /*
+     * Zalasr annotations are always RCsc: per RVWMO Rule 7, the store
+     * must also be ordered before any subsequent memory operation,
+     * e.g. a load-acquire in a Store Buffering litmus test.  The
+     * barrier above only orders previous memory ops before the store.
+     */
+    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     return true;
 }
 
