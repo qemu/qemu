@@ -1356,6 +1356,7 @@ F: pc-bios/hppa-firmware.img
 F: roms/seabios-hppa/
 F: tests/functional/hppa/
 F: hw/isa/pc87560.c
+F: hw/ide/pc87560-ide.c
 F: include/hw/isa/pc87560.h
 
 Hexagon Machines
