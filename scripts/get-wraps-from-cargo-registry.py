@@ -166,10 +166,13 @@ class UpdateSubprojects:
         orig_dir = section["directory"]
 
         if self.dry_run:
-            if orig_dir == source_namever:
-                print(f"Will install {orig_dir} from registry.")
-            else:
+            if orig_dir != source_namever:
                 print(f"Will replace {orig_dir} with {source_namever}.")
+            elif not os.path.exists(orig_dir) or self.cargo_registry:
+                print(f"Will install {orig_dir} from {self.source.origin}.")
+            else:
+                print(f"Will update {orig_dir} from cache.")
+                return
             self.changes += 1
             return
 
@@ -181,10 +184,19 @@ class UpdateSubprojects:
         with open(wrap_file, "w") as f:
             config.write(f)
 
-        if orig_dir == source_namever:
+        if orig_dir != source_namever:
+            print(f"👉 Replacing {orig_dir} with {source_namever}.")
+        elif not os.path.exists(orig_dir) or self.cargo_registry:
             print(f"👉 Installing {orig_dir} from {self.source.origin}.")
         else:
-            print(f"👉 Replacing {orig_dir} with {source_namever}.")
+            print(f"👉 Updating {orig_dir} from cache.")
+            subprocess.run(
+                ["meson", "subprojects", "update", "--reset", wrap_name],
+                cwd=self.top_srcdir,
+                env=env,
+                check=True,
+            )
+            return
 
         subprocess.run(
             ["meson", "subprojects", "download", wrap_name],
