@@ -15,6 +15,7 @@ import configparser
 import filecmp
 import glob
 import os
+import shutil
 import subprocess
 import sys
 
@@ -50,7 +51,7 @@ class UpdateSubprojects:
     def compare_build_rs(self, orig_dir: str, source_namever: str) -> None:
         """Warn if the build.rs in the original directory differs from the registry version."""
         orig_build_rs = os.path.join(orig_dir, "build.rs")
-        new_build_rs = os.path.join(self.cargo_registry, source_namever, "build.rs")
+        new_build_rs = os.path.join(source_namever, "build.rs")
 
         msg = None
         if os.path.isfile(orig_build_rs) != os.path.isfile(new_build_rs):
@@ -81,10 +82,7 @@ class UpdateSubprojects:
         if "wrap-file" not in config:
             return
 
-        # do not download the wrap, always use the local copy
         orig_dir = config["wrap-file"]["directory"]
-        if os.path.exists(orig_dir) and orig_dir != source_namever:
-            self.compare_build_rs(orig_dir, source_namever)
 
         if self.dry_run:
             if orig_dir == source_namever:
@@ -98,15 +96,6 @@ class UpdateSubprojects:
         for key in list(config["wrap-file"].keys()):
             if key.startswith("source"):
                 del config["wrap-file"][key]
-
-        # replace existing directory with installed version
-        if os.path.exists(orig_dir):
-            subprocess.run(
-                ["meson", "subprojects", "purge", "--confirm", wrap_name],
-                cwd=self.top_srcdir,
-                env=env,
-                check=True,
-            )
 
         with open(wrap_file, "w") as f:
             config.write(f)
@@ -123,6 +112,10 @@ class UpdateSubprojects:
             check=True,
         )
         self.changes += 1
+
+        if os.path.exists(orig_dir) and orig_dir != source_namever:
+            self.compare_build_rs(orig_dir, source_namever)
+            shutil.rmtree(orig_dir)
 
     @staticmethod
     def parse_cmdline() -> argparse.Namespace:
