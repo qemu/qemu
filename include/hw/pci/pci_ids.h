@@ -168,6 +168,11 @@
 #define PCI_DEVICE_ID_LSI_SAS1078        0x0060
 #define PCI_DEVICE_ID_LSI_SAS0079        0x0079
 
+#define PCI_VENDOR_ID_NS                 0x100b
+#define PCI_DEVICE_ID_NS_87415           0x0002
+#define PCI_DEVICE_ID_NS_87560_LIO       0x000e
+#define PCI_DEVICE_ID_NS_87560_USB       0x0012
+
 #define PCI_VENDOR_ID_DEC                0x1011
 #define PCI_DEVICE_ID_DEC_21143          0x0019
 
