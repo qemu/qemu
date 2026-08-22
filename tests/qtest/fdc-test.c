@@ -690,6 +690,11 @@ static void run_isolated(const void *data)
 {
     const FDCTest *test = data;
 
+    if (!qtest_has_machine("pc")) {
+        g_test_skip("Machine 'pc' is not available");
+        return;
+    }
+
     qtest_start("-machine pc -device floppy,id=floppy0");
     qtest_irq_intercept_in(global_qtest, "ioapic");
 
