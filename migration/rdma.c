@@ -3141,6 +3141,12 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         }
     }
 
+    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, &err);
+    if (ret < 0) {
+        error_report_err(err);
+        goto err_rdma_dest_wait;
+    }
+
     /* Accept the second connection request for return path */
     if ((migrate_postcopy() || migrate_return_path())
         && !rdma->is_return_path) {
@@ -3172,12 +3178,6 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     rdma_ack_cm_event(cm_event);
     rdma->connected = true;
-
-    ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY, &err);
-    if (ret < 0) {
-        error_report_err(err);
-        goto err_rdma_dest_wait;
-    }
 
     qemu_rdma_dump_gid("dest_connect", rdma->cm_id);
 
