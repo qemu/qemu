@@ -2616,6 +2616,11 @@ static void test_oem_fields(test_data *data)
             continue;
         }
 
+        /* Firmware Performance Data created by EDK2 not QEMU */
+        if (compare_signature(sdt, "FPDT")) {
+            continue;
+        }
+
         if (verbosity_level >= 2) {
             fprintf(stderr, "Checking '%.4s'\n", sdt->aml);
         }
