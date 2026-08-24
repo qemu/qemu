@@ -34,6 +34,7 @@
 #ifndef COMMON_SEMI_H
 #define COMMON_SEMI_H
 
+void common_semi_cb(CPUState *cs, uint64_t ret, int err);
 void do_common_semihosting(CPUState *cs);
 uint64_t common_semi_arg(CPUState *cs, int argno);
 void common_semi_set_ret(CPUState *cs, uint64_t ret);
