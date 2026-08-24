@@ -1123,7 +1123,20 @@ int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
         return postcopy_wake_shared(pcfd, client_addr, rb);
     }
     /* TODO: support blocktime tracking */
-    postcopy_request_page(mis, rb, aligned_rbo, client_addr, 0);
+
+    /*
+     * The page will be placed by qemu_ufd_copy_ioctl(), which removes the
+     * matching entry from mis->page_requested (and drops
+     * page_requested_count) using this QEMU process's host address for the
+     * page. Register the request with the same key, rb->host + aligned_rbo,
+     * not client_addr: client_addr is a VA in the external vhost-user
+     * backend's address space and can never equal that host address, so the
+     * removal would miss forever, leaking page_requested_count and hanging
+     * postcopy teardown.
+     */
+    postcopy_request_page(mis, rb, aligned_rbo,
+                          (uint64_t)(uintptr_t)qemu_ram_get_host_addr(rb) +
+                          aligned_rbo, 0);
     return 0;
 }
 
