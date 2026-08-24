@@ -497,7 +497,7 @@ static void ufs_lu_realize(DeviceState *dev, Error **errp)
 {
     UfsLu *lu = DO_UPCAST(UfsLu, qdev, dev);
     BusState *s = qdev_get_parent_bus(dev);
-    UfsHc *u = UFS(s->parent);
+    UfsHc *u = UFS_BUS(s)->hc;
     BlockBackend *blk = lu->conf.blk;
 
     if (!ufs_lu_check_constraints(lu, errp)) {
