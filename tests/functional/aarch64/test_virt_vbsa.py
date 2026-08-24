@@ -35,7 +35,7 @@ class Aarch64VirtMachine(QemuSystemTest):
         Setup QEMU firmware blobs for boot.
         """
         code_path = self.build_file('pc-bios', 'edk2-aarch64-code.fd')
-        vars_source = self.build_file('pc-bios', 'edk2-arm-vars.fd')
+        vars_source = self.build_file('pc-bios', 'edk2-aarch64-vars.fd')
         vars_path = self.scratch_file('vars.fd')
         shutil.copy(vars_source, vars_path)
 

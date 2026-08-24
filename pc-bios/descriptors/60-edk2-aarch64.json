@@ -10,7 +10,7 @@
             "format": "raw"
         },
         "nvram-template": {
-            "filename": "@DATADIR@/edk2-arm-vars.fd",
+            "filename": "@DATADIR@/edk2-aarch64-vars.fd",
             "format": "raw"
         }
     },
