@@ -71,6 +71,15 @@ GuestFD *get_guestfd(int guestfd);
 void associate_guestfd(int guestfd, int hostfd);
 
 /**
+ * console_guestfd:
+ * @guestfd: GuestFD index
+ *
+ * Initialize the GuestFD for @guestfd to GuestFDConsole.
+ * I/O will be routed through the semihosting console chardev.
+ */
+void console_guestfd(int guestfd);
+
+/**
  * staticfile_guestfd:
  * @guestfd: GuestFD index
  * @data: data to be read
