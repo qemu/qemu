@@ -2585,6 +2585,7 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
     case S390_FEAT_TYPE_KMAC:
     case S390_FEAT_TYPE_KIMD:
     case S390_FEAT_TYPE_KLMD:
+    case S390_FEAT_TYPE_KDSA:
         if (r2 & 1 || !r2) {
             gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
@@ -5969,6 +5970,7 @@ enum DisasInsnEnum {
 #define FAC_MSA4        S390_FEAT_MSA_EXT_4 /* msa-extension-4 facility */
 #define FAC_MSA5        S390_FEAT_MSA_EXT_5 /* msa-extension-5 facility */
 #define FAC_MSA8        S390_FEAT_MSA_EXT_8 /* msa-extension-8 facility */
+#define FAC_MSA9        S390_FEAT_MSA_EXT_9 /* msa-extension-9 facility */
 #define FAC_ECT         S390_FEAT_EXTRACT_CPU_TIME
 #define FAC_PCI         S390_FEAT_ZPCI /* z/PCI facility */
 #define FAC_AIS         S390_FEAT_ADAPTER_INT_SUPPRESSION
