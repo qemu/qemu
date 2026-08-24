@@ -186,6 +186,138 @@ static void common_semi_ftell_cb(CPUState *cs, uint64_t ret, int err)
     common_semi_cb(cs, ret, err);
 }
 
+static void coredump(CPUHexagonState *env)
+{
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+    FILE *f = qemu_log_trylock();
+
+    if (!f) {
+        return;
+    }
+
+    fprintf(f, "CRASH!\n");
+    fprintf(f, "I think the exception was: ");
+    switch (GET_SSR_FIELD(SSR_CAUSE, ssr)) {
+    case 0x43:
+        fprintf(f, "0x43, NMI");
+        break;
+    case 0x42:
+        fprintf(f, "0x42, Data abort");
+        break;
+    case 0x44:
+        fprintf(f, "0x44, Multi TLB match");
+        break;
+    case HEX_CAUSE_BIU_PRECISE:
+        fprintf(f, "0x%x, Bus Error (Precise BIU error)",
+                HEX_CAUSE_BIU_PRECISE);
+        break;
+    case HEX_CAUSE_DOUBLE_EXCEPT:
+        fprintf(f, "0x%x, Exception observed when EX = 1"
+                " (double exception)",
+                HEX_CAUSE_DOUBLE_EXCEPT);
+        break;
+    case HEX_CAUSE_FETCH_NO_XPAGE:
+        fprintf(f, "0x%x, Privilege violation: User/Guest mode execute"
+                " to page with no execute permissions",
+                HEX_CAUSE_FETCH_NO_XPAGE);
+        break;
+    case HEX_CAUSE_FETCH_NO_UPAGE:
+        fprintf(f, "0x%x, Privilege violation: "
+                "User mode execute to page with no user permissions",
+                HEX_CAUSE_FETCH_NO_UPAGE);
+        break;
+    case HEX_CAUSE_INVALID_PACKET:
+        fprintf(f, "0x%x, Invalid packet",
+                HEX_CAUSE_INVALID_PACKET);
+        break;
+    case HEX_CAUSE_PRIV_USER_NO_GINSN:
+        fprintf(f, "0x%x, Privilege violation:"
+                " guest mode insn in user mode",
+                HEX_CAUSE_PRIV_USER_NO_GINSN);
+        break;
+    case HEX_CAUSE_PRIV_USER_NO_SINSN:
+        fprintf(f, "0x%x, Privilege violation: "
+                "monitor mode insn in user/guest mode",
+                HEX_CAUSE_PRIV_USER_NO_SINSN);
+        break;
+    case HEX_CAUSE_REG_WRITE_CONFLICT:
+        fprintf(f, "0x%x, Multiple writes to same register",
+                HEX_CAUSE_REG_WRITE_CONFLICT);
+        break;
+    case HEX_CAUSE_PC_NOT_ALIGNED:
+        fprintf(f, "0x%x, PC not aligned",
+                HEX_CAUSE_PC_NOT_ALIGNED);
+        break;
+    case HEX_CAUSE_MISALIGNED_LOAD:
+        fprintf(f, "0x%x, Misaligned Load @ 0x%" PRIx32,
+                HEX_CAUSE_MISALIGNED_LOAD, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_MISALIGNED_STORE:
+        fprintf(f, "0x%x, Misaligned Store @ 0x%" PRIx32,
+                HEX_CAUSE_MISALIGNED_STORE, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_PRIV_NO_READ:
+        fprintf(f, "0x%x, Privilege violation: "
+                "user/guest read permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_READ, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_PRIV_NO_WRITE:
+        fprintf(f, "0x%x, Privilege violation: "
+                "user/guest write permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_WRITE, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_PRIV_NO_UREAD:
+        fprintf(f, "0x%x, Privilege violation:"
+                " user read permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_UREAD, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_PRIV_NO_UWRITE:
+        fprintf(f, "0x%x, Privilege violation:"
+                " user write permission @ 0x%" PRIx32,
+                HEX_CAUSE_PRIV_NO_UWRITE, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_COPROC_LDST:
+        fprintf(f, "0x%x, Coprocessor VMEM address error @ 0x%" PRIx32,
+                HEX_CAUSE_COPROC_LDST, env->t_sreg[HEX_SREG_BADVA]);
+        break;
+    case HEX_CAUSE_STACK_LIMIT:
+        fprintf(f, "0x%x, Stack limit check error",
+                HEX_CAUSE_STACK_LIMIT);
+        break;
+    case HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT:
+        fprintf(f, "0x%x, Floating-Point: Execution of Floating-Point "
+                "instruction resulted in exception",
+                HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT);
+        break;
+    case HEX_CAUSE_NO_COPROC_ENABLE:
+        fprintf(f, "0x%x, Illegal Execution of Coprocessor Instruction",
+                HEX_CAUSE_NO_COPROC_ENABLE);
+        break;
+    case HEX_CAUSE_NO_COPROC2_ENABLE:
+        fprintf(f, "0x%x, Illegal Execution of Secondary"
+                " Coprocessor Instruction",
+                HEX_CAUSE_NO_COPROC2_ENABLE);
+        break;
+    case HEX_CAUSE_UNSUPPORTED_HVX_64B:
+        fprintf(f, "0x%x, Unsupported Execution of"
+                " Coprocessor Instruction with 64bits Mode On",
+                HEX_CAUSE_UNSUPPORTED_HVX_64B);
+        break;
+    case HEX_CAUSE_VWCTRL_WINDOW_MISS:
+        fprintf(f, "0x%x, Thread accessing a region"
+                " outside VWCTRL window",
+                HEX_CAUSE_VWCTRL_WINDOW_MISS);
+        break;
+    default:
+        fprintf(f, "unknown cause 0x%" PRIx32,
+                GET_SSR_FIELD(SSR_CAUSE, ssr));
+        break;
+    }
+    fprintf(f, "\nRegister Dump:\n");
+    hexagon_dump(env, f, 0);
+    qemu_log_unlock(f);
+}
+
 static void sim_handle_trap0(CPUHexagonState *env)
 {
     target_ulong what_swi, swi_info;
@@ -454,6 +586,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
         common_semi_cb(cs, -1, ENOSYS);
     }
     break;
+
+    case HEX_SYS_COREDUMP:
+        coredump(env);
+        break;
 
     case HEX_SYS_FTELL:
     {
