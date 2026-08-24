@@ -219,6 +219,10 @@ static int cpacf_pcc(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
     case CPACF_PCC_XTS_AES_256:
         rc = cpacf_aes_pcc(env, mmu_idx, ra, env->regs[1], fc);
         break;
+    case CPACF_PCC_XTS_PAES_128:
+    case CPACF_PCC_XTS_PAES_256:
+        rc = cpacf_paes_pcc(env, mmu_idx, ra, env->regs[1], fc);
+        break;
     default:
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, ra);
     }
