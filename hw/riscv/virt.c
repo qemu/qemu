@@ -382,7 +382,8 @@ static void create_fdt_one_imsic(RISCVVirtState *s, hwaddr base_addr,
     g_autofree char *imsic_name = NULL;
     MachineState *ms = MACHINE(s);
     int socket_count = riscv_socket_count(ms);
-    uint32_t imsic_max_hart_per_socket, imsic_addr, imsic_size;
+    uint32_t imsic_max_hart_per_socket, imsic_size;
+    hwaddr imsic_addr;
     g_autofree uint32_t *imsic_cells = NULL;
     g_autofree uint32_t *imsic_regs = NULL;
     static const char * const imsic_compat[2] = {
@@ -402,7 +403,7 @@ static void create_fdt_one_imsic(RISCVVirtState *s, hwaddr base_addr,
         imsic_addr = base_addr + socket * VIRT_IMSIC_GROUP_MAX_SIZE;
         imsic_size = IMSIC_HART_SIZE(imsic_guest_bits) *
                      s->soc[socket].num_harts;
-        imsic_regs[socket * 4 + 0] = 0;
+        imsic_regs[socket * 4 + 0] = cpu_to_be32(imsic_addr >> 32);
         imsic_regs[socket * 4 + 1] = cpu_to_be32(imsic_addr);
         imsic_regs[socket * 4 + 2] = 0;
         imsic_regs[socket * 4 + 3] = cpu_to_be32(imsic_size);
