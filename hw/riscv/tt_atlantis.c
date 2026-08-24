@@ -36,8 +36,12 @@
 #define TT_IRQCHIP_NUM_MSIS       255
 #define TT_IRQCHIP_NUM_SOURCES    128
 #define TT_IRQCHIP_NUM_PRIO_BITS  3
-#define TT_IRQCHIP_GUESTS         63 /* aia_guests, gives guest_index_bits=6 */
-#define TT_IRQCHIP_MIMSIC_STRIDE  0x40000
+#define TT_IMSIC_GUESTS           5
+#define TT_IMSIC_STRIDE           0x40000 /* Same stride for M and S */
+#define TT_IMSIC_GUEST_BITS       6
+
+/* Stride is fixed by hardware, check it's consistent with guest bits. */
+QEMU_BUILD_BUG_ON(TT_IMSIC_STRIDE != (0x1000 << TT_IMSIC_GUEST_BITS));
 
 #define TT_ACLINT_MTIME_SIZE    0x8050
 #define TT_ACLINT_MTIME         0x0
@@ -230,18 +234,16 @@ static void create_fdt_cpu(TTAtlantisState *s, const MemMapEntry *memmap,
 
     create_fdt_aclint(s, intc_phandles);
 
-    uint32_t imsic_guest_bits = imsic_num_bits(TT_IRQCHIP_GUESTS + 1);
-
     /* M-level IMSIC node */
     uint32_t msi_m_phandle = next_phandle();
     create_fdt_one_imsic(fdt, &s->memmap[TT_ATL_MIMSIC], ms->smp.cpus,
                          intc_phandles, msi_m_phandle,
-                         IRQ_M_EXT, imsic_guest_bits);
+                         IRQ_M_EXT, TT_IMSIC_GUEST_BITS);
 
     /* S-level IMSIC node */
     create_fdt_one_imsic(fdt, &s->memmap[TT_ATL_SIMSIC], ms->smp.cpus,
                          intc_phandles, imsic_s_phandle,
-                         IRQ_S_EXT, imsic_guest_bits);
+                         IRQ_S_EXT, TT_IMSIC_GUEST_BITS);
 
     uint32_t aplic_m_phandle = next_phandle();
 
@@ -493,8 +495,9 @@ static void tt_atlantis_machine_init(MachineState *machine)
                             &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
 
-    s->irqchip = riscv_create_aia(true, TT_IRQCHIP_GUESTS,
-                                  TT_IRQCHIP_MIMSIC_STRIDE,
+    s->irqchip = riscv_create_aia(true, TT_IMSIC_GUESTS,
+                                  TT_IMSIC_STRIDE,
+                                  TT_IMSIC_STRIDE,
                                   TT_IRQCHIP_NUM_SOURCES,
                                   &s->memmap[TT_ATL_MAPLIC],
                                   &s->memmap[TT_ATL_SAPLIC],

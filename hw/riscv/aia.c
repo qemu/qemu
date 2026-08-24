@@ -26,6 +26,7 @@ uint32_t imsic_num_bits(uint32_t count)
 
 DeviceState *riscv_create_aia(bool msimode, int aia_guests,
                              uint32_t m_imsic_stride,
+                             uint32_t s_imsic_stride,
                              uint16_t num_sources,
                              const MemMapEntry *aplic_m,
                              const MemMapEntry *aplic_s,
@@ -36,7 +37,6 @@ DeviceState *riscv_create_aia(bool msimode, int aia_guests,
 {
     int i;
     hwaddr addr = 0;
-    uint32_t guest_bits;
     DeviceState *aplic_s_dev = NULL;
     DeviceState *aplic_m_dev = NULL;
 
@@ -55,10 +55,9 @@ DeviceState *riscv_create_aia(bool msimode, int aia_guests,
         }
 
         /* Per-socket S-level IMSICs */
-        guest_bits = imsic_num_bits(aia_guests + 1);
         addr = imsic_s->base + socket * (1U << IMSIC_MMIO_GROUP_MIN_SHIFT);
         for (i = 0; i < hart_count; i++) {
-            riscv_imsic_create(addr + i * IMSIC_HART_SIZE(guest_bits),
+            riscv_imsic_create(addr + i * s_imsic_stride,
                                base_hartid + i, false, 1 + aia_guests,
                                num_msis);
         }

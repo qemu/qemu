@@ -1410,9 +1410,11 @@ static void virt_machine_init(MachineState *machine)
             s->irqchip[i] = virt_create_plic(s->memmap, i,
                                              base_hartid, hart_count);
         } else {
+            int imsic_bits = imsic_num_bits(s->aia_guests + 1);
             s->irqchip[i] = riscv_create_aia(s->aia_type == VIRT_AIA_TYPE_APLIC_IMSIC,
                                              s->aia_guests,
                                              IMSIC_HART_SIZE(0),
+                                             IMSIC_HART_SIZE(imsic_bits),
                                              s->num_sources,
                                              &s->memmap[VIRT_APLIC_M],
                                              &s->memmap[VIRT_APLIC_S],
