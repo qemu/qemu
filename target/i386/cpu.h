@@ -2188,6 +2188,16 @@ typedef struct CPUArchState {
 
     /* exception/interrupt handling */
     int error_code;
+#ifdef CONFIG_USER_ONLY
+    /*
+     * The number of the last cpu exception taken by this thread, mirroring
+     * linux's thread.trap_nr, which is what the kernel reports in
+     * sigcontext.trapno.  CPUState::exception_index cannot be used for this:
+     * cpu_exec() resets it before returning, long before the signal frame is
+     * built during delivery.
+     */
+    int trap_nr;
+#endif
     int exception_is_int;
     target_ulong exception_next_eip;
     target_ulong dr[8]; /* debug registers; note dr4 and dr5 are unused */

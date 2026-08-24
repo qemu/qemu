@@ -218,6 +218,15 @@ void cpu_loop(CPUX86State *env)
         cpu_exec_end(cs);
         qemu_process_cpu_events(cs);
 
+        /*
+         * Remember the exception for sigcontext.trapno, as linux does in
+         * thread.trap_nr.  Only hardware exception vectors qualify; the
+         * EXCP_* values at 0x100 and above are emulation internals.
+         */
+        if (trapnr >= EXCP00_DIVZ && trapnr <= EXCP12_MCHK) {
+            env->trap_nr = trapnr;
+        }
+
         switch(trapnr) {
         case 0x80:
 #ifndef TARGET_X86_64

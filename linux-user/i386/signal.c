@@ -367,8 +367,6 @@ static void setup_sigcontext(CPUX86State *env,
                              abi_ptr fxstate_addr,
                              abi_ptr fpend_addr)
 {
-    CPUState *cs = env_cpu(env);
-
 #ifndef TARGET_X86_64
     uint16_t magic;
 
@@ -385,7 +383,7 @@ static void setup_sigcontext(CPUX86State *env,
     __put_user(env->regs[R_EDX], &sc->edx);
     __put_user(env->regs[R_ECX], &sc->ecx);
     __put_user(env->regs[R_EAX], &sc->eax);
-    __put_user(cs->exception_index, &sc->trapno);
+    __put_user(env->trap_nr, &sc->trapno);
     __put_user(env->error_code, &sc->err);
     __put_user(env->eip, &sc->eip);
     __put_user(env->segs[R_CS].selector, (uint32_t *)&sc->cs);
@@ -416,7 +414,7 @@ static void setup_sigcontext(CPUX86State *env,
     __put_user(env->regs[14], &sc->r14);
     __put_user(env->regs[15], &sc->r15);
 
-    __put_user(cs->exception_index, &sc->trapno);
+    __put_user(env->trap_nr, &sc->trapno);
     __put_user(env->error_code, &sc->err);
     __put_user(env->eip, &sc->rip);
 

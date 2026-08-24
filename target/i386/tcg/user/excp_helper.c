@@ -31,10 +31,10 @@ void x86_cpu_record_sigsegv(CPUState *cs, vaddr addr,
 
     /*
      * The error_code that hw reports as part of the exception frame
-     * is copied to linux sigcontext.err.  The exception_index is
-     * copied to linux sigcontext.trapno.  Short of inventing a new
-     * place to store the trapno, we cannot let our caller raise the
-     * signal and set exception_index to EXCP_INTERRUPT.
+     * is copied to linux sigcontext.err.  The trapno reported in
+     * linux sigcontext.trapno is recorded separately in env->trap_nr
+     * by cpu_loop(), since cpu_exec() clears exception_index before
+     * the signal frame is built.
      */
     env->cr[2] = addr;
     env->error_code = (maperr ? 0 : PG_ERROR_P_MASK)
