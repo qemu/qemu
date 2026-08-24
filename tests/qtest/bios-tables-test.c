@@ -2616,6 +2616,9 @@ static void test_oem_fields(test_data *data)
             continue;
         }
 
+        if (verbosity_level >= 2) {
+            fprintf(stderr, "Checking '%.4s'\n", sdt->aml);
+        }
         g_assert(strncmp((char *)sdt->aml + 10, OEM_ID, 6) == 0);
         g_assert(strncmp((char *)sdt->aml + 16, OEM_TABLE_ID, 8) == 0);
     }
