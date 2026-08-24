@@ -2558,6 +2558,7 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
     int r2 = have_field(s, r2) ? get_field(s, r2) : 0;
     int r3 = have_field(s, r3) ? get_field(s, r3) : 0;
     TCGv_i32 t_r1, t_r2, t_r3, type;
+    bool update_cc = true;
 
     switch (s->insn->data) {
     case S390_FEAT_TYPE_KMA:
@@ -2590,8 +2591,10 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
             gen_program_exception(s, PGM_SPECIFICATION);
             return DISAS_NORETURN;
         }
-        /* FALL THROUGH */
+        break;
     case S390_FEAT_TYPE_PCKMO:
+        update_cc = false;
+        /* FALL THROUGH */
     case S390_FEAT_TYPE_PCC:
         break;
     default:
@@ -2602,8 +2605,13 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
     t_r2 = tcg_constant_i32(r2);
     t_r3 = tcg_constant_i32(r3);
     type = tcg_constant_i32(s->insn->data);
-    gen_helper_msa(cc_op, tcg_env, t_r1, t_r2, t_r3, type);
-    set_cc_static(s);
+    if (update_cc) {
+        gen_helper_msa(cc_op, tcg_env, t_r1, t_r2, t_r3, type);
+        set_cc_static(s);
+    } else {
+        TCGv_i32 cc_dummy = tcg_temp_new_i32();
+        gen_helper_msa(cc_dummy, tcg_env, t_r1, t_r2, t_r3, type);
+    }
     return DISAS_NEXT;
 }
 
