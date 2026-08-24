@@ -260,4 +260,7 @@ config XLNX_ZYNQ_DDRC
 config AXIADO_CLK
     bool
 
+config K230_DECOMP_GZIP
+    bool
+
 source macio/Kconfig

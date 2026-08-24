@@ -18,12 +18,14 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-ldst.h"
 
 target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
 {
     unsigned mmu_index = cpu_mmu_index(env_cpu(env), true);
+    MemOp endian = mo_endian_env(env);
     MemOpIdx oi;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -45,11 +47,11 @@ target_ulong HELPER(cm_jalt)(CPURISCVState *env, uint32_t index)
     }
 
     if (xlen == 32) {
-        oi = make_memop_idx(MO_LEUL, mmu_index);
+        oi = make_memop_idx(MO_UL | endian, mmu_index);
         t0 = base + (index << 2);
         target = cpu_ldl_code_mmu(env, t0, oi, 0);
     } else {
-        oi = make_memop_idx(MO_LEUQ, mmu_index);
+        oi = make_memop_idx(MO_UQ | endian, mmu_index);
         t0 = base + (index << 3);
         target = cpu_ldq_code_mmu(env, t0, oi, 0);
     }

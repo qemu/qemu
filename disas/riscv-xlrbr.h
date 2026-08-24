@@ -12,8 +12,6 @@
 
 #include "disas/riscv.h"
 
-extern const rv_opcode_data rv_xlrbr_opcode_data[];
-
-void decode_xlrbr(rv_decode *, rv_isa);
+const rv_opcode_data *decode_xlrbr(rv_decode *, rv_isa);
 
 #endif /* DISAS_RISCV_XLRBR_H */

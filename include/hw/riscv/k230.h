@@ -16,8 +16,11 @@
 #define HW_K230_H
 
 #include "hw/core/boards.h"
+#include "hw/misc/k230_ddr.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/watchdog/k230_wdt.h"
+#include "hw/dma/k230_gsdma.h"
+#include "hw/misc/k230_decomp_gzip.h"
 
 #define C908_CPU_HARTID   (0)
 
@@ -32,7 +35,11 @@ typedef struct K230SoCState {
     /*< public >*/
     RISCVHartArrayState c908_cpu; /* Small core */
 
+    K230DDRCfgState ddr_cfg;
+    K230DDRPhyState ddr_phy;
     K230WdtState wdt[2];
+    K230GSDMAState gsdma;
+    K230DecompGzipState decomp_gzip;
     MemoryRegion sram;
     MemoryRegion bootrom;
 
@@ -112,6 +119,7 @@ enum {
     K230_DEV_SPI,
     K230_DEV_HI_SYS_CFG,
     K230_DEV_DDRC_CFG,
+    K230_DEV_DDR_PHY,
     K230_DEV_FLASH,
     K230_DEV_PLIC,
     K230_DEV_CLINT,
@@ -129,6 +137,7 @@ enum {
     K230_UART4_IRQ  = 20,
     K230_WDT0_IRQ   = 107,
     K230_WDT1_IRQ   = 108,
+    K230_GSDMA_IRQ  = 140,
 };
 
 #define K230_UART_COUNT 5

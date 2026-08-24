@@ -11,8 +11,6 @@
 
 #include "disas/riscv.h"
 
-extern const rv_opcode_data ventana_opcode_data[];
-
-void decode_xventanacondops(rv_decode*, rv_isa);
+const rv_opcode_data *decode_xventanacondops(rv_decode*, rv_isa);
 
 #endif /* DISAS_RISCV_XVENTANA_H */
