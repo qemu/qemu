@@ -5,8 +5,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
 from qemu_test import Asset, interrupt_interactive_console_until_pattern
 from qemu_test import skipBigDataTest
@@ -54,8 +52,6 @@ class BananaPiMachine(LinuxKernelTest):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
-        os.remove(kernel_path)
-        os.remove(dtb_path)
 
     def test_arm_bpim2u_initrd(self):
         self.set_machine('bpim2u')
@@ -86,9 +82,6 @@ class BananaPiMachine(LinuxKernelTest):
                                                 'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
-        os.remove(kernel_path)
-        os.remove(dtb_path)
-        os.remove(initrd_path)
 
     def test_arm_bpim2u_gmac(self):
         self.set_machine('bpim2u')
@@ -133,9 +126,6 @@ class BananaPiMachine(LinuxKernelTest):
                                                 'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
-        os.remove(kernel_path)
-        os.remove(dtb_path)
-        os.remove(rootfs_path)
 
     @skipBigDataTest()
     def test_arm_bpim2u_openwrt_22_03_3(self):
@@ -174,7 +164,6 @@ class BananaPiMachine(LinuxKernelTest):
                                                 'Allwinner sun8i Family')
         exec_command_and_wait_for_pattern(self, 'cat /proc/iomem',
                                                 'system-control@1c00000')
-        os.remove(image_path)
 
 if __name__ == '__main__':
     LinuxKernelTest.main()

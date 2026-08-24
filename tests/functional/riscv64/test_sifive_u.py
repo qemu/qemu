@@ -10,8 +10,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import Asset, LinuxKernelTest
 
 
@@ -48,8 +46,6 @@ class SifiveU(LinuxKernelTest):
                          '-no-reboot')
         self.vm.launch()
         self.wait_for_console_pattern(pattern)
-
-        os.remove(rootfs_path)
 
     def test_riscv64_sifive_u_nommc_spi(self):
         self.do_test_riscv64_sifive_u_mmc_spi(False)
