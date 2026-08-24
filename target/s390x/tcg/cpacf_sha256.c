@@ -19,6 +19,7 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "target/s390x/tcg/cpacf-arch.h"
 #include "target/s390x/tcg/cpacf.h"
+#include "target/s390x/tcg/crypto_helper.h"
 
 static uint32_t R(uint32_t x, int c)
 {
@@ -104,53 +105,13 @@ static void sha256_bda_be32(uint32_t a[8], uint32_t w[16])
     sha256_bda(a, t);
 }
 
-static void sha256_read_icv(CPUS390XState *env, const int mmu_idx,
-                            uint64_t addr, uint32_t a[8], uintptr_t ra)
-{
-    const MemOpIdx oi = make_memop_idx(MO_BE | MO_32 | MO_UNALN, mmu_idx);
-
-    for (int i = 0; i < 8; i++, addr += 4) {
-        a[i] = cpu_ldl_mmu(env, wrap_address(env, addr), oi, ra);
-    }
-}
-
-static void sha256_write_ocv(CPUS390XState *env, const int mmu_idx,
-                             uint64_t addr, uint32_t a[8], uintptr_t ra)
-{
-    const MemOpIdx oi = make_memop_idx(MO_BE | MO_32 | MO_UNALN, mmu_idx);
-
-    for (int i = 0; i < 8; i++, addr += 4) {
-        cpu_stl_mmu(env, wrap_address(env, addr), a[i], oi, ra);
-    }
-}
-
-static void sha256_read_block(CPUS390XState *env, const int mmu_idx,
-                              uint64_t addr, uint32_t a[16], uintptr_t ra)
-{
-    const MemOpIdx oi = make_memop_idx(MO_BE | MO_32 | MO_UNALN, mmu_idx);
-
-    for (int i = 0; i < 16; i++, addr += 4) {
-        a[i] = cpu_ldl_mmu(env, wrap_address(env, addr), oi, ra);
-    }
-}
-
-static void sha256_read_mbl_be32(CPUS390XState *env, const int mmu_idx,
-                                 uint64_t addr, uint8_t a[8], uintptr_t ra)
-{
-    const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
-
-    for (int i = 0; i < 8; i++, addr += 1) {
-        a[i] = cpu_ldb_mmu(env, wrap_address(env, addr), oi, ra);
-    }
-}
-
 int cpacf_sha256(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                  uint64_t param_addr, uint64_t *message_reg, uint64_t *len_reg,
                  uint32_t type)
 {
     enum { MAX_BLOCKS_PER_RUN = 128 }; /* 128 * 64 = 8K */
     uint64_t len = *len_reg, processed = 0;
-    int i, message_reg_len = 64;
+    int message_reg_len = 64;
     uint32_t a[8];
 
     g_assert(type == S390_FEAT_TYPE_KIMD || type == S390_FEAT_TYPE_KLMD);
@@ -165,7 +126,8 @@ int cpacf_sha256(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, ra);
     }
 
-    sha256_read_icv(env, mmu_idx, param_addr, a, ra);
+    /* read icv (8 * u32) */
+    read_guest_wrap_u32(env, mmu_idx, ra, param_addr, a, 8);
 
     /* Process full blocks first. */
     for (; len >= 64; len -= 64, processed += 64) {
@@ -175,21 +137,18 @@ int cpacf_sha256(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
             break;
         }
 
-        sha256_read_block(env, mmu_idx, *message_reg + processed, w, ra);
+        /* read sha256 block (16 * u32) */
+        read_guest_wrap_u32(env, mmu_idx, ra, *message_reg + processed, w, 16);
         sha256_bda(a, w);
     }
 
     /* KLMD: Process partial/empty block last. */
     if (type == S390_FEAT_TYPE_KLMD && len < 64) {
-        const MemOpIdx oi = make_memop_idx(MO_8, mmu_idx);
         uint8_t x[64];
 
-        /* Read the remainder of the message byte-per-byte. */
-        for (i = 0; i < len; i++) {
-            uint64_t addr = wrap_address(env, *message_reg + processed + i);
+        /* Read the remainder of the message. */
+        read_guest_wrap_u8(env, mmu_idx, ra, *message_reg + processed, x, len);
 
-            x[i] = cpu_ldb_mmu(env, addr, oi, ra);
-        }
         /* Pad the remainder with zero and set the top bit. */
         memset(x + len, 0, 64 - len);
         x[len] = 0x80;
@@ -199,13 +158,13 @@ int cpacf_sha256(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
          * or use an additional one.
          */
         if (len < 56) {
-            sha256_read_mbl_be32(env, mmu_idx, param_addr + 32, x + 56, ra);
+            read_guest_wrap_u8(env, mmu_idx, ra, param_addr + 32, x + 56, 8);
         }
         sha256_bda_be32(a, (uint32_t *)x);
 
         if (len >= 56) {
             memset(x, 0, 56);
-            sha256_read_mbl_be32(env, mmu_idx, param_addr + 32, x + 56, ra);
+            read_guest_wrap_u8(env, mmu_idx, ra, param_addr + 32, x + 56, 8);
             sha256_bda_be32(a, (uint32_t *)x);
         }
 
@@ -220,7 +179,7 @@ int cpacf_sha256(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
      * TODO: if writing fails halfway through (e.g., when crossing page
      * boundaries), we're in trouble. We'd need something like access_prepare().
      */
-    sha256_write_ocv(env, mmu_idx, param_addr, a, ra);
+    write_guest_wrap_u32(env, mmu_idx, ra, param_addr, a, 8);
     *message_reg = deposit64(*message_reg, 0, message_reg_len,
                              *message_reg + processed);
     *len_reg -= processed;

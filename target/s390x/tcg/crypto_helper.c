@@ -22,6 +22,7 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "target/s390x/tcg/cpacf-arch.h"
 #include "target/s390x/tcg/cpacf.h"
+#include "target/s390x/tcg/crypto_helper.h"
 
 static int fill_buf_random(CPUS390XState *env, const int mmu_idx, uintptr_t ra,
                            uint64_t *buf_reg, uint64_t *len_reg)
