@@ -43,6 +43,10 @@ DeviceState *riscv_create_aia(bool msimode, int aia_guests,
     /* The RISC-V Advanced Interrupt Architecture, Chapter 1.2. Limits */
     g_assert(num_sources <= 1023);
 
+    /* Prevent IMSIC MMIO regions from silently overlapping */
+    g_assert(s_imsic_stride >= IMSIC_HART_SIZE(imsic_num_bits(1 + aia_guests)));
+    g_assert(m_imsic_stride >= IMSIC_HART_SIZE(0));
+
     if (msimode) {
         if (!kvm_enabled()) {
             /* Per-socket M-level IMSICs */
