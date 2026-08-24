@@ -91,9 +91,11 @@ Semihosting
 -----------
 Hexagon supports a semihosting interface similar to other architectures'.
 The ``trap0`` instruction can activate these semihosting calls so that the
-guest software can access the host console and filesystem.  Semihosting
-is not yet implemented in QEMU hexagon.
-
+guest software can access the host console and filesystem. Read the
+`Hexagon Semihosting Specification
+<https://docs.qualcomm.com/doc/80-N2040-101_102648/topic/semihosting-specification.html>`__
+for details. Semihosting is enabled by default on hexagon-sim-compatible
+machines. This can be further configured through ``-semihosting-config``.
 
 Hexagon Features
 ================
