@@ -597,20 +597,31 @@ static void gd_gl_release_dmabuf(DisplayChangeListener *dcl,
 #endif
 }
 
-void gd_hw_gl_flushed(void *vcon)
+#ifdef CONFIG_GBM
+static void gd_gl_fence_cb(void *vcon)
 {
     VirtualConsole *vc = vcon;
-    QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
-    int fence_fd;
 
-    fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
-    if (fence_fd >= 0) {
-        qemu_set_fd_handler(fence_fd, NULL, NULL, NULL);
-        close(fence_fd);
-        qemu_dmabuf_set_fence_fd(dmabuf, -1);
+    if (vc->gfx.gl_fence_fd >= 0) {
+        qemu_set_fd_handler(vc->gfx.gl_fence_fd, NULL, NULL, NULL);
+        g_clear_fd(&vc->gfx.gl_fence_fd, NULL);
         qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
     }
 }
+
+void gd_gl_wait_sync(VirtualConsole *vc, EGLSyncKHR sync)
+{
+    assert(vc->gfx.gl_fence_fd < 0);
+
+    vc->gfx.gl_fence_fd = egl_create_fence(sync);
+    if (vc->gfx.gl_fence_fd >= 0) {
+        qemu_set_fd_handler(vc->gfx.gl_fence_fd,
+                            gd_gl_fence_cb, NULL, vc);
+    } else {
+        qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
+    }
+}
+#endif
 
 /** DisplayState Callbacks (opengl version) **/
 
@@ -2355,6 +2366,7 @@ add_gfx_console(GtkDisplayState *s, QemuConsole *con)
     vc->gfx.scale_y = vc->gfx.preferred_scale;
 
 #if defined(CONFIG_OPENGL)
+    vc->gfx.gl_fence_fd = -1;
     if (display_opengl) {
         if (gtk_use_gl_area) {
             vc->gfx.drawing_area = gtk_gl_area_new();
@@ -2647,6 +2659,9 @@ static void gd_vc_free(void *p)
 
     switch (vc->type) {
     case GD_VC_GFX:
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+        gd_gl_fence_cb(vc);
+#endif
         qemu_console_unregister_listener(&vc->gfx.dcl);
 #if defined(CONFIG_OPENGL)
         if (display_opengl) {

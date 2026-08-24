@@ -41,6 +41,7 @@ void gd_gl_area_draw(VirtualConsole *vc)
 {
 #ifdef CONFIG_GBM
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
+    EGLSyncKHR sync = EGL_NO_SYNC_KHR;
 #endif
     int pw, ph, gs, y1, y2;
     int ww, wh;
@@ -119,20 +120,13 @@ void gd_gl_area_draw(VirtualConsole *vc)
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
 #ifdef CONFIG_GBM
         if (dmabuf) {
-            egl_dmabuf_create_sync(dmabuf);
+            sync = egl_create_sync();
         }
 #endif
         glFlush();
 #ifdef CONFIG_GBM
         if (dmabuf) {
-            int fence_fd;
-            egl_dmabuf_create_fence(dmabuf);
-            fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
-            if (fence_fd >= 0) {
-                qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
-                return;
-            }
-            qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
+            gd_gl_wait_sync(vc, sync);
         }
 #endif
     } else {

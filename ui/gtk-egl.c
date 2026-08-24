@@ -68,7 +68,7 @@ void gd_egl_draw(VirtualConsole *vc)
     GdkWindow *window;
 #ifdef CONFIG_GBM
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
-    int fence_fd;
+    EGLSyncKHR sync;
 #endif
     int ww, wh, pw, ph, gs;
 
@@ -94,7 +94,11 @@ void gd_egl_draw(VirtualConsole *vc)
             qemu_console_hw_gl_block(vc->gfx.dcl.con, true);
         }
 #endif
-        gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0, vc->gfx.w, vc->gfx.h);
+#ifdef CONFIG_GBM
+        sync =
+#endif
+            gd_egl_scanout_flush(&vc->gfx.dcl, 0, 0,
+                                 vc->gfx.w, vc->gfx.h);
 
         gd_update_scale(vc, ww, wh,
                         surface_width(vc->gfx.ds),
@@ -103,13 +107,7 @@ void gd_egl_draw(VirtualConsole *vc)
         glFlush();
 #ifdef CONFIG_GBM
         if (dmabuf) {
-            egl_dmabuf_create_fence(dmabuf);
-            fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
-            if (fence_fd >= 0) {
-                qemu_set_fd_handler(fence_fd, gd_hw_gl_flushed, NULL, vc);
-                return;
-            }
-            qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
+            gd_gl_wait_sync(vc, sync);
         }
 #endif
     } else {
@@ -330,10 +328,12 @@ void gd_egl_cursor_position(DisplayChangeListener *dcl,
     vc->gfx.cursor_y = pos_y * vc->gfx.scale_y;
 }
 
-void gd_egl_scanout_flush(DisplayChangeListener *dcl,
-                          uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+EGLSyncKHR gd_egl_scanout_flush(DisplayChangeListener *dcl,
+                                uint32_t x, uint32_t y,
+                                uint32_t w, uint32_t h)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+    EGLSyncKHR sync = EGL_NO_SYNC_KHR;
     GdkWindow *window;
     int px_offset, py_offset;
     int gs;
@@ -342,10 +342,10 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
     int fbw, fbh;
 
     if (!vc->gfx.scanout_mode) {
-        return;
+        return sync;
     }
     if (!vc->gfx.guest_fb.framebuffer) {
-        return;
+        return sync;
     }
 
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
@@ -391,11 +391,13 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
 
 #ifdef CONFIG_GBM
     if (vc->gfx.guest_fb.dmabuf) {
-        egl_dmabuf_create_sync(vc->gfx.guest_fb.dmabuf);
+        sync = egl_create_sync();
     }
 #endif
 
     eglSwapBuffers(qemu_egl_display, vc->gfx.esurface);
+
+    return sync;
 }
 
 void gd_egl_flush(DisplayChangeListener *dcl,
