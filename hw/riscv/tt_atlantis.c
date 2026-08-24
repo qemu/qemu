@@ -355,6 +355,7 @@ static void finalize_fdt(TTAtlantisState *s)
                        aplic_s_phandle, periph_clk_phandle);
     }
 
+    /* I2C peripherals: qemu specific */
     create_fdt_i2c_device(s, 0, "dallas,ds1338", 0x6f);
     create_fdt_i2c_device(s, 4, "ti,tmp105", 0x48);
 }
