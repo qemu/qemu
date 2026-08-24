@@ -75,4 +75,6 @@ void semihost_sys_gettimeofday(CPUState *cs, gdb_syscall_complete_cb complete,
 void semihost_sys_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
                            int fd, GIOCondition cond, int timeout);
 
+void semihost_sys_ftruncate(CPUState *cs, gdb_syscall_complete_cb complete,
+                            int fd, off_t len);
 #endif /* SEMIHOSTING_SYSCALLS_H */

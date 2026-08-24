@@ -8,10 +8,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "gdbstub/syscalls.h"
 #include "semihosting/guestfd.h"
 #include "semihosting/syscalls.h"
 #include "semihosting/console.h"
+#include "semihosting/semihost.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 #else
@@ -541,6 +543,13 @@ static void host_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
 }
 #endif
 
+static void host_ftruncate(CPUState *cs, gdb_syscall_complete_cb complete,
+                           GuestFD *gf, off_t len)
+{
+    int err = ftruncate(gf->hostfd, len);
+    complete(cs, err, err < 0 ? errno : 0);
+}
+
 /*
  * Static file semihosting syscall implementations.
  */
@@ -982,3 +991,23 @@ void semihost_sys_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
     }
 }
 #endif
+
+void semihost_sys_ftruncate(CPUState *cs, gdb_syscall_complete_cb complete,
+                            int fd, off_t len)
+{
+    GuestFD *gf = get_guestfd(fd);
+    if (!gf) {
+        complete(cs, -1, EBADF);
+        return;
+    }
+
+    switch (gf->type) {
+    case GuestFDHost:
+        host_ftruncate(cs, complete, gf, len);
+        break;
+    default:
+        error_report("ftruncate call not implemented "
+                     "for this semihosting mode.");
+        g_assert_not_reached();
+    }
+}
