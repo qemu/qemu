@@ -37,7 +37,6 @@
 
 static struct virtio_gpu_simple_resource *
 virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
-                               bool require_backing,
                                const char *caller, uint32_t *error);
 
 static void virtio_gpu_reset_bh(void *opaque);
@@ -50,8 +49,7 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
     uint32_t pixels;
     void *data;
 
-    res = virtio_gpu_find_check_resource(g, resource_id, false,
-                                         __func__, NULL);
+    res = virtio_gpu_find_check_resource(g, resource_id, __func__, NULL);
     if (!res) {
         return;
     }
@@ -128,7 +126,6 @@ virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id)
 
 static struct virtio_gpu_simple_resource *
 virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
-                               bool require_backing,
                                const char *caller, uint32_t *error)
 {
     struct virtio_gpu_simple_resource *res;
@@ -141,17 +138,6 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
             *error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         }
         return NULL;
-    }
-
-    if (require_backing) {
-        if (!res->iov || (!res->image && !res->blob)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: no backing storage %d\n",
-                          caller, resource_id);
-            if (error) {
-                *error = VIRTIO_GPU_RESP_ERR_UNSPEC;
-            }
-            return NULL;
-        }
     }
 
     return res;
@@ -474,9 +460,24 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
     virtio_gpu_t2d_bswap(&t2d);
     trace_virtio_gpu_cmd_res_xfer_toh_2d(t2d.resource_id);
 
-    res = virtio_gpu_find_check_resource(g, t2d.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, t2d.resource_id,
                                          __func__, &cmd->error);
-    if (!res || res->blob) {
+    if (!res) {
+        return;
+    }
+
+    if (!res->image) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource %d is a blob\n",
+                      __func__, t2d.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    if (!res->iov) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: resource %d has no backing storage\n",
+                      __func__, t2d.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
 
@@ -533,7 +534,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
     trace_virtio_gpu_cmd_res_flush(rf.resource_id,
                                    rf.r.width, rf.r.height, rf.r.x, rf.r.y);
 
-    res = virtio_gpu_find_check_resource(g, rf.resource_id, false,
+    res = virtio_gpu_find_check_resource(g, rf.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
         return;
@@ -771,9 +772,16 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         return;
     }
 
-    res = virtio_gpu_find_check_resource(g, ss.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, ss.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
+        return;
+    }
+
+    if (!res->image) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource %d is a blob\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
 
@@ -866,9 +874,25 @@ static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
         return;
     }
 
-    res = virtio_gpu_find_check_resource(g, ss.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, ss.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
+        return;
+    }
+
+    if (res->image) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: resource %d is not a blob\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    if (!res->iov) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: resource %d has no backing storage\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
 
@@ -1067,7 +1091,7 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
     virtio_gpu_bswap_32(&detach, sizeof(detach));
     trace_virtio_gpu_cmd_res_back_detach(detach.resource_id);
 
-    res = virtio_gpu_find_check_resource(g, detach.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, detach.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
         return;
