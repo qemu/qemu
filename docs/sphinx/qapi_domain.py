@@ -30,19 +30,9 @@ from sphinx.domains import (
 )
 from sphinx.locale import _, __
 from sphinx.roles import XRefRole
-from sphinx.util import logging
+from sphinx.util import docfields, logging
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import make_id, make_refnode
-
-from compat import (
-    CompatField,
-    CompatGroupedField,
-    CompatTypedField,
-    KeywordNode,
-    ParserFix,
-    Signature,
-    SpaceNode,
-)
 
 
 if TYPE_CHECKING:
@@ -157,7 +147,10 @@ class QAPIXRefRole(XRefRole):
         return results, []
 
 
-class QAPIDescription(ParserFix):
+Signature = str
+
+
+class QAPIDescription(ObjectDescription[Signature]):
     """
     Generic QAPI description.
 
@@ -315,7 +308,7 @@ class QAPIObject(QAPIDescription):
 
     doc_field_types = [
         # :feat name: descr
-        CompatGroupedField(
+        docfields.GroupedField(
             "feature",
             label=_("Features"),
             names=("feat",),
@@ -327,8 +320,8 @@ class QAPIObject(QAPIDescription):
         """Return a prefix to put before the object name in the signature."""
         assert self.objtype
         return [
-            KeywordNode("", self.objtype.title()),
-            SpaceNode(" "),
+            addnodes.desc_sig_keyword("", self.objtype.title()),
+            addnodes.desc_sig_space(" "),
         ]
 
     def get_signature_suffix(self) -> List[nodes.Node]:
@@ -337,7 +330,7 @@ class QAPIObject(QAPIDescription):
 
         if "since" in self.options:
             ret += [
-                SpaceNode(" "),
+                addnodes.desc_sig_space(" "),
                 addnodes.desc_sig_element(
                     "", f"(Since: {self.options['since']})"
                 ),
@@ -376,7 +369,7 @@ class QAPIObject(QAPIDescription):
 
         return sig
 
-    def _add_infopips(self, contentnode: addnodes.desc_content) -> None:
+    def _add_infopips(self, content_node: addnodes.desc_content) -> None:
         # Add various eye-catches and things that go below the signature
         # bar, but precede the user-defined content.
         infopips = nodes.container()
@@ -420,7 +413,7 @@ class QAPIObject(QAPIDescription):
             )
 
         if infopips.children:
-            contentnode.insert(0, infopips)
+            content_node.insert(0, infopips)
 
     def _validate_field(self, field: nodes.field) -> None:
         """Validate field lists in this QAPI Object Description."""
@@ -470,7 +463,17 @@ class QAPIObject(QAPIDescription):
             )
             logger.warning(msg, location=field)
 
-    def transform_content(self, content_node: addnodes.desc_content) -> None:
+    def transform_content(
+        self,
+        # Sphinx changed the name of the content_node parameter
+        # sometime after Sphinx 7.2.6, so no matter which name we
+        # choose, either our minimum tests or our bleeding edge tests
+        # will complain about the parameter rename. Use the eventual
+        # name and silence the error for our minreq tests.
+        #
+        # pylint: disable=arguments-renamed
+        content_node: addnodes.desc_content
+    ) -> None:
         # This hook runs after before_content and the nested parse, but
         # before the DocFieldTransformer is executed.
         super().transform_content(content_node)
@@ -485,7 +488,7 @@ class QAPIObject(QAPIDescription):
                     self._validate_field(field)
 
 
-class SpecialTypedField(CompatTypedField):
+class SpecialTypedField(docfields.TypedField):
     def make_field(self, *args: Any, **kwargs: Any) -> nodes.field:
         ret = super().make_field(*args, **kwargs)
 
@@ -518,14 +521,14 @@ class QAPICommand(QAPIObject):
                 can_collapse=False,
             ),
             # :error: descr
-            CompatField(
+            docfields.Field(
                 "error",
                 label=_("Errors"),
                 names=("error", "errors"),
                 has_arg=False,
             ),
             # :return TypeName: descr
-            CompatGroupedField(
+            docfields.GroupedField(
                 "returnvalue",
                 label=_("Return"),
                 rolename="type",
@@ -533,7 +536,7 @@ class QAPICommand(QAPIObject):
                 can_collapse=True,
             ),
             # :return-nodesc: TypeName
-            CompatField(
+            docfields.Field(
                 "returnvalue",
                 label=_("Return"),
                 names=("return-nodesc",),
@@ -551,7 +554,7 @@ class QAPIEnum(QAPIObject):
     doc_field_types.extend(
         [
             # :value name: descr
-            CompatGroupedField(
+            docfields.GroupedField(
                 "value",
                 label=_("Values"),
                 names=("value",),
@@ -568,7 +571,7 @@ class QAPIAlternate(QAPIObject):
     doc_field_types.extend(
         [
             # :alt type name: descr
-            CompatTypedField(
+            docfields.TypedField(
                 "alternative",
                 label=_("Alternatives"),
                 names=("alt",),
