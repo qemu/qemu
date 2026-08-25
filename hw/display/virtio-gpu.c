@@ -63,8 +63,8 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
         }
         data = pixman_image_get_data(res->image);
     } else {
-        if (res->blob_size < (s->current_cursor->width *
-                              s->current_cursor->height * 4)) {
+        if (!res->iov || res->blob_size < (s->current_cursor->width *
+                                           s->current_cursor->height * 4)) {
             return;
         }
         data = res->blob;
