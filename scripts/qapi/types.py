@@ -34,7 +34,7 @@ from .source import QAPISourceInfo
 
 # variants must be emitted before their container; track what has already
 # been output
-objects_seen = set()
+objects_seen: set[str] = set()
 
 
 def gen_enum_lookup(name: str,
