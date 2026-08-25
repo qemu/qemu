@@ -96,10 +96,10 @@ RUN dnf --quiet distro-sync -y && \
                 pkgconfig \
                 pulseaudio-libs-devel \
                 python3-tomli \
-                python3.11 \
-                python3.11-pip \
-                python3.11-setuptools \
-                python3.11-wheel \
+                python3.12 \
+                python3.12-pip \
+                python3.12-setuptools \
+                python3.12-wheel \
                 rdma-core-devel \
                 rust \
                 rust-std-static \
@@ -129,7 +129,7 @@ RUN dnf --quiet distro-sync -y && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/clang && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
-RUN /usr/bin/pip3.11 install \
+RUN /usr/bin/pip3.12 install \
                      numpy \
                      opencv-python \
                      sphinx \
@@ -139,7 +139,7 @@ ENV CCACHE_WRAPPERSDIR="/usr/libexec/ccache-wrappers"
 ENV LANG="en_US.UTF-8"
 ENV MAKE="/usr/bin/make"
 ENV NINJA="/usr/bin/ninja"
-ENV PYTHON="/usr/bin/python3.11"
+ENV PYTHON="/usr/bin/python3.12"
 # As a final step configure the user (if env is defined)
 ARG USER
 ARG UID
