@@ -938,9 +938,7 @@ impl HPETState {
         let mut regs = self.regs.borrow_mut();
         let cnt = regs.counter;
 
-        for index in 0..self.num_timers {
-            let tn_regs = &mut regs.tn_regs[index];
-
+        for tn_regs in regs.tn_regs.iter_mut().take(self.num_timers) {
             tn_regs.update_cmp64(cnt);
             tn_regs.last = CLOCK_VIRTUAL.get_ns() - NANOSECONDS_PER_SECOND;
         }
