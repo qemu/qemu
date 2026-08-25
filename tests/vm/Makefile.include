@@ -5,7 +5,7 @@ ifeq ($(realpath $(SRC_PATH)),$(realpath .))
 VM_PYTHON = $(SRC_PATH)/vm-venv/bin/python3
 VM_VENV = vm-venv
 else
-VM_PYTHON = $(PYTHON)
+VM_PYTHON = $(BUILD_DIR)/run $(PYTHON)
 VM_VENV =
 endif
 
