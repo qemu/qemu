@@ -6,9 +6,6 @@ mappings:
   python3:
     CentOSStream9: python3.11
 
-  python3-devel:
-    CentOSStream9: python3.11-devel
-
   python3-pip:
     CentOSStream9: python3.11-pip
 
