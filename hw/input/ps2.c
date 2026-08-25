@@ -647,6 +647,10 @@ void ps2_write_keyboard(PS2KbdState *s, int val)
             ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         default:
+            /*
+             * A PS/2 device answers every command it is given; an unknown
+             * one draws a resend.
+             */
             ps2_cqueue_1(ps2, KBD_REPLY_RESEND);
             break;
         }
