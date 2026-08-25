@@ -51,9 +51,9 @@ sys.path.insert(0, os.path.join(qemu_docdir, "../scripts"))
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# 3.4.3 is the oldest version of Sphinx that ships on a platform we
+# 7.2.6 is the oldest version of Sphinx that ships on a platform we
 # pledge build support for.
-needs_sphinx = '3.4.3'
+needs_sphinx = '7.2.6'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
