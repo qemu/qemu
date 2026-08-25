@@ -18,16 +18,4 @@ QEMU also implements the standard interfaces, such as
    :local:
    :depth: 1
 
-.. only:: sphinx4
-
-   .. dbus-doc:: ui/dbus-display1.xml
-
-.. only:: not sphinx4
-
-   .. warning::
-      Sphinx 4 is required to build D-Bus documentation.
-
-      This is the content of ``ui/dbus-display1.xml``:
-
-   .. literalinclude:: ../../ui/dbus-display1.xml
-      :language: xml
+.. dbus-doc:: ui/dbus-display1.xml

@@ -11,16 +11,4 @@ Objects are exported under ``/org/qemu/Vnc1/``.
    :local:
    :depth: 1
 
-.. only:: sphinx4
-
-   .. dbus-doc:: tools/qemu-vnc/qemu-vnc1.xml
-
-.. only:: not sphinx4
-
-   .. warning::
-      Sphinx 4 is required to build D-Bus documentation.
-
-      This is the content of ``tools/qemu-vnc/qemu-vnc1.xml``:
-
-   .. literalinclude:: ../../tools/qemu-vnc/qemu-vnc1.xml
-      :language: xml
+.. dbus-doc:: tools/qemu-vnc/qemu-vnc1.xml

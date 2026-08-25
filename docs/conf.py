@@ -59,6 +59,7 @@ needs_sphinx = '7.2.6'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'dbusdoc',
     'depfile',
     'hxtool',
     'kerneldoc',
@@ -66,12 +67,6 @@ extensions = [
     'qapidoc',
     'qmp_lexer',
 ]
-
-if sphinx.version_info[:3] > (4, 0, 0):
-    tags.add('sphinx4')
-    extensions += ['dbusdoc']
-else:
-    extensions += ['fakedbusdoc']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [os.path.join(qemu_docdir, '_templates')]
