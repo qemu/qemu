@@ -129,7 +129,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev:s390x \
                       libsdl2-image-dev:s390x \
                       libseccomp-dev:s390x \
-                      libselinux1-dev:s390x \
+                      libselinux-dev:s390x \
                       libslirp-dev:s390x \
                       libsnappy-dev:s390x \
                       libsndio-dev:s390x \

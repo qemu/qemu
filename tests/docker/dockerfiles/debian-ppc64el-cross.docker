@@ -129,7 +129,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev:ppc64el \
                       libsdl2-image-dev:ppc64el \
                       libseccomp-dev:ppc64el \
-                      libselinux1-dev:ppc64el \
+                      libselinux-dev:ppc64el \
                       libslirp-dev:ppc64el \
                       libsnappy-dev:ppc64el \
                       libsndio-dev:ppc64el \

@@ -128,7 +128,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev:armhf \
                       libsdl2-image-dev:armhf \
                       libseccomp-dev:armhf \
-                      libselinux1-dev:armhf \
+                      libselinux-dev:armhf \
                       libslirp-dev:armhf \
                       libsnappy-dev:armhf \
                       libsndio-dev:armhf \

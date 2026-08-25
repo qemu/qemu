@@ -129,7 +129,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev:riscv64 \
                       libsdl2-image-dev:riscv64 \
                       libseccomp-dev:riscv64 \
-                      libselinux1-dev:riscv64 \
+                      libselinux-dev:riscv64 \
                       libslirp-dev:riscv64 \
                       libsnappy-dev:riscv64 \
                       libsndio-dev:riscv64 \
