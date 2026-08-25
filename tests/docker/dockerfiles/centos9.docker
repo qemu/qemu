@@ -130,6 +130,8 @@ RUN dnf --quiet distro-sync -y && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
 
 RUN /usr/bin/pip3.11 install \
+                     numpy \
+                     opencv-python \
                      sphinx \
                      sphinx-rtd-theme
 

@@ -18,11 +18,17 @@ mappings:
   python3-sphinx-rtd-theme:
     CentOSStream9:
 
+  python3-opencv:
+    CentOSStream9:
+
   python3-venv:
     CentOSStream9: python3.11
 
   python3-wheel:
     CentOSStream9: python3.11-wheel
+
+  python3-numpy:
+    CentOSStream9:
 
   meson:
     # Use Meson from PyPI wherever Rust is enabled
@@ -51,3 +57,9 @@ pypi_mappings:
     apk:
     Fedora:
     Debian12:
+
+  python3-numpy:
+    CentOSStream9: numpy
+
+  python3-opencv:
+    CentOSStream9: opencv-python

@@ -95,6 +95,8 @@ RUN zypper update -y && \
            pkgconfig \
            python3-Sphinx \
            python3-base \
+           python3-numpy \
+           python3-opencv \
            python3-pip \
            python3-setuptools \
            python3-sphinx_rtd_theme \

@@ -83,6 +83,7 @@ RUN apk update && \
         pixman-dev \
         pkgconf \
         pulseaudio-dev \
+        py3-numpy \
         py3-pip \
         py3-setuptools \
         py3-sphinx \
