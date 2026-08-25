@@ -400,6 +400,12 @@ void ich9_pm_add_class_properties(ObjectClass *oc, ptrdiff_t pm_offset)
     object_class_property_add_bool_ptr(oc, "x-keep-pci-slot-hpc",
                                        PM_REG_FIELD(keep_pci_slot_hpc),
                                        OBJ_PROP_FLAG_READWRITE);
+    object_class_property_add_uint16_ptr(oc, ACPI_PCIHP_IO_BASE_PROP,
+                                   PM_REG_FIELD(acpi_pci_hotplug.io_base),
+                                   OBJ_PROP_FLAG_READ);
+    object_class_property_add_uint16_ptr(oc, ACPI_PCIHP_IO_LEN_PROP,
+                                   PM_REG_FIELD(acpi_pci_hotplug.io_len),
+                                   OBJ_PROP_FLAG_READ);
 }
 
 #undef PM_REG_FIELD
