@@ -79,6 +79,12 @@ disable=bad-inline-option,
         useless-suppression,
 
 
+[TYPECHECK]
+
+# cv2 is a C extension module whose members are not visible to pylint
+generated-members=cv2.*
+
+
 [SIMILARITIES]
 
 # Minimum lines number of a similarity.

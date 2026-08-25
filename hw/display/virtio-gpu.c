@@ -37,7 +37,6 @@
 
 static struct virtio_gpu_simple_resource *
 virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
-                               bool require_backing,
                                const char *caller, uint32_t *error);
 
 static void virtio_gpu_reset_bh(void *opaque);
@@ -50,8 +49,7 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
     uint32_t pixels;
     void *data;
 
-    res = virtio_gpu_find_check_resource(g, resource_id, false,
-                                         __func__, NULL);
+    res = virtio_gpu_find_check_resource(g, resource_id, __func__, NULL);
     if (!res) {
         return;
     }
@@ -63,8 +61,8 @@ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
         }
         data = pixman_image_get_data(res->image);
     } else {
-        if (res->blob_size < (s->current_cursor->width *
-                              s->current_cursor->height * 4)) {
+        if (!res->iov || res->blob_size < (s->current_cursor->width *
+                                           s->current_cursor->height * 4)) {
             return;
         }
         data = res->blob;
@@ -128,7 +126,6 @@ virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id)
 
 static struct virtio_gpu_simple_resource *
 virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
-                               bool require_backing,
                                const char *caller, uint32_t *error)
 {
     struct virtio_gpu_simple_resource *res;
@@ -141,17 +138,6 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
             *error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         }
         return NULL;
-    }
-
-    if (require_backing) {
-        if (!res->iov || (!res->image && !res->blob)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: no backing storage %d\n",
-                          caller, resource_id);
-            if (error) {
-                *error = VIRTIO_GPU_RESP_ERR_UNSPEC;
-            }
-            return NULL;
-        }
     }
 
     return res;
@@ -363,27 +349,34 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
     res->resource_id = cblob.resource_id;
     res->blob_size = cblob.size;
 
-    ret = virtio_gpu_create_mapping_iov(g, cblob.nr_entries, sizeof(cblob),
-                                        cmd, &res->addrs, &res->iov,
-                                        &res->iov_cnt);
-    if (ret < 0) {
-        cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
-        g_free(res);
-        return;
+    if (cblob.nr_entries) {
+        ret = virtio_gpu_create_mapping_iov(g, cblob.nr_entries, sizeof(cblob),
+                                            cmd, &res->addrs, &res->iov,
+                                            &res->iov_cnt);
+        if (ret < 0) {
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            g_free(res);
+            return;
+        }
+
+        if (iov_size(res->iov, res->iov_cnt) < res->blob_size) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: backing storage smaller than blob size\n",
+                          __func__);
+            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
+            virtio_gpu_cleanup_mapping(g, res);
+            g_free(res);
+            return;
+        }
+
+        if (!virtio_gpu_init_udmabuf(res)) {
+            cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+            virtio_gpu_cleanup_mapping(g, res);
+            g_free(res);
+            return;
+        }
     }
 
-    if (res->iov_cnt > 0 &&
-        iov_size(res->iov, res->iov_cnt) < res->blob_size) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: backing storage smaller than blob size\n",
-                      __func__);
-        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
-        virtio_gpu_cleanup_mapping(g, res);
-        g_free(res);
-        return;
-    }
-
-    virtio_gpu_init_udmabuf(res);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -467,9 +460,24 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
     virtio_gpu_t2d_bswap(&t2d);
     trace_virtio_gpu_cmd_res_xfer_toh_2d(t2d.resource_id);
 
-    res = virtio_gpu_find_check_resource(g, t2d.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, t2d.resource_id,
                                          __func__, &cmd->error);
-    if (!res || res->blob) {
+    if (!res) {
+        return;
+    }
+
+    if (!res->image) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource %d is a blob\n",
+                      __func__, t2d.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    if (!res->iov) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: resource %d has no backing storage\n",
+                      __func__, t2d.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
 
@@ -526,7 +534,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
     trace_virtio_gpu_cmd_res_flush(rf.resource_id,
                                    rf.r.width, rf.r.height, rf.r.x, rf.r.y);
 
-    res = virtio_gpu_find_check_resource(g, rf.resource_id, false,
+    res = virtio_gpu_find_check_resource(g, rf.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
         return;
@@ -764,9 +772,16 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         return;
     }
 
-    res = virtio_gpu_find_check_resource(g, ss.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, ss.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
+        return;
+    }
+
+    if (!res->image) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource %d is a blob\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
 
@@ -859,9 +874,25 @@ static void virtio_gpu_set_scanout_blob(VirtIOGPU *g,
         return;
     }
 
-    res = virtio_gpu_find_check_resource(g, ss.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, ss.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
+        return;
+    }
+
+    if (res->image) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: resource %d is not a blob\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
+    }
+
+    if (!res->iov) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: resource %d has no backing storage\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
     }
 
@@ -892,7 +923,10 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
     }
 
     esize = sizeof(*ents) * nr_entries;
-    ents = g_malloc(esize);
+    ents = g_try_malloc(esize);
+    if (!ents && esize) {
+        return -1;
+    }
     s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num,
                    offset, ents, esize);
     if (s != esize) {
@@ -913,6 +947,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
         hwaddr len;
         void *map;
 
+        /* TODO: a common DMA map SG helper */
         do {
             len = l;
             map = dma_memory_map(VIRTIO_DEVICE(g)->dma_as, a, &len,
@@ -921,20 +956,27 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
             if (!map) {
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
                               " element %d\n", __func__, e);
-                virtio_gpu_cleanup_mapping_iov(g, *iov, v);
-                g_free(ents);
-                *iov = NULL;
-                if (addr) {
-                    g_free(*addr);
-                    *addr = NULL;
-                }
-                return -1;
+                goto err;
             }
 
             if (!(v % 16)) {
-                *iov = g_renew(struct iovec, *iov, v + 16);
+                struct iovec *new_iov;
+                new_iov = g_try_renew(struct iovec, *iov, v + 16);
+                if (!new_iov) {
+                    dma_memory_unmap(VIRTIO_DEVICE(g)->dma_as, map, len,
+                                     DMA_DIRECTION_TO_DEVICE, len);
+                    goto err;
+                }
+                *iov = new_iov;
                 if (addr) {
-                    *addr = g_renew(uint64_t, *addr, v + 16);
+                    uint64_t *new_addr;
+                    new_addr = g_try_renew(uint64_t, *addr, v + 16);
+                    if (!new_addr) {
+                        dma_memory_unmap(VIRTIO_DEVICE(g)->dma_as, map, len,
+                                         DMA_DIRECTION_TO_DEVICE, len);
+                        goto err;
+                    }
+                    *addr = new_addr;
                 }
             }
             (*iov)[v].iov_base = map;
@@ -952,6 +994,15 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
 
     g_free(ents);
     return 0;
+
+err:
+    virtio_gpu_cleanup_mapping_iov(g, *iov, v);
+    *iov = NULL;
+    if (addr) {
+        g_clear_pointer(addr, g_free);
+    }
+    g_free(ents);
+    return -1;
 }
 
 void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
@@ -1023,8 +1074,9 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
         return;
     }
 
-    if (!res->image) {
-        virtio_gpu_init_udmabuf(res);
+    if (!res->image && !virtio_gpu_init_udmabuf(res)) {
+        cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+        virtio_gpu_cleanup_mapping(g, res);
     }
 }
 
@@ -1039,7 +1091,7 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
     virtio_gpu_bswap_32(&detach, sizeof(detach));
     trace_virtio_gpu_cmd_res_back_detach(detach.resource_id);
 
-    res = virtio_gpu_find_check_resource(g, detach.resource_id, true,
+    res = virtio_gpu_find_check_resource(g, detach.resource_id,
                                          __func__, &cmd->error);
     if (!res) {
         return;
@@ -1369,8 +1421,6 @@ static bool virtio_gpu_load_restore_mapping(VirtIOGPU *g,
         }
     }
 
-    QTAILQ_INSERT_HEAD(&g->reslist, res, next);
-    g->hostmem += res->hostmem;
     return true;
 }
 
@@ -1449,6 +1499,8 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             return -EINVAL;
         }
 
+        QTAILQ_INSERT_HEAD(&g->reslist, res, next);
+        g->hostmem += hostmem;
         resource_id = qemu_get_be32(f);
     }
 
@@ -1508,36 +1560,42 @@ static int virtio_gpu_blob_load(QEMUFile *f, void *opaque, size_t size,
         res->blob_size = qemu_get_be32(f);
         res->iov_cnt = qemu_get_be32(f);
 
-        res->addrs = g_try_new(uint64_t, res->iov_cnt);
-        res->iov = g_try_new(struct iovec, res->iov_cnt);
-        if (res->iov_cnt && (!res->addrs || !res->iov)) {
-            g_free(res->addrs);
-            g_free(res->iov);
-            g_free(res);
-            return -EINVAL;
+        if (res->iov_cnt) {
+            res->addrs = g_try_new(uint64_t, res->iov_cnt);
+            res->iov = g_try_new(struct iovec, res->iov_cnt);
+            if (!res->addrs || !res->iov) {
+                g_free(res->addrs);
+                g_free(res->iov);
+                g_free(res);
+                return -EINVAL;
+            }
+
+            /* read data */
+            for (i = 0; i < res->iov_cnt; i++) {
+                res->addrs[i] = qemu_get_be64(f);
+                res->iov[i].iov_len = qemu_get_be32(f);
+            }
+
+            if (iov_size(res->iov, res->iov_cnt) < res->blob_size) {
+                g_free(res->addrs);
+                g_free(res->iov);
+                g_free(res);
+                return -EINVAL;
+            }
+
+            if (!virtio_gpu_load_restore_mapping(g, res)) {
+                g_free(res);
+                return -EINVAL;
+            }
+
+            if (!virtio_gpu_init_udmabuf(res)) {
+                virtio_gpu_cleanup_mapping(g, res);
+                g_free(res);
+                return -EINVAL;
+            }
         }
 
-        /* read data */
-        for (i = 0; i < res->iov_cnt; i++) {
-            res->addrs[i] = qemu_get_be64(f);
-            res->iov[i].iov_len = qemu_get_be32(f);
-        }
-
-        if (res->iov_cnt > 0 &&
-            iov_size(res->iov, res->iov_cnt) < res->blob_size) {
-            g_free(res->addrs);
-            g_free(res->iov);
-            g_free(res);
-            return -EINVAL;
-        }
-
-        if (!virtio_gpu_load_restore_mapping(g, res)) {
-            g_free(res);
-            return -EINVAL;
-        }
-
-        virtio_gpu_init_udmabuf(res);
-
+        QTAILQ_INSERT_HEAD(&g->reslist, res, next);
         resource_id = qemu_get_be32(f);
     }
 

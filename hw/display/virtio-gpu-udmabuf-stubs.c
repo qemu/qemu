@@ -7,9 +7,10 @@ bool virtio_gpu_have_udmabuf(void)
     return false;
 }
 
-void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
+bool virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     /* nothing (stub) */
+    return false;
 }
 
 void virtio_gpu_fini_udmabuf(VirtIOGPU *g, struct virtio_gpu_simple_resource *res)

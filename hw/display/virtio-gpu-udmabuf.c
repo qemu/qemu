@@ -39,8 +39,11 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
         return;
     }
 
-    list = g_malloc0(sizeof(struct udmabuf_create_list) +
-                     sizeof(struct udmabuf_create_item) * res->iov_cnt);
+    list = g_try_malloc0(sizeof(struct udmabuf_create_list) +
+                         sizeof(struct udmabuf_create_item) * res->iov_cnt);
+    if (!list) {
+        return;
+    }
 
     for (i = 0; i < res->iov_cnt; i++) {
         rcu_read_lock();
@@ -128,7 +131,7 @@ bool virtio_gpu_have_udmabuf(void)
     return memfd_backend;
 }
 
-void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
+bool virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     void *pdata = NULL;
 
@@ -136,20 +139,22 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
     if (res->iov_cnt == 1 &&
         res->iov[0].iov_len < 4096) {
         pdata = res->iov[0].iov_base;
-    } else {
+    } else if (res->blob_size) {
         virtio_gpu_create_udmabuf(res);
         if (res->dmabuf_fd < 0) {
-            return;
+            return false;
         }
         virtio_gpu_remap_udmabuf(res);
         if (!res->remapped) {
             virtio_gpu_destroy_udmabuf(res);
-            return;
+            return false;
         }
         pdata = res->remapped;
     }
 
     res->blob = pdata;
+
+    return true;
 }
 
 static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)

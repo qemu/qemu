@@ -1314,6 +1314,7 @@ static void machine_finalize(Object *obj)
     g_free(ms->nvdimms_state);
     g_free(ms->numa_state);
     g_free(ms->audiodev);
+    g_free(ms->fdt);
 }
 
 bool machine_usb(MachineState *machine)
