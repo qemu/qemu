@@ -75,6 +75,7 @@ import site
 import subprocess
 import sys
 import sysconfig
+import tomllib
 from types import SimpleNamespace
 from typing import (
     Any,
@@ -133,20 +134,6 @@ except ImportError:
 
 HAVE_PACKAGING_VERSION = _import_ok
 
-
-# Try to load tomllib, with a fallback to tomli.
-# HAVE_TOMLLIB is checked below, just-in-time, so that mkvenv does not fail
-# outside the venv or before a potential call to ensurepip in checkpip().
-_import_ok = True
-try:
-    import tomllib
-except ImportError:
-    try:
-        import tomli as tomllib
-    except ImportError:
-        _import_ok = False
-
-HAVE_TOMLLIB = _import_ok
 
 # Do not add any mandatory dependencies from outside the stdlib:
 # This script *must* be usable standalone!
@@ -261,36 +248,6 @@ class QemuEnvBuilder(venv.EnvBuilder):
             return sysconfig.get_path("purelib")
         return None
 
-    @staticmethod
-    def compute_venv_libpath(context: SimpleNamespace) -> str:
-        """
-        Compatibility wrapper for context.lib_path for Python < 3.12
-        """
-        # Python 3.12+, not strictly necessary because it's documented
-        # to be the same as 3.10 code below:
-        if sys.version_info >= (3, 12):
-            return context.lib_path
-
-        # Python 3.10+
-        if "venv" in sysconfig.get_scheme_names():
-            lib_path = sysconfig.get_path(
-                "purelib", scheme="venv", vars={"base": context.env_dir}
-            )
-            assert lib_path is not None
-            return lib_path
-
-        # For Python <= 3.9 we need to hardcode this. Fortunately the
-        # code below was the same in Python 3.6-3.10, so there is only
-        # one case.
-        if sys.platform == "win32":
-            return os.path.join(context.env_dir, "Lib", "site-packages")
-        return os.path.join(
-            context.env_dir,
-            "lib",
-            "python%d.%d" % sys.version_info[:2],
-            "site-packages",
-        )
-
     def ensure_directories(self, env_dir: DirType) -> SimpleNamespace:
         logger.debug("ensure_directories(env_dir=%s)", env_dir)
         self._context = super().ensure_directories(env_dir)
@@ -313,7 +270,8 @@ class QemuEnvBuilder(venv.EnvBuilder):
             assert parent_libpath is not None
             logger.debug("parent_libpath: %s", parent_libpath)
 
-            our_libpath = self.compute_venv_libpath(context)
+            assert isinstance(context.lib_path, str)
+            our_libpath = context.lib_path
             logger.debug("our_libpath: %s", our_libpath)
 
             pth_file = os.path.join(our_libpath, "nested.pth")
@@ -810,19 +768,8 @@ def _do_ensure(
 
 
 def _parse_groups(file: str) -> Dict[str, Dict[str, Any]]:
-    if not HAVE_TOMLLIB:
-        if sys.version_info < (3, 11):
-            raise Ouch("found no usable tomli, please install it")
-
-        raise Ouch(
-            "Python >=3.11 does not have tomllib... what have you done!?"
-        )
-
-    # Use loads() to support both tomli v1.2.x (Ubuntu 22.04,
-    # Debian bullseye-backports) and v2.0.x
-    with open(file, "r", encoding="ascii") as depfile:
-        contents = depfile.read()
-        return tomllib.loads(contents)  # type: ignore
+    with open(file, "rb") as depfile:
+        return tomllib.load(depfile)
 
 
 def ensure_group(
