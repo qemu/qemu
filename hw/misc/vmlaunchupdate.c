@@ -41,7 +41,6 @@ static bool vmlaunchupdate_supported(void)
 static void init_vm_launch_update(VMLaunchUpdateState *s)
 {
     s->launch_update.capabilities = VM_LAUNCHUPDATE_FORMAT_IGVM;
-    s->launch_update.control = 0;
 
     if (s->disabled) {
         s->launch_update.control |= VM_LAUNCHUPDATE_CTL_DISABLE;
