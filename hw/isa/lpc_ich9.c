@@ -919,6 +919,8 @@ static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
                                                ACPI_PM_PROP_ACPI_DISABLE_CMD,
                                                &acpi_disable_cmd,
                                                OBJ_PROP_FLAG_READ);
+
+    ich9_pm_add_class_properties(klass);
 }
 
 static const TypeInfo ich9_lpc_info = {
