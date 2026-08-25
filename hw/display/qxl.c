@@ -2390,6 +2390,37 @@ static void qxl_create_memslots(PCIQXLDevice *d)
     }
 }
 
+/*
+ * Validate a command tracked for loadvm replay before handing its guest
+ * address to spice-server.
+ */
+static bool qxl_loadvm_cmd_valid(PCIQXLDevice *d, QXLPHYSICAL data,
+                                 uint32_t type)
+{
+    switch (type) {
+    case QXL_CMD_SURFACE:
+        return qxl_guest_phys2virt(d, data,
+                                   sizeof(QXLSurfaceCmd), false) != NULL;
+
+    case QXL_CMD_CURSOR: {
+        QXLCursorCmd *cmd = qxl_guest_phys2virt(d, data, sizeof(QXLCursorCmd),
+                                                false);
+
+        if (!cmd) {
+            return false;
+        }
+        if (le32_to_cpu(cmd->type) == QXL_CURSOR_SET) {
+            return qxl_guest_phys2virt(d, le64_to_cpu(cmd->u.set.shape),
+                                       sizeof(QXLCursor), false) != NULL;
+        }
+        return true;
+    }
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static int qxl_post_load(void *opaque, int version)
 {
     PCIQXLDevice* d = opaque;
@@ -2428,12 +2459,17 @@ static int qxl_post_load(void *opaque, int version)
             if (d->guest_surfaces.cmds[in] == 0) {
                 continue;
             }
+            if (!qxl_loadvm_cmd_valid(d, d->guest_surfaces.cmds[in],
+                                      QXL_CMD_SURFACE)) {
+                continue;
+            }
             cmds[out].cmd.data = d->guest_surfaces.cmds[in];
             cmds[out].cmd.type = QXL_CMD_SURFACE;
             cmds[out].group_id = MEMSLOT_GROUP_GUEST;
             out++;
         }
-        if (d->guest_cursor) {
+        if (d->guest_cursor &&
+            qxl_loadvm_cmd_valid(d, d->guest_cursor, QXL_CMD_CURSOR)) {
             cmds[out].cmd.data = d->guest_cursor;
             cmds[out].cmd.type = QXL_CMD_CURSOR;
             cmds[out].group_id = MEMSLOT_GROUP_GUEST;
