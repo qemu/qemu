@@ -139,7 +139,7 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
     if (res->iov_cnt == 1 &&
         res->iov[0].iov_len < 4096) {
         pdata = res->iov[0].iov_base;
-    } else {
+    } else if (res->blob_size) {
         virtio_gpu_create_udmabuf(res);
         if (res->dmabuf_fd < 0) {
             return;
