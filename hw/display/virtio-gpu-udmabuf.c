@@ -131,7 +131,7 @@ bool virtio_gpu_have_udmabuf(void)
     return memfd_backend;
 }
 
-void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
+bool virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     void *pdata = NULL;
 
@@ -142,17 +142,19 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
     } else if (res->blob_size) {
         virtio_gpu_create_udmabuf(res);
         if (res->dmabuf_fd < 0) {
-            return;
+            return false;
         }
         virtio_gpu_remap_udmabuf(res);
         if (!res->remapped) {
             virtio_gpu_destroy_udmabuf(res);
-            return;
+            return false;
         }
         pdata = res->remapped;
     }
 
     res->blob = pdata;
+
+    return true;
 }
 
 static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
