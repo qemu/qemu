@@ -83,23 +83,13 @@ class TestLinters:
             cwd="../tests/qemu-iotests/",
         )
 
-    # Setuptools v60 introduced the SETUPTOOLS_USE_DISTUTILS=stdlib
-    # workaround; stdlib distutils was fully removed in Python
-    # 3.12+. Once we are on >=3.12+ exclusively, this workaround can be
-    # dropped safely. Until then, it is needed for some versions on
-    # Fedora/Debian distributions which relied upon distro-patched
-    # setuptools present in CPython, but not within setuptools itself.
-
     def test_pylint_pkg(self):
-        os.environ["SETUPTOOLS_USE_DISTUTILS"] = "stdlib"
         check_call([sys.executable, "-m", "pylint", "qemu/"])
 
     def test_pylint_scripts(self):
-        os.environ["SETUPTOOLS_USE_DISTUTILS"] = "stdlib"
         check_call([sys.executable, "-m", "pylint", "scripts/"])
 
     def test_pylint_qapi(self):
-        os.environ["SETUPTOOLS_USE_DISTUTILS"] = "stdlib"
         check_call(
             [
                 sys.executable,
@@ -113,7 +103,6 @@ class TestLinters:
         )
 
     def test_pylint_iotests(self):
-        os.environ["SETUPTOOLS_USE_DISTUTILS"] = "stdlib"
         check_call(
             [sys.executable, "-m", "linters", "--pylint"],
             cwd="../tests/qemu-iotests/",
