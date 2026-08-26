@@ -7243,7 +7243,7 @@ static bool do_trans_pmull(DisasContext *s, arg_rrr_esz *a, bool sel)
     };
 
     if (a->esz == 0) {
-        if (!dc_isar_feature(aa64_sve2_pmull128, s)) {
+        if (!dc_isar_feature(aa64_sve_pmull128, s)) {
             return false;
         }
         s->is_nonstreaming = !dc_isar_feature(aa64_ssve_aes, s);
