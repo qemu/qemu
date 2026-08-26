@@ -221,7 +221,6 @@ UMOPA2_s        1010000 1 10 0 ..... ... ... ..... . 10 ..      @op_32
 %zd_ax4         2:3 !function=times_4
 
 &zzz_en         zd zn zm esz n
-&z2z_en         zdn zm esz n
 
 @z2z_2x1        ....... . esz:2 .. zm:4 ....0. ..... .... . \
                 &zzz_en n=2 zd=%zd_ax2 zn=%zd_ax2
@@ -266,9 +265,9 @@ FSCALE_n1      1100000 1 .. 10 .... 1010.0 01100 .... 0    @z2z_4x1
 %zm_ax4         18:3 !function=times_4
 
 @z2z_2x2        ....... . esz:2 . ....0 ....0. ..... .... . \
-                &z2z_en n=2 zdn=%zd_ax2 zm=%zm_ax2
+                &zzz_en n=2 zd=%zd_ax2 zn=%zd_ax2 zm=%zm_ax2
 @z2z_4x4        ....... . esz:2 . ...00 ....1. ..... ...0 . \
-                &z2z_en n=4 zdn=%zd_ax4 zm=%zm_ax4
+                &zzz_en n=4 zd=%zd_ax4 zn=%zd_ax4 zm=%zm_ax4
 
 SMAX_nn        1100000 1 .. 1 ..... 1011.0 00000 .... 0    @z2z_2x2
 SMAX_nn        1100000 1 .. 1 ..... 1011.0 00000 .... 0    @z2z_4x4
