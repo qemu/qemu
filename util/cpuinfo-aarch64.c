@@ -16,6 +16,9 @@
 # ifndef HWCAP2_BTI
 #  define HWCAP2_BTI 0  /* added in glibc 2.32 */
 # endif
+# ifndef HWCAP2_CSSC
+#  define HWCAP2_CSSC 0  /* added in glibc 2.38 */
+# endif
 #endif
 #ifdef CONFIG_ELF_AUX_INFO
 #include <sys/auxv.h>
