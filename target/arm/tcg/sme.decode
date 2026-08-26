@@ -220,11 +220,13 @@ UMOPA2_s        1010000 1 10 0 ..... ... ... ..... . 10 ..      @op_32
 %zd_ax2         1:4 !function=times_2
 %zd_ax4         2:3 !function=times_4
 
+&zzz_en         zd zn zm esz n
 &z2z_en         zdn zm esz n
+
 @z2z_2x1        ....... . esz:2 .. zm:4 ....0. ..... .... . \
-                &z2z_en n=2 zdn=%zd_ax2
+                &zzz_en n=2 zd=%zd_ax2 zn=%zd_ax2
 @z2z_4x1        ....... . esz:2 .. zm:4 ....1. ..... ...0 . \
-                &z2z_en n=4 zdn=%zd_ax4
+                &zzz_en n=4 zd=%zd_ax4 zn=%zd_ax4
 
 SMAX_n1        1100000 1 .. 10 .... 1010.0 00000 .... 0    @z2z_2x1
 SMAX_n1        1100000 1 .. 10 .... 1010.0 00000 .... 0    @z2z_4x1
@@ -989,8 +991,6 @@ UZP_2           11000001 esz:2 1 zm:5 110100 zn:5 .... 1    \
                 &zzz_e zd=%zd_ax2
 UZP_2           11000001 00    1 zm:5 110101 zn:5 .... 1    \
                 &zzz_e zd=%zd_ax2 esz=4
-
-&zzz_en         zd zn zm esz n
 
 FCLAMP          11000001 esz:2 1 zm:5 110000 zn:5 .... 0    \
                 &zzz_en zd=%zd_ax2 n=2
