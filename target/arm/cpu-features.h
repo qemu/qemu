@@ -1610,6 +1610,11 @@ static inline bool isar_feature_aa64_ssve_aes(const ARMISARegisters *id)
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, AES);
 }
 
+static inline bool isar_feature_aa64_ssve_bitperm(const ARMISARegisters *id)
+{
+    return FIELD_EX64_IDREG(id, ID_AA64SMFR0, SBITPERM);
+}
+
 static inline bool isar_feature_aa64_ssve_f8fma(const ARMISARegisters *id)
 {
     return FIELD_EX64_IDREG(id, ID_AA64SMFR0, SF8FMA);
