@@ -747,18 +747,13 @@ TRANS_FEAT(URSHL_nn, aa64_sme2, do_zzz_nn, a, gen_sme2_urshl)
 TRANS_FEAT(SQDMULH_nn, aa64_sme2, do_zzz_nn, a, gen_gvec_sve2_sqdmulh)
 
 static bool do_zzz_n1_fpst(DisasContext *s, arg_zzz_en *a,
-                           gen_helper_gvec_3_ptr * const fns[4])
+                           gen_helper_gvec_3_ptr *fn)
 {
     int esz = a->esz, vsz, mofs;
     int overlap = -1;
-    gen_helper_gvec_3_ptr *fn = fns[esz];
     TCGv_ptr fpst;
 
     if (fn == NULL) {
-        return false;
-    }
-    /* These insns use MO_8 to encode BFloat16. */
-    if (esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
         return false;
     }
     if (!sme_sm_enabled_check(s)) {
@@ -786,16 +781,12 @@ static bool do_zzz_n1_fpst(DisasContext *s, arg_zzz_en *a,
 }
 
 static bool do_zzz_nn_fpst(DisasContext *s, arg_zzz_en *a,
-                           gen_helper_gvec_3_ptr * const fns[4])
+                           gen_helper_gvec_3_ptr *fn)
 {
     int esz = a->esz, vsz;
-    gen_helper_gvec_3_ptr *fn = fns[esz];
     TCGv_ptr fpst;
 
     if (fn == NULL) {
-        return false;
-    }
-    if (esz == MO_8 && !dc_isar_feature(aa64_sve_b16b16, s)) {
         return false;
     }
     if (!sme_sm_enabled_check(s)) {
@@ -816,48 +807,64 @@ static bool do_zzz_nn_fpst(DisasContext *s, arg_zzz_en *a,
 }
 
 static gen_helper_gvec_3_ptr * const f_vector_fmax[2][4] = {
-    { gen_helper_gvec_fmax_b16,
+    { NULL,
       gen_helper_gvec_fmax_h,
       gen_helper_gvec_fmax_s,
       gen_helper_gvec_fmax_d },
-    { gen_helper_gvec_ah_fmax_b16,
+    { NULL,
       gen_helper_gvec_ah_fmax_h,
       gen_helper_gvec_ah_fmax_s,
       gen_helper_gvec_ah_fmax_d },
 };
-TRANS_FEAT(FMAX_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fmax[s->fpcr_ah])
-TRANS_FEAT(FMAX_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fmax[s->fpcr_ah])
+TRANS_FEAT(FMAX_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fmax[s->fpcr_ah][a->esz])
+TRANS_FEAT(FMAX_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fmax[s->fpcr_ah][a->esz])
+TRANS_FEAT(BFMAX_n1, aa64_sme2_sve_b16b16, do_zzz_n1_fpst, a,
+           s->fpcr_ah ? gen_helper_gvec_ah_fmax_b16 : gen_helper_gvec_fmax_b16)
+TRANS_FEAT(BFMAX_nn, aa64_sme2_sve_b16b16, do_zzz_nn_fpst, a,
+           s->fpcr_ah ? gen_helper_gvec_ah_fmax_b16 : gen_helper_gvec_fmax_b16)
 
 static gen_helper_gvec_3_ptr * const f_vector_fmin[2][4] = {
-    { gen_helper_gvec_fmin_b16,
+    { NULL,
       gen_helper_gvec_fmin_h,
       gen_helper_gvec_fmin_s,
       gen_helper_gvec_fmin_d },
-    { gen_helper_gvec_ah_fmin_b16,
+    { NULL,
       gen_helper_gvec_ah_fmin_h,
       gen_helper_gvec_ah_fmin_s,
       gen_helper_gvec_ah_fmin_d },
 };
-TRANS_FEAT(FMIN_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fmin[s->fpcr_ah])
-TRANS_FEAT(FMIN_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fmin[s->fpcr_ah])
+TRANS_FEAT(FMIN_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fmin[s->fpcr_ah][a->esz])
+TRANS_FEAT(FMIN_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fmin[s->fpcr_ah][a->esz])
+TRANS_FEAT(BFMIN_n1, aa64_sme2_sve_b16b16, do_zzz_n1_fpst, a,
+           s->fpcr_ah ? gen_helper_gvec_ah_fmin_b16 : gen_helper_gvec_fmin_b16)
+TRANS_FEAT(BFMIN_nn, aa64_sme2_sve_b16b16, do_zzz_nn_fpst, a,
+           s->fpcr_ah ? gen_helper_gvec_ah_fmin_b16 : gen_helper_gvec_fmin_b16)
 
 static gen_helper_gvec_3_ptr * const f_vector_fmaxnm[4] = {
-    gen_helper_gvec_fmaxnum_b16,
+    NULL,
     gen_helper_gvec_fmaxnum_h,
     gen_helper_gvec_fmaxnum_s,
     gen_helper_gvec_fmaxnum_d,
 };
-TRANS_FEAT(FMAXNM_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fmaxnm)
-TRANS_FEAT(FMAXNM_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fmaxnm)
+TRANS_FEAT(FMAXNM_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fmaxnm[a->esz])
+TRANS_FEAT(FMAXNM_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fmaxnm[a->esz])
+TRANS_FEAT(BFMAXNM_n1, aa64_sme2_sve_b16b16, do_zzz_n1_fpst, a,
+           gen_helper_gvec_fmaxnum_b16)
+TRANS_FEAT(BFMAXNM_nn, aa64_sme2_sve_b16b16, do_zzz_nn_fpst, a,
+           gen_helper_gvec_fmaxnum_b16)
 
 static gen_helper_gvec_3_ptr * const f_vector_fminnm[4] = {
-    gen_helper_gvec_fminnum_b16,
+    NULL,
     gen_helper_gvec_fminnum_h,
     gen_helper_gvec_fminnum_s,
     gen_helper_gvec_fminnum_d,
 };
-TRANS_FEAT(FMINNM_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fminnm)
-TRANS_FEAT(FMINNM_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fminnm)
+TRANS_FEAT(FMINNM_n1, aa64_sme2, do_zzz_n1_fpst, a, f_vector_fminnm[a->esz])
+TRANS_FEAT(FMINNM_nn, aa64_sme2, do_zzz_nn_fpst, a, f_vector_fminnm[a->esz])
+TRANS_FEAT(BFMINNM_n1, aa64_sme2_sve_b16b16, do_zzz_n1_fpst, a,
+           gen_helper_gvec_fminnum_b16)
+TRANS_FEAT(BFMINNM_nn, aa64_sme2_sve_b16b16, do_zzz_nn_fpst, a,
+           gen_helper_gvec_fminnum_b16)
 
 static gen_helper_gvec_3_ptr * const f_vector_famax[4] = {
     NULL,
@@ -865,7 +872,7 @@ static gen_helper_gvec_3_ptr * const f_vector_famax[4] = {
     gen_helper_gvec_famax_s,
     gen_helper_gvec_famax_d,
 };
-TRANS_FEAT(FAMAX_nn, aa64_sme2_faminmax, do_zzz_nn_fpst, a, f_vector_famax)
+TRANS_FEAT(FAMAX_nn, aa64_sme2_faminmax, do_zzz_nn_fpst, a, f_vector_famax[a->esz])
 
 static gen_helper_gvec_3_ptr * const f_vector_famin[4] = {
     NULL,
@@ -873,7 +880,7 @@ static gen_helper_gvec_3_ptr * const f_vector_famin[4] = {
     gen_helper_gvec_famin_s,
     gen_helper_gvec_famin_d,
 };
-TRANS_FEAT(FAMIN_nn, aa64_sme2_faminmax, do_zzz_nn_fpst, a, f_vector_famin)
+TRANS_FEAT(FAMIN_nn, aa64_sme2_faminmax, do_zzz_nn_fpst, a, f_vector_famin[a->esz])
 
 static gen_helper_gvec_3_ptr * const f_vector_fscale[4] = {
     NULL,
@@ -881,8 +888,8 @@ static gen_helper_gvec_3_ptr * const f_vector_fscale[4] = {
     gen_helper_gvec_fscale_s,
     gen_helper_gvec_fscale_d,
 };
-TRANS_FEAT(FSCALE_n1, aa64_sme2_f8cvt, do_zzz_n1_fpst, a, f_vector_fscale)
-TRANS_FEAT(FSCALE_nn, aa64_sme2_f8cvt, do_zzz_nn_fpst, a, f_vector_fscale)
+TRANS_FEAT(FSCALE_n1, aa64_sme2_f8cvt, do_zzz_n1_fpst, a, f_vector_fscale[a->esz])
+TRANS_FEAT(FSCALE_nn, aa64_sme2_f8cvt, do_zzz_nn_fpst, a, f_vector_fscale[a->esz])
 
 /* Add/Sub vector Z[m] to each Z[n*N] with result in ZA[d*N]. */
 static bool do_azz_n1(DisasContext *s, arg_azz_n *a, int esz,

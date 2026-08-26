@@ -1748,6 +1748,11 @@ static inline bool isar_feature_aa64_sme2p2_or_sve2p2(const ARMISARegisters *id)
     return isar_feature_aa64_sme2p2(id) || isar_feature_aa64_sve2p2(id);
 }
 
+static inline bool isar_feature_aa64_sme2_sve_b16b16(const ARMISARegisters *id)
+{
+    return isar_feature_aa64_sme2(id) && isar_feature_aa64_sve_b16b16(id);
+}
+
 static inline bool isar_feature_aa64_sme2_i16i64(const ARMISARegisters *id)
 {
     return isar_feature_aa64_sme2(id) && isar_feature_aa64_sme_i16i64(id);
