@@ -8351,6 +8351,11 @@ TRANS_FEAT_STREAMING_IF(AESEMC, aa64_sve_aes2, aa64_ssve_aes,
 TRANS_FEAT_STREAMING_IF(AESDIMC, aa64_sve_aes2, aa64_ssve_aes,
                         do_aes2_idx, a, gen_helper_crypto_aesdimc)
 
+TRANS_FEAT_STREAMING_IF(PMULL, aa64_sve_aes2, aa64_ssve_aes,
+                        gen_gvec_ool_arg_zzz, gen_helper_sve_pmull_q, a, 0)
+TRANS_FEAT_STREAMING_IF(PMLAL, aa64_sve_aes2, aa64_ssve_aes,
+                        gen_gvec_ool_arg_zzz, gen_helper_sve_pmlal_q, a, 0)
+
 TRANS_FEAT(FCVTNT_sh_m, aa64_sme_or_sve2, gen_gvec_fpst_arg_zpz,
            gen_helper_sve2_fcvtnt_sh, a, 0, FPST_A64)
 TRANS_FEAT(FCVTNT_sh_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,

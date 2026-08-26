@@ -1994,6 +1994,11 @@ AESEMC          01000101 00 1 .. .11111010 ..... ...00   @aes2_4
 AESDIMC         01000101 00 1 .. .11111011 ..... ....0   @aes2_2
 AESDIMC         01000101 00 1 .. .11111011 ..... ...00   @aes2_4
 
+PMULL           01000101 00 1 rm:5 111110 rn:5 ....0 \
+                &rrr_esz esz=0 rd=%zd_ax2
+PMLAL           01000101 00 1 rm:5 111111 rn:5 ....0 \
+                &rrr_esz esz=0 rd=%zd_ax2
+
 # SVE2 crypto constructive binary operations
 SM4EKEY         01000101 00 1 ..... 11110 0 ..... .....  @rd_rn_rm_e0
 RAX1            01000101 00 1 ..... 11110 1 ..... .....  @rd_rn_rm_e0
