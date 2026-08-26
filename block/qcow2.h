@@ -1038,7 +1038,8 @@ void qcow2_cache_discard(Qcow2Cache *c, void *table);
 int coroutine_fn GRAPH_RDLOCK
 qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                               void **refcount_table,
-                              int64_t *refcount_table_size);
+                              int64_t *refcount_table_size,
+                              BdrvCheckMode fix);
 
 bool coroutine_fn GRAPH_RDLOCK
 qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
