@@ -41,6 +41,42 @@ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
 
 static void virtio_gpu_reset_bh(void *opaque);
 
+void
+virtio_gpu_simple_resource_init(struct virtio_gpu_simple_resource *res,
+                               uint32_t resource_id)
+{
+    res->share_handle = SHAREABLE_NONE;
+    res->dmabuf_fd = -1;
+    res->resource_id = resource_id;
+}
+
+struct virtio_gpu_simple_resource *
+virtio_gpu_simple_resource_new(uint32_t resource_id, uint32_t width,
+                               uint32_t height, uint32_t format)
+{
+    struct virtio_gpu_simple_resource *res;
+
+    res = g_new0(struct virtio_gpu_simple_resource, 1);
+    virtio_gpu_simple_resource_init(res, resource_id);
+    res->width = width;
+    res->height = height;
+    res->format = format;
+
+    return res;
+}
+
+struct virtio_gpu_simple_resource *
+virtio_gpu_simple_resource_new_blob(uint32_t resource_id, uint64_t blob_size)
+{
+    struct virtio_gpu_simple_resource *res;
+
+    res = g_new0(struct virtio_gpu_simple_resource, 1);
+    virtio_gpu_simple_resource_init(res, resource_id);
+    res->blob_size = blob_size;
+
+    return res;
+}
+
 void virtio_gpu_update_cursor_data(VirtIOGPU *g,
                                    struct virtio_gpu_scanout *s,
                                    uint32_t resource_id)
@@ -267,12 +303,8 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-
-    res->width = c2d.width;
-    res->height = c2d.height;
-    res->format = c2d.format;
-    res->resource_id = c2d.resource_id;
+    res = virtio_gpu_simple_resource_new(c2d.resource_id, c2d.width,
+                                         c2d.height, c2d.format);
 
     pformat = virtio_gpu_get_pixman_format(c2d.format);
     if (!pformat) {
@@ -353,9 +385,7 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-    res->resource_id = cblob.resource_id;
-    res->blob_size = cblob.size;
+    res = virtio_gpu_simple_resource_new_blob(cblob.resource_id, cblob.size);
 
     if (cblob.nr_entries) {
         ret = virtio_gpu_create_mapping_iov(g, cblob.nr_entries, sizeof(cblob),
@@ -1455,16 +1485,17 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
 
     resource_id = qemu_get_be32(f);
     while (resource_id != 0) {
+        uint32_t width, height, format;
+
         res = virtio_gpu_find_resource(g, resource_id);
         if (res) {
             return -EINVAL;
         }
 
-        res = g_new0(struct virtio_gpu_simple_resource, 1);
-        res->resource_id = resource_id;
-        res->width = qemu_get_be32(f);
-        res->height = qemu_get_be32(f);
-        res->format = qemu_get_be32(f);
+        width = qemu_get_be32(f);
+        height = qemu_get_be32(f);
+        format = qemu_get_be32(f);
+        res = virtio_gpu_simple_resource_new(resource_id, width, height, format);
         res->iov_cnt = qemu_get_be32(f);
 
         /* allocate */
@@ -1568,14 +1599,15 @@ static int virtio_gpu_blob_load(QEMUFile *f, void *opaque, size_t size,
 
     resource_id = qemu_get_be32(f);
     while (resource_id != 0) {
+        uint32_t blob_size;
+
         res = virtio_gpu_find_resource(g, resource_id);
         if (res) {
             return -EINVAL;
         }
 
-        res = g_new0(struct virtio_gpu_simple_resource, 1);
-        res->resource_id = resource_id;
-        res->blob_size = qemu_get_be32(f);
+        blob_size = qemu_get_be32(f);
+        res = virtio_gpu_simple_resource_new_blob(resource_id, blob_size);
         res->iov_cnt = qemu_get_be32(f);
 
         if (res->iov_cnt) {

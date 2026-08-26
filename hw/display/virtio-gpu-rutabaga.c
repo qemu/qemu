@@ -100,12 +100,8 @@ rutabaga_cmd_create_resource_2d(VirtIOGPU *g,
     result = rutabaga_resource_create_3d(vr->rutabaga, c2d.resource_id, &rc_3d);
     CHECK(!result, cmd);
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-    res->width = c2d.width;
-    res->height = c2d.height;
-    res->format = c2d.format;
-    res->resource_id = c2d.resource_id;
-
+    res = virtio_gpu_simple_resource_new(c2d.resource_id, c2d.width,
+                                         c2d.height, c2d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -139,12 +135,8 @@ rutabaga_cmd_create_resource_3d(VirtIOGPU *g,
     result = rutabaga_resource_create_3d(vr->rutabaga, c3d.resource_id, &rc_3d);
     CHECK(!result, cmd);
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-    res->width = c3d.width;
-    res->height = c3d.height;
-    res->format = c3d.format;
-    res->resource_id = c3d.resource_id;
-
+    res = virtio_gpu_simple_resource_new(c3d.resource_id, c3d.width,
+                                         c3d.height, c3d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -634,10 +626,7 @@ rutabaga_cmd_resource_create_blob(VirtIOGPU *g,
 
     CHECK(cblob.resource_id != 0, cmd);
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-
-    res->resource_id = cblob.resource_id;
-    res->blob_size = cblob.size;
+    res = virtio_gpu_simple_resource_new_blob(cblob.resource_id, cblob.size);
 
     if (cblob.blob_mem != VIRTIO_GPU_BLOB_MEM_HOST3D) {
         result = virtio_gpu_create_mapping_iov(g, cblob.nr_entries,
