@@ -8310,6 +8310,41 @@ TRANS_FEAT_NONSTREAMING(SM4EKEY, aa64_sve_sm4, gen_gvec_ool_arg_zzz,
 TRANS_FEAT_STREAMING_IF(RAX1, aa64_sve_sha3, aa64_sme2p1,
                         gen_gvec_fn_arg_zzz, gen_gvec_rax1, a)
 
+static bool do_aes2_idx(DisasContext *s, arg_rx_n *a, gen_helper_gvec_3 *fn)
+{
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        int overlap = -1;
+        int index, mofs;
+
+        if (vsz == 16) {
+            index = 0;
+        } else if (vsz == 32) {
+            index = a->index % 2;
+        } else {
+            index = a->index;
+        }
+
+        mofs = vec_full_reg_offset(s, a->rm);
+
+        for (int i = 0, n = a->n; i < n; i++) {
+            int dofs = vec_full_reg_offset(s, a->rdn + i);
+            if (dofs == mofs) {
+                overlap = i;
+            } else {
+                tcg_gen_gvec_3_ool(dofs, dofs, mofs, vsz, vsz, index, fn);
+            }
+        }
+        if (overlap >= 0) {
+            tcg_gen_gvec_3_ool(mofs, mofs, mofs, vsz, vsz, index, fn);
+        }
+    }
+    return true;
+}
+
+TRANS_FEAT_STREAMING_IF(AESE_idx, aa64_sve_aes2, aa64_ssve_aes,
+                        do_aes2_idx, a, gen_helper_crypto_aese_idx)
+
 TRANS_FEAT(FCVTNT_sh_m, aa64_sme_or_sve2, gen_gvec_fpst_arg_zpz,
            gen_helper_sve2_fcvtnt_sh, a, 0, FPST_A64)
 TRANS_FEAT(FCVTNT_sh_z, aa64_sme2p2_or_sve2p2, gen_gvec_fpst_arg_zpz,

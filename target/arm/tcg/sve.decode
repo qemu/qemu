@@ -60,6 +60,8 @@
 # as propagated via the MOVPRFX instruction.
 %reg_movprfx    0:5
 
+%zd_ax2         1:4 !function=times_2
+%zd_ax4         2:3 !function=times_4
 %rn_ax2         6:4 !function=times_2
 
 %pnd            0:3 !function=plus_8
@@ -70,6 +72,7 @@
 # when creating helpers common to those for the individual
 # instruction patterns.
 
+&rx_n           rdn rm index n
 &rr_esz         rd rn esz
 &rri            rd rn imm
 &rr_dbm         rd rn dbm
@@ -1974,6 +1977,14 @@ AESE            01000101 00 10001 0 11100 0 ..... .....  @rdn_rm_e0
 AESD            01000101 00 10001 0 11100 1 ..... .....  @rdn_rm_e0
 SM4E            01000101 00 10001 1 11100 0 ..... .....  @rdn_rm_e0
 
+@aes2_2         ........ .. . index:2 0........ rm:5 ..... \
+                &rx_n n=2 rdn=%zd_ax2
+@aes2_4         ........ .. . index:2 1........ rm:5 ..... \
+                &rx_n n=4 rdn=%zd_ax4
+
+AESE_idx        01000101 00 1 .. .10111010 ..... ....0   @aes2_2
+AESE_idx        01000101 00 1 .. .10111010 ..... ...00   @aes2_4
+
 # SVE2 crypto constructive binary operations
 SM4EKEY         01000101 00 1 ..... 11110 0 ..... .....  @rd_rn_rm_e0
 RAX1            01000101 00 1 ..... 11110 1 ..... .....  @rd_rn_rm_e0
@@ -2078,8 +2089,6 @@ FCLAMP          01100100 .. 1 ..... 001001 ..... .....          @rda_rn_rm
 &zcrr_ldst      rd png rn rm esz nreg
 &zcri_ldst      rd png rn imm esz nreg
 %png            10:3 !function=plus_8
-%zd_ax2         1:4 !function=times_2
-%zd_ax4         2:3 !function=times_4
 
 LD1_zcrr        10100000000 rm:5 0 esz:2 ... rn:5 .... - \
                 &zcrr_ldst %png rd=%zd_ax2 nreg=2
