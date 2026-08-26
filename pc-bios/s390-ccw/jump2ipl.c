@@ -43,11 +43,11 @@ int jump_to_IPL_code(uint64_t address)
      * The IPLB for QEMU SCSI type devices must be rebuilt during re-ipl. The
      * iplb.devno is set to the boot position of the target SCSI device.
      */
-    if (iplb.pbt == S390_IPL_TYPE_QEMU_SCSI) {
-        iplb.devno = qipl.index;
+    if (iplb->pbt == S390_IPL_TYPE_QEMU_SCSI) {
+        iplb->devno = qipl.index;
     }
 
-    if (have_iplb && !set_iplb(&iplb)) {
+    if (have_iplb && !set_iplb(iplb)) {
         panic("Failed to set IPLB");
     }
 
@@ -75,6 +75,13 @@ int jump_to_IPL_code(uint64_t address)
                  "diag %%r1,%%r1,0x308\n\t"
                  : : : "1", "memory");
     puts("IPL code jump failed");
+
+    /*
+     * A failed jump only occurs in extreme conditions, so abort the IPL entirely.
+     * This also prevents attempts to boot from the chain area if it has been
+     * overwritten with component data.
+     */
+    qipl.chain_len = 0;
     return -1;
 }
 

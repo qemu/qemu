@@ -113,6 +113,33 @@ void sclp_get_loadparm_ascii(char *loadparm)
     }
 }
 
+bool sclp_is_diag320_on(void)
+{
+    ReadInfo *sccb = (void *)_sccb;
+
+    memset((char *)_sccb, 0, sizeof(ReadInfo));
+    sccb->h.length = SCCB_SIZE;
+    if (!sclp_service_call(SCLP_CMDW_READ_SCP_INFO, sccb)) {
+        return sccb->fac134 & SCCB_FAC134_DIAG320_BIT;
+    }
+
+    return 0;
+}
+
+/* check if specified IPL facility flag is enabled */
+bool sclp_is_fac_ipl_flag_on(uint16_t fac_ipl_flag)
+{
+    ReadInfo *sccb = (void *)_sccb;
+
+    memset((char *)_sccb, 0, sizeof(ReadInfo));
+    sccb->h.length = SCCB_SIZE;
+    if (!sclp_service_call(SCLP_CMDW_READ_SCP_INFO, sccb)) {
+        return sccb->fac_ipl & fac_ipl_flag;
+    }
+
+    return 0;
+}
+
 int sclp_read(char *str, size_t count)
 {
     ReadEventData *sccb = (void *)_sccb;

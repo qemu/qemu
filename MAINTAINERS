@@ -1970,10 +1970,15 @@ R: Christian Borntraeger <borntraeger@linux.ibm.com>
 R: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/s390x/ipl.*
+F: hw/s390x/cert-store.[ch]
+F: include/hw/s390x/ipl/
 F: pc-bios/s390-ccw/
 F: pc-bios/s390-ccw.img
 F: docs/devel/s390-dasd-ipl.rst
+F: docs/specs/s390x-secure-ipl.rst
+F: docs/system/s390x/secure-ipl.rst
 F: tests/functional/s390x/test_pxelinux.py
+F: tests/functional/s390x/test_secure_ipl.py
 L: qemu-s390x@nongnu.org
 
 S390 PCI
