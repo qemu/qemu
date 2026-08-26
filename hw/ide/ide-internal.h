@@ -393,7 +393,12 @@ extern const VMStateDescription vmstate_ide_drive;
 #define VMSTATE_IDE_DRIVE(_field, _state) \
     VMSTATE_STRUCT(_field, _state, 1, vmstate_ide_drive, IDEState)
 
-void ide_bus_reset(IDEBus *bus);
+typedef enum {
+    IDE_RESET_HARDWARE, /* power on, hardware reset or COMRESET, ATA-5 9.1 */
+    IDE_RESET_SOFTWARE, /* SRST or DEVICE RESET, ATA-5 9.2 */
+} IDEResetKind;
+
+void ide_bus_reset(IDEBus *bus, IDEResetKind kind);
 int64_t ide_get_sector(IDEState *s);
 void ide_set_sector(IDEState *s, int64_t sector_num);
 

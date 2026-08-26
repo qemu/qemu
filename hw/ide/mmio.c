@@ -55,7 +55,7 @@ static void mmio_ide_reset(DeviceState *dev)
 {
     MMIOIDEState *s = MMIO_IDE(dev);
 
-    ide_bus_reset(&s->bus);
+    ide_bus_reset(&s->bus, IDE_RESET_HARDWARE);
 }
 
 static uint64_t mmio_ide_read(void *opaque, hwaddr addr,

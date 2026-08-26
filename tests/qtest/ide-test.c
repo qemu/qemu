@@ -95,6 +95,8 @@ enum {
 
 enum {
     CMD_DSM         = 0x06,
+    CMD_READ        = 0x20,  /* READ SECTOR(S) */
+    CMD_WRITE       = 0x30,  /* WRITE SECTOR(S) */
     CMD_DIAGNOSE    = 0x90,
     CMD_INIT_DP     = 0x91,  /* INITIALIZE DEVICE PARAMETERS */
     CMD_READ_DMA    = 0xc8,
@@ -102,6 +104,7 @@ enum {
     CMD_FLUSH_CACHE = 0xe7,
     CMD_IDENTIFY    = 0xec,
     CMD_PACKET      = 0xa0,
+    CMD_IDENTIFY_PACKET = 0xa1,
     CMD_READ_NATIVE = 0xf8,  /* READ NATIVE MAX ADDRESS */
 
     CMDF_ABORT      = 0x100,
@@ -1194,6 +1197,637 @@ static void cdrom_read_impl(int nblocks, unsigned flags)
     free_pci_device(dev);
 }
 
+static void ide_identify_words(QPCIDevice *dev, QPCIBar ide_bar,
+                               uint16_t buf[256])
+{
+    int i;
+
+    qpci_io_writeb(dev, ide_bar, reg_device, 0);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_IDENTIFY);
+    for (i = 0; i < 256; i++) {
+        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
+    }
+}
+
+/* Zero sectors per track has to abort (ATA-5 8.16.6), not divide by zero */
+static void test_specify_zero_sectors(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+    uint8_t data;
+    int i;
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 0);
+    qpci_io_writeb(dev, ide_bar, reg_device, 0);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_INIT_DP);
+
+    assert_bit_set(qpci_io_readb(dev, ide_bar, reg_status), ERR);
+    assert_bit_set(qpci_io_readb(dev, ide_bar, reg_error), ABRT);
+
+    /* The refused request has to leave the default translation in effect */
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[55], ==, 16);
+    g_assert_cmpint(buf[56], ==, 63);
+
+    /* READ SECTOR(S) of CHS 0/0/1, which used to crash QEMU */
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 1);
+    qpci_io_writeb(dev, ide_bar, reg_lba_low, 1);
+    qpci_io_writeb(dev, ide_bar, reg_lba_middle, 0);
+    qpci_io_writeb(dev, ide_bar, reg_lba_high, 0);
+    qpci_io_writeb(dev, ide_bar, reg_device, 0);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_READ);
+
+    data = ide_wait_clear(qts, BSY);
+    assert_bit_set(data, DRQ);
+    assert_bit_clear(data, ERR | DF);
+    for (i = 0; i < 256; i++) {
+        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
+    }
+    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), ERR | DF | DRQ);
+
+    /* A supported translation is still accepted */
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 32);
+    qpci_io_writeb(dev, ide_bar, reg_device, 7);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_INIT_DP);
+
+    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), ERR);
+
+    ide_test_quit(qts);
+    free_pci_device(dev);
+}
+
+/* Addressed by LBA, so no translation can influence where it lands */
+static void ide_write_marker(QTestState *qts, QPCIDevice *dev, QPCIBar ide_bar,
+                             uint32_t lba, const char *marker)
+{
+    uint16_t buf[256];
+    uint8_t data;
+    int i;
+
+    memset(buf, 0, sizeof(buf));
+    memcpy(buf, marker, strlen(marker));
+
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 1);
+    qpci_io_writeb(dev, ide_bar, reg_lba_low, lba & 0xff);
+    qpci_io_writeb(dev, ide_bar, reg_lba_middle, (lba >> 8) & 0xff);
+    qpci_io_writeb(dev, ide_bar, reg_lba_high, (lba >> 16) & 0xff);
+    qpci_io_writeb(dev, ide_bar, reg_device, LBA | ((lba >> 24) & 0xf));
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_WRITE);
+
+    data = ide_wait_clear(qts, BSY);
+    assert_bit_set(data, DRQ);
+    for (i = 0; i < 256; i++) {
+        qpci_io_writew(dev, ide_bar, reg_data, buf[i]);
+    }
+    data = ide_wait_clear(qts, BSY);
+    assert_bit_clear(data, ERR | DF | DRQ);
+
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_FLUSH_CACHE);
+    data = ide_wait_clear(qts, BSY);
+    assert_bit_clear(data, ERR | DF);
+}
+
+/* The marker read back names the sector the translation selected */
+static void ide_read_chs_marker(QTestState *qts, QPCIDevice *dev,
+                                QPCIBar ide_bar, uint8_t cyl_lo, uint8_t head,
+                                uint8_t sector, char out[9])
+{
+    uint16_t buf[256];
+    uint8_t data;
+    int i;
+
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 1);
+    qpci_io_writeb(dev, ide_bar, reg_lba_low, sector);
+    qpci_io_writeb(dev, ide_bar, reg_lba_middle, cyl_lo);
+    qpci_io_writeb(dev, ide_bar, reg_lba_high, 0);
+    qpci_io_writeb(dev, ide_bar, reg_device, head & 0xf);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_READ);
+
+    data = ide_wait_clear(qts, BSY);
+    assert_bit_set(data, DRQ);
+    assert_bit_clear(data, ERR | DF);
+    for (i = 0; i < 256; i++) {
+        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
+    }
+    data = ide_wait_clear(qts, BSY);
+    assert_bit_clear(data, ERR | DF | DRQ);
+
+    memcpy(out, buf, 8);
+    out[8] = '\0';
+}
+
+static void ide_set_translation(QPCIDevice *dev, QPCIBar ide_bar,
+                                uint8_t heads, uint8_t sectors)
+{
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, sectors);
+    qpci_io_writeb(dev, ide_bar, reg_device, heads - 1);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_INIT_DP);
+    assert_bit_clear(qpci_io_readb(dev, ide_bar, reg_status), ERR);
+}
+
+/* CHS 0/1/1 is LBA 32 under 8/32, and LBA 63 under the drive's own 16/63 */
+#define CHS_MARKER_CUSTOM  "CUSTOM__"
+#define CHS_MARKER_DEFAULT "DEFAULT_"
+
+static void ide_prepare_markers(QTestState *qts, QPCIDevice *dev,
+                                QPCIBar ide_bar)
+{
+    ide_write_marker(qts, dev, ide_bar, 32, CHS_MARKER_CUSTOM);
+    ide_write_marker(qts, dev, ide_bar, 63, CHS_MARKER_DEFAULT);
+}
+
+static void ide_hmp_quiet(QTestState *qts, const char *command)
+{
+    g_autofree char *out = qtest_hmp(qts, "%s", command);
+
+    g_assert_cmpstr(out, ==, "");
+}
+
+static char *ide_migration_status(QTestState *qts)
+{
+    QDict *ret;
+    char *status;
+
+    ret = qtest_qmp_assert_success_ref(qts, "{ 'execute': 'query-migrate' }");
+    g_assert(qdict_haskey(ret, "status"));
+    status = g_strdup(qdict_get_str(ret, "status"));
+    qobject_unref(ret);
+
+    return status;
+}
+
+/* Waiting for the other side's event would hang if it refuses the stream */
+static void ide_migration_wait(QTestState *qts, const char *expected)
+{
+    while (true) {
+        g_autofree char *status = ide_migration_status(qts);
+
+        if (g_str_equal(status, expected)) {
+            return;
+        }
+        if (!g_str_equal(status, "setup") && !g_str_equal(status, "active") &&
+            !g_str_equal(status, "device")) {
+            fprintf(stderr, "Migration status is %s, expected %s\n",
+                    status, expected);
+            g_assert_not_reached();
+        }
+        g_usleep(5000);
+    }
+}
+
+static void ide_migrate(QTestState *src, QTestState *dst, const char *uri)
+{
+    qtest_qmp_assert_success(src, "{ 'execute': 'migrate',"
+                             " 'arguments': { 'uri': %s } }", uri);
+    qtest_qmp_eventwait(src, "STOP");
+    ide_migration_wait(src, "completed");
+    qtest_qmp_eventwait(dst, "RESUME");
+}
+
+/* A translation the guest selected has to survive migration */
+static void test_migrate_chs_translation(void)
+{
+    QTestState *src, *dst;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    g_autofree char *mig_path = NULL;
+    g_autofree char *uri = NULL;
+    g_autofree char *dst_args = NULL;
+    char marker[9];
+    int fd;
+
+    fd = g_file_open_tmp("qtest-ide-migration.XXXXXX", &mig_path, NULL);
+    g_assert(fd >= 0);
+    close(fd);
+    uri = g_strdup_printf("unix:%s", mig_path);
+
+    src = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s,locking=off "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(src, &bmdma_bar, &ide_bar);
+
+    ide_prepare_markers(src, dev, ide_bar);
+    ide_set_translation(dev, ide_bar, 8, 32);
+    ide_read_chs_marker(src, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    dst_args = g_strdup_printf(
+        "-machine pc "
+        "-blockdev driver=file,node-name=hda,filename=%s,locking=off "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 -incoming %s",
+        tmp_path[0], uri);
+    dst = qtest_init(dst_args);
+
+    ide_migrate(src, dst, uri);
+
+    /* Talk to the destination instead of the source */
+    qpci_free_pc(pcibus);
+    pcibus = NULL;
+    free_pci_device(dev);
+    dev = get_pci_device(dst, &bmdma_bar, &ide_bar);
+
+    ide_read_chs_marker(dst, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    free_pci_device(dev);
+    qtest_quit(dst);
+    ide_test_quit(src);
+    unlink(mig_path);
+}
+
+/* A translation selected after the snapshot must not outlive loading it */
+static void test_migrate_chs_snapshot(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    g_autofree char *img = NULL;
+    char marker[9];
+    int fd;
+
+    if (!have_qemu_img()) {
+        g_test_skip("QTEST_QEMU_IMG not set, snapshots need a qcow2 image");
+        return;
+    }
+
+    fd = g_file_open_tmp("qtest-ide-snapshot.XXXXXX", &img, NULL);
+    g_assert(fd >= 0);
+    close(fd);
+    g_assert(mkimg(img, "qcow2", TEST_IMAGE_SIZE / (1024 * 1024)));
+
+    qts = ide_test_start(
+        "-blockdev driver=qcow2,node-name=hda,file.driver=file,"
+        "file.filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ", img);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    ide_prepare_markers(qts, dev, ide_bar);
+
+    /* Snapshot taken while the default translation is in effect */
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_DEFAULT);
+    ide_hmp_quiet(qts, "savevm s0");
+
+    ide_set_translation(dev, ide_bar, 8, 32);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    ide_hmp_quiet(qts, "loadvm s0");
+
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_DEFAULT);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+    unlink(img);
+}
+
+/* A migration stream holds NUL bytes, so this cannot be a string search */
+static char *ide_stream_find(char *stream, gsize len, const char *name)
+{
+    gsize name_len = strlen(name);
+    gsize i;
+
+    if (len < name_len) {
+        return NULL;
+    }
+    for (i = 0; i <= len - name_len; i++) {
+        if (memcmp(stream + i, name, name_len) == 0) {
+            return stream + i;
+        }
+    }
+
+    return NULL;
+}
+
+/* A translation no command could have selected has to be refused on load */
+static void test_migrate_chs_rejected(void)
+{
+    const char *name = "ide_drive/chs_translation";
+    QTestState *src, *dst;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    g_autofree char *path = NULL;
+    g_autofree char *uri = NULL;
+    g_autofree char *dst_args = NULL;
+    g_autofree char *stream = NULL;
+    char *subsection;
+    gsize len;
+    int fd;
+
+    fd = g_file_open_tmp("qtest-ide-stream.XXXXXX", &path, NULL);
+    g_assert(fd >= 0);
+    close(fd);
+    uri = g_strdup_printf("file:%s", path);
+
+    src = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(src, &bmdma_bar, &ide_bar);
+
+    ide_set_translation(dev, ide_bar, 8, 32);
+    qtest_qmp_assert_success(src, "{ 'execute': 'migrate',"
+                             " 'arguments': { 'uri': %s } }", uri);
+    qtest_qmp_eventwait(src, "STOP");
+    ide_migration_wait(src, "completed");
+    free_pci_device(dev);
+    ide_test_quit(src);
+
+    /*
+     * Behind the name come version, heads and sectors, each big endian 32 bit.
+     * The name recurs in the description at the end of the stream, so the
+     * first match is the one carrying data.
+     */
+    g_assert(g_file_get_contents(path, &stream, &len, NULL));
+    subsection = ide_stream_find(stream, len, name);
+    g_assert(subsection);
+    g_assert_cmpint(subsection - stream + strlen(name) + 12, <=, len);
+    memset(subsection + strlen(name) + 8, 0, 4);
+    g_assert(g_file_set_contents(path, stream, len, NULL));
+
+    dst_args = g_strdup_printf(
+        "-machine pc "
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 -incoming defer",
+        tmp_path[0]);
+    dst = qtest_init(dst_args);
+
+    qtest_qmp_assert_success(dst, "{ 'execute': 'migrate-incoming',"
+                             " 'arguments': { 'uri': %s,"
+                             " 'exit-on-error': false } }", uri);
+    ide_migration_wait(dst, "failed");
+
+    qtest_quit(dst);
+    unlink(path);
+}
+
+/*
+ * A device advertising UDMA5 has to claim a standard that defines it, and a
+ * parallel attachment has to report the cable word (ACS-3 7.12.7.47).
+ */
+static void test_identify_udma(bool packet)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+    int i;
+
+    if (packet) {
+        qts = ide_test_start("-device ide-cd,bus=ide.0");
+    } else {
+        qts = ide_test_start(
+            "-blockdev driver=file,node-name=hda,filename=%s "
+            "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+            tmp_path[0]);
+    }
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    qpci_io_writeb(dev, ide_bar, reg_device, 0);
+    qpci_io_writeb(dev, ide_bar, reg_command,
+                   packet ? CMD_IDENTIFY_PACKET : CMD_IDENTIFY);
+    for (i = 0; i < 256; i++) {
+        buf[i] = qpci_io_readw(dev, ide_bar, reg_data);
+    }
+
+    /* UDMA5 supported and selected */
+    assert_bit_set(buf[88], 1 << 5);
+    assert_bit_set(buf[88], 1 << 13);
+
+    /* UDMA5 arrived in ATA/ATAPI-6, so word 80 has to reach bit 6 */
+    assert_bit_set(buf[80], 1 << 6);
+    if (packet) {
+        /* Bits 3:1 are obsolete in IDENTIFY PACKET DEVICE data */
+        assert_bit_clear(buf[80], 0x0e);
+    }
+
+    /* Word 93: reserved bit clear, fixed bit set, 80-conductor cable */
+    assert_bit_clear(buf[93], 1 << 15);
+    assert_bit_set(buf[93], 1 << 14);
+    assert_bit_set(buf[93], 1 << 13);
+    assert_bit_set(buf[93], 1 << 0);
+    /* Device 0 clears the device 1 result */
+    assert_bit_clear(buf[93], 0x1f00);
+    if (packet) {
+        /* the disk path has yet to gain this */
+        assert_bit_set(buf[93], 1 << 3);
+    }
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
+static void test_identify_udma_ata(void)
+{
+    test_identify_udma(false);
+}
+
+static void test_identify_udma_atapi(void)
+{
+    test_identify_udma(true);
+}
+
+/* A PIO transfer window reaching past the io_buffer has to be refused */
+static void test_migrate_pio_state_rejected(void)
+{
+    const char *name = "ide_drive/pio_state";
+    /* IDE_DMA_BUF_SECTORS * 512 + 4, the length of the streamed io_buffer */
+    const gsize io_buffer_len = 256 * 512 + 4;
+    /* cur_io_buffer_offset and cur_io_buffer_len, big endian */
+    const uint8_t in_bounds[8] = { 0, 0, 0, 0, 0, 0, 0x02, 0 };
+    const uint8_t past_the_end[8] = { 0, 0x02, 0, 0x04, 0, 0, 0x10, 0 };
+    QTestState *src, *dst;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    g_autofree char *path = NULL;
+    g_autofree char *uri = NULL;
+    g_autofree char *dst_args = NULL;
+    g_autofree char *stream = NULL;
+    char *window;
+    gsize len;
+    int fd;
+
+    fd = g_file_open_tmp("qtest-ide-stream.XXXXXX", &path, NULL);
+    g_assert(fd >= 0);
+    close(fd);
+    uri = g_strdup_printf("file:%s", path);
+
+    src = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(src, &bmdma_bar, &ide_bar);
+
+    /* WRITE SECTOR(S) waits in DRQ for the data, so pio_state is streamed */
+    qpci_io_writeb(dev, ide_bar, reg_nsectors, 1);
+    qpci_io_writeb(dev, ide_bar, reg_lba_low, 0);
+    qpci_io_writeb(dev, ide_bar, reg_lba_middle, 0);
+    qpci_io_writeb(dev, ide_bar, reg_lba_high, 0);
+    qpci_io_writeb(dev, ide_bar, reg_device, LBA);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_WRITE);
+    assert_bit_set(qpci_io_readb(dev, ide_bar, reg_status), DRQ);
+
+    qtest_qmp_assert_success(src, "{ 'execute': 'migrate',"
+                             " 'arguments': { 'uri': %s } }", uri);
+    qtest_qmp_eventwait(src, "STOP");
+    ide_migration_wait(src, "completed");
+    free_pci_device(dev);
+    ide_test_quit(src);
+
+    /*
+     * Behind the name come the version and req_nb_sectors as big endian 32
+     * bit, then the io_buffer array, then the transfer window this rewrites.
+     * Asserting the window the source streamed keeps that arithmetic honest.
+     */
+    g_assert(g_file_get_contents(path, &stream, &len, NULL));
+    window = ide_stream_find(stream, len, name);
+    g_assert(window);
+    window += strlen(name) + 8 + io_buffer_len;
+    g_assert_cmpint(window - stream + sizeof(past_the_end), <=, len);
+    g_assert_cmpint(memcmp(window, in_bounds, sizeof(in_bounds)), ==, 0);
+    memcpy(window, past_the_end, sizeof(past_the_end));
+    g_assert(g_file_set_contents(path, stream, len, NULL));
+
+    dst_args = g_strdup_printf(
+        "-machine pc "
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 -incoming defer",
+        tmp_path[0]);
+    dst = qtest_init(dst_args);
+
+    qtest_qmp_assert_success(dst, "{ 'execute': 'migrate-incoming',"
+                             " 'arguments': { 'uri': %s,"
+                             " 'exit-on-error': false } }", uri);
+    ide_migration_wait(dst, "failed");
+
+    qtest_quit(dst);
+    unlink(path);
+}
+
+/* Words 54 to 58 follow the translation even when the data was cached first */
+static void test_specify_identify(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+    unsigned int cyls;
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    /* Have the data built while the default translation is still in effect */
+    ide_identify_words(dev, ide_bar, buf);
+    cyls = buf[1];
+    g_assert_cmpint(buf[3], ==, 16);
+    g_assert_cmpint(buf[6], ==, 63);
+    g_assert_cmpint(buf[53] & 1, ==, 1);
+    g_assert_cmpint(buf[55], ==, 16);
+    g_assert_cmpint(buf[56], ==, 63);
+    g_assert_cmpint(buf[57] | (buf[58] << 16), ==, cyls * 16 * 63);
+
+    ide_set_translation(dev, ide_bar, 8, 32);
+
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[1], ==, cyls);
+    g_assert_cmpint(buf[3], ==, 16);
+    g_assert_cmpint(buf[4], ==, 512 * 63);
+    g_assert_cmpint(buf[6], ==, 63);
+    g_assert_cmpint(buf[55], ==, 8);
+    g_assert_cmpint(buf[56], ==, 32);
+    g_assert_cmpint(buf[57] | (buf[58] << 16), ==, cyls * 8 * 32);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
+/* Words 3 and 6 keep the drive's own geometry even if built after a change */
+static void test_specify_identify_default(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint16_t buf[256];
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    /* No IDENTIFY DEVICE before this one, so nothing was cached yet */
+    ide_set_translation(dev, ide_bar, 8, 32);
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[3], ==, 16);
+    g_assert_cmpint(buf[4], ==, 512 * 63);
+    g_assert_cmpint(buf[6], ==, 63);
+    g_assert_cmpint(buf[55], ==, 8);
+    g_assert_cmpint(buf[56], ==, 32);
+    g_assert_cmpint(buf[57] | (buf[58] << 16), ==, buf[1] * 8 * 32);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
+/* A hardware reset reverts the translation (ATA-5 9.1), SRST does not (9.2) */
+static void test_specify_reset(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar, ide_bar2;
+    uint16_t buf[256];
+    char marker[9];
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 ",
+        tmp_path[0]);
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+    ide_bar2 = qpci_legacy_iomap(dev, IDE_BASE2);
+
+    ide_prepare_markers(qts, dev, ide_bar);
+    ide_set_translation(dev, ide_bar, 8, 32);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    qpci_io_writeb(dev, ide_bar2, 0, IDE_CTRL_RESET);
+    qpci_io_writeb(dev, ide_bar2, 0, 0);
+    ide_wait_clear(qts, BSY);
+
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[55], ==, 8);
+    g_assert_cmpint(buf[56], ==, 32);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_CUSTOM);
+
+    qtest_qmp_assert_success(qts, "{ 'execute': 'system_reset' }");
+    qtest_qmp_eventwait(qts, "RESET");
+    qpci_device_enable(dev);
+
+    ide_identify_words(dev, ide_bar, buf);
+    g_assert_cmpint(buf[55], ==, 16);
+    g_assert_cmpint(buf[56], ==, 63);
+    ide_read_chs_marker(qts, dev, ide_bar, 0, 1, 1, marker);
+    g_assert_cmpstr(marker, ==, CHS_MARKER_DEFAULT);
+
+    free_pci_device(dev);
+    ide_test_quit(qts);
+}
+
 static void test_cdrom_pio(void)
 {
     cdrom_read_impl(1, CDROM_PIO);
@@ -1265,6 +1899,19 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/ide/read_native", test_specify);
+    qtest_add_func("/ide/specify/zero_sectors", test_specify_zero_sectors);
+    qtest_add_func("/ide/specify/identify", test_specify_identify);
+    qtest_add_func("/ide/specify/identify_default",
+                   test_specify_identify_default);
+    qtest_add_func("/ide/specify/reset", test_specify_reset);
+    qtest_add_func("/ide/migration/chs_translation",
+                   test_migrate_chs_translation);
+    qtest_add_func("/ide/migration/chs_snapshot", test_migrate_chs_snapshot);
+    qtest_add_func("/ide/migration/chs_rejected", test_migrate_chs_rejected);
+    qtest_add_func("/ide/migration/pio_state_rejected",
+                   test_migrate_pio_state_rejected);
+    qtest_add_func("/ide/identify/udma", test_identify_udma_ata);
+    qtest_add_func("/ide/identify/udma_atapi", test_identify_udma_atapi);
 
     qtest_add_func("/ide/identify", test_identify);
 

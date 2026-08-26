@@ -111,7 +111,7 @@ static void piix_ide_reset(DeviceState *dev)
     int i;
 
     for (i = 0; i < 2; i++) {
-        ide_bus_reset(&d->bus[i]);
+        ide_bus_reset(&d->bus[i], IDE_RESET_HARDWARE);
     }
 
     /* PCI command register default value (0000h) per [1, p.48].  */

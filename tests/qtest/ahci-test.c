@@ -905,6 +905,30 @@ static void ahci_test_flush(AHCIQState *ahci)
     ahci_test_nondata(ahci, CMD_FLUSH_CACHE);
 }
 
+static void ahci_test_specify(AHCIQState *ahci, uint16_t sectors,
+                              bool supported)
+{
+    AHCICommand *cmd;
+    uint8_t port;
+
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    cmd = ahci_command_create(CMD_INIT_DP);
+    ahci_command_set_count(cmd, sectors);
+    if (!supported) {
+        ahci_command_expect_error(cmd, ATA_ERR_ABRT);
+    }
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue(ahci, cmd);
+    if (!supported) {
+        ASSERT_BIT_SET(ahci_px_rreg(ahci, port, AHCI_PX_TFD),
+                       AHCI_PX_TFD_STS_ERR);
+    }
+    ahci_command_verify(ahci, cmd);
+    ahci_command_free(cmd);
+}
+
 static void ahci_test_max(AHCIQState *ahci)
 {
     RegD2HFIS *d2h = g_malloc0(0x20);
@@ -1009,6 +1033,21 @@ static void test_identify(void)
 
     ahci = ahci_boot_and_enable(NULL);
     ahci_test_identify(ahci);
+    ahci_shutdown(ahci);
+}
+
+static void test_specify(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot_and_enable(NULL);
+
+    /* A register FIS carries 16 bits of count, the legacy ports only eight */
+    ahci_test_specify(ahci, 0, false);
+    ahci_test_specify(ahci, 256, false);
+    ahci_test_specify(ahci, 0xffff, false);
+    ahci_test_specify(ahci, 32, true);
+
     ahci_shutdown(ahci);
 }
 
@@ -1755,6 +1794,148 @@ static void test_atapi_engine_restart_dma(void)
 }
 
 /*
+ * Regression test: an unplug runs no device reset, so it is the last chance to
+ * detach an outstanding request. Its completion would otherwise walk the
+ * AHCIDevice array that ahci_uninit() has freed, which each of the NCQ, DMA
+ * and PIO completions reaches by a different route.
+ *
+ * The ACPI ejection register is what a guest writes to finish a PCI unplug.
+ * -M pc is what puts it in reach: q35 has no ACPI hotplug on pcie.0, so the
+ * unplug never happens there. Unlike the pciehp attention button this reaches
+ * the unplug with no secondary bus reset, which is the ordering that leaves a
+ * request outstanding.
+ */
+static void test_unplug_in_flight(uint8_t ide_cmd)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    uint64_t ptr;
+    uint8_t port;
+    QTestState *qts;
+
+    /*
+     * The latency keeps the backend read in flight across the unplug. A
+     * blkdebug breakpoint cannot stand in for it: cancelling a suspended
+     * request waits for it, so the unplug would never return.
+     */
+    ahci = ahci_boot_and_enable(
+        "-M pc "
+        "-blockdev driver=null-co,node-name=drive0,read-zeroes=on,"
+        "latency-ns=100000000 "
+        "-device ich9-ahci,addr=1f.2,id=ahci0 "
+        "-device ide-hd,drive=drive0,bus=ahci0.0 ");
+    qts = ahci->parent->qts;
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    ptr = ahci_alloc(ahci, AHCI_SECTOR_SIZE);
+    g_assert(ptr);
+
+    cmd = ahci_command_create(ide_cmd);
+    ahci_command_adjust(cmd, 0, ptr, AHCI_SECTOR_SIZE, 0);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+
+    /* Eject slot 0x1f of the root bus, which frees the AHCIDevice array. */
+    qtest_outl(qts, 0xae10, 0);
+    qtest_outl(qts, 0xae08, 1u << 0x1f);
+    qtest_qmp_eventwait(qts, "DEVICE_DELETED");
+
+    /* Four times the backend latency, so the completion has surely run. */
+    g_usleep(400 * 1000);
+    qtest_qmp_assert_success(qts, "{ 'execute': 'query-status' }");
+
+    ahci_command_free(cmd);
+    ahci_free(ahci, ptr);
+    ahci_shutdown(ahci);
+}
+
+static void test_unplug_ncq(void)
+{
+    test_unplug_in_flight(READ_FPDMA_QUEUED);
+}
+
+static void test_unplug_dma(void)
+{
+    test_unplug_in_flight(CMD_READ_DMA);
+}
+
+static void test_unplug_pio(void)
+{
+    test_unplug_in_flight(CMD_READ_PIO);
+}
+
+/*
+ * Regression test: a PIO write outlives the command list it was issued from.
+ * ide_cancel_dma_sync() does not reach s->pio_aiocb, so the second DRQ phase
+ * runs from the write completion after PxCLB has been unmapped and must not
+ * touch the command header any more.
+ */
+static void test_write_engine_stop_in_flight(void)
+{
+    AHCIQState *ahci;
+    AHCICommand *cmd;
+    unsigned char *tx;
+    unsigned char *rx;
+    uint64_t ptr;
+    uint8_t port;
+    size_t bufsize = AHCI_SECTOR_SIZE * 2;
+    size_t i;
+
+    ahci = ahci_boot_and_enable("-drive file=blkdebug::%s,if=none,id=drive0,"
+                                "format=%s,cache=writeback "
+                                "-M q35 "
+                                "-device ide-hd,drive=drive0 ",
+                                tmp_path, imgfmt);
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+
+    tx = g_malloc(bufsize);
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
+    ptr = ahci_alloc(ahci, bufsize);
+    g_assert(ptr);
+    qtest_memwrite(ahci->parent->qts, ptr, tx, bufsize);
+
+    /* Zero the second sector, which the abandoned command must not reach. */
+    rx = g_malloc0(AHCI_SECTOR_SIZE);
+    ahci_io(ahci, port, CMD_WRITE_DMA, rx, AHCI_SECTOR_SIZE, 1);
+
+    /* Suspend the backend write so the first sector stays in flight. */
+    g_free(qtest_hmp(ahci->parent->qts,
+                     "qemu-io drive0 \"break write_aio wr\""));
+
+    cmd = ahci_command_create(CMD_WRITE_PIO);
+    ahci_command_adjust(cmd, 0, ptr, bufsize, 0);
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+
+    /* Drop the command list while the write is still outstanding. */
+    ahci_px_clr(ahci, port, AHCI_PX_CMD, AHCI_PX_CMD_ST);
+
+    g_free(qtest_hmp(ahci->parent->qts, "qemu-io drive0 \"resume wr\""));
+
+    /* Round-trip through the device to confirm qemu is still alive. */
+    ahci_px_rreg(ahci, port, AHCI_PX_TFD);
+
+    /*
+     * The second DRQ phase never fetched its data, so the sector it would
+     * have carried has to be untouched rather than hold a copy of the first.
+     */
+    ahci_px_set(ahci, port, AHCI_PX_CMD, AHCI_PX_CMD_ST);
+    memset(rx, 0xff, AHCI_SECTOR_SIZE);
+    ahci_io(ahci, port, CMD_READ_DMA, rx, AHCI_SECTOR_SIZE, 1);
+    for (i = 0; i < AHCI_SECTOR_SIZE; i++) {
+        g_assert_cmpint(rx[i], ==, 0);
+    }
+
+    ahci_command_free(cmd);
+    ahci_free(ahci, ptr);
+    g_free(rx);
+    g_free(tx);
+    ahci_shutdown(ahci);
+}
+
+/*
  * Regression test: a multi-sector ATAPI read fetches its later sectors from
  * inside the first read's completion; a concurrent drain (as a guest reset
  * triggers via bdrv_drain_all_begin) must not wedge on that nested read.
@@ -2220,6 +2401,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/migrate/dma/halted", test_migrate_halted_dma);
 
     qtest_add_func("/ahci/max", test_max);
+    qtest_add_func("/ahci/specify", test_specify);
     qtest_add_func("/ahci/reset/simple", test_reset);
     qtest_add_func("/ahci/reset/pending_callback", test_reset_pending_callback);
 
@@ -2241,6 +2423,11 @@ int main(int argc, char **argv)
                    test_atapi_engine_restart_pio);
     qtest_add_func("/ahci/cdrom/engine_restart/dma",
                    test_atapi_engine_restart_dma);
+    qtest_add_func("/ahci/io/ncq/unplug", test_unplug_ncq);
+    qtest_add_func("/ahci/io/dma/unplug", test_unplug_dma);
+    qtest_add_func("/ahci/io/pio/unplug", test_unplug_pio);
+    qtest_add_func("/ahci/io/pio/engine_stop",
+                   test_write_engine_stop_in_flight);
     qtest_add_func("/ahci/cdrom/drain/pio", test_atapi_drain_pio);
     qtest_add_func("/ahci/cdrom/drain/dma", test_atapi_drain_dma);
 

@@ -214,7 +214,7 @@ static void cmd646_reset(DeviceState *dev)
     unsigned int i;
 
     for (i = 0; i < 2; i++) {
-        ide_bus_reset(&d->bus[i]);
+        ide_bus_reset(&d->bus[i], IDE_RESET_HARDWARE);
     }
 }
 
