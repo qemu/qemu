@@ -1673,8 +1673,12 @@ static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
         goto invalid_param;
     }
 
-    /* Allow changing the block size */
-    if (bd_len) {
+    /*
+     * Allow changing the block size only if the quirk is enabled for it.
+     * Writing s->qdev.blocksize is not thread safe!
+     */
+    if (bd_len && (s->quirks &
+                   (1 << SCSI_DISK_QUIRK_MODE_PAGE_SET_BLOCK_SIZE))) {
         bs = p[5] << 16 | p[6] << 8 | p[7];
 
         /*
@@ -3247,6 +3251,8 @@ static const Property scsi_hd_properties[] = {
     DEFINE_PROP_BIT("quirk_mode_page_vendor_specific_apple", SCSIDiskState,
                     quirks, SCSI_DISK_QUIRK_MODE_PAGE_VENDOR_SPECIFIC_APPLE,
                     0),
+    DEFINE_PROP_BIT("quirk_mode_page_set_block_size", SCSIDiskState,
+                    quirks, SCSI_DISK_QUIRK_MODE_PAGE_SET_BLOCK_SIZE, 0),
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
 };
 
@@ -3352,6 +3358,8 @@ static const Property scsi_cd_properties[] = {
                     0),
     DEFINE_PROP_BIT("quirk_mode_page_truncated", SCSIDiskState, quirks,
                     SCSI_DISK_QUIRK_MODE_PAGE_TRUNCATED, 0),
+    DEFINE_PROP_BIT("quirk_mode_page_set_block_size", SCSIDiskState,
+                    quirks, SCSI_DISK_QUIRK_MODE_PAGE_SET_BLOCK_SIZE, 0),
 };
 
 static void scsi_cd_class_initfn(ObjectClass *klass, const void *data)
