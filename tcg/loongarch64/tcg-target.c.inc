@@ -1893,7 +1893,7 @@ static void tgen_revbit8(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1)
 
 static const TCGOutOpUnary outop_revbit8 = {
     .base.static_constraint = C_O1_I1(r, r),
-    .out_rr = tgen_revbit8;
+    .out_rr = tgen_revbit8,
 };
 
 static void tgen_revbit32(TCGContext *s, TCGType type,
