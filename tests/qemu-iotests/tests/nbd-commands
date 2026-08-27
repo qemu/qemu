@@ -90,7 +90,7 @@ class TestNbdCommands(iotests.QMPTestCase):
             self.h.shutdown()
             self.h = None
 
-    def block_status(self, count=size):
+    def block_status(self, count=size, wanted=None):
         """Map each meta context in the reply to its list of extents."""
         reply = {}
 
@@ -98,7 +98,10 @@ class TestNbdCommands(iotests.QMPTestCase):
             reply.setdefault(meta, []).extend(zip(entries[0::2],
                                                   entries[1::2]))
 
-        self.h.block_status(count, 0, cb)
+        if wanted is None:
+            self.h.block_status(count, 0, cb)
+        else:
+            self.h.block_status_filter(count, 0, wanted, cb)
         return reply
 
     def top_extents(self):
@@ -147,6 +150,13 @@ class TestNbdCommands(iotests.QMPTestCase):
 
     def test_commands_extended_headers(self):
         self.check_commands(structured=True, extended=True)
+
+    def test_block_status_payload_filter(self):
+        self.assertEqual(sorted(self.block_status()),
+                         ['base:allocation', 'qemu:allocation-depth'])
+
+        for wanted in (['base:allocation'], ['qemu:allocation-depth']):
+            self.assertEqual(sorted(self.block_status(wanted=wanted)), wanted)
 
     def test_cache_past_end_of_export(self):
         self.assertRaises(nbd.Error, self.h.cache, size + 1, 0)
