@@ -225,3 +225,105 @@ static bool do_mtmsr(DisasContext *ctx, arg_X_rs_l *a, bool is_mtmsrd)
 
 TRANS_FLAGS(MISC, MTMSR, do_mtmsr, false)
 TRANS64(MTMSRD, do_mtmsr, true)
+
+/*
+ * System Call and Return from Interrupt Instructions
+ */
+
+static bool do_SC(DisasContext *ctx, arg_SC *a, uint32_t excp)
+{
+    uint32_t lev;
+
+    /*
+     * LEV is a 7-bit field, but the top 6 bits are treated as a reserved
+     * field (i.e., ignored). ISA v3.1 changes that to 5 bits, but that is
+     * for Ultravisor which TCG does not support, so just ignore the top 6.
+     */
+    lev = a->lev & 0x1;
+    gen_exception_err(ctx, excp, lev);
+    return true;
+}
+
+static bool do_SCV(DisasContext *ctx, arg_SC *a)
+{
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    /* Set the PC back to the faulting instruction. */
+    gen_update_nip(ctx, ctx->cia);
+    gen_helper_scv(tcg_env, tcg_constant_i32(a->lev));
+
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return true;
+#else
+    gen_invalid(ctx);
+    return true;
+#endif
+}
+
+/*
+ * Common helper for return-from-interrupt instructions
+ */
+enum {
+   RFI_KIND_RFI = 0,
+   RFI_KIND_RFID = 1,
+   RFI_KIND_HRFID = 2,
+   RFI_KIND_RFSCV = 3,
+};
+
+static bool do_rfi(DisasContext *ctx, arg_RFID *a, int kind)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_priv_opc(ctx);
+    return true;
+#else
+    void (*helper)(TCGv_ptr);
+
+    switch (kind) {
+    case RFI_KIND_RFI:
+        if (is_book3s_arch2x(ctx)) {
+            gen_invalid(ctx);
+            return true;
+        }
+        REQUIRE_SV(ctx);
+        helper = gen_helper_RFI;
+        break;
+#if defined(TARGET_PPC64)
+    case RFI_KIND_HRFID:
+        REQUIRE_HV(ctx);
+        helper = gen_helper_HRFID;
+        break;
+    case RFI_KIND_RFID:
+        REQUIRE_SV(ctx);
+        helper = gen_helper_RFID;
+        break;
+    case RFI_KIND_RFSCV:
+        REQUIRE_SV(ctx);
+        helper = gen_helper_RFSCV;
+        break;
+#endif
+    default:
+        gen_invalid(ctx);
+        return true;
+    }
+
+    translator_io_start(&ctx->base);
+    if (kind != RFI_KIND_HRFID) {
+        gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_NORECORD);
+    }
+    helper(tcg_env);
+    ctx->base.is_jmp = DISAS_EXIT;
+    return true;
+#endif
+}
+
+#if defined(CONFIG_USER_ONLY)
+TRANS_FLAGS(FLOW, SC, do_SC, POWERPC_EXCP_SYSCALL_USER)
+#else
+TRANS_FLAGS(FLOW, SC, do_SC, POWERPC_EXCP_SYSCALL)
+#endif
+
+TRANS64_FLAGS2(ISA300, SCV, do_SCV)
+
+TRANS_FLAGS(FLOW, RFI, do_rfi, RFI_KIND_RFI)
+TRANS64(RFID, do_rfi, RFI_KIND_RFID)
+TRANS64_FLAGS(64H, HRFID, do_rfi, RFI_KIND_HRFID)
+TRANS64_FLAGS2(ISA300, RFSCV, do_rfi, RFI_KIND_RFSCV)

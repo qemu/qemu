@@ -2679,110 +2679,6 @@ static inline void gen_setlr(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_lr, nip);
 }
 
-/***                           System linkage                              ***/
-
-/* rfi (supervisor only) */
-static void gen_rfi(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    /*
-     * This instruction doesn't exist anymore on 64-bit server
-     * processors compliant with arch 2.x
-     */
-    if (is_book3s_arch2x(ctx)) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-        return;
-    }
-    /* Restore CPU state */
-    CHK_SV(ctx);
-    translator_io_start(&ctx->base);
-    gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_NORECORD);
-    gen_helper_rfi(tcg_env);
-    ctx->base.is_jmp = DISAS_EXIT;
-#endif
-}
-
-#if defined(TARGET_PPC64)
-static void gen_rfid(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    /* Restore CPU state */
-    CHK_SV(ctx);
-    translator_io_start(&ctx->base);
-    gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_NORECORD);
-    gen_helper_rfid(tcg_env);
-    ctx->base.is_jmp = DISAS_EXIT;
-#endif
-}
-
-#if !defined(CONFIG_USER_ONLY)
-static void gen_rfscv(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    /* Restore CPU state */
-    CHK_SV(ctx);
-    translator_io_start(&ctx->base);
-    gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_NORECORD);
-    gen_helper_rfscv(tcg_env);
-    ctx->base.is_jmp = DISAS_EXIT;
-#endif
-}
-#endif
-
-static void gen_hrfid(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    /* Restore CPU state */
-    CHK_HV(ctx);
-    translator_io_start(&ctx->base);
-    gen_helper_hrfid(tcg_env);
-    ctx->base.is_jmp = DISAS_EXIT;
-#endif
-}
-#endif
-
-/* sc */
-#if defined(CONFIG_USER_ONLY)
-#define POWERPC_SYSCALL POWERPC_EXCP_SYSCALL_USER
-#else
-#define POWERPC_SYSCALL POWERPC_EXCP_SYSCALL
-#endif
-static void gen_sc(DisasContext *ctx)
-{
-    uint32_t lev;
-
-    /*
-     * LEV is a 7-bit field, but the top 6 bits are treated as a reserved
-     * field (i.e., ignored). ISA v3.1 changes that to 5 bits, but that is
-     * for Ultravisor which TCG does not support, so just ignore the top 6.
-     */
-    lev = (ctx->opcode >> 5) & 0x1;
-    gen_exception_err(ctx, POWERPC_SYSCALL, lev);
-}
-
-#if defined(TARGET_PPC64)
-#if !defined(CONFIG_USER_ONLY)
-static void gen_scv(DisasContext *ctx)
-{
-    uint32_t lev = (ctx->opcode >> 5) & 0x7F;
-
-    /* Set the PC back to the faulting instruction. */
-    gen_update_nip(ctx, ctx->cia);
-    gen_helper_scv(tcg_env, tcg_constant_i32(lev));
-
-    ctx->base.is_jmp = DISAS_NORETURN;
-}
-#endif
-#endif
-
 /***                                Trap                                   ***/
 
 /* Check for unconditional traps (always or never) */
@@ -4155,6 +4051,13 @@ static int64_t dw_compose_ea(DisasContext *ctx, int x)
 #define TRANS64(NAME, FUNC, ...) \
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
     { REQUIRE_64BIT(ctx); return FUNC(ctx, a, ##__VA_ARGS__); }
+#define TRANS64_FLAGS(FLAGS, NAME, FUNC, ...) \
+    static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
+    {                                                           \
+        REQUIRE_64BIT(ctx);                                     \
+        REQUIRE_INSNS_FLAGS(ctx, FLAGS);                        \
+        return FUNC(ctx, a, ##__VA_ARGS__);                     \
+    }
 #define TRANS64_FLAGS2(FLAGS2, NAME, FUNC, ...) \
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a) \
     {                                                          \
@@ -4529,21 +4432,6 @@ GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
 /* handles stfdp, stxsd, stxssp */
 GEN_HANDLER_E(dform3D, 0x3D, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
-/* ISA v3.0 changed the extended opcode from 62 to 30 */
-GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW),
-#if defined(TARGET_PPC64)
-GEN_HANDLER(rfid, 0x13, 0x12, 0x00, 0x03FF8001, PPC_64B),
-#if !defined(CONFIG_USER_ONLY)
-/* Top bit of opc2 corresponds with low bit of LEV, so use two handlers */
-GEN_HANDLER_E(scv, 0x11, 0x10, 0xFF, 0x03FFF01E, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(scv, 0x11, 0x00, 0xFF, 0x03FFF01E, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(rfscv, 0x13, 0x12, 0x02, 0x03FF8001, PPC_NONE, PPC2_ISA300),
-#endif
-GEN_HANDLER(hrfid, 0x13, 0x12, 0x08, 0x03FF8001, PPC_64H),
-#endif
-/* Top bit of opc2 corresponds with low bit of LEV, so use two handlers */
-GEN_HANDLER(sc, 0x11, 0x11, 0xFF, 0x03FFF01D, PPC_FLOW),
-GEN_HANDLER(sc, 0x11, 0x01, 0xFF, 0x03FFF01D, PPC_FLOW),
 GEN_HANDLER(mcrxr, 0x1F, 0x00, 0x10, 0x007FF801, PPC_MISC),
 GEN_HANDLER(mfspr, 0x1F, 0x13, 0x0A, 0x00000001, PPC_MISC),
 GEN_HANDLER(mftb, 0x1F, 0x13, 0x0B, 0x00000001, PPC_MFTB),

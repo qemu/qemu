@@ -528,13 +528,13 @@ static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     check_tlb_flush(env, false);
 }
 
-void helper_rfi(CPUPPCState *env)
+void helper_RFI(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1] & 0xfffffffful);
 }
 
 #ifdef TARGET_PPC64
-void helper_rfid(CPUPPCState *env)
+void helper_RFID(CPUPPCState *env)
 {
     /*
      * The architecture defines a number of rules for which bits can
@@ -545,12 +545,12 @@ void helper_rfid(CPUPPCState *env)
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1]);
 }
 
-void helper_rfscv(CPUPPCState *env)
+void helper_RFSCV(CPUPPCState *env)
 {
     do_rfi(env, env->lr, env->ctr);
 }
 
-void helper_hrfid(CPUPPCState *env)
+void helper_HRFID(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
 }
