@@ -114,10 +114,9 @@ class TestNbdCommands(iotests.QMPTestCase):
         self.assertEqual(self.block_status()['qemu:allocation-depth'],
                          [(size, DEPTH_BACKING)])
 
-        self.h.cache(maximum, 0)
+        self.h.cache(size, 0)
 
-        self.assertEqual(self.top_extents(),
-                         [(0, maximum, 0), (maximum, size - maximum, 1)])
+        self.assertEqual(self.top_extents(), [(0, size, 0)])
         qemu_io('-c', f'read -P {pattern} 0 {size}', top)
 
     def test_cache_past_end_of_export(self):
