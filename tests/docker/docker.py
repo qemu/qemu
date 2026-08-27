@@ -604,6 +604,7 @@ class ProbeCommand(SubCommand):
             print(" ".join(docker._command))
         except Exception:
             print("no")
+            return 1
 
         return
 
