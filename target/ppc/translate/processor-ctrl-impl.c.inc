@@ -23,7 +23,7 @@
 
 static bool trans_MSGCLR(DisasContext *ctx, arg_X_rb *a)
 {
-    if (!(ctx->insns_flags2 & PPC2_ISA207S)) {
+    if (!(ctx->insns_flags2 & PPC2_ISA207)) {
         /*
          * Before Power ISA 2.07, processor control instructions were only
          * implemented in the "Embedded.Processor Control" category.
@@ -47,7 +47,7 @@ static bool trans_MSGCLR(DisasContext *ctx, arg_X_rb *a)
 
 static bool trans_MSGSND(DisasContext *ctx, arg_X_rb *a)
 {
-    if (!(ctx->insns_flags2 & PPC2_ISA207S)) {
+    if (!(ctx->insns_flags2 & PPC2_ISA207)) {
         /*
          * Before Power ISA 2.07, processor control instructions were only
          * implemented in the "Embedded.Processor Control" category.
@@ -72,7 +72,7 @@ static bool trans_MSGSND(DisasContext *ctx, arg_X_rb *a)
 static bool trans_MSGCLRP(DisasContext *ctx, arg_X_rb *a)
 {
     REQUIRE_64BIT(ctx);
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     REQUIRE_SV(ctx);
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
     gen_helper_book3s_msgclrp(tcg_env, cpu_gpr[a->rb]);
@@ -85,7 +85,7 @@ static bool trans_MSGCLRP(DisasContext *ctx, arg_X_rb *a)
 static bool trans_MSGSNDP(DisasContext *ctx, arg_X_rb *a)
 {
     REQUIRE_64BIT(ctx);
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     REQUIRE_SV(ctx);
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
     gen_helper_book3s_msgsndp(tcg_env, cpu_gpr[a->rb]);

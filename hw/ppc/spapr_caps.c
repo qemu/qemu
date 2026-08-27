@@ -676,7 +676,7 @@ static void cap_ail_mode_3_apply(SpaprMachineState *spapr,
 
     if (tcg_enabled()) {
         /* AIL-3 is only supported on POWER8 and above CPUs. */
-        if (!(pcc->insns_flags2 & PPC2_ISA207S)) {
+        if (!(pcc->insns_flags2 & PPC2_ISA207)) {
             error_setg(errp, "TCG only supports cap-ail-mode-3 on POWER8 and later CPUs");
             error_append_hint(errp, "Try appending -machine cap-ail-mode-3=off\n");
             return;

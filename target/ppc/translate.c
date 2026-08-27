@@ -2775,7 +2775,7 @@ static inline void gen_op_mfspr(DisasContext *ctx)
         }
     } else {
         /* ISA 2.07 defines these as no-ops */
-        if ((ctx->insns_flags2 & PPC2_ISA207S) &&
+        if ((ctx->insns_flags2 & PPC2_ISA207) &&
             (sprn >= 808 && sprn <= 811)) {
             /* This is a nop */
             return;
@@ -2841,7 +2841,7 @@ static void gen_mtspr(DisasContext *ctx)
         }
     } else {
         /* ISA 2.07 defines these as no-ops */
-        if ((ctx->insns_flags2 & PPC2_ISA207S) &&
+        if ((ctx->insns_flags2 & PPC2_ISA207) &&
             (sprn >= 808 && sprn <= 811)) {
             /* This is a nop */
             return;
@@ -4135,7 +4135,7 @@ TRANS64(LDARX, do_load_locked, DEF_MEMOP(MO_UQ))
 static bool trans_LQARX(DisasContext *ctx, arg_LQARX *a)
 {
     REQUIRE_64BIT(ctx);
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
 #if defined(TARGET_PPC64)
     TCGv EA;
     TCGv_i128 t16;
