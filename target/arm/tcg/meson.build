@@ -30,10 +30,6 @@ translate32_d = [
 arm_ss.add(when: 'TARGET_AARCH64', if_true: gen_a64)
 arm_stubs_ss.add(files('stubs32.c'))
 
-arm_ss.add(files(
-  'cpu32.c',
-))
-
 arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'gengvec64.c',
   'translate-a64.c',
@@ -49,7 +45,10 @@ arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
 ))
 
 arm_common_system_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('cpu-v7m.c'))
-arm_user_ss.add(when: 'TARGET_AARCH64', if_false: files('cpu-v7m.c'))
+arm_user_ss.add(when: 'TARGET_AARCH64', if_false: files(
+  'cpu-v7m.c',
+  'cpu32.c',
+))
 
 arm_common_ss.add(zlib)
 arm_common_ss.add(files(
@@ -86,6 +85,7 @@ arm_common_user_system_ss.add(when: 'TARGET_AARCH64', if_true: files(
 ))
 
 arm_common_system_ss.add(files(
+  'cpu32.c',
   'cpregs-at.c',
   'gicv5-cpuif.c',
   'psci.c',
