@@ -142,6 +142,7 @@ subdir('alpha')
 subdir('arm')
 subdir('hexagon')
 subdir('hppa')
+subdir('i386')
 
 image_targets = {}
 exe_targets = []
