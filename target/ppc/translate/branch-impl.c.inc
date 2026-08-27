@@ -210,4 +210,4 @@ static bool bclr_helper(DisasContext *ctx, arg_bclr *a, int type)
 
 TRANS(BCLR, bclr_helper, BCOND_LR)
 TRANS(BCCTR, bclr_helper, BCOND_CTR)
-TRANS_FLAGS2(BCTAR_ISA207, BCTAR, bclr_helper, BCOND_TAR)
+TRANS_FLAGS2(ISA207, BCTAR, bclr_helper, BCOND_TAR)
