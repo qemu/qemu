@@ -1493,6 +1493,19 @@ CLRBHRB         011111 ----- ----- ----- 0110101110 -
 
 B               010010 ........................ . .  @I_b
 
+%bd             2:14 !function=times_4
+&bcond          bo:uint32_t bi bd aa:bool lk:bool
+@B_bcond        ...... bo:5 bi:5 .............. aa:1 lk:1 &bcond bd=%bd
+
+BC              010000 ..... ..... .............. . .  @B_bcond
+
+&bclr          bo bi bh lk:bool
+@XL_bclr       ...... bo:5 bi:5 --- bh:2 .......... lk:1 &bclr
+
+BCLR            010011 ..... ..... ---.. 0000010000 . @XL_bclr
+BCCTR           010011 ..... ..... ---.. 1000010000 . @XL_bclr
+BCTAR           010011 ..... ..... ---.. 1000110000 . @XL_bclr
+
 ## Misc POWER instructions
 
 ATTN            000000 00000 00000 00000 0100000000 0
