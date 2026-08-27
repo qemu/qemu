@@ -2348,7 +2348,7 @@ static void bcd_sub_mag(ppc_avr_t *t, ppc_avr_t *a, ppc_avr_t *b, int *invalid,
     *overflow = carry;
 }
 
-uint32_t helper_bcdadd(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDADD(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
 
     int sgna = bcd_get_sgn(a);
@@ -2395,7 +2395,7 @@ uint32_t helper_bcdadd(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdsub(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDSUB(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     ppc_avr_t bcopy = *b;
     int sgnb = bcd_get_sgn(b);
@@ -2406,10 +2406,10 @@ uint32_t helper_bcdsub(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     }
     /* else invalid ... defer to bcdadd code for proper handling */
 
-    return helper_bcdadd(r, a, &bcopy, ps);
+    return helper_BCDADD(r, a, &bcopy, ps);
 }
 
-uint32_t helper_bcdcfn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCFN(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     int cr = 0;
@@ -2445,7 +2445,7 @@ uint32_t helper_bcdcfn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdctn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCTN(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     int cr = 0;
@@ -2479,7 +2479,7 @@ uint32_t helper_bcdctn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCFZ(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     int cr = 0;
@@ -2523,7 +2523,7 @@ uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCTZ(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     int cr = 0;
@@ -2582,7 +2582,7 @@ static inline int ucmp128(uint64_t alo, uint64_t ahi,
         (ahi > bhi ? 1 : -1);
 }
 
-uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCFSQ(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     int cr;
@@ -2640,7 +2640,7 @@ uint32_t helper_bcdcfsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdctsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCTSQ(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     uint8_t i;
     int cr;
@@ -2680,7 +2680,7 @@ uint32_t helper_bcdctsq(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDCPSGN(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     int invalid = 0;
@@ -2703,7 +2703,7 @@ uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return bcd_cmp_zero(r);
 }
 
-uint32_t helper_bcdsetsgn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDSETSGN(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 {
     int sgnb = bcd_get_sgn(b);
 
@@ -2717,7 +2717,7 @@ uint32_t helper_bcdsetsgn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     return bcd_cmp_zero(r);
 }
 
-uint32_t helper_bcds(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDS(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     int cr;
     int i = a->VsrSB(7);
@@ -2753,7 +2753,7 @@ uint32_t helper_bcds(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdus(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDUS(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     int cr;
     int i;
@@ -2790,7 +2790,7 @@ uint32_t helper_bcdus(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdsr(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDSR(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     int cr;
     int unused = 0;
@@ -2836,7 +2836,7 @@ uint32_t helper_bcdsr(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return cr;
 }
 
-uint32_t helper_bcdtrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDTRUNC(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     uint64_t mask;
     uint32_t ox_flag = 0;
@@ -2869,7 +2869,7 @@ uint32_t helper_bcdtrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     return bcd_cmp_zero(&ret) | ox_flag;
 }
 
-uint32_t helper_bcdutrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
+uint32_t helper_BCDUTRUNC(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     int i;
     uint64_t mask;

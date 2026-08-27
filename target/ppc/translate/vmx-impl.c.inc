@@ -142,7 +142,8 @@ static void gen_mtvscr(DisasContext *ctx)
     gen_helper_mtvscr(tcg_env, val);
 }
 
-static void gen_vx_vmul10(DisasContext *ctx, bool add_cin, bool ret_carry)
+static bool do_vx_vmul10(DisasContext *ctx, arg_VX *a,
+                         bool add_cin, bool ret_carry)
 {
     TCGv_i64 t0;
     TCGv_i64 t1;
@@ -150,10 +151,7 @@ static void gen_vx_vmul10(DisasContext *ctx, bool add_cin, bool ret_carry)
     TCGv_i64 avr;
     TCGv_i64 ten, z;
 
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
+    REQUIRE_VECTOR(ctx);
 
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
@@ -163,54 +161,32 @@ static void gen_vx_vmul10(DisasContext *ctx, bool add_cin, bool ret_carry)
     z = tcg_constant_i64(0);
 
     if (add_cin) {
-        get_avr64(avr, rA(ctx->opcode), false);
+        get_avr64(avr, a->vra, false);
         tcg_gen_mulu2_i64(t0, t1, avr, ten);
-        get_avr64(avr, rB(ctx->opcode), false);
+        get_avr64(avr, a->vrb, false);
         tcg_gen_andi_i64(t2, avr, 0xF);
         tcg_gen_add2_i64(avr, t2, t0, t1, t2, z);
-        set_avr64(rD(ctx->opcode), avr, false);
+        set_avr64(a->vrt, avr, false);
     } else {
-        get_avr64(avr, rA(ctx->opcode), false);
+        get_avr64(avr, a->vra, false);
         tcg_gen_mulu2_i64(avr, t2, avr, ten);
-        set_avr64(rD(ctx->opcode), avr, false);
+        set_avr64(a->vrt, avr, false);
     }
 
     if (ret_carry) {
-        get_avr64(avr, rA(ctx->opcode), true);
+        get_avr64(avr, a->vra, true);
         tcg_gen_mulu2_i64(t0, t1, avr, ten);
         tcg_gen_add2_i64(t0, avr, t0, t1, t2, z);
-        set_avr64(rD(ctx->opcode), avr, false);
-        set_avr64(rD(ctx->opcode), z, true);
+        set_avr64(a->vrt, avr, false);
+        set_avr64(a->vrt, z, true);
     } else {
-        get_avr64(avr, rA(ctx->opcode), true);
+        get_avr64(avr, a->vra, true);
         tcg_gen_mul_i64(t0, avr, ten);
         tcg_gen_add_i64(avr, t0, t2);
-        set_avr64(rD(ctx->opcode), avr, true);
+        set_avr64(a->vrt, avr, true);
     }
-}
 
-#define GEN_VX_VMUL10(name, add_cin, ret_carry)                         \
-    static void glue(gen_, name)(DisasContext *ctx)                     \
-    { gen_vx_vmul10(ctx, add_cin, ret_carry); }
-
-GEN_VX_VMUL10(vmul10uq, 0, 0);
-GEN_VX_VMUL10(vmul10euq, 1, 0);
-GEN_VX_VMUL10(vmul10cuq, 0, 1);
-GEN_VX_VMUL10(vmul10ecuq, 1, 1);
-
-#define GEN_VXFORM_V(name, vece, tcg_op, opc2, opc3)                    \
-static void glue(gen_, name)(DisasContext *ctx)                         \
-{                                                                       \
-    if (unlikely(!ctx->altivec_enabled)) {                              \
-        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
-        return;                                                         \
-    }                                                                   \
-                                                                        \
-    tcg_op(vece,                                                        \
-           avr_full_offset(rD(ctx->opcode)),                            \
-           avr_full_offset(rA(ctx->opcode)),                            \
-           avr_full_offset(rB(ctx->opcode)),                            \
-           16, 16);                                                     \
+    return true;
 }
 
 #define GEN_VXFORM(name, opc2, opc3)                                    \
@@ -338,19 +314,6 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], rb); \
 }
 
-GEN_VXFORM_V(vaddubm, MO_8, tcg_gen_gvec_add, 0, 0);
-GEN_VXFORM_DUAL_EXT(vaddubm, PPC_ALTIVEC, PPC_NONE, 0,       \
-                    vmul10cuq, PPC_NONE, PPC2_ISA300, 0x0000F800)
-GEN_VXFORM_V(vadduhm, MO_16, tcg_gen_gvec_add, 0, 1);
-GEN_VXFORM_DUAL(vadduhm, PPC_ALTIVEC, PPC_NONE,  \
-                vmul10ecuq, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_V(vadduwm, MO_32, tcg_gen_gvec_add, 0, 2);
-GEN_VXFORM_V(vaddudm, MO_64, tcg_gen_gvec_add, 0, 3);
-GEN_VXFORM_V(vsububm, MO_8, tcg_gen_gvec_sub, 0, 16);
-GEN_VXFORM_V(vsubuhm, MO_16, tcg_gen_gvec_sub, 0, 17);
-GEN_VXFORM_V(vsubuwm, MO_32, tcg_gen_gvec_sub, 0, 18);
-GEN_VXFORM_V(vsubudm, MO_64, tcg_gen_gvec_sub, 0, 19);
-
 static bool do_vmrg(DisasContext *ctx, arg_VX *a,
                     void (*helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr))
 {
@@ -369,6 +332,38 @@ TRANS_FLAGS(ALTIVEC, VMRGHW, do_vmrg, gen_helper_VMRGHW);
 TRANS_FLAGS(ALTIVEC, VMRGLB, do_vmrg, gen_helper_VMRGLB);
 TRANS_FLAGS(ALTIVEC, VMRGLH, do_vmrg, gen_helper_VMRGLH);
 TRANS_FLAGS(ALTIVEC, VMRGLW, do_vmrg, gen_helper_VMRGLW);
+
+static bool do_vx_vaddsubm(DisasContext *ctx, arg_VX *a, MemOp vece,
+                           void (*gen_op)(unsigned, uint32_t, uint32_t,
+                                          uint32_t, uint32_t, uint32_t))
+{
+    REQUIRE_VECTOR(ctx);
+
+    gen_op(vece,
+           avr_full_offset(a->vrt),
+           avr_full_offset(a->vra),
+           avr_full_offset(a->vrb),
+           16, 16);
+
+    return true;
+}
+
+TRANS_FLAGS(ALTIVEC, VADDUBM, do_vx_vaddsubm, MO_8, tcg_gen_gvec_add)
+TRANS_FLAGS(ALTIVEC, VADDUHM, do_vx_vaddsubm, MO_16, tcg_gen_gvec_add)
+TRANS_FLAGS(ALTIVEC, VADDUWM, do_vx_vaddsubm, MO_32, tcg_gen_gvec_add)
+TRANS_FLAGS2(ALTIVEC_207, VADDUDM, do_vx_vaddsubm, MO_64, tcg_gen_gvec_add)
+
+TRANS_FLAGS(ALTIVEC, VSUBUBM, do_vx_vaddsubm, MO_8, tcg_gen_gvec_sub)
+TRANS_FLAGS(ALTIVEC, VSUBUHM, do_vx_vaddsubm, MO_16, tcg_gen_gvec_sub)
+TRANS_FLAGS(ALTIVEC, VSUBUWM, do_vx_vaddsubm, MO_32, tcg_gen_gvec_sub)
+TRANS_FLAGS2(ALTIVEC_207, VSUBUDM, do_vx_vaddsubm, MO_64, tcg_gen_gvec_sub)
+
+TRANS_FLAGS2(ALTIVEC_207, VMULUWM, do_vx_vaddsubm, MO_32, tcg_gen_gvec_mul)
+
+TRANS_FLAGS2(ISA300, VMUL10CUQ, do_vx_vmul10, false, true)
+TRANS_FLAGS2(ISA300, VMUL10ECUQ, do_vx_vmul10, true, true)
+TRANS_FLAGS2(ISA300, VMUL10UQ, do_vx_vmul10, false, false)
+TRANS_FLAGS2(ISA300, VMUL10EUQ, do_vx_vmul10, true, false)
 
 static void trans_vmrgew(DisasContext *ctx)
 {
@@ -684,7 +679,6 @@ static void trans_vclzd(DisasContext *ctx)
     set_avr64(VT, avr, false);
 }
 
-GEN_VXFORM_V(vmuluwm, MO_32, tcg_gen_gvec_mul, 4, 2);
 GEN_VXFORM(vsrv, 2, 28);
 GEN_VXFORM(vslv, 2, 29);
 GEN_VXFORM(vslo, 6, 16);
@@ -2523,126 +2517,93 @@ GEN_VXFORM(vpmsumb, 4, 16)
 GEN_VXFORM(vpmsumh, 4, 17)
 GEN_VXFORM(vpmsumw, 4, 18)
 
-#define GEN_BCD(op)                                 \
-static void gen_##op(DisasContext *ctx)             \
-{                                                   \
-    TCGv_ptr ra, rb, rd;                            \
-    TCGv_i32 ps;                                    \
-                                                    \
-    if (unlikely(!ctx->altivec_enabled)) {          \
-        gen_exception(ctx, POWERPC_EXCP_VPU);       \
-        return;                                     \
-    }                                               \
-                                                    \
-    ra = gen_avr_ptr(rA(ctx->opcode));              \
-    rb = gen_avr_ptr(rB(ctx->opcode));              \
-    rd = gen_avr_ptr(rD(ctx->opcode));              \
-                                                    \
-    ps = tcg_constant_i32((ctx->opcode & 0x200) != 0); \
-                                                    \
-    gen_helper_##op(cpu_crf[6], rd, ra, rb, ps);    \
-}
-
-#define GEN_BCD2(op)                                \
-static void gen_##op(DisasContext *ctx)             \
-{                                                   \
-    TCGv_ptr rd, rb;                                \
-    TCGv_i32 ps;                                    \
-                                                    \
-    if (unlikely(!ctx->altivec_enabled)) {          \
-        gen_exception(ctx, POWERPC_EXCP_VPU);       \
-        return;                                     \
-    }                                               \
-                                                    \
-    rb = gen_avr_ptr(rB(ctx->opcode));              \
-    rd = gen_avr_ptr(rD(ctx->opcode));              \
-                                                    \
-    ps = tcg_constant_i32((ctx->opcode & 0x200) != 0); \
-                                                    \
-    gen_helper_##op(cpu_crf[6], rd, rb, ps);        \
-}
-
-GEN_BCD(bcdadd)
-GEN_BCD(bcdsub)
-GEN_BCD2(bcdcfn)
-GEN_BCD2(bcdctn)
-GEN_BCD2(bcdcfz)
-GEN_BCD2(bcdctz)
-GEN_BCD2(bcdcfsq)
-GEN_BCD2(bcdctsq)
-GEN_BCD2(bcdsetsgn)
-GEN_BCD(bcdcpsgn);
-GEN_BCD(bcds);
-GEN_BCD(bcdus);
-GEN_BCD(bcdsr);
-GEN_BCD(bcdtrunc);
-GEN_BCD(bcdutrunc);
-
-static void gen_xpnd04_1(DisasContext *ctx)
+static bool do_bcd_ps(DisasContext *ctx, arg_VX_ps *a,
+                   void (*helper)(TCGv_i32, TCGv_ptr, TCGv_ptr,
+                                  TCGv_ptr, TCGv_i32))
 {
-    switch (opc4(ctx->opcode)) {
-    case 0:
-        gen_bcdctsq(ctx);
-        break;
-    case 2:
-        gen_bcdcfsq(ctx);
-        break;
-    case 4:
-        gen_bcdctz(ctx);
-        break;
-    case 5:
-        gen_bcdctn(ctx);
-        break;
-    case 6:
-        gen_bcdcfz(ctx);
-        break;
-    case 7:
-        gen_bcdcfn(ctx);
-        break;
-    case 31:
-        gen_bcdsetsgn(ctx);
-        break;
-    default:
-        gen_invalid(ctx);
-        break;
-    }
+    TCGv_ptr ra, rb, rd;
+    TCGv_i32 ps;
+
+    REQUIRE_VECTOR(ctx);
+
+    ra = gen_avr_ptr(a->vra);
+    rb = gen_avr_ptr(a->vrb);
+    rd = gen_avr_ptr(a->vrt);
+    ps = tcg_constant_i32(a->ps);
+
+    helper(cpu_crf[6], rd, ra, rb, ps);
+    return true;
 }
 
-static void gen_xpnd04_2(DisasContext *ctx)
+static bool do_bcd(DisasContext *ctx, arg_VX *a,
+                   void (*helper)(TCGv_i32, TCGv_ptr, TCGv_ptr,
+                                  TCGv_ptr, TCGv_i32))
 {
-    switch (opc4(ctx->opcode)) {
-    case 0:
-        gen_bcdctsq(ctx);
-        break;
-    case 2:
-        gen_bcdcfsq(ctx);
-        break;
-    case 4:
-        gen_bcdctz(ctx);
-        break;
-    case 6:
-        gen_bcdcfz(ctx);
-        break;
-    case 7:
-        gen_bcdcfn(ctx);
-        break;
-    case 31:
-        gen_bcdsetsgn(ctx);
-        break;
-    default:
-        gen_invalid(ctx);
-        break;
-    }
+    TCGv_ptr ra, rb, rd;
+    TCGv_i32 ps;
+
+    REQUIRE_VECTOR(ctx);
+
+    ra = gen_avr_ptr(a->vra);
+    rb = gen_avr_ptr(a->vrb);
+    rd = gen_avr_ptr(a->vrt);
+    ps = tcg_constant_i32(0);
+
+    helper(cpu_crf[6], rd, ra, rb, ps);
+    return true;
 }
 
-GEN_VXFORM_DUAL(vsububm, PPC_ALTIVEC, PPC_NONE, \
-                bcdadd, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsubuhm, PPC_ALTIVEC, PPC_NONE, \
-                bcdsub, PPC_NONE, PPC2_ALTIVEC_207)
-GEN_VXFORM_DUAL(vsubudm, PPC2_ALTIVEC_207, PPC_NONE, \
-                bcds, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_DUAL(vsubuwm, PPC_ALTIVEC, PPC_NONE, \
-                bcdus, PPC_NONE, PPC2_ISA300)
+static bool do_bcd_tb(DisasContext *ctx, arg_VX_tb *a,
+                    void (*helper)(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32))
+{
+    TCGv_ptr rd, rb;
+    TCGv_i32 ps;
+
+    REQUIRE_VECTOR(ctx);
+
+    rb = gen_avr_ptr(a->vrb);
+    rd = gen_avr_ptr(a->vrt);
+
+    ps = tcg_constant_i32(0);
+
+    helper(cpu_crf[6], rd, rb, ps);
+
+    return true;
+}
+
+static bool do_bcd_tb_ps(DisasContext *ctx, arg_VX_tb_ps *a,
+                    void (*helper)(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_i32))
+{
+    TCGv_ptr rd, rb;
+    TCGv_i32 ps;
+
+    REQUIRE_VECTOR(ctx);
+
+    rb = gen_avr_ptr(a->vrb);
+    rd = gen_avr_ptr(a->vrt);
+
+    ps = tcg_constant_i32(a->ps);
+
+    helper(cpu_crf[6], rd, rb, ps);
+
+    return true;
+}
+
+TRANS_FLAGS2(ALTIVEC_207, BCDADD, do_bcd_ps, gen_helper_BCDADD)
+TRANS_FLAGS2(ALTIVEC_207, BCDSUB, do_bcd_ps, gen_helper_BCDSUB)
+TRANS_FLAGS2(ISA300, BCDUS, do_bcd, gen_helper_BCDUS)
+TRANS_FLAGS2(ISA300, BCDS, do_bcd_ps, gen_helper_BCDS)
+TRANS_FLAGS2(ISA300, BCDCFN, do_bcd_tb_ps, gen_helper_BCDCFN)
+TRANS_FLAGS2(ISA300, BCDCTN, do_bcd_tb, gen_helper_BCDCTN)
+TRANS_FLAGS2(ISA300, BCDCFZ, do_bcd_tb_ps, gen_helper_BCDCFZ)
+TRANS_FLAGS2(ISA300, BCDCTZ, do_bcd_tb_ps, gen_helper_BCDCTZ)
+TRANS_FLAGS2(ISA300, BCDCFSQ, do_bcd_tb_ps, gen_helper_BCDCFSQ)
+TRANS_FLAGS2(ISA300, BCDCTSQ, do_bcd_tb, gen_helper_BCDCTSQ)
+TRANS_FLAGS2(ISA300, BCDSETSGN, do_bcd_tb_ps, gen_helper_BCDSETSGN)
+TRANS_FLAGS2(ISA300, BCDCPSGN, do_bcd, gen_helper_BCDCPSGN)
+TRANS_FLAGS2(ISA300, BCDTRUNC, do_bcd_ps, gen_helper_BCDTRUNC)
+TRANS_FLAGS2(ISA300, BCDUTRUNC, do_bcd, gen_helper_BCDUTRUNC)
+TRANS_FLAGS2(ISA300, BCDSR, do_bcd_ps, gen_helper_BCDSR)
 
 static void gen_vsbox(DisasContext *ctx)
 {
@@ -3502,5 +3463,3 @@ TRANS_FLAGS2(ISA310, VMODUQ, do_vx_helper, gen_helper_VMODUQ)
 #undef GEN_VXFORM_NOA
 #undef GEN_VXFORM_UIMM
 #undef GEN_VAFORM_PAIRED
-
-#undef GEN_BCD2
