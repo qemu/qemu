@@ -2,6 +2,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/target-info.h"
 #include "internals.h"
 
 
@@ -117,3 +118,13 @@ void aarch32_max_v8_tcg_initfn(Object *obj)
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
 #endif
 }
+
+static void cpu_max_v8_register_type(void)
+{
+    static const ARMCPUInfo max_v8[2] = {
+        { .name = "max-v8", .initfn = aarch32_max_v8_tcg_initfn },
+        { .name = "max-v8", .initfn = aarch64_max_tcg_initfn }
+    };
+    arm_cpu_register(&max_v8[target_aarch64()]);
+}
+type_init(cpu_max_v8_register_type)
