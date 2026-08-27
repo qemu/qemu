@@ -119,6 +119,35 @@ class TestNbdCommands(iotests.QMPTestCase):
         self.assertEqual(self.top_extents(), [(0, size, 0)])
         qemu_io('-c', f'read -P {pattern} 0 {size}', top)
 
+    def check_commands(self, structured, extended):
+        self.connect(structured, extended)
+
+        self.assertEqual(self.h.pread(4096, 4096), bytes([pattern]) * 4096)
+
+        self.h.cache(size, 0)
+
+        self.h.pwrite(b'x' * 4096, 4096)
+        self.h.flush()
+        self.assertEqual(self.h.pread(4096, 4096), b'x' * 4096)
+
+        self.h.zero(4096, 8192)
+        self.assertEqual(self.h.pread(4096, 8192), bytes(4096))
+
+        self.h.trim(4096, 16384)
+
+        if structured:
+            self.assertEqual(self.block_status()['qemu:allocation-depth'],
+                             [(size, DEPTH_LOCAL)])
+
+    def test_commands_simple_replies(self):
+        self.check_commands(structured=False, extended=False)
+
+    def test_commands_structured_replies(self):
+        self.check_commands(structured=True, extended=False)
+
+    def test_commands_extended_headers(self):
+        self.check_commands(structured=True, extended=True)
+
     def test_cache_past_end_of_export(self):
         self.assertRaises(nbd.Error, self.h.cache, size + 1, 0)
 
