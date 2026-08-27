@@ -138,10 +138,6 @@ foreach target, plan: tcg_tests
       # if set, we'll skip test and print the reason
       skip_test = ''
 
-      if 'gdb_test' in setup and gdb_arch not in gdb_arch_supported
-        continue
-      endif
-
       if 'plugin_test' in setup and not get_option('plugins')
         # do not use the skip_test logic, and simply ignore the test
         continue
@@ -282,6 +278,10 @@ foreach target, plan: tcg_tests
         if not gdb_version.version_compare('>=' + gdb_feat_version[gdb_feat])
           skip_test = 'gdb feature ' + gdb_feat + ' not supported'
         endif
+      endif
+
+      if 'gdb_test' in setup and gdb_arch not in gdb_arch_supported
+        skip_test = 'gdb not available for ' + gdb_arch
       endif
 
       if skip_test != ''
