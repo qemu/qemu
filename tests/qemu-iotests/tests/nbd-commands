@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# group: rw auto quick
+#
+# Test NBD transmission commands against a qemu NBD export
+#
+# Copyright (C) 2026 Virtuozzo International GmbH
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+from types import ModuleType
+
+import iotests
+from iotests import qemu_img_create, qemu_img_map, qemu_io
+
+
+base = os.path.join(iotests.test_dir, 'base')
+top = os.path.join(iotests.test_dir, 'top')
+# Larger than the maximum payload size an export can advertise
+size = 64 * 1024 * 1024
+pattern = 0xa5
+nbd_sock = os.path.join(iotests.sock_dir, 'nbd_sock')
+nbd_uri = 'nbd+unix:///exp?socket=' + nbd_sock
+nbd: ModuleType
+
+DEPTH_LOCAL = 1
+DEPTH_BACKING = 2
+
+
+class TestNbdCommands(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, base, str(size))
+        qemu_io('-c', f'write -P {pattern} 0 {size}', base)
+        qemu_img_create('-f', iotests.imgfmt, '-b', base,
+                        '-F', iotests.imgfmt, top, str(size))
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+        self.vm.cmd('blockdev-add', {
+            'driver': iotests.imgfmt,
+            'node-name': 'n',
+            'file': {'driver': 'file', 'filename': top},
+            'backing': {
+                'driver': iotests.imgfmt,
+                'node-name': 'base',
+                'file': {'driver': 'file', 'filename': base},
+            },
+        })
+        self.vm.cmd('nbd-server-start', {
+            'addr': {'type': 'unix', 'data': {'path': nbd_sock}}
+        })
+        self.vm.cmd('block-export-add', {
+            'type': 'nbd',
+            'id': 'exp',
+            'node-name': 'n',
+            'name': 'exp',
+            'writable': True,
+            'allocation-depth': True,
+        })
+
+        self.h = None
+        self.connect()
+
+    def tearDown(self):
+        self.disconnect()
+        self.vm.shutdown()
+        for f in (top, base, nbd_sock):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+    def connect(self, structured=True, extended=True):
+        self.disconnect()
+        h = nbd.NBD()
+        h.set_request_structured_replies(structured)
+        h.set_request_extended_headers(extended)
+        h.add_meta_context('base:allocation')
+        h.add_meta_context('qemu:allocation-depth')
+        # Let the server, not libnbd, reject the out of range requests below
+        h.set_strict_mode(h.get_strict_mode() &
+                          ~(nbd.STRICT_BOUNDS | nbd.STRICT_PAYLOAD))
+        h.connect_uri(nbd_uri)
+        self.assertEqual(h.get_structured_replies_negotiated(), structured)
+        self.assertEqual(h.get_extended_headers_negotiated(), extended)
+        self.h = h
+
+    def disconnect(self):
+        if self.h is not None:
+            self.h.shutdown()
+            self.h = None
+
+    def block_status(self, count=size):
+        """Map each meta context in the reply to its list of extents."""
+        reply = {}
+
+        def cb(meta, _offset, entries, _err):
+            reply.setdefault(meta, []).extend(zip(entries[0::2],
+                                                  entries[1::2]))
+
+        self.h.block_status(count, 0, cb)
+        return reply
+
+    def top_extents(self):
+        """Which parts of the top image are local, once qemu has let go."""
+        self.disconnect()
+        self.vm.shutdown()
+        return [(e['start'], e['length'], e['depth'])
+                for e in qemu_img_map(top)]
+
+    def test_cache_copies_on_read(self):
+        maximum = self.h.get_block_size(nbd.SIZE_MAXIMUM)
+        self.assertLess(maximum, size)
+        self.assertEqual(self.block_status()['qemu:allocation-depth'],
+                         [(size, DEPTH_BACKING)])
+
+        self.h.cache(maximum, 0)
+
+        self.assertEqual(self.top_extents(),
+                         [(0, maximum, 0), (maximum, size - maximum, 1)])
+        qemu_io('-c', f'read -P {pattern} 0 {size}', top)
+
+    def test_cache_past_end_of_export(self):
+        self.assertRaises(nbd.Error, self.h.cache, size + 1, 0)
+
+    def test_read_bound_by_max_payload(self):
+        maximum = self.h.get_block_size(nbd.SIZE_MAXIMUM)
+        self.assertRaises(nbd.Error, self.h.pread, maximum + 65536, 0)
+
+
+if __name__ == '__main__':
+    try:
+        # Easier to use libnbd than to try and set up parallel
+        # 'qemu-nbd --list' or 'qemu-io' processes, but not all systems
+        # have libnbd installed.
+        import nbd  # type: ignore
+
+        iotests.main(supported_fmts=['qcow2'])
+    except ImportError:
+        iotests.notrun('Python bindings to libnbd are not installed')
