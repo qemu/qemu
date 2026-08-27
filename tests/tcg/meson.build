@@ -180,6 +180,8 @@ foreach target, plan: tcg_tests
     continue
   endif
 
+  cc_arch = target.replace('-linux-user', '').replace('-softmmu', '')
+
   # Detect duplicated executables/tests, and report an error to force user to
   # choose how to deal with it.
   built_tests = {}
@@ -197,16 +199,35 @@ foreach target, plan: tcg_tests
   endforeach
 
   cc = find_program(plan['cc'], required : false)
+  cc_cflags = []
+
+  check_flags = []
+  check_required = false
+  cross_cc = get_option('tcg_tests_cross_cc_' + cc_arch)
+  if cross_cc != ''
+    # we make sure cross cc exists
+    cc = find_program(cross_cc, required: true)
+    check_required = true
+  endif
+  cross_cflags = get_option('tcg_tests_cross_cflags_' + cc_arch)
+  if cross_cflags != ''
+    cc_cflags = cross_cflags.split()
+    # and that cross cc can compile programs
+    check_flags = cc_cflags
+    check_required = true
+  endif
+
   cc_from_system = cc.found()
   has_cc = cc.found()
   if has_cc
-    check_flags = ['-static']
     if target.endswith('softmmu')
-      check_flags = ['-nostdlib', '-ffreestanding', '-r']
+      check_flags += ['-nostdlib', '-ffreestanding', '-r']
+    else
+      check_flags += ['-static']
     endif
 
     cmd = run_command([cc, files('test_cc.c'), check_flags, '-o', '/dev/null'],
-                      check: false)
+                      check: check_required)
     has_cc = cmd.returncode() == 0
     cc_from_system = has_cc
   endif
@@ -333,9 +354,9 @@ foreach target, plan: tcg_tests
         endif
       endif
 
-      cflags = []
+      cflags = cc_cflags
       if 'cflags' in setup
-        cflags = setup['cflags']
+        cflags += setup['cflags']
       endif
 
       if 'cc_feat' in setup

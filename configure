@@ -227,19 +227,6 @@ for opt do
   ;;
   --extra-ldflags=*) EXTRA_LDFLAGS="$EXTRA_LDFLAGS $optarg"
   ;;
-  --cross-cc-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-cc-FOO option"
-  ;;
-  --cross-cc-cflags-*) cc_arch=${opt#--cross-cc-cflags-}; cc_arch=${cc_arch%%=*}
-                      eval "cross_cc_cflags_${cc_arch}=\$optarg"
-  ;;
-  --cross-cc-*) cc_arch=${opt#--cross-cc-}; cc_arch=${cc_arch%%=*}
-                eval "cross_cc_${cc_arch}=\$optarg"
-  ;;
-  --cross-prefix-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-prefix-FOO option"
-  ;;
-  --cross-prefix-*) cc_arch=${opt#--cross-prefix-}; cc_arch=${cc_arch%%=*}
-                    eval "cross_prefix_${cc_arch}=\$optarg"
-  ;;
   --without-default-features) default_feature="no"
   ;;
   --wasm64-32bit-address-limit) wasm64_memory64="2"
@@ -631,9 +618,19 @@ for opt do
   ;;
   --extra-ldflags=*)
   ;;
-  --cross-cc-*)
+  --cross-cc-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-cc-FOO option"
   ;;
-  --cross-prefix-*)
+  --cross-cc-cflags-*) arch=${opt#--cross-cc-cflags-}; arch=${arch%%=*}
+                       meson_option_add "-Dtcg_tests_cross_cflags_${arch}=${optarg}"
+  ;;
+  --cross-cc-*) arch=${opt#--cross-cc-}; arch=${arch%%=*}
+                meson_option_add "-Dtcg_tests_cross_cc_${arch}=${optarg}"
+  ;;
+  --cross-prefix-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-prefix-FOO option"
+  ;;
+  # cross-prefix is just used as a syntactic sugar for -cross-cc.
+  --cross-prefix-*) arch=${opt#--cross-prefix-}; arch=${arch%%=*}
+                    meson_option_add "-Dtcg_tests_cross_cc_${arch}=${optarg}gcc"
   ;;
   --enable-docs) docs=enabled
   ;;

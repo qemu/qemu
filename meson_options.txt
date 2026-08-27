@@ -391,3 +391,92 @@ option('containers', type: 'boolean', value: true,
        description: 'use containers to cross compile tcg tests')
 option('container_command', type: 'string',
        description: 'command to build/run containers')
+
+option('tcg_tests_cross_cc_aarch64', type: 'string',
+       description: 'cc for aarch64 tcg tests')
+option('tcg_tests_cross_cflags_aarch64', type: 'string',
+       description: 'cflags for aarch64 tcg tests')
+option('tcg_tests_cross_cc_aarch64_be', type: 'string',
+       description: 'cc for aarch64_be tcg tests')
+option('tcg_tests_cross_cflags_aarch64_be', type: 'string',
+       description: 'cflags for aarch64_be tcg tests')
+option('tcg_tests_cross_cc_alpha', type: 'string',
+       description: 'cc for alpha tcg tests')
+option('tcg_tests_cross_cflags_alpha', type: 'string',
+       description: 'cflags for alpha tcg tests')
+option('tcg_tests_cross_cc_arm', type: 'string',
+       description: 'cc for arm tcg tests')
+option('tcg_tests_cross_cflags_arm', type: 'string',
+       description: 'cflags for arm tcg tests')
+option('tcg_tests_cross_cc_hexagon', type: 'string',
+       description: 'cc for hexagon tcg tests')
+option('tcg_tests_cross_cflags_hexagon', type: 'string',
+       description: 'cflags for hexagon tcg tests')
+option('tcg_tests_cross_cc_hppa', type: 'string',
+       description: 'cc for hppa tcg tests')
+option('tcg_tests_cross_cflags_hppa', type: 'string',
+       description: 'cflags for hppa tcg tests')
+option('tcg_tests_cross_cc_i386', type: 'string',
+       description: 'cc for i386 tcg tests')
+option('tcg_tests_cross_cflags_i386', type: 'string',
+       description: 'cflags for i386 tcg tests')
+option('tcg_tests_cross_cc_loongarch64', type: 'string',
+       description: 'cc for loongarch64 tcg tests')
+option('tcg_tests_cross_cflags_loongarch64', type: 'string',
+       description: 'cflags for loongarch64 tcg tests')
+option('tcg_tests_cross_cc_m68k', type: 'string',
+       description: 'cc for m68k tcg tests')
+option('tcg_tests_cross_cflags_m68k', type: 'string',
+       description: 'cflags for m68k tcg tests')
+option('tcg_tests_cross_cc_mips', type: 'string',
+       description: 'cc for mips tcg tests')
+option('tcg_tests_cross_cflags_mips', type: 'string',
+       description: 'cflags for mips tcg tests')
+option('tcg_tests_cross_cc_mips64', type: 'string',
+       description: 'cc for mips64 tcg tests')
+option('tcg_tests_cross_cflags_mips64', type: 'string',
+       description: 'cflags for mips64 tcg tests')
+option('tcg_tests_cross_cc_mips64el', type: 'string',
+       description: 'cc for mips64el tcg tests')
+option('tcg_tests_cross_cflags_mips64el', type: 'string',
+       description: 'cflags for mips64el tcg tests')
+option('tcg_tests_cross_cc_or1k', type: 'string',
+       description: 'cc for or1k tcg tests')
+option('tcg_tests_cross_cflags_or1k', type: 'string',
+       description: 'cflags for or1k tcg tests')
+option('tcg_tests_cross_cc_ppc64', type: 'string',
+       description: 'cc for ppc64 tcg tests')
+option('tcg_tests_cross_cflags_ppc64', type: 'string',
+       description: 'cflags for ppc64 tcg tests')
+option('tcg_tests_cross_cc_ppc64le', type: 'string',
+       description: 'cc for ppc64le tcg tests')
+option('tcg_tests_cross_cflags_ppc64le', type: 'string',
+       description: 'cflags for ppc64le tcg tests')
+option('tcg_tests_cross_cc_riscv64', type: 'string',
+       description: 'cc for riscv64 tcg tests')
+option('tcg_tests_cross_cflags_riscv64', type: 'string',
+       description: 'cflags for riscv64 tcg tests')
+option('tcg_tests_cross_cc_s390x', type: 'string',
+       description: 'cc for s390x tcg tests')
+option('tcg_tests_cross_cflags_s390x', type: 'string',
+       description: 'cflags for s390x tcg tests')
+option('tcg_tests_cross_cc_sh4', type: 'string',
+       description: 'cc for sh4 tcg tests')
+option('tcg_tests_cross_cflags_sh4', type: 'string',
+       description: 'cflags for sh4 tcg tests')
+option('tcg_tests_cross_cc_tricore', type: 'string',
+       description: 'cc for tricore tcg tests')
+option('tcg_tests_cross_cflags_tricore', type: 'string',
+       description: 'cflags for tricore tcg tests')
+option('tcg_tests_cross_cc_x86_64', type: 'string',
+       description: 'cc for x86_64 tcg tests')
+option('tcg_tests_cross_cflags_x86_64', type: 'string',
+       description: 'cflags for x86_64 tcg tests')
+option('tcg_tests_cross_cc_xtensa', type: 'string',
+       description: 'cc for xtensa tcg tests')
+option('tcg_tests_cross_cflags_xtensa', type: 'string',
+       description: 'cflags for xtensa tcg tests')
+option('tcg_tests_cross_cc_xtensaeb', type: 'string',
+       description: 'cc for xtensaeb tcg tests')
+option('tcg_tests_cross_cflags_xtensaeb', type: 'string',
+       description: 'cflags for xtensaeb tcg tests')
