@@ -486,6 +486,76 @@ static bool do_add_const_XO(DisasContext *ctx, arg_XO_ta *a, TCGv const_val,
     return true;
 }
 
+static bool do_shift_X_rc(DisasContext *ctx, arg_X_rc *a,
+                                void(*op)(TCGv, TCGv, TCGv))
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    /* AND rt with a mask that is 0 when rb >= 0x40 */
+    tcg_gen_shli_tl(t0, cpu_gpr[a->rb], 0x39);
+    tcg_gen_sari_tl(t0, t0, 0x3f);
+    tcg_gen_andc_tl(t0, cpu_gpr[a->rt], t0);
+    tcg_gen_andi_tl(t1, cpu_gpr[a->rb], 0x3f);
+    op(cpu_gpr[a->ra], t0, t1);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_SRAD(DisasContext *ctx, arg_SRAD *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    gen_helper_SRAD(cpu_gpr[a->ra], tcg_env, cpu_gpr[a->rt], cpu_gpr[a->rb]);
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, cpu_gpr[a->ra]);
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_SRADI(DisasContext *ctx, arg_SRADI *a)
+{
+    REQUIRE_64BIT(ctx);
+#if defined(TARGET_PPC64)
+    int sh = a->sh;
+    TCGv dst = cpu_gpr[a->ra];
+    TCGv src = cpu_gpr[a->rs];
+    if (sh == 0) {
+        tcg_gen_mov_tl(dst, src);
+        tcg_gen_movi_tl(cpu_ca, 0);
+        if (is_isa300(ctx)) {
+            tcg_gen_movi_tl(cpu_ca32, 0);
+        }
+    } else {
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_andi_tl(cpu_ca, src, (1ULL << sh) - 1);
+        tcg_gen_sari_tl(t0, src, TARGET_LONG_BITS - 1);
+        tcg_gen_and_tl(cpu_ca, cpu_ca, t0);
+        tcg_gen_setcondi_tl(TCG_COND_NE, cpu_ca, cpu_ca, 0);
+        if (is_isa300(ctx)) {
+            tcg_gen_mov_tl(cpu_ca32, cpu_ca);
+        }
+        tcg_gen_sari_tl(dst, src, sh);
+    }
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, dst);
+    }
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
 TRANS(ADD, do_add_XO, false, false);
 TRANS(ADDC, do_add_XO, false, true);
 TRANS(ADDE, do_add_XO, true, true);
@@ -493,6 +563,8 @@ TRANS(ADDME, do_add_const_XO, tcg_constant_tl(-1LL), true, true);
 TRANS(ADDZE, do_add_const_XO, tcg_constant_tl(0), true, true);
 TRANS(ADDIC, do_add_D, false, true, false, false);
 TRANS(ADDIC_, do_add_D, false, true, false, true);
+TRANS(SLD, do_shift_X_rc, tcg_gen_shl_tl);
+TRANS(SRD, do_shift_X_rc, tcg_gen_shr_tl);
 
 static bool trans_SUBFIC(DisasContext *ctx, arg_D *a)
 {

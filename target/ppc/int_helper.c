@@ -261,7 +261,7 @@ target_ulong helper_SRAW(CPUPPCState *env, target_ulong value,
 }
 
 #if defined(TARGET_PPC64)
-target_ulong helper_srad(CPUPPCState *env, target_ulong value,
+target_ulong helper_SRAD(CPUPPCState *env, target_ulong value,
                          target_ulong shift)
 {
     int64_t ret;

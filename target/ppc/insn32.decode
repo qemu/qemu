@@ -119,7 +119,7 @@
 
 # XS-form with fractured shift amount
 %xs_sh           1:1 11:5
-&XS              rs ra sh rc
+&XS              rs ra sh rc:bool
 @XS              ...... rs:5 ra:5 ..... ......... . rc:1        &XS sh=%xs_sh
 
 %x_frtp         22:4 !function=times_2
@@ -511,6 +511,13 @@ SLW             011111 ..... ..... ..... 0000011000 .   @X_rc
 SRW             011111 ..... ..... ..... 1000011000 .   @X_rc
 SRAW            011111 ..... ..... ..... 1100011000 .   @X_rc
 SRAWI           011111 ..... ..... ..... 1100111000 .   @X_rc
+
+SLD             011111 ..... ..... ..... 0000011011 .   @X_rc
+SRD             011111 ..... ..... ..... 1000011011 .   @X_rc
+SRAD            011111 ..... ..... ..... 1100011010 .   @X_rc
+SRADI           011111 ..... ..... ..... 110011101 . .  @XS
+
+EXTSWSLI        011111 ..... ..... ..... 110111101 . .  @XS
 
 ## BCD Assist
 
@@ -1378,9 +1385,6 @@ ICBIEP          011111 ----- ..... ..... 1111011111 -   @X_ea
 DST             011111 ----- ..... ..... 0101010110 -   @X_ea
 DSTST           011111 ----- ..... ..... 0101110110 -   @X_ea
 DSS             011111 ----- ..... ..... 1100110110 -   @X_ea
-
-##Extend Sign Word and Shift Left Immediate XS-form
-EXTSWSLI         011111 ..... ..... ..... 110111101 . .         @XS
 
 ## Load and Reserve Instructions
 LBARX           011111 ..... ..... ..... 0000110100 .   @X_rc
