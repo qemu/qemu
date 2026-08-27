@@ -2565,8 +2565,8 @@ enum {
     PPC2_DBRX          = 0x0000000000000010ULL,
     /* Book I 2.05 PowerPC specification                                     */
     PPC2_ISA205        = 0x0000000000000020ULL,
-    /* VSX additions in ISA 2.07                                             */
-    PPC2_VSX207        = 0x0000000000000040ULL,
+    /* POWER ISA 2.07                                                        */
+    PPC2_ISA207        = 0x0000000000000040ULL,
     /* ISA 2.06B bpermd                                                      */
     PPC2_PERM_ISA206   = 0x0000000000000080ULL,
     /* ISA 2.06B divide extended variants                                    */
@@ -2607,7 +2607,7 @@ enum {
     PPC2_PPE42XM       = 0x0000000002000000ULL,
 
 #define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_VSX | PPC2_PRCNTL | PPC2_DBRX | \
-                        PPC2_ISA205 | PPC2_VSX207 | PPC2_PERM_ISA206 | \
+                        PPC2_ISA205 | PPC2_ISA207 | PPC2_PERM_ISA206 | \
                         PPC2_DIVE_ISA206 | PPC2_ATOMIC_ISA206 | \
                         PPC2_FP_CVT_ISA206 | PPC2_FP_TST_ISA206 | \
                         PPC2_BCTAR_ISA207 | PPC2_LSQ_ISA207 | \
