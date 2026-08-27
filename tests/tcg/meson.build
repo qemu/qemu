@@ -78,10 +78,23 @@ if gdb.found()
   endforeach
 endif
 
-docker_probe = run_command(docker_wrapper, 'probe', check: false)
-docker_supported = docker_probe.returncode() == 0
-if docker_supported
-  docker_wrapper = [docker_wrapper, '--command', docker_probe.stdout().strip()]
+docker_supported = false
+if get_option('containers')
+  if get_option('container_command') != ''
+    # make sure command is working
+    cmd = get_option('container_command').split()
+    run_command([cmd, 'info'], check: true)
+    docker_supported = true
+    docker_wrapper = [docker_wrapper, '--command',
+                      get_option('container_command')]
+  else
+    docker_probe = run_command(docker_wrapper, 'probe', check: false)
+    docker_supported = docker_probe.returncode() == 0
+    if docker_supported
+      docker_wrapper = [docker_wrapper, '--command',
+                        docker_probe.stdout().strip()]
+    endif
+  endif
 endif
 
 # plugins come first, as we need to build the list

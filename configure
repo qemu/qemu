@@ -172,7 +172,6 @@ fi
 # some defaults, based on the host environment
 
 # default parameters
-container_command=""
 cpu=""
 cross_compile="no"
 cross_prefix=""
@@ -260,7 +259,6 @@ ninja=""
 python=
 download="enabled"
 skip_meson=no
-use_containers="yes"
 rust="disabled"
 rust_target_triple=""
 
@@ -727,11 +725,11 @@ for opt do
   ;;
   --disable-plugins) plugins="no"
   ;;
-  --enable-containers) use_containers="yes"
+  --enable-containers) # enabled by default
   ;;
-  --disable-containers) use_containers="no"
+  --disable-containers) meson_option_add -Dcontainers=false
   ;;
-  --container-command=*) container_command="$optarg"
+  --container-command=*) meson_option_add -Dcontainer_command="$optarg"
   ;;
   --rust-target-triple=*) rust_target_triple="$optarg"
   ;;
@@ -1718,9 +1716,6 @@ echo all: >> $config_host_mak
 
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-if test "$container_command" != ""; then
-    echo "CONTAINER_COMMAND=$container_command" >> $config_host_mak
-fi
 echo "SUBDIRS=$subdirs" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "MKVENV_ENSUREGROUP=$mkvenv ensuregroup $mkvenv_online_flag" >> $config_host_mak

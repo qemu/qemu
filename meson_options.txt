@@ -387,3 +387,7 @@ option('rust', type: 'feature', value: 'disabled',
        description: 'Rust support')
 option('strict_rust_lints', type: 'boolean', value: false,
        description: 'Enable stricter set of Rust warnings')
+option('containers', type: 'boolean', value: true,
+       description: 'use containers to cross compile tcg tests')
+option('container_command', type: 'string',
+       description: 'command to build/run containers')
