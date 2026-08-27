@@ -2012,110 +2012,6 @@ static void gen_pause(DisasContext *ctx)
 
 /***                             Integer rotate                            ***/
 
-/* rlwimi & rlwimi. */
-static void gen_rlwimi(DisasContext *ctx)
-{
-    TCGv t_ra = cpu_gpr[rA(ctx->opcode)];
-    TCGv t_rs = cpu_gpr[rS(ctx->opcode)];
-    uint32_t sh = SH(ctx->opcode);
-    uint32_t mb = MB(ctx->opcode);
-    uint32_t me = ME(ctx->opcode);
-
-    if (sh == (31 - me) && mb <= me) {
-        tcg_gen_deposit_tl(t_ra, t_ra, t_rs, sh, me - mb + 1);
-    } else {
-        target_ulong mask;
-        bool mask_in_32b = true;
-        TCGv t1;
-
-#if defined(TARGET_PPC64)
-        mb += 32;
-        me += 32;
-#endif
-        mask = MASK(mb, me);
-
-#if defined(TARGET_PPC64)
-        if (mask > 0xffffffffu) {
-            mask_in_32b = false;
-        }
-#endif
-        t1 = tcg_temp_new();
-        if (mask_in_32b) {
-            TCGv_i32 t0 = tcg_temp_new_i32();
-            tcg_gen_trunc_tl_i32(t0, t_rs);
-            tcg_gen_rotli_i32(t0, t0, sh);
-            tcg_gen_extu_i32_tl(t1, t0);
-        } else {
-#if defined(TARGET_PPC64)
-            tcg_gen_deposit_i64(t1, t_rs, t_rs, 32, 32);
-            tcg_gen_rotli_i64(t1, t1, sh);
-#else
-            g_assert_not_reached();
-#endif
-        }
-
-        tcg_gen_andi_tl(t1, t1, mask);
-        tcg_gen_andi_tl(t_ra, t_ra, ~mask);
-        tcg_gen_or_tl(t_ra, t_ra, t1);
-    }
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_Rc0(ctx, t_ra);
-    }
-}
-
-/* rlwinm & rlwinm. */
-static void gen_rlwinm(DisasContext *ctx)
-{
-    TCGv t_ra = cpu_gpr[rA(ctx->opcode)];
-    TCGv t_rs = cpu_gpr[rS(ctx->opcode)];
-    int sh = SH(ctx->opcode);
-    int mb = MB(ctx->opcode);
-    int me = ME(ctx->opcode);
-    int len = me - mb + 1;
-    int rsh = (32 - sh) & 31;
-
-    if (sh != 0 && len > 0 && me == (31 - sh)) {
-        tcg_gen_deposit_z_tl(t_ra, t_rs, sh, len);
-    } else if (me == 31 && rsh + len <= 32) {
-        tcg_gen_extract_tl(t_ra, t_rs, rsh, len);
-    } else {
-        target_ulong mask;
-        bool mask_in_32b = true;
-#if defined(TARGET_PPC64)
-        mb += 32;
-        me += 32;
-#endif
-        mask = MASK(mb, me);
-#if defined(TARGET_PPC64)
-        if (mask > 0xffffffffu) {
-            mask_in_32b = false;
-        }
-#endif
-        if (mask_in_32b) {
-            if (sh == 0) {
-                tcg_gen_andi_tl(t_ra, t_rs, mask);
-            } else {
-                TCGv_i32 t0 = tcg_temp_new_i32();
-                tcg_gen_trunc_tl_i32(t0, t_rs);
-                tcg_gen_rotli_i32(t0, t0, sh);
-                tcg_gen_andi_i32(t0, t0, mask);
-                tcg_gen_extu_i32_tl(t_ra, t0);
-            }
-        } else {
-#if defined(TARGET_PPC64)
-            tcg_gen_deposit_i64(t_ra, t_rs, t_rs, 32, 32);
-            tcg_gen_rotli_i64(t_ra, t_ra, sh);
-            tcg_gen_andi_i64(t_ra, t_ra, mask);
-#else
-            g_assert_not_reached();
-#endif
-        }
-    }
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_Rc0(ctx, t_ra);
-    }
-}
-
 /* rlwnm & rlwnm. */
 static void gen_rlwnm(DisasContext *ctx)
 {
@@ -4794,8 +4690,6 @@ GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER_E(copy, 0x1F, 0x06, 0x18, 0x03C00001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(cp_abort, 0x1F, 0x06, 0x1A, 0x03FFF801, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(paste, 0x1F, 0x06, 0x1C, 0x03C00000, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER(rlwimi, 0x14, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
-GEN_HANDLER(rlwinm, 0x15, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(rlwnm, 0x17, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 /* handles lfdp, lxsd, lxssp */
 GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),

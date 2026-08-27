@@ -312,6 +312,9 @@
 
 @Z23_te_tbp     ...... ....0 te:5 ....0 rmc:2 ........ rc:1     &Z23_te_tb frt=%z23_frtp frb=%z23_frbp
 
+&M              ra rs sh mb me rc:bool
+@M              ...... rs:5 ra:5 sh:5 mb:5 me:5 rc:1 &M
+
 ### Fixed-Point Load Instructions
 
 LBZ             100010 ..... ..... ................     @D
@@ -560,6 +563,9 @@ SRAD            011111 ..... ..... ..... 1100011010 .   @X_rc
 SRADI           011111 ..... ..... ..... 110011101 . .  @XS
 
 EXTSWSLI        011111 ..... ..... ..... 110111101 . .  @XS
+
+RLWIMI          010100 ..... ..... ..... ..... ......   @M
+RLWINM          010101 ..... ..... ..... ..... ......   @M
 
 ## BCD Assist
 

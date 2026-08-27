@@ -1872,6 +1872,108 @@ static bool trans_SRAWI(DisasContext *ctx, arg_SRAWI *a)
     return true;
 }
 
+static bool trans_RLWIMI(DisasContext *ctx, arg_RLWIMI *a)
+{
+    TCGv t_ra = cpu_gpr[a->ra];
+    TCGv t_rs = cpu_gpr[a->rs];
+    int mb = a->mb;
+    int me = a->me;
+
+    if (a->sh == (31 - me) && mb <= me) {
+        tcg_gen_deposit_tl(t_ra, t_ra, t_rs, a->sh, me - mb + 1);
+    } else {
+        target_ulong mask;
+        bool mask_in_32b = true;
+        TCGv t1;
+
+#if defined(TARGET_PPC64)
+        mb += 32;
+        me += 32;
+#endif
+        mask = MASK(mb, me);
+
+#if defined(TARGET_PPC64)
+        if (mask > 0xffffffffu) {
+            mask_in_32b = false;
+        }
+#endif
+        t1 = tcg_temp_new();
+        if (mask_in_32b) {
+            TCGv_i32 t0 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t0, t_rs);
+            tcg_gen_rotli_i32(t0, t0, a->sh);
+            tcg_gen_extu_i32_tl(t1, t0);
+        } else {
+#if defined(TARGET_PPC64)
+            tcg_gen_deposit_i64(t1, t_rs, t_rs, 32, 32);
+            tcg_gen_rotli_i64(t1, t1, a->sh);
+#else
+            g_assert_not_reached();
+#endif
+        }
+
+        tcg_gen_andi_tl(t1, t1, mask);
+        tcg_gen_andi_tl(t_ra, t_ra, ~mask);
+        tcg_gen_or_tl(t_ra, t_ra, t1);
+    }
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, t_ra);
+    }
+    return true;
+}
+
+static bool trans_RLWINM(DisasContext *ctx, arg_RLWINM *a)
+{
+    TCGv t_ra = cpu_gpr[a->ra];
+    TCGv t_rs = cpu_gpr[a->rs];
+    int me = a->me;
+    int mb = a->mb;
+    int len = me - mb + 1;
+    int rsh = (32 - a->sh) & 31;
+
+    if (a->sh != 0 && len > 0 && me == (31 - a->sh)) {
+        tcg_gen_deposit_z_tl(t_ra, t_rs, a->sh, len);
+    } else if (me == 31 && rsh + len <= 32) {
+        tcg_gen_extract_tl(t_ra, t_rs, rsh, len);
+    } else {
+        target_ulong mask;
+        bool mask_in_32b = true;
+#if defined(TARGET_PPC64)
+        mb += 32;
+        me += 32;
+#endif
+        mask = MASK(mb, me);
+#if defined(TARGET_PPC64)
+        if (mask > 0xffffffffu) {
+            mask_in_32b = false;
+        }
+#endif
+        if (mask_in_32b) {
+            if (a->sh == 0) {
+                tcg_gen_andi_tl(t_ra, t_rs, mask);
+            } else {
+                TCGv_i32 t0 = tcg_temp_new_i32();
+                tcg_gen_trunc_tl_i32(t0, t_rs);
+                tcg_gen_rotli_i32(t0, t0, a->sh);
+                tcg_gen_andi_i32(t0, t0, mask);
+                tcg_gen_extu_i32_tl(t_ra, t0);
+            }
+        } else {
+#if defined(TARGET_PPC64)
+            tcg_gen_deposit_i64(t_ra, t_rs, t_rs, 32, 32);
+            tcg_gen_rotli_i64(t_ra, t_ra, a->sh);
+            tcg_gen_andi_i64(t_ra, t_ra, mask);
+#else
+            g_assert_not_reached();
+#endif
+        }
+    }
+    if (unlikely(a->rc)) {
+        gen_set_Rc0(ctx, t_ra);
+    }
+    return true;
+}
+
 static void do_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
                                      TCGv EA, int rt,
                                      TCGCond cond, int addend)
