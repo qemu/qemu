@@ -25,7 +25,7 @@ def writeliteral(indent, bytes):
         elif c >= 32 and c < 127:
             sys.stdout.write(c.to_bytes(1, 'big').decode())
         else:
-            sys.stdout.write(f'\{c:03o}')
+            sys.stdout.write(f'\\{c:03o}')
 
     if quoted:
         sys.stdout.write('"')

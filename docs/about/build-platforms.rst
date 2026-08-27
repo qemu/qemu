@@ -128,7 +128,7 @@ Rust build dependencies
 
   Some distros prefer to avoid vendored crate sources, and instead use
   local sources from e.g. ``/usr/share/cargo/registry``.  QEMU includes a
-  script, ``scripts/get-wraps-from-cargo-registry.py``, that automatically
+  script, ``scripts/update-cargo-wraps.py``, that automatically
   performs this task.  The script is meant to be invoked after unpacking
   the QEMU tarball.  QEMU also includes ``rust/Cargo.toml`` and
   ``rust/Cargo.lock`` files that can be used to compute QEMU's build

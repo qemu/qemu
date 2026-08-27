@@ -3792,7 +3792,7 @@ F: rust/rustfmt.toml
 F: rust/system/
 F: rust/tests/
 F: rust/util/
-F: scripts/get-wraps-from-cargo-registry.py
+F: scripts/update-cargo-wraps.py
 
 Rust-related patches CC here
 L: qemu-rust@nongnu.org
