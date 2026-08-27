@@ -25,6 +25,7 @@ static void create_fdt(LoongArchVirtMachineState *lvms)
 {
     MachineState *ms = MACHINE(lvms);
     uint8_t rng_seed[32];
+    int ret;
 
     ms->fdt = create_device_tree(&lvms->fdt_size);
     if (!ms->fdt) {
@@ -38,6 +39,32 @@ static void create_fdt(LoongArchVirtMachineState *lvms)
     qemu_fdt_setprop_cell(ms->fdt, "/", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(ms->fdt, "/", "#size-cells", 0x2);
     qemu_fdt_add_subnode(ms->fdt, "/chosen");
+
+    if (ms->kernel_cmdline && *ms->kernel_cmdline) {
+        ret = qemu_fdt_setprop_string(ms->fdt, "/chosen", "bootargs",
+                                      ms->kernel_cmdline);
+        if (ret < 0) {
+            error_report("set /chosen/bootargs failed");
+            exit(1);
+        }
+    }
+
+    if (lvms->bootinfo.initrd_addr) {
+        ret = qemu_fdt_setprop_cell(ms->fdt, "/chosen", "linux,initrd-start",
+                                    lvms->bootinfo.initrd_addr);
+        if (ret < 0) {
+            error_report("set /chosen/linux,initrd-start failed");
+            exit(1);
+        }
+
+        ret = qemu_fdt_setprop_cell(ms->fdt, "/chosen", "linux,initrd-end",
+                                    lvms->bootinfo.initrd_addr +
+                                    lvms->bootinfo.initrd_size);
+        if (ret < 0) {
+            error_report("set /chosen/linux,initrd-end failed");
+            exit(1);
+        }
+    }
 
     /* Pass seed to RNG */
     qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));

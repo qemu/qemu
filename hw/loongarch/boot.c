@@ -173,12 +173,19 @@ static void init_efi_fdt_table(struct efi_system_table *systab)
     systab->nr_tables = 3;
 }
 
-static void init_systab(MachineState *ms,
+static void init_systab(MachineState *ms, size_t size,
                         struct loongarch_boot_info *info, void *p, void *start)
 {
     void *bp_tables_start;
     struct efi_system_table *systab = p;
     LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
+    size_t len;
+
+    len = ROUND_UP(sizeof(struct efi_system_table), 64 * KiB);
+    if (len > size) {
+        error_report("could not init efi_system_table");
+        exit(1);
+    }
 
     info->a2 = p - start;
 
@@ -190,29 +197,56 @@ static void init_systab(MachineState *ms,
     systab->boottime = 0;
     systab->nr_tables = 0;
 
-    p += ROUND_UP(sizeof(struct efi_system_table), 64 * KiB);
+    p += len;
+    size -= len;
 
     systab->tables = p;
     bp_tables_start = p;
 
+    len = ROUND_UP(sizeof(struct efi_boot_memmap) +
+                   sizeof(efi_memory_desc_t) * lvms->memmap_entries, 64 * KiB);
+    if (len > size) {
+        error_report("could not init efi_boot_memmap");
+        exit(1);
+    }
+
     init_efi_boot_memmap(ms, systab, p, start);
-    p += ROUND_UP(sizeof(struct efi_boot_memmap) +
-                  sizeof(efi_memory_desc_t) * lvms->memmap_entries, 64 * KiB);
+    p += len;
+    size -= len;
+
+    len = ROUND_UP(sizeof(struct efi_initrd), 64 * KiB);
+    if (len > size) {
+        error_report("could not init efi_initrd");
+        exit(1);
+    }
+
     init_efi_initrd_table(info, systab, p, start);
-    p += ROUND_UP(sizeof(struct efi_initrd), 64 * KiB);
+    p += len;
+    size -= len;
     init_efi_fdt_table(systab);
 
     systab->tables = (struct efi_configuration_table *)(bp_tables_start - start);
 }
 
-static void init_cmdline(struct loongarch_boot_info *info, void *p, void *start)
+static size_t init_cmdline(struct loongarch_boot_info *info, void *p,
+                           void *start, size_t size)
 {
     hwaddr cmdline_addr = p - start;
+    size_t len;
 
     info->a0 = 1;
     info->a1 = cmdline_addr;
 
-    g_strlcpy(p, info->kernel_cmdline, COMMAND_LINE_SIZE);
+    len = g_strlcpy(p, info->kernel_cmdline, size);
+
+    /* include terminating null byte */
+    if (len < size) {
+        len += 1;
+    } else {
+        len = size;
+    }
+
+    return len;
 }
 
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
@@ -385,15 +419,21 @@ static void loongarch_firmware_boot(LoongArchVirtMachineState *lvms,
     fw_cfg_add_kernel_info(info, lvms->fw_cfg);
 }
 
-static void init_boot_rom(MachineState *ms,
+static void init_boot_rom(MachineState *ms, size_t size,
                           struct loongarch_boot_info *info, void *p)
 {
     void *start = p;
+    size_t len;
 
-    init_cmdline(info, p, start);
-    p += COMMAND_LINE_SIZE;
+    len = init_cmdline(info, p, start, size);
+    len = ROUND_UP(len, 64 * KiB);
+    if (len > size) {
+        error_report("could not init systab");
+        exit(1);
+    }
 
-    init_systab(ms, info, p, start);
+    p += len;
+    init_systab(ms, size - len, info, p, start);
 }
 
 static void loongarch_direct_kernel_boot(MachineState *ms,
@@ -403,6 +443,7 @@ static void loongarch_direct_kernel_boot(MachineState *ms,
     void *p, *bp;
     int64_t kernel_addr = VIRT_FLASH0_BASE;
     uint64_t *data;
+    size_t size;
 
     if (info->kernel_filename) {
         kernel_addr = load_kernel_info(info, phys_addr_mask);
@@ -415,8 +456,9 @@ static void loongarch_direct_kernel_boot(MachineState *ms,
     /* Load cmdline and system tables at [0 - 1 MiB] */
     p = g_malloc0(1 * MiB);
     bp = p;
-    init_boot_rom(ms, info, p);
-    rom_add_blob_fixed_as("boot_info", bp, 1 * MiB, 0, &address_space_memory);
+    size = 1 * MiB;
+    init_boot_rom(ms, size, info, p);
+    rom_add_blob_fixed_as("boot_info", bp, size, 0, &address_space_memory);
 
     /* Load slave boot code at pflash0 . */
     void *boot_code = g_malloc0(VIRT_FLASH0_SIZE);
