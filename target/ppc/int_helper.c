@@ -1465,7 +1465,7 @@ void helper_VPMSUMD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #else
 #define PKBIG 0
 #endif
-void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VPKPX(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i, j;
     ppc_avr_t result;
@@ -1488,7 +1488,7 @@ void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 }
 
 #define VPK(suffix, from, to, cvt, dosat)                               \
-    void helper_vpk##suffix(CPUPPCState *env, ppc_avr_t *r,             \
+    void helper_VPK##suffix(CPUPPCState *env, ppc_avr_t *r,             \
                             ppc_avr_t *a, ppc_avr_t *b)                 \
     {                                                                   \
         int i;                                                          \
@@ -1507,18 +1507,18 @@ void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
         }                                                               \
     }
 #define I(x, y) (x)
-VPK(shss, s16, s8, cvtshsb, 1)
-VPK(shus, s16, u8, cvtshub, 1)
-VPK(swss, s32, s16, cvtswsh, 1)
-VPK(swus, s32, u16, cvtswuh, 1)
-VPK(sdss, s64, s32, cvtsdsw, 1)
-VPK(sdus, s64, u32, cvtsduw, 1)
-VPK(uhus, u16, u8, cvtuhub, 1)
-VPK(uwus, u32, u16, cvtuwuh, 1)
-VPK(udus, u64, u32, cvtuduw, 1)
-VPK(uhum, u16, u8, I, 0)
-VPK(uwum, u32, u16, I, 0)
-VPK(udum, u64, u32, I, 0)
+VPK(SHSS, s16, s8, cvtshsb, 1)
+VPK(SHUS, s16, u8, cvtshub, 1)
+VPK(SWSS, s32, s16, cvtswsh, 1)
+VPK(SWUS, s32, u16, cvtswuh, 1)
+VPK(SDSS, s64, s32, cvtsdsw, 1)
+VPK(SDUS, s64, u32, cvtsduw, 1)
+VPK(UHUS, u16, u8, cvtuhub, 1)
+VPK(UWUS, u32, u16, cvtuwuh, 1)
+VPK(UDUS, u64, u32, cvtuduw, 1)
+VPK(UHUM, u16, u8, I, 0)
+VPK(UWUM, u32, u16, I, 0)
+VPK(UDUM, u64, u32, I, 0)
 #undef I
 #undef VPK
 #undef PKBIG
