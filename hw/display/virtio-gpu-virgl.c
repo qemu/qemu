@@ -1430,6 +1430,7 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
 
 static bool virtio_gpu_virgl_reset(VirtIOGPU *g)
 {
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
     struct virtio_gpu_simple_resource *res, *tmp;
 
     /*
@@ -1447,6 +1448,11 @@ static bool virtio_gpu_virgl_reset(VirtIOGPU *g)
     virgl_renderer_reset();
 
     virtio_gpu_virgl_reset_async_fences(g);
+
+    g_clear_pointer(&gl->cmdq_resume_bh, qemu_bh_delete);
+    g_clear_pointer(&gl->async_fence_bh, qemu_bh_delete);
+    g_clear_pointer(&gl->print_stats, timer_free);
+    g_clear_pointer(&gl->fence_poll, timer_free);
 
     return true;
 }
