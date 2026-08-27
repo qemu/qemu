@@ -25,6 +25,7 @@ nbd: ModuleType
 
 DEPTH_LOCAL = 1
 DEPTH_BACKING = 2
+CLUSTER = 65536
 
 
 class TestNbdCommands(iotests.QMPTestCase):
@@ -90,7 +91,7 @@ class TestNbdCommands(iotests.QMPTestCase):
             self.h.shutdown()
             self.h = None
 
-    def block_status(self, count=size, wanted=None):
+    def block_status(self, count=size, wanted=None, flags=0):
         """Map each meta context in the reply to its list of extents."""
         reply = {}
 
@@ -99,9 +100,9 @@ class TestNbdCommands(iotests.QMPTestCase):
                                                   entries[1::2]))
 
         if wanted is None:
-            self.h.block_status(count, 0, cb)
+            self.h.block_status(count, 0, cb, flags)
         else:
-            self.h.block_status_filter(count, 0, wanted, cb)
+            self.h.block_status_filter(count, 0, wanted, cb, flags)
         return reply
 
     def top_extents(self):
@@ -157,6 +158,71 @@ class TestNbdCommands(iotests.QMPTestCase):
 
         for wanted in (['base:allocation'], ['qemu:allocation-depth']):
             self.assertEqual(sorted(self.block_status(wanted=wanted)), wanted)
+
+    def read_chunks(self, count, offset, flags=0):
+        chunks = []
+
+        def cb(subbuf, off, status, _err):
+            chunks.append((off, len(subbuf), status))
+
+        self.h.pread_structured(count, offset, cb, flags)
+        return chunks
+
+    def make_sparse(self):
+        """Lay out data, a hole and data again, one cluster each."""
+        self.h.pwrite(b'z' * CLUSTER, 0)
+        self.h.zero(CLUSTER, CLUSTER)
+        self.h.pwrite(b'z' * CLUSTER, 2 * CLUSTER)
+
+    def test_read_sparse_chunks(self):
+        self.make_sparse()
+
+        first = (0, CLUSTER, nbd.READ_DATA)
+        hole = (CLUSTER, CLUSTER, nbd.READ_HOLE)
+        second = (2 * CLUSTER, CLUSTER, nbd.READ_DATA)
+
+        # A hole is an offset and a length, not a cluster of zeroes,
+        # wherever it falls in the reply
+        self.assertEqual(self.read_chunks(2 * CLUSTER, 0), [first, hole])
+        self.assertEqual(self.read_chunks(2 * CLUSTER, CLUSTER),
+                         [hole, second])
+        self.assertEqual(self.read_chunks(3 * CLUSTER, 0),
+                         [first, hole, second])
+
+        self.assertEqual(self.h.pread(CLUSTER, CLUSTER), bytes(CLUSTER))
+        self.assertEqual(self.h.pread(CLUSTER, 0), b'z' * CLUSTER)
+
+    def test_read_dont_fragment(self):
+        self.make_sparse()
+
+        self.assertEqual(self.read_chunks(3 * CLUSTER, 0, nbd.CMD_FLAG_DF),
+                         [(0, 3 * CLUSTER, nbd.READ_DATA)])
+
+    def test_block_status_req_one(self):
+        hole = nbd.STATE_HOLE | nbd.STATE_ZERO
+        self.make_sparse()
+
+        alloc = self.block_status(3 * CLUSTER)['base:allocation']
+        self.assertEqual(alloc, [(CLUSTER, 0), (CLUSTER, hole), (CLUSTER, 0)])
+
+        # One extent, so the reply covers less than was asked for and the
+        # client has to come back for the rest
+        alloc = self.block_status(3 * CLUSTER, flags=nbd.CMD_FLAG_REQ_ONE)
+        self.assertEqual(alloc['base:allocation'], [(CLUSTER, 0)])
+
+    def test_write_and_trim_fua(self):
+        self.h.pwrite(b'y' * 4096, 4096, nbd.CMD_FLAG_FUA)
+        self.assertEqual(self.h.pread(4096, 4096), b'y' * 4096)
+        self.h.trim(4096, 4096, nbd.CMD_FLAG_FUA)
+
+    def test_fast_zero(self):
+        self.h.zero(CLUSTER, CLUSTER, nbd.CMD_FLAG_FAST_ZERO)
+        self.assertEqual(self.h.pread(CLUSTER, CLUSTER), bytes(CLUSTER))
+
+        # Zeroing part of a cluster needs the fallback the flag forbids
+        with self.assertRaises(nbd.Error) as caught:
+            self.h.zero(4096, 4096, nbd.CMD_FLAG_FAST_ZERO)
+        self.assertEqual(caught.exception.errno, 'ENOTSUP')
 
     def test_cache_past_end_of_export(self):
         self.assertRaises(nbd.Error, self.h.cache, size + 1, 0)
