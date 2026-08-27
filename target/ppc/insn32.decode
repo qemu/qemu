@@ -1486,6 +1486,13 @@ MCRF            010011 ... -- ... -- ----- 00000 00000 -       @XL_bfa
 MFBHRBE         011111 ..... ..... ..... 0100101110 -   @XFX_bhrbe
 CLRBHRB         011111 ----- ----- ----- 0110101110 -
 
+# Branch Instructions
+%li             2:24 !function=times_4
+&I_b            li aa:bool lk:bool
+@I_b            ...... ........................ aa:1 lk:1 &I_b li=%li
+
+B               010010 ........................ . .  @I_b
+
 ## Misc POWER instructions
 
 ATTN            000000 00000 00000 00000 0100000000 0

@@ -31,3 +31,27 @@ static bool trans_RFEBB(DisasContext *ctx, arg_XL_s *arg)
     return true;
 }
 #endif
+
+static bool trans_B(DisasContext *ctx, arg_I_b *a)
+{
+    target_ulong target, li;
+
+    /* sign extend LI */
+    li = (a->li ^ 0x02000000) - 0x02000000;
+
+    if (likely(a->aa == 0)) {
+        target = ctx->cia + li;
+    } else {
+        target = li;
+    }
+    if (a->lk) {
+        gen_setlr(ctx, ctx->base.pc_next);
+        gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_CALL);
+    } else {
+        gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_OTHER);
+    }
+    gen_goto_tb(ctx, 0, target);
+    ctx->base.is_jmp = DISAS_NORETURN;
+
+    return true;
+}

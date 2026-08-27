@@ -3089,29 +3089,6 @@ static inline void gen_setlr(DisasContext *ctx, target_ulong nip)
     tcg_gen_movi_tl(cpu_lr, nip);
 }
 
-/* b ba bl bla */
-static void gen_b(DisasContext *ctx)
-{
-    target_ulong li, target;
-
-    /* sign extend LI */
-    li = LI(ctx->opcode);
-    li = (li ^ 0x02000000) - 0x02000000;
-    if (likely(AA(ctx->opcode) == 0)) {
-        target = ctx->cia + li;
-    } else {
-        target = li;
-    }
-    if (LK(ctx->opcode)) {
-        gen_setlr(ctx, ctx->base.pc_next);
-        gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_CALL);
-    } else {
-        gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_OTHER);
-    }
-    gen_goto_tb(ctx, 0, target);
-    ctx->base.is_jmp = DISAS_NORETURN;
-}
-
 #define BCOND_IM  0
 #define BCOND_LR  1
 #define BCOND_CTR 2
@@ -5353,7 +5330,6 @@ GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING),
 /* ISA v3.0 changed the extended opcode from 62 to 30 */
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x039FF801, PPC_WAIT),
 GEN_HANDLER_E(wait, 0x1F, 0x1E, 0x00, 0x039CF801, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER(b, 0x12, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
 GEN_HANDLER(bc, 0x10, 0xFF, 0xFF, 0x00000000, PPC_FLOW),
 GEN_HANDLER(bcctr, 0x13, 0x10, 0x10, 0x00000000, PPC_FLOW),
 GEN_HANDLER(bclr, 0x13, 0x10, 0x00, 0x00000000, PPC_FLOW),

@@ -197,13 +197,6 @@ EXTRACT_HELPER(L, 16, 2);
 EXTRACT_HELPER(WC, 21, 2);
 EXTRACT_HELPER(PL, 16, 2);
 
-/***                            Jump target decoding                       ***/
-/* Immediate address */
-static inline target_ulong LI(uint32_t opcode)
-{
-    return (opcode >> 0) & 0x03FFFFFC;
-}
-
 static inline uint32_t BD(uint32_t opcode)
 {
     return (opcode >> 0) & 0xFFFC;
