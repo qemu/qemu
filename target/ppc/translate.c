@@ -3153,104 +3153,6 @@ static void gen_stdat(DisasContext *ctx)
 }
 #endif
 
-static void gen_conditional_store(DisasContext *ctx, MemOp memop)
-{
-    TCGLabel *lfail;
-    TCGv EA;
-    TCGv cr0;
-    TCGv t0;
-    int rs = rS(ctx->opcode);
-
-    lfail = gen_new_label();
-    EA = tcg_temp_new();
-    cr0 = tcg_temp_new();
-    t0 = tcg_temp_new();
-
-    tcg_gen_mov_tl(cr0, cpu_so);
-    gen_set_access_type(ctx, ACCESS_RES);
-    gen_addr_reg_index(ctx, EA);
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lfail);
-    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_reserve_length, memop_size(memop), lfail);
-
-    tcg_gen_atomic_cmpxchg_tl(t0, cpu_reserve, cpu_reserve_val,
-                              cpu_gpr[rs], ctx->mem_idx,
-                              DEF_MEMOP(memop) | MO_ALIGN);
-    tcg_gen_setcond_tl(TCG_COND_EQ, t0, t0, cpu_reserve_val);
-    tcg_gen_shli_tl(t0, t0, CRF_EQ_BIT);
-    tcg_gen_or_tl(cr0, cr0, t0);
-
-    gen_set_label(lfail);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cr0);
-    tcg_gen_movi_tl(cpu_reserve, -1);
-}
-
-#define STCX(name, memop)                  \
-static void gen_##name(DisasContext *ctx)  \
-{                                          \
-    gen_conditional_store(ctx, memop);     \
-}
-
-STCX(stbcx_, MO_UB)
-STCX(sthcx_, MO_UW)
-STCX(stwcx_, MO_UL)
-
-#if defined(TARGET_PPC64)
-/* stdcx. */
-STCX(stdcx_, MO_UQ)
-
-/* stqcx. */
-static void gen_stqcx_(DisasContext *ctx)
-{
-    TCGLabel *lfail;
-    TCGv EA, t0, t1;
-    TCGv cr0;
-    TCGv_i128 cmp, val;
-    int rs = rS(ctx->opcode);
-
-    if (unlikely(rs & 1)) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-        return;
-    }
-
-    lfail = gen_new_label();
-    EA = tcg_temp_new();
-    cr0 = tcg_temp_new();
-
-    tcg_gen_mov_tl(cr0, cpu_so);
-    gen_set_access_type(ctx, ACCESS_RES);
-    gen_addr_reg_index(ctx, EA);
-    tcg_gen_brcond_tl(TCG_COND_NE, EA, cpu_reserve, lfail);
-    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_reserve_length, 16, lfail);
-
-    cmp = tcg_temp_new_i128();
-    val = tcg_temp_new_i128();
-
-    tcg_gen_concat_i64_i128(cmp, cpu_reserve_val2, cpu_reserve_val);
-
-    /* Note that the low part is always in RS+1, even in LE mode.  */
-    tcg_gen_concat_i64_i128(val, cpu_gpr[rs + 1], cpu_gpr[rs]);
-
-    tcg_gen_atomic_cmpxchg_i128(val, cpu_reserve, cmp, val, ctx->mem_idx,
-                                DEF_MEMOP(MO_128 | MO_ALIGN));
-
-    t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
-    tcg_gen_extr_i128_i64(t1, t0, val);
-
-    tcg_gen_xor_tl(t1, t1, cpu_reserve_val2);
-    tcg_gen_xor_tl(t0, t0, cpu_reserve_val);
-    tcg_gen_or_tl(t0, t0, t1);
-
-    tcg_gen_setcondi_tl(TCG_COND_EQ, t0, t0, 0);
-    tcg_gen_shli_tl(t0, t0, CRF_EQ_BIT);
-    tcg_gen_or_tl(cr0, cr0, t0);
-
-    gen_set_label(lfail);
-    tcg_gen_trunc_tl_i32(cpu_crf[0], cr0);
-    tcg_gen_movi_tl(cpu_reserve, -1);
-}
-#endif /* defined(TARGET_PPC64) */
-
 /* wait */
 static void gen_wait(DisasContext *ctx)
 {
@@ -5886,14 +5788,9 @@ GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING),
 GEN_HANDLER(isync, 0x13, 0x16, 0x04, 0x03FFF801, PPC_MEM),
 GEN_HANDLER_E(lwat, 0x1F, 0x06, 0x12, 0x00000001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(stwat, 0x1F, 0x06, 0x16, 0x00000001, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER_E(stbcx_, 0x1F, 0x16, 0x15, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
-GEN_HANDLER_E(sthcx_, 0x1F, 0x16, 0x16, 0, PPC_NONE, PPC2_ATOMIC_ISA206),
-GEN_HANDLER2(stwcx_, "stwcx.", 0x1F, 0x16, 0x04, 0x00000000, PPC_RES),
 #if defined(TARGET_PPC64)
 GEN_HANDLER_E(ldat, 0x1F, 0x06, 0x13, 0x00000001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(stdat, 0x1F, 0x06, 0x17, 0x00000001, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER2(stdcx_, "stdcx.", 0x1F, 0x16, 0x06, 0x00000000, PPC_64B),
-GEN_HANDLER_E(stqcx_, 0x1F, 0x16, 0x05, 0, PPC_NONE, PPC2_LSQ_ISA207),
 #endif
 /* ISA v3.0 changed the extended opcode from 62 to 30 */
 GEN_HANDLER(wait, 0x1F, 0x1E, 0x01, 0x039FF801, PPC_WAIT),
