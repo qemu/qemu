@@ -263,8 +263,6 @@ skip_meson=no
 use_containers="yes"
 rust="disabled"
 rust_target_triple=""
-gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
-gdb_arches=""
 
 # Don't accept a target_list environment variable.
 unset target_list
@@ -737,7 +735,7 @@ for opt do
   ;;
   --rust-target-triple=*) rust_target_triple="$optarg"
   ;;
-  --gdb=*) gdb_bin="$optarg"
+  --gdb=*) meson_option_add -Dgdb="$optarg"
   ;;
   --enable-rust) rust=enabled
   ;;
@@ -869,7 +867,7 @@ Advanced options (experts only):
   --cpu=CPU                Build for host CPU [$cpu]
   --disable-containers     don't use containers for cross-building
   --container-command=CMD  which container command to use [autodetect]
-  --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
+  --gdb=GDB-path           gdb to use for gdbstub tests [autodetect]
   --wasm64-32bit-address-limit Restrict wasm64 address space to 32-bit (default
                                is to use the whole 64-bit range).
 EOF
@@ -1118,20 +1116,6 @@ if test "$tcg" = "auto"; then
   else
     tcg="enabled"
   fi
-fi
-
-#########################################
-# gdb test
-
-if test -n "$gdb_bin"; then
-    gdb_version_string=$($gdb_bin --version | head -n 1)
-    # Extract last field in the version string
-    gdb_version=${gdb_version_string##* }
-    if version_ge $gdb_version 9.1; then
-        gdb_arches=$($python "$source_path/scripts/probe-gdb-support.py" $gdb_bin)
-    else
-        gdb_bin=""
-    fi
 fi
 
 ##########################################
@@ -1734,7 +1718,6 @@ echo all: >> $config_host_mak
 
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-echo "GDB=$gdb_bin" >> $config_host_mak
 if test "$container_command" != ""; then
     echo "CONTAINER_COMMAND=$container_command" >> $config_host_mak
 fi
@@ -1930,7 +1913,6 @@ if test "$skip_meson" = no; then
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
-  test -n "$gdb_bin" && meson_option_add "-Dgdb=$gdb_bin"
 
   run_meson() {
     NINJA=$ninja $meson setup "$@" "$PWD" "$source_path"

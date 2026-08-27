@@ -36,7 +36,7 @@ option('trace_file', type: 'string', value: 'trace',
 option('coroutine_backend', type: 'combo',
        choices: ['ucontext', 'sigaltstack', 'windows', 'wasm', 'auto'],
        value: 'auto', description: 'coroutine backend to use')
-option('gdb', type: 'string', value: '',
+option('gdb', type: 'string',
        description: 'Path to GDB')
 
 # Everything else can be set via --enable/--disable-* option
