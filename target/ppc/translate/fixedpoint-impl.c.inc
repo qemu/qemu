@@ -584,6 +584,108 @@ TRANS(CRANDC, cr_logic_common, tcg_gen_andc_i32);
 TRANS(CREQV, cr_logic_common, tcg_gen_eqv_i32);
 TRANS(CRORC, cr_logic_common, tcg_gen_orc_i32);
 
+/***                    Integer load and store strings                     ***/
+
+/* lswi */
+static bool trans_LSWI(DisasContext *ctx, arg_LSWI *a)
+{
+    TCGv t0;
+    TCGv_i32 t1, t2;
+    int nb = a->rb;
+    int start = a->rt;
+    int ra = a->ra;
+    int nr;
+
+    REQUIRE_INSNS_FLAGS(ctx, STRING);
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return true;
+    }
+    if (nb == 0) {
+        nb = 32;
+    }
+    nr = DIV_ROUND_UP(nb, 4);
+    if (unlikely(lsw_reg_in_range(start, nr, ra))) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
+        return true;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    t0 = do_ea_calc_ra(ctx, ra);
+    t1 = tcg_constant_i32(nb);
+    t2 = tcg_constant_i32(start);
+    gen_helper_LSW(tcg_env, t0, t1, t2);
+
+    return true;
+}
+
+/* lswx */
+static bool trans_LSWX(DisasContext *ctx, arg_LSWX *a)
+{
+    TCGv t0;
+    TCGv_i32 t1, t2, t3;
+
+    REQUIRE_INSNS_FLAGS(ctx, STRING);
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return true;
+    }
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    t0 = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    t1 = tcg_constant_i32(a->rt);
+    t2 = tcg_constant_i32(a->ra);
+    t3 = tcg_constant_i32(a->rb);
+    gen_helper_LSWX(tcg_env, t0, t1, t2, t3);
+
+    return true;
+}
+
+/* stswi */
+static bool trans_STSWI(DisasContext *ctx, arg_STSWI *a)
+{
+    TCGv t0;
+    TCGv_i32 t1, t2;
+    int nb = a->rb;
+
+    REQUIRE_INSNS_FLAGS(ctx, STRING);
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return true;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    t0 = do_ea_calc_ra(ctx, a->ra);
+    if (nb == 0) {
+        nb = 32;
+    }
+    t1 = tcg_constant_i32(nb);
+    t2 = tcg_constant_i32(a->rt);
+    gen_helper_STSW(tcg_env, t0, t1, t2);
+
+    return true;
+}
+
+/* stswx */
+static bool trans_STSWX(DisasContext *ctx, arg_STSWX *a)
+{
+    TCGv t0;
+    TCGv_i32 t1, t2;
+
+    REQUIRE_INSNS_FLAGS(ctx, STRING);
+    if (ctx->le_mode) {
+        gen_align_no_le(ctx);
+        return true;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+    t0 = do_ea_calc(ctx, a->ra, cpu_gpr[a->rb]);
+    t1 = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(t1, cpu_xer);
+    tcg_gen_andi_i32(t1, t1, 0x7F);
+    t2 = tcg_constant_i32(a->rt);
+    gen_helper_STSW(tcg_env, t0, t1, t2);
+
+    return true;
+}
+
 static bool do_add_D(DisasContext *ctx, arg_D *a, bool add_ca, bool compute_ca,
                      bool compute_ov, bool compute_rc0)
 {

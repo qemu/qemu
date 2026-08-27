@@ -45,9 +45,9 @@ DEF_HELPER_1(check_tlb_flush_global, void, env)
 
 DEF_HELPER_3(lmw, void, env, tl, i32)
 DEF_HELPER_FLAGS_3(stmw, TCG_CALL_NO_WG, void, env, tl, i32)
-DEF_HELPER_4(lsw, void, env, tl, i32, i32)
-DEF_HELPER_5(lswx, void, env, tl, i32, i32, i32)
-DEF_HELPER_FLAGS_4(stsw, TCG_CALL_NO_WG, void, env, tl, i32, i32)
+DEF_HELPER_4(LSW, void, env, tl, i32, i32)
+DEF_HELPER_5(LSWX, void, env, tl, i32, i32, i32)
+DEF_HELPER_FLAGS_4(STSW, TCG_CALL_NO_WG, void, env, tl, i32, i32)
 DEF_HELPER_FLAGS_3(dcbz, TCG_CALL_NO_WG, void, env, tl, int)
 #ifdef TARGET_PPC64
 DEF_HELPER_FLAGS_2(dcbzl, TCG_CALL_NO_WG, void, env, tl)

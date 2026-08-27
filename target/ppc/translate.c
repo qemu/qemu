@@ -2595,104 +2595,6 @@ static void gen_stmw(DisasContext *ctx)
     gen_helper_stmw(tcg_env, t0, t1);
 }
 
-/***                    Integer load and store strings                     ***/
-
-/* lswi */
-/*
- * PowerPC32 specification says we must generate an exception if rA is
- * in the range of registers to be loaded.  In an other hand, IBM says
- * this is valid, but rA won't be loaded.  For now, I'll follow the
- * spec...
- */
-static void gen_lswi(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv_i32 t1, t2;
-    int nb = NB(ctx->opcode);
-    int start = rD(ctx->opcode);
-    int ra = rA(ctx->opcode);
-    int nr;
-
-    if (ctx->le_mode) {
-        gen_align_no_le(ctx);
-        return;
-    }
-    if (nb == 0) {
-        nb = 32;
-    }
-    nr = DIV_ROUND_UP(nb, 4);
-    if (unlikely(lsw_reg_in_range(start, nr, ra))) {
-        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_LSWX);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    t0 = tcg_temp_new();
-    gen_addr_register(ctx, t0);
-    t1 = tcg_constant_i32(nb);
-    t2 = tcg_constant_i32(start);
-    gen_helper_lsw(tcg_env, t0, t1, t2);
-}
-
-/* lswx */
-static void gen_lswx(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv_i32 t1, t2, t3;
-
-    if (ctx->le_mode) {
-        gen_align_no_le(ctx);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    t1 = tcg_constant_i32(rD(ctx->opcode));
-    t2 = tcg_constant_i32(rA(ctx->opcode));
-    t3 = tcg_constant_i32(rB(ctx->opcode));
-    gen_helper_lswx(tcg_env, t0, t1, t2, t3);
-}
-
-/* stswi */
-static void gen_stswi(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv_i32 t1, t2;
-    int nb = NB(ctx->opcode);
-
-    if (ctx->le_mode) {
-        gen_align_no_le(ctx);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    t0 = tcg_temp_new();
-    gen_addr_register(ctx, t0);
-    if (nb == 0) {
-        nb = 32;
-    }
-    t1 = tcg_constant_i32(nb);
-    t2 = tcg_constant_i32(rS(ctx->opcode));
-    gen_helper_stsw(tcg_env, t0, t1, t2);
-}
-
-/* stswx */
-static void gen_stswx(DisasContext *ctx)
-{
-    TCGv t0;
-    TCGv_i32 t1, t2;
-
-    if (ctx->le_mode) {
-        gen_align_no_le(ctx);
-        return;
-    }
-    gen_set_access_type(ctx, ACCESS_INT);
-    t0 = tcg_temp_new();
-    gen_addr_reg_index(ctx, t0);
-    t1 = tcg_temp_new_i32();
-    tcg_gen_trunc_tl_i32(t1, cpu_xer);
-    tcg_gen_andi_i32(t1, t1, 0x7F);
-    t2 = tcg_constant_i32(rS(ctx->opcode));
-    gen_helper_stsw(tcg_env, t0, t1, t2);
-}
 
 #if !defined(CONFIG_USER_ONLY)
 static inline void gen_check_tlb_flush(DisasContext *ctx, bool global)
@@ -4901,10 +4803,6 @@ GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(dform3D, 0x3D, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER(lmw, 0x2E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(stmw, 0x2F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
-GEN_HANDLER(lswi, 0x1F, 0x15, 0x12, 0x00000001, PPC_STRING),
-GEN_HANDLER(lswx, 0x1F, 0x15, 0x10, 0x00000001, PPC_STRING),
-GEN_HANDLER(stswi, 0x1F, 0x15, 0x16, 0x00000001, PPC_STRING),
-GEN_HANDLER(stswx, 0x1F, 0x15, 0x14, 0x00000001, PPC_STRING),
 /* ISA v3.0 changed the extended opcode from 62 to 30 */
 GEN_HANDLER(rfi, 0x13, 0x12, 0x01, 0x03FF8001, PPC_FLOW),
 #if defined(TARGET_PPC64)
