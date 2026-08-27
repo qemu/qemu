@@ -1887,7 +1887,7 @@ void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg)
  */
 void tcg_gen_hswap_i64(TCGv_i64 ret, TCGv_i64 arg)
 {
-    gen_bitswap_i64(ret, ret, 0x0000ffff0000ffffull);
+    gen_bitswap_i64(ret, arg, 0x0000ffff0000ffffull);
     tcg_gen_wswap_i64(ret, ret);
 }
 
