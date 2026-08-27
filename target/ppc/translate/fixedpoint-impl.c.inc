@@ -18,6 +18,54 @@
  */
 
 /*
+ * Byte-Reverse Instructions
+ */
+static bool trans_BRD(DisasContext *ctx, arg_BRD *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+#if defined(TARGET_PPC64)
+    tcg_gen_bswap64_i64(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_BRW(DisasContext *ctx, arg_BRW *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+#if defined(TARGET_PPC64)
+    tcg_gen_bswap64_i64(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+    tcg_gen_rotli_i64(cpu_gpr[a->ra], cpu_gpr[a->ra], 32);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+static bool trans_BRH(DisasContext *ctx, arg_BRH *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+#if defined(TARGET_PPC64)
+    TCGv_i64 mask = tcg_constant_i64(0x00ff00ff00ff00ffull);
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_shri_i64(t1, cpu_gpr[a->rs], 8);
+    tcg_gen_and_i64(t2, t1, mask);
+    tcg_gen_and_i64(t1, cpu_gpr[a->rs], mask);
+    tcg_gen_shli_i64(t1, t1, 8);
+    tcg_gen_or_i64(cpu_gpr[a->ra], t1, t2);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+/*
  * Fixed-Point Load/Store Instructions
  */
 
