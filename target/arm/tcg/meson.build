@@ -65,6 +65,7 @@ arm_common_user_system_ss.add(
   translate32_d,
   vfp_d,
   files(
+  'cpu-max-v8.c',
   'debug.c',
   'gengvec.c',
   'hflags.c',
