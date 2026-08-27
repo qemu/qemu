@@ -323,12 +323,13 @@ foreach target, plan: tcg_tests
       endif
 
       exe = built_tests[exe_name]
-      cmd = [qemu, qemu_args, exe]
+      test_depends += qemu
+      cmd = [qemu.full_path(), qemu_args, exe]
 
       if 'gdb_test' in setup
         cmd = [prog_gdb_test,
                '--gdb', gdb,
-               '--qemu', qemu,
+               '--qemu', qemu.full_path(),
                '--qargs', ' '.join(qemu_args),
                '--bin', exe,
                setup['gdb_test'],
