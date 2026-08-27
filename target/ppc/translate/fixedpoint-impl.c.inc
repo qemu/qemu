@@ -461,6 +461,84 @@ static bool trans_ADDEX(DisasContext *ctx, arg_X *a)
     return true;
 }
 
+static bool trans_MTCRF(DisasContext *ctx, arg_MTCRF *a)
+{
+    TCGv_i32 temp;
+    uint32_t crm, crn;
+
+    crm = a->fxm;
+
+    temp = tcg_temp_new_i32();
+    tcg_gen_trunc_tl_i32(temp, cpu_gpr[a->rt]);
+
+    for (crn = 0 ; crn < 8 ; crn++) {
+        if (crm & (1 << crn)) {
+            tcg_gen_shri_i32(cpu_crf[7 - crn], temp, crn * 4);
+            tcg_gen_andi_i32(cpu_crf[7 - crn], cpu_crf[7 - crn], 0xf);
+        }
+    }
+
+    return true;
+}
+
+static bool trans_MTOCRF(DisasContext *ctx, arg_MTOCRF *a)
+{
+    uint32_t crm, crn;
+
+    crm = a->fxm;
+
+    /* Checking crm > 0 and set_bits(crm) == 1 */
+    if (crm && ((crm & (crm - 1)) == 0)) {
+        TCGv_i32 temp = tcg_temp_new_i32();
+        crn = ctz32(crm);
+        tcg_gen_trunc_tl_i32(temp, cpu_gpr[a->rt]);
+        tcg_gen_shri_i32(temp, temp, crn * 4);
+        tcg_gen_andi_i32(cpu_crf[7 - crn], temp, 0xf);
+    }
+
+    return true;
+}
+
+static bool trans_MFOCR(DisasContext *ctx, arg_MFOCR *a)
+{
+    uint32_t crm, crn;
+
+    crm = a->fxm;
+
+    /* Checking crm > 0 and set_bits(crm) == 1 */
+    if (likely(crm && ((crm & (crm - 1)) == 0))) {
+        crn = ctz32(crm);
+        tcg_gen_extu_i32_tl(cpu_gpr[a->rt], cpu_crf[7 - crn]);
+        tcg_gen_shli_tl(cpu_gpr[a->rt],
+                        cpu_gpr[a->rt], crn * 4);
+    }
+
+    return true;
+}
+
+static bool trans_MFCR(DisasContext *ctx, arg_MFCR *a)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    tcg_gen_mov_i32(t0, cpu_crf[0]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[1]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[2]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[3]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[4]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[5]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[6]);
+    tcg_gen_shli_i32(t0, t0, 4);
+    tcg_gen_or_i32(t0, t0, cpu_crf[7]);
+    tcg_gen_extu_i32_tl(cpu_gpr[a->rt], t0);
+
+    return true;
+}
+
 static bool do_add_D(DisasContext *ctx, arg_D *a, bool add_ca, bool compute_ca,
                      bool compute_ov, bool compute_rc0)
 {
