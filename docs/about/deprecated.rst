@@ -276,6 +276,24 @@ future release. Where no 'dh-params.pem' file is provided, the DH
 parameters will be automatically negotiated in accordance with
 RFC7919.
 
+Devices
+-------
+
+``virtio-crypto`` and cryptodev backends (since 11.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``virtio-crypto`` device emulation is quite complex code with a
+number of known flaws. It has never been migratable, so it is
+unlikely to be used in any serious virtualization setting. Modern
+ISAs provide on-CPU cryptography instructions (e.g. AES-NI/VAES,
+armv8 crypto extensions), and the Linux kernel deprecated AF_ALG
+and dropped its off-CPU accelerator support in Linux 7.2, removing
+the primary userspace path for off-CPU crypto acceleration. The
+time for this sort of off-load has passed.
+
+As this is the only device that uses the cryptodev backends these will
+be removed at the same time the ``virtio-crypto`` device is.
+
 Device options
 --------------
 
