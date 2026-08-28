@@ -683,4 +683,5 @@ class TestAliasTransformMigration(TestDirtyBitmapMigration):
         self.verify_dest_error(None)
 
 if __name__ == '__main__':
-    iotests.main(supported_protocols=['file'])
+    iotests.main(supported_protocols=['file'],
+                 require_hmp=True)

@@ -336,4 +336,5 @@ class TestYieldingAndTimers(iotests.QMPTestCase):
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],
                  supported_protocols=['file'],
-                 unsupported_imgopts=['compat'])
+                 unsupported_imgopts=['compat'],
+                 require_hmp=True)

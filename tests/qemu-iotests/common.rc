@@ -995,6 +995,14 @@ _notrun_on_fuse_error()
     esac
 }
 
+_require_hmp()
+{
+    if echo quit | $QEMU -M none -display none -monitor stdio 2>&1 |
+            grep -q "HMP monitor is not available"; then
+        _notrun "HMP monitor not available"
+    fi
+}
+
 # Check that we have a file system that allows huge (but very sparse) files
 #
 _require_large_file()

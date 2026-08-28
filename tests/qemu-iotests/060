@@ -56,6 +56,7 @@ _unsupported_imgopts 'compat=0.10' data_file \
 
 # The repair process will create a large file - so check for availability first
 _require_large_file 64G
+_require_hmp
 
 rt_offset=65536  # 0x10000 (XXX: just an assumption)
 rb_offset=131072 # 0x20000 (XXX: just an assumption)

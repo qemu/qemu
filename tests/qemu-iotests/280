@@ -27,6 +27,7 @@ iotests.script_initialize(
     supported_fmts=['qcow2'],
     supported_protocols=['file'],
     supported_platforms=['linux'],
+    require_hmp=True,
 )
 
 with iotests.FilePath('base') as base_path , \

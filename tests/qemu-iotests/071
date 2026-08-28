@@ -43,6 +43,7 @@ _require_drivers blkdebug blkverify
 # blkdebug can only inject errors on bs->file, not on the data_file,
 # so this test does not work with external data files
 _unsupported_imgopts data_file
+_require_hmp
 
 do_run_qemu()
 {

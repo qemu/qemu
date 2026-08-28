@@ -44,6 +44,7 @@ _supported_proto file
 _supported_os Linux
 _require_drivers quorum
 _require_devices virtio-scsi
+_require_hmp
 
 do_run_qemu()
 {

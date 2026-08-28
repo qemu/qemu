@@ -53,6 +53,7 @@ _supported_fmt qcow2 qed
 _supported_proto file
 # Copying files around with cp does not work with external data files
 _unsupported_imgopts data_file
+_require_hmp
 
 # Create source disk
 TEST_IMG="$TEST_IMG.backing" _make_test_img 1M

@@ -1456,6 +1456,15 @@ def _verify_formats(required_formats: Sequence[str] = ()) -> None:
         notrun(f'formats {usf_list} are not whitelisted')
 
 
+def _verify_hmp() -> None:
+    args = [qemu_prog] + qemu_opts + ['-M', 'none', '-monitor', 'stdio']
+    with subprocess.Popen(args, stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          universal_newlines=True) as subp:
+        out, _ = subp.communicate('quit\n')
+    if 'HMP monitor is not available' in out:
+        notrun('HMP monitor not available')
+
 def _verify_virtio_blk() -> None:
     out = qemu_pipe('-M', 'none', '-device', 'help')
     if 'virtio-blk' not in out:
@@ -1694,7 +1703,8 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
                          supported_protocols: Sequence[str] = (),
                          unsupported_protocols: Sequence[str] = (),
                          required_fmts: Sequence[str] = (),
-                         unsupported_imgopts: Sequence[str] = ()) -> bool:
+                         unsupported_imgopts: Sequence[str] = (),
+                         require_hmp: bool = False) -> bool:
     """
     Perform necessary setup for either script-style or unittest-style tests.
 
@@ -1715,6 +1725,8 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
     _verify_formats(required_fmts)
     _verify_virtio_blk()
     _verify_imgopts(unsupported_imgopts)
+    if require_hmp:
+        _verify_hmp()
 
     return debug
 

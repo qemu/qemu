@@ -23,7 +23,8 @@ import iotests
 from iotests import qemu_img_create, file_path, log
 
 iotests.script_initialize(supported_fmts=['qcow2'],
-                          unsupported_imgopts=['compat'])
+                          unsupported_imgopts=['compat'],
+                          require_hmp=True)
 
 disk, top = file_path('disk', 'top')
 size = 1024 * 1024

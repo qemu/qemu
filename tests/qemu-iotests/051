@@ -45,6 +45,7 @@ _supported_proto file
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file \
     compression_type
 _require_drivers nbd
+_require_hmp
 
 if [ "$QEMU_DEFAULT_MACHINE" = "pc" ]; then
     _require_devices lsi53c895a

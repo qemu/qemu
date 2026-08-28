@@ -24,7 +24,8 @@ from iotests import filter_qemu_io, filter_qtest
 
 iotests.script_initialize(supported_fmts=['qcow2', 'qed', 'raw'],
                           supported_protocols=['file'],
-                          supported_platforms=['linux'])
+                          supported_platforms=['linux'],
+                          require_hmp=True)
 
 with iotests.FilePath('disk.img') as path, \
      iotests.FilePath('nbd-src.sock', base_dir=iotests.sock_dir) as nbd_src, \

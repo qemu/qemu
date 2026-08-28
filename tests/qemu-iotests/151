@@ -434,4 +434,5 @@ class TestHighThrottledWithNbdExport(TestThrottledWithNbdExportBase):
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'raw'],
-                 supported_protocols=['file'])
+                 supported_protocols=['file'],
+                 require_hmp=True)

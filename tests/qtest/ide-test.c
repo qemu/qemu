@@ -1455,6 +1455,10 @@ static void test_migrate_chs_snapshot(void)
     char marker[9];
     int fd;
 
+#ifndef CONFIG_HMP
+    g_test_skip("HMP not enabled");
+    return;
+#endif
     if (!have_qemu_img()) {
         g_test_skip("QTEST_QEMU_IMG not set, snapshots need a qcow2 image");
         return;

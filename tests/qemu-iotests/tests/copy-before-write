@@ -321,4 +321,5 @@ wrote 524288/524288 bytes at offset 524288
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],
                  supported_protocols=['file'],
-                 required_fmts=['copy-before-write'])
+                 required_fmts=['copy-before-write'],
+                 require_hmp=True)

@@ -41,6 +41,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt raw
 _supported_proto nbd
 _supported_os Linux
+_require_hmp
 
 _make_test_img 64M
 # This should not crash
