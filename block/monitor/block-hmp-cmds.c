@@ -344,25 +344,15 @@ void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
 void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
-    const char *filename = qdict_get_try_str(qdict, "snapshot-file");
+    const char *filename = qdict_get_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     enum NewImageMode mode;
     Error *err = NULL;
 
-    if (!filename) {
-        /*
-         * In the future, if 'snapshot-file' is not specified, the snapshot
-         * will be taken internally. Today it's actually required.
-         */
-        error_setg(&err, QERR_MISSING_PARAMETER, "snapshot-file");
-        goto end;
-    }
-
     mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     qmp_blockdev_snapshot_sync(device, NULL, filename, NULL, format,
                                true, mode, &err);
-end:
     hmp_handle_error(mon, err);
 }
 
