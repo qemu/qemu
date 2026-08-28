@@ -740,13 +740,22 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
     ERRP_GUARD();
 
     if (!opts->has_mode) {
+#ifdef CONFIG_HMP
         opts->mode = allow_hmp ? MONITOR_MODE_READLINE : MONITOR_MODE_CONTROL;
+#else
+        if (allow_hmp) {
+            error_setg(errp, "HMP support is not built in this QEMU");
+            return -1;
+        }
+        opts->mode = MONITOR_MODE_CONTROL;
+#endif
     }
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
         monitor_new_qmp(opts->id, opts->chardev, opts->pretty, errp);
         break;
+#ifdef CONFIG_HMP
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
             error_setg(errp, "Only QMP is supported");
@@ -758,6 +767,7 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
         }
         monitor_new_hmp(opts->id, opts->chardev, true, errp);
         break;
+#endif /* CONFIG_HMP */
     default:
         g_assert_not_reached();
     }
