@@ -873,26 +873,43 @@ static void vmstate_check(const VMStateDescription *vmsd)
                      * Size must be provided because dest QEMU needs that
                      * info to know what to allocate
                      */
-                    assert(field->size || field->size_offset);
+                    assert(field->size != 0 || field->size_indirect.size != 0);
                 } else {
                     /*
                      * Otherwise size info isn't useful (because it's
                      * always the size of host pointer), detect accidental
                      * setup of sizes in this case.
                      */
-                    assert(field->size == 0 && field->size_offset == 0);
+                    assert(field->size == 0 && field->size_indirect.size == 0);
                 }
                 /*
                  * VMS_ARRAY_OF_POINTER must be used only together with one
-                 * of VMS_(V)ARRAY* flags.
+                 * of VMS_(V)ARRAY flags.
                  */
-                assert(field->flags & (VMS_ARRAY | VMS_VARRAY_INT32 |
-                                       VMS_VARRAY_UINT16 | VMS_VARRAY_UINT8 |
-                                       VMS_VARRAY_UINT32));
+                assert(field->flags & (VMS_ARRAY | VMS_VARRAY));
             }
 
             if (field->flags & VMS_ARRAY_OF_POINTER_AUTO_ALLOC) {
                 assert(field->flags & VMS_ARRAY_OF_POINTER);
+            }
+
+            /*
+             * The VMS*ARRAY flags and VMS_VBUFFER affect allocation,
+             * they must have the proper fields set and no other
+             * vmstate types can set those fields, otherwise it won't
+             * be picked-up due to the missing flag.
+             */
+
+            if (field->flags & (VMS_ARRAY | VMS_VARRAY)) {
+                assert(field->num > 0 || field->num_indirect.size != 0);
+            } else {
+                assert(field->num == 0 && field->num_indirect.size == 0);
+            }
+
+            if (field->flags & VMS_VBUFFER) {
+                assert(field->size_indirect.size != 0);
+            } else {
+                assert(field->size_indirect.size == 0);
             }
 
             if (field->flags & (VMS_STRUCT | VMS_VSTRUCT)) {
@@ -3002,6 +3019,22 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
     trace_postcopy_pause_incoming_continued();
 
     return true;
+}
+
+/*
+ * Starts the VM and launches the eager thread for fast snapshot load
+ */
+void qemu_loadvm_run_fast_snapshot_load(QEMUFile *f,
+                                        MigrationIncomingState *mis)
+{
+    postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
+
+    migration_bh_schedule(loadvm_postcopy_handle_run_bh, mis);
+
+    migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_DEVICE,
+                      MIGRATION_STATUS_POSTCOPY_ACTIVE);
+
+    postcopy_ram_eager_load_setup(mis);
 }
 
 int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis,

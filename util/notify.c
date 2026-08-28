@@ -75,3 +75,8 @@ int notifier_with_return_list_notify(NotifierWithReturnList *list, void *data,
     }
     return ret;
 }
+
+bool notifier_with_return_list_empty(NotifierWithReturnList *list)
+{
+    return QLIST_EMPTY(&list->notifiers);
+}
