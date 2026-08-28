@@ -14,11 +14,11 @@ read 512/512 bytes at offset 0
 
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) qemu-io overlay "read 0 512"
-read failed: Invalid argument
+Error: read failed: Invalid argument
 
 === Testing non-VMDK backing image ===
 
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) qemu-io overlay "read 0 512"
-read failed: Invalid argument
+Error: read failed: Invalid argument
 *** done

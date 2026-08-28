@@ -238,13 +238,13 @@ read -P0xd5 1M 64k
 read -P0xdc 32M 64k
 read -P0xcd 0x3ff0000 64k
 read -P0 0x00f8000 32k
-read failed: Invalid argument
+qemu-io: read failed: Invalid argument
 
 read -P0 0x2010000 32k
-read failed: Invalid argument
+qemu-io: read failed: Invalid argument
 
 read -P0 0x3fe0000 64k
-read failed: Invalid argument
+qemu-io: read failed: Invalid argument
 
 
 --- Testing COW ---
@@ -265,13 +265,13 @@ read -P0xd5 1M 64k
 read -P0xdc 32M 64k
 read -P0xcd 0x3ff0000 64k
 read -P0 0x00f8000 32k
-read failed: Invalid argument
+qemu-io: read failed: Invalid argument
 
 read -P0 0x2010000 32k
-read failed: Invalid argument
+qemu-io: read failed: Invalid argument
 
 read -P0 0x3fe0000 64k
-read failed: Invalid argument
+qemu-io: read failed: Invalid argument
 
 
 --- Cleanup ---

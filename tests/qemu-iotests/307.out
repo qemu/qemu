@@ -127,7 +127,7 @@ exports available: 1
 {"error": {"class": "GenericError", "desc": "export 'export1' still in use"}}
 {"execute": "block-export-del", "arguments": {"id": "export1", "mode": "hard"}}
 {"return": {}}
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 {"execute": "query-block-exports", "arguments": {}}
 {"return": []}

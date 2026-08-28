@@ -87,11 +87,11 @@ class TestBackup(iotests.QMPTestCase):
 
     def tearDown(self):
         # That should fail, because region is discarded
-        self.vm.hmp_qemu_io('access', 'read 0 1M')
+        result = self.vm.hmp_qemu_io('access', 'read 0 1M')
 
         self.vm.shutdown()
 
-        self.assertTrue('read failed: Permission denied' in self.vm.get_log())
+        self.assertIn('read failed: Permission denied', result['return'])
 
         # Final check that temp image is empty
         mapping = qemu_img_map(temp_img)

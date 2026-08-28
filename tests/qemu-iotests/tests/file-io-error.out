@@ -21,7 +21,7 @@ QA output created by file-io-error
       }}
 {"return": {}}
 
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 {'execute': 'block-export-del',
       'arguments': {'id': 'exp0'}}

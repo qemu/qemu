@@ -598,7 +598,7 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
      * extended, possibly resulting in a read-only guest device keeping write
      * permissions. Ugly, but it appears to be the lesser evil.
      */
-    qemuio_command(blk, command);
+    qemuio_command(blk, command, &err);
 
 fail:
     blk_unref(local_blk);

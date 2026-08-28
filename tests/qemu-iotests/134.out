@@ -24,7 +24,7 @@ read 134217728/134217728 bytes at offset 0
 128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == verify pattern failure with wrong password ==
-Pattern verification failed at offset 0, 134217728 bytes
+qemu-io: Pattern verification failed at offset 0, 134217728 bytes
 read 134217728/134217728 bytes at offset 0
 128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

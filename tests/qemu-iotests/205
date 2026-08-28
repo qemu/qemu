@@ -75,7 +75,7 @@ class TestNbdServerRemove(iotests.QMPTestCase):
 
     def assertReadFailed(self, qemu_io_output):
         self.assertEqual(filter_qemu_io(qemu_io_output).strip(),
-                         'read failed: Input/output error')
+                         'qemu-io: read failed: Input/output error')
 
     def assertConnectFailed(self, qemu_io_output):
         self.assertEqual(filter_qemu_io(qemu_io_output).strip(),

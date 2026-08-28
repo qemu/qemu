@@ -87,17 +87,17 @@ class TestCbwError(iotests.QMPTestCase):
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io cbw "write 0 1M"')
-        self.assert_qmp(result, 'return', '')
+        write_res = result['return']
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io access "read 0 1M"')
-        self.assert_qmp(result, 'return', '')
+        read_res = result['return']
 
         self.vm.shutdown()
         log = self.vm.get_log()
         log = iotests.filter_qtest(log)
         log = iotests.filter_qemu_io(log)
-        return log
+        return log, write_res, read_res
 
     def do_cbw_error_via_blockdev_backup(self, on_cbw_error=None):
         self.vm.cmd('blockdev-add', {
@@ -150,28 +150,29 @@ class TestCbwError(iotests.QMPTestCase):
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io cbw "write 0 1M"')
-        self.assert_qmp(result, 'return', '')
+        write_res = result['return']
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io access "read 0 1M"')
-        self.assert_qmp(result, 'return', '')
+        read_res = result['return']
 
         self.vm.shutdown()
         log = self.vm.get_log()
         log = iotests.filter_qemu_io(log)
-        return log
+        return log, write_res, read_res
 
     def test_break_snapshot_on_cbw_error(self):
         """break-snapshot behavior:
         Guest write succeed, but further snapshot-read fails, as snapshot is
         broken.
         """
-        log = self.do_cbw_error('break-snapshot')
+        log, write_res, read_res = self.do_cbw_error('break-snapshot')
+        self.assertEqual(write_res, '')
+        self.assertIn('read failed: Permission denied', read_res)
 
         self.assertEqual(log, """\
 wrote 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read failed: Permission denied
 """)
 
     def test_break_guest_write_on_cbw_error(self):
@@ -179,10 +180,11 @@ read failed: Permission denied
         Guest write fails, but snapshot-access continues working and further
         snapshot-read succeeds.
         """
-        log = self.do_cbw_error('break-guest-write')
+        log, write_res, read_res = self.do_cbw_error('break-guest-write')
+        self.assertIn('write failed: Input/output error', write_res)
+        self.assertEqual(read_res, '')
 
         self.assertEqual(log, """\
-write failed: Input/output error
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 """)
@@ -191,20 +193,24 @@ read 1048576/1048576 bytes at offset 0
         """Ensure CBW filter accepts break-snapshot policy
         specified in blockdev-backup QMP command.
         """
-        log = self.do_cbw_error_via_blockdev_backup('break-snapshot')
+        log, write_res, read_res = \
+            self.do_cbw_error_via_blockdev_backup('break-snapshot')
+        self.assertEqual(write_res, '')
+        self.assertIn('read failed: Permission denied', read_res)
         self.assertEqual(log, """\
 wrote 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read failed: Permission denied
 """)
 
     def test_break_guest_write_policy_forwarding(self):
         """Ensure CBW filter accepts break-guest-write policy
         specified in blockdev-backup QMP command.
         """
-        log = self.do_cbw_error_via_blockdev_backup('break-guest-write')
+        log, write_res, read_res = \
+            self.do_cbw_error_via_blockdev_backup('break-guest-write')
+        self.assertIn('write failed: Input/output error', write_res)
+        self.assertEqual(read_res, '')
         self.assertEqual(log, """\
-write failed: Input/output error
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 """)
@@ -213,9 +219,11 @@ read 1048576/1048576 bytes at offset 0
         """Ensure break-guest-write policy is used by default when
         on-cbw-error is not explicitly specified.
         """
-        log = self.do_cbw_error_via_blockdev_backup()
+        log, write_res, read_res = \
+            self.do_cbw_error_via_blockdev_backup()
+        self.assertIn('write failed: Input/output error', write_res)
+        self.assertEqual(read_res, '')
         self.assertEqual(log, """\
-write failed: Input/output error
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 """)
@@ -260,47 +268,53 @@ read 1048576/1048576 bytes at offset 0
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io cbw "write 0 512K"')
-        self.assert_qmp(result, 'return', '')
+        write1_res = result['return']
 
         # We need second write to trigger throttling
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io cbw "write 512K 512K"')
-        self.assert_qmp(result, 'return', '')
+        write2_res = result['return']
 
         result = self.vm.qmp('human-monitor-command',
                              command_line='qemu-io access "read 0 1M"')
-        self.assert_qmp(result, 'return', '')
+        read_res = result['return']
 
         self.vm.shutdown()
         log = self.vm.get_log()
         log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
         log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
         log = iotests.filter_qemu_io(log)
-        return log
+        return log, write1_res, write2_res, read_res
 
     def test_timeout_break_guest(self):
-        log = self.do_cbw_timeout('break-guest-write')
+        log, write1_res, write2_res, read_res = \
+            self.do_cbw_timeout('break-guest-write')
+        self.assertEqual(write1_res, '')
         # macOS and FreeBSD tend to represent ETIMEDOUT as
         # "Operation timed out", when Linux prefer
         # "Connection timed out"
-        log = log.replace('Operation timed out',
-                          'Connection timed out')
+        write2_res = write2_res.replace('Operation timed out',
+                                        'Connection timed out')
+        self.assertIn('write failed: Connection timed out', write2_res)
+        self.assertEqual(read_res, '')
         self.assertEqual(log, """\
 wrote 524288/524288 bytes at offset 0
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-write failed: Connection timed out
 read 1048576/1048576 bytes at offset 0
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 """)
 
     def test_timeout_break_snapshot(self):
-        log = self.do_cbw_timeout('break-snapshot')
+        log, write1_res, write2_res, read_res = \
+            self.do_cbw_timeout('break-snapshot')
+        self.assertEqual(write1_res, '')
+        self.assertEqual(write2_res, '')
+        self.assertIn('read failed: Permission denied', read_res)
         self.assertEqual(log, """\
 wrote 524288/524288 bytes at offset 0
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 524288/524288 bytes at offset 524288
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read failed: Permission denied
 """)
 
 

@@ -12,5 +12,5 @@ discard 1024/1024 bytes at offset 125952
 ### Corrupt the offset of the second refcount block
 ### Try to allocate the discarded clusters again
 qcow2: Marking image as corrupt: Refblock offset 0x20600 unaligned (reftable index: 0x1); further corruption events will be suppressed
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 *** done
