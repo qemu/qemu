@@ -17,6 +17,7 @@
 #include "hw/xen/xen-bus.h"
 #include "hw/xen/xen-bus-helper.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "system/system.h"

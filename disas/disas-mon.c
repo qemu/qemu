@@ -10,6 +10,7 @@
 #include "system/memory.h"
 #include "hw/core/cpu.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 
 /*
  * Get LENGTH bytes from info's buffer, at target address memaddr.

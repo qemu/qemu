@@ -36,6 +36,7 @@
 #include "clients.h"
 #include "hub.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include <libslirp.h>

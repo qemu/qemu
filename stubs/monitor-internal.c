@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "monitor/monitor.h"
+#include "monitor/hmp.h"
 
 int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
 {

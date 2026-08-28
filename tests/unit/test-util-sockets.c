@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "socket-helpers.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 
 static void test_fd_is_socket_bad(void)
 {

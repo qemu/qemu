@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "hw/core/sysbus.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "system/address-spaces.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);

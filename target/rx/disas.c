@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
 #include "qemu/bitops.h"
+#include "monitor/hmp.h"
 #include "cpu.h"
 
 typedef struct DisasContext {

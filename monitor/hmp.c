@@ -136,7 +136,7 @@ static void monitor_command_cb(void *opaque, const char *cmdline,
     monitor_resume(&hmp->parent_obj);
 }
 
-void monitor_read_command(MonitorHMP *hmp, int show_prompt)
+void monitor_hmp_read_command(MonitorHMP *hmp, int show_prompt)
 {
     if (!hmp->rs) {
         return;
@@ -148,8 +148,8 @@ void monitor_read_command(MonitorHMP *hmp, int show_prompt)
     }
 }
 
-int monitor_read_password(MonitorHMP *hmp, ReadLineFunc *readline_func,
-                          void *opaque)
+int monitor_hmp_read_password(MonitorHMP *hmp, ReadLineFunc *readline_func,
+                              void *opaque)
 {
     if (hmp->rs) {
         readline_start(hmp->rs, "Password: ", 1, readline_func, opaque);
@@ -1647,7 +1647,7 @@ static void monitor_hmp_complete(UserCreatable *uc, Error **errp)
                                     monitor_readline_flush,
                                     hmp,
                                     monitor_find_completion);
-            monitor_read_command(hmp, 0);
+            monitor_hmp_read_command(hmp, 0);
         }
 
         qemu_chr_fe_set_handlers(&hmp->parent_obj.chr,

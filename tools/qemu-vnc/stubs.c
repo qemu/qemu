@@ -9,6 +9,7 @@
 #include "system/runstate.h"
 #include "hw/core/qdev.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "migration/vmstate.h"
 
 bool runstate_is_running(void)

@@ -11,6 +11,7 @@
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "system/tcg.h"
 #include "tcg/tcg.h"
 #include "internal-common.h"

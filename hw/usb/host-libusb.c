@@ -48,6 +48,7 @@
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"

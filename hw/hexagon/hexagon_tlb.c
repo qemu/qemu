@@ -12,6 +12,7 @@
 #include "hw/core/resettable.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qapi/error.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"

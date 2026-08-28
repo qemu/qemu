@@ -33,6 +33,7 @@
 #include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qapi/error.h"
 
 #ifndef DEBUG_AUX

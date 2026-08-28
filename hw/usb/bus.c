@@ -9,6 +9,7 @@
 #include "system/system.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "trace.h"
 #include "qemu/cutils.h"
 

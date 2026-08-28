@@ -25,6 +25,7 @@
 #include "qemu/module.h"
 #include "migration/qemu-file-types.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "hw/core/qdev-properties.h"

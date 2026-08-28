@@ -327,7 +327,7 @@ static void hmp_change_read_arg(void *opaque, const char *password,
                                 void *readline_opaque)
 {
     qmp_change_vnc_password(password, NULL);
-    monitor_read_command(opaque, 1);
+    monitor_hmp_read_command(opaque, 1);
 }
 
 void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
@@ -344,7 +344,7 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
     }
     if (!arg) {
         MonitorHMP *hmp = MONITOR_HMP(mon);
-        monitor_read_password(hmp, hmp_change_read_arg, NULL);
+        monitor_hmp_read_password(hmp, hmp_change_read_arg, NULL);
     } else {
         qmp_change_vnc_password(arg, errp);
     }

@@ -18,6 +18,9 @@
 #include "qapi/qapi-types-common.h"
 #include "monitor/monitor.h"
 
+#define TYPE_MONITOR_HMP "monitor-hmp"
+OBJECT_DECLARE_TYPE(MonitorHMP, MonitorHMPClass, MONITOR_HMP);
+
 #define HMP_STUB(cmd) \
     void hmp_##cmd(Monitor *mon, const QDict *qdict) \
     { \
@@ -29,6 +32,24 @@ struct MonitorDef {
     int offset;
     int64_t (*get_value)(Monitor *mon, const MonitorDef *md, int offset);
 };
+
+void monitor_new_hmp(const char *id, const char *chardev_id,
+                     bool use_readline, Error **errp);
+
+int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
+    G_GNUC_PRINTF(2, 0);
+int monitor_printf(Monitor *mon, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
+void monitor_printc(Monitor *mon, int ch);
+
+void monitor_hmp_read_command(MonitorHMP *hmp, int show_prompt);
+int monitor_hmp_read_password(MonitorHMP *hmp, ReadLineFunc *readline_func,
+                              void *opaque);
+
+void monitor_register_hmp(const char *name, bool info,
+                          void (*cmd)(Monitor *mon, const QDict *qdict));
+void monitor_register_hmp_info_hrt(const char *name,
+                                   HumanReadableText *(*handler)(Error **errp));
+
 
 CPUArchState *mon_get_cpu_env(Monitor *mon);
 CPUState *mon_get_cpu(Monitor *mon);

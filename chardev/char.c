@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
-#include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "monitor/qmp-helpers.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"

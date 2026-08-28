@@ -15,7 +15,6 @@
 
 #include "qemu/osdep.h"
 #include "monitor/hmp.h"
-#include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-accelerator.h"

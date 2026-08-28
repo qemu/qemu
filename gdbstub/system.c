@@ -29,7 +29,7 @@
 #include "hw/core/boards.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "trace.h"
 #include "internals.h"
 
