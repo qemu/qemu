@@ -460,8 +460,8 @@ static TCGv_i64 get_address(DisasContext *s, int x2, int b2, int d2)
      * displacements early we create larger immediate addends.
      */
     if (b2 && x2) {
-        tcg_gen_add_i64(tmp, regs[b2], regs[x2]);
-        gen_addi_and_wrap_i64(s, tmp, tmp, d2);
+        tcg_gen_lea_i64(tmp, regs[b2], regs[x2], 0, d2);
+        gen_addi_and_wrap_i64(s, tmp, tmp, 0);
     } else if (b2) {
         gen_addi_and_wrap_i64(s, tmp, regs[b2], d2);
     } else if (x2) {
