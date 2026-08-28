@@ -856,6 +856,7 @@ struct DirtyRateInfo *qmp_query_dirty_rate(bool has_calc_time_unit,
         has_calc_time_unit ? calc_time_unit : TIME_UNIT_SECOND);
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
 {
     DirtyRateInfo *info = query_dirty_rate_info(TIME_UNIT_SECOND);
@@ -932,3 +933,4 @@ void hmp_calc_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
                        " seconds\n", sec);
     monitor_hmp_printf(hmp, "[Please use 'info dirty_rate' to check results]\n");
 }
+#endif

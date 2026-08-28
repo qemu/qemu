@@ -32,6 +32,7 @@
 #define STATTR_FLAG_ERROR   0x04ULL
 #define STATTR_FLAG_DONE    0x08ULL
 
+#ifdef CONFIG_HMP
 static S390StAttribState *s390_get_stattrib_device(void)
 {
     S390StAttribState *sas;
@@ -40,6 +41,7 @@ static S390StAttribState *s390_get_stattrib_device(void)
     assert(sas);
     return sas;
 }
+#endif
 
 void s390_stattrib_init(void)
 {
@@ -59,6 +61,7 @@ void s390_stattrib_init(void)
 
 /* Console commands: */
 
+#ifdef CONFIG_HMP
 void hmp_migrationmode(MonitorHMP *hmp, const QDict *qdict)
 {
     S390StAttribState *sas = s390_get_stattrib_device();
@@ -110,6 +113,7 @@ void hmp_info_cmma(MonitorHMP *hmp, const QDict *qdict)
 out:
     g_free(vals);
 }
+#endif
 
 /* Migration support: */
 

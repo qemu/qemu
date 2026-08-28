@@ -184,6 +184,7 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 # define HAVE_SUPER_PLUS 1
 #endif
 
+#ifdef CONFIG_HMP
 static const char *speed_name[] = {
     [LIBUSB_SPEED_UNKNOWN] = "?",
     [LIBUSB_SPEED_LOW]     = "1.5",
@@ -194,6 +195,7 @@ static const char *speed_name[] = {
     [LIBUSB_SPEED_SUPER_PLUS] = "5000+",
 #endif
 };
+#endif
 
 static const unsigned int speed_map[] = {
     [LIBUSB_SPEED_LOW]     = USB_SPEED_LOW,
@@ -1815,7 +1817,9 @@ module_kconfig(USB);
 static void usb_host_register_types(void)
 {
     type_register_static(&usb_host_dev_info);
+#ifdef CONFIG_HMP
     monitor_register_hmp("usbhost", true, hmp_info_usbhost);
+#endif
 }
 
 type_init(usb_host_register_types)
@@ -1920,6 +1924,7 @@ static void usb_host_auto_check(void *unused)
     timer_mod(usb_auto_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 2000);
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict)
 {
     libusb_device **devs = NULL;
@@ -1963,3 +1968,4 @@ void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict)
     }
     libusb_free_device_list(devs, 1);
 }
+#endif

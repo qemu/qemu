@@ -27,6 +27,7 @@
 #include "monitor/hmp.h"
 
 
+#ifdef CONFIG_HMP
 void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
     CPUArchState *env1 = monitor_hmp_get_cpu_env(hmp);
@@ -37,3 +38,4 @@ void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
     }
     dump_mmu(env1);
 }
+#endif

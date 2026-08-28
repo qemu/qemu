@@ -711,6 +711,7 @@ error:
     return -1;
 }
 
+#ifdef CONFIG_HMP
 static SlirpState *slirp_lookup(MonitorHMP *hmp, const char *id)
 {
     if (id) {
@@ -801,6 +802,7 @@ void hmp_hostfwd_remove(MonitorHMP *hmp, const QDict *qdict)
  fail_syntax:
     monitor_hmp_printf(hmp, "invalid format\n");
 }
+#endif
 
 static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 {
@@ -957,6 +959,7 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
     return -1;
 }
 
+#ifdef CONFIG_HMP
 void hmp_hostfwd_add(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *redir_str;
@@ -977,8 +980,8 @@ void hmp_hostfwd_add(MonitorHMP *hmp, const QDict *qdict)
             error_report_err(err);
         }
     }
-
 }
+#endif
 
 #if defined(CONFIG_SMBD_COMMAND)
 
@@ -1224,6 +1227,7 @@ UsernetInfoList *qmp_x_query_usernet(Error **errp)
     return head;
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_usernet(MonitorHMP *hmp, const QDict *qdict)
 {
     g_autoptr(UsernetInfoList) list = NULL;
@@ -1237,6 +1241,7 @@ void hmp_info_usernet(MonitorHMP *hmp, const QDict *qdict)
                            ui->hub_name, ui->info);
     }
 }
+#endif
 
 static void
 net_init_slirp_configs_host(const NetdevUserHostForwardList *fwd)

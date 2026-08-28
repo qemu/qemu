@@ -63,22 +63,28 @@ void replay_vmstate_init(void)
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 
+#ifdef CONFIG_HMP
 void hmp_info_replay(MonitorHMP *hmp, const QDict *qdict)
 {
     error_report("replay support not available");
 }
+
 void hmp_replay_break(MonitorHMP *hmp, const QDict *qdict)
 {
     error_report("replay support not available");
 }
+
 void hmp_replay_delete_break(MonitorHMP *hmp, const QDict *qdict)
 {
     error_report("replay support not available");
 }
+
 void hmp_replay_seek(MonitorHMP *hmp, const QDict *qdict)
 {
     error_report("replay support not available");
 }
+#endif
+
 ReplayInfo *qmp_query_replay(Error **errp)
 {
     error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,

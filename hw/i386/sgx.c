@@ -234,6 +234,7 @@ SgxInfo *qmp_query_sgx(Error **errp)
     return info;
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_sgx(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
@@ -265,6 +266,7 @@ void hmp_info_sgx(MonitorHMP *hmp, const QDict *qdict)
     monitor_hmp_printf(hmp, "total size=%" PRIu64 "\n",
                        size);
 }
+#endif
 
 bool check_sgx_support(void)
 {

@@ -256,6 +256,7 @@ FirmwareLog *qmp_query_firmware_log(bool have_max_size, uint64_t max_size,
     return ret;
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_firmware_log(MonitorHMP *hmp, const QDict *qdict)
 {
     g_autofree gchar *log_esc = NULL;
@@ -284,3 +285,4 @@ void hmp_info_firmware_log(MonitorHMP *hmp, const QDict *qdict)
     log_esc = g_strescape((gchar *)log_out, "\r\n");
     monitor_hmp_printf(hmp, "%s\n", log_esc);
 }
+#endif

@@ -31,6 +31,8 @@
 #include "qapi/qapi-commands-misc.h"
 #include "system/memory.h"
 
+#ifdef CONFIG_HMP
+
 /* Perform linear address sign extension */
 static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
 {
@@ -595,3 +597,4 @@ void hmp_mce(MonitorHMP *hmp, const QDict *qdict)
     }
     hmp_handle_error(hmp, err);
 }
+#endif

@@ -104,6 +104,7 @@ static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,
     }
 }
 
+#ifdef CONFIG_HMP
 void hmp_info_skeys(MonitorHMP *hmp, const QDict *qdict)
 {
     S390SKeysState *ss = s390_get_skeys_device();
@@ -144,6 +145,7 @@ void hmp_dump_skeys(MonitorHMP *hmp, const QDict *qdict)
         error_report_err(err);
     }
 }
+#endif
 
 void s390_qmp_dump_skeys(const char *filename, Error **errp)
 {

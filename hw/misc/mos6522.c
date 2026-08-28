@@ -497,6 +497,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     }
 }
 
+#ifdef CONFIG_HMP
 static int qmp_x_query_via_foreach(Object *obj, void *opaque)
 {
     GString *buf = opaque;
@@ -597,6 +598,7 @@ void hmp_info_via(MonitorHMP *hmp, const QDict *qdict)
     }
     monitor_puts(mon, info->human_readable_text);
 }
+#endif /* CONFIG_HMP */
 
 static const MemoryRegionOps mos6522_ops = {
     .read = mos6522_read,

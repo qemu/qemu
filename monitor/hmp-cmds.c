@@ -42,6 +42,7 @@
 #include "disas/disas.h"
 
 /* Please update hmp-commands.hx when adding or changing commands */
+#ifdef CONFIG_HMP
 static HMPCommand hmp_info_cmds[] = {
 #include "hmp-commands-info.h"
     { NULL, NULL, },
@@ -52,6 +53,10 @@ static HMPCommand hmp_cmds[] = {
 #include "hmp-commands.h"
     { NULL, NULL, },
 };
+#else
+static HMPCommand hmp_info_cmds[] = { { NULL, NULL, }, };
+static HMPCommand hmp_cmds[] = { { NULL, NULL, }, };
+#endif
 
 HMPCommand *hmp_cmds_for_target(bool info_command)
 {
