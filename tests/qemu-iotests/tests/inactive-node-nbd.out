@@ -243,5 +243,13 @@ snap-fmt active: True
 snap2-fmt active: True
 target-fmt active: True
 
+=== Inactivating all nodes at once ===
+{"execute": "stop", "arguments": {}}
+{"return": {}}
+{"execute": "blockdev-set-active", "arguments": {"active": false}}
+{"return": {}}
+detached-fmt active: False
+detached-file active: False
+
 Shutting down...
 
