@@ -69,7 +69,15 @@ tcg_target_sextract_valid(TCGType type, unsigned ofs, unsigned len)
 
 #define TCG_TARGET_deposit_valid(type, ofs, len)  0
 
-#define TCG_TARGET_lea_sh_valid(type, sh)         0
-#define TCG_TARGET_lea_imm_valid(type, imm)       0
+/*
+ * The SH*ADD instructions only operate on full register width.
+ * To allow TCG_TYPE_I32, we'd need a subsequent extension,
+ * with the result no better than the separate shift+add insns.
+ */
+#define TCG_TARGET_lea_sh_valid(type, sh)         \
+    (cpuinfo & CPUINFO_ZBA &&                     \
+     (type) == TCG_TYPE_REG &&                    \
+     (sh) >= 1 && (sh) <= 3)
+#define TCG_TARGET_lea_imm_valid(type, imm)       ((imm) == 0)
 
 #endif
