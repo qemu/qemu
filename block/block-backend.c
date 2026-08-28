@@ -625,6 +625,7 @@ BlockDriverState *bdrv_next(BdrvNextIterator *it)
             return bs;
         }
         it->phase = BDRV_NEXT_MONITOR_OWNED;
+        it->bs = NULL;
     }
 
     /* Then return the monitor-owned BDSes without a BB attached. Ignore all
