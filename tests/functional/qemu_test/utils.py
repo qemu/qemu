@@ -14,8 +14,12 @@ from qemu.utils import get_info_usernet_hostfwd_port
 
 
 def get_usernet_hostfwd_port(vm):
-    res = vm.cmd('human-monitor-command', command_line='info usernet')
-    return get_info_usernet_hostfwd_port(res)
+    res = vm.cmd('x-query-usernet')
+    for entry in res:
+        port = get_info_usernet_hostfwd_port(entry['info'])
+        if port is not None:
+            return port
+    return None
 
 def pow2ceil(x):
     """
