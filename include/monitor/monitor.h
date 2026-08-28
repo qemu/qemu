@@ -53,8 +53,6 @@ int monitor_get_cpu_index(Monitor *mon);
 int monitor_puts_locked(Monitor *mon, const char *str);
 void monitor_flush_locked(Monitor *mon);
 
-void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, uint64_t size, Error **errp);
-
 void monitor_read_command(MonitorHMP *hmp, int show_prompt);
 int monitor_read_password(MonitorHMP *hmp, ReadLineFunc *readline_func,
                           void *opaque);
