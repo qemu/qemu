@@ -59,6 +59,7 @@ typedef struct VirtualGfxConsole {
     bool scanout_mode;
     bool has_dmabuf;
     int gl_fence_fd;
+    bool draw_submitted;
 #endif
 } VirtualGfxConsole;
 
