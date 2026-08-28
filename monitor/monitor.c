@@ -272,55 +272,6 @@ int monitor_puts(Monitor *mon, const char *str)
     return monitor_puts_locked(mon, str);
 }
 
-int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
-{
-    g_autofree char *buf = g_strdup_vprintf(fmt, ap);
-
-    if (!mon) {
-        return -1;
-    }
-
-    return monitor_puts(MONITOR(mon), buf);
-}
-
-int monitor_hmp_printf(MonitorHMP *mon, const char *fmt, ...)
-{
-    int ret;
-
-    va_list ap;
-    va_start(ap, fmt);
-    ret = monitor_hmp_vprintf(mon, fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
-void monitor_hmp_printc(MonitorHMP *mon, int c)
-{
-    monitor_hmp_printf(mon, "'");
-    switch(c) {
-    case '\'':
-        monitor_hmp_printf(mon, "\\'");
-        break;
-    case '\\':
-        monitor_hmp_printf(mon, "\\\\");
-        break;
-    case '\n':
-        monitor_hmp_printf(mon, "\\n");
-        break;
-    case '\r':
-        monitor_hmp_printf(mon, "\\r");
-        break;
-    default:
-        if (c >= 32 && c <= 126) {
-            monitor_hmp_printf(mon, "%c", c);
-        } else {
-            monitor_hmp_printf(mon, "\\x%02x", c);
-        }
-        break;
-    }
-    monitor_hmp_printf(mon, "'");
-}
-
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */
     [QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
