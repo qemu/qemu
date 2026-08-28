@@ -328,6 +328,7 @@
 #define __NR_file_setattr 469
 #define __NR_listns 470
 #define __NR_rseq_slice_yield 471
+#define __NR_fchroot 472
 
 
 #endif /* _ASM_UNISTD_64_H */

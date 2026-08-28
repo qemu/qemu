@@ -81,6 +81,8 @@ bool kvmppc_supports_ail_3(void);
 int kvmppc_enable_hwrng(void);
 int kvmppc_put_books_sregs(PowerPCCPU *cpu);
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void);
+
+uint32_t kvm_ppc_host_compat_pvr(void);
 void kvmppc_check_papr_resize_hpt(Error **errp);
 int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu, target_ulong flags, int shift);
 int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift);
@@ -438,6 +440,11 @@ static inline int kvmppc_put_books_sregs(PowerPCCPU *cpu)
 static inline PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
 {
     return NULL;
+}
+
+static inline uint32_t kvm_ppc_host_compat_pvr(void)
+{
+    return 0;
 }
 
 static inline void kvmppc_check_papr_resize_hpt(Error **errp)

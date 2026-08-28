@@ -155,3 +155,175 @@ static bool trans_ATTN(DisasContext *ctx, arg_ATTN *a)
     return false;
 #endif
 }
+
+static bool trans_MCRF(DisasContext *ctx, arg_MCRF *a)
+{
+    tcg_gen_mov_i32(cpu_crf[a->bf], cpu_crf[a->bfa]);
+    return true;
+}
+
+static bool do_mfmsr(DisasContext *ctx, arg_X_t *a)
+{
+    REQUIRE_SV(ctx);
+    tcg_gen_mov_tl(cpu_gpr[a->rt], cpu_msr);
+    return true;
+}
+TRANS_FLAGS(MISC, MFMSR, do_mfmsr)
+
+static bool do_mtmsr(DisasContext *ctx, arg_X_rs_l *a, bool is_mtmsrd)
+{
+    REQUIRE_SV(ctx);
+#if !defined(CONFIG_USER_ONLY)
+    TCGv t0, t1;
+    target_ulong mask;
+
+    if (is_mtmsrd) {
+        if (unlikely(!is_book3s_arch2x(ctx))) {
+            gen_invalid(ctx);
+            return true;
+        }
+        mask = ~(target_ulong)0;
+    } else {
+        mask = UINT32_MAX;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    translator_io_start(&ctx->base);
+
+    if (a->l) {
+        /* L=1 form only updates EE and RI */
+        mask &= (1ULL << MSR_RI) | (1ULL << MSR_EE);
+    } else {
+        if (is_mtmsrd) {
+            /* mtmsrd does not alter HV, S, ME, or LE */
+            mask &= ~((1ULL << MSR_LE) | (1ULL << MSR_ME) |
+                      (1ULL << MSR_S)  | (1ULL << MSR_HV));
+        } else if (likely(!(ctx->insns_flags2 & PPC2_PPE42))) {
+            /* mtmsr does not alter S, ME, or LE */
+            mask &= ~((1ULL << MSR_LE) | (1ULL << MSR_ME) | (1ULL << MSR_S));
+        }
+        /*
+         * XXX: we need to update nip before the store if we enter
+         *      power saving mode, we will exit the loop directly from
+         *      ppc_store_msr
+         */
+        gen_update_nip(ctx, ctx->base.pc_next);
+    }
+
+    tcg_gen_andi_tl(t0, cpu_gpr[a->rs], mask);
+    tcg_gen_andi_tl(t1, cpu_msr, ~mask);
+    tcg_gen_or_tl(t0, t0, t1);
+
+    gen_helper_store_msr(tcg_env, t0);
+
+    /* Must stop the translation as machine state (may have) changed */
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+#endif /* !CONFIG_USER_ONLY */
+    return true;
+}
+
+TRANS_FLAGS(MISC, MTMSR, do_mtmsr, false)
+TRANS64(MTMSRD, do_mtmsr, true)
+
+/*
+ * System Call and Return from Interrupt Instructions
+ */
+
+static bool do_SC(DisasContext *ctx, arg_SC *a, uint32_t excp)
+{
+    uint32_t lev;
+
+    /*
+     * LEV is a 7-bit field, but the top 6 bits are treated as a reserved
+     * field (i.e., ignored). ISA v3.1 changes that to 5 bits, but that is
+     * for Ultravisor which TCG does not support, so just ignore the top 6.
+     */
+    lev = a->lev & 0x1;
+    gen_exception_err(ctx, excp, lev);
+    return true;
+}
+
+static bool do_SCV(DisasContext *ctx, arg_SC *a)
+{
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+    /* Set the PC back to the faulting instruction. */
+    gen_update_nip(ctx, ctx->cia);
+    gen_helper_scv(tcg_env, tcg_constant_i32(a->lev));
+
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return true;
+#else
+    gen_invalid(ctx);
+    return true;
+#endif
+}
+
+/*
+ * Common helper for return-from-interrupt instructions
+ */
+enum {
+   RFI_KIND_RFI = 0,
+   RFI_KIND_RFID = 1,
+   RFI_KIND_HRFID = 2,
+   RFI_KIND_RFSCV = 3,
+};
+
+static bool do_rfi(DisasContext *ctx, arg_RFID *a, int kind)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_priv_opc(ctx);
+    return true;
+#else
+    void (*helper)(TCGv_ptr);
+
+    switch (kind) {
+    case RFI_KIND_RFI:
+        if (is_book3s_arch2x(ctx)) {
+            gen_invalid(ctx);
+            return true;
+        }
+        REQUIRE_SV(ctx);
+        helper = gen_helper_RFI;
+        break;
+#if defined(TARGET_PPC64)
+    case RFI_KIND_HRFID:
+        REQUIRE_HV(ctx);
+        helper = gen_helper_HRFID;
+        break;
+    case RFI_KIND_RFID:
+        REQUIRE_SV(ctx);
+        helper = gen_helper_RFID;
+        break;
+    case RFI_KIND_RFSCV:
+        REQUIRE_SV(ctx);
+        helper = gen_helper_RFSCV;
+        break;
+#endif
+    default:
+        gen_invalid(ctx);
+        return true;
+    }
+
+    translator_io_start(&ctx->base);
+    if (kind != RFI_KIND_HRFID) {
+        gen_update_branch_history(ctx, ctx->cia, NULL, BHRB_TYPE_NORECORD);
+    }
+    helper(tcg_env);
+    ctx->base.is_jmp = DISAS_EXIT;
+    return true;
+#endif
+}
+
+#if defined(CONFIG_USER_ONLY)
+TRANS_FLAGS(FLOW, SC, do_SC, POWERPC_EXCP_SYSCALL_USER)
+#else
+TRANS_FLAGS(FLOW, SC, do_SC, POWERPC_EXCP_SYSCALL)
+#endif
+
+TRANS64_FLAGS2(ISA300, SCV, do_SCV)
+
+TRANS_FLAGS(FLOW, RFI, do_rfi, RFI_KIND_RFI)
+TRANS64(RFID, do_rfi, RFI_KIND_RFID)
+TRANS64_FLAGS(64H, HRFID, do_rfi, RFI_KIND_HRFID)
+TRANS64_FLAGS2(ISA300, RFSCV, do_rfi, RFI_KIND_RFSCV)

@@ -314,7 +314,7 @@ void ppc_cpu_debug_excp_handler(CPUState *cs)
 #if defined(TARGET_PPC64)
     CPUPPCState *env = cpu_env(cs);
 
-    if (env->insns_flags2 & PPC2_ISA207S) {
+    if (env->insns_flags2 & PPC2_ISA207) {
         if (cs->watchpoint_hit) {
             if (cs->watchpoint_hit->flags & BP_CPU) {
                 env->spr[SPR_DAR] = cs->watchpoint_hit->hitaddr;
@@ -336,7 +336,7 @@ bool ppc_cpu_debug_check_breakpoint(CPUState *cs)
 #if defined(TARGET_PPC64)
     CPUPPCState *env = cpu_env(cs);
 
-    if (env->insns_flags2 & PPC2_ISA207S) {
+    if (env->insns_flags2 & PPC2_ISA207) {
         target_ulong priv;
 
         priv = env->spr[SPR_CIABR] & PPC_BITMASK(62, 63);
@@ -365,7 +365,7 @@ bool ppc_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
     bool wt, wti, hv, sv, pr;
     uint32_t dawrx;
 
-    if ((env->insns_flags2 & PPC2_ISA207S) &&
+    if ((env->insns_flags2 & PPC2_ISA207) &&
         (wp == env->dawr_watchpoint[0])) {
         dawrx = env->spr[SPR_DAWRX0];
     } else if ((env->insns_flags2 & PPC2_ISA310) &&
@@ -459,7 +459,7 @@ void helper_scv(CPUPPCState *env, uint32_t lev)
     }
 }
 
-void helper_pminsn(CPUPPCState *env, uint32_t insn)
+void helper_PMINSN(CPUPPCState *env, uint32_t insn)
 {
     CPUState *cs = env_cpu(env);
 
@@ -528,13 +528,13 @@ static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     check_tlb_flush(env, false);
 }
 
-void helper_rfi(CPUPPCState *env)
+void helper_RFI(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1] & 0xfffffffful);
 }
 
 #ifdef TARGET_PPC64
-void helper_rfid(CPUPPCState *env)
+void helper_RFID(CPUPPCState *env)
 {
     /*
      * The architecture defines a number of rules for which bits can
@@ -545,12 +545,12 @@ void helper_rfid(CPUPPCState *env)
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1]);
 }
 
-void helper_rfscv(CPUPPCState *env)
+void helper_RFSCV(CPUPPCState *env)
 {
     do_rfi(env, env->lr, env->ctr);
 }
 
-void helper_hrfid(CPUPPCState *env)
+void helper_HRFID(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
 }
@@ -849,7 +849,7 @@ void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
 void helper_book3s_trace(CPUPPCState *env, target_ulong prev_ip)
 {
     uint32_t error_code = 0;
-    if (env->insns_flags2 & PPC2_ISA207S) {
+    if (env->insns_flags2 & PPC2_ISA207) {
         /* Load/store reporting, SRR1[35, 36] and SDAR, are not implemented. */
         env->spr[SPR_POWER_SIAR] = prev_ip;
         error_code = PPC_BIT(33);

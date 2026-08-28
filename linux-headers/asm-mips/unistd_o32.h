@@ -446,5 +446,6 @@
 #define __NR_file_setattr (__NR_Linux + 469)
 #define __NR_listns (__NR_Linux + 470)
 #define __NR_rseq_slice_yield (__NR_Linux + 471)
+#define __NR_fchroot (__NR_Linux + 472)
 
 #endif /* _ASM_UNISTD_O32_H */

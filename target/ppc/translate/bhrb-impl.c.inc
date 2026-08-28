@@ -14,7 +14,7 @@
 
 static bool trans_MFBHRBE(DisasContext *ctx, arg_XFX_bhrbe *arg)
 {
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     TCGv_i32 bhrbe = tcg_constant_i32(arg->bhrbe);
     gen_helper_mfbhrbe(cpu_gpr[arg->rt], tcg_env, bhrbe);
     return true;
@@ -22,7 +22,7 @@ static bool trans_MFBHRBE(DisasContext *ctx, arg_XFX_bhrbe *arg)
 
 static bool trans_CLRBHRB(DisasContext *ctx, arg_CLRBHRB *arg)
 {
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     gen_helper_clrbhrb(tcg_env);
     return true;
 }

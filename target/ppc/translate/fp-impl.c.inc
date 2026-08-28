@@ -342,7 +342,7 @@ static bool trans_FCPSGN(DisasContext *ctx, arg_FCPSGN *a)
 static bool trans_FMRGEW(DisasContext *ctx, arg_FMRGEW *a)
 {
     TCGv_i64 t0, t1, t2;
-    REQUIRE_INSNS_FLAGS2(ctx, VSX207);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     REQUIRE_FPU(ctx);
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
@@ -358,7 +358,7 @@ static bool trans_FMRGEW(DisasContext *ctx, arg_FMRGEW *a)
 static bool trans_FMRGOW(DisasContext *ctx, arg_FMRGOW *a)
 {
     TCGv_i64 t0, t1, t2;
-    REQUIRE_INSNS_FLAGS2(ctx, VSX207);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     REQUIRE_FPU(ctx);
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();

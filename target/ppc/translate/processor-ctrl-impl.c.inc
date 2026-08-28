@@ -23,7 +23,7 @@
 
 static bool trans_MSGCLR(DisasContext *ctx, arg_X_rb *a)
 {
-    if (!(ctx->insns_flags2 & PPC2_ISA207S)) {
+    if (!(ctx->insns_flags2 & PPC2_ISA207)) {
         /*
          * Before Power ISA 2.07, processor control instructions were only
          * implemented in the "Embedded.Processor Control" category.
@@ -47,7 +47,7 @@ static bool trans_MSGCLR(DisasContext *ctx, arg_X_rb *a)
 
 static bool trans_MSGSND(DisasContext *ctx, arg_X_rb *a)
 {
-    if (!(ctx->insns_flags2 & PPC2_ISA207S)) {
+    if (!(ctx->insns_flags2 & PPC2_ISA207)) {
         /*
          * Before Power ISA 2.07, processor control instructions were only
          * implemented in the "Embedded.Processor Control" category.
@@ -72,7 +72,7 @@ static bool trans_MSGSND(DisasContext *ctx, arg_X_rb *a)
 static bool trans_MSGCLRP(DisasContext *ctx, arg_X_rb *a)
 {
     REQUIRE_64BIT(ctx);
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     REQUIRE_SV(ctx);
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
     gen_helper_book3s_msgclrp(tcg_env, cpu_gpr[a->rb]);
@@ -85,7 +85,7 @@ static bool trans_MSGCLRP(DisasContext *ctx, arg_X_rb *a)
 static bool trans_MSGSNDP(DisasContext *ctx, arg_X_rb *a)
 {
     REQUIRE_64BIT(ctx);
-    REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
+    REQUIRE_INSNS_FLAGS2(ctx, ISA207);
     REQUIRE_SV(ctx);
 #if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
     gen_helper_book3s_msgsndp(tcg_env, cpu_gpr[a->rb]);
@@ -103,3 +103,34 @@ static bool trans_MSGSYNC(DisasContext *ctx, arg_MSGSYNC *a)
     /* interpreted as no-op */
     return true;
 }
+
+/*
+ * Helper to handle DOZE, NAP, SLEEP, RVWINKLE & STOP. Since none of them use
+ * any arguments just use a placeholder arg_SLEEP.
+ */
+static bool do_sleep(DisasContext *ctx, arg_SLEEP *a, powerpc_pm_insn_t type)
+{
+    REQUIRE_64BIT(ctx);
+
+#if defined(CONFIG_USER_ONLY)
+    gen_priv_opc(ctx);
+#elif defined(TARGET_PPC64)
+    TCGv_i32 t;
+
+    REQUIRE_HV(ctx);
+    translator_io_start(&ctx->base);
+    t = tcg_constant_i32(type);
+    gen_helper_PMINSN(tcg_env, t);
+    /* Stop translation, as the CPU is supposed to sleep from now */
+    gen_exception_nip(ctx, EXCP_HLT, ctx->base.pc_next);
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
+TRANS_FLAGS2(PM_ISA206, DOZE, do_sleep, PPC_PM_DOZE);
+TRANS_FLAGS2(PM_ISA206, NAP, do_sleep, PPC_PM_NAP);
+TRANS_FLAGS2(PM_ISA206, SLEEP, do_sleep, PPC_PM_SLEEP);
+TRANS_FLAGS2(PM_ISA206, RVWINKLE, do_sleep, PPC_PM_RVWINKLE);
+TRANS_FLAGS2(ISA300, STOP, do_sleep, PPC_PM_STOP);
