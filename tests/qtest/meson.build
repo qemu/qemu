@@ -26,7 +26,13 @@ qtests_generic = [
   'qmp-test',
   'qmp-cmd-test',
   'qom-test',
-  'test-hmp',
+]
+if have_hmp
+  qtests_generic += [
+    'test-hmp',
+  ]
+endif
+qtests_generic += [
   'qos-test',
   'readconfig-test',
   'netdev-socket',

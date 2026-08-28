@@ -100,6 +100,8 @@ stub_ss.add(files('vhost-user-stub.c'))
 stub_ss.add(files('virtio-stub.c'))
 stub_ss.add(files('virtio-md-stubs.c'))
 
-system_ss.add(files('virtio-hmp-cmds.c'))
+if have_hmp
+  system_ss.add(files('virtio-hmp-cmds.c'))
+endif
 
 system_ss.add(when: 'CONFIG_ACPI', if_true: files('virtio-acpi.c'))

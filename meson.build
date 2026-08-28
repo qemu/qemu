@@ -3548,7 +3548,7 @@ hx_headers = [
   ['qemu-options.hx', 'qemu-options.def'],
   ['qemu-img-cmds.hx', 'qemu-img-cmds.h'],
 ]
-if have_system
+if have_system and have_hmp
   hx_headers += [
     ['hmp-commands.hx', 'hmp-commands.h'],
     ['hmp-commands-info.hx', 'hmp-commands-info.h'],

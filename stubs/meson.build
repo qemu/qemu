@@ -86,11 +86,13 @@ if have_system
   stub_ss.add(files('qmp-cpu.c'))
   stub_ss.add(files('qmp-cpu-s390x.c'))
   stub_ss.add(files('qmp-cpu-s390x-kvm.c'))
-  stub_ss.add(files('hmp-cmd-info_mem.c'))
-  stub_ss.add(files('hmp-cmd-info_sev.c'))
-  stub_ss.add(files('hmp-cmd-info_tlb.c'))
-  stub_ss.add(files('hmp-cmds-hw-s390x.c'))
-  stub_ss.add(files('hmp-cmds-target-i386.c'))
+  if have_hmp
+    stub_ss.add(files('hmp-cmd-info_mem.c'))
+    stub_ss.add(files('hmp-cmd-info_sev.c'))
+    stub_ss.add(files('hmp-cmd-info_tlb.c'))
+    stub_ss.add(files('hmp-cmds-hw-s390x.c'))
+    stub_ss.add(files('hmp-cmds-target-i386.c'))
+  endif
 endif
 
 if have_system or have_user

@@ -1,4 +1,7 @@
-system_ss.add(files('control-target.c', 'trace-hmp-cmds.c'))
+system_ss.add(files('control-target.c'))
+if have_hmp
+  system_ss.add(files('trace-hmp-cmds.c'))
+endif
 trace_rs_targets = []
 trace_events_files = []
 foreach item : [ '.' ] + trace_events_subdirs + qapi_trace_events

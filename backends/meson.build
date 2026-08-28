@@ -1,6 +1,5 @@
 system_ss.add([files(
   'cryptodev-builtin.c',
-  'cryptodev-hmp-cmds.c',
   'cryptodev.c',
   'hostmem-ram.c',
   'hostmem.c',
@@ -9,6 +8,10 @@ system_ss.add([files(
   'rng.c',
   'confidential-guest-support.c',
 ), numa])
+
+if have_hmp
+  system_ss.add(files('cryptodev-hmp-cmds.c'))
+endif
 
 if host_os != 'windows'
   system_ss.add(files('rng-random.c'))

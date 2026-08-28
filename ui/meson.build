@@ -56,10 +56,12 @@ system_ss.add(png)
 system_ss.add(files(
   'input-barrier.c',
   'input.c',
-  'ui-hmp-cmds.c',
   'ui-qmp-cmds.c',
   'util.c',
 ))
+if have_hmp
+  system_ss.add(files('ui-hmp-cmds.c'))
+endif
 system_ss.add(ui)
 system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('console-vc-stubs.c'))
 if dbus_display
