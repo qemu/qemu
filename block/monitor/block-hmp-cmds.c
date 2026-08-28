@@ -87,8 +87,9 @@ out:
     hmp_handle_error(mon, err);
 }
 
-void hmp_drive_add(Monitor *mon, const QDict *qdict)
+void hmp_drive_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     DriveInfo *dinfo;
     QemuOpts *opts;
@@ -135,8 +136,9 @@ err:
     hmp_handle_error(mon, err);
 }
 
-void hmp_drive_del(Monitor *mon, const QDict *qdict)
+void hmp_drive_del(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     BlockBackend *blk;
     BlockDriverState *bs;
@@ -194,8 +196,9 @@ unlock:
     hmp_handle_error(mon, err);
 }
 
-void hmp_commit(Monitor *mon, const QDict *qdict)
+void hmp_commit(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     BlockBackend *blk;
     int ret;
@@ -232,8 +235,9 @@ end:
     hmp_handle_error(mon, err);
 }
 
-void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
+void hmp_drive_mirror(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *filename = qdict_get_str(qdict, "target");
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
@@ -258,8 +262,9 @@ end:
     hmp_handle_error(mon, err);
 }
 
-void hmp_drive_backup(Monitor *mon, const QDict *qdict)
+void hmp_drive_backup(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_str(qdict, "target");
     const char *format = qdict_get_try_str(qdict, "format");
@@ -288,8 +293,9 @@ end:
     hmp_handle_error(mon, err);
 }
 
-void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
+void hmp_block_job_set_speed(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
     int64_t value = qdict_get_int(qdict, "speed");
@@ -299,8 +305,9 @@ void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, error);
 }
 
-void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
+void hmp_block_job_cancel(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
     bool force = qdict_get_try_bool(qdict, "force", false);
@@ -310,8 +317,9 @@ void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, error);
 }
 
-void hmp_block_job_pause(Monitor *mon, const QDict *qdict)
+void hmp_block_job_pause(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
@@ -320,8 +328,9 @@ void hmp_block_job_pause(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, error);
 }
 
-void hmp_block_job_resume(Monitor *mon, const QDict *qdict)
+void hmp_block_job_resume(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
@@ -330,8 +339,9 @@ void hmp_block_job_resume(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, error);
 }
 
-void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
+void hmp_block_job_complete(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
@@ -340,8 +350,9 @@ void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, error);
 }
 
-void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
+void hmp_snapshot_blkdev(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
@@ -355,8 +366,9 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_snapshot_blkdev_internal(Monitor *mon, const QDict *qdict)
+void hmp_snapshot_blkdev_internal(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     const char *name = qdict_get_str(qdict, "name");
     Error *err = NULL;
@@ -365,8 +377,9 @@ void hmp_snapshot_blkdev_internal(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict)
+void hmp_snapshot_delete_blkdev_internal(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     const char *name = qdict_get_str(qdict, "name");
     const char *id = qdict_get_try_str(qdict, "id");
@@ -376,8 +389,9 @@ void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_start(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *uri = qdict_get_str(qdict, "uri");
     bool writable = qdict_get_try_bool(qdict, "writable", false);
     bool all = qdict_get_try_bool(qdict, "all", false);
@@ -438,8 +452,9 @@ exit:
     hmp_handle_error(mon, local_err);
 }
 
-void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     const char *name = qdict_get_try_str(qdict, "name");
     bool writable = qdict_get_try_bool(qdict, "writable", false);
@@ -456,8 +471,9 @@ void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, local_err);
 }
 
-void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_remove(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *name = qdict_get_str(qdict, "name");
     bool force = qdict_get_try_bool(qdict, "force", false);
     Error *err = NULL;
@@ -467,16 +483,18 @@ void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_stop(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_nbd_server_stop(&err);
     hmp_handle_error(mon, err);
 }
 
-void coroutine_fn hmp_block_resize(Monitor *mon, const QDict *qdict)
+void coroutine_fn hmp_block_resize(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *device = qdict_get_str(qdict, "device");
     int64_t size = qdict_get_int(qdict, "size");
     Error *err = NULL;
@@ -485,8 +503,9 @@ void coroutine_fn hmp_block_resize(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_block_stream(Monitor *mon, const QDict *qdict)
+void hmp_block_stream(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
     const char *base = qdict_get_try_str(qdict, "base");
@@ -500,8 +519,9 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, error);
 }
 
-void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
+void hmp_block_set_io_throttle(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     char *device = (char *) qdict_get_str(qdict, "device");
     BlockIOThrottle throttle = {
@@ -528,8 +548,9 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_eject(Monitor *mon, const QDict *qdict)
+void hmp_eject(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     bool force = qdict_get_try_bool(qdict, "force", false);
     const char *device = qdict_get_str(qdict, "device");
     Error *err = NULL;
@@ -538,8 +559,9 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_qemu_io(Monitor *mon, const QDict *qdict)
+void hmp_qemu_io(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     bool qdev = qdict_get_try_bool(qdict, "qdev", false);
     const char *device = qdict_get_str(qdict, "device");
     const char *command = qdict_get_str(qdict, "command");
@@ -666,8 +688,9 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     }
 }
 
-void hmp_info_block(Monitor *mon, const QDict *qdict)
+void hmp_info_block(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     BlockInfoList *block_list, *info;
     BlockDeviceInfoList *blockdev_list, *blockdev;
     const char *device = qdict_get_try_str(qdict, "device");
@@ -719,8 +742,9 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
     qapi_free_BlockDeviceInfoList(blockdev_list);
 }
 
-void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
+void hmp_info_blockstats(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     BlockStatsList *stats_list, *stats;
 
     stats_list = qmp_query_blockstats(false, false, NULL);
@@ -757,8 +781,9 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
     qapi_free_BlockStatsList(stats_list);
 }
 
-void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
+void hmp_info_block_jobs(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     BlockJobInfoList *list;
 
     list = qmp_query_block_jobs(&error_abort);
@@ -793,8 +818,9 @@ void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
     qapi_free_BlockJobInfoList(list);
 }
 
-void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
+void hmp_info_snapshots(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     BlockDriverState *bs, *bs1;
     BdrvNextIterator it1;
     QEMUSnapshotInfo *sn_tab, *sn;

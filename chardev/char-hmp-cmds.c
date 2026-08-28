@@ -24,8 +24,9 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 
-void hmp_info_chardev(Monitor *mon, const QDict *qdict)
+void hmp_info_chardev(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     ChardevInfoList *char_info, *info;
 
     char_info = qmp_query_chardev(NULL);
@@ -37,8 +38,9 @@ void hmp_info_chardev(Monitor *mon, const QDict *qdict)
     qapi_free_ChardevInfoList(char_info);
 }
 
-void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_write(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *chardev = qdict_get_str(qdict, "device");
     const char *data = qdict_get_str(qdict, "data");
     Error *err = NULL;
@@ -48,8 +50,9 @@ void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     uint32_t size = qdict_get_int(qdict, "size");
     const char *chardev = qdict_get_str(qdict, "device");
     char *data;
@@ -77,8 +80,9 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
     g_free(data);
 }
 
-void hmp_chardev_add(Monitor *mon, const QDict *qdict)
+void hmp_chardev_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *args = qdict_get_str(qdict, "args");
     Error *err = NULL;
     QemuOpts *opts;
@@ -93,8 +97,9 @@ void hmp_chardev_add(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_chardev_change(Monitor *mon, const QDict *qdict)
+void hmp_chardev_change(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *args = qdict_get_str(qdict, "args");
     const char *id;
     Error *err = NULL;
@@ -127,16 +132,18 @@ end:
     hmp_handle_error(mon, err);
 }
 
-void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
+void hmp_chardev_remove(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *local_err = NULL;
 
     qmp_chardev_remove(qdict_get_str(qdict, "id"), &local_err);
     hmp_handle_error(mon, local_err);
 }
 
-void hmp_chardev_send_break(Monitor *mon, const QDict *qdict)
+void hmp_chardev_send_break(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *local_err = NULL;
 
     qmp_chardev_send_break(qdict_get_str(qdict, "id"), &local_err);

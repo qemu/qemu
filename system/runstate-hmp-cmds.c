@@ -23,8 +23,9 @@
 #include "qobject/qdict.h"
 #include "qemu/accel.h"
 
-void hmp_info_status(Monitor *mon, const QDict *qdict)
+void hmp_info_status(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     StatusInfo *info;
 
     info = qmp_query_status(NULL);
@@ -41,8 +42,9 @@ void hmp_info_status(Monitor *mon, const QDict *qdict)
     qapi_free_StatusInfo(info);
 }
 
-void hmp_one_insn_per_tb(Monitor *mon, const QDict *qdict)
+void hmp_one_insn_per_tb(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *option = qdict_get_try_str(qdict, "option");
     AccelState *accel = current_accel();
     bool newval;
@@ -66,8 +68,9 @@ void hmp_one_insn_per_tb(Monitor *mon, const QDict *qdict)
                              newval, &error_abort);
 }
 
-void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
+void hmp_watchdog_action(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     WatchdogAction action;
     char *qapi_value;

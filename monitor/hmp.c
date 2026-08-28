@@ -1228,12 +1228,12 @@ static void hmp_info_human_readable_text(Monitor *mon,
     monitor_puts(mon, info->human_readable_text);
 }
 
-static void handle_hmp_command_exec(Monitor *mon,
+static void handle_hmp_command_exec(MonitorHMP *mon,
                                     const HMPCommand *cmd,
                                     QDict *qdict)
 {
     if (cmd->cmd_info_hrt) {
-        hmp_info_human_readable_text(mon,
+        hmp_info_human_readable_text(MONITOR(mon),
                                      cmd->cmd_info_hrt);
     } else {
         cmd->cmd(mon, qdict);
@@ -1241,7 +1241,7 @@ static void handle_hmp_command_exec(Monitor *mon,
 }
 
 typedef struct HandleHmpCommandCo {
-    Monitor *mon;
+    MonitorHMP *mon;
     const HMPCommand *cmd;
     QDict *qdict;
     bool done;
@@ -1289,19 +1289,18 @@ void handle_hmp_command(MonitorHMP *hmp, const char *cmdline)
 
     if (!cmd->coroutine) {
         /* old_mon is non-NULL when called from qmp_human_monitor_command() */
-        Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(),
-                                           &hmp->parent_obj);
-        handle_hmp_command_exec(&hmp->parent_obj, cmd, qdict);
+        Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(), MONITOR(hmp));
+        handle_hmp_command_exec(hmp, cmd, qdict);
         monitor_set_cur(qemu_coroutine_self(), old_mon);
     } else {
         HandleHmpCommandCo data = {
-            .mon = &hmp->parent_obj,
+            .mon = hmp,
             .cmd = cmd,
             .qdict = qdict,
             .done = false,
         };
         Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, &data);
-        monitor_set_cur(co, &hmp->parent_obj);
+        monitor_set_cur(co, MONITOR(hmp));
         aio_co_enter(qemu_get_aio_context(), co);
         AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
     }
@@ -1689,7 +1688,7 @@ int hmp_compare_cmd(const char *name, const char *list)
 }
 
 void monitor_register_hmp(const char *name, bool info,
-                          void (*cmd)(Monitor *mon, const QDict *qdict))
+                          void (*cmd)(MonitorHMP *mon, const QDict *qdict))
 {
     HMPCommand *table = hmp_cmds_for_target(info);
 

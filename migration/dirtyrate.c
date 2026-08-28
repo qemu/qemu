@@ -856,8 +856,9 @@ struct DirtyRateInfo *qmp_query_dirty_rate(bool has_calc_time_unit,
         has_calc_time_unit ? calc_time_unit : TIME_UNIT_SECOND);
 }
 
-void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
+void hmp_info_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     DirtyRateInfo *info = query_dirty_rate_info(TIME_UNIT_SECOND);
 
     monitor_printf(mon, "Status: %s\n",
@@ -891,8 +892,9 @@ void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
     g_free(info);
 }
 
-void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
+void hmp_calc_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     int64_t sec = qdict_get_try_int(qdict, "second", 0);
     int64_t sample_pages = qdict_get_try_int(qdict, "sample_pages_per_GB", -1);
     bool has_sample_pages = (sample_pages != -1);

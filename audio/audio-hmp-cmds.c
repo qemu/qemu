@@ -32,8 +32,9 @@
 
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
-void hmp_info_capture(Monitor *mon, const QDict *qdict)
+void hmp_info_capture(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     int i;
     CaptureState *s;
 
@@ -45,7 +46,7 @@ void hmp_info_capture(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_stopcapture(Monitor *mon, const QDict *qdict)
+void hmp_stopcapture(MonitorHMP *hmp, const QDict *qdict)
 {
     int i;
     int n = qdict_get_int(qdict, "n");
@@ -63,8 +64,9 @@ void hmp_stopcapture(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_wavcapture(Monitor *mon, const QDict *qdict)
+void hmp_wavcapture(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *path = qdict_get_str(qdict, "path");
     int freq = qdict_get_try_int(qdict, "freq", 44100);
     int bits = qdict_get_try_int(qdict, "bits", 16);

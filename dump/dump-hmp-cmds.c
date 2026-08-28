@@ -12,8 +12,9 @@
 #include "qapi/qapi-commands-dump.h"
 #include "qobject/qdict.h"
 
-void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
+void hmp_dump_guest_memory(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     bool win_dmp = qdict_get_try_bool(qdict, "windmp", false);
     bool paging = qdict_get_try_bool(qdict, "paging", false);
@@ -83,8 +84,9 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
     g_free(prot);
 }
 
-void hmp_info_dump(Monitor *mon, const QDict *qdict)
+void hmp_info_dump(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     DumpQueryResult *result = qmp_query_dump(NULL);
 
     assert(result && result->status < DUMP_STATUS__MAX);

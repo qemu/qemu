@@ -77,7 +77,7 @@ typedef struct HMPCommand {
     const char *params;
     const char *help;
     const char *flags; /* p=preconfig */
-    void (*cmd)(Monitor *mon, const QDict *qdict);
+    void (*cmd)(MonitorHMP *mon, const QDict *qdict);
     /*
      * If implementing a command that takes no arguments and simply
      * prints formatted data, then leave @cmd NULL, and then set

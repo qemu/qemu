@@ -15,8 +15,9 @@
 #include "monitor/monitor.h"
 #include "system/dirtylimit.h"
 
-void hmp_cancel_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
+void hmp_cancel_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
     Error *err = NULL;
 
@@ -30,8 +31,9 @@ void hmp_cancel_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
                    "dirty limit for virtual CPU]\n");
 }
 
-void hmp_set_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
+void hmp_set_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     int64_t dirty_rate = qdict_get_int(qdict, "dirty_rate");
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
     Error *err = NULL;
@@ -47,8 +49,9 @@ out:
     hmp_handle_error(mon, err);
 }
 
-void hmp_info_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
+void hmp_info_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     DirtyLimitInfoList *info;
     g_autoptr(DirtyLimitInfoList) head = NULL;
     Error *err = NULL;

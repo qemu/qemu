@@ -29,7 +29,7 @@
 
 static int mouse_button_state;
 
-void hmp_mouse_move(Monitor *mon, const QDict *qdict)
+void hmp_mouse_move(MonitorHMP *hmp, const QDict *qdict)
 {
     int dx, dy, dz, button;
     const char *dx_str = qdict_get_str(qdict, "dx_str");
@@ -53,7 +53,7 @@ void hmp_mouse_move(Monitor *mon, const QDict *qdict)
     qemu_input_event_sync();
 }
 
-void hmp_mouse_button(Monitor *mon, const QDict *qdict)
+void hmp_mouse_button(MonitorHMP *hmp, const QDict *qdict)
 {
     /* HMP mouse_button bitmask: 1=L, 2=R, 4=M */
     static uint32_t bmap[INPUT_BUTTON__MAX] = {
@@ -71,16 +71,18 @@ void hmp_mouse_button(Monitor *mon, const QDict *qdict)
     mouse_button_state = button_state;
 }
 
-void hmp_mouse_set(Monitor *mon, const QDict *qdict)
+void hmp_mouse_set(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qemu_mouse_set(qdict_get_int(qdict, "index"), &err);
     hmp_handle_error(mon, err);
 }
 
-void hmp_info_mice(Monitor *mon, const QDict *qdict)
+void hmp_info_mice(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     MouseInfoList *mice_list, *mouse;
 
     mice_list = qmp_query_mice(NULL);
@@ -148,8 +150,9 @@ static void hmp_info_vnc_servers(Monitor *mon, VncServerInfo2List *server)
     }
 }
 
-void hmp_info_vnc(Monitor *mon, const QDict *qdict)
+void hmp_info_vnc(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     VncInfo2List *info2l, *info2l_head;
     Error *err = NULL;
 
@@ -189,8 +192,9 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 #endif
 
 #ifdef CONFIG_SPICE
-void hmp_info_spice(Monitor *mon, const QDict *qdict)
+void hmp_info_spice(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     SpiceChannelList *chan;
     SpiceInfo *info;
     const char *channel_name;
@@ -260,8 +264,9 @@ out:
 }
 #endif
 
-void hmp_set_password(Monitor *mon, const QDict *qdict)
+void hmp_set_password(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *password  = qdict_get_str(qdict, "password");
     const char *display = qdict_get_try_str(qdict, "display");
@@ -295,8 +300,9 @@ out:
     hmp_handle_error(mon, err);
 }
 
-void hmp_expire_password(Monitor *mon, const QDict *qdict)
+void hmp_expire_password(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *whenstr = qdict_get_str(qdict, "time");
     const char *display = qdict_get_try_str(qdict, "display");
@@ -366,8 +372,9 @@ static int index_from_key(const char *key, size_t key_length)
     return i;
 }
 
-void hmp_sendkey(Monitor *mon, const QDict *qdict)
+void hmp_sendkey(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *keys = qdict_get_str(qdict, "keys");
     KeyValue *v = NULL;
     KeyValueList *head = NULL, **tail = &head;
@@ -456,8 +463,9 @@ void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
 
 #ifdef CONFIG_PIXMAN
 void coroutine_fn
-hmp_screendump(Monitor *mon, const QDict *qdict)
+hmp_screendump(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *filename = qdict_get_str(qdict, "filename");
     const char *id = qdict_get_try_str(qdict, "device");
     int64_t head = qdict_get_try_int(qdict, "head", 0);
@@ -478,8 +486,9 @@ end:
 }
 #endif
 
-void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
+void hmp_client_migrate_info(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *protocol = qdict_get_str(qdict, "protocol");
     const char *hostname = qdict_get_str(qdict, "hostname");

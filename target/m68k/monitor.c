@@ -10,8 +10,9 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     CPUArchState *env1 = mon_get_cpu_env(mon);
 
     if (!env1) {

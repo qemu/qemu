@@ -25,8 +25,9 @@
 #include "system/numa.h"
 #include "hw/core/boards.h"
 
-void hmp_info_cpus(Monitor *mon, const QDict *qdict)
+void hmp_info_cpus(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     CpuInfoFastList *cpu_list, *cpu;
 
     cpu_list = qmp_query_cpus_fast(NULL);
@@ -48,8 +49,9 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
     qapi_free_CpuInfoFastList(cpu_list);
 }
 
-void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
+void hmp_hotpluggable_cpus(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     HotpluggableCPUList *l = qmp_query_hotpluggable_cpus(&err);
     HotpluggableCPUList *saved = l;
@@ -106,8 +108,9 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
     qapi_free_HotpluggableCPUList(saved);
 }
 
-void hmp_info_memdev(Monitor *mon, const QDict *qdict)
+void hmp_info_memdev(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     MemdevList *memdev_list = qmp_query_memdev(&err);
     MemdevList *m = memdev_list;
@@ -147,8 +150,9 @@ void hmp_info_memdev(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_info_kvm(Monitor *mon, const QDict *qdict)
+void hmp_info_kvm(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     KvmInfo *info;
 
     info = qmp_query_kvm(NULL);
@@ -162,8 +166,9 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     qapi_free_KvmInfo(info);
 }
 
-void hmp_info_accelerators(Monitor *mon, const QDict *qdict)
+void hmp_info_accelerators(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     AcceleratorInfo *info;
     AcceleratorList *accel;
 
@@ -180,8 +185,9 @@ void hmp_info_accelerators(Monitor *mon, const QDict *qdict)
     qapi_free_AcceleratorInfo(info);
 }
 
-void hmp_info_uuid(Monitor *mon, const QDict *qdict)
+void hmp_info_uuid(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     UuidInfo *info;
 
     info = qmp_query_uuid(NULL);
@@ -189,8 +195,9 @@ void hmp_info_uuid(Monitor *mon, const QDict *qdict)
     qapi_free_UuidInfo(info);
 }
 
-void hmp_info_balloon(Monitor *mon, const QDict *qdict)
+void hmp_info_balloon(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     BalloonInfo *info;
     Error *err = NULL;
 
@@ -204,18 +211,19 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
     qapi_free_BalloonInfo(info);
 }
 
-void hmp_system_reset(Monitor *mon, const QDict *qdict)
+void hmp_system_reset(MonitorHMP *hmp, const QDict *qdict)
 {
     qmp_system_reset(NULL);
 }
 
-void hmp_system_powerdown(Monitor *mon, const QDict *qdict)
+void hmp_system_powerdown(MonitorHMP *hmp, const QDict *qdict)
 {
     qmp_system_powerdown(NULL);
 }
 
-void hmp_memsave(Monitor *mon, const QDict *qdict)
+void hmp_memsave(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     uint32_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
@@ -231,8 +239,9 @@ void hmp_memsave(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_pmemsave(Monitor *mon, const QDict *qdict)
+void hmp_pmemsave(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     uint32_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
@@ -242,24 +251,27 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_system_wakeup(Monitor *mon, const QDict *qdict)
+void hmp_system_wakeup(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_system_wakeup(&err);
     hmp_handle_error(mon, err);
 }
 
-void hmp_nmi(Monitor *mon, const QDict *qdict)
+void hmp_nmi(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_inject_nmi(&err);
     hmp_handle_error(mon, err);
 }
 
-void hmp_balloon(Monitor *mon, const QDict *qdict)
+void hmp_balloon(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     int64_t value = qdict_get_int(qdict, "value");
     Error *err = NULL;
 
@@ -267,8 +279,9 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
+void hmp_info_memory_devices(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     MemoryDeviceInfoList *info_list = qmp_query_memory_devices(&err);
     MemoryDeviceInfoList *info;
@@ -370,8 +383,9 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
+void hmp_info_vm_generation_id(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     GuidInfo *info = qmp_query_vm_generation_id(&err);
     if (info) {
@@ -381,8 +395,9 @@ void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
     qapi_free_GuidInfo(info);
 }
 
-void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
+void hmp_info_memory_size_summary(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     MemoryInfo *info = qmp_query_memory_size_summary(&err);
     if (info) {

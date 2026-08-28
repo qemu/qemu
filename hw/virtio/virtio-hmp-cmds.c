@@ -80,8 +80,9 @@ static void hmp_virtio_dump_features(Monitor *mon,
     }
 }
 
-void hmp_virtio_query(Monitor *mon, const QDict *qdict)
+void hmp_virtio_query(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     VirtioInfoList *list = qmp_x_query_virtio(&err);
     VirtioInfoList *node;
@@ -105,8 +106,9 @@ void hmp_virtio_query(Monitor *mon, const QDict *qdict)
     qapi_free_VirtioInfoList(list);
 }
 
-void hmp_virtio_status(Monitor *mon, const QDict *qdict)
+void hmp_virtio_status(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
     VirtioStatus *s = qmp_x_query_virtio_status(path, &err);
@@ -183,8 +185,9 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
     qapi_free_VirtioStatus(s);
 }
 
-void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict)
+void hmp_vhost_queue_status(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
     int queue = qdict_get_int(qdict, "queue");
@@ -216,8 +219,9 @@ void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict)
     qapi_free_VirtVhostQueueStatus(s);
 }
 
-void hmp_virtio_queue_status(Monitor *mon, const QDict *qdict)
+void hmp_virtio_queue_status(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
     int queue = qdict_get_int(qdict, "queue");
@@ -261,8 +265,9 @@ void hmp_virtio_queue_status(Monitor *mon, const QDict *qdict)
     qapi_free_VirtQueueStatus(s);
 }
 
-void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
+void hmp_virtio_queue_element(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
     int queue = qdict_get_int(qdict, "queue");

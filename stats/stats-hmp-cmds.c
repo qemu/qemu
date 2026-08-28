@@ -187,8 +187,9 @@ static StatsFilter *stats_filter(StatsTarget target, const char *names,
     return filter;
 }
 
-void hmp_info_stats(Monitor *mon, const QDict *qdict)
+void hmp_info_stats(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *target_str = qdict_get_str(qdict, "target");
     const char *provider_str = qdict_get_try_str(qdict, "provider");
     const char *names = qdict_get_try_str(qdict, "names");

@@ -586,8 +586,9 @@ static HumanReadableText *qmp_x_query_via(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
-void hmp_info_via(Monitor *mon, const QDict *qdict)
+void hmp_info_via(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     g_autoptr(HumanReadableText) info = qmp_x_query_via(&err);
 

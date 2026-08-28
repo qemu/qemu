@@ -11,8 +11,9 @@
 #include "monitor/hmp.h"
 #include "qapi/error.h"
 
-void hmp_info_tpm(Monitor *mon, const QDict *qdict)
+void hmp_info_tpm(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
 #ifdef CONFIG_TPM
     TPMInfoList *info_list, *info;
     Error *err = NULL;

@@ -215,8 +215,9 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
               last_paddr + last_size - pbase, last_attr);
 }
 
-void hmp_info_mem(Monitor *mon, const QDict *qdict)
+void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     CPUArchState *env;
 
     env = mon_get_cpu_env(mon);

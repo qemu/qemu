@@ -784,8 +784,9 @@ SevInfo *qmp_query_sev(Error **errp)
     return info;
 }
 
-void hmp_info_sev(Monitor *mon, const QDict *qdict)
+void hmp_info_sev(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     SevInfo *info = sev_get_info();
 
     if (!info || !info->enabled) {

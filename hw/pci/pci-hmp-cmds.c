@@ -117,8 +117,9 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
     }
 }
 
-void hmp_info_pci(Monitor *mon, const QDict *qdict)
+void hmp_info_pci(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     PciInfoList *info_list, *info;
 
     info_list = qmp_query_pci(&error_abort);
@@ -170,8 +171,9 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     }
 }
 
-void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
+void hmp_pcie_aer_inject_error(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;

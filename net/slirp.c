@@ -733,8 +733,9 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *id)
     }
 }
 
-void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
+void hmp_hostfwd_remove(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     /* TODO: support removing unix fwd */
     struct sockaddr_in host_addr = {
         .sin_family = AF_INET,
@@ -957,8 +958,9 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
     return -1;
 }
 
-void hmp_hostfwd_add(Monitor *mon, const QDict *qdict)
+void hmp_hostfwd_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *redir_str;
     SlirpState *s;
     const char *arg1 = qdict_get_str(qdict, "arg1");
@@ -1224,8 +1226,9 @@ UsernetInfoList *qmp_x_query_usernet(Error **errp)
     return head;
 }
 
-void hmp_info_usernet(Monitor *mon, const QDict *qdict)
+void hmp_info_usernet(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     g_autoptr(UsernetInfoList) list = NULL;
     UsernetInfoList *entry;
 

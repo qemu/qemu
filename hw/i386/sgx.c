@@ -234,8 +234,9 @@ SgxInfo *qmp_query_sgx(Error **errp)
     return info;
 }
 
-void hmp_info_sgx(Monitor *mon, const QDict *qdict)
+void hmp_info_sgx(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     SgxEpcSectionList *section_list, *section;
     g_autoptr(SgxInfo) info = qmp_query_sgx(&err);

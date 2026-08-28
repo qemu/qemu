@@ -2344,8 +2344,9 @@ void qmp_xen_event_inject(uint32_t port, Error **errp)
     }
 }
 
-void hmp_xen_event_list(Monitor *mon, const QDict *qdict)
+void hmp_xen_event_list(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     EvtchnInfoList *iter, *info_list;
     Error *err = NULL;
 
@@ -2379,8 +2380,9 @@ void hmp_xen_event_list(Monitor *mon, const QDict *qdict)
     qapi_free_EvtchnInfoList(info_list);
 }
 
-void hmp_xen_event_inject(Monitor *mon, const QDict *qdict)
+void hmp_xen_event_inject(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     int port = qdict_get_int(qdict, "port");
     Error *err = NULL;
 

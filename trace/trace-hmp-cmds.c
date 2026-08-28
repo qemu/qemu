@@ -33,7 +33,7 @@
 #include "trace/simple.h"
 #endif
 
-void hmp_trace_event(Monitor *mon, const QDict *qdict)
+void hmp_trace_event(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
@@ -47,8 +47,9 @@ void hmp_trace_event(Monitor *mon, const QDict *qdict)
 }
 
 #ifdef CONFIG_TRACE_SIMPLE
-void hmp_trace_file(Monitor *mon, const QDict *qdict)
+void hmp_trace_file(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *op = qdict_get_try_str(qdict, "op");
     const char *arg = qdict_get_try_str(qdict, "arg");
 
@@ -71,8 +72,9 @@ void hmp_trace_file(Monitor *mon, const QDict *qdict)
 }
 #endif
 
-void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
+void hmp_info_trace_events(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *name = qdict_get_try_str(qdict, "name");
     TraceEventInfoList *events;
     TraceEventInfoList *elem;

@@ -45,8 +45,9 @@ static void hmp_print_client_info(Monitor *mon, NetworkClientInfo *ci)
     }
 }
 
-void hmp_info_network(Monitor *mon, const QDict *qdict)
+void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     g_autoptr(NetworkInfo) info = qmp_x_query_network(&err);
     NetHubInfoList *h;
@@ -83,8 +84,9 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_set_link(Monitor *mon, const QDict *qdict)
+void hmp_set_link(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *name = qdict_get_str(qdict, "name");
     bool up = qdict_get_bool(qdict, "up");
     Error *err = NULL;
@@ -94,7 +96,7 @@ void hmp_set_link(Monitor *mon, const QDict *qdict)
 }
 
 
-void hmp_announce_self(Monitor *mon, const QDict *qdict)
+void hmp_announce_self(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *interfaces_str = qdict_get_try_str(qdict, "interfaces");
     const char *id = qdict_get_try_str(qdict, "id");
@@ -109,8 +111,9 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
     qapi_free_AnnounceParameters(params);
 }
 
-void hmp_netdev_add(Monitor *mon, const QDict *qdict)
+void hmp_netdev_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     QemuOpts *opts;
     const char *type = qdict_get_try_str(qdict, "type");
@@ -133,8 +136,9 @@ out:
     hmp_handle_error(mon, err);
 }
 
-void hmp_netdev_del(Monitor *mon, const QDict *qdict)
+void hmp_netdev_del(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 

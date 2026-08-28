@@ -5,6 +5,7 @@
 #include "qapi/qapi-types-net.h"
 #include "net/queue.h"
 #include "hw/core/qdev-properties-system.h"
+#include "monitor/hmp.h"
 
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \
@@ -318,8 +319,8 @@ void net_init_clients(void);
 void net_check_clients(void);
 void net_client_set_link(NetClientState **ncs, int queues, bool up);
 void net_cleanup(void);
-void hmp_host_net_add(Monitor *mon, const QDict *qdict);
-void hmp_host_net_remove(Monitor *mon, const QDict *qdict);
+void hmp_host_net_add(MonitorHMP *hmp, const QDict *qdict);
+void hmp_host_net_remove(MonitorHMP *hmp, const QDict *qdict);
 void netdev_add(QemuOpts *opts, Error **errp);
 
 int net_hub_id_for_client(NetClientState *nc, int *id);

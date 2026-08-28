@@ -256,8 +256,9 @@ FirmwareLog *qmp_query_firmware_log(bool have_max_size, uint64_t max_size,
     return ret;
 }
 
-void hmp_info_firmware_log(Monitor *mon, const QDict *qdict)
+void hmp_info_firmware_log(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     g_autofree gchar *log_esc = NULL;
     g_autofree guchar *log_out = NULL;
     Error *err = NULL;

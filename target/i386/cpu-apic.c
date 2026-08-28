@@ -83,8 +83,9 @@ void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
      }
 }
 
-void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
+void hmp_info_local_apic(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     CPUState *cs;
 
     if (qdict_haskey(qdict, "apic-id")) {

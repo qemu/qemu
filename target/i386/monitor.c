@@ -209,8 +209,9 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
 }
 #endif /* TARGET_X86_64 */
 
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     CPUArchState *env;
     AddressSpace *as;
 
@@ -535,8 +536,9 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
 }
 #endif /* TARGET_X86_64 */
 
-void hmp_info_mem(Monitor *mon, const QDict *qdict)
+void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     CPUArchState *env;
     AddressSpace *as;
 
@@ -569,8 +571,9 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_mce(Monitor *mon, const QDict *qdict)
+void hmp_mce(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     X86CPU *cpu;
     CPUState *cs;
     int cpu_index = qdict_get_int(qdict, "cpu_index");

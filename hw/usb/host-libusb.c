@@ -1920,8 +1920,9 @@ static void usb_host_auto_check(void *unused)
     timer_mod(usb_auto_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 2000);
 }
 
-void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
+void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
     char port[16];

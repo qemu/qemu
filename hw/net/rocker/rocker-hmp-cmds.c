@@ -20,8 +20,9 @@
 #include "qapi/qapi-commands-rocker.h"
 #include "qobject/qdict.h"
 
-void hmp_rocker(Monitor *mon, const QDict *qdict)
+void hmp_rocker(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *name = qdict_get_str(qdict, "name");
     RockerSwitch *rocker;
     Error *err = NULL;
@@ -38,8 +39,9 @@ void hmp_rocker(Monitor *mon, const QDict *qdict)
     qapi_free_RockerSwitch(rocker);
 }
 
-void hmp_rocker_ports(Monitor *mon, const QDict *qdict)
+void hmp_rocker_ports(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     RockerPortList *list, *port;
     const char *name = qdict_get_str(qdict, "name");
     Error *err = NULL;
@@ -65,8 +67,9 @@ void hmp_rocker_ports(Monitor *mon, const QDict *qdict)
     qapi_free_RockerPortList(list);
 }
 
-void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
+void hmp_rocker_of_dpa_flows(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     RockerOfDpaFlowList *list, *info;
     const char *name = qdict_get_str(qdict, "name");
     uint32_t tbl_id = qdict_get_try_int(qdict, "tbl_id", -1);
@@ -214,8 +217,9 @@ void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
     qapi_free_RockerOfDpaFlowList(list);
 }
 
-void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
+void hmp_rocker_of_dpa_groups(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     RockerOfDpaGroupList *list, *g;
     const char *name = qdict_get_str(qdict, "name");
     uint8_t type = qdict_get_try_int(qdict, "type", 9);

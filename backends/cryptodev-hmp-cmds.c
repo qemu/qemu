@@ -17,8 +17,9 @@
 #include "qobject/qdict.h"
 
 
-void hmp_info_cryptodev(Monitor *mon, const QDict *qdict)
+void hmp_info_cryptodev(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     QCryptodevInfoList *il;
     QCryptodevBackendServiceTypeList *sl;
     QCryptodevBackendClientList *cl;

@@ -104,8 +104,9 @@ static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,
     }
 }
 
-void hmp_info_skeys(Monitor *mon, const QDict *qdict)
+void hmp_info_skeys(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     uint64_t addr = qdict_get_int(qdict, "addr");
@@ -134,7 +135,7 @@ void hmp_info_skeys(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "  key: 0x%X\n", key);
 }
 
-void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
+void hmp_dump_skeys(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     Error *err = NULL;

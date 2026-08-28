@@ -31,8 +31,9 @@ bool replay_running_debug(void)
     return replay_is_debugging;
 }
 
-void hmp_info_replay(Monitor *mon, const QDict *qdict)
+void hmp_info_replay(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     if (replay_mode == REPLAY_MODE_NONE) {
         monitor_printf(mon, "Record/replay is not active\n");
     } else {
@@ -103,7 +104,7 @@ void qmp_replay_break(int64_t icount, Error **errp)
     }
 }
 
-void hmp_replay_break(Monitor *mon, const QDict *qdict)
+void hmp_replay_break(MonitorHMP *hmp, const QDict *qdict)
 {
     int64_t icount = qdict_get_try_int(qdict, "icount", -1LL);
     Error *err = NULL;
@@ -124,7 +125,7 @@ void qmp_replay_delete_break(Error **errp)
     }
 }
 
-void hmp_replay_delete_break(Monitor *mon, const QDict *qdict)
+void hmp_replay_delete_break(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
 
@@ -209,7 +210,7 @@ void qmp_replay_seek(int64_t icount, Error **errp)
     replay_seek(icount, replay_stop_vm, errp);
 }
 
-void hmp_replay_seek(Monitor *mon, const QDict *qdict)
+void hmp_replay_seek(MonitorHMP *hmp, const QDict *qdict)
 {
     int64_t icount = qdict_get_try_int(qdict, "icount", -1LL);
     Error *err = NULL;

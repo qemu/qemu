@@ -135,8 +135,9 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
     }
 }
 
-void hmp_info_migrate(Monitor *mon, const QDict *qdict)
+void hmp_info_migrate(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     bool show_all = qdict_get_try_bool(qdict, "all", false);
     MigrationInfo *info;
 
@@ -297,8 +298,9 @@ out:
     qapi_free_MigrationInfo(info);
 }
 
-void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict)
+void hmp_info_migrate_capabilities(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     MigrationCapabilityStatusList *caps, *cap;
 
     caps = qmp_query_migrate_capabilities(NULL);
@@ -326,8 +328,9 @@ static void monitor_print_cpr_exec_command(Monitor *mon, strList *args)
     monitor_printf(mon, "\n");
 }
 
-void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
+void hmp_info_migrate_parameters(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     MigrationParameters *params;
     MigrationState *s = migrate_get_current();
 
@@ -473,8 +476,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
     qapi_free_MigrationParameters(params);
 }
 
-void hmp_loadvm(Monitor *mon, const QDict *qdict)
+void hmp_loadvm(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     RunState saved_state = runstate_get();
 
     const char *name = qdict_get_str(qdict, "name");
@@ -489,8 +493,9 @@ void hmp_loadvm(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_savevm(Monitor *mon, const QDict *qdict)
+void hmp_savevm(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     save_snapshot(qdict_get_try_str(qdict, "name"),
@@ -498,8 +503,9 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_delvm(Monitor *mon, const QDict *qdict)
+void hmp_delvm(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *name = qdict_get_str(qdict, "name");
 
@@ -507,13 +513,14 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
+void hmp_migrate_cancel(MonitorHMP *hmp, const QDict *qdict)
 {
     qmp_migrate_cancel(NULL);
 }
 
-void hmp_migrate_continue(Monitor *mon, const QDict *qdict)
+void hmp_migrate_continue(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *state = qdict_get_str(qdict, "state");
     int val = qapi_enum_parse(&MigrationStatus_lookup, state, -1, &err);
@@ -525,8 +532,9 @@ void hmp_migrate_continue(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
+void hmp_migrate_incoming(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *uri = qdict_get_str(qdict, "uri");
     MigrationChannelList *caps = NULL;
@@ -544,8 +552,9 @@ end:
     hmp_handle_error(mon, err);
 }
 
-void hmp_migrate_recover(Monitor *mon, const QDict *qdict)
+void hmp_migrate_recover(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *uri = qdict_get_str(qdict, "uri");
 
@@ -554,8 +563,9 @@ void hmp_migrate_recover(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_migrate_pause(Monitor *mon, const QDict *qdict)
+void hmp_migrate_pause(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_migrate_pause(&err);
@@ -564,8 +574,9 @@ void hmp_migrate_pause(Monitor *mon, const QDict *qdict)
 }
 
 
-void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
+void hmp_migrate_set_capability(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *cap = qdict_get_str(qdict, "capability");
     bool state = qdict_get_bool(qdict, "state");
     Error *err = NULL;
@@ -589,8 +600,9 @@ end:
     hmp_handle_error(mon, err);
 }
 
-void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
+void hmp_migrate_set_parameter(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
     Visitor *v = string_input_visitor_new(valuestr);
@@ -790,16 +802,18 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_migrate_start_postcopy(Monitor *mon, const QDict *qdict)
+void hmp_migrate_start_postcopy(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     qmp_migrate_start_postcopy(&err);
     hmp_handle_error(mon, err);
 }
 
 #ifdef CONFIG_REPLICATION
-void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict)
+void hmp_x_colo_lost_heartbeat(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_x_colo_lost_heartbeat(&err);
@@ -833,8 +847,9 @@ static void hmp_migrate_status_cb(void *opaque)
     qapi_free_MigrationInfo(info);
 }
 
-void hmp_migrate(Monitor *mon, const QDict *qdict)
+void hmp_migrate(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     bool detach = qdict_get_try_bool(qdict, "detach", false);
     bool resume = qdict_get_try_bool(qdict, "resume", false);
     const char *uri = qdict_get_str(qdict, "uri");
@@ -873,7 +888,6 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
     if (!detach) {
         HMPMigrationStatus *status;
-        MonitorHMP *hmp = MONITOR_HMP(mon);
 
         if (!hmp->use_readline) {
             monitor_printf(mon, "terminal does not allow synchronous "

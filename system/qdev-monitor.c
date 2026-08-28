@@ -851,8 +851,9 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent, bool details)
 }
 #undef qdev_printf
 
-void hmp_info_qtree(Monitor *mon, const QDict *qdict)
+void hmp_info_qtree(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     bool details = !qdict_get_try_bool(qdict, "brief", false);
 
     if (sysbus_get_default()) {
@@ -860,7 +861,7 @@ void hmp_info_qtree(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_info_qdm(Monitor *mon, const QDict *qdict)
+void hmp_info_qdm(MonitorHMP *hmp, const QDict *qdict)
 {
     qdev_print_devinfos(true);
 }
@@ -1001,8 +1002,9 @@ void qmp_device_sync_config(const char *id, Error **errp)
     qdev_sync_config(dev, errp);
 }
 
-void hmp_device_add(Monitor *mon, const QDict *qdict)
+void hmp_device_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     QemuOpts *opts;
     DeviceState *dev;
@@ -1035,8 +1037,9 @@ out:
     hmp_handle_error(mon, err);
 }
 
-void hmp_device_del(Monitor *mon, const QDict *qdict)
+void hmp_device_del(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 

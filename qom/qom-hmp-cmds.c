@@ -18,8 +18,9 @@
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 
-void hmp_qom_list(Monitor *mon, const QDict *qdict)
+void hmp_qom_list(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *path = qdict_get_try_str(qdict, "path");
     ObjectPropertyInfoList *list;
     Error *err = NULL;
@@ -44,8 +45,9 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_qom_set(Monitor *mon, const QDict *qdict)
+void hmp_qom_set(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const bool json = qdict_get_try_bool(qdict, "json", false);
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
@@ -72,8 +74,9 @@ void hmp_qom_set(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_qom_get(Monitor *mon, const QDict *qdict)
+void hmp_qom_get(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
     Error *err = NULL;
@@ -132,8 +135,9 @@ static void print_qom_composition(Monitor *mon, Object *obj, int indent)
     g_array_free(children, TRUE);
 }
 
-void hmp_info_qom_tree(Monitor *mon, const QDict *dict)
+void hmp_info_qom_tree(MonitorHMP *hmp, const QDict *dict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *path = qdict_get_try_str(dict, "path");
     Object *obj;
     bool ambiguous = false;
@@ -154,8 +158,9 @@ void hmp_info_qom_tree(Monitor *mon, const QDict *dict)
     print_qom_composition(mon, obj, 0);
 }
 
-void hmp_object_add(Monitor *mon, const QDict *qdict)
+void hmp_object_add(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *options = qdict_get_str(qdict, "object");
     Error *err = NULL;
 
@@ -163,8 +168,9 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_object_del(Monitor *mon, const QDict *qdict)
+void hmp_object_del(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
