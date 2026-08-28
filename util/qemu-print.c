@@ -17,7 +17,8 @@
 
 /*
  * Print like vprintf().
- * Print to current HMP monitor if we have one, else to stdout.
+ * Print to current monitor if we have one, else to stdout.
+ * (if the monitor is QMP, fail without printing anything)
  */
 int qemu_vprintf(const char *fmt, va_list ap)
 {
@@ -30,7 +31,8 @@ int qemu_vprintf(const char *fmt, va_list ap)
 
 /*
  * Print like printf().
- * Print to current HMP monitor if we have one, else to stdout.
+ * Print to current monitor if we have one, else to stdout.
+ * (if the monitor is QMP, fail without printing anything)
  */
 int qemu_printf(const char *fmt, ...)
 {
