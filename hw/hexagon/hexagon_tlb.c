@@ -57,19 +57,6 @@ typedef enum {
 
 #define NUM_PGSIZE_TYPES (PGSIZE_1G + 1)
 
-static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
-    "4K",
-    "16K",
-    "64K",
-    "256K",
-    "1M",
-    "4M",
-    "16M",
-    "64M",
-    "256M",
-    "1G",
-};
-
 #define INVALID_MASK 0xffffffffLL
 
 static const uint64_t encmask_2_mask[] = {
@@ -122,6 +109,20 @@ static inline uint64_t hex_tlb_virt_addr(uint64_t entry)
     return (uint64_t)GET_PTE_VPN(entry) << qemu_target_page_bits();
 }
 
+#ifdef CONFIG_HMP
+static const char *pgsize_str[NUM_PGSIZE_TYPES] = {
+    "4K",
+    "16K",
+    "64K",
+    "256K",
+    "1M",
+    "4M",
+    "16M",
+    "64M",
+    "256M",
+    "1G",
+};
+
 bool hexagon_tlb_dump_entry(MonitorHMP *hmp, uint64_t entry)
 {
     if (GET_PTE_V(entry)) {
@@ -154,6 +155,14 @@ bool hexagon_tlb_dump_entry(MonitorHMP *hmp, uint64_t entry)
     /* Not valid */
     return false;
 }
+
+void hexagon_tlb_dump(MonitorHMP *hmp, HexagonTLBState *tlb)
+{
+    for (uint32_t i = 0; i < tlb->num_entries; i++) {
+        hexagon_tlb_dump_entry(hmp, tlb->entries[i]);
+    }
+}
+#endif
 
 static inline bool hex_tlb_entry_match_noperm(uint64_t entry, uint32_t asid,
                                               uint64_t VA)
@@ -375,13 +384,6 @@ int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
         return -2;
     }
     return -1;
-}
-
-void hexagon_tlb_dump(MonitorHMP *hmp, HexagonTLBState *tlb)
-{
-    for (uint32_t i = 0; i < tlb->num_entries; i++) {
-        hexagon_tlb_dump_entry(hmp, tlb->entries[i]);
-    }
 }
 
 uint32_t hexagon_tlb_get_num_entries(HexagonTLBState *tlb)
