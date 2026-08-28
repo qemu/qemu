@@ -12,6 +12,7 @@
 #include "qom/object.h"
 #include "exec/hwaddr.h"
 #include "exec/mmu-access-type.h"
+#include "monitor/hmp.h"
 
 #define TYPE_HEXAGON_TLB "hexagon-tlb"
 OBJECT_DECLARE_SIMPLE_TYPE(HexagonTLBState, HEXAGON_TLB)
@@ -37,9 +38,9 @@ uint32_t hexagon_tlb_lookup(HexagonTLBState *tlb, uint32_t asid,
 int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
                               uint64_t index);
 
-void hexagon_tlb_dump(Monitor *mon, HexagonTLBState *tlb);
+void hexagon_tlb_dump(MonitorHMP *hmp, HexagonTLBState *tlb);
 
-bool hexagon_tlb_dump_entry(Monitor *mon, uint64_t entry);
+bool hexagon_tlb_dump_entry(MonitorHMP *hmp, uint64_t entry);
 
 uint32_t hexagon_tlb_get_num_entries(HexagonTLBState *tlb);
 

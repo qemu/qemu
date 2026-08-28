@@ -122,10 +122,8 @@ static inline uint64_t hex_tlb_virt_addr(uint64_t entry)
     return (uint64_t)GET_PTE_VPN(entry) << qemu_target_page_bits();
 }
 
-bool hexagon_tlb_dump_entry(Monitor *mon, uint64_t entry)
+bool hexagon_tlb_dump_entry(MonitorHMP *hmp, uint64_t entry)
 {
-    MonitorHMP *hmp = MONITOR_HMP(mon);
-
     if (GET_PTE_V(entry)) {
         uint64_t PA = hex_tlb_phys_addr(entry);
         uint64_t VA = hex_tlb_virt_addr(entry);
@@ -379,10 +377,10 @@ int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
     return -1;
 }
 
-void hexagon_tlb_dump(Monitor *mon, HexagonTLBState *tlb)
+void hexagon_tlb_dump(MonitorHMP *hmp, HexagonTLBState *tlb)
 {
     for (uint32_t i = 0; i < tlb->num_entries; i++) {
-        hexagon_tlb_dump_entry(mon, tlb->entries[i]);
+        hexagon_tlb_dump_entry(hmp, tlb->entries[i]);
     }
 }
 
