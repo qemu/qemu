@@ -524,6 +524,10 @@ Misc
 
      - | Reverse the 64 bits of input *t1* with output in *dest*.
 
+   * - lea *dest*, *t1*, *t2*, *sh*, *imm*
+
+     - | *dest* = *t1* + (*t2* << *sh*) + *imm*.
+
 Conditional moves
 -----------------
 

@@ -3357,6 +3357,10 @@ static const TCGOutOpStore outop_st = {
     .out_i = tgen_st_i,
 };
 
+static const TCGOutOpLea outop_lea = {
+    .base.static_constraint = C_NotImplemented,
+};
+
 static int const umin_insn[4] = {
     OPC_PMINUB, OPC_PMINUW, OPC_PMINUD, OPC_VPMINUQ
 };
