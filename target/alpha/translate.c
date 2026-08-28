@@ -1474,10 +1474,8 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x02:
             /* S4ADDL */
-            tmp = tcg_temp_new_i64();
-            tcg_gen_shli_i64(tmp, va, 2);
-            tcg_gen_add_i64(tmp, tmp, vb);
-            tcg_gen_ext32s_i64(vc, tmp);
+            tcg_gen_lea_i64(vc, vb, va, 2, 0);
+            tcg_gen_ext32s_i64(vc, vc);
             break;
         case 0x09:
             /* SUBL */
@@ -1502,10 +1500,8 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x12:
             /* S8ADDL */
-            tmp = tcg_temp_new_i64();
-            tcg_gen_shli_i64(tmp, va, 3);
-            tcg_gen_add_i64(tmp, tmp, vb);
-            tcg_gen_ext32s_i64(vc, tmp);
+            tcg_gen_lea_i64(vc, vb, va, 3, 0);
+            tcg_gen_ext32s_i64(vc, vc);
             break;
         case 0x1B:
             /* S8SUBL */
@@ -1524,9 +1520,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x22:
             /* S4ADDQ */
-            tmp = tcg_temp_new_i64();
-            tcg_gen_shli_i64(tmp, va, 2);
-            tcg_gen_add_i64(vc, tmp, vb);
+            tcg_gen_lea_i64(vc, vb, va, 2, 0);
             break;
         case 0x29:
             /* SUBQ */
@@ -1544,9 +1538,7 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0x32:
             /* S8ADDQ */
-            tmp = tcg_temp_new_i64();
-            tcg_gen_shli_i64(tmp, va, 3);
-            tcg_gen_add_i64(vc, tmp, vb);
+            tcg_gen_lea_i64(vc, vb, va, 3, 0);
             break;
         case 0x3B:
             /* S8SUBQ */
