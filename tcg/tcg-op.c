@@ -820,6 +820,49 @@ void tcg_gen_ld16u(TCGType type, TCGTemp *dst,
     tcg_gen_op_tti(INDEX_op_ld16u, type, dst, base, ofs);
 }
 
+void tcg_gen_lea(TCGType type, TCGTemp *dst, TCGTemp *base,
+                 TCGTemp *index, unsigned sh, int64_t imm)
+{
+    g_autoptr(TCGTemp) t = tcg_temp_new_ebb(type);
+
+    if (imm != 0) {
+        if (TCG_TARGET_lea_imm_valid(type, imm)) {
+            /*
+             * The immediate is non-zero and valid.
+             * If the shift is out of range, perform the shift first
+             * so that we can still emit (base + t + imm) as one insn.
+             */
+            if (!TCG_TARGET_lea_sh_valid(type, sh)) {
+                tcg_gen_shli(type, t, index, sh);
+                index = t;
+                sh = 0;
+            }
+            tcg_gen_op_tttii(INDEX_op_lea, type, dst, base, index, sh, imm);
+            return;
+        }
+
+        /*
+         * If we can make the immediate smaller by folding it
+         * into index before the shift, do so.
+         */
+        if (sh != 0 && imm == (imm >> sh) << sh) {
+            tcg_gen_addi(type, t, index, imm >> sh);
+            index = t;
+            imm = 0;
+        }
+    }
+
+    if (sh == 0) {
+        tcg_gen_add(type, dst, base, index);
+    } else if (TCG_TARGET_lea_sh_valid(type, sh)) {
+        tcg_gen_op_tttii(INDEX_op_lea, type, dst, base, index, sh, 0);
+    } else {
+        tcg_gen_shli(type, t, index, sh);
+        tcg_gen_add(type, dst, base, t);
+    }
+    tcg_gen_addi(type, dst, dst, imm);
+}
+
 void tcg_gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
 {
     if (src != dst) {
