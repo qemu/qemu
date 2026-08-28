@@ -25,33 +25,31 @@
 
 void hmp_info_status(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     StatusInfo *info;
 
     info = qmp_query_status(NULL);
 
-    monitor_printf(mon, "VM status: %s",
-                   info->running ? "running" : "paused");
+    monitor_hmp_printf(hmp, "VM status: %s",
+                       info->running ? "running" : "paused");
 
     if (!info->running && info->status != RUN_STATE_PAUSED) {
-        monitor_printf(mon, " (%s)", RunState_str(info->status));
+        monitor_hmp_printf(hmp, " (%s)", RunState_str(info->status));
     }
 
-    monitor_printf(mon, "\n");
+    monitor_hmp_printf(hmp, "\n");
 
     qapi_free_StatusInfo(info);
 }
 
 void hmp_one_insn_per_tb(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *option = qdict_get_try_str(qdict, "option");
     AccelState *accel = current_accel();
     bool newval;
 
     if (!object_property_find(OBJECT(accel), "one-insn-per-tb")) {
-        monitor_printf(mon,
-                       "This accelerator does not support setting one-insn-per-tb\n");
+        monitor_hmp_printf(hmp,
+                           "This accelerator does not support setting one-insn-per-tb\n");
         return;
     }
 
@@ -60,7 +58,7 @@ void hmp_one_insn_per_tb(MonitorHMP *hmp, const QDict *qdict)
     } else if (!strcmp(option, "off")) {
         newval = false;
     } else {
-        monitor_printf(mon, "unexpected option %s\n", option);
+        monitor_hmp_printf(hmp, "unexpected option %s\n", option);
         return;
     }
     /* If the property exists then setting it can never fail */

@@ -38,10 +38,10 @@ void monitor_new_hmp(const char *id, const char *chardev_id,
 
 MonitorHMP *monitor_cur_hmp(void);
 
-int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
+int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
     G_GNUC_PRINTF(2, 0);
-int monitor_printf(Monitor *mon, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
-void monitor_printc(Monitor *mon, int ch);
+int monitor_hmp_printf(MonitorHMP *mon, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
+void monitor_hmp_printc(MonitorHMP *mon, int ch);
 
 void monitor_hmp_read_command(MonitorHMP *hmp, int show_prompt);
 int monitor_hmp_read_password(MonitorHMP *hmp, ReadLineFunc *readline_func,
@@ -58,7 +58,7 @@ CPUState *monitor_hmp_get_cpu(MonitorHMP *hmp);
 int monitor_hmp_get_cpu_index(MonitorHMP *hmp);
 
 bool hmp_handle_error(MonitorHMP *hmp, Error *err);
-void hmp_help_cmd(Monitor *mon, const char *name);
+void hmp_help_cmd(MonitorHMP *hmp, const char *name);
 strList *hmp_split_at_comma(const char *str);
 
 void hmp_info_name(MonitorHMP *hmp, const QDict *qdict);
@@ -114,11 +114,11 @@ void hmp_set_password(MonitorHMP *hmp, const QDict *qdict);
 void hmp_expire_password(MonitorHMP *hmp, const QDict *qdict);
 void hmp_change(MonitorHMP *hmp, const QDict *qdict);
 #ifdef CONFIG_VNC
-void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
+void hmp_change_vnc(MonitorHMP *hmp, const char *device, const char *target,
                     const char *arg, const char *read_only, bool force,
                     Error **errp);
 #endif
-void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+void hmp_change_medium(MonitorHMP *hmp, const char *device, const char *target,
                        const char *arg, const char *read_only, bool force,
                        Error **errp);
 void hmp_migrate(MonitorHMP *hmp, const QDict *qdict);

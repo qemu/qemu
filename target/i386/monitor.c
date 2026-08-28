@@ -48,27 +48,27 @@ static hwaddr addr_canonical(CPUArchState *env, hwaddr addr)
     return addr;
 }
 
-static void print_pte(Monitor *mon, CPUArchState *env, hwaddr addr,
+static void print_pte(MonitorHMP *hmp, CPUArchState *env, hwaddr addr,
                       hwaddr pte, hwaddr mask)
 {
     addr = addr_canonical(env, addr);
 
-    monitor_printf(mon, HWADDR_FMT_plx ": " HWADDR_FMT_plx
-                   " %c%c%c%c%c%c%c%c%c\n",
-                   addr,
-                   pte & mask,
-                   pte & PG_NX_MASK ? 'X' : '-',
-                   pte & PG_GLOBAL_MASK ? 'G' : '-',
-                   pte & PG_PSE_MASK ? 'P' : '-',
-                   pte & PG_DIRTY_MASK ? 'D' : '-',
-                   pte & PG_ACCESSED_MASK ? 'A' : '-',
-                   pte & PG_PCD_MASK ? 'C' : '-',
-                   pte & PG_PWT_MASK ? 'T' : '-',
-                   pte & PG_USER_MASK ? 'U' : '-',
-                   pte & PG_RW_MASK ? 'W' : '-');
+    monitor_hmp_printf(hmp, HWADDR_FMT_plx ": " HWADDR_FMT_plx
+                       " %c%c%c%c%c%c%c%c%c\n",
+                       addr,
+                       pte & mask,
+                       pte & PG_NX_MASK ? 'X' : '-',
+                       pte & PG_GLOBAL_MASK ? 'G' : '-',
+                       pte & PG_PSE_MASK ? 'P' : '-',
+                       pte & PG_DIRTY_MASK ? 'D' : '-',
+                       pte & PG_ACCESSED_MASK ? 'A' : '-',
+                       pte & PG_PCD_MASK ? 'C' : '-',
+                       pte & PG_PWT_MASK ? 'T' : '-',
+                       pte & PG_USER_MASK ? 'U' : '-',
+                       pte & PG_RW_MASK ? 'W' : '-');
 }
 
-static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_32(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2;
@@ -80,13 +80,13 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
         if (pde & PG_PRESENT_MASK) {
             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
                 /* 4M pages */
-                print_pte(mon, env, (l1 << 22), pde, ~((1 << 21) - 1));
+                print_pte(hmp, env, (l1 << 22), pde, ~((1 << 21) - 1));
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
                     pte = address_space_ldl_le(as, (pde & ~0xfff) + l2 * 4,
                                                attrs, NULL);
                     if (pte & PG_PRESENT_MASK) {
-                        print_pte(mon, env, (l1 << 22) + (l2 << 12),
+                        print_pte(hmp, env, (l1 << 22) + (l2 << 12),
                                   pte & ~PG_PSE_MASK,
                                   ~0xfff);
                     }
@@ -96,7 +96,7 @@ static void tlb_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
     }
 }
 
-static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_pae32(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2, l3;
@@ -113,7 +113,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                 if (pde & PG_PRESENT_MASK) {
                     if (pde & PG_PSE_MASK) {
                         /* 2M pages with PAE, CR4.PSE is ignored */
-                        print_pte(mon, env, (l1 << 30) + (l2 << 21), pde,
+                        print_pte(hmp, env, (l1 << 30) + (l2 << 21), pde,
                                   ~((hwaddr)(1 << 20) - 1));
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
@@ -121,7 +121,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                             pte = address_space_ldq_le(as, pt_addr + l3 * 8,
                                                        attrs, NULL);
                             if (pte & PG_PRESENT_MASK) {
-                                print_pte(mon, env, (l1 << 30) + (l2 << 21)
+                                print_pte(hmp, env, (l1 << 30) + (l2 << 21)
                                           + (l3 << 12),
                                           pte & ~PG_PSE_MASK,
                                           ~(hwaddr)0xfff);
@@ -135,7 +135,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
 }
 
 #ifdef TARGET_X86_64
-static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
+static void tlb_info_la48(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as,
         uint64_t l0, uint64_t pml4_addr)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
@@ -158,7 +158,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
 
             if (pdpe & PG_PSE_MASK) {
                 /* 1G pages, CR4.PSE is ignored */
-                print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30),
+                print_pte(hmp, env, (l0 << 48) + (l1 << 39) + (l2 << 30),
                         pdpe, 0x3ffffc0000000ULL);
                 continue;
             }
@@ -172,7 +172,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
 
                 if (pde & PG_PSE_MASK) {
                     /* 2M pages, CR4.PSE is ignored */
-                    print_pte(mon, env, (l0 << 48) + (l1 << 39) + (l2 << 30) +
+                    print_pte(hmp, env, (l0 << 48) + (l1 << 39) + (l2 << 30) +
                             (l3 << 21), pde, 0x3ffffffe00000ULL);
                     continue;
                 }
@@ -182,7 +182,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
                     pte = address_space_ldq_le(as, pt_addr + l4 * 8,
                                                attrs, NULL);
                     if (pte & PG_PRESENT_MASK) {
-                        print_pte(mon, env, (l0 << 48) + (l1 << 39) +
+                        print_pte(hmp, env, (l0 << 48) + (l1 << 39) +
                                 (l2 << 30) + (l3 << 21) + (l4 << 12),
                                 pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
                     }
@@ -192,7 +192,7 @@ static void tlb_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as,
     }
 }
 
-static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void tlb_info_la57(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     uint64_t l0;
@@ -203,7 +203,7 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
     for (l0 = 0; l0 < 512; l0++) {
         pml5e = address_space_ldq_le(as, pml5_addr + l0 * 8, attrs, NULL);
         if (pml5e & PG_PRESENT_MASK) {
-            tlb_info_la48(mon, env, as, l0, pml5e & 0x3fffffffff000ULL);
+            tlb_info_la48(hmp, env, as, l0, pml5e & 0x3fffffffff000ULL);
         }
     }
 }
@@ -211,18 +211,17 @@ static void tlb_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
 
 void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     CPUArchState *env;
     AddressSpace *as;
 
     env = monitor_hmp_get_cpu_env(hmp);
     if (!env) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
-        monitor_printf(mon, "PG disabled\n");
+        monitor_hmp_printf(hmp, "PG disabled\n");
         return;
     }
     as = cpu_get_address_space(env_cpu(env), X86ASIdx_MEM);
@@ -230,21 +229,21 @@ void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
             if (env->cr[4] & CR4_LA57_MASK) {
-                tlb_info_la57(mon, env, as);
+                tlb_info_la57(hmp, env, as);
             } else {
-                tlb_info_la48(mon, env, as, 0, env->cr[3] & 0x3fffffffff000ULL);
+                tlb_info_la48(hmp, env, as, 0, env->cr[3] & 0x3fffffffff000ULL);
             }
         } else
 #endif
         {
-            tlb_info_pae32(mon, env, as);
+            tlb_info_pae32(hmp, env, as);
         }
     } else {
-        tlb_info_32(mon, env, as);
+        tlb_info_32(hmp, env, as);
     }
 }
 
-static void mem_print(Monitor *mon, CPUArchState *env,
+static void mem_print(MonitorHMP *hmp, CPUArchState *env,
                       hwaddr *pstart, int *plast_prot,
                       hwaddr end, int prot)
 {
@@ -252,14 +251,14 @@ static void mem_print(Monitor *mon, CPUArchState *env,
     prot1 = *plast_prot;
     if (prot != prot1) {
         if (*pstart != -1) {
-            monitor_printf(mon, HWADDR_FMT_plx "-" HWADDR_FMT_plx " "
-                           HWADDR_FMT_plx " %c%c%c\n",
-                           addr_canonical(env, *pstart),
-                           addr_canonical(env, end),
-                           addr_canonical(env, end - *pstart),
-                           prot1 & PG_USER_MASK ? 'u' : '-',
-                           'r',
-                           prot1 & PG_RW_MASK ? 'w' : '-');
+            monitor_hmp_printf(hmp, HWADDR_FMT_plx "-" HWADDR_FMT_plx " "
+                               HWADDR_FMT_plx " %c%c%c\n",
+                               addr_canonical(env, *pstart),
+                               addr_canonical(env, end),
+                               addr_canonical(env, end - *pstart),
+                               prot1 & PG_USER_MASK ? 'u' : '-',
+                               'r',
+                               prot1 & PG_RW_MASK ? 'w' : '-');
         }
         if (prot != 0)
             *pstart = end;
@@ -269,7 +268,7 @@ static void mem_print(Monitor *mon, CPUArchState *env,
     }
 }
 
-static void mem_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void mem_info_32(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2;
@@ -286,7 +285,7 @@ static void mem_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
         if (pde & PG_PRESENT_MASK) {
             if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
                 prot = pde & (PG_USER_MASK | PG_RW_MASK | PG_PRESENT_MASK);
-                mem_print(mon, env, &start, &last_prot, end, prot);
+                mem_print(hmp, env, &start, &last_prot, end, prot);
             } else {
                 for(l2 = 0; l2 < 1024; l2++) {
                     pte = address_space_ldl_le(as, (pde & ~0xfff) + l2 * 4,
@@ -298,19 +297,19 @@ static void mem_info_32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                     } else {
                         prot = 0;
                     }
-                    mem_print(mon, env, &start, &last_prot, end, prot);
+                    mem_print(hmp, env, &start, &last_prot, end, prot);
                 }
             }
         } else {
             prot = 0;
-            mem_print(mon, env, &start, &last_prot, end, prot);
+            mem_print(hmp, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 32, 0);
+    mem_print(hmp, env, &start, &last_prot, (hwaddr)1 << 32, 0);
 }
 
-static void mem_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void mem_info_pae32(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     unsigned int l1, l2, l3;
@@ -334,7 +333,7 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                     if (pde & PG_PSE_MASK) {
                         prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                       PG_PRESENT_MASK);
-                        mem_print(mon, env, &start, &last_prot, end, prot);
+                        mem_print(hmp, env, &start, &last_prot, end, prot);
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
@@ -347,26 +346,26 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env, AddressSpace *as)
                             } else {
                                 prot = 0;
                             }
-                            mem_print(mon, env, &start, &last_prot, end, prot);
+                            mem_print(hmp, env, &start, &last_prot, end, prot);
                         }
                     }
                 } else {
                     prot = 0;
-                    mem_print(mon, env, &start, &last_prot, end, prot);
+                    mem_print(hmp, env, &start, &last_prot, end, prot);
                 }
             }
         } else {
             prot = 0;
-            mem_print(mon, env, &start, &last_prot, end, prot);
+            mem_print(hmp, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 32, 0);
+    mem_print(hmp, env, &start, &last_prot, (hwaddr)1 << 32, 0);
 }
 
 
 #ifdef TARGET_X86_64
-static void mem_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void mem_info_la48(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int prot, last_prot;
@@ -390,7 +389,7 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as)
                         prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
                                        PG_PRESENT_MASK);
                         prot &= pml4e;
-                        mem_print(mon, env, &start, &last_prot, end, prot);
+                        mem_print(hmp, env, &start, &last_prot, end, prot);
                     } else {
                         pd_addr = pdpe & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
@@ -402,7 +401,7 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as)
                                     prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                                   PG_PRESENT_MASK);
                                     prot &= pml4e & pdpe;
-                                    mem_print(mon, env, &start,
+                                    mem_print(hmp, env, &start,
                                               &last_prot, end, prot);
                                 } else {
                                     pt_addr = pde & 0x3fffffffff000ULL;
@@ -420,32 +419,32 @@ static void mem_info_la48(Monitor *mon, CPUArchState *env, AddressSpace *as)
                                         } else {
                                             prot = 0;
                                         }
-                                        mem_print(mon, env, &start,
+                                        mem_print(hmp, env, &start,
                                                   &last_prot, end, prot);
                                     }
                                 }
                             } else {
                                 prot = 0;
-                                mem_print(mon, env, &start,
+                                mem_print(hmp, env, &start,
                                           &last_prot, end, prot);
                             }
                         }
                     }
                 } else {
                     prot = 0;
-                    mem_print(mon, env, &start, &last_prot, end, prot);
+                    mem_print(hmp, env, &start, &last_prot, end, prot);
                 }
             }
         } else {
             prot = 0;
-            mem_print(mon, env, &start, &last_prot, end, prot);
+            mem_print(hmp, env, &start, &last_prot, end, prot);
         }
     }
     /* Flush last range */
-    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 48, 0);
+    mem_print(hmp, env, &start, &last_prot, (hwaddr)1 << 48, 0);
 }
 
-static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
+static void mem_info_la57(MonitorHMP *hmp, CPUArchState *env, AddressSpace *as)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int prot, last_prot;
@@ -461,7 +460,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
         end = l0 << 48;
         if (!(pml5e & PG_PRESENT_MASK)) {
             prot = 0;
-            mem_print(mon, env, &start, &last_prot, end, prot);
+            mem_print(hmp, env, &start, &last_prot, end, prot);
             continue;
         }
 
@@ -471,7 +470,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
             end = (l0 << 48) + (l1 << 39);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 prot = 0;
-                mem_print(mon, env, &start, &last_prot, end, prot);
+                mem_print(hmp, env, &start, &last_prot, end, prot);
                 continue;
             }
 
@@ -481,7 +480,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
                 end = (l0 << 48) + (l1 << 39) + (l2 << 30);
                 if (pdpe & PG_PRESENT_MASK) {
                     prot = 0;
-                    mem_print(mon, env, &start, &last_prot, end, prot);
+                    mem_print(hmp, env, &start, &last_prot, end, prot);
                     continue;
                 }
 
@@ -489,7 +488,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
                     prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
                             PG_PRESENT_MASK);
                     prot &= pml5e & pml4e;
-                    mem_print(mon, env, &start, &last_prot, end, prot);
+                    mem_print(hmp, env, &start, &last_prot, end, prot);
                     continue;
                 }
 
@@ -500,7 +499,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
                     end = (l0 << 48) + (l1 << 39) + (l2 << 30) + (l3 << 21);
                     if (pde & PG_PRESENT_MASK) {
                         prot = 0;
-                        mem_print(mon, env, &start, &last_prot, end, prot);
+                        mem_print(hmp, env, &start, &last_prot, end, prot);
                         continue;
                     }
 
@@ -508,7 +507,7 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
                         prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                 PG_PRESENT_MASK);
                         prot &= pml5e & pml4e & pdpe;
-                        mem_print(mon, env, &start, &last_prot, end, prot);
+                        mem_print(hmp, env, &start, &last_prot, end, prot);
                         continue;
                     }
 
@@ -525,31 +524,30 @@ static void mem_info_la57(Monitor *mon, CPUArchState *env, AddressSpace *as)
                         } else {
                             prot = 0;
                         }
-                        mem_print(mon, env, &start, &last_prot, end, prot);
+                        mem_print(hmp, env, &start, &last_prot, end, prot);
                     }
                 }
             }
         }
     }
     /* Flush last range */
-    mem_print(mon, env, &start, &last_prot, (hwaddr)1 << 57, 0);
+    mem_print(hmp, env, &start, &last_prot, (hwaddr)1 << 57, 0);
 }
 #endif /* TARGET_X86_64 */
 
 void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     CPUArchState *env;
     AddressSpace *as;
 
     env = monitor_hmp_get_cpu_env(hmp);
     if (!env) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
-        monitor_printf(mon, "PG disabled\n");
+        monitor_hmp_printf(hmp, "PG disabled\n");
         return;
     }
     as = cpu_get_address_space(env_cpu(env), X86ASIdx_MEM);
@@ -557,17 +555,17 @@ void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
             if (env->cr[4] & CR4_LA57_MASK) {
-                mem_info_la57(mon, env, as);
+                mem_info_la57(hmp, env, as);
             } else {
-                mem_info_la48(mon, env, as);
+                mem_info_la48(hmp, env, as);
             }
         } else
 #endif
         {
-            mem_info_pae32(mon, env, as);
+            mem_info_pae32(hmp, env, as);
         }
     } else {
-        mem_info_32(mon, env, as);
+        mem_info_32(hmp, env, as);
     }
 }
 

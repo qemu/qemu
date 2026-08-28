@@ -24,54 +24,55 @@
 #include "qapi/qapi-commands-pci.h"
 #include "qemu/cutils.h"
 
-static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
+static void hmp_info_pci_device(MonitorHMP *hmp, const PciDeviceInfo *dev)
 {
+    Monitor *mon = MONITOR(hmp);
     PciMemoryRegionList *region;
 
-    monitor_printf(mon, "  Bus %2" PRId64 ", ", dev->bus);
-    monitor_printf(mon, "device %3" PRId64 ", function %" PRId64 ":\n",
-                   dev->slot, dev->function);
-    monitor_printf(mon, "    ");
+    monitor_hmp_printf(hmp, "  Bus %2" PRId64 ", ", dev->bus);
+    monitor_hmp_printf(hmp, "device %3" PRId64 ", function %" PRId64 ":\n",
+                       dev->slot, dev->function);
+    monitor_hmp_printf(hmp, "    ");
 
     if (dev->class_info->desc) {
         monitor_puts(mon, dev->class_info->desc);
     } else {
-        monitor_printf(mon, "Class %04" PRId64, dev->class_info->q_class);
+        monitor_hmp_printf(hmp, "Class %04" PRId64, dev->class_info->q_class);
     }
 
-    monitor_printf(mon, ": PCI device %04" PRIx64 ":%04" PRIx64 "\n",
-                   dev->id->vendor, dev->id->device);
+    monitor_hmp_printf(hmp, ": PCI device %04" PRIx64 ":%04" PRIx64 "\n",
+                       dev->id->vendor, dev->id->device);
     if (dev->id->has_subsystem_vendor && dev->id->has_subsystem) {
-        monitor_printf(mon, "      PCI subsystem %04" PRIx64 ":%04" PRIx64 "\n",
-                       dev->id->subsystem_vendor, dev->id->subsystem);
+        monitor_hmp_printf(hmp, "      PCI subsystem %04" PRIx64 ":%04" PRIx64 "\n",
+                           dev->id->subsystem_vendor, dev->id->subsystem);
     }
 
     if (dev->has_irq) {
-        monitor_printf(mon, "      IRQ %" PRId64 ", pin %c\n",
-                       dev->irq, (char)('A' + dev->irq_pin - 1));
+        monitor_hmp_printf(hmp, "      IRQ %" PRId64 ", pin %c\n",
+                           dev->irq, (char)('A' + dev->irq_pin - 1));
     }
 
     if (dev->pci_bridge) {
-        monitor_printf(mon, "      BUS %" PRId64 ".\n",
-                       dev->pci_bridge->bus->number);
-        monitor_printf(mon, "      secondary bus %" PRId64 ".\n",
-                       dev->pci_bridge->bus->secondary);
-        monitor_printf(mon, "      subordinate bus %" PRId64 ".\n",
-                       dev->pci_bridge->bus->subordinate);
+        monitor_hmp_printf(hmp, "      BUS %" PRId64 ".\n",
+                           dev->pci_bridge->bus->number);
+        monitor_hmp_printf(hmp, "      secondary bus %" PRId64 ".\n",
+                           dev->pci_bridge->bus->secondary);
+        monitor_hmp_printf(hmp, "      subordinate bus %" PRId64 ".\n",
+                           dev->pci_bridge->bus->subordinate);
 
-        monitor_printf(mon, "      IO range [0x%04"PRIx64", 0x%04"PRIx64"]\n",
-                       dev->pci_bridge->bus->io_range->base,
-                       dev->pci_bridge->bus->io_range->limit);
+        monitor_hmp_printf(hmp, "      IO range [0x%04"PRIx64", 0x%04"PRIx64"]\n",
+                           dev->pci_bridge->bus->io_range->base,
+                           dev->pci_bridge->bus->io_range->limit);
 
-        monitor_printf(mon,
-                       "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
-                       dev->pci_bridge->bus->memory_range->base,
-                       dev->pci_bridge->bus->memory_range->limit);
+        monitor_hmp_printf(hmp,
+                           "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
+                           dev->pci_bridge->bus->memory_range->base,
+                           dev->pci_bridge->bus->memory_range->limit);
 
-        monitor_printf(mon, "      prefetchable memory range "
-                       "[0x%08"PRIx64", 0x%08"PRIx64"]\n",
-                       dev->pci_bridge->bus->prefetchable_range->base,
-                       dev->pci_bridge->bus->prefetchable_range->limit);
+        monitor_hmp_printf(hmp, "      prefetchable memory range "
+                           "[0x%08"PRIx64", 0x%08"PRIx64"]\n",
+                           dev->pci_bridge->bus->prefetchable_range->base,
+                           dev->pci_bridge->bus->prefetchable_range->limit);
     }
 
     for (region = dev->regions; region; region = region->next) {
@@ -80,38 +81,38 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
         addr = region->value->address;
         size = region->value->size;
 
-        monitor_printf(mon, "      BAR%" PRId64 ": ", region->value->bar);
+        monitor_hmp_printf(hmp, "      BAR%" PRId64 ": ", region->value->bar);
 
         if (!strcmp(region->value->type, "io")) {
             if (addr != PCI_BAR_UNMAPPED) {
-                monitor_printf(mon, "I/O at 0x%04" PRIx64
+                monitor_hmp_printf(hmp, "I/O at 0x%04" PRIx64
                                     " [0x%04" PRIx64 "]\n",
                                addr, addr + size - 1);
             } else {
-                monitor_printf(mon, "I/O (not mapped)\n");
+                monitor_hmp_printf(hmp, "I/O (not mapped)\n");
             }
         } else {
             if (addr != PCI_BAR_UNMAPPED) {
-                monitor_printf(mon, "%d bit%s memory at 0x%08" PRIx64
+                monitor_hmp_printf(hmp, "%d bit%s memory at 0x%08" PRIx64
                                    " [0x%08" PRIx64 "]\n",
                                region->value->mem_type_64 ? 64 : 32,
                                region->value->prefetch ? " prefetchable" : "",
                                addr, addr + size - 1);
             } else {
-                monitor_printf(mon, "%d bit%s memory (not mapped)\n",
-                               region->value->mem_type_64 ? 64 : 32,
-                               region->value->prefetch ? " prefetchable" : "");
+                monitor_hmp_printf(hmp, "%d bit%s memory (not mapped)\n",
+                                   region->value->mem_type_64 ? 64 : 32,
+                                   region->value->prefetch ? " prefetchable" : "");
             }
         }
     }
 
-    monitor_printf(mon, "      id \"%s\"\n", dev->qdev_id);
+    monitor_hmp_printf(hmp, "      id \"%s\"\n", dev->qdev_id);
 
     if (dev->pci_bridge) {
         if (dev->pci_bridge->has_devices) {
             PciDeviceInfoList *cdev;
             for (cdev = dev->pci_bridge->devices; cdev; cdev = cdev->next) {
-                hmp_info_pci_device(mon, cdev->value);
+                hmp_info_pci_device(hmp, cdev->value);
             }
         }
     }
@@ -119,7 +120,6 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
 
 void hmp_info_pci(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     PciInfoList *info_list, *info;
 
     info_list = qmp_query_pci(&error_abort);
@@ -128,7 +128,7 @@ void hmp_info_pci(MonitorHMP *hmp, const QDict *qdict)
         PciDeviceInfoList *dev;
 
         for (dev = info->value->devices; dev; dev = dev->next) {
-            hmp_info_pci_device(mon, dev->value);
+            hmp_info_pci_device(hmp, dev->value);
         }
     }
 
@@ -137,6 +137,7 @@ void hmp_info_pci(MonitorHMP *hmp, const QDict *qdict)
 
 void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
+    MonitorHMP *hmp = MONITOR_HMP(mon);
     PCIDevice *d = (PCIDevice *)dev;
     int class = pci_get_word(d->config + PCI_CLASS_DEVICE);
     const pci_class_desc *desc = get_class_desc(class);
@@ -150,30 +151,29 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
         snprintf(ctxt, sizeof(ctxt), "Class %04x", class);
     }
 
-    monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "
-                   "pci id %04x:%04x (sub %04x:%04x)\n",
-                   indent, "", ctxt, pci_dev_bus_num(d),
-                   PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
-                   pci_get_word(d->config + PCI_VENDOR_ID),
-                   pci_get_word(d->config + PCI_DEVICE_ID),
-                   pci_get_word(d->config + PCI_SUBSYSTEM_VENDOR_ID),
-                   pci_get_word(d->config + PCI_SUBSYSTEM_ID));
+    monitor_hmp_printf(hmp, "%*sclass %s, addr %02x:%02x.%x, "
+                       "pci id %04x:%04x (sub %04x:%04x)\n",
+                       indent, "", ctxt, pci_dev_bus_num(d),
+                       PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
+                       pci_get_word(d->config + PCI_VENDOR_ID),
+                       pci_get_word(d->config + PCI_DEVICE_ID),
+                       pci_get_word(d->config + PCI_SUBSYSTEM_VENDOR_ID),
+                       pci_get_word(d->config + PCI_SUBSYSTEM_ID));
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
         if (!r->size) {
             continue;
         }
-        monitor_printf(mon, "%*sbar %d: %s at 0x%"FMT_PCIBUS
-                       " [0x%"FMT_PCIBUS"]\n",
-                       indent, "",
-                       i, r->type & PCI_BASE_ADDRESS_SPACE_IO ? "i/o" : "mem",
-                       r->addr, r->addr + r->size - 1);
+        monitor_hmp_printf(hmp, "%*sbar %d: %s at 0x%"FMT_PCIBUS
+                           " [0x%"FMT_PCIBUS"]\n",
+                           indent, "",
+                           i, r->type & PCI_BASE_ADDRESS_SPACE_IO ? "i/o" : "mem",
+                           r->addr, r->addr + r->size - 1);
     }
 }
 
 void hmp_pcie_aer_inject_error(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;
@@ -242,9 +242,9 @@ void hmp_pcie_aer_inject_error(MonitorHMP *hmp, const QDict *qdict)
     }
 
 
-    monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
-                   id, pci_root_bus_path(dev), pci_dev_bus_num(dev),
-                   PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
+    monitor_hmp_printf(hmp, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
+                       id, pci_root_bus_path(dev), pci_dev_bus_num(dev),
+                       PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 
 out:
     hmp_handle_error(hmp, err);

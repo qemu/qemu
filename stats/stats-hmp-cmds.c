@@ -14,11 +14,11 @@
 #include "qobject/qdict.h"
 #include "qapi/error.h"
 
-static void print_stats_schema_value(Monitor *mon, StatsSchemaValue *value)
+static void print_stats_schema_value(MonitorHMP *hmp, StatsSchemaValue *value)
 {
     const char *unit = NULL;
-    monitor_printf(mon, "    %s (%s%s", value->name, StatsType_str(value->type),
-                   value->has_unit || value->exponent ? ", " : "");
+    monitor_hmp_printf(hmp, "    %s (%s%s", value->name, StatsType_str(value->type),
+                       value->has_unit || value->exponent ? ", " : "");
 
     if (value->has_unit) {
         if (value->unit == STATS_UNIT_SECONDS) {
@@ -31,29 +31,29 @@ static void print_stats_schema_value(Monitor *mon, StatsSchemaValue *value)
     if (unit && value->base == 10 &&
         value->exponent >= -18 && value->exponent <= 18 &&
         value->exponent % 3 == 0) {
-        monitor_puts(mon, si_prefix(value->exponent));
+        monitor_puts(MONITOR(hmp), si_prefix(value->exponent));
     } else if (unit && value->base == 2 &&
                value->exponent >= 0 && value->exponent <= 60 &&
                value->exponent % 10 == 0) {
 
-        monitor_puts(mon, iec_binary_prefix(value->exponent));
+        monitor_puts(MONITOR(hmp), iec_binary_prefix(value->exponent));
     } else if (value->exponent) {
         /* Use exponential notation and write the unit's English name */
-        monitor_printf(mon, "* %d^%d%s",
-                       value->base, value->exponent,
-                       value->has_unit ? " " : "");
+        monitor_hmp_printf(hmp, "* %d^%d%s",
+                           value->base, value->exponent,
+                           value->has_unit ? " " : "");
         unit = NULL;
     }
 
     if (value->has_unit) {
-        monitor_puts(mon, unit ? unit : StatsUnit_str(value->unit));
+        monitor_puts(MONITOR(hmp), unit ? unit : StatsUnit_str(value->unit));
     }
 
     /* Print bucket size for linear histograms */
     if (value->type == STATS_TYPE_LINEAR_HISTOGRAM && value->has_bucket_size) {
-        monitor_printf(mon, ", bucket size=%d", value->bucket_size);
+        monitor_hmp_printf(hmp, ", bucket size=%d", value->bucket_size);
     }
-    monitor_printf(mon, ")");
+    monitor_hmp_printf(hmp, ")");
 }
 
 static StatsSchemaValueList *find_schema_value_list(
@@ -71,7 +71,7 @@ static StatsSchemaValueList *find_schema_value_list(
     return NULL;
 }
 
-static void print_stats_results(Monitor *mon, StatsTarget target,
+static void print_stats_results(MonitorHMP *hmp, StatsTarget target,
                                 bool show_provider,
                                 StatsResult *result,
                                 StatsSchemaList *schema)
@@ -82,14 +82,14 @@ static void print_stats_results(Monitor *mon, StatsTarget target,
     StatsList *stats_list;
 
     if (!schema_value_list) {
-        monitor_printf(mon, "failed to find schema list for %s\n",
-                       StatsProvider_str(result->provider));
+        monitor_hmp_printf(hmp, "failed to find schema list for %s\n",
+                           StatsProvider_str(result->provider));
         return;
     }
 
     if (show_provider) {
-        monitor_printf(mon, "provider: %s\n",
-                       StatsProvider_str(result->provider));
+        monitor_hmp_printf(hmp, "provider: %s\n",
+                           StatsProvider_str(result->provider));
     }
 
     for (stats_list = result->stats; stats_list;
@@ -103,31 +103,31 @@ static void print_stats_results(Monitor *mon, StatsTarget target,
         /* Find schema entry */
         while (!g_str_equal(stats->name, schema_value->name)) {
             if (!schema_value_list->next) {
-                monitor_printf(mon, "failed to find schema entry for %s\n",
-                               stats->name);
+                monitor_hmp_printf(hmp, "failed to find schema entry for %s\n",
+                                   stats->name);
                 return;
             }
             schema_value_list = schema_value_list->next;
             schema_value = schema_value_list->value;
         }
 
-        print_stats_schema_value(mon, schema_value);
+        print_stats_schema_value(hmp, schema_value);
 
         if (stats_value->type == QTYPE_QNUM) {
-            monitor_printf(mon, ": %" PRId64 "\n", stats_value->u.scalar);
+            monitor_hmp_printf(hmp, ": %" PRId64 "\n", stats_value->u.scalar);
         } else if (stats_value->type == QTYPE_QBOOL) {
-            monitor_printf(mon, ": %s\n", stats_value->u.boolean ? "yes" : "no");
+            monitor_hmp_printf(hmp, ": %s\n", stats_value->u.boolean ? "yes" : "no");
         } else if (stats_value->type == QTYPE_QLIST) {
             uint64List *list;
             int i;
 
-            monitor_printf(mon, ": ");
+            monitor_hmp_printf(hmp, ": ");
             for (list = stats_value->u.list, i = 1;
                  list;
                  list = list->next, i++) {
-                monitor_printf(mon, "[%d]=%" PRId64 " ", i, list->value);
+                monitor_hmp_printf(hmp, "[%d]=%" PRId64 " ", i, list->value);
             }
-            monitor_printf(mon, "\n");
+            monitor_hmp_printf(hmp, "\n");
         }
     }
 }
@@ -189,7 +189,6 @@ static StatsFilter *stats_filter(StatsTarget target, const char *names,
 
 void hmp_info_stats(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *target_str = qdict_get_str(qdict, "target");
     const char *provider_str = qdict_get_try_str(qdict, "provider");
     const char *names = qdict_get_try_str(qdict, "names");
@@ -204,13 +203,13 @@ void hmp_info_stats(MonitorHMP *hmp, const QDict *qdict)
 
     target = qapi_enum_parse(&StatsTarget_lookup, target_str, -1, &err);
     if (err) {
-        monitor_printf(mon, "invalid stats target %s\n", target_str);
+        monitor_hmp_printf(hmp, "invalid stats target %s\n", target_str);
         goto exit_no_print;
     }
     if (provider_str) {
         provider = qapi_enum_parse(&StatsProvider_lookup, provider_str, -1, &err);
         if (err) {
-            monitor_printf(mon, "invalid stats provider %s\n", provider_str);
+            monitor_hmp_printf(hmp, "invalid stats provider %s\n", provider_str);
             goto exit_no_print;
         }
     }
@@ -241,12 +240,12 @@ void hmp_info_stats(MonitorHMP *hmp, const QDict *qdict)
         goto exit;
     }
     for (entry = stats; entry; entry = entry->next) {
-        print_stats_results(mon, target, provider_str == NULL, entry->value, schema);
+        print_stats_results(hmp, target, provider_str == NULL, entry->value, schema);
     }
 
 exit:
     if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        monitor_hmp_printf(hmp, "%s\n", error_get_pretty(err));
     }
 exit_no_print:
     error_free(err);

@@ -17,7 +17,6 @@
 
 void hmp_cancel_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
     Error *err = NULL;
 
@@ -27,8 +26,8 @@ void hmp_cancel_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "[Please use 'info vcpu_dirty_limit' to query "
-                   "dirty limit for virtual CPU]\n");
+    monitor_hmp_printf(hmp, "[Please use 'info vcpu_dirty_limit' to query "
+                       "dirty limit for virtual CPU]\n");
 }
 
 void hmp_set_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
@@ -50,13 +49,12 @@ out:
 
 void hmp_info_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     DirtyLimitInfoList *info;
     g_autoptr(DirtyLimitInfoList) head = NULL;
     Error *err = NULL;
 
     if (!dirtylimit_in_service()) {
-        monitor_printf(mon, "Dirty page limit not enabled!\n");
+        monitor_hmp_printf(hmp, "Dirty page limit not enabled!\n");
         return;
     }
 
@@ -67,7 +65,7 @@ void hmp_info_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
     }
 
     for (info = head; info != NULL; info = info->next) {
-        monitor_printf(mon, "vcpu[%"PRIi64"], limit rate %"PRIi64 " (MB/s),"
+        monitor_hmp_printf(hmp, "vcpu[%"PRIi64"], limit rate %"PRIi64 " (MB/s),"
                             " current rate %"PRIi64 " (MB/s)\n",
                             info->value->cpu_index,
                             info->value->limit_rate,

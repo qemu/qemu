@@ -17,7 +17,7 @@ void qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
 }
 
-int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
+int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
 {
     /*
      * Pretend 'g_test_message' is our monitor console to

@@ -258,7 +258,6 @@ FirmwareLog *qmp_query_firmware_log(bool have_max_size, uint64_t max_size,
 
 void hmp_info_firmware_log(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     g_autofree gchar *log_esc = NULL;
     g_autofree guchar *log_out = NULL;
     Error *err = NULL;
@@ -278,10 +277,10 @@ void hmp_info_firmware_log(MonitorHMP *hmp, const QDict *qdict)
 
     if (log->version) {
         g_autofree gchar *esc = g_strescape(log->version, NULL);
-        monitor_printf(mon, "[ firmware version: %s ]\n", esc);
+        monitor_hmp_printf(hmp, "[ firmware version: %s ]\n", esc);
     }
 
     log_out = g_base64_decode(log->log, &log_len);
     log_esc = g_strescape((gchar *)log_out, "\r\n");
-    monitor_printf(mon, "%s\n", log_esc);
+    monitor_hmp_printf(hmp, "%s\n", log_esc);
 }

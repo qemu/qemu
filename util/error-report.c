@@ -36,7 +36,7 @@ static int G_GNUC_PRINTF(2, 0)
 error_vprintf_hmp(MonitorHMP *hmp, const char *fmt, va_list ap)
 {
     if (hmp) {
-        return monitor_vprintf(MONITOR(hmp), fmt, ap);
+        return monitor_hmp_vprintf(hmp, fmt, ap);
     }
 
     return vfprintf(stderr, fmt, ap);

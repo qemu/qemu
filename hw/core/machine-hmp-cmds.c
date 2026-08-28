@@ -27,7 +27,6 @@
 
 void hmp_info_cpus(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     CpuInfoFastList *cpu_list, *cpu;
 
     cpu_list = qmp_query_cpus_fast(NULL);
@@ -40,10 +39,10 @@ void hmp_info_cpus(MonitorHMP *hmp, const QDict *qdict)
             active = '*';
         }
 
-        monitor_printf(mon, "%c CPU #%" PRId64 ":", active,
-                       cpu->value->cpu_index);
-        monitor_printf(mon, " thread_id=%" PRId64 " model=%s\n",
-                       cpu->value->thread_id, cpu_model);
+        monitor_hmp_printf(hmp, "%c CPU #%" PRId64 ":", active,
+                           cpu->value->cpu_index);
+        monitor_hmp_printf(hmp, " thread_id=%" PRId64 " model=%s\n",
+                           cpu->value->thread_id, cpu_model);
     }
 
     qapi_free_CpuInfoFastList(cpu_list);
@@ -51,7 +50,6 @@ void hmp_info_cpus(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_hotpluggable_cpus(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     HotpluggableCPUList *l = qmp_query_hotpluggable_cpus(&err);
     HotpluggableCPUList *saved = l;
@@ -61,45 +59,45 @@ void hmp_hotpluggable_cpus(MonitorHMP *hmp, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "Hotpluggable CPUs:\n");
+    monitor_hmp_printf(hmp, "Hotpluggable CPUs:\n");
     while (l) {
-        monitor_printf(mon, "  type: \"%s\"\n", l->value->type);
-        monitor_printf(mon, "  vcpus_count: \"%" PRIu64 "\"\n",
-                       l->value->vcpus_count);
+        monitor_hmp_printf(hmp, "  type: \"%s\"\n", l->value->type);
+        monitor_hmp_printf(hmp, "  vcpus_count: \"%" PRIu64 "\"\n",
+                           l->value->vcpus_count);
         if (l->value->qom_path) {
-            monitor_printf(mon, "  qom_path: \"%s\"\n", l->value->qom_path);
+            monitor_hmp_printf(hmp, "  qom_path: \"%s\"\n", l->value->qom_path);
         }
 
         c = l->value->props;
-        monitor_printf(mon, "  CPUInstance Properties:\n");
+        monitor_hmp_printf(hmp, "  CPUInstance Properties:\n");
         if (c->has_node_id) {
-            monitor_printf(mon, "    node-id: \"%" PRIu64 "\"\n", c->node_id);
+            monitor_hmp_printf(hmp, "    node-id: \"%" PRIu64 "\"\n", c->node_id);
         }
         if (c->has_drawer_id) {
-            monitor_printf(mon, "    drawer-id: \"%" PRIu64 "\"\n", c->drawer_id);
+            monitor_hmp_printf(hmp, "    drawer-id: \"%" PRIu64 "\"\n", c->drawer_id);
         }
         if (c->has_book_id) {
-            monitor_printf(mon, "    book-id: \"%" PRIu64 "\"\n", c->book_id);
+            monitor_hmp_printf(hmp, "    book-id: \"%" PRIu64 "\"\n", c->book_id);
         }
         if (c->has_socket_id) {
-            monitor_printf(mon, "    socket-id: \"%" PRIu64 "\"\n", c->socket_id);
+            monitor_hmp_printf(hmp, "    socket-id: \"%" PRIu64 "\"\n", c->socket_id);
         }
         if (c->has_die_id) {
-            monitor_printf(mon, "    die-id: \"%" PRIu64 "\"\n", c->die_id);
+            monitor_hmp_printf(hmp, "    die-id: \"%" PRIu64 "\"\n", c->die_id);
         }
         if (c->has_cluster_id) {
-            monitor_printf(mon, "    cluster-id: \"%" PRIu64 "\"\n",
-                           c->cluster_id);
+            monitor_hmp_printf(hmp, "    cluster-id: \"%" PRIu64 "\"\n",
+                               c->cluster_id);
         }
         if (c->has_module_id) {
-            monitor_printf(mon, "    module-id: \"%" PRIu64 "\"\n",
-                           c->module_id);
+            monitor_hmp_printf(hmp, "    module-id: \"%" PRIu64 "\"\n",
+                               c->module_id);
         }
         if (c->has_core_id) {
-            monitor_printf(mon, "    core-id: \"%" PRIu64 "\"\n", c->core_id);
+            monitor_hmp_printf(hmp, "    core-id: \"%" PRIu64 "\"\n", c->core_id);
         }
         if (c->has_thread_id) {
-            monitor_printf(mon, "    thread-id: \"%" PRIu64 "\"\n", c->thread_id);
+            monitor_hmp_printf(hmp, "    thread-id: \"%" PRIu64 "\"\n", c->thread_id);
         }
 
         l = l->next;
@@ -110,7 +108,6 @@ void hmp_hotpluggable_cpus(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_memdev(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     MemdevList *memdev_list = qmp_query_memdev(&err);
     MemdevList *m = memdev_list;
@@ -120,31 +117,31 @@ void hmp_info_memdev(MonitorHMP *hmp, const QDict *qdict)
     while (m) {
         v = string_output_visitor_new(false, &str);
         visit_type_uint16List(v, NULL, &m->value->host_nodes, &error_abort);
-        monitor_printf(mon, "memory backend: %s\n", m->value->id);
-        monitor_printf(mon, "  size:  %" PRId64 "\n", m->value->size);
-        monitor_printf(mon, "  merge: %s\n",
-                       m->value->merge ? "true" : "false");
-        monitor_printf(mon, "  dump: %s\n",
-                       m->value->dump ? "true" : "false");
-        monitor_printf(mon, "  prealloc: %s\n",
-                       m->value->prealloc ? "true" : "false");
-        monitor_printf(mon, "  share: %s\n",
-                       m->value->share ? "true" : "false");
+        monitor_hmp_printf(hmp, "memory backend: %s\n", m->value->id);
+        monitor_hmp_printf(hmp, "  size:  %" PRId64 "\n", m->value->size);
+        monitor_hmp_printf(hmp, "  merge: %s\n",
+                           m->value->merge ? "true" : "false");
+        monitor_hmp_printf(hmp, "  dump: %s\n",
+                           m->value->dump ? "true" : "false");
+        monitor_hmp_printf(hmp, "  prealloc: %s\n",
+                           m->value->prealloc ? "true" : "false");
+        monitor_hmp_printf(hmp, "  share: %s\n",
+                           m->value->share ? "true" : "false");
         if (m->value->has_reserve) {
-            monitor_printf(mon, "  reserve: %s\n",
-                           m->value->reserve ? "true" : "false");
+            monitor_hmp_printf(hmp, "  reserve: %s\n",
+                               m->value->reserve ? "true" : "false");
         }
-        monitor_printf(mon, "  policy: %s\n",
-                       HostMemPolicy_str(m->value->policy));
+        monitor_hmp_printf(hmp, "  policy: %s\n",
+                           HostMemPolicy_str(m->value->policy));
         visit_complete(v, &str);
-        monitor_printf(mon, "  host nodes: %s\n", str);
+        monitor_hmp_printf(hmp, "  host nodes: %s\n", str);
 
         g_free(str);
         visit_free(v);
         m = m->next;
     }
 
-    monitor_printf(mon, "\n");
+    monitor_hmp_printf(hmp, "\n");
 
     qapi_free_MemdevList(memdev_list);
     hmp_handle_error(hmp, err);
@@ -152,15 +149,14 @@ void hmp_info_memdev(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_kvm(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     KvmInfo *info;
 
     info = qmp_query_kvm(NULL);
-    monitor_printf(mon, "kvm support: ");
+    monitor_hmp_printf(hmp, "kvm support: ");
     if (info->present) {
-        monitor_printf(mon, "%s\n", info->enabled ? "enabled" : "disabled");
+        monitor_hmp_printf(hmp, "%s\n", info->enabled ? "enabled" : "disabled");
     } else {
-        monitor_printf(mon, "not compiled\n");
+        monitor_hmp_printf(hmp, "not compiled\n");
     }
 
     qapi_free_KvmInfo(info);
@@ -168,7 +164,6 @@ void hmp_info_kvm(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_accelerators(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     AcceleratorInfo *info;
     AcceleratorList *accel;
 
@@ -176,9 +171,9 @@ void hmp_info_accelerators(MonitorHMP *hmp, const QDict *qdict)
     for (accel = info->present; accel; accel = accel->next) {
         char trail = accel->next ? ' ' : '\n';
         if (info->enabled == accel->value) {
-            monitor_printf(mon, "[%s]%c", Accelerator_str(accel->value), trail);
+            monitor_hmp_printf(hmp, "[%s]%c", Accelerator_str(accel->value), trail);
         } else {
-            monitor_printf(mon, "%s%c", Accelerator_str(accel->value), trail);
+            monitor_hmp_printf(hmp, "%s%c", Accelerator_str(accel->value), trail);
         }
     }
 
@@ -187,17 +182,15 @@ void hmp_info_accelerators(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_uuid(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     UuidInfo *info;
 
     info = qmp_query_uuid(NULL);
-    monitor_printf(mon, "%s\n", info->UUID);
+    monitor_hmp_printf(hmp, "%s\n", info->UUID);
     qapi_free_UuidInfo(info);
 }
 
 void hmp_info_balloon(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     BalloonInfo *info;
     Error *err = NULL;
 
@@ -206,7 +199,7 @@ void hmp_info_balloon(MonitorHMP *hmp, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
+    monitor_hmp_printf(hmp, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
 
     qapi_free_BalloonInfo(info);
 }
@@ -223,7 +216,6 @@ void hmp_system_powerdown(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_memsave(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     uint32_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
@@ -231,7 +223,7 @@ void hmp_memsave(MonitorHMP *hmp, const QDict *qdict)
     int cpu_index = monitor_hmp_get_cpu_index(hmp);
 
     if (cpu_index < 0) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
 
@@ -277,7 +269,6 @@ void hmp_balloon(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_memory_devices(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     MemoryDeviceInfoList *info_list = qmp_query_memory_devices(&err);
     MemoryDeviceInfoList *info;
@@ -298,76 +289,76 @@ void hmp_info_memory_devices(MonitorHMP *hmp, const QDict *qdict)
             case MEMORY_DEVICE_INFO_KIND_NVDIMM:
                 di = value->type == MEMORY_DEVICE_INFO_KIND_DIMM ?
                      value->u.dimm.data : value->u.nvdimm.data;
-                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_str(value->type),
-                               di->id ? di->id : "");
-                monitor_printf(mon, "  addr: 0x%" PRIx64 "\n", di->addr);
-                monitor_printf(mon, "  slot: %" PRId64 "\n", di->slot);
-                monitor_printf(mon, "  node: %" PRId64 "\n", di->node);
-                monitor_printf(mon, "  size: %" PRIu64 "\n", di->size);
-                monitor_printf(mon, "  memdev: %s\n", di->memdev);
-                monitor_printf(mon, "  hotplugged: %s\n",
-                               di->hotplugged ? "true" : "false");
-                monitor_printf(mon, "  hotpluggable: %s\n",
-                               di->hotpluggable ? "true" : "false");
+                monitor_hmp_printf(hmp, "Memory device [%s]: \"%s\"\n",
+                                   MemoryDeviceInfoKind_str(value->type),
+                                   di->id ? di->id : "");
+                monitor_hmp_printf(hmp, "  addr: 0x%" PRIx64 "\n", di->addr);
+                monitor_hmp_printf(hmp, "  slot: %" PRId64 "\n", di->slot);
+                monitor_hmp_printf(hmp, "  node: %" PRId64 "\n", di->node);
+                monitor_hmp_printf(hmp, "  size: %" PRIu64 "\n", di->size);
+                monitor_hmp_printf(hmp, "  memdev: %s\n", di->memdev);
+                monitor_hmp_printf(hmp, "  hotplugged: %s\n",
+                                   di->hotplugged ? "true" : "false");
+                monitor_hmp_printf(hmp, "  hotpluggable: %s\n",
+                                   di->hotpluggable ? "true" : "false");
                 break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_PMEM:
                 vpi = value->u.virtio_pmem.data;
-                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_str(value->type),
-                               vpi->id ? vpi->id : "");
-                monitor_printf(mon, "  memaddr: 0x%" PRIx64 "\n", vpi->memaddr);
-                monitor_printf(mon, "  size: %" PRIu64 "\n", vpi->size);
-                monitor_printf(mon, "  memdev: %s\n", vpi->memdev);
+                monitor_hmp_printf(hmp, "Memory device [%s]: \"%s\"\n",
+                                   MemoryDeviceInfoKind_str(value->type),
+                                   vpi->id ? vpi->id : "");
+                monitor_hmp_printf(hmp, "  memaddr: 0x%" PRIx64 "\n", vpi->memaddr);
+                monitor_hmp_printf(hmp, "  size: %" PRIu64 "\n", vpi->size);
+                monitor_hmp_printf(hmp, "  memdev: %s\n", vpi->memdev);
                 break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_MEM:
                 vmi = value->u.virtio_mem.data;
-                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_str(value->type),
-                               vmi->id ? vmi->id : "");
-                monitor_printf(mon, "  memaddr: 0x%" PRIx64 "\n", vmi->memaddr);
-                monitor_printf(mon, "  node: %" PRId64 "\n", vmi->node);
-                monitor_printf(mon, "  requested-size: %" PRIu64 "\n",
-                               vmi->requested_size);
-                monitor_printf(mon, "  size: %" PRIu64 "\n", vmi->size);
-                monitor_printf(mon, "  max-size: %" PRIu64 "\n", vmi->max_size);
-                monitor_printf(mon, "  block-size: %" PRIu64 "\n",
-                               vmi->block_size);
-                monitor_printf(mon, "  memdev: %s\n", vmi->memdev);
+                monitor_hmp_printf(hmp, "Memory device [%s]: \"%s\"\n",
+                                   MemoryDeviceInfoKind_str(value->type),
+                                   vmi->id ? vmi->id : "");
+                monitor_hmp_printf(hmp, "  memaddr: 0x%" PRIx64 "\n", vmi->memaddr);
+                monitor_hmp_printf(hmp, "  node: %" PRId64 "\n", vmi->node);
+                monitor_hmp_printf(hmp, "  requested-size: %" PRIu64 "\n",
+                                   vmi->requested_size);
+                monitor_hmp_printf(hmp, "  size: %" PRIu64 "\n", vmi->size);
+                monitor_hmp_printf(hmp, "  max-size: %" PRIu64 "\n", vmi->max_size);
+                monitor_hmp_printf(hmp, "  block-size: %" PRIu64 "\n",
+                                   vmi->block_size);
+                monitor_hmp_printf(hmp, "  memdev: %s\n", vmi->memdev);
                 break;
             case MEMORY_DEVICE_INFO_KIND_SGX_EPC:
                 se = value->u.sgx_epc.data;
-                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_str(value->type),
-                               se->id ? se->id : "");
-                monitor_printf(mon, "  memaddr: 0x%" PRIx64 "\n", se->memaddr);
-                monitor_printf(mon, "  size: %" PRIu64 "\n", se->size);
-                monitor_printf(mon, "  node: %" PRId64 "\n", se->node);
-                monitor_printf(mon, "  memdev: %s\n", se->memdev);
+                monitor_hmp_printf(hmp, "Memory device [%s]: \"%s\"\n",
+                                   MemoryDeviceInfoKind_str(value->type),
+                                   se->id ? se->id : "");
+                monitor_hmp_printf(hmp, "  memaddr: 0x%" PRIx64 "\n", se->memaddr);
+                monitor_hmp_printf(hmp, "  size: %" PRIu64 "\n", se->size);
+                monitor_hmp_printf(hmp, "  node: %" PRId64 "\n", se->node);
+                monitor_hmp_printf(hmp, "  memdev: %s\n", se->memdev);
                 break;
             case MEMORY_DEVICE_INFO_KIND_HV_BALLOON:
                 hi = value->u.hv_balloon.data;
-                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_str(value->type),
-                               hi->id ? hi->id : "");
+                monitor_hmp_printf(hmp, "Memory device [%s]: \"%s\"\n",
+                                   MemoryDeviceInfoKind_str(value->type),
+                                   hi->id ? hi->id : "");
                 if (hi->has_memaddr) {
-                    monitor_printf(mon, "  memaddr: 0x%" PRIx64 "\n",
-                                   hi->memaddr);
+                    monitor_hmp_printf(hmp, "  memaddr: 0x%" PRIx64 "\n",
+                                       hi->memaddr);
                 }
-                monitor_printf(mon, "  max-size: %" PRIu64 "\n", hi->max_size);
+                monitor_hmp_printf(hmp, "  max-size: %" PRIu64 "\n", hi->max_size);
                 if (hi->memdev) {
-                    monitor_printf(mon, "  memdev: %s\n", hi->memdev);
+                    monitor_hmp_printf(hmp, "  memdev: %s\n", hi->memdev);
                 }
                 break;
             case MEMORY_DEVICE_INFO_KIND_SP_MEM:
                 spmi = value->u.sp_mem.data;
-                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_str(value->type),
-                               spmi->id ? spmi->id : "");
-                monitor_printf(mon, "  addr: 0x%" PRIx64 "\n", spmi->addr);
-                monitor_printf(mon, "  node: %" PRId64 "\n", spmi->node);
-                monitor_printf(mon, "  size: %" PRIu64 "\n", spmi->size);
-                monitor_printf(mon, "  memdev: %s\n", spmi->memdev);
+                monitor_hmp_printf(hmp, "Memory device [%s]: \"%s\"\n",
+                                   MemoryDeviceInfoKind_str(value->type),
+                                   spmi->id ? spmi->id : "");
+                monitor_hmp_printf(hmp, "  addr: 0x%" PRIx64 "\n", spmi->addr);
+                monitor_hmp_printf(hmp, "  node: %" PRId64 "\n", spmi->node);
+                monitor_hmp_printf(hmp, "  size: %" PRIu64 "\n", spmi->size);
+                monitor_hmp_printf(hmp, "  memdev: %s\n", spmi->memdev);
                 break;
             default:
                 g_assert_not_reached();
@@ -381,11 +372,10 @@ void hmp_info_memory_devices(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_vm_generation_id(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     GuidInfo *info = qmp_query_vm_generation_id(&err);
     if (info) {
-        monitor_printf(mon, "%s\n", info->guid);
+        monitor_hmp_printf(hmp, "%s\n", info->guid);
     }
     hmp_handle_error(hmp, err);
     qapi_free_GuidInfo(info);
@@ -393,16 +383,15 @@ void hmp_info_vm_generation_id(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_memory_size_summary(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     MemoryInfo *info = qmp_query_memory_size_summary(&err);
     if (info) {
-        monitor_printf(mon, "base memory: %" PRIu64 "\n",
-                       info->base_memory);
+        monitor_hmp_printf(hmp, "base memory: %" PRIu64 "\n",
+                           info->base_memory);
 
         if (info->has_plugged_memory) {
-            monitor_printf(mon, "plugged memory: %" PRIu64 "\n",
-                           info->plugged_memory);
+            monitor_hmp_printf(hmp, "plugged memory: %" PRIu64 "\n",
+                               info->plugged_memory);
         }
 
         qapi_free_MemoryInfo(info);

@@ -272,58 +272,53 @@ int monitor_puts(Monitor *mon, const char *str)
     return monitor_puts_locked(mon, str);
 }
 
-int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
+int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
 {
-    MonitorClass *moncls;
+    g_autofree char *buf = g_strdup_vprintf(fmt, ap);
 
     if (!mon) {
         return -1;
     }
 
-    moncls = MONITOR_GET_CLASS(mon);
-    if (!moncls->vprintf) {
-        return -1;
-    }
-
-    return moncls->vprintf(mon, fmt, ap);
+    return monitor_puts(MONITOR(mon), buf);
 }
 
-int monitor_printf(Monitor *mon, const char *fmt, ...)
+int monitor_hmp_printf(MonitorHMP *mon, const char *fmt, ...)
 {
     int ret;
 
     va_list ap;
     va_start(ap, fmt);
-    ret = monitor_vprintf(mon, fmt, ap);
+    ret = monitor_hmp_vprintf(mon, fmt, ap);
     va_end(ap);
     return ret;
 }
 
-void monitor_printc(Monitor *mon, int c)
+void monitor_hmp_printc(MonitorHMP *mon, int c)
 {
-    monitor_printf(mon, "'");
+    monitor_hmp_printf(mon, "'");
     switch(c) {
     case '\'':
-        monitor_printf(mon, "\\'");
+        monitor_hmp_printf(mon, "\\'");
         break;
     case '\\':
-        monitor_printf(mon, "\\\\");
+        monitor_hmp_printf(mon, "\\\\");
         break;
     case '\n':
-        monitor_printf(mon, "\\n");
+        monitor_hmp_printf(mon, "\\n");
         break;
     case '\r':
-        monitor_printf(mon, "\\r");
+        monitor_hmp_printf(mon, "\\r");
         break;
     default:
         if (c >= 32 && c <= 126) {
-            monitor_printf(mon, "%c", c);
+            monitor_hmp_printf(mon, "%c", c);
         } else {
-            monitor_printf(mon, "\\x%02x", c);
+            monitor_hmp_printf(mon, "\\x%02x", c);
         }
         break;
     }
-    monitor_printf(mon, "'");
+    monitor_hmp_printf(mon, "'");
 }
 
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {

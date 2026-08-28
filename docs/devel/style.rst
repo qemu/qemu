@@ -754,7 +754,7 @@ Error handling and reporting
 Reporting errors to the human user
 ----------------------------------
 
-Do not use printf(), fprintf() or monitor_printf().  Instead, use
+Do not use printf(), fprintf() or monitor_hmp_printf().  Instead, use
 error_report() or error_vreport() from error-report.h.  This ensures the
 error is reported in the right place (current monitor or stderr), and in
 a uniform format.

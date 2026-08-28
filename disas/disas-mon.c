@@ -38,7 +38,7 @@ physical_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
 }
 
 /* Disassembler for the monitor.  */
-void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
+void monitor_disas(MonitorHMP *hmp, CPUState *cpu, uint64_t pc,
                    int nb_insn, bool is_physical)
 {
     int count, i;
@@ -58,13 +58,13 @@ void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
     s.info.buffer_vma = pc;
 
     if (s.info.cap_arch >= 0 && cap_disas_monitor(&s.info, pc, nb_insn)) {
-        monitor_puts(mon, ds->str);
+        monitor_puts(MONITOR(hmp), ds->str);
         return;
     }
 
     if (!s.info.print_insn) {
-        monitor_printf(mon, "0x%08" PRIx64
-                       ": Asm output not supported on this arch\n", pc);
+        monitor_hmp_printf(hmp, "0x%08" PRIx64
+                           ": Asm output not supported on this arch\n", pc);
         return;
     }
 
@@ -78,5 +78,5 @@ void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
         pc += count;
     }
 
-    monitor_puts(mon, ds->str);
+    monitor_puts(MONITOR(hmp), ds->str);
 }

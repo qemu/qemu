@@ -33,11 +33,10 @@ bool replay_running_debug(void)
 
 void hmp_info_replay(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     if (replay_mode == REPLAY_MODE_NONE) {
-        monitor_printf(mon, "Record/replay is not active\n");
+        monitor_hmp_printf(hmp, "Record/replay is not active\n");
     } else {
-        monitor_printf(mon,
+        monitor_hmp_printf(hmp,
             "%s execution '%s': instruction count = %"PRId64"\n",
             replay_mode == REPLAY_MODE_RECORD ? "Recording" : "Replaying",
             replay_get_filename(), replay_get_current_icount());

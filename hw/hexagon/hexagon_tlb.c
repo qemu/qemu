@@ -124,30 +124,32 @@ static inline uint64_t hex_tlb_virt_addr(uint64_t entry)
 
 bool hexagon_tlb_dump_entry(Monitor *mon, uint64_t entry)
 {
+    MonitorHMP *hmp = MONITOR_HMP(mon);
+
     if (GET_PTE_V(entry)) {
         uint64_t PA = hex_tlb_phys_addr(entry);
         uint64_t VA = hex_tlb_virt_addr(entry);
-        monitor_printf(mon, "0x%016" PRIx64 ": ", entry);
-        monitor_printf(mon, "V:%" PRId64 " G:%" PRId64
-                       " A1:%" PRId64 " A0:%" PRId64,
-                       GET_PTE_V(entry),
-                       GET_PTE_G(entry),
-                       GET_PTE_ATR1(entry),
-                       GET_PTE_ATR0(entry));
-        monitor_printf(mon, " ASID:0x%02" PRIx64 " VA:0x%08" PRIx64,
-                       GET_PTE_ASID(entry), VA);
-        monitor_printf(mon,
-                       " X:%" PRId64 " W:%" PRId64 " R:%" PRId64
-                       " U:%" PRId64 " C:%" PRId64,
-                       GET_PTE_X(entry),
-                       GET_PTE_W(entry),
-                       GET_PTE_R(entry),
-                       GET_PTE_U(entry),
-                       GET_PTE_C(entry));
-        monitor_printf(mon, " PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")",
-                       PA, pgsize_str[hex_tlb_pgsize_type(entry)],
-                       hex_tlb_page_size_bytes(entry));
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "0x%016" PRIx64 ": ", entry);
+        monitor_hmp_printf(hmp, "V:%" PRId64 " G:%" PRId64
+                           " A1:%" PRId64 " A0:%" PRId64,
+                           GET_PTE_V(entry),
+                           GET_PTE_G(entry),
+                           GET_PTE_ATR1(entry),
+                           GET_PTE_ATR0(entry));
+        monitor_hmp_printf(hmp, " ASID:0x%02" PRIx64 " VA:0x%08" PRIx64,
+                           GET_PTE_ASID(entry), VA);
+        monitor_hmp_printf(hmp,
+                           " X:%" PRId64 " W:%" PRId64 " R:%" PRId64
+                           " U:%" PRId64 " C:%" PRId64,
+                           GET_PTE_X(entry),
+                           GET_PTE_W(entry),
+                           GET_PTE_R(entry),
+                           GET_PTE_U(entry),
+                           GET_PTE_C(entry));
+        monitor_hmp_printf(hmp, " PA:0x%09" PRIx64 " SZ:%s (0x%" PRIx64 ")",
+                           PA, pgsize_str[hex_tlb_pgsize_type(entry)],
+                           hex_tlb_page_size_bytes(entry));
+        monitor_hmp_printf(hmp, "\n");
         return true;
     }
 

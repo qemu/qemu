@@ -103,10 +103,11 @@ abort:
 
 static void xen_bus_print_dev(Monitor *mon, DeviceState *dev, int indent)
 {
+    MonitorHMP *hmp = MONITOR_HMP(mon);
     XenDevice *xendev = XEN_DEVICE(dev);
 
-    monitor_printf(mon, "%*sname = '%s' frontend_id = %u\n",
-                   indent, "", xendev->name, xendev->frontend_id);
+    monitor_hmp_printf(hmp, "%*sname = '%s' frontend_id = %u\n",
+                       indent, "", xendev->name, xendev->frontend_id);
 }
 
 static char *xen_bus_get_dev_path(DeviceState *dev)

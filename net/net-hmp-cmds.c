@@ -28,26 +28,25 @@
 #include "qemu/help_option.h"
 #include "qemu/option.h"
 
-static void hmp_print_client_info(Monitor *mon, NetworkClientInfo *ci)
+static void hmp_print_client_info(MonitorHMP *hmp, NetworkClientInfo *ci)
 {
     NetFilterInfoList *f;
 
-    monitor_printf(mon, "%s: index=%" PRIu32 ",type=%s,%s\n",
-                   ci->name, ci->queue_index,
-                   NetClientDriver_str(ci->type), ci->info_str);
+    monitor_hmp_printf(hmp, "%s: index=%" PRIu32 ",type=%s,%s\n",
+                       ci->name, ci->queue_index,
+                       NetClientDriver_str(ci->type), ci->info_str);
     if (ci->filters) {
-        monitor_printf(mon, "filters:\n");
+        monitor_hmp_printf(hmp, "filters:\n");
         for (f = ci->filters; f; f = f->next) {
-            monitor_printf(mon, "  - %s: type=%s%s%s\n",
-                           f->value->name, f->value->type,
-                           f->value->info[0] ? "," : "", f->value->info);
+            monitor_hmp_printf(hmp, "  - %s: type=%s%s%s\n",
+                               f->value->name, f->value->type,
+                               f->value->info[0] ? "," : "", f->value->info);
         }
     }
 }
 
 void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     g_autoptr(NetworkInfo) info = qmp_x_query_network(&err);
     NetHubInfoList *h;
@@ -60,13 +59,13 @@ void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
     for (h = info->hubs; h; h = h->next) {
         NetHubPortInfoList *p;
 
-        monitor_printf(mon, "hub %d\n", (int)h->value->id);
+        monitor_hmp_printf(hmp, "hub %d\n", (int)h->value->id);
         for (p = h->value->ports; p; p = p->next) {
             if (p->value->peer) {
-                monitor_printf(mon, " \\ %s: ", p->value->name);
-                hmp_print_client_info(mon, p->value->peer);
+                monitor_hmp_printf(hmp, " \\ %s: ", p->value->name);
+                hmp_print_client_info(hmp, p->value->peer);
             } else {
-                monitor_printf(mon, " \\ %s\n", p->value->name);
+                monitor_hmp_printf(hmp, " \\ %s\n", p->value->name);
             }
         }
     }
@@ -75,11 +74,11 @@ void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
         NetworkClientInfo *ci = entry->value;
 
         if (!ci->peer || ci->type == NET_CLIENT_DRIVER_NIC) {
-            hmp_print_client_info(mon, ci);
+            hmp_print_client_info(hmp, ci);
         } /* else it's a netdev connected to a NIC, printed with the NIC */
         if (ci->peer && ci->type == NET_CLIENT_DRIVER_NIC) {
-            monitor_printf(mon, " \\ ");
-            hmp_print_client_info(mon, ci->peer);
+            monitor_hmp_printf(hmp, " \\ ");
+            hmp_print_client_info(hmp, ci->peer);
         }
     }
 }

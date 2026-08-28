@@ -40,8 +40,7 @@ void hmp_info_pci(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_pcie_aer_inject_error(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
-    monitor_printf(mon, "PCI devices not supported\n");
+    monitor_hmp_printf(hmp, "PCI devices not supported\n");
 }
 
 /* kvm-all wants this */

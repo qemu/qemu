@@ -42,12 +42,10 @@ void xen_primary_console_set_be_port(uint16_t port)
 
 void hmp_xen_event_list(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
-    monitor_printf(mon, "XEN emulation is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "XEN emulation is not available in this QEMU\n");
 }
 
 void hmp_xen_event_inject(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
-    monitor_printf(mon, "XEN emulation is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "XEN emulation is not available in this QEMU\n");
 }

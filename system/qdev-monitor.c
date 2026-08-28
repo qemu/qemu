@@ -763,9 +763,10 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     return ret;
 }
 
-#define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
+#define qdev_printf(fmt, ...) \
+    monitor_hmp_printf(hmp, "%*s" fmt, indent, "", ## __VA_ARGS__)
 
-static void qdev_print_props(Monitor *mon, DeviceState *dev, DeviceClass *dc,
+static void qdev_print_props(MonitorHMP *hmp, DeviceState *dev, DeviceClass *dc,
                              int indent)
 {
     for (int i = 0, n = dc->props_count_; i < n; ++i) {
@@ -798,8 +799,9 @@ static void bus_print_dev(BusState *bus, Monitor *mon, DeviceState *dev, int ind
     }
 }
 
-static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
+static void qdev_print(MonitorHMP *hmp, DeviceState *dev, int indent)
 {
+    Monitor *mon = MONITOR(hmp);
     ObjectClass *class;
     NamedGPIOList *ngl;
     NamedClockList *ncl;
@@ -823,13 +825,13 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     }
     class = object_get_class(OBJECT(dev));
     do {
-        qdev_print_props(mon, dev, DEVICE_CLASS(class), indent);
+        qdev_print_props(hmp, dev, DEVICE_CLASS(class), indent);
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
     bus_print_dev(dev->parent_bus, mon, dev, indent);
 }
 
-static void qbus_print(Monitor *mon, BusState *bus, int indent, bool details)
+static void qbus_print(MonitorHMP *hmp, BusState *bus, int indent, bool details)
 {
     BusChild *kid;
 
@@ -842,10 +844,10 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent, bool details)
         qdev_printf("dev: %s, id \"%s\"\n", object_get_typename(OBJECT(dev)),
                     dev->id ? dev->id : "");
         if (details) {
-            qdev_print(mon, dev, indent + 2);
+            qdev_print(hmp, dev, indent + 2);
         }
         QLIST_FOREACH(child_bus, &dev->child_bus, sibling) {
-            qbus_print(mon, child_bus, indent + 2, details);
+            qbus_print(hmp, child_bus, indent + 2, details);
         }
     }
 }
@@ -853,11 +855,10 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent, bool details)
 
 void hmp_info_qtree(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     bool details = !qdict_get_try_bool(qdict, "brief", false);
 
     if (sysbus_get_default()) {
-        qbus_print(mon, sysbus_get_default(), 0, details);
+        qbus_print(hmp, sysbus_get_default(), 0, details);
     }
 }
 

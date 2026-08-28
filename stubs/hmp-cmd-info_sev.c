@@ -12,6 +12,5 @@
 
 void hmp_info_sev(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
-    monitor_printf(mon, "SEV is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "SEV is not available in this QEMU\n");
 }

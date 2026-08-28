@@ -546,14 +546,15 @@ static const char *usb_speed(unsigned int speed)
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
+    MonitorHMP *hmp = MONITOR_HMP(mon);
     USBDevice *dev = USB_DEVICE(qdev);
     USBBus *bus = usb_bus_from_device(dev);
 
-    monitor_printf(mon, "%*saddr %d.%d, port %s, speed %s, name %s%s\n",
-                   indent, "", bus->busnr, dev->addr,
-                   dev->port ? dev->port->path : "-",
-                   usb_speed(dev->speed), dev->product_desc,
-                   dev->attached ? ", attached" : "");
+    monitor_hmp_printf(hmp, "%*saddr %d.%d, port %s, speed %s, name %s%s\n",
+                       indent, "", bus->busnr, dev->addr,
+                       dev->port ? dev->port->path : "-",
+                       usb_speed(dev->speed), dev->product_desc,
+                       dev->attached ? ", attached" : "");
 }
 
 static char *usb_get_dev_path(DeviceState *qdev)

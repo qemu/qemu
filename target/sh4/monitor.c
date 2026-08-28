@@ -26,33 +26,32 @@
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 
-static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
+static void print_tlb(MonitorHMP *hmp, int idx, tlb_t *tlb)
 {
-    monitor_printf(mon, " tlb%i:\t"
-                   "asid=%hhu vpn=%x\tppn=%x\tsz=%hhu size=%u\t"
-                   "v=%hhu shared=%hhu cached=%hhu prot=%hhu "
-                   "dirty=%hhu writethrough=%hhu\n",
-                   idx,
-                   tlb->asid, tlb->vpn, tlb->ppn, tlb->sz, tlb->size,
-                   tlb->v, tlb->sh, tlb->c, tlb->pr,
-                   tlb->d, tlb->wt);
+    monitor_hmp_printf(hmp, " tlb%i:\t"
+                       "asid=%hhu vpn=%x\tppn=%x\tsz=%hhu size=%u\t"
+                       "v=%hhu shared=%hhu cached=%hhu prot=%hhu "
+                       "dirty=%hhu writethrough=%hhu\n",
+                       idx,
+                       tlb->asid, tlb->vpn, tlb->ppn, tlb->sz, tlb->size,
+                       tlb->v, tlb->sh, tlb->c, tlb->pr,
+                       tlb->d, tlb->wt);
 }
 
 void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     CPUArchState *env = monitor_hmp_get_cpu_env(hmp);
     int i;
 
     if (!env) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
 
-    monitor_printf (mon, "ITLB:\n");
+    monitor_hmp_printf(hmp, "ITLB:\n");
     for (i = 0 ; i < ITLB_SIZE ; i++)
-        print_tlb (mon, i, &env->itlb[i]);
-    monitor_printf (mon, "UTLB:\n");
+        print_tlb(hmp, i, &env->itlb[i]);
+    monitor_hmp_printf(hmp, "UTLB:\n");
     for (i = 0 ; i < UTLB_SIZE ; i++)
-        print_tlb (mon, i, &env->utlb[i]);
+        print_tlb(hmp, i, &env->utlb[i]);
 }

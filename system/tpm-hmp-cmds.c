@@ -13,7 +13,6 @@
 
 void hmp_info_tpm(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
 #ifdef CONFIG_TPM
     TPMInfoList *info_list, *info;
     Error *err = NULL;
@@ -23,44 +22,44 @@ void hmp_info_tpm(MonitorHMP *hmp, const QDict *qdict)
 
     info_list = qmp_query_tpm(&err);
     if (err) {
-        monitor_printf(mon, "TPM device not supported\n");
+        monitor_hmp_printf(hmp, "TPM device not supported\n");
         error_free(err);
         return;
     }
 
     if (info_list) {
-        monitor_printf(mon, "TPM device:\n");
+        monitor_hmp_printf(hmp, "TPM device:\n");
     }
 
     for (info = info_list; info; info = info->next) {
         TPMInfo *ti = info->value;
-        monitor_printf(mon, " tpm%d: model=%s\n",
-                       c, TpmModel_str(ti->model));
+        monitor_hmp_printf(hmp, " tpm%d: model=%s\n",
+                           c, TpmModel_str(ti->model));
 
-        monitor_printf(mon, "  \\ %s: type=%s",
-                       ti->id, TpmType_str(ti->options->type));
+        monitor_hmp_printf(hmp, "  \\ %s: type=%s",
+                           ti->id, TpmType_str(ti->options->type));
 
         switch (ti->options->type) {
         case TPM_TYPE_PASSTHROUGH:
             tpo = ti->options->u.passthrough.data;
-            monitor_printf(mon, "%s%s%s%s",
-                           tpo->path ? ",path=" : "",
-                           tpo->path ?: "",
-                           tpo->cancel_path ? ",cancel-path=" : "",
-                           tpo->cancel_path ?: "");
+            monitor_hmp_printf(hmp, "%s%s%s%s",
+                               tpo->path ? ",path=" : "",
+                               tpo->path ?: "",
+                               tpo->cancel_path ? ",cancel-path=" : "",
+                               tpo->cancel_path ?: "");
             break;
         case TPM_TYPE_EMULATOR:
             teo = ti->options->u.emulator.data;
-            monitor_printf(mon, ",chardev=%s", teo->chardev);
+            monitor_hmp_printf(hmp, ",chardev=%s", teo->chardev);
             break;
         case TPM_TYPE__MAX:
             break;
         }
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "\n");
         c++;
     }
     qapi_free_TPMInfoList(info_list);
 #else
-    monitor_printf(mon, "TPM device not supported\n");
+    monitor_hmp_printf(hmp, "TPM device not supported\n");
 #endif /* CONFIG_TPM */
 }

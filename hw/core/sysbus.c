@@ -252,13 +252,14 @@ bool sysbus_realize_and_unref(SysBusDevice *dev, Error **errp)
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    MonitorHMP *hmp = MONITOR_HMP(mon);
     hwaddr size;
     int i;
 
     for (i = 0; i < s->num_mmio; i++) {
         size = memory_region_size(s->mmio[i].memory);
-        monitor_printf(mon, "%*smmio " HWADDR_FMT_plx "/" HWADDR_FMT_plx "\n",
-                       indent, "", s->mmio[i].addr, size);
+        monitor_hmp_printf(hmp, "%*smmio " HWADDR_FMT_plx "/" HWADDR_FMT_plx "\n",
+                           indent, "", s->mmio[i].addr, size);
     }
 }
 

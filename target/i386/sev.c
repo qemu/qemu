@@ -786,33 +786,32 @@ SevInfo *qmp_query_sev(Error **errp)
 
 void hmp_info_sev(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     SevInfo *info = sev_get_info();
 
     if (!info || !info->enabled) {
-        monitor_printf(mon, "SEV is not enabled\n");
+        monitor_hmp_printf(hmp, "SEV is not enabled\n");
         goto out;
     }
 
-    monitor_printf(mon, "SEV type: %s\n", SevGuestType_str(info->sev_type));
-    monitor_printf(mon, "state: %s\n", SevState_str(info->state));
-    monitor_printf(mon, "build: %d\n", info->build_id);
-    monitor_printf(mon, "api version: %d.%d\n", info->api_major,
-                   info->api_minor);
+    monitor_hmp_printf(hmp, "SEV type: %s\n", SevGuestType_str(info->sev_type));
+    monitor_hmp_printf(hmp, "state: %s\n", SevState_str(info->state));
+    monitor_hmp_printf(hmp, "build: %d\n", info->build_id);
+    monitor_hmp_printf(hmp, "api version: %d.%d\n", info->api_major,
+                       info->api_minor);
 
     if (sev_snp_enabled()) {
-        monitor_printf(mon, "debug: %s\n",
-                       info->u.sev_snp.snp_policy & SEV_SNP_POLICY_DBG ? "on"
-                                                                       : "off");
-        monitor_printf(mon, "SMT allowed: %s\n",
-                       info->u.sev_snp.snp_policy & SEV_SNP_POLICY_SMT ? "on"
-                                                                       : "off");
+        monitor_hmp_printf(hmp, "debug: %s\n",
+                           info->u.sev_snp.snp_policy & SEV_SNP_POLICY_DBG ? "on"
+                                                                           : "off");
+        monitor_hmp_printf(hmp, "SMT allowed: %s\n",
+                           info->u.sev_snp.snp_policy & SEV_SNP_POLICY_SMT ? "on"
+                                                                           : "off");
     } else {
-        monitor_printf(mon, "handle: %d\n", info->u.sev.handle);
-        monitor_printf(mon, "debug: %s\n",
-                       info->u.sev.policy & SEV_POLICY_NODBG ? "off" : "on");
-        monitor_printf(mon, "key-sharing: %s\n",
-                       info->u.sev.policy & SEV_POLICY_NOKS ? "off" : "on");
+        monitor_hmp_printf(hmp, "handle: %d\n", info->u.sev.handle);
+        monitor_hmp_printf(hmp, "debug: %s\n",
+                           info->u.sev.policy & SEV_POLICY_NODBG ? "off" : "on");
+        monitor_hmp_printf(hmp, "key-sharing: %s\n",
+                           info->u.sev.policy & SEV_POLICY_NOKS ? "off" : "on");
     }
 
 out:

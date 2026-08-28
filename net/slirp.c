@@ -711,22 +711,22 @@ error:
     return -1;
 }
 
-static SlirpState *slirp_lookup(Monitor *mon, const char *id)
+static SlirpState *slirp_lookup(MonitorHMP *hmp, const char *id)
 {
     if (id) {
         NetClientState *nc = qemu_find_netdev(id);
         if (!nc) {
-            monitor_printf(mon, "unrecognized netdev id '%s'\n", id);
+            monitor_hmp_printf(hmp, "unrecognized netdev id '%s'\n", id);
             return NULL;
         }
         if (strcmp(nc->model, "user")) {
-            monitor_printf(mon, "invalid device specified\n");
+            monitor_hmp_printf(hmp, "invalid device specified\n");
             return NULL;
         }
         return DO_UPCAST(SlirpState, nc, nc);
     } else {
         if (QTAILQ_EMPTY(&slirp_stacks)) {
-            monitor_printf(mon, "user mode network stack not in use\n");
+            monitor_hmp_printf(hmp, "user mode network stack not in use\n");
             return NULL;
         }
         return QTAILQ_FIRST(&slirp_stacks);
@@ -735,7 +735,6 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *id)
 
 void hmp_hostfwd_remove(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     /* TODO: support removing unix fwd */
     struct sockaddr_in host_addr = {
         .sin_family = AF_INET,
@@ -753,10 +752,10 @@ void hmp_hostfwd_remove(MonitorHMP *hmp, const QDict *qdict)
     const char *arg2 = qdict_get_try_str(qdict, "arg2");
 
     if (arg2) {
-        s = slirp_lookup(mon, arg1);
+        s = slirp_lookup(hmp, arg1);
         src_str = arg2;
     } else {
-        s = slirp_lookup(mon, NULL);
+        s = slirp_lookup(hmp, NULL);
         src_str = arg1;
     }
     if (!s) {
@@ -795,12 +794,12 @@ void hmp_hostfwd_remove(MonitorHMP *hmp, const QDict *qdict)
     err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr.sin_addr, host_port);
 #endif
 
-    monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
-                   err ? "not found" : "removed");
+    monitor_hmp_printf(hmp, "host forwarding rule for %s %s\n", src_str,
+                       err ? "not found" : "removed");
     return;
 
  fail_syntax:
-    monitor_printf(mon, "invalid format\n");
+    monitor_hmp_printf(hmp, "invalid format\n");
 }
 
 static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
@@ -960,17 +959,16 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 
 void hmp_hostfwd_add(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *redir_str;
     SlirpState *s;
     const char *arg1 = qdict_get_str(qdict, "arg1");
     const char *arg2 = qdict_get_try_str(qdict, "arg2");
 
     if (arg2) {
-        s = slirp_lookup(mon, arg1);
+        s = slirp_lookup(hmp, arg1);
         redir_str = arg2;
     } else {
-        s = slirp_lookup(mon, NULL);
+        s = slirp_lookup(hmp, NULL);
         redir_str = arg1;
     }
     if (s) {
@@ -1228,16 +1226,15 @@ UsernetInfoList *qmp_x_query_usernet(Error **errp)
 
 void hmp_info_usernet(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     g_autoptr(UsernetInfoList) list = NULL;
     UsernetInfoList *entry;
 
     list = qmp_x_query_usernet(&error_abort);
     for (entry = list; entry; entry = entry->next) {
         UsernetInfo *ui = entry->value;
-        monitor_printf(mon, "Hub %d (%s):\n%s",
-                       ui->has_hub_id ? (int)ui->hub_id : -1,
-                       ui->hub_name, ui->info);
+        monitor_hmp_printf(hmp, "Hub %d (%s):\n%s",
+                           ui->has_hub_id ? (int)ui->hub_id : -1,
+                           ui->hub_name, ui->info);
     }
 }
 

@@ -838,11 +838,11 @@ static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(qdev);
 
-    monitor_printf(mon, "%*sport %d, guest %s, host %s, throttle %s\n",
-                   indent, "", port->id,
-                   port->guest_connected ? "on" : "off",
-                   port->host_connected ? "on" : "off",
-                   port->throttled ? "on" : "off");
+    monitor_hmp_printf(MONITOR_HMP(mon), "%*sport %d, guest %s, host %s, throttle %s\n",
+                       indent, "", port->id,
+                       port->guest_connected ? "on" : "off",
+                       port->host_connected ? "on" : "off",
+                       port->throttled ? "on" : "off");
 }
 
 /* This function is only used if a port id is not provided by the user */

@@ -51,13 +51,13 @@ static target_ulong addr_canonical(int va_bits, target_ulong addr)
     return addr;
 }
 
-static void print_pte_header(Monitor *mon)
+static void print_pte_header(MonitorHMP *hmp)
 {
-    monitor_printf(mon, PTE_HEADER_FIELDS);
-    monitor_printf(mon, PTE_HEADER_DELIMITER);
+    monitor_hmp_printf(hmp, PTE_HEADER_FIELDS);
+    monitor_hmp_printf(hmp, PTE_HEADER_DELIMITER);
 }
 
-static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
+static void print_pte(MonitorHMP *hmp, int va_bits, target_ulong vaddr,
                       hwaddr paddr, target_ulong size, int attr)
 {
     /* sanity check on vaddr */
@@ -69,20 +69,20 @@ static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
         return;
     }
 
-    monitor_printf(mon, TARGET_FMT_lx " " HWADDR_FMT_plx " " TARGET_FMT_lx
-                   " %c%c%c%c%c%c%c\n",
-                   addr_canonical(va_bits, vaddr),
-                   paddr, size,
-                   attr & PTE_R ? 'r' : '-',
-                   attr & PTE_W ? 'w' : '-',
-                   attr & PTE_X ? 'x' : '-',
-                   attr & PTE_U ? 'u' : '-',
-                   attr & PTE_G ? 'g' : '-',
-                   attr & PTE_A ? 'a' : '-',
-                   attr & PTE_D ? 'd' : '-');
+    monitor_hmp_printf(hmp, TARGET_FMT_lx " " HWADDR_FMT_plx " " TARGET_FMT_lx
+                       " %c%c%c%c%c%c%c\n",
+                       addr_canonical(va_bits, vaddr),
+                       paddr, size,
+                       attr & PTE_R ? 'r' : '-',
+                       attr & PTE_W ? 'w' : '-',
+                       attr & PTE_X ? 'x' : '-',
+                       attr & PTE_U ? 'u' : '-',
+                       attr & PTE_G ? 'g' : '-',
+                       attr & PTE_A ? 'a' : '-',
+                       attr & PTE_D ? 'd' : '-');
 }
 
-static void walk_pte(Monitor *mon, AddressSpace *as,
+static void walk_pte(MonitorHMP *hmp, AddressSpace *as,
                      hwaddr base, target_ulong start,
                      int level, int ptidxbits, int ptesize, int va_bits,
                      target_ulong *vbase, hwaddr *pbase, hwaddr *last_paddr,
@@ -126,7 +126,7 @@ static void walk_pte(Monitor *mon, AddressSpace *as,
                 if ((*last_attr != attr) ||
                     (*last_paddr + *last_size != paddr) ||
                     (last_start + *last_size != start)) {
-                    print_pte(mon, va_bits, *vbase, *pbase,
+                    print_pte(hmp, va_bits, *vbase, *pbase,
                               *last_paddr + *last_size - *pbase, *last_attr);
 
                     *vbase = start;
@@ -139,7 +139,7 @@ static void walk_pte(Monitor *mon, AddressSpace *as,
                 *last_size = pgsize;
             } else {
                 /* pointer to the next level of the page table */
-                walk_pte(mon, as, paddr, start, level - 1, ptidxbits, ptesize,
+                walk_pte(hmp, as, paddr, start, level - 1, ptidxbits, ptesize,
                          va_bits, vbase, pbase, last_paddr,
                          last_size, last_attr);
             }
@@ -150,7 +150,7 @@ static void walk_pte(Monitor *mon, AddressSpace *as,
 
 }
 
-static void mem_info_svxx(Monitor *mon, CPUArchState *env)
+static void mem_info_svxx(MonitorHMP *hmp, CPUArchState *env)
 {
     AddressSpace *as = env_cpu(env)->as;
     int levels, ptidxbits, ptesize, vm, va_bits;
@@ -198,7 +198,7 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
     va_bits = PGSHIFT + levels * ptidxbits;
 
     /* print header */
-    print_pte_header(mon);
+    print_pte_header(hmp);
 
     vbase = -1;
     pbase = -1;
@@ -207,43 +207,42 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
     last_attr = 0;
 
     /* walk page tables, starting from address 0 */
-    walk_pte(mon, as, base, 0, levels - 1, ptidxbits, ptesize, va_bits,
+    walk_pte(hmp, as, base, 0, levels - 1, ptidxbits, ptesize, va_bits,
              &vbase, &pbase, &last_paddr, &last_size, &last_attr);
 
     /* don't forget the last one */
-    print_pte(mon, va_bits, vbase, pbase,
+    print_pte(hmp, va_bits, vbase, pbase,
               last_paddr + last_size - pbase, last_attr);
 }
 
 void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     CPUArchState *env;
 
     env = monitor_hmp_get_cpu_env(hmp);
     if (!env) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
 
     if (!riscv_cpu_cfg(env)->mmu) {
-        monitor_printf(mon, "S-mode MMU unavailable\n");
+        monitor_hmp_printf(hmp, "S-mode MMU unavailable\n");
         return;
     }
 
     if (riscv_cpu_mxl(env) == MXL_RV32) {
         if (!(env->satp & SATP32_MODE)) {
-            monitor_printf(mon, "No translation or protection\n");
+            monitor_hmp_printf(hmp, "No translation or protection\n");
             return;
         }
     } else {
         if (!(env->satp & SATP64_MODE)) {
-            monitor_printf(mon, "No translation or protection\n");
+            monitor_hmp_printf(hmp, "No translation or protection\n");
             return;
         }
     }
 
-    mem_info_svxx(mon, env);
+    mem_info_svxx(hmp, env);
 }
 
 #ifdef CONFIG_TCG

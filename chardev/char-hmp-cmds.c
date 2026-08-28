@@ -26,12 +26,11 @@
 
 void hmp_info_chardev(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     ChardevInfoList *char_info, *info;
 
     char_info = qmp_query_chardev(NULL);
     for (info = char_info; info; info = info->next) {
-        monitor_printf(mon, "%s: filename=%s\n", info->value->label,
+        monitor_hmp_printf(hmp, "%s: filename=%s\n", info->value->label,
                                                  info->value->filename);
     }
 
@@ -51,7 +50,6 @@ void hmp_ringbuf_write(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     uint32_t size = qdict_get_int(qdict, "size");
     const char *chardev = qdict_get_str(qdict, "device");
     char *data;
@@ -67,15 +65,15 @@ void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
         unsigned char ch = data[i];
 
         if (ch == '\\') {
-            monitor_printf(mon, "\\\\");
+            monitor_hmp_printf(hmp, "\\\\");
         } else if ((ch < 0x20 && ch != '\n' && ch != '\t') || ch == 0x7F) {
-            monitor_printf(mon, "\\u%04X", ch);
+            monitor_hmp_printf(hmp, "\\u%04X", ch);
         } else {
-            monitor_printf(mon, "%c", ch);
+            monitor_hmp_printf(hmp, "%c", ch);
         }
 
     }
-    monitor_printf(mon, "\n");
+    monitor_hmp_printf(hmp, "\n");
     g_free(data);
 }
 

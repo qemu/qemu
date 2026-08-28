@@ -109,12 +109,6 @@ struct MonitorClass {
     ObjectClass parent_class;
 
     /*
-     * If non-NULL, the monitor is able to print messages
-     * for attention of the client user
-     */
-    int (*vprintf)(Monitor *mon, const char *fmt, va_list ap)
-        G_GNUC_PRINTF(2, 0);
-    /*
      * If non-NULL, the monitor is able to send event
      * notifications back to the client
      */

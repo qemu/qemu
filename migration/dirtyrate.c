@@ -858,34 +858,33 @@ struct DirtyRateInfo *qmp_query_dirty_rate(bool has_calc_time_unit,
 
 void hmp_info_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     DirtyRateInfo *info = query_dirty_rate_info(TIME_UNIT_SECOND);
 
-    monitor_printf(mon, "Status: %s\n",
-                   DirtyRateStatus_str(info->status));
-    monitor_printf(mon, "Start Time: %"PRIi64" (ms)\n",
-                   info->start_time);
+    monitor_hmp_printf(hmp, "Status: %s\n",
+                       DirtyRateStatus_str(info->status));
+    monitor_hmp_printf(hmp, "Start Time: %"PRIi64" (ms)\n",
+                       info->start_time);
     if (info->mode == DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING) {
-        monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
-                       info->sample_pages);
+        monitor_hmp_printf(hmp, "Sample Pages: %"PRIu64" (per GB)\n",
+                           info->sample_pages);
     }
-    monitor_printf(mon, "Period: %"PRIi64" (sec)\n",
-                   info->calc_time);
-    monitor_printf(mon, "Mode: %s\n",
-                   DirtyRateMeasureMode_str(info->mode));
-    monitor_printf(mon, "Dirty rate: ");
+    monitor_hmp_printf(hmp, "Period: %"PRIi64" (sec)\n",
+                       info->calc_time);
+    monitor_hmp_printf(hmp, "Mode: %s\n",
+                       DirtyRateMeasureMode_str(info->mode));
+    monitor_hmp_printf(hmp, "Dirty rate: ");
     if (info->has_dirty_rate) {
-        monitor_printf(mon, "%"PRIi64" (MB/s)\n", info->dirty_rate);
+        monitor_hmp_printf(hmp, "%"PRIi64" (MB/s)\n", info->dirty_rate);
         if (info->has_vcpu_dirty_rate) {
             DirtyRateVcpuList *rate, *head = info->vcpu_dirty_rate;
             for (rate = head; rate != NULL; rate = rate->next) {
-                monitor_printf(mon, "vcpu[%"PRIi64"], Dirty rate: %"PRIi64
-                               " (MB/s)\n", rate->value->id,
-                               rate->value->dirty_rate);
+                monitor_hmp_printf(hmp, "vcpu[%"PRIi64"], Dirty rate: %"PRIi64
+                                   " (MB/s)\n", rate->value->id,
+                                   rate->value->dirty_rate);
             }
         }
     } else {
-        monitor_printf(mon, "(not ready)\n");
+        monitor_hmp_printf(hmp, "(not ready)\n");
     }
 
     qapi_free_DirtyRateVcpuList(info->vcpu_dirty_rate);
@@ -894,7 +893,6 @@ void hmp_info_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_calc_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int64_t sec = qdict_get_try_int(qdict, "second", 0);
     int64_t sample_pages = qdict_get_try_int(qdict, "sample_pages_per_GB", -1);
     bool has_sample_pages = (sample_pages != -1);
@@ -904,13 +902,13 @@ void hmp_calc_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
     Error *err = NULL;
 
     if (!sec) {
-        monitor_printf(mon, "Incorrect period length specified!\n");
+        monitor_hmp_printf(hmp, "Incorrect period length specified!\n");
         return;
     }
 
     if (dirty_ring && dirty_bitmap) {
-        monitor_printf(mon, "Either dirty ring or dirty bitmap "
-                       "can be specified!\n");
+        monitor_hmp_printf(hmp, "Either dirty ring or dirty bitmap "
+                           "can be specified!\n");
         return;
     }
 
@@ -930,7 +928,7 @@ void hmp_calc_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "Starting dirty rate measurement with period %"PRIi64
-                   " seconds\n", sec);
-    monitor_printf(mon, "[Please use 'info dirty_rate' to check results]\n");
+    monitor_hmp_printf(hmp, "Starting dirty rate measurement with period %"PRIi64
+                       " seconds\n", sec);
+    monitor_hmp_printf(hmp, "[Please use 'info dirty_rate' to check results]\n");
 }

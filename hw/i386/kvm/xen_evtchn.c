@@ -2346,7 +2346,6 @@ void qmp_xen_event_inject(uint32_t port, Error **errp)
 
 void hmp_xen_event_list(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     EvtchnInfoList *iter, *info_list;
     Error *err = NULL;
 
@@ -2359,22 +2358,22 @@ void hmp_xen_event_list(MonitorHMP *hmp, const QDict *qdict)
     for (iter = info_list; iter; iter = iter->next) {
         EvtchnInfo *info = iter->value;
 
-        monitor_printf(mon, "port %4u: vcpu: %d %s", info->port, info->vcpu,
-                       EvtchnPortType_str(info->type));
+        monitor_hmp_printf(hmp, "port %4u: vcpu: %d %s", info->port, info->vcpu,
+                           EvtchnPortType_str(info->type));
         if (info->type != EVTCHN_PORT_TYPE_IPI) {
-            monitor_printf(mon,  "(");
+            monitor_hmp_printf(hmp,  "(");
             if (info->remote_domain) {
-                monitor_printf(mon, "%s:", info->remote_domain);
+                monitor_hmp_printf(hmp, "%s:", info->remote_domain);
             }
-            monitor_printf(mon, "%d)", info->target);
+            monitor_hmp_printf(hmp, "%d)", info->target);
         }
         if (info->pending) {
-            monitor_printf(mon, " PENDING");
+            monitor_hmp_printf(hmp, " PENDING");
         }
         if (info->masked) {
-            monitor_printf(mon, " MASKED");
+            monitor_hmp_printf(hmp, " MASKED");
         }
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "\n");
     }
 
     qapi_free_EvtchnInfoList(info_list);
@@ -2382,7 +2381,6 @@ void hmp_xen_event_list(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_xen_event_inject(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int port = qdict_get_int(qdict, "port");
     Error *err = NULL;
 
@@ -2390,7 +2388,6 @@ void hmp_xen_event_inject(MonitorHMP *hmp, const QDict *qdict)
     if (err) {
         hmp_handle_error(hmp, err);
     } else {
-        monitor_printf(mon, "Delivered port %d\n", port);
+        monitor_hmp_printf(hmp, "Delivered port %d\n", port);
     }
 }
-

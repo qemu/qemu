@@ -85,17 +85,16 @@ void hmp_dump_guest_memory(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_info_dump(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     DumpQueryResult *result = qmp_query_dump(NULL);
 
     assert(result && result->status < DUMP_STATUS__MAX);
-    monitor_printf(mon, "Status: %s\n", DumpStatus_str(result->status));
+    monitor_hmp_printf(hmp, "Status: %s\n", DumpStatus_str(result->status));
 
     if (result->status == DUMP_STATUS_ACTIVE) {
         float percent = 0;
         assert(result->total != 0);
         percent = 100.0 * result->completed / result->total;
-        monitor_printf(mon, "Finished: %.2f %%\n", percent);
+        monitor_hmp_printf(hmp, "Finished: %.2f %%\n", percent);
     }
 
     qapi_free_DumpQueryResult(result);

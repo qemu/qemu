@@ -1922,7 +1922,6 @@ static void usb_host_auto_check(void *unused)
 
 void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     libusb_device **devs = NULL;
     struct libusb_device_descriptor ddesc;
     char port[16];
@@ -1941,14 +1940,14 @@ void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict)
             continue;
         }
         usb_host_get_port(devs[i], port, sizeof(port));
-        monitor_printf(mon, "  Bus %d, Addr %d, Port %s, Speed %s Mb/s\n",
-                       libusb_get_bus_number(devs[i]),
-                       libusb_get_device_address(devs[i]),
-                       port,
-                       speed_name[libusb_get_device_speed(devs[i])]);
-        monitor_printf(mon, "    Class %02x:", ddesc.bDeviceClass);
-        monitor_printf(mon, " USB device %04x:%04x",
-                       ddesc.idVendor, ddesc.idProduct);
+        monitor_hmp_printf(hmp, "  Bus %d, Addr %d, Port %s, Speed %s Mb/s\n",
+                           libusb_get_bus_number(devs[i]),
+                           libusb_get_device_address(devs[i]),
+                           port,
+                           speed_name[libusb_get_device_speed(devs[i])]);
+        monitor_hmp_printf(hmp, "    Class %02x:", ddesc.bDeviceClass);
+        monitor_hmp_printf(hmp, " USB device %04x:%04x",
+                           ddesc.idVendor, ddesc.idProduct);
         if (ddesc.iProduct) {
             libusb_device_handle *handle;
             if (libusb_open(devs[i], &handle) == 0) {
@@ -1957,10 +1956,10 @@ void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict)
                                                    ddesc.iProduct,
                                                    name, sizeof(name));
                 libusb_close(handle);
-                monitor_printf(mon, ", %s", name);
+                monitor_hmp_printf(hmp, ", %s", name);
             }
         }
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "\n");
     }
     libusb_free_device_list(devs, 1);
 }

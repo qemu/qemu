@@ -19,7 +19,6 @@
 
 void hmp_info_cryptodev(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     QCryptodevInfoList *il;
     QCryptodevBackendServiceTypeList *sl;
     QCryptodevBackendClientList *cl;
@@ -41,13 +40,13 @@ void hmp_info_cryptodev(MonitorHMP *hmp, const QDict *qdict)
                 services = tmp_services;
             }
         }
-        monitor_printf(mon, "%s: service=[%s]\n", info->id, services);
+        monitor_hmp_printf(hmp, "%s: service=[%s]\n", info->id, services);
 
         for (cl = info->client; cl; cl = cl->next) {
             QCryptodevBackendClient *client = cl->value;
-            monitor_printf(mon, "    queue %" PRIu32 ": type=%s\n",
-                           client->queue,
-                           QCryptodevBackendType_str(client->type));
+            monitor_hmp_printf(hmp, "    queue %" PRIu32 ": type=%s\n",
+                               client->queue,
+                               QCryptodevBackendType_str(client->type));
         }
     }
 

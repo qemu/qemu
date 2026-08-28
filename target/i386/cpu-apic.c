@@ -85,7 +85,6 @@ void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 
 void hmp_info_local_apic(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     CPUState *cs;
 
     if (qdict_haskey(qdict, "apic-id")) {
@@ -101,7 +100,7 @@ void hmp_info_local_apic(MonitorHMP *hmp, const QDict *qdict)
 
 
     if (!cs) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
     x86_cpu_dump_local_apic_state(cs, CPU_DUMP_FPU);

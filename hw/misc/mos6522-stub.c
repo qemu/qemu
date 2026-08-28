@@ -12,6 +12,5 @@
 
 void hmp_info_via(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
-    monitor_printf(mon, "MOS6522 VIA is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "MOS6522 VIA is not available in this QEMU\n");
 }

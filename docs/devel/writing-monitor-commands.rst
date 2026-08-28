@@ -479,7 +479,7 @@ The HMP command
 
 Here's the HMP counterpart of the query-option-roms command::
 
- void hmp_info_option_roms(Monitor *mon, const QDict *qdict)
+ void hmp_info_option_roms(MonitorHMP *mon, const QDict *qdict)
  {
      Error *err = NULL;
      OptionRomInfoList *info_list, *tail;
@@ -492,11 +492,11 @@ Here's the HMP counterpart of the query-option-roms command::
 
      for (tail = info_list; tail; tail = tail->next) {
          info = tail->value;
-         monitor_printf(mon, "%s", info->filename);
+         monitor_hmp_printf(mon, "%s", info->filename);
          if (info->has_bootindex) {
-             monitor_printf(mon, " %" PRId64, info->bootindex);
+             monitor_hmp_printf(mon, " %" PRId64, info->bootindex);
          }
-         monitor_printf(mon, "\n");
+         monitor_hmp_printf(mon, "\n");
      }
 
      qapi_free_OptionRomInfoList(info_list);
