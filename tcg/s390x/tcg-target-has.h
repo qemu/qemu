@@ -77,7 +77,8 @@ tcg_target_sextract_valid(TCGType type, unsigned ofs, unsigned len)
 }
 #define TCG_TARGET_sextract_valid  tcg_target_sextract_valid
 
-#define TCG_TARGET_lea_sh_valid(type, sh)          0
-#define TCG_TARGET_lea_imm_valid(type, imm)        0
+#define TCG_TARGET_lea_sh_valid(type, sh)          ((sh) == 0)
+#define TCG_TARGET_lea_imm_valid(type, imm)        \
+    ((imm) >= -0x80000 && (imm) < 0x80000)
 
 #endif
