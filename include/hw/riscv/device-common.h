@@ -22,4 +22,11 @@ PFlashCFI01 *riscv_flash_create(Object *parent, const char *name,
                                 int flash_sector_size);
 void riscv_init_flash_map(PFlashCFI01 *flash, hwaddr base, hwaddr size,
                           MemoryRegion *sysmem, int flash_sector_size);
+DeviceState *riscv_gpex_pcie_init(MemoryRegion *sys_mem,
+                                  DeviceState *irqchip,
+                                  const MemMapEntry *pcie_ecam_mem,
+                                  const MemMapEntry *pcie_mmio_mem,
+                                  const MemMapEntry *high_pcie_mmio_mem,
+                                  const MemMapEntry *pcie_pio_mem,
+                                  int pcie_irq);
 #endif
