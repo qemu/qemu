@@ -53,7 +53,7 @@ void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
     NetHubInfoList *h;
     NetworkClientInfoList *entry;
 
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
@@ -86,13 +86,12 @@ void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_set_link(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *name = qdict_get_str(qdict, "name");
     bool up = qdict_get_bool(qdict, "up");
     Error *err = NULL;
 
     qmp_set_link(name, up, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 
@@ -113,7 +112,6 @@ void hmp_announce_self(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_netdev_add(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     QemuOpts *opts;
     const char *type = qdict_get_try_str(qdict, "type");
@@ -133,17 +131,16 @@ void hmp_netdev_add(MonitorHMP *hmp, const QDict *qdict)
     }
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_netdev_del(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
     qmp_netdev_del(id, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 

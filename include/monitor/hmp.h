@@ -54,7 +54,7 @@ void monitor_register_hmp_info_hrt(const char *name,
 CPUArchState *mon_get_cpu_env(Monitor *mon);
 CPUState *mon_get_cpu(Monitor *mon);
 
-bool hmp_handle_error(Monitor *mon, Error *err);
+bool hmp_handle_error(MonitorHMP *hmp, Error *err);
 void hmp_help_cmd(Monitor *mon, const char *name);
 strList *hmp_split_at_comma(const char *str);
 

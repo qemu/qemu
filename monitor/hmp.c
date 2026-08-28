@@ -1215,28 +1215,28 @@ fail:
     return NULL;
 }
 
-static void hmp_info_human_readable_text(Monitor *mon,
+static void hmp_info_human_readable_text(MonitorHMP *hmp,
                                          HumanReadableText *(*handler)(Error **))
 {
     Error *err = NULL;
     g_autoptr(HumanReadableText) info = handler(&err);
 
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
-    monitor_puts(mon, info->human_readable_text);
+    monitor_puts(MONITOR(hmp), info->human_readable_text);
 }
 
-static void handle_hmp_command_exec(MonitorHMP *mon,
+static void handle_hmp_command_exec(MonitorHMP *hmp,
                                     const HMPCommand *cmd,
                                     QDict *qdict)
 {
     if (cmd->cmd_info_hrt) {
-        hmp_info_human_readable_text(MONITOR(mon),
+        hmp_info_human_readable_text(hmp,
                                      cmd->cmd_info_hrt);
     } else {
-        cmd->cmd(mon, qdict);
+        cmd->cmd(hmp, qdict);
     }
 }
 

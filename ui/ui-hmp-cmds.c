@@ -73,11 +73,10 @@ void hmp_mouse_button(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_mouse_set(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qemu_mouse_set(qdict_get_int(qdict, "index"), &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_info_mice(MonitorHMP *hmp, const QDict *qdict)
@@ -158,7 +157,7 @@ void hmp_info_vnc(MonitorHMP *hmp, const QDict *qdict)
 
     info2l = qmp_query_vnc_servers(&err);
     info2l_head = info2l;
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
     if (!info2l) {
@@ -266,7 +265,6 @@ out:
 
 void hmp_set_password(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *password  = qdict_get_str(qdict, "password");
     const char *display = qdict_get_try_str(qdict, "display");
@@ -297,12 +295,11 @@ void hmp_set_password(MonitorHMP *hmp, const QDict *qdict)
     qmp_set_password(&opts, &err);
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_expire_password(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *whenstr = qdict_get_str(qdict, "time");
     const char *display = qdict_get_try_str(qdict, "display");
@@ -325,7 +322,7 @@ void hmp_expire_password(MonitorHMP *hmp, const QDict *qdict)
     qmp_expire_password(&opts, &err);
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 #ifdef CONFIG_VNC
@@ -427,7 +424,7 @@ void hmp_sendkey(MonitorHMP *hmp, const QDict *qdict)
     }
 
     qmp_send_key(head, has_hold_time, hold_time, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 
 out:
     qapi_free_KeyValue(v);
@@ -465,7 +462,6 @@ void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
 void coroutine_fn
 hmp_screendump(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *filename = qdict_get_str(qdict, "filename");
     const char *id = qdict_get_try_str(qdict, "device");
     int64_t head = qdict_get_try_int(qdict, "head", 0);
@@ -482,13 +478,12 @@ hmp_screendump(MonitorHMP *hmp, const QDict *qdict)
     qmp_screendump(filename, id, id != NULL, head,
                    input_format != NULL, format, &err);
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 #endif
 
 void hmp_client_migrate_info(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *protocol = qdict_get_str(qdict, "protocol");
     const char *hostname = qdict_get_str(qdict, "hostname");
@@ -501,5 +496,5 @@ void hmp_client_migrate_info(MonitorHMP *hmp, const QDict *qdict)
     qmp_client_migrate_info(protocol, hostname,
                             has_port, port, has_tls_port, tls_port,
                             cert_subject, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }

@@ -592,7 +592,7 @@ void hmp_info_via(MonitorHMP *hmp, const QDict *qdict)
     Error *err = NULL;
     g_autoptr(HumanReadableText) info = qmp_x_query_via(&err);
 
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
     monitor_puts(mon, info->human_readable_text);

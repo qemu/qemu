@@ -57,7 +57,7 @@ void hmp_hotpluggable_cpus(MonitorHMP *hmp, const QDict *qdict)
     HotpluggableCPUList *saved = l;
     CpuInstanceProperties *c;
 
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
@@ -147,7 +147,7 @@ void hmp_info_memdev(MonitorHMP *hmp, const QDict *qdict)
     monitor_printf(mon, "\n");
 
     qapi_free_MemdevList(memdev_list);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_info_kvm(MonitorHMP *hmp, const QDict *qdict)
@@ -202,7 +202,7 @@ void hmp_info_balloon(MonitorHMP *hmp, const QDict *qdict)
     Error *err = NULL;
 
     info = qmp_query_balloon(&err);
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
@@ -236,47 +236,43 @@ void hmp_memsave(MonitorHMP *hmp, const QDict *qdict)
     }
 
     qmp_memsave(addr, size, filename, true, cpu_index, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_pmemsave(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     uint32_t size = qdict_get_int(qdict, "size");
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
     Error *err = NULL;
 
     qmp_pmemsave(addr, size, filename, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_system_wakeup(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_system_wakeup(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_nmi(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_inject_nmi(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_balloon(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int64_t value = qdict_get_int(qdict, "value");
     Error *err = NULL;
 
     qmp_balloon(value, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_info_memory_devices(MonitorHMP *hmp, const QDict *qdict)
@@ -380,7 +376,7 @@ void hmp_info_memory_devices(MonitorHMP *hmp, const QDict *qdict)
     }
 
     qapi_free_MemoryDeviceInfoList(info_list);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_info_vm_generation_id(MonitorHMP *hmp, const QDict *qdict)
@@ -391,7 +387,7 @@ void hmp_info_vm_generation_id(MonitorHMP *hmp, const QDict *qdict)
     if (info) {
         monitor_printf(mon, "%s\n", info->guid);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
     qapi_free_GuidInfo(info);
 }
 
@@ -411,5 +407,5 @@ void hmp_info_memory_size_summary(MonitorHMP *hmp, const QDict *qdict)
 
         qapi_free_MemoryInfo(info);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }

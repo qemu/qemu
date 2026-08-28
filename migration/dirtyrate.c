@@ -926,7 +926,7 @@ void hmp_calc_dirty_rate(MonitorHMP *hmp, const QDict *qdict)
                         true, mode,
                         &err);
     if (err) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 

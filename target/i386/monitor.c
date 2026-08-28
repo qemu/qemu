@@ -573,7 +573,6 @@ void hmp_info_mem(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_mce(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     X86CPU *cpu;
     CPUState *cs;
     int cpu_index = qdict_get_int(qdict, "cpu_index");
@@ -596,5 +595,5 @@ void hmp_mce(MonitorHMP *hmp, const QDict *qdict)
     } else {
         error_setg(&err, "Invalid CPU %d", cpu_index);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }

@@ -247,5 +247,5 @@ void hmp_pcie_aer_inject_error(MonitorHMP *hmp, const QDict *qdict)
                    PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }

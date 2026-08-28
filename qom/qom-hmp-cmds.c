@@ -42,12 +42,11 @@ void hmp_qom_list(MonitorHMP *hmp, const QDict *qdict)
         }
         qapi_free_ObjectPropertyInfoList(start);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_qom_set(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const bool json = qdict_get_try_bool(qdict, "json", false);
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
@@ -71,7 +70,7 @@ void hmp_qom_set(MonitorHMP *hmp, const QDict *qdict)
         }
     }
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_qom_get(MonitorHMP *hmp, const QDict *qdict)
@@ -89,7 +88,7 @@ void hmp_qom_get(MonitorHMP *hmp, const QDict *qdict)
     }
 
     qobject_unref(obj);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 typedef struct QOMCompositionState {
@@ -160,22 +159,20 @@ void hmp_info_qom_tree(MonitorHMP *hmp, const QDict *dict)
 
 void hmp_object_add(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *options = qdict_get_str(qdict, "object");
     Error *err = NULL;
 
     user_creatable_add_from_str(options, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_object_del(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
     user_creatable_del(id, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void object_add_completion(ReadLineState *rs, int nb_args, const char *str)

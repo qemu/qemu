@@ -2352,7 +2352,7 @@ void hmp_xen_event_list(MonitorHMP *hmp, const QDict *qdict)
 
     info_list = qmp_xen_event_list(&err);
     if (err) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -2388,7 +2388,7 @@ void hmp_xen_event_inject(MonitorHMP *hmp, const QDict *qdict)
 
     qmp_xen_event_inject(port, &err);
     if (err) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
     } else {
         monitor_printf(mon, "Delivered port %d\n", port);
     }

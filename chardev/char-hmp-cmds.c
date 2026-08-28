@@ -40,14 +40,13 @@ void hmp_info_chardev(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_ringbuf_write(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *chardev = qdict_get_str(qdict, "device");
     const char *data = qdict_get_str(qdict, "data");
     Error *err = NULL;
 
     qmp_ringbuf_write(chardev, data, false, 0, &err);
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
@@ -60,7 +59,7 @@ void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
     int i;
 
     data = qmp_ringbuf_read(chardev, size, false, 0, &err);
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
@@ -82,7 +81,6 @@ void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_chardev_add(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *args = qdict_get_str(qdict, "args");
     Error *err = NULL;
     QemuOpts *opts;
@@ -94,12 +92,11 @@ void hmp_chardev_add(MonitorHMP *hmp, const QDict *qdict)
         qemu_chr_new_from_opts(opts, NULL, &err);
         qemu_opts_del(opts);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_chardev_change(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *args = qdict_get_str(qdict, "args");
     const char *id;
     Error *err = NULL;
@@ -129,25 +126,23 @@ end:
     qapi_free_ChardevReturn(ret);
     qapi_free_ChardevBackend(backend);
     qemu_opts_del(opts);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_chardev_remove(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *local_err = NULL;
 
     qmp_chardev_remove(qdict_get_str(qdict, "id"), &local_err);
-    hmp_handle_error(mon, local_err);
+    hmp_handle_error(hmp, local_err);
 }
 
 void hmp_chardev_send_break(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *local_err = NULL;
 
     qmp_chardev_send_break(qdict_get_str(qdict, "id"), &local_err);
-    hmp_handle_error(mon, local_err);
+    hmp_handle_error(hmp, local_err);
 }
 
 void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str)

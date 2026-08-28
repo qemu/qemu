@@ -70,7 +70,6 @@ void hmp_one_insn_per_tb(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_watchdog_action(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     WatchdogAction action;
     char *qapi_value;
@@ -79,7 +78,7 @@ void hmp_watchdog_action(MonitorHMP *hmp, const QDict *qdict)
     action = qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, &err);
     g_free(qapi_value);
     if (err) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
     qmp_watchdog_set_action(action, &error_abort);

@@ -88,7 +88,7 @@ void hmp_virtio_query(MonitorHMP *hmp, const QDict *qdict)
     VirtioInfoList *node;
 
     if (err != NULL) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -114,7 +114,7 @@ void hmp_virtio_status(MonitorHMP *hmp, const QDict *qdict)
     VirtioStatus *s = qmp_x_query_virtio_status(path, &err);
 
     if (err != NULL) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -195,7 +195,7 @@ void hmp_vhost_queue_status(MonitorHMP *hmp, const QDict *qdict)
         qmp_x_query_virtio_vhost_queue_status(path, queue, &err);
 
     if (err != NULL) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -228,7 +228,7 @@ void hmp_virtio_queue_status(MonitorHMP *hmp, const QDict *qdict)
     VirtQueueStatus *s = qmp_x_query_virtio_queue_status(path, queue, &err);
 
     if (err != NULL) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -278,7 +278,7 @@ void hmp_virtio_queue_element(MonitorHMP *hmp, const QDict *qdict)
     e = qmp_x_query_virtio_queue_element(path, queue, index != -1,
                                          index, &err);
     if (err != NULL) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 

@@ -23,7 +23,7 @@ void hmp_cancel_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 
     qmp_cancel_vcpu_dirty_limit(!!(cpu_index != -1), cpu_index, &err);
     if (err) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -33,7 +33,6 @@ void hmp_cancel_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_set_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int64_t dirty_rate = qdict_get_int(qdict, "dirty_rate");
     int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
     Error *err = NULL;
@@ -46,7 +45,7 @@ void hmp_set_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
     qmp_set_vcpu_dirty_limit(!!(cpu_index != -1), cpu_index, dirty_rate, &err);
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_info_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
@@ -63,7 +62,7 @@ void hmp_info_vcpu_dirty_limit(MonitorHMP *hmp, const QDict *qdict)
 
     head = qmp_query_vcpu_dirty_limit(&err);
     if (err) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 

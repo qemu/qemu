@@ -269,7 +269,7 @@ void hmp_info_firmware_log(MonitorHMP *hmp, const QDict *qdict)
     maxsize = qdict_get_try_int(qdict, "max-size", -1);
     log = qmp_query_firmware_log(maxsize != -1, (uint64_t)maxsize, &err);
     if (err)  {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 

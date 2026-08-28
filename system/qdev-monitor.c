@@ -1004,7 +1004,6 @@ void qmp_device_sync_config(const char *id, Error **errp)
 
 void hmp_device_add(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     QemuOpts *opts;
     DeviceState *dev;
@@ -1034,17 +1033,16 @@ void hmp_device_add(MonitorHMP *hmp, const QDict *qdict)
     }
     object_unref(dev);
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_device_del(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
     qmp_device_del(id, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void device_add_completion(ReadLineState *rs, int nb_args, const char *str)

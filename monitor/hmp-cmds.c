@@ -75,7 +75,7 @@ static void __attribute__((__constructor__)) sortcmdlist(void)
           compare_mon_cmd);
 }
 
-bool hmp_handle_error(Monitor *mon, Error *err)
+bool hmp_handle_error(MonitorHMP *hmp, Error *err)
 {
     if (err) {
         error_reportf_err(err, "Error: ");
@@ -165,17 +165,16 @@ void hmp_sync_profile(MonitorHMP *hmp, const QDict *qdict)
 
         error_setg(&err, "invalid parameter '%s',"
                    " expecting 'on', 'off', or 'reset'", op);
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
     }
 }
 
 void hmp_exit_preconfig(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_x_exit_preconfig(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_cpu(MonitorHMP *hmp, const QDict *qdict)
@@ -193,11 +192,10 @@ void hmp_cpu(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_cont(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_cont(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_change(MonitorHMP *hmp, const QDict *qdict)
@@ -219,29 +217,27 @@ void hmp_change(MonitorHMP *hmp, const QDict *qdict)
         hmp_change_medium(mon, device, target, arg, read_only, force, &err);
     }
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 #ifdef CONFIG_POSIX
 void hmp_getfd(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *fdname = qdict_get_str(qdict, "fdname");
     Error *err = NULL;
 
     qmp_getfd(fdname, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 #endif
 
 void hmp_closefd(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *fdname = qdict_get_str(qdict, "fdname");
     Error *err = NULL;
 
     qmp_closefd(fdname, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_info_iothreads(MonitorHMP *hmp, const QDict *qdict)
@@ -502,17 +498,16 @@ void hmp_info_mtree(MonitorHMP *hmp, const QDict *qdict)
 #if defined(CONFIG_FDT)
 void hmp_dumpdtb(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *filename = qdict_get_str(qdict, "filename");
     Error *local_err = NULL;
 
     qmp_dumpdtb(filename, &local_err);
 
-    if (hmp_handle_error(mon, local_err)) {
+    if (hmp_handle_error(hmp, local_err)) {
         return;
     }
 
-    monitor_printf(mon, "DTB dumped to '%s'\n", filename);
+    monitor_printf(MONITOR(hmp), "DTB dumped to '%s'\n", filename);
 }
 #endif
 

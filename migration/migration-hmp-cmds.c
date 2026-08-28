@@ -478,7 +478,6 @@ void hmp_info_migrate_parameters(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_loadvm(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     RunState saved_state = runstate_get();
 
     const char *name = qdict_get_str(qdict, "name");
@@ -490,27 +489,25 @@ void hmp_loadvm(MonitorHMP *hmp, const QDict *qdict)
         load_snapshot_resume(saved_state);
     }
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_savevm(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     save_snapshot(qdict_get_try_str(qdict, "name"),
                   true, NULL, false, NULL, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_delvm(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *name = qdict_get_str(qdict, "name");
 
     delete_snapshot(name, false, NULL, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_migrate_cancel(MonitorHMP *hmp, const QDict *qdict)
@@ -520,7 +517,6 @@ void hmp_migrate_cancel(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_migrate_continue(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *state = qdict_get_str(qdict, "state");
     int val = qapi_enum_parse(&MigrationStatus_lookup, state, -1, &err);
@@ -529,12 +525,11 @@ void hmp_migrate_continue(MonitorHMP *hmp, const QDict *qdict)
         qmp_migrate_continue(val, &err);
     }
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_migrate_incoming(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *uri = qdict_get_str(qdict, "uri");
     MigrationChannelList *caps = NULL;
@@ -549,34 +544,31 @@ void hmp_migrate_incoming(MonitorHMP *hmp, const QDict *qdict)
     qapi_free_MigrationChannelList(caps);
 
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_migrate_recover(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     const char *uri = qdict_get_str(qdict, "uri");
 
     qmp_migrate_recover(uri, &err);
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_migrate_pause(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_migrate_pause(&err);
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 
 void hmp_migrate_set_capability(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *cap = qdict_get_str(qdict, "capability");
     bool state = qdict_get_bool(qdict, "state");
     Error *err = NULL;
@@ -597,12 +589,11 @@ void hmp_migrate_set_capability(MonitorHMP *hmp, const QDict *qdict)
     qapi_free_MigrationCapabilityStatusList(caps);
 
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_migrate_set_parameter(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     const char *param = qdict_get_str(qdict, "parameter");
     const char *valuestr = qdict_get_str(qdict, "value");
     Visitor *v = string_input_visitor_new(valuestr);
@@ -799,25 +790,23 @@ void hmp_migrate_set_parameter(MonitorHMP *hmp, const QDict *qdict)
  cleanup:
     qapi_free_MigrationParameters(p);
     visit_free(v);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 void hmp_migrate_start_postcopy(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     qmp_migrate_start_postcopy(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 #ifdef CONFIG_REPLICATION
 void hmp_x_colo_lost_heartbeat(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
 
     qmp_x_colo_lost_heartbeat(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 #endif
 
@@ -860,7 +849,7 @@ void hmp_migrate(MonitorHMP *hmp, const QDict *qdict)
     g_autoptr(MigrationChannel) channel_cpr = NULL;
 
     if (!migrate_uri_parse(uri, &channel, &err)) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
     QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel));
@@ -868,12 +857,12 @@ void hmp_migrate(MonitorHMP *hmp, const QDict *qdict)
     if (uri_cpr) {
         if (migrate_mode() != MIG_MODE_CPR_TRANSFER) {
             error_setg(&err, "-c can only be used in cpr-transfer mode");
-            hmp_handle_error(mon, err);
+            hmp_handle_error(hmp, err);
             return;
         }
 
         if (!migrate_uri_parse(uri_cpr, &channel_cpr, &err)) {
-            hmp_handle_error(mon, err);
+            hmp_handle_error(hmp, err);
             return;
         }
 
@@ -882,7 +871,7 @@ void hmp_migrate(MonitorHMP *hmp, const QDict *qdict)
     }
 
     qmp_migrate(NULL, true, caps, true, resume, &err);
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
