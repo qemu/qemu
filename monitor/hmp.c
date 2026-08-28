@@ -411,10 +411,10 @@ void hmp_help_cmd(Monitor *mon, const char *name)
  * Set @pval to the value in the register identified by @name.
  * return %true if the register is found, %false otherwise.
  */
-static bool gdb_get_register(Monitor *mon, int64_t *pval, const char *name)
+static bool gdb_get_register(MonitorHMP *hmp, int64_t *pval, const char *name)
 {
     g_autoptr(GArray) regs = NULL;
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
 
     if (cs == NULL) {
         return false;
@@ -452,7 +452,7 @@ static bool gdb_get_register(Monitor *mon, int64_t *pval, const char *name)
 static const char *pch;
 static sigjmp_buf expr_env;
 
-static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name);
+static int get_monitor_def(MonitorHMP *mon, int64_t *pval, const char *name);
 
 static G_NORETURN G_GNUC_PRINTF(2, 3)
 void expr_error(Monitor *mon, const char *fmt, ...)
@@ -535,8 +535,8 @@ static int64_t expr_unary(Monitor *mon)
                 pch++;
             }
             *q = 0;
-            if (!gdb_get_register(mon, &reg, buf)
-                && get_monitor_def(mon, &reg, buf) < 0) {
+            if (!gdb_get_register(MONITOR_HMP(mon), &reg, buf)
+                && get_monitor_def(MONITOR_HMP(mon), &reg, buf) < 0) {
                 expr_error(mon, "unknown register");
             }
             n = reg;
@@ -1733,9 +1733,9 @@ void monitor_register_hmp_info_hrt(const char *name,
  * Set @pval to the value in the register identified by @name.
  * return 0 if OK, -1 if not found
  */
-static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
+static int get_monitor_def(MonitorHMP *hmp, int64_t *pval, const char *name)
 {
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
     const MonitorDef *md;
     void *ptr;
 
@@ -1750,9 +1750,9 @@ static int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
     for (; md->name != NULL; md++) {
         if (hmp_compare_cmd(name, md->name)) {
             if (md->get_value) {
-                *pval = md->get_value(mon, md, md->offset);
+                *pval = md->get_value(hmp, md, md->offset);
             } else {
-                CPUArchState *env = mon_get_cpu_env(mon);
+                CPUArchState *env = monitor_hmp_get_cpu_env(hmp);
                 ptr = (uint8_t *)env + md->offset;
                 *pval = *(int32_t *)ptr;
             }

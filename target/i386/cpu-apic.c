@@ -96,7 +96,7 @@ void hmp_info_local_apic(MonitorHMP *hmp, const QDict *qdict)
             cpu_synchronize_state(cs);
         }
     } else {
-        cs = mon_get_cpu(mon);
+        cs = monitor_hmp_get_cpu(hmp);
     }
 
 

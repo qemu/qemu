@@ -36,7 +36,7 @@ void hmp_info_cpus(MonitorHMP *hmp, const QDict *qdict)
         g_autofree char *cpu_model = cpu_model_from_type(cpu->value->qom_type);
         int active = ' ';
 
-        if (cpu->value->cpu_index == monitor_get_cpu_index(mon)) {
+        if (cpu->value->cpu_index == monitor_hmp_get_cpu_index(hmp)) {
             active = '*';
         }
 
@@ -228,7 +228,7 @@ void hmp_memsave(MonitorHMP *hmp, const QDict *qdict)
     const char *filename = qdict_get_str(qdict, "filename");
     uint64_t addr = qdict_get_int(qdict, "val");
     Error *err = NULL;
-    int cpu_index = monitor_get_cpu_index(mon);
+    int cpu_index = monitor_hmp_get_cpu_index(hmp);
 
     if (cpu_index < 0) {
         monitor_printf(mon, "No CPU available\n");

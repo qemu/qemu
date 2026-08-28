@@ -30,7 +30,7 @@
 void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
     Monitor *mon = MONITOR(hmp);
-    CPUArchState *env1 = mon_get_cpu_env(mon);
+    CPUArchState *env1 = monitor_hmp_get_cpu_env(hmp);
 
     if (!env1) {
         monitor_printf(mon, "No CPU available\n");

@@ -226,7 +226,7 @@ void hmp_info_stats(MonitorHMP *hmp, const QDict *qdict)
         filter = stats_filter(target, names, -1, provider);
         break;
     case STATS_TARGET_VCPU: {}
-        int cpu_index = monitor_get_cpu_index(mon);
+        int cpu_index = monitor_hmp_get_cpu_index(hmp);
         filter = stats_filter(target, names, cpu_index, provider);
         break;
     case STATS_TARGET_CRYPTODEV:

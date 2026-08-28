@@ -182,10 +182,10 @@ void hmp_cpu(MonitorHMP *hmp, const QDict *qdict)
     Monitor *mon = MONITOR(hmp);
     int64_t cpu_index;
 
-    /* XXX: drop the monitor_set_cpu() usage when all HMP commands that
+    /* XXX: drop the monitor_hmp_set_cpu() usage when all HMP commands that
             use it are converted to the QAPI */
     cpu_index = qdict_get_int(qdict, "index");
-    if (monitor_set_cpu(mon, cpu_index) < 0) {
+    if (monitor_hmp_set_cpu(hmp, cpu_index) < 0) {
         monitor_printf(mon, "invalid CPU index\n");
     }
 }
@@ -512,9 +512,8 @@ void hmp_dumpdtb(MonitorHMP *hmp, const QDict *qdict)
 #endif
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
-int monitor_set_cpu(Monitor *mon, int cpu_index)
+int monitor_hmp_set_cpu(MonitorHMP *hmp, int cpu_index)
 {
-    MonitorHMP *hmp = MONITOR_HMP(mon);
     CPUState *cpu;
 
     cpu = qemu_get_cpu(cpu_index);
@@ -527,9 +526,8 @@ int monitor_set_cpu(Monitor *mon, int cpu_index)
 }
 
 /* Callers must hold BQL. */
-static CPUState *mon_get_cpu_sync(Monitor *mon, bool synchronize)
+static CPUState *monitor_hmp_get_cpu_sync(MonitorHMP *hmp, bool synchronize)
 {
-    MonitorHMP *hmp = MONITOR_HMP(mon);
     CPUState *cpu = NULL;
 
     if (hmp->mon_cpu_path) {
@@ -544,7 +542,7 @@ static CPUState *mon_get_cpu_sync(Monitor *mon, bool synchronize)
         if (!first_cpu) {
             return NULL;
         }
-        monitor_set_cpu(mon, first_cpu->cpu_index);
+        monitor_hmp_set_cpu(hmp, first_cpu->cpu_index);
         cpu = first_cpu;
     }
     assert(cpu != NULL);
@@ -554,21 +552,21 @@ static CPUState *mon_get_cpu_sync(Monitor *mon, bool synchronize)
     return cpu;
 }
 
-CPUState *mon_get_cpu(Monitor *mon)
+CPUState *monitor_hmp_get_cpu(MonitorHMP *hmp)
 {
-    return mon_get_cpu_sync(mon, true);
+    return monitor_hmp_get_cpu_sync(hmp, true);
 }
 
-CPUArchState *mon_get_cpu_env(Monitor *mon)
+CPUArchState *monitor_hmp_get_cpu_env(MonitorHMP *hmp)
 {
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
 
     return cs ? cpu_env(cs) : NULL;
 }
 
-int monitor_get_cpu_index(Monitor *mon)
+int monitor_hmp_get_cpu_index(MonitorHMP *hmp)
 {
-    CPUState *cs = mon_get_cpu_sync(mon, false);
+    CPUState *cs = monitor_hmp_get_cpu_sync(hmp, false);
 
     return cs ? cs->cpu_index : UNASSIGNED_CPU_INDEX;
 }
@@ -586,7 +584,7 @@ void hmp_info_registers(MonitorHMP *hmp, const QDict *qdict)
             cpu_dump_state(cs, NULL, CPU_DUMP_FPU | CPU_DUMP_VPU);
         }
     } else {
-        cs = vcpu >= 0 ? qemu_get_cpu(vcpu) : mon_get_cpu(mon);
+        cs = vcpu >= 0 ? qemu_get_cpu(vcpu) : monitor_hmp_get_cpu(hmp);
 
         if (!cs) {
             if (vcpu >= 0) {
@@ -602,13 +600,14 @@ void hmp_info_registers(MonitorHMP *hmp, const QDict *qdict)
     }
 }
 
-static void memory_dump(Monitor *mon, int count, int format, int wsize,
+static void memory_dump(MonitorHMP *hmp, int count, int format, int wsize,
                         uint64_t addr, bool is_physical)
 {
+    Monitor *mon = MONITOR(hmp);
     int l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
     const unsigned int addr_width = is_physical ? 8 : (target_long_bits() / 4);
     const bool big_endian = target_big_endian();
 
@@ -712,24 +711,22 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
 
 void hmp_memory_dump(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
     int size = qdict_get_int(qdict, "size");
     vaddr addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, false);
+    memory_dump(hmp, count, format, size, addr, false);
 }
 
 void hmp_physical_memory_dump(MonitorHMP *hmp, const QDict *qdict)
 {
-    Monitor *mon = MONITOR(hmp);
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
     int size = qdict_get_int(qdict, "size");
     hwaddr addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, true);
+    memory_dump(hmp, count, format, size, addr, true);
 }
 
 void hmp_gpa2hva(MonitorHMP *hmp, const QDict *qdict)
@@ -757,7 +754,7 @@ void hmp_gva2gpa(MonitorHMP *hmp, const QDict *qdict)
 {
     Monitor *mon = MONITOR(hmp);
     vaddr addr = qdict_get_int(qdict, "addr");
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
     TranslateForDebugResult tres;
 
     if (!cs) {

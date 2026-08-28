@@ -30,7 +30,7 @@ OBJECT_DECLARE_TYPE(MonitorHMP, MonitorHMPClass, MONITOR_HMP);
 struct MonitorDef {
     const char *name;
     int offset;
-    int64_t (*get_value)(Monitor *mon, const MonitorDef *md, int offset);
+    int64_t (*get_value)(MonitorHMP *hmp, const MonitorDef *md, int offset);
 };
 
 void monitor_new_hmp(const char *id, const char *chardev_id,
@@ -53,8 +53,9 @@ void monitor_register_hmp_info_hrt(const char *name,
                                    HumanReadableText *(*handler)(Error **errp));
 
 
-CPUArchState *mon_get_cpu_env(Monitor *mon);
-CPUState *mon_get_cpu(Monitor *mon);
+CPUArchState *monitor_hmp_get_cpu_env(MonitorHMP *hmp);
+CPUState *monitor_hmp_get_cpu(MonitorHMP *hmp);
+int monitor_hmp_get_cpu_index(MonitorHMP *hmp);
 
 bool hmp_handle_error(MonitorHMP *hmp, Error *err);
 void hmp_help_cmd(Monitor *mon, const char *name);
