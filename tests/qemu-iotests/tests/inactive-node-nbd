@@ -48,6 +48,7 @@ def node_is_active(_vm, node_name):
 
 with iotests.FilePath('disk.img') as path, \
      iotests.FilePath('ro.img') as ro_path, \
+     iotests.FilePath('detached.img') as detached_path, \
      iotests.FilePath('snap.qcow2') as snap_path, \
      iotests.FilePath('snap2.qcow2') as snap2_path, \
      iotests.FilePath('target.img') as target_path, \
@@ -60,6 +61,7 @@ with iotests.FilePath('disk.img') as path, \
     iotests.qemu_img_create('-f', iotests.imgfmt, path, img_size)
     iotests.qemu_img_create('-f', iotests.imgfmt, target_path, img_size)
     iotests.qemu_img_create('-f', iotests.imgfmt, ro_path, img_size)
+    iotests.qemu_img_create('-f', iotests.imgfmt, detached_path, img_size)
 
     iotests.qemu_img_create('-f', 'qcow2', '-b', path, '-F', iotests.imgfmt,
                             snap_path)
@@ -70,6 +72,9 @@ with iotests.FilePath('disk.img') as path, \
     vm.add_blockdev(f'file,node-name=disk-file,filename={path}')
     vm.add_blockdev(f'{iotests.imgfmt},file=disk-file,node-name=disk-fmt,'
                      'active=off')
+    vm.add_blockdev(f'file,node-name=detached-file,filename={detached_path}')
+    vm.add_blockdev(f'{iotests.imgfmt},file=detached-file,'
+                     'node-name=detached-fmt')
     vm.add_blockdev(f'file,node-name=target-file,filename={target_path}')
     vm.add_blockdev(f'{iotests.imgfmt},file=target-file,node-name=target-fmt')
     vm.add_blockdev(f'file,node-name=ro-file,filename={ro_path},read-only=on')
@@ -310,6 +315,17 @@ with iotests.FilePath('disk.img') as path, \
     iotests.log('snap-fmt active: %s' % node_is_active(vm, 'snap-fmt'))
     iotests.log('snap2-fmt active: %s' % node_is_active(vm, 'snap2-fmt'))
     iotests.log('target-fmt active: %s' % node_is_active(vm, 'target-fmt'))
+
+    iotests.log('\n=== Inactivating all nodes at once ===')
+
+    # detached-fmt has no parent and no BlockBackend, so nothing can reach it
+    # by recursion. It is only inactivated if bdrv_next() actually returns it.
+    vm.qmp_log('stop')
+    vm.qmp_log('blockdev-set-active', active=False)
+
+    iotests.log('detached-fmt active: %s' % node_is_active(vm, 'detached-fmt'))
+    iotests.log('detached-file active: %s'
+                % node_is_active(vm, 'detached-file'))
 
     iotests.log('\nShutting down...')
     vm.shutdown()
