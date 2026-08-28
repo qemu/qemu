@@ -89,7 +89,6 @@ static void monitor_finalize(Object *obj)
         qemu_bh_delete(mon->accept_input_bh);
     }
     g_free(mon->chardev_id);
-    g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
