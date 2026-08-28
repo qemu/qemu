@@ -249,6 +249,14 @@ was an early implementation of memory encryption support in QEMU, but it has
 been superseded by the more comprehensive ``confidential-guest-support``
 object.
 
+``next-cube`` m68k machine (since 11.2)
+'''''''''''''''''''''''''''''''''''''''
+
+The machine never got fully implemented and can only show the firmware prompt.
+Given the incomplete state and slow progress on improvements, it might get
+removed again without replacement.
+
+
 Backend options
 ---------------
 
