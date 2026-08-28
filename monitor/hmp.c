@@ -27,6 +27,7 @@
 #include "hw/core/qdev.h"
 #include "hw/core/sysemu-cpu-ops.h"
 #include "monitor-internal.h"
+#include "monitor-hmp-internal.h"
 #include "monitor/hmp.h"
 #include "qobject/qdict.h"
 #include "qobject/qnum.h"

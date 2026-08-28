@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include "monitor/hmp.h"
 
+#ifdef CONFIG_HMP
 int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
 {
     /*
@@ -17,3 +18,4 @@ int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
     }
     return -1;
 }
+#endif

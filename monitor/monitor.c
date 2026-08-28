@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "monitor-internal.h"
+#include "monitor-hmp-internal.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-emit-events.h"

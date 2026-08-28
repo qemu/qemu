@@ -9,7 +9,6 @@
 #include "system/runstate.h"
 #include "hw/core/qdev.h"
 #include "monitor/monitor.h"
-#include "monitor/hmp.h"
 #include "migration/vmstate.h"
 
 bool runstate_is_running(void)
@@ -40,11 +39,6 @@ Monitor *monitor_cur(void)
 Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
 {
     return NULL;
-}
-
-int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
-{
-    return -1;
 }
 
 /*

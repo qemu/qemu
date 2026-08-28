@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu/sockets.h"
 #include "monitor-internal.h"
+#include "monitor-hmp-internal.h"
 #include "monitor/qdev.h"
 #include "monitor/qmp-helpers.h"
 #include "system/system.h"

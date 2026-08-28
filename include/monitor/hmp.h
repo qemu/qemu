@@ -21,6 +21,10 @@
 #define TYPE_MONITOR_HMP "monitor-hmp"
 OBJECT_DECLARE_TYPE(MonitorHMP, MonitorHMPClass, MONITOR_HMP);
 
+MonitorHMP *monitor_cur_hmp(void);
+
+#ifdef CONFIG_HMP
+
 #define HMP_STUB(cmd) \
     void hmp_##cmd(MonitorHMP *hmp, const QDict *qdict) \
     { \
@@ -35,8 +39,6 @@ struct MonitorDef {
 
 void monitor_new_hmp(const char *id, const char *chardev_id,
                      bool use_readline, Error **errp);
-
-MonitorHMP *monitor_cur_hmp(void);
 
 int monitor_hmp_vprintf(MonitorHMP *mon, const char *fmt, va_list ap)
     G_GNUC_PRINTF(2, 0);
@@ -217,5 +219,7 @@ void hmp_dump_skeys(MonitorHMP *hmp, const QDict *qdict);
 void hmp_info_skeys(MonitorHMP *hmp, const QDict *qdict);
 void hmp_info_cmma(MonitorHMP *hmp, const QDict *qdict);
 void hmp_migrationmode(MonitorHMP *hmp, const QDict *qdict);
+
+#endif /* CONFIG_HMP */
 
 #endif
