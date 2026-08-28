@@ -11,10 +11,10 @@
  */
 
 /*
- * Covers QMP device-list-properties and HMP device_add help.  We
- * currently don't check that their output makes sense, only that QEMU
- * survives.  Useful since we've had an astounding number of crash
- * bugs around here.
+ * Covers QMP device-list-properties and HMP device_add help (if
+ * CONFIG_HMP).  We currently don't check that the output makes sense,
+ * only that QEMU survives.  Useful since we've had an astounding
+ * number of crash bugs around here.
  */
 
 #include "qemu/osdep.h"
@@ -154,8 +154,6 @@ static char *qom_tree_str(QTestState *qts)
 static void test_one_device(QTestState *qts, const char *type)
 {
     QDict *resp;
-    char *help, *escaped;
-    GRegex *comma;
 
     g_test_message("Testing device '%s'", type);
 
@@ -164,19 +162,21 @@ static void test_one_device(QTestState *qts, const char *type)
                type);
     qobject_unref(resp);
 
-    comma = g_regex_new(",", 0, 0, NULL);
-    escaped = g_regex_replace_literal(comma, type, -1, 0, ",,", 0, NULL);
-    g_regex_unref(comma);
+#ifdef CONFIG_HMP
+    {
+        g_autofree char *escaped = NULL;
+        g_autoptr(GRegex) comma = NULL;
 
-    help = qtest_hmp(qts, "device_add \"%s,help\"", escaped);
-    g_free(help);
-    g_free(escaped);
+        comma = g_regex_new(",", 0, 0, NULL);
+        escaped = g_regex_replace_literal(comma, type, -1, 0, ",,", 0, NULL);
+        g_free(qtest_hmp(qts, "device_add \"%s,help\"", escaped));
+    }
+#endif
 }
 
 static void test_device_intro_list(void)
 {
     QList *types;
-    char *help;
     QTestState *qts;
 
     qts = qtest_init(common_args);
@@ -184,8 +184,11 @@ static void test_device_intro_list(void)
     types = device_type_list(qts, true);
     qobject_unref(types);
 
-    help = qtest_hmp(qts, "device_add help");
-    g_free(help);
+#ifdef CONFIG_HMP
+    {
+        g_free(qtest_hmp(qts, "device_add help"));
+    }
+#endif
 
     qtest_quit(qts);
 }
@@ -251,16 +254,20 @@ static void test_device_intro_none(void)
     QTestState *qts = qtest_init(common_args);
     g_autofree char *qom_tree_start = qom_tree_str(qts);
     g_autofree char *qom_tree_end = NULL;
+#ifdef CONFIG_HMP
     g_autofree char *qtree_start = qtest_hmp(qts, "info qtree");
     g_autofree char *qtree_end = NULL;
+#endif
 
     test_one_device(qts, "nonexistent");
 
     /* Make sure that really nothing changed in the trees */
     qom_tree_end = qom_tree_str(qts);
     g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
+#ifdef CONFIG_HMP
     qtree_end = qtest_hmp(qts, "info qtree");
     g_assert_cmpstr(qtree_start, ==, qtree_end);
+#endif
 
     qtest_quit(qts);
 }
@@ -270,16 +277,20 @@ static void test_device_intro_abstract(void)
     QTestState *qts = qtest_init(common_args);
     g_autofree char *qom_tree_start = qom_tree_str(qts);
     g_autofree char *qom_tree_end = NULL;
+#ifdef CONFIG_HMP
     g_autofree char *qtree_start = qtest_hmp(qts, "info qtree");
     g_autofree char *qtree_end = NULL;
+#endif
 
     test_one_device(qts, "device");
 
     /* Make sure that really nothing changed in the trees */
     qom_tree_end = qom_tree_str(qts);
     g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
+#ifdef CONFIG_HMP
     qtree_end = qtest_hmp(qts, "info qtree");
     g_assert_cmpstr(qtree_start, ==, qtree_end);
+#endif
 
     qtest_quit(qts);
 }
@@ -292,8 +303,10 @@ static void test_device_intro_concrete(const void *args)
     QTestState *qts = qtest_init(args);
     g_autofree char *qom_tree_start = qom_tree_str(qts);
     g_autofree char *qom_tree_end = NULL;
+#ifdef CONFIG_HMP
     g_autofree char *qtree_start = qtest_hmp(qts, "info qtree");
     g_autofree char *qtree_end = NULL;
+#endif
 
     types = device_type_list(qts, false);
 
@@ -311,9 +324,10 @@ static void test_device_intro_concrete(const void *args)
      */
     qom_tree_end = qom_tree_str(qts);
     g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
-
+#ifdef CONFIG_HMP
     qtree_end = qtest_hmp(qts, "info qtree");
     g_assert_cmpstr(qtree_start, ==, qtree_end);
+#endif
 
     qobject_unref(types);
     qtest_quit(qts);
