@@ -274,7 +274,6 @@ DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
 void qemu_create_nic_bus_devices(BusState *bus, const char *parent_type,
                                  const char *default_model,
                                  const char *alias, const char *alias_target);
-void print_net_client(Monitor *mon, NetClientState *nc);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
                         bool vnet_hdr);
@@ -324,6 +323,8 @@ void hmp_host_net_remove(Monitor *mon, const QDict *qdict);
 void netdev_add(QemuOpts *opts, Error **errp);
 
 int net_hub_id_for_client(NetClientState *nc, int *id);
+
+NetworkClientInfo *net_client_info(NetClientState *nc);
 
 #define DEFAULT_NETWORK_SCRIPT CONFIG_SYSCONFDIR "/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT CONFIG_SYSCONFDIR "/qemu-ifdown"

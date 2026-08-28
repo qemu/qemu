@@ -15,10 +15,12 @@
 #ifndef NET_HUB_H
 #define NET_HUB_H
 
+#include "qapi/qapi-types-net.h"
+
 NetClientState *net_hub_add_port(int hub_id, const char *name,
                                  NetClientState *hubpeer);
-void net_hub_info(Monitor *mon);
 void net_hub_check_clients(void);
 bool net_hub_flush(NetClientState *nc);
+NetHubInfoList *net_hub_query_info(void);
 
 #endif /* NET_HUB_H */

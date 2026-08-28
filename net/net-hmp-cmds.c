@@ -19,37 +19,66 @@
 #include "monitor/hmp-completion.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
-#include "net/hub.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-commands-net.h"
 #include "qapi/qapi-visit-net.h"
+#include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "qemu/config-file.h"
 #include "qemu/help_option.h"
 #include "qemu/option.h"
 
+static void hmp_print_client_info(Monitor *mon, NetworkClientInfo *ci)
+{
+    NetFilterInfoList *f;
+
+    monitor_printf(mon, "%s: index=%" PRIu32 ",type=%s,%s\n",
+                   ci->name, ci->queue_index,
+                   NetClientDriver_str(ci->type), ci->info_str);
+    if (ci->filters) {
+        monitor_printf(mon, "filters:\n");
+        for (f = ci->filters; f; f = f->next) {
+            monitor_printf(mon, "  - %s: type=%s%s%s\n",
+                           f->value->name, f->value->type,
+                           f->value->info[0] ? "," : "", f->value->info);
+        }
+    }
+}
+
 void hmp_info_network(Monitor *mon, const QDict *qdict)
 {
-    NetClientState *nc, *peer;
-    NetClientDriver type;
+    Error *err = NULL;
+    g_autoptr(NetworkInfo) info = qmp_x_query_network(&err);
+    NetHubInfoList *h;
+    NetworkClientInfoList *entry;
 
-    net_hub_info(mon);
+    if (hmp_handle_error(mon, err)) {
+        return;
+    }
 
-    QTAILQ_FOREACH(nc, &net_clients, next) {
-        peer = nc->peer;
-        type = nc->info->type;
+    for (h = info->hubs; h; h = h->next) {
+        NetHubPortInfoList *p;
 
-        /* Skip if already printed in hub info */
-        if (net_hub_id_for_client(nc, NULL) == 0) {
-            continue;
+        monitor_printf(mon, "hub %d\n", (int)h->value->id);
+        for (p = h->value->ports; p; p = p->next) {
+            if (p->value->peer) {
+                monitor_printf(mon, " \\ %s: ", p->value->name);
+                hmp_print_client_info(mon, p->value->peer);
+            } else {
+                monitor_printf(mon, " \\ %s\n", p->value->name);
+            }
         }
+    }
 
-        if (!peer || type == NET_CLIENT_DRIVER_NIC) {
-            print_net_client(mon, nc);
+    for (entry = info->clients; entry; entry = entry->next) {
+        NetworkClientInfo *ci = entry->value;
+
+        if (!ci->peer || ci->type == NET_CLIENT_DRIVER_NIC) {
+            hmp_print_client_info(mon, ci);
         } /* else it's a netdev connected to a NIC, printed with the NIC */
-        if (peer && type == NET_CLIENT_DRIVER_NIC) {
+        if (ci->peer && ci->type == NET_CLIENT_DRIVER_NIC) {
             monitor_printf(mon, " \\ ");
-            print_net_client(mon, peer);
+            hmp_print_client_info(mon, ci->peer);
         }
     }
 }

@@ -1305,3 +1305,125 @@
   'returns': ['UsernetInfo'],
   'if': 'CONFIG_SLIRP',
   'features': [ 'unstable' ] }
+
+##
+# @NetFilterInfo:
+#
+# Information about a netfilter attached to a network client.
+#
+# @name: filter object name (QOM path component)
+#
+# @type: QOM type name (e.g. "filter-mirror")
+#
+# @info: filter properties as comma-separated key=value pairs
+#        (excluding @type)
+#
+# Since: 11.2
+##
+{ 'struct': 'NetFilterInfo',
+  'data': {
+    'name': 'str',
+    'type': 'str',
+    'info': 'str' } }
+
+##
+# @NetworkClientInfo:
+#
+# Information about a network client.
+#
+# @name: unique network client identifier
+#
+# @queue-index: index of this queue (0 for single-queue clients)
+#
+# @type: network client driver type
+#
+# @info-str: driver-specific formatted information string (e.g.
+#            "model=e1000,macaddr=52:54:00:12:34:56")
+#
+# @peer: the connected peer client (always a leaf; the peer's own
+#        peer field is never populated)
+#
+# @filters: attached netfilters
+#
+# Since: 11.2
+##
+{ 'struct': 'NetworkClientInfo',
+  'data': {
+    'name': 'str',
+    'queue-index': 'uint32',
+    'type': 'NetClientDriver',
+    'info-str': 'str',
+    '*peer': 'NetworkClientInfo',
+    'filters': ['NetFilterInfo'] } }
+
+##
+# @NetHubPortInfo:
+#
+# Information about a hub port.
+#
+# @name: hub port identifier
+#
+# @peer: the network client connected through this port
+#
+# Since: 11.2
+##
+{ 'struct': 'NetHubPortInfo',
+  'data': {
+    'name': 'str',
+    '*peer': 'NetworkClientInfo' } }
+
+##
+# @NetHubInfo:
+#
+# Information about a network hub.
+#
+# @id: hub identifier
+#
+# @ports: list of ports on this hub
+#
+# Since: 11.2
+##
+{ 'struct': 'NetHubInfo',
+  'data': {
+    'id': 'int',
+    'ports': ['NetHubPortInfo'] } }
+
+##
+# @NetworkInfo:
+#
+# Information about the network configuration.
+#
+# @hubs: network hubs and their ports
+#
+# @clients: network clients not associated with a hub
+#
+# Since: 11.2
+##
+{ 'struct': 'NetworkInfo',
+  'data': {
+    'hubs': ['NetHubInfo'],
+    'clients': ['NetworkClientInfo'] } }
+
+##
+# @x-query-network:
+#
+# Query the network configuration including hubs and clients.
+#
+# Features:
+#
+# @unstable: This command is meant for debugging.
+#
+# Returns: @NetworkInfo describing hubs and clients.
+#
+# Since: 11.2
+#
+# .. qmp-example::
+#
+#     -> { "execute": "x-query-network" }
+#     <- { "return": { "clients": [ { "name": "st0",
+#                      "queue-index": 0, "type": "stream",
+#                      "info-str": "listening" } ] } }
+##
+{ 'command': 'x-query-network',
+  'returns': 'NetworkInfo',
+  'features': [ 'unstable' ] }
