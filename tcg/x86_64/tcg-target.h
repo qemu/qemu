@@ -80,4 +80,6 @@ typedef enum {
     TCG_REG_CALL_STACK = TCG_REG_ESP
 } TCGReg;
 
+#define TCG_REG_ZERO  TCG_REG_NONE
+
 #endif

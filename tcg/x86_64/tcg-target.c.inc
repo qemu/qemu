@@ -3361,8 +3361,17 @@ static const TCGOutOpStore outop_st = {
     .out_i = tgen_st_i,
 };
 
+static void tgen_lea(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                     TCGReg a2, unsigned sh, tcg_target_long imm)
+{
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
+    tcg_out_modrm_sib_offset(s, OPC_LEA + rexw, a0, a1, a2, sh, imm);
+}
+
 static const TCGOutOpLea outop_lea = {
-    .base.static_constraint = C_NotImplemented,
+    /* Allow "lea imm(, a2, sh), a0" via TCG_REG_ZERO constraint */
+    .base.static_constraint = C_O1_I2(r, rz, r),
+    .out = tgen_lea,
 };
 
 static int const umin_insn[4] = {
