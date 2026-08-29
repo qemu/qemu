@@ -124,6 +124,8 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
  * Declarations of templated TCGv_i32 and TCGv_i64 operations.
  */
 
+#define DEF1(NAME, T1) \
+    QEMU_ARG_NONNULL void glue(tcg_gen_,NAME)(TCGType, T1);
 #define DEF2(NAME, T1, T2) \
     QEMU_ARG_NONNULL void glue(tcg_gen_,NAME)(TCGType, T1, T2);
 
@@ -135,6 +137,7 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
 #undef TINT
 #undef TCGV
 
+#undef DEF1
 #undef DEF2
 
 #endif /* TCG_INTERNAL_H */
