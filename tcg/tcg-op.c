@@ -370,16 +370,16 @@ void tcg_gen_mov(TCGType type, TCGTemp *dst, TCGTemp *src)
     }
 }
 
+void tcg_gen_movi(TCGType type, TCGTemp *dst, int64_t src)
+{
+    tcg_gen_op_tt(INDEX_op_mov, type, dst, tcg_constant_internal(type, src));
+}
+
 /* 32 bit ops */
 
 void tcg_gen_discard_i32(TCGv_i32 arg)
 {
     tcg_gen_op1_i32(INDEX_op_discard, TCG_TYPE_I32, arg);
-}
-
-void tcg_gen_movi_i32(TCGv_i32 ret, int32_t arg)
-{
-    tcg_gen_mov_i32(ret, tcg_constant_i32(arg));
 }
 
 void tcg_gen_add_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -1442,11 +1442,6 @@ void tcg_gen_st_i32(TCGv_i32 arg1, TCGv_ptr arg2, tcg_target_long offset)
 void tcg_gen_discard_i64(TCGv_i64 arg)
 {
     tcg_gen_op1_i64(INDEX_op_discard, TCG_TYPE_I64, arg);
-}
-
-void tcg_gen_movi_i64(TCGv_i64 ret, int64_t arg)
-{
-    tcg_gen_mov_i64(ret, tcg_constant_i64(arg));
 }
 
 void tcg_gen_ld8u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset)
@@ -2777,4 +2772,9 @@ void tcg_gen_lookup_and_goto_ptr(void)
 void tcg_gen_mov_ptr(TCGv_ptr d, TCGv_ptr s)
 {
     tcg_gen_mov(TCG_TYPE_PTR, tcgv_ptr_temp(d), tcgv_ptr_temp(s));
+}
+
+void tcg_gen_movi_ptr(TCGv_ptr d, intptr_t s)
+{
+    tcg_gen_movi(TCG_TYPE_PTR, tcgv_ptr_temp(d), s);
 }
