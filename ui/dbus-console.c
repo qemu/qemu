@@ -55,6 +55,8 @@ struct _DBusDisplayConsole {
     guint last_x;
     guint last_y;
     Notifier mouse_mode_notifier;
+
+    QemuDBusDisplay1UIInfo *iface_ui_info;
 };
 
 G_DEFINE_TYPE(DBusDisplayConsole,
@@ -155,6 +157,7 @@ dbus_display_console_dispose(GObject *object)
     qemu_input_led_notifier_remove(&ddc->led_notifier);
     qemu_console_unregister_listener(&ddc->dcl);
     qemu_remove_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
+    g_clear_object(&ddc->iface_ui_info);
     g_clear_object(&ddc->iface_touch);
     g_clear_object(&ddc->iface_mouse);
     g_clear_object(&ddc->iface_kbd);
@@ -528,6 +531,98 @@ dbus_mouse_mode_change(Notifier *notify, void *data)
     dbus_mouse_update_is_absolute(ddc);
 }
 
+static gboolean
+dbus_ui_info_get(DBusDisplayConsole *ddc,
+                 GDBusMethodInvocation *invocation)
+{
+    QemuUIInfo ui_info;
+    GVariantDict dict;
+
+    if (!qemu_console_ui_info_supported(ddc->dcl.con)) {
+        g_dbus_method_invocation_return_error(invocation,
+                                              DBUS_DISPLAY_ERROR,
+                                              DBUS_DISPLAY_ERROR_UNSUPPORTED,
+                                              "UIInfo is not supported");
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    ui_info = *qemu_console_get_ui_info(ddc->dcl.con);
+    g_variant_dict_init(&dict, NULL);
+
+    g_variant_dict_insert(&dict, "width_mm", "q", ui_info.width_mm);
+    g_variant_dict_insert(&dict, "height_mm", "q", ui_info.height_mm);
+    g_variant_dict_insert(&dict, "xoff", "i", ui_info.xoff);
+    g_variant_dict_insert(&dict, "yoff", "i", ui_info.yoff);
+    g_variant_dict_insert(&dict, "width", "u", ui_info.width);
+    g_variant_dict_insert(&dict, "height", "u", ui_info.height);
+    g_variant_dict_insert(&dict, "refresh_rate", "u", ui_info.refresh_rate);
+
+    qemu_dbus_display1_uiinfo_complete_get(ddc->iface_ui_info, invocation,
+                                           g_variant_dict_end(&dict));
+
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
+static bool
+dbus_ui_info_apply_lookup(GDBusMethodInvocation *invocation,
+                          GVariantDict *dict,
+                          const gchar *key,
+                          const gchar *fmt_str,
+                          void *res)
+{
+    if (g_variant_dict_contains(dict, key) &&
+        !g_variant_dict_lookup(dict, key, fmt_str, res)) {
+        g_dbus_method_invocation_return_error(invocation,
+                                              DBUS_DISPLAY_ERROR,
+                                              DBUS_DISPLAY_ERROR_INVALID,
+                                              "%s must have D-Bus signature %s",
+                                              key, fmt_str);
+        return false;
+    }
+    return true;
+}
+
+static gboolean
+dbus_ui_info_apply(DBusDisplayConsole *ddc,
+                   GDBusMethodInvocation *invocation,
+                   GVariant *arg_ui_info)
+{
+    QemuUIInfo ui_info;
+    g_auto(GVariantDict) dict = G_VARIANT_DICT_INIT(arg_ui_info);
+
+    if (!qemu_console_ui_info_supported(ddc->dcl.con)) {
+        g_dbus_method_invocation_return_error(invocation,
+                                              DBUS_DISPLAY_ERROR,
+                                              DBUS_DISPLAY_ERROR_UNSUPPORTED,
+                                              "UIInfo is not supported");
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    ui_info = *qemu_console_get_ui_info(ddc->dcl.con);
+
+    if (!dbus_ui_info_apply_lookup(invocation, &dict, "width_mm", "q",
+                                   &ui_info.width_mm) ||
+        !dbus_ui_info_apply_lookup(invocation, &dict, "height_mm", "q",
+                                   &ui_info.height_mm) ||
+        !dbus_ui_info_apply_lookup(invocation, &dict, "xoff", "i",
+                                   &ui_info.xoff) ||
+        !dbus_ui_info_apply_lookup(invocation, &dict, "yoff", "i",
+                                   &ui_info.yoff) ||
+        !dbus_ui_info_apply_lookup(invocation, &dict, "width", "u",
+                                   &ui_info.width) ||
+        !dbus_ui_info_apply_lookup(invocation, &dict, "height", "u",
+                                   &ui_info.height) ||
+        !dbus_ui_info_apply_lookup(invocation, &dict, "refresh_rate", "u",
+                                   &ui_info.refresh_rate)) {
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+
+    qemu_console_set_ui_info(ddc->dcl.con, &ui_info, false);
+    qemu_dbus_display1_uiinfo_complete_apply(ddc->iface_ui_info, invocation);
+
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
 int dbus_display_console_get_index(DBusDisplayConsole *ddc)
 {
     return qemu_console_get_index(ddc->dcl.con);
@@ -550,6 +645,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         "org.qemu.Display1.Keyboard",
         "org.qemu.Display1.Mouse",
         "org.qemu.Display1.MultiTouch",
+        "org.qemu.Display1.UIInfo",
         NULL
     };
 
@@ -625,6 +721,16 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
     ddc->mouse_mode_notifier.notify = dbus_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&ddc->mouse_mode_notifier);
     dbus_mouse_update_is_absolute(ddc);
+
+    ddc->iface_ui_info = qemu_dbus_display1_uiinfo_skeleton_new();
+    qemu_dbus_display1_uiinfo_set_supported(ddc->iface_ui_info,
+        qemu_console_ui_info_supported(ddc->dcl.con));
+    g_object_connect(ddc->iface_ui_info,
+        "swapped-signal::handle-get", dbus_ui_info_get, ddc,
+        "swapped-signal::handle-apply", dbus_ui_info_apply, ddc,
+        NULL);
+    g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(ddc),
+        G_DBUS_INTERFACE_SKELETON(ddc->iface_ui_info));
 
     return ddc;
 }

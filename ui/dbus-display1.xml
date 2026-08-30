@@ -90,6 +90,10 @@
         @height: console height, in pixels.
 
         Modify the dimensions and display settings.
+
+        .. seealso::
+
+           :dbus:iface:`org.qemu.Display1.UIInfo` which supports a superset of these properties.
     -->
     <method name="SetUIInfo">
       <arg name="width_mm" type="q" direction="in"/>
@@ -1158,5 +1162,56 @@
         (matching ``ChardevVCEncoding``): ``cp437`` or ``utf8``.
     -->
     <property name="Encoding" type="s" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.UIInfo:
+
+      This interface is implemented on
+      ``/org/qemu/Display1/Console_$id`` (see
+      :dbus:iface:`~org.qemu.Display1.Console`).
+  -->
+  <interface name="org.qemu.Display1.UIInfo">
+    <!--
+        Supported:
+
+        Whether console UI info is supported.
+    -->
+    <property name="Supported" type="b" access="read"/>
+
+    <!--
+        Get:
+        @ui_info: a dictionary of UI info properties.
+
+        Return the currently requested properties for the console.
+        The list of returned properties may vary and be extended in the future.
+
+        - ``width_mm`` (q): the physical display width in millimeters.
+        - ``height_mm`` (q): the physical display height in millimeters.
+        - ``xoff`` (i): the horizontal offset in pixels.
+        - ``yoff`` (i): the vertical offset in pixels.
+        - ``width`` (u): the console width in pixels.
+        - ``height`` (u): the console height in pixels.
+        - ``refresh_rate`` (u): the display refresh rate in millihertz.
+    -->
+    <method name="Get">
+      <arg name="ui_info" type="a{sv}" direction="out"/>
+    </method>
+
+    <!--
+        Apply:
+        @ui_info: a dictionary of new UI info properties.
+
+        Apply the properties to the console display.
+        The dictionary schema of ``Apply`` is a subset of that of ``Get``.
+
+        The properties will be merged with existing values.
+        Extra keys will be ignored.
+        The invocation will fail if any key has the wrong type,
+        leaving the UI info unchanged.
+    -->
+    <method name="Apply">
+      <arg name="ui_info" type="a{sv}" direction="in"/>
+    </method>
   </interface>
 </node>
