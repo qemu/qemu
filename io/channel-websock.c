@@ -492,6 +492,9 @@ static int qio_channel_websock_handshake_read(QIOChannelWebsock *ioc,
     buffer_reserve(&ioc->encinput, want);
     ret = qio_channel_read(ioc->master,
                            (char *)buffer_end(&ioc->encinput), want, errp);
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        return 0;
+    }
     if (ret < 0) {
         return -1;
     }
