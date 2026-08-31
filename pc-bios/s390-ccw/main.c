@@ -261,8 +261,16 @@ static bool find_boot_device(void)
         vdev->selected_scsi_device.channel = iplb->scsi.channel;
         vdev->selected_scsi_device.target = iplb->scsi.target;
         vdev->selected_scsi_device.lun = iplb->scsi.lun;
-        blk_schid.ssid = iplb->scsi.ssid & 0x3;
-        found = find_subch(iplb->scsi.devno);
+        vdev->ipl_type = iplb->scsi.bus;
+        switch (vdev->ipl_type) {
+        case S390_IPL_TYPE_CCW:
+            blk_schid.ssid = iplb->scsi.ssid & 0x3;
+            found = find_subch(iplb->scsi.devno);
+            break;
+        default:
+            puts("Unrecognized SCSI controller");
+            break;
+        }
         break;
      case S390_IPL_TYPE_PCI:
         found = find_fid(iplb->pci.fid);
@@ -346,7 +354,6 @@ static void ipl_pci_device(void)
 static void ipl_boot_device(void)
 {
     switch (virtio_get_device()->ipl_type) {
-    case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         ipl_ccw_device();
         break;
