@@ -532,6 +532,9 @@ struct CPUArchState {
     hwaddr fdt_addr;
 
 #ifdef CONFIG_KVM
+    /* KVM floating-point state */
+    uint32_t kvm_fcsr;
+
     /* kvm timer */
     bool kvm_timer_dirty;
     uint64_t kvm_timer_time;

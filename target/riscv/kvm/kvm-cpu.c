@@ -111,6 +111,14 @@ static uint64_t kvm_riscv_vector_reg_id(RISCVCPU *cpu,
 
 #define RISCV_FP_D_REG(idx)  KVM_RISCV_REG_ID_U64(KVM_REG_RISCV_FP_D, idx)
 
+#define RISCV_FP_F_FCSR_REG \
+    KVM_RISCV_REG_ID_U32(KVM_REG_RISCV_FP_F, \
+                         KVM_REG_RISCV_FP_F_REG(fcsr))
+
+#define RISCV_FP_D_FCSR_REG \
+    KVM_RISCV_REG_ID_U32(KVM_REG_RISCV_FP_D, \
+                         KVM_REG_RISCV_FP_D_REG(fcsr))
+
 #define RISCV_VECTOR_CSR_REG(name) \
     KVM_RISCV_REG_ID_ULONG(KVM_REG_RISCV_VECTOR, \
                            KVM_REG_RISCV_VECTOR_CSR_REG(name))
@@ -743,7 +751,8 @@ static int kvm_riscv_get_regs_fp(CPUState *cs)
             }
             env->fpr[i] = reg;
         }
-        return ret;
+        return kvm_get_one_reg(cs, RISCV_FP_D_FCSR_REG,
+                               &env->kvm_fcsr);
     }
 
     if (riscv_has_ext(env, RVF)) {
@@ -755,7 +764,8 @@ static int kvm_riscv_get_regs_fp(CPUState *cs)
             }
             env->fpr[i] = reg;
         }
-        return ret;
+        return kvm_get_one_reg(cs, RISCV_FP_F_FCSR_REG,
+                               &env->kvm_fcsr);
     }
 
     return ret;
@@ -776,7 +786,8 @@ static int kvm_riscv_put_regs_fp(CPUState *cs)
                 return ret;
             }
         }
-        return ret;
+        return kvm_set_one_reg(cs, RISCV_FP_D_FCSR_REG,
+                               &env->kvm_fcsr);
     }
 
     if (riscv_has_ext(env, RVF)) {
@@ -788,7 +799,8 @@ static int kvm_riscv_put_regs_fp(CPUState *cs)
                 return ret;
             }
         }
-        return ret;
+        return kvm_set_one_reg(cs, RISCV_FP_F_FCSR_REG,
+                               &env->kvm_fcsr);
     }
 
     return ret;
