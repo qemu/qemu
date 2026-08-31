@@ -360,6 +360,17 @@ void gd_gl_area_scanout_dmabuf(DisplayChangeListener *dcl,
 #endif
 }
 
+void gd_gl_area_release_dmabuf(DisplayChangeListener *dcl,
+                               QemuDmaBuf *dmabuf)
+{
+#ifdef CONFIG_GBM
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
+    gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
+    gd_release_dmabuf(vc, dmabuf);
+#endif
+}
+
 void gtk_gl_area_init(void)
 {
     display_opengl = 1;

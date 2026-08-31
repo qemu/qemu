@@ -1091,9 +1091,12 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         break;
     case VIRTIO_GPU_CMD_SET_SCANOUT:
         virgl_cmd_set_scanout(g, cmd);
+        /* Display callbacks may change the current GL context. */
+        virgl_renderer_force_ctx_0();
         break;
     case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
         virgl_cmd_resource_flush(g, cmd);
+        virgl_renderer_force_ctx_0();
         break;
     case VIRTIO_GPU_CMD_RESOURCE_UNREF:
         virgl_cmd_resource_unref(g, cmd, &cmd_suspended);
@@ -1130,6 +1133,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         break;
     case VIRTIO_GPU_CMD_SET_SCANOUT_BLOB:
         virgl_cmd_set_scanout_blob(g, cmd);
+        virgl_renderer_force_ctx_0();
         break;
 #endif
     default:

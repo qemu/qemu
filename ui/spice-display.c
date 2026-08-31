@@ -1176,6 +1176,8 @@ static void qemu_spice_gl_release_dmabuf(DisplayChangeListener *dcl,
         ssd->guest_dmabuf = NULL;
         ssd->guest_dmabuf_refresh = false;
     }
+    eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE,
+                   EGL_NO_SURFACE, qemu_egl_rn_ctx);
     egl_dmabuf_release_texture(dmabuf);
 }
 

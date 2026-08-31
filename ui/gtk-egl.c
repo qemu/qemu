@@ -426,6 +426,18 @@ void gtk_egl_init(DisplayGLMode mode)
     display_opengl = 1;
 }
 
+void gd_egl_release_dmabuf(DisplayChangeListener *dcl,
+                           QemuDmaBuf *dmabuf)
+{
+#ifdef CONFIG_GBM
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
+    eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                   vc->gfx.esurface, vc->gfx.ectx);
+    gd_release_dmabuf(vc, dmabuf);
+#endif
+}
+
 int gd_egl_make_current(DisplayGLCtx *dgc,
                         QEMUGLContext ctx)
 {
