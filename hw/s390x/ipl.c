@@ -402,6 +402,7 @@ static CcwDevice *s390_get_ccw_device(DeviceState *dev_st, int *devtype)
 }
 
 #define PCI_DEVTYPE_VIRTIO       0x05
+#define PCI_DEVTYPE_SCSI         0x06
 
 static S390PCIBusDevice *s390_get_pci_device(DeviceState *dev_st, int *devtype)
 {
@@ -416,6 +417,26 @@ static S390PCIBusDevice *s390_get_pci_device(DeviceState *dev_st, int *devtype)
             pbdev = s390_pci_find_dev_by_pci(s390_get_phb(), pci_dev);
             if (pbdev) {
                 tmp_dt = PCI_DEVTYPE_VIRTIO;
+            }
+        } else {
+            SCSIDevice *sd = (SCSIDevice *)
+                object_dynamic_cast(OBJECT(dev_st), TYPE_SCSI_DEVICE);
+            if (sd) {
+                SCSIBus *sbus = scsi_bus_from_device(sd);
+                VirtIODevice *vdev = (VirtIODevice *)
+                    object_dynamic_cast(OBJECT(sbus->qbus.parent),
+                                                TYPE_VIRTIO_DEVICE);
+                if (vdev) {
+                    pci_dev = (PCIDevice *)
+                        object_dynamic_cast(OBJECT(qdev_get_parent_bus(DEVICE(vdev))->parent),
+                                            TYPE_PCI_DEVICE);
+                    if (pci_dev) {
+                        pbdev = s390_pci_find_dev_by_pci(s390_get_phb(), pci_dev);
+                        if (pbdev) {
+                            tmp_dt = PCI_DEVTYPE_SCSI;
+                        }
+                    }
+                }
             }
         }
     }
@@ -615,6 +636,22 @@ static bool s390_build_iplb(DeviceState *dev_st, IplParameterBlock *iplb)
                 cpu_to_be32(S390_IPLB_MIN_PCI_LEN - S390_IPLB_HEADER_LEN);
             iplb->pbt = S390_IPL_TYPE_PCI;
             iplb->pci.fid = cpu_to_be32(pbdev->fid);
+            break;
+        case PCI_DEVTYPE_SCSI:
+            sd = SCSI_DEVICE(dev_st);
+            scsi_lp = object_property_get_str(OBJECT(sd), "loadparm", NULL);
+            if (scsi_lp && strlen(scsi_lp) > 0) {
+                lp = scsi_lp;
+            }
+            iplb->len = cpu_to_be32(S390_IPLB_MIN_PCI_LEN);
+            iplb->blk0_len =
+                cpu_to_be32(S390_IPLB_MIN_PCI_LEN - S390_IPLB_HEADER_LEN);
+            iplb->pbt = S390_IPL_TYPE_QEMU_SCSI;
+            iplb->scsi.lun = cpu_to_be32(sd->lun);
+            iplb->scsi.target = cpu_to_be16(sd->id);
+            iplb->scsi.channel = cpu_to_be16(sd->channel);
+            iplb->scsi.bus = S390_IPL_TYPE_PCI;
+            iplb->scsi.fid = cpu_to_be32(pbdev->fid);
             break;
         default:
             return false;

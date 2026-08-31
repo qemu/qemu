@@ -267,6 +267,9 @@ static bool find_boot_device(void)
             blk_schid.ssid = iplb->scsi.ssid & 0x3;
             found = find_subch(iplb->scsi.devno);
             break;
+        case S390_IPL_TYPE_PCI:
+            found = find_fid(iplb->scsi.fid);
+            break;
         default:
             puts("Unrecognized SCSI controller");
             break;
