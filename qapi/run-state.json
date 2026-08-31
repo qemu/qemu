@@ -10,8 +10,7 @@
 
 ##
 # @RunState:
-#
-# An enumeration of VM run states.
+#     An enumeration of VM run states.
 #
 # @debug: QEMU is running on a debugger
 #
@@ -63,8 +62,7 @@
 
 ##
 # @ShutdownCause:
-#
-# An enumeration of reasons for a shutdown.
+#     An enumeration of reasons for a shutdown.
 #
 # @none: No shutdown request pending
 #
@@ -103,8 +101,7 @@
 
 ##
 # @StatusInfo:
-#
-# Information about VM run state
+#     Information about VM run state
 #
 # @running: true if all VCPUs are runnable, false if not runnable
 #
@@ -118,8 +115,7 @@
 
 ##
 # @query-status:
-#
-# Query the run status of the VM
+#     Query the run status of the VM
 #
 # Since: 0.14
 #
@@ -134,9 +130,8 @@
 
 ##
 # @SHUTDOWN:
-#
-# Emitted when the virtual machine has shut down, indicating that QEMU
-# is about to exit.
+#     Emitted when the virtual machine has shut down, indicating that
+#     QEMU is about to exit.
 #
 # @guest: If true, the shutdown was triggered by a guest request (such
 #     as a guest-initiated ACPI shutdown request or other
@@ -162,9 +157,8 @@
 
 ##
 # @POWERDOWN:
-#
-# Emitted when the virtual machine is powered down through the power
-# control system, such as via ACPI.
+#     Emitted when the virtual machine is powered down through the
+#     power control system, such as via ACPI.
 #
 # Since: 0.12
 #
@@ -177,8 +171,7 @@
 
 ##
 # @RESET:
-#
-# Emitted when the virtual machine is reset
+#     Emitted when the virtual machine is reset
 #
 # @guest: If true, the reset was triggered by a guest request (such as
 #     a guest-initiated ACPI reboot request or other hardware-specific
@@ -199,8 +192,7 @@
 
 ##
 # @STOP:
-#
-# Emitted when the virtual machine is stopped
+#     Emitted when the virtual machine is stopped
 #
 # Since: 0.12
 #
@@ -213,8 +205,7 @@
 
 ##
 # @RESUME:
-#
-# Emitted when the virtual machine resumes execution
+#     Emitted when the virtual machine resumes execution
 #
 # Since: 0.12
 #
@@ -227,9 +218,8 @@
 
 ##
 # @SUSPEND:
-#
-# Emitted when guest enters a hardware suspension state, for example,
-# S3 state, which is sometimes called standby state
+#     Emitted when guest enters a hardware suspension state, for
+#     example, S3 state, which is sometimes called standby state
 #
 # Since: 1.1
 #
@@ -261,9 +251,8 @@
 
 ##
 # @WAKEUP:
-#
-# Emitted when the guest has woken up from suspend state and is
-# running
+#     Emitted when the guest has woken up from suspend state and is
+#     running
 #
 # Since: 1.1
 #
@@ -276,8 +265,7 @@
 
 ##
 # @WATCHDOG:
-#
-# Emitted when the watchdog device's timer is expired
+#     Emitted when the watchdog device's timer is expired
 #
 # @action: action that has been taken
 #
@@ -300,9 +288,8 @@
 
 ##
 # @WatchdogAction:
-#
-# An enumeration of the actions taken when the watchdog device's timer
-# is expired
+#     An enumeration of the actions taken when the watchdog device's
+#     timer is expired
 #
 # @reset: system resets
 #
@@ -330,8 +317,7 @@
 
 ##
 # @RebootAction:
-#
-# Possible QEMU actions upon guest reboot
+#     Possible QEMU actions upon guest reboot
 #
 # @reset: Reset the VM
 #
@@ -345,8 +331,7 @@
 
 ##
 # @ShutdownAction:
-#
-# Possible QEMU actions upon guest shutdown
+#     Possible QEMU actions upon guest shutdown
 #
 # @poweroff: Shutdown the VM and exit
 #
@@ -377,8 +362,7 @@
 
 ##
 # @watchdog-set-action:
-#
-# Set watchdog action.
+#     Set watchdog action.
 #
 # @action: `WatchdogAction` action taken when watchdog timer expires.
 #
@@ -394,9 +378,8 @@
 
 ##
 # @set-action:
-#
-# Set the actions that will be taken by the emulator in response to
-# guest events.
+#     Set the actions that will be taken by the emulator in response
+#     to guest events.
 #
 # @reboot: `RebootAction` action taken on guest reboot.
 #
@@ -427,8 +410,7 @@
 
 ##
 # @GUEST_PANICKED:
-#
-# Emitted when guest OS panic is detected
+#     Emitted when guest OS panic is detected
 #
 # @action: action that has been taken, currently always "pause"
 #
@@ -447,8 +429,7 @@
 
 ##
 # @GUEST_CRASHLOADED:
-#
-# Emitted when guest OS crash loaded is detected
+#     Emitted when guest OS crash loaded is detected
 #
 # @action: action that has been taken, currently always "run"
 #
@@ -467,8 +448,8 @@
 
 ##
 # @GUEST_PVSHUTDOWN:
-#
-# Emitted when guest submits a shutdown request via pvpanic interface
+#     Emitted when guest submits a shutdown request via pvpanic
+#     interface
 #
 # Since: 9.1
 #
@@ -481,8 +462,8 @@
 
 ##
 # @GuestPanicAction:
-#
-# An enumeration of the actions taken when guest OS panic is detected
+#     An enumeration of the actions taken when guest OS panic is
+#     detected
 #
 # @pause: system pauses
 #
@@ -497,8 +478,7 @@
 
 ##
 # @GuestPanicInformationType:
-#
-# An enumeration of the guest panic information types
+#     An enumeration of the guest panic information types
 #
 # @hyper-v: hyper-v guest panic information type
 #
@@ -515,8 +495,7 @@
 
 ##
 # @GuestPanicInformation:
-#
-# Information about a guest panic
+#     Information about a guest panic
 #
 # @type: Crash type that defines the hypervisor specific information
 #
@@ -532,8 +511,7 @@
 
 ##
 # @GuestPanicInformationHyperV:
-#
-# Hyper-V specific guest panic information (HV crash MSRs)
+#     Hyper-V specific guest panic information (HV crash MSRs)
 #
 # @arg1: for Windows, `STOP` code for the guest crash.  For Linux,
 #     an error code.
@@ -562,8 +540,7 @@
 
 ##
 # @S390CrashReason:
-#
-# Reason why the CPU is in a crashed state.
+#     Reason why the CPU is in a crashed state.
 #
 # @unknown: no crash reason was set
 #
@@ -588,8 +565,7 @@
 
 ##
 # @GuestPanicInformationS390:
-#
-# S390 specific guest panic information (PSW)
+#     S390 specific guest panic information (PSW)
 #
 # @core: core id of the CPU that crashed
 #
@@ -632,9 +608,8 @@
 
 ##
 # @GuestPanicInformationSev:
-#
-# Information for AMD SEV-specific termination request (GHCB MSR
-# contents)
+#     Information for AMD SEV-specific termination request (GHCB MSR
+#     contents)
 #
 # @set: The reason code set provided by the guest
 #
@@ -648,8 +623,7 @@
 
 ##
 # @MEMORY_FAILURE:
-#
-# Emitted when a memory failure occurs on host side.
+#     Emitted when a memory failure occurs on host side.
 #
 # @recipient: recipient is defined as `MemoryFailureRecipient`.
 #
@@ -675,8 +649,7 @@
 
 ##
 # @MemoryFailureRecipient:
-#
-# Hardware memory failure occurs, handled by recipient.
+#     Hardware memory failure occurs, handled by recipient.
 #
 # @hypervisor: memory failure at QEMU process address space.  (none
 #     guest memory, but used by QEMU itself).
@@ -691,8 +664,7 @@
 
 ##
 # @MemoryFailureAction:
-#
-# Actions taken by QEMU in response to a hardware memory failure.
+#     Actions taken by QEMU in response to a hardware memory failure.
 #
 # @ignore: the memory failure could be ignored.  This will only be the
 #     case for action-optional failures.
@@ -719,8 +691,7 @@
 
 ##
 # @MemoryFailureFlags:
-#
-# Additional information on memory failures.
+#     Additional information on memory failures.
 #
 # @action-required: whether a memory failure event is action-required
 #     or action-optional (e.g. a failure during memory scrub).
@@ -736,8 +707,8 @@
 
 ##
 # @NotifyVmexitOption:
-#
-# An enumeration of the options specified when enabling notify VM exit
+#     An enumeration of the options specified when enabling notify VM
+#     exit
 #
 # @run: enable the feature, do nothing and continue if the notify VM
 #     exit happens.
