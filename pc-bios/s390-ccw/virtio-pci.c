@@ -452,7 +452,6 @@ int virtio_pci_setup_device(void)
     VDev *vdev = virtio_get_device();
 
     if (enable_pci_function(&vdev->pci_fh)) {
-        puts("Failed to enable PCI function");
         return -ENODEV;
     }
 
