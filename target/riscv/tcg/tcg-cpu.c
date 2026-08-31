@@ -41,34 +41,32 @@
 #include "target/riscv/tcg/csr.h"
 #endif
 
-/* Hash that stores user set extensions */
-static GHashTable *multi_ext_user_opts;
-static GHashTable *misa_ext_user_opts;
-
 static GHashTable *multi_ext_implied_rules;
 static GHashTable *misa_ext_implied_rules;
 
-static bool cpu_cfg_ext_is_user_set(uint32_t ext_offset)
+static bool cpu_cfg_ext_is_user_set(RISCVCPU *cpu, uint32_t ext_offset)
 {
-    return g_hash_table_contains(multi_ext_user_opts,
+    return g_hash_table_contains(cpu->multi_ext_user_opts,
                                  GUINT_TO_POINTER(ext_offset));
 }
 
-static bool cpu_misa_ext_is_user_set(uint32_t misa_bit)
+static bool cpu_misa_ext_is_user_set(RISCVCPU *cpu, uint32_t misa_bit)
 {
-    return g_hash_table_contains(misa_ext_user_opts,
+    return g_hash_table_contains(cpu->misa_ext_user_opts,
                                  GUINT_TO_POINTER(misa_bit));
 }
 
-static void cpu_cfg_ext_add_user_opt(uint32_t ext_offset, bool value)
+static void cpu_cfg_ext_add_user_opt(RISCVCPU *cpu, uint32_t ext_offset,
+                                     bool value)
 {
-    g_hash_table_insert(multi_ext_user_opts, GUINT_TO_POINTER(ext_offset),
+    g_hash_table_insert(cpu->multi_ext_user_opts,
+                        GUINT_TO_POINTER(ext_offset),
                         (gpointer)value);
 }
 
-static void cpu_misa_ext_add_user_opt(uint32_t bit, bool value)
+static void cpu_misa_ext_add_user_opt(RISCVCPU *cpu, uint32_t bit, bool value)
 {
-    g_hash_table_insert(misa_ext_user_opts, GUINT_TO_POINTER(bit),
+    g_hash_table_insert(cpu->misa_ext_user_opts, GUINT_TO_POINTER(bit),
                         (gpointer)value);
 }
 
@@ -358,7 +356,7 @@ static void cpu_cfg_ext_auto_update(RISCVCPU *cpu, uint32_t ext_offset,
         return;
     }
 
-    if (cpu_cfg_ext_is_user_set(ext_offset)) {
+    if (cpu_cfg_ext_is_user_set(cpu, ext_offset)) {
         return;
     }
 
@@ -491,7 +489,7 @@ static void riscv_cpu_validate_g(RISCVCPU *cpu)
 {
     const char *warn_msg = "RVG mandates disabled extension %s";
     uint32_t g_misa_bits[] = {RVI, RVM, RVA, RVF, RVD};
-    bool send_warn = cpu_misa_ext_is_user_set(RVG);
+    bool send_warn = cpu_misa_ext_is_user_set(cpu, RVG);
 
     for (int i = 0; i < ARRAY_SIZE(g_misa_bits); i++) {
         uint32_t bit = g_misa_bits[i];
@@ -734,7 +732,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
     }
 
     if (cpu->cfg.ext_zicntr && !cpu->cfg.ext_zicsr) {
-        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_zicntr))) {
+        if (cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_zicntr))) {
             error_setg(errp, "zicntr requires zicsr");
             return;
         }
@@ -742,7 +740,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
     }
 
     if (cpu->cfg.ext_zihpm && !cpu->cfg.ext_zicsr) {
-        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_zihpm))) {
+        if (cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_zihpm))) {
             error_setg(errp, "zihpm requires zicsr");
             return;
         }
@@ -802,8 +800,8 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
 
     if ((cpu->cfg.ext_smctr || cpu->cfg.ext_ssctr) &&
         (!riscv_has_ext(env, RVS) || !cpu->cfg.ext_sscsrind)) {
-        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_smctr)) ||
-            cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_ssctr))) {
+        if (cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_smctr)) ||
+            cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_ssctr))) {
             error_setg(errp, "Smctr and Ssctr require S-mode and Sscsrind");
             return;
         }
@@ -820,7 +818,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
 #ifndef CONFIG_USER_ONLY
     if (cpu->cfg.ext_svpbmt && cpu->cfg.max_satp_mode < VM_1_10_SV39) {
         cpu->cfg.ext_svpbmt = false;
-        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_svpbmt))) {
+        if (cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_svpbmt))) {
             warn_report("svpbmt requires at least satp sv39, "
                         "current satp mode: %s",
                         satp_mode_str(cpu->cfg.max_satp_mode,
@@ -830,7 +828,7 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
 
     if (cpu->cfg.ext_svnapot && cpu->cfg.max_satp_mode < VM_1_10_SV39) {
         cpu->cfg.ext_svnapot = false;
-        if (cpu_cfg_ext_is_user_set(CPU_CFG_OFFSET(ext_svnapot))) {
+        if (cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_svnapot))) {
             warn_report("svnapot requires at least satp sv39, "
                         "current satp mode: %s",
                         satp_mode_str(cpu->cfg.max_satp_mode,
@@ -1007,7 +1005,7 @@ static void cpu_enable_implied_rule(RISCVCPU *cpu,
                      * If the user disabled the misa_bit do not re-enable it
                      * and do not apply any implied rules related to it.
                      */
-                    if (cpu_misa_ext_is_user_set(misa_bits[i]) &&
+                    if (cpu_misa_ext_is_user_set(cpu, misa_bits[i]) &&
                         !(env->misa_ext & misa_bits[i])) {
                         continue;
                     }
@@ -1143,7 +1141,7 @@ static void riscv_cpu_update_misa_c(RISCVCPU *cpu)
     }
 
     if (set_misa_c) {
-        if (cpu_misa_ext_is_user_set(RVC)) {
+        if (cpu_misa_ext_is_user_set(cpu, RVC)) {
             warn_report("RVC mandated by Zca/Zcf/Zcd extensions");
             return;
         }
@@ -1285,7 +1283,7 @@ static void riscv_cpu_set_profile(RISCVCPU *cpu,
             continue;
         }
 
-        cpu_misa_ext_add_user_opt(bit, profile->enabled);
+        cpu_misa_ext_add_user_opt(cpu, bit, profile->enabled);
         riscv_cpu_write_misa_bit(cpu, bit, profile->enabled);
     }
 
@@ -1296,7 +1294,7 @@ static void riscv_cpu_set_profile(RISCVCPU *cpu,
             cpu_bump_multi_ext_priv_ver(&cpu->env, ext_offset);
         }
 
-        cpu_cfg_ext_add_user_opt(ext_offset, profile->enabled);
+        cpu_cfg_ext_add_user_opt(cpu, ext_offset, profile->enabled);
         isa_ext_update_enabled(cpu, ext_offset, profile->enabled);
     }
 }
@@ -1356,7 +1354,7 @@ static void cpu_set_misa_ext_cfg(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    cpu_misa_ext_add_user_opt(misa_bit, value);
+    cpu_misa_ext_add_user_opt(cpu, misa_bit, value);
 
     prev_val = env->misa_ext & misa_bit;
 
@@ -1520,7 +1518,7 @@ static void cpu_set_multi_ext_cfg(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    cpu_cfg_ext_add_user_opt(cfg_offset, value);
+    cpu_cfg_ext_add_user_opt(cpu, cfg_offset, value);
 
     prev_val = isa_ext_is_enabled(cpu, cfg_offset);
 
@@ -1684,8 +1682,8 @@ static void riscv_tcg_cpu_instance_init(CPUState *cs)
                             "riscv.cpu.rnmi", RNMI_MAX);
 #endif
 
-    misa_ext_user_opts = g_hash_table_new(NULL, g_direct_equal);
-    multi_ext_user_opts = g_hash_table_new(NULL, g_direct_equal);
+    cpu->misa_ext_user_opts = g_hash_table_new(NULL, g_direct_equal);
+    cpu->multi_ext_user_opts = g_hash_table_new(NULL, g_direct_equal);
 
     if (!misa_ext_implied_rules) {
         misa_ext_implied_rules = g_hash_table_new(NULL, g_direct_equal);
