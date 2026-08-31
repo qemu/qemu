@@ -562,6 +562,11 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
                             wioc->encoutput.offset,
                             &err);
 
+    if (ret == QIO_CHANNEL_ERR_BLOCK) {
+        /* Socket buffer is full, the G_IO_OUT watch stays armed */
+        return TRUE;
+    }
+
     if (ret < 0) {
         trace_qio_channel_websock_handshake_fail(ioc, error_get_pretty(err));
         qio_task_set_error(task, err);
