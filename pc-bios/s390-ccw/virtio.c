@@ -70,13 +70,19 @@ int drain_irqs(void)
 
 int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd)
 {
-    switch (vdev->ipl_type) {
-    case S390_IPL_TYPE_QEMU_SCSI:
-    case S390_IPL_TYPE_CCW:
-        return virtio_ccw_run(vdev, vqid, cmd);
-    default:
+    VRing *vr = &vdev->vrings[vqid];
+    int i = 0;
+
+    do {
+        vring_send_buf(vr, cmd[i].data, cmd[i].size,
+                       cmd[i].flags | (i ? VRING_HIDDEN_IS_CHAIN : 0));
+    } while (cmd[i++].flags & VRING_DESC_F_NEXT);
+
+    vring_wait_reply();
+    if (drain_irqs()) {
         return -1;
     }
+    return 0;
 }
 
 void vring_init(VRing *vr, VqInfo *info)
