@@ -563,6 +563,7 @@ static bool s390_build_iplb(DeviceState *dev_st, IplParameterBlock *iplb)
             iplb->scsi.lun = cpu_to_be32(sd->lun);
             iplb->scsi.target = cpu_to_be16(sd->id);
             iplb->scsi.channel = cpu_to_be16(sd->channel);
+            iplb->scsi.bus = S390_IPL_TYPE_CCW;
             iplb->scsi.devno = cpu_to_be16(ccw_dev->sch->devno);
             iplb->scsi.ssid = ccw_dev->sch->ssid & 3;
             break;
