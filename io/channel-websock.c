@@ -230,7 +230,7 @@ qio_channel_websock_extract_headers(QIOChannelWebsock *ioc,
     tmp = strchr(buffer, ' ');
     if (!tmp) {
         error_setg(errp, "Missing HTTP path delimiter");
-        return 0;
+        goto bad_request;
     }
     *tmp = '\0';
 
