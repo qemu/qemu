@@ -431,7 +431,6 @@ virtio_gpu_virgl_resource_unref(VirtIOGPU *g,
 {
     struct iovec *res_iovs = NULL;
     int num_iovs = 0;
-    int i;
 #if VIRGL_VERSION_MAJOR >= 1
     int ret;
 
@@ -444,11 +443,7 @@ virtio_gpu_virgl_resource_unref(VirtIOGPU *g,
     }
 #endif
 
-    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
-        if (g->parent_obj.scanout[i].resource_id == res->base.resource_id) {
-            virtio_gpu_disable_scanout(g, i);
-        }
-    }
+    virtio_gpu_disable_scanout_for_resource(g, res->base.resource_id);
 
     virgl_renderer_force_ctx_0();
     virgl_renderer_resource_detach_iov(res->base.resource_id,

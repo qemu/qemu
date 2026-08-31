@@ -444,17 +444,21 @@ void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
     scanout->height = 0;
 }
 
+void virtio_gpu_disable_scanout_for_resource(VirtIOGPU *g,
+                                             uint32_t resource_id)
+{
+    for (int i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        if (g->parent_obj.scanout[i].resource_id == resource_id) {
+            virtio_gpu_disable_scanout(g, i);
+        }
+    }
+}
+
 static void virtio_gpu_resource_destroy(VirtIOGPU *g,
                                         struct virtio_gpu_simple_resource *res,
                                         Error **errp)
 {
-    int i;
-
-    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
-        if (g->parent_obj.scanout[i].resource_id == res->resource_id) {
-            virtio_gpu_disable_scanout(g, i);
-        }
-    }
+    virtio_gpu_disable_scanout_for_resource(g, res->resource_id);
 
     qemu_pixman_image_unref(res->image);
     virtio_gpu_cleanup_mapping(g, res);
@@ -1062,13 +1066,7 @@ void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
                                 struct virtio_gpu_simple_resource *res)
 {
     if (res->blob) {
-        int i, max_outputs = g->parent_obj.conf.max_outputs;
-
-        for (i = 0; i < max_outputs; i++) {
-            if (g->parent_obj.scanout[i].resource_id == res->resource_id) {
-                virtio_gpu_disable_scanout(g, i);
-            }
-        }
+        virtio_gpu_disable_scanout_for_resource(g, res->resource_id);
     }
 
     virtio_gpu_cleanup_mapping_iov(g, res->iov, res->iov_cnt);
