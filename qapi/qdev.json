@@ -14,8 +14,7 @@
 
 ##
 # @device-list-properties:
-#
-# List properties associated with a device.
+#     List properties associated with a device.
 #
 # @typename: the type name of a device
 #
@@ -33,8 +32,7 @@
 
 ##
 # @device_add:
-#
-# Add a device.
+#     Add a device.
 #
 # @driver: the name of the new device's driver
 #
@@ -85,8 +83,7 @@
 
 ##
 # @device_del:
-#
-# Remove a device from a guest
+#     Remove a device from a guest
 #
 # @id: the device's ID or QOM path
 #
@@ -145,9 +142,8 @@
 
 ##
 # @DEVICE_UNPLUG_GUEST_ERROR:
-#
-# Emitted when a device hot unplug fails due to a guest reported
-# error.
+#     Emitted when a device hot unplug fails due to a guest reported
+#     error.
 #
 # @device: the device's ID if it has one
 #
