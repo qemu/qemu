@@ -725,16 +725,6 @@ extern const VMStateInfo vmstate_info_g_byte_array;
 #define VMSTATE_STRUCT_VARRAY_POINTER_UINT32 VMSTATE_STRUCT_VARRAY_POINTER
 #define VMSTATE_STRUCT_VARRAY_POINTER_UINT16 VMSTATE_STRUCT_VARRAY_POINTER
 
-#define VMSTATE_STRUCT_VARRAY(_field, _state, _field_num, _version, _vmsd, \
-                              _type) {                                  \
-    .name       = (stringify(_field)),                               \
-    .num_indirect = vmstate_field_offset(_state, _field_num),        \
-    .version_id = (_version),                                        \
-    .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_STRUCT | VMS_VARRAY,                           \
-    .offset     = vmstate_offset_varray(_state, _field, _type),      \
-}
 #define VMSTATE_STRUCT_VARRAY_INT32 VMSTATE_STRUCT_VARRAY
 #define VMSTATE_STRUCT_VARRAY_UINT32 VMSTATE_STRUCT_VARRAY
 
