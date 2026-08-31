@@ -9,9 +9,8 @@
 
 ##
 # @S390CpuPolarization:
-#
-# An enumeration of CPU polarization that can be assumed by a virtual
-# S390 CPU
+#     An enumeration of CPU polarization that can be assumed by a
+#     virtual S390 CPU
 #
 # Since: 8.2
 ##
@@ -94,8 +93,7 @@
 
 ##
 # @CpuPolarizationInfo:
-#
-# The result of a CPU polarization query.
+#     The result of a CPU polarization query.
 #
 # @polarization: the CPU polarization
 #
@@ -122,9 +120,8 @@
 
 ##
 # @SCLP_CPI_INFO_AVAILABLE:
-#
-# Emitted when the Control-Program Identification data is available in
-# the QOM tree.
+#     Emitted when the Control-Program Identification data is
+#     available in the QOM tree.
 #
 # Features:
 #
