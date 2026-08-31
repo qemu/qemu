@@ -13,8 +13,7 @@
 
 ##
 # @MigrationRAMStats:
-#
-# Detailed migration status.
+#     Detailed migration status.
 #
 # @transferred: amount of bytes already transferred to the target VM
 #
@@ -78,8 +77,7 @@
 
 ##
 # @XBZRLECacheStats:
-#
-# Detailed XBZRLE migration cache statistics
+#     Detailed XBZRLE migration cache statistics
 #
 # @cache-size: XBZRLE cache size
 #
@@ -104,8 +102,7 @@
 
 ##
 # @CompressionStats:
-#
-# Detailed migration compression statistics
+#     Detailed migration compression statistics
 #
 # @pages: amount of pages compressed and transferred to the target VM
 #
@@ -126,8 +123,7 @@
 
 ##
 # @MigrationStatus:
-#
-# An enumeration of migration status.
+#     An enumeration of migration status.
 #
 # @none: no migration has ever happened.
 #
@@ -189,8 +185,7 @@
 
 ##
 # @VfioStats:
-#
-# Detailed VFIO devices migration statistics
+#     Detailed VFIO devices migration statistics
 #
 # @transferred: amount of bytes transferred to the target VM by VFIO
 #     devices
@@ -202,8 +197,7 @@
 
 ##
 # @MigrationInfo:
-#
-# Information about current migration process.
+#     Information about current migration process.
 #
 # @status: `MigrationStatus` describing the current migration status.
 #     If this field is not returned, no migration process has been
@@ -435,8 +429,7 @@
 
 ##
 # @MigrationCapability:
-#
-# Migration capabilities enumeration
+#     Migration capabilities enumeration
 #
 # @xbzrle: Migration supports xbzrle (Xor Based Zero Run Length
 #     Encoding).  This feature allows us to minimize migration traffic
@@ -545,8 +538,7 @@
 
 ##
 # @MigrationCapabilityStatus:
-#
-# Migration capability information
+#     Migration capability information
 #
 # @capability: capability enum
 #
@@ -559,8 +551,8 @@
 
 ##
 # @migrate-set-capabilities:
-#
-# Enable/Disable the following migration capabilities (like xbzrle)
+#     Enable/Disable the following migration capabilities (like
+#     xbzrle)
 #
 # @capabilities: json array of capability modifications to make
 #
@@ -577,8 +569,8 @@
 
 ##
 # @query-migrate-capabilities:
-#
-# Return information about the current migration capabilities status
+#     Return information about the current migration capabilities
+#     status
 #
 # Since: 1.2
 #
@@ -598,8 +590,7 @@
 
 ##
 # @MultiFDCompression:
-#
-# An enumeration of multifd compression methods.
+#     An enumeration of multifd compression methods.
 #
 # @none: no compression.
 #
@@ -776,9 +767,8 @@
 
 ##
 # @BitmapMigrationNodeAlias:
-#
-# Maps a block node name and the bitmaps it has to aliases for dirty
-# bitmap migration.
+#     Maps a block node name and the bitmaps it has to aliases for
+#     dirty bitmap migration.
 #
 # @node-name: A block node name.
 #
@@ -1111,8 +1101,7 @@
 
 ##
 # @MIGRATION:
-#
-# Emitted when a migration event happens
+#     Emitted when a migration event happens
 #
 # @status: `MigrationStatus` describing the current migration status.
 #
@@ -1129,9 +1118,8 @@
 
 ##
 # @MIGRATION_PASS:
-#
-# Emitted from the source side of a migration at the start of each
-# pass (when it syncs the dirty bitmap)
+#     Emitted from the source side of a migration at the start of each
+#     pass (when it syncs the dirty bitmap)
 #
 # @pass: An incrementing count (starting at 1 on the first pass)
 #
@@ -1147,8 +1135,8 @@
 
 ##
 # @COLOMessage:
-#
-# The message transmission between Primary side and Secondary side.
+#     The message transmission between Primary side and Secondary
+#     side.
 #
 # @checkpoint-ready: Secondary VM (SVM) is ready for checkpointing
 #
@@ -1174,8 +1162,7 @@
 
 ##
 # @COLOMode:
-#
-# The COLO current mode.
+#     The COLO current mode.
 #
 # @none: COLO is disabled.
 #
@@ -1190,8 +1177,7 @@
 
 ##
 # @FailoverStatus:
-#
-# An enumeration of COLO failover status
+#     An enumeration of COLO failover status
 #
 # @none: no failover has ever happened
 #
@@ -1211,9 +1197,8 @@
 
 ##
 # @COLO_EXIT:
-#
-# Emitted when VM finishes COLO mode due to some errors happening or
-# at the request of users.
+#     Emitted when VM finishes COLO mode due to some errors happening
+#     or at the request of users.
 #
 # @mode: report COLO mode when COLO exited.
 #
@@ -1231,8 +1216,7 @@
 
 ##
 # @COLOExitReason:
-#
-# The reason for a COLO exit.
+#     The reason for a COLO exit.
 #
 # @none: failover has never happened.  This state does not occur in
 #     the `COLO_EXIT` event, and is only visible in the result of
@@ -1294,8 +1278,7 @@
 
 ##
 # @migrate-continue:
-#
-# Continue migration when it's in a paused state.
+#     Continue migration when it's in a paused state.
 #
 # @state: The state the migration is currently expected to be in
 #
@@ -1311,8 +1294,7 @@
 
 ##
 # @MigrationAddressType:
-#
-# The migration stream transport mechanisms.
+#     The migration stream transport mechanisms.
 #
 # @socket: Migrate via socket.
 #
@@ -1352,8 +1334,7 @@
 
 ##
 # @MigrationAddress:
-#
-# Migration endpoint configuration.
+#     Migration endpoint configuration.
 #
 # @transport: The migration stream transport mechanism
 #
@@ -1370,8 +1351,7 @@
 
 ##
 # @MigrationChannelType:
-#
-# The migration channel-type request options.
+#     The migration channel-type request options.
 #
 # @main: Main outbound migration channel.
 #
@@ -1384,8 +1364,7 @@
 
 ##
 # @MigrationChannel:
-#
-# Migration stream channel parameters.
+#     Migration stream channel parameters.
 #
 # @channel-type: Channel type for transferring packet information.
 #
@@ -1400,8 +1379,7 @@
 
 ##
 # @migrate:
-#
-# Migrates the current running guest to another Virtual Machine.
+#     Migrates the current running guest to another Virtual Machine.
 #
 # @uri: the Uniform Resource Identifier of the destination VM
 #
@@ -1573,8 +1551,7 @@
 
 ##
 # @xen-set-global-dirty-log:
-#
-# Enable or disable the global dirty log mode.
+#     Enable or disable the global dirty log mode.
 #
 # @enable: true to enable, false to disable.
 #
@@ -1610,8 +1587,7 @@
 
 ##
 # @xen-set-replication:
-#
-# Enable or disable replication.
+#     Enable or disable replication.
 #
 # @enable: true to enable, false to disable.
 #
@@ -1634,8 +1610,7 @@
 
 ##
 # @ReplicationStatus:
-#
-# The result format for `query-xen-replication-status`.
+#     The result format for `query-xen-replication-status`.
 #
 # @error: true if an error happened, false if replication is normal.
 #
@@ -1683,8 +1658,7 @@
 
 ##
 # @COLOStatus:
-#
-# The result format for `query-colo-status`.
+#     The result format for `query-colo-status`.
 #
 # @mode: COLO running mode.  If COLO is running, this field will
 #     return 'primary' or 'secondary'.
@@ -1722,8 +1696,7 @@
 
 ##
 # @migrate-recover:
-#
-# Provide a recovery migration stream URI.
+#     Provide a recovery migration stream URI.
 #
 # @uri: the URI to be used for the recovery of migration stream.
 #
@@ -1776,8 +1749,7 @@
 
 ##
 # @DirtyRateVcpu:
-#
-# Dirty rate of vcpu.
+#     Dirty rate of vcpu.
 #
 # @id: vcpu index.
 #
@@ -1790,8 +1762,7 @@
 
 ##
 # @DirtyRateStatus:
-#
-# Dirty page rate measurement status.
+#     Dirty page rate measurement status.
 #
 # @unstarted: measuring thread has not been started yet
 #
@@ -1823,8 +1794,7 @@
 
 ##
 # @TimeUnit:
-#
-# Specifies unit in which time-related value is specified.
+#     Specifies unit in which time-related value is specified.
 #
 # @second: value is in seconds
 #
@@ -1837,8 +1807,7 @@
 
 ##
 # @DirtyRateInfo:
-#
-# Information about measured dirty page rate.
+#     Information about measured dirty page rate.
 #
 # @dirty-rate: an estimate of the dirty page rate of the VM in units
 #     of MiB/s.  Value is present only when @status is 'measured'.
@@ -1948,8 +1917,8 @@
 
 ##
 # @query-dirty-rate:
-#
-# Query results of the most recent invocation of `calc-dirty-rate`.
+#     Query results of the most recent invocation of
+#     `calc-dirty-rate`.
 #
 # @calc-time-unit: time unit in which to report calculation time.
 #     By default it is reported in seconds.  (Since 8.2)
@@ -1975,8 +1944,7 @@
 
 ##
 # @DirtyLimitInfo:
-#
-# Dirty page rate limit information of a virtual CPU.
+#     Dirty page rate limit information of a virtual CPU.
 #
 # @cpu-index: index of a virtual CPU.
 #
@@ -2042,8 +2010,8 @@
 
 ##
 # @query-vcpu-dirty-limit:
-#
-# Return information about virtual CPU dirty page rate limits, if any.
+#     Return information about virtual CPU dirty page rate limits, if
+#     any.
 #
 # Since: 7.1
 #
@@ -2059,8 +2027,7 @@
 
 ##
 # @snapshot-save:
-#
-# Save a VM snapshot
+#     Save a VM snapshot
 #
 # @job-id: identifier for the newly created job
 #
@@ -2131,8 +2098,7 @@
 
 ##
 # @snapshot-load:
-#
-# Load a VM snapshot
+#     Load a VM snapshot
 #
 # @job-id: identifier for the newly created job
 #
@@ -2201,8 +2167,7 @@
 
 ##
 # @snapshot-delete:
-#
-# Delete a VM snapshot
+#     Delete a VM snapshot
 #
 # @job-id: identifier for the newly created job
 #
