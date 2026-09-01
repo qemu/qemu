@@ -469,6 +469,8 @@ struct Object
  * @class_data: Data to pass to the @class_init,
  *   @class_base_init. This can be useful when building dynamic
  *   classes.
+ * @is_available: callback invoked at registration time, to dynamically check if
+ *   this type should be available or not.
  * @interfaces: The list of interfaces associated with this type.  This
  *   should point to a static array that's terminated with a zero filled
  *   element.
@@ -491,6 +493,7 @@ struct TypeInfo
     void (*class_base_init)(ObjectClass *klass, const void *data);
     const void *class_data;
 
+    bool (*is_available)(void);
     const InterfaceInfo *interfaces;
 };
 
