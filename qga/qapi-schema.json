@@ -1666,7 +1666,7 @@
            '*total-ticks': 'uint64',
            '*weight-ticks': 'uint64'
            },
-  'if': 'CONFIG_LINUX' }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_FREEBSD'] } }
 
 ##
 # @GuestDiskStatsInfo:
@@ -1684,7 +1684,7 @@
            'major': 'uint64',
            'minor': 'uint64',
            'stats': 'GuestDiskStats' },
-  'if': 'CONFIG_LINUX' }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_FREEBSD'] } }
 
 ##
 # @guest-get-diskstats:
@@ -1696,7 +1696,7 @@
 ##
 { 'command': 'guest-get-diskstats',
   'returns': ['GuestDiskStatsInfo'],
-  'if': 'CONFIG_LINUX'
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_FREEBSD'] }
 }
 
 ##
