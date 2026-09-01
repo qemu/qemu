@@ -12,7 +12,6 @@
 #include "target/arm/cpu.h"
 #include "hw/core/sysbus.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/core/split-irq.h"
 #include "hw/misc/arm_sysctl.h"
 #include "hw/net/lan9118.h"

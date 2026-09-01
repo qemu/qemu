@@ -37,7 +37,6 @@
 #include "hw/core/sysbus.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/virt.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/block/flash.h"
 #include "hw/display/ramfb.h"
 #include "net/net.h"

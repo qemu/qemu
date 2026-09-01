@@ -15,7 +15,6 @@
 #include "hw/core/boards.h"
 #include "strongarm.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/block/flash.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"

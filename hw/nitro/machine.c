@@ -31,7 +31,6 @@
 #include "system/system.h"
 #include "system/nitro-accel.h"
 #include "qemu/accel.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/core/eif.h"
 #include <zlib.h> /* for crc32 */
 

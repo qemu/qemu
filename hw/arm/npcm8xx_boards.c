@@ -19,7 +19,6 @@
 #include "chardev/char.h"
 #include "hw/core/boards.h"
 #include "hw/arm/npcm8xx.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/core/cpu.h"
 #include "hw/core/loader.h"
 #include "hw/core/qdev.h"

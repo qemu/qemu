@@ -12,7 +12,6 @@
 #include "qemu/target-info-impl.h"
 #include "qemu/target-info-init.h"
 #include "qemu/target-info-qom.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/riscv/machines-qom.h"
 
 static const TypeInfo target_info_types[] = {

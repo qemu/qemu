@@ -17,7 +17,6 @@
 #include "qemu/osdep.h"
 
 #include "hw/arm/npcm7xx.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/core/cpu.h"
 #include "hw/i2c/i2c_mux_pca954x.h"
 #include "hw/i2c/smbus_eeprom.h"

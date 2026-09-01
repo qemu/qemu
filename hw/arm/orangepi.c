@@ -26,7 +26,6 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/allwinner-h3.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 
 #define TYPE_ORANGEPI_MACHINE MACHINE_TYPE_NAME("orangepi-pc")
 OBJECT_DECLARE_SIMPLE_TYPE(OrangePiMachineState, ORANGEPI_MACHINE)

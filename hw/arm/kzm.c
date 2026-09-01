@@ -17,7 +17,6 @@
 #include "qapi/error.h"
 #include "hw/arm/fsl-imx31.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/core/boards.h"
 #include "qemu/error-report.h"
 #include "system/address-spaces.h"

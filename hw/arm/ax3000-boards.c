@@ -9,7 +9,6 @@
 #include "qemu/osdep.h"
 #include "hw/arm/ax3000-boards.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"
 

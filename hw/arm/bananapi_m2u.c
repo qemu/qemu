@@ -27,7 +27,6 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/allwinner-r40.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 
 #define TYPE_BPIM2U_MACHINE MACHINE_TYPE_NAME("bpim2u")
 OBJECT_DECLARE_SIMPLE_TYPE(Bpim2uMachineState, BPIM2U_MACHINE)

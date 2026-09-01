@@ -22,7 +22,6 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/arm/allwinner-a10.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/i2c/i2c.h"
 
 #define TYPE_CUBIEBOARD_MACHINE MACHINE_TYPE_NAME("cubieboard")

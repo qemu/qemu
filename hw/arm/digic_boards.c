@@ -29,7 +29,6 @@
 #include "hw/core/boards.h"
 #include "qemu/error-report.h"
 #include "hw/arm/digic.h"
-#include "hw/arm/machines-qom.h"
 #include "hw/block/flash.h"
 #include "hw/core/loader.h"
 #include "system/qtest.h"
