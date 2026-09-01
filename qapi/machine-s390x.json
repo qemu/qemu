@@ -20,10 +20,9 @@
 
 ##
 # @set-cpu-topology:
-#
-# Modify the topology by moving the CPU inside the topology tree, or
-# by changing a modifier attribute of a CPU.  Absent values will not
-# be modified.
+#     Modify the topology by moving the CPU inside the topology tree,
+#     or by changing a modifier attribute of a CPU.  Absent values
+#     will not be modified.
 #
 # @core-id: the vCPU ID to be moved
 #
