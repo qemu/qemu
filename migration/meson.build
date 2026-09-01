@@ -36,7 +36,9 @@ system_ss.add(files(
   'socket.c',
   'tls.c',
 ), gnutls, zlib)
-system_ss.add([spice_headers, files('migration-hmp-cmds.c'), spice])
+if have_hmp
+  system_ss.add([spice_headers, files('migration-hmp-cmds.c'), spice])
+endif
 
 if get_option('replication').allowed()
   system_ss.add(files('colo-failover.c', 'colo.c', 'multifd-colo.c'))

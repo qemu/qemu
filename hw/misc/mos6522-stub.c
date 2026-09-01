@@ -10,7 +10,9 @@
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 
-void hmp_info_via(Monitor *mon, const QDict *qdict)
+#ifdef CONFIG_HMP
+void hmp_info_via(MonitorHMP *hmp, const QDict *qdict)
 {
-    monitor_printf(mon, "MOS6522 VIA is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "MOS6522 VIA is not available in this QEMU\n");
 }
+#endif

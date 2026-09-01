@@ -42,6 +42,7 @@ _supported_fmt generic
 _supported_proto file fuse
 _unsupported_fmt luks
 _require_drivers raw
+_require_hmp
 
 _make_test_img 64M
 

@@ -48,6 +48,7 @@ _require_drivers copy-on-read
 _unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
 
 _require_devices virtio-blk
+_require_hmp
 
 do_run_qemu()
 {

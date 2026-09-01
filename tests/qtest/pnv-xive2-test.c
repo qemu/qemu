@@ -552,7 +552,7 @@ static void test_xive(const void *data)
     QTestState *qts;
 
     qts = qtest_initf("-M %s -smp %d,cores=1,threads=%d -nographic "
-                      "-nodefaults -serial mon:stdio -S "
+                      "-nodefaults -S "
                       "-d guest_errors -trace '*xive*'",
                       machine, SMT, SMT);
     init_xive(qts);

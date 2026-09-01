@@ -62,7 +62,7 @@ vnc_dbus_clipboard_request_cancelled(VncDBusClipboardRequest *req)
         "Cancelled clipboard request");
 
     g_clear_object(&req->invocation);
-    g_clear_handle_id(&req->timeout_id, g_source_remove);;
+    g_clear_handle_id(&req->timeout_id, g_source_remove);
 }
 
 static gboolean
@@ -137,7 +137,7 @@ vnc_dbus_clipboard_update_info(QemuClipboardInfo *info)
         vnc_dbus_clipboard_complete_request(
             req->invocation, info, req->type);
         g_clear_object(&req->invocation);
-        g_clear_handle_id(&req->timeout_id, g_source_remove);;
+        g_clear_handle_id(&req->timeout_id, g_source_remove);
         return;
     }
 

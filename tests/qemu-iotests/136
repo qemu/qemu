@@ -410,4 +410,5 @@ class BlockDeviceStatsTestCoroutine(BlockDeviceStatsTestCase):
 if __name__ == '__main__':
     if 'null-co' not in iotests.supported_formats():
         iotests.notrun('null-co driver support missing')
-    iotests.main(supported_fmts=["raw"])
+    iotests.main(supported_fmts=["raw"],
+                 require_hmp=True)

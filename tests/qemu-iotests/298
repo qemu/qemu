@@ -177,4 +177,5 @@ class TestTruncate(iotests.QMPTestCase):
 
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'], required_fmts=['preallocate'])
+    iotests.main(supported_fmts=['qcow2'], required_fmts=['preallocate'],
+                 require_hmp=True)

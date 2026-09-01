@@ -19,53 +19,82 @@
 #include "monitor/hmp-completion.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
-#include "net/hub.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-commands-net.h"
 #include "qapi/qapi-visit-net.h"
+#include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "qemu/config-file.h"
 #include "qemu/help_option.h"
 #include "qemu/option.h"
 
-void hmp_info_network(Monitor *mon, const QDict *qdict)
+static void hmp_print_client_info(MonitorHMP *hmp, NetworkClientInfo *ci)
 {
-    NetClientState *nc, *peer;
-    NetClientDriver type;
+    NetFilterInfoList *f;
 
-    net_hub_info(mon);
-
-    QTAILQ_FOREACH(nc, &net_clients, next) {
-        peer = nc->peer;
-        type = nc->info->type;
-
-        /* Skip if already printed in hub info */
-        if (net_hub_id_for_client(nc, NULL) == 0) {
-            continue;
-        }
-
-        if (!peer || type == NET_CLIENT_DRIVER_NIC) {
-            print_net_client(mon, nc);
-        } /* else it's a netdev connected to a NIC, printed with the NIC */
-        if (peer && type == NET_CLIENT_DRIVER_NIC) {
-            monitor_printf(mon, " \\ ");
-            print_net_client(mon, peer);
+    monitor_hmp_printf(hmp, "%s: index=%" PRIu32 ",type=%s,%s\n",
+                       ci->name, ci->queue_index,
+                       NetClientDriver_str(ci->type), ci->info_str);
+    if (ci->filters) {
+        monitor_hmp_printf(hmp, "filters:\n");
+        for (f = ci->filters; f; f = f->next) {
+            monitor_hmp_printf(hmp, "  - %s: type=%s%s%s\n",
+                               f->value->name, f->value->type,
+                               f->value->info[0] ? "," : "", f->value->info);
         }
     }
 }
 
-void hmp_set_link(Monitor *mon, const QDict *qdict)
+void hmp_info_network(MonitorHMP *hmp, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(NetworkInfo) info = qmp_x_query_network(&err);
+    NetHubInfoList *h;
+    NetworkClientInfoList *entry;
+
+    if (hmp_handle_error(hmp, err)) {
+        return;
+    }
+
+    for (h = info->hubs; h; h = h->next) {
+        NetHubPortInfoList *p;
+
+        monitor_hmp_printf(hmp, "hub %d\n", (int)h->value->id);
+        for (p = h->value->ports; p; p = p->next) {
+            if (p->value->peer) {
+                monitor_hmp_printf(hmp, " \\ %s: ", p->value->name);
+                hmp_print_client_info(hmp, p->value->peer);
+            } else {
+                monitor_hmp_printf(hmp, " \\ %s\n", p->value->name);
+            }
+        }
+    }
+
+    for (entry = info->clients; entry; entry = entry->next) {
+        NetworkClientInfo *ci = entry->value;
+
+        if (!ci->peer || ci->type == NET_CLIENT_DRIVER_NIC) {
+            hmp_print_client_info(hmp, ci);
+        } /* else it's a netdev connected to a NIC, printed with the NIC */
+        if (ci->peer && ci->type == NET_CLIENT_DRIVER_NIC) {
+            monitor_hmp_printf(hmp, " \\ ");
+            hmp_print_client_info(hmp, ci->peer);
+        }
+    }
+}
+
+void hmp_set_link(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *name = qdict_get_str(qdict, "name");
     bool up = qdict_get_bool(qdict, "up");
     Error *err = NULL;
 
     qmp_set_link(name, up, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 
-void hmp_announce_self(Monitor *mon, const QDict *qdict)
+void hmp_announce_self(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *interfaces_str = qdict_get_try_str(qdict, "interfaces");
     const char *id = qdict_get_try_str(qdict, "id");
@@ -80,7 +109,7 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
     qapi_free_AnnounceParameters(params);
 }
 
-void hmp_netdev_add(Monitor *mon, const QDict *qdict)
+void hmp_netdev_add(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
     QemuOpts *opts;
@@ -101,16 +130,16 @@ void hmp_netdev_add(Monitor *mon, const QDict *qdict)
     }
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_netdev_del(Monitor *mon, const QDict *qdict)
+void hmp_netdev_del(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
     qmp_netdev_del(id, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 

@@ -12,24 +12,40 @@
 
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
+#include "qom/object.h"
 #include "qemu/qemu-print.h"
 
 /*
  * Print like vprintf().
- * Print to current HMP monitor if we have one, else to stdout.
+ * Print to current monitor if we have one, else to stdout.
+ * (if the monitor is QMP, fail without printing anything)
  */
 int qemu_vprintf(const char *fmt, va_list ap)
 {
     Monitor *cur_mon = monitor_cur();
+
+    /* for all monitors: QMP & HMP */
     if (cur_mon) {
-        return monitor_vprintf(cur_mon, fmt, ap);
+#ifdef CONFIG_HMP
+        /* don't use monitor_cur_hmp(), to avoid a second lookup */
+        MonitorHMP *hmp = (MonitorHMP *)
+            object_dynamic_cast(OBJECT(cur_mon), TYPE_MONITOR_HMP);
+        if (!hmp) {
+            return -1;
+        }
+        return monitor_hmp_vprintf(hmp, fmt, ap);
+#else
+        return -1;
+#endif
     }
     return vprintf(fmt, ap);
 }
 
 /*
  * Print like printf().
- * Print to current HMP monitor if we have one, else to stdout.
+ * Print to current monitor if we have one, else to stdout.
+ * (if the monitor is QMP, fail without printing anything)
  */
 int qemu_printf(const char *fmt, ...)
 {
@@ -51,9 +67,15 @@ int qemu_printf(const char *fmt, ...)
  */
 int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
 {
+#ifdef CONFIG_HMP
     if (!stream) {
-        return monitor_vprintf(monitor_cur(), fmt, ap);
+        MonitorHMP *hmp = monitor_cur_hmp();
+        if (!hmp) {
+            return -1;
+        }
+        return monitor_hmp_vprintf(hmp, fmt, ap);
     }
+#endif
     return vfprintf(stream, fmt, ap);
 }
 

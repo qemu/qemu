@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "monitor/hmp.h"
 #include "monitor/hmp-completion.h"
-#include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-trace.h"
 #include "qobject/qdict.h"
@@ -34,7 +33,7 @@
 #include "trace/simple.h"
 #endif
 
-void hmp_trace_event(Monitor *mon, const QDict *qdict)
+void hmp_trace_event(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
@@ -48,7 +47,7 @@ void hmp_trace_event(Monitor *mon, const QDict *qdict)
 }
 
 #ifdef CONFIG_TRACE_SIMPLE
-void hmp_trace_file(Monitor *mon, const QDict *qdict)
+void hmp_trace_file(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
     const char *arg = qdict_get_try_str(qdict, "arg");
@@ -66,13 +65,13 @@ void hmp_trace_file(Monitor *mon, const QDict *qdict)
             st_set_trace_file(arg);
         }
     } else {
-        monitor_printf(mon, "unexpected argument \"%s\"\n", op);
-        hmp_help_cmd(mon, "trace-file");
+        monitor_hmp_printf(hmp, "unexpected argument \"%s\"\n", op);
+        hmp_help_cmd(hmp, "trace-file");
     }
 }
 #endif
 
-void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
+void hmp_info_trace_events(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *name = qdict_get_try_str(qdict, "name");
     TraceEventInfoList *events;
@@ -90,9 +89,9 @@ void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
     }
 
     for (elem = events; elem != NULL; elem = elem->next) {
-        monitor_printf(mon, "%s : state %u\n",
-                       elem->value->name,
-                       elem->value->state == TRACE_EVENT_STATE_ENABLED ? 1 : 0);
+        monitor_hmp_printf(hmp, "%s : state %u\n",
+                           elem->value->name,
+                           elem->value->state == TRACE_EVENT_STATE_ENABLED ? 1 : 0);
     }
     qapi_free_TraceEventInfoList(events);
 }

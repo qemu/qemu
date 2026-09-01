@@ -10,6 +10,7 @@
 #include "exec/hwaddr.h"
 #include "exec/mmu-access-type.h"
 #include "cpu.h"
+#include "monitor/hmp.h"
 
 extern void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value);
 extern uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA);
@@ -23,5 +24,5 @@ extern int hex_tlb_check_overlap(CPUHexagonState *env, uint64_t entry,
                                  uint64_t index);
 extern void hex_tlb_lock(CPUHexagonState *env);
 extern void hex_tlb_unlock(CPUHexagonState *env);
-void dump_mmu(Monitor *mon, CPUHexagonState *env);
+void dump_mmu(MonitorHMP *hmp, CPUHexagonState *env);
 #endif

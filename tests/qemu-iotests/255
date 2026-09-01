@@ -24,7 +24,8 @@
 import iotests
 from iotests import imgfmt
 
-iotests.script_initialize(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          require_hmp=True)
 
 iotests.log('Finishing a commit job with background reads')
 iotests.log('============================================')

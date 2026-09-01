@@ -28,6 +28,7 @@
 #include "qom/compat-properties.h"
 #include "qapi/qapi-commands-accelerator.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "hw/core/boards.h"
 #include "hw/core/cpu.h"
 #include "accel/accel-ops.h"
@@ -108,7 +109,9 @@ void accel_init_ops_interfaces(AccelClass *ac)
 
 static void accel_ops_class_init(ObjectClass *oc, const void *data)
 {
+#ifdef CONFIG_HMP
     monitor_register_hmp_info_hrt("accel", qmp_x_accel_stats);
+#endif
 }
 
 static const TypeInfo accel_ops_type_info = {

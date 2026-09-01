@@ -47,6 +47,7 @@ _supported_fmt generic
 _unsupported_fmt qcow vdi vhdx vmdk vpc vvfat parallels
 _supported_proto generic
 _supported_os Linux
+_require_hmp
 
 _flaky_test https://gitlab.com/qemu-project/qemu/-/work_items/3515
 

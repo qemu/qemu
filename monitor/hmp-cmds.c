@@ -25,6 +25,7 @@
 #include "monitor/hmp.h"
 #include "monitor/hmp-completion.h"
 #include "monitor/monitor-internal.h"
+#include "monitor/monitor-hmp-internal.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
@@ -42,6 +43,7 @@
 #include "disas/disas.h"
 
 /* Please update hmp-commands.hx when adding or changing commands */
+#ifdef CONFIG_HMP
 static HMPCommand hmp_info_cmds[] = {
 #include "hmp-commands-info.h"
     { NULL, NULL, },
@@ -52,6 +54,10 @@ static HMPCommand hmp_cmds[] = {
 #include "hmp-commands.h"
     { NULL, NULL, },
 };
+#else
+static HMPCommand hmp_info_cmds[] = { { NULL, NULL, }, };
+static HMPCommand hmp_cmds[] = { { NULL, NULL, }, };
+#endif
 
 HMPCommand *hmp_cmds_for_target(bool info_command)
 {
@@ -75,7 +81,7 @@ static void __attribute__((__constructor__)) sortcmdlist(void)
           compare_mon_cmd);
 }
 
-bool hmp_handle_error(Monitor *mon, Error *err)
+bool hmp_handle_error(MonitorHMP *hmp, Error *err)
 {
     if (err) {
         error_reportf_err(err, "Error: ");
@@ -103,52 +109,52 @@ strList *hmp_split_at_comma(const char *str)
     return res;
 }
 
-void hmp_info_name(Monitor *mon, const QDict *qdict)
+void hmp_info_name(MonitorHMP *hmp, const QDict *qdict)
 {
     NameInfo *info;
 
     info = qmp_query_name(NULL);
     if (info->name) {
-        monitor_printf(mon, "%s\n", info->name);
+        monitor_hmp_printf(hmp, "%s\n", info->name);
     }
     qapi_free_NameInfo(info);
 }
 
-void hmp_info_version(Monitor *mon, const QDict *qdict)
+void hmp_info_version(MonitorHMP *hmp, const QDict *qdict)
 {
     VersionInfo *info;
 
     info = qmp_query_version(NULL);
 
-    monitor_printf(mon, "%" PRId64 ".%" PRId64 ".%" PRId64 "%s\n",
-                   info->qemu->major, info->qemu->minor, info->qemu->micro,
-                   info->package);
+    monitor_hmp_printf(hmp, "%" PRId64 ".%" PRId64 ".%" PRId64 "%s\n",
+                       info->qemu->major, info->qemu->minor, info->qemu->micro,
+                       info->package);
 
     qapi_free_VersionInfo(info);
 }
 
-void hmp_quit(Monitor *mon, const QDict *qdict)
+void hmp_quit(MonitorHMP *hmp, const QDict *qdict)
 {
-    MonitorHMP *hmp = MONITOR_HMP(mon);
+    Monitor *mon = MONITOR(hmp);
     if (hmp->use_readline) {
         monitor_suspend(mon);
     }
     qmp_quit(NULL);
 }
 
-void hmp_stop(Monitor *mon, const QDict *qdict)
+void hmp_stop(MonitorHMP *hmp, const QDict *qdict)
 {
     qmp_stop(NULL);
 }
 
-void hmp_sync_profile(Monitor *mon, const QDict *qdict)
+void hmp_sync_profile(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
 
     if (op == NULL) {
         bool on = qsp_is_enabled();
 
-        monitor_printf(mon, "sync-profile is %s\n", on ? "on" : "off");
+        monitor_hmp_printf(hmp, "sync-profile is %s\n", on ? "on" : "off");
         return;
     }
     if (!strcmp(op, "on")) {
@@ -162,39 +168,39 @@ void hmp_sync_profile(Monitor *mon, const QDict *qdict)
 
         error_setg(&err, "invalid parameter '%s',"
                    " expecting 'on', 'off', or 'reset'", op);
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
     }
 }
 
-void hmp_exit_preconfig(Monitor *mon, const QDict *qdict)
+void hmp_exit_preconfig(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
 
     qmp_x_exit_preconfig(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_cpu(Monitor *mon, const QDict *qdict)
+void hmp_cpu(MonitorHMP *hmp, const QDict *qdict)
 {
     int64_t cpu_index;
 
-    /* XXX: drop the monitor_set_cpu() usage when all HMP commands that
+    /* XXX: drop the monitor_hmp_set_cpu() usage when all HMP commands that
             use it are converted to the QAPI */
     cpu_index = qdict_get_int(qdict, "index");
-    if (monitor_set_cpu(mon, cpu_index) < 0) {
-        monitor_printf(mon, "invalid CPU index\n");
+    if (monitor_hmp_set_cpu(hmp, cpu_index) < 0) {
+        monitor_hmp_printf(hmp, "invalid CPU index\n");
     }
 }
 
-void hmp_cont(Monitor *mon, const QDict *qdict)
+void hmp_cont(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
 
     qmp_cont(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_change(Monitor *mon, const QDict *qdict)
+void hmp_change(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *target = qdict_get_str(qdict, "target");
@@ -205,37 +211,37 @@ void hmp_change(Monitor *mon, const QDict *qdict)
 
 #ifdef CONFIG_VNC
     if (strcmp(device, "vnc") == 0) {
-        hmp_change_vnc(mon, device, target, arg, read_only, force, &err);
+        hmp_change_vnc(hmp, device, target, arg, read_only, force, &err);
     } else
 #endif
     {
-        hmp_change_medium(mon, device, target, arg, read_only, force, &err);
+        hmp_change_medium(hmp, device, target, arg, read_only, force, &err);
     }
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 #ifdef CONFIG_POSIX
-void hmp_getfd(Monitor *mon, const QDict *qdict)
+void hmp_getfd(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     Error *err = NULL;
 
     qmp_getfd(fdname, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 #endif
 
-void hmp_closefd(Monitor *mon, const QDict *qdict)
+void hmp_closefd(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
     Error *err = NULL;
 
     qmp_closefd(fdname, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_info_iothreads(Monitor *mon, const QDict *qdict)
+void hmp_info_iothreads(MonitorHMP *hmp, const QDict *qdict)
 {
     IOThreadInfoList *info_list = qmp_query_iothreads(NULL);
     IOThreadInfoList *info;
@@ -243,25 +249,25 @@ void hmp_info_iothreads(Monitor *mon, const QDict *qdict)
 
     for (info = info_list; info; info = info->next) {
         value = info->value;
-        monitor_printf(mon, "%s:\n", value->id);
-        monitor_printf(mon, "  thread_id=%" PRId64 "\n", value->thread_id);
-        monitor_printf(mon, "  poll-max-ns=%" PRId64 "\n", value->poll_max_ns);
-        monitor_printf(mon, "  poll-grow=%" PRId64 "\n", value->poll_grow);
-        monitor_printf(mon, "  poll-shrink=%" PRId64 "\n", value->poll_shrink);
-        monitor_printf(mon, "  poll-weight=%" PRId64 "\n", value->poll_weight);
-        monitor_printf(mon, "  aio-max-batch=%" PRId64 "\n",
-                       value->aio_max_batch);
+        monitor_hmp_printf(hmp, "%s:\n", value->id);
+        monitor_hmp_printf(hmp, "  thread_id=%" PRId64 "\n", value->thread_id);
+        monitor_hmp_printf(hmp, "  poll-max-ns=%" PRId64 "\n", value->poll_max_ns);
+        monitor_hmp_printf(hmp, "  poll-grow=%" PRId64 "\n", value->poll_grow);
+        monitor_hmp_printf(hmp, "  poll-shrink=%" PRId64 "\n", value->poll_shrink);
+        monitor_hmp_printf(hmp, "  poll-weight=%" PRId64 "\n", value->poll_weight);
+        monitor_hmp_printf(hmp, "  aio-max-batch=%" PRId64 "\n",
+                           value->aio_max_batch);
     }
 
     qapi_free_IOThreadInfoList(info_list);
 }
 
-void hmp_help(Monitor *mon, const QDict *qdict)
+void hmp_help(MonitorHMP *hmp, const QDict *qdict)
 {
-    hmp_help_cmd(mon, qdict_get_try_str(qdict, "name"));
+    hmp_help_cmd(hmp, qdict_get_try_str(qdict, "name"));
 }
 
-void hmp_clear(Monitor *mon, const QDict *qdict)
+void hmp_clear(MonitorHMP *hmp, const QDict *qdict)
 {
     /*
      * Send an ANSI escape sequence:
@@ -269,15 +275,15 @@ void hmp_clear(Monitor *mon, const QDict *qdict)
      * "\x1b[2J" - clear visible screen
      * "\x1b[3J" - clear scrollback
      */
-    monitor_printf(mon, "\x1b[H\x1b[2J\x1b[3J");
+    monitor_hmp_printf(hmp, "\x1b[H\x1b[2J\x1b[3J");
 }
 
-void hmp_info_help(Monitor *mon, const QDict *qdict)
+void hmp_info_help(MonitorHMP *hmp, const QDict *qdict)
 {
-    hmp_help_cmd(mon, "info");
+    hmp_help_cmd(hmp, "info");
 }
 
-void hmp_info_sync_profile(Monitor *mon, const QDict *qdict)
+void hmp_info_sync_profile(MonitorHMP *hmp, const QDict *qdict)
 {
     int64_t max = qdict_get_try_int(qdict, "max", 10);
     bool mean = qdict_get_try_bool(qdict, "mean", false);
@@ -288,9 +294,8 @@ void hmp_info_sync_profile(Monitor *mon, const QDict *qdict)
     qsp_report(max, sort_by, coalesce);
 }
 
-void hmp_info_history(Monitor *mon, const QDict *qdict)
+void hmp_info_history(MonitorHMP *hmp, const QDict *qdict)
 {
-    MonitorHMP *hmp = MONITOR_HMP(mon);
     int i;
     const char *str;
 
@@ -303,12 +308,12 @@ void hmp_info_history(Monitor *mon, const QDict *qdict)
         if (!str) {
             break;
         }
-        monitor_printf(mon, "%d: '%s'\n", i, str);
+        monitor_hmp_printf(hmp, "%d: '%s'\n", i, str);
         i++;
     }
 }
 
-void hmp_logfile(Monitor *mon, const QDict *qdict)
+void hmp_logfile(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
 
@@ -317,7 +322,7 @@ void hmp_logfile(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_log(Monitor *mon, const QDict *qdict)
+void hmp_log(MonitorHMP *hmp, const QDict *qdict)
 {
     int mask;
     const char *items = qdict_get_str(qdict, "items");
@@ -328,7 +333,7 @@ void hmp_log(Monitor *mon, const QDict *qdict)
     } else {
         mask = qemu_str_to_log_mask(items);
         if (!mask) {
-            hmp_help_cmd(mon, "log");
+            hmp_help_cmd(hmp, "log");
             return;
         }
     }
@@ -338,7 +343,7 @@ void hmp_log(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_gdbserver(Monitor *mon, const QDict *qdict)
+void hmp_gdbserver(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
     const char *device = qdict_get_try_str(qdict, "device");
@@ -350,40 +355,40 @@ void hmp_gdbserver(Monitor *mon, const QDict *qdict)
     if (!gdbserver_start(device, &err)) {
         error_report_err(err);
     } else if (strcmp(device, "none") == 0) {
-        monitor_printf(mon, "Disabled gdbserver\n");
+        monitor_hmp_printf(hmp, "Disabled gdbserver\n");
     } else {
-        monitor_printf(mon, "Waiting for gdb connection on device '%s'\n",
-                       device);
+        monitor_hmp_printf(hmp, "Waiting for gdb connection on device '%s'\n",
+                           device);
     }
 }
 
-void hmp_print(Monitor *mon, const QDict *qdict)
+void hmp_print(MonitorHMP *hmp, const QDict *qdict)
 {
     int format = qdict_get_int(qdict, "format");
     hwaddr val = qdict_get_int(qdict, "val");
 
     switch(format) {
     case 'o':
-        monitor_printf(mon, "%#" HWADDR_PRIo, val);
+        monitor_hmp_printf(hmp, "0x%" HWADDR_PRIo, val);
         break;
     case 'x':
-        monitor_printf(mon, "%#" HWADDR_PRIx, val);
+        monitor_hmp_printf(hmp, "0x%" HWADDR_PRIx, val);
         break;
     case 'u':
-        monitor_printf(mon, "%" HWADDR_PRIu, val);
+        monitor_hmp_printf(hmp, "%" HWADDR_PRIu, val);
         break;
     default:
     case 'd':
-        monitor_printf(mon, "%" HWADDR_PRId, val);
+        monitor_hmp_printf(hmp, "%" HWADDR_PRId, val);
         break;
     case 'c':
-        monitor_printc(mon, val);
+        monitor_hmp_printc(hmp, val);
         break;
     }
-    monitor_printf(mon, "\n");
+    monitor_hmp_printf(hmp, "\n");
 }
 
-void hmp_sum(Monitor *mon, const QDict *qdict)
+void hmp_sum(MonitorHMP *hmp, const QDict *qdict)
 {
     uint32_t addr;
     uint16_t sum;
@@ -398,10 +403,10 @@ void hmp_sum(Monitor *mon, const QDict *qdict)
         sum = (sum >> 1) | (sum << 15);
         sum += val;
     }
-    monitor_printf(mon, "%05d\n", sum);
+    monitor_hmp_printf(hmp, "%05d\n", sum);
 }
 
-void hmp_ioport_read(Monitor *mon, const QDict *qdict)
+void hmp_ioport_read(MonitorHMP *hmp, const QDict *qdict)
 {
     int size = qdict_get_int(qdict, "size");
     int addr = qdict_get_int(qdict, "addr");
@@ -431,11 +436,11 @@ void hmp_ioport_read(Monitor *mon, const QDict *qdict)
         suffix = 'l';
         break;
     }
-    monitor_printf(mon, "port%c[0x%04x] = 0x%0*x\n",
-                   suffix, addr, size * 2, val);
+    monitor_hmp_printf(hmp, "port%c[0x%04x] = 0x%0*x\n",
+                       suffix, addr, size * 2, val);
 }
 
-void hmp_ioport_write(Monitor *mon, const QDict *qdict)
+void hmp_ioport_write(MonitorHMP *hmp, const QDict *qdict)
 {
     int size = qdict_get_int(qdict, "size");
     int addr = qdict_get_int(qdict, "addr");
@@ -457,7 +462,7 @@ void hmp_ioport_write(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_boot_set(Monitor *mon, const QDict *qdict)
+void hmp_boot_set(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *local_err = NULL;
     const char *bootdevice = qdict_get_str(qdict, "bootdevice");
@@ -466,11 +471,11 @@ void hmp_boot_set(Monitor *mon, const QDict *qdict)
     if (local_err) {
         error_report_err(local_err);
     } else {
-        monitor_printf(mon, "boot device list now set to %s\n", bootdevice);
+        monitor_hmp_printf(hmp, "boot device list now set to %s\n", bootdevice);
     }
 }
 
-void hmp_info_mtree(Monitor *mon, const QDict *qdict)
+void hmp_info_mtree(MonitorHMP *hmp, const QDict *qdict)
 {
     bool flatview = qdict_get_try_bool(qdict, "flatview", false);
     bool dispatch_tree = qdict_get_try_bool(qdict, "dispatch_tree", false);
@@ -481,23 +486,23 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict)
 }
 
 #if defined(CONFIG_FDT)
-void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
+void hmp_dumpdtb(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     Error *local_err = NULL;
 
     qmp_dumpdtb(filename, &local_err);
 
-    if (hmp_handle_error(mon, local_err)) {
+    if (hmp_handle_error(hmp, local_err)) {
         return;
     }
 
-    monitor_printf(mon, "DTB dumped to '%s'\n", filename);
+    monitor_hmp_printf(hmp, "DTB dumped to '%s'\n", filename);
 }
 #endif
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
-int monitor_set_cpu(Monitor *mon, int cpu_index)
+int monitor_hmp_set_cpu(MonitorHMP *hmp, int cpu_index)
 {
     CPUState *cpu;
 
@@ -505,29 +510,29 @@ int monitor_set_cpu(Monitor *mon, int cpu_index)
     if (cpu == NULL) {
         return -1;
     }
-    g_free(mon->mon_cpu_path);
-    mon->mon_cpu_path = object_get_canonical_path(OBJECT(cpu));
+    g_free(hmp->mon_cpu_path);
+    hmp->mon_cpu_path = object_get_canonical_path(OBJECT(cpu));
     return 0;
 }
 
 /* Callers must hold BQL. */
-static CPUState *mon_get_cpu_sync(Monitor *mon, bool synchronize)
+static CPUState *monitor_hmp_get_cpu_sync(MonitorHMP *hmp, bool synchronize)
 {
     CPUState *cpu = NULL;
 
-    if (mon->mon_cpu_path) {
-        cpu = (CPUState *) object_resolve_path_type(mon->mon_cpu_path,
+    if (hmp->mon_cpu_path) {
+        cpu = (CPUState *) object_resolve_path_type(hmp->mon_cpu_path,
                                                     TYPE_CPU, NULL);
         if (!cpu) {
-            g_free(mon->mon_cpu_path);
-            mon->mon_cpu_path = NULL;
+            g_free(hmp->mon_cpu_path);
+            hmp->mon_cpu_path = NULL;
         }
     }
-    if (!mon->mon_cpu_path) {
+    if (!hmp->mon_cpu_path) {
         if (!first_cpu) {
             return NULL;
         }
-        monitor_set_cpu(mon, first_cpu->cpu_index);
+        monitor_hmp_set_cpu(hmp, first_cpu->cpu_index);
         cpu = first_cpu;
     }
     assert(cpu != NULL);
@@ -537,26 +542,26 @@ static CPUState *mon_get_cpu_sync(Monitor *mon, bool synchronize)
     return cpu;
 }
 
-CPUState *mon_get_cpu(Monitor *mon)
+CPUState *monitor_hmp_get_cpu(MonitorHMP *hmp)
 {
-    return mon_get_cpu_sync(mon, true);
+    return monitor_hmp_get_cpu_sync(hmp, true);
 }
 
-CPUArchState *mon_get_cpu_env(Monitor *mon)
+CPUArchState *monitor_hmp_get_cpu_env(MonitorHMP *hmp)
 {
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
 
     return cs ? cpu_env(cs) : NULL;
 }
 
-int monitor_get_cpu_index(Monitor *mon)
+int monitor_hmp_get_cpu_index(MonitorHMP *hmp)
 {
-    CPUState *cs = mon_get_cpu_sync(mon, false);
+    CPUState *cs = monitor_hmp_get_cpu_sync(hmp, false);
 
     return cs ? cs->cpu_index : UNASSIGNED_CPU_INDEX;
 }
 
-void hmp_info_registers(Monitor *mon, const QDict *qdict)
+void hmp_info_registers(MonitorHMP *hmp, const QDict *qdict)
 {
     bool all_cpus = qdict_get_try_bool(qdict, "cpustate_all", false);
     int vcpu = qdict_get_try_int(qdict, "vcpu", -1);
@@ -564,43 +569,43 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict)
 
     if (all_cpus) {
         CPU_FOREACH(cs) {
-            monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
+            monitor_hmp_printf(hmp, "\nCPU#%d\n", cs->cpu_index);
             cpu_dump_state(cs, NULL, CPU_DUMP_FPU | CPU_DUMP_VPU);
         }
     } else {
-        cs = vcpu >= 0 ? qemu_get_cpu(vcpu) : mon_get_cpu(mon);
+        cs = vcpu >= 0 ? qemu_get_cpu(vcpu) : monitor_hmp_get_cpu(hmp);
 
         if (!cs) {
             if (vcpu >= 0) {
-                monitor_printf(mon, "CPU#%d not available\n", vcpu);
+                monitor_hmp_printf(hmp, "CPU#%d not available\n", vcpu);
             } else {
-                monitor_printf(mon, "No CPU available\n");
+                monitor_hmp_printf(hmp, "No CPU available\n");
             }
             return;
         }
 
-        monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
+        monitor_hmp_printf(hmp, "\nCPU#%d\n", cs->cpu_index);
         cpu_dump_state(cs, NULL, CPU_DUMP_FPU | CPU_DUMP_VPU);
     }
 }
 
-static void memory_dump(Monitor *mon, int count, int format, int wsize,
+static void memory_dump(MonitorHMP *hmp, int count, int format, int wsize,
                         uint64_t addr, bool is_physical)
 {
     int l, line_size, i, max_digits, len;
     uint8_t buf[16];
     uint64_t v;
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
     const unsigned int addr_width = is_physical ? 8 : (target_long_bits() / 4);
     const bool big_endian = target_big_endian();
 
     if (!cs && (format == 'i' || !is_physical)) {
-        monitor_printf(mon, "Can not dump without CPU\n");
+        monitor_hmp_printf(hmp, "Can not dump without CPU\n");
         return;
     }
 
     if (format == 'i') {
-        monitor_disas(mon, cs, addr, count, is_physical);
+        monitor_disas(hmp, cs, addr, count, is_physical);
         return;
     }
 
@@ -630,7 +635,7 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
     }
 
     while (len > 0) {
-        monitor_printf(mon, "%0*" PRIx64 ":", addr_width, addr);
+        monitor_hmp_printf(hmp, "%0*" PRIx64 ":", addr_width, addr);
         l = len;
         if (l > line_size) {
             l = line_size;
@@ -640,12 +645,12 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
             MemTxResult r = address_space_read(as, addr,
                                                MEMTXATTRS_UNSPECIFIED, buf, l);
             if (r != MEMTX_OK) {
-                monitor_printf(mon, " Cannot access memory\n");
+                monitor_hmp_printf(hmp, " Cannot access memory\n");
                 break;
             }
         } else {
             if (cpu_memory_rw_debug(cs, addr, buf, l, 0) < 0) {
-                monitor_printf(mon, " Cannot access memory\n");
+                monitor_hmp_printf(hmp, " Cannot access memory\n");
                 break;
             }
         }
@@ -666,84 +671,53 @@ static void memory_dump(Monitor *mon, int count, int format, int wsize,
                 v = (big_endian ? ldq_be_p : ldq_le_p)(buf + i);
                 break;
             }
-            monitor_printf(mon, " ");
+            monitor_hmp_printf(hmp, " ");
             switch (format) {
             case 'o':
-                monitor_printf(mon, "0%*" PRIo64, max_digits, v);
+                monitor_hmp_printf(hmp, "0%*" PRIo64, max_digits, v);
                 break;
             case 'x':
-                monitor_printf(mon, "0x%0*" PRIx64, max_digits, v);
+                monitor_hmp_printf(hmp, "0x%0*" PRIx64, max_digits, v);
                 break;
             case 'u':
-                monitor_printf(mon, "%*" PRIu64, max_digits, v);
+                monitor_hmp_printf(hmp, "%*" PRIu64, max_digits, v);
                 break;
             case 'd':
-                monitor_printf(mon, "%*" PRId64, max_digits, v);
+                monitor_hmp_printf(hmp, "%*" PRId64, max_digits, v);
                 break;
             case 'c':
-                monitor_printc(mon, v);
+                monitor_hmp_printc(hmp, v);
                 break;
             }
             i += wsize;
         }
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "\n");
         addr += l;
         len -= l;
     }
 }
 
-void hmp_memory_dump(Monitor *mon, const QDict *qdict)
+void hmp_memory_dump(MonitorHMP *hmp, const QDict *qdict)
 {
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
     int size = qdict_get_int(qdict, "size");
     vaddr addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, false);
+    memory_dump(hmp, count, format, size, addr, false);
 }
 
-void hmp_physical_memory_dump(Monitor *mon, const QDict *qdict)
+void hmp_physical_memory_dump(MonitorHMP *hmp, const QDict *qdict)
 {
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
     int size = qdict_get_int(qdict, "size");
     hwaddr addr = qdict_get_int(qdict, "addr");
 
-    memory_dump(mon, count, format, size, addr, true);
+    memory_dump(hmp, count, format, size, addr, true);
 }
 
-void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, uint64_t size, Error **errp)
-{
-    Int128 gpa_region_size;
-    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
-                                                 addr, size);
-
-    if (!mrs.mr) {
-        error_setg(errp,
-                   "No memory is mapped at address 0x%" HWADDR_PRIx, addr);
-        return NULL;
-    }
-
-    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
-        error_setg(errp,
-                   "Memory at address 0x%" HWADDR_PRIx " is not RAM", addr);
-        memory_region_unref(mrs.mr);
-        return NULL;
-    }
-
-    gpa_region_size = int128_make64(size);
-    if (int128_lt(mrs.size, gpa_region_size)) {
-        error_setg(errp, "Size of memory region at 0x%" HWADDR_PRIx
-                   " exceeded.", addr);
-        memory_region_unref(mrs.mr);
-        return NULL;
-    }
-
-    *p_mr = mrs.mr;
-    return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
-}
-
-void hmp_gpa2hva(Monitor *mon, const QDict *qdict)
+void hmp_gpa2hva(MonitorHMP *hmp, const QDict *qdict)
 {
     hwaddr addr = qdict_get_int(qdict, "addr");
     Error *local_err = NULL;
@@ -756,28 +730,28 @@ void hmp_gpa2hva(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "Host virtual address for 0x%" HWADDR_PRIx
-                   " (%s) is %p\n",
-                   addr, mr->name, ptr);
+    monitor_hmp_printf(hmp, "Host virtual address for 0x%" HWADDR_PRIx
+                       " (%s) is %p\n",
+                       addr, mr->name, ptr);
 
     memory_region_unref(mr);
 }
 
-void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
+void hmp_gva2gpa(MonitorHMP *hmp, const QDict *qdict)
 {
     vaddr addr = qdict_get_int(qdict, "addr");
-    CPUState *cs = mon_get_cpu(mon);
+    CPUState *cs = monitor_hmp_get_cpu(hmp);
     TranslateForDebugResult tres;
 
     if (!cs) {
-        monitor_printf(mon, "No cpu\n");
+        monitor_hmp_printf(hmp, "No cpu\n");
         return;
     }
 
     if (!cpu_translate_for_debug(cs, addr, &tres)) {
-        monitor_printf(mon, "Unmapped\n");
+        monitor_hmp_printf(hmp, "Unmapped\n");
     } else {
-        monitor_printf(mon, "gpa: 0x%" HWADDR_PRIx "\n", tres.physaddr);
+        monitor_hmp_printf(hmp, "gpa: 0x%" HWADDR_PRIx "\n", tres.physaddr);
     }
 }
 
@@ -816,7 +790,7 @@ out:
     return ret;
 }
 
-void hmp_gpa2hpa(Monitor *mon, const QDict *qdict)
+void hmp_gpa2hpa(MonitorHMP *hmp, const QDict *qdict)
 {
     hwaddr addr = qdict_get_int(qdict, "addr");
     Error *local_err = NULL;
@@ -834,9 +808,9 @@ void hmp_gpa2hpa(Monitor *mon, const QDict *qdict)
     if (local_err) {
         error_report_err(local_err);
     } else {
-        monitor_printf(mon, "Host physical address for 0x%" HWADDR_PRIx
-                       " (%s) is 0x%" PRIx64 "\n",
-                       addr, mr->name, (uint64_t) physaddr);
+        monitor_hmp_printf(hmp, "Host physical address for 0x%" HWADDR_PRIx
+                           " (%s) is 0x%" PRIx64 "\n",
+                           addr, mr->name, (uint64_t) physaddr);
     }
 
     memory_region_unref(mr);

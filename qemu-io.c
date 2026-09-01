@@ -68,7 +68,7 @@ static int get_eof_char(void)
 #endif
 }
 
-static int close_f(BlockBackend *blk, int argc, char **argv)
+static int close_f(BlockBackend *blk, int argc, char **argv, Error **errp)
 {
     blk_unref(qemuio_blk);
     qemuio_blk = NULL;
@@ -140,7 +140,7 @@ static void open_help(void)
 "\n");
 }
 
-static int open_f(BlockBackend *blk, int argc, char **argv);
+static int open_f(BlockBackend *blk, int argc, char **argv, Error **errp);
 
 static const cmdinfo_t open_cmd = {
     .name       = "open",
@@ -164,7 +164,7 @@ static QemuOptsList empty_opts = {
     },
 };
 
-static int open_f(BlockBackend *blk, int argc, char **argv)
+static int open_f(BlockBackend *blk, int argc, char **argv, Error **errp)
 {
     int flags = BDRV_O_UNMAP;
     int readonly = 0;
@@ -268,7 +268,7 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
     return 0;
 }
 
-static int quit_f(BlockBackend *blk, int argc, char **argv)
+static int quit_f(BlockBackend *blk, int argc, char **argv, Error **errp)
 {
     quit_qemu_io = true;
     return 0;
@@ -414,7 +414,14 @@ static void prep_fetchline(void *opaque)
 
 static int do_qemuio_command(const char *cmd)
 {
-    return qemuio_command(qemuio_blk, cmd);
+    Error *local_err = NULL;
+    int ret;
+
+    ret = qemuio_command(qemuio_blk, cmd, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+    }
+    return ret;
 }
 
 static int command_loop(void)

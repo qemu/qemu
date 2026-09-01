@@ -22,7 +22,8 @@ import asyncio
 import iotests
 
 iotests.script_initialize(supported_fmts=['qcow2', 'qcow', 'qed', 'vdi',
-                                          'vmdk', 'parallels'])
+                                          'vmdk', 'parallels'],
+                          require_hmp=True)
 iotests.verify_virtio_scsi_pci_or_ccw()
 
 with iotests.FilePath('disk.img') as img_path, \

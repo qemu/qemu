@@ -29,7 +29,7 @@
 
 static int mouse_button_state;
 
-void hmp_mouse_move(Monitor *mon, const QDict *qdict)
+void hmp_mouse_move(MonitorHMP *hmp, const QDict *qdict)
 {
     int dx, dy, dz, button;
     const char *dx_str = qdict_get_str(qdict, "dx_str");
@@ -53,7 +53,7 @@ void hmp_mouse_move(Monitor *mon, const QDict *qdict)
     qemu_input_event_sync();
 }
 
-void hmp_mouse_button(Monitor *mon, const QDict *qdict)
+void hmp_mouse_button(MonitorHMP *hmp, const QDict *qdict)
 {
     /* HMP mouse_button bitmask: 1=L, 2=R, 4=M */
     static uint32_t bmap[INPUT_BUTTON__MAX] = {
@@ -71,29 +71,29 @@ void hmp_mouse_button(Monitor *mon, const QDict *qdict)
     mouse_button_state = button_state;
 }
 
-void hmp_mouse_set(Monitor *mon, const QDict *qdict)
+void hmp_mouse_set(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
 
     qemu_mouse_set(qdict_get_int(qdict, "index"), &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_info_mice(Monitor *mon, const QDict *qdict)
+void hmp_info_mice(MonitorHMP *hmp, const QDict *qdict)
 {
     MouseInfoList *mice_list, *mouse;
 
     mice_list = qmp_query_mice(NULL);
     if (!mice_list) {
-        monitor_printf(mon, "No mouse devices connected\n");
+        monitor_hmp_printf(hmp, "No mouse devices connected\n");
         return;
     }
 
     for (mouse = mice_list; mouse; mouse = mouse->next) {
-        monitor_printf(mon, "%c Mouse #%" PRId64 ": %s%s\n",
-                       mouse->value->current ? '*' : ' ',
-                       mouse->value->index, mouse->value->name,
-                       mouse->value->absolute ? " (absolute)" : "");
+        monitor_hmp_printf(hmp, "%c Mouse #%" PRId64 ": %s%s\n",
+                           mouse->value->current ? '*' : ' ',
+                           mouse->value->index, mouse->value->name,
+                           mouse->value->absolute ? " (absolute)" : "");
     }
 
     qapi_free_MouseInfoList(mice_list);
@@ -101,84 +101,84 @@ void hmp_info_mice(Monitor *mon, const QDict *qdict)
 
 #ifdef CONFIG_VNC
 /* Helper for hmp_info_vnc_clients, _servers */
-static void hmp_info_VncBasicInfo(Monitor *mon, VncBasicInfo *info,
+static void hmp_info_VncBasicInfo(MonitorHMP *hmp, VncBasicInfo *info,
                                   const char *name)
 {
-    monitor_printf(mon, "  %s: %s:%s (%s%s)\n",
-                   name,
-                   info->host,
-                   info->service,
-                   NetworkAddressFamily_str(info->family),
-                   info->websocket ? " (Websocket)" : "");
+    monitor_hmp_printf(hmp, "  %s: %s:%s (%s%s)\n",
+                       name,
+                       info->host,
+                       info->service,
+                       NetworkAddressFamily_str(info->family),
+                       info->websocket ? " (Websocket)" : "");
 }
 
 /* Helper displaying and auth and crypt info */
-static void hmp_info_vnc_authcrypt(Monitor *mon, const char *indent,
+static void hmp_info_vnc_authcrypt(MonitorHMP *hmp, const char *indent,
                                    VncPrimaryAuth auth,
                                    VncVencryptSubAuth *vencrypt)
 {
-    monitor_printf(mon, "%sAuth: %s (Sub: %s)\n", indent,
-                   VncPrimaryAuth_str(auth),
-                   vencrypt ? VncVencryptSubAuth_str(*vencrypt) : "none");
+    monitor_hmp_printf(hmp, "%sAuth: %s (Sub: %s)\n", indent,
+                       VncPrimaryAuth_str(auth),
+                       vencrypt ? VncVencryptSubAuth_str(*vencrypt) : "none");
 }
 
-static void hmp_info_vnc_clients(Monitor *mon, VncClientInfoList *client)
+static void hmp_info_vnc_clients(MonitorHMP *hmp, VncClientInfoList *client)
 {
     while (client) {
         VncClientInfo *cinfo = client->value;
 
-        hmp_info_VncBasicInfo(mon, qapi_VncClientInfo_base(cinfo), "Client");
-        monitor_printf(mon, "    x509_dname: %s\n",
-                       cinfo->x509_dname ?: "none");
-        monitor_printf(mon, "    sasl_username: %s\n",
-                       cinfo->sasl_username ?: "none");
+        hmp_info_VncBasicInfo(hmp, qapi_VncClientInfo_base(cinfo), "Client");
+        monitor_hmp_printf(hmp, "    x509_dname: %s\n",
+                           cinfo->x509_dname ?: "none");
+        monitor_hmp_printf(hmp, "    sasl_username: %s\n",
+                           cinfo->sasl_username ?: "none");
 
         client = client->next;
     }
 }
 
-static void hmp_info_vnc_servers(Monitor *mon, VncServerInfo2List *server)
+static void hmp_info_vnc_servers(MonitorHMP *hmp, VncServerInfo2List *server)
 {
     while (server) {
         VncServerInfo2 *sinfo = server->value;
-        hmp_info_VncBasicInfo(mon, qapi_VncServerInfo2_base(sinfo), "Server");
-        hmp_info_vnc_authcrypt(mon, "    ", sinfo->auth,
+        hmp_info_VncBasicInfo(hmp, qapi_VncServerInfo2_base(sinfo), "Server");
+        hmp_info_vnc_authcrypt(hmp, "    ", sinfo->auth,
                                sinfo->has_vencrypt ? &sinfo->vencrypt : NULL);
         server = server->next;
     }
 }
 
-void hmp_info_vnc(Monitor *mon, const QDict *qdict)
+void hmp_info_vnc(MonitorHMP *hmp, const QDict *qdict)
 {
     VncInfo2List *info2l, *info2l_head;
     Error *err = NULL;
 
     info2l = qmp_query_vnc_servers(&err);
     info2l_head = info2l;
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
     if (!info2l) {
-        monitor_printf(mon, "None\n");
+        monitor_hmp_printf(hmp, "None\n");
         return;
     }
 
     while (info2l) {
         VncInfo2 *info = info2l->value;
-        monitor_printf(mon, "%s:\n", info->id);
-        hmp_info_vnc_servers(mon, info->server);
-        hmp_info_vnc_clients(mon, info->clients);
+        monitor_hmp_printf(hmp, "%s:\n", info->id);
+        hmp_info_vnc_servers(hmp, info->server);
+        hmp_info_vnc_clients(hmp, info->clients);
         if (!info->server) {
             /*
              * The server entry displays its auth, we only need to
              * display in the case of 'reverse' connections where
              * there's no server.
              */
-            hmp_info_vnc_authcrypt(mon, "  ", info->auth,
+            hmp_info_vnc_authcrypt(hmp, "  ", info->auth,
                                info->has_vencrypt ? &info->vencrypt : NULL);
         }
         if (info->display) {
-            monitor_printf(mon, "  Display: %s\n", info->display);
+            monitor_hmp_printf(hmp, "  Display: %s\n", info->display);
         }
         info2l = info2l->next;
     }
@@ -189,7 +189,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 #endif
 
 #ifdef CONFIG_SPICE
-void hmp_info_spice(Monitor *mon, const QDict *qdict)
+void hmp_info_spice(MonitorHMP *hmp, const QDict *qdict)
 {
     SpiceChannelList *chan;
     SpiceInfo *info;
@@ -211,38 +211,38 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
     info = qmp_query_spice(NULL);
 
     if (!info->enabled) {
-        monitor_printf(mon, "Server: disabled\n");
+        monitor_hmp_printf(hmp, "Server: disabled\n");
         goto out;
     }
 
-    monitor_printf(mon, "Server:\n");
+    monitor_hmp_printf(hmp, "Server:\n");
     if (info->has_port) {
-        monitor_printf(mon, "     address: %s:%" PRId64 "\n",
-                       info->host, info->port);
+        monitor_hmp_printf(hmp, "     address: %s:%" PRId64 "\n",
+                           info->host, info->port);
     }
     if (info->has_tls_port) {
-        monitor_printf(mon, "     address: %s:%" PRId64 " [tls]\n",
-                       info->host, info->tls_port);
+        monitor_hmp_printf(hmp, "     address: %s:%" PRId64 " [tls]\n",
+                           info->host, info->tls_port);
     }
-    monitor_printf(mon, "    migrated: %s\n",
-                   info->migrated ? "true" : "false");
-    monitor_printf(mon, "        auth: %s\n", info->auth);
-    monitor_printf(mon, "    compiled: %s\n", info->compiled_version);
-    monitor_printf(mon, "  mouse-mode: %s\n",
-                   SpiceQueryMouseMode_str(info->mouse_mode));
+    monitor_hmp_printf(hmp, "    migrated: %s\n",
+                       info->migrated ? "true" : "false");
+    monitor_hmp_printf(hmp, "        auth: %s\n", info->auth);
+    monitor_hmp_printf(hmp, "    compiled: %s\n", info->compiled_version);
+    monitor_hmp_printf(hmp, "  mouse-mode: %s\n",
+                       SpiceQueryMouseMode_str(info->mouse_mode));
 
     if (!info->has_channels || info->channels == NULL) {
-        monitor_printf(mon, "Channels: none\n");
+        monitor_hmp_printf(hmp, "Channels: none\n");
     } else {
         for (chan = info->channels; chan; chan = chan->next) {
-            monitor_printf(mon, "Channel:\n");
-            monitor_printf(mon, "     address: %s:%s%s\n",
-                           chan->value->host, chan->value->port,
-                           chan->value->tls ? " [tls]" : "");
-            monitor_printf(mon, "     session: %" PRId64 "\n",
-                           chan->value->connection_id);
-            monitor_printf(mon, "     channel: %" PRId64 ":%" PRId64 "\n",
-                           chan->value->channel_type, chan->value->channel_id);
+            monitor_hmp_printf(hmp, "Channel:\n");
+            monitor_hmp_printf(hmp, "     address: %s:%s%s\n",
+                               chan->value->host, chan->value->port,
+                               chan->value->tls ? " [tls]" : "");
+            monitor_hmp_printf(hmp, "     session: %" PRId64 "\n",
+                               chan->value->connection_id);
+            monitor_hmp_printf(hmp, "     channel: %" PRId64 ":%" PRId64 "\n",
+                               chan->value->channel_type, chan->value->channel_id);
 
             channel_name = "unknown";
             if (chan->value->channel_type > 0 &&
@@ -251,7 +251,7 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
                 channel_name = channel_names[chan->value->channel_type];
             }
 
-            monitor_printf(mon, "     channel name: %s\n", channel_name);
+            monitor_hmp_printf(hmp, "     channel name: %s\n", channel_name);
         }
     }
 
@@ -260,7 +260,7 @@ out:
 }
 #endif
 
-void hmp_set_password(Monitor *mon, const QDict *qdict)
+void hmp_set_password(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *password  = qdict_get_str(qdict, "password");
@@ -292,10 +292,10 @@ void hmp_set_password(Monitor *mon, const QDict *qdict)
     qmp_set_password(&opts, &err);
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_expire_password(Monitor *mon, const QDict *qdict)
+void hmp_expire_password(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *whenstr = qdict_get_str(qdict, "time");
@@ -319,7 +319,7 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
     qmp_expire_password(&opts, &err);
 
 out:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
 #ifdef CONFIG_VNC
@@ -327,10 +327,10 @@ static void hmp_change_read_arg(void *opaque, const char *password,
                                 void *readline_opaque)
 {
     qmp_change_vnc_password(password, NULL);
-    monitor_read_command(opaque, 1);
+    monitor_hmp_read_command(opaque, 1);
 }
 
-void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
+void hmp_change_vnc(MonitorHMP *hmp, const char *device, const char *target,
                     const char *arg, const char *read_only, bool force,
                     Error **errp)
 {
@@ -343,8 +343,7 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
         return;
     }
     if (!arg) {
-        MonitorHMP *hmp = MONITOR_HMP(mon);
-        monitor_read_password(hmp, hmp_change_read_arg, NULL);
+        monitor_hmp_read_password(hmp, hmp_change_read_arg, NULL);
     } else {
         qmp_change_vnc_password(arg, errp);
     }
@@ -366,7 +365,7 @@ static int index_from_key(const char *key, size_t key_length)
     return i;
 }
 
-void hmp_sendkey(Monitor *mon, const QDict *qdict)
+void hmp_sendkey(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *keys = qdict_get_str(qdict, "keys");
     KeyValue *v = NULL;
@@ -420,7 +419,7 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
     }
 
     qmp_send_key(head, has_hold_time, hold_time, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 
 out:
     qapi_free_KeyValue(v);
@@ -428,7 +427,7 @@ out:
     return;
 
 err_out:
-    monitor_printf(mon, "invalid parameter: %.*s\n", keyname_len, keys);
+    monitor_hmp_printf(hmp, "invalid parameter: %.*s\n", keyname_len, keys);
     goto out;
 }
 
@@ -456,7 +455,7 @@ void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
 
 #ifdef CONFIG_PIXMAN
 void coroutine_fn
-hmp_screendump(Monitor *mon, const QDict *qdict)
+hmp_screendump(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     const char *id = qdict_get_try_str(qdict, "device");
@@ -474,11 +473,11 @@ hmp_screendump(Monitor *mon, const QDict *qdict)
     qmp_screendump(filename, id, id != NULL, head,
                    input_format != NULL, format, &err);
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 #endif
 
-void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
+void hmp_client_migrate_info(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
     const char *protocol = qdict_get_str(qdict, "protocol");
@@ -492,5 +491,5 @@ void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
     qmp_client_migrate_info(protocol, hostname,
                             has_port, port, has_tls_port, tls_port,
                             cert_subject, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }

@@ -11,6 +11,7 @@
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "system/tcg.h"
 #include "tcg/tcg.h"
 #include "internal-common.h"
@@ -29,9 +30,11 @@ HumanReadableText *qmp_x_query_jit(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
+#ifdef CONFIG_HMP
 static void hmp_tcg_register(void)
 {
     monitor_register_hmp_info_hrt("jit", qmp_x_query_jit);
 }
 
 type_init(hmp_tcg_register);
+#endif

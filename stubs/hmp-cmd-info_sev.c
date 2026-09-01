@@ -10,7 +10,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 
-void hmp_info_sev(Monitor *mon, const QDict *qdict)
+void hmp_info_sev(MonitorHMP *hmp, const QDict *qdict)
 {
-    monitor_printf(mon, "SEV is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "SEV is not available in this QEMU\n");
 }

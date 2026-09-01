@@ -587,10 +587,10 @@ ERST
 
     {
         .name       = "trace-events",
-        .args_type  = "name:s?,vcpu:i?",
-        .params     = "[name] [vcpu]",
+        .args_type  = "name:s?",
+        .params     = "[name]",
         .help       = "show available trace-events & their state "
-                      "(name: event name pattern; vcpu: vCPU to query, default is any)",
+                      "(name: event name pattern)",
         .cmd = hmp_info_trace_events,
         .command_completion = info_trace_events_completion,
     },

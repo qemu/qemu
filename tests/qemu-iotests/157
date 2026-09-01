@@ -41,6 +41,7 @@ _supported_fmt generic
 _supported_proto file
 
 _require_devices virtio-blk
+_require_hmp
 
 do_run_qemu()
 {

@@ -34,14 +34,16 @@ PciInfoList *qmp_query_pci(Error **errp)
     return NULL;
 }
 
-void hmp_info_pci(Monitor *mon, const QDict *qdict)
+#ifdef CONFIG_HMP
+void hmp_info_pci(MonitorHMP *hmp, const QDict *qdict)
 {
 }
 
-void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
+void hmp_pcie_aer_inject_error(MonitorHMP *hmp, const QDict *qdict)
 {
-    monitor_printf(mon, "PCI devices not supported\n");
+    monitor_hmp_printf(hmp, "PCI devices not supported\n");
 }
+#endif
 
 /* kvm-all wants this */
 MSIMessage pci_get_msi_message(PCIDevice *dev, int vector)

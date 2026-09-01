@@ -24,7 +24,8 @@ import iotests
 from iotests import qemu_img_create, qemu_img_log, file_path
 
 iotests.script_initialize(supported_fmts=['qcow2'],
-                          supported_protocols=['file'])
+                          supported_protocols=['file'],
+                          require_hmp=True)
 
 test_img = file_path('test.qcow2')
 target_img = file_path('target.qcow2')

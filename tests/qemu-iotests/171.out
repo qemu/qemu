@@ -21,32 +21,32 @@ wrote 1/1 bytes at offset 3583
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 write across image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write at image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write after image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 writev before/after image boundary
-writev failed: Input/output error
+qemu-io: writev failed: Input/output error
 
 read before image boundary
 read 1/1 bytes at offset 3583
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 read across image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 read at image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 read after image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 readv before/after image boundary
-readv failed: Input/output error
+qemu-io: readv failed: Input/output error
 
 fill image with pattern
 wrote 4096/4096 bytes at offset 0
@@ -60,7 +60,7 @@ read 4/4 bytes at offset 510
 4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 write zeroes across image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write zeroes at image boundary and check
 wrote 2/2 bytes at offset 3582
@@ -68,7 +68,7 @@ wrote 2/2 bytes at offset 3582
 00000ffe:  00 00  ..
 read 2/2 bytes at offset 4094
 2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 fill image with pattern
 wrote 4096/4096 bytes at offset 0
@@ -82,7 +82,7 @@ read 4/4 bytes at offset 510
 4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 discard across image boundary
-discard failed: Input/output error
+qemu-io: discard failed: Input/output error
 
 discard at image boundary and check
 discard 2/2 bytes at offset 3582
@@ -90,7 +90,7 @@ discard 2/2 bytes at offset 3582
 00000ffe:  00 00  ..
 read 2/2 bytes at offset 4094
 2 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 == test 'offset' and 'size' options ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4096
@@ -113,32 +113,32 @@ wrote 1/1 bytes at offset 2047
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 write across image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write at image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write after image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 writev before/after image boundary
-writev failed: Input/output error
+qemu-io: writev failed: Input/output error
 
 read before image boundary
 read 1/1 bytes at offset 2047
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 read across image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 read at image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 read after image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 readv before/after image boundary
-readv failed: Input/output error
+qemu-io: readv failed: Input/output error
 
 fill image with pattern
 wrote 4096/4096 bytes at offset 0
@@ -152,7 +152,7 @@ read 4/4 bytes at offset 510
 4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 write zeroes across image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write zeroes at image boundary and check
 wrote 2/2 bytes at offset 2046
@@ -176,7 +176,7 @@ read 4/4 bytes at offset 510
 4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 discard across image boundary
-discard failed: Input/output error
+qemu-io: discard failed: Input/output error
 
 discard at image boundary and check
 discard 2/2 bytes at offset 2046
@@ -209,32 +209,32 @@ wrote 1/1 bytes at offset 2047
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 write across image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write at image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write after image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 writev before/after image boundary
-writev failed: Input/output error
+qemu-io: writev failed: Input/output error
 
 read before image boundary
 read 1/1 bytes at offset 2047
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 read across image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 read at image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 read after image boundary
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 readv before/after image boundary
-readv failed: Input/output error
+qemu-io: readv failed: Input/output error
 
 fill image with pattern
 wrote 4096/4096 bytes at offset 0
@@ -248,7 +248,7 @@ read 4/4 bytes at offset 8
 4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 write zeroes across image boundary
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 
 write zeroes at image boundary and check
 wrote 2/2 bytes at offset 2046
@@ -272,7 +272,7 @@ read 4/4 bytes at offset 8
 4 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 discard across image boundary
-discard failed: Input/output error
+qemu-io: discard failed: Input/output error
 
 discard at image boundary and check
 discard 2/2 bytes at offset 2046
@@ -290,12 +290,12 @@ wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 1/1 bytes at offset 511
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 wrote 1024/1024 bytes at offset 0
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 1/1 bytes at offset 1023
 1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-write failed: Input/output error
+qemu-io: write failed: Input/output error
 checking boundaries
 000001fe:  00 00 0a 0a  ....
 read 4/4 bytes at offset 510

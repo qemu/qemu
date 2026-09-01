@@ -9,7 +9,9 @@ audio_ss.add(files(
 ))
 
 # deprecated since v10.2, to be removed
-system_ss.add(files('audio-hmp-cmds.c', 'wavcapture.c'))
+if have_hmp
+  system_ss.add(files('audio-hmp-cmds.c', 'wavcapture.c'))
+endif
 
 audio_modules = {}
 foreach m : [

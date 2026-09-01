@@ -104,7 +104,8 @@ static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,
     }
 }
 
-void hmp_info_skeys(Monitor *mon, const QDict *qdict)
+#ifdef CONFIG_HMP
+void hmp_info_skeys(MonitorHMP *hmp, const QDict *qdict)
 {
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
@@ -114,27 +115,27 @@ void hmp_info_skeys(Monitor *mon, const QDict *qdict)
 
     /* Quick check to see if guest is using storage keys*/
     if (!skeyclass->skeys_are_enabled(ss)) {
-        monitor_printf(mon, "Error: This guest is not using storage keys\n");
+        monitor_hmp_printf(hmp, "Error: This guest is not using storage keys\n");
         return;
     }
 
     if (!address_space_access_valid(&address_space_memory,
                                     addr & TARGET_PAGE_MASK, TARGET_PAGE_SIZE,
                                     false, MEMTXATTRS_UNSPECIFIED)) {
-        monitor_printf(mon, "Error: The given address is not valid\n");
+        monitor_hmp_printf(hmp, "Error: The given address is not valid\n");
         return;
     }
 
     r = skeyclass->get_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
     if (r < 0) {
-        monitor_printf(mon, "Error: %s\n", strerror(-r));
+        monitor_hmp_printf(hmp, "Error: %s\n", strerror(-r));
         return;
     }
 
-    monitor_printf(mon, "  key: 0x%X\n", key);
+    monitor_hmp_printf(hmp, "  key: 0x%X\n", key);
 }
 
-void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
+void hmp_dump_skeys(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     Error *err = NULL;
@@ -144,6 +145,7 @@ void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
         error_report_err(err);
     }
 }
+#endif
 
 void s390_qmp_dump_skeys(const char *filename, Error **errp)
 {

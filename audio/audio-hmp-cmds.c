@@ -32,7 +32,7 @@
 
 static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
 
-void hmp_info_capture(Monitor *mon, const QDict *qdict)
+void hmp_info_capture(MonitorHMP *hmp, const QDict *qdict)
 {
     int i;
     CaptureState *s;
@@ -40,12 +40,12 @@ void hmp_info_capture(Monitor *mon, const QDict *qdict)
     warn_report_once("'info capture' is deprecated since v10.2, to be removed");
 
     for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
-        monitor_printf(mon, "[%d]: ", i);
+        monitor_hmp_printf(hmp, "[%d]: ", i);
         s->ops.info (s->opaque);
     }
 }
 
-void hmp_stopcapture(Monitor *mon, const QDict *qdict)
+void hmp_stopcapture(MonitorHMP *hmp, const QDict *qdict)
 {
     int i;
     int n = qdict_get_int(qdict, "n");
@@ -63,7 +63,7 @@ void hmp_stopcapture(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_wavcapture(Monitor *mon, const QDict *qdict)
+void hmp_wavcapture(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *path = qdict_get_str(qdict, "path");
     int freq = qdict_get_try_int(qdict, "freq", 44100);
@@ -84,7 +84,7 @@ void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     s = g_malloc0 (sizeof (*s));
 
     if (wav_start_capture(as, s, path, freq, bits, nchannels)) {
-        monitor_printf(mon, "Failed to add wave capture\n");
+        monitor_hmp_printf(hmp, "Failed to add wave capture\n");
         g_free (s);
         return;
     }

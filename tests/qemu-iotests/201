@@ -47,6 +47,7 @@ _supported_os Linux
 # Internal snapshots are (currently) impossible with refcount_bits=1,
 # and generally impossible with external data files
 _unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
+_require_hmp
 
 size=64M
 _make_test_img $size

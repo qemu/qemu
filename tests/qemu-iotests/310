@@ -25,7 +25,8 @@ from iotests import log, qemu_img, qemu_io
 
 # Need backing file support
 iotests.script_initialize(supported_fmts=['qcow2'],
-                          supported_platforms=['linux'])
+                          supported_platforms=['linux'],
+                          require_hmp=True)
 
 log('')
 log('=== Copy-on-read across nodes ===')

@@ -31,7 +31,8 @@ iotests.script_initialize(
     supported_fmts=['qcow2'],
     supported_platforms=['linux'],
     required_fmts=['copy-before-write'],
-    unsupported_imgopts=['compat']
+    unsupported_imgopts=['compat'],
+    require_hmp=True,
 )
 
 patterns = [('0x5d', '0',         '64k'),

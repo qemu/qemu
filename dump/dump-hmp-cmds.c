@@ -12,7 +12,7 @@
 #include "qapi/qapi-commands-dump.h"
 #include "qobject/qdict.h"
 
-void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
+void hmp_dump_guest_memory(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
     bool win_dmp = qdict_get_try_bool(qdict, "windmp", false);
@@ -33,7 +33,7 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
 
     if (zlib + lzo + snappy + win_dmp > 1) {
         error_setg(&err, "only one of '-z|-l|-s|-w' can be set");
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
@@ -79,22 +79,22 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
 
     qmp_dump_guest_memory(paging, prot, true, detach, has_begin, begin,
                           has_length, length, true, dump_format, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
     g_free(prot);
 }
 
-void hmp_info_dump(Monitor *mon, const QDict *qdict)
+void hmp_info_dump(MonitorHMP *hmp, const QDict *qdict)
 {
     DumpQueryResult *result = qmp_query_dump(NULL);
 
     assert(result && result->status < DUMP_STATUS__MAX);
-    monitor_printf(mon, "Status: %s\n", DumpStatus_str(result->status));
+    monitor_hmp_printf(hmp, "Status: %s\n", DumpStatus_str(result->status));
 
     if (result->status == DUMP_STATUS_ACTIVE) {
         float percent = 0;
         assert(result->total != 0);
         percent = 100.0 * result->completed / result->total;
-        monitor_printf(mon, "Finished: %.2f %%\n", percent);
+        monitor_hmp_printf(hmp, "Finished: %.2f %%\n", percent);
     }
 
     qapi_free_DumpQueryResult(result);

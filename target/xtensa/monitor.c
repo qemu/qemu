@@ -26,13 +26,15 @@
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+#ifdef CONFIG_HMP
+void hmp_info_tlb(MonitorHMP *hmp, const QDict *qdict)
 {
-    CPUArchState *env1 = mon_get_cpu_env(mon);
+    CPUArchState *env1 = monitor_hmp_get_cpu_env(hmp);
 
     if (!env1) {
-        monitor_printf(mon, "No CPU available\n");
+        monitor_hmp_printf(hmp, "No CPU available\n");
         return;
     }
     dump_mmu(env1);
 }
+#endif

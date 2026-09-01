@@ -30,11 +30,11 @@ blkverify: read offset=0 bytes=512 contents mismatch at offset 0
 
 === Testing blkdebug through filename ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Testing blkdebug through file blockref ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Testing blkdebug on existing block device ===
 
@@ -43,8 +43,7 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-read failed: Input/output error
-{"return": ""}
+{"return": "Error: read failed: Input/output error\r\n"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
 {"return": {}}
 
@@ -82,8 +81,7 @@ read 512/512 bytes at offset 0
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
-read failed: Input/output error
-{"return": ""}
+{"return": "Error: read failed: Input/output error\r\n"}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
 QEMU_PROG: Failed to flush the L2 table cache: Input/output error
 QEMU_PROG: Failed to flush the refcount block cache: Input/output error

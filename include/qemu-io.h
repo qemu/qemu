@@ -25,7 +25,7 @@
  * Operate on @blk using @argc/@argv as the command's arguments, and
  * return 0 on success or negative errno on failure.
  */
-typedef int (*cfunc_t)(BlockBackend *blk, int argc, char **argv);
+typedef int (*cfunc_t)(BlockBackend *blk, int argc, char **argv, Error **errp);
 
 typedef void (*helpfunc_t)(void);
 
@@ -45,7 +45,7 @@ typedef struct cmdinfo {
 
 extern bool qemuio_misalign;
 
-int qemuio_command(BlockBackend *blk, const char *cmd);
+int qemuio_command(BlockBackend *blk, const char *cmd, Error **errp);
 
 void qemuio_add_command(const cmdinfo_t *ci);
 void qemuio_command_usage(const cmdinfo_t *ci);

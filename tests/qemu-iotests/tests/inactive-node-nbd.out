@@ -215,13 +215,13 @@ target-fmt active: True
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-write failed: Operation not permitted
+qemu-io: write failed: Operation not permitted
 
-write failed: Operation not permitted
+qemu-io: write failed: Operation not permitted
 
-write failed: Operation not permitted
+qemu-io: write failed: Operation not permitted
 
-discard failed: Operation not permitted
+qemu-io: discard failed: Operation not permitted
 
 
 qemu-io: Failed to get allocation status: Operation not permitted

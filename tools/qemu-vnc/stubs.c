@@ -41,11 +41,6 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
     return NULL;
 }
 
-int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
-{
-    return -1;
-}
-
 /*
  * Link-time stubs for VMState symbols referenced by VNC code.
  * The standalone binary never performs migration, so these are

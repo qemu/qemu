@@ -46,6 +46,7 @@ _supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" \
                      "subformat=twoGbMaxExtentFlat" \
                      "subformat=twoGbMaxExtentSparse"
+_require_hmp
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 1M
 TEST_IMG="$TEST_IMG.not_base" _make_test_img 1M

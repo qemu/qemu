@@ -10,4 +10,6 @@ if have_system
 endif
 
 qmp_ss.add(files('qom-qmp-cmds.c'))
-system_ss.add(files('qom-hmp-cmds.c'))
+if have_hmp
+  system_ss.add(files('qom-hmp-cmds.c'))
+endif

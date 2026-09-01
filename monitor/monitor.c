@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "monitor-internal.h"
+#include "monitor-hmp-internal.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-emit-events.h"
@@ -89,7 +90,6 @@ static void monitor_finalize(Object *obj)
         qemu_bh_delete(mon->accept_input_bh);
     }
     g_free(mon->chardev_id);
-    g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);
     g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
@@ -271,60 +271,6 @@ int monitor_puts(Monitor *mon, const char *str)
 {
     QEMU_LOCK_GUARD(&mon->mon_lock);
     return monitor_puts_locked(mon, str);
-}
-
-int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
-{
-    MonitorClass *moncls;
-
-    if (!mon) {
-        return -1;
-    }
-
-    moncls = MONITOR_GET_CLASS(mon);
-    if (!moncls->vprintf) {
-        return -1;
-    }
-
-    return moncls->vprintf(mon, fmt, ap);
-}
-
-int monitor_printf(Monitor *mon, const char *fmt, ...)
-{
-    int ret;
-
-    va_list ap;
-    va_start(ap, fmt);
-    ret = monitor_vprintf(mon, fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
-void monitor_printc(Monitor *mon, int c)
-{
-    monitor_printf(mon, "'");
-    switch(c) {
-    case '\'':
-        monitor_printf(mon, "\\'");
-        break;
-    case '\\':
-        monitor_printf(mon, "\\\\");
-        break;
-    case '\n':
-        monitor_printf(mon, "\\n");
-        break;
-    case '\r':
-        monitor_printf(mon, "\\r");
-        break;
-    default:
-        if (c >= 32 && c <= 126) {
-            monitor_printf(mon, "%c", c);
-        } else {
-            monitor_printf(mon, "\\x%02x", c);
-        }
-        break;
-    }
-    monitor_printf(mon, "'");
 }
 
 static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
@@ -746,13 +692,22 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
     ERRP_GUARD();
 
     if (!opts->has_mode) {
+#ifdef CONFIG_HMP
         opts->mode = allow_hmp ? MONITOR_MODE_READLINE : MONITOR_MODE_CONTROL;
+#else
+        if (allow_hmp) {
+            error_setg(errp, "HMP support is not built in this QEMU");
+            return -1;
+        }
+        opts->mode = MONITOR_MODE_CONTROL;
+#endif
     }
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
         monitor_new_qmp(opts->id, opts->chardev, opts->pretty, errp);
         break;
+#ifdef CONFIG_HMP
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
             error_setg(errp, "Only QMP is supported");
@@ -764,6 +719,7 @@ int monitor_new(MonitorOptions *opts, bool allow_hmp, Error **errp)
         }
         monitor_new_hmp(opts->id, opts->chardev, true, errp);
         break;
+#endif /* CONFIG_HMP */
     default:
         g_assert_not_reached();
     }
@@ -776,6 +732,16 @@ int monitor_new_opts(QemuOpts *opts, Error **errp)
     Visitor *v;
     MonitorOptions *options;
     int ret;
+
+#ifndef CONFIG_HMP
+    const char *mode = qemu_opt_get(opts, "mode");
+    /* readline is HMP..  */
+    if (mode && g_str_equal(mode, "readline")) {
+        error_setg(errp, "HMP monitor is not available,"
+                   " use '-qmp' instead of '-monitor'");
+        return -1;
+    }
+#endif
 
     v = opts_visitor_new(opts);
     visit_type_MonitorOptions(v, NULL, &options, errp);

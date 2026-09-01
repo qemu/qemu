@@ -10,7 +10,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 
-void hmp_info_sgx(Monitor *mon, const QDict *qdict)
+void hmp_info_sgx(MonitorHMP *hmp, const QDict *qdict)
 {
-    monitor_printf(mon, "SGX is not available in this QEMU\n");
+    monitor_hmp_printf(hmp, "SGX is not available in this QEMU\n");
 }

@@ -1758,8 +1758,7 @@ static void test_atapi_engine_restart_in_flight(bool dma)
     qtest_memset(ahci->parent->qts, buffer, 0x00, ATAPI_SECTOR_SIZE);
 
     /* Suspend the next backend read so the ATAPI read stays in flight. */
-    g_free(qtest_hmp(ahci->parent->qts,
-                     "qemu-io drive0 \"break read_aio rd\""));
+    qtest_qemu_io(ahci->parent->qts, "drive0", "break read_aio rd");
 
     cmd = ahci_atapi_command_create(CMD_ATAPI_READ_10, ATAPI_SECTOR_SIZE,
                                     dma);
@@ -1771,7 +1770,7 @@ static void test_atapi_engine_restart_in_flight(bool dma)
     ahci_px_clr(ahci, port, AHCI_PX_CMD, AHCI_PX_CMD_ST);
     ahci_px_set(ahci, port, AHCI_PX_CMD, AHCI_PX_CMD_ST);
 
-    g_free(qtest_hmp(ahci->parent->qts, "qemu-io drive0 \"resume rd\""));
+    qtest_qemu_io(ahci->parent->qts, "drive0", "resume rd");
 
     /* Round-trip through the device to confirm qemu is still alive. */
     ahci_px_rreg(ahci, port, AHCI_PX_TFD);

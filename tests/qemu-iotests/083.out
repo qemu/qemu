@@ -41,7 +41,7 @@ qemu-io: can't open device nbd+tcp://127.0.0.1:PORT/foo
 
 === Check disconnect after neg2 ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
 
@@ -53,31 +53,31 @@ qemu-io: can't open device nbd+tcp://127.0.0.1:PORT/foo
 
 === Check disconnect before request ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect after request ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect before reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect after reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect before data ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect after data ===
 
@@ -106,7 +106,7 @@ qemu-io: can't open device nbd+tcp://127.0.0.1:PORT/
 
 === Check disconnect after neg-classic ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect before neg1 ===
 
@@ -150,7 +150,7 @@ qemu-io: can't open device nbd+unix:///foo?socket=SOCK_DIR/nbd.sock
 
 === Check disconnect after neg2 ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect 8 neg2 ===
 
@@ -162,31 +162,31 @@ qemu-io: can't open device nbd+unix:///foo?socket=SOCK_DIR/nbd.sock
 
 === Check disconnect before request ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect after request ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect before reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect after reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect 4 reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect 8 reply ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect before data ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 === Check disconnect after data ===
 
@@ -215,6 +215,6 @@ qemu-io: can't open device nbd+unix:///?socket=SOCK_DIR/nbd.sock
 
 === Check disconnect after neg-classic ===
 
-read failed: Input/output error
+qemu-io: read failed: Input/output error
 
 *** done

@@ -31,6 +31,7 @@
 #include "qemu/queue.h"
 #include "qom/object.h"
 #include "qapi/error.h"
+#include "monitor/hmp.h"
 
 /* Constants related to the USB / PCI interaction */
 #define USB_SBRN    0x60 /* Serial Bus Release Number Register */
@@ -466,7 +467,7 @@ void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 
 /* usb-linux.c */
-void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
+void hmp_info_usbhost(MonitorHMP *hmp, const QDict *qdict);
 
 /* usb ports of the VM */
 

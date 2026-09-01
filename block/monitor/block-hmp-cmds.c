@@ -56,9 +56,8 @@
 #include "block/qapi.h"
 #include "block/block_int.h"
 #include "block/block-hmp-cmds.h"
-#include "qemu-io.h"
 
-static void hmp_drive_add_node(Monitor *mon, const char *optstr)
+static void hmp_drive_add_node(MonitorHMP *hmp, const char *optstr)
 {
     QemuOpts *opts;
     QDict *qdict;
@@ -85,10 +84,10 @@ static void hmp_drive_add_node(Monitor *mon, const char *optstr)
     bdrv_set_monitor_owned(bs);
 out:
     qemu_opts_del(opts);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_drive_add(Monitor *mon, const QDict *qdict)
+void hmp_drive_add(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
     DriveInfo *dinfo;
@@ -98,7 +97,7 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
     bool node = qdict_get_try_bool(qdict, "node", false);
 
     if (node) {
-        hmp_drive_add_node(mon, optstr);
+        hmp_drive_add_node(hmp, optstr);
         return;
     }
 
@@ -119,7 +118,7 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
 
     switch (dinfo->type) {
     case IF_NONE:
-        monitor_printf(mon, "OK\n");
+        monitor_hmp_printf(hmp, "OK\n");
         break;
     default:
         error_setg(&err, "Can't hot-add drive to type %d", dinfo->type);
@@ -133,10 +132,10 @@ err:
         monitor_remove_blk(blk);
         blk_unref(blk);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_drive_del(Monitor *mon, const QDict *qdict)
+void hmp_drive_del(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockBackend *blk;
@@ -192,10 +191,10 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
 unlock:
     bdrv_graph_rdunlock_main_loop();
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_commit(Monitor *mon, const QDict *qdict)
+void hmp_commit(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     BlockBackend *blk;
@@ -230,10 +229,10 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     }
 
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
+void hmp_drive_mirror(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "target");
     const char *format = qdict_get_try_str(qdict, "format");
@@ -256,10 +255,10 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
     }
     qmp_drive_mirror(&mirror, &err);
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_drive_backup(Monitor *mon, const QDict *qdict)
+void hmp_drive_backup(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_str(qdict, "target");
@@ -286,10 +285,10 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
 
     qmp_drive_backup(&backup, &err);
 end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
+void hmp_block_job_set_speed(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
@@ -297,10 +296,10 @@ void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
 
     qmp_block_job_set_speed(device, value, &error);
 
-    hmp_handle_error(mon, error);
+    hmp_handle_error(hmp, error);
 }
 
-void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
+void hmp_block_job_cancel(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
@@ -308,75 +307,65 @@ void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
 
     qmp_block_job_cancel(device, true, force, &error);
 
-    hmp_handle_error(mon, error);
+    hmp_handle_error(hmp, error);
 }
 
-void hmp_block_job_pause(Monitor *mon, const QDict *qdict)
+void hmp_block_job_pause(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
     qmp_block_job_pause(device, &error);
 
-    hmp_handle_error(mon, error);
+    hmp_handle_error(hmp, error);
 }
 
-void hmp_block_job_resume(Monitor *mon, const QDict *qdict)
+void hmp_block_job_resume(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
     qmp_block_job_resume(device, &error);
 
-    hmp_handle_error(mon, error);
+    hmp_handle_error(hmp, error);
 }
 
-void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
+void hmp_block_job_complete(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
 
     qmp_block_job_complete(device, &error);
 
-    hmp_handle_error(mon, error);
+    hmp_handle_error(hmp, error);
 }
 
-void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
+void hmp_snapshot_blkdev(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
-    const char *filename = qdict_get_try_str(qdict, "snapshot-file");
+    const char *filename = qdict_get_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     enum NewImageMode mode;
     Error *err = NULL;
 
-    if (!filename) {
-        /*
-         * In the future, if 'snapshot-file' is not specified, the snapshot
-         * will be taken internally. Today it's actually required.
-         */
-        error_setg(&err, QERR_MISSING_PARAMETER, "snapshot-file");
-        goto end;
-    }
-
     mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     qmp_blockdev_snapshot_sync(device, NULL, filename, NULL, format,
                                true, mode, &err);
-end:
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_snapshot_blkdev_internal(Monitor *mon, const QDict *qdict)
+void hmp_snapshot_blkdev_internal(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *name = qdict_get_str(qdict, "name");
     Error *err = NULL;
 
     qmp_blockdev_snapshot_internal_sync(device, name, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict)
+void hmp_snapshot_delete_blkdev_internal(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *name = qdict_get_str(qdict, "name");
@@ -384,10 +373,10 @@ void hmp_snapshot_delete_blkdev_internal(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_blockdev_snapshot_delete_internal_sync(device, id, name, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_start(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *uri = qdict_get_str(qdict, "uri");
     bool writable = qdict_get_try_bool(qdict, "writable", false);
@@ -446,10 +435,10 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     qapi_free_BlockInfoList(block_list);
 
 exit:
-    hmp_handle_error(mon, local_err);
+    hmp_handle_error(hmp, local_err);
 }
 
-void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_add(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *name = qdict_get_try_str(qdict, "name");
@@ -464,10 +453,10 @@ void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
     };
 
     qmp_nbd_server_add(&export, &local_err);
-    hmp_handle_error(mon, local_err);
+    hmp_handle_error(hmp, local_err);
 }
 
-void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_remove(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *name = qdict_get_str(qdict, "name");
     bool force = qdict_get_try_bool(qdict, "force", false);
@@ -475,28 +464,28 @@ void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
 
     /* Rely on BLOCK_EXPORT_REMOVE_MODE_SAFE being the default */
     qmp_nbd_server_remove(name, force, BLOCK_EXPORT_REMOVE_MODE_HARD, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
+void hmp_nbd_server_stop(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
 
     qmp_nbd_server_stop(&err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void coroutine_fn hmp_block_resize(Monitor *mon, const QDict *qdict)
+void coroutine_fn hmp_block_resize(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     int64_t size = qdict_get_int(qdict, "size");
     Error *err = NULL;
 
     qmp_block_resize(device, NULL, size, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_block_stream(Monitor *mon, const QDict *qdict)
+void hmp_block_stream(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
@@ -508,10 +497,10 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
                      true, BLOCKDEV_ON_ERROR_REPORT, NULL,
                      false, false, false, false, &error);
 
-    hmp_handle_error(mon, error);
+    hmp_handle_error(hmp, error);
 }
 
-void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
+void hmp_block_set_io_throttle(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *err = NULL;
     char *device = (char *) qdict_get_str(qdict, "device");
@@ -536,88 +525,36 @@ void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
     }
 
     qmp_block_set_io_throttle(&throttle, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_eject(Monitor *mon, const QDict *qdict)
+void hmp_eject(MonitorHMP *hmp, const QDict *qdict)
 {
     bool force = qdict_get_try_bool(qdict, "force", false);
     const char *device = qdict_get_str(qdict, "device");
     Error *err = NULL;
 
     qmp_eject(device, NULL, true, force, &err);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_qemu_io(Monitor *mon, const QDict *qdict)
+void hmp_qemu_io(MonitorHMP *hmp, const QDict *qdict)
 {
-    BlockBackend *blk = NULL;
-    BlockDriverState *bs = NULL;
-    BlockBackend *local_blk = NULL;
     bool qdev = qdict_get_try_bool(qdict, "qdev", false);
     const char *device = qdict_get_str(qdict, "device");
     const char *command = qdict_get_str(qdict, "command");
     Error *err = NULL;
-    int ret;
 
-    if (qdev) {
-        blk = blk_by_qdev_id(device, &err);
-        if (!blk) {
-            goto fail;
-        }
-    } else {
-        blk = blk_by_name(device);
-        if (!blk) {
-            bs = bdrv_lookup_bs(NULL, device, &err);
-            if (!bs) {
-                goto fail;
-            }
-        }
-    }
-
-    if (bs) {
-        blk = local_blk = blk_new(bdrv_get_aio_context(bs), 0, BLK_PERM_ALL);
-        ret = blk_insert_bs(blk, bs, &err);
-        if (ret < 0) {
-            goto fail;
-        }
-    }
-
-    /*
-     * Notably absent: Proper permission management. This is sad, but it seems
-     * almost impossible to achieve without changing the semantics and thereby
-     * limiting the use cases of the qemu-io HMP command.
-     *
-     * In an ideal world we would unconditionally create a new BlockBackend for
-     * qemuio_command(), but we have commands like 'reopen' and want them to
-     * take effect on the exact BlockBackend whose name the user passed instead
-     * of just on a temporary copy of it.
-     *
-     * Another problem is that deleting the temporary BlockBackend involves
-     * draining all requests on it first, but some qemu-iotests cases want to
-     * issue multiple aio_read/write requests and expect them to complete in
-     * the background while the monitor has already returned.
-     *
-     * This is also what prevents us from saving the original permissions and
-     * restoring them later: We can't revoke permissions until all requests
-     * have completed, and we don't know when that is nor can we really let
-     * anything else run before we have revoken them to avoid race conditions.
-     *
-     * What happens now is that command() in qemu-io-cmds.c can extend the
-     * permissions if necessary for the qemu-io command. And they simply stay
-     * extended, possibly resulting in a read-only guest device keeping write
-     * permissions. Ugly, but it appears to be the lesser evil.
-     */
-    qemuio_command(blk, command);
-
-fail:
-    blk_unref(local_blk);
-    hmp_handle_error(mon, err);
+    qmp_x_qemu_io(qdev ? NULL : device,
+                  qdev ? device : NULL,
+                  command, &err);
+    hmp_handle_error(hmp, err);
 }
 
-static void print_block_info(Monitor *mon, BlockInfo *info,
+static void print_block_info(MonitorHMP *hmp, BlockInfo *info,
                              BlockDeviceInfo *inserted, bool verbose)
 {
+    Monitor *mon = MONITOR(hmp);
     ImageInfo *image_info;
 
     assert(!info || !info->inserted || info->inserted == inserted);
@@ -625,7 +562,7 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     if (info && *info->device) {
         monitor_puts(mon, info->device);
         if (inserted && inserted->node_name) {
-            monitor_printf(mon, " (%s)", inserted->node_name);
+            monitor_hmp_printf(hmp, " (%s)", inserted->node_name);
         }
     } else {
         assert(info || inserted);
@@ -636,29 +573,29 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     }
 
     if (inserted) {
-        monitor_printf(mon, ": %s (%s%s%s%s)\n",
-                       inserted->file,
-                       inserted->drv,
-                       inserted->ro ? ", read-only" : "",
-                       inserted->encrypted ? ", encrypted" : "",
-                       inserted->active ? "" : ", inactive");
+        monitor_hmp_printf(hmp, ": %s (%s%s%s%s)\n",
+                           inserted->file,
+                           inserted->drv,
+                           inserted->ro ? ", read-only" : "",
+                           inserted->encrypted ? ", encrypted" : "",
+                           inserted->active ? "" : ", inactive");
     } else {
-        monitor_printf(mon, ": [not inserted]\n");
+        monitor_hmp_printf(hmp, ": [not inserted]\n");
     }
 
     if (info) {
         if (info->qdev) {
-            monitor_printf(mon, "    Attached to:      %s\n", info->qdev);
+            monitor_hmp_printf(hmp, "    Attached to:      %s\n", info->qdev);
         }
         if (info->has_io_status && info->io_status != BLOCK_DEVICE_IO_STATUS_OK) {
-            monitor_printf(mon, "    I/O status:       %s\n",
-                           BlockDeviceIoStatus_str(info->io_status));
+            monitor_hmp_printf(hmp, "    I/O status:       %s\n",
+                               BlockDeviceIoStatus_str(info->io_status));
         }
 
         if (info->removable) {
-            monitor_printf(mon, "    Removable device: %slocked, tray %s\n",
-                           info->locked ? "" : "not ",
-                           info->tray_open ? "open" : "closed");
+            monitor_hmp_printf(hmp, "    Removable device: %slocked, tray %s\n",
+                               info->locked ? "" : "not ",
+                               info->tray_open ? "open" : "closed");
         }
     }
 
@@ -667,28 +604,28 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
         return;
     }
 
-    monitor_printf(mon, "    Cache mode:       %s%s%s\n",
-                   inserted->cache->writeback ? "writeback" : "writethrough",
-                   inserted->cache->direct ? ", direct" : "",
-                   inserted->cache->no_flush ? ", ignore flushes" : "");
+    monitor_hmp_printf(hmp, "    Cache mode:       %s%s%s\n",
+                       inserted->cache->writeback ? "writeback" : "writethrough",
+                       inserted->cache->direct ? ", direct" : "",
+                       inserted->cache->no_flush ? ", ignore flushes" : "");
 
     if (inserted->backing_file) {
-        monitor_printf(mon,
-                       "    Backing file:     %s "
-                       "(chain depth: %" PRId64 ")\n",
-                       inserted->backing_file,
-                       inserted->backing_file_depth);
+        monitor_hmp_printf(hmp,
+                           "    Backing file:     %s "
+                           "(chain depth: %" PRId64 ")\n",
+                           inserted->backing_file,
+                           inserted->backing_file_depth);
     }
 
     if (inserted->detect_zeroes != BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF) {
-        monitor_printf(mon, "    Detect zeroes:    %s\n",
+        monitor_hmp_printf(hmp, "    Detect zeroes:    %s\n",
                 BlockdevDetectZeroesOptions_str(inserted->detect_zeroes));
     }
 
     if (inserted->bps  || inserted->bps_rd  || inserted->bps_wr  ||
         inserted->iops || inserted->iops_rd || inserted->iops_wr)
     {
-        monitor_printf(mon, "    I/O throttling:   bps=%" PRId64
+        monitor_hmp_printf(hmp, "    I/O throttling:   bps=%" PRId64
                         " bps_rd=%" PRId64  " bps_wr=%" PRId64
                         " bps_max=%" PRId64
                         " bps_rd_max=%" PRId64
@@ -717,7 +654,7 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     }
 
     if (verbose) {
-        monitor_printf(mon, "\nImages:\n");
+        monitor_hmp_printf(hmp, "\nImages:\n");
         image_info = inserted->image;
         while (1) {
             bdrv_node_info_dump(qapi_ImageInfo_base(image_info), 0, false);
@@ -730,7 +667,7 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
     }
 }
 
-void hmp_info_block(Monitor *mon, const QDict *qdict)
+void hmp_info_block(MonitorHMP *hmp, const QDict *qdict)
 {
     BlockInfoList *block_list, *info;
     BlockDeviceInfoList *blockdev_list, *blockdev;
@@ -752,10 +689,10 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
         }
 
         if (info != block_list) {
-            monitor_printf(mon, "\n");
+            monitor_hmp_printf(hmp, "\n");
         }
 
-        print_block_info(mon, info->value, info->value->inserted,
+        print_block_info(hmp, info->value, info->value->inserted,
                          verbose);
         printed = true;
     }
@@ -775,15 +712,15 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
         }
 
         if (blockdev != blockdev_list) {
-            monitor_printf(mon, "\n");
+            monitor_hmp_printf(hmp, "\n");
         }
 
-        print_block_info(mon, NULL, blockdev->value, verbose);
+        print_block_info(hmp, NULL, blockdev->value, verbose);
     }
     qapi_free_BlockDeviceInfoList(blockdev_list);
 }
 
-void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
+void hmp_info_blockstats(MonitorHMP *hmp, const QDict *qdict)
 {
     BlockStatsList *stats_list, *stats;
 
@@ -794,62 +731,62 @@ void hmp_info_blockstats(Monitor *mon, const QDict *qdict)
             continue;
         }
 
-        monitor_printf(mon, "%s%s: idle_time_ns=%" PRId64 "\n",
-                       stats != stats_list ? "\n" : "",
-                       stats->value->device,
-                       stats->value->stats->idle_time_ns);
-        monitor_printf(mon, "       %24s %16s %24s %10s\n", "bytes",
-                       "operations", "total_time_ns", "merged");
-        monitor_printf(mon, "Read:  %24" PRId64 " %16" PRId64 " %24" PRId64
-                       " %10" PRId64 "\n",
-                       stats->value->stats->rd_bytes,
-                       stats->value->stats->rd_operations,
-                       stats->value->stats->rd_total_time_ns,
-                       stats->value->stats->rd_merged);
-        monitor_printf(mon, "Write: %24" PRId64 " %16" PRId64 " %24" PRId64
-                       " %10" PRId64 "\n",
-                       stats->value->stats->wr_bytes,
-                       stats->value->stats->wr_operations,
-                       stats->value->stats->wr_total_time_ns,
-                       stats->value->stats->wr_merged);
-        monitor_printf(mon, "Flush: %24s %16" PRId64 " %24" PRId64 "\n",
-                       "",
-                       stats->value->stats->flush_operations,
-                       stats->value->stats->flush_total_time_ns);
+        monitor_hmp_printf(hmp, "%s%s: idle_time_ns=%" PRId64 "\n",
+                           stats != stats_list ? "\n" : "",
+                           stats->value->device,
+                           stats->value->stats->idle_time_ns);
+        monitor_hmp_printf(hmp, "       %24s %16s %24s %10s\n", "bytes",
+                           "operations", "total_time_ns", "merged");
+        monitor_hmp_printf(hmp, "Read:  %24" PRId64 " %16" PRId64 " %24" PRId64
+                           " %10" PRId64 "\n",
+                           stats->value->stats->rd_bytes,
+                           stats->value->stats->rd_operations,
+                           stats->value->stats->rd_total_time_ns,
+                           stats->value->stats->rd_merged);
+        monitor_hmp_printf(hmp, "Write: %24" PRId64 " %16" PRId64 " %24" PRId64
+                           " %10" PRId64 "\n",
+                           stats->value->stats->wr_bytes,
+                           stats->value->stats->wr_operations,
+                           stats->value->stats->wr_total_time_ns,
+                           stats->value->stats->wr_merged);
+        monitor_hmp_printf(hmp, "Flush: %24s %16" PRId64 " %24" PRId64 "\n",
+                           "",
+                           stats->value->stats->flush_operations,
+                           stats->value->stats->flush_total_time_ns);
     }
 
     qapi_free_BlockStatsList(stats_list);
 }
 
-void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
+void hmp_info_block_jobs(MonitorHMP *hmp, const QDict *qdict)
 {
     BlockJobInfoList *list;
 
     list = qmp_query_block_jobs(&error_abort);
 
     if (!list) {
-        monitor_printf(mon, "No active jobs\n");
+        monitor_hmp_printf(hmp, "No active jobs\n");
         return;
     }
 
     while (list) {
         if (list->value->type == JOB_TYPE_STREAM) {
-            monitor_printf(mon, "Streaming device %s: Completed %" PRId64
-                           " of %" PRId64 " bytes, speed limit %" PRId64
-                           " bytes/s\n",
-                           list->value->device,
-                           list->value->offset,
-                           list->value->len,
-                           list->value->speed);
+            monitor_hmp_printf(hmp, "Streaming device %s: Completed %" PRId64
+                               " of %" PRId64 " bytes, speed limit %" PRId64
+                               " bytes/s\n",
+                               list->value->device,
+                               list->value->offset,
+                               list->value->len,
+                               list->value->speed);
         } else {
-            monitor_printf(mon, "Type %s, device %s: Completed %" PRId64
-                           " of %" PRId64 " bytes, speed limit %" PRId64
-                           " bytes/s\n",
-                           JobType_str(list->value->type),
-                           list->value->device,
-                           list->value->offset,
-                           list->value->len,
-                           list->value->speed);
+            monitor_hmp_printf(hmp, "Type %s, device %s: Completed %" PRId64
+                               " of %" PRId64 " bytes, speed limit %" PRId64
+                               " bytes/s\n",
+                               JobType_str(list->value->type),
+                               list->value->device,
+                               list->value->offset,
+                               list->value->len,
+                               list->value->speed);
         }
         list = list->next;
     }
@@ -857,7 +794,7 @@ void hmp_info_block_jobs(Monitor *mon, const QDict *qdict)
     qapi_free_BlockJobInfoList(list);
 }
 
-void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
+void hmp_info_snapshots(MonitorHMP *hmp, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
     BdrvNextIterator it1;
@@ -889,14 +826,14 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 
     bs = bdrv_all_find_vmstate_bs(NULL, false, NULL, &err);
     if (!bs) {
-        hmp_handle_error(mon, err);
+        hmp_handle_error(hmp, err);
         return;
     }
 
     nb_sns = bdrv_snapshot_list(bs, &sn_tab);
 
     if (nb_sns < 0) {
-        monitor_printf(mon, "bdrv_snapshot_list: error %d\n", nb_sns);
+        monitor_hmp_printf(hmp, "bdrv_snapshot_list: error %d\n", nb_sns);
         return;
     }
 
@@ -925,7 +862,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     }
 
     if (no_snapshot) {
-        monitor_printf(mon, "There is no snapshot available.\n");
+        monitor_hmp_printf(hmp, "There is no snapshot available.\n");
         return;
     }
 
@@ -948,11 +885,11 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
             }
         }
     }
-    monitor_printf(mon, "List of snapshots present on all disks:\n");
+    monitor_hmp_printf(hmp, "List of snapshots present on all disks:\n");
 
     if (total > 0) {
         bdrv_snapshot_dump(NULL);
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "\n");
         for (i = 0; i < total; i++) {
             sn = &sn_tab[global_snapshots[i]];
             /*
@@ -961,24 +898,24 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
              */
             pstrcpy(sn->id_str, sizeof(sn->id_str), "--");
             bdrv_snapshot_dump(sn);
-            monitor_printf(mon, "\n");
+            monitor_hmp_printf(hmp, "\n");
         }
     } else {
-        monitor_printf(mon, "None\n");
+        monitor_hmp_printf(hmp, "None\n");
     }
 
     QTAILQ_FOREACH(image_entry, &image_list, next) {
         if (QTAILQ_EMPTY(&image_entry->snapshots)) {
             continue;
         }
-        monitor_printf(mon,
-                       "\nList of partial (non-loadable) snapshots on '%s':\n",
-                       image_entry->imagename);
+        monitor_hmp_printf(hmp,
+                           "\nList of partial (non-loadable) snapshots on '%s':\n",
+                           image_entry->imagename);
         bdrv_snapshot_dump(NULL);
-        monitor_printf(mon, "\n");
+        monitor_hmp_printf(hmp, "\n");
         QTAILQ_FOREACH(snapshot_entry, &image_entry->snapshots, next) {
             bdrv_snapshot_dump(&snapshot_entry->sn);
-            monitor_printf(mon, "\n");
+            monitor_hmp_printf(hmp, "\n");
         }
     }
 
@@ -994,7 +931,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     g_free(global_snapshots);
 }
 
-void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+void hmp_change_medium(MonitorHMP *hmp, const char *device, const char *target,
                        const char *arg, const char *read_only, bool force,
                        Error **errp)
 {

@@ -43,6 +43,7 @@ _supported_proto file
 # We test all cache modes anyway, but O_DIRECT needs to be supported
 _default_cache_mode none
 _supported_cache_modes none directsync
+_require_hmp
 
 do_run_qemu()
 {

@@ -497,6 +497,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     }
 }
 
+#ifdef CONFIG_HMP
 static int qmp_x_query_via_foreach(Object *obj, void *opaque)
 {
     GString *buf = opaque;
@@ -586,16 +587,18 @@ static HumanReadableText *qmp_x_query_via(Error **errp)
     return human_readable_text_from_str(buf);
 }
 
-void hmp_info_via(Monitor *mon, const QDict *qdict)
+void hmp_info_via(MonitorHMP *hmp, const QDict *qdict)
 {
+    Monitor *mon = MONITOR(hmp);
     Error *err = NULL;
     g_autoptr(HumanReadableText) info = qmp_x_query_via(&err);
 
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
     monitor_puts(mon, info->human_readable_text);
 }
+#endif /* CONFIG_HMP */
 
 static const MemoryRegionOps mos6522_ops = {
     .read = mos6522_read,

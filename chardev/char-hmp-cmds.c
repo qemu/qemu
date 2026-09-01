@@ -24,20 +24,20 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 
-void hmp_info_chardev(Monitor *mon, const QDict *qdict)
+void hmp_info_chardev(MonitorHMP *hmp, const QDict *qdict)
 {
     ChardevInfoList *char_info, *info;
 
     char_info = qmp_query_chardev(NULL);
     for (info = char_info; info; info = info->next) {
-        monitor_printf(mon, "%s: filename=%s\n", info->value->label,
+        monitor_hmp_printf(hmp, "%s: filename=%s\n", info->value->label,
                                                  info->value->filename);
     }
 
     qapi_free_ChardevInfoList(char_info);
 }
 
-void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_write(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *chardev = qdict_get_str(qdict, "device");
     const char *data = qdict_get_str(qdict, "data");
@@ -45,10 +45,10 @@ void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
 
     qmp_ringbuf_write(chardev, data, false, 0, &err);
 
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
+void hmp_ringbuf_read(MonitorHMP *hmp, const QDict *qdict)
 {
     uint32_t size = qdict_get_int(qdict, "size");
     const char *chardev = qdict_get_str(qdict, "device");
@@ -57,7 +57,7 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
     int i;
 
     data = qmp_ringbuf_read(chardev, size, false, 0, &err);
-    if (hmp_handle_error(mon, err)) {
+    if (hmp_handle_error(hmp, err)) {
         return;
     }
 
@@ -65,19 +65,19 @@ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict)
         unsigned char ch = data[i];
 
         if (ch == '\\') {
-            monitor_printf(mon, "\\\\");
+            monitor_hmp_printf(hmp, "\\\\");
         } else if ((ch < 0x20 && ch != '\n' && ch != '\t') || ch == 0x7F) {
-            monitor_printf(mon, "\\u%04X", ch);
+            monitor_hmp_printf(hmp, "\\u%04X", ch);
         } else {
-            monitor_printf(mon, "%c", ch);
+            monitor_hmp_printf(hmp, "%c", ch);
         }
 
     }
-    monitor_printf(mon, "\n");
+    monitor_hmp_printf(hmp, "\n");
     g_free(data);
 }
 
-void hmp_chardev_add(Monitor *mon, const QDict *qdict)
+void hmp_chardev_add(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *args = qdict_get_str(qdict, "args");
     Error *err = NULL;
@@ -90,10 +90,10 @@ void hmp_chardev_add(Monitor *mon, const QDict *qdict)
         qemu_chr_new_from_opts(opts, NULL, &err);
         qemu_opts_del(opts);
     }
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_chardev_change(Monitor *mon, const QDict *qdict)
+void hmp_chardev_change(MonitorHMP *hmp, const QDict *qdict)
 {
     const char *args = qdict_get_str(qdict, "args");
     const char *id;
@@ -124,23 +124,23 @@ end:
     qapi_free_ChardevReturn(ret);
     qapi_free_ChardevBackend(backend);
     qemu_opts_del(opts);
-    hmp_handle_error(mon, err);
+    hmp_handle_error(hmp, err);
 }
 
-void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
+void hmp_chardev_remove(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *local_err = NULL;
 
     qmp_chardev_remove(qdict_get_str(qdict, "id"), &local_err);
-    hmp_handle_error(mon, local_err);
+    hmp_handle_error(hmp, local_err);
 }
 
-void hmp_chardev_send_break(Monitor *mon, const QDict *qdict)
+void hmp_chardev_send_break(MonitorHMP *hmp, const QDict *qdict)
 {
     Error *local_err = NULL;
 
     qmp_chardev_send_break(qdict_get_str(qdict, "id"), &local_err);
-    hmp_handle_error(mon, local_err);
+    hmp_handle_error(hmp, local_err);
 }
 
 void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str)

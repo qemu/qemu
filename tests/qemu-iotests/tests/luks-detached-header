@@ -313,4 +313,5 @@ class TestDetachedLUKSHeader(QMPTestCase):
 
 if __name__ == "__main__":
     # Test image creation and I/O
-    iotests.main(supported_fmts=["luks"], supported_protocols=["file"])
+    iotests.main(supported_fmts=["luks"], supported_protocols=["file"],
+                 require_hmp=True)

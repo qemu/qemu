@@ -32,6 +32,7 @@
 #define STATTR_FLAG_ERROR   0x04ULL
 #define STATTR_FLAG_DONE    0x08ULL
 
+#ifdef CONFIG_HMP
 static S390StAttribState *s390_get_stattrib_device(void)
 {
     S390StAttribState *sas;
@@ -40,6 +41,7 @@ static S390StAttribState *s390_get_stattrib_device(void)
     assert(sas);
     return sas;
 }
+#endif
 
 void s390_stattrib_init(void)
 {
@@ -59,7 +61,8 @@ void s390_stattrib_init(void)
 
 /* Console commands: */
 
-void hmp_migrationmode(Monitor *mon, const QDict *qdict)
+#ifdef CONFIG_HMP
+void hmp_migrationmode(MonitorHMP *hmp, const QDict *qdict)
 {
     S390StAttribState *sas = s390_get_stattrib_device();
     S390StAttribClass *sac = S390_STATTRIB_GET_CLASS(sas);
@@ -69,12 +72,12 @@ void hmp_migrationmode(Monitor *mon, const QDict *qdict)
 
     r = sac->set_migrationmode(sas, what, &local_err);
     if (r < 0) {
-        monitor_printf(mon, "Error: %s", error_get_pretty(local_err));
+        monitor_hmp_printf(hmp, "Error: %s", error_get_pretty(local_err));
         error_free(local_err);
     }
 }
 
-void hmp_info_cmma(Monitor *mon, const QDict *qdict)
+void hmp_info_cmma(MonitorHMP *hmp, const QDict *qdict)
 {
     S390StAttribState *sas = s390_get_stattrib_device();
     S390StAttribClass *sac = S390_STATTRIB_GET_CLASS(sas);
@@ -85,31 +88,32 @@ void hmp_info_cmma(Monitor *mon, const QDict *qdict)
 
     vals = g_try_malloc(buflen);
     if (!vals) {
-        monitor_printf(mon, "Error: %s\n", strerror(errno));
+        monitor_hmp_printf(hmp, "Error: %s\n", strerror(errno));
         return;
     }
 
     len = sac->peek_stattr(sas, addr / TARGET_PAGE_SIZE, buflen, vals);
     if (len < 0) {
-        monitor_printf(mon, "Error: %s", strerror(-len));
+        monitor_hmp_printf(hmp, "Error: %s", strerror(-len));
         goto out;
     }
 
-    monitor_printf(mon, "  CMMA attributes, "
-                   "pages %" PRIu64 "+%d (0x%" PRIx64 "):\n",
-                   addr / TARGET_PAGE_SIZE, len, addr & ~TARGET_PAGE_MASK);
+    monitor_hmp_printf(hmp, "  CMMA attributes, "
+                       "pages %" PRIu64 "+%d (0x%" PRIx64 "):\n",
+                       addr / TARGET_PAGE_SIZE, len, addr & ~TARGET_PAGE_MASK);
     for (cx = 0; cx < len; cx++) {
         if (cx % 8 == 7) {
-            monitor_printf(mon, "%02x\n", vals[cx]);
+            monitor_hmp_printf(hmp, "%02x\n", vals[cx]);
         } else {
-            monitor_printf(mon, "%02x", vals[cx]);
+            monitor_hmp_printf(hmp, "%02x", vals[cx]);
         }
     }
-    monitor_printf(mon, "\n");
+    monitor_hmp_printf(hmp, "\n");
 
 out:
     g_free(vals);
 }
+#endif
 
 /* Migration support: */
 
