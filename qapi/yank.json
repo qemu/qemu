@@ -73,9 +73,8 @@
 
 ##
 # @yank:
-#
-# Try to recover from hanging QEMU by yanking the specified instances.
-# See `YankInstance` for more information.
+#     Try to recover from hanging QEMU by yanking the specified
+#     instances.  See `YankInstance` for more information.
 #
 # @instances: the instances to be yanked
 #
