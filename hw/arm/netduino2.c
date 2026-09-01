@@ -66,4 +66,4 @@ static void netduino2_machine_init(MachineClass *mc)
     mc->ignore_memory_transaction_failures = true;
 }
 
-DEFINE_MACHINE_ARM("netduino2", netduino2_machine_init)
+DEFINE_MACHINE("netduino2", netduino2_machine_init)

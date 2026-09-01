@@ -66,4 +66,4 @@ static void netduinoplus2_machine_init(MachineClass *mc)
     mc->valid_cpu_types = valid_cpu_types;
 }
 
-DEFINE_MACHINE_ARM("netduinoplus2", netduinoplus2_machine_init)
+DEFINE_MACHINE("netduinoplus2", netduinoplus2_machine_init)
