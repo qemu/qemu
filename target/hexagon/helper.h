@@ -113,6 +113,10 @@ DEF_HELPER_FLAGS_4(gvec_sabsdiff_w, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(gvec_uabsdiff_b, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 DEF_HELPER_FLAGS_4(gvec_uabsdiff_h, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, i32)
 
+#if defined(CONFIG_USER_ONLY)
+DEF_HELPER_FLAGS_0(utimer, TCG_CALL_NO_RWG, i64)
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_3(raise_stack_overflow, void, env, i32, i32)
 DEF_HELPER_2(swi, void, env, i32)

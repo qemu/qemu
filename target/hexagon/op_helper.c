@@ -37,6 +37,9 @@
 #include "cpu_helper.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "translate.h"
+#ifdef CONFIG_USER_ONLY
+#include "qemu/timer.h"
+#endif
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hex_mmu.h"
@@ -44,6 +47,22 @@
 #include "hw/intc/hex-l2vic.h"
 #include "hex_interrupts.h"
 #include "hexswi.h"
+#endif
+
+#ifdef CONFIG_USER_ONLY
+/*
+ * User mode has no qtimer device backing TIMERLO/TIMERHI, so derive the
+ * user timer from the host monotonic clock at the qtimer's default 19.2MHz
+ * tick rate, masked to the qtimer's counter width.
+ */
+#define HEX_UTIMER_FREQ_HZ  19200000ULL
+#define HEX_UTIMER_CNT_MASK 0x00ffffffffffffffULL
+
+uint64_t HELPER(utimer)(void)
+{
+    return muldiv64(get_clock(), HEX_UTIMER_FREQ_HZ, NANOSECONDS_PER_SECOND) &
+           HEX_UTIMER_CNT_MASK;
+}
 #endif
 
 #define SF_BIAS        127
