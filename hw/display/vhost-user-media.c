@@ -19,6 +19,7 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/vhost-user-media.h"
+#include "migration/blocker.h"
 
 static const int feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -259,8 +260,9 @@ static void vu_media_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserMEDIA *media = VHOST_USER_MEDIA(dev);
+    uint64_t memory_sizes[VIRTIO_MAX_SHMEM_REGIONS];
     struct vhost_virtqueue *vhost_vqs;
-    int ret;
+    int ret, nregions;
 
     if (!media->conf.chardev.chr) {
         error_setg(errp, "vhost-user-media: chardev is mandatory");
@@ -290,9 +292,47 @@ static void vu_media_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    ret = media->vhost_dev.vhost_ops->vhost_get_shmem_config(&media->vhost_dev,
+                                                             &nregions,
+                                                             memory_sizes,
+                                                             errp);
+    if (ret < 0) {
+        goto q_fail;
+    }
+
+    if (!nregions || !memory_sizes[0]) {
+        error_setg(errp, "vhost-user-media: backend did not provide "
+                         "shared memory region 0");
+        goto q_fail;
+    }
+
+    if (memory_sizes[0] % qemu_real_host_page_size() != 0) {
+        error_setg(errp, "shared memory region 0 size must be a multiple "
+                         "of the host page size");
+        goto q_fail;
+    }
+
+    if (media->vhost_dev.migration_blocker == NULL) {
+        error_setg(&media->vhost_dev.migration_blocker,
+                   "Migration disabled: devices with VIRTIO Shared Memory "
+                   "Regions do not support migration yet.");
+        ret = migrate_add_blocker_normal(&media->vhost_dev.migration_blocker,
+                                         errp);
+        if (ret < 0) {
+            goto q_fail;
+        }
+    }
+
+    virtio_new_shmem_region(vdev, 0, memory_sizes[0]);
+
     qemu_chr_fe_set_handlers(&media->conf.chardev, NULL,
                              NULL, vu_media_event,
                              NULL, (void *)dev, NULL, true);
+    return;
+
+q_fail:
+    vhost_dev_cleanup(&media->vhost_dev);
+    do_vhost_user_cleanup(vdev, media, vhost_vqs);
 }
 
 static void vu_media_device_unrealize(DeviceState *dev)
