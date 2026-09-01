@@ -97,7 +97,9 @@ bool is_gather_store_insn(DisasContext *ctx);
 #ifndef CONFIG_USER_ONLY
 static inline void ctx_log_greg_write(DisasContext *ctx, int rnum)
 {
-    assert(rnum <= HEX_GREG_G3);
+    if (rnum > HEX_GREG_G3) {
+        return;
+    }
     ctx->greg_log[ctx->greg_log_idx] = rnum;
     ctx->greg_log_idx++;
 }
