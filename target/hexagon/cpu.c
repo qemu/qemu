@@ -323,7 +323,8 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
         hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
     }
     if (pc & PCALIGN_MASK) {
-        hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
+        env->cause_code = HEX_CAUSE_PC_NOT_ALIGNED;
+        hexagon_raise_exception_err(env, HEX_EVENT_PRECISE, pc);
     }
 
 #ifndef CONFIG_USER_ONLY

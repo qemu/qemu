@@ -330,7 +330,7 @@ extern TCGv_i32 hex_t_sreg[NUM_SREGS];
 #endif
 
 
-void hex_gen_exception_end_tb(DisasContext *ctx, int excp);
+void hex_gen_exception_end_tb(DisasContext *ctx, int cause);
 
 void process_store(DisasContext *ctx, int slot_num);
 

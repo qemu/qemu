@@ -73,8 +73,8 @@ TCGv hex_vstore_pending[VSTORES_MAX];
 #ifndef CONFIG_USER_ONLY
 TCGv_i32 hex_greg[NUM_GREGS];
 TCGv_i32 hex_t_sreg[NUM_SREGS];
-TCGv_i32 hex_cause_code;
 #endif
+static TCGv_i32 hex_cause_code;
 
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
@@ -128,19 +128,14 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
-static void gen_exception(int excp, uint32_t PC)
+static void gen_precise_exception(int cause, uint32_t PC)
 {
-    gen_helper_raise_exception(tcg_env, tcg_constant_i32(excp),
+    tcg_gen_movi_i32(hex_cause_code, cause);
+    gen_helper_raise_exception(tcg_env, tcg_constant_i32(HEX_EVENT_PRECISE),
                                tcg_constant_i32(PC));
 }
 
 #ifndef CONFIG_USER_ONLY
-static inline void gen_precise_exception(int excp, uint32_t PC)
-{
-    tcg_gen_movi_i32(hex_cause_code, excp);
-    gen_exception(HEX_EVENT_PRECISE, PC);
-}
-
 static void gen_pcycle_counters(DisasContext *ctx)
 {
     if (ctx->pcycle_enabled) {
@@ -230,14 +225,10 @@ static void gen_end_tb(DisasContext *ctx)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-void hex_gen_exception_end_tb(DisasContext *ctx, int excp)
+void hex_gen_exception_end_tb(DisasContext *ctx, int cause)
 {
     gen_exec_counters(ctx);
-#ifdef CONFIG_USER_ONLY
-    gen_exception(excp, ctx->pkt.pc);
-#else
-    gen_precise_exception(excp, ctx->pkt.pc);
-#endif
+    gen_precise_exception(cause, ctx->pkt.pc);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -245,13 +236,13 @@ void hex_gen_exception_end_tb(DisasContext *ctx, int excp)
  * Generate exception for decode failures. Unlike gen_exception_end_tb,
  * this is used when decode fails before ctx->next_PC is initialized.
  */
-static void gen_exception_decode_fail(DisasContext *ctx, int nwords, int excp)
+static void gen_exception_decode_fail(DisasContext *ctx, int nwords, int cause)
 {
     target_ulong fail_pc = ctx->base.pc_next + nwords * sizeof(uint32_t);
 
     gen_exec_counters(ctx);
     tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], fail_pc);
-    gen_exception(excp, fail_pc);
+    gen_precise_exception(cause, fail_pc);
     ctx->base.is_jmp = DISAS_NORETURN;
     ctx->base.pc_next = fail_pc;
 }
@@ -1366,9 +1357,9 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, llsc_val), "llsc_val");
     hex_llsc_val_i64 = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, llsc_val_i64), "llsc_val_i64");
-#ifndef CONFIG_USER_ONLY
     hex_cause_code = tcg_global_mem_new_i32(tcg_env,
         offsetof(CPUHexagonState, cause_code), "cause_code");
+#ifndef CONFIG_USER_ONLY
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
 #endif
