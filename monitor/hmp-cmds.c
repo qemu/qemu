@@ -40,6 +40,7 @@
 #include "system/hw_accel.h"
 #include "system/memory.h"
 #include "system/system.h"
+#include "system/tcg.h"
 #include "disas/disas.h"
 
 /* Please update hmp-commands.hx when adding or changing commands */
@@ -340,6 +341,12 @@ void hmp_log(MonitorHMP *hmp, const QDict *qdict)
 
     if (!qemu_set_log(mask, &err)) {
         error_report_err(err);
+        return;
+    }
+
+    /* CPU_LOG_TB_NOCHAIN feeds into the per-CPU cflags. */
+    if (tcg_enabled()) {
+        tcg_update_all_cflags();
     }
 }
 
