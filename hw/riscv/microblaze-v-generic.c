@@ -187,4 +187,4 @@ static void mb_v_generic_machine_init(MachineClass *mc)
     mc->default_cpus = 1;
 }
 
-DEFINE_MACHINE_RISCV32_64("amd-microblaze-v-generic", mb_v_generic_machine_init)
+DEFINE_MACHINE("amd-microblaze-v-generic", mb_v_generic_machine_init)
