@@ -761,6 +761,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
 {
     CPUHexagonState *env = cpu_env(cs);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
     uint32_t ssr;
 
     BQL_LOCK_GUARD();
@@ -775,7 +776,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     ssr = env->t_sreg[HEX_SREG_SSR];
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
-        HexagonCPU *cpu = env_archcpu(env);
         if (cpu->globalregs) {
             hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
                                     env->cause_code, env->threadId);
@@ -934,8 +934,39 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_IMPRECISE:
-        qemu_log_mask(LOG_UNIMP,
-                "Imprecise exception: this case is not yet handled");
+        if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
+            env->gpr[HEX_REG_PC] = env->wait_next_pc - 4;
+            clear_wait_mode(env);
+        }
+        switch (env->cause_code) {
+        case HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH:
+            hexagon_ssr_set_cause(env, env->cause_code);
+            set_addresses(env, 4, cs->exception_index);
+            if (cpu->globalregs) {
+                hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
+                    (0x4 << 4) | (env->t_sreg[HEX_SREG_HTID] & 0xF),
+                    env->threadId);
+            }
+            break;
+
+        case HEX_CAUSE_IMPRECISE_NMI:
+            hexagon_ssr_set_cause(env, env->cause_code);
+            set_addresses(env, 4, cs->exception_index);
+            if (cpu->globalregs) {
+                hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
+                    (0x3 << 4) | (env->t_sreg[HEX_SREG_HTID] & 0xF),
+                    env->threadId);
+            }
+            break;
+
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "Imprecise exception with unhandled cause 0x%x\n",
+                    env->cause_code);
+            hexagon_ssr_set_cause(env, env->cause_code);
+            set_addresses(env, 4, cs->exception_index);
+            break;
+        }
         break;
 
     default:

@@ -65,6 +65,7 @@ TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
 #ifndef CONFIG_USER_ONLY
 TCGv_i64 hex_cycle_count;
+TCGv hex_imprecise_exception;
 #endif
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
@@ -1056,6 +1057,28 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_cycles += PCYCLES_PER_PACKET;
 }
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * A tlbp instruction may detect multiple TLB matches and set a pending
+ * imprecise exception.  Raise it after the packet that ran the tlbp.
+ */
+static void check_imprecise_exception(Packet *pkt)
+{
+    for (int i = 0; i < pkt->num_insns; i++) {
+        if (pkt->insn[i].opcode == Y2_tlbp) {
+            TCGv PC = tcg_constant_tl(pkt->pc);
+            TCGLabel *label = gen_new_label();
+            tcg_gen_brcondi_tl(TCG_COND_EQ, hex_imprecise_exception,
+                               0, label);
+            gen_helper_raise_exception(tcg_env,
+                                       hex_imprecise_exception, PC);
+            gen_set_label(label);
+            return;
+        }
+    }
+}
+#endif
+
 static void gen_commit_packet(DisasContext *ctx)
 {
     /*
@@ -1154,6 +1177,10 @@ static void gen_commit_packet(DisasContext *ctx)
         ctx->insn = ctx->pkt.vhist_insn;
         ctx->pkt.vhist_insn->generate(ctx);
     }
+
+#ifndef CONFIG_USER_ONLY
+    check_imprecise_exception(&ctx->pkt);
+#endif
 
     if (ctx->pkt_ends_tb || ctx->base.is_jmp == DISAS_NORETURN) {
         gen_end_tb(ctx);
@@ -1362,6 +1389,8 @@ void hexagon_translate_init(void)
 #ifndef CONFIG_USER_ONLY
     hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
         offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
+    hex_imprecise_exception = tcg_global_mem_new(tcg_env,
+        offsetof(CPUHexagonState, imprecise_exception), "imprecise_exception");
 #endif
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);

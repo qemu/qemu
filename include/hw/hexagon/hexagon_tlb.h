@@ -32,7 +32,8 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint32_t asid,
                             int32_t *excp, int *cause_code, int mmu_idx);
 
 uint32_t hexagon_tlb_lookup(HexagonTLBState *tlb, uint32_t asid,
-                            uint32_t VA, int *cause_code);
+                            uint32_t VA, uint32_t *imprecise_exception,
+                            int *cause_code);
 
 int hexagon_tlb_check_overlap(HexagonTLBState *tlb, uint64_t entry,
                               uint64_t index);

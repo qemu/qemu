@@ -10,8 +10,8 @@
 
 const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32_ARRAY(env.gpr, HexagonCPU, TOTAL_PER_THREAD_REGS),
         VMSTATE_UINT32_ARRAY(env.pred, HexagonCPU, NUM_PREGS),
@@ -26,6 +26,7 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.cause_code, HexagonCPU),
         VMSTATE_UINT32(env.wait_next_pc, HexagonCPU),
         VMSTATE_UINT64(env.t_cycle_count, HexagonCPU),
+        VMSTATE_UINT32(env.imprecise_exception, HexagonCPU),
 
         VMSTATE_END_OF_LIST()
     },

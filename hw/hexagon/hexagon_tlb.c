@@ -319,15 +319,18 @@ bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint32_t asid,
 }
 
 uint32_t hexagon_tlb_lookup(HexagonTLBState *tlb, uint32_t asid,
-                            uint32_t VA, int *cause_code)
+                            uint32_t VA, uint32_t *imprecise_exception,
+                            int *cause_code)
 {
     uint32_t not_found = 0x80000000;
     uint32_t idx = not_found;
 
+    *imprecise_exception = 0;
     for (uint32_t i = 0; i < tlb->num_entries; i++) {
         uint64_t entry = tlb->entries[i];
         if (hex_tlb_entry_match_noperm(entry, asid, VA)) {
             if (idx != not_found) {
+                *imprecise_exception = HEX_EVENT_IMPRECISE;
                 *cause_code = HEX_CAUSE_IMPRECISE_MULTI_TLB_MATCH;
                 break;
             }
