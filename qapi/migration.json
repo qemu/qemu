@@ -333,9 +333,9 @@
 
 ##
 # @query-migrate:
-#
-# Return information about current migration process.  If migration is
-# active there will be another json-object with RAM migration status.
+#     Return information about current migration process.  If
+#     migration is active there will be another json-object with RAM
+#     migration status.
 #
 # Since: 0.14
 #
@@ -825,8 +825,7 @@
 
 ##
 # @migrate-set-parameters:
-#
-# Set migration parameters.  All arguments are optional.
+#     Set migration parameters.  All arguments are optional.
 #
 # Since: 2.4
 #
@@ -1060,11 +1059,10 @@
 
 ##
 # @query-migrate-parameters:
-#
-# Return information about the current migration parameters.  Optional
-# members of the return value are always present, except
-# @block-bitmap-mapping, which is only present if it has been
-# previously set.
+#     Return information about the current migration parameters.
+#     Optional members of the return value are always present, except
+#     @block-bitmap-mapping, which is only present if it has been
+#     previously set.
 #
 # Since: 2.4
 #
@@ -1085,10 +1083,9 @@
 
 ##
 # @migrate-start-postcopy:
-#
-# Followup to a migration command to switch the migration to postcopy
-# mode.  The postcopy-ram capability must be set on both source and
-# destination before the original migration command.
+#     Followup to a migration command to switch the migration to
+#     postcopy mode.  The postcopy-ram capability must be set on both
+#     source and destination before the original migration command.
 #
 # Since: 2.5
 #
@@ -1235,12 +1232,11 @@
 
 ##
 # @x-colo-lost-heartbeat:
-#
-# Tell QEMU that heartbeat is lost, request it to do takeover
-# procedures.  If this command is sent to the PVM, the Primary side
-# will exit COLO mode.  If sent to the Secondary, the Secondary side
-# will run failover work, then takes over server operation to become
-# the service VM.
+#     Tell QEMU that heartbeat is lost, request it to do takeover
+#     procedures.  If this command is sent to the PVM, the Primary
+#     side will exit COLO mode.  If sent to the Secondary, the
+#     Secondary side will run failover work, then takes over server
+#     operation to become the service VM.
 #
 # Features:
 #
@@ -1455,9 +1451,8 @@
 
 ##
 # @migrate-incoming:
-#
-# Start an incoming migration.  QEMU must have been started with
-# -incoming defer.
+#     Start an incoming migration.  QEMU must have been started with
+#     -incoming defer.
 #
 # @uri: The Uniform Resource Identifier identifying the source or
 #     address to listen on
@@ -1527,9 +1522,8 @@
 
 ##
 # @xen-save-devices-state:
-#
-# Save the state of all devices to file.  The RAM and the block
-# devices of the VM are not saved by this command.
+#     Save the state of all devices to file.  The RAM and the block
+#     devices of the VM are not saved by this command.
 #
 # @filename: the file to save the state of the devices to as binary
 #     data.  See `xen-save-devices-state`.txt for a description of the
@@ -1567,9 +1561,8 @@
 
 ##
 # @xen-load-devices-state:
-#
-# Load the state of all devices from file.  The RAM and the block
-# devices of the VM are not loaded by this command.
+#     Load the state of all devices from file.  The RAM and the block
+#     devices of the VM are not loaded by this command.
 #
 # @filename: the file to load the state of the devices from as binary
 #     data.  See `xen-save-devices-state`.txt for a description of the
