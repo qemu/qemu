@@ -369,11 +369,10 @@
 
 ##
 # @system_wakeup:
-#
-# Wake up guest from suspend.  If the guest has wake-up from suspend
-# support enabled (wakeup-suspend-support flag from
-# `query-current-machine`), wake-up guest from suspend if the guest is
-# in SUSPENDED state.  Return an error otherwise.
+#     Wake up guest from suspend.  If the guest has wake-up from
+#     suspend support enabled (wakeup-suspend-support flag from
+#     `query-current-machine`), wake-up guest from suspend if the
+#     guest is in SUSPENDED state.  Return an error otherwise.
 #
 # Since: 1.1
 #
@@ -421,11 +420,10 @@
 
 ##
 # @inject-nmi:
-#
-# Injects a Non-Maskable Interrupt (machine specific: for example on
-# s390x CCW only the first vCPU receives the NMI, but on x86 machines
-# all vCPUs receive it).  The command fails when the guest doesn't
-# support injecting.
+#     Injects a Non-Maskable Interrupt (machine specific: for example
+#     on s390x CCW only the first vCPU receives the NMI, but on x86
+#     machines all vCPUs receive it).  The command fails when the
+#     guest doesn't support injecting.
 #
 # Since: 0.14
 #
