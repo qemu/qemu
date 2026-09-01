@@ -609,7 +609,6 @@ static const TypeInfo tt_atlantis_types[] = {
         .parent     = TYPE_MACHINE,
         .class_init = tt_atlantis_machine_class_init,
         .instance_size = sizeof(TTAtlantisState),
-        .interfaces = riscv64_machine_interfaces,
     },
 };
 
