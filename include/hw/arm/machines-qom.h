@@ -11,12 +11,6 @@
 
 #include "hw/core/boards.h"
 
-#define TYPE_TARGET_ARM_MACHINE \
-        "target-info-arm-machine"
-
-#define TYPE_TARGET_AARCH64_MACHINE \
-        "target-info-aarch64-machine"
-
 /*
  * A machine filtered with arm_machine_interfaces[] or
  * arm_aarch64_machine_interfaces[] will be available
