@@ -9,7 +9,6 @@
 #include "qemu/osdep.h"
 #include "qemu/target-info-impl.h"
 #include "qemu/target-info-init.h"
-#include "hw/riscv/machines-qom.h"
 #include "target/riscv/cpu-qom.h"
 #include "target/riscv/cpu-param.h"
 

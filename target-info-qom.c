@@ -12,7 +12,6 @@
 #include "qemu/target-info-impl.h"
 #include "qemu/target-info-init.h"
 #include "qemu/target-info-qom.h"
-#include "hw/riscv/machines-qom.h"
 
 static void target_info_qom_class_init(ObjectClass *oc, const void * data)
 {
