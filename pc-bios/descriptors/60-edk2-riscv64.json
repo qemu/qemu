@@ -6,11 +6,11 @@
     "mapping": {
         "device": "flash",
         "executable": {
-            "filename": "@DATADIR@/edk2-riscv-code.fd",
+            "filename": "@DATADIR@/edk2-riscv64-code.fd",
             "format": "raw"
         },
         "nvram-template": {
-            "filename": "@DATADIR@/edk2-riscv-vars.fd",
+            "filename": "@DATADIR@/edk2-riscv64-vars.fd",
             "format": "raw"
         }
     },

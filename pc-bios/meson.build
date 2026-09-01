@@ -2,13 +2,9 @@ roms = []
 if unpack_edk2_blobs
   fds = [
     'edk2-aarch64-code.fd',
-    'edk2-arm-code.fd',
-    'edk2-arm-vars.fd',
-    'edk2-riscv-code.fd',
-    'edk2-riscv-vars.fd',
-    'edk2-i386-code.fd',
-    'edk2-i386-secure-code.fd',
-    'edk2-i386-vars.fd',
+    'edk2-aarch64-vars.fd',
+    'edk2-riscv64-code.fd',
+    'edk2-riscv64-vars.fd',
     'edk2-x86_64-code.fd',
     'edk2-x86_64-secure-code.fd',
     'edk2-loongarch64-code.fd',
