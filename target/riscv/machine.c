@@ -582,17 +582,13 @@ const VMStateDescription vmstate_riscv_cpu = {
 };
 
 const InterfaceInfo riscv32_machine_interfaces[] = {
-    { TYPE_TARGET_RISCV32_MACHINE },
     { }
 };
 
 const InterfaceInfo riscv64_machine_interfaces[] = {
-    { TYPE_TARGET_RISCV64_MACHINE },
     { }
 };
 
 const InterfaceInfo riscv32_64_machine_interfaces[] = {
-    { TYPE_TARGET_RISCV32_MACHINE },
-    { TYPE_TARGET_RISCV64_MACHINE },
     { }
 };

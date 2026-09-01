@@ -56,7 +56,4 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->no_cdrom = 1;
 }
 
-DEFINE_MACHINE_WITH_INTERFACES("none", machine_none_machine_init,
-                               { TYPE_TARGET_RISCV32_MACHINE },
-                               { TYPE_TARGET_RISCV64_MACHINE },
-                               { })
+DEFINE_MACHINE("none", machine_none_machine_init)

@@ -1811,8 +1811,6 @@ static const TypeInfo virt_machine_typeinfo = {
     .instance_size = sizeof(RISCVVirtState),
     .interfaces = (const InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
-         { TYPE_TARGET_RISCV32_MACHINE },
-         { TYPE_TARGET_RISCV64_MACHINE },
          { }
     },
 };
