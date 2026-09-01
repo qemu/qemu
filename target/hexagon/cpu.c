@@ -475,6 +475,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "hexagon cpu requires 'tlb' link property to be set");
         return;
     }
+    if (!HEXAGON_CPU(dev)->l2vic) {
+        error_setg(errp,
+                   "hexagon cpu requires 'l2vic' link property to be set");
+        return;
+    }
 #endif
 
     qemu_init_vcpu(cs);
