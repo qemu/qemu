@@ -470,6 +470,18 @@ static void *gdbserver_accept_thread(void *arg)
 
 #define USAGE "\nUsage: -g {port|path}[,suspend={y|n}]"
 
+/*
+ * Set before the guest runs and never cleared, so that code translated at
+ * any point can rely on it: with suspend=n gdb may connect long after
+ * startup, and once connected it can insert a breakpoint at any time.
+ */
+static bool gdbserver_requested;
+
+bool gdb_may_set_breakpoints(void)
+{
+    return gdbserver_requested;
+}
+
 bool gdbserver_start(const char *args, Error **errp)
 {
     g_auto(GStrv) argv = g_strsplit(args, ",", 0);
@@ -512,6 +524,8 @@ bool gdbserver_start(const char *args, Error **errp)
     if (gdb_fd < 0) {
         return false;
     }
+
+    gdbserver_requested = true;
 
     if (suspend) {
         if (gdbserver_accept(port, gdb_fd, port_or_path)) {
