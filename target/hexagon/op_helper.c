@@ -1912,13 +1912,8 @@ uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
         return (uint64_t)(env->greg[reg]) |
                (((uint64_t)(env->greg[reg + 1])) << 32);
     }
-    switch (reg) {
-    case HEX_GREG_GPCYCLELO:
-        return hexagon_get_sys_pcycle_count(env);
-    default:
-        return (uint64_t)hexagon_greg_read(env, reg) |
-               ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
-    }
+    return (uint64_t)hexagon_greg_read(env, reg) |
+           ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
 }
 
 /*

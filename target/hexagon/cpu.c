@@ -809,14 +809,17 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 #ifndef CONFIG_USER_ONLY
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
 {
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+    int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
+
     if (reg <= HEX_GREG_G3) {
         return env->greg[reg];
     }
     switch (reg) {
     case HEX_GREG_GPCYCLELO:
-        return hexagon_get_sys_pcycle_count_low(env);
+        return ssr_ce ? hexagon_get_sys_pcycle_count_low(env) : 0;
     case HEX_GREG_GPCYCLEHI:
-        return hexagon_get_sys_pcycle_count_high(env);
+        return ssr_ce ? hexagon_get_sys_pcycle_count_high(env) : 0;
     default:
         qemu_log_mask(LOG_UNIMP, "reading greg %" PRId32
                 " not yet supported.\n", reg);
