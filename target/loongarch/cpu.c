@@ -75,12 +75,25 @@ void loongarch_cpu_update_irq(LoongArchCPU *cpu, uint64_t old)
     }
 }
 
+static void loongarch_cpu_self_set_irq(CPUState *cs, run_on_cpu_data data)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    CPULoongArchState *env = cpu_env(cs);
+    CPUSysState *sys = env_sys(env);
+    int irq, level;
+    uint64_t old;
+
+    irq = data.host_int & ~BIT(31);
+    level = (data.host_int >> 31) & 1;
+    old = sys->CSR_ESTAT;
+    sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
+    loongarch_cpu_update_irq(cpu, old);
+}
+
 void loongarch_cpu_set_irq(void *opaque, int irq, int level)
 {
     LoongArchCPU *cpu = opaque;
-    CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys = env_sys(env);
-    uint64_t old;
+    CPUState *cs = CPU(cpu);
 
     if (irq < 0 || irq >= N_IRQS) {
         return;
@@ -89,9 +102,9 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
-        old = sys->CSR_ESTAT;
-        sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
-        loongarch_cpu_update_irq(cpu, old);
+        irq |= (level & 1) << 31;
+        async_run_on_cpu(cs, loongarch_cpu_self_set_irq,
+                         RUN_ON_CPU_HOST_INT(irq));
     }
 }
 
