@@ -18,7 +18,6 @@ static const TargetInfo target_info_arm_system = {
     .target_arch = SYS_EMU_TARGET_ARM,
     .long_bits = 32,
     .cpu_type = TYPE_ARM_CPU,
-    .machine_typename = TYPE_TARGET_ARM_MACHINE,
     .endianness = ENDIAN_MODE_LITTLE,
     .page_bits_vary = true,
     .page_bits_init = TARGET_PAGE_BITS_LEGACY,

@@ -18,7 +18,6 @@ static const TargetInfo target_info_riscv32_system = {
     .target_arch = SYS_EMU_TARGET_RISCV32,
     .long_bits = 32,
     .cpu_type = TYPE_RISCV_CPU,
-    .machine_typename = TYPE_TARGET_RISCV32_MACHINE,
     .endianness = ENDIAN_MODE_LITTLE,
     .page_bits_init = TARGET_PAGE_BITS,
 };
