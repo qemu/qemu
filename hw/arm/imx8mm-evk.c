@@ -136,4 +136,4 @@ static void imx8mm_evk_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE_EXTENDED("imx8mm-evk", MACHINE, Imx8mmEvkMachineState,
                         imx8mm_evk_machine_init, false,
-                        aarch64_machine_interfaces)
+                        NULL)

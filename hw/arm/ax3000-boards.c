@@ -48,7 +48,6 @@ static const TypeInfo ax3000_machine_types[] = {
         .instance_size = sizeof(Ax3000MachineState),
         .class_size    = sizeof(Ax3000MachineClass),
         .class_init    = ax3000_machine_class_init,
-        .interfaces    = aarch64_machine_interfaces,
         .abstract      = true,
     }
 };

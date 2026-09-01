@@ -236,7 +236,6 @@ static const TypeInfo ast2700fc_types[] = {
         .class_init     = ast2700fc_class_init,
         .instance_size  = sizeof(Ast2700FCState),
         .is_available   = target_aarch64,
-        .interfaces     = aarch64_machine_interfaces,
     },
 };
 

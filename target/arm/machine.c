@@ -1346,15 +1346,3 @@ const VMStateDescription vmstate_arm_cpu = {
         NULL
     }
 };
-
-const InterfaceInfo arm_machine_interfaces[] = {
-    { }
-};
-
-const InterfaceInfo arm_aarch64_machine_interfaces[] = {
-    { }
-};
-
-const InterfaceInfo aarch64_machine_interfaces[] = {
-    { }
-};

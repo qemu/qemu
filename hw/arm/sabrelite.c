@@ -152,7 +152,6 @@ static const TypeInfo sabrelite_machine_init_typeinfo = {
     .instance_init = sabrelite_machine_instance_init,
     .instance_size = sizeof(SabreliteMachineState),
     .abstract      = false,
-    .interfaces    = arm_machine_interfaces,
 };
 
 static void sabrelite_machine_init_register_types(void)

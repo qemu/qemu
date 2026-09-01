@@ -77,14 +77,12 @@ static const TypeInfo aspeed_ast27x0_evb_types[] = {
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2700a1_evb_class_init,
         .is_available  = target_aarch64,
-        .interfaces    = aarch64_machine_interfaces,
     },
     {
         .name          = MACHINE_TYPE_NAME("ast2700a2-evb"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_ast2700a2_evb_class_init,
         .is_available  = target_aarch64,
-        .interfaces    = aarch64_machine_interfaces,
     }
 };
 

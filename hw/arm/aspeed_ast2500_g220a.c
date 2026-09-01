@@ -85,7 +85,6 @@ static const TypeInfo aspeed_ast2500_g220a_types[] = {
         .name          = MACHINE_TYPE_NAME("g220a-bmc"),
         .parent        = TYPE_ASPEED_MACHINE,
         .class_init    = aspeed_machine_g220a_class_init,
-        .interfaces    = arm_machine_interfaces,
     }
 };
 
