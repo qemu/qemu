@@ -299,6 +299,8 @@ static void l2vic_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         set_bit32(irq, s->int_pending);
+    } else if (!test_bit32(irq, s->int_type)) {
+        clear_bit32(irq, s->int_pending);
     }
     l2vic_update(s, irq);
 }

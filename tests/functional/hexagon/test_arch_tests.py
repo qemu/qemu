@@ -21,8 +21,8 @@ class ArchTestsUart(QemuSystemTest):
 
     ASSET_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
-        "download/v0.2.5/arch_tests_uart.tar.gz",
-        "edb4f37b877a3a72a0e10920477458a43b40045d34398fee8cb763fefd342f4f",
+        "download/v0.2.12/arch_tests_uart.tar.gz",
+        "871a339bf78cac0ebaf1b2509bfcd5b249ad8190be33e0cf848283b2f6915323",
     )
 
     def run_uart_test(self, test_name: str,
@@ -58,6 +58,10 @@ class ArchTestsUart(QemuSystemTest):
         """
         self.run_uart_test("test_int_steering")
 
+    def test_interrupts(self) -> None:
+        """Tests interrupt delivery."""
+        self.run_uart_test("test_interrupts")
+
     def test_cache(self) -> None:
         """Tests cache operations: dckill/ickill, l2kill, dczeroa,
         dccleaninva, cache disable/enable, barriers, and dcinva/dccleana.
@@ -69,6 +73,10 @@ class ArchTestsUart(QemuSystemTest):
         interrupt type readback, VID capture, and the fast interface.
         """
         self.run_uart_test("test_l2vic")
+
+    def test_sys_regs(self) -> None:
+        """Tests system registers."""
+        self.run_uart_test("test_sys_regs")
 
     def test_threads(self) -> None:
         """Tests hardware thread management: start/stop, MODECTL state,

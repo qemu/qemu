@@ -54,4 +54,13 @@ void qemu_semihosting_console_block_until_ready(CPUState *cs);
  */
 bool qemu_semihosting_console_ready(void);
 
+/**
+ * qemu_semihosting_console_has_chardev:
+ *
+ * Return true if the semihosting console is backed by a chardev.
+ * When true, console I/O goes through the chardev rather than
+ * host stdio.
+ */
+bool qemu_semihosting_console_has_chardev(void);
+
 #endif /* SEMIHOST_CONSOLE_H */

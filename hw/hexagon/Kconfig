@@ -5,6 +5,7 @@ config HEX_DSP
     select CPU_CLUSTER
     select HEX_L2VIC
     select HEX_QTIMER
+    select ARM_COMPATIBLE_SEMIHOSTING
 
 config HEX_VIRT
     bool

@@ -26,6 +26,7 @@
 #include "target/hexagon/internal.h"
 #include "system/physmem.h"
 #include "system/reset.h"
+#include "semihosting/semihost.h"
 
 #include "machine_cfg_v66g_1024.h.inc"
 
@@ -124,6 +125,8 @@ static void hexagon_common_init(MachineState *machine, Rev_t rev,
         HexagonCPU *cpu = HEXAGON_CPU(object_new(machine->cpu_type));
         qemu_register_reset(do_cpu_reset, cpu);
 
+        qdev_prop_set_uint32(DEVICE(cpu), "htid", i);
+
         /*
          * CPU #0 is the only CPU running at boot, others must be
          * explicitly enabled via start instruction.
@@ -153,6 +156,7 @@ static void init_mc(MachineClass *mc)
     mc->no_serial = 1;
     mc->is_default = false;
     mc->max_cpus = 8;
+    qemu_semihosting_enable();
 }
 
 /* ----------------------------------------------------------------- */

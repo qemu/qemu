@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bswap.h"
 #include "disas/dis-asm.h"
 #include "target/hexagon/cpu_bits.h"
 
@@ -37,9 +38,9 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
     int i, len;
 
     for (i = 0; i < PACKET_WORDS_MAX && !found_end; i++) {
+        bfd_byte insn[sizeof(uint32_t)];
         int status = (*info->read_memory_func)(memaddr + i * sizeof(uint32_t),
-                                               (bfd_byte *)&words[i],
-                                               sizeof(uint32_t), info);
+                                               insn, sizeof(uint32_t), info);
         if (status) {
             if (i > 0) {
                 break;
@@ -47,6 +48,7 @@ int print_insn_hexagon(bfd_vma memaddr, struct disassemble_info *info)
             (*info->memory_error_func)(status, memaddr, info);
             return status;
         }
+        words[i] = ldl_le_p(insn);
         if (is_packet_end(words[i])) {
             found_end = true;
         }

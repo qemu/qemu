@@ -23,6 +23,9 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
+#include "exec/mmap-lock.h"
+#include "exec/target_page.h"
+#include "exec/translation-block.h"
 #include "fpu/softfloat.h"
 #include "exec/cpu-interrupt.h"
 #include "internal.h"
@@ -37,6 +40,9 @@
 #include "cpu_helper.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "translate.h"
+#ifdef CONFIG_USER_ONLY
+#include "qemu/timer.h"
+#endif
 #ifndef CONFIG_USER_ONLY
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hex_mmu.h"
@@ -44,6 +50,22 @@
 #include "hw/intc/hex-l2vic.h"
 #include "hex_interrupts.h"
 #include "hexswi.h"
+#endif
+
+#ifdef CONFIG_USER_ONLY
+/*
+ * User mode has no qtimer device backing TIMERLO/TIMERHI, so derive the
+ * user timer from the host monotonic clock at the qtimer's default 19.2MHz
+ * tick rate, masked to the qtimer's counter width.
+ */
+#define HEX_UTIMER_FREQ_HZ  19200000ULL
+#define HEX_UTIMER_CNT_MASK 0x00ffffffffffffffULL
+
+uint64_t HELPER(utimer)(void)
+{
+    return muldiv64(get_clock(), HEX_UTIMER_FREQ_HZ, NANOSECONDS_PER_SECOND) &
+           HEX_UTIMER_CNT_MASK;
+}
 #endif
 
 #define SF_BIAS        127
@@ -310,6 +332,18 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
     }
     return PeV;
 }
+
+#ifdef CONFIG_USER_ONLY
+void HELPER(insn_cache_op)(CPUHexagonState *env, target_ulong RsV,
+                           int slot, int mmu_idx, target_ulong PC)
+{
+    target_ulong start = RsV & ~31;
+
+    mmap_lock();
+    tb_invalidate_phys_range(env_cpu(env), start, start + 31);
+    mmap_unlock();
+}
+#endif
 
 int64_t HELPER(cabacdecbin_val)(int64_t RssV, int64_t RttV)
 {
@@ -1616,61 +1650,39 @@ void HELPER(cswi)(CPUHexagonState *env, uint32_t mask)
 
 void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
 {
-    uint32_t modectl;
-    uint32_t thread_enabled_mask;
     CPUState *cpu;
-    HexagonCPU *hex_cpu;
 
     BQL_LOCK_GUARD();
-    hex_cpu = env_archcpu(env);
-    modectl = hex_cpu->globalregs ?
-        hexagon_globalreg_read(hex_cpu->globalregs, HEX_SREG_MODECTL,
-                               env->threadId) : 0;
-    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
 
     CPU_FOREACH(cpu) {
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
-        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
-        if (thread_enabled_mask & thread_id_mask) {
-            uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
-            uint32_t intbitpos = (src >> 16) & 0xF;
-            uint32_t val = (src >> thread_env->threadId) & 0x1;
-            imask = deposit32(imask, intbitpos, 1, val);
-            thread_env->t_sreg[HEX_SREG_IMASK] = imask;
+        uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
+        uint32_t intbitpos = (src >> 16) & 0xF;
+        uint32_t val = (src >> thread_env->threadId) & 0x1;
+        imask = deposit32(imask, intbitpos, 1, val);
+        thread_env->t_sreg[HEX_SREG_IMASK] = imask;
 
-            qemu_log_mask(CPU_LOG_INT, "%s: thread " TARGET_FMT_ld
-               ", new imask 0x%" PRIx32 "\n", __func__,
-               thread_env->threadId, imask);
-        }
+        qemu_log_mask(CPU_LOG_INT, "%s: thread " TARGET_FMT_ld
+           ", new imask 0x%" PRIx32 "\n", __func__,
+           thread_env->threadId, imask);
     }
     hex_interrupt_update(env);
 }
 
 uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
 {
-    uint32_t modectl;
-    uint32_t thread_enabled_mask;
     uint32_t intbitpos;
     uint32_t dest_reg;
     CPUState *cpu;
-    HexagonCPU *hex_cpu;
 
     BQL_LOCK_GUARD();
-    hex_cpu = env_archcpu(env);
-    modectl = hex_cpu->globalregs ?
-        hexagon_globalreg_read(hex_cpu->globalregs, HEX_SREG_MODECTL,
-                               env->threadId) : 0;
-    thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     /* src fields are in same position as modectl, but mean different things */
     intbitpos = GET_FIELD(MODECTL_W, src);
     dest_reg = 0;
     CPU_FOREACH(cpu) {
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
-        uint32_t thread_id_mask = 0x1 << thread_env->threadId;
-        if (thread_enabled_mask & thread_id_mask) {
-            uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
-            dest_reg |= ((imask >> intbitpos) & 0x1) << thread_env->threadId;
-        }
+        uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
+        dest_reg |= ((imask >> intbitpos) & 0x1) << thread_env->threadId;
     }
 
     return dest_reg;
@@ -1912,13 +1924,8 @@ uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
         return (uint64_t)(env->greg[reg]) |
                (((uint64_t)(env->greg[reg + 1])) << 32);
     }
-    switch (reg) {
-    case HEX_GREG_GPCYCLELO:
-        return hexagon_get_sys_pcycle_count(env);
-    default:
-        return (uint64_t)hexagon_greg_read(env, reg) |
-               ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
-    }
+    return (uint64_t)hexagon_greg_read(env, reg) |
+           ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
 }
 
 /*

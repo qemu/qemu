@@ -235,7 +235,7 @@ void hexagon_debug_qreg(CPUHexagonState *env, int regnum)
     print_qreg(stdout, env, regnum, false);
 }
 
-static void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
+void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
 {
     HexagonCPU *cpu = env_archcpu(env);
 
@@ -323,7 +323,8 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
         hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
     }
     if (pc & PCALIGN_MASK) {
-        hexagon_raise_exception_err(env, HEX_CAUSE_PC_NOT_ALIGNED, 0);
+        env->cause_code = HEX_CAUSE_PC_NOT_ALIGNED;
+        hexagon_raise_exception_err(env, HEX_EVENT_PRECISE, pc);
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -472,6 +473,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 #ifndef CONFIG_USER_ONLY
     if (!HEXAGON_CPU(dev)->tlb) {
         error_setg(errp, "hexagon cpu requires 'tlb' link property to be set");
+        return;
+    }
+    if (!HEXAGON_CPU(dev)->l2vic) {
+        error_setg(errp,
+                   "hexagon cpu requires 'l2vic' link property to be set");
         return;
     }
 #endif
@@ -808,14 +814,17 @@ static void hexagon_cpu_class_init(ObjectClass *c, const void *data)
 #ifndef CONFIG_USER_ONLY
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
 {
+    uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+    int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
+
     if (reg <= HEX_GREG_G3) {
         return env->greg[reg];
     }
     switch (reg) {
     case HEX_GREG_GPCYCLELO:
-        return hexagon_get_sys_pcycle_count_low(env);
+        return ssr_ce ? hexagon_get_sys_pcycle_count_low(env) : 0;
     case HEX_GREG_GPCYCLEHI:
-        return hexagon_get_sys_pcycle_count_high(env);
+        return ssr_ce ? hexagon_get_sys_pcycle_count_high(env) : 0;
     default:
         qemu_log_mask(LOG_UNIMP, "reading greg %" PRId32
                 " not yet supported.\n", reg);

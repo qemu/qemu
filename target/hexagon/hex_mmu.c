@@ -86,9 +86,12 @@ uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA)
 {
     HexagonCPU *cpu = env_archcpu(env);
     uint8_t asid = GET_SSR_FIELD(SSR_ASID, ssr);
+    uint32_t imprecise_exception = 0;
     int cause_code = 0;
 
-    uint32_t result = hexagon_tlb_lookup(cpu->tlb, asid, VA, &cause_code);
+    uint32_t result = hexagon_tlb_lookup(cpu->tlb, asid, VA,
+                                         &imprecise_exception, &cause_code);
+    env->imprecise_exception = imprecise_exception;
     if (cause_code) {
         env->cause_code = cause_code;
     }
