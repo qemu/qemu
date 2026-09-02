@@ -66,6 +66,7 @@ class HotPlugBlk(LinuxKernelTest):
         self.set_machine('q35')
 
         self.vm.add_args('-accel', 'kvm')
+        self.vm.add_args("-nic", "none")  # avoid creating default nic
         self.vm.add_args('-device', 'pcie-pci-bridge,id=pci.1,bus=pcie.0')
         self.vm.add_args('-m', '1G')
         self.vm.add_args('-append', 'console=ttyS0 rd.rescue')
