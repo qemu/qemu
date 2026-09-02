@@ -38,10 +38,6 @@ config PCSPK
     default y
     depends on I8254
 
-config WM8750
-    bool
-    depends on I2C
-
 config PL041
     bool
 

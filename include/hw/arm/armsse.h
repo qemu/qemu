@@ -11,12 +11,16 @@
 
 /*
  * This is a model of the Arm "Subsystems for Embedded" family of
- * hardware, which include the IoT Kit and the SSE-050, SSE-100 and
- * SSE-200. Currently we model:
+ * hardware, which include the IoT Kit and the SSE-050, SSE-100,
+ * SSE-200, SSE-300, and SSE-310. Currently we model:
  *  - the Arm IoT Kit which is documented in
  *    https://developer.arm.com/documentation/ecm0601256/latest
  *  - the SSE-200 which is documented in
  *    https://developer.arm.com/documentation/101104/latest/
+ *  - the SSE-300 which is documented in
+ *    https://support.arm.com/documentation/101773/latest/
+ *  - the SSE-310 which is documented in
+ *    https://support.arm.com/documentation/102778/latest/
  *
  * The IoTKit contains:
  *  a Cortex-M33
@@ -127,6 +131,7 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
 #define TYPE_IOTKIT "iotkit"
 #define TYPE_SSE200 "sse-200"
 #define TYPE_SSE300 "sse-300"
+#define TYPE_SSE310 "sse-310"
 
 /* We have an IRQ splitter and an OR gate input for each external PPC
  * and the 2 internal PPCs

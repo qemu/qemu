@@ -11,16 +11,24 @@
 #include "libqtest.h"
 
 /*
- * To test the pflash_cfi02 device, we run QEMU with the musicpal machine with
+ * To test the pflash_cfi02 device, we run QEMU with the sh4 r2d machine with
  * a pflash drive. This enables us to test some flash configurations, but not
  * all. In particular, we're limited to a 16-bit wide flash device.
  */
 
-#define MP_FLASH_SIZE_MAX (32 * 1024 * 1024)
-#define BASE_ADDR (0x100000000ULL - MP_FLASH_SIZE_MAX)
+/*
+ * These need to match the flash size and address in r2d.c.
+ * If the flash size changes then the sector_len[] and nb_blocs[]
+ * values in configuration[] below will need to be updated to match.
+ */
+#define BASE_ADDR 0x00000000
 
-#define UNIFORM_FLASH_SIZE (8 * 1024 * 1024)
+#define UNIFORM_FLASH_SIZE (16 * 1024 * 1024)
 #define UNIFORM_FLASH_SECTOR_SIZE (64 * 1024)
+
+/* These must match the id0, id1 args to pflash_cfi02_register() in r2d.c */
+#define FLASH_ID0 0x0001
+#define FLASH_ID1 0x227E
 
 /* Use a newtype to keep flash addresses separate from byte addresses. */
 typedef struct {
@@ -260,7 +268,7 @@ static void test_geometry(const void *opaque)
 {
     const FlashConfig *config = opaque;
     QTestState *qtest;
-    qtest = qtest_initf("-M musicpal"
+    qtest = qtest_initf("-M r2d"
                         " -drive if=pflash,file=%s,format=raw,copy-on-read=on"
                         /* Device geometry properties. */
                         " -global driver=cfi.pflash02,"
@@ -295,16 +303,16 @@ static void test_geometry(const void *opaque)
     /* Check the IDs. */
     unlock(c);
     flash_cmd(c, UNLOCK0_ADDR, AUTOSELECT_CMD);
-    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, FLASH_ID0));
     if (c->bank_width >= 2) {
         /*
-         * XXX: The ID returned by the musicpal flash chip is 16 bits which
+         * XXX: The ID returned by the r2d flash chip is 16 bits which
          * wouldn't happen with an 8-bit device. It would probably be best to
          * prohibit addresses larger than the device width in pflash_cfi02.c,
          * but then we couldn't test smaller device widths at all.
          */
         g_assert_cmphex(flash_query(c, FLASH_ADDR(1)), ==,
-                        replicate(c, 0x236D));
+                        replicate(c, FLASH_ID1));
     }
     reset(c);
 
@@ -436,7 +444,7 @@ static void test_geometry(const void *opaque)
     flash_cmd(c, FLASH_ADDR(0x5555), UNLOCK0_CMD);
     flash_cmd(c, FLASH_ADDR(0x2AAA), UNLOCK1_CMD);
     flash_cmd(c, FLASH_ADDR(0x5555), AUTOSELECT_CMD);
-    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, FLASH_ID0));
     reset(c);
 
     /*
@@ -580,7 +588,7 @@ static void test_cfi_in_autoselect(const void *opaque)
 {
     const FlashConfig *config = opaque;
     QTestState *qtest;
-    qtest = qtest_initf("-M musicpal"
+    qtest = qtest_initf("-M r2d"
                         " -drive if=pflash,file=%s,format=raw,copy-on-read=on",
                         image_path);
     FlashConfig explicit_config = expand_config_defaults(config);
@@ -590,7 +598,7 @@ static void test_cfi_in_autoselect(const void *opaque)
     /* 1. Enter autoselect. */
     unlock(c);
     flash_cmd(c, UNLOCK0_ADDR, AUTOSELECT_CMD);
-    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, FLASH_ID0));
 
     /* 2. Enter CFI. */
     flash_cmd(c, CFI_ADDR, CFI_CMD);
@@ -600,7 +608,7 @@ static void test_cfi_in_autoselect(const void *opaque)
 
     /* 3. Exit CFI. */
     reset(c);
-    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, FLASH_ID0));
 
     qtest_quit(qtest);
 }
@@ -613,7 +621,7 @@ static void cleanup(void *opaque)
 
 /*
  * XXX: Tests are limited to bank_width = 2 for now because that's what
- * hw/arm/musicpal.c has.
+ * hw/sh4/r2d.c has.
  */
 static const FlashConfig configuration[] = {
     /* One x16 device. */
@@ -624,13 +632,13 @@ static const FlashConfig configuration[] = {
     {
         .bank_width = 2,
         .nb_blocs = { 127, 1, 2, 1 },
-        .sector_len = { 0x10000, 0x08000, 0x02000, 0x04000 },
+        .sector_len = { 0x20000, 0x10000, 0x04000, 0x08000 },
     },
     /* Nonuniform sectors (bottom boot). */
     {
         .bank_width = 2,
         .nb_blocs = { 1, 2, 1, 127 },
-        .sector_len = { 0x04000, 0x02000, 0x08000, 0x10000 },
+        .sector_len = { 0x08000, 0x04000, 0x10000, 0x20000 },
     },
 };
 

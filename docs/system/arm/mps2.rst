@@ -1,5 +1,5 @@
-Arm MPS2 and MPS3 boards (``mps2-an385``, ``mps2-an386``, ``mps2-an500``, ``mps2-an505``, ``mps2-an511``, ``mps2-an521``, ``mps3-an524``, ``mps3-an536``, ``mps3-an547``)
-=========================================================================================================================================================================
+Arm MPS2 and MPS3 boards (``mps2-an385``, ``mps2-an386``, ``mps2-an500``, ``mps2-an505``, ``mps2-an511``, ``mps2-an521``, ``mps3-an524``, ``mps3-an536``, ``mps3-an547``, ``mps3-an555``)
+=========================================================================================================================================================================================
 
 These board models use Arm M-profile or R-profile CPUs.
 
@@ -31,6 +31,8 @@ FPGA images using M-profile CPUs:
   Dual Cortex-M33 on an MPS3, as documented in Arm Application Note AN524
 ``mps3-an547``
   Cortex-M55 on an MPS3, as documented in Arm Application Note AN547
+``mps3-an555``
+  Cortex-M85 on an MPS3, as documented in Arm Application Note AN555
 
 FPGA images using R-profile CPUs:
 
@@ -66,6 +68,7 @@ Differences between QEMU and real hardware:
   held in halt via the initial SCC CFG_REG0 register setting. You can
   create the second CPU with ``-smp 2``; both CPUs will then start
   execution immediately on startup.
+- AN555 provides a Cortex-M85 without the PACBTI extension
 
 Note that for the AN536 the first UART is accessible only by
 CPU0, and the second UART is accessible only by CPU1. The

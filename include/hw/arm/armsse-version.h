@@ -25,6 +25,7 @@ enum {
     ARMSSE_IOTKIT = 0,
     ARMSSE_SSE200 = 200,
     ARMSSE_SSE300 = 300,
+    ARMSSE_SSE310 = 310
 };
 
 static inline bool armsse_version_valid(uint32_t sse_version)
@@ -33,6 +34,7 @@ static inline bool armsse_version_valid(uint32_t sse_version)
     case ARMSSE_IOTKIT:
     case ARMSSE_SSE200:
     case ARMSSE_SSE300:
+    case ARMSSE_SSE310:
         return true;
     default:
         return false;
