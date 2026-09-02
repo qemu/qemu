@@ -452,6 +452,10 @@ static void ufs_mcq_process_sq(void *opaque)
     uint16_t head = ufs_mcq_sq_head(u, sq->sqid);
     int err;
 
+    if (u->resetting) {
+        return;
+    }
+
     while (!(ufs_mcq_sq_empty(u, sq->sqid) || QTAILQ_EMPTY(&sq->req_list))) {
         addr = sq->addr + head;
         err = ufs_addr_read(sq->u, addr, (void *)&sqe, sizeof(sqe));
@@ -525,7 +529,7 @@ static void ufs_mcq_process_cq(void *opaque)
         tail = (tail + sizeof(req->cqe)) % (cq->size * sizeof(req->cqe));
         ufs_mcq_update_cq_tail(u, cq->cqid, tail);
 
-        if (QTAILQ_EMPTY(&req->sq->req_list) &&
+        if (!u->resetting && QTAILQ_EMPTY(&req->sq->req_list) &&
             !ufs_mcq_sq_empty(u, req->sq->sqid)) {
             /* Dequeueing from SQ was blocked due to lack of free requests */
             qemu_bh_schedule(req->sq->bh);
@@ -722,6 +726,87 @@ static bool ufs_mcq_delete_cq(UfsHc *u, uint8_t qid)
     return true;
 }
 
+static void ufs_hce_reset(UfsHc *u)
+{
+    int i;
+
+    trace_ufs_hce_reset();
+
+    u->resetting = true;
+
+    /* 1. Cancel active Bottom Halves before purging requests */
+    if (u->doorbell_bh) {
+        qemu_bh_cancel(u->doorbell_bh);
+    }
+    if (u->complete_bh) {
+        qemu_bh_cancel(u->complete_bh);
+    }
+    if (u->params.mcq) {
+        for (i = 0; i < ARRAY_SIZE(u->sq); i++) {
+            if (u->sq[i] && u->sq[i]->bh) {
+                qemu_bh_cancel(u->sq[i]->bh);
+            }
+        }
+        for (i = 0; i < ARRAY_SIZE(u->cq); i++) {
+            if (u->cq[i] && u->cq[i]->bh) {
+                qemu_bh_cancel(u->cq[i]->bh);
+            }
+        }
+    }
+
+    /* 2. Purge outstanding SCSI requests for all logical units */
+    for (i = 0; i < UFS_MAX_LUS; i++) {
+        if (u->lus[i] && u->lus[i]->scsi_dev) {
+            scsi_device_purge_requests(u->lus[i]->scsi_dev, SENSE_CODE(RESET));
+        }
+    }
+
+    /* 3. Reset standard request list slots, doorbells, and status registers */
+    for (i = 0; i < u->params.nutrs; i++) {
+        ufs_clear_req(&u->req_list[i]);
+        u->req_list[i].state = UFS_REQUEST_IDLE;
+    }
+    u->reg.utrldbr = 0;
+    u->reg.utmrldbr = 0;
+    u->reg.utrlcnr = 0;
+    u->reg.utrlrsr = 0;
+    u->reg.is = 0;
+
+    /* 4. Free MCQ Queues and reset MCQ dynamic registers */
+    if (u->params.mcq) {
+        for (i = 0; i < ARRAY_SIZE(u->sq); i++) {
+            if (u->sq[i]) {
+                ufs_mcq_free_sq(u->sq[i]);
+                u->sq[i] = NULL;
+            }
+        }
+        for (i = 0; i < ARRAY_SIZE(u->cq); i++) {
+            if (u->cq[i]) {
+                ufs_mcq_free_cq(u->cq[i]);
+                u->cq[i] = NULL;
+            }
+        }
+
+        /* Clear dynamic queue configuration registers without overwriting static capability offsets */
+        for (i = 0; i < ARRAY_SIZE(u->mcq_reg); i++) {
+            u->mcq_reg[i].sqattr = 0;
+            u->mcq_reg[i].sqlba = 0;
+            u->mcq_reg[i].squba = 0;
+            u->mcq_reg[i].sqcfg = 0;
+            u->mcq_reg[i].cqattr = 0;
+            u->mcq_reg[i].cqlba = 0;
+            u->mcq_reg[i].cquba = 0;
+            u->mcq_reg[i].cqcfg = 0;
+        }
+        memset(u->mcq_op_reg, 0, sizeof(u->mcq_op_reg));
+    }
+
+    u->resetting = false;
+
+    /* 5. De-assert IRQ */
+    ufs_irq_check(u);
+}
+
 static void ufs_write_reg(UfsHc *u, hwaddr offset, uint32_t data, unsigned size)
 {
     switch (offset) {
@@ -739,6 +824,7 @@ static void ufs_write_reg(UfsHc *u, hwaddr offset, uint32_t data, unsigned size)
             u->reg.hce = FIELD_DP32(u->reg.hce, HCE, HCE, 1);
         } else if (FIELD_EX32(u->reg.hce, HCE, HCE) &&
                    !FIELD_EX32(data, HCE, HCE)) {
+            ufs_hce_reset(u);
             u->reg.hcs = 0;
             u->reg.hce = FIELD_DP32(u->reg.hce, HCE, HCE, 0);
         }
@@ -2089,6 +2175,10 @@ static void ufs_process_req(void *opaque)
     UfsRequest *req;
     int slot;
 
+    if (u->resetting) {
+        return;
+    }
+
     for (slot = 0; slot < u->params.nutrs; slot++) {
         req = &u->req_list[slot];
 
@@ -2114,6 +2204,10 @@ void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
     }
 
     req->state = UFS_REQUEST_COMPLETE;
+
+    if (u->resetting) {
+        return;
+    }
 
     if (ufs_mcq_req(req)) {
         trace_ufs_mcq_complete_req(req->sq->sqid);
