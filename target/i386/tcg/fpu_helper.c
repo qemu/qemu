@@ -521,6 +521,9 @@ void helper_fxchg_ST0_STN(CPUX86State *env, int st_index)
     ST(st_index) = ST0;
     ST0 = tmp;
 
+    env->fptags[env->fpstt] = 0;
+    env->fptags[(env->fpstt + st_index) & 7] = 0;
+
     /* C1 is unconditionally cleared to 0 */
     env->fpus &= ~0x0200;
 }
