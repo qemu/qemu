@@ -1307,6 +1307,16 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
      * though.
      */
     mmap_lock();
+
+    /*
+     * Whatever advice if the pages are not currently mapped, or are
+     * outside the address space of the process.
+     */
+    if (!page_check_range(start, len, PAGE_VALID)) {
+        ret = -TARGET_ENOMEM;
+        goto unlock;
+    }
+
     switch (advice) {
     case MADV_NORMAL:
     case MADV_RANDOM:
@@ -1358,6 +1368,8 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
         ret = -EINVAL; /* not yet known advise */
         break;
     }
+
+ unlock:
     mmap_unlock();
 
     return ret;
