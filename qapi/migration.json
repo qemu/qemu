@@ -1721,11 +1721,10 @@
 
 ##
 # @UNPLUG_PRIMARY:
-#
-# Emitted from source side of a migration when migration state is
-# WAIT_UNPLUG.  Device was unplugged by guest operating system.
-# Device resources in QEMU are kept on standby to be able to re-plug
-# it in case of migration failure.
+#     Emitted from source side of a migration when migration state is
+#     WAIT_UNPLUG.  Device was unplugged by guest operating system.
+#     Device resources in QEMU are kept on standby to be able to
+#     re-plug it in case of migration failure.
 #
 # @device-id: QEMU device id of the unplugged device
 #
