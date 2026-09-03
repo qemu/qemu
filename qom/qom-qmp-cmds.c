@@ -153,6 +153,8 @@ QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
 
 typedef struct {
     ObjectTypeInfoList *list;
+    bool has_secure;
+    bool secure;
 } ObjectTypeInfoData;
 
 static void qom_list_types_tramp(ObjectClass *klass, void *opaque)
@@ -160,10 +162,21 @@ static void qom_list_types_tramp(ObjectClass *klass, void *opaque)
     ObjectTypeInfoData *data = opaque;
     ObjectTypeInfo *info;
     ObjectClass *parent = object_class_get_parent(klass);
+    bool secure = object_class_is_secure(klass);
+
+    if (data->has_secure &&
+        data->secure != secure) {
+        return;
+    }
 
     info = g_malloc0(sizeof(*info));
     info->name = g_strdup(object_class_get_name(klass));
     info->has_abstract = info->abstract = object_class_is_abstract(klass);
+    /*
+     * Set has_secure such that we omit the 'secure' attribute
+     * from the QMP response for insecure types
+     */
+    info->has_secure = info->secure = secure;
     if (parent) {
         info->parent = g_strdup(object_class_get_name(parent));
     }
@@ -174,10 +187,14 @@ static void qom_list_types_tramp(ObjectClass *klass, void *opaque)
 ObjectTypeInfoList *qmp_qom_list_types(const char *implements,
                                        bool has_abstract,
                                        bool abstract,
+                                       bool has_secure,
+                                       bool secure,
                                        Error **errp)
 {
     ObjectTypeInfoData data = {
         .list = NULL,
+        .has_secure = has_secure,
+        .secure = secure,
     };
 
     module_load_qom_all();

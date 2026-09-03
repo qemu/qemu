@@ -210,12 +210,18 @@
 # @abstract: the type is abstract and can't be directly instantiated.
 #     Omitted if false.  (since 2.10)
 #
+# @secure: the type provides a security boundary.  Omitted if false.
+#     (since 11.2)
+#
 # @parent: Name of parent type, if any (since 2.10)
 #
 # Since: 1.1
 ##
 { 'struct': 'ObjectTypeInfo',
-  'data': { 'name': 'str', '*abstract': 'bool', '*parent': 'str' } }
+  'data': { 'name': 'str',
+            '*abstract': 'bool',
+            '*parent': 'str',
+            '*secure': 'bool' } }
 
 ##
 # @qom-list-types:
@@ -227,12 +233,15 @@
 #
 # @abstract: if true, include abstract types in the results
 #
+# @secure: if set, filter to only include types with matching security
+#     status (since 11.2)
+#
 # Returns: a list of types, or an empty list if no results are found
 #
 # Since: 1.1
 ##
 { 'command': 'qom-list-types',
-  'data': { '*implements': 'str', '*abstract': 'bool' },
+  'data': { '*implements': 'str', '*abstract': 'bool', '*secure': 'bool' },
   'returns': [ 'ObjectTypeInfo' ],
   'allow-preconfig': true }
 
