@@ -5595,11 +5595,10 @@
 
 ##
 # @BLOCK_IMAGE_CORRUPTED:
-#
-# Emitted when a disk image is being marked corrupt.  The image can be
-# identified by its device or node name.  The 'device' field is always
-# present for compatibility reasons, but it can be empty ("") if the
-# image does not have a device name associated.
+#     Emitted when a disk image is being marked corrupt.  The image
+#     can be identified by its device or node name.  The 'device'
+#     field is always present for compatibility reasons, but it can be
+#     empty ("") if the image does not have a device name associated.
 #
 # @device: device name.  This is always present for compatibility
 #     reasons, but it can be empty ("") if the image does not have a
@@ -5828,11 +5827,10 @@
 
 ##
 # @BLOCK_JOB_PENDING:
-#
-# Emitted when a block job is awaiting explicit authorization to
-# finalize graph changes via `job-finalize`.  If this job is part of a
-# transaction, it will not emit this event until the transaction has
-# converged first.
+#     Emitted when a block job is awaiting explicit authorization to
+#     finalize graph changes via `job-finalize`.  If this job is part
+#     of a transaction, it will not emit this event until the
+#     transaction has converged first.
 #
 # @type: job type
 #
@@ -5873,12 +5871,12 @@
 
 ##
 # @BLOCK_WRITE_THRESHOLD:
-#
-# Emitted when writes on block device reaches or exceeds the
-# configured write threshold.  For thin-provisioned devices, this
-# means the device should be extended to avoid pausing for disk
-# exhaustion.  The event is one shot.  Once triggered, it needs to be
-# re-registered with another `block-set-write-threshold` command.
+#     Emitted when writes on block device reaches or exceeds the
+#     configured write threshold.  For thin-provisioned devices, this
+#     means the device should be extended to avoid pausing for disk
+#     exhaustion.  The event is one shot.  Once triggered, it needs to
+#     be re-registered with another `block-set-write-threshold`
+#     command.
 #
 # @node-name: graph node name on which the threshold was exceeded.
 #
