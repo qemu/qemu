@@ -1811,6 +1811,18 @@ sub process {
 			}
 		}
 
+# Reject trailers that credit an AI agent.
+		if ($realfile =~ /^$/ &&
+		    ($line =~ /🤖/ ||
+		     $line =~ /^\s*(?:Assisted|Generated)-by:/i ||
+		     ($line =~ /^\s*Co-authored-by:\s*(.*?)\s*$/i &&
+		      $1 =~ /\bcopilot\b | \bchatgpt\b | \bcodex\b | \bcursor\b |
+			     \bgemini\b | \bllama\b | \bnoreply\b | \[bot\] |
+			     \bclaude\b.*(?:opus|sonnet|fable|haiku|anthropic\.com)/xi))) {
+			ERROR("QEMU does not allow using AI for contributions, " .
+				"see docs/devel/code-provenance.rst\n" . $herecurr);
+		}
+
 # Check SPDX-License-Identifier references a permitted license
 		if (($rawline =~ m,SPDX-License-Identifier: (.*?)(\*/)?\s*$,) &&
 			$rawline !~ /^-/) {
