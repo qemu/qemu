@@ -118,11 +118,10 @@
 
 ##
 # @DEVICE_DELETED:
-#
-# Emitted whenever the device removal completion is acknowledged by
-# the guest.  At this point, it's safe to reuse the specified device
-# ID.  Device removal can be initiated by the guest or by HMP/QMP
-# commands.
+#     Emitted whenever the device removal completion is acknowledged
+#     by the guest.  At this point, it's safe to reuse the specified
+#     device ID.  Device removal can be initiated by the guest or by
+#     HMP/QMP commands.
 #
 # @device: the device's ID if it has one
 #
