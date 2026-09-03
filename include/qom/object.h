@@ -2405,6 +2405,19 @@ Object *object_property_add_new_container(Object *obj, const char *name);
 char *object_property_help(const char *name, const char *type,
                            QObject *defval, const char *description);
 
+/**
+ * object_class_check_security:
+ * @klass: the object class to check
+ * @errp: a pointer to an Error that is filled if not compliant
+ *
+ * Check whether the object class @klass complies with the
+ * currently requested security policy. Reports an error
+ * in @errp if not compliant.
+ *
+ * Returns: true if compliant, false if an error was raised
+ */
+bool object_class_check_security(ObjectClass *klass, Error **errp);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Object, object_unref)
 
 #endif

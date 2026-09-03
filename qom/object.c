@@ -23,6 +23,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/forward-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/compat-policy.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qemu/id.h"
@@ -3147,6 +3148,14 @@ void object_class_property_set_description(ObjectClass *klass,
     op = g_hash_table_lookup(klass->properties, name);
     g_free(op->description);
     op->description = g_strdup(description);
+}
+
+bool object_class_check_security(ObjectClass *klass, Error **errp)
+{
+    return compat_policy_check_security(&compat_policy,
+                                        object_class_get_name(klass),
+                                        object_class_is_secure(klass),
+                                        errp);
 }
 
 static void object_class_init(ObjectClass *klass, const void *data)
