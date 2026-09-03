@@ -48,7 +48,7 @@ static const uint32_t ged_supported_events[] = {
 void build_ged_aml(Aml *table, const char *name, HotplugHandler *hotplug_dev,
                    uint32_t ged_irq, AmlRegionSpace rs, hwaddr ged_base)
 {
-    AcpiGedState *s = ACPI_GED(hotplug_dev);
+    const AcpiGedState *s = ACPI_GED(hotplug_dev);
     Aml *crs = aml_resource_template();
     Aml *evt, *field;
     Aml *dev = aml_device("%s", name);
