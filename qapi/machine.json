@@ -1159,10 +1159,9 @@
 
 ##
 # @BALLOON_CHANGE:
-#
-# Emitted when the guest changes the actual BALLOON level.  This value
-# is equivalent to the @actual field return by the `query-balloon`
-# command
+#     Emitted when the guest changes the actual BALLOON level.  This
+#     value is equivalent to the @actual field return by the
+#     `query-balloon` command
 #
 # @actual: the logical size of the VM in bytes.  Formula used:
 #     logical_vm_size = vm_ram_size - balloon_size
@@ -1590,10 +1589,9 @@
 
 ##
 # @MEMORY_DEVICE_SIZE_CHANGE:
-#
-# Emitted when the size of a memory device changes.  Only emitted for
-# memory devices that can actually change the size (e.g., virtio-mem
-# due to guest action).
+#     Emitted when the size of a memory device changes.  Only emitted
+#     for memory devices that can actually change the size (e.g.,
+#     virtio-mem due to guest action).
 #
 # @id: device's ID
 #
