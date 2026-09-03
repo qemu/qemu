@@ -28,7 +28,7 @@ static ExtIOICore *loongarch_extioi_get_cpu(LoongArchExtIOICommonState *s,
     return NULL;
 }
 
-static void loongarch_extioi_cpu_plug(HotplugHandler *hotplug_dev,
+static void loongarch_extioi_cpu_plug(const HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(hotplug_dev);
@@ -60,7 +60,7 @@ static void loongarch_extioi_cpu_plug(HotplugHandler *hotplug_dev,
     }
 }
 
-static void loongarch_extioi_cpu_unplug(HotplugHandler *hotplug_dev,
+static void loongarch_extioi_cpu_unplug(const HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(hotplug_dev);

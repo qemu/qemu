@@ -209,7 +209,7 @@ static void acpi_pcihp_eject_slot(AcpiPciHpState *s, unsigned bsel, unsigned slo
                      */
                     qdev->pending_deleted_event = false;
                 } else {
-                    HotplugHandler *hotplug_ctrl;
+                    const HotplugHandler *hotplug_ctrl;
 
                     hotplug_ctrl = qdev_get_hotplug_handler(qdev);
                     hotplug_handler_unplug(hotplug_ctrl, qdev, &error_abort);
@@ -261,7 +261,7 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
     acpi_pcihp_update(s);
 }
 
-void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+void acpi_pcihp_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(dev);
@@ -275,7 +275,7 @@ void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
+void acpi_pcihp_device_plug_cb(const HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                DeviceState *dev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(dev);
@@ -317,7 +317,7 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
     acpi_send_event(DEVICE(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
 }
 
-void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
+void acpi_pcihp_device_unplug_cb(const HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                  DeviceState *dev, Error **errp)
 {
     PCIDevice *pdev = PCI_DEVICE(dev);
@@ -328,7 +328,7 @@ void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
     qdev_unrealize(dev);
 }
 
-void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+void acpi_pcihp_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                          AcpiPciHpState *s, DeviceState *dev,
                                          Error **errp)
 {

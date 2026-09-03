@@ -322,8 +322,8 @@ struct MachineClass {
     SMPCompatProps smp_props;
     const char *default_ram_id;
 
-    HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
-                                           DeviceState *dev);
+    const HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
+                                                 DeviceState *dev);
     bool (*hotplug_allowed)(MachineState *state, DeviceState *dev,
                             Error **errp);
     CpuInstanceProperties (*cpu_index_to_instance_props)(MachineState *machine,

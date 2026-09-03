@@ -158,7 +158,7 @@ static void s390_pci_shutdown_notifier(Notifier *n, void *opaque)
 
 static void s390_pci_perform_unplug(S390PCIBusDevice *pbdev)
 {
-    HotplugHandler *hotplug_ctrl;
+    const HotplugHandler *hotplug_ctrl;
 
     if (pbdev->pft == ZPCI_PFT_ISM) {
         notifier_remove(&pbdev->shutdown_notifier);
@@ -1005,8 +1005,8 @@ static bool s390_pci_alloc_idx(S390pciState *s, S390PCIBusDevice *pbdev)
     return true;
 }
 
-static void s390_pcihost_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                                   Error **errp)
+static void s390_pcihost_pre_plug(const HotplugHandler *hotplug_dev,
+                                  DeviceState *dev, Error **errp)
 {
     S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
 
@@ -1079,7 +1079,7 @@ static int s390_pci_interp_plug(S390pciState *s, S390PCIBusDevice *pbdev)
     return 0;
 }
 
-static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void s390_pcihost_plug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
     S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
@@ -1216,7 +1216,7 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void s390_pcihost_unplug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
@@ -1255,7 +1255,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void s390_pcihost_unplug_request(HotplugHandler *hotplug_dev,
+static void s390_pcihost_unplug_request(const HotplugHandler *hotplug_dev,
                                         DeviceState *dev,
                                         Error **errp)
 {

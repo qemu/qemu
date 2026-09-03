@@ -64,7 +64,7 @@ struct SPAPRNVDIMMClass {
     void (*unrealize)(NVDIMMDevice *dimm, Error **errp);
 };
 
-bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
+bool spapr_nvdimm_validate(const HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
                            uint64_t size, Error **errp)
 {
     const MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);

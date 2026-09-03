@@ -26,7 +26,7 @@
  * (including sending a channel report to the guest) and remove the
  * device from the virtual css bus.
  */
-static void ccw_device_unplug(HotplugHandler *hotplug_dev,
+static void ccw_device_unplug(const HotplugHandler *hotplug_dev,
                               DeviceState *dev, Error **errp)
 {
     CcwDevice *ccw_dev = CCW_DEVICE(dev);

@@ -129,7 +129,7 @@ static void loongarch_ipi_reset_hold(Object *obj, ResetType type)
     }
 }
 
-static void loongarch_ipi_cpu_plug(HotplugHandler *hotplug_dev,
+static void loongarch_ipi_cpu_plug(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
     LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(hotplug_dev);
@@ -155,7 +155,7 @@ static void loongarch_ipi_cpu_plug(HotplugHandler *hotplug_dev,
     qdev_connect_gpio_out(DEVICE(lics), index, qdev_get_gpio_in(dev, IRQ_IPI));
 }
 
-static void loongarch_ipi_cpu_unplug(HotplugHandler *hotplug_dev,
+static void loongarch_ipi_cpu_unplug(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(hotplug_dev);

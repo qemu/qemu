@@ -278,7 +278,7 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
          ++devfn) {
         PCIDevice *affected_dev = shpc->sec_bus->devices[devfn];
         if (affected_dev) {
-            HotplugHandler *hotplug_ctrl;
+            const HotplugHandler *hotplug_ctrl;
 
             hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(affected_dev));
             hotplug_handler_unplug(hotplug_ctrl, DEVICE(affected_dev),
@@ -561,8 +561,8 @@ static bool shpc_device_get_slot(PCIDevice *affected_dev, int *slot,
     return true;
 }
 
-void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
-                            Error **errp)
+void shpc_device_plug_cb(const HotplugHandler *hotplug_dev,
+                         DeviceState *dev, Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
     SHPCDevice *shpc = pci_hotplug_dev->shpc;
@@ -601,13 +601,13 @@ void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     shpc_interrupt_update(pci_hotplug_dev);
 }
 
-void shpc_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void shpc_device_unplug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                            Error **errp)
 {
     qdev_unrealize(dev);
 }
 
-void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+void shpc_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);

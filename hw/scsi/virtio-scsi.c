@@ -1144,14 +1144,14 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
     }
 }
 
-static void virtio_scsi_pre_hotplug(HotplugHandler *hotplug_dev,
+static void virtio_scsi_pre_hotplug(const HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
     SCSIDevice *sd = SCSI_DEVICE(dev);
     sd->hba_supports_iothread = true;
 }
 
-static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void virtio_scsi_hotplug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
@@ -1183,7 +1183,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void virtio_scsi_hotunplug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);

@@ -508,7 +508,7 @@ static void pcie_cap_slot_plug_common(PCIDevice *hotplug_dev, DeviceState *dev,
     }
 }
 
-void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pcie_cap_slot_pre_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp)
 {
     PCIDevice *hotplug_pdev = PCI_DEVICE(hotplug_dev);
@@ -525,7 +525,7 @@ void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, errp);
 }
 
-void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pcie_cap_slot_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                            Error **errp)
 {
     PCIDevice *hotplug_pdev = PCI_DEVICE(hotplug_dev);
@@ -571,7 +571,7 @@ void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pcie_cap_slot_unplug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                              Error **errp)
 {
     qdev_unrealize(dev);
@@ -579,7 +579,7 @@ void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 
 static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
-    HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(dev));
+    const HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(dev));
 
     if (dev->partially_hotplugged) {
         dev->qdev.pending_deleted_event = false;
@@ -608,7 +608,7 @@ static void pcie_cap_slot_do_unplug(PCIDevice *dev)
                                PCI_EXP_SLTSTA_PDC);
 }
 
-void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
+void pcie_cap_slot_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     Error *local_err = NULL;

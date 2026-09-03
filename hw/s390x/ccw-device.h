@@ -37,7 +37,7 @@ extern const VMStateDescription vmstate_ccw_dev;
 
 struct CCWDeviceClass {
     DeviceClass parent_class;
-    void (*unplug)(HotplugHandler *, DeviceState *, Error **);
+    void (*unplug)(const HotplugHandler *, DeviceState *, Error **);
     bool (*realize)(CcwDevice *, Error **);
     void (*refill_ids)(CcwDevice *);
 };

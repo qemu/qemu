@@ -10615,8 +10615,8 @@ static const TypeInfo nvme_info = {
     },
 };
 
-static void nvme_ns_hot_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                              Error **errp)
+static void nvme_ns_hot_plug(const HotplugHandler *hotplug_dev,
+                             DeviceState *dev, Error **errp)
 {
     NvmeNamespace *ns = NVME_NS(dev);
     NvmeSubsystem *subsys = ns->subsys;
@@ -10647,8 +10647,8 @@ static void nvme_ns_hot_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void nvme_ns_hot_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                               Error **errp)
+static void nvme_ns_hot_unplug(const HotplugHandler *hotplug_dev,
+                               DeviceState *dev, Error **errp)
 {
     NvmeNamespace *ns = NVME_NS(dev);
     NvmeSubsystem *subsys = ns->subsys;

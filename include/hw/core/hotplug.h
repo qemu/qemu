@@ -30,7 +30,7 @@ typedef struct HotplugHandler HotplugHandler;
  * @plugged_dev: a device that has been (un)plugged
  * @errp: returns an error if this function fails
  */
-typedef void (*hotplug_fn)(HotplugHandler *plug_handler,
+typedef void (*hotplug_fn)(const HotplugHandler *plug_handler,
                            DeviceState *plugged_dev, Error **errp);
 
 /**
@@ -59,7 +59,8 @@ struct HotplugHandlerClass {
     hotplug_fn plug;
     hotplug_fn unplug_request;
     hotplug_fn unplug;
-    bool (*is_hotpluggable_bus)(HotplugHandler *plug_handler, BusState *bus);
+    bool (*is_hotpluggable_bus)(const HotplugHandler *plug_handler,
+                                BusState *bus);
 };
 
 /**
@@ -67,7 +68,7 @@ struct HotplugHandlerClass {
  *
  * Call #HotplugHandlerClass.plug callback of @plug_handler.
  */
-void hotplug_handler_plug(HotplugHandler *plug_handler,
+void hotplug_handler_plug(const HotplugHandler *plug_handler,
                           DeviceState *plugged_dev,
                           Error **errp);
 
@@ -76,7 +77,7 @@ void hotplug_handler_plug(HotplugHandler *plug_handler,
  *
  * Call #HotplugHandlerClass.pre_plug callback of @plug_handler.
  */
-void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
+void hotplug_handler_pre_plug(const HotplugHandler *plug_handler,
                               DeviceState *plugged_dev,
                               Error **errp);
 
@@ -85,7 +86,7 @@ void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
  *
  * Calls #HotplugHandlerClass.unplug_request callback of @plug_handler.
  */
-void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
+void hotplug_handler_unplug_request(const HotplugHandler *plug_handler,
                                     DeviceState *plugged_dev,
                                     Error **errp);
 /**
@@ -93,7 +94,7 @@ void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
  *
  * Calls #HotplugHandlerClass.unplug callback of @plug_handler.
  */
-void hotplug_handler_unplug(HotplugHandler *plug_handler,
+void hotplug_handler_unplug(const HotplugHandler *plug_handler,
                             DeviceState *plugged_dev,
                             Error **errp);
 #endif

@@ -13,7 +13,7 @@
 #include "hw/core/hotplug.h"
 #include "qemu/module.h"
 
-void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
+void hotplug_handler_pre_plug(const HotplugHandler *plug_handler,
                               DeviceState *plugged_dev,
                               Error **errp)
 {
@@ -24,7 +24,7 @@ void hotplug_handler_pre_plug(HotplugHandler *plug_handler,
     }
 }
 
-void hotplug_handler_plug(HotplugHandler *plug_handler,
+void hotplug_handler_plug(const HotplugHandler *plug_handler,
                           DeviceState *plugged_dev,
                           Error **errp)
 {
@@ -35,7 +35,7 @@ void hotplug_handler_plug(HotplugHandler *plug_handler,
     }
 }
 
-void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
+void hotplug_handler_unplug_request(const HotplugHandler *plug_handler,
                                     DeviceState *plugged_dev,
                                     Error **errp)
 {
@@ -46,7 +46,7 @@ void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
     }
 }
 
-void hotplug_handler_unplug(HotplugHandler *plug_handler,
+void hotplug_handler_unplug(const HotplugHandler *plug_handler,
                             DeviceState *plugged_dev,
                             Error **errp)
 {

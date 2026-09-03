@@ -85,15 +85,15 @@ void ich9_pm_reset_properties(ICH9LPCPMRegs *pm);
 
 void ich9_pm_add_class_properties(ObjectClass *oc, ptrdiff_t pm_offset);
 
-void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void ich9_pm_device_pre_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp);
-void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void ich9_pm_device_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp);
-void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+void ich9_pm_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp);
-void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void ich9_pm_device_unplug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp);
-bool ich9_pm_is_hotpluggable_bus(HotplugHandler *hotplug_dev, BusState *bus);
+bool ich9_pm_is_hotpluggable_bus(const HotplugHandler *hotplug_dev, BusState *bus);
 
 void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
 #endif /* HW_ACPI_ICH9_H */

@@ -19,7 +19,7 @@
 void virtio_ccw_md_pre_plug(VirtIOMDCcw *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     MemoryDeviceState *md = MEMORY_DEVICE(vmd);
     Error *local_err = NULL;
 
@@ -48,7 +48,7 @@ void virtio_ccw_md_pre_plug(VirtIOMDCcw *vmd, MachineState *ms, Error **errp)
 void virtio_ccw_md_plug(VirtIOMDCcw *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     MemoryDeviceState *md = MEMORY_DEVICE(vmd);
     Error *local_err = NULL;
 
@@ -72,7 +72,7 @@ void virtio_ccw_md_unplug_request(VirtIOMDCcw *vmd, MachineState *ms,
 {
     VirtIOMDCcwClass *vmdc = VIRTIO_MD_CCW_GET_CLASS(vmd);
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     const HotplugHandlerClass *hdc;
     Error *local_err = NULL;
 
@@ -112,7 +112,7 @@ void virtio_ccw_md_unplug_request(VirtIOMDCcw *vmd, MachineState *ms,
 void virtio_ccw_md_unplug(VirtIOMDCcw *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     MemoryDeviceState *md = MEMORY_DEVICE(vmd);
     Error *local_err = NULL;
 

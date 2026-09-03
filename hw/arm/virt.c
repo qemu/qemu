@@ -3753,7 +3753,7 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
-static void virt_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void virt_memory_pre_plug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                  Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
@@ -3779,7 +3779,7 @@ static void virt_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     pc_dimm_pre_plug(PC_DIMM(dev), MACHINE(hotplug_dev), errp);
 }
 
-static void virt_memory_plug(HotplugHandler *hotplug_dev,
+static void virt_memory_plug(const HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
@@ -3798,7 +3798,7 @@ static void virt_memory_plug(HotplugHandler *hotplug_dev,
     }
 }
 
-static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+static void virt_machine_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
                                             DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
@@ -3896,7 +3896,7 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+static void virt_machine_device_plug_cb(const HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
@@ -3957,7 +3957,7 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void virt_dimm_unplug_request(HotplugHandler *hotplug_dev,
+static void virt_dimm_unplug_request(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
@@ -3977,7 +3977,7 @@ static void virt_dimm_unplug_request(HotplugHandler *hotplug_dev,
                                    errp);
 }
 
-static void virt_dimm_unplug(HotplugHandler *hotplug_dev,
+static void virt_dimm_unplug(const HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
@@ -3995,8 +3995,9 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void virt_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
-                                          DeviceState *dev, Error **errp)
+static void
+virt_machine_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
         virt_dimm_unplug_request(hotplug_dev, dev, errp);
@@ -4009,7 +4010,7 @@ static void virt_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void virt_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
+static void virt_machine_device_unplug_cb(const HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
@@ -4022,8 +4023,8 @@ static void virt_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
-                                                        DeviceState *dev)
+static const HotplugHandler *
+virt_machine_get_hotplug_handler(MachineState *machine, DeviceState *dev)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 

@@ -374,7 +374,7 @@ fail:
     g_free(key);
 }
 
-static void xen_bus_unplug_request(HotplugHandler *hotplug,
+static void xen_bus_unplug_request(const HotplugHandler *hotplug,
                                    DeviceState *dev,
                                    Error **errp)
 {

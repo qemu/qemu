@@ -979,7 +979,7 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     port->elem = NULL;
 }
 
-static void virtser_port_device_plug(HotplugHandler *hotplug_dev,
+static void virtser_port_device_plug(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);

@@ -1235,7 +1235,7 @@ static void virtio_ccw_busdev_unrealize(DeviceState *dev)
     virtio_ccw_device_unrealize(_dev);
 }
 
-static void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
+static void virtio_ccw_busdev_unplug(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = to_virtio_ccw_dev_fast(dev);

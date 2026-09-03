@@ -19,7 +19,7 @@
 void virtio_md_pci_pre_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     MemoryDeviceState *md = MEMORY_DEVICE(vmd);
     Error *local_err = NULL;
 
@@ -47,7 +47,7 @@ void virtio_md_pci_pre_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 void virtio_md_pci_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     MemoryDeviceState *md = MEMORY_DEVICE(vmd);
     Error *local_err = NULL;
 
@@ -71,7 +71,7 @@ void virtio_md_pci_unplug_request(VirtIOMDPCI *vmd, MachineState *ms,
 {
     VirtIOMDPCIClass *vmdc = VIRTIO_MD_PCI_GET_CLASS(vmd);
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     const HotplugHandlerClass *hdc;
     Error *local_err = NULL;
 
@@ -110,7 +110,7 @@ void virtio_md_pci_unplug_request(VirtIOMDPCI *vmd, MachineState *ms,
 void virtio_md_pci_unplug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
-    HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
+    const HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
     MemoryDeviceState *md = MEMORY_DEVICE(vmd);
     Error *local_err = NULL;
 
