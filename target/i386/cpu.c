@@ -9723,13 +9723,10 @@ void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
      */
     if (xcc->max_features) {
         for (w = 0; w < FEATURE_WORDS; w++) {
-            /* Override only features that weren't set explicitly
-             * by the user.
-             */
-            env->features[w] |=
-                x86_cpu_get_supported_feature_word(cpu, w) &
-                ~env->user_features[w] &
-                ~feature_word_info[w].no_autoenable_flags;
+            /* Override only features that weren't set explicitly by the user.  */
+            uint64_t no_autoenable_flags = env->user_features[w] | feature_word_info[w].no_autoenable_flags;
+
+            env->features[w] |= x86_cpu_get_supported_feature_word(cpu, w) & ~no_autoenable_flags;
         }
 
         if ((env->features[FEAT_7_1_EDX] & CPUID_7_1_EDX_AVX10) && !env->avx10_version) {
