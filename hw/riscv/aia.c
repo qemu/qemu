@@ -72,8 +72,8 @@ DeviceState *riscv_create_aia(MemoryRegion *container,
 
     if (!kvm_enabled()) {
         /* Per-socket M-level APLIC */
-        aplic_m_dev = riscv_aplic_create(aplic_m->base +
-                                     socket * aplic_m->size,
+        aplic_m_dev = riscv_aplic_create(container,
+                                     aplic_m->base + socket * aplic_m->size,
                                      aplic_m->size,
                                      (msimode) ? 0 : base_hartid,
                                      (msimode) ? 0 : hart_count,
@@ -83,8 +83,8 @@ DeviceState *riscv_create_aia(MemoryRegion *container,
     }
 
     /* Per-socket S-level APLIC */
-    aplic_s_dev = riscv_aplic_create(aplic_s->base +
-                                 socket * aplic_s->size,
+    aplic_s_dev = riscv_aplic_create(container,
+                                 aplic_s->base + socket * aplic_s->size,
                                  aplic_s->size,
                                  (msimode) ? 0 : base_hartid,
                                  (msimode) ? 0 : hart_count,
