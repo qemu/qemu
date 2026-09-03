@@ -16,8 +16,6 @@
 #include "hw/core/boards.h"
 #include "system/address-spaces.h"
 #include "hw/core/cpu.h"
-#include "hw/arm/machines-qom.h"
-#include "hw/riscv/machines-qom.h"
 
 static void machine_none_init(MachineState *mch)
 {
@@ -57,9 +55,4 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->no_cdrom = 1;
 }
 
-DEFINE_MACHINE_WITH_INTERFACES("none", machine_none_machine_init,
-                               { TYPE_TARGET_AARCH64_MACHINE },
-                               { TYPE_TARGET_ARM_MACHINE },
-                               { TYPE_TARGET_RISCV32_MACHINE },
-                               { TYPE_TARGET_RISCV64_MACHINE },
-                               { })
+DEFINE_MACHINE("none", machine_none_machine_init)

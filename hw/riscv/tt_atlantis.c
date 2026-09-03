@@ -20,7 +20,6 @@
 
 #include "hw/riscv/boot.h"
 #include "hw/riscv/fdt-common.h"
-#include "hw/riscv/machines-qom.h"
 #include "hw/riscv/riscv_hart.h"
 
 #include "hw/char/serial-mm.h"
@@ -609,7 +608,6 @@ static const TypeInfo tt_atlantis_types[] = {
         .parent     = TYPE_MACHINE,
         .class_init = tt_atlantis_machine_class_init,
         .instance_size = sizeof(TTAtlantisState),
-        .interfaces = riscv64_machine_interfaces,
     },
 };
 

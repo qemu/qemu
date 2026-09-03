@@ -113,10 +113,11 @@ Paul Burton <paulburton@kernel.org> <paul.burton@mips.com>
 Paul Burton <paulburton@kernel.org> <paul.burton@imgtec.com>
 Paul Burton <paulburton@kernel.org> <paul@archlinuxmips.org>
 Paul Burton <paulburton@kernel.org> <pburton@wavecomp.com>
-Philippe Mathieu-Daudé <philmd@mailo.com> <f4bug@amsat.org>
-Philippe Mathieu-Daudé <philmd@mailo.com> <philmd@redhat.com>
-Philippe Mathieu-Daudé <philmd@mailo.com> <philmd@fungible.com>
-Philippe Mathieu-Daudé <philmd@mailo.com> <philmd@linaro.org>
+Philippe Mathieu-Daudé <philmd@oss.qualcomm.com> <f4bug@amsat.org>
+Philippe Mathieu-Daudé <philmd@oss.qualcomm.com> <philmd@redhat.com>
+Philippe Mathieu-Daudé <philmd@oss.qualcomm.com> <philmd@fungible.com>
+Philippe Mathieu-Daudé <philmd@oss.qualcomm.com> <philmd@linaro.org>
+Philippe Mathieu-Daudé <philmd@oss.qualcomm.com> <philmd@mailo.com>
 Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com> <pierrick.bouvier@linaro.org>
 Roman Bolshakov <rbolshakov@ddn.com> <r.bolshakov@yadro.com>
 Sriram Yagnaraman <sriram.yagnaraman@ericsson.com> <sriram.yagnaraman@est.tech>

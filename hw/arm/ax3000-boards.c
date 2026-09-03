@@ -9,7 +9,6 @@
 #include "qemu/osdep.h"
 #include "hw/arm/ax3000-boards.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"
 
@@ -48,7 +47,6 @@ static const TypeInfo ax3000_machine_types[] = {
         .instance_size = sizeof(Ax3000MachineState),
         .class_size    = sizeof(Ax3000MachineClass),
         .class_init    = ax3000_machine_class_init,
-        .interfaces    = aarch64_machine_interfaces,
         .abstract      = true,
     }
 };

@@ -24,7 +24,6 @@
 #include "migration/cpu.h"
 #include "exec/icount.h"
 #include "target/riscv/tcg/debug.h"
-#include "hw/riscv/machines-qom.h"
 #ifdef CONFIG_KVM
 #include "kvm/kvm_riscv.h"
 #endif
@@ -579,20 +578,4 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_mseccfg,
         NULL
     }
-};
-
-const InterfaceInfo riscv32_machine_interfaces[] = {
-    { TYPE_TARGET_RISCV32_MACHINE },
-    { }
-};
-
-const InterfaceInfo riscv64_machine_interfaces[] = {
-    { TYPE_TARGET_RISCV64_MACHINE },
-    { }
-};
-
-const InterfaceInfo riscv32_64_machine_interfaces[] = {
-    { TYPE_TARGET_RISCV32_MACHINE },
-    { TYPE_TARGET_RISCV64_MACHINE },
-    { }
 };

@@ -1570,7 +1570,7 @@ static void machine_help_func(const QDict *qdict)
     GSList *el;
     const char *type = qdict_get_try_str(qdict, "type");
 
-    machines = object_class_get_list(target_machine_typename(), false);
+    machines = object_class_get_list(TYPE_MACHINE, false);
     if (type) {
         ObjectClass *machine_class = OBJECT_CLASS(find_machine(type, machines));
         if (machine_class) {
@@ -1682,8 +1682,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
 {
     ERRP_GUARD();
     const char *machine_type = qdict_get_try_str(qdict, "type");
-    g_autoptr(GSList) machines = object_class_get_list(target_machine_typename(),
-                                                       false);
+    g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
     MachineClass *machine_class = NULL;
 
     if (machine_type) {
@@ -3239,8 +3238,13 @@ void qemu_init(int argc, char **argv)
                 default_monitor = 0;
                 break;
             case QEMU_OPTION_mon:
-                warn_report_once("'-mon' is deprecated, use '-object' with "
-                                 "'monitor-hmp' or 'monitor-qmp' types instead");
+                warn_report_once(
+                    "'-mon' is deprecated. Switch to either "
+                    "'-object monitor-hmp,id=ID,chardev=CHR-ID' or "
+                    "'-object monitor-qmp,id=ID,chardev=CHR-ID' instead. "
+                    "See '-object' docs in the QEMU manual for further "
+                    "configuration guidance: "
+                    "https://www.qemu.org/docs/master/system/invocation.html");
                 if (!qemu_opts_parse_noisily(qemu_find_opts("mon"), optarg,
                                              true)) {
                     exit(1);
