@@ -192,8 +192,8 @@ static guint32 match_string(char *serial_f, const char *exp_out)
 {
     GError *error = NULL;
     g_autofree gchar *f_contents = NULL;
-    g_autofree GRegex *regex = NULL;
-    g_autofree GMatchInfo *match_info = NULL;
+    g_autoptr(GRegex) regex = NULL;
+    g_autoptr(GMatchInfo) match_info = NULL;
     gsize len;
     guint32 count = 0;
     gboolean ret;
@@ -214,7 +214,6 @@ static guint32 match_string(char *serial_f, const char *exp_out)
         g_match_info_next(match_info, &error);
         count++;
     }
-    g_regex_unref(regex);
     return count;
 }
 
