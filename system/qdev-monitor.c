@@ -918,7 +918,7 @@ static DeviceState *find_device_state(const char *id, bool use_generic_error,
 void qdev_unplug(DeviceState *dev, Error **errp)
 {
     HotplugHandler *hotplug_ctrl;
-    HotplugHandlerClass *hdc;
+    const HotplugHandlerClass *hdc;
     Error *local_err = NULL;
 
     if (!qdev_hotunplug_allowed(dev, errp)) {

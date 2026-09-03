@@ -73,7 +73,7 @@ void virtio_ccw_md_unplug_request(VirtIOMDCcw *vmd, MachineState *ms,
     VirtIOMDCcwClass *vmdc = VIRTIO_MD_CCW_GET_CLASS(vmd);
     DeviceState *dev = DEVICE(vmd);
     HotplugHandler *bus_handler = qdev_get_bus_hotplug_handler(dev);
-    HotplugHandlerClass *hdc;
+    const HotplugHandlerClass *hdc;
     Error *local_err = NULL;
 
     if (!vmdc->unplug_request_check) {

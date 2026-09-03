@@ -1069,7 +1069,7 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
     bool ret = !!plug_handler;
 
     if (plug_handler) {
-        HotplugHandlerClass *hdc;
+        const HotplugHandlerClass *hdc;
 
         hdc = HOTPLUG_HANDLER_GET_CLASS(plug_handler);
         if (hdc->is_hotpluggable_bus) {
