@@ -29,6 +29,22 @@ class S390xSecureIpl(QemuSystemTest):
         self.cert_path = None
         self.prompt = None
 
+    def _require_host_secure_ipl_support(self, vm):
+        """
+        Skip the test if the host CPU model does not expose the Secure IPL
+        facilities (sipl, sclaf, cstore).
+        """
+        props = vm.cmd('query-cpu-model-expansion',
+                       model={'name': 'host'},
+                       type='full')['model']['props']
+        missing = [f for f in ('sipl', 'sclaf', 'cstore')
+                   if not props.get(f)]
+        if missing:
+            self.skipTest(
+                f"Host CPU does not support Secure IPL: "
+                f"missing feature(s): {', '.join(missing)}. "
+                f"Secure IPL requires a z16+ host.")
+
     def _create_certificate(self, vm):
         """Generate x509 certificate"""
         exec_command_and_wait_for_pattern(self,
@@ -106,6 +122,8 @@ class S390xSecureIpl(QemuSystemTest):
                          f'id=drive0,if=none,format=qcow2,file={self.qcow2_path}',
                          '-device', 'virtio-blk-ccw,drive=drive0,bootindex=1')
         temp_vm.launch()
+
+        self._require_host_secure_ipl_support(temp_vm)
 
         # Initial root account setup (Fedora first boot screen)
         self.root_password = 'fedora40password'
