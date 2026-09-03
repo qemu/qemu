@@ -1964,13 +1964,13 @@ static bool vtd_iova_fs_check_canonical(IntelIOMMUState *s, uint64_t iova,
     }
 }
 
-static MemTxResult vtd_set_flag_in_pte(dma_addr_t base_addr, uint32_t index,
-                                       uint64_t pte, uint64_t flag)
+static MemTxResult vtd_set_flags_in_pte(dma_addr_t base_addr, uint32_t index,
+                                       uint64_t pte, uint64_t flags)
 {
-    if (pte & flag) {
+    if ((pte & flags) == flags) {
         return MEMTX_OK;
     }
-    pte |= flag;
+    pte |= flags;
     pte = cpu_to_le64(pte);
     return dma_memory_write(&address_space_memory,
                             base_addr + index * sizeof(pte),
@@ -2043,7 +2043,7 @@ static int vtd_iova_to_fspte(IntelIOMMUState *s, VTDContextEntry *ce,
             flag_ad |= VTD_FS_D;
         }
 
-        if (vtd_set_flag_in_pte(addr, offset, fspte, flag_ad) != MEMTX_OK) {
+        if (vtd_set_flags_in_pte(addr, offset, fspte, flag_ad) != MEMTX_OK) {
             return -VTD_FR_FS_BIT_UPDATE_FAILED;
         }
 
