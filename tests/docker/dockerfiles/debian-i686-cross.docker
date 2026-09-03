@@ -41,6 +41,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       openssh-client \
                       pkgconf \
                       python3 \
+                      python3-numpy \
+                      python3-opencv \
                       python3-pip \
                       python3-setuptools \
                       python3-sphinx \
@@ -128,7 +130,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev:i386 \
                       libsdl2-image-dev:i386 \
                       libseccomp-dev:i386 \
-                      libselinux1-dev:i386 \
+                      libselinux-dev:i386 \
                       libslirp-dev:i386 \
                       libsnappy-dev:i386 \
                       libsndio-dev:i386 \

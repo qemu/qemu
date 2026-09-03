@@ -39,6 +39,7 @@ class NetBSDVM(basevm.BaseVM):
         "gmake",
         "gsed",
         "gettext-tools",
+        "bison",
 
         # libs: basic
         "dtc",

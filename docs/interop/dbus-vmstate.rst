@@ -23,16 +23,4 @@ dbus-vmstate object can be configured with the expected list of
 helpers by setting its ``id-list`` property, with a comma-separated
 ``Id`` list.
 
-.. only:: sphinx4
-
-   .. dbus-doc:: backends/dbus-vmstate1.xml
-
-.. only:: not sphinx4
-
-   .. warning::
-      Sphinx 4 is required to build D-Bus documentation.
-
-      This is the content of ``backends/dbus-vmstate1.xml``:
-
-   .. literalinclude:: ../../backends/dbus-vmstate1.xml
-      :language: xml
+.. dbus-doc:: backends/dbus-vmstate1.xml

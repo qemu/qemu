@@ -82,7 +82,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev \
                       libsdl2-image-dev \
                       libseccomp-dev \
-                      libselinux1-dev \
+                      libselinux-dev \
                       libslirp-dev \
                       libsnappy-dev \
                       libsndio-dev \
@@ -113,6 +113,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       openssh-client \
                       pkgconf \
                       python3 \
+                      python3-numpy \
+                      python3-opencv \
                       python3-pip \
                       python3-setuptools \
                       python3-sphinx \

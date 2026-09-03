@@ -41,6 +41,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       openssh-client \
                       pkgconf \
                       python3 \
+                      python3-numpy \
+                      python3-opencv \
                       python3-pip \
                       python3-setuptools \
                       python3-sphinx \
@@ -129,7 +131,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libsdl2-dev:s390x \
                       libsdl2-image-dev:s390x \
                       libseccomp-dev:s390x \
-                      libselinux1-dev:s390x \
+                      libselinux-dev:s390x \
                       libslirp-dev:s390x \
                       libsnappy-dev:s390x \
                       libsndio-dev:s390x \
