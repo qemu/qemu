@@ -151,9 +151,13 @@ QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
     return object_property_get_qobject(obj, property, errp);
 }
 
-static void qom_list_types_tramp(ObjectClass *klass, void *data)
+typedef struct {
+    ObjectTypeInfoList *list;
+} ObjectTypeInfoData;
+
+static void qom_list_types_tramp(ObjectClass *klass, void *opaque)
 {
-    ObjectTypeInfoList **pret = data;
+    ObjectTypeInfoData *data = opaque;
     ObjectTypeInfo *info;
     ObjectClass *parent = object_class_get_parent(klass);
 
@@ -164,7 +168,7 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
         info->parent = g_strdup(object_class_get_name(parent));
     }
 
-    QAPI_LIST_PREPEND(*pret, info);
+    QAPI_LIST_PREPEND(data->list, info);
 }
 
 ObjectTypeInfoList *qmp_qom_list_types(const char *implements,
@@ -172,12 +176,14 @@ ObjectTypeInfoList *qmp_qom_list_types(const char *implements,
                                        bool abstract,
                                        Error **errp)
 {
-    ObjectTypeInfoList *ret = NULL;
+    ObjectTypeInfoData data = {
+        .list = NULL,
+    };
 
     module_load_qom_all();
-    object_class_foreach(qom_list_types_tramp, implements, abstract, &ret);
+    object_class_foreach(qom_list_types_tramp, implements, abstract, &data);
 
-    return ret;
+    return data.list;
 }
 
 ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
