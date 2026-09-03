@@ -1742,6 +1742,8 @@ static void pci_update_mappings(PCIDevice *d)
     int i;
     pcibus_t new_addr;
 
+    memory_region_transaction_begin();
+
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
 
@@ -1778,6 +1780,8 @@ static void pci_update_mappings(PCIDevice *d)
     }
 
     pci_update_vga(d);
+
+    memory_region_transaction_commit();
 }
 
 int pci_irq_disabled(PCIDevice *d)
