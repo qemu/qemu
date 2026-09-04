@@ -429,8 +429,7 @@ class BuildCommand(SubCommand):
         dkr = Docker(args.command)
         if "--no-cache" not in argv and \
            dkr.image_matches_dockerfile(tag, dockerfile):
-            if not args.quiet:
-                print("Image is up to date.")
+            pass
         else:
             # Create a docker context directory for the build
             docker_dir = tempfile.mkdtemp(prefix="docker_build")
@@ -604,6 +603,7 @@ class ProbeCommand(SubCommand):
             print(" ".join(docker._command))
         except Exception:
             print("no")
+            return 1
 
         return
 

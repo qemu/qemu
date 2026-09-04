@@ -13,7 +13,7 @@ Most (but not all) tests are also integrated as an automated test into
 the meson build system so can be run directly from the build tree,
 for example::
 
-  [./pyvenv/bin/]meson test --suite qemu:softfloat
+  ./run meson test --suite qemu:softfloat
 
 will run just the softfloat tests.
 
@@ -1035,29 +1035,40 @@ See :ref:`container-ref` for more details.
 Running subset of tests
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-You can build the tests for one architecture::
+You can build the tcg tests using::
 
-  make build-tcg-tests-$TARGET
+  make tcg-tests
 
-And run with::
+And run them for one target with::
 
-  make run-tcg-tests-$TARGET
+  make check-tcg-$TARGET
 
 Adding ``V=1`` to the invocation will show the details of how to
 invoke QEMU for the test which is useful for debugging tests.
 
+Tests can also be run using directly meson test::
+
+  ./run meson test --suite tcg
+  ./run meson test --suite tcg-$TARGET
+
+Tests can be listed using::
+
+  ./run meson test --suite tcg --list
+
 Running individual tests
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Tests can also be run directly from the test build directory. If you
-run ``make help`` from the test build directory you will get a list of
-all the tests that can be run. Please note that same binaries are used
-in multiple tests, for example::
+Tests can also be run using directly meson test::
 
-  make run-plugin-test-mmap-with-libinline.so
+  ./run meson test $TARGET-$TEST
 
-will run the mmap test with the ``libinline.so`` TCG plugin. The
-gdbstub tests also re-use the test binaries but while exercising gdb.
+For instance::
+
+  ./run meson test aarch64-softmmu-hello
+
+Test command and output can be accessed by using verbose flag::
+
+  ./run meson test aarch64-softmmu-hello --verbose
 
 TCG test dependencies
 ~~~~~~~~~~~~~~~~~~~~~
