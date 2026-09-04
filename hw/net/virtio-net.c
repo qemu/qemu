@@ -2104,6 +2104,14 @@ static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
     unit->ip = (void *)ip;
     ip_hdrlen = (ip->ip_ver_len & 0xF) << 2;
     unit->ip_plen = &ip->ip_len;
+
+    if (ip_hdrlen != sizeof(struct ip_header)) {
+        unit->tcp = NULL;
+        unit->tcp_hdrlen = 0;
+        unit->payload = 0;
+        return;
+    }
+
     unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip) + ip_hdrlen);
     unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
     unit->payload = read_unit_ip_len(unit) - ip_hdrlen - unit->tcp_hdrlen;
