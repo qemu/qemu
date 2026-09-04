@@ -37,9 +37,9 @@ static const Property uefi_vars_sysbus_properties[] = {
     DEFINE_PROP_BOOL("force-secure-boot", uefi_vars_sysbus_state,
                      state.force_secure_boot, false),
     DEFINE_PROP_BOOL("disable-custom-mode", uefi_vars_sysbus_state,
-                     state.disable_custom_mode, false),
+                     state.disable_custom_mode, true),
     DEFINE_PROP_BOOL("require-self-signed-pk", uefi_vars_sysbus_state,
-                     state.require_self_signed_pk, true),
+                     state.require_self_signed_pk, false),
     DEFINE_PROP_BOOL("use-pio", uefi_vars_sysbus_state,
                      state.use_pio, false),
 };
