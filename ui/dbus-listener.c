@@ -926,13 +926,11 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
 
     ddl_discard_cursor_messages(ddl);
 
-    v_data = g_variant_new_from_data(
-        G_VARIANT_TYPE("ay"),
+    v_data = g_variant_new_fixed_array(
+        G_VARIANT_TYPE_BYTE,
         c->data,
         c->width * c->height * 4,
-        TRUE,
-        (GDestroyNotify)cursor_unref,
-        cursor_ref(c));
+        1);
 
     qemu_dbus_display1_listener_call_cursor_define(
         ddl->proxy,
