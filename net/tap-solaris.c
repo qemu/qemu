@@ -60,8 +60,6 @@ ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
  */
 static int tap_alloc(char *dev, size_t dev_size, Error **errp)
 {
-    /* FIXME leaks like a sieve on error paths */
-    /* FIXME suspicious: many errors are reported, then ignored */
     int tap_fd, if_fd, ppa = -1;
     static int ip_fd = 0;
     char *ptr;
@@ -102,45 +100,61 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
     strioc_ppa.ic_timout = 0;
     strioc_ppa.ic_len = sizeof(ppa);
     strioc_ppa.ic_dp = (char *)&ppa;
-    if ((ppa = ioctl (tap_fd, I_STR, &strioc_ppa)) < 0)
+    if ((ppa = ioctl (tap_fd, I_STR, &strioc_ppa)) < 0) {
         error_report("Can't assign new interface");
+        goto fail_tap_fd;
+    }
 
     if_fd = RETRY_ON_EINTR(open("/dev/tap", O_RDWR, 0));
     if (if_fd < 0) {
         error_setg_file_open(errp, errno, "/dev/tap");
-        return -1;
+        goto fail_tap_fd;
     }
     if(ioctl(if_fd, I_PUSH, "ip") < 0){
         error_setg(errp, "Can't push IP module");
-        return -1;
+        goto fail_if_fd;
     }
 
-    if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) < 0)
+    if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) < 0) {
         error_report("Can't get flags");
+        goto fail_if_fd;
+    }
 
-    snprintf (actual_name, 32, "tap%d", ppa);
+    snprintf(actual_name, 32, "tap%d", ppa);
     pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
 
     ifr.lifr_ppa = ppa;
-    /* Assign ppa according to the unit number returned by tun device */
-
-    if (ioctl (if_fd, SIOCSLIFNAME, &ifr) < 0)
+    if (ioctl(if_fd, SIOCSLIFNAME, &ifr) < 0) {
         error_report("Can't set PPA %d", ppa);
-    if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) <0)
+        goto fail_if_fd;
+    }
+
+    if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) < 0) {
         error_report("Can't get flags");
+        goto fail_if_fd;
+    }
+
     /* Push arp module to if_fd */
-    if (ioctl (if_fd, I_PUSH, "arp") < 0)
+    if (ioctl(if_fd, I_PUSH, "arp") < 0) {
         error_report("Can't push ARP module (2)");
+        goto fail_if_fd;
+    }
 
     /* Push arp module to ip_fd */
-    if (ioctl (ip_fd, I_POP, NULL) < 0)
+    if (ioctl(ip_fd, I_POP, NULL) < 0) {
         error_report("I_POP failed");
-    if (ioctl (ip_fd, I_PUSH, "arp") < 0)
+        goto fail_if_fd;
+    }
+    if (ioctl(ip_fd, I_PUSH, "arp") < 0) {
         error_report("Can't push ARP module (3)");
+        goto fail_if_fd;
+    }
     /* Open arp_fd */
     arp_fd = RETRY_ON_EINTR(open("/dev/tap", O_RDWR, 0));
-    if (arp_fd < 0)
+    if (arp_fd < 0) {
         error_report("Can't open %s", "/dev/tap");
+        goto fail_if_fd;
+    }
 
     /* Set ifname to arp */
     strioc_if.ic_cmd = SIOCSLIFNAME;
@@ -149,32 +163,45 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
     strioc_if.ic_dp = (char *)&ifr;
     if (ioctl(arp_fd, I_STR, &strioc_if) < 0){
         error_report("Can't set ifname to arp");
+        goto fail_arp_fd;
     }
 
     if((ip_muxid = ioctl(ip_fd, I_LINK, if_fd)) < 0){
         error_setg(errp, "Can't link TAP device to IP");
-        return -1;
+        goto fail_arp_fd;
     }
 
-    if ((arp_muxid = ioctl (ip_fd, link_type, arp_fd)) < 0)
+    if ((arp_muxid = ioctl(ip_fd, link_type, arp_fd)) < 0) {
         error_report("Can't link TAP device to ARP");
+        goto fail_ip_muxid;
+    }
 
-    close (if_fd);
+    close(if_fd);
 
     memset(&ifr, 0x0, sizeof(ifr));
     pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
     ifr.lifr_ip_muxid  = ip_muxid;
     ifr.lifr_arp_muxid = arp_muxid;
 
-    if (ioctl (ip_fd, SIOCSLIFMUXID, &ifr) < 0)
+    if (ioctl(ip_fd, SIOCSLIFMUXID, &ifr) < 0)
     {
-      ioctl (ip_fd, I_PUNLINK , arp_muxid);
-      ioctl (ip_fd, I_PUNLINK, ip_muxid);
+      ioctl(ip_fd, I_PUNLINK, arp_muxid);
+      ioctl(ip_fd, I_PUNLINK, ip_muxid);
       error_report("Can't set multiplexor id");
     }
 
     snprintf(dev, dev_size, "tap%d", ppa);
     return tap_fd;
+
+fail_ip_muxid:
+    ioctl(ip_fd, I_PUNLINK, ip_muxid);
+fail_arp_fd:
+    close(arp_fd);
+fail_if_fd:
+    close(if_fd);
+fail_tap_fd:
+    close(tap_fd);
+    return -1;
 }
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
