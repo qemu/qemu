@@ -76,6 +76,7 @@ struct uefi_vars_state {
     int                               jsonfd;
     bool                              force_secure_boot;
     bool                              disable_custom_mode;
+    bool                              require_self_signed_pk;
     bool                              use_pio;
 
     /* request + reply capture */
