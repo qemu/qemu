@@ -659,6 +659,7 @@ static void baum_chr_read(void *opaque)
     }
     if (ret == -1 && (brlapi_errno != BRLAPI_ERROR_LIBCERR || errno != EINTR)) {
         brlapi_perror("baum: brlapi_readKey");
+        qemu_set_fd_handler(baum->brlapi_fd, NULL, NULL, NULL);
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
         baum->brlapi = NULL;
@@ -671,8 +672,16 @@ static void char_braille_finalize(Object *obj)
 
     timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
+        /*
+         * baum_chr_open() registered brlapi_fd with the main loop via
+         * qemu_set_fd_handler(); unregister it before tearing the
+         * connection down so a later chardev-remove cannot dispatch
+         * baum_chr_read() with a dangling opaque.
+         */
+        qemu_set_fd_handler(baum->brlapi_fd, NULL, NULL, NULL);
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
+        baum->brlapi = NULL;
     }
 }
 
