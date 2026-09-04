@@ -6086,7 +6086,7 @@ static RISCVException read_jvt(CPURISCVState *env, int csrno,
 static RISCVException write_jvt(CPURISCVState *env, int csrno,
                                 target_ulong val, uintptr_t ra)
 {
-    env->jvt = val;
+    env->jvt = val & JVT_BASE;
     return RISCV_EXCP_NONE;
 }
 
