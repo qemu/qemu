@@ -45,6 +45,9 @@ typedef enum {
     TRIGGER_TYPE_NUM
 } trigger_type_t;
 
+#define TINFO_VERSION_OFFSET 24
+#define TINFO_VERSION_LEN     8
+
 /* actions */
 typedef enum {
     DBG_ACTION_NONE = -1,           /* sentinel value */
@@ -98,7 +101,8 @@ typedef enum {
 #define TYPE6_CHAIN     BIT(11)
 #define TYPE6_ACTION    (0xf << 12)
 #define TYPE6_SIZE      (0xf << 16)
-#define TYPE6_TIMING    BIT(20)
+#define TYPE6_TIMING       BIT(18)
+#define TYPE6_TIMING_0_13  BIT(20)
 #define TYPE6_SELECT    BIT(21)
 #define TYPE6_HIT       BIT(22)
 #define TYPE6_VU        BIT(23)

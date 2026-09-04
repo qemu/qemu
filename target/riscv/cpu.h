@@ -582,6 +582,8 @@ struct ArchCPU {
     /* Mapping of events to counters */
     GHashTable *pmu_event_ctr_map;
     GHashTable *user_options;
+    GHashTable *misa_ext_user_opts;
+    GHashTable *multi_ext_user_opts;
     const GPtrArray *decoders;
 };
 

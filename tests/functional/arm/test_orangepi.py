@@ -5,7 +5,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
 import shutil
 
 from qemu_test import LinuxKernelTest, exec_command_and_wait_for_pattern
@@ -65,8 +64,6 @@ class OrangePiMachine(LinuxKernelTest):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
-        os.remove(kernel_path)
-        os.remove(dtb_path)
 
     def test_arm_orangepi_initrd(self):
         self.set_machine('orangepi-pc')
@@ -97,9 +94,6 @@ class OrangePiMachine(LinuxKernelTest):
                                                 'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
-        os.remove(kernel_path)
-        os.remove(dtb_path)
-        os.remove(initrd_path)
 
     def test_arm_orangepi_sd(self):
         self.set_machine('orangepi-pc')
@@ -140,9 +134,6 @@ class OrangePiMachine(LinuxKernelTest):
                                                 'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
-        os.remove(kernel_path)
-        os.remove(dtb_path)
-        os.remove(rootfs_path)
 
     @skipBigDataTest()
     def test_arm_orangepi_armbian(self):

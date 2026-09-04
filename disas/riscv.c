@@ -1281,22 +1281,24 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
             case 2:
                /*
                 * 'lq' shares the "(...) 010 ..... 0001111" opcode space
-                * with 'cbo' insns.  Check the next 5 bits to select
-                * what we want:
+                * with 'cbo' insns.
                 *
                 * cbo_inval  0000000 00000 ..... 010 00000 0001111
                 * cbo_clean  0000000 00001 ..... 010 00000 0001111
                 * cbo_flush  0000000 00010 ..... 010 00000 0001111
                 * cbo_zero   0000000 00100 ..... 010 00000 0001111
                 *
-                * Anything that doesn't match these will default to 'lq'.
+                * lq matches when rd != 0
                 */
-               switch ((inst >> 17) & 0b11111) {
-               case 0: return &op_cbo_inval;
-               case 1: return &op_cbo_clean;
-               case 2: return &op_cbo_flush;
-               case 4: return &op_cbo_zero;
-               default: return &op_lq;
+               if ((inst >> 7) & 0b11111) {
+                   return &op_lq;
+               } else {
+                   switch (inst >> 20) {
+                   case 0: return &op_cbo_inval;
+                   case 1: return &op_cbo_clean;
+                   case 2: return &op_cbo_flush;
+                   case 4: return &op_cbo_zero;
+                   }
                }
             }
             break;

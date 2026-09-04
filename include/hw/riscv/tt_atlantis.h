@@ -13,12 +13,38 @@
 #include "hw/core/sysbus.h"
 #include "hw/i2c/designware_i2c.h"
 #include "hw/intc/riscv_imsic.h"
+#include "hw/misc/unimp.h"
 #include "hw/riscv/riscv_hart.h"
 
 #define TYPE_TT_ATLANTIS_MACHINE MACHINE_TYPE_NAME("tt-atlantis")
 OBJECT_DECLARE_SIMPLE_TYPE(TTAtlantisState, TT_ATLANTIS_MACHINE)
 
+#define TYPE_TT_ATLANTIS_SOC "tt-atlantis-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(TTAtlantisSoCState, TT_ATLANTIS_SOC)
+
 #define TT_ATL_NUM_I2C 5
+
+struct TTAtlantisSoCState {
+    /*< private >*/
+    DeviceState parent;
+
+    /*< public >*/
+    const MemMapEntry *memmap;
+
+    MemoryRegion *memory;
+    MemoryRegion *dram;
+    MemoryRegion ram_hi;
+    MemoryRegion ram_lo;
+
+    RISCVHartArrayState cpus;
+    DeviceState *irqchip;
+    DesignWareI2CState i2c[TT_ATL_NUM_I2C];
+    UnimplementedDeviceState uart1;
+    MemoryRegion bootrom;
+
+    uint32_t num_harts;
+    char *cpu_type;
+};
 
 struct TTAtlantisState {
     /*< private >*/
@@ -26,13 +52,9 @@ struct TTAtlantisState {
 
     /*< public >*/
     Notifier machine_done;
-    const MemMapEntry *memmap;
 
-    RISCVHartArrayState soc;
-    DeviceState *irqchip;
-    DesignWareI2CState i2c[TT_ATL_NUM_I2C];
-
-    int fdt_size;
+    MemoryRegion soc_memory;
+    TTAtlantisSoCState soc;
 };
 
 enum {

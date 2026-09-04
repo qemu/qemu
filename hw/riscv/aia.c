@@ -24,8 +24,10 @@ uint32_t imsic_num_bits(uint32_t count)
     return ret;
 }
 
-DeviceState *riscv_create_aia(bool msimode, int aia_guests,
+DeviceState *riscv_create_aia(MemoryRegion *container,
+                             bool msimode, int aia_guests,
                              uint32_t m_imsic_stride,
+                             uint32_t s_imsic_stride,
                              uint16_t num_sources,
                              const MemMapEntry *aplic_m,
                              const MemMapEntry *aplic_s,
@@ -36,29 +38,33 @@ DeviceState *riscv_create_aia(bool msimode, int aia_guests,
 {
     int i;
     hwaddr addr = 0;
-    uint32_t guest_bits;
     DeviceState *aplic_s_dev = NULL;
     DeviceState *aplic_m_dev = NULL;
 
     /* The RISC-V Advanced Interrupt Architecture, Chapter 1.2. Limits */
     g_assert(num_sources <= 1023);
 
+    /* Prevent IMSIC MMIO regions from silently overlapping */
+    g_assert(s_imsic_stride >= IMSIC_HART_SIZE(imsic_num_bits(1 + aia_guests)));
+    g_assert(m_imsic_stride >= IMSIC_HART_SIZE(0));
+
     if (msimode) {
         if (!kvm_enabled()) {
             /* Per-socket M-level IMSICs */
             addr = imsic_m->base + socket * (1U << IMSIC_MMIO_GROUP_MIN_SHIFT);
             for (i = 0; i < hart_count; i++) {
-                riscv_imsic_create(addr + i * m_imsic_stride,
+                riscv_imsic_create(container,
+                                   addr + i * m_imsic_stride,
                                    base_hartid + i, true, 1,
                                    num_msis);
             }
         }
 
         /* Per-socket S-level IMSICs */
-        guest_bits = imsic_num_bits(aia_guests + 1);
         addr = imsic_s->base + socket * (1U << IMSIC_MMIO_GROUP_MIN_SHIFT);
         for (i = 0; i < hart_count; i++) {
-            riscv_imsic_create(addr + i * IMSIC_HART_SIZE(guest_bits),
+            riscv_imsic_create(container,
+                               addr + i * s_imsic_stride,
                                base_hartid + i, false, 1 + aia_guests,
                                num_msis);
         }
@@ -66,8 +72,8 @@ DeviceState *riscv_create_aia(bool msimode, int aia_guests,
 
     if (!kvm_enabled()) {
         /* Per-socket M-level APLIC */
-        aplic_m_dev = riscv_aplic_create(aplic_m->base +
-                                     socket * aplic_m->size,
+        aplic_m_dev = riscv_aplic_create(container,
+                                     aplic_m->base + socket * aplic_m->size,
                                      aplic_m->size,
                                      (msimode) ? 0 : base_hartid,
                                      (msimode) ? 0 : hart_count,
@@ -77,8 +83,8 @@ DeviceState *riscv_create_aia(bool msimode, int aia_guests,
     }
 
     /* Per-socket S-level APLIC */
-    aplic_s_dev = riscv_aplic_create(aplic_s->base +
-                                 socket * aplic_s->size,
+    aplic_s_dev = riscv_aplic_create(container,
+                                 aplic_s->base + socket * aplic_s->size,
                                  aplic_s->size,
                                  (msimode) ? 0 : base_hartid,
                                  (msimode) ? 0 : hart_count,

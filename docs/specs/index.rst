@@ -39,6 +39,7 @@ guest hardware that is specific to QEMU.
    rocker
    riscv-iommu
    riscv-aia
+   riscv-debug
    aspeed-intc
    iommu-testdev
    s390x-secure-ipl
