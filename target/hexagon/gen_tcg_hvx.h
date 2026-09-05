@@ -50,7 +50,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         if (ctx->pre_commit) { \
             intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
             tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, QvV_base, QvV_off, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 sizeof(MMQReg), sizeof(MMQReg)); \
         } else { \
             assert_vhist_tmp(ctx); \
             gen_helper_vhistq(tcg_env); \
@@ -66,7 +66,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         if (ctx->pre_commit) { \
             intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
             tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, QvV_base, QvV_off, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 sizeof(MMQReg), sizeof(MMQReg)); \
         } else { \
             assert_vhist_tmp(ctx); \
             gen_helper_vwhist256q(tcg_env); \
@@ -82,7 +82,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         if (ctx->pre_commit) { \
             intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
             tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, QvV_base, QvV_off, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 sizeof(MMQReg), sizeof(MMQReg)); \
         } else { \
             assert_vhist_tmp(ctx); \
             gen_helper_vwhist256q_sat(tcg_env); \
@@ -98,7 +98,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         if (ctx->pre_commit) { \
             intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
             tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, QvV_base, QvV_off, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 sizeof(MMQReg), sizeof(MMQReg)); \
         } else { \
             assert_vhist_tmp(ctx); \
             gen_helper_vwhist128q(tcg_env); \
@@ -115,7 +115,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         if (ctx->pre_commit) { \
             intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
             tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, QvV_base, QvV_off, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 sizeof(MMQReg), sizeof(MMQReg)); \
         } else { \
             TCGv tcgv_uiV = tcg_constant_tl(uiV); \
             assert_vhist_tmp(ctx); \
