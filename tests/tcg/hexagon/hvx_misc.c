@@ -181,6 +181,50 @@ static void test_store_unaligned(void)
     check_output_w(__LINE__, 2);
 }
 
+/*
+ * A Q register can be built either by a vector compare or by vand(Vu, Rt).
+ * Those are two independent code paths onto the same predicate-register
+ * layout, so cross-check that they select exactly the same byte lanes.
+ * A byte-order mistake in either one shows up here as a mismatch.
+ *
+ * The input pattern has to vary across 8-lane blocks, otherwise a predicate
+ * whose bytes are permuted still selects the same lanes and the mismatch is
+ * invisible.
+ */
+static void test_qreg_alias(void)
+{
+    HVX_Vector *pcmp = (HVX_Vector *)&output[0];
+    HVX_Vector *pand = (HVX_Vector *)&output[1];
+    HVX_Vector input;
+    HVX_Vector ones;
+    HVX_VectorPred qcmp;
+    HVX_VectorPred qand;
+
+    for (int i = 0; i < BUFSIZE; i++) {
+        /*
+         * Build 0/1 per byte, alternating every 8 lanes, so that "!= 0" and
+         * "low bit set" describe the same lanes.  Then form one predicate
+         * with a compare and the other with vand(Vu, Rt), store 0xff through
+         * each, and require the two result vectors to be identical.
+         */
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES; j++) {
+            expect[0].ub[j] = ((j >> 3) + i) & 1;
+        }
+        memcpy(&input, &expect[0], sizeof(MMVector));
+        memset(output, 0, 2 * sizeof(MMVector));
+
+        ones = Q6_V_vsplat_R(0xffffffff);
+        qcmp = Q6_Q_vcmp_gt_VubVub(input, Q6_V_vzero());
+        qand = Q6_Q_vand_VR(input, 0x01010101);
+        Q6_vmem_QRIV(qcmp, pcmp, ones);
+        Q6_vmem_QRIV(qand, pand, ones);
+
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES; j++) {
+            check(__LINE__, i, j, output[0].ub[j], output[1].ub[j]);
+        }
+    }
+}
+
 static void test_masked_store(bool invert)
 {
     void *p0 = buffer0;
@@ -642,6 +686,7 @@ int main()
     test_store_unaligned();
     test_masked_store(false);
     test_masked_store(true);
+    test_qreg_alias();
     test_new_value_store();
     test_max_temps();
 
