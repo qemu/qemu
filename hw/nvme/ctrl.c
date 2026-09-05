@@ -9702,6 +9702,10 @@ static void nvme_exit(PCIDevice *pci_dev)
         }
     }
 
+    if (!pci_is_vf(pci_dev) && n->params.sriov_max_vfs) {
+        pcie_sriov_pf_exit(pci_dev);
+    }
+
     nvme_subsys_unregister_ctrl(n->subsys, n);
 
     g_free(n->cq);
@@ -9724,10 +9728,6 @@ static void nvme_exit(PCIDevice *pci_dev)
 
     if (n->pmr.dev) {
         host_memory_backend_set_mapped(n->pmr.dev, false);
-    }
-
-    if (!pci_is_vf(pci_dev) && n->params.sriov_max_vfs) {
-        pcie_sriov_pf_exit(pci_dev);
     }
 
     if (n->params.msix_exclusive_bar && !pci_is_vf(pci_dev)) {
