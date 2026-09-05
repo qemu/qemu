@@ -53,7 +53,7 @@
 
 #define LOG_VTCM_BYTE(VA, MASK, VAL, IDX) \
     do { \
-        env->vtcm_log.data.ub[IDX] = (VAL); \
+        hexagon_mmvec_set_byte(&env->vtcm_log.data, IDX, VAL); \
         if (MASK) { \
             set_bit((IDX), env->vtcm_log.mask); \
         } else { \
@@ -133,7 +133,8 @@
         target_ulong va_high = EA + LEN; \
         for (int i0 = 0; i0 < 4; i0++) { \
             log_byte = (va + i0) <= va_high; \
-            LOG_VTCM_BYTE(va + i0, log_byte, INC. ub[4 * IDX + i0], \
+            LOG_VTCM_BYTE(va + i0, log_byte, \
+                           hexagon_mmvec_get_byte(&(INC), 4 * IDX + i0), \
                           4 * IDX + i0); \
         } \
     } while (0)
@@ -144,7 +145,8 @@
         target_ulong va_high = EA + LEN; \
         for (int i0 = 0; i0 < 2; i0++) { \
             log_byte = (va + i0) <= va_high; \
-            LOG_VTCM_BYTE(va + i0, log_byte, INC.ub[2 * IDX + i0], \
+            LOG_VTCM_BYTE(va + i0, log_byte, \
+                           hexagon_mmvec_get_byte(&(INC), 2 * IDX + i0), \
                           2 * IDX + i0); \
         } \
     } while (0)
@@ -157,7 +159,8 @@
         target_ulong va_high = EA + LEN; \
         for (int i0 = 0; i0 < 2; i0++) { \
             log_byte = (va + i0) <= va_high; \
-            LOG_VTCM_BYTE(va + i0, log_byte, INC.ub[2 * IDX + i0], \
+            LOG_VTCM_BYTE(va + i0, log_byte, \
+                           hexagon_mmvec_get_byte(&(INC), 2 * IDX + i0), \
                           2 * IDX + i0); \
         } \
     } while (0)
@@ -174,7 +177,8 @@
             log_byte = ((va + i0) <= va_high) && QVAL; \
             uint8_t B; \
             B = cpu_ldub_data_ra(env, EA + i0, ra); \
-            env->tmp_VRegs[0].ub[ELEMENT_SIZE * IDX + i0] = B; \
+            hexagon_mmvec_set_byte(&env->tmp_VRegs[0], \
+                                   ELEMENT_SIZE * IDX + i0, B); \
             LOG_VTCM_BYTE(va + i0, log_byte, B, ELEMENT_SIZE * IDX + i0); \
         } \
     } while (0)
@@ -216,9 +220,10 @@
                     uint8_t val; \
                     val = cpu_ldub_data_ra(env, env->vtcm_log.va[i + j], ra); \
                     dst |= val << (8 * j); \
-                    inc |= env->vtcm_log.data.ub[j + i] << (8 * j); \
+                    inc |= hexagon_mmvec_get_byte(&env->vtcm_log.data, j + i) \
+                           << (8 * j); \
                     clear_bit(j + i, env->vtcm_log.mask); \
-                    env->vtcm_log.data.ub[j + i] = 0; \
+                    hexagon_mmvec_set_byte(&env->vtcm_log.data, j + i, 0); \
                 } \
                 dst += inc; \
                 for (int j = 0; j < sizeof(TYPE); j++) { \
@@ -249,7 +254,9 @@
         int log_byte = 0; \
         for (i0 = 0; i0 < ELEM_SIZE; i0++) { \
             log_byte = ((va + i0) <= va_high) && QVAL; \
-            LOG_VTCM_BYTE(va + i0, log_byte, IN.ub[ELEM_SIZE * IDX + i0], \
+            LOG_VTCM_BYTE(va + i0, log_byte, \
+                           hexagon_mmvec_get_byte(&(IN), \
+                                                    ELEM_SIZE * IDX + i0), \
                           ELEM_SIZE * IDX + i0); \
         } \
     } while (0)

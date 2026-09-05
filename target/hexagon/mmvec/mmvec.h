@@ -20,6 +20,7 @@
 
 #include "exec/target_long.h"
 #include "qemu/bitmap.h"
+#include "qemu/bitops.h"
 
 #define MAX_VEC_SIZE_LOGBYTES 7
 #define MAX_VEC_SIZE_BYTES  (1 << MAX_VEC_SIZE_LOGBYTES)
@@ -68,6 +69,23 @@ typedef union {
     uint8_t  ub[MAX_VEC_SIZE_BYTES / 1 / 8];
     int8_t    b[MAX_VEC_SIZE_BYTES / 1 / 8];
 } MMQReg;
+
+static inline uint8_t hexagon_mmvec_get_byte(const MMVector *v, size_t index)
+{
+    return extract64(v->ud[index / 8], (index % 8) * 8, 8);
+}
+
+static inline void hexagon_mmvec_set_byte(MMVector *v, size_t index,
+                                          uint8_t value)
+{
+    v->ud[index / 8] = deposit64(v->ud[index / 8], (index % 8) * 8, 8,
+                                 value);
+}
+
+static inline uint8_t hexagon_mmqreg_get_byte(const MMQReg *q, size_t index)
+{
+    return extract32(q->uw[index / 4], (index % 4) * 8, 8);
+}
 
 typedef struct {
     MMVector data;

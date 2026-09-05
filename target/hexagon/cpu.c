@@ -192,7 +192,7 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
     if (skip_if_zero) {
         bool nonzero_found = false;
         for (int i = 0; i < MAX_VEC_SIZE_BYTES; i++) {
-            if (hex_hvx(env)->VRegs[regnum].ub[i] != 0) {
+            if (hexagon_mmvec_get_byte(&hex_hvx(env)->VRegs[regnum], i) != 0) {
                 nonzero_found = true;
                 break;
             }
@@ -204,9 +204,11 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
 
     qemu_fprintf(f, "  v%d = ( ", regnum);
     qemu_fprintf(f, "0x%02x",
-                 hex_hvx(env)->VRegs[regnum].ub[MAX_VEC_SIZE_BYTES - 1]);
+                 hexagon_mmvec_get_byte(&hex_hvx(env)->VRegs[regnum],
+                                        MAX_VEC_SIZE_BYTES - 1));
     for (int i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
-        qemu_fprintf(f, ", 0x%02x", hex_hvx(env)->VRegs[regnum].ub[i]);
+        qemu_fprintf(f, ", 0x%02x",
+                     hexagon_mmvec_get_byte(&hex_hvx(env)->VRegs[regnum], i));
     }
     qemu_fprintf(f, " )\n");
 }
@@ -222,7 +224,7 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
     if (skip_if_zero) {
         bool nonzero_found = false;
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 8; i++) {
-            if (hex_hvx(env)->QRegs[regnum].ub[i] != 0) {
+            if (hexagon_mmqreg_get_byte(&hex_hvx(env)->QRegs[regnum], i) != 0) {
                 nonzero_found = true;
                 break;
             }
@@ -234,9 +236,11 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
 
     qemu_fprintf(f, "  q%d = ( ", regnum);
     qemu_fprintf(f, "0x%02x",
-                 hex_hvx(env)->QRegs[regnum].ub[MAX_VEC_SIZE_BYTES / 8 - 1]);
+                 hexagon_mmqreg_get_byte(&hex_hvx(env)->QRegs[regnum],
+                                         MAX_VEC_SIZE_BYTES / 8 - 1));
     for (int i = MAX_VEC_SIZE_BYTES / 8 - 2; i >= 0; i--) {
-        qemu_fprintf(f, ", 0x%02x", hex_hvx(env)->QRegs[regnum].ub[i]);
+        qemu_fprintf(f, ", 0x%02x",
+                     hexagon_mmqreg_get_byte(&hex_hvx(env)->QRegs[regnum], i));
     }
     qemu_fprintf(f, " )\n");
 }

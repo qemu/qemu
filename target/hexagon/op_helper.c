@@ -168,7 +168,10 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
             int size = env->vstore[i].size;
             for (int j = 0; j < size; j++) {
                 if (test_bit(j, env->vstore[i].mask)) {
-                    cpu_stb_data_ra(env, va + j, env->vstore[i].data.ub[j], ra);
+                    cpu_stb_data_ra(env, va + j,
+                                    hexagon_mmvec_get_byte(&env->vstore[i].data,
+                                                           j),
+                                    ra);
                 }
             }
         }
@@ -191,9 +194,11 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
             for (int i = 0; i < sizeof(MMVector); i++) {
                 if (test_bit(i, env->vtcm_log.mask)) {
                     cpu_stb_data_ra(env, env->vtcm_log.va[i],
-                                    env->vtcm_log.data.ub[i], ra);
+                                     hexagon_mmvec_get_byte(&env->vtcm_log.data,
+                                                            i),
+                                     ra);
                     clear_bit(i, env->vtcm_log.mask);
-                    env->vtcm_log.data.ub[i] = 0;
+                    hexagon_mmvec_set_byte(&env->vtcm_log.data, i, 0);
                 }
 
             }
@@ -1404,7 +1409,8 @@ void HELPER(vhist)(CPUHexagonState *env)
 
     for (int lane = 0; lane < 8; lane++) {
         for (int i = 0; i < sizeof(MMVector) / 8; ++i) {
-            unsigned char value = input->ub[(sizeof(MMVector) / 8) * lane + i];
+            unsigned char value = hexagon_mmvec_get_byte(input,
+                (sizeof(MMVector) / 8) * lane + i);
             unsigned char regno = value >> 3;
             unsigned char element = value & 7;
 
@@ -1420,7 +1426,8 @@ void HELPER(vhistq)(CPUHexagonState *env)
 
     for (int lane = 0; lane < 8; lane++) {
         for (int i = 0; i < sizeof(MMVector) / 8; ++i) {
-            unsigned char value = input->ub[(sizeof(MMVector) / 8) * lane + i];
+            unsigned char value = hexagon_mmvec_get_byte(input,
+                (sizeof(MMVector) / 8) * lane + i);
             unsigned char regno = value >> 3;
             unsigned char element = value & 7;
 
