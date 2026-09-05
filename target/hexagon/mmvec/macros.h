@@ -130,9 +130,9 @@
     do { \
         int log_byte = 0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
+        int in_region = (OFFSET) <= (LEN); \
         for (int i0 = 0; i0 < 4; i0++) { \
-            log_byte = (va + i0) <= va_high; \
+            log_byte = in_region; \
             LOG_VTCM_BYTE(va + i0, log_byte, \
                            hexagon_mmvec_get_byte(&(INC), 4 * IDX + i0), \
                           4 * IDX + i0); \
@@ -142,9 +142,9 @@
     do { \
         int log_byte = 0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
+        int in_region = (OFFSET) <= (LEN); \
         for (int i0 = 0; i0 < 2; i0++) { \
-            log_byte = (va + i0) <= va_high; \
+            log_byte = in_region; \
             LOG_VTCM_BYTE(va + i0, log_byte, \
                            hexagon_mmvec_get_byte(&(INC), 2 * IDX + i0), \
                           2 * IDX + i0); \
@@ -156,9 +156,9 @@
     do { \
         int log_byte = 0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
+        int in_region = (OFFSET) <= (LEN); \
         for (int i0 = 0; i0 < 2; i0++) { \
-            log_byte = (va + i0) <= va_high; \
+            log_byte = in_region; \
             LOG_VTCM_BYTE(va + i0, log_byte, \
                            hexagon_mmvec_get_byte(&(INC), 2 * IDX + i0), \
                           2 * IDX + i0); \
@@ -170,15 +170,18 @@
     do { \
         int i0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
         uintptr_t ra = GETPC(); \
         int log_byte = 0; \
+        int in_region = (OFFSET) <= (LEN); \
         for (i0 = 0; i0 < ELEMENT_SIZE; i0++) { \
-            log_byte = ((va + i0) <= va_high) && QVAL; \
-            uint8_t B; \
-            B = cpu_ldub_data_ra(env, EA + i0, ra); \
-            hexagon_mmvec_set_byte(&env->tmp_VRegs[0], \
-                                   ELEMENT_SIZE * IDX + i0, B); \
+            uint8_t B = 0; \
+            \
+            log_byte = in_region && QVAL; \
+            if (log_byte) { \
+                B = cpu_ldub_data_ra(env, va + i0, ra); \
+                hexagon_mmvec_set_byte(&env->tmp_VRegs[0], \
+                                       ELEMENT_SIZE * IDX + i0, B); \
+            } \
             LOG_VTCM_BYTE(va + i0, log_byte, B, ELEMENT_SIZE * IDX + i0); \
         } \
     } while (0)
@@ -250,10 +253,10 @@
     do { \
         int i0; \
         target_ulong va = EA; \
-        target_ulong va_high = EA + LEN; \
         int log_byte = 0; \
+        int in_region = (OFFSET) <= (LEN); \
         for (i0 = 0; i0 < ELEM_SIZE; i0++) { \
-            log_byte = ((va + i0) <= va_high) && QVAL; \
+            log_byte = in_region && QVAL; \
             LOG_VTCM_BYTE(va + i0, log_byte, \
                            hexagon_mmvec_get_byte(&(IN), \
                                                     ELEM_SIZE * IDX + i0), \
