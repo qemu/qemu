@@ -108,7 +108,7 @@ STDMETHODIMP_(ULONG) CQGAVSSEnumObject::AddRef()
 STDMETHODIMP_(ULONG) CQGAVSSEnumObject::Release()
 {
     long nRefCount = InterlockedDecrement(&m_nRefCount);
-    if (m_nRefCount == 0) {
+    if (nRefCount == 0) {
         delete this;
     }
     return nRefCount;
@@ -244,7 +244,7 @@ STDMETHODIMP_(ULONG) CQGAVssProvider::AddRef()
 STDMETHODIMP_(ULONG) CQGAVssProvider::Release()
 {
     long nRefCount = InterlockedDecrement(&m_nRefCount);
-    if (m_nRefCount == 0) {
+    if (nRefCount == 0) {
         delete this;
     }
     return nRefCount;
@@ -477,7 +477,7 @@ STDMETHODIMP_(ULONG) CQGAVssProviderFactory::AddRef()
 STDMETHODIMP_(ULONG) CQGAVssProviderFactory::Release()
 {
     long nRefCount = InterlockedDecrement(&m_nRefCount);
-    if (m_nRefCount == 0) {
+    if (nRefCount == 0) {
         delete this;
     }
     return nRefCount;
