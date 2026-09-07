@@ -31,6 +31,15 @@
       />
     <Media Id="1" Cabinet="qemu_ga.$(var.QEMU_GA_VERSION).cab" EmbedCab="yes" />
     <Property Id="WHSLogo">1</Property>
+    <?ifdef var.InstallVss?>
+    <Property Id="VSSOPTION_VALUE" Value="#1">
+      <RegistrySearch Id="VssOptionSearch"
+                      Root="HKLM"
+                      Key="System\CurrentControlSet\Services\QEMU Guest Agent VSS Provider"
+                      Name="VssOption"
+                      Type="raw" />
+    </Property>
+    <?endif?>
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
     <MajorUpgrade
       DowngradeErrorMessage="Error: A newer version of QEMU guest agent is already installed."
@@ -111,7 +120,7 @@
               <File Id="libpcre2_8_0.dll" Name="libpcre2-8-0.dll" Source="$(var.BIN_DIR)/libpcre2-8-0.dll" KeyPath="yes" DiskId="1"/>
             </Component>
           <?endif?>
-          <Component Id="registry_entries" Guid="{D075D109-51CA-11E3-9F8B-000C29858960}">
+          <Component Id="registry_entries" Guid="{62A2D9E2-B22F-410C-8E41-A0D9E653B944}">
             <RegistryKey Root="HKLM"
                          Key="Software\$(var.QEMU_GA_MANUFACTURER)\$(var.QEMU_GA_DISTRO)\Tools\QemuGA">
               <RegistryValue Type="string" Name="ProductID" Value="fb0a0d66-c7fb-4e2e-a16b-c4a3bfe8d13b" />
@@ -122,11 +131,16 @@
               <RegistryValue Type="integer" Name="TypesSupported" Value="7" />
               <RegistryValue Type="string" Name="EventMessageFile" Value="[qemu_ga_directory]qemu-ga.exe" />
             </RegistryKey>
+          </Component>
+          <?ifdef var.InstallVss?>
+          <Component Id="vss_registry_option" Guid="{75166af0-cdc9-423f-9a30-50bb59342b9b}">
             <RegistryKey Root="HKLM"
                          Key="System\CurrentControlSet\Services\QEMU Guest Agent VSS Provider">
-              <RegistryValue Type="integer" Name="VssOption" Value="1" />
+              <!-- Type="string" so MSI resolves [VSSOPTION_VALUE]; the "#N" raw format produces a REG_DWORD. -->
+              <RegistryValue Type="string" Name="VssOption" Value="[VSSOPTION_VALUE]" KeyPath="yes" />
             </RegistryKey>
           </Component>
+          <?endif?>
         </Directory>
       </Directory>
     </Directory>
@@ -167,6 +181,7 @@
       <ComponentRef Id="libstdc++_6_lib" />
       <ComponentRef Id="qga_vss_dll" />
       <ComponentRef Id="qga_vss_tlb" />
+      <ComponentRef Id="vss_registry_option" />
       <?endif?>
       <ComponentRef Id="gspawn-helper-console" />
       <ComponentRef Id="gspawn-helper" />
