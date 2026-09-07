@@ -241,10 +241,27 @@ out:
     return hr;
 }
 
+static void qga_vss_open_log(void)
+{
+    char path[MAX_PATH];
+    UINT n;
+
+    n = GetSystemWindowsDirectoryA(path, sizeof(path));
+    if (n == 0 || n >= sizeof(path)) {
+        return;
+    }
+    snprintf(path + n, sizeof(path) - n,
+             "\\Temp\\qga-vss-install.log");
+    if (freopen(path, "a", stderr)) {
+        setvbuf(stderr, NULL, _IONBF, 0);
+    }
+}
+
 /* Unregister this module from COM+ Applications Catalog */
 STDAPI COMUnregister(void);
 STDAPI COMUnregister(void)
 {
+    qga_vss_open_log();
     qga_debug_begin;
 
     HRESULT hr;
@@ -260,6 +277,7 @@ out:
 STDAPI COMRegister(void);
 STDAPI COMRegister(void)
 {
+    qga_vss_open_log();
     qga_debug_begin;
 
     HRESULT hr;
