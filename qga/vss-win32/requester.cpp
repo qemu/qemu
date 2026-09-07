@@ -17,6 +17,7 @@
 #include "install.h"
 #include <vswriter.h>
 #include <vsbackup.h>
+#include <aclapi.h>
 
 /* Max wait time for frozen event (VSS can only hold writes for 10 seconds) */
 #define VSS_TIMEOUT_FREEZE_MSEC 60000
@@ -298,10 +299,14 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     HRESULT hr;
     LONG ctx;
     GUID guidSnapshotSet = GUID_NULL;
+    SID_IDENTIFIER_AUTHORITY sia_nt = SECURITY_NT_AUTHORITY;
+    PSID pSidSystem = NULL, pSidAdmins = NULL;
     SECURITY_DESCRIPTOR sd;
     SECURITY_ATTRIBUTES sa;
+    EXPLICIT_ACCESS ea[2];
+    PACL pAcl = NULL;
     WCHAR short_volume_name[64], *display_name = short_volume_name;
-    DWORD wait_status;
+    DWORD wait_status, aclResult;
     int num_fixed_drives = 0, i;
     int num_mount_points = 0;
     VSS_BACKUP_TYPE vss_bt = get_vss_backup_type();
@@ -313,9 +318,48 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
         return;
     }
 
-    /* Allow unrestricted access to events */
+    /* Grant access to SYSTEM and Administrators only */
+    if (!AllocateAndInitializeSid(&sia_nt, 1,
+            SECURITY_LOCAL_SYSTEM_RID, 0, 0, 0, 0, 0, 0, 0,
+            &pSidSystem)) {
+        err_set(errset, GetLastError(), "failed to create SYSTEM SID");
+        goto out;
+    }
+    if (!AllocateAndInitializeSid(&sia_nt, 2,
+            SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
+            0, 0, 0, 0, 0, 0, &pSidAdmins)) {
+        DWORD err = GetLastError();
+        FreeSid(pSidSystem);
+        err_set(errset, err, "failed to create Administrators SID");
+        goto out;
+    }
+
+    ZeroMemory(&ea, sizeof(ea));
+    ea[0].grfAccessPermissions = EVENT_ALL_ACCESS;
+    ea[0].grfAccessMode = SET_ACCESS;
+    ea[0].grfInheritance = NO_INHERITANCE;
+    ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    ea[0].Trustee.ptstrName = (LPTSTR)pSidSystem;
+    ea[1].grfAccessPermissions = EVENT_ALL_ACCESS;
+    ea[1].grfAccessMode = SET_ACCESS;
+    ea[1].grfInheritance = NO_INHERITANCE;
+    ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[1].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    ea[1].Trustee.ptstrName = (LPTSTR)pSidAdmins;
+
+    aclResult = SetEntriesInAcl(2, ea, NULL, &pAcl);
+    if (aclResult != ERROR_SUCCESS) {
+        FreeSid(pSidSystem);
+        FreeSid(pSidAdmins);
+        err_set(errset, aclResult, "failed to create ACL for events");
+        goto out;
+    }
+    FreeSid(pSidSystem);
+    FreeSid(pSidAdmins);
+
     InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
-    SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+    SetSecurityDescriptorDacl(&sd, TRUE, pAcl, FALSE);
     sa.nLength = sizeof(sa);
     sa.lpSecurityDescriptor = &sd;
     sa.bInheritHandle = FALSE;
@@ -551,6 +595,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     }
 
     qga_debug("end successful");
+    LocalFree(pAcl);
     return;
 
 out:
@@ -559,6 +604,7 @@ out:
     }
 
 out1:
+    LocalFree(pAcl);
     requester_cleanup();
 
     qga_debug_end;
