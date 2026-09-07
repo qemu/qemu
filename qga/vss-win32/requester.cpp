@@ -27,10 +27,11 @@
 #define DEFAULT_VSS_BACKUP_TYPE VSS_BT_FULL
 
 #define err_set(e, err, fmt, ...) {                                         \
+    DWORD _e = (DWORD)(err);                                                \
     (e)->error_setg_win32_wrapper((e)->errp, __FILE__, __LINE__, __func__,  \
-                                   err, fmt ": Windows error 0x%lx",        \
-                                   ## __VA_ARGS__, err);                    \
-    qga_debug(fmt ": Windows error 0x%lx", ## __VA_ARGS__, err);            \
+                                   _e, fmt ": Windows error 0x%lx",         \
+                                   ## __VA_ARGS__, _e);                     \
+    qga_debug(fmt ": Windows error 0x%lx", ## __VA_ARGS__, _e);             \
 }
 /* Bad idea, works only when (e)->errp != NULL: */
 #define err_is_set(e) ((e)->errp && *(e)->errp)
