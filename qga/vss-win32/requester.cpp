@@ -434,7 +434,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     if (!mountpoints) {
         volume = FindFirstVolumeW(short_volume_name, ARRAYSIZE(short_volume_name));
         if (volume == INVALID_HANDLE_VALUE) {
-            err_set(errset, hr, "failed to find first volume");
+            err_set(errset, GetLastError(), "failed to find first volume");
             goto out;
         }
 
