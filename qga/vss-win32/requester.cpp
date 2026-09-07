@@ -506,7 +506,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     for (i = 0; i < VSS_TIMEOUT_FREEZE_MSEC/VSS_TIMEOUT_EVENT_MSEC; i++) {
         HRESULT hr2 = vss_ctx.pAsyncSnapshot->QueryStatus(&hr, NULL);
         if (FAILED(hr2)) {
-            err_set(errset, hr, "failed to do snapshot set");
+            err_set(errset, hr2, "failed to query snapshot set status");
             goto out;
         }
         if (hr != VSS_S_ASYNC_PENDING) {
