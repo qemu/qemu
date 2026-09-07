@@ -153,12 +153,6 @@ static void loongarch_la464_init_csr(DeviceState *dev)
         }
         set_csr_flag(LOONGARCH_CSR_IMPCTL1, CSRFL_UNUSED);
         set_csr_flag(LOONGARCH_CSR_IMPCTL2, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRCTL, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRINFO1, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRINFO2, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRENTRY, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRERA, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRSAVE, CSRFL_UNUSED);
         set_csr_flag(LOONGARCH_CSR_CTAG, CSRFL_UNUSED);
 
         for (i = env->perf_event_num; i < MAX_PERF_EVENTS; i++) {
