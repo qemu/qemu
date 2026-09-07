@@ -117,7 +117,9 @@ STDMETHODIMP_(ULONG) CQGAVSSEnumObject::Release()
 STDMETHODIMP CQGAVSSEnumObject::Next(
     ULONG celt, VSS_OBJECT_PROP *rgelt, ULONG *pceltFetched)
 {
-    *pceltFetched = 0;
+    if (pceltFetched) {
+        *pceltFetched = 0;
+    }
     return S_FALSE;
 }
 
