@@ -7787,18 +7787,33 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, ARMCPRegInfo *r,
         if (state == ARM_CP_STATE_AA32) {
             if (isbanked) {
                 /*
-                 * If the register is banked then we don't need to migrate or
-                 * reset the 32-bit instance in certain cases:
+                 * If this is an AArch64 CPU then AArch32 cpregs are never
+                 * banked, and if we put an NS version into the hash table
+                 * it would never be accessed (compare the condition we test
+                 * in access_secure_reg()). So drop it rather than adding it.
                  *
-                 * 1) If the register has both 32-bit and 64-bit instances
-                 *    then we can count on the 64-bit instance taking care
-                 *    of the non-secure bank.
-                 * 2) If ARMv8 is enabled then we can count on a 64-bit
-                 *    version taking care of the secure bank.  This requires
-                 *    that separate 32 and 64-bit definitions are provided.
+                 * Ideally we would also ignore the S banked register here
+                 * for an AArch32 register without EL3; however, that would
+                 * be a migration compatibility break for those CPUs, so we
+                 * continue with having the cpregs in the hashtable.
                  */
-                if ((r->state == ARM_CP_STATE_BOTH && ns) ||
-                    (arm_feature(env, ARM_FEATURE_V8) && !ns)) {
+                if (!ns && arm_feature(env, ARM_FEATURE_AARCH64)) {
+                    g_free(r);
+                    return;
+                }
+                /*
+                 * If the register is banked then we don't need to migrate or
+                 * reset the 32-bit instance if this is a STATE_BOTH regdef.
+                 * This is because we can know for certain that there's a
+                 * 64-bit regdef that's using bank_fieldoffsets[1] as its
+                 * fieldoffset, because the code that handles STATE_BOTH
+                 * always registers it. In other situations either the NS
+                 * or the S banked register might be aliased (architecturally
+                 * or non-architecturally) to a 64-bit register, but it might
+                 * not be. For those we must manually mark the alias in the
+                 * regdef struct if we care.
+                 */
+                if (r->state == ARM_CP_STATE_BOTH && ns) {
                     r->type |= ARM_CP_ALIAS;
                 }
             } else if ((secstate != r->secure) && !ns) {
