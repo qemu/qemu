@@ -461,6 +461,13 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
             }
             if (!FindNextVolumeW(volume, short_volume_name,
                                  ARRAYSIZE(short_volume_name))) {
+                DWORD err = GetLastError();
+                if (err != ERROR_NO_MORE_FILES) {
+                    err_set(errset, err,
+                            "failed to find next volume");
+                    FindVolumeClose(volume);
+                    goto out;
+                }
                 FindVolumeClose(volume);
                 break;
             }
