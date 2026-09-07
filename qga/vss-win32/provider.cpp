@@ -212,7 +212,8 @@ CQGAVssProvider::~CQGAVssProvider()
 STDMETHODIMP CQGAVssProvider::QueryInterface(REFIID riid, void **ppObj)
 {
     if (riid == IID_IUnknown) {
-        *ppObj = static_cast<void*>(this);
+        *ppObj = static_cast<void*>(
+            static_cast<IVssSoftwareSnapshotProvider*>(this));
         AddRef();
         return S_OK;
     }
