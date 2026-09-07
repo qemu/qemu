@@ -138,6 +138,14 @@ typedef struct ConfidentialGuestSupportClass {
                             uint64_t policy, Error **errp);
 
     /*
+     * Get the guest policy currently configured for the confidential
+     * platform, be it from the command line or from a previous call to
+     * set_guest_policy. Its format is the same as for set_guest_policy.
+     */
+    int (*get_guest_policy)(ConfidentialGuestPolicyType policy_type,
+                            uint64_t *policy, Error **errp);
+
+    /*
      * Set the SEV-SNP ID block and ID authentication block. These are
      * passed to SNP_LAUNCH_FINISH to provide signed verification of the
      * guest configuration.
