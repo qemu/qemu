@@ -230,11 +230,11 @@ static void AddComponents(ErrorSet *errset)
                     goto out;
                 }
             }
-            SysFreeString(bstrWriterName);
-            bstrWriterName = NULL;
             pComponent->FreeComponentInfo(info);
             info = NULL;
         }
+        SysFreeString(bstrWriterName);
+        bstrWriterName = NULL;
     }
 out:
     if (bstrWriterName) {
