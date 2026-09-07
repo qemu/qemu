@@ -209,6 +209,31 @@ typedef ssize_t (*QCryptoTLSSessionReadFunc)(void *buf,
                                              Error **errp);
 
 /**
+ * qcrypto_tls_session_write_cork:
+ * @sess: the TLS session object
+ *
+ * Causes future qcrypto_tls_session_write() calls to encrypt
+ * and queue data, without sending on the wire.
+ */
+void qcrypto_tls_session_write_cork(QCryptoTLSSession *sess);
+
+/**
+ * qcrypto_tls_session_write_uncork:
+ * @sess: the TLS session object
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Attempt to send previously queued data. If the underlying
+ * stream is non-blocking, then only a subset of data (if any)
+ * may be written. To process outstanding data, this method
+ * must be called again until it returns 0.
+ *
+ * Returns: the number of bytes remaining to be sent,
+ * or -1 on error.
+ */
+ssize_t qcrypto_tls_session_write_uncork(QCryptoTLSSession *sess,
+                                         Error **errp);
+
+/**
  * qcrypto_tls_session_set_callbacks:
  * @sess: the TLS session object
  * @writeFunc: callback for sending data

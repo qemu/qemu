@@ -513,6 +513,39 @@ qcrypto_tls_session_read(QCryptoTLSSession *session,
 }
 
 
+void qcrypto_tls_session_write_cork(QCryptoTLSSession *sess)
+{
+    gnutls_record_cork(sess->handle);
+}
+
+
+ssize_t qcrypto_tls_session_write_uncork(QCryptoTLSSession *sess,
+                                         Error **errp)
+{
+    int ret;
+    ret = gnutls_record_uncork(sess->handle, 0);
+    if (ret == GNUTLS_E_AGAIN ||
+        ret == GNUTLS_E_INTERRUPTED) {
+        ret = gnutls_record_check_corked(sess->handle);
+        if (ret < 0) {
+            error_setg(errp,
+                       "Cannot query pending TLS output: %s",
+                       gnutls_strerror(ret));
+            return -1;
+        }
+
+        return ret;
+    } else if (ret < 0) {
+        error_setg(errp,
+                   "Cannot uncork TLS output: %s",
+                   gnutls_strerror(ret));
+        return -1;
+    }
+
+    return 0;
+}
+
+
 size_t
 qcrypto_tls_session_check_pending(QCryptoTLSSession *session)
 {
@@ -755,6 +788,18 @@ char *
 qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess)
 {
     return NULL;
+}
+
+void qcrypto_tls_session_write_cork(QCryptoTLSSession *sess)
+{
+}
+
+
+ssize_t qcrypto_tls_session_write_uncork(QCryptoTLSSession *sess,
+                                         Error **errp)
+{
+    error_setg(errp, "TLS requires GNUTLS support");
+    return -1;
 }
 
 #endif
