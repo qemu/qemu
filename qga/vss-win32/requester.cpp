@@ -306,8 +306,9 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     int num_mount_points = 0;
     VSS_BACKUP_TYPE vss_bt = get_vss_backup_type();
 
+    *num_vols = 0;
+
     if (vss_ctx.pVssbc) { /* already frozen */
-        *num_vols = 0;
         qga_debug("finished, already frozen");
         return;
     }
