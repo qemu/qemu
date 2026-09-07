@@ -536,11 +536,11 @@ BOOL WINAPI DllMain(HINSTANCE hinstDll, DWORD dwReason, LPVOID lpReserved);
 EXTERN_C
 BOOL WINAPI DllMain(HINSTANCE hinstDll, DWORD dwReason, LPVOID lpReserved)
 {
-    qga_debug("begin, reason = %lu", dwReason);
+    OutputDebugStringA(QGA_PROVIDER_NAME ": DllMain begin\n");
     if (dwReason == DLL_PROCESS_ATTACH) {
         g_hinstDll = hinstDll;
         DisableThreadLibraryCalls(hinstDll);
     }
-    qga_debug_end;
+    OutputDebugStringA(QGA_PROVIDER_NAME ": DllMain end\n");
     return TRUE;
 }
