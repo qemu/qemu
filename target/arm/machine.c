@@ -979,6 +979,39 @@ static const VMStateDescription vmstate_fpmr = {
     },
 };
 
+static bool secure_banked_regs_ok_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    /*
+     * We must send this subsection if this is an AArch32 CPU with
+     * banked coprocessor registers. Older QEMU mishandled migration
+     * of these by listing both Secure and NonSecure banked registers
+     * in the cpreg_vmstate_indexes but reading and writing the
+     * NonSecure register for both indexes. Providing this subsection
+     * tells the destination that we do not have this bug and it
+     * should not ignore the Secure banked register values.
+     *
+     * We don't need the subsection for CPUs without banked registers
+     * (notably AArch64 ones and M-profile ones), and don't send
+     * it to avoid breaking migration compat for them.
+     */
+    return !arm_feature(&cpu->env, ARM_FEATURE_AARCH64) &&
+        !arm_feature(&cpu->env, ARM_FEATURE_M) &&
+        arm_feature(&cpu->env, ARM_FEATURE_EL3);
+}
+
+static const VMStateDescription vmstate_secure_banked_regs_ok = {
+    .name = "cpu/secure-banked-regs-ok",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = secure_banked_regs_ok_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(secure_banked_regs_ok, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static int cpu_pre_save(void *opaque)
 {
     ARMCPU *cpu = opaque;
@@ -1013,6 +1046,9 @@ static int cpu_pre_save(void *opaque)
     cpu->cpreg_vmstate_indexes = cpu->cpreg_indexes;
     cpu->cpreg_vmstate_values = cpu->cpreg_values;
     cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+
+    /* We don't have the bug where we send wrong data for Secure regs */
+    cpu->secure_banked_regs_ok = true;
 
     return 0;
 }
@@ -1061,6 +1097,9 @@ static int cpu_pre_load(void *opaque)
 
     g_assert(!cpu->cpreg_vmstate_indexes);
     g_assert(!cpu->cpreg_vmstate_values);
+
+    /* So cpu_post_load() can see if we saw secure-banked-regs-ok */
+    cpu->secure_banked_regs_ok = false;
 
     return 0;
 }
@@ -1120,6 +1159,7 @@ static int cpu_post_load(void *opaque, int version_id)
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
     bool fail = false;
+    bool ignore_s_regs;
     int i, v;
 
     trace_cpu_post_load(cpu->cpreg_vmstate_array_len,
@@ -1141,6 +1181,21 @@ static int cpu_post_load(void *opaque, int version_id)
             (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIQ |
              CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VFIQ);
     }
+
+    /*
+     * Handle migration compatibility from an old QEMU which didn't get
+     * AArch32 Secure banked cpregs right. That QEMU will not have sent
+     * us the secure-banked-regs-ok subsection, and although its
+     * vmstate_indexes will include the S banked regs, the values in
+     * vmstate_values will be duplicates of the values of the NS banked
+     * regs. Ignore the S banked registers, which is the same effective
+     * behaviour of an old->old migration. (That is, the S regs will
+     * be at their reset values, which is usually good enough for the
+     * case of "guest is actually executing in NS and doesn't care
+     * about the S state".)
+     */
+    ignore_s_regs = secure_banked_regs_ok_needed(cpu) &&
+        !cpu->secure_banked_regs_ok;
 
     /* Update the values list from the incoming migration data.
      * Anything in the incoming data which we don't know about is
@@ -1165,6 +1220,30 @@ static int cpu_post_load(void *opaque, int version_id)
             continue;
         }
         /* matching register, copy the value over */
+
+        if (ignore_s_regs) {
+            /*
+             * If this is an AArch32 Secure cpreg, read the current (reset)
+             * value instead of using the migration state value. That way
+             * write_list_to_cpustate() will effectively be a NOP.
+             */
+            uint64_t kvmidx = cpu->cpreg_vmstate_indexes[v];
+
+            if ((kvmidx & CP_REG_ARCH_MASK) == CP_REG_ARM &&
+                (kvmidx & CP_REG_AA32_NS_MASK) == 0) {
+                uint32_t regidx = kvm_to_cpreg_id(kvmidx);
+                const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs,
+                                                            regidx);
+                /*
+                 * Missing ri or NO_RAW ri will be ignored or errored in
+                 * write_list_to_cpustate() later, so safe to skip.
+                 */
+                if (ri && !(ri->type & ARM_CP_NO_RAW)) {
+                    cpu->cpreg_vmstate_values[v] = read_raw_cp_reg(env, ri);
+                }
+            }
+        }
+
         cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
         i++;
         v++;
@@ -1343,6 +1422,7 @@ const VMStateDescription vmstate_arm_cpu = {
         &vmstate_pstate64,
         &vmstate_event,
         &vmstate_fpmr,
+        &vmstate_secure_banked_regs_ok,
         NULL
     }
 };
