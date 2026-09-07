@@ -572,6 +572,7 @@ namespace _com_util
 /* Stop QGA VSS provider service using Winsvc API  */
 STDAPI StopService(void)
 {
+    SERVICE_STATUS status;
     qga_debug_begin;
 
     HRESULT hr = S_OK;
@@ -590,7 +591,7 @@ STDAPI StopService(void)
         hr =  E_FAIL;
         goto out;
     }
-    if (!(ControlService(service, SERVICE_CONTROL_STOP, NULL))) {
+    if (!(ControlService(service, SERVICE_CONTROL_STOP, &status))) {
         errmsg(E_FAIL, "Failed to stop service");
         hr = E_FAIL;
     }
