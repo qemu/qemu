@@ -61,7 +61,7 @@ static void errmsg(DWORD err, const char *text)
 
 static void errmsg_dialog(DWORD err, const char *text, const char *opt = "")
 {
-    char *msg, buf[512];
+    char *msg = NULL, buf[512] = "";
 
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                   FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,

@@ -170,7 +170,7 @@ static void AddComponents(ErrorSet *errset)
     unsigned int cComponents, c1, c2, j;
     COMPointer<IVssExamineWriterMetadata> pMetadata;
     COMPointer<IVssWMComponent> pComponent;
-    PVSSCOMPONENTINFO info;
+    PVSSCOMPONENTINFO info = NULL;
     HRESULT hr;
 
     hr = vss_ctx.pVssbc->GetWriterMetadataCount(&cWriters);
