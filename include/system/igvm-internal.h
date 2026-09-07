@@ -64,9 +64,6 @@ struct QIgvm {
     struct sev_id_block *id_block;
     struct sev_id_authentication *id_auth;
 
-    /* Define the guest policy for SEV guests */
-    uint64_t sev_policy;
-
     /* These variables keep track of contiguous page regions */
     IGVM_VHS_PAGE_DATA region_prev_page_data;
     uint64_t region_start;

@@ -821,8 +821,6 @@ static int qigvm_directive_snp_id_block(QIgvm *ctx, const uint8_t *header_data,
     ctx->id_block->version = IGVM_SEV_ID_BLOCK_VERSION;
     memcpy(ctx->id_block->ld, igvm_id->ld, sizeof(ctx->id_block->ld));
 
-    ctx->id_block->policy = ctx->sev_policy;
-
     ctx->id_auth->id_key_alg = igvm_id->id_key_algorithm;
     assert(sizeof(igvm_id->id_key_signature) <=
            sizeof(ctx->id_auth->id_block_sig));
@@ -851,6 +849,13 @@ static int qigvm_directive_snp_id_block(QIgvm *ctx, const uint8_t *header_data,
             72);
 
     if (ctx->cgsc) {
+        uint64_t policy;
+
+        if (ctx->cgsc->get_guest_policy(GUEST_POLICY_SEV, &policy, errp) < 0) {
+            return -1;
+        }
+        ctx->id_block->policy = policy;
+
         return ctx->cgsc->set_id_block(ctx->id_block,
                                        sizeof(struct sev_id_block),
                                        ctx->id_auth,
@@ -910,7 +915,10 @@ static int qigvm_initialization_guest_policy(QIgvm *ctx,
         (const IGVM_VHS_GUEST_POLICY *)header_data;
 
     if (guest->compatibility_mask & ctx->compatibility_mask) {
-        ctx->sev_policy = guest->policy;
+        if (ctx->cgsc) {
+            return ctx->cgsc->set_guest_policy(GUEST_POLICY_SEV,
+                                               guest->policy, errp);
+        }
     }
     return 0;
 }
@@ -1007,15 +1015,6 @@ static int qigvm_supported_platform_compat_mask(QIgvm *ctx, Error **errp)
             errp,
             "IGVM file does not describe a compatible supported platform");
         return -1;
-    }
-    return 0;
-}
-
-static int qigvm_handle_policy(QIgvm *ctx, Error **errp)
-{
-    if (ctx->platform_type == IGVM_PLATFORM_TYPE_SEV_SNP) {
-        return ctx->cgsc->set_guest_policy(GUEST_POLICY_SEV, ctx->sev_policy,
-                                           errp);
     }
     return 0;
 }
@@ -1144,10 +1143,6 @@ int qigvm_process_file(IgvmCfg *cfg, MachineState *machine_state,
      * last group is processed with this call.
      */
     retval = qigvm_process_mem_page(&ctx, NULL, errp);
-
-    if (retval == 0) {
-        retval = qigvm_handle_policy(&ctx, errp);
-    }
 
 cleanup_parameters:
     QTAILQ_FOREACH(parameter, &ctx.parameter_data, next)
