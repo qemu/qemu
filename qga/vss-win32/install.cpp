@@ -597,8 +597,12 @@ STDAPI StopService(void)
     }
 
 out:
-    CloseServiceHandle(service);
-    CloseServiceHandle(manager);
+    if (service) {
+        CloseServiceHandle(service);
+    }
+    if (manager) {
+        CloseServiceHandle(manager);
+    }
     qga_debug_end;
     return hr;
 }
