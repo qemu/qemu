@@ -432,7 +432,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     }
 
     if (!mountpoints) {
-        volume = FindFirstVolumeW(short_volume_name, sizeof(short_volume_name));
+        volume = FindFirstVolumeW(short_volume_name, ARRAYSIZE(short_volume_name));
         if (volume == INVALID_HANDLE_VALUE) {
             err_set(errset, hr, "failed to find first volume");
             goto out;
@@ -447,7 +447,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
                     WCHAR volume_path_name[MAX_PATH];
                     if (GetVolumePathNamesForVolumeNameW(
                             short_volume_name, volume_path_name,
-                            sizeof(volume_path_name), NULL) &&
+                            ARRAYSIZE(volume_path_name), NULL) &&
                             *volume_path_name) {
                         display_name = volume_path_name;
                     }
@@ -459,7 +459,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
                 num_fixed_drives++;
             }
             if (!FindNextVolumeW(volume, short_volume_name,
-                                 sizeof(short_volume_name))) {
+                                 ARRAYSIZE(short_volume_name))) {
                 FindVolumeClose(volume);
                 break;
             }
