@@ -47,6 +47,7 @@ redundant_explicit_links = "deny"
 # default-warn lints
 result_unit_err = "allow"
 manual_checked_ops = "deny"
+manual_div_ceil = "deny"
 should_implement_trait = "deny"
 # can be for a reason, e.g. in callbacks
 unused_self = "allow"
