@@ -558,6 +558,7 @@ static const TypeInfo tpm_crb_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CRBState),
     .class_init  = tpm_crb_class_init,
+    .secure = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_TPM_IF },
         { }
