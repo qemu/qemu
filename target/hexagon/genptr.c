@@ -269,14 +269,18 @@ static const uint32_t sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_SSR] = 0x00008000,
     [HEX_SREG_CCR] = 0x10e0ff24,
     [HEX_SREG_HTID] = IMMUTABLE,
-    [HEX_SREG_IMASK] = 0xffff0000,
     [HEX_SREG_GEVB] = 0x000000ff,
 };
 
 G_GNUC_UNUSED
 static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv_i32 val)
 {
-    const uint32_t reg_mask = sreg_immut_masks[rnum];
+    uint32_t reg_mask = sreg_immut_masks[rnum];
+
+    if (rnum == HEX_SREG_IMASK &&
+        ctx->hex_def->hex_version < HEX_VER_V81) {
+        reg_mask = 0xffff0000;
+    }
 
     if (reg_mask != IMMUTABLE) {
         if (rnum < HEX_SREG_GLB_START) {
