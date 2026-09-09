@@ -1397,10 +1397,9 @@
 
 ##
 # @BlockdevOnError:
-#
-# An enumeration of possible behaviors for errors on I/O operations.
-# The exact meaning depends on whether the I/O was initiated by a
-# guest or by a block job
+#     An enumeration of possible behaviors for errors on I/O
+#     operations.  The exact meaning depends on whether the I/O was
+#     initiated by a guest or by a block job
 #
 # @report: for guest operations, report the error to the guest; for
 #     jobs, cancel the job
