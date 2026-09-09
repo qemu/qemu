@@ -1952,6 +1952,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     }
 cleanup:
     qemu_savevm_state_cleanup();
+    migration_cleanup_json_writer(ms);
 
     if (ret != 0) {
         status = MIGRATION_STATUS_FAILED;
