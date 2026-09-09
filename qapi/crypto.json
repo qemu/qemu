@@ -10,10 +10,10 @@
 
 ##
 # @QCryptoTLSCredsEndpoint:
-#
-# The type of network endpoint that will be using the credentials.
-# Most types of credential require different setup / structures
-# depending on whether they will be used in a server versus a client.
+#     The type of network endpoint that will be using the credentials.
+#     Most types of credential require different setup / structures
+#     depending on whether they will be used in a server versus a
+#     client.
 #
 # @client: the network endpoint is acting as the client
 #
@@ -126,11 +126,11 @@
 
 ##
 # @QCryptoIVGenAlgo:
-#
-# The supported algorithms for generating initialization vectors for
-# full disk encryption.  The 'plain' generator should not be used for
-# disks with sector numbers larger than 2^32, except where
-# compatibility with pre-existing Linux dm-crypt volumes is required.
+#     The supported algorithms for generating initialization vectors
+#     for full disk encryption.  The 'plain' generator should not be
+#     used for disks with sector numbers larger than 2^32, except
+#     where compatibility with pre-existing Linux dm-crypt volumes is
+#     required.
 #
 # @plain: 64-bit sector number truncated to 32-bits
 #
