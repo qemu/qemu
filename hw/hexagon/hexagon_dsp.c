@@ -194,7 +194,6 @@ static void v68n_1024_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Hexagon V68N_1024";
-    mc->alias = "sim";
     mc->init = v68n_1024_config_init;
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V68;
@@ -228,6 +227,7 @@ static void v81qa_1_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Hexagon V81QA_1";
+    mc->alias = "sim";
     mc->init = v81qa_1_config_init;
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
