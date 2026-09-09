@@ -1688,6 +1688,7 @@ void ahci_uninit(AHCIState *s)
             }
             ide_exit(ide_state);
         }
+        qemu_free_irq(ad->port.irq);
         object_unparent(OBJECT(&ad->port));
     }
 
