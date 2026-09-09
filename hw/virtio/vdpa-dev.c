@@ -267,11 +267,7 @@ static int vhost_vdpa_device_start(VirtIODevice *vdev, Error **errp)
     }
     s->started = true;
 
-    /*
-     * guest_notifier_mask/pending not used yet, so just unmask
-     * everything here. virtio-pci will do the right thing by
-     * enabling/disabling irqfd.
-     */
+    /* Point every vring call fd at its guest notifier. */
     for (i = 0; i < s->dev.nvqs; i++) {
         vhost_virtqueue_mask(&s->dev, vdev, i, false);
     }
@@ -283,6 +279,28 @@ err_guest_notifiers:
 err_host_notifiers:
     vhost_dev_disable_notifiers(&s->dev, vdev);
     return ret;
+}
+
+static void vhost_vdpa_device_guest_notifier_mask(VirtIODevice *vdev, int idx,
+                                                   bool mask)
+{
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return;
+    }
+    vhost_virtqueue_mask(&s->dev, vdev, idx, mask);
+}
+
+static bool vhost_vdpa_device_guest_notifier_pending(VirtIODevice *vdev,
+                                                    int idx)
+{
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return false;
+    }
+    return vhost_virtqueue_pending(&s->dev, idx);
 }
 
 static void vhost_vdpa_device_stop(VirtIODevice *vdev)
@@ -376,6 +394,8 @@ static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
     vdc->get_features = vhost_vdpa_device_get_features;
     vdc->set_status = vhost_vdpa_device_set_status;
     vdc->get_vhost = vhost_vdpa_device_get_vhost;
+    vdc->guest_notifier_mask = vhost_vdpa_device_guest_notifier_mask;
+    vdc->guest_notifier_pending = vhost_vdpa_device_guest_notifier_pending;
 }
 
 static void vhost_vdpa_device_instance_init(Object *obj)
