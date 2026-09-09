@@ -3,9 +3,12 @@
  * are rejected with SIGILL.
  *
  * Compiled with -mv66 so that e_flags selects CPU v66. The test embeds
- * a v68 instruction (L2_loadw_aq: "r0 = memw_aq(r0)") via .word
- * encoding. The revision-gated decoder must reject it, and linux-user
- * must deliver SIGILL.
+ * instructions from v68 through v73 via .word encoding: the assembler
+ * enforces the selected CPU's own minimum version, so none of these --
+ * including ones it otherwise knows how to assemble at their own
+ * target, such as callrh or unpause -- can be written as themselves in
+ * a file built for v66. The revision-gated decoder must reject every
+ * one of them, and linux-user must deliver SIGILL.
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -102,6 +105,8 @@ TRY_FUNC(v73_callrh,
          ".word 0x50c5c000    /* callrh r5 */\n")
 TRY_FUNC(v73_jumprh,
          ".word 0x52c0c000    /* jumprh r0 */\n")
+TRY_FUNC(v73_unpause,
+         ".word 0x57e0d000    /* unpause */\n")
 
 int main(void)
 {
@@ -133,6 +138,7 @@ int main(void)
 
     assert(try_v73_callrh() == SIGILL);
     assert(try_v73_jumprh() == SIGILL);
+    assert(try_v73_unpause() == SIGILL);
 
     assert(signals_handled == expected_signals);
 

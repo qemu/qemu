@@ -51,6 +51,9 @@ Q6INSN(J2_trap1,"trap1(Rx32,#u8)",ATTRIBS(A_COF,A_NOTE_NOPACKET,A_RESTRICT_NOPAC
 Q6INSN(J2_pause,"pause(#u8)",ATTRIBS(A_COF,A_NOTE_NOPACKET,A_RESTRICT_NOPACKET),
 "Enter low-power state for #u8 cycles",{fPAUSE(uiV);})
 
+Q6INSN(J2_unpause,"unpause",ATTRIBS(A_COF,A_NOTE_NOPACKET,A_RESTRICT_NOPACKET),
+"Resume paused threads",{fUNPAUSE();})
+
 Q6INSN(J2_rte,  "rte", ATTRIBS(A_PRIV,A_NOTE_PRIV,A_NO_TIMING_LOG),
 "Return from Exception",
 {
