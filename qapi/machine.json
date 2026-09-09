@@ -15,12 +15,11 @@
 
 ##
 # @SysEmuTarget:
-#
-# The comprehensive enumeration of QEMU system emulation ("softmmu")
-# targets.  Run "./configure --help" in the project root directory,
-# and look for the \*-softmmu targets near the "--target-list" option.
-# The individual target constants are not documented here, for the
-# time being.
+#     The comprehensive enumeration of QEMU system emulation
+#     ("softmmu") targets.  Run "./configure --help" in the project
+#     root directory, and look for the \*-softmmu targets near the
+#     "--target-list" option.  The individual target constants are not
+#     documented here, for the time being.
 #
 # @rx: since 5.0
 #
@@ -388,9 +387,8 @@
 
 ##
 # @LostTickPolicy:
-#
-# Policy for handling lost ticks in timer devices.  Ticks end up
-# getting lost when, for example, the guest is paused.
+#     Policy for handling lost ticks in timer devices.  Ticks end up
+#     getting lost when, for example, the guest is paused.
 #
 # @discard: throw away the missed ticks and continue with future
 #     injection normally.  The guest OS will see the timer jump ahead
@@ -1960,9 +1958,8 @@
 
 ##
 # @CpuModelCompareResult:
-#
-# An enumeration of CPU model comparison results.  The result is
-# usually calculated using e.g. CPU features or CPU generations.
+#     An enumeration of CPU model comparison results.  The result is
+#     usually calculated using e.g. CPU features or CPU generations.
 #
 # @incompatible: If model A is incompatible to model B, model A is not
 #     guaranteed to run where model B runs and the other way around.
