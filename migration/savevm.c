@@ -168,11 +168,16 @@ static bool qemu_loadvm_thread_pool_wait(MigrationState *s,
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
 {
+    QIOChannel *ioc = QIO_CHANNEL(qio_channel_block_new(bs));
+    QEMUFile *f;
+
     if (is_writable) {
-        return qemu_file_new_output(QIO_CHANNEL(qio_channel_block_new(bs)));
+        f = qemu_file_new_output(ioc);
     } else {
-        return qemu_file_new_input(QIO_CHANNEL(qio_channel_block_new(bs)));
+        f = qemu_file_new_input(ioc);
     }
+    object_unref(ioc);
+    return f;
 }
 
 
