@@ -177,6 +177,9 @@
                      fTLB_NONPOW2WRAP(fTLB_IDXMASK(INDEX)))
 #define fTLBP(TLBHI) \
     hex_tlb_lookup(env, ((TLBHI) >> 12), ((TLBHI) << 12))
+#define fTLBPP(TLBHI) ({ \
+    qemu_log_mask(LOG_UNIMP, "tlbpp is not implemented\n"); \
+    0; })
 #define iic_flush_cache(p)
 
 #define fIN_DEBUG_MODE(TNUM) ({ \

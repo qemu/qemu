@@ -25,6 +25,7 @@ DEF_ATTRIB(NA_NT, "Non-Allocating Non-Temporal instruction", "", "")
 
 DEF_ATTRIB(PRIV, "Not available in user or guest mode", "", "")
 DEF_ATTRIB(GUEST, "Not available in user mode", "", "")
+DEF_ATTRIB(TLBPP_INSN, "Extended (64-bit VA) TLB probe instruction", "", "")
 
 DEF_ATTRIB(FPOP, "Floating Point Operation", "", "")
 

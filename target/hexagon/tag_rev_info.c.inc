@@ -642,6 +642,8 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [S2_storeri_pi_nt] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [Y2_dcfetchbo_nt] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [Y2_dczeroa_nt] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+
+    [Y2_tlbpp] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
 };
 
 #endif /* HEXAGON_TAG_ARCH_TABLE_H */
