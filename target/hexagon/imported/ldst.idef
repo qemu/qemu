@@ -118,6 +118,16 @@ STD_ST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2
 STD_ST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_STORE),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)),1)
 STD_ST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE),"2",fSTORE(1,4,EA,RtV),2)
 STD_ST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE),"3",fSTORE(1,8,EA,RttV),3)
+
+/*
+ * Non-temporal post-increment stores: same store, with a cache-locality
+ * hint that a normal-priority cache line is unlikely to be reused soon.
+ */
+Q6INSN(S2_storerb_pi_nt,"memb(Rx32++#s4:0):nt=Rt32",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_STORE,A_NA_NT),"Store Byte",{fEA_REG(RxV); fPM_I(RxV,siV); fSTORE(1,1,EA,fGETBYTE(0,RtV)); })
+Q6INSN(S2_storerh_pi_nt,"memh(Rx32++#s4:1):nt=Rt32",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE,A_NA_NT),"Store Half integer",{fEA_REG(RxV); fPM_I(RxV,siV); fSTORE(1,2,EA,fGETHALF(0,RtV)); })
+Q6INSN(S2_storeri_pi_nt,"memw(Rx32++#s4:2):nt=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_STORE,A_NA_NT),"Store Word",{fEA_REG(RxV); fPM_I(RxV,siV); fSTORE(1,4,EA,RtV); })
+Q6INSN(S2_storerd_pi_nt,"memd(Rx32++#s4:3):nt=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_STORE,A_NA_NT),"Store Double integer",{fEA_REG(RxV); fPM_I(RxV,siV); fSTORE(1,8,EA,RttV); })
+
 STD_ST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)),2)
 STD_ST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_1B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))),0)
 STD_ST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))),1)
@@ -277,6 +287,17 @@ STD_PST_AMODES(storerh,"Rt32","memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B
 STD_PST_AMODES(storerf,"Rt.H32","memh","Store Upper Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(1,RtV)))
 STD_PST_AMODES(storeri,"Rt32","memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_STORE),"2",2,fSTORE(1,4,EA,RtV))
 STD_PST_AMODES(storerd,"Rtt32","memd","Store Double integer",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_STORE),"3",3,fSTORE(1,8,EA,RttV))
+
+/* Predicated forms of the non-temporal post-increment stores above. */
+Q6INSN(S2_pstorerbt_pi_nt,"if (Pv4) memb(Rx32++#s4:0):nt=Rt32",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_STORE,A_NA_NT),"Store Byte",{fEA_REG(RxV); if (fLSBOLD(PvV)){ fPM_I(RxV,siV); fSTORE(1,1,EA,fGETBYTE(0,RtV));} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerbf_pi_nt,"if (!Pv4) memb(Rx32++#s4:0):nt=Rt32",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_STORE,A_NA_NT),"Store Byte",{fEA_REG(RxV); if (fLSBOLDNOT(PvV)){ fPM_I(RxV,siV); fSTORE(1,1,EA,fGETBYTE(0,RtV));} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerht_pi_nt,"if (Pv4) memh(Rx32++#s4:1):nt=Rt32",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE,A_NA_NT),"Store Half integer",{fEA_REG(RxV); if (fLSBOLD(PvV)){ fPM_I(RxV,siV); fSTORE(1,2,EA,fGETHALF(0,RtV));} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerhf_pi_nt,"if (!Pv4) memh(Rx32++#s4:1):nt=Rt32",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE,A_NA_NT),"Store Half integer",{fEA_REG(RxV); if (fLSBOLDNOT(PvV)){ fPM_I(RxV,siV); fSTORE(1,2,EA,fGETHALF(0,RtV));} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerit_pi_nt,"if (Pv4) memw(Rx32++#s4:2):nt=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_STORE,A_NA_NT),"Store Word",{fEA_REG(RxV); if (fLSBOLD(PvV)){ fPM_I(RxV,siV); fSTORE(1,4,EA,RtV);} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerif_pi_nt,"if (!Pv4) memw(Rx32++#s4:2):nt=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_STORE,A_NA_NT),"Store Word",{fEA_REG(RxV); if (fLSBOLDNOT(PvV)){ fPM_I(RxV,siV); fSTORE(1,4,EA,RtV);} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerdt_pi_nt,"if (Pv4) memd(Rx32++#s4:3):nt=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_STORE,A_NA_NT),"Store Double integer",{fEA_REG(RxV); if (fLSBOLD(PvV)){ fPM_I(RxV,siV); fSTORE(1,8,EA,RttV);} else {STORE_CANCEL(EA);}})
+Q6INSN(S2_pstorerdf_pi_nt,"if (!Pv4) memd(Rx32++#s4:3):nt=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_STORE,A_NA_NT),"Store Double integer",{fEA_REG(RxV); if (fLSBOLDNOT(PvV)){ fPM_I(RxV,siV); fSTORE(1,8,EA,RttV);} else {STORE_CANCEL(EA);}})
+
 STD_PST_AMODES(storerinew,"Nt8.new","memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"2",2,fSTORE(1,4,EA,fNEWREG_ST(NtN)))
 STD_PST_AMODES(storerbnew,"Nt8.new","memb","Store Byte",ATTRIBS(A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_1B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
 STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))

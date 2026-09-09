@@ -3,12 +3,15 @@
  * are rejected with SIGILL.
  *
  * Compiled with -mv66 so that e_flags selects CPU v66. The test embeds
- * instructions from v68 through v73 via .word encoding: the assembler
- * enforces the selected CPU's own minimum version, so none of these --
- * including ones it otherwise knows how to assemble at their own
- * target, such as callrh or unpause -- can be written as themselves in
- * a file built for v66. The revision-gated decoder must reject every
- * one of them, and linux-user must deliver SIGILL.
+ * instructions from v68 up through v79 via .word encoding: the
+ * assembler enforces the selected CPU's own minimum version, so none
+ * of these -- including ones it otherwise knows how to assemble at
+ * their own target, such as callrh or unpause -- can be written as
+ * themselves in a file built for v66. The v79 non-temporal hints
+ * (":nt") aren't known to the assembler at any target yet, so those
+ * would need .word regardless. The revision-gated decoder must reject
+ * representative instructions from each family, and linux-user must
+ * deliver SIGILL.
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -108,6 +111,17 @@ TRY_FUNC(v73_jumprh,
 TRY_FUNC(v73_unpause,
          ".word 0x57e0d000    /* unpause */\n")
 
+TRY_FUNC(v79_storeri_pi_nt,
+         ".word 0xaa82c308    /* memw(r2++#4):nt = r3 */\n")
+TRY_FUNC(v79_pstorerit_pi_nt,
+         ".word 0xaa82e308    /* if (p0) memw(r2++#4):nt = r3 */\n")
+TRY_FUNC(v79_pstorerif_pi_nt,
+         ".word 0xaa82e30c    /* if (!p0) memw(r2++#4):nt = r3 */\n")
+TRY_FUNC(v79_dczeroa_nt,
+         ".word 0xa0c2e000    /* dczeroa(r2):nt */\n")
+TRY_FUNC(v79_dcfetchbo_nt,
+         ".word 0x9402e000    /* dcfetch(r2+#0):nt */\n")
+
 int main(void)
 {
     struct sigaction act;
@@ -139,6 +153,12 @@ int main(void)
     assert(try_v73_callrh() == SIGILL);
     assert(try_v73_jumprh() == SIGILL);
     assert(try_v73_unpause() == SIGILL);
+
+    assert(try_v79_storeri_pi_nt() == SIGILL);
+    assert(try_v79_pstorerit_pi_nt() == SIGILL);
+    assert(try_v79_pstorerif_pi_nt() == SIGILL);
+    assert(try_v79_dczeroa_nt() == SIGILL);
+    assert(try_v79_dcfetchbo_nt() == SIGILL);
 
     assert(signals_handled == expected_signals);
 

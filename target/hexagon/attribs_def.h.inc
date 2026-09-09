@@ -21,6 +21,8 @@ DEF_ATTRIB(AA_DUMMY, "Dummy Zeroth Attribute", "", "")
 /* Misc */
 DEF_ATTRIB(EXTENSION, "Extension instruction", "", "")
 
+DEF_ATTRIB(NA_NT, "Non-Allocating Non-Temporal instruction", "", "")
+
 DEF_ATTRIB(PRIV, "Not available in user or guest mode", "", "")
 DEF_ATTRIB(GUEST, "Not available in user mode", "", "")
 

@@ -101,6 +101,7 @@ tests += {
   'v68_hvx.c': {'cflags': [cflags, '-mhvx', '-Wno-unused-function', '-mv68']},
   'v69_hvx.c': {'cflags': [cflags, '-mhvx', '-Wno-unused-function', '-mv69']},
   'v73_scalar.c': {'cflags': [cflags, '-Wno-unused-function', '-mv73']},
+  'v79_scalar.c': {'cflags': [cflags, '-Wno-unused-function', '-mv79']},
   'valid-slots.c': {'cflags': cflags},
   'vector_add_int.c': {'cflags': [cflags, '-mhvx', '-fvectorize']},
 }
