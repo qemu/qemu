@@ -1329,7 +1329,7 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
         ret = 0; /* OK */
         break;
     case MADV_REMOVE:
-        ret = -EOPNOTSUPP;
+        ret = -TARGET_EOPNOTSUPP;
         break;
     case MADV_DONTDUMP:
         page_set_flags(start, start + len - 1, PAGE_DONTDUMP, 0);
@@ -1339,7 +1339,7 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
         break;
     case MADV_WIPEONFORK:
     case MADV_KEEPONFORK:
-        ret = -EINVAL;
+        ret = -TARGET_EINVAL;
         /* fall through */
     case MADV_DONTNEED:
         if (page_check_range(start, len, PAGE_PASSTHROUGH)) {
@@ -1361,11 +1361,11 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
     case MADV_COLLAPSE:
 #endif
     case -1:    /* BoringSSL uses -1 to check if the environment is broken */
-        ret = -EINVAL;
+        ret = -TARGET_EINVAL;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "Unhandled madvise(%d) call.\n", advice);
-        ret = -EINVAL; /* not yet known advise */
+        ret = -TARGET_EINVAL; /* not yet known advise */
         break;
     }
 
