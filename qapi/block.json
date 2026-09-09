@@ -16,11 +16,10 @@
 
 ##
 # @BiosAtaTranslation:
-#
-# Policy that BIOS should use to interpret cylinder/head/sector
-# addresses.  Note that Bochs BIOS and SeaBIOS will not actually
-# translate logical CHS to physical; instead, they will use logical
-# block addressing.
+#     Policy that BIOS should use to interpret cylinder/head/sector
+#     addresses.  Note that Bochs BIOS and SeaBIOS will not actually
+#     translate logical CHS to physical; instead, they will use
+#     logical block addressing.
 #
 # @auto: If cylinder/heads/sizes are passed, choose between none and
 #     LBA depending on the size of the disk.  If they are not passed,
