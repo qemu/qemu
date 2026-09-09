@@ -366,6 +366,7 @@ static const TypeInfo kvmclock_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(KVMClockState),
     .class_init    = kvmclock_class_init,
+    .secure        = true,
 };
 
 /* Note: Must be called after VCPU initialization. */
