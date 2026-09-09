@@ -10,9 +10,8 @@
 
 ##
 # @YankInstanceType:
-#
-# An enumeration of yank instance types.  See `YankInstance` for more
-# information.
+#     An enumeration of yank instance types.  See `YankInstance` for
+#     more information.
 #
 # Since: 6.0
 ##
