@@ -55,9 +55,8 @@
 
 ##
 # @SchemaMetaType:
-#
-# This is a `SchemaInfo`'s meta type, i.e. the kind of entity it
-# describes.
+#     This is a `SchemaInfo`'s meta type, i.e. the kind of entity it
+#     describes.
 #
 # @builtin: a predefined type such as 'int' or 'bool'.
 #
