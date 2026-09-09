@@ -24,6 +24,11 @@ class ArchTestsUart(QemuSystemTest):
         "download/v0.2.14/arch_tests_uart.tar.gz",
         "ce93cb90b9d757c1946dfe8fe6abcec8292b08a66546ac51b2dd48650b05fa91",
     )
+    ASSET_SEMIHOSTING_TARBALL = Asset(
+        "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
+        "download/v0.2.9/arch_tests_semihosting.tar.gz",
+        "f0ce731dc8dc2b861792b8bd60808cb714fd1922c0dc793af65090c0ba525bb0",
+    )
 
     def run_uart_test(self, test_name: str,
                       machine: str = "virt") -> None:
@@ -35,6 +40,18 @@ class ArchTestsUart(QemuSystemTest):
         target_bin = self.scratch_file('arch_tests_uart_package',
                                       'bin', test_name)
         self.vm.set_console()
+        self.set_vm_arg("-display", "none")
+        self.set_vm_arg("-kernel", target_bin)
+        self.vm.launch()
+        wait_for_console_pattern(self, "PASS")
+
+    def run_semihosting_test(self, test_name: str,
+                             machine: str = "V81QA_1") -> None:
+        self.set_machine(machine)
+        self.archive_extract(self.ASSET_SEMIHOSTING_TARBALL)
+        target_bin = self.scratch_file('arch_tests_semihosting_package',
+                                       'bin', test_name)
+        self.vm.set_console(semihosting=True)
         self.set_vm_arg("-display", "none")
         self.set_vm_arg("-kernel", target_bin)
         self.vm.launch()
@@ -77,6 +94,10 @@ class ArchTestsUart(QemuSystemTest):
     def test_sys_regs(self) -> None:
         """Tests system registers."""
         self.run_uart_test("test_sys_regs")
+
+    def test_sys_regs_v81(self) -> None:
+        """Tests V81-specific system register masks."""
+        self.run_semihosting_test("test_sys_regs")
 
     def test_threads(self) -> None:
         """Tests hardware thread management: start/stop, MODECTL state,
