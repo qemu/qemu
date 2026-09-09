@@ -184,10 +184,14 @@
 
 #define fIN_DEBUG_MODE(TNUM) ({ \
     HexagonCPU *_cpu = env_archcpu(env); \
+    bool _is_v81 = _cpu->cfg.hex_def->hex_version >= HEX_VER_V81; \
     uint32_t _isdbst = _cpu->globalregs ? \
         hexagon_globalreg_read(_cpu->globalregs, \
-                               HEX_SREG_ISDBST, env->threadId) : 0; \
-    (GET_FIELD(ISDBST_DEBUGMODE, _isdbst) \
+                                _is_v81 ? HEX_SREG_ISDBST2 : HEX_SREG_ISDBST, \
+                                env->threadId) : 0; \
+    ((_is_v81 ? \
+      GET_FIELD(ISDBST2_DEBUGMODE, _isdbst) : \
+      GET_FIELD(ISDBST_DEBUGMODE, _isdbst)) \
         & (0x1 << (TNUM))) != 0; })
 
 #define fIN_DEBUG_MODE_NO_ISDB(TNUM) false

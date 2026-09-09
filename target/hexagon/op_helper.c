@@ -1600,38 +1600,53 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
 
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
     HexagonCPU *cpu;
 
     BQL_LOCK_GUARD();
     cpu = env_archcpu(env);
-    ipendad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                                      env->threadId);
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~(mask));
-    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
-                            ipendad, env->threadId);
+    if (cpu->cfg.hex_def->hex_version >= HEX_VER_V81) {
+        iad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD,
+                                     env->threadId) & ~mask;
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad,
+                                env->threadId);
+    } else {
+        uint32_t ipendad =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                   env->threadId);
+
+        fSET_FIELD(ipendad, IPENDAD_IAD,
+                   fGET_FIELD(ipendad, IPENDAD_IAD) & ~mask);
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
     l2vic_clear_interrupt(cpu->l2vic);
     hex_interrupt_update(env);
 }
 
 void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
 {
-    uint32_t ipendad;
     uint32_t iad;
     HexagonCPU *cpu;
 
     BQL_LOCK_GUARD();
     cpu = env_archcpu(env);
-    ipendad = cpu->globalregs ?
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId) : 0;
-    iad = fGET_FIELD(ipendad, IPENDAD_IAD);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad | mask);
     if (cpu->globalregs) {
-        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
-                                ipendad, env->threadId);
+        if (cpu->cfg.hex_def->hex_version >= HEX_VER_V81) {
+            iad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD,
+                                         env->threadId) | mask;
+            hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad,
+                                    env->threadId);
+        } else {
+            uint32_t ipendad =
+                hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                       env->threadId);
+
+            fSET_FIELD(ipendad, IPENDAD_IAD,
+                       fGET_FIELD(ipendad, IPENDAD_IAD) | mask);
+            hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                    ipendad, env->threadId);
+        }
     }
     hex_interrupt_update(env);
 }
@@ -1657,7 +1672,7 @@ void HELPER(iassignw)(CPUHexagonState *env, uint32_t src)
     CPU_FOREACH(cpu) {
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
         uint32_t imask = thread_env->t_sreg[HEX_SREG_IMASK];
-        uint32_t intbitpos = (src >> 16) & 0xF;
+        uint32_t intbitpos = extract32(src, 16, 5);
         uint32_t val = (src >> thread_env->threadId) & 0x1;
         imask = deposit32(imask, intbitpos, 1, val);
         thread_env->t_sreg[HEX_SREG_IMASK] = imask;
@@ -1677,7 +1692,7 @@ uint32_t HELPER(iassignr)(CPUHexagonState *env, uint32_t src)
 
     BQL_LOCK_GUARD();
     /* src fields are in same position as modectl, but mean different things */
-    intbitpos = GET_FIELD(MODECTL_W, src);
+    intbitpos = extract32(src, 16, 5);
     dest_reg = 0;
     CPU_FOREACH(cpu) {
         CPUHexagonState *thread_env = &(HEXAGON_CPU(cpu)->env);
@@ -1896,10 +1911,17 @@ static inline QEMU_ALWAYS_INLINE uint32_t sreg_read(CPUHexagonState *env,
         }
         return env->t_sreg[HEX_SREG_BADVA0];
     }
+    cpu = env_archcpu(env);
+    if (reg == HEX_SREG_IPENDAD &&
+        cpu->cfg.hex_def->hex_version >= HEX_VER_V81) {
+        return (hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND,
+                                       env->threadId) & 0xffff) |
+            ((hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD,
+                                     env->threadId) & 0xffff) << 16);
+    }
     if (reg < HEX_SREG_GLB_START) {
         return env->t_sreg[reg];
     }
-    cpu = env_archcpu(env);
     return cpu->globalregs ?
         hexagon_globalreg_read(cpu->globalregs, reg, env->threadId) : 0;
 }

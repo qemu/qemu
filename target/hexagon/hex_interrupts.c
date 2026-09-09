@@ -21,7 +21,7 @@ static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num);
 
 static bool get_syscfg_gie(CPUHexagonState *env)
 {
-    HexagonCPU *cpu = env_archcpu(env);
+    const HexagonCPU *cpu = env_archcpu(env);
     uint32_t syscfg =
         hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG,
                                env->threadId);
@@ -52,85 +52,138 @@ static void set_ssr_ex_cause(CPUHexagonState *env, int ex, uint32_t cause)
     hexagon_modify_ssr(env, new, old);
 }
 
-static bool get_iad_bit(CPUHexagonState *env, int int_num)
+static bool has_split_ipend_iad(const CPUHexagonState *env)
+{
+    const HexagonCPU *cpu = env_archcpu(env);
+
+    return cpu->cfg.hex_def->hex_version >= HEX_VER_V81;
+}
+
+static uint32_t get_iad(CPUHexagonState *env)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    uint32_t iad = GET_FIELD(IPENDAD_IAD, ipendad);
+
+    if (has_split_ipend_iad(env)) {
+        return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD,
+                                      env->threadId);
+    }
+    return GET_FIELD(IPENDAD_IAD,
+                     hexagon_globalreg_read(cpu->globalregs,
+                                            HEX_SREG_IPENDAD,
+                                            env->threadId));
+}
+
+static void set_iad(CPUHexagonState *env, uint32_t iad)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+
+    if (has_split_ipend_iad(env)) {
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad,
+                                env->threadId);
+    } else {
+        uint32_t ipendad =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                   env->threadId);
+
+        fSET_FIELD(ipendad, IPENDAD_IAD, iad);
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
+}
+
+static bool get_iad_bit(CPUHexagonState *env, int int_num)
+{
+    uint32_t iad = get_iad(env);
+
     return extract32(iad, int_num, 1);
 }
 
 static void set_iad_bit(CPUHexagonState *env, int int_num, int val)
 {
-    HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    uint32_t iad = GET_FIELD(IPENDAD_IAD, ipendad);
+    uint32_t iad = get_iad(env);
+
     iad = deposit32(iad, int_num, 1, val);
-    fSET_FIELD(ipendad, IPENDAD_IAD, iad);
-    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
-                            ipendad, env->threadId);
+    set_iad(env, iad);
 }
 
 static uint32_t get_ipend(CPUHexagonState *env)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    return GET_FIELD(IPENDAD_IPEND, ipendad);
+
+    if (has_split_ipend_iad(env)) {
+        return hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPEND,
+                                      env->threadId);
+    }
+    return GET_FIELD(IPENDAD_IPEND,
+                     hexagon_globalreg_read(cpu->globalregs,
+                                            HEX_SREG_IPENDAD,
+                                            env->threadId));
 }
 
 static inline bool get_ipend_bit(CPUHexagonState *env, int int_num)
 {
-    HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    uint32_t ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    uint32_t ipend = get_ipend(env);
     return extract32(ipend, int_num, 1);
 }
 
 static void clear_ipend(CPUHexagonState *env, uint32_t mask)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    uint32_t ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    uint32_t ipend = get_ipend(env);
+
     ipend &= ~mask;
-    fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
-    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
-                            ipendad, env->threadId);
+    if (has_split_ipend_iad(env)) {
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPEND, ipend,
+                                env->threadId);
+    } else {
+        uint32_t ipendad =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                   env->threadId);
+
+        fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
 }
 
 static void set_ipend(CPUHexagonState *env, uint32_t mask)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    uint32_t ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    uint32_t ipend = get_ipend(env);
+
     ipend |= mask;
-    fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
-    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
-                            ipendad, env->threadId);
+    if (has_split_ipend_iad(env)) {
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPEND, ipend,
+                                env->threadId);
+    } else {
+        uint32_t ipendad =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                   env->threadId);
+
+        fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
 }
 
 static void set_ipend_bit(CPUHexagonState *env, int int_num, int val)
 {
     HexagonCPU *cpu = env_archcpu(env);
-    uint32_t ipendad =
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
-                               env->threadId);
-    uint32_t ipend = GET_FIELD(IPENDAD_IPEND, ipendad);
+    uint32_t ipend = get_ipend(env);
+
     ipend = deposit32(ipend, int_num, 1, val);
-    fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
-    hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
-                            ipendad, env->threadId);
+    if (has_split_ipend_iad(env)) {
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPEND, ipend,
+                                env->threadId);
+    } else {
+        uint32_t ipendad =
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
+                                   env->threadId);
+
+        fSET_FIELD(ipendad, IPENDAD_IPEND, ipend);
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
+                                ipendad, env->threadId);
+    }
 }
 
 static bool get_imask_bit(CPUHexagonState *env, int int_num)
