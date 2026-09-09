@@ -169,6 +169,7 @@ static const TypeInfo vmclock_device_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(VmclockState),
     .class_init    = vmclock_device_class_init,
+    .secure        = true,
 };
 
 static void vmclock_register_types(void)
