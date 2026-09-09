@@ -874,6 +874,9 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              HEX_VER_V69),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              HEX_VER_V71),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              HEX_VER_V73),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V75,              HEX_VER_V75),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V79,              HEX_VER_V79),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V81,              HEX_VER_V81),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)
