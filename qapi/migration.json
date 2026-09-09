@@ -788,9 +788,8 @@
 
 ##
 # @MigrationParameter:
-#
-# Migration parameters enumeration.  The enumeration values mirror the
-# members of @MigrationParameters.
+#     Migration parameters enumeration.  The enumeration values mirror
+#     the members of @MigrationParameters.
 #
 # Features:
 #
@@ -1769,9 +1768,8 @@
 
 ##
 # @DirtyRateMeasureMode:
-#
-# Method used to measure dirty page rate.  Differences between
-# available methods are explained in `calc-dirty-rate`.
+#     Method used to measure dirty page rate.  Differences between
+#     available methods are explained in `calc-dirty-rate`.
 #
 # @page-sampling: use page sampling
 #
