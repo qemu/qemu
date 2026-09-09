@@ -916,6 +916,7 @@ static TypeInfo spapr_nvdimm_info = {
     .class_size    = sizeof(SPAPRNVDIMMClass),
     .instance_size = sizeof(SpaprNVDIMMDevice),
     .instance_init = spapr_nvdimm_init,
+    .secure        = true,
 };
 
 static void spapr_nvdimm_register_types(void)

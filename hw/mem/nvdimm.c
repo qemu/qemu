@@ -277,6 +277,7 @@ static const TypeInfo nvdimm_info = {
     .instance_size = sizeof(NVDIMMDevice),
     .instance_init = nvdimm_init,
     .instance_finalize = nvdimm_finalize,
+    .secure        = true,
 };
 
 static void nvdimm_register_types(void)
