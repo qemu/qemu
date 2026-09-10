@@ -15,12 +15,12 @@
 #define CONSTANT_TIMER_TICK_MASK    0xfffffffffffcUL
 #define CONSTANT_TIMER_ENABLE       0x1UL
 
-uint64_t cpu_loongarch_get_constant_timer_counter(LoongArchCPU *cpu)
+uint64_t cpu_loongarch_get_timer_counter(LoongArchCPU *cpu)
 {
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / TIMER_PERIOD;
 }
 
-uint64_t cpu_loongarch_get_constant_timer_ticks(LoongArchCPU *cpu)
+uint64_t cpu_loongarch_get_timer_ticks(LoongArchCPU *cpu)
 {
     CPULoongArchState *env = &cpu->env;
     CPUSysState *sys = env_sys(env);
@@ -36,8 +36,7 @@ uint64_t cpu_loongarch_get_constant_timer_ticks(LoongArchCPU *cpu)
     return sys->CSR_TVAL;
 }
 
-void cpu_loongarch_store_constant_timer_config(LoongArchCPU *cpu,
-                                               uint64_t value)
+void cpu_loongarch_set_timer_config(LoongArchCPU *cpu, uint64_t value)
 {
     CPULoongArchState *env = &cpu->env;
     CPUSysState *sys = env_sys(env);
@@ -55,7 +54,7 @@ void cpu_loongarch_store_constant_timer_config(LoongArchCPU *cpu,
     }
 }
 
-void loongarch_constant_timer_cb(void *opaque)
+void cpu_loongarch_timer_cb(void *opaque)
 {
     LoongArchCPU *cpu  = opaque;
     CPULoongArchState *env = &cpu->env;

@@ -81,7 +81,7 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
         do_raise_exception(env, EXCCODE_IPE, GETPC());
     }
 
-    return cpu_loongarch_get_constant_timer_counter(cpu);
+    return cpu_loongarch_get_timer_counter(cpu);
 #endif
 }
 
