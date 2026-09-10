@@ -440,10 +440,9 @@
 
 ##
 # @BlockGraphInfo:
-#
-# Information about all nodes in a block (sub)graph in the form of
-# `BlockNodeInfo` data.  The base `BlockNodeInfo` struct contains the
-# information for the (sub)graph's root node.
+#     Information about all nodes in a block (sub)graph in the form of
+#     `BlockNodeInfo` data.  The base `BlockNodeInfo` struct contains
+#     the information for the (sub)graph's root node.
 #
 # @children: Array of links to this node's child nodes' information
 #
@@ -808,9 +807,8 @@
 
 ##
 # @BlockInfo:
-#
-# Block device information.  This structure describes a virtual device
-# and the backing device associated with it.
+#     Block device information.  This structure describes a virtual
+#     device and the backing device associated with it.
 #
 # @device: The device name associated with the virtual device.
 #
@@ -1647,9 +1645,8 @@
 
 ##
 # @BackupPerf:
-#
-# Optional parameters for backup.  These parameters don't affect
-# functionality, but may significantly affect performance.
+#     Optional parameters for backup.  These parameters don't affect
+#     functionality, but may significantly affect performance.
 #
 # @use-copy-range: Use copy offloading.  Default false.
 #
@@ -2745,11 +2742,10 @@
 
 ##
 # @ThrottleLimits:
-#
-# Limit parameters for throttling.  Since some limit combinations are
-# illegal, limits should always be set in one transaction.  All fields
-# are optional.  When setting limits, if a field is missing the
-# current value is not changed.
+#     Limit parameters for throttling.  Since some limit combinations
+#     are illegal, limits should always be set in one transaction.
+#     All fields are optional.  When setting limits, if a field is
+#     missing the current value is not changed.
 #
 # @iops-total: limit total I/O operations per second
 #
@@ -3532,12 +3528,11 @@
 
 ##
 # @Qcow2OverlapCheckFlags:
-#
-# Structure of flags for each metadata structure.  Setting a field to
-# 'true' makes QEMU guard that Qcow2 format structure against
-# unintended overwriting.  See Qcow2 format specification for detailed
-# information on these structures.  The default value is chosen
-# according to the template given.
+#     Structure of flags for each metadata structure.  Setting a field
+#     to 'true' makes QEMU guard that Qcow2 format structure against
+#     unintended overwriting.  See Qcow2 format specification for
+#     detailed information on these structures.  The default value is
+#     chosen according to the template given.
 #
 # @template: Specifies a template mode which can be adjusted using the
 #     other flags, defaults to 'cached'
