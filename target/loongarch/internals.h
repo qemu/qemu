@@ -35,9 +35,9 @@ void loongarch_cpu_update_irq(LoongArchCPU *cpu, uint64_t old);
 void loongarch_cpu_set_irq(void *opaque, int irq, int level);
 
 void cpu_loongarch_timer_cb(void *opaque);
-uint64_t cpu_loongarch_get_timer_counter(LoongArchCPU *cpu);
-uint64_t cpu_loongarch_get_timer_ticks(LoongArchCPU *cpu);
-void cpu_loongarch_set_timer_config(LoongArchCPU *cpu, uint64_t value);
+uint64_t cpu_loongarch_get_timer_counter(CPUTimerState *timer);
+uint64_t cpu_loongarch_get_timer_ticks(CPUTimerState *timer);
+void cpu_loongarch_set_timer_config(CPUTimerState *timer, uint64_t value);
 bool loongarch_cpu_has_work(CPUState *cs);
 bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env);
 #endif /* !CONFIG_USER_ONLY */

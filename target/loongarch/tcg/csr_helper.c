@@ -72,9 +72,7 @@ target_ulong helper_csrrd_cpuid(CPULoongArchState *env)
 
 target_ulong helper_csrrd_tval(CPULoongArchState *env)
 {
-    LoongArchCPU *cpu = env_archcpu(env);
-
-    return cpu_loongarch_get_timer_ticks(cpu);
+    return cpu_loongarch_get_timer_ticks(env_timer(env));
 }
 
 target_ulong helper_csrrd_msgir(CPULoongArchState *env)
@@ -135,23 +133,23 @@ target_ulong helper_csrwr_asid(CPULoongArchState *env, target_ulong val)
 
 target_ulong helper_csrwr_tcfg(CPULoongArchState *env, target_ulong val)
 {
-    LoongArchCPU *cpu = env_archcpu(env);
-    CPUSysState *sys = env_sys(env);
+    CPUTimerState *timer = env_timer(env);
+    CPUSysState *sys = container_of(timer, CPUSysState, timer_state);
     int64_t old_v = sys->CSR_TCFG;
 
-    cpu_loongarch_set_timer_config(cpu, val);
+    cpu_loongarch_set_timer_config(timer, val);
 
     return old_v;
 }
 
 target_ulong helper_csrwr_ticlr(CPULoongArchState *env, target_ulong val)
 {
-    LoongArchCPU *cpu = env_archcpu(env);
+    CPUTimerState *timer = env_timer(env);
     int64_t old_v = 0;
 
     if (val & 0x1) {
         bql_lock();
-        loongarch_cpu_set_irq(cpu, IRQ_TIMER, 0);
+        loongarch_cpu_set_irq(LOONGARCH_CPU(timer->cs), timer->irq, 0);
         bql_unlock();
     }
     return old_v;

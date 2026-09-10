@@ -315,6 +315,12 @@ typedef struct  LoongArchBT {
     uint32_t ftop;
 } lbt_t;
 
+typedef struct CPUTimerState {
+    QEMUTimer timer;
+    int irq;
+    CPUState *cs;
+} CPUTimerState;
+
 #define CPU_VENDOR_LOONGSON   "Loongson"
 #define CPU_MODEL_3A5000      "3A5000"
 #define CPU_MODEL_1C101       "1C101"
@@ -384,6 +390,9 @@ typedef struct CPUSysState {
     uint64_t CSR_PRCFG1;
     uint64_t CSR_PRCFG2;
     uint64_t CSR_PRCFG3;
+#ifdef CONFIG_TCG
+    CPUTimerState timer_state;
+#endif
 } CPUSysState;
 
 typedef struct CPUArchState {
@@ -446,7 +455,6 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPULoongArchState env;
-    QEMUTimer timer;
     uint32_t  phy_id;
     OnOffAuto lbt;
     OnOffAuto pmu;
@@ -502,6 +510,11 @@ static inline CPUSysState *env_sys(CPULoongArchState *env)
 static inline void set_sys_state(CPULoongArchState *env, CPUSysState *sys)
 {
     env->sys_state = sys;
+}
+
+static inline CPUTimerState *env_timer(CPULoongArchState *env)
+{
+    return &env->sys_states[0].timer_state;
 }
 
 static inline bool is_la64(CPULoongArchState *env)

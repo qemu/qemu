@@ -727,11 +727,18 @@ static void loongarch_cpu_init(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+#ifdef CONFIG_TCG
+    CPULoongArchState *env = &cpu->env;
+    CPUTimerState *timer;
+#endif
 
     qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, N_IRQS);
 #ifdef CONFIG_TCG
-    timer_init_ns(&cpu->timer, QEMU_CLOCK_VIRTUAL,
-                  &cpu_loongarch_timer_cb, cpu);
+    timer = env_timer(env);
+    timer->irq = IRQ_TIMER;
+    timer->cs  = CPU(obj);
+    timer_init_ns(&timer->timer, QEMU_CLOCK_VIRTUAL,
+                  &cpu_loongarch_timer_cb, timer);
 #endif
 #endif
 }
