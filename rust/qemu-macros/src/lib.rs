@@ -261,7 +261,7 @@ fn derive_device_or_error(input: DeriveInput) -> Result<proc_macro2::TokenStream
                 }
             },
         )?;
-        let field_ty = field.ty.clone();
+        let field_ty = &field.ty;
         let (qdev_prop, bitval) = if let Some(bitval) = bitnr {
             (
                 quote! { <#field_ty as ::hwcore::QDevProp>::BIT_INFO },

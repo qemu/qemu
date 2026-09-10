@@ -8,6 +8,7 @@
     non_upper_case_globals,
     unnecessary_transmutes,
     unsafe_op_in_unsafe_fn,
+    clippy::complexity,
     clippy::pedantic,
     clippy::restriction,
     clippy::style,

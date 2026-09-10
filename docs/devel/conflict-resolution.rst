@@ -18,9 +18,10 @@ How we resolve conflicts
 
 If you are experiencing conflict, please consider first addressing the
 perceived conflict directly with other involved parties, preferably through
-a real-time medium such as IRC. You could also try to get a third-party (e.g.
-a mutual friend, and/or someone with background on the issue, but not
-involved in the conflict) to intercede or mediate.
+a real-time medium such as `IRC <https://www.qemu.org/contribute/>`__. You could
+also try to get a third-party (e.g. a mutual friend, and/or someone with
+background on the issue, but not involved in the conflict) to intercede or
+mediate.
 
 If this fails or if you do not feel comfortable proceeding this way, or
 if the problem requires immediate escalation, report the issue to the QEMU

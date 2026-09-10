@@ -10,8 +10,8 @@ QEMU is a large and mature project with a number of complex subsystems
 that can be overwhelming to understand. The development documentation
 is not comprehensive but hopefully presents enough to get you started.
 If there are areas that are unclear please reach out either via the
-IRC channel or mailing list and hopefully we can improve the
-documentation for future developers.
+`IRC channel or mailing list <https://www.qemu.org/contribute/>`__ and
+hopefully we can improve the documentation for future developers.
 
 All developers will want to familiarise themselves with
 :ref:`development_process` and how the community interacts. Please pay
