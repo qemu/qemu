@@ -3,7 +3,68 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "loader.h"
+#include "target_elf.h"
+#include "target/hexagon/cpu.h"
 
+
+abi_ulong get_elf_hwcap(CPUState *cs)
+{
+    HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cs);
+    abi_ulong hwcaps;
+    uint32_t hex_ver;
+
+    if (!mcc->hex_def) {
+        return 0;
+    }
+
+    hex_ver = mcc->hex_def->hex_version;
+    switch (hex_ver) {
+    case HEX_VER_V5:
+        hwcaps = HWCAP_HEXAGON_ISA_V5;
+        break;
+    case HEX_VER_V55:
+        hwcaps = HWCAP_HEXAGON_ISA_V55;
+        break;
+    case HEX_VER_V60:
+    case HEX_VER_V61:
+        hwcaps = HWCAP_HEXAGON_ISA_V60;
+        break;
+    case HEX_VER_V62:
+        hwcaps = HWCAP_HEXAGON_ISA_V62;
+        break;
+    case HEX_VER_V65:
+        hwcaps = HWCAP_HEXAGON_ISA_V65;
+        break;
+    case HEX_VER_V66:
+        hwcaps = HWCAP_HEXAGON_ISA_V66;
+        break;
+    case HEX_VER_V67:
+        hwcaps = HWCAP_HEXAGON_ISA_V67;
+        break;
+    case HEX_VER_V68:
+        hwcaps = HWCAP_HEXAGON_ISA_V68;
+        break;
+    case HEX_VER_V69:
+        hwcaps = HWCAP_HEXAGON_ISA_V69;
+        break;
+    case HEX_VER_V71:
+        hwcaps = HWCAP_HEXAGON_ISA_V71;
+        break;
+    case HEX_VER_V73:
+        hwcaps = HWCAP_HEXAGON_ISA_V73;
+        break;
+    default:
+        return 0;
+    }
+
+    hwcaps |= HWCAP_HEXAGON_HVX;
+    hwcaps |= HWCAP_HEXAGON_HVX_LENGTH_128B;
+    if (hex_ver >= HEX_VER_V68) {
+        hwcaps |= HWCAP_HEXAGON_HVX_IEEE_FP;
+    }
+
+    return hwcaps;
+}
 
 const char *get_elf_cpu_model(uint32_t eflags)
 {
