@@ -67,9 +67,8 @@
 
 ##
 # @VhostStatus:
-#
-# Information about a vhost device.  This information will only be
-# displayed if the vhost device is active.
+#     Information about a vhost device.  This information will only be
+#     displayed if the vhost device is active.
 #
 # @n-mem-sections: vhost_dev n_mem_sections
 #
@@ -110,10 +109,9 @@
 
 ##
 # @VirtioStatus:
-#
-# Full status of the virtio device with most VirtIODevice members.
-# Also includes the full status of the corresponding vhost device if
-# the vhost device is active.
+#     Full status of the virtio device with most VirtIODevice members.
+#     Also includes the full status of the corresponding vhost device
+#     if the vhost device is active.
 #
 # @name: VirtIODevice name
 #
@@ -473,9 +471,9 @@
 
 ##
 # @VirtioDeviceFeatures:
-#
-# The common fields that apply to most Virtio devices.  Some devices
-# may not have their own device-specific features (e.g. virtio-rng).
+#     The common fields that apply to most Virtio devices.  Some
+#     devices may not have their own device-specific features
+#     (e.g. virtio-rng).
 #
 # @transports: List of transport features of the virtio device
 #
@@ -754,8 +752,7 @@
 
 ##
 # @VirtioRingAvail:
-#
-# Information regarding the avail vring (a.k.a. driver area)
+#     Information regarding the avail vring (a.k.a. driver area)
 #
 # @flags: VRingAvail flags
 #
@@ -772,8 +769,7 @@
 
 ##
 # @VirtioRingUsed:
-#
-# Information regarding the used vring (a.k.a. device area)
+#     Information regarding the used vring (a.k.a. device area)
 #
 # @flags: VRingUsed flags
 #
@@ -938,13 +934,12 @@
 
 ##
 # @VirtIOGPUOutput:
-#
-# Describes configuration of a VirtIO GPU output.  If both @xres and
-# @yres are set, they take precedence over root virtio-gpu resolution
-# configuration and enable the corresponding output.  If none of @xres
-# and @yres are set, root virtio-gpu resolution configuration takes
-# precedence and only the first output is enabled.  Only setting one
-# of @xres or @yres is an error.
+#     Describes configuration of a VirtIO GPU output.  If both @xres
+#     and @yres are set, they take precedence over root virtio-gpu
+#     resolution configuration and enable the corresponding output.
+#     If none of @xres and @yres are set, root virtio-gpu resolution
+#     configuration takes precedence and only the first output is
+#     enabled.  Only setting one of @xres or @yres is an error.
 #
 # @name: the name of the output
 #
