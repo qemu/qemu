@@ -242,7 +242,7 @@ static int do_strtosz(const char *nptr, const char **end,
          */
         double fraction = 0.0;
 
-        if (retval == 0 && *endptr == '.' && !isdigit(endptr[1])) {
+        if (retval == 0 && *endptr == '.' && !qemu_isdigit(endptr[1])) {
             /* If we got here, we parsed at least one digit already. */
             endptr++;
         } else {
