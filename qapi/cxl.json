@@ -441,10 +441,9 @@
 
 ##
 # @CxlDynamicCapacityExtent:
-#
-# A single dynamic capacity extent.  This is a contiguous allocation
-# of memory by Device Physical Address within a single Dynamic
-# Capacity Region on a CXL Type 3 Device.
+#     A single dynamic capacity extent.  This is a contiguous
+#     allocation of memory by Device Physical Address within a single
+#     Dynamic Capacity Region on a CXL Type 3 Device.
 #
 # @offset: The offset (in bytes) to the start of the region where the
 #     extent belongs to.
