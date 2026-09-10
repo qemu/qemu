@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/ctype.h"
 #include "qemu/timer.h"
 #include "qemu/range.h"
 #include "qemu/units.h"
@@ -147,7 +148,7 @@ static int path_offset(const void *fdt, const char *path)
             if (*at == '/') {
                 at = strchr(at, '@');
             } else {
-                *at = tolower(*at);
+                *at = qemu_tolower(*at);
                 ++at;
             }
     }
