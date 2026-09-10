@@ -13,7 +13,7 @@ loongarch_ss.add(files(
 ))
 
 loongarch_system_ss.add(files(
-  'constant_timer.c',
+  'timer.c',
   'csr_helper.c',
   'iocsr_helper.c',
   'tlb_helper.c',
