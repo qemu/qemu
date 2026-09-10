@@ -474,8 +474,7 @@
 
 ##
 # @NumaNodeOptions:
-#
-# Create a guest NUMA node.  (for OptsVisitor)
+#     Create a guest NUMA node.  (for OptsVisitor)
 #
 # @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
@@ -630,11 +629,10 @@
 
 ##
 # @NumaCpuOptions:
-#
-# Option "-numa cpu" overrides default cpu to node mapping.  It
-# accepts the same set of cpu properties as returned by
-# `query-hotpluggable-cpus[].props <query-hotpluggable-cpus>`, where
-# node-id could be used to override default node mapping.
+#     Option "-numa cpu" overrides default cpu to node mapping.  It
+#     accepts the same set of cpu properties as returned by
+#     `query-hotpluggable-cpus[].props <query-hotpluggable-cpus>`,
+#     where node-id could be used to override default node mapping.
 #
 # Since: 2.10
 ##
