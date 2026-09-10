@@ -28,6 +28,10 @@ EXTRA_RUNS += run-test-minstret-ecall
 run-test-minstret-ecall: test-minstret-ecall
 	$(call run-test, $<, $(QEMU) -icount shift=1 $(QEMU_OPTS)$<)
 
+EXTRA_RUNS += run-test-minstret-wfi
+run-test-minstret-wfi: test-minstret-wfi
+	$(call run-test, $<, $(QEMU) -icount shift=1 $(QEMU_OPTS)$<)
+
 EXTRA_RUNS += run-plugin-doubletrap
 run-plugin-doubletrap: doubletrap
 	$(call run-test, $<, \
