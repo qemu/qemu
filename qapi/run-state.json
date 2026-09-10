@@ -585,10 +585,9 @@
 
 ##
 # @GuestPanicInformationTdx:
-#
-# TDX Guest panic information specific to TDX, as specified in the
-# "Guest-Hypervisor Communication Interface (GHCI) Specification",
-# section TDG.VP.VMCALL<ReportFatalError>.
+#     TDX Guest panic information specific to TDX, as specified in the
+#     "Guest-Hypervisor Communication Interface (GHCI) Specification",
+#     section TDG.VP.VMCALL<ReportFatalError>.
 #
 # @error-code: TD-specific error code
 #
