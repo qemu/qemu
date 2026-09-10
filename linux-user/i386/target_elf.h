@@ -28,6 +28,24 @@ typedef struct target_elf_gregset_t {
 } target_elf_gregset_t;
 
 /*
+ * Matches the kernel's elf_fpregset_t, i.e. struct user_i387_struct from
+ * arch/x86/include/asm/user_32.h.  This is the legacy FSAVE image without
+ * the trailing software status word, which FSAVE does not write either.
+ */
+#define HAVE_ELF_CORE_FPREGS    1
+
+typedef struct target_elf_fpregset_t {
+    uint32_t cwd;             /* FPU control word                 */
+    uint32_t swd;             /* FPU status word                  */
+    uint32_t twd;             /* FPU tag word                     */
+    uint32_t fip;             /* FPU IP offset                    */
+    uint32_t fcs;             /* FPU IP selector                  */
+    uint32_t foo;             /* FPU operand pointer offset       */
+    uint32_t fos;             /* FPU operand pointer selector     */
+    uint32_t st_space[20];    /* 8 * 10 bytes for st0-st7         */
+} target_elf_fpregset_t;
+
+/*
  * This is used to ensure we don't load something for the wrong architecture.
  */
 #define elf_check_machine(x)    ((x) == EM_386 || (x) == EM_486)
