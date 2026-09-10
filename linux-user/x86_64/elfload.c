@@ -42,6 +42,17 @@ bool init_guest_commpage(void)
     return true;
 }
 
+void elf_core_copy_fpregs(target_elf_fpregset_t *r, const CPUX86State *env)
+{
+    QEMU_BUILD_BUG_ON(sizeof(*r) != sizeof(X86LegacyXSaveArea));
+    /*
+     * The helper stores the image in target byte order.  cpu_x86_fxsave()
+     * folds the softfloat exception flags back into env->mxcsr, so the
+     * const has to go.
+     */
+    cpu_x86_fxsave((CPUX86State *)env, r, sizeof(*r));
+}
+
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
 {
     r->pt.r15 = tswapal(env->regs[15]);
