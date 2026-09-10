@@ -96,6 +96,24 @@ bool virtio_remove_resource(const QemuUUID *uuid)
     return result;
 }
 
+static gboolean virtio_vhost_device_match(gpointer key, gpointer value,
+                                         gpointer dev)
+{
+    VirtioSharedObject *vso = value;
+
+    return vso->type == TYPE_VHOST_DEV && vso->value == dev;
+}
+
+void virtio_remove_vhost_device(struct vhost_dev *dev)
+{
+    g_mutex_lock(&lock);
+    if (resource_uuids != NULL) {
+        g_hash_table_foreach_remove(resource_uuids, virtio_vhost_device_match,
+                                    dev);
+    }
+    g_mutex_unlock(&lock);
+}
+
 static VirtioSharedObject *get_shared_object(const QemuUUID *uuid)
 {
     gpointer lookup_res = NULL;
