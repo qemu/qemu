@@ -806,7 +806,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
 {
     tcg_target_long tmp;
     int32_t lo, hi;
-    int shift, ret;
+    int shift;
 
     if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
@@ -827,12 +827,9 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
         return;
     }
 
-    tmp = tcg_pcrel_diff(s, (void *)val);
-    if (tmp == (int32_t)tmp) {
-        tcg_out_opc_upper(s, OPC_AUIPC, rd, 0);
-        tcg_out_opc_imm(s, OPC_ADDI, rd, rd, 0);
-        ret = reloc_call(s->code_ptr - 2, (const tcg_insn_unit *)val);
-        tcg_debug_assert(ret == true);
+    if (split_auipc_offset(s->code_ptr, val, &hi, &lo)) {
+        tcg_out_opc_upper(s, OPC_AUIPC, rd, hi);
+        tcg_out_opc_imm(s, OPC_ADDI, rd, rd, lo);
         return;
     }
 
@@ -950,16 +947,16 @@ static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg ret, TCGReg arg)
 static void tcg_out_ldst(TCGContext *s, RISCVInsn opc, TCGReg data,
                          TCGReg addr, intptr_t offset)
 {
-    intptr_t imm12 = sextreg(offset, 0, 12);
+    int32_t lo = sextract32(offset, 0, 12);
 
-    if (offset != imm12) {
-        intptr_t diff = tcg_pcrel_diff(s, (void *)offset);
+    if (offset != lo) {
+        int32_t hi;
 
-        if (addr == TCG_REG_ZERO && diff == (int32_t)diff) {
-            imm12 = sextreg(diff, 0, 12);
-            tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP2, diff - imm12);
+        if (addr == TCG_REG_ZERO &&
+            split_auipc_offset(s->code_ptr, offset, &hi, &lo)) {
+            tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP2, hi);
         } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP2, offset - imm12);
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP2, offset - lo);
             if (addr != TCG_REG_ZERO) {
                 tcg_out_opc_reg(s, OPC_ADD, TCG_REG_TMP2, TCG_REG_TMP2, addr);
             }
@@ -972,7 +969,7 @@ static void tcg_out_ldst(TCGContext *s, RISCVInsn opc, TCGReg data,
     case OPC_SH:
     case OPC_SW:
     case OPC_SD:
-        tcg_out_opc_store(s, opc, addr, data, imm12);
+        tcg_out_opc_store(s, opc, addr, data, lo);
         break;
     case OPC_LB:
     case OPC_LBU:
@@ -981,7 +978,7 @@ static void tcg_out_ldst(TCGContext *s, RISCVInsn opc, TCGReg data,
     case OPC_LW:
     case OPC_LWU:
     case OPC_LD:
-        tcg_out_opc_imm(s, opc, data, addr, imm12);
+        tcg_out_opc_imm(s, opc, data, addr, lo);
         break;
     default:
         g_assert_not_reached();
@@ -1592,7 +1589,7 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
     TCGReg link = tail ? TCG_REG_ZERO : TCG_REG_RA;
     ptrdiff_t offset = tcg_pcrel_diff(s, arg);
     tcg_insn_unit insn = encode_j(OPC_JAL, link, 0);
-    int ret;
+    int32_t lo, hi;
 
     init_setting_vtype(s);
 
@@ -1600,19 +1597,18 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
     if (encode_jimm20(&insn, offset)) {
         /* short jump */
         tcg_out32(s, insn);
-    } else if (offset == (int32_t)offset) {
-        /* long jump: -2147483646 to 2147483648 */
-        tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP0, 0);
-        tcg_out_opc_imm(s, OPC_JALR, link, TCG_REG_TMP0, 0);
-        ret = reloc_call(s->code_ptr - 2, arg);
-        tcg_debug_assert(ret == true);
-    } else {
-        /* far jump: 64-bit */
-        tcg_target_long imm = sextreg((tcg_target_long)arg, 0, 12);
-        tcg_target_long base = (tcg_target_long)arg - imm;
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, base);
-        tcg_out_opc_imm(s, OPC_JALR, link, TCG_REG_TMP0, imm);
+        return;
     }
+
+    if (split_auipc_offset(s->code_ptr, (intptr_t)arg, &hi, &lo)) {
+        /* long jump */
+        tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP0, hi);
+    } else {
+        /* far jump */
+        lo = sextract32((intptr_t)arg, 0, 12);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, (intptr_t)arg - lo);
+    }
+    tcg_out_opc_imm(s, OPC_JALR, link, TCG_REG_TMP0, lo);
 }
 
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg,
