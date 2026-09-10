@@ -2727,6 +2727,8 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
  */
 void cpu_x86_load_seg(CPUX86State *s, X86Seg seg_reg, int selector);
 void cpu_x86_fsave(CPUX86State *s, void *host, size_t len);
+/* As cpu_x86_fsave(), but leaving the FPU state undisturbed. */
+void cpu_x86_fsave_noinit(CPUX86State *s, void *host, size_t len);
 void cpu_x86_frstor(CPUX86State *s, void *host, size_t len);
 void cpu_x86_fxsave(CPUX86State *s, void *host, size_t len);
 void cpu_x86_fxrstor(CPUX86State *s, void *host, size_t len);
