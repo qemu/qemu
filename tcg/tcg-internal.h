@@ -183,4 +183,24 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
 #undef DEF4
 #undef DEF6
 
+static inline void tcg_gen_extrh(TCGTemp *dst, TCGTemp *src)
+{
+    tcg_gen_op_tt(INDEX_op_extrh_i64_i32, TCG_TYPE_I32, dst, src);
+}
+
+static inline void tcg_gen_extrl(TCGTemp *dst, TCGTemp *src)
+{
+    tcg_gen_op_tt(INDEX_op_extrl_i64_i32, TCG_TYPE_I32, dst, src);
+}
+
+static inline void tcg_gen_exts(TCGTemp *dst, TCGTemp *src)
+{
+    tcg_gen_op_tt(INDEX_op_ext_i32_i64, TCG_TYPE_I64, dst, src);
+}
+
+static inline void tcg_gen_extu(TCGTemp *dst, TCGTemp *src)
+{
+    tcg_gen_op_tt(INDEX_op_extu_i32_i64, TCG_TYPE_I64, dst, src);
+}
+
 #endif /* TCG_INTERNAL_H */
