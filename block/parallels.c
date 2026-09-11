@@ -116,6 +116,13 @@ static uint32_t bat_entry_off(uint32_t idx)
     return sizeof(ParallelsHeader) + sizeof(uint32_t) * idx;
 }
 
+static int64_t parallels_data_end(BDRVParallelsState *s)
+{
+    int64_t data_end = s->data_start * BDRV_SECTOR_SIZE;
+    data_end += s->used_bmap_size * s->cluster_size;
+    return data_end;
+}
+
 static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
 {
     uint32_t index, offset;
@@ -130,7 +137,8 @@ static int64_t seek_to_sector(BDRVParallelsState *s, int64_t sector_num)
     }
 
     cluster_off = bat2sect(s, index);
-    if (cluster_off < s->data_start || cluster_off + s->tracks > s->data_end) {
+    if (cluster_off < s->data_start ||
+        cluster_off + s->tracks > parallels_data_end(s) >> BDRV_SECTOR_BITS) {
         /* Cluster is outside of the image file or overlaps the header. */
         return -1;
     }
@@ -187,20 +195,41 @@ static void parallels_set_bat_entry(BDRVParallelsState *s,
     bitmap_set(s->bat_dirty_bmap, bat_entry_off(index) / s->bat_dirty_block, 1);
 }
 
-static int mark_used(BlockDriverState *bs, unsigned long *bitmap,
-                     uint32_t bitmap_size, int64_t off, uint32_t count)
+int parallels_mark_used(BlockDriverState *bs, unsigned long *bitmap,
+                        uint32_t bitmap_size, int64_t off, uint32_t count)
 {
     BDRVParallelsState *s = bs->opaque;
     uint32_t cluster_index = host_cluster_index(s, off);
+    uint64_t cluster_end = (uint64_t)cluster_index + count;
     unsigned long next_used;
-    if ((uint64_t)cluster_index + count > bitmap_size) {
+
+    if (cluster_end > bitmap_size) {
         return -E2BIG;
     }
-    next_used = find_next_bit(bitmap, bitmap_size, cluster_index);
-    if (next_used < (uint64_t)cluster_index + count) {
+    next_used = find_next_bit(bitmap, cluster_end, cluster_index);
+    if (next_used < cluster_end) {
         return -EBUSY;
     }
     bitmap_set(bitmap, cluster_index, count);
+    return 0;
+}
+
+int parallels_mark_unused(BlockDriverState *bs, unsigned long *bitmap,
+                          uint32_t bitmap_size, int64_t off, uint32_t count)
+{
+    BDRVParallelsState *s = bs->opaque;
+    uint32_t cluster_index = host_cluster_index(s, off);
+    uint64_t cluster_end = (uint64_t)cluster_index + count;
+    unsigned long next_unused;
+
+    if (cluster_end > bitmap_size) {
+        return -E2BIG;
+    }
+    next_unused = find_next_zero_bit(bitmap, cluster_end, cluster_index);
+    if (next_unused < cluster_end) {
+        return -EINVAL;
+    }
+    bitmap_clear(bitmap, cluster_index, count);
     return 0;
 }
 
@@ -241,7 +270,8 @@ static int GRAPH_RDLOCK parallels_fill_used_bitmap(BlockDriverState *bs)
             continue;
         }
 
-        err2 = mark_used(bs, s->used_bmap, s->used_bmap_size, host_off, 1);
+        err2 = parallels_mark_used(bs, s->used_bmap, s->used_bmap_size,
+                                   host_off, 1);
         if (err2 < 0 && err == 0) {
             err = err2;
         }
@@ -254,6 +284,65 @@ static void parallels_free_used_bitmap(BlockDriverState *bs)
     BDRVParallelsState *s = bs->opaque;
     s->used_bmap_size = 0;
     g_free(s->used_bmap);
+    s->used_bmap = NULL;
+}
+
+int64_t GRAPH_RDLOCK parallels_allocate_host_clusters(BlockDriverState *bs,
+                                                      int64_t *clusters)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t first_free, next_used, host_off, prealloc_clusters;
+    int64_t prealloc_bytes;
+    uint32_t new_usedsize;
+    int ret = 0;
+
+    first_free = find_first_zero_bit(s->used_bmap, s->used_bmap_size);
+    if (first_free == s->used_bmap_size) {
+        host_off = parallels_data_end(s);
+        prealloc_clusters = *clusters + s->prealloc_size / s->tracks;
+        prealloc_bytes = prealloc_clusters * s->cluster_size;
+
+        /*
+         * We require the expanded size to read back as zero. If the
+         * user permitted truncation, we try that; but if it fails, we
+         * force the safer-but-slower fallocate.
+         */
+        if (s->prealloc_mode == PRL_PREALLOC_MODE_TRUNCATE) {
+            ret = bdrv_truncate(bs->file, host_off + prealloc_bytes, false,
+                                PREALLOC_MODE_OFF, BDRV_REQ_ZERO_WRITE, NULL);
+            if (ret == -ENOTSUP) {
+                s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
+            }
+        }
+        if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
+            ret = bdrv_pwrite_zeroes(bs->file, host_off, prealloc_bytes, 0);
+        }
+        if (ret < 0) {
+            return ret;
+        }
+
+        new_usedsize = s->used_bmap_size + prealloc_bytes / s->cluster_size;
+        s->used_bmap = bitmap_zero_extend(s->used_bmap, s->used_bmap_size,
+                                          new_usedsize);
+        s->used_bmap_size = new_usedsize;
+    } else {
+        next_used = find_next_bit(s->used_bmap, s->used_bmap_size, first_free);
+
+        /* Not enough continuous clusters in the middle, adjust the size */
+        *clusters = MIN(*clusters, next_used - first_free);
+
+        host_off = s->data_start * BDRV_SECTOR_SIZE;
+        host_off += first_free * s->cluster_size;
+    }
+
+    ret = parallels_mark_used(bs, s->used_bmap, s->used_bmap_size,
+                              host_off, *clusters);
+    if (ret < 0) {
+        /* Image consistency is broken. Alarm! */
+        return ret;
+    }
+
+    return host_off;
 }
 
 static int64_t coroutine_fn GRAPH_RDLOCK
@@ -262,7 +351,7 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
 {
     int ret = 0;
     BDRVParallelsState *s = bs->opaque;
-    int64_t i, pos, idx, to_allocate, first_free, host_off;
+    int64_t i, pos, idx, to_allocate, host_off;
 
     pos = block_status(s, sector_num, nb_sectors, pnum);
     if (pos > 0) {
@@ -285,65 +374,12 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
      */
     assert(idx < s->bat_size && idx + to_allocate <= s->bat_size);
 
-    first_free = find_first_zero_bit(s->used_bmap, s->used_bmap_size);
-    if (first_free == s->used_bmap_size) {
-        uint32_t new_usedsize;
-        int64_t bytes = to_allocate * s->cluster_size;
-        bytes += s->prealloc_size * BDRV_SECTOR_SIZE;
-
-        host_off = s->data_end * BDRV_SECTOR_SIZE;
-
-        /*
-         * We require the expanded size to read back as zero. If the
-         * user permitted truncation, we try that; but if it fails, we
-         * force the safer-but-slower fallocate.
-         */
-        if (s->prealloc_mode == PRL_PREALLOC_MODE_TRUNCATE) {
-            ret = bdrv_co_truncate(bs->file, host_off + bytes,
-                                   false, PREALLOC_MODE_OFF,
-                                   BDRV_REQ_ZERO_WRITE, NULL);
-            if (ret == -ENOTSUP) {
-                s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
-            }
-        }
-        if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE) {
-            ret = bdrv_co_pwrite_zeroes(bs->file, host_off, bytes, 0);
-        }
-        if (ret < 0) {
-            return ret;
-        }
-
-        new_usedsize = s->used_bmap_size + bytes / s->cluster_size;
-        s->used_bmap = bitmap_zero_extend(s->used_bmap, s->used_bmap_size,
-                                          new_usedsize);
-        s->used_bmap_size = new_usedsize;
-    } else {
-        int64_t next_used;
-        next_used = find_next_bit(s->used_bmap, s->used_bmap_size, first_free);
-
-        /* Not enough continuous clusters in the middle, adjust the size */
-        if (next_used - first_free < to_allocate) {
-            to_allocate = next_used - first_free;
-            *pnum = (idx + to_allocate) * s->tracks - sector_num;
-        }
-
-        host_off = s->data_start * BDRV_SECTOR_SIZE;
-        host_off += first_free * s->cluster_size;
-
-        /*
-         * No need to preallocate if we are using tail area from the above
-         * branch. In the other case we are likely re-using hole. Preallocate
-         * the space if required by the prealloc_mode.
-         */
-        if (s->prealloc_mode == PRL_PREALLOC_MODE_FALLOCATE &&
-                host_off < s->data_end * BDRV_SECTOR_SIZE) {
-            ret = bdrv_co_pwrite_zeroes(bs->file, host_off,
-                                        s->cluster_size * to_allocate, 0);
-            if (ret < 0) {
-                return ret;
-            }
-        }
+    host_off = parallels_allocate_host_clusters(bs, &to_allocate);
+    if (host_off < 0) {
+        return host_off;
     }
+
+    *pnum = MIN(*pnum, (idx + to_allocate) * s->tracks - sector_num);
 
     /*
      * Try to read from backing to fill empty clusters
@@ -361,31 +397,22 @@ allocate_clusters(BlockDriverState *bs, int64_t sector_num,
 
         ret = bdrv_co_pread(bs->backing, idx * s->tracks * BDRV_SECTOR_SIZE,
                             nb_cow_bytes, buf, 0);
-        if (ret < 0) {
-            qemu_vfree(buf);
-            return ret;
+        if (ret == 0) {
+            ret = bdrv_co_pwrite(bs->file, host_off, nb_cow_bytes, buf, 0);
         }
 
-        ret = bdrv_co_pwrite(bs->file, s->data_end * BDRV_SECTOR_SIZE,
-                             nb_cow_bytes, buf, 0);
         qemu_vfree(buf);
         if (ret < 0) {
+            parallels_mark_unused(bs, s->used_bmap, s->used_bmap_size,
+                                  host_off, to_allocate);
             return ret;
         }
     }
 
-    ret = mark_used(bs, s->used_bmap, s->used_bmap_size, host_off, to_allocate);
-    if (ret < 0) {
-        /* Image consistency is broken. Alarm! */
-        return ret;
-    }
     for (i = 0; i < to_allocate; i++) {
         parallels_set_bat_entry(s, idx + i,
                 host_off / BDRV_SECTOR_SIZE / s->off_multiplier);
         host_off += s->cluster_size;
-    }
-    if (host_off > s->data_end * BDRV_SECTOR_SIZE) {
-        s->data_end = host_off / BDRV_SECTOR_SIZE;
     }
 
     return bat2sect(s, idx) + sector_num % s->tracks;
@@ -711,7 +738,8 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
 {
     BDRVParallelsState *s = bs->opaque;
     uint32_t i;
-    int64_t off, high_off, size, data_start_off;
+    int64_t off, size, data_start_off;
+    bool fixed = false;
 
     size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
@@ -720,7 +748,6 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
     }
     data_start_off = s->data_start << BDRV_SECTOR_BITS;
 
-    high_off = 0;
     for (i = 0; i < s->bat_size; i++) {
         off = bat2sect(s, i) << BDRV_SECTOR_BITS;
         if (off == 0) {
@@ -733,22 +760,76 @@ parallels_check_outside_image(BlockDriverState *bs, BdrvCheckResult *res,
             if (fix & BDRV_FIX_ERRORS) {
                 parallels_set_bat_entry(s, i, 0);
                 res->corruptions_fixed++;
+                fixed = true;
             }
-            continue;
-        }
-        if (high_off < off) {
-            high_off = off;
         }
     }
 
-    if (high_off == 0) {
-        res->image_end_offset = s->data_end << BDRV_SECTOR_BITS;
-    } else {
-        res->image_end_offset = high_off + s->cluster_size;
-        s->data_end = res->image_end_offset >> BDRV_SECTOR_BITS;
+    if (fixed) {
+        int err;
+
+        parallels_free_used_bitmap(bs);
+        err = parallels_fill_used_bitmap(bs);
+        if (err == -ENOMEM) {
+            res->check_errors++;
+            return err;
+        }
     }
 
+    res->image_end_offset = parallels_data_end(s);
     return 0;
+}
+
+static int64_t GRAPH_RDLOCK
+parallels_check_unused_clusters(BlockDriverState *bs, bool truncate)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t leak, file_size, end_off = 0;
+    int ret;
+
+    file_size = bdrv_getlength(bs->file->bs);
+    if (file_size < 0) {
+        return file_size;
+    }
+
+    if (s->used_bmap_size > 0) {
+        end_off = find_last_bit(s->used_bmap, s->used_bmap_size);
+        if (end_off == s->used_bmap_size) {
+            end_off = 0;
+        } else {
+            end_off = (end_off + 1) * s->cluster_size;
+        }
+    }
+
+    end_off += s->data_start * BDRV_SECTOR_SIZE;
+    end_off = MAX(end_off, s->ext_end);
+
+    /*
+     * A cluster in use behind the end of the file is corruption which
+     * parallels_check_outside_image() reports on its own. There is no
+     * leaked space to reclaim behind it, and nothing to truncate.
+     */
+    if (end_off >= file_size) {
+        return 0;
+    }
+
+    leak = file_size - end_off;
+    if (!truncate) {
+        return leak;
+    }
+
+    ret = bdrv_truncate(bs->file, end_off, true, PREALLOC_MODE_OFF, 0, NULL);
+    if (ret) {
+        return ret;
+    }
+
+    parallels_free_used_bitmap(bs);
+    ret = parallels_fill_used_bitmap(bs);
+    if (ret == -ENOMEM) {
+        return ret;
+    }
+
+    return leak;
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -756,43 +837,36 @@ parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
                      BdrvCheckMode fix, bool explicit)
 {
     BDRVParallelsState *s = bs->opaque;
-    int64_t size;
-    int ret;
+    int64_t leak, count, size;
+
+    leak = parallels_check_unused_clusters(bs, fix & BDRV_FIX_LEAKS);
+    if (leak < 0) {
+        res->check_errors++;
+        return leak;
+    }
+    if (leak == 0) {
+        return 0;
+    }
 
     size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
         res->check_errors++;
         return size;
     }
+    res->image_end_offset = size;
 
-    if (size > res->image_end_offset) {
-        int64_t count;
-        count = DIV_ROUND_UP(size - res->image_end_offset, s->cluster_size);
-        if (explicit) {
-            fprintf(stderr,
-                    "%s space leaked at the end of the image %" PRId64 "\n",
-                    fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
-                    size - res->image_end_offset);
-            res->leaks += count;
-        }
-        if (fix & BDRV_FIX_LEAKS) {
-            Error *local_err = NULL;
+    if (!explicit) {
+        return 0;
+    }
 
-            /*
-             * In order to really repair the image, we must shrink it.
-             * That means we have to pass exact=true.
-             */
-            ret = bdrv_co_truncate(bs->file, res->image_end_offset, true,
-                                   PREALLOC_MODE_OFF, 0, &local_err);
-            if (ret < 0) {
-                error_report_err(local_err);
-                res->check_errors++;
-                return ret;
-            }
-            if (explicit) {
-                res->leaks_fixed += count;
-            }
-        }
+    count = DIV_ROUND_UP(leak, s->cluster_size);
+    fprintf(stderr,
+            "%s space leaked at the end of the image %" PRId64 "\n",
+            fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR", leak);
+    res->leaks += count;
+
+    if (fix & BDRV_FIX_LEAKS) {
+        res->leaks_fixed += count;
     }
 
     return 0;
@@ -811,7 +885,10 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
     bool fixed = false;
 
     /*
-     * Create a bitmap of used clusters.
+     * Create a bitmap of used clusters. Please note that this bitmap is not
+     * related to used_bmap field in BDRVParallelsState and is created only for
+     * local usage.
+     *
      * If a bit is set, there is a BAT entry pointing to this cluster.
      * Loop through the BAT entries, check bits relevant to an entry offset.
      * If bit is set, this entry is duplicated. Otherwise set the bit.
@@ -834,14 +911,16 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
     buf = qemu_blockalign(bs, s->cluster_size);
 
     for (i = 0; i < s->bat_size; i++) {
+        int used;
+
         host_off = bat2sect(s, i) << BDRV_SECTOR_BITS;
         if (host_off == 0) {
             continue;
         }
 
-        ret = mark_used(bs, bitmap, bitmap_size, host_off, 1);
-        assert(ret != -E2BIG);
-        if (ret == 0) {
+        used = parallels_mark_used(bs, bitmap, bitmap_size, host_off, 1);
+        if (used == 0 || used == -E2BIG) {
+            /* parallels_check_outside_image() reports the -E2BIG one */
             continue;
         }
 
@@ -899,8 +978,8 @@ parallels_check_duplicate(BlockDriverState *bs, BdrvCheckResult *res,
          * considered, and the bitmap size doesn't change. This specifically
          * means that -E2BIG is OK.
          */
-        ret = mark_used(bs, bitmap, bitmap_size, host_off, 1);
-        if (ret == -EBUSY) {
+        used = parallels_mark_used(bs, bitmap, bitmap_size, host_off, 1);
+        if (used == -EBUSY) {
             res->check_errors++;
             goto out_repair_bat;
         }
@@ -1209,7 +1288,7 @@ static int parallels_probe(const uint8_t *buf, int buf_size,
     return 0;
 }
 
-static int GRAPH_RDLOCK parallels_update_header(BlockDriverState *bs)
+int GRAPH_RDLOCK parallels_update_header(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     unsigned size = MAX(bdrv_opt_mem_align(bs->file->bs),
@@ -1365,8 +1444,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->data_start = data_start;
-    s->data_end = s->data_start;
-    if (s->data_end < (s->header_size >> BDRV_SECTOR_BITS)) {
+    if (s->data_start < (s->header_size >> BDRV_SECTOR_BITS)) {
         /*
          * There is not enough unused space to fit to block align between BAT
          * and actual data. We can't avoid read-modify-write...
@@ -1375,19 +1453,31 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (ph.ext_off) {
-        if (flags & BDRV_O_RDWR) {
-            /*
-             * It's unsafe to open image RW if there is an extension (as we
-             * don't support it). But parallels driver in QEMU historically
-             * ignores the extension, so print warning and don't care.
-             */
-            warn_report("Format Extension ignored in RW mode");
+        int64_t ext_off = le64_to_cpu(ph.ext_off);
+        Error *ext_err = NULL;
+
+        if (ext_off + s->tracks > file_nb_sectors) {
+            ret = -ENOENT;
+            error_setg(&ext_err, "Format Extension is outside the image file");
         } else {
-            ret = parallels_read_format_extension(
-                    bs, le64_to_cpu(ph.ext_off) << BDRV_SECTOR_BITS, errp);
-            if (ret < 0) {
+            ret = parallels_read_format_extension(bs,
+                                                  ext_off << BDRV_SECTOR_BITS,
+                                                  &ext_err);
+        }
+        if (ret == -ENOENT) {
+            s->ext_end = 0;
+            warn_reportf_err(ext_err, "Dropping the Format Extension of node "
+                             "'%s', which does not look like one: ",
+                             bdrv_get_device_or_node_name(bs));
+        } else if (ret < 0) {
+            if (!s->header_unclean) {
+                error_propagate(errp, ext_err);
                 goto fail;
             }
+            s->ext_end = 0;
+            warn_reportf_err(ext_err, "Dropping the Format Extension of node "
+                             "'%s', which was not closed correctly: ",
+                             bdrv_get_device_or_node_name(bs));
         }
     }
 
@@ -1422,20 +1512,15 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         if (sector < data_start || sector + s->tracks > file_nb_sectors) {
             /* Cluster is outside of the image file or overlaps the header. */
             need_check = true;
-            continue;
-        }
-        if (sector + s->tracks > s->data_end) {
-            s->data_end = sector + s->tracks;
+            break;
         }
     }
 
-    if (!need_check) {
-        ret = parallels_fill_used_bitmap(bs);
-        if (ret == -ENOMEM) {
-            goto fail;
-        }
-        need_check = need_check || ret < 0; /* These are correctable errors */
+    ret = parallels_fill_used_bitmap(bs);
+    if (ret == -ENOMEM) {
+        goto fail;
     }
+    need_check = need_check || ret < 0; /* These are correctable errors */
 
     /*
      * We don't repair the image here if it's opened for checks. Also we don't
@@ -1473,6 +1558,50 @@ fail:
     return ret;
 }
 
+static int GRAPH_RDLOCK parallels_inactivate(BlockDriverState *bs)
+{
+    BDRVParallelsState *s = bs->opaque;
+    Error *err = NULL;
+    int64_t leak;
+
+    if (!(bs->open_flags & BDRV_O_RDWR) || (bs->open_flags & BDRV_O_INACTIVE)) {
+        return 0;
+    }
+
+    parallels_store_persistent_dirty_bitmaps(bs, &err);
+    if (err != NULL) {
+        error_reportf_err(err, "Lost persistent bitmaps during "
+                          "inactivation of node '%s': ",
+                          bdrv_get_device_or_node_name(bs));
+        return -EINVAL;
+    }
+
+    leak = parallels_check_unused_clusters(bs, true);
+    if (leak < 0) {
+        error_report("Failed to truncate image: %s", strerror(-leak));
+        return leak;
+    }
+
+    s->header->inuse = 0;
+    return parallels_update_header(bs);
+}
+
+static void coroutine_fn GRAPH_RDLOCK
+parallels_co_invalidate_cache(BlockDriverState *bs, Error **errp)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int ret;
+
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        return;
+    }
+
+    s->header->inuse = cpu_to_le32(HEADER_INUSE_MAGIC);
+    ret = parallels_update_header(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Failed to mark the image in use");
+    }
+}
 
 static void parallels_close(BlockDriverState *bs)
 {
@@ -1480,14 +1609,7 @@ static void parallels_close(BlockDriverState *bs)
 
     GRAPH_RDLOCK_GUARD_MAINLOOP();
 
-    if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
-        s->header->inuse = 0;
-        parallels_update_header(bs);
-
-        /* errors are ignored, so we might as well pass exact=true */
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
-                      PREALLOC_MODE_OFF, 0, NULL);
-    }
+    parallels_inactivate(bs);
 
     parallels_free_used_bitmap(bs);
 
@@ -1525,6 +1647,12 @@ static BlockDriver bdrv_parallels = {
     .bdrv_co_check              = parallels_co_check,
     .bdrv_co_pdiscard           = parallels_co_pdiscard,
     .bdrv_co_pwrite_zeroes      = parallels_co_pwrite_zeroes,
+    .bdrv_co_invalidate_cache   = parallels_co_invalidate_cache,
+    .bdrv_inactivate            = parallels_inactivate,
+    .bdrv_co_can_store_new_dirty_bitmap =
+                                  parallels_co_can_store_new_dirty_bitmap,
+    .bdrv_co_remove_persistent_dirty_bitmap =
+                                  parallels_co_remove_persistent_dirty_bitmap,
 };
 
 static void bdrv_parallels_init(void)

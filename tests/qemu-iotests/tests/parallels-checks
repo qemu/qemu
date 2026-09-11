@@ -301,6 +301,235 @@ echo "$(peek_file_le "$TEST_IMG" $VICTIM_OFFSET 4)"
 echo "== data reads back correctly =="
 { $QEMU_IO -r -c "read -P 0x88 0 $SMALL_CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
 
+# Clear image
+_make_test_img $((64 * 1024 * 1024))
+
+echo "== TEST REUSE OF PREALLOCATED SPACE =="
+
+echo "== write 16 clusters, preallocating 16 of them at a time =="
+opts=(--image-opts "driver=$IMGFMT,file.filename=$TEST_IMG,prealloc-size=16M")
+for i in $(seq 0 15); do
+    opts+=(-c "write -P 0x11 $(($i * $CLUSTER_SIZE)) $CLUSTER_SIZE")
+done
+# Die before close(), which would truncate the preallocated tail away
+opts+=(-c "sigraise $(kill -l KILL)")
+orig_io_options=$QEMU_IO_OPTIONS
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+echo "clusters written: `$QEMU_IO "${opts[@]}" 2>&1 | grep -c '^wrote'`"
+QEMU_IO_OPTIONS=$orig_io_options
+
+echo "== the space preallocated first must have been handed out since =="
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "clusters behind the header: $(($file_size / $CLUSTER_SIZE - 1))"
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== the second cluster comes from the space preallocated for the first =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== both of them survive the close =="
+{ $QEMU_IO -r -c "read -P 0x11 0 $CLUSTER_SIZE" \
+              -c "read -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+              "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST A CLUSTER WHICH RUNS PAST THE END OF THE FILE =="
+
+echo "== write two clusters =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== cut the second one in half =="
+file_size=`stat --printf="%s" "$TEST_IMG"`
+truncate -s $((file_size - CLUSTER_SIZE / 2)) "$TEST_IMG"
+
+echo "== the check completes and reports the cluster =="
+_check_test_img
+
+echo "== nothing can be reclaimed behind it =="
+_check_test_img -r leaks
+echo "file size: `stat --printf="%s" "$TEST_IMG"`"
+
+echo "== a full repair drops the entry and truncates the image =="
+_check_test_img -r all
+echo "file size: `stat --printf="%s" "$TEST_IMG"`"
+
+echo "== the first cluster survived =="
+{ $QEMU_IO -c "read -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+_make_test_img $SIZE
+
+echo "== TEST FORMAT EXTENSION IS NOT LEAKED SPACE =="
+
+BITMAP=b2c9e1a4-5d3f-4e8b-9a7c-6f0d1e2b3a45
+
+echo "== a name which is not a UUID can not be stored, so refuse it =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" bitmap0 2>&1 | _filter_testdir
+
+echo "== add a persistent dirty bitmap =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+# A dirty run shorter than a cluster is stored as a bitmap data cluster
+# instead of the all-ones L1 entry, so the extension spans two clusters.
+echo "== dirty a single granule of the bitmap =="
+{ $QEMU_IO -c "write -P 0x11 0 65536" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+echo "== the extension and its bitmap data are not a leak =="
+_check_test_img
+
+echo "== extend image by 1 cluster =="
+fallocate -xl $((file_size + CLUSTER_SIZE)) "$TEST_IMG"
+
+echo "== a real leak is still reported =="
+_check_test_img
+
+echo "== repair reclaims the leak only =="
+_check_test_img -r leaks
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+echo "== the bitmap survived the repair =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+echo "== data survived the repair =="
+{ $QEMU_IO -r -c "read -P 0x11 0 65536" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== dropping the bitmap makes the space reclaimable again =="
+$QEMU_IMG bitmap --remove -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+_check_test_img
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST BITMAP OF AN IMAGE WHICH WAS NOT CLOSED =="
+
+INUSE_OFFSET=44
+
+echo "== add a persistent dirty bitmap and dirty it =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+{ $QEMU_IO -c "write -P 0x11 0 65536" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== pretend the image was not closed correctly =="
+poke_file "$TEST_IMG" "$INUSE_OFFSET" "\x59\x6e\x6f\x74"
+
+echo "== the bitmap is stale, so it can not be used and is dropped =="
+$QEMU_IMG bitmap --clear -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+echo "== the name is free again =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+echo "== guest data was never in doubt =="
+{ $QEMU_IO -r -c "read -P 0x11 0 65536" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST BROKEN EXTENSION OF AN IMAGE WHICH WAS NOT CLOSED =="
+
+EXT_OFF_OFFSET=56
+
+echo "== add a persistent dirty bitmap =="
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+
+ext_off=$(peek_file_le "$TEST_IMG" $EXT_OFF_OFFSET 8)
+
+echo "== a guest write may reuse the extension cluster, so clobber it =="
+poke_file "$TEST_IMG" $((ext_off * 512)) "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
+
+echo "== pretend the image was not closed correctly =="
+poke_file "$TEST_IMG" "$INUSE_OFFSET" "\x59\x6e\x6f\x74"
+
+echo "== the image opens, the extension is dropped =="
+{ $QEMU_IO -c "write -P 0x11 0 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io |
+    _filter_testdir | _filter_generated_node_ids
+
+echo "== and it stopped pointing at the broken extension =="
+echo "ext_off: $(peek_file_le "$TEST_IMG" $EXT_OFF_OFFSET 8)"
+
+echo "== an older qemu leaves the same damage behind a clean close =="
+_make_test_img $SIZE
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+ext_off=$(peek_file_le "$TEST_IMG" $EXT_OFF_OFFSET 8)
+poke_file "$TEST_IMG" $((ext_off * 512)) "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
+_img_info | _filter_generated_node_ids
+
+echo "== truncating the extension away is dropped as well =="
+_make_test_img $SIZE
+$QEMU_IMG bitmap --add -f $IMGFMT "$TEST_IMG" $BITMAP 2>&1 | _filter_testdir
+ext_off=$(peek_file_le "$TEST_IMG" $EXT_OFF_OFFSET 8)
+truncate -s $((ext_off * 512)) "$TEST_IMG"
+_img_info | _filter_generated_node_ids
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST REPAIR OF A DUPLICATE ENTRY NEXT TO A LEAK =="
+
+echo "== write two clusters =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== point the second BAT entry at the first cluster =="
+first=$(peek_file_le "$TEST_IMG" $BAT_OFFSET 4)
+poke_file_le "$TEST_IMG" $(($BAT_OFFSET + 4)) 4 $first
+
+echo "== leak a cluster at the end of the image =="
+file_size=`stat --printf="%s" "$TEST_IMG"`
+fallocate -xl $((file_size + CLUSTER_SIZE)) "$TEST_IMG"
+
+echo "== both are repaired in one go =="
+_check_test_img -r all
+
+echo "== and the image opens read-write afterwards =="
+{ $QEMU_IO -c "read -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST A LEAK WHICH DOES NOT FIT AN INT =="
+
+echo "== write one cluster =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== leave 3 GiB of unused space behind it =="
+truncate -s $((3 * 1024 * 1024 * 1024)) "$TEST_IMG"
+
+echo "== closing the image truncates it without complaining =="
+{ $QEMU_IO -c "read -P 0x11 0 $CLUSTER_SIZE" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+file_size=`stat --printf="%s" "$TEST_IMG"`
+echo "file size: $file_size"
+
+# Clear image
+_make_test_img $SIZE
+
+echo "== TEST A DUPLICATE IN THE LAST ALLOCATED BAT ENTRY =="
+
+echo "== write two clusters =="
+{ $QEMU_IO -c "write -P 0x11 0 $CLUSTER_SIZE" \
+           -c "write -P 0x22 $CLUSTER_SIZE $CLUSTER_SIZE" \
+           "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== point the second entry at the first cluster =="
+poke_file "$TEST_IMG" "$(($BAT_OFFSET + 4))" "\x01\x00\x00\x00"
+
+echo "== the check completes and reports the duplicate =="
+_check_test_img
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
