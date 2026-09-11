@@ -455,7 +455,7 @@
 
 ##
 # @NumaOptions:
-#     A discriminated record of NUMA options.  (for OptsVisitor)
+#     A discriminated record of NUMA options.
 #
 # @type: NUMA option type
 #
@@ -473,7 +473,7 @@
 
 ##
 # @NumaNodeOptions:
-#     Create a guest NUMA node.  (for OptsVisitor)
+#     Create a guest NUMA node.
 #
 # @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
