@@ -161,7 +161,7 @@ static uint16_t vhost_svq_next_desc(const VhostShadowVirtqueue *svq,
                                     uint16_t id)
 {
     if (virtio_vdev_has_feature(svq->vdev, VIRTIO_F_IN_ORDER)) {
-        return (id == svq->vring.num) ? 0 : ++id;
+        return (++id == svq->vring.num) ? 0 : id;
     } else {
         return svq->desc_state[id].next;
     }
