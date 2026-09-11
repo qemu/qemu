@@ -299,12 +299,16 @@ void net_hub_check_clients(void)
 #ifdef CONFIG_PASST
             case NET_CLIENT_DRIVER_PASST:
 #endif
+#ifdef CONFIG_SLIRP
             case NET_CLIENT_DRIVER_USER:
+#endif
             case NET_CLIENT_DRIVER_TAP:
             case NET_CLIENT_DRIVER_SOCKET:
             case NET_CLIENT_DRIVER_STREAM:
             case NET_CLIENT_DRIVER_DGRAM:
+#ifdef CONFIG_VDE
             case NET_CLIENT_DRIVER_VDE:
+#endif
             case NET_CLIENT_DRIVER_VHOST_USER:
                 has_host_dev = 1;
                 break;
