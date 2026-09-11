@@ -1086,9 +1086,18 @@ void tcg_gen_ussub(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
 {
     g_autoptr(TCGTemp) tmp = tcg_temp_new_ebb(type);
 
-    tcg_gen_sub(type, tmp, src1, src2);
-    tcg_gen_movcond(type, TCG_COND_LTU, dst, src1, src2,
-                    tcg_constant_internal(type, 0), tmp);
+    if (tcg_op_supported(INDEX_op_umax, type, 0)) {
+        tcg_gen_umax(type, tmp, src1, src2);
+        tcg_gen_sub(type, dst, tmp, src2);
+    } else {
+        /*
+         * While umax can be expanded with movcond, some hosts can
+         * perform movcond with a zero source in fewer insns.
+         */
+        tcg_gen_sub(type, tmp, src1, src2);
+        tcg_gen_movcond(type, TCG_COND_LTU, dst, src1, src2,
+                        tcg_constant_internal(type, 0), tmp);
+    }
 }
 
 void tcg_gen_xor(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
