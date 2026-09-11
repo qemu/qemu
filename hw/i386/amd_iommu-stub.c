@@ -22,5 +22,5 @@
 
 uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
-    return AMDVI_DEFAULT_EXT_FEATURES;
+    return 0;
 }

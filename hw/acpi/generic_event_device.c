@@ -45,10 +45,11 @@ static const uint32_t ged_supported_events[] = {
  * affected by the interrupt. This way, we can support up to 32 events
  * with a unique interrupt.
  */
-void build_ged_aml(Aml *table, const char *name, HotplugHandler *hotplug_dev,
+void build_ged_aml(Aml *table, const char *name,
+                   const HotplugHandler *hotplug_dev,
                    uint32_t ged_irq, AmlRegionSpace rs, hwaddr ged_base)
 {
-    AcpiGedState *s = ACPI_GED(hotplug_dev);
+    const AcpiGedState *s = ACPI_GED(hotplug_dev);
     Aml *crs = aml_resource_template();
     Aml *evt, *field;
     Aml *dev = aml_device("%s", name);
@@ -250,7 +251,7 @@ static const MemoryRegionOps ged_regs_ops = {
     },
 };
 
-static void acpi_ged_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+static void acpi_ged_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
@@ -258,7 +259,7 @@ static void acpi_ged_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void acpi_ged_device_plug_cb(HotplugHandler *hotplug_dev,
+static void acpi_ged_device_plug_cb(const HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
     AcpiGedState *s = ACPI_GED(hotplug_dev);
@@ -279,7 +280,7 @@ static void acpi_ged_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void acpi_ged_unplug_request_cb(HotplugHandler *hotplug_dev,
+static void acpi_ged_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                        DeviceState *dev, Error **errp)
 {
     AcpiGedState *s = ACPI_GED(hotplug_dev);
@@ -298,7 +299,7 @@ static void acpi_ged_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void acpi_ged_unplug_cb(HotplugHandler *hotplug_dev,
+static void acpi_ged_unplug_cb(const HotplugHandler *hotplug_dev,
                                DeviceState *dev, Error **errp)
 {
     AcpiGedState *s = ACPI_GED(hotplug_dev);

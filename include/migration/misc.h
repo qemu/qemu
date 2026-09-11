@@ -161,4 +161,6 @@ bool multifd_join_device_state_save_threads(void);
 
 void migration_request_switchover_ack_legacy(const char *requester);
 
+bool migrate_local(void);
+
 #endif

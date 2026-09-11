@@ -303,8 +303,8 @@ static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&s->ar);
 }
 
-static void piix4_device_pre_plug_cb(HotplugHandler *hotplug_dev,
-                                    DeviceState *dev, Error **errp)
+static void piix4_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
 
@@ -323,7 +323,7 @@ static void piix4_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
+static void piix4_device_plug_cb(const HotplugHandler *hotplug_dev,
                                  DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
@@ -344,7 +344,7 @@ static void piix4_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+static void piix4_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                            DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
@@ -364,7 +364,7 @@ static void piix4_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
+static void piix4_device_unplug_cb(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);
@@ -383,7 +383,7 @@ static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static bool piix4_is_hotpluggable_bus(HotplugHandler *hotplug_dev,
+static bool piix4_is_hotpluggable_bus(const HotplugHandler *hotplug_dev,
                                       BusState *bus)
 {
     PIIX4PMState *s = PIIX4_PM(hotplug_dev);

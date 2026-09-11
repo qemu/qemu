@@ -66,13 +66,13 @@ void acpi_pcihp_init(Object *owner, AcpiPciHpState *,
                      MemoryRegion *io, uint16_t io_base);
 
 bool acpi_pcihp_is_hotpluggable_bus(AcpiPciHpState *s, BusState *bus);
-void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+void acpi_pcihp_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp);
-void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
+void acpi_pcihp_device_plug_cb(const HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                DeviceState *dev, Error **errp);
-void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
+void acpi_pcihp_device_unplug_cb(const HotplugHandler *hotplug_dev, AcpiPciHpState *s,
                                  DeviceState *dev, Error **errp);
-void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+void acpi_pcihp_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                          AcpiPciHpState *s, DeviceState *dev,
                                          Error **errp);
 

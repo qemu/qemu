@@ -132,7 +132,7 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
             trace_cpuhp_acpi_clear_remove_evt(cpu_st->selector);
         } else if (data & 8) {
             DeviceState *dev = NULL;
-            HotplugHandler *hotplug_ctrl = NULL;
+            const HotplugHandler *hotplug_ctrl;
 
             if (!cdev->cpu || cdev->cpu == first_cpu) {
                 trace_cpuhp_acpi_ejecting_invalid_cpu(cpu_st->selector);
@@ -247,7 +247,7 @@ static AcpiCpuStatus *get_cpu_status(CPUHotplugState *cpu_st, DeviceState *dev)
     return NULL;
 }
 
-void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
+void acpi_cpu_plug_cb(const HotplugHandler *hotplug_dev,
                       CPUHotplugState *cpu_st, DeviceState *dev, Error **errp)
 {
     AcpiCpuStatus *cdev;
@@ -264,7 +264,7 @@ void acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-void acpi_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
+void acpi_cpu_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                 CPUHotplugState *cpu_st,
                                 DeviceState *dev, Error **errp)
 {

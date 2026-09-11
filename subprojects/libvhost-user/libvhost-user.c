@@ -948,6 +948,20 @@ static bool
 vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
 
+    /*
+     * If we are in postcopy mode and we receive a u64 payload with a 0 value
+     * we know all the postcopy client bases have been received, and we
+     * should start generating faults.  This message carries no file
+     * descriptor, so it has to be recognised before the fd count of a real
+     * region is validated below.
+     */
+    if (dev->postcopy_listening &&
+        vmsg->size == sizeof(vmsg->payload.u64) &&
+        vmsg->payload.u64 == 0) {
+        (void)generate_faults(dev);
+        return false;
+    }
+
     if (vmsg->fd_num != 1) {
         vmsg_close_fds(vmsg);
         vu_panic(dev, "VHOST_USER_ADD_MEM_REG received %d fds - only 1 fd "
@@ -971,23 +985,17 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
         return false;
     }
 
-    /*
-     * If we are in postcopy mode and we receive a u64 payload with a 0 value
-     * we know all the postcopy client bases have been received, and we
-     * should start generating faults.
-     */
-    if (dev->postcopy_listening &&
-        vmsg->size == sizeof(vmsg->payload.u64) &&
-        vmsg->payload.u64 == 0) {
-        (void)generate_faults(dev);
-        return false;
-    }
-
     _vu_add_mem_reg(dev, msg_region, vmsg->fds[0]);
     close(vmsg->fds[0]);
 
     if (dev->postcopy_listening) {
-        /* Send the message back to qemu with the addresses filled in. */
+        /*
+         * Send the message back to qemu with the addresses filled in.
+         * _vu_add_mem_reg() worked on our copy of the region, so it has to be
+         * put back into the message payload.  A pointer into the payload
+         * cannot be handed out instead, VhostUserMsg is packed.
+         */
+        vmsg->payload.memreg.region = m;
         vmsg->fd_num = 0;
         DPRINT("Successfully added new region in postcopy\n");
         return true;

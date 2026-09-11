@@ -416,7 +416,7 @@ static void microvm_fix_kernel_cmdline(MachineState *machine)
     g_free(cmdline);
 }
 
-static void microvm_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+static void microvm_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
                                        DeviceState *dev, Error **errp)
 {
     X86CPU *cpu = X86_CPU(dev);
@@ -425,26 +425,26 @@ static void microvm_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     x86_cpu_pre_plug(hotplug_dev, dev, errp);
 }
 
-static void microvm_device_plug_cb(HotplugHandler *hotplug_dev,
+static void microvm_device_plug_cb(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
     x86_cpu_plug(hotplug_dev, dev, errp);
 }
 
-static void microvm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+static void microvm_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                              DeviceState *dev, Error **errp)
 {
     error_setg(errp, "unplug not supported by microvm");
 }
 
-static void microvm_device_unplug_cb(HotplugHandler *hotplug_dev,
+static void microvm_device_unplug_cb(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     error_setg(errp, "unplug not supported by microvm");
 }
 
-static HotplugHandler *microvm_get_hotplug_handler(MachineState *machine,
-                                                   DeviceState *dev)
+static const HotplugHandler *microvm_get_hotplug_handler(MachineState *machine,
+                                                         DeviceState *dev)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
         return HOTPLUG_HANDLER(machine);

@@ -612,7 +612,7 @@ pvscsi_send_msg(PVSCSIState *s, SCSIDevice *dev, uint32_t msg_type)
 }
 
 static void
-pvscsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
+pvscsi_hotplug(const HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 {
     PVSCSIState *s = PVSCSI(hotplug_dev);
 
@@ -620,7 +620,7 @@ pvscsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 }
 
 static void
-pvscsi_hot_unplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
+pvscsi_hot_unplug(const HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 {
     PVSCSIState *s = PVSCSI(hotplug_dev);
 

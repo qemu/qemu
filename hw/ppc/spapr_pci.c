@@ -1445,7 +1445,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 /* Callback to be called during DRC release. */
 void spapr_phb_remove_pci_device_cb(DeviceState *dev)
 {
-    HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(dev);
+    const HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(dev);
 
     hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
     object_unparent(OBJECT(dev));
@@ -1454,7 +1454,7 @@ void spapr_phb_remove_pci_device_cb(DeviceState *dev)
 int spapr_pci_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
                           void *fdt, int *fdt_start_offset, Error **errp)
 {
-    HotplugHandler *plug_handler = qdev_get_hotplug_handler(drc->dev);
+    const HotplugHandler *plug_handler = qdev_get_hotplug_handler(drc->dev);
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(plug_handler);
     PCIDevice *pdev = PCI_DEVICE(drc->dev);
 
@@ -1521,7 +1521,7 @@ static bool bridge_has_valid_chassis_nr(Object *bridge, Error **errp)
     return true;
 }
 
-static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
+static void spapr_pci_pre_plug(const HotplugHandler *plug_handler,
                                DeviceState *plugged_dev, Error **errp)
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
@@ -1556,7 +1556,7 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
     }
 }
 
-static void spapr_pci_plug(HotplugHandler *plug_handler,
+static void spapr_pci_plug(const HotplugHandler *plug_handler,
                            DeviceState *plugged_dev, Error **errp)
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
@@ -1614,7 +1614,7 @@ static void spapr_pci_bridge_unplug(SpaprPhbState *phb,
     remove_drcs(phb, bus);
 }
 
-static void spapr_pci_unplug(HotplugHandler *plug_handler,
+static void spapr_pci_unplug(const HotplugHandler *plug_handler,
                              DeviceState *plugged_dev, Error **errp)
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
@@ -1639,7 +1639,7 @@ static void spapr_pci_unplug(HotplugHandler *plug_handler,
     qdev_unrealize(plugged_dev);
 }
 
-static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
+static void spapr_pci_unplug_request(const HotplugHandler *plug_handler,
                                      DeviceState *plugged_dev, Error **errp)
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));

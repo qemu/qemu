@@ -111,7 +111,7 @@ static void remote_machine_instance_init(Object *obj)
     s->auto_shutdown = true;
 }
 
-static void remote_machine_dev_unplug_cb(HotplugHandler *hotplug_dev,
+static void remote_machine_dev_unplug_cb(const HotplugHandler *hotplug_dev,
                                          DeviceState *dev, Error **errp)
 {
     qdev_unrealize(dev);

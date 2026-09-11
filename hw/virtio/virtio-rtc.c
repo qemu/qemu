@@ -62,7 +62,8 @@ static void virtio_rtc_handle_request(VirtIODevice *vdev, VirtQueue *vq)
                 resp.head.status = VIRTIO_RTC_S_ENODEV;
             } else {
                 resp.head.status = VIRTIO_RTC_S_OK;
-                resp.type = VIRTIO_RTC_CLOCK_UTC;
+                resp.type = VIRTIO_RTC_CLOCK_UTC_SMEARED;
+                resp.leap_second_smearing = VIRTIO_RTC_SMEAR_UNSPECIFIED;
             }
             written = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp,
                                    sizeof(resp));

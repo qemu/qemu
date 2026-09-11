@@ -205,7 +205,7 @@ static const VMStateDescription pci_bridge_dev_vmstate = {
     }
 };
 
-void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pci_bridge_dev_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
@@ -218,7 +218,7 @@ void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     shpc_device_plug_cb(hotplug_dev, dev, errp);
 }
 
-void pci_bridge_dev_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pci_bridge_dev_unplug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);
@@ -227,7 +227,7 @@ void pci_bridge_dev_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     shpc_device_unplug_cb(hotplug_dev, dev, errp);
 }
 
-void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
+void pci_bridge_dev_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     PCIDevice *pci_hotplug_dev = PCI_DEVICE(hotplug_dev);

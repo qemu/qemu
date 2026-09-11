@@ -410,7 +410,7 @@ void ich9_pm_add_class_properties(ObjectClass *oc, ptrdiff_t pm_offset)
 
 #undef PM_REG_FIELD
 
-void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void ich9_pm_device_pre_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
@@ -432,7 +432,7 @@ void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void ich9_pm_device_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
@@ -455,7 +455,7 @@ void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+void ich9_pm_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
@@ -489,7 +489,7 @@ void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void ich9_pm_device_unplug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
@@ -507,7 +507,7 @@ void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-bool ich9_pm_is_hotpluggable_bus(HotplugHandler *hotplug_dev, BusState *bus)
+bool ich9_pm_is_hotpluggable_bus(const HotplugHandler *hotplug_dev, BusState *bus)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(hotplug_dev);
     return acpi_pcihp_is_hotpluggable_bus(&lpc->pm.acpi_pci_hotplug, bus);

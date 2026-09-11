@@ -169,6 +169,8 @@ typedef enum {
 
     MIG_PRI_LOW,                /* Must happen after default */
     MIG_PRI_DEFAULT,
+    MIG_PRI_BACKEND,            /* Must happen before emulated devices, */
+                                /* e.g. virtio-net */
     MIG_PRI_IOMMU,              /* Must happen before PCI devices */
     MIG_PRI_PCI_BUS,            /* Must happen before IOMMU */
     MIG_PRI_VIRTIO_MEM,         /* Must happen before IOMMU */

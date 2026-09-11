@@ -840,6 +840,8 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
     }
     memcpy(s->config, config, size);
 
+    memory_region_transaction_begin();
+
     pci_update_mappings(s);
     if (IS_PCI_BRIDGE(s)) {
         pci_bridge_update_mappings(PCI_BRIDGE(s));
@@ -847,6 +849,8 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
 
     pci_set_master(s, pci_get_word(s->config + PCI_COMMAND)
                       & PCI_COMMAND_MASTER);
+
+    memory_region_transaction_commit();
 
     g_free(config);
     return 0;
@@ -1742,6 +1746,8 @@ static void pci_update_mappings(PCIDevice *d)
     int i;
     pcibus_t new_addr;
 
+    memory_region_transaction_begin();
+
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
 
@@ -1778,6 +1784,8 @@ static void pci_update_mappings(PCIDevice *d)
     }
 
     pci_update_vga(d);
+
+    memory_region_transaction_commit();
 }
 
 int pci_irq_disabled(PCIDevice *d)

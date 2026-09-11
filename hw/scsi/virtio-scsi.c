@@ -274,6 +274,10 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     assert(n < vs->conf.num_queues);
     req = qemu_get_virtqueue_element(vdev, f,
                                      sizeof(VirtIOSCSIReq) + vs->cdb_size);
+    if (!req) {
+        error_report("Failed to restore virtio-scsi request");
+        return NULL;
+    }
     virtio_scsi_init_req(s, vs->cmd_vqs[n], req);
 
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
@@ -1140,14 +1144,14 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
     }
 }
 
-static void virtio_scsi_pre_hotplug(HotplugHandler *hotplug_dev,
+static void virtio_scsi_pre_hotplug(const HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
     SCSIDevice *sd = SCSI_DEVICE(dev);
     sd->hba_supports_iothread = true;
 }
 
-static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void virtio_scsi_hotplug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
@@ -1179,7 +1183,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void virtio_scsi_hotunplug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);

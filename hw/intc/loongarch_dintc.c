@@ -168,8 +168,8 @@ static DINTCCore *loongarch_dintc_get_cpu(LoongArchDINTCState *s,
     return loongarch_dintc_cpu_by_arch_id(s, arch_id);
 }
 
-static void loongarch_dintc_cpu_plug(HotplugHandler *hotplug_dev,
-                                   DeviceState *dev, Error **errp)
+static void loongarch_dintc_cpu_plug(const HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
 {
     LoongArchDINTCState *s = LOONGARCH_DINTC(hotplug_dev);
     Object *obj = OBJECT(dev);
@@ -194,8 +194,8 @@ static void loongarch_dintc_cpu_plug(HotplugHandler *hotplug_dev,
     return;
 }
 
-static void loongarch_dintc_cpu_unplug(HotplugHandler *hotplug_dev,
-                                     DeviceState *dev, Error **errp)
+static void loongarch_dintc_cpu_unplug(const HotplugHandler *hotplug_dev,
+                                       DeviceState *dev, Error **errp)
 {
     LoongArchDINTCState *s = LOONGARCH_DINTC(hotplug_dev);
     Object *obj = OBJECT(dev);

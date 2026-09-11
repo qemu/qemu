@@ -14,7 +14,7 @@
 #include "hw/core/boards.h"
 #include "qapi/error.h"
 
-HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
+const HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev)
 {
     MachineState *machine;
     MachineClass *mc;
@@ -90,7 +90,7 @@ bool qdev_hotunplug_allowed(DeviceState *dev, Error **errp)
            qdev_hotplug_unplug_allowed_common(dev, dev->parent_bus, errp);
 }
 
-HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev)
+const HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev)
 {
     if (dev->parent_bus) {
         return dev->parent_bus->hotplug_handler;
@@ -98,9 +98,9 @@ HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev)
     return NULL;
 }
 
-HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
+const HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 {
-    HotplugHandler *hotplug_ctrl = qdev_get_machine_hotplug_handler(dev);
+    const HotplugHandler *hotplug_ctrl = qdev_get_machine_hotplug_handler(dev);
 
     if (hotplug_ctrl == NULL && dev->parent_bus) {
         hotplug_ctrl = qdev_get_bus_hotplug_handler(dev);
@@ -109,7 +109,7 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 }
 
 /* can be used as ->unplug() callback for the simple cases */
-void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
+void qdev_simple_device_unplug_cb(const HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
 {
     qdev_unrealize(dev);

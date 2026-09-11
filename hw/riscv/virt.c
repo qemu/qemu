@@ -1088,8 +1088,8 @@ static void virt_set_acpi(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &s->acpi, errp);
 }
 
-static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
-                                                        DeviceState *dev)
+static const HotplugHandler *
+virt_machine_get_hotplug_handler(MachineState *machine, DeviceState *dev)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
@@ -1104,7 +1104,7 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
-static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+static void virt_machine_device_plug_cb(const HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     RISCVVirtState *s = RISCV_VIRT_MACHINE(hotplug_dev);

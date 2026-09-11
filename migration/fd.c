@@ -37,16 +37,28 @@ static bool fd_is_pipe(int fd)
     return S_ISFIFO(statbuf.st_mode);
 }
 
-static bool migration_fd_valid(int fd)
+static bool migration_fd_valid(int fd, Error **errp)
 {
-    if (fd_is_socket(fd)) {
+    if (migrate_local() && migrate_mode() != MIG_MODE_CPR_EXEC) {
+        struct sockaddr_storage ss;
+        socklen_t sslen = sizeof(ss);
+
+        if (getsockname(fd, (struct sockaddr *)&ss, &sslen) < 0 ||
+            ss.ss_family != AF_UNIX) {
+            error_setg(errp,
+                       "local migration requires a UNIX domain socket channel");
+            return false;
+        }
+
         return true;
     }
 
-    if (fd_is_pipe(fd)) {
+    if (fd_is_socket(fd) || fd_is_pipe(fd)) {
         return true;
     }
 
+    error_setg(errp, "fd: migration to a file is not supported."
+               " Use file: instead.");
     return false;
 }
 
@@ -59,9 +71,8 @@ QIOChannel *fd_connect_outgoing(MigrationState *s, const char *fdname,
         goto out;
     }
 
-    if (!migration_fd_valid(fd)) {
-        error_setg(errp, "fd: migration to a file is not supported."
-                   " Use file: instead.");
+    if (!migration_fd_valid(fd, errp)) {
+        close(fd);
         goto out;
     }
 
@@ -94,9 +105,8 @@ void fd_connect_incoming(const char *fdname, Error **errp)
         return;
     }
 
-    if (!migration_fd_valid(fd)) {
-        error_setg(errp, "fd: migration to a file is not supported."
-                   " Use file: instead.");
+    if (!migration_fd_valid(fd, errp)) {
+        close(fd);
         return;
     }
 

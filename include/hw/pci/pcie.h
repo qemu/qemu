@@ -146,13 +146,13 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset, bool aligned);
 void pcie_cap_fill_link_ep_usp(PCIDevice *dev, PCIExpLinkWidth width,
                                PCIExpLinkSpeed speed, bool flitmode);
 
-void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pcie_cap_slot_pre_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp);
-void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pcie_cap_slot_plug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                            Error **errp);
-void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+void pcie_cap_slot_unplug_cb(const HotplugHandler *hotplug_dev, DeviceState *dev,
                              Error **errp);
-void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
+void pcie_cap_slot_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp);
 
 void pcie_pasid_common_init(PCIDevice *dev, uint16_t offset,

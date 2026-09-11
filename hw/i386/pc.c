@@ -1181,7 +1181,7 @@ void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs)
     g_free(i8259);
 }
 
-static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+static void pc_memory_pre_plug(const HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp)
 {
     const X86MachineState *x86ms = X86_MACHINE(hotplug_dev);
@@ -1214,7 +1214,7 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     pc_dimm_pre_plug(PC_DIMM(dev), MACHINE(hotplug_dev), errp);
 }
 
-static void pc_memory_plug(HotplugHandler *hotplug_dev,
+static void pc_memory_plug(const HotplugHandler *hotplug_dev,
                            DeviceState *dev, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
@@ -1231,7 +1231,7 @@ static void pc_memory_plug(HotplugHandler *hotplug_dev,
     hotplug_handler_plug(x86ms->acpi_dev, dev, &error_abort);
 }
 
-static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
+static void pc_memory_unplug_request(const HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(hotplug_dev);
@@ -1256,7 +1256,7 @@ static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
                                    errp);
 }
 
-static void pc_memory_unplug(HotplugHandler *hotplug_dev,
+static void pc_memory_unplug(const HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
@@ -1274,7 +1274,7 @@ static void pc_memory_unplug(HotplugHandler *hotplug_dev,
     error_propagate(errp, local_err);
 }
 
-static void pc_hv_balloon_pre_plug(HotplugHandler *hotplug_dev,
+static void pc_hv_balloon_pre_plug(const HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
     /* The vmbus handler has no hotplug handler; we should never end up here. */
@@ -1282,13 +1282,13 @@ static void pc_hv_balloon_pre_plug(HotplugHandler *hotplug_dev,
     memory_device_pre_plug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev), errp);
 }
 
-static void pc_hv_balloon_plug(HotplugHandler *hotplug_dev,
+static void pc_hv_balloon_plug(const HotplugHandler *hotplug_dev,
                                DeviceState *dev, Error **errp)
 {
     memory_device_plug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
 }
 
-static void pc_sp_mem_pre_plug(HotplugHandler *hotplug_dev,
+static void pc_sp_mem_pre_plug(const HotplugHandler *hotplug_dev,
                                DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(hotplug_dev);
@@ -1304,7 +1304,7 @@ static void pc_sp_mem_pre_plug(HotplugHandler *hotplug_dev,
     memory_device_pre_plug(MEMORY_DEVICE(dev), ms, errp);
 }
 
-static void pc_sp_mem_plug(HotplugHandler *hotplug_dev,
+static void pc_sp_mem_plug(const HotplugHandler *hotplug_dev,
                            DeviceState *dev, Error **errp)
 {
     SpMemDevice *spm = SP_MEM(dev);
@@ -1318,7 +1318,7 @@ static void pc_sp_mem_plug(HotplugHandler *hotplug_dev,
     e820_add_entry(addr, size, E820_SOFT_RESERVED);
 }
 
-static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+static void pc_machine_device_pre_plug_cb(const HotplugHandler *hotplug_dev,
                                           DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
@@ -1356,7 +1356,7 @@ static void pc_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+static void pc_machine_device_plug_cb(const HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
@@ -1372,7 +1372,7 @@ static void pc_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
+static void pc_machine_device_unplug_request_cb(const HotplugHandler *hotplug_dev,
                                                 DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
@@ -1388,7 +1388,7 @@ static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
+static void pc_machine_device_unplug_cb(const HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
@@ -1403,8 +1403,8 @@ static void pc_machine_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static HotplugHandler *pc_get_hotplug_handler(MachineState *machine,
-                                             DeviceState *dev)
+static const HotplugHandler *pc_get_hotplug_handler(MachineState *machine,
+                                                    DeviceState *dev)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
         object_dynamic_cast(OBJECT(dev), TYPE_SP_MEM) ||

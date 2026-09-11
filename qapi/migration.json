@@ -830,7 +830,8 @@
            'zero-page-detection',
            'direct-io',
            { 'name': 'x-rdma-chunk-size', 'features': [ 'unstable' ] },
-           'cpr-exec-command'] }
+           'cpr-exec-command',
+           'local'] }
 
 ##
 # @migrate-set-parameters:
@@ -1012,10 +1013,20 @@
 #     Must be set to the same value on both source and destination
 #     before migration starts.  (Since 11.1)
 #
+# @local: Permit the use of optimizations for local migration.  This
+#     must only be set when either both the source and destination
+#     QEMU processes are directly connected with a UNIX domain socket
+#     as the migration channel (to enable use of file descriptor
+#     passing) or cpr-exec migration mode is enabled (this way file
+#     descriptors are inherited by new process).  Individual device
+#     backends may need additional configuration flags set to enable
+#     local migration optimizations.  This will be documented against
+#     the device backends where it applies.  (Since 11.2)
+#
 # Features:
 #
-# @unstable: Members @x-checkpoint-delay, @x-rdma-chunk-size, and
-#     @x-vcpu-dirty-limit-period are experimental.
+# @unstable: Members @local, @x-checkpoint-delay, @x-rdma-chunk-size,
+#     and @x-vcpu-dirty-limit-period are experimental.
 #
 # Since: 2.4
 ##
@@ -1053,7 +1064,9 @@
             '*direct-io': 'bool',
             '*x-rdma-chunk-size': { 'type': 'uint64',
                                     'features': [ 'unstable' ] },
-            '*cpr-exec-command': [ 'str' ]} }
+            '*cpr-exec-command': [ 'str' ],
+            '*local': { 'type': 'bool',
+                        'features': [ 'unstable' ] } } }
 
 ##
 # @query-migrate-parameters:
