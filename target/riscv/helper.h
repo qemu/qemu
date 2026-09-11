@@ -1357,3 +1357,8 @@ DEF_HELPER_1(ssamoswap_disabled, void, env)
 
 /* Zalrsc SC write probe */
 DEF_HELPER_FLAGS_3(sc_probe_write, TCG_CALL_NO_WG, void, env, tl, tl)
+
+#ifdef CONFIG_USER_ONLY
+/* Invalidate reservations overlapping a completed linux-user store. */
+DEF_HELPER_3(riscv_invalidate_reservations, void, env, tl, tl)
+#endif

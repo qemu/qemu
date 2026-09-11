@@ -42,6 +42,9 @@ static TCGv cpu_gpr[32], cpu_gprh[32], cpu_pc;
 static TCGv_i64 cpu_fpr[32]; /* assume F and D extensions */
 static TCGv_i32 cpu_vl, cpu_vstart;
 static TCGv load_res;
+#ifdef CONFIG_USER_ONLY
+static TCGv load_res_size;
+#endif
 static TCGv load_val;
 
 /*
@@ -1141,10 +1144,34 @@ static bool gen_unary_per_ol(DisasContext *ctx, arg_r2 *a, DisasExtend ext,
     return gen_unary(ctx, a, ext, f_tl);
 }
 
+#ifdef CONFIG_USER_ONLY
+static bool gen_riscv_reservation_serialize(DisasContext *ctx)
+{
+    /* Keep the memory operation and reservation update in one guest step. */
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        gen_helper_exit_atomic(tcg_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
+    return true;
+}
+
+static void gen_riscv_invalidate_reservations(TCGv addr, MemOp mop)
+{
+    gen_helper_riscv_invalidate_reservations(tcg_env, addr,
+                                             tcg_constant_tl(memop_size(mop)));
+}
+#endif
+
 static bool gen_amo(DisasContext *ctx, arg_atomic *a,
                     void(*func)(TCGv, TCGv, TCGv, TCGArg, MemOp),
                     MemOp mop)
 {
+#ifdef CONFIG_USER_ONLY
+    if (!gen_riscv_reservation_serialize(ctx)) {
+        return false;
+    }
+#endif
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1, src2 = get_gpr(ctx, a->rs2, EXT_NONE);
     MemOp size = mop & MO_SIZE;
@@ -1159,6 +1186,9 @@ static bool gen_amo(DisasContext *ctx, arg_atomic *a,
     decode_save_opc(ctx, RISCV_UW2_ALWAYS_STORE_AMO);
     src1 = get_address(ctx, a->rs1, 0);
     func(dest, src1, src2, ctx->mem_idx, mop);
+#ifdef CONFIG_USER_ONLY
+    gen_riscv_invalidate_reservations(src1, mop);
+#endif
 
     gen_set_gpr(ctx, a->rd, dest);
     return true;
@@ -1482,6 +1512,10 @@ void riscv_translate_init(void)
     size_t pc_offset     = offsetof(CPURISCVState, pc) + field_offset;
     size_t res_offset    = offsetof(CPURISCVState, load_res) + field_offset;
     size_t val_offset    = offsetof(CPURISCVState, load_val) + field_offset;
+#ifdef CONFIG_USER_ONLY
+    size_t res_size_offset = offsetof(CPURISCVState, load_res_size)
+                             + field_offset;
+#endif
 
     for (i = 1; i < 32; i++) {
         cpu_gpr[i] = tcg_global_mem_new(tcg_env,
@@ -1501,5 +1535,9 @@ void riscv_translate_init(void)
     cpu_vl = tcg_global_mem_new_i32(tcg_env, vl_offset, "vl");
     cpu_vstart = tcg_global_mem_new_i32(tcg_env, vstart_offset, "vstart");
     load_res = tcg_global_mem_new(tcg_env, res_offset, "load_res");
+#ifdef CONFIG_USER_ONLY
+    load_res_size = tcg_global_mem_new(tcg_env, res_size_offset,
+                                       "load_res_size");
+#endif
     load_val = tcg_global_mem_new(tcg_env, val_offset, "load_val");
 }

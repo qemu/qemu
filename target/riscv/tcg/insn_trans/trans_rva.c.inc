@@ -32,6 +32,11 @@
 
 static bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
+#ifdef CONFIG_USER_ONLY
+    if (!gen_riscv_reservation_serialize(ctx)) {
+        return false;
+    }
+#endif
     TCGv src1;
 
     mop |= MO_ALIGN;
@@ -53,6 +58,9 @@ static bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 
     /* Put addr in load_res, data in load_val.  */
     tcg_gen_mov_tl(load_res, src1);
+#ifdef CONFIG_USER_ONLY
+    tcg_gen_movi_tl(load_res_size, memop_size(mop));
+#endif
     gen_set_gpr(ctx, a->rd, load_val);
 
     return true;
@@ -60,9 +68,17 @@ static bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 
 static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
+#ifdef CONFIG_USER_ONLY
+    if (!gen_riscv_reservation_serialize(ctx)) {
+        return false;
+    }
+#endif
     TCGv dest, src1, src2;
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
+#ifdef CONFIG_USER_ONLY
+    TCGLabel *l3 = gen_new_label();
+#endif
 
     mop |= MO_ALIGN;
     mop |= ctx->mo_endianness;
@@ -79,6 +95,11 @@ static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
     src2 = get_gpr(ctx, a->rs2, EXT_NONE);
     tcg_gen_atomic_cmpxchg_tl(dest, load_res, load_val, src2,
                               ctx->mem_idx, mop);
+#ifdef CONFIG_USER_ONLY
+    tcg_gen_brcond_tl(TCG_COND_NE, dest, load_val, l3);
+    gen_riscv_invalidate_reservations(src1, mop);
+    gen_set_label(l3);
+#endif
     tcg_gen_setcond_tl(TCG_COND_NE, dest, dest, load_val);
     gen_set_gpr(ctx, a->rd, dest);
     tcg_gen_br(l2);
@@ -104,6 +125,9 @@ static bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
      * an SC to any address, in between an LR and SC pair.
      */
     tcg_gen_movi_tl(load_res, -1);
+#ifdef CONFIG_USER_ONLY
+    tcg_gen_movi_tl(load_res_size, 0);
+#endif
 
     return true;
 }

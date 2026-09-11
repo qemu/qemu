@@ -19,6 +19,9 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_USER_ONLY
+#include "qemu/rcu.h"
+#endif
 #include "cpu.h"
 #include "target/riscv/tcg/csr.h"
 #ifndef CONFIG_USER_ONLY
@@ -297,6 +300,38 @@ void helper_sc_probe_write(CPURISCVState *env, target_ulong addr,
 
     probe_write(env, addr, size, mmu_idx, ra);
 }
+
+#ifdef CONFIG_USER_ONLY
+
+void helper_riscv_invalidate_reservations(CPURISCVState *env,
+                                          target_ulong addr,
+                                          target_ulong size)
+{
+    CPUState *cpu;
+
+    /* EXCP_ATOMIC keeps other guest harts out while this list is updated. */
+    WITH_RCU_READ_LOCK_GUARD() {
+        CPU_FOREACH(cpu) {
+            CPURISCVState *other_env = cpu_env(cpu);
+            target_ulong reservation = other_env->load_res;
+            target_ulong reservation_size = other_env->load_res_size;
+            bool overlap;
+
+            if (other_env == env || reservation == (target_ulong)-1) {
+                continue;
+            }
+            overlap = reservation < addr
+                ? addr - reservation < reservation_size
+                : reservation - addr < size;
+            if (overlap) {
+                other_env->load_res = -1;
+                other_env->load_res_size = 0;
+            }
+        }
+    }
+}
+
+#endif
 
 #ifndef CONFIG_USER_ONLY
 
