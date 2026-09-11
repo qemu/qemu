@@ -48,3 +48,4 @@ sphinx_rtd_theme = { accepted = ">=1.2.2", installed = "2.0.0" }
 # fetched from PyPI.
 [functests]
 pygdbmi = { accepted = ">=0.11.0.0", installed = "0.11.0.0" }
+pylint = { accepted = ">=3.0.0", installed = "3.0.0" }

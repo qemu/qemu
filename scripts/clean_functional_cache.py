@@ -28,8 +28,9 @@ for file in cache_dir.iterdir():
     if len(file.name) != 64:
         continue
 
+    stampfile = file.with_suffix(".stamp")
     try:
-        timestamp = int(file.with_suffix(".stamp").read_text())
+        timestamp = int(stampfile.read_text())
     except FileNotFoundError:
         # Assume it's an old file that was already in the cache before we
         # added the code for evicting stale assets. Use the release date
@@ -43,3 +44,4 @@ for file in cache_dir.iterdir():
         print(f"Removing {cache_dir}/{file.name}.")
         file.chmod(stat.S_IWRITE)
         file.unlink()
+        stampfile.unlink()
