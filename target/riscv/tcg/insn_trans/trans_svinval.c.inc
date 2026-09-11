@@ -25,6 +25,9 @@
 /* Test if priv level is M or S. */
 #define REQUIRE_PRIV_MS(ctx) do {          \
     if (ctx->priv == PRV_U) {              \
+        if (ctx->virt_enabled) {           \
+            ctx->virt_inst_excp = true;    \
+        }                                  \
         return false;                      \
     }                                      \
 } while (0)
