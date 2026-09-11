@@ -100,12 +100,8 @@ rutabaga_cmd_create_resource_2d(VirtIOGPU *g,
     result = rutabaga_resource_create_3d(vr->rutabaga, c2d.resource_id, &rc_3d);
     CHECK(!result, cmd);
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-    res->width = c2d.width;
-    res->height = c2d.height;
-    res->format = c2d.format;
-    res->resource_id = c2d.resource_id;
-
+    res = virtio_gpu_simple_resource_new(c2d.resource_id, c2d.width,
+                                         c2d.height, c2d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -139,12 +135,8 @@ rutabaga_cmd_create_resource_3d(VirtIOGPU *g,
     result = rutabaga_resource_create_3d(vr->rutabaga, c3d.resource_id, &rc_3d);
     CHECK(!result, cmd);
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-    res->width = c3d.width;
-    res->height = c3d.height;
-    res->format = c3d.format;
-    res->resource_id = c3d.resource_id;
-
+    res = virtio_gpu_simple_resource_new(c3d.resource_id, c3d.width,
+                                         c3d.height, c3d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -155,6 +147,8 @@ virtio_gpu_rutabaga_resource_unref(VirtIOGPU *g,
 {
     int32_t result;
     VirtIOGPURutabaga *vr = VIRTIO_GPU_RUTABAGA(g);
+
+    virtio_gpu_disable_scanout_for_resource(g, res->resource_id);
 
     result = rutabaga_resource_unref(vr->rutabaga, res->resource_id);
     if (result) {
@@ -259,7 +253,7 @@ rutabaga_cmd_resource_flush(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
 
     for (i = 0; i < vb->conf.max_outputs; i++) {
         scanout = &vb->scanout[i];
-        if (i == res->scanout_bitmask) {
+        if (scanout->resource_id == res->resource_id) {
             found = true;
             break;
         }
@@ -283,7 +277,13 @@ rutabaga_cmd_resource_flush(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
                                              rf.resource_id, &transfer,
                                              &transfer_iovec);
     CHECK(!result, cmd);
-    qemu_console_update_full(scanout->con);
+
+    for (i = 0; i < vb->conf.max_outputs; i++) {
+        scanout = &vb->scanout[i];
+        if (scanout->resource_id == res->resource_id) {
+            qemu_console_update_full(scanout->con);
+        }
+    }
 }
 
 static void
@@ -307,8 +307,7 @@ rutabaga_cmd_set_scanout(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
     scanout = &vb->scanout[ss.scanout_id];
 
     if (ss.resource_id == 0) {
-        qemu_console_set_surface(scanout->con, NULL);
-        qemu_console_gl_scanout_disable(scanout->con);
+        virtio_gpu_disable_scanout(g, ss.scanout_id);
         return;
     }
 
@@ -340,7 +339,7 @@ rutabaga_cmd_set_scanout(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd)
     scanout->ds = qemu_create_displaysurface_pixman(res->image);
     qemu_console_set_surface(scanout->con, NULL);
     qemu_console_set_surface(scanout->con, scanout->ds);
-    res->scanout_bitmask = ss.scanout_id;
+    scanout->resource_id = ss.resource_id;
 }
 
 static void
@@ -634,10 +633,7 @@ rutabaga_cmd_resource_create_blob(VirtIOGPU *g,
 
     CHECK(cblob.resource_id != 0, cmd);
 
-    res = g_new0(struct virtio_gpu_simple_resource, 1);
-
-    res->resource_id = cblob.resource_id;
-    res->blob_size = cblob.size;
+    res = virtio_gpu_simple_resource_new_blob(cblob.resource_id, cblob.size);
 
     if (cblob.blob_mem != VIRTIO_GPU_BLOB_MEM_HOST3D) {
         result = virtio_gpu_create_mapping_iov(g, cblob.nr_entries,

@@ -200,6 +200,7 @@ void sdl2_gl_scanout_disable(DisplayChangeListener *dcl)
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
 
     assert(scon->opengl);
+    SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
     scon->w = 0;
     scon->h = 0;
     sdl2_set_scanout_mode(scon, false);
@@ -286,7 +287,13 @@ void sdl2_gl_scanout_dmabuf(DisplayChangeListener *dcl,
 void sdl2_gl_release_dmabuf(DisplayChangeListener *dcl,
                             QemuDmaBuf *dmabuf)
 {
+    struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);
+
+    SDL_GL_MakeCurrent(scon->real_window, scon->winctx);
     egl_dmabuf_release_texture(dmabuf);
+    if (scon->guest_fb.dmabuf == dmabuf) {
+        scon->guest_fb.dmabuf = NULL;
+    }
 }
 
 bool sdl2_gl_has_dmabuf(DisplayChangeListener *dcl)

@@ -584,33 +584,40 @@ static bool gd_has_dmabuf(DisplayChangeListener *dcl)
     return vc->gfx.has_dmabuf;
 }
 
-static void gd_gl_release_dmabuf(DisplayChangeListener *dcl,
-                                 QemuDmaBuf *dmabuf)
-{
 #ifdef CONFIG_GBM
-    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
-
+void gd_release_dmabuf(VirtualConsole *vc, QemuDmaBuf *dmabuf)
+{
     egl_dmabuf_release_texture(dmabuf);
     if (vc->gfx.guest_fb.dmabuf == dmabuf) {
         vc->gfx.guest_fb.dmabuf = NULL;
+        vc->gfx.draw_submitted = false;
     }
-#endif
 }
 
-void gd_hw_gl_flushed(void *vcon)
+static void gd_gl_fence_cb(void *vcon)
 {
     VirtualConsole *vc = vcon;
-    QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
-    int fence_fd;
 
-    fence_fd = qemu_dmabuf_get_fence_fd(dmabuf);
-    if (fence_fd >= 0) {
-        qemu_set_fd_handler(fence_fd, NULL, NULL, NULL);
-        close(fence_fd);
-        qemu_dmabuf_set_fence_fd(dmabuf, -1);
+    if (vc->gfx.gl_fence_fd >= 0) {
+        qemu_set_fd_handler(vc->gfx.gl_fence_fd, NULL, NULL, NULL);
+        g_clear_fd(&vc->gfx.gl_fence_fd, NULL);
         qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
     }
 }
+
+void gd_gl_wait_sync(VirtualConsole *vc, EGLSyncKHR sync)
+{
+    assert(vc->gfx.gl_fence_fd < 0);
+
+    vc->gfx.gl_fence_fd = egl_create_fence(sync);
+    if (vc->gfx.gl_fence_fd >= 0) {
+        qemu_set_fd_handler(vc->gfx.gl_fence_fd,
+                            gd_gl_fence_cb, NULL, vc);
+    } else {
+        qemu_console_hw_gl_block(vc->gfx.dcl.con, false);
+    }
+}
+#endif
 
 /** DisplayState Callbacks (opengl version) **/
 
@@ -627,7 +634,7 @@ static const DisplayChangeListenerOps dcl_gl_area_ops = {
     .dpy_gl_scanout_disable  = gd_gl_area_scanout_disable,
     .dpy_gl_update           = gd_gl_area_scanout_flush,
     .dpy_gl_scanout_dmabuf   = gd_gl_area_scanout_dmabuf,
-    .dpy_gl_release_dmabuf   = gd_gl_release_dmabuf,
+    .dpy_gl_release_dmabuf   = gd_gl_area_release_dmabuf,
     .dpy_has_dmabuf          = gd_has_dmabuf,
 };
 
@@ -661,7 +668,7 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_gl_cursor_dmabuf    = gd_egl_cursor_dmabuf,
     .dpy_gl_cursor_position  = gd_egl_cursor_position,
     .dpy_gl_update           = gd_egl_flush,
-    .dpy_gl_release_dmabuf   = gd_gl_release_dmabuf,
+    .dpy_gl_release_dmabuf   = gd_egl_release_dmabuf,
     .dpy_has_dmabuf          = gd_has_dmabuf,
 };
 
@@ -2355,6 +2362,7 @@ add_gfx_console(GtkDisplayState *s, QemuConsole *con)
     vc->gfx.scale_y = vc->gfx.preferred_scale;
 
 #if defined(CONFIG_OPENGL)
+    vc->gfx.gl_fence_fd = -1;
     if (display_opengl) {
         if (gtk_use_gl_area) {
             vc->gfx.drawing_area = gtk_gl_area_new();
@@ -2647,6 +2655,9 @@ static void gd_vc_free(void *p)
 
     switch (vc->type) {
     case GD_VC_GFX:
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+        gd_gl_fence_cb(vc);
+#endif
         qemu_console_unregister_listener(&vc->gfx.dcl);
 #if defined(CONFIG_OPENGL)
         if (display_opengl) {

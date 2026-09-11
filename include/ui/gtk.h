@@ -58,6 +58,8 @@ typedef struct VirtualGfxConsole {
     bool y0_top;
     bool scanout_mode;
     bool has_dmabuf;
+    int gl_fence_fd;
+    bool draw_submitted;
 #endif
 } VirtualGfxConsole;
 
@@ -160,7 +162,8 @@ extern bool gtk_use_gl_area;
 /* ui/gtk.c */
 void gd_update_windowsize(VirtualConsole *vc);
 void gd_update_monitor_refresh_rate(VirtualConsole *vc, GtkWidget *widget);
-void gd_hw_gl_flushed(void *vc);
+void gd_gl_wait_sync(VirtualConsole *vc, void *sync);
+void gd_release_dmabuf(VirtualConsole *vc, QemuDmaBuf *dmabuf);
 
 /* ui/gtk-egl.c */
 void gd_egl_init(VirtualConsole *vc);
@@ -188,10 +191,13 @@ void gd_egl_cursor_dmabuf(DisplayChangeListener *dcl,
                           uint32_t hot_x, uint32_t hot_y);
 void gd_egl_cursor_position(DisplayChangeListener *dcl,
                             uint32_t pos_x, uint32_t pos_y);
+void gd_egl_release_dmabuf(DisplayChangeListener *dcl,
+                           QemuDmaBuf *dmabuf);
 void gd_egl_flush(DisplayChangeListener *dcl,
                   uint32_t x, uint32_t y, uint32_t w, uint32_t h);
-void gd_egl_scanout_flush(DisplayChangeListener *dcl,
-                          uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void *gd_egl_scanout_flush(DisplayChangeListener *dcl,
+                           uint32_t x, uint32_t y,
+                           uint32_t w, uint32_t h);
 void gtk_egl_init(DisplayGLMode mode);
 int gd_egl_make_current(DisplayGLCtx *dgc,
                         QEMUGLContext ctx);
@@ -218,6 +224,8 @@ void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,
                                 uint32_t x, uint32_t y,
                                 uint32_t w, uint32_t h,
                                 void *d3d_tex2d);
+void gd_gl_area_release_dmabuf(DisplayChangeListener *dcl,
+                               QemuDmaBuf *dmabuf);
 void gd_gl_area_scanout_disable(DisplayChangeListener *dcl);
 void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
                               uint32_t x, uint32_t y, uint32_t w, uint32_t h);

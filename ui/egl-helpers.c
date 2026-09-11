@@ -432,7 +432,7 @@ void egl_dmabuf_release_texture(QemuDmaBuf *dmabuf)
     qemu_dmabuf_set_texture(dmabuf, 0);
 }
 
-void egl_dmabuf_create_sync(QemuDmaBuf *dmabuf)
+EGLSyncKHR egl_create_sync(void)
 {
     EGLSyncKHR sync;
 
@@ -443,23 +443,24 @@ void egl_dmabuf_create_sync(QemuDmaBuf *dmabuf)
         sync = eglCreateSyncKHR(qemu_egl_display,
                                 EGL_SYNC_NATIVE_FENCE_ANDROID, NULL);
         if (sync != EGL_NO_SYNC_KHR) {
-            qemu_dmabuf_set_sync(dmabuf, sync);
+            return sync;
         }
     }
+
+    return NULL;
 }
 
-void egl_dmabuf_create_fence(QemuDmaBuf *dmabuf)
+int egl_create_fence(EGLSyncKHR sync)
 {
-    void *sync = qemu_dmabuf_get_sync(dmabuf);
-    int fence_fd;
+    int fence_fd = -1;
 
     if (sync) {
         fence_fd = eglDupNativeFenceFDANDROID(qemu_egl_display,
                                               sync);
-        qemu_dmabuf_set_fence_fd(dmabuf, fence_fd);
         eglDestroySyncKHR(qemu_egl_display, sync);
-        qemu_dmabuf_set_sync(dmabuf, NULL);
     }
+
+    return fence_fd;
 }
 
 #endif /* CONFIG_GBM */

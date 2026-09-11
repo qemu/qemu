@@ -113,6 +113,18 @@ virgl_cmd_resource_unref(VuGpu *g,
 
     VUGPU_FILL_CMD(unref);
 
+    for (int i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
+        if (g->scanout[i].resource_id == unref.resource_id) {
+            VhostUserGpuMsg msg = {
+                .request = VHOST_USER_GPU_DMABUF_SCANOUT,
+                .size = sizeof(VhostUserGpuDMABUFScanout),
+                .payload.dmabuf_scanout.scanout_id = i,
+            };
+            vg_send_msg(g, &msg, -1);
+            g->scanout[i].resource_id = 0;
+        }
+    }
+
     virgl_renderer_resource_detach_iov(unref.resource_id,
                                        &res_iovs,
                                        &num_iovs);

@@ -25,10 +25,7 @@ struct QemuDmaBuf {
     uint32_t  backing_width;
     uint32_t  backing_height;
     bool      y0_top;
-    void      *sync;
-    int       fence_fd;
     bool      allow_fences;
-    bool      draw_submitted;
 };
 
 QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
@@ -57,7 +54,6 @@ QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
     memcpy(dmabuf->fd, dmabuf_fd, num_planes * sizeof(*dmabuf_fd));
     dmabuf->allow_fences = allow_fences;
     dmabuf->y0_top = y0_top;
-    dmabuf->fence_fd = -1;
     dmabuf->num_planes = num_planes;
 
     return dmabuf;
@@ -65,10 +61,18 @@ QemuDmaBuf *qemu_dmabuf_new(uint32_t width, uint32_t height,
 
 void qemu_dmabuf_free(QemuDmaBuf *dmabuf)
 {
+    int i;
+
     if (dmabuf == NULL) {
         return;
     }
 
+    for (i = 0; i < dmabuf->num_planes; i++) {
+        if (dmabuf->fd[i] >= 0) {
+            close(dmabuf->fd[i]);
+            dmabuf->fd[i] = -1;
+        }
+    }
     g_free(dmabuf);
 }
 
@@ -92,20 +96,6 @@ void qemu_dmabuf_dup_fds(QemuDmaBuf *dmabuf, int *fds, int nfds)
 
     for (i = 0; i < dmabuf->num_planes; i++) {
         fds[i] = dmabuf->fd[i] >= 0 ? dup(dmabuf->fd[i]) : -1;
-    }
-}
-
-void qemu_dmabuf_close(QemuDmaBuf *dmabuf)
-{
-    int i;
-
-    assert(dmabuf != NULL);
-
-    for (i = 0; i < dmabuf->num_planes; i++) {
-        if (dmabuf->fd[i] >= 0) {
-            close(dmabuf->fd[i]);
-            dmabuf->fd[i] = -1;
-        }
     }
 }
 
@@ -208,20 +198,6 @@ bool qemu_dmabuf_get_y0_top(QemuDmaBuf *dmabuf)
     return dmabuf->y0_top;
 }
 
-void *qemu_dmabuf_get_sync(QemuDmaBuf *dmabuf)
-{
-    assert(dmabuf != NULL);
-
-    return dmabuf->sync;
-}
-
-int32_t qemu_dmabuf_get_fence_fd(QemuDmaBuf *dmabuf)
-{
-    assert(dmabuf != NULL);
-
-    return dmabuf->fence_fd;
-}
-
 bool qemu_dmabuf_get_allow_fences(QemuDmaBuf *dmabuf)
 {
     assert(dmabuf != NULL);
@@ -229,33 +205,8 @@ bool qemu_dmabuf_get_allow_fences(QemuDmaBuf *dmabuf)
     return dmabuf->allow_fences;
 }
 
-bool qemu_dmabuf_get_draw_submitted(QemuDmaBuf *dmabuf)
-{
-    assert(dmabuf != NULL);
-
-    return dmabuf->draw_submitted;
-}
-
 void qemu_dmabuf_set_texture(QemuDmaBuf *dmabuf, uint32_t texture)
 {
     assert(dmabuf != NULL);
     dmabuf->texture = texture;
-}
-
-void qemu_dmabuf_set_fence_fd(QemuDmaBuf *dmabuf, int32_t fence_fd)
-{
-    assert(dmabuf != NULL);
-    dmabuf->fence_fd = fence_fd;
-}
-
-void qemu_dmabuf_set_sync(QemuDmaBuf *dmabuf, void *sync)
-{
-    assert(dmabuf != NULL);
-    dmabuf->sync = sync;
-}
-
-void qemu_dmabuf_set_draw_submitted(QemuDmaBuf *dmabuf, bool draw_submitted)
-{
-    assert(dmabuf != NULL);
-    dmabuf->draw_submitted = draw_submitted;
 }

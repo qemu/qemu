@@ -293,7 +293,6 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
         dmabuf = g->dmabuf[m->scanout_id];
 
         if (dmabuf) {
-            qemu_dmabuf_close(dmabuf);
             qemu_console_gl_release_dmabuf(con, dmabuf);
             g_clear_pointer(&dmabuf, qemu_dmabuf_free);
         }

@@ -309,6 +309,33 @@ virtio_gpu_virgl_unmap_resource_blob(VirtIOGPU *g,
 }
 #endif
 
+static struct virtio_gpu_virgl_resource *
+virtio_gpu_virgl_resource_new(uint32_t resource_id, uint32_t width,
+                              uint32_t height, uint32_t format)
+{
+    struct virtio_gpu_virgl_resource *res;
+
+    res = g_new0(struct virtio_gpu_virgl_resource, 1);
+    virtio_gpu_simple_resource_init(&res->base, resource_id);
+    res->base.width = width;
+    res->base.height = height;
+    res->base.format = format;
+
+    return res;
+}
+
+static struct virtio_gpu_virgl_resource *
+virtio_gpu_virgl_resource_new_blob(uint32_t resource_id, uint64_t blob_size)
+{
+    struct virtio_gpu_virgl_resource *res;
+
+    res = g_new0(struct virtio_gpu_virgl_resource, 1);
+    virtio_gpu_simple_resource_init(&res->base, resource_id);
+    res->base.blob_size = blob_size;
+
+    return res;
+}
+
 static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
                                          struct virtio_gpu_ctrl_command *cmd)
 {
@@ -335,12 +362,8 @@ static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_virgl_resource, 1);
-    res->base.width = c2d.width;
-    res->base.height = c2d.height;
-    res->base.format = c2d.format;
-    res->base.resource_id = c2d.resource_id;
-    res->base.dmabuf_fd = -1;
+    res = virtio_gpu_virgl_resource_new(c2d.resource_id, c2d.width,
+                                        c2d.height, c2d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, &res->base, next);
 
     args.handle = c2d.resource_id;
@@ -383,12 +406,8 @@ static void virgl_cmd_create_resource_3d(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_virgl_resource, 1);
-    res->base.width = c3d.width;
-    res->base.height = c3d.height;
-    res->base.format = c3d.format;
-    res->base.resource_id = c3d.resource_id;
-    res->base.dmabuf_fd = -1;
+    res = virtio_gpu_virgl_resource_new(c3d.resource_id, c3d.width,
+                                        c3d.height, c3d.format);
     QTAILQ_INSERT_HEAD(&g->reslist, &res->base, next);
 
     args.handle = c3d.resource_id;
@@ -424,6 +443,9 @@ virtio_gpu_virgl_resource_unref(VirtIOGPU *g,
     }
 #endif
 
+    virtio_gpu_disable_scanout_for_resource(g, res->base.resource_id);
+
+    virgl_renderer_force_ctx_0();
     virgl_renderer_resource_detach_iov(res->base.resource_id,
                                        &res_iovs,
                                        &num_iovs);
@@ -546,6 +568,8 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
                                   struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_set_scanout ss;
+    struct virgl_renderer_resource_info info;
+    void *d3d_tex2d = NULL;
     int ret;
 
     VIRTIO_GPU_FILL_CMD(ss);
@@ -560,45 +584,46 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
     }
     g->parent_obj.enable = 1;
 
-    if (ss.resource_id) {
-        struct virgl_renderer_resource_info info;
-        void *d3d_tex2d = NULL;
+    if (!ss.resource_id) {
+        virtio_gpu_disable_scanout(g, ss.scanout_id);
+        return;
+    }
 
 #if VIRGL_VERSION_MAJOR >= 1
-        struct virgl_renderer_resource_info_ext ext;
-        memset(&ext, 0, sizeof(ext));
-        ret = virgl_renderer_resource_get_info_ext(ss.resource_id, &ext);
-        info = ext.base;
-        d3d_tex2d = ext.d3d_tex2d;
+    struct virgl_renderer_resource_info_ext ext;
+    memset(&ext, 0, sizeof(ext));
+    ret = virgl_renderer_resource_get_info_ext(ss.resource_id, &ext);
+    info = ext.base;
+    d3d_tex2d = ext.d3d_tex2d;
 #else
-        memset(&info, 0, sizeof(info));
-        ret = virgl_renderer_resource_get_info(ss.resource_id, &info);
+    memset(&info, 0, sizeof(info));
+    ret = virgl_renderer_resource_get_info(ss.resource_id, &info);
 #endif
-        if (ret) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: illegal resource specified %d\n",
-                          __func__, ss.resource_id);
-            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
-            return;
-        }
-        if (!virtio_gpu_check_scanout_bounds(ss.scanout_id, ss.resource_id,
-                                             info.width, info.height, &ss.r,
-                                             &cmd->error)) {
-            return;
-        }
-        qemu_console_resize(g->parent_obj.scanout[ss.scanout_id].con,
-                            ss.r.width, ss.r.height);
-        virgl_renderer_force_ctx_0();
-        qemu_console_gl_scanout_texture(
-            g->parent_obj.scanout[ss.scanout_id].con, info.tex_id,
-            info.flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP,
-            info.width, info.height,
-            ss.r.x, ss.r.y, ss.r.width, ss.r.height,
-            d3d_tex2d);
-    } else {
-        qemu_console_set_surface(g->parent_obj.scanout[ss.scanout_id].con, NULL);
-        qemu_console_gl_scanout_disable(g->parent_obj.scanout[ss.scanout_id].con);
+
+    if (ret) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: illegal resource specified %d\n",
+                      __func__, ss.resource_id);
+        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+        return;
     }
+    if (!virtio_gpu_check_scanout_bounds(ss.scanout_id, ss.resource_id,
+                                         info.width, info.height, &ss.r,
+                                         &cmd->error)) {
+        return;
+    }
+
+    virtio_gpu_release_scanout_dmabuf(g, ss.scanout_id);
+
+    qemu_console_resize(g->parent_obj.scanout[ss.scanout_id].con,
+                        ss.r.width, ss.r.height);
+    virgl_renderer_force_ctx_0();
+    qemu_console_gl_scanout_texture(
+        g->parent_obj.scanout[ss.scanout_id].con, info.tex_id,
+        info.flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP,
+        info.width, info.height,
+        ss.r.x, ss.r.y, ss.r.width, ss.r.height,
+        d3d_tex2d);
     g->parent_obj.scanout[ss.scanout_id].resource_id = ss.resource_id;
 }
 
@@ -853,10 +878,7 @@ static void virgl_cmd_resource_create_blob(VirtIOGPU *g,
         return;
     }
 
-    res = g_new0(struct virtio_gpu_virgl_resource, 1);
-    res->base.resource_id = cblob.resource_id;
-    res->base.blob_size = cblob.size;
-    res->base.dmabuf_fd = -1;
+    res = virtio_gpu_virgl_resource_new_blob(cblob.resource_id, cblob.size);
 
     if (cblob.blob_mem != VIRTIO_GPU_BLOB_MEM_HOST3D) {
         ret = virtio_gpu_create_mapping_iov(g, cblob.nr_entries, sizeof(cblob),
@@ -1075,9 +1097,12 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         break;
     case VIRTIO_GPU_CMD_SET_SCANOUT:
         virgl_cmd_set_scanout(g, cmd);
+        /* Display callbacks may change the current GL context. */
+        virgl_renderer_force_ctx_0();
         break;
     case VIRTIO_GPU_CMD_RESOURCE_FLUSH:
         virgl_cmd_resource_flush(g, cmd);
+        virgl_renderer_force_ctx_0();
         break;
     case VIRTIO_GPU_CMD_RESOURCE_UNREF:
         virgl_cmd_resource_unref(g, cmd, &cmd_suspended);
@@ -1114,6 +1139,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
         break;
     case VIRTIO_GPU_CMD_SET_SCANOUT_BLOB:
         virgl_cmd_set_scanout_blob(g, cmd);
+        virgl_renderer_force_ctx_0();
         break;
 #endif
     default:
@@ -1407,13 +1433,13 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g)
     int i;
 
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
-        qemu_console_set_surface(g->parent_obj.scanout[i].con, NULL);
-        qemu_console_gl_scanout_disable(g->parent_obj.scanout[i].con);
+        virtio_gpu_disable_scanout(g, i);
     }
 }
 
 static bool virtio_gpu_virgl_reset(VirtIOGPU *g)
 {
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
     struct virtio_gpu_simple_resource *res, *tmp;
 
     /*
@@ -1431,6 +1457,11 @@ static bool virtio_gpu_virgl_reset(VirtIOGPU *g)
     virgl_renderer_reset();
 
     virtio_gpu_virgl_reset_async_fences(g);
+
+    g_clear_pointer(&gl->cmdq_resume_bh, qemu_bh_delete);
+    g_clear_pointer(&gl->async_fence_bh, qemu_bh_delete);
+    g_clear_pointer(&gl->print_stats, timer_free);
+    g_clear_pointer(&gl->fence_poll, timer_free);
 
     return true;
 }
