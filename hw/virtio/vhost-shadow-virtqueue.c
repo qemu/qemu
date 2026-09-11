@@ -751,6 +751,15 @@ static void vhost_svq_handle_call(EventNotifier *n)
     vhost_svq_flush(svq, true);
 }
 
+static void event_notifier_set_or_zero(EventNotifier *e, int fd)
+{
+    if (fd == VHOST_FILE_UNBIND) {
+        memset(e, 0, sizeof(*e));
+    } else {
+        event_notifier_init_fd(e, fd);
+    }
+}
+
 /**
  * Set the call notifier for the SVQ to call the guest
  *
@@ -761,17 +770,13 @@ static void vhost_svq_handle_call(EventNotifier *n)
  */
 void vhost_svq_set_svq_call_fd(VhostShadowVirtqueue *svq, int call_fd)
 {
-    if (call_fd == VHOST_FILE_UNBIND) {
-        /*
-         * Fail event_notifier_set if called handling device call.
-         *
-         * SVQ still needs device notifications, since it needs to keep
-         * forwarding used buffers even with the unbind.
-         */
-        memset(&svq->svq_call, 0, sizeof(svq->svq_call));
-    } else {
-        event_notifier_init_fd(&svq->svq_call, call_fd);
-    }
+    /*
+     * Fail event_notifier_set if called handling device call.
+     *
+     * SVQ still needs device notifications, since it needs to keep
+     * forwarding used buffers even with the unbind.
+     */
+    event_notifier_set_or_zero(&svq->svq_call, call_fd);
 }
 
 /**
@@ -814,14 +819,14 @@ size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
 void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
 {
     EventNotifier *svq_kick = &svq->svq_kick;
-    bool poll_stop = VHOST_FILE_UNBIND != event_notifier_get_fd(svq_kick);
+    bool poll_stop = event_notifier_initialized(svq_kick);
     bool poll_start = svq_kick_fd != VHOST_FILE_UNBIND;
 
     if (poll_stop) {
         event_notifier_set_handler(svq_kick, NULL);
     }
 
-    event_notifier_init_fd(svq_kick, svq_kick_fd);
+    event_notifier_set_or_zero(&svq->svq_kick, svq_kick_fd);
     /*
      * event_notifier_set_handler already checks for guest's notifications if
      * they arrive at the new file descriptor in the switch, so there is no
@@ -928,7 +933,6 @@ VhostShadowVirtqueue *vhost_svq_new(const VhostShadowVirtqueueOps *ops,
 {
     VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
 
-    event_notifier_init_fd(&svq->svq_kick, VHOST_FILE_UNBIND);
     svq->ops = ops;
     svq->ops_opaque = ops_opaque;
     return svq;

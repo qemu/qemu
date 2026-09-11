@@ -27,6 +27,7 @@
  */
 void event_notifier_init_fd(EventNotifier *e, int fd)
 {
+    assert(fd >= 0);
     e->rfd = fd;
     e->wfd = fd;
     e->initialized = true;
@@ -96,12 +97,21 @@ void event_notifier_cleanup(EventNotifier *e)
 
 int event_notifier_get_fd(const EventNotifier *e)
 {
+    assert(e->initialized);
+    assert(e->rfd >= 0);
     return e->rfd;
 }
 
 int event_notifier_get_wfd(const EventNotifier *e)
 {
+    assert(e->initialized);
+    assert(e->wfd >= 0);
     return e->wfd;
+}
+
+bool event_notifier_initialized(const EventNotifier *e)
+{
+    return e->initialized;
 }
 
 int event_notifier_set(EventNotifier *e)
