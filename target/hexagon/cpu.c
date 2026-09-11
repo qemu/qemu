@@ -103,7 +103,16 @@ const char * const hexagon_sregnames[] = {
     "pmucnt5",    "pmucnt6",    "pmucnt7",    "pmucnt0",    "pmucnt1",
     "pmucnt2",    "pmucnt3",    "pmuevtcfg",  "pmustid0",   "pmuevtcfg1",
     "pmustid1",   "timerlo",    "timerhi",    "pmucfg",     "s59",
-    "s60",        "s61",        "s62",        "s63",
+    "s60",        "s61",        "s62",        "s63",        "commit1t",
+    "commit2t",   "commit3t",   "commit4t",   "commit5t",   "commit6t",
+    "pcycle1t",   "pcycle2t",   "pcycle3t",   "pcycle4t",   "pcycle5t",
+    "pcycle6t",   "stfinst",    "isdbcmd",    "isdbver",    "brkptinfo",
+    "s80",        "commit7t",   "commit8t",   "pcycle7t",   "pcycle8t",
+    "commit9t",   "commit10t",  "commit11t",  "commit12t",  "commit13t",
+    "commit14t",  "commit15t",  "commit16t",  "pcycle9t",   "pcycle10t",
+    "pcycle11t",  "pcycle12t",  "pcycle13t",  "pcycle14t",  "pcycle15t",
+    "pcycle16t",  "ipend",      "iad",        "isdbst1",    "isdbst2",
+    "brkptinfo1",
 };
 
 G_STATIC_ASSERT(NUM_SREGS == ARRAY_SIZE(hexagon_sregnames));
@@ -874,6 +883,9 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              HEX_VER_V69),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              HEX_VER_V71),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              HEX_VER_V73),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V75,              HEX_VER_V75),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V79,              HEX_VER_V79),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V81,              HEX_VER_V81),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)

@@ -27,6 +27,8 @@ typedef enum {
     v71_rev = 0x8c71,
     v73_rev = 0x8c73,
     v73m_rev = 0xcc73,
+    v81_rev = 0x8781,
+    v81dgb_1_rev = 0xcc81,
 } Rev_t;
 #define HEXAGON_LATEST_REV v73
 #define HEXAGON_LATEST_REV_UPPER V73
@@ -129,6 +131,15 @@ union hexagon_config_table {
         uint32_t corecfg_present;
         uint32_t coproc2_fp16_acc_exp;
         uint32_t AXIM2_secondary_base;
+        uint32_t AXIM_data_width;
+        /* Number of L1 data cache ways */
+        uint32_t l1d_ways;
+        /* Number of L1 instruction cache ways */
+        uint32_t l1i_ways;
+        /* Number of L2 cache ways */
+        uint32_t l2way_num;
+        /* Number of DMA JTLB entries */
+        uint32_t dma_jtlb_entries;
     };
     uint32_t raw[HEXAGON_CFGSPACE_ENTRIES];
 };

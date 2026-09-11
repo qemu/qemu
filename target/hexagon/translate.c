@@ -319,6 +319,8 @@ static bool sreg_write_ends_tb(int reg_num)
            reg_num == HEX_SREG_STID ||
            reg_num == HEX_SREG_IMASK ||
            reg_num == HEX_SREG_IPENDAD ||
+           reg_num == HEX_SREG_IPEND ||
+           reg_num == HEX_SREG_IAD ||
            reg_num == HEX_SREG_BESTWAIT ||
            reg_num == HEX_SREG_SCHEDCFG;
 }
@@ -830,8 +832,10 @@ static void gen_sreg_writes(DisasContext *ctx)
             gen_helper_modify_ssr(tcg_env, ctx->t_sreg_new_value[reg_num],
                                   old_reg);
         } else if ((reg_num == HEX_SREG_STID) ||
-                   (reg_num == HEX_SREG_IMASK) ||
-                   (reg_num == HEX_SREG_IPENDAD)) {
+                    (reg_num == HEX_SREG_IMASK) ||
+                   (reg_num == HEX_SREG_IPENDAD) ||
+                   (reg_num == HEX_SREG_IPEND) ||
+                   (reg_num == HEX_SREG_IAD)) {
             if (ctx->need_commit && reg_num < HEX_SREG_GLB_START) {
                 tcg_gen_mov_tl(hex_t_sreg[reg_num],
                                ctx->t_sreg_new_value[reg_num]);

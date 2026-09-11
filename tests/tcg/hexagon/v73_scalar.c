@@ -86,10 +86,17 @@ static void test_jumprh(void)
     check32(res, 1);
 }
 
+static void test_unpause(void)
+{
+    /* Nothing is paused, so this just needs to execute without faulting. */
+    asm volatile("unpause\n\t");
+}
+
 int main()
 {
     test_callrh();
     test_jumprh();
+    test_unpause();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

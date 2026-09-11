@@ -407,6 +407,7 @@ DEF_ENC32(R6_release_st_vi,   ICLASS_ST" 000 01 11sssss PP0ttttt --1011dd")
 
 DEF_EXT_SPACE(EXTRACTW,   ICLASS_LD" 001 0 000 iiiii PP0iiiii 001iiiii")
 DEF_ENC32(Y2_dcfetchbo,   ICLASS_LD" 010 0 000 sssss PP0--iii iiiiiiii")
+DEF_ENC32(Y2_dcfetchbo_nt,"10010100000sssssPP10-iiiiiiiiiii")
 
 
 
@@ -473,6 +474,13 @@ STD_ST_ENC(rbnew, "1 101","00ttt")
 STD_ST_ENC(rhnew, "1 101","01ttt")
 STD_ST_ENC(rinew, "1 101","10ttt")
 
+/* Non-temporal post-increment stores: the OPC nibble's high bit, always
+ * 1 above, is repurposed as the "nt" hint for this addressing mode only. */
+DEF_ENC32(S2_storerb_pi_nt,"10101010000xxxxxPP0ttttt0iiii-0-")
+DEF_ENC32(S2_storerh_pi_nt,"10101010010xxxxxPP0ttttt0iiii-0-")
+DEF_ENC32(S2_storeri_pi_nt,"10101010100xxxxxPP0ttttt0iiii-0-")
+DEF_ENC32(S2_storerd_pi_nt,"10101010110xxxxxPP0ttttt0iiii-00")
+
 STD_PST_ENC(rb,    "1 000","ttttt")
 STD_PST_ENC(rh,    "1 010","ttttt")
 STD_PST_ENC(rf,    "1 011","ttttt")
@@ -481,6 +489,16 @@ STD_PST_ENC(rd,    "1 110","ttttt")
 STD_PST_ENC(rbnew, "1 101","00ttt")
 STD_PST_ENC(rhnew, "1 101","01ttt")
 STD_PST_ENC(rinew, "1 101","10ttt")
+
+/* Predicated forms of the non-temporal post-increment stores above. */
+DEF_ENC32(S2_pstorerbt_pi_nt,"10101010000xxxxxPP1ttttt0iiii0vv")
+DEF_ENC32(S2_pstorerbf_pi_nt,"10101010000xxxxxPP1ttttt0iiii1vv")
+DEF_ENC32(S2_pstorerht_pi_nt,"10101010010xxxxxPP1ttttt0iiii0vv")
+DEF_ENC32(S2_pstorerhf_pi_nt,"10101010010xxxxxPP1ttttt0iiii1vv")
+DEF_ENC32(S2_pstorerit_pi_nt,"10101010100xxxxxPP1ttttt0iiii0vv")
+DEF_ENC32(S2_pstorerif_pi_nt,"10101010100xxxxxPP1ttttt0iiii1vv")
+DEF_ENC32(S2_pstorerdt_pi_nt,"10101010110xxxxxPP1ttttt0iiii0vv")
+DEF_ENC32(S2_pstorerdf_pi_nt,"10101010110xxxxxPP1ttttt0iiii1vv")
 
 
 
@@ -492,6 +510,7 @@ STD_PST_ENC(rinew, "1 101","10ttt")
 DEF_ENC32(S2_allocframe,   ICLASS_ST" 000 01 00xxxxx PP000iii iiiiiiii")
 DEF_ENC32(Y5_l2locka,      ICLASS_ST" 000 01 11sssss PP1----- ------dd")
 DEF_ENC32(Y2_dczeroa,      ICLASS_ST" 000 01 10sssss PP0----- --------")
+DEF_ENC32(Y2_dczeroa_nt,"10100000110sssssPP1-------------")
 
 
 DEF_ENC32(Y2_barrier,      ICLASS_ST" 100 00 00----- PP------ 000-----")
@@ -585,6 +604,7 @@ DEF_FIELDROW_DESC32(ICLASS_J" 0100 -------- PP------ --------","[#4] (#u8) ")
 DEF_ENC32(J2_trap0,     ICLASS_J" 0100  00------  PP-iiiii  ---iii--")
 DEF_ENC32(J2_trap1,     ICLASS_J" 0100  10-xxxxx  PP-iiiii  ---iii--")
 DEF_ENC32(J2_pause,     ICLASS_J" 0100  01----ii  PP-iiiii  ---iii--")
+DEF_ENC32(J2_unpause,"01010111111-----PP01----000-----")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0101 -------- PP------ --------","[#5] Rd=(Rs) ")
 DEF_ENC32(Y2_icdatar,   ICLASS_J" 0101  101sssss  PP------  ---ddddd")
@@ -870,6 +890,7 @@ DEF_ENC32(Y2_tlbunlock,ICLASS_CR" 1100 001----- PP------ 010-----")
 DEF_ENC32(Y2_k0lock,   ICLASS_CR" 1100 001----- PP------ 011-----")
 DEF_ENC32(Y2_k0unlock, ICLASS_CR" 1100 001----- PP------ 100-----")
 DEF_ENC32(Y2_tlbp,     ICLASS_CR" 1100 100sssss PP------ ---ddddd")
+DEF_ENC32(Y2_tlbpp,"01101100011sssssPP---------ddddd")
 DEF_ENC32(Y5_tlboc,    ICLASS_CR" 1100 111sssss PP------ ---ddddd")
 DEF_ENC32(Y5_tlbasidi, ICLASS_CR" 1100 101sssss PP------ --------")
 DEF_ENC32(Y2_tlbr,     ICLASS_CR" 1100 010sssss PP------ ---ddddd")

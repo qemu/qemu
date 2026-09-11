@@ -84,6 +84,11 @@ static const char *hex_sreg_names[] = {
     [HEX_SREG_S61] = "s61",
     [HEX_SREG_S62] = "s62",
     [HEX_SREG_S63] = "s63",
+    [HEX_SREG_IPEND] = "ipend",
+    [HEX_SREG_IAD] = "iad",
+    [HEX_SREG_ISDBST1] = "isdbst1",
+    [HEX_SREG_ISDBST2] = "isdbst2",
+    [HEX_SREG_BRKPTINFO1] = "brkptinfo1",
 };
 
 static const char *get_sreg_name(uint32_t reg)
@@ -100,6 +105,8 @@ static const uint32_t global_sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_MODECTL] = IMMUTABLE,
     [HEX_SREG_SYSCFG] = 0x80001c00,
     [HEX_SREG_IPENDAD] = IMMUTABLE,
+    [HEX_SREG_IPEND] = IMMUTABLE,
+    [HEX_SREG_IAD] = IMMUTABLE,
     [HEX_SREG_VID] = 0xfc00fc00,
     [HEX_SREG_VID1] = 0xfc00fc00,
     [HEX_SREG_BESTWAIT] = 0xfffffe00,
@@ -109,6 +116,9 @@ static const uint32_t global_sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_DIAG] = 0x00000000,
     [HEX_SREG_REV] = IMMUTABLE,
     [HEX_SREG_ISDBST] = IMMUTABLE,
+    [HEX_SREG_ISDBST1] = IMMUTABLE,
+    [HEX_SREG_ISDBST2] = IMMUTABLE,
+    [HEX_SREG_BRKPTINFO1] = IMMUTABLE,
     [HEX_SREG_ISDBCFG0] = 0xe0000000,
     [HEX_SREG_BRKPTPC0] = 0x00000003,
     [HEX_SREG_BRKPTCFG0] = 0xfc007000,

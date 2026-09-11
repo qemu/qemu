@@ -333,10 +333,17 @@ int get_exe_mode(const CPUHexagonState *env)
     E_bit = thread_enabled_mask & (0x1 << env->threadId);
     thread_wait_mask = GET_FIELD(MODECTL_W, modectl);
     W_bit = thread_wait_mask & (0x1 << env->threadId);
-    isdbst = cpu->globalregs ?
-        hexagon_globalreg_read(cpu->globalregs, HEX_SREG_ISDBST,
-                               env->threadId) : 0;
-    debugmode = GET_FIELD(ISDBST_DEBUGMODE, isdbst);
+    if (cpu->cfg.hex_def->hex_version >= HEX_VER_V81) {
+        isdbst = cpu->globalregs ?
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_ISDBST2,
+                                   env->threadId) : 0;
+        debugmode = GET_FIELD(ISDBST2_DEBUGMODE, isdbst);
+    } else {
+        isdbst = cpu->globalregs ?
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_ISDBST,
+                                   env->threadId) : 0;
+        debugmode = GET_FIELD(ISDBST_DEBUGMODE, isdbst);
+    }
     D_bit = debugmode & (0x1 << env->threadId);
 
     if (!D_bit && !W_bit && !E_bit) {
