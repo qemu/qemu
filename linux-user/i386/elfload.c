@@ -25,6 +25,13 @@ const char *get_elf_platform(CPUState *cs)
     return elf_platform[family - 3];
 }
 
+void elf_core_copy_fpregs(target_elf_fpregset_t *r, const CPUX86State *env)
+{
+    /* The FSAVE image exactly, stored in target byte order. */
+    QEMU_BUILD_BUG_ON(sizeof(*r) != 4 * 7 + 8 * 10);
+    cpu_x86_fsave_noinit((CPUX86State *)env, r, sizeof(*r));
+}
+
 void elf_core_copy_regs(target_elf_gregset_t *r, const CPUX86State *env)
 {
     r->pt.bx = tswapal(env->regs[R_EBX]);

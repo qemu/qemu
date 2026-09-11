@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -63,10 +64,29 @@ static void test_file(void)
     assert(ret == 0);
 }
 
+static void test_unmapped(void)
+{
+    int pagesize = getpagesize();
+    void *page;
+    int ret;
+
+    page = mmap(NULL, pagesize, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    assert(page != MAP_FAILED);
+
+    ret = munmap(page, pagesize);
+    assert(ret == 0);
+
+    errno = 0;
+    ret = madvise(page, pagesize, MADV_NORMAL);
+    assert(ret == -1);
+    assert(errno == ENOMEM);
+}
+
 int main(void)
 {
     test_anonymous();
     test_file();
+    test_unmapped();
 
     return EXIT_SUCCESS;
 }

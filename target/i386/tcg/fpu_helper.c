@@ -2556,6 +2556,10 @@ void helper_fldenv(CPUX86State *env, target_ulong ptr, int data32)
     do_fldenv(&ac, ptr, data32);
 }
 
+/*
+ * Store the environment and the register stack, as FSAVE does, but
+ * without the FNINIT that FSAVE performs afterward.
+ */
 static void do_fsave(X86Access *ac, target_ulong ptr, int data32)
 {
     CPUX86State *env = ac->env;
@@ -2568,8 +2572,6 @@ static void do_fsave(X86Access *ac, target_ulong ptr, int data32)
         do_fstt(ac, ptr, tmp);
         ptr += 10;
     }
-
-    do_fninit(env);
 }
 
 void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
@@ -2579,6 +2581,7 @@ void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
 
     access_prepare(&ac, env, ptr, size, MMU_DATA_STORE, GETPC());
     do_fsave(&ac, ptr, data32);
+    do_fninit(env);
 }
 
 static void do_frstor(X86Access *ac, target_ulong ptr, int data32)
@@ -3105,6 +3108,12 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 
 #if defined(CONFIG_USER_ONLY)
 void cpu_x86_fsave(CPUX86State *env, void *host, size_t len)
+{
+    cpu_x86_fsave_noinit(env, host, len);
+    do_fninit(env);
+}
+
+void cpu_x86_fsave_noinit(CPUX86State *env, void *host, size_t len)
 {
     X86Access ac = {
         .haddr1 = host,
