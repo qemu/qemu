@@ -108,6 +108,12 @@ static inline void tcg_gen_op_tt(TCGOpcode opc, TCGType type,
     tcg_gen_op2(opc, type, temp_arg(t0), temp_arg(t1));
 }
 
+static inline void tcg_gen_op_tti(TCGOpcode opc, TCGType type,
+                                  TCGTemp *t0, TCGTemp *t1, TCGArg a2)
+{
+    tcg_gen_op3(opc, type, temp_arg(t0), temp_arg(t1), a2);
+}
+
 static inline void tcg_gen_op_ttt(TCGOpcode opc, TCGType type,
                                   TCGTemp *t0, TCGTemp *t1, TCGTemp *t2)
 {
