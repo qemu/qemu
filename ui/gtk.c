@@ -2645,7 +2645,7 @@ static void gd_create_menus(GtkDisplayState *s, DisplayOptions *opts)
 
     /* Disable the default "F10" menu shortcut. */
     settings = gtk_widget_get_settings(s->window);
-    g_object_set(G_OBJECT(settings), "gtk-menu-bar-accel", "", NULL);
+    g_object_set(G_OBJECT(settings), "gtk-menu-bar-accel", NULL, NULL);
 }
 
 
