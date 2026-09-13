@@ -434,28 +434,28 @@ static bool tcg_target_const_match(int64_t val, int ct,
 
 /* Type-R */
 
-static int32_t encode_r(RISCVInsn opc, TCGReg rd, TCGReg rs1, TCGReg rs2)
+static tcg_insn_unit encode_r(RISCVInsn opc, TCGReg rd, TCGReg rs1, TCGReg rs2)
 {
     return opc | (rd & 0x1f) << 7 | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20;
 }
 
 /* Type-I */
 
-static int32_t encode_imm12(uint32_t imm)
+static tcg_insn_unit encode_imm12(uint32_t imm)
 {
     return (imm & 0xfff) << 20;
 }
 
-static int32_t encode_i(RISCVInsn opc, TCGReg rd, TCGReg rs1, uint32_t imm)
+static tcg_insn_unit encode_i(RISCVInsn opc, TCGReg rd, TCGReg rs1, uint32_t imm)
 {
     return opc | (rd & 0x1f) << 7 | (rs1 & 0x1f) << 15 | encode_imm12(imm);
 }
 
 /* Type-S */
 
-static int32_t encode_simm12(uint32_t imm)
+static tcg_insn_unit encode_simm12(uint32_t imm)
 {
-    int32_t ret = 0;
+    tcg_insn_unit ret = 0;
 
     ret |= (imm & 0xFE0) << 20;
     ret |= (imm & 0x1F) << 7;
@@ -463,16 +463,16 @@ static int32_t encode_simm12(uint32_t imm)
     return ret;
 }
 
-static int32_t encode_s(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
+static tcg_insn_unit encode_s(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
 {
     return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_simm12(imm);
 }
 
 /* Type-SB */
 
-static int32_t encode_sbimm12(uint32_t imm)
+static tcg_insn_unit encode_sbimm12(uint32_t imm)
 {
-    int32_t ret = 0;
+    tcg_insn_unit ret = 0;
 
     ret |= (imm & 0x1000) << 19;
     ret |= (imm & 0x7e0) << 20;
@@ -482,28 +482,28 @@ static int32_t encode_sbimm12(uint32_t imm)
     return ret;
 }
 
-static int32_t encode_sb(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
+static tcg_insn_unit encode_sb(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
 {
     return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_sbimm12(imm);
 }
 
 /* Type-U */
 
-static int32_t encode_uimm20(uint32_t imm)
+static tcg_insn_unit encode_uimm20(uint32_t imm)
 {
     return imm & 0xfffff000;
 }
 
-static int32_t encode_u(RISCVInsn opc, TCGReg rd, uint32_t imm)
+static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, uint32_t imm)
 {
     return opc | (rd & 0x1f) << 7 | encode_uimm20(imm);
 }
 
 /* Type-UJ */
 
-static int32_t encode_ujimm20(uint32_t imm)
+static tcg_insn_unit encode_ujimm20(uint32_t imm)
 {
-    int32_t ret = 0;
+    tcg_insn_unit ret = 0;
 
     ret |= (imm & 0x0007fe) << (21 - 1);
     ret |= (imm & 0x000800) << (20 - 11);
@@ -513,7 +513,7 @@ static int32_t encode_ujimm20(uint32_t imm)
     return ret;
 }
 
-static int32_t encode_uj(RISCVInsn opc, TCGReg rd, uint32_t imm)
+static tcg_insn_unit encode_uj(RISCVInsn opc, TCGReg rd, uint32_t imm)
 {
     return opc | (rd & 0x1f) << 7 | encode_ujimm20(imm);
 }
@@ -521,8 +521,8 @@ static int32_t encode_uj(RISCVInsn opc, TCGReg rd, uint32_t imm)
 
 /* Type-OPIVI */
 
-static int32_t encode_vi(RISCVInsn opc, TCGReg rd, int32_t imm,
-                         TCGReg vs2, bool vm)
+static tcg_insn_unit encode_vi(RISCVInsn opc, TCGReg rd, int32_t imm,
+                               TCGReg vs2, bool vm)
 {
     return opc | (rd & 0x1f) << 7 | (imm & 0x1f) << 15 |
            (vs2 & 0x1f) << 20 | (vm << 25);
@@ -530,8 +530,8 @@ static int32_t encode_vi(RISCVInsn opc, TCGReg rd, int32_t imm,
 
 /* Type-OPIVV/OPMVV/OPIVX/OPMVX, Vector load and store */
 
-static int32_t encode_v(RISCVInsn opc, TCGReg d, TCGReg s1,
-                        TCGReg s2, bool vm)
+static tcg_insn_unit encode_v(RISCVInsn opc, TCGReg d, TCGReg s1,
+                              TCGReg s2, bool vm)
 {
     return opc | (d & 0x1f) << 7 | (s1 & 0x1f) << 15 |
            (s2 & 0x1f) << 20 | (vm << 25);
@@ -539,20 +539,19 @@ static int32_t encode_v(RISCVInsn opc, TCGReg d, TCGReg s1,
 
 /* Vector vtype */
 
-static uint32_t encode_vtype(bool vta, bool vma,
-                            MemOp vsew, RISCVVlmul vlmul)
+static uint32_t encode_vtype(bool vta, bool vma, MemOp vsew, RISCVVlmul vlmul)
 {
     return vma << 7 | vta << 6 | vsew << 3 | vlmul;
 }
 
-static int32_t encode_vset(RISCVInsn opc, TCGReg rd,
-                           TCGArg rs1, uint32_t vtype)
+static tcg_insn_unit encode_vset(RISCVInsn opc, TCGReg rd,
+                                 TCGArg rs1, uint32_t vtype)
 {
     return opc | (rd & 0x1f) << 7 | (rs1 & 0x1f) << 15 | (vtype & 0x7ff) << 20;
 }
 
-static int32_t encode_vseti(RISCVInsn opc, TCGReg rd,
-                            uint32_t uimm, uint32_t vtype)
+static tcg_insn_unit encode_vseti(RISCVInsn opc, TCGReg rd,
+                                  uint32_t uimm, uint32_t vtype)
 {
     return opc | (rd & 0x1f) << 7 | (uimm & 0x1f) << 15 | (vtype & 0x3ff) << 20;
 }
