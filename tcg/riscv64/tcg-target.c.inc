@@ -499,9 +499,9 @@ static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, uint32_t imm)
     return opc | (rd & 0x1f) << 7 | encode_uimm20(imm);
 }
 
-/* Type-UJ */
+/* Type-J */
 
-static tcg_insn_unit encode_ujimm20(uint32_t imm)
+static tcg_insn_unit encode_jimm20(uint32_t imm)
 {
     tcg_insn_unit ret = 0;
 
@@ -513,9 +513,9 @@ static tcg_insn_unit encode_ujimm20(uint32_t imm)
     return ret;
 }
 
-static tcg_insn_unit encode_uj(RISCVInsn opc, TCGReg rd, uint32_t imm)
+static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, uint32_t imm)
 {
-    return opc | (rd & 0x1f) << 7 | encode_ujimm20(imm);
+    return opc | (rd & 0x1f) << 7 | encode_jimm20(imm);
 }
 
 
@@ -593,7 +593,7 @@ static void tcg_out_opc_upper(TCGContext *s, RISCVInsn opc,
 static void tcg_out_opc_jump(TCGContext *s, RISCVInsn opc,
                              TCGReg rd, uint32_t imm)
 {
-    tcg_out32(s, encode_uj(opc, rd, imm));
+    tcg_out32(s, encode_j(opc, rd, imm));
 }
 
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
@@ -629,7 +629,7 @@ static bool reloc_jimm20(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 
     tcg_debug_assert((offset & 1) == 0);
     if (offset == sextreg(offset, 0, 20)) {
-        *src_rw |= encode_ujimm20(offset);
+        *src_rw |= encode_jimm20(offset);
         return true;
     }
 
@@ -1960,7 +1960,7 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
 
     /* Either directly branch, or fall through to indirect branch. */
     if (offset == sextreg(offset, 0, 20)) {
-        insn = encode_uj(OPC_JAL, TCG_REG_ZERO, offset);
+        insn = encode_j(OPC_JAL, TCG_REG_ZERO, offset);
     } else {
         insn = OPC_NOP;
     }
