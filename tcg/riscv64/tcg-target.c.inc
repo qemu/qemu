@@ -441,19 +441,20 @@ static tcg_insn_unit encode_r(RISCVInsn opc, TCGReg rd, TCGReg rs1, TCGReg rs2)
 
 /* Type-I */
 
-static tcg_insn_unit encode_imm12(uint32_t imm)
+static tcg_insn_unit encode_imm12(tcg_target_long imm)
 {
     return (imm & 0xfff) << 20;
 }
 
-static tcg_insn_unit encode_i(RISCVInsn opc, TCGReg rd, TCGReg rs1, uint32_t imm)
+static tcg_insn_unit encode_i(RISCVInsn opc, TCGReg rd,
+                              TCGReg rs1, tcg_target_long imm)
 {
     return opc | (rd & 0x1f) << 7 | (rs1 & 0x1f) << 15 | encode_imm12(imm);
 }
 
 /* Type-S */
 
-static tcg_insn_unit encode_simm12(uint32_t imm)
+static tcg_insn_unit encode_simm12(tcg_target_long imm)
 {
     tcg_insn_unit ret = 0;
 
@@ -463,14 +464,15 @@ static tcg_insn_unit encode_simm12(uint32_t imm)
     return ret;
 }
 
-static tcg_insn_unit encode_s(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
+static tcg_insn_unit encode_s(RISCVInsn opc, TCGReg rs1,
+                              TCGReg rs2, tcg_target_long imm)
 {
     return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_simm12(imm);
 }
 
 /* Type-B */
 
-static tcg_insn_unit encode_bimm12(uint32_t imm)
+static tcg_insn_unit encode_bimm12(tcg_target_long imm)
 {
     tcg_insn_unit ret = 0;
 
@@ -482,26 +484,27 @@ static tcg_insn_unit encode_bimm12(uint32_t imm)
     return ret;
 }
 
-static tcg_insn_unit encode_b(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
+static tcg_insn_unit encode_b(RISCVInsn opc, TCGReg rs1,
+                              TCGReg rs2, tcg_target_long imm)
 {
     return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_bimm12(imm);
 }
 
 /* Type-U */
 
-static tcg_insn_unit encode_uimm20(uint32_t imm)
+static tcg_insn_unit encode_uimm20(tcg_target_long imm)
 {
     return imm & 0xfffff000;
 }
 
-static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, uint32_t imm)
+static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 {
     return opc | (rd & 0x1f) << 7 | encode_uimm20(imm);
 }
 
 /* Type-J */
 
-static tcg_insn_unit encode_jimm20(uint32_t imm)
+static tcg_insn_unit encode_jimm20(tcg_target_long imm)
 {
     tcg_insn_unit ret = 0;
 
@@ -513,7 +516,7 @@ static tcg_insn_unit encode_jimm20(uint32_t imm)
     return ret;
 }
 
-static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, uint32_t imm)
+static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 {
     return opc | (rd & 0x1f) << 7 | encode_jimm20(imm);
 }
@@ -521,7 +524,7 @@ static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, uint32_t imm)
 
 /* Type-OPIVI */
 
-static tcg_insn_unit encode_vi(RISCVInsn opc, TCGReg rd, int32_t imm,
+static tcg_insn_unit encode_vi(RISCVInsn opc, TCGReg rd, tcg_target_long imm,
                                TCGReg vs2, bool vm)
 {
     return opc | (rd & 0x1f) << 7 | (imm & 0x1f) << 15 |
@@ -567,31 +570,31 @@ static void tcg_out_opc_reg(TCGContext *s, RISCVInsn opc,
 }
 
 static void tcg_out_opc_imm(TCGContext *s, RISCVInsn opc,
-                            TCGReg rd, TCGReg rs1, TCGArg imm)
+                            TCGReg rd, TCGReg rs1, tcg_target_long imm)
 {
     tcg_out32(s, encode_i(opc, rd, rs1, imm));
 }
 
 static void tcg_out_opc_store(TCGContext *s, RISCVInsn opc,
-                              TCGReg rs1, TCGReg rs2, uint32_t imm)
+                              TCGReg rs1, TCGReg rs2, tcg_target_long imm)
 {
     tcg_out32(s, encode_s(opc, rs1, rs2, imm));
 }
 
 static void tcg_out_opc_branch(TCGContext *s, RISCVInsn opc,
-                               TCGReg rs1, TCGReg rs2, uint32_t imm)
+                               TCGReg rs1, TCGReg rs2, tcg_target_long imm)
 {
     tcg_out32(s, encode_b(opc, rs1, rs2, imm));
 }
 
 static void tcg_out_opc_upper(TCGContext *s, RISCVInsn opc,
-                              TCGReg rd, uint32_t imm)
+                              TCGReg rd, tcg_target_long imm)
 {
     tcg_out32(s, encode_u(opc, rd, imm));
 }
 
 static void tcg_out_opc_jump(TCGContext *s, RISCVInsn opc,
-                             TCGReg rd, uint32_t imm)
+                             TCGReg rd, tcg_target_long imm)
 {
     tcg_out32(s, encode_j(opc, rd, imm));
 }
@@ -691,7 +694,7 @@ static void tcg_out_opc_vx(TCGContext *s, RISCVInsn opc,
 }
 
 static void tcg_out_opc_vi(TCGContext *s, RISCVInsn opc,
-                           TCGReg vd, TCGReg vs2, int32_t imm)
+                           TCGReg vd, TCGReg vs2, tcg_target_long imm)
 {
     tcg_out32(s, encode_vi(opc, vd, imm, vs2, true));
 }
