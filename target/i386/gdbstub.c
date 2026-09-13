@@ -151,6 +151,9 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         case IDX_IP_REG:
             return gdb_get_reg(env, mem_buf, env->eip);
         case IDX_FLAGS_REG:
+            if (cpu->eflags_in_tcg) {
+                return gdb_get_reg32(mem_buf, cpu_compute_eflags(env));
+            }
             return gdb_get_reg32(mem_buf, env->eflags);
 
         case IDX_SEG_REGS:

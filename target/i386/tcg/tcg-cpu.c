@@ -38,6 +38,7 @@ static void x86_cpu_exec_enter(CPUState *cs)
     env->df = 1 - (2 * ((env->eflags >> 10) & 1));
     CC_OP = CC_OP_EFLAGS;
     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    cpu->eflags_in_tcg = true;
 }
 
 static void x86_cpu_exec_exit(CPUState *cs)
@@ -46,6 +47,7 @@ static void x86_cpu_exec_exit(CPUState *cs)
     CPUX86State *env = &cpu->env;
 
     env->eflags = cpu_compute_eflags(env);
+    cpu->eflags_in_tcg = false;
 }
 
 static TCGTBCPUState x86_get_tb_cpu_state(CPUState *cs)

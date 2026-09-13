@@ -2357,6 +2357,7 @@ struct ArchCPU {
     CPUState parent_obj;
 
     CPUX86State env;
+    bool eflags_in_tcg;
     VMChangeStateEntry *vmsentry;
 
     uint64_t ucode_rev;
