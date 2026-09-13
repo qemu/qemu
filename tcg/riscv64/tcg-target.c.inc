@@ -474,22 +474,25 @@ static tcg_insn_unit encode_s(RISCVInsn opc, TCGReg rs1,
 
 /* Type-B */
 
-static tcg_insn_unit encode_bimm12(tcg_target_long imm)
+static bool encode_bimm12(tcg_insn_unit *insn, tcg_target_long imm)
 {
-    tcg_insn_unit ret = 0;
-
-    ret |= (imm & 0x1000) << 19;
-    ret |= (imm & 0x7e0) << 20;
-    ret |= (imm & 0x1e) << 7;
-    ret |= (imm & 0x800) >> 4;
-
-    return ret;
+    if ((imm & 1) == 0 && imm == sextract32(imm, 0, 12)) {
+        *insn |= ((imm & 0x1000) << 19
+                  | (imm & 0x7e0) << 20
+                  | (imm & 0x1e) << 7
+                  | (imm & 0x800) >> 4);
+        return true;
+    }
+    return false;
 }
 
 static tcg_insn_unit encode_b(RISCVInsn opc, TCGReg rs1,
                               TCGReg rs2, tcg_target_long imm)
 {
-    return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_bimm12(imm);
+    tcg_insn_unit insn = opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20;
+    bool ok = encode_bimm12(&insn, imm);
+    tcg_debug_assert(ok);
+    return insn;
 }
 
 /* Type-U */
@@ -623,12 +626,7 @@ static bool reloc_bimm12(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
 
     tcg_debug_assert((offset & 1) == 0);
-    if (offset == sextreg(offset, 0, 12)) {
-        *src_rw |= encode_bimm12(offset);
-        return true;
-    }
-
-    return false;
+    return encode_bimm12(src_rw, offset);
 }
 
 static bool reloc_jimm20(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
