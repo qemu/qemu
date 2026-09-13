@@ -789,21 +789,22 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
                          tcg_target_long val)
 {
-    tcg_target_long lo, hi, tmp;
+    tcg_target_long tmp;
+    int32_t lo, hi;
     int shift, ret;
 
     if (type == TCG_TYPE_I32) {
         val = (int32_t)val;
     }
 
-    lo = sextreg(val, 0, 12);
+    lo = sextract32(val, 0, 12);
     if (val == lo) {
         tcg_out_opc_imm(s, OPC_ADDI, rd, TCG_REG_ZERO, lo);
         return;
     }
 
-    hi = val - lo;
     if (val == (int32_t)val) {
+        hi = val - lo;
         tcg_out_opc_upper(s, OPC_LUI, rd, hi);
         if (lo != 0) {
             tcg_out_opc_imm(s, OPC_ADDIW, rd, rd, lo);
