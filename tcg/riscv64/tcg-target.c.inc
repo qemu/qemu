@@ -476,7 +476,8 @@ static tcg_insn_unit encode_s(RISCVInsn opc, TCGReg rs1,
 
 static bool encode_bimm12(tcg_insn_unit *insn, tcg_target_long imm)
 {
-    if ((imm & 1) == 0 && imm == sextract32(imm, 0, 12)) {
+    /* The 13-bit immediate is stored in 12 bits, with bit 0 zero. */
+    if ((imm & 1) == 0 && imm == sextract32(imm, 0, 13)) {
         *insn |= ((imm & 0x1000) << 19
                   | (imm & 0x7e0) << 20
                   | (imm & 0x1e) << 7
@@ -512,7 +513,8 @@ static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 
 static bool encode_jimm20(tcg_insn_unit *insn, tcg_target_long imm)
 {
-    if ((imm & 1) == 0 && imm == sextract32(imm, 0, 20)) {
+    /* The 21-bit immediate is stored in 20 bits, with bit 0 zero. */
+    if ((imm & 1) == 0 && imm == sextract32(imm, 0, 21)) {
         *insn |= ((imm & 0x0007fe) << (21 - 1)
                   | (imm & 0x000800) << (20 - 11)
                   | (imm & 0x0ff000) << (12 - 12)
