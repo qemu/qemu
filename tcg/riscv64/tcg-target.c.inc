@@ -443,6 +443,7 @@ static tcg_insn_unit encode_r(RISCVInsn opc, TCGReg rd, TCGReg rs1, TCGReg rs2)
 
 static tcg_insn_unit encode_imm12(tcg_target_long imm)
 {
+    tcg_debug_assert(imm == sextract32(imm, 0, 12));
     return (imm & 0xfff) << 20;
 }
 
@@ -458,6 +459,7 @@ static tcg_insn_unit encode_simm12(tcg_target_long imm)
 {
     tcg_insn_unit ret = 0;
 
+    tcg_debug_assert(imm == sextract32(imm, 0, 12));
     ret |= (imm & 0xFE0) << 20;
     ret |= (imm & 0x1F) << 7;
 
@@ -494,7 +496,8 @@ static tcg_insn_unit encode_b(RISCVInsn opc, TCGReg rs1,
 
 static tcg_insn_unit encode_uimm20(tcg_target_long imm)
 {
-    return imm & 0xfffff000;
+    tcg_debug_assert(imm == (int32_t)imm && (imm & 0xfff) == 0);
+    return imm & 0xfffff000u;
 }
 
 static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
@@ -527,6 +530,7 @@ static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 static tcg_insn_unit encode_vi(RISCVInsn opc, TCGReg rd, tcg_target_long imm,
                                TCGReg vs2, bool vm)
 {
+    tcg_debug_assert(imm == sextract32(imm, 0, 5));
     return opc | (rd & 0x1f) << 7 | (imm & 0x1f) << 15 |
            (vs2 & 0x1f) << 20 | (vm << 25);
 }
