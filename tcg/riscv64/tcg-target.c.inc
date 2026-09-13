@@ -468,9 +468,9 @@ static tcg_insn_unit encode_s(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t im
     return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_simm12(imm);
 }
 
-/* Type-SB */
+/* Type-B */
 
-static tcg_insn_unit encode_sbimm12(uint32_t imm)
+static tcg_insn_unit encode_bimm12(uint32_t imm)
 {
     tcg_insn_unit ret = 0;
 
@@ -482,9 +482,9 @@ static tcg_insn_unit encode_sbimm12(uint32_t imm)
     return ret;
 }
 
-static tcg_insn_unit encode_sb(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
+static tcg_insn_unit encode_b(RISCVInsn opc, TCGReg rs1, TCGReg rs2, uint32_t imm)
 {
-    return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_sbimm12(imm);
+    return opc | (rs1 & 0x1f) << 15 | (rs2 & 0x1f) << 20 | encode_bimm12(imm);
 }
 
 /* Type-U */
@@ -581,7 +581,7 @@ static void tcg_out_opc_store(TCGContext *s, RISCVInsn opc,
 static void tcg_out_opc_branch(TCGContext *s, RISCVInsn opc,
                                TCGReg rs1, TCGReg rs2, uint32_t imm)
 {
-    tcg_out32(s, encode_sb(opc, rs1, rs2, imm));
+    tcg_out32(s, encode_b(opc, rs1, rs2, imm));
 }
 
 static void tcg_out_opc_upper(TCGContext *s, RISCVInsn opc,
@@ -608,14 +608,14 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
  * Relocations
  */
 
-static bool reloc_sbimm12(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+static bool reloc_bimm12(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 {
     const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
     intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
 
     tcg_debug_assert((offset & 1) == 0);
     if (offset == sextreg(offset, 0, 12)) {
-        *src_rw |= encode_sbimm12(offset);
+        *src_rw |= encode_bimm12(offset);
         return true;
     }
 
@@ -658,7 +658,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     tcg_debug_assert(addend == 0);
     switch (type) {
     case R_RISCV_BRANCH:
-        return reloc_sbimm12(code_ptr, (tcg_insn_unit *)value);
+        return reloc_bimm12(code_ptr, (tcg_insn_unit *)value);
     case R_RISCV_JAL:
         return reloc_jimm20(code_ptr, (tcg_insn_unit *)value);
     case R_RISCV_CALL:
@@ -1646,7 +1646,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     MemOp opc = get_memop(l->oi);
 
     /* resolve label address */
-    if (!reloc_sbimm12(l->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
+    if (!reloc_bimm12(l->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
         return false;
     }
 
@@ -1664,7 +1664,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     MemOp opc = get_memop(l->oi);
 
     /* resolve label address */
-    if (!reloc_sbimm12(l->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
+    if (!reloc_bimm12(l->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
         return false;
     }
 
