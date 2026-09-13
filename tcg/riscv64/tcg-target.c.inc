@@ -507,23 +507,25 @@ static tcg_insn_unit encode_u(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 
 /* Type-J */
 
-static tcg_insn_unit encode_jimm20(tcg_target_long imm)
+static bool encode_jimm20(tcg_insn_unit *insn, tcg_target_long imm)
 {
-    tcg_insn_unit ret = 0;
-
-    ret |= (imm & 0x0007fe) << (21 - 1);
-    ret |= (imm & 0x000800) << (20 - 11);
-    ret |= (imm & 0x0ff000) << (12 - 12);
-    ret |= (imm & 0x100000) << (31 - 20);
-
-    return ret;
+    if ((imm & 1) == 0 && imm == sextract32(imm, 0, 20)) {
+        *insn |= ((imm & 0x0007fe) << (21 - 1)
+                  | (imm & 0x000800) << (20 - 11)
+                  | (imm & 0x0ff000) << (12 - 12)
+                  | (imm & 0x100000) << (31 - 20));
+        return true;
+    }
+    return false;
 }
 
 static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 {
-    return opc | (rd & 0x1f) << 7 | encode_jimm20(imm);
+    tcg_insn_unit insn = opc | (rd & 0x1f) << 7;
+    bool ok = encode_jimm20(&insn, imm);
+    tcg_debug_assert(ok);
+    return insn;
 }
-
 
 /* Type-OPIVI */
 
@@ -635,12 +637,7 @@ static bool reloc_jimm20(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
 
     tcg_debug_assert((offset & 1) == 0);
-    if (offset == sextreg(offset, 0, 20)) {
-        *src_rw |= encode_jimm20(offset);
-        return true;
-    }
-
-    return false;
+    return encode_jimm20(src_rw, offset);
 }
 
 static bool reloc_call(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
@@ -1580,14 +1577,15 @@ static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
 {
     TCGReg link = tail ? TCG_REG_ZERO : TCG_REG_RA;
     ptrdiff_t offset = tcg_pcrel_diff(s, arg);
+    tcg_insn_unit insn = encode_j(OPC_JAL, link, 0);
     int ret;
 
     init_setting_vtype(s);
 
     tcg_debug_assert((offset & 1) == 0);
-    if (offset == sextreg(offset, 0, 20)) {
-        /* short jump: -2097150 to 2097152 */
-        tcg_out_opc_jump(s, OPC_JAL, link, offset);
+    if (encode_jimm20(&insn, offset)) {
+        /* short jump */
+        tcg_out32(s, insn);
     } else if (offset == (int32_t)offset) {
         /* long jump: -2147483646 to 2147483648 */
         tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP0, 0);
@@ -1964,15 +1962,13 @@ void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
 {
     uintptr_t addr = tb->jmp_target_addr[n];
     ptrdiff_t offset = addr - jmp_rx;
-    tcg_insn_unit insn;
+    tcg_insn_unit insn = OPC_JAL; /* rd = TCG_REG_ZERO */
 
     /* Either directly branch, or fall through to indirect branch. */
-    if (offset == sextreg(offset, 0, 20)) {
-        insn = encode_j(OPC_JAL, TCG_REG_ZERO, offset);
-    } else {
+    if (!encode_jimm20(&insn, offset)) {
         insn = OPC_NOP;
     }
-    qatomic_set((uint32_t *)jmp_rw, insn);
+    qatomic_set((tcg_insn_unit *)jmp_rw, insn);
     flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
