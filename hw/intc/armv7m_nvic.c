@@ -1382,10 +1382,15 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         return cpu->env.v7m.mpu_ctrl[attrs.secure];
     case 0xd98: /* MPU_RNR */
         return cpu->env.pmsav7.rnr[attrs.secure];
-    case 0xd9c: /* MPU_RBAR */
     case 0xda4: /* MPU_RBAR_A1 */
     case 0xdac: /* MPU_RBAR_A2 */
     case 0xdb4: /* MPU_RBAR_A3 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            /* These aliases are not present for v6M or v8M without Main */
+            goto bad_offset;
+        }
+        /* fall through */
+    case 0xd9c: /* MPU_RBAR */
     {
         int region = cpu->env.pmsav7.rnr[attrs.secure];
 
@@ -1410,10 +1415,16 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         }
         return (cpu->env.pmsav7.drbar[region] & ~0x1f) | (region & 0xf);
     }
-    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+
     case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
     case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
     case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            /* These aliases are not present for v6M or v8M without Main */
+            goto bad_offset;
+        }
+        /* fall through */
+    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
     {
         int region = cpu->env.pmsav7.rnr[attrs.secure];
 
@@ -1892,10 +1903,15 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             cpu->env.pmsav7.rnr[attrs.secure] = value;
         }
         break;
-    case 0xd9c: /* MPU_RBAR */
     case 0xda4: /* MPU_RBAR_A1 */
     case 0xdac: /* MPU_RBAR_A2 */
     case 0xdb4: /* MPU_RBAR_A3 */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            /* These aliases are not present for v6M or v8M without Main */
+            goto bad_offset;
+        }
+        /* fall through */
+    case 0xd9c: /* MPU_RBAR */
     {
         int region;
 
@@ -1943,10 +1959,16 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         tlb_flush(CPU(cpu));
         break;
     }
-    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
+
     case 0xda8: /* MPU_RASR_A1 (v7M), MPU_RLAR_A1 (v8M) */
     case 0xdb0: /* MPU_RASR_A2 (v7M), MPU_RLAR_A2 (v8M) */
     case 0xdb8: /* MPU_RASR_A3 (v7M), MPU_RLAR_A3 (v8M) */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            /* These aliases are not present for v6M or v8M without Main */
+            goto bad_offset;
+        }
+        /* fall through */
+    case 0xda0: /* MPU_RASR (v7M), MPU_RLAR (v8M) */
     {
         int region = cpu->env.pmsav7.rnr[attrs.secure];
 
