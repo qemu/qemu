@@ -473,9 +473,8 @@ static void loongarch_max_initfn(Object *obj)
     loongarch_la464_initfn(obj);
 
     cpu->ptw = ON_OFF_AUTO_AUTO;
-    if (kvm_enabled()){
-        cpu->msgint=ON_OFF_AUTO_OFF;
-    }
+    cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
+    cpu->msgint = ON_OFF_AUTO_AUTO;
 
     /* Enable LA v1.1 instructions */
     data = cpu->env.cpucfg[2];
@@ -494,9 +493,6 @@ static void loongarch_max_initfn(Object *obj)
         data = cpu->env.cpucfg[2];
         data = FIELD_DP32(data, CPUCFG2, HPTW, 1);
         cpu->env.cpucfg[2] = data;
-
-	 cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
-        cpu->msgint = ON_OFF_AUTO_AUTO;
     }
 }
 
