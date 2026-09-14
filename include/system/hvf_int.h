@@ -105,7 +105,7 @@ void hvf_arch_remove_all_gdbstub_hw_breakpoints(void);
  * Update guest to enable or disable debugging. Per-arch specifics will be
  * handled by calling down to hvf_arch_update_guest_debug.
  */
-int hvf_update_guest_debug(CPUState *cpu);
+void hvf_update_guest_debug(CPUState *cpu);
 
 bool hvf_arch_cpu_realize(CPUState *cpu, Error **errp);
 uint32_t hvf_arch_get_default_ipa_bit_size(void);

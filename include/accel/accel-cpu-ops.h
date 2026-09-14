@@ -85,7 +85,7 @@ struct AccelOpsClass {
     int64_t (*get_elapsed_ticks)(void);
 
     /* gdbstub hooks */
-    int (*update_guest_debug)(CPUState *cpu);
+    void (*update_guest_debug)(CPUState *cpu);
     int (*insert_gdbstub_breakpoint)(CPUState *cpu, GdbBreakpointType type,
                                      vaddr addr, vaddr len);
     int (*remove_gdbstub_breakpoint)(CPUState *cpu, GdbBreakpointType type,
