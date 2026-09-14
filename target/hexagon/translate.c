@@ -1253,12 +1253,6 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         clear_pkt_ctx(ctx);
         analyze_packet(ctx);
 
-        /*
-         * Check that the new method is a superset of the old methond
-         * Remove in a later patch
-         */
-        g_assert(!ctx->pkt.pkt_has_write_conflict ||
-                 pkt_has_write_conflict(ctx));
         if (pkt_has_write_conflict(ctx)) {
             gen_exception_decode_fail(ctx, words_read,
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
