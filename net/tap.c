@@ -996,7 +996,7 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     s->vhostfd = vhostfd;
     s->vhost_busyloop_timeout = tap->has_poll_us ? tap->poll_us : 0;
     if (!tap_setup_vhost(s, errp)) {
-        return false;
+        goto failed;
     }
 
     return true;
