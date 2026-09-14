@@ -613,6 +613,37 @@ void whpx_set_registers(CPUState *cpu, WHPXStateLevel level)
             whpx_set_reg(cpu, whpx_sreg_match[i].reg, val);
         }
     }
+
+    if (level == WHPX_LEVEL_RESET_STATE) {
+        /*
+         * WHPX keeps the "vCPU is in a low-power wait" state (entered when the
+         * guest executes WFI/WFE) in WHvRegisterInternalActivityState, and that
+         * state is not affected by writing the architectural registers above.
+         * If the guest happened to be idle when the reset was requested, the
+         * vCPU would stay suspended forever.
+         *
+         * StartupSuspend is the bit WHP uses to hold a vCPU that has not been
+         * started yet, and it is how secondary vCPUs are parked until PSCI
+         * CPU_ON releases them.
+         */
+        WHV_REGISTER_NAME name = WHvRegisterInternalActivityState;
+        bool powered_off = arm_cpu->power_state == PSCI_OFF;
+        WHV_REGISTER_VALUE ia;
+        HRESULT hr;
+
+        clean_whv_register_value(&ia);
+        hr = whp_dispatch.WHvGetVirtualProcessorRegisters(
+            whpx_global.partition, cpu->cpu_index, &name, 1, &ia);
+        if (SUCCEEDED(hr) &&
+            (ia.InternalActivity.IdleSuspend ||
+             ia.InternalActivity.HaltSuspend ||
+             ia.InternalActivity.StartupSuspend != powered_off)) {
+            ia.InternalActivity.IdleSuspend = 0;
+            ia.InternalActivity.HaltSuspend = 0;
+            ia.InternalActivity.StartupSuspend = powered_off;
+            whpx_set_reg(cpu, WHvRegisterInternalActivityState, ia);
+        }
+    }
 }
 
 static uint32_t max_vcpu_index;
