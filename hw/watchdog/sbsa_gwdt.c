@@ -154,6 +154,13 @@ static void sbsa_gwdt_wor_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
     sbsa_gwdt_set_timer(s, timeout);
 }
 
+static void sbsa_gwdt_wcv_update_timer(SBSA_GWDTState *s)
+{
+    if (s->wcs & SBSA_GWDT_WCS_EN) {
+        sbsa_gwdt_set_timer(s, (uint64_t)s->wcvu << 32 | s->wcvl);
+    }
+}
+
 static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
                              unsigned size) {
     SBSA_GWDTState *s = SBSA_GWDT(opaque);
@@ -193,10 +200,12 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
 
     case SBSA_GWDT_WCV:
         s->wcvl = data;
+        sbsa_gwdt_wcv_update_timer(s);
         break;
 
     case SBSA_GWDT_WCVU:
         s->wcvu = data;
+        sbsa_gwdt_wcv_update_timer(s);
         break;
 
     default:
