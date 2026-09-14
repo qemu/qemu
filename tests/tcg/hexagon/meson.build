@@ -54,7 +54,7 @@ tests += {
   'load_unpack.c': {'cflags': cflags},
   # Build this test with -mv71 to exercise the CABAC instruction
   'misc.c': {'cflags': [cflags, '-mv71', '-O2']},
-  'multiple-writes.c': {'cflags': cflags},
+  'multiple-writes.c': {'cflags': [cflags, '-mhvx']},
   'overflow.c': {'cflags': cflags, 'exe_name': 'hex-overflow'},
   'preg_alias.c': {'cflags': cflags},
   'dual_stores.c': {'cflags': cflags},
