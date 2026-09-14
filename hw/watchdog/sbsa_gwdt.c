@@ -123,12 +123,18 @@ static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
     timeout = muldiv64(timeout, NANOSECONDS_PER_SECOND, s->freq);
     timeout += qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    if ((rtype == EXPLICIT_REFRESH) || ((rtype == TIMEOUT_REFRESH) &&
-            (!(s->wcs & SBSA_GWDT_WCS_WS0)))) {
-        /* store the current timeout value into compare registers */
-        s->wcvu = timeout >> 32;
-        s->wcvl = timeout;
-    }
+    /*
+     * We only call this function for an explicit refresh (which
+     * clears WS0 and WS1) or after the first timeout setting WS0;
+     * so we can always load the compare registers with the new
+     * timeout value (which is not permitted when the second timeout
+     * that sets WS1 happens).
+     */
+    g_assert(!(s->wcs & SBSA_GWDT_WCS_WS1));
+
+    s->wcvu = timeout >> 32;
+    s->wcvl = timeout;
+
     timer_mod(s->timer, timeout);
 }
 
