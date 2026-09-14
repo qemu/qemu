@@ -2313,34 +2313,15 @@ static void gen_mxu_q8slt(DisasContext *ctx, bool sltu)
  *    Update XRa with the signed "set less than" comparison of XRb and XRc.
  *    a.k.a. XRa = XRb < XRc ? 1 : 0;
  */
+
+static void gen_setcond_lt_i32(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
+{
+    tcg_gen_setcond_i32(TCG_COND_LT, d, s1, s2);
+}
+
 static void gen_mxu_S32SLT(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else {
-        /* the most general case */
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        TCGv_i32 t1 = tcg_temp_new_i32();
-
-        gen_load_mxu_gpr(t0, XRb);
-        gen_load_mxu_gpr(t1, XRc);
-        tcg_gen_setcond_i32(TCG_COND_LT, mxu_gpr[XRa - 1], t0, t1);
-    }
+    gen_mxu_logic(ctx, gen_setcond_lt_i32);
 }
 
 /*
