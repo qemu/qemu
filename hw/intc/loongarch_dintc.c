@@ -72,6 +72,15 @@ static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
     DINTCCore *core;
     CPUState *cs;
 
+    if (kvm_irqchip_in_kernel()) {
+        MSIMessage msg;
+
+        msg.address = msg_addr;
+        msg.data = val;
+        kvm_irqchip_send_msi(kvm_state, msg);
+        return;
+    }
+
     arch_id = FIELD_EX64(msg_addr, MSG_ADDR, CPU_NUM);
     core = loongarch_dintc_cpu_by_arch_id(s, arch_id);
     if (!core || !core->cpu) {
@@ -83,16 +92,6 @@ static void loongarch_dintc_mem_write(void *opaque, hwaddr addr,
     cpu_num = core - s->cpu;
     cs = core->cpu;
     irq_num = FIELD_EX64(msg_addr, MSG_ADDR, IRQ_NUM);
-
-    if (kvm_irqchip_in_kernel()) {
-        MSIMessage msg;
-
-        msg.address = msg_addr;
-        msg.data = val;
-        kvm_irqchip_send_msi(kvm_state, msg);
-        return;
-    }
-
     async_run_on_cpu(cs, do_set_vcpu_dintc_irq,
                          RUN_ON_CPU_HOST_INT(irq_num));
     qemu_set_irq(s->cpu[cpu_num].parent_irq, 1);
