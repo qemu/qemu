@@ -126,6 +126,15 @@ typedef struct QEMUCursor {
 } QEMUCursor;
 
 QEMUCursor *cursor_alloc(uint16_t width, uint16_t height);
+
+/*
+ * A cursor may be shared between the main loop, a vCPU thread and a
+ * display backend's own thread, so the refcount is atomic and these two
+ * may be called from any of them.  The object itself is not otherwise
+ * thread-safe: take a reference before publishing the pointer anywhere
+ * another thread can reach it, and never dereference a cursor you do
+ * not hold a reference to.
+ */
 QEMUCursor *cursor_ref(QEMUCursor *c);
 void cursor_unref(QEMUCursor *c);
 QEMUCursor *cursor_builtin_hidden(void);

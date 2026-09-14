@@ -184,6 +184,11 @@ static VirtualConsole *gd_vc_find_current(GtkDisplayState *s)
     gint page;
 
     page = gtk_notebook_get_current_page(GTK_NOTEBOOK(s->notebook));
+
+    if (page < 0) {
+        return NULL;
+    }
+
     return gd_vc_find_by_page(s, page);
 }
 
@@ -1469,7 +1474,10 @@ static void gd_menu_show_tabs(GtkMenuItem *item, void *opaque)
     } else {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
     }
-    gd_update_windowsize(vc);
+
+    if (vc) {
+        gd_update_windowsize(vc);
+    }
 }
 
 static int gd_vc_notebook_pos(GtkDisplayState *s, VirtualConsole *target)
@@ -1489,6 +1497,28 @@ static int gd_vc_notebook_pos(GtkDisplayState *s, VirtualConsole *target)
     g_assert_not_reached();
 }
 
+#if defined(CONFIG_OPENGL)
+static void gd_gl_release_resources(VirtualConsole *vc)
+{
+    if (vc->gfx.ectx) {
+        eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
+                       vc->gfx.esurface, vc->gfx.ectx);
+    } else if (gtk_use_gl_area) {
+        gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
+    }
+
+    if (vc->gfx.gls) {
+        surface_gl_destroy_texture(vc->gfx.gls, vc->gfx.ds);
+        qemu_gl_fini_shader(vc->gfx.gls);
+        vc->gfx.gls = NULL;
+    }
+
+    egl_fb_destroy(&vc->gfx.guest_fb);
+    egl_fb_destroy(&vc->gfx.win_fb);
+    egl_fb_destroy(&vc->gfx.cursor_fb);
+}
+#endif
+
 static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
                                     void *opaque)
 {
@@ -1505,13 +1535,17 @@ static gboolean gd_tab_window_close(GtkWidget *widget, GdkEvent *event,
     gtk_widget_destroy(vc->window);
     vc->window = NULL;
 #if defined(CONFIG_OPENGL)
-    if (vc->gfx.esurface) {
-        eglDestroySurface(qemu_egl_display, vc->gfx.esurface);
-        vc->gfx.esurface = NULL;
-    }
-    if (vc->gfx.ectx) {
-        eglDestroyContext(qemu_egl_display, vc->gfx.ectx);
-        vc->gfx.ectx = NULL;
+    if (vc->type == GD_VC_GFX) {
+        gd_gl_release_resources(vc);
+
+        if (vc->gfx.esurface) {
+            eglDestroySurface(qemu_egl_display, vc->gfx.esurface);
+            vc->gfx.esurface = NULL;
+        }
+        if (vc->gfx.ectx) {
+            eglDestroyContext(qemu_egl_display, vc->gfx.ectx);
+            vc->gfx.ectx = NULL;
+        }
     }
 #endif
 
@@ -1542,14 +1576,15 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
 
+    if (!vc) {
+        return;
+    }
+
     if (vc->type == GD_VC_GFX &&
         qemu_console_is_graphic(vc->gfx.dcl.con)) {
-        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
-                                       FALSE);
-    }
-    if (!vc->window) {
-        vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if defined(CONFIG_OPENGL)
+        gd_gl_release_resources(vc);
+
         if (vc->gfx.esurface) {
             eglDestroySurface(qemu_egl_display, vc->gfx.esurface);
             vc->gfx.esurface = NULL;
@@ -1559,6 +1594,11 @@ static void gd_menu_untabify(GtkMenuItem *item, void *opaque)
             vc->gfx.ectx = NULL;
         }
 #endif
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                       FALSE);
+    }
+    if (!vc->window) {
+        vc->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gd_widget_reparent(s->notebook, vc->window, vc->tab_item);
 
         g_signal_connect(vc->window, "delete-event",
@@ -1595,7 +1635,10 @@ static void gd_menu_show_menubar(GtkMenuItem *item, void *opaque)
     } else {
         gtk_widget_hide(s->menu_bar);
     }
-    gd_update_windowsize(vc);
+
+    if (vc) {
+        gd_update_windowsize(vc);
+    }
 }
 
 static void gd_accel_show_menubar(void *opaque)
@@ -1612,7 +1655,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
     if (!s->full_screen) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
         gtk_widget_hide(s->menu_bar);
-        if (vc->type == GD_VC_GFX) {
+        if (vc && vc->type == GD_VC_GFX) {
             gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
         }
         gtk_window_fullscreen(GTK_WINDOW(s->window));
@@ -1625,14 +1668,16 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
             gtk_widget_show(s->menu_bar);
         }
         s->full_screen = FALSE;
-        if (vc->type == GD_VC_GFX) {
+        if (vc && vc->type == GD_VC_GFX) {
             vc->gfx.scale_x = vc->gfx.preferred_scale;
             vc->gfx.scale_y = vc->gfx.preferred_scale;
             gd_update_windowsize(vc);
         }
     }
 
-    gd_update_cursor(vc);
+    if (vc) {
+        gd_update_cursor(vc);
+    }
 }
 
 static void gd_accel_full_screen(void *opaque)
@@ -1645,6 +1690,10 @@ static void gd_menu_zoom_in(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
+
+    if (!vc) {
+        return;
+    }
 
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->zoom_fit_item),
                                    FALSE);
@@ -1666,6 +1715,10 @@ static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
 
+    if (!vc) {
+        return;
+    }
+
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->zoom_fit_item),
                                    FALSE);
 
@@ -1683,6 +1736,10 @@ static void gd_menu_zoom_fixed(GtkMenuItem *item, void *opaque)
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
 
+    if (!vc) {
+        return;
+    }
+
     vc->gfx.scale_x = vc->gfx.preferred_scale;
     vc->gfx.scale_y = vc->gfx.preferred_scale;
 
@@ -1693,6 +1750,10 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
+
+    if (!vc) {
+        return;
+    }
 
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(s->zoom_fit_item))) {
         s->free_scale = TRUE;
@@ -1807,6 +1868,11 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gd_is_grab_active(s)) {
+        if (!vc) {
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                           FALSE);
+            return;
+        }
         gd_grab_keyboard(vc, "user-request-main-window");
         gd_grab_pointer(vc, "user-request-main-window");
     } else {
@@ -1814,7 +1880,9 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
         gd_ungrab_pointer(s);
     }
 
-    gd_update_cursor(vc);
+    if (vc) {
+        gd_update_cursor(vc);
+    }
 }
 
 static void gd_change_page(GtkNotebook *nb, gpointer arg1, guint arg2,
@@ -1989,6 +2057,10 @@ static void gd_menu_copy(GtkMenuItem *item, void *opaque)
 {
     GtkDisplayState *s = opaque;
     VirtualConsole *vc = gd_vc_find_current(s);
+
+    if (!vc) {
+        return;
+    }
 
 #if VTE_CHECK_VERSION(0, 50, 0)
     vte_terminal_copy_clipboard_format(VTE_TERMINAL(vc->vte.terminal),
@@ -2645,7 +2717,7 @@ static void gd_create_menus(GtkDisplayState *s, DisplayOptions *opts)
 
     /* Disable the default "F10" menu shortcut. */
     settings = gtk_widget_get_settings(s->window);
-    g_object_set(G_OBJECT(settings), "gtk-menu-bar-accel", "", NULL);
+    g_object_set(G_OBJECT(settings), "gtk-menu-bar-accel", NULL, NULL);
 }
 
 
@@ -2663,19 +2735,8 @@ static void gd_vc_free(void *p)
         if (display_opengl) {
             qemu_console_set_display_gl_ctx(vc->gfx.dcl.con, NULL);
         }
-        if (vc->gfx.ectx) {
-            eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
-                           vc->gfx.esurface, vc->gfx.ectx);
-        } else if (gtk_use_gl_area) {
-            gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
-        }
-        if (vc->gfx.gls) {
-            surface_gl_destroy_texture(vc->gfx.gls, vc->gfx.ds);
-            qemu_gl_fini_shader(vc->gfx.gls);
-        }
-        egl_fb_destroy(&vc->gfx.guest_fb);
-        egl_fb_destroy(&vc->gfx.win_fb);
-        egl_fb_destroy(&vc->gfx.cursor_fb);
+        gd_gl_release_resources(vc);
+
         if (vc->gfx.esurface) {
             eglDestroySurface(qemu_egl_display, vc->gfx.esurface);
         }

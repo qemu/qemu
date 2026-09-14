@@ -104,7 +104,6 @@ void gd_egl_draw(VirtualConsole *vc)
                         surface_width(vc->gfx.ds),
                         surface_height(vc->gfx.ds));
 
-        glFlush();
 #ifdef CONFIG_GBM
         if (dmabuf) {
             gd_gl_wait_sync(vc, sync);
@@ -122,8 +121,6 @@ void gd_egl_draw(VirtualConsole *vc)
         gd_update_scale(vc, ww, wh,
                         surface_width(vc->gfx.ds),
                         surface_height(vc->gfx.ds));
-
-        glFlush();
     }
 }
 

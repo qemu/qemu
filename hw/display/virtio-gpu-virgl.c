@@ -324,6 +324,7 @@ virtio_gpu_virgl_resource_new(uint32_t resource_id, uint32_t width,
     return res;
 }
 
+#if VIRGL_VERSION_MAJOR >= 1
 static struct virtio_gpu_virgl_resource *
 virtio_gpu_virgl_resource_new_blob(uint32_t resource_id, uint64_t blob_size)
 {
@@ -335,6 +336,7 @@ virtio_gpu_virgl_resource_new_blob(uint32_t resource_id, uint64_t blob_size)
 
     return res;
 }
+#endif
 
 static void virgl_cmd_create_resource_2d(VirtIOGPU *g,
                                          struct virtio_gpu_ctrl_command *cmd)

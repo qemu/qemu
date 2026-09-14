@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/atomic.h"
 #include "ui/console.h"
 
 #include "cursor_hidden.xpm"
@@ -103,24 +104,28 @@ QEMUCursor *cursor_alloc(uint16_t width, uint16_t height)
     c = g_malloc0(sizeof(QEMUCursor) + datasize);
     c->width  = width;
     c->height = height;
-    c->refcount = 1;
+    qatomic_set(&c->refcount, 1);
     return c;
 }
 
 QEMUCursor *cursor_ref(QEMUCursor *c)
 {
-    c->refcount++;
+    qatomic_inc(&c->refcount);
     return c;
 }
 
 void cursor_unref(QEMUCursor *c)
 {
+    int refcount;
+
     if (c == NULL)
         return;
-    c->refcount--;
-    if (c->refcount)
-        return;
-    g_free(c);
+
+    refcount = qatomic_fetch_dec(&c->refcount);
+    assert(refcount > 0);
+    if (refcount == 1) {
+        g_free(c);
+    }
 }
 
 int cursor_get_mono_bpl(QEMUCursor *c)

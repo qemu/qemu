@@ -146,6 +146,7 @@ class DBusDocDirective(SphinxDirective):
 
         env = self.state.document.settings.env
         dbusfile = env.config.qapidoc_srctree + "/" + self.arguments[0]
+        env.note_dependency(os.path.abspath(dbusfile))
         with open(dbusfile, "rb") as f:
             xml_data = f.read()
         xml = parse_dbus_xml(xml_data)
