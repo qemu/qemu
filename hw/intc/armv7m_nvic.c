@@ -1996,7 +1996,12 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
 
         cpu->env.pmsav7.drsr[region] = value & 0xff3f;
-        cpu->env.pmsav7.dracr[region] = (value >> 16) & 0x173f;
+        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+            cpu->env.pmsav7.dracr[region] = (value >> 16) & 0x173f;
+        } else {
+            /* Armv6-M has XN, AP, S, C and B, but no TEX field. */
+            cpu->env.pmsav7.dracr[region] = (value >> 16) & 0x1707;
+        }
         tlb_flush(CPU(cpu));
         break;
     }
