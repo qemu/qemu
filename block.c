@@ -524,6 +524,21 @@ bool bdrv_uses_whitelist(void)
     return use_bdrv_whitelist;
 }
 
+static void bdrv_help_format_print(void *opaque, const char *name)
+{
+    if (bdrv_format_is_whitelisted(name, false)) {
+        printf("%s\n", name);
+    } else {
+        printf("%s (read-only)\n", name);
+    }
+}
+
+void bdrv_show_help(void)
+{
+      printf("Available blockdev drivers:\n");
+      bdrv_iterate_format(bdrv_help_format_print, NULL, true);
+}
+
 typedef struct CreateCo {
     BlockDriver *drv;
     char *filename;

@@ -583,5 +583,6 @@ char *path_combine(const char *base_path, const char *filename);
 char *bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                    const char *backing,
                                                    Error **errp);
+void bdrv_show_help(void);
 
 #endif /* BLOCK_COMMON_H */
