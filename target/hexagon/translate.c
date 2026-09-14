@@ -564,28 +564,13 @@ static void mark_implicit_writes(DisasContext *ctx)
     mark_implicit_pred_writes(ctx);
 }
 
-static void analyze_packet(DisasContext *ctx)
-{
-    ctx->read_after_write = false;
-    ctx->has_hvx_overlap = false;
-    for (int i = 0; i < ctx->pkt.num_insns; i++) {
-        Insn *insn = &ctx->pkt.insn[i];
-        ctx->insn = insn;
-        if (opcode_analyze[insn->opcode]) {
-            opcode_analyze[insn->opcode](ctx);
-        }
-    }
-
-    ctx->need_commit = need_commit(ctx);
-}
-
-static void gen_start_packet(DisasContext *ctx)
+/* Clear out the disassembly context */
+static void clear_pkt_ctx(DisasContext *ctx)
 {
     Packet *pkt = &ctx->pkt;
     target_ulong next_PC = ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
     int i;
 
-    /* Clear out the disassembly context */
     ctx->next_PC = next_PC;
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
@@ -618,8 +603,26 @@ static void gen_start_packet(DisasContext *ctx)
     for (i = 0; i < NUM_PREGS; i++) {
         ctx->new_pred_value[i] = NULL;
     }
+}
 
-    analyze_packet(ctx);
+static void analyze_packet(DisasContext *ctx)
+{
+    ctx->read_after_write = false;
+    ctx->has_hvx_overlap = false;
+    for (int i = 0; i < ctx->pkt.num_insns; i++) {
+        Insn *insn = &ctx->pkt.insn[i];
+        ctx->insn = insn;
+        if (opcode_analyze[insn->opcode]) {
+            opcode_analyze[insn->opcode](ctx);
+        }
+    }
+
+    ctx->need_commit = need_commit(ctx);
+}
+
+static void gen_start_packet(DisasContext *ctx)
+{
+    int i;
 
     /*
      * pregs_written is used both in the analyze phase as well as the code
@@ -661,7 +664,7 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->pkt_ends_tb = pkt_ends_tb(&ctx->pkt);
     ctx->need_next_pc = need_next_PC(ctx);
     if (ctx->need_next_pc) {
-        tcg_gen_movi_tl(hex_next_PC, next_PC);
+        tcg_gen_movi_tl(hex_next_PC, ctx->next_PC);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -1203,6 +1206,10 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     words_read = decode_packet(ctx, nwords, words, &ctx->pkt, false);
     if (words_read > 0) {
         ctx->pkt.pc = ctx->base.pc_next;
+
+        clear_pkt_ctx(ctx);
+        analyze_packet(ctx);
+
         if (ctx->pkt.pkt_has_write_conflict) {
             gen_exception_decode_fail(ctx, words_read,
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
