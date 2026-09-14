@@ -595,6 +595,7 @@ static void clear_pkt_ctx(DisasContext *ctx)
     bitmap_zero(ctx->vregs_uncond, NUM_VREGS);
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
     bitmap_zero(ctx->qregs_written, NUM_QREGS);
+    bitmap_zero(ctx->qregs_multi_write, NUM_QREGS);
     ctx->qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
@@ -623,6 +624,10 @@ static bool pkt_has_write_conflict(DisasContext *ctx)
     bitmap_and(vregs_conflict, ctx->vregs_multi_write, ctx->vregs_uncond,
                NUM_VREGS);
     if (!bitmap_empty(vregs_conflict, NUM_VREGS)) {
+        return true;
+    }
+
+    if (!bitmap_empty(ctx->qregs_multi_write, NUM_QREGS)) {
         return true;
     }
 

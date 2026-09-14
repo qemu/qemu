@@ -76,6 +76,7 @@ typedef struct DisasContext {
     int qreg_log[NUM_QREGS];
     int qreg_log_idx;
     DECLARE_BITMAP(qregs_written, NUM_QREGS);
+    DECLARE_BITMAP(qregs_multi_write, NUM_QREGS);
     DECLARE_BITMAP(insn_qregs_written, NUM_QREGS);
     DECLARE_BITMAP(insn_qregs_read, NUM_QREGS);
     bool pre_commit;
@@ -308,7 +309,11 @@ static inline void ctx_log_qreg_write(DisasContext *ctx,
             ctx->has_hvx_overlap = true;
         }
     }
-    set_bit(rnum, ctx->qregs_written);
+    if (!test_bit(rnum, ctx->qregs_written)) {
+        set_bit(rnum, ctx->qregs_written);
+    } else {
+        set_bit(rnum, ctx->qregs_multi_write);
+    }
     ctx->qreg_log[ctx->qreg_log_idx] = rnum;
     ctx->qreg_log_idx++;
 }
