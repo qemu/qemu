@@ -99,6 +99,22 @@ static uint64_t sbsa_gwdt_read(void *opaque, hwaddr addr, unsigned int size)
     return ret;
 }
 
+static void sbsa_gwdt_set_timer(SBSA_GWDTState *s, uint64_t deadline)
+{
+    /*
+     * WCV is an unsigned 64-bit compare value, but QEMUTimer stores the
+     * expiry as a signed int64_t. A deadline with bit 63 set would be seen
+     * as already expired and fire the watchdog immediately. Such a deadline
+     * is unreachable within any guest runtime, so treat it as "never" and
+     * leave the timer disarmed instead.
+     */
+    if (deadline <= INT64_MAX) {
+        timer_mod(s->timer, deadline);
+    } else {
+        timer_del(s->timer);
+    }
+}
+
 static void sbsa_gwdt_wor_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
 {
     uint64_t timeout = 0;
@@ -135,7 +151,7 @@ static void sbsa_gwdt_wor_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
     s->wcvu = timeout >> 32;
     s->wcvl = timeout;
 
-    timer_mod(s->timer, timeout);
+    sbsa_gwdt_set_timer(s, timeout);
 }
 
 static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
