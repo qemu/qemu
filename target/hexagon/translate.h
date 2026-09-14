@@ -47,6 +47,8 @@ typedef struct DisasContext {
 #ifndef CONFIG_USER_ONLY
     int greg_log[GREG_WRITES_MAX];
     int greg_log_idx;
+    DECLARE_BITMAP(gregs_written, NUM_GREGS);
+    DECLARE_BITMAP(gregs_multi_write, NUM_GREGS);
     int sreg_log[SREG_WRITES_MAX];
     int sreg_log_idx;
     TCGv_i32 t_sreg_new_value[HEX_SREG_GLB_START];
@@ -105,8 +107,13 @@ static inline void ctx_log_greg_write(DisasContext *ctx, int rnum)
     if (rnum > HEX_GREG_G3) {
         return;
     }
-    ctx->greg_log[ctx->greg_log_idx] = rnum;
-    ctx->greg_log_idx++;
+    if (!test_bit(rnum, ctx->gregs_written)) {
+        set_bit(rnum, ctx->gregs_written);
+        ctx->greg_log[ctx->greg_log_idx] = rnum;
+        ctx->greg_log_idx++;
+    } else {
+        set_bit(rnum, ctx->gregs_multi_write);
+    }
 }
 
 static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)

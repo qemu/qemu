@@ -577,6 +577,8 @@ static void clear_pkt_ctx(DisasContext *ctx)
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
 #ifndef CONFIG_USER_ONLY
     ctx->greg_log_idx = 0;
+    bitmap_zero(ctx->gregs_written, NUM_GREGS);
+    bitmap_zero(ctx->gregs_multi_write, NUM_GREGS);
     ctx->sreg_log_idx = 0;
 #endif
     bitmap_zero(ctx->gpr_multi_write, TOTAL_PER_THREAD_REGS);
@@ -630,6 +632,12 @@ static bool pkt_has_write_conflict(DisasContext *ctx)
     if (!bitmap_empty(ctx->qregs_multi_write, NUM_QREGS)) {
         return true;
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (!bitmap_empty(ctx->gregs_multi_write, NUM_GREGS)) {
+        return true;
+    }
+#endif
 
     return false;
 }
