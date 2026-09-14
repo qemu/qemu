@@ -467,6 +467,8 @@ static void loongarch_la132_initfn(Object *obj)
 static void loongarch_max_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+    uint32_t data;
+
     /* '-cpu max': use it for max supported CPU features */
     loongarch_la464_initfn(obj);
 
@@ -474,20 +476,25 @@ static void loongarch_max_initfn(Object *obj)
     if (kvm_enabled()){
         cpu->msgint=ON_OFF_AUTO_OFF;
     }
+
+    /* Enable LA v1.1 instructions */
+    data = cpu->env.cpucfg[2];
+    data = FIELD_DP32(data, CPUCFG2, FRECIPE, 1);
+    data = FIELD_DP32(data, CPUCFG2, LAM_BH, 1);
+    data = FIELD_DP32(data, CPUCFG2, LAMCAS, 1);
+    data = FIELD_DP32(data, CPUCFG2, LLACQ_SCREL, 1);
+    data = FIELD_DP32(data, CPUCFG2, SCQ, 1);
+    cpu->env.cpucfg[2] = data;
+
+    data = cpu->env.cpucfg[3];
+    data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
+    cpu->env.cpucfg[3] = data;
+
     if (tcg_enabled()) {
-        uint32_t data = cpu->env.cpucfg[2];
+        data = cpu->env.cpucfg[2];
         data = FIELD_DP32(data, CPUCFG2, HPTW, 1);
-        /* Enable LA v1.1 instructions */
-        data = FIELD_DP32(data, CPUCFG2, FRECIPE, 1);
-        data = FIELD_DP32(data, CPUCFG2, LAM_BH, 1);
-        data = FIELD_DP32(data, CPUCFG2, LAMCAS, 1);
-        data = FIELD_DP32(data, CPUCFG2, LLACQ_SCREL, 1);
-        data = FIELD_DP32(data, CPUCFG2, SCQ, 1);
         cpu->env.cpucfg[2] = data;
 
-        data = cpu->env.cpucfg[3];
-        data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
-        cpu->env.cpucfg[3] = data;
 	 cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
         cpu->msgint = ON_OFF_AUTO_AUTO;
     }
