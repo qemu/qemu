@@ -623,6 +623,9 @@ static TAPState *new_tap(NetClientState *peer,
 
     s->queue_index = queue_index;
 
+    s->enable_poll_on_resume = false;
+    s->vmstate = qemu_add_vm_change_state_handler(tap_vm_state_change, s);
+
     if (has_permit_local_migration) {
         s->permit_local_migration = permit_local_migration;
     }
@@ -967,9 +970,6 @@ static bool net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
     bool sndbuf_required = tap->has_sndbuf;
     int sndbuf =
         (tap->has_sndbuf && tap->sndbuf) ? MIN(tap->sndbuf, INT_MAX) : INT_MAX;
-
-    s->enable_poll_on_resume = false;
-    s->vmstate = qemu_add_vm_change_state_handler(tap_vm_state_change, s);
 
     if (!tap_set_sndbuf(fd, sndbuf, sndbuf_required ? errp : NULL) &&
         sndbuf_required) {
