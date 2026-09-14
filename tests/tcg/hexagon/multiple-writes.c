@@ -261,6 +261,27 @@ static int test_vreg_illegal_uncond(void)
     return sig;
 }
 
+static int test_qreg_illegal(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        "{\n"
+        ".word 0x19a14048    /* { q0 = vand(v0, r1) */\n"
+        ".word 0x19a0c044    /*   q0 = vsetq(r0) } */\n"
+        "}\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
 int main()
 {
     struct sigaction act;
@@ -289,6 +310,8 @@ int main()
     assert(test_vreg_legal_predicated() == 23);
     assert(test_vreg_illegal_mixed() == SIGILL);
     assert(test_vreg_illegal_uncond() == SIGILL);
+
+    assert(test_qreg_illegal() == SIGILL);
 
     puts("PASS");
     return EXIT_SUCCESS;
