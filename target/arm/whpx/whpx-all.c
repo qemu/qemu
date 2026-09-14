@@ -223,6 +223,8 @@ static struct whpx_sreg_match whpx_sreg_match[] = {
     { WHvArm64RegisterMpidrEl1, ENCODE_AA64_CP_REG(0, 0, 3, 0, 5) },
     { WHvArm64RegisterIdPfr0El1, ENCODE_AA64_CP_REG(0, 4, 3, 0, 0) },
 #endif
+#ifdef SYNC_CONST_ID_REGS
+    /* ID registers are ARM_CP_CONST (writes ignored).  */
     { WHvArm64RegisterIdAa64Pfr1El1, ENCODE_AA64_CP_REG(0, 4, 3, 0, 1), true },
     { WHvArm64RegisterIdAa64Dfr0El1, ENCODE_AA64_CP_REG(0, 5, 3, 0, 0), true },
     { WHvArm64RegisterIdAa64Dfr1El1, ENCODE_AA64_CP_REG(0, 5, 3, 0, 1), true },
@@ -235,6 +237,7 @@ static struct whpx_sreg_match whpx_sreg_match[] = {
     { WHvArm64RegisterIdAa64Mmfr1El1, ENCODE_AA64_CP_REG(0, 7, 3, 0, 1), true },
     { WHvArm64RegisterIdAa64Mmfr2El1, ENCODE_AA64_CP_REG(0, 7, 3, 0, 2), true },
     { WHvArm64RegisterIdAa64Mmfr3El1, ENCODE_AA64_CP_REG(0, 7, 3, 0, 3), true },
+#endif
 
     { WHvArm64RegisterMdscrEl1, ENCODE_AA64_CP_REG(0, 2, 2, 0, 2) },
     { WHvArm64RegisterSctlrEl1, ENCODE_AA64_CP_REG(1, 0, 3, 0, 0) },
@@ -790,7 +793,7 @@ int whpx_init_vcpu(CPUState *cpu)
 
         ri = get_arm_cp_reginfo(arm_cpu->cp_regs, key);
         if (ri) {
-            assert(!(ri->type & ARM_CP_NO_RAW));
+            assert(!(ri->type & (ARM_CP_NO_RAW | ARM_CP_CONST)));
             whpx_sreg_match[i].cp_idx = sregs_cnt;
             arm_cpu->cpreg_indexes[sregs_cnt++] = cpreg_to_kvm_id(key);
         } else {
