@@ -143,6 +143,62 @@ static int test_zero(void)
     return sig;
 }
 
+/* Test multiple post-increment writes to the same GPR */
+static int test_post_increment1(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9b004021    /* {    r1 = memb(r0++#1)      */\n"
+        ".word 0x9b00c022    /*      r2 = memb(r0++#1) }    */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_post_increment2(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9b00c020    /* r0 = memb(r0++#1) */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_post_increment3(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9bc1c020    /* r1:0 = memd(r1++#8) */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
 int main()
 {
     struct sigaction act;
@@ -163,6 +219,10 @@ int main()
 
     /* Illegal: zero encoding = duplex with duplicate dest R0 */
     assert(test_zero() == SIGILL);
+
+    assert(test_post_increment1() == SIGILL);
+    assert(test_post_increment2() == SIGILL);
+    assert(test_post_increment3() == SIGILL);
 
     puts("PASS");
     return EXIT_SUCCESS;
