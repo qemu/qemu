@@ -105,6 +105,10 @@ static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
 
     timer_del(s->timer);
 
+    if (rtype == EXPLICIT_REFRESH) {
+        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
+    }
+
     if (!(s->wcs & SBSA_GWDT_WCS_EN)) {
         return;
     }
@@ -134,8 +138,6 @@ static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
 
     trace_sbsa_gwdt_refresh_write(offset, data);
     if (offset == SBSA_GWDT_WRR) {
-        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
-
         sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
     } else {
         qemu_log_mask(LOG_GUEST_ERROR, "bad address in refresh frame write :"
@@ -157,14 +159,12 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
 
     case SBSA_GWDT_WOR:
         s->worl = data;
-        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
         qemu_set_irq(s->irq, 0);
         sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WORU:
         s->woru = data & SBSA_GWDT_WOR_MASK;
-        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
         qemu_set_irq(s->irq, 0);
         sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
         break;
