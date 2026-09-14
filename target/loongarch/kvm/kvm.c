@@ -1150,6 +1150,7 @@ static int kvm_cpu_check_ptw(CPUState *cs, Error **errp)
     CPULoongArchState *env = cpu_env(cs);
     bool kvm_supported;
 
+    env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, HPTW, 0);
     kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_PTW);
     if (cpu->ptw == ON_OFF_AUTO_ON) {
         if (!kvm_supported) {

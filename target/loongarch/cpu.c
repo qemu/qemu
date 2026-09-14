@@ -472,6 +472,7 @@ static void loongarch_max_initfn(Object *obj)
     /* '-cpu max': use it for max supported CPU features */
     loongarch_la464_initfn(obj);
 
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, 1);
     cpu->ptw = ON_OFF_AUTO_AUTO;
     cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
     cpu->msgint = ON_OFF_AUTO_AUTO;
@@ -488,12 +489,6 @@ static void loongarch_max_initfn(Object *obj)
     data = cpu->env.cpucfg[3];
     data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
     cpu->env.cpucfg[3] = data;
-
-    if (tcg_enabled()) {
-        data = cpu->env.cpucfg[2];
-        data = FIELD_DP32(data, CPUCFG2, HPTW, 1);
-        cpu->env.cpucfg[2] = data;
-    }
 }
 
 #if defined(CONFIG_KVM)
