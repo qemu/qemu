@@ -490,8 +490,6 @@ static bool tap_post_load(void *opaque, int version_id, Error **errp)
     ERRP_GUARD();
     TAPState *s = opaque;
 
-    tap_read_poll(s, true);
-
     if (s->fd < 0) {
         error_setg(errp, "FD was not loaded during incoming migration");
         return false;
@@ -503,6 +501,7 @@ static bool tap_post_load(void *opaque, int version_id, Error **errp)
         return false;
     }
 
+    tap_read_poll(s, true);
     return true;
 }
 
