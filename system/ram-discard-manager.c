@@ -238,14 +238,15 @@ static int replay_by_populated_state(const RamDiscardManager *rdm,
             }
         } else {
             if (in_run) {
-                MemoryRegionSection run_section = {
-                    .mr = section->mr,
-                    .offset_within_region = run_start,
-                    .size = int128_make64(offset - run_start),
-                };
-                ret = replay_fn(&run_section, user_opaque);
-                if (ret) {
-                    return ret;
+                MemoryRegionSection run_section = *section;
+
+                if (memory_region_section_intersect_range(&run_section,
+                                                          run_start,
+                                                          offset - run_start)) {
+                    ret = replay_fn(&run_section, user_opaque);
+                    if (ret) {
+                        return ret;
+                    }
                 }
                 in_run = false;
             }
@@ -257,12 +258,12 @@ static int replay_by_populated_state(const RamDiscardManager *rdm,
     }
 
     if (in_run) {
-        MemoryRegionSection run_section = {
-            .mr = section->mr,
-            .offset_within_region = run_start,
-            .size = int128_make64(end_offset - run_start),
-        };
-        ret = replay_fn(&run_section, user_opaque);
+        MemoryRegionSection run_section = *section;
+
+        if (memory_region_section_intersect_range(&run_section, run_start,
+                                                  end_offset - run_start)) {
+            ret = replay_fn(&run_section, user_opaque);
+        }
     }
 
     return ret;
