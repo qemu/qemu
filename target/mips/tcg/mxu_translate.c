@@ -3109,7 +3109,7 @@ static void gen_mxu_d8sum(DisasContext *ctx, bool sumc)
             tcg_gen_add_i32(t4, t4, t2);
             tcg_gen_add_i32(t4, t4, t3);
         } else {
-            tcg_gen_mov_i32(t4, 0);
+            tcg_gen_movi_i32(t4, 0);
         }
         if (XRc != 0) {
             tcg_gen_extract_i32(t0, mxu_gpr[XRc - 1],  0, 8);
@@ -3120,7 +3120,7 @@ static void gen_mxu_d8sum(DisasContext *ctx, bool sumc)
             tcg_gen_add_i32(t5, t5, t2);
             tcg_gen_add_i32(t5, t5, t3);
         } else {
-            tcg_gen_mov_i32(t5, 0);
+            tcg_gen_movi_i32(t5, 0);
         }
 
         if (sumc) {
