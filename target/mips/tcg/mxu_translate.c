@@ -964,18 +964,13 @@ static void gen_mxu_s32mul(DisasContext *ctx, bool mulu)
     rs  = extract32(ctx->opcode, 16, 5);
     rt  = extract32(ctx->opcode, 21, 5);
 
-    if (unlikely(rs == 0 || rt == 0)) {
-        tcg_gen_movi_i32(t0, 0);
-        tcg_gen_movi_i32(t1, 0);
-    } else {
-        gen_load_gpr(t0, rs);
-        gen_load_gpr(t1, rt);
+    gen_load_gpr(t0, rs);
+    gen_load_gpr(t1, rt);
 
-        if (mulu) {
-            tcg_gen_mulu2_i32(t0, t1, t0, t1);
-        } else {
-            tcg_gen_muls2_i32(t0, t1, t0, t1);
-        }
+    if (mulu) {
+        tcg_gen_mulu2_i32(t0, t1, t0, t1);
+    } else {
+        tcg_gen_muls2_i32(t0, t1, t0, t1);
     }
     tcg_gen_mov_i32(cpu_HI[0], t1);
     tcg_gen_mov_i32(cpu_LO[0], t0);
