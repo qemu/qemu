@@ -464,12 +464,11 @@ static void loongarch_la132_initfn(Object *obj)
     cpu->ptw = ON_OFF_AUTO_OFF;
 }
 
-static void loongarch_max_initfn(Object *obj)
+static void loongarch_la664_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
     uint32_t data;
 
-    /* '-cpu max': use it for max supported CPU features */
     loongarch_la464_initfn(obj);
 
     cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, 1);
@@ -489,6 +488,12 @@ static void loongarch_max_initfn(Object *obj)
     data = cpu->env.cpucfg[3];
     data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
     cpu->env.cpucfg[3] = data;
+}
+
+static void loongarch_max_initfn(Object *obj)
+{
+    /* '-cpu max': use it for max supported CPU features */
+    loongarch_la664_initfn(obj);
 }
 
 #if defined(CONFIG_KVM)
@@ -954,6 +959,8 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .abstract = true,
         .class_init = loongarch64_cpu_class_init,
     },
+
+    DEFINE_LOONGARCH_CPU_TYPE(64, "la664", loongarch_la664_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(64, "la464", loongarch_la464_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(32, "la132", loongarch_la132_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(64, "max", loongarch_max_initfn),
