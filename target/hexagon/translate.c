@@ -579,6 +579,8 @@ static void clear_pkt_ctx(DisasContext *ctx)
     ctx->greg_log_idx = 0;
     ctx->sreg_log_idx = 0;
 #endif
+    bitmap_zero(ctx->gpr_multi_write, TOTAL_PER_THREAD_REGS);
+    bitmap_zero(ctx->gpr_uncond, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
     ctx->future_vregs_idx = 0;
@@ -603,6 +605,19 @@ static void clear_pkt_ctx(DisasContext *ctx)
     for (i = 0; i < NUM_PREGS; i++) {
         ctx->new_pred_value[i] = NULL;
     }
+}
+
+static bool pkt_has_write_conflict(DisasContext *ctx)
+{
+    DECLARE_BITMAP(gpr_conflict, TOTAL_PER_THREAD_REGS);
+
+    bitmap_and(gpr_conflict, ctx->gpr_multi_write, ctx->gpr_uncond,
+               TOTAL_PER_THREAD_REGS);
+    if (!bitmap_empty(gpr_conflict, TOTAL_PER_THREAD_REGS)) {
+        return true;
+    }
+
+    return false;
 }
 
 static void analyze_packet(DisasContext *ctx)
@@ -1210,7 +1225,13 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         clear_pkt_ctx(ctx);
         analyze_packet(ctx);
 
-        if (ctx->pkt.pkt_has_write_conflict) {
+        /*
+         * Check that the new method is a superset of the old methond
+         * Remove in a later patch
+         */
+        g_assert(!ctx->pkt.pkt_has_write_conflict ||
+                 pkt_has_write_conflict(ctx));
+        if (pkt_has_write_conflict(ctx)) {
             gen_exception_decode_fail(ctx, words_read,
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
             return;
