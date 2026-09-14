@@ -591,6 +591,8 @@ static void clear_pkt_ctx(DisasContext *ctx)
     bitmap_zero(ctx->vregs_updated, NUM_VREGS);
     bitmap_zero(ctx->vregs_select, NUM_VREGS);
     bitmap_zero(ctx->predicated_future_vregs, NUM_VREGS);
+    bitmap_zero(ctx->vregs_multi_write, NUM_VREGS);
+    bitmap_zero(ctx->vregs_uncond, NUM_VREGS);
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
     bitmap_zero(ctx->qregs_written, NUM_QREGS);
     ctx->qreg_log_idx = 0;
@@ -610,10 +612,17 @@ static void clear_pkt_ctx(DisasContext *ctx)
 static bool pkt_has_write_conflict(DisasContext *ctx)
 {
     DECLARE_BITMAP(gpr_conflict, TOTAL_PER_THREAD_REGS);
+    DECLARE_BITMAP(vregs_conflict, NUM_VREGS);
 
     bitmap_and(gpr_conflict, ctx->gpr_multi_write, ctx->gpr_uncond,
                TOTAL_PER_THREAD_REGS);
     if (!bitmap_empty(gpr_conflict, TOTAL_PER_THREAD_REGS)) {
+        return true;
+    }
+
+    bitmap_and(vregs_conflict, ctx->vregs_multi_write, ctx->vregs_uncond,
+               NUM_VREGS);
+    if (!bitmap_empty(vregs_conflict, NUM_VREGS)) {
         return true;
     }
 
