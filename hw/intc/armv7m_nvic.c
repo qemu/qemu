@@ -2728,6 +2728,11 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (!arm_feature(&s->cpu->env, ARM_FEATURE_V7) && s->num_irq > 32) {
+        error_setg(errp, "Armv6-M NVIC cannot exceed 32 external IRQs");
+        return;
+    }
+
     qdev_init_gpio_in(dev, set_irq_level, s->num_irq);
 
     /* include space for internal exception vectors */
