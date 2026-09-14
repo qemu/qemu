@@ -2640,39 +2640,19 @@ static void gen_mxu_s32movzn(DisasContext *ctx, TCGCond cond)
  *    Update XRa if XRc < 0 by value of 0 - XRb
  *    else XRa = XRb
  */
+
+static void gen_cps_i32(TCGv_i32 a, TCGv_i32 b, TCGv_i32 c)
+{
+    TCGv_i32 n = tcg_temp_new_i32();
+    TCGv_i32 z = tcg_constant_i32(0);
+
+    tcg_gen_neg_i32(n, b);
+    tcg_gen_movcond_i32(TCG_COND_LT, a, c, z, n, b);
+}
+
 static void gen_mxu_S32CPS(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely(XRb == 0)) {
-        /* XRc make no sense 0 - 0 = 0 -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRc == 0)) {
-        /* condition always false -> just move XRb to XRa */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        TCGLabel *l_not_less = gen_new_label();
-        TCGLabel *l_done = gen_new_label();
-
-        tcg_gen_brcondi_i32(TCG_COND_GE, mxu_gpr[XRc - 1], 0, l_not_less);
-        tcg_gen_neg_i32(t0, mxu_gpr[XRb - 1]);
-        tcg_gen_br(l_done);
-        gen_set_label(l_not_less);
-        gen_load_mxu_gpr(t0, XRb);
-        gen_set_label(l_done);
-        gen_store_mxu_gpr(t0, XRa);
-    }
+    gen_mxu_logic(ctx, gen_cps_i32);
 }
 
 /*
