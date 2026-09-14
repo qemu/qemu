@@ -99,7 +99,7 @@ static uint64_t sbsa_gwdt_read(void *opaque, hwaddr addr, unsigned int size)
     return ret;
 }
 
-static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
+static void sbsa_gwdt_wor_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
 {
     uint64_t timeout = 0;
 
@@ -144,7 +144,7 @@ static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
 
     trace_sbsa_gwdt_refresh_write(offset, data);
     if (offset == SBSA_GWDT_WRR) {
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
     } else {
         qemu_log_mask(LOG_GUEST_ERROR, "bad address in refresh frame write :"
                         " 0x%x\n", (int)offset);
@@ -160,19 +160,19 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
     case SBSA_GWDT_WCS:
         s->wcs = data & SBSA_GWDT_WCS_EN;
         qemu_set_irq(s->irq, 0);
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WOR:
         s->worl = data;
         qemu_set_irq(s->irq, 0);
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WORU:
         s->woru = data & SBSA_GWDT_WOR_MASK;
         qemu_set_irq(s->irq, 0);
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WCV:
@@ -211,7 +211,7 @@ static void sbsa_gwdt_timer_sysinterrupt(void *opaque)
     if (!(s->wcs & SBSA_GWDT_WCS_WS0)) {
         s->wcs |= SBSA_GWDT_WCS_WS0;
         trace_sbsa_gwdt_ws0_asserted();
-        sbsa_gwdt_update_timer(s, TIMEOUT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, TIMEOUT_REFRESH);
         qemu_set_irq(s->irq, 1);
     } else {
         s->wcs |= SBSA_GWDT_WCS_WS1;
