@@ -2045,45 +2045,14 @@ static void gen_mxu_q16sxxv(DisasContext *ctx, bool right, bool arithmetic)
  *    Update XRa with the minimum of signed 32-bit integers contained
  *    in XRb and XRc.
  */
-static void gen_mxu_S32MAX_S32MIN(DisasContext *ctx)
+static void gen_mxu_S32MAX(DisasContext *ctx)
 {
-    uint32_t pad, opc, XRc, XRb, XRa;
+    gen_mxu_logic(ctx, tcg_gen_smax_i32);
+}
 
-    pad = extract32(ctx->opcode, 21, 5);
-    opc = extract32(ctx->opcode, 18, 3);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely((XRb == 0) || (XRc == 0))) {
-        /* exactly one operand is zero register - find which one is not...*/
-        uint32_t XRx = XRb ? XRb : XRc;
-        /* ...and do max/min operation with one operand 0 */
-        if (opc == OPC_MXU_S32MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], mxu_gpr[XRx - 1], 0);
-        } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], mxu_gpr[XRx - 1], 0);
-        }
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to one of them */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        if (opc == OPC_MXU_S32MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1],
-                                               mxu_gpr[XRc - 1]);
-        } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1],
-                                               mxu_gpr[XRc - 1]);
-        }
-    }
+static void gen_mxu_S32MIN(DisasContext *ctx)
+{
+    gen_mxu_logic(ctx, tcg_gen_smin_i32);
 }
 
 /*
@@ -4328,8 +4297,10 @@ static void decode_opc_mxu__pool00(DisasContext *ctx)
 
     switch (opcode) {
     case OPC_MXU_S32MAX:
+        gen_mxu_S32MAX(ctx);
+        break;
     case OPC_MXU_S32MIN:
-        gen_mxu_S32MAX_S32MIN(ctx);
+        gen_mxu_S32MIN(ctx);
         break;
     case OPC_MXU_D16MAX:
     case OPC_MXU_D16MIN:
