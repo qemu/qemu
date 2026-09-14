@@ -51,6 +51,8 @@ typedef struct DisasContext {
     DECLARE_BITMAP(gregs_multi_write, NUM_GREGS);
     int sreg_log[SREG_WRITES_MAX];
     int sreg_log_idx;
+    DECLARE_BITMAP(sregs_written, NUM_SREGS);
+    DECLARE_BITMAP(sregs_multi_write, NUM_SREGS);
     TCGv_i32 t_sreg_new_value[HEX_SREG_GLB_START];
     TCGv_i32 greg_new_value[NUM_GREGS];
 #endif
@@ -125,8 +127,13 @@ static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)
 
 static inline void ctx_log_sreg_write(DisasContext *ctx, int rnum)
 {
-    ctx->sreg_log[ctx->sreg_log_idx] = rnum;
-    ctx->sreg_log_idx++;
+    if (!test_bit(rnum, ctx->sregs_written)) {
+        set_bit(rnum, ctx->sregs_written);
+        ctx->sreg_log[ctx->sreg_log_idx] = rnum;
+        ctx->sreg_log_idx++;
+    } else {
+        set_bit(rnum, ctx->sregs_multi_write);
+    }
 }
 
 static inline void ctx_log_sreg_write_pair(DisasContext *ctx, int rnum)
