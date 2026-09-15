@@ -94,6 +94,7 @@ tests += {
   'test_vminh.S': {'cflags': asmflags},
   'test_vpmpyh.S': {'cflags': asmflags},
   'test_vspliceb.S': {'cflags': asmflags},
+  'test_vwhist.c': {'cflags': [cflags, '-mhvx']},
   'unaligned_pc.c': {'cflags': cflags},
   'unaligned_data.c': {'cflags': cflags},
   'usr.c': {
