@@ -566,6 +566,69 @@ void test_store_new()
     check_output_w(__LINE__, 1);
 }
 
+/*
+ * Test a packet with both a scalar store and an HVX store.
+ */
+static uint32_t scalar_store_dst;
+
+static void test_scalar_hvx_store(void)
+{
+    scalar_store_dst = 0;
+    memset(&expect[0], 0, sizeof(MMVector));
+
+    /* Fill v0 with 0xABCD pattern */
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].uw[i] = 0xABCDABCD;
+    }
+
+    asm("r0 = #0xABCDABCD\n\t"
+        "v0 = vsplat(r0)\n\t"
+        "r1 = #42\n\t"
+        "{\n\t"
+        "    memw(%[scalar]) = r1\n\t"
+        "    vmem(%[hvx]) = v0\n\t"
+        "}\n\t"
+        :
+        : [scalar] "r"(&scalar_store_dst),
+          [hvx] "r"(&output[0])
+        : "r0", "r1", "v0", "memory");
+
+    check_output_w(__LINE__, 1);
+    if (scalar_store_dst != 42) {
+        printf("ERROR at line %d: scalar_store_dst = %d, expected 42\n",
+               __LINE__, scalar_store_dst);
+        err++;
+    }
+}
+
+/*
+ * Test non-inverted masked store: if (Qv) vmem(Rt) = Vs.
+ * Existing tests only cover the inverted form (!Qv).
+ * Use an all-true Q predicate to unconditionally store.
+ */
+static void test_masked_store_noninvert(void)
+{
+    void *p0 = buffer0;
+    void *pout = output;
+
+    memset(&output[0], 0xff, sizeof(MMVector));
+
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].uw[i] = buffer0[0].uw[i];
+    }
+
+    asm("v5 = vmem(%[src] + #0)\n\t"
+        "r0 = #-1\n\t"
+        "v6 = vsplat(r0)\n\t"
+        "q0 = vand(v6, r0)\n\t"
+        "if (q0) vmem(%[dst]) = v5\n\t"
+        :
+        : [src] "r"(p0), [dst] "r"(pout)
+        : "r0", "v5", "v6", "q0", "memory");
+
+    check_output_w(__LINE__, 1);
+}
+
 int main()
 {
     init_buffers();
@@ -614,6 +677,9 @@ int main()
     test_vcombine();
 
     test_store_new();
+
+    test_scalar_hvx_store();
+    test_masked_store_noninvert();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
