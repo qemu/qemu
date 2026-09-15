@@ -248,7 +248,7 @@ Multiple Memory regions description
 
 :padding: 32-bit
 
-:regions: regions field contains 8 regions of type :ref:`Memory region description <memory_region_description>`.
+:regions: regions field contains up to 8 regions of type :ref:`Memory region description <memory_region_description>`.
 
 Log description
 ^^^^^^^^^^^^^^^
