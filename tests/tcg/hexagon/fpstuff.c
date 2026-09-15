@@ -345,6 +345,86 @@ static void check_sfrecipa(void)
     check32(pred, 0x80);
 }
 
+/*
+ * Helper to run sfrecipa and capture result + USR.
+ */
+static void do_sfrecipa(uint32_t Rs, uint32_t Rt,
+                        uint32_t *Rd, uint32_t *usr_out)
+{
+    uint32_t rd, usr;
+
+    asm volatile(CLEAR_FPSTATUS
+        "%[rd],p0 = sfrecipa(%[Rs], %[Rt])\n\t"
+        "%[usr] = usr\n\t"
+        : [rd] "=r"(rd), [usr] "=r"(usr)
+        : [Rs] "r"(Rs), [Rt] "r"(Rt)
+        : "p0", "r2", "usr");
+    *Rd = rd;
+    *usr_out = usr;
+}
+
+/*
+ * Additional sfrecipa edge cases:
+ *   - inf/inf, 0/0 -> NaN + invalid
+ *   - normal/inf, 0/normal, inf/normal
+ *   - denominator with extreme biased exponents
+ */
+static void check_sfrecipa_edges(void)
+{
+    uint32_t rd, usr;
+
+    /* inf / inf -> invalid */
+    do_sfrecipa(SF_INF, SF_INF, &rd, &usr);
+    check_fpstatus(usr, USR_FPINVF);
+
+    /* -inf / +inf -> invalid */
+    do_sfrecipa(0xff800000, SF_INF, &rd, &usr);
+    check_fpstatus(usr, USR_FPINVF);
+
+    /* 0 / 0 -> invalid */
+    do_sfrecipa(SF_zero, SF_zero, &rd, &usr);
+    check_fpstatus(usr, USR_FPINVF);
+
+    /* -0 / +0 -> invalid */
+    do_sfrecipa(SF_zero_neg, SF_zero, &rd, &usr);
+    check_fpstatus(usr, USR_FPINVF);
+
+    /* normal / inf -> fixup (Rd = 1.0) */
+    do_sfrecipa(SF_one, SF_INF, &rd, &usr);
+    check32(rd, SF_one);
+
+    do_sfrecipa(SF_two, SF_INF, &rd, &usr);
+    check32(rd, SF_one);
+
+    /* 0 / normal -> fixup (Rd = 1.0) */
+    do_sfrecipa(SF_zero, SF_one, &rd, &usr);
+    check32(rd, SF_one);
+
+    do_sfrecipa(SF_zero_neg, SF_two, &rd, &usr);
+    check32(rd, SF_one);
+
+    /* inf / normal -> fixup (Rd = 1.0) */
+    do_sfrecipa(SF_INF, SF_one, &rd, &usr);
+    check32(rd, SF_one);
+
+    do_sfrecipa(0xff800000, SF_two, &rd, &usr);
+    check32(rd, SF_one);
+
+    /*
+     * Denominator with biased exponent <= 1.
+     * Rs: biased exp 26, Rt: biased exp 1.
+     */
+    do_sfrecipa(26U << 23, 1U << 23, &rd, &usr);
+    check32_ne(rd, 0);
+
+    /*
+     * Denominator with biased exponent > 252.
+     * Both: biased exp 253.
+     */
+    do_sfrecipa(253U << 23, 253U << 23, &rd, &usr);
+    check32_ne(rd, 0);
+}
+
 static void check_canonical_NaN(void)
 {
     uint32_t sf_result;
@@ -887,6 +967,7 @@ int main()
     check_sfminmax();
     check_dfminmax();
     check_sfrecipa();
+    check_sfrecipa_edges();
     check_canonical_NaN();
     check_invsqrta();
     check_sffixupn();
