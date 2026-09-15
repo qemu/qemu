@@ -33,3 +33,6 @@ config ZAURUS_SCOOP
 
 config CADENCE_GPIO
     bool
+
+config ALLWINNER_GPIO
+    bool

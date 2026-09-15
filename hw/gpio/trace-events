@@ -51,3 +51,9 @@ stm32l4x5_gpio_pins(char *gpio, uint16_t disconnected, uint16_t high) "GPIO%s di
 cdns_gpio_read(const char *path, uint64_t offset, uint32_t value) "%s:reg[0x%04" PRIx64 "] -> 0x%" PRIx32
 cdns_gpio_write(const char *path, uint64_t offset, uint64_t value) "%s:reg[0x%04" PRIx64 "] <- 0x%04" PRIx64
 cdns_gpio_set(const char *path, int line, int level) "%s:[%d] <- %d"
+
+# allwinner_gpio.c
+allwinner_gpio_set(const char *port, int line, int level) "[%s:%d] <- %d"
+allwinner_gpio_read(const char *reg, uint32_t value) "[%s] -> 0x%" PRIx32
+allwinner_gpio_write(const char *reg, uint32_t value) "[%s] <- 0x%" PRIx32
+allwinner_gpio_out_pin(const char *reg, uint32_t pin, uint32_t value) "[%s.%d] <- 0x%" PRIx32
