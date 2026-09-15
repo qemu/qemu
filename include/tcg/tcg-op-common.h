@@ -12,23 +12,38 @@
 #include "exec/helper-proto-common.h"
 #include "exec/helper-gen-common.h"
 
+QEMU_RET_NONNULL
 TCGv_i32 tcg_constant_i32(int32_t val);
+QEMU_RET_NONNULL
 TCGv_i64 tcg_constant_i64(int64_t val);
+QEMU_RET_NONNULL
 TCGv_vaddr tcg_constant_vaddr(uintptr_t val);
+QEMU_RET_NONNULL
 TCGv_vec tcg_constant_vec(TCGType type, unsigned vece, int64_t val);
+QEMU_RET_NONNULL
 TCGv_vec tcg_constant_vec_matching(TCGv_vec match, unsigned vece, int64_t val);
 
+QEMU_RET_NONNULL
 TCGv_i128 tcg_zero_i128(void);
 
+QEMU_RET_NONNULL
 TCGv_i32 tcg_temp_new_i32(void);
+QEMU_RET_NONNULL
 TCGv_i64 tcg_temp_new_i64(void);
+QEMU_RET_NONNULL
 TCGv_ptr tcg_temp_new_ptr(void);
+QEMU_RET_NONNULL
 TCGv_i128 tcg_temp_new_i128(void);
+QEMU_RET_NONNULL
 TCGv_vec tcg_temp_new_vec(TCGType type);
+QEMU_RET_NONNULL
 TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match);
 
+QEMU_RET_NONNULL
 TCGv_i32 tcg_global_mem_new_i32(TCGv_ptr reg, intptr_t off, const char *name);
+QEMU_RET_NONNULL
 TCGv_i64 tcg_global_mem_new_i64(TCGv_ptr reg, intptr_t off, const char *name);
+QEMU_RET_NONNULL
 TCGv_ptr tcg_global_mem_new_ptr(TCGv_ptr reg, intptr_t off, const char *name);
 
 /* Generic ops.  */
@@ -41,8 +56,8 @@ static inline void tcg_gen_insn_start(uint64_t pc, uint64_t a1,
     tcg_set_insn_start_param(op, 2, a2);
 }
 
-void gen_set_label(TCGLabel *l);
-void tcg_gen_br(TCGLabel *l);
+QEMU_ARG_NONNULL void gen_set_label(TCGLabel *l);
+QEMU_ARG_NONNULL void tcg_gen_br(TCGLabel *l);
 void tcg_gen_mb(TCGBar);
 
 /**
@@ -86,6 +101,7 @@ void tcg_gen_goto_tb(unsigned idx);
 void tcg_gen_lookup_and_goto_ptr(void);
 
 void tcg_gen_plugin_cb(unsigned from);
+QEMU_ARG_NONNULL
 void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
 
 /*
@@ -135,120 +151,204 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo);
 
 /* 32 bit ops */
 
+QEMU_ARG_NONNULL
 void tcg_gen_mulsu2_i32(TCGv_i32 rl, TCGv_i32 rh, TCGv_i32 arg1, TCGv_i32 arg2);
+QEMU_ARG_NONNULL
 void tcg_gen_bswap32_i32(TCGv_i32 ret, TCGv_i32 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_hswap_i32(TCGv_i32 ret, TCGv_i32 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_revbit32_i32(TCGv_i32 ret, TCGv_i32 arg);
 
 /* 64 bit ops */
 
+QEMU_ARG_NONNULL
 void tcg_gen_addN_i64(int n, TCGv_i64 *r, TCGv_i64 *a, TCGv_i64 *b);
+QEMU_ARG_NONNULL
 void tcg_gen_mulsu2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 arg1, TCGv_i64 arg2);
+QEMU_ARG_NONNULL
 void tcg_gen_ext32s_i64(TCGv_i64 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_ext32u_i64(TCGv_i64 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_bswap32_i64(TCGv_i64 ret, TCGv_i64 arg, unsigned flags);
+QEMU_ARG_NONNULL
 void tcg_gen_bswap64_i64(TCGv_i64 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_hswap_i64(TCGv_i64 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_wswap_i64(TCGv_i64 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_revbit32_i64(TCGv_i64 ret, TCGv_i64 arg, unsigned flags);
+QEMU_ARG_NONNULL
 void tcg_gen_revbit64_i64(TCGv_i64 ret, TCGv_i64 arg);
 
+QEMU_ARG_NONNULL
 void tcg_gen_st32_i64(TCGv_i64 arg1, TCGv_ptr arg2, tcg_target_long offset);
 
+QEMU_ARG_NONNULL
 void tcg_gen_ld32u_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset);
+QEMU_ARG_NONNULL
 void tcg_gen_ld32s_i64(TCGv_i64 ret, TCGv_ptr arg2, tcg_target_long offset);
 
 /* Size changing operations.  */
 
+QEMU_ARG_NONNULL
 void tcg_gen_extu_i32_i64(TCGv_i64 ret, TCGv_i32 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_ext_i32_i64(TCGv_i64 ret, TCGv_i32 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_concat_i32_i64(TCGv_i64 dest, TCGv_i32 low, TCGv_i32 high);
+QEMU_ARG_NONNULL
 void tcg_gen_extrl_i64_i32(TCGv_i32 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_extrh_i64_i32(TCGv_i32 ret, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_extr_i64_i32(TCGv_i32 lo, TCGv_i32 hi, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_concat32_i64(TCGv_i64 ret, TCGv_i64 lo, TCGv_i64 hi);
 
+QEMU_ARG_NONNULL
 void tcg_gen_extr_i128_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i128 arg);
+QEMU_ARG_NONNULL
 void tcg_gen_concat_i64_i128(TCGv_i128 ret, TCGv_i64 lo, TCGv_i64 hi);
 
 /* 128 bit ops */
 
+QEMU_ARG_NONNULL
 void tcg_gen_mov_i128(TCGv_i128 dst, TCGv_i128 src);
+QEMU_ARG_NONNULL
 void tcg_gen_ld_i128(TCGv_i128 ret, TCGv_ptr base, tcg_target_long offset);
+QEMU_ARG_NONNULL
 void tcg_gen_st_i128(TCGv_i128 val, TCGv_ptr base, tcg_target_long offset);
 
+QEMU_ARG_NONNULL
 void tcg_gen_qemu_ld_chk_i128(TCGv_i128, TCGTemp *, TCGArg, MemOp, TCGType);
+QEMU_ARG_NONNULL
 void tcg_gen_qemu_st_chk_i128(TCGv_i128, TCGTemp *, TCGArg, MemOp, TCGType);
 
+QEMU_ARG_NONNULL
 void tcg_gen_atomic_cmpxchg_chk_i128(TCGv_i128, TCGTemp *, TCGv_i128,
                                      TCGv_i128, TCGArg, MemOp, TCGType);
+QEMU_ARG_NONNULL
 void tcg_gen_nonatomic_cmpxchg_chk_i128(TCGv_i128, TCGTemp *, TCGv_i128,
                                         TCGv_i128, TCGArg, MemOp, TCGType);
+QEMU_ARG_NONNULL
 void tcg_gen_atomic_xchg_chk_i128(TCGv_i128, TCGTemp *, TCGv_i128,
                                   TCGArg, MemOp, TCGType);
+QEMU_ARG_NONNULL
 void tcg_gen_atomic_fetch_and_chk_i128(TCGv_i128, TCGTemp *, TCGv_i128,
                                        TCGArg, MemOp, TCGType);
+QEMU_ARG_NONNULL
 void tcg_gen_atomic_fetch_or_chk_i128(TCGv_i128, TCGTemp *, TCGv_i128,
                                       TCGArg, MemOp, TCGType);
 
 /* Vector ops */
 
+QEMU_ARG_NONNULL
 void tcg_gen_mov_vec(TCGv_vec, TCGv_vec);
+QEMU_ARG_NONNULL
 void tcg_gen_dup_i32_vec(unsigned vece, TCGv_vec, TCGv_i32);
+QEMU_ARG_NONNULL
 void tcg_gen_dup_i64_vec(unsigned vece, TCGv_vec, TCGv_i64);
+QEMU_ARG_NONNULL
 void tcg_gen_dup_mem_vec(unsigned vece, TCGv_vec, TCGv_ptr, tcg_target_long);
+QEMU_ARG_NONNULL
 void tcg_gen_dupi_vec(unsigned vece, TCGv_vec, uint64_t);
+QEMU_ARG_NONNULL
 void tcg_gen_add_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_sub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_mul_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_and_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_or_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_xor_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_andc_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_orc_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_nand_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_nor_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_eqv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_not_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+QEMU_ARG_NONNULL
 void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+QEMU_ARG_NONNULL
 void tcg_gen_abs_vec(unsigned vece, TCGv_vec r, TCGv_vec a);
+QEMU_ARG_NONNULL
 void tcg_gen_ssadd_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_usadd_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_sssub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_ussub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_smin_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_umin_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_smax_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
+QEMU_ARG_NONNULL
 void tcg_gen_umax_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b);
 
+QEMU_ARG_NONNULL
 void tcg_gen_shli_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i);
+QEMU_ARG_NONNULL
 void tcg_gen_shri_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i);
+QEMU_ARG_NONNULL
 void tcg_gen_sari_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i);
+QEMU_ARG_NONNULL
 void tcg_gen_rotli_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i);
+QEMU_ARG_NONNULL
 void tcg_gen_rotri_vec(unsigned vece, TCGv_vec r, TCGv_vec a, int64_t i);
 
+QEMU_ARG_NONNULL
 void tcg_gen_shls_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 s);
+QEMU_ARG_NONNULL
 void tcg_gen_shrs_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 s);
+QEMU_ARG_NONNULL
 void tcg_gen_sars_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 s);
+QEMU_ARG_NONNULL
 void tcg_gen_rotls_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 s);
 
+QEMU_ARG_NONNULL
 void tcg_gen_shlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec s);
+QEMU_ARG_NONNULL
 void tcg_gen_shrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec s);
+QEMU_ARG_NONNULL
 void tcg_gen_sarv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec s);
+QEMU_ARG_NONNULL
 void tcg_gen_rotlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec s);
+QEMU_ARG_NONNULL
 void tcg_gen_rotrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec s);
 
+QEMU_ARG_NONNULL
 void tcg_gen_cmp_vec(TCGCond cond, unsigned vece, TCGv_vec r,
                      TCGv_vec a, TCGv_vec b);
 
+QEMU_ARG_NONNULL
 void tcg_gen_bitsel_vec(unsigned vece, TCGv_vec r, TCGv_vec a,
                         TCGv_vec b, TCGv_vec c);
+QEMU_ARG_NONNULL
 void tcg_gen_cmpsel_vec(TCGCond cond, unsigned vece, TCGv_vec r,
                         TCGv_vec a, TCGv_vec b, TCGv_vec c, TCGv_vec d);
 
+QEMU_ARG_NONNULL
 void tcg_gen_ld_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset);
+QEMU_ARG_NONNULL
 void tcg_gen_st_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset);
+QEMU_ARG_NONNULL
 void tcg_gen_stl_vec(TCGv_vec r, TCGv_ptr base, TCGArg offset, TCGType t);
 
 /* Host pointer ops */
