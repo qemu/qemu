@@ -935,6 +935,16 @@ static uint64_t do_dfmpyfix(uint64_t a, uint64_t b)
     return result;
 }
 
+static uint64_t do_dfmpyhh(uint64_t a, uint64_t b, uint64_t acc)
+{
+    uint64_t result = acc;
+
+    asm("%[res] += dfmpyhh(%[a], %[b])\n\t"
+        : [res] "+r"(result)
+        : [a] "r"(a), [b] "r"(b));
+    return result;
+}
+
 static void check_dfmpyfix(void)
 {
     /*
@@ -961,6 +971,52 @@ static void check_dfmpyfix(void)
             0x0010000000000000ULL);
 }
 
+/*
+ * Test dfmpyhh (double-precision FP multiply high*high and accumulate):
+ *   - normal inputs
+ *   - denormal inputs (crushed to inexact zero)
+ *   - zero/NaN/infinity inputs
+ *   - nonzero accumulator
+ */
+static inline uint64_t df_abs(uint64_t v) { return v & 0x7FFFFFFFFFFFFFFFULL; }
+static inline uint64_t df_exp(uint64_t v) { return v & 0x7FF0000000000000ULL; }
+static inline uint64_t df_mant(uint64_t v) { return v & 0x000FFFFFFFFFFFFFULL; }
+
+static void check_dfmpyhh(void)
+{
+    uint64_t result;
+
+    /* Normal * normal: 1.0 * 1.0 + 0 -> nonzero finite */
+    result = do_dfmpyhh(DF_one, DF_one, 0ULL);
+    check64_ne(df_abs(result), 0ULL);
+
+    /* Denormal input a: crushed to zero */
+    result = do_dfmpyhh(0x0008000000000000ULL, DF_one, 0ULL);
+    check64(df_abs(result), 0ULL);
+
+    /* Denormal input b: crushed to zero */
+    result = do_dfmpyhh(DF_one, 0x0008000000000000ULL, 0ULL);
+    check64(df_abs(result), 0ULL);
+
+    /* Zero input: early exit */
+    result = do_dfmpyhh(DF_zero, DF_one, 0ULL);
+    check64(df_abs(result), 0ULL);
+
+    /* Infinity input: early exit, result contains inf */
+    result = do_dfmpyhh(0x7FF0000000000000ULL, DF_one, 0ULL);
+    check64(df_exp(result), 0x7FF0000000000000ULL);
+
+    /* NaN input: early exit, result is NaN */
+    result = do_dfmpyhh(DF_QNaN, DF_one, 0ULL);
+    check64(df_exp(result), 0x7FF0000000000000ULL);
+    check64_ne(df_mant(result), 0ULL);
+
+    /* Nonzero accumulator: nonzero finite result */
+    result = do_dfmpyhh(DF_one, DF_one, DF_one);
+    check64_ne(df_abs(result), 0ULL);
+    check64_ne(df_exp(result), 0x7FF0000000000000ULL);
+}
+
 int main()
 {
     check_compare_exception();
@@ -981,6 +1037,7 @@ int main()
     check_conv_uw2df();
     check_conv_ud2df();
     check_dfmpyfix();
+    check_dfmpyhh();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
