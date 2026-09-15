@@ -446,6 +446,31 @@ static void check_store_imm(void)
     check32(storeimm_word_array[2], 0xffffffff);
 }
 
+/*
+ * Rd = Ps -- transfer predicate register to general register.
+ * The result is 0x00 or 0xff depending on the predicate value.
+ */
+static void check_preg_transfer(void)
+{
+    uint32_t result;
+
+    /* Set p0 = true, then Rd = p0 should give 0xff */
+    asm volatile("p0 = cmp.eq(%[val], %[val])\n\t"
+                 "%[res] = p0\n\t"
+                 : [res] "=r"(result)
+                 : [val] "r"(1)
+                 : "p0");
+    check32(result, 0xff);
+
+    /* Set p0 = false, then Rd = p0 should give 0x00 */
+    asm volatile("p0 = cmp.eq(%[a], %[b])\n\t"
+                 "%[res] = p0\n\t"
+                 : [res] "=r"(result)
+                 : [a] "r"(1), [b] "r"(2)
+                 : "p0");
+    check32(result, 0x00);
+}
+
 int main()
 {
     int32_t res;
@@ -590,6 +615,7 @@ int main()
     test_dpmpyss_rnd_s0();
 
     check_store_imm();
+    check_preg_transfer();
 
     puts(err ? "FAIL" : "PASS");
     return err;
