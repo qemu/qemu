@@ -1393,21 +1393,6 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     return true;
 }
 
-/*
- * Caller must ensure the has_* fields of @params are true so they all
- * get copied and the pointer members don't dangle.
- */
-static void migrate_params_apply(MigrationParameters *params)
-{
-    MigrationState *s = migrate_get_current();
-    MigrationParameters *cur = &s->parameters;
-
-    migrate_tls_opts_free(cur);
-    qapi_free_BitmapMigrationNodeAliasList(cur->block_bitmap_mapping);
-    qapi_free_strList(cur->cpr_exec_command);
-    QAPI_CLONE_MEMBERS(MigrationParameters, cur, params);
-}
-
 void qmp_migrate_set_parameters(MigrationParameters *input, Error **errp)
 {
     MigrationParameters *cur = &migrate_get_current()->parameters;
@@ -1430,8 +1415,15 @@ void qmp_migrate_set_parameters(MigrationParameters *input, Error **errp)
         return;
     }
 
-    if (migrate_params_check(new, errp)) {
-        migrate_params_apply(new);
-        migrate_post_update_params(input, errp);
+    if (!migrate_params_check(new, errp)) {
+        return;
     }
+
+    migrate_tls_opts_free(cur);
+    qapi_free_BitmapMigrationNodeAliasList(cur->block_bitmap_mapping);
+    qapi_free_strList(cur->cpr_exec_command);
+
+    QAPI_CLONE_MEMBERS(MigrationParameters, cur, new);
+
+    migrate_post_update_params(input, errp);
 }
