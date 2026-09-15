@@ -1017,6 +1017,102 @@ static void check_dfmpyhh(void)
     check64_ne(df_exp(result), 0x7FF0000000000000ULL);
 }
 
+/*
+ * Round-to-nearest float-to-int conversions with normal values.
+ * These test the non-:chop variants which use the USR rounding mode.
+ */
+static void check_conv_rnd(void)
+{
+    uint32_t res32;
+    uint64_t res64;
+
+    /* convert_sf2w(1.5) rounds to nearest-even = 2 */
+    asm(CLEAR_FPSTATUS
+        "%[res] = convert_sf2w(%[val])\n\t"
+        : [res] "=r"(res32)
+        : [val] "r"(0x3fc00000)    /* 1.5f */
+        : "r2", "usr");
+    check32(res32, 2);
+
+    /* convert_sf2d(1.5) = 2 */
+    asm(CLEAR_FPSTATUS
+        "%[res] = convert_sf2d(%[val])\n\t"
+        : [res] "=r"(res64)
+        : [val] "r"(0x3fc00000)    /* 1.5f */
+        : "r2", "usr");
+    check64(res64, 2ULL);
+
+    /* convert_df2w(1.5) = 2 */
+    asm(CLEAR_FPSTATUS
+        "%[res] = convert_df2w(%[val])\n\t"
+        : [res] "=r"(res32)
+        : [val] "r"(0x3FF8000000000000ULL)    /* 1.5 */
+        : "r2", "usr");
+    check32(res32, 2);
+
+    /* convert_df2d(1.5) = 2 */
+    asm(CLEAR_FPSTATUS
+        "%[res] = convert_df2d(%[val])\n\t"
+        : [res] "=r"(res64)
+        : [val] "r"(0x3FF8000000000000ULL)    /* 1.5 */
+        : "r2", "usr");
+    check64(res64, 2ULL);
+}
+
+/*
+ * Test sfmpy:lib with Inf-Inf.
+ *
+ * Rx += sfmpy(Rs, Rt):lib with Rx = -Inf, Rs*Rt -> +Inf
+ * Inf - Inf is invalid, but the :lib variant suppresses the
+ * exception and returns zero.
+ */
+static void check_sffma_lib_inf(void)
+{
+    uint32_t result;
+
+    /* +Inf += sfmpy(+Inf, 1.0):lib -> Inf (no exception, normal) */
+    result = SF_INF;
+    asm(CLEAR_FPSTATUS
+        "%[res] += sfmpy(%[a], %[b]):lib\n\t"
+        : [res] "+r"(result)
+        : [a] "r"(SF_INF), [b] "r"(SF_one)
+        : "r2", "usr");
+    check32(result, SF_INF);
+
+    /*
+     * -Inf += sfmpy(+Inf, 1.0):lib -> Inf - Inf = invalid
+     * The :lib variant should return zero for Inf - Inf.
+     */
+    result = SF_INF | (1u << 31);    /* -Inf */
+    asm(CLEAR_FPSTATUS
+        "%[res] += sfmpy(%[a], %[b]):lib\n\t"
+        : [res] "+r"(result)
+        : [a] "r"(SF_INF), [b] "r"(SF_one)
+        : "r2", "usr");
+    check32(result, 0);
+}
+
+/*
+ * Test sfinvsqrta with a denormal input.
+ */
+static void check_invsqrta_denorm(void)
+{
+    uint32_t result;
+    uint32_t predval;
+    uint32_t exp_bits;
+
+    /* Denormal positive float: 0x00400000 (small denorm) */
+    asm volatile("%[res],p0 = sfinvsqrta(%[val])\n\t"
+                 "%[pred] = p0\n\t"
+                 : [res] "=r"(result), [pred] "=r"(predval)
+                 : [val] "r"(SF_denorm)
+                 : "p0");
+    /* Result should be a valid float (not NaN/zero) */
+    check32_ne(result, 0);
+    exp_bits = (result >> 23) & 0xff;
+    check32_ne(exp_bits, 0xff);  /* not Inf/NaN */
+}
+
 int main()
 {
     check_compare_exception();
@@ -1038,6 +1134,9 @@ int main()
     check_conv_ud2df();
     check_dfmpyfix();
     check_dfmpyhh();
+    check_conv_rnd();
+    check_sffma_lib_inf();
+    check_invsqrta_denorm();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
