@@ -292,7 +292,8 @@ static void test_vmpyuhvs(void)
         pout += sizeof(MMVector);
 
         for (int j = 0; j < MAX_VEC_SIZE_BYTES / 2; j++) {
-            expect[i].uh[j] = (buffer0[i].uh[j] * buffer1[i].uh[j]) >> 16;
+            expect[i].uh[j] =
+                ((uint32_t)buffer0[i].uh[j] * buffer1[i].uh[j]) >> 16;
         }
     }
 
