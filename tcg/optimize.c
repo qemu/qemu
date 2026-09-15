@@ -2213,6 +2213,7 @@ static bool fold_mul_highpart(OptContext *ctx, TCGOp *op)
     return finish_folding(ctx, op);
 }
 
+static bool fold_shift(OptContext *ctx, TCGOp *op);
 static bool fold_multiply2(OptContext *ctx, TCGOp *op)
 {
     swap_commutative(op->args[0], &op->args[2], &op->args[3]);
@@ -2253,15 +2254,13 @@ static bool fold_multiply2(OptContext *ctx, TCGOp *op)
             /* The proper opcode is supplied by tcg_opt_gen_mov. */
             op2 = opt_insert_before(ctx, op, 0, 2);
             tcg_opt_gen_movi(ctx, op, rl, l);
-            tcg_opt_gen_movi(ctx, op2, rh, h);
-            return true;
+            return tcg_opt_gen_movi(ctx, op2, rh, h);
         }
 
         if (b == 0) {
             op2 = opt_insert_before(ctx, op, 0, 2);
             tcg_opt_gen_movi(ctx, op2, rl, 0);
-            tcg_opt_gen_movi(ctx, op, rh, 0);
-            return true;
+            return tcg_opt_gen_movi(ctx, op, rh, 0);
         }
         if (b == 1) {
             op2 = opt_insert_before(ctx, op, 0, 2);
@@ -2269,20 +2268,18 @@ static bool fold_multiply2(OptContext *ctx, TCGOp *op)
 
             switch (op->opc) {
             case INDEX_op_mulu2:
-                tcg_opt_gen_movi(ctx, op, rh, 0);
-                break;
+                return tcg_opt_gen_movi(ctx, op, rh, 0);
             case INDEX_op_muls2:
                 op->opc = INDEX_op_sar;
                 op->args[0] = rh;
                 op->args[1] = rl;
                 op->args[2] =
                     arg_new_constant(ctx, tcg_type_size(ctx->type) * 8 - 1);
-                break;
+                return fold_shift(ctx, op);
             default:
-                g_assert_not_reached();
+                break;
             }
-
-            return true;
+            g_assert_not_reached();
         }
     }
     return finish_folding(ctx, op);
