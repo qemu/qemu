@@ -1097,6 +1097,12 @@ void qemu_init_exec_dir(const char *argv0)
             p = buf;
         }
     }
+#elif defined(__OpenBSD__) && defined(CONFIG_GETEXECPATH)
+    {
+        if (getexecpath(buf, sizeof(buf)) == 0) {
+            p = buf;
+        }
+    }
 #elif defined(__APPLE__)
     {
         char fpath[PATH_MAX];
