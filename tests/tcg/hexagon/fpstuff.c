@@ -711,6 +711,176 @@ static void check_dfmpyxx(void)
     check64(res64, 0x7fefffffffffffffULL);
 }
 
+/*
+ * sfclass mask bits:
+ *   bit 0: positive/negative zero
+ *   bit 1: positive/negative normal
+ *   bit 2: positive/negative denormal
+ *   bit 3: positive/negative infinity
+ *   bit 4: positive/negative NaN
+ */
+#define TEST_SFCLASS(VAL, MASK, EXPECT) \
+    do { \
+        uint32_t res; \
+        asm("%[res] = #0\n\t" \
+            "p0 = sfclass(%[val], #" #MASK ")\n\t" \
+            "if (p0) %[res] = #1\n\t" \
+            : [res] "=&r"(res) \
+            : [val] "r"(VAL) \
+            : "p0"); \
+        check32(res, EXPECT); \
+    } while (0)
+
+static void check_sfclass(void)
+{
+    /* Zero: mask bit 0 */
+    TEST_SFCLASS(SF_zero, 0x01, 1);
+    TEST_SFCLASS(SF_zero_neg, 0x01, 1);
+    TEST_SFCLASS(SF_zero, 0x02, 0);
+
+    /* Normal: mask bit 1 */
+    TEST_SFCLASS(SF_one, 0x02, 1);
+    TEST_SFCLASS(SF_one, 0x01, 0);
+
+    /* Denormal: mask bit 2 */
+    TEST_SFCLASS(SF_denorm, 0x04, 1);
+    TEST_SFCLASS(SF_denorm, 0x01, 0);
+
+    /* Infinity: mask bit 3 */
+    TEST_SFCLASS(SF_INF, 0x08, 1);
+    TEST_SFCLASS(SF_INF, 0x01, 0);
+
+    /* NaN: mask bit 4 */
+    TEST_SFCLASS(SF_QNaN, 0x10, 1);
+    TEST_SFCLASS(SF_SNaN, 0x10, 1);
+    TEST_SFCLASS(SF_QNaN, 0x01, 0);
+
+    /* Combined: any class (all bits set) */
+    TEST_SFCLASS(SF_one, 0x1f, 1);
+}
+
+/*
+ * dfclass mask bits are the same as sfclass.
+ */
+static const uint64_t DF_INF = 0x7ff0000000000000ULL;
+static const uint64_t DF_denorm = 0x0000000000000001ULL;
+static const uint64_t DF_neg_one = 0xbff0000000000000ULL;
+
+#define TEST_DFCLASS(VAL, MASK, EXPECT) \
+    do { \
+        uint32_t res; \
+        asm("%[res] = #0\n\t" \
+            "p0 = dfclass(%[val], #" #MASK ")\n\t" \
+            "if (p0) %[res] = #1\n\t" \
+            : [res] "=&r"(res) \
+            : [val] "r"(VAL) \
+            : "p0"); \
+        check32(res, EXPECT); \
+    } while (0)
+
+static void check_dfclass(void)
+{
+    /* Zero: mask bit 0 */
+    TEST_DFCLASS(DF_zero, 0x01, 1);
+    TEST_DFCLASS(DF_zero_neg, 0x01, 1);
+    TEST_DFCLASS(DF_zero, 0x02, 0);
+
+    /* Normal: mask bit 1 */
+    TEST_DFCLASS(DF_one, 0x02, 1);
+    TEST_DFCLASS(DF_neg_one, 0x02, 1);
+    TEST_DFCLASS(DF_one, 0x01, 0);
+
+    /* Denormal: mask bit 2 */
+    TEST_DFCLASS(DF_denorm, 0x04, 1);
+    TEST_DFCLASS(DF_denorm, 0x01, 0);
+
+    /* Infinity: mask bit 3 */
+    TEST_DFCLASS(DF_INF, 0x08, 1);
+    TEST_DFCLASS(DF_INF, 0x01, 0);
+
+    /* NaN: mask bit 4 */
+    TEST_DFCLASS(DF_QNaN, 0x10, 1);
+    TEST_DFCLASS(DF_SNaN, 0x10, 1);
+    TEST_DFCLASS(DF_QNaN, 0x01, 0);
+}
+
+/* Rdd = convert_uw2df(Rs) */
+static uint64_t conv_uw2df(uint32_t val)
+{
+    uint64_t result;
+
+    asm("%[res] = convert_uw2df(%[val])\n\t"
+        : [res] "=r"(result)
+        : [val] "r"(val));
+    return result;
+}
+
+static void check_conv_uw2df(void)
+{
+    check64(conv_uw2df(0), DF_zero);
+    check64(conv_uw2df(1), DF_one);
+    /* 100 -> 0x4059000000000000 */
+    check64(conv_uw2df(100), 0x4059000000000000ULL);
+    /* 0xFFFFFFFF -> 4294967295.0 = 0x41EFFFFFFFE00000 */
+    check64(conv_uw2df(0xFFFFFFFF), 0x41EFFFFFFFE00000ULL);
+}
+
+/* Rdd = convert_ud2df(Rss) */
+static uint64_t conv_ud2df(uint64_t val)
+{
+    uint64_t result;
+
+    asm("%[res] = convert_ud2df(%[val])\n\t"
+        : [res] "=r"(result)
+        : [val] "r"(val));
+    return result;
+}
+
+static void check_conv_ud2df(void)
+{
+    check64(conv_ud2df(0ULL), DF_zero);
+    check64(conv_ud2df(1ULL), DF_one);
+    /* 1000000 -> 0x412E848000000000 */
+    check64(conv_ud2df(1000000ULL), 0x412E848000000000ULL);
+}
+
+/* Rdd = dfmpyfix(Rss,Rtt) -- DF multiply denormal fixup */
+static uint64_t do_dfmpyfix(uint64_t a, uint64_t b)
+{
+    uint64_t result;
+
+    asm("%[res] = dfmpyfix(%[a], %[b])\n\t"
+        : [res] "=r"(result)
+        : [a] "r"(a), [b] "r"(b));
+    return result;
+}
+
+static void check_dfmpyfix(void)
+{
+    /*
+     * With two normal values (neither denormal, exps < 512),
+     * the result should be the first operand unchanged.
+     */
+    check64(do_dfmpyfix(DF_one, DF_one), DF_one);
+
+    /*
+     * Case: b is denormal AND a is normal with exp >= 512.
+     * a gets multiplied by 2^-52 (0x3cb0000000000000).
+     * a = 1.0, result = 1.0 * 2^-52 = 0x3cb0000000000000
+     */
+    check64(do_dfmpyfix(DF_one, DF_denorm), 0x3CB0000000000000ULL);
+
+    /*
+     * Case: a is denormal AND b is normal with exp >= 512.
+     * a gets multiplied by 2^52 (0x4330000000000000).
+     * a = smallest denorm = 2^-1074, b = 2^512 (biased exp 0x5ff).
+     * Result = 2^-1074 * 2^52 = 2^-1022 = smallest normal
+     *        = 0x0010000000000000
+     */
+    check64(do_dfmpyfix(DF_denorm, 0x5FF0000000000000ULL),
+            0x0010000000000000ULL);
+}
+
 int main()
 {
     check_compare_exception();
@@ -725,6 +895,11 @@ int main()
     check_float2int_convs();
     check_float_consts();
     check_dfmpyxx();
+    check_sfclass();
+    check_dfclass();
+    check_conv_uw2df();
+    check_conv_ud2df();
+    check_dfmpyfix();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
