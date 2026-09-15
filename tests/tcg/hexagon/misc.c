@@ -599,6 +599,15 @@ int main()
     res64 = decbin(0xfLL, 0x1bLL, &pred);
     check64(res64, 0x78000100LL);
     check32(pred, true);
+
+    /*
+     * Test the MPS (most-probable symbol) case in decbin.
+     * Rss: word0=range=0xFF800000, word1=offset=0x00000000
+     * Rtt: word0=bitpos=0, word1=state=0|valMPS=1(bit8)
+     */
+    res64 = decbin(0x00000000FF800000LL, 0x0000010000000000LL, &pred);
+    check64(res64, 0x0000000087800101LL);
+    check32(pred, true);
 #else
     puts("Skipping cabac tests");
 #endif
