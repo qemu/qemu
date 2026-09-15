@@ -99,30 +99,65 @@ static uint64_t sbsa_gwdt_read(void *opaque, hwaddr addr, unsigned int size)
     return ret;
 }
 
-static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
+static void sbsa_gwdt_set_timer(SBSA_GWDTState *s, uint64_t deadline)
+{
+    /*
+     * WCV is an unsigned 64-bit compare value, but QEMUTimer stores the
+     * expiry as a signed int64_t. A deadline with bit 63 set would be seen
+     * as already expired and fire the watchdog immediately. Such a deadline
+     * is unreachable within any guest runtime, so treat it as "never" and
+     * leave the timer disarmed instead.
+     */
+    if (deadline <= INT64_MAX) {
+        timer_mod(s->timer, deadline);
+    } else {
+        timer_del(s->timer);
+    }
+}
+
+static void sbsa_gwdt_wor_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
 {
     uint64_t timeout = 0;
 
     timer_del(s->timer);
 
-    if (s->wcs & SBSA_GWDT_WCS_EN) {
-        /*
-         * Extract the upper 16 bits from woru & 32 bits from worl
-         * registers to construct the 48 bit offset value
-         */
-        timeout = s->woru;
-        timeout <<= 32;
-        timeout |= s->worl;
-        timeout = muldiv64(timeout, NANOSECONDS_PER_SECOND, s->freq);
-        timeout += qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (rtype == EXPLICIT_REFRESH) {
+        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
+    }
 
-        if ((rtype == EXPLICIT_REFRESH) || ((rtype == TIMEOUT_REFRESH) &&
-                (!(s->wcs & SBSA_GWDT_WCS_WS0)))) {
-            /* store the current timeout value into compare registers */
-            s->wcvu = timeout >> 32;
-            s->wcvl = timeout;
-        }
-        timer_mod(s->timer, timeout);
+    if (!(s->wcs & SBSA_GWDT_WCS_EN)) {
+        return;
+    }
+
+    /*
+     * Extract the upper 16 bits from woru & 32 bits from worl
+     * registers to construct the 48 bit offset value
+     */
+    timeout = s->woru;
+    timeout <<= 32;
+    timeout |= s->worl;
+    timeout = muldiv64(timeout, NANOSECONDS_PER_SECOND, s->freq);
+    timeout += qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    /*
+     * We only call this function for an explicit refresh (which
+     * clears WS0 and WS1) or after the first timeout setting WS0;
+     * so we can always load the compare registers with the new
+     * timeout value (which is not permitted when the second timeout
+     * that sets WS1 happens).
+     */
+    g_assert(!(s->wcs & SBSA_GWDT_WCS_WS1));
+
+    s->wcvu = timeout >> 32;
+    s->wcvl = timeout;
+
+    sbsa_gwdt_set_timer(s, timeout);
+}
+
+static void sbsa_gwdt_wcv_update_timer(SBSA_GWDTState *s)
+{
+    if (s->wcs & SBSA_GWDT_WCS_EN) {
+        sbsa_gwdt_set_timer(s, (uint64_t)s->wcvu << 32 | s->wcvl);
     }
 }
 
@@ -132,9 +167,7 @@ static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
 
     trace_sbsa_gwdt_refresh_write(offset, data);
     if (offset == SBSA_GWDT_WRR) {
-        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
-
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
     } else {
         qemu_log_mask(LOG_GUEST_ERROR, "bad address in refresh frame write :"
                         " 0x%x\n", (int)offset);
@@ -150,29 +183,29 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
     case SBSA_GWDT_WCS:
         s->wcs = data & SBSA_GWDT_WCS_EN;
         qemu_set_irq(s->irq, 0);
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WOR:
         s->worl = data;
-        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
         qemu_set_irq(s->irq, 0);
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WORU:
         s->woru = data & SBSA_GWDT_WOR_MASK;
-        s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
         qemu_set_irq(s->irq, 0);
-        sbsa_gwdt_update_timer(s, EXPLICIT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, EXPLICIT_REFRESH);
         break;
 
     case SBSA_GWDT_WCV:
         s->wcvl = data;
+        sbsa_gwdt_wcv_update_timer(s);
         break;
 
     case SBSA_GWDT_WCVU:
         s->wcvu = data;
+        sbsa_gwdt_wcv_update_timer(s);
         break;
 
     default:
@@ -203,7 +236,7 @@ static void sbsa_gwdt_timer_sysinterrupt(void *opaque)
     if (!(s->wcs & SBSA_GWDT_WCS_WS0)) {
         s->wcs |= SBSA_GWDT_WCS_WS0;
         trace_sbsa_gwdt_ws0_asserted();
-        sbsa_gwdt_update_timer(s, TIMEOUT_REFRESH);
+        sbsa_gwdt_wor_update_timer(s, TIMEOUT_REFRESH);
         qemu_set_irq(s->irq, 1);
     } else {
         s->wcs |= SBSA_GWDT_WCS_WS1;

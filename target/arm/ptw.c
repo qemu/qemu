@@ -2720,6 +2720,11 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
     ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
     bool is_user = regime_is_user(mmu_idx);
     bool secure = arm_space_is_secure(ptw->in_space);
+    uint32_t rsize_min = 1;
+
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        rsize_min = arm_feature(env, ARM_FEATURE_V7) ? 4 : 7;
+    }
 
     result->f.phys_addr = address;
     result->f.lg_page_size = TARGET_PAGE_BITS;
@@ -2748,11 +2753,13 @@ static bool get_phys_addr_pmsav7(CPUARMState *env,
                 continue;
             }
 
-            if (!rsize) {
+            if (rsize < rsize_min) {
                 qemu_log_mask(LOG_GUEST_ERROR,
-                              "DRSR[%d]: Rsize field cannot be 0\n", n);
+                              "DRSR[%d]: invalid Rsize field 0x%x\n",
+                              n, rsize);
                 continue;
             }
+
             rsize++;
             rmask = (1ull << rsize) - 1;
 
@@ -3901,7 +3908,8 @@ static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
             /* PMSAv8 */
             ret = get_phys_addr_pmsav8(env, ptw, address, access_type,
                                        result, fi);
-        } else if (arm_feature(env, ARM_FEATURE_V7)) {
+        } else if (arm_feature(env, ARM_FEATURE_V7) ||
+                   arm_feature(env, ARM_FEATURE_M)) {
             /* PMSAv7 */
             ret = get_phys_addr_pmsav7(env, ptw, address, access_type,
                                        result, fi);
