@@ -736,3 +736,29 @@ parallels_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 
     return ret;
 }
+
+void parallels_get_bitmap_info_list(BlockDriverState *bs,
+                                    ParallelsBitmapInfoList **info_list)
+{
+    BdrvDirtyBitmap *bitmap;
+    ParallelsBitmapInfoList **tail = info_list;
+
+    *info_list = NULL;
+
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        ParallelsBitmapInfo *info;
+
+        if (!bdrv_dirty_bitmap_get_persistence(bitmap)) {
+            continue;
+        }
+
+        info = g_new0(ParallelsBitmapInfo, 1);
+        info->name = g_strdup(bdrv_dirty_bitmap_name(bitmap));
+        info->granularity = bdrv_dirty_bitmap_granularity(bitmap);
+        if (bdrv_dirty_bitmap_inconsistent(bitmap)) {
+            info->has_inconsistent = true;
+            info->inconsistent = true;
+        }
+        QAPI_LIST_APPEND(tail, info);
+    }
+}

@@ -1624,6 +1624,25 @@ static bool parallels_is_support_dirty_bitmaps(BlockDriverState *bs)
     return 1;
 }
 
+static ImageInfoSpecific * GRAPH_RDLOCK
+parallels_get_specific_info(BlockDriverState *bs, Error **errp)
+{
+    ImageInfoSpecificParallels *parallels_info;
+    ImageInfoSpecific *spec_info;
+
+    parallels_info = g_new0(ImageInfoSpecificParallels, 1);
+    parallels_get_bitmap_info_list(bs, &parallels_info->bitmaps);
+    parallels_info->has_bitmaps = !!parallels_info->bitmaps;
+
+    spec_info = g_new(ImageInfoSpecific, 1);
+    *spec_info = (ImageInfoSpecific){
+        .type = IMAGE_INFO_SPECIFIC_KIND_PARALLELS,
+        .u.parallels.data = parallels_info,
+    };
+
+    return spec_info;
+}
+
 static BlockDriver bdrv_parallels = {
     .format_name                = "parallels",
     .instance_size              = sizeof(BDRVParallelsState),
@@ -1653,6 +1672,7 @@ static BlockDriver bdrv_parallels = {
                                   parallels_co_can_store_new_dirty_bitmap,
     .bdrv_co_remove_persistent_dirty_bitmap =
                                   parallels_co_remove_persistent_dirty_bitmap,
+    .bdrv_get_specific_info     = parallels_get_specific_info,
 };
 
 static void bdrv_parallels_init(void)

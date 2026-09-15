@@ -189,6 +189,16 @@
   } }
 
 ##
+# @ImageInfoSpecificParallels:
+#
+# @bitmaps: A list of parallels bitmap details
+#
+# Since: 11.2
+##
+{ 'struct': 'ImageInfoSpecificParallels',
+  'data': { '*bitmaps': ['ParallelsBitmapInfo'] } }
+
+##
 # @ImageInfoSpecificKind:
 #
 # @luks: Since 2.7
@@ -197,10 +207,12 @@
 #
 # @file: Since 8.0
 #
+# @parallels: Since 11.2
+#
 # Since: 1.7
 ##
 { 'enum': 'ImageInfoSpecificKind',
-  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd', 'file' ] }
+  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd', 'file', 'parallels' ] }
 
 ##
 # @ImageInfoSpecificQCow2Wrapper:
@@ -256,6 +268,16 @@
   'data': { 'data': 'ImageInfoSpecificFile' } }
 
 ##
+# @ImageInfoSpecificParallelsWrapper:
+#
+# @data: image information specific to Parallels
+#
+# Since: 11.2
+##
+{ 'struct': 'ImageInfoSpecificParallelsWrapper',
+  'data': { 'data': 'ImageInfoSpecificParallels' } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information
@@ -273,7 +295,8 @@
       'vmdk': 'ImageInfoSpecificVmdkWrapper',
       'luks': 'ImageInfoSpecificLUKSWrapper',
       'rbd': 'ImageInfoSpecificRbdWrapper',
-      'file': 'ImageInfoSpecificFileWrapper'
+      'file': 'ImageInfoSpecificFileWrapper',
+      'parallels': 'ImageInfoSpecificParallelsWrapper'
   } }
 
 ##
@@ -750,6 +773,24 @@
 { 'struct': 'Qcow2BitmapInfo',
   'data': {'name': 'str', 'granularity': 'uint32',
            'flags': ['Qcow2BitmapInfoFlags'] } }
+
+##
+# @ParallelsBitmapInfo:
+#
+# Parallels bitmap information.
+#
+# @name: the name of the bitmap
+#
+# @granularity: granularity of the bitmap in bytes
+#
+# @inconsistent: true if the bitmap is in an inconsistent state and
+#     cannot be used
+#
+# Since: 11.2
+##
+{ 'struct': 'ParallelsBitmapInfo',
+  'data': { 'name': 'str', 'granularity': 'uint32',
+            '*inconsistent': 'bool' } }
 
 ##
 # @BlockLatencyHistogramInfo:

@@ -25,7 +25,8 @@ import uuid
 from qemu.utils import VerboseProcessError
 
 import iotests
-from iotests import qemu_nbd_popen, qemu_img, qemu_img_map, log, file_path
+from iotests import qemu_nbd_popen, qemu_img, qemu_img_create, qemu_img_map, \
+    qemu_io, log, file_path, QemuStorageDaemon
 
 iotests.script_initialize(supported_fmts=['parallels'])
 
@@ -258,3 +259,217 @@ def check_multi_l1():
 
 
 check_multi_l1()
+
+
+# Storing a bitmap. The driver has to produce the extension itself here,
+# so the images are real ones rather than hand crafted clusters.
+
+INUSE_MAGIC = 0x746F6E59
+INUSE_OFF = 0x2c
+EXT_OFF = 0x38
+TRACKS_OFF = 0x1c
+
+stored = file_path('stored')
+copy = file_path('copy')
+STORED = '9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69'
+OTHER = '11111111-2222-3333-4444-555555555555'
+MERGED = '22222222-3333-4444-5555-666666666666'
+
+
+def read_header(off, fmt):
+    with open(stored, 'rb') as f:
+        return struct.unpack_from(fmt, f.read(0x40), off)[0]
+
+
+def in_use():
+    return read_header(INUSE_OFF, '<I') == INUSE_MAGIC
+
+
+def bitmaps_in_file():
+    """The bitmaps the image file holds right now, node open or not."""
+    ext_off = read_header(EXT_OFF, '<Q') * 512
+    if ext_off == 0:
+        return []
+    with open(stored, 'rb') as f:
+        f.seek(ext_off)
+        ext = f.read(read_header(TRACKS_OFF, '<I') * 512)
+
+    names, pos = [], EH_SIZE
+    while pos + FH_SIZE <= len(ext):
+        magic, _, data_size, _ = struct.unpack_from('<QQII', ext, pos)
+        if magic == 0:
+            break
+        if magic == BITMAP_MAGIC:
+            names.append(struct.unpack_from('<16s', ext, pos + FH_SIZE + 8)[0])
+        pos += FH_SIZE + ((data_size + 7) & ~7)
+    return names
+
+
+def bitmaps_reported():
+    info = iotests.qemu_img_info('-f', iotests.imgfmt, stored)
+    data = info.get('format-specific', {}).get('data', {})
+    return [b['name'] for b in data.get('bitmaps', [])]
+
+
+def make_image(*bitmaps, size='8M', cluster_size=None):
+    opts = ['-o', f'cluster_size={cluster_size}'] if cluster_size else []
+    qemu_img_create('-f', iotests.imgfmt, *opts, stored, size)
+    for name in bitmaps:
+        qemu_img('bitmap', '--add', '-f', iotests.imgfmt, stored, name)
+
+
+def refuse(reason, size):
+    """Add a fine grained bitmap which the Format Extension can not hold."""
+    log(f'--- {reason}')
+    make_image(size=size, cluster_size=512)
+    res = qemu_img('bitmap', '--add', '-g', '512', '-f', iotests.imgfmt,
+                   stored, STORED, check=False)
+    log(iotests.filter_testfiles(res.stdout).strip())
+
+
+def open_node():
+    daemon = QemuStorageDaemon(qmp=True)
+    daemon.cmd('blockdev-add',
+               {'driver': iotests.imgfmt, 'node-name': 'n0',
+                'file': {'driver': 'file', 'filename': stored}})
+    return daemon
+
+
+def stored_dirty(name, size, *writes):
+    """Dirty the given ranges, then read the stored bitmap back over NBD."""
+    log(f'--- {name}')
+    make_image(STORED, size=size)
+    qemu_io('-f', iotests.imgfmt,
+            *[arg for w in writes for arg in ('-c', w)], stored)
+
+    opts = f'driver=nbd,server.type=unix,server.path={nbd_sock}' \
+           f',x-dirty-bitmap=qemu:dirty-bitmap:{STORED}'
+    with qemu_nbd_popen('--read-only', f'--socket={nbd_sock}',
+                        f'--bitmap={STORED}', '-f', iotests.imgfmt, stored):
+        mapping = qemu_img_map('--image-opts', opts)
+
+    for chunk in mapping:
+        if not chunk['data']:
+            log('    dirty %d MiB + %d KiB' % (chunk['start'] // (1 << 20),
+                                               chunk['length'] // 1024))
+
+
+# A bitmap is stored as an L1 table of clusters holding its serialized
+# bits, with an entry of one standing for a chunk which is dirty as a
+# whole. Both of those have to describe exactly what was written.
+stored_dirty('three separate ranges', '64M',
+             'write -P 0x11 0 64k', 'write -P 0x22 4M 128k',
+             'write -P 0x33 40M 64k')
+stored_dirty('the whole image', '8M', 'write -P 0x11 0 8M')
+stored_dirty('less than a cluster', '4M', 'write -P 0x11 0 1M')
+stored_dirty('the tail of the image', '8M', 'write -P 0x11 6M 2M')
+
+# The L1 table shares the Format Extension cluster with the feature
+# headers and the end of features marker, and a small cluster with a fine
+# granularity does not leave room for it. The marker needs room of its own
+# behind the L1 table, so a bitmap which fills the cluster to within a
+# header of the end can not be stored either.
+refuse('a bitmap too large for the Format Extension cluster', '4G')
+refuse('a bitmap leaving no room for the end of features marker', '104M')
+
+# The cluster holds every bitmap of the image at once, so what still fits
+# depends on what is stored there already.
+log('--- a bitmap which does not fit next to the ones already stored')
+make_image(size='64M', cluster_size=512)
+for i in range(1, 9):
+    bm_uuid = '9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a%02d' % i
+    add_out = qemu_img('bitmap', '--add', '-f', iotests.imgfmt, stored,
+                       bm_uuid, check=False)
+    if add_out.returncode != 0:
+        log('    bitmap %d refused' % i)
+        log('    ' + iotests.filter_testfiles(add_out.stdout).strip())
+        break
+
+log('--- the ones which did fit are all still there')
+log('    %d bitmaps stored' % len(bitmaps_reported()))
+
+log('--- removing a bitmap reaches the image right away')
+make_image(STORED, OTHER)
+qsd = open_node()
+log(f'    stored before: {len(bitmaps_in_file())} bitmaps')
+qsd.cmd('block-dirty-bitmap-remove', {'node': 'n0', 'name': STORED})
+log(f'    stored after:  {len(bitmaps_in_file())} bitmaps, '
+    'without a clean close')
+qsd.stop()
+
+log('--- the in use flag comes back when a node is activated again')
+make_image(STORED)
+qsd = open_node()
+log(f'    in use while open:         {in_use()}')
+qsd.cmd('blockdev-set-active', {'node-name': 'n0', 'active': False})
+log(f'    in use after deactivation: {in_use()}')
+qsd.cmd('blockdev-set-active', {'node-name': 'n0', 'active': True})
+log(f'    in use after activation:   {in_use()}')
+qsd.stop()
+
+# The bitmap data cluster is allocated right behind the only data cluster,
+# so it starts at sector 4096 of a 4M image with the default cluster size.
+log('--- a bitmap which can not be written is reported, not lost in silence')
+make_image(STORED, size='4M')
+err_opts = (f'driver={iotests.imgfmt},file.driver=blkdebug,'
+            f'file.image.driver=file,file.image.filename={stored},'
+            f'file.inject-error.0.event=none,'
+            f'file.inject-error.0.iotype=write,'
+            f'file.inject-error.0.sector=4096')
+err_out = qemu_io('--image-opts', err_opts, '-c', 'write -P 0x11 0 64k',
+                  check=False)
+for err_line in iotests.filter_generated_node_ids(err_out.stdout).splitlines():
+    if 'Lost persistent bitmaps' in err_line:
+        log('    ' + err_line.strip())
+log(f'    in use after the failure:  {in_use()}')
+
+log('--- but the guest data went through, and the image says it is in use')
+read_out = qemu_io('-f', iotests.imgfmt, '-r', '-c', 'read -P 0x11 0 64k',
+                   stored)
+log(read_out.stdout, filters=[iotests.filter_generated_node_ids,
+                              iotests.filter_testfiles,
+                              iotests.filter_qemu_io])
+log('    %d bitmaps stored' % len(bitmaps_reported()))
+
+log('--- and the image is still readable')
+info_out = qemu_img('info', '-f', iotests.imgfmt, stored, check=False)
+log('image opened' if info_out.returncode == 0
+    else iotests.filter_testfiles(info_out.stdout).strip())
+
+
+# qemu-img-bitmaps drives these for qcow2 alone, as it is built on a
+# backing chain and a rebase, which parallels has neither of.
+
+log('--- bitmaps can not be preserved into raw')
+make_image(STORED)
+raw_out = qemu_img('convert', '--bitmaps', '-f', iotests.imgfmt, '-O',
+                   'raw', stored, copy, check=False)
+log('    ' + iotests.filter_testfiles(raw_out.stdout).strip())
+
+log('--- convert --bitmaps carries the bitmaps into the copy')
+make_image(STORED, OTHER)
+qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x11 1M 64k', stored)
+qemu_img('convert', '--bitmaps', '-f', iotests.imgfmt, '-O', iotests.imgfmt,
+         stored, copy)
+copy_info = iotests.qemu_img_info('-f', iotests.imgfmt, copy)
+copy_data = copy_info.get('format-specific', {}).get('data', {})
+log('    %d bitmaps in the copy' % len(copy_data.get('bitmaps', [])))
+
+log('--- merging one bitmap into a new one')
+qemu_img('bitmap', '--add', '--merge', STORED, '-f', iotests.imgfmt,
+         stored, MERGED)
+log('    %d bitmaps stored' % len(bitmaps_reported()))
+
+log('--- clearing a bitmap keeps it in the image')
+qemu_img('bitmap', '--clear', '-f', iotests.imgfmt, stored, STORED)
+log('    %d bitmaps stored' % len(bitmaps_reported()))
+
+log('--- remove-all sweeps every bitmap of the image')
+qemu_img('bitmap', '--remove-all', '-f', iotests.imgfmt, stored)
+log('    %d bitmaps after remove-all' % len(bitmaps_reported()))
+
+log('--- remove-all with --add leaves only the new bitmap')
+make_image(STORED, OTHER)
+qemu_img('bitmap', '--remove-all', '--add', '-f', iotests.imgfmt,
+         stored, MERGED)
+log('    ' + ' '.join(bitmaps_reported()))

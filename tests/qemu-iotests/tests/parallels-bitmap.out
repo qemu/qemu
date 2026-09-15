@@ -47,3 +47,60 @@ image opened
 Start NBD server
 dirty 32-64 GiB
 Kill NBD server
+--- three separate ranges
+Start NBD server
+Kill NBD server
+    dirty 0 MiB + 64 KiB
+    dirty 4 MiB + 128 KiB
+    dirty 40 MiB + 64 KiB
+--- the whole image
+Start NBD server
+Kill NBD server
+    dirty 0 MiB + 8192 KiB
+--- less than a cluster
+Start NBD server
+Kill NBD server
+    dirty 0 MiB + 1024 KiB
+--- the tail of the image
+Start NBD server
+Kill NBD server
+    dirty 6 MiB + 2048 KiB
+--- a bitmap too large for the Format Extension cluster
+qemu-img: Operation add on bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69 failed: Bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69 with granularity 512 does not fit into the Format Extension cluster: every bitmap of the image would need 16464 bytes of it, 488 are available
+--- a bitmap leaving no room for the end of features marker
+qemu-img: Operation add on bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69 failed: Bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69 with granularity 512 does not fit into the Format Extension cluster: every bitmap of the image would need 496 bytes of it, 488 are available
+--- a bitmap which does not fit next to the ones already stored
+    bitmap 8 refused
+    qemu-img: Operation add on bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a08 failed: Bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a08 with granularity 65536 does not fit into the Format Extension cluster: every bitmap of the image would need 536 bytes of it, 488 are available
+--- the ones which did fit are all still there
+    7 bitmaps stored
+--- removing a bitmap reaches the image right away
+    stored before: 2 bitmaps
+    stored after:  1 bitmaps, without a clean close
+--- the in use flag comes back when a node is activated again
+    in use while open:         True
+    in use after deactivation: False
+    in use after activation:   True
+--- a bitmap which can not be written is reported, not lost in silence
+    qemu-io: Lost persistent bitmaps during inactivation of node 'NODE_NAME': Can't save dirty bitmap 9b7b8b2e-1c4a-4d3f-8e6a-1f2d3c4b5a69: IO error: Input/output error
+    in use after the failure:  True
+--- but the guest data went through, and the image says it is in use
+qemu-io: warning: Dropping the Format Extension of node 'NODE_NAME', which does not look like one: Wrong parallels Format Extension magic: 0x1111111111111111, expected: 0xab234cef23dcea87
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+    0 bitmaps stored
+--- and the image is still readable
+image opened
+--- bitmaps can not be preserved into raw
+    qemu-img: Format driver 'raw' does not support bitmaps
+--- convert --bitmaps carries the bitmaps into the copy
+    2 bitmaps in the copy
+--- merging one bitmap into a new one
+    3 bitmaps stored
+--- clearing a bitmap keeps it in the image
+    3 bitmaps stored
+--- remove-all sweeps every bitmap of the image
+    0 bitmaps after remove-all
+--- remove-all with --add leaves only the new bitmap
+    22222222-3333-4444-5555-666666666666
