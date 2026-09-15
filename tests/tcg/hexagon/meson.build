@@ -69,6 +69,7 @@ tests += {
   'test_abs.S': {'cflags': asmflags},
   'test_bitcnt.S': {'cflags': asmflags},
   'test_bitsplit.S': {'cflags': asmflags},
+  'test_bitops.c': {'cflags': cflags},
   'test_call.S': {'cflags': asmflags},
   'test_clobber.S': {'cflags': asmflags},
   'test_cmp.S': {'cflags': asmflags},
