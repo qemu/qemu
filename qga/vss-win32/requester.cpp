@@ -17,6 +17,7 @@
 #include "install.h"
 #include <vswriter.h>
 #include <vsbackup.h>
+#include <aclapi.h>
 
 /* Max wait time for frozen event (VSS can only hold writes for 10 seconds) */
 #define VSS_TIMEOUT_FREEZE_MSEC 60000
@@ -27,10 +28,11 @@
 #define DEFAULT_VSS_BACKUP_TYPE VSS_BT_FULL
 
 #define err_set(e, err, fmt, ...) {                                         \
+    DWORD _e = (DWORD)(err);                                                \
     (e)->error_setg_win32_wrapper((e)->errp, __FILE__, __LINE__, __func__,  \
-                                   err, fmt ": Windows error 0x%lx",        \
-                                   ## __VA_ARGS__, err);                    \
-    qga_debug(fmt ": Windows error 0x%lx", ## __VA_ARGS__, err);            \
+                                   _e, fmt ": Windows error 0x%lx",         \
+                                   ## __VA_ARGS__, _e);                     \
+    qga_debug(fmt ": Windows error 0x%lx", ## __VA_ARGS__, _e);             \
 }
 /* Bad idea, works only when (e)->errp != NULL: */
 #define err_is_set(e) ((e)->errp && *(e)->errp)
@@ -170,7 +172,7 @@ static void AddComponents(ErrorSet *errset)
     unsigned int cComponents, c1, c2, j;
     COMPointer<IVssExamineWriterMetadata> pMetadata;
     COMPointer<IVssWMComponent> pComponent;
-    PVSSCOMPONENTINFO info;
+    PVSSCOMPONENTINFO info = NULL;
     HRESULT hr;
 
     hr = vss_ctx.pVssbc->GetWriterMetadataCount(&cWriters);
@@ -230,11 +232,11 @@ static void AddComponents(ErrorSet *errset)
                     goto out;
                 }
             }
-            SysFreeString(bstrWriterName);
-            bstrWriterName = NULL;
             pComponent->FreeComponentInfo(info);
             info = NULL;
         }
+        SysFreeString(bstrWriterName);
+        bstrWriterName = NULL;
     }
 out:
     if (bstrWriterName) {
@@ -297,23 +299,67 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     HRESULT hr;
     LONG ctx;
     GUID guidSnapshotSet = GUID_NULL;
+    SID_IDENTIFIER_AUTHORITY sia_nt = SECURITY_NT_AUTHORITY;
+    PSID pSidSystem = NULL, pSidAdmins = NULL;
     SECURITY_DESCRIPTOR sd;
     SECURITY_ATTRIBUTES sa;
+    EXPLICIT_ACCESS ea[2];
+    PACL pAcl = NULL;
     WCHAR short_volume_name[64], *display_name = short_volume_name;
-    DWORD wait_status;
+    DWORD wait_status, aclResult;
     int num_fixed_drives = 0, i;
     int num_mount_points = 0;
     VSS_BACKUP_TYPE vss_bt = get_vss_backup_type();
 
+    *num_vols = 0;
+
     if (vss_ctx.pVssbc) { /* already frozen */
-        *num_vols = 0;
         qga_debug("finished, already frozen");
         return;
     }
 
-    /* Allow unrestricted access to events */
+    /* Grant access to SYSTEM and Administrators only */
+    if (!AllocateAndInitializeSid(&sia_nt, 1,
+            SECURITY_LOCAL_SYSTEM_RID, 0, 0, 0, 0, 0, 0, 0,
+            &pSidSystem)) {
+        err_set(errset, GetLastError(), "failed to create SYSTEM SID");
+        goto out;
+    }
+    if (!AllocateAndInitializeSid(&sia_nt, 2,
+            SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
+            0, 0, 0, 0, 0, 0, &pSidAdmins)) {
+        DWORD err = GetLastError();
+        FreeSid(pSidSystem);
+        err_set(errset, err, "failed to create Administrators SID");
+        goto out;
+    }
+
+    ZeroMemory(&ea, sizeof(ea));
+    ea[0].grfAccessPermissions = EVENT_ALL_ACCESS;
+    ea[0].grfAccessMode = SET_ACCESS;
+    ea[0].grfInheritance = NO_INHERITANCE;
+    ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    ea[0].Trustee.ptstrName = (LPTSTR)pSidSystem;
+    ea[1].grfAccessPermissions = EVENT_ALL_ACCESS;
+    ea[1].grfAccessMode = SET_ACCESS;
+    ea[1].grfInheritance = NO_INHERITANCE;
+    ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[1].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    ea[1].Trustee.ptstrName = (LPTSTR)pSidAdmins;
+
+    aclResult = SetEntriesInAcl(2, ea, NULL, &pAcl);
+    if (aclResult != ERROR_SUCCESS) {
+        FreeSid(pSidSystem);
+        FreeSid(pSidAdmins);
+        err_set(errset, aclResult, "failed to create ACL for events");
+        goto out;
+    }
+    FreeSid(pSidSystem);
+    FreeSid(pSidAdmins);
+
     InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
-    SetSecurityDescriptorDacl(&sd, TRUE, NULL, FALSE);
+    SetSecurityDescriptorDacl(&sd, TRUE, pAcl, FALSE);
     sa.nLength = sizeof(sa);
     sa.lpSecurityDescriptor = &sd;
     sa.bInheritHandle = FALSE;
@@ -432,9 +478,9 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     }
 
     if (!mountpoints) {
-        volume = FindFirstVolumeW(short_volume_name, sizeof(short_volume_name));
+        volume = FindFirstVolumeW(short_volume_name, ARRAYSIZE(short_volume_name));
         if (volume == INVALID_HANDLE_VALUE) {
-            err_set(errset, hr, "failed to find first volume");
+            err_set(errset, GetLastError(), "failed to find first volume");
             goto out;
         }
 
@@ -447,7 +493,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
                     WCHAR volume_path_name[MAX_PATH];
                     if (GetVolumePathNamesForVolumeNameW(
                             short_volume_name, volume_path_name,
-                            sizeof(volume_path_name), NULL) &&
+                            ARRAYSIZE(volume_path_name), NULL) &&
                             *volume_path_name) {
                         display_name = volume_path_name;
                     }
@@ -459,7 +505,14 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
                 num_fixed_drives++;
             }
             if (!FindNextVolumeW(volume, short_volume_name,
-                                 sizeof(short_volume_name))) {
+                                 ARRAYSIZE(short_volume_name))) {
+                DWORD err = GetLastError();
+                if (err != ERROR_NO_MORE_FILES) {
+                    err_set(errset, err,
+                            "failed to find next volume");
+                    FindVolumeClose(volume);
+                    goto out;
+                }
                 FindVolumeClose(volume);
                 break;
             }
@@ -505,7 +558,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     for (i = 0; i < VSS_TIMEOUT_FREEZE_MSEC/VSS_TIMEOUT_EVENT_MSEC; i++) {
         HRESULT hr2 = vss_ctx.pAsyncSnapshot->QueryStatus(&hr, NULL);
         if (FAILED(hr2)) {
-            err_set(errset, hr, "failed to do snapshot set");
+            err_set(errset, hr2, "failed to query snapshot set status");
             goto out;
         }
         if (hr != VSS_S_ASYNC_PENDING) {
@@ -542,6 +595,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
     }
 
     qga_debug("end successful");
+    LocalFree(pAcl);
     return;
 
 out:
@@ -550,6 +604,7 @@ out:
     }
 
 out1:
+    LocalFree(pAcl);
     requester_cleanup();
 
     qga_debug_end;

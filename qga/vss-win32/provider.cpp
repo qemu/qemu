@@ -108,7 +108,7 @@ STDMETHODIMP_(ULONG) CQGAVSSEnumObject::AddRef()
 STDMETHODIMP_(ULONG) CQGAVSSEnumObject::Release()
 {
     long nRefCount = InterlockedDecrement(&m_nRefCount);
-    if (m_nRefCount == 0) {
+    if (nRefCount == 0) {
         delete this;
     }
     return nRefCount;
@@ -117,7 +117,9 @@ STDMETHODIMP_(ULONG) CQGAVSSEnumObject::Release()
 STDMETHODIMP CQGAVSSEnumObject::Next(
     ULONG celt, VSS_OBJECT_PROP *rgelt, ULONG *pceltFetched)
 {
-    *pceltFetched = 0;
+    if (pceltFetched) {
+        *pceltFetched = 0;
+    }
     return S_FALSE;
 }
 
@@ -210,7 +212,8 @@ CQGAVssProvider::~CQGAVssProvider()
 STDMETHODIMP CQGAVssProvider::QueryInterface(REFIID riid, void **ppObj)
 {
     if (riid == IID_IUnknown) {
-        *ppObj = static_cast<void*>(this);
+        *ppObj = static_cast<void*>(
+            static_cast<IVssSoftwareSnapshotProvider*>(this));
         AddRef();
         return S_OK;
     }
@@ -244,7 +247,7 @@ STDMETHODIMP_(ULONG) CQGAVssProvider::AddRef()
 STDMETHODIMP_(ULONG) CQGAVssProvider::Release()
 {
     long nRefCount = InterlockedDecrement(&m_nRefCount);
-    if (m_nRefCount == 0) {
+    if (nRefCount == 0) {
         delete this;
     }
     return nRefCount;
@@ -477,7 +480,7 @@ STDMETHODIMP_(ULONG) CQGAVssProviderFactory::AddRef()
 STDMETHODIMP_(ULONG) CQGAVssProviderFactory::Release()
 {
     long nRefCount = InterlockedDecrement(&m_nRefCount);
-    if (m_nRefCount == 0) {
+    if (nRefCount == 0) {
         delete this;
     }
     return nRefCount;
@@ -533,11 +536,11 @@ BOOL WINAPI DllMain(HINSTANCE hinstDll, DWORD dwReason, LPVOID lpReserved);
 EXTERN_C
 BOOL WINAPI DllMain(HINSTANCE hinstDll, DWORD dwReason, LPVOID lpReserved)
 {
-    qga_debug("begin, reason = %lu", dwReason);
+    OutputDebugStringA(QGA_PROVIDER_NAME ": DllMain begin\n");
     if (dwReason == DLL_PROCESS_ATTACH) {
         g_hinstDll = hinstDll;
         DisableThreadLibraryCalls(hinstDll);
     }
-    qga_debug_end;
+    OutputDebugStringA(QGA_PROVIDER_NAME ": DllMain end\n");
     return TRUE;
 }

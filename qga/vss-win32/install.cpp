@@ -61,7 +61,7 @@ static void errmsg(DWORD err, const char *text)
 
 static void errmsg_dialog(DWORD err, const char *text, const char *opt = "")
 {
-    char *msg, buf[512];
+    char *msg = NULL, buf[512] = "";
 
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                   FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -241,10 +241,27 @@ out:
     return hr;
 }
 
+static void qga_vss_open_log(void)
+{
+    char path[MAX_PATH];
+    UINT n;
+
+    n = GetSystemWindowsDirectoryA(path, sizeof(path));
+    if (n == 0 || n >= sizeof(path)) {
+        return;
+    }
+    snprintf(path + n, sizeof(path) - n,
+             "\\Temp\\qga-vss-install.log");
+    if (freopen(path, "a", stderr)) {
+        setvbuf(stderr, NULL, _IONBF, 0);
+    }
+}
+
 /* Unregister this module from COM+ Applications Catalog */
 STDAPI COMUnregister(void);
 STDAPI COMUnregister(void)
 {
+    qga_vss_open_log();
     qga_debug_begin;
 
     HRESULT hr;
@@ -260,6 +277,7 @@ out:
 STDAPI COMRegister(void);
 STDAPI COMRegister(void)
 {
+    qga_vss_open_log();
     qga_debug_begin;
 
     HRESULT hr;
@@ -572,6 +590,7 @@ namespace _com_util
 /* Stop QGA VSS provider service using Winsvc API  */
 STDAPI StopService(void)
 {
+    SERVICE_STATUS status;
     qga_debug_begin;
 
     HRESULT hr = S_OK;
@@ -590,14 +609,18 @@ STDAPI StopService(void)
         hr =  E_FAIL;
         goto out;
     }
-    if (!(ControlService(service, SERVICE_CONTROL_STOP, NULL))) {
+    if (!(ControlService(service, SERVICE_CONTROL_STOP, &status))) {
         errmsg(E_FAIL, "Failed to stop service");
         hr = E_FAIL;
     }
 
 out:
-    CloseServiceHandle(service);
-    CloseServiceHandle(manager);
+    if (service) {
+        CloseServiceHandle(service);
+    }
+    if (manager) {
+        CloseServiceHandle(manager);
+    }
     qga_debug_end;
     return hr;
 }
