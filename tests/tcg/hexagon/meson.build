@@ -74,6 +74,7 @@ tests += {
   'test_clobber.S': {'cflags': asmflags},
   'test_cmp.S': {'cflags': asmflags},
   'test_cond_branch.c': {'cflags': cflags},
+  'test_dczeroa.c': {'cflags': cflags},
   'test_dotnew.S': {'cflags': asmflags},
   'test_ext.S': {'cflags': asmflags},
   'test_fibonacci.S': {'cflags': asmflags},
