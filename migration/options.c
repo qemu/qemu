@@ -273,8 +273,9 @@ static void set_StrOrNull(Object *obj, Visitor *v, const char *name,
 
 static void release_StrOrNull(Object *obj, const char *name, void *opaque)
 {
-    const Property *prop = opaque;
-    qapi_free_StrOrNull(*(StrOrNull **)object_field_prop_ptr(obj, prop));
+    StrOrNull **ptr = object_field_prop_ptr(obj, opaque);
+
+    g_clear_pointer(ptr, qapi_free_StrOrNull);
 }
 
 static void set_default_value_tls_opt(ObjectProperty *op, const Property *prop)
@@ -1067,7 +1068,7 @@ AnnounceParameters *migrate_announce_params(void)
     return &ap;
 }
 
-static bool migrate_params_free(MigrationParameters *params, Error **errp)
+bool migrate_params_free(MigrationParameters *params, Error **errp)
 {
     Visitor *v = qapi_dealloc_visitor_new();
     bool ret;
