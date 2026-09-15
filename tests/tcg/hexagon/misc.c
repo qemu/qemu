@@ -404,6 +404,48 @@ void test_dpmpyss_rnd_s0(void)
     check32(dpmpyss_rnd_s0(0x7fffffff, 0x7fffffff), 0x3fffffff);
 }
 
+static uint8_t storeimm_byte_array[16];
+static uint16_t storeimm_half_array[16];
+static uint32_t storeimm_word_array[16];
+
+/*
+ * Unconditional store-immediate instructions (S4_storeir*_io).
+ * The predicated forms are tested above; these exercise the base encoding
+ * with positive and negative #S8 immediate values.
+ */
+static void check_store_imm(void)
+{
+    /* memb(Rs+#u6:0) = #S8 */
+    memset(storeimm_byte_array, 0, sizeof(storeimm_byte_array));
+    asm volatile("memb(%[ptr] + #0) = #0x12\n\t"
+                 : : [ptr] "r"(storeimm_byte_array) : "memory");
+    check32(storeimm_byte_array[0], 0x12);
+
+    asm volatile("memb(%[ptr] + #3) = #-1\n\t"
+                 : : [ptr] "r"(storeimm_byte_array) : "memory");
+    check32(storeimm_byte_array[3], 0xff);
+
+    /* memh(Rs+#u6:1) = #S8 */
+    memset(storeimm_half_array, 0, sizeof(storeimm_half_array));
+    asm volatile("memh(%[ptr] + #0) = #0x34\n\t"
+                 : : [ptr] "r"(storeimm_half_array) : "memory");
+    check32(storeimm_half_array[0], 0x34);
+
+    asm volatile("memh(%[ptr] + #4) = #-1\n\t"
+                 : : [ptr] "r"(storeimm_half_array) : "memory");
+    check32(storeimm_half_array[2], 0xffff);
+
+    /* memw(Rs+#u6:2) = #S8 */
+    memset(storeimm_word_array, 0, sizeof(storeimm_word_array));
+    asm volatile("memw(%[ptr] + #0) = #0x56\n\t"
+                 : : [ptr] "r"(storeimm_word_array) : "memory");
+    check32(storeimm_word_array[0], 0x56);
+
+    asm volatile("memw(%[ptr] + #8) = #-1\n\t"
+                 : : [ptr] "r"(storeimm_word_array) : "memory");
+    check32(storeimm_word_array[2], 0xffffffff);
+}
+
 int main()
 {
     int32_t res;
@@ -546,6 +588,8 @@ int main()
     test_count_trailing_zeros_ones();
 
     test_dpmpyss_rnd_s0();
+
+    check_store_imm();
 
     puts(err ? "FAIL" : "PASS");
     return err;
