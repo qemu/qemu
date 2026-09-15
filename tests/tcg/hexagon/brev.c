@@ -106,7 +106,7 @@ uint32_t bitreverse(uint32_t x)
 
 int32_t sext8(int32_t x)
 {
-    return (x << 24) >> 24;
+    return (int32_t)((uint32_t)x << 24) >> 24;
 }
 
 #define TEST_BREV_LOAD(SZ, TYPE, BUF, SHIFT, EXP) \
