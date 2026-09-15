@@ -39,6 +39,7 @@ tests += {
     'expected_output': 'fcvt.ref',
   },
   'pcalign-a32.c': {'cflags': ['-marm']},
+  'issue4448.c': {},
 }
 
 # Vector SHA1
