@@ -55,7 +55,7 @@ static void test_load_tmp(void)
         pout += sizeof(MMVector);
 
         for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
-            expect[i].w[j] = buffer0[i].w[j] + buffer1[i].w[j] + 1;
+            expect[i].uw[j] = buffer0[i].uw[j] + buffer1[i].uw[j] + 1;
         }
     }
 
@@ -285,8 +285,8 @@ static void test_max_temps()
 
         /* The first two vectors come from the vadd-pair instruction */
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
-            expect[0].w[i] = buffer0[0].w[i] + buffer0[2].w[i];
-            expect[1].w[i] = buffer0[1].w[i] + buffer0[3].w[i];
+            expect[0].uw[i] = buffer0[0].uw[i] + buffer0[2].uw[i];
+            expect[1].uw[i] = buffer0[1].uw[i] + buffer0[3].uw[i];
         }
         /* The third vector comes from the vshuffe instruction */
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 2; i++) {
@@ -295,7 +295,7 @@ static void test_max_temps()
         }
         /* The fourth vector comes from the vadd-single instruction */
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
-            expect[3].w[i] = buffer0[1].w[i] + buffer0[5].w[i];
+            expect[3].uw[i] = buffer0[1].uw[i] + buffer0[5].uw[i];
         }
         /*
          * The fifth vector comes from the load to v4
@@ -306,10 +306,10 @@ static void test_max_temps()
         check_output_b(__LINE__, 5);
 }
 
-TEST_VEC_OP2(vadd_w, vadd, .w, w, 4, +)
+TEST_VEC_OP2(vadd_w, vadd, .w, uw, 4, +)
 TEST_VEC_OP2(vadd_h, vadd, .h, h, 2, +)
 TEST_VEC_OP2(vadd_b, vadd, .b, b, 1, +)
-TEST_VEC_OP2(vsub_w, vsub, .w, w, 4, -)
+TEST_VEC_OP2(vsub_w, vsub, .w, uw, 4, -)
 TEST_VEC_OP2(vsub_h, vsub, .h, h, 2, -)
 TEST_VEC_OP2(vsub_b, vsub, .b, b, 1, -)
 TEST_VEC_OP2(vxor, vxor, , d, 8, ^)
@@ -489,9 +489,9 @@ static void test_load_tmp_predicated(void)
         pout += sizeof(MMVector);
 
         for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
-            expect[i].w[j] =
-                pred ? buffer0[i].w[j] + buffer1[i].w[j] + 1
-                     : buffer0[i].w[j] + 2;
+            expect[i].uw[j] =
+                pred ? buffer0[i].uw[j] + buffer1[i].uw[j] + 1
+                     : buffer0[i].uw[j] + 2;
         }
         pred = !pred;
     }
