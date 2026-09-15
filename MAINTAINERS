@@ -749,6 +749,7 @@ F: hw/misc/axp2xx.c
 F: hw/gpio/allwinner-gpio.c
 F: include/hw/gpio/allwinner-gpio*
 F: tests/functional/arm/test_cubieboard.py
+F: tests/qtest/allwinner-gpio-test.c
 
 Allwinner-h3
 M: Niek Linnenbank <nieklinnenbank@gmail.com>
