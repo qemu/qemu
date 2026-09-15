@@ -1599,9 +1599,9 @@ static void migrate_params_apply(MigrationParameters *params)
     }
 }
 
-void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
+void qmp_migrate_set_parameters(MigrationParameters *input, Error **errp)
 {
-    MigrationParameters tmp;
+    MigrationParameters new;
 
     /*
      * Convert QTYPE_QNULL and NULL to the empty string (""). Even
@@ -1611,18 +1611,18 @@ void qmp_migrate_set_parameters(MigrationParameters *params, Error **errp)
      * the options to the rest of the migration code already use
      * return NULL when the empty string is found.
      */
-    tls_opt_to_str(params->tls_creds);
-    tls_opt_to_str(params->tls_hostname);
-    tls_opt_to_str(params->tls_authz);
+    tls_opt_to_str(input->tls_creds);
+    tls_opt_to_str(input->tls_hostname);
+    tls_opt_to_str(input->tls_authz);
 
-    migrate_params_test_apply(params, &tmp);
+    migrate_params_test_apply(input, &new);
 
-    if (migrate_params_check(&tmp, errp)) {
-        migrate_params_apply(params);
-        migrate_post_update_params(params, errp);
+    if (migrate_params_check(&new, errp)) {
+        migrate_params_apply(input);
+        migrate_post_update_params(input, errp);
     }
 
-    migrate_tls_opts_free(&tmp);
-    qapi_free_BitmapMigrationNodeAliasList(tmp.block_bitmap_mapping);
-    qapi_free_strList(tmp.cpr_exec_command);
+    migrate_tls_opts_free(&new);
+    qapi_free_BitmapMigrationNodeAliasList(new.block_bitmap_mapping);
+    qapi_free_strList(new.cpr_exec_command);
 }
