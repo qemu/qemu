@@ -1106,6 +1106,12 @@ struct ArchCPU {
      * kvm_arm_get_host_cpu_features() function to correctly populate the
      * field by reading the value from the KVM vCPU. If it is an AArch64
      * ID register then you also must update arm_clear_aarch64_idregs().
+     *
+     * The multiplexed register CCSIDR is handled as part of idregs[] -
+     * these contain values for each cache, in the order L1DCache, L1ICache,
+     * L2DCache, L2ICache, etc. Currently only 16 indexes into CCSIDR are
+     * supported because we don't implement separate MTE Allocation Tag caches.
+     * See {G,S}ET_IDREG_DEMUX() accessors.
      */
     struct ARMISARegisters {
         uint32_t mvfr0;
@@ -1125,10 +1131,6 @@ struct ArchCPU {
     uint64_t pmceid0;
     uint64_t pmceid1;
     uint64_t mp_affinity; /* MP ID without feature bits */
-    /* The elements of this array are the CCSIDR values for each cache,
-     * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.
-     */
-    uint64_t ccsidr[16];
     uint64_t reset_cbar;
     uint32_t reset_auxcr;
     bool reset_hivecs;
@@ -2141,8 +2143,6 @@ FIELD(GPCBW, BWADDR, 0, 25)
 FIELD(MFAR, FPA, 12, 40)
 FIELD(MFAR, NSE, 62, 1)
 FIELD(MFAR, NS, 63, 1)
-
-QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
 
 /* If adding a feature bit which corresponds to a Linux ELF
  * HWCAP bit, remember to update the feature-bit-to-hwcap
