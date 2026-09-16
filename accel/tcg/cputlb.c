@@ -1583,7 +1583,7 @@ bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
     data->phys_addr = full->phys_addr | (addr & ~TARGET_PAGE_MASK);
 
     /* We must have an iotlb entry for MMIO */
-    if (tlb_addr & TLB_MMIO) {
+    if (full->slow_flags[access_type] & TLB_MMIO) {
         MemoryRegionSection *section =
             iotlb_to_section(cpu, full->xlat_section & ~TARGET_PAGE_MASK,
                              full->attrs);
