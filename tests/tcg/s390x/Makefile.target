@@ -51,6 +51,7 @@ TESTS+=ts
 TESTS+=ex-smc
 TESTS+=divide-to-integer
 TESTS+=stckf
+TESTS+=issue4449
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
