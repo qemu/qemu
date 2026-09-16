@@ -169,6 +169,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->tb = tb;
     db->pc_first = pc;
     db->pc_next = pc;
+    db->pc_second_page = -1;
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
     db->max_insns = *max_insns;
@@ -328,16 +329,18 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     /*
      * The read must conclude on the second page and not extend to a third.
      *
-     * TODO: We could allow the two pages to be virtually discontiguous,
-     * since we already allow the two pages to be physically discontiguous.
-     * The only reasonable use case would be executing an insn at the end
-     * of the address space wrapping around to the beginning.  For that,
-     * we would need to know the current width of the address space.
-     * In the meantime, assert.
+     * TODO: This doesn't handle address space wraparound properly for
+     * multi-byte reads, as we don't know the size of the address space here.
+     * But if the target translator wraps pc to 0 itself, and issues aligned
+     * reads, then this can work.
      */
-    base = (base & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    assert(((base ^ pc) & TARGET_PAGE_MASK) == 0);
-    assert(((base ^ last) & TARGET_PAGE_MASK) == 0);
+    if (db->pc_second_page == -1) {
+        db->pc_second_page = pc & TARGET_PAGE_MASK;
+    } else {
+        assert((pc & TARGET_PAGE_MASK) == db->pc_second_page);
+    }
+    assert((last & TARGET_PAGE_MASK) == db->pc_second_page);
+    base = db->pc_second_page;
     host = db->host_addr[1];
 
     if (host == NULL) {
@@ -415,16 +418,24 @@ static void record_save(DisasContextBase *db, vaddr pc,
 {
     int offset;
 
-    /* Do not record probes before the start of TB. */
-    if (pc < db->pc_first) {
-        return;
-    }
-
     /*
-     * In translator_access, we verified that pc is within 2 pages
-     * of pc_first, thus this will never overflow.
+     * In translator_ld, we verified that we touched no more than 2 pages,
+     * but we did not verify that they were virtually contiguous.
+     * Here, reimagine the two pages as virtually contiguous.
      */
-    offset = pc - db->pc_first;
+    if (likely(((db->pc_first ^ pc) & TARGET_PAGE_MASK) == 0)) {
+        /* first page */
+        /* Do not record probes before the start of TB. */
+        if (pc < db->pc_first) {
+            return;
+        }
+        offset = pc - db->pc_first;
+    } else {
+        int first_page_end_offset = -(db->pc_first | TARGET_PAGE_MASK);
+        assert(db->pc_second_page != -1);
+        assert((pc & TARGET_PAGE_MASK) == db->pc_second_page);
+        offset = pc - db->pc_second_page + first_page_end_offset;
+    }
 
     /*
      * Either the first or second page may be I/O.  If it is the second,
