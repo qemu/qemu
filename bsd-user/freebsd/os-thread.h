@@ -18,7 +18,7 @@
 int safe_thr_suspend(struct timespec *timeout);
 int safe__umtx_op(void *, int, unsigned long, void *, void *);
 
-#if defined(HOST_BIG_ENDIAN) == defined(TARGET_BIG_ENDIAN) && \
+#if HOST_BIG_ENDIAN == TARGET_BIG_ENDIAN && \
     (TARGET_ABI_BITS == HOST_LONG_BITS || defined(UMTX_OP__32BIT))
 #define _UMTX_OPTIMIZED
 #if defined(TARGET_ABI32)
