@@ -31,6 +31,8 @@
 
 void tcg_temp_free_internal(TCGTemp *);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(TCGTemp, tcg_temp_free_internal)
+
 void tcg_temp_free_i32(TCGv_i32 arg);
 void tcg_temp_free_i64(TCGv_i64 arg);
 void tcg_temp_free_i128(TCGv_i128 arg);
