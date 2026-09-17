@@ -418,12 +418,12 @@
 
 /* LOAD */
     C(0x1800, LR,      RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, 0)
-    D(0x5800, L,       RX_a,  Z,   0, a2, new, r1_32, ld32s, 0, 0)
-    D(0xe358, LY,      RXY_a, LD,  0, a2, new, r1_32, ld32s, 0, 0)
+    D(0x5800, L,       RX_a,  Z,   0, a2, new, r1_32, ld, 0, MO_BESL)
+    D(0xe358, LY,      RXY_a, LD,  0, a2, new, r1_32, ld, 0, MO_BESL)
     C(0xb904, LGR,     RRE,   Z,   0, r2_o, 0, r1, mov2, 0)
     C(0xb914, LGFR,    RRE,   Z,   0, r2_32s, 0, r1, mov2, 0)
-    D(0xe304, LG,      RXY_a, Z,   0, a2, r1, 0, ld64, 0, 0)
-    D(0xe314, LGF,     RXY_a, Z,   0, a2, r1, 0, ld32s, 0, 0)
+    D(0xe304, LG,      RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BEUQ)
+    D(0xe314, LGF,     RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BESL)
     F(0x2800, LDR,     RR_a,  Z,   0, f2, 0, f1, mov2, 0, IF_AFP1 | IF_AFP2)
     F(0x6800, LD,      RX_a,  Z,   0, m2_64, 0, f1, mov2, 0, IF_AFP1)
     F(0xed65, LDY,     RXY_a, LD,  0, m2_64, 0, f1, mov2, 0, IF_AFP1)
@@ -434,9 +434,9 @@
 /* LOAD IMMEDIATE */
     C(0xc001, LGFI,    RIL_a, EI,  0, i2, 0, r1, mov2, 0)
 /* LOAD RELATIVE LONG */
-    D(0xc40d, LRL,     RIL_b, GIE, 0, ri2, new, r1_32, ld32s, 0, MO_ALIGN)
-    D(0xc408, LGRL,    RIL_b, GIE, 0, ri2, r1, 0, ld64, 0, MO_ALIGN)
-    D(0xc40c, LGFRL,   RIL_b, GIE, 0, ri2, r1, 0, ld32s, 0, MO_ALIGN)
+    D(0xc40d, LRL,     RIL_b, GIE, 0, ri2, new, r1_32, ld, 0, MO_BESL | MO_ALIGN)
+    D(0xc408, LGRL,    RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BEUQ | MO_ALIGN)
+    D(0xc40c, LGFRL,   RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BESL | MO_ALIGN)
 /* LOAD ADDRESS */
     C(0x4100, LA,      RX_a,  Z,   0, a2, 0, r1, mov2, 0)
     C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
@@ -464,9 +464,9 @@
     C(0x1200, LTR,     RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, s32)
     C(0xb902, LTGR,    RRE,   Z,   0, r2_o, 0, r1, mov2, s64)
     C(0xb912, LTGFR,   RRE,   Z,   0, r2_32s, 0, r1, mov2, s64)
-    D(0xe312, LT,      RXY_a, EI,  0, a2, new, r1_32, ld32s, s64, 0)
-    D(0xe302, LTG,     RXY_a, EI,  0, a2, r1, 0, ld64, s64, 0)
-    D(0xe332, LTGF,    RXY_a, GIE, 0, a2, r1, 0, ld32s, s64, 0)
+    D(0xe312, LT,      RXY_a, EI,  0, a2, new, r1_32, ld, s64, MO_BESL)
+    D(0xe302, LTG,     RXY_a, EI,  0, a2, r1, 0, ld, s64, MO_BEUQ)
+    D(0xe332, LTGF,    RXY_a, GIE, 0, a2, r1, 0, ld, s64, MO_BESL)
     F(0xb302, LTEBR,   RRE,   Z,   0, e2, 0, cond_e1e2, mov2, f32, IF_BFP)
     F(0xb312, LTDBR,   RRE,   Z,   0, f2, 0, f1, mov2, f64, IF_BFP)
     F(0xb342, LTXBR,   RRE,   Z,   x2h, x2l, 0, x1_P, movx, f128, IF_BFP)
@@ -481,10 +481,10 @@
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
-    C(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld8s, 0)
-    C(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld8s, 0)
+    D(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld, 0, MO_SB)
+    D(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld, 0, MO_SB)
 /* LOAD BYTE HIGH */
-    C(0xe3c0, LBH,     RXY_a, HW,  0, a2, new, r1_32h, ld8s, 0)
+    D(0xe3c0, LBH,     RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_SB)
 /* LOAD COMPLEMENT */
     C(0x1300, LCR,     RR_a,  Z,   0, r2, new, r1_32, neg, neg32)
     C(0xb903, LCGR,    RRE,   Z,   0, r2, r1, 0, neg, neg64)
@@ -498,45 +498,45 @@
 /* LOAD HALFWORD */
     C(0xb927, LHR,     RRE,   EI,  0, r2_16s, 0, r1_32, mov2, 0)
     C(0xb907, LGHR,    RRE,   EI,  0, r2_16s, 0, r1, mov2, 0)
-    C(0x4800, LH,      RX_a,  Z,   0, a2, new, r1_32, ld16s, 0)
-    C(0xe378, LHY,     RXY_a, LD,  0, a2, new, r1_32, ld16s, 0)
-    C(0xe315, LGH,     RXY_a, Z,   0, a2, r1, 0, ld16s, 0)
+    D(0x4800, LH,      RX_a,  Z,   0, a2, new, r1_32, ld, 0, MO_BESW)
+    D(0xe378, LHY,     RXY_a, LD,  0, a2, new, r1_32, ld, 0, MO_BESW)
+    D(0xe315, LGH,     RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BESW)
 /* LOAD HALFWORD HIGH */
-    C(0xe3c4, LHH,     RXY_a, HW,  0, a2, new, r1_32h, ld16s, 0)
+    D(0xe3c4, LHH,     RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_BESW)
 /* LOAD HALFWORD IMMEDIATE */
     C(0xa708, LHI,     RI_a,  Z,   0, i2, 0, r1_32, mov2, 0)
     C(0xa709, LGHI,    RI_a,  Z,   0, i2, 0, r1, mov2, 0)
 /* LOAD HALFWORD RELATIVE LONG */
-    C(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld16s, 0)
-    C(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld16s, 0)
+    D(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld, 0, MO_BESW)
+    D(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BESW)
 /* LOAD HIGH */
-    D(0xe3ca, LFH,     RXY_a, HW,  0, a2, new, r1_32h, ld32u, 0, 0)
+    D(0xe3ca, LFH,     RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_BEUL)
 /* LOAG HIGH AND TRAP */
     C(0xe3c8, LFHAT,   RXY_a, LAT, 0, m2_32u, r1, 0, lfhat, 0)
 /* LOAD LOGICAL */
     C(0xb916, LLGFR,   RRE,   Z,   0, r2_32u, 0, r1, mov2, 0)
-    D(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld32u, 0, 0)
+    D(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BEUL)
 /* LOAD LOGICAL AND TRAP */
     C(0xe39d, LLGFAT,  RXY_a, LAT, 0, a2, r1, 0, llgfat, 0)
 /* LOAD LOGICAL RELATIVE LONG */
-    D(0xc40e, LLGFRL,  RIL_b, GIE, 0, ri2, r1, 0, ld32u, 0, MO_ALIGN)
+    D(0xc40e, LLGFRL,  RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BEUL | MO_ALIGN)
 /* LOAD LOGICAL CHARACTER */
     C(0xb994, LLCR,    RRE,   EI,  0, r2_8u, 0, r1_32, mov2, 0)
     C(0xb984, LLGCR,   RRE,   EI,  0, r2_8u, 0, r1, mov2, 0)
-    C(0xe394, LLC,     RXY_a, EI,  0, a2, new, r1_32, ld8u, 0)
-    C(0xe390, LLGC,    RXY_a, Z,   0, a2, r1, 0, ld8u, 0)
+    D(0xe394, LLC,     RXY_a, EI,  0, a2, new, r1_32, ld, 0, MO_UB)
+    D(0xe390, LLGC,    RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_UB)
 /* LOAD LOGICAL CHARACTER HIGH */
-    C(0xe3c2, LLCH,    RXY_a, HW,  0, a2, new, r1_32h, ld8u, 0)
+    D(0xe3c2, LLCH,    RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_UB)
 /* LOAD LOGICAL HALFWORD */
     C(0xb995, LLHR,    RRE,   EI,  0, r2_16u, 0, r1_32, mov2, 0)
     C(0xb985, LLGHR,   RRE,   EI,  0, r2_16u, 0, r1, mov2, 0)
-    C(0xe395, LLH,     RXY_a, EI,  0, a2, new, r1_32, ld16u, 0)
-    C(0xe391, LLGH,    RXY_a, Z,   0, a2, r1, 0, ld16u, 0)
+    D(0xe395, LLH,     RXY_a, EI,  0, a2, new, r1_32, ld, 0, MO_BEUW)
+    D(0xe391, LLGH,    RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_BEUW)
 /* LOAD LOGICAL HALFWORD HIGH */
-    C(0xe3c6, LLHH,    RXY_a, HW,  0, a2, new, r1_32h, ld16u, 0)
+    D(0xe3c6, LLHH,    RXY_a, HW,  0, a2, new, r1_32h, ld, 0, MO_BEUW)
 /* LOAD LOGICAL HALFWORD RELATIVE LONG */
-    C(0xc402, LLHRL,   RIL_b, GIE, 0, ri2, new, r1_32, ld16u, 0)
-    C(0xc406, LLGHRL,  RIL_b, GIE, 0, ri2, r1, 0, ld16u, 0)
+    D(0xc402, LLHRL,   RIL_b, GIE, 0, ri2, new, r1_32, ld, 0, MO_BEUW)
+    D(0xc406, LLGHRL,  RIL_b, GIE, 0, ri2, r1, 0, ld, 0, MO_BEUW)
 /* LOAD LOGICAL IMMEDIATE */
     D(0xc00e, LLIHF,   RIL_a, EI, 0, i2_32u_shl, 0, r1, mov2, 0, 32)
     D(0xc00f, LLILF,   RIL_a, EI, 0, i2_32u_shl, 0, r1, mov2, 0, 0)
@@ -588,11 +588,11 @@
     F(0xb340, LPXBR,   RRE,   Z,   x2h, x2l, new_P, x1_P, absf128, f128, IF_BFP)
     F(0xb370, LPDFR,   RRE,   FPSSH, 0, f2, new, f1, absf64, 0, IF_AFP1 | IF_AFP2)
 /* LOAD REVERSED */
-    C(0xb91f, LRVR,    RRE,   Z,   0, r2_32u, new, r1_32, rev32, 0)
+    C(0xb91f, LRVR,    RRE,   Z,   0, r2_o, new, r1_32, rev32, 0)
     C(0xb90f, LRVGR,   RRE,   Z,   0, r2_o, r1, 0, rev64, 0)
-    C(0xe31f, LRVH,    RXY_a, Z,   0, m2_16u, new, r1_16, rev16, 0)
-    C(0xe31e, LRV,     RXY_a, Z,   0, m2_32u, new, r1_32, rev32, 0)
-    C(0xe30f, LRVG,    RXY_a, Z,   0, m2_64, r1, 0, rev64, 0)
+    D(0xe31f, LRVH,    RXY_a, Z,   0, a2, new, r1_16, ld, 0, MO_LEUW)
+    D(0xe31e, LRV,     RXY_a, Z,   0, a2, new, r1_32, ld, 0, MO_LEUL)
+    D(0xe30f, LRVG,    RXY_a, Z,   0, a2, r1, 0, ld, 0, MO_LEUQ)
 /* LOAD ZERO */
     F(0xb374, LZER,    RRE,   Z,   0, 0, 0, e1, zero, 0, IF_AFP1)
     F(0xb375, LZDR,    RRE,   Z,   0, 0, 0, f1, zero, 0, IF_AFP1)
@@ -848,43 +848,43 @@
     F(0xed15, SQDB,    RXE,   Z,   0, m2_64, new, f1, sqdb, 0, IF_BFP)
 
 /* STORE */
-    D(0x5000, ST,      RX_a,  Z,   r1_o, a2, 0, 0, st32, 0, 0)
-    D(0xe350, STY,     RXY_a, LD,  r1_o, a2, 0, 0, st32, 0, 0)
-    D(0xe324, STG,     RXY_a, Z,   r1_o, a2, 0, 0, st64, 0, 0)
-    E(0x6000, STD,     RX_a,  Z,   f1, a2, 0, 0, st64, 0, 0, IF_AFP1)
-    E(0xed67, STDY,    RXY_a, LD,  f1, a2, 0, 0, st64, 0, 0, IF_AFP1)
-    E(0x7000, STE,     RX_a,  Z,   e1, a2, 0, 0, st32, 0, 0, IF_AFP1)
-    E(0xed66, STEY,    RXY_a, LD,  e1, a2, 0, 0, st32, 0, 0, IF_AFP1)
+    D(0x5000, ST,      RX_a,  Z,   r1_o, a2, 0, 0, st, 0, MO_BEUL)
+    D(0xe350, STY,     RXY_a, LD,  r1_o, a2, 0, 0, st, 0, MO_BEUL)
+    D(0xe324, STG,     RXY_a, Z,   r1_o, a2, 0, 0, st, 0, MO_BEUQ)
+    E(0x6000, STD,     RX_a,  Z,   f1, a2, 0, 0, st, 0, MO_BEUQ, IF_AFP1)
+    E(0xed67, STDY,    RXY_a, LD,  f1, a2, 0, 0, st, 0, MO_BEUQ, IF_AFP1)
+    E(0x7000, STE,     RX_a,  Z,   e1, a2, 0, 0, st, 0, MO_BEUL, IF_AFP1)
+    E(0xed66, STEY,    RXY_a, LD,  e1, a2, 0, 0, st, 0, MO_BEUL, IF_AFP1)
 /* STORE RELATIVE LONG */
-    D(0xc40f, STRL,    RIL_b, GIE, r1_o, ri2, 0, 0, st32, 0, MO_ALIGN)
-    D(0xc40b, STGRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st64, 0, MO_ALIGN)
+    D(0xc40f, STRL,    RIL_b, GIE, r1_o, ri2, 0, 0, st, 0, MO_BEUL | MO_ALIGN)
+    D(0xc40b, STGRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st, 0, MO_BEUQ | MO_ALIGN)
 /* STORE CHARACTER */
-    C(0x4200, STC,     RX_a,  Z,   r1_o, a2, 0, 0, st8, 0)
-    C(0xe372, STCY,    RXY_a, LD,  r1_o, a2, 0, 0, st8, 0)
+    D(0x4200, STC,     RX_a,  Z,   r1_o, a2, 0, 0, st, 0, MO_UB)
+    D(0xe372, STCY,    RXY_a, LD,  r1_o, a2, 0, 0, st, 0, MO_UB)
 /* STORE CHARACTER HIGH */
-    C(0xe3c3, STCH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st8, 0)
+    D(0xe3c3, STCH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st, 0, MO_UB)
 /* STORE CHARACTERS UNDER MASK */
     D(0xbe00, STCM,    RS_b,  Z,   r1_o, a2, 0, 0, stcm, 0, 0)
     D(0xeb2d, STCMY,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 0)
     D(0xeb2c, STCMH,   RSY_b, Z,   r1_o, a2, 0, 0, stcm, 0, 32)
 /* STORE HALFWORD */
-    C(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st16, 0)
-    C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
+    D(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st, 0, MO_BEUW)
+    D(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st, 0, MO_BEUW)
 /* STORE HALFWORD HIGH */
-    C(0xe3c7, STHH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st16, 0)
+    D(0xe3c7, STHH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st, 0, MO_BEUW)
 /* STORE HALFWORD RELATIVE LONG */
-    C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+    D(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st, 0, MO_BEUW)
 /* STORE HIGH */
-    D(0xe3cb, STFH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st32, 0, 0)
+    D(0xe3cb, STFH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st, 0, MO_BEUL)
 /* STORE ON CONDITION */
     D(0xebf3, STOC,    RSY_b, LOC, 0, 0, 0, 0, soc, 0, 0)
     D(0xebe3, STOCG,   RSY_b, LOC, 0, 0, 0, 0, soc, 0, 1)
 /* STORE HIGH ON CONDITION */
     D(0xebe1, STOCFH,  RSY_b, LOC2, 0, 0, 0, 0, soc, 0, 2)
 /* STORE REVERSED */
-    C(0xe33f, STRVH,   RXY_a, Z,   la2, r1_16u, new, m1_16, rev16, 0)
-    C(0xe33e, STRV,    RXY_a, Z,   la2, r1_32u, new, m1_32, rev32, 0)
-    C(0xe32f, STRVG,   RXY_a, Z,   la2, r1_o, new, m1_64, rev64, 0)
+    D(0xe33f, STRVH,   RXY_a, Z,   r1_o, a2, 0, 0, st, 0, MO_LEUW)
+    D(0xe33e, STRV,    RXY_a, Z,   r1_o, a2, 0, 0, st, 0, MO_LEUL)
+    D(0xe32f, STRVG,   RXY_a, Z,   r1_o, a2, 0, 0, st, 0, MO_LEUQ)
 
 /* STORE CLOCK */
     F(0xb205, STCK,    S,     Z,   la2, 0, new, 0, stck, 0, IF_IO)
