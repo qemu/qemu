@@ -1586,9 +1586,10 @@ static void machine_help_func(const QDict *qdict)
         if (mc->alias) {
             printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
         }
-        printf("%-20s %s%s%s\n", mc->name, mc->desc,
+        printf("%-20s %s%s%s%s\n", mc->name, mc->desc,
                mc->is_default ? " (default)" : "",
-               mc->deprecation_reason ? " (deprecated)" : "");
+               mc->deprecation_reason ? " (deprecated)" : "",
+               object_class_is_secure(OBJECT_CLASS(mc)) ? " (secure)" : "");
     }
 }
 
@@ -2201,10 +2202,17 @@ static void qemu_create_machine_containers(Object *machine)
     }
 }
 
-static void qemu_create_machine(QDict *qdict)
+static bool qemu_create_machine(QDict *qdict)
 {
+    Error *local_err = NULL;
     MachineClass *machine_class = select_machine(qdict, &error_fatal);
     object_set_machine_compat_props(machine_class->compat_props);
+
+    if (!object_class_check_security(OBJECT_CLASS(machine_class),
+                                     &local_err)) {
+        error_report_err(local_err);
+        return false;
+    }
 
     current_machine = MACHINE(object_new_with_class(OBJECT_CLASS(machine_class)));
     object_property_add_child(object_get_root(), "machine",
@@ -2237,6 +2245,8 @@ static void qemu_create_machine(QDict *qdict)
                                      false, &error_abort);
         qobject_unref(default_opts);
     }
+
+    return true;
 }
 
 static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
@@ -2412,6 +2422,11 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
         }
         goto bad;
     }
+
+    if (!object_class_check_security(OBJECT_CLASS(ac), errp)) {
+        goto bad;
+    }
+
     accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
     object_apply_compat_props(OBJECT(accel));
     qemu_opt_foreach(opts, accelerator_set_property,
@@ -3446,7 +3461,10 @@ void qemu_init(int argc, char **argv)
                             g_str_has_suffix(typename, ACCEL_CLASS_SUFFIX)) {
                             gchar **optname = g_strsplit(typename,
                                                          ACCEL_CLASS_SUFFIX, 0);
-                            printf("%s\n", optname[0]);
+                            printf("%s%s\n", optname[0],
+                                   object_class_is_secure(
+                                       OBJECT_CLASS(el->data)) ?
+                                   " (secure)" : "");
                             g_strfreev(optname);
                         }
                         g_free(typename);
@@ -3782,7 +3800,9 @@ void qemu_init(int argc, char **argv)
     /* Transfer QemuOpts options into machine options */
     parse_memory_options();
 
-    qemu_create_machine(machine_opts_dict);
+    if (!qemu_create_machine(machine_opts_dict)) {
+        exit(1);
+    }
 
     /*
      * Load incoming CPR state before any devices are created, because it

@@ -14,6 +14,7 @@
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qemu/ctype.h"
+#include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 
 CompatPolicy compat_policy;
@@ -57,6 +58,35 @@ bool compat_policy_input_ok(uint64_t features,
     }
     return true;
 }
+
+bool compat_policy_check_security(const CompatPolicy *policy,
+                                  const char *typename,
+                                  bool is_secure,
+                                  Error **errp)
+{
+    if (is_secure) {
+        return true;
+    }
+
+    switch (policy->insecure_types) {
+    case COMPAT_POLICY_SECURITY_ACCEPT:
+        return true;
+
+    case COMPAT_POLICY_SECURITY_REJECT:
+        error_setg(errp, "Type '%s' does not provide a security boundary "
+                   "to protect against untrusted data or actions", typename);
+        return false;
+
+    case COMPAT_POLICY_SECURITY_WARN:
+        warn_report("Type '%s' does not provide a security boundary "
+                    "to protect against untrusted data or actions", typename);
+        return true;
+
+    default:
+        g_assert_not_reached();
+    }
+}
+
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {

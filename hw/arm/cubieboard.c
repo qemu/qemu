@@ -133,5 +133,5 @@ static void cubieboard_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE_EXTENDED("cubieboard", MACHINE, CubieboardMachineState,
-                        cubieboard_machine_init, false,
+                        cubieboard_machine_init, false, false,
                         NULL)

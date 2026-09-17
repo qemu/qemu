@@ -704,7 +704,7 @@ static void integratorcp_machine_init(MachineClass *mc)
 }
 
 DEFINE_MACHINE_EXTENDED("integratorcp", MACHINE, IntegratorcpMachineState,
-                        integratorcp_machine_init, false,
+                        integratorcp_machine_init, false, false,
                         NULL)
 
 static const Property core_properties[] = {

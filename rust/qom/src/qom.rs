@@ -651,6 +651,9 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     /// Whether the object can be instantiated
     const ABSTRACT: bool = false;
 
+    /// Whether the object provides a security boundary for untrusted access
+    const SECURE: bool = false;
+
     /// Function that is called to initialize an object.  The parent class will
     /// have already been initialized so the type is only responsible for
     /// initializing its own members.
@@ -687,6 +690,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
         },
         instance_finalize: Some(drop_object::<Self>),
         abstract_: Self::ABSTRACT,
+        secure: Self::SECURE,
         class_size: core::mem::size_of::<Self::Class>(),
         class_init: Some(rust_class_init::<Self>),
         class_base_init: Self::CLASS_BASE_INIT,

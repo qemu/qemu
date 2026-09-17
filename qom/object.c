@@ -23,6 +23,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/forward-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/compat-policy.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qemu/id.h"
@@ -67,6 +68,7 @@ struct TypeImpl
     void (*instance_finalize)(Object *obj);
 
     bool abstract;
+    bool secure;
 
     const char *parent;
     TypeImpl *parent_type;
@@ -122,6 +124,7 @@ static TypeImpl *type_new(const TypeInfo *info)
     ti->instance_finalize = info->instance_finalize;
 
     ti->abstract = info->abstract;
+    ti->secure = info->secure;
 
     for (i = 0; info->interfaces && info->interfaces[i].type; i++) {
         ti->interfaces[i].typename = g_strdup(info->interfaces[i].type);
@@ -1142,6 +1145,11 @@ ObjectClass *object_get_class(Object *obj)
 bool object_class_is_abstract(ObjectClass *klass)
 {
     return klass->type->abstract;
+}
+
+bool object_class_is_secure(ObjectClass *klass)
+{
+    return klass->type->secure;
 }
 
 const char *object_class_get_name(ObjectClass *klass)
@@ -3140,6 +3148,14 @@ void object_class_property_set_description(ObjectClass *klass,
     op = g_hash_table_lookup(klass->properties, name);
     g_free(op->description);
     op->description = g_strdup(description);
+}
+
+bool object_class_check_security(ObjectClass *klass, Error **errp)
+{
+    return compat_policy_check_security(&compat_policy,
+                                        object_class_get_name(klass),
+                                        object_class_is_secure(klass),
+                                        errp);
 }
 
 static void object_class_init(ObjectClass *klass, const void *data)

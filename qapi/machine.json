@@ -196,6 +196,11 @@
 #     present when `query-machines` argument @compat-props is true.
 #     (since 9.1)
 #
+# @secure: If true, the machine is declared to provide a security
+#     boundary from the guest; if false the machine is either
+#     not providing a security boundary, or its status is undefined.
+#     (since 11.2)
+#
 # Features:
 #
 # @unstable: Member @compat-props is experimental.
@@ -209,7 +214,8 @@
             'deprecated': 'bool', '*default-cpu-type': 'str',
             '*default-ram-id': 'str', 'acpi': 'bool',
             '*compat-props': { 'type': ['CompatProperty'],
-                               'features': ['unstable'] } } }
+                               'features': ['unstable'] },
+            'secure': 'bool' } }
 
 ##
 # @query-machines:
