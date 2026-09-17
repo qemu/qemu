@@ -75,12 +75,25 @@ void loongarch_cpu_update_irq(LoongArchCPU *cpu, uint64_t old)
     }
 }
 
+static void loongarch_cpu_self_set_irq(CPUState *cs, run_on_cpu_data data)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    CPULoongArchState *env = cpu_env(cs);
+    CPUSysState *sys = env_sys(env);
+    int irq, level;
+    uint64_t old;
+
+    irq = data.host_int & ~BIT(31);
+    level = (data.host_int >> 31) & 1;
+    old = sys->CSR_ESTAT;
+    sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
+    loongarch_cpu_update_irq(cpu, old);
+}
+
 void loongarch_cpu_set_irq(void *opaque, int irq, int level)
 {
     LoongArchCPU *cpu = opaque;
-    CPULoongArchState *env = &cpu->env;
-    CPUSysState *sys = env_sys(env);
-    uint64_t old;
+    CPUState *cs = CPU(cpu);
 
     if (irq < 0 || irq >= N_IRQS) {
         return;
@@ -89,9 +102,9 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
     if (kvm_enabled()) {
         kvm_loongarch_set_interrupt(cpu, irq, level);
     } else if (tcg_enabled()) {
-        old = sys->CSR_ESTAT;
-        sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
-        loongarch_cpu_update_irq(cpu, old);
+        irq |= (level & 1) << 31;
+        async_run_on_cpu(cs, loongarch_cpu_self_set_irq,
+                         RUN_ON_CPU_HOST_INT(irq));
     }
 }
 
@@ -140,12 +153,6 @@ static void loongarch_la464_init_csr(DeviceState *dev)
         }
         set_csr_flag(LOONGARCH_CSR_IMPCTL1, CSRFL_UNUSED);
         set_csr_flag(LOONGARCH_CSR_IMPCTL2, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRCTL, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRINFO1, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRINFO2, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRENTRY, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRERA, CSRFL_UNUSED);
-        set_csr_flag(LOONGARCH_CSR_MERRSAVE, CSRFL_UNUSED);
         set_csr_flag(LOONGARCH_CSR_CTAG, CSRFL_UNUSED);
 
         for (i = env->perf_event_num; i < MAX_PERF_EVENTS; i++) {
@@ -457,33 +464,36 @@ static void loongarch_la132_initfn(Object *obj)
     cpu->ptw = ON_OFF_AUTO_OFF;
 }
 
-static void loongarch_max_initfn(Object *obj)
+static void loongarch_la664_initfn(Object *obj)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-    /* '-cpu max': use it for max supported CPU features */
+    uint32_t data;
+
     loongarch_la464_initfn(obj);
 
+    cpu->env.cpucfg[2] = FIELD_DP32(cpu->env.cpucfg[2], CPUCFG2, HPTW, 1);
     cpu->ptw = ON_OFF_AUTO_AUTO;
-    if (kvm_enabled()){
-        cpu->msgint=ON_OFF_AUTO_OFF;
-    }
-    if (tcg_enabled()) {
-        uint32_t data = cpu->env.cpucfg[2];
-        data = FIELD_DP32(data, CPUCFG2, HPTW, 1);
-        /* Enable LA v1.1 instructions */
-        data = FIELD_DP32(data, CPUCFG2, FRECIPE, 1);
-        data = FIELD_DP32(data, CPUCFG2, LAM_BH, 1);
-        data = FIELD_DP32(data, CPUCFG2, LAMCAS, 1);
-        data = FIELD_DP32(data, CPUCFG2, LLACQ_SCREL, 1);
-        data = FIELD_DP32(data, CPUCFG2, SCQ, 1);
-        cpu->env.cpucfg[2] = data;
+    cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
+    cpu->msgint = ON_OFF_AUTO_AUTO;
 
-        data = cpu->env.cpucfg[3];
-        data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
-        cpu->env.cpucfg[3] = data;
-	 cpu->env.cpucfg[1] = FIELD_DP32(cpu->env.cpucfg[1], CPUCFG1, MSG_INT, 1);
-        cpu->msgint = ON_OFF_AUTO_AUTO;
-    }
+    /* Enable LA v1.1 instructions */
+    data = cpu->env.cpucfg[2];
+    data = FIELD_DP32(data, CPUCFG2, FRECIPE, 1);
+    data = FIELD_DP32(data, CPUCFG2, LAM_BH, 1);
+    data = FIELD_DP32(data, CPUCFG2, LAMCAS, 1);
+    data = FIELD_DP32(data, CPUCFG2, LLACQ_SCREL, 1);
+    data = FIELD_DP32(data, CPUCFG2, SCQ, 1);
+    cpu->env.cpucfg[2] = data;
+
+    data = cpu->env.cpucfg[3];
+    data = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, 1);
+    cpu->env.cpucfg[3] = data;
+}
+
+static void loongarch_max_initfn(Object *obj)
+{
+    /* '-cpu max': use it for max supported CPU features */
+    loongarch_la664_initfn(obj);
 }
 
 #if defined(CONFIG_KVM)
@@ -720,11 +730,18 @@ static void loongarch_cpu_init(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+#ifdef CONFIG_TCG
+    CPULoongArchState *env = &cpu->env;
+    CPUTimerState *timer;
+#endif
 
     qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, N_IRQS);
 #ifdef CONFIG_TCG
-    timer_init_ns(&cpu->timer, QEMU_CLOCK_VIRTUAL,
-                  &loongarch_constant_timer_cb, cpu);
+    timer = env_timer(env);
+    timer->irq = IRQ_TIMER;
+    timer->cs  = CPU(obj);
+    timer_init_ns(&timer->timer, QEMU_CLOCK_VIRTUAL,
+                  &cpu_loongarch_timer_cb, timer);
 #endif
 #endif
 }
@@ -942,6 +959,8 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .abstract = true,
         .class_init = loongarch64_cpu_class_init,
     },
+
+    DEFINE_LOONGARCH_CPU_TYPE(64, "la664", loongarch_la664_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(64, "la464", loongarch_la464_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(32, "la132", loongarch_la132_initfn),
     DEFINE_LOONGARCH_CPU_TYPE(64, "max", loongarch_max_initfn),

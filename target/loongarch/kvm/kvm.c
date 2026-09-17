@@ -1150,6 +1150,7 @@ static int kvm_cpu_check_ptw(CPUState *cs, Error **errp)
     CPULoongArchState *env = cpu_env(cs);
     bool kvm_supported;
 
+    env->cpucfg[2] = FIELD_DP32(env->cpucfg[2], CPUCFG2, HPTW, 0);
     kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_PTW);
     if (cpu->ptw == ON_OFF_AUTO_ON) {
         if (!kvm_supported) {
@@ -1234,6 +1235,65 @@ static int kvm_cpu_check_msgint(CPUState *cs, Error **errp)
     return 0;
 }
 
+/* Check LoongArch Instruction Set 1.1 others feature */
+static int kvm_cpu_check_misc_v1_1(CPUState *cs, Error **errp)
+{
+    int ret;
+    uint64_t val, field;
+    struct kvm_device_attr attr;
+    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    uint32_t data;
+
+    val = 0;
+    attr.group = KVM_LOONGARCH_VCPU_CPUCFG;
+    attr.attr  = 2;
+    attr.addr  = (uint64_t)&val;
+    ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
+    if (!ret) {
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+    }
+
+    /* Disable LA 1.1 features if host cpucfg2 get not supported */
+    if (ret) {
+        val = 0;
+    }
+
+    data = cpu->env.cpucfg[2];
+    val &= data;
+    field = FIELD_EX32((uint32_t)val, CPUCFG2, FRECIPE);
+    data  = FIELD_DP32(data, CPUCFG2, FRECIPE, field);
+    field = FIELD_EX32((uint32_t)val, CPUCFG2, LAM_BH);
+    data = FIELD_DP32(data, CPUCFG2, LAM_BH, field);
+    field = FIELD_EX32((uint32_t)val, CPUCFG2, LAMCAS);
+    data = FIELD_DP32(data, CPUCFG2, LAMCAS, field);
+    field = FIELD_EX32((uint32_t)val, CPUCFG2, LLACQ_SCREL);
+    data = FIELD_DP32(data, CPUCFG2, LLACQ_SCREL, field);
+    field = FIELD_EX32((uint32_t)val, CPUCFG2, SCQ);
+    data = FIELD_DP32(data, CPUCFG2, SCQ, field);
+    cpu->env.cpucfg[2] = data;
+
+    val = 0;
+    attr.group = KVM_LOONGARCH_VCPU_CPUCFG;
+    attr.attr  = 3;
+    attr.addr  = (uint64_t)&val;
+    ret = kvm_vcpu_ioctl(cs, KVM_HAS_DEVICE_ATTR, &attr);
+    if (!ret) {
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_DEVICE_ATTR, &attr);
+    }
+
+    /* Disable LA 1.1 features if host cpucfg3 get not supported */
+    if (ret) {
+        val = 0;
+    }
+
+    data = cpu->env.cpucfg[3];
+    val &= data;
+    field = FIELD_EX32((uint32_t)val, CPUCFG3, DBAR_HINTS);
+    data  = FIELD_DP32(data, CPUCFG3, DBAR_HINTS, field);
+    cpu->env.cpucfg[3] = data;
+    return 0;
+}
+
 int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
 {
     return 0;
@@ -1290,6 +1350,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     ret = kvm_cpu_check_msgint(cs, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+        return ret;
+    }
+
+    ret = kvm_cpu_check_misc_v1_1(cs, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         return ret;
