@@ -800,11 +800,29 @@ static bool spapr_vlan_rx_buffer_pools_needed(void *opaque)
     return (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) != 0;
 }
 
+static int spapr_vlan_rx_buffer_pool_post_load(void *opaque, int version_id)
+{
+    RxBufPool *rxp = opaque;
+
+    if (rxp->count < 0 || rxp->count > RX_POOL_MAX_BDS) {
+        return -EINVAL;
+    }
+    /*
+     * bufsize is compared against a size_t in spapr_vlan_get_rx_bd_from_pool(),
+     * so a negative value would compare as huge.
+     */
+    if (rxp->bufsize < 0) {
+        return -EINVAL;
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_rx_buffer_pool = {
     .name = "spapr_llan/rx_buffer_pool",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_vlan_rx_buffer_pools_needed,
+    .post_load = spapr_vlan_rx_buffer_pool_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_INT32(bufsize, RxBufPool),
         VMSTATE_INT32(count, RxBufPool),
