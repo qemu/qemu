@@ -191,13 +191,15 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
 #define DEF6(NAME, T1, T2, T3, T4, T5, T6) \
     QEMU_ARG_NONNULL void glue(tcg_gen_,NAME)(TCGType, T1, T2, T3, T4, T5, T6);
 
-#define TCGV  TCGTemp *
-#define TINT  int64_t
+#define TCGV      TCGTemp *
+#define TINT      int64_t
+#define TCGv_ptr  TCGTemp *
 
 #include "tcg/tcg-op-def.h.inc"
 
 #undef TINT
 #undef TCGV
+#undef TCGv_ptr
 
 #undef DEF1
 #undef DEF2
