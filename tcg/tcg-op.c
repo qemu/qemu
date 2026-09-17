@@ -659,6 +659,22 @@ void tcg_gen_divu(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
     }
 }
 
+void tcg_gen_dup(TCGType type, unsigned vece, TCGTemp *dst, TCGTemp *src)
+{
+    unsigned t_width = tcg_type_bits(type);
+    unsigned e_width = memop_size(vece) * 8;
+
+    tcg_debug_assert(e_width <= t_width);
+    if (t_width == e_width) {
+        tcg_gen_mov(type, dst, src);
+    } else if (t_width == e_width * 2) {
+        tcg_gen_deposit(type, dst, src, src, e_width, e_width);
+    } else {
+        tcg_gen_extract(type, dst, src, 0, e_width);
+        tcg_gen_muli(type, dst, dst, dup_const(vece, 1));
+    }
+}
+
 void tcg_gen_eqv(TCGType type, TCGTemp *dst, TCGTemp *src1, TCGTemp *src2)
 {
     if (tcg_op_supported(INDEX_op_eqv, type, 0)) {
