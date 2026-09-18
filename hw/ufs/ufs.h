@@ -173,6 +173,8 @@ typedef struct UfsHc {
     UfsSq *sq[UFS_MAX_MCQ_QNUM];
     UfsCq *cq[UFS_MAX_MCQ_QNUM];
 
+    bool resetting;
+
     /* Extended features */
     UfsWb wb;
 
