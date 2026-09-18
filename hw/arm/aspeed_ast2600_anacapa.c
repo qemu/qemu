@@ -17,7 +17,7 @@
 
 #define ANACAPA_BMC_HW_STRAP1 0x00002002
 #define ANACAPA_BMC_HW_STRAP2 0x00000000
-#define ANACAPA_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
+#define ANACAPA_BMC_RAM_SIZE (2 * GiB)
 
 /*
  * "Anacapa HPM (MB)" FRU data. Generated with frugen.

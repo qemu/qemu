@@ -19,7 +19,7 @@
 /* Fuji hardware value */
 #define FUJI_BMC_HW_STRAP1    0x00000000
 #define FUJI_BMC_HW_STRAP2    0x00000000
-#define FUJI_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
+#define FUJI_BMC_RAM_SIZE (2 * GiB)
 
 static void get_pca9548_channels(I2CBus *bus, uint8_t mux_addr,
                                  I2CBus **channels)

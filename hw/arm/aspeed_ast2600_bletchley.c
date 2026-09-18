@@ -17,7 +17,7 @@
 /* Bletchley hardware value */
 #define BLETCHLEY_BMC_HW_STRAP1 0x00002000
 #define BLETCHLEY_BMC_HW_STRAP2 0x00000801
-#define BLETCHLEY_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
+#define BLETCHLEY_BMC_RAM_SIZE (2 * GiB)
 
 static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
 {

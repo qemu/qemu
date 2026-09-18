@@ -15,7 +15,7 @@
 /* GB200NVL hardware value */
 #define GB200NVL_BMC_HW_STRAP1 0x000000C0
 #define GB200NVL_BMC_HW_STRAP2 0x00000003
-#define GB200NVL_BMC_RAM_SIZE ASPEED_RAM_SIZE(1 * GiB)
+#define GB200NVL_BMC_RAM_SIZE (1 * GiB)
 
 static const uint8_t gb200nvl_bmc_fruid[] = {
     0x01, 0x00, 0x00, 0x01, 0x0b, 0x00, 0x00, 0xf3, 0x01, 0x0a, 0x19, 0x1f,

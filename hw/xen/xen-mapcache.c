@@ -26,11 +26,7 @@
 #include <xenevtchn.h>
 #include <xengnttab.h>
 
-#if HOST_LONG_BITS == 32
-#  define MCACHE_MAX_SIZE     (1UL<<31) /* 2GB Cap */
-#else
-#  define MCACHE_MAX_SIZE     (1UL<<35) /* 32GB Cap */
-#endif
+#define MCACHE_MAX_SIZE     (1UL << 35) /* 32GB Cap */
 
 /* This is the size of the virtual address space reserve to QEMU that will not
  * be use by MapCache.
@@ -151,11 +147,7 @@ void xen_map_cache_init(phys_offset_to_gaddr_t f, void *opaque)
         exit(EXIT_FAILURE);
     }
 
-    if (HOST_LONG_BITS == 32) {
-        bucket_shift = 16;
-    } else {
-        bucket_shift = 20;
-    }
+    bucket_shift = 20;
 
     if (geteuid() == 0) {
         rlimit_as.rlim_cur = RLIM_INFINITY;
