@@ -61,6 +61,10 @@ static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
             return true;
         }
         break;
+    case 0b001011: /* v{ld,st}, xv{ld,st} */
+        return (insn >> 22) & 1;
+    case 0b001100: /* v{ldrepl,stelm}, xv{ldrepl,stelm} */
+        return (insn >> 24) & 1;
     case 0b001110: /* indexed, atomic, bounds-checking memory operations */
         switch ((insn >> 15) & 0b11111111111) {
         case 0b00000100000: /* stx.b */
@@ -69,6 +73,8 @@ static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
         case 0b00000111000: /* stx.d */
         case 0b00001110000: /* fstx.s */
         case 0b00001111000: /* fstx.d */
+        case 0b00010001000: /* vstx */
+        case 0b00010011000: /* xvstx */
         case 0b00011101100: /* fstgt.s */
         case 0b00011101101: /* fstgt.d */
         case 0b00011101110: /* fstle.s */
