@@ -651,15 +651,6 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             need_update = false;
         } else if (access_type != MMU_DATA_STORE && pte_access(context.pte)) {
             need_update = false;
-
-            /*
-             * FIXME: should context.prot be set without PAGE_WRITE with
-             * pte_write(context.pte) && !pte_dirty(context.pte)??
-             *
-             * Otherwise there will be no loongarch_cpu_tlb_fill() function call
-             * for MMU_DATA_STORE access_type in future since QEMU TLB with
-             * prot PAGE_WRITE is added already
-             */
         }
 
         if (need_update) {
@@ -683,6 +674,19 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (ret == TLBRET_MATCH) {
         physical = context.physical;
         prot = context.prot;
+
+        /*
+         * Loads or instruction fetches must not cache write access to a
+         * clean PTE. The first store must enter PTW to set D, whether this
+         * translation came from the LoongArch TLB or a page table walk.
+         * Store walks have already handled D, but context.pte may still
+         * contain its old value. Direct mappings have no PTE to check.
+         */
+        if (cpu_has_ptw(env) && context.mmu_index != MMU_DA_IDX &&
+            access_type != MMU_DATA_STORE && !pte_dirty(context.pte)) {
+            prot &= ~PAGE_WRITE;
+        }
+
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot,
                      mmu_idx, TARGET_PAGE_SIZE);
