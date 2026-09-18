@@ -524,4 +524,6 @@ endforeach
 if exe_targets.length() > 0
   # finally create a top level target to rebuild all tests
   alias_target('tcg-tests', exe_targets)
+  # before, this target was called build-tcg. Keep it for compatibility sake.
+  alias_target('build-tcg', exe_targets)
 endif
