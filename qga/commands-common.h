@@ -18,17 +18,19 @@
 #endif /* __linux__ */
 
 #ifdef __FreeBSD__
-#include <ufs/ffs/fs.h>
+#include <sys/mount.h>
 #endif /* __FreeBSD__ */
 
-#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
+#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM) || defined(CONFIG_BSD)
 typedef struct FsMount {
     char *dirname;
     char *devtype;
     unsigned int devmajor, devminor;
-#if defined(__FreeBSD__)
-    dev_t dev;
+#ifdef __FreeBSD__
     fsid_t fsid;
+#endif
+#ifdef CONFIG_BSD
+    dev_t dev;
     char *fromname;
 #endif
     QTAILQ_ENTRY(FsMount) next;
@@ -38,7 +40,7 @@ typedef QTAILQ_HEAD(FsMountList, FsMount) FsMountList;
 
 bool build_fs_mount_list(FsMountList *mounts, Error **errp);
 void free_fs_mount_list(FsMountList *mounts);
-#endif /* CONFIG_FSFREEZE || CONFIG_FSTRIM */
+#endif /* CONFIG_FSFREEZE || CONFIG_FSTRIM || CONFIG_BSD */
 
 #if defined(CONFIG_FSFREEZE)
 int64_t qmp_guest_fsfreeze_do_freeze_list(bool has_mountpoints,

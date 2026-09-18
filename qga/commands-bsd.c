@@ -28,12 +28,20 @@
 #include <net/ethernet.h>
 #endif
 #include <paths.h>
+#ifdef __FreeBSD__
+#include <ufs/ffs/fs.h>
+#endif
 
-#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM) || defined(__FreeBSD__)
+#ifdef __NetBSD__
+typedef struct statvfs bsd_fsinfo_t;
+#else
+typedef struct statfs bsd_fsinfo_t;
+#endif
+
 bool build_fs_mount_list(FsMountList *mounts, Error **errp)
 {
     FsMount *mount;
-    struct statfs *mntbuf, *mntp;
+    bsd_fsinfo_t *mntbuf, *mntp;
     struct stat statbuf;
     int i, count, ret;
 
@@ -57,16 +65,17 @@ bool build_fs_mount_list(FsMountList *mounts, Error **errp)
         mount->dirname = g_strdup(mntp->f_mntonname);
         mount->devtype = g_strdup(mntp->f_fstypename);
         mount->fromname = g_strdup(mntp->f_mntfromname);
+        mount->dev = statbuf.st_dev;
         mount->devmajor = major(mount->dev);
         mount->devminor = minor(mount->dev);
+#ifdef CONFIG_FSFREEZE
         mount->fsid = mntp->f_fsid;
-        mount->dev = statbuf.st_dev;
+#endif
 
         QTAILQ_INSERT_TAIL(mounts, mount, next);
     }
     return true;
 }
-#endif /* CONFIG_FSFREEZE || CONFIG_FSTRIM */
 
 #if defined(CONFIG_FSFREEZE)
 static int ufssuspend_fd = -1;
@@ -181,7 +190,6 @@ bool guest_get_hw_addr(struct ifaddrs *ifa, unsigned char *buf,
 }
 #endif /* HAVE_GETIFADDRS */
 
-#if defined(__FreeBSD__)
 static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount)
 {
     GuestFilesystemInfo *fs = g_new0(GuestFilesystemInfo, 1);
@@ -228,4 +236,3 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
     free_fs_mount_list(&mounts);
     return ret;
 }
-#endif /* __FreeBSD__ */
