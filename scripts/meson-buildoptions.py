@@ -56,6 +56,7 @@ AUTO_OPTIONS = {
 # Options that configure prints help for, so we can skip
 CONFIGURE_HELP = {
     "gdb",
+    "tcg_tests_cross",
 }
 
 # Builtin options that should be definable via configure.  Some of the others
@@ -194,7 +195,7 @@ def print_help(options):
         key = cli_help_key(opt)
         # The first section includes options that have an arguments,
         # and booleans (i.e., only one of enable/disable makes sense)
-        if opt["name"] in CONFIGURE_HELP:
+        if any(opt["name"].startswith(h) for h in CONFIGURE_HELP):
             pass
         elif require_arg(opt):
             metavar = cli_metavar(opt)

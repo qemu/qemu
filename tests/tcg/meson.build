@@ -101,6 +101,9 @@ if get_option('containers')
   endif
 endif
 tcg_tests_summary += {'container command': container_command}
+if get_option('container_registry') != ''
+  tcg_tests_summary += {'container registry': get_option('container_registry')}
+endif
 
 # plugins come first, as we need to build the list
 test_plugins = {}
@@ -255,9 +258,14 @@ foreach target, plan: tcg_tests
     image_name = 'image-' + cc_dockerfile
     has_docker = docker_host_arch_supported and docker_supported
     if cc_dockerfile not in image_targets and has_docker
-      cmd = [docker_wrapper, 'build', '-f', dockerfile, '-t', cc_dockerfile]
+      cmd = [docker_wrapper, 'build', '-f', dockerfile, '-t', 'qemu/' + cc_dockerfile,
+             '--add-current-user']
+      if get_option('container_registry') != ''
+        cmd += ['--registry', get_option('container_registry')]
+      endif
       t = custom_target(image_name, command: cmd,
                         build_by_default: false,
+                        console: true,
                         output: 'no_output_' + image_name)
       image_targets += {cc_dockerfile: t}
     endif
@@ -268,9 +276,9 @@ foreach target, plan: tcg_tests
       mount = meson.project_source_root()
       mount = mount + ':' + mount
       here = meson.project_build_root()
-      cc = [docker_wrapper, 'run', '--run-as-current-user',
-            '-w', here, '-v', mount,
-            cc_dockerfile, plan['cc']]
+      cc = [docker_wrapper, 'run', '--run-as-current-user', '--',
+            '-w', here, '-v', here + ':' + here, '-v', mount,
+            'qemu/' + cc_dockerfile, plan['cc']]
       has_cc = true
     endif
   endif
@@ -279,7 +287,7 @@ foreach target, plan: tcg_tests
   if has_cc
     summary_cc = plan['cc']
     if not cc_from_system
-      summary_cc += ' (from \'' + plan['cc_dockerfile'] + '\' container)'
+      summary_cc += ' (from \'qemu/' + plan['cc_dockerfile'] + '\' container)'
     endif
   endif
   tcg_tests_summary += {'cc for ' + target: summary_cc}
@@ -498,10 +506,14 @@ foreach target, plan: tcg_tests
         cmd = ['sh', '-c', 'echo "' + skip_test + '" && exit 77']
       endif
 
-      test(test_name, env, args: cmd,
-           depends: test_depends,
-           timeout: 120,
-           suite: ['tcg', 'tcg-' + target])
+      # Do not add a skipped test when compiler is missing,
+      # though we still check all tests are correctly defined.
+      if has_cc
+        test(test_name, env, args: cmd,
+             depends: test_depends,
+             timeout: 120,
+             suite: ['tcg', 'tcg-' + target])
+      endif
       added_tests += {test_name: true}
     endforeach
   endforeach
