@@ -106,6 +106,69 @@ static void aspeed_otp_write(void *opaque, hwaddr otp_offset,
     trace_aspeed_otp_prog(otp_offset, val, value);
 }
 
+/*
+ * Each OTP configuration setting contains 32 bits of data.
+ * Configuration words are grouped in banks of 8, with banks spaced
+ * 0x200 dwords apart and words within a bank spaced 2 dwords apart:
+ *
+ *   offset(n) = OTP_CFG0 + (n / 8) * 0x200 + (n % 8) * 2
+ *
+ * Returns 0 if the OTP read fails.
+ */
+uint32_t aspeed_otp_read_config(AspeedOTPState *s, unsigned int cfg_word)
+{
+    uint32_t otp_addr = OTP_CFG0 + (cfg_word / 8) * 0x200 + (cfg_word % 8) * 2;
+    uint32_t value = 0;
+
+    if (address_space_read(&s->as, otp_addr << 2, MEMTXATTRS_UNSPECIFIED,
+                            &value, sizeof(value)) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Failed to read OTP config word %u\n",
+                      __func__, cfg_word);
+        return 0;
+    }
+
+    return value;
+}
+
+/*
+ * OTP straps are a 64-bit value split across two 32-bit config words,
+ * each of which is repeated OTP_STRAP_COPY_NUM times for reliability.
+ * The two words interleave starting at OTP_STRAP_START_INDEX:
+ *
+ *   cfg_word:    16   17   18   19   20   21   22   23   24   25   26   27
+ *              +----+----+----+----+----+----+----+----+----+----+----+----+
+ *              | L0 | H0 | L1 | H1 | L2 | H2 | L3 | H3 | L4 | H4 | L5 | H5 |
+ *              +----+----+----+----+----+----+----+----+----+----+----+----+
+ *
+ *   Lx = copy #x of bit 0-31, Hx = copy #x of bit 32-63
+ *   (x = 0 .. OTP_STRAP_COPY_NUM - 1)
+ *
+ * To resolve strap bit `n` (0 <= n < OTP_STRAP_BIT_NUM):
+ *   half    = n / 32   -- 0 selects the L* words, 1 selects the H* words
+ *   bit_pos = n % 32   -- bit position within the word
+ *   word(i) = OTP_STRAP_START_INDEX + half + i * (OTP_STRAP_BIT_NUM / 32)
+ *
+ * The effective value of bit `n` is the XOR of bit `bit_pos` across all
+ * OTP_STRAP_COPY_NUM copies of word(i).
+ */
+bool aspeed_otp_read_strap(AspeedOTPState *s, unsigned int bit)
+{
+    uint32_t cfg_word = OTP_STRAP_START_INDEX + bit / 32;
+    uint32_t bit_pos = bit % 32;
+    bool enable = false;
+    int i;
+
+    assert(bit < OTP_STRAP_BIT_NUM);
+
+    for (i = 0; i < OTP_STRAP_COPY_NUM; i++) {
+        enable ^= (aspeed_otp_read_config(s, cfg_word) >> bit_pos) & 0x1;
+        cfg_word += OTP_STRAP_BIT_NUM / 32;
+    }
+
+    return enable;
+}
+
 static bool aspeed_otp_init_storage(AspeedOTPState *s, Error **errp)
 {
     uint32_t *p;

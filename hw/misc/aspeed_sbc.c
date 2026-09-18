@@ -71,6 +71,9 @@
 #define SBC_OTP_CMD_WRITE 0x23b1e362
 #define SBC_OTP_CMD_PROG 0x23b1e364
 
+/* OTP strap bits */
+#define OTP_STRAP_ABR_EN        0x2b
+
 /* Voltage mode */
 #define MODE_REGISTER               (0x1000)
 #define MODE_REGISTER_A             (0x3000)
@@ -89,7 +92,21 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
         return 0;
     }
 
-    return s->regs[addr];
+    switch (addr) {
+    case R_STATUS: {
+        uint32_t val = s->regs[R_STATUS];
+
+        if (aspeed_otp_read_strap(&s->otp, OTP_STRAP_ABR_EN)) {
+            val |= ABR_EN;
+        } else {
+            val &= ~ABR_EN;
+        }
+
+        return val;
+    }
+    default:
+        return s->regs[addr];
+    }
 }
 
 static bool aspeed_otp_read(AspeedSBCState *s, uint32_t otp_addr,
@@ -388,12 +405,11 @@ static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
 
     memset(s->regs, 0, sizeof(s->regs));
 
-    /* Set secure boot enabled with RSA4096_SHA256 and enable eMMC ABR */
+    /*
+     * ABR_EN is derived from OTP on every read, see aspeed_sbc_read().
+     * Set secure boot enabled with RSA4096_SHA256.
+     */
     s->regs[R_STATUS] = OTP_IDLE | OTP_MEM_IDLE;
-
-    if (s->emmc_abr) {
-        s->regs[R_STATUS] &= ABR_EN;
-    }
 
     if (s->signing_settings) {
         s->regs[R_STATUS] &= SECURE_BOOT_EN;
@@ -452,7 +468,6 @@ static const VMStateDescription vmstate_aspeed_sbc = {
 };
 
 static const Property aspeed_sbc_properties[] = {
-    DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
     DEFINE_PROP_LINK("sram", AspeedSBCState, sram,
                      TYPE_MEMORY_REGION, MemoryRegion *),
