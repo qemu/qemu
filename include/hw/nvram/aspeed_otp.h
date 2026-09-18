@@ -16,6 +16,19 @@
 #define TYPE_ASPEED_OTP "aspeed-otp"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedOTPState, ASPEED_OTP)
 
+#define OTP_MEMORY_SIZE                 0x4000
+
+/*
+ * The OTP address space is indexed by dword address and is split into
+ * two regions:
+ *
+ *  - [0, OTP_DATA_DWORD_COUNT]: the data region. Each address contains
+ *    64 bits of data.
+ *  - [OTP_DATA_DWORD_COUNT, OTP_MEMORY_SIZE / 4]: the configuration
+ *    region. Each address contains 32 bits of data.
+ */
+#define OTP_DATA_DWORD_COUNT            (0x800)
+
 typedef struct AspeedOTPState {
     DeviceState parent_obj;
 
