@@ -74,6 +74,7 @@ struct ohci_hcca {
 /* Flags in the head field of an Endpoint Descriptor. */
 #define OHCI_ED_H         1
 #define OHCI_ED_C         2
+#define OHCI_ED_HEAD_RSVD   (1 << 2 | 1 << 3)
 
 /* Bitfields for the first word of a Transfer Descriptor. */
 #define OHCI_TD_R         (1 << 18)
@@ -371,6 +372,8 @@ void ohci_hard_reset(OHCIState *ohci)
     ohci_soft_reset(ohci);
     ohci->ctl = 0;
     ohci_roothub_reset(ohci);
+    ohci->big_endian = false;
+    ohci->consistency_check = false;
 }
 
 /* Get an array of dwords from main memory */
@@ -867,6 +870,18 @@ static void ohci_td_pkt(const char *msg, const uint8_t *buf, size_t len)
     }
 }
 
+static void ohci_bswap_buf(uint8_t *buf, size_t len)
+{
+    uint32_t w;
+    while (len >= sizeof(w)) {
+        memcpy(&w, buf, sizeof(w));
+        w = bswap32(w);
+        memcpy(buf, &w, sizeof(w));
+        buf += sizeof(w);
+        len -= sizeof(w);
+    }
+}
+
 /*
  * Service a transport descriptor.
  * Returns nonzero to terminate processing of this endpoint.
@@ -975,6 +990,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
                                  DMA_DIRECTION_TO_DEVICE)) {
                     ohci_die(ohci);
                 }
+                if (ohci->big_endian) {
+                    ohci_bswap_buf(ohci->usb_buf, pktlen);
+                }
             }
         }
     }
@@ -1024,6 +1042,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 
     if (ret >= 0) {
         if (dir == OHCI_TD_DIR_IN) {
+            if (ohci->big_endian) {
+                ohci_bswap_buf(ohci->usb_buf, ret);
+            }
             if (ohci_copy_td(ohci, &td, ohci->usb_buf, ret,
                              DMA_DIRECTION_FROM_DEVICE)) {
                 ohci_die(ohci);
@@ -1108,6 +1129,13 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         ohci->done_count = i;
     }
 exit_no_retire:
+    if (ohci->media_error) {
+        int cc = OHCI_BM(td.flags, TD_CC);
+        /* only these 2 errors will ever actually be possible in qemu */
+        if (cc == OHCI_CC_DEVICENOTRESPONDING || cc == OHCI_CC_UNDEXPETEDPID) {
+            ohci->media_error(ohci);
+        }
+    }
     if (ohci_put_td(ohci, addr, &td)) {
         ohci_die(ohci);
         return 1;
@@ -1133,6 +1161,13 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head)
 
         if (ohci_read_ed(ohci, cur, &ed)) {
             trace_usb_ohci_ed_read_error(cur);
+            ohci_die(ohci);
+            return 0;
+        }
+        if (ohci->consistency_check && (ed.head & OHCI_ED_HEAD_RSVD)) {
+            if (ohci->descriptor_error) {
+                ohci->descriptor_error(ohci);
+            }
             ohci_die(ohci);
             return 0;
         }

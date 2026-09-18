@@ -1355,6 +1355,10 @@ F: include/hw/pci-host/dino.h
 F: pc-bios/hppa-firmware.img
 F: roms/seabios-hppa/
 F: tests/functional/hppa/
+F: hw/isa/pc87560.c
+F: hw/ide/pc87560-ide.c
+F: hw/usb/pc87560-ohci.c
+F: include/hw/isa/pc87560.h
 
 Hexagon Machines
 ----------------

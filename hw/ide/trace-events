@@ -27,6 +27,10 @@ ide_dma_cb(void *s, int64_t sector_num, int n, const char *dma) "IDEState %p; se
 bmdma_read_cmd646(uint64_t addr, uint32_t val) "bmdma: readb 0x%"PRIx64" : 0x%02x"
 bmdma_write_cmd646(uint64_t addr, uint64_t val) "bmdma: writeb 0x%"PRIx64" : 0x%02"PRIx64
 
+# hw/ide/pc87560.c
+bmdma_read_pc87560(uint64_t addr, uint32_t val) "bmdma: readb 0x%"PRIx64" : 0x%02x"
+bmdma_write_pc87560(uint64_t addr, uint64_t val) "bmdma: writeb 0x%"PRIx64" : 0x%02"PRIx64
+
 # pci.c
 bmdma_reset(void) ""
 bmdma_cmd_writeb(uint32_t val) "val: 0x%08x"

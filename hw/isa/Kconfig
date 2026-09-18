@@ -67,6 +67,17 @@ config SMC37C669
     bool
     select ISA_SUPERIO
 
+config PC87560
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    depends on HPPA
+    select ISA_BUS
+    select FDC_ISA
+    select SERIAL_ISA
+    select IDE_PCI
+    select USB_OHCI
+
 config LPC_ICH9
     bool
     # For historical reasons, SuperIO devices are created in the board
