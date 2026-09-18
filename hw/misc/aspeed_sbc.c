@@ -79,6 +79,8 @@
 #define MODE_REGISTER_A             (0x3000)
 #define MODE_REGISTER_B             (0x5000)
 
+static bool aspeed_sbc_otp_read(AspeedSBCState *s, uint32_t otp_addr);
+
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSBCState *s = ASPEED_SBC(opaque);
@@ -102,8 +104,16 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
             val &= ~ABR_EN;
         }
 
+        if (aspeed_otp_read_config(&s->otp, 0) & BIT(1)) {
+            val |= SECURE_BOOT_EN;
+        } else {
+            val &= ~SECURE_BOOT_EN;
+        }
+
         return val;
     }
+    case R_QSR:
+        return aspeed_otp_read_config(&s->otp, 0);
     default:
         return s->regs[addr];
     }
@@ -406,16 +416,11 @@ static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
     memset(s->regs, 0, sizeof(s->regs));
 
     /*
-     * ABR_EN is derived from OTP on every read, see aspeed_sbc_read().
-     * Set secure boot enabled with RSA4096_SHA256.
+     * ABR_EN and SECURE_BOOT_EN are derived from OTP on every read, see
+     * aspeed_sbc_read(), since the SBC status register is just a
+     * reflection of the OTP fuse state.
      */
     s->regs[R_STATUS] = OTP_IDLE | OTP_MEM_IDLE;
-
-    if (s->signing_settings) {
-        s->regs[R_STATUS] &= SECURE_BOOT_EN;
-    }
-
-    s->regs[R_QSR] = s->signing_settings;
 }
 
 static void aspeed_sbc_instance_init(Object *obj)
@@ -468,7 +473,6 @@ static const VMStateDescription vmstate_aspeed_sbc = {
 };
 
 static const Property aspeed_sbc_properties[] = {
-    DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
     DEFINE_PROP_LINK("sram", AspeedSBCState, sram,
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
