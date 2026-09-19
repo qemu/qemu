@@ -264,6 +264,9 @@ struct CPUArchState {
 
     uint64_t pc;
     uint64_t load_res;
+#ifdef CONFIG_USER_ONLY
+    uint64_t load_res_size;
+#endif
     uint64_t load_val;
 
     /* Floating-Point state */

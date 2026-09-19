@@ -9,6 +9,8 @@ static inline void cpu_clone_regs_child(CPURISCVState *env, target_ulong newsp,
     }
 
     env->gpr[xA0] = 0;
+    env->load_res = -1;
+    env->load_res_size = 0;
 }
 
 static inline void cpu_clone_regs_parent(CPURISCVState *env, unsigned flags)
