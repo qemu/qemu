@@ -300,9 +300,10 @@ class Docker(object):
 
         if user:
             uid = os.getuid()
-            uname = getpass.getuser()
-            build_args += ["--build-arg", "USER=%s" % uname,
-                           "--build-arg", "UID=%s" % uid]
+            if uid != 0:
+                uname = getpass.getuser()
+                build_args += ["--build-arg", "USER=%s" % uname,
+                               "--build-arg", "UID=%s" % uid]
 
         if registry is not None:
             pull_args = ["pull", "%s/%s" % (registry, tag)]
@@ -334,10 +335,11 @@ class Docker(object):
 
         if as_user:
             uid = os.getuid()
-            cmd = [ "-u", str(uid) ] + cmd
-            # podman requires a bit more fiddling
-            if self._command[0] == "podman":
-                cmd.insert(0, '--userns=keep-id')
+            if uid != 0:
+                cmd = [ "-u", str(uid) ] + cmd
+                # podman requires a bit more fiddling
+                if self._command[0] == "podman":
+                    cmd.insert(0, '--userns=keep-id')
 
         ret = self._do_check(["run", "--rm", "--label",
                              "com.qemu.instance.uuid=" + label] + cmd,
