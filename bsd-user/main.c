@@ -52,9 +52,7 @@
 #include "exec/page-vary.h"
 #include "exec/watchpoint.h"
 
-#include "host-os.h"
 #include "target_arch_cpu.h"
-
 
 /*
  * TODO: Remove these and rely only on qemu_real_host_page_size().
