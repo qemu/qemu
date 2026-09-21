@@ -23,7 +23,7 @@ static void imx2_wdt_interrupt(void *opaque)
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
 
-    trace_imx2_wdt_interrupt();
+    trace_imx2_wdt_interrupt(DEVICE(s)->canonical_path);
 
     s->wicr |= IMX2_WDT_WICR_WTIS;
     qemu_set_irq(s->irq, 1);
@@ -33,7 +33,7 @@ static void imx2_wdt_expired(void *opaque)
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
 
-    trace_imx2_wdt_expired();
+    trace_imx2_wdt_expired(DEVICE(s)->canonical_path);
 
     s->wrsr = IMX2_WDT_WRSR_TOUT;
 
@@ -90,7 +90,7 @@ static uint64_t imx2_wdt_read(void *opaque, hwaddr addr, unsigned int size)
         break;
     }
 
-    trace_imx2_wdt_read(addr, value);
+    trace_imx2_wdt_read(DEVICE(s)->canonical_path, addr, value);
 
     return value;
 }
@@ -149,7 +149,7 @@ static void imx2_wdt_write(void *opaque, hwaddr addr,
 {
     IMX2WdtState *s = IMX2_WDT(opaque);
 
-    trace_imx2_wdt_write(addr, value);
+    trace_imx2_wdt_write(DEVICE(s)->canonical_path, addr, value);
 
     switch (addr) {
     case IMX2_WDT_WCR:
