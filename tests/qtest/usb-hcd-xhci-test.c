@@ -33,6 +33,7 @@
 #define USBCMD_RS               (1 << 0)
 #define USBCMD_HCRST            (1 << 1)
 #define USBSTS_HCH              (1 << 0)
+#define USBSTS_HCE              (1 << 12)
 #define PORTSC_CCS              (1 << 0)
 #define PORTSC_PR               (1 << 4)
 #define PORTSC_PP               (1 << 9)
@@ -57,6 +58,7 @@
 
 #define EP_TYPE_ISOCH_OUT       1
 #define EP_TYPE_CONTROL         4
+#define EP_TYPE_ISOCH_IN        5
 
 #define XHCI_RING_TRBS          64
 #define XHCI_MICROFRAME_NS      125000
@@ -390,6 +392,37 @@ static void test_xhci_isoch_mfindex_32bit(void)
     xhci_test_end(&x);
 }
 
+/*
+ * The endpoint type in the endpoint context is whatever the guest says. Tell
+ * the controller that the interrupt endpoint of usb-kbd is isoch. The idle
+ * keyboard NAKs, and the TD has to stay pending when first the kick timer and
+ * then a doorbell retry it.
+ */
+static void test_xhci_isoch_ep_type_mismatch(void)
+{
+    uint64_t ring;
+    XHCITest x;
+
+    if (!xhci_test_supported("usb-kbd")) {
+        return;
+    }
+
+    xhci_test_start(&x, "-device usb-kbd");
+    ring = xhci_configure_ep(&x, 3, EP_TYPE_ISOCH_IN, 0, 8);
+
+    xhci_write_trb(&x, ring, xhci_alloc_page(&x), 8,
+                   TRB_TYPE(TR_ISOCH) | TRB_TR_SIA | TRB_TR_IOC | TRB_C);
+    xhci_writel(&x, x.doorbell + 4 * x.slot, 3);
+    qtest_clock_step(x.qts, 2 * XHCI_MICROFRAME_NS);
+    xhci_writel(&x, x.doorbell + 4 * x.slot, 3);
+
+    g_assert_false(xhci_next_event(&x, NULL, NULL));
+    g_assert_cmphex(xhci_readl(&x, x.oper + XHCI_USBSTS) &
+                    (USBSTS_HCH | USBSTS_HCE), ==, 0);
+
+    xhci_test_end(&x);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -406,6 +439,8 @@ int main(int argc, char **argv)
     }
     qtest_add_func("/xhci/pci/isoch/mfindex-32bit",
                    test_xhci_isoch_mfindex_32bit);
+    qtest_add_func("/xhci/pci/isoch/ep-type-mismatch",
+                   test_xhci_isoch_ep_type_mismatch);
 
     qtest_start("-device nec-usb-xhci,id=xhci"
                 " -drive id=drive0,if=none,file=null-co://,"
