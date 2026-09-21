@@ -522,6 +522,24 @@ typedef struct ZoneCmdData {
 } ZoneCmdData;
 
 /*
+ * The maximum zone append size that the device reports to its driver, in 512
+ * byte sectors.
+ *
+ * An append cannot cross a zone boundary, so the configured maximum is capped
+ * by the size of a zone: the specification asks for the largest append that
+ * can be carried out, and a larger one never can be. The zone size is already
+ * reported to the driver as zone_sectors, so this tells it nothing new about
+ * the host.
+ */
+static uint32_t virtio_blk_max_append_sectors(VirtIOBlock *s)
+{
+    BlockDriverState *bs = blk_bs(s->blk);
+
+    return MIN(s->conf.max_append_sectors,
+               bs->bl.zone_size >> BDRV_SECTOR_BITS);
+}
+
+/*
  * check zoned_request: error checking before issuing requests. If all checks
  * passed, return true.
  * append: true if only zone append requests issued.
@@ -556,12 +574,13 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
             return false;
         }
 
-        if (len / 512 > bs->bl.max_append_sectors) {
-            if (bs->bl.max_append_sectors == 0) {
-                *status = VIRTIO_BLK_S_UNSUPP;
-            } else {
-                *status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
-            }
+        if (!s->conf.max_append_sectors) {
+            *status = VIRTIO_BLK_S_UNSUPP;
+            return false;
+        }
+
+        if ((len >> BDRV_SECTOR_BITS) > virtio_blk_max_append_sectors(s)) {
+            *status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
             return false;
         }
     }
@@ -1315,7 +1334,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
         virtio_stl_p(vdev, &blkcfg.zoned.write_granularity,
                      blkconf_zone_write_granularity(conf));
         virtio_stl_p(vdev, &blkcfg.zoned.max_append_sectors,
-                     bs->bl.max_append_sectors);
+                     virtio_blk_max_append_sectors(s));
     } else {
         blkcfg.zoned.model = VIRTIO_BLK_Z_NONE;
     }
@@ -1852,6 +1871,34 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_ZONED)) {
+        uint32_t wg = blkconf_zone_write_granularity(&conf->conf);
+
+        /*
+         * Checked before the granularity below, so that a driver can shift the
+         * value that it reads into a byte count without overflowing.
+         */
+        if (conf->max_append_sectors > BDRV_REQUEST_MAX_SECTORS) {
+            error_setg(errp, "invalid max-append-sectors property (%" PRIu32
+                       "), must not exceed %d", conf->max_append_sectors,
+                       (int)BDRV_REQUEST_MAX_SECTORS);
+            return;
+        }
+
+        /*
+         * Zero is allowed, and says that zone append is not supported, which
+         * is what a ZBC or ZAC disk is. Anything else has to be able to
+         * express a single write.
+         */
+        if (conf->max_append_sectors &&
+            (conf->max_append_sectors << BDRV_SECTOR_BITS) < wg) {
+            error_setg(errp, "invalid max-append-sectors property (%" PRIu32
+                       "), must be zero or at least the zone write granularity "
+                       "(%" PRIu32 " bytes)", conf->max_append_sectors, wg);
+            return;
+        }
+    }
+
     if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_DISCARD) &&
         (!conf->max_discard_sectors ||
          conf->max_discard_sectors > BDRV_REQUEST_MAX_SECTORS)) {
@@ -1986,6 +2033,12 @@ static const Property virtio_blk_properties[] = {
                        conf.max_discard_sectors, BDRV_REQUEST_MAX_SECTORS),
     DEFINE_PROP_UINT32("max-write-zeroes-sectors", VirtIOBlock,
                        conf.max_write_zeroes_sectors, BDRV_REQUEST_MAX_SECTORS),
+    /*
+     * Zero is valid, and says that the device does not support zone append,
+     * as a ZBC or ZAC disk does not.
+     */
+    DEFINE_PROP_UINT32("max-append-sectors", VirtIOBlock,
+                       conf.max_append_sectors, BDRV_REQUEST_MAX_SECTORS),
     DEFINE_PROP_BOOL("x-enable-wce-if-config-wce", VirtIOBlock,
                      conf.x_enable_wce_if_config_wce, true),
 };
