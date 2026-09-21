@@ -70,6 +70,8 @@ run-plugin-semiconsole-with-%: semiconsole
 QEMU_EL2_MACHINE=-machine virt,virtualization=on,gic-version=2 -cpu cortex-a57 -smp 4
 run-vtimer: QEMU_OPTS=$(QEMU_EL2_MACHINE) $(QEMU_BASE_ARGS) -kernel
 
+run-wfxt: QEMU_OPTS=-M virt,virtualization=on,gic-version=2 -cpu max -smp 1 -semihosting-config enable=on,arg=2 -kernel
+
 # Simple Record/Replay Test
 .PHONY: memory-record
 run-memory-record: memory-record memory

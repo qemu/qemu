@@ -450,7 +450,8 @@ void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
         raise_exception(env, excp, syn_wfx(1, 0xe, 2, false), target_el);
     }
 
-    if (uadd64_overflow(timeout, offset, &nexttick)) {
+    /* Physical count at the timeout. Only an overflow of it is "never". */
+    if (uadd64_overflow(cntval, timeout - cntvct, &nexttick)) {
         nexttick = UINT64_MAX;
     }
     if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
