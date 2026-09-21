@@ -89,7 +89,7 @@ static void imx_avic_update(IMXAVICState *s)
 
 static void imx_avic_set_irq(void *opaque, int irq, int level)
 {
-    IMXAVICState *s = (IMXAVICState *)opaque;
+    IMXAVICState *s = opaque;
 
     if (level) {
         DPRINTF("Raising IRQ %d, prio %d\n",
@@ -108,7 +108,7 @@ static void imx_avic_set_irq(void *opaque, int irq, int level)
 static uint64_t imx_avic_read(void *opaque,
                              hwaddr offset, unsigned size)
 {
-    IMXAVICState *s = (IMXAVICState *)opaque;
+    IMXAVICState *s = opaque;
 
     DPRINTF("read(offset = 0x%" HWADDR_PRIx ")\n", offset);
 
@@ -217,7 +217,7 @@ static uint64_t imx_avic_read(void *opaque,
 static void imx_avic_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
-    IMXAVICState *s = (IMXAVICState *)opaque;
+    IMXAVICState *s = opaque;
 
     /* Vector Registers not yet supported */
     if (offset >= 0x100 && offset <= 0x2fc) {
