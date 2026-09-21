@@ -25,7 +25,6 @@ config VMAPPLE
     select PL011 # UART
     select PL031 # RTC
     select PL061 # GPIO
-    select GPIO_PWR
     select PVPANIC_MMIO
     select VMAPPLE_AES
     select VMAPPLE_BDIF
