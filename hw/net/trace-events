@@ -11,10 +11,11 @@ allwinner_sun8i_emac_read(uint64_t offset, uint64_t val) "MMIO read: offset=0x%"
 allwinner_sun8i_emac_write(uint64_t offset, uint64_t val) "MMIO write: offset=0x%" PRIx64 " value=0x%" PRIx64
 
 # lan9118_phy.c
-lan9118_phy_read(uint16_t val, int reg) "[0x%02x] -> 0x%04" PRIx16
-lan9118_phy_write(uint16_t val, int reg) "[0x%02x] <- 0x%04" PRIx16
-lan9118_phy_update_link(const char *s) "%s"
-lan9118_phy_reset(void) ""
+lan9118_phy_read(const char *path, uint16_t val, int reg) "%s: [0x%02x] -> 0x%04" PRIx16
+lan9118_phy_write(const char *path, uint16_t val, int reg) "%s: [0x%02x] <- 0x%04" PRIx16
+lan9118_phy_link_down(const char *path) "%s"
+lan9118_phy_link_up(const char *path) "%s"
+lan9118_phy_reset(const char *path) "%s"
 
 # lance.c
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=0x%"PRIx64"val=0x%04x"
