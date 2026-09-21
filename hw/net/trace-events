@@ -444,20 +444,20 @@ i82596_ca_init(uint32_t scb, uint8_t mode, uint32_t base) "CA: Init - SCB=0x%08x
 i82596_ioport_write(uint32_t addr, uint32_t val) "IO write addr=0x%08x val=0x%08x"
 
 # imx_fec.c
-imx_phy_read_num(int phy, int configured) "read request from unconfigured phy %d (configured %d)"
-imx_phy_write_num(int phy, int configured) "write request to unconfigured phy %d (configured %d)"
+imx_phy_read_num(const char *path, int phy, int configured) "%s: read request from unconfigured phy %d (configured %d)"
+imx_phy_write_num(const char *path, int phy, int configured) "%s: write request to unconfigured phy %d (configured %d)"
 imx_fec_read_bd(uint64_t addr, int flags, int len, int data) "tx_bd 0x%"PRIx64" flags 0x%04x len %d data 0x%08x"
 imx_enet_read_bd(uint64_t addr, int flags, int len, int data, int options, int status) "tx_bd 0x%"PRIx64" flags 0x%04x len %d data 0x%08x option 0x%04x status 0x%04x"
-imx_eth_tx_bd_busy(void) "tx_bd ran out of descriptors to transmit"
-imx_eth_rx_bd_full(void) "RX buffer is full"
-imx_eth_read(int reg, const char *reg_name, uint32_t value) "reg[%d:%s] => 0x%08"PRIx32
-imx_eth_write(int reg, const char *reg_name, uint64_t value) "reg[%d:%s] <= 0x%08"PRIx64
-imx_fec_receive(size_t size) "len %zu"
-imx_fec_receive_len(uint64_t addr, int len) "rx_bd 0x%"PRIx64" length %d"
-imx_fec_receive_last(int last) "rx frame flags 0x%04x"
-imx_enet_receive(size_t size) "len %zu"
-imx_enet_receive_len(uint64_t addr, int len) "rx_bd 0x%"PRIx64" length %d"
-imx_enet_receive_last(int last) "rx frame flags 0x%04x"
+imx_eth_tx_bd_busy(const char *path) "%s: tx_bd ran out of descriptors to transmit"
+imx_eth_rx_bd_full(const char *path) "%s: RX buffer is full"
+imx_eth_read(const char *path, int reg, const char *reg_name, uint32_t value) "%s: reg[%d:%s] => 0x%08"PRIx32
+imx_eth_write(const char *path, int reg, const char *reg_name, uint64_t value) "%s: reg[%d:%s] <= 0x%08"PRIx64
+imx_fec_receive(const char *path, size_t size) "%s: len %zu"
+imx_fec_receive_len(const char *path, uint64_t addr, int len) "%s: rx_bd 0x%"PRIx64" length %d"
+imx_fec_receive_last(const char *path, int last) "%s: rx frame flags 0x%04x"
+imx_enet_receive(const char *path, size_t size) "%s: len %zu"
+imx_enet_receive_len(const char *path, uint64_t addr, int len) "%s, rx_bd 0x%"PRIx64" length %d"
+imx_enet_receive_last(const char *path, int last) "%s: rx frame flags 0x%04x"
 
 # npcm7xx_emc.c
 npcm7xx_emc_reset(int emc_num) "Resetting emc%d"
