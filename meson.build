@@ -4259,6 +4259,15 @@ if host_os == 'darwin'
 endif
 
 traceable = []
+multi_target_libs = []
+multi_target_deps = []
+multi_target_crates = []
+multi_target_supported_targets = [
+  'aarch64-softmmu',
+  'arm-softmmu',
+  'microblaze-softmmu',
+]
+
 emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
@@ -4414,6 +4423,12 @@ foreach target : target_dirs
                  build_by_default: false)
 
   if target.endswith('-softmmu')
+    if target in multi_target_supported_targets
+      multi_target_libs += lib
+      multi_target_deps += arch_deps
+      multi_target_deps += target_stubs
+      multi_target_crates += main_rs
+    endif
     execs = [{
       'name': 'qemu-system-' + target_name,
       'win_subsystem': 'console',
@@ -4496,6 +4511,14 @@ foreach target : target_dirs
 endforeach
 
 # Other build targets
+
+multi_target_objects = []
+foreach lib: multi_target_libs
+  multi_target_objects += lib.extract_all_objects(recursive: true)
+endforeach
+
+multi_target_link_args = emulator_link_args
+multi_target_link_args += enable_modules ? ['@block.syms', '@qemu.syms'] : []
 
 if get_option('plugins')
   install_headers('include/plugins/qemu-plugin.h')
