@@ -904,6 +904,13 @@ typedef struct BlockLimits {
     /* zone size expressed in bytes */
     uint64_t zone_size;
 
+    /*
+     * log2 of zone_size, derived by bdrv_refresh_limits(). A zoned device
+     * always has a zone size that is a power of two, so the zone an offset
+     * falls in is a shift rather than a division. See bdrv_zone_index().
+     */
+    uint32_t zone_size_bits;
+
     /* total number of zones */
     uint32_t nr_zones;
 

@@ -126,6 +126,8 @@ int coroutine_fn GRAPH_RDLOCK bdrv_co_zone_append(BlockDriverState *bs,
                                                   int64_t *offset,
                                                   QEMUIOVector *qiov,
                                                   BdrvRequestFlags flags);
+/* The index of the zone that @offset falls in. */
+uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset);
 
 bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs);
 

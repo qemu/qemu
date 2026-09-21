@@ -523,7 +523,7 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
             }
         }
 
-        index = offset / bs->bl.zone_size;
+        index = bdrv_zone_index(bs, offset);
         if (BDRV_ZT_IS_CONV(bs->wps->wp[index])) {
             *status = VIRTIO_BLK_S_ZONE_INVALID_CMD;
             return false;

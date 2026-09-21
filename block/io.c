@@ -230,6 +230,11 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
         }
     }
 
+    if (bs->bl.zone_size) {
+        assert(is_power_of_2(bs->bl.zone_size));
+        bs->bl.zone_size_bits = ctz64(bs->bl.zone_size);
+    }
+
     if (bs->bl.request_alignment > BDRV_MAX_ALIGNMENT) {
         error_setg(errp, "Driver requires too large request alignment");
     }
@@ -3364,6 +3369,13 @@ int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
 out:
     bdrv_dec_in_flight(bs);
     return co.ret;
+}
+
+uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset)
+{
+    IO_CODE();
+
+    return offset >> bs->bl.zone_size_bits;
 }
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
