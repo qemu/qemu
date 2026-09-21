@@ -127,6 +127,7 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp);
  * physical block size, so this is the physical block size in practice.
  */
 uint32_t blkconf_zone_write_granularity(BlockConf *conf);
+bool blkconf_check_zoned_geometry(BlockConf *conf, Error **errp);
 bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
                                    bool resizable, Error **errp);
 

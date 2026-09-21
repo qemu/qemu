@@ -206,6 +206,69 @@ uint32_t blkconf_zone_write_granularity(BlockConf *conf)
     return MAX(conf->logical_block_size, conf->physical_block_size);
 }
 
+bool blkconf_check_zoned_geometry(BlockConf *conf, Error **errp)
+{
+    BlockDriverState *bs = blk_bs(conf->blk);
+    uint32_t wg;
+
+    if (bs->bl.zoned == BLK_Z_NONE) {
+        return true;
+    }
+
+    wg = blkconf_zone_write_granularity(conf);
+
+    /*
+     * A backend that requires a coarser granularity than the one that is about
+     * to be reported would reject writes that the guest has been told are
+     * valid, leaving it with a plain I/O error.
+     */
+    if (bs->bl.write_granularity > wg) {
+        error_setg(errp, "the backend requires writes to sequential zones to "
+                   "be a multiple of %" PRIu32 " bytes, which is coarser than "
+                   "the zone write granularity %" PRIu32 " that would be "
+                   "reported", bs->bl.write_granularity, wg);
+        error_append_hint(errp, "Set physical_block_size=%" PRIu32 ".\n",
+                          bs->bl.write_granularity);
+        return false;
+    }
+
+    if (!QEMU_IS_ALIGNED(bs->bl.zone_size, wg)) {
+        error_setg(errp, "zone size %" PRIu64 " is not a multiple of the zone "
+                   "write granularity %" PRIu32, bs->bl.zone_size, wg);
+        return false;
+    }
+
+    /*
+     * A write pointer that is not a multiple of the write granularity does not
+     * fall on a logical block boundary, so the guest can neither read nor write
+     * at it and the zone can only be recovered by resetting it. A backend that
+     * records its write pointers, rather than reading them back from a device,
+     * can hand us such a pointer when the zones were written while the device
+     * was configured with a smaller logical block size.
+     */
+    for (uint32_t i = 0; i < bs->bl.nr_zones; i++) {
+        uint64_t wp;
+
+        if (bdrv_zone_is_conv(bs, i)) {
+            continue;
+        }
+
+        wp = bs->wps->wp[i];
+        if (!QEMU_IS_ALIGNED(wp, wg)) {
+            error_setg(errp, "write pointer 0x%" PRIx64 " of zone %" PRIu32
+                       " is not a multiple of the zone write granularity %"
+                       PRIu32, wp, i, wg);
+            error_append_hint(errp, "The zones were written with a finer zone "
+                              "write granularity. Reset them, or attach the "
+                              "device with the block sizes that they were "
+                              "written with.\n");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
                                    bool resizable, Error **errp)
 {
