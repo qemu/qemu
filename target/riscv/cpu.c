@@ -963,7 +963,7 @@ uint64_t riscv_cpu_get_mip(const CPURISCVState *env)
     return qatomic_read(&env->mip);
 }
 
-bool riscv_cpu_has_work(CPUState *cs)
+static bool riscv_cpu_has_work(CPUState *cs)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
