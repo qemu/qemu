@@ -114,6 +114,19 @@ bool blkconf_geometry(BlockConf *conf, int *trans,
                       unsigned cyls_max, unsigned heads_max, unsigned secs_max,
                       Error **errp);
 bool blkconf_blocksizes(BlockConf *conf, Error **errp);
+/*
+ * The alignment constraint that applies to writes to a sequential zone. A guest
+ * cannot issue a write finer than the logical block size, and the medium cannot
+ * take one finer than the physical block size, so the constraint that applies
+ * is the larger of the two. A frontend must report this value to its guest and
+ * validate requests against it.
+ *
+ * It is derived from the configuration and not from the backend, so that a
+ * guest is not given a property of the host, which would differ after
+ * migration. blkconf_blocksizes() rejects a logical block size larger than the
+ * physical block size, so this is the physical block size in practice.
+ */
+uint32_t blkconf_zone_write_granularity(BlockConf *conf);
 bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
                                    bool resizable, Error **errp);
 

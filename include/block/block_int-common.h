@@ -923,6 +923,13 @@ typedef struct BlockLimits {
     /* maximum number of active zones */
     uint32_t max_active_zones;
 
+    /*
+     * The granularity that the backend requires of a write to a sequential
+     * zone, in bytes, or zero if it has none. This describes the host, so it
+     * must not be reported to a guest: a frontend reports
+     * blkconf_zone_write_granularity() and checks this against it when the
+     * device is realized.
+     */
     uint32_t write_granularity;
 } BlockLimits;
 
