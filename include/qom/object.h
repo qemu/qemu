@@ -2325,6 +2325,23 @@ object_class_property_add_alias(ObjectClass *klass, const char *name,
                                 const char *target_name);
 
 /**
+ * object_property_set_alias:
+ * @obj: the object upon which to set the alias property
+ * @name: the name of the alias property
+ * @target_obj: the object to forward property access to
+ *
+ * Set an alias property on an object to point to @target_obj.  This is only
+ * required for class properties, and will assert at runtime if used on an
+ * object property.
+ *
+ * This function ensures that @target_obj stays alive as long as @obj exists
+ * by taking a reference if @target_obj is not a child object or an alias on
+ * the same object.
+ */
+void object_property_set_alias(Object *obj, const char *name,
+                               Object *target_obj);
+
+/**
  * object_property_add_const_link:
  * @obj: the object to add a property to
  * @name: the name of the property
