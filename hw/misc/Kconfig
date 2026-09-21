@@ -97,7 +97,13 @@ config IMX
 config IMX_RNG
     bool
 
+config FSL_IMX6_SRC
+    bool
+
 config FSL_IMX7_GPR
+    bool
+
+config FSL_IMX7_SRC
     bool
 
 config FSL_IMX8MP_ANALOG
