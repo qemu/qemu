@@ -1756,8 +1756,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 static void xhci_calc_intr_kick(XHCIState *xhci, XHCITransfer *xfer,
                                 XHCIEPContext *epctx, uint64_t mfindex)
 {
-    uint64_t asap = ((mfindex + epctx->interval - 1) &
-                     ~(epctx->interval-1));
+    uint64_t asap = ROUND_UP(mfindex, epctx->interval);
     uint64_t kick = epctx->mfindex_last + epctx->interval;
 
     assert(epctx->interval != 0);
@@ -1768,8 +1767,7 @@ static void xhci_calc_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
                                XHCIEPContext *epctx, uint64_t mfindex)
 {
     if (xfer->trbs[0].control & TRB_TR_SIA) {
-        uint64_t asap = ((mfindex + epctx->interval - 1) &
-                         ~(epctx->interval-1));
+        uint64_t asap = ROUND_UP(mfindex, epctx->interval);
         if (asap >= epctx->mfindex_last &&
             asap <= epctx->mfindex_last + epctx->interval * 4) {
             xfer->mfindex_kick = epctx->mfindex_last + epctx->interval;
