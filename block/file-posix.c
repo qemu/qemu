@@ -1508,11 +1508,6 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
     }
     bs->bl.nr_zones = ret;
 
-    ret = get_sysfs_long_val(st, "zone_append_max_bytes");
-    if (ret > 0) {
-        bs->bl.max_append_sectors = ret >> BDRV_SECTOR_BITS;
-    }
-
     ret = get_sysfs_long_val(st, "zone_write_granularity");
     if (ret >= 0) {
         bs->bl.write_granularity = ret;

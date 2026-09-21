@@ -914,9 +914,6 @@ typedef struct BlockLimits {
     /* total number of zones */
     uint32_t nr_zones;
 
-    /* maximum sectors of a zone append write operation */
-    uint32_t max_append_sectors;
-
     /* maximum number of open zones */
     uint32_t max_open_zones;
 
