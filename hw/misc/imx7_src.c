@@ -105,7 +105,7 @@ static void imx7_src_reset(DeviceState *dev)
 static uint64_t imx7_src_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value = 0;
-    IMX7SRCState *s = (IMX7SRCState *)opaque;
+    IMX7SRCState *s = opaque;
     uint32_t index = offset >> 2;
 
     if (index < SRC_MAX) {
@@ -167,7 +167,7 @@ static void imx7_defer_clear_reset_bit(uint32_t cpuid,
 static void imx7_src_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
-    IMX7SRCState *s = (IMX7SRCState *)opaque;
+    IMX7SRCState *s = opaque;
     uint32_t index = offset >> 2;
     long unsigned int change_mask;
     uint32_t current_value = value;

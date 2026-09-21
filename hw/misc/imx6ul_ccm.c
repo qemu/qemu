@@ -625,7 +625,7 @@ static uint64_t imx6ul_ccm_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value = 0;
     uint32_t index = offset >> 2;
-    IMX6ULCCMState *s = (IMX6ULCCMState *)opaque;
+    IMX6ULCCMState *s = opaque;
 
     assert(index < CCM_MAX);
 
@@ -640,7 +640,7 @@ static void imx6ul_ccm_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
     uint32_t index = offset >> 2;
-    IMX6ULCCMState *s = (IMX6ULCCMState *)opaque;
+    IMX6ULCCMState *s = opaque;
 
     assert(index < CCM_MAX);
 
@@ -654,7 +654,7 @@ static uint64_t imx6ul_analog_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value;
     uint32_t index = offset >> 2;
-    IMX6ULCCMState *s = (IMX6ULCCMState *)opaque;
+    IMX6ULCCMState *s = opaque;
 
     assert(index < CCM_ANALOG_MAX);
 
@@ -754,7 +754,7 @@ static void imx6ul_analog_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
     uint32_t index = offset >> 2;
-    IMX6ULCCMState *s = (IMX6ULCCMState *)opaque;
+    IMX6ULCCMState *s = opaque;
 
     assert(index < CCM_ANALOG_MAX);
 

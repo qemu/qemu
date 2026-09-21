@@ -217,7 +217,7 @@ static void imx25_ccm_reset(DeviceState *dev)
 static uint64_t imx25_ccm_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value = 0;
-    IMX25CCMState *s = (IMX25CCMState *)opaque;
+    IMX25CCMState *s = opaque;
 
     if (offset < 0x70) {
         value = s->reg[offset >> 2];
@@ -234,7 +234,7 @@ static uint64_t imx25_ccm_read(void *opaque, hwaddr offset, unsigned size)
 static void imx25_ccm_write(void *opaque, hwaddr offset, uint64_t value,
                             unsigned size)
 {
-    IMX25CCMState *s = (IMX25CCMState *)opaque;
+    IMX25CCMState *s = opaque;
 
     trace_imx25_ccm_write(imx25_ccm_reg_name(offset >> 2), value);
 
