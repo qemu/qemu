@@ -3378,6 +3378,13 @@ uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset)
     return offset >> bs->bl.zone_size_bits;
 }
 
+bool bdrv_zone_is_conv(BlockDriverState *bs, uint32_t index)
+{
+    IO_CODE();
+
+    return BDRV_ZT_IS_CONV(bs->wps->wp[index]);
+}
+
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {
     IO_CODE();
