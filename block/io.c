@@ -3308,40 +3308,36 @@ int coroutine_fn bdrv_co_zone_report(BlockDriverState *bs, int64_t offset,
                         BlockZoneDescriptor *zones)
 {
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-            .coroutine = qemu_coroutine_self(),
-    };
+    int ret;
     IO_CODE();
 
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_report || bs->bl.zoned == BLK_Z_NONE) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
-    co.ret = drv->bdrv_co_zone_report(bs, offset, nr_zones, zones);
+    ret = drv->bdrv_co_zone_report(bs, offset, nr_zones, zones);
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+    return ret;
 }
 
 int coroutine_fn bdrv_co_zone_mgmt(BlockDriverState *bs, BlockZoneOp op,
         int64_t offset, int64_t len)
 {
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-            .coroutine = qemu_coroutine_self(),
-    };
+    int ret;
     IO_CODE();
 
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_mgmt || bs->bl.zoned == BLK_Z_NONE) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
-    co.ret = drv->bdrv_co_zone_mgmt(bs, op, offset, len);
+    ret = drv->bdrv_co_zone_mgmt(bs, op, offset, len);
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+    return ret;
 }
 
 int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
@@ -3350,9 +3346,6 @@ int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
 {
     int ret;
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-            .coroutine = qemu_coroutine_self(),
-    };
     IO_CODE();
 
     ret = bdrv_check_qiov_request(*offset, qiov->size, qiov, 0, NULL);
@@ -3384,13 +3377,13 @@ int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
 
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_append || bs->bl.zoned == BLK_Z_NONE) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
-    co.ret = drv->bdrv_co_zone_append(bs, offset, qiov, flags);
+    ret = drv->bdrv_co_zone_append(bs, offset, qiov, flags);
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+    return ret;
 }
 
 uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset)
