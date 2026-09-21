@@ -15,8 +15,10 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/timer/imx_gpt.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "trace.h"
@@ -522,6 +524,12 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
     IMXGPTState *s = IMX_GPT(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
+    if (!s->ccm) {
+        error_setg(errp, "%s 'clock-control-module' link property not set",
+                   dev->canonical_path);
+        return;
+    }
+
     sysbus_init_irq(sbd, &s->irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &imx_gpt_ops, s, TYPE_IMX_GPT,
                           0x00001000);
@@ -530,12 +538,18 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
     s->timer = ptimer_init(imx_gpt_timeout, s, PTIMER_POLICY_LEGACY);
 }
 
+static const Property imx_timer_gpt_properties[] = {
+    DEFINE_PROP_LINK("clock-control-module", IMXGPTState, ccm, TYPE_IMX_CCM,
+                     IMXCCMState *),
+};
+
 static void imx_gpt_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = imx_gpt_realize;
     device_class_set_legacy_reset(dc, imx_gpt_reset);
+    device_class_set_props(dc, imx_timer_gpt_properties);
     dc->vmsd = &vmstate_imx_timer_gpt;
     dc->desc = "i.MX general timer";
 }

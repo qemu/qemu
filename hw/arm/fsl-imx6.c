@@ -204,7 +204,8 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(gic, serial_table[i].irq));
     }
 
-    s->gpt.ccm = IMX_CCM(&s->ccm);
+    object_property_set_link(OBJECT(&s->gpt), "clock-control-module",
+                             OBJECT(&s->ccm), &error_abort);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt), errp)) {
         return;

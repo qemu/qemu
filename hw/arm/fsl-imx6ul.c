@@ -245,7 +245,8 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
             FSL_IMX6UL_GPT2_IRQ,
         };
 
-        s->gpt[i].ccm = IMX_CCM(&s->ccm);
+        object_property_set_link(OBJECT(&s->gpt[i]), "clock-control-module",
+                                 OBJECT(&s->ccm), &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->gpt[i]), &error_abort);
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpt[i]), 0,

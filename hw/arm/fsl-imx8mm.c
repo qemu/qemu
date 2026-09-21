@@ -420,7 +420,8 @@ static void fsl_imx8mm_realize(DeviceState *dev, Error **errp)
             fsl_imx8mm_memmap[FSL_IMX8MM_GPT6].addr,
         };
 
-        s->gpt[i].ccm = IMX_CCM(&s->ccm);
+        object_property_set_link(OBJECT(&s->gpt[i]), "clock-control-module",
+                                 OBJECT(&s->ccm), &error_abort);
 
         if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt[i]), errp)) {
             return;
