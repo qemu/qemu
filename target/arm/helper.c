@@ -1692,11 +1692,12 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         } else {
             /*
              * Next transition is when (count - offset) == cval, i.e.
-             * when count == (cval + offset).
-             * If that would overflow, then again we set up the next interrupt
-             * for "as far in the future as possible" for the code below.
+             * cval - (count - offset) ticks from now. If count plus that
+             * overflows, set up "as far in the future as possible" below.
              */
-            if (uadd64_overflow(gt->cval, offset, &nexttick)) {
+            uint64_t remaining = gt->cval - (count - offset);
+
+            if (uadd64_overflow(count, remaining, &nexttick)) {
                 nexttick = UINT64_MAX;
             }
         }
