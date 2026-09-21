@@ -448,7 +448,8 @@ void HELPER(wfit)(CPUARMState *env, uint32_t rd)
         raise_exception(env, excp, syn_wfx(1, 0xe, rd, true, WFIT, false), target_el);
     }
 
-    if (uadd64_overflow(timeout, offset, &nexttick)) {
+    /* Physical count at the timeout. Only an overflow of it is "never". */
+    if (uadd64_overflow(cntval, timeout - cntvct, &nexttick)) {
         nexttick = UINT64_MAX;
     }
     if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
@@ -705,7 +706,8 @@ void HELPER(wfet)(CPUARMState *env, uint32_t rd)
      * The WFET should time out when CNTVCT_EL0 >= the specified value.
      */
     cpu = env_archcpu(env);
-    if (uadd64_overflow(timeout, offset, &nexttick)) {
+    /* Physical count at the timeout. Only an overflow of it is "never". */
+    if (uadd64_overflow(cntval, timeout - cntvct, &nexttick)) {
         nexttick = UINT64_MAX;
     }
     if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
