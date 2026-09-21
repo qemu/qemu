@@ -270,7 +270,8 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
             FSL_IMX6UL_EPIT2_IRQ,
         };
 
-        s->epit[i].ccm = IMX_CCM(&s->ccm);
+        object_property_set_link(OBJECT(&s->epit[i]), "clock-control-module",
+                                 OBJECT(&s->ccm), &error_abort);
         sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), &error_abort);
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->epit[i]), 0,
