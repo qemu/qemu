@@ -302,6 +302,7 @@ enum loongarch_features {
     LOONGARCH_FEATURE_STEALTIME,
     LOONGARCH_FEATURE_PTW,
     LOONGARCH_FEATURE_MSGINT,
+    LOONGARCH_FEATURE_PV_PREEMPT,
 };
 
 typedef struct  LoongArchBT {
@@ -465,6 +466,7 @@ struct ArchCPU {
     OnOffAuto msgint;
     OnOffAuto kvm_pv_ipi;
     OnOffAuto kvm_steal_time;
+    OnOffAuto kvm_pv_preempt;
     int32_t socket_id;  /* socket-id of this CPU */
     int32_t core_id;    /* core-id of this CPU */
     int32_t thread_id;  /* thread-id of this CPU */
