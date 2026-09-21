@@ -83,6 +83,8 @@ QEMU_EL3_BASE_ARGS=-semihosting-config enable=on,target=native,chardev=output,ar
 run-gpc-test:  QEMU_OPTS=$(QEMU_EL3_MACHINE) $(QEMU_EL3_BASE_ARGS) -kernel
 run-gpc3-test: QEMU_OPTS=$(QEMU_EL3_MACHINE) $(QEMU_EL3_BASE_ARGS) -kernel
 
+run-wfxt: QEMU_OPTS=-M virt,virtualization=on,gic-version=2 -cpu max -smp 1 -semihosting-config enable=on,arg=2 -kernel
+
 # Simple Record/Replay Test
 .PHONY: memory-record
 run-memory-record: memory-record memory
