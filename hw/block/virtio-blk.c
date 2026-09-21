@@ -392,6 +392,33 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     return true;
 }
 
+/*
+ * Both the offset and the size of a write to a sequential zone must be a
+ * multiple of the write granularity that the device reports. Conventional
+ * zones are not constrained. The zone index is derived from a guest supplied
+ * sector, so this must only be called once virtio_blk_sect_range_ok() has
+ * bounded it.
+ */
+static bool virtio_blk_zone_write_granularity_ok(VirtIOBlock *dev,
+                                                 uint64_t sector, size_t size)
+{
+    BlockDriverState *bs = blk_bs(dev->blk);
+    uint64_t offset = sector << BDRV_SECTOR_BITS;
+    uint32_t wg_mask;
+
+    if (bs->bl.zoned == BLK_Z_NONE) {
+        return true;
+    }
+
+    if (bdrv_zone_is_conv(bs, bdrv_zone_index(bs, offset))) {
+        return true;
+    }
+
+    wg_mask = blkconf_zone_write_granularity(&dev->conf.conf) - 1;
+
+    return !(offset & wg_mask) && !(size & wg_mask);
+}
+
 static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
     struct virtio_blk_discard_write_zeroes *dwz_hdr, bool is_write_zeroes)
 {
@@ -518,7 +545,7 @@ static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
     if (append) {
         uint32_t wg_mask = blkconf_zone_write_granularity(&s->conf.conf) - 1;
 
-        if (offset & wg_mask) {
+        if (offset & wg_mask || len & wg_mask) {
             *status = VIRTIO_BLK_S_ZONE_UNALIGNED_WP;
             return false;
         }
@@ -909,6 +936,15 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
             virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
             block_acct_invalid(blk_get_stats(s->blk),
                                is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
+            g_free(req);
+            return 0;
+        }
+
+        if (is_write &&
+            !virtio_blk_zone_write_granularity_ok(s, req->sector_num,
+                                                  req->qiov.size)) {
+            virtio_blk_req_complete(req, VIRTIO_BLK_S_ZONE_UNALIGNED_WP);
+            block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_WRITE);
             g_free(req);
             return 0;
         }
