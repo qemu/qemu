@@ -3370,6 +3370,18 @@ int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
         return -EINVAL;
     }
 
+    /*
+     * An append cannot cross a zone boundary, so one that is larger than a
+     * zone can never be carried out, wherever the write pointer of the zone
+     * is. The exact bound is the part of the zone that is still writable,
+     * which only a driver can check, as only it holds the write pointer.
+     * zone_size is zero when the device is not zoned, which is reported as
+     * unsupported below.
+     */
+    if (bs->bl.zone_size && qiov->size > bs->bl.zone_size) {
+        return -EINVAL;
+    }
+
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_append || bs->bl.zoned == BLK_Z_NONE) {
         co.ret = -ENOTSUP;
