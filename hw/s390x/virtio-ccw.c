@@ -582,6 +582,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             if (ret) {
                 break;
             }
+            if (dev->indicators) {
+                /* Need to remove existing indicators first */
+                release_indicator(&dev->routes.adapter, dev->indicators);
+                dev->indicators = NULL;
+            }
             indicators = be64_to_cpu(indicators);
             dev->indicators = get_indicator(indicators, sizeof(uint64_t));
             sch->curr_status.scsw.count = ccw.count - sizeof(indicators);
@@ -605,6 +610,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             ret = ccw_dstream_read(&sch->cds, indicators);
             if (ret) {
                 break;
+            }
+            if (dev->indicators2) {
+                /* Need to remove existing indicators first */
+                release_indicator(&dev->routes.adapter, dev->indicators2);
+                dev->indicators2 = NULL;
             }
             indicators = be64_to_cpu(indicators);
             dev->indicators2 = get_indicator(indicators, sizeof(uint64_t));
@@ -666,6 +676,17 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             } else if (thinint.isc > MAX_ISC) {
                 ret = -ENOSYS;
             } else {
+                if (dev->indicators) {
+                    /* Need to remove existing indicators first */
+                    release_indicator(&dev->routes.adapter, dev->indicators);
+                    dev->indicators = NULL;
+                }
+                if (dev->summary_indicator) {
+                    /* Need to remove existing indicators first */
+                    release_indicator(&dev->routes.adapter,
+                                      dev->summary_indicator);
+                    dev->summary_indicator = NULL;
+                }
                 thinint.ind_bit = be64_to_cpu(thinint.ind_bit);
                 thinint.summary_indicator =
                     be64_to_cpu(thinint.summary_indicator);
