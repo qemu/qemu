@@ -633,7 +633,7 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
     /* Check clear_io_irq support */
     test_attr.group = KVM_DEV_FLIC_CLEAR_IO_IRQ;
     flic_state->clear_io_supported = !ioctl(flic_state->fd,
-                                            KVM_HAS_DEVICE_ATTR, test_attr);
+                                            KVM_HAS_DEVICE_ATTR, &test_attr);
 }
 
 static void kvm_s390_flic_reset(DeviceState *dev)
