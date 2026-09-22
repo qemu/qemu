@@ -17,8 +17,7 @@
 
 ##
 # @VHostUserBackendType:
-#
-# List the various vhost user backend types.
+#     List the various vhost user backend types.
 #
 # @9p: 9p virtio console
 #
@@ -75,8 +74,7 @@
 
 ##
 # @VHostUserBackendBlockFeature:
-#
-# List of vhost user "block" features.
+#     List of vhost user "block" features.
 #
 # @read-only: The --read-only command line option is supported.
 #
@@ -91,8 +89,7 @@
 
 ##
 # @VHostUserBackendCapabilitiesBlock:
-#
-# Capabilities reported by vhost user "block" backends
+#     Capabilities reported by vhost user "block" backends
 #
 # @features: list of supported features.
 #
@@ -107,8 +104,7 @@
 
 ##
 # @VHostUserBackendInputFeature:
-#
-# List of vhost user "input" features.
+#     List of vhost user "input" features.
 #
 # @evdev-path: The --evdev-path command line option is supported.
 #
@@ -123,8 +119,7 @@
 
 ##
 # @VHostUserBackendCapabilitiesInput:
-#
-# Capabilities reported by vhost user "input" backends
+#     Capabilities reported by vhost user "input" backends
 #
 # @features: list of supported features.
 #
@@ -139,8 +134,7 @@
 
 ##
 # @VHostUserBackendGPUFeature:
-#
-# List of vhost user "gpu" features.
+#     List of vhost user "gpu" features.
 #
 # @render-node: The --render-node command line option is supported.
 #
@@ -155,8 +149,7 @@
 
 ##
 # @VHostUserBackendCapabilitiesGPU:
-#
-# Capabilities reported by vhost user "gpu" backends.
+#     Capabilities reported by vhost user "gpu" backends.
 #
 # @features: list of supported features.
 #
@@ -171,8 +164,7 @@
 
 ##
 # @VHostUserBackendCapabilities:
-#
-# Capabilities reported by vhost user backends.
+#     Capabilities reported by vhost user backends.
 #
 # @type: The vhost user backend type.
 #
@@ -190,8 +182,7 @@
 
 ##
 # @VhostUserBackend:
-#
-# Describes a vhost user backend to management software.
+#     Describes a vhost user backend to management software.
 #
 # It is possible for multiple @VhostUserBackend elements to match the
 # search criteria of management software.  Applications thus need
