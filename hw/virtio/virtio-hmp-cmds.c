@@ -176,8 +176,10 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
         hmp_virtio_dump_features(mon, s->vhost_dev->features);
         monitor_printf(mon, "    Acked features:\n");
         hmp_virtio_dump_features(mon, s->vhost_dev->acked_features);
-        monitor_printf(mon, "    Protocol features:\n");
-        hmp_virtio_dump_protocols(mon, s->vhost_dev->protocol_features);
+        if (s->vhost_dev->protocol_features) {
+            monitor_printf(mon, "    Protocol features:\n");
+            hmp_virtio_dump_protocols(mon, s->vhost_dev->protocol_features);
+        }
     }
 
     qapi_free_VirtioStatus(s);

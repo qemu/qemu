@@ -85,7 +85,8 @@
 #
 # @acked-features: vhost_dev acked_features
 #
-# @protocol-features: vhost_dev protocol_features
+# @protocol-features: vhost-user protocol features.  Present only for
+#     vhost-user devices.
 #
 # @max-queues: vhost_dev max_queues
 #
@@ -104,7 +105,7 @@
             'vq-index': 'int',
             'features': 'VirtioDeviceFeatures',
             'acked-features': 'VirtioDeviceFeatures',
-            'protocol-features': 'VhostDeviceProtocols',
+            '*protocol-features': 'VhostDeviceProtocols',
             'max-queues': 'uint64',
             'backend-cap': 'uint64',
             'log-enabled': 'bool',
