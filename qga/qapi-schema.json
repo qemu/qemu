@@ -48,9 +48,8 @@
 
 ##
 # @guest-sync-delimited:
-#
-# Echo back a unique integer value, and prepend to response a leading
-# sentinel byte (0xFF) the client can check scan for.
+#     Echo back a unique integer value, and prepend to response a
+#     leading sentinel byte (0xFF) the client can check scan for.
 #
 # This is used by clients talking to the guest agent over the wire to
 # ensure the stream is in sync and doesn't contain stale data from
@@ -83,8 +82,7 @@
 
 ##
 # @guest-sync:
-#
-# Echo back a unique integer value
+#     Echo back a unique integer value
 #
 # This is used by clients talking to the guest agent over the wire to
 # ensure the stream is in sync and doesn't contain stale data from
@@ -140,8 +138,7 @@
 
 ##
 # @guest-set-time:
-#
-# Set guest time.
+#     Set guest time.
 #
 # When a guest is paused or migrated to a file then loaded from that
 # file, the guest OS has no idea that there was a big gap in the time.
@@ -415,14 +412,14 @@
 
 ##
 # @guest-fsfreeze-freeze:
+#     Sync and freeze all freezable, local guest filesystems.  If this
+#     command succeeded, you may call `guest-fsfreeze-thaw` later to
+#     unfreeze.
 #
-# Sync and freeze all freezable, local guest filesystems.  If this
-# command succeeded, you may call `guest-fsfreeze-thaw` later to
-# unfreeze.
-#
-# On error, all filesystems will be thawed.  If no filesystems are
-# frozen as a result of this call, then `guest-fsfreeze-status` will
-# remain "thawed" and calling `guest-fsfreeze-thaw` is not necessary.
+#     On error, all filesystems will be thawed.  If no filesystems are
+#     frozen as a result of this call, then `guest-fsfreeze-status`
+#     will remain "thawed" and calling `guest-fsfreeze-thaw` is not
+#     necessary.
 #
 # Returns: Number of file systems currently frozen.
 #
@@ -438,11 +435,10 @@
 
 ##
 # @guest-fsfreeze-freeze-list:
+#     Sync and freeze specified guest filesystems.  See also
+#     `guest-fsfreeze-freeze`.
 #
-# Sync and freeze specified guest filesystems.  See also
-# `guest-fsfreeze-freeze`.
-#
-# On error, all filesystems will be thawed.
+#     On error, all filesystems will be thawed.
 #
 # @mountpoints: an array of mountpoints of filesystems to be frozen.
 #     If omitted, every mounted filesystem is frozen.  Invalid mount
@@ -528,8 +524,7 @@
 
 ##
 # @guest-suspend-disk:
-#
-# Suspend guest to disk.
+#     Suspend guest to disk.
 #
 # This command attempts to suspend the guest using three strategies,
 # in this order:
@@ -558,8 +553,7 @@
 
 ##
 # @guest-suspend-ram:
-#
-# Suspend guest to ram.
+#     Suspend guest to ram.
 #
 # This command attempts to suspend the guest using three strategies,
 # in this order:
@@ -595,8 +589,7 @@
 
 ##
 # @guest-suspend-hybrid:
-#
-# Save guest state to disk and suspend to ram.
+#     Save guest state to disk and suspend to ram.
 #
 # This command attempts to suspend the guest by executing, in this
 # order:
@@ -746,10 +739,9 @@
 
 ##
 # @guest-get-vcpus:
+#     Retrieve the list of the guest's logical processors.
 #
-# Retrieve the list of the guest's logical processors.
-#
-# This is a read-only operation.
+#     This is a read-only operation.
 #
 # Returns: The list of all VCPUs the guest knows about.  Each VCPU is
 #     put on the list exactly once, but their order is unspecified.
@@ -1106,10 +1098,9 @@
 
 ##
 # @guest-get-memory-blocks:
+#     Retrieve the list of the guest's memory blocks.
 #
-# Retrieve the list of the guest's memory blocks.
-#
-# This is a read-only operation.
+#     This is a read-only operation.
 #
 # Returns: The list of all memory blocks the guest knows about.  Each
 #     memory block is put on the list exactly once, but their order is
@@ -1346,12 +1337,12 @@
 
 ##
 # @guest-get-host-name:
+#     Return a name for the machine.
 #
-# Return a name for the machine.
-#
-# The returned name is not necessarily a fully-qualified domain name,
-# or even present in DNS or some other name service at all.  It need
-# not even be unique on your local network or site, but usually it is.
+#     The returned name is not necessarily a fully-qualified domain
+#     name, or even present in DNS or some other name service at all.
+#     It need not even be unique on your local network or site, but
+#     usually it is.
 #
 # Returns: the host name of the machine
 #
