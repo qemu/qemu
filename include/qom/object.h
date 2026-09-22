@@ -2279,6 +2279,11 @@ ObjectProperty *object_class_static_property_add_uint64_ptr(ObjectClass *klass,
                                           const uint64_t *v,
                                           ObjectPropertyFlags flags);
 
+typedef enum {
+    /* private */
+    OBJ_PROP_ALIAS_CLASS = 0x1,
+} ObjectPropertyAliasFlags;
+
 /**
  * object_property_add_alias:
  * @obj: the object to add a property to
@@ -2298,6 +2303,43 @@ ObjectProperty *object_class_static_property_add_uint64_ptr(ObjectClass *klass,
  */
 ObjectProperty *object_property_add_alias(Object *obj, const char *name,
                                Object *target_obj, const char *target_name);
+
+/**
+ * object_class_property_add_alias:
+ * @klass: the object class to add a property to
+ * @name: the name of the property
+ * @offset: the offset from the object instance where the object alias is
+ *   stored
+ * @target_type: QOM type we expect the alias to resolve to
+ * @target_name: the name of the property on the forwarded object
+ *
+ * Add an alias for a property on an object.  This function will add a property
+ * of the same type as the forwarded property.
+ *
+ * Returns: The newly added property on success, or %NULL on failure.
+ */
+ObjectProperty *
+object_class_property_add_alias(ObjectClass *klass, const char *name,
+                                ptrdiff_t offset,
+                                const char *target_type,
+                                const char *target_name);
+
+/**
+ * object_property_set_alias:
+ * @obj: the object upon which to set the alias property
+ * @name: the name of the alias property
+ * @target_obj: the object to forward property access to
+ *
+ * Set an alias property on an object to point to @target_obj.  This is only
+ * required for class properties, and will assert at runtime if used on an
+ * object property.
+ *
+ * This function ensures that @target_obj stays alive as long as @obj exists
+ * by taking a reference if @target_obj is not a child object or an alias on
+ * the same object.
+ */
+void object_property_set_alias(Object *obj, const char *name,
+                               Object *target_obj);
 
 /**
  * object_property_add_const_link:

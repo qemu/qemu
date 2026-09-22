@@ -35,6 +35,7 @@
 #include "qom/qom-qobject.h"
 #include "qobject/qbool.h"
 #include "qobject/qlist.h"
+#include "qobject/qnull.h"
 #include "qobject/qnum.h"
 #include "qobject/qstring.h"
 #include "qemu/error-report.h"
@@ -1410,9 +1411,10 @@ object_class_property_add(ObjectClass *klass,
                           ObjectPropertyRelease *release,
                           void *opaque)
 {
+    bool prop_already_exists = object_class_property_find(klass, name);
     ObjectProperty *prop;
 
-    assert(!object_class_property_find(klass, name));
+    assert(!prop_already_exists);
 
     prop = g_malloc0(sizeof(*prop));
 
@@ -3051,44 +3053,92 @@ object_class_static_property_add_uint64_ptr(ObjectClass *klass,
 }
 
 typedef struct {
-    Object *target_obj;
+    union {
+        Object *target_obj; /* if !OBJ_PROP_ALIAS_CLASS */
+        ptrdiff_t offset;   /* if OBJ_PROP_ALIAS_CLASS */
+    };
     char *target_name;
+    ObjectPropertyAliasFlags flags;
 } AliasProperty;
+
+static Object **
+object_alias_get_targetp(Object *obj, AliasProperty *aprop)
+{
+    if (aprop->flags & OBJ_PROP_ALIAS_CLASS) {
+        return (void *)obj + aprop->offset;
+    } else {
+        return &aprop->target_obj;
+    }
+}
 
 static void property_get_alias(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     AliasProperty *prop = opaque;
-    Visitor *alias_v = visitor_forward_field(v, prop->target_name, name);
+    Object **target_obj = object_alias_get_targetp(obj, prop);
 
-    object_property_get(prop->target_obj, prop->target_name, alias_v, errp);
-    visit_free(alias_v);
+    if (*target_obj) {
+        Visitor *alias_v = visitor_forward_field(v, prop->target_name, name);
+
+        object_property_get(*target_obj, prop->target_name, alias_v, errp);
+        visit_free(alias_v);
+    } else {
+        QNull *null = NULL;
+
+        visit_type_null(v, NULL, &null, errp);
+        qnull_unref(null);
+    }
 }
 
 static void property_set_alias(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     AliasProperty *prop = opaque;
-    Visitor *alias_v = visitor_forward_field(v, prop->target_name, name);
+    Object **target_obj = object_alias_get_targetp(obj, prop);
 
-    object_property_set(prop->target_obj, prop->target_name, alias_v, errp);
-    visit_free(alias_v);
+    if (*target_obj) {
+        Visitor *alias_v = visitor_forward_field(v, prop->target_name, name);
+
+        object_property_set(*target_obj, prop->target_name, alias_v, errp);
+        visit_free(alias_v);
+    } else {
+        error_setg(errp, "unable to resolve alias property target");
+    }
 }
 
 static Object *property_resolve_alias(Object *obj, void *opaque,
                                       const char *part)
 {
     AliasProperty *prop = opaque;
+    Object **target_obj = object_alias_get_targetp(obj, prop);
 
-    return object_resolve_path_component(prop->target_obj, prop->target_name);
+    if (*target_obj) {
+        return object_resolve_path_component(*target_obj, prop->target_name);
+    } else {
+        return NULL;
+    }
 }
 
 static void property_release_alias(Object *obj, const char *name, void *opaque)
 {
     AliasProperty *prop = opaque;
 
-    g_free(prop->target_name);
-    g_free(prop);
+    if (!(prop->flags & OBJ_PROP_ALIAS_CLASS)) {
+        g_free(prop->target_name);
+        g_free(prop);
+    } else {
+        Object **target_obj = object_alias_get_targetp(obj, prop);
+
+        if (*target_obj) {
+            ObjectProperty *target_prop = object_property_find_err(*target_obj,
+                                                           prop->target_name,
+                                                           &error_abort);
+            if (*target_obj != obj &&
+                !object_property_is_child(target_prop)) {
+                    object_unref(*target_obj);
+            }
+        }
+    }
 }
 
 ObjectProperty *
@@ -3113,6 +3163,7 @@ object_property_add_alias(Object *obj, const char *name,
     prop = g_malloc(sizeof(*prop));
     prop->target_obj = target_obj;
     prop->target_name = g_strdup(target_name);
+    prop->flags = 0;
 
     op = object_property_add(obj, name, prop_type,
                              property_get_alias,
@@ -3127,6 +3178,79 @@ object_property_add_alias(Object *obj, const char *name,
     object_property_set_description(obj, op->name,
                                     target_prop->description);
     return op;
+}
+
+ObjectProperty *
+object_class_property_add_alias(ObjectClass *klass, const char *name,
+                                ptrdiff_t offset,
+                                const char *target_type,
+                                const char *target_name)
+{
+    AliasProperty *prop;
+    ObjectProperty *op;
+    ObjectProperty *target_prop;
+    ObjectClass *target_class;
+    g_autofree char *prop_type = NULL;
+
+    target_class = object_class_by_name(target_type);
+    assert(target_class);
+    target_prop = object_class_property_find(target_class, target_name);
+    assert(target_prop);
+
+    if (object_property_is_child(target_prop)) {
+        prop_type = g_strdup_printf("link%s",
+                                    target_prop->type + strlen("child"));
+    } else {
+        prop_type = g_strdup(target_prop->type);
+    }
+
+    prop = g_malloc(sizeof(*prop));
+    prop->offset = offset;
+    prop->target_name = g_strdup(target_name);
+    prop->flags = OBJ_PROP_ALIAS_CLASS;
+
+    op = object_class_property_add(klass, name, prop_type,
+                                   property_get_alias,
+                                   property_set_alias,
+                                   property_release_alias,
+                                   prop);
+    op->resolve = property_resolve_alias;
+    if (target_prop->defval) {
+        op->defval = qobject_ref(target_prop->defval);
+    }
+
+    object_class_property_set_description(klass, op->name,
+                                          target_prop->description);
+    return op;
+}
+
+void object_property_set_alias(Object *obj, const char *name,
+                               Object *target_obj)
+{
+    AliasProperty *prop;
+    ObjectProperty *op, *target_prop;
+    Object **target_objp;
+
+    op = object_property_find_err(obj, name, &error_abort);
+    prop = op->opaque;
+    assert(prop->flags & OBJ_PROP_ALIAS_CLASS);
+
+    target_objp = object_alias_get_targetp(obj, prop);
+    if (*target_objp) {
+        target_prop = object_property_find_err(*target_objp, prop->target_name,
+                                               &error_abort);
+        if (*target_objp != obj && !object_property_is_child(target_prop)) {
+            object_unref(*target_objp);
+        }
+    }
+    *target_objp = target_obj;
+    if (*target_objp) {
+        target_prop = object_property_find_err(*target_objp, prop->target_name,
+                                               &error_abort);
+        if (*target_objp != obj && !object_property_is_child(target_prop)) {
+            object_ref(*target_objp);
+        }
+    }
 }
 
 void object_property_set_description(Object *obj, const char *name,
