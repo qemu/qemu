@@ -401,8 +401,7 @@
 
 ##
 # @guest-fsfreeze-status:
-#
-# Get guest fsfreeze state.
+#     Get guest fsfreeze state.
 #
 # .. note:: This may fail to properly report the current state as a
 #    result of some other guest processes having issued an fs
@@ -925,9 +924,8 @@
 
 ##
 # @GuestNVMeSmart:
-#
-# NVMe smart information, based on NVMe specification, section
-# <SMART / Health Information (Log Identifier 02h)>
+#     NVMe smart information, based on NVMe specification, section
+#     <SMART / Health Information (Log Identifier 02h)>
 #
 # TODO: document members briefly
 #
@@ -1816,8 +1814,7 @@
 
 ##
 # @guest-get-load:
-#
-# Retrieve CPU process load information
+#     Retrieve CPU process load information
 #
 # .. note:: Windows does not have load average API, so QGA emulates it
 #    by calculating the average CPU usage in the last 1, 5, 15 minutes
