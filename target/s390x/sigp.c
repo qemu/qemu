@@ -39,7 +39,7 @@ static void set_sigp_status(SigpInfo *si, uint64_t status)
 
 static void sigp_sense(S390CPU *dst_cpu, SigpInfo *si)
 {
-    uint8_t state = s390_cpu_get_state(dst_cpu);
+    S390CpuState state = s390_cpu_get_state(dst_cpu);
     bool ext_call = dst_cpu->env.pending_int & INTERRUPT_EXTERNAL_CALL;
     uint64_t status = 0;
 
@@ -221,6 +221,8 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
         cpu_synchronize_state(cs);
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
         break;
+    default:
+        break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
 }
@@ -361,6 +363,8 @@ static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
         break;
     case S390_CPU_STATE_OPERATING:
         cpu_inject_restart(cpu);
+        break;
+    default:
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
