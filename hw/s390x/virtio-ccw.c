@@ -46,6 +46,10 @@ static int virtio_ccw_dev_post_load(void *opaque, int version_id)
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
 
+    if (dev->thinint_isc > MAX_ISC) {
+        return -EINVAL;
+    }
+
     ccw_dev->sch->driver_data = dev;
     if (ccw_dev->sch->thinint_active) {
         dev->routes.adapter.adapter_id = css_get_adapter_id(
@@ -659,6 +663,8 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         } else {
             if (ccw_dstream_read(&sch->cds, thinint)) {
                 ret = -EFAULT;
+            } else if (thinint.isc > MAX_ISC) {
+                ret = -ENOSYS;
             } else {
                 thinint.ind_bit = be64_to_cpu(thinint.ind_bit);
                 thinint.summary_indicator =
