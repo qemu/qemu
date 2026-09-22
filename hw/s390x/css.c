@@ -654,8 +654,13 @@ void css_adapter_interrupt(CssIoAdapterType type, uint8_t isc)
     S390FLICState *fs = s390_get_flic();
     S390FLICStateClass *fsc = s390_get_flic_class(fs);
     uint32_t io_int_word = (isc << 27) | IO_INT_WORD_AI;
-    IoAdapter *adapter = channel_subsys.io_adapters[type][isc];
+    IoAdapter *adapter;
 
+    if (type >= CSS_IO_ADAPTER_TYPE_NUMS || isc > MAX_ISC) {
+        return;
+    }
+
+    adapter = channel_subsys.io_adapters[type][isc];
     if (!adapter) {
         return;
     }
