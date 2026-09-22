@@ -254,6 +254,7 @@ static int __get_all_irqs(KVMS390FLICState *flic,
                           void **buf, int len)
 {
     int r;
+    void *new_buf = NULL;
 
     do {
         /* returns -ENOMEM if buffer is too small and number
@@ -263,10 +264,11 @@ static int __get_all_irqs(KVMS390FLICState *flic,
             break;
         }
         len *= 2;
-        *buf = g_try_realloc(*buf, len);
-        if (!buf) {
+        new_buf = g_try_realloc(*buf, len);
+        if (!new_buf) {
             return -ENOMEM;
         }
+        *buf = new_buf;
     } while (r == -ENOMEM && len <= KVM_S390_FLIC_MAX_BUFFER);
 
     return r;
