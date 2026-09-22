@@ -1016,13 +1016,6 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
 
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
 
-    if (!ccw.cda) {
-        if (sch->ccw_no_data_cnt == 255) {
-            return -EINVAL;
-        }
-        sch->ccw_no_data_cnt++;
-    }
-
     /* Look at the command. */
     ccw_dstream_init(&sch->cds, &ccw, &(sch->orb));
     switch (ccw.cmd_code) {
@@ -1103,6 +1096,20 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr,
     }
     sch->last_cmd = ccw;
     sch->last_cmd_valid = true;
+
+    /*
+     * A CCW that transfers no data is allowed, but ensure an upper limit
+     * is established to prevent long-running channel programs that don't
+     * move actual data.
+     */
+    if (ret == 0 && sch->cds.at_byte == 0) {
+        if (sch->ccw_no_data_cnt == 255) {
+            ret = -EINVAL;
+        } else {
+            sch->ccw_no_data_cnt++;
+        }
+    }
+
     if (ret == 0) {
         if (ccw.flags & CCW_FLAG_CC) {
             sch->channel_prog += 8;
