@@ -205,9 +205,9 @@
 
 ##
 # @guest-shutdown:
-#
-# Initiate guest-activated shutdown.  Note: this is an asynchronous
-# shutdown request, with no guarantee of successful shutdown.
+#     Initiate guest-activated shutdown.  Note: this is an
+#     asynchronous shutdown request, with no guarantee of successful
+#     shutdown.
 #
 # @mode: "halt", "powerdown" (default), or "reboot"
 #
@@ -266,10 +266,10 @@
 
 ##
 # @guest-file-read:
-#
-# Read from an open file in the guest.  Data will be base64-encoded.
-# As this command is just for limited, ad-hoc debugging, such as log
-# file access, the number of bytes to read is limited to 48 MB.
+#     Read from an open file in the guest.  Data will be
+#     base64-encoded.  As this command is just for limited, ad-hoc
+#     debugging, such as log file access, the number of bytes to read
+#     is limited to 48 MB.
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -357,10 +357,9 @@
 
 ##
 # @guest-file-seek:
-#
-# Seek to a position in the file, as with fseek(), and return the
-# current file position afterward.  Also encapsulates ftell()'s
-# functionality, with offset=0 and whence=1.
+#     Seek to a position in the file, as with fseek(), and return the
+#     current file position afterward.  Also encapsulates ftell()'s
+#     functionality, with offset=0 and whence=1.
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -1254,10 +1253,9 @@
 
 ##
 # @guest-exec-status:
-#
-# Check status of process associated with PID retrieved via
-# `guest-exec`.  Reap the process and associated metadata if it has
-# exited.
+#     Check status of process associated with PID retrieved via
+#     `guest-exec`.  Reap the process and associated metadata if it
+#     has exited.
 #
 # @pid: pid returned from `guest-exec`
 #
@@ -1605,10 +1603,9 @@
 
 ##
 # @guest-ssh-remove-authorized-keys:
-#
-# Remove public keys from the user .ssh/authorized_keys on Unix
-# systems (not implemented for other systems).  It's not an error if
-# the key is already missing.
+#     Remove public keys from the user .ssh/authorized_keys on Unix
+#     systems (not implemented for other systems).  It's not an error
+#     if the key is already missing.
 #
 # @username: the user account to remove the authorized keys
 #
@@ -1838,9 +1835,8 @@
 
 ##
 # @GuestNetworkRoute:
-#
-# Route information.  Supported on Linux (since 9.1) and Windows
-# (since 11.0).
+#     Route information.  Supported on Linux (since 9.1) and Windows
+#     (since 11.0).
 #
 # @iface: The destination network or host's egress network interface
 #     in the routing table
