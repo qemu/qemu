@@ -139,8 +139,7 @@
 
 ##
 # @BootCertificates:
-#
-# Boot certificates for secure IPL.
+#     Boot certificates for secure IPL.
 #
 # @path: path to an X.509 certificate file or a directory containing
 #      certificate files.

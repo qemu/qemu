@@ -598,9 +598,10 @@
 
 ##
 # @x-qemu-io:
+#     Run a qemu-io command on a block device.
 #
-# Run a qemu-io command on a block device.  Take either a block
-# backend name or a qdev ID to identify the device.
+# Take either a block backend name or a qdev ID to identify the
+# device.
 #
 # @device: the block backend name, node-name to run the
 #     command on.

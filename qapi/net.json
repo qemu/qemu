@@ -1280,8 +1280,7 @@
 
 ##
 # @UsernetInfo:
-#
-# Information about a user-mode network stack (slirp).
+#     Information about a user-mode network stack (slirp).
 #
 # @hub-id: The hub id, if available.
 #
@@ -1300,8 +1299,7 @@
 
 ##
 # @x-query-usernet:
-#
-# Query user-mode network stack connection states.
+#     Query user-mode network stack connection states.
 #
 # Features:
 #
@@ -1324,8 +1322,7 @@
 
 ##
 # @NetFilterInfo:
-#
-# Information about a netfilter attached to a network client.
+#     Information about a netfilter attached to a network client.
 #
 # @name: filter object name (QOM path component)
 #
@@ -1344,8 +1341,7 @@
 
 ##
 # @NetworkClientInfo:
-#
-# Information about a network client.
+#     Information about a network client.
 #
 # @name: unique network client identifier
 #
@@ -1374,8 +1370,7 @@
 
 ##
 # @NetHubPortInfo:
-#
-# Information about a hub port.
+#     Information about a hub port.
 #
 # @name: hub port identifier
 #
@@ -1390,8 +1385,7 @@
 
 ##
 # @NetHubInfo:
-#
-# Information about a network hub.
+#     Information about a network hub.
 #
 # @id: hub identifier
 #
@@ -1406,8 +1400,7 @@
 
 ##
 # @NetworkInfo:
-#
-# Information about the network configuration.
+#     Information about the network configuration.
 #
 # @hubs: network hubs and their ports
 #
@@ -1422,8 +1415,7 @@
 
 ##
 # @x-query-network:
-#
-# Query the network configuration including hubs and clients.
+#     Query the network configuration including hubs and clients.
 #
 # Features:
 #
