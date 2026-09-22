@@ -74,6 +74,16 @@ tests += {
   'ts.c': {},
   'ex-smc.c': {'cflags': ['-Wl,--no-warn-rwx-segments']},
   'load-store-reversed.c': {},
+  'cpacf-kdsa.c': {},
+  'cpacf-kimd.c': {},
+  'cpacf-klmd.c': {},
+  'cpacf-km.c': {},
+  'cpacf-kmac.c': {},
+  'cpacf-kmc.c': {},
+  'cpacf-kmctr.c': {},
+  'cpacf-pcc.c': {},
+  'cpacf-pckmo.c': {},
+  'cpacf-prno.c': {},
 }
 
 foreach src: tests_s390x_pgm

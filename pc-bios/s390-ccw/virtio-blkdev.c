@@ -253,7 +253,6 @@ int virtio_blk_setup_device(VDev *vdev)
     puts("Using virtio-blk.");
 
     switch (vdev->ipl_type) {
-    case S390_IPL_TYPE_QEMU_SCSI:
     case S390_IPL_TYPE_CCW:
         return virtio_ccw_setup(vdev);
     case S390_IPL_TYPE_PCI:

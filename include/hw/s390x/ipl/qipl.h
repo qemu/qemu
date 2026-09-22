@@ -29,7 +29,7 @@ enum S390IplType {
     S390_IPL_TYPE_CCW = 0x02,
     S390_IPL_TYPE_PCI = 0x04,
     S390_IPL_TYPE_PV = 0x05,
-    S390_IPL_TYPE_QEMU_SCSI = 0xff
+    S390_IPL_TYPE_QEMU_SCSI = 0xff /* Max value, must fit in uint8_t */
 };
 typedef enum S390IplType S390IplType;
 
@@ -39,7 +39,7 @@ typedef enum S390IplType S390IplType;
 #define S390_IPLB_MIN_PV_LEN 148
 #define S390_IPLB_MIN_CCW_LEN 200
 #define S390_IPLB_MIN_FCP_LEN 384
-#define S390_IPLB_MIN_PCI_LEN 376
+#define S390_IPLB_MIN_PCI_LEN (offsetof(IplParameterBlock, pci) + sizeof(IplBlockPci))
 #define S390_IPLB_MIN_QEMU_SCSI_LEN 200
 #define S390_IPLB_MAX_LEN 4096
 
@@ -123,9 +123,14 @@ struct IplBlockQemuScsi {
     uint32_t lun;
     uint16_t target;
     uint16_t channel;
-    uint8_t  reserved0[77];
-    uint8_t  ssid;
-    uint16_t devno;
+    uint8_t  bus;
+    uint8_t  reserved0[76];
+    uint8_t  ssid;              /* CCW only */
+    uint16_t devno;             /* CCW only */
+    uint8_t  reserved1[216];
+    uint8_t  opt;               /* PCI only */
+    uint8_t  reserved2[3];
+    uint32_t fid;               /* PCI only */
 } QEMU_PACKED;
 typedef struct IplBlockQemuScsi IplBlockQemuScsi;
 

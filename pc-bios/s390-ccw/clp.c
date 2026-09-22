@@ -82,6 +82,10 @@ int enable_pci_function(uint32_t *fhandle)
 {
     ClpReqRspSetPci rrb;
 
+    if (*fhandle & CLP_FHLIST_MASK_CONFIG) {
+        return 0;   /* already enabled */
+    }
+
     rrb.request.hdr.len = sizeof(ClpReqSetPci);
     rrb.request.hdr.cmd = 0x05;
     rrb.request.fh = *fhandle;

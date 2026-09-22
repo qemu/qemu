@@ -16,6 +16,7 @@
 #include "scsi.h"
 #include "virtio-scsi.h"
 #include "virtio-ccw.h"
+#include "virtio-pci.h"
 #include "s390-time.h"
 #include "helper.h"
 
@@ -479,7 +480,22 @@ static int virtio_scsi_setup(VDev *vdev)
 
 int virtio_scsi_setup_device(VDev *vdev)
 {
-    virtio_ccw_setup(vdev);
+    switch (vdev->ipl_type) {
+    case S390_IPL_TYPE_CCW:
+        if (virtio_ccw_setup(vdev)) {
+            puts("Setup failed for virtio-scsi-ccw");
+            return 1;
+        }
+        break;
+    case S390_IPL_TYPE_PCI:
+        if (virtio_pci_setup(vdev)) {
+            puts("Setup failed for virtio-scsi-pci");
+            return 1;
+        }
+        break;
+    default:
+        return 1;
+    }
 
     if (vdev->config.scsi.sense_size != VIRTIO_SCSI_SENSE_SIZE) {
         puts("Config: sense size mismatch");
