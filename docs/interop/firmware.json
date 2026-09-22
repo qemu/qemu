@@ -23,9 +23,8 @@
 
 ##
 # @FirmwareOSInterface:
-#
-# Lists the firmware-OS interface types provided by various firmware
-# that is commonly used with QEMU virtual machines.
+#     Lists the firmware-OS interface types provided by various
+#     firmware that is commonly used with QEMU virtual machines.
 #
 # @bios: Traditional x86 BIOS interface.  For example, firmware built
 #     from the SeaBIOS project usually provides this interface.
@@ -49,8 +48,7 @@
 
 ##
 # @FirmwareDevice:
-#
-# Defines the device types that firmware can be mapped into.
+#     Defines the device types that firmware can be mapped into.
 #
 # @flash: The firmware executable and its accompanying NVRAM file are
 #     to be mapped into a pflash chip each.
@@ -75,9 +73,8 @@
 
 ##
 # @FirmwareArchitecture:
-#
-# Enumeration of architectures for which Qemu uses additional firmware
-# files.
+#     Enumeration of architectures for which Qemu uses additional
+#     firmware files.
 #
 # @aarch64: 64-bit Arm.
 #
@@ -98,8 +95,7 @@
 
 ##
 # @FirmwareTarget:
-#
-# Defines the machine types that firmware may execute on.
+#     Defines the machine types that firmware may execute on.
 #
 # @architecture: Determines the emulation target (the QEMU system
 #     emulator) that can execute the firmware.
@@ -121,9 +117,8 @@
 
 ##
 # @FirmwareFeature:
-#
-# Defines the features that firmware may support, and the platform
-# requirements that firmware may present.
+#     Defines the features that firmware may support, and the platform
+#     requirements that firmware may present.
 #
 # @acpi-s3: The firmware supports S3 sleep (suspend to RAM), as
 #     defined in the ACPI specification.  On the "pc-i440fx-*" machine
@@ -236,8 +231,7 @@
 
 ##
 # @FirmwareFormat:
-#
-# Formats that are supported for firmware images.
+#     Formats that are supported for firmware images.
 #
 # @raw: Raw disk image format.
 #
@@ -250,12 +244,11 @@
 
 ##
 # @FirmwareFlashFile:
-#
-# Defines common properties that are necessary for loading a firmware
-# file into a pflash chip.  The corresponding QEMU command line option
-# is "-drive file=@filename,format=@format".  Note however that the
-# option-argument shown here is incomplete; it is completed under
-# @FirmwareMappingFlash.
+#     Defines common properties that are necessary for loading a
+#     firmware file into a pflash chip.  The corresponding QEMU
+#     command line option is "-drive file=@filename,format=@format".
+#     Note however that the option-argument shown here is incomplete;
+#     it is completed under @FirmwareMappingFlash.
 #
 # @filename: Specifies the filename on the host filesystem where the
 #     firmware file can be found.
@@ -272,9 +265,8 @@
 
 ##
 # @FirmwareFlashMode:
-#
-# Describes how the firmware build handles code versus variable
-# persistence.
+#     Describes how the firmware build handles code versus variable
+#     persistence.
 #
 # @split: the executable file contains code while the NVRAM template
 #     provides variable storage.  The executable must be configured
@@ -298,9 +290,9 @@
 
 ##
 # @FirmwareMappingFlash:
-#
-# Describes loading and mapping properties for the firmware executable
-# and its accompanying NVRAM file, when @FirmwareDevice is @flash.
+#     Describes loading and mapping properties for the firmware
+#     executable and its accompanying NVRAM file, when @FirmwareDevice
+#     is @flash.
 #
 # @mode: Describes how the firmware build handles code versus variable
 #     storage.  If not present, it must be treated as if it was
@@ -357,9 +349,8 @@
 
 ##
 # @FirmwareMappingKernel:
-#
-# Describes loading and mapping properties for the firmware
-# executable, when @FirmwareDevice is @kernel.
+#     Describes loading and mapping properties for the firmware
+#     executable, when @FirmwareDevice is @kernel.
 #
 # @filename: Identifies the firmware executable.  The firmware
 #     executable may be shared by multiple virtual machine
@@ -373,9 +364,8 @@
 
 ##
 # @FirmwareMemoryUefiVars:
-#
-# Contains information needed to set up the "uefi-vars" device
-# to provide UEFI variable store access to the firmware.
+#     Contains information needed to set up the "uefi-vars" device to
+#     provide UEFI variable store access to the firmware.
 #
 # @template: The path to the UEFI JSON variable store template
 #     compatible with the firmware.  Management software instantiates
@@ -406,9 +396,8 @@
 
 ##
 # @FirmwareMappingMemory:
-#
-# Describes loading and mapping properties for the firmware
-# executable, when @FirmwareDevice is @memory.
+#     Describes loading and mapping properties for the firmware
+#     executable, when @FirmwareDevice is @memory.
 #
 # @filename: Identifies the firmware executable.  The firmware
 #     executable may be shared by multiple virtual machine
@@ -430,9 +419,8 @@
 
 ##
 # @FirmwareMappingIgvm:
-#
-# Describes loading and mapping properties for the firmware
-# executable, when @FirmwareDevice is @igvm.
+#     Describes loading and mapping properties for the firmware
+#     executable, when @FirmwareDevice is @igvm.
 #
 # @filename: Identifies the IGVM file containing the firmware
 #     executable along with other information used to configure the
@@ -448,9 +436,8 @@
 
 ##
 # @FirmwareMapping:
-#
-# Provides a discriminated structure for firmware to describe its
-# loading / mapping properties.
+#     Provides a discriminated structure for firmware to describe its
+#     loading / mapping properties.
 #
 # @device: Selects the device type that the firmware must be mapped
 #     into.
@@ -467,9 +454,8 @@
 
 ##
 # @Firmware:
-#
-# Describes a firmware (or a firmware use case) to management
-# software.
+#     Describes a firmware (or a firmware use case) to management
+#     software.
 #
 # It is possible for multiple @Firmware elements to match the search
 # criteria of management software.  Applications thus need rules to
