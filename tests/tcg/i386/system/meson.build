@@ -43,7 +43,6 @@ if 'qemu-system-i386' in emulators
     'i386-softmmu': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'i386/system',
       'gdb_arch': 'i386',
       'qemu': emulators['qemu-system-i386'],

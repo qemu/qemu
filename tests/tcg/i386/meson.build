@@ -1,6 +1,5 @@
 cc = 'i686-linux-gnu-gcc'
 cc_dockerfile = 'debian-i686-cross'
-cc_docker_host_arch = ['x86_64']
 
 subdir('system')
 
@@ -48,7 +47,6 @@ if 'qemu-i386' in emulators
     'i386-linux-user': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'i386',
       'gdb_arch': 'i386',
       'qemu': emulators['qemu-i386'],

@@ -1,6 +1,5 @@
 cc = 'x86_64-linux-gnu-gcc'
 cc_dockerfile = 'debian-amd64-cross'
-cc_docker_host_arch = ['x86_64']
 
 subdir('system')
 
@@ -74,7 +73,6 @@ if 'qemu-x86_64' in emulators
     'x86_64-linux-user': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'x86_64',
       'gdb_arch': 'x86_64',
       'qemu': emulators['qemu-x86_64'],

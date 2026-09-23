@@ -38,7 +38,6 @@ if 'qemu-system-loongarch64' in emulators
     'loongarch64-softmmu': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'loongarch64/system',
       'gdb_arch': 'loongarch64',
       'qemu': emulators['qemu-system-loongarch64'],

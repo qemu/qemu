@@ -115,7 +115,6 @@ if 'qemu-hexagon' in emulators
     'hexagon-linux-user': {
       'cc': 'hexagon-unknown-linux-musl-clang',
       'cc_dockerfile': 'debian-hexagon-cross',
-      'cc_docker_host_arch': ['x86_64'],
       'folder': 'hexagon',
       'gdb_arch': 'hexagon_is_not_supported_by_gdb',
       'qemu': emulators['qemu-hexagon'],

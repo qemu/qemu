@@ -22,7 +22,6 @@ tcg_tests = {}
 #   'name_of_target': {
 #     'cc': 'cross_compiler',
 #     'cc_dockerfile': 'name_of_dockerfile',
-#     'cc_docker_host_arch': ['host_arch_supported (meson cpu)', ...],
 #     'cc_feat_cflags': {
 #       'name': ['feature cflags'],
 #       ...
@@ -211,7 +210,7 @@ foreach target, plan: tcg_tests
 
   # return a clear error if user misspell a target entry
   foreach key, _ : plan
-    allowed = ['cc', 'cc_dockerfile', 'cc_docker_host_arch', 'cc_feat_cflags',
+    allowed = ['cc', 'cc_dockerfile', 'cc_feat_cflags',
                'folder', 'gdb_arch', 'gdb_feat_version', 'qemu', 'tests']
     if key not in allowed
       error('unknown tcg test plan entry \'' + key + '\' for target ' + target +
@@ -258,14 +257,6 @@ foreach target, plan: tcg_tests
 
   if 'cc_dockerfile' in plan
     cc_dockerfile = plan['cc_dockerfile']
-    cc_docker_host_arch = plan['cc_docker_host_arch']
-    allowed = ['aarch64', 'x86_64']
-    foreach arch: cc_docker_host_arch
-      if arch not in allowed
-        error('incorrect docker arch ' + arch + ' for target ' +
-              target + ' (possible: [' + ', '.join(allowed) + '])')
-      endif
-    endforeach
     dockerfile = files('..'/'docker'/'dockerfiles'/cc_dockerfile + '.docker')
     image_name = 'image-' + cc_dockerfile
     if cc_dockerfile not in image_targets and docker_supported

@@ -79,14 +79,12 @@ foreach core: cores
 endforeach
 
 cc_dockerfile = 'debian-xtensa-cross'
-cc_docker_host_arch = ['x86_64']
 
 if 'qemu-system-xtensa' in emulators
   tcg_tests += {
     'xtensa-softmmu': {
       'cc': 'xtensa-dc232b-elf-gcc',
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'xtensa',
       'gdb_arch': 'xtensa',
       'qemu': emulators['qemu-system-xtensa'],
@@ -100,7 +98,6 @@ if 'qemu-system-xtensaeb' in emulators
     'xtensaeb-softmmu': {
       'cc': 'xtensa-test_kc705_be-elf-gcc',
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'xtensa',
       'gdb_arch': 'xtensaeb',
       'qemu': emulators['qemu-system-xtensaeb'],

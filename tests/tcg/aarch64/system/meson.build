@@ -97,7 +97,6 @@ if 'qemu-system-aarch64' in emulators
     'aarch64-softmmu': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 'aarch64/system',
       'gdb_arch': 'aarch64',
