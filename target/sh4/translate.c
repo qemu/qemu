@@ -47,6 +47,9 @@ typedef struct DisasContext {
     uint16_t opcode;
 
     bool has_movcal;
+#ifdef CONFIG_USER_ONLY
+    bool in_gusa_exclusive;
+#endif
 } DisasContext;
 
 #if defined(CONFIG_USER_ONLY)
@@ -220,7 +223,11 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
 
 static inline bool use_exit_tb(DisasContext *ctx)
 {
-    return (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) != 0;
+#ifdef CONFIG_USER_ONLY
+    return ctx->in_gusa_exclusive;
+#else
+    return false;
+#endif
 }
 
 static bool use_goto_tb(DisasContext *ctx, vaddr dest)
@@ -273,7 +280,8 @@ static void gen_conditional_jump(DisasContext *ctx, vaddr dest,
     TCGLabel *l1 = gen_new_label();
     TCGCond cond_not_taken = jump_if_true ? TCG_COND_EQ : TCG_COND_NE;
 
-    if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
+#ifdef CONFIG_USER_ONLY
+    if (ctx->in_gusa_exclusive) {
         /* When in an exclusive region, we must continue to the end.
            Therefore, exit the region on a taken branch, but otherwise
            fall through to the next instruction.  */
@@ -286,6 +294,7 @@ static void gen_conditional_jump(DisasContext *ctx, vaddr dest,
         ctx->base.is_jmp = DISAS_NEXT;
         return;
     }
+#endif
 
     gen_save_cpu_state(ctx, false);
     tcg_gen_brcondi_i32(cond_not_taken, cpu_sr_t, 0, l1);
@@ -304,7 +313,8 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
     tcg_gen_mov_i32(ds, cpu_delayed_cond);
     tcg_gen_discard_i32(cpu_delayed_cond);
 
-    if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
+#ifdef CONFIG_USER_ONLY
+    if (ctx->in_gusa_exclusive) {
         /* When in an exclusive region, we must continue to the end.
            Therefore, exit the region on a taken branch, but otherwise
            fall through to the next instruction.  */
@@ -318,6 +328,7 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
         ctx->base.is_jmp = DISAS_NEXT;
         return;
     }
+#endif
 
     tcg_gen_brcondi_i32(TCG_COND_NE, ds, 0, l1);
     gen_goto_tb(ctx, 1, ctx->base.pc_next + 2);
@@ -1793,16 +1804,18 @@ static void decode_opc(DisasContext * ctx)
         /* go out of the delay slot */
         ctx->envflags &= ~TB_FLAG_DELAY_SLOT_MASK;
 
+#ifdef CONFIG_USER_ONLY
         /* When in an exclusive region, we must continue to the end
            for conditional branches.  */
-        if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE
-            && old_flags & TB_FLAG_DELAY_SLOT_COND) {
+        if (ctx->in_gusa_exclusive && old_flags & TB_FLAG_DELAY_SLOT_COND) {
             gen_delayed_conditional_jump(ctx);
             return;
         }
+
         /* Otherwise this is probably an invalid gUSA region.
            Drop the GUSA bits so the next TB doesn't see them.  */
         ctx->envflags &= ~TB_FLAG_GUSA_MASK;
+#endif
 
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
         if (old_flags & TB_FLAG_DELAY_SLOT_COND) {
@@ -1820,7 +1833,6 @@ static void decode_opc(DisasContext * ctx)
  */
 static void gen_restart_exclusive(DisasContext *ctx)
 {
-    ctx->envflags |= TB_FLAG_GUSA_EXCLUSIVE;
     gen_save_cpu_state(ctx, false);
     gen_helper_exclusive(tcg_env);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -2208,11 +2220,13 @@ static void sh4_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         int backup = sextract32(ctx->tbflags, TB_FLAG_GUSA_SHIFT, 8);
         int max_insns = (pc_end - pc) / 2;
 
+        ctx->in_gusa_exclusive = ctx->base.tb->cflags & CF_STEP_ATOMIC;
+
         if (pc != pc_end + backup || max_insns < 2) {
             /* This is a malformed gUSA region.  Don't do anything special,
                since the interpreter is likely to get confused.  */
             ctx->envflags &= ~TB_FLAG_GUSA_MASK;
-        } else if (tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
+        } else if (ctx->in_gusa_exclusive) {
             /* Regardless of single-stepping or the end of the page,
                we must complete execution of the gUSA region while
                holding the exclusive lock.  */
@@ -2246,7 +2260,7 @@ static void sh4_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
 #ifdef CONFIG_USER_ONLY
     if (unlikely(ctx->envflags & TB_FLAG_GUSA_MASK)
-        && !(ctx->envflags & TB_FLAG_GUSA_EXCLUSIVE)) {
+        && !ctx->in_gusa_exclusive) {
         /*
          * We're in an gUSA region, and we have not already fallen
          * back on using an exclusive region.  Attempt to parse the
@@ -2276,10 +2290,12 @@ static void sh4_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
+#ifdef CONFIG_USER_ONLY
+    if (ctx->in_gusa_exclusive) {
         /* Ending the region of exclusivity.  Clear the bits.  */
         ctx->envflags &= ~TB_FLAG_GUSA_MASK;
     }
+#endif
 
     switch (ctx->base.is_jmp) {
     case DISAS_STOP:
