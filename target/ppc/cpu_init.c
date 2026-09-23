@@ -6962,9 +6962,9 @@ static void ppc_cpu_unrealize(DeviceState *dev)
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
-    pcc->parent_unrealize(dev);
-
     cpu_remove_sync(CPU(cpu));
+
+    pcc->parent_unrealize(dev);
 
     destroy_ppc_opcodes(cpu);
 }
