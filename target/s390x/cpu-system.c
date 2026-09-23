@@ -73,8 +73,12 @@ static void s390_cpu_load_normal(CPUState *s)
         cpu->env.psw.addr = spsw & PSW_MASK_SHORT_ADDR;
     } else {
         /*
-         * Firmware requires us to set the load state before we set
-         * the cpu to operating on protected guests.
+         * Firmware/UV requires us to set the load state before we run
+         * the cpu on (re)boots. The UV load includes operating so the
+         * second set state isn't really needed but KVM doesn't update
+         * its internal state to operating on load. So we have to set
+         * operating again. The UV doesn't mind that since it's
+         * effectively a NOP.
          */
         s390_cpu_set_state(S390_CPU_STATE_LOAD, cpu);
     }
