@@ -58,20 +58,16 @@ static vaddr loongarch_cpu_get_pc(CPUState *cs)
 #ifndef CONFIG_USER_ONLY
 #include "hw/loongarch/virt.h"
 
-void loongarch_cpu_update_irq(LoongArchCPU *cpu, uint64_t old)
+void loongarch_cpu_update_irq(LoongArchCPU *cpu)
 {
     CPULoongArchState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     CPUSysState *sys = env_sys(env);
 
     if (FIELD_EX64(sys->CSR_ESTAT, CSR_ESTAT, IS)) {
-        if (!FIELD_EX64(old, CSR_ESTAT, IS)) {
-            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
-        }
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
-        if (FIELD_EX64(old, CSR_ESTAT, IS)) {
-            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
-        }
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -81,13 +77,11 @@ static void loongarch_cpu_self_set_irq(CPUState *cs, run_on_cpu_data data)
     CPULoongArchState *env = cpu_env(cs);
     CPUSysState *sys = env_sys(env);
     int irq, level;
-    uint64_t old;
 
     irq = data.host_int & ~BIT(31);
     level = (data.host_int >> 31) & 1;
-    old = sys->CSR_ESTAT;
     sys->CSR_ESTAT = deposit64(sys->CSR_ESTAT, irq, 1, level != 0);
-    loongarch_cpu_update_irq(cpu, old);
+    loongarch_cpu_update_irq(cpu);
 }
 
 void loongarch_cpu_set_irq(void *opaque, int irq, int level)
