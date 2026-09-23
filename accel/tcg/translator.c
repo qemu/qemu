@@ -15,18 +15,23 @@
 #include "accel/tcg/cpu-mmu-index.h"
 #include "exec/target_page.h"
 #include "exec/translator.h"
+#ifdef CONFIG_USER_ONLY
+#include "gdbstub/user.h"
+#endif
 #include "exec/plugin-gen.h"
 #include "tcg/tcg-op-common.h"
 #include "internal-common.h"
 #include "disas/disas.h"
 #include "tb-internal.h"
 
+#ifndef CONFIG_USER_ONLY
 static void set_can_do_io(DisasContextBase *db, bool val)
 {
     QEMU_BUILD_BUG_ON(sizeof_field(CPUState, neg.can_do_io) != 1);
     tcg_gen_st8_i32(tcg_constant_i32(val), tcg_env,
                     offsetof(CPUState, neg.can_do_io) - sizeof(CPUState));
 }
+#endif
 
 bool translator_io_start(DisasContextBase *db)
 {
@@ -108,6 +113,34 @@ bool translator_is_same_page(const DisasContextBase *db, vaddr addr)
     return ((addr ^ db->pc_first) & TARGET_PAGE_MASK) == 0;
 }
 
+/*
+ * Whether a direct jump may be chained to a destination outside the page
+ * the TB started in.
+ *
+ * In user-only mode there are no page tables.  Every mmap, mprotect and
+ * munmap goes through page_set_flags(), which calls tb_invalidate_phys_range()
+ * whenever a change in flags so warrants, and tb_phys_invalidate() unlinks
+ * incoming jumps.  A cross-page link is therefore broken whenever the
+ * destination page's permissions change.
+ *
+ * What the same-page rule also provides is that execution cannot enter a page
+ * without a TB lookup, and so without check_for_breakpoints(), which is what
+ * makes a breakpoint set after a block was translated take effect.  Nothing
+ * invalidates on breakpoint insertion, so a link established beforehand would
+ * jump straight over it.  In user-only mode breakpoints only ever come from
+ * gdb -- BP_CPU is g_assert_not_reached() there and the guest has no way to
+ * ask for one -- and gdb has to be requested with -g before the first block
+ * is translated, so a run that has no gdbstub can never acquire a breakpoint.
+ */
+static bool use_cross_page_goto_tb(void)
+{
+#ifdef CONFIG_USER_ONLY
+    return !gdb_may_set_breakpoints();
+#else
+    return false;
+#endif
+}
+
 bool translator_use_goto_tb(DisasContextBase *db, vaddr dest)
 {
     /* Suppress goto_tb if requested. */
@@ -116,7 +149,7 @@ bool translator_use_goto_tb(DisasContextBase *db, vaddr dest)
     }
 
     /* Check for the dest on the same page as the start of the TB.  */
-    return translator_is_same_page(db, dest);
+    return use_cross_page_goto_tb() || translator_is_same_page(db, dest);
 }
 
 void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
@@ -125,8 +158,10 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
 {
     uint32_t cflags = tb_cflags(tb);
     TCGOp *icount_start_insn;
-    TCGOp *first_insn_start = NULL;
     bool plugin_enabled;
+#ifndef CONFIG_USER_ONLY
+    TCGOp *first_insn_start = NULL;
+#endif
 
     tcg_ctx->addr_type = addr_type;
 
@@ -134,6 +169,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     db->tb = tb;
     db->pc_first = pc;
     db->pc_next = pc;
+    db->pc_second_page = -1;
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
     db->max_insns = *max_insns;
@@ -160,9 +196,11 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
         *max_insns = ++db->num_insns;
         ops->insn_start(db, cpu);
         db->insn_start = tcg_last_op();
+#ifndef CONFIG_USER_ONLY
         if (first_insn_start == NULL) {
             first_insn_start = db->insn_start;
         }
+#endif
         tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
 
         if (plugin_enabled) {
@@ -207,9 +245,14 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     ops->tb_stop(db, cpu);
     gen_tb_end(tb, cflags, icount_start_insn, db->num_insns);
 
+#ifndef CONFIG_USER_ONLY
     /*
      * Manage can_do_io for the translation block: set to false before
      * the first insn and set to true before the last insn.
+     *
+     * Nothing reads can_do_io in user-only builds.  There is no MMIO
+     * there, and every reader (cputlb.c, watchpoint.c, icount) is in
+     * system_ss, so skip the two stores per TB entirely.
      */
     if (db->num_insns == 1) {
         tcg_debug_assert(first_insn_start == db->insn_start);
@@ -221,6 +264,7 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     tcg_ctx->emit_before_op = db->insn_start;
     set_can_do_io(db, true);
     tcg_ctx->emit_before_op = NULL;
+#endif
 
     /* May be used by disas_log or plugin callbacks. */
     tb->size = db->pc_next - db->pc_first;
@@ -285,16 +329,18 @@ static bool translator_ld(CPUArchState *env, DisasContextBase *db,
     /*
      * The read must conclude on the second page and not extend to a third.
      *
-     * TODO: We could allow the two pages to be virtually discontiguous,
-     * since we already allow the two pages to be physically discontiguous.
-     * The only reasonable use case would be executing an insn at the end
-     * of the address space wrapping around to the beginning.  For that,
-     * we would need to know the current width of the address space.
-     * In the meantime, assert.
+     * TODO: This doesn't handle address space wraparound properly for
+     * multi-byte reads, as we don't know the size of the address space here.
+     * But if the target translator wraps pc to 0 itself, and issues aligned
+     * reads, then this can work.
      */
-    base = (base & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    assert(((base ^ pc) & TARGET_PAGE_MASK) == 0);
-    assert(((base ^ last) & TARGET_PAGE_MASK) == 0);
+    if (db->pc_second_page == -1) {
+        db->pc_second_page = pc & TARGET_PAGE_MASK;
+    } else {
+        assert((pc & TARGET_PAGE_MASK) == db->pc_second_page);
+    }
+    assert((last & TARGET_PAGE_MASK) == db->pc_second_page);
+    base = db->pc_second_page;
     host = db->host_addr[1];
 
     if (host == NULL) {
@@ -372,16 +418,24 @@ static void record_save(DisasContextBase *db, vaddr pc,
 {
     int offset;
 
-    /* Do not record probes before the start of TB. */
-    if (pc < db->pc_first) {
-        return;
-    }
-
     /*
-     * In translator_access, we verified that pc is within 2 pages
-     * of pc_first, thus this will never overflow.
+     * In translator_ld, we verified that we touched no more than 2 pages,
+     * but we did not verify that they were virtually contiguous.
+     * Here, reimagine the two pages as virtually contiguous.
      */
-    offset = pc - db->pc_first;
+    if (likely(((db->pc_first ^ pc) & TARGET_PAGE_MASK) == 0)) {
+        /* first page */
+        /* Do not record probes before the start of TB. */
+        if (pc < db->pc_first) {
+            return;
+        }
+        offset = pc - db->pc_first;
+    } else {
+        int first_page_end_offset = -(db->pc_first | TARGET_PAGE_MASK);
+        assert(db->pc_second_page != -1);
+        assert((pc & TARGET_PAGE_MASK) == db->pc_second_page);
+        offset = pc - db->pc_second_page + first_page_end_offset;
+    }
 
     /*
      * Either the first or second page may be I/O.  If it is the second,

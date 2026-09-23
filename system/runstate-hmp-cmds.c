@@ -22,6 +22,7 @@
 #include "qapi/qapi-commands-run-state.h"
 #include "qobject/qdict.h"
 #include "qemu/accel.h"
+#include "system/tcg.h"
 
 void hmp_info_status(MonitorHMP *hmp, const QDict *qdict)
 {
@@ -43,16 +44,17 @@ void hmp_info_status(MonitorHMP *hmp, const QDict *qdict)
 
 void hmp_one_insn_per_tb(MonitorHMP *hmp, const QDict *qdict)
 {
-    const char *option = qdict_get_try_str(qdict, "option");
-    AccelState *accel = current_accel();
+    const char *option;
+    AccelState *accel;
     bool newval;
 
-    if (!object_property_find(OBJECT(accel), "one-insn-per-tb")) {
-        monitor_hmp_printf(hmp,
-                           "This accelerator does not support setting one-insn-per-tb\n");
+    if (!tcg_enabled()) {
+        monitor_hmp_printf(hmp, "This accelerator does not support "
+                           "setting one-insn-per-tb\n");
         return;
     }
 
+    option = qdict_get_try_str(qdict, "option");
     if (!option || !strcmp(option, "on")) {
         newval = true;
     } else if (!strcmp(option, "off")) {
@@ -61,9 +63,13 @@ void hmp_one_insn_per_tb(MonitorHMP *hmp, const QDict *qdict)
         monitor_hmp_printf(hmp, "unexpected option %s\n", option);
         return;
     }
-    /* If the property exists then setting it can never fail */
+
+    accel = current_accel();
     object_property_set_bool(OBJECT(accel), "one-insn-per-tb",
                              newval, &error_abort);
+
+    /* one-insn-per-tb feeds into the per-CPU cflags. */
+    tcg_update_all_cflags();
 }
 
 void hmp_watchdog_action(MonitorHMP *hmp, const QDict *qdict)

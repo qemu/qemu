@@ -222,6 +222,7 @@ static void tcg_accel_ops_init(AccelClass *ac)
     ops->insert_gdbstub_breakpoint = tcg_insert_gdbstub_breakpoint;
     ops->remove_gdbstub_breakpoint = tcg_remove_gdbstub_breakpoint;
     ops->remove_all_gdbstub_breakpoints = tcg_remove_all_gdbstub_breakpoints;
+    ops->update_guest_debug = tcg_update_cflags;
 }
 
 static void tcg_accel_ops_class_init(ObjectClass *oc, const void *data)

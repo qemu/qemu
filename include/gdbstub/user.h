@@ -12,6 +12,17 @@
 #define MAX_SIGINFO_LENGTH 128
 
 /**
+ * gdb_may_set_breakpoints() - whether a breakpoint can ever be inserted
+ *
+ * In user-only mode every breakpoint comes from gdb, and gdb is only ever
+ * reachable if -g was given at startup, before the guest ran a single
+ * instruction.  A run that has no gdbstub can therefore never acquire a
+ * breakpoint, which lets translation take shortcuts that a breakpoint
+ * would invalidate.  Stays true once true, even if gdb detaches.
+ */
+bool gdb_may_set_breakpoints(void);
+
+/**
  * gdb_handlesig() - yield control to gdb
  * @cpu: CPU
  * @sig: if non-zero, the signal number which caused us to stop

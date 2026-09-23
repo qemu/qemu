@@ -69,8 +69,15 @@ void tlb_destroy(CPUState *cpu);
 bool tcg_exec_realizefn(CPUState *cpu, Error **errp);
 void tcg_exec_unrealizefn(CPUState *cpu);
 
-/* current cflags for hashing/comparison */
-uint32_t curr_cflags(CPUState *cpu);
+/*
+ * Current cflags for hashing/comparison.  Everything that feeds into the
+ * value is folded into CPUState::tcg_cflags when it changes, by
+ * tcg_update_cflags(), so that TB dispatch only has to load it.
+ */
+static inline uint32_t curr_cflags(CPUState *cpu)
+{
+    return cpu->tcg_cflags;
+}
 
 void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr);
 

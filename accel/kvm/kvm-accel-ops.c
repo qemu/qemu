@@ -86,9 +86,9 @@ static bool kvm_cpus_are_resettable(void)
 }
 
 #ifdef TARGET_KVM_HAVE_GUEST_DEBUG
-static int kvm_update_guest_debug_ops(CPUState *cpu)
+static void kvm_update_guest_debug_ops(CPUState *cpu)
 {
-    return kvm_update_guest_debug(cpu, 0);
+    kvm_update_guest_debug(cpu, 0);
 }
 #endif
 

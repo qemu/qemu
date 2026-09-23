@@ -84,6 +84,7 @@ tests += {
   'cpacf-pcc.c': {},
   'cpacf-pckmo.c': {},
   'cpacf-prno.c': {},
+  'issue4449.c': {},
 }
 
 foreach src: tests_s390x_pgm
