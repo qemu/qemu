@@ -1435,17 +1435,6 @@ static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
 }
 
-static void gen_BSWAP(DisasContext *s, X86DecodedInsn *decode)
-{
-#ifdef TARGET_X86_64
-    if (s->dflag == MO_64) {
-        tcg_gen_bswap64_i64(s->T0, s->T0);
-        return;
-    }
-#endif
-    tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_OZ);
-}
-
 static TCGv gen_bt_mask(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[1].ot;
@@ -2519,10 +2508,19 @@ static void gen_MOVBE(DisasContext *s, X86DecodedInsn *decode)
     /* M operand type does not load/store */
     if (decode->e.op0 == X86_TYPE_M) {
         tcg_gen_qemu_st_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
-    } else {
+    } else if (decode->e.op1 == X86_TYPE_M) {
         tcg_gen_qemu_ld_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
+#ifdef TARGET_X86_64
+    } else if (ot == MO_64) {
+        tcg_gen_bswap64_tl(s->T0, s->T0);
+#endif
+    } else if (ot == MO_32) {
+        tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_OZ);
+    } else {
+        tcg_gen_bswap16_tl(s->T0, s->T0, TCG_BSWAP_OZ);
     }
 }
+#define gen_BSWAP gen_MOVBE
 
 static void gen_MOVD_from(DisasContext *s, X86DecodedInsn *decode)
 {
