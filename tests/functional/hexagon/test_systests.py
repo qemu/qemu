@@ -99,5 +99,11 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_timer_reg(self):
         self.run_exit_zero("timer_reg")
 
+    def test_hvx_multi(self):
+        self.run_exit_zero("hvx-multi")
+
+    def test_standalone_vec(self):
+        self.run_exit_zero("standalone_vec")
+
 if __name__ == "__main__":
     QemuSystemTest.main()
