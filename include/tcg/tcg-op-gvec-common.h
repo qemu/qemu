@@ -237,6 +237,10 @@ void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
 /* Similarly, expand (env+dofs) = op(env+aofs, c). */
 void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
                      uint32_t maxsz, int64_t c, const GVecGen2i *op);
+/* Expand (dbase+dofs) = op(abase+aofs, s), length @oprsz. */
+void tcg_gen_gvec_2s_var(TCGv_ptr dbase, uint32_t dofs,
+                         TCGv_ptr abase, uint32_t aofs, uint32_t oprsz,
+                         uint32_t maxsz, TCGv_i64 c, const GVecGen2s *op);
 /* Similarly, expand (env+dofs) = op(env+aofs, s). */
 void tcg_gen_gvec_2s(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
                      uint32_t maxsz, TCGv_i64 c, const GVecGen2s *op);
@@ -433,6 +437,8 @@ void tcg_gen_gvec_dup_i64(unsigned vece, uint32_t dofs, uint32_t s,
 
 void tcg_gen_gvec_dup_imm_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
                               uint32_t oprsz, uint32_t maxsz, uint64_t imm);
+void tcg_gen_gvec_dup_i32_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                              uint32_t oprsz, uint32_t maxsz, TCGv_i32 in);
 
 void tcg_gen_gvec_shli(unsigned vece, uint32_t dofs, uint32_t aofs,
                        int64_t shift, uint32_t oprsz, uint32_t maxsz);
@@ -444,6 +450,16 @@ void tcg_gen_gvec_rotli(unsigned vece, uint32_t dofs, uint32_t aofs,
                         int64_t shift, uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_rotri(unsigned vece, uint32_t dofs, uint32_t aofs,
                         int64_t shift, uint32_t oprsz, uint32_t maxsz);
+
+void tcg_gen_gvec_shls_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                           TCGv_ptr abase, uint32_t aofs,
+                           TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_shrs_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                           TCGv_ptr abase, uint32_t aofs,
+                           TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_sars_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                           TCGv_ptr abase, uint32_t aofs,
+                           TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz);
 
 void tcg_gen_gvec_shls(unsigned vece, uint32_t dofs, uint32_t aofs,
                        TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz);
@@ -471,6 +487,11 @@ void tcg_gen_gvec_rotlv(unsigned vece, uint32_t dofs, uint32_t aofs,
 void tcg_gen_gvec_rotrv(unsigned vece, uint32_t dofs, uint32_t aofs,
                         uint32_t bofs, uint32_t oprsz, uint32_t maxsz);
 
+void tcg_gen_gvec_cmp_var(TCGCond cond, unsigned vece,
+                          TCGv_ptr dbase, uint32_t dofs,
+                          TCGv_ptr abase, uint32_t aofs,
+                          TCGv_ptr bbase, uint32_t bofs,
+                          uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
                       uint32_t aofs, uint32_t bofs,
                       uint32_t oprsz, uint32_t maxsz);
