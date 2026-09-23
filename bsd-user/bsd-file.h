@@ -973,30 +973,31 @@ static abi_long do_bsd_lseek(CPUArchState *env, abi_long arg1, abi_long arg2,
         abi_long arg3, abi_long arg4, abi_long arg5)
 {
     abi_long ret;
-#if TARGET_ABI_BITS == 32
-    int64_t res;
 
-    /* 32-bit arch's use two 32 registers for 64 bit return value */
-    if (regpairs_aligned(env) != 0) {
-        res = lseek(arg1, target_arg64(arg3, arg4), arg5);
+    if (TARGET_ABI_BITS == 32) {
+        /* 32-bit arch's use two 32 registers for 64 bit return value */
+        int64_t res;
+
+        if (regpairs_aligned(env) != 0) {
+            res = lseek(arg1, target_arg64(arg3, arg4), arg5);
+        } else {
+            res = lseek(arg1, target_arg64(arg2, arg3), arg4);
+        }
+        if (res == -1) {
+            ret = get_errno(res);
+            set_second_rval(env, 0xFFFFFFFF);
+        } else {
+            if (TARGET_BIG_ENDIAN) {
+                ret = ((res >> 32) & 0xFFFFFFFF);
+                set_second_rval(env, res & 0xFFFFFFFF);
+            } else {
+                ret = res & 0xFFFFFFFF;
+                set_second_rval(env, (res >> 32) & 0xFFFFFFFF);
+            }
+        }
     } else {
-        res = lseek(arg1, target_arg64(arg2, arg3), arg4);
+        ret = get_errno(lseek(arg1, arg2, arg3));
     }
-    if (res == -1) {
-        ret = get_errno(res);
-        set_second_rval(env, 0xFFFFFFFF);
-    } else {
-#ifdef TARGET_BIG_ENDIAN
-        ret = ((res >> 32) & 0xFFFFFFFF);
-        set_second_rval(env, res & 0xFFFFFFFF);
-#else
-        ret = res & 0xFFFFFFFF;
-        set_second_rval(env, (res >> 32) & 0xFFFFFFFF);
-#endif
-    }
-#else
-    ret = get_errno(lseek(arg1, arg2, arg3));
-#endif
     return ret;
 }
 

@@ -598,8 +598,7 @@ load_elf_sections(const struct elfhdr *hdr, struct elf_phdr *phdr, int fd,
     return 0;
 }
 
-int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
-                    struct image_info *info)
+int load_elf_binary(struct bsd_binprm *bprm, struct image_info *info)
 {
     struct elfhdr elf_ex;
     struct elfhdr interp_elf_ex;

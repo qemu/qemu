@@ -121,7 +121,14 @@ struct target_msgbuf {
 /*
  *  sys/mman.h
  */
-#define TARGET_BSD_MAP_FLAGMASK         0x3ff7
+/*
+ * FreeBSD doesn't define this, but Linux does. In Linux, it's only MAP_PRIVATE
+ * and MAP_SHARED and a few Linux-specific types (0xf). FreeBSD allows other
+ * types of mapping with MAP_ANON, MAP_GUARD, and MAP_STACK. The mask on Linux
+ * excludes these: They don't have MAP_GUARD, and MAP_STACK and MAP_ANON have
+ * similar flags with different names that aren't in it's 0xf MAP_TYPE.
+ */
+#define MAP_TYPE (MAP_PRIVATE | MAP_SHARED)
 
 /*
  * sys/time.h

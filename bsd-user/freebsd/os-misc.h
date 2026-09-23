@@ -9,6 +9,9 @@
 #define OS_MISC_H
 
 #include <sys/cpuset.h>
+#ifdef TARGET_FREEBSD_NR_exterrctl
+#include <sys/exterrvar.h>
+#endif
 #include <sys/random.h>
 #include <sched.h>
 #include <kenv.h>
@@ -106,19 +109,19 @@ static inline abi_long do_freebsd_cpuset_setid(CPUArchState *env, abi_long arg1,
     cpuwhich_t which;
 
     target_to_host_cpuset_which(&which, arg1);
-#if TARGET_ABI_BITS == 32
-    /* See if we need to align the register pairs */
-    if (regpairs_aligned(env)) {
-        id = target_arg64(arg3, arg4);
-        setid = arg5;
+    if (TARGET_ABI_BITS == 32) {
+        /* See if we need to align the register pairs */
+        if (regpairs_aligned(env)) {
+            id = target_arg64(arg3, arg4);
+            setid = arg5;
+        } else {
+            id = target_arg64(arg2, arg3);
+            setid = arg4;
+        }
     } else {
-        id = target_arg64(arg2, arg3);
-        setid = arg4;
+        id = arg2;
+        setid = arg3;
     }
-#else
-    id = arg2;
-    setid = arg3;
-#endif
     return get_errno(cpuset_setid(which, id, setid));
 }
 
@@ -135,13 +138,13 @@ static inline abi_long do_freebsd_cpuset_getid(abi_long arg1, abi_ulong arg2,
 
     target_to_host_cpuset_which(&which, arg1);
     target_to_host_cpuset_level(&level, arg2);
-#if TARGET_ABI_BITS == 32
-    id = target_arg64(arg3, arg4);
-    target_setid = arg5;
-#else
-    id = arg3;
-    target_setid = arg4;
-#endif
+    if (TARGET_ABI_BITS == 32) {
+        id = target_arg64(arg3, arg4);
+        target_setid = arg5;
+    } else {
+        id = arg3;
+        target_setid = arg4;
+    }
     ret = get_errno(cpuset_getid(level, which, id, &setid));
     if (is_error(ret)) {
         return ret;
@@ -212,15 +215,15 @@ static inline abi_long do_freebsd_cpuset_getaffinity(cpulevel_t level,
     id_t id;    /* 64-bit */
     abi_ulong setsize, target_mask;
 
-#if TARGET_ABI_BITS == 32
-    id = (id_t)target_arg64(arg3, arg4);
-    setsize = arg5;
-    target_mask = arg6;
-#else
-    id = (id_t)arg3;
-    setsize = arg4;
-    target_mask = arg5;
-#endif
+    if (TARGET_ABI_BITS == 32) {
+        id = (id_t)target_arg64(arg3, arg4);
+        setsize = arg5;
+        target_mask = arg6;
+    } else {
+        id = (id_t)arg3;
+        setsize = arg4;
+        target_mask = arg5;
+    }
 
     ret = get_errno(cpuset_getaffinity(level, which, id, setsize, &mask));
     if (ret == 0) {
@@ -241,15 +244,15 @@ static inline abi_long do_freebsd_cpuset_setaffinity(cpulevel_t level,
     id_t id; /* 64-bit */
     abi_ulong setsize, target_mask;
 
-#if TARGET_ABI_BITS == 32
-    id = (id_t)target_arg64(arg3, arg4);
-    setsize = arg5;
-    target_mask = arg6;
-#else
-    id = (id_t)arg3;
-    setsize = arg4;
-    target_mask = arg5;
-#endif
+    if (TARGET_ABI_BITS == 32) {
+        id = (id_t)target_arg64(arg3, arg4);
+        setsize = arg5;
+        target_mask = arg6;
+    } else {
+        id = (id_t)arg3;
+        setsize = arg4;
+        target_mask = arg5;
+    }
 
     ret = copy_from_user_cpuset_mask(&mask, target_mask);
     if (ret == 0) {
@@ -333,33 +336,30 @@ static inline abi_long do_freebsd_kldsym(abi_long fileid, abi_long cmd,
  * New posix calls
  */
 
-#if TARGET_ABI_BITS == 32
-static inline uint64_t target_offset64(uint32_t word0, uint32_t word1)
-{
-#ifdef TARGET_BIG_ENDIAN
-    return ((uint64_t)word0 << 32) | word1;
-#else
-    return ((uint64_t)word1 << 32) | word0;
-#endif
-}
-#else /* TARGET_ABI_BITS == 32 */
 static inline uint64_t target_offset64(uint64_t word0, uint64_t word1)
 {
-    return word0;
+    if (TARGET_ABI_BITS == 32) {
+        if (TARGET_BIG_ENDIAN) {
+            return ((uint64_t)word0 << 32) | word1;
+        } else {
+            return ((uint64_t)word1 << 32) | word0;
+        }
+    } else {
+        return word0;
+    }
 }
-#endif /* TARGET_ABI_BITS != 32 */
 
 /* posix_fallocate(2) */
 static inline abi_long do_freebsd_posix_fallocate(abi_long arg1, abi_long arg2,
     abi_long arg3, abi_long arg4, abi_long arg5, abi_long arg6)
 {
 
-#if TARGET_ABI_BITS == 32
-    return get_errno(posix_fallocate(arg1, target_offset64(arg3, arg4),
-        target_offset64(arg5, arg6)));
-#else
-    return get_errno(posix_fallocate(arg1, arg2, arg3));
-#endif
+    if (TARGET_ABI_BITS == 32) {
+        return get_errno(posix_fallocate(arg1, target_offset64(arg3, arg4),
+            target_offset64(arg5, arg6)));
+    } else {
+        return get_errno(posix_fallocate(arg1, arg2, arg3));
+    }
 }
 
 /* posix_openpt(2) */
@@ -540,5 +540,18 @@ static inline abi_long do_freebsd_kenv(abi_long action, abi_ulong name,
 
     return ret;
 }
+
+#ifdef TARGET_FREEBSD_NR_exterrctl
+static inline abi_long do_freebsd_exterrctl(abi_long op, abi_long flags, abi_long ptr)
+{
+    void *hostptr = 0;
+
+    if (op == EXTERRCTL_ENABLE) {
+        hostptr = g2h_untagged(ptr);
+    }
+
+    return get_errno(exterrctl(op, flags, hostptr));
+}
+#endif
 
 #endif /* OS_MISC_H */
