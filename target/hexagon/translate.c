@@ -70,6 +70,9 @@ TCGv hex_imprecise_exception;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+#ifndef CONFIG_USER_ONLY
+TCGv_ptr hex_hvx_ptr;
+#endif
 
 #ifndef CONFIG_USER_ONLY
 TCGv_i32 hex_greg[NUM_GREGS];
@@ -1070,7 +1073,7 @@ static void gen_commit_hvx(DisasContext *ctx)
     /*
      *    for (i = 0; i < ctx->vreg_log_idx; i++) {
      *        int rnum = ctx->vreg_log[i];
-     *        hex_hvx(env)->VRegs[rnum] = env->future_VRegs[rnum];
+     *        env->hvx->VRegs[rnum] = env->future_VRegs[rnum];
      *    }
      */
     for (i = 0; i < ctx->vreg_log_idx; i++) {
@@ -1087,7 +1090,7 @@ static void gen_commit_hvx(DisasContext *ctx)
     /*
      *    for (i = 0; i < ctx->qreg_log_idx; i++) {
      *        int rnum = ctx->qreg_log[i];
-     *        hex_hvx(env)->QRegs[rnum] = env->future_QRegs[rnum];
+     *        env->hvx->QRegs[rnum] = env->future_QRegs[rnum];
      *    }
      */
     for (i = 0; i < ctx->qreg_log_idx; i++) {
@@ -1421,6 +1424,8 @@ void hexagon_translate_init(void)
     opcode_init();
 
 #ifndef CONFIG_USER_ONLY
+    hex_hvx_ptr = tcg_global_mem_new_ptr(tcg_env,
+        offsetof(CPUHexagonState, hvx), "hvx");
     for (i = 0; i < NUM_GREGS; i++) {
             hex_greg[i] = tcg_global_mem_new_i32(tcg_env,
                 offsetof(CPUHexagonState, greg[i]),

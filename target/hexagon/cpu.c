@@ -43,6 +43,7 @@
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hvx_context.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -328,6 +329,9 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     CPUHexagonState *env = cpu_env(cs);
     vaddr pc = env->gpr[HEX_REG_PC];
     uint32_t hex_flags = 0;
+#ifndef CONFIG_USER_ONLY
+    HexagonCPU *cpu;
+#endif
 
     if (pc == env->gpr[HEX_REG_SA0]) {
         hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
@@ -338,10 +342,12 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     }
 
 #ifndef CONFIG_USER_ONLY
+    cpu = env_archcpu(env);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
                            cpu_mmu_index(env_cpu(env), false));
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED,
+                           cpu->hvx_ctx[0] &&
                            GET_SSR_FIELD(SSR_XE, env->t_sreg[HEX_SREG_SSR]));
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
@@ -449,6 +455,7 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
     hexagon_cpu_soft_reset(env);
+    hexagon_hvx_select_context(env, env->t_sreg[HEX_SREG_SSR]);
     env->cause_code = HEX_EVENT_NONE;
     env->gpr[HEX_REG_PC] = cpu->boot_addr;
 #endif
@@ -554,7 +561,16 @@ static void hexagon_cpu_init(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
     HexagonCPU *cpu = HEXAGON_CPU(obj);
+
     qdev_init_gpio_in(DEVICE(cpu), hexagon_cpu_set_irq, 8);
+
+    for (int i = 0; i < HVX_CONTEXTS_MAX; i++) {
+        object_property_add_link(obj, "hvx-context[*]",
+                                 TYPE_HEXAGON_HVX_CONTEXT,
+                                 (Object **)&cpu->hvx_ctx[i],
+                                 qdev_prop_allow_set_link_before_realize,
+                                 OBJ_PROP_LINK_STRONG);
+    }
 #endif
 }
 
