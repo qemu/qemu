@@ -141,8 +141,9 @@ __kernel_sigreturn:
 	sigreturn_tramp __NR_sigreturn
 endf __kernel_sigreturn
 
-	/* Update CFA base for the rt_sigreturn frame layout. */
+	/* rt_sigreturn frame layout; nop for the same reason as above. */
 	.cfi_def_cfa_offset	RT_SIGFRAME_SC_OFFSET
+	nop
 
 __kernel_rt_sigreturn:
 	sigreturn_tramp __NR_rt_sigreturn
