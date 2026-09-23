@@ -81,6 +81,7 @@ tcg_tests_summary += {'gdb': gdb}
 
 docker_supported = false
 container_command = false
+docker_platform = ['--platform', 'linux/amd64']
 if get_option('containers')
   if get_option('container_command') != ''
     # make sure command is working
@@ -98,6 +99,18 @@ if get_option('containers')
       docker_wrapper = [docker_wrapper, '--command',
                         container_command]
     endif
+  endif
+
+  if docker_supported
+    # Check that x86_64 containers can be executed. It implies xthat 86_64
+    # binaries can be executed. On host with a different architecture,
+    # this is usually achieved with qemu-user-binfmt.
+    docker_supported = run_command([docker_wrapper, 'run', '--',
+                                    docker_platform,
+                                    'docker.io/amd64/debian:13-slim',
+                                    '/bin/true'],
+                                    check: false).returncode() == 0
+    tcg_tests_summary += {'x86_64 container support': docker_supported}
   endif
 endif
 tcg_tests_summary += {'container command': container_command}
@@ -253,13 +266,11 @@ foreach target, plan: tcg_tests
               target + ' (possible: [' + ', '.join(allowed) + '])')
       endif
     endforeach
-    docker_host_arch_supported = host_machine.cpu_family() in cc_docker_host_arch
     dockerfile = files('..'/'docker'/'dockerfiles'/cc_dockerfile + '.docker')
     image_name = 'image-' + cc_dockerfile
-    has_docker = docker_host_arch_supported and docker_supported
-    if cc_dockerfile not in image_targets and has_docker
+    if cc_dockerfile not in image_targets and docker_supported
       cmd = [docker_wrapper, 'build', '-f', dockerfile, '-t', 'qemu/' + cc_dockerfile,
-             '--add-current-user']
+             docker_platform, '--add-current-user']
       if get_option('container_registry') != ''
         cmd += ['--registry', get_option('container_registry')]
       endif
@@ -270,7 +281,7 @@ foreach target, plan: tcg_tests
       image_targets += {cc_dockerfile: t}
     endif
 
-    if not has_cc and has_docker
+    if not has_cc and docker_supported
       build_test_depends += image_targets[cc_dockerfile]
       build_test_depend_files += dockerfile
       mount = meson.project_source_root()
@@ -279,6 +290,7 @@ foreach target, plan: tcg_tests
       cc = [docker_wrapper, 'run', '--run-as-current-user', '--',
             # SELinux blocks modification of host fs by default
             '--security-opt', 'label=disable',
+            docker_platform,
             '-w', here, '-v', here + ':' + here, '-v', mount,
             'qemu/' + cc_dockerfile, plan['cc']]
       has_cc = true
