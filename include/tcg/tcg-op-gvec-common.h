@@ -234,6 +234,10 @@ void tcg_gen_gvec_2_var(TCGv_ptr dbase, uint32_t dofs,
 /* Similarly, expand (env+dofs) = op(env+aofs). */
 void tcg_gen_gvec_2(uint32_t dofs, uint32_t aofs,
                     uint32_t oprsz, uint32_t maxsz, const GVecGen2 *op);
+/* Expand (dbase+dofs) = op(abase+aofs, c), clearing @oprsz..@maxsz. */
+void tcg_gen_gvec_2i_var(TCGv_ptr dbase, uint32_t dofs,
+                         TCGv_ptr abase, uint32_t aofs, uint32_t oprsz,
+                         uint32_t maxsz, int64_t c, const GVecGen2i *op);
 /* Similarly, expand (env+dofs) = op(env+aofs, c). */
 void tcg_gen_gvec_2i(uint32_t dofs, uint32_t aofs, uint32_t oprsz,
                      uint32_t maxsz, int64_t c, const GVecGen2i *op);
@@ -315,6 +319,10 @@ void tcg_gen_gvec_sub_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
                           TCGv_ptr abase, uint32_t aofs,
                           TCGv_ptr bbase, uint32_t bofs,
                           uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_mul_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                          TCGv_ptr abase, uint32_t aofs,
+                          TCGv_ptr bbase, uint32_t bofs,
+                          uint32_t oprsz, uint32_t maxsz);
 
 void tcg_gen_gvec_add(unsigned vece, uint32_t dofs, uint32_t aofs,
                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz);
@@ -336,6 +344,23 @@ void tcg_gen_gvec_muls(unsigned vece, uint32_t dofs, uint32_t aofs,
                        TCGv_i64 c, uint32_t oprsz, uint32_t maxsz);
 
 /* Saturated arithmetic.  */
+void tcg_gen_gvec_ssadd_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                            TCGv_ptr abase, uint32_t aofs,
+                            TCGv_ptr bbase, uint32_t bofs,
+                            uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_sssub_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                            TCGv_ptr abase, uint32_t aofs,
+                            TCGv_ptr bbase, uint32_t bofs,
+                            uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_usadd_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                            TCGv_ptr abase, uint32_t aofs,
+                            TCGv_ptr bbase, uint32_t bofs,
+                            uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_ussub_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                            TCGv_ptr abase, uint32_t aofs,
+                            TCGv_ptr bbase, uint32_t bofs,
+                            uint32_t oprsz, uint32_t maxsz);
+
 void tcg_gen_gvec_ssadd(unsigned vece, uint32_t dofs, uint32_t aofs,
                         uint32_t bofs, uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_sssub(unsigned vece, uint32_t dofs, uint32_t aofs,
@@ -442,8 +467,14 @@ void tcg_gen_gvec_dup_i32_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
 
 void tcg_gen_gvec_shli(unsigned vece, uint32_t dofs, uint32_t aofs,
                        int64_t shift, uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_shri_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                           TCGv_ptr abase, uint32_t aofs,
+                           int64_t shift, uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_shri(unsigned vece, uint32_t dofs, uint32_t aofs,
                        int64_t shift, uint32_t oprsz, uint32_t maxsz);
+void tcg_gen_gvec_sari_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
+                           TCGv_ptr abase, uint32_t aofs,
+                           int64_t shift, uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_sari(unsigned vece, uint32_t dofs, uint32_t aofs,
                        int64_t shift, uint32_t oprsz, uint32_t maxsz);
 void tcg_gen_gvec_rotli(unsigned vece, uint32_t dofs, uint32_t aofs,
