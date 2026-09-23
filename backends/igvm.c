@@ -29,6 +29,9 @@
 
 #ifdef CONFIG_FDT
 #include <libfdt.h>
+
+/* Enough for the header, the memory reservation block and an empty root node */
+#define EMPTY_FDT_SIZE 256
 #endif
 
 #ifndef IGVM_VHT_OPTIONAL_BIT
@@ -871,7 +874,7 @@ static int qigvm_directive_device_tree(QIgvm *ctx, const uint8_t *header_data,
                                        Error **errp)
 {
     const IGVM_VHS_PARAMETER *param = (const IGVM_VHS_PARAMETER *)header_data;
-    g_autofree void *fdt_packed = NULL;
+    g_autofree void *fdt = NULL;
     uint8_t *param_data;
     uint32_t param_size;
     uint32_t fdt_size;
@@ -881,20 +884,27 @@ static int qigvm_directive_device_tree(QIgvm *ctx, const uint8_t *header_data,
         return -1;
     }
 
-    if (ctx->machine_state->fdt == NULL) {
-        error_setg(errp, "IGVM: device tree not available");
-        return -1;
+    if (ctx->machine_state->fdt) {
+        fdt = g_memdup2(ctx->machine_state->fdt,
+                        fdt_totalsize(ctx->machine_state->fdt));
+    } else {
+        /*
+         * The machine doesn't build a device tree of its own.
+         * Supply an empty tree rather than rejecting the IGVM file.
+         */
+        fdt = g_malloc0(EMPTY_FDT_SIZE);
+        if (fdt_create_empty_tree(fdt, EMPTY_FDT_SIZE)) {
+            error_setg(errp, "IGVM: failed to create an empty device tree");
+            return -1;
+        }
     }
 
-    fdt_size = fdt_totalsize(ctx->machine_state->fdt);
-    fdt_packed = g_memdup2(ctx->machine_state->fdt, fdt_size);
-
-    if (fdt_pack(fdt_packed)) {
+    if (fdt_pack(fdt)) {
         error_setg(errp, "IGVM: failed to pack device tree");
         return -1;
     }
 
-    fdt_size = fdt_totalsize(fdt_packed);
+    fdt_size = fdt_totalsize(fdt);
     if (fdt_size > param_size) {
         error_setg(errp,
                    "IGVM: device tree size exceeds parameter area"
@@ -902,7 +912,7 @@ static int qigvm_directive_device_tree(QIgvm *ctx, const uint8_t *header_data,
         return -1;
     }
 
-    memcpy(param_data, fdt_packed, fdt_size);
+    memcpy(param_data, fdt, fdt_size);
 
     return 0;
 }
