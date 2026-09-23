@@ -221,20 +221,8 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
     }
 }
 
-static inline bool use_exit_tb(DisasContext *ctx)
-{
-#ifdef CONFIG_USER_ONLY
-    return ctx->in_gusa_exclusive;
-#else
-    return false;
-#endif
-}
-
 static bool use_goto_tb(DisasContext *ctx, vaddr dest)
 {
-    if (use_exit_tb(ctx)) {
-        return false;
-    }
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
@@ -246,11 +234,7 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx, vaddr dest)
         tcg_gen_exit_tb(ctx->base.tb, tb_slot_idx);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
-        if (use_exit_tb(ctx)) {
-            tcg_gen_exit_tb(NULL, 0);
-        } else {
-            tcg_gen_lookup_and_goto_ptr();
-        }
+        tcg_gen_lookup_and_goto_ptr();
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -262,11 +246,7 @@ static void gen_jump(DisasContext * ctx)
            delayed jump as immediate jump are conditinal jumps */
         tcg_gen_mov_i32(cpu_pc, cpu_delayed_pc);
         tcg_gen_discard_i32(cpu_delayed_pc);
-        if (use_exit_tb(ctx)) {
-            tcg_gen_exit_tb(NULL, 0);
-        } else {
-            tcg_gen_lookup_and_goto_ptr();
-        }
+        tcg_gen_lookup_and_goto_ptr();
         ctx->base.is_jmp = DISAS_NORETURN;
     } else {
         gen_goto_tb(ctx, 0, ctx->delayed_pc);
