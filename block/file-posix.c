@@ -2366,7 +2366,7 @@ static int handle_aiocb_truncate(void *opaque)
     RawPosixAIOData *aiocb = opaque;
     int result = 0;
     int64_t current_length = 0;
-    char *buf = NULL;
+    QEMU_AUTO_VFREE char *buf = NULL;
     struct stat st;
     int fd = aiocb->aio_fildes;
     int64_t offset = aiocb->aio_offset;
@@ -2433,7 +2433,7 @@ static int handle_aiocb_truncate(void *opaque)
             goto out;
         }
 
-        buf = g_malloc0(65536);
+        buf = qemu_blockalign0(aiocb->bs, 65536);
 
         seek_result = lseek(fd, current_length, SEEK_SET);
         if (seek_result < 0) {
@@ -2492,7 +2492,6 @@ out:
         }
     }
 
-    g_free(buf);
     return result;
 }
 
