@@ -1396,7 +1396,6 @@ static void gen_BOUND(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
-/* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
 static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -1404,7 +1403,7 @@ static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
     /* Only the Z bit is defined and it is related to the input.  */
     decode->cc_dst = tcg_temp_new();
     decode->cc_op = CC_OP_LOGICB + ot;
-    tcg_gen_mov_tl(decode->cc_dst, s->T0);
+    tcg_gen_mov_tl(decode->cc_dst, s->T1);
 
     /*
      * The manual says that the output is undefined when the
@@ -1412,10 +1411,9 @@ static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
      * real programs appear to depend on that.  Accomplish this
      * by passing the output as the value to return upon zero.
      */
-    tcg_gen_ctz_tl(s->T0, s->T0, s->T1);
+    tcg_gen_ctz_tl(s->T0, s->T1, s->T0);
 }
 
-/* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
 static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -1423,7 +1421,7 @@ static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
     /* Only the Z bit is defined and it is related to the input.  */
     decode->cc_dst = tcg_temp_new();
     decode->cc_op = CC_OP_LOGICB + ot;
-    tcg_gen_mov_tl(decode->cc_dst, s->T0);
+    tcg_gen_mov_tl(decode->cc_dst, s->T1);
 
     /*
      * The manual says that the output is undefined when the
@@ -1432,8 +1430,8 @@ static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
      * by passing the output as the value to return upon zero.
      * Plus, return the bit index of the first 1 bit.
      */
-    tcg_gen_xori_tl(s->T1, s->T1, TARGET_LONG_BITS - 1);
-    tcg_gen_clz_tl(s->T0, s->T0, s->T1);
+    tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
+    tcg_gen_clz_tl(s->T0, s->T1, s->T0);
     tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
 }
 
