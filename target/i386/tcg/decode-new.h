@@ -148,6 +148,12 @@ typedef enum X86OpUnit {
     X86_OP_MMX,     /* address in either s->ptrX or s->A0 depending on has_ea */
 } X86OpUnit;
 
+typedef enum X86OpExt {
+    X86_EXT_None,
+    X86_EXT_Signed,
+    X86_EXT_Unsigned,
+} X86OpExt;
+
 typedef enum X86InsnCheck {
     /* Illegal or exclusive to 64-bit mode */
     X86_CHECK_i64 = 1,
@@ -226,10 +232,6 @@ typedef enum X86InsnSpecial {
      */
     X86_SPECIAL_MMX,
 
-    /* When loaded into s->T0, register operand 1 is zero/sign extended.  */
-    X86_SPECIAL_SExtT0,
-    X86_SPECIAL_ZExtT0,
-
     /* Memory operand size of MOV from segment register is MO_16 */
     X86_SPECIAL_Op0_Mw,
 } X86InsnSpecial;
@@ -300,6 +302,10 @@ struct X86OpEntry {
     X86OpSize    s3:8;
 
     X86InsnSpecial special:8;
+    X86OpExt     ext0:2;
+    X86OpExt     ext1:2;
+    X86OpExt     ext2:2;
+    unsigned     :2;
     X86CPUIDFeature cpuid:8;
     unsigned     vex_class:8;
     X86VEXSpecial vex_special:8;
@@ -314,6 +320,7 @@ typedef struct X86DecodedOp {
     int8_t n;
     MemOp ot;     /* For b/c/d/p/s/q/v/w/y/z */
     X86OpUnit unit;
+    X86OpExt ext;
     bool has_ea;
     int offset;   /* For MMX and SSE */
 

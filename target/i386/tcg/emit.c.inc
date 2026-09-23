@@ -266,23 +266,21 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
 #endif
     case X86_OP_INT:
         if (op->has_ea) {
-            if (v == s->T0 && decode->e.special == X86_SPECIAL_SExtT0) {
+            if (op->ext == X86_EXT_Signed) {
                 gen_op_ld_v(s, op->ot | MO_SIGN, v, s->A0);
             } else {
                 gen_op_ld_v(s, op->ot, v, s->A0);
             }
 
-        } else if (op->ot < MO_TL && v == s->T0 &&
-                   (decode->e.special == X86_SPECIAL_SExtT0 ||
-                    decode->e.special == X86_SPECIAL_ZExtT0)) {
+        } else if (op->ot < MO_TL && op->ext != X86_EXT_None) {
             if (op->ot == MO_8 && byte_reg_is_xH(s, op->n)) {
-                if (decode->e.special == X86_SPECIAL_SExtT0) {
+                if (op->ext == X86_EXT_Signed) {
                     tcg_gen_sextract_tl(v, cpu_regs[op->n - 4], 8, 8);
                 } else {
                     tcg_gen_extract_tl(v, cpu_regs[op->n - 4], 8, 8);
                 }
             } else {
-                if (decode->e.special == X86_SPECIAL_SExtT0) {
+                if (op->ext == X86_EXT_Signed) {
                     tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot | MO_SIGN);
                 } else {
                     tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot);
@@ -347,6 +345,12 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
     case X86_OP_INT:
         if (op->has_ea) {
             gen_op_st_v(s, op->ot, v, s->A0);
+        } else if (op->ot < MO_TL && op->ext != X86_EXT_None) {
+            if (op->ext == X86_EXT_Signed) {
+                tcg_gen_ext_tl(cpu_regs[op->n], v, op->ot | MO_SIGN);
+            } else {
+                tcg_gen_ext_tl(cpu_regs[op->n], v, op->ot);
+            }
         } else {
             gen_op_mov_reg_v(s, op->ot, op->n, v);
         }

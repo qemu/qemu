@@ -233,8 +233,12 @@
 #define op0_Rd .special = X86_SPECIAL_Op0_Rd,
 #define op2_Ry .special = X86_SPECIAL_Op2_Ry,
 #define avx_movx .special = X86_SPECIAL_AVXExtMov,
-#define sextT0 .special = X86_SPECIAL_SExtT0,
-#define zextT0 .special = X86_SPECIAL_ZExtT0,
+#define sextwT0 .ext0 = X86_EXT_Signed,
+#define zextwT0 .ext0 = X86_EXT_Unsigned,
+#define sextT0  .ext1 = X86_EXT_Signed,
+#define zextT0  .ext1 = X86_EXT_Unsigned,
+#define sextT1  .ext2 = X86_EXT_Signed,
+#define zextT1  .ext2 = X86_EXT_Unsigned,
 #define op0_Mw .special = X86_SPECIAL_Op0_Mw,
 #define btEvGv .special = X86_SPECIAL_BitTest,
 
@@ -1614,9 +1618,9 @@ static void decode_group2(DisasContext *s, CPUX86State *env, X86OpEntry *entry, 
     int op = (get_modrm(s, env) >> 3) & 7;
     entry->gen = group2_gen[op];
     if (op == 7) {
-        entry->special = X86_SPECIAL_SExtT0;
+        entry->ext1 = X86_EXT_Signed;
     } else {
-        entry->special = X86_SPECIAL_ZExtT0;
+        entry->ext1 = X86_EXT_Unsigned;
     }
 }
 
@@ -2525,16 +2529,19 @@ static bool decode_ops(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_f
         !decode_op(s, env, decode, &decode->op[0], e->op0, decode->b)) {
         return false;
     }
+    decode->op[0].ext = e->ext0;
 
     if (e->op1 != X86_TYPE_None &&
         !decode_op(s, env, decode, &decode->op[1], e->op1, decode->b)) {
         return false;
     }
+    decode->op[1].ext = e->ext1;
 
     if (e->op2 != X86_TYPE_None &&
         !decode_op(s, env, decode, &decode->op[2], e->op2, decode->b)) {
         return false;
     }
+    decode->op[2].ext = e->ext2;
 
     if (e->op3 != X86_TYPE_None) {
         decode->immediate = insn_get_signed(env, s, MO_8);
@@ -3088,12 +3095,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
         } else if (s->vex_l) {
             decode.op[2].ot++;
         }
-        break;
-
-    case X86_SPECIAL_SExtT0:
-    case X86_SPECIAL_ZExtT0:
-        /* Handled in gen_load.  */
-        assert(decode.op[1].unit == X86_OP_INT);
         break;
 
     case X86_SPECIAL_Op0_Mw:
