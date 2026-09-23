@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all opensuse-leap-16 qemu
+#  $ lcitool dockerfile --layers all --host-arch x86_64 opensuse-leap-16 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
