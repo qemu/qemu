@@ -44,6 +44,22 @@ vdso_syscall __vdso_clock_getres, __NR_clock_getres
 vdso_syscall __vdso_gettimeofday, __NR_gettimeofday
 
 /*
+ * Same instruction sequence as the kernel's
+ * arch/sh/kernel/vsyscall/vsyscall-sigreturn.S. libunwind matches these
+ * bytes to recognize a signal frame.
+ */
+.macro sigreturn_tramp nr
+	mov.w	1f, r3
+	trapa	#0x10
+	or	r0, r0
+	or	r0, r0
+	or	r0, r0
+	or	r0, r0
+	or	r0, r0
+1:	.word	\nr
+.endm
+
+/*
  * Signal return trampolines.
  *
  * For sigreturn: r15 points to struct sigframe; sigcontext is at
@@ -122,20 +138,14 @@ vdso_syscall __vdso_gettimeofday, __NR_gettimeofday
 
 sigreturn_region_start:
 __kernel_sigreturn:
-	mov.l	1f, r3
-	trapa	#0x10
-	.align	2
-1:	.long	__NR_sigreturn
+	sigreturn_tramp __NR_sigreturn
 endf __kernel_sigreturn
 
 	/* Update CFA base for the rt_sigreturn frame layout. */
 	.cfi_def_cfa_offset	RT_SIGFRAME_SC_OFFSET
 
 __kernel_rt_sigreturn:
-	mov.l	2f, r3
-	trapa	#0x10
-	.align	2
-2:	.long	__NR_rt_sigreturn
+	sigreturn_tramp __NR_rt_sigreturn
 endf __kernel_rt_sigreturn
 sigreturn_region_end:
 
