@@ -84,8 +84,7 @@
 #define TB_FLAG_DELAY_SLOT_RTE   (1 << 2)
 #define TB_FLAG_PENDING_MOVCA    (1 << 3)
 #define TB_FLAG_GUSA_SHIFT       4                      /* [11:4] */
-#define TB_FLAG_GUSA_EXCLUSIVE   (1 << 12)
-#define TB_FLAG_UNALIGN          (1 << 13)
+#define TB_FLAG_UNALIGN          (1 << 12)
 #define TB_FLAG_SR_FD            (1 << SR_FD)           /* 15 */
 #define TB_FLAG_FPSCR_PR         FPSCR_PR               /* 19 */
 #define TB_FLAG_FPSCR_SZ         FPSCR_SZ               /* 20 */
@@ -96,8 +95,7 @@
 #define TB_FLAG_DELAY_SLOT_MASK  (TB_FLAG_DELAY_SLOT |       \
                                   TB_FLAG_DELAY_SLOT_COND |  \
                                   TB_FLAG_DELAY_SLOT_RTE)
-#define TB_FLAG_GUSA_MASK        ((0xff << TB_FLAG_GUSA_SHIFT) | \
-                                  TB_FLAG_GUSA_EXCLUSIVE)
+#define TB_FLAG_GUSA_MASK        (0xff << TB_FLAG_GUSA_SHIFT)
 #define TB_FLAG_FPSCR_MASK       (TB_FLAG_FPSCR_PR | \
                                   TB_FLAG_FPSCR_SZ | \
                                   TB_FLAG_FPSCR_FR)
