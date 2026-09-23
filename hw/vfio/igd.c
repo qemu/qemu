@@ -96,6 +96,8 @@ static int igd_gen(VFIOPCIDevice *vdev)
     case 0x4C00:    /* Rocket Lake */
     case 0x4600:    /* Alder Lake */
     case 0xA700:    /* Raptor Lake */
+    case 0x7D00:    /* Meteor Lake / Arrow Lake */
+    case 0xB600:    /* Arrow Lake */
         return 12;
     }
 
@@ -452,8 +454,30 @@ static bool vfio_pci_igd_override_gms(int gen, uint32_t gms, uint32_t *gmch)
     return ret;
 }
 
-#define IGD_GGC_MMIO_OFFSET     0x108040
-#define IGD_BDSM_MMIO_OFFSET    0x1080C0
+#define IGD_GGC_MMIO_OFFSET         0x108040
+#define IGD_BDSM_MMIO_OFFSET        0x1080C0
+#define IGD_MTL_PCODE_STOLEN_ACCESS 0x138914
+
+#define IGD_IS_MTL_OR_ARL(vdev) \
+    ((((vdev)->device_id & 0xff00) == 0x7d00) || \
+     (((vdev)->device_id & 0xff00) == 0xb600))
+
+static uint64_t vfio_igd_pcode_stolen_access_read(void *opaque, hwaddr addr,
+                                                  unsigned size)
+{
+    return 0;
+}
+
+static void vfio_igd_pcode_stolen_access_write(void *opaque, hwaddr addr,
+                                               uint64_t data, unsigned size)
+{
+}
+
+static const MemoryRegionOps vfio_igd_pcode_stolen_access_quirk = {
+    .read = vfio_igd_pcode_stolen_access_read,
+    .write = vfio_igd_pcode_stolen_access_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 /*
  * IGD BAR0 DBUF_CTL sanitize quirk.
@@ -547,7 +571,7 @@ static const MemoryRegionOps igd_dbuf_ctl_ops = {
 
 void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 {
-    VFIOQuirk *ggc_quirk, *bdsm_quirk;
+    VFIOQuirk *ggc_quirk, *bdsm_quirk, *pcode_stolen_access_quirk;
     VFIOConfigMirrorQuirk *ggc_mirror, *bdsm_mirror;
     int gen;
 
@@ -560,6 +584,25 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     gen = igd_gen(vdev);
     if (gen < 6) {
         return;
+    }
+
+    /*
+     * MTL/ARL guests must keep using the BAR-based framebuffer address.
+     * Return 0 for PCODE stolen memory access detection (0x138914) so GOP
+     * stays on the standard access path in the VM.
+     */
+    if (IGD_IS_MTL_OR_ARL(vdev)) {
+        pcode_stolen_access_quirk = vfio_quirk_alloc(1);
+        memory_region_init_io(pcode_stolen_access_quirk->mem, OBJECT(vdev),
+                              &vfio_igd_pcode_stolen_access_quirk, vdev,
+                              "vfio-igd-pcode-stolen-access-quirk", 4);
+        memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                            IGD_MTL_PCODE_STOLEN_ACCESS,
+                                            pcode_stolen_access_quirk->mem,
+                                            1);
+
+        QLIST_INSERT_HEAD(&vdev->bars[nr].quirks,
+                          pcode_stolen_access_quirk, next);
     }
 
     if (vdev->igd_gms) {
