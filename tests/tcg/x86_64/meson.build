@@ -31,18 +31,18 @@ tests += {
   '../i386/test-i386-ssse3.c': {},
   '../i386/test-3dnow.c': {
     'cflags': ['-I', meson.current_build_dir(),
-               '-masm=intel', '-O'],
+               '-masm=intel'],
     'depends': [test_3dnow_h],
   },
   '../i386/test-avx.c': {
     'cflags': ['-I', meson.current_build_dir(),
-               '-mavx', '-masm=intel', '-O'],
+               '-mavx', '-masm=intel'],
     'depends': [test_avx_h],
   },
   '../i386/test-flags.c': {},
   '../i386/test-mmx.c': {
     'cflags': ['-I', meson.current_build_dir(),
-               '-masm=intel', '-O'],
+               '-masm=intel'],
     'depends': [test_mmx_h],
   },
   '../i386/test-i386.c': {
