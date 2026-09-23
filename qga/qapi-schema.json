@@ -741,8 +741,6 @@
 # @guest-get-vcpus:
 #     Retrieve the list of the guest's logical processors.
 #
-#     This is a read-only operation.
-#
 # Returns: The list of all VCPUs the guest knows about.  Each VCPU is
 #     put on the list exactly once, but their order is unspecified.
 #
@@ -1099,8 +1097,6 @@
 ##
 # @guest-get-memory-blocks:
 #     Retrieve the list of the guest's memory blocks.
-#
-#     This is a read-only operation.
 #
 # Returns: The list of all memory blocks the guest knows about.  Each
 #     memory block is put on the list exactly once, but their order is
