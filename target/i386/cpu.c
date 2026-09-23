@@ -10640,7 +10640,9 @@ int x86_cpu_pending_interrupt(const CPUState *cs, int interrupt_request)
 
 static bool x86_cpu_has_work(CPUState *cs)
 {
-    return x86_cpu_pending_interrupt(cs, cs->interrupt_request) != 0;
+    uint32_t pending_interrupts = qatomic_load_acquire(&cs->interrupt_request);
+
+    return x86_cpu_pending_interrupt(cs, pending_interrupts) != 0;
 }
 #endif /* !CONFIG_USER_ONLY */
 
