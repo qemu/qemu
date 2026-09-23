@@ -215,9 +215,9 @@ static inline void ctx_log_reg_read_pair(DisasContext *ctx, int rnum)
 }
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
-                             int num, bool alloc_ok);
+                             int num, bool alloc_ok, TCGv_ptr *base);
 intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
-                          int num, bool alloc_ok);
+                          int num, bool alloc_ok, TCGv_ptr *base);
 
 static inline void ctx_start_hvx_insn(DisasContext *ctx)
 {
@@ -363,6 +363,8 @@ extern TCGv_i64 hex_llsc_val_i64;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
+#define hex_hvx_ptr tcg_env
+#define HEX_HVX_OFFSET(member) offsetof(CPUHexagonState, member)
 #ifndef CONFIG_USER_ONLY
 extern TCGv_i32 hex_greg[NUM_GREGS];
 extern TCGv_i32 hex_t_sreg[NUM_SREGS];

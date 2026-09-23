@@ -204,6 +204,11 @@ struct ArchCPU {
 #endif
 };
 
+static inline CPUHexagonState *hex_hvx(CPUHexagonState *env)
+{
+    return env;
+}
+
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, PCYCLE_ENABLED, 4, 1)

@@ -1408,7 +1408,8 @@ void HELPER(vhist)(CPUHexagonState *env)
             unsigned char regno = value >> 3;
             unsigned char element = value & 7;
 
-            env->VRegs[regno].uh[(sizeof(MMVector) / 16) * lane + element]++;
+            hex_hvx(env)->VRegs[regno]
+                .uh[(sizeof(MMVector) / 16) * lane + element]++;
         }
     }
 }
@@ -1424,7 +1425,7 @@ void HELPER(vhistq)(CPUHexagonState *env)
             unsigned char element = value & 7;
 
             if (fGETQBIT(env->qtmp, sizeof(MMVector) / 8 * lane + i)) {
-                env->VRegs[regno].uh[
+                hex_hvx(env)->VRegs[regno].uh[
                     (sizeof(MMVector) / 16) * lane + element]++;
             }
         }
@@ -1441,8 +1442,8 @@ void HELPER(vwhist256)(CPUHexagonState *env)
         unsigned int vindex = (bucket >> 3) & 0x1F;
         unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
 
-        env->VRegs[vindex].uh[elindex] =
-            env->VRegs[vindex].uh[elindex] + weight;
+        hex_hvx(env)->VRegs[vindex].uh[elindex] =
+            hex_hvx(env)->VRegs[vindex].uh[elindex] + weight;
     }
 }
 
@@ -1457,8 +1458,8 @@ void HELPER(vwhist256q)(CPUHexagonState *env)
         unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
 
         if (fGETQBIT(env->qtmp, 2 * i)) {
-            env->VRegs[vindex].uh[elindex] =
-                env->VRegs[vindex].uh[elindex] + weight;
+            hex_hvx(env)->VRegs[vindex].uh[elindex] =
+                hex_hvx(env)->VRegs[vindex].uh[elindex] + weight;
         }
     }
 }
@@ -1473,8 +1474,8 @@ void HELPER(vwhist256_sat)(CPUHexagonState *env)
         unsigned int vindex = (bucket >> 3) & 0x1F;
         unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
 
-        env->VRegs[vindex].uh[elindex] =
-            fVSATUH(env->VRegs[vindex].uh[elindex] + weight);
+        hex_hvx(env)->VRegs[vindex].uh[elindex] =
+            fVSATUH(hex_hvx(env)->VRegs[vindex].uh[elindex] + weight);
     }
 }
 
@@ -1489,8 +1490,8 @@ void HELPER(vwhist256q_sat)(CPUHexagonState *env)
         unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
 
         if (fGETQBIT(env->qtmp, 2 * i)) {
-            env->VRegs[vindex].uh[elindex] =
-                fVSATUH(env->VRegs[vindex].uh[elindex] + weight);
+            hex_hvx(env)->VRegs[vindex].uh[elindex] =
+                fVSATUH(hex_hvx(env)->VRegs[vindex].uh[elindex] + weight);
         }
     }
 }
@@ -1505,8 +1506,8 @@ void HELPER(vwhist128)(CPUHexagonState *env)
         unsigned int vindex = (bucket >> 3) & 0x1F;
         unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
 
-        env->VRegs[vindex].uw[elindex] =
-            env->VRegs[vindex].uw[elindex] + weight;
+        hex_hvx(env)->VRegs[vindex].uw[elindex] =
+            hex_hvx(env)->VRegs[vindex].uw[elindex] + weight;
     }
 }
 
@@ -1521,8 +1522,8 @@ void HELPER(vwhist128q)(CPUHexagonState *env)
         unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
 
         if (fGETQBIT(env->qtmp, 2 * i)) {
-            env->VRegs[vindex].uw[elindex] =
-                env->VRegs[vindex].uw[elindex] + weight;
+            hex_hvx(env)->VRegs[vindex].uw[elindex] =
+                hex_hvx(env)->VRegs[vindex].uw[elindex] + weight;
         }
     }
 }
@@ -1538,8 +1539,8 @@ void HELPER(vwhist128m)(CPUHexagonState *env, int32_t uiV)
         unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
 
         if ((bucket & 1) == uiV) {
-            env->VRegs[vindex].uw[elindex] =
-                env->VRegs[vindex].uw[elindex] + weight;
+            hex_hvx(env)->VRegs[vindex].uw[elindex] =
+                hex_hvx(env)->VRegs[vindex].uw[elindex] + weight;
         }
     }
 }
@@ -1555,8 +1556,8 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
         unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
 
         if (((bucket & 1) == uiV) && fGETQBIT(env->qtmp, 2 * i)) {
-            env->VRegs[vindex].uw[elindex] =
-                env->VRegs[vindex].uw[elindex] + weight;
+            hex_hvx(env)->VRegs[vindex].uw[elindex] =
+                hex_hvx(env)->VRegs[vindex].uw[elindex] + weight;
         }
     }
 }

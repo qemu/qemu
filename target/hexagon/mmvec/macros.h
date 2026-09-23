@@ -286,26 +286,28 @@
         fV_AL_CHECK(EA, fVECSIZE() - 1); \
     } while (0)
 #ifdef QEMU_GENERATE
-#define fLOADMMV(EA, DST) gen_vreg_load(ctx, DST##_off, EA, true)
+#define fLOADMMV(EA, DST) gen_vreg_load(ctx, DST##_base, DST##_off, EA, true)
 #endif
 #ifdef QEMU_GENERATE
-#define fLOADMMVU(EA, DST) gen_vreg_load(ctx, DST##_off, EA, false)
+#define fLOADMMVU(EA, DST) gen_vreg_load(ctx, DST##_base, DST##_off, EA, false)
 #endif
 #ifdef QEMU_GENERATE
 #define fSTOREMMV(EA, SRC) \
-    gen_vreg_store(ctx, EA, SRC##_off, insn->slot, true)
+    gen_vreg_store(ctx, EA, SRC##_base, SRC##_off, insn->slot, true)
 #endif
 #ifdef QEMU_GENERATE
 #define fSTOREMMVQ(EA, SRC, MASK) \
-    gen_vreg_masked_store(ctx, EA, SRC##_off, MASK##_off, insn->slot, false)
+    gen_vreg_masked_store(ctx, EA, SRC##_base, SRC##_off, \
+                          MASK##_base, MASK##_off, insn->slot, false)
 #endif
 #ifdef QEMU_GENERATE
 #define fSTOREMMVNQ(EA, SRC, MASK) \
-    gen_vreg_masked_store(ctx, EA, SRC##_off, MASK##_off, insn->slot, true)
+    gen_vreg_masked_store(ctx, EA, SRC##_base, SRC##_off, \
+                          MASK##_base, MASK##_off, insn->slot, true)
 #endif
 #ifdef QEMU_GENERATE
 #define fSTOREMMVU(EA, SRC) \
-    gen_vreg_store(ctx, EA, SRC##_off, insn->slot, false)
+    gen_vreg_store(ctx, EA, SRC##_base, SRC##_off, insn->slot, false)
 #endif
 #define fVFOREACH(WIDTH, VAR) for (VAR = 0; VAR < fVELEM(WIDTH); VAR++)
 #define fVARRAY_ELEMENT_ACCESS(ARRAY, TYPE, INDEX) \
