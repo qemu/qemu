@@ -1760,11 +1760,10 @@ static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
     MemOp ot = decode->op[2].ot;
     TCGv cmpv = tcg_temp_new();
     TCGv oldv = tcg_temp_new();
-    TCGv newv = tcg_temp_new();
+    TCGv newv = s->T1;
     TCGv dest;
 
     tcg_gen_ext_tl(cmpv, cpu_regs[R_EAX], ot);
-    tcg_gen_ext_tl(newv, s->T1, ot);
     if (s->prefix & PREFIX_LOCK) {
         tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
                                   s->mem_index, ot | MO_LE);
@@ -1787,7 +1786,7 @@ static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
              * not zero-extending it on 64-bit processors.  So, precompute
              * the result of a successful writeback and perform the movcond
              * directly on cpu_regs.  In case rm is part of RAX, note that this
-             * movcond and the one below are mutually exclusive is executed.
+             * movcond and the one below are mutually exclusive.
              */
             dest = gen_op_deposit_reg_v(s, ot, decode->op[0].n, newv, newv);
             tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, newv, dest);

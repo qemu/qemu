@@ -1365,8 +1365,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0xa4] = X86_OP_ENTRY4(SHLD,  E,v, 2op,v, G,v),
     [0xa5] = X86_OP_ENTRY3(SHLD,  E,v, 2op,v, G,v),
 
-    [0xb0] = X86_OP_ENTRY2(CMPXCHG,E,b, G,b, lock),
-    [0xb1] = X86_OP_ENTRY2(CMPXCHG,E,v, G,v, lock),
+    [0xb0] = X86_OP_ENTRY2(CMPXCHG,E,b, G,b, lock zextT1),
+    [0xb1] = X86_OP_ENTRY2(CMPXCHG,E,v, G,v, lock zextT1),
     [0xb2] = X86_OP_ENTRY3(LSS,    G,v, EM,p, None, None),
     [0xb3] = X86_OP_ENTRY2(BTR,    E,v, G,v,             btEvGv),
     [0xb4] = X86_OP_ENTRY3(LFS,    G,v, EM,p, None, None),
