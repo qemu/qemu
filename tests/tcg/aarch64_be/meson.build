@@ -10,6 +10,7 @@ if 'qemu-aarch64_be' in emulators
   tcg_tests += {
     'aarch64_be-linux-user': {
       'cc': 'aarch64-linux-gnu-gcc',
+      'cc_alt': ['aarch64-redhat-linux-gcc'],
       'cc_dockerfile': 'debian-all-test-cross',
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 'aarch64_be',

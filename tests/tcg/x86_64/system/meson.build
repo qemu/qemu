@@ -52,6 +52,7 @@ if 'qemu-system-x86_64' in emulators
   tcg_tests += {
     'x86_64-softmmu': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
       'folder': 'x86_64/system',
       'gdb_arch': 'x86_64',

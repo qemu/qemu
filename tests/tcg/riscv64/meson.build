@@ -1,4 +1,5 @@
 cc = 'riscv64-linux-gnu-gcc'
+cc_alt = ['riscv64-redhat-linux-gnu-gcc']
 cc_dockerfile = 'debian-all-test-cross'
 
 subdir('system')
@@ -26,6 +27,7 @@ if 'qemu-riscv64' in emulators
   tcg_tests += {
     'riscv64-linux-user': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
       'folder': 'riscv64',
       'gdb_arch': 'riscv64',

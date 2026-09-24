@@ -1,4 +1,5 @@
 cc = 'aarch64-linux-gnu-gcc'
+cc_alt = ['aarch64-redhat-linux-gcc']
 cc_dockerfile = 'debian-all-test-cross'
 
 cc_feat_cflags = {
@@ -196,6 +197,7 @@ if 'qemu-aarch64' in emulators
   tcg_tests += {
     'aarch64-linux-user': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 'aarch64',

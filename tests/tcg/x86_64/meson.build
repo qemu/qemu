@@ -1,4 +1,5 @@
 cc = 'x86_64-linux-gnu-gcc'
+cc_alt = ['x86_64-redhat-linux-gcc']
 cc_dockerfile = 'debian-amd64-cross'
 
 subdir('system')
@@ -72,6 +73,7 @@ if 'qemu-x86_64' in emulators
   tcg_tests += {
     'x86_64-linux-user': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
       'folder': 'x86_64',
       'gdb_arch': 'x86_64',
