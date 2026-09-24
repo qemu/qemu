@@ -2119,6 +2119,15 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
     abi_long ret;
     int val;
 
+    /*
+     * The kernel looks the fd up before it validates anything else, so a bad
+     * fd is EBADF even when the rest of the call is also wrong.  Several arms
+     * below reject optlen or optname without ever reaching the host syscall,
+     * and would report that instead.
+     */
+    if (sockfd < 0) {
+        return -TARGET_EBADF;
+    }
     switch(level) {
     case SOL_TCP:
     case SOL_UDP:
@@ -2623,6 +2632,10 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
     int len, val;
     socklen_t lv;
 
+    /* EBADF wins over the argument checks below; see do_setsockopt(). */
+    if (sockfd < 0) {
+        return -TARGET_EBADF;
+    }
     switch(level) {
     case TARGET_SOL_SOCKET:
         level = SOL_SOCKET;
