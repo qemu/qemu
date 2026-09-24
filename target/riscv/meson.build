@@ -19,6 +19,8 @@ riscv_ss.add(files(
   'gdbstub.c',
 ))
 
+riscv_stubs_ss = ss.source_set()
+
 riscv_system_ss = ss.source_set()
 riscv_system_ss.add(files(
   'arch_dump.c',
@@ -33,3 +35,4 @@ subdir('kvm')
 
 target_arch += {'riscv': riscv_ss}
 target_system_arch += {'riscv': riscv_system_ss}
+target_stubs_arch += {'riscv': riscv_stubs_ss}

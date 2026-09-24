@@ -398,7 +398,7 @@ void HELPER(wfi)(CPUARMState *env, uint32_t insn_len)
                         target_el);
     }
 
-    env->halt_reason = HALT_WFI;
+    qatomic_set(&env->halt_reason, HALT_WFI);
     cs->exception_index = EXCP_HLT;
     cs->halted = 1;
     cpu_loop_exit(cs);
@@ -460,7 +460,7 @@ void HELPER(wfit)(CPUARMState *env, uint32_t rd)
     } else {
         timer_mod(cpu->wfxt_timer, nexttick);
     }
-    env->halt_reason = HALT_WFI;
+    qatomic_set(&env->halt_reason, HALT_WFI);
     cs->exception_index = EXCP_HLT;
     cs->halted = 1;
     cpu_loop_exit(cs);
@@ -629,7 +629,7 @@ void HELPER(wfe)(CPUARMState *env, uint32_t insn_len)
         }
     }
 
-    env->halt_reason = HALT_WFE;
+    qatomic_set(&env->halt_reason, HALT_WFE);
     cs->exception_index = EXCP_HLT;
     cs->halted = 1;
     cpu_loop_exit(cs);
@@ -723,7 +723,7 @@ void HELPER(wfet)(CPUARMState *env, uint32_t rd)
         }
     }
 
-    env->halt_reason = HALT_WFE;
+    qatomic_set(&env->halt_reason, HALT_WFE);
     cs->exception_index = EXCP_HLT;
     cs->halted = 1;
     cpu_loop_exit(cs);
