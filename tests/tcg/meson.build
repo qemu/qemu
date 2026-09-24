@@ -21,6 +21,7 @@ tcg_tests = {}
 # {
 #   'name_of_target': {
 #     'cc': 'cross_compiler',
+#     'cc_alt': ['list of alternative cross compilers', ...]
 #     'cc_dockerfile': 'name_of_dockerfile',
 #     'cc_feat_cflags': {
 #       'name': ['feature cflags'],
@@ -210,7 +211,7 @@ foreach target, plan: tcg_tests
 
   # return a clear error if user misspell a target entry
   foreach key, _ : plan
-    allowed = ['cc', 'cc_dockerfile', 'cc_feat_cflags',
+    allowed = ['cc', 'cc_alt', 'cc_dockerfile', 'cc_feat_cflags',
                'folder', 'gdb_arch', 'gdb_feat_version', 'qemu', 'tests']
     if key not in allowed
       error('unknown tcg test plan entry \'' + key + '\' for target ' + target +
@@ -218,15 +219,18 @@ foreach target, plan: tcg_tests
     endif
   endforeach
 
-  cc = find_program(plan['cc'], required : false)
-  cc_cflags = []
+  cc_list = [plan['cc']]
+  if 'cc_alt' in plan
+    cc_list += plan['cc_alt']
+  endif
 
+  cc_cflags = []
   check_flags = []
   check_required = false
   cross_cc = get_option('tcg_tests_cross_cc_' + cc_arch)
   if cross_cc != ''
-    # we make sure cross cc exists
-    cc = find_program(cross_cc, required: true)
+    # prepend requested cross_cc
+    cc_list = [cross_cc, cc_list]
     check_required = true
   endif
   cross_cflags = get_option('tcg_tests_cross_cflags_' + cc_arch)
@@ -236,22 +240,26 @@ foreach target, plan: tcg_tests
     check_flags = cc_cflags
     check_required = true
   endif
-
-  cc_from_system = cc.found()
-  has_cc = cc.found()
-  if has_cc
-    if target.endswith('softmmu')
-      check_flags += ['-nostdlib', '-ffreestanding', '-r']
-    else
-      check_flags += ['-static']
-    endif
-
-    cmd = run_command([cc, files('test_cc.c'), check_flags, '-o', '/dev/null'],
-                      check: check_required)
-    has_cc = cmd.returncode() == 0
-    cc_from_system = has_cc
+  if target.endswith('softmmu')
+    check_flags += ['-nostdlib', '-ffreestanding', '-r']
+  else
+    check_flags += ['-static']
   endif
 
+  has_cc = false
+  foreach possible_cc: cc_list
+    cc = find_program(possible_cc, required: check_required)
+    if cc.found()
+      cmd = run_command([cc, files('test_cc.c'), check_flags, '-o', '/dev/null'],
+                        check: check_required)
+      if cmd.returncode() == 0
+        has_cc = true
+        break
+      endif
+    endif
+  endforeach
+
+  cc_from_system = has_cc
   build_test_depends = []
   build_test_depend_files = []
 
