@@ -130,9 +130,20 @@ static bool s390_bios_has_net_ccw(void)
     return s390_bios_has_string("Network boot starting...");
 }
 
+static bool s390_bios_has_net_pci(void)
+{
+    /*
+     * Check for a string unique to virtio-net-pci boot support in the bios
+     * to determine if the binary was built with support for this device.
+     */
+    return s390_bios_has_string("Setup failed for virtio-net-pci");
+}
+
 static testdef_t s390x_tests[] = {
     { "s390-ccw-virtio", "virtio-net-ccw",
       .boot_dev_support = s390_bios_has_net_ccw },
+    { "s390-ccw-virtio", "virtio-net-pci",
+      .boot_dev_support = s390_bios_has_net_pci },
     { NULL },
 };
 
