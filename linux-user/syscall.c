@@ -13064,7 +13064,17 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_mincore
     case TARGET_NR_mincore:
         {
-            void *a = lock_user(VERIFY_NONE, arg1, arg2, 0);
+            void *a;
+
+            /*
+             * The kernel rejects a misaligned start before it looks the range
+             * up, so a start that is both misaligned and unmapped is EINVAL,
+             * not the ENOMEM that a failing lock_user() would report.
+             */
+            if (arg1 & ~TARGET_PAGE_MASK) {
+                return -TARGET_EINVAL;
+            }
+            a = lock_user(VERIFY_NONE, arg1, arg2, 0);
             if (!a) {
                 return -TARGET_ENOMEM;
             }
