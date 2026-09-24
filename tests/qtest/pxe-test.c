@@ -26,6 +26,7 @@ typedef struct testdef {
     const char *machine;    /* Machine type */
     const char *model;      /* NIC device model */
     const char *extra;      /* Any additional parameters */
+    bool (*boot_dev_support)(void); /* optional: boot device support check */
 } testdef_t;
 
 static testdef_t x86_tests[] = {
@@ -58,8 +59,80 @@ static testdef_t ppc64_tests_slow[] = {
     { NULL },
 };
 
+static const char *s390_bios_load(gsize *len)
+{
+    static char *cached_contents;
+    static gsize cached_len;
+    const char *qemu_bin;
+    g_autofree char *cmd = NULL;
+    char dir[PATH_MAX];
+    char *found = NULL;
+    char *path = NULL;
+    FILE *fp;
+
+    if (cached_contents) {
+        g_test_message("Using cached bios contents");
+        goto out;
+    }
+
+    /* search the qemu binary's data directories for s390-ccw.img */
+    qemu_bin = qtest_qemu_binary(NULL);
+    cmd = g_strdup_printf("%s -L help", qemu_bin);
+    fp = popen(cmd, "r");
+
+    if (!fp) {
+        g_error("Failed to run '%s'", cmd);
+    }
+
+    while (fgets(dir, sizeof(dir), fp) && !found) {
+        dir[strcspn(dir, "\n")] = '\0';
+        path = g_build_filename(dir, "s390-ccw.img", NULL);
+        if (g_file_get_contents(path, &cached_contents, &cached_len, NULL)) {
+            found = path;
+        } else {
+            g_free(path);
+        }
+    }
+    pclose(fp);
+
+    if (!found) {
+        g_error("s390-ccw.img not found");
+    }
+
+    g_test_message("Loaded %s", found);
+    g_free(found);
+
+out:
+    *len = cached_len;
+    return cached_contents;
+}
+
+static bool s390_bios_has_string(const char *needle)
+{
+    const char *contents;
+    gsize len;
+    bool found;
+
+    contents = s390_bios_load(&len);
+    found = memmem(contents, len, needle, strlen(needle)) != NULL;
+
+    g_test_message("\"%s\" %s in bios", needle, found ? "found" : "not found");
+    return found;
+}
+
+static bool s390_bios_has_net_ccw(void)
+{
+    /*
+     * Assume that netboot support always includes virtio-net-ccw support.
+     * Check only that netboot code exists, rather than probing virtio-net-ccw
+     * support directly.
+     */
+    return s390_bios_has_string("Network boot starting...");
+}
+
 static testdef_t s390x_tests[] = {
-    { "s390-ccw-virtio", "virtio-net-ccw" },
+    { "s390-ccw-virtio", "virtio-net-ccw",
+      .boot_dev_support = s390_bios_has_net_ccw },
     { NULL },
 };
 
@@ -90,12 +163,22 @@ static void test_pxe_ipv4(gconstpointer data)
 {
     const testdef_t *test = data;
 
+    if (test->boot_dev_support && !test->boot_dev_support()) {
+        g_test_skip("The bios does not support booting this device");
+        return;
+    }
+
     test_pxe_one(test, false);
 }
 
 static void test_pxe_ipv6(gconstpointer data)
 {
     const testdef_t *test = data;
+
+    if (test->boot_dev_support && !test->boot_dev_support()) {
+        g_test_skip("The bios does not support booting this device");
+        return;
+    }
 
     test_pxe_one(test, true);
 }
