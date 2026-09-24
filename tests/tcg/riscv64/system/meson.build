@@ -65,7 +65,7 @@ if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
       'cc': cc,
-      'cc_alt': cc_alt,
+      'cc_alt': cc_alt + ['riscv64-elf-gcc'],
       'cc_dockerfile': cc_dockerfile,
       'folder': 'riscv64',
       'gdb_arch': 'riscv64',

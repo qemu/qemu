@@ -41,10 +41,6 @@ aarch64-macos-15-build:
     PKG_CONFIG_PATH: /opt/homebrew/curl/lib/pkgconfig:/opt/homebrew/ncurses/lib/pkgconfig:/opt/homebrew/readline/lib/pkgconfig
     CONFIGURE_ARGS:
         --target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,x86_64-softmmu
-        --cross-prefix-aarch64=aarch64-elf-
-        --cross-prefix-arm=arm-none-eabi-
-        --cross-prefix-i386=i686-elf-
-        --cross-prefix-x86_64=x86_64-elf-
         --disable-plugins
     TEST_TARGETS: check-unit check-tcg
 
@@ -59,8 +55,5 @@ aarch64-macos-26-build:
     PKG_CONFIG_PATH: /opt/homebrew/curl/lib/pkgconfig:/opt/homebrew/ncurses/lib/pkgconfig:/opt/homebrew/readline/lib/pkgconfig
     CONFIGURE_ARGS:
         --target-list=aarch64-softmmu,i386-softmmu,x86_64-softmmu
-        --cross-prefix-aarch64=aarch64-elf-
-        --cross-prefix-i386=i686-elf-
-        --cross-prefix-x86_64=x86_64-elf-
         --disable-plugins
     TEST_TARGETS: check-unit check-tcg
