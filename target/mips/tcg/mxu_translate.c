@@ -964,18 +964,13 @@ static void gen_mxu_s32mul(DisasContext *ctx, bool mulu)
     rs  = extract32(ctx->opcode, 16, 5);
     rt  = extract32(ctx->opcode, 21, 5);
 
-    if (unlikely(rs == 0 || rt == 0)) {
-        tcg_gen_movi_i32(t0, 0);
-        tcg_gen_movi_i32(t1, 0);
-    } else {
-        gen_load_gpr(t0, rs);
-        gen_load_gpr(t1, rt);
+    gen_load_gpr(t0, rs);
+    gen_load_gpr(t1, rt);
 
-        if (mulu) {
-            tcg_gen_mulu2_i32(t0, t1, t0, t1);
-        } else {
-            tcg_gen_muls2_i32(t0, t1, t0, t1);
-        }
+    if (mulu) {
+        tcg_gen_mulu2_i32(t0, t1, t0, t1);
+    } else {
+        tcg_gen_muls2_i32(t0, t1, t0, t1);
     }
     tcg_gen_mov_i32(cpu_HI[0], t1);
     tcg_gen_mov_i32(cpu_LO[0], t0);
@@ -1690,14 +1685,11 @@ static void gen_mxu_s32stxvx(DisasContext *ctx, bool reversed,
  *               S32NOR    S32AND    S32OR    S32XOR
  */
 
-/*
- *  S32NOR XRa, XRb, XRc
- *    Update XRa with the result of logical bitwise 'nor' operation
- *    applied to the content of XRb and XRc.
- */
-static void gen_mxu_S32NOR(DisasContext *ctx)
+static void gen_mxu_logic(DisasContext *ctx,
+                          void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32))
 {
     uint32_t pad, XRc, XRb, XRa;
+    TCGv_i32 t0, t1;
 
     pad = extract32(ctx->opcode, 21, 5);
     XRc = extract32(ctx->opcode, 14, 4);
@@ -1706,24 +1698,25 @@ static void gen_mxu_S32NOR(DisasContext *ctx)
 
     if (unlikely(pad != 0)) {
         /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to all 1s */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0xFFFFFFFF);
-    } else if (unlikely(XRb == 0)) {
-        /* XRb zero register -> just set destination to the negation of XRc */
-        tcg_gen_not_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
-    } else if (unlikely(XRc == 0)) {
-        /* XRa zero register -> just set destination to the negation of XRb */
-        tcg_gen_not_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to the negation of XRb */
-        tcg_gen_not_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        tcg_gen_nor_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
+        return;
     }
+
+    t0 = tcg_temp_new_i32();
+    t1 = tcg_temp_new_i32();
+    gen_load_mxu_gpr(t0, XRb);
+    gen_load_mxu_gpr(t1, XRc);
+    gen(t0, t0, t1);
+    gen_store_mxu_gpr(t0, XRa);
+}
+
+/*
+ *  S32NOR XRa, XRb, XRc
+ *    Update XRa with the result of logical bitwise 'nor' operation
+ *    applied to the content of XRb and XRc.
+ */
+static void gen_mxu_S32NOR(DisasContext *ctx)
+{
+    gen_mxu_logic(ctx, tcg_gen_nor_i32);
 }
 
 /*
@@ -1733,27 +1726,7 @@ static void gen_mxu_S32NOR(DisasContext *ctx)
  */
 static void gen_mxu_S32AND(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) || (XRc == 0))) {
-        /* one of operands zero register -> just set destination to all 0s */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to one of them */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        tcg_gen_and_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
-    }
+    gen_mxu_logic(ctx, tcg_gen_and_i32);
 }
 
 /*
@@ -1763,33 +1736,7 @@ static void gen_mxu_S32AND(DisasContext *ctx)
  */
 static void gen_mxu_S32OR(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to all 0s */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRb == 0)) {
-        /* XRb zero register -> just set destination to the content of XRc */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
-    } else if (unlikely(XRc == 0)) {
-        /* XRc zero register -> just set destination to the content of XRb */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to one of them */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
-    }
+    gen_mxu_logic(ctx, tcg_gen_or_i32);
 }
 
 /*
@@ -1799,33 +1746,7 @@ static void gen_mxu_S32OR(DisasContext *ctx)
  */
 static void gen_mxu_S32XOR(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to all 0s */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRb == 0)) {
-        /* XRb zero register -> just set destination to the content of XRc */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRc - 1]);
-    } else if (unlikely(XRc == 0)) {
-        /* XRc zero register -> just set destination to the content of XRb */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to all 0s */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else {
-        /* the most general case */
-        tcg_gen_xor_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1], mxu_gpr[XRc - 1]);
-    }
+    gen_mxu_logic(ctx, tcg_gen_xor_i32);
 }
 
 /*
@@ -2124,45 +2045,14 @@ static void gen_mxu_q16sxxv(DisasContext *ctx, bool right, bool arithmetic)
  *    Update XRa with the minimum of signed 32-bit integers contained
  *    in XRb and XRc.
  */
-static void gen_mxu_S32MAX_S32MIN(DisasContext *ctx)
+static void gen_mxu_S32MAX(DisasContext *ctx)
 {
-    uint32_t pad, opc, XRc, XRb, XRa;
+    gen_mxu_logic(ctx, tcg_gen_smax_i32);
+}
 
-    pad = extract32(ctx->opcode, 21, 5);
-    opc = extract32(ctx->opcode, 18, 3);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely((XRb == 0) || (XRc == 0))) {
-        /* exactly one operand is zero register - find which one is not...*/
-        uint32_t XRx = XRb ? XRb : XRc;
-        /* ...and do max/min operation with one operand 0 */
-        if (opc == OPC_MXU_S32MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], mxu_gpr[XRx - 1], 0);
-        } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], mxu_gpr[XRx - 1], 0);
-        }
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to one of them */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        if (opc == OPC_MXU_S32MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1],
-                                               mxu_gpr[XRc - 1]);
-        } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1],
-                                               mxu_gpr[XRc - 1]);
-        }
-    }
+static void gen_mxu_S32MIN(DisasContext *ctx)
+{
+    gen_mxu_logic(ctx, tcg_gen_smin_i32);
 }
 
 /*
@@ -2423,34 +2313,15 @@ static void gen_mxu_q8slt(DisasContext *ctx, bool sltu)
  *    Update XRa with the signed "set less than" comparison of XRb and XRc.
  *    a.k.a. XRa = XRb < XRc ? 1 : 0;
  */
+
+static void gen_setcond_lt_i32(TCGv_i32 d, TCGv_i32 s1, TCGv_i32 s2)
+{
+    tcg_gen_setcond_i32(TCG_COND_LT, d, s1, s2);
+}
+
 static void gen_mxu_S32SLT(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRc == 0))) {
-        /* both operands zero registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else {
-        /* the most general case */
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        TCGv_i32 t1 = tcg_temp_new_i32();
-
-        gen_load_mxu_gpr(t0, XRb);
-        gen_load_mxu_gpr(t1, XRc);
-        tcg_gen_setcond_i32(TCG_COND_LT, mxu_gpr[XRa - 1], t0, t1);
-    }
+    gen_mxu_logic(ctx, gen_setcond_lt_i32);
 }
 
 /*
@@ -2769,39 +2640,19 @@ static void gen_mxu_s32movzn(DisasContext *ctx, TCGCond cond)
  *    Update XRa if XRc < 0 by value of 0 - XRb
  *    else XRa = XRb
  */
+
+static void gen_cps_i32(TCGv_i32 a, TCGv_i32 b, TCGv_i32 c)
+{
+    TCGv_i32 n = tcg_temp_new_i32();
+    TCGv_i32 z = tcg_constant_i32(0);
+
+    tcg_gen_neg_i32(n, b);
+    tcg_gen_movcond_i32(TCG_COND_LT, a, c, z, n, b);
+}
+
 static void gen_mxu_S32CPS(DisasContext *ctx)
 {
-    uint32_t pad, XRc, XRb, XRa;
-
-    pad = extract32(ctx->opcode, 21, 5);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
-    if (unlikely(pad != 0)) {
-        /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRa == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely(XRb == 0)) {
-        /* XRc make no sense 0 - 0 = 0 -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
-    } else if (unlikely(XRc == 0)) {
-        /* condition always false -> just move XRb to XRa */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        TCGLabel *l_not_less = gen_new_label();
-        TCGLabel *l_done = gen_new_label();
-
-        tcg_gen_brcondi_i32(TCG_COND_GE, mxu_gpr[XRc - 1], 0, l_not_less);
-        tcg_gen_neg_i32(t0, mxu_gpr[XRb - 1]);
-        tcg_gen_br(l_done);
-        gen_set_label(l_not_less);
-        gen_load_mxu_gpr(t0, XRb);
-        gen_set_label(l_done);
-        gen_store_mxu_gpr(t0, XRa);
-    }
+    gen_mxu_logic(ctx, gen_cps_i32);
 }
 
 /*
@@ -3109,7 +2960,7 @@ static void gen_mxu_d8sum(DisasContext *ctx, bool sumc)
             tcg_gen_add_i32(t4, t4, t2);
             tcg_gen_add_i32(t4, t4, t3);
         } else {
-            tcg_gen_mov_i32(t4, 0);
+            tcg_gen_movi_i32(t4, 0);
         }
         if (XRc != 0) {
             tcg_gen_extract_i32(t0, mxu_gpr[XRc - 1],  0, 8);
@@ -3120,7 +2971,7 @@ static void gen_mxu_d8sum(DisasContext *ctx, bool sumc)
             tcg_gen_add_i32(t5, t5, t2);
             tcg_gen_add_i32(t5, t5, t3);
         } else {
-            tcg_gen_mov_i32(t5, 0);
+            tcg_gen_movi_i32(t5, 0);
         }
 
         if (sumc) {
@@ -4407,8 +4258,10 @@ static void decode_opc_mxu__pool00(DisasContext *ctx)
 
     switch (opcode) {
     case OPC_MXU_S32MAX:
+        gen_mxu_S32MAX(ctx);
+        break;
     case OPC_MXU_S32MIN:
-        gen_mxu_S32MAX_S32MIN(ctx);
+        gen_mxu_S32MIN(ctx);
         break;
     case OPC_MXU_D16MAX:
     case OPC_MXU_D16MIN:
