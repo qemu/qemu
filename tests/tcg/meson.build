@@ -426,6 +426,12 @@ foreach target, plan: tcg_tests
                                       '-MMD', '-MF', '@DEPFILE@',
                                       '-Wall', '-Werror',
                                       '-O0', '-g', '-fno-strict-aliasing',
+                                      # Some host compilers (like archlinux)
+                                      # have stack protection enabled by default.
+                                      # This results in a linking error for some
+                                      # of our tests due to missing symbol
+                                      # __stack_chk_fail. Thus, disable it.
+                                      '-fno-stack-protector',
                                       cflags],
                             depfile: exe_name + '.d',
                             output: exe_name + '.test',
