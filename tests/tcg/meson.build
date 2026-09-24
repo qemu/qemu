@@ -290,9 +290,10 @@ foreach target, plan: tcg_tests
 
   summary_cc = false
   if has_cc
-    summary_cc = plan['cc']
-    if not cc_from_system
-      summary_cc += ' (from \'qemu/' + plan['cc_dockerfile'] + '\' container)'
+    if cc_from_system
+      summary_cc = cc.full_path()
+    else
+      summary_cc = plan['cc'] + ' (from \'qemu/' + plan['cc_dockerfile'] + '\' container)'
     endif
   endif
   tcg_tests_summary += {'cc for ' + target: summary_cc}
