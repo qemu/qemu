@@ -342,7 +342,9 @@ static void ipl_pci_device(void)
         return;
     }
 
+    /* net, scsi, and block all intentionally use the same shared boot setup */
     switch (vdev->dev_type) {
+    case VIRTIO_ID_NET:
     case VIRTIO_ID_SCSI:
     case VIRTIO_ID_BLOCK:
         if (virtio_setup() == 0) {
