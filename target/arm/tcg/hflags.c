@@ -114,6 +114,24 @@ static void rebuild_hflags_common_32(CPUARMTBFlags *flags, CPUARMState *env)
     DP_TBFLAG_A32(*flags, NS, !access_secure_reg(env));
 }
 
+static void rebuild_hflags_common_aprofile(CPUARMTBFlags *flags,
+                                           CPUARMState *env, int el,
+                                           uint64_t sctlr, bool il)
+{
+    if (il) {
+        DP_TBFLAG_ANY(*flags, PSTATE__IL, 1);
+    }
+    if (aprofile_require_alignment(env, el, sctlr)) {
+        DP_TBFLAG_ANY(*flags, ALIGN_MEM, 1);
+    }
+    if (arm_fgt_active(env, el)) {
+        DP_TBFLAG_ANY(*flags, FGT_ACTIVE, 1);
+        if (fgt_svc(env, el)) {
+            DP_TBFLAG_ANY(*flags, FGT_SVC, 1);
+        }
+    }
+}
+
 static CPUARMTBFlags rebuild_hflags_m32(CPUARMState *env, int fp_el,
                                         ARMMMUIdx mmu_idx)
 {
@@ -284,9 +302,8 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
 
     el = arm_current_el(env);
     sctlr = arm_sctlr(env, el);
-    if (aprofile_require_alignment(env, el, sctlr)) {
-        DP_TBFLAG_ANY(flags, ALIGN_MEM, 1);
-    }
+    rebuild_hflags_common_aprofile(&flags, env, el, sctlr,
+                                   env->uncached_cpsr & CPSR_IL);
 
     if (arm_el_is_aa64(env, 1)) {
         DP_TBFLAG_A32(flags, VFPEN, 1);
@@ -295,17 +312,6 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
     if (el < 2 && env->cp15.hstr_el2 && arm_is_el2_enabled(env) &&
         (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         DP_TBFLAG_A32(flags, HSTR_ACTIVE, 1);
-    }
-
-    if (arm_fgt_active(env, el)) {
-        DP_TBFLAG_ANY(flags, FGT_ACTIVE, 1);
-        if (fgt_svc(env, el)) {
-            DP_TBFLAG_ANY(flags, FGT_SVC, 1);
-        }
-    }
-
-    if (env->uncached_cpsr & CPSR_IL) {
-        DP_TBFLAG_ANY(flags, PSTATE__IL, 1);
     }
 
     /*
@@ -397,14 +403,17 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
 {
     CPUARMTBFlags flags = rebuild_hflags_common(env, fp_el, mmu_idx);
     ARMMMUIdx stage1 = stage_1_mmu_idx(mmu_idx);
-    uint64_t tcr = regime_tcr(env, mmu_idx);
-    uint64_t hcr = arm_hcr_el2_eff(env);
-    uint64_t sctlr;
+    uint64_t sctlr = regime_sctlr(env, stage1);
+    uint64_t tcr, hcr;
     int tbii, tbid, mtx;
+
+    rebuild_hflags_common_aprofile(&flags, env, el, sctlr,
+                                   env->pstate & PSTATE_IL);
 
     DP_TBFLAG_ANY(flags, AARCH64_STATE, 1);
 
     /* Get control bits for tagged addresses.  */
+    tcr = regime_tcr(env, mmu_idx);
     tbid = aa64_va_parameter_tbi(tcr, mmu_idx);
     tbii = tbid & ~aa64_va_parameter_tbid(tcr, mmu_idx);
     mtx = cpu_isar_feature(aa64_mte_mtx, env_archcpu(env)) ?
@@ -415,6 +424,7 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
     DP_TBFLAG_A64(flags, TBID, tbid);
 
     /* E2H is used by both VHE and NV2. */
+    hcr = arm_hcr_el2_eff(env);
     if (hcr & HCR_E2H) {
         DP_TBFLAG_A64(flags, E2H, 1);
     }
@@ -463,12 +473,6 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
                 DP_TBFLAG_A64(flags, ZT0EXC_EL, zt0_el);
             }
         }
-    }
-
-    sctlr = regime_sctlr(env, stage1);
-
-    if (aprofile_require_alignment(env, el, sctlr)) {
-        DP_TBFLAG_ANY(flags, ALIGN_MEM, 1);
     }
 
     if (arm_cpu_data_is_big_endian_a64(el, sctlr)) {
@@ -525,18 +529,9 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
         }
     }
 
-    if (env->pstate & PSTATE_IL) {
-        DP_TBFLAG_ANY(flags, PSTATE__IL, 1);
-    }
-
-    if (arm_fgt_active(env, el)) {
-        DP_TBFLAG_ANY(flags, FGT_ACTIVE, 1);
-        if (FIELD_EX64(env->cp15.fgt_exec[FGTREG_HFGITR], HFGITR_EL2, ERET)) {
-            DP_TBFLAG_A64(flags, TRAP_ERET, 1);
-        }
-        if (fgt_svc(env, el)) {
-            DP_TBFLAG_ANY(flags, FGT_SVC, 1);
-        }
+    if (EX_TBFLAG_ANY(flags, FGT_ACTIVE) &&
+        FIELD_EX64(env->cp15.fgt_exec[FGTREG_HFGITR], HFGITR_EL2, ERET)) {
+        DP_TBFLAG_A64(flags, TRAP_ERET, 1);
     }
 
     /*
