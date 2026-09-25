@@ -41,7 +41,7 @@ TEST_IMG="$TEST_IMG.base" _make_test_img $size
 echo
 echo "=== Starting QEMU and exposing base image ==="
 
-_launch_qemu -machine q35
+_launch_qemu
 h1=$QEMU_HANDLE
 _send_qemu_cmd $QEMU_HANDLE '{"execute": "qmp_capabilities"}' 'return'
 _send_qemu_cmd $QEMU_HANDLE '{"execute": "blockdev-add",
