@@ -87,9 +87,10 @@ bool access_secure_reg(CPUARMState *env)
 }
 
 static CPUARMTBFlags rebuild_hflags_common(CPUARMState *env, int fp_el,
-                                           ARMMMUIdx mmu_idx,
-                                           CPUARMTBFlags flags)
+                                           ARMMMUIdx mmu_idx)
 {
+    CPUARMTBFlags flags = {};
+
     DP_TBFLAG_ANY(flags, FPEXC_EL, fp_el);
     DP_TBFLAG_ANY(flags, MMUIDX, arm_to_core_mmu_idx(mmu_idx));
 
@@ -100,28 +101,27 @@ static CPUARMTBFlags rebuild_hflags_common(CPUARMState *env, int fp_el,
     return flags;
 }
 
-static CPUARMTBFlags rebuild_hflags_common_32(CPUARMState *env, int fp_el,
-                                              ARMMMUIdx mmu_idx,
-                                              CPUARMTBFlags flags)
+static void rebuild_hflags_common_32(CPUARMTBFlags *flags, CPUARMState *env)
 {
     bool sctlr_b = arm_sctlr_b(env);
 
     if (sctlr_b) {
-        DP_TBFLAG_A32(flags, SCTLR__B, 1);
+        DP_TBFLAG_A32(*flags, SCTLR__B, 1);
     }
     if (arm_cpu_data_is_big_endian_a32(env, sctlr_b)) {
-        DP_TBFLAG_ANY(flags, BE_DATA, 1);
+        DP_TBFLAG_ANY(*flags, BE_DATA, 1);
     }
-    DP_TBFLAG_A32(flags, NS, !access_secure_reg(env));
-
-    return rebuild_hflags_common(env, fp_el, mmu_idx, flags);
+    DP_TBFLAG_A32(*flags, NS, !access_secure_reg(env));
 }
 
 static CPUARMTBFlags rebuild_hflags_m32(CPUARMState *env, int fp_el,
                                         ARMMMUIdx mmu_idx)
 {
-    CPUARMTBFlags flags = {};
-    uint32_t ccr = env->v7m.ccr[env->v7m.secure];
+    CPUARMTBFlags flags = rebuild_hflags_common(env, fp_el, mmu_idx);
+    uint32_t ccr;
+
+    rebuild_hflags_common_32(&flags, env);
+    ccr = env->v7m.ccr[env->v7m.secure];
 
     /* Without HaveMainExt, CCR.UNALIGN_TRP is RES1. */
     if (ccr & R_V7M_CCR_UNALIGN_TRP_MASK) {
@@ -146,8 +146,7 @@ static CPUARMTBFlags rebuild_hflags_m32(CPUARMState *env, int fp_el,
     if (arm_feature(env, ARM_FEATURE_M_SECURITY) && env->v7m.secure) {
         DP_TBFLAG_M32(flags, SECURE, 1);
     }
-
-    return rebuild_hflags_common_32(env, fp_el, mmu_idx, flags);
+    return flags;
 }
 
 /* This corresponds to the ARM pseudocode function IsFullA64Enabled(). */
@@ -277,10 +276,14 @@ static bool arm_d32dis(CPUARMState *env, int cur_el)
 static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
                                         ARMMMUIdx mmu_idx)
 {
-    CPUARMTBFlags flags = {};
-    int el = arm_current_el(env);
-    uint64_t sctlr = arm_sctlr(env, el);
+    CPUARMTBFlags flags = rebuild_hflags_common(env, fp_el, mmu_idx);
+    int el;
+    uint64_t sctlr;
 
+    rebuild_hflags_common_32(&flags, env);
+
+    el = arm_current_el(env);
+    sctlr = arm_sctlr(env, el);
     if (aprofile_require_alignment(env, el, sctlr)) {
         DP_TBFLAG_ANY(flags, ALIGN_MEM, 1);
     }
@@ -323,7 +326,7 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
 
     DP_TBFLAG_A32(flags, D32DIS, arm_d32dis(env, el));
 
-    return rebuild_hflags_common_32(env, fp_el, mmu_idx, flags);
+    return flags;
 }
 
 /*
@@ -392,7 +395,7 @@ static int fpmr_exception_el(CPUARMState *env, int el)
 static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
                                         ARMMMUIdx mmu_idx)
 {
-    CPUARMTBFlags flags = {};
+    CPUARMTBFlags flags = rebuild_hflags_common(env, fp_el, mmu_idx);
     ARMMMUIdx stage1 = stage_1_mmu_idx(mmu_idx);
     uint64_t tcr = regime_tcr(env, mmu_idx);
     uint64_t hcr = arm_hcr_el2_eff(env);
@@ -672,8 +675,7 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
     if (cpu_isar_feature(aa64_fpmr, env_archcpu(env))) {
         DP_TBFLAG_A64(flags, FPMR_EL, fpmr_exception_el(env, el));
     }
-
-    return rebuild_hflags_common(env, fp_el, mmu_idx, flags);
+    return flags;
 }
 
 static CPUARMTBFlags rebuild_hflags_internal(CPUARMState *env)
