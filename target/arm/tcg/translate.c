@@ -1159,6 +1159,20 @@ void unallocated_encoding(DisasContext *s)
     gen_exception_insn(s, 0, EXCP_UDEF, syn_uncategorized());
 }
 
+/*
+ * These conditions have less priority than instruction abort, and thus
+ * must be checked after reading the instruction.  They have more priority
+ * than the AArch64 BTI exception.
+ */
+bool check_il(DisasContext *s)
+{
+    if (s->pstate_il) {
+        gen_exception_insn(s, 0, EXCP_UDEF, syn_illegalstate());
+        return true;
+    }
+    return false;
+}
+
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 void gen_lookup_tb(DisasContext *s)
 {
@@ -6153,12 +6167,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         return;
     }
 
-    if (s->pstate_il) {
-        /*
-         * Illegal execution state. This has priority over BTI
-         * exceptions, but comes after instruction abort exceptions.
-         */
-        gen_exception_insn(s, 0, EXCP_UDEF, syn_illegalstate());
+    if (check_il(s)) {
         return;
     }
 
@@ -6728,12 +6737,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     dc->base.pc_next = pc;
     dc->insn = insn;
 
-    if (dc->pstate_il) {
-        /*
-         * Illegal execution state. This has priority over BTI
-         * exceptions, but comes after instruction abort exceptions.
-         */
-        gen_exception_insn(dc, 0, EXCP_UDEF, syn_illegalstate());
+    if (check_il(dc)) {
         return;
     }
 
