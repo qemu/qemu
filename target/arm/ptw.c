@@ -3092,7 +3092,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
         if (!arm_feature(env, ARM_FEATURE_M)) {
             uint8_t attrindx = extract32(matched_rlar, 1, 3);
             uint64_t mair = env->cp15.mair_el[regime_el(mmu_idx)];
-            uint8_t sh = extract32(matched_rlar, 3, 2);
+            uint8_t sh = extract32(matched_rbar, 3, 2);
 
             if (regime_sctlr(env, mmu_idx) & SCTLR_WXN &&
                 result->f.prot & PAGE_WRITE && mmu_idx != ARMMMUIdx_Stage2) {
