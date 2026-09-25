@@ -121,6 +121,9 @@ static void rebuild_hflags_common_aprofile(CPUARMTBFlags *flags,
     if (il) {
         DP_TBFLAG_ANY(*flags, PSTATE__IL, 1);
     }
+    if (env->pstate & PSTATE_UINJ) {
+        DP_TBFLAG_ANY(*flags, PSTATE__UINJ, 1);
+    }
     if (aprofile_require_alignment(env, el, sctlr)) {
         DP_TBFLAG_ANY(*flags, ALIGN_MEM, 1);
     }
