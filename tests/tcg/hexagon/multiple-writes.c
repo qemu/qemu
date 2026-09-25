@@ -143,6 +143,145 @@ static int test_zero(void)
     return sig;
 }
 
+/* Test multiple post-increment writes to the same GPR */
+static int test_post_increment1(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9b004021    /* {    r1 = memb(r0++#1)      */\n"
+        ".word 0x9b00c022    /*      r2 = memb(r0++#1) }    */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_post_increment2(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9b00c020    /* r0 = memb(r0++#1) */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_post_increment3(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9bc1c020    /* r1:0 = memd(r1++#8) */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_vreg_legal_predicated(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        "r2 = #7\n"
+        "r3 = #13\n"
+        "p0 = cmp.eq(r2, r3)\n"
+        "{\n"
+        "    if (p0) v0 = v1\n"
+        "    if (!p0) v0 = v2\n"
+        "}\n"
+        "1:\n"
+        "%0 = #23\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "r2", "r3", "p0", "v0", "v1", "memory");
+
+    return sig;
+}
+
+static int test_vreg_illegal_mixed(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x1a004100    /* { if (p0) v0 = v1 */\n"
+        ".word 0x1e03e2e0    /*   v0 = v2  } */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_vreg_illegal_uncond(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x1e0361e0    /* { v0 = v1 */\n"
+        ".word 0x1e03e2e0    /*   v0 = v2  } */\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+static int test_qreg_illegal(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        "{\n"
+        ".word 0x19a14048    /* { q0 = vand(v0, r1) */\n"
+        ".word 0x19a0c044    /*   q0 = vsetq(r0) } */\n"
+        "}\n"
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
 int main()
 {
     struct sigaction act;
@@ -163,6 +302,16 @@ int main()
 
     /* Illegal: zero encoding = duplex with duplicate dest R0 */
     assert(test_zero() == SIGILL);
+
+    assert(test_post_increment1() == SIGILL);
+    assert(test_post_increment2() == SIGILL);
+    assert(test_post_increment3() == SIGILL);
+
+    assert(test_vreg_legal_predicated() == 23);
+    assert(test_vreg_illegal_mixed() == SIGILL);
+    assert(test_vreg_illegal_uncond() == SIGILL);
+
+    assert(test_qreg_illegal() == SIGILL);
 
     puts("PASS");
     return EXIT_SUCCESS;

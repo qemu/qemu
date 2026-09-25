@@ -26,7 +26,7 @@ void mem_gather_store(CPUHexagonState *env, target_ulong vaddr, int slot)
     env->vstore_pending[slot] = 1;
     env->vstore[slot].va   = vaddr;
     env->vstore[slot].size = size;
-    memcpy(&env->vstore[slot].data.ub[0], &env->tmp_VRegs[0], size);
+    memcpy(&env->vstore[slot].data, &env->tmp_VRegs[0], size);
 
     /* On a gather store, overwrite the store mask to emulate dropped gathers */
     bitmap_copy(env->vstore[slot].mask, env->vtcm_log.mask, size);

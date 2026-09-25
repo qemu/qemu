@@ -119,6 +119,13 @@ class ArchTestsUart(QemuSystemTest):
         """
         self.run_uart_test("test_user_mode")
 
+    def test_hvx_context(self) -> None:
+        """Tests the HVX coprocessor context: SSR XA context selection
+        and isolation, vsplat/store, and the NO_COPROC_ENABLE exception
+        raised when SSR:XE is clear.
+        """
+        self.run_uart_test("test_hvx_context")
+
 
 if __name__ == "__main__":
     QemuSystemTest.main()

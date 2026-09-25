@@ -21,6 +21,16 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+static inline void __check16(int line, uint16_t val, uint16_t expect)
+{
+    if (val != expect) {
+        printf("ERROR at line %d: 0x%04x != 0x%04x\n", line, val, expect);
+        err++;
+    }
+}
+
+#define check16(RES, EXP) __check16(__LINE__, RES, EXP)
+
 static inline void __check32(int line, uint32_t val, uint32_t expect)
 {
     if (val != expect) {

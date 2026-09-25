@@ -55,7 +55,7 @@ static void test_load_tmp(void)
         pout += sizeof(MMVector);
 
         for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
-            expect[i].w[j] = buffer0[i].w[j] + buffer1[i].w[j] + 1;
+            expect[i].uw[j] = buffer0[i].uw[j] + buffer1[i].uw[j] + 1;
         }
     }
 
@@ -181,6 +181,50 @@ static void test_store_unaligned(void)
     check_output_w(__LINE__, 2);
 }
 
+/*
+ * A Q register can be built either by a vector compare or by vand(Vu, Rt).
+ * Those are two independent code paths onto the same predicate-register
+ * layout, so cross-check that they select exactly the same byte lanes.
+ * A byte-order mistake in either one shows up here as a mismatch.
+ *
+ * The input pattern has to vary across 8-lane blocks, otherwise a predicate
+ * whose bytes are permuted still selects the same lanes and the mismatch is
+ * invisible.
+ */
+static void test_qreg_alias(void)
+{
+    HVX_Vector *pcmp = (HVX_Vector *)&output[0];
+    HVX_Vector *pand = (HVX_Vector *)&output[1];
+    HVX_Vector input;
+    HVX_Vector ones;
+    HVX_VectorPred qcmp;
+    HVX_VectorPred qand;
+
+    for (int i = 0; i < BUFSIZE; i++) {
+        /*
+         * Build 0/1 per byte, alternating every 8 lanes, so that "!= 0" and
+         * "low bit set" describe the same lanes.  Then form one predicate
+         * with a compare and the other with vand(Vu, Rt), store 0xff through
+         * each, and require the two result vectors to be identical.
+         */
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES; j++) {
+            expect[0].ub[j] = ((j >> 3) + i) & 1;
+        }
+        memcpy(&input, &expect[0], sizeof(MMVector));
+        memset(output, 0, 2 * sizeof(MMVector));
+
+        ones = Q6_V_vsplat_R(0xffffffff);
+        qcmp = Q6_Q_vcmp_gt_VubVub(input, Q6_V_vzero());
+        qand = Q6_Q_vand_VR(input, 0x01010101);
+        Q6_vmem_QRIV(qcmp, pcmp, ones);
+        Q6_vmem_QRIV(qand, pand, ones);
+
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES; j++) {
+            check(__LINE__, i, j, output[0].ub[j], output[1].ub[j]);
+        }
+    }
+}
+
 static void test_masked_store(bool invert)
 {
     void *p0 = buffer0;
@@ -285,8 +329,8 @@ static void test_max_temps()
 
         /* The first two vectors come from the vadd-pair instruction */
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
-            expect[0].w[i] = buffer0[0].w[i] + buffer0[2].w[i];
-            expect[1].w[i] = buffer0[1].w[i] + buffer0[3].w[i];
+            expect[0].uw[i] = buffer0[0].uw[i] + buffer0[2].uw[i];
+            expect[1].uw[i] = buffer0[1].uw[i] + buffer0[3].uw[i];
         }
         /* The third vector comes from the vshuffe instruction */
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 2; i++) {
@@ -295,7 +339,7 @@ static void test_max_temps()
         }
         /* The fourth vector comes from the vadd-single instruction */
         for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
-            expect[3].w[i] = buffer0[1].w[i] + buffer0[5].w[i];
+            expect[3].uw[i] = buffer0[1].uw[i] + buffer0[5].uw[i];
         }
         /*
          * The fifth vector comes from the load to v4
@@ -306,10 +350,10 @@ static void test_max_temps()
         check_output_b(__LINE__, 5);
 }
 
-TEST_VEC_OP2(vadd_w, vadd, .w, w, 4, +)
+TEST_VEC_OP2(vadd_w, vadd, .w, uw, 4, +)
 TEST_VEC_OP2(vadd_h, vadd, .h, h, 2, +)
 TEST_VEC_OP2(vadd_b, vadd, .b, b, 1, +)
-TEST_VEC_OP2(vsub_w, vsub, .w, w, 4, -)
+TEST_VEC_OP2(vsub_w, vsub, .w, uw, 4, -)
 TEST_VEC_OP2(vsub_h, vsub, .h, h, 2, -)
 TEST_VEC_OP2(vsub_b, vsub, .b, b, 1, -)
 TEST_VEC_OP2(vxor, vxor, , d, 8, ^)
@@ -489,9 +533,9 @@ static void test_load_tmp_predicated(void)
         pout += sizeof(MMVector);
 
         for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
-            expect[i].w[j] =
-                pred ? buffer0[i].w[j] + buffer1[i].w[j] + 1
-                     : buffer0[i].w[j] + 2;
+            expect[i].uw[j] =
+                pred ? buffer0[i].uw[j] + buffer1[i].uw[j] + 1
+                     : buffer0[i].uw[j] + 2;
         }
         pred = !pred;
     }
@@ -566,6 +610,69 @@ void test_store_new()
     check_output_w(__LINE__, 1);
 }
 
+/*
+ * Test a packet with both a scalar store and an HVX store.
+ */
+static uint32_t scalar_store_dst;
+
+static void test_scalar_hvx_store(void)
+{
+    scalar_store_dst = 0;
+    memset(&expect[0], 0, sizeof(MMVector));
+
+    /* Fill v0 with 0xABCD pattern */
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].uw[i] = 0xABCDABCD;
+    }
+
+    asm("r0 = #0xABCDABCD\n\t"
+        "v0 = vsplat(r0)\n\t"
+        "r1 = #42\n\t"
+        "{\n\t"
+        "    memw(%[scalar]) = r1\n\t"
+        "    vmem(%[hvx]) = v0\n\t"
+        "}\n\t"
+        :
+        : [scalar] "r"(&scalar_store_dst),
+          [hvx] "r"(&output[0])
+        : "r0", "r1", "v0", "memory");
+
+    check_output_w(__LINE__, 1);
+    if (scalar_store_dst != 42) {
+        printf("ERROR at line %d: scalar_store_dst = %d, expected 42\n",
+               __LINE__, scalar_store_dst);
+        err++;
+    }
+}
+
+/*
+ * Test non-inverted masked store: if (Qv) vmem(Rt) = Vs.
+ * Existing tests only cover the inverted form (!Qv).
+ * Use an all-true Q predicate to unconditionally store.
+ */
+static void test_masked_store_noninvert(void)
+{
+    void *p0 = buffer0;
+    void *pout = output;
+
+    memset(&output[0], 0xff, sizeof(MMVector));
+
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        expect[0].uw[i] = buffer0[0].uw[i];
+    }
+
+    asm("v5 = vmem(%[src] + #0)\n\t"
+        "r0 = #-1\n\t"
+        "v6 = vsplat(r0)\n\t"
+        "q0 = vand(v6, r0)\n\t"
+        "if (q0) vmem(%[dst]) = v5\n\t"
+        :
+        : [src] "r"(p0), [dst] "r"(pout)
+        : "r0", "v5", "v6", "q0", "memory");
+
+    check_output_w(__LINE__, 1);
+}
+
 int main()
 {
     init_buffers();
@@ -579,6 +686,7 @@ int main()
     test_store_unaligned();
     test_masked_store(false);
     test_masked_store(true);
+    test_qreg_alias();
     test_new_value_store();
     test_max_temps();
 
@@ -614,6 +722,9 @@ int main()
     test_vcombine();
 
     test_store_new();
+
+    test_scalar_hvx_store();
+    test_masked_store_noninvert();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

@@ -11,6 +11,7 @@
 #include "hw/core/boards.h"
 #include "hw/hexagon/hexagon.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hvx_context.h"
 #include "hex_interrupts.h"
 #include "hex_mmu.h"
 #include "system/runstate.h"
@@ -246,6 +247,75 @@ void hexagon_resume_threads(CPUHexagonState *current_env, uint32_t mask)
     }
 }
 
+static unsigned hexagon_hvx_context_count(HexagonCPU *cpu)
+{
+    unsigned n;
+
+    for (n = 0; n < HVX_CONTEXTS_MAX; n++) {
+        if (!cpu->hvx_ctx[n]) {
+            break;
+        }
+    }
+    return n;
+}
+
+static unsigned hexagon_hvx_context_index(HexagonCPU *cpu, uint8_t xa)
+{
+    unsigned n = hexagon_hvx_context_count(cpu);
+
+    if (n == 0) {
+        return 0;
+    }
+    if (xa >= n) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "SSR.XA %u is out of range for %u HVX contexts\n",
+                      xa, n);
+    }
+    /*
+     * The behavior here is unspecified, reference simulator uses
+     * mappings that effectively keep the context in-range.  The
+     * modulus seems just as good as any.
+     */
+    return xa % n;
+}
+
+/*
+ * Diagnostic only.  Called separately from hexagon_hvx_select_context()
+ * so migration post_load, where other CPUs' env->hvx may still be stale,
+ * doesn't trip a false positive.
+ */
+static void hexagon_hvx_check_overcommit(CPUHexagonState *env, unsigned idx)
+{
+    CPUState *cs;
+    unsigned users = 0;
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *other = cpu_env(cs);
+
+        if (other->hvx == env->hvx &&
+            GET_SSR_FIELD(SSR_XE, other->t_sreg[HEX_SREG_SSR])) {
+            users++;
+        }
+    }
+
+    if (users > 1) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "HVX context %u is enabled for %u hardware threads "
+                      "at once, which is undefined\n", idx, users);
+    }
+}
+
+unsigned hexagon_hvx_select_context(CPUHexagonState *env, uint32_t ssr)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    unsigned idx = hexagon_hvx_context_index(cpu, GET_SSR_FIELD(SSR_XA, ssr));
+
+    if (cpu->hvx_ctx[0]) {
+        env->hvx = &cpu->hvx_ctx[idx]->regs;
+    }
+    return idx;
+}
+
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
     bool old_EX, old_UM, old_GM, old_IE;
@@ -267,6 +337,18 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
         (old_UM != new_UM) ||
         (old_GM != new_GM)) {
         hex_mmu_mode_change(env);
+    }
+
+    bool xa_changed = GET_SSR_FIELD(SSR_XA, new) != GET_SSR_FIELD(SSR_XA, old);
+    bool xe_changed = GET_SSR_FIELD(SSR_XE, new) != GET_SSR_FIELD(SSR_XE, old);
+
+    if (xa_changed || xe_changed) {
+        unsigned idx = xa_changed
+            ? hexagon_hvx_select_context(env, new)
+            : hexagon_hvx_context_index(env_archcpu(env),
+                                        GET_SSR_FIELD(SSR_XA, new));
+
+        hexagon_hvx_check_overcommit(env, idx);
     }
 
     old_asid = GET_SSR_FIELD(SSR_ASID, old);

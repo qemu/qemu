@@ -9,6 +9,7 @@
 #include "qapi/error.h"
 #include "hw/hexagon/hex-subsys.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hvx_context.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/intc/hex-l2vic.h"
 #include "hw/timer/qct-qtimer.h"
@@ -98,6 +99,27 @@ static DeviceState *tlb_create(HexagonCommonMachineState *hms,
     return tlb;
 }
 
+/*
+ * Create the core's HVX extension contexts.  There are fewer of them than
+ * there are hardware threads, and SSR:XA picks which one a thread uses, so
+ * they belong to the subsystem rather than to any one CPU.
+ */
+static void hvx_contexts_create(HexagonCommonMachineState *hms,
+                                const struct hexagon_machine_config *m_cfg)
+{
+    unsigned n = m_cfg->cfgtable.ext_contexts;
+    assert(n <= HVX_CONTEXTS_MAX);
+    for (unsigned i = 0; i < n; i++) {
+        DeviceState *ctx = qdev_new(TYPE_HEXAGON_HVX_CONTEXT);
+        g_autofree char *name = g_strdup_printf("hvx-context[%u]", i);
+
+        object_property_add_child(OBJECT(hms), name, OBJECT(ctx));
+        qdev_prop_set_uint32(ctx, "index", i);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(ctx), &error_fatal);
+    }
+    hms->num_hvx_ctx = n;
+}
+
 static DeviceState *cluster_create(HexagonCommonMachineState *hms)
 {
     DeviceState *cluster = qdev_new(TYPE_CPU_CLUSTER);
@@ -140,6 +162,7 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
     hms->qtimer = qtimer_create(hms, m_cfg);
     hms->glob_regs = globalreg_create(hms, m_cfg, rev);
     hms->tlb = tlb_create(hms, m_cfg);
+    hvx_contexts_create(hms, m_cfg);
 }
 
 void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
@@ -151,6 +174,12 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
                              &error_fatal);
     object_property_set_link(OBJECT(cpu), "l2vic", OBJECT(hms->l2vic),
                              &error_fatal);
+    for (unsigned i = 0; i < hms->num_hvx_ctx; i++) {
+        g_autofree char *name = g_strdup_printf("hvx-context[%u]", i);
+        Object *ctx = object_resolve_path_component(OBJECT(hms), name);
+
+        object_property_set_link(OBJECT(cpu), name, ctx, &error_fatal);
+    }
 }
 
 void hex_subsys_realize_cluster(HexagonCommonMachineState *hms)

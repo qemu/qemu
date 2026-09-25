@@ -62,6 +62,7 @@ static void convert_double_to_single(double input)
 #define str(a) #a
 
 #define CONVERT_DOUBLE_TO_INT(TYPE, FMT)                            \
+    __attribute__((no_sanitize("undefined")))                       \
     static void convert_double_to_ ## TYPE(double input)            \
     {                                                               \
         TYPE ## _t output;                                          \

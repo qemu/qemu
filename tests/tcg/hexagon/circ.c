@@ -97,9 +97,9 @@ INIT(dbuf, NDOBLS)
  */
 static int32_t build_mreg(int32_t inc, int32_t K, int32_t len)
 {
-    return ((inc & 0x780) << 21) |
-           ((K & 0xf) << 24) |
-           ((inc & 0x7f) << 17) |
+    return ((uint32_t)(inc & 0x780) << 21) |
+           ((uint32_t)(K & 0xf) << 24) |
+           ((uint32_t)(inc & 0x7f) << 17) |
            (len & 0x1ffff);
 }
 

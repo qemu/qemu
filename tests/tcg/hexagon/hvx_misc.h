@@ -69,6 +69,7 @@ static inline void check_output_##FIELD(int line, size_t num_vectors) \
 CHECK_OUTPUT_FUNC(d,  8)
 CHECK_OUTPUT_FUNC(w,  4)
 CHECK_OUTPUT_FUNC(sf, 4)
+CHECK_OUTPUT_FUNC(uw, 4)
 CHECK_OUTPUT_FUNC(h,  2)
 CHECK_OUTPUT_FUNC(uh, 2)
 CHECK_OUTPUT_FUNC(hf, 2)

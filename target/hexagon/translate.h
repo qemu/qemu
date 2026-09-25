@@ -41,12 +41,18 @@ typedef struct DisasContext {
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
     bool pkt_ends_tb;
+    DECLARE_BITMAP(gpr_multi_write, TOTAL_PER_THREAD_REGS);
+    DECLARE_BITMAP(gpr_uncond, TOTAL_PER_THREAD_REGS);
     bool implicit_usr_write;
 #ifndef CONFIG_USER_ONLY
     int greg_log[GREG_WRITES_MAX];
     int greg_log_idx;
+    DECLARE_BITMAP(gregs_written, NUM_GREGS);
+    DECLARE_BITMAP(gregs_multi_write, NUM_GREGS);
     int sreg_log[SREG_WRITES_MAX];
     int sreg_log_idx;
+    DECLARE_BITMAP(sregs_written, NUM_SREGS);
+    DECLARE_BITMAP(sregs_multi_write, NUM_SREGS);
     TCGv_i32 t_sreg_new_value[HEX_SREG_GLB_START];
     TCGv_i32 greg_new_value[NUM_GREGS];
 #endif
@@ -68,10 +74,13 @@ typedef struct DisasContext {
     DECLARE_BITMAP(vregs_select, NUM_VREGS);
     DECLARE_BITMAP(predicated_future_vregs, NUM_VREGS);
     DECLARE_BITMAP(predicated_tmp_vregs, NUM_VREGS);
+    DECLARE_BITMAP(vregs_multi_write, NUM_VREGS);
+    DECLARE_BITMAP(vregs_uncond, NUM_VREGS);
     DECLARE_BITMAP(insn_vregs_read, NUM_VREGS);
     int qreg_log[NUM_QREGS];
     int qreg_log_idx;
     DECLARE_BITMAP(qregs_written, NUM_QREGS);
+    DECLARE_BITMAP(qregs_multi_write, NUM_QREGS);
     DECLARE_BITMAP(insn_qregs_written, NUM_QREGS);
     DECLARE_BITMAP(insn_qregs_read, NUM_QREGS);
     bool pre_commit;
@@ -89,6 +98,8 @@ typedef struct DisasContext {
     TCGv branch_taken;
     TCGv dczero_addr;
     bool pcycle_enabled;
+    bool hvx_coproc_enabled;
+    bool hvx_check_emitted;
     uint32_t num_cycles;
 } DisasContext;
 
@@ -100,8 +111,13 @@ static inline void ctx_log_greg_write(DisasContext *ctx, int rnum)
     if (rnum > HEX_GREG_G3) {
         return;
     }
-    ctx->greg_log[ctx->greg_log_idx] = rnum;
-    ctx->greg_log_idx++;
+    if (!test_bit(rnum, ctx->gregs_written)) {
+        set_bit(rnum, ctx->gregs_written);
+        ctx->greg_log[ctx->greg_log_idx] = rnum;
+        ctx->greg_log_idx++;
+    } else {
+        set_bit(rnum, ctx->gregs_multi_write);
+    }
 }
 
 static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)
@@ -113,8 +129,13 @@ static inline void ctx_log_greg_write_pair(DisasContext *ctx, int rnum)
 
 static inline void ctx_log_sreg_write(DisasContext *ctx, int rnum)
 {
-    ctx->sreg_log[ctx->sreg_log_idx] = rnum;
-    ctx->sreg_log_idx++;
+    if (!test_bit(rnum, ctx->sregs_written)) {
+        set_bit(rnum, ctx->sregs_written);
+        ctx->sreg_log[ctx->sreg_log_idx] = rnum;
+        ctx->sreg_log_idx++;
+    } else {
+        set_bit(rnum, ctx->sregs_multi_write);
+    }
 }
 
 static inline void ctx_log_sreg_write_pair(DisasContext *ctx, int rnum)
@@ -157,9 +178,13 @@ static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
             ctx->reg_log[ctx->reg_log_idx] = rnum;
             ctx->reg_log_idx++;
             set_bit(rnum, ctx->regs_written);
+        } else {
+            set_bit(rnum, ctx->gpr_multi_write);
         }
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_regs);
+        } else {
+            set_bit(rnum, ctx->gpr_uncond);
         }
     }
 }
@@ -190,9 +215,9 @@ static inline void ctx_log_reg_read_pair(DisasContext *ctx, int rnum)
 }
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
-                             int num, bool alloc_ok);
+                             int num, bool alloc_ok, TCGv_ptr *base);
 intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
-                          int num, bool alloc_ok);
+                          int num, bool alloc_ok, TCGv_ptr *base);
 
 static inline void ctx_start_hvx_insn(DisasContext *ctx)
 {
@@ -212,7 +237,11 @@ static inline void ctx_log_vreg_write(DisasContext *ctx,
             ctx->has_hvx_overlap = true;
         }
     }
-    set_bit(rnum, ctx->vregs_written);
+    if (!test_bit(rnum, ctx->vregs_written)) {
+        set_bit(rnum, ctx->vregs_written);
+    } else {
+        set_bit(rnum, ctx->vregs_multi_write);
+    }
     if (type != EXT_TMP) {
         if (!test_bit(rnum, ctx->vregs_updated)) {
             ctx->vreg_log[ctx->vreg_log_idx] = rnum;
@@ -223,6 +252,8 @@ static inline void ctx_log_vreg_write(DisasContext *ctx,
         set_bit(rnum, ctx->vregs_updated);
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_future_vregs);
+        } else {
+            set_bit(rnum, ctx->vregs_uncond);
         }
     }
     if (type == EXT_NEW) {
@@ -232,6 +263,8 @@ static inline void ctx_log_vreg_write(DisasContext *ctx,
         set_bit(rnum, ctx->vregs_updated_tmp);
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_tmp_vregs);
+        } else {
+            set_bit(rnum, ctx->vregs_uncond);
         }
     }
 }
@@ -292,7 +325,11 @@ static inline void ctx_log_qreg_write(DisasContext *ctx,
             ctx->has_hvx_overlap = true;
         }
     }
-    set_bit(rnum, ctx->qregs_written);
+    if (!test_bit(rnum, ctx->qregs_written)) {
+        set_bit(rnum, ctx->qregs_written);
+    } else {
+        set_bit(rnum, ctx->qregs_multi_write);
+    }
     ctx->qreg_log[ctx->qreg_log_idx] = rnum;
     ctx->qreg_log_idx++;
 }
@@ -326,6 +363,13 @@ extern TCGv_i64 hex_llsc_val_i64;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
+#ifdef CONFIG_USER_ONLY
+#define hex_hvx_ptr tcg_env
+#define HEX_HVX_OFFSET(member) offsetof(CPUHexagonState, hvx_ctx.member)
+#else
+extern TCGv_ptr hex_hvx_ptr;
+#define HEX_HVX_OFFSET(member) offsetof(HexagonHVXContext, member)
+#endif
 #ifndef CONFIG_USER_ONLY
 extern TCGv_i32 hex_greg[NUM_GREGS];
 extern TCGv_i32 hex_t_sreg[NUM_SREGS];
