@@ -1164,10 +1164,14 @@ void unallocated_encoding(DisasContext *s)
  * must be checked after reading the instruction.  They have more priority
  * than the AArch64 BTI exception.
  */
-bool check_il(DisasContext *s)
+bool check_il_uinj(DisasContext *s)
 {
     if (s->pstate_il) {
         gen_exception_insn(s, 0, EXCP_UDEF, syn_illegalstate());
+        return true;
+    }
+    if (s->pstate_uinj) {
+        unallocated_encoding(s);
         return true;
     }
     return false;
@@ -6167,7 +6171,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         return;
     }
 
-    if (check_il(s)) {
+    if (check_il_uinj(s)) {
         return;
     }
 
@@ -6737,7 +6741,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     dc->base.pc_next = pc;
     dc->insn = insn;
 
-    if (check_il(dc)) {
+    if (check_il_uinj(dc)) {
         return;
     }
 
