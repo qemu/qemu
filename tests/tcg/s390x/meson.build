@@ -1,6 +1,6 @@
 cc = 's390x-linux-gnu-gcc'
+cc_alt = ['s390x-redhat-linux-gcc']
 cc_dockerfile = 'debian-all-test-cross'
-cc_docker_host_arch = ['aarch64', 'x86_64']
 
 cc_feat_cflags = {
   'z14': '-march=z14',
@@ -141,8 +141,8 @@ if 'qemu-s390x' in emulators
   tcg_tests += {
     's390x-linux-user': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 's390x',
       'gdb_arch': 's390x',

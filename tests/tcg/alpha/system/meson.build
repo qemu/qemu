@@ -37,7 +37,6 @@ if 'qemu-system-alpha' in emulators
     'alpha-softmmu': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'alpha/system',
       'gdb_arch': 'alpha',
       'qemu': emulators['qemu-system-alpha'],

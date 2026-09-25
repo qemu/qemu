@@ -61,7 +61,6 @@ if 'qemu-or1k' in emulators
     'or1k-linux-user': {
       'cc': 'or1k-none-linux-musl-gcc',
       'cc_dockerfile': 'debian-all-test-cross',
-      'cc_docker_host_arch': ['x86_64'],
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 'or1k',
       'gdb_arch': 'or1k',

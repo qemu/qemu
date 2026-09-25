@@ -1,6 +1,6 @@
 cc = 'aarch64-linux-gnu-gcc'
+cc_alt = ['aarch64-redhat-linux-gcc']
 cc_dockerfile = 'debian-all-test-cross'
-cc_docker_host_arch = ['aarch64', 'x86_64']
 
 cc_feat_cflags = {
   'aes': '-march=armv8-a+aes',
@@ -197,8 +197,8 @@ if 'qemu-aarch64' in emulators
   tcg_tests += {
     'aarch64-linux-user': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 'aarch64',
       'gdb_arch': 'aarch64',

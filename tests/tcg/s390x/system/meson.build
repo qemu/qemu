@@ -82,8 +82,8 @@ if 'qemu-system-s390x' in emulators
   tcg_tests += {
     's390x-softmmu': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 's390x',
       'gdb_arch': 's390x',

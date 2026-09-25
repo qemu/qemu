@@ -1,6 +1,6 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all ubuntu-2404 qemu
+#  $ lcitool dockerfile --layers all --host-arch x86_64 ubuntu-2404 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 

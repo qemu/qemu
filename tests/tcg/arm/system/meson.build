@@ -64,8 +64,8 @@ if 'qemu-system-arm' in emulators
   tcg_tests += {
     'arm-softmmu': {
       'cc': cc,
+      'cc_alt': ['arm-none-eabi-gcc'],
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'arm/system',
       'gdb_arch': 'arm',
       'qemu': emulators['qemu-system-arm'],

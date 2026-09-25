@@ -44,7 +44,6 @@ if 'qemu-ppc64' in emulators
     'ppc64-linux-user': {
       'cc': 'powerpc64-linux-gnu-gcc',
       'cc_dockerfile': 'debian-all-test-cross',
-      'cc_docker_host_arch': ['x86_64'],
       'cc_feat_cflags': cc_feat_cflags,
       'folder': 'ppc64',
       'gdb_arch': 'ppc64',

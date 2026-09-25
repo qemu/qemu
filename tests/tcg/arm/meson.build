@@ -1,6 +1,5 @@
 cc = 'arm-linux-gnueabihf-gcc'
 cc_dockerfile = 'debian-all-test-cross'
-cc_docker_host_arch = ['aarch64', 'x86_64']
 
 subdir('system')
 
@@ -71,7 +70,6 @@ if 'qemu-arm' in emulators
     'arm-linux-user': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'arm',
       'gdb_arch': 'arm',
       'qemu': emulators['qemu-arm'],

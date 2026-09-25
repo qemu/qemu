@@ -47,7 +47,6 @@ if 'qemu-system-tricore' in emulators
     'tricore-softmmu': {
       'cc': 'tricore-gcc',
       'cc_dockerfile': 'debian-tricore-cross',
-      'cc_docker_host_arch': ['x86_64'],
       'folder': 'tricore',
       'gdb_arch': 'tricore',
       'qemu': emulators['qemu-system-tricore'],

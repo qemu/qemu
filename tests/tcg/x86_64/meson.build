@@ -1,6 +1,6 @@
 cc = 'x86_64-linux-gnu-gcc'
+cc_alt = ['x86_64-redhat-linux-gcc']
 cc_dockerfile = 'debian-amd64-cross'
-cc_docker_host_arch = ['x86_64']
 
 subdir('system')
 
@@ -32,18 +32,18 @@ tests += {
   '../i386/test-i386-ssse3.c': {},
   '../i386/test-3dnow.c': {
     'cflags': ['-I', meson.current_build_dir(),
-               '-masm=intel', '-O'],
+               '-masm=intel'],
     'depends': [test_3dnow_h],
   },
   '../i386/test-avx.c': {
     'cflags': ['-I', meson.current_build_dir(),
-               '-mavx', '-masm=intel', '-O'],
+               '-mavx', '-masm=intel'],
     'depends': [test_avx_h],
   },
   '../i386/test-flags.c': {},
   '../i386/test-mmx.c': {
     'cflags': ['-I', meson.current_build_dir(),
-               '-masm=intel', '-O'],
+               '-masm=intel'],
     'depends': [test_mmx_h],
   },
   '../i386/test-i386.c': {
@@ -73,8 +73,8 @@ if 'qemu-x86_64' in emulators
   tcg_tests += {
     'x86_64-linux-user': {
       'cc': cc,
+      'cc_alt': cc_alt,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'x86_64',
       'gdb_arch': 'x86_64',
       'qemu': emulators['qemu-x86_64'],

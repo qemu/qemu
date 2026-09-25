@@ -1,6 +1,5 @@
 cc = 'loongarch64-unknown-linux-gnu-gcc'
 cc_dockerfile = 'debian-loongarch-cross'
-cc_docker_host_arch = ['x86_64']
 
 subdir('system')
 
@@ -22,7 +21,6 @@ if 'qemu-loongarch64' in emulators
     'loongarch64-linux-user': {
       'cc': cc,
       'cc_dockerfile': cc_dockerfile,
-      'cc_docker_host_arch': cc_docker_host_arch,
       'folder': 'loongarch64',
       'gdb_arch': 'loongarch64',
       'qemu': emulators['qemu-loongarch64'],
