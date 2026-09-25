@@ -470,6 +470,8 @@ typedef struct RAMState RAMState;
 static RAMState *ram_state;
 
 static NotifierWithReturnList precopy_notifier_list;
+static NotifierWithReturnList ram_round_notifier_list =
+    NOTIFIER_WITH_RETURN_LIST_INITIALIZER(ram_round_notifier_list);
 
 /* Whether postcopy has queued requests? */
 static bool postcopy_has_request(RAMState *rs)
@@ -498,6 +500,38 @@ int precopy_notify(PrecopyNotifyReason reason, Error **errp)
     pnd.reason = reason;
 
     return notifier_with_return_list_notify(&precopy_notifier_list, &pnd, errp);
+}
+
+void ram_round_add_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_list_add(&ram_round_notifier_list, n);
+}
+
+void ram_round_remove_notifier(NotifierWithReturn *n)
+{
+    notifier_with_return_remove(n);
+}
+
+static int ram_round_notify(QEMUFile *f)
+{
+    RAMRoundNotifyData data = {
+        .file = f,
+    };
+    Error *local_err = NULL;
+    int ret;
+
+    ret = notifier_with_return_list_notify(&ram_round_notifier_list, &data,
+                                           &local_err);
+    if (ret) {
+        if (local_err) {
+            error_report_err(local_err);
+        } else {
+            error_report("RAM round notifier failed: %d", ret);
+        }
+        return -1;
+    }
+
+    return 0;
 }
 
 uint64_t ram_bytes_remaining(void)
@@ -1410,12 +1444,11 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
         pss->page = 0;
         pss->block = QLIST_NEXT_RCU(pss->block, next);
         if (!pss->block) {
-            if (multifd_ram_sync_per_round()) {
-                QEMUFile *f = rs->pss[RAM_CHANNEL_PRECOPY].pss_channel;
-                int ret = multifd_ram_flush_and_sync(f);
-                if (ret < 0) {
-                    return ret;
-                }
+            QEMUFile *f = rs->pss[RAM_CHANNEL_PRECOPY].pss_channel;
+            int ret = ram_round_notify(f);
+
+            if (ret < 0) {
+                return ret;
             }
 
             /* Hit the end of the list */

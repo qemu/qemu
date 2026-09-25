@@ -19,6 +19,7 @@
 #include "multifd-colo.h"
 #include "options.h"
 #include "migration.h"
+#include "ram.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -26,6 +27,28 @@
 #include "qemu-file.h"
 
 static MultiFDSendData *multifd_ram_send;
+
+static int multifd_ram_round_notify(NotifierWithReturn *n G_GNUC_UNUSED,
+                                    void *data, Error **errp)
+{
+    RAMRoundNotifyData *round_data = data;
+    QEMUFile *f = round_data->file;
+    int ret;
+
+    if (!multifd_ram_sync_per_round()) {
+        return 0;
+    }
+
+    ret = multifd_ram_flush_and_sync(f);
+    if (ret < 0) {
+        error_setg(errp, "multifd RAM round synchronization failed");
+    }
+    return ret;
+}
+
+static NotifierWithReturn multifd_ram_round_notifier = {
+    .notify = multifd_ram_round_notify,
+};
 
 void multifd_ram_payload_alloc(MultiFDPages_t *pages)
 {
@@ -471,6 +494,7 @@ static const MultiFDMethods multifd_nocomp_ops = {
 static void multifd_nocomp_register(void)
 {
     multifd_register_ops(MULTIFD_COMPRESSION_NONE, &multifd_nocomp_ops);
+    ram_round_add_notifier(&multifd_ram_round_notifier);
 }
 
 migration_init(multifd_nocomp_register);

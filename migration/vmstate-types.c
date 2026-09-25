@@ -925,30 +925,31 @@ const VMStateInfo vmstate_info_qlist = {
     .save = save_qlist,
 };
 
-static int get_g_byte_array(QEMUFile *f, void *pv, size_t size,
-                            const VMStateField *field)
+static bool load_g_byte_array(QEMUFile *f, void *pv, size_t size,
+                              const VMStateField *field, Error **errp)
 {
     GByteArray *byte_array = *(GByteArray **)pv;
     uint32_t len = qemu_get_be32(f);
 
     g_byte_array_set_size(byte_array, len);
     qemu_get_buffer(f, byte_array->data, len);
-    return 0;
+    return true;
 }
 
-static int put_g_byte_array(QEMUFile *f, void *pv, size_t size,
-                            const VMStateField *field, JSONWriter *vmdesc)
+static bool save_g_byte_array(QEMUFile *f, void *pv, size_t size,
+                              const VMStateField *field, JSONWriter *vmdesc,
+                              Error **errp)
 {
     GByteArray *byte_array = *(GByteArray **)pv;
 
     qemu_put_be32(f, byte_array->len);
     qemu_put_buffer(f, byte_array->data, byte_array->len);
 
-    return 0;
+    return true;
 }
 
 const VMStateInfo vmstate_info_g_byte_array = {
     .name = "GByteArray",
-    .get  = get_g_byte_array,
-    .put  = put_g_byte_array,
+    .load = load_g_byte_array,
+    .save = save_g_byte_array,
 };

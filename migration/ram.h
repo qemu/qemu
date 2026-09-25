@@ -31,6 +31,7 @@
 
 #include "qapi/qapi-types-migration.h"
 #include "exec/cpu-common.h"
+#include "qemu/notify.h"
 #include "system/ram_addr.h"
 #include "io/channel.h"
 
@@ -94,6 +95,17 @@ void ram_handle_zero(void *host, uint64_t size);
 
 void ram_transferred_add(uint64_t bytes);
 void ram_release_page(const char *rbname, uint64_t offset);
+
+/*
+ * The RAM round notifier is invoked whenever the migration RAM core
+ * completes one full scan of guest memory.
+ */
+typedef struct RAMRoundNotifyData {
+    QEMUFile *file;
+} RAMRoundNotifyData;
+
+void ram_round_add_notifier(NotifierWithReturn *n);
+void ram_round_remove_notifier(NotifierWithReturn *n);
 
 int ramblock_recv_bitmap_test(RAMBlock *rb, void *host_addr);
 bool ramblock_recv_bitmap_test_byte_offset(RAMBlock *rb, uint64_t byte_offset);
