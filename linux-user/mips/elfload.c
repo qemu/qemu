@@ -20,17 +20,19 @@ const char *get_elf_cpu_model(uint32_t eflags)
     case EF_MIPS_MACH_LS2F:
         return "Loongson-2F";
     case EF_MIPS_MACH_LS3A:
-        return "Loongson-3A1000";
+        return (eflags & EF_MIPS_NAN2008) ? "Loongson-3A4000"
+                                          : "Loongson-3A1000";
     default:
         break;
     }
-    switch (eflags & EF_MIPS_ARCH) {
-    case EF_MIPS_ARCH_64R6:
+    if ((eflags & EF_MIPS_ARCH) == EF_MIPS_ARCH_64R6) {
         return "I6400";
-    case EF_MIPS_ARCH_64R2:
+    }
+    if (eflags & EF_MIPS_NAN2008) {
+        return "Loongson-3A4000";
+    }
+    if ((eflags & EF_MIPS_ARCH) == EF_MIPS_ARCH_64R2) {
         return "MIPS64R2-generic";
-    default:
-        break;
     }
     return "5KEf";
 #else
