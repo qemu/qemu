@@ -941,8 +941,8 @@ const mips_def_t mips_defs[] =
                     (1 << CP0PG_ELPA) | (1 << CP0PG_IEC),
         .CP1_fcr0 = (0x5 << FCR0_PRID) | (0x1 << FCR0_REV) | (0x1 << FCR0_F64) |
                     (0x1 << FCR0_PS) | (0x1 << FCR0_L) | (0x1 << FCR0_W) |
-                    (0x1 << FCR0_D) | (0x1 << FCR0_S),
-        .CP1_fcr31 = 0,
+                    (0x1 << FCR0_D) | (0x1 << FCR0_S) | (0x1 << FCR0_HAS2008),
+        .CP1_fcr31 = (1 << FCR31_ABS2008) | (1 << FCR31_NAN2008),
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .MSAIR = (0x01 << MSAIR_ProcID) | (0x40 << MSAIR_Rev),
         .lcsr_cpucfg1 = (1 << CPUCFG1_FP) | (2 << CPUCFG1_FPREV) |
