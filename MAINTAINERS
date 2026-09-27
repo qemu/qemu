@@ -1874,6 +1874,7 @@ F: tests/qtest/k230-decomp-gzip-test.c
 Milk-V Duo
 M: Kuan-Wei Chiu <visitorckw@gmail.com>
 S: Maintained
+F: docs/system/riscv/milkv-duo.rst
 F: hw/misc/cv1800b_clk.c
 F: hw/riscv/cv1800b.c
 F: hw/riscv/milkv_duo.c
