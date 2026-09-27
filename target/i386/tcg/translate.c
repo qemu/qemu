@@ -605,7 +605,25 @@ static void gen_lea_v_seg_dest(DisasContext *s, MemOp aflag, TCGv dest, TCGv a0,
         ovr_seg = def_seg;
     }
 
-    has_base = ovr_seg >= R_FS || (ovr_seg >= 0 && ADDSEG(s));
+    switch (ovr_seg) {
+    case R_DS:
+    case R_ES:
+    case R_SS:
+        has_base = ADDSEG(s);
+        break;
+    case R_CS:
+        has_base = !CODE64(s);
+        break;
+    case R_FS:
+    case R_GS:
+        has_base = true;
+        break;
+    default:
+        assert(ovr_seg < 0);
+        has_base = false;
+        break;
+    }
+
     easize = CODE64(s) ? MO_64 : MO_32;
 
     if (has_base) {
