@@ -29,4 +29,4 @@ else
 endif
 
 system_ss.add_all(when: ['CONFIG_XEN', xen], if_true: xen_common_ss)
-system_ss.add(when: ['CONFIG_XEN', xen], if_false: files('xen_stubs.c'))
+stub_ss.add(files('xen_stubs.c'))

@@ -715,22 +715,25 @@ static void dbdma_write(void *opaque, hwaddr addr,
         return;
     }
 
-    ch->regs[reg] = value;
-
     switch(reg) {
     case DBDMA_CONTROL:
+        ch->regs[DBDMA_CONTROL] = value;
         dbdma_control_write(ch);
         break;
     case DBDMA_CMDPTR_LO:
         /* 16-byte aligned */
-        ch->regs[DBDMA_CMDPTR_LO] &= ~0xf;
+        ch->regs[DBDMA_CMDPTR_LO] = value & ~0xf;
         dbdma_cmdptr_load(ch);
         break;
     case DBDMA_STATUS:
     case DBDMA_INTR_SEL:
     case DBDMA_BRANCH_SEL:
     case DBDMA_WAIT_SEL:
-        /* nothing to do */
+    case DBDMA_RES1:
+    case DBDMA_RES2:
+    case DBDMA_RES3:
+    case DBDMA_RES4:
+        ch->regs[reg] = value;
         break;
     case DBDMA_XFER_MODE:
     case DBDMA_CMDPTR_HI:
@@ -738,11 +741,10 @@ static void dbdma_write(void *opaque, hwaddr addr,
     case DBDMA_DATA2PTR_LO:
     case DBDMA_ADDRESS_HI:
     case DBDMA_BRANCH_ADDR_HI:
-    case DBDMA_RES1:
-    case DBDMA_RES2:
-    case DBDMA_RES3:
-    case DBDMA_RES4:
         /* unused */
+        break;
+    default:
+        /* do nothing */
         break;
     }
 }
@@ -756,8 +758,6 @@ static uint64_t dbdma_read(void *opaque, hwaddr addr,
     DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
-    value = ch->regs[reg];
-
     switch(reg) {
     case DBDMA_CONTROL:
         value = ch->regs[DBDMA_STATUS];
@@ -767,7 +767,11 @@ static uint64_t dbdma_read(void *opaque, hwaddr addr,
     case DBDMA_INTR_SEL:
     case DBDMA_BRANCH_SEL:
     case DBDMA_WAIT_SEL:
-        /* nothing to do */
+    case DBDMA_RES1:
+    case DBDMA_RES2:
+    case DBDMA_RES3:
+    case DBDMA_RES4:
+        value = ch->regs[reg];
         break;
     case DBDMA_XFER_MODE:
     case DBDMA_CMDPTR_HI:
@@ -778,11 +782,9 @@ static uint64_t dbdma_read(void *opaque, hwaddr addr,
         /* unused */
         value = 0;
         break;
-    case DBDMA_RES1:
-    case DBDMA_RES2:
-    case DBDMA_RES3:
-    case DBDMA_RES4:
-        /* reserved */
+    default:
+        /* unimplemented */
+        value = 0;
         break;
     }
 
