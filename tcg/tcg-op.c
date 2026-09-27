@@ -239,6 +239,8 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #define C_MemOp
 #define C_TCGCond
 #define C_TCGLabelPtr
+#define C_TCGTempPtr
+#define C_TCGType
 #define C_tcg_target_long
 #define C_unsigned
 
@@ -272,6 +274,8 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef C_MemOp
 #undef C_TCGCond
 #undef C_TCGLabelPtr
+#undef C_TCGTempPtr
+#undef C_TCGType
 #undef C_tcg_target_long
 #undef C_unsigned
 

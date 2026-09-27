@@ -191,18 +191,28 @@ plugin_gen_mem_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
 #endif
 
 static void
-plugin_gen_mem_callbacks_i32(TCGv_i32 val,
+plugin_gen_mem_callbacks_tmp(TCGType type, TCGTemp *val,
                              TCGv_i64 copy_addr, TCGTemp *orig_addr,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
 #ifdef CONFIG_PLUGIN
     if (tcg_ctx->plugin_insn != NULL) {
-        tcg_gen_st_i32(val, tcg_env,
-                       offsetof(CPUState, neg.plugin_mem_value_low) -
-                       sizeof(CPUState) + (HOST_BIG_ENDIAN * 4));
+        tcg_gen_st(type, val, tcgv_ptr_temp(tcg_env),
+                   offsetof(CPUState, neg.plugin_mem_value_low)
+                   - sizeof(CPUState)
+                   + (HOST_BIG_ENDIAN && type == TCG_TYPE_I32 ? 4 : 0));
         plugin_gen_mem_callbacks(copy_addr, orig_addr, oi, rw);
     }
 #endif
+}
+
+static void
+plugin_gen_mem_callbacks_i32(TCGv_i32 val,
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+    plugin_gen_mem_callbacks_tmp(TCG_TYPE_I32, tcgv_i32_temp(val), copy_addr,
+                                 orig_addr, oi, rw);
 }
 
 static void
@@ -210,14 +220,8 @@ plugin_gen_mem_callbacks_i64(TCGv_i64 val,
                              TCGv_i64 copy_addr, TCGTemp *orig_addr,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
-#ifdef CONFIG_PLUGIN
-    if (tcg_ctx->plugin_insn != NULL) {
-        tcg_gen_st_i64(val, tcg_env,
-                       offsetof(CPUState, neg.plugin_mem_value_low) -
-                       sizeof(CPUState));
-        plugin_gen_mem_callbacks(copy_addr, orig_addr, oi, rw);
-    }
-#endif
+    plugin_gen_mem_callbacks_tmp(TCG_TYPE_I64, tcgv_i64_temp(val), copy_addr,
+                                 orig_addr, oi, rw);
 }
 
 static void
@@ -238,8 +242,31 @@ plugin_gen_mem_callbacks_i128(TCGv_i128 val,
 #endif
 }
 
-static void tcg_gen_qemu_ld_i32_int(TCGv_i32 val, TCGTemp *addr,
-                                    TCGArg idx, MemOp memop)
+static void tcg_gen_bswap(TCGType type, TCGTemp *dst,
+                          TCGTemp *src, unsigned flags, MemOp memop)
+{
+    switch (memop & MO_SIZE) {
+    case MO_16:
+        tcg_gen_bswap16(type, dst, src, flags);
+        break;
+    case MO_32:
+        if (type == TCG_TYPE_I32) {
+            tcg_gen_bswap32_i32(temp_tcgv_i32(dst), temp_tcgv_i32(src));
+        } else {
+            tcg_gen_bswap32_i64(temp_tcgv_i64(dst), temp_tcgv_i64(src), flags);
+        }
+        break;
+    case MO_64:
+        tcg_debug_assert(type == TCG_TYPE_I64);
+        tcg_gen_bswap64_i64(temp_tcgv_i64(dst), temp_tcgv_i64(src));
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_gen_qemu_ld_int(TCGType type, TCGTemp *val,
+                                TCGTemp *addr, TCGArg idx, MemOp memop)
 {
     MemOp orig_memop;
     MemOpIdx orig_oi, oi;
@@ -247,48 +274,40 @@ static void tcg_gen_qemu_ld_i32_int(TCGv_i32 val, TCGTemp *addr,
     TCGTemp *addr_new;
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
-    orig_memop = memop = tcg_canonicalize_memop(memop, 0, 0);
+    memop = tcg_canonicalize_memop(memop, type != TCG_TYPE_I32, 0);
+    orig_memop = memop;
     orig_oi = oi = make_memop_idx(memop, idx);
 
     if ((memop & MO_BSWAP) && !tcg_target_has_memory_bswap(memop)) {
-        memop &= ~MO_BSWAP;
         /* The bswap primitive benefits from zero-extended input.  */
-        if ((memop & MO_SSIZE) == MO_SW) {
-            memop &= ~MO_SIGN;
-        }
+        memop &= ~(MO_BSWAP | MO_SIGN);
         oi = make_memop_idx(memop, idx);
     }
 
     addr_new = tci_extend_addr(addr);
     copy_addr = plugin_maybe_preserve_addr(addr);
-    gen_ldst1(INDEX_op_qemu_ld, TCG_TYPE_I32, tcgv_i32_temp(val), addr_new, oi);
+    tcg_gen_op_tti(INDEX_op_qemu_ld, type, val, addr_new, oi);
 
     if ((orig_memop ^ memop) & MO_BSWAP) {
-        switch (orig_memop & MO_SIZE) {
-        case MO_16:
-            tcg_gen_bswap16_i32(val, val, (orig_memop & MO_SIGN
-                                           ? TCG_BSWAP_IZ | TCG_BSWAP_OS
-                                           : TCG_BSWAP_IZ | TCG_BSWAP_OZ));
-            break;
-        case MO_32:
-            tcg_gen_bswap32_i32(val, val);
-            break;
-        default:
-            g_assert_not_reached();
-        }
+        unsigned flags = (orig_memop & MO_SIGN
+                          ? TCG_BSWAP_IZ | TCG_BSWAP_OS
+                          : TCG_BSWAP_IZ | TCG_BSWAP_OZ);
+        tcg_gen_bswap(type, val, val, flags, orig_memop);
     }
 
-    plugin_gen_mem_callbacks_i32(val, copy_addr, addr, orig_oi,
-                                 QEMU_PLUGIN_MEM_R);
+    plugin_gen_mem_callbacks_tmp(type, val, copy_addr, addr,
+                                 orig_oi, QEMU_PLUGIN_MEM_R);
     maybe_free_addr(addr, addr_new);
 }
 
-void tcg_gen_qemu_ld_i32_chk(TCGv_i32 val, TCGTemp *addr, TCGArg idx,
-                             MemOp memop, TCGType addr_type)
+void tcg_gen_qemu_ld_chk(TCGType val_type, TCGTemp *val, TCGTemp *addr,
+                         unsigned idx, MemOp memop, TCGType addr_type)
 {
     tcg_debug_assert(addr_type == tcg_ctx->addr_type);
-    tcg_debug_assert((memop & MO_SIZE) <= MO_32);
-    tcg_gen_qemu_ld_i32_int(val, addr, idx, memop);
+    tcg_debug_assert(memop_size(memop) <= tcg_type_size(val_type));
+    tcg_debug_assert(idx < NB_MMU_MODES);
+
+    tcg_gen_qemu_ld_int(val_type, val, addr, idx, memop);
 }
 
 static void tcg_gen_qemu_st_i32_int(TCGv_i32 orig_val, TCGTemp *addr,
@@ -335,63 +354,6 @@ void tcg_gen_qemu_st_i32_chk(TCGv_i32 val, TCGTemp *addr, TCGArg idx,
     tcg_debug_assert(addr_type == tcg_ctx->addr_type);
     tcg_debug_assert((memop & MO_SIZE) <= MO_32);
     tcg_gen_qemu_st_i32_int(val, addr, idx, memop);
-}
-
-static void tcg_gen_qemu_ld_i64_int(TCGv_i64 val, TCGTemp *addr,
-                                    TCGArg idx, MemOp memop)
-{
-    MemOp orig_memop;
-    MemOpIdx orig_oi, oi;
-    TCGv_i64 copy_addr;
-    TCGTemp *addr_new;
-
-    tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
-    orig_memop = memop = tcg_canonicalize_memop(memop, 1, 0);
-    orig_oi = oi = make_memop_idx(memop, idx);
-
-    if ((memop & MO_BSWAP) && !tcg_target_has_memory_bswap(memop)) {
-        memop &= ~MO_BSWAP;
-        /* The bswap primitive benefits from zero-extended input.  */
-        if ((memop & MO_SIGN) && (memop & MO_SIZE) < MO_64) {
-            memop &= ~MO_SIGN;
-        }
-        oi = make_memop_idx(memop, idx);
-    }
-
-    addr_new = tci_extend_addr(addr);
-    copy_addr = plugin_maybe_preserve_addr(addr);
-    gen_ld_i64(val, addr_new, oi);
-
-    if ((orig_memop ^ memop) & MO_BSWAP) {
-        int flags = (orig_memop & MO_SIGN
-                     ? TCG_BSWAP_IZ | TCG_BSWAP_OS
-                     : TCG_BSWAP_IZ | TCG_BSWAP_OZ);
-        switch (orig_memop & MO_SIZE) {
-        case MO_16:
-            tcg_gen_bswap16_i64(val, val, flags);
-            break;
-        case MO_32:
-            tcg_gen_bswap32_i64(val, val, flags);
-            break;
-        case MO_64:
-            tcg_gen_bswap64_i64(val, val);
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    }
-
-    plugin_gen_mem_callbacks_i64(val, copy_addr, addr, orig_oi,
-                                 QEMU_PLUGIN_MEM_R);
-    maybe_free_addr(addr, addr_new);
-}
-
-void tcg_gen_qemu_ld_i64_chk(TCGv_i64 val, TCGTemp *addr, TCGArg idx,
-                             MemOp memop, TCGType addr_type)
-{
-    tcg_debug_assert(addr_type == tcg_ctx->addr_type);
-    tcg_debug_assert((memop & MO_SIZE) <= MO_64);
-    tcg_gen_qemu_ld_i64_int(val, addr, idx, memop);
 }
 
 static void tcg_gen_qemu_st_i64_int(TCGv_i64 orig_val, TCGTemp *addr,
@@ -638,7 +600,7 @@ static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
                                   QEMU_PLUGIN_MEM_R);
 }
 
-void tcg_gen_qemu_ld_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
+void tcg_gen_qemu_ld_chk_i128(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
                               MemOp memop, TCGType addr_type)
 {
     tcg_debug_assert(addr_type == tcg_ctx->addr_type);
@@ -800,7 +762,8 @@ static void tcg_gen_nonatomic_cmpxchg_i32_int(TCGv_i32 retv, TCGTemp *addr,
 
     tcg_gen_ext_i32(t2, cmpv, memop & MO_SIZE);
 
-    tcg_gen_qemu_ld_i32_int(t1, addr, idx, memop & ~MO_SIGN);
+    tcg_gen_qemu_ld_int(TCG_TYPE_I32, tcgv_i32_temp(t1),
+                        addr, idx, memop & ~MO_SIGN);
     tcg_gen_movcond_i32(TCG_COND_EQ, t2, t1, t2, newv, t1);
     tcg_gen_qemu_st_i32_int(t2, addr, idx, memop);
     tcg_temp_free_i32(t2);
@@ -871,7 +834,8 @@ static void tcg_gen_nonatomic_cmpxchg_i64_int(TCGv_i64 retv, TCGTemp *addr,
 
     tcg_gen_ext_i64(t2, cmpv, memop & MO_SIZE);
 
-    tcg_gen_qemu_ld_i64_int(t1, addr, idx, memop & ~MO_SIGN);
+    tcg_gen_qemu_ld_int(TCG_TYPE_I64, tcgv_i64_temp(t1),
+                        addr, idx, memop & ~MO_SIGN);
     tcg_gen_movcond_i64(TCG_COND_EQ, t2, t1, t2, newv, t1);
     tcg_gen_qemu_st_i64_int(t2, addr, idx, memop);
     tcg_temp_free_i64(t2);
@@ -1047,7 +1011,7 @@ static void do_nonatomic_op_i32(TCGv_i32 ret, TCGTemp *addr, TCGv_i32 val,
 
     memop = tcg_canonicalize_memop(memop, 0, 0);
 
-    tcg_gen_qemu_ld_i32_int(t1, addr, idx, memop);
+    tcg_gen_qemu_ld_int(TCG_TYPE_I32, tcgv_i32_temp(t1), addr, idx, memop);
     tcg_gen_ext_i32(t2, val, memop);
     gen(t2, t1, t2);
     tcg_gen_qemu_st_i32_int(t2, addr, idx, memop);
@@ -1088,7 +1052,7 @@ static void do_nonatomic_op_i64(TCGv_i64 ret, TCGTemp *addr, TCGv_i64 val,
 
     memop = tcg_canonicalize_memop(memop, 1, 0);
 
-    tcg_gen_qemu_ld_i64_int(t1, addr, idx, memop);
+    tcg_gen_qemu_ld_int(TCG_TYPE_I64, tcgv_i64_temp(t1), addr, idx, memop);
     tcg_gen_ext_i64(t2, val, memop);
     gen(t2, t1, t2);
     tcg_gen_qemu_st_i64_int(t2, addr, idx, memop);
