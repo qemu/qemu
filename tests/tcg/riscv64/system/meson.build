@@ -70,6 +70,13 @@ tests += {
   }
 }
 
+tests += {
+  'test-xsfvqmacc.S': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'rv64,v=true,vlen=256,xsfvqmaccdod=true,xsfvqmaccqoq=true', qemu_args],
+  }
+}
+
 if 'qemu-system-riscv64' in emulators
   tcg_tests += {
     'riscv64-softmmu': {
