@@ -231,6 +231,13 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
     { tcg_gen_##NAME(TYPE, glue(C_,T1)(a), glue(C_,T2)(b), glue(C_,T3)(c),  \
                      glue(C_,T4)(d), glue(C_,T5)(e), glue(C_,T6)(f)); }
 
+#define DEF7(NAME, T1, T2, T3, T4, T5, T6, T7)                          \
+    void glue(glue(tcg_gen_,NAME),TExt)(T1 a, T2 b, T3 c, T4 d, T5 e,   \
+                                        T6 f, T7 g)                     \
+    { tcg_gen_##NAME(TYPE, glue(C_,T1)(a), glue(C_,T2)(b),              \
+                     glue(C_,T3)(c), glue(C_,T4)(d), glue(C_,T5)(e),    \
+                     glue(C_,T6)(f), glue(C_,T7)(g)); }
+
 #define C_TCGv_i32      tcgv_i32_temp
 #define C_TCGv_i64      tcgv_i64_temp
 #define C_TCGv_ptr      tcgv_ptr_temp
@@ -285,6 +292,7 @@ void tcg_gen_plugin_mem_cb(TCGv_i64 addr, unsigned meminfo)
 #undef DEF4
 #undef DEF5
 #undef DEF6
+#undef DEF7
 
 /*
  * Internal helper for bit and byte reversal.

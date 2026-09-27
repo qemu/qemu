@@ -190,6 +190,8 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
     QEMU_ARG_NONNULL void glue(tcg_gen_,NAME)(TCGType, T1, T2, T3, T4, T5);
 #define DEF6(NAME, T1, T2, T3, T4, T5, T6) \
     QEMU_ARG_NONNULL void glue(tcg_gen_,NAME)(TCGType, T1, T2, T3, T4, T5, T6);
+#define DEF7(NAME, T1, T2, T3, T4, T5, T6, T7) \
+    QEMU_ARG_NONNULL void glue(tcg_gen_,NAME)(TCGType, T1, T2, T3, T4, T5, T6, T7);
 
 #define TCGV      TCGTemp *
 #define TINT      int64_t
@@ -207,6 +209,7 @@ bool tcg_op_imm_match(TCGOpcode op, TCGType type, tcg_target_ulong imm);
 #undef DEF4
 #undef DEF5
 #undef DEF6
+#undef DEF7
 
 static inline void tcg_gen_extrh(TCGTemp *dst, TCGTemp *src)
 {
