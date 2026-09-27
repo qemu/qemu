@@ -836,11 +836,26 @@ static void mark_store_width(DisasContext *ctx)
 
 static void gen_insn(DisasContext *ctx)
 {
+    uint16_t opcode = ctx->insn->opcode;
+
+    if (GET_ATTRIB(opcode, A_RELEASE) ||
+        GET_ATTRIB(opcode, A_CVI_SCATTER_RELEASE)) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    }
+
     if (ctx->insn->generate) {
         ctx->insn->generate(ctx);
         mark_store_width(ctx);
     } else {
         hex_gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_OPCODE);
+    }
+
+    if (GET_ATTRIB(opcode, A_ACQUIRE)) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    }
+    if (opcode == Y2_barrier || opcode == Y2_syncht ||
+        opcode == Y2_isync || opcode == Y6_dmsyncht) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     }
 }
 
