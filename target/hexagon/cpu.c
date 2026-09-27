@@ -411,6 +411,7 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
     HexagonCPU *cpu;
 
     BQL_LOCK_GUARD();
+    env->llsc_addr = ~0;
     env->t_sreg[HEX_SREG_SSR] = 0;
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
@@ -446,6 +447,8 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     set_default_nan_mode(1, &env->hvx_fp_status);
     set_float_default_nan_pattern(0b01111111, &env->hvx_fp_status);
+
+    env->llsc_addr = ~0;
 #ifndef CONFIG_USER_ONLY
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
