@@ -31,14 +31,12 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
 {
     uint32_t myidx = fTLB_NONPOW2WRAP(fTLB_IDXMASK(index));
     HexagonTLBState *tlb = env_archcpu(env)->tlb;
-    uint64_t old_entry = hexagon_tlb_read(tlb, myidx);
-
+    uint64_t old_entry = hexagon_tlb_write(tlb, myidx, value);
     bool old_entry_valid = extract64(old_entry, 63, 1);
     if (old_entry_valid && hexagon_cpu_mmu_enabled(env)) {
         CPUState *cs = env_cpu(env);
-        tlb_flush(cs);
+        tlb_flush_all_cpus_synced(cs);
     }
-    hexagon_tlb_write(tlb, myidx, value);
     hex_log_tlbw(myidx, value);
 }
 
