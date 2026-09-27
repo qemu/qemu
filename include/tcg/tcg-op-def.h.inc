@@ -88,3 +88,23 @@ DEF3(xori, TCGV, TCGV, TINT)
 
 DEF7(atomic_cmpxchg_chk, TCGV, TCGTempPtr, TCGV, TCGV, unsigned, MemOp, TCGType)
 DEF7(nonatomic_cmpxchg_chk, TCGV, TCGTempPtr, TCGV, TCGV, unsigned, MemOp, TCGType)
+
+DEF6(atomic_xchg_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+
+DEF6(atomic_fetch_add_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_and_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_or_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_smax_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_smin_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_umax_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_umin_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_fetch_xor_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+
+DEF6(atomic_add_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_and_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_or_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_smax_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_smin_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_umax_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_umin_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
+DEF6(atomic_xor_fetch_chk, TCGV, TCGTempPtr, TCGV, unsigned, MemOp, TCGType)
