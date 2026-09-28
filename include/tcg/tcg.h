@@ -164,6 +164,17 @@ static inline int tcg_type_size(TCGType t)
     return 4 << i;
 }
 
+/**
+ * tcg_type_bits
+ * @t: type
+ *
+ * Return the size of the type in bits.
+ */
+static inline int tcg_type_bits(TCGType t)
+{
+    return 8 * tcg_type_size(t);
+}
+
 typedef tcg_target_ulong TCGArg;
 
 /* Define type and accessor macros for TCG variables.
