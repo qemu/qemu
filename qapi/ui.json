@@ -814,10 +814,9 @@
 
 ##
 # @QKeyCode:
+#     An enumeration of key name.
 #
-# An enumeration of key name.
-#
-# This is used by the `send-key` command.
+#     This is used by the `send-key` command.
 #
 # @unmapped: since 2.0
 #

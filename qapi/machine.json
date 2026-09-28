@@ -641,9 +641,9 @@
 
 ##
 # @HmatLBMemoryHierarchy:
-#
-# The memory hierarchy in the System Locality Latency and Bandwidth
-# Information Structure of HMAT (Heterogeneous Memory Attribute Table)
+#     The memory hierarchy in the System Locality Latency and
+#     Bandwidth Information Structure of HMAT (Heterogeneous Memory
+#     Attribute Table)
 #
 # For more information about `HmatLBMemoryHierarchy`, see chapter
 # 5.2.27.4: Table 5-146: Field "Flags" of ACPI 6.3 spec.
@@ -663,9 +663,9 @@
 
 ##
 # @HmatLBDataType:
-#
-# Data type in the System Locality Latency and Bandwidth Information
-# Structure of HMAT (Heterogeneous Memory Attribute Table)
+#     Data type in the System Locality Latency and Bandwidth
+#     Information Structure of HMAT (Heterogeneous Memory Attribute
+#     Table)
 #
 # For more information about `HmatLBDataType`, see chapter 5.2.27.4:
 # Table 5-146: Field "Data Type" of ACPI 6.3 spec.
@@ -726,9 +726,8 @@
 
 ##
 # @HmatCacheAssociativity:
-#
-# Cache associativity in the Memory Side Cache Information Structure
-# of HMAT
+#     Cache associativity in the Memory Side Cache Information
+#     Structure of HMAT
 #
 # For more information of `HmatCacheAssociativity`, see chapter
 # 5.2.27.5: Table 5-147 of ACPI 6.3 spec.
@@ -747,9 +746,8 @@
 
 ##
 # @HmatCacheWritePolicy:
-#
-# Cache write policy in the Memory Side Cache Information Structure of
-# HMAT
+#     Cache write policy in the Memory Side Cache Information
+#     Structure of HMAT
 #
 # For more information of `HmatCacheWritePolicy`, see chapter
 # 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
