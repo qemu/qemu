@@ -152,8 +152,7 @@
 
 ##
 # @quit:
-#
-# Request graceful QEMU process termination.
+#     Request graceful QEMU process termination.
 #
 # While every attempt is made to send the QMP response before
 # terminating, this is not guaranteed.  When using this interface, a

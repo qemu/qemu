@@ -197,10 +197,9 @@
 
 ##
 # @transaction:
-#
-# Executes a number of transactionable QMP commands atomically.  If
-# any operation fails, then the entire set of actions will be
-# abandoned and the appropriate error returned.
+#     Executes a number of transactionable QMP commands atomically.
+#     If any operation fails, then the entire set of actions will be
+#     abandoned and the appropriate error returned.
 #
 # For external snapshots, the dictionary contains the device, the file
 # to use for the new snapshot, and the format.  The default format, if
