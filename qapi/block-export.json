@@ -154,9 +154,8 @@
 
 ##
 # @BlockExportOptionsFuse:
-#
-# Options for exporting a block graph node on some (file) mountpoint
-# as a raw image.
+#     Options for exporting a block graph node on some (file)
+#     mountpoint as a raw image.
 #
 # Multi-threading note: The FUSE export supports multi-threading.
 # Currently, requests are distributed across these threads in a

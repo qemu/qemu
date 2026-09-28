@@ -429,8 +429,7 @@
 
 ##
 # @SecretProperties:
-#
-# Properties for secret objects.
+#     Properties for secret objects.
 #
 # Either @data or @file must be provided, but not both.
 #

@@ -690,9 +690,8 @@
 
 ##
 # @NumaHmatLBOptions:
-#
-# Set the system locality latency and bandwidth information between
-# Initiator and Target proximity Domains.
+#     Set the system locality latency and bandwidth information
+#     between Initiator and Target proximity Domains.
 #
 # For more information about `NumaHmatLBOptions`, see chapter
 # 5.2.27.4: Table 5-146 of ACPI 6.3 spec.
@@ -766,8 +765,7 @@
 
 ##
 # @NumaHmatCacheOptions:
-#
-# Set the memory side cache information for a given memory domain.
+#     Set the memory side cache information for a given memory domain.
 #
 # For more information of `NumaHmatCacheOptions`, see chapter
 # 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
@@ -932,8 +930,7 @@
 
 ##
 # @CpuInstanceProperties:
-#
-# Properties identifying a CPU.
+#     Properties identifying a CPU.
 #
 # Which members are optional and which mandatory depends on the
 # architecture and board.
