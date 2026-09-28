@@ -327,6 +327,13 @@ static bool debug_needed(void *opaque)
     return cpu->cfg.debug || cpu->cfg.ext_sdtrig;
 }
 
+static bool sdext_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return cpu->cfg.ext_sdext;
+}
+
 static int debug_post_load(void *opaque, int version_id)
 {
     RISCVCPU *cpu = opaque;
@@ -357,6 +364,20 @@ static const VMStateDescription vmstate_debug = {
         VMSTATE_VARRAY_UINT32(env.tdata3, RISCVCPU,
                               env.num_triggers, 0,
                               vmstate_info_uint64, uint64_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_sdext = {
+    .name = "cpu/sdext",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sdext_needed,
+    .fields = (const VMStateField[]) {
+        VMSTATE_BOOL(env.debug_mode, RISCVCPU),
+        VMSTATE_UINT32(env.dcsr, RISCVCPU),
+        VMSTATE_UINTTL(env.dpc, RISCVCPU),
+        VMSTATE_UINTTL_ARRAY(env.dscratch, RISCVCPU, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -634,6 +655,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_ctr,
         &vmstate_sstc,
         &vmstate_mseccfg,
+        &vmstate_sdext,
         NULL
     }
 };
