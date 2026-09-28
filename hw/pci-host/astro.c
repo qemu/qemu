@@ -406,9 +406,14 @@ static void elroy_set_irq(void *opaque, int irq, int level)
 
 static int elroy_pci_map_irq(PCIDevice *d, int irq_num)
 {
+    ElroyState *s = pci_get_bus(d)->irq_opaque;
     int slot = PCI_SLOT(d->devfn);
 
     assert(irq_num >= 0 && irq_num < ELROY_IRQS);
+    /* INTB..INTD of a slot may be rotated to the following inputs */
+    if (s->astro && s->astro->rotate_pci_pins) {
+        return (slot + irq_num) & (ELROY_IRQS - 1);
+    }
     return slot & (ELROY_IRQS - 1);
 }
 
@@ -1064,6 +1069,7 @@ static void astro_realize(DeviceState *obj, Error **errp)
 
 static const Property astro_props[] = {
     DEFINE_PROP_UINT8("phys-addr-bits", AstroState, phys_addr_bits, 32),
+    DEFINE_PROP_BOOL("rotate-pci-pins", AstroState, rotate_pci_pins, false),
 };
 
 static void astro_class_init(ObjectClass *klass, const void *data)
