@@ -57,8 +57,7 @@
 
 ##
 # @CPU_POLARIZATION_CHANGE:
-#
-# Emitted when the guest asks to change the polarization.
+#     Emitted when the guest asks to change the polarization.
 #
 # The guest can tell the host (via the PTF instruction) whether the
 # CPUs should be provisioned using horizontal or vertical
