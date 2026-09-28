@@ -843,9 +843,8 @@
 
 ##
 # @BlockMeasureInfo:
-#
-# Image file size calculation information.  This structure describes
-# the size requirements for creating a new image file.
+#     Image file size calculation information.  This structure
+#     describes the size requirements for creating a new image file.
 #
 # The size requirements depend on the new image file format.  File
 # size always equals virtual disk size for the 'raw' format, even for
