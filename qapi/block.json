@@ -128,11 +128,12 @@
 
 ##
 # @blockdev-open-tray:
+#     Opens a block device's tray.
 #
-# Opens a block device's tray.  If there is a block driver state tree
-# inserted as a medium, it will become inaccessible to the guest (but
-# it will remain associated to the block device, so closing the tray
-# will make it accessible again).
+# If there is a block driver state tree inserted as a medium, it will
+# become inaccessible to the guest (but it will remain associated to
+# the block device, so closing the tray will make it accessible
+# again).
 #
 # If the tray was already open before, this will be a no-op.
 #
@@ -181,10 +182,11 @@
 
 ##
 # @blockdev-close-tray:
+#     Closes a block device's tray.
 #
-# Closes a block device's tray.  If there is a block driver state tree
-# associated with the block device (which is currently ejected), that
-# tree will be loaded as the medium.
+# If there is a block driver state tree associated with the block
+# device (which is currently ejected), that tree will be loaded as the
+# medium.
 #
 # If the tray was already closed before, this will be a no-op.
 #
@@ -218,13 +220,12 @@
 
 ##
 # @blockdev-remove-medium:
+#     Removes a medium (a block driver state tree) from a block
+#     device.  That block device's tray must currently be open
+#     (unless there is no attached guest device).
 #
-# Removes a medium (a block driver state tree) from a block device.
-# That block device's tray must currently be open (unless there is no
-# attached guest device).
-#
-# If the tray is open and there is no medium inserted, this will be a
-# no-op.
+# If the tray is open and there is no medium inserted, this will
+# be a no-op.
 #
 # @id: The name or QOM path of the guest device
 #
@@ -429,8 +430,7 @@
 
 ##
 # @block_set_io_throttle:
-#
-# Change I/O throttle limits for a block drive.
+#     Change I/O throttle limits for a block drive.
 #
 # Since QEMU 2.4, each device with I/O limits is member of a throttle
 # group.
@@ -504,8 +504,7 @@
 
 ##
 # @block-latency-histogram-set:
-#
-# Manage read, write and flush latency histograms for the device.
+#     Manage read, write and flush latency histograms for the device.
 #
 # If only @id parameter is specified, remove all present latency
 # histograms for the device.  Otherwise, add/reset some of (or all)

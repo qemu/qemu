@@ -235,8 +235,7 @@
 
 ##
 # @nbd-server-add:
-#
-# Export a block node to QEMU's embedded NBD server.
+#     Export a block node to QEMU's embedded NBD server.
 #
 # The export name will be used as the id for the resulting block
 # export.
