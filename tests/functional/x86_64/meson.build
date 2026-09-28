@@ -44,6 +44,7 @@ tests_x86_64_system_thorough = [
   'multiprocess',
   'netdev_ethtool',
   'nvme_migration',
+  'pcie_switch',
   'replay',
   'reverse_debug',
   'tuxrun',
