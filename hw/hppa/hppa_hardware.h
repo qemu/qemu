@@ -24,7 +24,7 @@
 #define LASI_HPA        0xffd00000
 #define LASI_GFX_HPA    0xf8000000
 #define ARTIST_FB_ADDR  0xf9000000
-#define CPU_HPA         0xfffb0000
+#define CPU_HPA         0xfffa0000      /* as on real Astro based machines */
 #define MEMORY_HPA      0xfffff000
 
 #define IDE_HPA         0xf9000000      /* Boot disc controller */
@@ -48,7 +48,7 @@
 #define PORT_PCI_CMD    hppa_port_pci_cmd
 #define PORT_PCI_DATA   hppa_port_pci_data
 
-#define FW_CFG_IO_BASE  0xfffa0000
+#define FW_CFG_IO_BASE  0xfffb0000
 
 #define PORT_SERIAL1    (LASI_UART_HPA + 0x800)
 #define PORT_SERIAL2    (DINO_UART_HPA + 0x800)

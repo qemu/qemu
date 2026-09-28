@@ -48,7 +48,7 @@ struct HppaMachineState {
     uint64_t memsplit_addr;
 };
 
-#define MIN_SEABIOS_HPPA_VERSION 22 /* require at least this fw version */
+#define MIN_SEABIOS_HPPA_VERSION 26 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON        (FIRMWARE_END - 0x10)
 static hwaddr soft_power_reg;
