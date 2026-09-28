@@ -740,6 +740,8 @@ static AstroState *astro_init(bool is_a400)
                             &error_abort);
     object_property_set_bool(OBJECT(dev), "rotate-pci-pins", is_a400,
                              &error_abort);
+    object_property_set_bool(OBJECT(dev), "elroy1-on-rope2", is_a400,
+                             &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return ASTRO_CHIP(dev);

@@ -31,6 +31,7 @@
 #define ASTRO_HPA       0xfed00000
 #define ELROY0_HPA      0xfed30000
 #define ELROY2_HPA      0xfed32000
+#define ELROY4_HPA      0xfed34000      /* second Elroy on A400/A500, rope 2 */
 #define ELROY8_HPA      0xfed38000
 #define ELROYc_HPA      0xfed3c000
 #define ASTRO_MEMORY_HPA 0xfed10200

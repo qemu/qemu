@@ -41,6 +41,23 @@ static const int elroy_hpa_offsets[ELROY_NUM] = {
 static const char elroy_rope_nr[ELROY_NUM] = {
             0, 1, 4, 6 }; /* busnum path, e.g. [10:6] */
 
+/* On the A400 the second Elroy is connected to rope 2 */
+static int astro_elroy_hpa_offset(AstroState *s, int i)
+{
+    if (i == 1 && s->elroy1_on_rope2) {
+        return ELROY4_HPA - ASTRO_HPA;
+    }
+    return elroy_hpa_offsets[i];
+}
+
+static int astro_elroy_rope_nr(AstroState *s, int i)
+{
+    if (i == 1 && s->elroy1_on_rope2) {
+        return 2;
+    }
+    return elroy_rope_nr[i];
+}
+
 /* Astro version numbers */
 enum { ID_ASTRO_1_0 = 0, ID_ASTRO_2_1 = 9, ID_ASTRO_3_0 = 2 };
 
@@ -589,7 +606,7 @@ static void adjust_LMMIO_mapping(AstroState *s)
 
         elroy = s->elroy[i];
         alias = &elroy->lmmio_alias;
-        rope = elroy_rope_nr[i];
+        rope = astro_elroy_rope_nr(s, i);
         if (alias->enabled) {
             memory_region_set_enabled(alias, false);
         }
@@ -715,7 +732,7 @@ static void adjust_GMMIO_mapping(AstroState *s)
 
         elroy = s->elroy[i];
         alias = &elroy->gmmio_alias;
-        rope = elroy_rope_nr[i];
+        rope = astro_elroy_rope_nr(s, i);
         if (alias->enabled) {
             memory_region_set_enabled(alias, false);
         }
@@ -1017,8 +1034,8 @@ static void astro_realize(DeviceState *obj, Error **errp)
         uint64_t map_size;
         int rope;
 
-        addr_offset = elroy_hpa_offsets[i];
-        rope = elroy_rope_nr[i];
+        addr_offset = astro_elroy_hpa_offset(s, i);
+        rope = astro_elroy_rope_nr(s, i);
 
         elroy = elroy_init(i);
         s->elroy[i] = elroy;
@@ -1070,6 +1087,7 @@ static void astro_realize(DeviceState *obj, Error **errp)
 static const Property astro_props[] = {
     DEFINE_PROP_UINT8("phys-addr-bits", AstroState, phys_addr_bits, 32),
     DEFINE_PROP_BOOL("rotate-pci-pins", AstroState, rotate_pci_pins, false),
+    DEFINE_PROP_BOOL("elroy1-on-rope2", AstroState, elroy1_on_rope2, false),
 };
 
 static void astro_class_init(ObjectClass *klass, const void *data)
