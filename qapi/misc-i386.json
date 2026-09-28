@@ -5,10 +5,9 @@
 
 ##
 # @rtc-reset-reinjection:
-#
-# Reset the RTC interrupt reinjection backlog.  Can be used if another
-# mechanism to synchronize guest time is in effect, for example QEMU
-# guest agent's `guest-set-time` command.
+#     Reset the RTC interrupt reinjection backlog.  Can be used if
+#     another mechanism to synchronize guest time is in effect, for
+#     example QEMU guest agent's `guest-set-time` command.
 #
 # Use of this command is only applicable for x86 machines with an RTC,
 # and on other machines will silently return without performing any
@@ -119,8 +118,7 @@
 
 ##
 # @query-sev:
-#
-# Return information about SEV/SEV-ES/SEV-SNP.
+#     Return information about SEV/SEV-ES/SEV-SNP.
 #
 # If unavailable due to an incompatible configuration the returned
 # @enabled field is set to 'false' and the state of all other fields
@@ -149,8 +147,7 @@
 
 ##
 # @query-sev-launch-measure:
-#
-# Query the SEV/SEV-ES guest launch information.
+#     Query the SEV/SEV-ES guest launch information.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  The launch
@@ -199,8 +196,7 @@
 
 ##
 # @query-sev-capabilities:
-#
-# Get SEV capabilities.
+#     Get SEV capabilities.
 #
 # This is only supported on AMD X86 platforms with KVM enabled.
 #
@@ -220,8 +216,7 @@
 
 ##
 # @sev-inject-launch-secret:
-#
-# Inject a secret blob into a SEV/SEV-ES guest's memory.
+#     Inject a secret blob into a SEV/SEV-ES guest's memory.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  SEV-SNP guests do
@@ -257,8 +252,7 @@
 
 ##
 # @query-sev-attestation-report:
-#
-# Get the SEV attestation report.
+#     Get the SEV attestation report.
 #
 # This is only valid on x86 machines configured with KVM and the
 # 'sev-guest' confidential virtualization object.  The attestation
