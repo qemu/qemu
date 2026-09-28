@@ -134,9 +134,9 @@ static const VMStateDescription vmstate_gen_pcie_upstream_port = {
 };
 
 static const Property gen_pcie_upstream_port_props[] = {
-    DEFINE_PROP_PCIE_LINK_SPEED("x-speed", GenPCIEUpstreamPort,
+    DEFINE_PROP_PCIE_LINK_SPEED("speed", GenPCIEUpstreamPort,
                                 speed, PCIE_LINK_SPEED_64),
-    DEFINE_PROP_PCIE_LINK_WIDTH("x-width", GenPCIEUpstreamPort,
+    DEFINE_PROP_PCIE_LINK_WIDTH("width", GenPCIEUpstreamPort,
                                 width, PCIE_LINK_WIDTH_32),
 };
 

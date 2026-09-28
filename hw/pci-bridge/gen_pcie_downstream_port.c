@@ -159,9 +159,9 @@ static const VMStateDescription vmstate_gen_pcie_downstream_port = {
 static const Property gen_pcie_downstream_port_props[] = {
     DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
                     QEMU_PCIE_SLTCAP_PCP_BITNR, true),
-    DEFINE_PROP_PCIE_LINK_SPEED("x-speed", PCIESlot,
+    DEFINE_PROP_PCIE_LINK_SPEED("speed", PCIESlot,
                                 speed, PCIE_LINK_SPEED_64),
-    DEFINE_PROP_PCIE_LINK_WIDTH("x-width", PCIESlot,
+    DEFINE_PROP_PCIE_LINK_WIDTH("width", PCIESlot,
                                 width, PCIE_LINK_WIDTH_32),
 };
 

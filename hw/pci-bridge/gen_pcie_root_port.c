@@ -129,9 +129,9 @@ static const Property gen_rp_props[] = {
                      res_reserve.mem_pref_32, -1),
     DEFINE_PROP_SIZE("pref64-reserve", GenPCIERootPort,
                      res_reserve.mem_pref_64, -1),
-    DEFINE_PROP_PCIE_LINK_SPEED("x-speed", PCIESlot,
+    DEFINE_PROP_PCIE_LINK_SPEED("speed", PCIESlot,
                                 speed, PCIE_LINK_SPEED_16),
-    DEFINE_PROP_PCIE_LINK_WIDTH("x-width", PCIESlot,
+    DEFINE_PROP_PCIE_LINK_WIDTH("width", PCIESlot,
                                 width, PCIE_LINK_WIDTH_32),
 };
 
