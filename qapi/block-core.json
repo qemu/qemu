@@ -1556,8 +1556,7 @@
 
 ##
 # @block_resize:
-#
-# Resize a block image while a guest is running.
+#     Resize a block image while a guest is running.
 #
 # Either @device or @node-name must be set but not both.
 #
@@ -1812,13 +1811,12 @@
 
 ##
 # @blockdev-snapshot:
+#     Takes a snapshot of a block device.
 #
-# Takes a snapshot of a block device.
-#
-# Take a snapshot, by installing 'node' as the backing image of
-# 'overlay'.  Additionally, if 'node' is associated with a block
-# device, the block device changes to using 'overlay' as its new
-# active image.
+#     Take a snapshot, by installing 'node' as the backing image of
+#     'overlay'.  Additionally, if 'node' is associated with a block
+#     device, the block device changes to using 'overlay' as its new
+#     active image.
 #
 # Features:
 #
@@ -1883,9 +1881,8 @@
 
 ##
 # @block-commit:
-#
-# Live commit of data from overlay image nodes into backing nodes -
-# i.e., writes data between 'top' and 'base' into 'base'.
+#     Live commit of data from overlay image nodes into backing nodes
+#     - i.e., writes data between 'top' and 'base' into 'base'.
 #
 # If top == base, that is an error.  If top has no overlays on top of
 # it, or if it is in use by a writer, the job will not be completed by
@@ -2510,16 +2507,15 @@
 
 ##
 # @block-dirty-bitmap-merge:
+#     Merge dirty bitmaps listed in @bitmaps to the @target dirty
+#     bitmap.  Dirty bitmaps in @bitmaps will be unchanged, except if
+#     it also appears as the @target bitmap.  Any bits already set in
+#     @target will still be set after the merge, i.e., this operation
+#     does not clear the target.  On error, @target is unchanged.
 #
-# Merge dirty bitmaps listed in @bitmaps to the @target dirty bitmap.
-# Dirty bitmaps in @bitmaps will be unchanged, except if it also
-# appears as the @target bitmap.  Any bits already set in @target will
-# still be set after the merge, i.e., this operation does not clear
-# the target.  On error, @target is unchanged.
-#
-# The resulting bitmap will count as dirty any clusters that were
-# dirty in any of the source bitmaps.  This can be used to achieve
-# backup checkpoints, or in simpler usages, to copy bitmaps.
+#     The resulting bitmap will count as dirty any clusters that were
+#     dirty in any of the source bitmaps.  This can be used to achieve
+#     backup checkpoints, or in simpler usages, to copy bitmaps.
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -2865,8 +2861,7 @@
 
 ##
 # @block-stream:
-#
-# Copy data from a backing file into a block device.
+#     Copy data from a backing file into a block device.
 #
 # The block streaming operation is performed in the background until
 # the entire backing file has been copied.  This command returns
@@ -2977,8 +2972,7 @@
 
 ##
 # @block-job-set-speed:
-#
-# Set maximum speed for a background block operation.
+#     Set maximum speed for a background block operation.
 #
 # This command can only be issued when there is an active block job.
 #
@@ -3003,8 +2997,7 @@
 
 ##
 # @block-job-cancel:
-#
-# Stop an active background block operation.
+#     Stop an active background block operation.
 #
 # This command returns immediately after marking the active background
 # block operation for cancellation.  It is an error to call this
@@ -3046,8 +3039,7 @@
 
 ##
 # @block-job-pause:
-#
-# Pause an active background block operation.
+#     Pause an active background block operation.
 #
 # This command returns immediately after marking the active job for
 # pausing.  Pausing an already paused job is an error.
@@ -3079,8 +3071,7 @@
 
 ##
 # @block-job-resume:
-#
-# Resume an active background block operation.
+#     Resume an active background block operation.
 #
 # This command returns immediately after resuming a paused job.
 # Resuming an already running job is an error.
@@ -3108,9 +3099,9 @@
 
 ##
 # @block-job-complete:
-#
-# Manually trigger completion of an active job in the READY or STANDBY
-# state.  Completing the job in any other state is an error.
+#     Manually trigger completion of an active job in the READY or
+#     STANDBY state.  Completing the job in any other state is an
+#     error.
 #
 # This is supported only for drive mirroring, where it also switches
 # the device to write to the target path only.  Note that drive
@@ -3148,14 +3139,13 @@
 
 ##
 # @block-job-dismiss:
-#
-# Deletes a job that is in the CONCLUDED state.  This command only
-# needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled.  In turn, automatic dismiss may be enabled only for
-# jobs that have @auto-dismiss option, which are `drive-backup`,
-# `blockdev-backup`, `drive-mirror`, `blockdev-mirror`, `block-commit`
-# and `block-stream`.  @auto-dismiss is enabled by default for these
-# jobs.
+#     Deletes a job that is in the CONCLUDED state.  This command only
+#     needs to be run explicitly for jobs that don't have automatic
+#     dismiss enabled.  In turn, automatic dismiss may be enabled only
+#     for jobs that have @auto-dismiss option, which are
+#     `drive-backup`, `blockdev-backup`, `drive-mirror`,
+#     `blockdev-mirror`, `block-commit` and `block-stream`.
+#     @auto-dismiss is enabled by default for these jobs.
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, CONCLUDED.  For jobs that make use of
@@ -3177,11 +3167,10 @@
 
 ##
 # @block-job-finalize:
-#
-# Instructs all jobs in a transaction (or a single job if it is not
-# part of any transaction) to finalize any graph changes and do any
-# necessary cleanup.  This command requires that all involved jobs are
-# in the PENDING state.
+#     Instructs all jobs in a transaction (or a single job if it is
+#     not part of any transaction) to finalize any graph changes and
+#     do any necessary cleanup.  This command requires that all
+#     involved jobs are in the PENDING state.
 #
 # For jobs in a transaction, instructing one job to finalize will
 # force ALL jobs in the transaction to finalize, so it is only
@@ -4917,14 +4906,13 @@
 
 ##
 # @blockdev-reopen:
-#
-# Reopens one or more block devices using the given set of options.
-# Any option not specified will be reset to its default value
-# regardless of its previous status.  If an option cannot be changed
-# or a particular driver does not support reopening then the command
-# will return an error.  All devices in the list are reopened in one
-# transaction, so if one of them fails then the whole transaction is
-# cancelled.
+#     Reopens one or more block devices using the given set of
+#     options.  Any option not specified will be reset to its default
+#     value regardless of its previous status.  If an option cannot be
+#     changed or a particular driver does not support reopening then
+#     the command will return an error.  All devices in the list are
+#     reopened in one transaction, so if one of them fails then the
+#     whole transaction is cancelled.
 #
 # The command receives a list of block devices to reopen.  For each
 # one of them, the top-level @node-name option (from
@@ -4996,9 +4984,8 @@
 
 ##
 # @blockdev-set-active:
-#
-# Activate or deactivate a block device.  Use this to manage the
-# handover of block devices on migration with qemu-storage-daemon.
+#     Activate or deactivate a block device.  Use this to manage the
+#     handover of block devices on migration with qemu-storage-daemon.
 #
 # Activating a node automatically activates all of its child nodes
 # first.  Deactivating a node automatically deactivates any of its
@@ -5881,15 +5868,14 @@
 
 ##
 # @block-set-write-threshold:
+#     Change the write threshold for a block drive.  An event will be
+#     delivered if a write to this block drive crosses the configured
+#     threshold.  The threshold is an offset, thus must be
+#     non-negative.  Default is no write threshold.  Setting the
+#     threshold to zero disables it.
 #
-# Change the write threshold for a block drive.  An event will be
-# delivered if a write to this block drive crosses the configured
-# threshold.  The threshold is an offset, thus must be non-negative.
-# Default is no write threshold.  Setting the threshold to zero
-# disables it.
-#
-# This is useful to transparently resize thin-provisioned drives
-# without the guest OS noticing.
+#     This is useful to transparently resize thin-provisioned drives
+#     without the guest OS noticing.
 #
 # @node-name: graph node name on which the threshold must be set.
 #
@@ -5911,8 +5897,7 @@
 
 ##
 # @x-blockdev-change:
-#
-# Dynamically reconfigure the block driver state graph.
+#     Dynamically reconfigure the block driver state graph.
 #
 # Currently only supports adding and deleting quorum children.  A
 # child will be added at the end of the list of children.  Its
@@ -5971,11 +5956,10 @@
 
 ##
 # @x-blockdev-set-iothread:
+#     Move @node and its children into the @iothread.  If @iothread is
+#     null then move @node and its children into the main loop.
 #
-# Move @node and its children into the @iothread.  If @iothread is
-# null then move @node and its children into the main loop.
-#
-# The node must not be attached to a BlockBackend.
+#     The node must not be attached to a BlockBackend.
 #
 # @node-name: the name of the block driver node
 #
