@@ -2478,7 +2478,7 @@ static bool decode_insn(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_
         e->decode(s, env, e, &decode->b);
     }
 
-    return validate_sse_prefix(s, e);
+    return !!e->gen;
 }
 
 static bool decode_ops(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_func,
@@ -2980,12 +2980,11 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
     decode.cc_op = -1;
     decode.b = b;
     if (!decode_insn(s, env, decode_func, &decode)) {
-        goto illegal_op;
-    }
-    if (!decode.e.gen) {
         goto unknown_op;
     }
-
+    if (!validate_sse_prefix(s, &decode.e)) {
+        goto illegal_op;
+    }
     if (!has_cpuid_feature(s, decode.e.cpuid)) {
         goto illegal_op;
     }
