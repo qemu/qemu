@@ -139,7 +139,8 @@ int32_t main(void)
     elapsed_time = (end.tv_sec - start.tv_sec) * 1000.0;
     elapsed_time += (end.tv_usec - start.tv_usec) / 1000.0;
 
-    ret = check_results_64(instruction_name, TEST_COUNT_TOTAL, elapsed_time,
+    ret = check_results_64(isa_ase_name, group_name,
+                           instruction_name, TEST_COUNT_TOTAL, elapsed_time,
                            b64_result, b64_expect);
 
     return ret;
