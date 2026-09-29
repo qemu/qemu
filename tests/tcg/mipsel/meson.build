@@ -189,3 +189,29 @@ if 'qemu-mipsel' in emulators
     }
   }
 endif
+
+tests = []
+
+foreach src: tests_mips_msa
+  tests += {
+    src: {
+      'cflags': ['-mabi=32', '-march=mips32r5', '-mmsa', '-mno-odd-spreg',
+                 '-mfp64', '-mnan=2008'],
+      'qemu_args': ['-cpu', 'P5600'],
+    }
+  }
+endforeach
+
+if 'qemu-mipsel' in emulators
+  tcg_tests += {
+    'mips32r5el-linux-user': {
+      'cc': 'mips32r5el-buildroot-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-all-test-cross',
+      'cc_feat_cflags': cc_feat_cflags,
+      'folder': 'mipsel',
+      'gdb_arch': 'mipsel',
+      'qemu': emulators['qemu-mipsel'],
+      'tests': tests,
+    }
+  }
+endif

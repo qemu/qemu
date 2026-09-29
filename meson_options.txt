@@ -457,6 +457,10 @@ option('tcg_tests_cross_cc_mips64el', type: 'string',
        description: 'cc for mips64el tcg tests')
 option('tcg_tests_cross_cflags_mips64el', type: 'string',
        description: 'cflags for mips64el tcg tests')
+option('tcg_tests_cross_cc_mips32r5el', type: 'string',
+       description: 'cc for mips32r5el tcg tests')
+option('tcg_tests_cross_cflags_mips32r5el', type: 'string',
+       description: 'cflags for mips32r5el tcg tests')
 option('tcg_tests_cross_cc_or1k', type: 'string',
        description: 'cc for or1k tcg tests')
 option('tcg_tests_cross_cflags_or1k', type: 'string',
