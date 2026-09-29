@@ -224,6 +224,22 @@ RUN apt update && \
   libc6-dev-sparc64-cross \
   && \
   dpkg-query --showformat '${Package}_${Version}_${Architecture}' --show > /packages.txt
+
+RUN apt update && DEBIAN_FRONTEND=noninteractive eatmydata apt install -y rename
+
+# download mips32r5el toolchain from bootlin, and rename binaries who are simply
+# named mipsel-linux-gnu-*
+RUN apt update && \
+  mkdir -p /opt/mips32r5el/ && \
+  cd /opt/mips32r5el/ && \
+  wget -q https://toolchains.bootlin.com/downloads/releases/toolchains/mips32r5el/tarballs/mips32r5el--glibc--stable-2026.08-1.tar.xz && \
+  tar xvf *.tar.xz && \
+  rm *.tar.xz && \
+  mv mips32r5el--glibc--stable-2026.08-1/* . && \
+  cd bin && \
+  rename 's/mipsel/mips32r5el/' mipsel*
+ENV PATH="$PATH:/opt/mips32r5el/bin"
+
 ENV QEMU_CONFIGURE_OPTS=--disable-docs
 ENV DEF_TARGET_LIST=aarch64-linux-user,alpha-linux-user,arm-linux-user,hppa-linux-user,i386-linux-user,m68k-linux-user,mips-linux-user,mips64-linux-user,mips64el-linux-user,mipsel-linux-user,ppc-linux-user,ppc64-linux-user,ppc64le-linux-user,riscv64-linux-user,s390x-linux-user,sh4-linux-user,sparc64-linux-user
 """
