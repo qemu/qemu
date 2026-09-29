@@ -22,6 +22,7 @@
 #ifndef TEST_UTILS_64_H
 #define TEST_UTILS_64_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -77,5 +78,44 @@ static inline int32_t check_results_64(const char *isa_ase_name,
     }
 }
 
+typedef void (*binary_op_64) (const uint64_t*, const uint64_t*, uint64_t*);
+static inline bool check_binary_op_64_with_input(binary_op_64 op, const char *op_str,
+                                                 const uint64_t *expect,
+                                                 const uint64_t *input,
+                                                 size_t rows, size_t cols)
+{
+    bool ret = true;
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            uint64_t input1 = input[i];
+            uint64_t input2 = input[j];
+            uint64_t expected = expect[i * cols + j];
+            uint64_t res = 0;
+            op(&input1, &input2, &res);
+            printf("assert(0x%"PRIx64" == %s(0x%"PRIx64", 0x%"PRIx64"));\n",
+                   res, op_str, input1, input2);
+            if (expected != res) {
+                printf("// error: expected 0x%"PRIx64"\n", expected);
+                ret = false;
+            }
+        }
+    }
+    return ret;
+}
+
+static inline bool check_binary_op_64(binary_op_64 op, const char *op_str,
+                                      const uint64_t *expect)
+{
+    bool res = true;
+    size_t pattern_size = PATTERN_INPUTS_64_SHORT_COUNT;
+    res &= check_binary_op_64_with_input(op, op_str,
+                                         expect,
+                                         b64_pattern, pattern_size, pattern_size);
+    size_t random_size = RANDOM_INPUTS_64_SHORT_COUNT;
+    res &= check_binary_op_64_with_input(op, op_str,
+                                         expect + (pattern_size * pattern_size),
+                                         b64_random, random_size, random_size);
+    return res;
+}
 
 #endif
