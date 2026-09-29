@@ -1,5 +1,8 @@
 tests = []
 
+# Multi arch tests
+tests += tcg_tests['multiarch-linux-user']['tests']
+
 tests_dsp = [
   'test_dsp_r1_absq_s_ph.c',
   'test_dsp_r1_absq_s_w.c',
