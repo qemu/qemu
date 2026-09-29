@@ -33,6 +33,9 @@ typedef struct ASCIIConsoleData {
 /* max size for ASCII data in 4K SCCB page */
 #define SIZE_BUFFER_VT220 4080
 
+#define SCLP_CONSOLE_EVENT_TYPE_DATA 0x00
+#define SCLP_CONSOLE_EVENT_TYPE_RESIZE 0x08
+
 struct SCLPConsole {
     SCLPEvent event;
     CharFrontend chr;
@@ -42,12 +45,20 @@ struct SCLPConsole {
     uint32_t iov_data_len;  /* length of byte stream in buffer             */
     uint32_t iov_sclp_rest; /* length of byte stream not read via SCLP     */
     bool notify;            /* qemu_notify_event() req'd if true           */
+    bool resize;
+    bool resize_init;
 };
 typedef struct SCLPConsole SCLPConsole;
 
 #define TYPE_SCLP_CONSOLE "sclpconsole"
 DECLARE_INSTANCE_CHECKER(SCLPConsole, SCLP_CONSOLE,
                          TYPE_SCLP_CONSOLE)
+
+typedef struct SCLPConsoleResizeData {
+    uint8_t type;
+    uint16_t rows;
+    uint16_t cols;
+} QEMU_PACKED SCLPConsoleResizeData;
 
 /* character layer call-back functions */
 
@@ -81,6 +92,29 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     sclp_service_interrupt(0);
 }
 
+static void chr_event(void *opaque, QEMUChrEvent event)
+{
+    SCLPConsole *scon = opaque;
+
+    assert(scon);
+
+    switch (event) {
+    case CHR_EVENT_RESIZE:
+    case CHR_EVENT_MUX_IN:
+        scon->resize = true;
+        scon->resize_init = false;
+        scon->event.event_pending = true;
+        sclp_service_interrupt(0);
+        break;
+    case CHR_EVENT_BREAK:
+    case CHR_EVENT_OPENED:
+    case CHR_EVENT_MUX_OUT:
+    case CHR_EVENT_CLOSED:
+        /* ignore */
+        break;
+    }
+}
+
 /* functions to be called by event facility */
 
 static bool can_handle_event(uint8_t type)
@@ -104,10 +138,37 @@ static sccb_mask_t receive_mask(void)
 static void get_console_data(SCLPEvent *event, uint8_t *buf, size_t *size,
                              int avail)
 {
+    SCLPConsoleResizeData resize_data;
     SCLPConsole *cons = SCLP_CONSOLE(event);
+    uint16_t rows, cols;
 
-    /* first byte is hex 0 saying an ascii string follows */
-    *buf++ = '\0';
+    if (cons->resize) {
+        if (avail < sizeof(resize_data)) {
+            *size = 0;
+            return;
+        }
+
+        qemu_chr_fe_get_winsize(&cons->chr, &cols, &rows);
+
+        if (cons->resize_init && cols == 0 && rows == 0) {
+            *size = 0;
+        } else {
+            resize_data.type = SCLP_CONSOLE_EVENT_TYPE_RESIZE;
+            resize_data.rows = cpu_to_be16(rows);
+            resize_data.cols = cpu_to_be16(cols);
+
+            memcpy(buf, &resize_data, sizeof(resize_data));
+            *size = sizeof(resize_data);
+        }
+
+        cons->resize = false;
+        cons->resize_init = false;
+        event->event_pending = cons->iov_sclp_rest != 0;
+
+        return;
+    }
+
+    *buf++ = SCLP_CONSOLE_EVENT_TYPE_DATA;
     avail--;
     /* if all data fit into provided SCLP buffer */
     if (avail >= cons->iov_sclp_rest) {
@@ -150,6 +211,9 @@ static int read_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr,
     to = (uint8_t *)&acd->data;
     avail = *slen - sizeof(ASCIIConsoleData);
     get_console_data(event, to, &src_len, avail);
+    if (src_len == 0) {
+        return 0;
+    }
 
     acd->ebh.length = cpu_to_be16(sizeof(ASCIIConsoleData) + src_len);
     acd->ebh.type = SCLP_EVENT_ASCII_CONSOLE_DATA;
@@ -233,7 +297,7 @@ static int console_init(SCLPEvent *event)
     }
     console_available = true;
     qemu_chr_fe_set_handlers(&scon->chr, chr_can_read,
-                             chr_read, NULL, NULL, scon, NULL, true);
+                             chr_read, chr_event, NULL, scon, NULL, true);
 
     return 0;
 }
@@ -243,12 +307,16 @@ static void console_reset(DeviceState *dev)
     SCLPEvent *event = SCLP_EVENT(dev);
     SCLPConsole *scon = SCLP_CONSOLE(event);
 
-    event->event_pending = false;
     scon->iov_sclp = 0;
     scon->iov_bs = 0;
     scon->iov_data_len = 0;
     scon->iov_sclp_rest = 0;
     scon->notify = false;
+
+    /* the guest defaults its terminal size on reset, announce the real one */
+    scon->resize = true;
+    scon->resize_init = true;
+    event->event_pending = true;
 }
 
 static const Property console_properties[] = {
