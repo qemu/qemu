@@ -1,0 +1,6 @@
+This test suite can't be run at the moment. We don't have a qemu target for this
+architecture, which has single-float arithmetic, and custom 128-bit registers.
+Also, a specific toolchain has to be compiled for it.
+
+We keep the tests here in case someone is interested one day to resurrect this
+architecture.
