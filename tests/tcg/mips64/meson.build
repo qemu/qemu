@@ -3,7 +3,7 @@ tests = []
 tests += tcg_tests['multiarch-linux-user']['tests']
 
 tests += {
-  '../mips/user/isa/octeon/octeon-insns.c': {
+  '../mips64/octeon-insns.c': {
     'qemu_args': ['-cpu', 'Octeon68XX'],
   },
 }
