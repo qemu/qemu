@@ -3,7 +3,7 @@
 
 int main()
 {
-    int rt, rs, ach, acl, dsp;
+    int rt, rs, ach, acl, dsp = 0;
     int result;
 
     rs = 0x03;
