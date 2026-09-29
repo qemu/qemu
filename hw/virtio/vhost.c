@@ -23,7 +23,6 @@
 #include "qemu/log.h"
 #include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/virtio/vhost-user.h"
 #include "hw/mem/memory-device.h"
 #include "migration/blocker.h"
 #include "migration/misc.h"
@@ -1554,10 +1553,6 @@ static int do_vhost_virtqueue_stop(struct vhost_dev *dev,
                                    unsigned idx, bool force,
                                    bool skip_drain)
 {
-    if (skip_drain) {
-        assert(vhost_user_has_protocol_feature(dev,
-               VHOST_USER_PROTOCOL_F_GET_VRING_BASE_SKIP_DRAIN));
-    }
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
         .index = vhost_vq_index,

@@ -1463,9 +1463,7 @@ static int vhost_user_get_vring_base_skip_drain(struct vhost_dev *dev,
     bool skip_drain_supported = vhost_user_has_protocol_feature(dev,
                                VHOST_USER_PROTOCOL_F_GET_VRING_BASE_SKIP_DRAIN);
 
-    if (!skip_drain_supported) {
-        return 0;
-    }
+    assert(skip_drain_supported);
 
     return get_vring_base(dev, ring, true);
 }
