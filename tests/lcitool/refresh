@@ -200,6 +200,10 @@ RUN apt update && \
   libc6-dev-mips64el-cross \
   gcc-mipsel-linux-gnu \
   libc6-dev-mipsel-cross \
+  gcc-mipsisa64r6-linux-gnuabi64 \
+  libc6-dev-mips64r6-cross \
+  gcc-mipsisa64r6el-linux-gnuabi64 \
+  libc6-dev-mips64r6el-cross \
   gcc-powerpc64le-linux-gnu \
   libc6-dev-ppc64el-cross \
   gcc-riscv64-linux-gnu \
