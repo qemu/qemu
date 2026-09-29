@@ -119,6 +119,8 @@ Where:
 
 The actual commands are documented in the :doc:`qemu-qmp-ref`.
 
+.. _out-of-band execution:
+
 Out-of-band execution
 ---------------------
 
