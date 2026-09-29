@@ -31,15 +31,6 @@
 
 int32_t main(void)
 {
-    char *isa_ase_name = "mips64r6";
-    char *group_name = "Shift";
-    char *instruction_name =   "SRAV";
-    int32_t ret;
-    uint32_t i, j;
-    struct timeval start, end;
-    double elapsed_time;
-
-    uint64_t b64_result[TEST_COUNT_TOTAL];
     uint64_t b64_expect[TEST_COUNT_TOTAL] = {
         0xffffffffffffffffULL,                    /*   0  */
         0xffffffffffffffffULL,
@@ -123,32 +114,5 @@ int32_t main(void)
         0x00000000000178c7ULL,
     };
 
-    gettimeofday(&start, NULL);
-
-    for (i = 0; i < PATTERN_INPUTS_64_SHORT_COUNT; i++) {
-        for (j = 0; j < PATTERN_INPUTS_64_SHORT_COUNT; j++) {
-            do_mips64r6_SRAV(b64_pattern + i, b64_pattern + j,
-                b64_result + (PATTERN_INPUTS_64_SHORT_COUNT * i + j));
-        }
-    }
-
-    for (i = 0; i < RANDOM_INPUTS_64_SHORT_COUNT; i++) {
-        for (j = 0; j < RANDOM_INPUTS_64_SHORT_COUNT; j++) {
-            do_mips64r6_SRAV(b64_random + i, b64_random + j,
-                b64_result + (((PATTERN_INPUTS_64_SHORT_COUNT) *
-                               (PATTERN_INPUTS_64_SHORT_COUNT)) +
-                              RANDOM_INPUTS_64_SHORT_COUNT * i + j));
-        }
-    }
-
-    gettimeofday(&end, NULL);
-
-    elapsed_time = (end.tv_sec - start.tv_sec) * 1000.0;
-    elapsed_time += (end.tv_usec - start.tv_usec) / 1000.0;
-
-    ret = check_results_64(isa_ase_name, group_name,
-                           instruction_name, TEST_COUNT_TOTAL, elapsed_time,
-                           b64_result, b64_expect);
-
-    return ret;
+    return !check_binary_op_64(do_mips64r6_SRAV, "srav", b64_expect);
 }
