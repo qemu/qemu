@@ -2742,21 +2742,33 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
         e->op2 != X86_TYPE_H && e->op2 != X86_TYPE_B) {
         goto illegal;
     }
-
-    if (s->flags & HF_TS_MASK) {
-        goto nm_exception;
-    }
-    if (s->flags & HF_EM_MASK) {
-        goto illegal;
-    }
     return true;
 
-nm_exception:
-    gen_NM_exception(s);
-    return false;
 illegal:
     gen_illegal_opcode(s);
     return false;
+}
+
+/* Called after decode_ops, so that #UD for invalid encodings has priority over #NM.  */
+static bool validate_cr0_exceptions(DisasContext *s, X86DecodedInsn *decode)
+{
+    switch (decode->e.vex_class) {
+    case 0:
+    case 13:
+        return true;
+    default:
+        break;
+    }
+
+    if (s->flags & HF_TS_MASK) {
+        gen_NM_exception(s);
+        return false;
+    }
+    if (s->flags & HF_EM_MASK) {
+        gen_illegal_opcode(s);
+        return false;
+    }
+    return true;
 }
 
 static void dump_unknown_opcode(CPUX86State *env, DisasContext *s)
@@ -3036,6 +3048,9 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     if (!decode_ops(s, env, decode_func, &decode)) {
         goto illegal_op;
+    }
+    if (!validate_cr0_exceptions(s, &decode)) {
+        return;
     }
 
     switch (decode.e.special) {
