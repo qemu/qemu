@@ -240,15 +240,15 @@ static int console_init(SCLPEvent *event)
 
 static void console_reset(DeviceState *dev)
 {
-   SCLPEvent *event = SCLP_EVENT(dev);
-   SCLPConsole *scon = SCLP_CONSOLE(event);
+    SCLPEvent *event = SCLP_EVENT(dev);
+    SCLPConsole *scon = SCLP_CONSOLE(event);
 
-   event->event_pending = false;
-   scon->iov_sclp = 0;
-   scon->iov_bs = 0;
-   scon->iov_data_len = 0;
-   scon->iov_sclp_rest = 0;
-   scon->notify = false;
+    event->event_pending = false;
+    scon->iov_sclp = 0;
+    scon->iov_bs = 0;
+    scon->iov_data_len = 0;
+    scon->iov_sclp_rest = 0;
+    scon->notify = false;
 }
 
 static const Property console_properties[] = {
