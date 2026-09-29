@@ -65,6 +65,15 @@ foreach src: tests_mips64r6
   tests += {src: {'cflags': '-march=mips64r6'}}
 endforeach
 
+foreach src: tests_mips_msa
+  tests += {
+    src: {
+      'cflags': ['-march=mips64r6', '-mmsa'],
+      'qemu_args': ['-cpu', 'I6400'],
+    }
+  }
+endforeach
+
 # export tests for mips64el
 tcg_tests_mips64r6 = tests
 
