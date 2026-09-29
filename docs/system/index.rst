@@ -44,3 +44,4 @@ or Hypervisor.Framework.
    vm-templating
    sriov
    qemu-colo
+   guest-memfd

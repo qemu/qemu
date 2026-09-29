@@ -780,13 +780,26 @@
 # @seal: if true, create a sealed-file, which will block further
 #     resizing of the memory (default: true)
 #
+# @guest-memfd: if 'on', use guest-memfd to back the memory region.
+#     See the :doc:`/system/guest-memfd` documentation for more
+#     details.  If 'auto', the option will default to 'off'
+#     currently, but in the future it may result in the option being
+#     set to 'on' for QEMU configurations that explicitly require it.
+#     (default: auto, since: 11.2)
+#
+# Features:
+#
+# @unstable: Member @guest-memfd is experimental.
+#
 # Since: 2.12
 ##
 { 'struct': 'MemoryBackendMemfdProperties',
   'base': 'MemoryBackendProperties',
   'data': { '*hugetlb': 'bool',
             '*hugetlbsize': 'size',
-            '*seal': 'bool' },
+            '*seal': 'bool',
+            '*guest-memfd': { 'type': 'OnOffAuto',
+                              'features': [ 'unstable' ] } },
   'if': 'CONFIG_LINUX' }
 
 ##
