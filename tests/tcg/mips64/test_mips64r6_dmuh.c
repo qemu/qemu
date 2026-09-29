@@ -22,9 +22,9 @@
 #include <sys/time.h>
 #include <stdint.h>
 
-#include "../../../../include/wrappers_mips64r6.h"
-#include "../../../../include/test_inputs_64.h"
-#include "../../../../include/test_utils_64.h"
+#include "../mips/include/wrappers_mips64r6.h"
+#include "../mips/include/test_inputs_64.h"
+#include "../mips/include/test_utils_64.h"
 
 #define TEST_COUNT_TOTAL (PATTERN_INPUTS_64_COUNT + RANDOM_INPUTS_64_COUNT)
 
