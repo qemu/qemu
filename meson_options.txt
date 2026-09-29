@@ -437,6 +437,10 @@ option('tcg_tests_cross_cc_mips', type: 'string',
        description: 'cc for mips tcg tests')
 option('tcg_tests_cross_cflags_mips', type: 'string',
        description: 'cflags for mips tcg tests')
+option('tcg_tests_cross_cc_mipsel', type: 'string',
+       description: 'cc for mipsel tcg tests')
+option('tcg_tests_cross_cflags_mipsel', type: 'string',
+       description: 'cflags for mipsel tcg tests')
 option('tcg_tests_cross_cc_mips64', type: 'string',
        description: 'cc for mips64 tcg tests')
 option('tcg_tests_cross_cflags_mips64', type: 'string',
