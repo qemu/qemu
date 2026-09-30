@@ -94,7 +94,7 @@ echo "$output"
 
 echo
 # This should fail, but gracefully, i.e. just print an I/O error, not crash.
-$QEMU_IO -f file -c 'write 0 64M' "$TEST_DIR/fuse-export" | _filter_qemu_io
+$QEMU_IO -f file -c 'write 0 64M' "$TEST_DIR/fuse-export" 2>&1 | _filter_qemu_io | _filter_testdir
 echo
 
 capture_events=BLOCK_EXPORT_DELETED _send_qemu_cmd $QEMU_HANDLE \

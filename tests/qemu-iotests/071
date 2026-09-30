@@ -52,7 +52,7 @@ do_run_qemu()
 
 run_qemu()
 {
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp | _filter_qemu_io
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp | _filter_qemu_io | _filter_json_filename
 }
 
 IMG_SIZE=64M

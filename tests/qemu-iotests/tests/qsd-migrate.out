@@ -47,6 +47,7 @@ read 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+QEMU_PROG: Failed flush for 'disk' during close: Operation not permitted
 
 --- vm_dst log ---
 read 4096/4096 bytes at offset 0

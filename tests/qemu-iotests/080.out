@@ -67,6 +67,7 @@ qemu-img: Failed to load snapshot: Snapshot L1 table offset invalid
 qemu-img: Snapshot L1 table offset invalid
 qemu-img: Failed to turn zero into data clusters: Invalid argument
 qemu-io: write failed: Invalid argument
+qemu-io: Failed flush for 'TEST_DIR/t.qcow2' during close: Invalid argument
 qemu-io: Failed to flush the refcount block cache: Invalid argument
 qemu-img: Snapshot L1 table offset invalid
 qemu-img: Could not apply snapshot 'test': Failed to load snapshot: Invalid argument
@@ -90,6 +91,7 @@ qemu-img: Failed to load snapshot: Snapshot L1 table too large
 qemu-img: Snapshot L1 table too large
 qemu-img: Failed to turn zero into data clusters: File too large
 qemu-io: write failed: File too large
+qemu-io: Failed flush for 'TEST_DIR/t.qcow2' during close: File too large
 qemu-io: Failed to flush the refcount block cache: File too large
 qemu-img: Snapshot L1 table too large
 qemu-img: Could not apply snapshot 'test': Failed to load snapshot: File too large
