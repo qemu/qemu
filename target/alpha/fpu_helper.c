@@ -248,7 +248,7 @@ uint64_t helper_muls(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float32_to_s(fr);
 }
 
-uint64_t helper_divs(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t helper_alpha_divs(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float32 fa, fb, fr;
 
