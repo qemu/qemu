@@ -68,6 +68,11 @@ bool target_m68k(void)
     return target_arch() == SYS_EMU_TARGET_M68K;
 }
 
+bool target_or1k(void)
+{
+    return target_arch() == SYS_EMU_TARGET_OR1K;
+}
+
 bool target_base_ppc(void)
 {
     switch (target_arch()) {

@@ -71,6 +71,13 @@ bool target_aarch64(void);
 bool target_m68k(void);
 
 /**
+ * target_or1k:
+ *
+ * Returns whether the target architecture is OpenRISC 1000.
+ */
+bool target_or1k(void);
+
+/**
  * target_base_ppc:
  *
  * Returns whether the target architecture is PowerPC 32-bit or 64-bit.
