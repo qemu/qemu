@@ -264,7 +264,7 @@ $QEMU_IO -c 'write 0 512' -c flush \
              }
          }
      }" \
-    | _filter_qemu_io
+    2>&1 | _filter_qemu_io | _filter_generated_node_ids
 
 result=${PIPESTATUS[0]}
 echo

@@ -5174,12 +5174,23 @@ static void GRAPH_UNLOCKED bdrv_close(BlockDriverState *bs)
 {
     BdrvAioNotifier *ban, *ban_next;
     BdrvChild *child, *next;
+    int ret;
 
     GLOBAL_STATE_CODE();
     assert(!bs->refcnt);
 
     bdrv_drained_begin(bs); /* complete I/O */
-    bdrv_flush(bs);
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        const char *name;
+        if (bs->filename[0]) {
+            name = bs->filename;
+        } else {
+            name = bdrv_get_node_name(bs);
+        }
+        error_report("Failed flush for '%s' during close: %s", name,
+                     strerror(-ret));
+    }
     bdrv_drain(bs); /* in case flush left pending I/O */
 
     if (bs->drv) {

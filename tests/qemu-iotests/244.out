@@ -134,6 +134,7 @@ Images are identical.
 
 === Flushing should flush the data file ===
 
+qemu-io: Failed flush for 'NODE_NAME' during close: Input/output error
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
