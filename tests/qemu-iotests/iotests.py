@@ -596,6 +596,10 @@ def filter_qemu_io(msg):
     return qemu_io_re.sub("X ops; XX:XX:XX.X "
                           "(XXX YYY/sec and XXX ops/sec)", msg)
 
+qemu_re = re.compile(r"%s" % os.path.basename(qemu_prog))
+def filter_qemu(msg):
+    return qemu_re.sub("QEMU_PROG", msg)
+
 chown_re = re.compile(r"chown [0-9]+:[0-9]+")
 def filter_chown(msg):
     return chown_re.sub("chown UID:GID", msg)
