@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/atomic.h"
 #include "cpu.h"
 #include "internals.h"
 #include "pmu.h"
@@ -584,7 +585,7 @@ uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask, uint64_t value)
     BQL_LOCK_GUARD();
 
     old = riscv_cpu_get_mip(env);
-    env->mip = (old & ~mask) | (value & mask);
+    qatomic_set(&env->mip, (old & ~mask) | (value & mask));
 
     riscv_cpu_interrupt(env);
 
