@@ -836,7 +836,7 @@ Uftrace
 This plugin generates a binary trace compatible with
 `uftrace <https://github.com/namhyung/uftrace>`_.
 
-Plugin supports aarch64, x64 and riscv64, and works in user and system mode,
+Plugin supports aarch64, x64, riscv64, and Hexagon, and works in user and system mode,
 allowing to trace a system boot, which is not something possible usually.
 
 In user mode, the memory mapping is directly copied from ``/proc/self/maps`` at
