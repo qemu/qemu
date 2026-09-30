@@ -689,6 +689,13 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request);
 void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env);
 int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint64_t interrupts);
 /**
+ * riscv_cpu_get_mip:
+ * @env: CPURISCVState
+ *
+ * Returns: the current value of the Machine Interrupt Pending (MIP) register.
+ */
+uint64_t riscv_cpu_get_mip(const CPURISCVState *env);
+/**
  * riscv_cpu_update_mip:
  * @env: CPURISCVState
  * @mask: Mask of the MIP bits to update
