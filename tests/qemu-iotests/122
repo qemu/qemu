@@ -334,6 +334,39 @@ echo
 $QEMU_IMG convert -O $IMGFMT -o preallocation=metadata -n \
 	  "$TEST_IMG" "$TEST_IMG".orig && echo "unexpected success"
 
+echo
+echo "=== failing flush after convert with default ('unsafe') cache mode ==="
+echo
+
+TEST_IMG="$TEST_IMG".orig _make_test_img 1M
+TEST_IMG="$TEST_IMG" _make_test_img 1M
+
+$QEMU_IO -c "write -P 42 0 1M" "$TEST_IMG".orig | _filter_qemu_io
+
+target_fails_flush="json:{
+    'driver': '$IMGFMT',
+    'file': {
+        'driver': 'blkdebug',
+        'inject-error': [{
+            'event': 'flush_to_disk'
+        }],
+        'image': {
+            'driver': 'file',
+            'filename': '$TEST_IMG'
+        }
+    }
+}"
+
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG".orig "$target_fails_flush"
+echo "qemu-img convert exited with status $?"
+
+echo
+echo "=== failing flush after convert with 'writeback' cache mode ==="
+echo
+
+$QEMU_IMG convert -t writeback -f $IMGFMT -O $IMGFMT -n "$TEST_IMG".orig "$target_fails_flush"
+echo "qemu-img convert exited with status $?"
+
 # success, all done
 echo '*** done'
 rm -f $seq.full

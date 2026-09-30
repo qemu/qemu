@@ -256,4 +256,18 @@ Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
 === -n incompatible with -o ===
 
 qemu-img: -o has no effect when skipping image creation
+
+=== failing flush after convert with default ('unsafe') cache mode ===
+
+Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img convert exited with status 0
+
+=== failing flush after convert with 'writeback' cache mode ===
+
+qemu-img: Failed to flush the L2 table cache: Input/output error
+qemu-img: Failed to flush the refcount block cache: Input/output error
+qemu-img convert exited with status 0
 *** done
