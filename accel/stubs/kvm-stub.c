@@ -141,5 +141,11 @@ bool kvm_hwpoisoned_mem(void)
 
 int kvm_create_guest_memfd(uint64_t size, uint64_t flags, Error **errp)
 {
+    error_setg(errp, "KVM is not enabled");
     return -ENOSYS;
+}
+
+bool kvm_private_memory_attribute_supported(void)
+{
+    return false;
 }

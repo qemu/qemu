@@ -1,3 +1,5 @@
+.. _confidential-guest-support:
+
 Confidential Guest Support
 ==========================
 
