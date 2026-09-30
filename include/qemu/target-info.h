@@ -64,6 +64,13 @@ bool target_arm(void);
 bool target_aarch64(void);
 
 /**
+ * target_m68k:
+ *
+ * Returns whether the target architecture is M68K.
+ */
+bool target_m68k(void);
+
+/**
  * target_base_ppc:
  *
  * Returns whether the target architecture is PowerPC 32-bit or 64-bit.
