@@ -688,6 +688,20 @@ bool riscv_cpu_translate_for_debug(CPUState *cs, vaddr addr,
 bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request);
 void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env);
 int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint64_t interrupts);
+/**
+ * riscv_cpu_update_mip:
+ * @env: CPURISCVState
+ * @mask: Mask of the MIP bits to update
+ * @value: New values for the bits set in @mask.
+ *         Use BOOL_TO_MASK() for boolean values.
+ *
+ * Set or clear the Machine Interrupt Pending register (MIP)
+ * bits selected by @mask.
+ *
+ * Note: VSTIP is not maintained in MIP, so it is ignored here.
+ *
+ * Returns: the value of mip before the update.
+ */
 uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask,
                               uint64_t value);
 void riscv_cpu_set_rnmi(RISCVCPU *cpu, uint32_t irq, bool level);
