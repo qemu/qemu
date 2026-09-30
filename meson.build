@@ -4270,6 +4270,7 @@ multi_target_supported_targets = [
   'm68k-softmmu',
   'microblaze-softmmu',
   'rx-softmmu',
+  'tricore-softmmu',
 ]
 
 emulators = {}
