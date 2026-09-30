@@ -65,3 +65,14 @@ metadata. In case this boot method is used, the command line
 options -initrd and -cmdline are ineffective. The preparation of a PVM
 image is done via the ``genprotimg`` tool from the s390-tools
 collection.
+
+
+PV property
+-----------
+
+The s390x-ccw machine exposes the read-only runtime "pv"
+property. This property is true if a guest successfully made the
+transition into PV mode as reported by KVM and hasn't yet exited PV
+mode via a reboot. This does not replace PV attestation which is the
+only authoritative way to get a definitive answer if a guest is truly
+protected.

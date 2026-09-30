@@ -247,8 +247,10 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         /*
          * Report this error, but do not make it a failing condition.
          * Lack of this IRQ in the host does not prevent normal operation.
+         * Clear the pointer, since the warning will release it.
          */
         warn_report_err(err);
+        err = NULL;
     }
 
     if (!vfio_ap_register_irq_notifier(vapdev, VFIO_AP_CFG_CHG_IRQ_INDEX, &err))
@@ -256,8 +258,10 @@ static void vfio_ap_realize(DeviceState *dev, Error **errp)
         /*
          * Report this error, but do not make it a failing condition.
          * Lack of this IRQ in the host does not prevent normal operation.
+         * Clear the pointer, since the warning will release it.
          */
         warn_report_err(err);
+        err = NULL;
     }
 
     return;
