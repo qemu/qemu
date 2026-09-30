@@ -559,6 +559,7 @@ static const TypeInfo or1ksim_machine_typeinfo = {
     .parent     = TYPE_MACHINE,
     .class_init = openrisc_virt_machine_init,
     .instance_size = sizeof(OR1KVirtState),
+    .is_available = target_or1k,
 };
 
 static void or1ksim_machine_init_register_types(void)
