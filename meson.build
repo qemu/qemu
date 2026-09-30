@@ -4269,6 +4269,7 @@ multi_target_supported_targets = [
   'hppa-softmmu',
   'm68k-softmmu',
   'microblaze-softmmu',
+  'or1k-softmmu',
   'rx-softmmu',
   'tricore-softmmu',
 ]
