@@ -32,6 +32,9 @@ run-fcvt: fcvt
 ARM_TESTS += pcalign-a32
 pcalign-a32: CFLAGS+=-marm
 
+ARM_TESTS += test-arm-opt-ror
+test-arm-opt-ror: CFLAGS+=-marm
+
 ifeq ($(CONFIG_ARM_COMPATIBLE_SEMIHOSTING),y)
 
 # Semihosting smoke test for linux-user
