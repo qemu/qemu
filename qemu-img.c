@@ -2248,7 +2248,7 @@ static int img_convert(int argc, char **argv)
     Error *local_err = NULL;
     bool writethrough, src_writethrough, image_opts = false,
          skip_create = false, progress = false, tgt_image_opts = false;
-    int64_t ret = -EINVAL;
+    int64_t ret = -EINVAL, ret2;
     bool force_share = false;
     bool explict_min_sparse = false;
     bool bitmaps = false;
@@ -2788,6 +2788,12 @@ static int img_convert(int argc, char **argv)
     /* Now copy the bitmaps */
     if (bitmaps && ret == 0) {
         ret = convert_copy_bitmaps(blk_bs(s.src[0]), out_bs, skip_broken);
+    }
+
+    ret2 = blk_flush(s.target);
+    if (ret2 < 0) {
+        error_report("Failed to flush target image: %s", strerror(-ret2));
+        ret = ret != 0 ? ret : ret2;
     }
 
 out:
