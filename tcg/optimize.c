@@ -2603,17 +2603,26 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
 
         z_mask = do_constant_folding(op->opc, ctx->type, z_mask, sh);
 
-        if (op->opc == INDEX_op_shr_i32 || op->opc == INDEX_op_shr_i64) {
+        switch (op->opc) {
+        CASE_OP_32_64(shr):
+        CASE_OP_32_64(rotl):
+        CASE_OP_32_64(rotr):
             /*
-             * Logical right shift will force the sign bit zero.
+             * Logical right shift will force the sign bit zero, and
+             * a rotate may move bits unrelated to the sign into it.
              * Don't bother computing s_mask and let fold_masks
              * recompute from z_mask.
              */
             return fold_masks_z(ctx, op, z_mask);
-        }
 
-        s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
-        return fold_masks_zs(ctx, op, z_mask, s_mask);
+        CASE_OP_32_64(sar):
+        CASE_OP_32_64(shl):
+            s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
+            return fold_masks_zs(ctx, op, z_mask, s_mask);
+
+        default:
+            g_assert_not_reached();
+        }
     }
 
     switch (op->opc) {
