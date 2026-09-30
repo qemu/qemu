@@ -25,17 +25,23 @@
 #include "system/kvm.h"
 #include "system/tcg.h"
 
-static void riscv_accel_set_irq(RISCVCPU *cpu, int irq, int level)
+static void riscv_accel_set_irq(RISCVCPU *cpu,
+                                int irq_or_mask, int level_or_value)
 {
     if (kvm_enabled()) {
+        int irq = irq_or_mask;
+        int level = level_or_value;
+
         kvm_riscv_set_irq(cpu, irq, level);
     }
 
     if (tcg_enabled()) {
-        riscv_cpu_update_mip(&cpu->env, irq, level);
+        uint64_t mask = irq_or_mask;
+        uint64_t value = level_or_value;
+
+        riscv_cpu_update_mip(&cpu->env, mask, value);
     }
 }
-
 
 static void riscv_vstimer_cb(void *opaque)
 {
