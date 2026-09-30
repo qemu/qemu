@@ -267,7 +267,9 @@ qemu-img convert exited with status 0
 
 === failing flush after convert with 'writeback' cache mode ===
 
+qemu-img: Failed flush for 'json:{ /* filtered */ }' during close: Input/output error
 qemu-img: Failed to flush the L2 table cache: Input/output error
 qemu-img: Failed to flush the refcount block cache: Input/output error
+qemu-img: Failed flush for 'json:{ /* filtered */ }' during close: Input/output error
 qemu-img convert exited with status 0
 *** done

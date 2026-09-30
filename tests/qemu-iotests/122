@@ -357,15 +357,15 @@ target_fails_flush="json:{
     }
 }"
 
-$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG".orig "$target_fails_flush"
-echo "qemu-img convert exited with status $?"
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG".orig "$target_fails_flush" 2>&1 | _filter_json_filename
+echo "qemu-img convert exited with status ${PIPESTATUS[0]}"
 
 echo
 echo "=== failing flush after convert with 'writeback' cache mode ==="
 echo
 
-$QEMU_IMG convert -t writeback -f $IMGFMT -O $IMGFMT -n "$TEST_IMG".orig "$target_fails_flush"
-echo "qemu-img convert exited with status $?"
+$QEMU_IMG convert -t writeback -f $IMGFMT -O $IMGFMT -n "$TEST_IMG".orig "$target_fails_flush" 2>&1 | _filter_json_filename
+echo "qemu-img convert exited with status ${PIPESTATUS[0]}"
 
 # success, all done
 echo '*** done'
