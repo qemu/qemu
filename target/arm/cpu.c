@@ -1467,6 +1467,10 @@ static void arm_cpu_propagate_feature_implications(ARMCPU *cpu)
         set_feature(env, ARM_FEATURE_PMSA);
     }
 
+    if (arm_feature(env, ARM_FEATURE_M_MAIN)) {
+        set_feature(env, ARM_FEATURE_M_UNPRIV);
+    }
+
     if (arm_feature(env, ARM_FEATURE_V8)) {
         if (arm_feature(env, ARM_FEATURE_M)) {
             set_feature(env, ARM_FEATURE_V7);
@@ -1503,7 +1507,11 @@ static void arm_cpu_propagate_feature_implications(ARMCPU *cpu)
         set_feature(env, ARM_FEATURE_V7);
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
-        set_feature(env, ARM_FEATURE_VAPA);
+        /* VAPA appears in v7A, but not in R profile until v8R */
+        if (arm_feature(env, ARM_FEATURE_V8) ||
+            !arm_feature(env, ARM_FEATURE_PMSA)) {
+            set_feature(env, ARM_FEATURE_VAPA);
+        }
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_MPIDR);
         if (!arm_feature(env, ARM_FEATURE_M)) {

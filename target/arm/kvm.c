@@ -244,6 +244,45 @@ static int get_host_cpu_reg(int fd, ARMHostCPUFeatures *ahcf,
     return ret;
 }
 
+
+/* CSSELR values supported by kvm; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
+#define KVM_CSSELR_MAX 14
+/*
+ * QEMU historically supported CSSELR values 0..15. This difference
+ * doen't matter since CSSELR_EL1.Level == 0b111 is reserved and thus
+ * CSSELR values 14..15 will make CCSIDR read as zero. Larger CSSELR
+ * values will only be necessary when support for MTE Allocation Tag
+ * caches is added.
+ */
+#define QEMU_CSSELR_MAX 16
+
+static int get_host_cpu_reg_demux(int fd, ARMHostCPUFeatures *ahcf,
+                                  ARMIDRegisterIdx index, int subindex)
+{
+
+    struct kvm_one_reg one_reg = {
+        .id = KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_DEMUX,
+    };
+
+    switch (index) {
+    case CCSIDR_EL1_IDX:
+        if (subindex >= QEMU_CSSELR_MAX) {
+            return -EINVAL;
+        } else if (subindex >= KVM_CSSELR_MAX) {
+            /* CSSELR_EL1.Level == 0b111 is reserved. */
+            ahcf->isar.idregs[index + subindex] = 0;
+            return 0;
+        }
+        one_reg.id |= KVM_REG_ARM_DEMUX_ID_CCSIDR | subindex;
+        one_reg.addr = (uintptr_t)&ahcf->isar.idregs[index + subindex];
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return ioctl(fd, KVM_GET_ONE_REG, &one_reg);
+}
+
 static uint32_t kvm_arm_sve_get_vls(int fd)
 {
     uint64_t vls[KVM_ARM64_SVE_VLS_WORDS];
@@ -453,6 +492,10 @@ static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
             /* Read the set of supported vector lengths. */
             arm_host_cpu_features.sve_vq_supported = kvm_arm_sve_get_vls(fd);
+        }
+        /* Grab demuxed registers. */
+        for (int i = 0; i < QEMU_CSSELR_MAX; i++) {
+            err |= get_host_cpu_reg_demux(fd, ahcf, CCSIDR_EL1_IDX, i);
         }
     }
 

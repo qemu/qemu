@@ -230,6 +230,125 @@ bool write_list_to_cpustate(ARMCPU *cpu)
     return ok;
 }
 
+#ifdef CONFIG_DEBUG_TCG
+/* Data to pass through to check_cpreg() */
+typedef struct CheckCPRegData {
+    ARMCPU *cpu;
+    bool warned;
+} CheckCPRegData;
+
+static void check_cpreg(gpointer key, gpointer value, gpointer opaque)
+{
+    CheckCPRegData *data = opaque;
+    ARMCPU *cpu = data->cpu;
+    CPUARMState *env = &cpu->env;
+    bool match = false;
+    const ARMCPRegInfo *ri = value;
+
+    if ((ri->type & (ARM_CP_NO_RAW | ARM_CP_CONST)) ||
+        ri->fieldoffset == 0) {
+        return;
+    }
+
+    /*
+     * If we don't have EL3 then the guest can't get at S-only
+     * registers even if they're in the hashtable. This avoids
+     * false-positive complaints about e.g. TTBCR_S and DFSR_S: they
+     * are migrated via ESR_EL3 and TCR_EL3, but we only register those
+     * _EL3 regs if ARM_FEATURE_EL3.
+     */
+    if (ri->secure == ARM_CP_SECSTATE_S && !arm_feature(env, ARM_FEATURE_EL3)) {
+        return;
+    }
+
+    /*
+     * Some special cases for sysregs that are backed by fields that we
+     * migrate in the main vmstate, not the cpregs array.
+     */
+    if (ri->fieldoffset >= offsetof(CPUARMState, banked_spsr[BANK_USRSYS]) &&
+        ri->fieldoffset <= offsetof(CPUARMState, banked_spsr[BANK_MON])) {
+        return;
+    }
+    if (ri->fieldoffset >= offsetof(CPUARMState, elr_el[0]) &&
+        ri->fieldoffset <= offsetof(CPUARMState, elr_el[3])) {
+        return;
+    }
+    if (ri->fieldoffset >= offsetof(CPUARMState, sp_el[0]) &&
+        ri->fieldoffset <= offsetof(CPUARMState, sp_el[3])) {
+        return;
+    }
+    if (ri->fieldoffset == offsetof(CPUARMState, vfp.xregs[ARM_VFP_FPEXC])) {
+        return;
+    }
+
+    for (int i = 0; i < cpu->cpreg_array_len; i++) {
+        uint32_t other_regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+        const ARMCPRegInfo *other_ri = get_arm_cp_reginfo(cpu->cp_regs,
+                                                          other_regidx);
+
+        if (!other_ri || (other_ri->type & (ARM_CP_NO_RAW | ARM_CP_CONST)) ||
+            other_ri->fieldoffset == 0) {
+            continue;
+        }
+
+        /*
+         * If the field offsets match exactly, or this 32-bit cpreg
+         * is in the second half of a 64-bit field, consider it to
+         * be handled.
+         */
+        if (ri->fieldoffset == other_ri->fieldoffset ||
+            (cpreg_field_type(ri) == MO_32 &&
+             cpreg_field_type(other_ri) == MO_64 &&
+             ri->fieldoffset == other_ri->fieldoffset + 4)) {
+            match = true;
+            break;
+        }
+    }
+    if (!match) {
+        warn_report("check_cpreg: no migration entry found for %s", ri->name);
+        data->warned = true;
+    }
+}
+#endif /* CONFIG_DEBUG_TCG */
+
+static void arm_check_cpreg_coverage(ARMCPU *cpu)
+{
+    /*
+     * Try to catch bugs where we don't actually migrate a cpreg.
+     * Specifically, here we check that every cpreg in the hash table
+     * (and thus potentially visible to the guest) which specifies
+     * a fieldoffset has some entry in the cpreg_indexes[] array that
+     * handles that same fieldoffset.
+     * The typical bug that will be flagged up here is if a register
+     * is marked as an alias of something else, but there isn't actually
+     * anything else that handles the field.
+     *
+     * Note that the checks are more of a best-effort, are somewhat
+     * expensive at O(n^2) in the number of sysregs, and need some
+     * cases to be excluded where the sysreg data isn't migrated via
+     * the cpreg arrays. So we only do them in --enable-debug builds,
+     * to avoid potentially causing problems for users.
+     */
+#ifdef CONFIG_DEBUG_TCG
+    CheckCPRegData data = {
+        .cpu = cpu,
+        .warned = false,
+    };
+
+    /* We'll only use the cpregs for migration with TCG */
+    if (!tcg_enabled()) {
+        return;
+    }
+    g_hash_table_foreach(cpu->cp_regs, check_cpreg, &data);
+
+    if (data.warned) {
+        error_printf("check_cpreg errors are a QEMU bug that may cause "
+                     "migration to fail. Please report this with the full "
+                     "QEMU command line and version.\n");
+    }
+#endif
+}
+
 static void add_cpreg_to_list(gpointer key, gpointer value, gpointer opaque)
 {
     ARMCPU *cpu = opaque;
@@ -281,6 +400,8 @@ void arm_init_cpreg_list(ARMCPU *cpu)
     if (arraylen) {
         qsort(cpu->cpreg_indexes, arraylen, sizeof(uint64_t), compare_u64);
     }
+
+    arm_check_cpreg_coverage(cpu);
 }
 
 bool arm_pan_enabled(CPUARMState *env)
@@ -925,7 +1046,7 @@ static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     uint32_t index = A32_BANKED_REG_GET(env, csselr,
                                         ri->secure & ARM_CP_SECSTATE_S);
 
-    return cpu->ccsidr[index];
+    return GET_IDREG_DEMUX(&cpu->isar, CCSIDR_EL1, index);
 }
 
 static void csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -1072,14 +1193,12 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.mair0_s),
-                             offsetof(CPUARMState, cp15.mair0_ns) },
-      .resetfn = arm_cp_reset_ignore },
+                             offsetof(CPUARMState, cp15.mair0_ns) }, },
     { .name = "MAIR1", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 0, .crn = 10, .crm = 2, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.mair1_s),
-                             offsetof(CPUARMState, cp15.mair1_ns) },
-      .resetfn = arm_cp_reset_ignore },
+                             offsetof(CPUARMState, cp15.mair1_ns) }, },
     { .name = "ISR_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 1, .opc2 = 0,
       .fgt = FGT_ISR_EL1,
@@ -1136,8 +1255,7 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
       .access = PL0_RW,
       .fgt = FGT_TPIDR_EL0,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tpidrurw_s),
-                             offsetoflow32(CPUARMState, cp15.tpidrurw_ns) },
-      .resetfn = arm_cp_reset_ignore },
+                             offsetoflow32(CPUARMState, cp15.tpidrurw_ns) }, },
     { .name = "TPIDRRO_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .opc2 = 3, .crn = 13, .crm = 0,
       .access = PL0_R | PL1_W,
@@ -1148,8 +1266,7 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
       .access = PL0_R | PL1_W,
       .fgt = FGT_TPIDRRO_EL0,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tpidruro_s),
-                             offsetoflow32(CPUARMState, cp15.tpidruro_ns) },
-      .resetfn = arm_cp_reset_ignore },
+                             offsetoflow32(CPUARMState, cp15.tpidruro_ns) }, },
     { .name = "TPIDR_EL1", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 0, .opc2 = 4, .crn = 13, .crm = 0,
       .access = PL1_RW,
@@ -1575,11 +1692,12 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         } else {
             /*
              * Next transition is when (count - offset) == cval, i.e.
-             * when count == (cval + offset).
-             * If that would overflow, then again we set up the next interrupt
-             * for "as far in the future as possible" for the code below.
+             * cval - (count - offset) ticks from now. If count plus that
+             * overflows, set up "as far in the future as possible" below.
              */
-            if (uadd64_overflow(gt->cval, offset, &nexttick)) {
+            uint64_t remaining = gt->cval - (count - offset);
+
+            if (uadd64_overflow(count, remaining, &nexttick)) {
                 nexttick = UINT64_MAX;
             }
         }
@@ -2213,7 +2331,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTPCT", .cp = 15, .crm = 14, .opc1 = 0,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
       .accessfn = gt_pct_access,
-      .readfn = gt_cnt_read, .resetfn = arm_cp_reset_ignore,
+      .readfn = gt_cnt_read,
     },
     { .name = "CNTPCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 1,
@@ -2223,7 +2341,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
       .accessfn = gt_vct_access,
-      .readfn = gt_virt_cnt_read, .resetfn = arm_cp_reset_ignore,
+      .readfn = gt_virt_cnt_read,
     },
     { .name = "CNTVCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 2,
@@ -2314,7 +2432,7 @@ static const ARMCPRegInfo gen_timer_ecv_cp_reginfo[] = {
     { .name = "CNTVCTSS", .cp = 15, .crm = 14, .opc1 = 9,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
       .accessfn = gt_vct_access,
-      .readfn = gt_virt_cnt_read, .resetfn = arm_cp_reset_ignore,
+      .readfn = gt_virt_cnt_read,
     },
     { .name = "CNTVCTSS_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 6,
@@ -2324,7 +2442,7 @@ static const ARMCPRegInfo gen_timer_ecv_cp_reginfo[] = {
     { .name = "CNTPCTSS", .cp = 15, .crm = 14, .opc1 = 8,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
       .accessfn = gt_pct_access,
-      .readfn = gt_cnt_read, .resetfn = arm_cp_reset_ignore,
+      .readfn = gt_cnt_read,
     },
     { .name = "CNTPCTSS_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 5,
@@ -2898,6 +3016,14 @@ static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 }
 
 static const ARMCPRegInfo vmsa_pmsa_cp_reginfo[] = {
+    { .name = "ESR_EL1", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .accessfn = access_tvm_trvm,
+      .fgt = FGT_ESR_EL1,
+      .nv2_redirect_offset = 0x138 | NV2_REDIR_NV1,
+      .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 5, 2, 0),
+      .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 5, 2, 0),
+      .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm, .type = ARM_CP_ALIAS,
       .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.dfsr_s),
@@ -2922,14 +3048,6 @@ static const ARMCPRegInfo vmsa_pmsa_cp_reginfo[] = {
 };
 
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
-    { .name = "ESR_EL1", .state = ARM_CP_STATE_AA64,
-      .opc0 = 3, .crn = 5, .crm = 2, .opc1 = 0, .opc2 = 0,
-      .access = PL1_RW, .accessfn = access_tvm_trvm,
-      .fgt = FGT_ESR_EL1,
-      .nv2_redirect_offset = 0x138 | NV2_REDIR_NV1,
-      .vhe_redir_to_el2 = ENCODE_AA64_CP_REG(3, 4, 5, 2, 0),
-      .vhe_redir_to_el01 = ENCODE_AA64_CP_REG(3, 5, 5, 2, 0),
-      .fieldoffset = offsetof(CPUARMState, cp15.esr_el[1]), .resetvalue = 0, },
     { .name = "TTBR0_EL1", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 0, .crn = 2, .crm = 0, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
@@ -3102,6 +3220,9 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_64BIT, .resetvalue = 0,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.par_s),
                              offsetof(CPUARMState, cp15.par_ns)} },
+};
+
+static const ARMCPRegInfo lpae_vmsa_cp_reginfo[] = {
     { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .type = ARM_CP_64BIT | ARM_CP_ALIAS,
@@ -7230,6 +7351,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         define_arm_cp_regs(cpu, lpae_cp_reginfo);
+        if (!arm_feature(env, ARM_FEATURE_PMSA)) {
+            define_arm_cp_regs(cpu, lpae_vmsa_cp_reginfo);
+        }
     }
     if (cpu_isar_feature(aa32_jazelle, cpu)) {
         define_arm_cp_regs(cpu, jazelle_regs);
@@ -7787,18 +7911,33 @@ static void add_cpreg_to_hashtable(ARMCPU *cpu, ARMCPRegInfo *r,
         if (state == ARM_CP_STATE_AA32) {
             if (isbanked) {
                 /*
-                 * If the register is banked then we don't need to migrate or
-                 * reset the 32-bit instance in certain cases:
+                 * If this is an AArch64 CPU then AArch32 cpregs are never
+                 * banked, and if we put an NS version into the hash table
+                 * it would never be accessed (compare the condition we test
+                 * in access_secure_reg()). So drop it rather than adding it.
                  *
-                 * 1) If the register has both 32-bit and 64-bit instances
-                 *    then we can count on the 64-bit instance taking care
-                 *    of the non-secure bank.
-                 * 2) If ARMv8 is enabled then we can count on a 64-bit
-                 *    version taking care of the secure bank.  This requires
-                 *    that separate 32 and 64-bit definitions are provided.
+                 * Ideally we would also ignore the S banked register here
+                 * for an AArch32 register without EL3; however, that would
+                 * be a migration compatibility break for those CPUs, so we
+                 * continue with having the cpregs in the hashtable.
                  */
-                if ((r->state == ARM_CP_STATE_BOTH && ns) ||
-                    (arm_feature(env, ARM_FEATURE_V8) && !ns)) {
+                if (!ns && arm_feature(env, ARM_FEATURE_AARCH64)) {
+                    g_free(r);
+                    return;
+                }
+                /*
+                 * If the register is banked then we don't need to migrate or
+                 * reset the 32-bit instance if this is a STATE_BOTH regdef.
+                 * This is because we can know for certain that there's a
+                 * 64-bit regdef that's using bank_fieldoffsets[1] as its
+                 * fieldoffset, because the code that handles STATE_BOTH
+                 * always registers it. In other situations either the NS
+                 * or the S banked register might be aliased (architecturally
+                 * or non-architecturally) to a 64-bit register, but it might
+                 * not be. For those we must manually mark the alias in the
+                 * regdef struct if we care.
+                 */
+                if (r->state == ARM_CP_STATE_BOTH && ns) {
                     r->type |= ARM_CP_ALIAS;
                 }
             } else if ((secstate != r->secure) && !ns) {
@@ -9376,24 +9515,33 @@ static int aarch64_regnum(CPUARMState *env, int aarch32_reg)
     }
 }
 
-uint32_t cpsr_read_for_spsr_elx(CPUARMState *env)
+uint64_t cpsr_read_for_spsr_elx(CPUARMState *env)
 {
-    uint32_t ret = cpsr_read(env);
+    uint64_t ret = cpsr_read(env);
 
     /* Move DIT to the correct location for SPSR_ELx */
     if (ret & CPSR_DIT) {
         ret &= ~CPSR_DIT;
         ret |= PSTATE_DIT;
     }
-    /* Merge PSTATE.SS into SPSR_ELx */
-    ret |= env->pstate & PSTATE_SS;
+
+    /* Merge PSTATE.{SS,UINJ} into SPSR_ELx */
+    ret |= env->pstate & (PSTATE_SS | PSTATE_UINJ);
 
     return ret;
 }
 
-void cpsr_write_from_spsr_elx(CPUARMState *env, uint32_t val)
+void cpsr_write_from_spsr_elx(CPUARMState *env, uint64_t val)
 {
     uint32_t mask;
+
+    /* Save SPSR_ELx.UINJ into PSTATE. */
+    if (unlikely(val & PSTATE_UINJ)
+        && arm_feature(env, ARM_FEATURE_AARCH64)
+        && cpu_isar_feature(aa64_uinj, env_archcpu(env))) {
+        env->pstate |= PSTATE_UINJ;
+        val &= ~PSTATE_UINJ;
+    }
 
     /* Save SPSR_ELx.SS into PSTATE. */
     env->pstate = (env->pstate & ~PSTATE_SS) | (val & PSTATE_SS);
@@ -9606,6 +9754,15 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
 
         env->condexec_bits = 0;
     }
+
+    /*
+     * R_XKSNJ: If FEAT_UINJ, PSTATE.UINJ is set to 0 *and* the resulting
+     * value stored in SPSR_ELx is 0.  The new PSTATE is automatically
+     * handled by construction of a new value from 0; clear it from the
+     * old state and as UINJ is RES0 otherwise, skip the feature check.
+     */
+    old_mode &= ~PSTATE_UINJ;
+
     env->banked_spsr[aarch64_banked_spsr_index(new_el)] = old_mode;
 
     qemu_log_mask(CPU_LOG_INT, "...with SPSR 0x%" PRIx64 "\n", old_mode);
