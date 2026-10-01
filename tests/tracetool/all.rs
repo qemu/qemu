@@ -37,6 +37,8 @@ extern "C" {
 pub fn trace_test_blah_enabled() -> bool
 {
     (unsafe {qemu_test_blah_semaphore.get().read_volatile()}) != 0 ||
+    ((unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 &&
+     trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE})) ||
     trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) ||
     false
 }
@@ -48,11 +50,13 @@ pub fn trace_test_blah(_context: *mut (), _filename: &std::ffi::CStr)
     ::trace::probe!(qemu, test_blah, _context, _filename.as_ptr());
     if trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) {
         let format_string = c"test_blah Blah context=%p filename=%s\n";
-        unsafe {bindings::ftrace_write(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _filename.as_ptr());}
-        let format_string = c"test_blah Blah context=%p filename=%s\n";
         if (unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 {
             unsafe { bindings::qemu_log(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _filename.as_ptr());}
         }
+    }
+    if trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) {
+        let format_string = c"test_blah Blah context=%p filename=%s\n";
+        unsafe {bindings::ftrace_write(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _filename.as_ptr());}
         extern "C" { fn _simple_trace_test_blah(_context: *mut (), _filename: *const std::ffi::c_char); }
         unsafe { _simple_trace_test_blah(_context, _filename.as_ptr()); }
         let format_string = c"test_blah Blah context=%p filename=%s";
@@ -65,6 +69,8 @@ pub fn trace_test_blah(_context: *mut (), _filename: &std::ffi::CStr)
 pub fn trace_test_wibble_enabled() -> bool
 {
     (unsafe {qemu_test_wibble_semaphore.get().read_volatile()}) != 0 ||
+    ((unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 &&
+     trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE})) ||
     trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) ||
     false
 }
@@ -76,11 +82,13 @@ pub fn trace_test_wibble(_context: *mut (), _value: std::ffi::c_int)
     ::trace::probe!(qemu, test_wibble, _context, _value);
     if trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) {
         let format_string = c"test_wibble Wibble context=%p value=%d\n";
-        unsafe {bindings::ftrace_write(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _value /* as std::ffi::c_int */);}
-        let format_string = c"test_wibble Wibble context=%p value=%d\n";
         if (unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 {
             unsafe { bindings::qemu_log(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _value /* as std::ffi::c_int */);}
         }
+    }
+    if trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) {
+        let format_string = c"test_wibble Wibble context=%p value=%d\n";
+        unsafe {bindings::ftrace_write(format_string.as_ptr() as *const c_char, _context /* as *mut () */, _value /* as std::ffi::c_int */);}
         extern "C" { fn _simple_trace_test_wibble(_context: *mut (), _value: std::ffi::c_int); }
         unsafe { _simple_trace_test_wibble(_context, _value); }
         let format_string = c"test_wibble Wibble context=%p value=%d";

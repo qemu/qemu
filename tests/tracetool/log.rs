@@ -27,7 +27,8 @@ extern "C" {
 #[allow(dead_code)]
 pub fn trace_test_blah_enabled() -> bool
 {
-    trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE}) ||
+    ((unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 &&
+     trace_event_state_is_enabled(unsafe { _TRACE_TEST_BLAH_DSTATE})) ||
     false
 }
 
@@ -47,7 +48,8 @@ pub fn trace_test_blah(_context: *mut (), _filename: &std::ffi::CStr)
 #[allow(dead_code)]
 pub fn trace_test_wibble_enabled() -> bool
 {
-    trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE}) ||
+    ((unsafe { bindings::qemu_loglevel } & bindings::LOG_TRACE) != 0 &&
+     trace_event_state_is_enabled(unsafe { _TRACE_TEST_WIBBLE_DSTATE})) ||
     false
 }
 
