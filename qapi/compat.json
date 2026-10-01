@@ -9,8 +9,7 @@
 
 ##
 # @CompatPolicyInput:
-#
-# Policy for handling "funny" input.
+#     Policy for handling "funny" input.
 #
 # @accept: Accept silently
 #
@@ -25,8 +24,7 @@
 
 ##
 # @CompatPolicyOutput:
-#
-# Policy for handling "funny" output.
+#     Policy for handling "funny" output.
 #
 # @accept: Pass on unchanged
 #
@@ -39,9 +37,8 @@
 
 ##
 # @CompatPolicySecurity:
-#
-# Policy for handling any devices or backends which do not provide a
-# security boundary to protect against untrusted environments
+#     Policy for handling any devices or backends which do not provide
+#     a security boundary to protect against untrusted environments
 #
 # @accept: Allow any usage
 #
@@ -56,10 +53,9 @@
 
 ##
 # @CompatPolicy:
+#     Policy for handling deprecated management interfaces.
 #
-# Policy for handling deprecated management interfaces.
-#
-# This is intended for testing users of the management interfaces.
+#     This is intended for testing users of the management interfaces.
 #
 # Limitation: covers only syntactic aspects of QMP, i.e. stuff tagged
 # with feature 'deprecated' or 'unstable'.  We may want to extend it

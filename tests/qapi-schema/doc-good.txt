@@ -65,10 +65,10 @@ Object Variant1
 
    Another paragraph
 
-   "var1" is undocumented
-
    Members:
       * **var1** ("string") -- Not documented
+
+   "var1" is undocumented
 
    Features:
       * **variant1-feat** -- a feature

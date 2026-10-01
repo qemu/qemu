@@ -16,11 +16,10 @@
 
 ##
 # @BiosAtaTranslation:
-#
-# Policy that BIOS should use to interpret cylinder/head/sector
-# addresses.  Note that Bochs BIOS and SeaBIOS will not actually
-# translate logical CHS to physical; instead, they will use logical
-# block addressing.
+#     Policy that BIOS should use to interpret cylinder/head/sector
+#     addresses.  Note that Bochs BIOS and SeaBIOS will not actually
+#     translate logical CHS to physical; instead, they will use
+#     logical block addressing.
 #
 # @auto: If cylinder/heads/sizes are passed, choose between none and
 #     LBA depending on the size of the disk.  If they are not passed,
@@ -50,8 +49,8 @@
 
 ##
 # @FloppyDriveType:
-#
-# Type of floppy drive to be emulated by the Floppy Disk Controller.
+#     Type of floppy drive to be emulated by the
+#     Floppy Disk Controller.
 #
 # @144: 1.44MB 3.5" drive
 #
@@ -70,8 +69,7 @@
 
 ##
 # @PRManagerInfo:
-#
-# Information about a persistent reservation manager
+#     Information about a persistent reservation manager
 #
 # @id: the identifier of the persistent reservation manager
 #
@@ -85,9 +83,8 @@
 
 ##
 # @query-pr-managers:
-#
-# Return a list of information about each persistent reservation
-# manager.
+#     Return a list of information about each persistent reservation
+#     manager.
 #
 # Returns: a list of manager info for each persistent reservation
 #     manager
@@ -99,8 +96,7 @@
 
 ##
 # @eject:
-#
-# Ejects the medium from a removable drive.
+#     Ejects the medium from a removable drive.
 #
 # @device: Block device name
 #
@@ -132,11 +128,12 @@
 
 ##
 # @blockdev-open-tray:
+#     Opens a block device's tray.
 #
-# Opens a block device's tray.  If there is a block driver state tree
-# inserted as a medium, it will become inaccessible to the guest (but
-# it will remain associated to the block device, so closing the tray
-# will make it accessible again).
+# If there is a block driver state tree inserted as a medium, it will
+# become inaccessible to the guest (but it will remain associated to
+# the block device, so closing the tray will make it accessible
+# again).
 #
 # If the tray was already open before, this will be a no-op.
 #
@@ -185,10 +182,11 @@
 
 ##
 # @blockdev-close-tray:
+#     Closes a block device's tray.
 #
-# Closes a block device's tray.  If there is a block driver state tree
-# associated with the block device (which is currently ejected), that
-# tree will be loaded as the medium.
+# If there is a block driver state tree associated with the block
+# device (which is currently ejected), that tree will be loaded as the
+# medium.
 #
 # If the tray was already closed before, this will be a no-op.
 #
@@ -222,13 +220,12 @@
 
 ##
 # @blockdev-remove-medium:
+#     Removes a medium (a block driver state tree) from a block
+#     device.  That block device's tray must currently be open
+#     (unless there is no attached guest device).
 #
-# Removes a medium (a block driver state tree) from a block device.
-# That block device's tray must currently be open (unless there is no
-# attached guest device).
-#
-# If the tray is open and there is no medium inserted, this will be a
-# no-op.
+# If the tray is open and there is no medium inserted, this will
+# be a no-op.
 #
 # @id: The name or QOM path of the guest device
 #
@@ -264,10 +261,10 @@
 
 ##
 # @blockdev-insert-medium:
-#
-# Inserts a medium (a block driver state tree) into a block device.
-# That block device's tray must currently be open (unless there is no
-# attached guest device) and there must be no medium inserted already.
+#     Inserts a medium (a block driver state tree) into a block
+#     device.  That block device's tray must currently be open (unless
+#     there is no attached guest device) and there must be no medium
+#     inserted already.
 #
 # @id: The name or QOM path of the guest device
 #
@@ -297,9 +294,8 @@
 
 ##
 # @BlockdevChangeReadOnlyMode:
-#
-# Specifies the new read-only mode of a block device subject to the
-# `blockdev-change-medium` command.
+#     Specifies the new read-only mode of a block device subject to
+#     the `blockdev-change-medium` command.
 #
 # @retain: Retains the current read-only mode
 #
@@ -314,12 +310,11 @@
 
 ##
 # @blockdev-change-medium:
-#
-# Changes the medium inserted into a block device by ejecting the
-# current medium and loading a new image file which is inserted as the
-# new medium (this command combines `blockdev-open-tray`,
-# `blockdev-remove-medium`, `blockdev-insert-medium` and
-# `blockdev-close-tray`).
+#     Changes the medium inserted into a block device by ejecting the
+#     current medium and loading a new image file which is inserted as
+#     the new medium (this command combines `blockdev-open-tray`,
+#     `blockdev-remove-medium`, `blockdev-insert-medium` and
+#     `blockdev-close-tray`).
 #
 # @device: Block device name
 #
@@ -385,9 +380,8 @@
 
 ##
 # @DEVICE_TRAY_MOVED:
-#
-# Emitted whenever the tray of a removable device is moved by the
-# guest or by HMP/QMP commands
+#     Emitted whenever the tray of a removable device is moved by the
+#     guest or by HMP/QMP commands
 #
 # @device: Block device name.  This is always present for
 #     compatibility reasons, but it can be empty ("") if the image
@@ -414,9 +408,8 @@
 
 ##
 # @PR_MANAGER_STATUS_CHANGED:
-#
-# Emitted whenever the connected status of a persistent reservation
-# manager changes.
+#     Emitted whenever the connected status of a persistent
+#     reservation manager changes.
 #
 # @id: The id of the PR manager object
 #
@@ -437,8 +430,7 @@
 
 ##
 # @block_set_io_throttle:
-#
-# Change I/O throttle limits for a block drive.
+#     Change I/O throttle limits for a block drive.
 #
 # Since QEMU 2.4, each device with I/O limits is member of a throttle
 # group.
@@ -512,8 +504,7 @@
 
 ##
 # @block-latency-histogram-set:
-#
-# Manage read, write and flush latency histograms for the device.
+#     Manage read, write and flush latency histograms for the device.
 #
 # If only @id parameter is specified, remove all present latency
 # histograms for the device.  Otherwise, add/reset some of (or all)
@@ -606,9 +597,10 @@
 
 ##
 # @x-qemu-io:
+#     Run a qemu-io command on a block device.
 #
-# Run a qemu-io command on a block device.  Take either a block
-# backend name or a qdev ID to identify the device.
+# Take either a block backend name or a qdev ID to identify the
+# device.
 #
 # @device: the block backend name, node-name to run the
 #     command on.

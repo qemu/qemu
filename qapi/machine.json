@@ -15,12 +15,11 @@
 
 ##
 # @SysEmuTarget:
-#
-# The comprehensive enumeration of QEMU system emulation ("softmmu")
-# targets.  Run "./configure --help" in the project root directory,
-# and look for the \*-softmmu targets near the "--target-list" option.
-# The individual target constants are not documented here, for the
-# time being.
+#     The comprehensive enumeration of QEMU system emulation
+#     ("softmmu") targets.  Run "./configure --help" in the project
+#     root directory, and look for the \*-softmmu targets near the
+#     "--target-list" option.  The individual target constants are not
+#     documented here, for the time being.
 #
 # @rx: since 5.0
 #
@@ -46,9 +45,8 @@
 
 ##
 # @S390CpuState:
-#
-# An enumeration of cpu states that can be assumed by a virtual S390
-# CPU
+#     An enumeration of cpu states that can be assumed by a virtual
+#     S390 CPU
 #
 # Since: 2.12
 ##
@@ -57,8 +55,7 @@
 
 ##
 # @CpuInfoS390:
-#
-# Additional information about a virtual S390 CPU
+#     Additional information about a virtual S390 CPU
 #
 # @cpu-state: the virtual CPU's state
 #
@@ -75,8 +72,7 @@
 
 ##
 # @CpuInfoFast:
-#
-# Information about a virtual CPU
+#     Information about a virtual CPU
 #
 # @cpu-index: index of the virtual CPU
 #
@@ -105,8 +101,7 @@
 
 ##
 # @query-cpus-fast:
-#
-# Return information about all virtual CPUs.
+#     Return information about all virtual CPUs.
 #
 # Since: 2.12
 #
@@ -143,9 +138,8 @@
 
 ##
 # @CompatProperty:
-#
-# Property default values specific to a machine type, for use by
-# scripts/compare-machine-types.
+#     Property default values specific to a machine type, for use by
+#     scripts/compare-machine-types.
 #
 # @qom-type: name of the QOM type to which the default applies
 #
@@ -163,8 +157,7 @@
 
 ##
 # @MachineInfo:
-#
-# Information describing a machine.
+#     Information describing a machine.
 #
 # @name: the name of the machine
 #
@@ -219,8 +212,7 @@
 
 ##
 # @query-machines:
-#
-# Return a list of supported machines
+#     Return a list of supported machines
 #
 # @compat-props: if true, also return compatibility properties.
 #     (default: false) (since 9.1)
@@ -261,8 +253,7 @@
 
 ##
 # @CurrentMachineParams:
-#
-# Information describing the running machine parameters.
+#     Information describing the running machine parameters.
 #
 # @wakeup-suspend-support: true if the machine supports wake up from
 #     suspend
@@ -274,8 +265,7 @@
 
 ##
 # @query-current-machine:
-#
-# Return information on the current virtual machine.
+#     Return information on the current virtual machine.
 #
 # Since: 4.0
 ##
@@ -283,8 +273,8 @@
 
 ##
 # @QemuTargetInfo:
-#
-# Information on the target configuration built into the QEMU binary.
+#     Information on the target configuration built into the QEMU
+#     binary.
 #
 # @arch: the target architecture
 #
@@ -295,8 +285,7 @@
 
 ##
 # @query-target:
-#
-# Return information about the target for this QEMU
+#     Return information about the target for this QEMU
 #
 # Since: 1.2
 ##
@@ -304,8 +293,7 @@
 
 ##
 # @UuidInfo:
-#
-# Guest UUID information (Universally Unique Identifier).
+#     Guest UUID information (Universally Unique Identifier).
 #
 # @UUID: the UUID of the guest
 #
@@ -318,8 +306,7 @@
 
 ##
 # @query-uuid:
-#
-# Query the guest UUID information.
+#     Query the guest UUID information.
 #
 # Since: 0.14
 #
@@ -332,8 +319,7 @@
 
 ##
 # @GuidInfo:
-#
-# GUID information.
+#     GUID information.
 #
 # @guid: the globally unique identifier
 #
@@ -343,8 +329,7 @@
 
 ##
 # @query-vm-generation-id:
-#
-# Show Virtual Machine Generation ID
+#     Show Virtual Machine Generation ID
 #
 # Since: 2.9
 ##
@@ -352,8 +337,7 @@
 
 ##
 # @system_reset:
-#
-# Performs a hard reset of a guest.
+#     Performs a hard reset of a guest.
 #
 # Since: 0.14
 #
@@ -366,8 +350,7 @@
 
 ##
 # @system_powerdown:
-#
-# Requests that a guest perform a powerdown operation.
+#     Requests that a guest perform a powerdown operation.
 #
 # Since: 0.14
 #
@@ -385,11 +368,10 @@
 
 ##
 # @system_wakeup:
-#
-# Wake up guest from suspend.  If the guest has wake-up from suspend
-# support enabled (wakeup-suspend-support flag from
-# `query-current-machine`), wake-up guest from suspend if the guest is
-# in SUSPENDED state.  Return an error otherwise.
+#     Wake up guest from suspend.  If the guest has wake-up from
+#     suspend support enabled (wakeup-suspend-support flag from
+#     `query-current-machine`), wake-up guest from suspend if the
+#     guest is in SUSPENDED state.  Return an error otherwise.
 #
 # Since: 1.1
 #
@@ -405,9 +387,8 @@
 
 ##
 # @LostTickPolicy:
-#
-# Policy for handling lost ticks in timer devices.  Ticks end up
-# getting lost when, for example, the guest is paused.
+#     Policy for handling lost ticks in timer devices.  Ticks end up
+#     getting lost when, for example, the guest is paused.
 #
 # @discard: throw away the missed ticks and continue with future
 #     injection normally.  The guest OS will see the timer jump ahead
@@ -437,11 +418,10 @@
 
 ##
 # @inject-nmi:
-#
-# Injects a Non-Maskable Interrupt (machine specific: for example on
-# s390x CCW only the first vCPU receives the NMI, but on x86 machines
-# all vCPUs receive it).  The command fails when the guest doesn't
-# support injecting.
+#     Injects a Non-Maskable Interrupt (machine specific: for example
+#     on s390x CCW only the first vCPU receives the NMI, but on x86
+#     machines all vCPUs receive it).  The command fails when the
+#     guest doesn't support injecting.
 #
 # Since: 0.14
 #
@@ -475,8 +455,7 @@
 
 ##
 # @NumaOptions:
-#
-# A discriminated record of NUMA options.  (for OptsVisitor)
+#     A discriminated record of NUMA options.  (for OptsVisitor)
 #
 # @type: NUMA option type
 #
@@ -494,8 +473,7 @@
 
 ##
 # @NumaNodeOptions:
-#
-# Create a guest NUMA node.  (for OptsVisitor)
+#     Create a guest NUMA node.  (for OptsVisitor)
 #
 # @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
@@ -527,8 +505,7 @@
 
 ##
 # @NumaDistOptions:
-#
-# Set the distance between 2 NUMA nodes.
+#     Set the distance between 2 NUMA nodes.
 #
 # @src: source NUMA node.
 #
@@ -548,8 +525,7 @@
 
 ##
 # @CXLFixedMemoryWindowOptions:
-#
-# Create a CXL Fixed Memory Window
+#     Create a CXL Fixed Memory Window
 #
 # @size: Size of the Fixed Memory Window in bytes.  Must be a multiple
 #     of 256MiB.
@@ -599,8 +575,7 @@
 
 ##
 # @CXLFMWProperties:
-#
-# List of CXL Fixed Memory Windows.
+#     List of CXL Fixed Memory Windows.
 #
 # @cxl-fmw: List of `CXLFixedMemoryWindowOptions`
 #
@@ -612,8 +587,7 @@
 
 ##
 # @X86CPURegister32:
-#
-# A X86 32-bit register
+#     A X86 32-bit register
 #
 # Since: 1.5
 ##
@@ -622,8 +596,7 @@
 
 ##
 # @X86CPUFeatureWordInfo:
-#
-# Information about a X86 CPU feature word
+#     Information about a X86 CPU feature word
 #
 # @cpuid-input-eax: Input EAX value for CPUID instruction for that
 #     feature word
@@ -645,9 +618,8 @@
 
 ##
 # @DummyForceArrays:
-#
-# Not used by QMP; hack to let us use X86CPUFeatureWordInfoList
-# internally
+#     Not used by QMP; hack to let us use X86CPUFeatureWordInfoList
+#     internally
 #
 # Since: 2.5
 ##
@@ -656,11 +628,10 @@
 
 ##
 # @NumaCpuOptions:
-#
-# Option "-numa cpu" overrides default cpu to node mapping.  It
-# accepts the same set of cpu properties as returned by
-# `query-hotpluggable-cpus[].props <query-hotpluggable-cpus>`, where
-# node-id could be used to override default node mapping.
+#     Option "-numa cpu" overrides default cpu to node mapping.  It
+#     accepts the same set of cpu properties as returned by
+#     `query-hotpluggable-cpus[].props <query-hotpluggable-cpus>`,
+#     where node-id could be used to override default node mapping.
 #
 # Since: 2.10
 ##
@@ -670,9 +641,9 @@
 
 ##
 # @HmatLBMemoryHierarchy:
-#
-# The memory hierarchy in the System Locality Latency and Bandwidth
-# Information Structure of HMAT (Heterogeneous Memory Attribute Table)
+#     The memory hierarchy in the System Locality Latency and
+#     Bandwidth Information Structure of HMAT (Heterogeneous Memory
+#     Attribute Table)
 #
 # For more information about `HmatLBMemoryHierarchy`, see chapter
 # 5.2.27.4: Table 5-146: Field "Flags" of ACPI 6.3 spec.
@@ -692,9 +663,9 @@
 
 ##
 # @HmatLBDataType:
-#
-# Data type in the System Locality Latency and Bandwidth Information
-# Structure of HMAT (Heterogeneous Memory Attribute Table)
+#     Data type in the System Locality Latency and Bandwidth
+#     Information Structure of HMAT (Heterogeneous Memory Attribute
+#     Table)
 #
 # For more information about `HmatLBDataType`, see chapter 5.2.27.4:
 # Table 5-146: Field "Data Type" of ACPI 6.3 spec.
@@ -719,9 +690,8 @@
 
 ##
 # @NumaHmatLBOptions:
-#
-# Set the system locality latency and bandwidth information between
-# Initiator and Target proximity Domains.
+#     Set the system locality latency and bandwidth information
+#     between Initiator and Target proximity Domains.
 #
 # For more information about `NumaHmatLBOptions`, see chapter
 # 5.2.27.4: Table 5-146 of ACPI 6.3 spec.
@@ -755,9 +725,8 @@
 
 ##
 # @HmatCacheAssociativity:
-#
-# Cache associativity in the Memory Side Cache Information Structure
-# of HMAT
+#     Cache associativity in the Memory Side Cache Information
+#     Structure of HMAT
 #
 # For more information of `HmatCacheAssociativity`, see chapter
 # 5.2.27.5: Table 5-147 of ACPI 6.3 spec.
@@ -776,9 +745,8 @@
 
 ##
 # @HmatCacheWritePolicy:
-#
-# Cache write policy in the Memory Side Cache Information Structure of
-# HMAT
+#     Cache write policy in the Memory Side Cache Information
+#     Structure of HMAT
 #
 # For more information of `HmatCacheWritePolicy`, see chapter
 # 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
@@ -797,8 +765,7 @@
 
 ##
 # @NumaHmatCacheOptions:
-#
-# Set the memory side cache information for a given memory domain.
+#     Set the memory side cache information for a given memory domain.
 #
 # For more information of `NumaHmatCacheOptions`, see chapter
 # 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
@@ -829,8 +796,7 @@
 
 ##
 # @memsave:
-#
-# Save a portion of guest memory to a file.
+#     Save a portion of guest memory to a file.
 #
 # @val: the virtual address of the guest to start from
 #
@@ -862,8 +828,7 @@
 
 ##
 # @pmemsave:
-#
-# Save a portion of guest physical memory to a file.
+#     Save a portion of guest physical memory to a file.
 #
 # @val: the physical address of the guest to start from
 #
@@ -891,8 +856,7 @@
 
 ##
 # @Memdev:
-#
-# Information about memory backend
+#     Information about memory backend
 #
 # @id: backend's ID if backend has 'id' property (since 2.9)
 #
@@ -932,8 +896,7 @@
 
 ##
 # @query-memdev:
-#
-# Return information for all memory backends.
+#     Return information for all memory backends.
 #
 # Since: 2.1
 #
@@ -967,8 +930,7 @@
 
 ##
 # @CpuInstanceProperties:
-#
-# Properties identifying a CPU.
+#     Properties identifying a CPU.
 #
 # Which members are optional and which mandatory depends on the
 # architecture and board.
@@ -1108,9 +1070,9 @@
 
 ##
 # @set-numa-node:
-#
-# Runtime equivalent of '-numa' CLI option, available at preconfigure
-# stage to configure numa mapping before initializing machine.
+#     Runtime equivalent of '-numa' CLI option, available at
+#     preconfigure stage to configure numa mapping before initializing
+#     machine.
 #
 # Since: 3.0
 ##
@@ -1121,8 +1083,7 @@
 
 ##
 # @balloon:
-#
-# Request the balloon driver to change its balloon size.
+#     Request the balloon driver to change its balloon size.
 #
 # @value: the target logical size of the VM in bytes.  We can deduce
 #     the size of the balloon using this formula:
@@ -1156,8 +1117,7 @@
 
 ##
 # @BalloonInfo:
-#
-# Information about the guest balloon device.
+#     Information about the guest balloon device.
 #
 # @actual: the logical size of the VM in bytes.  Formula used:
 #     logical_vm_size = vm_ram_size - balloon_size
@@ -1168,8 +1128,7 @@
 
 ##
 # @query-balloon:
-#
-# Return information about the balloon device.
+#     Return information about the balloon device.
 #
 # Errors:
 #     - If the balloon driver is enabled but not functional because
@@ -1190,10 +1149,9 @@
 
 ##
 # @BALLOON_CHANGE:
-#
-# Emitted when the guest changes the actual BALLOON level.  This value
-# is equivalent to the @actual field return by the `query-balloon`
-# command
+#     Emitted when the guest changes the actual BALLOON level.  This
+#     value is equivalent to the @actual field return by the
+#     `query-balloon` command
 #
 # @actual: the logical size of the VM in bytes.  Formula used:
 #     logical_vm_size = vm_ram_size - balloon_size
@@ -1213,8 +1171,7 @@
 
 ##
 # @HvBalloonInfo:
-#
-# hv-balloon guest-provided memory status information.
+#     hv-balloon guest-provided memory status information.
 #
 # @committed: the amount of memory in use inside the guest plus the
 #     amount of the memory unusable inside the guest (ballooned out,
@@ -1230,9 +1187,8 @@
 
 ##
 # @query-hv-balloon-status-report:
-#
-# Return the hv-balloon driver data contained in the last received
-# "STATUS" message from the guest.
+#     Return the hv-balloon driver data contained in the last received
+#     "STATUS" message from the guest.
 #
 # Errors:
 #     - If no hv-balloon device is present, guest memory status
@@ -1254,9 +1210,8 @@
 
 ##
 # @HV_BALLOON_STATUS_REPORT:
-#
-# Emitted when the hv-balloon driver receives a "STATUS" message from
-# the guest.
+#     Emitted when the hv-balloon driver receives a "STATUS" message
+#     from the guest.
 #
 # .. note:: This event is rate-limited.
 #
@@ -1273,8 +1228,7 @@
 
 ##
 # @MemoryInfo:
-#
-# Actual memory information in bytes.
+#     Actual memory information in bytes.
 #
 # @base-memory: size of "base" memory specified with command line
 #     option -m.
@@ -1290,11 +1244,8 @@
 
 ##
 # @query-memory-size-summary:
-#
-# Return the amount of initially allocated and present hotpluggable
-# (if enabled) memory in bytes.
-#
-# TODO: This line is a hack to separate the example from the body
+#     Return the amount of initially allocated and present
+#     hotpluggable (if enabled) memory in bytes.
 #
 # .. qmp-example::
 #
@@ -1307,8 +1258,7 @@
 
 ##
 # @PCDIMMDeviceInfo:
-#
-# PCDIMMDevice state information
+#     PCDIMMDevice state information
 #
 # @id: device's ID
 #
@@ -1343,8 +1293,7 @@
 
 ##
 # @VirtioPMEMDeviceInfo:
-#
-# VirtioPMEM state information
+#     VirtioPMEM state information
 #
 # @id: device's ID
 #
@@ -1366,8 +1315,7 @@
 
 ##
 # @VirtioMEMDeviceInfo:
-#
-# VirtioMEMDevice state information
+#     VirtioMEMDevice state information
 #
 # @id: device's ID
 #
@@ -1401,8 +1349,7 @@
 
 ##
 # @SgxEPCDeviceInfo:
-#
-# Sgx EPC state information
+#     Sgx EPC state information
 #
 # @id: device's ID
 #
@@ -1427,8 +1374,7 @@
 
 ##
 # @HvBalloonDeviceInfo:
-#
-# hv-balloon provided memory state information
+#     hv-balloon provided memory state information
 #
 # @id: device's ID
 #
@@ -1450,8 +1396,7 @@
 
 ##
 # @SpMemDeviceInfo:
-#
-# sp-mem device state information
+#     sp-mem device state information
 #
 # @id: device's ID
 #
@@ -1557,8 +1502,7 @@
 
 ##
 # @MemoryDeviceInfo:
-#
-# Union containing information about a memory device
+#     Union containing information about a memory device
 #
 # @type: memory device type
 #
@@ -1579,8 +1523,7 @@
 
 ##
 # @SgxEPC:
-#
-# Sgx EPC cmdline information
+#     Sgx EPC cmdline information
 #
 # @memdev: memory backend linked with device
 #
@@ -1596,8 +1539,7 @@
 
 ##
 # @SgxEPCProperties:
-#
-# SGX properties of machine types.
+#     SGX properties of machine types.
 #
 # @sgx-epc: list of ids of memory-backend-epc objects.
 #
@@ -1609,8 +1551,7 @@
 
 ##
 # @query-memory-devices:
-#
-# Lists available memory devices and their state
+#     Lists available memory devices and their state
 #
 # Since: 2.1
 #
@@ -1633,10 +1574,9 @@
 
 ##
 # @MEMORY_DEVICE_SIZE_CHANGE:
-#
-# Emitted when the size of a memory device changes.  Only emitted for
-# memory devices that can actually change the size (e.g., virtio-mem
-# due to guest action).
+#     Emitted when the size of a memory device changes.  Only emitted
+#     for memory devices that can actually change the size (e.g.,
+#     virtio-mem due to guest action).
 #
 # @id: device's ID
 #
@@ -1660,8 +1600,7 @@
 
 ##
 # @BootConfiguration:
-#
-# Schema for virtual machine boot configuration.
+#     Schema for virtual machine boot configuration.
 #
 # @order: Boot order (a=floppy, c=hard disk, d=CD-ROM, n=network)
 #
@@ -1692,9 +1631,9 @@
 
 ##
 # @SMPConfiguration:
-#
-# Schema for CPU topology configuration.  A missing value lets QEMU
-# figure out a suitable value based on the ones that are provided.
+#     Schema for CPU topology configuration.  A missing value lets
+#     QEMU figure out a suitable value based on the ones that are
+#     provided.
 #
 # The members other than @cpus and @maxcpus define a topology of
 # containers.
@@ -1745,8 +1684,7 @@
 
 ##
 # @x-query-irq:
-#
-# Query interrupt statistics
+#     Query interrupt statistics
 #
 # Features:
 #
@@ -1762,8 +1700,7 @@
 
 ##
 # @x-query-jit:
-#
-# Query TCG compiler statistics
+#     Query TCG compiler statistics
 #
 # Features:
 #
@@ -1780,8 +1717,7 @@
 
 ##
 # @x-query-numa:
-#
-# Query NUMA topology information
+#     Query NUMA topology information
 #
 # Features:
 #
@@ -1797,8 +1733,7 @@
 
 ##
 # @x-query-ramblock:
-#
-# Query system ramblock information
+#     Query system ramblock information
 #
 # Features:
 #
@@ -1814,8 +1749,7 @@
 
 ##
 # @x-query-roms:
-#
-# Query information on the registered ROMS
+#     Query information on the registered ROMS
 #
 # Features:
 #
@@ -1831,8 +1765,7 @@
 
 ##
 # @x-query-usb:
-#
-# Query information on the USB devices
+#     Query information on the USB devices
 #
 # Features:
 #
@@ -1863,8 +1796,7 @@
 
 ##
 # @MemorySizeConfiguration:
-#
-# Schema for memory size configuration.
+#     Schema for memory size configuration.
 #
 # @size: memory size in bytes
 #
@@ -1881,8 +1813,7 @@
 
 ##
 # @dumpdtb:
-#
-# Save the FDT in dtb format.
+#     Save the FDT in dtb format.
 #
 # @filename: name of the dtb file to be created
 #
@@ -1900,8 +1831,7 @@
 
 ##
 # @x-query-interrupt-controllers:
-#
-# Query information on interrupt controller devices
+#     Query information on interrupt controller devices
 #
 # Features:
 #
@@ -1931,8 +1861,7 @@
 
 ##
 # @query-firmware-log:
-#
-# Find firmware memory log buffer in guest memory, return content.
+#     Find firmware memory log buffer in guest memory, return content.
 #
 # @max-size: limit the amount of log data returned.  Up to 1 MiB of
 #     log data is allowed.  In case the amount of log data is larger
@@ -1946,8 +1875,7 @@
 
 ##
 # @dump-skeys:
-#
-# Dump the storage keys for an s390x guest
+#     Dump the storage keys for an s390x guest
 #
 # @filename: the path to the file to dump to
 #
@@ -1964,8 +1892,7 @@
 
 ##
 # @CpuModelInfo:
-#
-# Virtual CPU model.
+#     Virtual CPU model.
 #
 # A CPU model consists of the name of a CPU definition, to which delta
 # changes are applied (e.g. features added/removed).  Most magic
@@ -1985,8 +1912,7 @@
 
 ##
 # @CpuModelExpansionType:
-#
-# An enumeration of CPU model expansion types.
+#     An enumeration of CPU model expansion types.
 #
 # @static: Expand to a static CPU model, a combination of a static
 #     base model name and property delta changes.  As the static base
@@ -2018,9 +1944,8 @@
 
 ##
 # @CpuModelCompareResult:
-#
-# An enumeration of CPU model comparison results.  The result is
-# usually calculated using e.g. CPU features or CPU generations.
+#     An enumeration of CPU model comparison results.  The result is
+#     usually calculated using e.g. CPU features or CPU generations.
 #
 # @incompatible: If model A is incompatible to model B, model A is not
 #     guaranteed to run where model B runs and the other way around.
@@ -2043,8 +1968,7 @@
 
 ##
 # @CpuModelBaselineInfo:
-#
-# The result of a CPU model baseline.
+#     The result of a CPU model baseline.
 #
 # @model: the baselined `CpuModelInfo`.
 #
@@ -2055,8 +1979,7 @@
 
 ##
 # @CpuModelCompareInfo:
-#
-# The result of a CPU model comparison.
+#     The result of a CPU model comparison.
 #
 # @result: The result of the compare operation.
 #
@@ -2078,13 +2001,13 @@
 
 ##
 # @query-cpu-model-comparison:
+#     Compares two CPU models, @modela and @modelb, returning how they
+#     compare in a specific configuration.
 #
-# Compares two CPU models, @modela and @modelb, returning how they
-# compare in a specific configuration.  The results indicates how both
-# models compare regarding runnability.  This result can be used by
-# tooling to make decisions if a certain CPU model will run in a
-# certain configuration or if a compatible CPU model has to be created
-# by baselining.
+# The results indicates how both models compare regarding runnability.
+# This result can be used by tooling to make decisions if a certain
+# CPU model will run in a certain configuration or if a compatible CPU
+# model has to be created by baselining.
 #
 # Usually, a CPU model is compared against the maximum possible CPU
 # model of a certain configuration (e.g. the "host" model for KVM).
@@ -2134,11 +2057,10 @@
 
 ##
 # @query-cpu-model-baseline:
-#
-# Baseline two CPU models, @modela and @modelb, creating a compatible
-# third model.  The created model will always be a static,
-# migration-safe CPU model (see "static" CPU model expansion for
-# details).
+#     Baseline two CPU models, @modela and @modelb, creating a
+#     compatible third model.  The created model will always be a
+#     static, migration-safe CPU model (see "static" CPU model
+#     expansion for details).
 #
 # This interface can be used by tooling to create a compatible CPU
 # model out two CPU models.  The created CPU model will be identical
@@ -2187,8 +2109,7 @@
 
 ##
 # @CpuModelExpansionInfo:
-#
-# The result of a cpu model expansion.
+#     The result of a cpu model expansion.
 #
 # @model: the expanded `CpuModelInfo`.
 #
@@ -2207,11 +2128,11 @@
 
 ##
 # @query-cpu-model-expansion:
-#
-# Expands a given CPU model, @model, (or a combination of CPU model +
-# additional options) to different granularities, specified by @type,
-# allowing tooling to get an understanding what a specific CPU model
-# looks like in QEMU under a certain configuration.
+#     Expands a given CPU model, @model, (or a combination of CPU
+#     model + additional options) to different granularities,
+#     specified by @type, allowing tooling to get an understanding
+#     what a specific CPU model looks like in QEMU under a certain
+#     configuration.
 #
 # This interface can be used to query the "host" CPU model.
 #
@@ -2257,8 +2178,7 @@
 
 ##
 # @CpuDefinitionInfo:
-#
-# Virtual CPU definition.
+#     Virtual CPU definition.
 #
 # @name: the name of the CPU definition
 #
@@ -2319,8 +2239,7 @@
 
 ##
 # @query-cpu-definitions:
-#
-# Return a list of supported virtual CPU definitions
+#     Return a list of supported virtual CPU definitions
 #
 # Since: 1.2
 ##

@@ -2,8 +2,7 @@
 
 ##
 # @TestStruct:
-#
-# body
+#     body
 #
 # @integer: foo
 #           blah

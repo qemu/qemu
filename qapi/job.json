@@ -9,8 +9,7 @@
 
 ##
 # @JobType:
-#
-# Type of a background job.
+#     Type of a background job.
 #
 # @commit: block commit job type, see `block-commit`
 #
@@ -42,8 +41,7 @@
 
 ##
 # @JobStatus:
-#
-# Indicates the present state of a given job in its lifetime.
+#     Indicates the present state of a given job in its lifetime.
 #
 # @undefined: Erroneous, default state.  Should not ever be visible.
 #
@@ -90,8 +88,7 @@
 
 ##
 # @JobVerb:
-#
-# Represents command verbs that can be applied to a job.
+#     Represents command verbs that can be applied to a job.
 #
 # @cancel: see `job-cancel`
 #
@@ -117,8 +114,7 @@
 
 ##
 # @JOB_STATUS_CHANGE:
-#
-# Emitted when a job transitions to a different status.
+#     Emitted when a job transitions to a different status.
 #
 # @id: The job identifier
 #
@@ -132,8 +128,7 @@
 
 ##
 # @job-pause:
-#
-# Pause an active job.
+#     Pause an active job.
 #
 # This command returns immediately after marking the active job for
 # pausing.  Pausing an already paused job is an error.
@@ -152,8 +147,7 @@
 
 ##
 # @job-resume:
-#
-# Resume a paused job.
+#     Resume a paused job.
 #
 # This command returns immediately after resuming a paused job.
 # Resuming an already running job is an error.
@@ -169,10 +163,9 @@
 
 ##
 # @job-cancel:
-#
-# Instruct an active background job to cancel at the next opportunity.
-# This command returns immediately after marking the active job for
-# cancellation.
+#     Instruct an active background job to cancel at the next
+#     opportunity.  This command returns immediately after marking the
+#     active job for cancellation.
 #
 # The job will cancel as soon as possible and then emit a
 # `JOB_STATUS_CHANGE` event.  Usually, the status will change to
@@ -188,9 +181,9 @@
 
 ##
 # @job-complete:
-#
-# Manually trigger completion of an active job in the READY or STANDBY
-# state.  Completing the job in any other state is an error.
+#     Manually trigger completion of an active job in the READY or
+#     STANDBY state.  Completing the job in any other state is an
+#     error.
 #
 # This is supported only for drive mirroring, where it also switches
 # the device to write to the target path only.  Note that drive
@@ -215,14 +208,14 @@
 
 ##
 # @job-dismiss:
+#     Deletes a job that is in the CONCLUDED state.
 #
-# Deletes a job that is in the CONCLUDED state.  This command only
-# needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled.  In turn, automatic dismiss may be enabled only for
-# jobs that have @auto-dismiss option, which are `drive-backup`,
-# `blockdev-backup`, `drive-mirror`, `blockdev-mirror`, `block-commit`
-# and `block-stream`.  @auto-dismiss is enabled by default for these
-# jobs.
+# This command only needs to be run explicitly for jobs that don't
+# have automatic dismiss enabled.  In turn, automatic dismiss may be
+# enabled only for jobs that have @auto-dismiss option, which are
+# `drive-backup`, `blockdev-backup`, `drive-mirror`,
+# `blockdev-mirror`, `block-commit` and `block-stream`.  @auto-dismiss
+# is enabled by default for these jobs.
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, CONCLUDED.  For jobs that make use of
@@ -237,11 +230,10 @@
 
 ##
 # @job-finalize:
-#
-# Instructs all jobs in a transaction (or a single job if it is not
-# part of any transaction) to finalize any graph changes and do any
-# necessary cleanup.  This command requires that all involved jobs are
-# in the PENDING state.
+#     Instructs all jobs in a transaction (or a single job if it is
+#     not part of any transaction) to finalize any graph changes and
+#     do any necessary cleanup.  This command requires that all
+#     involved jobs are in the PENDING state.
 #
 # For jobs in a transaction, instructing one job to finalize will
 # force ALL jobs in the transaction to finalize, so it is only
@@ -259,8 +251,7 @@
 
 ##
 # @JobInfo:
-#
-# Information about a job.
+#     Information about a job.
 #
 # @id: The job identifier
 #
@@ -294,8 +285,7 @@
 
 ##
 # @query-jobs:
-#
-# Return information about jobs.
+#     Return information about jobs.
 #
 # Returns: a list with info for each active job
 #

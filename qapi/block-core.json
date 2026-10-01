@@ -132,8 +132,7 @@
 
 ##
 # @VmdkExtentInfo:
-#
-# Information about a VMDK extent file
+#     Information about a VMDK extent file
 #
 # @filename: Name of the extent file
 #
@@ -279,9 +278,8 @@
 
 ##
 # @ImageInfoSpecific:
-#
-# A discriminated record of image format specific information
-# structures.
+#     A discriminated record of image format specific information
+#     structures.
 #
 # @type: block driver name
 #
@@ -364,8 +362,7 @@
 
 ##
 # @BlockNodeInfo:
-#
-# Information about a QEMU image file
+#     Information about a QEMU image file
 #
 # @filename: name of the image file
 #
@@ -409,9 +406,8 @@
 
 ##
 # @ImageInfo:
-#
-# Information about a QEMU image file, and potentially its backing
-# image
+#     Information about a QEMU image file, and potentially its backing
+#     image
 #
 # @backing-image: info of the backing image
 #
@@ -425,10 +421,9 @@
 
 ##
 # @BlockChildInfo:
-#
-# Information about all nodes in the block graph starting at some
-# node, annotated with information about that node in relation to its
-# parent.
+#     Information about all nodes in the block graph starting at some
+#     node, annotated with information about that node in relation to
+#     its parent.
 #
 # @name: Child name of the root node in the `BlockGraphInfo` struct,
 #     in its role as the child of some undescribed parent node
@@ -445,10 +440,9 @@
 
 ##
 # @BlockGraphInfo:
-#
-# Information about all nodes in a block (sub)graph in the form of
-# `BlockNodeInfo` data.  The base `BlockNodeInfo` struct contains the
-# information for the (sub)graph's root node.
+#     Information about all nodes in a block (sub)graph in the form of
+#     `BlockNodeInfo` data.  The base `BlockNodeInfo` struct contains
+#     the information for the (sub)graph's root node.
 #
 # @children: Array of links to this node's child nodes' information
 #
@@ -460,8 +454,7 @@
 
 ##
 # @ImageCheck:
-#
-# Information about a QEMU image file check
+#     Information about a QEMU image file check
 #
 # @filename: name of the image file checked
 #
@@ -504,8 +497,8 @@
 
 ##
 # @MapEntry:
-#
-# Mapping information from a virtual block range to a host file range
+#     Mapping information from a virtual block range to a host file
+#     range
 #
 # @start: virtual (guest) offset of the first byte described by this
 #     entry
@@ -543,8 +536,7 @@
 
 ##
 # @BlockdevCacheInfo:
-#
-# Cache mode information for a block device
+#     Cache mode information for a block device
 #
 # @writeback: true if writeback mode is enabled
 #
@@ -574,8 +566,7 @@
 
 ##
 # @BlockDeviceInfo:
-#
-# Information about the backing device for a block device.
+#     Information about the backing device for a block device.
 #
 # @file: the filename of the backing device
 #
@@ -691,8 +682,7 @@
 
 ##
 # @BlockDeviceIoStatus:
-#
-# An enumeration of block device I/O status.
+#     An enumeration of block device I/O status.
 #
 # @ok: The last I/O operation has succeeded
 #
@@ -707,8 +697,7 @@
 
 ##
 # @BlockDirtyInfo:
-#
-# Block dirty bitmap information.
+#     Block dirty bitmap information.
 #
 # @name: the name of the dirty bitmap (Since 2.4)
 #
@@ -740,8 +729,7 @@
 
 ##
 # @Qcow2BitmapInfoFlags:
-#
-# An enumeration of flags that a bitmap can report to the user.
+#     An enumeration of flags that a bitmap can report to the user.
 #
 # @in-use: This flag is set by any process actively modifying the
 #     qcow2 file, and cleared when the updated bitmap is flushed to
@@ -759,8 +747,7 @@
 
 ##
 # @Qcow2BitmapInfo:
-#
-# Qcow2 bitmap information.
+#     Qcow2 bitmap information.
 #
 # @name: the name of the bitmap
 #
@@ -776,8 +763,7 @@
 
 ##
 # @ParallelsBitmapInfo:
-#
-# Parallels bitmap information.
+#     Parallels bitmap information.
 #
 # @name: the name of the bitmap
 #
@@ -794,8 +780,7 @@
 
 ##
 # @BlockLatencyHistogramInfo:
-#
-# Block latency histogram.
+#     Block latency histogram.
 #
 # @boundaries: list of interval boundary values in nanoseconds, all
 #     greater than zero and in ascending order.  For example, the list
@@ -822,9 +807,8 @@
 
 ##
 # @BlockInfo:
-#
-# Block device information.  This structure describes a virtual device
-# and the backing device associated with it.
+#     Block device information.  This structure describes a virtual
+#     device and the backing device associated with it.
 #
 # @device: The device name associated with the virtual device.
 #
@@ -859,9 +843,8 @@
 
 ##
 # @BlockMeasureInfo:
-#
-# Image file size calculation information.  This structure describes
-# the size requirements for creating a new image file.
+#     Image file size calculation information.  This structure
+#     describes the size requirements for creating a new image file.
 #
 # The size requirements depend on the new image file format.  File
 # size always equals virtual disk size for the 'raw' format, even for
@@ -893,8 +876,7 @@
 
 ##
 # @query-block:
-#
-# Get a list of `BlockInfo` for all virtual block devices.
+#     Get a list of `BlockInfo` for all virtual block devices.
 #
 # @flat: Omit nested data about the backing image, i.e. `BlockInfo`
 #     member 'inserted.image.backing-image' will be absent.
@@ -995,8 +977,7 @@
 
 ##
 # @BlockDeviceTimedStats:
-#
-# Statistics of a block device during a given interval of time.
+#     Statistics of a block device during a given interval of time.
 #
 # @interval_length: Interval used for calculating the statistics, in
 #     seconds.
@@ -1062,8 +1043,7 @@
 
 ##
 # @BlockDeviceStats:
-#
-# Statistics of a virtual block device or a block backing device.
+#     Statistics of a virtual block device or a block backing device.
 #
 # @rd_bytes: The number of bytes read by the device.
 #
@@ -1201,8 +1181,7 @@
 
 ##
 # @BlockStatsSpecificFile:
-#
-# File driver statistics
+#     File driver statistics
 #
 # @discard-nb-ok: The number of successful discard operations
 #     performed by the driver.
@@ -1222,8 +1201,7 @@
 
 ##
 # @BlockStatsSpecificNvme:
-#
-# NVMe driver statistics
+#     NVMe driver statistics
 #
 # @completion-errors: The number of completion errors.
 #
@@ -1243,8 +1221,7 @@
 
 ##
 # @BlockStatsSpecific:
-#
-# Block driver specific statistics
+#     Block driver specific statistics
 #
 # @driver: block driver name
 #
@@ -1261,8 +1238,7 @@
 
 ##
 # @BlockStats:
-#
-# Statistics of a virtual block device or a block backing device.
+#     Statistics of a virtual block device or a block backing device.
 #
 # @device: If the stats are for a virtual block device, the name
 #     corresponding to the virtual block device.
@@ -1295,8 +1271,7 @@
 
 ##
 # @query-blockstats:
-#
-# Query the `BlockStats` for all virtual block devices.
+#     Query the `BlockStats` for all virtual block devices.
 #
 # @query-nodes: If true, the command will query all the block nodes
 #     that have a node name, in a list which will include "parent"
@@ -1419,10 +1394,9 @@
 
 ##
 # @BlockdevOnError:
-#
-# An enumeration of possible behaviors for errors on I/O operations.
-# The exact meaning depends on whether the I/O was initiated by a
-# guest or by a block job
+#     An enumeration of possible behaviors for errors on I/O
+#     operations.  The exact meaning depends on whether the I/O was
+#     initiated by a guest or by a block job
 #
 # @report: for guest operations, report the error to the guest; for
 #     jobs, cancel the job
@@ -1447,9 +1421,8 @@
 
 ##
 # @MirrorSyncMode:
-#
-# An enumeration of possible behaviors for the initial synchronization
-# phase of storage mirroring.
+#     An enumeration of possible behaviors for the initial
+#     synchronization phase of storage mirroring.
 #
 # @top: copies data in the topmost image to the destination
 #
@@ -1470,9 +1443,8 @@
 
 ##
 # @BitmapSyncMode:
-#
-# An enumeration of possible behaviors for the synchronization of a
-# bitmap when used for data copy operations.
+#     An enumeration of possible behaviors for the synchronization of
+#     a bitmap when used for data copy operations.
 #
 # @on-success: The bitmap is only synced when the operation is
 #     successful.  This is the behavior always used for incremental
@@ -1491,9 +1463,8 @@
 
 ##
 # @MirrorCopyMode:
-#
-# An enumeration whose values tell the mirror block job when to
-# trigger writes to the target.
+#     An enumeration whose values tell the mirror block job when to
+#     trigger writes to the target.
 #
 # @background: copy data in background only.
 #
@@ -1508,8 +1479,7 @@
 
 ##
 # @BlockJobInfoMirror:
-#
-# Information specific to mirror block jobs.
+#     Information specific to mirror block jobs.
 #
 # @actively-synced: Whether the source is actively synced to the
 #     target, i.e. same data and new writes are done synchronously to
@@ -1522,8 +1492,7 @@
 
 ##
 # @BlockJobInfo:
-#
-# Information about a long-running block device operation.
+#     Information about a long-running block device operation.
 #
 # @type: the job type ('stream' for image streaming)
 #
@@ -1575,8 +1544,7 @@
 
 ##
 # @query-block-jobs:
-#
-# Return information about long-running block device operations.
+#     Return information about long-running block device operations.
 #
 # Returns: a list of job info for each active block job
 #
@@ -1587,8 +1555,7 @@
 
 ##
 # @block_resize:
-#
-# Resize a block image while a guest is running.
+#     Resize a block image while a guest is running.
 #
 # Either @device or @node-name must be set but not both.
 #
@@ -1618,9 +1585,8 @@
 
 ##
 # @NewImageMode:
-#
-# An enumeration that tells QEMU how to set the backing file path in a
-# new image file.
+#     An enumeration that tells QEMU how to set the backing file path
+#     in a new image file.
 #
 # @existing: QEMU should look for an existing image file.
 #
@@ -1677,9 +1643,8 @@
 
 ##
 # @BackupPerf:
-#
-# Optional parameters for backup.  These parameters don't affect
-# functionality, but may significantly affect performance.
+#     Optional parameters for backup.  These parameters don't affect
+#     functionality, but may significantly affect performance.
 #
 # @use-copy-range: Use copy offloading.  Default false.
 #
@@ -1823,8 +1788,7 @@
 
 ##
 # @blockdev-snapshot-sync:
-#
-# Takes a synchronous snapshot of a block device.
+#     Takes a synchronous snapshot of a block device.
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
@@ -1846,13 +1810,12 @@
 
 ##
 # @blockdev-snapshot:
+#     Takes a snapshot of a block device.
 #
-# Takes a snapshot of a block device.
-#
-# Take a snapshot, by installing 'node' as the backing image of
-# 'overlay'.  Additionally, if 'node' is associated with a block
-# device, the block device changes to using 'overlay' as its new
-# active image.
+#     Take a snapshot, by installing 'node' as the backing image of
+#     'overlay'.  Additionally, if 'node' is associated with a block
+#     device, the block device changes to using 'overlay' as its new
+#     active image.
 #
 # Features:
 #
@@ -1886,12 +1849,12 @@
 
 ##
 # @change-backing-file:
-#
-# Change the backing file in the image file metadata.  This does not
-# cause QEMU to reopen the image file to reparse the backing filename
-# (it may, however, perform a reopen to change permissions from r/o ->
-# r/w -> r/o, if needed).  The new backing file string is written into
-# the image file metadata, and the QEMU internal strings are updated.
+#     Change the backing file in the image file metadata.  This does
+#     not cause QEMU to reopen the image file to reparse the backing
+#     filename (it may, however, perform a reopen to change
+#     permissions from r/o -> r/w -> r/o, if needed).  The new backing
+#     file string is written into the image file metadata, and the
+#     QEMU internal strings are updated.
 #
 # @image-node-name: The name of the block driver state node of the
 #     image to modify.  The "device" argument is used to verify
@@ -1917,9 +1880,8 @@
 
 ##
 # @block-commit:
-#
-# Live commit of data from overlay image nodes into backing nodes -
-# i.e., writes data between 'top' and 'base' into 'base'.
+#     Live commit of data from overlay image nodes into backing nodes
+#     - i.e., writes data between 'top' and 'base' into 'base'.
 #
 # If top == base, that is an error.  If top has no overlays on top of
 # it, or if it is in use by a writer, the job will not be completed by
@@ -2027,12 +1989,12 @@
 
 ##
 # @drive-backup:
-#
-# Start a point-in-time copy of a block device to a new destination.
-# The status of ongoing `drive-backup` operations can be checked with
-# `query-block-jobs` where the `BlockJobInfo`.type field has the value
-# 'backup'.  The operation can be stopped before it has completed
-# using the `job-cancel` or `block-job-cancel` command.
+#     Start a point-in-time copy of a block device to a new
+#     destination.  The status of ongoing `drive-backup` operations
+#     can be checked with `query-block-jobs` where the
+#     `BlockJobInfo`.type field has the value 'backup'.  The operation
+#     can be stopped before it has completed using the `job-cancel` or
+#     `block-job-cancel` command.
 #
 # Features:
 #
@@ -2058,12 +2020,12 @@
 
 ##
 # @blockdev-backup:
-#
-# Start a point-in-time copy of a block device to a new destination.
-# The status of ongoing `blockdev-backup` operations can be checked
-# with `query-block-jobs` where the `BlockJobInfo`.type field has the
-# value 'backup'.  The operation can be stopped before it has
-# completed using the `job-cancel` or `block-job-cancel` command.
+#     Start a point-in-time copy of a block device to a new
+#     destination.  The status of ongoing `blockdev-backup` operations
+#     can be checked with `query-block-jobs` where the
+#     `BlockJobInfo`.type field has the value 'backup'.  The operation
+#     can be stopped before it has completed using the `job-cancel` or
+#     `block-job-cancel` command.
 #
 # Errors:
 #     - If @device is not a valid block device, DeviceNotFound
@@ -2084,8 +2046,7 @@
 
 ##
 # @query-named-block-nodes:
-#
-# Get the named block driver list
+#     Get the named block driver list
 #
 # @flat: Omit the nested data about backing image ("backing-image"
 #     key) if true.  Default is false (Since 5.0)
@@ -2181,8 +2142,7 @@
 
 ##
 # @BlockPermission:
-#
-# Enum of base block permissions.
+#     Enum of base block permissions.
 #
 # @consistent-read: A user that has the "permission" of consistent
 #     reads is guaranteed that their view of the contents of the block
@@ -2212,8 +2172,7 @@
 
 ##
 # @XDbgBlockGraphEdge:
-#
-# Block Graph edge description for `x-debug-query-block-graph`.
+#     Block Graph edge description for `x-debug-query-block-graph`.
 #
 # @parent: parent id
 #
@@ -2235,8 +2194,7 @@
 
 ##
 # @XDbgBlockGraph:
-#
-# Block Graph - list of nodes and list of edges.
+#     Block Graph - list of nodes and list of edges.
 #
 # Since: 4.0
 ##
@@ -2245,8 +2203,7 @@
 
 ##
 # @x-debug-query-block-graph:
-#
-# Get the block graph.
+#     Get the block graph.
 #
 # Features:
 #
@@ -2260,13 +2217,13 @@
 
 ##
 # @drive-mirror:
-#
-# Start mirroring a block device's writes to a new destination.
-# target specifies the target of the new image.  If the file exists,
-# or if it is a device, it will be used as the new destination for
-# writes.  If it does not exist, a new file will be created.  @format
-# specifies the format of the mirror image, default is to probe if
-# mode='existing', else the format of the source.
+#     Start mirroring a block device's writes to a new destination.
+#     target specifies the target of the new image.  If the file
+#     exists, or if it is a device, it will be used as the new
+#     destination for writes.  If it does not exist, a new file will
+#     be created.  @format specifies the format of the mirror image,
+#     default is to probe if mode='existing', else the format of the
+#     source.
 #
 # Errors:
 #     - If @device is not a valid block device, GenericError
@@ -2288,8 +2245,7 @@
 
 ##
 # @DriveMirror:
-#
-# A set of parameters describing drive mirror setup.
+#     A set of parameters describing drive mirror setup.
 #
 # @job-id: identifier for the newly-created block job.  If omitted,
 #     the device name will be used.  (Since 2.7)
@@ -2442,9 +2398,8 @@
 
 ##
 # @block-dirty-bitmap-add:
-#
-# Create a dirty bitmap with a name on the node, and start tracking
-# the writes.
+#     Create a dirty bitmap with a name on the node, and start
+#     tracking the writes.
 #
 # Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
@@ -2464,10 +2419,9 @@
 
 ##
 # @block-dirty-bitmap-remove:
-#
-# Stop write tracking and remove the dirty bitmap that was created
-# with `block-dirty-bitmap-add`.  If the bitmap is persistent, remove
-# it from its storage too.
+#     Stop write tracking and remove the dirty bitmap that was created
+#     with `block-dirty-bitmap-add`.  If the bitmap is persistent,
+#     remove it from its storage too.
 #
 # Errors:
 #     - If @node is not a valid block device or node, DeviceNotFound
@@ -2488,10 +2442,9 @@
 
 ##
 # @block-dirty-bitmap-clear:
-#
-# Clear (reset) a dirty bitmap on the device, so that an incremental
-# backup from this point in time forward will only backup clusters
-# modified after this clear operation.
+#     Clear (reset) a dirty bitmap on the device, so that an
+#     incremental backup from this point in time forward will only
+#     backup clusters modified after this clear operation.
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -2511,8 +2464,8 @@
 
 ##
 # @block-dirty-bitmap-enable:
-#
-# Enables a dirty bitmap so that it will begin tracking disk changes.
+#     Enables a dirty bitmap so that it will begin tracking disk
+#     changes.
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -2532,8 +2485,8 @@
 
 ##
 # @block-dirty-bitmap-disable:
-#
-# Disables a dirty bitmap so that it will stop tracking disk changes.
+#     Disables a dirty bitmap so that it will stop tracking disk
+#     changes.
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -2553,16 +2506,15 @@
 
 ##
 # @block-dirty-bitmap-merge:
+#     Merge dirty bitmaps listed in @bitmaps to the @target dirty
+#     bitmap.  Dirty bitmaps in @bitmaps will be unchanged, except if
+#     it also appears as the @target bitmap.  Any bits already set in
+#     @target will still be set after the merge, i.e., this operation
+#     does not clear the target.  On error, @target is unchanged.
 #
-# Merge dirty bitmaps listed in @bitmaps to the @target dirty bitmap.
-# Dirty bitmaps in @bitmaps will be unchanged, except if it also
-# appears as the @target bitmap.  Any bits already set in @target will
-# still be set after the merge, i.e., this operation does not clear
-# the target.  On error, @target is unchanged.
-#
-# The resulting bitmap will count as dirty any clusters that were
-# dirty in any of the source bitmaps.  This can be used to achieve
-# backup checkpoints, or in simpler usages, to copy bitmaps.
+#     The resulting bitmap will count as dirty any clusters that were
+#     dirty in any of the source bitmaps.  This can be used to achieve
+#     backup checkpoints, or in simpler usages, to copy bitmaps.
 #
 # Errors:
 #     - If @node is not a valid block device, DeviceNotFound
@@ -2586,8 +2538,7 @@
 
 ##
 # @BlockDirtyBitmapSha256:
-#
-# SHA256 hash of dirty bitmap data
+#     SHA256 hash of dirty bitmap data
 #
 # @sha256: ASCII representation of SHA256 bitmap hash
 #
@@ -2598,8 +2549,7 @@
 
 ##
 # @x-debug-block-dirty-bitmap-sha256:
-#
-# Get bitmap SHA256.
+#     Get bitmap SHA256.
 #
 # Features:
 #
@@ -2618,8 +2568,7 @@
 
 ##
 # @blockdev-mirror:
-#
-# Start mirroring a block device's writes to a new destination.
+#     Start mirroring a block device's writes to a new destination.
 #
 # @job-id: identifier for the newly-created block job.  If omitted,
 #     the device name will be used.  (Since 2.7)
@@ -2705,8 +2654,7 @@
 
 ##
 # @BlockIOThrottle:
-#
-# A set of parameters describing block throttling.
+#     A set of parameters describing block throttling.
 #
 # @device: Block device name
 #
@@ -2789,11 +2737,10 @@
 
 ##
 # @ThrottleLimits:
-#
-# Limit parameters for throttling.  Since some limit combinations are
-# illegal, limits should always be set in one transaction.  All fields
-# are optional.  When setting limits, if a field is missing the
-# current value is not changed.
+#     Limit parameters for throttling.  Since some limit combinations
+#     are illegal, limits should always be set in one transaction.
+#     All fields are optional.  When setting limits, if a field is
+#     missing the current value is not changed.
 #
 # @iops-total: limit total I/O operations per second
 #
@@ -2857,8 +2804,7 @@
 
 ##
 # @ThrottleGroupProperties:
-#
-# Properties for throttle-group objects.
+#     Properties for throttle-group objects.
 #
 # @limits: limits to apply for this throttle group
 #
@@ -2914,8 +2860,7 @@
 
 ##
 # @block-stream:
-#
-# Copy data from a backing file into a block device.
+#     Copy data from a backing file into a block device.
 #
 # The block streaming operation is performed in the background until
 # the entire backing file has been copied.  This command returns
@@ -3026,8 +2971,7 @@
 
 ##
 # @block-job-set-speed:
-#
-# Set maximum speed for a background block operation.
+#     Set maximum speed for a background block operation.
 #
 # This command can only be issued when there is an active block job.
 #
@@ -3052,8 +2996,7 @@
 
 ##
 # @block-job-cancel:
-#
-# Stop an active background block operation.
+#     Stop an active background block operation.
 #
 # This command returns immediately after marking the active background
 # block operation for cancellation.  It is an error to call this
@@ -3095,8 +3038,7 @@
 
 ##
 # @block-job-pause:
-#
-# Pause an active background block operation.
+#     Pause an active background block operation.
 #
 # This command returns immediately after marking the active job for
 # pausing.  Pausing an already paused job is an error.
@@ -3128,8 +3070,7 @@
 
 ##
 # @block-job-resume:
-#
-# Resume an active background block operation.
+#     Resume an active background block operation.
 #
 # This command returns immediately after resuming a paused job.
 # Resuming an already running job is an error.
@@ -3157,9 +3098,9 @@
 
 ##
 # @block-job-complete:
-#
-# Manually trigger completion of an active job in the READY or STANDBY
-# state.  Completing the job in any other state is an error.
+#     Manually trigger completion of an active job in the READY or
+#     STANDBY state.  Completing the job in any other state is an
+#     error.
 #
 # This is supported only for drive mirroring, where it also switches
 # the device to write to the target path only.  Note that drive
@@ -3197,14 +3138,13 @@
 
 ##
 # @block-job-dismiss:
-#
-# Deletes a job that is in the CONCLUDED state.  This command only
-# needs to be run explicitly for jobs that don't have automatic
-# dismiss enabled.  In turn, automatic dismiss may be enabled only for
-# jobs that have @auto-dismiss option, which are `drive-backup`,
-# `blockdev-backup`, `drive-mirror`, `blockdev-mirror`, `block-commit`
-# and `block-stream`.  @auto-dismiss is enabled by default for these
-# jobs.
+#     Deletes a job that is in the CONCLUDED state.  This command only
+#     needs to be run explicitly for jobs that don't have automatic
+#     dismiss enabled.  In turn, automatic dismiss may be enabled only
+#     for jobs that have @auto-dismiss option, which are
+#     `drive-backup`, `blockdev-backup`, `drive-mirror`,
+#     `blockdev-mirror`, `block-commit` and `block-stream`.
+#     @auto-dismiss is enabled by default for these jobs.
 #
 # This command will refuse to operate on any job that has not yet
 # reached its terminal state, CONCLUDED.  For jobs that make use of
@@ -3226,11 +3166,10 @@
 
 ##
 # @block-job-finalize:
-#
-# Instructs all jobs in a transaction (or a single job if it is not
-# part of any transaction) to finalize any graph changes and do any
-# necessary cleanup.  This command requires that all involved jobs are
-# in the PENDING state.
+#     Instructs all jobs in a transaction (or a single job if it is
+#     not part of any transaction) to finalize any graph changes and
+#     do any necessary cleanup.  This command requires that all
+#     involved jobs are in the PENDING state.
 #
 # For jobs in a transaction, instructing one job to finalize will
 # force ALL jobs in the transaction to finalize, so it is only
@@ -3265,8 +3204,7 @@
 
 ##
 # @BlockJobChangeOptions:
-#
-# Block job options that can be changed after job creation.
+#     Block job options that can be changed after job creation.
 #
 # @id: The job identifier
 #
@@ -3281,8 +3219,7 @@
 
 ##
 # @block-job-change:
-#
-# Change the block job's options.
+#     Change the block job's options.
 #
 # Since: 8.2
 ##
@@ -3291,8 +3228,7 @@
 
 ##
 # @BlockdevDiscardOptions:
-#
-# Determines how to handle discard requests.
+#     Determines how to handle discard requests.
 #
 # @ignore: Ignore the request
 #
@@ -3305,10 +3241,9 @@
 
 ##
 # @BlockdevDetectZeroesOptions:
-#
-# Describes the operation mode for the automatic conversion of plain
-# zero writes by the OS to driver specific optimized zero write
-# commands.
+#     Describes the operation mode for the automatic conversion of
+#     plain zero writes by the OS to driver specific optimized zero
+#     write commands.
 #
 # @off: Disabled (default)
 #
@@ -3325,8 +3260,7 @@
 
 ##
 # @BlockdevAioOptions:
-#
-# Selects the AIO backend to handle I/O requests
+#     Selects the AIO backend to handle I/O requests
 #
 # @threads: Use QEMU's thread pool
 #
@@ -3342,8 +3276,7 @@
 
 ##
 # @BlockdevCacheOptions:
-#
-# Includes cache-related options for block devices
+#     Includes cache-related options for block devices
 #
 # @direct: enables use of O_DIRECT (bypass the host page cache;
 #     default: false)
@@ -3358,8 +3291,7 @@
 
 ##
 # @BlockdevDriver:
-#
-# Drivers that are supported in block device operations.
+#     Drivers that are supported in block device operations.
 #
 # @throttle: Since 2.11
 #
@@ -3401,8 +3333,7 @@
 
 ##
 # @BlockdevOptionsFile:
-#
-# Driver specific block device options for the file backend.
+#     Driver specific block device options for the file backend.
 #
 # @filename: path to the image file
 #
@@ -3461,8 +3392,7 @@
 
 ##
 # @BlockdevOptionsNull:
-#
-# Driver specific block device options for the null backend.
+#     Driver specific block device options for the null backend.
 #
 # @size: size of the device in bytes.
 #
@@ -3481,8 +3411,7 @@
 
 ##
 # @BlockdevOptionsNVMe:
-#
-# Driver specific block device options for the NVMe backend.
+#     Driver specific block device options for the NVMe backend.
 #
 # @device: PCI controller address of the NVMe device in format
 #     hhhh:bb:ss.f (host:bus:slot.function)
@@ -3499,8 +3428,7 @@
 
 ##
 # @BlockdevOptionsVVFAT:
-#
-# Driver specific block device options for the vvfat protocol.
+#     Driver specific block device options for the vvfat protocol.
 #
 # @dir: directory to be exported as FAT image
 #
@@ -3524,9 +3452,8 @@
 
 ##
 # @BlockdevOptionsGenericFormat:
-#
-# Driver specific block device options for image format that have no
-# option besides their data source.
+#     Driver specific block device options for image format that have
+#     no option besides their data source.
 #
 # @file: reference to or definition of the data source block device
 #
@@ -3537,8 +3464,7 @@
 
 ##
 # @BlockdevOptionsLUKS:
-#
-# Driver specific block device options for LUKS.
+#     Driver specific block device options for LUKS.
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
 #     decryption key.  Mandatory except when doing a metadata-only
@@ -3555,9 +3481,9 @@
 
 ##
 # @BlockdevOptionsGenericCOWFormat:
-#
-# Driver specific block device options for image format that have no
-# option besides their data source and an optional backing file.
+#     Driver specific block device options for image format that have
+#     no option besides their data source and an optional backing
+#     file.
 #
 # @backing: reference to or definition of the backing file block
 #     device, null disables the backing file entirely.  Defaults to
@@ -3571,8 +3497,7 @@
 
 ##
 # @Qcow2OverlapCheckMode:
-#
-# General overlap check modes.
+#     General overlap check modes.
 #
 # @none: Do not perform any checks
 #
@@ -3591,12 +3516,11 @@
 
 ##
 # @Qcow2OverlapCheckFlags:
-#
-# Structure of flags for each metadata structure.  Setting a field to
-# 'true' makes QEMU guard that Qcow2 format structure against
-# unintended overwriting.  See Qcow2 format specification for detailed
-# information on these structures.  The default value is chosen
-# according to the template given.
+#     Structure of flags for each metadata structure.  Setting a field
+#     to 'true' makes QEMU guard that Qcow2 format structure against
+#     unintended overwriting.  See Qcow2 format specification for
+#     detailed information on these structures.  The default value is
+#     chosen according to the template given.
 #
 # @template: Specifies a template mode which can be adjusted using the
 #     other flags, defaults to 'cached'
@@ -3635,9 +3559,8 @@
 
 ##
 # @Qcow2OverlapChecks:
-#
-# Specifies which metadata structures should be guarded against
-# unintended overwriting.
+#     Specifies which metadata structures should be guarded against
+#     unintended overwriting.
 #
 # @flags: set of flags for separate specification of each metadata
 #     structure type
@@ -3674,8 +3597,7 @@
 
 ##
 # @BlockdevOptionsQcow:
-#
-# Driver specific block device options for qcow.
+#     Driver specific block device options for qcow.
 #
 # @encrypt: Image decryption options.  Mandatory for encrypted images,
 #     except when doing a metadata-only probe of the image.
@@ -3711,9 +3633,8 @@
 
 ##
 # @BlockdevOptionsPreallocate:
-#
-# Filter driver intended to be inserted between format and protocol
-# node and do preallocation in protocol node on write.
+#     Filter driver intended to be inserted between format and
+#     protocol node and do preallocation in protocol node on write.
 #
 # @prealloc-align: on preallocation, align file length to this number,
 #     default 1048576 (1M)
@@ -3728,8 +3649,7 @@
 
 ##
 # @BlockdevOptionsQcow2:
-#
-# Driver specific block device options for qcow2.
+#     Driver specific block device options for qcow2.
 #
 # @lazy-refcounts: whether to enable the lazy refcounts feature
 #     (default is taken from the image file)
@@ -3882,8 +3802,7 @@
 
 ##
 # @BlkdebugEvent:
-#
-# Trigger events supported by blkdebug.
+#     Trigger events supported by blkdebug.
 #
 # @l1_shrink_write_table: write zeros to the l1 table to shrink image.
 #     (since 2.11)
@@ -3919,8 +3838,7 @@
 
 ##
 # @BlkdebugIOType:
-#
-# Kinds of I/O that blkdebug can inject errors in.
+#     Kinds of I/O that blkdebug can inject errors in.
 #
 # @read: .bdrv_co_preadv()
 #
@@ -3942,8 +3860,7 @@
 
 ##
 # @BlkdebugInjectErrorOptions:
-#
-# Describes a single error injection for blkdebug.
+#     Describes a single error injection for blkdebug.
 #
 # @event: trigger event
 #
@@ -3981,8 +3898,7 @@
 
 ##
 # @BlkdebugSetStateOptions:
-#
-# Describes a single state-change event for blkdebug.
+#     Describes a single state-change event for blkdebug.
 #
 # @event: trigger event
 #
@@ -4001,8 +3917,7 @@
 
 ##
 # @BlockdevOptionsBlkdebug:
-#
-# Driver specific block device options for blkdebug.
+#     Driver specific block device options for blkdebug.
 #
 # @image: underlying raw block device (or image file)
 #
@@ -4063,8 +3978,7 @@
 
 ##
 # @BlockdevOptionsBlklogwrites:
-#
-# Driver specific block device options for blklogwrites.
+#     Driver specific block device options for blklogwrites.
 #
 # @file: block device
 #
@@ -4090,8 +4004,7 @@
 
 ##
 # @BlockdevOptionsBlkverify:
-#
-# Driver specific block device options for blkverify.
+#     Driver specific block device options for blkverify.
 #
 # @test: block device to be tested
 #
@@ -4105,8 +4018,7 @@
 
 ##
 # @BlockdevOptionsBlkreplay:
-#
-# Driver specific block device options for blkreplay.
+#     Driver specific block device options for blkreplay.
 #
 # @image: disk image which should be controlled with blkreplay
 #
@@ -4117,8 +4029,7 @@
 
 ##
 # @QuorumReadPattern:
-#
-# An enumeration of quorum read patterns.
+#     An enumeration of quorum read patterns.
 #
 # @quorum: read all the children and do a quorum vote on reads
 #
@@ -4130,8 +4041,7 @@
 
 ##
 # @BlockdevOptionsQuorum:
-#
-# Driver specific block device options for Quorum
+#     Driver specific block device options for Quorum
 #
 # @blkverify: true if the driver must print content mismatch set to
 #     false by default
@@ -4157,8 +4067,7 @@
 
 ##
 # @BlockdevOptionsIoUring:
-#
-# Driver specific block device options for the io_uring backend.
+#     Driver specific block device options for the io_uring backend.
 #
 # @filename: path to the image file
 #
@@ -4170,8 +4079,8 @@
 
 ##
 # @BlockdevOptionsNvmeIoUring:
-#
-# Driver specific block device options for the nvme-io_uring backend.
+#     Driver specific block device options for the nvme-io_uring
+#     backend.
 #
 # @path: path to the NVMe namespace's character device (e.g.
 #     /dev/ng0n1).
@@ -4184,9 +4093,8 @@
 
 ##
 # @BlockdevOptionsVirtioBlkVfioPci:
-#
-# Driver specific block device options for the virtio-blk-vfio-pci
-# backend.
+#     Driver specific block device options for the virtio-blk-vfio-pci
+#     backend.
 #
 # @path: path to the PCI device's sysfs directory (e.g.
 #     /sys/bus/pci/devices/0000:00:01.0).
@@ -4199,9 +4107,8 @@
 
 ##
 # @BlockdevOptionsVirtioBlkVhostUser:
-#
-# Driver specific block device options for the virtio-blk-vhost-user
-# backend.
+#     Driver specific block device options for the
+#     virtio-blk-vhost-user backend.
 #
 # @path: path to the vhost-user UNIX domain socket.
 #
@@ -4213,9 +4120,8 @@
 
 ##
 # @BlockdevOptionsVirtioBlkVhostVdpa:
-#
-# Driver specific block device options for the virtio-blk-vhost-vdpa
-# backend.
+#     Driver specific block device options for the
+#     virtio-blk-vhost-vdpa backend.
 #
 # @path: path to the vhost-vdpa character device.
 #
@@ -4234,8 +4140,7 @@
 
 ##
 # @IscsiTransport:
-#
-# An enumeration of libiscsi transport types
+#     An enumeration of libiscsi transport types
 #
 # Since: 2.9
 ##
@@ -4244,8 +4149,7 @@
 
 ##
 # @IscsiHeaderDigest:
-#
-# An enumeration of header digests supported by libiscsi
+#     An enumeration of header digests supported by libiscsi
 #
 # Since: 2.9
 ##
@@ -4255,8 +4159,7 @@
 
 ##
 # @BlockdevOptionsIscsi:
-#
-# Driver specific block device options for iscsi
+#     Driver specific block device options for iscsi
 #
 # @transport: The iscsi transport type
 #
@@ -4458,8 +4361,7 @@
 
 ##
 # @ReplicationMode:
-#
-# An enumeration of replication modes.
+#     An enumeration of replication modes.
 #
 # @primary: Primary mode, the vm's state will be sent to secondary
 #     QEMU.
@@ -4474,8 +4376,7 @@
 
 ##
 # @BlockdevOptionsReplication:
-#
-# Driver specific block device options for replication
+#     Driver specific block device options for replication
 #
 # @mode: the replication mode
 #
@@ -4493,8 +4394,7 @@
 
 ##
 # @NFSTransport:
-#
-# An enumeration of NFS transport types
+#     An enumeration of NFS transport types
 #
 # @inet: TCP transport
 #
@@ -4505,8 +4405,7 @@
 
 ##
 # @NFSServer:
-#
-# Captures the address of the socket
+#     Captures the address of the socket
 #
 # @type: transport type used for NFS (only TCP supported)
 #
@@ -4520,8 +4419,7 @@
 
 ##
 # @BlockdevOptionsNfs:
-#
-# Driver specific block device option for NFS
+#     Driver specific block device option for NFS
 #
 # @server: host address
 #
@@ -4558,9 +4456,8 @@
 
 ##
 # @BlockdevOptionsCurlBase:
-#
-# Driver specific block device options shared by all protocols
-# supported by the curl backend.
+#     Driver specific block device options shared by all protocols
+#     supported by the curl backend.
 #
 # @url: URL of the image file
 #
@@ -4593,9 +4490,8 @@
 
 ##
 # @BlockdevOptionsCurlHttp:
-#
-# Driver specific block device options for HTTP connections over the
-# curl backend.  URLs must start with "http://".
+#     Driver specific block device options for HTTP connections over
+#     the curl backend.  URLs must start with "http://".
 #
 # @cookie: List of cookies to set; format is "name1=content1;
 #     name2=content2;" as explained by CURLOPT_COOKIE(3).  Defaults to
@@ -4619,9 +4515,8 @@
 
 ##
 # @BlockdevOptionsCurlHttps:
-#
-# Driver specific block device options for HTTPS connections over the
-# curl backend.  URLs must start with "https://".
+#     Driver specific block device options for HTTPS connections over
+#     the curl backend.  URLs must start with "https://".
 #
 # @sslverify: Whether to verify the SSL certificate's validity
 #     (defaults to true)
@@ -4634,9 +4529,8 @@
 
 ##
 # @BlockdevOptionsCurlFtp:
-#
-# Driver specific block device options for FTP connections over the
-# curl backend.  URLs must start with "ftp://".
+#     Driver specific block device options for FTP connections over
+#     the curl backend.  URLs must start with "ftp://".
 #
 # Since: 2.9
 ##
@@ -4646,9 +4540,8 @@
 
 ##
 # @BlockdevOptionsCurlFtps:
-#
-# Driver specific block device options for FTPS connections over the
-# curl backend.  URLs must start with "ftps://".
+#     Driver specific block device options for FTPS connections over
+#     the curl backend.  URLs must start with "ftps://".
 #
 # @sslverify: Whether to verify the SSL certificate's validity
 #     (defaults to true)
@@ -4661,8 +4554,7 @@
 
 ##
 # @BlockdevOptionsNbd:
-#
-# Driver specific block device options for NBD.
+#     Driver specific block device options for NBD.
 #
 # @server: NBD server address
 #
@@ -4710,8 +4602,7 @@
 
 ##
 # @BlockdevOptionsRaw:
-#
-# Driver specific block device options for the raw driver.
+#     Driver specific block device options for the raw driver.
 #
 # @offset: position where the block device starts
 #
@@ -4725,8 +4616,7 @@
 
 ##
 # @BlockdevOptionsThrottle:
-#
-# Driver specific block device options for the throttle driver
+#     Driver specific block device options for the throttle driver
 #
 # @throttle-group: the name of the throttle-group object to use.  It
 #     must already exist.
@@ -4742,8 +4632,8 @@
 
 ##
 # @BlockdevOptionsCor:
-#
-# Driver specific block device options for the copy-on-read driver.
+#     Driver specific block device options for the copy-on-read
+#     driver.
 #
 # @bottom: The name of a non-filter node (allocation-bearing layer)
 #     that limits the COR operations in the backing chain (inclusive),
@@ -4759,9 +4649,8 @@
 
 ##
 # @OnCbwError:
-#
-# An enumeration of possible behaviors for copy-before-write operation
-# failures.
+#     An enumeration of possible behaviors for copy-before-write
+#     operation failures.
 #
 # @break-guest-write: report the error to the guest.  This way, the
 #     guest will not be able to overwrite areas that cannot be backed
@@ -4778,14 +4667,13 @@
 
 ##
 # @BlockdevOptionsCbw:
-#
-# Driver specific block device options for the copy-before-write
-# driver, which does so called copy-before-write operations: when data
-# is written to the filter, the filter first reads corresponding
-# blocks from its file child and copies them to @target child.  After
-# successfully copying, the write request is propagated to file child.
-# If copying fails, the original write request is failed too and no
-# data is written to file child.
+#     Driver specific block device options for the copy-before-write
+#     driver, which does so called copy-before-write operations: when
+#     data is written to the filter, the filter first reads
+#     corresponding blocks from its file child and copies them to
+#     @target child.  After successfully copying, the write request is
+#     propagated to file child.  If copying fails, the original write
+#     request is failed too and no data is written to file child.
 #
 # @target: The target for copy-before-write operations.
 #
@@ -4821,9 +4709,8 @@
 
 ##
 # @BlockdevOptions:
-#
-# Options for creating a block device.  Many options are available for
-# all block devices, independent of the block driver:
+#     Options for creating a block device.  Many options are available
+#     for all block devices, independent of the block driver:
 #
 # @driver: block driver name
 #
@@ -4936,8 +4823,7 @@
 
 ##
 # @BlockdevRef:
-#
-# Reference to a block device.
+#     Reference to a block device.
 #
 # @definition: defines a new block device inline
 #
@@ -4951,8 +4837,7 @@
 
 ##
 # @BlockdevRefOrNull:
-#
-# Reference to a block device.
+#     Reference to a block device.
 #
 # @definition: defines a new block device inline
 #
@@ -4971,8 +4856,7 @@
 
 ##
 # @blockdev-add:
-#
-# Creates a new block device.
+#     Creates a new block device.
 #
 # Since: 2.9
 #
@@ -5021,14 +4905,13 @@
 
 ##
 # @blockdev-reopen:
-#
-# Reopens one or more block devices using the given set of options.
-# Any option not specified will be reset to its default value
-# regardless of its previous status.  If an option cannot be changed
-# or a particular driver does not support reopening then the command
-# will return an error.  All devices in the list are reopened in one
-# transaction, so if one of them fails then the whole transaction is
-# cancelled.
+#     Reopens one or more block devices using the given set of
+#     options.  Any option not specified will be reset to its default
+#     value regardless of its previous status.  If an option cannot be
+#     changed or a particular driver does not support reopening then
+#     the command will return an error.  All devices in the list are
+#     reopened in one transaction, so if one of them fails then the
+#     whole transaction is cancelled.
 #
 # The command receives a list of block devices to reopen.  For each
 # one of them, the top-level @node-name option (from
@@ -5068,10 +4951,9 @@
 
 ##
 # @blockdev-del:
-#
-# Deletes a block device that has been added using `blockdev-add`.
-# The command will fail if the node is attached to a device or is
-# otherwise being used.
+#     Deletes a block device that has been added using `blockdev-add`.
+#     The command will fail if the node is attached to a device or is
+#     otherwise being used.
 #
 # @node-name: Name of the graph node to delete.
 #
@@ -5101,9 +4983,8 @@
 
 ##
 # @blockdev-set-active:
-#
-# Activate or deactivate a block device.  Use this to manage the
-# handover of block devices on migration with qemu-storage-daemon.
+#     Activate or deactivate a block device.  Use this to manage the
+#     handover of block devices on migration with qemu-storage-daemon.
 #
 # Activating a node automatically activates all of its child nodes
 # first.  Deactivating a node automatically deactivates any of its
@@ -5133,8 +5014,7 @@
 
 ##
 # @BlockdevCreateOptionsFile:
-#
-# Driver specific image creation options for file.
+#     Driver specific image creation options for file.
 #
 # @filename: Filename for the new image file
 #
@@ -5160,8 +5040,7 @@
 
 ##
 # @BlockdevCreateOptionsLUKS:
-#
-# Driver specific image creation options for LUKS.
+#     Driver specific image creation options for LUKS.
 #
 # @file: Node to create the image format on, mandatory except when
 #     'preallocation' is not requested
@@ -5184,8 +5063,7 @@
 
 ##
 # @BlockdevCreateOptionsNfs:
-#
-# Driver specific image creation options for NFS.
+#     Driver specific image creation options for NFS.
 #
 # @location: Where to store the new image file
 #
@@ -5199,8 +5077,7 @@
 
 ##
 # @BlockdevCreateOptionsParallels:
-#
-# Driver specific image creation options for parallels.
+#     Driver specific image creation options for parallels.
 #
 # @file: Node to create the image format on
 #
@@ -5217,8 +5094,7 @@
 
 ##
 # @BlockdevCreateOptionsQcow:
-#
-# Driver specific image creation options for qcow.
+#     Driver specific image creation options for qcow.
 #
 # @file: Node to create the image format on
 #
@@ -5252,8 +5128,7 @@
 
 ##
 # @Qcow2CompressionType:
-#
-# Compression type used in qcow2 image file
+#     Compression type used in qcow2 image file
 #
 # @zlib: zlib compression, see <http://zlib.net/>
 #
@@ -5266,8 +5141,7 @@
 
 ##
 # @BlockdevCreateOptionsQcow2:
-#
-# Driver specific image creation options for qcow2.
+#     Driver specific image creation options for qcow2.
 #
 # @file: Node to create the image format on
 #
@@ -5326,8 +5200,7 @@
 
 ##
 # @BlockdevCreateOptionsQed:
-#
-# Driver specific image creation options for qed.
+#     Driver specific image creation options for qed.
 #
 # @file: Node to create the image format on
 #
@@ -5354,8 +5227,7 @@
 
 ##
 # @BlockdevCreateOptionsRbd:
-#
-# Driver specific image creation options for rbd/Ceph.
+#     Driver specific image creation options for rbd/Ceph.
 #
 # @location: Where to store the new image file.  This location cannot
 #     point to a snapshot.
@@ -5376,8 +5248,7 @@
 
 ##
 # @BlockdevVmdkSubformat:
-#
-# Subformat options for VMDK images
+#     Subformat options for VMDK images
 #
 # @monolithicSparse: Single file image with sparse cluster allocation
 #
@@ -5400,8 +5271,7 @@
 
 ##
 # @BlockdevVmdkAdapterType:
-#
-# Adapter type info for VMDK images
+#     Adapter type info for VMDK images
 #
 # Since: 4.0
 ##
@@ -5410,8 +5280,7 @@
 
 ##
 # @BlockdevCreateOptionsVmdk:
-#
-# Driver specific image creation options for VMDK.
+#     Driver specific image creation options for VMDK.
 #
 # @file: Where to store the new image file.  This refers to the image
 #     file for monolithcSparse and streamOptimized format, or the
@@ -5459,8 +5328,7 @@
 
 ##
 # @BlockdevCreateOptionsSsh:
-#
-# Driver specific image creation options for SSH.
+#     Driver specific image creation options for SSH.
 #
 # @location: Where to store the new image file
 #
@@ -5474,8 +5342,7 @@
 
 ##
 # @BlockdevCreateOptionsVdi:
-#
-# Driver specific image creation options for VDI.
+#     Driver specific image creation options for VDI.
 #
 # @file: Node to create the image format on
 #
@@ -5505,8 +5372,7 @@
 
 ##
 # @BlockdevCreateOptionsVhdx:
-#
-# Driver specific image creation options for vhdx.
+#     Driver specific image creation options for vhdx.
 #
 # @file: Node to create the image format on
 #
@@ -5549,8 +5415,7 @@
 
 ##
 # @BlockdevCreateOptionsVpc:
-#
-# Driver specific image creation options for vpc (VHD).
+#     Driver specific image creation options for vpc (VHD).
 #
 # @file: Node to create the image format on
 #
@@ -5572,8 +5437,7 @@
 
 ##
 # @BlockdevCreateOptions:
-#
-# Options for creating an image format on a given node.
+#     Options for creating an image format on a given node.
 #
 # @driver: block driver to create the image format
 #
@@ -5601,9 +5465,9 @@
 
 ##
 # @blockdev-create:
-#
-# Starts a job to create an image format on a given node.  The job is
-# automatically finalized, but a manual `job-dismiss` is required.
+#     Starts a job to create an image format on a given node.  The job
+#     is automatically finalized, but a manual `job-dismiss` is
+#     required.
 #
 # @job-id: Identifier for the newly created job.
 #
@@ -5618,8 +5482,7 @@
 
 ##
 # @BlockdevAmendOptionsLUKS:
-#
-# Driver specific image amend options for LUKS.
+#     Driver specific image amend options for LUKS.
 #
 # Since: 5.1
 ##
@@ -5630,9 +5493,8 @@
 
 ##
 # @BlockdevAmendOptionsQcow2:
-#
-# Driver specific image amend options for qcow2.  For now, only
-# encryption options can be amended
+#     Driver specific image amend options for qcow2.  For now, only
+#     encryption options can be amended
 #
 # @encrypt: Encryption options to be amended
 #
@@ -5643,8 +5505,7 @@
 
 ##
 # @BlockdevAmendOptions:
-#
-# Options for amending an image format
+#     Options for amending an image format
 #
 # @driver: Block driver of the node to amend.
 #
@@ -5660,10 +5521,9 @@
 
 ##
 # @x-blockdev-amend:
-#
-# Starts a job to amend format specific options of an existing open
-# block device.  The job is automatically finalized, but a manual
-# `job-dismiss` is required.
+#     Starts a job to amend format specific options of an existing
+#     open block device.  The job is automatically finalized, but a
+#     manual `job-dismiss` is required.
 #
 # @job-id: Identifier for the newly created job.
 #
@@ -5692,8 +5552,8 @@
 
 ##
 # @BlockErrorAction:
-#
-# An enumeration of action that has been taken when a DISK I/O occurs
+#     An enumeration of action that has been taken when a DISK I/O
+#     occurs
 #
 # @ignore: error has been ignored
 #
@@ -5708,11 +5568,10 @@
 
 ##
 # @BLOCK_IMAGE_CORRUPTED:
-#
-# Emitted when a disk image is being marked corrupt.  The image can be
-# identified by its device or node name.  The 'device' field is always
-# present for compatibility reasons, but it can be empty ("") if the
-# image does not have a device name associated.
+#     Emitted when a disk image is being marked corrupt.  The image
+#     can be identified by its device or node name.  The 'device'
+#     field is always present for compatibility reasons, but it can be
+#     empty ("") if the image does not have a device name associated.
 #
 # @device: device name.  This is always present for compatibility
 #     reasons, but it can be empty ("") if the image does not have a
@@ -5756,8 +5615,7 @@
 
 ##
 # @BLOCK_IO_ERROR:
-#
-# Emitted when a disk I/O error occurs
+#     Emitted when a disk I/O error occurs
 #
 # @qom-path: path to the device object in the QOM tree (since 9.2)
 #
@@ -5809,8 +5667,7 @@
 
 ##
 # @BLOCK_JOB_COMPLETED:
-#
-# Emitted when a block job has completed
+#     Emitted when a block job has completed
 #
 # @type: job type
 #
@@ -5849,8 +5706,7 @@
 
 ##
 # @BLOCK_JOB_CANCELLED:
-#
-# Emitted when a block job has been cancelled
+#     Emitted when a block job has been cancelled
 #
 # @type: job type
 #
@@ -5883,8 +5739,7 @@
 
 ##
 # @BLOCK_JOB_ERROR:
-#
-# Emitted when a block job encounters an error
+#     Emitted when a block job encounters an error
 #
 # @device: The job identifier.  Originally the device name but other
 #     values are allowed since QEMU 2.7
@@ -5910,8 +5765,7 @@
 
 ##
 # @BLOCK_JOB_READY:
-#
-# Emitted when a block job is ready to complete
+#     Emitted when a block job is ready to complete
 #
 # @type: job type
 #
@@ -5946,11 +5800,10 @@
 
 ##
 # @BLOCK_JOB_PENDING:
-#
-# Emitted when a block job is awaiting explicit authorization to
-# finalize graph changes via `job-finalize`.  If this job is part of a
-# transaction, it will not emit this event until the transaction has
-# converged first.
+#     Emitted when a block job is awaiting explicit authorization to
+#     finalize graph changes via `job-finalize`.  If this job is part
+#     of a transaction, it will not emit this event until the
+#     transaction has converged first.
 #
 # @type: job type
 #
@@ -5970,8 +5823,7 @@
 
 ##
 # @PreallocMode:
-#
-# Preallocation mode of QEMU image file
+#     Preallocation mode of QEMU image file
 #
 # @off: no preallocation
 #
@@ -5992,12 +5844,12 @@
 
 ##
 # @BLOCK_WRITE_THRESHOLD:
-#
-# Emitted when writes on block device reaches or exceeds the
-# configured write threshold.  For thin-provisioned devices, this
-# means the device should be extended to avoid pausing for disk
-# exhaustion.  The event is one shot.  Once triggered, it needs to be
-# re-registered with another `block-set-write-threshold` command.
+#     Emitted when writes on block device reaches or exceeds the
+#     configured write threshold.  For thin-provisioned devices, this
+#     means the device should be extended to avoid pausing for disk
+#     exhaustion.  The event is one shot.  Once triggered, it needs to
+#     be re-registered with another `block-set-write-threshold`
+#     command.
 #
 # @node-name: graph node name on which the threshold was exceeded.
 #
@@ -6015,15 +5867,14 @@
 
 ##
 # @block-set-write-threshold:
+#     Change the write threshold for a block drive.  An event will be
+#     delivered if a write to this block drive crosses the configured
+#     threshold.  The threshold is an offset, thus must be
+#     non-negative.  Default is no write threshold.  Setting the
+#     threshold to zero disables it.
 #
-# Change the write threshold for a block drive.  An event will be
-# delivered if a write to this block drive crosses the configured
-# threshold.  The threshold is an offset, thus must be non-negative.
-# Default is no write threshold.  Setting the threshold to zero
-# disables it.
-#
-# This is useful to transparently resize thin-provisioned drives
-# without the guest OS noticing.
+#     This is useful to transparently resize thin-provisioned drives
+#     without the guest OS noticing.
 #
 # @node-name: graph node name on which the threshold must be set.
 #
@@ -6045,8 +5896,7 @@
 
 ##
 # @x-blockdev-change:
-#
-# Dynamically reconfigure the block driver state graph.
+#     Dynamically reconfigure the block driver state graph.
 #
 # Currently only supports adding and deleting quorum children.  A
 # child will be added at the end of the list of children.  Its
@@ -6105,11 +5955,10 @@
 
 ##
 # @x-blockdev-set-iothread:
+#     Move @node and its children into the @iothread.  If @iothread is
+#     null then move @node and its children into the main loop.
 #
-# Move @node and its children into the @iothread.  If @iothread is
-# null then move @node and its children into the main loop.
-#
-# The node must not be attached to a BlockBackend.
+#     The node must not be attached to a BlockBackend.
 #
 # @node-name: the name of the block driver node
 #
@@ -6150,8 +5999,7 @@
 
 ##
 # @QuorumOpType:
-#
-# An enumeration of the quorum operation types
+#     An enumeration of the quorum operation types
 #
 # @read: read operation
 #
@@ -6166,8 +6014,8 @@
 
 ##
 # @QUORUM_FAILURE:
-#
-# Emitted by the Quorum block driver if it fails to establish a quorum
+#     Emitted by the Quorum block driver if it fails to establish a
+#     quorum
 #
 # @reference: device name if defined else node name
 #
@@ -6190,8 +6038,7 @@
 
 ##
 # @QUORUM_REPORT_BAD:
-#
-# Emitted to report a corruption of a Quorum file
+#     Emitted to report a corruption of a Quorum file
 #
 # @type: quorum operation type (Since 2.6)
 #
@@ -6245,11 +6092,10 @@
 
 ##
 # @blockdev-snapshot-internal-sync:
-#
-# Synchronously take an internal snapshot of a block device, when the
-# format of the image used supports it.  If the name is an empty
-# string, or a snapshot with name already exists, the operation will
-# fail.
+#     Synchronously take an internal snapshot of a block device, when
+#     the format of the image used supports it.  If the name is an
+#     empty string, or a snapshot with name already exists, the
+#     operation will fail.
 #
 # Errors:
 #     - If @device is not a valid block device, GenericError
@@ -6277,11 +6123,11 @@
 
 ##
 # @blockdev-snapshot-delete-internal-sync:
-#
-# Synchronously delete an internal snapshot of a block device, when
-# the format of the image used support it.  The snapshot is identified
-# by name or id or both.  One of the name or id is required.  Return
-# `SnapshotInfo` for the successfully deleted snapshot.
+#     Synchronously delete an internal snapshot of a block device,
+#     when the format of the image used support it.  The snapshot is
+#     identified by name or id or both.  One of the name or id is
+#     required.  Return `SnapshotInfo` for the successfully deleted
+#     snapshot.
 #
 # @device: the device name or node-name of a root node to delete the
 #     snapshot from
@@ -6324,8 +6170,8 @@
 
 ##
 # @DummyBlockCoreForceArrays:
-#
-# Not used by QMP; hack to let us use BlockGraphInfoList internally
+#     Not used by QMP; hack to let us use BlockGraphInfoList
+#     internally
 #
 # Since: 8.0
 ##

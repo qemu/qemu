@@ -20,8 +20,7 @@
 
 ##
 # @EbpfObject:
-#
-# An eBPF ELF object.
+#     An eBPF ELF object.
 #
 # @object: the eBPF object encoded in base64
 #
@@ -33,8 +32,7 @@
 
 ##
 # @EbpfProgramID:
-#
-# The eBPF programs that can be gotten with `request-ebpf`.
+#     The eBPF programs that can be gotten with `request-ebpf`.
 #
 # @rss: Receive side scaling, technology that allows steering traffic
 #     between queues by calculation hash.  Users may set up
@@ -49,10 +47,10 @@
 
 ##
 # @request-ebpf:
-#
-# Retrieve an eBPF object that can be loaded with libbpf.  Management
-# applications (e.g. libvirt) may load it and pass file descriptors to
-# QEMU, so they can run running QEMU without BPF capabilities.
+#     Retrieve an eBPF object that can be loaded with libbpf.
+#     Management applications (e.g. libvirt) may load it and pass file
+#     descriptors to QEMU, so they can run running QEMU without BPF
+#     capabilities.
 #
 # @id: The ID of the program to return.
 #

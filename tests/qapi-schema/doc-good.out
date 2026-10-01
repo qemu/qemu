@@ -126,15 +126,13 @@ doc symbol=Base
  minimally indented
 doc symbol=Variant1
     Intro
+    A paragraph
 
-    Plain
-A paragraph
-
-Another paragraph
-
-@var1 is undocumented
+    Another paragraph
     Member=var1
 
+    Plain
+@var1 is undocumented
     Feature=variant1-feat
 a feature
     Feature=member-feat
@@ -213,9 +211,8 @@ Note::
 2.10
 doc symbol=cmd-boxed
     Intro
-
-    Plain
-If you're bored enough to read this, go see a video of boxed cats
+    If you're bored enough to read this, go see a video of boxed
+    cats
     Feature=cmd-feat1
 a feature
     Feature=cmd-feat2

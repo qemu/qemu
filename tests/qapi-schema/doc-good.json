@@ -94,10 +94,9 @@
 
 ##
 # @Variant1:
+#     A paragraph
 #
-# A paragraph
-#
-# Another paragraph
+#     Another paragraph
 #
 # @var1 is undocumented
 #
@@ -206,7 +205,8 @@
 
 ##
 # @cmd-boxed:
-# If you're bored enough to read this, go see a video of boxed cats
+#     If you're bored enough to read this, go see a video of boxed
+#     cats
 #
 # Features:
 # @cmd-feat1: a feature

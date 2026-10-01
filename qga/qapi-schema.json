@@ -48,9 +48,8 @@
 
 ##
 # @guest-sync-delimited:
-#
-# Echo back a unique integer value, and prepend to response a leading
-# sentinel byte (0xFF) the client can check scan for.
+#     Echo back a unique integer value, and prepend to response a
+#     leading sentinel byte (0xFF) the client can check scan for.
 #
 # This is used by clients talking to the guest agent over the wire to
 # ensure the stream is in sync and doesn't contain stale data from
@@ -83,8 +82,7 @@
 
 ##
 # @guest-sync:
-#
-# Echo back a unique integer value
+#     Echo back a unique integer value
 #
 # This is used by clients talking to the guest agent over the wire to
 # ensure the stream is in sync and doesn't contain stale data from
@@ -120,8 +118,7 @@
 
 ##
 # @guest-ping:
-#
-# Ping the guest agent, a non-error return implies success
+#     Ping the guest agent, a non-error return implies success
 #
 # Since: 0.15.0
 ##
@@ -129,9 +126,8 @@
 
 ##
 # @guest-get-time:
-#
-# Get the information about guest's System Time relative to the Epoch
-# of 1970-01-01 in UTC.
+#     Get the information about guest's System Time relative to the
+#     Epoch of 1970-01-01 in UTC.
 #
 # Returns: Time in nanoseconds.
 #
@@ -142,8 +138,7 @@
 
 ##
 # @guest-set-time:
-#
-# Set guest time.
+#     Set guest time.
 #
 # When a guest is paused or migrated to a file then loaded from that
 # file, the guest OS has no idea that there was a big gap in the time.
@@ -168,8 +163,7 @@
 
 ##
 # @GuestAgentCommandInfo:
-#
-# Information about guest agent commands.
+#     Information about guest agent commands.
 #
 # @name: name of the command
 #
@@ -185,8 +179,7 @@
 
 ##
 # @GuestAgentInfo:
-#
-# Information about guest agent.
+#     Information about guest agent.
 #
 # @version: guest agent version
 #
@@ -200,8 +193,7 @@
 
 ##
 # @guest-info:
-#
-# Get some information about the guest agent.
+#     Get some information about the guest agent.
 #
 # Since: 0.15.0
 ##
@@ -210,9 +202,9 @@
 
 ##
 # @guest-shutdown:
-#
-# Initiate guest-activated shutdown.  Note: this is an asynchronous
-# shutdown request, with no guarantee of successful shutdown.
+#     Initiate guest-activated shutdown.  Note: this is an
+#     asynchronous shutdown request, with no guarantee of successful
+#     shutdown.
 #
 # @mode: "halt", "powerdown" (default), or "reboot"
 #
@@ -228,8 +220,7 @@
 
 ##
 # @guest-file-open:
-#
-# Open a file in the guest and retrieve a file handle for it
+#     Open a file in the guest and retrieve a file handle for it
 #
 # @path: Full path to the file in the guest to open.
 #
@@ -245,8 +236,7 @@
 
 ##
 # @guest-file-close:
-#
-# Close an open file in the guest
+#     Close an open file in the guest
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -257,8 +247,7 @@
 
 ##
 # @GuestFileRead:
-#
-# Result of guest agent file-read operation
+#     Result of guest agent file-read operation
 #
 # @count: number of bytes read (note: count is *before*
 #     base64-encoding is applied)
@@ -274,10 +263,10 @@
 
 ##
 # @guest-file-read:
-#
-# Read from an open file in the guest.  Data will be base64-encoded.
-# As this command is just for limited, ad-hoc debugging, such as log
-# file access, the number of bytes to read is limited to 48 MB.
+#     Read from an open file in the guest.  Data will be
+#     base64-encoded.  As this command is just for limited, ad-hoc
+#     debugging, such as log file access, the number of bytes to read
+#     is limited to 48 MB.
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -292,8 +281,7 @@
 
 ##
 # @GuestFileWrite:
-#
-# Result of guest agent file-write operation
+#     Result of guest agent file-write operation
 #
 # @count: number of bytes written (note: count is actual bytes
 #     written, after base64-decoding of provided buffer)
@@ -307,8 +295,7 @@
 
 ##
 # @guest-file-write:
-#
-# Write to an open file in the guest.
+#     Write to an open file in the guest.
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -325,8 +312,7 @@
 
 ##
 # @GuestFileSeek:
-#
-# Result of guest agent file-seek operation
+#     Result of guest agent file-seek operation
 #
 # @position: current file position
 #
@@ -339,8 +325,7 @@
 
 ##
 # @QGASeek:
-#
-# Symbolic names for use in `guest-file-seek`
+#     Symbolic names for use in `guest-file-seek`
 #
 # @set: Set to the specified offset (same effect as 'whence':0)
 #
@@ -354,8 +339,7 @@
 
 ##
 # @GuestFileWhence:
-#
-# Controls the meaning of offset to `guest-file-seek`.
+#     Controls the meaning of offset to `guest-file-seek`.
 #
 # @value: Integral value (0 for set, 1 for cur, 2 for end), available
 #     for historical reasons, and might differ from the host's or
@@ -370,10 +354,9 @@
 
 ##
 # @guest-file-seek:
-#
-# Seek to a position in the file, as with fseek(), and return the
-# current file position afterward.  Also encapsulates ftell()'s
-# functionality, with offset=0 and whence=1.
+#     Seek to a position in the file, as with fseek(), and return the
+#     current file position afterward.  Also encapsulates ftell()'s
+#     functionality, with offset=0 and whence=1.
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -390,8 +373,7 @@
 
 ##
 # @guest-file-flush:
-#
-# Write file changes buffered in userspace to disk/kernel buffers
+#     Write file changes buffered in userspace to disk/kernel buffers
 #
 # @handle: filehandle returned by `guest-file-open`
 #
@@ -402,8 +384,7 @@
 
 ##
 # @GuestFsfreezeStatus:
-#
-# An enumeration of filesystem freeze states
+#     An enumeration of filesystem freeze states
 #
 # @thawed: filesystems thawed/unfrozen
 #
@@ -417,8 +398,7 @@
 
 ##
 # @guest-fsfreeze-status:
-#
-# Get guest fsfreeze state.
+#     Get guest fsfreeze state.
 #
 # .. note:: This may fail to properly report the current state as a
 #    result of some other guest processes having issued an fs
@@ -432,14 +412,14 @@
 
 ##
 # @guest-fsfreeze-freeze:
+#     Sync and freeze all freezable, local guest filesystems.  If this
+#     command succeeded, you may call `guest-fsfreeze-thaw` later to
+#     unfreeze.
 #
-# Sync and freeze all freezable, local guest filesystems.  If this
-# command succeeded, you may call `guest-fsfreeze-thaw` later to
-# unfreeze.
-#
-# On error, all filesystems will be thawed.  If no filesystems are
-# frozen as a result of this call, then `guest-fsfreeze-status` will
-# remain "thawed" and calling `guest-fsfreeze-thaw` is not necessary.
+#     On error, all filesystems will be thawed.  If no filesystems are
+#     frozen as a result of this call, then `guest-fsfreeze-status`
+#     will remain "thawed" and calling `guest-fsfreeze-thaw` is not
+#     necessary.
 #
 # Returns: Number of file systems currently frozen.
 #
@@ -455,11 +435,10 @@
 
 ##
 # @guest-fsfreeze-freeze-list:
+#     Sync and freeze specified guest filesystems.  See also
+#     `guest-fsfreeze-freeze`.
 #
-# Sync and freeze specified guest filesystems.  See also
-# `guest-fsfreeze-freeze`.
-#
-# On error, all filesystems will be thawed.
+#     On error, all filesystems will be thawed.
 #
 # @mountpoints: an array of mountpoints of filesystems to be frozen.
 #     If omitted, every mounted filesystem is frozen.  Invalid mount
@@ -476,8 +455,7 @@
 
 ##
 # @guest-fsfreeze-thaw:
-#
-# Unfreeze all frozen guest filesystems
+#     Unfreeze all frozen guest filesystems
 #
 # Returns: Number of file systems thawed by this call
 #
@@ -524,8 +502,8 @@
 
 ##
 # @guest-fstrim:
-#
-# Discard (or "trim") blocks which are not in use by the filesystem.
+#     Discard (or "trim") blocks which are not in use by the
+#     filesystem.
 #
 # @minimum: Minimum contiguous free range to discard, in bytes.  Free
 #     ranges smaller than this may be ignored (this is a hint and the
@@ -546,8 +524,7 @@
 
 ##
 # @guest-suspend-disk:
-#
-# Suspend guest to disk.
+#     Suspend guest to disk.
 #
 # This command attempts to suspend the guest using three strategies,
 # in this order:
@@ -576,8 +553,7 @@
 
 ##
 # @guest-suspend-ram:
-#
-# Suspend guest to ram.
+#     Suspend guest to ram.
 #
 # This command attempts to suspend the guest using three strategies,
 # in this order:
@@ -613,8 +589,7 @@
 
 ##
 # @guest-suspend-hybrid:
-#
-# Save guest state to disk and suspend to ram.
+#     Save guest state to disk and suspend to ram.
 #
 # This command attempts to suspend the guest by executing, in this
 # order:
@@ -649,8 +624,7 @@
 
 ##
 # @GuestIpAddressType:
-#
-# An enumeration of supported IP address types
+#     An enumeration of supported IP address types
 #
 # @ipv4: IP version 4
 #
@@ -735,8 +709,7 @@
 
 ##
 # @guest-network-get-interfaces:
-#
-# Get list of guest IP addresses, MAC addresses and netmasks.
+#     Get list of guest IP addresses, MAC addresses and netmasks.
 #
 # Since: 1.1
 ##
@@ -766,10 +739,9 @@
 
 ##
 # @guest-get-vcpus:
+#     Retrieve the list of the guest's logical processors.
 #
-# Retrieve the list of the guest's logical processors.
-#
-# This is a read-only operation.
+#     This is a read-only operation.
 #
 # Returns: The list of all VCPUs the guest knows about.  Each VCPU is
 #     put on the list exactly once, but their order is unspecified.
@@ -782,9 +754,8 @@
 
 ##
 # @guest-set-vcpus:
-#
-# Attempt to reconfigure (currently: enable/disable) logical
-# processors inside the guest.
+#     Attempt to reconfigure (currently: enable/disable) logical
+#     processors inside the guest.
 #
 # @vcpus: The logical processors to be reconfigured.  This list is
 #     processed node by node in order.  In each node @logical-id is
@@ -825,8 +796,7 @@
 
 ##
 # @GuestDiskBusType:
-#
-# An enumeration of bus type of disks
+#     An enumeration of bus type of disks
 #
 # @ide: IDE disks
 #
@@ -946,9 +916,8 @@
 
 ##
 # @GuestNVMeSmart:
-#
-# NVMe smart information, based on NVMe specification, section
-# <SMART / Health Information (Log Identifier 02h)>
+#     NVMe smart information, based on NVMe specification, section
+#     <SMART / Health Information (Log Identifier 02h)>
 #
 # TODO: document members briefly
 #
@@ -984,8 +953,7 @@
 
 ##
 # @GuestDiskSmart:
-#
-# Disk type related smart information.
+#     Disk type related smart information.
 #
 # @type: disk bus type
 #
@@ -1130,10 +1098,9 @@
 
 ##
 # @guest-get-memory-blocks:
+#     Retrieve the list of the guest's memory blocks.
 #
-# Retrieve the list of the guest's memory blocks.
-#
-# This is a read-only operation.
+#     This is a read-only operation.
 #
 # Returns: The list of all memory blocks the guest knows about.  Each
 #     memory block is put on the list exactly once, but their order is
@@ -1147,8 +1114,7 @@
 
 ##
 # @GuestMemoryBlockResponseType:
-#
-# An enumeration of memory block operation result.
+#     An enumeration of memory block operation result.
 #
 # @success: the operation of online/offline memory block is
 #     successful.
@@ -1191,9 +1157,8 @@
 
 ##
 # @guest-set-memory-blocks:
-#
-# Attempt to reconfigure (currently: enable/disable) state of memory
-# blocks inside the guest.
+#     Attempt to reconfigure (currently: enable/disable) state of
+#     memory blocks inside the guest.
 #
 # @mem-blks: The memory blocks to be reconfigured.  This list is
 #     processed node by node in order.  In each node @phys-index is
@@ -1236,8 +1201,7 @@
 
 ##
 # @guest-get-memory-block-info:
-#
-# Get information relating to guest memory blocks.
+#     Get information relating to guest memory blocks.
 #
 # Since: 2.3
 ##
@@ -1278,10 +1242,9 @@
 
 ##
 # @guest-exec-status:
-#
-# Check status of process associated with PID retrieved via
-# `guest-exec`.  Reap the process and associated metadata if it has
-# exited.
+#     Check status of process associated with PID retrieved via
+#     `guest-exec`.  Reap the process and associated metadata if it
+#     has exited.
 #
 # @pid: pid returned from `guest-exec`
 #
@@ -1303,8 +1266,7 @@
 
 ##
 # @GuestExecCaptureOutputMode:
-#
-# An enumeration of `guest-exec` capture modes.
+#     An enumeration of `guest-exec` capture modes.
 #
 # @none: do not capture any output
 #
@@ -1326,8 +1288,7 @@
 
 ##
 # @GuestExecCaptureOutput:
-#
-# Controls what `guest-exec` output gets captures.
+#     Controls what `guest-exec` output gets captures.
 #
 # @flag: captures both stdout and stderr if true.  Equivalent to
 #     `GuestExecCaptureOutputMode`::all.  (since 2.5)
@@ -1342,8 +1303,7 @@
 
 ##
 # @guest-exec:
-#
-# Execute a command in the guest
+#     Execute a command in the guest
 #
 # @path: path or executable name to execute
 #
@@ -1377,12 +1337,12 @@
 
 ##
 # @guest-get-host-name:
+#     Return a name for the machine.
 #
-# Return a name for the machine.
-#
-# The returned name is not necessarily a fully-qualified domain name,
-# or even present in DNS or some other name service at all.  It need
-# not even be unique on your local network or site, but usually it is.
+#     The returned name is not necessarily a fully-qualified domain
+#     name, or even present in DNS or some other name service at all.
+#     It need not even be unique on your local network or site, but
+#     usually it is.
 #
 # Returns: the host name of the machine
 #
@@ -1411,8 +1371,7 @@
 
 ##
 # @guest-get-users:
-#
-# Retrieves a list of currently active users on the VM.
+#     Retrieves a list of currently active users on the VM.
 #
 # Returns: A unique list of users.
 #
@@ -1438,8 +1397,7 @@
 
 ##
 # @guest-get-timezone:
-#
-# Retrieves the timezone information from the guest.
+#     Retrieves the timezone information from the guest.
 #
 # Since: 2.10
 ##
@@ -1512,8 +1470,7 @@
 
 ##
 # @guest-get-osinfo:
-#
-# Retrieve guest operating system information
+#     Retrieve guest operating system information
 #
 # Since: 2.10
 ##
@@ -1544,8 +1501,7 @@
 
 ##
 # @GuestDeviceId:
-#
-# Id of the device
+#     Id of the device
 #
 # @type: device type
 #
@@ -1581,8 +1537,7 @@
 
 ##
 # @guest-get-devices:
-#
-# Retrieve information about device drivers in Windows guest
+#     Retrieve information about device drivers in Windows guest
 #
 # Since: 5.2
 ##
@@ -1605,9 +1560,8 @@
 
 ##
 # @guest-ssh-get-authorized-keys:
-#
-# Return the public keys from user .ssh/authorized_keys on Unix
-# systems (not implemented for other systems).
+#     Return the public keys from user .ssh/authorized_keys on Unix
+#     systems (not implemented for other systems).
 #
 # @username: the user account to add the authorized keys
 #
@@ -1620,9 +1574,8 @@
 
 ##
 # @guest-ssh-add-authorized-keys:
-#
-# Append public keys to user .ssh/authorized_keys on Unix systems (not
-# implemented for other systems).
+#     Append public keys to user .ssh/authorized_keys on Unix systems
+#     (not implemented for other systems).
 #
 # @username: the user account to add the authorized keys
 #
@@ -1639,10 +1592,9 @@
 
 ##
 # @guest-ssh-remove-authorized-keys:
-#
-# Remove public keys from the user .ssh/authorized_keys on Unix
-# systems (not implemented for other systems).  It's not an error if
-# the key is already missing.
+#     Remove public keys from the user .ssh/authorized_keys on Unix
+#     systems (not implemented for other systems).  It's not an error
+#     if the key is already missing.
 #
 # @username: the user account to remove the authorized keys
 #
@@ -1736,8 +1688,7 @@
 
 ##
 # @guest-get-diskstats:
-#
-# Retrieve information about disk stats.
+#     Retrieve information about disk stats.
 #
 # Returns: List of disk stats of guest.
 #
@@ -1750,8 +1701,7 @@
 
 ##
 # @GuestCpuStatsType:
-#
-# Guest operating systems supporting CPU statistics
+#     Guest operating systems supporting CPU statistics
 #
 # @linux: Linux
 #
@@ -1763,8 +1713,7 @@
 
 ##
 # @GuestLinuxCpuStats:
-#
-# CPU statistics of Linux
+#     CPU statistics of Linux
 #
 # @cpu: CPU index in guest OS
 #
@@ -1808,8 +1757,7 @@
 
 ##
 # @GuestCpuStats:
-#
-# Get statistics of each CPU in millisecond.
+#     Get statistics of each CPU in millisecond.
 #
 # @type: guest operating system
 #
@@ -1823,8 +1771,7 @@
 
 ##
 # @guest-get-cpustats:
-#
-# Retrieve information about CPU stats.
+#     Retrieve information about CPU stats.
 #
 # Returns: List of CPU stats of guest.
 #
@@ -1837,8 +1784,7 @@
 
 ##
 # @GuestLoadAverage:
-#
-# Statistics about process load information
+#     Statistics about process load information
 #
 # @load1m: 1-minute load avage
 #
@@ -1859,8 +1805,7 @@
 
 ##
 # @guest-get-load:
-#
-# Retrieve CPU process load information
+#     Retrieve CPU process load information
 #
 # .. note:: Windows does not have load average API, so QGA emulates it
 #    by calculating the average CPU usage in the last 1, 5, 15 minutes
@@ -1878,9 +1823,8 @@
 
 ##
 # @GuestNetworkRoute:
-#
-# Route information.  Supported on Linux (since 9.1) and Windows
-# (since 11.0).
+#     Route information.  Supported on Linux (since 9.1) and Windows
+#     (since 11.0).
 #
 # @iface: The destination network or host's egress network interface
 #     in the routing table
@@ -1941,8 +1885,7 @@
 
 ##
 # @guest-network-get-route:
-#
-# Retrieve information about route of network.
+#     Retrieve information about route of network.
 #
 # Returns: List of route info of guest.
 #
