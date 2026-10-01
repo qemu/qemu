@@ -84,6 +84,7 @@ tests += {
   'test_lsr.S': {'cflags': asmflags},
   'test_mpyi.S': {'cflags': asmflags},
   'test_packet.S': {'cflags': asmflags},
+  'test_pnew_jump_loads.c': {'cflags': cflags},
   'test_reorder.S': {'cflags': asmflags},
   'test_round.S': {'cflags': asmflags},
   'test_vavgw.S': {'cflags': asmflags},
