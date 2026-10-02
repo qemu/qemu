@@ -38,6 +38,9 @@ void tpm_util_pcrextend(QTestState *s, tx_func *tx);
 void tpm_util_pcrread(QTestState *s, tx_func *tx,
                       const unsigned char *exp_resp, size_t exp_resp_size);
 
+void tpm_util_short_write(QTestState *s, tx_func *tx);
+void tpm_util_too_short_cmd(QTestState *s, tx_func *tx);
+
 bool tpm_util_swtpm_has_tpm2(void);
 
 gboolean tpm_util_swtpm_start(const char *path, GPid *pid,
