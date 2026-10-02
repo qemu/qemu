@@ -180,10 +180,17 @@ static void tpm_crb_fill_command_response(CRBState *s)
      * to the linux guest in chunks by writing it back to MMIO region.
      */
     void *mem = memory_region_get_ram_ptr(&s->cmdmem);
-    uint32_t remaining = s->response_buffer->len - s->response_offset;
-    uint32_t to_copy = MIN(CRB_CTRL_CMD_SIZE, remaining);
+    uint32_t remaining = 0;
+    uint32_t to_copy;
 
-    memcpy(mem, s->response_buffer->data + s->response_offset, to_copy);
+    if (s->response_offset < s->response_buffer->len) {
+        remaining = s->response_buffer->len - s->response_offset;
+    }
+    to_copy = MIN(CRB_CTRL_CMD_SIZE, remaining);
+
+    if (to_copy) {
+        memcpy(mem, s->response_buffer->data + s->response_offset, to_copy);
+    }
 
     if (to_copy < CRB_CTRL_CMD_SIZE) {
         memset((guint8 *)mem + to_copy, 0, CRB_CTRL_CMD_SIZE - to_copy);
