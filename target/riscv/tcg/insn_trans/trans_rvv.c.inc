@@ -731,7 +731,7 @@ static bool ldst_us_trans(uint32_t vd, uint32_t rs1, uint32_t data,
      * around the loop.
      */
     if (is_store && s->ztso) {
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+        tcg_gen_mb(TCG_MO_LD_ST | TCG_MO_ST_ST | TCG_BAR_STRL);
     }
 
     mark_vs_dirty(s);
@@ -739,7 +739,7 @@ static bool ldst_us_trans(uint32_t vd, uint32_t rs1, uint32_t data,
     fn(dest, mask, base, tcg_env, desc);
 
     if (!is_store && s->ztso) {
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+        tcg_gen_mb(TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_BAR_LDAQ);
     }
 
     finalize_rvv_inst(s);

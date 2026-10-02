@@ -424,7 +424,7 @@ static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
     }
 
     if (ctx->ztso) {
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+        tcg_gen_mb(TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_BAR_LDAQ);
     }
 
     return out;
@@ -485,7 +485,7 @@ static bool gen_store_tl(DisasContext *ctx, arg_sb *a, MemOp memop)
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
 
     if (ctx->ztso) {
-        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+        tcg_gen_mb(TCG_MO_LD_ST | TCG_MO_ST_ST | TCG_BAR_STRL);
     }
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
