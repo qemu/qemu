@@ -50,6 +50,9 @@
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int64_t bytes, BdrvRequestFlags flags);
 
+static void coroutine_fn
+bdrv_wait_serialising_requests_locked(BdrvTrackedRequest *self);
+
 static void GRAPH_RDLOCK
 bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore)
 {
@@ -616,6 +619,7 @@ static void coroutine_fn tracked_request_begin(BdrvTrackedRequest *req,
         .type           = type,
         .co             = qemu_coroutine_self(),
         .serialising    = false,
+        .active_owner   = false,
         .overlap_offset = offset,
         .overlap_bytes  = bytes,
     };
@@ -624,6 +628,15 @@ static void coroutine_fn tracked_request_begin(BdrvTrackedRequest *req,
 
     qemu_mutex_lock(&bs->reqs_lock);
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
+
+    /*
+     * Set .waiting_for while we're holding the lock, otherwise we'd open a race
+     * window where another request in the middle of its RMW cycle starts
+     * waiting for us, leading to potential data corruption if this request
+     * overwrites a block the RMW request has already read.
+     */
+    bdrv_wait_serialising_requests_locked(req);
+
     qemu_mutex_unlock(&bs->reqs_lock);
 }
 
@@ -684,6 +697,15 @@ bdrv_wait_serialising_requests_locked(BdrvTrackedRequest *self)
     BdrvTrackedRequest *req;
 
     while ((req = bdrv_find_conflicting_request(self))) {
+        /*
+         * If this request is the active owner of the data blocks it accesses,
+         * no other conflicting request may exist; other requests have to wait
+         * for this one, not the other way around. If this condition is
+         * violated, RMW operations may be interrupted in the middle, operate on
+         * stale data and introduce data corruption.
+         */
+        assert(!self->active_owner);
+
         self->waiting_for = req;
         qemu_co_queue_wait(&req->wait_queue, &self->bs->reqs_lock);
         self->waiting_for = NULL;
@@ -803,6 +825,7 @@ void coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
 
     tracked_request_set_serialising(req, align);
     bdrv_wait_serialising_requests_locked(req);
+    req->active_owner = true;
 
     qemu_mutex_unlock(&req->bs->reqs_lock);
 }
