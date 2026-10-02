@@ -202,13 +202,13 @@ static int tpm_emulator_unix_tx_bufs(TPMEmulator *tpm_emu,
      * size)
      */
     to_read = tpm_cmd_get_size(out);
-    if (to_read > out_len) {
+    if (to_read > out_len || to_read < sizeof(struct tpm_resp_hdr)) {
         if (qio_channel_shutdown(tpm_emu->data_ioc, QIO_CHANNEL_SHUTDOWN_BOTH,
                                  &local_err) < 0) {
             error_report_err(local_err);
         }
         error_setg(errp, "tpm-emulator: Disconnected after receiving "
-                   "unacceptable large response (%u > %u)",
+                   "unacceptable response size (%u max: %u)",
                    to_read, out_len);
         return -1;
     }
