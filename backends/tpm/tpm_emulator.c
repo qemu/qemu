@@ -270,7 +270,8 @@ static void tpm_emulator_handle_request(TPMBackend *tb, TPMBackendCmd *cmd,
         tpm_emulator_unix_tx_bufs(tpm_emu, cmd->in, cmd->in_len,
                                   cmd->out, cmd->out_len,
                                   &cmd->selftest_done, errp) < 0) {
-        tpm_util_write_fatal_error_response(cmd->out, cmd->out_len);
+        tpm_util_write_fatal_error_response(cmd->out, cmd->out_len,
+                                            TPM_EMULATOR(tb)->tpm_version);
     }
 }
 

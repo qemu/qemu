@@ -25,7 +25,8 @@
 #include "system/tpm.h"
 #include "qemu/bswap.h"
 
-void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len);
+void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len,
+                                         TPMVersion tpm_version);
 
 bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
 
