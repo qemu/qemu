@@ -1448,9 +1448,8 @@ static int virtio_snd_post_load(VirtIODevice *vdev)
     uint32_t i;
 
     for (i = 0; i < s->snd_conf.streams; i++) {
-        struct VirtIOSoundPCMStream *stream;
+        VirtIOSoundPCMStream *stream = &s->streams[i];
 
-        stream = virtio_snd_pcm_get_stream(s, i);
         if (virtio_snd_pcm_state_prepared(stream->state)) {
             virtio_snd_pcm_open(stream);
 
