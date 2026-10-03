@@ -166,6 +166,10 @@ enum {
     ERROR_XFR_PARITY_ERROR  = -3,
     ERROR_XFR_OVERRUN       = -4,
     ERROR_HW_ERROR          = -5,
+    ERROR_CMD_SLOT_BUSY     = -32,
+    ERROR_BAD_DWLENGTH      = 1,
+    ERROR_SLOT_NOT_EXIST    = 5,
+    ERROR_PROTOCOL_INVALID  = 7,
 };
 
 /* 6.2.6 RDR_to_PC_SlotStatus definitions */
@@ -231,6 +235,19 @@ typedef struct QEMU_PACKED CCID_DataBlock {
     uint8_t      abData[];
 } CCID_DataBlock;
 
+typedef struct QEMU_PACKED CCID_Escape {
+    CCID_BULK_IN b;
+    uint8_t      bRFU;
+    uint8_t      abData[];
+} CCID_Escape;
+
+typedef struct QEMU_PACKED CCID_DataRateAndClockFrequency {
+    CCID_BULK_IN b;
+    uint8_t      bRFU;
+    uint32_t     dwClockFrequency;
+    uint32_t     dwDataRate;
+} CCID_DataRateAndClockFrequency;
+
 /* 6.1.4 PC_to_RDR_XfrBlock */
 typedef struct QEMU_PACKED CCID_XferBlock {
     CCID_Header  hdr;
@@ -247,7 +264,7 @@ typedef struct QEMU_PACKED CCID_IccPowerOn {
 
 typedef struct QEMU_PACKED CCID_IccPowerOff {
     CCID_Header hdr;
-    uint16_t    abRFU;
+    uint8_t     abRFU[3];
 } CCID_IccPowerOff;
 
 typedef struct QEMU_PACKED CCID_SetParameters {
@@ -294,26 +311,42 @@ struct USBCCIDState {
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
     uint32_t bulk_in_pending_start;
     uint32_t bulk_in_pending_end; /* first free */
-    uint32_t bulk_in_pending_num;
-    BulkIn *current_bulk_in;
     uint8_t  bulk_out_data[BULK_OUT_DATA_SIZE];
     uint32_t bulk_out_pos;
     uint64_t last_answer_error;
     Answer pending_answers[PENDING_ANSWERS_NUM];
     uint32_t pending_answers_start;
     uint32_t pending_answers_end;
-    uint32_t pending_answers_num;
+    uint32_t pending_answers_num; /* for migration compatibility */
     uint8_t  bError;
     uint8_t  bmCommandStatus;
     uint8_t  bProtocolNum;
     CCID_ProtocolDataStructure abProtocolDataStructure;
-    uint32_t ulProtocolDataStructureSize;
     uint32_t state_vmstate;
     uint8_t  bmSlotICCState;
     uint8_t  powered;
     uint8_t  notify_slot_change;
     uint8_t  debug;
+    bool accurate_message_length;
+    bool migrate_pending_answers;
+    bool pending_answers_loaded;
+    bool pin_support;
+    bool t1_support;
 };
+
+static uint32_t ccid_bulk_in_pending_num(USBCCIDState *s)
+{
+    uint32_t n = s->bulk_in_pending_end - s->bulk_in_pending_start;
+    assert(n <= BULK_IN_PENDING_NUM);
+    return n;
+}
+
+static uint32_t ccid_pending_answers_num(USBCCIDState *s)
+{
+    uint32_t n = s->pending_answers_end - s->pending_answers_start;
+    assert(n <= PENDING_ANSWERS_NUM);
+    return n;
+}
 
 /*
  * CCID Spec chapter 4: CCID uses a standard device descriptor per Chapter 9,
@@ -325,7 +358,7 @@ struct USBCCIDState {
  *   0dc3:1004 Athena Smartcard Solutions, Inc.
  */
 
-static const uint8_t qemu_ccid_descriptor[] = {
+static uint8_t qemu_ccid_descriptor[] = {
         /* Smart Card Device Class Descriptor */
         0x36,       /* u8  bLength; */
         0x21,       /* u8  bDescriptorType; Functional */
@@ -337,6 +370,7 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      */
         0x07,       /* u8  bVoltageSupport; 01h - 5.0v, 02h - 3.0, 03 - 1.8 */
 
+#define CCID_DESC_OFFSET_DW_PROTOCOLS 0x06
         0x01, 0x00, /* u32 dwProtocols; RRRR PPPP. RRRR = 0000h.*/
         0x00, 0x00, /* PPPP: 0001h = Protocol T=0, 0002h = Protocol T=1 */
                     /* u32 dwDefaultClock; in kHZ (0x0fa0 is 4 MHz) */
@@ -386,7 +420,10 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      * u32 dwMaxCCIDMessageLength; For extended APDU in
                      * [261 + 10 , 65544 + 10]. Otherwise the minimum is
                      * wMaxPacketSize of the Bulk-OUT endpoint
+                     *
+                     * Corrected to BULK_IN_BUF_SIZE when x-accurate-message-length
                      */
+#define CCID_DESC_OFFSET_DW_MAX_MSG_LEN 44
         0x12, 0x00, 0x01, 0x00,
         0xFF,       /*
                      * u8  bClassGetResponse; Significant only for CCID that
@@ -404,10 +441,14 @@ static const uint8_t qemu_ccid_descriptor[] = {
                      * u16 wLcdLayout; XXYY Number of lines (XX) and chars per
                      * line for LCD display used for PIN entry. 0000 - no LCD
                      */
-        0x01,       /*
+                    /*
                      * u8  bPINSupport; 01h PIN Verification,
                      *                  02h PIN Modification
+                     *
+                     * Corrected to 0 when !x-pin-support
                      */
+#define CCID_DESC_OFFSET_B_PIN_SUPPORT 52
+        0x01,
         0x01,       /* u8  bMaxCCIDBusySlots; */
 };
 
@@ -510,12 +551,11 @@ static void ccid_card_apdu_from_guest(CCIDCardState *card,
 
 static bool ccid_has_pending_answers(USBCCIDState *s)
 {
-    return s->pending_answers_num > 0;
+    return ccid_pending_answers_num(s) > 0;
 }
 
 static void ccid_clear_pending_answers(USBCCIDState *s)
 {
-    s->pending_answers_num = 0;
     s->pending_answers_start = 0;
     s->pending_answers_end = 0;
 }
@@ -530,7 +570,7 @@ static void ccid_print_pending_answers(USBCCIDState *s)
         DPRINTF(s, D_VERBOSE, " empty\n");
         return;
     }
-    for (i = s->pending_answers_start, count = s->pending_answers_num ;
+    for (i = s->pending_answers_start, count = ccid_pending_answers_num(s) ;
          count > 0; count--, i++) {
         answer = &s->pending_answers[i % PENDING_ANSWERS_NUM];
         if (count == 1) {
@@ -545,8 +585,7 @@ static void ccid_add_pending_answer(USBCCIDState *s, CCID_Header *hdr)
 {
     Answer *answer;
 
-    assert(s->pending_answers_num < PENDING_ANSWERS_NUM);
-    s->pending_answers_num++;
+    assert(ccid_pending_answers_num(s) < PENDING_ANSWERS_NUM);
     answer =
         &s->pending_answers[(s->pending_answers_end++) % PENDING_ANSWERS_NUM];
     answer->slot = hdr->bSlot;
@@ -559,8 +598,7 @@ static void ccid_remove_pending_answer(USBCCIDState *s,
 {
     Answer *answer;
 
-    assert(s->pending_answers_num > 0);
-    s->pending_answers_num--;
+    assert(ccid_pending_answers_num(s) > 0);
     answer =
         &s->pending_answers[(s->pending_answers_start++) % PENDING_ANSWERS_NUM];
     *slot = answer->slot;
@@ -570,27 +608,34 @@ static void ccid_remove_pending_answer(USBCCIDState *s,
 
 static void ccid_bulk_in_clear(USBCCIDState *s)
 {
+    int i;
+
+    for (i = 0; i < BULK_IN_PENDING_NUM; i++) {
+        s->bulk_in_pending[i].len = 0;
+        s->bulk_in_pending[i].pos = 0;
+    }
     s->bulk_in_pending_start = 0;
     s->bulk_in_pending_end = 0;
-    s->bulk_in_pending_num = 0;
 }
 
 static void ccid_bulk_in_release(USBCCIDState *s)
 {
-    assert(s->current_bulk_in != NULL);
-    s->current_bulk_in->pos = 0;
-    s->current_bulk_in = NULL;
+    BulkIn *bulk_in;
+
+    assert(ccid_bulk_in_pending_num(s) > 0);
+    bulk_in =
+        &s->bulk_in_pending[s->bulk_in_pending_start % BULK_IN_PENDING_NUM];
+    bulk_in->pos = 0;
+    s->bulk_in_pending_start++;
 }
 
-static void ccid_bulk_in_get(USBCCIDState *s)
+static BulkIn *ccid_bulk_in_peek(USBCCIDState *s)
 {
-    if (s->current_bulk_in != NULL || s->bulk_in_pending_num == 0) {
-        return;
+    if (ccid_bulk_in_pending_num(s) == 0) {
+        return NULL;
     }
-    assert(s->bulk_in_pending_num > 0);
-    s->bulk_in_pending_num--;
-    s->current_bulk_in =
-        &s->bulk_in_pending[(s->bulk_in_pending_start++) % BULK_IN_PENDING_NUM];
+    return &s->bulk_in_pending[
+        s->bulk_in_pending_start % BULK_IN_PENDING_NUM];
 }
 
 static void *ccid_reserve_recv_buf(USBCCIDState *s, uint16_t len)
@@ -606,36 +651,15 @@ static void *ccid_reserve_recv_buf(USBCCIDState *s, uint16_t len)
                            __func__, len, BULK_IN_BUF_SIZE);
         return NULL;
     }
-    if (s->bulk_in_pending_num >= BULK_IN_PENDING_NUM) {
+    if (ccid_bulk_in_pending_num(s) >= BULK_IN_PENDING_NUM) {
         DPRINTF(s, D_WARN, "usb-ccid.c: %s: No free bulk_in buffers. "
                            "discarding message.\n", __func__);
         return NULL;
     }
     bulk_in =
         &s->bulk_in_pending[(s->bulk_in_pending_end++) % BULK_IN_PENDING_NUM];
-    s->bulk_in_pending_num++;
     bulk_in->len = len;
     return bulk_in->data;
-}
-
-static void ccid_reset(USBCCIDState *s)
-{
-    ccid_bulk_in_clear(s);
-    ccid_clear_pending_answers(s);
-}
-
-static void ccid_detach(USBCCIDState *s)
-{
-    ccid_reset(s);
-}
-
-static void ccid_handle_reset(USBDevice *dev)
-{
-    USBCCIDState *s = USB_CCID_DEV(dev);
-
-    DPRINTF(s, 1, "Reset\n");
-
-    ccid_reset(s);
 }
 
 static const char *ccid_control_to_str(USBCCIDState *s, int request)
@@ -738,6 +762,43 @@ static void ccid_reset_error_status(USBCCIDState *s)
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
 }
 
+static void ccid_write_escape(USBCCIDState *s, CCID_Header *recv)
+{
+    CCID_Escape *h = ccid_reserve_recv_buf(s, sizeof(*h));
+    if (h == NULL) {
+        return;
+    }
+    h->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_Escape;
+    h->b.hdr.dwLength = 0;
+    h->b.hdr.bSlot = recv->bSlot;
+    h->b.hdr.bSeq = recv->bSeq;
+    h->b.bStatus = ccid_calc_status(s);
+    h->b.bError = s->bError;
+    h->bRFU = 0;
+    ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
+}
+
+static void ccid_write_data_rate_and_clock(USBCCIDState *s, CCID_Header *recv)
+{
+    CCID_DataRateAndClockFrequency *h = ccid_reserve_recv_buf(s, sizeof(*h));
+    if (h == NULL) {
+        return;
+    }
+    h->b.hdr.bMessageType =
+        CCID_MESSAGE_TYPE_RDR_to_PC_DataRateAndClockFrequency;
+    h->b.hdr.dwLength = cpu_to_le32(8);
+    h->b.hdr.bSlot = recv->bSlot;
+    h->b.hdr.bSeq = recv->bSeq;
+    h->b.bStatus = ccid_calc_status(s);
+    h->b.bError = s->bError;
+    h->bRFU = 0;
+    h->dwClockFrequency = 0;
+    h->dwDataRate = 0;
+    ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
+}
+
 static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_SlotStatus *h = ccid_reserve_recv_buf(s, sizeof(CCID_SlotStatus));
@@ -758,31 +819,37 @@ static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
 static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
 {
     CCID_Parameter *h;
-    uint32_t len = s->ulProtocolDataStructureSize;
+    uint32_t dwLength = s->bProtocolNum == 1 ? 7 : 5;
 
-    h = ccid_reserve_recv_buf(s, sizeof(CCID_Parameter) + len);
+    h = ccid_reserve_recv_buf(s, sizeof(h->b) + sizeof(h->bProtocolNum) + dwLength);
     if (h == NULL) {
         return;
     }
     h->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_Parameters;
-    h->b.hdr.dwLength = 0;
+    h->b.hdr.dwLength = cpu_to_le32(dwLength);
     h->b.hdr.bSlot = recv->bSlot;
     h->b.hdr.bSeq = recv->bSeq;
     h->b.bStatus = ccid_calc_status(s);
     h->b.bError = s->bError;
     h->bProtocolNum = s->bProtocolNum;
-    h->abProtocolDataStructure = s->abProtocolDataStructure;
+    memcpy(&h->abProtocolDataStructure, &s->abProtocolDataStructure, dwLength);
     ccid_reset_error_status(s);
     usb_wakeup(s->bulk, 0);
 }
 
-static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
+static bool ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
                                   const uint8_t *data, uint32_t len)
 {
-    CCID_DataBlock *p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
+    CCID_DataBlock *p;
+
+    if (len > BULK_IN_BUF_SIZE - sizeof(*p)) {
+        DPRINTF(s, D_WARN, "data block is too large (%u bytes)\n", len);
+        return false;
+    }
+    p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
 
     if (p == NULL) {
-        return;
+        return false;
     }
     p->b.hdr.bMessageType = CCID_MESSAGE_TYPE_RDR_to_PC_DataBlock;
     p->b.hdr.dwLength = cpu_to_le32(len);
@@ -790,6 +857,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     p->b.hdr.bSeq = seq;
     p->b.bStatus = ccid_calc_status(s);
     p->b.bError = s->bError;
+    p->bChainParameter = 0;
     if (p->b.bError) {
         DPRINTF(s, D_VERBOSE, "error %d\n", p->b.bError);
     }
@@ -799,6 +867,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     }
     ccid_reset_error_status(s);
     usb_wakeup(s->bulk, 0);
+    return true;
 }
 
 static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
@@ -807,19 +876,34 @@ static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
     s->bError = error;
 }
 
-static void ccid_write_data_block_answer(USBCCIDState *s,
-    const uint8_t *data, uint32_t len)
+static Answer *ccid_peek_next_answer(USBCCIDState *s);
+
+static bool ccid_write_data_block_answer(USBCCIDState *s,
+                                         const uint8_t *data, uint32_t len)
 {
-    uint8_t seq;
     uint8_t slot;
+    uint8_t seq;
+    Answer *answer;
 
     if (!ccid_has_pending_answers(s)) {
         DPRINTF(s, D_WARN, "error: no pending answer to return to guest\n");
         ccid_report_error_failed(s, ERROR_ICC_MUTE);
-        return;
+        return false;
+    }
+    answer = ccid_peek_next_answer(s);
+    if (len > BULK_IN_BUF_SIZE - sizeof(CCID_DataBlock)) {
+        DPRINTF(s, D_WARN,
+                "APDU response is too large (%u bytes), returning an error\n",
+                len);
+        ccid_report_error_failed(s, ERROR_HW_ERROR);
+        data = NULL;
+        len = 0;
+    }
+    if (!ccid_write_data_block(s, answer->slot, answer->seq, data, len)) {
+        return false;
     }
     ccid_remove_pending_answer(s, &slot, &seq);
-    ccid_write_data_block(s, slot, seq, data, len);
+    return true;
 }
 
 static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
@@ -832,6 +916,9 @@ static uint8_t atr_get_protocol_num(const uint8_t *atr, uint32_t len)
     }
     i = 1 + !!(atr[1] & 0x10) + !!(atr[1] & 0x20) + !!(atr[1] & 0x40);
     i += !!(atr[1] & 0x80);
+    if (i >= len) {
+        return 0;
+    }
     return atr[i] & 0x0f;
 }
 
@@ -884,7 +971,7 @@ static void ccid_set_parameters(USBCCIDState *s, CCID_Header *recv)
     uint32_t protocol_num = ph->bProtocolNum & 3;
 
     if (protocol_num != 0 && protocol_num != 1) {
-        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_report_error_failed(s, ERROR_PROTOCOL_INVALID);
         return;
     }
     s->bProtocolNum = protocol_num;
@@ -911,6 +998,31 @@ static void ccid_reset_parameters(USBCCIDState *s)
 {
    s->bProtocolNum = 0; /* T=0 */
    s->abProtocolDataStructure = defaultProtocolDataStructure;
+}
+
+static void ccid_reset(USBCCIDState *s)
+{
+    ccid_bulk_in_clear(s);
+    ccid_clear_pending_answers(s);
+    s->bulk_out_pos = 0;
+    s->last_answer_error = 0;
+    s->notify_slot_change = false;
+    ccid_reset_error_status(s);
+    ccid_reset_parameters(s);
+}
+
+static void ccid_detach(USBCCIDState *s)
+{
+    ccid_reset(s);
+}
+
+static void ccid_handle_reset(USBDevice *dev)
+{
+    USBCCIDState *s = USB_CCID_DEV(dev);
+
+    DPRINTF(s, 1, "Reset\n");
+
+    ccid_reset(s);
 }
 
 /* NOTE: only a single slot is supported (SLOT_0) */
@@ -943,6 +1055,14 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     if (ccid_card_status(s) != ICC_STATUS_PRESENT_ACTIVE) {
         DPRINTF(s, 1,
                 "usb-ccid: not sending apdu to client, no card connected\n");
+        ccid_report_error_failed(s, ERROR_ICC_MUTE);
+        ccid_write_data_block_error(s, recv->hdr.bSlot, recv->hdr.bSeq);
+        return;
+    }
+    if (ccid_pending_answers_num(s) > 0) {
+        DPRINTF(s, D_WARN,
+                "usb-ccid: slot already busy, rejecting apdu\n");
+        ccid_report_error_failed(s, ERROR_CMD_SLOT_BUSY);
         ccid_write_data_block_error(s, recv->hdr.bSlot, recv->hdr.bSeq);
         return;
     }
@@ -979,33 +1099,84 @@ static const char *ccid_message_type_to_str(uint8_t type)
     return "unknown";
 }
 
+/*
+ * Send the spec-mandated response type for the given command with the
+ * error already staged via ccid_report_error_failed().
+ */
+static void ccid_write_error_response(USBCCIDState *s, CCID_Header *recv)
+{
+    switch (recv->bMessageType) {
+    case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_XfrBlock:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Secure:
+        ccid_write_data_block_error(s, recv->bSlot, recv->bSeq);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_GetParameters:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_ResetParameters:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters:
+        ccid_write_parameters(s, recv);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Escape:
+        ccid_write_escape(s, recv);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        ccid_write_data_rate_and_clock(s, recv);
+        break;
+    default:
+        ccid_write_slot_status(s, recv);
+        break;
+    }
+}
+
 static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
+    uint32_t payload_len;
 
-    if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
+    /*
+     * Every accepted command either queues a response immediately or commits a
+     * slot to a later APDU response. Apply backpressure before consuming the
+     * first packet when all response slots are committed.
+     */
+    if (s->bulk_out_pos == 0 && /* start of message */
+        ccid_bulk_in_pending_num(s) + ccid_pending_answers_num(s) >=
+            BULK_IN_PENDING_NUM) {
+        p->status = USB_RET_NAK;
+        return;
+    }
+
+    if (usb_packet_size(p) + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
         goto err;
     }
-    usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
-    s->bulk_out_pos += p->iov.size;
+    usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, usb_packet_size(p));
+    s->bulk_out_pos += usb_packet_size(p);
     if (s->bulk_out_pos < 10) {
         DPRINTF(s, 1, "%s: header incomplete\n", __func__);
         goto err;
     }
 
     ccid_header = (CCID_Header *)s->bulk_out_data;
-    if ((s->bulk_out_pos - 10 < ccid_header->dwLength) &&
-        (p->iov.size == CCID_MAX_PACKET_SIZE)) {
+    payload_len = le32_to_cpu(ccid_header->dwLength);
+    if ((s->bulk_out_pos - 10 < payload_len) &&
+        (usb_packet_size(p) == CCID_MAX_PACKET_SIZE)) {
         DPRINTF(s, D_VERBOSE,
                 "usb-ccid: bulk_in: expecting more packets (%u/%u)\n",
-                s->bulk_out_pos - 10, ccid_header->dwLength);
+                s->bulk_out_pos - 10, payload_len);
         return;
     }
-    if (s->bulk_out_pos - 10 != ccid_header->dwLength) {
+    if (s->bulk_out_pos - 10 != payload_len) {
         DPRINTF(s, 1,
                 "usb-ccid: bulk_in: message size mismatch (got %u, expected %u)\n",
-                s->bulk_out_pos - 10, ccid_header->dwLength);
+                s->bulk_out_pos - 10, payload_len);
         goto err;
+    }
+
+    if (ccid_header->bSlot != 0) {
+        DPRINTF(s, 1, "usb-ccid: bad slot %d\n", ccid_header->bSlot);
+        ccid_report_error_failed(s, ERROR_SLOT_NOT_EXIST);
+        ccid_write_error_response(s, ccid_header);
+        s->bulk_out_pos = 0;
+        return;
     }
 
     DPRINTF(s, D_MORE_INFO, "%s %x %s\n", __func__,
@@ -1013,9 +1184,15 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
             ccid_message_type_to_str(ccid_header->bMessageType));
     switch (ccid_header->bMessageType) {
     case CCID_MESSAGE_TYPE_PC_to_RDR_GetSlotStatus:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_write_slot_status(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOn:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         DPRINTF(s, 1, "%s: PowerOn: %d\n", __func__,
                 ((CCID_IccPowerOn *)(ccid_header))->bPowerSelect);
         s->powered = true;
@@ -1026,6 +1203,9 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         ccid_write_data_block_atr(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_IccPowerOff:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         s->powered = false;
         ccid_write_slot_status(s, ccid_header);
@@ -1033,23 +1213,55 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     case CCID_MESSAGE_TYPE_PC_to_RDR_XfrBlock:
         ccid_on_apdu_from_guest(s, (CCID_XferBlock *)s->bulk_out_data);
         break;
-    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters:
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetParameters: {
+        CCID_SetParameters *ph = (CCID_SetParameters *)s->bulk_out_data;
+        uint32_t protocol_num = ph->bProtocolNum & 3;
+        uint32_t expected = (protocol_num == 1) ? 7 : 5;
+
+        if (protocol_num <= 1 && payload_len != expected) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         ccid_set_parameters(s, ccid_header);
         ccid_write_parameters(s, ccid_header);
         break;
+    }
     case CCID_MESSAGE_TYPE_PC_to_RDR_ResetParameters:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         ccid_reset_parameters(s);
         ccid_write_parameters(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_GetParameters:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_reset_error_status(s);
         ccid_write_parameters(s, ccid_header);
         break;
     case CCID_MESSAGE_TYPE_PC_to_RDR_Mechanical:
+        if (payload_len != 0) {
+            goto bad_length;
+        }
         ccid_report_error_failed(s, 0);
         ccid_write_slot_status(s, ccid_header);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Secure:
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_write_data_block_error(s, ccid_header->bSlot, ccid_header->bSeq);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_Escape:
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_write_escape(s, ccid_header);
+        break;
+    case CCID_MESSAGE_TYPE_PC_to_RDR_SetDataRateAndClockFrequency:
+        if (payload_len != 8) {
+            goto bad_length;
+        }
+        ccid_report_error_failed(s, ERROR_CMD_NOT_SUPPORTED);
+        ccid_write_data_rate_and_clock(s, ccid_header);
         break;
     default:
         DPRINTF(s, 1,
@@ -1066,27 +1278,36 @@ static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     s->bulk_out_pos = 0;
     return;
 
+bad_length:
+    DPRINTF(s, 1,
+            "usb-ccid: bad dwLength %u for %s\n",
+            payload_len,
+            ccid_message_type_to_str(ccid_header->bMessageType));
+    ccid_report_error_failed(s, ERROR_BAD_DWLENGTH);
+    ccid_write_error_response(s, ccid_header);
+    s->bulk_out_pos = 0;
+    return;
+
 err:
     p->status = USB_RET_STALL;
     s->bulk_out_pos = 0;
 }
 
-static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p,
-    unsigned int max_packet_size)
+static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
 {
     int len = 0;
+    BulkIn *bulk_in;
 
-    ccid_bulk_in_get(s);
-    if (s->current_bulk_in != NULL) {
-        len = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
-                  p->iov.size);
+    bulk_in = ccid_bulk_in_peek(s);
+    if (bulk_in != NULL) {
+        assert(bulk_in->pos <= bulk_in->len);
+        len = MIN(bulk_in->len - bulk_in->pos, usb_packet_size(p));
         if (len) {
-            usb_packet_copy(p, s->current_bulk_in->data +
-                            s->current_bulk_in->pos, len);
+            usb_packet_copy(p, bulk_in->data + bulk_in->pos, len);
         }
-        s->current_bulk_in->pos += len;
-        if (s->current_bulk_in->pos == s->current_bulk_in->len
-            && len != max_packet_size) {
+        bulk_in->pos += len;
+        if (bulk_in->pos == bulk_in->len
+            && (len != CCID_MAX_PACKET_SIZE || len < p->iov.size)) {
             ccid_bulk_in_release(s);
         }
     } else {
@@ -1096,12 +1317,12 @@ static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p,
     if (len) {
         DPRINTF(s, D_MORE_INFO,
                 "%s: %zd/%d req/act to guest (BULK_IN)\n",
-                __func__, p->iov.size, len);
+                __func__, usb_packet_size(p), len);
     }
-    if (len < p->iov.size) {
+    if (len < usb_packet_size(p)) {
         DPRINTF(s, 1,
                 "%s: returning short (EREMOTEIO) %d < %zd\n",
-                __func__, len, p->iov.size);
+                __func__, len, usb_packet_size(p));
     }
 }
 
@@ -1118,10 +1339,14 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case CCID_BULK_IN_EP:
-            ccid_bulk_in_copy_to_guest(s, p, dev->ep_ctl.max_packet_size);
+            ccid_bulk_in_copy_to_guest(s, p);
             break;
         case CCID_INT_IN_EP:
             if (s->notify_slot_change) {
+                if (usb_packet_size(p) < 2) {
+                    p->status = USB_RET_STALL;
+                    break;
+                }
                 /* page 56, RDR_to_PC_NotifySlotChange */
                 buf[0] = CCID_MESSAGE_TYPE_RDR_to_PC_NotifySlotChange;
                 buf[1] = s->bmSlotICCState;
@@ -1131,7 +1356,7 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
                 DPRINTF(s, D_INFO,
                         "handle_data: int_in: notify_slot_change %X, "
                         "requested len %zd\n",
-                        s->bmSlotICCState, p->iov.size);
+                        s->bmSlotICCState, usb_packet_size(p));
             } else {
                 p->status = USB_RET_NAK;
             }
@@ -1159,13 +1384,15 @@ static void ccid_unrealize(USBDevice *dev)
 static void ccid_flush_pending_answers(USBCCIDState *s)
 {
     while (ccid_has_pending_answers(s)) {
-        ccid_write_data_block_answer(s, NULL, 0);
+        if (!ccid_write_data_block_answer(s, NULL, 0)) {
+            break;
+        }
     }
 }
 
 static Answer *ccid_peek_next_answer(USBCCIDState *s)
 {
-    return s->pending_answers_num == 0
+    return ccid_pending_answers_num(s) == 0
         ? NULL
         : &s->pending_answers[s->pending_answers_start % PENDING_ANSWERS_NUM];
 }
@@ -1315,6 +1542,16 @@ static void ccid_realize(USBDevice *dev, Error **errp)
 {
     USBCCIDState *s = USB_CCID_DEV(dev);
 
+    if (s->accurate_message_length) {
+        stl_le_p(&qemu_ccid_descriptor[CCID_DESC_OFFSET_DW_MAX_MSG_LEN],
+                 BULK_IN_BUF_SIZE);
+    }
+    if (!s->pin_support) {
+        qemu_ccid_descriptor[CCID_DESC_OFFSET_B_PIN_SUPPORT] = 0;
+    }
+    if (s->t1_support) {
+        qemu_ccid_descriptor[CCID_DESC_OFFSET_DW_PROTOCOLS] |= 0x2;
+    }
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     qbus_init(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev), NULL);
@@ -1326,21 +1563,52 @@ static void ccid_realize(USBDevice *dev, Error **errp)
     s->dev.speedmask = USB_SPEED_MASK_FULL;
     s->notify_slot_change = false;
     s->powered = true;
-    s->pending_answers_num = 0;
-    s->last_answer_error = 0;
-    s->bulk_in_pending_start = 0;
-    s->bulk_in_pending_end = 0;
-    s->current_bulk_in = NULL;
-    ccid_reset_error_status(s);
-    s->bulk_out_pos = 0;
-    ccid_reset_parameters(s);
     ccid_reset(s);
     s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
+}
+
+static int ccid_pre_load(void *opaque)
+{
+    USBCCIDState *s = opaque;
+
+    s->pending_answers_loaded = false;
+    return 0;
 }
 
 static int ccid_post_load(void *opaque, int version_id)
 {
     USBCCIDState *s = opaque;
+    int i;
+
+    if (!s->pending_answers_loaded) {
+        /*
+         * Version 1 did not migrate the pending_answers[] queue indices.
+         * The historical interpretation of pending_answers[] as starting at
+         * element zero.
+         */
+        if (s->pending_answers_num > PENDING_ANSWERS_NUM) {
+            return -EINVAL;
+        }
+        s->pending_answers_start = 0;
+        s->pending_answers_end = s->pending_answers_num;
+    } else if (s->pending_answers_end - s->pending_answers_start > PENDING_ANSWERS_NUM) {
+        return -EINVAL;
+    }
+
+    if (s->bulk_in_pending_end - s->bulk_in_pending_start > BULK_IN_PENDING_NUM) {
+        return -EINVAL;
+    }
+
+    if (s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
+        return -EINVAL;
+    }
+
+    for (i = 0; i < BULK_IN_PENDING_NUM; i++) {
+        if (s->bulk_in_pending[i].len > BULK_IN_BUF_SIZE ||
+            s->bulk_in_pending[i].pos > s->bulk_in_pending[i].len) {
+            return -EINVAL;
+        }
+    }
 
     /*
      * This must be done after usb_device_attach, which sets state to ATTACHED,
@@ -1352,13 +1620,21 @@ static int ccid_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int ccid_pre_save(void *opaque)
+static bool ccid_pre_save(void *opaque, Error **errp)
 {
     USBCCIDState *s = opaque;
 
+    if (!s->migrate_pending_answers &&
+        (ccid_pending_answers_num(s) || ccid_bulk_in_pending_num(s))) {
+        error_setg(errp, "usb-ccid has pending queue state which cannot be "
+                   "migrated safely");
+        return false;
+    }
+
+    s->pending_answers_num = ccid_pending_answers_num(s);
     s->state_vmstate = s->dev.state;
 
-    return 0;
+    return true;
 }
 
 static const VMStateDescription bulk_in_vmstate = {
@@ -1396,12 +1672,45 @@ static const VMStateDescription usb_device_vmstate = {
     }
 };
 
+static bool ccid_pending_answers_needed(void *opaque)
+{
+    USBCCIDState *s = opaque;
+
+    if (!s->migrate_pending_answers) {
+        return false;
+    }
+
+    return ccid_pending_answers_num(s) > 0;
+}
+
+static int ccid_pending_answers_post_load(void *opaque, int version_id)
+{
+    USBCCIDState *s = opaque;
+
+    s->pending_answers_loaded = true;
+    return 0;
+}
+
+static const VMStateDescription ccid_pending_answers_vmstate = {
+    .name = "usb-ccid/pending-answers",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = ccid_pending_answers_needed,
+    .post_load = ccid_pending_answers_post_load,
+    .fields = (const VMStateField[]) {
+        VMSTATE_UINT32(pending_answers_start, USBCCIDState),
+        VMSTATE_UINT32(pending_answers_end, USBCCIDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription ccid_vmstate = {
     .name = "usb-ccid",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = ccid_pre_load,
     .post_load = ccid_post_load,
-    .pre_save = ccid_pre_save,
+    .pre_save_errp = ccid_pre_save,
     .fields = (const VMStateField[]) {
         VMSTATE_STRUCT(dev, USBCCIDState, 1, usb_device_vmstate, USBDevice),
         VMSTATE_UINT8(debug, USBCCIDState),
@@ -1415,22 +1724,34 @@ static const VMStateDescription ccid_vmstate = {
         VMSTATE_UINT8(bmCommandStatus, USBCCIDState),
         VMSTATE_UINT8(bProtocolNum, USBCCIDState),
         VMSTATE_BUFFER(abProtocolDataStructure.data, USBCCIDState),
-        VMSTATE_UINT32(ulProtocolDataStructureSize, USBCCIDState),
+        VMSTATE_UNUSED(4), /* was ulProtocolDataStructureSize */
         VMSTATE_STRUCT_ARRAY(bulk_in_pending, USBCCIDState,
                        BULK_IN_PENDING_NUM, 1, bulk_in_vmstate, BulkIn),
         VMSTATE_UINT32(bulk_in_pending_start, USBCCIDState),
         VMSTATE_UINT32(bulk_in_pending_end, USBCCIDState),
         VMSTATE_STRUCT_ARRAY(pending_answers, USBCCIDState,
                         PENDING_ANSWERS_NUM, 1, answer_vmstate, Answer),
-        VMSTATE_UINT32(pending_answers_num, USBCCIDState),
+        VMSTATE_UINT32(pending_answers_num, USBCCIDState), /* for compatibility */
         VMSTATE_UNUSED(1), /* was migration_state */
         VMSTATE_UINT32(state_vmstate, USBCCIDState),
         VMSTATE_END_OF_LIST()
-    }
+    },
+    .subsections = (const VMStateDescription * const []) {
+        &ccid_pending_answers_vmstate,
+        NULL
+    },
 };
 
 static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
+    DEFINE_PROP_BOOL("x-accurate-message-length", USBCCIDState,
+                     accurate_message_length, true),
+    DEFINE_PROP_BOOL("x-pin-support", USBCCIDState,
+                     pin_support, false),
+    DEFINE_PROP_BOOL("x-t1-support", USBCCIDState,
+                     t1_support, true),
+    DEFINE_PROP_BOOL("x-migrate-pending-answers", USBCCIDState,
+                     migrate_pending_answers, true),
 };
 
 static void ccid_class_initfn(ObjectClass *klass, const void *data)
