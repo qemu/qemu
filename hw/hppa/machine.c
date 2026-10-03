@@ -48,7 +48,7 @@ struct HppaMachineState {
     uint64_t memsplit_addr;
 };
 
-#define MIN_SEABIOS_HPPA_VERSION 22 /* require at least this fw version */
+#define MIN_SEABIOS_HPPA_VERSION 26 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON        (FIRMWARE_END - 0x10)
 static hwaddr soft_power_reg;
@@ -730,7 +730,7 @@ static void machine_HP_B160L_init(MachineState *machine)
     machine_HP_common_init_tail(machine, pci_bus, translate, false);
 }
 
-static AstroState *astro_init(void)
+static AstroState *astro_init(bool is_a400)
 {
     DeviceState *dev;
 
@@ -738,6 +738,10 @@ static AstroState *astro_init(void)
     object_property_set_int(OBJECT(dev), "phys-addr-bits",
                             hppa_phys_addr_bits(&cpu[0]->env),
                             &error_abort);
+    object_property_set_bool(OBJECT(dev), "rotate-pci-pins", is_a400,
+                             &error_abort);
+    object_property_set_bool(OBJECT(dev), "elroy1-on-rope2", is_a400,
+                             &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     return ASTRO_CHIP(dev);
@@ -753,6 +757,8 @@ static void machine_HP_C3700_init(MachineState *machine)
     DeviceState *astro_dev;
     MemoryRegion *addr_space = get_system_memory();
     TranslateFn *translate;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    bool is_C3700 = strcmp(mc->name, "C3700") == 0;
 
     /* Create CPUs and RAM.  */
     translate = machine_HP_common_init_cpus(machine);
@@ -764,7 +770,7 @@ static void machine_HP_C3700_init(MachineState *machine)
     }
 
     /* Init Astro and the Elroys (PCI host bus chips).  */
-    astro = astro_init();
+    astro = astro_init(!is_C3700);
     astro_dev = DEVICE(astro);
     memory_region_add_subregion(addr_space, translate(NULL, ASTRO_HPA),
                                 sysbus_mmio_get_region(
@@ -773,8 +779,6 @@ static void machine_HP_C3700_init(MachineState *machine)
     assert(pci_bus);
 
     /* The C3700 has a SuperIO chip, while the A400 hasn't. */
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
-    bool is_C3700 = strcmp(mc->name, "C3700") == 0;
     if (is_C3700)  {
         PCIDevice *ide_pdev = pci_create_simple(pci_bus, PCI_DEVFN(2, 0),
                                                 "pc87560-ide");

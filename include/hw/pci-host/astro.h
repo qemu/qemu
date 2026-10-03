@@ -84,6 +84,8 @@ struct AstroState {
     uint64_t tlb_pdir_base;
 
     uint8_t phys_addr_bits;
+    bool rotate_pci_pins;       /* PCI INTx pin rotation (A400) */
+    bool elroy1_on_rope2;       /* second Elroy on rope 2 (A400) */
 
     struct ElroyState *elroy[ELROY_NUM];
 
