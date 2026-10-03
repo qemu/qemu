@@ -26,8 +26,8 @@
 #include <string.h>
 
 #define DO_MIPS64R6__RD__RS(suffix, mnemonic)                          \
-static inline void do_mips64r6_##suffix(const void *input,             \
-                                        void *output)                  \
+static inline void do_mips64r6_##suffix(const uint64_t *input,         \
+                                        uint64_t *output)              \
 {                                                                      \
    __asm__ volatile (                                                  \
       "ld $t1, 0(%0)\n\t"                                              \
@@ -47,11 +47,10 @@ DO_MIPS64R6__RD__RS(DCLZ, dclz)
 DO_MIPS64R6__RD__RS(BITSWAP, bitswap)
 DO_MIPS64R6__RD__RS(DBITSWAP, dbitswap)
 
-
 #define DO_MIPS64R6__RD__RS_RT(suffix, mnemonic)                       \
-static inline void do_mips64r6_##suffix(const void *input1,            \
-                                        const void *input2,            \
-                                        void *output)                  \
+static inline void do_mips64r6_##suffix(const uint64_t *input1,        \
+                                        const uint64_t *input2,        \
+                                        uint64_t *output)              \
 {                                                                      \
    __asm__ volatile (                                                  \
       "ld $t1, 0(%0)\n\t"                                              \
@@ -80,11 +79,16 @@ DO_MIPS64R6__RD__RS_RT(DMUH, dmuh)
 DO_MIPS64R6__RD__RS_RT(DMULU, dmulu)
 DO_MIPS64R6__RD__RS_RT(DMUHU, dmuhu)
 
+DO_MIPS64R6__RD__RS_RT(AND, and)
+DO_MIPS64R6__RD__RS_RT(NOR, nor)
+DO_MIPS64R6__RD__RS_RT(OR, or)
+DO_MIPS64R6__RD__RS_RT(XOR, xor)
+
 
 #define DO_MIPS64R6__RT__RS_RT(suffix, mnemonic)                       \
-static inline void do_mips64r6_##suffix(const void *input1,            \
-                                        const void *input2,            \
-                                        void *output)                  \
+static inline void do_mips64r6_##suffix(const uint64_t *input1,        \
+                                        const uint64_t *input2,        \
+                                        uint64_t *output)              \
 {                                                                      \
     if (strncmp(#mnemonic, "crc32", 5) == 0)                           \
         __asm__ volatile (                                             \

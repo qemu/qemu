@@ -51,6 +51,7 @@ tests += {
   multiarch/'test-xpage-chain.c': {'cflags': ['-lpthread']},
   multiarch/'testthread.c': {'cflags': ['-lpthread']},
   multiarch/'threadcount.c': {'cflags': ['-lpthread']},
+  multiarch/'vma-pthread.c': {'cflags': ['-lpthread']},
 }
 
 # Linux tests
