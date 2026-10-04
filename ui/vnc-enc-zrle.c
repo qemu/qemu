@@ -27,6 +27,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "vnc.h"
 #include "vnc-enc-zrle.h"
 
@@ -69,7 +71,8 @@ static void *zrle_convert_fb(VncState *vs, VncZrle *zrle,
     return zrle->fb.buffer;
 }
 
-static int zrle_compress_data(VncState *vs, VncZrle *zrle, int level)
+static int zrle_compress_data(VncState *vs, VncZrle *zrle, int level,
+                              Error **errp)
 {
     z_streamp zstream = &zrle->stream;
 
@@ -85,7 +88,7 @@ static int zrle_compress_data(VncState *vs, VncZrle *zrle, int level)
                            MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 
         if (err != Z_OK) {
-            fprintf(stderr, "VNC: error initializing zlib\n");
+            error_setg(errp, "ZRLE: error initializing zlib");
             return -1;
         }
 
@@ -104,7 +107,7 @@ static int zrle_compress_data(VncState *vs, VncZrle *zrle, int level)
 
     /* start encoding */
     if (deflate(zstream, Z_SYNC_FLUSH) != Z_OK) {
-        fprintf(stderr, "VNC: error during zrle compression\n");
+        error_setg(errp, "ZRLE: error during compression");
         return -1;
     }
 
@@ -256,7 +259,8 @@ static int zrle_send_framebuffer_update(VncState *vs, VncWorker *worker,
                                         int x, int y, int w, int h)
 {
     bool be = vs->client_endian == G_BIG_ENDIAN;
-    size_t bytes;
+    Error *error = NULL;
+    int bytes;
     int zywrle_level;
 
     if (worker->zrle.type == VNC_ENCODING_ZYWRLE) {
@@ -336,7 +340,12 @@ static int zrle_send_framebuffer_update(VncState *vs, VncWorker *worker,
     }
 
     vnc_zrle_stop(vs, &worker->zrle);
-    bytes = zrle_compress_data(vs, &worker->zrle, Z_DEFAULT_COMPRESSION);
+    bytes = zrle_compress_data(vs, &worker->zrle, Z_DEFAULT_COMPRESSION,
+                               &error);
+    if (bytes < 0) {
+        error_report_err(error);
+        return -1;
+    }
     vnc_framebuffer_update(vs, x, y, w, h, worker->zrle.type);
     vnc_write_u32(vs, bytes);
     vnc_write(vs, worker->zrle.zlib.buffer, worker->zrle.zlib.offset);
