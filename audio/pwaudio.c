@@ -326,6 +326,8 @@ qpw_write(HWVoiceOut *hw, void *data, size_t len)
 
     if (filled < 0) {
         error_report("%p: underrun write:%u filled:%d", pw, index, filled);
+        len = 0;
+        goto done_unlock;
     } else {
         if ((uint32_t) filled + len > RINGBUFFER_SIZE) {
             error_report("%p: overrun write:%u filled:%d + size:%zu > max:%u",
