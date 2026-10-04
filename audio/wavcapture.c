@@ -131,6 +131,12 @@ int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
         return -1;
     }
 
+    if (freq <= 0 || freq > 384000) {
+        error_report("invalid frequency %d, must be between 1 and 384000",
+                     freq);
+        return -1;
+    }
+
     stereo = nchannels == 2;
     bits16 = bits == 16;
 
