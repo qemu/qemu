@@ -247,8 +247,12 @@ qpw_read(HWVoiceIn *hw, void *data, size_t len)
     avail = spa_ringbuffer_get_read_index(&v->ring, &index);
 
     trace_pw_read(avail, index, len);
+    if (avail <= 0) {
+        l = 0;
+        goto done_unlock;
+    }
 
-    if (avail < (int32_t) len) {
+    if ((size_t)avail < len) {
         len = avail;
     }
 
