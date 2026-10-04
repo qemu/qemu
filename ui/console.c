@@ -828,9 +828,9 @@ bool qemu_console_check_format(QemuConsole *con,
 
 static void dpy_refresh(DisplayState *s)
 {
-    DisplayChangeListener *dcl;
+    DisplayChangeListener *dcl, *next_dcl;
 
-    QLIST_FOREACH(dcl, &s->listeners, next) {
+    QLIST_FOREACH_SAFE(dcl, &s->listeners, next, next_dcl) {
         if (dcl->ops->dpy_refresh) {
             dcl->ops->dpy_refresh(dcl);
         }
