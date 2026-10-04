@@ -747,6 +747,7 @@ static void qpa_validate_per_direction_opts(Audiodev *dev,
 static void *qpa_conn_init(const char *server)
 {
     PAConnection *c = g_new0(PAConnection, 1);
+    c->server = g_strdup(server);
     QTAILQ_INSERT_TAIL(&pa_conns, c, list);
 
     c->mainloop = pa_threaded_mainloop_new();
@@ -875,6 +876,7 @@ static void qpa_conn_fini(PAConnection *c)
     }
 
     QTAILQ_REMOVE(&pa_conns, c, list);
+    g_free(c->server);
     g_free(c);
 }
 
