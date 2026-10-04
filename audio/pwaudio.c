@@ -171,6 +171,7 @@ capture_on_process(void *data)
     buf = b->buffer;
     p = buf->datas[0].data;
     if (p == NULL) {
+        pw_stream_queue_buffer(v->stream, b);
         return;
     }
     offs = SPA_MIN(buf->datas[0].chunk->offset, buf->datas[0].maxsize);
@@ -181,6 +182,8 @@ capture_on_process(void *data)
 
     if (filled < 0) {
         error_report("%p: underrun write:%u filled:%d", p, index, filled);
+        pw_stream_queue_buffer(v->stream, b);
+        return;
     } else {
         if ((uint32_t) filled + n_bytes > RINGBUFFER_SIZE) {
             error_report("%p: overrun write:%u filled:%d + size:%u > max:%u",
