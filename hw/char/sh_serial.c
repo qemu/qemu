@@ -322,7 +322,7 @@ static int sh_serial_can_receive(SHSerialState *s)
 static void sh_serial_receive_break(SHSerialState *s)
 {
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        s->sr |= (1 << 4);
+        s->flags |= SH_SERIAL_FLAG_BRK;
     }
 }
 
