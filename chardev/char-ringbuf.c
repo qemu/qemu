@@ -167,6 +167,7 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     Chardev *chr;
     uint8_t *read_data;
     size_t count;
+    int actual;
     char *data;
 
     chr = qemu_chr_find(device);
@@ -189,10 +190,10 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     size = size > count ? count : size;
     read_data = g_malloc(size + 1);
 
-    ringbuf_chr_read(chr, read_data, size);
+    actual = ringbuf_chr_read(chr, read_data, size);
 
     if (has_format && (format == DATA_FORMAT_BASE64)) {
-        data = g_base64_encode(read_data, size);
+        data = g_base64_encode(read_data, actual);
         g_free(read_data);
     } else {
         /*
@@ -202,7 +203,7 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
          * when) ring buffer lost characters since last read, initial
          * continuation characters should be dropped.
          */
-        read_data[size] = 0;
+        read_data[actual] = 0;
         data = (char *)read_data;
     }
 
