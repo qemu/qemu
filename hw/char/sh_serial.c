@@ -175,7 +175,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
             }
             if (val & (1 << 1)) {
                 sh_serial_clear_fifo(s);
-                s->sr &= ~(1 << 1);
+                s->flags &= ~SH_SERIAL_FLAG_RDF;
             }
 
             return;
