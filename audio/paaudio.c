@@ -819,7 +819,7 @@ audio_pa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
     }
 
     if (!popts->server) {
-        char pidfile[64];
+        g_autofree char *pidfile = NULL;
         char *runtime;
         struct stat st;
 
@@ -828,7 +828,7 @@ audio_pa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
             error_setg(errp, "XDG_RUNTIME_DIR not set");
             return false;
         }
-        snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
+        pidfile = g_strdup_printf("%s/pulse/pid", runtime);
         if (stat(pidfile, &st) != 0) {
             error_setg_errno(errp, errno, "could not stat pidfile %s", pidfile);
             return false;
