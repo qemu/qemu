@@ -759,6 +759,7 @@ static Chardev *do_qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
         mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX, backend, context, errp);
         if (mux == NULL) {
             object_unparent(OBJECT(chr));
+            base = NULL;
             chr = NULL;
             goto out;
         }
