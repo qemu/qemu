@@ -48,6 +48,7 @@
 #define TRB_GET_CCODE(status)   ((status) >> 24)
 #define TRB_GET_SLOT(control)   ((control) >> 24)
 
+#define TR_NORMAL              1
 #define TR_ISOCH                5
 #define CR_ENABLE_SLOT          9
 #define CR_ADDRESS_DEVICE       11
@@ -59,6 +60,7 @@
 #define EP_TYPE_ISOCH_OUT       1
 #define EP_TYPE_CONTROL         4
 #define EP_TYPE_ISOCH_IN        5
+#define EP_TYPE_INTR_IN         7
 
 #define XHCI_RING_TRBS          64
 #define XHCI_MICROFRAME_NS      125000
@@ -392,6 +394,48 @@ static void test_xhci_isoch_mfindex_32bit(void)
     xhci_test_end(&x);
 }
 
+static void test_xhci_intr_mfindex_32bit(void)
+{
+    const unsigned int interval = 6;
+    const uint8_t expected[] = { 0, 0, 4, 0, 0, 0, 0, 0 };
+    uint8_t report[sizeof(expected)];
+    uint32_t status, control;
+    uint64_t ring, data;
+    XHCITest x;
+
+    if (!xhci_test_supported("usb-kbd")) {
+        return;
+    }
+
+    xhci_test_start(&x, "-device usb-kbd");
+    ring = xhci_configure_ep(&x, 3, EP_TYPE_INTR_IN, interval, 8);
+    data = xhci_alloc_page(&x);
+
+    qtest_clock_step(x.qts, ((1ULL << 32) + 5) * XHCI_MICROFRAME_NS);
+    /* A ready report makes an early transfer observable. */
+    qtest_qmp_assert_success(x.qts,
+        "{'execute': 'input-send-event', 'arguments': {'events': ["
+        "{'type': 'key', 'data': {'down': true, "
+        "'key': {'type': 'qcode', 'data': 'a'}}}]}}");
+
+    xhci_write_trb(&x, ring, data, sizeof(report),
+                   TRB_TYPE(TR_NORMAL) | TRB_TR_IOC | TRB_C);
+    xhci_writel(&x, x.doorbell + 4 * x.slot, 3);
+    g_assert_false(xhci_next_event(&x, NULL, NULL));
+
+    qtest_clock_step(x.qts,
+                     ((1U << interval) - 5) * XHCI_MICROFRAME_NS - 1);
+    g_assert_false(xhci_next_event(&x, NULL, NULL));
+    qtest_clock_step(x.qts, 1);
+    g_assert_true(xhci_next_event(&x, &status, &control));
+    g_assert_cmpuint(TRB_GET_TYPE(control), ==, ER_TRANSFER);
+    g_assert_cmpuint(TRB_GET_CCODE(status), ==, CC_SUCCESS);
+    qtest_memread(x.qts, data, report, sizeof(report));
+    g_assert_cmpmem(report, sizeof(report), expected, sizeof(expected));
+
+    xhci_test_end(&x);
+}
+
 /*
  * The endpoint type in the endpoint context is whatever the guest says. Tell
  * the controller that the interrupt endpoint of usb-kbd is isoch. The idle
@@ -439,6 +483,8 @@ int main(int argc, char **argv)
     }
     qtest_add_func("/xhci/pci/isoch/mfindex-32bit",
                    test_xhci_isoch_mfindex_32bit);
+    qtest_add_func("/xhci/pci/intr/mfindex-32bit",
+                   test_xhci_intr_mfindex_32bit);
     qtest_add_func("/xhci/pci/isoch/ep-type-mismatch",
                    test_xhci_isoch_ep_type_mismatch);
 
