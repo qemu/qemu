@@ -204,7 +204,7 @@ static int oss_to_audfmt (int ossfmt, AudioFormat *fmt, bool *big_endian)
 #ifdef USE_DSP_POLICY
 static int oss_get_version (int fd, int *version, const char *typ)
 {
-    if (ioctl (fd, OSS_GETVERSION, &version)) {
+    if (ioctl(fd, OSS_GETVERSION, version)) {
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
         /*
          * Looks like atm (20100109) FreeBSD knows OSS_GETVERSION
