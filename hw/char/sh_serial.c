@@ -316,7 +316,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
 
 static int sh_serial_can_receive(SHSerialState *s)
 {
-    return s->scr & (1 << 4) ? SH_RX_FIFO_LENGTH - s->rx_head : 0;
+    return s->scr & (1 << 4) ? SH_RX_FIFO_LENGTH - s->rx_cnt : 0;
 }
 
 static void sh_serial_receive_break(SHSerialState *s)
