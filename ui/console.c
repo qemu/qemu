@@ -740,6 +740,9 @@ void qemu_console_update(QemuConsole *con, int x, int y, int w, int h)
     y = MIN(y, height);
     w = MIN(w, width - x);
     h = MIN(h, height - y);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
 
     dpy_gfx_update_texture(con, con->surface, x, y, w, h);
     QLIST_FOREACH(dcl, &s->listeners, next) {
