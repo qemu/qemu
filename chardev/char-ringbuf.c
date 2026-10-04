@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
 #include "qemu/base64.h"
+#include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qom/object.h"
@@ -102,7 +103,7 @@ static bool ringbuf_chr_open(Chardev *chr,
     d->size = opts->has_size ? opts->size : 65536;
 
     /* The size must be power of 2 */
-    if (d->size & (d->size - 1)) {
+    if (!is_power_of_2(d->size)) {
         error_setg(errp, "size of ringbuf chardev must be power of two");
         return false;
     }
