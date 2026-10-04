@@ -215,6 +215,7 @@ static void char_pty_finalize(Object *obj)
         unlink(s->path);
         g_free(s->path);
     }
+    g_clear_pointer(&s->pty_name, g_free);
 
     pty_chr_state(chr, 0);
     object_unref(OBJECT(s->ioc));
