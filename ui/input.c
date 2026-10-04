@@ -5,6 +5,7 @@
 #include "trace.h"
 #include "ui/input.h"
 #include "ui/console.h"
+#include "qemu/host-utils.h"
 #include "system/replay.h"
 #include "system/runstate.h"
 
@@ -492,11 +493,16 @@ int qemu_input_scale_axis(int value,
 {
     int64_t range_in = (int64_t)max_in - min_in;
     int64_t range_out = (int64_t)max_out - min_out;
+    int64_t diff = (int64_t)value - min_in;
+    bool neg;
+    int64_t scaled;
 
     if (range_in < 1) {
         return min_out + range_out / 2;
     }
-    return ((int64_t)value - min_in) * range_out / range_in + min_out;
+    neg = (diff < 0) != (range_out < 0);
+    scaled = muldiv64(llabs(diff), llabs(range_out), llabs(range_in));
+    return (neg ? -scaled : scaled) + min_out;
 }
 
 void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value)
