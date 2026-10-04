@@ -286,6 +286,9 @@ static size_t qpw_buffer_get_free(HWVoiceOut *hw)
 
     filled = spa_ringbuffer_get_write_index(&v->ring, &index);
     avail = v->highwater_mark - filled;
+    if (avail < 0) {
+        avail = 0;
+    }
 
 done_unlock:
     pw_thread_loop_unlock(c->thread_loop);
@@ -312,8 +315,12 @@ qpw_write(HWVoiceOut *hw, void *data, size_t len)
     avail = v->highwater_mark - filled;
 
     trace_pw_write(filled, avail, index, len);
+    if (avail <= 0) {
+        len = 0;
+        goto done_unlock;
+    }
 
-    if (len > avail) {
+    if (len > (size_t)avail) {
         len = avail;
     }
 
