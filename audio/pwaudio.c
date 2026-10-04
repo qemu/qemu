@@ -188,6 +188,7 @@ capture_on_process(void *data)
         if ((uint32_t) filled + n_bytes > RINGBUFFER_SIZE) {
             error_report("%p: overrun write:%u filled:%d + size:%u > max:%u",
             p, index, filled, n_bytes, RINGBUFFER_SIZE);
+            n_bytes = RINGBUFFER_SIZE - (uint32_t)filled;
         }
     }
     spa_ringbuffer_write_data(&v->ring,
@@ -318,6 +319,7 @@ qpw_write(HWVoiceOut *hw, void *data, size_t len)
         if ((uint32_t) filled + len > RINGBUFFER_SIZE) {
             error_report("%p: overrun write:%u filled:%d + size:%zu > max:%u",
             pw, index, filled, len, RINGBUFFER_SIZE);
+            len = RINGBUFFER_SIZE - (uint32_t)filled;
         }
     }
 
