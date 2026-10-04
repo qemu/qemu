@@ -87,6 +87,7 @@ int vnc_job_add_rect(VncJob *job, int x, int y, int w, int h)
 
     trace_vnc_job_add_rect(job->vs, job, x, y, w, h);
     assert(!QTAILQ_IN_USE(job, next));
+    assert(x >= 0 && y >= 0 && w > 0 && h > 0);
 
     entry->rect.x = x;
     entry->rect.y = y;
