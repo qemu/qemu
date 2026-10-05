@@ -224,6 +224,21 @@ typedef struct QEMU_PACKED UfsMcqSqReg {
     uint32_t rts;
 } UfsMcqSqReg;
 
+REG32(SQRTC, offsetof(UfsMcqSqReg, rtc))
+    FIELD(SQRTC, STOP, 0, 1)
+    FIELD(SQRTC, ICU, 1, 1)
+
+REG32(SQCTI, offsetof(UfsMcqSqReg, cti))
+    FIELD(SQCTI, TASK_TAG, 0, 8)
+    FIELD(SQCTI, LUN, 8, 8)
+    FIELD(SQCTI, IID, 16, 4)
+    FIELD(SQCTI, EXT_IID, 20, 4)
+
+REG32(SQRTS, offsetof(UfsMcqSqReg, rts))
+    FIELD(SQRTS, STS, 0, 1)
+    FIELD(SQRTS, CUS, 1, 1)
+    FIELD(SQRTS, RTC, 4, 4)
+
 typedef struct QEMU_PACKED UfsMcqCqReg {
     uint32_t hp;
     uint32_t tp;
