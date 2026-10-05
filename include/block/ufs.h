@@ -665,6 +665,7 @@ enum {
     UFS_UTP_CMD_TYPE_SCSI = 0x0,
     UFS_UTP_CMD_TYPE_UFS = 0x1,
     UFS_UTP_CMD_TYPE_DEV_MANAGE = 0x2,
+    UFS_UTP_CMD_TYPE_NULL = 0xf,
 };
 
 /* To accommodate UFS2.0 required Command type */

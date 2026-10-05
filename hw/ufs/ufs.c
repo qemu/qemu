@@ -36,6 +36,7 @@
 
 static void ufs_exec_req(UfsRequest *req);
 static void ufs_clear_req(UfsRequest *req);
+static void ufs_mcq_process_cq(void *opaque);
 
 static inline uint64_t ufs_mcq_reg_addr(UfsHc *u, int qid)
 {
@@ -474,6 +475,17 @@ static void ufs_mcq_process_sq(void *opaque)
         ufs_mcq_init_req(sq->u, req, sq);
         memcpy(&req->utrd, &sqe, sizeof(req->utrd));
 
+        if ((le32_to_cpu(sqe.header.dword_0) >> 28) == UFS_UTP_CMD_TYPE_NULL) {
+            ufs_dma_read_req_upiu(req);
+            req->utrd.header.dword_2 = cpu_to_le32(
+                (le32_to_cpu(req->utrd.header.dword_2) & ~UFS_MASK_OCS) |
+                UFS_OCS_ABORTED);
+            req->state = UFS_REQUEST_COMPLETE;
+            QTAILQ_INSERT_TAIL(&sq->cq->req_list, req, entry);
+            ufs_mcq_process_cq(sq->cq);
+            continue;
+        }
+
         req->state = UFS_REQUEST_RUNNING;
         ufs_exec_req(req);
     }
@@ -493,7 +505,10 @@ static void ufs_mcq_process_cq(void *opaque)
             break;
         }
 
-        ufs_dma_write_rsp_upiu(req);
+        if ((le32_to_cpu(req->utrd.header.dword_0) >> 28) !=
+            UFS_UTP_CMD_TYPE_NULL) {
+            ufs_dma_write_rsp_upiu(req);
+        }
 
         /* UTRD/CQE are LE; round-trip through host to keep BE correct. */
         uint64_t ucdba =
