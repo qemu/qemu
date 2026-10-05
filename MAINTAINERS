@@ -1265,12 +1265,8 @@ F: tests/functional/arm/test_emcraft_sf2.py
 ASPEED BMCs
 M: Cédric Le Goater <clg@kaod.org>
 M: Peter Maydell <peter.maydell@linaro.org>
-R: Steven Lee <steven_lee@aspeedtech.com>
-R: Troy Lee <leetroy@gmail.com>
 R: Jamin Lin <jamin_lin@aspeedtech.com>
 R: Kane Chen <kane_chen@aspeedtech.com>
-R: Andrew Jeffery <andrew@codeconstruct.com.au>
-R: Joel Stanley <joel@jms.id.au>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/*aspeed*
