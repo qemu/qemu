@@ -839,8 +839,8 @@ void dump_core_and_abort(CPUArchState *env, int target_sig)
         getrlimit(RLIMIT_CORE, &nodump);
         nodump.rlim_cur=0;
         setrlimit(RLIMIT_CORE, &nodump);
-        (void) fprintf(stderr, "qemu: uncaught target signal %d (%s) - %s\n",
-            target_sig, strsignal(host_sig), "core dumped" );
+        qemu_log_mask(LOG_GUEST_ERROR, "qemu: uncaught target signal %d (%s) - %s\n",
+                      target_sig, strsignal(host_sig), "core dumped" );
     }
 
     preexit_cleanup(env, 128 + target_sig);
