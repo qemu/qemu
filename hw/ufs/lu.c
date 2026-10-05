@@ -173,6 +173,9 @@ static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
     int16_t status = scsi_req->status;
     uint32_t transfered_len = scsi_req->cmd.xfer - resid;
 
+    assert(req != NULL);
+    req->sreq = NULL;
+
     /* WB / HID accounting should only happen for successful commands */
     if (status == GOOD) {
         ufs_wb_process_write_req(req, transfered_len);
@@ -190,6 +193,10 @@ static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
 
 static void ufs_scsi_command_cancelled(SCSIRequest *scsi_req)
 {
+    UfsRequest *req = scsi_req->hba_private;
+
+    assert(req != NULL);
+    req->sreq = NULL;
     scsi_req->hba_private = NULL;
     scsi_req_unref(scsi_req);
 }
@@ -389,6 +396,7 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
     SCSIRequest *scsi_req =
         scsi_req_new(lu->scsi_dev, task_tag, lu->lun, req->req_upiu.sc.cdb,
                      UFS_CDB_SIZE, req);
+    req->sreq = scsi_req;
 
     uint32_t len = scsi_req_enqueue(scsi_req);
     if (len) {
