@@ -144,6 +144,10 @@ typedef abi_int         target_pid_t;
 #define EXSTACK_DEFAULT false
 #endif
 
+#ifndef elf_core_eflags
+#define elf_core_eflags(info) 0
+#endif
+
 /*
  * Provide fallback definitions that the target may omit.
  * One way or another, we'll get a link error if the setting of
@@ -2212,7 +2216,8 @@ static int elf_core_dump(int signr, const CPUArchState *env)
 
         /* Create elf file header. */
         hptr = header;
-        fill_elf_header(hptr, css.count + 1, ELF_MACHINE, 0);
+        fill_elf_header(hptr, css.count + 1, ELF_MACHINE,
+                        elf_core_eflags(ts->info));
         hptr += sizeof(struct elfhdr);
 
         /* Create elf program headers. */

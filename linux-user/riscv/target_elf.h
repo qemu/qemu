@@ -21,6 +21,9 @@
 #define HAVE_ELF_HWCAP          1
 #define HAVE_ELF_CORE_DUMP      1
 
+/* See linux kernel: ARCH_HAS_ELF_CORE_EFLAGS.  */
+#define elf_core_eflags(info)   ((info)->elf_flags)
+
 /* Mirrors struct user_regs_struct: pc followed by x1 (ra) .. x31 (t6). */
 typedef struct target_elf_gregset_t {
     abi_ulong pc;

@@ -16,6 +16,8 @@
 
 #ifdef TARGET_ABI_MIPSN32
 #define elf_check_abi(x)        ((x) & EF_MIPS_ABI2)
+/* See linux kernel: arch/mips/kernel/ptrace.c, user_mipsn32_view.  */
+#define elf_core_eflags(info)   EF_MIPS_ABI2
 #else
 #define elf_check_abi(x)        (!((x) & EF_MIPS_ABI2))
 #endif
