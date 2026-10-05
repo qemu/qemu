@@ -455,7 +455,7 @@ static GArray *create_register_handles(GArray *gdbstub_regs)
             desc.is_readonly = true;
             plugin_ro_bit = 1;
         }
-        desc.handle = GINT_TO_POINTER((grd->gdb_reg << 1) | plugin_ro_bit);
+        desc.handle = GINT_TO_POINTER(((grd->gdb_reg + 1) << 1) | plugin_ro_bit);
         desc.feature = g_intern_string(grd->feature_name);
         g_array_append_val(find_data, desc);
     }
@@ -480,7 +480,7 @@ bool qemu_plugin_read_register(struct qemu_plugin_register *reg,
         return false;
     }
 
-    return (gdb_read_register(current_cpu, buf, GPOINTER_TO_INT(reg) >> 1) > 0);
+    return (gdb_read_register(current_cpu, buf, (GPOINTER_TO_INT(reg) >> 1) - 1) > 0);
 }
 
 bool qemu_plugin_write_register(struct qemu_plugin_register *reg,
@@ -497,7 +497,8 @@ bool qemu_plugin_write_register(struct qemu_plugin_register *reg,
         return false;
     }
 
-    return (gdb_write_register(current_cpu, buf->data, GPOINTER_TO_INT(reg) >> 1) > 0);
+    return (gdb_write_register(current_cpu, buf->data,
+                               (GPOINTER_TO_INT(reg) >> 1) - 1) > 0);
 }
 
 void qemu_plugin_set_pc(uint64_t vaddr)
