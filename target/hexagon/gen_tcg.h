@@ -1125,11 +1125,21 @@
 #define fGEN_TCG_Y2_break(SHORTCODE)
 #define fGEN_TCG_J2_unpause(SHORTCODE)
 
+#ifdef CONFIG_USER_ONLY
 #define fGEN_TCG_J2_pause(SHORTCODE) \
     do { \
         uiV = uiV; \
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC); \
     } while (0)
+#else
+#define fGEN_TCG_J2_pause(SHORTCODE) \
+    do { \
+        uiV = uiV; \
+        gen_helper_raise_exception(tcg_env, \
+            tcg_constant_i32(EXCP_YIELD), \
+            tcg_constant_i32(ctx->next_PC)); \
+    } while (0)
+#endif
 
 /* r0 = asr(r1, r2):sat */
 #define fGEN_TCG_S2_asr_r_r_sat(SHORTCODE) \
