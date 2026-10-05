@@ -539,6 +539,23 @@ void hexagon_stop_thread(CPUHexagonState *env)
     }
 }
 
+void hexagon_nmi(CPUHexagonState *env, uint32_t thread_mask)
+{
+    CPUState *cs;
+
+    BQL_LOCK_GUARD();
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread = cpu_env(cs);
+
+        if (!(thread_mask & (1u << thread->threadId)) ||
+            get_exe_mode(thread) == HEX_EXE_MODE_OFF) {
+            continue;
+        }
+        cpu_interrupt(cs, CPU_INTERRUPT_NMI);
+    }
+}
+
 static int sys_in_monitor_mode_ssr(uint32_t ssr)
 {
     if ((GET_SSR_FIELD(SSR_EX, ssr) != 0) ||

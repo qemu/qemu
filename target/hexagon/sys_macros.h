@@ -253,7 +253,6 @@
 
 #define NUM_TLB_REGS(x) (hexagon_tlb_get_num_entries(env_archcpu(env)->tlb))
 
-/* NMI routing not yet implemented; Y4_nmi is a no-op for now */
-#define fDO_NMI(THREAD_MASK) do { } while (0)
+#define fDO_NMI(THREAD_MASK) hexagon_nmi(env, THREAD_MASK)
 
 #endif

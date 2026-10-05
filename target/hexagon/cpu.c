@@ -393,7 +393,8 @@ static bool hexagon_cpu_has_work(CPUState *cs)
 
     return hexagon_thread_is_enabled(env) &&
         (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
-            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK));
+            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK
+            | CPU_INTERRUPT_NMI));
 }
 #endif
 
@@ -759,6 +760,14 @@ static const struct SysemuCPUOps hexagon_sysemu_ops = {
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUHexagonState *env = cpu_env(cs);
+    if (interrupt_request & CPU_INTERRUPT_NMI) {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_NMI);
+        cs->halted = false;
+        cs->exception_index = HEX_EVENT_IMPRECISE;
+        env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
+        hexagon_cpu_do_interrupt(cs);
+        return true;
+    }
     if (interrupt_request & CPU_INTERRUPT_TLB_UNLOCK) {
         cs->halted = false;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
