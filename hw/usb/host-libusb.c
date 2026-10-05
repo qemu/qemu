@@ -895,6 +895,11 @@ static void usb_host_ep_update(USBHostDevice *s)
          * then correct the alternate setting value if necessary.
          */
         intf = &conf->interface[i].altsetting[0];
+        if (intf->bInterfaceNumber >= USB_MAX_INTERFACES) {
+            trace_usb_host_parse_error(s->bus_num, s->addr,
+                                       "invalid interface number");
+            continue;
+        }
         alt = udev->altsetting[intf->bInterfaceNumber];
 
         if (alt != 0) {
@@ -930,7 +935,7 @@ static void usb_host_ep_update(USBHostDevice *s)
             usb_ep_set_max_packet_size(udev, pid, ep,
                                        endp->wMaxPacketSize);
             usb_ep_set_type(udev, pid, ep, type);
-            usb_ep_set_ifnum(udev, pid, ep, i);
+            usb_ep_set_ifnum(udev, pid, ep, intf->bInterfaceNumber);
             usb_ep_set_halted(udev, pid, ep, 0);
 #ifdef HAVE_STREAMS
             if (type == LIBUSB_TRANSFER_TYPE_BULK &&
