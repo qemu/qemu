@@ -830,6 +830,9 @@ void spapr_load_rtas(SpaprMachineState *spapr, void *fdt, hwaddr addr);
 
 #define RTAS_EVENT_SCAN_RATE    1
 
+/* RTAS interface version, as defined by PAPR v10.60 Table 20 */
+#define RTAS_VERSION            1
+
 /* This helper should be used to encode interrupt specifiers when the related
  * "interrupt-controller" node has its "#interrupt-cells" property set to 2 (ie,
  * VIO devices, RTAS event sources and PHBs).
