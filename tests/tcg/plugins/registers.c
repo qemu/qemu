@@ -29,6 +29,14 @@ static void vcpu_init_cb(unsigned int vcpu_index, void *userdata)
     qemu_plugin_reg_descriptor *reg_desc = NULL;
     bool success = false;
 
+    /* NULL must never be a valid register handle */
+    for (size_t i = 0; i < regs->len; i++) {
+        qemu_plugin_reg_descriptor *desc =
+            &g_array_index(regs, qemu_plugin_reg_descriptor, i);
+
+        g_assert(desc->handle != NULL);
+    }
+
     /* Make sure we can read and write a register not marked as readonly */
     for (size_t i = 0; i < regs->len; i++) {
         reg_desc = &g_array_index(regs, qemu_plugin_reg_descriptor, i);
