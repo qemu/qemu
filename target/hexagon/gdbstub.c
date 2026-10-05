@@ -16,9 +16,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "gdbstub/helpers.h"
 #include "cpu.h"
 #include "internal.h"
+#ifndef CONFIG_USER_ONLY
+#include "cpu_helper.h"
+#include "hw/hexagon/hexagon_globalreg.h"
+#endif
 
 int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
@@ -75,6 +80,64 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     g_assert_not_reached();
 }
+
+#ifndef CONFIG_USER_ONLY
+int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    HexagonCPU *cpu = env_archcpu(env);
+    BQL_LOCK_GUARD();
+
+    if (n < NUM_SREGS) {
+        uint32_t val;
+        if (n < HEX_SREG_GLB_START) {
+            val = env->t_sreg[n];
+        } else {
+            val = cpu->globalregs ?
+                hexagon_globalreg_read(cpu->globalregs, n, env->threadId) : 0;
+        }
+        return gdb_get_regl(mem_buf, val);
+    }
+    n -= NUM_SREGS;
+
+    if (n < NUM_GREGS) {
+        return gdb_get_regl(mem_buf, hexagon_greg_read(env, n));
+    }
+    n -= NUM_GREGS;
+
+    g_assert_not_reached();
+}
+
+int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    HexagonCPU *cpu = env_archcpu(env);
+    BQL_LOCK_GUARD();
+
+    if (n < NUM_SREGS) {
+        uint32_t val = ldl_le_p(mem_buf);
+        if (n == HEX_SREG_SSR) {
+            uint32_t old = env->t_sreg[HEX_SREG_SSR];
+            env->t_sreg[HEX_SREG_SSR] = val;
+            hexagon_modify_ssr(env, val, old);
+        } else if (n < HEX_SREG_GLB_START) {
+            env->t_sreg[n] = val;
+        } else if (cpu->globalregs) {
+            hexagon_globalreg_write(cpu->globalregs, n, val, env->threadId);
+        }
+        return sizeof(uint32_t);
+    }
+    n -= NUM_SREGS;
+
+    if (n < NUM_GREGS) {
+        hexagon_greg_write(env, n, ldl_le_p(mem_buf));
+        return sizeof(uint32_t);
+    }
+    n -= NUM_GREGS;
+
+    g_assert_not_reached();
+}
+#endif
 
 static int gdb_get_vreg(CPUHexagonState *env, GByteArray *mem_buf, int n)
 {

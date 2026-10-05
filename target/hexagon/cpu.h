@@ -239,6 +239,7 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
  */
 bool hexagon_thread_is_enabled(const CPUHexagonState *thread_env);
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
+void hexagon_greg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
 void hexagon_cpu_soft_reset(CPUHexagonState *env);
 #endif
 
