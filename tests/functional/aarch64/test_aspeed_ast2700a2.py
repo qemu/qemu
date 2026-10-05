@@ -196,10 +196,13 @@ class AST2x00MachineSDK(QemuSystemTest):
         self.vm.set_machine('ast2700a2-evb,fmc-model=w25q512jv')
         self.vm.add_args('-device',
                          'tmp105,bus=ioexp0.0,address=0x4d,id=tmp-test-16')
+        self.vm.add_args('-device',
+                         'tmp105,bus=ioexp1.0,address=0x4d,id=tmp-test-32')
         self.start_ast2700_test('ast2700-dcscm-image', 8)
         self.verify_openbmc_boot_and_login('ast2700-dcscm', False)
         self.do_ast2700_i2c_test(8)
         self.do_ast2700_i2c_test(16)
+        self.do_ast2700_i2c_test(32)
 
 if __name__ == '__main__':
     QemuSystemTest.main()
