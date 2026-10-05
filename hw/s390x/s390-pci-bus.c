@@ -1786,6 +1786,21 @@ static void s390_pci_device_reset(DeviceState *dev)
         return;
     case ZPCI_FS_STANDBY:
         break;
+    case ZPCI_FS_ERROR:
+        /*
+         * Attempt a reset to recover the device. A device in ERROR state
+         * can be transitioned to ENABLED or DISABLED state via guest
+         * driven actions.  Since this code path is also executed on
+         * subsystem_reset() and the expected state of a configured device
+         * after subsystem_reset() is to be in a DISABLED state, we need to
+         * transition from ERROR to DISABLED.
+         *
+         * Linux guests drive the state transition from ERROR to DISABLED
+         * via CLP_SET_DISABLE_PCI_FN. So it should be safe to transition
+         * from ERROR to DISABLED state.
+         */
+        pci_device_reset(pbdev->pdev);
+        /* fallthrough */
     default:
         pbdev->fh &= ~FH_MASK_ENABLE;
         pbdev->state = ZPCI_FS_DISABLED;
