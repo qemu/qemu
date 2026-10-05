@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
@@ -105,6 +106,80 @@ void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt)
     }
 }
 
+static int s390_pci_get_feature_err(VFIOPCIDevice *vfio_pci,
+                                    PciCcdfErr *ccdf,
+                                    uint32_t ccdf_err_length,
+                                    Error **errp)
+{
+    ERRP_GUARD();
+    int ret;
+    size_t total_size;
+    struct vfio_device_feature_zpci_err *err;
+    g_autofree void *buf = NULL;
+    g_autofree struct vfio_device_feature *feature = NULL;
+
+    total_size = sizeof(*feature) + sizeof(*err);
+    feature = g_malloc(total_size);
+    feature->argsz = total_size;
+    feature->flags = VFIO_DEVICE_FEATURE_GET | VFIO_DEVICE_FEATURE_ZPCI_ERROR;
+
+    buf = g_malloc(ccdf_err_length);
+    err = (void *)feature->data;
+    err->data = (uint64_t)buf;
+    ret = vfio_device_get_feature(&vfio_pci->vbasedev, feature);
+
+    if (ret) {
+        if (ret == -ENOMSG) {
+            return 0;
+        }
+        error_setg(errp, "Failed feature get VFIO_DEVICE_FEATURE_ZPCI_ERROR"
+                   " (rc=%d)", ret);
+        return ret;
+    }
+
+    memcpy(ccdf, buf, ccdf_err_length);
+
+    return 1;
+}
+
+static void s390_pci_err_handler(void *opaque)
+{
+    VFIOPCIDevice *vfio_pci;
+    S390PCIBusDevice *pbdev;
+    Error *local_err = NULL;
+    PciCcdfErr ccdf;
+    int ret = 0;
+
+    vfio_pci = opaque;
+    if (!event_notifier_test_and_clear(&vfio_pci->err_notifier)) {
+        return;
+    }
+
+    pbdev = s390_pci_find_dev_by_pci(s390_get_phb(), PCI_DEVICE(vfio_pci));
+
+    if (!pbdev) {
+        error_report("No matching zpci device found");
+        return;
+    }
+    pbdev->state = ZPCI_FS_ERROR;
+
+    do {
+        ret = s390_pci_get_feature_err(vfio_pci, &ccdf,
+                                       pbdev->ccdf_err_length, &local_err);
+        if (ret < 0) {
+            error_report_err(local_err);
+            break;
+        }
+
+        if (ret > 0) {
+            s390_pci_generate_error_event(ccdf.pec, pbdev->fh, pbdev->fid,
+                                          ccdf.faddr, ccdf.e);
+        }
+    } while (ret > 0);
+
+    return;
+}
+
 static void s390_pci_read_base(S390PCIBusDevice *pbdev,
                                struct vfio_device_info *info)
 {
@@ -133,6 +208,10 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
     pbdev->zpci_fn.pft = 0;
     /* Store function type separately for type-specific behavior */
     pbdev->pft = cap->pft;
+
+    if (hdr->version >= 3) {
+        pbdev->ccdf_err_length = cap->ccdf_err_length;
+    }
 
     /*
      * If the device is a passthrough ISM device, disallow relaxed
@@ -370,4 +449,48 @@ void s390_pci_get_clp_info(S390PCIBusDevice *pbdev)
     s390_pci_read_group(pbdev, info);
     s390_pci_read_util(pbdev, info);
     s390_pci_read_pfip(pbdev, info);
+}
+
+bool s390_pci_setup_err_handler(S390PCIBusDevice *pbdev, Error **errp)
+{
+    int ret;
+    int32_t fd;
+    VFIOPCIDevice *vfio_pci = VFIO_PCI_DEVICE(pbdev->pdev);
+    uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
+                              sizeof(uint64_t))] = {};
+    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+
+    feature->argsz = sizeof(buf);
+    feature->flags = VFIO_DEVICE_FEATURE_PROBE | VFIO_DEVICE_FEATURE_ZPCI_ERROR;
+
+    ret = vfio_device_get_feature(&vfio_pci->vbasedev, feature);
+
+    if (ret != 0) {
+        if (ret == -ENOTTY) {
+            error_setg(errp, "Automated error recovery unavailable for device");
+        } else {
+            error_setg(errp,
+                       "Failed to probe for VFIO_DEVICE_FEATURE_ZPCI_ERROR (ret=%d)",
+                       ret);
+        }
+        return false;
+    }
+
+    if (sizeof(PciCcdfErr) != pbdev->ccdf_err_length) {
+        error_setg(errp,
+                   "CCDF size mismatch expected size=%zu, provided size=%d",
+                   sizeof(PciCcdfErr), pbdev->ccdf_err_length);
+        return false;
+    }
+
+    if (!vfio_pci->pci_aer) {
+        error_setg(errp, "%s: VFIO error notifier not registered for device",
+                   vfio_pci->vbasedev.name);
+        return false;
+    }
+
+    fd = event_notifier_get_fd(&vfio_pci->err_notifier);
+    qemu_set_fd_handler(fd, s390_pci_err_handler, NULL, vfio_pci);
+
+    return true;
 }
