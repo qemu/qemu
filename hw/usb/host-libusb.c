@@ -67,6 +67,10 @@ typedef struct USBHostRequest USBHostRequest;
 typedef struct USBHostIsoXfer USBHostIsoXfer;
 typedef struct USBHostIsoRing USBHostIsoRing;
 
+typedef struct libusb_config_descriptor libusb_config_descriptor;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(libusb_config_descriptor,
+                            libusb_free_config_descriptor)
+
 struct USBAutoFilter {
     uint32_t bus_num;
     uint32_t addr;
@@ -867,7 +871,7 @@ static void usb_host_ep_update(USBHostDevice *s)
         [USB_ENDPOINT_XFER_INT]     = "int",
     };
     USBDevice *udev = USB_DEVICE(s);
-    struct libusb_config_descriptor *conf;
+    g_autoptr(libusb_config_descriptor) conf = NULL;
     const struct libusb_interface_descriptor *intf;
     const struct libusb_endpoint_descriptor *endp;
 #ifdef HAVE_STREAMS
@@ -946,8 +950,6 @@ static void usb_host_ep_update(USBHostDevice *s)
 #endif
         }
     }
-
-    libusb_free_config_descriptor(conf);
 }
 
 static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
@@ -1346,7 +1348,7 @@ static void usb_host_attach_kernel(USBHostDevice *s)
 static int usb_host_claim_interfaces(USBHostDevice *s, int configuration)
 {
     USBDevice *udev = USB_DEVICE(s);
-    struct libusb_config_descriptor *conf;
+    g_autoptr(libusb_config_descriptor) conf = NULL;
     int rc, i, claimed;
 
     for (i = 0; i < USB_MAX_INTERFACES; i++) {
@@ -1384,7 +1386,6 @@ static int usb_host_claim_interfaces(USBHostDevice *s, int configuration)
     udev->ninterfaces   = conf->bNumInterfaces;
     udev->configuration = configuration;
 
-    libusb_free_config_descriptor(conf);
     return USB_RET_SUCCESS;
 }
 
