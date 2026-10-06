@@ -593,14 +593,75 @@ err:
     return ret;
 }
 
-static void s390_pci_iommu_replay(IOMMUMemoryRegion *iommu,
+static void s390_pci_ioat_replay(S390PCIIOMMU *iommu)
+{
+    S390PCIBusDevice *pbdev = iommu->pbdev;
+    S390IOTLBEntry entry;
+    uint16_t error = 0;
+    uint32_t dma_avail;
+    hwaddr curr, end;
+
+    curr = iommu->pba;
+    end = iommu->pal;
+
+    if (iommu->dm_mr || !pbdev) {
+        /* If direct mapping is used, there are no guest tables to replay */
+        return;
+    }
+
+    if (iommu->dma_limit) {
+        dma_avail = iommu->dma_limit->avail;
+    } else {
+        dma_avail = 1;
+    }
+
+    while (curr < end) {
+        error = s390_guest_io_table_walk(iommu->g_iota, curr, &entry);
+        if (error) {
+            pbdev->state = ZPCI_FS_ERROR;
+            s390_pci_generate_error_event(error, pbdev->fh, pbdev->fid, curr,
+                                          0);
+            error_report("Failure to walk table during iommu remap");
+            return;
+        }
+
+        /* Advance to next frame boundary if start was not frame-aligned */
+        curr = QEMU_ALIGN_UP(curr + 1, entry.len);
+        if (entry.perm != IOMMU_NONE) {
+            while (entry.iova < curr && entry.iova < end) {
+                if (dma_avail > 0) {
+                    dma_avail = s390_pci_update_iotlb(iommu, &entry);
+                } else {
+                    /*
+                     * There is no reliable method to request the guest to
+                     * release mappings other than in response to a RPCIT
+                     * instruction; generate a permanent error condition and
+                     * require the device to be completely re-initialized from
+                     * the guest side.
+                     */
+                    pbdev->state = ZPCI_FS_ERROR;
+                    s390_pci_generate_error_event(ERR_EVENT_PERMERR, pbdev->fh,
+                                                  pbdev->fid, 0, 0);
+                    error_report("DMA mappings exhausted: iommu remap failed");
+                    return;
+                }
+                entry.iova += TARGET_PAGE_SIZE;
+                entry.translated_addr += TARGET_PAGE_SIZE;
+            }
+        }
+    }
+}
+
+static void s390_pci_iommu_replay(IOMMUMemoryRegion *mr,
                                   IOMMUNotifier *notifier)
 {
-    /* It's impossible to plug a pci device on s390x that already has iommu
-     * mappings which need to be replayed, that is due to the "one iommu per
-     * zpci device" construct. But when we support migration of vfio-pci
-     * devices in future, we need to revisit this.
+    S390PCIIOMMU *iommu = container_of(mr, S390PCIIOMMU, iommu_mr);
+
+    /*
+     * The notifier argument is not used directly; s390_pci_ioat_replay()
+     * broadcasts via memory_region_notify_iommu() instead.
      */
+    s390_pci_ioat_replay(iommu);
 }
 
 static S390PCIIOMMU *s390_pci_get_iommu(S390pciState *s, PCIBus *bus,
