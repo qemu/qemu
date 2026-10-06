@@ -1028,32 +1028,26 @@ bool s390_pci_is_translation_enabled(uint64_t g_iota)
     return ((g_iota >> 11) & 0x1) != 0; /* "T" bit */
 }
 
-static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib,
-                    uintptr_t ra)
+bool s390_pci_ioat_validate(S390PCIBusDevice *pbdev, uint64_t pba,
+                             uint64_t pal, uint64_t g_iota, Error **errp)
 {
-    uint64_t pba = ldq_be_p(&fib.pba);
-    uint64_t pal = ldq_be_p(&fib.pal);
-    uint64_t g_iota = ldq_be_p(&fib.iota);
     uint8_t dt = (g_iota >> 2) & 0x7;
     bool t = s390_pci_is_translation_enabled(g_iota);
 
-    pba &= ~0xfff;
-    pal |= 0xfff;
     if (pba > pal || pba < pbdev->zpci_fn.sdma || pal > pbdev->zpci_fn.edma) {
-        s390_program_interrupt(env, PGM_OPERAND, ra);
-        return -EINVAL;
+        error_setg(errp,
+                   "ioat pba 0x%"PRIx64" pal 0x%"PRIx64" out of device dma range"
+                   " [0x%"PRIx64" 0x%"PRIx64"]",
+                   pba, pal, pbdev->zpci_fn.sdma, pbdev->zpci_fn.edma);
+        return false;
     }
-
     /* currently we only support designation type 1 with translation */
     if (t && dt != ZPCI_IOTA_RTTO) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "unsupported ioat dt %d t %d\n", dt, t);
-        s390_program_interrupt(env, PGM_OPERAND, ra);
-        return -EINVAL;
+        error_setg(errp, "unsupported ioat dt %d t %d", dt, t);
+        return false;
     } else if (!t && !pbdev->rtr_avail) {
-        qemu_log_mask(LOG_GUEST_ERROR, "relaxed translation not allowed\n");
-        s390_program_interrupt(env, PGM_OPERAND, ra);
-        return -EINVAL;
+        error_setg(errp, "relaxed translation not allowed");
+        return false;
     }
 
     /*
@@ -1064,9 +1058,29 @@ static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib,
      * to QEMU for additional IOAT regions.
      */
     if (t && pal >= ZPCI_TABLE_SIZE_RT) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "ioat pal 0x%"PRIx64" exceeds max translatable address\n",
-                      pal);
+        error_setg(errp,
+                   "ioat pal 0x%"PRIx64" exceeds max translatable address",
+                   pal);
+        return false;
+    }
+    return true;
+}
+
+static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib,
+                    uintptr_t ra)
+{
+    Error *err = NULL;
+    uint64_t pba = ldq_be_p(&fib.pba);
+    uint64_t pal = ldq_be_p(&fib.pal);
+    uint64_t g_iota = ldq_be_p(&fib.iota);
+    bool t = s390_pci_is_translation_enabled(g_iota);
+
+    pba &= ~0xfff;
+    pal |= 0xfff;
+
+    if (!s390_pci_ioat_validate(pbdev, pba, pal, g_iota, &err)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s\n", error_get_pretty(err));
+        error_free(err);
         s390_program_interrupt(env, PGM_OPERAND, ra);
         return -EINVAL;
     }
