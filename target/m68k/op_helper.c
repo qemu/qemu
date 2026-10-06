@@ -80,9 +80,11 @@ throwaway:
     cpu_m68k_set_sr(env, sr);
 }
 
-static const char *m68k_exception_name(int index)
+#endif /* !CONFIG_USER_ONLY */
+
+const char *m68k_exception_name(int excp)
 {
-    switch (index) {
+    switch (excp) {
     case EXCP_ACCESS:
         return "Access Fault";
     case EXCP_ADDRESS:
@@ -184,6 +186,8 @@ static const char *m68k_exception_name(int index)
     }
     return "Unassigned";
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static void do_plugin_vcpu_interrupt_cb(CPUState *cs, uint64_t from)
 {
