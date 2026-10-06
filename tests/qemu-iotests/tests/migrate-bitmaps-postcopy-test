@@ -27,6 +27,8 @@ debug = False
 
 disk_a = os.path.join(iotests.test_dir, 'disk_a')
 disk_b = os.path.join(iotests.test_dir, 'disk_b')
+disk_a1 = os.path.join(iotests.test_dir, 'disk_a1')
+disk_b1 = os.path.join(iotests.test_dir, 'disk_b1')
 size = '256G'
 fifo = os.path.join(iotests.test_dir, 'mig_fifo')
 
@@ -97,16 +99,26 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         self.vm_b.shutdown()
         os.remove(disk_a)
         os.remove(disk_b)
+        os.remove(disk_a1)
+        os.remove(disk_b1)
         os.remove(fifo)
 
     def setUp(self):
+        if os.path.exists(fifo):
+            os.remove(fifo)
         os.mkfifo(fifo)
         qemu_img('create', '-f', iotests.imgfmt, disk_a, size)
         qemu_img('create', '-f', iotests.imgfmt, disk_b, size)
+        qemu_img('create', '-f', iotests.imgfmt, disk_a1, '1G')
+        qemu_img('create', '-f', iotests.imgfmt, disk_b1, '1G')
         self.vm_a = iotests.VM(path_suffix='a').add_drive(disk_a,
                                                           'discard=unmap')
         self.vm_b = iotests.VM(path_suffix='b').add_drive(disk_b,
                                                           'discard=unmap')
+        self.drive1_sha256 = ""
+        # A bitmap on a second node makes postcopy switch nodes after setup
+        self.vm_a.add_drive(disk_a1)
+        self.vm_b.add_drive(disk_b1)
         self.vm_b.add_incoming("exec: cat '" + fifo + "'")
         self.vm_a.launch()
         self.vm_b.launch()
@@ -126,6 +138,13 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
                                node='drive0', name='bitmap0')
         empty_sha256 = result['return']['sha256']
+
+        self.vm_a.cmd('block-dirty-bitmap-add', node='drive1',
+                      name='bitmap0', granularity=granularity)
+        self.vm_a.hmp_qemu_io('drive1', 'write 0 64k')
+        result = self.vm_a.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive1', name='bitmap0')
+        self.drive1_sha256 = result['return']['sha256']
 
         apply_discards(self.vm_a, discards1)
 
@@ -212,6 +231,9 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
 
         # check that bitmaps are migrated and persistence works
         check_bitmaps(self.vm_b, nb_bitmaps)
+        result = self.vm_b.qmp('x-debug-block-dirty-bitmap-sha256',
+                               node='drive1', name='bitmap0')
+        self.assert_qmp(result, 'return/sha256', self.drive1_sha256)
         self.vm_b.shutdown()
         # recreate vm_b, so there is no incoming option, which prevents
         # loading bitmaps from disk
