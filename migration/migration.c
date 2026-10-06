@@ -852,6 +852,7 @@ bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp)
         assert(!mis->from_src_file);
         mis->from_src_file = f;
         qemu_file_set_blocking(f, false, &error_abort);
+        trace_migration_main_channel_received();
         break;
 
     case CH_MULTIFD:
@@ -918,6 +919,8 @@ static bool postcopy_try_recover(void)
 
 void migration_start_incoming(void)
 {
+    trace_migration_start_incoming();
+
     if (postcopy_try_recover()) {
         return;
     }
