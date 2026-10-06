@@ -163,7 +163,11 @@ static inline void qemu_get_sbe64s(QEMUFile *f, int64_t *pv)
     qemu_get_be64s(f, (uint64_t *)pv);
 }
 
-size_t coroutine_mixed_fn qemu_get_counted_string(QEMUFile *f, char buf[256]);
+/* Buffer size for a string whose length is sent as a single byte */
+#define QEMU_COUNTED_STRING_SIZE 256
+
+size_t coroutine_mixed_fn
+qemu_get_counted_string(QEMUFile *f, char buf[QEMU_COUNTED_STRING_SIZE]);
 
 void qemu_put_counted_string(QEMUFile *f, const char *name);
 
