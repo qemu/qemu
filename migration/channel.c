@@ -34,6 +34,13 @@
 #include "trace.h"
 #include "yank_functions.h"
 
+static const char *const mig_channel_str[CH_NUM] = {
+    [CH_NONE] = "NONE",
+    [CH_MAIN] = "MAIN",
+    [CH_MULTIFD] = "MULTIFD",
+    [CH_POSTCOPY] = "PREEMPT",
+};
+
 void migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
                                 Error **errp)
 {
@@ -219,7 +226,8 @@ static bool migration_incoming_channel_install(MigrationIncomingState *mis,
     }
 
     trace_migration_set_incoming_channel(ioc,
-                                         object_get_typename(OBJECT(ioc)));
+                                         object_get_typename(OBJECT(ioc)),
+                                         mig_channel_str[ch]);
     migration_ioc_register_yank(ioc);
 
     if (migration_incoming_setup(ioc, ch, errp)) {

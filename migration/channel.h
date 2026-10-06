@@ -24,7 +24,8 @@ typedef enum {
     CH_NONE,
     CH_MAIN,
     CH_MULTIFD,
-    CH_POSTCOPY
+    CH_POSTCOPY,
+    CH_NUM,
 } MigChannelType;
 
 void migration_channel_process_incoming(QIOChannel *ioc);
