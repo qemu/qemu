@@ -1434,9 +1434,18 @@ class TestThrottle(iotests.QMPTestCase):
                     bus='vio-scsi.0',
                     drive='throttle')
 
+        self.drive_qdev = '/machine/peripheral/virtio'
+
     def tearDown(self):
         os.remove(test_img)
         os.remove(target_img)
+
+    def blockstats(self, device):
+        result = self.vm.qmp("query-blockstats")
+        for r in result['return']:
+            if r['node-name'] == device:
+                return r['stats']
+        raise Exception(f'Device {device} not found when querying blockstats')
 
     def test_throttled(self):
         self.mirror_command('throttle')
@@ -1448,6 +1457,37 @@ class TestThrottle(iotests.QMPTestCase):
         self.vm.qtest(f'clock_step {4 * 1000 * 1000 * 1000 * 1000}')
         self.complete_and_wait('mirror')
         self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
+    def test_below_throttle(self):
+        self.mirror_command('source')
+
+        # The throttling above should not block the mirror from completing.
+        self.complete_and_wait('mirror')
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
+    def test_below_throttle_with_io_on_throttle(self):
+        self.mirror_command('source')
+
+        reqs = 3
+        req_len = 1 * 1024
+
+        for i in range(0, reqs):
+            req = f'aio_write -P 7 {i}M {req_len}'
+            self.vm.hmp_qemu_io(self.drive_qdev, req, qdev=True)
+
+        self.wait_ready('mirror')
+        # The throttle node above should still have in-flight requests.
+        assert self.blockstats('throttle')['wr_bytes'] <= 1 * req_len
+
+        self.complete_and_wait('mirror', wait_ready=False)
+        assert self.blockstats('throttle')['wr_bytes'] == reqs * req_len
+        self.vm.shutdown()
+        # The throttle node above is drained too when the mirror finishes, so
+        # the images should match.
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
 
