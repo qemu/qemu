@@ -1373,6 +1373,94 @@ class TestFilters(iotests.QMPTestCase):
 
         self.complete_and_wait('mirror')
 
+class TestThrottle(iotests.QMPTestCase):
+    image_len = 3 * 1024 * 1024
+    attachTargetImage = True
+
+    def mirror_command(self, device):
+        self.vm.cmd('blockdev-mirror',
+                    job_id='mirror',
+                    device=device,
+                    target='target',
+                    sync='full')
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt,
+                 test_img, str(self.image_len))
+        qemu_img('create', '-f', iotests.imgfmt,
+                 target_img, str(self.image_len))
+        qemu_io('-c', 'write -P 23 0 3M', test_img)
+
+        self.vm = iotests.VM().add_device('virtio-scsi,id=vio-scsi')
+        self.vm.launch()
+
+        self.vm.cmd('object-add', {
+                        'id': 'thrgr0',
+                        'qom-type': 'throttle-group',
+                        'limits': {
+                            'bps-total': 1 * 1024
+                        }
+                    })
+
+        if self.attachTargetImage:
+            self.vm.cmd('blockdev-add', {
+                            'node-name': 'target',
+                            'driver': iotests.imgfmt,
+                            'file': {
+                                'driver': 'file',
+                                'filename': target_img
+                            },
+                        })
+
+        source = {
+            'node-name': 'source',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': test_img
+            },
+        }
+
+        self.vm.cmd('blockdev-add', {
+                        'node-name': 'throttle',
+                        'driver': 'throttle',
+                        'throttle-group': 'thrgr0',
+                        'file': source,
+                    })
+
+        self.vm.cmd('device_add',
+                    driver='scsi-hd',
+                    id='virtio',
+                    bus='vio-scsi.0',
+                    drive='throttle')
+
+    def tearDown(self):
+        os.remove(test_img)
+        os.remove(target_img)
+
+    def test_throttled(self):
+        self.mirror_command('throttle')
+
+        time.sleep(1)
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return[0]/ready', False)
+
+        self.vm.qtest(f'clock_step {4 * 1000 * 1000 * 1000 * 1000}')
+        self.complete_and_wait('mirror')
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
+class TestThrottleDriveMirror(TestThrottle):
+    attachTargetImage = False
+
+    def mirror_command(self, device):
+        self.vm.cmd('drive-mirror',
+                    job_id='mirror',
+                    device=device,
+                    target=target_img,
+                    sync='full',
+                    mode='existing')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
