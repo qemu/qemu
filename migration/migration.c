@@ -3729,6 +3729,21 @@ static void *migration_thread(void *opaque)
         goto out;
     }
 
+    /*
+     * Only for old 7.1/7.2 machine types (preempt mode supported since
+     * 7.1).  Connect the preempt channel only after multifd channels,
+     * because some QEMU versions (v10.1 to v11.1) will assume the order of
+     * channels to be: (1) main, then (2) multifd channels, then (3)
+     * preempt channel.  IOW, (3) must be after (2).
+     *
+     * multifd_send_setup() makes sure all multifd channels be connected
+     * first, then initiate preempt channel here guarantees the ordering to
+     * those QEMU binaries.
+     */
+    if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
+        postcopy_preempt_setup(s);
+    }
+
     bql_lock();
     qemu_savevm_state_header(s->to_dst_file);
     bql_unlock();
@@ -4009,16 +4024,16 @@ void migration_start_outgoing(MigrationState *s)
         open_return_path_on_source(s);
     }
 
-    /*
-     * This needs to be done before resuming a postcopy.  Note: for newer
-     * QEMUs we will delay the channel creation until postcopy_start(), to
-     * avoid disorder of channel creations.
-     */
-    if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
-        postcopy_preempt_setup(s);
-    }
-
     if (resume) {
+        /*
+         * This needs to be done before resuming a postcopy.  Note: for newer
+         * QEMUs we will delay the channel creation until postcopy_start(), to
+         * avoid disorder of channel creations.
+         */
+        if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
+            postcopy_preempt_setup(s);
+        }
+
         /* Wakeup the main migration thread to do the recovery */
         migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP,
                           MIGRATION_STATUS_POSTCOPY_RECOVER);
