@@ -334,6 +334,10 @@ void migration_object_init(void)
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
+    /* zero_terminated=false, clear_=true (NOTE, "clear_" is not a typo) */
+    current_incoming->channels_early.channels =
+        g_array_new(FALSE, TRUE, sizeof(MigEarlyIncomingChannel));
+    qemu_mutex_init(&current_incoming->channels_early.mutex);
 
     migration_object_check(current_migration, &error_fatal);
 
@@ -447,6 +451,24 @@ void migration_incoming_state_destroy(void)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps = postcopy_state_get();
 
+    /* Cleanup listener to make sure no further accept() for sockets */
+    migration_incoming_transport_cleanup(mis);
+
+    /*
+     * It's safer to free channel watches earlier than most of the rest, in
+     * case the IO watches could fire in the monitor iothread concurrently
+     * against this function.
+     *
+     * Above migration_incoming_transport_cleanup() should have disarmed
+     * anything that we could accept() new sockets.
+     *
+     * Here return of migration_incoming_free_early_channels() makes sure
+     * even if something already fired concurrently, it won't really do
+     * anything but return - see migration_incoming_early_channel_remove()
+     * and its return code for details.
+     */
+    migration_incoming_free_early_channels(mis);
+
     multifd_recv_cleanup();
 
     if (ps != POSTCOPY_INCOMING_NONE) {
@@ -491,7 +513,6 @@ void migration_incoming_state_destroy(void)
         mis->postcopy_remote_fds = NULL;
     }
 
-    migration_incoming_transport_cleanup(mis);
     qemu_event_reset(&mis->main_thread_load_event);
 
     if (mis->page_requested) {
@@ -833,10 +854,6 @@ out:
     migrate_incoming_unref_outgoing_state();
 }
 
-/*
- * Returns whether all the necessary channels to proceed with the
- * incoming migration have been established without error.
- */
 bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -865,13 +882,13 @@ bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp)
         assert(!mis->postcopy_qemufile_dst);
         f = qemu_file_new_input(ioc);
         postcopy_preempt_new_channel(mis, f);
-        return false;
+        break;
 
     default:
         g_assert_not_reached();
     }
 
-    return migration_has_main_and_multifd_channels();
+    return true;
 }
 
 void migration_outgoing_setup(QIOChannel *ioc)

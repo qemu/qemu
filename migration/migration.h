@@ -90,6 +90,28 @@ typedef enum {
     PREEMPT_THREAD_QUIT,
 } PreemptThreadStatus;
 
+typedef struct {
+    /*
+     * The GSource we have allocated to track G_IO_IN events for the
+     * channel.  Note: it may not be attached to the default main gcontext,
+     * for example, when in case of io watch created during an OOB
+     * migrate-recover command.
+     */
+    GSource *source;
+    /* The channel we will identify later after getting some buffers to read */
+    QIOChannel *ioc;
+} MigEarlyIncomingChannel;
+
+typedef struct {
+    GArray *channels;
+    /*
+     * In most cases, channels are only operated with BQl, but since we
+     * have OOB command support, don't assume it, just use a standalone
+     * mutex to protect any access to the channels array.
+     */
+    QemuMutex mutex;
+} MigEarlyIncomingChannels;
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -255,6 +277,19 @@ struct MigrationIncomingState {
 
     /* Do exit on incoming migration failure */
     bool exit_on_error;
+
+    /*
+     * Maintains all channels only at early stage.  After incoming
+     * migration started, this should be an empty array and no use anymore.
+     *
+     * TODO: we logically only need this to make new QEMU binaries work for
+     * old machines who have @preempt_pre_7_2 set on the source, but it's
+     * also good to have this early stage anyway, making sure when peek the
+     * channel there will be something in the channel.  Ideally, we should
+     * manage all migration channels in the future with proper headers,
+     * then we can drop this.
+     */
+    MigEarlyIncomingChannels channels_early;
 };
 
 MigrationIncomingState *migration_incoming_get_current(void);

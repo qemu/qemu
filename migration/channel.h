@@ -49,4 +49,7 @@ bool migration_channel_parse_input(const char *uri,
                                    MigrationChannel **main_channelp,
                                    MigrationChannel **cpr_channelp,
                                    Error **errp);
+
+void migration_incoming_free_early_channels(MigrationIncomingState *mis);
+
 #endif

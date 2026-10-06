@@ -207,9 +207,10 @@ migration_start_incoming(void) ""
 migration_transferred_bytes(uint64_t qemu_file, uint64_t multifd, uint64_t rdma) "qemu_file %" PRIu64 " multifd %" PRIu64 " RDMA %" PRIu64
 
 # channel.c
-migration_channel_process_incoming(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
-migration_set_incoming_channel(void *ioc, const char *ioctype, const char *type) "ioc=%p ioctype=%s type=%s"
-migration_set_outgoing_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
+migration_outgoing_channel_set(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
+migration_incoming_channel_process(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
+migration_incoming_channel_set(void *ioc, const char *ioctype, const char *type) "ioc=%p ioctype=%s type=%s"
+migration_incoming_channel_watch(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
 
 # global_state.c
 migrate_state_too_big(void) ""
