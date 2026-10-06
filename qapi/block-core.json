@@ -2250,7 +2250,7 @@
 # @job-id: identifier for the newly-created block job.  If omitted,
 #     the device name will be used.  (Since 2.7)
 #
-# @device: the device name or node-name of a root node whose writes
+# @device: the device name or node-name of a block node whose writes
 #     should be mirrored.
 #
 # @target: the target of the new image.  If the file exists, or if it
@@ -2573,7 +2573,7 @@
 # @job-id: identifier for the newly-created block job.  If omitted,
 #     the device name will be used.  (Since 2.7)
 #
-# @device: The device name or node-name of a root node whose writes
+# @device: The device name or node-name of a block node whose writes
 #     should be mirrored.
 #
 # @target: the id or node-name of the block device to mirror to.  This

@@ -2987,13 +2987,19 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     bool target_is_zero;
     int ret;
 
-    bs = qmp_get_root_bs(arg->device, errp);
+    bdrv_graph_rdlock_main_loop();
+    bs = bdrv_lookup_bs(arg->device, arg->device, errp);
     if (!bs) {
+        bdrv_graph_rdunlock_main_loop();
+        return;
+    }
+    if (!bdrv_is_inserted(bs)) {
+        error_setg(errp, "Device has no medium");
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
 
     /* Early check to avoid creating target */
-    bdrv_graph_rdlock_main_loop();
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
         bdrv_graph_rdunlock_main_loop();
         return;
@@ -3150,10 +3156,18 @@ void qmp_blockdev_mirror(const char *job_id,
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
     int ret;
 
-    bs = qmp_get_root_bs(device, errp);
+    bdrv_graph_rdlock_main_loop();
+    bs = bdrv_lookup_bs(device, device, errp);
     if (!bs) {
+        bdrv_graph_rdunlock_main_loop();
         return;
     }
+    if (!bdrv_is_inserted(bs)) {
+        error_setg(errp, "Device has no medium");
+        bdrv_graph_rdunlock_main_loop();
+        return;
+    }
+    bdrv_graph_rdunlock_main_loop();
 
     target_bs = bdrv_lookup_bs(target, target, errp);
     if (!target_bs) {
