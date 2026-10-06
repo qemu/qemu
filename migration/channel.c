@@ -197,6 +197,42 @@ out:
     return channel;
 }
 
+static void migration_incoming_error_propagate(MigrationIncomingState *mis,
+                                               Error *error)
+{
+    error_report_err(error);
+    migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
+    if (mis->exit_on_error) {
+        exit(EXIT_FAILURE);
+    }
+}
+
+static bool migration_incoming_channel_install(MigrationIncomingState *mis,
+                                               QIOChannel *ioc,
+                                               Error **errp)
+{
+    MigChannelType ch = migration_channel_identify(mis, ioc, errp);
+
+    if (!ch) {
+        assert(*errp);
+        return false;
+    }
+
+    trace_migration_set_incoming_channel(ioc,
+                                         object_get_typename(OBJECT(ioc)));
+    migration_ioc_register_yank(ioc);
+
+    if (migration_incoming_setup(ioc, ch, errp)) {
+        migration_start_incoming();
+    }
+
+    if (*errp) {
+        return false;
+    }
+
+    return true;
+}
+
 /**
  * @migration_channel_process_incoming - Create new incoming migration channel
  *
@@ -209,31 +245,18 @@ void migration_channel_process_incoming(QIOChannel *ioc)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
-    MigChannelType ch;
 
-    trace_migration_set_incoming_channel(
+    trace_migration_channel_process_incoming(
         ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         migration_tls_channel_process_incoming(ioc, &local_err);
     } else {
-        migration_ioc_register_yank(ioc);
-        ch = migration_channel_identify(mis, ioc, &local_err);
-        if (!ch) {
-            goto out;
-        }
-
-        if (migration_incoming_setup(ioc, ch, &local_err)) {
-            migration_start_incoming();
-        }
+        migration_incoming_channel_install(mis, ioc, &local_err);
     }
-out:
+
     if (local_err) {
-        error_report_err(local_err);
-        migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
-        if (mis->exit_on_error) {
-            exit(EXIT_FAILURE);
-        }
+        migration_incoming_error_propagate(mis, local_err);
     }
 }
 
