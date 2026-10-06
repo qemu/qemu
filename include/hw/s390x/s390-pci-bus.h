@@ -338,6 +338,8 @@ struct S390PCIBusDevice {
     uint16_t uid;
     uint32_t idx;
     uint32_t fh;
+    Error *zpci_migr_blocker; /* machines 11.1 or older */
+    Error *passthrough_migr_blocker;
     uint32_t fid;
     bool fid_defined;
     uint64_t fmb_addr;
@@ -379,6 +381,8 @@ struct S390PCIBus {
     BusState qbus;
 };
 
+typedef QTAILQ_HEAD(SeiContainerList, SeiContainer) SeiContainerList;
+
 struct S390pciState {
     PCIHostState parent_obj;
     uint32_t next_idx;
@@ -386,11 +390,14 @@ struct S390pciState {
     S390PCIBus *bus;
     GHashTable *iommu_table;
     GHashTable *zpci_table;
-    QTAILQ_HEAD(, SeiContainer) pending_sei;
+    SeiContainerList pending_sei;
+    /* Only used temporarily between migration pre_load and post_load. */
+    SeiContainerList pending_sei_stash;
     QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
     QTAILQ_HEAD(, S390PCIDMACount) zpci_dma_limit;
     QTAILQ_HEAD(, S390PCIGroup) zpci_groups;
     uint8_t next_sim_grp;
+    bool zpci_migr_enabled;
 };
 
 S390pciState *s390_get_phb(void);
