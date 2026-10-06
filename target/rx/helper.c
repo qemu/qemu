@@ -24,6 +24,37 @@
 #include "hw/core/irq.h"
 #include "qemu/plugin.h"
 
+const char *rx_exception_name(int excp)
+{
+    const char *name;
+
+    switch (excp) {
+    case RX_EXCP_PRIVILEGE_VIOLATION:
+        name = "privilege violation";
+        break;
+    case RX_EXCP_ACCESS:
+        name = "access exception";
+        break;
+    case RX_EXCP_ILLEGAL_INSTRUCTION:
+        name = "illegal instruction";
+        break;
+    case RX_EXCP_FPU:
+        name = "fpu exception";
+        break;
+    case RX_EXCP_NMI:
+        name = "non-maskable interrupt";
+        break;
+    case RX_EXCP_TRAP_BASE ... RX_EXCP_TRAP_BASE + RX_EXCP_TRAP_COUNT - 1:
+        name = "unconditional trap";
+        break;
+    default:
+        name = "unknown";
+        break;
+    }
+
+    return name;
+}
+
 void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte)
 {
     if (env->psw_pm == 0) {
@@ -79,7 +110,6 @@ void rx_cpu_do_interrupt(CPUState *cs)
         qemu_log_mask(CPU_LOG_INT, "interrupt 0x%02x raised\n", env->ack_irq);
     } else {
         uint32_t vec = cs->exception_index;
-        const char *expname = "unknown exception";
 
         env->isp -= 4;
         cpu_stl_le_data(env, env->isp, save_psw);
@@ -100,27 +130,8 @@ void rx_cpu_do_interrupt(CPUState *cs)
             qemu_plugin_vcpu_exception_cb(cs, last_pc);
         }
 
-        switch (vec) {
-        case RX_EXCP_PRIVILEGE_VIOLATION:
-            expname = "privilege violation";
-            break;
-        case RX_EXCP_ACCESS:
-            expname = "access exception";
-            break;
-        case RX_EXCP_ILLEGAL_INSTRUCTION:
-            expname = "illegal instruction";
-            break;
-        case RX_EXCP_FPU:
-            expname = "fpu exception";
-            break;
-        case RX_EXCP_NMI:
-            expname = "non-maskable interrupt";
-            break;
-        case RX_EXCP_TRAP_BASE ... RX_EXCP_TRAP_BASE + RX_EXCP_TRAP_COUNT - 1:
-            expname = "unconditional trap";
-        }
         qemu_log_mask(CPU_LOG_INT, "exception 0x%02x [%s] raised\n",
-                      (vec & 0xff), expname);
+                      (vec & 0xff), rx_exception_name(vec));
     }
     env->regs[0] = env->isp;
 }
