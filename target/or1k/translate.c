@@ -1110,7 +1110,7 @@ static bool trans_l_rfe(DisasContext *dc, arg_l_rfe *a)
     if (is_user(dc)) {
         gen_illegal_exception(dc);
     } else {
-        gen_helper_rfe(tcg_env);
+        gen_helper_or1k_rfe(tcg_env);
         dc->base.is_jmp = DISAS_EXIT;
     }
     return true;

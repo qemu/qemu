@@ -1252,7 +1252,7 @@ static void rx_div(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 static void rx_divu(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
-    gen_helper_divu(ret, tcg_env, arg1, arg2);
+    gen_helper_rx_divu(ret, tcg_env, arg1, arg2);
 }
 
 /* div #imm, rd */
@@ -1864,16 +1864,16 @@ static bool trans_SATR(DisasContext *ctx, arg_SATR *a)
         return true;                                            \
     }
 
-FOP(FADD, fadd)
-FOP(FSUB, fsub)
-FOP(FMUL, fmul)
-FOP(FDIV, fdiv)
+FOP(FADD, rx_fadd)
+FOP(FSUB, rx_fsub)
+FOP(FMUL, rx_fmul)
+FOP(FDIV, rx_fdiv)
 
 /* fcmp #imm, rd */
 static bool trans_FCMP_ir(DisasContext *ctx, arg_FCMP_ir * a)
 {
     TCGv_i32 imm = tcg_constant_i32(li(ctx, 0));
-    gen_helper_fcmp(tcg_env, cpu_regs[a->rd], imm);
+    gen_helper_rx_fcmp(tcg_env, cpu_regs[a->rd], imm);
     return true;
 }
 
@@ -1884,7 +1884,7 @@ static bool trans_FCMP_mr(DisasContext *ctx, arg_FCMP_mr *a)
     TCGv_i32 val, mem;
     mem = tcg_temp_new_i32();
     val = rx_load_source(ctx, mem, a->ld, MO_32, a->rs);
-    gen_helper_fcmp(tcg_env, cpu_regs[a->rd], val);
+    gen_helper_rx_fcmp(tcg_env, cpu_regs[a->rd], val);
     return true;
 }
 

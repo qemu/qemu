@@ -27,7 +27,7 @@ void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
 {
     OpenRISCCPU *cpu = env_archcpu(env);
 
-    raise_exception(cpu, excp);
+    or1k_raise_exception(cpu, excp);
 }
 
 static G_NORETURN

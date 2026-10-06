@@ -22,7 +22,7 @@
 #include "cpu.h"
 #include "exception.h"
 
-G_NORETURN void raise_exception(OpenRISCCPU *cpu, uint32_t excp)
+G_NORETURN void or1k_raise_exception(OpenRISCCPU *cpu, uint32_t excp)
 {
     CPUState *cs = CPU(cpu);
 

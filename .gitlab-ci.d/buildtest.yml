@@ -659,6 +659,17 @@ build-tci:
       done
     - make check-tcg
 
+multi-target:
+  extends: .native_build_job_template
+  needs:
+    - job: amd64-debian-container
+  variables:
+    IMAGE: debian
+  script:
+    - ./configure
+    - make -C build tests/unit/test-multi-target
+    - ./build/tests/unit/test-multi-target
+
 # Check our reduced build configurations
 build-without-defaults:
   extends: .native_build_job_template

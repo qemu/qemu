@@ -3768,6 +3768,7 @@ subdir('ebpf')
 
 if have_system
   subdir('hw')
+  subdir('system')
 else
   subdir('hw/core')
 endif
@@ -3848,8 +3849,6 @@ endif
 common_ss.add(files('cpu-common.c'))
 user_ss.add(files('cpu-target.c'))
 system_ss.add(files('cpu-target.c'))
-
-subdir('system')
 
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
@@ -4264,8 +4263,15 @@ multi_target_deps = []
 multi_target_crates = []
 multi_target_supported_targets = [
   'aarch64-softmmu',
+  'alpha-softmmu',
   'arm-softmmu',
+  'avr-softmmu',
+  'hppa-softmmu',
+  'm68k-softmmu',
   'microblaze-softmmu',
+  'or1k-softmmu',
+  'rx-softmmu',
+  'tricore-softmmu',
 ]
 
 emulators = {}

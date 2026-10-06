@@ -22,6 +22,6 @@
 
 #include "cpu.h"
 
-G_NORETURN void raise_exception(OpenRISCCPU *cpu, uint32_t excp);
+G_NORETURN void or1k_raise_exception(OpenRISCCPU *cpu, uint32_t excp);
 
 #endif /* TARGET_OPENRISC_EXCEPTION_H */
