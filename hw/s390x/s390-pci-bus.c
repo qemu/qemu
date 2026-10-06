@@ -617,7 +617,7 @@ static void s390_pci_ioat_replay(S390PCIBusDevice *pbdev)
     }
 
     while (curr < end) {
-        error = s390_guest_io_table_walk(iommu->g_iota, curr, &entry);
+        error = s390_guest_io_table_walk(pbdev->g_iota, curr, &entry);
         if (error) {
             pbdev->state = ZPCI_FS_ERROR;
             s390_pci_generate_error_event(error, pbdev->fh, pbdev->fid, curr,
