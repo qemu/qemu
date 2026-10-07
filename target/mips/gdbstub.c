@@ -24,13 +24,20 @@
 #include "gdbstub/helpers.h"
 #include "fpu_helper.h"
 
+static int mips_gdb_get_regl(const CPUMIPSState *env,
+                             GByteArray *buf, uint64_t val)
+{
+    return mips_env_is_64bit(env) ? gdb_get_reg64(buf, val)
+                                  : gdb_get_reg32(buf, val);
+}
+
 int mips_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     CPUMIPSState *env = cpu_env(cs);
     uint64_t val;
 
     if (n < 32) {
-        return gdb_get_regl(mem_buf, env->active_tc.gpr[n]);
+        return mips_gdb_get_regl(env, mem_buf, env->active_tc.gpr[n]);
     }
     if (env->CP0_Config1 & (1 << CP0C1_FP) && n >= 38 && n < 72) {
         switch (n) {
@@ -83,7 +90,7 @@ int mips_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
             break;
         }
     }
-    return gdb_get_regl(mem_buf, val);
+    return mips_gdb_get_regl(env, mem_buf, val);
 }
 
 int mips_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
