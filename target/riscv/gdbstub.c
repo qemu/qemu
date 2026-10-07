@@ -183,7 +183,7 @@ static int riscv_gdb_get_csr(CPUState *cs, GByteArray *buf, int n)
 
         result = riscv_csrrw_debug(env, n, &val, 0, 0);
         if (result == RISCV_EXCP_NONE) {
-            return gdb_get_regl(buf, val);
+            return riscv_gdb_get_reg_mxl(cs, buf, val);
         }
     }
     return 0;
@@ -211,7 +211,7 @@ static int riscv_gdb_get_virtual(CPUState *cs, GByteArray *buf, int n)
 {
     if (n == 0) {
 #ifdef CONFIG_USER_ONLY
-        return gdb_get_regl(buf, 0);
+        return riscv_gdb_get_reg_mxl(cs, buf, 0);
 #else
         RISCVCPU *cpu = RISCV_CPU(cs);
         CPURISCVState *env = &cpu->env;
@@ -219,7 +219,7 @@ static int riscv_gdb_get_virtual(CPUState *cs, GByteArray *buf, int n)
         /* Per RiscV debug spec v1.0.0 rc4 */
         uint32_t vbit = (env->virt_enabled) ? BIT(2) : 0;
 
-        return gdb_get_regl(buf, env->priv | vbit);
+        return riscv_gdb_get_reg_mxl(cs, buf, env->priv | vbit);
 #endif
     }
     return 0;
