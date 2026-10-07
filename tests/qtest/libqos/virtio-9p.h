@@ -22,6 +22,7 @@
 #include "qgraph.h"
 #include "virtio.h"
 #include "virtio-pci.h"
+#include "hw/9pfs/9p.h"
 
 typedef struct QVirtio9P QVirtio9P;
 typedef struct QVirtio9PPCI QVirtio9PPCI;
@@ -32,6 +33,11 @@ typedef struct QVirtio9PDevice QVirtio9PDevice;
 struct QVirtio9P {
     QVirtioDevice *vdev;
     QVirtQueue *vq;
+    /*
+     * The protocol version negotiated for this 9p session via Tversion request
+     * (0 if no protocol version negotiated yet)
+     */
+    P9ProtoVersion proto_version;
 };
 
 struct QVirtio9PPCI {
