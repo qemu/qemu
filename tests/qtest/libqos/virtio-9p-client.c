@@ -306,6 +306,33 @@ void v9fs_rlerror(P9Req *req, uint32_t *err)
     v9fs_req_free(req);
 }
 
+/*
+ * Asserts for caller that the request's response returned with the passed,
+ * expected error code (in a protocol version agnostic manner).
+ */
+static void v9fs_req_check_err(P9Req *req, uint32_t expect_err)
+{
+    P9Hdr hdr;
+    uint32_t err;
+
+    /* peek the response header */
+    v9fs_memread(req, &hdr, sizeof(hdr));
+    /* reset offset after peek, so v9fs_rlerror() etc. read correctly */
+    req->r_off = 0;
+
+    if (hdr.id == P9_RLERROR) {
+        v9fs_rlerror(req, &err);
+    } else if (hdr.id == P9_RERROR) {
+        v9fs_rerror(req, &err);
+    } else {
+        g_printerr("Received response %d (%s) instead of an error response\n",
+                   hdr.id, rmessage_name(hdr.id));
+        v9fs_req_free(req);
+        g_assert_not_reached();
+    }
+    g_assert_cmpint(err, ==, expect_err);
+}
+
 /* size[4] Tversion tag[2] msize[4] version[s] */
 TVersionRes v9fs_tversion(TVersionOpt opt)
 {
@@ -1284,5 +1311,57 @@ void v9fs_rxattrwalk(P9Req *req, uint64_t *size)
     } else {
         v9fs_memskip(req, 8);
     }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tstat tag[2] fid[4] */
+TStatRes v9fs_tstat(TStatOpt opt)
+{
+    P9Req *req;
+
+    g_assert(opt.client);
+    /* expecting either Rstat or an error response, but obviously not both */
+    g_assert(!opt.expectErr || !opt.rstat.stat);
+
+    req = v9fs_req_init(opt.client, 4, P9_TSTAT, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_req_check_err(req, opt.expectErr);
+        } else {
+            v9fs_rstat(req, opt.rstat.stat);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TStatRes) { .req = req };
+}
+
+/* size[4] Rstat tag[2] stat[n] */
+void v9fs_rstat(P9Req *req, v9fs_stat *stat)
+{
+    v9fs_req_recv(req, P9_RSTAT);
+
+    v9fs_memskip(req, 2); /* protocol quirk: size appears twice */
+    v9fs_uint16_read(req, &stat->size);
+    v9fs_uint16_read(req, &stat->type);
+    v9fs_uint32_read(req, &stat->dev);
+    v9fs_memread(req, &stat->qid, 13);
+    v9fs_uint32_read(req, &stat->mode);
+    v9fs_uint32_read(req, &stat->atime);
+    v9fs_uint32_read(req, &stat->mtime);
+    v9fs_uint64_read(req, &stat->length);
+    v9fs_string_read(req, NULL, &stat->name);
+    v9fs_string_read(req, NULL, &stat->uid);
+    v9fs_string_read(req, NULL, &stat->gid);
+    v9fs_string_read(req, NULL, &stat->muid);
+    v9fs_string_read(req, NULL, &stat->extension);
+    v9fs_uint32_read(req, &stat->n_uid);
+    v9fs_uint32_read(req, &stat->n_gid);
+    v9fs_uint32_read(req, &stat->n_muid);
+
     v9fs_req_free(req);
 }
