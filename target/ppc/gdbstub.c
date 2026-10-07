@@ -53,6 +53,13 @@ static unsigned ppc_gdb_register_len(const CPUPPCState *env, int n)
     }
 }
 
+static inline int ppc_gdb_get_regl(const CPUPPCState *env,
+                                   GByteArray *buf, uint64_t val)
+{
+    return ppc_env_is_64bit(env) ? gdb_get_reg64(buf, val)
+                                 : gdb_get_reg32(buf, val);
+}
+
 /*
  * We need to present the registers to gdb in the "current" memory
  * ordering.  For user-only mode we get this for free;
@@ -98,14 +105,14 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
 
     if (n < 32) {
         /* gprs */
-        gdb_get_regl(buf, env->gpr[n]);
+        ppc_gdb_get_regl(env, buf, env->gpr[n]);
     } else {
         switch (n) {
         case 64:
-            gdb_get_regl(buf, env->nip);
+            ppc_gdb_get_regl(env, buf, env->nip);
             break;
         case 65:
-            gdb_get_regl(buf, env->msr);
+            ppc_gdb_get_regl(env, buf, env->msr);
             break;
         case 66:
             {
@@ -114,10 +121,10 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
                 break;
             }
         case 67:
-            gdb_get_regl(buf, env->lr);
+            ppc_gdb_get_regl(env, buf, env->lr);
             break;
         case 68:
-            gdb_get_regl(buf, env->ctr);
+            ppc_gdb_get_regl(env, buf, env->ctr);
             break;
         case 69:
             gdb_get_reg32(buf, cpu_read_xer(env));
@@ -281,7 +288,7 @@ static int gdb_get_spr_reg(CPUState *cs, GByteArray *buf, int n)
     default:
         val = env->spr[reg];
     }
-    gdb_get_regl(buf, val);
+    ppc_gdb_get_regl(env, buf, val);
 
     ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, len), len);
     return len;
