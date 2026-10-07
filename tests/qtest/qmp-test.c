@@ -164,6 +164,18 @@ static void test_qmp_protocol(void)
     qtest_quit(qts);
 }
 
+static void test_query_target(void)
+{
+    QTestState *qts = qtest_init(common_args);
+    QDict *target;
+
+    target = qtest_qmp_assert_success_ref(qts,
+                                          "{ 'execute': 'query-target' }");
+    g_assert_cmpstr(qdict_get_try_str(target, "arch"), ==, qtest_get_arch());
+    qobject_unref(target);
+    qtest_quit(qts);
+}
+
 #ifndef _WIN32
 
 /* Out-of-band tests */
@@ -517,6 +529,7 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("qmp/protocol", test_qmp_protocol);
+    qtest_add_func("qmp/query-target", test_query_target);
 #ifndef _WIN32
     /* This case calls mkfifo() which does not exist on win32 */
     qtest_add_func("qmp/oob", test_qmp_oob);
