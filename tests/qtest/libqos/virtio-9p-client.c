@@ -287,6 +287,17 @@ void v9fs_req_free(P9Req *req)
     g_free(req);
 }
 
+/* size[4] Rerror tag[2] ename[s] errno[4] */
+void v9fs_rerror(P9Req *req, uint32_t *err)
+{
+    g_autofree char *ename = NULL;
+
+    v9fs_req_recv(req, P9_RERROR);
+    v9fs_string_read(req, NULL, &ename);
+    v9fs_uint32_read(req, err);
+    v9fs_req_free(req);
+}
+
 /* size[4] Rlerror tag[2] ecode[4] */
 void v9fs_rlerror(P9Req *req, uint32_t *err)
 {
