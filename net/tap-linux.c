@@ -34,6 +34,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
+#include "qemu/sockets.h"
 
 #define PATH_NET_TUN "/dev/net/tun"
 
@@ -344,6 +345,35 @@ int tap_fd_get_ifname(int fd, char *ifname)
 
     pstrcpy(ifname, sizeof(ifr.ifr_name), ifr.ifr_name);
     return 0;
+}
+
+int tap_fd_get_mtu(int fd)
+{
+    struct ifreq ifr;
+    int s, ret, mtu;
+
+    memset(&ifr, 0, sizeof(ifr));
+    if (tap_fd_get_ifname(fd, ifr.ifr_name) != 0) {
+        return -1;
+    }
+
+    s = qemu_socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+        error_report("could not create control socket: %s",
+                      strerror(errno));
+        return -1;
+    }
+
+    ret = ioctl(s, SIOCGIFMTU, &ifr);
+    if (ret != 0) {
+        error_report("SIOCGIFMTU ioctl() failed: %s", strerror(errno));
+        close(s);
+        return -1;
+    }
+
+    mtu = ifr.ifr_mtu;
+    close(s);
+    return mtu;
 }
 
 int tap_fd_set_steering_ebpf(int fd, int prog_fd)
