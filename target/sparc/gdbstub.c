@@ -106,22 +106,23 @@ static int sparc_cp0_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         return gdb_get_rega(mem_buf, 0); /* csr */
     }
 #else
+    QEMU_BUILD_BUG_ON(TARGET_LONG_BITS != 64);
     switch (n) {
     case 0:
-        return gdb_get_regl(mem_buf, env->pc);
+        return gdb_get_reg64(mem_buf, env->pc);
     case 1:
-        return gdb_get_regl(mem_buf, env->npc);
+        return gdb_get_reg64(mem_buf, env->npc);
     case 2:
-        return gdb_get_regl(mem_buf, (cpu_get_ccr(env) << 32) |
+        return gdb_get_reg64(mem_buf, (cpu_get_ccr(env) << 32) |
                                      ((env->asi & 0xff) << 24) |
                                      ((env->pstate & 0xfff) << 8) |
                                      cpu_get_cwp64(env));
     case 3:
-        return gdb_get_regl(mem_buf, cpu_get_fsr(env));
+        return gdb_get_reg64(mem_buf, cpu_get_fsr(env));
     case 4:
-        return gdb_get_regl(mem_buf, env->fprs);
+        return gdb_get_reg64(mem_buf, env->fprs);
     case 5:
-        return gdb_get_regl(mem_buf, env->y);
+        return gdb_get_reg64(mem_buf, env->y);
     }
 #endif
     return 0;
