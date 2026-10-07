@@ -15,10 +15,6 @@
 #include "qemu/bswap.h"
 #include "qemu/target-info.h"
 
-#ifdef COMPILING_PER_TARGET
-#include "cpu-param.h"
-#endif
-
 /*
  * The GDB remote protocol transfers values in target byte order. As
  * the gdbstub may be batching up several register values we always
@@ -86,20 +82,6 @@ static inline int gdb_get_zeroes(GByteArray *array, size_t len)
     memset(array->data + oldlen, 0, len);
 
     return len;
-}
-
-/**
- * gdb_get_regl: append @val in @buf using 32 or 64-bit, depending on target
- *
- * This function is legacy and deprecated, thus should not be used in new code.
- */
-static inline int gdb_get_regl(GByteArray *buf, uint64_t val)
-{
-    if (target_long_bits() == 64) {
-        return gdb_get_reg64(buf, val);
-    } else {
-        return gdb_get_reg32(buf, val);
-    }
 }
 
 /**
