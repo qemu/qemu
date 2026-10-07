@@ -34,9 +34,8 @@
 
 /*****************************************************************************/
 /* Exception processing */
-#ifndef CONFIG_USER_ONLY
 
-static const char *powerpc_excp_name(int excp)
+const char *powerpc_excp_name(int excp)
 {
     static const char * const excp_names[POWERPC_EXCP_NB] = {
         [POWERPC_EXCP_CRITICAL] = "CRITICAL",
@@ -107,6 +106,8 @@ static const char *powerpc_excp_name(int excp)
 
     return STR_ARRAY_ELEM_OR_NULL(excp_names, excp) ?: "unknown";
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static void dump_syscall(CPUPPCState *env)
 {
