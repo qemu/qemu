@@ -3393,7 +3393,7 @@ F: migration/block-dirty-bitmap.c
 F: util/hbitmap.c
 F: tests/unit/test-hbitmap.c
 F: docs/interop/bitmaps.rst
-T: git https://repo.or.cz/qemu/ericb.git bitmaps
+T: git https://gitlab.com/ebblake/qemu.git bitmaps
 T: git https://gitlab.com/vsementsov/qemu.git block
 
 Character device backends
@@ -4392,7 +4392,7 @@ F: blockdev-nbd.c
 F: docs/interop/nbd.rst
 F: docs/tools/qemu-nbd.rst
 F: tests/qemu-iotests/tests/*nbd*
-T: git https://repo.or.cz/qemu/ericb.git nbd
+T: git https://gitlab.com/ebblake/qemu.git nbd
 T: git https://gitlab.com/vsementsov/qemu.git block
 
 NFS
