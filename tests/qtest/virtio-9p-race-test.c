@@ -546,6 +546,89 @@ static void v9p_race_fid_path(void *obj, void *data, QGuestAllocator *t_alloc)
     fflush(stdout);
 }
 
+/*
+ * Race 9p server's internal directory stream for Treaddir.
+ *
+ * Race Treaddir request against another Treaddir or Tstat request on the same
+ * FID.
+ */
+static void v9p_race_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    uint32_t rounds;
+    uint32_t i;
+
+    if (v9p_race_skip()) {
+        return;
+    }
+    rounds = v9p_race_rounds();
+
+    v9fs_set_allocator(t_alloc);
+    v9p_race_prepare(v9p);
+
+    for (i = 0; i < rounds; i++) {
+        P9Req *req_a, *req_b;
+        uint16_t tag_a = v9p_race_new_tag();
+        uint16_t tag_b = v9p_race_new_tag();
+
+        if (i % 2000 == 0) {
+            g_print("race/readdir: %u/%u rounds\n", i, rounds);
+            fflush(stdout);
+        }
+
+        /*
+         * Reset the descriptor pool at the start of every round, where
+         * no request is in-flight anymore.
+         */
+        v9p_race_reset_pool(v9p);
+
+        /* initial Treaddir request */
+        req_a = v9fs_treaddir((TReadDirOpt) {
+            .client = v9p,
+            .fid = V9P_RACE_D2_FID,
+            .offset = 0,
+            .count = 64,
+            .tag = tag_a,
+            .requestOnly = true,
+        }).req;
+
+        /*
+         * On every 3rd round send a concurrent Tstat, otherwise a
+         * concurrent Treaddir request.
+         */
+        if (i % 3 == 0) {
+            /* a Tstat on the same directory FID */
+            req_b = v9fs_tstat((TStatOpt) {
+                .client = v9p,
+                .fid = V9P_RACE_D2_FID,
+                .tag = tag_b,
+                .requestOnly = true,
+            }).req;
+        } else {
+            /* a concurrent Treaddir on the same FID */
+            req_b = v9fs_treaddir((TReadDirOpt) {
+                .client = v9p,
+                .fid = V9P_RACE_D2_FID,
+                .offset = 0,
+                .count = 64,
+                .tag = tag_b,
+                .requestOnly = true,
+            }).req;
+        }
+
+        uint8_t resp_a, resp_b;
+
+        resp_a = v9p_race_resp_collect(v9p, req_a);
+        g_assert_cmpint(resp_a, ==, P9_RREADDIR);
+        resp_b = v9p_race_resp_collect(v9p, req_b);
+        g_assert_cmpint(resp_b, ==,
+                        (i % 3 == 0) ? P9_RSTAT : P9_RREADDIR);
+    }
+
+    g_print("race/readdir: %u rounds done\n", rounds);
+    fflush(stdout);
+}
+
 /* setup and cleanup for race tests using the 9p 'local' fs driver */
 static void *v9p_race_local_driver(GString *cmd_line, void *arg)
 {
@@ -570,6 +653,7 @@ static void v9p_race_register_tests(void)
     };
 
     qos_add_test("race/fid-path", "virtio-9p", v9p_race_fid_path, &opts);
+    qos_add_test("race/readdir", "virtio-9p", v9p_race_readdir, &opts);
 }
 
 libqos_init(v9p_race_register_tests);
