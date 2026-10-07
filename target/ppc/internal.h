@@ -23,6 +23,17 @@
 #include "hw/core/registerfields.h"
 #include "exec/page-protection.h"
 
+/**
+ * ppc_env_is_64bit:
+ * @env: the cpu context
+ *
+ * Return whether the CPU is a 64-bit implementation.
+ */
+static inline bool ppc_env_is_64bit(const CPUPPCState *env)
+{
+    return env->insns_flags & PPC_64B;
+}
+
 static inline bool ppc_env_is_little_endian(const CPUPPCState *env)
 {
     return FIELD_EX64(env->msr, MSR, LE);

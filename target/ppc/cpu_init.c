@@ -869,7 +869,7 @@ static void register_BookE206_sprs(CPUPPCState *env, uint32_t mas_mask,
             spr_register(env, mas_sprn[i], mas_names[i],
                          SPR_NOACCESS, SPR_NOACCESS,
                          &spr_read_generic,
-                         (i == 2 && (env->insns_flags & PPC_64B))
+                         (i == 2 && ppc_env_is_64bit(env))
                          ? &spr_write_generic : &spr_write_generic32,
                          0x00000000);
         }
