@@ -23,12 +23,17 @@
 #include "gdbstub/helpers.h"
 #include "internal.h"
 
-static unsigned ppc_gdb_register_len(int n)
+static int gdb_get_reg_bits(const CPUPPCState *env)
+{
+    return ppc_env_is_64bit(env) ? 64 : 32;
+}
+
+static unsigned ppc_gdb_register_len(const CPUPPCState *env, int n)
 {
     switch (n) {
     case 0 ... 31:
         /* gprs */
-        return target_long_bits() / 8;
+        return gdb_get_reg_bits(env) / 8;
     case 66:
         /* cr */
     case 69:
@@ -42,7 +47,7 @@ static unsigned ppc_gdb_register_len(int n)
         /* lr */
     case 68:
         /* ctr */
-        return target_long_bits() / 8;
+        return gdb_get_reg_bits(env) / 8;
     default:
         return 0;
     }
@@ -85,7 +90,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
 {
     CPUPPCState *env = cpu_env(cs);
     uint8_t *mem_buf;
-    unsigned r = ppc_gdb_register_len(n);
+    unsigned r = ppc_gdb_register_len(env, n);
 
     if (!r) {
         return r;
@@ -127,7 +132,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
 int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     CPUPPCState *env = cpu_env(cs);
-    unsigned r = ppc_gdb_register_len(n);
+    unsigned r = ppc_gdb_register_len(env, n);
 
     if (!r) {
         return r;
@@ -251,7 +256,7 @@ static int gdb_get_spr_reg(CPUState *cs, GByteArray *buf, int n)
         return 0;
     }
 
-    len = TARGET_LONG_SIZE;
+    len = gdb_get_reg_bits(env) / 8;
 
     /* Handle those SPRs that are not part of the env->spr[] array */
     target_ulong val;
@@ -294,7 +299,7 @@ static int gdb_set_spr_reg(CPUState *cs, uint8_t *mem_buf, int n)
         return 0;
     }
 
-    len = TARGET_LONG_SIZE;
+    len = gdb_get_reg_bits(env) / 8;
     ppc_maybe_bswap_register(env, mem_buf, len);
 
     /* Handle those SPRs that are not part of the env->spr[] array */
