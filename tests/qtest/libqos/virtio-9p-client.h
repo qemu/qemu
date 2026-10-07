@@ -372,6 +372,54 @@ typedef struct TMkdirRes {
     P9Req *req;
 } TMkdirRes;
 
+/* create directory */
+#define P9_CREATE_PERM_DMDIR     0x80000000
+
+/* options for 'Tcreate' 9p request (legacy 9p2000.u) */
+typedef struct TCreateOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of the directory the new file shall be created in (required) */
+    uint32_t fid;
+    /* name of the new file (required) */
+    const char *name;
+    /*
+     * Create mode bits (including file type bits):
+     * e.g. 0644 for a regular file,
+     * or P9_CREATE_PERM_DMDIR | 0755 for a directory
+     * (optional)
+     */
+    uint32_t perm;
+    /*
+     * Open mode byte:
+     * OREAD (0), OWRITE (1), ORDWR (2), OEXEC(3), OTRUNC(0x10), ORCLOSE(0x40)
+     * (optional)
+     */
+    uint8_t mode;
+    /*
+     * Extension data for special files (e.g. symlink target), empty for
+     * regular files. (optional)
+     */
+    const char *extension;
+    /* data being received from 9p server as 'Rcreate' response (optional) */
+    struct {
+        v9fs_qid *qid;
+        uint32_t *iounit;
+    } rcreate;
+    /* only send Tcreate request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an error response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TCreateOpt;
+
+/* result of 'Tcreate' 9p request */
+typedef struct TCreateRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TCreateRes;
+
 /* options for 'Tlcreate' 9p request */
 typedef struct TlcreateOpt {
     /* 9P client being used (mandatory) */
@@ -666,6 +714,8 @@ TFlushRes v9fs_tflush(TFlushOpt);
 void v9fs_rflush(P9Req *req);
 TMkdirRes v9fs_tmkdir(TMkdirOpt);
 void v9fs_rmkdir(P9Req *req, v9fs_qid *qid);
+TCreateRes v9fs_tcreate(TCreateOpt opt);
+void v9fs_rcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit);
 TlcreateRes v9fs_tlcreate(TlcreateOpt);
 void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit);
 TsymlinkRes v9fs_tsymlink(TsymlinkOpt);
