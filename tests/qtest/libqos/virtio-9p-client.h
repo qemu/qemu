@@ -553,6 +553,32 @@ typedef struct TXattrCreateRes {
     uint32_t err;
 } TXattrCreateRes;
 
+/* options for 'Txattrwalk' 9p request */
+typedef struct TXattrWalkOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of file/dir from which to walk (required) */
+    uint32_t fid;
+    /* file ID that will refer to the walked-to xattr (required) */
+    uint32_t newfid;
+    /* xattr name, or empty for a list of all xattrs (required) */
+    const char *name;
+    /* only send Txattrwalk request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TXattrWalkOpt;
+
+/* result of 'Txattrwalk' 9p request */
+typedef struct TXattrWalkRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+    /* size of xattr */
+    uint64_t size;
+} TXattrWalkRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -610,5 +636,7 @@ TClunkRes v9fs_tclunk(TClunkOpt opt);
 void v9fs_rclunk(P9Req *req);
 TXattrCreateRes v9fs_txattrcreate(TXattrCreateOpt opt);
 void v9fs_rxattrcreate(P9Req *req);
+TXattrWalkRes v9fs_txattrwalk(TXattrWalkOpt opt);
+void v9fs_rxattrwalk(P9Req *req, uint64_t *size);
 
 #endif
