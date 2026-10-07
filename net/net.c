@@ -514,6 +514,15 @@ bool qemu_has_ufo(NetClientState *nc)
     return nc->info->has_ufo(nc);
 }
 
+int qemu_get_mtu(NetClientState *nc)
+{
+    if (!nc || !nc->info->get_mtu) {
+        return -1;
+    }
+
+    return nc->info->get_mtu(nc);
+}
+
 bool qemu_has_uso(NetClientState *nc)
 {
     if (!nc || !nc->info->has_uso) {

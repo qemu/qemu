@@ -446,6 +446,13 @@ int tap_get_fd(NetClientState *nc)
     return s->fd;
 }
 
+static int tap_get_mtu(NetClientState *nc)
+{
+    TAPState *s = container_of(nc, TAPState, nc);
+    assert(nc->info->type == NET_CLIENT_DRIVER_TAP);
+    return tap_fd_get_mtu(s->fd);
+}
+
 /*
  * tap_get_vhost_net() can return NULL if a tap net-device backend is
  * created with 'vhost=off' option, 'vhostforce=off' or no vhost or
@@ -607,6 +614,7 @@ static NetClientInfo net_tap_info = {
     .set_steering_ebpf = tap_set_steering_ebpf,
     .is_wait_incoming = tap_is_wait_incoming,
     .get_vhost_net = tap_get_vhost_net,
+    .get_mtu = tap_get_mtu,
 };
 
 static TAPState *new_tap(NetClientState *peer,

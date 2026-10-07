@@ -73,6 +73,7 @@ typedef bool (HasVnetHdr)(NetClientState *);
 typedef bool (HasVnetHdrLen)(NetClientState *, int);
 typedef void (SetOffload)(NetClientState *, const NetOffloads *);
 typedef int (GetVnetHdrLen)(NetClientState *);
+typedef int (GetMtu)(NetClientState *);
 typedef void (SetVnetHdrLen)(NetClientState *, int);
 typedef bool (GetVnetHashSupportedTypes)(NetClientState *, uint32_t *);
 typedef int (SetVnetLE)(NetClientState *, bool);
@@ -113,6 +114,7 @@ typedef struct NetClientInfo {
     NetCheckPeerType *check_peer_type;
     IsWaitIncoming *is_wait_incoming;
     GetVHostNet *get_vhost_net;
+    GetMtu *get_mtu;
 } NetClientInfo;
 
 struct NetClientState {
@@ -214,6 +216,7 @@ bool qemu_has_uso(NetClientState *nc);
 bool qemu_has_tunnel(NetClientState *nc);
 bool qemu_has_vnet_hdr(NetClientState *nc);
 bool qemu_has_vnet_hdr_len(NetClientState *nc, int len);
+int qemu_get_mtu(NetClientState *nc);
 void qemu_set_offload(NetClientState *nc, const NetOffloads *ol);
 int qemu_get_vnet_hdr_len(NetClientState *nc);
 void qemu_set_vnet_hdr_len(NetClientState *nc, int len);
