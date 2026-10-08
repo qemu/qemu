@@ -3339,6 +3339,168 @@ ITERATOR_INSN_IEEE_FP_16_32_LATE(16, vmin_bf, "Vd32.bf=vmin(Vu32.bf,Vv32.bf)",
     "Vector IEEE min: bf", VdV.bf[i] = fp_min_bf(VuV.bf[i], VvV.bf[i]);
     fBFLOAT())
 
+
+/******************************************************************************
+ QFloat extended-precision instructions
+ ******************************************************************************/
+
+EXTINSN(V6_get_qfext,"Vd32=vgetqfext(Vu32.x,Rt32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX,A_HVX_FLT),"Store with extended bits of a vreg into QReg",
+{ fHIDE(int i;) fVFOREACH(8, i) { VdV.ub[i] = fGETQFEXT_BIT(VuV,i) ? fGETUBYTE(i % 4, RtV) : 0; } })
+
+EXTINSN(V6_get_qfext_oracc,"Vx32|=vgetqfext(Vu32.x,Rt32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX,A_HVX_FLT),"Store with extended bits of a vreg into QReg",
+{ fHIDE(int i;) fVFOREACH(8, i) { VxV.ub[i] |= fGETQFEXT_BIT(VuV,i) ? fGETUBYTE(i % 4, RtV) : 0; } })
+
+EXTINSN(V6_set_qfext,"Vd32.x=vsetqfext(Vu32,Rt32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX,A_HVX_FLT),"Load extended bits of Vreg using QReg",
+{
+    fHIDE(int i;)
+    fVFOREACH(8, i) {
+        /* Not explicitly stated at the spec, but this insn should clear the main bits. */
+        VdV.ub[i] = 0;
+        fSETQFEXT_BIT(VdV,i,((VuV.ub[i] & fGETUBYTE(i % 4, RtV)) != 0) ? 1 : 0);
+    }
+})
+
+EXTINSN(V6_vmerge_qf,"Vd32=vmerge(Vu32.x,Vv32.w)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Merge 32 bit word and 4 bit extended bits",
+{ fHIDE(int i;) fVFOREACH(32, i) { VdV.uw[i] = VvV.uw[i]; SET_VEXT(VdV,i,32,GET_VEXT(VuV,i,32)); } })
+
+EXTINSN(V6_vabs_qf16_hf,"Vd32.qf16=vabs(Vu32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Convert absolute value of hf to qf32",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); if(is_unfloat_neg(u)) u.sign = !u.sign; INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
+
+EXTINSN(V6_vabs_qf16_qf16,"Vd32.qf16=vabs(Vu32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Normalize absolute qf16 value",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); if(is_unfloat_neg(u)) u.sign = !u.sign; INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
+
+EXTINSN(V6_vabs_qf32_qf32,"Vd32.qf32=vabs(Vu32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Normalize absolute qf32 value",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); if(is_unfloat_neg(u)) u.sign = !u.sign; INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF32; v.sign = 1; fQFADD(32,VdV,u,v)  ; } })
+
+EXTINSN(V6_vabs_qf32_sf,"Vd32.qf32=vabs(Vu32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Convert absolute value of sf to qf32",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); if(is_unfloat_neg(u)) u.sign = !u.sign; INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF32; v.sign = 1; fQFADD(32,VdV,u,v)  ; } })
+
+EXTINSN(V6_vadd_hf,"Vd32.qf16=vadd(Vu32.hf,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector addition of hf input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]); fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vadd_qf16,"Vd32.qf16=vadd(Vu32.qf16,Vv32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector addition of qf16 input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEQF_EXT(16,VvV,i); fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vadd_qf16_mix,"Vd32.qf16=vadd(Vu32.qf16,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector addition of mixed qf16 and hf",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]); fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vadd_qf32,"Vd32.qf32=vadd(Vu32.qf32,Vv32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector addition of qf32 input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); fHIDE(unfloat )v = fPARSEQF_EXT(32,VvV,i); fQFADD(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vadd_qf32_mix,"Vd32.qf32=vadd(Vu32.qf32,Vv32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector addition of mixed qf32 and sf",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); fHIDE(unfloat )v = fPARSESF(VvV.sf[i]); fQFADD(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vadd_sf,"Vd32.qf32=vadd(Vu32.sf,Vv32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector addition of sf input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); fHIDE(unfloat )v = fPARSESF(VvV.sf[i]); fQFADD(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vconv_bf_qf32,"Vd32.bf=Vuu32.qf32",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of double qf32 to BF",
+{ fHIDE(int i;) fVFOREACH(32, i) {
+    VdV.bf[2*i] = fCONVERT_QF32_TO_BF(VuuV.v[0].qf32[i], GET_VEXT_PAIR(VuuV,0,i,32));
+    VdV.bf[2*i+1] = fCONVERT_QF32_TO_BF(VuuV.v[1].qf32[i], GET_VEXT_PAIR(VuuV,1,i,32));
+} })
+
+EXTINSN(V6_vconv_hf_qf16,"Vd32.hf=Vu32.qf16",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of qf16 format to ieee HF",
+{ fHIDE(int i;) fVFOREACH(16, i) { VdV.hf[i] = fCONVERT_QF16_TO_HF(VuV.qf16[i],GET_VEXT(VuV,i,16)) ; } })
+
+EXTINSN(V6_vconv_hf_qf32,"Vd32.hf=Vuu32.qf32",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of double qf32 to ieee HF",
+{ fHIDE(int i;) fVFOREACH(32, i) { VdV.hf[2*i] = fCONVERT_QF32_TO_HF(VuuV.v[0].qf32[i], GET_VEXT_PAIR(VuuV,0,i,32)); VdV.hf[2*i+1] = fCONVERT_QF32_TO_HF(VuuV.v[1].qf32[i], GET_VEXT_PAIR(VuuV,1,i,32)); } })
+
+EXTINSN(V6_vconv_qf16_hf,"Vd32.qf16=Vu32.hf",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of qf16 format to ieee HF",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
+
+EXTINSN(V6_vconv_qf16_qf16,"Vd32.qf16=Vu32.qf16",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of qf16 to qf16",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
+
+EXTINSN(V6_vconv_qf32_qf32,"Vd32.qf32=Vu32.qf32",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Normalize qf32 value",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF32; v.sign = 1; fQFADD(32,VdV,u,v)  ; } })
+
+EXTINSN(V6_vconv_qf32_sf,"Vd32.qf32=Vu32.sf",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of ieee SF to qf32",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF32; v.sign = 1; fQFADD(32,VdV,u,v)  ; } })
+
+EXTINSN(V6_vconv_sf_qf32,"Vd32.sf=Vu32.qf32",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of qf32 format to ieee SF",
+{ fHIDE(int i;) fVFOREACH(32, i) { VdV.sf[i] = fCONVERT_QF32_TO_SF(VuV.qf32[i],GET_VEXT(VuV,i,32)) ; } })
+
+EXTINSN(V6_vilog2_hf,"Vd32.w=vilog2(Vu32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Exponent extraction of hf",
+{ fHIDE(int i;) fVFOREACH(16, i) { VdV.h[i] = fQF_VILOG2(HF,VuV.hf[i],0)  ; } })
+
+EXTINSN(V6_vilog2_qf16,"Vd32.w=vilog2(Vu32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Exponent extraction of qf16",
+{ fHIDE(int i;) fVFOREACH(16, i) { VdV.h[i] = fQF_VILOG2(EXTQF16,VuV.qf16[i],GET_VEXT(VuV,i,16))  ; } })
+
+EXTINSN(V6_vilog2_qf32,"Vd32.w=vilog2(Vu32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Exponent extraction of qf32",
+{ fHIDE(int i;) fVFOREACH(32, i) { VdV.w[i] = fQF_VILOG2(EXTQF32,VuV.qf32[i],GET_VEXT(VuV,i,32))  ; } })
+
+EXTINSN(V6_vilog2_sf,"Vd32.w=vilog2(Vu32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Exponent extraction of sf",
+{ fHIDE(int i;) fVFOREACH(32, i) { VdV.w[i] = fQF_VILOG2(SF,VuV.sf[i],0)  ; } })
+
+EXTINSN(V6_vmpy_qf16,"Vd32.qf16=vmpy(Vu32.qf16,Vv32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: qf16 output from qf16 inupt",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEQF_EXT(16,VvV,i); fQFMPY(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_qf16_hf,"Vd32.qf16=vmpy(Vu32.hf,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: qf16 output from ieee hf input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]); fQFMPY(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_qf16_mix_hf,"Vd32.qf16=vmpy(Vu32.qf16,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: qf16 output from mixed input of qf16 and ieee hf",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]); fQFMPY(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_qf32,"Vd32.qf32=vmpy(Vu32.qf32,Vv32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: qf32 output from qf32 input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); fHIDE(unfloat )v = fPARSEQF_EXT(32,VvV,i); fQFMPY(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_qf32_hf,"Vdd32.qf32=vmpy(Vu32.hf,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: double qf32 output from ieee hf input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u0 = fPARSEHF(VuV.w[i] & 0xFFFF); fHIDE(unfloat )u1 = fPARSEHF((VuV.w[i]>>16) & 0xFFFF); fHIDE(unfloat )v0 = fPARSEHF(VvV.w[i] & 0xFFFF); fHIDE(unfloat )v1 = fPARSEHF((VvV.w[i]>>16) & 0xFFFF); fQFMPY(32,VddV.v[0],u0,v0); fQFMPY(32,VddV.v[1],u1,v1) ; } })
+
+EXTINSN(V6_vmpy_qf32_mix_hf,"Vdd32.qf32=vmpy(Vu32.qf16,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: double qf32 output from mixed input of qf16 and ieee hf",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u0 = fPARSEQF_EXT(16,VuV,2*i); fHIDE(unfloat )u1 = fPARSEQF_EXT(16,VuV,2*i+1); fHIDE(unfloat )v0 = fPARSEHF(VvV.w[i] & 0xFFFF); fHIDE(unfloat )v1 = fPARSEHF((VvV.w[i]>>16) & 0xFFFF); fQFMPY(32,VddV.v[0],u0,v0); fQFMPY(32,VddV.v[1],u1,v1) ; } })
+
+EXTINSN(V6_vmpy_qf32_qf16,"Vdd32.qf32=vmpy(Vu32.qf16,Vv32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: double qf32 output from qf16 input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u0 = fPARSEQF_EXT(16,VuV,2*i); fHIDE(unfloat )u1 = fPARSEQF_EXT(16,VuV,2*i+1); fHIDE(unfloat )v0 = fPARSEQF_EXT(16,VvV,2*i); fHIDE(unfloat )v1 = fPARSEQF_EXT(16,VvV,2*i+1); fQFMPY(32,VddV.v[0],u0,v0); fQFMPY(32,VddV.v[1],u1,v1) ; } })
+
+EXTINSN(V6_vmpy_qf32_sf,"Vd32.qf32=vmpy(Vu32.sf,Vv32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Vector multiply: qf32 output from IEEE sf input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); fHIDE(unfloat )v = fPARSESF(VvV.sf[i]); fQFMPY(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_rt_hf,"Vd32.qf16=vmpy(Vu32.hf,Rt32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Qfloat16 multiply with scalar and hf input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); fHIDE(unfloat )v = fPARSEHF((RtV >> ((i%2)*16)) & 0xFFFF); fQFMPY(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_rt_qf16,"Vd32.qf16=vmpy(Vu32.qf16,Rt32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Qfloat16 multiply with scalar and qf16 input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEHF((RtV >> ((i%2)*16)) & 0xFFFF); fQFMPY(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vmpy_rt_sf,"Vd32.qf32=vmpy(Vu32.sf,Rt32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV,A_HVX_FLT),"Qfloat32 multiply with scalar and sf input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); fHIDE(unfloat )v = fPARSESF(RtV); fQFMPY(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vneg_qf16_hf,"Vd32.qf16=vneg(Vu32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Negate and convert hf to qf16",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); u.sign = !u.sign; INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
+
+EXTINSN(V6_vneg_qf16_qf16,"Vd32.qf16=vneg(Vu32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Negate and normalize qf16",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); u.sign = !u.sign; INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
+
+EXTINSN(V6_vneg_qf32_qf32,"Vd32.qf32=vneg(Vu32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Negate and normalize qf32 value",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); INIT_UNFLOAT(v) u.sign = !u.sign; v.exp = E_MIN_EXTQF32; v.sign = 1; fQFADD(32,VdV,u,v)  ; } })
+
+EXTINSN(V6_vneg_qf32_sf,"Vd32.qf32=vneg(Vu32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Negate and convert sf to qf32",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); INIT_UNFLOAT(v) u.sign = !u.sign; v.exp = E_MIN_EXTQF32; v.sign = 1; fQFADD(32,VdV,u,v)  ; } })
+
+EXTINSN(V6_vsub_hf,"Vd32.qf16=vsub(Vu32.hf,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of hf input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]); v.sign = !v.sign; fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_hf_mix,"Vd32.qf16=vsub(Vu32.hf,Vv32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of mixed hf and qf16",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); fHIDE(unfloat )v = fPARSEQF_EXT(16,VvV,i); v.sign = !v.sign; fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_qf16,"Vd32.qf16=vsub(Vu32.qf16,Vv32.qf16)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of qf16 input",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEQF_EXT(16,VvV,i); v.sign = !v.sign; fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_qf16_mix,"Vd32.qf16=vsub(Vu32.qf16,Vv32.hf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of mixed qf16 and hf",
+{ fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); fHIDE(unfloat )v = fPARSEHF(VvV.hf[i]); v.sign = !v.sign; fQFADD(16,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_qf32,"Vd32.qf32=vsub(Vu32.qf32,Vv32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of qf32 input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); fHIDE(unfloat )v = fPARSEQF_EXT(32,VvV,i); v.sign = !v.sign; fQFADD(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_qf32_mix,"Vd32.qf32=vsub(Vu32.qf32,Vv32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of mixed qf32 input and sf",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSEQF_EXT(32,VuV,i); fHIDE(unfloat )v = fPARSESF(VvV.sf[i]); v.sign = !v.sign; fQFADD(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_sf,"Vd32.qf32=vsub(Vu32.sf,Vv32.sf)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of ieee sf input",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); fHIDE(unfloat )v = fPARSESF(VvV.sf[i]); v.sign = !v.sign; fQFADD(32,VdV,u,v) ; } })
+
+EXTINSN(V6_vsub_sf_mix,"Vd32.qf32=vsub(Vu32.sf,Vv32.qf32)",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector subtraction of mixed sf input and qf32",
+{ fHIDE(int i;) fVFOREACH(32, i) { fHIDE(unfloat )u = fPARSESF(VuV.sf[i]); fHIDE(unfloat )v = fPARSEQF_EXT(32,VvV,i); v.sign = !v.sign; fQFADD(32,VdV,u,v) ; } })
+
 /******************************************************************************
  DEBUG Vector/Register Printing
  ******************************************************************************/

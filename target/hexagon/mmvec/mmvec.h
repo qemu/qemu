@@ -56,6 +56,9 @@ typedef struct {
         float32  sf[MAX_VEC_SIZE_BYTES / 4];
         float16  hf[MAX_VEC_SIZE_BYTES / 2];
         bfloat16 bf[MAX_VEC_SIZE_BYTES / 2];
+        /* qfloat "visible" mantissa/exponent, sans the extended bits below */
+        int32_t  qf32[MAX_VEC_SIZE_BYTES / 4];
+        int16_t  qf16[MAX_VEC_SIZE_BYTES / 2];
     };
     /*
      * Extended precision bits for qfloat: one byte per qf32 element (only
@@ -71,6 +74,38 @@ typedef struct {
 typedef struct {
     MMVector v[2];
 } MMVectorPair;
+
+/*
+ * val is expected to already be masked to the width of the extended-bits
+ * field being written (1 bit for a qf32 element, 2 bits for a qf16
+ * element); size selects which.
+ */
+static inline void set_extended_bits(MMVector *v, int i, int size, uint8_t val)
+{
+    if (size == 32) {
+        v->ext[i] = val;
+    } else {
+        /* Two qf16 elements share an ext byte: low 2 bits, then high 2 */
+        if (i % 2 == 1) {
+            v->ext[i / 2] = ((val & 0x3) << 2) | (v->ext[i / 2] & 0x3);
+        } else {
+            v->ext[i / 2] = (v->ext[i / 2] & 0xc) | (val & 0x3);
+        }
+    }
+}
+
+static inline uint8_t get_extended_bits(const MMVector *v, int i, int size)
+{
+    if (size == 32) {
+        return v->ext[i];
+    } else {
+        if (i % 2 == 1) {
+            return (v->ext[i / 2] >> 2) & 0x3;
+        } else {
+            return v->ext[i / 2] & 0x3;
+        }
+    }
+}
 
 typedef union {
     uint64_t ud[MAX_VEC_SIZE_BYTES / 8 / 8];
