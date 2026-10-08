@@ -88,6 +88,15 @@ int16_t conv_h_hf(float16 a, float_status *fp_status)
     return float16_to_int16_round_to_zero(a, fp_status);
 }
 
+int16_t conv_h_hf_rnd(float16 a, float_status *fp_status)
+{
+    /* float16_to_int16_scalbn converts any NaN to MAX. */
+    if (float16_is_any_nan(a)) {
+        return float16_is_neg(a) ? INT16_MIN : INT16_MAX;
+    }
+    return float16_to_int16_scalbn(a, float_round_nearest_even, 0, fp_status);
+}
+
 /*
  * Returns true if f1 > f2, where at least one of the elements is guaranteed
  * to be NaN.

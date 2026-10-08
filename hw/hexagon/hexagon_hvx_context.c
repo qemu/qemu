@@ -30,7 +30,7 @@ static const VMStateDescription vmstate_mmvector = {
     .minimum_version_id = 1,
     .fields = (const VMStateField[]){
         VMSTATE_UINT64_ARRAY(ud, MMVector, MAX_VEC_SIZE_BYTES / 8),
-        VMSTATE_UINT8_ARRAY(ext, MMVector, MAX_VEC_SIZE_BYTES / 4),
+        VMSTATE_UINT8_ARRAY_V(ext, MMVector, MAX_VEC_SIZE_BYTES / 4, 2),
         VMSTATE_END_OF_LIST()
     }
 };

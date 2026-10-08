@@ -3149,8 +3149,7 @@ ITERATOR_INSN_SHIFT_SLOT_FLT(16, vconv_h_hf,"Vd32.h=Vu32.hf",
 
 ITERATOR_INSN_SHIFT_SLOT_FLT(16, vconv_h_hf_rnd,"Vd32.h=Vu32.hf:rnd",
     "Vector conversion of hf16 format to int hw, round to nearest even",
-    VdV.h[i] = float16_to_int16_scalbn(VuV.hf[i], float_round_nearest_even, 0,
-                                        &env->hvx_fp_status))
+    VdV.h[i] = conv_h_hf_rnd(VuV.hf[i], &env->hvx_fp_status))
 
 ITERATOR_INSN_SHIFT_SLOT_FLT(32, vconv_sf_w,"Vd32.sf=Vu32.w",
     "Vector conversion of int w format to sf32",
