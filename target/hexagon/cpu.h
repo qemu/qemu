@@ -153,7 +153,6 @@ typedef struct CPUArchState {
     uint32_t k0_lock_count;
     uint64_t t_cycle_count;
 #endif
-    uint32_t next_PC;
     uint32_t imprecise_exception;
     target_ulong new_value_usr;
 

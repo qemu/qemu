@@ -1312,11 +1312,11 @@ static void hex_k0_lock(CPUHexagonState *env, uint32_t PC)
         }
         env->k0_lock_state = HEX_LOCK_WAITING;
         /*
-         * next_PC has already been advanced past this packet.  Rewind it
+         * The PC has already been advanced past this packet.  Rewind it
          * so that the thread re-executes the k0lock when it is woken by
          * the thread that releases the lock.
          */
-        env->next_PC = PC;
+        env->gpr[HEX_REG_PC] = PC;
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
         cpu_loop_exit(cs);
     } else {
@@ -1892,7 +1892,7 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
     }
     qemu_log_mask(LOG_GUEST_ERROR,
                   "setimask used with an invalid tid near PC: 0x%"
-                  PRIx32 "\n", env->next_PC);
+                  PRIx32 "\n", env->gpr[HEX_REG_PC]);
 }
 
 void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)

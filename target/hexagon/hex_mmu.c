@@ -185,11 +185,11 @@ void hex_tlb_lock(CPUHexagonState *env, uint32_t PC)
         }
         env->tlb_lock_state = HEX_LOCK_WAITING;
         /*
-         * next_PC has already been advanced past this packet.  Rewind it
+         * The PC has already been advanced past this packet.  Rewind it
          * so that the thread re-executes the tlblock when it is woken by
          * the thread that releases the lock.
          */
-        env->next_PC = PC;
+        env->gpr[HEX_REG_PC] = PC;
         CPUState *cs = env_cpu(env);
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     } else {

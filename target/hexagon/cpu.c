@@ -454,7 +454,6 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
     env->k0_lock_count = 0;
-    env->next_PC = 0;
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;

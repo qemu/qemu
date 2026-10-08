@@ -748,22 +748,14 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
         tcg_gen_brcondi_tl(cond, pred, 1, pred_false);
     }
 
-    /*
-     * If gen_end_tb() will unconditionally overwrite PC with hex_next_PC
-     * (because this packet has a predicated COF that may not execute),
-     * write the branch target there instead of directly into the PC
-     * global, or the overwrite in gen_end_tb() would clobber it.
-     */
-    TCGv pc_wr = ctx->need_next_pc ? hex_next_PC : hex_gpr[HEX_REG_PC];
-
     if (ctx->pkt.pkt_has_multi_cof) {
         /* If there are multiple branches in a packet, ignore the second one */
-        tcg_gen_movcond_tl(TCG_COND_NE, pc_wr,
+        tcg_gen_movcond_tl(TCG_COND_NE, hex_gpr[HEX_REG_PC],
                            ctx->branch_taken, tcg_constant_tl(0),
-                           pc_wr, addr);
+                           hex_gpr[HEX_REG_PC], addr);
         tcg_gen_movi_tl(ctx->branch_taken, 1);
     } else {
-        tcg_gen_mov_tl(pc_wr, addr);
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
     }
 
     if (cond != TCG_COND_ALWAYS) {

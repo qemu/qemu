@@ -54,7 +54,6 @@ static const AnalyzeInsn opcode_analyze[XX_LAST_OPCODE] = {
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
-TCGv hex_next_PC;
 TCGv hex_new_value_usr;
 TCGv hex_store_addr[STORES_MAX];
 TCGv_i32 hex_store_width[STORES_MAX];
@@ -190,15 +189,9 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
     }
 }
 
-static bool need_next_PC(DisasContext *ctx);
-
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
-
-    if (ctx->need_next_pc) {
-        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
-    }
 
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
@@ -410,7 +403,13 @@ static bool pkt_ends_tb(Packet *pkt)
 }
 
 
-static bool need_next_PC(DisasContext *ctx)
+/*
+ * True when the PC has to be preloaded with the address of the next packet
+ * before the packet runs: either a conditional change-of-flow leaves it
+ * untouched when the condition fails, or the packet ends the TB without
+ * any change-of-flow to advance it.
+ */
+static bool need_pc_preload(DisasContext *ctx)
 {
     Packet *pkt = &ctx->pkt;
     if (pkt->pkt_has_cof || ctx->pkt_ends_tb) {
@@ -714,9 +713,12 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(ctx->branch_taken, 0);
     }
     ctx->pkt_ends_tb = pkt_ends_tb(&ctx->pkt);
-    ctx->need_next_pc = need_next_PC(ctx);
-    if (ctx->need_next_pc) {
-        tcg_gen_movi_tl(hex_next_PC, ctx->next_PC);
+    /*
+     * Any change-of-flow in this packet overwrites the preloaded value, and
+     * the k0lock/tlblock helpers rewind it when the lock is contested.
+     */
+    if (need_pc_preload(ctx)) {
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -1446,8 +1448,6 @@ void hexagon_translate_init(void)
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
-    hex_next_PC = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, next_PC), "next_PC");
 
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(tcg_env,
@@ -1470,6 +1470,7 @@ void hexagon_translate_init(void)
     hex_imprecise_exception = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, imprecise_exception), "imprecise_exception");
 #endif
+
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(tcg_env,
