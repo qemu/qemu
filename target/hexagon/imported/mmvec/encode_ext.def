@@ -394,7 +394,7 @@ DEF_ENC(V6_vshuff,             ICLASS_CJ" 1 001 111 ttttt PP 1 yyyyy 001 xxxxx")
 DEF_ENC(V6_vdeal,             ICLASS_CJ" 1 001 111 ttttt PP 1 yyyyy 010 xxxxx") //
 
 DEF_FIELDROW_DESC32(    ICLASS_CJ" 1 010 --- ----- PP - ----- ----- ---","[#2] if (Ps) Vd=Vu")
-DEF_ENC(V6_vcmov,         ICLASS_CJ" 1 010 000 ----- PP - uuuuu -ss ddddd")
+DEF_ENC(V6_vcmov,         ICLASS_CJ" 1 010 000 ----- PP 0 uuuuu -ss ddddd")
 DEF_ENC(V6_vncmov,         ICLASS_CJ" 1 010 001 ----- PP - uuuuu -ss ddddd")
 DEF_ENC(V6_vnccombine,     ICLASS_CJ" 1 010 010 vvvvv PP - uuuuu -ss ddddd")
 DEF_ENC(V6_vccombine,     ICLASS_CJ" 1 010 011 vvvvv PP - uuuuu -ss ddddd")
