@@ -93,6 +93,9 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_dtg_interrupt(self):
         self.run_exit_zero("dtg_interrupt")
 
+    def test_bestwait(self):
+        self.run_exit_zero("bestwait")
+
     def test_mmu_multi_tlb(self):
         self.run_exit_zero("mmu_multi_tlb")
 
