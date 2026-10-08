@@ -33,29 +33,42 @@ typedef uint32_t QRegMask; /* at least NUM_QREGS bits */
 
 #define VECTOR_SIZE_BYTE    (fVECSIZE())
 
-typedef union {
-    uint64_t ud[MAX_VEC_SIZE_BYTES / 8];
-    int64_t   d[MAX_VEC_SIZE_BYTES / 8];
-    uint32_t uw[MAX_VEC_SIZE_BYTES / 4];
-    int32_t   w[MAX_VEC_SIZE_BYTES / 4];
-    uint16_t uh[MAX_VEC_SIZE_BYTES / 2];
-    int16_t   h[MAX_VEC_SIZE_BYTES / 2];
-    uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
-    int8_t    b[MAX_VEC_SIZE_BYTES / 1];
-    float32  sf[MAX_VEC_SIZE_BYTES / 4];
-    float16  hf[MAX_VEC_SIZE_BYTES / 2];
-    bfloat16 bf[MAX_VEC_SIZE_BYTES / 2];
+/*
+ * Fill value for a vector's qfloat extended-precision bits (MMVector.ext,
+ * below) whenever an instruction that isn't qfloat-aware writes that
+ * vector: architecturally the ext bits are unspecified in that case, and
+ * this repeating, recognizably-not-zero byte pattern is used instead of an
+ * all-zero fill so stray reads of stale ext state show up distinctly
+ * rather than silently looking like a valid (all-zero) qfloat result.
+ */
+#define V_EXTENDED_BYTEVAL 0x0a
+
+typedef struct {
+    union {
+        uint64_t ud[MAX_VEC_SIZE_BYTES / 8];
+        int64_t   d[MAX_VEC_SIZE_BYTES / 8];
+        uint32_t uw[MAX_VEC_SIZE_BYTES / 4];
+        int32_t   w[MAX_VEC_SIZE_BYTES / 4];
+        uint16_t uh[MAX_VEC_SIZE_BYTES / 2];
+        int16_t   h[MAX_VEC_SIZE_BYTES / 2];
+        uint8_t  ub[MAX_VEC_SIZE_BYTES / 1];
+        int8_t    b[MAX_VEC_SIZE_BYTES / 1];
+        float32  sf[MAX_VEC_SIZE_BYTES / 4];
+        float16  hf[MAX_VEC_SIZE_BYTES / 2];
+        bfloat16 bf[MAX_VEC_SIZE_BYTES / 2];
+    };
+    /*
+     * Extended precision bits for qfloat: one byte per qf32 element (only
+     * the low 4 bits, the LREQ nibble, are meaningful); two qf16 elements
+     * share a byte, 2 bits (LR) each.  Any instruction that overwrites this
+     * vector without itself being qfloat-aware fills these with
+     * V_EXTENDED_BYTEVAL, since they're only meaningful as the tail end of
+     * a qfloat computation.
+     */
+    uint8_t ext[MAX_VEC_SIZE_BYTES / 4];
 } MMVector;
 
-typedef union {
-    uint64_t ud[2 * MAX_VEC_SIZE_BYTES / 8];
-    int64_t   d[2 * MAX_VEC_SIZE_BYTES / 8];
-    uint32_t uw[2 * MAX_VEC_SIZE_BYTES / 4];
-    int32_t   w[2 * MAX_VEC_SIZE_BYTES / 4];
-    uint16_t uh[2 * MAX_VEC_SIZE_BYTES / 2];
-    int16_t   h[2 * MAX_VEC_SIZE_BYTES / 2];
-    uint8_t  ub[2 * MAX_VEC_SIZE_BYTES / 1];
-    int8_t    b[2 * MAX_VEC_SIZE_BYTES / 1];
+typedef struct {
     MMVector v[2];
 } MMVectorPair;
 

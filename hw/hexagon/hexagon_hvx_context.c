@@ -15,6 +15,10 @@ static void hexagon_hvx_context_reset_hold(Object *obj, ResetType type)
     HexagonHVXContextState *s = HEXAGON_HVX_CONTEXT(obj);
 
     memset(&s->regs, 0, sizeof(s->regs));
+    for (int i = 0; i < NUM_VREGS; i++) {
+        memset(s->regs.VRegs[i].ext, V_EXTENDED_BYTEVAL,
+               sizeof(s->regs.VRegs[i].ext));
+    }
 }
 
 /* gvec needs VRegs/QRegs 16-aligned within the struct. */
@@ -26,6 +30,7 @@ static const VMStateDescription vmstate_mmvector = {
     .minimum_version_id = 1,
     .fields = (const VMStateField[]){
         VMSTATE_UINT64_ARRAY(ud, MMVector, MAX_VEC_SIZE_BYTES / 8),
+        VMSTATE_UINT8_ARRAY(ext, MMVector, MAX_VEC_SIZE_BYTES / 4),
         VMSTATE_END_OF_LIST()
     }
 };

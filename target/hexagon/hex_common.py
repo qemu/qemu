@@ -448,6 +448,28 @@ class Hvx:
         return "void *"
     def helper_arg_name(self):
         return f"{self.reg_tcg()}_void"
+    def gen_clear_ext(self, f):
+        f.write(code_fmt(f"""\
+                tcg_gen_gvec_dup_imm_var(MO_8, {self.hvx_base()},
+                    {self.hvx_off()} + offsetof(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    V_EXTENDED_BYTEVAL);
+            """))
+    def gen_clear_ext_pair(self, f):
+        f.write(code_fmt(f"""\
+                tcg_gen_gvec_dup_imm_var(MO_8, {self.hvx_base()},
+                    {self.hvx_off()} + offsetof(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    V_EXTENDED_BYTEVAL);
+                tcg_gen_gvec_dup_imm_var(MO_8, {self.hvx_base()},
+                    {self.hvx_off()} + sizeof(MMVector)
+                        + offsetof(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    V_EXTENDED_BYTEVAL);
+            """))
 
 #
 # Every register is either Dest or OldSource or NewSource or ReadWrite
@@ -793,11 +815,13 @@ class VRegDest(Register, Hvx, Dest):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
+        self.gen_clear_ext(f)
     def gen_zero(self, f):
         f.write(code_fmt(f"""\
                 tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()},
                     {self.hvx_off()}, sizeof(MMVector), sizeof(MMVector), 0);
             """))
+        self.gen_clear_ext(f)
     def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
@@ -868,11 +892,13 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
+        self.gen_clear_ext(f)
     def gen_zero(self, f):
         f.write(code_fmt(f"""\
                 tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()},
                     {self.hvx_off()}, sizeof(MMVector), sizeof(MMVector), 0);
             """))
+        self.gen_clear_ext(f)
     def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
@@ -911,11 +937,13 @@ class VRegTmp(Register, Hvx, ReadWrite):
                                      {self.reg_tcg()}_srcoff,
                                      sizeof(MMVector), sizeof(MMVector));
             """))
+        self.gen_clear_ext(f)
     def gen_zero(self, f):
         f.write(code_fmt(f"""\
                 tcg_gen_gvec_dup_imm(MO_64, {self.hvx_off()},
                     sizeof(MMVector), sizeof(MMVector), 0);
             """))
+        self.gen_clear_ext(f)
     def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_vreg_write(ctx, {self.hvx_base()}, {self.hvx_off()},
@@ -948,11 +976,13 @@ class VRegPairDest(Register, Hvx, Dest):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
+        self.gen_clear_ext_pair(f)
     def gen_zero(self, f):
         f.write(code_fmt(f"""\
             tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()}, {self.hvx_off()},
                 sizeof(MMVectorPair), sizeof(MMVectorPair), 0);
         """))
+        self.gen_clear_ext_pair(f)
     def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
@@ -1026,11 +1056,13 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
+        self.gen_clear_ext_pair(f)
     def gen_zero(self, f):
         f.write(code_fmt(f"""\
             tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()}, {self.hvx_off()},
                 sizeof(MMVectorPair), sizeof(MMVectorPair), 0);
         """))
+        self.gen_clear_ext_pair(f)
     def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_vreg_write_pair(ctx, {self.hvx_base()}, {self.hvx_off()},
