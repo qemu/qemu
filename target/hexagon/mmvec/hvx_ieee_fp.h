@@ -31,6 +31,8 @@ int16_t conv_h_hf(float16 a, float_status *fp_status);
 /* IEEE - FP compare instructions */
 uint32_t cmpgt_sf(float32 a1, float32 a2, float_status *fp_status);
 uint16_t cmpgt_hf(float16 a1, float16 a2, float_status *fp_status);
+uint32_t cmpeq_sf(float32 a1, float32 a2, float_status *fp_status);
+uint16_t cmpeq_hf(float16 a1, float16 a2, float_status *fp_status);
 
 /* IEEE BFloat instructions */
 

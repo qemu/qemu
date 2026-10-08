@@ -383,5 +383,7 @@
 #define fCMPGT_SF(A, B) cmpgt_sf(A, B, &env->hvx_fp_status)
 #define fCMPGT_HF(A, B) cmpgt_hf(A, B, &env->hvx_fp_status)
 #define fCMPGT_BF(A, B) fCMPGT_SF((uint32_t)(A) << 16, (uint32_t)(B) << 16)
+#define fCMPEQ_SF(A, B) cmpeq_sf(A, B, &env->hvx_fp_status)
+#define fCMPEQ_HF(A, B) cmpeq_hf(A, B, &env->hvx_fp_status)
 
 #endif

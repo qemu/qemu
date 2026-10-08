@@ -367,6 +367,18 @@ EXTINSN(V6_vlalignbi,"Vd32=vlalign(Vu32,Vv32,#u3)", ATTRIBS(A_EXTENSION,A_CVI,A_
 	VALIGNB(shift)
 })
 
+EXTINSN(V6_valign4, "Vd32=valign4(Vu32,Vv32,Rt8)",
+    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC),
+    "In-lane align two vectors by Rt8 as control",
+{
+    fHIDE(int i;)
+    fVFOREACH(32, i) {
+        unsigned shift = 8 * (RtV & 0x3);
+        VdV.uw[i] = shift ? (VuV.uw[i] << shift) | (VvV.uw[i] >> (32 - shift))
+                           : VuV.uw[i];
+    }
+})
+
 EXTINSN(V6_vror, "Vd32=vror(Vu32,Rt32)", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP),
 "Align Two vectors by Rt32 as control",
 {
@@ -3135,6 +3147,11 @@ ITERATOR_INSN_SHIFT_SLOT_FLT(16, vconv_h_hf,"Vd32.h=Vu32.hf",
     "Vector conversion of hf16 format to int hw",
     VdV.h[i] = conv_h_hf(VuV.hf[i], &env->hvx_fp_status))
 
+ITERATOR_INSN_SHIFT_SLOT_FLT(16, vconv_h_hf_rnd,"Vd32.h=Vu32.hf:rnd",
+    "Vector conversion of hf16 format to int hw, round to nearest even",
+    VdV.h[i] = float16_to_int16_scalbn(VuV.hf[i], float_round_nearest_even, 0,
+                                        &env->hvx_fp_status))
+
 ITERATOR_INSN_SHIFT_SLOT_FLT(32, vconv_sf_w,"Vd32.sf=Vu32.w",
     "Vector conversion of int w format to sf32",
     VdV.sf[i] = int32_to_float32(VuV.w[i], &env->hvx_fp_status))
@@ -3232,6 +3249,63 @@ ITERATOR_INSN_SHIFT_SLOT_FLT(16, vconv_hf_h,"Vd32.hf=Vu32.h",
 MMVEC_CMPGT_SF(sf,"sf","Vector sf Compare ", fVELEM(32), 0xF, 4, sf)
 MMVEC_CMPGT_HF(hf,"hf","Vector hf Compare ", fVELEM(16), 0x3, 2, hf)
 MMVEC_CMPGT_BF(bf,"bf","Vector bf Compare ", fVELEM(16), 0x3, 2, bf)
+
+#define VCMPEQ_SF(DEST, ASRC, ASRCOP, CMP, N, SRC, MASK, WIDTH) \
+{ \
+    for (fHIDE(int) i = 0; i < fVBYTES(); i += WIDTH) { \
+        fHIDE(int) VAL = fCMPEQ_SF(VuV.SRC[i/WIDTH],VvV.SRC[i/WIDTH]) ? MASK : 0; \
+        fSETQBITS(DEST,WIDTH,MASK,i,ASRC ASRCOP VAL); \
+    } \
+}
+
+#define VCMPEQ_HF(DEST, ASRC, ASRCOP, CMP, N, SRC, MASK, WIDTH) \
+{ \
+    for (fHIDE(int) i = 0; i < fVBYTES(); i += WIDTH) { \
+        fHIDE(int) VAL = fCMPEQ_HF(VuV.SRC[i/WIDTH],VvV.SRC[i/WIDTH]) ? MASK : 0; \
+        fSETQBITS(DEST,WIDTH,MASK,i,ASRC ASRCOP VAL); \
+    } \
+}
+
+/* Vector SF compare equal */
+#define MMVEC_CMPEQ_SF(TYPE,TYPE2,DESCR,N,MASK,WIDTH,SRC) \
+    EXTINSN(V6_veq##TYPE##_and, "Qx4&=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to with predicate-and", \
+        VCMPEQ_SF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), &, "==", N, SRC, MASK, WIDTH)) \
+    EXTINSN(V6_veq##TYPE##_xor, "Qx4^=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to with predicate-xor", \
+        VCMPEQ_SF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), ^, "==", N, SRC, MASK, WIDTH)) \
+    EXTINSN(V6_veq##TYPE##_or, "Qx4|=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to with predicate-or", \
+        VCMPEQ_SF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), |, "==", N, SRC, MASK, WIDTH)) \
+    EXTINSN(V6_veq##TYPE, "Qd4=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to", \
+        VCMPEQ_SF(QdV, , , "==", N, SRC, MASK, WIDTH))
+
+/* Vector HF compare equal */
+#define MMVEC_CMPEQ_HF(TYPE,TYPE2,DESCR,N,MASK,WIDTH,SRC) \
+    EXTINSN(V6_veq##TYPE##_and, "Qx4&=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to with predicate-and", \
+        VCMPEQ_HF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), &, "==", N, SRC, MASK, WIDTH)) \
+    EXTINSN(V6_veq##TYPE##_xor, "Qx4^=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to with predicate-xor", \
+        VCMPEQ_HF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), ^, "==", N, SRC, MASK, WIDTH)) \
+    EXTINSN(V6_veq##TYPE##_or, "Qx4|=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to with predicate-or", \
+        VCMPEQ_HF(QxV, fGETQBITS(QxV,WIDTH,MASK,i), |, "==", N, SRC, MASK, WIDTH)) \
+    EXTINSN(V6_veq##TYPE, "Qd4=vcmp.eq(Vu32." TYPE2 ",Vv32." TYPE2 ")", \
+        ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VA,A_CVI_VA_2SRC,A_HVX_FLT), \
+        DESCR" equal to", \
+        VCMPEQ_HF(QdV, , , "==", N, SRC, MASK, WIDTH))
+
+MMVEC_CMPEQ_SF(sf,"sf","Vector sf Compare ", fVELEM(32), 0xF, 4, sf)
+MMVEC_CMPEQ_HF(hf,"hf","Vector hf Compare ", fVELEM(16), 0x3, 2, hf)
 
 /******************************************************************************
  BFloat arithmetic and max/min instructions

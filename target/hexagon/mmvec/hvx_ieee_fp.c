@@ -135,3 +135,18 @@ uint16_t cmpgt_hf(float16 a1, float16 a2, float_status *fp_status)
     }
     return float16_compare(a1, a2, fp_status) == float_relation_greater;
 }
+
+/*
+ * Unlike cmpgt_sf/cmpgt_hf, equality has no NaN-ordering convention to
+ * apply: per IEEE-754, a compare-equal predicate is quiet and always
+ * false when either operand is NaN.
+ */
+uint32_t cmpeq_sf(float32 a1, float32 a2, float_status *fp_status)
+{
+    return float32_eq_quiet(a1, a2, fp_status);
+}
+
+uint16_t cmpeq_hf(float16 a1, float16 a2, float_status *fp_status)
+{
+    return float16_eq_quiet(a1, a2, fp_status);
+}

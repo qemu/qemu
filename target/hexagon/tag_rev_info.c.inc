@@ -644,6 +644,19 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [Y2_dczeroa_nt] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
 
     [Y2_tlbpp] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+
+    [V6_valign4] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf_and] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf_or] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf_xor] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf_and] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf_or] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf_xor] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_vconv_h_hf_rnd] = {
+        .introduced = HEX_VER_V81, .removed = HEX_VER_NONE
+    },
 };
 
 #endif /* HEXAGON_TAG_ARCH_TABLE_H */

@@ -694,6 +694,7 @@ DEF_ENC(V6_vassign,            ICLASS_CJ" 1 110 --0 ---11 PP 1 uuuuu 111 ddddd")
 
 DEF_ENC(V6_valignbi,         ICLASS_CJ" 1 110 001 vvvvv PP 1 uuuuu iii ddddd")
 DEF_ENC(V6_vlalignbi,         ICLASS_CJ" 1 110 011 vvvvv PP 1 uuuuu iii ddddd")
+DEF_ENC(V6_valign4,"00011000vvvvvtttPP0uuuuu101ddddd")
 DEF_ENC(V6_vswap,             ICLASS_CJ" 1 110 101 vvvvv PP 1 uuuuu -tt ddddd") //
 DEF_ENC(V6_vmux,             ICLASS_CJ" 1 110 111 vvvvv PP 1 uuuuu -tt ddddd") //
 
@@ -857,6 +858,7 @@ DEF_ENC(V6_vconv_sf_w,"00011110--0--101PP1uuuuu011ddddd")
 DEF_ENC(V6_vconv_w_sf,"00011110--0--101PP1uuuuu001ddddd")
 DEF_ENC(V6_vconv_hf_h,"00011110--0--101PP1uuuuu100ddddd")
 DEF_ENC(V6_vconv_h_hf,"00011110--0--101PP1uuuuu010ddddd")
+DEF_ENC(V6_vconv_h_hf_rnd,"00011110--0-0110PP1uuuuu110ddddd")
 
 /* IEEE FP compare instructions */
 DEF_ENC(V6_vgtsf,"00011100100vvvvvPP1uuuuu011100dd")
@@ -867,6 +869,14 @@ DEF_ENC(V6_vgtsf_or,"00011100100vvvvvPP1uuuuu001100xx")
 DEF_ENC(V6_vgthf_or,"00011100100vvvvvPP1uuuuu001101xx")
 DEF_ENC(V6_vgtsf_xor,"00011100100vvvvvPP1uuuuu111010xx")
 DEF_ENC(V6_vgthf_xor,"00011100100vvvvvPP1uuuuu111011xx")
+DEF_ENC(V6_veqsf,"00011111100vvvvvPP0uuuuu000011dd")
+DEF_ENC(V6_veqhf,"00011111100vvvvvPP0uuuuu000111dd")
+DEF_ENC(V6_veqsf_and,"00011100100vvvvvPP1uuuuu000011xx")
+DEF_ENC(V6_veqhf_and,"00011100100vvvvvPP1uuuuu000111xx")
+DEF_ENC(V6_veqsf_or,"00011100100vvvvvPP1uuuuu010011xx")
+DEF_ENC(V6_veqhf_or,"00011100100vvvvvPP1uuuuu010111xx")
+DEF_ENC(V6_veqsf_xor,"00011100100vvvvvPP1uuuuu100011xx")
+DEF_ENC(V6_veqhf_xor,"00011100100vvvvvPP1uuuuu100111xx")
 
 /* BFLOAT instructions */
 DEF_ENC(V6_vmpy_sf_bf,"00011101010vvvvvPP1uuuuu100ddddd")
