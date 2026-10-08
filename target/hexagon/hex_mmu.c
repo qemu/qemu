@@ -156,7 +156,7 @@ static inline void print_thread_states(const char *str)
     }
 }
 
-void hex_tlb_lock(CPUHexagonState *env)
+void hex_tlb_lock(CPUHexagonState *env, uint32_t PC)
 {
     qemu_log_mask(CPU_LOG_MMU, "hex_tlb_lock: " TARGET_FMT_ld "\n",
                   env->threadId);
@@ -170,7 +170,6 @@ void hex_tlb_lock(CPUHexagonState *env)
     uint8_t tlb_lock = GET_SYSCFG_FIELD(SYSCFG_TLBLOCK, syscfg);
     if (tlb_lock) {
         if (env->tlb_lock_state == HEX_LOCK_QUEUED) {
-            env->next_PC += 4;
             env->tlb_lock_count++;
             env->tlb_lock_state = HEX_LOCK_OWNER;
             SET_SYSCFG_FIELD(env, SYSCFG_TLBLOCK, 1);
@@ -178,19 +177,22 @@ void hex_tlb_lock(CPUHexagonState *env)
         }
         if (env->tlb_lock_state == HEX_LOCK_OWNER) {
             qemu_log_mask(CPU_LOG_MMU | LOG_GUEST_ERROR,
-                          "Double tlblock at PC: 0x%" PRIx32
-                          ", thread may hang\n",
-                          env->next_PC);
-            env->next_PC += 4;
+                "Double tlblock at PC: 0x" TARGET_FMT_lx
+                ", thread may hang\n", PC);
             CPUState *cs = env_cpu(env);
             cpu_interrupt(cs, CPU_INTERRUPT_HALT);
             return;
         }
         env->tlb_lock_state = HEX_LOCK_WAITING;
+        /*
+         * next_PC has already been advanced past this packet.  Rewind it
+         * so that the thread re-executes the tlblock when it is woken by
+         * the thread that releases the lock.
+         */
+        env->next_PC = PC;
         CPUState *cs = env_cpu(env);
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
     } else {
-        env->next_PC += 4;
         env->tlb_lock_count++;
         env->tlb_lock_state = HEX_LOCK_OWNER;
         SET_SYSCFG_FIELD(env, SYSCFG_TLBLOCK, 1);

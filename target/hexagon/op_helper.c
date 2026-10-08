@@ -1283,7 +1283,7 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
     hexagon_modify_ssr(env, new, old);
 }
 
-static void hex_k0_lock(CPUHexagonState *env)
+static void hex_k0_lock(CPUHexagonState *env, uint32_t PC)
 {
     HexagonCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
@@ -1297,7 +1297,6 @@ static void hex_k0_lock(CPUHexagonState *env)
                                env->threadId) : 0;
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
         if (env->k0_lock_state == HEX_LOCK_QUEUED) {
-            env->next_PC += 4;
             env->k0_lock_count++;
             env->k0_lock_state = HEX_LOCK_OWNER;
             SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
@@ -1305,19 +1304,22 @@ static void hex_k0_lock(CPUHexagonState *env)
         }
         if (env->k0_lock_state == HEX_LOCK_OWNER) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "Double k0lock at PC: 0x%" PRIx32
-                          ", thread may hang\n",
-                          env->next_PC);
-            env->next_PC += 4;
+                "Double k0lock at PC: 0x" TARGET_FMT_lx
+                ", thread may hang\n", PC);
             cpu_interrupt(cs, CPU_INTERRUPT_HALT);
             cpu_loop_exit(cs);
             return;
         }
         env->k0_lock_state = HEX_LOCK_WAITING;
+        /*
+         * next_PC has already been advanced past this packet.  Rewind it
+         * so that the thread re-executes the k0lock when it is woken by
+         * the thread that releases the lock.
+         */
+        env->next_PC = PC;
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
         cpu_loop_exit(cs);
     } else {
-        env->next_PC += 4;
         env->k0_lock_count++;
         env->k0_lock_state = HEX_LOCK_OWNER;
         SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
