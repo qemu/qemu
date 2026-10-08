@@ -221,7 +221,7 @@
 #define SCATTER_OP_WRITE_TO_MEM(TYPE) \
     do { \
         ra = GETPC(); \
-        for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
+        for (int i = 0; i < VECTOR_SIZE_BYTE; i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 TYPE dst = 0; \
                 TYPE inc = 0; \
@@ -244,7 +244,7 @@
     } while (0)
 #define SCATTER_OP_PROBE_MEM(TYPE, MMU_IDX, RETADDR) \
     do { \
-        for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
+        for (int i = 0; i < VECTOR_SIZE_BYTE; i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 for (int j = 0; j < sizeof(TYPE); j++) { \
                     probe_read(env, env->vtcm_log.va[i + j], 1, \
@@ -329,8 +329,8 @@
 #endif
 #define fVFOREACH(WIDTH, VAR) for (VAR = 0; VAR < fVELEM(WIDTH); VAR++)
 #define fVARRAY_ELEMENT_ACCESS(ARRAY, TYPE, INDEX) \
-    ARRAY.v[(INDEX) / (fVECSIZE() / (sizeof(ARRAY.TYPE[0])))].TYPE[(INDEX) % \
-    (fVECSIZE() / (sizeof(ARRAY.TYPE[0])))]
+    ARRAY.v[(INDEX) / (fVECSIZE() / (sizeof(ARRAY.v[0].TYPE[0])))] \
+        .TYPE[(INDEX) % (fVECSIZE() / (sizeof(ARRAY.v[0].TYPE[0])))]
 
 #define fVSATDW(U, V) fVSATW(((((long long)U) << 32) | fZXTN(32, 64, V)))
 #define fVASL_SATHI(U, V) fVSATW(((U) << 1) | ((V) >> 31))

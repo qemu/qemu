@@ -126,11 +126,11 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 
 #define fGEN_TCG_V6_vassign(SHORTCODE) \
     tcg_gen_gvec_mov_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         sizeof(MMVector), sizeof(MMVector))
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vassign_tmp(SHORTCODE) \
     tcg_gen_gvec_mov_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         sizeof(MMVector), sizeof(MMVector))
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vcombine_tmp(SHORTCODE) \
     do { \
@@ -174,7 +174,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         tcg_gen_andi_tl(lsb, PsV, 1); \
         tcg_gen_brcondi_tl(TCG_COND_NE, lsb, PRED, false_label); \
         tcg_gen_gvec_mov_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, \
-                             sizeof(MMVector), sizeof(MMVector)); \
+                             VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         gen_set_label(false_label); \
     } while (0)
 
@@ -190,17 +190,17 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 /* Vector add - various forms */
 #define fGEN_TCG_V6_vaddb(SHORTCODE) \
     tcg_gen_gvec_add_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, VvV_base, \
-                         VvV_off, sizeof(MMVector), sizeof(MMVector))
+                         VvV_off, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vaddh(SHORTCYDE) \
     tcg_gen_gvec_add_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         VvV_base, VvV_off, sizeof(MMVector), \
-                         sizeof(MMVector))
+                         VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                         VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vaddw(SHORTCODE) \
     tcg_gen_gvec_add_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         VvV_base, VvV_off, sizeof(MMVector), \
-                         sizeof(MMVector))
+                         VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                         VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vaddb_dv(SHORTCODE) \
     tcg_gen_gvec_add_var(MO_8, VddV_base, VddV_off, VuuV_base, VuuV_off, \
@@ -220,17 +220,17 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 /* Vector sub - various forms */
 #define fGEN_TCG_V6_vsubb(SHORTCODE) \
     tcg_gen_gvec_sub_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, VvV_base, \
-                         VvV_off, sizeof(MMVector), sizeof(MMVector))
+                         VvV_off, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vsubh(SHORTCODE) \
     tcg_gen_gvec_sub_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         VvV_base, VvV_off, sizeof(MMVector), \
-                         sizeof(MMVector))
+                         VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                         VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vsubw(SHORTCODE) \
     tcg_gen_gvec_sub_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         VvV_base, VvV_off, sizeof(MMVector), \
-                         sizeof(MMVector))
+                         VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                         VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vsubb_dv(SHORTCODE) \
     tcg_gen_gvec_sub_var(MO_8, VddV_base, VddV_off, VuuV_base, VuuV_off, \
@@ -458,7 +458,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 15); \
         tcg_gen_gvec_sars_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vasrh_acc(SHORTCODE) \
@@ -467,10 +467,10 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 15); \
         tcg_gen_gvec_sars_var(MO_16, tcg_env, tmpoff, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         tcg_gen_gvec_add_var(MO_16, VxV_base, VxV_off, VxV_base, VxV_off, \
-                             tcg_env, tmpoff, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             tcg_env, tmpoff, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vasrw(SHORTCODE) \
@@ -478,7 +478,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 31); \
         tcg_gen_gvec_sars_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vasrw_acc(SHORTCODE) \
@@ -487,10 +487,10 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 31); \
         tcg_gen_gvec_sars_var(MO_32, tcg_env, tmpoff, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         tcg_gen_gvec_add_var(MO_32, VxV_base, VxV_off, VxV_base, VxV_off, \
-                             tcg_env, tmpoff, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             tcg_env, tmpoff, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vlsrb(SHORTCODE) \
@@ -498,7 +498,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 7); \
         tcg_gen_gvec_shrs_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vlsrh(SHORTCODE) \
@@ -506,7 +506,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 15); \
         tcg_gen_gvec_shrs_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vlsrw(SHORTCODE) \
@@ -514,7 +514,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 31); \
         tcg_gen_gvec_shrs_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 /* Vector shift left - various forms */
@@ -523,7 +523,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 7); \
         tcg_gen_gvec_shls_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vaslh(SHORTCODE) \
@@ -531,7 +531,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 15); \
         tcg_gen_gvec_shls_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vaslh_acc(SHORTCODE) \
@@ -540,10 +540,10 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 15); \
         tcg_gen_gvec_shls_var(MO_16, tcg_env, tmpoff, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         tcg_gen_gvec_add_var(MO_16, VxV_base, VxV_off, VxV_base, VxV_off, \
-                             tcg_env, tmpoff, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             tcg_env, tmpoff, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vaslw(SHORTCODE) \
@@ -551,7 +551,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 31); \
         tcg_gen_gvec_shls_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
     } while (0)
 
 #define fGEN_TCG_V6_vaslw_acc(SHORTCODE) \
@@ -560,74 +560,74 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         TCGv shift = tcg_temp_new(); \
         tcg_gen_andi_tl(shift, RtV, 31); \
         tcg_gen_gvec_shls_var(MO_32, tcg_env, tmpoff, VuV_base, VuV_off, \
-                              shift, sizeof(MMVector), sizeof(MMVector)); \
+                              shift, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         tcg_gen_gvec_add_var(MO_32, VxV_base, VxV_off, VxV_base, VxV_off, \
-                             tcg_env, tmpoff, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             tcg_env, tmpoff, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
     } while (0)
 
 /* Vector max - various forms */
 #define fGEN_TCG_V6_vmaxw(SHORTCODE) \
     tcg_gen_gvec_smax_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vmaxh(SHORTCODE) \
     tcg_gen_gvec_smax_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vmaxuh(SHORTCODE) \
     tcg_gen_gvec_umax_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vmaxb(SHORTCODE) \
     tcg_gen_gvec_smax_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vmaxub(SHORTCODE) \
     tcg_gen_gvec_umax_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 
 /* Vector min - various forms */
 #define fGEN_TCG_V6_vminw(SHORTCODE) \
     tcg_gen_gvec_smin_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vminh(SHORTCODE) \
     tcg_gen_gvec_smin_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vminuh(SHORTCODE) \
     tcg_gen_gvec_umin_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vminb(SHORTCODE) \
     tcg_gen_gvec_smin_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 #define fGEN_TCG_V6_vminub(SHORTCODE) \
     tcg_gen_gvec_umin_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                          VvV_base, VvV_off, sizeof(MMVector), \
-                          sizeof(MMVector))
+                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                          VECTOR_SIZE_BYTE)
 
 /* Vector logical ops */
 #define fGEN_TCG_V6_vxor(SHORTCODE) \
     tcg_gen_gvec_xor_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         VvV_base, VvV_off, sizeof(MMVector), \
-                         sizeof(MMVector))
+                         VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                         VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vand(SHORTCODE) \
     tcg_gen_gvec_and_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         VvV_base, VvV_off, sizeof(MMVector), \
-                         sizeof(MMVector))
+                         VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                         VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vor(SHORTCODE) \
     tcg_gen_gvec_or_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, VvV_base, \
-                        VvV_off, sizeof(MMVector), sizeof(MMVector))
+                        VvV_off, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vnot(SHORTCODE) \
     tcg_gen_gvec_not_var(MO_64, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         sizeof(MMVector), sizeof(MMVector))
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 /* Q register logical ops */
 #define fGEN_TCG_V6_pred_or(SHORTCODE) \
@@ -659,8 +659,8 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     do { \
         intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
         tcg_gen_gvec_cmp_var(COND, TYPE, tcg_env, tmpoff, VuV_base, VuV_off, \
-                             VvV_base, VvV_off, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
         vec_to_qvec(SIZE, QdV_base, QdV_off, tcg_env, tmpoff); \
     } while (0)
 
@@ -690,8 +690,8 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
         intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
         intptr_t qoff = offsetof(CPUHexagonState, qtmp); \
         tcg_gen_gvec_cmp_var(COND, TYPE, tcg_env, tmpoff, VuV_base, VuV_off, \
-                             VvV_base, VvV_off, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
         vec_to_qvec(SIZE, tcg_env, qoff, tcg_env, tmpoff); \
         OP(MO_64, QxV_base, QxV_off, QxV_base, QxV_off, tcg_env, qoff, \
            sizeof(MMQReg), sizeof(MMQReg)); \
@@ -762,29 +762,29 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 
 /* Vector splat - various forms */
 #define fGEN_TCG_V6_lvsplatw(SHORTCODE) \
-    tcg_gen_gvec_dup_i32_var(MO_32, VdV_base, VdV_off, sizeof(MMVector), \
-                             sizeof(MMVector), RtV)
+    tcg_gen_gvec_dup_i32_var(MO_32, VdV_base, VdV_off, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE, RtV)
 
 #define fGEN_TCG_V6_lvsplath(SHORTCODE) \
-    tcg_gen_gvec_dup_i32_var(MO_16, VdV_base, VdV_off, sizeof(MMVector), \
-                             sizeof(MMVector), RtV)
+    tcg_gen_gvec_dup_i32_var(MO_16, VdV_base, VdV_off, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE, RtV)
 
 #define fGEN_TCG_V6_lvsplatb(SHORTCODE) \
-    tcg_gen_gvec_dup_i32_var(MO_8, VdV_base, VdV_off, sizeof(MMVector), \
-                             sizeof(MMVector), RtV)
+    tcg_gen_gvec_dup_i32_var(MO_8, VdV_base, VdV_off, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE, RtV)
 
 /* Vector absolute value - various forms */
 #define fGEN_TCG_V6_vabsb(SHORTCODE) \
     tcg_gen_gvec_abs_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         sizeof(MMVector), sizeof(MMVector))
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vabsh(SHORTCODE) \
     tcg_gen_gvec_abs_var(MO_16, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         sizeof(MMVector), sizeof(MMVector))
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_V6_vabsw(SHORTCODE) \
     tcg_gen_gvec_abs_var(MO_32, VdV_base, VdV_off, VuV_base, VuV_off, \
-                         sizeof(MMVector), sizeof(MMVector))
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 /* Vector loads */
 #define fGEN_TCG_V6_vL32b_pi(SHORTCODE)                    SHORTCODE
@@ -826,12 +826,12 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     fGEN_TCG_PRED_VEC_LOAD(fLSBOLD(PvV), \
                            fEA_REG(RxV), \
                            VdV, \
-                           fPM_I(RxV, siV * sizeof(MMVector)))
+                           fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 #define fGEN_TCG_PRED_VEC_LOAD_npred_pi \
     fGEN_TCG_PRED_VEC_LOAD(fLSBOLDNOT(PvV), \
                            fEA_REG(RxV), \
                            VdV, \
-                           fPM_I(RxV, siV * sizeof(MMVector)))
+                           fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 
 #define fGEN_TCG_V6_vL32b_pred_pi(SHORTCODE) \
     fGEN_TCG_PRED_VEC_LOAD_pred_pi
@@ -860,12 +860,12 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 
 #define fGEN_TCG_PRED_VEC_LOAD_pred_ai \
     fGEN_TCG_PRED_VEC_LOAD(fLSBOLD(PvV), \
-                           fEA_RI(RtV, siV * sizeof(MMVector)), \
+                           fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                            VdV, \
                            do {} while (0))
 #define fGEN_TCG_PRED_VEC_LOAD_npred_ai \
     fGEN_TCG_PRED_VEC_LOAD(fLSBOLDNOT(PvV), \
-                           fEA_RI(RtV, siV * sizeof(MMVector)), \
+                           fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                            VdV, \
                            do {} while (0))
 
@@ -950,7 +950,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     } while (0)
 
 #define fGEN_TCG_NEWVAL_VEC_STORE_pi \
-    fGEN_TCG_NEWVAL_VEC_STORE(fEA_REG(RxV), fPM_I(RxV, siV * sizeof(MMVector)))
+    fGEN_TCG_NEWVAL_VEC_STORE(fEA_REG(RxV), fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 
 #define fGEN_TCG_V6_vS32b_new_pi(SHORTCODE) \
     fGEN_TCG_NEWVAL_VEC_STORE_pi
@@ -958,7 +958,7 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     fGEN_TCG_NEWVAL_VEC_STORE_pi
 
 #define fGEN_TCG_NEWVAL_VEC_STORE_ai \
-    fGEN_TCG_NEWVAL_VEC_STORE(fEA_RI(RtV, siV * sizeof(MMVector)), \
+    fGEN_TCG_NEWVAL_VEC_STORE(fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                               do { } while (0))
 
 #define fGEN_TCG_V6_vS32b_new_ai(SHORTCODE) \
@@ -992,22 +992,22 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
                             fEA_REG(RxV), \
                             VsV, ALIGN, \
-                            fPM_I(RxV, siV * sizeof(MMVector)))
+                            fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 #define fGEN_TCG_PRED_VEC_STORE_npred_pi(ALIGN) \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
                             fEA_REG(RxV), \
                             VsV, ALIGN, \
-                            fPM_I(RxV, siV * sizeof(MMVector)))
+                            fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 #define fGEN_TCG_PRED_VEC_STORE_new_pred_pi \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
                             fEA_REG(RxV), \
                             OsN, true, \
-                            fPM_I(RxV, siV * sizeof(MMVector)))
+                            fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 #define fGEN_TCG_PRED_VEC_STORE_new_npred_pi \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
                             fEA_REG(RxV), \
                             OsN, true, \
-                            fPM_I(RxV, siV * sizeof(MMVector)))
+                            fPM_I(RxV, siV * VECTOR_SIZE_BYTE))
 
 #define fGEN_TCG_V6_vS32b_pred_pi(SHORTCODE) \
     fGEN_TCG_PRED_VEC_STORE_pred_pi(true)
@@ -1032,22 +1032,22 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 
 #define fGEN_TCG_PRED_VEC_STORE_pred_ai(ALIGN) \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
-                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                             VsV, ALIGN, \
                             do { } while (0))
 #define fGEN_TCG_PRED_VEC_STORE_npred_ai(ALIGN) \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
-                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                             VsV, ALIGN, \
                             do { } while (0))
 #define fGEN_TCG_PRED_VEC_STORE_new_pred_ai \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLD(PvV), \
-                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                             OsN, true, \
                             do { } while (0))
 #define fGEN_TCG_PRED_VEC_STORE_new_npred_ai \
     fGEN_TCG_PRED_VEC_STORE(fLSBOLDNOT(PvV), \
-                            fEA_RI(RtV, siV * sizeof(MMVector)), \
+                            fEA_RI(RtV, siV * VECTOR_SIZE_BYTE), \
                             OsN, true, \
                             do { } while (0))
 

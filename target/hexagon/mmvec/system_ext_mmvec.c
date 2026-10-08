@@ -21,20 +21,20 @@
 
 void mem_gather_store(CPUHexagonState *env, target_ulong vaddr, int slot)
 {
-    size_t size = sizeof(MMVector);
-
     env->vstore_pending[slot] = 1;
     env->vstore[slot].va   = vaddr;
-    env->vstore[slot].size = size;
-    memcpy(&env->vstore[slot].data, &env->tmp_VRegs[0], size);
+    env->vstore[slot].size = sizeof_field(MMVector, ub);
+    memcpy(&env->vstore[slot].data, &env->tmp_VRegs[0],
+           sizeof_field(MMVector, ub));
 
     /* On a gather store, overwrite the store mask to emulate dropped gathers */
-    bitmap_copy(env->vstore[slot].mask, env->vtcm_log.mask, size);
+    bitmap_copy(env->vstore[slot].mask, env->vtcm_log.mask,
+                sizeof_field(MMVector, ub));
 }
 
 void mem_vector_scatter_init(CPUHexagonState *env)
 {
-    bitmap_zero(env->vtcm_log.mask, MAX_VEC_SIZE_BYTES);
+    bitmap_zero(env->vtcm_log.mask, sizeof_field(MMVector, ub));
 
     env->vtcm_pending = true;
     env->vtcm_log.op = false;
@@ -43,5 +43,5 @@ void mem_vector_scatter_init(CPUHexagonState *env)
 
 void mem_vector_gather_init(CPUHexagonState *env)
 {
-    bitmap_zero(env->vtcm_log.mask, MAX_VEC_SIZE_BYTES);
+    bitmap_zero(env->vtcm_log.mask, sizeof_field(MMVector, ub));
 }
