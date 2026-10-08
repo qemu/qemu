@@ -1069,8 +1069,10 @@ class QRegDest(Register, Hvx, Dest):
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg_name()}) */
         """))
     def analyze_write(self, f, tag, regno):
+        predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
+            ctx_log_qreg_write(ctx, {self.reg_num}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class QRegSource(Register, Hvx, OldSource):
@@ -1117,8 +1119,10 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
             ctx_log_qreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
     def analyze_write(self, f, tag, regno):
+        predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
+            ctx_log_qreg_write(ctx, {self.reg_num}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class GuestRegister(Register):

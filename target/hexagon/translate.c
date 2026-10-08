@@ -608,6 +608,7 @@ static void clear_pkt_ctx(DisasContext *ctx)
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
     bitmap_zero(ctx->qregs_written, NUM_QREGS);
     bitmap_zero(ctx->qregs_multi_write, NUM_QREGS);
+    bitmap_zero(ctx->qregs_uncond, NUM_QREGS);
     ctx->qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
@@ -625,21 +626,10 @@ static void clear_pkt_ctx(DisasContext *ctx)
 static bool pkt_has_write_conflict(DisasContext *ctx)
 {
     DECLARE_BITMAP(gpr_conflict, TOTAL_PER_THREAD_REGS);
-    DECLARE_BITMAP(vregs_conflict, NUM_VREGS);
 
     bitmap_and(gpr_conflict, ctx->gpr_multi_write, ctx->gpr_uncond,
                TOTAL_PER_THREAD_REGS);
     if (!bitmap_empty(gpr_conflict, TOTAL_PER_THREAD_REGS)) {
-        return true;
-    }
-
-    bitmap_and(vregs_conflict, ctx->vregs_multi_write, ctx->vregs_uncond,
-               NUM_VREGS);
-    if (!bitmap_empty(vregs_conflict, NUM_VREGS)) {
-        return true;
-    }
-
-    if (!bitmap_empty(ctx->qregs_multi_write, NUM_QREGS)) {
         return true;
     }
 
@@ -654,6 +644,19 @@ static bool pkt_has_write_conflict(DisasContext *ctx)
 #endif
 
     return false;
+}
+
+static bool pkt_has_hvx_write_conflict(DisasContext *ctx)
+{
+    DECLARE_BITMAP(vregs_conflict, NUM_VREGS);
+    DECLARE_BITMAP(qregs_conflict, NUM_QREGS);
+
+    bitmap_and(vregs_conflict, ctx->vregs_multi_write, ctx->vregs_uncond,
+               NUM_VREGS);
+    bitmap_and(qregs_conflict, ctx->qregs_multi_write, ctx->qregs_uncond,
+               NUM_QREGS);
+    return !bitmap_empty(vregs_conflict, NUM_VREGS) ||
+           !bitmap_empty(qregs_conflict, NUM_QREGS);
 }
 
 static void analyze_packet(DisasContext *ctx)
@@ -1276,6 +1279,12 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
 
         clear_pkt_ctx(ctx);
         analyze_packet(ctx);
+
+        if (pkt_has_hvx_write_conflict(ctx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "multiple HVX register writes at PC 0x" TARGET_FMT_lx
+                          "\n", ctx->pkt.pc);
+        }
 
         if (pkt_has_write_conflict(ctx)) {
             gen_exception_decode_fail(ctx, words_read,

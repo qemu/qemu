@@ -81,6 +81,7 @@ typedef struct DisasContext {
     int qreg_log_idx;
     DECLARE_BITMAP(qregs_written, NUM_QREGS);
     DECLARE_BITMAP(qregs_multi_write, NUM_QREGS);
+    DECLARE_BITMAP(qregs_uncond, NUM_QREGS);
     DECLARE_BITMAP(insn_qregs_written, NUM_QREGS);
     DECLARE_BITMAP(insn_qregs_read, NUM_QREGS);
     bool pre_commit;
@@ -236,12 +237,13 @@ static inline void ctx_log_vreg_write(DisasContext *ctx,
             ctx->has_hvx_overlap = true;
         }
     }
-    if (!test_bit(rnum, ctx->vregs_written)) {
-        set_bit(rnum, ctx->vregs_written);
-    } else {
-        set_bit(rnum, ctx->vregs_multi_write);
-    }
+
     if (type != EXT_TMP) {
+        if (!test_bit(rnum, ctx->vregs_written)) {
+            set_bit(rnum, ctx->vregs_written);
+        } else {
+            set_bit(rnum, ctx->vregs_multi_write);
+        }
         if (!test_bit(rnum, ctx->vregs_updated)) {
             ctx->vreg_log[ctx->vreg_log_idx] = rnum;
             ctx->vreg_log_idx++;
@@ -262,8 +264,6 @@ static inline void ctx_log_vreg_write(DisasContext *ctx,
         set_bit(rnum, ctx->vregs_updated_tmp);
         if (is_predicated) {
             set_bit(rnum, ctx->predicated_tmp_vregs);
-        } else {
-            set_bit(rnum, ctx->vregs_uncond);
         }
     }
 }
@@ -316,7 +316,8 @@ static inline void ctx_log_vreg_read_pair(DisasContext *ctx, int rnum,
 }
 
 static inline void ctx_log_qreg_write(DisasContext *ctx,
-                                      int rnum, bool has_helper)
+                                       int rnum, bool predicated,
+                                       bool has_helper)
 {
     if (has_helper) {
         set_bit(rnum, ctx->insn_qregs_written);
@@ -328,6 +329,9 @@ static inline void ctx_log_qreg_write(DisasContext *ctx,
         set_bit(rnum, ctx->qregs_written);
     } else {
         set_bit(rnum, ctx->qregs_multi_write);
+    }
+    if (!predicated) {
+        set_bit(rnum, ctx->qregs_uncond);
     }
     ctx->qreg_log[ctx->qreg_log_idx] = rnum;
     ctx->qreg_log_idx++;
