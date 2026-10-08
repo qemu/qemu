@@ -135,10 +135,10 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
 #define fGEN_TCG_V6_vcombine_tmp(SHORTCODE) \
     do { \
         tcg_gen_gvec_mov_var(MO_64, VddV_base, VddV_off, VvV_base, VvV_off, \
-                             sizeof(MMVector), sizeof(MMVector)); \
+                             VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         tcg_gen_gvec_mov_var(MO_64, VddV_base, VddV_off + sizeof(MMVector), \
-                             VuV_base, VuV_off, sizeof(MMVector), \
-                             sizeof(MMVector)); \
+                             VuV_base, VuV_off, VECTOR_SIZE_BYTE, \
+                             VECTOR_SIZE_BYTE); \
     } while (0)
 
 /*
@@ -150,19 +150,19 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     do { \
         if (VddV_off != VuV_off) { \
             tcg_gen_gvec_mov_var(MO_64, VddV_base, VddV_off, VvV_base, \
-                                 VvV_off, sizeof(MMVector), sizeof(MMVector)); \
+                                 VvV_off, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
             tcg_gen_gvec_mov_var(MO_64, VddV_base, \
                                  VddV_off + sizeof(MMVector), VuV_base, \
-                                 VuV_off, sizeof(MMVector), sizeof(MMVector)); \
+                                 VuV_off, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         } else { \
             intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
             tcg_gen_gvec_mov_var(MO_64, tcg_env, tmpoff, VuV_base, VuV_off, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
             tcg_gen_gvec_mov_var(MO_64, VddV_base, VddV_off, VvV_base, \
-                                 VvV_off, sizeof(MMVector), sizeof(MMVector)); \
+                                 VvV_off, VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
             tcg_gen_gvec_mov_var(MO_64, VddV_base, \
                                  VddV_off + sizeof(MMVector), tcg_env, tmpoff, \
-                                 sizeof(MMVector), sizeof(MMVector)); \
+                                 VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
         } \
     } while (0)
 
@@ -202,20 +202,21 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
                          VECTOR_SIZE_BYTE)
 
-#define fGEN_TCG_V6_vaddb_dv(SHORTCODE) \
-    tcg_gen_gvec_add_var(MO_8, VddV_base, VddV_off, VuuV_base, VuuV_off, \
-                         VvvV_base, VvvV_off, sizeof(MMVector) * 2, \
-                         sizeof(MMVector) * 2)
+#define fGEN_TCG_PAIR_ADDSUB_BASIC(OP, VECE) \
+    do { \
+        tcg_gen_gvec_##OP##_var(VECE, VddV_base, VddV_off, \
+                                VuuV_base, VuuV_off, VvvV_base, VvvV_off, \
+                                VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+        tcg_gen_gvec_##OP##_var(VECE, VddV_base, \
+                                VddV_off + sizeof(MMVector), VuuV_base, \
+                                VuuV_off + sizeof(MMVector), VvvV_base, \
+                                VvvV_off + sizeof(MMVector), \
+                                VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+    } while (0)
 
-#define fGEN_TCG_V6_vaddh_dv(SHORTCYDE) \
-    tcg_gen_gvec_add_var(MO_16, VddV_base, VddV_off, VuuV_base, VuuV_off, \
-                         VvvV_base, VvvV_off, sizeof(MMVector) * 2, \
-                         sizeof(MMVector) * 2)
-
-#define fGEN_TCG_V6_vaddw_dv(SHORTCODE) \
-    tcg_gen_gvec_add_var(MO_32, VddV_base, VddV_off, VuuV_base, VuuV_off, \
-                         VvvV_base, VvvV_off, sizeof(MMVector) * 2, \
-                         sizeof(MMVector) * 2)
+#define fGEN_TCG_V6_vaddb_dv(SHORTCODE) fGEN_TCG_PAIR_ADDSUB_BASIC(add, MO_8)
+#define fGEN_TCG_V6_vaddh_dv(SHORTCYDE) fGEN_TCG_PAIR_ADDSUB_BASIC(add, MO_16)
+#define fGEN_TCG_V6_vaddw_dv(SHORTCODE) fGEN_TCG_PAIR_ADDSUB_BASIC(add, MO_32)
 
 /* Vector sub - various forms */
 #define fGEN_TCG_V6_vsubb(SHORTCODE) \
@@ -232,20 +233,9 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
                          VvV_base, VvV_off, VECTOR_SIZE_BYTE, \
                          VECTOR_SIZE_BYTE)
 
-#define fGEN_TCG_V6_vsubb_dv(SHORTCODE) \
-    tcg_gen_gvec_sub_var(MO_8, VddV_base, VddV_off, VuuV_base, VuuV_off, \
-                         VvvV_base, VvvV_off, sizeof(MMVector) * 2, \
-                         sizeof(MMVector) * 2)
-
-#define fGEN_TCG_V6_vsubh_dv(SHORTCODE) \
-    tcg_gen_gvec_sub_var(MO_16, VddV_base, VddV_off, VuuV_base, VuuV_off, \
-                         VvvV_base, VvvV_off, sizeof(MMVector) * 2, \
-                         sizeof(MMVector) * 2)
-
-#define fGEN_TCG_V6_vsubw_dv(SHORTCODE) \
-    tcg_gen_gvec_sub_var(MO_32, VddV_base, VddV_off, VuuV_base, VuuV_off, \
-                         VvvV_base, VvvV_off, sizeof(MMVector) * 2, \
-                         sizeof(MMVector) * 2)
+#define fGEN_TCG_V6_vsubb_dv(SHORTCODE) fGEN_TCG_PAIR_ADDSUB_BASIC(sub, MO_8)
+#define fGEN_TCG_V6_vsubh_dv(SHORTCYDE) fGEN_TCG_PAIR_ADDSUB_BASIC(sub, MO_16)
+#define fGEN_TCG_V6_vsubw_dv(SHORTCODE) fGEN_TCG_PAIR_ADDSUB_BASIC(sub, MO_32)
 
 #define fGEN_TCG_V6_vaddbsat(SHORTCODE) \
     tcg_gen_gvec_ssadd_var(MO_8, VdV_base, VdV_off, VuV_base, VuV_off, \
@@ -278,8 +268,14 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
                           VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE)
 
 #define fGEN_TCG_PAIR_ADDSUB(OP, VECE, DBASE, DST, ABASE, SRC_A, BBASE, SRC_B) \
-    tcg_gen_gvec_##OP##_var(VECE, DBASE, DST, ABASE, SRC_A, BBASE, SRC_B, \
-                           2 * VECTOR_SIZE_BYTE, 2 * VECTOR_SIZE_BYTE)
+    do { \
+        tcg_gen_gvec_##OP##_var(VECE, DBASE, DST, ABASE, SRC_A, BBASE, SRC_B, \
+                                VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+        tcg_gen_gvec_##OP##_var(VECE, DBASE, DST + sizeof(MMVector), \
+                                ABASE, SRC_A + sizeof(MMVector), \
+                                BBASE, SRC_B + sizeof(MMVector), \
+                                VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE); \
+    } while (0)
 
 #define fGEN_TCG_V6_vaddbsat_dv(SHORTCODE) \
     fGEN_TCG_PAIR_ADDSUB(ssadd, MO_8, VddV_base, VddV_off, \
