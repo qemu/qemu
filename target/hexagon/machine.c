@@ -35,7 +35,6 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.k0_lock_count, HexagonCPU),
         VMSTATE_UINT32(env.threadId, HexagonCPU),
         VMSTATE_UINT32(env.cause_code, HexagonCPU),
-        VMSTATE_UINT32(env.wait_next_pc, HexagonCPU),
         VMSTATE_UINT64(env.t_cycle_count, HexagonCPU),
         VMSTATE_UINT32(env.imprecise_exception, HexagonCPU),
 

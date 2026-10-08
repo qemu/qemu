@@ -143,7 +143,6 @@ typedef struct CPUArchState {
     uint32_t t_sreg[NUM_SREGS];
 
     uint32_t greg[NUM_GREGS];
-    uint32_t wait_next_pc;
 
     /* This alias of CPUState.cpu_index is used by imported sources: */
     uint32_t threadId;

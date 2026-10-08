@@ -215,14 +215,6 @@ static void hexagon_resume_thread(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
     clear_wait_mode(env);
-    /*
-     * The wait instruction keeps the PC pointing to itself
-     * so that it has an opportunity to check for interrupts.
-     *
-     * When we come out of wait mode, adjust the PC to the
-     * next executable instruction.
-     */
-    env->gpr[HEX_REG_PC] = env->wait_next_pc;
     cs = env_cpu(env);
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
     cs->halted = false;
