@@ -473,6 +473,10 @@ option('tcg_tests_cross_cc_ppc64le', type: 'string',
        description: 'cc for ppc64le tcg tests')
 option('tcg_tests_cross_cflags_ppc64le', type: 'string',
        description: 'cflags for ppc64le tcg tests')
+option('tcg_tests_cross_cc_riscv32', type: 'string',
+       description: 'cc for riscv32 tcg tests')
+option('tcg_tests_cross_cflags_riscv32', type: 'string',
+       description: 'cflags for riscv32 tcg tests')
 option('tcg_tests_cross_cc_riscv64', type: 'string',
        description: 'cc for riscv64 tcg tests')
 option('tcg_tests_cross_cflags_riscv64', type: 'string',
