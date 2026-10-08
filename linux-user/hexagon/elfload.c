@@ -53,6 +53,15 @@ abi_ulong get_elf_hwcap(CPUState *cs)
     case HEX_VER_V73:
         hwcaps = HWCAP_HEXAGON_ISA_V73;
         break;
+    case HEX_VER_V75:
+        hwcaps = HWCAP_HEXAGON_ISA_V75;
+        break;
+    case HEX_VER_V79:
+        hwcaps = HWCAP_HEXAGON_ISA_V79;
+        break;
+    case HEX_VER_V81:
+        hwcaps = HWCAP_HEXAGON_ISA_V81;
+        break;
     default:
         return 0;
     }
