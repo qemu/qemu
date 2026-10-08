@@ -183,7 +183,7 @@ static int gdb_put_vreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
         hex_hvx(env)->VRegs[n].uw[i] = ldl_le_p(mem_buf);
         mem_buf += 4;
     }
-    return MAX_VEC_SIZE_BYTES;
+    return sizeof_field(MMVector, ub);
 }
 
 static int gdb_put_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
@@ -193,7 +193,7 @@ static int gdb_put_qreg(CPUHexagonState *env, uint8_t *mem_buf, int n)
         hex_hvx(env)->QRegs[n].uw[i] = ldl_le_p(mem_buf);
         mem_buf += 4;
     }
-    return MAX_VEC_SIZE_BYTES / 8;
+    return sizeof(MMQReg);
 }
 
 int hexagon_hvx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
