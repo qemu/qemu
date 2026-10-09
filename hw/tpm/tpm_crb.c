@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 
+#include "qemu/memalign.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -180,10 +181,17 @@ static void tpm_crb_fill_command_response(CRBState *s)
      * to the linux guest in chunks by writing it back to MMIO region.
      */
     void *mem = memory_region_get_ram_ptr(&s->cmdmem);
-    uint32_t remaining = s->response_buffer->len - s->response_offset;
-    uint32_t to_copy = MIN(CRB_CTRL_CMD_SIZE, remaining);
+    uint32_t remaining = 0;
+    uint32_t to_copy;
 
-    memcpy(mem, s->response_buffer->data + s->response_offset, to_copy);
+    if (s->response_offset < s->response_buffer->len) {
+        remaining = s->response_buffer->len - s->response_offset;
+    }
+    to_copy = MIN(CRB_CTRL_CMD_SIZE, remaining);
+
+    if (to_copy) {
+        memcpy(mem, s->response_buffer->data + s->response_offset, to_copy);
+    }
 
     if (to_copy < CRB_CTRL_CMD_SIZE) {
         memset((guint8 *)mem + to_copy, 0, CRB_CTRL_CMD_SIZE - to_copy);
@@ -219,7 +227,6 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
             if (s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE) {
                 tpm_backend_cancel_cmd(s->tpmbe);
             }
-            tpm_crb_clear_internal_buffers(s);
         }
         break;
     case A_CRB_CTRL_START:
@@ -316,13 +323,15 @@ static void tpm_crb_request_completed(TPMIf *ti, int ret)
     CRBState *s = CRB(ti);
 
     ARRAY_FIELD_DP32(s->regs, CRB_CTRL_START, Start, 0);
-    if (ret != 0) {
+    if (ret != 0 || s->response_buffer->len < TPM_HEADER_SIZE) {
         ARRAY_FIELD_DP32(s->regs, CRB_CTRL_STS,
                          tpmSts, 1); /* fatal error */
         tpm_crb_clear_internal_buffers(s);
     } else {
         uint32_t actual_resp_size = tpm_cmd_get_size(s->response_buffer->data);
         uint32_t total_resp_size = MIN(actual_resp_size, s->be_buffer_size);
+
+        total_resp_size = MIN(total_resp_size, s->response_buffer->len);
         g_byte_array_set_size(s->response_buffer, total_resp_size);
         s->response_offset = 0;
     }
@@ -521,6 +530,8 @@ static void tpm_crb_unrealize(DeviceState *dev)
     if (s->migration_blocker) {
         migrate_del_blocker(&s->migration_blocker);
     }
+
+    tpm_ppi_uninit(&s->ppi, get_system_memory(), OBJECT(s));
 }
 
 static void tpm_crb_class_init(ObjectClass *klass, const void *data)

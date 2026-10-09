@@ -33,6 +33,16 @@ void tpm_ppi_init(TPMPPI *tpmppi, MemoryRegion *m,
                   hwaddr addr, Object *obj);
 
 /**
+ * tpm_ppi_uninit:
+ * @tpmppi: a TPMPPI
+ * @m: the address-space / MemoryRegion to use
+ * @obj: the owner object
+ *
+ * Function to unregister the TPM PPI region.
+ */
+void tpm_ppi_uninit(TPMPPI *tpmppi, MemoryRegion *m, Object *obj);
+
+/**
  * tpm_ppi_reset:
  * @tpmppi: a TPMPPI
  *

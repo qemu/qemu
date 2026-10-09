@@ -79,6 +79,62 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
     qapi_free_SocketAddress(addr);
 }
 
+/* Setup the TPM and send a command by calling a passed function */
+static void
+tpm_test_simple_cmd_swtpm_test(const char *src_tpm_path, tx_func *tx,
+                               const char *ifmodel,
+                               const char *machine_options,
+                               void (*test_func)(QTestState *, tx_func))
+{
+    char *args = NULL;
+    QTestState *s;
+    SocketAddress *addr = NULL;
+    gboolean succ;
+    GPid swtpm_pid;
+    GError *error = NULL;
+
+    if (tpm_test_swtpm_skip()) {
+        return;
+    }
+
+    succ = tpm_util_swtpm_start(src_tpm_path, &swtpm_pid, &addr, &error);
+    g_assert_true(succ);
+
+    args = g_strdup_printf(
+        "%s "
+        "-chardev socket,id=chr,path=%s "
+        "-tpmdev emulator,id=tpm0,chardev=chr "
+        "-device %s,tpmdev=tpm0",
+        machine_options ? : "", addr->u.q_unix.path, ifmodel);
+
+    s = qtest_start(args);
+    g_free(args);
+
+    test_func(s, tx);
+
+    qtest_end();
+    tpm_util_swtpm_kill(swtpm_pid);
+
+    g_unlink(addr->u.q_unix.path);
+    qapi_free_SocketAddress(addr);
+}
+
+void tpm_test_short_write_swtpm_test(const char *src_tpm_path, tx_func *tx,
+                                     const char *ifmodel,
+                                     const char *machine_options)
+{
+    tpm_test_simple_cmd_swtpm_test(src_tpm_path, tx, ifmodel, machine_options,
+                                   tpm_util_short_write);
+}
+
+void tpm_test_too_short_cmd_swtpm_test(const char *src_tpm_path, tx_func *tx,
+                                       const char *ifmodel,
+                                       const char *machine_options)
+{
+    tpm_test_simple_cmd_swtpm_test(src_tpm_path, tx, ifmodel, machine_options,
+                                   tpm_util_too_short_cmd);
+}
+
 void tpm_test_swtpm_migration_test(const char *src_tpm_path,
                                    const char *dst_tpm_path,
                                    const char *uri, tx_func *tx,

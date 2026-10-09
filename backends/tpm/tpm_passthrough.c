@@ -118,7 +118,7 @@ static void tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
 
 err_exit:
     if (ret < 0) {
-        tpm_util_write_fatal_error_response(out, out_len);
+        tpm_util_write_fatal_error_response(out, out_len, tpm_pt->tpm_version);
     }
 
     tpm_pt->tpm_executing = false;

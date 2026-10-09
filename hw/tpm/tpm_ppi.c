@@ -57,3 +57,13 @@ void tpm_ppi_init(TPMPPI *tpmppi, MemoryRegion *m,
 
     memory_region_add_subregion(m, addr, &tpmppi->ram);
 }
+
+void tpm_ppi_uninit(TPMPPI *tpmppi, MemoryRegion *m, Object *obj)
+{
+    memory_region_del_subregion(m, &tpmppi->ram);
+
+    vmstate_unregister_ram(&tpmppi->ram, DEVICE(obj));
+
+    qemu_vfree(tpmppi->buf);
+    tpmppi->buf = NULL;
+}

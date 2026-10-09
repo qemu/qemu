@@ -194,6 +194,61 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
                     &exp_resp[14], exp_resp_size - 14);
 }
 
+/*
+ * Write a TPM command with too large length indicator
+ * The CRB will send the command to the TPM.
+ * The TIS will never send the command since it wants to receive the number of
+ * bytes indicate in the command.
+ */
+void tpm_util_short_write(QTestState *s, tx_func *tx)
+{
+    unsigned char buffer[1024] = { 0 };
+    static const unsigned char tpm_bad_command[] = {
+        0x80, 0x01,
+        0x00, 0x01, 0x00, 0x00, /* length = 0x10000 */
+        0x00, 0x00, 0x01, 0x7e,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x0b, 0x03, 0x00, 0x04, 0x00
+    };
+
+    tx(s, tpm_bad_command, sizeof(tpm_bad_command), buffer, sizeof(buffer));
+
+    static const unsigned char tpm_error_resp[] = {
+        0x80, 0x01,
+        0x00, 0x00, 0x00, 0x0a,
+        0x00, 0x00, 0x01, 0x42, /* TPM_RC_COMMAND_SIZE */
+    };
+
+    g_assert_cmpmem(buffer, sizeof(tpm_error_resp),
+                    tpm_error_resp, sizeof(tpm_error_resp));
+}
+
+/*
+ * Write a TPM command that is shorter than the header.
+ * The CRB will not send this command.
+ * The TIS will send the command to the backend (needs to be at least
+ * 6 bytes).
+ */
+void tpm_util_too_short_cmd(QTestState *s, tx_func *tx)
+{
+    unsigned char buffer[1024] = { 0 };
+    static const unsigned char tpm_bad_command[] = {
+        0x80, 0x01,
+        0x00, 0x00, 0x00, 0x09, /* 9 bytes command is too short */
+        0x00, 0x00, 0x01,
+    };
+
+    tx(s, tpm_bad_command, sizeof(tpm_bad_command), buffer, sizeof(buffer));
+
+    static const unsigned char tpm_error_resp[] = {
+        0x80, 0x01,
+        0x00, 0x00, 0x00, 0x0a,
+        0x00, 0x00, 0x01, 0x01, /* TPM_RC_FAILURE from tpm_emulator.c */
+    };
+
+    g_assert_cmpmem(buffer, sizeof(tpm_error_resp),
+                    tpm_error_resp, sizeof(tpm_error_resp));
+}
+
 bool tpm_util_swtpm_has_tpm2(void)
 {
     bool has_tpm2 = false;
