@@ -1615,8 +1615,7 @@ static void decode_group1A(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
         *entry = UNKNOWN_OPCODE;
     } else {
         entry->gen = gen_POP;
-        /* The address must use the value of ESP after the pop.  */
-        s->popl_esp_hack = 1 << mo_pushpop(s, s->dflag);
+        entry->special = X86_SPECIAL_PopESP;
     }
 }
 
@@ -2360,8 +2359,8 @@ static void decode_modrm(DisasContext *s, CPUX86State *env,
         }
 
         /* For correct popl handling with esp.  */
-        if (base == R_ESP && s->popl_esp_hack) {
-            disp += s->popl_esp_hack;
+        if (base == R_ESP && decode->e.special == X86_SPECIAL_PopESP) {
+            disp += 1 << mo_pushpop(s, s->dflag);
         }
         if (base == R_EBP || base == R_ESP) {
             def_seg = R_SS;
@@ -3287,7 +3286,6 @@ static void disas_insn(DisasContext *s, CPUState *cpu)
 
     s->pc = s->base.pc_next;
     s->override = -1;
-    s->popl_esp_hack = 0;
 #ifdef TARGET_X86_64
     s->rex_r = 0;
     s->rex_x = 0;

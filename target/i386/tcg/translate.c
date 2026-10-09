@@ -108,7 +108,6 @@ typedef struct DisasContext {
     uint8_t vex_v;  /* vex vvvv register, without 1's complement.  */
     bool vex_ndd; /* is this a 3-operand instruction? */
     bool vex_w; /* used by AVX even on 32-bit processors */
-    uint8_t popl_esp_hack; /* for correct popl with esp base handling */
     uint8_t rip_offset; /* only used in x86_64, but left for simplicity */
 
     uint8_t rex_r; /* 0 for i386, but left for simplicity */

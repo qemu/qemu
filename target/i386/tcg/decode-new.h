@@ -242,6 +242,12 @@ typedef enum X86InsnSpecial {
 
     /* Memory operand size of MOV from segment register is MO_16 */
     X86_SPECIAL_Op0_Mw,
+
+    /*
+     * If the address uses ESP as the base register, use the value
+     * of ESP after the pop.
+     */
+    X86_SPECIAL_PopESP,
 } X86InsnSpecial;
 
 /*
