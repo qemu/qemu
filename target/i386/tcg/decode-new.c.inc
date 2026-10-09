@@ -2717,10 +2717,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
         decode->immediate = op->imm = insn_get(env, s, op->ot);
         break;
 
-    case X86_TYPE_L:  /* The upper 4 bits of the immediate select a 128-bit register */
-        op->n = insn_get(env, s, op->ot) >> 4;
-        break;
-
     case X86_TYPE_2op:
         *op = decode->op[0];
         break;
