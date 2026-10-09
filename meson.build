@@ -3288,7 +3288,14 @@ default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
 actual_target_dirs = []
 fdt_required = []
 foreach target : target_dirs
-  config_target = { 'TARGET_NAME': target.split('-')[0] }
+  target_name = target.split('-')[0]
+  config_target = { 'TARGET_NAME': target_name }
+  if target.endswith('linux-user')
+    config_target += { 'TARGET_ARCH_VARIANT': 'TARGET_ARCH' }
+  else
+    config_target += { 'TARGET_ARCH_VARIANT': target_name.to_upper() }
+  endif
+
   if target.endswith('linux-user')
     if host_os != 'linux'
       if default_targets
@@ -3372,7 +3379,7 @@ foreach target : target_dirs
       # do nothing
     elif ignored.contains(k)
       # do nothing
-    elif k == 'TARGET_ARCH'
+    elif k == 'TARGET_ARCH' or k == 'TARGET_ARCH_VARIANT'
       config_target_data.set(k, v.to_upper())
     elif k == 'TARGET_BASE_ARCH'
       # Note that TARGET_BASE_ARCH ends up in config-target.h but it is
