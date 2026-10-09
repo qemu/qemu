@@ -360,10 +360,23 @@ void s390_get_deprecated_features(S390FeatBitmap features)
          S390_FEAT_TRANSACTIONAL_EXE
     };
     int i;
+    bool restart;
 
     for (i = 0; i < ARRAY_SIZE(feats); i++) {
         set_bit(feats[i], features);
     }
+
+    /* Mark features that depend on any deprecated feature */
+    do {
+        restart = false;
+        for (i = 0; i < s390_feat_deps_len; i++) {
+            if (test_bit(s390_feat_deps[i][1], features) &&
+                !test_and_set_bit(s390_feat_deps[i][0], features)) {
+                /* Restart in case set features have other dependencies */
+                restart = true;
+            }
+        }
+    } while (restart);
 }
 
 #define FEAT_GROUP_INIT(_name, _group, _desc)        \
