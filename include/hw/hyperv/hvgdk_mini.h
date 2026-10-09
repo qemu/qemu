@@ -22,6 +22,9 @@
 #define HV_X64_MSR_TSC_FREQUENCY    0x40000022
 #define HV_X64_MSR_APIC_FREQUENCY   0x40000023
 
+/* event_type values for hv_x64_pending_exception_event */
+#define HV_X64_PENDING_EVENT_EXCEPTION 0
+
 typedef enum hv_register_name {
     /* VP Management Registers */
     HV_REGISTER_INTERNAL_ACTIVITY_STATE = 0x00000004,
@@ -239,6 +242,29 @@ enum hv_intercept_type {
     HV_INTERCEPT_TYPE_MAX,
     HV_INTERCEPT_TYPE_INVALID               = 0XFFFFFFFF,
 };
+
+union hv_intercept_parameters {
+    /* HV_INTERCEPT_PARAMETERS is defined to be an 8-byte field. */
+    uint64_t as_uint64;
+    /* HV_INTERCEPT_TYPE_X64_IO_PORT */
+    uint16_t io_port;
+    /* HV_INTERCEPT_TYPE_X64_CPUID */
+    uint32_t cpuid_index;
+    /* HV_INTERCEPT_TYPE_X64_APIC_WRITE */
+    uint32_t apic_write_mask;
+    /* HV_INTERCEPT_TYPE_EXCEPTION */
+    uint16_t exception_vector;
+    /* HV_INTERCEPT_TYPE_X64_MSR_INDEX */
+    uint32_t msr_index;
+    /* N.B. Other intercept types do not have any parameters. */
+};
+
+struct hv_input_install_intercept {
+    uint64_t partition_id;
+    uint32_t access_type; /* mask */
+    uint32_t intercept_type; /* enum hv_intercept_type */
+    union hv_intercept_parameters intercept_parameter;
+} QEMU_PACKED;
 
 struct hv_u128 {
     uint64_t low_part;
@@ -508,109 +534,6 @@ struct hv_input_assert_virtual_interrupt {
     uint16_t rsvd_z1;
 } QEMU_PACKED;
 
-/* Flags for dirty mask of hv_vp_register_page */
-enum hv_x64_register_class_type {
-    HV_X64_REGISTER_CLASS_GENERAL = 0,
-    HV_X64_REGISTER_CLASS_IP = 1,
-    HV_X64_REGISTER_CLASS_XMM = 2,
-    HV_X64_REGISTER_CLASS_SEGMENT = 3,
-    HV_X64_REGISTER_CLASS_FLAGS = 4,
-};
-
-#define HV_VP_REGISTER_PAGE_MAX_VECTOR_COUNT  7
-
-union hv_vp_register_page_interrupt_vectors {
-    uint64_t as_uint64;
-    struct {
-        uint8_t vector_count;
-        uint8_t vector[HV_VP_REGISTER_PAGE_MAX_VECTOR_COUNT];
-    };
-};
-
-struct hv_vp_register_page {
-    uint16_t version;
-    uint8_t isvalid;
-    uint8_t rsvdz;
-    uint32_t dirty;
-
-    union {
-        struct {
-            /* General purpose registers (HV_X64_REGISTER_CLASS_GENERAL) */
-            union {
-                struct {
-                    uint64_t rax;
-                    uint64_t rcx;
-                    uint64_t rdx;
-                    uint64_t rbx;
-                    uint64_t rsp;
-                    uint64_t rbp;
-                    uint64_t rsi;
-                    uint64_t rdi;
-                    uint64_t r8;
-                    uint64_t r9;
-                    uint64_t r10;
-                    uint64_t r11;
-                    uint64_t r12;
-                    uint64_t r13;
-                    uint64_t r14;
-                    uint64_t r15;
-                } QEMU_PACKED;
-
-                uint64_t gp_registers[16];
-            };
-            /* Instruction pointer (HV_X64_REGISTER_CLASS_IP) */
-            uint64_t rip;
-            /* Flags (HV_X64_REGISTER_CLASS_FLAGS) */
-            uint64_t rflags;
-        } QEMU_PACKED;
-
-        uint64_t registers[18];
-    };
-    uint8_t reserved[8];
-    /* Volatile XMM registers (HV_X64_REGISTER_CLASS_XMM) */
-    union {
-        struct {
-            struct hv_u128 xmm0;
-            struct hv_u128 xmm1;
-            struct hv_u128 xmm2;
-            struct hv_u128 xmm3;
-            struct hv_u128 xmm4;
-            struct hv_u128 xmm5;
-        } QEMU_PACKED;
-
-        struct hv_u128 xmm_registers[6];
-    };
-    /* Segment registers (HV_X64_REGISTER_CLASS_SEGMENT) */
-    union {
-        struct {
-            struct hv_x64_segment_register es;
-            struct hv_x64_segment_register cs;
-            struct hv_x64_segment_register ss;
-            struct hv_x64_segment_register ds;
-            struct hv_x64_segment_register fs;
-            struct hv_x64_segment_register gs;
-        } QEMU_PACKED;
-
-        struct hv_x64_segment_register segment_registers[6];
-    };
-    /* Misc. control registers (cannot be set via this interface) */
-    uint64_t cr0;
-    uint64_t cr3;
-    uint64_t cr4;
-    uint64_t cr8;
-    uint64_t efer;
-    uint64_t dr7;
-    union hv_x64_pending_interruption_register pending_interruption;
-    union hv_x64_interrupt_state_register interrupt_state;
-    uint64_t instruction_emulation_hints;
-    uint64_t xfem;
-
-    uint8_t reserved1[0x100];
-
-    /* Interrupts injected as part of HvCallDispatchVp. */
-    union hv_vp_register_page_interrupt_vectors interrupt_vectors;
-} QEMU_PACKED;
-
 /* /dev/mshv */
 #define MSHV_CREATE_PARTITION   _IOW(MSHV_IOCTL, 0x00, struct mshv_create_partition)
 #define MSHV_CREATE_VP          _IOW(MSHV_IOCTL, 0x01, struct mshv_create_vp)
@@ -840,6 +763,35 @@ struct hv_x64_memory_intercept_message {
     uint8_t instruction_bytes[16];
 } QEMU_PACKED;
 
+struct hv_x64_exception_intercept_message {
+    struct hv_x64_intercept_message_header header;
+    uint16_t exception_vector;
+    uint8_t exception_info;
+    uint8_t instruction_byte_count;
+    uint32_t error_code;
+    uint64_t exception_parameter; /* DR6 for #DB, CR2 for #PF */
+    uint64_t reserved;
+    uint8_t instruction_bytes[16];
+    struct hv_x64_segment_register ds_segment;
+    struct hv_x64_segment_register ss_segment;
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbx;
+    uint64_t rsp;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+} QEMU_PACKED;
+
 union hv_message_flags {
     uint8_t asu8;
     struct {
@@ -948,6 +900,7 @@ struct hv_cpuid {
 
 #define HVCALL_GET_PARTITION_PROPERTY    0x0044
 #define HVCALL_SET_PARTITION_PROPERTY    0x0045
+#define HVCALL_INSTALL_INTERCEPT         0x004d
 #define HVCALL_GET_VP_REGISTERS          0x0050
 #define HVCALL_SET_VP_REGISTERS          0x0051
 #define HVCALL_TRANSLATE_VIRTUAL_ADDRESS 0x0052
