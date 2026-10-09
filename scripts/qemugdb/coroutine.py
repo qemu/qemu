@@ -90,7 +90,7 @@ class Coredump:
         int_regs = {k: int(v) for k, v in regs.items()}
         patched_ptregs.update(int_regs)
 
-        with open(self.coredump, 'ab') as f:
+        with open(self.coredump, 'r+b') as f:
             gdb.write(f'assume pt_regs at 0x{self._ptregs_offset:x}\n')
             f.seek(self._ptregs_offset, 0)
             gdb.write('writing regs:\n')
@@ -106,7 +106,7 @@ class Coredump:
             return
 
         gdb.write(f'\nrestoring original regs in core file {self.coredump}\n')
-        with open(self.coredump, 'ab') as f:
+        with open(self.coredump, 'r+b') as f:
             gdb.write(f'assume pt_regs at 0x{self._ptregs_offset:x}\n')
             f.seek(self._ptregs_offset, 0)
             f.write(struct.pack(f"={len(PT_REGS)}q",
@@ -235,13 +235,24 @@ def dump_backtrace_patched(regs):
     out = run_with_pty(cmd).split('----split----')[1]
     gdb.write(out)
 
+def read_word(addr):
+    '''
+    Read a 64-bit word, None if that memory isn't accessible.
+    '''
+    try:
+        # gdb.parse_and_eval() returns lazy values.  Force memory access
+        # by wrapping in int()
+        return int(gdb.parse_and_eval(f"*(uint64_t *){hex(addr)}"))
+    except gdb.MemoryError:
+        return None
+
 def dump_backtrace(regs):
     '''
     Backtrace dump with raw registers, mimic GDB command 'bt'.
     '''
     # Here only rbp and rip that matter..
-    rbp = regs['rbp']
-    rip = regs['rip']
+    rbp = int(regs['rbp'])
+    rip = int(regs['rip'])
     i = 0
 
     while rbp:
@@ -250,8 +261,14 @@ def dump_backtrace(regs):
         # instruction instead of the CALL.  Here -1 would work for any
         # sized CALL instruction.
         print(f"#{i}  {hex(rip)} in {symbol_lookup(rip if i == 0 else rip-1)}")
-        rip = gdb.parse_and_eval(f"*(uint64_t *)(uint64_t)({hex(rbp)} + 8)")
-        rbp = gdb.parse_and_eval(f"*(uint64_t *)(uint64_t)({hex(rbp)})")
+
+        # The 'rbp != NULL' condition is insufficient: the outermost glibc
+        # frames might leave garbage in rbp if built without frame pointers.
+        # Break the loop on the frame that leads nowhere.
+        rip, rbp = read_word(rbp + 8), read_word(rbp)
+        if rip is None or rbp is None:
+            break
+
         i += 1
 
 def dump_backtrace_live(regs):
@@ -265,54 +282,64 @@ def dump_backtrace_live(regs):
     selected_frame = gdb.selected_frame()
     gdb.newest_frame().select()
 
-    for i in regs:
-        old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
+    try:
+        for i in regs:
+            old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
 
-    for i in regs:
-        gdb.execute('set $%s = %s' % (i, regs[i]))
+        for i in regs:
+            gdb.execute('set $%s = %s' % (i, regs[i]))
 
-    gdb.execute('bt')
+        gdb.execute('bt')
+    finally:
+        try:
+            for i in old:
+                gdb.execute('set $%s = %s' % (i, old[i]))
+        finally:
+            # restore previously selected frame in any case
+            selected_frame.select()
 
-    for i in regs:
-        gdb.execute('set $%s = %s' % (i, old[i]))
-
-    selected_frame.select()
-
-def bt_jmpbuf(jmpbuf, detailed=False):
+def bt_jmpbuf(jmpbuf, is_coredump, detailed=False):
     '''Backtrace a jmpbuf'''
     regs = get_jmpbuf_regs(jmpbuf)
-    try:
+    if not is_coredump:
         # This reuses gdb's "bt" command, which can be slightly prettier
         # but only works with live sessions.
         dump_backtrace_live(regs)
-    except:
-        if detailed:
-            # Obtain detailed trace by patching regs in copied coredump
-            dump_backtrace_patched(regs)
-        else:
-            # If above doesn't work, fallback to poor man's unwind
-            dump_backtrace(regs)
+    elif detailed:
+        # Obtain detailed trace by patching regs in the coredump in place
+        dump_backtrace_patched(regs)
+    else:
+        # Obtain a non-detailed trace by poor man's unwind
+        dump_backtrace(regs)
 
 def co_cast(co):
-    return co.cast(gdb.lookup_type('CoroutineUContext').pointer())
+    # Unscoped type lookup expands every symtab in the binary.
+    # Better scope it to the symtab of the ucontext backend
+    sym = gdb.lookup_static_symbol('co_tls_current')
+    if sym is not None:
+        co_type = gdb.lookup_type('CoroutineUContext',
+                                  sym.symtab.static_block())
+    else:
+        co_type = gdb.lookup_type('CoroutineUContext')
+
+    return co.cast(co_type.pointer())
 
 def coroutine_to_jmpbuf(co):
     coroutine_pointer = co_cast(co)
     return coroutine_pointer['env']['__jmpbuf']
 
-def init_coredump():
+def init_coredump(detailed=False):
     global coredump
 
-    files = gdb.execute('info files', False, True).split('\n')
+    files = gdb.execute('info files', False, True)
 
-    if not 'core dump' in files[1]:
+    match = re.search(r"core dump file:\s*`([^']+)'", files)
+    if match is None:
         return False
 
-    core_path = re.search("`(.*)'", files[2]).group(1)
-    exec_path = re.match('^Symbols from "(.*)".$', files[0]).group(1)
-
-    if coredump is None:
-        coredump = Coredump(core_path, exec_path)
+    # The object is only needed to patch the coredump
+    if detailed and coredump is None:
+        coredump = Coredump(match.group(1), gdb.current_progspace().filename)
 
     return True
 
@@ -323,9 +350,9 @@ class CoroutineCommand(gdb.Command):
         Usage: qemu coroutine COROPTR [--detailed]
         Show backtrace for a coroutine specified by COROPTR
 
-          --detailed       obtain detailed trace by copying coredump, patching
-                           regs in it, and runing gdb subprocess to get
-                           backtrace from the patched coredump
+          --detailed       obtain detailed trace by patching regs in the
+                           coredump in place, and running gdb subprocess to
+                           get backtrace from the patched coredump
         """)
 
     def __init__(self):
@@ -343,16 +370,20 @@ class CoroutineCommand(gdb.Command):
             return self._usage()
         detailed = True if argc == 2 else False
 
-        is_coredump = init_coredump()
+        if gdb.selected_thread() is None:
+            raise gdb.GdbError('No stack.')
+
+        is_coredump = init_coredump(detailed)
         if detailed and not is_coredump:
             gdb.write('--detailed is only valid when debugging core dumps\n')
             return
 
         try:
             bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])),
-                      detailed=detailed)
+                      is_coredump, detailed=detailed)
         finally:
-            coredump.restore_regs()
+            if coredump is not None:
+                coredump.restore_regs()
 
 class CoroutineBt(gdb.Command):
     __doc__ = textwrap.dedent("""\
@@ -360,9 +391,9 @@ class CoroutineBt(gdb.Command):
 
         Usage: qemu bt [--detailed]
 
-          --detailed       obtain detailed trace by copying coredump, patching
-                           regs in it, and runing gdb subprocess to get
-                           backtrace from the patched coredump
+          --detailed       obtain detailed trace by patching regs in the
+                           coredump in place, and running gdb subprocess to
+                           get backtrace from the patched coredump
         """)
 
     def __init__(self):
@@ -380,19 +411,23 @@ class CoroutineBt(gdb.Command):
             return self._usage()
         detailed = True if argc == 1 else False
 
-        is_coredump = init_coredump()
+        if gdb.selected_thread() is None:
+            raise gdb.GdbError('No stack.')
+
+        is_coredump = init_coredump(detailed)
         if detailed and not is_coredump:
             gdb.write('--detailed is only valid when debugging core dumps\n')
             return
 
         gdb.execute("bt")
 
-        try:
+        if not is_coredump:
             # This only works with a live session
             co_ptr = gdb.parse_and_eval("qemu_coroutine_self()")
-        except:
+        else:
             # Fallback to use hard-coded ucontext vars if it's coredump
-            co_ptr = gdb.parse_and_eval("co_tls_current")
+            sym = gdb.lookup_static_symbol("co_tls_current")
+            co_ptr = sym.value() if sym else gdb.parse_and_eval("co_tls_current")
 
         if co_ptr == False:
             return
@@ -404,9 +439,11 @@ class CoroutineBt(gdb.Command):
                 if co_ptr == 0:
                     break
                 gdb.write("\nCoroutine at " + str(co_ptr) + ":\n")
-                bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), detailed=detailed)
+                bt_jmpbuf(coroutine_to_jmpbuf(co_ptr), is_coredump,
+                          detailed=detailed)
         finally:
-            coredump.restore_regs()
+            if coredump is not None:
+                coredump.restore_regs()
 
 class CoroutineSPFunction(gdb.Function):
     def __init__(self):

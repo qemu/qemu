@@ -351,7 +351,7 @@ typedef enum {
 #define BDRV_WANT_OFFSET_VALID  BDRV_BLOCK_OFFSET_VALID
 #define BDRV_WANT_ALLOCATED     BDRV_BLOCK_ALLOCATED
 #define BDRV_WANT_PRECISE       (BDRV_WANT_ZERO | BDRV_WANT_OFFSET_VALID | \
-                                 BDRV_WANT_OFFSET_VALID)
+                                 BDRV_WANT_ALLOCATED)
 
 typedef QTAILQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 

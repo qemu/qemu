@@ -222,6 +222,42 @@ static int fd_offset(FDrive *drv)
     return fd_sector(drv) << BDRV_SECTOR_BITS;
 }
 
+/* Reads the sector at the current position and accounts for the request */
+static int fd_read_sector(FDrive *drv, uint8_t *buf)
+{
+    BlockAcctStats *stats = blk_get_stats(drv->blk);
+    BlockAcctCookie acct;
+    int ret;
+
+    block_acct_start(stats, &acct, BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
+    ret = blk_pread(drv->blk, fd_offset(drv), BDRV_SECTOR_SIZE, buf, 0);
+    if (ret < 0) {
+        block_acct_failed(stats, &acct);
+    } else {
+        block_acct_done(stats, &acct);
+    }
+
+    return ret;
+}
+
+/* Writes the sector at the current position and accounts for the request */
+static int fd_write_sector(FDrive *drv, const uint8_t *buf)
+{
+    BlockAcctStats *stats = blk_get_stats(drv->blk);
+    BlockAcctCookie acct;
+    int ret;
+
+    block_acct_start(stats, &acct, BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
+    ret = blk_pwrite(drv->blk, fd_offset(drv), BDRV_SECTOR_SIZE, buf, 0);
+    if (ret < 0) {
+        block_acct_failed(stats, &acct);
+    } else {
+        block_acct_done(stats, &acct);
+    }
+
+    return ret;
+}
+
 /* Seek to a new position:
  * returns 0 if already on right track
  * returns 1 if track changed
@@ -1644,8 +1680,7 @@ int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len)
         if (fdctrl->data_dir != FD_DIR_WRITE ||
             len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
-            if (blk_pread(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                          fdctrl->fifo, 0) < 0) {
+            if (fd_read_sector(cur_drv, fdctrl->fifo) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
@@ -1672,8 +1707,7 @@ int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len)
 
             k->read_memory(fdctrl->dma, nchan, fdctrl->fifo + rel_pos,
                            fdctrl->data_pos, len);
-            if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                           fdctrl->fifo, 0) < 0) {
+            if (fd_write_sector(cur_drv, fdctrl->fifo) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
@@ -1756,9 +1790,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
                                    fd_sector(cur_drv));
                     return 0;
                 }
-            if (blk_pread(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                          fdctrl->fifo, 0)
-                < 0) {
+            if (fd_read_sector(cur_drv, fdctrl->fifo) < 0) {
                 FLOPPY_DPRINTF("error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
@@ -1843,8 +1875,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
     }
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
     if (cur_drv->blk == NULL ||
-        blk_pwrite(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                   fdctrl->fifo, 0) < 0) {
+        fd_write_sector(cur_drv, fdctrl->fifo) < 0) {
         FLOPPY_DPRINTF("error formatting sector %d\n", fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
     } else {
@@ -2270,8 +2301,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         if (pos == FD_SECTOR_LEN - 1 ||
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
-            if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                           fdctrl->fifo, 0) < 0) {
+            if (fd_write_sector(cur_drv, fdctrl->fifo) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
                 break;

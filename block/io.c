@@ -50,6 +50,9 @@
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int64_t bytes, BdrvRequestFlags flags);
 
+static void coroutine_fn
+bdrv_wait_serialising_requests_locked(BdrvTrackedRequest *self);
+
 static void GRAPH_RDLOCK
 bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore)
 {
@@ -616,6 +619,7 @@ static void coroutine_fn tracked_request_begin(BdrvTrackedRequest *req,
         .type           = type,
         .co             = qemu_coroutine_self(),
         .serialising    = false,
+        .active_owner   = false,
         .overlap_offset = offset,
         .overlap_bytes  = bytes,
     };
@@ -624,6 +628,15 @@ static void coroutine_fn tracked_request_begin(BdrvTrackedRequest *req,
 
     qemu_mutex_lock(&bs->reqs_lock);
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
+
+    /*
+     * Set .waiting_for while we're holding the lock, otherwise we'd open a race
+     * window where another request in the middle of its RMW cycle starts
+     * waiting for us, leading to potential data corruption if this request
+     * overwrites a block the RMW request has already read.
+     */
+    bdrv_wait_serialising_requests_locked(req);
+
     qemu_mutex_unlock(&bs->reqs_lock);
 }
 
@@ -684,6 +697,15 @@ bdrv_wait_serialising_requests_locked(BdrvTrackedRequest *self)
     BdrvTrackedRequest *req;
 
     while ((req = bdrv_find_conflicting_request(self))) {
+        /*
+         * If this request is the active owner of the data blocks it accesses,
+         * no other conflicting request may exist; other requests have to wait
+         * for this one, not the other way around. If this condition is
+         * violated, RMW operations may be interrupted in the middle, operate on
+         * stale data and introduce data corruption.
+         */
+        assert(!self->active_owner);
+
         self->waiting_for = req;
         qemu_co_queue_wait(&req->wait_queue, &self->bs->reqs_lock);
         self->waiting_for = NULL;
@@ -780,20 +802,6 @@ void bdrv_dec_in_flight(BlockDriverState *bs)
     bdrv_wakeup(bs);
 }
 
-static void coroutine_fn
-bdrv_wait_serialising_requests(BdrvTrackedRequest *self)
-{
-    BlockDriverState *bs = self->bs;
-
-    if (!qatomic_read(&bs->serialising_in_flight)) {
-        return;
-    }
-
-    qemu_mutex_lock(&bs->reqs_lock);
-    bdrv_wait_serialising_requests_locked(self);
-    qemu_mutex_unlock(&bs->reqs_lock);
-}
-
 void coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
                                                 uint64_t align)
 {
@@ -803,6 +811,7 @@ void coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
 
     tracked_request_set_serialising(req, align);
     bdrv_wait_serialising_requests_locked(req);
+    req->active_owner = true;
 
     qemu_mutex_unlock(&req->bs->reqs_lock);
 }
@@ -1360,8 +1369,6 @@ bdrv_aligned_preadv(BdrvChild *child, BdrvTrackedRequest *req,
          * it ensures that the CoR read and write operations are atomic and
          * guest writes cannot interleave between them. */
         bdrv_make_request_serialising(req, bdrv_get_cluster_size(bs));
-    } else {
-        bdrv_wait_serialising_requests(req);
     }
 
     if (flags & BDRV_REQ_COPY_ON_READ) {
@@ -1998,8 +2005,6 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, int64_t bytes,
         }
 
         bdrv_wait_serialising_requests_locked(req);
-    } else {
-        bdrv_wait_serialising_requests(req);
     }
 
     assert(req->overlap_offset <= offset);
@@ -3507,7 +3512,6 @@ static int coroutine_fn GRAPH_RDLOCK bdrv_co_copy_range_internal(
 
         /* BDRV_REQ_SERIALISING is only for write operation */
         assert(!(read_flags & BDRV_REQ_SERIALISING));
-        bdrv_wait_serialising_requests(&req);
 
         ret = src->bs->drv->bdrv_co_copy_range_from(src->bs,
                                                     src, src_offset,

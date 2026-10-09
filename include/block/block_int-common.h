@@ -80,6 +80,7 @@ typedef struct BdrvTrackedRequest {
     enum BdrvTrackedRequestType type;
 
     bool serialising;
+    bool active_owner;
     int64_t overlap_offset;
     int64_t overlap_bytes;
 

@@ -108,7 +108,7 @@ class TestResult:
 
 
 class TestRunner(contextlib.AbstractContextManager['TestRunner']):
-    shared_self = None
+    shared_self: Optional['TestRunner'] = None
 
     @staticmethod
     def proc_run_test(test: str, test_field_width: int) -> TestResult:
