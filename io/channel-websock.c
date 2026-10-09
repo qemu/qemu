@@ -970,7 +970,8 @@ static ssize_t qio_channel_websock_read_wire(QIOChannelWebsock *ioc,
 {
     ssize_t ret;
 
-    if (ioc->encinput.offset < 4096) {
+    if (ioc->encinput.offset < 4096 &&
+        ioc->rawinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
         size_t want = 4096 - ioc->encinput.offset;
 
         buffer_reserve(&ioc->encinput, want);
@@ -1091,6 +1092,7 @@ static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
         cond |= G_IO_OUT;
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
+        ioc->rawinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
         !ioc->io_eof) {
         cond |= G_IO_IN;
     }

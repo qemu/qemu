@@ -249,10 +249,13 @@ static const struct QemuSeccompSyscall denylist[] = {
       0, NULL, SCMP_ACT_ERRNO(ENOSYS) },
 #endif
 #ifdef __SNR_execveat
-    { SCMP_SYS(execveat),               QEMU_SECCOMP_SET_SPAWN },
+    { SCMP_SYS(execveat),               QEMU_SECCOMP_SET_SPAWN,
+      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
 #endif
-    { SCMP_SYS(setns),                  QEMU_SECCOMP_SET_SPAWN },
-    { SCMP_SYS(unshare),                QEMU_SECCOMP_SET_SPAWN },
+    { SCMP_SYS(setns),                  QEMU_SECCOMP_SET_SPAWN,
+      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
+    { SCMP_SYS(unshare),                QEMU_SECCOMP_SET_SPAWN,
+      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
     /* resource control */
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL,
       0, NULL, SCMP_ACT_ERRNO(EPERM) },
@@ -337,6 +340,12 @@ static int seccomp_start(uint32_t seccomp_opts, Error **errp)
         if (!(seccomp_opts & denylist[i].set)) {
             continue;
         }
+        /*
+         * action == 0 is SCMP_ACT_KILL_THREAD which is not
+         * something we ever want to use. Validate it to protect
+         * against missing struct field initializers
+         */
+        assert(denylist[i].action);
 
         action = qemu_seccomp_update_action(denylist[i].action);
         rc = seccomp_rule_add_array(ctx, action, denylist[i].num,

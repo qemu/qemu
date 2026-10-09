@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/iov.h"
 #include "io/channel-tls.h"
 #include "trace.h"
 #include "qemu/atomic.h"
@@ -448,12 +449,24 @@ static ssize_t qio_channel_tls_writev(QIOChannel *ioc,
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(ioc);
     size_t i;
     ssize_t done = 0;
+    ssize_t remain;
+    g_autofree struct iovec *tmpiov = NULL;
+    size_t ntmpiov = 0;
 
-    for (i = 0 ; i < niov ; i++) {
-        ssize_t ret = qcrypto_tls_session_write(tioc->session,
-                                                iov[i].iov_base,
-                                                iov[i].iov_len,
-                                                errp);
+    /*
+     * The previous write encrypted all the data, but some
+     * was not able to be sent on the wire when uncorked,
+     * so we returned a short write. The encrypted data
+     * will still be cached by GNUTLS and the session will
+     * be in a corked state.
+     *
+     * This write call will be trying to write the remaining
+     * plain text data again, but we must avoid sending that
+     * into GNUTLS. Instead flush the previously encrypted
+     * pending data.
+     */
+    while (tioc->corked) {
+        ssize_t ret = qcrypto_tls_session_write_uncork(tioc->session, errp);
         if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
             if (done) {
                 return done;
@@ -463,12 +476,74 @@ static ssize_t qio_channel_tls_writev(QIOChannel *ioc,
         } else if (ret < 0) {
             return -1;
         }
+        done += (tioc->corked - ret);
+        tioc->corked = ret;
+    }
+
+    /*
+     * If we flushed pending data, we must discard an
+     * equivalent amount of plain text data from this
+     * write call, and then process what's left over,
+     * if any.
+     */
+    if (done) {
+        ssize_t total = iov_size(iov, niov);
+        if (done == total) {
+            return done;
+        }
+
+        tmpiov = g_new0(struct iovec, niov);
+        ntmpiov = iov_copy(tmpiov, niov, iov, niov,
+                           done, total - done);
+
+        iov = tmpiov;
+        niov = ntmpiov;
+    }
+
+    /*
+     * At this point we should ony be processing "new"
+     * data, not seen by a previous write call so we
+     * send to GNUTLS as normal.
+     */
+    qcrypto_tls_session_write_cork(tioc->session);
+    for (i = 0 ; i < niov ; i++) {
+        ssize_t ret = qcrypto_tls_session_write(tioc->session,
+                                                iov[i].iov_base,
+                                                iov[i].iov_len,
+                                                errp);
+        if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
+            error_setg(errp, "Unexpected TLS blocking I/O while corked");
+            return -1;
+        } else if (ret < 0) {
+            return -1;
+        }
         done += ret;
         if (ret < iov[i].iov_len) {
             break;
         }
     }
-    return done;
+
+    /*
+     * On non-blocking sockets, uncorking may not succeed
+     * in sending all encrypted data, so we have to check
+     * what was actually sent to see if GNUTLS remains in
+     * the corked state with pending data.
+     */
+    remain = qcrypto_tls_session_write_uncork(tioc->session, errp);
+    if (remain < 0) {
+        return -1;
+    } else if (remain) {
+        tioc->corked = remain;
+    }
+    /*
+     * done == what we sent to GNUTLS for encryption & sending
+     * remain == subset of 'done' that was encrypted but not sent
+     */
+    if (done && (remain == done)) {
+        return QIO_CHANNEL_ERR_BLOCK;
+    } else {
+        return done - remain;
+    }
 }
 
 static int qio_channel_tls_set_blocking(QIOChannel *ioc,
