@@ -50,6 +50,7 @@
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
 #include "qemu/thread.h"
+#include "qemu/cutils.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "system/cpu-timers.h"
@@ -760,10 +761,9 @@ static void qemu_system_wakeup(void)
     }
 }
 
-static char *tdx_parse_panic_message(char *message)
+static GString *tdx_parse_panic_message(char *message)
 {
     bool printable = false;
-    char *buf = NULL;
     int len = 0, i;
 
     /*
@@ -784,32 +784,11 @@ static char *tdx_parse_panic_message(char *message)
         }
     }
 
-    if (len == 0) {
-        buf = g_malloc(1);
-        buf[0] = '\0';
+    if (printable) {
+        return g_string_new(message);
     } else {
-        if (!printable) {
-            /* 3 = length of "%02x " */
-            buf = g_malloc(len * 3);
-            for (i = 0; i < len; i++) {
-                if (message[i] == '\0') {
-                    break;
-                } else {
-                    sprintf(buf + 3 * i, "%02x ", message[i]);
-                }
-            }
-            if (i > 0) {
-                /* replace the last ' '(space) to NULL */
-                buf[i * 3 - 1] = '\0';
-            } else {
-                buf[0] = '\0';
-            }
-        } else {
-            buf = g_strdup(message);
-        }
+        return qemu_hexdump_line(NULL, message, len, 1, 0);
     }
-
-    return buf;
 }
 
 void qemu_system_guest_panicked(GuestPanicInformation *info)
@@ -854,12 +833,11 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
                           info->u.s390.psw_mask,
                           info->u.s390.psw_addr);
         } else if (info->type == GUEST_PANIC_INFORMATION_TYPE_TDX) {
-            char *message = tdx_parse_panic_message(info->u.tdx.message);
+            g_autoptr(GString) message = tdx_parse_panic_message(info->u.tdx.message);
             qemu_log_mask(LOG_GUEST_ERROR,
                           "\nTDX guest reports fatal error."
                           " error code: 0x%" PRIx32 " error message:\"%s\"\n",
-                          info->u.tdx.error_code, message);
-            g_free(message);
+                          info->u.tdx.error_code, message->str);
             if (info->u.tdx.has_gpa) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Additional error information "
                               "can be found at gpa page: 0x%" PRIx64 "\n",

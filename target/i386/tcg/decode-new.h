@@ -53,6 +53,7 @@ typedef enum X86OpType {
     X86_TYPE_nop, /* modrm operand decoded but not loaded into s->T{0,1} */
     X86_TYPE_2op, /* 2-operand RMW instruction */
     X86_TYPE_LoBits, /* encoded in bits 0-2 of the operand + REX.B */
+    X86_TYPE_ZERO, /* Constant zero, for CFCMOV */
     X86_TYPE_0, /* Hard-coded GPRs (RAX..RDI) */
     X86_TYPE_1,
     X86_TYPE_2,
@@ -148,6 +149,12 @@ typedef enum X86OpUnit {
     X86_OP_MMX,     /* address in either s->ptrX or s->A0 depending on has_ea */
 } X86OpUnit;
 
+typedef enum X86OpExt {
+    X86_EXT_None,
+    X86_EXT_Signed,
+    X86_EXT_Unsigned,
+} X86OpExt;
+
 typedef enum X86InsnCheck {
     /* Illegal or exclusive to 64-bit mode */
     X86_CHECK_i64 = 1,
@@ -181,6 +188,15 @@ typedef enum X86InsnCheck {
     /* Vendor-specific checks for Intel/AMD differences */
     X86_CHECK_i64_amd = 2048,
     X86_CHECK_o64_intel = 4096,
+
+    /* No REX2 prefix allowed */
+    X86_CHECK_no_rex2 = 8192,
+
+    /* No 0x67 prefix allowed */
+    X86_CHECK_no_adr = 16384,
+
+    /* EVEX.NF bit not allowed */
+    X86_CHECK_nf0 = 32768,
 } X86InsnCheck;
 
 typedef enum X86InsnSpecial {
@@ -226,10 +242,6 @@ typedef enum X86InsnSpecial {
      */
     X86_SPECIAL_MMX,
 
-    /* When loaded into s->T0, register operand 1 is zero/sign extended.  */
-    X86_SPECIAL_SExtT0,
-    X86_SPECIAL_ZExtT0,
-
     /* Memory operand size of MOV from segment register is MO_16 */
     X86_SPECIAL_Op0_Mw,
 } X86InsnSpecial;
@@ -263,8 +275,21 @@ typedef enum X86VEXSpecial {
      * operands, and thus handled by decode_op_size.
      */
     X86_VEX_AVX2_256,
+
+    /*
+     * Instructions that do not care about VEX.L; used for scalar operands, because
+     * they *should* be used only with VEX.L=0 but may accept VEX.L=1 on some machines.
+     */
+    X86_VEX_LIG,
 } X86VEXSpecial;
 
+typedef enum X86EVEXClass {
+    /* Non-vector instruction that can use APX EGPRs.  */
+    X86_EVEX_APX = 128,
+    X86_EVEX_APX_cmp = 129,
+    X86_EVEX_APX_pp2 = 130,
+    X86_EVEX_APX_zu = 131,
+} X86EVEXClass;
 
 typedef struct X86OpEntry  X86OpEntry;
 typedef struct X86DecodedInsn X86DecodedInsn;
@@ -294,6 +319,10 @@ struct X86OpEntry {
     X86OpSize    s3:8;
 
     X86InsnSpecial special:8;
+    X86OpExt     ext0:2;
+    X86OpExt     ext1:2;
+    X86OpExt     ext2:2;
+    unsigned     :2;
     X86CPUIDFeature cpuid:8;
     unsigned     vex_class:8;
     X86VEXSpecial vex_special:8;
@@ -308,6 +337,7 @@ typedef struct X86DecodedOp {
     int8_t n;
     MemOp ot;     /* For b/c/d/p/s/q/v/w/y/z */
     X86OpUnit unit;
+    X86OpExt ext;
     bool has_ea;
     int offset;   /* For MMX and SSE */
 

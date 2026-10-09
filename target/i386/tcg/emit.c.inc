@@ -266,23 +266,21 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
 #endif
     case X86_OP_INT:
         if (op->has_ea) {
-            if (v == s->T0 && decode->e.special == X86_SPECIAL_SExtT0) {
+            if (op->ext == X86_EXT_Signed) {
                 gen_op_ld_v(s, op->ot | MO_SIGN, v, s->A0);
             } else {
                 gen_op_ld_v(s, op->ot, v, s->A0);
             }
 
-        } else if (op->ot < MO_TL && v == s->T0 &&
-                   (decode->e.special == X86_SPECIAL_SExtT0 ||
-                    decode->e.special == X86_SPECIAL_ZExtT0)) {
+        } else if (op->ot < MO_TL && op->ext != X86_EXT_None) {
             if (op->ot == MO_8 && byte_reg_is_xH(s, op->n)) {
-                if (decode->e.special == X86_SPECIAL_SExtT0) {
+                if (op->ext == X86_EXT_Signed) {
                     tcg_gen_sextract_tl(v, cpu_regs[op->n - 4], 8, 8);
                 } else {
                     tcg_gen_extract_tl(v, cpu_regs[op->n - 4], 8, 8);
                 }
             } else {
-                if (decode->e.special == X86_SPECIAL_SExtT0) {
+                if (op->ext == X86_EXT_Signed) {
                     tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot | MO_SIGN);
                 } else {
                     tcg_gen_ext_tl(v, cpu_regs[op->n], op->ot);
@@ -347,6 +345,12 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
     case X86_OP_INT:
         if (op->has_ea) {
             gen_op_st_v(s, op->ot, v, s->A0);
+        } else if (op->ot < MO_TL && op->ext != X86_EXT_None) {
+            if (op->ext == X86_EXT_Signed) {
+                tcg_gen_ext_tl(cpu_regs[op->n], v, op->ot | MO_SIGN);
+            } else {
+                tcg_gen_ext_tl(cpu_regs[op->n], v, op->ot);
+            }
         } else {
             gen_op_mov_reg_v(s, op->ot, op->n, v);
         }
@@ -1392,7 +1396,6 @@ static void gen_BOUND(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
-/* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
 static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -1400,7 +1403,7 @@ static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
     /* Only the Z bit is defined and it is related to the input.  */
     decode->cc_dst = tcg_temp_new();
     decode->cc_op = CC_OP_LOGICB + ot;
-    tcg_gen_mov_tl(decode->cc_dst, s->T0);
+    tcg_gen_mov_tl(decode->cc_dst, s->T1);
 
     /*
      * The manual says that the output is undefined when the
@@ -1408,10 +1411,9 @@ static void gen_BSF(DisasContext *s, X86DecodedInsn *decode)
      * real programs appear to depend on that.  Accomplish this
      * by passing the output as the value to return upon zero.
      */
-    tcg_gen_ctz_tl(s->T0, s->T0, s->T1);
+    tcg_gen_ctz_tl(s->T0, s->T1, s->T0);
 }
 
-/* Non-standard convention - on entry T0 is zero-extended input, T1 is the output.  */
 static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -1419,7 +1421,7 @@ static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
     /* Only the Z bit is defined and it is related to the input.  */
     decode->cc_dst = tcg_temp_new();
     decode->cc_op = CC_OP_LOGICB + ot;
-    tcg_gen_mov_tl(decode->cc_dst, s->T0);
+    tcg_gen_mov_tl(decode->cc_dst, s->T1);
 
     /*
      * The manual says that the output is undefined when the
@@ -1428,20 +1430,9 @@ static void gen_BSR(DisasContext *s, X86DecodedInsn *decode)
      * by passing the output as the value to return upon zero.
      * Plus, return the bit index of the first 1 bit.
      */
-    tcg_gen_xori_tl(s->T1, s->T1, TARGET_LONG_BITS - 1);
-    tcg_gen_clz_tl(s->T0, s->T0, s->T1);
     tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
-}
-
-static void gen_BSWAP(DisasContext *s, X86DecodedInsn *decode)
-{
-#ifdef TARGET_X86_64
-    if (s->dflag == MO_64) {
-        tcg_gen_bswap64_i64(s->T0, s->T0);
-        return;
-    }
-#endif
-    tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_OZ);
+    tcg_gen_clz_tl(s->T0, s->T1, s->T0);
+    tcg_gen_xori_tl(s->T0, s->T0, TARGET_LONG_BITS - 1);
 }
 
 static TCGv gen_bt_mask(DisasContext *s, X86DecodedInsn *decode)
@@ -1642,9 +1633,192 @@ static void gen_CMC(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_xori_tl(cpu_cc_src, cpu_cc_src, CC_C);
 }
 
+#ifdef TARGET_X86_64
+static void gen_CFCMOVcc_ld(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGLabel *label_false = gen_new_label();
+    int cond = decode->b & 0xf;
+    MemOp ot = decode->op[2].ot;
+
+    gen_jcc_noeob(s, cond ^ 1, label_false);
+    gen_op_ld_v(s, ot, s->T0, s->A0);
+    gen_set_label(label_false);
+}
+
+static void gen_CFCMOVcc_st(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGLabel *label_false = gen_new_label();
+    int cond = decode->b & 0xf;
+    MemOp ot = decode->op[0].ot;
+
+    gen_jcc_noeob(s, cond ^ 1, label_false);
+    gen_op_st_v(s, ot, s->T0, s->A0);
+    gen_set_label(label_false);
+}
+#endif
+
 static void gen_CMOVcc(DisasContext *s, X86DecodedInsn *decode)
 {
     gen_cmovcc(s, decode->b & 0xf, s->T0, s->T1);
+}
+
+/* Convert the repurposed V bits of CCMP or CTEST instructions to
+ * an EFLAGS value.
+ */
+static inline uint32_t evex_to_eflags(DisasContext *s)
+{
+    uint16_t eflags = 0;
+    eflags |= (s->evex3 & 0x08 ? CC_C | CC_P : 0);
+    eflags |= (s->evex3 & 0x10 ? CC_Z : 0);
+    eflags |= (s->evex3 & 0x20 ? CC_S : 0);
+    eflags |= (s->evex3 & 0x40 ? CC_O : 0);
+    return eflags;
+}
+
+/* If the condition COND is false, fill CC_DST/SRC/SRC2 with values that
+ * produce the flag values in DFV for CC_OP_CCMP*.  If instead COND is true,
+ * set up the flag values from CC_DST and COUT.
+ *
+ * On input, CC_DST contains the result of the subtraction or AND, which
+ * ends up in CC_DST and CC_SRC2 as well.  COUT is non-NULL for CCMP, and will
+ * be used for the output CC_SRC if COND is true; it is NULL for CTEST and
+ * will result in CC_SRC==0 (resulting in CF=AF=OF=0) is COND is true.
+ */
+static void gen_dfv_movcond(DisasContext *s, X86DecodedInsn *decode, int cond, uint32_t dfv,
+                            MemOp ot, TCGv cout)
+{
+    target_ulong dst, src, src2;
+    CCPrepare cc = gen_prepare_cc(s, cond, NULL);
+
+    /* ZF from dst */
+    dst = (dfv & CC_Z) ? 0 : -1;
+
+    /* CF is the high bit of SRC, OF the XOR of the high two bits */
+    src = deposit64(0, (8 << ot) - 2, 1, !!(dfv & CC_O));
+    src ^= (dfv & CC_C) ? -1 : 0;
+
+    /*
+     * SF is the high bit of SRC2, PF the parity of the low byte.  But also
+     * ensure the value is nonzero if dfv requests zf=0.  This triggers the
+     * optimization below in some extra cases (e.g. dfv == CC_P | CC_C).
+     *
+     * Note dst is either 0 or -1 so it has even parity.
+     */
+    src2 = dst & 3;
+    src2 ^= (dfv & CC_P) ? 0 : 1;
+    src2 ^= (dfv & CC_S) ? -1 : 0;
+
+    if (cout) {
+        decode->cc_src = cout;
+        tcg_gen_movcond_tl(cc.cond, decode->cc_src, cc.reg, cc.reg2,
+                           decode->cc_src, tcg_constant_tl(src));
+    } else if (src) {
+        decode->cc_src = tcg_temp_new();
+        tcg_gen_movcond_tl(cc.cond, decode->cc_src, cc.reg, cc.reg2,
+                           tcg_constant_tl(0), tcg_constant_tl(src));
+    } else {
+        decode->cc_src = tcg_constant_tl(0);
+    }
+
+    if (!!dst == !!src2) {
+        /*
+         * When an actual CMP or TEST result is stored, DST will be
+         * equal to SRC2, and when the default flag value is stored,
+         * only zero/nonzero matters for DST.  If DST and SRC2
+         * are equally zero/non-zero, use the same value for both.
+         */
+        decode->cc_src2 = decode->cc_dst;
+        dst = src2;
+    } else {
+        decode->cc_src2 = tcg_temp_new();
+        tcg_gen_movcond_tl(cc.cond, decode->cc_src2, cc.reg, cc.reg2,
+                           decode->cc_dst, tcg_constant_tl(src2));
+    }
+    tcg_gen_movcond_tl(cc.cond, decode->cc_dst, cc.reg, cc.reg2,
+                       decode->cc_dst, tcg_constant_tl(dst));
+}
+
+static bool gen_ccmp_movcond(DisasContext *s, int cond, uint32_t dfv, MemOp ot)
+{
+    target_ulong op0, op1, max_int;
+
+    assert(cond != CCMP_F);
+    if (cond == CCMP_T) {
+        return true;
+    }
+
+    /*
+     * For some values of dfv, it's possible to overwrite operands
+     * instead of using CC_OP_CCMP.  The weird "16"s are to set AF==0.
+     */
+    max_int = MAKE_64BIT_MASK(0, (8 << ot) - 1);
+    switch(dfv) {
+    case 0:
+        op0 = 1, op1 = 0;
+        break;
+    case CC_P|CC_C:
+        op0 = 1, op1 = -16;
+        break;
+    case CC_S:
+        op0 = -3, op1 = 0;
+        break;
+    case CC_S|CC_P|CC_C:
+        op0 = 0, op1 = 16;
+        break;
+    case CC_O:
+        /*
+         * While for >8-bit results -max_int has 1 in the lower byte, for 8-bit
+         * results -max_int is 0x81, so it flips the parity flag.  Compensate
+         * in op1.
+         */
+        op0 = -max_int, op1 = 16 + (ot == MO_8);
+        break;
+    case CC_O|CC_S|CC_P|CC_C:
+        /* Same here. */
+        op0 = max_int, op1 = -1 - (ot == MO_8);
+        break;
+    default:
+        return false;
+    }
+
+    CCPrepare cc = gen_prepare_cc(s, cond, NULL);
+    tcg_gen_movcond_tl(cc.cond, s->T0, cc.reg, cc.reg2, s->T0, tcg_constant_tl(op0));
+    tcg_gen_movcond_tl(cc.cond, s->T1, cc.reg, cc.reg2, s->T1, tcg_constant_tl(op1));
+    return true;
+}
+
+static void gen_SUB(DisasContext *s, X86DecodedInsn *decode);
+static void gen_CMP(DisasContext *s, X86DecodedInsn *decode)
+{
+    int cond = (s->prefix & PREFIX_EVEX) ? s->evex4 & 0x0f : CCMP_T;
+    uint32_t dfv = evex_to_eflags(s);
+    MemOp ot = decode->op[1].ot;
+    TCGv cout;
+
+    if (cond == CCMP_F) {
+        decode->cc_op = CC_OP_EFLAGS;
+        decode->cc_src = tcg_constant_tl(dfv);
+        return;
+    }
+    if (gen_ccmp_movcond(s, cond, dfv, ot)) {
+        /* Including CCMP_T, aka "normal" CMP.  */
+        gen_SUB(s, decode);
+        return;
+    }
+
+    decode->cc_op = CC_OP_CCMPB + ot;
+    decode->cc_dst = tcg_temp_new();
+    cout = tcg_temp_new();
+    tcg_gen_sub_tl(decode->cc_dst, s->T0, s->T1);
+
+    /* Compute carry-out vector of subtraction.  */
+    tcg_gen_xor_tl(cout, s->T1, decode->cc_dst);
+    tcg_gen_xor_tl(s->T0, s->T0, s->T1);
+    tcg_gen_and_tl(cout, cout, s->T0);
+    tcg_gen_xor_tl(cout, cout, decode->cc_dst);
+
+    /* src2 == dst if cond is true.  */
+    gen_dfv_movcond(s, decode, cond, dfv, ot, cout);
 }
 
 static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
@@ -1758,11 +1932,10 @@ static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
     MemOp ot = decode->op[2].ot;
     TCGv cmpv = tcg_temp_new();
     TCGv oldv = tcg_temp_new();
-    TCGv newv = tcg_temp_new();
+    TCGv newv = s->T1;
     TCGv dest;
 
     tcg_gen_ext_tl(cmpv, cpu_regs[R_EAX], ot);
-    tcg_gen_ext_tl(newv, s->T1, ot);
     if (s->prefix & PREFIX_LOCK) {
         tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
                                   s->mem_index, ot | MO_LE);
@@ -1785,7 +1958,7 @@ static void gen_CMPXCHG(DisasContext *s, X86DecodedInsn *decode)
              * not zero-extending it on 64-bit processors.  So, precompute
              * the result of a successful writeback and perform the movcond
              * directly on cpu_regs.  In case rm is part of RAX, note that this
-             * movcond and the one below are mutually exclusive is executed.
+             * movcond and the one below are mutually exclusive.
              */
             dest = gen_op_deposit_reg_v(s, ot, decode->op[0].n, newv, newv);
             tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, newv, dest);
@@ -2518,10 +2691,19 @@ static void gen_MOVBE(DisasContext *s, X86DecodedInsn *decode)
     /* M operand type does not load/store */
     if (decode->e.op0 == X86_TYPE_M) {
         tcg_gen_qemu_st_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
-    } else {
+    } else if (decode->e.op1 == X86_TYPE_M) {
         tcg_gen_qemu_ld_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
+#ifdef TARGET_X86_64
+    } else if (ot == MO_64) {
+        tcg_gen_bswap64_tl(s->T0, s->T0);
+#endif
+    } else if (ot == MO_32) {
+        tcg_gen_bswap32_tl(s->T0, s->T0, TCG_BSWAP_OZ);
+    } else {
+        tcg_gen_bswap16_tl(s->T0, s->T0, TCG_BSWAP_OZ);
     }
 }
+#define gen_BSWAP gen_MOVBE
 
 static void gen_MOVD_from(DisasContext *s, X86DecodedInsn *decode)
 {
@@ -3027,6 +3209,24 @@ static void gen_PMOVMSKB(DisasContext *s, X86DecodedInsn *decode)
     }
 }
 
+#ifdef TARGET_X86_64
+static void gen_POP2(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGLabel *aligned = gen_new_label();
+    TCGv_i128 t = tcg_temp_new_i128();
+
+    tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cpu_regs[R_ESP], 15, aligned);
+    gen_helper_raise_gpf(tcg_env);
+    gen_set_label(aligned);
+
+    gen_lea_ss_ofs(s, s->A0, cpu_regs[R_ESP], 0);
+    tcg_gen_qemu_ld_i128(t, s->A0, s->mem_index,
+                         MO_LE | MO_128 | MO_ALIGN | MO_ATOM_IFALIGN_PAIR);
+    tcg_gen_extr_i128_i64(cpu_regs[s->vex_v], s->T0, t);
+    gen_pop_update(s, MO_128);
+}
+#endif
+
 static void gen_POP(DisasContext *s, X86DecodedInsn *decode)
 {
     X86DecodedOp *op = &decode->op[0];
@@ -3223,6 +3423,26 @@ static void gen_PSLLDQ_i(DisasContext *s, X86DecodedInsn *decode)
         gen_helper_pslldq_xmm(tcg_env, OP_PTR0, OP_PTR1, imm_vec);
     }
 }
+
+#ifdef TARGET_X86_64
+static void gen_PUSH2(DisasContext *s, X86DecodedInsn *decode)
+{
+    TCGLabel *aligned = gen_new_label();
+    TCGv_i128 t = tcg_temp_new_i128();
+    TCGv new_esp = tcg_temp_new();
+
+    tcg_gen_brcondi_tl(TCG_COND_TSTEQ, cpu_regs[R_ESP], 15, aligned);
+    gen_helper_raise_gpf(tcg_env);
+    gen_set_label(aligned);
+
+    tcg_gen_subi_tl(new_esp, cpu_regs[R_ESP], 16);
+    gen_lea_ss_ofs(s, s->A0, new_esp, 0);
+    tcg_gen_concat_i64_i128(t, s->T1, s->T0);
+    tcg_gen_qemu_st_i128(t, s->A0, s->mem_index,
+                         MO_LE | MO_128 | MO_ALIGN | MO_ATOM_IFALIGN_PAIR);
+    gen_op_mov_reg_v(s, mo_stacksize(s), R_ESP, new_esp);
+}
+#endif
 
 static void gen_PUSH(DisasContext *s, X86DecodedInsn *decode)
 {
@@ -3855,7 +4075,6 @@ static void gen_SARX(DisasContext *s, X86DecodedInsn *decode)
     tcg_gen_sar_tl(s->T0, s->T0, s->T1);
 }
 
-static void gen_SUB(DisasContext *s, X86DecodedInsn *decode);
 static void gen_SBB(DisasContext *s, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -4168,6 +4387,32 @@ static void gen_SYSRET(DisasContext *s, X86DecodedInsn *decode)
      * completed.
      */
     s->base.is_jmp = DISAS_EOB_RECHECK_TF;
+}
+
+static void gen_TEST(DisasContext *s, X86DecodedInsn *decode)
+{
+    int cond = (s->prefix & PREFIX_EVEX) ? s->evex4 & 0x0f : CCMP_T;
+    uint32_t dfv = evex_to_eflags(s);
+    MemOp ot = decode->op[1].ot;
+
+    switch (cond) {
+    case CCMP_T:
+        gen_AND(s, decode);
+        return;
+    case CCMP_F:
+        decode->cc_op = CC_OP_EFLAGS;
+        decode->cc_src = tcg_constant_tl(dfv);
+        return;
+    default:
+        break;
+    }
+
+    decode->cc_op = CC_OP_CCMPB + ot;
+    decode->cc_dst = tcg_temp_new();
+    tcg_gen_and_tl(decode->cc_dst, s->T0, s->T1);
+
+    /* src=0, src2 == dst if cond is true.  */
+    gen_dfv_movcond(s, decode, cond, dfv, ot, NULL);
 }
 
 static void gen_TZCNT(DisasContext *s, X86DecodedInsn *decode)

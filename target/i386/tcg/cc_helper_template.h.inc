@@ -60,6 +60,17 @@ static uint32_t glue(compute_aco_cout, SUFFIX)(DATA_TYPE carries)
     return af_cf + of;
 }
 
+static uint32_t glue(compute_all_ccmp, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1, DATA_TYPE src2)
+{
+    uint32_t pf, zf, sf;
+
+    /* Compute all bits here because PF and SF do not come from DST.  */
+    zf = dst == 0 ? CC_Z : 0;
+    pf = compute_pf(src2);
+    sf = lshift(src2, 8 - DATA_BITS) & CC_S;
+    return pf + zf + sf + glue(compute_aco_cout, SUFFIX)(src1);
+}
+
 static uint32_t glue(compute_aco_add, SUFFIX)(DATA_TYPE dst, DATA_TYPE src1)
 {
     DATA_TYPE src2 = dst - src1;
