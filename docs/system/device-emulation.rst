@@ -96,6 +96,7 @@ Emulated Devices
    devices/net.rst
    devices/nvme.rst
    devices/scsi/index.rst
+   devices/ufs.rst
    devices/usb-u2f.rst
    devices/usb.rst
    devices/vfio-user.rst
