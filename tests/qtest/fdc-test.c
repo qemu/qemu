@@ -27,6 +27,7 @@
 
 #include "libqtest-single.h"
 #include "qobject/qdict.h"
+#include "qobject/qlist.h"
 
 #define DRIVE_FLOPPY_BLANK \
     "-drive if=floppy,file=null-co://,file.read-zeroes=on,format=raw,size=1440k"
@@ -177,6 +178,34 @@ static uint8_t send_read_command(uint8_t cmd)
     return ret;
 }
 
+/* Returns a counter that query-blockstats reports for floppy0 */
+static int64_t floppy_blockstat(const char *counter)
+{
+    QDict *response;
+    QList *list;
+    QListEntry *entry;
+    QDict *stats = NULL;
+    int64_t value;
+
+    response = qtest_qmp(global_qtest, "{'execute': 'query-blockstats'}");
+    g_assert(response && qdict_haskey(response, "return"));
+    list = qdict_get_qlist(response, "return");
+
+    QLIST_FOREACH_ENTRY(list, entry) {
+        QDict *entry_dict = qobject_to(QDict, entry->value);
+
+        if (!g_strcmp0(qdict_get_try_str(entry_dict, "qdev"), "floppy0")) {
+            stats = qdict_get_qdict(entry_dict, "stats");
+            break;
+        }
+    }
+
+    g_assert(stats);
+    value = qdict_get_int(stats, counter);
+    qobject_unref(response);
+    return value;
+}
+
 static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
 {
     uint8_t drive = 0;
@@ -192,6 +221,9 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
     uint8_t st0;
 
     uint8_t ret = 0;
+
+    int64_t rd_ops_before = floppy_blockstat("rd_operations");
+    int64_t rd_bytes_before = floppy_blockstat("rd_bytes");
 
     floppy_send(CMD_READ);
     floppy_send(head << 2 | drive);
@@ -247,6 +279,16 @@ static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
     assert_bit_clear(msr, BUSY | DIO);
     assert_bit_set(msr, RQM);
     g_assert(!get_irq(FLOPPY_IRQ));
+
+    /*
+     * The non-DMA loop above has read 2 * nb_sect sectors through the FIFO,
+     * and the controller fetches each of them from the image with a request
+     * of its own.
+     */
+    g_assert_cmpint(floppy_blockstat("rd_operations") - rd_ops_before, ==,
+                    2 * nb_sect);
+    g_assert_cmpint(floppy_blockstat("rd_bytes") - rd_bytes_before, ==,
+                    512 * 2 * nb_sect);
 
     return ret;
 }
