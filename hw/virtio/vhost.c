@@ -31,6 +31,7 @@
 #include "system/dma.h"
 #include "system/memory.h"
 #include "system/ramblock.h"
+#include "system/system.h"
 #include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
@@ -88,6 +89,19 @@ static int vhost_migration_notify(NotifierWithReturn *notifier,
         vhost_dev_try_release_owner(hdev, "incoming migration failure");
     }
     return 0;
+}
+
+/*
+ * Release the ownership of the vhost devices still held at exit(), so that
+ * another process sharing the backend FDs (e.g. the CPR source) can take
+ * them over.
+ */
+static void vhost_exit_notify(Notifier *notifier, void *data)
+{
+    struct vhost_dev *hdev = container_of(notifier, struct vhost_dev,
+                                          exit_notifier);
+
+    vhost_dev_try_release_owner(hdev, "exit");
 }
 
 unsigned int vhost_get_max_memslots(void)
@@ -1860,6 +1874,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->log_enabled = false;
     hdev->started = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
+    hdev->exit_notifier.notify = vhost_exit_notify;
+    qemu_add_exit_notifier(&hdev->exit_notifier);
     migration_add_notifier_modes(&hdev->migration_notifier,
                                  vhost_migration_notify,
                                  BIT(MIG_MODE_CPR_TRANSFER) |
@@ -1912,6 +1928,10 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
         /* those are only safe after successful init */
         memory_listener_unregister(&hdev->memory_listener);
         QLIST_REMOVE(hdev, entry);
+    }
+    if (hdev->exit_notifier.notify) {
+        qemu_remove_exit_notifier(&hdev->exit_notifier);
+        hdev->exit_notifier.notify = NULL;
     }
     migration_remove_notifier(&hdev->migration_notifier);
     migrate_del_blocker(&hdev->migration_blocker);

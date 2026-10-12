@@ -123,6 +123,8 @@ struct vhost_dev {
      * when this vhost_dev goes away.  Set by the device.
      */
     bool owner_handed_over;
+    /* @exit_notifier: releases the ownership at exit, vhost_exit_notify() */
+    Notifier exit_notifier;
     /*
      * @migration_notifier: releases the ownership when an incoming
      * migration fails, vhost_migration_notify()
