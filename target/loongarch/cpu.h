@@ -437,6 +437,7 @@ typedef struct CPUArchState {
     uint32_t mp_state;
 #endif
     CPUSysState *sys_state;
+    unsigned int irq_nr;
 } CPULoongArchState;
 
 typedef struct LoongArchCPUTopo {
