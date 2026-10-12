@@ -218,33 +218,57 @@ static const struct SCSIBusInfo ufs_scsi_info = {
     .cancel = ufs_scsi_command_cancelled,
 };
 
+static bool ufs_append_lun(uint8_t *outbuf, uint32_t outbuf_len, int *len,
+                           uint8_t lun, uint8_t lun_msb)
+{
+    if (*len + 8 > outbuf_len) {
+        return false;
+    }
+
+    memset(outbuf + *len, 0, 8);
+    outbuf[*len] = lun_msb;
+    outbuf[*len + 1] = lun;
+    *len += 8;
+
+    return true;
+}
+
 static int ufs_emulate_report_luns(UfsRequest *req, uint8_t *outbuf,
                                    uint32_t outbuf_len)
 {
     UfsHc *u = req->hc;
     int len = 0;
 
-    /* TODO: Support for cases where SELECT REPORT is 1 and 2 */
-    if (req->req_upiu.sc.cdb[2] != 0) {
+    uint8_t report_lun_cmd = req->req_upiu.sc.cdb[2];
+
+    if (report_lun_cmd > 2) {
         return SCSI_COMMAND_FAIL;
     }
 
     if (outbuf_len < 8) {
         return SCSI_COMMAND_FAIL;
     }
+
     memset(outbuf, 0, 8);
     len += 8;
 
-    for (uint8_t lun = 0; lun < UFS_MAX_LUS; ++lun) {
-        if (u->lus[lun]) {
-            if (len + 8 > outbuf_len) {
+    if (report_lun_cmd == 2 || report_lun_cmd == 1) {
+        ufs_append_lun(outbuf, outbuf_len, &len, u->report_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+        ufs_append_lun(outbuf, outbuf_len, &len, u->dev_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+        ufs_append_lun(outbuf, outbuf_len, &len, u->boot_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+        ufs_append_lun(outbuf, outbuf_len, &len, u->rpmb_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+    }
+
+    if (report_lun_cmd == 0 || report_lun_cmd == 2) {
+        for (uint8_t lun = 0; lun < UFS_MAX_LUS; ++lun) {
+            if (u->lus[lun] &&
+                !ufs_append_lun(outbuf, outbuf_len, &len, lun, 0)) {
                 break;
             }
-
-            memset(outbuf + len, 0, 8);
-            outbuf[len] = 0;
-            outbuf[len + 1] = lun;
-            len += 8;
         }
     }
 
