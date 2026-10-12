@@ -23,7 +23,7 @@ System call translation
 System calls are the principle interface between user-space and the
 kernel. Generally the same system calls exist on all versions of the
 kernel so QEMU includes a generic system call translator. The
-translator takes care of adjusting endianess, 32/64 bit parameter size
+translator takes care of adjusting endianness, 32/64 bit parameter size
 and then calling the equivalent host system call.
 
 QEMU can also adjust device specific ``ioctl()`` calls in a similar

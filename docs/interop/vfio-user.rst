@@ -1583,7 +1583,7 @@ Neither the request or reply have a payload.
 --------------------------------
 
 This message can be used to coalesce multiple device write operations
-into a single messgage.  It is only used as an optimization when the
+into a single message.  It is only used as an optimization when the
 outgoing message queue is relatively full.
 
 Request

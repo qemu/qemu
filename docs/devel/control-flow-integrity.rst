@@ -39,7 +39,7 @@ are planning to also enable fuzzing, then Clang 11+ is needed (more on this
 later).
 
 Given the use of LTO, a version of AR that supports LLVM IR is required.
-The easies way of doing this is by selecting the AR provided by LLVM::
+The easiest way of doing this is by selecting the AR provided by LLVM::
 
  AR=llvm-ar-9 CC=clang-9 CXX=clang++-9 /path/to/configure --enable-cfi
 

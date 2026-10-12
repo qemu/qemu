@@ -107,7 +107,7 @@ an issue as a normal bug.
   possibility of large memory peaks and apply countermeasures to
   provide continuity of host operations. It is typical for the Linux
   OOM killer to reap the process triggering host memory overcommit
-  in the case of exccessive usage, offering a degree of protection.
+  in the case of excessive usage, offering a degree of protection.
   As such, bugs which can lead to excessive/unbounded memory allocations
   will usually not be classified as security flaws, but should be
   fixed as hardening bugs.

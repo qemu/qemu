@@ -171,7 +171,7 @@ native exploitation mode* is selected should contain:
 - ``reg``
 
   contains the base address and size of the thread interrupt
-  managnement areas (TIMA), for the User level and for the Guest OS
+  management areas (TIMA), for the User level and for the Guest OS
   level. Only the Guest OS level is taken into account today.
 
 - ``ibm,xive-eq-sizes``

@@ -241,7 +241,7 @@ Use B4
 ~~~~~~
 
 The `b4`_ tool, used for Linux kernel development, can also be used for QEMU
-development. It is packaged in most distros and PyPi. The QEMU source tree
+development. It is packaged in most distros and PyPI. The QEMU source tree
 includes a ``b4`` project configuration file at the root: ``.b4-config``.
 
 Example workflow to prepare a patch series:
