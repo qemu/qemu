@@ -164,6 +164,8 @@ virtio_gpu_rutabaga_resource_unref(VirtIOGPU *g,
     }
 
     QTAILQ_REMOVE(&g->reslist, res, next);
+
+    virtio_gpu_cleanup_mapping(g, res);
     g_free(res);
 }
 
