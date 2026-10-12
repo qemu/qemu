@@ -190,6 +190,7 @@ struct AspeedSoCClass {
     int ioexp_num;
     const int *irqmap;
     const hwaddr *memmap;
+    const UnimplementedDeviceConfig *unimp_devs;
     uint32_t num_cpus;
     bool (*boot_from_emmc)(AspeedSoCState *s);
 };
