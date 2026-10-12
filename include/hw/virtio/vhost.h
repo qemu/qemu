@@ -111,6 +111,17 @@ struct vhost_dev {
     bool started;
     /* @initialized: has the full vhost_dev_init() completed? */
     bool initialized;
+    /*
+     * @owner: has this vhost_dev acquired the device ownership?
+     * Updated only by vhost_dev_set_owner()/vhost_dev_reset_owner()
+     */
+    bool owner;
+    /*
+     * @owner_handed_over: CPR target side.  The ownership was handed over
+     * to us by another process (the CPR source) and must be given back
+     * when this vhost_dev goes away.  Set by the device.
+     */
+    bool owner_handed_over;
     bool log_enabled;
     uint64_t log_size;
     Error *migration_blocker;
