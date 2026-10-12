@@ -22,7 +22,6 @@
 typedef enum X86OpType {
     X86_TYPE_None,
 
-    X86_TYPE_A, /* Implicit */
     X86_TYPE_B, /* VEX.vvvv selects a GPR */
     X86_TYPE_C, /* REG in the modrm byte selects a control register */
     X86_TYPE_D, /* REG in the modrm byte selects a debug register */
