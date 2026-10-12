@@ -42,7 +42,7 @@
 #define  MIGRATION_THREAD_DST_FAULT         "mig/dst/fault"
 #define  MIGRATION_THREAD_DST_LISTEN        "mig/dst/listen"
 #define  MIGRATION_THREAD_DST_PREEMPT       "mig/dst/preempt"
-#define  MIGRATION_THREAD_DST_SNAPSHOT_LOAD "mig/dst/snapshot_load"
+#define  MIGRATION_THREAD_DST_SNAPSHOT_LOAD "mig/dst/snapld"
 
 struct PostcopyBlocktimeContext;
 typedef struct ThreadPool ThreadPool;
