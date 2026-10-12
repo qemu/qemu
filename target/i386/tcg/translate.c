@@ -2005,20 +2005,6 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     gen_op_mov_reg_v(s, a_ot, R_ESP, s->T1);
 }
 
-static void gen_leave(DisasContext *s)
-{
-    MemOp d_ot = mo_pushpop(s, s->dflag);
-    MemOp a_ot = mo_stacksize(s);
-
-    gen_lea_ss_ofs(s, s->A0, cpu_regs[R_EBP], 0);
-    gen_op_ld_v(s, d_ot, s->T0, s->A0);
-
-    tcg_gen_addi_tl(s->T1, cpu_regs[R_EBP], 1 << d_ot);
-
-    gen_op_mov_reg_v(s, d_ot, R_EBP, s->T0);
-    gen_op_mov_reg_v(s, a_ot, R_ESP, s->T1);
-}
-
 /* an interrupt is different from an exception because of the
    privilege checks */
 static void gen_interrupt(DisasContext *s, uint8_t intno)
