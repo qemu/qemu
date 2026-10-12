@@ -261,12 +261,24 @@ static int qio_channel_file_close(QIOChannel *ioc,
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
 
-    if (qemu_close(fioc->fd) < 0) {
+    int ret = qemu_close(fioc->fd);
+    /*
+     * Set fioc->fd to -1, to prevent qio_channel_file_finalize() from
+     * closing it again.
+     *
+     * POSIX.1-2024 specifies that the fd is closed even when close()
+     * returns an error, except when the error is EINTR.  The systems that
+     * QEMU supports however violate the standard and always close the fd,
+     * even when returning EINTR.  If the fd was actually closed, we must not
+     * try to close it a second time as we could accidentally close someone
+     * else's fd. 
+     */
+    fioc->fd = -1;
+    if (ret < 0) {
         error_setg_errno(errp, errno,
-                         "Unable to close file");
+                         "Got an error while closing file");
         return -1;
     }
-    fioc->fd = -1;
     return 0;
 }
 
