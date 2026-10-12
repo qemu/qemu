@@ -22,7 +22,6 @@ struct AspeedCoprocessorState {
     MemoryRegion uart_alias;
     Clock *sysclk;
 
-    AspeedTimerCtrlState timerctrl;
     SerialMM *uart;
     int uart_dev;
 };
@@ -44,9 +43,6 @@ struct AspeedCoprocessorClass {
 struct Aspeed27x0CoprocessorState {
     AspeedCoprocessorState parent;
     AspeedINTCState intc[2];
-    UnimplementedDeviceState ipc[2];
-    UnimplementedDeviceState pric[2];
-    UnimplementedDeviceState otp;
 
     ARMv7MState armv7m;
 
