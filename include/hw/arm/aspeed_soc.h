@@ -59,7 +59,6 @@
 #define ASPEED_CPUS_NUM  4
 #define ASPEED_MACS_NUM  4
 #define ASPEED_UARTS_NUM 13
-#define ASPEED_JTAG_NUM  2
 #define ASPEED_PCIE_NUM  3
 #define ASPEED_INTC_NUM  2
 #define ASPEED_IOEXP_NUM 2
@@ -110,15 +109,6 @@ struct AspeedSoCState {
     AspeedPECIState peci;
     SerialMM uart[ASPEED_UARTS_NUM];
     Clock *sysclk;
-    UnimplementedDeviceState iomem;
-    UnimplementedDeviceState iomem0;
-    UnimplementedDeviceState iomem1;
-    UnimplementedDeviceState video;
-    UnimplementedDeviceState emmc_boot_controller;
-    UnimplementedDeviceState dpmcu;
-    UnimplementedDeviceState espi;
-    UnimplementedDeviceState udc;
-    UnimplementedDeviceState jtag[ASPEED_JTAG_NUM];
     AspeedAPB2OPBState fsi[2];
     AspeedLTPIState ltpi_ctrl[ASPEED_IOEXP_NUM];
     AspeedAST1700SoCState ioexp[ASPEED_IOEXP_NUM];
