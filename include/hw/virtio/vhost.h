@@ -109,6 +109,8 @@ struct vhost_dev {
     uint64_t backend_cap;
     /* @started: is the vhost device started? */
     bool started;
+    /* @initialized: has the full vhost_dev_init() completed? */
+    bool initialized;
     bool log_enabled;
     uint64_t log_size;
     Error *migration_blocker;
@@ -246,6 +248,18 @@ void vhost_config_mask(struct vhost_dev *hdev, VirtIODevice *vdev, bool mask);
 static inline bool vhost_dev_is_started(struct vhost_dev *hdev)
 {
     return hdev->started;
+}
+
+/**
+ * vhost_dev_is_initialized() - report init status of vhost device
+ * @hdev: common vhost_dev structure
+ *
+ * Return true if the full vhost_dev_init() has completed successfully
+ * (and vhost_dev_cleanup() has not run since).
+ */
+static inline bool vhost_dev_is_initialized(struct vhost_dev *hdev)
+{
+    return hdev->initialized;
 }
 
 static inline int vhost_dev_set_vring_enable(struct vhost_dev *hdev, int enable)
