@@ -250,12 +250,12 @@ static const struct QemuSeccompSyscall denylist[] = {
 #endif
 #ifdef __SNR_execveat
     { SCMP_SYS(execveat),               QEMU_SECCOMP_SET_SPAWN,
-      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
 #endif
     { SCMP_SYS(setns),                  QEMU_SECCOMP_SET_SPAWN,
-      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
     { SCMP_SYS(unshare),                QEMU_SECCOMP_SET_SPAWN,
-      ARRAY_SIZE(clone_arg_none), clone_arg_none, SCMP_ACT_ERRNO(EPERM) },
+      0, NULL, SCMP_ACT_ERRNO(EPERM) },
     /* resource control */
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL,
       0, NULL, SCMP_ACT_ERRNO(EPERM) },
