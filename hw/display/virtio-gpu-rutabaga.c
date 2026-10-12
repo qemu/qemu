@@ -902,7 +902,8 @@ virtio_gpu_rutabaga_aio_cb(void *opaque)
         }
 
         if (signaled_ctx_specific &&
-           (cmd->cmd_hdr.ring_idx != fence_data.ring_idx)) {
+           ((cmd->cmd_hdr.ctx_id != fence_data.ctx_id) ||
+           (cmd->cmd_hdr.ring_idx != fence_data.ring_idx))) {
             continue;
         }
 
