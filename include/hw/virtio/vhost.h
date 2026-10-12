@@ -3,6 +3,7 @@
 
 #include "net/vhost_net.h"
 #include "hw/virtio/vhost-backend.h"
+#include "qemu/notify.h"
 #include "hw/virtio/virtio.h"
 #include "system/memory.h"
 
@@ -122,6 +123,11 @@ struct vhost_dev {
      * when this vhost_dev goes away.  Set by the device.
      */
     bool owner_handed_over;
+    /*
+     * @migration_notifier: releases the ownership when an incoming
+     * migration fails, vhost_migration_notify()
+     */
+    NotifierWithReturn migration_notifier;
     bool log_enabled;
     uint64_t log_size;
     Error *migration_blocker;

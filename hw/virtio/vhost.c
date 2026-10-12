@@ -26,6 +26,7 @@
 #include "hw/virtio/vhost-user.h"
 #include "hw/mem/memory-device.h"
 #include "migration/blocker.h"
+#include "migration/misc.h"
 #include "migration/qemu-file-types.h"
 #include "system/dma.h"
 #include "system/memory.h"
@@ -70,6 +71,23 @@ static void vhost_dev_try_release_owner(struct vhost_dev *hdev,
         error_report("vhost: cannot release device ownership on %s: %s",
                      when, strerror(-r));
     }
+}
+
+/*
+ * A CPR target takes the device ownership in post_load().  If the load
+ * fails afterwards, release it before the source learns about the failure
+ * and resumes, so that the source can take the device back.
+ */
+static int vhost_migration_notify(NotifierWithReturn *notifier,
+                                  MigrationEvent *e, Error **errp)
+{
+    struct vhost_dev *hdev = container_of(notifier, struct vhost_dev,
+                                          migration_notifier);
+
+    if (e->type == MIG_EVENT_INCOMING_FAILED) {
+        vhost_dev_try_release_owner(hdev, "incoming migration failure");
+    }
+    return 0;
 }
 
 unsigned int vhost_get_max_memslots(void)
@@ -1842,6 +1860,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->log_enabled = false;
     hdev->started = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
+    migration_add_notifier_modes(&hdev->migration_notifier,
+                                 vhost_migration_notify,
+                                 BIT(MIG_MODE_CPR_TRANSFER) |
+                                 BIT(MIG_MODE_CPR_EXEC));
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     /*
@@ -1891,6 +1913,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
         memory_listener_unregister(&hdev->memory_listener);
         QLIST_REMOVE(hdev, entry);
     }
+    migration_remove_notifier(&hdev->migration_notifier);
     migrate_del_blocker(&hdev->migration_blocker);
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
