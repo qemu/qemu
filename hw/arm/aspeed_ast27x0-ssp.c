@@ -101,6 +101,16 @@ static struct nvic_intc_irq_info ast2700_ssp_intcmap[] = {
     {169, 1, 9, NULL},
 };
 
+static const UnimplementedDeviceConfig aspeed_soc_ast27x0ssp_unimp_devs[] = {
+    { "timerctrl", "aspeed.timerctrl", 0x72C10000, 0x200, -1000 },
+    { "ipc0", "aspeed.ipc0", 0x72C1C000, 0x1000, -1000 },
+    { "ipc1", "aspeed.ipc1", 0x74C39000, 0x1000, -1000 },
+    { "pric0", "aspeed.pric0", 0x72140000, 0x1000, -1000 },
+    { "pric1", "aspeed.pric1", 0x74100000, 0x1000, -1000 },
+    { "otp", "aspeed.otp", 0x74C07000, 0x800, -1000 },
+    { }
+};
+
 static qemu_irq aspeed_soc_ast27x0ssp_get_irq(AspeedCoprocessorState *s,
                                               int dev)
 {
@@ -136,19 +146,6 @@ static void aspeed_soc_ast27x0ssp_init(Object *obj)
                             TYPE_ASPEED_2700SSP_INTC);
     object_initialize_child(obj, "intc1", &a->intc[1],
                             TYPE_ASPEED_2700SSP_INTCIO);
-
-    object_initialize_child(obj, "timerctrl", &s->timerctrl,
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "ipc0", &a->ipc[0],
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "ipc1", &a->ipc[1],
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "pric0", &a->pric[0],
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "pric1", &a->pric[1],
-                            TYPE_UNIMPLEMENTED_DEVICE);
-    object_initialize_child(obj, "otp", &a->otp,
-                            TYPE_UNIMPLEMENTED_DEVICE);
 }
 
 static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
@@ -283,24 +280,8 @@ static void aspeed_soc_ast27x0ssp_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_FMC],
                                 &a->fmc_alias);
 
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&s->timerctrl),
-                                  "aspeed.timerctrl",
-                                  sc->memmap[ASPEED_DEV_TIMER1], 0x200);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->ipc[0]),
-                                  "aspeed.ipc0",
-                                  sc->memmap[ASPEED_DEV_IPC0], 0x1000);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->ipc[1]),
-                                  "aspeed.ipc1",
-                                  sc->memmap[ASPEED_DEV_IPC1], 0x1000);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->pric[0]),
-                                  "aspeed.pric0",
-                                  sc->memmap[ASPEED_DEV_PRIC0], 0x1000);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->pric[1]),
-                                  "aspeed.pric1",
-                                  sc->memmap[ASPEED_DEV_PRIC1], 0x1000);
-    aspeed_mmio_map_unimplemented(s->memory, SYS_BUS_DEVICE(&a->otp),
-                                  "aspeed.otp",
-                                  sc->memmap[ASPEED_DEV_OTP], 0x800);
+    /* Unimplemented devices */
+    create_unimplemented_devices(OBJECT(s), s->memory, sc->unimp_devs);
 }
 
 static const Property aspeed_27x0_coprocessor_properties[] = {
@@ -330,6 +311,7 @@ static void aspeed_soc_ast27x0ssp_class_init(ObjectClass *klass,
     sc->valid_cpu_types = valid_cpu_types;
     sc->irqmap = aspeed_soc_ast27x0ssp_irqmap;
     sc->memmap = aspeed_soc_ast27x0ssp_memmap;
+    sc->unimp_devs = aspeed_soc_ast27x0ssp_unimp_devs;
 }
 
 static const TypeInfo aspeed_soc_ast27x0ssp_types[] = {

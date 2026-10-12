@@ -37,6 +37,7 @@ struct AspeedCoprocessorClass {
     /** valid_cpu_types: NULL terminated array of a single CPU type. */
     const char * const *valid_cpu_types;
     const hwaddr *memmap;
+    const UnimplementedDeviceConfig *unimp_devs;
     const int *irqmap;
 };
 
