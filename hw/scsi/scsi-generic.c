@@ -424,7 +424,8 @@ static void scsi_handle_persistent_reserve_out_reply(
     }
 }
 
-static bool scsi_generic_pr_register(SCSIDevice *s, uint64_t key, Error **errp)
+static bool scsi_generic_pr_register_ignore(SCSIDevice *s, uint64_t key,
+                                            Error **errp)
 {
     uint8_t cmd[10] = {};
     uint8_t buf[24] = {};
@@ -432,14 +433,15 @@ static bool scsi_generic_pr_register(SCSIDevice *s, uint64_t key, Error **errp)
     int ret;
 
     cmd[0] = PERSISTENT_RESERVE_OUT;
-    cmd[1] = PRO_REGISTER;
+    cmd[1] = PRO_REGISTER_AND_IGNORE_EXISTING_KEY;
     cmd[8] = sizeof(buf);
     memcpy(&buf[8], &key_be, sizeof(key_be));
 
     ret = scsi_SG_IO(s->conf.blk, SG_DXFER_TO_DEV, cmd, sizeof(cmd),
                      buf, sizeof(buf), s->io_timeout, errp);
     if (ret < 0) {
-        error_prepend(errp, "PERSISTENT RESERVE OUT with REGISTER: ");
+        error_prepend(errp, "PERSISTENT RESERVE OUT with "
+                      "REGISTER AND IGNORE EXISTING KEY: ");
         return false;
     }
     return true;
@@ -620,7 +622,7 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
         return true; /* no PR state, do nothing */
     }
 
-    if (!scsi_generic_pr_register(s, key, errp)) {
+    if (!scsi_generic_pr_register_ignore(s, key, errp)) {
         return false;
     }
 
@@ -647,7 +649,7 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
      * CONFLICT is expected if our registration remained in place.
      */
     if (resv_type == 0) {
-        scsi_generic_pr_register(s, key, NULL);
+        scsi_generic_pr_register_ignore(s, key, NULL);
     }
     return true;
 }
