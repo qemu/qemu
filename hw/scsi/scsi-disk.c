@@ -2761,20 +2761,26 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
  * fails because the destination may have already preempted and we need to get
  * the reservation back.
  */
+static void scsi_block_migration_failed(SCSIDiskState *s)
+{
+    SCSIDevice *d = &s->qdev;
+    Error *local_err = NULL;
+
+    if (!scsi_generic_pr_state_preempt(d, &local_err)) {
+        /* MIG_EVENT_FAILED cannot fail, so just warn */
+        error_prepend(&local_err, "scsi-block migration rollback: ");
+        warn_report_err(local_err);
+    }
+}
+
 static int scsi_block_migration_notifier(NotifierWithReturn *notifier,
                                          MigrationEvent *e, Error **errp)
 {
-    if (e->type == MIG_EVENT_FAILED) {
-        SCSIDiskState *s =
-            container_of(notifier, SCSIDiskState, migration_notifier);
-        SCSIDevice *d = &s->qdev;
-        Error *local_err = NULL;
+    SCSIDiskState *s =
+        container_of(notifier, SCSIDiskState, migration_notifier);
 
-        if (!scsi_generic_pr_state_preempt(d, &local_err)) {
-            /* MIG_EVENT_FAILED cannot fail, so just warn */
-            error_prepend(&local_err, "scsi-block migration rollback: ");
-            warn_report_err(local_err);
-        }
+    if (e->type == MIG_EVENT_FAILED) {
+        scsi_block_migration_failed(s);
     }
     return 0;
 }
