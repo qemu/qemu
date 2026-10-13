@@ -319,13 +319,11 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     uint32_t plv, base_c, base_v;
     int64_t addr_high;
     CPUSysState *sys = env_sys(env);
-    uint8_t da = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, DA);
-    uint8_t pg = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PG);
     vaddr address;
 
     /* Check PG and DA */
     address = context->addr;
-    if (da & !pg) {
+    if (mmu_idx == MMU_DA_IDX) {
         context->physical = address & loongarch_palen_mask(env);
         context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         context->mmu_index = MMU_DA_IDX;
