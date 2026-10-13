@@ -146,7 +146,7 @@ struct GICv5CommonClass {
 /* Number of INTID.ID bits we support */
 #define QEMU_GICV5_ID_BITS 24
 /* Min LPI_ID_BITS supported */
-#define QEMU_GICV5_MIN_LPI_ID_BITS 14
+#define QEMU_GICV5_MIN_LPI_ID_BITS 0
 /* IAFFID bits supported */
 #define QEMU_GICV5_IAFFID_BITS 16
 /* Number of priority bits supported in the IRS */
