@@ -36,6 +36,7 @@
 
 static void ufs_exec_req(UfsRequest *req);
 static void ufs_clear_req(UfsRequest *req);
+static void ufs_mcq_process_cq(void *opaque);
 
 static inline uint64_t ufs_mcq_reg_addr(UfsHc *u, int qid)
 {
@@ -446,13 +447,14 @@ static void ufs_mcq_process_sq(void *opaque)
 {
     UfsSq *sq = opaque;
     UfsHc *u = sq->u;
+    UfsMcqOpReg *opr = &u->mcq_op_reg[sq->sqid];
     UfsSqEntry sqe;
     UfsRequest *req;
     hwaddr addr;
     uint16_t head = ufs_mcq_sq_head(u, sq->sqid);
     int err;
 
-    if (u->resetting) {
+    if (u->resetting || FIELD_EX32(opr->sq.rts, SQRTS, STS)) {
         return;
     }
 
@@ -473,6 +475,17 @@ static void ufs_mcq_process_sq(void *opaque)
         ufs_mcq_init_req(sq->u, req, sq);
         memcpy(&req->utrd, &sqe, sizeof(req->utrd));
 
+        if ((le32_to_cpu(sqe.header.dword_0) >> 28) == UFS_UTP_CMD_TYPE_NULL) {
+            ufs_dma_read_req_upiu(req);
+            req->utrd.header.dword_2 = cpu_to_le32(
+                (le32_to_cpu(req->utrd.header.dword_2) & ~UFS_MASK_OCS) |
+                UFS_OCS_ABORTED);
+            req->state = UFS_REQUEST_COMPLETE;
+            QTAILQ_INSERT_TAIL(&sq->cq->req_list, req, entry);
+            ufs_mcq_process_cq(sq->cq);
+            continue;
+        }
+
         req->state = UFS_REQUEST_RUNNING;
         ufs_exec_req(req);
     }
@@ -492,7 +505,10 @@ static void ufs_mcq_process_cq(void *opaque)
             break;
         }
 
-        ufs_dma_write_rsp_upiu(req);
+        if ((le32_to_cpu(req->utrd.header.dword_0) >> 28) !=
+            UFS_UTP_CMD_TYPE_NULL) {
+            ufs_dma_write_rsp_upiu(req);
+        }
 
         /* UTRD/CQE are LE; round-trip through host to keep BE correct. */
         uint64_t ucdba =
@@ -536,6 +552,7 @@ static void ufs_mcq_process_cq(void *opaque)
         }
 
         ufs_clear_req(req);
+        req->state = UFS_REQUEST_IDLE;
         QTAILQ_INSERT_TAIL(&req->sq->req_list, req, entry);
     }
 
@@ -770,6 +787,7 @@ static void ufs_hce_reset(UfsHc *u)
     u->reg.utmrldbr = 0;
     u->reg.utrlcnr = 0;
     u->reg.utrlrsr = 0;
+    u->reg.utmrlrsr = 0;
     u->reg.is = 0;
 
     /* 4. Free MCQ Queues and reset MCQ dynamic registers */
@@ -805,6 +823,126 @@ static void ufs_hce_reset(UfsHc *u)
 
     /* 5. De-assert IRQ */
     ufs_irq_check(u);
+}
+
+static UfsRequest *ufs_find_req_by_tag(UfsHc *u, uint8_t lun, uint32_t task_tag)
+{
+    if (task_tag < u->params.nutrs) {
+        UfsRequest *req = &u->req_list[task_tag];
+        if ((req->state == UFS_REQUEST_RUNNING ||
+             req->state == UFS_REQUEST_READY) &&
+            req->req_upiu.header.lun == lun &&
+            req->req_upiu.header.task_tag == task_tag) {
+            return req;
+        }
+    }
+
+    if (u->params.mcq) {
+        for (int q = 0; q < ARRAY_SIZE(u->sq); q++) {
+            UfsSq *sq = u->sq[q];
+            if (!sq) {
+                continue;
+            }
+            for (int i = 0; i < sq->size; i++) {
+                UfsRequest *req = &sq->req[i];
+                if (req->state == UFS_REQUEST_RUNNING &&
+                    req->req_upiu.header.lun == lun &&
+                    req->req_upiu.header.task_tag == task_tag) {
+                    return req;
+                }
+            }
+        }
+    }
+
+    return NULL;
+}
+
+static void ufs_process_tmr(UfsHc *u, uint32_t val)
+{
+    hwaddr base_addr = (((hwaddr)u->reg.utmrlbau) << 32) + u->reg.utmrlba;
+    uint32_t completed_int_mask = 0;
+
+    u->reg.utmrldbr |= val;
+
+    for (int i = 0; i < u->params.nutmrs; i++) {
+        if (val & (1 << i)) {
+            uint64_t desc_addr = base_addr + i * sizeof(UtpTaskReqDesc);
+            UtpTaskReqDesc desc;
+            uint8_t tm_func, tm_resp, lun;
+            uint32_t task_tag;
+
+            if (ufs_addr_read(u, desc_addr, &desc, sizeof(desc))) {
+                continue;
+            }
+
+            tm_func = desc.upiu_req.req_header.query_func;
+            lun = desc.upiu_req.req_header.lun;
+            task_tag = be32_to_cpu(desc.upiu_req.input_param2);
+
+            if (tm_func == UFS_QUERY_TASK) {
+                UfsRequest *req = ufs_find_req_by_tag(u, lun, task_tag);
+
+                if (req) {
+                    tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED;
+                } else {
+                    tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+                }
+            } else if (tm_func == UFS_ABORT_TASK) {
+                UfsRequest *req = ufs_find_req_by_tag(u, lun, task_tag);
+
+                if (req) {
+                    if (ufs_mcq_req(req)) {
+                        if (req->sreq != NULL) {
+                            SCSIRequest *sreq = req->sreq;
+                            req->sreq = NULL;
+                            scsi_req_cancel(sreq);
+                        }
+                        req->state = UFS_REQUEST_ERROR;
+                    } else {
+                        ufs_clear_req(req);
+                        req->state = UFS_REQUEST_IDLE;
+                        u->reg.utrldbr &= ~(1 << req->slot);
+                    }
+                }
+                tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL;
+            } else {
+                tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_NOT_SUPPORTED;
+            }
+
+            memset(&desc.upiu_rsp, 0, sizeof(desc.upiu_rsp));
+            desc.header.dword_2 = cpu_to_le32(
+                (le32_to_cpu(desc.header.dword_2) & ~UFS_MASK_OCS) |
+                UFS_OCS_SUCCESS);
+            desc.upiu_rsp.rsp_header.trans_type =
+                UFS_UPIU_TRANSACTION_TASK_RSP;
+            desc.upiu_rsp.rsp_header.flags = 0;
+            desc.upiu_rsp.rsp_header.lun = desc.upiu_req.req_header.lun;
+            desc.upiu_rsp.rsp_header.task_tag =
+                desc.upiu_req.req_header.task_tag;
+            if (tm_resp == UFS_UPIU_TASK_MANAGEMENT_FUNC_COMPL ||
+                tm_resp == UFS_UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED) {
+                desc.upiu_rsp.rsp_header.response = UFS_COMMAND_RESULT_SUCCESS;
+            } else {
+                desc.upiu_rsp.rsp_header.response = UFS_COMMAND_RESULT_FAIL;
+            }
+            desc.upiu_rsp.output_param1 = cpu_to_be32(tm_resp);
+
+            if (ufs_addr_write(u, desc_addr, &desc, sizeof(desc))) {
+                continue;
+            }
+
+            trace_ufs_process_tmr(tm_func, task_tag, tm_resp);
+            u->reg.utmrldbr &= ~(1 << i);
+            if (le32_to_cpu(desc.header.dword_0) & UFS_UTP_REQ_DESC_INT_CMD) {
+                completed_int_mask |= (1 << i);
+            }
+        }
+    }
+
+    if (completed_int_mask) {
+        u->reg.is = FIELD_DP32(u->reg.is, IS, UTMRCS, 1);
+        ufs_irq_check(u);
+    }
 }
 
 static void ufs_write_reg(UfsHc *u, hwaddr offset, uint32_t data, unsigned size)
@@ -869,10 +1007,20 @@ static void ufs_write_reg(UfsHc *u, hwaddr offset, uint32_t data, unsigned size)
     case A_MCQCONFIG:
         u->reg.mcqconfig = data;
         break;
-    case A_UTRLCLR:
     case A_UTMRLDBR:
+        if (!FIELD_EX32(u->reg.hce, HCE, HCE) ||
+            !FIELD_EX32(u->reg.utmrlrsr, UTMRLRSR, UTMRLRSR)) {
+            break;
+        }
+        ufs_process_tmr(u, data);
+        break;
     case A_UTMRLCLR:
+        u->reg.utmrldbr &= data;
+        break;
     case A_UTMRLRSR:
+        u->reg.utmrlrsr = data;
+        break;
+    case A_UTRLCLR:
         trace_ufs_err_unsupport_register_offset(offset);
         break;
     default:
@@ -970,6 +1118,56 @@ static void ufs_mcq_process_db(UfsHc *u, uint8_t qid, uint32_t db)
     qemu_bh_schedule(sq->bh);
 }
 
+static void ufs_mcq_sq_cleanup(UfsHc *u, uint8_t qid)
+{
+    UfsMcqOpReg *opr = &u->mcq_op_reg[qid];
+    UfsSq *sq = u->sq[qid];
+    uint8_t task_tag = FIELD_EX32(opr->sq.cti, SQCTI, TASK_TAG);
+    uint8_t lun = FIELD_EX32(opr->sq.cti, SQCTI, LUN);
+    UfsRequest *req = NULL;
+    uint8_t rtc;
+
+    opr->sq.rts = FIELD_DP32(opr->sq.rts, SQRTS, CUS, 0);
+    opr->sq.rts = FIELD_DP32(opr->sq.rts, SQRTS, RTC, 0);
+
+    if (!sq) {
+        rtc = 3;
+    } else if (!FIELD_EX32(opr->sq.rts, SQRTS, STS)) {
+        rtc = 2;
+    } else {
+        for (int i = 0; i < sq->size; i++) {
+            UfsRequest *candidate = &sq->req[i];
+            if ((candidate->state == UFS_REQUEST_RUNNING ||
+                 candidate->state == UFS_REQUEST_ERROR) &&
+                candidate->req_upiu.header.task_tag == task_tag &&
+                candidate->req_upiu.header.lun == lun) {
+                req = candidate;
+                break;
+            }
+        }
+
+        if (req) {
+            if (req->sreq != NULL) {
+                SCSIRequest *sreq = req->sreq;
+                req->sreq = NULL;
+                scsi_req_cancel(sreq);
+            }
+            req->utrd.header.dword_2 = cpu_to_le32(
+                (le32_to_cpu(req->utrd.header.dword_2) & ~UFS_MASK_OCS) |
+                UFS_OCS_ABORTED);
+            req->state = UFS_REQUEST_COMPLETE;
+            QTAILQ_INSERT_TAIL(&sq->cq->req_list, req, entry);
+            ufs_mcq_process_cq(sq->cq);
+            rtc = 0;
+        } else {
+            rtc = 1;
+        }
+    }
+
+    opr->sq.rts = FIELD_DP32(opr->sq.rts, SQRTS, CUS, 1);
+    opr->sq.rts = FIELD_DP32(opr->sq.rts, SQRTS, RTC, rtc);
+}
+
 static void ufs_write_mcq_op_reg(UfsHc *u, hwaddr offset, uint32_t data,
                                  unsigned size)
 {
@@ -983,12 +1181,49 @@ static void ufs_write_mcq_op_reg(UfsHc *u, hwaddr offset, uint32_t data,
 
     opr = &u->mcq_op_reg[qid];
 
+    trace_ufs_write_mcq_op_reg(qid, (uint32_t)(offset % sizeof(UfsMcqOpReg)),
+                               data);
+
     switch (offset % sizeof(UfsMcqOpReg)) {
     case offsetof(UfsMcqOpReg, sq.tp):
         if (opr->sq.tp != data) {
             ufs_mcq_process_db(u, qid, data);
         }
         opr->sq.tp = data;
+        break;
+    case offsetof(UfsMcqOpReg, sq.rtc): {
+        bool prev_stop = FIELD_EX32(opr->sq.rtc, SQRTC, STOP);
+        bool new_stop = FIELD_EX32(data, SQRTC, STOP);
+
+        if (!prev_stop && new_stop) {
+            /* SQ_STOP (0 -> 1): Stop queue */
+            opr->sq.rts = FIELD_DP32(opr->sq.rts, SQRTS, STS, 1);
+            if (u->sq[qid] && u->sq[qid]->bh) {
+                qemu_bh_cancel(u->sq[qid]->bh);
+            }
+        } else if (prev_stop && !new_stop) {
+            /* SQ_START (1 -> 0): Resume queue */
+            opr->sq.rts = FIELD_DP32(opr->sq.rts, SQRTS, STS, 0);
+            if (u->sq[qid] && u->sq[qid]->bh) {
+                qemu_bh_schedule(u->sq[qid]->bh);
+            }
+        }
+        if (FIELD_EX32(data, SQRTC, ICU)) {
+            ufs_mcq_sq_cleanup(u, qid);
+            data = FIELD_DP32(data, SQRTC, ICU, 0);
+        }
+        opr->sq.rtc = data;
+        break;
+    }
+    case offsetof(UfsMcqOpReg, sq.cti):
+        opr->sq.cti = data;
+        break;
+    case offsetof(UfsMcqOpReg, sq_int.is):
+        opr->sq_int.is &= ~data;
+        ufs_irq_check(u);
+        break;
+    case offsetof(UfsMcqOpReg, sq_int.ie):
+        opr->sq_int.ie = data;
         break;
     case offsetof(UfsMcqOpReg, cq.hp): {
         UfsCq *cq = u->cq[qid];
@@ -1006,8 +1241,27 @@ static void ufs_write_mcq_op_reg(UfsHc *u, hwaddr offset, uint32_t data,
         ufs_mcq_update_cq_head(u, qid, data);
         break;
     }
-    case offsetof(UfsMcqOpReg, cq_int.is):
+    case offsetof(UfsMcqOpReg, cq_int.is): {
+        bool pending = false;
+
         opr->cq_int.is &= ~data;
+        for (int i = 0; i < ARRAY_SIZE(u->mcq_op_reg); i++) {
+            if (u->mcq_op_reg[i].cq_int.is) {
+                pending = true;
+                break;
+            }
+        }
+        if (!pending) {
+            u->reg.is = FIELD_DP32(u->reg.is, IS, CQES, 0);
+        }
+        ufs_irq_check(u);
+        break;
+    }
+    case offsetof(UfsMcqOpReg, cq_int.ie):
+        opr->cq_int.ie = data;
+        break;
+    case offsetof(UfsMcqOpReg, cq_int.iacr):
+        opr->cq_int.iacr = data;
         break;
     default:
         trace_ufs_err_invalid_register_offset(offset);
@@ -2221,6 +2475,12 @@ void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
 
 static void ufs_clear_req(UfsRequest *req)
 {
+    if (req->sreq != NULL) {
+        SCSIRequest *sreq = req->sreq;
+        req->sreq = NULL;
+        scsi_req_cancel(sreq);
+    }
+
     if (req->sg != NULL) {
         qemu_sglist_destroy(req->sg);
         g_free(req->sg);

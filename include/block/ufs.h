@@ -141,6 +141,7 @@ REG32(UTMRLBAU, offsetof(UfsReg, utmrlbau))
 REG32(UTMRLDBR, offsetof(UfsReg, utmrldbr))
 REG32(UTMRLCLR, offsetof(UfsReg, utmrlclr))
 REG32(UTMRLRSR, offsetof(UfsReg, utmrlrsr))
+    FIELD(UTMRLRSR, UTMRLRSR, 0, 1)
 REG32(UICCMD, offsetof(UfsReg, uiccmd))
 REG32(UCMDARG1, offsetof(UfsReg, ucmdarg1))
 REG32(UCMDARG2, offsetof(UfsReg, ucmdarg2))
@@ -223,6 +224,21 @@ typedef struct QEMU_PACKED UfsMcqSqReg {
     uint32_t cti;
     uint32_t rts;
 } UfsMcqSqReg;
+
+REG32(SQRTC, offsetof(UfsMcqSqReg, rtc))
+    FIELD(SQRTC, STOP, 0, 1)
+    FIELD(SQRTC, ICU, 1, 1)
+
+REG32(SQCTI, offsetof(UfsMcqSqReg, cti))
+    FIELD(SQCTI, TASK_TAG, 0, 8)
+    FIELD(SQCTI, LUN, 8, 8)
+    FIELD(SQCTI, IID, 16, 4)
+    FIELD(SQCTI, EXT_IID, 20, 4)
+
+REG32(SQRTS, offsetof(UfsMcqSqReg, rts))
+    FIELD(SQRTS, STS, 0, 1)
+    FIELD(SQRTS, CUS, 1, 1)
+    FIELD(SQRTS, RTC, 4, 4)
 
 typedef struct QEMU_PACKED UfsMcqCqReg {
     uint32_t hp;
@@ -649,6 +665,7 @@ enum {
     UFS_UTP_CMD_TYPE_SCSI = 0x0,
     UFS_UTP_CMD_TYPE_UFS = 0x1,
     UFS_UTP_CMD_TYPE_DEV_MANAGE = 0x2,
+    UFS_UTP_CMD_TYPE_NULL = 0xf,
 };
 
 /* To accommodate UFS2.0 required Command type */

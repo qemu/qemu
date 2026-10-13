@@ -2757,6 +2757,7 @@ S: Supported
 F: hw/ufs/*
 F: include/block/ufs.h
 F: tests/qtest/ufs-test.c
+F: docs/system/devices/ufs.rst
 
 megasas
 L: qemu-block@nongnu.org
