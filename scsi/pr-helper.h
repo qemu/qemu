@@ -31,6 +31,9 @@
 #define PR_HELPER_SENSE_SIZE   96
 #define PR_HELPER_DATA_SIZE    8192
 
+/* Protocol features */
+#define PR_HELPER_FEATURE_CLEANUP (1u << 0)
+
 typedef struct PRHelperResponse {
     int32_t result;
     int32_t sz;

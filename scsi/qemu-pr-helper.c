@@ -537,6 +537,110 @@ static int coroutine_fn multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *se
                                      paramp, noisy, verbose);
     return mpath_reconstruct_sense(fd, r, sense);
 }
+
+/* Get the device-mapper device name given its block device fd */
+static char *get_dm_name(int fd, Error **errp)
+{
+    struct stat st;
+    int ret;
+
+    assert(is_mpath(fd));
+
+    ret = fstat(fd, &st);
+    if (ret != 0) {
+        error_setg_errno(errp, errno, "fstat failed on fd %d", fd);
+        return NULL;
+    }
+
+    return g_strdup_printf("dm-%u", minor(st.st_rdev));
+}
+
+/* Perform a multipathd command */
+static bool multipathd_cmd(int fd, const char *cmd, Error **errp)
+{
+    const unsigned int timeout_ms = 60000;
+    char *reply = NULL;
+    int last_errno;
+    int ret;
+
+    ret = mpath_process_cmd(fd, cmd, &reply, timeout_ms);
+    last_errno = errno;
+    if (reply && strcmp(reply, "ok\n") != 0) {
+        error_setg(errp, "mpath_process_cmd(%d, \"%s\") replied \"%s\"",
+                   fd, cmd, reply);
+        free(reply);
+        return false;
+    }
+    free(reply);
+    if (ret == -1) {
+        error_setg_errno(errp, last_errno,
+                         "mpath_process_cmd(%d, \"%s\") failed",
+                         fd, cmd);
+        return false;
+    }
+    return true;
+}
+
+/* Unregister so this I_T nexus has no key registered anymore */
+static int coroutine_fn multipath_pr_cleanup_unregister(int fd, uint8_t *sense,
+                                                        Error **errp)
+{
+    uint8_t cdb[PR_HELPER_CDB_SIZE] = {};
+    uint8_t param[PR_OUT_FIXED_PARAM_SIZE] = {};
+
+    /* Fill in CDB */
+    cdb[0] = PERSISTENT_RESERVE_OUT;               /* OPERATION CODE */
+    cdb[1] = PRO_REGISTER_AND_IGNORE_EXISTING_KEY; /* SERVICE ACTION */
+    stl_be_p(&cdb[5], sizeof(param));              /* PARAMETER LIST LENGTH */
+
+    /* The parameter list is all zeroes, so there is nothing to fill in */
+
+    return multipath_pr_out(fd, cdb, sense, param, sizeof(param));
+}
+
+/*
+ * A special version of REGISTER AND IGNORE EXISTING KEY with sark=0 to
+ * unregister the key without triggering multipathd's preemption. This succeeds
+ * when no key is registered too. This is essential so the migration source
+ * cleans up its registered key without multipathd preempting the destination
+ * host.
+ */
+static int coroutine_fn multipath_pr_cleanup(int bdev_fd, uint8_t *sense,
+                                             Error **errp)
+{
+    g_autofree char *bdev_dm_name = get_dm_name(bdev_fd, errp);
+    g_autofree char *cmd = NULL;
+    int multipathd_fd;
+
+    if (bdev_dm_name == NULL) {
+        return -1;
+    }
+
+    /* First make multipathd forget the key and reservation state */
+    multipathd_fd = mpath_connect();
+    if (multipathd_fd == -1) {
+        error_setg_errno(errp, errno, "mpath_connect() failed");
+        return -1;
+    }
+
+    cmd = g_strdup_printf("unsetprkey map %s", bdev_dm_name);
+    if (!multipathd_cmd(multipathd_fd, cmd, errp)) {
+        mpath_disconnect(multipathd_fd);
+        return -1;
+    }
+
+    g_free(cmd);
+    cmd = g_strdup_printf("unsetprstatus map %s", bdev_dm_name);
+    if (!multipathd_cmd(multipathd_fd, cmd, errp)) {
+        mpath_disconnect(multipathd_fd);
+        return -1;
+    }
+
+    mpath_disconnect(multipathd_fd);
+
+    /* Now unregister the key at the SCSI level */
+    return multipath_pr_cleanup_unregister(bdev_fd, sense, errp);
+}
 #endif
 
 static int coroutine_fn do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
@@ -576,6 +680,21 @@ static int coroutine_fn do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
     resp_sz = sz;
     return do_sgio(fd, cdb, sense, (uint8_t *)param, &resp_sz,
                    SG_DXFER_TO_DEV);
+}
+
+static int coroutine_fn do_pr_cleanup(int fd, uint8_t *sense, Error **errp)
+{
+    if ((fcntl(fd, F_GETFL) & O_ACCMODE) == O_RDONLY) {
+        scsi_build_sense(sense, SENSE_CODE(INVALID_OPCODE));
+        return CHECK_CONDITION;
+    }
+
+#ifdef CONFIG_MPATH
+    if (is_mpath(fd)) {
+        return multipath_pr_cleanup(fd, sense, errp);
+    }
+#endif
+    return GOOD;
 }
 
 /* Client */
@@ -667,7 +786,8 @@ static int coroutine_fn prh_read_request(PRHelperClient *client,
     }
 
     if (req->cdb[0] != PERSISTENT_RESERVE_OUT &&
-        req->cdb[0] != PERSISTENT_RESERVE_IN) {
+        req->cdb[0] != PERSISTENT_RESERVE_IN &&
+        req->cdb[0] != PR_HELPER_CLEANUP) {
         error_setg(errp, "Invalid CDB, closing socket.");
         goto out_close;
     }
@@ -703,7 +823,8 @@ static int coroutine_fn prh_write_response(PRHelperClient *client,
     ssize_t r;
     size_t sz;
 
-    if (req->cdb[0] == PERSISTENT_RESERVE_IN && resp->result == GOOD) {
+    if (req->cdb[0] == PERSISTENT_RESERVE_IN &&
+        resp->result == GOOD) {
         assert(resp->sz <= req->sz && resp->sz <= sizeof(client->data));
     } else {
         assert(resp->sz == 0);
@@ -739,10 +860,8 @@ static void coroutine_fn prh_co_entry(void *opaque)
 
     qio_channel_set_follow_coroutine_ctx(QIO_CHANNEL(client->ioc), true);
 
-    /* A very simple negotiation for future extensibility.  No features
-     * are defined so write 0.
-     */
-    flags = cpu_to_be32(0);
+    /* A very simple negotiation for future extensibility */
+    flags = cpu_to_be32(PR_HELPER_FEATURE_CLEANUP);
     r = qio_channel_write_all(QIO_CHANNEL(client->ioc),
                              (char *) &flags, sizeof(flags), NULL);
     if (r < 0) {
@@ -751,7 +870,7 @@ static void coroutine_fn prh_co_entry(void *opaque)
 
     r = qio_channel_read_all(QIO_CHANNEL(client->ioc),
                              (char *) &flags, sizeof(flags), NULL);
-    if (be32_to_cpu(flags) != 0 || r < 0) {
+    if ((be32_to_cpu(flags) & ~PR_HELPER_FEATURE_CLEANUP) != 0 || r < 0) {
         goto out;
     }
 
@@ -766,15 +885,24 @@ static void coroutine_fn prh_co_entry(void *opaque)
         }
 
         num_active_sockets++;
-        if (req.cdb[0] == PERSISTENT_RESERVE_OUT) {
+        switch (req.cdb[0]) {
+        case PERSISTENT_RESERVE_OUT:
             r = do_pr_out(req.fd, req.cdb, resp.sense,
                           client->data, sz);
             resp.sz = 0;
-        } else {
+            break;
+        case PERSISTENT_RESERVE_IN:
             resp.sz = sizeof(client->data);
             r = do_pr_in(req.fd, req.cdb, resp.sense,
                          client->data, &resp.sz);
             resp.sz = MIN(resp.sz, sz);
+            break;
+        case PR_HELPER_CLEANUP:
+            r = do_pr_cleanup(req.fd, resp.sense, &local_err);
+            resp.sz = 0;
+            break;
+        default:
+            abort();
         }
         num_active_sockets--;
         close(req.fd);
