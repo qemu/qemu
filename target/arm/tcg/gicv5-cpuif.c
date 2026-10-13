@@ -87,7 +87,7 @@ FIELD(ICC_HPPIR_EL1, HPPIV, 32, 1)
 
 static GICv5Common *gicv5_get_gic(CPUARMState *env)
 {
-    return env->gicv5state;
+    return env->gicv5.gicv5state;
 }
 
 static GICv5Domain gicv5_logical_domain(CPUARMState *env)
@@ -147,7 +147,7 @@ static GICv5PendingIrq gic_hppi(CPUARMState *env, GICv5Domain domain)
         return GICV5_PENDING_IRQ_NONE;
     }
 
-    irs_hppi = gicv5_get_hppi(gic, domain, env->gicv5_iaffid);
+    irs_hppi = gicv5_get_hppi(gic, domain, env->gicv5.iaffid);
 
     /*
      * If the best PPI and the best interrupt from the IRS have the
@@ -788,7 +788,7 @@ static const ARMCPRegInfo gicv5_cpuif_reginfo[] = {
         .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 10, .opc2 = 5,
         .access = PL1_R, .type = ARM_CP_NO_RAW,
         /* ICC_IAFFIDR_EL1 holds the IAFFID only, in its low bits */
-        .fieldoffset = offsetof(CPUARMState, gicv5_iaffid),
+        .fieldoffset = offsetof(CPUARMState, gicv5.iaffid),
         /*
          * The field is a constant value set in gicv5_set_gicv5state(),
          * so don't allow it to be overwritten by reset.
