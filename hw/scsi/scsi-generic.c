@@ -923,7 +923,7 @@ int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
                uint32_t timeout, Error **errp)
 {
     sg_io_hdr_t io_header;
-    uint8_t sensebuf[8] = {};
+    uint8_t sensebuf[SCSI_SENSE_LEN] = {};
     int ret;
 
     memset(&io_header, 0, sizeof(io_header));
@@ -947,15 +947,18 @@ int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
             error_setg_errno(errp, -ret, "SG_IO ioctl failed");
         } else {
             g_autofree char *sensebuf_hex =
-                g_strdup_printf("%02x%02x%02x%02x%02x%02x%02x%02x",
-                                sensebuf[0],
-                                sensebuf[1],
-                                sensebuf[2],
-                                sensebuf[3],
-                                sensebuf[4],
-                                sensebuf[5],
-                                sensebuf[6],
-                                sensebuf[7]);
+                g_strdup_printf("%02x%02x%02x%02x%02x%02x%02x%02x"
+                                "%02x%02x%02x%02x%02x%02x%02x%02x"
+                                "%02x%02x",
+                                sensebuf[0], sensebuf[1],
+                                sensebuf[2], sensebuf[3],
+                                sensebuf[4], sensebuf[5],
+                                sensebuf[6], sensebuf[7],
+                                sensebuf[8], sensebuf[9],
+                                sensebuf[10], sensebuf[11],
+                                sensebuf[12], sensebuf[13],
+                                sensebuf[14], sensebuf[15],
+                                sensebuf[16], sensebuf[17]);
 
             error_setg(errp, "SG_IO SCSI command failed with status=0x%x "
                     "driver_status=0x%x host_status=0x%x sensebuf=%s "
