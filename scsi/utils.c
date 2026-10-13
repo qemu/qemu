@@ -29,6 +29,9 @@ uint32_t scsi_data_cdb_xfer(uint8_t *buf)
 
 uint32_t scsi_cdb_xfer(uint8_t *buf)
 {
+    if (buf[0] == PR_HELPER_CLEANUP) {
+        return 0;
+    }
     switch (buf[0] >> 5) {
     case 0:
         return buf[4];
