@@ -1171,6 +1171,16 @@ void object_unref(void *obj);
  * @opaque: an opaque pointer to pass to the callbacks for the property
  * @errp: pointer to error object
  *
+ * Further use of this method is deprecated. Properties for an
+ * object should be statically declared against the class, and
+ * not be permitted to vary at runtime. Use the
+ * object_class_property_add() method (and its variants) instead.
+ *
+ * If usage scenarios require differing subsets of properties
+ * to be present, this should be handled by creating further
+ * specialized subclasses instead of dynamically registering
+ * properties against instances.
+ *
  * Returns: The #ObjectProperty; this can be used to set the @resolve
  * callback for child and link properties.
  */
@@ -1183,9 +1193,6 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
 
 /**
  * object_property_add:
- * Same as object_property_try_add() with @errp hardcoded to
- * &error_abort.
- *
  * @obj: the object to add a property to
  * @name: the name of the property.  This can contain any character except for
  *  a forward slash.  In general, you should use hyphens '-' instead of
@@ -1202,6 +1209,12 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
  *   meant to allow a property to free its opaque upon object
  *   destruction.  This may be NULL.
  * @opaque: an opaque pointer to pass to the callbacks for the property
+ *
+ * Same as object_property_try_add() with @errp hardcoded to
+ * &error_abort.
+ *
+ * Further use of this method is deprecated, see
+ * object_property_try_add() for details.
  */
 ObjectProperty *object_property_add(Object *obj, const char *name,
                                     const char *type,
@@ -1210,6 +1223,14 @@ ObjectProperty *object_property_add(Object *obj, const char *name,
                                     ObjectPropertyRelease *release,
                                     void *opaque);
 
+/**
+ * object_property_del:
+ * @obj: the object to remove a property from
+ * @name: the property to be deleted
+ *
+ * Further use of this method is deprecated, see
+ * object_property_try_add() for details.
+ */
 void object_property_del(Object *obj, const char *name);
 
 ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
