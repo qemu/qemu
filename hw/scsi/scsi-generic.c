@@ -652,6 +652,35 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
     return true;
 }
 
+/* Clean up keys on source after migration */
+bool scsi_generic_pr_state_cleanup(SCSIDevice *s, Error **errp)
+{
+    SCSIPRState *pr_state = &s->pr_state;
+    uint8_t cmd[10] = {
+        PR_HELPER_CLEANUP, /* OPCODE */
+    };
+    int ret;
+
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        if (pr_state->key == 0) {
+            return true; /* nothing to do */
+        }
+    }
+
+    ret = scsi_SG_IO(s->conf.blk, SG_DXFER_TO_DEV, cmd, sizeof(cmd), NULL, 0,
+                     s->io_timeout, errp);
+    if (ret < 0) {
+        error_prepend(errp, "pr-helper CLEANUP failed: ");
+        return false;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        pr_state->key = 0;
+        pr_state->resv_type = 0;
+    }
+    return true;
+}
+
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;

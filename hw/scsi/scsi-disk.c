@@ -2773,13 +2773,32 @@ static void scsi_block_migration_failed(SCSIDiskState *s)
     }
 }
 
+/*
+ * Unregister keys on the source after migration since the destination has
+ * preempted and taken over. This cleanup is not necessary at the SCSI level
+ * but multipathd tracks registered keys and must be informed that this host no
+ * longer wishes to be registered.
+ */
+static void scsi_block_migration_done(SCSIDiskState *s)
+{
+    SCSIDevice *d = &s->qdev;
+    Error *local_err = NULL;
+
+    if (!scsi_generic_pr_state_cleanup(d, &local_err)) {
+        error_prepend(&local_err, "scsi-block migration done: ");
+        warn_report_err(local_err);
+    }
+}
+
 static int scsi_block_migration_notifier(NotifierWithReturn *notifier,
                                          MigrationEvent *e, Error **errp)
 {
     SCSIDiskState *s =
         container_of(notifier, SCSIDiskState, migration_notifier);
 
-    if (e->type == MIG_EVENT_FAILED) {
+    if (e->type == MIG_EVENT_DONE) {
+        scsi_block_migration_done(s);
+    } else if (e->type == MIG_EVENT_FAILED) {
         scsi_block_migration_failed(s);
     }
     return 0;
