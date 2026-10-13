@@ -1854,6 +1854,7 @@ static BlockJob *mirror_start_job(
     BlockDriverState *mirror_top_bs;
     bool target_is_backing;
     uint64_t target_perms, target_shared_perms;
+    int flags;
     int ret;
 
     GLOBAL_STATE_CODE();
@@ -1886,8 +1887,13 @@ static BlockJob *mirror_start_job(
     /* In the case of active commit, add dummy driver to provide consistent
      * reads on the top, while disabling it in the intermediate nodes, and make
      * the backing chain writable. */
-    mirror_top_bs = bdrv_new_open_driver(&bdrv_mirror_top, filter_node_name,
-                                         BDRV_O_RDWR, errp);
+    flags = BDRV_O_RDWR;
+    if (bs->open_flags & BDRV_O_UNMAP) {
+        flags |= BDRV_O_UNMAP;
+    }
+    mirror_top_bs = bdrv_new_open_driver(&bdrv_mirror_top,
+                                         filter_node_name,
+                                         flags, errp);
     if (mirror_top_bs == NULL) {
         return NULL;
     }
