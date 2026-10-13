@@ -13,6 +13,7 @@
 #include "exec/hwaddr.h"
 #include "exec/mmu-access-type.h"
 #include "monitor/hmp.h"
+#include "qemu/thread.h"
 
 #define TYPE_HEXAGON_TLB "hexagon-tlb"
 OBJECT_DECLARE_SIMPLE_TYPE(HexagonTLBState, HEXAGON_TLB)
@@ -22,10 +23,12 @@ struct HexagonTLBState {
 
     uint32_t num_entries;
     uint64_t *entries;
+    QemuMutex lock;
 };
 
 uint64_t hexagon_tlb_read(HexagonTLBState *tlb, uint32_t index);
-void hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index, uint64_t value);
+uint64_t hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index,
+                           uint64_t value);
 
 bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint32_t asid,
                             uint32_t VA, MMUAccessType access_type,

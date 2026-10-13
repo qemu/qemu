@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -223,6 +224,83 @@ static int test_vreg_legal_predicated(void)
     return sig;
 }
 
+/*
+ * Complementary predicated writes to the same V-register pair are legal.
+ * v16 and v22 are splatted with distinct patterns; since p0 is always
+ * true, v14 must end up holding v16's pattern.  Extracting a word from
+ * v14 confirms the executed branch actually ran, rather than merely that
+ * no SIGILL was raised.
+ */
+static int test_vreg_pair_legal_predicated(void)
+{
+    int sig;
+    uint32_t result;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%[resume_pc]) = r1\n"
+        "r4 = #0x11111111\n"
+        "r5 = #0x22222222\n"
+        "v16 = vsplat(r4)\n"
+        "v22 = vsplat(r5)\n"
+        "r4 = #0\n"
+        "p0 = cmp.eq(r0, r0)\n"
+        "{\n"
+        "    if (p0) v15:14 = vcombine(v22, v16)\n"
+        "    if (!p0) v15:14 = vcombine(v16, v22)\n"
+        "}\n"
+        "%[result] = vextract(v14, r4)\n"
+        "1:\n"
+        "%[sig] = r0\n"
+        : [sig] "=r"(sig), [result] "=r"(result)
+        : [resume_pc] "r"(&resume_pc)
+        : "r0", "r1", "r4", "r5", "p0",
+          "v14", "v15", "v16", "v22", "memory");
+
+    return sig == SIGILL ? SIGILL : result;
+}
+
+/*
+ * A future write may consume a temporary value from the same V-register.
+ * buf is zeroed while v0 is initialized non-zero, so v0.tmp loads all-zero
+ * and v0.w = vadd(v0.tmp.w, 1) must end up as 1 in every word.  Extracting
+ * a word from the result
+ * confirms the add actually used the loaded .tmp value, rather than
+ * merely that no SIGILL was raised.
+ */
+static int test_vreg_legal_tmp(void)
+{
+    long long buf[16] __attribute__((aligned(128)));
+    int sig;
+    uint32_t result;
+
+    memset(buf, 0, sizeof(buf));
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%[resume_pc]) = r1\n"
+        "r2 = %[buf]\n"
+        "r3 = #1\n"
+        "r4 = #0\n"
+        "r5 = #2\n"
+        "v0 = vsplat(r5)\n"
+        "v1 = vsplat(r3)\n"
+        "{\n"
+        "    v0.tmp = vmem(r2 + #0)\n"
+        "    v0.w = vadd(v0.w, v1.w)\n"
+        "}\n"
+        "%[result] = vextract(v0, r4)\n"
+        "1:\n"
+        "%[sig] = r0\n"
+        : [sig] "=r"(sig), [result] "=r"(result)
+        : [resume_pc] "r"(&resume_pc), [buf] "r"(buf)
+        : "r0", "r1", "r2", "r3", "r4", "r5", "v0", "v1", "memory");
+
+    return sig == SIGILL ? SIGILL : result;
+}
+
 static int test_vreg_illegal_mixed(void)
 {
     int sig;
@@ -237,6 +315,26 @@ static int test_vreg_illegal_mixed(void)
         "%0 = r0\n"
         : "=r"(sig)
         : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
+/* A pair write and a single write to either pair member are illegal. */
+static int test_vreg_illegal_pair_overlap(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%[resume_pc]) = r1\n"
+        ".word 0x1f5055ee    /* { v15:14 = vcombine(v21, v16) */\n"
+        ".word 0x1e03e5ee    /*   v14 = v5 } */\n"
+        "1:\n"
+        "%[sig] = r0\n"
+        : [sig] "=r"(sig)
+        : [resume_pc] "r"(&resume_pc)
         : "r0", "r1", "memory");
 
     return sig;
@@ -308,10 +406,13 @@ int main()
     assert(test_post_increment3() == SIGILL);
 
     assert(test_vreg_legal_predicated() == 23);
-    assert(test_vreg_illegal_mixed() == SIGILL);
-    assert(test_vreg_illegal_uncond() == SIGILL);
+    assert(test_vreg_pair_legal_predicated() == 0x11111111);
+    assert(test_vreg_legal_tmp() == 1);
+    assert(test_vreg_illegal_mixed() == 0);
+    assert(test_vreg_illegal_pair_overlap() == 0);
+    assert(test_vreg_illegal_uncond() == 0);
 
-    assert(test_qreg_illegal() == SIGILL);
+    assert(test_qreg_illegal() == 0);
 
     puts("PASS");
     return EXIT_SUCCESS;

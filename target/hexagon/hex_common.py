@@ -448,6 +448,74 @@ class Hvx:
         return "void *"
     def helper_arg_name(self):
         return f"{self.reg_tcg()}_void"
+    def gen_clear_ext(self, f, tag):
+        predicate = None
+        guard = ""
+        end_guard = ""
+        if is_predicated(tag):
+            for regtype, regid in compute_tag_regs(tag, False):
+                if regtype == "P":
+                    predicate = get_register(tag, regtype, regid).reg_tcg()
+                    break
+            assert predicate is not None
+            cond = ("TCG_COND_NE" if "fLSBOLDNOT" in semdict[tag]
+                    else "TCG_COND_EQ")
+            guard = f"""
+                TCGv {self.reg_tcg()}_ext_pred = tcg_temp_new();
+                TCGLabel *{self.reg_tcg()}_ext_skip = gen_new_label();
+                tcg_gen_andi_tl({self.reg_tcg()}_ext_pred, {predicate}, 1);
+                tcg_gen_brcondi_tl({cond}, {self.reg_tcg()}_ext_pred, 0,
+                                    {self.reg_tcg()}_ext_skip);
+            """
+            end_guard = f"""
+                gen_set_label({self.reg_tcg()}_ext_skip);
+            """
+        f.write(code_fmt(f"""\
+                {guard}
+                tcg_gen_gvec_dup_imm_var(MO_8, {self.hvx_base()},
+                    {self.hvx_off()} + offsetof(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    V_EXTENDED_BYTEVAL);
+                {end_guard}
+            """))
+    def gen_clear_ext_pair(self, f, tag):
+        predicate = None
+        guard = ""
+        end_guard = ""
+        if is_predicated(tag):
+            for regtype, regid in compute_tag_regs(tag, False):
+                if regtype == "P":
+                    predicate = get_register(tag, regtype, regid).reg_tcg()
+                    break
+            assert predicate is not None
+            cond = ("TCG_COND_NE" if "fLSBOLDNOT" in semdict[tag]
+                    else "TCG_COND_EQ")
+            guard = f"""
+                TCGv {self.reg_tcg()}_ext_pred = tcg_temp_new();
+                TCGLabel *{self.reg_tcg()}_ext_skip = gen_new_label();
+                tcg_gen_andi_tl({self.reg_tcg()}_ext_pred, {predicate}, 1);
+                tcg_gen_brcondi_tl({cond}, {self.reg_tcg()}_ext_pred, 0,
+                                    {self.reg_tcg()}_ext_skip);
+            """
+            end_guard = f"""
+                gen_set_label({self.reg_tcg()}_ext_skip);
+            """
+        f.write(code_fmt(f"""\
+                {guard}
+                tcg_gen_gvec_dup_imm_var(MO_8, {self.hvx_base()},
+                    {self.hvx_off()} + offsetof(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    V_EXTENDED_BYTEVAL);
+                tcg_gen_gvec_dup_imm_var(MO_8, {self.hvx_base()},
+                    {self.hvx_off()} + sizeof(MMVector)
+                        + offsetof(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    sizeof_field(MMVector, ext),
+                    V_EXTENDED_BYTEVAL);
+                {end_guard}
+            """))
 
 #
 # Every register is either Dest or OldSource or NewSource or ReadWrite
@@ -793,11 +861,13 @@ class VRegDest(Register, Hvx, Dest):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
-    def gen_zero(self, f):
+        self.gen_clear_ext(f, tag)
+    def gen_zero(self, f, tag):
         f.write(code_fmt(f"""\
                 tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()},
                     {self.hvx_off()}, sizeof(MMVector), sizeof(MMVector), 0);
             """))
+        self.gen_clear_ext(f, tag)
     def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
@@ -868,11 +938,13 @@ class VRegReadWrite(Register, Hvx, ReadWrite):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
-    def gen_zero(self, f):
+        self.gen_clear_ext(f, tag)
+    def gen_zero(self, f, tag):
         f.write(code_fmt(f"""\
                 tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()},
                     {self.hvx_off()}, sizeof(MMVector), sizeof(MMVector), 0);
             """))
+        self.gen_clear_ext(f, tag)
     def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
@@ -911,11 +983,13 @@ class VRegTmp(Register, Hvx, ReadWrite):
                                      {self.reg_tcg()}_srcoff,
                                      sizeof(MMVector), sizeof(MMVector));
             """))
-    def gen_zero(self, f):
+        self.gen_clear_ext(f, tag)
+    def gen_zero(self, f, tag):
         f.write(code_fmt(f"""\
                 tcg_gen_gvec_dup_imm(MO_64, {self.hvx_off()},
                     sizeof(MMVector), sizeof(MMVector), 0);
             """))
+        self.gen_clear_ext(f, tag)
     def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_vreg_write(ctx, {self.hvx_base()}, {self.hvx_off()},
@@ -948,11 +1022,13 @@ class VRegPairDest(Register, Hvx, Dest):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
-    def gen_zero(self, f):
+        self.gen_clear_ext_pair(f, tag)
+    def gen_zero(self, f, tag):
         f.write(code_fmt(f"""\
             tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()}, {self.hvx_off()},
                 sizeof(MMVectorPair), sizeof(MMVectorPair), 0);
         """))
+        self.gen_clear_ext_pair(f, tag)
     def gen_write(self, f, tag):
         pass
     def helper_hvx_desc(self, f):
@@ -1026,11 +1102,13 @@ class VRegPairReadWrite(Register, Hvx, ReadWrite):
         """))
         if not skip_qemu_helper(tag):
             self.decl_tcg_ptr(f)
-    def gen_zero(self, f):
+        self.gen_clear_ext_pair(f, tag)
+    def gen_zero(self, f, tag):
         f.write(code_fmt(f"""\
             tcg_gen_gvec_dup_imm_var(MO_64, {self.hvx_base()}, {self.hvx_off()},
                 sizeof(MMVectorPair), sizeof(MMVectorPair), 0);
         """))
+        self.gen_clear_ext_pair(f, tag)
     def gen_write(self, f, tag):
         f.write(code_fmt(f"""\
             gen_vreg_write_pair(ctx, {self.hvx_base()}, {self.hvx_off()},
@@ -1069,8 +1147,10 @@ class QRegDest(Register, Hvx, Dest):
             /* {self.reg_tcg()} is *(MMQReg *)({self.helper_arg_name()}) */
         """))
     def analyze_write(self, f, tag, regno):
+        predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
+            ctx_log_qreg_write(ctx, {self.reg_num}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class QRegSource(Register, Hvx, OldSource):
@@ -1117,8 +1197,10 @@ class QRegReadWrite(Register, Hvx, ReadWrite):
             ctx_log_qreg_read(ctx, {self.reg_num}, insn_has_hvx_helper);
         """))
     def analyze_write(self, f, tag, regno):
+        predicated = "true" if is_predicated(tag) else "false"
         f.write(code_fmt(f"""\
-            ctx_log_qreg_write(ctx, {self.reg_num}, insn_has_hvx_helper);
+            ctx_log_qreg_write(ctx, {self.reg_num}, {predicated},
+                               insn_has_hvx_helper);
         """))
 
 class GuestRegister(Register):

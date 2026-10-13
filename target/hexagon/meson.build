@@ -253,6 +253,7 @@ hexagon_ss.add(files(
     'mmvec/decode_ext_mmvec.c',
     'mmvec/system_ext_mmvec.c',
     'mmvec/hvx_ieee_fp.c',
+    'mmvec/hvx_qfloat.c',
 ))
 
 hexagon_softmmu_ss.add(files(

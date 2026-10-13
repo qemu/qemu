@@ -24,6 +24,7 @@
 #include "accel/tcg/getpc.h"
 #include "accel/tcg/probe.h"
 #include "mmvec/hvx_ieee_fp.h"
+#include "mmvec/mmvec_qfloat.h"
 
 #define fBFLOAT()
 #define fCVI_VX_NO_TMP_LD()
@@ -221,7 +222,7 @@
 #define SCATTER_OP_WRITE_TO_MEM(TYPE) \
     do { \
         ra = GETPC(); \
-        for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
+        for (int i = 0; i < VECTOR_SIZE_BYTE; i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 TYPE dst = 0; \
                 TYPE inc = 0; \
@@ -244,7 +245,7 @@
     } while (0)
 #define SCATTER_OP_PROBE_MEM(TYPE, MMU_IDX, RETADDR) \
     do { \
-        for (int i = 0; i < sizeof(MMVector); i += sizeof(TYPE)) { \
+        for (int i = 0; i < VECTOR_SIZE_BYTE; i += sizeof(TYPE)) { \
             if (test_bit(i, env->vtcm_log.mask)) { \
                 for (int j = 0; j < sizeof(TYPE); j++) { \
                     probe_read(env, env->vtcm_log.va[i + j], 1, \
@@ -329,8 +330,8 @@
 #endif
 #define fVFOREACH(WIDTH, VAR) for (VAR = 0; VAR < fVELEM(WIDTH); VAR++)
 #define fVARRAY_ELEMENT_ACCESS(ARRAY, TYPE, INDEX) \
-    ARRAY.v[(INDEX) / (fVECSIZE() / (sizeof(ARRAY.TYPE[0])))].TYPE[(INDEX) % \
-    (fVECSIZE() / (sizeof(ARRAY.TYPE[0])))]
+    ARRAY.v[(INDEX) / (fVECSIZE() / (sizeof(ARRAY.v[0].TYPE[0])))] \
+        .TYPE[(INDEX) % (fVECSIZE() / (sizeof(ARRAY.v[0].TYPE[0])))]
 
 #define fVSATDW(U, V) fVSATW(((((long long)U) << 32) | fZXTN(32, 64, V)))
 #define fVASL_SATHI(U, V) fVSATW(((U) << 1) | ((V) >> 31))
@@ -383,5 +384,115 @@
 #define fCMPGT_SF(A, B) cmpgt_sf(A, B, &env->hvx_fp_status)
 #define fCMPGT_HF(A, B) cmpgt_hf(A, B, &env->hvx_fp_status)
 #define fCMPGT_BF(A, B) fCMPGT_SF((uint32_t)(A) << 16, (uint32_t)(B) << 16)
+#define fCMPEQ_SF(A, B) cmpeq_sf(A, B, &env->hvx_fp_status)
+#define fCMPEQ_HF(A, B) cmpeq_hf(A, B, &env->hvx_fp_status)
+
+/*
+ * qfloat extended-precision bits: {G,S}ET_VEXT access a vector element's
+ * ext; f{G,S}ETQFEXT_BIT view that storage as one raw bit per source byte,
+ * for the v{g,s}etqfext.
+ */
+#define GET_VEXT(VSRC, IDX, SIZE) get_extended_bits(&(VSRC), IDX, SIZE)
+#define SET_VEXT(VDEST, IDX, SIZE, VAL) \
+    set_extended_bits(&(VDEST), IDX, SIZE, VAL)
+#define GET_VEXT_PAIR(VSRC, PAIR_IDX, IDX, SIZE) \
+    get_extended_bits(&(VSRC).v[PAIR_IDX], IDX, SIZE)
+
+#define fGETQFEXT_BIT(REG, BITNO) \
+    (0x1 & ((REG).ext[(BITNO) / 4] >> ((BITNO) % 4)))
+#define fSETQFEXT_BIT(REG, BITNO, VAL) \
+    do { \
+        uint32_t bitno_val = (VAL); \
+        (REG).ext[(BITNO) / 4] &= ~(1 << ((BITNO) % 4)); \
+        (REG).ext[(BITNO) / 4] |= (bitno_val & 1) << ((BITNO) % 4); \
+    } while (0)
+
+#define fPARSEHF(A) parse_hf(A)
+#define fPARSESF(A) parse_sf_daz(A, is_daz_mode(env))
+#define fPARSEQF_EXT(SIZE, A, IDX) \
+    (qfloat_is_extended(env) ? \
+     parse_extqf##SIZE((A).qf##SIZE[IDX], \
+                       get_extended_bits(&(A), IDX, SIZE)) : \
+     legacy_parse_qf##SIZE((A).qf##SIZE[IDX]))
+
+#define fQF_VILOG2(TYPE, A, AEXT) qf_vilog2(TYPE, A, AEXT)
+
+#define fCONVERT_QF32_TO_SF(A, AEXT) \
+    (qfloat_is_extended(env) ? \
+     conv_sf_extqf32(A, AEXT, CVI_QFRND_MODE) : legacy_conv_sf_qf32(A))
+#define fCONVERT_QF32_TO_HF(A, AEXT) \
+    (qfloat_is_extended(env) ? \
+     conv_hf_extqf32(A, AEXT, CVI_QFRND_MODE) : legacy_conv_hf_qf32(A))
+#define fCONVERT_QF32_TO_BF(A, AEXT) conv_qf32_to_bf(A, AEXT, CVI_QFRND_MODE)
+#define fCONVERT_QF16_TO_HF(A, AEXT) \
+    (qfloat_is_extended(env) ? \
+     conv_hf_extqf16(A, AEXT, CVI_QFRND_MODE) : legacy_conv_hf_qf16(A))
+
+/*
+ * Add/multiply two qfloat operands in the extended-precision "unfloat"
+ * domain and round+pack the result back into V.qf{16,32}[i] / V's ext bits
+ * at index i.
+ */
+#define fQFADD(SIZE, V, A, B) \
+    do { \
+        if (!qfloat_is_extended(env)) { \
+            (V).qf##SIZE[i] = legacy_qf_add(SIZE, A, B); \
+        } else if ((A).inf || (A).nan || (B).inf || (B).nan) { \
+            uint64_t sig_36 = handle_infinity_nan_add((A), (B), \
+                extqf##SIZE##_pos_nan, extqf##SIZE##_neg_nan, \
+                extqf##SIZE##_pos_inf, extqf##SIZE##_neg_inf); \
+            (V).qf##SIZE[i] = sig_36 >> 4; \
+            set_extended_bits(&(V), i, SIZE, sig_36 & EXT##SIZE##_BITMASK); \
+        } else { \
+            FloatParts64 pa = qfloat_unfloat_parts(A); \
+            FloatParts64 pb = qfloat_unfloat_parts(B); \
+            float_status status = { 0 }; \
+            int sub = pa.sign ^ pb.sign; \
+            int rexp; \
+            if (pa.cls == float_class_zero) { \
+                rexp = (B).exp; \
+            } else if (pb.cls == float_class_zero) { \
+                rexp = (A).exp; \
+            } else if ((A).exp > (B).exp) { \
+                rexp = MAX(pa.exp - sub, (B).exp); \
+            } else { \
+                rexp = MAX(pb.exp - sub, (A).exp); \
+            } \
+            FloatParts64 pr = parts64_addsub(&pa, &pb, \
+                                              &status, false); \
+            uint64_t result = qfloat_round_ext_parts(SIZE, pr, rexp, \
+                                                      (A).sign && (B).sign, \
+                                                      CVI_QFRND_MODE); \
+            (V).qf##SIZE[i] = (result >> (SIZE / 8)) & QF##SIZE##_BITMASK; \
+            set_extended_bits(&(V), i, SIZE, result & EXT##SIZE##_BITMASK); \
+        } \
+    } while (0)
+
+#define fQFMPY(SIZE, V, A, B) \
+    do { \
+        if (!qfloat_is_extended(env)) { \
+            (V).qf##SIZE[i] = legacy_qf_mpy(SIZE, A, B); \
+        } else if ((A).inf || (A).nan || (B).inf || (B).nan) { \
+            uint64_t sig_36 = handle_infinity_nan_mpy((A), (B), \
+                extqf##SIZE##_pos_nan, extqf##SIZE##_neg_nan, \
+                extqf##SIZE##_pos_inf, extqf##SIZE##_neg_inf); \
+            (V).qf##SIZE[i] = sig_36 >> 4; \
+            set_extended_bits(&(V), i, SIZE, sig_36 & EXT##SIZE##_BITMASK); \
+        } else { \
+            FloatParts64 pa = qfloat_unfloat_parts(A); \
+            FloatParts64 pb = qfloat_unfloat_parts(B); \
+            float_status status = { 0 }; \
+            int rexp = (A).exp + (B).exp; \
+            bool defer = (A).sign ^ (B).sign ^ (A).parts.sign ^ \
+                         (B).parts.sign ^ \
+                         ((A).parts.sign && (B).parts.sign); \
+            FloatParts64 pr = parts64_mul(&pa, &pb, &status); \
+            uint64_t result = qfloat_round_ext_parts(SIZE, pr, rexp, \
+                                                      defer, \
+                                                      CVI_QFRND_MODE); \
+            (V).qf##SIZE[i] = (result >> (SIZE / 8)) & QF##SIZE##_BITMASK; \
+            set_extended_bits(&(V), i, SIZE, result & EXT##SIZE##_BITMASK); \
+        } \
+    } while (0)
 
 #endif

@@ -28,7 +28,7 @@ def gen_disabled_ieee_insn(f, tag, regs):
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
         if reg.is_hvx_reg() and reg.is_written():
-            reg.gen_zero(f)
+            reg.gen_zero(f, tag)
     f.write("        return;\n")
     f.write("    }\n")
 

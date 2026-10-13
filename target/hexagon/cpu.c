@@ -191,7 +191,7 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
 {
     if (skip_if_zero) {
         bool nonzero_found = false;
-        for (int i = 0; i < MAX_VEC_SIZE_BYTES; i++) {
+        for (int i = 0; i < sizeof_field(MMVector, ub); i++) {
             if (hexagon_mmvec_get_byte(&hex_hvx(env)->VRegs[regnum], i) != 0) {
                 nonzero_found = true;
                 break;
@@ -205,8 +205,8 @@ static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
     qemu_fprintf(f, "  v%d = ( ", regnum);
     qemu_fprintf(f, "0x%02x",
                  hexagon_mmvec_get_byte(&hex_hvx(env)->VRegs[regnum],
-                                        MAX_VEC_SIZE_BYTES - 1));
-    for (int i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
+                                        sizeof_field(MMVector, ub) - 1));
+    for (int i = sizeof_field(MMVector, ub) - 2; i >= 0; i--) {
         qemu_fprintf(f, ", 0x%02x",
                      hexagon_mmvec_get_byte(&hex_hvx(env)->VRegs[regnum], i));
     }
@@ -223,7 +223,7 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
 {
     if (skip_if_zero) {
         bool nonzero_found = false;
-        for (int i = 0; i < MAX_VEC_SIZE_BYTES / 8; i++) {
+        for (int i = 0; i < sizeof(MMQReg); i++) {
             if (hexagon_mmqreg_get_byte(&hex_hvx(env)->QRegs[regnum], i) != 0) {
                 nonzero_found = true;
                 break;
@@ -237,8 +237,8 @@ static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
     qemu_fprintf(f, "  q%d = ( ", regnum);
     qemu_fprintf(f, "0x%02x",
                  hexagon_mmqreg_get_byte(&hex_hvx(env)->QRegs[regnum],
-                                         MAX_VEC_SIZE_BYTES / 8 - 1));
-    for (int i = MAX_VEC_SIZE_BYTES / 8 - 2; i >= 0; i--) {
+                                         sizeof(MMQReg) - 1));
+    for (int i = sizeof(MMQReg) - 2; i >= 0; i--) {
         qemu_fprintf(f, ", 0x%02x",
                      hexagon_mmqreg_get_byte(&hex_hvx(env)->QRegs[regnum], i));
     }
@@ -393,7 +393,8 @@ static bool hexagon_cpu_has_work(CPUState *cs)
 
     return hexagon_thread_is_enabled(env) &&
         (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
-            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK));
+            | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK
+            | CPU_INTERRUPT_NMI));
 }
 #endif
 
@@ -411,6 +412,7 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
     HexagonCPU *cpu;
 
     BQL_LOCK_GUARD();
+    env->llsc_addr = ~0;
     env->t_sreg[HEX_SREG_SSR] = 0;
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
@@ -446,15 +448,15 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     set_default_nan_mode(1, &env->hvx_fp_status);
     set_float_default_nan_pattern(0b01111111, &env->hvx_fp_status);
+
+    env->llsc_addr = ~0;
 #ifndef CONFIG_USER_ONLY
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
-    env->wait_next_pc = 0;
     env->tlb_lock_state = HEX_LOCK_UNLOCKED;
     env->k0_lock_state = HEX_LOCK_UNLOCKED;
     env->tlb_lock_count = 0;
     env->k0_lock_count = 0;
-    env->next_PC = 0;
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
@@ -494,6 +496,10 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
                              gdb_find_static_feature("hexagon-hvx.xml"));
 
 #ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
+                             hexagon_sys_gdb_write_register,
+                             gdb_find_static_feature("hexagon-sys.xml"));
+
     if (!HEXAGON_CPU(dev)->tlb) {
         error_setg(errp, "hexagon cpu requires 'tlb' link property to be set");
         return;
@@ -754,6 +760,14 @@ static const struct SysemuCPUOps hexagon_sysemu_ops = {
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUHexagonState *env = cpu_env(cs);
+    if (interrupt_request & CPU_INTERRUPT_NMI) {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_NMI);
+        cs->halted = false;
+        cs->exception_index = HEX_EVENT_IMPRECISE;
+        env->cause_code = HEX_CAUSE_IMPRECISE_NMI;
+        hexagon_cpu_do_interrupt(cs);
+        return true;
+    }
     if (interrupt_request & CPU_INTERRUPT_TLB_UNLOCK) {
         cs->halted = false;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
@@ -858,10 +872,13 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
     case HEX_GREG_GPCYCLEHI:
         return ssr_ce ? hexagon_get_sys_pcycle_count_high(env) : 0;
     default:
-        qemu_log_mask(LOG_UNIMP, "reading greg %" PRId32
-                " not yet supported.\n", reg);
-        return 0;
+        return env->greg[reg];
     }
+}
+
+void hexagon_greg_write(CPUHexagonState *env, uint32_t reg, uint32_t val)
+{
+    env->greg[reg] = val;
 }
 #endif
 

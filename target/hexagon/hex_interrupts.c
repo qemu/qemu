@@ -349,14 +349,12 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
         qemu_log_mask(CPU_LOG_INT,
             "%s: thread " TARGET_FMT_ld " resuming, exiting WAIT mode\n",
             __func__, env->threadId);
-        elr = env->wait_next_pc;
         clear_wait_mode(env);
         cs->halted = false;
     } else if (env->k0_lock_state == HEX_LOCK_WAITING) {
         g_assert_not_reached();
-    } else {
-        elr = env->gpr[HEX_REG_PC];
     }
+    elr = env->gpr[HEX_REG_PC];
 
     if (int_should_dtg(env, int_num)) {
         int vic_group = int_num - 2;

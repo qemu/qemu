@@ -191,7 +191,7 @@ void HELPER(commit_hvx_stores)(CPUHexagonState *env)
                 g_assert_not_reached();
             }
         } else {
-            for (int i = 0; i < sizeof(MMVector); i++) {
+            for (int i = 0; i < VECTOR_SIZE_BYTE; i++) {
                 if (test_bit(i, env->vtcm_log.mask)) {
                     cpu_stb_data_ra(env, env->vtcm_log.va[i],
                                      hexagon_mmvec_get_byte(&env->vtcm_log.data,
@@ -491,7 +491,7 @@ static void probe_hvx_stores(CPUHexagonState *env, int mmu_idx,
                 g_assert_not_reached();
             }
         } else {
-            for (int i = 0; i < sizeof(MMVector); i++) {
+            for (int i = 0; i < VECTOR_SIZE_BYTE; i++) {
                 if (test_bit(i, env->vtcm_log.mask)) {
                     probe_write(env, env->vtcm_log.va[i], 1, mmu_idx, retaddr);
                 }
@@ -1283,7 +1283,7 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
     hexagon_modify_ssr(env, new, old);
 }
 
-static void hex_k0_lock(CPUHexagonState *env)
+static void hex_k0_lock(CPUHexagonState *env, uint32_t PC)
 {
     HexagonCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
@@ -1297,7 +1297,6 @@ static void hex_k0_lock(CPUHexagonState *env)
                                env->threadId) : 0;
     if (GET_SYSCFG_FIELD(SYSCFG_K0LOCK, syscfg)) {
         if (env->k0_lock_state == HEX_LOCK_QUEUED) {
-            env->next_PC += 4;
             env->k0_lock_count++;
             env->k0_lock_state = HEX_LOCK_OWNER;
             SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
@@ -1305,19 +1304,22 @@ static void hex_k0_lock(CPUHexagonState *env)
         }
         if (env->k0_lock_state == HEX_LOCK_OWNER) {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "Double k0lock at PC: 0x%" PRIx32
-                          ", thread may hang\n",
-                          env->next_PC);
-            env->next_PC += 4;
+                "Double k0lock at PC: 0x" TARGET_FMT_lx
+                ", thread may hang\n", PC);
             cpu_interrupt(cs, CPU_INTERRUPT_HALT);
             cpu_loop_exit(cs);
             return;
         }
         env->k0_lock_state = HEX_LOCK_WAITING;
+        /*
+         * The PC has already been advanced past this packet.  Rewind it
+         * so that the thread re-executes the k0lock when it is woken by
+         * the thread that releases the lock.
+         */
+        env->gpr[HEX_REG_PC] = PC;
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
         cpu_loop_exit(cs);
     } else {
-        env->next_PC += 4;
         env->k0_lock_count++;
         env->k0_lock_state = HEX_LOCK_OWNER;
         SET_SYSCFG_FIELD(env, SYSCFG_K0LOCK, 1);
@@ -1408,14 +1410,14 @@ void HELPER(vhist)(CPUHexagonState *env)
     MMVector *input = &env->tmp_VRegs[0];
 
     for (int lane = 0; lane < 8; lane++) {
-        for (int i = 0; i < sizeof(MMVector) / 8; ++i) {
+        for (int i = 0; i < VECTOR_SIZE_BYTE / 8; ++i) {
             unsigned char value = hexagon_mmvec_get_byte(input,
-                (sizeof(MMVector) / 8) * lane + i);
+                (VECTOR_SIZE_BYTE / 8) * lane + i);
             unsigned char regno = value >> 3;
             unsigned char element = value & 7;
 
             hex_hvx(env)->VRegs[regno]
-                .uh[(sizeof(MMVector) / 16) * lane + element]++;
+                .uh[(VECTOR_SIZE_BYTE / 16) * lane + element]++;
         }
     }
 }
@@ -1425,15 +1427,15 @@ void HELPER(vhistq)(CPUHexagonState *env)
     MMVector *input = &env->tmp_VRegs[0];
 
     for (int lane = 0; lane < 8; lane++) {
-        for (int i = 0; i < sizeof(MMVector) / 8; ++i) {
+        for (int i = 0; i < VECTOR_SIZE_BYTE / 8; ++i) {
             unsigned char value = hexagon_mmvec_get_byte(input,
-                (sizeof(MMVector) / 8) * lane + i);
+                (VECTOR_SIZE_BYTE / 8) * lane + i);
             unsigned char regno = value >> 3;
             unsigned char element = value & 7;
 
-            if (fGETQBIT(env->qtmp, sizeof(MMVector) / 8 * lane + i)) {
+            if (fGETQBIT(env->qtmp, VECTOR_SIZE_BYTE / 8 * lane + i)) {
                 hex_hvx(env)->VRegs[regno].uh[
-                    (sizeof(MMVector) / 16) * lane + element]++;
+                    (VECTOR_SIZE_BYTE / 16) * lane + element]++;
             }
         }
     }
@@ -1443,7 +1445,7 @@ void HELPER(vwhist256)(CPUHexagonState *env)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1458,7 +1460,7 @@ void HELPER(vwhist256q)(CPUHexagonState *env)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1475,7 +1477,7 @@ void HELPER(vwhist256_sat)(CPUHexagonState *env)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1490,7 +1492,7 @@ void HELPER(vwhist256q_sat)(CPUHexagonState *env)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1507,7 +1509,7 @@ void HELPER(vwhist128)(CPUHexagonState *env)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1522,7 +1524,7 @@ void HELPER(vwhist128q)(CPUHexagonState *env)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1539,7 +1541,7 @@ void HELPER(vwhist128m)(CPUHexagonState *env, int32_t uiV)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1556,7 +1558,7 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
 {
     MMVector *input = &env->tmp_VRegs[0];
 
-    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+    for (int i = 0; i < (VECTOR_SIZE_BYTE / 2); i++) {
         unsigned int bucket = fGETUBYTE(0, input->h[i]);
         unsigned int weight = fGETUBYTE(1, input->h[i]);
         unsigned int vindex = (bucket >> 3) & 0x1F;
@@ -1741,7 +1743,7 @@ static void set_wait_mode(CPUHexagonState *env)
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_W, thread_wait_mask);
 }
 
-static void hexagon_wait_thread(CPUHexagonState *env, uint32_t PC)
+static void hexagon_wait_thread(CPUHexagonState *env)
 {
     CPUState *cs;
 
@@ -1768,7 +1770,6 @@ static void hexagon_wait_thread(CPUHexagonState *env, uint32_t PC)
         return;
     }
     set_wait_mode(env);
-    env->wait_next_pc = PC + 4;
 
     cpu_interrupt(cs, CPU_INTERRUPT_HALT);
 }
@@ -1836,12 +1837,12 @@ void HELPER(resched)(CPUHexagonState *env)
     resched(env);
 }
 
-void HELPER(wait)(CPUHexagonState *env, uint32_t PC)
+void HELPER(wait)(CPUHexagonState *env)
 {
     BQL_LOCK_GUARD();
 
     if (!fIN_DEBUG_MODE(env->threadId)) {
-        hexagon_wait_thread(env, PC);
+        hexagon_wait_thread(env);
     }
 }
 
@@ -1890,7 +1891,7 @@ void HELPER(setimask)(CPUHexagonState *env, uint32_t tid, uint32_t imask)
     }
     qemu_log_mask(LOG_GUEST_ERROR,
                   "setimask used with an invalid tid near PC: 0x%"
-                  PRIx32 "\n", env->next_PC);
+                  PRIx32 "\n", env->gpr[HEX_REG_PC]);
 }
 
 void HELPER(sreg_write_masked)(CPUHexagonState *env, uint32_t reg, uint32_t val)

@@ -215,14 +215,6 @@ static void hexagon_resume_thread(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
     clear_wait_mode(env);
-    /*
-     * The wait instruction keeps the PC pointing to itself
-     * so that it has an opportunity to check for interrupts.
-     *
-     * When we come out of wait mode, adjust the PC to the
-     * next executable instruction.
-     */
-    env->gpr[HEX_REG_PC] = env->wait_next_pc;
     cs = env_cpu(env);
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
     cs->halted = false;
@@ -544,6 +536,23 @@ void hexagon_stop_thread(CPUHexagonState *env)
         /* All threads are stopped, request shutdown */
         qemu_system_shutdown_request_with_code(
             SHUTDOWN_CAUSE_GUEST_SHUTDOWN, get_thread0_r2());
+    }
+}
+
+void hexagon_nmi(CPUHexagonState *env, uint32_t thread_mask)
+{
+    CPUState *cs;
+
+    BQL_LOCK_GUARD();
+
+    CPU_FOREACH(cs) {
+        CPUHexagonState *thread = cpu_env(cs);
+
+        if (!(thread_mask & (1u << thread->threadId)) ||
+            get_exe_mode(thread) == HEX_EXE_MODE_OFF) {
+            continue;
+        }
+        cpu_interrupt(cs, CPU_INTERRUPT_NMI);
     }
 }
 

@@ -936,7 +936,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_IMPRECISE:
         env->imprecise_exception = 0;
         if (get_exe_mode(env) == HEX_EXE_MODE_WAIT) {
-            env->gpr[HEX_REG_PC] = env->wait_next_pc - 4;
+            env->gpr[HEX_REG_PC] -= 4;
             clear_wait_mode(env);
         }
         switch (env->cause_code) {

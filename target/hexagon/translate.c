@@ -54,7 +54,6 @@ static const AnalyzeInsn opcode_analyze[XX_LAST_OPCODE] = {
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
 TCGv hex_slot_cancelled;
-TCGv hex_next_PC;
 TCGv hex_new_value_usr;
 TCGv hex_store_addr[STORES_MAX];
 TCGv_i32 hex_store_width[STORES_MAX];
@@ -190,15 +189,9 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
     }
 }
 
-static bool need_next_PC(DisasContext *ctx);
-
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
-
-    if (ctx->need_next_pc) {
-        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
-    }
 
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
@@ -410,7 +403,13 @@ static bool pkt_ends_tb(Packet *pkt)
 }
 
 
-static bool need_next_PC(DisasContext *ctx)
+/*
+ * True when the PC has to be preloaded with the address of the next packet
+ * before the packet runs: either a conditional change-of-flow leaves it
+ * untouched when the condition fails, or the packet ends the TB without
+ * any change-of-flow to advance it.
+ */
+static bool need_pc_preload(DisasContext *ctx)
 {
     Packet *pkt = &ctx->pkt;
     if (pkt->pkt_has_cof || ctx->pkt_ends_tb) {
@@ -609,6 +608,7 @@ static void clear_pkt_ctx(DisasContext *ctx)
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
     bitmap_zero(ctx->qregs_written, NUM_QREGS);
     bitmap_zero(ctx->qregs_multi_write, NUM_QREGS);
+    bitmap_zero(ctx->qregs_uncond, NUM_QREGS);
     ctx->qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
@@ -626,21 +626,10 @@ static void clear_pkt_ctx(DisasContext *ctx)
 static bool pkt_has_write_conflict(DisasContext *ctx)
 {
     DECLARE_BITMAP(gpr_conflict, TOTAL_PER_THREAD_REGS);
-    DECLARE_BITMAP(vregs_conflict, NUM_VREGS);
 
     bitmap_and(gpr_conflict, ctx->gpr_multi_write, ctx->gpr_uncond,
                TOTAL_PER_THREAD_REGS);
     if (!bitmap_empty(gpr_conflict, TOTAL_PER_THREAD_REGS)) {
-        return true;
-    }
-
-    bitmap_and(vregs_conflict, ctx->vregs_multi_write, ctx->vregs_uncond,
-               NUM_VREGS);
-    if (!bitmap_empty(vregs_conflict, NUM_VREGS)) {
-        return true;
-    }
-
-    if (!bitmap_empty(ctx->qregs_multi_write, NUM_QREGS)) {
         return true;
     }
 
@@ -655,6 +644,19 @@ static bool pkt_has_write_conflict(DisasContext *ctx)
 #endif
 
     return false;
+}
+
+static bool pkt_has_hvx_write_conflict(DisasContext *ctx)
+{
+    DECLARE_BITMAP(vregs_conflict, NUM_VREGS);
+    DECLARE_BITMAP(qregs_conflict, NUM_QREGS);
+
+    bitmap_and(vregs_conflict, ctx->vregs_multi_write, ctx->vregs_uncond,
+               NUM_VREGS);
+    bitmap_and(qregs_conflict, ctx->qregs_multi_write, ctx->qregs_uncond,
+               NUM_QREGS);
+    return !bitmap_empty(vregs_conflict, NUM_VREGS) ||
+           !bitmap_empty(qregs_conflict, NUM_QREGS);
 }
 
 static void analyze_packet(DisasContext *ctx)
@@ -714,9 +716,12 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(ctx->branch_taken, 0);
     }
     ctx->pkt_ends_tb = pkt_ends_tb(&ctx->pkt);
-    ctx->need_next_pc = need_next_PC(ctx);
-    if (ctx->need_next_pc) {
-        tcg_gen_movi_tl(hex_next_PC, ctx->next_PC);
+    /*
+     * Any change-of-flow in this packet overwrites the preloaded value, and
+     * the k0lock/tlblock helpers rewind it when the lock is contested.
+     */
+    if (need_pc_preload(ctx)) {
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -831,11 +836,26 @@ static void mark_store_width(DisasContext *ctx)
 
 static void gen_insn(DisasContext *ctx)
 {
+    uint16_t opcode = ctx->insn->opcode;
+
+    if (GET_ATTRIB(opcode, A_RELEASE) ||
+        GET_ATTRIB(opcode, A_CVI_SCATTER_RELEASE)) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
+    }
+
     if (ctx->insn->generate) {
         ctx->insn->generate(ctx);
         mark_store_width(ctx);
     } else {
         hex_gen_exception_end_tb(ctx, HEX_CAUSE_INVALID_OPCODE);
+    }
+
+    if (GET_ATTRIB(opcode, A_ACQUIRE)) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
+    }
+    if (opcode == Y2_barrier || opcode == Y2_syncht ||
+        opcode == Y2_isync || opcode == Y6_dmsyncht) {
+        tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
     }
 }
 
@@ -1275,6 +1295,12 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         clear_pkt_ctx(ctx);
         analyze_packet(ctx);
 
+        if (pkt_has_hvx_write_conflict(ctx)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "multiple HVX register writes at PC 0x" TARGET_FMT_lx
+                          "\n", ctx->pkt.pc);
+        }
+
         if (pkt_has_write_conflict(ctx)) {
             gen_exception_decode_fail(ctx, words_read,
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
@@ -1446,8 +1472,6 @@ void hexagon_translate_init(void)
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
-    hex_next_PC = tcg_global_mem_new(tcg_env,
-        offsetof(CPUHexagonState, next_PC), "next_PC");
 
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(tcg_env,
@@ -1470,6 +1494,7 @@ void hexagon_translate_init(void)
     hex_imprecise_exception = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, imprecise_exception), "imprecise_exception");
 #endif
+
     for (i = 0; i < STORES_MAX; i++) {
         snprintf(store_addr_names[i], NAME_LEN, "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(tcg_env,

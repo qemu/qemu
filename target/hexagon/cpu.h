@@ -59,6 +59,7 @@ typedef struct HexagonHVXContextState HexagonHVXContextState;
 #define CPU_INTERRUPT_SWI      CPU_INTERRUPT_TGT_INT_0
 #define CPU_INTERRUPT_K0_UNLOCK CPU_INTERRUPT_TGT_INT_1
 #define CPU_INTERRUPT_TLB_UNLOCK CPU_INTERRUPT_TGT_INT_2
+#define CPU_INTERRUPT_NMI CPU_INTERRUPT_TGT_EXT_0
 
 #define HEX_CPU_MODE_USER    1
 #define HEX_CPU_MODE_GUEST   2
@@ -103,7 +104,7 @@ typedef struct {
 typedef struct {
     target_ulong va;
     int size;
-    DECLARE_BITMAP(mask, MAX_VEC_SIZE_BYTES) QEMU_ALIGNED(16);
+    DECLARE_BITMAP(mask, sizeof_field(MMVector, ub)) QEMU_ALIGNED(16);
     MMVector data QEMU_ALIGNED(16);
 } VStoreLog;
 
@@ -143,7 +144,6 @@ typedef struct CPUArchState {
     uint32_t t_sreg[NUM_SREGS];
 
     uint32_t greg[NUM_GREGS];
-    uint32_t wait_next_pc;
 
     /* This alias of CPUState.cpu_index is used by imported sources: */
     uint32_t threadId;
@@ -153,7 +153,6 @@ typedef struct CPUArchState {
     uint32_t k0_lock_count;
     uint64_t t_cycle_count;
 #endif
-    uint32_t next_PC;
     uint32_t imprecise_exception;
     target_ulong new_value_usr;
 
@@ -241,6 +240,7 @@ G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
  */
 bool hexagon_thread_is_enabled(const CPUHexagonState *thread_env);
 uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg);
+void hexagon_greg_write(CPUHexagonState *env, uint32_t reg, uint32_t val);
 void hexagon_cpu_soft_reset(CPUHexagonState *env);
 #endif
 

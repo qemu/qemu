@@ -748,22 +748,14 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
         tcg_gen_brcondi_tl(cond, pred, 1, pred_false);
     }
 
-    /*
-     * If gen_end_tb() will unconditionally overwrite PC with hex_next_PC
-     * (because this packet has a predicated COF that may not execute),
-     * write the branch target there instead of directly into the PC
-     * global, or the overwrite in gen_end_tb() would clobber it.
-     */
-    TCGv pc_wr = ctx->need_next_pc ? hex_next_PC : hex_gpr[HEX_REG_PC];
-
     if (ctx->pkt.pkt_has_multi_cof) {
         /* If there are multiple branches in a packet, ignore the second one */
-        tcg_gen_movcond_tl(TCG_COND_NE, pc_wr,
+        tcg_gen_movcond_tl(TCG_COND_NE, hex_gpr[HEX_REG_PC],
                            ctx->branch_taken, tcg_constant_tl(0),
-                           pc_wr, addr);
+                           hex_gpr[HEX_REG_PC], addr);
         tcg_gen_movi_tl(ctx->branch_taken, 1);
     } else {
-        tcg_gen_mov_tl(pc_wr, addr);
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
     }
 
     if (cond != TCG_COND_ALWAYS) {
@@ -1508,9 +1500,9 @@ static void gen_vreg_load(DisasContext *ctx, TCGv_ptr dstbase,
 {
     TCGv_i64 tmp = tcg_temp_new_i64();
     if (aligned) {
-        tcg_gen_andi_tl(src, src, ~((int32_t)sizeof(MMVector) - 1));
+        tcg_gen_andi_tl(src, src, ~((int32_t)VECTOR_SIZE_BYTE - 1));
     }
-    for (int i = 0; i < sizeof(MMVector) / 8; i++) {
+    for (int i = 0; i < VECTOR_SIZE_BYTE / 8; i++) {
         tcg_gen_qemu_ld_i64(tmp, src, ctx->mem_idx, MO_LE | MO_UQ);
         tcg_gen_addi_tl(src, src, 8);
         tcg_gen_st_i64(tmp, dstbase, dstoff + i * 8);
@@ -1532,15 +1524,15 @@ static void gen_vreg_store(DisasContext *ctx, TCGv EA, TCGv_ptr srcbase,
     tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
     if (aligned) {
         tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
-                        ~((int32_t)sizeof(MMVector) - 1));
+                        ~((int32_t)VECTOR_SIZE_BYTE - 1));
     } else {
         tcg_gen_mov_tl(hex_vstore_addr[slot], EA);
     }
-    tcg_gen_movi_tl(hex_vstore_size[slot], sizeof(MMVector));
+    tcg_gen_movi_tl(hex_vstore_size[slot], VECTOR_SIZE_BYTE);
 
     /* Copy the data to the vstore buffer */
     tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, srcbase, srcoff,
-                         sizeof(MMVector), sizeof(MMVector));
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE);
     /* Set the mask to all 1's */
     tcg_gen_gvec_dup_imm(MO_64, maskoff, sizeof(MMQReg), sizeof(MMQReg), ~0LL);
 }
@@ -1555,12 +1547,12 @@ static void gen_vreg_masked_store(DisasContext *ctx, TCGv EA,
 
     tcg_gen_movi_tl(hex_vstore_pending[slot], 1);
     tcg_gen_andi_tl(hex_vstore_addr[slot], EA,
-                    ~((int32_t)sizeof(MMVector) - 1));
-    tcg_gen_movi_tl(hex_vstore_size[slot], sizeof(MMVector));
+                    ~((int32_t)VECTOR_SIZE_BYTE - 1));
+    tcg_gen_movi_tl(hex_vstore_size[slot], VECTOR_SIZE_BYTE);
 
     /* Copy the data to the vstore buffer */
     tcg_gen_gvec_mov_var(MO_64, tcg_env, dstoff, srcbase, srcoff,
-                         sizeof(MMVector), sizeof(MMVector));
+                         VECTOR_SIZE_BYTE, VECTOR_SIZE_BYTE);
     /* Copy the mask */
     tcg_gen_gvec_mov_var(MO_64, tcg_env, maskoff, bitsbase, bitsoff,
                          sizeof(MMQReg), sizeof(MMQReg));
@@ -1580,7 +1572,7 @@ static void vec_to_qvec(size_t size, TCGv_ptr dstbase, intptr_t dstoff,
     TCGv_i64 zero = tcg_constant_i64(0);
     TCGv_i64 ones = tcg_constant_i64(~0);
 
-    for (int i = 0; i < sizeof(MMVector) / 8; i++) {
+    for (int i = 0; i < VECTOR_SIZE_BYTE / 8; i++) {
         tcg_gen_ld_i64(tmp, srcbase, srcoff + i * 8);
         tcg_gen_movi_i64(mask, 0);
 
