@@ -601,7 +601,7 @@ QEMU_BUILD_BUG_ON(offsetof(CPUState, neg) !=
  * Return the CPUArchState associated with the CPU.
  */
 #define cpu_env(cpu) _Generic(cpu, \
-    /* We validate that CPUArchState follows CPUState in target-info-stub.c */ \
+    /* We validate that CPUArchState follows CPUState in target-info-def.c */ \
     CPUState *: \
         (CPUArchState *)((cpu) + 1), \
     const CPUState *: \
