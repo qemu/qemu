@@ -234,10 +234,11 @@ static int pr_manager_helper_run(PRManager *p,
 
 out:
     if (ret < 0) {
-        int sense_len = scsi_build_sense(io_hdr->sbp,
+        int sense_len = scsi_build_sense(resp.sense,
                                          SENSE_CODE(LUN_COMM_FAILURE));
         io_hdr->driver_status = SG_ERR_DRIVER_SENSE;
         io_hdr->sb_len_wr = MIN(io_hdr->mx_sb_len, sense_len);
+        memcpy(io_hdr->sbp, resp.sense, io_hdr->sb_len_wr);
         io_hdr->status = CHECK_CONDITION;
     }
     qemu_mutex_unlock(&pr_mgr->lock);
