@@ -21,7 +21,6 @@
 #include "exec/log.h"
 #include "cpu-csr.h"
 #include "tcg/tcg_loongarch.h"
-#include "system/memory.h"
 
 typedef bool (*tlb_match)(bool global, int asid, int tlb_asid);
 
@@ -721,7 +720,6 @@ static inline uint64_t loongarch_sanitize_hw_pte(CPULoongArchState *env,
 target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
                           uint32_t level, uint32_t mem_idx)
 {
-    CPUState *cs = env_cpu(env);
     uint64_t badvaddr;
     hwaddr index, phys;
     uint64_t palen_mask = loongarch_palen_mask(env);
@@ -754,7 +752,7 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
     get_dir_base_width(env, &dir_base, &dir_width, level);
     index = (badvaddr >> dir_base) & ((1 << dir_width) - 1);
     phys = base | index << 3;
-    val = address_space_ldq_le(cs->as, phys, MEMTXATTRS_UNSPECIFIED, NULL);
+    val = cpu_ldq_le_data_ra(env, phys, GETPC());
 
     return val & palen_mask;
 }
@@ -762,7 +760,6 @@ target_ulong helper_lddir(CPULoongArchState *env, target_ulong base,
 void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
                   uint32_t mem_idx)
 {
-    CPUState *cs = env_cpu(env);
     hwaddr phys, tmp0, ptindex, ptoffset0, ptoffset1;
     CPUSysState *sys = env_sys(env);
     uint64_t pte_raw;
@@ -823,8 +820,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
         ptoffset0 = ptindex << 3;
         ptoffset1 = (ptindex + 1) << 3;
         phys = base | (odd ? ptoffset1 : ptoffset0);
-        pte_raw = address_space_ldq_le(cs->as, phys,
-                                       MEMTXATTRS_UNSPECIFIED, NULL);
+        pte_raw = cpu_ldq_le_data_ra(env, phys, GETPC());
         tmp0 = loongarch_sanitize_hw_pte(env, pte_raw);
         ps = ptbase;
     }
