@@ -322,6 +322,9 @@ typedef struct CPUTimerState {
     CPUState *cs;
 } CPUTimerState;
 
+#define VM_LEVEL0   0
+#define VM_LEVELS   1
+
 #define CPU_VENDOR_LOONGSON   "Loongson"
 #define CPU_MODEL_3A5000      "3A5000"
 #define CPU_MODEL_1C101       "1C101"
@@ -510,9 +513,9 @@ static inline CPUSysState *env_sys(CPULoongArchState *env)
     return env->sys_state;
 }
 
-static inline void set_sys_state(CPULoongArchState *env, CPUSysState *sys)
+static inline void set_sys(CPULoongArchState *env, int vm_level)
 {
-    env->sys_state = sys;
+    env->sys_state = &env->sys_states[vm_level];
 }
 
 static inline CPUTimerState *env_timer(CPULoongArchState *env)
