@@ -20,6 +20,7 @@
 #include "hw/core/register.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
+#include "qemu/target-info.h"
 #include "qemu/units.h"
 #include "machine_cfg_v68n_1024.h.inc"
 #include "system/address-spaces.h"
@@ -379,6 +380,7 @@ static const TypeInfo virt_machine_types[] = { {
     .parent = TYPE_HEXAGON_COMMON_MACHINE,
     .instance_size = sizeof(HexagonVirtMachineState),
     .class_init = virt_class_init,
+    .is_available = target_hexagon,
 } };
 
 DEFINE_TYPES(virt_machine_types)
