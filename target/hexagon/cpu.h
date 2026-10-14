@@ -226,6 +226,7 @@ static inline HexagonHVXContext *hex_hvx(CPUHexagonState *env)
 FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, HVX_COPROC_ENABLED, 5, 1)
+FIELD(TB_FLAGS, CPU_MODE, 6, 2)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,

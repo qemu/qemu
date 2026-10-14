@@ -58,16 +58,20 @@ def gen_tcg_func(f, tag, regs, imms):
 
     f.write("    Insn *insn G_GNUC_UNUSED = ctx->insn;\n")
 
-    if "A_PRIV" in hex_common.attribdict[tag]:
+    if (
+        "A_PRIV" in hex_common.attribdict[tag]
+        or "A_GUEST" in hex_common.attribdict[tag]
+    ):
         f.write(dedent("""\
 #ifdef CONFIG_USER_ONLY
-    hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_SINSN);
-#else
 """))
-    if "A_GUEST" in hex_common.attribdict[tag]:
+        if "A_PRIV" in hex_common.attribdict[tag]:
+            f.write("    hex_gen_exception_end_tb(ctx, "
+                    "HEX_CAUSE_PRIV_USER_NO_SINSN);\n")
+        else:
+            f.write("    hex_gen_exception_end_tb(ctx, "
+                    "HEX_CAUSE_PRIV_USER_NO_GINSN);\n")
         f.write(dedent("""\
-#ifdef CONFIG_USER_ONLY
-    hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
 #else
 """))
     if hex_common.need_ea(tag):

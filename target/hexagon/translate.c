@@ -1289,6 +1289,20 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
             return;
         }
+#ifndef CONFIG_USER_ONLY
+        if (check_for_attrib(&ctx->pkt, A_PRIV) &&
+            ctx->cpu_mode != HEX_CPU_MODE_MONITOR) {
+            hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_SINSN);
+            ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
+            return;
+        }
+        if (check_for_attrib(&ctx->pkt, A_GUEST) &&
+            ctx->cpu_mode == HEX_CPU_MODE_USER) {
+            hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
+            ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
+            return;
+        }
+#endif
         gen_start_packet(ctx);
         for (i = 0; i < ctx->pkt.num_insns; i++) {
             ctx->insn = &ctx->pkt.insn[i];
@@ -1321,6 +1335,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hvx_coproc_enabled =
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
+    ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
 #endif
 }
 
