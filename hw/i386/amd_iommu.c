@@ -2472,8 +2472,16 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &amdvi_dev_as->as;
 }
 
+static int amdvi_get_x86_iommu(void *opaque, void **x86_iommu)
+{
+    AMDVIState *s = opaque;
+    *x86_iommu = X86_IOMMU_DEVICE(s);
+    return 0;
+}
+
 static const PCIIOMMUOps amdvi_iommu_ops = {
     .get_address_space = amdvi_host_dma_iommu,
+    .get_x86_iommu = amdvi_get_x86_iommu,
 };
 
 static const MemoryRegionOps mmio_mem_ops = {
