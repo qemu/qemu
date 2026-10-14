@@ -297,6 +297,9 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv_i32 val)
 {
     uint32_t reg_mask = sreg_immut_masks[rnum];
 
+    if (rnum == HEX_SREG_MODECTL || rnum == HEX_SREG_SYSCFG) {
+        translator_io_start(&ctx->base);
+    }
     if (rnum == HEX_SREG_IMASK &&
         ctx->hex_def->hex_version < HEX_VER_V81) {
         reg_mask = 0xffff0000;
@@ -331,8 +334,12 @@ static void gen_log_sreg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
 }
 
 G_GNUC_UNUSED
-static void gen_read_sreg(TCGv_i32 dst, int reg_num)
+static void gen_read_sreg(DisasContext *ctx, TCGv_i32 dst, int reg_num)
 {
+    if (reg_num == HEX_SREG_TIMERLO || reg_num == HEX_SREG_TIMERHI ||
+        reg_num == HEX_SREG_PCYCLELO || reg_num == HEX_SREG_PCYCLEHI) {
+        translator_io_start(&ctx->base);
+    }
     if (reg_num >= HEX_SREG_GLB_START || reg_num == HEX_SREG_BADVA) {
         gen_helper_sreg_read(dst, tcg_env, tcg_constant_i32(reg_num));
     } else {
@@ -341,8 +348,11 @@ static void gen_read_sreg(TCGv_i32 dst, int reg_num)
 }
 
 G_GNUC_UNUSED
-static void gen_read_sreg_pair(TCGv_i64 dst, int reg_num)
+static void gen_read_sreg_pair(DisasContext *ctx, TCGv_i64 dst, int reg_num)
 {
+    if (reg_num == HEX_SREG_TIMERLO || reg_num == HEX_SREG_PCYCLELO) {
+        translator_io_start(&ctx->base);
+    }
     if (reg_num < HEX_SREG_GLB_START) {
         if (reg_num + 1 == HEX_SREG_BADVA) {
             TCGv_i32 badva = tcg_temp_new_i32();
@@ -359,8 +369,11 @@ static void gen_read_sreg_pair(TCGv_i64 dst, int reg_num)
 }
 
 G_GNUC_UNUSED
-static void gen_read_greg(TCGv_i32 dst, int reg_num)
+static void gen_read_greg(DisasContext *ctx, TCGv_i32 dst, int reg_num)
 {
+    if (reg_num == HEX_GREG_GPCYCLELO || reg_num == HEX_GREG_GPCYCLEHI) {
+        translator_io_start(&ctx->base);
+    }
     if (reg_num <= HEX_GREG_G3) {
         tcg_gen_mov_i32(dst, hex_greg[reg_num]);
     } else {
@@ -369,8 +382,11 @@ static void gen_read_greg(TCGv_i32 dst, int reg_num)
 }
 
 G_GNUC_UNUSED
-static void gen_read_greg_pair(TCGv_i64 dst, int reg_num)
+static void gen_read_greg_pair(DisasContext *ctx, TCGv_i64 dst, int reg_num)
 {
+    if (reg_num == HEX_GREG_GPCYCLELO) {
+        translator_io_start(&ctx->base);
+    }
     if (reg_num == HEX_GREG_G0 || reg_num == HEX_GREG_G2) {
         tcg_gen_concat_i32_i64(dst, hex_greg[reg_num],
                                     hex_greg[reg_num + 1]);
@@ -438,15 +454,19 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
                         ctx->num_hvx_insns);
 #ifndef CONFIG_USER_ONLY
     } else if (reg_num == HEX_REG_UTIMERLO) {
+        translator_io_start(&ctx->base);
         gen_helper_sreg_read(dest, tcg_env,
                              tcg_constant_i32(HEX_SREG_TIMERLO));
     } else if (reg_num == HEX_REG_UTIMERHI) {
+        translator_io_start(&ctx->base);
         gen_helper_sreg_read(dest, tcg_env,
                              tcg_constant_i32(HEX_SREG_TIMERHI));
     } else if (reg_num == HEX_REG_UPCYCLELO) {
+        translator_io_start(&ctx->base);
         gen_helper_upcycle_read(dest, tcg_env,
                                 tcg_constant_i32(HEX_SREG_PCYCLELO));
     } else if (reg_num == HEX_REG_UPCYCLEHI) {
+        translator_io_start(&ctx->base);
         gen_helper_upcycle_read(dest, tcg_env,
                                 tcg_constant_i32(HEX_SREG_PCYCLEHI));
 #else
@@ -489,12 +509,14 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
         tcg_gen_concat_i32_i64(dest, hvx_cnt, hex_gpr[reg_num + 1]);
 #ifndef CONFIG_USER_ONLY
     } else if (reg_num == HEX_REG_UTIMERLO) {
+        translator_io_start(&ctx->base);
         TCGv lo = tcg_temp_new();
         TCGv hi = tcg_temp_new();
         gen_helper_sreg_read(lo, tcg_env, tcg_constant_i32(HEX_SREG_TIMERLO));
         gen_helper_sreg_read(hi, tcg_env, tcg_constant_i32(HEX_SREG_TIMERHI));
         tcg_gen_concat_i32_i64(dest, lo, hi);
     } else if (reg_num == HEX_REG_UPCYCLELO) {
+        translator_io_start(&ctx->base);
         gen_helper_upcycle_read_pair(dest, tcg_env);
 #else
     } else if (reg_num == HEX_REG_UTIMERLO) {
