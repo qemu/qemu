@@ -12,6 +12,7 @@
 #include "system/cpus.h"
 #include "internal.h"
 #include "exec/cpu-interrupt.h"
+#include "accel/tcg/cpu-loop.h"
 #include "cpu_helper.h"
 #include "exec/cputlb.h"
 #include "hex_mmu.h"
@@ -180,6 +181,7 @@ void hex_tlb_lock(CPUHexagonState *env, uint32_t PC)
                 ", thread may hang\n", PC);
             CPUState *cs = env_cpu(env);
             cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+            cpu_loop_exit(cs);
             return;
         }
         env->tlb_lock_state = HEX_LOCK_WAITING;
@@ -191,6 +193,7 @@ void hex_tlb_lock(CPUHexagonState *env, uint32_t PC)
         env->gpr[HEX_REG_PC] = PC;
         CPUState *cs = env_cpu(env);
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+        cpu_loop_exit(cs);
     } else {
         env->tlb_lock_count++;
         env->tlb_lock_state = HEX_LOCK_OWNER;
