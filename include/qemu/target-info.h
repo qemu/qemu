@@ -71,6 +71,13 @@ bool target_aarch64(void);
 bool target_m68k(void);
 
 /**
+ * target_hexagon:
+ *
+ * Returns whether the target architecture is Hexagon.
+ */
+bool target_hexagon(void);
+
+/**
  * target_or1k:
  *
  * Returns whether the target architecture is OpenRISC 1000.
