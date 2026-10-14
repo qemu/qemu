@@ -451,13 +451,13 @@ virtio_gpu_virgl_resource_unref(VirtIOGPU *g,
     virgl_renderer_resource_detach_iov(res->base.resource_id,
                                        &res_iovs,
                                        &num_iovs);
-    if (res_iovs != NULL && num_iovs != 0) {
-        virtio_gpu_cleanup_mapping_iov(g, res_iovs, num_iovs);
-    }
+    res->base.iov = res_iovs;
+    res->base.iov_cnt = num_iovs;
     virgl_renderer_resource_unref(res->base.resource_id);
 
     QTAILQ_REMOVE(&g->reslist, &res->base, next);
 
+    virtio_gpu_cleanup_mapping(g, &res->base);
     g_free(res);
 
     return 0;

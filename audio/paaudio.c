@@ -747,6 +747,7 @@ static void qpa_validate_per_direction_opts(Audiodev *dev,
 static void *qpa_conn_init(const char *server)
 {
     PAConnection *c = g_new0(PAConnection, 1);
+    c->server = g_strdup(server);
     QTAILQ_INSERT_TAIL(&pa_conns, c, list);
 
     c->mainloop = pa_threaded_mainloop_new();
@@ -818,7 +819,7 @@ audio_pa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
     }
 
     if (!popts->server) {
-        char pidfile[64];
+        g_autofree char *pidfile = NULL;
         char *runtime;
         struct stat st;
 
@@ -827,7 +828,7 @@ audio_pa_realize(AudioBackend *abe, Audiodev *dev, Error **errp)
             error_setg(errp, "XDG_RUNTIME_DIR not set");
             return false;
         }
-        snprintf(pidfile, sizeof(pidfile), "%s/pulse/pid", runtime);
+        pidfile = g_strdup_printf("%s/pulse/pid", runtime);
         if (stat(pidfile, &st) != 0) {
             error_setg_errno(errp, errno, "could not stat pidfile %s", pidfile);
             return false;
@@ -875,6 +876,7 @@ static void qpa_conn_fini(PAConnection *c)
     }
 
     QTAILQ_REMOVE(&pa_conns, c, list);
+    g_free(c->server);
     g_free(c);
 }
 

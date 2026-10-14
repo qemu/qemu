@@ -164,6 +164,8 @@ virtio_gpu_rutabaga_resource_unref(VirtIOGPU *g,
     }
 
     QTAILQ_REMOVE(&g->reslist, res, next);
+
+    virtio_gpu_cleanup_mapping(g, res);
     g_free(res);
 }
 
@@ -902,7 +904,8 @@ virtio_gpu_rutabaga_aio_cb(void *opaque)
         }
 
         if (signaled_ctx_specific &&
-           (cmd->cmd_hdr.ring_idx != fence_data.ring_idx)) {
+           ((cmd->cmd_hdr.ctx_id != fence_data.ctx_id) ||
+           (cmd->cmd_hdr.ring_idx != fence_data.ring_idx))) {
             continue;
         }
 

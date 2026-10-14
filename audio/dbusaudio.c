@@ -242,7 +242,7 @@ dbus_volume_out_listener(HWVoiceOut *hw,
         return;
     }
 
-    assert(vol->channels < sizeof(vol->vol));
+    assert(vol->channels <= sizeof(vol->vol));
     bytes = g_bytes_new(vol->vol, vol->channels);
     v_vol = g_variant_new_from_bytes(G_VARIANT_TYPE("ay"), bytes, TRUE);
     qemu_dbus_display1_audio_out_listener_call_set_volume(
@@ -332,7 +332,7 @@ dbus_volume_in_listener(HWVoiceIn *hw,
         return;
     }
 
-    assert(vol->channels < sizeof(vol->vol));
+    assert(vol->channels <= sizeof(vol->vol));
     bytes = g_bytes_new(vol->vol, vol->channels);
     v_vol = g_variant_new_from_bytes(G_VARIANT_TYPE("ay"), bytes, TRUE);
     qemu_dbus_display1_audio_in_listener_call_set_volume(

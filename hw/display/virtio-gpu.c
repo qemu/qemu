@@ -27,6 +27,7 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/core/qdev-properties.h"
+#include "migration/blocker.h"
 #include "qemu/log.h"
 #include "qemu/memfd.h"
 #include "qemu/module.h"
@@ -34,6 +35,9 @@
 #include "qemu/error-report.h"
 
 #define VIRTIO_GPU_VM_VERSION 1
+
+static size_t num_large_blobs;
+static Error *large_blob_blocker;
 
 static struct virtio_gpu_simple_resource *
 virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
@@ -355,6 +359,7 @@ end:
 static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
                                             struct virtio_gpu_ctrl_command *cmd)
 {
+    Error *local_err = NULL;
     struct virtio_gpu_simple_resource *res;
     struct virtio_gpu_resource_create_blob cblob;
     int ret;
@@ -415,6 +420,26 @@ static void virtio_gpu_resource_create_blob(VirtIOGPU *g,
         }
     }
 
+    if (cblob.size > UINT32_MAX) {
+        if (!num_large_blobs) {
+            error_setg(&large_blob_blocker,
+                       "a large virtio-gpu blob is present");
+            if (migrate_add_blocker(&large_blob_blocker, &local_err)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: blocking migration for a large blob failed: %s\n",
+                              __func__, error_get_pretty(local_err));
+                error_free(local_err);
+                cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
+                virtio_gpu_fini_udmabuf(res);
+                virtio_gpu_cleanup_mapping(g, res);
+                g_free(res);
+                return;
+            }
+        }
+
+        num_large_blobs++;
+    }
+
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
@@ -459,6 +484,13 @@ static void virtio_gpu_resource_destroy(VirtIOGPU *g,
                                         Error **errp)
 {
     virtio_gpu_disable_scanout_for_resource(g, res->resource_id);
+
+    if (res->blob_size > UINT32_MAX) {
+        num_large_blobs--;
+        if (!num_large_blobs) {
+            migrate_del_blocker(&large_blob_blocker);
+        }
+    }
 
     qemu_pixman_image_unref(res->image);
     virtio_gpu_cleanup_mapping(g, res);

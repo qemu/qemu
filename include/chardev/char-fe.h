@@ -169,6 +169,16 @@ int qemu_chr_fe_wait_connected(CharFrontend *c, Error **errp);
 void qemu_chr_fe_set_echo(CharFrontend *c, bool echo);
 
 /**
+ * qemu_chr_fe_get_winsize:
+ * @cols: the address for storing columns
+ * @rows: the address for storing rows
+ *
+ * Get the size of the terminal connected to the chardev backend.
+ * Returns *cols = *rows = 0, if no associated Chardev.
+ */
+void qemu_chr_fe_get_winsize(CharFrontend *c, uint16_t *cols, uint16_t *rows);
+
+/**
  * qemu_chr_fe_set_open:
  * @c: a CharFrontend
  * @is_open: the front end open status

@@ -78,7 +78,7 @@ static int audio_validate_settings (const struct audsettings *as)
 {
     int invalid;
 
-    invalid = as->nchannels < 1;
+    invalid = as->nchannels < 1 || as->nchannels > 16;
 
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
@@ -94,7 +94,7 @@ static int audio_validate_settings (const struct audsettings *as)
         break;
     }
 
-    invalid |= as->freq <= 0;
+    invalid |= as->freq <= 0 || as->freq > 384000;
     return invalid ? -1 : 0;
 }
 

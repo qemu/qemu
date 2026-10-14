@@ -76,6 +76,10 @@ void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
         qemu_clipboard_peer_release(peer, i);
     }
     notifier_remove(&peer->notifier);
+    if (QLIST_EMPTY(&clipboard_notifiers.notifiers)) {
+        g_clear_pointer(&cb_change_state_entry,
+                        qemu_del_vm_change_state_handler);
+    }
 }
 
 bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,

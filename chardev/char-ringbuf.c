@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
 #include "qemu/base64.h"
+#include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qom/object.h"
@@ -102,7 +103,7 @@ static bool ringbuf_chr_open(Chardev *chr,
     d->size = opts->has_size ? opts->size : 65536;
 
     /* The size must be power of 2 */
-    if (d->size & (d->size - 1)) {
+    if (!is_power_of_2(d->size)) {
         error_setg(errp, "size of ringbuf chardev must be power of two");
         return false;
     }
@@ -166,6 +167,7 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     Chardev *chr;
     uint8_t *read_data;
     size_t count;
+    int actual;
     char *data;
 
     chr = qemu_chr_find(device);
@@ -188,10 +190,10 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     size = size > count ? count : size;
     read_data = g_malloc(size + 1);
 
-    ringbuf_chr_read(chr, read_data, size);
+    actual = ringbuf_chr_read(chr, read_data, size);
 
     if (has_format && (format == DATA_FORMAT_BASE64)) {
-        data = g_base64_encode(read_data, size);
+        data = g_base64_encode(read_data, actual);
         g_free(read_data);
     } else {
         /*
@@ -201,7 +203,7 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
          * when) ring buffer lost characters since last read, initial
          * continuation characters should be dropped.
          */
-        read_data[size] = 0;
+        read_data[actual] = 0;
         data = (char *)read_data;
     }
 

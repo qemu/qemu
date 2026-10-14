@@ -171,6 +171,7 @@ capture_on_process(void *data)
     buf = b->buffer;
     p = buf->datas[0].data;
     if (p == NULL) {
+        pw_stream_queue_buffer(v->stream, b);
         return;
     }
     offs = SPA_MIN(buf->datas[0].chunk->offset, buf->datas[0].maxsize);
@@ -181,10 +182,13 @@ capture_on_process(void *data)
 
     if (filled < 0) {
         error_report("%p: underrun write:%u filled:%d", p, index, filled);
+        pw_stream_queue_buffer(v->stream, b);
+        return;
     } else {
         if ((uint32_t) filled + n_bytes > RINGBUFFER_SIZE) {
             error_report("%p: overrun write:%u filled:%d + size:%u > max:%u",
             p, index, filled, n_bytes, RINGBUFFER_SIZE);
+            n_bytes = RINGBUFFER_SIZE - (uint32_t)filled;
         }
     }
     spa_ringbuffer_write_data(&v->ring,
@@ -243,8 +247,12 @@ qpw_read(HWVoiceIn *hw, void *data, size_t len)
     avail = spa_ringbuffer_get_read_index(&v->ring, &index);
 
     trace_pw_read(avail, index, len);
+    if (avail <= 0) {
+        l = 0;
+        goto done_unlock;
+    }
 
-    if (avail < (int32_t) len) {
+    if ((size_t)avail < len) {
         len = avail;
     }
 
@@ -278,6 +286,9 @@ static size_t qpw_buffer_get_free(HWVoiceOut *hw)
 
     filled = spa_ringbuffer_get_write_index(&v->ring, &index);
     avail = v->highwater_mark - filled;
+    if (avail < 0) {
+        avail = 0;
+    }
 
 done_unlock:
     pw_thread_loop_unlock(c->thread_loop);
@@ -304,17 +315,24 @@ qpw_write(HWVoiceOut *hw, void *data, size_t len)
     avail = v->highwater_mark - filled;
 
     trace_pw_write(filled, avail, index, len);
+    if (avail <= 0) {
+        len = 0;
+        goto done_unlock;
+    }
 
-    if (len > avail) {
+    if (len > (size_t)avail) {
         len = avail;
     }
 
     if (filled < 0) {
         error_report("%p: underrun write:%u filled:%d", pw, index, filled);
+        len = 0;
+        goto done_unlock;
     } else {
         if ((uint32_t) filled + len > RINGBUFFER_SIZE) {
             error_report("%p: overrun write:%u filled:%d + size:%zu > max:%u",
             pw, index, filled, len, RINGBUFFER_SIZE);
+            len = RINGBUFFER_SIZE - (uint32_t)filled;
         }
     }
 

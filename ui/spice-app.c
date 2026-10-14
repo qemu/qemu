@@ -180,8 +180,14 @@ static void spice_app_display_early_init(DisplayOptions *opts)
     qemu_opt_set(qopts, "image-compression", "off", &error_abort);
     qemu_opt_set(qopts, "streaming-video", "off", &error_abort);
 #ifdef HAVE_SPICE_GL
-    qemu_opt_set(qopts, "gl", opts->has_gl ? "on" : "off", &error_abort);
-    display_opengl = opts->has_gl;
+    if (opts->has_gl &&
+        opts->gl != DISPLAY_GL_MODE_ON &&
+        opts->gl != DISPLAY_GL_MODE_OFF) {
+        error_report("spice-app only supports gl=on/off");
+        exit(1);
+    }
+    display_opengl = opts->has_gl && opts->gl != DISPLAY_GL_MODE_OFF;
+    qemu_opt_set(qopts, "gl", display_opengl ? "on" : "off", &error_abort);
 #endif
 }
 

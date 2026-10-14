@@ -81,6 +81,10 @@ static int udp_chr_read_poll(void *opaque)
      */
     udp_chr_flush_buffer(s);
 
+    /*
+     * udp_chr_flush_buffer() loops while max_size > 0 && bufptr < bufcnt,
+     * so when pending data remains it must be because max_size hit 0.
+     */
     return s->max_size;
 }
 
