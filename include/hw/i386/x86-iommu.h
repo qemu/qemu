@@ -135,6 +135,12 @@ struct X86IOMMU_MSIMessage {
 X86IOMMUState *x86_iommu_get_default(void);
 
 /**
+ * x86_iommu_device_get - get IOMMU device for given PCI device
+ * @return: pointer to default IOMMU device
+ */
+X86IOMMUState *x86_iommu_device_get(PCIDevice *dev);
+
+/**
  * x86_iommu_iec_register_notifier - register IEC (Interrupt Entry
  *                                   Cache) notifiers
  * @iommu: IOMMU device to register

@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "system/kvm.h"
+#include "hw/pci/pci_bus.h"
 
 void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
                                      iec_notify_fn fn, void *data)
@@ -88,6 +89,21 @@ X86IOMMUState *x86_iommu_get_default(void)
         return X86_IOMMU_DEVICE(pcms->iommu);
     }
     return NULL;
+}
+
+X86IOMMUState *x86_iommu_device_get(PCIDevice *dev)
+{
+    PCIBus *iommu_bus;
+    X86IOMMUState *iommu = NULL;
+
+    pci_device_get_iommu_bus_devfn(dev, &iommu_bus, NULL, NULL);
+
+    if (iommu_bus && iommu_bus->iommu_ops->get_x86_iommu) {
+        iommu_bus->iommu_ops->get_x86_iommu(iommu_bus->iommu_opaque,
+                                            (void **)&iommu);
+    }
+
+    return iommu;
 }
 
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
