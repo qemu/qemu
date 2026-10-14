@@ -54,7 +54,8 @@ together with the SCSI CDB using ancillary data.
 The CDB has the following limitations:
 
 - the command (stored in the first byte) must be one of 0x5E
-  (PERSISTENT RESERVE IN) or 0x5F (PERSISTENT RESERVE OUT).
+  (PERSISTENT RESERVE IN), 0x5F (PERSISTENT RESERVE OUT), or 0xFF (PR HELPER
+  CLEANUP, see below).
 
 - the allocation length (stored in bytes 7-8 of the CDB for PERSISTENT
   RESERVE IN) or parameter list length (stored in bytes 5-8 of the CDB
@@ -62,6 +63,19 @@ The CDB has the following limitations:
 
 For PERSISTENT RESERVE OUT, the parameter list is sent right after the
 CDB.  The length of the parameter list is taken from the CDB itself.
+
+The PR HELPER CLEANUP command is a vendor-specific command without a parameter
+list that has the following effect on Linux device-mapper multipath devices and
+otherwise has no effect. This command is intended for cleaning up the multipath
+device on the source host after live migration has completed successfully:
+
+1. Sends "unsetprkey map <dm-target>" to multipathd.
+
+2. Sends "unsetprstatus map <dm-target>" to multipathd.
+
+3. Performs PERSISTENT RESERVE OUT with the REGISTER AND IGNORE EXISTING KEY
+   service action containing zero values for the RESERVATION KEY and SERVICE
+   ACTION RESERVATION KEY.
 
 The helper's reply has the following structure:
 
