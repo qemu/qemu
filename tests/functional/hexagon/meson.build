@@ -3,6 +3,7 @@
 tests_hexagon_system_thorough = [
   'arch_tests',
   'systests',
+  'minivm',
 ]
 
 test_hexagon_timeouts = {
