@@ -19,6 +19,7 @@
 #include "sys_macros.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hex_interrupts.h"
 
 static inline void hex_log_tlbw(uint32_t index, uint64_t entry)
 {
@@ -271,6 +272,8 @@ void hex_tlb_unlock(CPUHexagonState *env)
         unlock_thread->tlb_lock_state = HEX_LOCK_QUEUED;
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_TLBLOCK, 1);
         cpu_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
+        hex_interrupt_update(unlock_thread);
+        qemu_cpu_kick(cs);
     }
 
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {

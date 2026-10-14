@@ -240,8 +240,10 @@ static bool hex_is_qualified_for_int(CPUHexagonState *env, int int_num)
     bool ssr_ie = get_ssr_ie(env);
     bool ssr_ex = get_ssr_ex(env);
     bool imask = get_imask_bit(env, int_num);
+    bool lock_pending = env->k0_lock_state != HEX_LOCK_UNLOCKED ||
+                        env->tlb_lock_state != HEX_LOCK_UNLOCKED;
 
-    return syscfg_gie && !iad && ssr_ie && !ssr_ex && !imask;
+    return syscfg_gie && !iad && ssr_ie && !ssr_ex && !imask && !lock_pending;
 }
 
 static void clear_pending_locks(CPUHexagonState *env)
@@ -257,7 +259,9 @@ static void clear_pending_locks(CPUHexagonState *env)
 
 static bool should_not_exec(CPUHexagonState *env)
 {
-    return (get_exe_mode(env) == HEX_EXE_MODE_WAIT);
+    return get_exe_mode(env) == HEX_EXE_MODE_WAIT ||
+           env->k0_lock_state == HEX_LOCK_WAITING ||
+           env->tlb_lock_state == HEX_LOCK_WAITING;
 }
 
 static void restore_state(CPUHexagonState *env, bool int_accepted)

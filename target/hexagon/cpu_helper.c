@@ -373,6 +373,7 @@ static uint32_t set_enable_mask(CPUHexagonState *env)
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     thread_enabled_mask |= 0x1 << env->threadId;
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
+    hex_interrupt_update(env);
     return thread_enabled_mask;
 }
 
@@ -393,6 +394,7 @@ static uint32_t clear_enable_mask(CPUHexagonState *env)
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     thread_enabled_mask &= ~(0x1 << env->threadId);
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
+    hex_interrupt_update(env);
     return thread_enabled_mask;
 }
 static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
