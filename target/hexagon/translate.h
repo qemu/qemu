@@ -97,10 +97,8 @@ typedef struct DisasContext {
     TCGv new_pred_value[NUM_PREGS];
     TCGv branch_taken;
     TCGv dczero_addr;
-    bool pcycle_enabled;
     bool hvx_coproc_enabled;
     bool hvx_check_emitted;
-    uint32_t num_cycles;
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);

@@ -24,11 +24,5 @@ void hexagon_start_threads(CPUHexagonState *env, uint32_t mask);
 void hexagon_stop_thread(CPUHexagonState *env);
 void hexagon_nmi(CPUHexagonState *env, uint32_t thread_mask);
 void hexagon_resume_threads(CPUHexagonState *env, uint32_t mask);
-uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env);
-uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env);
-uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env);
-void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t val);
-void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t val);
-void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t val);
 
 #endif
