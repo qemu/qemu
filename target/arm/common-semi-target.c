@@ -71,38 +71,3 @@ const SemihostingCPUOps arm_semihosting_ops = {
     .stack_bottom = arm_semi_stack_bottom,
     .has_synccache = arm_semi_has_synccache,
 };
-
-uint64_t common_semi_arg(CPUState *cs, int argno)
-{
-    return arm_semi_arg(cs, argno);
-}
-
-void common_semi_set_ret(CPUState *cs, uint64_t ret)
-{
-    arm_semi_set_ret(cs, ret);
-}
-
-void common_semi_set_err(CPUState *cs, int err)
-{
-    arm_semi_set_err(cs, err);
-}
-
-bool is_64bit_semihosting(CPUArchState *env)
-{
-    return arm_semi_is_64bit(env_cpu(env));
-}
-
-bool common_semi_sys_exit_is_extended(CPUState *cs)
-{
-    return arm_semi_sys_exit_is_extended(cs);
-}
-
-uint64_t common_semi_stack_bottom(CPUState *cs)
-{
-    return arm_semi_stack_bottom(cs);
-}
-
-bool common_semi_has_synccache(CPUArchState *env)
-{
-    return arm_semi_has_synccache(env_cpu(env));
-}
