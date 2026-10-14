@@ -2733,8 +2733,16 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion_overlap(&s->mr_sys, AMDVI_INT_ADDR_FIRST,
                                         &s->mr_ir, 1);
 
-    /* Pseudo address space under root PCI bus. */
-    x86ms->ioapic_as = amdvi_host_dma_iommu(bus, s, AMDVI_IOAPIC_SB_DEVID);
+    /**
+     * Pseudo address space under root PCI bus.
+     * The linux kernel disables the intremap when it cannot find IOAPIC under
+     * AMD IOMMU IVRS, hence create a ioapic_as with root bus even though AMD
+     * IOMMU is not serving devices attached to root bus.
+     */
+    if (x86_iommu_ir_supported(X86_IOMMU_DEVICE(s))) {
+        x86ms->ioapic_as = amdvi_host_dma_iommu(pcms->pcibus, s,
+                                                AMDVI_IOAPIC_SB_DEVID);
+    }
 
     if (kvm_enabled() && x86ms->apic_id_limit > 255 && !s->xtsup) {
         error_report("AMD IOMMU with x2APIC configuration requires xtsup=on");
