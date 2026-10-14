@@ -188,7 +188,7 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
  */
 
 #define GET_ARG(n) do {                                 \
-    if (is_64bit_semihosting(env)) {                    \
+    if (cs->cc->semi_ops->is_64bit(cs)) {               \
         if (get_user_u64(arg ## n, args + (n) * 8)) {   \
             goto do_fault;                              \
         }                                               \
@@ -200,7 +200,7 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
 } while (0)
 
 #define SET_ARG(n, val)                                 \
-    (is_64bit_semihosting(env) ?                        \
+    (cs->cc->semi_ops->is_64bit(cs) ?                   \
      put_user_u64(val, args + (n) * 8) :                \
      put_user_u32(val, args + (n) * 4))
 
@@ -237,10 +237,10 @@ void common_semi_cb(CPUState *cs, uint64_t ret, int err)
         ts->swi_errno = err;
 #else
         syscall_err = err;
-        common_semi_set_err(cs, err);
+        cs->cc->semi_ops->set_err(cs, err);
 #endif
     }
-    common_semi_set_ret(cs, ret);
+    cs->cc->semi_ops->set_ret(cs, ret);
 }
 
 /*
@@ -249,7 +249,7 @@ void common_semi_cb(CPUState *cs, uint64_t ret, int err)
  */
 static void common_semi_dead_cb(CPUState *cs, uint64_t ret, int err)
 {
-    common_semi_set_ret(cs, 0xdeadbeef);
+    cs->cc->semi_ops->set_ret(cs, 0xdeadbeef);
 }
 
 /*
@@ -260,7 +260,7 @@ static void common_semi_rw_cb(CPUState *cs, uint64_t ret, int err)
 {
     /* Recover the original length from the third argument. */
     CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
-    uint64_t args = common_semi_arg(cs, 1);
+    uint64_t args = cs->cc->semi_ops->arg(cs, 1);
     uint64_t arg2;
     GET_ARG(2);
 
@@ -268,7 +268,7 @@ static void common_semi_rw_cb(CPUState *cs, uint64_t ret, int err)
  do_fault:
         ret = 0; /* error: no bytes transmitted */
     }
-    common_semi_set_ret(cs, arg2 - ret);
+    cs->cc->semi_ops->set_ret(cs, arg2 - ret);
 }
 
 /*
@@ -302,7 +302,7 @@ static void common_semi_seek_cb(CPUState *cs, uint64_t ret, int err)
  */
 static uint64_t common_semi_flen_buf(CPUState *cs)
 {
-    vaddr sp = common_semi_stack_bottom(cs);
+    vaddr sp = cs->cc->semi_ops->stack_bottom(cs);
     return sp - 64;
 }
 
@@ -330,7 +330,7 @@ common_semi_readc_cb(CPUState *cs, uint64_t ret, int err)
         CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
         uint8_t ch;
 
-        if (get_user_u8(ch, common_semi_stack_bottom(cs) - 1)) {
+        if (get_user_u8(ch, cs->cc->semi_ops->stack_bottom(cs) - 1)) {
             ret = -1, err = EFAULT;
         } else {
             ret = ch;
@@ -385,7 +385,7 @@ void semihosting_arm_compatible_init(void)
  */
 void do_common_semihosting(CPUState *cs)
 {
-    CPUArchState *env = cpu_env(cs);
+    CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
     uint64_t args;
     uint64_t arg0, arg1, arg2, arg3;
     uint64_t ul_ret;
@@ -393,8 +393,8 @@ void do_common_semihosting(CPUState *cs)
     int nr;
     int64_t elapsed;
 
-    nr = common_semi_arg(cs, 0) & 0xffffffffU;
-    args = common_semi_arg(cs, 1);
+    nr = cs->cc->semi_ops->arg(cs, 0) & 0xffffffffU;
+    args = cs->cc->semi_ops->arg(cs, 1);
 
     switch (nr) {
     case TARGET_SYS_OPEN:
@@ -494,15 +494,15 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_READC:
         semihost_sys_read_gf(cs, common_semi_readc_cb, &console_in_gf,
-                             common_semi_stack_bottom(cs) - 1, 1);
+                             cs->cc->semi_ops->stack_bottom(cs) - 1, 1);
         break;
 
     case TARGET_SYS_ISERROR:
     {
         GET_ARG(0);
-        bool ret = is_64bit_semihosting(env) ?
+        bool ret = cs->cc->semi_ops->is_64bit(cs) ?
                    (int64_t)arg0 < 0 : (int32_t)arg0 < 0;
-        common_semi_set_ret(cs, ret);
+        cs->cc->semi_ops->set_ret(cs, ret);
         break;
     }
     case TARGET_SYS_ISTTY:
@@ -533,7 +533,7 @@ void do_common_semihosting(CPUState *cs)
         len = asprintf(&s, "%s/qemu-%x%02x", g_get_tmp_dir(),
                        getpid(), (int)arg1 & 0xff);
         if (len < 0) {
-            common_semi_set_ret(cs, -1);
+            cs->cc->semi_ops->set_ret(cs, -1);
             break;
         }
 
@@ -542,7 +542,7 @@ void do_common_semihosting(CPUState *cs)
         /* Make sure there's enough space in the buffer */
         if (len > arg2) {
             free(s);
-            common_semi_set_ret(cs, -1);
+            cs->cc->semi_ops->set_ret(cs, -1);
             break;
         }
         p = lock_user(VERIFY_WRITE, arg0, len, 0);
@@ -553,7 +553,7 @@ void do_common_semihosting(CPUState *cs)
         memcpy(p, s, len);
         unlock_user(p, arg0, len);
         free(s);
-        common_semi_set_ret(cs, 0);
+        cs->cc->semi_ops->set_ret(cs, 0);
         break;
     }
 
@@ -572,7 +572,7 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_CLOCK:
-        common_semi_set_ret(cs, clock() / (CLOCKS_PER_SEC / 100));
+        cs->cc->semi_ops->set_ret(cs, clock() / (CLOCKS_PER_SEC / 100));
         break;
 
     case TARGET_SYS_TIME:
@@ -587,7 +587,7 @@ void do_common_semihosting(CPUState *cs)
         break;
 
     case TARGET_SYS_ERRNO:
-        common_semi_set_ret(cs, get_swi_errno(cs));
+        cs->cc->semi_ops->set_ret(cs, get_swi_errno(cs));
         break;
 
     case TARGET_SYS_GET_CMDLINE:
@@ -734,7 +734,7 @@ void do_common_semihosting(CPUState *cs)
             for (i = 0; i < ARRAY_SIZE(retvals); i++) {
                 bool fail;
 
-                if (is_64bit_semihosting(env)) {
+                if (cs->cc->semi_ops->is_64bit(cs)) {
                     fail = put_user_u64(retvals[i], arg0 + i * 8);
                 } else {
                     fail = put_user_u32(retvals[i], arg0 + i * 4);
@@ -745,7 +745,7 @@ void do_common_semihosting(CPUState *cs)
                     goto do_fault;
                 }
             }
-            common_semi_set_ret(cs, 0);
+            cs->cc->semi_ops->set_ret(cs, 0);
         }
         break;
 
@@ -755,7 +755,7 @@ void do_common_semihosting(CPUState *cs)
         uint32_t ret;
 
         if (nr == TARGET_SYS_EXIT_EXTENDED ||
-            common_semi_sys_exit_is_extended(cs)) {
+            cs->cc->semi_ops->sys_exit_is_extended(cs)) {
             /*
              * The A64 version of SYS_EXIT takes a parameter block,
              * so the application-exit type can return a subcode which
@@ -786,7 +786,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_ELAPSED:
         elapsed = get_clock() - clock_start;
-        if (is_64bit_semihosting(env)) {
+        if (cs->cc->semi_ops->is_64bit(cs)) {
             if (SET_ARG(0, elapsed)) {
                 goto do_fault;
             }
@@ -796,12 +796,12 @@ void do_common_semihosting(CPUState *cs)
                 goto do_fault;
             }
         }
-        common_semi_set_ret(cs, 0);
+        cs->cc->semi_ops->set_ret(cs, 0);
         break;
 
     case TARGET_SYS_TICKFREQ:
         /* qemu always uses nsec */
-        common_semi_set_ret(cs, 1000000000);
+        cs->cc->semi_ops->set_ret(cs, 1000000000);
         break;
 
     case TARGET_SYS_SYNCCACHE:
@@ -810,8 +810,8 @@ void do_common_semihosting(CPUState *cs)
          * virtual address range. This is a nop for us since we don't
          * implement caches. This is only present on A64.
          */
-        if (common_semi_has_synccache(env)) {
-            common_semi_set_ret(cs, 0);
+        if (cs->cc->semi_ops->has_synccache(cs)) {
+            cs->cc->semi_ops->set_ret(cs, 0);
             break;
         }
         /* fall through */
