@@ -6746,7 +6746,15 @@ uint64_t kvm_swizzle_msi_ext_dest_id(uint64_t address)
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
-    X86IOMMUState *iommu = x86_iommu_get_default();
+    X86IOMMUState *iommu = NULL;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    X86MachineState *x86ms = X86_MACHINE(ms);
+
+    if (dev) {
+        iommu = x86_iommu_device_get(dev);
+    } else if (x86ms->ioapic_as != &address_space_memory) {
+        iommu = x86_iommu_get_default();
+    }
 
     if (iommu) {
         X86IOMMUClass *class = X86_IOMMU_DEVICE_GET_CLASS(iommu);
@@ -6848,6 +6856,7 @@ int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
 {
     static bool notify_list_inited = false;
     MSIRouteEntry *entry;
+    X86IOMMUState *iommu = NULL;
 
     if (!dev) {
         /* These are (possibly) IOAPIC routes only used for split
@@ -6867,13 +6876,13 @@ int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
     if (!notify_list_inited) {
         /* For the first time we do add route, add ourselves into
          * IOMMU's IEC notify list if needed. */
-        X86IOMMUState *iommu = x86_iommu_get_default();
+        iommu = x86_iommu_device_get(dev);
         if (iommu) {
             x86_iommu_iec_register_notifier(iommu,
                                             kvm_update_msi_routes_all,
                                             NULL);
+            notify_list_inited = true;
         }
-        notify_list_inited = true;
     }
     return 0;
 }
