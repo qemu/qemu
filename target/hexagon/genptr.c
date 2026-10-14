@@ -443,6 +443,12 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
     } else if (reg_num == HEX_REG_UTIMERHI) {
         gen_helper_sreg_read(dest, tcg_env,
                              tcg_constant_i32(HEX_SREG_TIMERHI));
+    } else if (reg_num == HEX_REG_UPCYCLELO) {
+        gen_helper_upcycle_read(dest, tcg_env,
+                                tcg_constant_i32(HEX_SREG_PCYCLELO));
+    } else if (reg_num == HEX_REG_UPCYCLEHI) {
+        gen_helper_upcycle_read(dest, tcg_env,
+                                tcg_constant_i32(HEX_SREG_PCYCLEHI));
 #else
     } else if (reg_num == HEX_REG_UTIMERLO) {
         TCGv_i64 utimer = tcg_temp_new_i64();
@@ -488,6 +494,8 @@ static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
         gen_helper_sreg_read(lo, tcg_env, tcg_constant_i32(HEX_SREG_TIMERLO));
         gen_helper_sreg_read(hi, tcg_env, tcg_constant_i32(HEX_SREG_TIMERHI));
         tcg_gen_concat_i32_i64(dest, lo, hi);
+    } else if (reg_num == HEX_REG_UPCYCLELO) {
+        gen_helper_upcycle_read_pair(dest, tcg_env);
 #else
     } else if (reg_num == HEX_REG_UTIMERLO) {
         /* One helper call, so the pair is a coherent 64-bit snapshot. */

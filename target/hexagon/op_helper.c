@@ -1943,26 +1943,71 @@ uint32_t HELPER(sreg_read)(CPUHexagonState *env, uint32_t reg)
 
 uint64_t HELPER(sreg_read_pair)(CPUHexagonState *env, uint32_t reg)
 {
+    HexagonCPU *cpu = env_archcpu(env);
+
     BQL_LOCK_GUARD();
 
+    if (reg == HEX_SREG_PCYCLELO && cpu->globalregs) {
+        return hexagon_globalreg_read_pcycle(cpu->globalregs);
+    }
     return deposit64((uint64_t) sreg_read(env, reg), 32, 32,
         sreg_read(env, reg + 1));
+}
+
+/*
+ * UPCYCLELO/UPCYCLEHI are the user-visible alias of PCYCLELO/PCYCLEHI,
+ * readable without privilege but only once SSR[CE] is set.
+ */
+uint32_t HELPER(upcycle_read)(CPUHexagonState *env, uint32_t sreg)
+{
+    uint32_t ssr;
+
+    BQL_LOCK_GUARD();
+    ssr = env->t_sreg[HEX_SREG_SSR];
+    if (!GET_SSR_FIELD(SSR_CE, ssr)) {
+        return 0;
+    }
+    return sreg_read(env, sreg);
+}
+
+uint64_t HELPER(upcycle_read_pair)(CPUHexagonState *env)
+{
+    HexagonCPU *cpu = env_archcpu(env);
+    uint32_t ssr;
+
+    BQL_LOCK_GUARD();
+    ssr = env->t_sreg[HEX_SREG_SSR];
+    if (!GET_SSR_FIELD(SSR_CE, ssr)) {
+        return 0;
+    }
+    return cpu->globalregs ?
+           hexagon_globalreg_read_pcycle(cpu->globalregs) : 0;
 }
 
 uint32_t HELPER(greg_read)(CPUHexagonState *env, uint32_t reg)
 
 {
+    BQL_LOCK_GUARD();
     return hexagon_greg_read(env, reg);
 }
 
 uint64_t HELPER(greg_read_pair)(CPUHexagonState *env, uint32_t reg)
 
 {
+    HexagonCPU *cpu = env_archcpu(env);
+
+    BQL_LOCK_GUARD();
     g_assert((reg & 1) == 0);
 
     if (reg == HEX_GREG_G0 || reg == HEX_GREG_G2) {
         return (uint64_t)(env->greg[reg]) |
                (((uint64_t)(env->greg[reg + 1])) << 32);
+    }
+    if (reg == HEX_GREG_GPCYCLELO) {
+        uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
+
+        return GET_SSR_FIELD(SSR_CE, ssr) && cpu->globalregs ?
+               hexagon_globalreg_read_pcycle(cpu->globalregs) : 0;
     }
     return (uint64_t)hexagon_greg_read(env, reg) |
            ((uint64_t)(hexagon_greg_read(env, reg + 1)) << 32);
