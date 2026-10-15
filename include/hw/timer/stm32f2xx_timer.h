@@ -76,7 +76,6 @@ struct STM32F2XXTimerState {
     qemu_irq irq;
 
     int64_t tick_offset;
-    uint64_t hit_time;
     uint64_t freq_hz;
 
     uint32_t tim_cr1;
@@ -97,6 +96,7 @@ struct STM32F2XXTimerState {
     uint32_t tim_dcr;
     uint32_t tim_dmar;
     uint32_t tim_or;
+    uint32_t stopped_cnt;
 };
 
 #endif /* HW_STM32F2XX_TIMER_H */

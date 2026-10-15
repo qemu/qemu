@@ -90,6 +90,25 @@ static void stm32_rcc_write(void *opaque, hwaddr addr,
     }
 
     switch (addr) {
+    case STM32_RCC_CR:
+        /*
+         * Oscillators become ready immediately in QEMU.
+         * Mirror enable bits into ready bits. See RM0090 7.3.1.
+         */
+        value = deposit32(value, 1, 1, extract32(value, 0, 1));
+        value = deposit32(value, 17, 1, extract32(value, 16, 1));
+        value = deposit32(value, 25, 1, extract32(value, 24, 1));
+        value = deposit32(value, 27, 1, extract32(value, 26, 1));
+        s->regs[addr >> 2] = value;
+        return;
+    case STM32_RCC_CFGR:
+        /*
+         * System clock switching is instantaneous in QEMU.
+         * Mirror SW[1:0] into SWS[3:2]. See RM0090 7.3.3.
+         */
+        value = deposit32(value, 2, 2, extract32(value, 0, 2));
+        s->regs[addr >> 2] = value;
+        return;
     case STM32_RCC_AHB1_RSTR ... STM32_RCC_AHB3_RSTR:
     case STM32_RCC_APB1_RSTR ... STM32_RCC_APB2_RSTR:
         prev_value = s->regs[addr / 4];

@@ -79,6 +79,12 @@ tests += {
                   '-semihosting-config', 'enable=on,arg=2',
                   qemu_base_args]
   },
+  'ttbr-baddr.c': {
+    'cflags': cflags,
+    'qemu_args': ['-M', 'virt,virtualization=on', '-cpu', 'max',
+                  '-semihosting-config', 'enable=on,arg=2',
+                  qemu_base_args]
+  },
 }
 
 tests += {
