@@ -53,7 +53,8 @@ static void stm32f2xx_timer_interrupt(void *opaque)
     if (s->tim_dier & TIM_DIER_UIE && s->tim_cr1 & TIM_CR1_CEN) {
         s->tim_sr |= 1;
         qemu_irq_pulse(s->irq);
-        stm32f2xx_timer_set_alarm(s, s->hit_time);
+        stm32f2xx_timer_set_alarm(s,
+                                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     }
 
     if (s->tim_ccmr1 & (TIM_CCMR1_OC2M2 | TIM_CCMR1_OC2M1) &&
@@ -71,27 +72,43 @@ static inline int64_t stm32f2xx_ns_to_ticks(STM32F2XXTimerState *s, int64_t t)
     return muldiv64(t, s->freq_hz, 1000000000ULL) / (s->tim_psc + 1);
 }
 
+static uint32_t stm32f2xx_timer_get_cnt(STM32F2XXTimerState *s, int64_t now)
+{
+    uint64_t period_ticks = (uint64_t)s->tim_arr + 1;
+
+    if (!(s->tim_cr1 & TIM_CR1_CEN)) {
+        return s->stopped_cnt;
+    }
+
+    return (stm32f2xx_ns_to_ticks(s, now) - s->tick_offset) % period_ticks;
+}
+
 static void stm32f2xx_timer_set_alarm(STM32F2XXTimerState *s, int64_t now)
 {
-    uint64_t ticks;
-    int64_t now_ticks;
+    uint64_t period_ticks;
+    uint64_t remaining_ticks;
+    uint64_t delta_ns;
+    int64_t hit_time;
 
-    if (s->tim_arr == 0) {
+    if (!(s->tim_cr1 & TIM_CR1_CEN)) {
+        timer_del(s->timer);
         return;
     }
 
     DB_PRINT("Alarm set at: 0x%x\n", s->tim_cr1);
 
-    now_ticks = stm32f2xx_ns_to_ticks(s, now);
-    ticks = s->tim_arr - (now_ticks - s->tick_offset);
+    /* STM32 timers count from 0 to ARR inclusive. */
+    period_ticks = (uint64_t)s->tim_arr + 1;
+    remaining_ticks = period_ticks - stm32f2xx_timer_get_cnt(s, now);
 
-    DB_PRINT("Alarm set in %d ticks\n", (int) ticks);
+    DB_PRINT("Alarm set in %" PRIu64 " ticks\n", remaining_ticks);
 
-    s->hit_time = muldiv64((ticks + (uint64_t) now_ticks) * (s->tim_psc + 1),
-                               1000000000ULL, s->freq_hz);
+    delta_ns = muldiv64(remaining_ticks * (s->tim_psc + 1),
+                        1000000000ULL, s->freq_hz);
+    hit_time = now + delta_ns;
+    timer_mod(s->timer, hit_time);
 
-    timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->hit_time);
-    DB_PRINT("Wait Time: %" PRId64 " ticks\n", s->hit_time);
+    DB_PRINT("Wait Time: %" PRId64 " ticks\n", hit_time);
 }
 
 static void stm32f2xx_timer_reset(DeviceState *dev)
@@ -117,8 +134,10 @@ static void stm32f2xx_timer_reset(DeviceState *dev)
     s->tim_dcr = 0;
     s->tim_dmar = 0;
     s->tim_or = 0;
+    s->stopped_cnt = 0;
 
     s->tick_offset = stm32f2xx_ns_to_ticks(s, now);
+    timer_del(s->timer);
 }
 
 static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
@@ -148,8 +167,8 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
     case TIM_CCER:
         return s->tim_ccer;
     case TIM_CNT:
-        return stm32f2xx_ns_to_ticks(s, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) -
-               s->tick_offset;
+        return stm32f2xx_timer_get_cnt(s,
+                                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     case TIM_PSC:
         return s->tim_psc;
     case TIM_ARR:
@@ -187,9 +206,23 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
     DB_PRINT("Write 0x%x, 0x%"HWADDR_PRIx"\n", value, offset);
 
     switch (offset) {
-    case TIM_CR1:
+    case TIM_CR1: {
+        bool was_enabled = s->tim_cr1 & TIM_CR1_CEN;
+        bool enable = value & TIM_CR1_CEN;
+
+        if (was_enabled && !enable) {
+            s->stopped_cnt = stm32f2xx_timer_get_cnt(s, now);
+        }
         s->tim_cr1 = value;
+
+        if (!was_enabled && enable) {
+            s->tick_offset = stm32f2xx_ns_to_ticks(s, now) - s->stopped_cnt;
+            stm32f2xx_timer_set_alarm(s, now);
+        } else if (was_enabled && !enable) {
+            timer_del(s->timer);
+        }
         return;
+    }
     case TIM_CR2:
         s->tim_cr2 = value;
         return;
@@ -220,7 +253,7 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
         s->tim_ccer = value;
         return;
     case TIM_PSC:
-        timer_val = stm32f2xx_ns_to_ticks(s, now) - s->tick_offset;
+        timer_val = stm32f2xx_timer_get_cnt(s, now);
         s->tim_psc = value & 0xFFFF;
         break;
     case TIM_CNT:
@@ -228,7 +261,9 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
         break;
     case TIM_ARR:
         s->tim_arr = value;
-        stm32f2xx_timer_set_alarm(s, now);
+        if (s->tim_cr1 & TIM_CR1_CEN) {
+            stm32f2xx_timer_set_alarm(s, now);
+        }
         return;
     case TIM_CCR1:
         s->tim_ccr1 = value;
@@ -261,6 +296,7 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
      * requires a refresh of both tick_offset and the alarm.
      */
     s->tick_offset = stm32f2xx_ns_to_ticks(s, now) - timer_val;
+    s->stopped_cnt = timer_val;
     stm32f2xx_timer_set_alarm(s, now);
 }
 
@@ -272,8 +308,8 @@ static const MemoryRegionOps stm32f2xx_timer_ops = {
 
 static const VMStateDescription vmstate_stm32f2xx_timer = {
     .name = TYPE_STM32F2XX_TIMER,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (const VMStateField[]) {
         VMSTATE_INT64(tick_offset, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_cr1, STM32F2XXTimerState),
@@ -294,6 +330,7 @@ static const VMStateDescription vmstate_stm32f2xx_timer = {
         VMSTATE_UINT32(tim_dcr, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_dmar, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_or, STM32F2XXTimerState),
+        VMSTATE_UINT32(stopped_cnt, STM32F2XXTimerState),
         VMSTATE_END_OF_LIST()
     }
 };
