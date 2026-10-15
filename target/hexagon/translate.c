@@ -175,9 +175,47 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * Raise the single-step debug event once the packet has retired.  PC
+ * already holds the address of the next packet, which becomes ELR.
+ */
+static void gen_singlestep_exception(DisasContext *ctx)
+{
+    tcg_gen_movi_i32(hex_cause_code, HEX_CAUSE_DEBUG_SINGLESTEP);
+    gen_helper_raise_exception(tcg_env,
+                               tcg_constant_i32(HEX_EVENT_DEBUG),
+                               hex_gpr[HEX_REG_PC]);
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static void gen_end_tb_singlestep(DisasContext *ctx)
+{
+    TCGv pc = hex_gpr[HEX_REG_PC];
+
+    if (ctx->branch_cond == TCG_COND_ALWAYS) {
+        tcg_gen_movi_tl(pc, ctx->branch_dest);
+    } else if (ctx->branch_cond != TCG_COND_NEVER) {
+        tcg_gen_movcond_tl(ctx->branch_cond, pc, ctx->branch_taken,
+                           tcg_constant_tl(1), tcg_constant_tl(ctx->next_PC),
+                           tcg_constant_tl(ctx->branch_dest));
+    } else if (!ctx->pkt.pkt_has_cof) {
+        tcg_gen_movi_tl(pc, ctx->next_PC);
+    }
+    gen_singlestep_exception(ctx);
+}
+#endif
+
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
+
+#ifndef CONFIG_USER_ONLY
+    if (ctx->ss_active) {
+        gen_end_tb_singlestep(ctx);
+        return;
+    }
+#endif
 
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
@@ -1336,6 +1374,12 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
     ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
+    ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
+    if (ctx->ss_active) {
+        /* Step one packet, and let endloop0 branch within the packet */
+        ctx->base.max_insns = 1;
+        ctx->is_tight_loop = false;
+    }
 #endif
 }
 
@@ -1403,6 +1447,12 @@ static void hexagon_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_TOO_MANY:
         gen_exec_counters(ctx);
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
+#ifndef CONFIG_USER_ONLY
+        if (ctx->ss_active) {
+            gen_singlestep_exception(ctx);
+            break;
+        }
+#endif
         tcg_gen_exit_tb(NULL, 0);
         break;
     case DISAS_NORETURN:

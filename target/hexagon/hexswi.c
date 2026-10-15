@@ -846,7 +846,6 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_DEBUG:
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 0, cs->exception_index);
-        qemu_log_mask(LOG_UNIMP, "single-step exception is not handled\n");
         break;
 
     case HEX_EVENT_PRECISE:

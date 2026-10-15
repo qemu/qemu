@@ -46,6 +46,7 @@ typedef struct DisasContext {
     bool implicit_usr_write;
 #ifndef CONFIG_USER_ONLY
     uint32_t cpu_mode;
+    bool ss_active;
     int greg_log[GREG_WRITES_MAX];
     int greg_log_idx;
     DECLARE_BITMAP(gregs_written, NUM_GREGS);

@@ -388,6 +388,10 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
                            GET_SSR_FIELD(SSR_XE, env->t_sreg[HEX_SREG_SSR]));
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, CPU_MODE,
                            get_cpu_mode(env));
+    /* Single-step applies only to user and guest mode packets */
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE,
+                           GET_SSR_FIELD(SSR_SS, env->t_sreg[HEX_SREG_SSR]) &&
+                           get_cpu_mode(env) != HEX_CPU_MODE_MONITOR);
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
