@@ -4362,12 +4362,20 @@ hdev_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
         return ret;
     }
 
-    if (req == SG_IO && s->pr_mgr) {
+    if (req == SG_IO) {
         struct sg_io_hdr *io_hdr = buf;
-        if (io_hdr->cmdp[0] == PERSISTENT_RESERVE_OUT ||
-            io_hdr->cmdp[0] == PERSISTENT_RESERVE_IN) {
-            return pr_manager_execute(s->pr_mgr, qemu_get_current_aio_context(),
-                                      s->fd, io_hdr);
+
+        if (s->pr_mgr) {
+            if (io_hdr->cmdp[0] == PERSISTENT_RESERVE_OUT ||
+                io_hdr->cmdp[0] == PERSISTENT_RESERVE_IN ||
+                io_hdr->cmdp[0] == PR_HELPER_CLEANUP) {
+                return pr_manager_execute(s->pr_mgr, qemu_get_current_aio_context(),
+                                          s->fd, io_hdr);
+            }
+        } else if (io_hdr->cmdp[0] == PR_HELPER_CLEANUP) {
+            /* This is a nop without pr-manager */
+            io_hdr->status = GOOD;
+            return 0;
         }
     }
 

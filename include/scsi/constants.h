@@ -149,6 +149,7 @@
 #define MECHANISM_STATUS      0xbd
 #define READ_CD               0xbe
 #define SEND_DVD_STRUCTURE    0xbf
+#define PR_HELPER_CLEANUP     0xff /* vendor-specific QEMU command */
 
 /*
  * SERVICE ACTION IN subcodes

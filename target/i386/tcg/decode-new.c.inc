@@ -1970,7 +1970,7 @@ static const X86OpEntry opcodes_root[256] = {
     [0xBF] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
 
     [0xC8] = X86_OP_ENTRYrr(ENTER, I,w, I,b),
-    [0xC9] = X86_OP_ENTRY1(LEAVE, A,d64),
+    [0xC9] = X86_OP_ENTRY0(LEAVE),
     [0xCA] = X86_OP_ENTRYr(RETF,  I,w),
     [0xCB] = X86_OP_ENTRY0(RETF),
     [0xCC] = X86_OP_ENTRY0(INT3),
@@ -2548,7 +2548,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 {
     switch (type) {
     case X86_TYPE_None:  /* Implicit or absent */
-    case X86_TYPE_A:  /* Implicit */
     case X86_TYPE_F:  /* EFLAGS/RFLAGS */
     case X86_TYPE_X:  /* string source */
     case X86_TYPE_Y:  /* string destination */
@@ -2715,10 +2714,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     case X86_TYPE_I_unsigned:  /* Immediate */
         op->unit = X86_OP_IMM;
         decode->immediate = op->imm = insn_get(env, s, op->ot);
-        break;
-
-    case X86_TYPE_L:  /* The upper 4 bits of the immediate select a 128-bit register */
-        op->n = insn_get(env, s, op->ot) >> 4;
         break;
 
     case X86_TYPE_2op:

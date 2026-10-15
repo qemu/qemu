@@ -38,6 +38,8 @@ struct PRManagerHelper {
 
     QemuMutex lock;
     QIOChannel *ioc;
+
+    uint32_t proto_flags; /* flags negotiated with pr-helper */
 };
 
 static void pr_manager_send_status_changed_event(PRManagerHelper *pr_mgr)
@@ -129,7 +131,9 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
         goto out_close;
     }
 
-    flags = 0;
+    pr_mgr->proto_flags = be32_to_cpu(flags) & PR_HELPER_FEATURE_CLEANUP;
+
+    flags = cpu_to_be32(pr_mgr->proto_flags);
     r = pr_manager_helper_write(pr_mgr, -1, &flags, sizeof(flags), errp);
     if (r < 0) {
         goto out_close;
@@ -161,9 +165,19 @@ static int pr_manager_helper_run(PRManager *p,
     }
 
     memcpy(cdb, io_hdr->cmdp, io_hdr->cmd_len);
-    assert(cdb[0] == PERSISTENT_RESERVE_OUT || cdb[0] == PERSISTENT_RESERVE_IN);
+    assert(cdb[0] == PERSISTENT_RESERVE_OUT ||
+           cdb[0] == PERSISTENT_RESERVE_IN ||
+           cdb[0] == PR_HELPER_CLEANUP);
+
+    /* The command is only available when pr-helper supports it */
+    if (cdb[0] == PR_HELPER_CLEANUP &&
+        !(pr_mgr->proto_flags & PR_HELPER_FEATURE_CLEANUP)) {
+        return -ENOTSUP;
+    }
+
     expected_dir =
-        (cdb[0] == PERSISTENT_RESERVE_OUT ? SG_DXFER_TO_DEV : SG_DXFER_FROM_DEV);
+        (cdb[0] == PERSISTENT_RESERVE_IN ?
+         SG_DXFER_FROM_DEV : SG_DXFER_TO_DEV);
     if (io_hdr->dxfer_direction != expected_dir) {
         return -EINVAL;
     }
@@ -234,10 +248,11 @@ static int pr_manager_helper_run(PRManager *p,
 
 out:
     if (ret < 0) {
-        int sense_len = scsi_build_sense(io_hdr->sbp,
+        int sense_len = scsi_build_sense(resp.sense,
                                          SENSE_CODE(LUN_COMM_FAILURE));
         io_hdr->driver_status = SG_ERR_DRIVER_SENSE;
         io_hdr->sb_len_wr = MIN(io_hdr->mx_sb_len, sense_len);
+        memcpy(io_hdr->sbp, resp.sense, io_hdr->sb_len_wr);
         io_hdr->status = CHECK_CONDITION;
     }
     qemu_mutex_unlock(&pr_mgr->lock);

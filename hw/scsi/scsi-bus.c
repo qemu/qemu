@@ -873,6 +873,16 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
           */
          !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
         ops = &reqops_unit_attention;
+    } else if (buf[0] == PR_HELPER_CLEANUP) {
+        /*
+         * This is a QEMU-internal vendor-specific SCSI command that must only
+         * be submitted directly via blk_aio_ioctl() and not through SCSI
+         * emulation. Reject the command explicitly to guarantee a guest cannot
+         * execute it, although vendor-specific commands are not supported by
+         * SCSI emulation (including passthrough) anyway.
+         */
+        trace_scsi_req_parse_bad(d->id, lun, tag, buf[0]);
+        goto invalid_opcode;
     } else if (lun != d->lun ||
                buf[0] == REPORT_LUNS ||
                (buf[0] == REQUEST_SENSE && d->sense_len)) {

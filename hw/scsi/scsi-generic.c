@@ -424,7 +424,8 @@ static void scsi_handle_persistent_reserve_out_reply(
     }
 }
 
-static bool scsi_generic_pr_register(SCSIDevice *s, uint64_t key, Error **errp)
+static bool scsi_generic_pr_register_ignore(SCSIDevice *s, uint64_t key,
+                                            Error **errp)
 {
     uint8_t cmd[10] = {};
     uint8_t buf[24] = {};
@@ -432,14 +433,15 @@ static bool scsi_generic_pr_register(SCSIDevice *s, uint64_t key, Error **errp)
     int ret;
 
     cmd[0] = PERSISTENT_RESERVE_OUT;
-    cmd[1] = PRO_REGISTER;
+    cmd[1] = PRO_REGISTER_AND_IGNORE_EXISTING_KEY;
     cmd[8] = sizeof(buf);
     memcpy(&buf[8], &key_be, sizeof(key_be));
 
     ret = scsi_SG_IO(s->conf.blk, SG_DXFER_TO_DEV, cmd, sizeof(cmd),
                      buf, sizeof(buf), s->io_timeout, errp);
     if (ret < 0) {
-        error_prepend(errp, "PERSISTENT RESERVE OUT with REGISTER: ");
+        error_prepend(errp, "PERSISTENT RESERVE OUT with "
+                      "REGISTER AND IGNORE EXISTING KEY: ");
         return false;
     }
     return true;
@@ -620,7 +622,7 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
         return true; /* no PR state, do nothing */
     }
 
-    if (!scsi_generic_pr_register(s, key, errp)) {
+    if (!scsi_generic_pr_register_ignore(s, key, errp)) {
         return false;
     }
 
@@ -647,7 +649,36 @@ bool scsi_generic_pr_state_preempt(SCSIDevice *s, Error **errp)
      * CONFLICT is expected if our registration remained in place.
      */
     if (resv_type == 0) {
-        scsi_generic_pr_register(s, key, NULL);
+        scsi_generic_pr_register_ignore(s, key, NULL);
+    }
+    return true;
+}
+
+/* Clean up keys on source after migration */
+bool scsi_generic_pr_state_cleanup(SCSIDevice *s, Error **errp)
+{
+    SCSIPRState *pr_state = &s->pr_state;
+    uint8_t cmd[10] = {
+        PR_HELPER_CLEANUP, /* OPCODE */
+    };
+    int ret;
+
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        if (pr_state->key == 0) {
+            return true; /* nothing to do */
+        }
+    }
+
+    ret = scsi_SG_IO(s->conf.blk, SG_DXFER_TO_DEV, cmd, sizeof(cmd), NULL, 0,
+                     s->io_timeout, errp);
+    if (ret < 0) {
+        error_prepend(errp, "pr-helper CLEANUP failed: ");
+        return false;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&pr_state->mutex) {
+        pr_state->key = 0;
+        pr_state->resv_type = 0;
     }
     return true;
 }
@@ -923,7 +954,7 @@ int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
                uint32_t timeout, Error **errp)
 {
     sg_io_hdr_t io_header;
-    uint8_t sensebuf[8] = {};
+    uint8_t sensebuf[SCSI_SENSE_LEN] = {};
     int ret;
 
     memset(&io_header, 0, sizeof(io_header));
@@ -947,15 +978,18 @@ int scsi_SG_IO(BlockBackend *blk, int direction, uint8_t *cmd,
             error_setg_errno(errp, -ret, "SG_IO ioctl failed");
         } else {
             g_autofree char *sensebuf_hex =
-                g_strdup_printf("%02x%02x%02x%02x%02x%02x%02x%02x",
-                                sensebuf[0],
-                                sensebuf[1],
-                                sensebuf[2],
-                                sensebuf[3],
-                                sensebuf[4],
-                                sensebuf[5],
-                                sensebuf[6],
-                                sensebuf[7]);
+                g_strdup_printf("%02x%02x%02x%02x%02x%02x%02x%02x"
+                                "%02x%02x%02x%02x%02x%02x%02x%02x"
+                                "%02x%02x",
+                                sensebuf[0], sensebuf[1],
+                                sensebuf[2], sensebuf[3],
+                                sensebuf[4], sensebuf[5],
+                                sensebuf[6], sensebuf[7],
+                                sensebuf[8], sensebuf[9],
+                                sensebuf[10], sensebuf[11],
+                                sensebuf[12], sensebuf[13],
+                                sensebuf[14], sensebuf[15],
+                                sensebuf[16], sensebuf[17]);
 
             error_setg(errp, "SG_IO SCSI command failed with status=0x%x "
                     "driver_status=0x%x host_status=0x%x sensebuf=%s "
