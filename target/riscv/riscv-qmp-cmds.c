@@ -66,11 +66,6 @@ CpuDefinitionInfoList *qmp_query_riscv_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return qmp_query_riscv_cpu_definitions(errp);
-}
-
 static void riscv_check_if_cpu_available(RISCVCPU *cpu, Error **errp)
 {
     if (!riscv_cpu_accelerator_compatible(cpu)) {

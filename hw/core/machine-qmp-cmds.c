@@ -27,6 +27,7 @@
 #include "system/hostmem.h"
 #include "system/hw_accel.h"
 #include "system/numa.h"
+#include "system/qmp-cpu.h"
 #include "system/ramlist.h"
 #include "system/runstate.h"
 #include "system/system.h"
@@ -91,6 +92,37 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
     }
 
     return head;
+}
+
+CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+{
+    switch (target_arch()) {
+    case SYS_EMU_TARGET_AARCH64:
+    case SYS_EMU_TARGET_ARM:
+        return qmp_query_arm_cpu_definitions(errp);
+    case SYS_EMU_TARGET_I386:
+    case SYS_EMU_TARGET_X86_64:
+        return qmp_query_i386_cpu_definitions(errp);
+    case SYS_EMU_TARGET_LOONGARCH64:
+        return qmp_query_loongarch_cpu_definitions(errp);
+    case SYS_EMU_TARGET_MIPS:
+    case SYS_EMU_TARGET_MIPS64:
+    case SYS_EMU_TARGET_MIPS64EL:
+    case SYS_EMU_TARGET_MIPSEL:
+        return qmp_query_mips_cpu_definitions(errp);
+    case SYS_EMU_TARGET_PPC:
+    case SYS_EMU_TARGET_PPC64:
+        return qmp_query_ppc_cpu_definitions(errp);
+    case SYS_EMU_TARGET_RISCV32:
+    case SYS_EMU_TARGET_RISCV64:
+        return qmp_query_riscv_cpu_definitions(errp);
+    case SYS_EMU_TARGET_S390X:
+        return qmp_query_s390x_cpu_definitions(errp);
+    default:
+        error_setg(errp,
+                   "CPU model definitions are not supported on this target");
+        return NULL;
+    }
 }
 
 MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,

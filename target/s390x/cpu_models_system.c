@@ -97,11 +97,6 @@ CpuDefinitionInfoList *qmp_query_s390x_cpu_definitions(Error **errp)
     return list_data.list;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return qmp_query_s390x_cpu_definitions(errp);
-}
-
 static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
                                 const char *info_arg_name, Error **errp)
 {

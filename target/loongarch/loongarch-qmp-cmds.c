@@ -41,11 +41,6 @@ CpuDefinitionInfoList *qmp_query_loongarch_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return qmp_query_loongarch_cpu_definitions(errp);
-}
-
 static const char *cpu_model_advertised_features[] = {
     "lsx", "lasx", "lbt", "pmu", "kvm-pv-ipi", "kvm-steal-time", "msgint",
     "ptw", NULL

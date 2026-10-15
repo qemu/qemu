@@ -48,8 +48,3 @@ CpuDefinitionInfoList *qmp_query_mips_cpu_definitions(Error **errp)
 
     return cpu_list;
 }
-
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return qmp_query_mips_cpu_definitions(errp);
-}

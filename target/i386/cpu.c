@@ -8201,11 +8201,6 @@ CpuDefinitionInfoList *qmp_query_i386_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
-{
-    return qmp_query_i386_cpu_definitions(errp);
-}
-
 #endif /* !CONFIG_USER_ONLY */
 
 static uint8_t x86_cpu_get_host_avx10_version(void)
