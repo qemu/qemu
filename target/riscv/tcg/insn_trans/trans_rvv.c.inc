@@ -4091,3 +4091,48 @@ GEN_INT_EXT_TRANS(vzext_vf8, 3, 2)
 GEN_INT_EXT_TRANS(vsext_vf2, 1, 3)
 GEN_INT_EXT_TRANS(vsext_vf4, 2, 4)
 GEN_INT_EXT_TRANS(vsext_vf8, 3, 5)
+
+/* Zvabd Extension */
+#define GEN_ABD_CHECK(NAME, CHECK_FN, MAX_SEW)                       \
+static bool NAME(DisasContext *s, arg_rmrr *a)                       \
+{                                                                    \
+    return CHECK_FN(s, a) && s->cfg_ptr->ext_zvabd &&                \
+           s->sew <= MAX_SEW &&                                      \
+           (s->sew != MO_64 || s->cfg_ptr->ext_zve64x);              \
+}
+GEN_ABD_CHECK(vabd_vv_check, opivv_check, MO_64)
+GEN_ABD_CHECK(vabd_vx_check, opivx_check, MO_64)
+GEN_ABD_CHECK(vwabd_vv_check, opivv_overwrite_widen_check, MO_16)
+GEN_ABD_CHECK(vwabd_vx_check, opivx_overwrite_widen_check, MO_16)
+
+GEN_OPIVV_TRANS(vabd_vv, vabd_vv_check)
+GEN_OPIVX_TRANS(vabd_vx, vabd_vx_check)
+GEN_OPIVV_TRANS(vabdu_vv, vabd_vv_check)
+GEN_OPIVX_TRANS(vabdu_vx, vabd_vx_check)
+
+#define GEN_ABD_OPIVV_WIDEN_TRANS(NAME, CHECK)                          \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
+{                                                                       \
+    static gen_helper_gvec_4_ptr * const fns[2] = {                     \
+        gen_helper_##NAME##_b, gen_helper_##NAME##_h,                   \
+    };                                                                  \
+    return s->sew <= MO_16 && do_opivv_widen(s, a, fns[s->sew], CHECK); \
+}
+
+#define GEN_ABD_OPIVX_WIDEN_TRANS(NAME, CHECK)                          \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                  \
+{                                                                       \
+    if (CHECK(s, a)) {                                                  \
+        static gen_helper_opivx * const fns[2] = {                      \
+            gen_helper_##NAME##_b, gen_helper_##NAME##_h,               \
+        };                                                              \
+        return opivx_trans(a->rd, a->rs1, a->rs2, a->vm,                \
+                           fns[s->sew], s);                             \
+    }                                                                   \
+    return false;                                                       \
+}
+
+GEN_ABD_OPIVV_WIDEN_TRANS(vwabda_vv, vwabd_vv_check)
+GEN_ABD_OPIVX_WIDEN_TRANS(vwabda_vx, vwabd_vx_check)
+GEN_ABD_OPIVV_WIDEN_TRANS(vwabdau_vv, vwabd_vv_check)
+GEN_ABD_OPIVX_WIDEN_TRANS(vwabdau_vx, vwabd_vx_check)

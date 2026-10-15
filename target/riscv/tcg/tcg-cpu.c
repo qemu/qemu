@@ -760,6 +760,12 @@ void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
+    if ((cpu->cfg.ext_zvabd) && !cpu->cfg.ext_zve32x) {
+        error_setg(errp,
+                   "Zvabd extensions require V or Zve* extensions");
+        return;
+    }
+
     if (cpu->cfg.ext_zicntr && !cpu->cfg.ext_zicsr) {
         if (cpu_cfg_ext_is_user_set(cpu, CPU_CFG_OFFSET(ext_zicntr))) {
             error_setg(errp, "zicntr requires zicsr");
