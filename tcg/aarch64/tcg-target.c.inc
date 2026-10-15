@@ -549,10 +549,10 @@ typedef enum {
     Irrr_UMULH         = 0x9bc07c00,
     Irrr_UDIV          = 0x1ac00800,
     Irrr_SDIV          = 0x1ac00c00,
-    Irrr_SMAX          = 0x1ac00600,
-    Irrr_UMAX          = 0x1ac00640,
-    Irrr_SMIN          = 0x1ac00680,
-    Irrr_UMIN          = 0x1ac006c0,
+    Irrr_SMAX          = 0x1ac06000,
+    Irrr_UMAX          = 0x1ac06400,
+    Irrr_SMIN          = 0x1ac06800,
+    Irrr_UMIN          = 0x1ac06c00,
 
     /* Data-processing (3 source) instructions.  */
     Irrrr_MADD         = 0x1b000000,

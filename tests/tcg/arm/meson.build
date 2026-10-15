@@ -39,6 +39,7 @@ tests += {
   },
   'pcalign-a32.c': {'cflags': ['-marm']},
   'issue4448.c': {},
+  'test-arm-opt-ror.c': {'cflags': ['-marm']},
 }
 
 # Vector SHA1

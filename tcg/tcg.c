@@ -2883,11 +2883,11 @@ void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             if (def->flags & TCG_OPF_INT) {
                 col += ne_fprintf(f, " %s_i%d ",
                                   def->name,
-                                  8 * tcg_type_size(TCGOP_TYPE(op)));
+                                  tcg_type_bits(TCGOP_TYPE(op)));
             } else if (def->flags & TCG_OPF_VECTOR) {
                 col += ne_fprintf(f, "%s v%d,e%d,",
                                   def->name,
-                                  8 * tcg_type_size(TCGOP_TYPE(op)),
+                                  tcg_type_bits(TCGOP_TYPE(op)),
                                   8 << TCGOP_VECE(op));
             } else {
                 col += ne_fprintf(f, " %s ", def->name);

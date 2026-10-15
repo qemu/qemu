@@ -1704,7 +1704,7 @@ static bool fold_deposit(OptContext *ctx, TCGOp *op)
                                           ti_const_val(t2)));
     }
 
-    width = 8 * tcg_type_size(ctx->type);
+    width = tcg_type_bits(ctx->type);
     type_mask = MAKE_64BIT_MASK(0, width);
     len_mask = MAKE_64BIT_MASK(0, len);
 
@@ -2279,7 +2279,7 @@ static bool fold_multiply2(OptContext *ctx, TCGOp *op)
                 op->args[0] = rh;
                 op->args[1] = rl;
                 op->args[2] =
-                    arg_new_constant(ctx, tcg_type_size(ctx->type) * 8 - 1);
+                    arg_new_constant(ctx, tcg_type_bits(ctx->type) - 1);
                 return fold_shift(ctx, op);
             default:
                 break;
@@ -2703,17 +2703,26 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
         z_mask = do_constant_folding(op->opc, ctx->type, z_mask, sh);
         o_mask = do_constant_folding(op->opc, ctx->type, o_mask, sh);
 
-        if (op->opc == INDEX_op_shr) {
+        switch (op->opc) {
+        case INDEX_op_shr:
+        case INDEX_op_rotl:
+        case INDEX_op_rotr:
             /*
-             * Logical right shift will force the sign bit zero.
+             * Logical right shift will force the sign bit zero, and
+             * a rotate may move bits unrelated to the sign into it.
              * Don't bother computing s_mask and let fold_masks
              * recompute from z_mask.
              */
             return fold_masks_zo(ctx, op, z_mask, o_mask);
-        }
 
-        s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
-        return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
+        case INDEX_op_sar:
+        case INDEX_op_shl:
+            s_mask = do_constant_folding(op->opc, ctx->type, s_mask, sh);
+            return fold_masks_zos(ctx, op, z_mask, o_mask, s_mask);
+
+        default:
+            g_assert_not_reached();
+        }
     }
 
     switch (op->opc) {
