@@ -226,9 +226,13 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
     uint64_t in_offset = ds->data_fork_offset;
     uint64_t out_offset;
 
+    if (count < 244) {
+        return 0; /* too small, skip silently */
+    }
+
     type = buff_read_uint32(buffer, offset);
-    /* skip data that is not a valid MISH block (invalid magic or too small) */
-    if (type != 0x6d697368 || count < 244) {
+    /* skip data that is not a valid MISH block (invalid magic) */
+    if (type != 0x6d697368) {
         /* assume success for now */
         return 0;
     }
