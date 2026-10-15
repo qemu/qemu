@@ -246,6 +246,25 @@ vfio_migration_set_state_or_reset(VFIODevice *vbasedev,
                                     VFIO_DEVICE_STATE_ERROR, errp);
 }
 
+/*
+ * On a stop-direction transition failure, recover the device to its current
+ * state instead of resetting it: the current state is valid and already
+ * reached, so recovering to it is effectively a no-op that cannot itself fail.
+ * On a resume-direction (running) failure, the device is genuinely broken, so
+ * reset it by using ERROR as the recover state.
+ */
+static int
+vfio_migration_set_state_or_recover(VFIODevice *vbasedev,
+                                    enum vfio_device_mig_state new_state,
+                                    bool running, Error **errp)
+{
+    VFIOMigration *migration = vbasedev->migration;
+    enum vfio_device_mig_state recover_state =
+        running ? VFIO_DEVICE_STATE_ERROR : migration->device_state;
+
+    return vfio_migration_set_state(vbasedev, new_state, recover_state, errp);
+}
+
 static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
                             uint64_t data_size)
 {
@@ -771,9 +790,16 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
 
     trace_vfio_save_complete_precopy_start(vbasedev->name);
 
-    /* We reach here with device state STOP or STOP_COPY only */
-    ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_STOP_COPY,
-                                   VFIO_DEVICE_STATE_STOP, &local_err);
+    /*
+     * We normally reach here with the device in STOP or STOP_COPY. However, if
+     * an earlier stop transition was declined by the device, it may still be in
+     * a running state. Recover to the current device state rather than STOP, so
+     * a device that declines the stop-copy transition is rolled back to its
+     * current state instead of being reset out from under the guest.
+     */
+    ret = vfio_migration_set_state_or_recover(vbasedev,
+                                              VFIO_DEVICE_STATE_STOP_COPY,
+                                              false, &local_err);
     if (ret) {
         error_report_err(local_err);
         return ret;
@@ -1009,7 +1035,8 @@ static void vfio_vmstate_change_prepare(void *opaque, bool running,
         vfio_final_precopy_reinit_check(vbasedev);
     }
 
-    ret = vfio_migration_set_state_or_reset(vbasedev, new_state, &local_err);
+    ret = vfio_migration_set_state_or_recover(vbasedev, new_state, running,
+                                              &local_err);
     if (ret) {
         /*
          * Migration should be aborted in this case, but vm_state_notify()
@@ -1040,7 +1067,8 @@ static void vfio_vmstate_change(void *opaque, bool running, RunState state)
                 VFIO_DEVICE_STATE_STOP;
     }
 
-    ret = vfio_migration_set_state_or_reset(vbasedev, new_state, &local_err);
+    ret = vfio_migration_set_state_or_recover(vbasedev, new_state, running,
+                                              &local_err);
     if (ret) {
         /*
          * Migration should be aborted in this case, but vm_state_notify()

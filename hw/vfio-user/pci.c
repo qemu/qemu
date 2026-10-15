@@ -266,6 +266,11 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         return;
     }
 
+    if (pdev->failover_pair_id) {
+        error_setg(errp, "vfio-user: failover is not supported");
+        return;
+    }
+
     sock_name = udev->socket->u.q_unix.path;
 
     vbasedev->name = g_strdup_printf("vfio-user:%s", sock_name);

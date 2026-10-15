@@ -263,6 +263,6 @@ Footnotes
 [2] # echo "vfio-pci" > /sys/bus/pci/devices/0000:00:02.0/driver_override
 [3] https://web.archive.org/web/20240827012422/https://bugzilla.tianocore.org/show_bug.cgi?id=935
     Tianocore bugzilla was down since Jan 2025 :(
-[4] https://eci.intel.com/docs/3.3/components/kvm-hypervisor.html, Patch 0001-0004
+[4] https://eci.intel.com/docs/3.3/components/kvm-hypervisor.html, Patch 0001-0004, 0006
 [5] https://github.com/tomitamoeko/VfioIgdPkg
 [6] https://winraid.level1techs.com/t/tool-guide-news-uefi-bios-updater-ubu/30357

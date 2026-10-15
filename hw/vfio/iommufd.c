@@ -155,6 +155,7 @@ static void iommufd_cdev_kvm_device_del(VFIODevice *vbasedev)
 
 static bool iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
 {
+    VFIOPCIDevice *vdev = vfio_pci_from_vfio_device(vbasedev);
     IOMMUFDBackend *iommufd = vbasedev->iommufd;
     struct vfio_device_bind_iommufd bind = {
         .argsz = sizeof(bind),
@@ -180,6 +181,15 @@ static bool iommufd_cdev_connect_and_bind(VFIODevice *vbasedev, Error **errp)
 
     /* Bind device to iommufd */
     bind.iommufd = iommufd->fd;
+
+    /*
+     * Pass the VF token when binding a PCI device.
+     */
+    if (vdev && !qemu_uuid_is_null(&vdev->vf_token)) {
+        bind.flags |= VFIO_DEVICE_BIND_FLAG_TOKEN;
+        bind.token_uuid_ptr = (uintptr_t)&vdev->vf_token;
+    }
+
     if (ioctl(vbasedev->fd, VFIO_DEVICE_BIND_IOMMUFD, &bind)) {
         error_setg_errno(errp, errno, "error bind device fd=%d to iommufd=%d",
                          vbasedev->fd, bind.iommufd);
