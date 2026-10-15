@@ -66,19 +66,20 @@
 #define QSR_RSA_MASK           (0x3 << 12)
 #define QSR_HASH_MASK          (0x3 << 10)
 
-#define OTP_MEMORY_SIZE 0x4000
 /* OTP command */
 #define SBC_OTP_CMD_READ 0x23b1e361
 #define SBC_OTP_CMD_WRITE 0x23b1e362
 #define SBC_OTP_CMD_PROG 0x23b1e364
 
-#define OTP_DATA_DWORD_COUNT        (0x800)
-#define OTP_TOTAL_DWORD_COUNT       (0x1000)
+/* OTP strap bits */
+#define OTP_STRAP_ABR_EN        0x2b
 
 /* Voltage mode */
 #define MODE_REGISTER               (0x1000)
 #define MODE_REGISTER_A             (0x3000)
 #define MODE_REGISTER_B             (0x5000)
+
+static bool aspeed_sbc_otp_read(AspeedSBCState *s, uint32_t otp_addr);
 
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -93,46 +94,59 @@ static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
         return 0;
     }
 
-    return s->regs[addr];
+    switch (addr) {
+    case R_STATUS: {
+        uint32_t val = s->regs[R_STATUS];
+
+        if (aspeed_otp_read_strap(&s->otp, OTP_STRAP_ABR_EN)) {
+            val |= ABR_EN;
+        } else {
+            val &= ~ABR_EN;
+        }
+
+        if (aspeed_otp_read_config(&s->otp, 0) & BIT(1)) {
+            val |= SECURE_BOOT_EN;
+        } else {
+            val &= ~SECURE_BOOT_EN;
+        }
+
+        return val;
+    }
+    case R_QSR:
+        return aspeed_otp_read_config(&s->otp, 0);
+    default:
+        return s->regs[addr];
+    }
+}
+
+static bool aspeed_otp_read(AspeedSBCState *s, uint32_t otp_addr,
+                             uint32_t *value)
+{
+    if (address_space_read(&s->otp.as, otp_addr << 2, MEMTXATTRS_UNSPECIFIED,
+                            value, sizeof(*value)) != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Failed to read OTP memory, addr = %x\n",
+                      otp_addr);
+        return false;
+    }
+
+    return true;
 }
 
 static bool aspeed_sbc_otp_read(AspeedSBCState *s,
                                    uint32_t otp_addr)
 {
-    MemTxResult ret;
-    AspeedOTPState *otp = &s->otp;
-    uint32_t value, otp_offset;
-    bool is_data = false;
+    uint32_t value;
+    bool is_data = otp_addr < OTP_DATA_DWORD_COUNT;
 
-    if (otp_addr < OTP_DATA_DWORD_COUNT) {
-        is_data = true;
-    } else if (otp_addr >= OTP_TOTAL_DWORD_COUNT) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "Invalid OTP addr 0x%x\n",
-                      otp_addr);
-        return false;
-    }
-
-    otp_offset = otp_addr << 2;
-    ret = address_space_read(&otp->as, otp_offset, MEMTXATTRS_UNSPECIFIED,
-                             &value, sizeof(value));
-    if (ret != MEMTX_OK) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "Failed to read OTP memory, addr = %x\n",
-                      otp_addr);
+    if (!aspeed_otp_read(s, otp_addr, &value)) {
         return false;
     }
     s->regs[R_CAMP1] = value;
     trace_aspeed_sbc_otp_read(otp_addr, value);
 
     if (is_data) {
-        ret = address_space_read(&otp->as, otp_offset + 4,
-                                 MEMTXATTRS_UNSPECIFIED,
-                                 &value, sizeof(value));
-        if (ret != MEMTX_OK) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "Failed to read OTP memory, addr = %x\n",
-                          otp_addr);
+        if (!aspeed_otp_read(s, otp_addr + 1, &value)) {
             return false;
         }
         s->regs[R_CAMP2] = value;
@@ -180,13 +194,6 @@ static bool aspeed_sbc_otp_prog(AspeedSBCState *s,
     AspeedOTPState *otp = &s->otp;
     uint32_t value = s->regs[R_CAMP1];
     uint32_t otp_offset = otp_addr << 2;
-
-    if (otp_addr >= OTP_TOTAL_DWORD_COUNT) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "Invalid OTP addr 0x%x\n",
-                      otp_addr);
-        return false;
-    }
 
     ret = address_space_write(&otp->as, otp_offset, MEMTXATTRS_UNSPECIFIED,
                               &value, sizeof(value));
@@ -408,18 +415,12 @@ static void aspeed_sbc_reset_hold(Object *obj, ResetType type)
 
     memset(s->regs, 0, sizeof(s->regs));
 
-    /* Set secure boot enabled with RSA4096_SHA256 and enable eMMC ABR */
+    /*
+     * ABR_EN and SECURE_BOOT_EN are derived from OTP on every read, see
+     * aspeed_sbc_read(), since the SBC status register is just a
+     * reflection of the OTP fuse state.
+     */
     s->regs[R_STATUS] = OTP_IDLE | OTP_MEM_IDLE;
-
-    if (s->emmc_abr) {
-        s->regs[R_STATUS] &= ABR_EN;
-    }
-
-    if (s->signing_settings) {
-        s->regs[R_STATUS] &= SECURE_BOOT_EN;
-    }
-
-    s->regs[R_QSR] = s->signing_settings;
 }
 
 static void aspeed_sbc_instance_init(Object *obj)
@@ -472,8 +473,6 @@ static const VMStateDescription vmstate_aspeed_sbc = {
 };
 
 static const Property aspeed_sbc_properties[] = {
-    DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
-    DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
     DEFINE_PROP_LINK("sram", AspeedSBCState, sram,
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };

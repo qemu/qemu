@@ -22,7 +22,6 @@ struct AspeedCoprocessorState {
     MemoryRegion uart_alias;
     Clock *sysclk;
 
-    AspeedTimerCtrlState timerctrl;
     SerialMM *uart;
     int uart_dev;
 };
@@ -37,15 +36,13 @@ struct AspeedCoprocessorClass {
     /** valid_cpu_types: NULL terminated array of a single CPU type. */
     const char * const *valid_cpu_types;
     const hwaddr *memmap;
+    const UnimplementedDeviceConfig *unimp_devs;
     const int *irqmap;
 };
 
 struct Aspeed27x0CoprocessorState {
     AspeedCoprocessorState parent;
     AspeedINTCState intc[2];
-    UnimplementedDeviceState ipc[2];
-    UnimplementedDeviceState pric[2];
-    UnimplementedDeviceState otp;
 
     ARMv7MState armv7m;
 

@@ -225,7 +225,7 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
         uint32_t padding_size = s->total_req_len - *total_msg_len;
         uint8_t *padding = iov->iov_base;
 
-        if (padding_size > req_len) {
+        if (padding_size == 0 || padding_size > req_len) {
             return false;
         }
 

@@ -47,8 +47,6 @@ struct AspeedAST1700SoCState {
     AspeedI2CState i2c;
     AspeedPWMState pwm;
     AspeedWDTState wdt[AST1700_WDT_NUM];
-
-    UnimplementedDeviceState i3c;
 };
 
 #endif /* ASPEED_AST1700_H */

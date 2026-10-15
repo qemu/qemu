@@ -317,7 +317,7 @@ class QemuSystemTest(QemuBaseTest):
         cls = type(self)
 
         if not hasattr(cls, "_machines"):
-            tmp_vm = QEMUMachine(self.qemu_bin)
+            tmp_vm = QEMUMachine(self.qemu_bin, base_temp_dir=self.workdir)
             tmp_vm.set_machine('none')
 
             try:

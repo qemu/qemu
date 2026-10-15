@@ -327,8 +327,8 @@ static void test_modexp_rsa(const void *opaque)
         .alg = QCRYPTO_AK_CIPHER_ALGO_RSA,
         .u.rsa.padding_alg = QCRYPTO_RSA_PADDING_ALGO_RAW,
     };
-    uint8_t dram_buf[ACRY_SRAM_SIZE] = { 0 };
-    uint8_t sram_buf[ACRY_SRAM_SIZE] = { 0 };
+    g_autofree uint8_t *dram_buf = g_malloc0(ACRY_SRAM_SIZE);
+    g_autofree uint8_t *sram_buf = g_malloc0(ACRY_SRAM_SIZE);
     uint8_t result[ACRY_MAX_BYTES] = { 0 };
     QTestState *qts;
 
@@ -345,7 +345,7 @@ static void test_modexp_rsa(const void *opaque)
     put_bignum_be_bytes(dram_buf, ACRY_MOD_OFFSET, t->n, t->n_len);
     put_bignum_be_bytes(dram_buf, ACRY_DATA_OFFSET, t->m, t->m_len);
 
-    qtest_memwrite(qts, c->dram_addr, dram_buf, sizeof(dram_buf));
+    qtest_memwrite(qts, c->dram_addr, dram_buf, ACRY_SRAM_SIZE);
 
     qtest_writel(qts, c->acry_addr + ACRY_DMA_CMD, ACRY_DMA_CMD_DMEM_AHB);
     qtest_writel(qts, c->acry_addr + ACRY_DMA_SRC, c->dram_addr);
@@ -362,7 +362,7 @@ static void test_modexp_rsa(const void *opaque)
     g_assert_cmphex(qtest_readl(qts, c->acry_addr + ACRY_STATUS), ==,
                     ACRY_STATUS_RSA_DONE);
 
-    qtest_memread(qts, c->sram_addr, sram_buf, sizeof(sram_buf));
+    qtest_memread(qts, c->sram_addr, sram_buf, ACRY_SRAM_SIZE);
     get_bignum_be_bytes(sram_buf, ACRY_DATA_OFFSET, result, t->c_len);
     g_assert_cmpmem(result, t->c_len, t->c, t->c_len);
 

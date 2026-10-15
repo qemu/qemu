@@ -32,9 +32,6 @@ OBJECT_DECLARE_TYPE(AspeedSBCState, AspeedSBCClass, ASPEED_SBC)
 struct AspeedSBCState {
     SysBusDevice parent;
 
-    bool emmc_abr;
-    uint32_t signing_settings;
-
     MemoryRegion iomem;
 
     uint32_t regs[ASPEED_SBC_NR_REGS];
