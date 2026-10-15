@@ -54,6 +54,23 @@ int failed_bit_count;
             }                                                   \
 })
 
+/* As above but also check that required fixed bits have expected values */
+#define get_cpu_reg_check_fixed(id, allowed_mask, fixed_mask, expected_val) ({ \
+            unsigned long __cval = get_cpu_reg(id);                     \
+            unsigned long __extra = __cval & ~(allowed_mask);           \
+            if (__extra) {                                              \
+                printf("%-20s: 0x%016lx\n", "  !!extra bits!!", __extra);   \
+                failed_bit_count++;                                     \
+            }                                                           \
+            if ((__cval & (fixed_mask)) != (expected_val)) {            \
+                printf("%-20s: 0x%016llx (expected fixed 0x%016llx)\n",  \
+                       "  !!fixed mismatch!!",                          \
+                       (unsigned long long)(__cval & (fixed_mask)),     \
+                       (unsigned long long)(expected_val));             \
+                failed_bit_count++;                                     \
+            }                                                           \
+})
+
 /* As above but check RAZ */
 #define get_cpu_reg_check_zero(id) ({                           \
             unsigned long __val = 0xdeadbeef;                   \
@@ -127,8 +144,16 @@ int main(void)
     get_cpu_reg_check_mask(id_aa64isar0_el1, _m(f0ff,ffff,f0ff,fff0));
     get_cpu_reg_check_mask(id_aa64isar1_el1, _m(00ff,f0ff,ffff,ffff));
     get_cpu_reg_check_mask(SYS_ID_AA64ISAR2_EL1, _m(00ff,0000,00ff,ffff));
-    /* TGran4 & TGran64 as pegged to -1 */
-    get_cpu_reg_check_mask(id_aa64mmfr0_el1, _m(f000,0000,ff00,0000));
+    /*
+     * TGran4 & TGran64 are pegged to -1 (0xf).  Stage 2 translation
+     * granule support (TGran4_2, TGran64_2, TGran16_2) are pegged to
+     * safe value 1 as exposed by Linux kernel since b130a8f70cbbf9
+     * (KVM: arm64: Check advertised Stage-2 page size capability).
+     */
+    get_cpu_reg_check_fixed(id_aa64mmfr0_el1,
+                            _m(f000, 0111, ff00, 0000),
+                            _m(0000, 0111, ff00, 0000),
+                            _m(0000, 0111, ff00, 0000));
     get_cpu_reg_check_mask(id_aa64mmfr1_el1, _m(0000,f000,0000,0000));
     get_cpu_reg_check_mask(SYS_ID_AA64MMFR2_EL1, _m(0000,000f,0000,0000));
     /* EL1/EL0 reported as AA64 only */
@@ -179,7 +204,7 @@ int main(void)
     }
 
     if (failed_bit_count > 0) {
-        printf("Extra information leaked to user-space!\n");
+        printf("Bit check failure or extra info leaked to user-space!\n");
         return 1;
     }
 
