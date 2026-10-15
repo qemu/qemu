@@ -72,6 +72,8 @@ run-vtimer: QEMU_OPTS=$(QEMU_EL2_MACHINE) $(QEMU_BASE_ARGS) -kernel
 
 run-wfxt: QEMU_OPTS=-M virt,virtualization=on,gic-version=2 -cpu max -smp 1 -semihosting-config enable=on,arg=2 -kernel
 
+run-ttbr-baddr: QEMU_OPTS=-M virt,virtualization=on -cpu max -semihosting-config enable=on,arg=2 -kernel
+
 # Simple Record/Replay Test
 .PHONY: memory-record
 run-memory-record: memory-record memory
