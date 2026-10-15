@@ -2308,8 +2308,10 @@ static void create_tag_ram(MemoryRegion *tag_sysmem,
 {
     MemoryRegion *tagram = g_new(MemoryRegion, 1);
 
-    memory_region_init_ram(tagram, NULL, name, size / 32, &error_fatal);
-    memory_region_add_subregion(tag_sysmem, base / 32, tagram);
+    /* We store 2 granules in 1 byte. */
+    memory_region_init_ram(tagram, NULL, name, size / (2 * TAG_GRANULE),
+                           &error_fatal);
+    memory_region_add_subregion(tag_sysmem, base / (2 * TAG_GRANULE), tagram);
 }
 
 static void create_secure_ram(VirtMachineState *vms,
