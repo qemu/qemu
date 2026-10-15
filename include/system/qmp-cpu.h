@@ -10,5 +10,6 @@
 #include "qapi/qapi-types-machine.h"
 
 CpuDefinitionInfoList *qmp_query_arm_cpu_definitions(Error **errp);
+CpuDefinitionInfoList *qmp_query_i386_cpu_definitions(Error **errp);
 
 #endif
