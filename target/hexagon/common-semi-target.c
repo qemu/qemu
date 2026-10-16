@@ -8,44 +8,54 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "cpu_helper.h"
 #include "semihosting/common-semi.h"
+#include "internal.h"
 
-uint64_t common_semi_arg(CPUState *cs, int argno)
+static uint64_t hexagon_semi_arg(const CPUState *cs, int argno)
 {
-    CPUHexagonState *env = cpu_env(cs);
+    const CPUHexagonState *env = cpu_env(cs);
     return env->gpr[HEX_REG_R00 + argno];
 }
 
-void common_semi_set_ret(CPUState *cs, uint64_t ret)
+static void hexagon_semi_set_ret(CPUState *cs, uint64_t ret)
 {
     CPUHexagonState *env = cpu_env(cs);
     env->gpr[HEX_REG_R00] = ret;
 }
 
-void common_semi_set_err(CPUState *cs, int err)
+static void hexagon_semi_set_err(CPUState *cs, int err)
 {
     CPUHexagonState *env = cpu_env(cs);
     env->gpr[HEX_REG_R01] = err;
 }
 
-bool common_semi_sys_exit_is_extended(CPUState *cs)
+static bool hexagon_semi_is_64bit(const CPUState *cs)
 {
     return false;
 }
 
-bool is_64bit_semihosting(CPUArchState *env)
+static bool hexagon_semi_sys_exit_is_extended(const CPUState *cs)
 {
     return false;
 }
 
-uint64_t common_semi_stack_bottom(CPUState *cs)
+static uint64_t hexagon_semi_stack_bottom(const CPUState *cs)
 {
-    CPUHexagonState *env = cpu_env(cs);
+    const CPUHexagonState *env = cpu_env(cs);
     return env->gpr[HEX_REG_SP];
 }
 
-bool common_semi_has_synccache(CPUArchState *env)
+static bool hexagon_semi_has_synccache(const CPUState *cs)
 {
     return false;
 }
+
+const SemihostingCPUOps hexagon_semihosting_ops = {
+    .arg = hexagon_semi_arg,
+    .set_ret = hexagon_semi_set_ret,
+    .set_err = hexagon_semi_set_err,
+    .is_64bit = hexagon_semi_is_64bit,
+    .sys_exit_is_extended = hexagon_semi_sys_exit_is_extended,
+    .stack_bottom = hexagon_semi_stack_bottom,
+    .has_synccache = hexagon_semi_has_synccache,
+};

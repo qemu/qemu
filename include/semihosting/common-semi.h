@@ -34,14 +34,24 @@
 #ifndef COMMON_SEMI_H
 #define COMMON_SEMI_H
 
+typedef struct SemihostingCPUOps {
+    /* Return argument @argno */
+    uint64_t (*arg)(const CPUState *cs, int argno);
+    /* Set return value for semihosting call */
+    void (*set_ret)(CPUState *cs, uint64_t ret);
+    /* Set an error for a semihosting call */
+    void (*set_err)(CPUState *cs, int err);
+    /* True if the guest is using the 64-bit semihosting ABI */
+    bool (*is_64bit)(const CPUState *cs);
+    /* True if SYS_EXIT takes an extended parameter block */
+    bool (*sys_exit_is_extended)(const CPUState *cs);
+    /* Return lowest address until which stack can grow */
+    uint64_t (*stack_bottom)(const CPUState *cs);
+    /* True if SYS_SYNCCACHE is implemented */
+    bool (*has_synccache)(const CPUState *cs);
+} SemihostingCPUOps;
+
 void common_semi_cb(CPUState *cs, uint64_t ret, int err);
 void do_common_semihosting(CPUState *cs);
-uint64_t common_semi_arg(CPUState *cs, int argno);
-void common_semi_set_ret(CPUState *cs, uint64_t ret);
-void common_semi_set_err(CPUState *cs, int err);
-bool is_64bit_semihosting(CPUArchState *env);
-bool common_semi_sys_exit_is_extended(CPUState *cs);
-uint64_t common_semi_stack_bottom(CPUState *cs);
-bool common_semi_has_synccache(CPUArchState *env);
 
 #endif /* COMMON_SEMI_H */

@@ -34,6 +34,8 @@ void hexagon_debug_qreg(CPUHexagonState *env, int regnum);
 void hexagon_debug(CPUHexagonState *env);
 void hexagon_dump(CPUHexagonState *env, FILE *f, int flags);
 
+extern const struct SemihostingCPUOps hexagon_semihosting_ops;
+
 extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
 #ifndef CONFIG_USER_ONLY
 extern const char * const hexagon_sregnames[];

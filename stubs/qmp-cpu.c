@@ -12,10 +12,3 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     error_setg(errp, "CPU model expansion is not supported on this target");
     return NULL;
 }
-
-CpuDefinitionInfoList *
-qmp_query_cpu_definitions(Error **errp)
-{
-    error_setg(errp, "CPU model definitions are not supported on this target");
-    return NULL;
-}

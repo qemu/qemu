@@ -3,6 +3,12 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
+#include "system/qmp-cpu.h"
+
+CpuDefinitionInfoList *qmp_query_s390x_cpu_definitions(Error **errp)
+{
+    g_assert_not_reached();
+}
 
 CpuModelCompareInfo *
 qmp_query_cpu_model_comparison(CpuModelInfo *infoa,

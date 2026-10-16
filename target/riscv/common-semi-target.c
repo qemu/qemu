@@ -11,43 +11,54 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "semihosting/common-semi.h"
+#include "internals.h"
 
-uint64_t common_semi_arg(CPUState *cs, int argno)
+static uint64_t riscv_semi_arg(const CPUState *cs, int argno)
 {
-    RISCVCPU *cpu = RISCV_CPU(cs);
-    CPURISCVState *env = &cpu->env;
+    const RISCVCPU *cpu = RISCV_CPU(cs);
+    const CPURISCVState *env = &cpu->env;
     return env->gpr[xA0 + argno];
 }
 
-void common_semi_set_ret(CPUState *cs, uint64_t ret)
+static void riscv_semi_set_ret(CPUState *cs, uint64_t ret)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
     env->gpr[xA0] = ret;
 }
 
-void common_semi_set_err(CPUState *cs, int err)
+static void riscv_semi_set_err(CPUState *cs, int err)
 {
 }
 
-bool is_64bit_semihosting(CPUArchState *env)
+static bool riscv_semi_is_64bit(const CPUState *cs)
 {
-    return riscv_cpu_mxl(env) != MXL_RV32;
+    return riscv_cpu_mxl(cpu_env(cs)) != MXL_RV32;
 }
 
-bool common_semi_sys_exit_is_extended(CPUState *cs)
+static bool riscv_semi_sys_exit_is_extended(const CPUState *cs)
 {
-    return is_64bit_semihosting(cpu_env(cs));
+    return riscv_semi_is_64bit(cs);
 }
 
-uint64_t common_semi_stack_bottom(CPUState *cs)
+static uint64_t riscv_semi_stack_bottom(const CPUState *cs)
 {
-    RISCVCPU *cpu = RISCV_CPU(cs);
-    CPURISCVState *env = &cpu->env;
+    const RISCVCPU *cpu = RISCV_CPU(cs);
+    const CPURISCVState *env = &cpu->env;
     return env->gpr[xSP];
 }
 
-bool common_semi_has_synccache(CPUArchState *env)
+static bool riscv_semi_has_synccache(const CPUState *cs)
 {
     return true;
 }
+
+const SemihostingCPUOps riscv_semihosting_ops = {
+    .arg = riscv_semi_arg,
+    .set_ret = riscv_semi_set_ret,
+    .set_err = riscv_semi_set_err,
+    .is_64bit = riscv_semi_is_64bit,
+    .sys_exit_is_extended = riscv_semi_sys_exit_is_extended,
+    .stack_bottom = riscv_semi_stack_bottom,
+    .has_synccache = riscv_semi_has_synccache,
+};
