@@ -1529,6 +1529,13 @@ static void usb_host_handle_control(USBDevice *udev, USBPacket *p,
                                  CONTROL_TIMEOUT);
     rc = libusb_submit_transfer(r->xfer);
     if (rc != 0) {
+        /*
+         * Free the request to avoid a dangling r->p pointer.
+         * When libusb_submit_transfer fails the caller (xHCI) may
+         * free the XHCITransfer that holds the USBPacket r->p points
+         * to, so we must remove r from s->requests before returning.
+         */
+        usb_host_req_free(r);
         p->status = USB_RET_NODEV;
         trace_usb_host_req_complete(s->bus_num, s->addr, p,
                                     p->status, p->actual_length);
@@ -1623,6 +1630,13 @@ static void usb_host_handle_data(USBDevice *udev, USBPacket *p)
 
     rc = libusb_submit_transfer(r->xfer);
     if (rc != 0) {
+        /*
+         * Free the request to avoid a dangling r->p pointer.
+         * When libusb_submit_transfer fails the caller (xHCI) may
+         * free the XHCITransfer that holds the USBPacket r->p points
+         * to, so we must remove r from s->requests before returning.
+         */
+        usb_host_req_free(r);
         p->status = USB_RET_NODEV;
         trace_usb_host_req_complete(s->bus_num, s->addr, p,
                                     p->status, p->actual_length);
