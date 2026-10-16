@@ -22,6 +22,12 @@
 #include "target/riscv/cpu-qom.h"
 
 void kvm_riscv_reset_vcpu(RISCVCPU *cpu);
+/**
+ * kvm_riscv_set_irq:
+ * @cpu: RISC-V CPU
+ * @irq: Interrupt to set or clear (only %IRQ_S_EXT is supported).
+ * @level: %0 to clear the interrupt, non-zero to set it.
+ */
 void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level);
 void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
                           uint64_t aia_irq_num, uint64_t aia_msi_num,
@@ -29,6 +35,7 @@ void kvm_riscv_aia_create(MachineState *machine, uint64_t group_shift,
                           uint64_t guest_num);
 void riscv_kvm_aplic_request(void *opaque, int irq, int level);
 bool kvm_riscv_has_mp_state(void);
+int kvm_riscv_check_timer_frequency(RISCVCPU *cpu);
 void riscv_kvm_cpu_finalize_features(RISCVCPU *cpu, Error **errp);
 uint64_t kvm_riscv_get_timebase_frequency(RISCVCPU *cpu);
 

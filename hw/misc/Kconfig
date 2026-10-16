@@ -263,4 +263,7 @@ config AXIADO_CLK
 config K230_DECOMP_GZIP
     bool
 
+config SOPHGO_CV1800B_CLK
+    bool
+
 source macio/Kconfig
