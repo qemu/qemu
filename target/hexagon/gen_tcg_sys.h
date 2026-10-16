@@ -84,10 +84,14 @@
     } while (0)
 
 #define fGEN_TCG_Y2_resume(SHORTCODE) \
-    gen_helper_resume(tcg_env, RsV)
+    do { \
+        gen_helper_resume(tcg_env, RsV); \
+    } while (0)
 
 #define fGEN_TCG_Y2_start(SHORTCODE) \
-    gen_helper_start(tcg_env, RsV)
+    do { \
+        gen_helper_start(tcg_env, RsV); \
+    } while (0)
 
 #define fGEN_TCG_Y2_stop(SHORTCODE) \
     do { \

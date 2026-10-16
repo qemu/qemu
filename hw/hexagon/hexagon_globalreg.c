@@ -18,6 +18,7 @@
 #include "target/hexagon/cpu.h"
 #include "target/hexagon/hex_regs.h"
 #include "qemu/log.h"
+#include "qemu/timer.h"
 #include "trace.h"
 #include "qapi/error.h"
 
@@ -157,6 +158,85 @@ static inline bool is_timer_reg(uint32_t reg)
     return reg == HEX_SREG_TIMERLO || reg == HEX_SREG_TIMERHI;
 }
 
+static inline bool is_pcycle_reg(uint32_t reg)
+{
+    return reg == HEX_SREG_PCYCLELO || reg == HEX_SREG_PCYCLEHI;
+}
+
+static inline bool modectl_any_thread_running(uint32_t modectl)
+{
+    uint32_t enabled = modectl & 0xffff;
+    uint32_t waiting = modectl >> 16;
+    return (enabled & ~waiting) != 0;
+}
+
+static uint64_t pcycle_value_now(HexagonGlobalRegState *s)
+{
+    uint64_t cycles = s->g_pcycle_base;
+
+    if (s->pcycle_running) {
+        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        int64_t elapsed = now - s->pcycle_start_ns;
+
+        if (elapsed > 0) {
+            cycles += elapsed;
+        }
+    }
+    return cycles;
+}
+
+static void pcycle_fold(HexagonGlobalRegState *s)
+{
+    int64_t now;
+    int64_t elapsed;
+
+    if (!s->pcycle_running) {
+        return;
+    }
+
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    elapsed = now - s->pcycle_start_ns;
+    if (elapsed > 0) {
+        s->g_pcycle_base += elapsed;
+    }
+    s->pcycle_start_ns = now;
+}
+
+static bool pcycle_enabled(uint32_t syscfg)
+{
+    return extract32(syscfg, reg_field_info[SYSCFG_PCYCLEEN].offset,
+                     reg_field_info[SYSCFG_PCYCLEEN].width);
+}
+
+uint64_t hexagon_globalreg_read_pcycle(HexagonGlobalRegState *s)
+{
+    g_assert(s);
+    return pcycle_enabled(s->regs[HEX_SREG_SYSCFG]) ?
+           pcycle_value_now(s) : 0;
+}
+static void pcycle_set_running(HexagonGlobalRegState *s, bool running)
+{
+    if (running == s->pcycle_running) {
+        return;
+    }
+    if (running) {
+        s->pcycle_start_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    } else {
+        s->g_pcycle_base = pcycle_value_now(s);
+    }
+    s->pcycle_running = running;
+    trace_hexagon_pcycle_run_state(s->pcycle_running, s->g_pcycle_base);
+}
+
+static void pcycle_write(HexagonGlobalRegState *s, uint32_t reg,
+                         uint32_t value)
+{
+    pcycle_fold(s);
+    s->g_pcycle_base = deposit64(s->g_pcycle_base,
+                                 reg == HEX_SREG_PCYCLELO ? 0 : 32, 32,
+                                 value);
+}
+
 static uint32_t get_reg_value(HexagonGlobalRegState *s, uint32_t reg)
 {
     if (is_vid_reg(reg)) {
@@ -167,15 +247,37 @@ static uint32_t get_reg_value(HexagonGlobalRegState *s, uint32_t reg)
                 qct_qtimer_get_timer_lo(s->qtimer) :
                 qct_qtimer_get_timer_hi(s->qtimer);
     }
+    if (is_pcycle_reg(reg)) {
+        uint64_t value = hexagon_globalreg_read_pcycle(s);
+        return reg == HEX_SREG_PCYCLELO ?
+                (uint32_t)value : (uint32_t)(value >> 32);
+    }
     return s->regs[reg];
 }
 
 static void set_reg_value(HexagonGlobalRegState *s, uint32_t reg,
                           uint32_t value)
 {
+    bool pcycle_enable = reg == HEX_SREG_SYSCFG &&
+        !pcycle_enabled(s->regs[reg]) && pcycle_enabled(value);
+
+    if (is_pcycle_reg(reg)) {
+        pcycle_write(s, reg, value);
+        return;
+    }
+
     s->regs[reg] = value;
+    if (pcycle_enable) {
+        s->g_pcycle_base = 0;
+        if (s->pcycle_running) {
+            s->pcycle_start_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        }
+    }
     if (is_vid_reg(reg)) {
         l2vic_update_vid(s->l2vic, reg == HEX_SREG_VID ? 0 : 1, value);
+    }
+    if (reg == HEX_SREG_MODECTL) {
+        pcycle_set_running(s, modectl_any_thread_running(value));
     }
 }
 
@@ -256,6 +358,7 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     memset(s->regs, 0, sizeof(s->regs));
 
     s->g_pcycle_base = 0;
+    s->pcycle_running = false;
 
     s->regs[HEX_SREG_EVB] = s->boot_evb;
     s->regs[HEX_SREG_CFGBASE] = HEXAGON_CFG_ADDR_BASE(s->config_table_addr);
@@ -275,6 +378,8 @@ static void do_hexagon_globalreg_reset(HexagonGlobalRegState *s)
     }
     s->regs[HEX_SREG_ISDBEN] = isdben_val;
     s->regs[HEX_SREG_MODECTL] = 0x1;
+    pcycle_set_running(s,
+                       modectl_any_thread_running(s->regs[HEX_SREG_MODECTL]));
 
     /*
      * These register indices are placeholders in these arrays
@@ -316,10 +421,34 @@ static void hexagon_globalreg_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static int hexagon_globalreg_pre_save(void *opaque)
+{
+    HexagonGlobalRegState *s = opaque;
+
+    /* Migrate a stable value, not a timestamp from the source clock. */
+    pcycle_fold(s);
+    return 0;
+}
+
+static int hexagon_globalreg_post_load(void *opaque,
+                                       int version_id G_GNUC_UNUSED)
+{
+    HexagonGlobalRegState *s = opaque;
+
+    s->pcycle_running = modectl_any_thread_running(
+        s->regs[HEX_SREG_MODECTL]);
+    if (s->pcycle_running) {
+        s->pcycle_start_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_hexagon_globalreg = {
     .name = "hexagon_globalreg",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = hexagon_globalreg_pre_save,
+    .post_load = hexagon_globalreg_post_load,
     .fields = (const VMStateField[]){
         VMSTATE_UINT32_ARRAY(regs, HexagonGlobalRegState, NUM_SREGS),
         VMSTATE_UINT64(g_pcycle_base, HexagonGlobalRegState),

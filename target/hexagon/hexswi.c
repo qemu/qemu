@@ -692,8 +692,14 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
     case HEX_SYS_READ_PCYCLES:
     {
-        env->gpr[HEX_REG_R00] = hexagon_get_sys_pcycle_count_low(env);
-        env->gpr[HEX_REG_R01] = hexagon_get_sys_pcycle_count_high(env);
+        HexagonCPU *cpu = env_archcpu(env);
+        uint64_t pcycles;
+
+        BQL_LOCK_GUARD();
+        pcycles = cpu->globalregs ?
+            hexagon_globalreg_read_pcycle(cpu->globalregs) : 0;
+        env->gpr[HEX_REG_R00] = (uint32_t)pcycles;
+        env->gpr[HEX_REG_R01] = (uint32_t)(pcycles >> 32);
         break;
     }
 

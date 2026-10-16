@@ -63,7 +63,6 @@ TCGv hex_llsc_addr;
 TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
 #ifndef CONFIG_USER_ONLY
-TCGv_i64 hex_cycle_count;
 TCGv hex_imprecise_exception;
 #endif
 TCGv hex_vstore_addr[VSTORES_MAX];
@@ -144,16 +143,6 @@ static void gen_precise_exception(int cause, uint32_t PC)
                                tcg_constant_i32(PC));
 }
 
-#ifndef CONFIG_USER_ONLY
-static void gen_pcycle_counters(DisasContext *ctx)
-{
-    if (ctx->pcycle_enabled) {
-        tcg_gen_addi_i64(hex_cycle_count, hex_cycle_count, ctx->num_cycles);
-    }
-}
-#endif
-
-
 static void gen_exec_counters(DisasContext *ctx)
 {
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
@@ -162,9 +151,6 @@ static void gen_exec_counters(DisasContext *ctx)
                     hex_gpr[HEX_REG_QEMU_INSN_CNT], ctx->num_insns);
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_HVX_CNT],
                     hex_gpr[HEX_REG_QEMU_HVX_CNT], ctx->num_hvx_insns);
-#ifndef CONFIG_USER_ONLY
-    gen_pcycle_counters(ctx);
-#endif
 }
 
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
@@ -1128,8 +1114,6 @@ static void gen_commit_hvx(DisasContext *ctx)
     }
 }
 
-#define PCYCLES_PER_PACKET 1
-
 static void update_exec_counters(DisasContext *ctx)
 {
     int num_real_insns = 0;
@@ -1149,7 +1133,6 @@ static void update_exec_counters(DisasContext *ctx)
     ctx->num_packets++;
     ctx->num_insns += num_real_insns;
     ctx->num_hvx_insns += num_hvx_insns;
-    ctx->num_cycles += PCYCLES_PER_PACKET;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1306,6 +1289,20 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
                                       HEX_CAUSE_REG_WRITE_CONFLICT);
             return;
         }
+#ifndef CONFIG_USER_ONLY
+        if (check_for_attrib(&ctx->pkt, A_PRIV) &&
+            ctx->cpu_mode != HEX_CPU_MODE_MONITOR) {
+            hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_SINSN);
+            ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
+            return;
+        }
+        if (check_for_attrib(&ctx->pkt, A_GUEST) &&
+            ctx->cpu_mode == HEX_CPU_MODE_USER) {
+            hex_gen_exception_end_tb(ctx, HEX_CAUSE_PRIV_USER_NO_GINSN);
+            ctx->base.pc_next += ctx->pkt.encod_pkt_size_in_bytes;
+            return;
+        }
+#endif
         gen_start_packet(ctx);
         for (i = 0; i < ctx->pkt.num_insns; i++) {
             ctx->insn = &ctx->pkt.insn[i];
@@ -1335,11 +1332,10 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->hex_def = HEXAGON_CPU_GET_CLASS(hex_cpu)->hex_def;
     ctx->ieee_fp_extension = hex_cpu->cfg.ieee_fp_extension;
 #ifndef CONFIG_USER_ONLY
-    ctx->num_cycles = 0;
-    ctx->pcycle_enabled = FIELD_EX32(hex_flags, TB_FLAGS, PCYCLE_ENABLED);
     ctx->hvx_coproc_enabled =
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
+    ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
 #endif
 }
 
@@ -1489,8 +1485,6 @@ void hexagon_translate_init(void)
     hex_cause_code = tcg_global_mem_new_i32(tcg_env,
         offsetof(CPUHexagonState, cause_code), "cause_code");
 #ifndef CONFIG_USER_ONLY
-    hex_cycle_count = tcg_global_mem_new_i64(tcg_env,
-        offsetof(CPUHexagonState, t_cycle_count), "t_cycle_count");
     hex_imprecise_exception = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, imprecise_exception), "imprecise_exception");
 #endif

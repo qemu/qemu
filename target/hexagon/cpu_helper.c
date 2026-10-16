@@ -132,85 +132,6 @@ uint32_t hexagon_get_pmu_counter(CPUHexagonState *cur_env, int index)
     g_assert_not_reached();
 }
 
-uint64_t hexagon_get_sys_pcycle_count(CPUHexagonState *env)
-{
-    uint64_t total = 0;
-    CPUState *cs;
-
-    BQL_LOCK_GUARD();
-    CPU_FOREACH(cs) {
-        CPUHexagonState *thread_env = cpu_env(cs);
-        total += thread_env->t_cycle_count;
-    }
-    return total;
-}
-
-uint32_t hexagon_get_sys_pcycle_count_high(CPUHexagonState *env)
-{
-    return (uint32_t)(hexagon_get_sys_pcycle_count(env) >> 32);
-}
-
-uint32_t hexagon_get_sys_pcycle_count_low(CPUHexagonState *env)
-{
-    return (uint32_t)(hexagon_get_sys_pcycle_count(env));
-}
-
-/*
- * Every function in this family takes the BQL itself, so the guard below
- * holds it across the read-modify-write.  Nested guards are no-ops.
- */
-void hexagon_set_sys_pcycle_count_high(CPUHexagonState *env, uint32_t val)
-{
-    uint64_t old;
-
-    BQL_LOCK_GUARD();
-    old = hexagon_get_sys_pcycle_count(env);
-    old = deposit64(old, 32, 32, val);
-    hexagon_set_sys_pcycle_count(env, old);
-}
-
-void hexagon_set_sys_pcycle_count_low(CPUHexagonState *env, uint32_t val)
-{
-    uint64_t old;
-
-    BQL_LOCK_GUARD();
-    old = hexagon_get_sys_pcycle_count(env);
-    old = deposit64(old, 0, 32, val);
-    hexagon_set_sys_pcycle_count(env, old);
-}
-
-void hexagon_set_sys_pcycle_count(CPUHexagonState *env, uint64_t val)
-{
-    CPUState *cs;
-    uint64_t total;
-    int num_threads;
-    int64_t delta, per_thread, remainder;
-
-    BQL_LOCK_GUARD();
-    total = hexagon_get_sys_pcycle_count(env);
-
-    /* Count active threads */
-    num_threads = 0;
-    CPU_FOREACH(cs) {
-        num_threads++;
-    }
-    g_assert(num_threads > 0);
-
-    /*
-     * Distribute the delta evenly across all threads.
-     * Any remainder goes to the calling thread.
-     */
-    delta = (int64_t)(val - total);
-    per_thread = delta / num_threads;
-    remainder = delta - per_thread * num_threads;
-
-    CPU_FOREACH(cs) {
-        CPUHexagonState *thread_env = cpu_env(cs);
-        thread_env->t_cycle_count += per_thread;
-    }
-    env->t_cycle_count += remainder;
-}
-
 static void hexagon_resume_thread(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -452,6 +373,7 @@ static uint32_t set_enable_mask(CPUHexagonState *env)
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     thread_enabled_mask |= 0x1 << env->threadId;
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
+    hex_interrupt_update(env);
     return thread_enabled_mask;
 }
 
@@ -472,6 +394,7 @@ static uint32_t clear_enable_mask(CPUHexagonState *env)
     thread_enabled_mask = GET_FIELD(MODECTL_E, modectl);
     thread_enabled_mask &= ~(0x1 << env->threadId);
     SET_SYSTEM_FIELD(env, HEX_SREG_MODECTL, MODECTL_E, thread_enabled_mask);
+    hex_interrupt_update(env);
     return thread_enabled_mask;
 }
 static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
@@ -494,6 +417,9 @@ static void do_start_thread(CPUState *cs, run_on_cpu_data tbd)
 void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
 {
     CPUState *cs;
+
+    BQL_LOCK_GUARD();
+
     CPU_FOREACH(cs) {
         CPUHexagonState *env = cpu_env(cs);
         if (!(mask & (0x1 << env->threadId))) {
@@ -501,6 +427,7 @@ void hexagon_start_threads(CPUHexagonState *current_env, uint32_t mask)
         }
 
         if (current_env->threadId != env->threadId) {
+            set_enable_mask(env);
             async_safe_run_on_cpu(cs, do_start_thread, RUN_ON_CPU_NULL);
         }
     }

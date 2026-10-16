@@ -349,10 +349,11 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     cpu = env_archcpu(env);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX,
                            cpu_mmu_index(env_cpu(env), false));
-    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, PCYCLE_ENABLED, 1);
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED,
                            cpu->hvx_ctx[0] &&
                            GET_SSR_FIELD(SSR_XE, env->t_sreg[HEX_SREG_SSR]));
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, CPU_MODE,
+                           get_cpu_mode(env));
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
@@ -864,15 +865,20 @@ uint32_t hexagon_greg_read(CPUHexagonState *env, uint32_t reg)
 {
     uint32_t ssr = env->t_sreg[HEX_SREG_SSR];
     int ssr_ce = GET_SSR_FIELD(SSR_CE, ssr);
+    HexagonCPU *cpu = env_archcpu(env);
 
     if (reg <= HEX_GREG_G3) {
         return env->greg[reg];
     }
     switch (reg) {
     case HEX_GREG_GPCYCLELO:
-        return ssr_ce ? hexagon_get_sys_pcycle_count_low(env) : 0;
+        return ssr_ce ?
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_PCYCLELO,
+                                   env->threadId) : 0;
     case HEX_GREG_GPCYCLEHI:
-        return ssr_ce ? hexagon_get_sys_pcycle_count_high(env) : 0;
+        return ssr_ce ?
+            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_PCYCLEHI,
+                                   env->threadId) : 0;
     default:
         return env->greg[reg];
     }

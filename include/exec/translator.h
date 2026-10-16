@@ -168,9 +168,8 @@ bool translator_use_goto_tb(DisasContextBase *db, vaddr dest);
  * translator_io_start
  * @db: Disassembly context
  *
- * If icount is enabled, set cpu->can_do_io, adjust db->is_jmp to
- * DISAS_TOO_MANY if it is still DISAS_NEXT, and return true.
- * Otherwise return false.
+ * Adjust db->is_jmp to DISAS_TOO_MANY if it is still DISAS_NEXT and return
+ * true.  The instruction will then be the last instruction in the TB.
  */
 bool translator_io_start(DisasContextBase *db);
 

@@ -12,6 +12,7 @@
 #include "system/cpus.h"
 #include "internal.h"
 #include "exec/cpu-interrupt.h"
+#include "accel/tcg/cpu-loop.h"
 #include "cpu_helper.h"
 #include "exec/cputlb.h"
 #include "hex_mmu.h"
@@ -19,6 +20,7 @@
 #include "sys_macros.h"
 #include "hw/hexagon/hexagon_tlb.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hex_interrupts.h"
 
 static inline void hex_log_tlbw(uint32_t index, uint64_t entry)
 {
@@ -179,6 +181,7 @@ void hex_tlb_lock(CPUHexagonState *env, uint32_t PC)
                 ", thread may hang\n", PC);
             CPUState *cs = env_cpu(env);
             cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+            cpu_loop_exit(cs);
             return;
         }
         env->tlb_lock_state = HEX_LOCK_WAITING;
@@ -190,6 +193,7 @@ void hex_tlb_lock(CPUHexagonState *env, uint32_t PC)
         env->gpr[HEX_REG_PC] = PC;
         CPUState *cs = env_cpu(env);
         cpu_interrupt(cs, CPU_INTERRUPT_HALT);
+        cpu_loop_exit(cs);
     } else {
         env->tlb_lock_count++;
         env->tlb_lock_state = HEX_LOCK_OWNER;
@@ -271,6 +275,8 @@ void hex_tlb_unlock(CPUHexagonState *env)
         unlock_thread->tlb_lock_state = HEX_LOCK_QUEUED;
         SET_SYSCFG_FIELD(unlock_thread, SYSCFG_TLBLOCK, 1);
         cpu_interrupt(cs, CPU_INTERRUPT_TLB_UNLOCK);
+        hex_interrupt_update(unlock_thread);
+        qemu_cpu_kick(cs);
     }
 
     if (qemu_loglevel_mask(CPU_LOG_MMU)) {

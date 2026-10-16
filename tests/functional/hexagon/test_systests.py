@@ -108,5 +108,8 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_standalone_vec(self):
         self.run_exit_zero("standalone_vec")
 
+    def test_lock_verify(self):
+        self.run_exit_zero("lock_verify")
+
 if __name__ == "__main__":
     QemuSystemTest.main()
