@@ -1730,16 +1730,25 @@ get_cluster_offset(BlockDriverState *bs, VmdkExtent *extent,
         cluster_sector = extent->next_cluster_sector;
         extent->next_cluster_sector += extent->cluster_sectors;
 
-        /* First of all we write grain itself, to avoid race condition
-         * that may to corrupt the image.
-         * This problem may occur because of insufficient space on host disk
-         * or inappropriate VM shutdown.
+        /*
+         * Stream optimized (compressed) extents do not have to be
+         * pre-allocated, as compressed writes always cover the whole
+         * cluster, and will align on 512 byte chunks.
          */
-        ret = get_whole_cluster(bs, extent, cluster_sector * BDRV_SECTOR_SIZE,
-                                offset, skip_start_bytes, skip_end_bytes,
-                                zeroed);
-        if (ret) {
-            return ret;
+        if (!extent->compressed) {
+            /*
+             * First of all we write grain itself, to avoid race condition
+             * that may to corrupt the image.
+             * This problem may occur because of insufficient space on host disk
+             * or inappropriate VM shutdown.
+             */
+            ret = get_whole_cluster(bs, extent,
+                                    cluster_sector * BDRV_SECTOR_SIZE,
+                                    offset, skip_start_bytes, skip_end_bytes,
+                                    zeroed);
+            if (ret) {
+                return ret;
+            }
         }
         if (m_data) {
             m_data->new_allocation = true;
