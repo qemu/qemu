@@ -80,9 +80,10 @@ static const char *cpu_model_advertised_features[] = {
     NULL
 };
 
-CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                                                     CpuModelInfo *model,
-                                                     Error **errp)
+CpuModelExpansionInfo *
+qmp_query_arm_cpu_model_expansion(CpuModelExpansionType type,
+                                  CpuModelInfo *model,
+                                  Error **errp)
 {
     CpuModelExpansionInfo *expansion_info;
     const QDict *qdict_in;
@@ -200,6 +201,14 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     object_unref(obj);
 
     return expansion_info;
+}
+
+CpuModelExpansionInfo *
+qmp_query_cpu_model_expansion(CpuModelExpansionType type,
+                              CpuModelInfo *model,
+                              Error **errp)
+{
+    return qmp_query_arm_cpu_model_expansion(type, model, errp);
 }
 
 static void arm_cpu_add_definition(gpointer data, gpointer user_data)
