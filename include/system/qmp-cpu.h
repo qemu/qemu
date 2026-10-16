@@ -33,5 +33,9 @@ CpuModelExpansionInfo *
 qmp_query_riscv_cpu_model_expansion(CpuModelExpansionType type,
                                     CpuModelInfo *model,
                                     Error **errp);
+CpuModelExpansionInfo *
+qmp_query_s390x_cpu_model_expansion(CpuModelExpansionType type,
+                                    CpuModelInfo *model,
+                                    Error **errp);
 
 #endif
