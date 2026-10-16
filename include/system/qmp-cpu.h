@@ -25,5 +25,9 @@ CpuModelExpansionInfo *
 qmp_query_i386_cpu_model_expansion(CpuModelExpansionType type,
                                    CpuModelInfo *model,
                                    Error **errp);
+CpuModelExpansionInfo *
+qmp_query_loongarch_cpu_model_expansion(CpuModelExpansionType type,
+                                        CpuModelInfo *model,
+                                        Error **errp);
 
 #endif
