@@ -1278,6 +1278,21 @@ static void usb_host_unrealize(USBDevice *udev)
         QTAILQ_REMOVE(&hostdevs, s, next);
     }
     usb_host_close(s);
+    /*
+     * Delete bottom halves after usb_host_close().  During close,
+     * libusb callbacks (usb_host_req_complete_ctrl/data) can call
+     * usb_host_nodev() which lazily creates bh_nodev.  If we
+     * deleted them before close, a newly created BH would leak and
+     * fire after unrealize, dereferencing freed USBHostDevice.
+     */
+    if (s->bh_nodev) {
+        qemu_bh_delete(s->bh_nodev);
+        s->bh_nodev = NULL;
+    }
+    if (s->bh_postld) {
+        qemu_bh_delete(s->bh_postld);
+        s->bh_postld = NULL;
+    }
 }
 
 static void usb_host_cancel_packet(USBDevice *udev, USBPacket *p)
