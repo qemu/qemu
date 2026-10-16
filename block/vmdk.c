@@ -195,6 +195,13 @@ typedef struct VmdkGrainMarker {
     uint8_t  data[];
 } QEMU_PACKED VmdkGrainMarker;
 
+typedef struct EosMarker {
+    uint64_t val;
+    uint32_t size;
+    uint32_t type;
+    uint8_t pad[512 - 16];
+} QEMU_PACKED EosMarker;
+
 enum {
     MARKER_END_OF_STREAM    = 0,
     MARKER_GRAIN_TABLE      = 1,
@@ -987,12 +994,7 @@ vmdk_open_vmdk4(BlockDriverState *bs, BdrvChild *file, int flags,
             VMDK4Header header;
             uint8_t pad[512 - 4 - sizeof(VMDK4Header)];
 
-            struct {
-                uint64_t val;
-                uint32_t size;
-                uint32_t type;
-                uint8_t pad[512 - 16];
-            } QEMU_PACKED eos_marker;
+            EosMarker eos_marker;
         } QEMU_PACKED footer;
 
         ret = bdrv_pread(file, bs->file->bs->total_sectors * 512 - 1536,
@@ -2182,23 +2184,29 @@ vmdk_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
                            QEMUIOVector *qiov)
 {
     if (bytes == 0) {
-        /* The caller will write bytes 0 to signal EOF.
-         * When receive it, we align EOF to a sector boundary. */
+        /* The caller will write bytes 0 to signal EOF. */
         BDRVVmdkState *s = bs->opaque;
-        int i, ret;
+        int ret;
         int64_t length;
+        QEMU_AUTO_VFREE EosMarker *eos_marker = NULL;
 
-        for (i = 0; i < s->num_extents; i++) {
-            length = bdrv_co_getlength(s->extents[i].file->bs);
-            if (length < 0) {
-                return length;
-            }
-            length = QEMU_ALIGN_UP(length, BDRV_SECTOR_SIZE);
-            ret = bdrv_co_truncate(s->extents[i].file, length, false,
-                                   PREALLOC_MODE_OFF, 0, NULL);
-            if (ret < 0) {
-                return ret;
-            }
+        /* Stream optimized disks should only contain a single extent. */
+        assert(s->num_extents == 1);
+
+        /*
+         * Stream optimized disks end with an EOS marker,
+         * consisting of 512 null bytes.
+         */
+        eos_marker = qemu_blockalign0(bs, sizeof(EosMarker));
+        length = bdrv_co_getlength(s->extents[0].file->bs);
+        if (length < 0) {
+            return length;
+        }
+        length = QEMU_ALIGN_UP(length, BDRV_SECTOR_SIZE);
+        ret = bdrv_co_pwrite(s->extents[0].file, length, sizeof(EosMarker),
+                             eos_marker, 0);
+        if (ret < 0) {
+            return ret;
         }
         return 0;
     }
