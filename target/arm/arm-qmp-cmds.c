@@ -203,14 +203,6 @@ qmp_query_arm_cpu_model_expansion(CpuModelExpansionType type,
     return expansion_info;
 }
 
-CpuModelExpansionInfo *
-qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                              CpuModelInfo *model,
-                              Error **errp)
-{
-    return qmp_query_arm_cpu_model_expansion(type, model, errp);
-}
-
 static void arm_cpu_add_definition(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;

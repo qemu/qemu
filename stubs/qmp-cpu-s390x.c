@@ -10,6 +10,14 @@ CpuDefinitionInfoList *qmp_query_s390x_cpu_definitions(Error **errp)
     g_assert_not_reached();
 }
 
+CpuModelExpansionInfo *
+qmp_query_s390x_cpu_model_expansion(CpuModelExpansionType type,
+                                    CpuModelInfo *model,
+                                    Error **errp)
+{
+    g_assert_not_reached();
+}
+
 CpuModelCompareInfo *
 qmp_query_cpu_model_comparison(CpuModelInfo *infoa,
                                CpuModelInfo *infob,

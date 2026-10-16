@@ -260,14 +260,6 @@ qmp_query_s390x_cpu_model_expansion(CpuModelExpansionType type,
     return expansion_info;
 }
 
-CpuModelExpansionInfo *
-qmp_query_cpu_model_expansion(CpuModelExpansionType type,
-                              CpuModelInfo *model,
-                              Error **errp)
-{
-    return qmp_query_s390x_cpu_model_expansion(type, model, errp);
-}
-
 static void list_add_feat(const char *name, void *opaque)
 {
     strList **last = (strList **) opaque;
