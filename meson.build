@@ -1797,18 +1797,11 @@ endif
 
 gnutls = not_found
 gnutls_crypto = not_found
-gnutls_bug1717_workaround = false
 if get_option('gnutls').enabled() or (get_option('gnutls').auto() and have_system)
   gnutls = dependency('gnutls', version: '>=3.7.5',
                       method: 'pkg-config',
                       required: get_option('gnutls'))
   gnutls_crypto = gnutls
-
-  #if gnutls.found() and not get_option('gnutls-bug1717-workaround').disabled()
-    # XXX: when bug 1717 is resolved, add logic to probe for
-    # the GNUTLS fixed version number to handle the 'auto' case
-  #  gnutls_bug1717_workaround = true
-  #endif
 endif
 
 # We prefer use of gnutls for crypto, unless the options
@@ -2535,7 +2528,6 @@ config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('CONFIG_GNUTLS', gnutls.found())
 config_host_data.set('CONFIG_GNUTLS_CRYPTO', gnutls_crypto.found())
-config_host_data.set('CONFIG_GNUTLS_BUG1717_WORKAROUND', gnutls_bug1717_workaround)
 config_host_data.set('CONFIG_TASN1', tasn1.found())
 config_host_data.set('CONFIG_GCRYPT', gcrypt.found())
 config_host_data.set('CONFIG_NETTLE', nettle.found())
@@ -4909,7 +4901,6 @@ summary_info += {'TLS priority':      get_option('tls_priority')}
 summary_info += {'GNUTLS support':    gnutls}
 if gnutls.found()
   summary_info += {'  GNUTLS crypto':   gnutls_crypto.found()}
-  summary_info += {'  GNUTLS bug 1717 workaround': gnutls_bug1717_workaround }
 endif
 summary_info += {'libgcrypt':         gcrypt}
 summary_info += {'nettle':            nettle}

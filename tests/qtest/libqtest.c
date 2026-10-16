@@ -44,13 +44,14 @@
 
 #define MAX_IRQ 256
 
+#define ACCEPT_TIMEOUT_MS 250
+#define ACCEPT_RETRIES (4 * 50)
+
 #ifndef _WIN32
-# define SOCKET_TIMEOUT 50
 # define CMD_EXEC   "exec "
 # define DEV_STDERR "/dev/fd/2"
 # define DEV_NULL   "/dev/null"
 #else
-# define SOCKET_TIMEOUT 50000
 # define CMD_EXEC   ""
 # define DEV_STDERR "2"
 # define DEV_NULL   "nul"
@@ -116,20 +117,17 @@ static int init_socket(const char *socket_path)
     return sock;
 }
 
-static int socket_accept(int sock)
+static int qtest_socket_accept(QTestState *s, int sock)
 {
     struct sockaddr_un addr;
     socklen_t addrlen;
     int ret;
-    /*
-     * timeout unit of blocking receive calls is different among platforms.
-     * It's in seconds on non-Windows platforms but milliseconds on Windows.
-     */
+    size_t i;
 #ifndef _WIN32
-    struct timeval timeout = { .tv_sec = SOCKET_TIMEOUT,
-                               .tv_usec = 0 };
+    struct timeval timeout = { .tv_sec = 0,
+                               .tv_usec = ACCEPT_TIMEOUT_MS * 1000ul };
 #else
-    DWORD timeout = SOCKET_TIMEOUT;
+    DWORD timeout = ACCEPT_TIMEOUT_MS;
 #endif
 
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
@@ -140,13 +138,26 @@ static int socket_accept(int sock)
         return -1;
     }
 
-    do {
+    for (i = 0; i < ACCEPT_RETRIES ; i++) {
+        if (!qtest_probe_child(s)) {
+            fprintf(stderr,
+                    "child process unexpectedly exited, skipping socket accept\n");
+            goto cleanup;
+        }
+
         addrlen = sizeof(addr);
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
-    } while (ret == -1 && errno == EINTR);
-    if (ret == -1) {
-        fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+        if (ret == -1) {
+            if (errno == EINTR || errno == EAGAIN) {
+                continue;
+            } else {
+                fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
+            }
+        }
+        return ret;
     }
+
+ cleanup:
     close(sock);
 
     return ret;
@@ -549,9 +560,9 @@ void qtest_connect(QTestState *s)
     g_autofree gchar *qmp_socket_path = qtest_socket_path("qmp");
 
     g_assert(s->sock >= 0 && s->qmpsock >= 0);
-    s->fd = socket_accept(s->sock);
+    s->fd = qtest_socket_accept(s, s->sock);
     if (s->fd >= 0) {
-        s->qmp_fd = socket_accept(s->qmpsock);
+        s->qmp_fd = qtest_socket_accept(s, s->qmpsock);
     }
     unlink(socket_path);
     unlink(qmp_socket_path);
@@ -663,7 +674,7 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd)
     qts = qtest_initf("-chardev socket,id=s0,path=%s -serial chardev:s0 %s",
                       sock_path, extra_args);
 
-    *sock_fd = socket_accept(sock_fd_init);
+    *sock_fd = qtest_socket_accept(qts, sock_fd_init);
 
     unlink(sock_path);
     g_free(sock_path);
