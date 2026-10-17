@@ -1035,12 +1035,14 @@ See :ref:`container-ref` for more details.
 Running subset of tests
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-You can build the tcg tests using::
+You can build and run the TCG tests using respectively::
 
   make tcg-tests
+  make check-tcg-$TARGET
 
-And run them for one target with::
+Or for a single target::
 
+  make tcg-tests-$TARGET
   make check-tcg-$TARGET
 
 Adding ``V=1`` to the invocation will show the details of how to
