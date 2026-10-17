@@ -403,6 +403,12 @@ static inline bool byte_reg_is_xH(DisasContext *s, int reg)
     return true;
 }
 
+/* Select the size of an INS/OUTS operation ("z" operand size).  */
+static inline MemOp mo_ins_outs(DisasContext *s)
+{
+    return s->dflag == MO_16 ? MO_16 : MO_32;
+}
+
 /* Select the size of a push/pop operation.  */
 static inline MemOp mo_pushpop(DisasContext *s, MemOp ot)
 {

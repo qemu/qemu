@@ -41,8 +41,6 @@ typedef enum X86OpType {
     X86_TYPE_U, /* R/M in the modrm byte selects an XMM/YMM register */
     X86_TYPE_V, /* reg in the modrm byte selects an XMM/YMM register */
     X86_TYPE_W, /* XMM/YMM modrm operand */
-    X86_TYPE_X, /* string source */
-    X86_TYPE_Y, /* string destination */
 
     /* Custom */
     X86_TYPE_EM, /* modrm byte selects an ALU memory operand */

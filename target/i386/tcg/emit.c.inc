@@ -1923,7 +1923,7 @@ static void gen_CMPccXADD(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_CMPS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->b & 1 ? s->dflag : MO_8;
     gen_repz_nz(s, ot, gen_cmps);
 }
 
@@ -2388,10 +2388,10 @@ static void gen_INC(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_INS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[1].ot;
+    MemOp ot = decode->b & 1 ? mo_ins_outs(s) : MO_8;
     TCGv_i32 port = tcg_temp_new_i32();
 
-    tcg_gen_trunc_tl_i32(port, s->T1);
+    tcg_gen_trunc_tl_i32(port, s->T0);
     tcg_gen_ext16u_i32(port, port);
     if (!gen_check_io(s, ot, port,
                       SVM_IOIO_TYPE_MASK | SVM_IOIO_STR_MASK)) {
@@ -2593,7 +2593,7 @@ static void gen_LGS(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_LODS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[1].ot;
+    MemOp ot = decode->b & 1 ? s->dflag : MO_8;
     gen_repz(s, ot, gen_lods);
 }
 
@@ -2803,7 +2803,7 @@ static void gen_MOVq_dq(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_MOVS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->b & 1 ? s->dflag : MO_8;
     gen_repz(s, ot, gen_movs);
 }
 
@@ -2960,10 +2960,10 @@ static void gen_OUT(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_OUTS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[1].ot;
+    MemOp ot = decode->b & 1 ? mo_ins_outs(s) : MO_8;
     TCGv_i32 port = tcg_temp_new_i32();
 
-    tcg_gen_trunc_tl_i32(port, s->T1);
+    tcg_gen_trunc_tl_i32(port, s->T0);
     tcg_gen_ext16u_i32(port, port);
     if (!gen_check_io(s, ot, port, SVM_IOIO_STR_MASK)) {
         return;
@@ -4128,7 +4128,7 @@ static void gen_SBB(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_SCAS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[2].ot;
+    MemOp ot = decode->b & 1 ? s->dflag : MO_8;
     gen_repz_nz(s, ot, gen_scas);
 }
 
@@ -4332,7 +4332,7 @@ static void gen_STMXCSR(DisasContext *s, X86DecodedInsn *decode)
 
 static void gen_STOS(DisasContext *s, X86DecodedInsn *decode)
 {
-    MemOp ot = decode->op[1].ot;
+    MemOp ot = decode->b & 1 ? s->dflag : MO_8;
     gen_repz(s, ot, gen_stos);
 }
 

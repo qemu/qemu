@@ -1810,10 +1810,10 @@ static const X86OpEntry opcodes_root[256] = {
     [0xA1] = X86_OP_ENTRY3(MOV, 0,v, O,v, None, None), /* rAX, Ov */
     [0xA2] = X86_OP_ENTRY3(MOV, O,b, 0,b, None, None), /* Ob, AL */
     [0xA3] = X86_OP_ENTRY3(MOV, O,v, 0,v, None, None), /* Ov, rAX */
-    [0xA4] = X86_OP_ENTRYrr(MOVS, Y,b, X,b),
-    [0xA5] = X86_OP_ENTRYrr(MOVS, Y,v, X,v),
-    [0xA6] = X86_OP_ENTRYrr(CMPS, Y,b, X,b),
-    [0xA7] = X86_OP_ENTRYrr(CMPS, Y,v, X,v),
+    [0xA4] = X86_OP_ENTRY0(MOVS),
+    [0xA5] = X86_OP_ENTRY0(MOVS),
+    [0xA6] = X86_OP_ENTRY0(CMPS),
+    [0xA7] = X86_OP_ENTRY0(CMPS),
 
     [0xB0] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
     [0xB1] = X86_OP_ENTRY3(MOV, LoBits,b, I,b, None, None),
@@ -1916,10 +1916,10 @@ static const X86OpEntry opcodes_root[256] = {
     [0x69] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,z, sextT0),
     [0x6A] = X86_OP_ENTRYr(PUSH, I,b),
     [0x6B] = X86_OP_ENTRY3(IMUL3, G,v, E,v, I,b, sextT0),
-    [0x6C] = X86_OP_ENTRYrr(INS, Y,b, 2,w), /* DX */
-    [0x6D] = X86_OP_ENTRYrr(INS, Y,z, 2,w), /* DX */
-    [0x6E] = X86_OP_ENTRYrr(OUTS, X,b, 2,w), /* DX */
-    [0x6F] = X86_OP_ENTRYrr(OUTS, X,z, 2,w), /* DX */
+    [0x6C] = X86_OP_ENTRYr(INS, 2,w), /* DX */
+    [0x6D] = X86_OP_ENTRYr(INS, 2,w), /* DX */
+    [0x6E] = X86_OP_ENTRYr(OUTS, 2,w), /* DX */
+    [0x6F] = X86_OP_ENTRYr(OUTS, 2,w), /* DX */
 
     [0x78] = X86_OP_ENTRYr(Jcc, J,b),
     [0x79] = X86_OP_ENTRYr(Jcc, J,b),
@@ -1951,13 +1951,13 @@ static const X86OpEntry opcodes_root[256] = {
 
     [0xA8] = X86_OP_ENTRYrr(TEST, 0,b, I,b),   /* AL, Ib */
     [0xA9] = X86_OP_ENTRYrr(TEST, 0,v, I,z),   /* rAX, Iz */
-    [0xAA] = X86_OP_ENTRYwr(STOS, Y,b, 0,b),
-    [0xAB] = X86_OP_ENTRYwr(STOS, Y,v, 0,v),
+    [0xAA] = X86_OP_ENTRYr(STOS, 0,b),
+    [0xAB] = X86_OP_ENTRYr(STOS, 0,v),
     /* Manual writeback because REP LODS (!) has to write EAX/RAX after every LODS.  */
-    [0xAC] = X86_OP_ENTRYr(LODS, X,b),
-    [0xAD] = X86_OP_ENTRYr(LODS, X,v),
-    [0xAE] = X86_OP_ENTRYrr(SCAS, 0,b, Y,b),
-    [0xAF] = X86_OP_ENTRYrr(SCAS, 0,v, Y,v),
+    [0xAC] = X86_OP_ENTRY0(LODS),
+    [0xAD] = X86_OP_ENTRY0(LODS),
+    [0xAE] = X86_OP_ENTRYr(SCAS, 0,b),
+    [0xAF] = X86_OP_ENTRYr(SCAS, 0,v),
 
     [0xB8] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
     [0xB9] = X86_OP_ENTRYwr(MOV, LoBits,v, I,v),
@@ -2552,8 +2552,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     switch (type) {
     case X86_TYPE_None:  /* Implicit or absent */
     case X86_TYPE_F:  /* EFLAGS/RFLAGS */
-    case X86_TYPE_X:  /* string source */
-    case X86_TYPE_Y:  /* string destination */
         break;
 
     case X86_TYPE_B:  /* VEX.vvvv selects a GPR, else use modrm */
