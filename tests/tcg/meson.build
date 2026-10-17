@@ -433,7 +433,7 @@ foreach target, plan: tcg_tests
 
       # build executable if needed
       if exe_name not in built_tests
-        exe = custom_target(exe_name,
+        exe = custom_target(exe_name + '.test',
                             input: file,
                             command: [cc, '@INPUT@',
                                       '-o', '@OUTPUT@', '-static',
