@@ -1582,104 +1582,93 @@ static guint riscv_iommu_iot_hash(gconstpointer v)
 /* GV: 0 AV: 0 PSCV: 0 GVMA: 0 */
 /* GV: 0 AV: 0 GVMA: 1 */
 static
-void riscv_iommu_iot_inval_all(gpointer key, gpointer value, gpointer data)
+gboolean riscv_iommu_iot_inval_all(gpointer key, gpointer value, gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag;
 }
 
 /* GV: 0 AV: 0 PSCV: 1 GVMA: 0 */
 static
-void riscv_iommu_iot_inval_pscid(gpointer key, gpointer value, gpointer data)
+gboolean riscv_iommu_iot_inval_pscid(gpointer key, gpointer value,
+                                     gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->pscid == arg->pscid) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->pscid == arg->pscid;
 }
 
 /* GV: 0 AV: 1 PSCV: 0 GVMA: 0 */
 static
-void riscv_iommu_iot_inval_iova(gpointer key, gpointer value, gpointer data)
+gboolean riscv_iommu_iot_inval_iova(gpointer key, gpointer value, gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->iova == arg->iova) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->iova == arg->iova;
 }
 
 /* GV: 0 AV: 1 PSCV: 1 GVMA: 0 */
-static void riscv_iommu_iot_inval_pscid_iova(gpointer key, gpointer value,
-                                             gpointer data)
+static gboolean riscv_iommu_iot_inval_pscid_iova(gpointer key,
+                                                 gpointer value,
+                                                 gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->pscid == arg->pscid &&
-        iot->iova == arg->iova) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->pscid == arg->pscid &&
+           iot->iova == arg->iova;
 }
 
 /* GV: 1 AV: 0 PSCV: 0 GVMA: 0 */
 /* GV: 1 AV: 0 GVMA: 1 */
-static
-void riscv_iommu_iot_inval_gscid(gpointer key, gpointer value, gpointer data)
+static gboolean riscv_iommu_iot_inval_gscid(gpointer key, gpointer value,
+                                            gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->gscid == arg->gscid) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->gscid == arg->gscid;
 }
 
 /* GV: 1 AV: 0 PSCV: 1 GVMA: 0 */
-static void riscv_iommu_iot_inval_gscid_pscid(gpointer key, gpointer value,
-                                              gpointer data)
+static gboolean riscv_iommu_iot_inval_gscid_pscid(gpointer key,
+                                                  gpointer value,
+                                                  gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->gscid == arg->gscid &&
-        iot->pscid == arg->pscid) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->gscid == arg->gscid &&
+           iot->pscid == arg->pscid;
 }
 
 /* GV: 1 AV: 1 PSCV: 0 GVMA: 0 */
 /* GV: 1 AV: 1 GVMA: 1 */
-static void riscv_iommu_iot_inval_gscid_iova(gpointer key, gpointer value,
-                                             gpointer data)
+static gboolean riscv_iommu_iot_inval_gscid_iova(gpointer key,
+                                                 gpointer value,
+                                                 gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->gscid == arg->gscid &&
-        iot->iova == arg->iova) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->gscid == arg->gscid &&
+           iot->iova == arg->iova;
 }
 
 /* GV: 1 AV: 1 PSCV: 1 GVMA: 0 */
-static void riscv_iommu_iot_inval_gscid_pscid_iova(gpointer key, gpointer value,
-                                                   gpointer data)
+static gboolean riscv_iommu_iot_inval_gscid_pscid_iova(gpointer key,
+                                                       gpointer value,
+                                                       gpointer data)
 {
     RISCVIOMMUEntry *iot = (RISCVIOMMUEntry *) value;
     RISCVIOMMUEntry *arg = (RISCVIOMMUEntry *) data;
-    if (iot->tag == arg->tag &&
-        iot->gscid == arg->gscid &&
-        iot->pscid == arg->pscid &&
-        iot->iova == arg->iova) {
-        iot->perm = IOMMU_NONE;
-    }
+    return iot->tag == arg->tag &&
+           iot->gscid == arg->gscid &&
+           iot->pscid == arg->pscid &&
+           iot->iova == arg->iova;
 }
 
 /* caller must hold iot_lock */
@@ -1712,7 +1701,7 @@ static void riscv_iommu_iot_update(RISCVIOMMUState *s, RISCVIOMMUEntry *iot)
     g_hash_table_add(s->iot_cache, iot);
 }
 
-static void riscv_iommu_iot_inval(RISCVIOMMUState *s, GHFunc func,
+static void riscv_iommu_iot_inval(RISCVIOMMUState *s, GHRFunc func,
     uint32_t gscid, uint32_t pscid, hwaddr iova, RISCVIOMMUTransTag transtag)
 {
     RISCVIOMMUEntry key = {
@@ -1723,7 +1712,7 @@ static void riscv_iommu_iot_inval(RISCVIOMMUState *s, GHFunc func,
     };
 
     qemu_mutex_lock(&s->iot_lock);
-    g_hash_table_foreach(s->iot_cache, func, &key);
+    g_hash_table_foreach_remove(s->iot_cache, func, &key);
     qemu_mutex_unlock(&s->iot_lock);
 }
 
@@ -1972,7 +1961,8 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
     dma_addr_t addr;
     uint32_t tail, head, ctrl;
     uint64_t cmd_opcode;
-    GHFunc func;
+    GHRFunc iot_func;
+    GHFunc ctx_func;
 
     ctrl = riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_CQCSR);
     tail = riscv_iommu_reg_get32(s, RISCV_IOMMU_REG_CQT) & s->cq_mask;
@@ -2035,18 +2025,18 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
                 goto cmd_ill;
             }
 
-            func = riscv_iommu_iot_inval_all;
+            iot_func = riscv_iommu_iot_inval_all;
 
             if (gv) {
-                func = (av) ? riscv_iommu_iot_inval_gscid_iova :
+                iot_func = (av) ? riscv_iommu_iot_inval_gscid_iova :
                               riscv_iommu_iot_inval_gscid;
             }
 
             riscv_iommu_iot_inval(
-                s, func, gscid, pscid, iova, RISCV_IOMMU_TRANS_TAG_VG);
+                s, iot_func, gscid, pscid, iova, RISCV_IOMMU_TRANS_TAG_VG);
 
             riscv_iommu_iot_inval(
-                s, func, gscid, pscid, iova, RISCV_IOMMU_TRANS_TAG_VN);
+                s, iot_func, gscid, pscid, iova, RISCV_IOMMU_TRANS_TAG_VN);
             break;
         }
 
@@ -2066,24 +2056,24 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
             if (gv) {
                 transtag = RISCV_IOMMU_TRANS_TAG_VN;
                 if (pscv) {
-                    func = (av) ? riscv_iommu_iot_inval_gscid_pscid_iova :
+                    iot_func = (av) ? riscv_iommu_iot_inval_gscid_pscid_iova :
                                   riscv_iommu_iot_inval_gscid_pscid;
                 } else {
-                    func = (av) ? riscv_iommu_iot_inval_gscid_iova :
+                    iot_func = (av) ? riscv_iommu_iot_inval_gscid_iova :
                                   riscv_iommu_iot_inval_gscid;
                 }
             } else {
                 transtag = RISCV_IOMMU_TRANS_TAG_SS;
                 if (pscv) {
-                    func = (av) ? riscv_iommu_iot_inval_pscid_iova :
+                    iot_func = (av) ? riscv_iommu_iot_inval_pscid_iova :
                                   riscv_iommu_iot_inval_pscid;
                 } else {
-                    func = (av) ? riscv_iommu_iot_inval_iova :
+                    iot_func = (av) ? riscv_iommu_iot_inval_iova :
                                   riscv_iommu_iot_inval_all;
                 }
             }
 
-            riscv_iommu_iot_inval(s, func, gscid, pscid, iova, transtag);
+            riscv_iommu_iot_inval(s, iot_func, gscid, pscid, iova, transtag);
             break;
         }
 
@@ -2091,12 +2081,12 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
                              RISCV_IOMMU_CMD_IODIR_OPCODE):
             if (!(cmd.dword0 & RISCV_IOMMU_CMD_IODIR_DV)) {
                 /* invalidate all device context cache mappings */
-                func = riscv_iommu_ctx_inval_all;
+                ctx_func = riscv_iommu_ctx_inval_all;
             } else {
                 /* invalidate all device context matching DID */
-                func = riscv_iommu_ctx_inval_devid;
+                ctx_func = riscv_iommu_ctx_inval_devid;
             }
-            riscv_iommu_ctx_inval(s, func,
+            riscv_iommu_ctx_inval(s, ctx_func,
                 get_field(cmd.dword0, RISCV_IOMMU_CMD_IODIR_DID), 0);
             break;
 
@@ -2106,9 +2096,9 @@ static void riscv_iommu_process_cq_tail(RISCVIOMMUState *s)
                 /* illegal command arguments IODIR_PDT & DV == 0 */
                 goto cmd_ill;
             } else {
-                func = riscv_iommu_ctx_inval_devid_procid;
+                ctx_func = riscv_iommu_ctx_inval_devid_procid;
             }
-            riscv_iommu_ctx_inval(s, func,
+            riscv_iommu_ctx_inval(s, ctx_func,
                 get_field(cmd.dword0, RISCV_IOMMU_CMD_IODIR_DID),
                 get_field(cmd.dword0, RISCV_IOMMU_CMD_IODIR_PID));
             break;
