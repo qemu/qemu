@@ -2551,7 +2551,6 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
 {
     switch (type) {
     case X86_TYPE_None:  /* Implicit or absent */
-    case X86_TYPE_F:  /* EFLAGS/RFLAGS */
         break;
 
     case X86_TYPE_B:  /* VEX.vvvv selects a GPR, else use modrm */

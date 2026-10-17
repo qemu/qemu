@@ -26,7 +26,6 @@ typedef enum X86OpType {
     X86_TYPE_C, /* REG in the modrm byte selects a control register */
     X86_TYPE_D, /* REG in the modrm byte selects a debug register */
     X86_TYPE_E, /* ALU modrm operand */
-    X86_TYPE_F, /* EFLAGS/RFLAGS */
     X86_TYPE_G, /* REG in the modrm byte selects a GPR */
     X86_TYPE_H, /* For AVX, VEX.vvvv selects an XMM/YMM register */
     X86_TYPE_I, /* Immediate */
