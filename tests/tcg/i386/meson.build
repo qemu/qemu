@@ -35,6 +35,7 @@ tests += {
     'cflags': [files('test-i386-code16.S'), files('test-i386-vm86.S'),
                '-lm', '-fno-pie', '-Wl,--no-warn-rwx-segments'],
   },
+  'test-idiv-overflow.c': {},
   '../multiarch/sha512.c': {
      'exe_name': 'sha512-sse',
      'cflags': ['-msse4.1', '-O3'],
