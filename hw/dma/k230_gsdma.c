@@ -304,54 +304,54 @@ static uint64_t k230_gsdma_read(void *opaque, hwaddr addr, unsigned int size)
     hwaddr ch_off;
     uint64_t ret = 0;
 
-    switch (addr) {
-    case K230_GSDMA_DMA_CH_EN:
-        ret = s->dma_ch_en;
-        break;
-    case K230_GSDMA_DMA_INT_MASK:
-        ret = s->dma_int_mask;
-        break;
-    case K230_GSDMA_DMA_INT_STAT:
-        ret = s->dma_int_stat;
-        break;
-    case K230_GSDMA_DMA_CFG:
-        ret = s->dma_cfg;
-        break;
-    case K230_GSDMA_DMA_WEIGHT:
-        ret = s->dma_weight;
-        break;
-    default:
-        if (addr < K230_GSDMA_CH_BASE) {
+    if (addr < K230_GSDMA_CH_BASE) {
+        switch (addr) {
+        case K230_GSDMA_DMA_CH_EN:
+            ret = s->dma_ch_en;
+            break;
+        case K230_GSDMA_DMA_INT_MASK:
+            ret = s->dma_int_mask;
+            break;
+        case K230_GSDMA_DMA_INT_STAT:
+            ret = s->dma_int_stat;
+            break;
+        case K230_GSDMA_DMA_CFG:
+            ret = s->dma_cfg;
+            break;
+        case K230_GSDMA_DMA_WEIGHT:
+            ret = s->dma_weight;
+            break;
+        default:
             qemu_log_mask(LOG_GUEST_ERROR,
                         "%s: not implement gdma at offset 0x%" HWADDR_PRIx
                         "\n", __func__, addr);
+            return ret;
         }
-        break;
-    }
-
-    ch = (addr - K230_GSDMA_CH_BASE) / K230_GSDMA_CH_STRIDE;
-    ch_off = (addr - K230_GSDMA_CH_BASE) % K230_GSDMA_CH_STRIDE;
-    if (ch < K230_GSDMA_NUM_SDMA_CHANNELS) {
-        switch (ch_off) {
-        case K230_GSDMA_CH_CTL:
-            break;
-        case K230_GSDMA_CH_STATUS:
-            ret = s->channels[ch].status;
-            break;
-        case K230_GSDMA_CH_CFG:
-            ret = s->channels[ch].cfg;
-            break;
-        case K230_GSDMA_CH_USR_DATA:
-            ret = s->channels[ch].usr_data;
-            break;
-        case K230_GSDMA_CH_LLT_SADDR:
-            ret = s->channels[ch].llt_saddr;
-            break;
-        case K230_GSDMA_CH_CURRENT_LLT:
-            ret = s->channels[ch].current_llt;
-            break;
-        default:
-            break;
+    } else {
+        ch = (addr - K230_GSDMA_CH_BASE) / K230_GSDMA_CH_STRIDE;
+        ch_off = (addr - K230_GSDMA_CH_BASE) % K230_GSDMA_CH_STRIDE;
+        if (ch < K230_GSDMA_NUM_SDMA_CHANNELS) {
+            switch (ch_off) {
+            case K230_GSDMA_CH_CTL:
+                break;
+            case K230_GSDMA_CH_STATUS:
+                ret = s->channels[ch].status;
+                break;
+            case K230_GSDMA_CH_CFG:
+                ret = s->channels[ch].cfg;
+                break;
+            case K230_GSDMA_CH_USR_DATA:
+                ret = s->channels[ch].usr_data;
+                break;
+            case K230_GSDMA_CH_LLT_SADDR:
+                ret = s->channels[ch].llt_saddr;
+                break;
+            case K230_GSDMA_CH_CURRENT_LLT:
+                ret = s->channels[ch].current_llt;
+                break;
+            default:
+                break;
+            }
         }
     }
 
