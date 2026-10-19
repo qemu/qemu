@@ -273,32 +273,32 @@ static void r4k_helper_tlbr(CPUMIPSState *env)
     }
 }
 
-void helper_tlbwi(CPUMIPSState *env)
+void HELPER(tlbwi)(CPUMIPSState *env)
 {
     env->tlb->helper_tlbwi(env);
 }
 
-void helper_tlbwr(CPUMIPSState *env)
+void HELPER(tlbwr)(CPUMIPSState *env)
 {
     env->tlb->helper_tlbwr(env);
 }
 
-void helper_tlbp(CPUMIPSState *env)
+void HELPER(tlbp)(CPUMIPSState *env)
 {
     env->tlb->helper_tlbp(env);
 }
 
-void helper_tlbr(CPUMIPSState *env)
+void HELPER(tlbr)(CPUMIPSState *env)
 {
     env->tlb->helper_tlbr(env);
 }
 
-void helper_tlbinv(CPUMIPSState *env)
+void HELPER(tlbinv)(CPUMIPSState *env)
 {
     env->tlb->helper_tlbinv(env);
 }
 
-void helper_tlbinvf(CPUMIPSState *env)
+void HELPER(tlbinvf)(CPUMIPSState *env)
 {
     env->tlb->helper_tlbinvf(env);
 }
@@ -338,7 +338,7 @@ static void global_invalidate_tlb(CPUMIPSState *env,
     cpu_mips_tlb_flush(env);
 }
 
-void helper_ginvt(CPUMIPSState *env, target_ulong arg, uint32_t type)
+void HELPER(ginvt)(CPUMIPSState *env, target_ulong arg, uint32_t type)
 {
     bool invAll = type == 0;
     bool invVA = type == 1;

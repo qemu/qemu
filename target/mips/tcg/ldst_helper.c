@@ -32,7 +32,7 @@
 #include "exec/tlb-flags.h"
 
 #define HELPER_LD_ATOMIC(name, insn, almask, do_cast)                         \
-target_ulong helper_##name(CPUMIPSState *env, target_ulong arg,               \
+target_ulong HELPER(name)(CPUMIPSState *env, target_ulong arg,                \
                            uint32_t memop_idx)                                \
 {                                                                             \
     MemOpIdx oi = memop_idx;                                                  \
@@ -73,7 +73,7 @@ static inline target_ulong get_lmask(CPUMIPSState *env,
     return value;
 }
 
-void helper_swl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
+void HELPER(swl)(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
     target_ulong lmask = get_lmask(env, arg2, 32);
@@ -97,7 +97,7 @@ void helper_swl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
     }
 }
 
-void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
+void HELPER(swr)(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
     target_ulong lmask = get_lmask(env, arg2, 32);
@@ -127,7 +127,7 @@ void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
  * or fault handling won't work.
  */
 
-void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
+void HELPER(sdl)(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
     target_ulong lmask = get_lmask(env, arg2, 64);
@@ -171,7 +171,7 @@ void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
     }
 }
 
-void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
+void HELPER(sdr)(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
     target_ulong lmask = get_lmask(env, arg2, 64);
@@ -218,7 +218,7 @@ void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
 
 static const int multiple_regs[] = { 16, 17, 18, 19, 20, 21, 22, 23, 30 };
 
-void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
+void HELPER(lwm)(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
@@ -239,7 +239,7 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
     }
 }
 
-void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
+void HELPER(swm)(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
@@ -261,7 +261,7 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 }
 
 #if defined(TARGET_MIPS64)
-void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
+void HELPER(ldm)(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;
@@ -282,7 +282,7 @@ void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
     }
 }
 
-void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
+void HELPER(sdm)(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
                 uint32_t memop_idx)
 {
     MemOpIdx oi = memop_idx;

@@ -40,18 +40,18 @@ static inline target_ulong bitswap(target_ulong v)
 }
 
 #ifdef TARGET_MIPS64
-target_ulong helper_dbitswap(target_ulong rt)
+target_ulong HELPER(dbitswap)(target_ulong rt)
 {
     return bitswap(rt);
 }
 #endif
 
-target_ulong helper_bitswap(target_ulong rt)
+target_ulong HELPER(bitswap)(target_ulong rt)
 {
     return (int32_t)bitswap(rt);
 }
 
-target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
+target_ulong HELPER(rotx)(target_ulong rs, uint32_t shift, uint32_t shiftx,
                         uint32_t stripe)
 {
     int i;
@@ -146,7 +146,7 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
 }
 
 /* these crc32 functions are based on target/loongarch/tcg/op_helper.c */
-target_ulong helper_crc32(target_ulong val, target_ulong m, uint32_t sz)
+target_ulong HELPER(crc32)(target_ulong val, target_ulong m, uint32_t sz)
 {
     uint8_t buf[8];
     target_ulong mask = ((sz * 8) == 64) ?
@@ -158,7 +158,7 @@ target_ulong helper_crc32(target_ulong val, target_ulong m, uint32_t sz)
     return (int32_t) (crc32(val ^ 0xffffffff, buf, sz) ^ 0xffffffff);
 }
 
-target_ulong helper_crc32c(target_ulong val, target_ulong m, uint32_t sz)
+target_ulong HELPER(crc32c)(target_ulong val, target_ulong m, uint32_t sz)
 {
     uint8_t buf[8];
     target_ulong mask = ((sz * 8) == 64) ?
@@ -169,7 +169,7 @@ target_ulong helper_crc32c(target_ulong val, target_ulong m, uint32_t sz)
     return (int32_t) (crc32c(val, buf, sz) ^ 0xffffffff);
 }
 
-void helper_fork(target_ulong arg1, target_ulong arg2)
+void HELPER(fork)(target_ulong arg1, target_ulong arg2)
 {
     /*
      * arg1 = rt, arg2 = rs
@@ -177,7 +177,7 @@ void helper_fork(target_ulong arg1, target_ulong arg2)
      */
 }
 
-target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
+target_ulong HELPER(yield)(CPUMIPSState *env, target_ulong arg)
 {
     target_long arg1 = arg;
 
@@ -216,19 +216,19 @@ static inline void check_hwrena(CPUMIPSState *env, int reg, uintptr_t pc)
     do_raise_exception(env, EXCP_RI, pc);
 }
 
-target_ulong helper_rdhwr_cpunum(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_cpunum)(CPUMIPSState *env)
 {
     check_hwrena(env, 0, GETPC());
     return env->CP0_EBase & 0x3ff;
 }
 
-target_ulong helper_rdhwr_synci_step(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_synci_step)(CPUMIPSState *env)
 {
     check_hwrena(env, 1, GETPC());
     return env->SYNCI_Step;
 }
 
-target_ulong helper_rdhwr_cc(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_cc)(CPUMIPSState *env)
 {
     check_hwrena(env, 2, GETPC());
 #ifdef CONFIG_USER_ONLY
@@ -238,31 +238,31 @@ target_ulong helper_rdhwr_cc(CPUMIPSState *env)
 #endif
 }
 
-target_ulong helper_rdhwr_ccres(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_ccres)(CPUMIPSState *env)
 {
     check_hwrena(env, 3, GETPC());
     return env->CCRes;
 }
 
-target_ulong helper_rdhwr_performance(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_performance)(CPUMIPSState *env)
 {
     check_hwrena(env, 4, GETPC());
     return env->CP0_Performance0;
 }
 
-target_ulong helper_rdhwr_xnp(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_xnp)(CPUMIPSState *env)
 {
     check_hwrena(env, 5, GETPC());
     return (env->CP0_Config5 >> CP0C5_XNP) & 1;
 }
 
-target_ulong helper_rdhwr_chord(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_chord)(CPUMIPSState *env)
 {
     check_hwrena(env, 30, GETPC());
     return env->octeon_crypto.chord;
 }
 
-target_ulong helper_rdhwr_cvmcount(CPUMIPSState *env)
+target_ulong HELPER(rdhwr_cvmcount)(CPUMIPSState *env)
 {
     check_hwrena(env, 31, GETPC());
 #ifdef CONFIG_USER_ONLY
@@ -272,7 +272,7 @@ target_ulong helper_rdhwr_cvmcount(CPUMIPSState *env)
 #endif
 }
 
-void helper_pmon(CPUMIPSState *env, int function)
+void HELPER(pmon)(CPUMIPSState *env, int function)
 {
     function /= 2;
     switch (function) {
@@ -300,7 +300,7 @@ void helper_pmon(CPUMIPSState *env, int function)
 }
 
 #ifdef TARGET_MIPS64
-target_ulong helper_lcsr_cpucfg(CPUMIPSState *env, target_ulong rs)
+target_ulong HELPER(lcsr_cpucfg)(CPUMIPSState *env, target_ulong rs)
 {
     switch (rs) {
     case 0:

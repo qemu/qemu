@@ -1329,7 +1329,7 @@ static void octeon_aes_decrypt_common(MIPSOcteonCryptoState *crypto, bool cbc)
     }
 }
 
-void helper_octeon_cp2_mt_aes_enc_cbc1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_aes_enc_cbc1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1337,7 +1337,7 @@ void helper_octeon_cp2_mt_aes_enc_cbc1(CPUMIPSState *env, uint64_t value)
     octeon_aes_encrypt_common(crypto, true);
 }
 
-void helper_octeon_cp2_mt_aes_enc1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_aes_enc1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1345,7 +1345,7 @@ void helper_octeon_cp2_mt_aes_enc1(CPUMIPSState *env, uint64_t value)
     octeon_aes_encrypt_common(crypto, false);
 }
 
-void helper_octeon_cp2_mt_aes_dec_cbc1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_aes_dec_cbc1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1353,7 +1353,7 @@ void helper_octeon_cp2_mt_aes_dec_cbc1(CPUMIPSState *env, uint64_t value)
     octeon_aes_decrypt_common(crypto, true);
 }
 
-void helper_octeon_cp2_mt_aes_dec1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_aes_dec1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1452,7 +1452,7 @@ static void octeon_sms4_crypt_common(MIPSOcteonCryptoState *crypto,
     }
 }
 
-void helper_octeon_cp2_mt_sms4_enc_cbc1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_sms4_enc_cbc1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1460,7 +1460,7 @@ void helper_octeon_cp2_mt_sms4_enc_cbc1(CPUMIPSState *env, uint64_t value)
     octeon_sms4_crypt_common(crypto, true, true);
 }
 
-void helper_octeon_cp2_mt_sms4_enc1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_sms4_enc1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1468,7 +1468,7 @@ void helper_octeon_cp2_mt_sms4_enc1(CPUMIPSState *env, uint64_t value)
     octeon_sms4_crypt_common(crypto, true, false);
 }
 
-void helper_octeon_cp2_mt_sms4_dec_cbc1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_sms4_dec_cbc1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1476,7 +1476,7 @@ void helper_octeon_cp2_mt_sms4_dec_cbc1(CPUMIPSState *env, uint64_t value)
     octeon_sms4_crypt_common(crypto, false, true);
 }
 
-void helper_octeon_cp2_mt_sms4_dec1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_sms4_dec1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -1912,32 +1912,32 @@ static void octeon_kasumi_crypt_common(MIPSOcteonCryptoState *crypto,
     crypto->des3_result = block;
 }
 
-void helper_octeon_cp2_mt_des3_enc_cbc(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_des3_enc_cbc)(CPUMIPSState *env, uint64_t value)
 {
     octeon_3des_crypt_common(&env->octeon_crypto, value, true, true);
 }
 
-void helper_octeon_cp2_mt_kas_enc_cbc(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_kas_enc_cbc)(CPUMIPSState *env, uint64_t value)
 {
     octeon_kasumi_crypt_common(&env->octeon_crypto, value, true);
 }
 
-void helper_octeon_cp2_mt_des3_enc(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_des3_enc)(CPUMIPSState *env, uint64_t value)
 {
     octeon_3des_crypt_common(&env->octeon_crypto, value, true, false);
 }
 
-void helper_octeon_cp2_mt_kas_enc(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_kas_enc)(CPUMIPSState *env, uint64_t value)
 {
     octeon_kasumi_crypt_common(&env->octeon_crypto, value, false);
 }
 
-void helper_octeon_cp2_mt_des3_dec_cbc(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_des3_dec_cbc)(CPUMIPSState *env, uint64_t value)
 {
     octeon_3des_crypt_common(&env->octeon_crypto, value, false, true);
 }
 
-void helper_octeon_cp2_mt_des3_dec(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_des3_dec)(CPUMIPSState *env, uint64_t value)
 {
     octeon_3des_crypt_common(&env->octeon_crypto, value, false, false);
 }
@@ -2053,68 +2053,68 @@ static void octeon_camellia_fl_layer(MIPSOcteonCryptoState *crypto,
         camellia_fl(state, key);
 }
 
-void helper_octeon_cp2_mt_camellia_fl(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_camellia_fl)(CPUMIPSState *env, uint64_t value)
 {
     octeon_camellia_fl_layer(&env->octeon_crypto, value, false);
 }
 
-void helper_octeon_cp2_mt_camellia_flinv(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_camellia_flinv)(CPUMIPSState *env, uint64_t value)
 {
     octeon_camellia_fl_layer(&env->octeon_crypto, value, true);
 }
 
-void helper_octeon_cp2_mt_camellia_round(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_camellia_round)(CPUMIPSState *env, uint64_t value)
 {
     octeon_camellia_round(&env->octeon_crypto, value);
 }
 
-void helper_octeon_cp2_mt_snow3g_start(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_snow3g_start)(CPUMIPSState *env, uint64_t value)
 {
     octeon_snow3g_start(&env->octeon_crypto, value);
 }
 
-void helper_octeon_cp2_mt_snow3g_more(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_snow3g_more)(CPUMIPSState *env, uint64_t value)
 {
     (void)value;
     octeon_snow3g_more(&env->octeon_crypto);
 }
 
-void helper_octeon_cp2_mt_zuc_start(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_zuc_start)(CPUMIPSState *env, uint64_t value)
 {
     octeon_zuc_start(&env->octeon_crypto, value);
 }
 
-void helper_octeon_cp2_mt_zuc_more(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_zuc_more)(CPUMIPSState *env, uint64_t value)
 {
     octeon_zuc_more(&env->octeon_crypto, value);
 }
 
-void helper_octeon_cp2_mt_hsh_startsha1_compat(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_hsh_startsha1_compat)(CPUMIPSState *env,
                                                uint64_t value)
 {
     octeon_hsh_set_pair(env->octeon_crypto.hsh_dat, 7, value);
     octeon_sha1_transform(&env->octeon_crypto);
 }
 
-void helper_octeon_cp2_mt_hsh_startmd5(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_hsh_startmd5)(CPUMIPSState *env, uint64_t value)
 {
     octeon_hsh_set_pair(env->octeon_crypto.hsh_dat, 7, value);
     octeon_md5_transform(&env->octeon_crypto);
 }
 
-void helper_octeon_cp2_mt_hsh_startsha256(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_hsh_startsha256)(CPUMIPSState *env, uint64_t value)
 {
     octeon_hsh_set_pair(env->octeon_crypto.hsh_dat, 7, value);
     octeon_sha256_transform(&env->octeon_crypto);
 }
 
-void helper_octeon_cp2_mt_hsh_startsha(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_hsh_startsha)(CPUMIPSState *env, uint64_t value)
 {
     octeon_hsh_set_pair(env->octeon_crypto.hsh_dat, 7, value);
     octeon_sha1_transform(&env->octeon_crypto);
 }
 
-void helper_octeon_cp2_mt_hsh_startsha512(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_hsh_startsha512)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
@@ -2122,7 +2122,7 @@ void helper_octeon_cp2_mt_hsh_startsha512(CPUMIPSState *env, uint64_t value)
     octeon_sha512_transform(crypto);
 }
 
-uint64_t helper_octeon_cp2_mf_crc_iv_reflect(CPUMIPSState *env)
+uint64_t HELPER(octeon_cp2_mf_crc_iv_reflect)(CPUMIPSState *env)
 {
     return octeon_crc_reflect32_by_byte(env->octeon_crypto.crc_iv);
 }
@@ -2141,7 +2141,7 @@ static void octeon_gfm_xormul1_common(MIPSOcteonCryptoState *crypto,
     }
 }
 
-void helper_octeon_cp2_mt_gfm_xormul1_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_gfm_xormul1_reflect)(CPUMIPSState *env,
                                               uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
@@ -2149,84 +2149,84 @@ void helper_octeon_cp2_mt_gfm_xormul1_reflect(CPUMIPSState *env,
     octeon_gfm_xormul1_common(crypto, revbit64(value));
 }
 
-void helper_octeon_cp2_mt_gfm_xormul1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_gfm_xormul1)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
     octeon_gfm_xormul1_common(crypto, value);
 }
 
-void helper_octeon_cp2_mt_sha3_startop(CPUMIPSState *env)
+void HELPER(octeon_cp2_mt_sha3_startop)(CPUMIPSState *env)
 {
     octeon_sha3_permute(&env->octeon_crypto);
 }
 
-void helper_octeon_cp2_mt_crc_write_iv_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_iv_reflect)(CPUMIPSState *env,
                                                uint64_t value)
 {
     env->octeon_crypto.crc_iv =
         octeon_crc_reflect32_by_byte((uint32_t)value);
 }
 
-void helper_octeon_cp2_mt_crc_write_polynomial_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_polynomial_reflect)(CPUMIPSState *env,
                                                        uint64_t value)
 {
     env->octeon_crypto.crc_poly =
         octeon_crc_reflect32_by_byte((uint32_t)value);
 }
 
-void helper_octeon_cp2_mt_crc_write_byte(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_crc_write_byte)(CPUMIPSState *env, uint64_t value)
 {
     octeon_crc_update_normal(&env->octeon_crypto, value, 1);
 }
 
-void helper_octeon_cp2_mt_crc_write_half(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_crc_write_half)(CPUMIPSState *env, uint64_t value)
 {
     octeon_crc_update_normal(&env->octeon_crypto, value, 2);
 }
 
-void helper_octeon_cp2_mt_crc_write_word(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_crc_write_word)(CPUMIPSState *env, uint64_t value)
 {
     octeon_crc_update_normal(&env->octeon_crypto, value, 4);
 }
 
-void helper_octeon_cp2_mt_crc_write_dword(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_crc_write_dword)(CPUMIPSState *env, uint64_t value)
 {
     octeon_crc_update_normal(&env->octeon_crypto, value, 8);
 }
 
-void helper_octeon_cp2_mt_crc_write_var(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_crc_write_var)(CPUMIPSState *env, uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
 
     octeon_crc_update_normal(crypto, value, MIN(8U, crypto->crc_len & 0xf));
 }
 
-void helper_octeon_cp2_mt_crc_write_byte_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_byte_reflect)(CPUMIPSState *env,
                                                  uint64_t value)
 {
     octeon_crc_update_reflect(&env->octeon_crypto, value, 1);
 }
 
-void helper_octeon_cp2_mt_crc_write_half_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_half_reflect)(CPUMIPSState *env,
                                                  uint64_t value)
 {
     octeon_crc_update_reflect(&env->octeon_crypto, value, 2);
 }
 
-void helper_octeon_cp2_mt_crc_write_word_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_word_reflect)(CPUMIPSState *env,
                                                  uint64_t value)
 {
     octeon_crc_update_reflect(&env->octeon_crypto, value, 4);
 }
 
-void helper_octeon_cp2_mt_crc_write_dword_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_dword_reflect)(CPUMIPSState *env,
                                                   uint64_t value)
 {
     octeon_crc_update_reflect(&env->octeon_crypto, value, 8);
 }
 
-void helper_octeon_cp2_mt_crc_write_var_reflect(CPUMIPSState *env,
+void HELPER(octeon_cp2_mt_crc_write_var_reflect)(CPUMIPSState *env,
                                                 uint64_t value)
 {
     MIPSOcteonCryptoState *crypto = &env->octeon_crypto;
@@ -2234,42 +2234,42 @@ void helper_octeon_cp2_mt_crc_write_var_reflect(CPUMIPSState *env,
     octeon_crc_update_reflect(crypto, value, MIN(8U, crypto->crc_len & 0xf));
 }
 
-void helper_octeon_cp2_mt_llm_read_addr0(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_read_addr0)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_read(&env->octeon_crypto, 0, value, false);
 }
 
-void helper_octeon_cp2_mt_llm_write_addr0(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_write_addr0)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_write(&env->octeon_crypto, 0, value, false);
 }
 
-void helper_octeon_cp2_mt_llm_read64_addr0(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_read64_addr0)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_read(&env->octeon_crypto, 0, value, true);
 }
 
-void helper_octeon_cp2_mt_llm_write64_addr0(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_write64_addr0)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_write(&env->octeon_crypto, 0, value, true);
 }
 
-void helper_octeon_cp2_mt_llm_read_addr1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_read_addr1)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_read(&env->octeon_crypto, 1, value, false);
 }
 
-void helper_octeon_cp2_mt_llm_write_addr1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_write_addr1)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_write(&env->octeon_crypto, 1, value, false);
 }
 
-void helper_octeon_cp2_mt_llm_read64_addr1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_read64_addr1)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_read(&env->octeon_crypto, 1, value, true);
 }
 
-void helper_octeon_cp2_mt_llm_write64_addr1(CPUMIPSState *env, uint64_t value)
+void HELPER(octeon_cp2_mt_llm_write64_addr1)(CPUMIPSState *env, uint64_t value)
 {
     octeon_llm_write(&env->octeon_crypto, 1, value, true);
 }
