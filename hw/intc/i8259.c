@@ -447,17 +447,14 @@ static void i8259_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, i8259_reset);
 }
 
-static const TypeInfo i8259_info = {
-    .name       = TYPE_I8259,
-    .instance_size = sizeof(I8259State),
-    .parent     = TYPE_I8259_COMMON,
-    .class_init = i8259_class_init,
-    .class_size = sizeof(I8259Class),
+static const TypeInfo i8259_type_infos[] = {
+    {
+        .name       = TYPE_I8259,
+        .instance_size = sizeof(I8259State),
+        .parent     = TYPE_I8259_COMMON,
+        .class_init = i8259_class_init,
+        .class_size = sizeof(I8259Class),
+    },
 };
 
-static void i8259_register_types(void)
-{
-    type_register_static(&i8259_info);
-}
-
-type_init(i8259_register_types)
+DEFINE_TYPES(i8259_type_infos)
