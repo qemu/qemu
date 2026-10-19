@@ -30,8 +30,6 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 
-static int irq_level[16];
-static uint64_t irq_count[16];
 
 void i8259_common_reset(I8259CommonState *cs)
 {
@@ -89,24 +87,15 @@ static void i8259_common_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, cs->iobase, 1);
 }
 
-void i8259_stat_update_irq(int irq, int level)
+void i8259_stat_update_irq(uint64_t *irq_counts, int *irq_levels,
+                           int irq, int level)
 {
-    if (level != irq_level[irq]) {
-        irq_level[irq] = level;
+    if (level != irq_levels[irq]) {
+        irq_levels[irq] = level;
         if (level == 1) {
-            irq_count[irq]++;
+            irq_counts[irq]++;
         }
     }
-}
-
-bool i8259_pic_get_statistics(InterruptStatsProvider *obj,
-                              uint64_t **irq_counts,
-                              unsigned int *nb_irqs)
-{
-    *irq_counts = irq_count;
-    *nb_irqs = ARRAY_SIZE(irq_count);
-
-    return true;
 }
 
 void i8259_pic_print_info(InterruptStatsProvider *obj, GString *buf)

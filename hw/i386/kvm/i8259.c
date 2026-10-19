@@ -45,6 +45,9 @@ struct KVMI8259PICState {
 
     ISABus *isabus;
     KVMI8259State i8259[2];
+
+    int irq_level[ISA_NUM_IRQS];
+    uint64_t irq_count[ISA_NUM_IRQS];
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(KVMI8259PICState, KVM_I8259_PIC)
@@ -117,6 +120,18 @@ static void kvm_i8259_put(I8259CommonState *cs)
     }
 }
 
+static bool kvm_i8259_pic_get_statistics(InterruptStatsProvider *obj,
+                                         uint64_t **irq_counts,
+                                         unsigned int *nb_irqs)
+{
+    KVMI8259PICState *s = KVM_I8259_PIC(obj);
+
+    *irq_counts = s->irq_count;
+    *nb_irqs = ARRAY_SIZE(s->irq_count);
+
+    return true;
+}
+
 static void kvm_i8259_reset(DeviceState *dev)
 {
     I8259CommonState *cs = I8259_COMMON(dev);
@@ -129,9 +144,10 @@ static void kvm_i8259_reset(DeviceState *dev)
 
 static void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
+    KVMI8259PICState *s = opaque;
     int delivered;
 
-    i8259_stat_update_irq(irq, level);
+    i8259_stat_update_irq(s->irq_count, s->irq_level, irq, level);
     delivered = kvm_set_irq(kvm_state, irq, level);
     kvm_report_irq_delivered(delivered);
 }
@@ -227,7 +243,7 @@ static void kvm_i8259_pic_class_init(ObjectClass *klass, const void *data)
 
     dc->realize = kvm_i8259_pic_realize;
     device_class_set_props(dc, kvm_i8259_pic_properties);
-    ic->get_statistics = i8259_pic_get_statistics;
+    ic->get_statistics = kvm_i8259_pic_get_statistics;
     ic->print_info = i8259_pic_print_info;
     /*
      * Reason: must be wired to the ISA bus via the "bus" property

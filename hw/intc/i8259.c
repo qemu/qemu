@@ -64,14 +64,16 @@ struct I8259PICState {
     ISABus *isabus;
     IRQState i8259_primary_out_irq;
     I8259State i8259[2];
+
+    int irq_level[ISA_NUM_IRQS];
+    uint64_t irq_count[ISA_NUM_IRQS];
+#ifdef DEBUG_IRQ_LATENCY
+    int64_t irq_time[ISA_NUM_IRQS];
+#endif
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(I8259PICState, I8259_PIC)
 
-
-#ifdef DEBUG_IRQ_LATENCY
-static int64_t irq_time[16];
-#endif
 I8259PICState *isa_pic;
 
 /* return the highest priority found in mask (highest = smallest
@@ -138,16 +140,8 @@ static void i8259_set_irq(void *opaque, int irq, int level)
 {
     I8259CommonState *cs = opaque;
     int mask = 1 << irq;
-    int irq_index = cs->master ? irq : irq + 8;
 
     trace_i8259_set_irq(cs->master, irq, level);
-    i8259_stat_update_irq(irq_index, level);
-
-#ifdef DEBUG_IRQ_LATENCY
-    if (level) {
-        irq_time[irq_index] = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    }
-#endif
 
     if (cs->ltim || (cs->elcr & mask)) {
         /* level triggered */
@@ -224,7 +218,7 @@ int pic_read_irq(I8259PICState *s)
     printf("IRQ%d latency=%0.3fus\n",
            irq,
            (double)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) -
-                    irq_time[irq]) * 1000000.0 / NANOSECONDS_PER_SECOND);
+                    s->irq_time[irq]) * 1000000.0 / NANOSECONDS_PER_SECOND);
 #endif
 
     trace_pic_interrupt(irq, intno);
@@ -456,9 +450,29 @@ static void i8259_class_init(ObjectClass *klass, const void *data)
 }
 
 
+static bool i8259_pic_get_statistics(InterruptStatsProvider *obj,
+                                     uint64_t **irq_counts,
+                                     unsigned int *nb_irqs)
+{
+    I8259PICState *s = I8259_PIC(obj);
+
+    *irq_counts = s->irq_count;
+    *nb_irqs = ARRAY_SIZE(s->irq_count);
+
+    return true;
+}
+
 static void i8259_pic_set_irq(void *opaque, int n, int level)
 {
     I8259PICState *s = opaque;
+
+    i8259_stat_update_irq(s->irq_count, s->irq_level, n, level);
+
+#ifdef DEBUG_IRQ_LATENCY
+    if (level) {
+        s->irq_time[n] = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    }
+#endif
 
     qemu_set_irq(s->pass_irqs[n], level);
 }
