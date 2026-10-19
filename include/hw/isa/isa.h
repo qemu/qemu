@@ -82,6 +82,7 @@ IsaDma *isa_bus_get_dma(ISABus *bus, int nchan);
 qemu_irq isa_bus_get_irq(ISABus *bus, unsigned irqnum);
 ISADevice *isa_new(const char *name);
 ISADevice *isa_try_new(const char *name);
+bool isa_realize(ISADevice *dev, ISABus *bus, Error **errp);
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp);
 ISADevice *isa_create_simple(ISABus *bus, const char *name);
 

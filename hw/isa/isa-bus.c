@@ -172,6 +172,11 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
     return dev;
 }
 
+bool isa_realize(ISADevice *dev, ISABus *bus, Error **errp)
+{
+    return qdev_realize(&dev->parent_obj, &bus->parent_obj, errp);
+}
+
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->parent_obj, &bus->parent_obj, errp);
