@@ -59,7 +59,7 @@ static I8259CommonState *slave_pic;
 
 /* return the highest priority found in mask (highest = smallest
    number). Return 8 if no irq */
-static int get_priority(I8259CommonState *s, int mask)
+static int get_priority(I8259CommonState *cs, int mask)
 {
     int priority;
 
@@ -67,63 +67,63 @@ static int get_priority(I8259CommonState *s, int mask)
         return 8;
     }
     priority = 0;
-    while ((mask & (1 << ((priority + s->priority_add) & 7))) == 0) {
+    while ((mask & (1 << ((priority + cs->priority_add) & 7))) == 0) {
         priority++;
     }
     return priority;
 }
 
 /* return the pic wanted interrupt. return -1 if none */
-static int pic_get_irq(I8259CommonState *s)
+static int pic_get_irq(I8259CommonState *cs)
 {
     int mask, cur_priority, priority;
 
-    mask = s->irr & ~s->imr;
-    priority = get_priority(s, mask);
+    mask = cs->irr & ~cs->imr;
+    priority = get_priority(cs, mask);
     if (priority == 8) {
         return -1;
     }
     /* compute current priority. If special fully nested mode on the
        master, the IRQ coming from the slave is not taken into account
        for the priority computation. */
-    mask = s->isr;
-    if (s->special_mask) {
-        mask &= ~s->imr;
+    mask = cs->isr;
+    if (cs->special_mask) {
+        mask &= ~cs->imr;
     }
-    if (s->special_fully_nested_mode && s->master) {
+    if (cs->special_fully_nested_mode && cs->master) {
         mask &= ~(1 << 2);
     }
-    cur_priority = get_priority(s, mask);
+    cur_priority = get_priority(cs, mask);
     if (priority < cur_priority) {
         /* higher priority found: an irq should be generated */
-        return (priority + s->priority_add) & 7;
+        return (priority + cs->priority_add) & 7;
     } else {
         return -1;
     }
 }
 
 /* Update INT output. Must be called every time the output may have changed. */
-static void pic_update_irq(I8259CommonState *s)
+static void pic_update_irq(I8259CommonState *cs)
 {
     int irq;
 
-    irq = pic_get_irq(s);
+    irq = pic_get_irq(cs);
     if (irq >= 0) {
-        trace_pic_update_irq(s->master, s->imr, s->irr, s->priority_add);
-        qemu_irq_raise(s->int_out[0]);
+        trace_pic_update_irq(cs->master, cs->imr, cs->irr, cs->priority_add);
+        qemu_irq_raise(cs->int_out[0]);
     } else {
-        qemu_irq_lower(s->int_out[0]);
+        qemu_irq_lower(cs->int_out[0]);
     }
 }
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
 static void pic_set_irq(void *opaque, int irq, int level)
 {
-    I8259CommonState *s = opaque;
+    I8259CommonState *cs = opaque;
     int mask = 1 << irq;
-    int irq_index = s->master ? irq : irq + 8;
+    int irq_index = cs->master ? irq : irq + 8;
 
-    trace_pic_set_irq(s->master, irq, level);
+    trace_pic_set_irq(cs->master, irq, level);
     pic_stat_update_irq(irq_index, level);
 
 #ifdef DEBUG_IRQ_LATENCY
@@ -132,44 +132,44 @@ static void pic_set_irq(void *opaque, int irq, int level)
     }
 #endif
 
-    if (s->ltim || (s->elcr & mask)) {
+    if (cs->ltim || (cs->elcr & mask)) {
         /* level triggered */
         if (level) {
-            s->irr |= mask;
-            s->last_irr |= mask;
+            cs->irr |= mask;
+            cs->last_irr |= mask;
         } else {
-            s->irr &= ~mask;
-            s->last_irr &= ~mask;
+            cs->irr &= ~mask;
+            cs->last_irr &= ~mask;
         }
     } else {
         /* edge triggered */
         if (level) {
-            if ((s->last_irr & mask) == 0) {
-                s->irr |= mask;
+            if ((cs->last_irr & mask) == 0) {
+                cs->irr |= mask;
             }
-            s->last_irr |= mask;
+            cs->last_irr |= mask;
         } else {
-            s->last_irr &= ~mask;
+            cs->last_irr &= ~mask;
         }
     }
-    pic_update_irq(s);
+    pic_update_irq(cs);
 }
 
 /* acknowledge interrupt 'irq' */
-static void pic_intack(I8259CommonState *s, int irq)
+static void pic_intack(I8259CommonState *cs, int irq)
 {
-    if (s->auto_eoi) {
-        if (s->rotate_on_auto_eoi) {
-            s->priority_add = (irq + 1) & 7;
+    if (cs->auto_eoi) {
+        if (cs->rotate_on_auto_eoi) {
+            cs->priority_add = (irq + 1) & 7;
         }
     } else {
-        s->isr |= (1 << irq);
+        cs->isr |= (1 << irq);
     }
     /* We don't clear a level sensitive interrupt here */
-    if (!s->ltim && !(s->elcr & (1 << irq))) {
-        s->irr &= ~(1 << irq);
+    if (!cs->ltim && !(cs->elcr & (1 << irq))) {
+        cs->irr &= ~(1 << irq);
     }
-    pic_update_irq(s);
+    pic_update_irq(cs);
 }
 
 int pic_read_irq(I8259State *s)
@@ -213,81 +213,81 @@ int pic_read_irq(I8259State *s)
     return intno;
 }
 
-static void pic_init_reset(I8259CommonState *s)
+static void pic_init_reset(I8259CommonState *cs)
 {
-    pic_reset_common(s);
-    pic_update_irq(s);
+    pic_reset_common(cs);
+    pic_update_irq(cs);
 }
 
 static void pic_reset(DeviceState *dev)
 {
-    I8259CommonState *s = I8259_COMMON(dev);
+    I8259CommonState *cs = I8259_COMMON(dev);
 
-    s->elcr = 0;
-    s->ltim = 0;
-    pic_init_reset(s);
+    cs->elcr = 0;
+    cs->ltim = 0;
+    pic_init_reset(cs);
 }
 
 static void pic_ioport_write(void *opaque, hwaddr addr64,
                              uint64_t val64, unsigned size)
 {
-    I8259CommonState *s = opaque;
+    I8259CommonState *cs = opaque;
     uint32_t addr = addr64;
     uint32_t val = val64;
     int priority, cmd, irq;
 
-    trace_pic_ioport_write(s->master, addr, val);
+    trace_pic_ioport_write(cs->master, addr, val);
 
     if (addr == 0) {
         if (val & 0x10) {
-            pic_init_reset(s);
-            s->init_state = 1;
-            s->init4 = val & 1;
-            s->single_mode = val & 2;
-            s->ltim = val & 8;
+            pic_init_reset(cs);
+            cs->init_state = 1;
+            cs->init4 = val & 1;
+            cs->single_mode = val & 2;
+            cs->ltim = val & 8;
         } else if (val & 0x08) {
             if (val & 0x04) {
-                s->poll = 1;
+                cs->poll = 1;
             }
             if (val & 0x02) {
-                s->read_reg_select = val & 1;
+                cs->read_reg_select = val & 1;
             }
             if (val & 0x40) {
-                s->special_mask = (val >> 5) & 1;
+                cs->special_mask = (val >> 5) & 1;
             }
         } else {
             cmd = val >> 5;
             switch (cmd) {
             case 0:
             case 4:
-                s->rotate_on_auto_eoi = cmd >> 2;
+                cs->rotate_on_auto_eoi = cmd >> 2;
                 break;
             case 1: /* end of interrupt */
             case 5:
-                priority = get_priority(s, s->isr);
+                priority = get_priority(cs, cs->isr);
                 if (priority != 8) {
-                    irq = (priority + s->priority_add) & 7;
-                    s->isr &= ~(1 << irq);
+                    irq = (priority + cs->priority_add) & 7;
+                    cs->isr &= ~(1 << irq);
                     if (cmd == 5) {
-                        s->priority_add = (irq + 1) & 7;
+                        cs->priority_add = (irq + 1) & 7;
                     }
-                    pic_update_irq(s);
+                    pic_update_irq(cs);
                 }
                 break;
             case 3:
                 irq = val & 7;
-                s->isr &= ~(1 << irq);
-                pic_update_irq(s);
+                cs->isr &= ~(1 << irq);
+                pic_update_irq(cs);
                 break;
             case 6:
-                s->priority_add = (val + 1) & 7;
-                pic_update_irq(s);
+                cs->priority_add = (val + 1) & 7;
+                pic_update_irq(cs);
                 break;
             case 7:
                 irq = val & 7;
-                s->isr &= ~(1 << irq);
-                s->priority_add = (irq + 1) & 7;
-                pic_update_irq(s);
+                cs->isr &= ~(1 << irq);
+                cs->priority_add = (irq + 1) & 7;
+                pic_update_irq(cs);
                 break;
             default:
                 /* no operation */
@@ -295,27 +295,27 @@ static void pic_ioport_write(void *opaque, hwaddr addr64,
             }
         }
     } else {
-        switch (s->init_state) {
+        switch (cs->init_state) {
         case 0:
             /* normal mode */
-            s->imr = val;
-            pic_update_irq(s);
+            cs->imr = val;
+            pic_update_irq(cs);
             break;
         case 1:
-            s->irq_base = val & 0xf8;
-            s->init_state = s->single_mode ? (s->init4 ? 3 : 0) : 2;
+            cs->irq_base = val & 0xf8;
+            cs->init_state = cs->single_mode ? (cs->init4 ? 3 : 0) : 2;
             break;
         case 2:
-            if (s->init4) {
-                s->init_state = 3;
+            if (cs->init4) {
+                cs->init_state = 3;
             } else {
-                s->init_state = 0;
+                cs->init_state = 0;
             }
             break;
         case 3:
-            s->special_fully_nested_mode = (val >> 4) & 1;
-            s->auto_eoi = (val >> 1) & 1;
-            s->init_state = 0;
+            cs->special_fully_nested_mode = (val >> 4) & 1;
+            cs->auto_eoi = (val >> 1) & 1;
+            cs->init_state = 0;
             break;
         }
     }
@@ -324,30 +324,30 @@ static void pic_ioport_write(void *opaque, hwaddr addr64,
 static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    I8259CommonState *s = opaque;
+    I8259CommonState *cs = opaque;
     int ret;
 
-    if (s->poll) {
-        ret = pic_get_irq(s);
+    if (cs->poll) {
+        ret = pic_get_irq(cs);
         if (ret >= 0) {
-            pic_intack(s, ret);
+            pic_intack(cs, ret);
             ret |= 0x80;
         } else {
             ret = 0;
         }
-        s->poll = 0;
+        cs->poll = 0;
     } else {
         if (addr == 0) {
-            if (s->read_reg_select) {
-                ret = s->isr;
+            if (cs->read_reg_select) {
+                ret = cs->isr;
             } else {
-                ret = s->irr;
+                ret = cs->irr;
             }
         } else {
-            ret = s->imr;
+            ret = cs->imr;
         }
     }
-    trace_pic_ioport_read(s->master, addr, ret);
+    trace_pic_ioport_read(cs->master, addr, ret);
     return ret;
 }
 
@@ -361,15 +361,15 @@ int pic_get_output(I8259State *s)
 static void elcr_ioport_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    I8259CommonState *s = opaque;
-    s->elcr = val & s->elcr_mask;
+    I8259CommonState *cs = opaque;
+    cs->elcr = val & cs->elcr_mask;
 }
 
 static uint64_t elcr_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    I8259CommonState *s = opaque;
-    return s->elcr;
+    I8259CommonState *cs = opaque;
+    return cs->elcr;
 }
 
 static const MemoryRegionOps pic_base_ioport_ops = {
@@ -392,15 +392,15 @@ static const MemoryRegionOps pic_elcr_ioport_ops = {
 
 static void pic_realize(DeviceState *dev, Error **errp)
 {
-    I8259CommonState *s = I8259_COMMON(dev);
+    I8259CommonState *cs = I8259_COMMON(dev);
     I8259Class *k = I8259_GET_CLASS(dev);
 
-    memory_region_init_io(&s->base_io, OBJECT(s), &pic_base_ioport_ops, s,
+    memory_region_init_io(&cs->base_io, OBJECT(cs), &pic_base_ioport_ops, cs,
                           "pic", 2);
-    memory_region_init_io(&s->elcr_io, OBJECT(s), &pic_elcr_ioport_ops, s,
+    memory_region_init_io(&cs->elcr_io, OBJECT(cs), &pic_elcr_ioport_ops, cs,
                           "elcr", 1);
 
-    qdev_init_gpio_out(dev, s->int_out, ARRAY_SIZE(s->int_out));
+    qdev_init_gpio_out(dev, cs->int_out, ARRAY_SIZE(cs->int_out));
     qdev_init_gpio_in(dev, pic_set_irq, 8);
 
     k->parent_realize(dev, errp);
