@@ -51,13 +51,13 @@ void HELPER(write_interval_timer)(CPUHPPAState *env, target_ulong val)
 void HELPER(hppa_halt)(CPUHPPAState *env)
 {
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-    helper_hppa_excp(env, EXCP_HLT);
+    HELPER(hppa_excp)(env, EXCP_HLT);
 }
 
 void HELPER(hppa_reset)(CPUHPPAState *env)
 {
     qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-    helper_hppa_excp(env, EXCP_HLT);
+    HELPER(hppa_excp)(env, EXCP_HLT);
 }
 
 target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
@@ -120,7 +120,7 @@ static void getshadowregs(CPUHPPAState *env)
 void HELPER(rfi_r)(CPUHPPAState *env)
 {
     getshadowregs(env);
-    helper_rfi(env);
+    HELPER(rfi)(env);
 }
 
 #ifndef CONFIG_USER_ONLY
