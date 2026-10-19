@@ -25,6 +25,7 @@ def get_args():
                         required=True)
     parser.add_argument("--qargs", help="Qemu arguments for test")
     parser.add_argument("--pargs", help="Program arguments for test")
+    parser.add_argument("--kargs", help="Kernel args to --append")
     parser.add_argument("--binary", help="Binary to debug",
                         required=True)
     parser.add_argument("--test", help="GDB test script")
@@ -89,6 +90,10 @@ if __name__ == '__main__':
         if not args.no_suspend:
             qemu_cmd.append("-S")
         qemu_cmd.extend(["-gdb", f"unix:path={socket_name},server=on"])
+
+        if args.kargs:
+            qemu_cmd.extend(["--append", args.kargs])
+
         # There is no guest program command-line in system mode.
         assert not args.pargs
     else:
@@ -97,6 +102,9 @@ if __name__ == '__main__':
             qemu_cmd.append(f"{socket_name},suspend=n")
         else:
             qemu_cmd.append(f"{socket_name}")
+
+        # There are no appended args in user-mode
+        assert not args.kargs
 
         # for user mode binary and args always go at the end
         qemu_cmd.append(args.binary)
