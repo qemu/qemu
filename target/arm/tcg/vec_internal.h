@@ -22,6 +22,7 @@
 
 #include "fpu/softfloat.h"
 #include "vector-type.h"
+#include "exec/helper-head.h.inc"
 
 typedef struct CPUArchState CPUARMState;
 
@@ -364,8 +365,8 @@ static inline float64 float64_maybe_ah_chs(float64 a, bool fpcr_ah)
 }
 
 /* Not actually called directly as a helper, but uses similar machinery. */
-bfloat16 helper_sme2_ah_fmax_b16(bfloat16 a, bfloat16 b, float_status *fpst);
-bfloat16 helper_sme2_ah_fmin_b16(bfloat16 a, bfloat16 b, float_status *fpst);
+bfloat16 HELPER(sme2_ah_fmax_b16)(bfloat16 a, bfloat16 b, float_status *fpst);
+bfloat16 HELPER(sme2_ah_fmin_b16)(bfloat16 a, bfloat16 b, float_status *fpst);
 
 float32 sve_f16_to_f32(float16 f, float_status *fpst);
 float16 sve_f32_to_f16(float32 f, float_status *fpst);

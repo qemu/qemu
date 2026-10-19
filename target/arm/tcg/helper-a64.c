@@ -707,7 +707,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         } else {
             env->regs[15] = new_pc & ~0x3;
         }
-        helper_rebuild_hflags_a32(env, new_el);
+        HELPER(rebuild_hflags_a32)(env, new_el);
         qemu_log_mask(CPU_LOG_INT, "Exception return from AArch64 EL%d to "
                       "AArch32 EL%d PC 0x%" PRIx32 "\n",
                       cur_el, new_el, env->regs[15]);
@@ -721,7 +721,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
             env->pstate &= ~PSTATE_SS;
         }
         aarch64_restore_sp(env, new_el);
-        helper_rebuild_hflags_a64(env, new_el);
+        HELPER(rebuild_hflags_a64)(env, new_el);
 
         /*
          * Apply TBI to the exception return address.  We had to delay this
@@ -777,7 +777,7 @@ illegal_return:
     if (!arm_singlestep_active(env)) {
         env->pstate &= ~PSTATE_SS;
     }
-    helper_rebuild_hflags_a64(env, cur_el);
+    HELPER(rebuild_hflags_a64)(env, cur_el);
     qemu_log_mask(LOG_GUEST_ERROR, "Illegal exception return at EL%d: "
                   "resuming execution at 0x%" PRIx64 "\n", cur_el, env->pc);
 }

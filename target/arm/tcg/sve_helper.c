@@ -778,13 +778,13 @@ DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_h, float16, H1_2, float16_min)
 DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_s, float32, H1_4, float32_min)
 DO_ZPZZ_PAIR_FP(sve2_fminp_zpzz_d, float64, H1_8, float64_min)
 
-DO_ZPZZ_PAIR_FP(sve2_ah_fmaxp_zpzz_h, float16, H1_2, helper_vfp_ah_maxh)
-DO_ZPZZ_PAIR_FP(sve2_ah_fmaxp_zpzz_s, float32, H1_4, helper_vfp_ah_maxs)
-DO_ZPZZ_PAIR_FP(sve2_ah_fmaxp_zpzz_d, float64, H1_8, helper_vfp_ah_maxd)
+DO_ZPZZ_PAIR_FP(sve2_ah_fmaxp_zpzz_h, float16, H1_2, HELPER(vfp_ah_maxh))
+DO_ZPZZ_PAIR_FP(sve2_ah_fmaxp_zpzz_s, float32, H1_4, HELPER(vfp_ah_maxs))
+DO_ZPZZ_PAIR_FP(sve2_ah_fmaxp_zpzz_d, float64, H1_8, HELPER(vfp_ah_maxd))
 
-DO_ZPZZ_PAIR_FP(sve2_ah_fminp_zpzz_h, float16, H1_2, helper_vfp_ah_minh)
-DO_ZPZZ_PAIR_FP(sve2_ah_fminp_zpzz_s, float32, H1_4, helper_vfp_ah_mins)
-DO_ZPZZ_PAIR_FP(sve2_ah_fminp_zpzz_d, float64, H1_8, helper_vfp_ah_mind)
+DO_ZPZZ_PAIR_FP(sve2_ah_fminp_zpzz_h, float16, H1_2, HELPER(vfp_ah_minh))
+DO_ZPZZ_PAIR_FP(sve2_ah_fminp_zpzz_s, float32, H1_4, HELPER(vfp_ah_mins))
+DO_ZPZZ_PAIR_FP(sve2_ah_fminp_zpzz_d, float64, H1_8, HELPER(vfp_ah_mind))
 
 #undef DO_ZPZZ_PAIR_FP
 
@@ -1044,8 +1044,8 @@ DO_ZPZ(sve2_sqneg_h, uint16_t, H1_2, DO_SQNEG)
 DO_ZPZ(sve2_sqneg_s, uint32_t, H1_4, DO_SQNEG)
 DO_ZPZ_D(sve2_sqneg_d, uint64_t, DO_SQNEG)
 
-DO_ZPZ(sve2_urecpe_s, uint32_t, H1_4, helper_recpe_u32)
-DO_ZPZ(sve2_ursqrte_s, uint32_t, H1_4, helper_rsqrte_u32)
+DO_ZPZ(sve2_urecpe_s, uint32_t, H1_4, HELPER(recpe_u32))
+DO_ZPZ(sve2_ursqrte_s, uint32_t, H1_4, HELPER(rsqrte_u32))
 
 /* Three-operand expander, unpredicated, in which the third operand is "wide".
  */
@@ -3621,25 +3621,25 @@ static void do_perseg_zzz(void *vd, void *vn, void *vm,
     void HELPER(NAME)(void *vd, void *vn, void *vm, uint32_t desc) \
     { do_perseg_zzz(vd, vn, vm, desc, FUNC); }
 
-DO_PERSEG_ZZZ(sve2p1_uzpq_b, helper_sve_uzp_b)
-DO_PERSEG_ZZZ(sve2p1_uzpq_h, helper_sve_uzp_h)
-DO_PERSEG_ZZZ(sve2p1_uzpq_s, helper_sve_uzp_s)
-DO_PERSEG_ZZZ(sve2p1_uzpq_d, helper_sve_uzp_d)
+DO_PERSEG_ZZZ(sve2p1_uzpq_b, HELPER(sve_uzp_b))
+DO_PERSEG_ZZZ(sve2p1_uzpq_h, HELPER(sve_uzp_h))
+DO_PERSEG_ZZZ(sve2p1_uzpq_s, HELPER(sve_uzp_s))
+DO_PERSEG_ZZZ(sve2p1_uzpq_d, HELPER(sve_uzp_d))
 
-DO_PERSEG_ZZZ(sve2p1_zipq_b, helper_sve_zip_b)
-DO_PERSEG_ZZZ(sve2p1_zipq_h, helper_sve_zip_h)
-DO_PERSEG_ZZZ(sve2p1_zipq_s, helper_sve_zip_s)
-DO_PERSEG_ZZZ(sve2p1_zipq_d, helper_sve_zip_d)
+DO_PERSEG_ZZZ(sve2p1_zipq_b, HELPER(sve_zip_b))
+DO_PERSEG_ZZZ(sve2p1_zipq_h, HELPER(sve_zip_h))
+DO_PERSEG_ZZZ(sve2p1_zipq_s, HELPER(sve_zip_s))
+DO_PERSEG_ZZZ(sve2p1_zipq_d, HELPER(sve_zip_d))
 
-DO_PERSEG_ZZZ(sve2p1_tblq_b, helper_sve_tbl_b)
-DO_PERSEG_ZZZ(sve2p1_tblq_h, helper_sve_tbl_h)
-DO_PERSEG_ZZZ(sve2p1_tblq_s, helper_sve_tbl_s)
-DO_PERSEG_ZZZ(sve2p1_tblq_d, helper_sve_tbl_d)
+DO_PERSEG_ZZZ(sve2p1_tblq_b, HELPER(sve_tbl_b))
+DO_PERSEG_ZZZ(sve2p1_tblq_h, HELPER(sve_tbl_h))
+DO_PERSEG_ZZZ(sve2p1_tblq_s, HELPER(sve_tbl_s))
+DO_PERSEG_ZZZ(sve2p1_tblq_d, HELPER(sve_tbl_d))
 
-DO_PERSEG_ZZZ(sve2p1_tbxq_b, helper_sve2_tbx_b)
-DO_PERSEG_ZZZ(sve2p1_tbxq_h, helper_sve2_tbx_h)
-DO_PERSEG_ZZZ(sve2p1_tbxq_s, helper_sve2_tbx_s)
-DO_PERSEG_ZZZ(sve2p1_tbxq_d, helper_sve2_tbx_d)
+DO_PERSEG_ZZZ(sve2p1_tbxq_b, HELPER(sve2_tbx_b))
+DO_PERSEG_ZZZ(sve2p1_tbxq_h, HELPER(sve2_tbx_h))
+DO_PERSEG_ZZZ(sve2p1_tbxq_s, HELPER(sve2_tbx_s))
+DO_PERSEG_ZZZ(sve2p1_tbxq_d, HELPER(sve2_tbx_d))
 
 #undef DO_PERSEG_ZZZ
 
@@ -4575,18 +4575,19 @@ uint32_t HELPER(sve_whilecg)(void *vd, uint32_t count, uint32_t pred_desc)
  * little to gain with a more complex non-recursive form.
  */
 #define DO_REDUCE(NAME, SUF, TYPE, H, FUNC, IDENT)                      \
-static TYPE FUNC##_reduce(TYPE *data, float_status *status, uintptr_t n) \
+static TYPE NAME##_##SUF##_reduce(TYPE *data, float_status *status,   \
+                                  uintptr_t n)                        \
 {                                                                     \
     if (n == 1) {                                                     \
         return *data;                                                 \
     } else {                                                          \
         uintptr_t half = n / 2;                                       \
-        TYPE lo = FUNC##_reduce(data, status, half);                  \
-        TYPE hi = FUNC##_reduce(data + half, status, half);           \
+        TYPE lo = NAME##_##SUF##_reduce(data, status, half);          \
+        TYPE hi = NAME##_##SUF##_reduce(data + half, status, half);   \
         return FUNC(lo, hi, status);                                  \
     }                                                                 \
 }                                                                     \
-uint64_t helper_sve_##NAME##v_##SUF(void *vn, void *vg,               \
+uint64_t HELPER(sve_##NAME##v_##SUF)(void *vn, void *vg,              \
                                     float_status *status, uint32_t desc) \
 {                                                                     \
     uintptr_t i, oprsz = simd_oprsz(desc), maxsz = simd_data(desc);   \
@@ -4603,9 +4604,9 @@ uint64_t helper_sve_##NAME##v_##SUF(void *vn, void *vg,               \
     for (; i < maxsz; i += sizeof(TYPE)) {                            \
         *(TYPE *)((void *)data + i) = ident;                          \
     }                                                                 \
-    return FUNC##_reduce(data, status, maxsz / sizeof(TYPE));         \
+    return NAME##_##SUF##_reduce(data, status, maxsz / sizeof(TYPE)); \
 }                                                                     \
-void helper_sve2p1_##NAME##qv_##SUF(void *vd, void *vn, void *vg,     \
+void HELPER(sve2p1_##NAME##qv_##SUF)(void *vd, void *vn, void *vg,    \
                                     float_status *status, uint32_t desc) \
 {                                                                     \
     unsigned oprsz = simd_oprsz(desc), segments = oprsz / 16;         \
@@ -4617,7 +4618,7 @@ void helper_sve2p1_##NAME##qv_##SUF(void *vd, void *vn, void *vg,     \
             TYPE nn = *(TYPE *)(vn + (s * 16 + H(e)));                \
             data[s] = (pg >> e) & 1 ? nn : ident;                     \
         }                                                             \
-        *(TYPE *)(vd + H(e)) = FUNC##_reduce(data, status, segments); \
+        *(TYPE *)(vd + H(e)) = NAME##_##SUF##_reduce(data, status, segments); \
     }                                                                 \
     clear_tail(vd, 16, simd_maxsz(desc));                             \
 }
@@ -4646,15 +4647,15 @@ DO_REDUCE(fmax,h, float16, H1_2, float16_max, float16_chs(float16_infinity))
 DO_REDUCE(fmax,s, float32, H1_4, float32_max, float32_chs(float32_infinity))
 DO_REDUCE(fmax,d, float64, H1_8, float64_max, float64_chs(float64_infinity))
 
-DO_REDUCE(ah_fmin,h, float16, H1_2, helper_vfp_ah_minh, float16_infinity)
-DO_REDUCE(ah_fmin,s, float32, H1_4, helper_vfp_ah_mins, float32_infinity)
-DO_REDUCE(ah_fmin,d, float64, H1_8, helper_vfp_ah_mind, float64_infinity)
+DO_REDUCE(ah_fmin, h, float16, H1_2, HELPER(vfp_ah_minh), float16_infinity)
+DO_REDUCE(ah_fmin, s, float32, H1_4, HELPER(vfp_ah_mins), float32_infinity)
+DO_REDUCE(ah_fmin, d, float64, H1_8, HELPER(vfp_ah_mind), float64_infinity)
 
-DO_REDUCE(ah_fmax,h, float16, H1_2, helper_vfp_ah_maxh,
+DO_REDUCE(ah_fmax, h, float16, H1_2, HELPER(vfp_ah_maxh),
           float16_chs(float16_infinity))
-DO_REDUCE(ah_fmax,s, float32, H1_4, helper_vfp_ah_maxs,
+DO_REDUCE(ah_fmax, s, float32, H1_4, HELPER(vfp_ah_maxs),
           float32_chs(float32_infinity))
-DO_REDUCE(ah_fmax,d, float64, H1_8, helper_vfp_ah_maxd,
+DO_REDUCE(ah_fmax, d, float64, H1_8, HELPER(vfp_ah_maxd),
           float64_chs(float64_infinity))
 
 #undef DO_REDUCE
@@ -4766,15 +4767,15 @@ DO_ZPZZ_FP(sve_fmax_h, uint16_t, H1_2, float16_max)
 DO_ZPZZ_FP(sve_fmax_s, uint32_t, H1_4, float32_max)
 DO_ZPZZ_FP(sve_fmax_d, uint64_t, H1_8, float64_max)
 
-DO_ZPZZ_FP(sve_ah_fmin_b16, uint16_t, H1_2, helper_sme2_ah_fmin_b16)
-DO_ZPZZ_FP(sve_ah_fmin_h, uint16_t, H1_2, helper_vfp_ah_minh)
-DO_ZPZZ_FP(sve_ah_fmin_s, uint32_t, H1_4, helper_vfp_ah_mins)
-DO_ZPZZ_FP(sve_ah_fmin_d, uint64_t, H1_8, helper_vfp_ah_mind)
+DO_ZPZZ_FP(sve_ah_fmin_b16, uint16_t, H1_2, HELPER(sme2_ah_fmin_b16))
+DO_ZPZZ_FP(sve_ah_fmin_h, uint16_t, H1_2, HELPER(vfp_ah_minh))
+DO_ZPZZ_FP(sve_ah_fmin_s, uint32_t, H1_4, HELPER(vfp_ah_mins))
+DO_ZPZZ_FP(sve_ah_fmin_d, uint64_t, H1_8, HELPER(vfp_ah_mind))
 
-DO_ZPZZ_FP(sve_ah_fmax_b16, uint16_t, H1_2, helper_sme2_ah_fmax_b16)
-DO_ZPZZ_FP(sve_ah_fmax_h, uint16_t, H1_2, helper_vfp_ah_maxh)
-DO_ZPZZ_FP(sve_ah_fmax_s, uint32_t, H1_4, helper_vfp_ah_maxs)
-DO_ZPZZ_FP(sve_ah_fmax_d, uint64_t, H1_8, helper_vfp_ah_maxd)
+DO_ZPZZ_FP(sve_ah_fmax_b16, uint16_t, H1_2, HELPER(sme2_ah_fmax_b16))
+DO_ZPZZ_FP(sve_ah_fmax_h, uint16_t, H1_2, HELPER(vfp_ah_maxh))
+DO_ZPZZ_FP(sve_ah_fmax_s, uint32_t, H1_4, HELPER(vfp_ah_maxs))
+DO_ZPZZ_FP(sve_ah_fmax_d, uint64_t, H1_8, HELPER(vfp_ah_maxd))
 
 DO_ZPZZ_FP(sve_fminnum_b16, uint16_t, H1_2, bfloat16_minnum)
 DO_ZPZZ_FP(sve_fminnum_h, uint16_t, H1_2, float16_minnum)
@@ -4832,9 +4833,9 @@ DO_ZPZZ_FP(sve_fscalbn_h, int16_t, H1_2, float16_scalbn)
 DO_ZPZZ_FP(sve_fscalbn_s, int32_t, H1_4, float32_scalbn)
 DO_ZPZZ_FP(sve_fscalbn_d, int64_t, H1_8, scalbn_d)
 
-DO_ZPZZ_FP(sve_fmulx_h, uint16_t, H1_2, helper_advsimd_mulxh)
-DO_ZPZZ_FP(sve_fmulx_s, uint32_t, H1_4, helper_vfp_mulxs)
-DO_ZPZZ_FP(sve_fmulx_d, uint64_t, H1_8, helper_vfp_mulxd)
+DO_ZPZZ_FP(sve_fmulx_h, uint16_t, H1_2, HELPER(advsimd_mulxh))
+DO_ZPZZ_FP(sve_fmulx_s, uint32_t, H1_4, HELPER(vfp_mulxs))
+DO_ZPZZ_FP(sve_fmulx_d, uint64_t, H1_8, HELPER(vfp_mulxd))
 
 DO_ZPZZ_FP(sve2_famax_h, uint16_t, H1_2, float16_famax)
 DO_ZPZZ_FP(sve2_famax_s, uint32_t, H1_4, float32_famax)
@@ -4915,13 +4916,13 @@ DO_ZPZS_FP(sve_fmins_h, float16, H1_2, float16_min)
 DO_ZPZS_FP(sve_fmins_s, float32, H1_4, float32_min)
 DO_ZPZS_FP(sve_fmins_d, float64, H1_8, float64_min)
 
-DO_ZPZS_FP(sve_ah_fmaxs_h, float16, H1_2, helper_vfp_ah_maxh)
-DO_ZPZS_FP(sve_ah_fmaxs_s, float32, H1_4, helper_vfp_ah_maxs)
-DO_ZPZS_FP(sve_ah_fmaxs_d, float64, H1_8, helper_vfp_ah_maxd)
+DO_ZPZS_FP(sve_ah_fmaxs_h, float16, H1_2, HELPER(vfp_ah_maxh))
+DO_ZPZS_FP(sve_ah_fmaxs_s, float32, H1_4, HELPER(vfp_ah_maxs))
+DO_ZPZS_FP(sve_ah_fmaxs_d, float64, H1_8, HELPER(vfp_ah_maxd))
 
-DO_ZPZS_FP(sve_ah_fmins_h, float16, H1_2, helper_vfp_ah_minh)
-DO_ZPZS_FP(sve_ah_fmins_s, float32, H1_4, helper_vfp_ah_mins)
-DO_ZPZS_FP(sve_ah_fmins_d, float64, H1_8, helper_vfp_ah_mind)
+DO_ZPZS_FP(sve_ah_fmins_h, float16, H1_2, HELPER(vfp_ah_minh))
+DO_ZPZS_FP(sve_ah_fmins_s, float32, H1_4, HELPER(vfp_ah_mins))
+DO_ZPZS_FP(sve_ah_fmins_d, float64, H1_8, HELPER(vfp_ah_mind))
 
 /*
  * Fully general two-operand expander, controlled by a predicate,
@@ -5077,37 +5078,37 @@ DO_ZPZ_FP(sve_fcvt_ds, uint64_t, H1_8, float64_to_float32)
 DO_ZPZ_FP(sve_fcvt_sd, uint64_t, H1_8, float32_to_float64)
 
 DO_ZPZ_FP(sve_fcvtzs_hh, uint16_t, H1_2, vfp_float16_to_int16_rtz)
-DO_ZPZ_FP(sve_fcvtzs_hs, uint32_t, H1_4, helper_vfp_tosizh)
-DO_ZPZ_FP(sve_fcvtzs_ss, uint32_t, H1_4, helper_vfp_tosizs)
+DO_ZPZ_FP(sve_fcvtzs_hs, uint32_t, H1_4, HELPER(vfp_tosizh))
+DO_ZPZ_FP(sve_fcvtzs_ss, uint32_t, H1_4, HELPER(vfp_tosizs))
 DO_ZPZ_FP(sve_fcvtzs_hd, uint64_t, H1_8, vfp_float16_to_int64_rtz)
 DO_ZPZ_FP(sve_fcvtzs_sd, uint64_t, H1_8, vfp_float32_to_int64_rtz)
-DO_ZPZ_FP(sve_fcvtzs_ds, uint64_t, H1_8, helper_vfp_tosizd)
+DO_ZPZ_FP(sve_fcvtzs_ds, uint64_t, H1_8, HELPER(vfp_tosizd))
 DO_ZPZ_FP(sve_fcvtzs_dd, uint64_t, H1_8, vfp_float64_to_int64_rtz)
 
 DO_ZPZ_FP(sve_fcvtzu_hh, uint16_t, H1_2, vfp_float16_to_uint16_rtz)
-DO_ZPZ_FP(sve_fcvtzu_hs, uint32_t, H1_4, helper_vfp_touizh)
-DO_ZPZ_FP(sve_fcvtzu_ss, uint32_t, H1_4, helper_vfp_touizs)
+DO_ZPZ_FP(sve_fcvtzu_hs, uint32_t, H1_4, HELPER(vfp_touizh))
+DO_ZPZ_FP(sve_fcvtzu_ss, uint32_t, H1_4, HELPER(vfp_touizs))
 DO_ZPZ_FP(sve_fcvtzu_hd, uint64_t, H1_8, vfp_float16_to_uint64_rtz)
 DO_ZPZ_FP(sve_fcvtzu_sd, uint64_t, H1_8, vfp_float32_to_uint64_rtz)
-DO_ZPZ_FP(sve_fcvtzu_ds, uint64_t, H1_8, helper_vfp_touizd)
+DO_ZPZ_FP(sve_fcvtzu_ds, uint64_t, H1_8, HELPER(vfp_touizd))
 DO_ZPZ_FP(sve_fcvtzu_dd, uint64_t, H1_8, vfp_float64_to_uint64_rtz)
 
-DO_ZPZ_FP(sve_frint_h, uint16_t, H1_2, helper_advsimd_rinth)
-DO_ZPZ_FP(sve_frint_s, uint32_t, H1_4, helper_rints)
-DO_ZPZ_FP(sve_frint_d, uint64_t, H1_8, helper_rintd)
+DO_ZPZ_FP(sve_frint_h, uint16_t, H1_2, HELPER(advsimd_rinth))
+DO_ZPZ_FP(sve_frint_s, uint32_t, H1_4, HELPER(rints))
+DO_ZPZ_FP(sve_frint_d, uint64_t, H1_8, HELPER(rintd))
 
 DO_ZPZ_FP(sve_frintx_h, uint16_t, H1_2, float16_round_to_int)
 DO_ZPZ_FP(sve_frintx_s, uint32_t, H1_4, float32_round_to_int)
 DO_ZPZ_FP(sve_frintx_d, uint64_t, H1_8, float64_round_to_int)
 
-DO_ZPZ_FP(sve2p2_frint32_s, uint32_t, H1_4, helper_frint32_s)
-DO_ZPZ_FP(sve2p2_frint64_s, uint32_t, H1_4, helper_frint64_s)
-DO_ZPZ_FP(sve2p2_frint32_d, uint64_t, H1_8, helper_frint32_d)
-DO_ZPZ_FP(sve2p2_frint64_d, uint64_t, H1_8, helper_frint64_d)
+DO_ZPZ_FP(sve2p2_frint32_s, uint32_t, H1_4, HELPER(frint32_s))
+DO_ZPZ_FP(sve2p2_frint64_s, uint32_t, H1_4, HELPER(frint64_s))
+DO_ZPZ_FP(sve2p2_frint32_d, uint64_t, H1_8, HELPER(frint32_d))
+DO_ZPZ_FP(sve2p2_frint64_d, uint64_t, H1_8, HELPER(frint64_d))
 
-DO_ZPZ_FP(sve_frecpx_h, uint16_t, H1_2, helper_frecpx_f16)
-DO_ZPZ_FP(sve_frecpx_s, uint32_t, H1_4, helper_frecpx_f32)
-DO_ZPZ_FP(sve_frecpx_d, uint64_t, H1_8, helper_frecpx_f64)
+DO_ZPZ_FP(sve_frecpx_h, uint16_t, H1_2, HELPER(frecpx_f16))
+DO_ZPZ_FP(sve_frecpx_s, uint32_t, H1_4, HELPER(frecpx_f32))
+DO_ZPZ_FP(sve_frecpx_d, uint64_t, H1_8, HELPER(frecpx_f64))
 
 DO_ZPZ_FP(sve_fsqrt_h, uint16_t, H1_2, float16_sqrt)
 DO_ZPZ_FP(sve_fsqrt_s, uint32_t, H1_4, float32_sqrt)
