@@ -24,13 +24,28 @@ class TuxRunX86Test(TuxRunBaselineTest):
         '4b8b2a99117519c5290e1202cb36eb6c7aaba92b357b5160f5970cf5fb78a751')
 
     def test_x86_64(self):
+        self.require_accelerator("tcg")
+
         self.set_machine('q35')
         self.cpu="Nehalem"
         self.root='sda'
         self.wait_for_shutdown=False
         self.common_tuxrun(kernel_asset=self.ASSET_X86_64_KERNEL,
                            rootfs_asset=self.ASSET_X86_64_ROOTFS,
-                           drive="driver=ide-hd,bus=ide.0,unit=0")
+                           drive="driver=ide-hd,bus=ide.0,unit=0",
+                           accel="tcg")
+
+    def test_x86_64_kvm(self):
+        self.require_accelerator("kvm")
+
+        self.set_machine('q35')
+        self.cpu="Nehalem"
+        self.root='sda'
+        self.wait_for_shutdown=False
+        self.common_tuxrun(kernel_asset=self.ASSET_X86_64_KERNEL,
+                           rootfs_asset=self.ASSET_X86_64_ROOTFS,
+                           drive="driver=ide-hd,bus=ide.0,unit=0",
+                           accel="kvm")
 
 if __name__ == '__main__':
     TuxRunBaselineTest.main()
