@@ -389,17 +389,19 @@ bool hex_check_interrupts(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
     bool int_handled = false;
-    bool ssr_ex = get_ssr_ex(env);
+    bool ssr_ex;
     int max_ints = 32;
     bool schedcfgen;
+
+    BQL_LOCK_GUARD();
+
+    ssr_ex = get_ssr_ex(env);
 
     /* Early exit if nothing pending */
     if (get_ipend(env) == 0) {
         restore_state(env, false);
         return false;
     }
-
-    BQL_LOCK_GUARD();
     /* Only check priorities when schedcfgen is set */
     schedcfgen = get_schedcfgen(env);
     for (int i = 0; i < max_ints; i++) {
