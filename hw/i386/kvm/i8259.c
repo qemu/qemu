@@ -20,9 +20,11 @@
 #include "qom/object.h"
 
 #define TYPE_KVM_I8259 "kvm-i8259"
-typedef struct KVMI8259Class KVMI8259Class;
-DECLARE_CLASS_CHECKERS(KVMI8259Class, KVM_I8259,
-                       TYPE_KVM_I8259)
+OBJECT_DECLARE_TYPE(KVMI8259State, KVMI8259Class, KVM_I8259)
+
+struct KVMI8259State {
+    I8259CommonState parent_obj;
+};
 
 /**
  * KVMI8259Class:
@@ -154,7 +156,7 @@ static void kvm_i8259_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo kvm_i8259_info = {
     .name = TYPE_KVM_I8259,
     .parent = TYPE_I8259_COMMON,
-    .instance_size = sizeof(I8259CommonState),
+    .instance_size = sizeof(KVMI8259State),
     .class_init = kvm_i8259_class_init,
     .class_size = sizeof(KVMI8259Class),
 };
