@@ -30,6 +30,7 @@
 
 #include "machine_cfg_v66g_1024.h.inc"
 #include "machine_cfg_v68n_1024.h.inc"
+#include "machine_cfg_v73nc_1.h.inc"
 #include "machine_cfg_v81dgb_1.h.inc"
 #include "machine_cfg_v81qa_1.h.inc"
 
@@ -200,6 +201,22 @@ static void v68n_1024_init(ObjectClass *oc, const void *data)
     mc->default_cpus = 6;
 }
 
+static void v73nc_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v73nc_1_rev, &v73nc_1);
+}
+
+static void v73nc_1_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V73NC_1";
+    mc->init = v73nc_1_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V73;
+    mc->default_cpus = 6;
+}
+
 static void v81dgb_1_config_init(MachineState *machine)
 {
     hexagon_common_init(machine, v81dgb_1_rev, &v81dgb_1);
@@ -257,6 +274,11 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V68N_1024"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v68n_1024_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("V73NC_1"),
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
+        .class_init = v73nc_1_init,
     },
     {
         .name = MACHINE_TYPE_NAME("V81DGB_1"),
