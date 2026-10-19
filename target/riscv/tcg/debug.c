@@ -789,7 +789,7 @@ bool riscv_itrigger_enabled(CPURISCVState *env)
     return false;
 }
 
-void helper_itrigger_match(CPURISCVState *env)
+void HELPER(itrigger_match)(CPURISCVState *env)
 {
     int count;
     for (int i = 0; i < env->num_triggers; i++) {

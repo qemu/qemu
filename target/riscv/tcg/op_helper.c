@@ -48,7 +48,7 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
     cpu_loop_exit_restore(cs, pc);
 }
 
-void helper_raise_exception(CPURISCVState *env, uint32_t exception)
+void HELPER(raise_exception)(CPURISCVState *env, uint32_t exception)
 {
 #ifndef CONFIG_USER_ONLY
     riscv_pmu_decr_instret(env);
@@ -56,7 +56,7 @@ void helper_raise_exception(CPURISCVState *env, uint32_t exception)
     riscv_raise_exception(env, exception, 0);
 }
 
-target_ulong helper_csrr(CPURISCVState *env, int csr)
+target_ulong HELPER(csrr)(CPURISCVState *env, int csr)
 {
     /*
      * The seed CSR must be accessed with a read-write instruction. A
@@ -76,7 +76,7 @@ target_ulong helper_csrr(CPURISCVState *env, int csr)
     return val;
 }
 
-void helper_csrw(CPURISCVState *env, int csr, target_ulong src)
+void HELPER(csrw)(CPURISCVState *env, int csr, target_ulong src)
 {
     target_ulong mask = env->xl == MXL_RV32 ? UINT32_MAX : (target_ulong)-1;
     RISCVException ret = riscv_csrrw(env, csr, NULL, src, mask, GETPC());
@@ -86,7 +86,7 @@ void helper_csrw(CPURISCVState *env, int csr, target_ulong src)
     }
 }
 
-target_ulong helper_csrrw(CPURISCVState *env, int csr,
+target_ulong HELPER(csrrw)(CPURISCVState *env, int csr,
                           target_ulong src, target_ulong write_mask)
 {
     target_ulong val = 0;
@@ -98,7 +98,7 @@ target_ulong helper_csrrw(CPURISCVState *env, int csr,
     return val;
 }
 
-target_ulong helper_csrr_i128(CPURISCVState *env, int csr)
+target_ulong HELPER(csrr_i128)(CPURISCVState *env, int csr)
 {
     Int128 rv = int128_zero();
     RISCVException ret = riscv_csrr_i128(env, csr, &rv);
@@ -111,7 +111,7 @@ target_ulong helper_csrr_i128(CPURISCVState *env, int csr)
     return int128_getlo(rv);
 }
 
-void helper_csrw_i128(CPURISCVState *env, int csr,
+void HELPER(csrw_i128)(CPURISCVState *env, int csr,
                       target_ulong srcl, target_ulong srch)
 {
     RISCVException ret = riscv_csrrw_i128(env, csr, NULL,
@@ -123,7 +123,7 @@ void helper_csrw_i128(CPURISCVState *env, int csr,
     }
 }
 
-target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
+target_ulong HELPER(csrrw_i128)(CPURISCVState *env, int csr,
                                target_ulong srcl, target_ulong srch,
                                target_ulong maskl, target_ulong maskh)
 {
@@ -178,7 +178,7 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
 #endif
 }
 
-void helper_cbo_zero(CPURISCVState *env, target_ulong address)
+void HELPER(cbo_zero)(CPURISCVState *env, target_ulong address)
 {
     RISCVCPU *cpu = env_archcpu(env);
     uint16_t cbozlen = cpu->cfg.cboz_blocksize;
@@ -266,7 +266,7 @@ static void check_zicbom_access(CPURISCVState *env,
     probe_write(env, address, cbomlen, mmu_idx, ra);
 }
 
-void helper_cbo_clean_flush(CPURISCVState *env, target_ulong address)
+void HELPER(cbo_clean_flush)(CPURISCVState *env, target_ulong address)
 {
     uintptr_t ra = GETPC();
     check_zicbo_envcfg(env, MENVCFG_CBCFE, ra);
@@ -275,7 +275,7 @@ void helper_cbo_clean_flush(CPURISCVState *env, target_ulong address)
     /* We don't emulate the cache-hierarchy, so we're done. */
 }
 
-void helper_cbo_inval(CPURISCVState *env, target_ulong address)
+void HELPER(cbo_inval)(CPURISCVState *env, target_ulong address)
 {
     uintptr_t ra = GETPC();
     check_zicbo_envcfg(env, MENVCFG_CBIE, ra);
@@ -284,7 +284,7 @@ void helper_cbo_inval(CPURISCVState *env, target_ulong address)
     /* We don't emulate the cache-hierarchy, so we're done. */
 }
 
-void helper_sc_probe_write(CPURISCVState *env, target_ulong addr,
+void HELPER(sc_probe_write)(CPURISCVState *env, target_ulong addr,
                            target_ulong size)
 {
     uintptr_t ra = GETPC();
@@ -300,7 +300,7 @@ void helper_sc_probe_write(CPURISCVState *env, target_ulong addr,
 
 #ifndef CONFIG_USER_ONLY
 
-target_ulong helper_sret(CPURISCVState *env)
+target_ulong HELPER(sret)(CPURISCVState *env)
 {
     uint64_t mstatus;
     privilege_mode_t prev_priv;
@@ -423,7 +423,7 @@ static target_ulong ssdbltrp_mxret(CPURISCVState *env, target_ulong mstatus,
     return mstatus;
 }
 
-target_ulong helper_mret(CPURISCVState *env)
+target_ulong HELPER(mret)(CPURISCVState *env)
 {
     target_ulong retpc = env->mepc & get_xepc_mask(env);
     uint64_t mstatus = env->mstatus;
@@ -473,7 +473,7 @@ target_ulong helper_mret(CPURISCVState *env)
     return retpc;
 }
 
-target_ulong helper_dret(CPURISCVState *env)
+target_ulong HELPER(dret)(CPURISCVState *env)
 {
 #ifdef CONFIG_USER_ONLY
     riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
@@ -491,7 +491,7 @@ target_ulong helper_dret(CPURISCVState *env)
 #endif
 }
 
-void helper_sdext_step(CPURISCVState *env)
+void HELPER(sdext_step)(CPURISCVState *env)
 {
 #ifndef CONFIG_USER_ONLY
     CPUState *cs = env_cpu(env);
@@ -507,7 +507,7 @@ void helper_sdext_step(CPURISCVState *env)
 #endif
 }
 
-void helper_sdext_ebreak(CPURISCVState *env, target_ulong pc)
+void HELPER(sdext_ebreak)(CPURISCVState *env, target_ulong pc)
 {
     CPUState *cs = env_cpu(env);
     bool enter_debug = false;
@@ -541,7 +541,7 @@ void helper_sdext_ebreak(CPURISCVState *env, target_ulong pc)
     riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, GETPC());
 }
 
-target_ulong helper_mnret(CPURISCVState *env)
+target_ulong HELPER(mnret)(CPURISCVState *env)
 {
     target_ulong retpc = env->mnepc;
     privilege_mode_t prev_priv = get_field(env->mnstatus, MNSTATUS_MNPP);
@@ -589,14 +589,14 @@ target_ulong helper_mnret(CPURISCVState *env)
     return retpc;
 }
 
-void helper_ctr_add_entry(CPURISCVState *env, target_ulong src,
+void HELPER(ctr_add_entry)(CPURISCVState *env, target_ulong src,
                           target_ulong dest, target_ulong type)
 {
     riscv_ctr_add_entry(env, src, dest, (enum CTRType)type,
                         env->priv, env->virt_enabled);
 }
 
-void helper_ctr_clear(CPURISCVState *env)
+void HELPER(ctr_clear)(CPURISCVState *env)
 {
     /*
      * It's safe to call smstateen_acc_ok() for umode access regardless of the
@@ -625,7 +625,7 @@ void helper_ctr_clear(CPURISCVState *env)
     riscv_ctr_clear(env);
 }
 
-void helper_wfi(CPURISCVState *env)
+void HELPER(wfi)(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
     bool rvs = riscv_has_ext(env, RVS);
@@ -649,7 +649,7 @@ void helper_wfi(CPURISCVState *env)
     }
 }
 
-void helper_wrs_nto(CPURISCVState *env)
+void HELPER(wrs_nto)(CPURISCVState *env)
 {
     if (env->virt_enabled && (env->priv == PRV_S || env->priv == PRV_U) &&
         get_field(env->hstatus, HSTATUS_VTW) &&
@@ -660,7 +660,7 @@ void helper_wrs_nto(CPURISCVState *env)
     }
 }
 
-void helper_tlb_flush(CPURISCVState *env)
+void HELPER(tlb_flush)(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
     if (!env->virt_enabled &&
@@ -675,13 +675,13 @@ void helper_tlb_flush(CPURISCVState *env)
     }
 }
 
-void helper_tlb_flush_all(CPURISCVState *env)
+void HELPER(tlb_flush_all)(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
     tlb_flush_all_cpus_synced(cs);
 }
 
-void helper_hyp_tlb_flush(CPURISCVState *env)
+void HELPER(hyp_tlb_flush)(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -698,14 +698,14 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
     riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
 }
 
-void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
+void HELPER(hyp_gvma_tlb_flush)(CPURISCVState *env)
 {
     if (env->priv == PRV_S && !env->virt_enabled &&
         get_field(env->mstatus, MSTATUS_TVM)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
-    helper_hyp_tlb_flush(env);
+    HELPER(hyp_tlb_flush)(env);
 }
 
 static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
@@ -725,7 +725,7 @@ static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
     return mode | MMU_2STAGE_BIT;
 }
 
-target_ulong helper_hyp_hlv_bu(CPURISCVState *env, target_ulong addr)
+target_ulong HELPER(hyp_hlv_bu)(CPURISCVState *env, target_ulong addr)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -734,7 +734,7 @@ target_ulong helper_hyp_hlv_bu(CPURISCVState *env, target_ulong addr)
     return cpu_ldb_mmu(env, adjust_addr_virt(env, addr), oi, ra);
 }
 
-target_ulong helper_hyp_hlv_hu(CPURISCVState *env, target_ulong addr)
+target_ulong HELPER(hyp_hlv_hu)(CPURISCVState *env, target_ulong addr)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -743,7 +743,7 @@ target_ulong helper_hyp_hlv_hu(CPURISCVState *env, target_ulong addr)
     return cpu_ldw_mmu(env, adjust_addr_virt(env, addr), oi, ra);
 }
 
-target_ulong helper_hyp_hlv_wu(CPURISCVState *env, target_ulong addr)
+target_ulong HELPER(hyp_hlv_wu)(CPURISCVState *env, target_ulong addr)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -752,7 +752,7 @@ target_ulong helper_hyp_hlv_wu(CPURISCVState *env, target_ulong addr)
     return cpu_ldl_mmu(env, adjust_addr_virt(env, addr), oi, ra);
 }
 
-target_ulong helper_hyp_hlv_d(CPURISCVState *env, target_ulong addr)
+target_ulong HELPER(hyp_hlv_d)(CPURISCVState *env, target_ulong addr)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -761,7 +761,7 @@ target_ulong helper_hyp_hlv_d(CPURISCVState *env, target_ulong addr)
     return cpu_ldq_mmu(env, adjust_addr_virt(env, addr), oi, ra);
 }
 
-void helper_hyp_hsv_b(CPURISCVState *env, target_ulong addr, target_ulong val)
+void HELPER(hyp_hsv_b)(CPURISCVState *env, target_ulong addr, target_ulong val)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -770,7 +770,7 @@ void helper_hyp_hsv_b(CPURISCVState *env, target_ulong addr, target_ulong val)
     cpu_stb_mmu(env, adjust_addr_virt(env, addr), val, oi, ra);
 }
 
-void helper_hyp_hsv_h(CPURISCVState *env, target_ulong addr, target_ulong val)
+void HELPER(hyp_hsv_h)(CPURISCVState *env, target_ulong addr, target_ulong val)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -779,7 +779,7 @@ void helper_hyp_hsv_h(CPURISCVState *env, target_ulong addr, target_ulong val)
     cpu_stw_mmu(env, adjust_addr_virt(env, addr), val, oi, ra);
 }
 
-void helper_hyp_hsv_w(CPURISCVState *env, target_ulong addr, target_ulong val)
+void HELPER(hyp_hsv_w)(CPURISCVState *env, target_ulong addr, target_ulong val)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -788,7 +788,7 @@ void helper_hyp_hsv_w(CPURISCVState *env, target_ulong addr, target_ulong val)
     cpu_stl_mmu(env, adjust_addr_virt(env, addr), val, oi, ra);
 }
 
-void helper_hyp_hsv_d(CPURISCVState *env, target_ulong addr, target_ulong val)
+void HELPER(hyp_hsv_d)(CPURISCVState *env, target_ulong addr, target_ulong val)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, false, ra);
@@ -804,7 +804,7 @@ void helper_hyp_hsv_d(CPURISCVState *env, target_ulong addr, target_ulong val)
  * a fair fraction of cputlb.c, fixing this requires adding new mmu_idx
  * which would imply that exact check in tlb_fill.
  */
-target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong addr)
+target_ulong HELPER(hyp_hlvx_hu)(CPURISCVState *env, target_ulong addr)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, true, ra);
@@ -813,7 +813,7 @@ target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong addr)
     return cpu_ldw_code_mmu(env, addr, oi, GETPC());
 }
 
-target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong addr)
+target_ulong HELPER(hyp_hlvx_wu)(CPURISCVState *env, target_ulong addr)
 {
     uintptr_t ra = GETPC();
     int mmu_idx = check_access_hlsv(env, true, ra);
@@ -822,7 +822,7 @@ target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong addr)
     return cpu_ldl_code_mmu(env, addr, oi, ra);
 }
 
-void helper_ssamoswap_disabled(CPURISCVState *env)
+void HELPER(ssamoswap_disabled)(CPURISCVState *env)
 {
     int exception = RISCV_EXCP_ILLEGAL_INST;
 
