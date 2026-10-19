@@ -25,7 +25,9 @@
 #include "qemu/osdep.h"
 #include "hw/intc/i8259.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/isa/isa.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
@@ -50,6 +52,22 @@ struct I8259Class {
 
     DeviceRealize parent_realize;
 };
+
+#define TYPE_I8259_PIC "isa-i8259-pic"
+
+struct I8259PICState {
+    DeviceState parent_obj;
+
+    qemu_irq pic_out_irq;
+    qemu_irq pass_irqs[ISA_NUM_IRQS];
+
+    ISABus *isabus;
+    IRQState i8259_primary_out_irq;
+    I8259State i8259[2];
+};
+
+OBJECT_DECLARE_SIMPLE_TYPE(I8259PICState, I8259_PIC)
+
 
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
@@ -410,30 +428,24 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in)
 {
     qemu_irq *irq_set;
     DeviceState *dev;
-    ISADevice *isadev;
+    Object *pic_obj;
     int i;
 
     irq_set = g_new0(qemu_irq, ISA_NUM_IRQS);
 
-    isadev = i8259_init_chip(TYPE_I8259, bus, true);
-    dev = DEVICE(isadev);
+    dev = qdev_new(TYPE_I8259_PIC);
+    object_property_set_link(OBJECT(dev), "bus", OBJECT(bus), &error_fatal);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
 
     qdev_connect_gpio_out(dev, 0, parent_irq_in);
-    for (i = 0 ; i < 8; i++) {
+    for (i = 0 ; i < ISA_NUM_IRQS; i++) {
         irq_set[i] = qdev_get_gpio_in(dev, i);
     }
 
-    isa_pic = I8259(dev);
-
-    isadev = i8259_init_chip(TYPE_I8259, bus, false);
-    dev = DEVICE(isadev);
-
-    qdev_connect_gpio_out(dev, 0, irq_set[2]);
-    for (i = 0 ; i < 8; i++) {
-        irq_set[i + 8] = qdev_get_gpio_in(dev, i);
-    }
-
-    slave_pic = I8259_COMMON(dev);
+    pic_obj = object_resolve_path_component(OBJECT(dev), "primary");
+    isa_pic = I8259(pic_obj);
+    pic_obj = object_resolve_path_component(OBJECT(dev), "secondary");
+    slave_pic = I8259_COMMON(pic_obj);
 
     return irq_set;
 }
@@ -447,6 +459,90 @@ static void i8259_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, i8259_reset);
 }
 
+
+static void i8259_pic_set_irq(void *opaque, int n, int level)
+{
+    I8259PICState *s = opaque;
+
+    qemu_set_irq(s->pass_irqs[n], level);
+}
+
+static void i8259_primary_out_irq(void *opaque, int n, int level)
+{
+    I8259PICState *s = opaque;
+
+    qemu_set_irq(s->pic_out_irq, level);
+}
+
+static void i8259_pic_init(Object *obj)
+{
+    I8259PICState *s = I8259_PIC(obj);
+
+    object_initialize_child(obj, "primary", &s->i8259[0], TYPE_I8259);
+    object_initialize_child(obj, "secondary", &s->i8259[1], TYPE_I8259);
+
+    qemu_init_irq(&s->i8259_primary_out_irq, i8259_primary_out_irq, s, 1);
+
+    qdev_init_gpio_in(DEVICE(obj), i8259_pic_set_irq, ISA_NUM_IRQS);
+    qdev_init_gpio_out(DEVICE(obj), &s->pic_out_irq, 1);
+}
+
+static void i8259_pic_realize(DeviceState *dev, Error **errp)
+{
+    I8259PICState *s = I8259_PIC(dev);
+    DeviceState *pri_dev, *sec_dev;
+    int i;
+
+    /* Primary */
+    pri_dev = DEVICE(&s->i8259[0]);
+    qdev_prop_set_uint32(pri_dev, "iobase", 0x20);
+    qdev_prop_set_uint32(pri_dev, "elcr_addr", 0x4d0);
+    qdev_prop_set_uint8(pri_dev, "elcr_mask", 0xf8);
+    qdev_prop_set_bit(pri_dev, "master", 1);
+    if (!isa_realize(ISA_DEVICE(pri_dev), s->isabus, errp)) {
+        return;
+    }
+
+    for (i = 0; i < 8; i++) {
+        s->pass_irqs[i] = qdev_get_gpio_in(pri_dev, i);
+    }
+
+    qdev_connect_gpio_out(pri_dev, 0, &s->i8259_primary_out_irq);
+
+    /* Secondary */
+    sec_dev = DEVICE(&s->i8259[1]);
+    qdev_prop_set_uint32(sec_dev, "iobase", 0xa0);
+    qdev_prop_set_uint32(sec_dev, "elcr_addr", 0x4d1);
+    qdev_prop_set_uint8(sec_dev, "elcr_mask", 0xde);
+    if (!isa_realize(ISA_DEVICE(sec_dev), s->isabus, errp)) {
+        return;
+    }
+
+    /* Wire up secondary cascade */
+    qdev_connect_gpio_out(sec_dev, 0, s->pass_irqs[2]);
+
+    for (i = 8; i < ISA_NUM_IRQS; i++) {
+        s->pass_irqs[i] = qdev_get_gpio_in(sec_dev, i - 8);
+    }
+}
+
+static const Property i8259_pic_properties[] = {
+    DEFINE_PROP_LINK("bus", I8259PICState, isabus, TYPE_ISA_BUS,
+                     ISABus *),
+};
+
+static void i8259_pic_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = i8259_pic_realize;
+    device_class_set_props(dc, i8259_pic_properties);
+    /*
+     * Reason: must be wired to the ISA bus via the "bus" property
+     */
+    dc->user_creatable = false;
+}
+
 static const TypeInfo i8259_type_infos[] = {
     {
         .name       = TYPE_I8259,
@@ -454,6 +550,13 @@ static const TypeInfo i8259_type_infos[] = {
         .parent     = TYPE_I8259_COMMON,
         .class_init = i8259_class_init,
         .class_size = sizeof(I8259Class),
+    },
+    {
+        .name          = TYPE_I8259_PIC,
+        .parent        = TYPE_DEVICE,
+        .class_init    = i8259_pic_class_init,
+        .instance_init = i8259_pic_init,
+        .instance_size = sizeof(I8259PICState),
     },
 };
 
