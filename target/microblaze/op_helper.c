@@ -27,7 +27,7 @@
 #include "accel/tcg/cpu-loop.h"
 #include "fpu/softfloat.h"
 
-void helper_put(uint32_t id, uint32_t ctrl, uint32_t data)
+void HELPER(put)(uint32_t id, uint32_t ctrl, uint32_t data)
 {
     int test = ctrl & STREAM_TEST;
     int atomic = ctrl & STREAM_ATOMIC;
@@ -44,7 +44,7 @@ void helper_put(uint32_t id, uint32_t ctrl, uint32_t data)
              atomic ? "a" : "");
 }
 
-uint32_t helper_get(uint32_t id, uint32_t ctrl)
+uint32_t HELPER(get)(uint32_t id, uint32_t ctrl)
 {
     int test = ctrl & STREAM_TEST;
     int atomic = ctrl & STREAM_ATOMIC;
@@ -62,7 +62,7 @@ uint32_t helper_get(uint32_t id, uint32_t ctrl)
     return 0xdead0000 | id;
 }
 
-void helper_microblaze_raise_exception(CPUMBState *env, uint32_t index)
+void HELPER(microblaze_raise_exception)(CPUMBState *env, uint32_t index)
 {
     CPUState *cs = env_cpu(env);
 
@@ -84,7 +84,7 @@ static void raise_divzero(CPUMBState *env, uint32_t esr, uintptr_t unwind_pc)
     }
 }
 
-uint32_t helper_divs(CPUMBState *env, uint32_t ra, uint32_t rb)
+uint32_t HELPER(divs)(CPUMBState *env, uint32_t ra, uint32_t rb)
 {
     if (!ra) {
         raise_divzero(env, ESR_EC_DIVZERO, GETPC());
@@ -108,7 +108,7 @@ uint32_t helper_divs(CPUMBState *env, uint32_t ra, uint32_t rb)
     return (int32_t)rb / (int32_t)ra;
 }
 
-uint32_t helper_divu(CPUMBState *env, uint32_t ra, uint32_t rb)
+uint32_t HELPER(divu)(CPUMBState *env, uint32_t ra, uint32_t rb)
 {
     if (!ra) {
         raise_divzero(env, ESR_EC_DIVZERO, GETPC());
@@ -154,7 +154,7 @@ static void update_fpu_flags(CPUMBState *env, int flags, uintptr_t ra)
     }
 }
 
-uint32_t helper_microblaze_fadd(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(microblaze_fadd)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -169,7 +169,7 @@ uint32_t helper_microblaze_fadd(CPUMBState *env, uint32_t a, uint32_t b)
     return fd.l;
 }
 
-uint32_t helper_frsub(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(frsub)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -183,7 +183,7 @@ uint32_t helper_frsub(CPUMBState *env, uint32_t a, uint32_t b)
     return fd.l;
 }
 
-uint32_t helper_microblaze_fmul(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(microblaze_fmul)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -198,7 +198,7 @@ uint32_t helper_microblaze_fmul(CPUMBState *env, uint32_t a, uint32_t b)
     return fd.l;
 }
 
-uint32_t helper_microblaze_fdiv(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(microblaze_fdiv)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -213,7 +213,7 @@ uint32_t helper_microblaze_fdiv(CPUMBState *env, uint32_t a, uint32_t b)
     return fd.l;
 }
 
-uint32_t helper_fcmp_un(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_un)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     uint32_t r = 0;
@@ -235,7 +235,7 @@ uint32_t helper_fcmp_un(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_fcmp_lt(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_lt)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     int r;
@@ -251,7 +251,7 @@ uint32_t helper_fcmp_lt(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_fcmp_eq(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_eq)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     int flags;
@@ -267,7 +267,7 @@ uint32_t helper_fcmp_eq(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_fcmp_le(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_le)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     int flags;
@@ -284,7 +284,7 @@ uint32_t helper_fcmp_le(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_fcmp_gt(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_gt)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     int flags, r;
@@ -298,7 +298,7 @@ uint32_t helper_fcmp_gt(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_fcmp_ne(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_ne)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     int flags, r;
@@ -313,7 +313,7 @@ uint32_t helper_fcmp_ne(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_fcmp_ge(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fcmp_ge)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fa, fb;
     int flags, r;
@@ -328,7 +328,7 @@ uint32_t helper_fcmp_ge(CPUMBState *env, uint32_t a, uint32_t b)
     return r;
 }
 
-uint32_t helper_flt(CPUMBState *env, uint32_t a)
+uint32_t HELPER(flt)(CPUMBState *env, uint32_t a)
 {
     CPU_FloatU fd, fa;
 
@@ -337,7 +337,7 @@ uint32_t helper_flt(CPUMBState *env, uint32_t a)
     return fd.l;
 }
 
-uint32_t helper_fint(CPUMBState *env, uint32_t a)
+uint32_t HELPER(fint)(CPUMBState *env, uint32_t a)
 {
     CPU_FloatU fa;
     uint32_t r;
@@ -352,7 +352,7 @@ uint32_t helper_fint(CPUMBState *env, uint32_t a)
     return r;
 }
 
-uint32_t helper_microblaze_fsqrt(CPUMBState *env, uint32_t a)
+uint32_t HELPER(microblaze_fsqrt)(CPUMBState *env, uint32_t a)
 {
     CPU_FloatU fd, fa;
     int flags;
@@ -366,7 +366,7 @@ uint32_t helper_microblaze_fsqrt(CPUMBState *env, uint32_t a)
     return fd.l;
 }
 
-uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
+uint32_t HELPER(pcmpbf)(uint32_t a, uint32_t b)
 {
     unsigned int i;
     uint32_t mask = 0xff000000;
@@ -379,7 +379,7 @@ uint32_t helper_pcmpbf(uint32_t a, uint32_t b)
     return 0;
 }
 
-void helper_stackprot(CPUMBState *env, uint32_t addr)
+void HELPER(stackprot)(CPUMBState *env, uint32_t addr)
 {
     if (addr < env->slr || addr > env->shr) {
         CPUState *cs = env_cpu(env);
@@ -399,12 +399,12 @@ void helper_stackprot(CPUMBState *env, uint32_t addr)
 #include "system/memory.h"
 
 /* Writes/reads to the MMU's special regs end up here.  */
-uint32_t helper_mmu_read(CPUMBState *env, uint32_t ext, uint32_t rn)
+uint32_t HELPER(mmu_read)(CPUMBState *env, uint32_t ext, uint32_t rn)
 {
     return mmu_read(env, ext, rn);
 }
 
-void helper_mmu_write(CPUMBState *env, uint32_t ext, uint32_t rn, uint32_t v)
+void HELPER(mmu_write)(CPUMBState *env, uint32_t ext, uint32_t rn, uint32_t v)
 {
     mmu_write(env, ext, rn, v);
 }
