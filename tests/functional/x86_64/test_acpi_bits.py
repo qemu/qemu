@@ -303,6 +303,9 @@ class AcpiBitsTest(QemuSystemTest): #pylint: disable=too-many-instance-attribute
         """The main test case implementation."""
 
         self.set_machine('pc')
+        # see icount comment below
+        self.require_accelerator('tcg')
+
         iso_file = self.scratch_file('bits-%d.iso' % self.BITS_INTERNAL_VER)
 
         self.assertTrue(os.access(iso_file, os.R_OK))
