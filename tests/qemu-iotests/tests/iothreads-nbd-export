@@ -25,6 +25,11 @@ import iotests
 iotests.script_initialize(supported_fmts=['qcow2'],
                           supported_platforms=['linux'])
 
+# QEMU on s390 will exit without any sort of backing disk,
+# so the reset loop requested by this test will fail.
+if iotests.qemu_default_machine == 's390-ccw-virtio':
+    iotests.notrun('Cannot run test on s390')
+
 with iotests.FilePath('disk1.img') as path, \
      iotests.FilePath('nbd.sock', base_dir=iotests.sock_dir) as nbd_sock, \
      qemu.machine.QEMUMachine(iotests.qemu_prog) as vm:

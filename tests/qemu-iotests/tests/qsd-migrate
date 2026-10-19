@@ -20,7 +20,7 @@
 
 import iotests
 
-from iotests import filter_qemu_io, filter_qtest
+from iotests import filter_qemu, filter_qemu_io, filter_qtest
 
 iotests.script_initialize(supported_fmts=['qcow2', 'qed', 'raw'],
                           supported_protocols=['file'],
@@ -126,11 +126,12 @@ with iotests.FilePath('disk.img') as path, \
 
     iotests.log('\nDone')
 
+    # NOTE: Flush during close fails here, since the QSD node was inactivated.
     vm_src.shutdown()
     iotests.log('\n--- vm_src log ---')
     log = vm_src.get_log()
     if log:
-        iotests.log(log, [filter_qtest, filter_qemu_io])
+        iotests.log(log, [filter_qtest, filter_qemu_io, filter_qemu])
     qsd_src.stop()
 
     vm_dst.shutdown()

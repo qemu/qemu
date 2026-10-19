@@ -45,6 +45,10 @@ cd ..
 _supported_fmt qcow2  # Hardcoded to qcow2 command line and QMP below
 _supported_proto file
 
+if [ "$QEMU_DEFAULT_MACHINE" != "pc" ]; then
+    _notrun "Requires a PC machine"
+fi
+
 # pick_unused_port
 #
 # Picks and returns an "unused" port, setting the global variable

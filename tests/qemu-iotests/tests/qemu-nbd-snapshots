@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test qemu-nbd snapshot handling
+#
+# Copyright (C) Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    nbd_server_stop
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+. ./common.nbd
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+_require_command QEMU_NBD
+
+echo
+echo "=== Initial image setup ==="
+echo
+
+# Create qcow2 image with one internal snapshot
+_make_test_img 10M
+$QEMU_IO -c 'w -P 1 3M 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG snapshot -c snap -f $IMGFMT "$TEST_IMG" | _filter_qemu_img
+$QEMU_IO -c 'w -P 2 3M 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "=== Main image in snapshot mode ==="
+echo
+
+nbd_server_start_unix_socket -s -f qcow2 "$TEST_IMG"
+$QEMU_IO -c 'r -P 2 3M 1M' -c 'w -P 3 3M 1M' -c 'r -P 3 3M 1M' -f raw \
+  nbd:unix:$nbd_unix_socket | _filter_qemu_io
+nbd_server_stop
+
+echo
+echo "=== Read-only snapshot access ==="
+echo
+
+nbd_server_start_unix_socket -l snap -f qcow2 "$TEST_IMG"
+$QEMU_IO -r -c 'r -P 1 3M 1M' -f raw \
+  nbd:unix:$nbd_unix_socket | _filter_qemu_io
+$QEMU_IO -c 'r -P 1 3M 1M' -f raw \
+  nbd:unix:$nbd_unix_socket 2>&1 | _filter_qemu_io | _filter_testdir
+nbd_server_stop
+
+echo
+echo "=== Combine -s and -l for read-write internal snapshot access ==="
+echo
+
+nbd_server_start_unix_socket -s -l snap -f qcow2 "$TEST_IMG"
+$QEMU_IO -c 'r -P 1 3M 1M' -c 'w -P 3 3M 1M' -c 'r -P 3 3M 1M' -f raw \
+  nbd:unix:$nbd_unix_socket | _filter_qemu_io
+nbd_server_stop
+
+echo
+echo "=== Check that original image is unchanged ==="
+echo
+
+$QEMU_IO -c 'r -P 2 3M 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0

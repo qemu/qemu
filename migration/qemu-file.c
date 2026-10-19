@@ -829,7 +829,8 @@ uint64_t qemu_get_be64(QEMUFile *f)
  *          else 0
  *          (Note a 0 length string will return 0 either way)
  */
-size_t coroutine_mixed_fn qemu_get_counted_string(QEMUFile *f, char buf[256])
+size_t coroutine_mixed_fn
+qemu_get_counted_string(QEMUFile *f, char buf[QEMU_COUNTED_STRING_SIZE])
 {
     size_t len = qemu_get_byte(f);
     size_t res = qemu_get_buffer(f, (uint8_t *)buf, len);
@@ -847,7 +848,7 @@ void qemu_put_counted_string(QEMUFile *f, const char *str)
 {
     size_t len = strlen(str);
 
-    assert(len < 256);
+    assert(len < QEMU_COUNTED_STRING_SIZE);
     qemu_put_byte(f, len);
     qemu_put_buffer(f, (const uint8_t *)str, len);
 }

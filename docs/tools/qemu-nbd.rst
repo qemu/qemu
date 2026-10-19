@@ -95,9 +95,10 @@ driver options if :option:`--image-opts` is specified.
 
 .. option:: -l, --load-snapshot=SNAPSHOT_PARAM
 
-  Load an internal snapshot inside *filename* and export it
-  as an read-only device, SNAPSHOT_PARAM format is
-  ``snapshot.id=[ID],snapshot.name=[NAME]`` or ``[ID_OR_NAME]``
+  Load an internal snapshot inside *filename* and export it.
+  SNAPSHOT_PARAM format is ``snapshot.id=[ID],snapshot.name=[NAME]``
+  or ``[ID_OR_NAME]``. The export is read-only unless ``-s`` is also
+  in use.
 
 .. option:: --cache=CACHE
 

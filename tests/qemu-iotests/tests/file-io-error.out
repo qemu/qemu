@@ -22,6 +22,7 @@ QA output created by file-io-error
 {"return": {}}
 
 qemu-io: write failed: Input/output error
+qemu-io: Failed flush for 'TEST_DIR/fuse-export' during close: Input/output error
 
 {'execute': 'block-export-del',
       'arguments': {'id': 'exp0'}}
@@ -29,5 +30,6 @@ qemu-io: write failed: Input/output error
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "exp0"}}
 {'execute': 'blockdev-del',
       'arguments': {'node-name': 'node0'}}
+QEMU_PROG: Failed flush for 'node0' during close: Input/output error
 {"return": {}}
 *** done
