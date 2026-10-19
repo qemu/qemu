@@ -32,6 +32,11 @@ struct IgvmCfg {
      *           format.
      */
     char *filename;
+    /*
+     * cmdline: Command line for the software loaded from the IGVM file,
+     *          if it asks for one.
+     */
+    char *cmdline;
     IgvmHandle file;
     ResettableState reset_state;
     QTAILQ_HEAD(, IgvmMemoryRegion) memory_regions;
