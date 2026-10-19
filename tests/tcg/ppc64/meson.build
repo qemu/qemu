@@ -13,6 +13,12 @@ foreach t: tcg_tests['multiarch-linux-user']['tests']
     if fs.stem(src) == 'test-plugin-mem-access' and 'wrapper' in setup
       continue
     endif
+    if fs.stem(src).contains('float_conv')
+      # Ensure float NaN tests are done against a known cpu generation
+      if 'cflags' in setup
+        setup += {'cflags': setup['cflags'] + '-mcpu=power8'}
+      endif
+    endif
     tests += {src: setup}
   endforeach
 endforeach
