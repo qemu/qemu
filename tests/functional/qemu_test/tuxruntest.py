@@ -160,6 +160,7 @@ class TuxRunBaselineTest(QemuSystemTest):
                           rootfs_asset,
                           accel=None,
                           dtb_asset=None,
+                          symbol_off = None,
                           drive="virtio-blk-device",
                           console_index=0):
         """
@@ -204,6 +205,9 @@ class TuxRunBaselineTest(QemuSystemTest):
             "--test", str(test_script),
             "--gdb", gdb_path,
         ]
+
+        if symbol_off is not None:
+            cmd.extend(["--symbol-offset", f"{symbol_off}"])
 
         log_cmd = " ".join(f'"{arg}"' if ' ' in arg else arg for arg in cmd)
         self.log.info(f"run-test: {log_cmd}")
