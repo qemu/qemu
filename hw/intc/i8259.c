@@ -35,9 +35,11 @@
 /*#define DEBUG_IRQ_LATENCY*/
 
 #define TYPE_I8259 "isa-i8259"
-typedef struct I8259Class I8259Class;
-DECLARE_CLASS_CHECKERS(I8259Class, I8259,
-                       TYPE_I8259)
+OBJECT_DECLARE_TYPE(I8259State, I8259Class, I8259)
+
+struct I8259State {
+    I8259CommonState parent_obj;
+};
 
 /**
  * I8259Class:
@@ -52,7 +54,7 @@ struct I8259Class {
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
 #endif
-I8259CommonState *isa_pic;
+I8259State *isa_pic;
 static I8259CommonState *slave_pic;
 
 /* return the highest priority found in mask (highest = smallest
@@ -170,11 +172,12 @@ static void pic_intack(I8259CommonState *s, int irq)
     pic_update_irq(s);
 }
 
-int pic_read_irq(I8259CommonState *s)
+int pic_read_irq(I8259State *s)
 {
+    I8259CommonState *cs = I8259_COMMON(s);
     int irq, intno;
 
-    irq = pic_get_irq(s);
+    irq = pic_get_irq(cs);
     if (irq >= 0) {
         int irq2;
 
@@ -187,16 +190,16 @@ int pic_read_irq(I8259CommonState *s)
                 irq2 = 7;
             }
             intno = slave_pic->irq_base + irq2;
-            pic_intack(s, irq);
+            pic_intack(cs, irq);
             irq = irq2 + 8;
         } else {
-            intno = s->irq_base + irq;
-            pic_intack(s, irq);
+            intno = cs->irq_base + irq;
+            pic_intack(cs, irq);
         }
     } else {
         /* spurious IRQ on host controller */
         irq = 7;
-        intno = s->irq_base + irq;
+        intno = cs->irq_base + irq;
     }
 
 #ifdef DEBUG_IRQ_LATENCY
@@ -348,9 +351,11 @@ static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-int pic_get_output(I8259CommonState *s)
+int pic_get_output(I8259State *s)
 {
-    return (pic_get_irq(s) >= 0);
+    I8259CommonState *cs = I8259_COMMON(s);
+
+    return (pic_get_irq(cs) >= 0);
 }
 
 static void elcr_ioport_write(void *opaque, hwaddr addr,
@@ -418,7 +423,7 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in)
         irq_set[i] = qdev_get_gpio_in(dev, i);
     }
 
-    isa_pic = I8259_COMMON(dev);
+    isa_pic = I8259(dev);
 
     isadev = i8259_init_chip(TYPE_I8259, bus, false);
     dev = DEVICE(isadev);
@@ -444,7 +449,7 @@ static void i8259_class_init(ObjectClass *klass, const void *data)
 
 static const TypeInfo i8259_info = {
     .name       = TYPE_I8259,
-    .instance_size = sizeof(I8259CommonState),
+    .instance_size = sizeof(I8259State),
     .parent     = TYPE_I8259_COMMON,
     .class_init = i8259_class_init,
     .class_size = sizeof(I8259Class),
