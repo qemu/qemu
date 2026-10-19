@@ -131,6 +131,19 @@ $QEMU_IMG map --output=json --image-opts \
 
 nbd_server_stop
 
+# Repeat with the --all-bitmaps option
+nbd_server_start_unix_socket -r -f qcow2 --all-bitmaps "$TEST_IMG"
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b0" | _filter_qemu_img_map
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b1" | _filter_qemu_img_map
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b3" | _filter_qemu_img_map
+
+nbd_server_stop
+
 echo
 echo "=== Check handling of inconsistent bitmap ==="
 echo
