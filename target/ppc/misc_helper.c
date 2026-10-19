@@ -31,19 +31,19 @@
 
 /*****************************************************************************/
 /* SPR accesses */
-void helper_load_dump_spr(CPUPPCState *env, uint32_t sprn)
+void HELPER(load_dump_spr)(CPUPPCState *env, uint32_t sprn)
 {
     qemu_log("Read SPR %d %03x => " TARGET_FMT_lx "\n", sprn, sprn,
              env->spr[sprn]);
 }
 
-void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
+void HELPER(store_dump_spr)(CPUPPCState *env, uint32_t sprn)
 {
     qemu_log("Write SPR %d %03x <= " TARGET_FMT_lx "\n", sprn, sprn,
              env->spr[sprn]);
 }
 
-void helper_spr_core_write_generic(CPUPPCState *env, uint32_t sprn,
+void HELPER(spr_core_write_generic)(CPUPPCState *env, uint32_t sprn,
                                    target_ulong val)
 {
     CPUState *cs = env_cpu(env);
@@ -60,7 +60,7 @@ void helper_spr_core_write_generic(CPUPPCState *env, uint32_t sprn,
     }
 }
 
-void helper_spr_write_CTRL(CPUPPCState *env, uint32_t sprn,
+void HELPER(spr_write_CTRL)(CPUPPCState *env, uint32_t sprn,
                            target_ulong val)
 {
     CPUState *cs = env_cpu(env);
@@ -123,7 +123,7 @@ void helper_hfscr_facility_check(CPUPPCState *env, uint32_t bit,
 #endif
 }
 
-void helper_fscr_facility_check(CPUPPCState *env, uint32_t bit,
+void HELPER(fscr_facility_check)(CPUPPCState *env, uint32_t bit,
                                 uint32_t sprn, uint32_t cause)
 {
 #ifdef TARGET_PPC64
@@ -135,7 +135,7 @@ void helper_fscr_facility_check(CPUPPCState *env, uint32_t bit,
 #endif
 }
 
-void helper_msr_facility_check(CPUPPCState *env, uint32_t bit,
+void HELPER(msr_facility_check)(CPUPPCState *env, uint32_t bit,
                                uint32_t sprn, uint32_t cause)
 {
 #ifdef TARGET_PPC64
@@ -160,7 +160,7 @@ static void helper_mmcr0_facility_check(CPUPPCState *env, uint32_t bit,
 }
 #endif
 
-void helper_store_sdr1(CPUPPCState *env, target_ulong val)
+void HELPER(store_sdr1)(CPUPPCState *env, target_ulong val)
 {
     if (env->spr[SPR_SDR1] != val) {
         ppc_store_sdr1(env, val);
@@ -169,7 +169,7 @@ void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 }
 
 #if defined(TARGET_PPC64)
-void helper_store_ptcr(CPUPPCState *env, target_ulong val)
+void HELPER(store_ptcr)(CPUPPCState *env, target_ulong val)
 {
     if (env->spr[SPR_PTCR] != val) {
         CPUState *cs = env_cpu(env);
@@ -210,7 +210,7 @@ void helper_store_ptcr(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_store_pcr(CPUPPCState *env, target_ulong value)
+void HELPER(store_pcr)(CPUPPCState *env, target_ulong value)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
@@ -218,27 +218,27 @@ void helper_store_pcr(CPUPPCState *env, target_ulong value)
     env->spr[SPR_PCR] = value & pcc->pcr_mask;
 }
 
-void helper_store_ciabr(CPUPPCState *env, target_ulong value)
+void HELPER(store_ciabr)(CPUPPCState *env, target_ulong value)
 {
     ppc_store_ciabr(env, value);
 }
 
-void helper_store_dawr0(CPUPPCState *env, target_ulong value)
+void HELPER(store_dawr0)(CPUPPCState *env, target_ulong value)
 {
     ppc_store_dawr0(env, value);
 }
 
-void helper_store_dawrx0(CPUPPCState *env, target_ulong value)
+void HELPER(store_dawrx0)(CPUPPCState *env, target_ulong value)
 {
     ppc_store_dawrx0(env, value);
 }
 
-void helper_store_dawr1(CPUPPCState *env, target_ulong value)
+void HELPER(store_dawr1)(CPUPPCState *env, target_ulong value)
 {
     ppc_store_dawr1(env, value);
 }
 
-void helper_store_dawrx1(CPUPPCState *env, target_ulong value)
+void HELPER(store_dawrx1)(CPUPPCState *env, target_ulong value)
 {
     ppc_store_dawrx1(env, value);
 }
@@ -247,7 +247,7 @@ void helper_store_dawrx1(CPUPPCState *env, target_ulong value)
  * DPDES register is shared. Each bit reflects the state of the
  * doorbell interrupt of a thread of the same core.
  */
-target_ulong helper_load_dpdes(CPUPPCState *env)
+target_ulong HELPER(load_dpdes)(CPUPPCState *env)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -278,7 +278,7 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
     return dpdes;
 }
 
-void helper_store_dpdes(CPUPPCState *env, target_ulong val)
+void HELPER(store_dpdes)(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
@@ -311,7 +311,7 @@ void helper_store_dpdes(CPUPPCState *env, target_ulong val)
 #include "hw/ppc/pnv_core.h"
 
 /* Indirect SCOM (SPRC/SPRD) access to SCRATCH0-7 are implemented. */
-void helper_store_sprc(CPUPPCState *env, target_ulong val)
+void HELPER(store_sprc)(CPUPPCState *env, target_ulong val)
 {
     if (val & ~0x3f8ULL) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid SPRC register value "
@@ -321,7 +321,7 @@ void helper_store_sprc(CPUPPCState *env, target_ulong val)
     env->spr[SPR_POWER_SPRC] = val;
 }
 
-target_ulong helper_load_sprd(CPUPPCState *env)
+target_ulong HELPER(load_sprd)(CPUPPCState *env)
 {
     /*
      * SPRD is a HV-only register for Power CPUs, so this will only be
@@ -337,7 +337,7 @@ target_ulong helper_load_sprd(CPUPPCState *env)
     return 0;
 }
 
-void helper_store_sprd(CPUPPCState *env, target_ulong val)
+void HELPER(store_sprd)(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
@@ -347,7 +347,7 @@ void helper_store_sprd(CPUPPCState *env, target_ulong val)
     }
 }
 
-target_ulong helper_load_pmsr(CPUPPCState *env)
+target_ulong HELPER(load_pmsr)(CPUPPCState *env)
 {
     target_ulong lowerps = extract64(env->spr[SPR_PMCR], PPC_BIT_NR(15), 8);
     target_ulong val = 0;
@@ -367,7 +367,7 @@ static void ppc_set_pmcr(PowerPCCPU *cpu, target_ulong val)
     cpu->env.spr[SPR_PMCR] = val;
 }
 
-void helper_store_pmcr(CPUPPCState *env, target_ulong val)
+void HELPER(store_pmcr)(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
@@ -401,13 +401,13 @@ void helper_store_pmcr(CPUPPCState *env, target_ulong val)
 
 #endif /* defined(TARGET_PPC64) */
 
-void helper_store_pidr(CPUPPCState *env, target_ulong val)
+void HELPER(store_pidr)(CPUPPCState *env, target_ulong val)
 {
     env->spr[SPR_BOOKS_PID] = (uint32_t)val;
     tlb_flush(env_cpu(env));
 }
 
-void helper_store_lpidr(CPUPPCState *env, target_ulong val)
+void HELPER(store_lpidr)(CPUPPCState *env, target_ulong val)
 {
     env->spr[SPR_LPIDR] = (uint32_t)val;
 
@@ -420,7 +420,7 @@ void helper_store_lpidr(CPUPPCState *env, target_ulong val)
     tlb_flush(env_cpu(env));
 }
 
-void helper_store_40x_dbcr0(CPUPPCState *env, target_ulong val)
+void HELPER(store_40x_dbcr0)(CPUPPCState *env, target_ulong val)
 {
     /* Bits 26 & 27 affect single-stepping. */
     hreg_compute_hflags(env);
@@ -428,7 +428,7 @@ void helper_store_40x_dbcr0(CPUPPCState *env, target_ulong val)
     store_40x_dbcr0(env, val);
 }
 
-void helper_store_40x_sler(CPUPPCState *env, target_ulong val)
+void HELPER(store_40x_sler)(CPUPPCState *env, target_ulong val)
 {
     store_40x_sler(env, val);
 }
@@ -443,7 +443,7 @@ void helper_store_40x_sler(CPUPPCState *env, target_ulong val)
  * MacOS not hang. These registers exist on some 75x and 74xx
  * processors.
  */
-void helper_fixup_thrm(CPUPPCState *env)
+void HELPER(fixup_thrm)(CPUPPCState *env)
 {
     target_ulong v, t;
     int i;
@@ -481,7 +481,7 @@ void helper_fixup_thrm(CPUPPCState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
-void helper_clrbhrb(CPUPPCState *env)
+void HELPER(clrbhrb)(CPUPPCState *env)
 {
     helper_hfscr_facility_check(env, HFSCR_BHRB, "clrbhrb", FSCR_IC_BHRB);
 
@@ -492,7 +492,7 @@ void helper_clrbhrb(CPUPPCState *env)
     }
 }
 
-uint64_t helper_mfbhrbe(CPUPPCState *env, uint32_t bhrbe)
+uint64_t HELPER(mfbhrbe)(CPUPPCState *env, uint32_t bhrbe)
 {
     unsigned int index;
 

@@ -44,13 +44,13 @@ void raise_exception_err_ra(CPUPPCState *env, uint32_t exception,
     cpu_loop_exit_restore(cs, raddr);
 }
 
-void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
+void HELPER(raise_exception_err)(CPUPPCState *env, uint32_t exception,
                                 uint32_t error_code)
 {
     raise_exception_err_ra(env, exception, error_code, 0);
 }
 
-void helper_raise_exception(CPUPPCState *env, uint32_t exception)
+void HELPER(raise_exception)(CPUPPCState *env, uint32_t exception)
 {
     raise_exception_err_ra(env, exception, 0, 0);
 }
@@ -70,7 +70,7 @@ static G_NORETURN void raise_exception(CPUPPCState *env, uint32_t exception)
 
 #endif /* !CONFIG_USER_ONLY */
 
-void helper_TW(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
+void HELPER(TW)(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                uint32_t flags)
 {
     if (!likely(!(((int32_t)arg1 < (int32_t)arg2 && (flags & 0x10)) ||
@@ -84,7 +84,7 @@ void helper_TW(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
 }
 
 #ifdef TARGET_PPC64
-void helper_TD(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
+void HELPER(TD)(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
                uint32_t flags)
 {
     if (!likely(!(((int64_t)arg1 < (int64_t)arg2 && (flags & 0x10)) ||
@@ -181,7 +181,7 @@ static void do_hash(CPUPPCState *env, target_ulong ea, target_ulong ra,
 
 #ifdef TARGET_PPC64
 #define HELPER_HASH(op, key, store, dexcr_aspect)                             \
-void helper_##op(CPUPPCState *env, target_ulong ea, target_ulong ra,          \
+void HELPER(op)(CPUPPCState *env, target_ulong ea, target_ulong ra,           \
                  target_ulong rb)                                             \
 {                                                                             \
     if (env->msr & R_MSR_PR_MASK) {                                           \
@@ -201,7 +201,7 @@ void helper_##op(CPUPPCState *env, target_ulong ea, target_ulong ra,          \
 }
 #else
 #define HELPER_HASH(op, key, store, dexcr_aspect)                             \
-void helper_##op(CPUPPCState *env, target_ulong ea, target_ulong ra,          \
+void HELPER(op)(CPUPPCState *env, target_ulong ea, target_ulong ra,           \
                  target_ulong rb)                                             \
 {                                                                             \
     do_hash(env, ea, ra, rb, key, store);                                     \
@@ -439,7 +439,7 @@ uint32_t ppc_ldl_code(CPUArchState *env, target_ulong addr)
 }
 
 #if defined(TARGET_PPC64)
-void helper_attn(CPUPPCState *env)
+void HELPER(attn)(CPUPPCState *env)
 {
     /* POWER attn is unprivileged when enabled by HID, otherwise illegal */
     if ((*env->check_attn)(env)) {
@@ -450,7 +450,7 @@ void helper_attn(CPUPPCState *env)
     }
 }
 
-void helper_scv(CPUPPCState *env, uint32_t lev)
+void HELPER(scv)(CPUPPCState *env, uint32_t lev)
 {
     if (env->spr[SPR_FSCR] & (1ull << FSCR_SCV)) {
         raise_exception_err(env, POWERPC_EXCP_SYSCALL_VECTORED, lev);
@@ -459,7 +459,7 @@ void helper_scv(CPUPPCState *env, uint32_t lev)
     }
 }
 
-void helper_PMINSN(CPUPPCState *env, uint32_t insn)
+void HELPER(PMINSN)(CPUPPCState *env, uint32_t insn)
 {
     CPUState *cs = env_cpu(env);
 
@@ -479,7 +479,7 @@ void helper_PMINSN(CPUPPCState *env, uint32_t insn)
 }
 
 #endif /* TARGET_PPC64 */
-void helper_store_msr(CPUPPCState *env, target_ulong val)
+void HELPER(store_msr)(CPUPPCState *env, target_ulong val)
 {
     uint32_t excp = hreg_store_msr(env, val, 0);
 
@@ -489,7 +489,7 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_ppc_maybe_interrupt(CPUPPCState *env)
+void HELPER(ppc_maybe_interrupt)(CPUPPCState *env)
 {
     ppc_maybe_interrupt(env);
 }
@@ -528,13 +528,13 @@ static void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
     check_tlb_flush(env, false);
 }
 
-void helper_RFI(CPUPPCState *env)
+void HELPER(RFI)(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1] & 0xfffffffful);
 }
 
 #ifdef TARGET_PPC64
-void helper_RFID(CPUPPCState *env)
+void HELPER(RFID)(CPUPPCState *env)
 {
     /*
      * The architecture defines a number of rules for which bits can
@@ -545,17 +545,17 @@ void helper_RFID(CPUPPCState *env)
     do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1]);
 }
 
-void helper_RFSCV(CPUPPCState *env)
+void HELPER(RFSCV)(CPUPPCState *env)
 {
     do_rfi(env, env->lr, env->ctr);
 }
 
-void helper_HRFID(CPUPPCState *env)
+void HELPER(HRFID)(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
 }
 
-void helper_rfebb(CPUPPCState *env, target_ulong s)
+void HELPER(rfebb)(CPUPPCState *env, target_ulong s)
 {
     target_ulong msr = env->msr;
 
@@ -601,7 +601,7 @@ static void do_ebb(CPUPPCState *env, int ebb_excp)
      * FSCR_EBB and FSCR_IC_EBB are the same bits used with
      * HFSCR.
      */
-    helper_fscr_facility_check(env, FSCR_EBB, 0, FSCR_IC_EBB);
+    HELPER(fscr_facility_check)(env, FSCR_EBB, 0, FSCR_IC_EBB);
     helper_hfscr_facility_check(env, FSCR_EBB, "EBB", FSCR_IC_EBB);
 
     if (ebb_excp == POWERPC_EXCP_PERFM_EBB) {
@@ -633,23 +633,23 @@ void raise_ebb_perfm_exception(CPUPPCState *env)
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
-void helper_40x_rfci(CPUPPCState *env)
+void HELPER(40x_rfci)(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3]);
 }
 
-void helper_rfci(CPUPPCState *env)
+void HELPER(rfci)(CPUPPCState *env)
 {
     do_rfi(env, env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1]);
 }
 
-void helper_rfdi(CPUPPCState *env)
+void HELPER(rfdi)(CPUPPCState *env)
 {
     /* FIXME: choose CSRR1 or DSRR1 based on cpu type */
     do_rfi(env, env->spr[SPR_BOOKE_DSRR0], env->spr[SPR_BOOKE_DSRR1]);
 }
 
-void helper_rfmci(CPUPPCState *env)
+void HELPER(rfmci)(CPUPPCState *env)
 {
     /* FIXME: choose CSRR1 or MCSRR1 based on cpu type */
     do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1]);
@@ -679,7 +679,7 @@ static int dbell2irq(target_ulong rb)
     return irq;
 }
 
-void helper_msgclr(CPUPPCState *env, target_ulong rb)
+void HELPER(msgclr)(CPUPPCState *env, target_ulong rb)
 {
     int irq = dbell2irq(rb);
 
@@ -690,7 +690,7 @@ void helper_msgclr(CPUPPCState *env, target_ulong rb)
     ppc_set_irq(env_archcpu(env), irq, 0);
 }
 
-void helper_msgsnd(target_ulong rb)
+void HELPER(msgsnd)(target_ulong rb)
 {
     int irq = dbell2irq(rb);
     int pir = rb & DBELL_PIRTAG_MASK;
@@ -762,7 +762,7 @@ static void msgsnd_core_tir(CPUPPCState *env, uint32_t target_tir, int irq)
     }
 }
 
-void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
+void HELPER(book3s_msgclr)(CPUPPCState *env, target_ulong rb)
 {
     if (!dbell_type_server(rb)) {
         return;
@@ -771,7 +771,7 @@ void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
     ppc_set_irq(env_archcpu(env), PPC_INTERRUPT_HDOORBELL, 0);
 }
 
-void helper_book3s_msgsnd(CPUPPCState *env, target_ulong rb)
+void HELPER(book3s_msgsnd)(CPUPPCState *env, target_ulong rb)
 {
     int pir = rb & DBELL_PROCIDTAG_MASK;
     bool brdcast = false;
@@ -818,7 +818,7 @@ void helper_book3s_msgsnd(CPUPPCState *env, target_ulong rb)
 }
 
 #ifdef TARGET_PPC64
-void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
+void HELPER(book3s_msgclrp)(CPUPPCState *env, target_ulong rb)
 {
     helper_hfscr_facility_check(env, HFSCR_MSGP, "msgclrp", HFSCR_IC_MSGP);
 
@@ -833,7 +833,7 @@ void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
  * sends a message to another thread  on the same
  * multi-threaded processor
  */
-void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
+void HELPER(book3s_msgsndp)(CPUPPCState *env, target_ulong rb)
 {
     helper_hfscr_facility_check(env, HFSCR_MSGP, "msgsndp", HFSCR_IC_MSGP);
 
@@ -846,7 +846,7 @@ void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
 #endif /* TARGET_PPC64 */
 
 /* Single-step tracing */
-void helper_book3s_trace(CPUPPCState *env, target_ulong prev_ip)
+void HELPER(book3s_trace)(CPUPPCState *env, target_ulong prev_ip)
 {
     uint32_t error_code = 0;
     if (env->insns_flags2 & PPC2_ISA207) {

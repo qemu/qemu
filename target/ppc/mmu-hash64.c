@@ -104,7 +104,7 @@ void dump_slb(PowerPCCPU *cpu)
 }
 
 #ifdef CONFIG_TCG
-void helper_SLBIA(CPUPPCState *env, uint32_t ih)
+void HELPER(SLBIA)(CPUPPCState *env, uint32_t ih)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     int starting_entry;
@@ -177,7 +177,7 @@ void helper_SLBIA(CPUPPCState *env, uint32_t ih)
 }
 
 #if defined(TARGET_PPC64)
-void helper_SLBIAG(CPUPPCState *env, target_ulong rs, uint32_t l)
+void HELPER(SLBIAG)(CPUPPCState *env, target_ulong rs, uint32_t l)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     int n;
@@ -227,12 +227,12 @@ static void __helper_slbie(CPUPPCState *env, target_ulong addr,
     }
 }
 
-void helper_SLBIE(CPUPPCState *env, target_ulong addr)
+void HELPER(SLBIE)(CPUPPCState *env, target_ulong addr)
 {
     __helper_slbie(env, addr, false);
 }
 
-void helper_SLBIEG(CPUPPCState *env, target_ulong addr)
+void HELPER(SLBIEG)(CPUPPCState *env, target_ulong addr)
 {
     __helper_slbie(env, addr, true);
 }
@@ -339,7 +339,7 @@ static int ppc_find_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
     return 0;
 }
 
-void helper_SLBMTE(CPUPPCState *env, target_ulong rb, target_ulong rs)
+void HELPER(SLBMTE)(CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
     PowerPCCPU *cpu = env_archcpu(env);
 
@@ -349,7 +349,7 @@ void helper_SLBMTE(CPUPPCState *env, target_ulong rb, target_ulong rs)
     }
 }
 
-target_ulong helper_SLBMFEE(CPUPPCState *env, target_ulong rb)
+target_ulong HELPER(SLBMFEE)(CPUPPCState *env, target_ulong rb)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
@@ -361,7 +361,7 @@ target_ulong helper_SLBMFEE(CPUPPCState *env, target_ulong rb)
     return rt;
 }
 
-target_ulong helper_SLBFEE(CPUPPCState *env, target_ulong rb)
+target_ulong HELPER(SLBFEE)(CPUPPCState *env, target_ulong rb)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
@@ -373,7 +373,7 @@ target_ulong helper_SLBFEE(CPUPPCState *env, target_ulong rb)
     return rt;
 }
 
-target_ulong helper_SLBMFEV(CPUPPCState *env, target_ulong rb)
+target_ulong HELPER(SLBMFEV)(CPUPPCState *env, target_ulong rb)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
@@ -1220,7 +1220,7 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
 }
 
 #ifdef CONFIG_TCG
-void helper_store_lpcr(CPUPPCState *env, target_ulong val)
+void HELPER(store_lpcr)(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
 
