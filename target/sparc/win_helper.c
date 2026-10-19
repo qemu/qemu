@@ -121,7 +121,7 @@ int cpu_cwp_dec(CPUSPARCState *env, int cwp)
 }
 
 #ifndef TARGET_SPARC64
-void helper_rett(CPUSPARCState *env)
+void HELPER(rett)(CPUSPARCState *env)
 {
     unsigned int cwp;
 
@@ -140,7 +140,7 @@ void helper_rett(CPUSPARCState *env)
 
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
-void helper_save(CPUSPARCState *env)
+void HELPER(save)(CPUSPARCState *env)
 {
     uint32_t cwp;
 
@@ -151,7 +151,7 @@ void helper_save(CPUSPARCState *env)
     cpu_set_cwp(env, cwp);
 }
 
-void helper_restore(CPUSPARCState *env)
+void HELPER(restore)(CPUSPARCState *env)
 {
     uint32_t cwp;
 
@@ -162,7 +162,7 @@ void helper_restore(CPUSPARCState *env)
     cpu_set_cwp(env, cwp);
 }
 
-void helper_wrpsr(CPUSPARCState *env, target_ulong new_psr)
+void HELPER(wrpsr)(CPUSPARCState *env, target_ulong new_psr)
 {
     if ((new_psr & PSR_CWP) >= env->nwindows) {
         cpu_raise_exception_ra(env, TT_ILL_INSN, GETPC());
@@ -174,7 +174,7 @@ void helper_wrpsr(CPUSPARCState *env, target_ulong new_psr)
     }
 }
 
-target_ulong helper_rdpsr(CPUSPARCState *env)
+target_ulong HELPER(rdpsr)(CPUSPARCState *env)
 {
     return cpu_get_psr(env);
 }
@@ -182,7 +182,7 @@ target_ulong helper_rdpsr(CPUSPARCState *env)
 #else
 /* XXX: use another pointer for %iN registers to avoid slow wrapping
    handling ? */
-void helper_save(CPUSPARCState *env)
+void HELPER(save)(CPUSPARCState *env)
 {
     uint32_t cwp;
 
@@ -204,7 +204,7 @@ void helper_save(CPUSPARCState *env)
     }
 }
 
-void helper_restore(CPUSPARCState *env)
+void HELPER(restore)(CPUSPARCState *env)
 {
     uint32_t cwp;
 
@@ -221,7 +221,7 @@ void helper_restore(CPUSPARCState *env)
     }
 }
 
-void helper_flushw(CPUSPARCState *env)
+void HELPER(flushw)(CPUSPARCState *env)
 {
     if (env->cansave != env->nwindows - 2) {
         int tt = TT_SPILL | (env->otherwin != 0
@@ -231,7 +231,7 @@ void helper_flushw(CPUSPARCState *env)
     }
 }
 
-void helper_saved(CPUSPARCState *env)
+void HELPER(saved)(CPUSPARCState *env)
 {
     env->cansave++;
     if (env->otherwin == 0) {
@@ -241,7 +241,7 @@ void helper_saved(CPUSPARCState *env)
     }
 }
 
-void helper_restored(CPUSPARCState *env)
+void HELPER(restored)(CPUSPARCState *env)
 {
     env->canrestore++;
     if (env->cleanwin < env->nwindows - 1) {
@@ -294,24 +294,24 @@ void cpu_put_cwp64(CPUSPARCState *env, int cwp)
     cpu_set_cwp(env, env->nwindows - 1 - cwp);
 }
 
-target_ulong helper_rdccr(CPUSPARCState *env)
+target_ulong HELPER(rdccr)(CPUSPARCState *env)
 {
     return cpu_get_ccr(env);
 }
 
-void helper_wrccr(CPUSPARCState *env, target_ulong new_ccr)
+void HELPER(wrccr)(CPUSPARCState *env, target_ulong new_ccr)
 {
     cpu_put_ccr(env, new_ccr);
 }
 
 /* CWP handling is reversed in V9, but we still use the V8 register
    order. */
-target_ulong helper_rdcwp(CPUSPARCState *env)
+target_ulong HELPER(rdcwp)(CPUSPARCState *env)
 {
     return cpu_get_cwp64(env);
 }
 
-void helper_wrcwp(CPUSPARCState *env, target_ulong new_cwp)
+void HELPER(wrcwp)(CPUSPARCState *env, target_ulong new_cwp)
 {
     cpu_put_cwp64(env, new_cwp);
 }
@@ -355,7 +355,7 @@ void cpu_gl_switch_gregs(CPUSPARCState *env, uint32_t new_gl)
     }
 }
 
-void helper_wrgl(CPUSPARCState *env, target_ulong new_gl)
+void HELPER(wrgl)(CPUSPARCState *env, target_ulong new_gl)
 {
     cpu_gl_switch_gregs(env, new_gl & 7);
     env->gl = new_gl & 7;
@@ -390,7 +390,7 @@ void cpu_change_pstate(CPUSPARCState *env, uint32_t new_pstate)
     env->pstate = new_pstate;
 }
 
-void helper_wrpstate(CPUSPARCState *env, target_ulong new_state)
+void HELPER(wrpstate)(CPUSPARCState *env, target_ulong new_state)
 {
     cpu_change_pstate(env, new_state & 0xf3f);
 
@@ -403,7 +403,7 @@ void helper_wrpstate(CPUSPARCState *env, target_ulong new_state)
 #endif
 }
 
-void helper_wrpil(CPUSPARCState *env, target_ulong new_pil)
+void HELPER(wrpil)(CPUSPARCState *env, target_ulong new_pil)
 {
 #if !defined(CONFIG_USER_ONLY)
     trace_win_helper_wrpil(env->psrpil, (uint32_t)new_pil);
@@ -418,7 +418,7 @@ void helper_wrpil(CPUSPARCState *env, target_ulong new_pil)
 #endif
 }
 
-void helper_done(CPUSPARCState *env)
+void HELPER(done)(CPUSPARCState *env)
 {
     trap_state *tsptr = cpu_tsptr(env);
 
@@ -447,7 +447,7 @@ void helper_done(CPUSPARCState *env)
 #endif
 }
 
-void helper_retry(CPUSPARCState *env)
+void HELPER(retry)(CPUSPARCState *env)
 {
     trap_state *tsptr = cpu_tsptr(env);
 

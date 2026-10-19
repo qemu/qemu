@@ -283,21 +283,21 @@ static bool do_modify_softint(CPUSPARCState *env, uint32_t value)
     return false;
 }
 
-void helper_set_softint(CPUSPARCState *env, uint64_t value)
+void HELPER(set_softint)(CPUSPARCState *env, uint64_t value)
 {
     if (do_modify_softint(env, env->softint | (uint32_t)value)) {
         trace_int_helper_set_softint(env->softint);
     }
 }
 
-void helper_clear_softint(CPUSPARCState *env, uint64_t value)
+void HELPER(clear_softint)(CPUSPARCState *env, uint64_t value)
 {
     if (do_modify_softint(env, env->softint & (uint32_t)~value)) {
         trace_int_helper_clear_softint(env->softint);
     }
 }
 
-void helper_write_softint(CPUSPARCState *env, uint64_t value)
+void HELPER(write_softint)(CPUSPARCState *env, uint64_t value)
 {
     if (do_modify_softint(env, (uint32_t)value)) {
         trace_int_helper_write_softint(env->softint);
