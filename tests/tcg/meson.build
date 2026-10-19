@@ -198,6 +198,7 @@ image_targets = {}
 exe_targets = []
 # Finally, we can create all test executables and test targets
 foreach target, plan: tcg_tests
+  target_exe_targets = []
   if target.startswith('multiarch-')
     # those tests are included by architecture files if needed
     continue
@@ -433,7 +434,7 @@ foreach target, plan: tcg_tests
 
       # build executable if needed
       if exe_name not in built_tests
-        exe = custom_target(exe_name,
+        exe = custom_target(exe_name + '.test',
                             input: file,
                             command: [cc, '@INPUT@',
                                       '-o', '@OUTPUT@', '-static',
@@ -452,7 +453,7 @@ foreach target, plan: tcg_tests
                             depends: exe_depends,
                             depend_files: build_test_depend_files,
                             build_by_default: false)
-        exe_targets += exe
+        target_exe_targets += exe
         built_tests += {exe_name: exe}
       endif
 
@@ -539,6 +540,11 @@ foreach target, plan: tcg_tests
       added_tests += {test_name: true}
     endforeach
   endforeach
+  if target_exe_targets.length() > 0
+    # finally create a top level target to rebuild all tests for this target
+    alias_target('tcg-tests-' + target, target_exe_targets)
+  endif
+  exe_targets += target_exe_targets
 endforeach
 
 if exe_targets.length() > 0
