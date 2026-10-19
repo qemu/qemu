@@ -220,22 +220,19 @@ static void i8259_common_class_init(ObjectClass *klass, const void *data)
     ic->print_info = i8259_common_print_info;
 }
 
-static const TypeInfo i8259_common_type = {
-    .name = TYPE_I8259_COMMON,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(I8259CommonState),
-    .class_size = sizeof(I8259CommonClass),
-    .class_init = i8259_common_class_init,
-    .abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
+static const TypeInfo i8259_common_type_infos[] = {
+    {
+        .name = TYPE_I8259_COMMON,
+        .parent = TYPE_ISA_DEVICE,
+        .instance_size = sizeof(I8259CommonState),
+        .class_size = sizeof(I8259CommonClass),
+        .class_init = i8259_common_class_init,
+        .abstract = true,
+        .interfaces = (const InterfaceInfo[]) {
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { }
+        },
     },
 };
 
-static void i8259_common_register_types(void)
-{
-    type_register_static(&i8259_common_type);
-}
-
-type_init(i8259_common_register_types)
+DEFINE_TYPES(i8259_common_type_infos)
