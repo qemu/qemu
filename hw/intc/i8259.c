@@ -124,7 +124,7 @@ static void pic_set_irq(void *opaque, int irq, int level)
     int irq_index = cs->master ? irq : irq + 8;
 
     trace_pic_set_irq(cs->master, irq, level);
-    pic_stat_update_irq(irq_index, level);
+    i8259_stat_update_irq(irq_index, level);
 
 #ifdef DEBUG_IRQ_LATENCY
     if (level) {
@@ -215,7 +215,7 @@ int pic_read_irq(I8259State *s)
 
 static void pic_init_reset(I8259CommonState *cs)
 {
-    pic_reset_common(cs);
+    i8259_common_reset(cs);
     pic_update_irq(cs);
 }
 

@@ -33,7 +33,7 @@
 static int irq_level[16];
 static uint64_t irq_count[16];
 
-void pic_reset_common(I8259CommonState *cs)
+void i8259_common_reset(I8259CommonState *cs)
 {
     cs->last_irr = 0;
     cs->irr &= cs->elcr;
@@ -53,7 +53,7 @@ void pic_reset_common(I8259CommonState *cs)
     /* Note: ELCR and LTIM are not reset */
 }
 
-static int pic_dispatch_pre_save(void *opaque)
+static int i8259_common_dispatch_pre_save(void *opaque)
 {
     I8259CommonState *cs = opaque;
     I8259CommonClass *info = I8259_COMMON_GET_CLASS(cs);
@@ -65,7 +65,7 @@ static int pic_dispatch_pre_save(void *opaque)
     return 0;
 }
 
-static int pic_dispatch_post_load(void *opaque, int version_id)
+static int i8259_common_dispatch_post_load(void *opaque, int version_id)
 {
     I8259CommonState *cs = opaque;
     I8259CommonClass *info = I8259_COMMON_GET_CLASS(cs);
@@ -76,7 +76,7 @@ static int pic_dispatch_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void pic_common_realize(DeviceState *dev, Error **errp)
+static void i8259_common_realize(DeviceState *dev, Error **errp)
 {
     I8259CommonState *cs = I8259_COMMON(dev);
     ISADevice *isa = ISA_DEVICE(dev);
@@ -105,7 +105,7 @@ ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
     return isadev;
 }
 
-void pic_stat_update_irq(int irq, int level)
+void i8259_stat_update_irq(int irq, int level)
 {
     if (level != irq_level[irq]) {
         irq_level[irq] = level;
@@ -115,8 +115,9 @@ void pic_stat_update_irq(int irq, int level)
     }
 }
 
-static bool pic_get_statistics(InterruptStatsProvider *obj,
-                               uint64_t **irq_counts, unsigned int *nb_irqs)
+static bool i8259_common_get_statistics(InterruptStatsProvider *obj,
+                                        uint64_t **irq_counts,
+                                        unsigned int *nb_irqs)
 {
     I8259CommonState *cs = I8259_COMMON(obj);
 
@@ -131,11 +132,11 @@ static bool pic_get_statistics(InterruptStatsProvider *obj,
     return true;
 }
 
-static void pic_print_info(InterruptStatsProvider *obj, GString *buf)
+static void i8259_common_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     I8259CommonState *cs = I8259_COMMON(obj);
 
-    pic_dispatch_pre_save(cs);
+    i8259_common_dispatch_pre_save(cs);
     g_string_append_printf(buf, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
                            "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
                            cs->master ? 0 : 1, cs->irr, cs->imr, cs->isr,
@@ -162,12 +163,12 @@ static const VMStateDescription vmstate_pic_ltim = {
     }
 };
 
-static const VMStateDescription vmstate_pic_common = {
+static const VMStateDescription vmstate_i8259_common = {
     .name = "i8259",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = pic_dispatch_pre_save,
-    .post_load = pic_dispatch_post_load,
+    .pre_save = i8259_common_dispatch_pre_save,
+    .post_load = i8259_common_dispatch_post_load,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8(last_irr, I8259CommonState),
         VMSTATE_UINT8(irr, I8259CommonState),
@@ -193,21 +194,21 @@ static const VMStateDescription vmstate_pic_common = {
     }
 };
 
-static const Property pic_properties_common[] = {
+static const Property i8259_common_properties[] = {
     DEFINE_PROP_UINT32("iobase", I8259CommonState, iobase,  -1),
     DEFINE_PROP_UINT32("elcr_addr", I8259CommonState, elcr_addr,  -1),
     DEFINE_PROP_UINT8("elcr_mask", I8259CommonState, elcr_mask,  -1),
     DEFINE_PROP_BIT("master", I8259CommonState, master,  0, false),
 };
 
-static void pic_common_class_init(ObjectClass *klass, const void *data)
+static void i8259_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
-    dc->vmsd = &vmstate_pic_common;
-    device_class_set_props(dc, pic_properties_common);
-    dc->realize = pic_common_realize;
+    dc->vmsd = &vmstate_i8259_common;
+    device_class_set_props(dc, i8259_common_properties);
+    dc->realize = i8259_common_realize;
     /*
      * Reason: unlike ordinary ISA devices, the PICs need additional
      * wiring: its IRQ input lines are set up by board code, and the
@@ -215,16 +216,16 @@ static void pic_common_class_init(ObjectClass *klass, const void *data)
      * code.
      */
     dc->user_creatable = false;
-    ic->get_statistics = pic_get_statistics;
-    ic->print_info = pic_print_info;
+    ic->get_statistics = i8259_common_get_statistics;
+    ic->print_info = i8259_common_print_info;
 }
 
-static const TypeInfo pic_common_type = {
+static const TypeInfo i8259_common_type = {
     .name = TYPE_I8259_COMMON,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(I8259CommonState),
     .class_size = sizeof(I8259CommonClass),
-    .class_init = pic_common_class_init,
+    .class_init = i8259_common_class_init,
     .abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_INTERRUPT_STATS_PROVIDER },
@@ -232,9 +233,9 @@ static const TypeInfo pic_common_type = {
     },
 };
 
-static void pic_common_register_types(void)
+static void i8259_common_register_types(void)
 {
-    type_register_static(&pic_common_type);
+    type_register_static(&i8259_common_type);
 }
 
-type_init(pic_common_register_types)
+type_init(i8259_common_register_types)
