@@ -71,7 +71,6 @@ struct I8259CommonState {
 };
 
 void i8259_common_reset(I8259CommonState *cs);
-ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
 void i8259_stat_update_irq(int irq, int level);
 
 #endif /* QEMU_I8259_INTERNAL_H */
