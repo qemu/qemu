@@ -11,7 +11,7 @@
 #include "exec/helper-proto.h"
 #include "cpu.h"
 
-uint64_t helper_load_pcc(CPUAlphaState *env)
+uint64_t HELPER(load_pcc)(CPUAlphaState *env)
 {
 #ifndef CONFIG_USER_ONLY
     /*

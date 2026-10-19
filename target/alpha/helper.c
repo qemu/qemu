@@ -111,12 +111,12 @@ void cpu_alpha_store_fpcr(CPUAlphaState *env, uint64_t val)
     env->fpcr_flush_to_zero = t;
 }
 
-uint64_t helper_load_fpcr(CPUAlphaState *env)
+uint64_t HELPER(load_fpcr)(CPUAlphaState *env)
 {
     return cpu_alpha_load_fpcr(env);
 }
 
-void helper_store_fpcr(CPUAlphaState *env, uint64_t val)
+void HELPER(store_fpcr)(CPUAlphaState *env, uint64_t val)
 {
     cpu_alpha_store_fpcr(env, val);
 }
@@ -531,7 +531,7 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
 /* This should only be called from translate, via gen_excp.
    We expect that ENV->PC has already been updated.  */
-G_NORETURN void helper_excp(CPUAlphaState *env, int excp, int error)
+G_NORETURN void HELPER(excp)(CPUAlphaState *env, int excp, int error)
 {
     CPUState *cs = env_cpu(env);
 
