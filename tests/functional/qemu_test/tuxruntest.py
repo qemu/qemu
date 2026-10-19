@@ -65,7 +65,7 @@ class TuxRunBaselineTest(QemuSystemTest):
 
         return (kernel_image, disk_image, dtb)
 
-    def prepare_run(self, kernel, disk, drive, dtb=None, console_index=0):
+    def prepare_run(self, accel, kernel, disk, drive, dtb=None, console_index=0):
         """
         Setup to run and add the common parameters to the system
         """
@@ -78,6 +78,10 @@ class TuxRunBaselineTest(QemuSystemTest):
         self.kcmd_line = self.KERNEL_COMMON_COMMAND_LINE
         self.kcmd_line += f" root=/dev/{self.root}"
         self.kcmd_line += f" console={self.console}"
+
+        # have we specified an accelerator?
+        if accel:
+            self.vm.add_args('-accel', accel)
 
         self.vm.add_args('-kernel', kernel,
                          '-append', self.kcmd_line,
@@ -118,6 +122,7 @@ class TuxRunBaselineTest(QemuSystemTest):
     def common_tuxrun(self,
                       kernel_asset,
                       rootfs_asset,
+                      accel=None,
                       dtb_asset=None,
                       drive="virtio-blk-device",
                       haltmsg="reboot: System halted",
@@ -130,7 +135,7 @@ class TuxRunBaselineTest(QemuSystemTest):
         (kernel, disk, dtb) = self.fetch_tuxrun_assets(kernel_asset, rootfs_asset,
                                                        dtb_asset)
 
-        self.prepare_run(kernel, disk, drive, dtb, console_index)
+        self.prepare_run(accel, kernel, disk, drive, dtb, console_index)
         self.vm.launch()
         self.run_tuxtest_tests(haltmsg)
         os.remove(disk)
