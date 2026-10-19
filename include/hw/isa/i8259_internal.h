@@ -37,8 +37,8 @@ OBJECT_DECLARE_TYPE(I8259CommonState, I8259CommonClass, I8259_COMMON)
 struct I8259CommonClass {
     DeviceClass parent_class;
 
-    void (*pre_save)(I8259CommonState *s);
-    void (*post_load)(I8259CommonState *s);
+    void (*pre_save)(I8259CommonState *cs);
+    void (*post_load)(I8259CommonState *cs);
 };
 
 struct I8259CommonState {
@@ -70,7 +70,7 @@ struct I8259CommonState {
     MemoryRegion elcr_io;
 };
 
-void pic_reset_common(I8259CommonState *s);
+void pic_reset_common(I8259CommonState *cs);
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
 void pic_stat_update_irq(int irq, int level);
 

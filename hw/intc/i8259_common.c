@@ -33,33 +33,33 @@
 static int irq_level[16];
 static uint64_t irq_count[16];
 
-void pic_reset_common(I8259CommonState *s)
+void pic_reset_common(I8259CommonState *cs)
 {
-    s->last_irr = 0;
-    s->irr &= s->elcr;
-    s->imr = 0;
-    s->isr = 0;
-    s->priority_add = 0;
-    s->irq_base = 0;
-    s->read_reg_select = 0;
-    s->poll = 0;
-    s->special_mask = 0;
-    s->init_state = 0;
-    s->auto_eoi = 0;
-    s->rotate_on_auto_eoi = 0;
-    s->special_fully_nested_mode = 0;
-    s->init4 = 0;
-    s->single_mode = 0;
+    cs->last_irr = 0;
+    cs->irr &= cs->elcr;
+    cs->imr = 0;
+    cs->isr = 0;
+    cs->priority_add = 0;
+    cs->irq_base = 0;
+    cs->read_reg_select = 0;
+    cs->poll = 0;
+    cs->special_mask = 0;
+    cs->init_state = 0;
+    cs->auto_eoi = 0;
+    cs->rotate_on_auto_eoi = 0;
+    cs->special_fully_nested_mode = 0;
+    cs->init4 = 0;
+    cs->single_mode = 0;
     /* Note: ELCR and LTIM are not reset */
 }
 
 static int pic_dispatch_pre_save(void *opaque)
 {
-    I8259CommonState *s = opaque;
-    I8259CommonClass *info = I8259_COMMON_GET_CLASS(s);
+    I8259CommonState *cs = opaque;
+    I8259CommonClass *info = I8259_COMMON_GET_CLASS(cs);
 
     if (info->pre_save) {
-        info->pre_save(s);
+        info->pre_save(cs);
     }
 
     return 0;
@@ -67,26 +67,26 @@ static int pic_dispatch_pre_save(void *opaque)
 
 static int pic_dispatch_post_load(void *opaque, int version_id)
 {
-    I8259CommonState *s = opaque;
-    I8259CommonClass *info = I8259_COMMON_GET_CLASS(s);
+    I8259CommonState *cs = opaque;
+    I8259CommonClass *info = I8259_COMMON_GET_CLASS(cs);
 
     if (info->post_load) {
-        info->post_load(s);
+        info->post_load(cs);
     }
     return 0;
 }
 
 static void pic_common_realize(DeviceState *dev, Error **errp)
 {
-    I8259CommonState *s = I8259_COMMON(dev);
+    I8259CommonState *cs = I8259_COMMON(dev);
     ISADevice *isa = ISA_DEVICE(dev);
 
-    isa_register_ioport(isa, &s->base_io, s->iobase);
-    if (s->elcr_addr != -1) {
-        isa_register_ioport(isa, &s->elcr_io, s->elcr_addr);
+    isa_register_ioport(isa, &cs->base_io, cs->iobase);
+    if (cs->elcr_addr != -1) {
+        isa_register_ioport(isa, &cs->elcr_io, cs->elcr_addr);
     }
 
-    qdev_set_legacy_instance_id(dev, s->iobase, 1);
+    qdev_set_legacy_instance_id(dev, cs->iobase, 1);
 }
 
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
@@ -118,9 +118,9 @@ void pic_stat_update_irq(int irq, int level)
 static bool pic_get_statistics(InterruptStatsProvider *obj,
                                uint64_t **irq_counts, unsigned int *nb_irqs)
 {
-    I8259CommonState *s = I8259_COMMON(obj);
+    I8259CommonState *cs = I8259_COMMON(obj);
 
-    if (s->master) {
+    if (cs->master) {
         *irq_counts = irq_count;
         *nb_irqs = ARRAY_SIZE(irq_count);
     } else {
@@ -133,22 +133,22 @@ static bool pic_get_statistics(InterruptStatsProvider *obj,
 
 static void pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
-    I8259CommonState *s = I8259_COMMON(obj);
+    I8259CommonState *cs = I8259_COMMON(obj);
 
-    pic_dispatch_pre_save(s);
+    pic_dispatch_pre_save(cs);
     g_string_append_printf(buf, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
                            "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
-                           s->master ? 0 : 1, s->irr, s->imr, s->isr,
-                           s->priority_add,
-                           s->irq_base, s->read_reg_select, s->elcr,
-                           s->special_fully_nested_mode);
+                           cs->master ? 0 : 1, cs->irr, cs->imr, cs->isr,
+                           cs->priority_add,
+                           cs->irq_base, cs->read_reg_select, cs->elcr,
+                           cs->special_fully_nested_mode);
 }
 
 static bool ltim_state_needed(void *opaque)
 {
-    I8259CommonState *s = I8259_COMMON(opaque);
+    I8259CommonState *cs = I8259_COMMON(opaque);
 
-    return !!s->ltim;
+    return !!cs->ltim;
 }
 
 static const VMStateDescription vmstate_pic_ltim = {
