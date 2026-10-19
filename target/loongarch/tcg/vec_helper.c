@@ -2511,8 +2511,8 @@ void HELPER(NAME)(void *vd, void *vj,                    \
     }                                                    \
 }
 
-FCLASS(vfclass_s, 32, UW, helper_fclass_s)
-FCLASS(vfclass_d, 64, UD, helper_fclass_d)
+FCLASS(vfclass_s, 32, UW, HELPER(fclass_s))
+FCLASS(vfclass_d, 64, UD, HELPER(fclass_d))
 
 #define FSQRT(BIT, T)                                  \
 static T do_fsqrt_## BIT(CPULoongArchState *env, T fj) \
