@@ -1036,7 +1036,7 @@ uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
     uint64_t data = bf_load(env, d.addr, d.blen, ra);
     uint64_t mask = -1ull << (64 - d.len) >> d.bofs;
     uint64_t n = (data & mask) << d.bofs;
-    uint32_t ffo = helper_bfffo_reg(n >> 32, ofs, d.len);
+    uint32_t ffo = HELPER(bfffo_reg)(n >> 32, ofs, d.len);
 
     /*
      * Return FFO in the low word and N in the high word.
