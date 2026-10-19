@@ -98,6 +98,7 @@ static void hexagon_resume_thread(CPUHexagonState *env)
     clear_wait_mode(env);
     cs = env_cpu(env);
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_HALT);
     cs->halted = false;
     cs->exception_index = HEX_EVENT_NONE;
     qemu_cpu_kick(cs);
