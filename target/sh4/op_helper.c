@@ -46,7 +46,7 @@ void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
 #endif
 
-void helper_ldtlb(CPUSH4State *env)
+void HELPER(ldtlb)(CPUSH4State *env)
 {
 #ifdef CONFIG_USER_ONLY
     cpu_abort(env_cpu(env), "Unhandled ldtlb");
@@ -65,27 +65,27 @@ void raise_exception(CPUSH4State *env, int index,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-void helper_raise_illegal_instruction(CPUSH4State *env)
+void HELPER(raise_illegal_instruction)(CPUSH4State *env)
 {
     raise_exception(env, SH4_EXCP_ILLEGAL_INSTRUCTION, 0);
 }
 
-void helper_raise_slot_illegal_instruction(CPUSH4State *env)
+void HELPER(raise_slot_illegal_instruction)(CPUSH4State *env)
 {
     raise_exception(env, SH4_EXCP_SLOT_ILLEGAL_INSTRUCTION, 0);
 }
 
-void helper_raise_fpu_disable(CPUSH4State *env)
+void HELPER(raise_fpu_disable)(CPUSH4State *env)
 {
     raise_exception(env, SH4_EXCP_FPU_DISABLE, 0);
 }
 
-void helper_raise_slot_fpu_disable(CPUSH4State *env)
+void HELPER(raise_slot_fpu_disable)(CPUSH4State *env)
 {
     raise_exception(env, SH4_EXCP_SLOT_FPU_DISABLE, 0);
 }
 
-void helper_sleep(CPUSH4State *env)
+void HELPER(sleep)(CPUSH4State *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -94,19 +94,19 @@ void helper_sleep(CPUSH4State *env)
     raise_exception(env, EXCP_HLT, 0);
 }
 
-void helper_trapa(CPUSH4State *env, uint32_t tra)
+void HELPER(trapa)(CPUSH4State *env, uint32_t tra)
 {
     env->tra = tra << 2;
     raise_exception(env, SH4_EXCP_TRAPA, 0);
 }
 
-void helper_exclusive(CPUSH4State *env)
+void HELPER(exclusive)(CPUSH4State *env)
 {
     /* We do not want cpu_restore_state to run.  */
     cpu_loop_exit_atomic(env_cpu(env), 0);
 }
 
-void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
+void HELPER(movcal)(CPUSH4State *env, uint32_t address, uint32_t value)
 {
     if (cpu_sh4_is_cached (env, address))
     {
@@ -121,7 +121,7 @@ void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
     }
 }
 
-void helper_discard_movcal_backup(CPUSH4State *env)
+void HELPER(discard_movcal_backup)(CPUSH4State *env)
 {
     memory_content *current = env->movcal_backup;
 
@@ -135,7 +135,7 @@ void helper_discard_movcal_backup(CPUSH4State *env)
     }
 }
 
-void helper_ocbi(CPUSH4State *env, uint32_t address)
+void HELPER(ocbi)(CPUSH4State *env, uint32_t address)
 {
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
     MemOpIdx oi = make_memop_idx(MO_TE | MO_UL | MO_UNALN, mmu_idx);
@@ -161,7 +161,7 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
     }
 }
 
-void helper_macl(CPUSH4State *env, int32_t arg0, int32_t arg1)
+void HELPER(macl)(CPUSH4State *env, int32_t arg0, int32_t arg1)
 {
     const int64_t min = -(1ll << 47);
     const int64_t max = (1ll << 47) - 1;
@@ -180,7 +180,7 @@ void helper_macl(CPUSH4State *env, int32_t arg0, int32_t arg1)
     env->mac = res;
 }
 
-void helper_macw(CPUSH4State *env, int32_t arg0, int32_t arg1)
+void HELPER(macw)(CPUSH4State *env, int32_t arg0, int32_t arg1)
 {
     /* Inputs are already sign-extended from 16 bits. */
     int32_t mul = arg0 * arg1;
@@ -216,7 +216,7 @@ void cpu_load_fpscr(CPUSH4State *env, uint32_t val)
     set_flush_to_zero((val & FPSCR_DN) != 0, &env->fp_status);
 }
 
-void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
+void HELPER(ld_fpscr)(CPUSH4State *env, uint32_t val)
 {
     cpu_load_fpscr(env, val);
 }
@@ -260,7 +260,7 @@ static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
     }
 }
 
-float32 helper_fadd_FT(CPUSH4State *env, float32 t0, float32 t1)
+float32 HELPER(fadd_FT)(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_add(t0, t1, &env->fp_status);
@@ -268,7 +268,7 @@ float32 helper_fadd_FT(CPUSH4State *env, float32 t0, float32 t1)
     return t0;
 }
 
-float64 helper_fadd_DT(CPUSH4State *env, float64 t0, float64 t1)
+float64 HELPER(fadd_DT)(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_add(t0, t1, &env->fp_status);
@@ -276,7 +276,7 @@ float64 helper_fadd_DT(CPUSH4State *env, float64 t0, float64 t1)
     return t0;
 }
 
-uint32_t helper_fcmp_eq_FT(CPUSH4State *env, float32 t0, float32 t1)
+uint32_t HELPER(fcmp_eq_FT)(CPUSH4State *env, float32 t0, float32 t1)
 {
     int relation;
 
@@ -286,7 +286,7 @@ uint32_t helper_fcmp_eq_FT(CPUSH4State *env, float32 t0, float32 t1)
     return relation == float_relation_equal;
 }
 
-uint32_t helper_fcmp_eq_DT(CPUSH4State *env, float64 t0, float64 t1)
+uint32_t HELPER(fcmp_eq_DT)(CPUSH4State *env, float64 t0, float64 t1)
 {
     int relation;
 
@@ -296,7 +296,7 @@ uint32_t helper_fcmp_eq_DT(CPUSH4State *env, float64 t0, float64 t1)
     return relation == float_relation_equal;
 }
 
-uint32_t helper_fcmp_gt_FT(CPUSH4State *env, float32 t0, float32 t1)
+uint32_t HELPER(fcmp_gt_FT)(CPUSH4State *env, float32 t0, float32 t1)
 {
     int relation;
 
@@ -306,7 +306,7 @@ uint32_t helper_fcmp_gt_FT(CPUSH4State *env, float32 t0, float32 t1)
     return relation == float_relation_greater;
 }
 
-uint32_t helper_fcmp_gt_DT(CPUSH4State *env, float64 t0, float64 t1)
+uint32_t HELPER(fcmp_gt_DT)(CPUSH4State *env, float64 t0, float64 t1)
 {
     int relation;
 
@@ -316,7 +316,7 @@ uint32_t helper_fcmp_gt_DT(CPUSH4State *env, float64 t0, float64 t1)
     return relation == float_relation_greater;
 }
 
-float64 helper_fcnvsd_FT_DT(CPUSH4State *env, float32 t0)
+float64 HELPER(fcnvsd_FT_DT)(CPUSH4State *env, float32 t0)
 {
     float64 ret;
     set_float_exception_flags(0, &env->fp_status);
@@ -325,7 +325,7 @@ float64 helper_fcnvsd_FT_DT(CPUSH4State *env, float32 t0)
     return ret;
 }
 
-float32 helper_fcnvds_DT_FT(CPUSH4State *env, float64 t0)
+float32 HELPER(fcnvds_DT_FT)(CPUSH4State *env, float64 t0)
 {
     float32 ret;
     set_float_exception_flags(0, &env->fp_status);
@@ -334,7 +334,7 @@ float32 helper_fcnvds_DT_FT(CPUSH4State *env, float64 t0)
     return ret;
 }
 
-float32 helper_fdiv_FT(CPUSH4State *env, float32 t0, float32 t1)
+float32 HELPER(fdiv_FT)(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_div(t0, t1, &env->fp_status);
@@ -342,7 +342,7 @@ float32 helper_fdiv_FT(CPUSH4State *env, float32 t0, float32 t1)
     return t0;
 }
 
-float64 helper_fdiv_DT(CPUSH4State *env, float64 t0, float64 t1)
+float64 HELPER(fdiv_DT)(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_div(t0, t1, &env->fp_status);
@@ -350,7 +350,7 @@ float64 helper_fdiv_DT(CPUSH4State *env, float64 t0, float64 t1)
     return t0;
 }
 
-float32 helper_float_FT(CPUSH4State *env, uint32_t t0)
+float32 HELPER(float_FT)(CPUSH4State *env, uint32_t t0)
 {
     float32 ret;
     set_float_exception_flags(0, &env->fp_status);
@@ -359,7 +359,7 @@ float32 helper_float_FT(CPUSH4State *env, uint32_t t0)
     return ret;
 }
 
-float64 helper_float_DT(CPUSH4State *env, uint32_t t0)
+float64 HELPER(float_DT)(CPUSH4State *env, uint32_t t0)
 {
     float64 ret;
     set_float_exception_flags(0, &env->fp_status);
@@ -368,7 +368,7 @@ float64 helper_float_DT(CPUSH4State *env, uint32_t t0)
     return ret;
 }
 
-float32 helper_fmac_FT(CPUSH4State *env, float32 t0, float32 t1, float32 t2)
+float32 HELPER(fmac_FT)(CPUSH4State *env, float32 t0, float32 t1, float32 t2)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_muladd(t0, t1, t2, 0, &env->fp_status);
@@ -376,7 +376,7 @@ float32 helper_fmac_FT(CPUSH4State *env, float32 t0, float32 t1, float32 t2)
     return t0;
 }
 
-float32 helper_fmul_FT(CPUSH4State *env, float32 t0, float32 t1)
+float32 HELPER(fmul_FT)(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_mul(t0, t1, &env->fp_status);
@@ -384,7 +384,7 @@ float32 helper_fmul_FT(CPUSH4State *env, float32 t0, float32 t1)
     return t0;
 }
 
-float64 helper_fmul_DT(CPUSH4State *env, float64 t0, float64 t1)
+float64 HELPER(fmul_DT)(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_mul(t0, t1, &env->fp_status);
@@ -392,7 +392,7 @@ float64 helper_fmul_DT(CPUSH4State *env, float64 t0, float64 t1)
     return t0;
 }
 
-float32 helper_fsqrt_FT(CPUSH4State *env, float32 t0)
+float32 HELPER(fsqrt_FT)(CPUSH4State *env, float32 t0)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_sqrt(t0, &env->fp_status);
@@ -400,7 +400,7 @@ float32 helper_fsqrt_FT(CPUSH4State *env, float32 t0)
     return t0;
 }
 
-float64 helper_fsqrt_DT(CPUSH4State *env, float64 t0)
+float64 HELPER(fsqrt_DT)(CPUSH4State *env, float64 t0)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_sqrt(t0, &env->fp_status);
@@ -408,7 +408,7 @@ float64 helper_fsqrt_DT(CPUSH4State *env, float64 t0)
     return t0;
 }
 
-float32 helper_fsrra_FT(CPUSH4State *env, float32 t0)
+float32 HELPER(fsrra_FT)(CPUSH4State *env, float32 t0)
 {
     set_float_exception_flags(0, &env->fp_status);
     /* "Approximate" 1/sqrt(x) via actual computation.  */
@@ -426,7 +426,7 @@ float32 helper_fsrra_FT(CPUSH4State *env, float32 t0)
     return t0;
 }
 
-float32 helper_fsub_FT(CPUSH4State *env, float32 t0, float32 t1)
+float32 HELPER(fsub_FT)(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_sub(t0, t1, &env->fp_status);
@@ -434,7 +434,7 @@ float32 helper_fsub_FT(CPUSH4State *env, float32 t0, float32 t1)
     return t0;
 }
 
-float64 helper_fsub_DT(CPUSH4State *env, float64 t0, float64 t1)
+float64 HELPER(fsub_DT)(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_sub(t0, t1, &env->fp_status);
@@ -442,7 +442,7 @@ float64 helper_fsub_DT(CPUSH4State *env, float64 t0, float64 t1)
     return t0;
 }
 
-uint32_t helper_ftrc_FT(CPUSH4State *env, float32 t0)
+uint32_t HELPER(ftrc_FT)(CPUSH4State *env, float32 t0)
 {
     uint32_t ret;
     set_float_exception_flags(0, &env->fp_status);
@@ -451,7 +451,7 @@ uint32_t helper_ftrc_FT(CPUSH4State *env, float32 t0)
     return ret;
 }
 
-uint32_t helper_ftrc_DT(CPUSH4State *env, float64 t0)
+uint32_t HELPER(ftrc_DT)(CPUSH4State *env, float64 t0)
 {
     uint32_t ret;
     set_float_exception_flags(0, &env->fp_status);
@@ -460,7 +460,7 @@ uint32_t helper_ftrc_DT(CPUSH4State *env, float64 t0)
     return ret;
 }
 
-void helper_fipr(CPUSH4State *env, uint32_t m, uint32_t n)
+void HELPER(fipr)(CPUSH4State *env, uint32_t m, uint32_t n)
 {
     int bank, i;
     float32 r, p;
@@ -480,7 +480,7 @@ void helper_fipr(CPUSH4State *env, uint32_t m, uint32_t n)
     env->fregs[bank + n + 3] = r;
 }
 
-void helper_ftrv(CPUSH4State *env, uint32_t n)
+void HELPER(ftrv)(CPUSH4State *env, uint32_t n)
 {
     int bank_matrix, bank_vector;
     int i, j;
