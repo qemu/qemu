@@ -25,11 +25,22 @@ class TuxRunS390xTest(TuxRunBaselineTest):
 
     def test_s390(self):
         self.set_machine('s390-ccw-virtio')
+        self.require_accelerator('tcg')
         self.wait_for_shutdown=False
         self.common_tuxrun(kernel_asset=self.ASSET_S390X_KERNEL,
                            rootfs_asset=self.ASSET_S390X_ROOTFS,
                            drive="virtio-blk-ccw",
                            haltmsg="Requesting system halt")
+
+    def test_s390_kvm(self):
+        self.set_machine('s390-ccw-virtio')
+        self.require_accelerator('kvm')
+        self.wait_for_shutdown=False
+        self.common_tuxrun(kernel_asset=self.ASSET_S390X_KERNEL,
+                           rootfs_asset=self.ASSET_S390X_ROOTFS,
+                           drive="virtio-blk-ccw",
+                           haltmsg="Requesting system halt",
+                           accel="kvm")
 
 if __name__ == '__main__':
     TuxRunBaselineTest.main()
