@@ -51,6 +51,10 @@ def log(output, msg):
         print(msg)
 
 
+def format_cmd(cmd):
+    return " ".join(shlex.quote(arg) for arg in cmd)
+
+
 if __name__ == '__main__':
     args = get_args()
 
@@ -98,32 +102,32 @@ if __name__ == '__main__':
     inferior = subprocess.Popen(shlex.split(cmd))
 
     # Now launch gdb with our test and collect the result
-    gdb_cmd = "%s %s" % (args.gdb, args.binary)
+    gdb_cmd = [args.gdb, args.binary]
     if args.gdb_args:
-        gdb_cmd += " %s" % (args.gdb_args)
+        gdb_cmd.extend(shlex.split(args.gdb_args))
+
     # run quietly and ignore .gdbinit
-    gdb_cmd += " -q -n -batch"
+    gdb_cmd.extend(["-q", "-n", "-batch"])
     # disable pagination
-    gdb_cmd += " -ex 'set pagination off'"
+    gdb_cmd.extend(["-ex", "set pagination off"])
     # disable prompts in case of crash
-    gdb_cmd += " -ex 'set confirm off'"
+    gdb_cmd.extend(["-ex", "set confirm off"])
     # connect to remote
-    gdb_cmd += " -ex 'target remote %s'" % (socket_name)
+    gdb_cmd.extend(["-ex", f"target remote {socket_name}"])
     # finally the test script itself
     if args.test:
         if args.test_args:
-            gdb_cmd += f" -ex \"py sys.argv={args.test_args}\""
-        gdb_cmd += " -x %s" % (args.test)
-
+            gdb_cmd.extend(["-ex", f"py sys.argv={args.test_args}"])
+        gdb_cmd.extend(["-x", args.test])
 
     sleep(1)
-    log(output, "GDB CMD: %s" % (gdb_cmd))
+    log(output, "GDB CMD: %s" % (format_cmd(gdb_cmd)))
 
     gdb_env = dict(os.environ)
     gdb_pythonpath = gdb_env.get("PYTHONPATH", "").split(os.pathsep)
     gdb_pythonpath.append(os.path.dirname(os.path.realpath(__file__)))
     gdb_env["PYTHONPATH"] = os.pathsep.join(gdb_pythonpath)
-    result = subprocess.call(gdb_cmd, shell=True, stdout=output, stderr=stderr,
+    result = subprocess.call(gdb_cmd, stdout=output, stderr=stderr,
                              env=gdb_env)
 
     # A result of greater than 128 indicates a fatal signal (likely a
