@@ -36,7 +36,7 @@ struct KVMI8259Class {
     DeviceRealize parent_realize;
 };
 
-static void kvm_pic_get(I8259CommonState *cs)
+static void kvm_i8259_get(I8259CommonState *cs)
 {
     struct kvm_irqchip chip;
     struct kvm_pic_state *kpic;
@@ -69,7 +69,7 @@ static void kvm_pic_get(I8259CommonState *cs)
     cs->elcr_mask = kpic->elcr_mask;
 }
 
-static void kvm_pic_put(I8259CommonState *cs)
+static void kvm_i8259_put(I8259CommonState *cs)
 {
     struct kvm_irqchip chip;
     struct kvm_pic_state *kpic;
@@ -103,14 +103,14 @@ static void kvm_pic_put(I8259CommonState *cs)
     }
 }
 
-static void kvm_pic_reset(DeviceState *dev)
+static void kvm_i8259_reset(DeviceState *dev)
 {
     I8259CommonState *cs = I8259_COMMON(dev);
 
     cs->elcr = 0;
     i8259_common_reset(cs);
 
-    kvm_pic_put(cs);
+    kvm_i8259_put(cs);
 }
 
 static void kvm_pic_set_irq(void *opaque, int irq, int level)
@@ -122,7 +122,7 @@ static void kvm_pic_set_irq(void *opaque, int irq, int level)
     kvm_report_irq_delivered(delivered);
 }
 
-static void kvm_pic_realize(DeviceState *dev, Error **errp)
+static void kvm_i8259_realize(DeviceState *dev, Error **errp)
 {
     I8259CommonState *cs = I8259_COMMON(dev);
     KVMI8259Class *kpc = KVM_I8259_GET_CLASS(dev);
@@ -147,10 +147,11 @@ static void kvm_i8259_class_init(ObjectClass *klass, const void *data)
     I8259CommonClass *k = I8259_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, kvm_pic_reset);
-    device_class_set_parent_realize(dc, kvm_pic_realize, &kpc->parent_realize);
-    k->pre_save   = kvm_pic_get;
-    k->post_load  = kvm_pic_put;
+    device_class_set_legacy_reset(dc, kvm_i8259_reset);
+    device_class_set_parent_realize(dc, kvm_i8259_realize,
+                                    &kpc->parent_realize);
+    k->pre_save   = kvm_i8259_get;
+    k->post_load  = kvm_i8259_put;
 }
 
 static const TypeInfo kvm_i8259_info = {
@@ -161,9 +162,9 @@ static const TypeInfo kvm_i8259_info = {
     .class_size = sizeof(KVMI8259Class),
 };
 
-static void kvm_pic_register_types(void)
+static void kvm_i8259_register_types(void)
 {
     type_register_static(&kvm_i8259_info);
 }
 
-type_init(kvm_pic_register_types)
+type_init(kvm_i8259_register_types)
