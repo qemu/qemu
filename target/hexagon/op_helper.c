@@ -1686,26 +1686,30 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
 void HELPER(ciad)(CPUHexagonState *env, uint32_t mask)
 {
     uint32_t iad;
+    uint32_t was_set;
     HexagonCPU *cpu;
 
     BQL_LOCK_GUARD();
     cpu = env_archcpu(env);
     if (cpu->cfg.hex_def->hex_version >= HEX_VER_V81) {
         iad = hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IAD,
-                                     env->threadId) & ~mask;
-        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad,
+                                     env->threadId);
+        was_set = iad & mask;
+        hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IAD, iad & ~mask,
                                 env->threadId);
     } else {
         uint32_t ipendad =
             hexagon_globalreg_read(cpu->globalregs, HEX_SREG_IPENDAD,
                                    env->threadId);
 
-        fSET_FIELD(ipendad, IPENDAD_IAD,
-                   fGET_FIELD(ipendad, IPENDAD_IAD) & ~mask);
+        iad = fGET_FIELD(ipendad, IPENDAD_IAD);
+        was_set = iad & mask;
+        fSET_FIELD(ipendad, IPENDAD_IAD, iad & ~mask);
         hexagon_globalreg_write(cpu->globalregs, HEX_SREG_IPENDAD,
                                 ipendad, env->threadId);
     }
-    l2vic_clear_interrupt(cpu->l2vic);
+    /* Only an interrupt that was taken, or set with siad, can be cleared */
+    l2vic_clear_interrupt(cpu->l2vic, was_set);
     hex_interrupt_update(env);
 }
 
