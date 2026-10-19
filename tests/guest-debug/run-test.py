@@ -79,27 +79,32 @@ if __name__ == '__main__':
     socket_name = os.path.join(socket_dir.name, "gdbstub.socket")
 
     # Launch QEMU with binary
+    qemu_cmd = [args.qemu]
+    if args.qargs:
+        qemu_cmd.extend(shlex.split(args.qargs))
+
     if "system" in args.qemu:
-        if args.no_suspend:
-            suspend = ''
-        else:
-            suspend = ' -S'
-        cmd = f'{args.qemu} {args.qargs} {args.binary}' \
-            f'{suspend} -gdb unix:path={socket_name},server=on'
+        # for system mode we assume qargs has set-up for binary
+        qemu_cmd.append(args.binary)
+        if not args.no_suspend:
+            qemu_cmd.append("-S")
+        qemu_cmd.extend(["-gdb", f"unix:path={socket_name},server=on"])
         # There is no guest program command-line in system mode.
         assert not args.pargs
     else:
+        qemu_cmd.append("-g")
         if args.no_suspend:
-            suspend = ',suspend=n'
+            qemu_cmd.append(f"{socket_name},suspend=n")
         else:
-            suspend = ''
-        cmd = f'{args.qemu} {args.qargs} -g {socket_name}{suspend}' \
-            f' {args.binary}'
-        if args.pargs:
-            cmd += f' {args.pargs}'
+            qemu_cmd.append(f"{socket_name}")
 
-    log(output, "QEMU CMD: %s" % (cmd))
-    inferior = subprocess.Popen(shlex.split(cmd))
+        # for user mode binary and args always go at the end
+        qemu_cmd.append(args.binary)
+        if args.pargs:
+            qemu_cmd.extend(shlex.split(args.pargs))
+
+    log(output, "QEMU CMD: %s" % (format_cmd(qemu_cmd)))
+    inferior = subprocess.Popen(qemu_cmd)
 
     # Now launch gdb with our test and collect the result
     gdb_cmd = [args.gdb, args.binary]
