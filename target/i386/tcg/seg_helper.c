@@ -1082,7 +1082,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 }
 #endif /* TARGET_X86_64 */
 
-void helper_sysret(CPUX86State *env, int dflag)
+void HELPER(sysret)(CPUX86State *env, int dflag)
 {
     int cpl, selector;
 
@@ -1288,7 +1288,7 @@ void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw)
     do_interrupt_all(env_archcpu(env), intno, 0, 0, 0, is_hw);
 }
 
-void helper_lldt(CPUX86State *env, int selector)
+void HELPER(lldt)(CPUX86State *env, int selector)
 {
     SegmentCache *dt;
     uint32_t e1, e2;
@@ -1342,7 +1342,7 @@ void helper_lldt(CPUX86State *env, int selector)
     env->ldt.selector = selector;
 }
 
-void helper_ltr(CPUX86State *env, int selector)
+void HELPER(ltr)(CPUX86State *env, int selector)
 {
     SegmentCache *dt;
     uint32_t e1, e2;
@@ -1406,7 +1406,7 @@ void helper_ltr(CPUX86State *env, int selector)
 }
 
 /* only works if protected mode and not VM86. seg_reg must be != R_CS */
-void helper_load_seg(CPUX86State *env, int seg_reg, int selector)
+void HELPER(load_seg)(CPUX86State *env, int seg_reg, int selector)
 {
     uint32_t e1, e2;
     int cpl, dpl, rpl;
@@ -1494,7 +1494,7 @@ void helper_load_seg(CPUX86State *env, int seg_reg, int selector)
 }
 
 /* protected mode jump */
-void helper_ljmp_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
+void HELPER(ljmp_protected)(CPUX86State *env, int new_cs, target_ulong new_eip,
                            target_ulong next_eip)
 {
     int gate_cs, type;
@@ -1635,7 +1635,7 @@ void helper_ljmp_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 }
 
 /* real mode call */
-void helper_lcall_real(CPUX86State *env, uint32_t new_cs, uint32_t new_eip,
+void HELPER(lcall_real)(CPUX86State *env, uint32_t new_cs, uint32_t new_eip,
                        int shift, uint32_t next_eip)
 {
     StackAccess sa;
@@ -1662,7 +1662,7 @@ void helper_lcall_real(CPUX86State *env, uint32_t new_cs, uint32_t new_eip,
 }
 
 /* protected mode call */
-void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
+void HELPER(lcall_protected)(CPUX86State *env, int new_cs, target_ulong new_eip,
                             int shift, target_ulong next_eip)
 {
     int new_stack, i;
@@ -1969,7 +1969,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
 }
 
 /* real and vm86 mode iret */
-void helper_iret_real(CPUX86State *env, int shift)
+void HELPER(iret_real)(CPUX86State *env, int shift)
 {
     uint32_t new_cs, new_eip, new_eflags;
     int eflags_mask;
@@ -2261,7 +2261,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     env->regs[R_ESP] = new_esp;
 }
 
-void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
+void HELPER(iret_protected)(CPUX86State *env, int shift, int next_eip)
 {
     int tss_selector, type;
     uint32_t e1, e2;
@@ -2293,12 +2293,12 @@ void helper_iret_protected(CPUX86State *env, int shift, int next_eip)
     env->hflags2 &= ~HF2_NMI_MASK;
 }
 
-void helper_lret_protected(CPUX86State *env, int shift, int addend)
+void HELPER(lret_protected)(CPUX86State *env, int shift, int addend)
 {
     helper_ret_protected(env, shift, 0, addend, GETPC());
 }
 
-void helper_sysenter(CPUX86State *env)
+void HELPER(sysenter)(CPUX86State *env)
 {
     if (env->sysenter_cs == 0) {
         raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
@@ -2331,7 +2331,7 @@ void helper_sysenter(CPUX86State *env)
     env->eip = env->sysenter_eip;
 }
 
-void helper_sysexit(CPUX86State *env, int dflag)
+void HELPER(sysexit)(CPUX86State *env, int dflag)
 {
     int cpl;
 
@@ -2370,7 +2370,7 @@ void helper_sysexit(CPUX86State *env, int dflag)
     env->eip = env->regs[R_EDX];
 }
 
-target_ulong helper_lsl(CPUX86State *env, target_ulong selector1)
+target_ulong HELPER(lsl)(CPUX86State *env, target_ulong selector1)
 {
     unsigned int limit;
     uint32_t e1, e2, selector;
@@ -2418,7 +2418,7 @@ target_ulong helper_lsl(CPUX86State *env, target_ulong selector1)
     return limit;
 }
 
-target_ulong helper_lar(CPUX86State *env, target_ulong selector1)
+target_ulong HELPER(lar)(CPUX86State *env, target_ulong selector1)
 {
     uint32_t e1, e2, selector;
     int rpl, dpl, cpl, type;
@@ -2467,7 +2467,7 @@ target_ulong helper_lar(CPUX86State *env, target_ulong selector1)
     return e2 & 0x00f0ff00;
 }
 
-void helper_verr(CPUX86State *env, target_ulong selector1)
+void HELPER(verr)(CPUX86State *env, target_ulong selector1)
 {
     uint32_t e1, e2, eflags, selector;
     int rpl, dpl, cpl;
@@ -2505,7 +2505,7 @@ void helper_verr(CPUX86State *env, target_ulong selector1)
     CC_OP = CC_OP_EFLAGS;
 }
 
-void helper_verw(CPUX86State *env, target_ulong selector1)
+void HELPER(verw)(CPUX86State *env, target_ulong selector1)
 {
     uint32_t e1, e2, eflags, selector;
     int rpl, dpl, cpl;

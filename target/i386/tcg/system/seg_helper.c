@@ -27,7 +27,7 @@
 #include "tcg/helper-tcg.h"
 #include "../seg_helper.h"
 
-void helper_syscall(CPUX86State *env, int next_eip_addend)
+void HELPER(syscall)(CPUX86State *env, int next_eip_addend)
 {
     int selector;
 
@@ -230,7 +230,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 
 /* check if Port I/O is allowed in TSS */
-void helper_check_io(CPUX86State *env, uint32_t addr, uint32_t size)
+void HELPER(check_io)(CPUX86State *env, uint32_t addr, uint32_t size)
 {
     uintptr_t retaddr = GETPC();
     uint32_t io_offset, val, mask;

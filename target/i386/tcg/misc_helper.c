@@ -38,7 +38,7 @@ void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask)
         (eflags & update_mask) | 0x2;
 }
 
-void helper_into(CPUX86State *env, int next_eip_addend)
+void HELPER(into)(CPUX86State *env, int next_eip_addend)
 {
     int eflags;
 
@@ -48,7 +48,7 @@ void helper_into(CPUX86State *env, int next_eip_addend)
     }
 }
 
-void helper_cpuid(CPUX86State *env)
+void HELPER(cpuid)(CPUX86State *env)
 {
     uint32_t eax, ebx, ecx, edx;
 
@@ -62,7 +62,7 @@ void helper_cpuid(CPUX86State *env)
     env->regs[R_EDX] = edx;
 }
 
-void helper_rdtsc(CPUX86State *env)
+void HELPER(rdtsc)(CPUX86State *env)
 {
     uint64_t val;
 
@@ -76,7 +76,7 @@ void helper_rdtsc(CPUX86State *env)
     env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
-G_NORETURN void helper_rdpmc(CPUX86State *env)
+G_NORETURN void HELPER(rdpmc)(CPUX86State *env)
 {
     if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
         ((env->hflags & HF_CPL_MASK) != 0)) {
@@ -89,20 +89,20 @@ G_NORETURN void helper_rdpmc(CPUX86State *env)
     raise_exception_err(env, EXCP06_ILLOP, 0);
 }
 
-G_NORETURN void helper_pause(CPUX86State *env)
+G_NORETURN void HELPER(pause)(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
     /* Do gen_eob() tasks before going back to the main loop.  */
     do_end_instruction(env);
-    helper_rechecking_single_step(env);
+    HELPER(rechecking_single_step)(env);
 
     /* Just let another CPU run.  */
     cs->exception_index = EXCP_INTERRUPT;
     cpu_loop_exit(cs);
 }
 
-uint64_t helper_rdpkru(CPUX86State *env, uint32_t ecx)
+uint64_t HELPER(rdpkru)(CPUX86State *env, uint32_t ecx)
 {
     if ((env->cr[4] & CR4_PKE_MASK) == 0) {
         raise_exception_err_ra(env, EXCP06_ILLOP, 0, GETPC());
@@ -114,7 +114,7 @@ uint64_t helper_rdpkru(CPUX86State *env, uint32_t ecx)
     return env->pkru;
 }
 
-void helper_wrpkru(CPUX86State *env, uint32_t ecx, uint64_t val)
+void HELPER(wrpkru)(CPUX86State *env, uint32_t ecx, uint64_t val)
 {
     CPUState *cs = env_cpu(env);
 

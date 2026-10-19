@@ -22,7 +22,7 @@
 #include "exec/helper-proto.h"
 #include "helper-tcg.h"
 
-G_NORETURN void helper_single_step(CPUX86State *env)
+G_NORETURN void HELPER(single_step)(CPUX86State *env)
 {
 #ifndef CONFIG_USER_ONLY
     check_hw_breakpoints(env, true);
@@ -31,9 +31,9 @@ G_NORETURN void helper_single_step(CPUX86State *env)
     raise_exception(env, EXCP01_DB);
 }
 
-void helper_rechecking_single_step(CPUX86State *env)
+void HELPER(rechecking_single_step)(CPUX86State *env)
 {
     if ((env->eflags & TF_MASK) != 0) {
-        helper_single_step(env);
+        HELPER(single_step)(env);
     }
 }

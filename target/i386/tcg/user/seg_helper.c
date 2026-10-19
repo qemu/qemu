@@ -26,7 +26,7 @@
 #include "tcg/helper-tcg.h"
 #include "tcg/seg_helper.h"
 
-void helper_syscall(CPUX86State *env, int next_eip_addend)
+void HELPER(syscall)(CPUX86State *env, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
 
@@ -102,6 +102,6 @@ void cpu_x86_load_seg(CPUX86State *env, X86Seg seg_reg, int selector)
                                DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
                                DESC_A_MASK | (dpl << DESC_DPL_SHIFT));
     } else {
-        helper_load_seg(env, seg_reg, selector);
+        HELPER(load_seg)(env, seg_reg, selector);
     }
 }

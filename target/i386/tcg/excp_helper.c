@@ -26,18 +26,18 @@
 #include "helper-tcg.h"
 #include "qemu/plugin.h"
 
-G_NORETURN void helper_raise_interrupt(CPUX86State *env, int intno,
+G_NORETURN void HELPER(raise_interrupt)(CPUX86State *env, int intno,
                                           int next_eip_addend)
 {
     raise_interrupt(env, intno, next_eip_addend);
 }
 
-G_NORETURN void helper_raise_exception(CPUX86State *env, int exception_index)
+G_NORETURN void HELPER(raise_exception)(CPUX86State *env, int exception_index)
 {
     raise_exception(env, exception_index);
 }
 
-G_NORETURN void helper_raise_gpf(CPUX86State *env)
+G_NORETURN void HELPER(raise_gpf)(CPUX86State *env)
 {
     raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
 }
@@ -151,7 +151,7 @@ G_NORETURN void raise_exception_ra(CPUX86State *env, int exception_index,
     raise_interrupt2(env, exception_index, 0, 0, 0, retaddr);
 }
 
-G_NORETURN void helper_icebp(CPUX86State *env)
+G_NORETURN void HELPER(icebp)(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 

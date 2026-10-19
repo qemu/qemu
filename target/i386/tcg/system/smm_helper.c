@@ -178,7 +178,7 @@ void do_smm_enter(X86CPU *cpu)
                        env->cr[0] & ~(CR0_PE_MASK | CR0_EM_MASK | CR0_TS_MASK |
                                       CR0_PG_MASK));
     cpu_x86_update_cr4(env, 0);
-    helper_set_dr(env, 7, 0x00000400);
+    HELPER(set_dr)(env, 7, 0x00000400);
 
     cpu_x86_load_seg_cache(env, R_CS, (env->smbase >> 4) & 0xffff, env->smbase,
                            0xffffffff,
@@ -243,8 +243,8 @@ static void rsm_load_regs_64(CPUX86State *env)
     env->eip = x86_ldq_phys(cs, sm_state + 0x7f78);
     cpu_load_eflags(env, x86_ldl_phys(cs, sm_state + 0x7f70),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
-    helper_set_dr(env, 6, x86_ldl_phys(cs, sm_state + 0x7f68));
-    helper_set_dr(env, 7, x86_ldl_phys(cs, sm_state + 0x7f60));
+    HELPER(set_dr)(env, 6, x86_ldl_phys(cs, sm_state + 0x7f68));
+    HELPER(set_dr)(env, 7, x86_ldl_phys(cs, sm_state + 0x7f60));
 
     cpu_x86_update_cr4(env, x86_ldl_phys(cs, sm_state + 0x7f48));
     cpu_x86_update_cr3(env, x86_ldq_phys(cs, sm_state + 0x7f50));
@@ -291,8 +291,8 @@ static void rsm_load_regs_32(CPUX86State *env)
     env->regs[R_EDX] = x86_ldl_phys(cs, sm_state + 0x7fd8);
     env->regs[R_ECX] = x86_ldl_phys(cs, sm_state + 0x7fd4);
     env->regs[R_EAX] = x86_ldl_phys(cs, sm_state + 0x7fd0);
-    helper_set_dr(env, 6, x86_ldl_phys(cs, sm_state + 0x7fcc));
-    helper_set_dr(env, 7, x86_ldl_phys(cs, sm_state + 0x7fc8));
+    HELPER(set_dr)(env, 6, x86_ldl_phys(cs, sm_state + 0x7fcc));
+    HELPER(set_dr)(env, 7, x86_ldl_phys(cs, sm_state + 0x7fc8));
 
     env->tr.selector = x86_ldl_phys(cs, sm_state + 0x7fc4) & 0xffff;
     env->tr.base = x86_ldl_phys(cs, sm_state + 0x7f64);
@@ -332,7 +332,7 @@ static void rsm_load_regs_32(CPUX86State *env)
     }
 }
 
-void helper_rsm(CPUX86State *env)
+void HELPER(rsm)(CPUX86State *env)
 {
     X86CPU *cpu = env_archcpu(env);
 

@@ -153,7 +153,7 @@ static inline bool virtual_gif_set(CPUX86State *env)
     return !virtual_gif_enabled(env) || (env->int_ctl & V_GIF_MASK);
 }
 
-void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
+void HELPER(vmrun)(CPUX86State *env, int aflag, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
     X86CPU *cpu = env_archcpu(env);
@@ -469,13 +469,13 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
     }
 }
 
-void helper_vmmcall(CPUX86State *env)
+void HELPER(vmmcall)(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMMCALL, 0, GETPC());
     raise_exception(env, EXCP06_ILLOP);
 }
 
-void helper_vmload(CPUX86State *env, int aflag)
+void HELPER(vmload)(CPUX86State *env, int aflag)
 {
     int mmu_idx = MMU_PHYS_IDX;
     target_ulong addr;
@@ -539,7 +539,7 @@ void helper_vmload(CPUX86State *env, int aflag)
                              mmu_idx, 0);
 }
 
-void helper_vmsave(CPUX86State *env, int aflag)
+void HELPER(vmsave)(CPUX86State *env, int aflag)
 {
     int mmu_idx = MMU_PHYS_IDX;
     target_ulong addr;
@@ -590,7 +590,7 @@ void helper_vmsave(CPUX86State *env, int aflag)
                       env->sysenter_eip, mmu_idx, 0);
 }
 
-void helper_stgi(CPUX86State *env)
+void HELPER(stgi)(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_STGI, 0, GETPC());
 
@@ -602,7 +602,7 @@ void helper_stgi(CPUX86State *env)
     }
 }
 
-void helper_clgi(CPUX86State *env)
+void HELPER(clgi)(CPUX86State *env)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_CLGI, 0, GETPC());
 
@@ -701,12 +701,12 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
     cpu_vmexit(env, type, param, retaddr);
 }
 
-void helper_svm_check_intercept(CPUX86State *env, uint32_t type)
+void HELPER(svm_check_intercept)(CPUX86State *env, uint32_t type)
 {
     cpu_svm_check_intercept_param(env, type, 0, GETPC());
 }
 
-void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
+void HELPER(svm_check_io)(CPUX86State *env, uint32_t port, uint32_t param,
                          uint32_t next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
