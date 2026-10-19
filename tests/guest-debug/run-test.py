@@ -26,8 +26,7 @@ def get_args():
     parser.add_argument("--qargs", help="Qemu arguments for test")
     parser.add_argument("--pargs", help="Program arguments for test")
     parser.add_argument("--kargs", help="Kernel args to --append")
-    parser.add_argument("--binary", help="Binary to debug",
-                        required=True)
+    parser.add_argument("--binary", help="Binary to debug")
     parser.add_argument("--symbols", help="Symbol file for binary to debug")
     parser.add_argument("--test", help="GDB test script")
     parser.add_argument('test_args', nargs='*',
@@ -86,8 +85,10 @@ if __name__ == '__main__':
         qemu_cmd.extend(shlex.split(args.qargs))
 
     if "system" in args.qemu:
-        # for system mode we assume qargs has set-up for binary
-        qemu_cmd.append(args.binary)
+        # for system mode we assume qargs has set-up for binary if
+        # indeed we have set one.
+        if args.binary:
+            qemu_cmd.append(args.binary)
         if not args.no_suspend:
             qemu_cmd.append("-S")
         qemu_cmd.extend(["-gdb", f"unix:path={socket_name},server=on"])
@@ -116,7 +117,10 @@ if __name__ == '__main__':
     inferior = subprocess.Popen(qemu_cmd)
 
     # Now launch gdb with our test and collect the result
-    gdb_cmd = [args.gdb, args.binary]
+    gdb_cmd = [args.gdb]
+
+    if args.binary:
+        gdb_cmd.append(args.binary)
     if args.gdb_args:
         gdb_cmd.extend(shlex.split(args.gdb_args))
 
