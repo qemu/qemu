@@ -68,6 +68,7 @@ tests += {
   'overflow.c': {'cflags': cflags, 'exe_name': 'hex-overflow'},
   'preg_alias.c': {'cflags': cflags},
   'dual_stores.c': {'cflags': cflags},
+  'framekey.c': {'cflags': cflags},
   'multi_result.c': {'cflags': cflags},
   'mem_noshuf.c': {'cflags': cflags},
   'mem_noshuf_exception.c': {'cflags': cflags},

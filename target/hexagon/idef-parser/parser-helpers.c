@@ -1989,7 +1989,7 @@ HexValue gen_rvalue_fscr(Context *c, YYLTYPE *locp, HexValue *value)
     *value = gen_rvalue_extend(c, locp, value);
     OUT(c, locp, "gen_read_reg(", &frame_key, ", HEX_REG_FRAMEKEY);\n");
     OUT(c, locp, "tcg_gen_concat_i32_i64(",
-        &key, ", ", &frame_key, ", ", &frame_key, ");\n");
+        &key, ", tcg_constant_tl(0), ", &frame_key, ");\n");
     OUT(c, locp, "tcg_gen_xor_i64(", &res, ", ", value, ", ", &key, ");\n");
     return res;
 }
