@@ -150,7 +150,8 @@ const char *rx_crname(uint8_t cr);
 const char *rx_exception_name(int excp);
 void rx_cpu_do_interrupt(CPUState *cpu);
 bool rx_cpu_exec_interrupt(CPUState *cpu, int int_req);
-hwaddr rx_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
+bool rx_cpu_translate_for_debug(CPUState *cpu, vaddr addr,
+                                TranslateForDebugResult *result);
 void rx_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 int rx_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int rx_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
