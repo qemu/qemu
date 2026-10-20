@@ -79,7 +79,8 @@ struct TriCoreCPUClass {
     ResettablePhases parent_phases;
 };
 
-hwaddr tricore_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
+bool tricore_cpu_translate_for_debug(CPUState *cpu, vaddr addr,
+                                     TranslateForDebugResult *result);
 void tricore_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
 FIELD(PCXI, PCPN_13, 24, 8)
