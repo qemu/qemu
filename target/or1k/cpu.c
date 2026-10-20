@@ -247,7 +247,7 @@ static void openrisc_any_initfn(Object *obj)
 
 static const struct SysemuCPUOps openrisc_sysemu_ops = {
     .has_work = openrisc_cpu_has_work,
-    .get_phys_addr_debug = openrisc_cpu_get_phys_addr_debug,
+    .translate_for_debug = openrisc_cpu_translate_for_debug,
 };
 #endif
 
