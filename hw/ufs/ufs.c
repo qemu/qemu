@@ -2451,10 +2451,16 @@ void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
     UfsHc *u = req->hc;
     assert(req->state == UFS_REQUEST_RUNNING);
 
-    if (req_result == UFS_REQUEST_SUCCESS) {
+    switch (req_result) {
+    case UFS_REQUEST_SUCCESS:
         req->utrd.header.dword_2 = cpu_to_le32(UFS_OCS_SUCCESS);
-    } else {
+        break;
+    case UFS_REQUEST_MISMATCH_DATA_BUF:
+        req->utrd.header.dword_2 = cpu_to_le32(UFS_OCS_MISMATCH_DATA_BUF_SIZE);
+        break;
+    default:
         req->utrd.header.dword_2 = cpu_to_le32(UFS_OCS_INVALID_CMD_TABLE_ATTR);
+        break;
     }
 
     req->state = UFS_REQUEST_COMPLETE;
