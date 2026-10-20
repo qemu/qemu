@@ -859,6 +859,142 @@ static void ufstest_sync_cache(void *obj, void *data, QGuestAllocator *alloc)
     ufs_exit(ufs, alloc);
 }
 
+static void ufstest_long_prdt(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QUfs *ufs = obj;
+    const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
+        REQUEST_SENSE,
+    };
+    /* One block at LBA 0 and at LBA 1 */
+    const uint8_t write_lba0_cdb[UFS_CDB_SIZE] = {
+        WRITE_10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+    };
+    const uint8_t read_lba0_cdb[UFS_CDB_SIZE] = {
+        READ_10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+    };
+    const uint8_t read_lba1_cdb[UFS_CDB_SIZE] = {
+        READ_10, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00,
+    };
+    /* Allocation length 36 */
+    const uint8_t inquiry_cdb[UFS_CDB_SIZE] = {
+        INQUIRY, 0x00, 0x00, 0x00, 0x24, 0x00,
+    };
+    uint8_t buf[2 * 4096];
+    uint8_t zero_buf[4096] = { 0 };
+    uint8_t write_buf[2 * 4096];
+    UtpUpiuRsp rsp_upiu, write_rsp_upiu;
+    enum UtpOcsCodes ocs;
+
+    ufs_init(ufs, alloc);
+    ocs = ufs_send_scsi_command(ufs, 1, request_sense_cdb, NULL, 0, buf, 4096,
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+
+    /* A one-block WRITE with a two-block PRDT writes one block */
+    memset(write_buf, 0xa5, sizeof(write_buf));
+    ocs = ufs_send_scsi_command(ufs, 1, write_lba0_cdb, write_buf,
+                                sizeof(write_buf), NULL, 0, &write_rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(write_rsp_upiu.header.scsi_status, ==, GOOD);
+
+    ocs = ufs_send_scsi_command(ufs, 1, read_lba1_cdb, NULL, 0, buf, 4096,
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, GOOD);
+    g_assert_cmpmem(buf, 4096, zero_buf, sizeof(zero_buf));
+
+    g_assert_cmpuint(write_rsp_upiu.header.flags, ==, UFS_UPIU_FLAG_UNDERFLOW);
+    g_assert_cmpuint(be32_to_cpu(write_rsp_upiu.sr.residual_transfer_count),
+                     ==, 4096);
+
+    /* A one-block READ with a two-block PRDT reads one block */
+    ocs = ufs_send_scsi_command(ufs, 1, read_lba0_cdb, NULL, 0, buf,
+                                sizeof(buf), &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, GOOD);
+    g_assert_cmpuint(rsp_upiu.header.flags, ==, UFS_UPIU_FLAG_UNDERFLOW);
+    g_assert_cmpuint(be32_to_cpu(rsp_upiu.sr.residual_transfer_count), ==,
+                     4096);
+    g_assert_cmpmem(buf, 4096, write_buf, 4096);
+
+    /* A 36-byte INQUIRY with a 4 KiB PRDT reports the rest as a residual */
+    ocs = ufs_send_scsi_command(ufs, 1, inquiry_cdb, NULL, 0, buf, 4096,
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, GOOD);
+    g_assert_cmpuint(rsp_upiu.header.flags, ==, UFS_UPIU_FLAG_UNDERFLOW);
+    g_assert_cmpuint(be32_to_cpu(rsp_upiu.sr.residual_transfer_count), ==,
+                     4096 - 36);
+
+    ufs_exit(ufs, alloc);
+}
+
+static void ufstest_short_prdt(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QUfs *ufs = obj;
+    const uint8_t request_sense_cdb[UFS_CDB_SIZE] = {
+        REQUEST_SENSE,
+    };
+    /* Two blocks at LBA 2, and one */
+    const uint8_t write_2_cdb[UFS_CDB_SIZE] = {
+        WRITE_10, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x02, 0x00,
+    };
+    const uint8_t read_2_cdb[UFS_CDB_SIZE] = {
+        READ_10, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x02, 0x00,
+    };
+    const uint8_t write_1_cdb[UFS_CDB_SIZE] = {
+        WRITE_10, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x00,
+    };
+    const uint8_t read_1_cdb[UFS_CDB_SIZE] = {
+        READ_10, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x00,
+    };
+    /* Allocation length 36 */
+    const uint8_t inquiry_cdb[UFS_CDB_SIZE] = {
+        INQUIRY, 0x00, 0x00, 0x00, 0x24, 0x00,
+    };
+    uint8_t buf[4096];
+    uint8_t zero_buf[4096] = { 0 };
+    uint8_t write_buf[4096];
+    UtpUpiuRsp rsp_upiu;
+    enum UtpOcsCodes ocs;
+
+    ufs_init(ufs, alloc);
+    ocs = ufs_send_scsi_command(ufs, 1, request_sense_cdb, NULL, 0, buf, 4096,
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    memset(write_buf, 0x5a, sizeof(write_buf));
+
+    /* A PRDT that describes less than the command moves fails */
+    ocs = ufs_send_scsi_command(ufs, 1, write_2_cdb, write_buf,
+                                sizeof(write_buf), NULL, 0, &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_MISMATCH_DATA_BUF_SIZE);
+    ocs = ufs_send_scsi_command(ufs, 1, read_2_cdb, NULL, 0, buf, sizeof(buf),
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_MISMATCH_DATA_BUF_SIZE);
+    ocs = ufs_send_scsi_command(ufs, 1, inquiry_cdb, NULL, 0, buf, 16,
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_MISMATCH_DATA_BUF_SIZE);
+
+    /* The failed WRITE wrote nothing */
+    ocs = ufs_send_scsi_command(ufs, 1, read_1_cdb, NULL, 0, buf, sizeof(buf),
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, GOOD);
+    g_assert_cmpmem(buf, sizeof(buf), zero_buf, sizeof(zero_buf));
+
+    /* A matching PRDT still works */
+    ocs = ufs_send_scsi_command(ufs, 1, write_1_cdb, write_buf,
+                                sizeof(write_buf), NULL, 0, &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpuint(rsp_upiu.header.scsi_status, ==, GOOD);
+    ocs = ufs_send_scsi_command(ufs, 1, read_1_cdb, NULL, 0, buf, sizeof(buf),
+                                &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+    g_assert_cmpmem(buf, sizeof(buf), write_buf, sizeof(write_buf));
+
+    ufs_exit(ufs, alloc);
+}
+
 static void ufstest_mcq_cq_wraparound(void *obj, void *data,
                                       QGuestAllocator *alloc)
 {
@@ -1577,7 +1713,8 @@ static void ufstest_hid(void *obj, void *data, QGuestAllocator *alloc)
         /* WRITE(10) to LBA 0, transfer length 8 sectors = 1 fragment */
         WRITE_10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00
     };
-    uint8_t write_buf[4096];
+    /* The PRDT must hold the eight blocks that the WRITE(10) moves */
+    uint8_t write_buf[8 * 4096];
     uint8_t read_buf[4096];
     int i;
 
@@ -1812,6 +1949,8 @@ static void ufs_register_nodes(void)
     qos_add_test("mcq-read-write", "ufs", ufstest_read_write, &mcq_test_opts);
     qos_add_test("no-prdt", "ufs", ufstest_no_prdt, &io_test_opts);
     qos_add_test("sync-cache", "ufs", ufstest_sync_cache, &io_test_opts);
+    qos_add_test("long-prdt", "ufs", ufstest_long_prdt, &io_test_opts);
+    qos_add_test("short-prdt", "ufs", ufstest_short_prdt, &io_test_opts);
     qos_add_test("mcq-cq-wraparound", "ufs", ufstest_mcq_cq_wraparound,
                  &mcq_test_opts);
     qos_add_test("query-flag", "ufs", ufstest_query_flag_request,
