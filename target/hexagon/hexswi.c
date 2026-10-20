@@ -568,7 +568,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
         struct stat st_buf;
         uint8_t *st_bufptr = (uint8_t *)&sys_stat;
         int rc, err = 0;
-        char filename[BUFSIZ];
+        char *filename;
         target_ulong physical_filename_addr;
         target_ulong statBufferAddr;
         if (get_user_u32(physical_filename_addr, swi_info) ||
@@ -577,15 +577,14 @@ static void sim_handle_trap0(CPUHexagonState *env)
         }
 
         if (what_swi == HEX_SYS_STAT) {
-            int i = 0;
-            do {
-                if (get_user_u8(filename[i], physical_filename_addr + i)) {
-                    goto do_fault;
-                }
-                i++;
-            } while ((i < BUFSIZ) && filename[i - 1]);
+            filename = lock_user_string(physical_filename_addr);
+            if (!filename) {
+                semi_cb(cs, -1, EFAULT);
+                break;
+            }
             rc = stat(filename, &st_buf);
             err = errno;
+            unlock_user(filename, physical_filename_addr, 0);
         } else {
             int fd = physical_filename_addr;
             GuestFD *gf = get_guestfd(fd);
