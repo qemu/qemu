@@ -601,8 +601,11 @@ decode_set_slot_number(Packet *pkt)
     for (i = 0, slot = 3; i < pkt->num_insns; i++) {
         SlotMask valid_slots = get_valid_slots(pkt, i);
 
-        while (!(valid_slots & (1 << slot))) {
+        while (slot >= 0 && !(valid_slots & (1 << slot))) {
             slot--;
+        }
+        if (slot < 0) {
+            return false;
         }
         pkt->insn[i].slot = slot;
         if (slot) {
