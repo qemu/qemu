@@ -69,10 +69,12 @@ static void stm32f2xx_adc_reset(DeviceState *dev)
 
 static uint32_t stm32f2xx_adc_generate_value(STM32F2XXADCState *s)
 {
+    unsigned resolution = (s->adc_cr1 & ADC_CR1_RES) >> 24;
+
     /* Attempts to fake some ADC values */
     s->adc_dr = s->adc_dr + 7;
 
-    switch ((s->adc_cr1 & ADC_CR1_RES) >> 24) {
+    switch (resolution) {
     case 0:
         /* 12-bit */
         s->adc_dr &= 0xFFF;
@@ -91,7 +93,13 @@ static uint32_t stm32f2xx_adc_generate_value(STM32F2XXADCState *s)
     }
 
     if (s->adc_cr2 & ADC_CR2_ALIGN) {
-        return (s->adc_dr << 1) & 0xFFF0;
+        /*
+         * Results are left-aligned within a half-word, except for
+         * 6-bit results, which are left aligned within a byte.
+         */
+        unsigned shift = resolution == 3 ? 2 : (4 + 2 * resolution);
+
+        return s->adc_dr << shift;
     } else {
         return s->adc_dr;
     }
