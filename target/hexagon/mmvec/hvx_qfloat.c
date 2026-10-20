@@ -721,6 +721,11 @@ static int64_t legacy_round_n(FloatParts64 parts, int exp, int frac, int adj,
     }
 
     if (midpoint) {
+        /*
+         * The legacy add/multiply result is at most one bit above exp,
+         * making shift at least 41.
+         */
+        g_assert(shift >= 41);
         threshold = UINT64_C(3) << (shift - 3);
         if (low <= threshold) {
             return base + 1;
