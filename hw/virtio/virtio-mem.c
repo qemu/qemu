@@ -846,7 +846,7 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     if ((nb_numa_nodes && vmem->node >= nb_numa_nodes) ||
         (!nb_numa_nodes && vmem->node)) {
         error_setg(errp, "'%s' property has value '%" PRIu32 "', which exceeds"
-                   "the number of numa nodes: %d", VIRTIO_MEM_NODE_PROP,
+                   " the number of numa nodes: %d", VIRTIO_MEM_NODE_PROP,
                    vmem->node, nb_numa_nodes ? nb_numa_nodes : 1);
         return;
     }
