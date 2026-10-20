@@ -28,48 +28,6 @@
 
 #ifndef CONFIG_USER_ONLY
 
-static bool hexagon_read_memory_small(CPUHexagonState *env, target_ulong addr,
-                                      int byte_count, uint64_t *data,
-                                      int mmu_idx, uintptr_t retaddr)
- {
-    /* handle small sizes */
-    switch (byte_count) {
-    case 1:
-        *data = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    case 2:
-        *data = cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    case 4:
-        *data = cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    case 8:
-        *data = cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    default:
-        /* larger request, handle elsewhere */
-        return false;
-    }
-}
-
-void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
-                         void *retptr, uintptr_t retaddr)
-{
-    BQL_LOCK_GUARD();
-    CPUState *cs = env_cpu(env);
-    unsigned mmu_idx = cpu_mmu_index(cs, false);
-    uint64_t data;
-    if (hexagon_read_memory_small(env, vaddr, size, &data, mmu_idx, retaddr)) {
-        stn_he_p(retptr, size, data);
-    } else {
-        cpu_abort(cs, "%s: ERROR: bad size = %d!\n", __func__, size);
-    }
-}
-
 static bool hexagon_write_memory_small(CPUHexagonState *env, target_ulong addr,
                                        int byte_count, uint64_t data,
                                        int mmu_idx, uintptr_t retaddr)
@@ -117,11 +75,13 @@ static inline uint32_t page_start(uint32_t addr)
 void hexagon_peek_memory_range(CPUHexagonState *env, uint32_t start_addr,
                                uint32_t length, uintptr_t retaddr)
 {
-    unsigned int warm;
+    CPUState *cs = env_cpu(env);
+    unsigned int mmu_idx = cpu_mmu_index(cs, false);
     uint32_t first = page_start(start_addr);
     uint32_t last = page_start(start_addr + length - 1);
+
     for (uint32_t page = first; page <= last; page += TARGET_PAGE_SIZE) {
-        hexagon_read_memory(env, page, 1, &warm, retaddr);
+        cpu_ldub_mmuidx_ra(env, page, mmu_idx, retaddr);
     }
 }
 
