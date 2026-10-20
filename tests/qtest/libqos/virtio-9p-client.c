@@ -287,12 +287,50 @@ void v9fs_req_free(P9Req *req)
     g_free(req);
 }
 
+/* size[4] Rerror tag[2] ename[s] errno[4] */
+void v9fs_rerror(P9Req *req, uint32_t *err)
+{
+    g_autofree char *ename = NULL;
+
+    v9fs_req_recv(req, P9_RERROR);
+    v9fs_string_read(req, NULL, &ename);
+    v9fs_uint32_read(req, err);
+    v9fs_req_free(req);
+}
+
 /* size[4] Rlerror tag[2] ecode[4] */
 void v9fs_rlerror(P9Req *req, uint32_t *err)
 {
     v9fs_req_recv(req, P9_RLERROR);
     v9fs_uint32_read(req, err);
     v9fs_req_free(req);
+}
+
+/*
+ * Asserts for caller that the request's response returned with the passed,
+ * expected error code (in a protocol version agnostic manner).
+ */
+static void v9fs_req_check_err(P9Req *req, uint32_t expect_err)
+{
+    P9Hdr hdr;
+    uint32_t err;
+
+    /* peek the response header */
+    v9fs_memread(req, &hdr, sizeof(hdr));
+    /* reset offset after peek, so v9fs_rlerror() etc. read correctly */
+    req->r_off = 0;
+
+    if (hdr.id == P9_RLERROR) {
+        v9fs_rlerror(req, &err);
+    } else if (hdr.id == P9_RERROR) {
+        v9fs_rerror(req, &err);
+    } else {
+        g_printerr("Received response %d (%s) instead of an error response\n",
+                   hdr.id, rmessage_name(hdr.id));
+        v9fs_req_free(req);
+        g_assert_not_reached();
+    }
+    g_assert_cmpint(err, ==, expect_err);
 }
 
 /* size[4] Tversion tag[2] msize[4] version[s] */
@@ -327,6 +365,15 @@ TVersionRes v9fs_tversion(TVersionOpt opt)
     v9fs_uint32_write(req, opt.msize);
     v9fs_string_write(req, opt.version);
     v9fs_req_send(req);
+
+    /* store session's protocol version to client object */
+    if (!strcmp(opt.version, "9P2000.u")) {
+        opt.client->proto_version = V9FS_PROTO_2000U;
+    } else if (!strcmp(opt.version, "9P2000.L")) {
+        opt.client->proto_version = V9FS_PROTO_2000L;
+    } else {
+        g_assert_not_reached();
+    }
 
     if (!opt.requestOnly) {
         v9fs_req_wait_for_reply(req, NULL);
@@ -374,7 +421,11 @@ TAttachRes v9fs_tattach(TAttachOpt opt)
     /* expecting either Rattach or Rlerror, but obviously not both */
     g_assert(!opt.expectErr || !opt.rattach.qid);
 
-    if (!opt.requestOnly) {
+    /*
+     * convenience feature: send an implicit Tversion request, however only if
+     * Tversion has not been issued for this session before.
+     */
+    if (!opt.requestOnly && opt.client->proto_version == 0) {
         v9fs_tversion((TVersionOpt) { .client = opt.client });
     }
 
@@ -1225,5 +1276,165 @@ TXattrCreateRes v9fs_txattrcreate(TXattrCreateOpt opt)
 void v9fs_rxattrcreate(P9Req *req)
 {
     v9fs_req_recv(req, P9_RXATTRCREATE);
+    v9fs_req_free(req);
+}
+
+/* size[4] Txattrwalk tag[2] fid[4] newfid[4] name[s] */
+TXattrWalkRes v9fs_txattrwalk(TXattrWalkOpt opt)
+{
+    P9Req *req;
+    uint32_t err;
+    uint32_t body_size = 4 + 4;
+    uint16_t string_size;
+    uint64_t xattr_size = 0;
+
+    g_assert(opt.client);
+    g_assert(opt.name);
+
+    string_size = v9fs_string_size(opt.name);
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(opt.client, body_size, P9_TXATTRWALK, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint32_write(req, opt.newfid);
+    v9fs_string_write(req, opt.name);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rxattrwalk(req, &xattr_size);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TXattrWalkRes) { .req = req, xattr_size };
+}
+
+/* size[4] Rxattrwalk tag[2] size[8] */
+void v9fs_rxattrwalk(P9Req *req, uint64_t *size)
+{
+    v9fs_req_recv(req, P9_RXATTRWALK);
+    if (size) {
+        v9fs_uint64_read(req, size);
+    } else {
+        v9fs_memskip(req, 8);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tstat tag[2] fid[4] */
+TStatRes v9fs_tstat(TStatOpt opt)
+{
+    P9Req *req;
+
+    g_assert(opt.client);
+    /* expecting either Rstat or an error response, but obviously not both */
+    g_assert(!opt.expectErr || !opt.rstat.stat);
+
+    req = v9fs_req_init(opt.client, 4, P9_TSTAT, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_req_check_err(req, opt.expectErr);
+        } else {
+            v9fs_rstat(req, opt.rstat.stat);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TStatRes) { .req = req };
+}
+
+/* size[4] Rstat tag[2] stat[n] */
+void v9fs_rstat(P9Req *req, v9fs_stat *stat)
+{
+    v9fs_req_recv(req, P9_RSTAT);
+
+    v9fs_memskip(req, 2); /* protocol quirk: size appears twice */
+    v9fs_uint16_read(req, &stat->size);
+    v9fs_uint16_read(req, &stat->type);
+    v9fs_uint32_read(req, &stat->dev);
+    v9fs_memread(req, &stat->qid, 13);
+    v9fs_uint32_read(req, &stat->mode);
+    v9fs_uint32_read(req, &stat->atime);
+    v9fs_uint32_read(req, &stat->mtime);
+    v9fs_uint64_read(req, &stat->length);
+    v9fs_string_read(req, NULL, &stat->name);
+    v9fs_string_read(req, NULL, &stat->uid);
+    v9fs_string_read(req, NULL, &stat->gid);
+    v9fs_string_read(req, NULL, &stat->muid);
+    v9fs_string_read(req, NULL, &stat->extension);
+    v9fs_uint32_read(req, &stat->n_uid);
+    v9fs_uint32_read(req, &stat->n_gid);
+    v9fs_uint32_read(req, &stat->n_muid);
+
+    v9fs_req_free(req);
+}
+
+/* size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s] */
+TCreateRes v9fs_tcreate(TCreateOpt opt)
+{
+    P9Req *req;
+    uint8_t mode = opt.mode;
+    uint32_t body_size = 4 + 4 + 1;
+    uint16_t string_size;
+
+    g_assert(opt.client);
+    /* expecting either Rcreate or an error response, but obviously not both */
+    g_assert(!opt.expectErr || !(opt.rcreate.qid || opt.rcreate.iounit));
+
+    if (!opt.perm) {
+        opt.perm = 0644;
+    }
+    if (!opt.extension) {
+        opt.extension = "";
+    }
+
+    string_size = v9fs_string_size(opt.name) +
+                  v9fs_string_size(opt.extension);
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(opt.client, body_size, P9_TCREATE, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_string_write(req, opt.name);
+    v9fs_uint32_write(req, opt.perm);
+    v9fs_memwrite(req, &mode, 1);
+    v9fs_string_write(req, opt.extension);
+    v9fs_req_send(req);
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_req_check_err(req, opt.expectErr);
+        } else {
+            v9fs_rcreate(req, opt.rcreate.qid, opt.rcreate.iounit);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TCreateRes) { .req = req };
+}
+
+/* size[4] Rcreate tag[2] qid[13] iounit[4] */
+void v9fs_rcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
+{
+    v9fs_req_recv(req, P9_RCREATE);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    if (iounit) {
+        v9fs_uint32_read(req, iounit);
+    }
     v9fs_req_free(req);
 }

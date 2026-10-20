@@ -2582,6 +2582,7 @@ F: hw/9pfs/
 X: hw/9pfs/xen-9p*
 F: fsdev/
 F: tests/qtest/virtio-9p-test.c
+F: tests/qtest/virtio-9p-race-test.c
 F: tests/qtest/libqos/virtio-9p*
 T: git https://github.com/cschoenebeck/qemu.git 9p.next
 
