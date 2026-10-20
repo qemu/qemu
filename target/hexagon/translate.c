@@ -649,6 +649,7 @@ static void clear_pkt_ctx(DisasContext *ctx)
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+    ctx->implicit_usr_write = false;
 #ifndef CONFIG_USER_ONLY
     ctx->greg_log_idx = 0;
     bitmap_zero(ctx->gregs_written, NUM_GREGS);
