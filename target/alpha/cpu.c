@@ -242,7 +242,7 @@ static void alpha_cpu_initfn(Object *obj)
 
 static const struct SysemuCPUOps alpha_sysemu_ops = {
     .has_work = alpha_cpu_has_work,
-    .get_phys_addr_debug = alpha_cpu_get_phys_addr_debug,
+    .translate_for_debug = alpha_cpu_translate_for_debug,
 };
 #endif
 

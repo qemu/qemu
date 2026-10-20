@@ -317,14 +317,25 @@ static int get_physical_address(CPUAlphaState *env, vaddr addr,
     return ret;
 }
 
-hwaddr alpha_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
+bool alpha_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                   TranslateForDebugResult *result)
 {
     hwaddr phys;
     int prot, fail;
 
     fail = get_physical_address(cpu_env(cs), addr, 0, 0, &phys, &prot);
+    if (fail >= 0) {
+        return false;
+    }
+
     phys |= addr & ~TARGET_PAGE_MASK;
-    return (fail >= 0 ? -1 : phys);
+
+    *result = (TranslateForDebugResult) {
+        .physaddr = phys,
+        .lg_page_size = TARGET_PAGE_BITS,
+        .attrs.debug = 1,
+    };
+    return true;
 }
 
 bool alpha_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
