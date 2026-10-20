@@ -227,6 +227,41 @@ static MemTxResult ufs_dma_read_prdt(UfsRequest *req)
     return MEMTX_OK;
 }
 
+/*
+ * Fit the SG list built from the PRDT to the len bytes that the command of
+ * req moves: keep only the first len bytes of a longer list. Return false if
+ * the PRDT describes fewer than len bytes.
+ */
+bool ufs_fit_data_buffer(UfsRequest *req, uint64_t len)
+{
+    QEMUSGList *prdt_sg = req->sg;
+    uint64_t prdt_size = prdt_sg ? prdt_sg->size : 0;
+    QEMUSGList *sg;
+    int i;
+
+    if (prdt_size < len) {
+        trace_ufs_err_mismatch_data_buf(req->slot,
+                                        req->req_upiu.header.task_tag, len,
+                                        prdt_size);
+        return false;
+    }
+    if (prdt_size == len) {
+        return true;
+    }
+
+    sg = g_new0(QEMUSGList, 1);
+    qemu_sglist_init(sg, prdt_sg->dev, prdt_sg->nsg, prdt_sg->as);
+    for (i = 0; i < prdt_sg->nsg && sg->size < len; i++) {
+        qemu_sglist_add(sg, prdt_sg->sg[i].base,
+                        MIN(prdt_sg->sg[i].len, len - sg->size));
+    }
+    qemu_sglist_destroy(prdt_sg);
+    g_free(prdt_sg);
+    req->sg = sg;
+    req->data_len = sg->size;
+    return true;
+}
+
 static MemTxResult ufs_dma_read_upiu(UfsRequest *req)
 {
     MemTxResult ret;

@@ -436,15 +436,19 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
                             req);
 
     /*
-     * A command that moves data needs a PRDT. Without one there is no SG
-     * list, and the SCSI layer would call the transfer_data callback, which
-     * ufs-lu does not set. Fail the request with OCS MISMATCH DATA BUFFER
-     * SIZE, as virtio-scsi fails a buffer that does not match the command.
-     * A request that reports a pending unit attention instead moves no data;
-     * its sense is already set, so let it through and the guest sees the UA.
+     * scsi-hd moves as many bytes as the SG list holds, and without an SG
+     * list it would call the transfer_data callback, which ufs-lu does not
+     * set. A UFS device moves what the CDB asks for, so fit the PRDT to the
+     * transfer length, and fail a request whose PRDT describes less, a
+     * missing PRDT included, with OCS MISMATCH DATA BUFFER SIZE, as
+     * virtio-scsi fails a buffer that does not match the command. The
+     * response reports the rest of the Expected Data Transfer Length as a
+     * residual. A request that reports a pending unit attention moves no
+     * data; its sense is already set, so let it through and the guest sees
+     * the UA.
      */
-    if (scsi_req->cmd.mode != SCSI_XFER_NONE && !req->sg &&
-        !scsi_req->sense_len) {
+    if (!scsi_req->sense_len &&
+        !ufs_fit_data_buffer(req, scsi_req->cmd.xfer)) {
         scsi_req_unref(scsi_req);
         return UFS_REQUEST_MISMATCH_DATA_BUF;
     }

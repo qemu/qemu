@@ -22,6 +22,7 @@ ufs_hce_reset(void) "HCE 1 -> 0 reset: cancelling BHs, resetting MCQ and request
 ufs_err_dma_read_utrd(uint32_t slot, uint64_t addr) "failed to read utrd. UTRLDBR slot %"PRIu32", UTRD dma addr %"PRIu64""
 ufs_err_dma_read_req_upiu(uint32_t slot, uint64_t addr) "failed to read req upiu. UTRLDBR slot %"PRIu32", request upiu addr %"PRIu64""
 ufs_err_dma_read_prdt(uint32_t slot, uint64_t addr) "failed to read prdt. UTRLDBR slot %"PRIu32", prdt addr %"PRIu64""
+ufs_err_mismatch_data_buf(uint32_t slot, uint8_t task_tag, uint64_t xfer, uint64_t prdt_size) "slot %"PRIu32", task tag %"PRIu8", transfer length %"PRIu64", PRDT %"PRIu64""
 ufs_err_dma_read_sq(uint8_t sqid, uint64_t addr) "failed to read sq entry. sqid %"PRIu8", hwaddr %"PRIu64""
 ufs_err_dma_write_utrd(uint32_t slot, uint64_t addr) "failed to write utrd. UTRLDBR slot %"PRIu32", UTRD dma addr %"PRIu64""
 ufs_err_dma_write_rsp_upiu(uint32_t slot, uint64_t addr) "failed to write rsp upiu. UTRLDBR slot %"PRIu32", response upiu addr %"PRIu64""
