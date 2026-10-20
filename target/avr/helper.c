@@ -108,9 +108,16 @@ void avr_cpu_do_interrupt(CPUState *cs)
     qemu_plugin_vcpu_interrupt_cb(cs, ret);
 }
 
-hwaddr avr_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
+bool avr_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                 TranslateForDebugResult *result)
 {
-    return addr; /* I assume 1:1 address correspondence */
+    /* I assume 1:1 address correspondence */
+    *result = (TranslateForDebugResult) {
+        .physaddr = addr,
+        .lg_page_size = TARGET_PAGE_BITS,
+        .attrs.debug = 1,
+    };
+    return true;
 }
 
 bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,

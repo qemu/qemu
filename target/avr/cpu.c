@@ -234,7 +234,7 @@ static void avr_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
 static const struct SysemuCPUOps avr_sysemu_ops = {
     .has_work = avr_cpu_has_work,
-    .get_phys_addr_debug = avr_cpu_get_phys_addr_debug,
+    .translate_for_debug = avr_cpu_translate_for_debug,
 };
 
 static const TCGCPUOps avr_tcg_ops = {
