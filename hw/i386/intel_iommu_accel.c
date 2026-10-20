@@ -17,6 +17,9 @@
 #include "hw/pci/pci_bus.h"
 #include "trace.h"
 
+static void vtd_write_fs_faultq(VTDAccelPASIDCacheEntry *vtd_pce,
+                                uint32_t cookie, uint32_t code);
+
 bool vtd_check_hiod_accel(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
                           Error **errp)
 {
@@ -84,6 +87,46 @@ VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as)
     return NULL;
 }
 
+static void vtd_prq_handle_pasid_response(VTDAccelPASIDCacheEntry *vtd_pce,
+                                          IOMMUPRIResponse *response)
+{
+    VTDPRQEntry *prqe, *tmp;
+
+    QLIST_FOREACH_SAFE(prqe, &vtd_pce->vtd_prq_list, next, tmp) {
+        if (prqe->grpid != response->prgi) {
+            continue;
+        }
+
+        vtd_write_fs_faultq(vtd_pce, prqe->cookie, response->response_code);
+
+        QLIST_REMOVE(prqe, next);
+        g_free(prqe);
+        break;
+    }
+}
+
+bool vtd_accel_propagate_page_group_response(IntelIOMMUState *s,
+                                             uint16_t rid, uint32_t pasid,
+                                             IOMMUPRIResponse *response)
+{
+    VTDAddressSpace *vtd_as = vtd_get_as_by_sid(s, rid);
+    VTDAccelPASIDCacheEntry *vtd_pce;
+    VTDHostIOMMUDevice *vtd_hiod = vtd_find_hiod_iommufd(vtd_as);
+
+    if (!vtd_hiod) {
+        return false;
+    }
+
+    QLIST_FOREACH(vtd_pce, &vtd_hiod->pasid_cache_list, next) {
+        if (vtd_pce->pasid == pasid) {
+            vtd_prq_handle_pasid_response(vtd_pce, response);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void vtd_propagate_recoverable_faults(VTDAccelPASIDCacheEntry *vtd_pce,
                                              struct iommu_hwpt_pgfault *fault,
                                              unsigned cnt)
@@ -94,14 +137,42 @@ static void vtd_propagate_recoverable_faults(VTDAccelPASIDCacheEntry *vtd_pce,
 
     for (; cnt--; fault++) {
         bool last_page = fault->flags & IOMMU_PGFAULT_FLAGS_LAST_PAGE;
+        int ret;
 
-        vtd_pri_request_page(vtd_hiod->bus, vtd_hiod->iommu_state,
-                             vtd_hiod->devfn, pasid,
-                             fault->perm & IOMMU_PGFAULT_PERM_PRIV,
-                             fault->perm & IOMMU_PGFAULT_PERM_EXEC,
-                             fault->addr, last_page, fault->grpid,
-                             fault->perm & IOMMU_PGFAULT_PERM_READ,
-                             fault->perm & IOMMU_PGFAULT_PERM_WRITE);
+        ret = vtd_pri_request_page(vtd_hiod->bus, vtd_hiod->iommu_state,
+                                   vtd_hiod->devfn, pasid,
+                                   fault->perm & IOMMU_PGFAULT_PERM_PRIV,
+                                   fault->perm & IOMMU_PGFAULT_PERM_EXEC,
+                                   fault->addr, last_page, fault->grpid,
+                                   fault->perm & IOMMU_PGFAULT_PERM_READ,
+                                   fault->perm & IOMMU_PGFAULT_PERM_WRITE);
+        if (!last_page) {
+            continue;
+        }
+
+        if (!ret) {
+            VTDPRQEntry *prqe = g_malloc0(sizeof(*prqe));
+
+            prqe->grpid = fault->grpid;
+            prqe->cookie = fault->cookie;
+            QLIST_INSERT_HEAD(&vtd_pce->vtd_prq_list, prqe, next);
+            continue;
+        }
+
+        /*
+         * vt-d spec 7.4.1:
+         *
+         * Hardware generates page group response with code of success for
+         * PRQ overflow and PRQ full, with code of invalid request for
+         * other error conditions.
+         */
+        if (ret == -ENOSPC) {
+            vtd_write_fs_faultq(vtd_pce, fault->cookie,
+                                IOMMUFD_PAGE_RESP_SUCCESS);
+        } else {
+            vtd_write_fs_faultq(vtd_pce, fault->cookie,
+                                IOMMUFD_PAGE_RESP_INVALID);
+        }
     }
 }
 
@@ -136,6 +207,22 @@ static void vtd_read_fs_faultq(void *opaque)
 
     vtd_propagate_recoverable_faults(vtd_pce, faults,
                                      bytes / sizeof(faults[0]));
+}
+
+static void vtd_write_fs_faultq(VTDAccelPASIDCacheEntry *vtd_pce,
+                                uint32_t cookie, uint32_t code)
+{
+    struct iommu_hwpt_page_response resp = {.cookie = cookie, .code = code};
+    uint32_t id = vtd_pce->fault_id;
+    int fd = vtd_pce->fault_fd;
+    ssize_t bytes;
+
+    bytes = write(fd, &resp, sizeof(resp));
+    trace_vtd_write_fs_faultq(id, fd, cookie, code, bytes);
+    if (bytes < 0) {
+        error_report_once("FAULTQ(id %u): write failed "
+                          "[cookie 0x%x code 0x%x] (%m)", id, cookie, code);
+    }
 }
 
 static void vtd_destroy_fs_faultq(VTDHostIOMMUDevice *vtd_hiod,
@@ -438,6 +525,7 @@ static void vtd_accel_fill_pc(VTDHostIOMMUDevice *vtd_hiod, uint32_t pasid,
     vtd_pce->pasid = pasid;
     vtd_pce->pasid_entry = *pe;
     vtd_pce->fault_fd = -1;
+    QLIST_INIT(&vtd_pce->vtd_prq_list);
     QLIST_INSERT_HEAD(&vtd_hiod->pasid_cache_list, vtd_pce, next);
 
     if (!vtd_device_attach_iommufd(vtd_pce, &local_err)) {
