@@ -42,6 +42,12 @@ bool target_big_endian(void)
     return target_endian_mode() == ENDIAN_MODE_BIG;
 }
 
+bool target_heterogeneous(void)
+{
+    /* For now, we only run a single target at a time */
+    return false;
+}
+
 bool target_base_arm(void)
 {
     switch (target_arch()) {
