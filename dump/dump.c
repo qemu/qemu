@@ -1795,6 +1795,12 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     int nr_cpus;
     int ret;
 
+    if (target_heterogeneous()) {
+        error_setg(errp,
+                   "dumping guest memory is not supported for heterogeneous emulation");
+        return;
+    }
+
     s->has_format = has_format;
     s->format = format;
     s->written_size = 0;
