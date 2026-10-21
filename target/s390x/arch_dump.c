@@ -468,13 +468,6 @@ void s390_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
     }
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info,
-                      const struct GuestPhysBlockList *guest_phys_blocks)
-{
-    s390_get_dump_info(first_cpu, info, guest_phys_blocks);
-    return 0;
-}
-
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 {
     int name_size = 8; /* "LINUX" or "CORE" + pad */
