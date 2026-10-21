@@ -150,7 +150,8 @@ void loongarch_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
     info->d_class = ELFCLASS64;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+size_t loongarch_get_note_size(const CPUState *cs, int class,
+                               int machine, int nr_cpus)
 {
     size_t note_size = 0;
 
@@ -159,4 +160,9 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     }
 
     return note_size * nr_cpus;
+}
+
+ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+{
+    return loongarch_get_note_size(first_cpu, class, machine, nr_cpus);
 }

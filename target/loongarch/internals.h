@@ -53,5 +53,7 @@ int loongarch_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
 
 void loongarch_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
                              const GuestPhysBlockList *guest_phys_blocks);
+size_t loongarch_get_note_size(const CPUState *cs, int class,
+                               int machine, int nr_cpus);
 
 #endif
