@@ -290,9 +290,20 @@ static bool l2vic_update(HexL2VICState *s, int irq)
 
 static void l2vic_update_all(HexL2VICState *s)
 {
-    for (int i = 0; i < L2VIC_INTERRUPT_MAX; i++) {
-        if (l2vic_update(s, i)) {
-            /* once vid is active, no-one else can set it until ciad */
+    /* once vid is active, no-one else can set it until ciad */
+    if (vid_active(s)) {
+        return;
+    }
+
+    /*
+     * Quickly find lowest-numbered irq ready by scanning their statuses
+     * range by range instead of one by one.
+     */
+    for (int slice = 0; slice < SLICE_MAX; slice++) {
+        uint32_t ready = s->int_pending[slice] & s->int_enable[slice];
+
+        if (ready) {
+            l2vic_update(s, slice * 32 + ctz32(ready));
             return;
         }
     }
