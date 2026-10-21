@@ -841,6 +841,7 @@ static void loongarch_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 static const struct SysemuCPUOps loongarch_sysemu_ops = {
     .has_work = loongarch_cpu_has_work,
     .write_elf64_note = loongarch_cpu_write_elf64_note,
+    .get_dump_info = loongarch_get_dump_info,
     .get_phys_addr_debug = loongarch_cpu_get_phys_addr_debug,
 };
 

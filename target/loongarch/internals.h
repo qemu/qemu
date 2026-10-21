@@ -51,4 +51,7 @@ void loongarch_cpu_register_gdb_regs_for_features(CPUState *cs);
 int loongarch_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
                                    int cpuid, DumpState *s);
 
+void loongarch_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
+                             const GuestPhysBlockList *guest_phys_blocks);
+
 #endif

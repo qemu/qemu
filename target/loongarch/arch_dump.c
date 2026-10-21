@@ -142,13 +142,18 @@ int loongarch_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
     return ret;
 }
 
-int cpu_get_dump_info(ArchDumpInfo *info,
-                      const GuestPhysBlockList *guest_phys_blocks)
+void loongarch_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
+                             const GuestPhysBlockList *guest_phys_blocks)
 {
     info->d_machine = EM_LOONGARCH;
     info->d_endian = ELFDATA2LSB;
     info->d_class = ELFCLASS64;
+}
 
+int cpu_get_dump_info(ArchDumpInfo *info,
+                      const GuestPhysBlockList *guest_phys_blocks)
+{
+    loongarch_get_dump_info(first_cpu, info, guest_phys_blocks);
     return 0;
 }
 
