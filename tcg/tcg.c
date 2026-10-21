@@ -2257,6 +2257,10 @@ TCGTemp *tcg_constant_internal(TCGType type, int64_t val)
         s->const_table[type] = h;
     }
 
+    if (type == TCG_TYPE_I32) {
+        val = (int32_t)val;
+    }
+
     ts = g_hash_table_lookup(h, &val);
     if (ts == NULL) {
         ts = tcg_temp_alloc(s);
