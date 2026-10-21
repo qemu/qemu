@@ -148,15 +148,15 @@ static inline gboolean g_clear_fd_qemu(int *fd_ptr, GError **error)
 }
 #define g_clear_fd(fd, err) g_clear_fd_qemu(fd, err)
 
-#if !GLIB_CHECK_VERSION(2, 76, 0)
-static inline void _g_clear_fd_ignore_error(int *fd_ptr)
+static inline void _g_clear_fd_qemu_ignore_error(int *fd_ptr)
 {
     int errsv = errno;
     g_clear_fd(fd_ptr, NULL);
     errno = errsv;
 }
-#define g_autofd __attribute__((cleanup(_g_clear_fd_ignore_error)))
-#endif
+
+#undef g_autofd
+#define g_autofd __attribute__((cleanup(_g_clear_fd_qemu_ignore_error)))
 
 #pragma GCC diagnostic pop
 
