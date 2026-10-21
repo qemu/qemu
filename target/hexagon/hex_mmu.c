@@ -73,11 +73,12 @@ void hex_mmu_off(CPUHexagonState *env)
     tlb_flush(cs);
 }
 
-void hex_mmu_mode_change(CPUHexagonState *env)
+void hex_mmu_asid_change(CPUHexagonState *env)
 {
-    qemu_log_mask(CPU_LOG_MMU, "Hexagon mode change!\n");
     CPUState *cs = env_cpu(env);
-    tlb_flush(cs);
+
+    qemu_log_mask(CPU_LOG_MMU, "Hexagon ASID change!\n");
+    tlb_flush_by_mmuidx(cs, MMU_IDX_ALL);
 }
 
 bool hex_tlb_find_match(CPUHexagonState *env, uint32_t VA,
