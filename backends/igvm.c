@@ -1086,7 +1086,7 @@ int qigvm_process_file(IgvmCfg *cfg, MachineState *machine_state,
                        bool onlyVpContext, Error **errp)
 {
     int32_t header_count;
-    QIgvmParameterData *parameter;
+    QIgvmParameterData *parameter, *tmp;
     int retval = -1;
     QIgvm ctx;
 
@@ -1186,10 +1186,11 @@ int qigvm_process_file(IgvmCfg *cfg, MachineState *machine_state,
     retval = qigvm_process_mem_page(&ctx, NULL, errp);
 
 cleanup_parameters:
-    QTAILQ_FOREACH(parameter, &ctx.parameter_data, next)
+    QTAILQ_FOREACH_SAFE(parameter, &ctx.parameter_data, next, tmp)
     {
+        QTAILQ_REMOVE(&ctx.parameter_data, parameter, next);
         g_free(parameter->data);
-        parameter->data = NULL;
+        g_free(parameter);
     }
     g_free(ctx.id_block);
     g_free(ctx.id_auth);
