@@ -99,6 +99,7 @@ typedef struct MultiReqBuffer {
     VirtIOBlockReq *reqs[VIRTIO_BLK_MAX_MERGE_REQS];
     unsigned int num_reqs;
     bool is_write;
+    bool is_fua;
 } MultiReqBuffer;
 
 typedef struct VirtIOBlkClass {
