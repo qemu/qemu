@@ -20,6 +20,9 @@
 #define fGEN_TCG_Y4_siad(SHORTCODE) \
     gen_helper_siad(tcg_env, RsV)
 
+#define fGEN_TCG_Y5_tlbasidi(SHORTCODE) \
+    gen_helper_tlbinvasid(tcg_env, RsV)
+
 #define fGEN_TCG_Y2_iassignw(SHORTCODE) \
     gen_helper_iassignw(tcg_env, RsV)
 

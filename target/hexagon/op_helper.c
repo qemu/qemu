@@ -1740,6 +1740,12 @@ void HELPER(siad)(CPUHexagonState *env, uint32_t mask)
     hex_interrupt_update(env);
 }
 
+void HELPER(tlbinvasid)(CPUHexagonState *env, uint32_t RsV)
+{
+    BQL_LOCK_GUARD();
+    hex_tlb_invalidate_asid(env, extract32(RsV, 20, 7));
+}
+
 void HELPER(swi)(CPUHexagonState *env, uint32_t mask)
 {
     BQL_LOCK_GUARD();

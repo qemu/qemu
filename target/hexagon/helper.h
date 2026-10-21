@@ -148,4 +148,5 @@ DEF_HELPER_2(resume, void, env, i32)
 DEF_HELPER_1(resched, void, env)
 DEF_HELPER_3(modify_ssr, void, env, i32, i32)
 DEF_HELPER_1(pending_interrupt, void, env)
+DEF_HELPER_2(tlbinvasid, void, env, i32)
 #endif

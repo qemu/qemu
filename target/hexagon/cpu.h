@@ -76,6 +76,14 @@ typedef struct HexagonHVXContextState HexagonHVXContextState;
 #define MMU_GUEST_IDX        1
 #define MMU_KERNEL_IDX       2
 
+/*
+ * TLB entry match is by ASID and global bit, neither of which is encoded in
+ * mmu_idx, so a JTLB change has to be flushed out of every mmu_idx.
+ */
+#define MMU_IDX_ALL          ((1 << MMU_USER_IDX) | \
+                              (1 << MMU_GUEST_IDX) | \
+                              (1 << MMU_KERNEL_IDX))
+
 typedef enum {
     HEX_LOCK_UNLOCKED       = 0,
     HEX_LOCK_WAITING        = 1,

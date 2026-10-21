@@ -13,6 +13,7 @@
 #include "monitor/hmp.h"
 
 extern void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value);
+extern void hex_tlb_invalidate_asid(CPUHexagonState *env, uint32_t asid);
 extern uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA);
 extern void hex_mmu_on(CPUHexagonState *env);
 extern void hex_mmu_off(CPUHexagonState *env);
