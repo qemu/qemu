@@ -180,7 +180,8 @@ void riscv_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
                      ELFDATA2MSB : ELFDATA2LSB;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+size_t riscv_get_note_size(const CPUState *cs, int class, int machine,
+                           int nr_cpus)
 {
     size_t note_size;
 
@@ -191,4 +192,9 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     }
 
     return note_size * nr_cpus;
+}
+
+ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+{
+    return riscv_get_note_size(first_cpu, class, machine, nr_cpus);
 }
