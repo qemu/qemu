@@ -1550,6 +1550,25 @@ static void riscv_cpu_init(Object *obj)
     cpu->env.vext_ver = VEXT_VERSION_1_00_0;
     cpu->cfg.max_satp_mode = -1;
 
+    /*
+     * The way we're handling profiles does not cope well with QMP
+     * instropection.  We have a static array that stores RISCVCPUProfiles
+     * objs that hold runtime state for the lifetime of the QEMU process.
+     * Thus setting profile->enabled once, e.g. when instropecting a
+     * profile CPU, will leave the flag set for subsequent intropections.
+     *
+     * For now, clear all 'enabled' flags to avoid misleading QMP w.r.t
+     * profiles being set.
+     *
+     * FIXME: a better long term solution is to remove profile->enabled
+     * and just use regular cpu->cfg flags, avoiding static variables
+     * storing dynamic state.  This will help us not only with QMP but
+     * also single-binary support.
+     */
+    for (int i = 0; riscv_profiles[i] != NULL; i++) {
+        riscv_profiles[i]->enabled = false;
+    }
+
     if (mcc->def->profile) {
         mcc->def->profile->enabled = true;
     }
