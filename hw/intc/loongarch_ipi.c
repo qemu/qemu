@@ -199,7 +199,7 @@ static void loongarch_ipi_print_info(InterruptStatsProvider *obj, GString *buf)
     LoongsonIPICommonState *lics = LOONGSON_IPI_COMMON(obj);
     int i, j;
     IPICore *core;
-    uint64_t mbx;
+    uint32_t mbx;
     unsigned long pos;
 
     loongarch_ipi_pre_save(lics);
@@ -221,10 +221,11 @@ static void loongarch_ipi_print_info(InterruptStatsProvider *obj, GString *buf)
             continue;
         }
 
-        for (j = 0; j < IPI_MBX_NUM; j++) {
-            mbx = *(uint64_t *)&core->buf[2 * j];
+        for (j = 0; j < (IPI_MBX_NUM * 2); j++) {
+            mbx = core->buf[j];
             if (mbx) {
-                g_string_append_printf(buf, "  MBX[%-1u] 0x%016"PRIx64, j, mbx);
+                g_string_append_printf(buf, "          MBX[%-1u] 0x%08"PRIx32,
+                                            j, mbx);
             }
         }
 

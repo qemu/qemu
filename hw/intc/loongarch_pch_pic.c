@@ -335,7 +335,8 @@ static int loongarch_pic_post_load(LoongArchPICCommonState *opaque,
 static void loongarch_pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
     LoongArchPICCommonState *s = LOONGARCH_PIC_COMMON(obj);
-    uint64_t *vector;
+    uint8_t *vector, val;
+    int i;
 
     loongarch_pic_pre_save(s);
     g_string_append_printf(buf, "%s:\n", object_get_typename(OBJECT(obj)));
@@ -350,17 +351,20 @@ static void loongarch_pic_print_info(InterruptStatsProvider *obj, GString *buf)
                                 s->last_intirr, s->intirr, s->intisr,
                                 s->int_polarity);
 
-    vector = (uint64_t *)s->htmsi_vector;
-    g_string_append_printf(buf, "  MSI map  0x%016"PRIx64" 0x%016"PRIx64
-                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
-                                *vector, *(vector + 1), *(vector + 2),
-                                *(vector + 3));
+    vector = s->htmsi_vector;
+    g_string_append_printf(buf, "  MSI map:\n");
+    for (i = 0; i < 64; i += 4, vector += 4) {
+        val = *vector | *(vector + 1) | *(vector + 2) | *(vector + 3);
+        /* skip zero mapping */
+        if (val == 0) {
+            continue;
+        }
 
-    vector += 4;
-    g_string_append_printf(buf, "           0x%016"PRIx64" 0x%016"PRIx64
-                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
-                                *vector, *(vector + 1), *(vector + 2),
-                                *(vector + 3));
+        g_string_append_printf(buf, "    [%2d - %2d] 0x%02"PRIx8" 0x%02"PRIx8
+                                    " 0x%02"PRIx8" 0x%02"PRIx8"\n",
+                                    i, i + 3, *vector, *(vector + 1),
+                                    *(vector + 2), *(vector + 3));
+    }
 }
 
 static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
