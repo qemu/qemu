@@ -428,7 +428,8 @@ void x86_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
     }
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+size_t x86_get_note_size(const CPUState *cs, int class, int machine,
+                         int nr_cpus)
 {
     int name_size = 5; /* "CORE" or "QEMU" */
     size_t elf_note_size = 0;
@@ -457,4 +458,9 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
     qemu_note_size = ELF_NOTE_SIZE(note_head_size, name_size, qemu_desc_size);
 
     return (elf_note_size + qemu_note_size) * nr_cpus;
+}
+
+ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+{
+    return x86_get_note_size(first_cpu, class, machine, nr_cpus);
 }

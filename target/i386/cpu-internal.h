@@ -68,6 +68,8 @@ void x86_cpu_machine_reset_cb(void *opaque);
 
 void x86_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
                        const GuestPhysBlockList *guest_phys_blocks);
+size_t x86_get_note_size(const CPUState *cs, int class, int machine,
+                         int nr_cpus);
 #endif /* !CONFIG_USER_ONLY */
 
 #endif /* I386_CPU_INTERNAL_H */
