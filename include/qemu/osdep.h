@@ -532,6 +532,9 @@ void QEMU_ERROR("code path is reachable")
  * ARRAY_SIZE() - Return the number of elements of an array
  * @x: the array
  *
+ * For bounds-checked lookups in arrays of strings, see
+ * STR_ARRAY_ELEM_OR_NULL() in "qemu/cutils.h".
+ *
  * Note: fails to build if @x is a pointer.
  */
 #ifndef ARRAY_SIZE

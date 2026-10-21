@@ -954,6 +954,12 @@ const char *iec_binary_prefix(unsigned int exp2)
     return prefixes[exp2 / 10];
 }
 
+const char *str_array_elem_or_null(const char *const *array,
+                                   size_t nelem, uint64_t index)
+{
+    return index >= nelem ? NULL : array[index];
+}
+
 /*
  * Return human readable string for size @val.
  * @val can be anything that uint64_t allows (no more than "16 EiB").
