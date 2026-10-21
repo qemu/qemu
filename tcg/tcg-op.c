@@ -2391,6 +2391,16 @@ void tcg_gen_discard_ptr(TCGv_ptr s)
     tcg_gen_discard(TCG_TYPE_PTR, tcgv_ptr_temp(s));
 }
 
+void tcg_gen_ext_i32_ptr(TCGv_ptr r, TCGv_i32 a)
+{
+    tcg_gen_exts(tcgv_ptr_temp(r), tcgv_i32_temp(a));
+}
+
+void tcg_gen_extu_ptr_i64(TCGv_i64 r, TCGv_ptr a)
+{
+    tcg_gen_mov(TCG_TYPE_I64, tcgv_i64_temp(r), tcgv_ptr_temp(a));
+}
+
 void tcg_gen_mov_ptr(TCGv_ptr d, TCGv_ptr s)
 {
     tcg_gen_mov(TCG_TYPE_PTR, tcgv_ptr_temp(d), tcgv_ptr_temp(s));
@@ -2399,4 +2409,14 @@ void tcg_gen_mov_ptr(TCGv_ptr d, TCGv_ptr s)
 void tcg_gen_movi_ptr(TCGv_ptr d, intptr_t s)
 {
     tcg_gen_movi(TCG_TYPE_PTR, tcgv_ptr_temp(d), s);
+}
+
+void tcg_gen_trunc_i64_ptr(TCGv_ptr r, TCGv_i64 a)
+{
+    tcg_gen_mov(TCG_TYPE_PTR, tcgv_ptr_temp(r), tcgv_i64_temp(a));
+}
+
+void tcg_gen_trunc_ptr_i32(TCGv_i32 r, TCGv_ptr a)
+{
+    tcg_gen_extrl(tcgv_i32_temp(r), tcgv_ptr_temp(a));
 }
