@@ -1873,7 +1873,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         s->dump_info.page_size = qemu_target_page_size();
     }
 
-    s->note_size = cpu_get_note_size(s->dump_info.d_class,
+    s->note_size = cpu_get_note_size(first_cpu, s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
     assert(s->note_size >= 0);
 

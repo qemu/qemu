@@ -140,6 +140,15 @@ int cpu_get_dump_info(const CPUState *cpu, ArchDumpInfo *info,
     return 0;
 }
 
+ssize_t cpu_get_note_size(const CPUState *cpu, int class, int machine,
+                          int nr_cpus)
+{
+    if (!cpu->cc->sysemu_ops->get_note_size) {
+        return -1;
+    }
+    return cpu->cc->sysemu_ops->get_note_size(cpu, class, machine, nr_cpus);
+}
+
 bool cpu_internal_is_big_endian(CPUState *cpu)
 {
     if (cpu->cc->sysemu_ops->internal_is_big_endian) {

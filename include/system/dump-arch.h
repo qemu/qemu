@@ -27,6 +27,4 @@ struct ArchDumpInfo {
     void (*arch_cleanup_fn)(DumpState *s);
 };
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus);
-
 #endif

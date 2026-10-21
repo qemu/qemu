@@ -713,6 +713,19 @@ int cpu_get_dump_info(const CPUState *cpu, ArchDumpInfo *info,
                       const GuestPhysBlockList *guest_phys_blocks);
 
 /**
+ * cpu_get_note_size:
+ * @cpu: The CPU whose memory is to be dumped
+ * @class: ELF class reported by cpu_get_dump_info()
+ * @machine: ELF machine reported by cpu_get_dump_info()
+ * @nr_cpus: Number of CPUs to be dumped
+ *
+ * Returns: size of the ELF notes needed to dump @nr_cpus CPUs,
+ * or -1 if not supported.
+ */
+ssize_t cpu_get_note_size(const CPUState *cpu, int class, int machine,
+                          int nr_cpus);
+
+/**
  * cpu_memory_rw_debug:
  * @cpu: The CPU whose memory is to be accessed
  * @addr: guest virtual address
