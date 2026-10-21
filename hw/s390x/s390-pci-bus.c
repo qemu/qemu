@@ -751,6 +751,14 @@ void s390_pci_iommu_direct_map_enable(S390PCIIOMMU *iommu)
 void s390_pci_iommu_disable(S390PCIIOMMU *iommu)
 {
     iommu->enabled = false;
+    if (iommu->dma_limit) {
+        /*
+         * Account for all the DMA mappings still in the IOTLB; they will be
+         * returned to vfio when we delete the memory subregion via
+         * memory_region_del_subregion() below.
+         */
+        iommu->dma_limit->avail += g_hash_table_size(iommu->iotlb);
+    }
     g_hash_table_remove_all(iommu->iotlb);
     if (iommu->dm_mr) {
         memory_region_del_subregion(&iommu->mr, iommu->dm_mr);
