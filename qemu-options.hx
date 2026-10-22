@@ -6496,7 +6496,7 @@ SRST
                  -machine ...,confidential-guest-support=tdx \\
                  ......
 
-    ``-object igvm-cfg,file=file``
+    ``-object igvm-cfg,file=file[,cmdline=string]``
         Create an IGVM configuration object that defines the initial state
         of the guest using a file in that conforms to the Independent Guest
         Virtual Machine (IGVM) file format.
@@ -6508,6 +6508,10 @@ SRST
         When provided, the IGVM file is used to populate the initial
         memory of the virtual machine and, depending on the platform, can
         define the initial processor state, memory map and parameters.
+
+        The optional ``cmdline`` parameter is a command line passed
+        verbatim to the software loaded from the IGVM file, if the file
+        requests one. Its format is specific to that software.
 
         The IGVM file is expected to contain the firmware for the virtual
         machine, therefore an ``igvm-cfg`` object cannot be provided along
