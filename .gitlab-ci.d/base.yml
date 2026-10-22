@@ -31,8 +31,9 @@ variables:
     # Ensure docker.py / tests/docker/Makefile.include always displays stdout
     # from any docker commands to aid debugging of failures
     DOCKER_V: 1
-
   interruptible: true
+  # automatic retry on failure (sporadic test failures or infra issues)
+  retry: 2
 
   rules:
     #############################################################
