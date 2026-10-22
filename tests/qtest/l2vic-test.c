@@ -11,6 +11,7 @@
 
 #include "hw/hexagon/machine_cfg_v66g_1024.h.inc"
 #include "hw/hexagon/machine_cfg_v68n_1024.h.inc"
+#include "hw/hexagon/machine_cfg_qcs6490_cdsp.h.inc"
 
 /* L2VIC register offsets exercised by this test */
 #define L2VIC_INT_ENABLEn 0x100 /* Read/Write */
@@ -45,6 +46,7 @@ typedef struct {
 static const L2VICMachineCfg l2vic_machines[] = {
     { "virt",      &v68n_1024 },
     { "V66G_1024", &v66g_1024 },
+    { "qcs6490-cdsp", &qcs6490_cdsp },
 };
 
 static uint32_t l2vic_read32(uint64_t base, uint32_t offset)

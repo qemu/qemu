@@ -21,3 +21,18 @@ config HEX_VIRT
     select HEX_BOARD
     select VIRTIO_BLK
     select VIRTIO_SCSI
+
+config HEX_QCOM_DSP
+    bool
+    depends on HEX_DSP && FDT
+    select HEX_BOARD
+    select UNIMP
+    select QCOM_QDSP6SS_CLK
+    select VIRTIO_BLK
+    select VIRTIO_SCSI
+
+config HEX_QCS6490_CDSP
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP
