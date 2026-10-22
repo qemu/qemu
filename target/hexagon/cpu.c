@@ -646,7 +646,8 @@ static void find_qemu_subpage(vaddr *addr, hwaddr *phys, uint64_t page_size)
     *phys += offset;
 }
 
-static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
+static bool hexagon_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                            TranslateForDebugResult *result)
 {
     CPUHexagonState *env = cpu_env(cs);
     hwaddr phys_addr;
@@ -660,10 +661,16 @@ static hwaddr hexagon_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
         vaddr page_offset = addr & (TARGET_PAGE_SIZE - 1);
         find_qemu_subpage(&addr, &phys_addr, page_size);
         phys_addr += hexagon_cpu_mmu_enabled(env) ? page_offset : 0;
-        return phys_addr;
+
+        *result = (TranslateForDebugResult) {
+            .physaddr = phys_addr,
+            .lg_page_size = TARGET_PAGE_BITS,
+            .attrs.debug = 1,
+        };
+        return true;
     }
 
-    return -1;
+    return false;
 }
 
 
@@ -789,7 +796,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 
 static const struct SysemuCPUOps hexagon_sysemu_ops = {
     .has_work = hexagon_cpu_has_work,
-    .get_phys_addr_debug = hexagon_cpu_get_phys_addr_debug,
+    .translate_for_debug = hexagon_cpu_translate_for_debug,
 };
 
 static bool hexagon_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
