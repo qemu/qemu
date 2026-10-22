@@ -2274,8 +2274,20 @@ static void riscv_iommu_process_dbg(RISCVIOMMUState *s)
         if (fault) {
             iova = RISCV_IOMMU_TR_RESPONSE_FAULT | (((uint64_t) fault) << 10);
         } else {
+            uint64_t ppn;
+
             iova = iotlb.translated_addr & ~iotlb.addr_mask;
-            iova = set_field(0, RISCV_IOMMU_TR_RESPONSE_PPN, PPN_DOWN(iova));
+            ppn = PPN_DOWN(iova);
+
+            if (iotlb.addr_mask > TARGET_PAGE_SIZE - 1) {
+                /* Encode the translation range as trailing ones in the PPN. */
+                ppn |= PPN_DOWN(iotlb.addr_mask) >> 1;
+                iova = RISCV_IOMMU_TR_RESPONSE_S;
+            } else {
+                iova = 0;
+            }
+
+            iova = set_field(iova, RISCV_IOMMU_TR_RESPONSE_PPN, ppn);
         }
         riscv_iommu_reg_set64(s, RISCV_IOMMU_REG_TR_RESPONSE, iova);
     }
