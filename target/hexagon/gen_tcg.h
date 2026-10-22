@@ -1367,6 +1367,16 @@
     gen_helper_sfadd(RdV, tcg_env, RsV, RtV, pkt_need_commit)
 #define fGEN_TCG_F2_sfsub(SHORTCODE) \
     gen_helper_sfsub(RdV, tcg_env, RsV, RtV, pkt_need_commit)
+#define fGEN_TCG_F7_vsfadd(SHORTCODE) \
+    gen_helper_vsfadd(RddV, tcg_env, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsfsub(SHORTCODE) \
+    gen_helper_vsfsub(RddV, tcg_env, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsfmpy(SHORTCODE) \
+    gen_helper_vsfmpy(RddV, tcg_env, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsffma(SHORTCODE) \
+    gen_helper_vsffma(RxxV, tcg_env, RxxV, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsffms(SHORTCODE) \
+    gen_helper_vsffms(RxxV, tcg_env, RxxV, RssV, RttV, pkt_need_commit)
 #define fGEN_TCG_F2_sfcmpeq(SHORTCODE) \
     gen_helper_sfcmpeq(PdV, tcg_env, RsV, RtV, pkt_need_commit)
 #define fGEN_TCG_F2_sfcmpgt(SHORTCODE) \

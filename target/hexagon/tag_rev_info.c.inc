@@ -728,6 +728,11 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
                             .removed = HEX_VER_NONE },
     [A2_nop_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
     [J2_trap2] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsfadd] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsfsub] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsfmpy] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsffma] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsffms] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
 
     [Y4_dcfetch_multi] = { .introduced = HEX_VER_V85,
                             .removed = HEX_VER_NONE },

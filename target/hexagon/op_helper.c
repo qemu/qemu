@@ -926,6 +926,79 @@ float32 HELPER(sfsub)(CPUHexagonState *env, float32 RsV, float32 RtV,
     return RdV;
 }
 
+uint64_t HELPER(vsfadd)(CPUHexagonState *env, uint64_t RssV, uint64_t RttV,
+                        uint32_t pkt_need_commit)
+{
+    uint64_t RddV;
+    float32 lo, hi;
+
+    arch_fpop_start(env);
+    lo = float32_add(RssV, RttV, &env->fp_status);
+    hi = float32_add(RssV >> 32, RttV >> 32, &env->fp_status);
+    arch_fpop_end(env, pkt_need_commit);
+    RddV = lo | ((uint64_t)hi << 32);
+    return RddV;
+}
+
+uint64_t HELPER(vsfsub)(CPUHexagonState *env, uint64_t RssV, uint64_t RttV,
+                        uint32_t pkt_need_commit)
+{
+    uint64_t RddV;
+    float32 lo, hi;
+
+    arch_fpop_start(env);
+    lo = float32_sub(RssV, RttV, &env->fp_status);
+    hi = float32_sub(RssV >> 32, RttV >> 32, &env->fp_status);
+    arch_fpop_end(env, pkt_need_commit);
+    RddV = lo | ((uint64_t)hi << 32);
+    return RddV;
+}
+
+uint64_t HELPER(vsfmpy)(CPUHexagonState *env, uint64_t RssV, uint64_t RttV,
+                        uint32_t pkt_need_commit)
+{
+    uint64_t RddV;
+    float32 lo, hi;
+
+    arch_fpop_start(env);
+    lo = float32_mul(RssV, RttV, &env->fp_status);
+    hi = float32_mul(RssV >> 32, RttV >> 32, &env->fp_status);
+    arch_fpop_end(env, pkt_need_commit);
+    RddV = lo | ((uint64_t)hi << 32);
+    return RddV;
+}
+
+uint64_t HELPER(vsffma)(CPUHexagonState *env, uint64_t RxxV, uint64_t RssV,
+                        uint64_t RttV, uint32_t pkt_need_commit)
+{
+    uint64_t RddV;
+    float32 lo, hi;
+
+    arch_fpop_start(env);
+    lo = float32_muladd(RssV, RttV, RxxV, 0, &env->fp_status);
+    hi = float32_muladd(RssV >> 32, RttV >> 32, RxxV >> 32, 0,
+                        &env->fp_status);
+    arch_fpop_end(env, pkt_need_commit);
+    RddV = lo | ((uint64_t)hi << 32);
+    return RddV;
+}
+
+uint64_t HELPER(vsffms)(CPUHexagonState *env, uint64_t RxxV, uint64_t RssV,
+                        uint64_t RttV, uint32_t pkt_need_commit)
+{
+    uint64_t RddV;
+    float32 lo, hi;
+
+    arch_fpop_start(env);
+    lo = float32_muladd(RssV, RttV, RxxV, float_muladd_negate_product,
+                        &env->fp_status);
+    hi = float32_muladd(RssV >> 32, RttV >> 32, RxxV >> 32,
+                        float_muladd_negate_product, &env->fp_status);
+    arch_fpop_end(env, pkt_need_commit);
+    RddV = lo | ((uint64_t)hi << 32);
+    return RddV;
+}
+
 int32_t HELPER(sfcmpeq)(CPUHexagonState *env, float32 RsV, float32 RtV,
                         uint32_t pkt_need_commit)
 {
