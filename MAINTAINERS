@@ -1385,7 +1385,9 @@ M: Brian Cain <brian.cain@oss.qualcomm.com>
 R: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Supported
 F: hw/hexagon/
+F: hw/misc/qcom-qdsp6ss-clk.c
 F: include/hw/hexagon/
+F: include/hw/misc/qcom-qdsp6ss-clk.h
 F: configs/devices/hexagon-softmmu/default.mak
 F: docs/system/hexagon/
 F: tests/functional/hexagon/
