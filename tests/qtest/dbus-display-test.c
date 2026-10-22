@@ -94,7 +94,25 @@ typedef struct TestDBusConsoleRegister {
     GDBusConnection *listener_conn;
     GDBusObjectManagerServer *server;
     bool with_map;
+    /* Scanout and Update calls received, and the first one after @watch */
+    guint messages;
+    bool watch;
+    const char *first;
+    guint first_width;
+    guint first_height;
 } TestDBusConsoleRegister;
+
+static void test_dbus_console_seen(TestDBusConsoleRegister *test,
+                                   const char *method,
+                                   guint width, guint height)
+{
+    test->messages++;
+    if (test->watch && !test->first) {
+        test->first = method;
+        test->first_width = width;
+        test->first_height = height;
+    }
+}
 
 static gboolean listener_handle_scanout(
     QemuDBusDisplay1Listener *object,
@@ -106,11 +124,30 @@ static gboolean listener_handle_scanout(
     GVariant *arg_data,
     TestDBusConsoleRegister *test)
 {
+    test_dbus_console_seen(test, "Scanout", arg_width, arg_height);
     qemu_dbus_display1_listener_complete_scanout(object, invocation);
 
     if (!test->with_map) {
         g_main_loop_quit(test->loop);
     }
+
+    return DBUS_METHOD_INVOCATION_HANDLED;
+}
+
+static gboolean listener_handle_update(
+    QemuDBusDisplay1Listener *object,
+    GDBusMethodInvocation *invocation,
+    gint arg_x,
+    gint arg_y,
+    gint arg_width,
+    gint arg_height,
+    guint arg_stride,
+    guint arg_pixman_format,
+    GVariant *arg_data,
+    TestDBusConsoleRegister *test)
+{
+    test_dbus_console_seen(test, "Update", arg_width, arg_height);
+    qemu_dbus_display1_listener_complete_update(object, invocation);
 
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
@@ -164,6 +201,7 @@ test_dbus_console_setup_listener(TestDBusConsoleRegister *test, bool with_map)
         qemu_dbus_display1_listener_skeleton_new());
     g_object_connect(iface,
                      "signal::handle-scanout", listener_handle_scanout, test,
+                     "signal::handle-update", listener_handle_update, test,
                      NULL);
     g_dbus_object_skeleton_add_interface(listener,
                                          G_DBUS_INTERFACE_SKELETON(iface));
@@ -227,15 +265,12 @@ test_dbus_p2p_server_setup_thread(gpointer data)
 }
 
 static void
-test_dbus_display_console(const void* data)
+test_dbus_console_register(QTestState *qts, GDBusConnection *conn,
+                           TestDBusConsoleRegister *test)
 {
     g_autoptr(GError) err = NULL;
-    g_autoptr(GDBusConnection) conn = NULL;
     g_autoptr(QemuDBusDisplay1ConsoleProxy) console = NULL;
-    g_autoptr(GMainLoop) loop = NULL;
-    QTestState *qts = NULL;
     int pair[2];
-    TestDBusConsoleRegister test = { 0, .with_map = GPOINTER_TO_INT(data) };
 #ifdef WIN32
     WSAPROTOCOL_INFOW info;
     g_autoptr(GVariant) listener = NULL;
@@ -243,8 +278,6 @@ test_dbus_display_console(const void* data)
     g_autoptr(GUnixFDList) fd_list = NULL;
     int idx;
 #endif
-
-    test_setup(&qts, &conn);
 
     g_assert_cmpint(qemu_socketpair(AF_UNIX, SOCK_STREAM, 0, pair), ==, 0);
 #ifndef WIN32
@@ -262,9 +295,9 @@ test_dbus_display_console(const void* data)
             &err));
     g_assert_no_error(err);
 
-    test.loop = loop = g_main_loop_new(NULL, FALSE);
-    test.thread = g_thread_new(NULL, test_dbus_p2p_server_setup_thread,
-                               GINT_TO_POINTER(pair[0]));
+    test->loop = g_main_loop_new(NULL, FALSE);
+    test->thread = g_thread_new(NULL, test_dbus_p2p_server_setup_thread,
+                                GINT_TO_POINTER(pair[0]));
 
 #ifdef WIN32
     if (WSADuplicateSocketW(_get_osfhandle(pair[1]),
@@ -295,12 +328,111 @@ test_dbus_display_console(const void* data)
 #endif
         NULL,
         test_dbus_console_registered,
-        &test);
+        test);
 
-    g_main_loop_run(loop);
+    g_main_loop_run(test->loop);
+}
 
-    g_clear_object(&test.server);
-    g_clear_object(&test.listener_conn);
+static void
+test_dbus_console_cleanup(TestDBusConsoleRegister *test)
+{
+    g_clear_object(&test->server);
+    g_clear_object(&test->listener_conn);
+    g_clear_pointer(&test->loop, g_main_loop_unref);
+}
+
+static void
+test_dbus_display_console(const void *data)
+{
+    g_autoptr(GDBusConnection) conn = NULL;
+    QTestState *qts = NULL;
+    TestDBusConsoleRegister test = { 0, .with_map = GPOINTER_TO_INT(data) };
+
+    test_setup(&qts, &conn);
+    test_dbus_console_register(qts, conn, &test);
+
+    test_dbus_console_cleanup(&test);
+    g_clear_object(&conn);
+    qtest_quit(qts);
+}
+
+/* Handle whatever reaches the listener during the next @ms milliseconds. */
+static void
+test_dbus_console_turn(guint ms)
+{
+    gint64 end = g_get_monotonic_time() + ms * G_TIME_SPAN_MILLISECOND;
+
+    while (g_get_monotonic_time() < end) {
+        while (g_main_context_iteration(NULL, FALSE)) {
+        }
+        g_usleep(G_TIME_SPAN_MILLISECOND);
+    }
+}
+
+/* Wait until the picture is still: no Scanout or Update for 200 ms. */
+static void
+test_dbus_console_settle(TestDBusConsoleRegister *test)
+{
+    guint seen;
+    int i;
+
+    for (i = 0; i < 25; i++) {
+        seen = test->messages;
+        test_dbus_console_turn(200);
+        if (test->messages == seen) {
+            return;
+        }
+    }
+    g_assert_not_reached();
+}
+
+static void
+vga_crtc_write(QTestState *qts, uint8_t index, uint8_t value)
+{
+    qtest_outb(qts, 0x3d4, index);
+    qtest_outb(qts, 0x3d5, value);
+}
+
+static void
+test_dbus_display_text_resize(void)
+{
+    g_autoptr(GDBusConnection) conn = NULL;
+    QTestState *qts = NULL;
+    TestDBusConsoleRegister test = { 0 };
+    gint64 end;
+
+    test_setup(&qts, &conn);
+    test_dbus_console_register(qts, conn, &test);
+
+    /* VGA text mode, 80x25 cells of 9x16 pixels: 720x400 */
+    qtest_outb(qts, 0x3c2, 0x67);       /* CRTC at 0x3d4 */
+    vga_crtc_write(qts, 0x01, 0x4f);    /* 80 columns */
+    vga_crtc_write(qts, 0x07, 0x02);    /* bit 8 of the vertical display end */
+    vga_crtc_write(qts, 0x09, 0x0f);    /* 16 scan lines per cell */
+    vga_crtc_write(qts, 0x0e, 0x3f);    /* cursor outside the screen */
+    vga_crtc_write(qts, 0x0f, 0xff);
+    vga_crtc_write(qts, 0x12, 0x8f);    /* 400 scan lines */
+    vga_crtc_write(qts, 0x13, 0x28);    /* 80 characters per row */
+    qtest_inb(qts, 0x3da);              /* attribute controller to index */
+    qtest_outb(qts, 0x3c0, 0x20);       /* display on */
+    test_dbus_console_settle(&test);
+
+    /*
+     * Cells of 9x12 pixels, as the Windows NT 4.0 setup sets: 720x396.
+     * VGA redraws a text mode one row of cells at a time, and the client
+     * has to know the new size before the first row arrives.
+     */
+    test.watch = true;
+    vga_crtc_write(qts, 0x09, 0x0b);
+    end = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+    while (!test.first && g_get_monotonic_time() < end) {
+        test_dbus_console_turn(10);
+    }
+    g_assert_cmpstr(test.first, ==, "Scanout");
+    g_assert_cmpuint(test.first_width, ==, 720);
+    g_assert_cmpuint(test.first_height, ==, 396);
+
+    test_dbus_console_cleanup(&test);
     g_clear_object(&conn);
     qtest_quit(qts);
 }
@@ -462,6 +594,8 @@ main(int argc, char **argv)
     qtest_add_func("/dbus-display/vm", test_dbus_display_vm);
     qtest_add_data_func("/dbus-display/console", GINT_TO_POINTER(false), test_dbus_display_console);
     qtest_add_data_func("/dbus-display/console/map", GINT_TO_POINTER(true), test_dbus_display_console);
+    qtest_add_func("/dbus-display/console/text-resize",
+                   test_dbus_display_text_resize);
     qtest_add_func("/dbus-display/keyboard", test_dbus_display_keyboard);
     if (qtest_has_machine("q35") && qtest_has_device("bochs-display")) {
         qtest_add_func("/dbus-display/hotplug", test_dbus_display_hotplug);
