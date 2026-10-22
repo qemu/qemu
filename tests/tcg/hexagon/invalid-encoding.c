@@ -89,6 +89,25 @@ static int test_invalid_nonduplex(void)
     return sig;
 }
 
+/* L4_loadw_phys bit 7 was reserved beginning with v83. */
+static int test_v83_loadw_phys_reserved_bit(void)
+{
+    int sig;
+
+    asm volatile(
+        "r0 = #0\n"
+        "r1 = ##1f\n"
+        "memw(%1) = r1\n"
+        ".word 0x9200e080\n" /* r0 = memw_phys(r0, r0), bit 7 = 1 */
+        "1:\n"
+        "%0 = r0\n"
+        : "=r"(sig)
+        : "r"(&resume_pc)
+        : "r0", "r1", "memory");
+
+    return sig;
+}
+
 int main()
 {
     struct sigaction act;
@@ -100,6 +119,7 @@ int main()
 
     assert(test_invalid_duplex() == SIGILL);
     assert(test_invalid_nonduplex() == SIGILL);
+    assert(test_v83_loadw_phys_reserved_bit() == SIGILL);
 
     puts("PASS");
     return EXIT_SUCCESS;
