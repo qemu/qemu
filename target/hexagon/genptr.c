@@ -1059,6 +1059,8 @@ static void gen_call(DisasContext *ctx, int pc_off)
 static void gen_callr(DisasContext *ctx, TCGv new_pc)
 {
     TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
+
+    new_pc = gen_unalias_gpr_src(new_pc, lr);
     tcg_gen_movi_tl(lr, ctx->next_PC);
     gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
 }
