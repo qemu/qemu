@@ -882,7 +882,7 @@ static const struct SysemuCPUOps loongarch_sysemu_ops = {
     .write_elf64_note = loongarch_cpu_write_elf64_note,
     .get_dump_info = loongarch_get_dump_info,
     .get_note_size = loongarch_get_note_size,
-    .get_phys_addr_debug = loongarch_cpu_get_phys_addr_debug,
+    .translate_for_debug = loongarch_cpu_translate_for_debug,
 };
 
 static int64_t loongarch_cpu_get_arch_id(CPUState *cs)
