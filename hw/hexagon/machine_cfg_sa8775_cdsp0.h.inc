@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 static const struct hexagon_machine_config SA8775P_cdsp0 = {
+    .ddr_base =        0x80000000,
     .cfgbase =         0x24000000 + 0x180000,
     .l2tcm_size =      0x00000000,
     .l2vic_base =      0x26300000 + 0x90000,
@@ -25,7 +26,7 @@ static const struct hexagon_machine_config SA8775P_cdsp0 = {
         .vtcm_base = 0x00002500,
         .vtcm_size_kb = 0x00002000,
         .l2tag_size = 0x00000400,
-        .l2ecomem_size = 0x00000000,
+        .l2ecomem_size = 0x00000400,
         .thread_enable_mask = 0x0000003f,
         .eccreg_base = 0x0000241f,
         .l2line_size = 0x00000080,
@@ -60,5 +61,8 @@ static const struct hexagon_machine_config SA8775P_cdsp0 = {
         .consistency_domain = 0x000000e0,
         .capacity_domain = 0x00000080,
         .axi3_lowaddr = 0x00000000,
+        .coproc2_int8_subcolumns = 0x00000002,
+        .corecfg_present = 0x00000005,
+        .coproc2_fp16_acc_exp = 0x00000007,
     },
 };

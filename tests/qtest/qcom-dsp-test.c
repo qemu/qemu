@@ -24,6 +24,7 @@
 
 static const char *const qcom_dsp_machines[] = {
     "qcs6490-cdsp",
+    "sa8775p-cdsp",
 };
 
 static void test_console(const void *machine)

@@ -8,5 +8,6 @@ hexagon_ss.add(when: 'CONFIG_HEX_BOARD', if_true: files('hex-board.c'))
 hexagon_ss.add(when: 'CONFIG_HEX_VIRT', if_true: files('virt.c'))
 hexagon_ss.add(when: 'CONFIG_HEX_QCOM_DSP', if_true: files('qcom_dsp.c'))
 hexagon_ss.add(when: 'CONFIG_HEX_QCS6490_CDSP', if_true: files('qcs6490_cdsp.c'))
+hexagon_ss.add(when: 'CONFIG_HEX_SA8775P_CDSP', if_true: files('sa8775p_cdsp.c'))
 
 hw_arch += {'hexagon': hexagon_ss}

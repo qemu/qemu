@@ -36,3 +36,9 @@ config HEX_QCS6490_CDSP
     default y
     depends on HEX_DSP && FDT
     select HEX_QCOM_DSP
+
+config HEX_SA8775P_CDSP
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP
