@@ -111,6 +111,7 @@
 # define gen_helper_aes_dround23_l       ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_aes_kexpand0         ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_aes_kexpand2         ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_crc32c               ({ qemu_build_not_reached(); NULL; })
 #endif
 
 #define DISAS_EXIT  DISAS_TARGET_0
@@ -3041,7 +3042,7 @@ TRANS(RDSTRAND_STATUS, HYPV, do_rd_special, true, a->rd, do_rdstrand_status)
 
 static TCGv do_rdcfr(DisasContext *dc, TCGv dst)
 {
-    return tcg_constant_tl(CFR_AES);
+    return tcg_constant_tl(CFR_AES | CFR_CRC32C);
 }
 
 TRANS(RDCFR, CRYPTO, do_rd_special, true, a->rd, do_rdcfr)
@@ -5438,6 +5439,7 @@ TRANS(AES_DROUND01_L, CRYPTO, do_dddd, a, gen_helper_aes_dround01_l)
 TRANS(AES_DROUND23_L, CRYPTO, do_dddd, a, gen_helper_aes_dround23_l)
 TRANS(AES_KEXPAND0, CRYPTO, do_ddd, a, gen_helper_aes_kexpand0)
 TRANS(AES_KEXPAND2, CRYPTO, do_ddd, a, gen_helper_aes_kexpand2)
+TRANS(CRC32C, CRYPTO, do_ddd, a, gen_helper_crc32c)
 
 /* AES key expansion with RCON selected by the 5-bit immediate in imm */
 static bool trans_AES_KEXPAND1(DisasContext *dc, arg_r_r_i_r *a)

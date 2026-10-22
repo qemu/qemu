@@ -10,6 +10,8 @@
 #include "exec/helper-proto.h"
 #include "crypto/aes-round.h"
 #include "crypto/aes.h"
+#include "qemu/bswap.h"
+#include "qemu/crc32c.h"
 
 /*
  * SPARC four-operand AES round (Section 7.3).
@@ -144,4 +146,23 @@ uint64_t helper_aes_kexpand0(uint64_t rs1, uint64_t rs2)
 uint64_t helper_aes_kexpand2(uint64_t rs1, uint64_t rs2)
 {
     return aes_kexpand(rs1, (uint32_t)rs2);
+}
+
+/*
+ * CRC32C Operation 3-operand (Section 7.19)
+ * Accumulate CRC32C over the eight bytes of rs2, most significant first.
+ */
+uint64_t helper_crc32c(uint64_t rs1, uint64_t rs2)
+{
+    uint8_t buf[8];
+    /* IV and result are byte-swapped in the register. */
+    uint32_t crc = bswap32((uint32_t)rs1);
+
+    stq_be_p(buf, rs2);
+
+    /* Undo crc32c()'s final inversion for the instruction's raw result. */
+    crc = crc32c(crc, buf, sizeof(buf)) ^ UINT32_MAX;
+
+    /* Result lives in the low 32 bits; upper half reads as zero. */
+    return (uint64_t)bswap32(crc);
 }
