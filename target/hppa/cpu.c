@@ -246,7 +246,7 @@ static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
 
 static const struct SysemuCPUOps hppa_sysemu_ops = {
     .has_work = hppa_cpu_has_work,
-    .get_phys_addr_debug = hppa_cpu_get_phys_addr_debug,
+    .translate_for_debug = hppa_cpu_translate_for_debug,
 };
 #endif
 
