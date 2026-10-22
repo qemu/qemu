@@ -908,7 +908,8 @@ txfail:
     return -1;
 }
 
-hwaddr m68k_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
+bool m68k_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                  TranslateForDebugResult *result)
 {
     CPUM68KState *env = cpu_env(cs);
     hwaddr phys_addr;
@@ -918,7 +919,8 @@ hwaddr m68k_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
         /* MMU disabled */
-        return addr;
+        phys_addr = addr;
+        goto success;
     }
 
     access_type = ACCESS_DATA | ACCESS_DEBUG;
@@ -928,10 +930,16 @@ hwaddr m68k_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
 
     if (get_physical_address(env, &phys_addr, &prot,
                              addr, access_type, &page_size) != 0) {
-        return -1;
+        return false;
     }
 
-    return phys_addr;
+success:
+    *result = (TranslateForDebugResult) {
+        .physaddr = phys_addr,
+        .lg_page_size = TARGET_PAGE_BITS,
+        .attrs.debug = 1,
+    };
+    return true;
 }
 
 /*

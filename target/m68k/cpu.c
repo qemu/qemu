@@ -688,7 +688,7 @@ static const MonitorDef m68k_monitor_defs[] = {
 
 static const struct SysemuCPUOps m68k_sysemu_ops = {
     .has_work = m68k_cpu_has_work,
-    .get_phys_addr_debug = m68k_cpu_get_phys_addr_debug,
+    .translate_for_debug = m68k_cpu_translate_for_debug,
 #ifdef CONFIG_HMP
     .monitor_defs = m68k_monitor_defs,
 #endif
