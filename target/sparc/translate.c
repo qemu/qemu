@@ -112,6 +112,9 @@
 # define gen_helper_aes_kexpand0         ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_aes_kexpand2         ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_crc32c               ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_sha1                 ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_sha256               ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_sha512               ({ qemu_build_not_reached(); NULL; })
 #endif
 
 #define DISAS_EXIT  DISAS_TARGET_0
@@ -3042,7 +3045,8 @@ TRANS(RDSTRAND_STATUS, HYPV, do_rd_special, true, a->rd, do_rdstrand_status)
 
 static TCGv do_rdcfr(DisasContext *dc, TCGv dst)
 {
-    return tcg_constant_tl(CFR_AES | CFR_CRC32C);
+    return tcg_constant_tl(CFR_AES | CFR_CRC32C | CFR_SHA1 |
+                           CFR_SHA256 | CFR_SHA512);
 }
 
 TRANS(RDCFR, CRYPTO, do_rd_special, true, a->rd, do_rdcfr)
@@ -5422,6 +5426,18 @@ static bool do_dddd(DisasContext *dc, arg_r_r_r_r *a,
     return advance_pc(dc);
 }
 
+/* SHA helpers update fixed registers in the lower FPR bank. */
+static bool do_sha(DisasContext *dc, void (*func)(TCGv_env))
+{
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    func(tcg_env);
+    gen_update_fprs_dirty(dc, 0);
+    return advance_pc(dc);
+}
+
 TRANS(PDIST, VIS1, do_dddd, a, gen_helper_pdist)
 TRANS(FMADDd, FMAF, do_dddd, a, gen_op_fmaddd)
 TRANS(FMSUBd, FMAF, do_dddd, a, gen_op_fmsubd)
@@ -5440,6 +5456,9 @@ TRANS(AES_DROUND23_L, CRYPTO, do_dddd, a, gen_helper_aes_dround23_l)
 TRANS(AES_KEXPAND0, CRYPTO, do_ddd, a, gen_helper_aes_kexpand0)
 TRANS(AES_KEXPAND2, CRYPTO, do_ddd, a, gen_helper_aes_kexpand2)
 TRANS(CRC32C, CRYPTO, do_ddd, a, gen_helper_crc32c)
+TRANS(SHA1, CRYPTO, do_sha, gen_helper_sha1)
+TRANS(SHA256, CRYPTO, do_sha, gen_helper_sha256)
+TRANS(SHA512, CRYPTO, do_sha, gen_helper_sha512)
 
 /* AES key expansion with RCON selected by the 5-bit immediate in imm */
 static bool trans_AES_KEXPAND1(DisasContext *dc, arg_r_r_i_r *a)
