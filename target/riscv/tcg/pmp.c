@@ -207,6 +207,14 @@ void pmp_unlock_entries(CPURISCVState *env)
     for (i = 0; i < pmp_num; i++) {
         env->pmp_state.pmp[i].cfg_reg &= ~(PMP_LOCK | PMP_AMATCH);
     }
+
+    /*
+     * addr[] and num_rules are derived from the pmpaddr and pmpcfg write
+     * paths and are not recomputed at reset. Clear them here so they
+     * cannot disagree with the architectural fields cleared above.
+     */
+    memset(env->pmp_state.addr, 0, sizeof(env->pmp_state.addr));
+    env->pmp_state.num_rules = 0;
 }
 
 static void pmp_decode_napot(hwaddr a, hwaddr *sa, hwaddr *ea)
