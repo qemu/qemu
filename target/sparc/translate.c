@@ -101,6 +101,14 @@
 # define gen_helper_xmulx                ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_xmulxhi              ({ qemu_build_not_reached(); NULL; })
 # define MAXTL_MASK                             0
+# define gen_helper_aes_eround01         ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_eround23         ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_dround01         ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_dround23         ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_eround01_l       ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_eround23_l       ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_dround01_l       ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_dround23_l       ({ qemu_build_not_reached(); NULL; })
 #endif
 
 #define DISAS_EXIT  DISAS_TARGET_0
@@ -5418,6 +5426,14 @@ TRANS(FNMSUBd, FMAF, do_dddd, a, gen_op_fnmsubd)
 TRANS(FNMADDd, FMAF, do_dddd, a, gen_op_fnmaddd)
 TRANS(FPMADDX, IMA, do_dddd, a, gen_op_fpmaddx)
 TRANS(FPMADDXHI, IMA, do_dddd, a, gen_op_fpmaddxhi)
+TRANS(AES_EROUND01, CRYPTO, do_dddd, a, gen_helper_aes_eround01)
+TRANS(AES_EROUND23, CRYPTO, do_dddd, a, gen_helper_aes_eround23)
+TRANS(AES_DROUND01, CRYPTO, do_dddd, a, gen_helper_aes_dround01)
+TRANS(AES_DROUND23, CRYPTO, do_dddd, a, gen_helper_aes_dround23)
+TRANS(AES_EROUND01_L, CRYPTO, do_dddd, a, gen_helper_aes_eround01_l)
+TRANS(AES_EROUND23_L, CRYPTO, do_dddd, a, gen_helper_aes_eround23_l)
+TRANS(AES_DROUND01_L, CRYPTO, do_dddd, a, gen_helper_aes_dround01_l)
+TRANS(AES_DROUND23_L, CRYPTO, do_dddd, a, gen_helper_aes_dround23_l)
 
 static bool trans_FALIGNDATAi(DisasContext *dc, arg_r_r_r *a)
 {
