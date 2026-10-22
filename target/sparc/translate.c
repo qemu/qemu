@@ -2507,6 +2507,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_VIS3(C)    ((C)->def->features & CPU_FEATURE_VIS3)
 # define avail_VIS3B(C)   avail_VIS3(C)
 # define avail_VIS4(C)    ((C)->def->features & CPU_FEATURE_VIS4)
+# define avail_CRYPTO(C)  ((C)->def->features & CPU_FEATURE_CRYPTO)
 #else
 # define avail_32(C)      true
 # define avail_ASR17(C)   ((C)->def->features & CPU_FEATURE_ASR17)
@@ -2524,6 +2525,7 @@ static int extract_qfpreg(DisasContext *dc, int x)
 # define avail_VIS3(C)    false
 # define avail_VIS3B(C)   false
 # define avail_VIS4(C)    false
+# define avail_CRYPTO(C)  false
 #endif
 
 /*
