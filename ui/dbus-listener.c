@@ -71,6 +71,8 @@ struct _DBusDisplayListener {
     DisplayChangeListener dcl;
     DisplaySurface *ds;
     enum share_kind ds_share;
+    /* true until a Scanout or ScanoutMap of ds has been sent */
+    bool ds_scanout_pending;
 
     bool ds_mapped;
     bool can_share_map;
@@ -480,6 +482,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
     }
 
     ddl->ds_share = SHARE_KIND_MAPPED;
+    ddl->ds_scanout_pending = false;
 
     return true;
 }
@@ -591,6 +594,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
     }
 
     ddl->ds_share = SHARE_KIND_MAPPED;
+    ddl->ds_scanout_pending = false;
 
     return true;
 }
@@ -844,6 +848,7 @@ static void ddl_scanout(DBusDisplayListener *ddl)
         ddl->proxy, surface_width(ddl->ds), surface_height(ddl->ds),
         surface_stride(ddl->ds), surface_format(ddl->ds), v_data,
         G_DBUS_CALL_FLAGS_NONE, DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+    ddl->ds_scanout_pending = false;
 }
 
 static void dbus_gfx_update(DisplayChangeListener *dcl,
@@ -872,7 +877,9 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
         return;
     }
 
-    if (x == 0 && y == 0 && w == surface_width(ddl->ds) && h == surface_height(ddl->ds)) {
+    if (ddl->ds_scanout_pending ||
+        (x == 0 && y == 0 &&
+         w == surface_width(ddl->ds) && h == surface_height(ddl->ds))) {
         return ddl_scanout(ddl);
     }
 
@@ -907,6 +914,7 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
 
     ddl->ds = new_surface;
     ddl->ds_share = SHARE_KIND_NONE;
+    ddl->ds_scanout_pending = true;
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
