@@ -372,6 +372,7 @@ F: configs/targets/riscv*
 F: docs/system/target-riscv.rst
 F: docs/specs/riscv-iommu.rst
 F: target/riscv/
+F: gdbstub/gdb-xml/riscv*.xml
 F: hw/char/riscv_htif.c
 F: hw/riscv/
 F: hw/intc/riscv*
