@@ -25,8 +25,8 @@ tests += {
 if 'qemu-system-riscv32' in emulators
   tcg_tests += {
     'riscv32-softmmu': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'riscv64-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-all-test-cross',
       'folder': 'riscv32',
       'gdb_arch': 'riscv32',
       'qemu': emulators['qemu-system-riscv32'],

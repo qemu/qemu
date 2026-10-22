@@ -181,7 +181,6 @@ if 'qemu-mipsel' in emulators
     'mipsel-linux-user': {
       'cc': 'mipsel-linux-gnu-gcc',
       'cc_dockerfile': 'debian-all-test-cross',
-      'cc_feat_cflags': cc_feat_cflags,
       'folder': 'mipsel',
       'gdb_arch': 'mipsel',
       'qemu': emulators['qemu-mipsel'],
@@ -207,7 +206,6 @@ if 'qemu-mipsel' in emulators
     'mips32r5el-linux-user': {
       'cc': 'mips32r5el-buildroot-linux-gnu-gcc',
       'cc_dockerfile': 'debian-all-test-cross',
-      'cc_feat_cflags': cc_feat_cflags,
       'folder': 'mipsel',
       'gdb_arch': 'mipsel',
       'qemu': emulators['qemu-mipsel'],

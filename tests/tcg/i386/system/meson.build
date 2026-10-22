@@ -41,9 +41,9 @@ tests += {
 if 'qemu-system-i386' in emulators
   tcg_tests += {
     'i386-softmmu': {
-      'cc': cc,
+      'cc': 'i686-linux-gnu-gcc',
       'cc_alt': ['i686-elf-gcc'],
-      'cc_dockerfile': cc_dockerfile,
+      'cc_dockerfile': 'debian-i686-cross',
       'folder': 'i386/system',
       'gdb_arch': 'i386',
       'qemu': emulators['qemu-system-i386'],

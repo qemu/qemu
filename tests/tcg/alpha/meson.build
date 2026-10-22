@@ -1,6 +1,3 @@
-cc = 'alpha-linux-gnu-gcc'
-cc_dockerfile = 'debian-all-test-cross'
-
 subdir('system')
 
 tests = []
@@ -42,8 +39,8 @@ tests += {
 if 'qemu-alpha' in emulators
   tcg_tests += {
     'alpha-linux-user': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'alpha-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-all-test-cross',
       'folder': 'alpha',
       'gdb_arch': 'alpha',
       'qemu': emulators['qemu-alpha'],

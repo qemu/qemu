@@ -81,10 +81,9 @@ endforeach
 if 'qemu-system-s390x' in emulators
   tcg_tests += {
     's390x-softmmu': {
-      'cc': cc,
-      'cc_alt': cc_alt,
-      'cc_dockerfile': cc_dockerfile,
-      'cc_feat_cflags': cc_feat_cflags,
+      'cc': 's390x-linux-gnu-gcc',
+      'cc_alt': ['s390x-redhat-linux-gcc'],
+      'cc_dockerfile': 'debian-all-test-cross',
       'folder': 's390x',
       'gdb_arch': 's390x',
       'qemu': emulators['qemu-system-s390x'],

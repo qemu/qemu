@@ -108,13 +108,19 @@ tests += {
 if 'qemu-system-aarch64' in emulators
   tcg_tests += {
     'aarch64-softmmu': {
-      'cc': cc,
-      'cc_alt': cc_alt + ['aarch64-elf-gcc'],
-      'cc_dockerfile': cc_dockerfile,
-      'cc_feat_cflags': cc_feat_cflags,
+      'cc': 'aarch64-linux-gnu-gcc',
+      'cc_alt': ['aarch64-redhat-linux-gcc', 'aarch64-elf-gcc'],
+      'cc_dockerfile': 'debian-all-test-cross',
+      'cc_feat_cflags': {
+        'sve': '-march=armv8.1-a+sve',
+        'v8.3': '-march=armv8.3-a',
+        'mte':  '-march=armv8.5-a+memtag',
+      },
       'folder': 'aarch64/system',
       'gdb_arch': 'aarch64',
-      'gdb_feat_version': gdb_feat_version,
+      'gdb_feat_version': {
+        'mte-baremetal': '16.0',
+      },
       'qemu': emulators['qemu-system-aarch64'],
       'tests': tests,
     }

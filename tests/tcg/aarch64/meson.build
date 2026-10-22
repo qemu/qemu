@@ -1,26 +1,3 @@
-cc = 'aarch64-linux-gnu-gcc'
-cc_alt = ['aarch64-redhat-linux-gcc']
-cc_dockerfile = 'debian-all-test-cross'
-
-cc_feat_cflags = {
-  'aes': '-march=armv8-a+aes',
-  'sve': '-march=armv8.1-a+sve',
-  'sve2': '-march=armv8.1-a+sve2',
-  'v8.2': '-march=armv8.2-a',
-  'v8.3': '-march=armv8.3-a',
-  'v8.5': '-march=armv8.5-a',
-  'bti':  '-mbranch-protection=standard',
-  'mte':  '-march=armv8.5-a+memtag',
-  'sme':  '-Wa,-march=armv9-a+sme',
-  'fprcvt': '-march=armv9-a+fprcvt',
-}
-
-gdb_feat_version = {
-  'sme-tiles': '14.1',
-  'mte': '15.1',
-  'mte-baremetal': '16.0',
-}
-
 subdir('system')
 
 tests = []
@@ -196,13 +173,26 @@ tests += {
 if 'qemu-aarch64' in emulators
   tcg_tests += {
     'aarch64-linux-user': {
-      'cc': cc,
-      'cc_alt': cc_alt,
-      'cc_dockerfile': cc_dockerfile,
-      'cc_feat_cflags': cc_feat_cflags,
+      'cc': 'aarch64-linux-gnu-gcc',
+      'cc_alt': ['aarch64-redhat-linux-gcc'],
+      'cc_dockerfile': 'debian-all-test-cross',
+      'cc_feat_cflags': {
+        'aes': '-march=armv8-a+aes',
+        'sve': '-march=armv8.1-a+sve',
+        'sve2': '-march=armv8.1-a+sve2',
+        'v8.2': '-march=armv8.2-a',
+        'v8.3': '-march=armv8.3-a',
+        'v8.5': '-march=armv8.5-a',
+        'bti':  '-mbranch-protection=standard',
+        'mte':  '-march=armv8.5-a+memtag',
+        'sme':  '-Wa,-march=armv9-a+sme',
+      },
       'folder': 'aarch64',
       'gdb_arch': 'aarch64',
-      'gdb_feat_version': gdb_feat_version,
+      'gdb_feat_version': {
+        'sme-tiles': '14.1',
+        'mte': '15.1',
+      },
       'qemu': emulators['qemu-aarch64'],
       'tests': tests,
     }

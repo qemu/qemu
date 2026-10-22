@@ -39,11 +39,15 @@ endforeach
 if 'qemu-system-loongarch64' in emulators
   tcg_tests += {
     'loongarch64-softmmu': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'loongarch64-unknown-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-loongarch-cross',
       'folder': 'loongarch64/system',
       'gdb_arch': 'loongarch64',
-      'gdb_feat_version': gdb_feat_version,
+      'gdb_feat_version': {
+        # previous version report "Architecture rejected target-supplied
+        # description", exposing a mismatch between our gdbstub and gdb.
+        'loongarch64': '16.1',
+      },
       'qemu': emulators['qemu-system-loongarch64'],
       'tests': tests,
     }
