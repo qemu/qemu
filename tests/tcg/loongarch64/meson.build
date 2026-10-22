@@ -1,11 +1,24 @@
 cc = 'loongarch64-unknown-linux-gnu-gcc'
 cc_dockerfile = 'debian-loongarch-cross'
 
+gdb_feat_version = {
+  # previous version report "Architecture rejected target-supplied
+  # description", exposing a mismatch between our gdbstub and gdb.
+  'loongarch64': '16.1',
+}
+
 subdir('system')
 
 tests = []
 
-tests += tcg_tests['multiarch-linux-user']['tests']
+foreach t: tcg_tests['multiarch-linux-user']['tests']
+  foreach src, setup: t
+    if 'gdb_test' in setup
+      setup += {'gdb_feat': 'loongarch64'}
+    endif
+    tests += {src: setup}
+  endforeach
+endforeach
 
 tests += {
   'test_bit.c': {},
@@ -23,6 +36,7 @@ if 'qemu-loongarch64' in emulators
       'cc_dockerfile': cc_dockerfile,
       'folder': 'loongarch64',
       'gdb_arch': 'loongarch64',
+      'gdb_feat_version': gdb_feat_version,
       'qemu': emulators['qemu-loongarch64'],
       'tests': tests,
     }

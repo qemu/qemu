@@ -30,6 +30,9 @@ foreach t: tcg_tests['multiarch-softmmu']['tests']
         continue
       endif
     endif
+    if 'gdb_test' in setup
+      setup += {'gdb_feat': 'loongarch64'}
+    endif
     if src not in multi_src
       setup += {'cflags': [new_cflags]}
       multi_src += src
@@ -45,6 +48,7 @@ if 'qemu-system-loongarch64' in emulators
       'cc_dockerfile': cc_dockerfile,
       'folder': 'loongarch64/system',
       'gdb_arch': 'loongarch64',
+      'gdb_feat_version': gdb_feat_version,
       'qemu': emulators['qemu-system-loongarch64'],
       'tests': tests,
     }
