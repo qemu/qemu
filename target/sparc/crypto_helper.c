@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "exec/helper-proto.h"
 #include "crypto/aes-round.h"
+#include "crypto/aes.h"
 
 /*
  * SPARC four-operand AES round (Section 7.3).
@@ -86,4 +87,61 @@ uint64_t helper_aes_dround01_l(uint64_t key, uint64_t s2, uint64_t s3)
 uint64_t helper_aes_dround23_l(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 1, true, true);
+}
+
+/* Combine the transformed word with the two words in rs1. */
+static uint64_t aes_kexpand(uint64_t rs1, uint32_t t)
+{
+    uint32_t hi = (rs1 >> 32) ^ t;
+    uint32_t lo = (uint32_t)rs1 ^ hi;
+
+    return deposit64(lo, 32, 32, hi);
+}
+
+/* Apply the AES S-box to each byte, preserving byte positions. */
+static uint32_t aes_subword(uint32_t x)
+{
+    return ((uint32_t)AES_sbox[x >> 24] << 24) |
+           ((uint32_t)AES_sbox[(x >> 16) & 0xff] << 16) |
+           ((uint32_t)AES_sbox[(x >> 8) & 0xff] << 8) |
+           (uint32_t)AES_sbox[x & 0xff];
+}
+
+/*
+ * AES Cryptographic Operations 4-operand (Section 7.3)
+ * AES key expansion with RotWord, SubWord, and RCON.
+ */
+uint64_t helper_aes_kexpand1(uint64_t rs1, uint64_t rs2, uint32_t imm)
+{
+    static const uint8_t rcon[10] = {
+        0x01, 0x02, 0x04, 0x08, 0x10,
+        0x20, 0x40, 0x80, 0x1b, 0x36,
+    };
+    uint32_t t = rol32((uint32_t)rs2, 8);
+
+    t = aes_subword(t);
+
+    if (imm < ARRAY_SIZE(rcon)) {
+        t ^= (uint32_t)rcon[imm] << 24;
+    }
+
+    return aes_kexpand(rs1, t);
+}
+
+/*
+ * AES Cryptographic Operations 3-operand (Section 7.4)
+ * AES key expansion with SubWord, without RotWord or RCON.
+ */
+uint64_t helper_aes_kexpand0(uint64_t rs1, uint64_t rs2)
+{
+    return aes_kexpand(rs1, aes_subword(rs2));
+}
+
+/*
+ * AES Cryptographic Operations 3-operand (Section 7.4)
+ * AES key expansion without SubWord, RotWord, or RCON.
+ */
+uint64_t helper_aes_kexpand2(uint64_t rs1, uint64_t rs2)
+{
+    return aes_kexpand(rs1, (uint32_t)rs2);
 }

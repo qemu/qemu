@@ -109,6 +109,8 @@
 # define gen_helper_aes_eround23_l       ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_aes_dround01_l       ({ qemu_build_not_reached(); NULL; })
 # define gen_helper_aes_dround23_l       ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_kexpand0         ({ qemu_build_not_reached(); NULL; })
+# define gen_helper_aes_kexpand2         ({ qemu_build_not_reached(); NULL; })
 #endif
 
 #define DISAS_EXIT  DISAS_TARGET_0
@@ -3039,7 +3041,7 @@ TRANS(RDSTRAND_STATUS, HYPV, do_rd_special, true, a->rd, do_rdstrand_status)
 
 static TCGv do_rdcfr(DisasContext *dc, TCGv dst)
 {
-    return tcg_constant_tl(0);
+    return tcg_constant_tl(CFR_AES);
 }
 
 TRANS(RDCFR, CRYPTO, do_rd_special, true, a->rd, do_rdcfr)
@@ -5434,6 +5436,32 @@ TRANS(AES_EROUND01_L, CRYPTO, do_dddd, a, gen_helper_aes_eround01_l)
 TRANS(AES_EROUND23_L, CRYPTO, do_dddd, a, gen_helper_aes_eround23_l)
 TRANS(AES_DROUND01_L, CRYPTO, do_dddd, a, gen_helper_aes_dround01_l)
 TRANS(AES_DROUND23_L, CRYPTO, do_dddd, a, gen_helper_aes_dround23_l)
+TRANS(AES_KEXPAND0, CRYPTO, do_ddd, a, gen_helper_aes_kexpand0)
+TRANS(AES_KEXPAND2, CRYPTO, do_ddd, a, gen_helper_aes_kexpand2)
+
+/* AES key expansion with RCON selected by the 5-bit immediate in imm */
+static bool trans_AES_KEXPAND1(DisasContext *dc, arg_r_r_i_r *a)
+{
+#ifdef TARGET_SPARC64
+    TCGv_i64 dst, src1, src2;
+
+    if (!avail_CRYPTO(dc)) {
+        return false;
+    }
+    if (gen_trap_ifnofpu(dc)) {
+        return true;
+    }
+
+    dst = tcg_temp_new_i64();
+    src1 = gen_load_fpr_D(dc, a->rs1);
+    src2 = gen_load_fpr_D(dc, a->rs2);
+    gen_helper_aes_kexpand1(dst, src1, src2, tcg_constant_i32(a->imm));
+    gen_store_fpr_D(dc, a->rd, dst);
+    return advance_pc(dc);
+#else
+    return false;
+#endif
+}
 
 static bool trans_FALIGNDATAi(DisasContext *dc, arg_r_r_r *a)
 {
