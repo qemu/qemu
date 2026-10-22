@@ -47,6 +47,10 @@ typedef enum {
 
 #define HEXAGON_CFGSPACE_ENTRIES (128)
 
+/* Offsets of q6ss cfg peripherals from the subsystem base. */
+#define HEXAGON_L2VIC_OFFSET  0x10000
+#define HEXAGON_QTIMER_OFFSET 0x21000
+
 union hexagon_config_table {
     struct {
         /* Base address of L2TCM space */
