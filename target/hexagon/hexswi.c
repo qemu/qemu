@@ -757,7 +757,17 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     env->llsc_addr = ~0;
 
     ssr = env->t_sreg[HEX_SREG_SSR];
+    if (GET_SSR_FIELD(SSR_EX, ssr) == 0) {
+        SET_SSR_FIELD(env, SSR_CFI, env->cfi_active);
+    }
+    env->cfi_active = 0;
+    env->cfi_updated = 0;
+
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
+        /*
+         * Double exception: keep the SSR.CFI value saved by the first
+         * exception, which a later rte would need to restore.
+         */
         if (cpu->globalregs) {
             hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
                                     env->cause_code, env->threadId);
@@ -861,6 +871,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         switch (env->cause_code) {
         case HEX_CAUSE_FETCH_NO_XPAGE:
         case HEX_CAUSE_FETCH_NO_UPAGE:
+        case HEX_CAUSE_CFI_VIOLATION:
         case HEX_CAUSE_PRIV_NO_READ:
         case HEX_CAUSE_PRIV_NO_UREAD:
         case HEX_CAUSE_PRIV_NO_WRITE:

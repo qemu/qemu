@@ -132,6 +132,9 @@ typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
     uint32_t cause_code;
+    uint32_t cfi_active;
+    uint32_t cfi_active_log;
+    uint32_t cfi_updated;
 
     /* For comparing with LLDB on target - see adjust_stack_ptrs function */
     target_ulong last_pc_dumped;

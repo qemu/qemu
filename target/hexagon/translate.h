@@ -365,6 +365,9 @@ extern TCGv_i64 hex_llsc_val_i64;
 extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
+extern TCGv_i32 hex_cfi_active;
+extern TCGv_i32 hex_cfi_active_log;
+extern TCGv_i32 hex_cfi_updated;
 void gen_precise_exception(int cause, uint32_t pc);
 #ifdef CONFIG_USER_ONLY
 #define hex_hvx_ptr tcg_env

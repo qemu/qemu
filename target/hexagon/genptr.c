@@ -1085,6 +1085,42 @@ static void gen_cond_callr(DisasContext *ctx,
     gen_set_label(skip);
 }
 
+static void gen_set_cfi(DisasContext *ctx)
+{
+    fSET_CFI(tcg_constant_i32(1));
+}
+
+static void gen_reset_cfi(DisasContext *ctx)
+{
+    fSET_CFI(tcg_constant_i32(0));
+}
+
+/* Indirect transfers through LR are returns, which do not set the CFI state */
+static void gen_set_cfi_for_target(DisasContext *ctx, int rs_num)
+{
+    if (rs_num == HEX_REG_LR) {
+        gen_reset_cfi(ctx);
+    } else {
+        gen_set_cfi(ctx);
+    }
+}
+
+/*
+ * Update the CFI state if the predicate (true if @sense, else false) holds.
+ * @rs_num is the jump target register, or -1 for calls.
+ */
+static void gen_cond_set_cfi(DisasContext *ctx, bool sense, TCGv pred,
+                             int rs_num)
+{
+    TCGv lsb = tcg_temp_new();
+    TCGLabel *skip = gen_new_label();
+
+    tcg_gen_andi_tl(lsb, pred, 1);
+    tcg_gen_brcondi_tl(sense ? TCG_COND_EQ : TCG_COND_NE, lsb, 0, skip);
+    gen_set_cfi_for_target(ctx, rs_num);
+    gen_set_label(skip);
+}
+
 #ifndef CONFIG_HEXAGON_IDEF_PARSER
 /* frame = ((LR << 32) | FP) ^ (FRAMEKEY << 32)) */
 static TCGv_i64 gen_frame_scramble(void)

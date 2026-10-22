@@ -135,6 +135,8 @@ STD_ST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_REGWR
 
 Q6INSN(S2_allocframe,"allocframe(Rx32,#u11:3):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
 { fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
+Q6INSN(S2_allocframe_rb,"allocframe_rb(Rx32,#u11:3):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY,A_RESTRICT_TARGET), "Allocate stack frame",
+{ fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
 #define A_RETURN A_RESTRICT_COF_MAX1,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE,A_RET_TYPE,A_DEALLOCRET
 
 /**** Load Acquire Store Release Instructions****/

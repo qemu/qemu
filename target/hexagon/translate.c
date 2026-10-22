@@ -68,6 +68,9 @@ TCGv hex_imprecise_exception;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+TCGv_i32 hex_cfi_active;
+TCGv_i32 hex_cfi_active_log;
+TCGv_i32 hex_cfi_updated;
 #ifndef CONFIG_USER_ONLY
 TCGv_ptr hex_hvx_ptr;
 #endif
@@ -480,6 +483,45 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
     }
 }
 
+static bool pkt_legal_cfi_target(const Packet *pkt)
+{
+    int i;
+
+    for (i = 0; i < pkt->num_insns; i++) {
+        if (GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_TARGET) ||
+            pkt->insn[i].opcode == Y2_break ||
+            (pkt->insn[i].opcode == J2_trap0 &&
+             pkt->insn[i].immed[0] == 0xdb)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void gen_cfi_check(DisasContext *ctx)
+{
+    TCGLabel *skip;
+
+    if (ctx->hex_def->hex_version < HEX_VER_V83 ||
+        pkt_legal_cfi_target(&ctx->pkt)) {
+        return;
+    }
+
+    skip = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_EQ, hex_cfi_active, 0, skip);
+    gen_precise_exception(HEX_CAUSE_CFI_VIOLATION, ctx->pkt.pc);
+    gen_set_label(skip);
+}
+
+static void gen_cfi_target_update(DisasContext *ctx)
+{
+    if (ctx->hex_def->hex_version >= HEX_VER_V83 &&
+        pkt_legal_cfi_target(&ctx->pkt)) {
+        tcg_gen_movi_i32(hex_cfi_active_log, 0);
+        tcg_gen_movi_i32(hex_cfi_updated, 1);
+    }
+}
+
 static void mark_implicit_usr_write(DisasContext *ctx, int attrib)
 {
     uint16_t opcode = ctx->insn->opcode;
@@ -747,6 +789,9 @@ static void gen_start_packet(DisasContext *ctx)
     if (need_pc_preload(ctx)) {
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     }
+
+    gen_cfi_target_update(ctx);
+    gen_cfi_check(ctx);
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
     if (ctx->need_commit &&
@@ -1269,6 +1314,14 @@ static void gen_commit_packet(DisasContext *ctx)
         gen_helper_probe_pkt_scalar_store_s0(tcg_env, args_tcgv);
     }
 
+    if (ctx->hex_def->hex_version >= HEX_VER_V83) {
+        /* A restricted branch commits before a faulting store in its packet. */
+        tcg_gen_movcond_i32(TCG_COND_NE, hex_cfi_active, hex_cfi_updated,
+                            tcg_constant_i32(0), hex_cfi_active_log,
+                            hex_cfi_active);
+        tcg_gen_movi_i32(hex_cfi_updated, 0);
+    }
+
     process_store_log(ctx);
 
     gen_reg_writes(ctx);
@@ -1518,6 +1571,12 @@ void hexagon_translate_init(void)
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
+    hex_cfi_active = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, cfi_active), "cfi_active");
+    hex_cfi_active_log = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, cfi_active_log), "cfi_active_log");
+    hex_cfi_updated = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, cfi_updated), "cfi_updated");
 
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(tcg_env,

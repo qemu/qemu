@@ -21,7 +21,7 @@ static int hexagon_cpu_post_load(void *opaque, int version_id)
 
 const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .post_load = hexagon_cpu_post_load,
     .fields = (const VMStateField[]) {
@@ -37,6 +37,7 @@ const VMStateDescription vmstate_hexagon_cpu = {
         VMSTATE_UINT32(env.cause_code, HexagonCPU),
         VMSTATE_UNUSED(sizeof(uint64_t)),
         VMSTATE_UINT32(env.imprecise_exception, HexagonCPU),
+        VMSTATE_UINT32_V(env.cfi_active, HexagonCPU, 3),
 
         VMSTATE_END_OF_LIST()
     },

@@ -413,6 +413,20 @@ DEF_ENC32(V2_vallocframe_imm,"01100000100-----PP001----iiiiiii")
 DEF_ENC32(V2_vallocframe_reg,"01100000100sssssPP010-----------")
 DEF_ENC32(V2_vdeallocframe_imm,"01101010100-----PP001----iiiiiii")
 DEF_ENC32(V2_vdeallocframe_reg,"01101001010sssssPP010-----------")
+DEF_ENC32(J2_callr_rb,"01010000001sssssPP--------------")
+DEF_ENC32(J2_callrh_rb,"01010000010sssssPP--------------")
+DEF_ENC32(J2_callrt_rb,"01010001100sssssPP----uu--------")
+DEF_ENC32(J2_callrf_rb,"01010001101sssssPP----uu--------")
+DEF_ENC32(J2_jumpr_rb,"01010010000sssssPP--------------")
+DEF_ENC32(J2_jumprh_rb,"01010010010sssssPP--------------")
+DEF_ENC32(J2_jumprt_rb,"01010011110sssssPP-00-uu--------")
+DEF_ENC32(J2_jumprf_rb,"01010011111sssssPP-00-uu--------")
+DEF_ENC32(J2_jumprtpt_rb,"01010011110sssssPP-10-uu--------")
+DEF_ENC32(J2_jumprfpt_rb,"01010011111sssssPP-10-uu--------")
+DEF_ENC32(J2_jumprtnew_rb,"01010011110sssssPP-01-uu--------")
+DEF_ENC32(J2_jumprfnew_rb,"01010011111sssssPP-01-uu--------")
+DEF_ENC32(J2_jumprtnewpt_rb,"01010011110sssssPP-11-uu--------")
+DEF_ENC32(J2_jumprfnewpt_rb,"01010011111sssssPP-11-uu--------")
 DEF_ENC32(J2_trap2,"0101010011------PP-iiiii---iii--")
 
 
@@ -514,6 +528,7 @@ DEF_ENC32(S2_pstorerdf_pi_nt,"10101010110xxxxxPP1ttttt0iiii1vv")
 /*                               x bus/cache     */
 /*                                    x store/cache     */
 DEF_ENC32(S2_allocframe,   ICLASS_ST" 000 01 00xxxxx PP000iii iiiiiiii")
+DEF_ENC32(S2_allocframe_rb,ICLASS_ST" 000 01 00xxxxx PP100iii iiiiiiii")
 DEF_ENC32(Y5_l2locka,      ICLASS_ST" 000 01 11sssss PP1----- ------dd")
 DEF_ENC32(Y2_dczeroa,      ICLASS_ST" 000 01 10sssss PP0----- --------")
 DEF_ENC32(Y2_dczeroa_nt,"10100000110sssssPP1-------------")
@@ -1407,7 +1422,8 @@ DEF_ENC32(C2_cmoveif,   ICLASS_ALU2op" 1110 1uu0iiii PP0iiiii iiiddddd")
 
 
 DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1111 -------- PP------ --------","[#15] nop")
-DEF_ENC32(A2_nop,       ICLASS_ALU2op" 1111 -------- PP------ --------")
+DEF_ENC32(A2_nop,       ICLASS_ALU2op" 1111 0------- PP------ --------")
+DEF_ENC32(A2_nop_rb,    ICLASS_ALU2op" 1111 1------- PP------ --------")
 
 
 
