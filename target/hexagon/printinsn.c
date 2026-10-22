@@ -171,7 +171,8 @@ void snprint_a_pkt_disas(GString *buf, Packet *pkt, uint32_t *words,
         }
 
         g_string_append(buf, "\t");
-        if (opcode_supported(pkt->insn[i].opcode, cfg->hex_def)) {
+        if (opcode_supported(pkt->insn[i].opcode, cfg->hex_def) &&
+            encoding_supported(pkt->insn[i].opcode, words[i], cfg->hex_def)) {
             snprintinsn(buf, &(pkt->insn[i]));
         } else {
             g_string_append(buf, "<invalid>");
