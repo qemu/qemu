@@ -13,6 +13,7 @@
 #include "hw/hexagon/machine_cfg_v68n_1024.h.inc"
 #include "hw/hexagon/machine_cfg_v66g_1024.h.inc"
 #include "hw/hexagon/machine_cfg_qcs6490_cdsp.h.inc"
+#include "hw/hexagon/machine_cfg_sc8480xp_nsp0.h.inc"
 #include "hw/hexagon/machine_cfg_sa8775_cdsp0.h.inc"
 
 #define QTIMER_DEFAULT_FREQ_HZ 19200000ULL
@@ -346,6 +347,7 @@ static const QtimerMachineCfg qtimer_machines[] = {
     { "V66G_1024", &v66g_1024 },
     { "qcs6490-cdsp", &qcs6490_cdsp },
     { "sa8775p-cdsp", &SA8775P_cdsp0 },
+    { "sc8480xp-nsp0", &sc8480xp_nsp0 },
 };
 
 static void test_qtimer_on_machine(gconstpointer data)
