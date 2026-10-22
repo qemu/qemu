@@ -69,6 +69,7 @@ typedef enum {
 void gen_atomic4(DisasContext *ctx, TCGv dest, TCGv vaddr, TCGv src,
                  HexAtomicOp operation);
 void gen_atomic8(DisasContext *ctx, TCGv_i64 dest, TCGv vaddr, TCGv_i64 src);
+void gen_vframecheck(DisasContext *ctx, TCGv vsp);
 void probe_noshuf_load(TCGv va, int s, int mi);
 void gen_gvec_sabsdiff_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
                            TCGv_ptr abase, uint32_t aofs,

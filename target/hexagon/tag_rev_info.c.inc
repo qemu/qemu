@@ -699,6 +699,16 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     },
     [V6_vconv_bf_qf32] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
 
+    [V2_vallocframe_imm] = { .introduced = HEX_VER_V83,
+                             .removed = HEX_VER_NONE },
+    [V2_vallocframe_reg] = { .introduced = HEX_VER_V83,
+                             .removed = HEX_VER_NONE },
+    [V2_vdeallocframe_imm] = { .introduced = HEX_VER_V83,
+                               .removed = HEX_VER_NONE },
+    [V2_vdeallocframe_reg] = { .introduced = HEX_VER_V83,
+                               .removed = HEX_VER_NONE },
+    [J2_trap2] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+
     [Y4_dcfetch_multi] = { .introduced = HEX_VER_V85,
                             .removed = HEX_VER_NONE },
     [AM_addw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },

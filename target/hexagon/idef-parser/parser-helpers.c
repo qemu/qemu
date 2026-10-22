@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "hex_regs.h"
 #include "idef-parser.h"
 #include "parser-helpers.h"
 #include "idef-parser.tab.h"
@@ -1313,6 +1314,11 @@ void gen_write_reg(Context *c, YYLTYPE *locp, HexValue *reg, HexValue *value)
     yyassert(c, locp, reg->type == REGISTER, "reg must be a register!");
     value_m = gen_rvalue_truncate(c, locp, &value_m);
     value_m = rvalue_materialize(c, locp, &value_m);
+    if (reg->reg.id == HEX_REG_VSP) {
+        OUT(c, locp, "tcg_gen_mov_tl(hex_gpr[HEX_REG_VSP], ", &value_m,
+            ");\n");
+        return;
+    }
     OUT(c,
         locp,
         "tcg_gen_mov_tl(get_result_gpr(ctx, ", &reg->reg.id, "), ",
@@ -1738,6 +1744,14 @@ void gen_framecheck(Context *c, YYLTYPE *locp, HexValue *addr, HexValue *ea)
     addr_m = gen_rvalue_truncate(c, locp, &addr_m);
     ea_m = gen_rvalue_truncate(c, locp, &ea_m);
     OUT(c, locp, "gen_framecheck(ctx, ", &addr_m, ", ", &ea_m, ");\n");
+}
+
+void gen_vframecheck(Context *c, YYLTYPE *locp, HexValue *addr)
+{
+    HexValue addr_m = rvalue_materialize(c, locp, addr);
+
+    addr_m = gen_rvalue_truncate(c, locp, &addr_m);
+    OUT(c, locp, "gen_vframecheck(ctx, ", &addr_m, ");\n");
 }
 
 void gen_load(Context *c, YYLTYPE *locp, HexValue *width,

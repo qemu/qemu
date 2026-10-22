@@ -50,6 +50,7 @@ SlotMask find_iclass_slots(Opcode opcode, int itype)
     } else if (GET_ATTRIB(opcode, A_RESTRICT_NOSLOT1)) {
         return SLOTS_0;
     } else if ((opcode == J2_trap0) ||
+               (opcode == J2_trap2) ||
                (opcode == Y2_isync) ||
                (opcode == J2_pause)) {
         return SLOTS_2;

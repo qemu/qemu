@@ -48,6 +48,7 @@ void cpu_loop(CPUHexagonState *env)
             /* just indicate that signals should be handled asap */
             break;
         case HEX_EVENT_TRAP0:
+        case HEX_EVENT_TRAP2:
             syscallnum = env->gpr[6];
             env->gpr[HEX_REG_PC] += 4;
             ret = do_syscall(env,
@@ -71,6 +72,10 @@ void cpu_loop(CPUHexagonState *env)
             case HEX_CAUSE_PRIV_NO_UREAD:
             case HEX_CAUSE_PRIV_NO_UWRITE:
                 force_sig_fault(TARGET_SIGSEGV, TARGET_SEGV_MAPERR,
+                                env->gpr[HEX_REG_PC]);
+                break;
+            case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
+                force_sig_fault(TARGET_SIGSEGV, TARGET_SEGV_BNDERR,
                                 env->gpr[HEX_REG_PC]);
                 break;
             case HEX_CAUSE_PRIV_USER_NO_GINSN:

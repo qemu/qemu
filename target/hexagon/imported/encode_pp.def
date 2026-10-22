@@ -409,6 +409,11 @@ DEF_EXT_SPACE(EXTRACTW,   ICLASS_LD" 001 0 000 iiiii PP0iiiii 001iiiii")
 DEF_ENC32(Y2_dcfetchbo,   "10010100000sssssPP000iiiiiiiiiii")
 DEF_ENC32(Y4_dcfetch_multi,"10010100000sssssPP001ttttt------")
 DEF_ENC32(Y2_dcfetchbo_nt,"10010100000sssssPP10-iiiiiiiiiii")
+DEF_ENC32(V2_vallocframe_imm,"01100000100-----PP001----iiiiiii")
+DEF_ENC32(V2_vallocframe_reg,"01100000100sssssPP010-----------")
+DEF_ENC32(V2_vdeallocframe_imm,"01101010100-----PP001----iiiiiii")
+DEF_ENC32(V2_vdeallocframe_reg,"01101001010sssssPP010-----------")
+DEF_ENC32(J2_trap2,"0101010011------PP-iiiii---iii--")
 
 
 

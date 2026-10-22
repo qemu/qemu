@@ -366,6 +366,10 @@ static void coredump(CPUHexagonState *env)
         fprintf(f, "0x%x, Stack limit check error",
                 HEX_CAUSE_STACK_LIMIT);
         break;
+    case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
+        fprintf(f, "0x%x, Vector stack overflow",
+                HEX_CAUSE_VECTOR_STACK_OVERFLOW);
+        break;
     case HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT:
         fprintf(f, "0x%x, Floating-Point: Execution of Floating-Point "
                 "instruction resulted in exception",
@@ -777,6 +781,11 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         set_addresses(env, 4, cs->exception_index);
         break;
 
+    case HEX_EVENT_TRAP2:
+        hexagon_ssr_set_cause(env, env->cause_code);
+        set_addresses(env, 4, cs->exception_index);
+        break;
+
     case HEX_EVENT_TLB_MISS_X:
         switch (env->cause_code) {
         case HEX_CAUSE_TLBMISSX_CAUSE_NORMAL:
@@ -882,6 +891,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_NO_COPROC_ENABLE:
         case HEX_CAUSE_NO_COPROC2_ENABLE:
         case HEX_CAUSE_UNSUPPORTED_HVX_64B:
+        case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
         case HEX_CAUSE_REG_WRITE_CONFLICT:
         case HEX_CAUSE_VWCTRL_WINDOW_MISS:
             hexagon_ssr_set_cause(env, env->cause_code);
@@ -962,7 +972,19 @@ void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
 {
     CPUState *cs = env_cpu(env);
 
-    cs->exception_index = (traptype == 0) ? HEX_EVENT_TRAP0 : HEX_EVENT_TRAP1;
+    switch (traptype) {
+    case 0:
+        cs->exception_index = HEX_EVENT_TRAP0;
+        break;
+    case 1:
+        cs->exception_index = HEX_EVENT_TRAP1;
+        break;
+    case 2:
+        cs->exception_index = HEX_EVENT_TRAP2;
+        break;
+    default:
+        g_assert_not_reached();
+    }
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
 
     env->cause_code = imm;

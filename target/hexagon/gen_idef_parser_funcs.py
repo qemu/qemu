@@ -77,7 +77,7 @@ def main():
             if tag in {"S4_vrcrotate_acc", "S4_vrcrotate"}:
                 continue
             ## Skip trap instructions
-            if tag in {"J2_trap0", "J2_trap1"}:
+            if tag in {"J2_trap0", "J2_trap1", "J2_trap2"}:
                 continue
             ## Skip 128-bit instructions
             if tag in {"A7_croundd_ri", "A7_croundd_rr"}:

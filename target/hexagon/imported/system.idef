@@ -48,6 +48,9 @@ Q6INSN(J2_trap1,"trap1(Rx32,#u8)",ATTRIBS(A_COF,A_NOTE_NOPACKET,A_RESTRICT_NOPAC
 		fVIRTINSN_SPSWAP(uiV,RxV);
 	})
 
+Q6INSN(J2_trap2,"trap2(#u8)",ATTRIBS(A_COF,A_RESTRICT_NOPACKET),
+       "Trap to Operating System", { fTRAP(2,uiV); })
+
 Q6INSN(J2_pause,"pause(#u8)",ATTRIBS(A_COF,A_NOTE_NOPACKET,A_RESTRICT_NOPACKET),
 "Enter low-power state for #u8 cycles",{fPAUSE(uiV);})
 
@@ -241,6 +244,11 @@ Q6INSN(Y6_dmresume,"dmresume(Rs32)",ATTRIBS(A_NOTE_NOPACKET,A_RESTRICT_NOPACKET,
 
 Q6INSN(Y2_dcfetchbo,"dcfetch(Rs32+#u11:3)",ATTRIBS(A_RESTRICT_PREFERSLOT0,A_DCFETCH,A_RESTRICT_NOSLOT1_STORE),"Data Cache Prefetch",{fEA_RI(RsV,uiV); fDCFETCH(EA);})
 Q6INSN(Y2_dcfetchbo_nt,"dcfetch(Rs32+#u11:3):nt",ATTRIBS(A_NA_NT,A_RESTRICT_PREFERSLOT0,A_DCFETCH,A_RESTRICT_NOSLOT1_STORE),"Data Cache Prefetch",{fEA_RI(RsV,uiV); fDCFETCH(EA);})
+
+Q6INSN(V2_vallocframe_imm,"vallocframe(#u7:0)",ATTRIBS(A_RESTRICT_NOPACKET),"Allocate vector stack frame",{ fVFRAMECHECK(VSP - (uiV << 11), VSP); })
+Q6INSN(V2_vallocframe_reg,"vallocframe(Rs32)",ATTRIBS(A_RESTRICT_NOPACKET),"Allocate vector stack frame",{ fVFRAMECHECK(VSP - (RsV << 11), VSP); })
+Q6INSN(V2_vdeallocframe_imm,"vdeallocframe(#u7:0)",ATTRIBS(A_RESTRICT_NOPACKET),"Deallocate vector stack frame",{ VSP = VSP + (uiV << 11); })
+Q6INSN(V2_vdeallocframe_reg,"vdeallocframe(Rs32)",ATTRIBS(A_RESTRICT_NOPACKET),"Deallocate vector stack frame",{ VSP = VSP + (RsV << 11); })
 Q6INSN(Y4_dcfetch_multi,"dcfetch_multi(Rs32,Rt32)",ATTRIBS(A_RESTRICT_PREFERSLOT0,A_DCFETCH,A_RESTRICT_NOSLOT1_STORE),"Data Cache Prefetch",{fEA_REG(RsV); fDCFETCH_MULTI(EA,fEXTRACTU_BITS(RtV,10,0));})
 Q6INSN(Y2_dckill,"dckill",ATTRIBS(A_PRIV,A_NOTE_PRIV,A_NOTE_NOPACKET,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOPACKET,A_CACHEOP,A_DCFLUSHOP),"Data Cache Invalidate",{fDCKILL();})
 

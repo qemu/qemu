@@ -77,6 +77,8 @@ enum {
     HEX_REG_QEMU_PKT_CNT      = 52,
     HEX_REG_QEMU_INSN_CNT     = 53,
     HEX_REG_QEMU_HVX_CNT      = 54,
+    HEX_REG_VFRAMELIMIT       = 60,
+    HEX_REG_VSP               = 61,
     HEX_REG_UTIMERLO          = 62,
     HEX_REG_UTIMERHI          = 63,
 };

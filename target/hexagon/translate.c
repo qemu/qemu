@@ -136,7 +136,7 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
-static void gen_precise_exception(int cause, uint32_t PC)
+void gen_precise_exception(int cause, uint32_t PC)
 {
     tcg_gen_movi_i32(hex_cause_code, cause);
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(HEX_EVENT_PRECISE),

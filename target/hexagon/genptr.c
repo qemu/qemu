@@ -730,6 +730,27 @@ void gen_atomic8(DisasContext *ctx, TCGv_i64 dest, TCGv vaddr, TCGv_i64 src)
                             MO_LE | MO_64 | MO_ALIGN);
 }
 
+void gen_vframecheck(DisasContext *ctx, TCGv vsp)
+{
+    TCGLabel *write_vsp = gen_new_label();
+
+#ifndef CONFIG_USER_ONLY
+    TCGv mode = tcg_temp_new();
+
+    tcg_gen_andi_tl(mode, hex_t_sreg[HEX_SREG_SSR],
+                    1 << reg_field_info[SSR_EX].offset);
+    tcg_gen_brcondi_tl(TCG_COND_NE, mode, 0, write_vsp);
+    tcg_gen_andi_tl(mode, hex_t_sreg[HEX_SREG_SSR],
+                    1 << reg_field_info[SSR_UM].offset);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, mode, 0, write_vsp);
+#endif
+    tcg_gen_brcond_tl(TCG_COND_GEU, vsp,
+                      hex_gpr[HEX_REG_VFRAMELIMIT], write_vsp);
+    gen_precise_exception(HEX_CAUSE_VECTOR_STACK_OVERFLOW, ctx->pkt.pc);
+    gen_set_label(write_vsp);
+    tcg_gen_mov_tl(hex_gpr[HEX_REG_VSP], vsp);
+}
+
 #ifndef CONFIG_HEXAGON_IDEF_PARSER
 static TCGv gen_slotval(DisasContext *ctx)
 {

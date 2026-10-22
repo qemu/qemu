@@ -186,6 +186,7 @@ static bool decode_opcode_can_jump(int opcode)
         (GET_ATTRIB(opcode, A_CALL)) ||
         (opcode == J2_trap0) ||
         (opcode == J2_trap1) ||
+        (opcode == J2_trap2) ||
         (opcode == J2_rte) ||
         (opcode == J2_pause)) {
         /* Exception to A_JUMP attribute */
