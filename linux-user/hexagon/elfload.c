@@ -113,6 +113,10 @@ const char *get_elf_cpu_model(uint32_t eflags)
         return "v79";
     case 0x81:
         return "v81";
+    case 0x83:
+        return "v83";
+    case 0x85:
+        return "v85";
     }
 
     err = snprintf(buf, sizeof(buf), "unknown (0x%x)", eflags);

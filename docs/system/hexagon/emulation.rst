@@ -6,7 +6,7 @@ Hexagon CPU architecture support
 ================================
 
 QEMU's TCG emulation includes support for v65, v66, v67, v68, v69, v71, v73,
-v75, v77, v79, v81.
+v75, v77, v79, v81, v83, v85.
 It also has support for the following architecture extensions:
 
 - HVX (Hexagon Vector eXtensions)
