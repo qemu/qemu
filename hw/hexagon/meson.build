@@ -11,5 +11,6 @@ hexagon_ss.add(when: 'CONFIG_HEX_QCS6490_CDSP', if_true: files('qcs6490_cdsp.c')
 hexagon_ss.add(when: 'CONFIG_HEX_SA8775P_CDSP', if_true: files('sa8775p_cdsp.c'))
 hexagon_ss.add(when: 'CONFIG_HEX_SC8480XP_NSP0', if_true: files('sc8480xp_nsp0.c'))
 hexagon_ss.add(when: 'CONFIG_HEX_SA8797P_NSP0', if_true: files('sa8797p_nsp0.c'))
+hexagon_ss.add(when: 'CONFIG_HEX_SM8975_NSP', if_true: files('sm8975_nsp.c'))
 
 hw_arch += {'hexagon': hexagon_ss}

@@ -54,3 +54,9 @@ config HEX_SA8797P_NSP0
     default y
     depends on HEX_DSP && FDT
     select HEX_QCOM_DSP
+
+config HEX_SM8975_NSP
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP

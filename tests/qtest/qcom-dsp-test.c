@@ -9,6 +9,8 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "libqtest-single.h"
+#include "hw/hexagon/hexagon.h"
+#include "hw/hexagon/machine_cfg_sm8975_nsp.h.inc"
 
 #define QCOM_DSP_UART_BASE 0x37000000
 #define QCOM_DSP_VIRTIO_BASE 0x37010000
@@ -27,6 +29,7 @@ static const char *const qcom_dsp_machines[] = {
     "sa8775p-cdsp",
     "sc8480xp-nsp0",
     "sa8797p-nsp0",
+    "sm8975-nsp",
 };
 
 static void test_console(const void *machine)
@@ -76,6 +79,18 @@ static void test_default_drive(const void *machine)
     qtest_end();
 }
 
+static void test_tcm(const void *unused)
+{
+    uint64_t base = (uint64_t)sm8975_nsp.cfgtable.l2tcm_base << 16;
+
+    qtest_start("-machine sm8975-nsp");
+    writel(base, 0xdeadbeef);
+    writel(base + sm8975_nsp.l2tcm_size - 4, 0xcafef00d);
+    g_assert_cmphex(readl(base), ==, 0xdeadbeef);
+    g_assert_cmphex(readl(base + sm8975_nsp.l2tcm_size - 4), ==, 0xcafef00d);
+    qtest_end();
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -91,6 +106,8 @@ int main(int argc, char **argv)
         path = g_strdup_printf("/qcom-dsp/%s/default-drive", name);
         qtest_add_data_func(path, name, test_default_drive);
     }
+
+    qtest_add_data_func("/qcom-dsp/sm8975-nsp/tcm", NULL, test_tcm);
 
     return g_test_run();
 }
