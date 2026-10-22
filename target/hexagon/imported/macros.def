@@ -1404,6 +1404,11 @@ DEF_MACRO(fLOAD_LOCKED,
     (A_LOAD,A_MEMLIKE)
 )
 
+DEF_MACRO(fATOMIC_LDST,
+    { },
+    (A_LOAD,A_STORE,A_MEMLIKE)
+)
+
 DEF_MACRO(fSTORE,
     { MEM_STORE##SIZE(thread,EA,SRC,insn); },
     (A_STORE,A_MEMLIKE)
@@ -1955,6 +1960,11 @@ DEF_MACRO(fICFETCH,
 
 DEF_MACRO(fDCFETCH,
     sys_dcfetch(thread, (REG), insn->slot),
+    (A_MEMLIKE)
+)
+
+DEF_MACRO(fDCFETCH_MULTI,
+    { },
     (A_MEMLIKE)
 )
 

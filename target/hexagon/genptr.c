@@ -698,6 +698,38 @@ static inline void gen_store_conditional8(DisasContext *ctx,
     tcg_gen_movi_tl(hex_llsc_addr, ~0);
 }
 
+void gen_atomic4(DisasContext *ctx, TCGv dest, TCGv vaddr, TCGv src,
+                 HexAtomicOp operation)
+{
+    MemOp memop = MO_LE | MO_32 | MO_ALIGN;
+
+    switch (operation) {
+    case HEX_ATOMIC_ADD:
+        tcg_gen_atomic_fetch_add_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_AND:
+        tcg_gen_atomic_fetch_and_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_OR:
+        tcg_gen_atomic_fetch_or_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_XOR:
+        tcg_gen_atomic_fetch_xor_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_SWAP:
+        tcg_gen_atomic_xchg_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void gen_atomic8(DisasContext *ctx, TCGv_i64 dest, TCGv vaddr, TCGv_i64 src)
+{
+    tcg_gen_atomic_xchg_i64(dest, vaddr, src, ctx->mem_idx,
+                            MO_LE | MO_64 | MO_ALIGN);
+}
+
 #ifndef CONFIG_HEXAGON_IDEF_PARSER
 static TCGv gen_slotval(DisasContext *ctx)
 {

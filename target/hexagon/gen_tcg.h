@@ -100,6 +100,28 @@
 #define fGEN_TCG_L4_loadrd_ap(SHORTCODE) \
     fGEN_TCG_LOAD_AP(RddV, 8, u)
 
+#define fGEN_TCG_ATOMIC4(OP) \
+    do { \
+        fEA_REG(RsV); \
+        gen_atomic4(ctx, RdV, EA, RtV, OP); \
+    } while (0)
+#define fGEN_TCG_AM_addw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_ADD)
+#define fGEN_TCG_AM_addw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_ADD)
+#define fGEN_TCG_AM_andw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_AND)
+#define fGEN_TCG_AM_andw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_AND)
+#define fGEN_TCG_AM_orw_aq(SHORTCODE)  fGEN_TCG_ATOMIC4(HEX_ATOMIC_OR)
+#define fGEN_TCG_AM_orw_rl(SHORTCODE)  fGEN_TCG_ATOMIC4(HEX_ATOMIC_OR)
+#define fGEN_TCG_AM_xorw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_XOR)
+#define fGEN_TCG_AM_xorw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_XOR)
+#define fGEN_TCG_AM_swapw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_SWAP)
+#define fGEN_TCG_AM_swapw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_SWAP)
+#define fGEN_TCG_AM_swapd_aq(SHORTCODE) \
+    do { \
+        fEA_REG(RsV); \
+        gen_atomic8(ctx, RddV, EA, RttV); \
+    } while (0)
+#define fGEN_TCG_AM_swapd_rl(SHORTCODE) fGEN_TCG_AM_swapd_aq(SHORTCODE)
+
 #define fGEN_TCG_L2_loadrub_pci(SHORTCODE)    SHORTCODE
 #define fGEN_TCG_L2_loadrb_pci(SHORTCODE)     SHORTCODE
 #define fGEN_TCG_L2_loadruh_pci(SHORTCODE)    SHORTCODE
@@ -1376,6 +1398,11 @@
     do { \
         RsV = RsV; \
         uiV = uiV; \
+    } while (0)
+#define fGEN_TCG_Y4_dcfetch_multi(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        RtV = RtV; \
     } while (0)
 
 #define fGEN_TCG_L2_loadw_aq(SHORTCODE)                 SHORTCODE

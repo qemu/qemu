@@ -406,7 +406,8 @@ DEF_ENC32(R6_release_at_vi,    ICLASS_ST" 000 01 11sssss PP0ttttt --0011dd")
 DEF_ENC32(R6_release_st_vi,   ICLASS_ST" 000 01 11sssss PP0ttttt --1011dd")
 
 DEF_EXT_SPACE(EXTRACTW,   ICLASS_LD" 001 0 000 iiiii PP0iiiii 001iiiii")
-DEF_ENC32(Y2_dcfetchbo,   ICLASS_LD" 010 0 000 sssss PP0--iii iiiiiiii")
+DEF_ENC32(Y2_dcfetchbo,   "10010100000sssssPP000iiiiiiiiiii")
+DEF_ENC32(Y4_dcfetch_multi,"10010100000sssssPP001ttttt------")
 DEF_ENC32(Y2_dcfetchbo_nt,"10010100000sssssPP10-iiiiiiiiiii")
 
 
@@ -1895,6 +1896,18 @@ SH_RRR_ENC(S2_cabacdecbin,      "0001","11-","-","11-","ddddd") /* implicit P0 w
 
 
 DEF_FIELDROW_DESC32(ICLASS_S3op" 0010 -------- PP------ --------","[#2] Rdd=(Rss,Rtt,Pu)")
+DEF_ENC32(AM_addw_aq,      "10010000000sssssPP1ttttt001ddddd")
+DEF_ENC32(AM_addw_rl,      "10010000000sssssPP1ttttt010ddddd")
+DEF_ENC32(AM_andw_aq,      "10010000000sssssPP1ttttt101ddddd")
+DEF_ENC32(AM_andw_rl,      "10010000000sssssPP1ttttt110ddddd")
+DEF_ENC32(AM_orw_aq,       "10010000110sssssPP0ttttt001ddddd")
+DEF_ENC32(AM_orw_rl,       "10010000110sssssPP0ttttt010ddddd")
+DEF_ENC32(AM_xorw_aq,      "10010000110sssssPP0ttttt101ddddd")
+DEF_ENC32(AM_xorw_rl,      "10010000110sssssPP0ttttt110ddddd")
+DEF_ENC32(AM_swapw_aq,     "10010000110sssssPP1ttttt001ddddd")
+DEF_ENC32(AM_swapw_rl,     "10010000110sssssPP1ttttt010ddddd")
+DEF_ENC32(AM_swapd_aq,     "10010000110sssssPP1ttttt101ddddd")
+DEF_ENC32(AM_swapd_rl,     "10010000110sssssPP1ttttt110ddddd")
 SH_RRR_ENC(S2_valignrb,         "0010","0--","-","-uu","ddddd")
 SH_RRR_ENC(S2_vsplicerb,        "0010","100","-","-uu","ddddd")
 SH_RRR_ENC(A4_addp_c,           "0010","110","-","-xx","ddddd")

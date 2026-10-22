@@ -698,6 +698,21 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
         .introduced = HEX_VER_V81, .removed = HEX_VER_NONE
     },
     [V6_vconv_bf_qf32] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+
+    [Y4_dcfetch_multi] = { .introduced = HEX_VER_V85,
+                            .removed = HEX_VER_NONE },
+    [AM_addw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_addw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_andw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_andw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_orw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_orw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapd_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapd_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_xorw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_xorw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
 };
 
 #endif /* HEXAGON_TAG_ARCH_TABLE_H */

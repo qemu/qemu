@@ -58,6 +58,17 @@ TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign);
 TCGv gen_get_half(TCGv result, int N, TCGv src, bool sign);
 void gen_set_half(int N, TCGv result, TCGv src);
 void gen_set_half_i64(int N, TCGv_i64 result, TCGv src);
+typedef enum {
+    HEX_ATOMIC_ADD,
+    HEX_ATOMIC_AND,
+    HEX_ATOMIC_OR,
+    HEX_ATOMIC_XOR,
+    HEX_ATOMIC_SWAP,
+} HexAtomicOp;
+
+void gen_atomic4(DisasContext *ctx, TCGv dest, TCGv vaddr, TCGv src,
+                 HexAtomicOp operation);
+void gen_atomic8(DisasContext *ctx, TCGv_i64 dest, TCGv vaddr, TCGv_i64 src);
 void probe_noshuf_load(TCGv va, int s, int mi);
 void gen_gvec_sabsdiff_var(unsigned vece, TCGv_ptr dbase, uint32_t dofs,
                            TCGv_ptr abase, uint32_t aofs,

@@ -68,6 +68,8 @@ def main():
             ## Skip the guest instructions
             if "A_GUEST" in hex_common.attribdict[tag]:
                 continue
+            if "A_ATOMIC" in hex_common.attribdict[tag]:
+                continue
             ## Skip instructions that saturate in a ternary expression
             if tag in {"S2_asr_r_r_sat", "S2_asl_r_r_sat"}:
                 continue
