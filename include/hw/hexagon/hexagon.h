@@ -148,6 +148,8 @@ union hexagon_config_table {
 };
 
 struct hexagon_machine_config {
+    /* Base address of the main DDR region */
+    hwaddr ddr_base;
     /* Base address of config table */
     uint32_t cfgbase;
     /* Size of L2 TCM */
