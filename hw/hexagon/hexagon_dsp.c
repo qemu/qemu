@@ -33,6 +33,8 @@
 #include "machine_cfg_v73nc_1.h.inc"
 #include "machine_cfg_v81dgb_1.h.inc"
 #include "machine_cfg_v81qa_1.h.inc"
+#include "machine_cfg_v85na_1.h.inc"
+#include "machine_cfg_v85qa_1.h.inc"
 
 #define TYPE_HEXAGON_DSP_MACHINE "hexagon-dsp-machine"
 OBJECT_DECLARE_SIMPLE_TYPE(HexagonDspMachineState, HEXAGON_DSP_MACHINE)
@@ -244,10 +246,44 @@ static void v81qa_1_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Hexagon V81QA_1";
-    mc->alias = "sim";
     mc->init = v81qa_1_config_init;
     init_mc(mc);
     mc->default_cpu_type = TYPE_HEXAGON_CPU_V81;
+    mc->max_cpus = 12;
+    mc->default_cpus = 12;
+}
+
+static void v85qa_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v85qa_1_rev, &v85qa_1);
+}
+
+static void v85qa_1_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V85QA_1";
+    mc->init = v85qa_1_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V85;
+    mc->max_cpus = 12;
+    mc->default_cpus = 12;
+}
+
+static void v85na_1_config_init(MachineState *machine)
+{
+    hexagon_common_init(machine, v85na_1_rev, &v85na_1);
+}
+
+static void v85na_1_init(ObjectClass *oc, const void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Hexagon V85NA_1";
+    mc->alias = "sim";
+    mc->init = v85na_1_config_init;
+    init_mc(mc);
+    mc->default_cpu_type = TYPE_HEXAGON_CPU_V85;
     mc->max_cpus = 12;
     mc->default_cpus = 12;
 }
@@ -289,6 +325,16 @@ static const TypeInfo hexagon_machine_types[] = {
         .name = MACHINE_TYPE_NAME("V81QA_1"),
         .parent = TYPE_HEXAGON_DSP_MACHINE,
         .class_init = v81qa_1_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("V85QA_1"),
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
+        .class_init = v85qa_1_init,
+    },
+    {
+        .name = MACHINE_TYPE_NAME("V85NA_1"),
+        .parent = TYPE_HEXAGON_DSP_MACHINE,
+        .class_init = v85na_1_init,
     },
 };
 

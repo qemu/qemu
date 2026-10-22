@@ -30,9 +30,11 @@ typedef enum {
     v73nc_1_rev = 0x8b73,
     v81_rev = 0x8781,
     v81dgb_1_rev = 0xcc81,
+    v85qa_1_rev = 0x8185,
+    v85na_1_rev = 0x8085,
 } Rev_t;
-#define HEXAGON_LATEST_REV v73
-#define HEXAGON_LATEST_REV_UPPER V73
+#define HEXAGON_LATEST_REV v85
+#define HEXAGON_LATEST_REV_UPPER V85
 
 /*
  * Config table address bases represent bits [35:16].
