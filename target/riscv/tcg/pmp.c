@@ -201,7 +201,7 @@ static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
 
 void pmp_unlock_entries(CPURISCVState *env)
 {
-    uint32_t pmp_num = pmp_get_num_rules(env);
+    uint32_t pmp_num = riscv_cpu_cfg(env)->pmp_regions;
     int i;
 
     for (i = 0; i < pmp_num; i++) {
