@@ -15,8 +15,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "scsi/constants.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-prop-internal.h"
 #include "trace.h"
 #include "ufs.h"
 
@@ -778,6 +780,77 @@ static bool ufs_mcq_delete_cq(UfsHc *u, uint8_t qid)
     return true;
 }
 
+static void ufs_fault_inject_init(UfsHc *u)
+{
+    u->active_fault_inject_tag = u->params.fault_inject_tag;
+    u->held_req = NULL;
+}
+
+static void ufs_fault_inject_hce_reset(UfsHc *u)
+{
+    if (u->held_req) {
+        u->held_req = NULL;
+        u->active_fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+        u->params.fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+    } else {
+        u->active_fault_inject_tag = u->params.fault_inject_tag;
+    }
+}
+
+static bool ufs_fault_inject_exec_req(UfsRequest *req)
+{
+    UfsHc *u = req->hc;
+
+    if (likely(u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_NONE) ||
+        u->held_req != NULL ||
+        req->req_upiu.header.trans_type != UFS_UPIU_TRANSACTION_COMMAND) {
+        return false;
+    }
+
+    if (u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_ANY) {
+        uint8_t op = req->req_upiu.sc.cdb[0];
+        uint64_t lba = 0;
+        bool is_match = false;
+
+        if (op == READ_10 || op == WRITE_10) {
+            /*
+             * In 10-byte SCSI read/write commands (SBC-4), bytes 2..5
+             * encode the 32-bit Logical Block Address (LBA) in
+             * big-endian.
+             */
+            lba = ldl_be_p(&req->req_upiu.sc.cdb[2]);
+            is_match = (lba >= UFS_FAULT_INJECT_MIN_LBA);
+        } else if (op == READ_16 || op == WRITE_16) {
+            /*
+             * In 16-byte SCSI read/write commands (SBC-4), bytes 2..9
+             * encode the 64-bit Logical Block Address (LBA) in
+             * big-endian.
+             */
+            lba = ldq_be_p(&req->req_upiu.sc.cdb[2]);
+            is_match = (lba >= UFS_FAULT_INJECT_MIN_LBA);
+        }
+
+        /*
+         * Only intercept target I/O targeting LBA >=
+         * UFS_FAULT_INJECT_MIN_LBA. Skips guest boot-time partition
+         * table and superblock scanning.
+         */
+        if (is_match) {
+            u->active_fault_inject_tag = req->req_upiu.header.task_tag;
+            u->held_req = req;
+            trace_ufs_fault_inject_hold_req(
+                req->req_upiu.header.task_tag, lba);
+            return true;
+        }
+    } else if (req->req_upiu.header.task_tag == u->active_fault_inject_tag) {
+        u->held_req = req;
+        trace_ufs_fault_inject_hold_req(req->req_upiu.header.task_tag, 0);
+        return true;
+    }
+
+    return false;
+}
+
 static void ufs_hce_reset(UfsHc *u)
 {
     int i;
@@ -853,6 +926,8 @@ static void ufs_hce_reset(UfsHc *u)
         }
         memset(u->mcq_op_reg, 0, sizeof(u->mcq_op_reg));
     }
+
+    ufs_fault_inject_hce_reset(u);
 
     u->resetting = false;
 
@@ -2432,6 +2507,10 @@ static void ufs_exec_req(UfsRequest *req)
         return;
     }
 
+    if (ufs_fault_inject_exec_req(req)) {
+        return;
+    }
+
     switch (req->req_upiu.header.trans_type) {
     case UFS_UPIU_TRANSACTION_NOP_OUT:
         req_result = ufs_exec_nop_cmd(req);
@@ -3058,7 +3137,92 @@ static void ufs_init_hc(UfsHc *u)
 
     timer_init_ms(&u->idle_timer, QEMU_CLOCK_VIRTUAL_RT, ufs_idle_timer_cb, u);
     timer_mod(&u->idle_timer, now + UFS_IDLE_TIMER_TICK);
+
+    ufs_fault_inject_init(u);
 }
+
+const QEnumLookup UfsFaultInjectMode_lookup = {
+    .array = (const char *const[]) {
+        [UFS_FAULT_INJECT_ABORT_SUCCESS] = "abort-success",
+        [UFS_FAULT_INJECT_ABORT_FAILED] = "abort-failed",
+        [UFS_FAULT_INJECT_IN_TRANSITION] = "in-transition",
+        [UFS_FAULT_INJECT_TIMEOUT] = "timeout",
+    },
+    .size = UFS_FAULT_INJECT_MODE_MAX,
+};
+
+static void ufs_prop_get_fault_inject_tag(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    UfsParams *params = container_of(ptr, UfsParams, fault_inject_tag);
+    UfsHc *u = container_of(params, UfsHc, params);
+
+    visit_type_uint32(v, name, &u->active_fault_inject_tag, errp);
+}
+
+static void ufs_prop_set_fault_inject_tag(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    UfsParams *params = container_of(ptr, UfsParams, fault_inject_tag);
+    UfsHc *u = container_of(params, UfsHc, params);
+    uint32_t val;
+
+    if (!visit_type_uint32(v, name, &val, errp)) {
+        return;
+    }
+
+    if (val > 255 && val != UFS_FAULT_INJECT_TAG_NONE &&
+        val != UFS_FAULT_INJECT_TAG_ANY) {
+        error_setg(errp,
+                   "invalid %s %u: must be 0..255, 0x%x (none), or 0x%x (any)",
+                   name, val, UFS_FAULT_INJECT_TAG_NONE,
+                   UFS_FAULT_INJECT_TAG_ANY);
+        return;
+    }
+
+    if (u->held_req != NULL) {
+        error_setg(errp,
+                   "cannot change %s while a request (tag %u) is held",
+                   name, u->held_req->req_upiu.header.task_tag);
+        return;
+    }
+
+    *ptr = val;
+    u->active_fault_inject_tag = val;
+    trace_ufs_fault_inject_set_tag(val);
+}
+
+static void ufs_prop_set_default_fault_inject_tag(ObjectProperty *op,
+                                                  const Property *prop)
+{
+    object_property_set_default_uint(op, prop->defval.u);
+}
+
+const PropertyInfo ufs_prop_fault_inject_tag = {
+    .type = "uint32",
+    .description = "Task tag to hold for fault injection",
+    .get = ufs_prop_get_fault_inject_tag,
+    .set = ufs_prop_set_fault_inject_tag,
+    .set_default_value = ufs_prop_set_default_fault_inject_tag,
+    .realized_set_allowed = true,
+};
+
+const PropertyInfo ufs_prop_fault_inject_mode = {
+    .type = "UfsFaultInjectMode",
+    .description = "Fault injection mode: abort-success, abort-failed, "
+                   "in-transition, timeout",
+    .enum_table = &UfsFaultInjectMode_lookup,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .realized_set_allowed = true,
+};
 
 bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as, Error **errp)
 {
