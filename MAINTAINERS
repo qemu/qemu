@@ -129,6 +129,7 @@ F: docs/system/s390x/
 F: tests/qtest/migration/s390x/
 K: ^Subject:.*(?i)s390x?
 T: git https://gitlab.com/cohuck/qemu.git s390-next
+T: git https://gitlab.com/efarman/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 MIPS general architecture support
