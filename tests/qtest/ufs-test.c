@@ -1952,6 +1952,84 @@ static G_GNUC_UNUSED int ufs_mcq_send_scsi_cmd_async(QUfs *ufs, uint8_t lun,
 }
 
 
+static void ufs_test_hce_reset(void *obj, void *data, QGuestAllocator *alloc)
+{
+    QUfs *ufs = obj;
+    uint32_t mcqcap, qcfgptr, mcq_reg_offset;
+    uint32_t orig_sqdao, orig_cqdao, orig_ie;
+    enum UtpOcsCodes ocs;
+    UtpUpiuRsp rsp_upiu;
+
+    ufs_init(ufs, alloc);
+    g_assert_true(ufs->support_mcq);
+
+    mcqcap = ufs_rreg(ufs, A_MCQCAP);
+    qcfgptr = FIELD_EX32(mcqcap, MCQCAP, QCFGPTR);
+    mcq_reg_offset = qcfgptr * 0x200 + TEST_QID * 0x40;
+
+    orig_sqdao = ufs_rreg(ufs, mcq_reg_offset + A_SQDAO);
+    orig_cqdao = ufs_rreg(ufs, mcq_reg_offset + A_CQDAO);
+    orig_ie = ufs_rreg(ufs, A_IE);
+    g_assert_cmpuint(orig_sqdao, !=, 0);
+    g_assert_cmpuint(orig_cqdao, !=, 0);
+    g_assert_cmpuint(orig_ie, !=, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_SQATTR), !=, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_CQATTR), !=, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_sqdao + 0x4), !=, 0);
+
+    ufs_wreg(ufs, A_UTMRLBA, 0x1000);
+    ufs_wreg(ufs, A_UTMRLBAU, 0x1);
+    ufs_wreg(ufs, A_UTMRLRSR, 1);
+    ufs_wreg(ufs, A_MCQCONFIG, 0x100);
+    g_assert_cmpuint(ufs_rreg(ufs, A_UTMRLRSR), ==, 1);
+
+    /* Write HCE=0 to trigger controller reset */
+    ufs_wreg(ufs, A_HCE, 0);
+    g_assert_cmpuint(FIELD_EX32(ufs_rreg(ufs, A_HCE), HCE, HCE), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, A_HCS), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, A_UTMRLRSR), ==, 0);
+
+    /* Verify host-configured registers remain preserved across HCE=0 */
+    g_assert_cmpuint(ufs_rreg(ufs, A_IE), ==, orig_ie);
+    g_assert_cmpuint(ufs_rreg(ufs, A_UTMRLBA), ==, 0x1000);
+    g_assert_cmpuint(ufs_rreg(ufs, A_UTMRLBAU), ==, 0x1);
+    g_assert_cmpuint(ufs_rreg(ufs, A_MCQCONFIG), ==, 0x100);
+
+    /* Verify dynamic queue configuration registers reset to 0 */
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_SQATTR), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_SQLBA), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_CQATTR), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_CQLBA), ==, 0);
+
+    /* Verify dynamic MCQ operational registers reset to 0 on HCE=0 */
+    g_assert_cmpuint(ufs_rreg(ufs, orig_sqdao), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_sqdao + 0x4), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_cqdao), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_cqdao + 0x4), ==, 0);
+
+    /* Verify read-only capability offsets (SQDAO/CQDAO) remain intact */
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_SQDAO), ==, orig_sqdao);
+    g_assert_cmpuint(ufs_rreg(ufs, mcq_reg_offset + A_CQDAO), ==, orig_cqdao);
+
+    /* Re-enable HCE=1 and verify dynamic queue status/pointers remain 0 */
+    ufs_wreg(ufs, A_HCE, FIELD_DP32(0, HCE, HCE, 1));
+    g_assert_cmpuint(FIELD_EX32(ufs_rreg(ufs, A_HCE), HCE, HCE), ==, 1);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_sqdao), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_sqdao + 0x4), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_cqdao), ==, 0);
+    g_assert_cmpuint(ufs_rreg(ufs, orig_cqdao + 0x4), ==, 0);
+
+    /* Free previous guest allocations before re-initializing */
+    ufs_exit(ufs, alloc);
+
+    /* Re-enable HCE=1, re-init controller, and verify normal I/O succeeds */
+    ufs_init(ufs, alloc);
+    ocs = ufs_send_nop_out(ufs, &rsp_upiu);
+    g_assert_cmpuint(ocs, ==, UFS_OCS_SUCCESS);
+
+    ufs_exit(ufs, alloc);
+}
+
 static void ufs_register_nodes(void)
 {
     const char *arch;
@@ -2012,6 +2090,7 @@ static void ufs_register_nodes(void)
                  &io_test_opts);
     qos_add_test("query-desciptor", "ufs", ufstest_query_desc_request,
                  &io_test_opts);
+    qos_add_test("hce-reset", "ufs", ufs_test_hce_reset, &mcq_test_opts);
     qos_add_test("wb-init", "ufs", ufstest_wb_init, &wb_test_opts);
     qos_add_test("wb-read-write", "ufs", ufstest_wb_read_write, &wb_test_opts);
     qos_add_test("hid", "ufs", ufstest_hid, &io_test_opts);
