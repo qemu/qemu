@@ -1148,14 +1148,12 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
     slot->active = QCRYPTO_BLOCK_LUKS_KEY_SLOT_DISABLED;
 
     ret = qcrypto_block_luks_store_header(block, writefunc,
-                                          opaque, &local_err);
+                                          opaque, errp);
 
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-    }
     /*
-     * Now try to erase the key material, even if the header
-     * update failed
+     * Note: errp may be non-NULL from this point onwards,
+     * as we carry trying to erase key material even in the
+     * face of errors
      */
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_ERASE_ITERATIONS; i++) {
         if (qcrypto_random_bytes(garbagesplitkey,
@@ -1169,6 +1167,7 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
             if (i > 0) {
                 return -1;
             }
+            local_err = NULL;
         }
         if (writefunc(block,
                       slot->key_offset_sector * QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
