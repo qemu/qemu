@@ -110,12 +110,16 @@ typedef struct UfsLu {
  * UFS_FAULT_INJECT_TIMEOUT:       TMR ABORT_TASK does not complete or clear
  *                                 doorbell, triggering hardware-level TMR
  *                                 timeout.
+ * UFS_FAULT_INJECT_SSU_TIMEOUT:   Intercepts SCSI START_STOP (0x1B) commands
+ *                                 targeting the UFS Device WLUN when
+ *                                 x-fault-inject-tag is armed.
  */
 typedef enum UfsFaultInjectMode {
     UFS_FAULT_INJECT_ABORT_SUCCESS = 0,
     UFS_FAULT_INJECT_ABORT_FAILED,
     UFS_FAULT_INJECT_IN_TRANSITION,
     UFS_FAULT_INJECT_TIMEOUT,
+    UFS_FAULT_INJECT_SSU_TIMEOUT,
     UFS_FAULT_INJECT_MODE_MAX,
 } UfsFaultInjectMode;
 

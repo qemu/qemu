@@ -862,6 +862,7 @@ static void ufs_fault_inject_sq_cleanup(UfsHc *u, UfsRequest *req)
 static bool ufs_fault_inject_exec_req(UfsRequest *req)
 {
     UfsHc *u = req->hc;
+    uint8_t op;
 
     if (likely(u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_NONE) ||
         u->held_req != NULL ||
@@ -869,8 +870,21 @@ static bool ufs_fault_inject_exec_req(UfsRequest *req)
         return false;
     }
 
+    op = req->req_upiu.sc.cdb[0];
+    if (u->params.fault_inject_mode == UFS_FAULT_INJECT_SSU_TIMEOUT) {
+        if (op == START_STOP &&
+            req->req_upiu.header.lun == UFS_UPIU_UFS_DEVICE_WLUN &&
+            (u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_ANY ||
+             req->req_upiu.header.task_tag == u->active_fault_inject_tag)) {
+            u->active_fault_inject_tag = req->req_upiu.header.task_tag;
+            u->held_req = req;
+            trace_ufs_fault_inject_hold_req(req->req_upiu.header.task_tag, 0);
+            return true;
+        }
+        return false;
+    }
+
     if (u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_ANY) {
-        uint8_t op = req->req_upiu.sc.cdb[0];
         uint64_t lba = 0;
         bool is_match = false;
 
@@ -3226,6 +3240,7 @@ const QEnumLookup UfsFaultInjectMode_lookup = {
         [UFS_FAULT_INJECT_ABORT_FAILED] = "abort-failed",
         [UFS_FAULT_INJECT_IN_TRANSITION] = "in-transition",
         [UFS_FAULT_INJECT_TIMEOUT] = "timeout",
+        [UFS_FAULT_INJECT_SSU_TIMEOUT] = "ssu-timeout",
     },
     .size = UFS_FAULT_INJECT_MODE_MAX,
 };
@@ -3295,7 +3310,7 @@ const PropertyInfo ufs_prop_fault_inject_tag = {
 const PropertyInfo ufs_prop_fault_inject_mode = {
     .type = "UfsFaultInjectMode",
     .description = "Fault injection mode: abort-success, abort-failed, "
-                   "in-transition, timeout",
+                   "in-transition, timeout, ssu-timeout",
     .enum_table = &UfsFaultInjectMode_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
