@@ -80,6 +80,8 @@ class Aarch64Raspi4Machine(LinuxKernelTest):
         #                '-device', 'qemu-xhci,bus=pcie.1,id=xhci',
         #                '-device', 'usb-kbd,bus=xhci.0',
         self.vm.launch()
+        self.wait_for_console_pattern(
+            'iproc-rng200 fe104000.rng: hwrng registered')
         self.wait_for_console_pattern('Boot successful.')
 
         exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
@@ -103,6 +105,11 @@ class Aarch64Raspi4Machine(LinuxKernelTest):
                            'memory node above the 1 GiB peripheral hole '
                            'is probably not being added' % mem_total_kb)
 
+        exec_command_and_wait_for_pattern(
+            self, 'cat /sys/devices/virtual/thermal/thermal_zone0/temp',
+            '25310')
+        exec_command_and_wait_for_pattern(self, 'head -c 8 /dev/hwrng | xxd',
+                                                '00000000:')
         exec_command_and_wait_for_pattern(self, 'halt', 'reboot: System halted')
         # TODO: Raspberry Pi4 doesn't shut down properly with recent kernels
         # Wait for VM to shut down gracefully
