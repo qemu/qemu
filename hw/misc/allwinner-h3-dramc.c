@@ -78,7 +78,7 @@ static void allwinner_h3_dramc_map_rows(AwH3DramCtlState *s, uint8_t row_bits,
         }
     }
 
-    if (s->ram_size == (1 << (row_bits - 3))) {
+    if (row_bits >= 3 && s->ram_size == (1 << (row_bits - 3))) {
         /* When row bits is the expected value, remove the mirror */
         memory_region_set_enabled(&s->row_mirror_alias, false);
         trace_allwinner_h3_dramc_rowmirror_disable();
