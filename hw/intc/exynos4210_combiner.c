@@ -242,10 +242,7 @@ static void exynos4210_combiner_write(void *opaque, hwaddr offset,
         exynos4210_combiner_update(s, grp_quad_base_n + 3);
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.combiner: unallowed write access at offset 0x"
-                      HWADDR_FMT_plx "\n", offset);
-        break;
+        g_assert_not_reached();
     }
 }
 
