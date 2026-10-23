@@ -1075,6 +1075,7 @@ F: hw/arm/sbsa-ref.c
 F: hw/misc/sbsa_ec.c
 F: hw/watchdog/sbsa_gwdt.c
 F: include/hw/watchdog/sbsa_gwdt.h
+F: tests/qtest/sbsa-gwdt-test.c
 F: docs/system/arm/sbsa.rst
 F: tests/functional/aarch64/test_*sbsaref*.py
 
