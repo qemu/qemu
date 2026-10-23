@@ -815,6 +815,11 @@ vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
     }
 
     s->virtual_disk_size = le64_to_cpu(s->virtual_disk_size);
+    if (s->virtual_disk_size > VHDX_MAX_IMAGE_SIZE) {
+        ret = -EFBIG;
+        goto exit;
+    }
+
     s->logical_sector_size = le32_to_cpu(s->logical_sector_size);
     s->physical_sector_size = le32_to_cpu(s->physical_sector_size);
 
@@ -1149,6 +1154,7 @@ static void vhdx_block_translate(BDRVVHDXState *s, int64_t sector_num,
 
     sinfo->bytes_avail = sinfo->sectors_avail << s->logical_sector_size_bits;
 
+    assert(sinfo->bat_idx < s->bat_entries);
     sinfo->file_offset = s->bat[sinfo->bat_idx] & VHDX_BAT_FILE_OFF_MASK;
 
     sinfo->block_offset = block_offset << s->logical_sector_size_bits;
