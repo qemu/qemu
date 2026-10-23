@@ -271,7 +271,7 @@ static void clock_mux_update(CprmanClockMuxState *mux)
 
     *mux->reg_ctl = FIELD_DP32(*mux->reg_ctl, CM_CLOCKx_CTL, BUSY, enabled);
 
-    if (!enabled) {
+    if (!enabled || src >= ARRAY_SIZE(mux->srcs)) {
         clock_update(mux->out, 0);
         return;
     }
