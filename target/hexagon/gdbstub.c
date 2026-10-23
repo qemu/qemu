@@ -96,12 +96,12 @@ int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
             val = cpu->globalregs ?
                 hexagon_globalreg_read(cpu->globalregs, n, env->threadId) : 0;
         }
-        return gdb_get_regl(mem_buf, val);
+        return gdb_get_reg32(mem_buf, val);
     }
     n -= NUM_SREGS;
 
     if (n < NUM_GREGS) {
-        return gdb_get_regl(mem_buf, hexagon_greg_read(env, n));
+        return gdb_get_reg32(mem_buf, hexagon_greg_read(env, n));
     }
     n -= NUM_GREGS;
 
