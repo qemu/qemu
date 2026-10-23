@@ -302,6 +302,7 @@ enum loongarch_features {
     LOONGARCH_FEATURE_STEALTIME,
     LOONGARCH_FEATURE_PTW,
     LOONGARCH_FEATURE_MSGINT,
+    LOONGARCH_FEATURE_PV_PREEMPT,
 };
 
 typedef struct  LoongArchBT {
@@ -320,6 +321,9 @@ typedef struct CPUTimerState {
     int irq;
     CPUState *cs;
 } CPUTimerState;
+
+#define VM_LEVEL0   0
+#define VM_LEVELS   1
 
 #define CPU_VENDOR_LOONGSON   "Loongson"
 #define CPU_MODEL_3A5000      "3A5000"
@@ -437,6 +441,7 @@ typedef struct CPUArchState {
     uint32_t mp_state;
 #endif
     CPUSysState *sys_state;
+    unsigned int irq_nr;
 } CPULoongArchState;
 
 typedef struct LoongArchCPUTopo {
@@ -464,6 +469,7 @@ struct ArchCPU {
     OnOffAuto msgint;
     OnOffAuto kvm_pv_ipi;
     OnOffAuto kvm_steal_time;
+    OnOffAuto kvm_pv_preempt;
     int32_t socket_id;  /* socket-id of this CPU */
     int32_t core_id;    /* core-id of this CPU */
     int32_t thread_id;  /* thread-id of this CPU */
@@ -507,9 +513,9 @@ static inline CPUSysState *env_sys(CPULoongArchState *env)
     return env->sys_state;
 }
 
-static inline void set_sys_state(CPULoongArchState *env, CPUSysState *sys)
+static inline void set_sys(CPULoongArchState *env, int vm_level)
 {
-    env->sys_state = sys;
+    env->sys_state = &env->sys_states[vm_level];
 }
 
 static inline CPUTimerState *env_timer(CPULoongArchState *env)

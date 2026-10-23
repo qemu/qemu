@@ -6,21 +6,20 @@
 #include "cpu.h"
 #include "csr.h"
 
-#define CSR_OFF_FUNCS(NAME, FL, RD, WR)                    \
+#define CSR_OFF_FLAGS(NAME, FL)                            \
     [LOONGARCH_CSR_##NAME] = {                             \
         .name   = (stringify(NAME)),                       \
         .offset = CSR_OFFSET(CSR_##NAME),                  \
-        .flags = FL, .readfn = RD, .writefn = WR           \
+        .flags  = FL                                       \
     }
 
-#define CSR_OFF_ARRAY(NAME, N)                                \
-    [LOONGARCH_CSR_##NAME(N)] = {                             \
-        .name   = (stringify(NAME##N)),                       \
-        .offset = CSR_OFFSET(CSR_##NAME[N]),                  \
-        .flags = CSRFL_BASIC, .readfn = NULL, .writefn = NULL           \
+#define CSR_OFF_ARRAY(NAME, N)                             \
+    [LOONGARCH_CSR_##NAME(N)] = {                          \
+        .name   = (stringify(NAME##N)),                    \
+        .offset = CSR_OFFSET(CSR_##NAME[N]),               \
+        .flags  = CSRFL_BASIC                              \
     }
 
-#define CSR_OFF_FLAGS(NAME, FL)   CSR_OFF_FUNCS(NAME, FL, NULL, NULL)
 #define CSR_OFF(NAME)             CSR_OFF_FLAGS(NAME, CSRFL_BASIC)
 
 static CSRInfo csr_info[] = {

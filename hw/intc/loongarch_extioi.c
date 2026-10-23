@@ -425,7 +425,7 @@ static void loongarch_extioi_print_info(InterruptStatsProvider *obj,
                                         GString *buf)
 {
     LoongArchExtIOICommonState *s = LOONGARCH_EXTIOI_COMMON(obj);
-    uint64_t *val;
+    uint32_t *val;
     unsigned long irq;
     ExtIOICore *core;
     int i;
@@ -433,22 +433,35 @@ static void loongarch_extioi_print_info(InterruptStatsProvider *obj,
     vmstate_extioi_pre_save(s);
     g_string_append_printf(buf, "%s:\n", object_get_typename(OBJECT(obj)));
 
-    val = (uint64_t *)s->isr;
-    g_string_append_printf(buf, "  ISR     0x%016"PRIx64" 0x%016"PRIx64
-                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+    val = s->isr;
+    g_string_append_printf(buf, "  ISR     0x%08"PRIx32" 0x%08"PRIx32
+                                " 0x%08"PRIx32" 0x%08"PRIx32"\n",
                                 *val, *(val + 1), *(val + 2), *(val + 3));
-    val = (uint64_t *)s->enable;
-    g_string_append_printf(buf, "  ENABLE  0x%016"PRIx64" 0x%016"PRIx64
-                                " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+    val += 4;
+    g_string_append_printf(buf, "          0x%08"PRIx32" 0x%08"PRIx32
+                                " 0x%08"PRIx32" 0x%08"PRIx32"\n",
                                 *val, *(val + 1), *(val + 2), *(val + 3));
-    val = (uint64_t *)s->ipmap;
-    g_string_append_printf(buf, "  IPMAP   0x%016"PRIx64"\n", *val);
+    val = s->enable;
+    g_string_append_printf(buf, "  ENABLE  0x%08"PRIx32" 0x%08"PRIx32
+                                " 0x%08"PRIx32" 0x%08"PRIx32"\n",
+                                *val, *(val + 1), *(val + 2), *(val + 3));
+    val += 4;
+    g_string_append_printf(buf, "          0x%08"PRIx32" 0x%08"PRIx32
+                                " 0x%08"PRIx32" 0x%08"PRIx32"\n",
+                                *val, *(val + 1), *(val + 2), *(val + 3));
 
-    val = (uint64_t *)s->coremap;
-    for (i = 0; i < EXTIOI_IRQS; i += 32) {
-        g_string_append_printf(buf, "  COREMAP 0x%016"PRIx64" 0x%016"PRIx64
-                                    " 0x%016"PRIx64" 0x%016"PRIx64"\n",
-                                    *val, *(val + 1), *(val + 2), *(val + 3));
+    val = s->ipmap;
+    g_string_append_printf(buf, "  IPMAP   0x%08"PRIx32" 0x%08"PRIx32"\n",
+                                *val, *(val + 1));
+
+    val = s->coremap;
+    g_string_append_printf(buf, "  IRQ route:\n");
+    for (i = 0; i < (EXTIOI_IRQS / 4); i += 4) {
+        g_string_append_printf(buf, "    [%-3u - %-3u] 0x%08"PRIx32
+                                    " 0x%08"PRIx32" 0x%08"PRIx32
+                                    " 0x%08"PRIx32"\n",
+                                    i * 4, i * 4 + 15, *val, *(val + 1),
+                                    *(val + 2), *(val + 3));
         val += 4;
     }
 
@@ -464,11 +477,15 @@ static void loongarch_extioi_print_info(InterruptStatsProvider *obj,
             continue;
         }
 
-        val = (uint64_t *)core->coreisr;
-        g_string_append_printf(buf, "  CPU[%d] ISR 0x%016"PRIx64" 0x%016"PRIx64
-                                    " 0x%016"PRIx64" 0x%016"PRIx64"\n",
+        val = core->coreisr;
+        g_string_append_printf(buf, "  CPU[%-3u] ISR 0x%08"PRIx32" 0x%08"PRIx32
+                                    " 0x%08"PRIx32" 0x%08"PRIx32"\n",
                                     i, *val, *(val + 1), *(val + 2),
                                     *(val + 3));
+        val += 4;
+        g_string_append_printf(buf, "              0x%08"PRIx32" 0x%08"PRIx32
+                                    " 0x%08"PRIx32" 0x%08"PRIx32"\n",
+                                    *val, *(val + 1), *(val + 2), *(val + 3));
     }
 }
 

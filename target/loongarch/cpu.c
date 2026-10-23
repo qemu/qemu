@@ -88,8 +88,9 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
 {
     LoongArchCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
+    CPULoongArchState *env = &cpu->env;
 
-    if (irq < 0 || irq >= N_IRQS) {
+    if (irq < 0 || irq >= env->irq_nr) {
         return;
     }
 
@@ -298,7 +299,7 @@ static void loongarch_la464_initfn(Object *obj)
     uint32_t data = 0, field;
     int i;
 
-    set_sys_state(env, &env->sys_states[0]);
+    set_sys(env, VM_LEVEL0);
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -428,7 +429,7 @@ static void loongarch_la132_initfn(Object *obj)
     uint32_t data = 0;
     int i;
 
-    set_sys_state(env, &env->sys_states[0]);
+    set_sys(env, VM_LEVEL0);
     for (i = 0; i < 21; i++) {
         env->cpucfg[i] = 0x0;
     }
@@ -724,12 +725,13 @@ static void loongarch_cpu_init(Object *obj)
 {
 #ifndef CONFIG_USER_ONLY
     LoongArchCPU *cpu = LOONGARCH_CPU(obj);
-#ifdef CONFIG_TCG
     CPULoongArchState *env = &cpu->env;
+#ifdef CONFIG_TCG
     CPUTimerState *timer;
 #endif
 
-    qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, N_IRQS);
+    env->irq_nr = N_IRQS;
+    qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, env->irq_nr);
 #ifdef CONFIG_TCG
     timer = env_timer(env);
     timer->irq = IRQ_TIMER;

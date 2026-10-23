@@ -175,38 +175,6 @@ static const VMStateDescription vmstate_pmu = {
     },
 };
 
-#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
-static bool tlb_needed(void *opaque)
-{
-    return tcg_enabled();
-}
-
-/* TLB state */
-static const VMStateDescription vmstate_tlb_entry = {
-    .name = "cpu/tlb_entry",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(tlb_misc, LoongArchTLB),
-        VMSTATE_UINT64(tlb_entry0, LoongArchTLB),
-        VMSTATE_UINT64(tlb_entry1, LoongArchTLB),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static const VMStateDescription vmstate_tlb = {
-    .name = "cpu/tlb",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .needed = tlb_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(env.tlb, LoongArchCPU, LOONGARCH_TLB_MAX,
-                             0, vmstate_tlb_entry, LoongArchTLB),
-        VMSTATE_END_OF_LIST()
-    }
-};
-#endif
-
 /* LoongArch CPU state */
 const VMStateDescription vmstate_loongarch_cpu = {
     .name = "cpu",
@@ -283,9 +251,6 @@ const VMStateDescription vmstate_loongarch_cpu = {
         &vmstate_fpu,
         &vmstate_lsx,
         &vmstate_lasx,
-#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
-        &vmstate_tlb,
-#endif
         &vmstate_lbt,
         &vmstate_msgint,
         &vmstate_pmu,

@@ -7,10 +7,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "system/memory.h"
 #include "system/tcg.h"
 #include "cpu.h"
 #include "accel/tcg/cpu-mmu-index.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/getpc.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
 #include "internals.h"
@@ -111,55 +112,18 @@ TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
     return TLBRET_MATCH;
 }
 
-static MemTxResult loongarch_cmpxchg_phys(CPUState *cs, hwaddr phys,
-                                          uint64_t old, uint64_t new)
-{
-    hwaddr addr1, l = 8;
-    MemoryRegion *mr;
-    uint8_t *ram_ptr;
-    uint64_t old1;
-    MemTxResult ret;
-
-    rcu_read_lock();
-    mr = address_space_translate(cs->as, phys, &addr1, &l,
-                                 false, MEMTXATTRS_UNSPECIFIED);
-    if (!memory_region_is_ram(mr)) {
-        /*
-         * Misconfigured PTE in ROM (AD bits are not preset) or
-         * PTE is in IO space and can't be updated atomically.
-         */
-         rcu_read_unlock();
-         return MEMTX_ACCESS_ERROR;
-    }
-
-    ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-    old1 = qatomic_cmpxchg((uint64_t *)ram_ptr, cpu_to_le64(old),
-                           cpu_to_le64(new));
-    old1 = le64_to_cpu(old1);
-    if (old1 == old) {
-        ret = MEMTX_OK;
-    } else {
-        ret = MEMTX_DECODE_ERROR;
-    }
-    rcu_read_unlock();
-
-    return ret;
-}
-
 TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
                      int access_type, int mmu_idx, int debug)
 {
-    const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
-    CPUState *cs = env_cpu(env);
     hwaddr index = 0, phys = 0;
     uint64_t palen_mask = loongarch_palen_mask(env);
     uint64_t dir_base, dir_width;
-    uint64_t base, pte;
-    int level;
+    uint64_t base, pte, old;
+    int level, ptw_idx = MMU_DA_IDX;
     vaddr address;
     TLBRet ret;
-    MemTxResult ret1;
     CPUSysState *sys = env_sys(env);
+    MemOpIdx oi;
 
     address = context->addr;
     if ((address >> 63) & 0x1) {
@@ -179,7 +143,7 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
         /* get next level page directory */
         index = (address >> dir_base) & ((1 << dir_width) - 1);
         phys = base | index << 3;
-        base = address_space_ldq_le(cs->as, phys, attrs, NULL);
+        base = cpu_ldq_le_mmuidx_ra(env, phys, ptw_idx, GETPC());
         if (level) {
             if (FIELD_EX64(base, TLBENTRY, HUGE)) {
                 /* base is a huge pte */
@@ -213,8 +177,8 @@ restart:
 
         index &= 1;
         context->pte_buddy[index] = base;
-        val = address_space_ldq_le(cs->as, phys + 8 * (1 - 2 * index),
-                                   attrs, NULL);
+        val = cpu_ldq_le_mmuidx_ra(env, phys + 8 * (1 - 2 * index),
+                                   ptw_idx, GETPC());
         context->pte_buddy[1 - index] = val;
     }
 
@@ -244,10 +208,12 @@ restart:
         if (access_type == MMU_DATA_STORE) {
             base = pte_mkdirty(base);
         }
-        ret1 = loongarch_cmpxchg_phys(cs, phys, pte, base);
+
+        oi = make_memop_idx(MO_LEUQ | MO_64, ptw_idx);
+        old = cpu_atomic_cmpxchgq_le_mmu(env, phys, pte, base, oi, GETPC());
         /* PTE updated by other CPU, reload PTE entry */
-        if (ret1 == MEMTX_DECODE_ERROR) {
-            base = address_space_ldq_le(cs->as, phys, attrs, NULL);
+        if (le64_to_cpu(old) != pte) {
+            base = cpu_ldq_le_mmuidx_ra(env, phys, ptw_idx, GETPC());
             goto restart;
         }
 
@@ -319,13 +285,11 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     uint32_t plv, base_c, base_v;
     int64_t addr_high;
     CPUSysState *sys = env_sys(env);
-    uint8_t da = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, DA);
-    uint8_t pg = FIELD_EX64(sys->CSR_CRMD, CSR_CRMD, PG);
     vaddr address;
 
     /* Check PG and DA */
     address = context->addr;
-    if (da & !pg) {
+    if (mmu_idx == MMU_DA_IDX) {
         context->physical = address & loongarch_palen_mask(env);
         context->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         context->mmu_index = MMU_DA_IDX;

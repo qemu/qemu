@@ -1039,6 +1039,12 @@ static bool kvm_feature_supported(CPUState *cs, enum loongarch_features feature)
         ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
         return (ret == 0);
 
+    case LOONGARCH_FEATURE_PV_PREEMPT:
+        attr.group = KVM_LOONGARCH_VM_FEAT_CTRL;
+        attr.attr = KVM_LOONGARCH_VM_FEAT_PV_PREEMPT,
+        ret = kvm_vm_ioctl(kvm_state, KVM_HAS_DEVICE_ATTR, &attr);
+        return (ret == 0);
+
     default:
         return false;
     }
@@ -1202,6 +1208,21 @@ static int kvm_cpu_check_pv_features(CPUState *cs, Error **errp)
     if (kvm_supported) {
         env->pv_features |= BIT(KVM_FEATURE_STEAL_TIME);
     }
+
+    kvm_supported = kvm_feature_supported(cs, LOONGARCH_FEATURE_PV_PREEMPT);
+    if (cpu->kvm_pv_preempt == ON_OFF_AUTO_ON) {
+        if (!kvm_supported) {
+            error_setg(errp, "'pv preempt' feature not supported by KVM host");
+            return -ENOTSUP;
+        }
+    } else if (cpu->kvm_pv_preempt != ON_OFF_AUTO_AUTO) {
+        kvm_supported = false;
+    }
+
+    /* Feature preempt_hint depends on steal_time */
+    if (kvm_supported && (cpu->kvm_pv_preempt == ON_OFF_AUTO_ON)) {
+        env->pv_features |= BIT(KVM_FEATURE_PREEMPT);
+     }
 
     if (object_dynamic_cast(OBJECT(ms), TYPE_LOONGARCH_VIRT_MACHINE)) {
         LoongArchVirtMachineState *lvms = LOONGARCH_VIRT_MACHINE(ms);
@@ -1412,6 +1433,18 @@ static void kvm_steal_time_set(Object *obj, bool value, Error **errp)
     cpu->kvm_steal_time = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+static bool kvm_pv_preempt_get(Object *obj, Error **errp)
+{
+    return LOONGARCH_CPU(obj)->kvm_pv_preempt != ON_OFF_AUTO_OFF;
+}
+
+static void kvm_pv_preempt_set(Object *obj, bool value, Error **errp)
+{
+    LoongArchCPU *cpu = LOONGARCH_CPU(obj);
+
+    cpu->kvm_pv_preempt = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+}
+
 void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
 {
     cpu->lbt = ON_OFF_AUTO_AUTO;
@@ -1437,6 +1470,12 @@ void kvm_loongarch_cpu_post_init(LoongArchCPU *cpu)
                              kvm_steal_time_set);
     object_property_set_description(OBJECT(cpu), "kvm-steal-time",
                                     "Set off to disable KVM steal time.");
+
+    cpu->kvm_pv_preempt = ON_OFF_AUTO_OFF;
+    object_property_add_bool(OBJECT(cpu), "kvm-pv-preempt", kvm_pv_preempt_get,
+                             kvm_pv_preempt_set);
+    object_property_set_description(OBJECT(cpu), "kvm-pv-preempt",
+                                    "Set off to disable KVM paravirt preempt.");
 }
 
 int kvm_arch_destroy_vcpu(CPUState *cs)
