@@ -71,7 +71,6 @@ if have_system
   # adding more of these.  If the symbol is used in specific_ss,
   # in particular, consider defining a preprocessor macro via
   # Kconfig or configs/targets/.
-  stub_ss.add(files('dump.c'))
   stub_ss.add(files('cmos.c'))
   stub_ss.add(files('fw_cfg.c'))
   if igvm.found()
@@ -85,7 +84,6 @@ if have_system
   stub_ss.add(files('qmp-i386-sev.c'))
   stub_ss.add(files('qmp-i386-sgx.c'))
   stub_ss.add(files('qmp-i386-xen.c'))
-  stub_ss.add(files('qmp-cpu.c'))
   stub_ss.add(files('qmp-cpu-arm.c'))
   stub_ss.add(files('qmp-cpu-i386.c'))
   stub_ss.add(files('qmp-cpu-loongarch.c'))

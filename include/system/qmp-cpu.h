@@ -17,4 +17,25 @@ CpuDefinitionInfoList *qmp_query_ppc_cpu_definitions(Error **errp);
 CpuDefinitionInfoList *qmp_query_riscv_cpu_definitions(Error **errp);
 CpuDefinitionInfoList *qmp_query_s390x_cpu_definitions(Error **errp);
 
+CpuModelExpansionInfo *
+qmp_query_arm_cpu_model_expansion(CpuModelExpansionType type,
+                                  CpuModelInfo *model,
+                                  Error **errp);
+CpuModelExpansionInfo *
+qmp_query_i386_cpu_model_expansion(CpuModelExpansionType type,
+                                   CpuModelInfo *model,
+                                   Error **errp);
+CpuModelExpansionInfo *
+qmp_query_loongarch_cpu_model_expansion(CpuModelExpansionType type,
+                                        CpuModelInfo *model,
+                                        Error **errp);
+CpuModelExpansionInfo *
+qmp_query_riscv_cpu_model_expansion(CpuModelExpansionType type,
+                                    CpuModelInfo *model,
+                                    Error **errp);
+CpuModelExpansionInfo *
+qmp_query_s390x_cpu_model_expansion(CpuModelExpansionType type,
+                                    CpuModelInfo *model,
+                                    Error **errp);
+
 #endif

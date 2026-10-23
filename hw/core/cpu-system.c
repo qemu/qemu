@@ -130,6 +130,25 @@ int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
     return (*cpu->cc->sysemu_ops->write_elf64_note)(f, cpu, cpuid, opaque);
 }
 
+int cpu_get_dump_info(const CPUState *cpu, ArchDumpInfo *info,
+                      const GuestPhysBlockList *guest_phys_blocks)
+{
+    if (!cpu->cc->sysemu_ops->get_dump_info) {
+        return -1;
+    }
+    cpu->cc->sysemu_ops->get_dump_info(cpu, info, guest_phys_blocks);
+    return 0;
+}
+
+ssize_t cpu_get_note_size(const CPUState *cpu, int class, int machine,
+                          int nr_cpus)
+{
+    if (!cpu->cc->sysemu_ops->get_note_size) {
+        return -1;
+    }
+    return cpu->cc->sysemu_ops->get_note_size(cpu, class, machine, nr_cpus);
+}
+
 bool cpu_internal_is_big_endian(CPUState *cpu)
 {
     if (cpu->cc->sysemu_ops->internal_is_big_endian) {

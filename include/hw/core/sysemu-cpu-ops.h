@@ -95,6 +95,18 @@ typedef struct SysemuCPUOps {
     int (*write_elf64_qemunote)(WriteCoreDumpFunction f, CPUState *cpu,
                                 DumpState *s);
     /**
+     * @get_dump_info: fills @info with the endianness, class and architecture.
+     */
+    void (*get_dump_info)(const CPUState *cpu, ArchDumpInfo *info,
+                          const GuestPhysBlockList *guest_phys_blocks);
+    /**
+     * @get_note_size: returns the size of the ELF notes needed to dump
+     * @nr_cpus cpus, for the ELF @class and @machine reported by
+     * @get_dump_info. Must be set if @get_dump_info is set.
+     */
+    size_t (*get_note_size)(const CPUState *cpu, int class, int machine,
+                            int nr_cpus);
+    /**
      * @internal_is_big_endian: Callback to return %true if a CPU which supports
      * runtime configurable endianness is currently big-endian.
      * Non-configurable CPUs can use the default implementation of this method.

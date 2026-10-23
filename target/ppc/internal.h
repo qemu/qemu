@@ -324,4 +324,11 @@ static inline int ger_pack_masks(int pmsk, int ymsk, int xmsk)
 TCGTBCPUState ppc_get_tb_cpu_state(CPUState *cs);
 #endif
 
+#ifndef CONFIG_USER_ONLY
+void ppc_get_dump_info(const CPUState *cs, ArchDumpInfo *info,
+                       const GuestPhysBlockList *guest_phys_blocks);
+size_t ppc_get_note_size(const CPUState *cs, int class, int machine,
+                         int nr_cpus);
+#endif
+
 #endif /* PPC_INTERNAL_H */

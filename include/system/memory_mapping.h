@@ -36,10 +36,10 @@ typedef struct GuestPhysBlock {
 } GuestPhysBlock;
 
 /* point-in-time snapshot of guest-visible physical mappings */
-typedef struct GuestPhysBlockList {
+struct GuestPhysBlockList {
     unsigned num;
     QTAILQ_HEAD(, GuestPhysBlock) head;
-} GuestPhysBlockList;
+};
 
 /* The physical and virtual address in the memory mapping are contiguous. */
 typedef struct MemoryMapping {

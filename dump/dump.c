@@ -1793,7 +1793,12 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     VMCoreInfoState *vmci = vmcoreinfo_find();
     CPUState *cpu;
     int nr_cpus;
-    int ret;
+
+    if (target_heterogeneous()) {
+        error_setg(errp,
+                   "dumping guest memory is not supported for heterogeneous emulation");
+        return;
+    }
 
     s->has_format = has_format;
     s->format = format;
@@ -1856,8 +1861,9 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      * If the target architecture is not supported, cpu_get_dump_info() will
      * return -1.
      */
-    ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
-    if (ret < 0) {
+    if (!first_cpu ||
+        cpu_get_dump_info(first_cpu, &s->dump_info,
+                          &s->guest_phys_blocks) < 0) {
         error_setg(errp,
                    "dumping guest memory is not supported on this target");
         goto cleanup;
@@ -1867,7 +1873,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         s->dump_info.page_size = qemu_target_page_size();
     }
 
-    s->note_size = cpu_get_note_size(s->dump_info.d_class,
+    s->note_size = cpu_get_note_size(first_cpu, s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
     assert(s->note_size >= 0);
 

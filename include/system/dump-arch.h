@@ -14,7 +14,7 @@
 #ifndef DUMP_ARCH_H
 #define DUMP_ARCH_H
 
-typedef struct ArchDumpInfo {
+struct ArchDumpInfo {
     int d_machine;           /* Architecture */
     int d_endian;            /* ELFDATA2LSB or ELFDATA2MSB */
     int d_class;             /* ELFCLASS32 or ELFCLASS64 */
@@ -25,11 +25,6 @@ typedef struct ArchDumpInfo {
     uint64_t (*arch_sections_write_hdr_fn)(DumpState *s, uint8_t *buff);
     int (*arch_sections_write_fn)(DumpState *s, uint8_t *buff);
     void (*arch_cleanup_fn)(DumpState *s);
-} ArchDumpInfo;
-
-struct GuestPhysBlockList; /* memory_mapping.h */
-int cpu_get_dump_info(ArchDumpInfo *info,
-                      const struct GuestPhysBlockList *guest_phys_blocks);
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus);
+};
 
 #endif
