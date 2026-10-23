@@ -953,9 +953,18 @@ void device_class_set_props_n(DeviceClass *dc, const Property *props, size_t n);
  *
  * This is intended to be used when the new realize function will
  * eventually call its parent realization function during creation.
- * This requires storing the function call somewhere (usually in the
- * instance structure) so you can eventually call
- * dc->parent_realize(dev, errp)
+ * @parent_realize should be where you want to save the pointer to
+ * the parent class realize function; the recommended location is a
+ * field named "parent_realize" in your class's class struct.
+ * (Some existing code puts the field in the parent class's class
+ * struct; this will work but is not the preferred thing for new code.)
+ *
+ * In your realize function you should chain to your parent's
+ * realize function using something like::
+ *
+ *    MyThingClass *mc = MY_THING_GET_CLASS(dev);
+ *    (do your child class realize actions here)
+ *    mc->parent_realize(dev, errp);
  */
 void device_class_set_parent_realize(DeviceClass *dc,
                                      DeviceRealize dev_realize,
