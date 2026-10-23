@@ -1671,7 +1671,7 @@ qcrypto_block_luks_amend_add_keyslot(QCryptoBlock *block,
 
     if (qcrypto_block_luks_find_key(block, old_password, master_key,
                                     readfunc, opaque, errp) < 0) {
-        error_append_hint(errp, "Failed to retrieve the master key");
+        error_append_hint(errp, "Failed to retrieve the master key\n");
         return -1;
     }
 
@@ -1684,7 +1684,7 @@ qcrypto_block_luks_amend_add_keyslot(QCryptoBlock *block,
     /* Now set the new keyslots */
     if (qcrypto_block_luks_store_key(block, keyslot, new_password, master_key,
                                      iter_time, writefunc, opaque, errp)) {
-        error_append_hint(errp, "Failed to write to keyslot %i", keyslot);
+        error_append_hint(errp, "Failed to write to keyslot %i\n", keyslot);
         return -1;
     }
     return 0;
@@ -1782,7 +1782,7 @@ qcrypto_block_luks_amend_erase_keyslots(QCryptoBlock *block,
 
         if (qcrypto_block_luks_erase_key(block, keyslot,
                                          writefunc, opaque, errp)) {
-            error_append_hint(errp, "Failed to erase keyslot %i", keyslot);
+            error_append_hint(errp, "Failed to erase keyslot %i\n", keyslot);
             return -1;
         }
 
@@ -1835,7 +1835,7 @@ qcrypto_block_luks_amend_erase_keyslots(QCryptoBlock *block,
             }
             if (qcrypto_block_luks_erase_key(block, i, writefunc,
                 opaque, errp)) {
-                error_append_hint(errp, "Failed to erase keyslot %zu", i);
+                error_append_hint(errp, "Failed to erase keyslot %zu\n", i);
                 return -1;
             }
         }
