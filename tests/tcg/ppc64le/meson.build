@@ -4,7 +4,10 @@ if 'qemu-ppc64le' in emulators
       'cc': 'powerpc64le-linux-gnu-gcc',
       'cc_alt': ['ppc64le-redhat-linux-gcc'],
       'cc_dockerfile': 'debian-all-test-cross',
-      'cc_feat_cflags': cc_feat_cflags,
+      'cc_feat_cflags': {
+        'power8': '-mcpu=power8',
+        'power10': '-mcpu=power10',
+      },
       'folder': 'ppc64le',
       'gdb_arch': 'ppc64le',
       'qemu': emulators['qemu-ppc64le'],

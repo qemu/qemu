@@ -35,8 +35,8 @@ endforeach
 if 'qemu-system-alpha' in emulators
   tcg_tests += {
     'alpha-softmmu': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'alpha-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-all-test-cross',
       'folder': 'alpha/system',
       'gdb_arch': 'alpha',
       'qemu': emulators['qemu-system-alpha'],

@@ -24,11 +24,9 @@ foreach t: tcg_tests['multiarch-softmmu']['tests']
     new_cflags = cflags
     if fs.stem(src) == 'memory'
       new_cflags += '-DCHECK_UNALIGNED=0'
-      # TODO: memory test hangs on aarch64 host
-      # https://gitlab.com/qemu-project/qemu/-/work_items/4567
-      if host_machine.cpu_family() == 'aarch64' and 'gdb_test' in setup
-        continue
-      endif
+    endif
+    if 'gdb_test' in setup
+      setup += {'gdb_feat': 'loongarch64'}
     endif
     if src not in multi_src
       setup += {'cflags': [new_cflags]}
@@ -41,10 +39,15 @@ endforeach
 if 'qemu-system-loongarch64' in emulators
   tcg_tests += {
     'loongarch64-softmmu': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'loongarch64-unknown-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-loongarch-cross',
       'folder': 'loongarch64/system',
       'gdb_arch': 'loongarch64',
+      'gdb_feat_version': {
+        # previous version report "Architecture rejected target-supplied
+        # description", exposing a mismatch between our gdbstub and gdb.
+        'loongarch64': '16.1',
+      },
       'qemu': emulators['qemu-system-loongarch64'],
       'tests': tests,
     }

@@ -1,6 +1,3 @@
-cc = 'arm-linux-gnueabihf-gcc'
-cc_dockerfile = 'debian-all-test-cross'
-
 subdir('system')
 
 tests = []
@@ -69,8 +66,8 @@ tests += {
 if 'qemu-arm' in emulators
   tcg_tests += {
     'arm-linux-user': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'arm-linux-gnueabihf-gcc',
+      'cc_dockerfile': 'debian-all-test-cross',
       'folder': 'arm',
       'gdb_arch': 'arm',
       'qemu': emulators['qemu-arm'],

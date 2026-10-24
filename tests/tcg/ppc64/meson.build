@@ -1,8 +1,3 @@
-cc_feat_cflags = {
-  'power8': '-mcpu=power8',
-  'power10': '-mcpu=power10',
-}
-
 tests = []
 
 # Multi arch tests
@@ -50,10 +45,12 @@ if 'qemu-ppc64' in emulators
     'ppc64-linux-user': {
       'cc': 'powerpc64-linux-gnu-gcc',
       'cc_dockerfile': 'debian-all-test-cross',
-      'cc_feat_cflags': cc_feat_cflags,
+      'cc_feat_cflags': {
+        'power8': '-mcpu=power8',
+        'power10': '-mcpu=power10',
+      },
       'folder': 'ppc64',
       'gdb_arch': 'ppc64',
-      'gdb_feat_version': gdb_feat_version,
       'qemu': emulators['qemu-ppc64'],
       'tests': tests,
     }

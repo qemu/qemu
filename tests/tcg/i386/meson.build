@@ -1,6 +1,3 @@
-cc = 'i686-linux-gnu-gcc'
-cc_dockerfile = 'debian-i686-cross'
-
 subdir('system')
 
 tests = []
@@ -47,8 +44,8 @@ tests += {
 if 'qemu-i386' in emulators
   tcg_tests += {
     'i386-linux-user': {
-      'cc': cc,
-      'cc_dockerfile': cc_dockerfile,
+      'cc': 'i686-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-i686-cross',
       'folder': 'i386',
       'gdb_arch': 'i386',
       'qemu': emulators['qemu-i386'],
