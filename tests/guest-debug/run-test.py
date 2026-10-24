@@ -25,8 +25,10 @@ def get_args():
                         required=True)
     parser.add_argument("--qargs", help="Qemu arguments for test")
     parser.add_argument("--pargs", help="Program arguments for test")
-    parser.add_argument("--binary", help="Binary to debug",
-                        required=True)
+    parser.add_argument("--kargs", help="Kernel args to --append")
+    parser.add_argument("--binary", help="Binary to debug")
+    parser.add_argument("--symbols", help="Symbol file for binary to debug")
+    parser.add_argument("--symbol-offset", help="offset to apply to symbols")
     parser.add_argument("--test", help="GDB test script")
     parser.add_argument('test_args', nargs='*',
                         help="Additional args for GDB test script. "
@@ -49,6 +51,10 @@ def log(output, msg):
         output.flush()
     else:
         print(msg)
+
+
+def format_cmd(cmd):
+    return " ".join(shlex.quote(arg) for arg in cmd)
 
 
 if __name__ == '__main__':
@@ -75,55 +81,80 @@ if __name__ == '__main__':
     socket_name = os.path.join(socket_dir.name, "gdbstub.socket")
 
     # Launch QEMU with binary
+    qemu_cmd = [args.qemu]
+    if args.qargs:
+        qemu_cmd.extend(shlex.split(args.qargs))
+
     if "system" in args.qemu:
-        if args.no_suspend:
-            suspend = ''
-        else:
-            suspend = ' -S'
-        cmd = f'{args.qemu} {args.qargs} {args.binary}' \
-            f'{suspend} -gdb unix:path={socket_name},server=on'
+        # for system mode we assume qargs has set-up for binary if
+        # indeed we have set one.
+        if args.binary:
+            qemu_cmd.append(args.binary)
+        if not args.no_suspend:
+            qemu_cmd.append("-S")
+        qemu_cmd.extend(["-gdb", f"unix:path={socket_name},server=on"])
+
+        if args.kargs:
+            qemu_cmd.extend(["--append", args.kargs])
+
         # There is no guest program command-line in system mode.
         assert not args.pargs
     else:
+        qemu_cmd.append("-g")
         if args.no_suspend:
-            suspend = ',suspend=n'
+            qemu_cmd.append(f"{socket_name},suspend=n")
         else:
-            suspend = ''
-        cmd = f'{args.qemu} {args.qargs} -g {socket_name}{suspend}' \
-            f' {args.binary}'
-        if args.pargs:
-            cmd += f' {args.pargs}'
+            qemu_cmd.append(f"{socket_name}")
 
-    log(output, "QEMU CMD: %s" % (cmd))
-    inferior = subprocess.Popen(shlex.split(cmd))
+        # There are no appended args in user-mode
+        assert not args.kargs
+
+        # for user mode binary and args always go at the end
+        qemu_cmd.append(args.binary)
+        if args.pargs:
+            qemu_cmd.extend(shlex.split(args.pargs))
+
+    log(output, "QEMU CMD: %s" % (format_cmd(qemu_cmd)))
+    inferior = subprocess.Popen(qemu_cmd)
 
     # Now launch gdb with our test and collect the result
-    gdb_cmd = "%s %s" % (args.gdb, args.binary)
+    gdb_cmd = [args.gdb]
+
+    if args.binary:
+        gdb_cmd.append(args.binary)
     if args.gdb_args:
-        gdb_cmd += " %s" % (args.gdb_args)
+        gdb_cmd.extend(shlex.split(args.gdb_args))
+
     # run quietly and ignore .gdbinit
-    gdb_cmd += " -q -n -batch"
+    gdb_cmd.extend(["-q", "-n", "-batch"])
     # disable pagination
-    gdb_cmd += " -ex 'set pagination off'"
+    gdb_cmd.extend(["-ex", "set pagination off"])
     # disable prompts in case of crash
-    gdb_cmd += " -ex 'set confirm off'"
+    gdb_cmd.extend(["-ex", "set confirm off"])
     # connect to remote
-    gdb_cmd += " -ex 'target remote %s'" % (socket_name)
+    gdb_cmd.extend(["-ex", f"target remote {socket_name}"])
+
+    if args.symbols:
+        sym_arg = f"symbol-file {args.symbols}"
+        if args.symbol_offset:
+            sym_arg += f" -o {args.symbol_offset}"
+
+        gdb_cmd.extend(["-ex", sym_arg])
+
     # finally the test script itself
     if args.test:
         if args.test_args:
-            gdb_cmd += f" -ex \"py sys.argv={args.test_args}\""
-        gdb_cmd += " -x %s" % (args.test)
-
+            gdb_cmd.extend(["-ex", f"py sys.argv={args.test_args}"])
+        gdb_cmd.extend(["-x", args.test])
 
     sleep(1)
-    log(output, "GDB CMD: %s" % (gdb_cmd))
+    log(output, "GDB CMD: %s" % (format_cmd(gdb_cmd)))
 
     gdb_env = dict(os.environ)
     gdb_pythonpath = gdb_env.get("PYTHONPATH", "").split(os.pathsep)
     gdb_pythonpath.append(os.path.dirname(os.path.realpath(__file__)))
     gdb_env["PYTHONPATH"] = os.pathsep.join(gdb_pythonpath)
-    result = subprocess.call(gdb_cmd, shell=True, stdout=output, stderr=stderr,
+    result = subprocess.call(gdb_cmd, stdout=output, stderr=stderr,
                              env=gdb_env)
 
     # A result of greater than 128 indicates a fatal signal (likely a

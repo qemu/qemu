@@ -31,11 +31,11 @@ class TuxRunSh4Test(TuxRunBaselineTest):
 
         # The test is currently too unstable to do much in userspace
         # so we skip common_tuxrun and do a minimal boot and shutdown.
-        (kernel, disk, dtb) = self.fetch_tuxrun_assets(self.ASSET_SH4_KERNEL,
-                                                       self.ASSET_SH4_ROOTFS)
+        (kernel, disk, dtb, _) = self.fetch_tuxrun_assets(self.ASSET_SH4_KERNEL,
+                                                          self.ASSET_SH4_ROOTFS)
 
         # the console comes on the second serial port
-        self.prepare_run(kernel, disk,
+        self.prepare_run(None, kernel, disk,
                          "driver=ide-hd,bus=ide.0,unit=0",
                          console_index=1)
         self.vm.launch()
