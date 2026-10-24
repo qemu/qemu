@@ -64,8 +64,6 @@ static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt)
     /* Temporarily disable following devices until they are implemented */
     const char *nodes_to_remove[] = {
         "brcm,bcm2711-pcie",
-        "brcm,bcm2711-rng200",
-        "brcm,bcm2711-thermal",
         "brcm,bcm2711-genet-v5",
     };
 

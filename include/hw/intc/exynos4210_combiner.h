@@ -39,7 +39,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210CombinerState, EXYNOS4210_COMBINER)
 /* Number of groups and total number of interrupts for the internal combiner */
 #define IIC_NGRP 64
 #define IIC_NIRQ (IIC_NGRP * 8)
-#define IIC_REGSET_SIZE 0x41
+/*
+ * Number of registers in the IIESRn, IIECRn, IISTRn, IIMSRn part
+ * of the register map.
+ */
+#define IIC_REGSET_SIZE 0x40
 
 struct Exynos4210CombinerState {
     SysBusDevice parent_obj;
