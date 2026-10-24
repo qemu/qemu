@@ -95,9 +95,12 @@ struct BaumChardev {
 
     brlapi_handle_t *brlapi;
     brlapi_fileDescriptor brlapi_fd;
+
+    /* Initialized in baum_deferred_init */
     unsigned int x, y;
     bool deferred_init;
 
+    bool protocol_on;
     uint8_t in_buf[BUF_SIZE];
     uint8_t in_buf_used;
     uint8_t out_buf[BUF_SIZE];
@@ -337,13 +340,27 @@ static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
     }
 }
 
+static void baum_send_cell_count(BaumChardev *baum)
+{
+    uint8_t cell_count[] = { BAUM_RSP_CellCount, baum->x * baum->y };
+    baum_write_packet(baum, cell_count, sizeof(cell_count));
+}
+
+static void baum_send_device_identity(BaumChardev *baum)
+{
+    uint8_t identity[17] = { BAUM_RSP_DeviceIdentity,
+        'B','a','u','m',' ','V','a','r','i','o' };
+    identity[11] = '0' + baum->x / 10;
+    identity[12] = '0' + baum->x % 10;
+    baum_write_packet(baum, identity, sizeof(identity));
+}
+
 /* Called when the other end seems to have a wrong idea of our display size */
 static void baum_cellCount_timer_cb(void *opaque)
 {
     BaumChardev *baum = BAUM_CHARDEV(opaque);
-    uint8_t cell_count[] = { BAUM_RSP_CellCount, baum->x * baum->y };
     DPRINTF("Timeout waiting for DisplayData, sending cell count\n");
-    baum_write_packet(baum, cell_count, sizeof(cell_count));
+    baum_send_cell_count(baum);
 }
 
 /* Try to interpret a whole incoming packet */
@@ -441,17 +458,18 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
         uint8_t protocol;
         DPRINTF("SetProtocol\n");
         EAT(protocol);
-        /* ignore */
+        if (!baum->protocol_on && protocol) {
+            /* Switching on, answer with device identity and cell count */
+            baum_send_device_identity(baum);
+            baum_send_cell_count(baum);
+        }
+        baum->protocol_on = protocol;
         break;
     }
     case BAUM_REQ_GetDeviceIdentity:
     {
-        uint8_t identity[17] = { BAUM_RSP_DeviceIdentity,
-            'B','a','u','m',' ','V','a','r','i','o' };
         DPRINTF("GetDeviceIdentity\n");
-        identity[11] = '0' + baum->x / 10;
-        identity[12] = '0' + baum->x % 10;
-        baum_write_packet(baum, identity, sizeof(identity));
+        baum_send_device_identity(baum);
         break;
     }
     case BAUM_REQ_GetVersionNumber:
@@ -659,6 +677,7 @@ static void baum_chr_read(void *opaque)
     }
     if (ret == -1 && (brlapi_errno != BRLAPI_ERROR_LIBCERR || errno != EINTR)) {
         brlapi_perror("baum: brlapi_readKey");
+        qemu_set_fd_handler(baum->brlapi_fd, NULL, NULL, NULL);
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
         baum->brlapi = NULL;
@@ -671,8 +690,16 @@ static void char_braille_finalize(Object *obj)
 
     timer_free(baum->cellCount_timer);
     if (baum->brlapi) {
+        /*
+         * baum_chr_open() registered brlapi_fd with the main loop via
+         * qemu_set_fd_handler(); unregister it before tearing the
+         * connection down so a later chardev-remove cannot dispatch
+         * baum_chr_read() with a dangling opaque.
+         */
+        qemu_set_fd_handler(baum->brlapi_fd, NULL, NULL, NULL);
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
+        baum->brlapi = NULL;
     }
 }
 
