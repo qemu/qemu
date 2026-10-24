@@ -73,7 +73,7 @@ static void *probe_contiguous(CPUPPCState *env, target_ulong addr, uint32_t nb,
     return NULL;
 }
 
-void helper_LMW(CPUPPCState *env, target_ulong addr, uint32_t reg)
+void HELPER(LMW)(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     uintptr_t raddr = GETPC();
     int mmu_idx = ppc_env_mmu_index(env, false);
@@ -98,7 +98,7 @@ void helper_LMW(CPUPPCState *env, target_ulong addr, uint32_t reg)
     }
 }
 
-void helper_STMW(CPUPPCState *env, target_ulong addr, uint32_t reg)
+void HELPER(STMW)(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     uintptr_t raddr = GETPC();
     int mmu_idx = ppc_env_mmu_index(env, false);
@@ -190,7 +190,7 @@ static void do_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
     env->gpr[reg] = val;
 }
 
-void helper_LSW(CPUPPCState *env, target_ulong addr,
+void HELPER(LSW)(CPUPPCState *env, target_ulong addr,
                 uint32_t nb, uint32_t reg)
 {
     do_lsw(env, addr, nb, reg, GETPC());
@@ -202,7 +202,7 @@ void helper_LSW(CPUPPCState *env, target_ulong addr,
  * this is valid, but rA won't be loaded.  For now, I'll follow the
  * spec...
  */
-void helper_LSWX(CPUPPCState *env, target_ulong addr, uint32_t reg,
+void HELPER(LSWX)(CPUPPCState *env, target_ulong addr, uint32_t reg,
                  uint32_t ra, uint32_t rb)
 {
     if (likely(xer_bc != 0)) {
@@ -218,7 +218,7 @@ void helper_LSWX(CPUPPCState *env, target_ulong addr, uint32_t reg,
     }
 }
 
-void helper_STSW(CPUPPCState *env, target_ulong addr, uint32_t nb,
+void HELPER(STSW)(CPUPPCState *env, target_ulong addr, uint32_t nb,
                  uint32_t reg)
 {
     uintptr_t raddr = GETPC();
@@ -319,13 +319,13 @@ static void dcbz_common(CPUPPCState *env, target_ulong addr,
     clear_helper_retaddr();
 }
 
-void helper_dcbz(CPUPPCState *env, target_ulong addr, int mmu_idx)
+void HELPER(dcbz)(CPUPPCState *env, target_ulong addr, int mmu_idx)
 {
     dcbz_common(env, addr, mmu_idx, env->dcache_line_size, GETPC());
 }
 
 #ifdef TARGET_PPC64
-void helper_dcbzl(CPUPPCState *env, target_ulong addr)
+void HELPER(dcbzl)(CPUPPCState *env, target_ulong addr)
 {
     int dcbz_size = env->dcache_line_size;
 
@@ -341,7 +341,7 @@ void helper_dcbzl(CPUPPCState *env, target_ulong addr)
 }
 #endif
 
-void helper_ICBI(CPUPPCState *env, target_ulong addr)
+void HELPER(ICBI)(CPUPPCState *env, target_ulong addr)
 {
     unsigned mmu_idx = cpu_mmu_index(env_cpu(env), false);
     MemOpIdx oi = make_memop_idx(MO_UL | MO_UNALN, mmu_idx);
@@ -357,7 +357,7 @@ void helper_ICBI(CPUPPCState *env, target_ulong addr)
     cpu_ldl_mmu(env, addr, oi, GETPC());
 }
 
-void helper_ICBIEP(CPUPPCState *env, target_ulong addr)
+void HELPER(ICBIEP)(CPUPPCState *env, target_ulong addr)
 {
 #if !defined(CONFIG_USER_ONLY)
     MemOpIdx oi = make_memop_idx(MO_UL | MO_UNALN, PPC_TLB_EPID_LOAD);
@@ -385,7 +385,7 @@ void helper_ICBIEP(CPUPPCState *env, target_ulong addr)
  */
 
 #define LVE(name, access, swap, element)                        \
-    void helper_##name(CPUPPCState *env, ppc_avr_t *r,          \
+    void HELPER(name)(CPUPPCState *env, ppc_avr_t *r,           \
                        target_ulong addr)                       \
     {                                                           \
         size_t n_elems = ARRAY_SIZE(r->element);                \
@@ -411,7 +411,7 @@ LVE(LVEWX, cpu_ldl_be_data_ra, bswap32, u32)
 #undef LVE
 
 #define STVE(name, access, swap, element)                               \
-    void helper_##name(CPUPPCState *env, ppc_avr_t *r,                  \
+    void HELPER(name)(CPUPPCState *env, ppc_avr_t *r,                   \
                        target_ulong addr)                               \
     {                                                                   \
         size_t n_elems = ARRAY_SIZE(r->element);                        \
@@ -441,7 +441,7 @@ STVE(STVEWX, cpu_stl_be_data_ra, bswap32, u32)
 #define GET_NB(rb) ((rb >> 56) & 0xFF)
 
 #define VSX_LXVL(name, lj)                                              \
-void helper_##name(CPUPPCState *env, target_ulong addr,                 \
+void HELPER(name)(CPUPPCState *env, target_ulong addr,                  \
                    ppc_vsr_t *xt, target_ulong rb)                      \
 {                                                                       \
     ppc_vsr_t t;                                                        \
@@ -471,7 +471,7 @@ VSX_LXVL(LXVLL, 1)
 #undef VSX_LXVL
 
 #define VSX_STXVL(name, lj)                                       \
-void helper_##name(CPUPPCState *env, target_ulong addr,           \
+void HELPER(name)(CPUPPCState *env, target_ulong addr,            \
                    ppc_vsr_t *xt, target_ulong rb)                \
 {                                                                 \
     target_ulong nb = GET_NB(rb);                                 \
@@ -504,7 +504,7 @@ VSX_STXVL(STXVLL, 1)
 #undef HI_IDX
 #undef LO_IDX
 
-void helper_tbegin(CPUPPCState *env)
+void HELPER(tbegin)(CPUPPCState *env)
 {
     /*
      * As a degenerate implementation, always fail tbegin.  The reason

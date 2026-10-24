@@ -27,7 +27,7 @@
 #include "tcg/helper-tcg.h"
 #include "../seg_helper.h"
 
-void helper_syscall(CPUX86State *env, int next_eip_addend)
+void HELPER(syscall)(CPUX86State *env, int next_eip_addend)
 {
     int selector;
 
@@ -128,10 +128,9 @@ void x86_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-bool x86_cpu_exec_halt(CPUState *cpu)
+void x86_cpu_poll_during_halt(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
 
     if (cpu_test_interrupt(cpu, CPU_INTERRUPT_POLL)) {
         bql_lock();
@@ -139,17 +138,23 @@ bool x86_cpu_exec_halt(CPUState *cpu)
         cpu_reset_interrupt(cpu, CPU_INTERRUPT_POLL);
         bql_unlock();
     }
+}
 
-    if (!cpu_has_work(cpu)) {
-        return false;
-    }
+void x86_cpu_leaving_halt(CPUState *cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = cpu_env(cpu);
 
     /* Complete HLT instruction.  */
     if (env->eflags & TF_MASK) {
         env->dr[6] |= DR6_BS;
+        /*
+         * do_interrupt_all() is the normal TCG exception-delivery path
+         * and runs in the same vCPU thread context, so #DB delivery does
+         * not require BQL protection here.
+         */
         do_interrupt_all(x86_cpu, EXCP01_DB, 0, 0, env->eip, 0);
     }
-    return true;
 }
 
 bool x86_need_replay_interrupt(int interrupt_request)
@@ -225,7 +230,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 }
 
 /* check if Port I/O is allowed in TSS */
-void helper_check_io(CPUX86State *env, uint32_t addr, uint32_t size)
+void HELPER(check_io)(CPUX86State *env, uint32_t addr, uint32_t size)
 {
     uintptr_t retaddr = GETPC();
     uint32_t io_offset, val, mask;

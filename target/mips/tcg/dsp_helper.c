@@ -1094,7 +1094,7 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
 
 /** DSP Arithmetic Sub-class insns **/
 #define MIPSDSP32_UNOP_ENV(name, func, element)                            \
-target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
+target_ulong HELPER(name)(target_ulong rt, CPUMIPSState *env)              \
 {                                                                          \
     DSP32Value dt;                                                         \
     unsigned int i;                                                     \
@@ -1114,7 +1114,7 @@ MIPSDSP32_UNOP_ENV(absq_s_w, sat_abs32, sw)
 
 #if defined(TARGET_MIPS64)
 #define MIPSDSP64_UNOP_ENV(name, func, element)                            \
-target_ulong helper_##name(target_ulong rt, CPUMIPSState *env)             \
+target_ulong HELPER(name)(target_ulong rt, CPUMIPSState *env)              \
 {                                                                          \
     DSP64Value dt;                                                         \
     unsigned int i;                                                        \
@@ -1134,7 +1134,7 @@ MIPSDSP64_UNOP_ENV(absq_s_pw, sat_abs32, sw)
 #endif
 
 #define MIPSDSP32_BINOP(name, func, element)                               \
-target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt)                \
 {                                                                          \
     DSP32Value ds, dt;                                                     \
     unsigned int i;                                                        \
@@ -1161,7 +1161,7 @@ MIPSDSP32_BINOP(subqh_w, rshift1_sub_q32, sw);
 #undef MIPSDSP32_BINOP
 
 #define MIPSDSP32_BINOP_ENV(name, func, element)                           \
-target_ulong helper_##name(target_ulong rs, target_ulong rt,               \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,                \
                            CPUMIPSState *env)                              \
 {                                                                          \
     DSP32Value ds, dt;                                                     \
@@ -1194,7 +1194,7 @@ MIPSDSP32_BINOP_ENV(subu_s_qb, satu8_sub, ub);
 
 #ifdef TARGET_MIPS64
 #define MIPSDSP64_BINOP(name, func, element)                               \
-target_ulong helper_##name(target_ulong rs, target_ulong rt)               \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt)                \
 {                                                                          \
     DSP64Value ds, dt;                                                     \
     unsigned int i;                                                        \
@@ -1215,7 +1215,7 @@ MIPSDSP64_BINOP(subuh_r_ob, rrshift1_sub_u8, ub);
 #undef MIPSDSP64_BINOP
 
 #define MIPSDSP64_BINOP_ENV(name, func, element)                           \
-target_ulong helper_##name(target_ulong rs, target_ulong rt,               \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,                \
                            CPUMIPSState *env)                              \
 {                                                                          \
     DSP64Value ds, dt;                                                     \
@@ -1251,7 +1251,7 @@ MIPSDSP64_BINOP_ENV(subu_s_qh, satu16_sub_u16_u16, uh);
 #endif
 
 #define SUBUH_QB(name, var) \
-target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt) \
+target_ulong HELPER(name##_qb)(target_ulong rs, target_ulong rt)  \
 {                                                                 \
     uint8_t rs3, rs2, rs1, rs0;                                   \
     uint8_t rt3, rt2, rt1, rt0;                                   \
@@ -1274,7 +1274,7 @@ SUBUH_QB(subuh_r, 1);
 
 #undef SUBUH_QB
 
-target_ulong helper_addsc(target_ulong rs, target_ulong rt, CPUMIPSState *env)
+target_ulong HELPER(addsc)(target_ulong rs, target_ulong rt, CPUMIPSState *env)
 {
     uint64_t temp, tempRs, tempRt;
     bool flag;
@@ -1289,7 +1289,7 @@ target_ulong helper_addsc(target_ulong rs, target_ulong rt, CPUMIPSState *env)
     return (target_long)(int32_t)(temp & MIPSDSP_LLO);
 }
 
-target_ulong helper_addwc(target_ulong rs, target_ulong rt, CPUMIPSState *env)
+target_ulong HELPER(addwc)(target_ulong rs, target_ulong rt, CPUMIPSState *env)
 {
     uint32_t rd;
     int32_t temp32, temp31;
@@ -1309,7 +1309,7 @@ target_ulong helper_addwc(target_ulong rs, target_ulong rt, CPUMIPSState *env)
     return (target_long)(int32_t)rd;
 }
 
-target_ulong helper_modsub(target_ulong rs, target_ulong rt)
+target_ulong HELPER(modsub)(target_ulong rs, target_ulong rt)
 {
     int32_t decr;
     uint16_t lastindex;
@@ -1327,7 +1327,7 @@ target_ulong helper_modsub(target_ulong rs, target_ulong rt)
     return rd;
 }
 
-target_ulong helper_raddu_w_qb(target_ulong rs)
+target_ulong HELPER(raddu_w_qb)(target_ulong rs)
 {
     target_ulong ret = 0;
     DSP32Value ds;
@@ -1341,7 +1341,7 @@ target_ulong helper_raddu_w_qb(target_ulong rs)
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_raddu_l_ob(target_ulong rs)
+target_ulong HELPER(raddu_l_ob)(target_ulong rs)
 {
     target_ulong ret = 0;
     DSP64Value ds;
@@ -1356,7 +1356,7 @@ target_ulong helper_raddu_l_ob(target_ulong rs)
 #endif
 
 #define PRECR_QB_PH(name, a, b)\
-target_ulong helper_##name##_qb_ph(target_ulong rs, target_ulong rt) \
+target_ulong HELPER(name##_qb_ph)(target_ulong rs, target_ulong rt)  \
 {                                                                    \
     uint8_t tempD, tempC, tempB, tempA;                              \
                                                                      \
@@ -1373,7 +1373,7 @@ PRECR_QB_PH(precrq, 24, 8);
 
 #undef PRECR_QB_OH
 
-target_ulong helper_precr_sra_ph_w(uint32_t sa, target_ulong rs,
+target_ulong HELPER(precr_sra_ph_w)(uint32_t sa, target_ulong rs,
                                    target_ulong rt)
 {
     uint16_t tempB, tempA;
@@ -1384,7 +1384,7 @@ target_ulong helper_precr_sra_ph_w(uint32_t sa, target_ulong rs,
     return MIPSDSP_RETURN32_16(tempB, tempA);
 }
 
-target_ulong helper_precr_sra_r_ph_w(uint32_t sa,
+target_ulong HELPER(precr_sra_r_ph_w)(uint32_t sa,
                                      target_ulong rs, target_ulong rt)
 {
     uint64_t tempB, tempA;
@@ -1402,7 +1402,7 @@ target_ulong helper_precr_sra_r_ph_w(uint32_t sa,
     return (target_long)(int32_t)rt;
 }
 
-target_ulong helper_precrq_ph_w(target_ulong rs, target_ulong rt)
+target_ulong HELPER(precrq_ph_w)(target_ulong rs, target_ulong rt)
 {
     uint16_t tempB, tempA;
 
@@ -1412,7 +1412,7 @@ target_ulong helper_precrq_ph_w(target_ulong rs, target_ulong rt)
     return MIPSDSP_RETURN32_16(tempB, tempA);
 }
 
-target_ulong helper_precrq_rs_ph_w(target_ulong rs, target_ulong rt,
+target_ulong HELPER(precrq_rs_ph_w)(target_ulong rs, target_ulong rt,
                                    CPUMIPSState *env)
 {
     uint16_t tempB, tempA;
@@ -1424,7 +1424,7 @@ target_ulong helper_precrq_rs_ph_w(target_ulong rs, target_ulong rt,
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_precr_ob_qh(target_ulong rs, target_ulong rt)
+target_ulong HELPER(precr_ob_qh)(target_ulong rs, target_ulong rt)
 {
     uint8_t rs6, rs4, rs2, rs0;
     uint8_t rt6, rt4, rt2, rt0;
@@ -1453,7 +1453,7 @@ target_ulong helper_precr_ob_qh(target_ulong rs, target_ulong rt)
  * In case sa != 0, use rt3, rt1, rs3, rs1.
  */
 #define PRECR_QH_PW(name, var)                                        \
-target_ulong helper_precr_##name##_qh_pw(target_ulong rs,             \
+target_ulong HELPER(precr_##name##_qh_pw)(target_ulong rs,            \
                                          target_ulong rt,             \
                                          uint32_t sa)                 \
 {                                                                     \
@@ -1484,7 +1484,7 @@ PRECR_QH_PW(sra_r, 1);
 
 #undef PRECR_QH_PW
 
-target_ulong helper_precrq_ob_qh(target_ulong rs, target_ulong rt)
+target_ulong HELPER(precrq_ob_qh)(target_ulong rs, target_ulong rt)
 {
     uint8_t rs6, rs4, rs2, rs0;
     uint8_t rt6, rt4, rt2, rt0;
@@ -1507,7 +1507,7 @@ target_ulong helper_precrq_ob_qh(target_ulong rs, target_ulong rt)
     return temp;
 }
 
-target_ulong helper_precrq_qh_pw(target_ulong rs, target_ulong rt)
+target_ulong HELPER(precrq_qh_pw)(target_ulong rs, target_ulong rt)
 {
     uint16_t tempD, tempC, tempB, tempA;
 
@@ -1519,7 +1519,7 @@ target_ulong helper_precrq_qh_pw(target_ulong rs, target_ulong rt)
     return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
 }
 
-target_ulong helper_precrq_rs_qh_pw(target_ulong rs, target_ulong rt,
+target_ulong HELPER(precrq_rs_qh_pw)(target_ulong rs, target_ulong rt,
                                     CPUMIPSState *env)
 {
     uint32_t rs2, rs0;
@@ -1539,7 +1539,7 @@ target_ulong helper_precrq_rs_qh_pw(target_ulong rs, target_ulong rt,
     return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
 }
 
-target_ulong helper_precrq_pw_l(target_ulong rs, target_ulong rt)
+target_ulong HELPER(precrq_pw_l)(target_ulong rs, target_ulong rt)
 {
     uint32_t tempB, tempA;
 
@@ -1550,7 +1550,7 @@ target_ulong helper_precrq_pw_l(target_ulong rs, target_ulong rt)
 }
 #endif
 
-target_ulong helper_precrqu_s_qb_ph(target_ulong rs, target_ulong rt,
+target_ulong HELPER(precrqu_s_qb_ph)(target_ulong rs, target_ulong rt,
                                     CPUMIPSState *env)
 {
     uint8_t  tempD, tempC, tempB, tempA;
@@ -1570,7 +1570,7 @@ target_ulong helper_precrqu_s_qb_ph(target_ulong rs, target_ulong rt,
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_precrqu_s_ob_qh(target_ulong rs, target_ulong rt,
+target_ulong HELPER(precrqu_s_ob_qh)(target_ulong rs, target_ulong rt,
                                     CPUMIPSState *env)
 {
     int i;
@@ -1601,7 +1601,7 @@ target_ulong helper_precrqu_s_ob_qh(target_ulong rs, target_ulong rt,
 }
 
 #define PRECEQ_PW(name, a, b) \
-target_ulong helper_preceq_pw_##name(target_ulong rt) \
+target_ulong HELPER(preceq_pw_##name)(target_ulong rt) \
 {                                                       \
     uint16_t tempB, tempA;                              \
     uint32_t tempBI, tempAI;                            \
@@ -1625,7 +1625,7 @@ PRECEQ_PW(qhra, 32, 0);
 #endif
 
 #define PRECEQU_PH(name, a, b) \
-target_ulong helper_precequ_ph_##name(target_ulong rt) \
+target_ulong HELPER(precequ_ph_##name)(target_ulong rt) \
 {                                                        \
     uint16_t tempB, tempA;                               \
                                                          \
@@ -1647,7 +1647,7 @@ PRECEQU_PH(qbra, 16, 0);
 
 #if defined(TARGET_MIPS64)
 #define PRECEQU_QH(name, a, b, c, d) \
-target_ulong helper_precequ_qh_##name(target_ulong rt)       \
+target_ulong HELPER(precequ_qh_##name)(target_ulong rt)      \
 {                                                            \
     uint16_t tempD, tempC, tempB, tempA;                     \
                                                              \
@@ -1674,7 +1674,7 @@ PRECEQU_QH(obra, 48, 32, 16, 0);
 #endif
 
 #define PRECEU_PH(name, a, b) \
-target_ulong helper_preceu_ph_##name(target_ulong rt) \
+target_ulong HELPER(preceu_ph_##name)(target_ulong rt) \
 {                                                     \
     uint16_t tempB, tempA;                            \
                                                       \
@@ -1693,7 +1693,7 @@ PRECEU_PH(qbra, 16, 0);
 
 #if defined(TARGET_MIPS64)
 #define PRECEU_QH(name, a, b, c, d) \
-target_ulong helper_preceu_qh_##name(target_ulong rt)        \
+target_ulong HELPER(preceu_qh_##name)(target_ulong rt)       \
 {                                                            \
     uint16_t tempD, tempC, tempB, tempA;                     \
                                                              \
@@ -1716,7 +1716,7 @@ PRECEU_QH(obra, 48, 32, 16, 0);
 
 /** DSP GPR-Based Shift Sub-class insns **/
 #define SHIFT_QB(name, func) \
-target_ulong helper_##name##_qb(target_ulong sa, target_ulong rt) \
+target_ulong HELPER(name##_qb)(target_ulong sa, target_ulong rt)  \
 {                                                                    \
     uint8_t rt3, rt2, rt1, rt0;                                      \
                                                                      \
@@ -1733,7 +1733,7 @@ target_ulong helper_##name##_qb(target_ulong sa, target_ulong rt) \
 }
 
 #define SHIFT_QB_ENV(name, func) \
-target_ulong helper_##name##_qb(target_ulong sa, target_ulong rt,\
+target_ulong HELPER(name##_qb)(target_ulong sa, target_ulong rt, \
                                 CPUMIPSState *env) \
 {                                                                    \
     uint8_t rt3, rt2, rt1, rt0;                                      \
@@ -1761,7 +1761,7 @@ SHIFT_QB(shra_r, rnd8_rashift);
 
 #if defined(TARGET_MIPS64)
 #define SHIFT_OB(name, func) \
-target_ulong helper_##name##_ob(target_ulong rt, target_ulong sa) \
+target_ulong HELPER(name##_ob)(target_ulong rt, target_ulong sa)  \
 {                                                                        \
     int i;                                                               \
     uint8_t rt_t[8];                                                     \
@@ -1780,7 +1780,7 @@ target_ulong helper_##name##_ob(target_ulong rt, target_ulong sa) \
 }
 
 #define SHIFT_OB_ENV(name, func) \
-target_ulong helper_##name##_ob(target_ulong rt, target_ulong sa, \
+target_ulong HELPER(name##_ob)(target_ulong rt, target_ulong sa,  \
                                 CPUMIPSState *env)                       \
 {                                                                        \
     int i;                                                               \
@@ -1811,7 +1811,7 @@ SHIFT_OB(shra_r, rnd8_rashift);
 #endif
 
 #define SHIFT_PH(name, func) \
-target_ulong helper_##name##_ph(target_ulong sa, target_ulong rt, \
+target_ulong HELPER(name##_ph)(target_ulong sa, target_ulong rt,  \
                                 CPUMIPSState *env)                \
 {                                                                 \
     uint16_t rth, rtl;                                            \
@@ -1833,7 +1833,7 @@ SHIFT_PH(shll_s, sat16_lshift);
 
 #if defined(TARGET_MIPS64)
 #define SHIFT_QH(name, func) \
-target_ulong helper_##name##_qh(target_ulong rt, target_ulong sa) \
+target_ulong HELPER(name##_qh)(target_ulong rt, target_ulong sa)  \
 {                                                                 \
     uint16_t rt3, rt2, rt1, rt0;                                  \
                                                                   \
@@ -1850,7 +1850,7 @@ target_ulong helper_##name##_qh(target_ulong rt, target_ulong sa) \
 }
 
 #define SHIFT_QH_ENV(name, func) \
-target_ulong helper_##name##_qh(target_ulong rt, target_ulong sa, \
+target_ulong HELPER(name##_qh)(target_ulong rt, target_ulong sa,  \
                                 CPUMIPSState *env)                \
 {                                                                 \
     uint16_t rt3, rt2, rt1, rt0;                                  \
@@ -1880,7 +1880,7 @@ SHIFT_QH(shra_r, rnd16_rashift);
 #endif
 
 #define SHIFT_W(name, func) \
-target_ulong helper_##name##_w(target_ulong sa, target_ulong rt) \
+target_ulong HELPER(name##_w)(target_ulong sa, target_ulong rt)  \
 {                                                                       \
     uint32_t temp;                                                      \
                                                                         \
@@ -1891,7 +1891,7 @@ target_ulong helper_##name##_w(target_ulong sa, target_ulong rt) \
 }
 
 #define SHIFT_W_ENV(name, func) \
-target_ulong helper_##name##_w(target_ulong sa, target_ulong rt, \
+target_ulong HELPER(name##_w)(target_ulong sa, target_ulong rt,  \
                                CPUMIPSState *env) \
 {                                                                       \
     uint32_t temp;                                                      \
@@ -1910,7 +1910,7 @@ SHIFT_W(shra_r, rnd32_rashift);
 
 #if defined(TARGET_MIPS64)
 #define SHIFT_PW(name, func) \
-target_ulong helper_##name##_pw(target_ulong rt, target_ulong sa) \
+target_ulong HELPER(name##_pw)(target_ulong rt, target_ulong sa)  \
 {                                                                 \
     uint32_t rt1, rt0;                                            \
                                                                   \
@@ -1924,7 +1924,7 @@ target_ulong helper_##name##_pw(target_ulong rt, target_ulong sa) \
 }
 
 #define SHIFT_PW_ENV(name, func) \
-target_ulong helper_##name##_pw(target_ulong rt, target_ulong sa, \
+target_ulong HELPER(name##_pw)(target_ulong rt, target_ulong sa,  \
                                 CPUMIPSState *env)                \
 {                                                                 \
     uint32_t rt1, rt0;                                            \
@@ -1950,7 +1950,7 @@ SHIFT_PW(shra_r, rnd32_rashift);
 #endif
 
 #define SHIFT_PH(name, func) \
-target_ulong helper_##name##_ph(target_ulong sa, target_ulong rt) \
+target_ulong HELPER(name##_ph)(target_ulong sa, target_ulong rt)  \
 {                                                                    \
     uint16_t rth, rtl;                                               \
                                                                      \
@@ -1978,7 +1978,7 @@ SHIFT_PH(shra_r, rnd16_rashift);
 #define MUL_RETURN32_16_PH(name, func, \
                            rsmov1, rsmov2, rsfilter, \
                            rtmov1, rtmov2, rtfilter) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt, \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,  \
                            CPUMIPSState *env)                \
 {                                                            \
     uint16_t rsB, rsA, rtB, rtA;                             \
@@ -2016,7 +2016,7 @@ MUL_RETURN32_16_PH(mulq_s_ph, sat16_mul_q15_q15, \
 #undef MUL_RETURN32_16_PH
 
 #define MUL_RETURN32_32_ph(name, func, movbits) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt, \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,  \
                                   CPUMIPSState *env)         \
 {                                                            \
     int16_t rsh, rth;                                        \
@@ -2035,7 +2035,7 @@ MUL_RETURN32_32_ph(muleq_s_w_phr, mul_q15_q15_overflowflag21, 0);
 #undef MUL_RETURN32_32_ph
 
 #define MUL_VOID_PH(name, use_ac_env) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,        \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,         \
                           CPUMIPSState *env)                             \
 {                                                                        \
     int16_t rsh, rsl, rth, rtl;                                          \
@@ -2071,7 +2071,7 @@ MUL_VOID_PH(mulsa_w_ph, 0);
 #define MUL_RETURN64_16_QH(name, func, \
                            rsmov1, rsmov2, rsmov3, rsmov4, rsfilter, \
                            rtmov1, rtmov2, rtmov3, rtmov4, rtfilter) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt,         \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,          \
                            CPUMIPSState *env)                        \
 {                                                                    \
     uint16_t rs3, rs2, rs1, rs0;                                     \
@@ -2110,7 +2110,7 @@ MUL_RETURN64_16_QH(mulq_rs_qh, rndq15_mul_q15_q15, \
 #define MUL_RETURN64_32_QH(name, \
                            rsmov1, rsmov2, \
                            rtmov1, rtmov2) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt, \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,  \
                            CPUMIPSState *env)                \
 {                                                            \
     uint16_t rsB, rsA;                                       \
@@ -2133,7 +2133,7 @@ MUL_RETURN64_32_QH(muleq_s_pw_qhr, 16, 0, 16, 0);
 
 #undef MUL_RETURN64_32_QH
 
-void helper_mulsaq_s_w_qh(target_ulong rs, target_ulong rt, uint32_t ac,
+void HELPER(mulsaq_s_w_qh)(target_ulong rs, target_ulong rt, uint32_t ac,
                           CPUMIPSState *env)
 {
     int16_t rs3, rs2, rs1, rs0;
@@ -2177,7 +2177,7 @@ void helper_mulsaq_s_w_qh(target_ulong rs, target_ulong rt, uint32_t ac,
 #endif
 
 #define DP_QB(name, func, is_add, rsmov1, rsmov2, rtmov1, rtmov2) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,        \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,         \
                    CPUMIPSState *env)                                    \
 {                                                                        \
     uint8_t rs3, rs2;                                                    \
@@ -2218,7 +2218,7 @@ DP_QB(dpsu_h_qbr, mul_u8_u8, 0, 8, 0, 8, 0);
 #define DP_OB(name, add_sub, \
               rsmov1, rsmov2, rsmov3, rsmov4, \
               rtmov1, rtmov2, rtmov3, rtmov4) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac,       \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,        \
                        CPUMIPSState *env)                               \
 {                                                                       \
     uint8_t rsD, rsC, rsB, rsA;                                         \
@@ -2281,7 +2281,7 @@ DP_OB(dpsu_h_obr, 0, 24, 16, 8, 0, 24, 16, 8, 0);
 #endif
 
 #define DP_NOFUNC_PH(name, is_add, rsmov1, rsmov2, rtmov1, rtmov2)             \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,              \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,               \
                    CPUMIPSState *env)                                          \
 {                                                                              \
     int16_t rsB, rsA, rtB, rtA;                                                \
@@ -2316,7 +2316,7 @@ DP_NOFUNC_PH(dpsx_w_ph, 0, 16, 0, 0, 16);
 #undef DP_NOFUNC_PH
 
 #define DP_HASFUNC_PH(name, is_add, rsmov1, rsmov2, rtmov1, rtmov2) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,   \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,    \
                    CPUMIPSState *env)                      \
 {                                                          \
     int16_t rsB, rsA, rtB, rtA;                            \
@@ -2355,7 +2355,7 @@ DP_HASFUNC_PH(dpsqx_s_w_ph, 0, 16, 0, 0, 16);
 #undef DP_HASFUNC_PH
 
 #define DP_128OPERATION_PH(name, is_add) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt, \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,  \
                           CPUMIPSState *env)                             \
 {                                                                        \
     int16_t rsh, rsl, rth, rtl;                                          \
@@ -2402,7 +2402,7 @@ DP_128OPERATION_PH(dpsqx_sa_w_ph, 0);
 
 #if defined(TARGET_MIPS64)
 #define DP_QH(name, is_add, use_ac_env) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac,    \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,     \
                    CPUMIPSState *env)                                \
 {                                                                    \
     int32_t rs3, rs2, rs1, rs0;                                      \
@@ -2470,7 +2470,7 @@ DP_QH(dpsq_s_w_qh, 0, 1);
 #endif
 
 #define DP_L_W(name, is_add) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,      \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,       \
                    CPUMIPSState *env)                                  \
 {                                                                      \
     int32_t temp63;                                                    \
@@ -2515,7 +2515,7 @@ DP_L_W(dpsq_sa_l_w, 0);
 
 #if defined(TARGET_MIPS64)
 #define DP_L_PW(name, func) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,  \
                    CPUMIPSState *env)                             \
 {                                                                 \
     int32_t rs1, rs0;                                             \
@@ -2565,7 +2565,7 @@ DP_L_PW(dpsq_sa_l_pw, sat64_acc_sub_q63);
 
 #undef DP_L_PW
 
-void helper_mulsaq_s_l_pw(target_ulong rs, target_ulong rt, uint32_t ac,
+void HELPER(mulsaq_s_l_pw)(target_ulong rs, target_ulong rt, uint32_t ac,
                           CPUMIPSState *env)
 {
     int32_t rs1, rs0;
@@ -2625,7 +2625,7 @@ void helper_mulsaq_s_l_pw(target_ulong rs, target_ulong rt, uint32_t ac,
 #endif
 
 #define MAQ_S_W(name, mov) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt, \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,  \
                    CPUMIPSState *env)                             \
 {                                                                 \
     int16_t rsh, rth;                                             \
@@ -2650,7 +2650,7 @@ MAQ_S_W(maq_s_w_phr, 0);
 #undef MAQ_S_W
 
 #define MAQ_SA_W(name, mov) \
-void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,        \
+void HELPER(name)(uint32_t ac, target_ulong rs, target_ulong rt,         \
                    CPUMIPSState *env)                                    \
 {                                                                        \
     int16_t rsh, rth;                                                    \
@@ -2673,7 +2673,7 @@ MAQ_SA_W(maq_sa_w_phr, 0);
 #undef MAQ_SA_W
 
 #define MULQ_W(name, addvar) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt,   \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,    \
                            CPUMIPSState *env)                  \
 {                                                              \
     int32_t rs_t, rt_t;                                        \
@@ -2703,7 +2703,7 @@ MULQ_W(mulq_rs_w, 0x80000000ull);
 #if defined(TARGET_MIPS64)
 
 #define MAQ_S_W_QH(name, mov) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,  \
                    CPUMIPSState *env)                             \
 {                                                                 \
     int16_t rs_t, rt_t;                                           \
@@ -2749,7 +2749,7 @@ MAQ_S_W_QH(maq_s_w_qhrr, 0);
 #undef MAQ_S_W_QH
 
 #define MAQ_SA_W(name, mov) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,  \
                    CPUMIPSState *env)                             \
 {                                                                 \
     int16_t rs_t, rt_t;                                           \
@@ -2780,7 +2780,7 @@ MAQ_SA_W(maq_sa_w_qhrr, 0);
 #undef MAQ_SA_W
 
 #define MAQ_S_L_PW(name, mov) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,  \
                    CPUMIPSState *env)                             \
 {                                                                 \
     int32_t rs_t, rt_t;                                           \
@@ -2822,7 +2822,7 @@ MAQ_S_L_PW(maq_s_l_pwr, 0);
 #undef MAQ_S_L_PW
 
 #define DM_OPERATE(name, func, is_add, sigext) \
-void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac,    \
+void HELPER(name)(target_ulong rs, target_ulong rt, uint32_t ac,     \
                   CPUMIPSState *env)                                 \
 {                                                                    \
     int32_t rs1, rs0;                                                \
@@ -2900,7 +2900,7 @@ DM_OPERATE(dmsubu, mul_u32_u32, 0, 0);
 #endif
 
 /** DSP Bit/Manipulation Sub-class insns **/
-target_ulong helper_bitrev(target_ulong rt)
+target_ulong HELPER(bitrev)(target_ulong rt)
 {
     int32_t temp;
     uint32_t rd;
@@ -2917,7 +2917,7 @@ target_ulong helper_bitrev(target_ulong rt)
 }
 
 #define BIT_INSV(name, posfilter, ret_type)                     \
-target_ulong helper_##name(CPUMIPSState *env, target_ulong rs,  \
+target_ulong HELPER(name)(CPUMIPSState *env, target_ulong rs,   \
                            target_ulong rt)                     \
 {                                                               \
     uint32_t pos, size, msb, lsb;                               \
@@ -2952,7 +2952,7 @@ BIT_INSV(dinsv, 0x7F, target_long);
 
 /** DSP Compare-Pick Sub-class insns **/
 #define CMP_HAS_RET(name, func, split_num, filter, bit_size) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt) \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt)  \
 {                                                       \
     uint32_t rs_t, rt_t;                                \
     uint8_t cc;                                         \
@@ -2983,7 +2983,7 @@ CMP_HAS_RET(cmpgu_le_ob, cmpu_le, 8, MIPSDSP_Q0, 8);
 
 
 #define CMP_NO_RET(name, func, split_num, filter, bit_size) \
-void helper_##name(target_ulong rs, target_ulong rt,        \
+void HELPER(name)(target_ulong rs, target_ulong rt,         \
                             CPUMIPSState *env)              \
 {                                                           \
     int##bit_size##_t rs_t, rt_t;                           \
@@ -3028,7 +3028,7 @@ CMP_NO_RET(cmp_le_pw, cmp_le, 2, MIPSDSP_LLO, 32);
 #if defined(TARGET_MIPS64)
 
 #define CMPGDU_OB(name) \
-target_ulong helper_cmpgdu_##name##_ob(target_ulong rs, target_ulong rt, \
+target_ulong HELPER(cmpgdu_##name##_ob)(target_ulong rs, target_ulong rt, \
                                        CPUMIPSState *env)  \
 {                                                     \
     int i;                                            \
@@ -3058,7 +3058,7 @@ CMPGDU_OB(le)
 #endif
 
 #define PICK_INSN(name, split_num, filter, bit_size, ret32bit) \
-target_ulong helper_##name(target_ulong rs, target_ulong rt,   \
+target_ulong HELPER(name)(target_ulong rs, target_ulong rt,    \
                             CPUMIPSState *env)                 \
 {                                                              \
     uint32_t rs_t, rt_t;                                       \
@@ -3094,7 +3094,7 @@ PICK_INSN(pick_pw, 2, MIPSDSP_LLO, 32, 0);
 #endif
 #undef PICK_INSN
 
-target_ulong helper_packrl_ph(target_ulong rs, target_ulong rt)
+target_ulong HELPER(packrl_ph)(target_ulong rs, target_ulong rt)
 {
     uint32_t rsl, rth;
 
@@ -3105,7 +3105,7 @@ target_ulong helper_packrl_ph(target_ulong rs, target_ulong rt)
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_packrl_pw(target_ulong rs, target_ulong rt)
+target_ulong HELPER(packrl_pw)(target_ulong rs, target_ulong rt)
 {
     uint32_t rs0, rt1;
 
@@ -3117,7 +3117,7 @@ target_ulong helper_packrl_pw(target_ulong rs, target_ulong rt)
 #endif
 
 /** DSP Accumulator and DSPControl Access Sub-class insns **/
-target_ulong helper_extr_w(target_ulong ac, target_ulong shift,
+target_ulong HELPER(extr_w)(target_ulong ac, target_ulong shift,
                            CPUMIPSState *env)
 {
     int32_t tempI;
@@ -3146,7 +3146,7 @@ target_ulong helper_extr_w(target_ulong ac, target_ulong shift,
     return (target_long)tempI;
 }
 
-target_ulong helper_extr_r_w(target_ulong ac, target_ulong shift,
+target_ulong HELPER(extr_r_w)(target_ulong ac, target_ulong shift,
                              CPUMIPSState *env)
 {
     int64_t tempDL[2];
@@ -3172,7 +3172,7 @@ target_ulong helper_extr_r_w(target_ulong ac, target_ulong shift,
     return (target_long)(int32_t)(tempDL[0] >> 1);
 }
 
-target_ulong helper_extr_rs_w(target_ulong ac, target_ulong shift,
+target_ulong HELPER(extr_rs_w)(target_ulong ac, target_ulong shift,
                               CPUMIPSState *env)
 {
     int32_t tempI, temp64;
@@ -3206,7 +3206,7 @@ target_ulong helper_extr_rs_w(target_ulong ac, target_ulong shift,
 }
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_dextr_w(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_w)(target_ulong ac, target_ulong shift,
                             CPUMIPSState *env)
 {
     uint64_t temp[3];
@@ -3218,7 +3218,7 @@ target_ulong helper_dextr_w(target_ulong ac, target_ulong shift,
     return (int64_t)(int32_t)(temp[0] >> 1);
 }
 
-target_ulong helper_dextr_r_w(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_r_w)(target_ulong ac, target_ulong shift,
                               CPUMIPSState *env)
 {
     uint64_t temp[3];
@@ -3245,7 +3245,7 @@ target_ulong helper_dextr_r_w(target_ulong ac, target_ulong shift,
     return (int64_t)(int32_t)(temp[0] >> 1);
 }
 
-target_ulong helper_dextr_rs_w(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_rs_w)(target_ulong ac, target_ulong shift,
                                CPUMIPSState *env)
 {
     uint64_t temp[3];
@@ -3277,7 +3277,7 @@ target_ulong helper_dextr_rs_w(target_ulong ac, target_ulong shift,
     return (int64_t)(int32_t)(temp[0] >> 1);
 }
 
-target_ulong helper_dextr_l(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_l)(target_ulong ac, target_ulong shift,
                             CPUMIPSState *env)
 {
     uint64_t temp[3];
@@ -3289,7 +3289,7 @@ target_ulong helper_dextr_l(target_ulong ac, target_ulong shift,
     return (temp[1] << 63) | (temp[0] >> 1);
 }
 
-target_ulong helper_dextr_r_l(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_r_l)(target_ulong ac, target_ulong shift,
                               CPUMIPSState *env)
 {
     uint64_t temp[3];
@@ -3316,7 +3316,7 @@ target_ulong helper_dextr_r_l(target_ulong ac, target_ulong shift,
     return (temp[1] << 63) | (temp[0] >> 1);
 }
 
-target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_rs_l)(target_ulong ac, target_ulong shift,
                                CPUMIPSState *env)
 {
     uint64_t temp[3];
@@ -3351,7 +3351,7 @@ target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
 }
 #endif
 
-target_ulong helper_extr_s_h(target_ulong ac, target_ulong shift,
+target_ulong HELPER(extr_s_h)(target_ulong ac, target_ulong shift,
                              CPUMIPSState *env)
 {
     int64_t temp, acc;
@@ -3376,7 +3376,7 @@ target_ulong helper_extr_s_h(target_ulong ac, target_ulong shift,
 
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_dextr_s_h(target_ulong ac, target_ulong shift,
+target_ulong HELPER(dextr_s_h)(target_ulong ac, target_ulong shift,
                               CPUMIPSState *env)
 {
     int64_t temp[2];
@@ -3405,7 +3405,7 @@ target_ulong helper_dextr_s_h(target_ulong ac, target_ulong shift,
 
 #endif
 
-target_ulong helper_extp(target_ulong ac, target_ulong size, CPUMIPSState *env)
+target_ulong HELPER(extp)(target_ulong ac, target_ulong size, CPUMIPSState *env)
 {
     int32_t start_pos;
     int sub;
@@ -3429,7 +3429,7 @@ target_ulong helper_extp(target_ulong ac, target_ulong size, CPUMIPSState *env)
     return (target_ulong)temp;
 }
 
-target_ulong helper_extpdp(target_ulong ac, target_ulong size,
+target_ulong HELPER(extpdp)(target_ulong ac, target_ulong size,
                            CPUMIPSState *env)
 {
     int32_t start_pos;
@@ -3457,7 +3457,8 @@ target_ulong helper_extpdp(target_ulong ac, target_ulong size,
 
 
 #if defined(TARGET_MIPS64)
-target_ulong helper_dextp(target_ulong ac, target_ulong size, CPUMIPSState *env)
+target_ulong HELPER(dextp)(target_ulong ac, target_ulong size,
+                           CPUMIPSState *env)
 {
     int start_pos;
     int len;
@@ -3486,7 +3487,7 @@ target_ulong helper_dextp(target_ulong ac, target_ulong size, CPUMIPSState *env)
     return temp;
 }
 
-target_ulong helper_dextpdp(target_ulong ac, target_ulong size,
+target_ulong HELPER(dextpdp)(target_ulong ac, target_ulong size,
                             CPUMIPSState *env)
 {
     int start_pos;
@@ -3518,7 +3519,7 @@ target_ulong helper_dextpdp(target_ulong ac, target_ulong size,
 
 #endif
 
-void helper_shilo(target_ulong ac, target_ulong rs, CPUMIPSState *env)
+void HELPER(shilo)(target_ulong ac, target_ulong rs, CPUMIPSState *env)
 {
     int8_t  rs5_0;
     uint64_t temp, acc;
@@ -3544,7 +3545,7 @@ void helper_shilo(target_ulong ac, target_ulong rs, CPUMIPSState *env)
 }
 
 #if defined(TARGET_MIPS64)
-void helper_dshilo(target_ulong shift, target_ulong ac, CPUMIPSState *env)
+void HELPER(dshilo)(target_ulong shift, target_ulong ac, CPUMIPSState *env)
 {
     int8_t shift_t;
     uint64_t tempB, tempA;
@@ -3570,7 +3571,7 @@ void helper_dshilo(target_ulong shift, target_ulong ac, CPUMIPSState *env)
 }
 
 #endif
-void helper_mthlip(target_ulong ac, target_ulong rs, CPUMIPSState *env)
+void HELPER(mthlip)(target_ulong ac, target_ulong rs, CPUMIPSState *env)
 {
     int32_t tempA, tempB, pos;
 
@@ -3588,7 +3589,7 @@ void helper_mthlip(target_ulong ac, target_ulong rs, CPUMIPSState *env)
 }
 
 #if defined(TARGET_MIPS64)
-void helper_dmthlip(target_ulong rs, target_ulong ac, CPUMIPSState *env)
+void HELPER(dmthlip)(target_ulong rs, target_ulong ac, CPUMIPSState *env)
 {
     uint8_t ac_t;
     uint8_t pos;
@@ -3677,7 +3678,7 @@ void cpu_wrdsp(uint32_t rs, uint32_t mask_num, CPUMIPSState *env)
     env->active_tc.DSPControl = dsp;
 }
 
-void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
+void HELPER(wrdsp)(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
 {
     cpu_wrdsp(rs, mask_num, env);
 }
@@ -3733,7 +3734,7 @@ uint32_t cpu_rddsp(uint32_t mask_num, CPUMIPSState *env)
     return temp;
 }
 
-target_ulong helper_rddsp(target_ulong mask_num, CPUMIPSState *env)
+target_ulong HELPER(rddsp)(target_ulong mask_num, CPUMIPSState *env)
 {
     return cpu_rddsp(mask_num, env);
 }

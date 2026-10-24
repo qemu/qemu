@@ -114,10 +114,10 @@ uint32_t HELPER(dtos)(CPUOpenRISCState *env, uint64_t val)
 }
 
 #define FLOAT_CALC(name)                                                  \
-uint64_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
+uint64_t HELPER(float_ ## name ## _d)(CPUOpenRISCState *env,              \
                                      uint64_t fdt0, uint64_t fdt1)        \
 { return float64_ ## name(fdt0, fdt1, &env->fp_status); }                 \
-uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
+uint32_t HELPER(float_ ## name ## _s)(CPUOpenRISCState *env,              \
                                      uint32_t fdt0, uint32_t fdt1)        \
 { return float32_ ## name(fdt0, fdt1, &env->fp_status); }
 
@@ -129,7 +129,7 @@ FLOAT_CALC(rem)
 #undef FLOAT_CALC
 
 
-uint64_t helper_float_madd_d(CPUOpenRISCState *env, uint64_t a,
+uint64_t HELPER(float_madd_d)(CPUOpenRISCState *env, uint64_t a,
                              uint64_t b, uint64_t c)
 {
     /* Note that or1ksim doesn't use fused operation.  */
@@ -137,7 +137,7 @@ uint64_t helper_float_madd_d(CPUOpenRISCState *env, uint64_t a,
     return float64_add(a, b, &env->fp_status);
 }
 
-uint32_t helper_float_madd_s(CPUOpenRISCState *env, uint32_t a,
+uint32_t HELPER(float_madd_s)(CPUOpenRISCState *env, uint32_t a,
                              uint32_t b, uint32_t c)
 {
     /* Note that or1ksim doesn't use fused operation.  */
@@ -147,10 +147,10 @@ uint32_t helper_float_madd_s(CPUOpenRISCState *env, uint32_t a,
 
 
 #define FLOAT_CMP(name, impl)                                             \
-uint32_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
+uint32_t HELPER(float_ ## name ## _d)(CPUOpenRISCState *env,              \
                                          uint64_t fdt0, uint64_t fdt1)    \
 { return float64_ ## impl(fdt0, fdt1, &env->fp_status); }                 \
-uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
+uint32_t HELPER(float_ ## name ## _s)(CPUOpenRISCState *env,              \
                                          uint32_t fdt0, uint32_t fdt1)    \
 { return float32_ ## impl(fdt0, fdt1, &env->fp_status); }
 
@@ -161,13 +161,13 @@ FLOAT_CMP(un, unordered_quiet)
 #undef FLOAT_CMP
 
 #define FLOAT_UCMP(name, expr) \
-uint32_t helper_float_ ## name ## _d(CPUOpenRISCState *env,               \
+uint32_t HELPER(float_ ## name ## _d)(CPUOpenRISCState *env,              \
                                          uint64_t fdt0, uint64_t fdt1)    \
 {                                                                         \
     FloatRelation r = float64_compare_quiet(fdt0, fdt1, &env->fp_status); \
     return expr;                                                          \
 }                                                                         \
-uint32_t helper_float_ ## name ## _s(CPUOpenRISCState *env,               \
+uint32_t HELPER(float_ ## name ## _s)(CPUOpenRISCState *env,              \
                                          uint32_t fdt0, uint32_t fdt1)    \
 {                                                                         \
     FloatRelation r = float32_compare_quiet(fdt0, fdt1, &env->fp_status); \

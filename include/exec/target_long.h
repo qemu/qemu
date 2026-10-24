@@ -20,17 +20,15 @@
 #error TARGET_LONG_BITS not defined
 #endif
 
-#define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
-
 /* target_ulong is the type of a virtual address */
-#if TARGET_LONG_SIZE == 4
+#if TARGET_LONG_BITS == 32
 typedef int32_t target_long;
 typedef uint32_t target_ulong;
 #define TARGET_FMT_lx "%08x"
 #define TARGET_FMT_ld "%d"
 #define TARGET_FMT_lu "%u"
 #define MO_TL MO_32
-#elif TARGET_LONG_SIZE == 8
+#elif TARGET_LONG_BITS == 64
 typedef int64_t target_long;
 typedef uint64_t target_ulong;
 #define TARGET_FMT_lx "%016" PRIx64
@@ -38,7 +36,7 @@ typedef uint64_t target_ulong;
 #define TARGET_FMT_lu "%" PRIu64
 #define MO_TL MO_64
 #else
-#error TARGET_LONG_SIZE undefined
+#error TARGET_LONG_BITS invalid
 #endif
 
 #endif /* _TARGET_LONG_H_ */

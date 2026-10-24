@@ -13,26 +13,26 @@
 #define GET_MEMTXATTRS(cas) \
         ((MemTxAttrs){.requester_id = env_cpu(cas)->cpu_index})
 
-uint64_t helper_lcsr_rdcsr(CPUMIPSState *env, target_ulong r_addr)
+uint64_t HELPER(lcsr_rdcsr)(CPUMIPSState *env, target_ulong r_addr)
 {
     return address_space_ldl(&env->iocsr.as, r_addr,
                              GET_MEMTXATTRS(env), NULL);
 }
 
-uint64_t helper_lcsr_drdcsr(CPUMIPSState *env, target_ulong r_addr)
+uint64_t HELPER(lcsr_drdcsr)(CPUMIPSState *env, target_ulong r_addr)
 {
     return address_space_ldq(&env->iocsr.as, r_addr,
                              GET_MEMTXATTRS(env), NULL);
 }
 
-void helper_lcsr_wrcsr(CPUMIPSState *env, target_ulong w_addr,
+void HELPER(lcsr_wrcsr)(CPUMIPSState *env, target_ulong w_addr,
                       target_ulong val)
 {
     address_space_stl(&env->iocsr.as, w_addr,
                       val, GET_MEMTXATTRS(env), NULL);
 }
 
-void helper_lcsr_dwrcsr(CPUMIPSState *env, target_ulong w_addr,
+void HELPER(lcsr_dwrcsr)(CPUMIPSState *env, target_ulong w_addr,
                       target_ulong val)
 {
     address_space_stq(&env->iocsr.as, w_addr,

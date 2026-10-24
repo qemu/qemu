@@ -60,7 +60,7 @@ static target_ulong compute_all_adcox(target_ulong dst, target_ulong src1,
     return (src1 & ~(CC_C | CC_O)) | (dst * CC_C) | (src2 * CC_O);
 }
 
-target_ulong helper_cc_compute_nz(target_ulong dst, target_ulong src1,
+target_ulong HELPER(cc_compute_nz)(target_ulong dst, target_ulong src1,
                                   int op)
 {
     if (CC_OP_HAS_EFLAGS(op)) {
@@ -86,7 +86,7 @@ static inline uint32_t compute_aco_mul(target_long src1)
     return cf + af + of;
 }
 
-target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
+target_ulong HELPER(cc_compute_all)(target_ulong dst, target_ulong src1,
                                    target_ulong src2, int op)
 {
     uint32_t flags = 0;
@@ -300,10 +300,10 @@ psz_q:
 
 uint32_t cpu_cc_compute_all(CPUX86State *env)
 {
-    return helper_cc_compute_all(CC_DST, CC_SRC, CC_SRC2, CC_OP);
+    return HELPER(cc_compute_all)(CC_DST, CC_SRC, CC_SRC2, CC_OP);
 }
 
-target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
+target_ulong HELPER(cc_compute_c)(target_ulong dst, target_ulong src1,
                                  target_ulong src2, int op)
 {
     switch (op) {
@@ -418,13 +418,13 @@ target_ulong helper_cc_compute_c(target_ulong dst, target_ulong src1,
     }
 }
 
-void helper_write_eflags(CPUX86State *env, target_ulong t0,
+void HELPER(write_eflags)(CPUX86State *env, target_ulong t0,
                          uint32_t update_mask)
 {
     cpu_load_eflags(env, t0, update_mask);
 }
 
-target_ulong helper_read_eflags(CPUX86State *env)
+target_ulong HELPER(read_eflags)(CPUX86State *env)
 {
     uint32_t eflags;
 
@@ -436,7 +436,7 @@ target_ulong helper_read_eflags(CPUX86State *env)
     return eflags;
 }
 
-void helper_clts(CPUX86State *env)
+void HELPER(clts)(CPUX86State *env)
 {
     env->cr[0] &= ~CR0_TS_MASK;
     env->hflags &= ~HF_TS_MASK;

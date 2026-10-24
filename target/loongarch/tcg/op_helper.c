@@ -17,13 +17,13 @@
 #include "cpu-csr.h"
 
 /* Exceptions helpers */
-void helper_raise_exception(CPULoongArchState *env, uint32_t exception)
+void HELPER(raise_exception)(CPULoongArchState *env, uint32_t exception)
 {
     do_raise_exception(env, exception, GETPC());
 }
 
 /* loongarch assert op */
-void helper_asrtle_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
+void HELPER(asrtle_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
     CPUSysState *sys = env_sys(env);
 
@@ -33,7 +33,7 @@ void helper_asrtle_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
     }
 }
 
-void helper_asrtgt_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
+void HELPER(asrtgt_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
     CPUSysState *sys = env_sys(env);
 
@@ -43,7 +43,7 @@ void helper_asrtgt_d(CPULoongArchState *env, target_ulong rj, target_ulong rk)
     }
 }
 
-target_ulong helper_crc32(target_ulong val, target_ulong m, uint64_t sz)
+target_ulong HELPER(crc32)(target_ulong val, target_ulong m, uint64_t sz)
 {
     uint8_t buf[8];
     target_ulong mask = ((sz * 8) == 64) ? -1ULL : ((1ULL << (sz * 8)) - 1);
@@ -53,7 +53,7 @@ target_ulong helper_crc32(target_ulong val, target_ulong m, uint64_t sz)
     return (int32_t) (crc32(val ^ 0xffffffff, buf, sz) ^ 0xffffffff);
 }
 
-target_ulong helper_crc32c(target_ulong val, target_ulong m, uint64_t sz)
+target_ulong HELPER(crc32c)(target_ulong val, target_ulong m, uint64_t sz)
 {
     uint8_t buf[8];
     target_ulong mask = ((sz * 8) == 64) ? -1ULL : ((1ULL << (sz * 8)) - 1);
@@ -62,12 +62,12 @@ target_ulong helper_crc32c(target_ulong val, target_ulong m, uint64_t sz)
     return (int32_t) (crc32c(val, buf, sz) ^ 0xffffffff);
 }
 
-target_ulong helper_cpucfg(CPULoongArchState *env, target_ulong rj)
+target_ulong HELPER(cpucfg)(CPULoongArchState *env, target_ulong rj)
 {
     return rj >= ARRAY_SIZE(env->cpucfg) ? 0 : env->cpucfg[rj];
 }
 
-uint64_t helper_rdtime_d(CPULoongArchState *env)
+uint64_t HELPER(rdtime_d)(CPULoongArchState *env)
 {
 #ifdef CONFIG_USER_ONLY
     return cpu_get_host_ticks();
@@ -86,7 +86,7 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
 }
 
 #ifndef CONFIG_USER_ONLY
-void helper_ertn(CPULoongArchState *env)
+void HELPER(ertn)(CPULoongArchState *env)
 {
     uint64_t csr_pplv, csr_pie;
     CPUSysState *sys = env_sys(env);
@@ -115,7 +115,7 @@ void helper_ertn(CPULoongArchState *env)
     env->lladdr = 1;
 }
 
-void helper_idle(CPULoongArchState *env)
+void HELPER(idle)(CPULoongArchState *env)
 {
     CPUState *cs = env_cpu(env);
 

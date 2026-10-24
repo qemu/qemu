@@ -26,38 +26,38 @@
 /*****************************************************************************/
 /* SPR accesses */
 
-target_ulong helper_load_tbl(CPUPPCState *env)
+target_ulong HELPER(load_tbl)(CPUPPCState *env)
 {
     return (target_ulong)cpu_ppc_load_tbl(env);
 }
 
-target_ulong helper_load_tbu(CPUPPCState *env)
+target_ulong HELPER(load_tbu)(CPUPPCState *env)
 {
     return cpu_ppc_load_tbu(env);
 }
 
-target_ulong helper_load_atbl(CPUPPCState *env)
+target_ulong HELPER(load_atbl)(CPUPPCState *env)
 {
     return (target_ulong)cpu_ppc_load_atbl(env);
 }
 
-target_ulong helper_load_atbu(CPUPPCState *env)
+target_ulong HELPER(load_atbu)(CPUPPCState *env)
 {
     return cpu_ppc_load_atbu(env);
 }
 
-target_ulong helper_load_vtb(CPUPPCState *env)
+target_ulong HELPER(load_vtb)(CPUPPCState *env)
 {
     return cpu_ppc_load_vtb(env);
 }
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-target_ulong helper_load_purr(CPUPPCState *env)
+target_ulong HELPER(load_purr)(CPUPPCState *env)
 {
     return (target_ulong)cpu_ppc_load_purr(env);
 }
 
-void helper_store_purr(CPUPPCState *env, target_ulong val)
+void HELPER(store_purr)(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -75,7 +75,7 @@ void helper_store_purr(CPUPPCState *env, target_ulong val)
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-void helper_store_tbl(CPUPPCState *env, target_ulong val)
+void HELPER(store_tbl)(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -91,7 +91,7 @@ void helper_store_tbl(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_store_tbu(CPUPPCState *env, target_ulong val)
+void HELPER(store_tbu)(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -107,32 +107,32 @@ void helper_store_tbu(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_store_atbl(CPUPPCState *env, target_ulong val)
+void HELPER(store_atbl)(CPUPPCState *env, target_ulong val)
 {
     cpu_ppc_store_atbl(env, val);
 }
 
-void helper_store_atbu(CPUPPCState *env, target_ulong val)
+void HELPER(store_atbu)(CPUPPCState *env, target_ulong val)
 {
     cpu_ppc_store_atbu(env, val);
 }
 
-target_ulong helper_load_decr(CPUPPCState *env)
+target_ulong HELPER(load_decr)(CPUPPCState *env)
 {
     return cpu_ppc_load_decr(env);
 }
 
-void helper_store_decr(CPUPPCState *env, target_ulong val)
+void HELPER(store_decr)(CPUPPCState *env, target_ulong val)
 {
     cpu_ppc_store_decr(env, val);
 }
 
-target_ulong helper_load_hdecr(CPUPPCState *env)
+target_ulong HELPER(load_hdecr)(CPUPPCState *env)
 {
     return cpu_ppc_load_hdecr(env);
 }
 
-void helper_store_hdecr(CPUPPCState *env, target_ulong val)
+void HELPER(store_hdecr)(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -148,7 +148,7 @@ void helper_store_hdecr(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_store_vtb(CPUPPCState *env, target_ulong val)
+void HELPER(store_vtb)(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -164,7 +164,7 @@ void helper_store_vtb(CPUPPCState *env, target_ulong val)
     }
 }
 
-void helper_store_tbu40(CPUPPCState *env, target_ulong val)
+void HELPER(store_tbu40)(CPUPPCState *env, target_ulong val)
 {
     CPUState *cs = env_cpu(env);
     CPUState *ccs;
@@ -180,32 +180,32 @@ void helper_store_tbu40(CPUPPCState *env, target_ulong val)
     }
 }
 
-target_ulong helper_load_40x_pit(CPUPPCState *env)
+target_ulong HELPER(load_40x_pit)(CPUPPCState *env)
 {
     return load_40x_pit(env);
 }
 
-void helper_store_40x_pit(CPUPPCState *env, target_ulong val)
+void HELPER(store_40x_pit)(CPUPPCState *env, target_ulong val)
 {
     store_40x_pit(env, val);
 }
 
-void helper_store_40x_tcr(CPUPPCState *env, target_ulong val)
+void HELPER(store_40x_tcr)(CPUPPCState *env, target_ulong val)
 {
     store_40x_tcr(env, val);
 }
 
-void helper_store_40x_tsr(CPUPPCState *env, target_ulong val)
+void HELPER(store_40x_tsr)(CPUPPCState *env, target_ulong val)
 {
     store_40x_tsr(env, val);
 }
 
-void helper_store_booke_tcr(CPUPPCState *env, target_ulong val)
+void HELPER(store_booke_tcr)(CPUPPCState *env, target_ulong val)
 {
     store_booke_tcr(env, val);
 }
 
-void helper_store_booke_tsr(CPUPPCState *env, target_ulong val)
+void HELPER(store_booke_tsr)(CPUPPCState *env, target_ulong val)
 {
     store_booke_tsr(env, val);
 }
@@ -369,14 +369,14 @@ static void tb_state_machine_step(CPUPPCState *env)
     write_tfmr(env, tfmr);
 }
 
-target_ulong helper_load_tfmr(CPUPPCState *env)
+target_ulong HELPER(load_tfmr)(CPUPPCState *env)
 {
     tb_state_machine_step(env);
 
     return env->spr[SPR_TFMR] | TFMR_TB_ECLIPZ;
 }
 
-void helper_store_tfmr(CPUPPCState *env, target_ulong val)
+void HELPER(store_tfmr)(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     PnvCoreTODState *tod_state = cpu_get_tbst(cpu);
@@ -464,7 +464,7 @@ out:
 /* Embedded PowerPC specific helpers */
 
 /* XXX: to be improved to check access rights when in user-mode */
-target_ulong helper_load_dcr(CPUPPCState *env, target_ulong dcrn)
+target_ulong HELPER(load_dcr)(CPUPPCState *env, target_ulong dcrn)
 {
     uint32_t val = 0;
 
@@ -490,7 +490,7 @@ target_ulong helper_load_dcr(CPUPPCState *env, target_ulong dcrn)
     return val;
 }
 
-void helper_store_dcr(CPUPPCState *env, target_ulong dcrn, target_ulong val)
+void HELPER(store_dcr)(CPUPPCState *env, target_ulong dcrn, target_ulong val)
 {
     if (unlikely(env->dcr_env == NULL)) {
         qemu_log_mask(LOG_GUEST_ERROR, "No DCR environment\n");

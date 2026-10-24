@@ -84,91 +84,91 @@ static void check_ieee_exceptions(CPUSPARCState *env, uintptr_t ra)
     env->fsr_cexc_ftt = cexc;
 }
 
-float32 helper_fadds(CPUSPARCState *env, float32 src1, float32 src2)
+float32 HELPER(fadds)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float32 ret = float32_add(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float32 helper_fsubs(CPUSPARCState *env, float32 src1, float32 src2)
+float32 HELPER(fsubs)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float32 ret = float32_sub(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float32 helper_fmuls(CPUSPARCState *env, float32 src1, float32 src2)
+float32 HELPER(fmuls)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float32 ret = float32_mul(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float32 helper_fdivs(CPUSPARCState *env, float32 src1, float32 src2)
+float32 HELPER(fdivs)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float32 ret = float32_div(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_faddd(CPUSPARCState *env, float64 src1, float64 src2)
+float64 HELPER(faddd)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float64 ret = float64_add(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fsubd(CPUSPARCState *env, float64 src1, float64 src2)
+float64 HELPER(fsubd)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float64 ret = float64_sub(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fmuld(CPUSPARCState *env, float64 src1, float64 src2)
+float64 HELPER(fmuld)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float64 ret = float64_mul(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fdivd(CPUSPARCState *env, float64 src1, float64 src2)
+float64 HELPER(fdivd)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float64 ret = float64_div(src1, src2, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-Int128 helper_faddq(CPUSPARCState *env, Int128 src1, Int128 src2)
+Int128 HELPER(faddq)(CPUSPARCState *env, Int128 src1, Int128 src2)
 {
     float128 ret = float128_add(f128_in(src1), f128_in(src2), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return f128_ret(ret);
 }
 
-Int128 helper_fsubq(CPUSPARCState *env, Int128 src1, Int128 src2)
+Int128 HELPER(fsubq)(CPUSPARCState *env, Int128 src1, Int128 src2)
 {
     float128 ret = float128_sub(f128_in(src1), f128_in(src2), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return f128_ret(ret);
 }
 
-Int128 helper_fmulq(CPUSPARCState *env, Int128 src1, Int128 src2)
+Int128 HELPER(fmulq)(CPUSPARCState *env, Int128 src1, Int128 src2)
 {
     float128 ret = float128_mul(f128_in(src1), f128_in(src2), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return f128_ret(ret);
 }
 
-Int128 helper_fdivq(CPUSPARCState *env, Int128 src1, Int128 src2)
+Int128 HELPER(fdivq)(CPUSPARCState *env, Int128 src1, Int128 src2)
 {
     float128 ret = float128_div(f128_in(src1), f128_in(src2), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return f128_ret(ret);
 }
 
-float64 helper_fsmuld(CPUSPARCState *env, float32 src1, float32 src2)
+float64 HELPER(fsmuld)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float64 ret = float64_mul(float32_to_float64(src1, &env->fp_status),
                               float32_to_float64(src2, &env->fp_status),
@@ -177,7 +177,7 @@ float64 helper_fsmuld(CPUSPARCState *env, float32 src1, float32 src2)
     return ret;
 }
 
-Int128 helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
+Int128 HELPER(fdmulq)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float128 ret = float128_mul(float64_to_float128(src1, &env->fp_status),
                                 float64_to_float128(src2, &env->fp_status),
@@ -187,21 +187,21 @@ Int128 helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
 }
 
 /* Integer to float conversion.  */
-float32 helper_fitos(CPUSPARCState *env, int32_t src)
+float32 HELPER(fitos)(CPUSPARCState *env, int32_t src)
 {
     float32 ret = int32_to_float32(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fitod(CPUSPARCState *env, int32_t src)
+float64 HELPER(fitod)(CPUSPARCState *env, int32_t src)
 {
     float64 ret = int32_to_float64(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-Int128 helper_fitoq(CPUSPARCState *env, int32_t src)
+Int128 HELPER(fitoq)(CPUSPARCState *env, int32_t src)
 {
     float128 ret = int32_to_float128(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
@@ -209,21 +209,21 @@ Int128 helper_fitoq(CPUSPARCState *env, int32_t src)
 }
 
 #ifdef TARGET_SPARC64
-float32 helper_fxtos(CPUSPARCState *env, int64_t src)
+float32 HELPER(fxtos)(CPUSPARCState *env, int64_t src)
 {
     float32 ret = int64_to_float32(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fxtod(CPUSPARCState *env, int64_t src)
+float64 HELPER(fxtod)(CPUSPARCState *env, int64_t src)
 {
     float64 ret = int64_to_float64(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-Int128 helper_fxtoq(CPUSPARCState *env, int64_t src)
+Int128 HELPER(fxtoq)(CPUSPARCState *env, int64_t src)
 {
     float128 ret = int64_to_float128(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
@@ -232,42 +232,42 @@ Int128 helper_fxtoq(CPUSPARCState *env, int64_t src)
 #endif
 
 /* floating point conversion */
-float32 helper_fdtos(CPUSPARCState *env, float64 src)
+float32 HELPER(fdtos)(CPUSPARCState *env, float64 src)
 {
     float32 ret = float64_to_float32(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fstod(CPUSPARCState *env, float32 src)
+float64 HELPER(fstod)(CPUSPARCState *env, float32 src)
 {
     float64 ret = float32_to_float64(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float32 helper_fqtos(CPUSPARCState *env, Int128 src)
+float32 HELPER(fqtos)(CPUSPARCState *env, Int128 src)
 {
     float32 ret = float128_to_float32(f128_in(src), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-Int128 helper_fstoq(CPUSPARCState *env, float32 src)
+Int128 HELPER(fstoq)(CPUSPARCState *env, float32 src)
 {
     float128 ret = float32_to_float128(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return f128_ret(ret);
 }
 
-float64 helper_fqtod(CPUSPARCState *env, Int128 src)
+float64 HELPER(fqtod)(CPUSPARCState *env, Int128 src)
 {
     float64 ret = float128_to_float64(f128_in(src), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-Int128 helper_fdtoq(CPUSPARCState *env, float64 src)
+Int128 HELPER(fdtoq)(CPUSPARCState *env, float64 src)
 {
     float128 ret = float64_to_float128(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
@@ -275,21 +275,21 @@ Int128 helper_fdtoq(CPUSPARCState *env, float64 src)
 }
 
 /* Float to integer conversion.  */
-int32_t helper_fstoi(CPUSPARCState *env, float32 src)
+int32_t HELPER(fstoi)(CPUSPARCState *env, float32 src)
 {
     int32_t ret = float32_to_int32_round_to_zero(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-int32_t helper_fdtoi(CPUSPARCState *env, float64 src)
+int32_t HELPER(fdtoi)(CPUSPARCState *env, float64 src)
 {
     int32_t ret = float64_to_int32_round_to_zero(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-int32_t helper_fqtoi(CPUSPARCState *env, Int128 src)
+int32_t HELPER(fqtoi)(CPUSPARCState *env, Int128 src)
 {
     int32_t ret = float128_to_int32_round_to_zero(f128_in(src),
                                                   &env->fp_status);
@@ -298,21 +298,21 @@ int32_t helper_fqtoi(CPUSPARCState *env, Int128 src)
 }
 
 #ifdef TARGET_SPARC64
-int64_t helper_fstox(CPUSPARCState *env, float32 src)
+int64_t HELPER(fstox)(CPUSPARCState *env, float32 src)
 {
     int64_t ret = float32_to_int64_round_to_zero(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-int64_t helper_fdtox(CPUSPARCState *env, float64 src)
+int64_t HELPER(fdtox)(CPUSPARCState *env, float64 src)
 {
     int64_t ret = float64_to_int64_round_to_zero(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-int64_t helper_fqtox(CPUSPARCState *env, Int128 src)
+int64_t HELPER(fqtox)(CPUSPARCState *env, Int128 src)
 {
     int64_t ret = float128_to_int64_round_to_zero(f128_in(src),
                                                   &env->fp_status);
@@ -321,28 +321,28 @@ int64_t helper_fqtox(CPUSPARCState *env, Int128 src)
 }
 #endif
 
-float32 helper_fsqrts(CPUSPARCState *env, float32 src)
+float32 HELPER(fsqrts)(CPUSPARCState *env, float32 src)
 {
     float32 ret = float32_sqrt(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-float64 helper_fsqrtd(CPUSPARCState *env, float64 src)
+float64 HELPER(fsqrtd)(CPUSPARCState *env, float64 src)
 {
     float64 ret = float64_sqrt(src, &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return ret;
 }
 
-Int128 helper_fsqrtq(CPUSPARCState *env, Int128 src)
+Int128 HELPER(fsqrtq)(CPUSPARCState *env, Int128 src)
 {
     float128 ret = float128_sqrt(f128_in(src), &env->fp_status);
     check_ieee_exceptions(env, GETPC());
     return f128_ret(ret);
 }
 
-float32 helper_fmadds(CPUSPARCState *env, float32 s1,
+float32 HELPER(fmadds)(CPUSPARCState *env, float32 s1,
                       float32 s2, float32 s3, int32_t sc, uint32_t op)
 {
     float32 ret = float32_muladd_scalbn(s1, s2, s3, sc, op, &env->fp_status);
@@ -350,7 +350,7 @@ float32 helper_fmadds(CPUSPARCState *env, float32 s1,
     return ret;
 }
 
-float64 helper_fmaddd(CPUSPARCState *env, float64 s1,
+float64 HELPER(fmaddd)(CPUSPARCState *env, float64 s1,
                       float64 s2, float64 s3, int32_t sc, uint32_t op)
 {
     float64 ret = float64_muladd_scalbn(s1, s2, s3, sc, op, &env->fp_status);
@@ -358,7 +358,7 @@ float64 helper_fmaddd(CPUSPARCState *env, float64 s1,
     return ret;
 }
 
-float32 helper_fnadds(CPUSPARCState *env, float32 src1, float32 src2)
+float32 HELPER(fnadds)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float32 ret = float32_add(src1, src2, &env->fp_status);
 
@@ -373,7 +373,7 @@ float32 helper_fnadds(CPUSPARCState *env, float32 src1, float32 src2)
     return ret;
 }
 
-float32 helper_fnmuls(CPUSPARCState *env, float32 src1, float32 src2)
+float32 HELPER(fnmuls)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float32 ret = float32_mul(src1, src2, &env->fp_status);
 
@@ -385,7 +385,7 @@ float32 helper_fnmuls(CPUSPARCState *env, float32 src1, float32 src2)
     return ret;
 }
 
-float64 helper_fnaddd(CPUSPARCState *env, float64 src1, float64 src2)
+float64 HELPER(fnaddd)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float64 ret = float64_add(src1, src2, &env->fp_status);
 
@@ -400,7 +400,7 @@ float64 helper_fnaddd(CPUSPARCState *env, float64 src1, float64 src2)
     return ret;
 }
 
-float64 helper_fnmuld(CPUSPARCState *env, float64 src1, float64 src2)
+float64 HELPER(fnmuld)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float64 ret = float64_mul(src1, src2, &env->fp_status);
 
@@ -412,7 +412,7 @@ float64 helper_fnmuld(CPUSPARCState *env, float64 src1, float64 src2)
     return ret;
 }
 
-float64 helper_fnsmuld(CPUSPARCState *env, float32 src1, float32 src2)
+float64 HELPER(fnsmuld)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float64 ret = float64_mul(float32_to_float64(src1, &env->fp_status),
                               float32_to_float64(src2, &env->fp_status),
@@ -450,45 +450,45 @@ static uint32_t finish_fcmp(CPUSPARCState *env, FloatRelation r, uintptr_t ra)
     g_assert_not_reached();
 }
 
-uint32_t helper_fcmps(CPUSPARCState *env, float32 src1, float32 src2)
+uint32_t HELPER(fcmps)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     FloatRelation r = float32_compare_quiet(src1, src2, &env->fp_status);
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_fcmpes(CPUSPARCState *env, float32 src1, float32 src2)
+uint32_t HELPER(fcmpes)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     FloatRelation r = float32_compare(src1, src2, &env->fp_status);
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_fcmpd(CPUSPARCState *env, float64 src1, float64 src2)
+uint32_t HELPER(fcmpd)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     FloatRelation r = float64_compare_quiet(src1, src2, &env->fp_status);
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_fcmped(CPUSPARCState *env, float64 src1, float64 src2)
+uint32_t HELPER(fcmped)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     FloatRelation r = float64_compare(src1, src2, &env->fp_status);
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_fcmpq(CPUSPARCState *env, Int128 src1, Int128 src2)
+uint32_t HELPER(fcmpq)(CPUSPARCState *env, Int128 src1, Int128 src2)
 {
     FloatRelation r = float128_compare_quiet(f128_in(src1), f128_in(src2),
                                              &env->fp_status);
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_fcmpeq(CPUSPARCState *env, Int128 src1, Int128 src2)
+uint32_t HELPER(fcmpeq)(CPUSPARCState *env, Int128 src1, Int128 src2)
 {
     FloatRelation r = float128_compare(f128_in(src1), f128_in(src2),
                                        &env->fp_status);
     return finish_fcmp(env, r, GETPC());
 }
 
-uint32_t helper_flcmps(CPUSPARCState *env, float32 src1, float32 src2)
+uint32_t HELPER(flcmps)(CPUSPARCState *env, float32 src1, float32 src2)
 {
     /*
      * FLCMP never raises an exception nor modifies any FSR fields.
@@ -516,7 +516,7 @@ uint32_t helper_flcmps(CPUSPARCState *env, float32 src1, float32 src2)
     g_assert_not_reached();
 }
 
-uint32_t helper_flcmpd(CPUSPARCState *env, float64 src1, float64 src2)
+uint32_t HELPER(flcmpd)(CPUSPARCState *env, float64 src1, float64 src2)
 {
     float_status discard = env->fp_status;
     FloatRelation r;
@@ -559,7 +559,7 @@ target_ulong cpu_get_fsr(CPUSPARCState *env)
     return fsr;
 }
 
-target_ulong helper_get_fsr(CPUSPARCState *env)
+target_ulong HELPER(get_fsr)(CPUSPARCState *env)
 {
     return cpu_get_fsr(env);
 }
@@ -604,14 +604,14 @@ void cpu_put_fsr(CPUSPARCState *env, target_ulong fsr)
     set_fsr_nonsplit(env, fsr);
 }
 
-void helper_set_fsr_nofcc_noftt(CPUSPARCState *env, uint32_t fsr)
+void HELPER(set_fsr_nofcc_noftt)(CPUSPARCState *env, uint32_t fsr)
 {
     env->fsr_cexc_ftt &= FSR_FTT_MASK;
     env->fsr_cexc_ftt |= fsr & FSR_CEXC_MASK;
     set_fsr_nonsplit(env, fsr);
 }
 
-void helper_set_fsr_nofcc(CPUSPARCState *env, uint32_t fsr)
+void HELPER(set_fsr_nofcc)(CPUSPARCState *env, uint32_t fsr)
 {
     env->fsr_cexc_ftt = fsr & (FSR_CEXC_MASK | FSR_FTT_MASK);
     set_fsr_nonsplit(env, fsr);

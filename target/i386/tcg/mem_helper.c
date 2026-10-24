@@ -26,7 +26,7 @@
 #include "tcg/tcg.h"
 #include "helper-tcg.h"
 
-void helper_boundw(CPUX86State *env, target_ulong a0, int v)
+void HELPER(boundw)(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
 
@@ -41,7 +41,7 @@ void helper_boundw(CPUX86State *env, target_ulong a0, int v)
     }
 }
 
-void helper_boundl(CPUX86State *env, target_ulong a0, int v)
+void HELPER(boundl)(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
 

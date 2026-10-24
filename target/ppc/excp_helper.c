@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 #include "system/memory.h"
 #include "system/tcg.h"
 #include "system/system.h"
@@ -33,77 +34,80 @@
 
 /*****************************************************************************/
 /* Exception processing */
-#ifndef CONFIG_USER_ONLY
 
-static const char *powerpc_excp_name(int excp)
+const char *powerpc_excp_name(int excp)
 {
-    switch (excp) {
-    case POWERPC_EXCP_CRITICAL: return "CRITICAL";
-    case POWERPC_EXCP_MCHECK:   return "MCHECK";
-    case POWERPC_EXCP_DSI:      return "DSI";
-    case POWERPC_EXCP_ISI:      return "ISI";
-    case POWERPC_EXCP_EXTERNAL: return "EXTERNAL";
-    case POWERPC_EXCP_ALIGN:    return "ALIGN";
-    case POWERPC_EXCP_PROGRAM:  return "PROGRAM";
-    case POWERPC_EXCP_FPU:      return "FPU";
-    case POWERPC_EXCP_SYSCALL:  return "SYSCALL";
-    case POWERPC_EXCP_APU:      return "APU";
-    case POWERPC_EXCP_DECR:     return "DECR";
-    case POWERPC_EXCP_FIT:      return "FIT";
-    case POWERPC_EXCP_WDT:      return "WDT";
-    case POWERPC_EXCP_DTLB:     return "DTLB";
-    case POWERPC_EXCP_ITLB:     return "ITLB";
-    case POWERPC_EXCP_DEBUG:    return "DEBUG";
-    case POWERPC_EXCP_SPEU:     return "SPEU";
-    case POWERPC_EXCP_EFPDI:    return "EFPDI";
-    case POWERPC_EXCP_EFPRI:    return "EFPRI";
-    case POWERPC_EXCP_EPERFM:   return "EPERFM";
-    case POWERPC_EXCP_DOORI:    return "DOORI";
-    case POWERPC_EXCP_DOORCI:   return "DOORCI";
-    case POWERPC_EXCP_GDOORI:   return "GDOORI";
-    case POWERPC_EXCP_GDOORCI:  return "GDOORCI";
-    case POWERPC_EXCP_HYPPRIV:  return "HYPPRIV";
-    case POWERPC_EXCP_RESET:    return "RESET";
-    case POWERPC_EXCP_DSEG:     return "DSEG";
-    case POWERPC_EXCP_ISEG:     return "ISEG";
-    case POWERPC_EXCP_HDECR:    return "HDECR";
-    case POWERPC_EXCP_TRACE:    return "TRACE";
-    case POWERPC_EXCP_HDSI:     return "HDSI";
-    case POWERPC_EXCP_HISI:     return "HISI";
-    case POWERPC_EXCP_HDSEG:    return "HDSEG";
-    case POWERPC_EXCP_HISEG:    return "HISEG";
-    case POWERPC_EXCP_VPU:      return "VPU";
-    case POWERPC_EXCP_PIT:      return "PIT";
-    case POWERPC_EXCP_EMUL:     return "EMUL";
-    case POWERPC_EXCP_IFTLB:    return "IFTLB";
-    case POWERPC_EXCP_DLTLB:    return "DLTLB";
-    case POWERPC_EXCP_DSTLB:    return "DSTLB";
-    case POWERPC_EXCP_FPA:      return "FPA";
-    case POWERPC_EXCP_DABR:     return "DABR";
-    case POWERPC_EXCP_IABR:     return "IABR";
-    case POWERPC_EXCP_SMI:      return "SMI";
-    case POWERPC_EXCP_PERFM:    return "PERFM";
-    case POWERPC_EXCP_THERM:    return "THERM";
-    case POWERPC_EXCP_VPUA:     return "VPUA";
-    case POWERPC_EXCP_SOFTP:    return "SOFTP";
-    case POWERPC_EXCP_MAINT:    return "MAINT";
-    case POWERPC_EXCP_MEXTBR:   return "MEXTBR";
-    case POWERPC_EXCP_NMEXTBR:  return "NMEXTBR";
-    case POWERPC_EXCP_ITLBE:    return "ITLBE";
-    case POWERPC_EXCP_DTLBE:    return "DTLBE";
-    case POWERPC_EXCP_VSXU:     return "VSXU";
-    case POWERPC_EXCP_FU:       return "FU";
-    case POWERPC_EXCP_HV_EMU:   return "HV_EMU";
-    case POWERPC_EXCP_HV_MAINT: return "HV_MAINT";
-    case POWERPC_EXCP_HV_FU:    return "HV_FU";
-    case POWERPC_EXCP_SDOOR:    return "SDOOR";
-    case POWERPC_EXCP_SDOOR_HV: return "SDOOR_HV";
-    case POWERPC_EXCP_HVIRT:    return "HVIRT";
-    case POWERPC_EXCP_SYSCALL_VECTORED: return "SYSCALL_VECTORED";
-    default:
-        g_assert_not_reached();
-    }
+    static const char * const excp_names[POWERPC_EXCP_NB] = {
+        [POWERPC_EXCP_CRITICAL] = "CRITICAL",
+        [POWERPC_EXCP_MCHECK]   = "MCHECK",
+        [POWERPC_EXCP_DSI]      = "DSI",
+        [POWERPC_EXCP_ISI]      = "ISI",
+        [POWERPC_EXCP_EXTERNAL] = "EXTERNAL",
+        [POWERPC_EXCP_ALIGN]    = "ALIGN",
+        [POWERPC_EXCP_PROGRAM]  = "PROGRAM",
+        [POWERPC_EXCP_FPU]      = "FPU",
+        [POWERPC_EXCP_SYSCALL]  = "SYSCALL",
+        [POWERPC_EXCP_APU]      = "APU",
+        [POWERPC_EXCP_DECR]     = "DECR",
+        [POWERPC_EXCP_FIT]      = "FIT",
+        [POWERPC_EXCP_WDT]      = "WDT",
+        [POWERPC_EXCP_DTLB]     = "DTLB",
+        [POWERPC_EXCP_ITLB]     = "ITLB",
+        [POWERPC_EXCP_DEBUG]    = "DEBUG",
+        [POWERPC_EXCP_SPEU]     = "SPEU",
+        [POWERPC_EXCP_EFPDI]    = "EFPDI",
+        [POWERPC_EXCP_EFPRI]    = "EFPRI",
+        [POWERPC_EXCP_EPERFM]   = "EPERFM",
+        [POWERPC_EXCP_DOORI]    = "DOORI",
+        [POWERPC_EXCP_DOORCI]   = "DOORCI",
+        [POWERPC_EXCP_GDOORI]   = "GDOORI",
+        [POWERPC_EXCP_GDOORCI]  = "GDOORCI",
+        [POWERPC_EXCP_HYPPRIV]  = "HYPPRIV",
+        [POWERPC_EXCP_RESET]    = "RESET",
+        [POWERPC_EXCP_DSEG]     = "DSEG",
+        [POWERPC_EXCP_ISEG]     = "ISEG",
+        [POWERPC_EXCP_HDECR]    = "HDECR",
+        [POWERPC_EXCP_TRACE]    = "TRACE",
+        [POWERPC_EXCP_HDSI]     = "HDSI",
+        [POWERPC_EXCP_HISI]     = "HISI",
+        [POWERPC_EXCP_HDSEG]    = "HDSEG",
+        [POWERPC_EXCP_HISEG]    = "HISEG",
+        [POWERPC_EXCP_VPU]      = "VPU",
+        [POWERPC_EXCP_PIT]      = "PIT",
+        [POWERPC_EXCP_EMUL]     = "EMUL",
+        [POWERPC_EXCP_IFTLB]    = "IFTLB",
+        [POWERPC_EXCP_DLTLB]    = "DLTLB",
+        [POWERPC_EXCP_DSTLB]    = "DSTLB",
+        [POWERPC_EXCP_FPA]      = "FPA",
+        [POWERPC_EXCP_DABR]     = "DABR",
+        [POWERPC_EXCP_IABR]     = "IABR",
+        [POWERPC_EXCP_SMI]      = "SMI",
+        [POWERPC_EXCP_PERFM]    = "PERFM",
+        [POWERPC_EXCP_THERM]    = "THERM",
+        [POWERPC_EXCP_VPUA]     = "VPUA",
+        [POWERPC_EXCP_SOFTP]    = "SOFTP",
+        [POWERPC_EXCP_MAINT]    = "MAINT",
+        [POWERPC_EXCP_MEXTBR]   = "MEXTBR",
+        [POWERPC_EXCP_NMEXTBR]  = "NMEXTBR",
+        [POWERPC_EXCP_ITLBE]    = "ITLBE",
+        [POWERPC_EXCP_DTLBE]    = "DTLBE",
+        [POWERPC_EXCP_VSXU]     = "VSXU",
+        [POWERPC_EXCP_FU]       = "FU",
+        [POWERPC_EXCP_HV_EMU]   = "HV_EMU",
+        [POWERPC_EXCP_HV_MAINT] = "HV_MAINT",
+        [POWERPC_EXCP_HV_FU]    = "HV_FU",
+        [POWERPC_EXCP_SDOOR]    = "SDOOR",
+        [POWERPC_EXCP_SDOOR_HV] = "SDOOR_HV",
+        [POWERPC_EXCP_HVIRT]    = "HVIRT",
+        [POWERPC_EXCP_SYSCALL_VECTORED] = "SYSCALL_VECTORED",
+        [POWERPC_EXCP_PERFM_EBB]        = "PERFM_EBB",
+        [POWERPC_EXCP_EXTERNAL_EBB]     = "EXTERNAL_EBB",
+    };
+
+    return STR_ARRAY_ELEM_OR_NULL(excp_names, excp) ?: "unknown";
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static void dump_syscall(CPUPPCState *env)
 {

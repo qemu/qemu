@@ -22,7 +22,7 @@
 #include "exec/helper-proto.h"
 #include "crypto/clmul.h"
 
-target_ulong helper_array8(target_ulong rs1, target_ulong rs2)
+target_ulong HELPER(array8)(target_ulong rs1, target_ulong rs2)
 {
     /*
      * From Oracle SPARC Architecture 2015:
@@ -98,7 +98,7 @@ typedef union {
     float32 f;
 } VIS32;
 
-uint64_t helper_fpmerge(uint32_t src1, uint32_t src2)
+uint64_t HELPER(fpmerge)(uint32_t src1, uint32_t src2)
 {
     VIS32 s1, s2;
     VIS64 d;
@@ -124,7 +124,7 @@ static inline int do_ms16b(int x, int y)
     return ((x * y) + 0x80) >> 8;
 }
 
-uint64_t helper_fmul8x16(uint32_t src1, uint64_t src2)
+uint64_t HELPER(fmul8x16)(uint32_t src1, uint64_t src2)
 {
     VIS64 d;
     VIS32 s;
@@ -140,7 +140,7 @@ uint64_t helper_fmul8x16(uint32_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8x16a(uint32_t src1, int32_t src2)
+uint64_t HELPER(fmul8x16a)(uint32_t src1, int32_t src2)
 {
     VIS32 s;
     VIS64 d;
@@ -156,7 +156,7 @@ uint64_t helper_fmul8x16a(uint32_t src1, int32_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8sux16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fmul8sux16)(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
 
@@ -171,7 +171,7 @@ uint64_t helper_fmul8sux16(uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8ulx16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fmul8ulx16)(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
 
@@ -186,7 +186,7 @@ uint64_t helper_fmul8ulx16(uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fexpand(uint32_t src2)
+uint64_t HELPER(fexpand)(uint32_t src2)
 {
     VIS32 s;
     VIS64 d;
@@ -201,7 +201,7 @@ uint64_t helper_fexpand(uint32_t src2)
     return d.ll;
 }
 
-uint64_t helper_fcmpeq8(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpeq8)(uint64_t src1, uint64_t src2)
 {
     uint64_t a = src1 ^ src2;
     uint64_t m = 0x7f7f7f7f7f7f7f7fULL;
@@ -217,12 +217,12 @@ uint64_t helper_fcmpeq8(uint64_t src1, uint64_t src2)
     return c >> 56;
 }
 
-uint64_t helper_fcmpne8(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpne8)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmpeq8(src1, src2) ^ 0xff;
+    return HELPER(fcmpeq8)(src1, src2) ^ 0xff;
 }
 
-uint64_t helper_fcmple8(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmple8)(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
     uint64_t r = 0;
@@ -236,12 +236,12 @@ uint64_t helper_fcmple8(uint64_t src1, uint64_t src2)
     return r;
 }
 
-uint64_t helper_fcmpgt8(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpgt8)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmple8(src1, src2) ^ 0xff;
+    return HELPER(fcmple8)(src1, src2) ^ 0xff;
 }
 
-uint64_t helper_fcmpule8(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpule8)(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
     uint64_t r = 0;
@@ -255,12 +255,12 @@ uint64_t helper_fcmpule8(uint64_t src1, uint64_t src2)
     return r;
 }
 
-uint64_t helper_fcmpugt8(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpugt8)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmpule8(src1, src2) ^ 0xff;
+    return HELPER(fcmpule8)(src1, src2) ^ 0xff;
 }
 
-uint64_t helper_fcmpeq16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpeq16)(uint64_t src1, uint64_t src2)
 {
     uint64_t a = src1 ^ src2;
     uint64_t m = 0x7fff7fff7fff7fffULL;
@@ -274,12 +274,12 @@ uint64_t helper_fcmpeq16(uint64_t src1, uint64_t src2)
     return c >> 60;
 }
 
-uint64_t helper_fcmpne16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpne16)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmpeq16(src1, src2) ^ 0xf;
+    return HELPER(fcmpeq16)(src1, src2) ^ 0xf;
 }
 
-uint64_t helper_fcmple16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmple16)(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
     uint64_t r = 0;
@@ -293,12 +293,12 @@ uint64_t helper_fcmple16(uint64_t src1, uint64_t src2)
     return r;
 }
 
-uint64_t helper_fcmpgt16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpgt16)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmple16(src1, src2) ^ 0xf;
+    return HELPER(fcmple16)(src1, src2) ^ 0xf;
 }
 
-uint64_t helper_fcmpule16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpule16)(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
     uint64_t r = 0;
@@ -312,24 +312,24 @@ uint64_t helper_fcmpule16(uint64_t src1, uint64_t src2)
     return r;
 }
 
-uint64_t helper_fcmpugt16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpugt16)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmpule16(src1, src2) ^ 0xf;
+    return HELPER(fcmpule16)(src1, src2) ^ 0xf;
 }
 
-uint64_t helper_fcmpeq32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpeq32)(uint64_t src1, uint64_t src2)
 {
     uint64_t a = src1 ^ src2;
     return ((uint32_t)a == 0) | (a >> 32 ? 0 : 2);
 }
 
-uint64_t helper_fcmpne32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpne32)(uint64_t src1, uint64_t src2)
 {
     uint64_t a = src1 ^ src2;
     return ((uint32_t)a != 0) | (a >> 32 ? 2 : 0);
 }
 
-uint64_t helper_fcmple32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmple32)(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
     uint64_t r = 0;
@@ -343,12 +343,12 @@ uint64_t helper_fcmple32(uint64_t src1, uint64_t src2)
     return r;
 }
 
-uint64_t helper_fcmpgt32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpgt32)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmple32(src1, src2) ^ 3;
+    return HELPER(fcmple32)(src1, src2) ^ 3;
 }
 
-uint64_t helper_fcmpule32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpule32)(uint64_t src1, uint64_t src2)
 {
     VIS64 s1, s2;
     uint64_t r = 0;
@@ -362,12 +362,12 @@ uint64_t helper_fcmpule32(uint64_t src1, uint64_t src2)
     return r;
 }
 
-uint64_t helper_fcmpugt32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fcmpugt32)(uint64_t src1, uint64_t src2)
 {
-    return helper_fcmpule32(src1, src2) ^ 3;
+    return HELPER(fcmpule32)(src1, src2) ^ 3;
 }
 
-uint64_t helper_pdist(uint64_t sum, uint64_t src1, uint64_t src2)
+uint64_t HELPER(pdist)(uint64_t sum, uint64_t src1, uint64_t src2)
 {
     int i;
     for (i = 0; i < 8; i++) {
@@ -388,7 +388,7 @@ uint64_t helper_pdist(uint64_t sum, uint64_t src1, uint64_t src2)
     return sum;
 }
 
-uint32_t helper_fpack16(uint64_t gsr, uint64_t rs2)
+uint32_t HELPER(fpack16)(uint64_t gsr, uint64_t rs2)
 {
     int scale = (gsr >> 3) & 0xf;
     uint32_t ret = 0;
@@ -409,7 +409,7 @@ uint32_t helper_fpack16(uint64_t gsr, uint64_t rs2)
     return ret;
 }
 
-uint64_t helper_fpack32(uint64_t gsr, uint64_t rs1, uint64_t rs2)
+uint64_t HELPER(fpack32)(uint64_t gsr, uint64_t rs1, uint64_t rs2)
 {
     int scale = (gsr >> 3) & 0x1f;
     uint64_t ret = 0;
@@ -431,7 +431,7 @@ uint64_t helper_fpack32(uint64_t gsr, uint64_t rs1, uint64_t rs2)
     return ret;
 }
 
-uint32_t helper_fpackfix(uint64_t gsr, uint64_t rs2)
+uint32_t HELPER(fpackfix)(uint64_t gsr, uint64_t rs2)
 {
     int scale = (gsr >> 3) & 0x1f;
     uint32_t ret = 0;
@@ -452,7 +452,7 @@ uint32_t helper_fpackfix(uint64_t gsr, uint64_t rs2)
     return ret;
 }
 
-uint64_t helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
+uint64_t HELPER(bshuffle)(uint64_t gsr, uint64_t src1, uint64_t src2)
 {
     union {
         uint64_t ll[2];
@@ -481,7 +481,7 @@ uint64_t helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
     return r.ll;
 }
 
-uint64_t helper_cmask8(uint64_t gsr, uint64_t src)
+uint64_t HELPER(cmask8)(uint64_t gsr, uint64_t src)
 {
     uint32_t mask = 0;
 
@@ -497,7 +497,7 @@ uint64_t helper_cmask8(uint64_t gsr, uint64_t src)
     return deposit64(gsr, 32, 32, mask);
 }
 
-uint64_t helper_cmask16(uint64_t gsr, uint64_t src)
+uint64_t HELPER(cmask16)(uint64_t gsr, uint64_t src)
 {
     uint32_t mask = 0;
 
@@ -509,7 +509,7 @@ uint64_t helper_cmask16(uint64_t gsr, uint64_t src)
     return deposit64(gsr, 32, 32, mask);
 }
 
-uint64_t helper_cmask32(uint64_t gsr, uint64_t src)
+uint64_t HELPER(cmask32)(uint64_t gsr, uint64_t src)
 {
     uint32_t mask = 0;
 
@@ -526,7 +526,7 @@ static inline uint16_t do_fchksm16(uint16_t src1, uint16_t src2)
     return a + c;
 }
 
-uint64_t helper_fchksm16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fchksm16)(uint64_t src1, uint64_t src2)
 {
     VIS64 r, s1, s2;
 
@@ -547,7 +547,7 @@ static inline int16_t do_fmean16(int16_t src1, int16_t src2)
     return (src1 + src2 + 1) / 2;
 }
 
-uint64_t helper_fmean16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fmean16)(uint64_t src1, uint64_t src2)
 {
     VIS64 r, s1, s2;
 
@@ -563,7 +563,7 @@ uint64_t helper_fmean16(uint64_t src1, uint64_t src2)
     return r.ll;
 }
 
-uint64_t helper_fslas16(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fslas16)(uint64_t src1, uint64_t src2)
 {
     VIS64 r, s1, s2;
 
@@ -581,7 +581,7 @@ uint64_t helper_fslas16(uint64_t src1, uint64_t src2)
     return r.ll;
 }
 
-uint64_t helper_fslas32(uint64_t src1, uint64_t src2)
+uint64_t HELPER(fslas32)(uint64_t src1, uint64_t src2)
 {
     VIS64 r, s1, s2;
 
@@ -599,12 +599,12 @@ uint64_t helper_fslas32(uint64_t src1, uint64_t src2)
     return r.ll;
 }
 
-uint64_t helper_xmulx(uint64_t src1, uint64_t src2)
+uint64_t HELPER(xmulx)(uint64_t src1, uint64_t src2)
 {
     return int128_getlo(clmul_64(src1, src2));
 }
 
-uint64_t helper_xmulxhi(uint64_t src1, uint64_t src2)
+uint64_t HELPER(xmulxhi)(uint64_t src1, uint64_t src2)
 {
     return int128_gethi(clmul_64(src1, src2));
 }

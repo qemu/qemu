@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "accel/tcg/cpu-ldst.h"
@@ -80,110 +81,68 @@ throwaway:
     cpu_m68k_set_sr(env, sr);
 }
 
-static const char *m68k_exception_name(int index)
+#endif /* !CONFIG_USER_ONLY */
+
+const char *m68k_exception_name(int excp)
 {
-    switch (index) {
-    case EXCP_ACCESS:
-        return "Access Fault";
-    case EXCP_ADDRESS:
-        return "Address Error";
-    case EXCP_ILLEGAL:
-        return "Illegal Instruction";
-    case EXCP_DIV0:
-        return "Divide by Zero";
-    case EXCP_CHK:
-        return "CHK/CHK2";
-    case EXCP_TRAPCC:
-        return "FTRAPcc, TRAPcc, TRAPV";
-    case EXCP_PRIVILEGE:
-        return "Privilege Violation";
-    case EXCP_TRACE:
-        return "Trace";
-    case EXCP_LINEA:
-        return "A-Line";
-    case EXCP_LINEF:
-        return "F-Line";
-    case EXCP_DEBEGBP: /* 68020/030 only */
-        return "Copro Protocol Violation";
-    case EXCP_FORMAT:
-        return "Format Error";
-    case EXCP_UNINITIALIZED:
-        return "Uninitialized Interrupt";
-    case EXCP_SPURIOUS:
-        return "Spurious Interrupt";
-    case EXCP_INT_LEVEL_1:
-        return "Level 1 Interrupt";
-    case EXCP_INT_LEVEL_1 + 1:
-        return "Level 2 Interrupt";
-    case EXCP_INT_LEVEL_1 + 2:
-        return "Level 3 Interrupt";
-    case EXCP_INT_LEVEL_1 + 3:
-        return "Level 4 Interrupt";
-    case EXCP_INT_LEVEL_1 + 4:
-        return "Level 5 Interrupt";
-    case EXCP_INT_LEVEL_1 + 5:
-        return "Level 6 Interrupt";
-    case EXCP_INT_LEVEL_1 + 6:
-        return "Level 7 Interrupt";
-    case EXCP_TRAP0:
-        return "TRAP #0";
-    case EXCP_TRAP0 + 1:
-        return "TRAP #1";
-    case EXCP_TRAP0 + 2:
-        return "TRAP #2";
-    case EXCP_TRAP0 + 3:
-        return "TRAP #3";
-    case EXCP_TRAP0 + 4:
-        return "TRAP #4";
-    case EXCP_TRAP0 + 5:
-        return "TRAP #5";
-    case EXCP_TRAP0 + 6:
-        return "TRAP #6";
-    case EXCP_TRAP0 + 7:
-        return "TRAP #7";
-    case EXCP_TRAP0 + 8:
-        return "TRAP #8";
-    case EXCP_TRAP0 + 9:
-        return "TRAP #9";
-    case EXCP_TRAP0 + 10:
-        return "TRAP #10";
-    case EXCP_TRAP0 + 11:
-        return "TRAP #11";
-    case EXCP_TRAP0 + 12:
-        return "TRAP #12";
-    case EXCP_TRAP0 + 13:
-        return "TRAP #13";
-    case EXCP_TRAP0 + 14:
-        return "TRAP #14";
-    case EXCP_TRAP0 + 15:
-        return "TRAP #15";
-    case EXCP_FP_BSUN:
-        return "FP Branch/Set on unordered condition";
-    case EXCP_FP_INEX:
-        return "FP Inexact Result";
-    case EXCP_FP_DZ:
-        return "FP Divide by Zero";
-    case EXCP_FP_UNFL:
-        return "FP Underflow";
-    case EXCP_FP_OPERR:
-        return "FP Operand Error";
-    case EXCP_FP_OVFL:
-        return "FP Overflow";
-    case EXCP_FP_SNAN:
-        return "FP Signaling NAN";
-    case EXCP_FP_UNIMP:
-        return "FP Unimplemented Data Type";
-    case EXCP_MMU_CONF: /* 68030/68851 only */
-        return "MMU Configuration Error";
-    case EXCP_MMU_ILLEGAL: /* 68851 only */
-        return "MMU Illegal Operation";
-    case EXCP_MMU_ACCESS: /* 68851 only */
-        return "MMU Access Level Violation";
-    case 64 ... 255:
+    static const char * const excp_names[] = {
+        [EXCP_ACCESS]           = "Access Fault",
+        [EXCP_ADDRESS]          = "Address Error",
+        [EXCP_ILLEGAL]          = "Illegal Instruction",
+        [EXCP_DIV0]             = "Divide by Zero",
+        [EXCP_CHK]              = "CHK/CHK2",
+        [EXCP_TRAPCC]           = "FTRAPcc, TRAPcc, TRAPV",
+        [EXCP_PRIVILEGE]        = "Privilege Violation",
+        [EXCP_TRACE]            = "Trace",
+        [EXCP_LINEA]            = "A-Line",
+        [EXCP_LINEF]            = "F-Line",
+        [EXCP_DEBEGBP]          = "Copro Protocol Violation", /* 68020/030 only */
+        [EXCP_FORMAT]           = "Format Error",
+        [EXCP_UNINITIALIZED]    = "Uninitialized Interrupt",
+        [EXCP_SPURIOUS]         = "Spurious Interrupt",
+        [EXCP_INT_LEVEL_1]      = "Level 1 Interrupt",
+        [EXCP_INT_LEVEL_1 + 1]  = "Level 2 Interrupt",
+        [EXCP_INT_LEVEL_1 + 2]  = "Level 3 Interrupt",
+        [EXCP_INT_LEVEL_1 + 3]  = "Level 4 Interrupt",
+        [EXCP_INT_LEVEL_1 + 4]  = "Level 5 Interrupt",
+        [EXCP_INT_LEVEL_1 + 5]  = "Level 6 Interrupt",
+        [EXCP_INT_LEVEL_1 + 6]  = "Level 7 Interrupt",
+        [EXCP_TRAP0]            = "TRAP #0",
+        [EXCP_TRAP0 + 1]        = "TRAP #1",
+        [EXCP_TRAP0 + 2]        = "TRAP #2",
+        [EXCP_TRAP0 + 3]        = "TRAP #3",
+        [EXCP_TRAP0 + 4]        = "TRAP #4",
+        [EXCP_TRAP0 + 5]        = "TRAP #5",
+        [EXCP_TRAP0 + 6]        = "TRAP #6",
+        [EXCP_TRAP0 + 7]        = "TRAP #7",
+        [EXCP_TRAP0 + 8]        = "TRAP #8",
+        [EXCP_TRAP0 + 9]        = "TRAP #9",
+        [EXCP_TRAP0 + 10]       = "TRAP #10",
+        [EXCP_TRAP0 + 11]       = "TRAP #11",
+        [EXCP_TRAP0 + 12]       = "TRAP #12",
+        [EXCP_TRAP0 + 13]       = "TRAP #13",
+        [EXCP_TRAP0 + 14]       = "TRAP #14",
+        [EXCP_TRAP0 + 15]       = "TRAP #15",
+        [EXCP_FP_BSUN]          = "FP Branch/Set on unordered condition",
+        [EXCP_FP_INEX]          = "FP Inexact Result",
+        [EXCP_FP_DZ]            = "FP Divide by Zero",
+        [EXCP_FP_UNFL]          = "FP Underflow",
+        [EXCP_FP_OPERR]         = "FP Operand Error",
+        [EXCP_FP_OVFL]          = "FP Overflow",
+        [EXCP_FP_SNAN]          = "FP Signaling NAN",
+        [EXCP_FP_UNIMP]         = "FP Unimplemented Data Type",
+        [EXCP_MMU_CONF]         = "MMU Configuration Error", /* 68030/68851 only */
+        [EXCP_MMU_ILLEGAL]      = "MMU Illegal Operation", /* 68851 only */
+        [EXCP_MMU_ACCESS]       = "MMU Access Level Violation", /* 68851 only */
+    };
+
+    if (excp >= 64 && excp <= 255) {
         return "User Defined Vector";
     }
-    return "Unassigned";
+    return STR_ARRAY_ELEM_OR_NULL(excp_names, excp) ?: "Unassigned";
 }
+
+#ifndef CONFIG_USER_ONLY
 
 static void do_plugin_vcpu_interrupt_cb(CPUState *cs, uint64_t from)
 {
@@ -1077,7 +1036,7 @@ uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
     uint64_t data = bf_load(env, d.addr, d.blen, ra);
     uint64_t mask = -1ull << (64 - d.len) >> d.bofs;
     uint64_t n = (data & mask) << d.bofs;
-    uint32_t ffo = helper_bfffo_reg(n >> 32, ofs, d.len);
+    uint32_t ffo = HELPER(bfffo_reg)(n >> 32, ofs, d.len);
 
     /*
      * Return FFO in the low word and N in the high word.

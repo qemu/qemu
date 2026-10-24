@@ -26,7 +26,7 @@
 #include "internal.h"
 
 /* Specials */
-target_ulong helper_di(CPUMIPSState *env)
+target_ulong HELPER(di)(CPUMIPSState *env)
 {
     target_ulong t0 = env->CP0_Status;
 
@@ -34,7 +34,7 @@ target_ulong helper_di(CPUMIPSState *env)
     return t0;
 }
 
-target_ulong helper_ei(CPUMIPSState *env)
+target_ulong HELPER(ei)(CPUMIPSState *env)
 {
     target_ulong t0 = env->CP0_Status;
 
@@ -115,19 +115,19 @@ static inline void exception_return(CPUMIPSState *env)
     debug_post_eret(env);
 }
 
-void helper_eret(CPUMIPSState *env)
+void HELPER(eret)(CPUMIPSState *env)
 {
     exception_return(env);
     env->CP0_LLAddr = 1;
     env->lladdr = 1;
 }
 
-void helper_eretnc(CPUMIPSState *env)
+void HELPER(eretnc)(CPUMIPSState *env)
 {
     exception_return(env);
 }
 
-void helper_deret(CPUMIPSState *env)
+void HELPER(deret)(CPUMIPSState *env)
 {
     debug_pre_eret(env);
 
@@ -139,7 +139,7 @@ void helper_deret(CPUMIPSState *env)
     debug_post_eret(env);
 }
 
-void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
+void HELPER(cache)(CPUMIPSState *env, target_ulong addr, uint32_t op)
 {
     static const char *const type_name[] = {
         "Primary Instruction",

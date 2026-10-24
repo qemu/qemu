@@ -22,6 +22,18 @@
 #include "exec/memop.h"
 #include "hw/core/registerfields.h"
 #include "exec/page-protection.h"
+#include "exec/helper-head.h.inc"
+
+/**
+ * ppc_env_is_64bit:
+ * @env: the cpu context
+ *
+ * Return whether the CPU is a 64-bit implementation.
+ */
+static inline bool ppc_env_is_64bit(const CPUPPCState *env)
+{
+    return env->insns_flags & PPC_64B;
+}
 
 static inline bool ppc_env_is_little_endian(const CPUPPCState *env)
 {
@@ -230,9 +242,9 @@ EXTRACT_HELPER(IMM8, 11, 8);
 EXTRACT_HELPER(DCMX, 16, 7);
 EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
-void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);
-void helper_compute_fprf_float32(CPUPPCState *env, float32 arg);
-void helper_compute_fprf_float128(CPUPPCState *env, float128 arg);
+void HELPER(compute_fprf_float16)(CPUPPCState *env, float16 arg);
+void HELPER(compute_fprf_float32)(CPUPPCState *env, float32 arg);
+void HELPER(compute_fprf_float128)(CPUPPCState *env, float128 arg);
 
 /* translate.c */
 

@@ -82,7 +82,7 @@ void HELPER(loaded_fr0)(CPUHPPAState *env)
 
 void cpu_hppa_loaded_fr0(CPUHPPAState *env)
 {
-    helper_loaded_fr0(env);
+    HELPER(loaded_fr0)(env);
 }
 
 #define CONVERT_BIT(X, SRC, DST)        \

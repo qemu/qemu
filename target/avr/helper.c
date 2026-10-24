@@ -108,9 +108,16 @@ void avr_cpu_do_interrupt(CPUState *cs)
     qemu_plugin_vcpu_interrupt_cb(cs, ret);
 }
 
-hwaddr avr_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
+bool avr_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                 TranslateForDebugResult *result)
 {
-    return addr; /* I assume 1:1 address correspondence */
+    /* I assume 1:1 address correspondence */
+    *result = (TranslateForDebugResult) {
+        .physaddr = addr,
+        .lg_page_size = TARGET_PAGE_BITS,
+        .attrs.debug = 1,
+    };
+    return true;
 }
 
 bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -152,7 +159,7 @@ bool avr_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
  *  helpers
  */
 
-void helper_sleep(CPUAVRState *env)
+void HELPER(sleep)(CPUAVRState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -160,7 +167,7 @@ void helper_sleep(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_unsupported(CPUAVRState *env)
+void HELPER(unsupported)(CPUAVRState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -176,7 +183,7 @@ void helper_unsupported(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_debug(CPUAVRState *env)
+void HELPER(debug)(CPUAVRState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -184,7 +191,7 @@ void helper_debug(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_break(CPUAVRState *env)
+void HELPER(break)(CPUAVRState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -192,7 +199,7 @@ void helper_break(CPUAVRState *env)
     cpu_loop_exit(cs);
 }
 
-void helper_wdr(CPUAVRState *env)
+void HELPER(wdr)(CPUAVRState *env)
 {
     qemu_log_mask(LOG_UNIMP, "WDG reset (not implemented)\n");
 }
@@ -274,7 +281,7 @@ const MemoryRegionOps avr_cpu_reg2 = {
  *  this function implements ST instruction when there is a possibility to write
  *  into a CPU register
  */
-void helper_fullwr(CPUAVRState *env, uint32_t data, uint32_t addr)
+void HELPER(fullwr)(CPUAVRState *env, uint32_t data, uint32_t addr)
 {
     env->fullacc = false;
 

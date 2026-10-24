@@ -19,6 +19,23 @@ const char *si_prefix(unsigned int exp10);
  */
 const char *iec_binary_prefix(unsigned int exp2);
 
+const char *str_array_elem_or_null(const char *const *array,
+                                   size_t nelem, uint64_t index);
+
+/**
+ * STR_ARRAY_ELEM_OR_NULL() - Return a string array element, or NULL if
+ *                            out of bounds
+ * @array: array of strings to index
+ * @index: index of the element to return
+ *
+ * Return @array[@index] if @index is a valid index, otherwise return
+ * NULL. @index is converted to uint64_t, so negative values of signed
+ * types are out of bounds and also yield NULL. Useful to look up entries
+ * in enum-indexed string tables without a prior bounds check.
+ */
+#define STR_ARRAY_ELEM_OR_NULL(array, index) \
+    str_array_elem_or_null(array, ARRAY_SIZE(array), index)
+
 /**
  * pstrcpy:
  * @buf: buffer to copy string into

@@ -427,7 +427,7 @@ static inline int dfp_get_digit(decNumber *dn, int n)
 }
 
 #define DFP_HELPER_TAB(op, dnop, postprocs, size)                              \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,               \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,                \
                  ppc_fprp_t *b)                                                \
 {                                                                              \
     struct PPC_DFP dfp;                                                        \
@@ -493,7 +493,7 @@ DFP_HELPER_TAB(DDIV, decNumberDivide, DIV_PPs, 64)
 DFP_HELPER_TAB(DDIVQ, decNumberDivide, DIV_PPs, 128)
 
 #define DFP_HELPER_BF_AB(op, dnop, postprocs, size)                            \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)           \
+uint32_t HELPER(op)(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)            \
 {                                                                              \
     struct PPC_DFP dfp;                                                        \
     dfp_prepare_decimal##size(&dfp, a, b, env);                                \
@@ -525,7 +525,7 @@ DFP_HELPER_BF_AB(DCMPO, decNumberCompare, CMPO_PPs, 64)
 DFP_HELPER_BF_AB(DCMPOQ, decNumberCompare, CMPO_PPs, 128)
 
 #define DFP_HELPER_TSTDC(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
+uint32_t HELPER(op)(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)       \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     int match = 0;                                                       \
@@ -553,7 +553,7 @@ DFP_HELPER_TSTDC(DTSTDC, 64)
 DFP_HELPER_TSTDC(DTSTDCQ, 128)
 
 #define DFP_HELPER_TSTDG(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
+uint32_t HELPER(op)(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)       \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     int minexp, maxexp, nzero_digits, nzero_idx, is_negative, is_zero,   \
@@ -608,7 +608,7 @@ DFP_HELPER_TSTDG(DTSTDG, 64)
 DFP_HELPER_TSTDG(DTSTDGQ, 128)
 
 #define DFP_HELPER_TSTEX(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
+uint32_t HELPER(op)(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)      \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     int expa, expb, a_is_special, b_is_special;                          \
@@ -640,7 +640,7 @@ DFP_HELPER_TSTEX(DTSTEX, 64)
 DFP_HELPER_TSTEX(DTSTEXQ, 128)
 
 #define DFP_HELPER_TSTSF(op, size)                                       \
-uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
+uint32_t HELPER(op)(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)      \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     unsigned k;                                                          \
@@ -677,7 +677,7 @@ DFP_HELPER_TSTSF(DTSTSF, 64)
 DFP_HELPER_TSTSF(DTSTSFQ, 128)
 
 #define DFP_HELPER_TSTSFI(op, size)                                     \
-uint32_t helper_##op(CPUPPCState *env, uint32_t a, ppc_fprp_t *b)       \
+uint32_t HELPER(op)(CPUPPCState *env, uint32_t a, ppc_fprp_t *b)        \
 {                                                                       \
     struct PPC_DFP dfp;                                                 \
     unsigned uim;                                                       \
@@ -737,7 +737,7 @@ static void dfp_quantize(uint8_t rmc, struct PPC_DFP *dfp)
 }
 
 #define DFP_HELPER_QUAI(op, size)                                       \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,        \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,         \
                  uint32_t te, uint32_t rmc)                             \
 {                                                                       \
     struct PPC_DFP dfp;                                                 \
@@ -758,7 +758,7 @@ DFP_HELPER_QUAI(DQUAI, 64)
 DFP_HELPER_QUAI(DQUAIQ, 128)
 
 #define DFP_HELPER_QUA(op, size)                                        \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,         \
                  ppc_fprp_t *b, uint32_t rmc)                           \
 {                                                                       \
     struct PPC_DFP dfp;                                                 \
@@ -830,7 +830,7 @@ static void _dfp_reround(uint8_t rmc, int32_t ref_sig, int32_t xmax,
 }
 
 #define DFP_HELPER_RRND(op, size)                                       \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,         \
                  ppc_fprp_t *b, uint32_t rmc)                           \
 {                                                                       \
     struct PPC_DFP dfp;                                                 \
@@ -854,7 +854,7 @@ DFP_HELPER_RRND(DRRND, 64)
 DFP_HELPER_RRND(DRRNDQ, 128)
 
 #define DFP_HELPER_RINT(op, postprocs, size)                                   \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,               \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,                \
              uint32_t r, uint32_t rmc)                                         \
 {                                                                              \
     struct PPC_DFP dfp;                                                        \
@@ -888,7 +888,7 @@ static void RINTN_PPs(struct PPC_DFP *dfp)
 DFP_HELPER_RINT(DRINTN, RINTN_PPs, 64)
 DFP_HELPER_RINT(DRINTNQ, RINTN_PPs, 128)
 
-void helper_DCTDP(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void HELPER(DCTDP)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     ppc_vsr_t vb;
@@ -904,7 +904,7 @@ void helper_DCTDP(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     dfp_set_FPRF_from_FRT(&dfp);
 }
 
-void helper_DCTQPQ(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void HELPER(DCTQPQ)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     ppc_vsr_t vb;
@@ -919,7 +919,7 @@ void helper_DCTQPQ(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     set_dfp128(t, &dfp.vt);
 }
 
-void helper_DRSP(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void HELPER(DRSP)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     uint32_t t_short = 0;
@@ -937,7 +937,7 @@ void helper_DRSP(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     set_dfp64(t, &vt);
 }
 
-void helper_DRDPQ(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
+void HELPER(DRDPQ)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     dfp_prepare_decimal128(&dfp, 0, b, env);
@@ -956,7 +956,7 @@ void helper_DRDPQ(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 }
 
 #define DFP_HELPER_CFFIX(op, size)                                             \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)               \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)                \
 {                                                                              \
     struct PPC_DFP dfp;                                                        \
     ppc_vsr_t vb;                                                              \
@@ -978,7 +978,7 @@ static void CFFIX_PPs(struct PPC_DFP *dfp)
 DFP_HELPER_CFFIX(DCFFIX, 64)
 DFP_HELPER_CFFIX(DCFFIXQ, 128)
 
-void helper_DCFFIXQQ(CPUPPCState *env, ppc_fprp_t *t, ppc_avr_t *b)
+void HELPER(DCFFIXQQ)(CPUPPCState *env, ppc_fprp_t *t, ppc_avr_t *b)
 {
     struct PPC_DFP dfp;
 
@@ -991,7 +991,7 @@ void helper_DCFFIXQQ(CPUPPCState *env, ppc_fprp_t *t, ppc_avr_t *b)
 }
 
 #define DFP_HELPER_CTFIX(op, size)                                            \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)              \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)               \
 {                                                                             \
     struct PPC_DFP dfp;                                                       \
     dfp_prepare_decimal##size(&dfp, 0, b, env);                               \
@@ -1028,7 +1028,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)              \
 DFP_HELPER_CTFIX(DCTFIX, 64)
 DFP_HELPER_CTFIX(DCTFIXQ, 128)
 
-void helper_DCTFIXQQ(CPUPPCState *env, ppc_avr_t *t, ppc_fprp_t *b)
+void HELPER(DCTFIXQQ)(CPUPPCState *env, ppc_avr_t *t, ppc_fprp_t *b)
 {
     struct PPC_DFP dfp;
     dfp_prepare_decimal128(&dfp, 0, b, env);
@@ -1103,7 +1103,7 @@ static inline void dfp_set_sign_128(ppc_vsr_t *t, uint8_t sgn)
 }
 
 #define DFP_HELPER_DEDPD(op, size)                                        \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,          \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,           \
                  uint32_t sp)                                             \
 {                                                                         \
     struct PPC_DFP dfp;                                                   \
@@ -1168,7 +1168,7 @@ static inline void dfp_invalid_op_vxcvi_128(struct PPC_DFP *dfp)
 }
 
 #define DFP_HELPER_ENBCD(op, size)                                           \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,              \
                  uint32_t s)                                                 \
 {                                                                            \
     struct PPC_DFP dfp;                                                      \
@@ -1228,7 +1228,7 @@ DFP_HELPER_ENBCD(DENBCD, 64)
 DFP_HELPER_ENBCD(DENBCDQ, 128)
 
 #define DFP_HELPER_XEX(op, size)                               \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b) \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)  \
 {                                                              \
     struct PPC_DFP dfp;                                        \
     ppc_vsr_t vt;                                              \
@@ -1274,7 +1274,7 @@ static void dfp_set_raw_exp_128(ppc_vsr_t *t, uint64_t raw)
 }
 
 #define DFP_HELPER_IEX(op, size)                                          \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,          \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,           \
                  ppc_fprp_t *b)                                           \
 {                                                                         \
     struct PPC_DFP dfp;                                                   \
@@ -1368,7 +1368,7 @@ static void dfp_clear_lmd_from_g5msb(uint64_t *t)
 }
 
 #define DFP_HELPER_SHIFT(op, size, shift_left)                      \
-void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,    \
+void HELPER(op)(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,     \
                  uint32_t sh)                                       \
 {                                                                   \
     struct PPC_DFP dfp;                                             \
@@ -1417,7 +1417,7 @@ DFP_HELPER_SHIFT(DSCLIQ, 128, 1)
 DFP_HELPER_SHIFT(DSCRI, 64, 0)
 DFP_HELPER_SHIFT(DSCRIQ, 128, 0)
 
-target_ulong helper_CDTBCD(target_ulong s)
+target_ulong HELPER(CDTBCD)(target_ulong s)
 {
     uint64_t res = 0;
     uint32_t dec32, declets;
@@ -1443,7 +1443,7 @@ target_ulong helper_CDTBCD(target_ulong s)
     return res;
 }
 
-target_ulong helper_CBCDTD(target_ulong s)
+target_ulong HELPER(CBCDTD)(target_ulong s)
 {
     uint64_t res = 0;
     uint32_t dec32;

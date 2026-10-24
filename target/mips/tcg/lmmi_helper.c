@@ -53,7 +53,7 @@ typedef union {
     (x < -0x80000000ll ? -0x80000000ll : x > 0x7fffffff ? 0x7fffffff : x)
 #define SATUW(x)  (x > 0xffffffffull ? 0xffffffffull : x)
 
-uint64_t helper_paddsb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddsb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -67,7 +67,7 @@ uint64_t helper_paddsb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_paddusb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddusb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -81,7 +81,7 @@ uint64_t helper_paddusb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_paddsh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddsh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -95,7 +95,7 @@ uint64_t helper_paddsh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_paddush(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddush)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -109,7 +109,7 @@ uint64_t helper_paddush(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_paddb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -122,7 +122,7 @@ uint64_t helper_paddb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_paddh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -135,7 +135,7 @@ uint64_t helper_paddh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_paddw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(paddw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -148,7 +148,7 @@ uint64_t helper_paddw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubsb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubsb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -162,7 +162,7 @@ uint64_t helper_psubsb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubusb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubusb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -176,7 +176,7 @@ uint64_t helper_psubusb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubsh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubsh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -190,7 +190,7 @@ uint64_t helper_psubsh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubush(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubush)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -204,7 +204,7 @@ uint64_t helper_psubush(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -217,7 +217,7 @@ uint64_t helper_psubb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -230,7 +230,7 @@ uint64_t helper_psubh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psubw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psubw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned int i;
@@ -243,7 +243,7 @@ uint64_t helper_psubw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pshufh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pshufh)(uint64_t fs, uint64_t ft)
 {
     unsigned host = BYTE_ORDER_XOR(3);
     LMIValue vd, vs;
@@ -257,7 +257,7 @@ uint64_t helper_pshufh(uint64_t fs, uint64_t ft)
     return vd.d;
 }
 
-uint64_t helper_packsswh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(packsswh)(uint64_t fs, uint64_t ft)
 {
     uint64_t fd = 0;
     int64_t tmp;
@@ -281,7 +281,7 @@ uint64_t helper_packsswh(uint64_t fs, uint64_t ft)
     return fd;
 }
 
-uint64_t helper_packsshb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(packsshb)(uint64_t fs, uint64_t ft)
 {
     uint64_t fd = 0;
     unsigned int i;
@@ -300,7 +300,7 @@ uint64_t helper_packsshb(uint64_t fs, uint64_t ft)
     return fd;
 }
 
-uint64_t helper_packushb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(packushb)(uint64_t fs, uint64_t ft)
 {
     uint64_t fd = 0;
     unsigned int i;
@@ -319,17 +319,17 @@ uint64_t helper_packushb(uint64_t fs, uint64_t ft)
     return fd;
 }
 
-uint64_t helper_punpcklwd(uint64_t fs, uint64_t ft)
+uint64_t HELPER(punpcklwd)(uint64_t fs, uint64_t ft)
 {
     return (fs & 0xffffffff) | (ft << 32);
 }
 
-uint64_t helper_punpckhwd(uint64_t fs, uint64_t ft)
+uint64_t HELPER(punpckhwd)(uint64_t fs, uint64_t ft)
 {
     return (fs >> 32) | (ft & ~0xffffffffull);
 }
 
-uint64_t helper_punpcklhw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(punpcklhw)(uint64_t fs, uint64_t ft)
 {
     unsigned host = BYTE_ORDER_XOR(3);
     LMIValue vd, vs, vt;
@@ -344,7 +344,7 @@ uint64_t helper_punpcklhw(uint64_t fs, uint64_t ft)
     return vd.d;
 }
 
-uint64_t helper_punpckhhw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(punpckhhw)(uint64_t fs, uint64_t ft)
 {
     unsigned host = BYTE_ORDER_XOR(3);
     LMIValue vd, vs, vt;
@@ -359,7 +359,7 @@ uint64_t helper_punpckhhw(uint64_t fs, uint64_t ft)
     return vd.d;
 }
 
-uint64_t helper_punpcklbh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(punpcklbh)(uint64_t fs, uint64_t ft)
 {
     unsigned host = BYTE_ORDER_XOR(7);
     LMIValue vd, vs, vt;
@@ -378,7 +378,7 @@ uint64_t helper_punpcklbh(uint64_t fs, uint64_t ft)
     return vd.d;
 }
 
-uint64_t helper_punpckhbh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(punpckhbh)(uint64_t fs, uint64_t ft)
 {
     unsigned host = BYTE_ORDER_XOR(7);
     LMIValue vd, vs, vt;
@@ -397,7 +397,7 @@ uint64_t helper_punpckhbh(uint64_t fs, uint64_t ft)
     return vd.d;
 }
 
-uint64_t helper_pavgh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pavgh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -410,7 +410,7 @@ uint64_t helper_pavgh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pavgb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pavgb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -423,7 +423,7 @@ uint64_t helper_pavgb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pmaxsh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pmaxsh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -436,7 +436,7 @@ uint64_t helper_pmaxsh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pminsh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pminsh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -449,7 +449,7 @@ uint64_t helper_pminsh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pmaxub(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pmaxub)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -462,7 +462,7 @@ uint64_t helper_pmaxub(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pminub(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pminub)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -475,7 +475,7 @@ uint64_t helper_pminub(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pcmpeqw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pcmpeqw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -488,7 +488,7 @@ uint64_t helper_pcmpeqw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pcmpgtw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pcmpgtw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -501,7 +501,7 @@ uint64_t helper_pcmpgtw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pcmpeqh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pcmpeqh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -514,7 +514,7 @@ uint64_t helper_pcmpeqh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pcmpgth(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pcmpgth)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -527,7 +527,7 @@ uint64_t helper_pcmpgth(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pcmpeqb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pcmpeqb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -540,7 +540,7 @@ uint64_t helper_pcmpeqb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pcmpgtb(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pcmpgtb)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -553,7 +553,7 @@ uint64_t helper_pcmpgtb(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psllw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psllw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs;
     unsigned i;
@@ -569,7 +569,7 @@ uint64_t helper_psllw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psrlw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psrlw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs;
     unsigned i;
@@ -585,7 +585,7 @@ uint64_t helper_psrlw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psraw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psraw)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs;
     unsigned i;
@@ -601,7 +601,7 @@ uint64_t helper_psraw(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psllh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psllh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs;
     unsigned i;
@@ -617,7 +617,7 @@ uint64_t helper_psllh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psrlh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psrlh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs;
     unsigned i;
@@ -633,7 +633,7 @@ uint64_t helper_psrlh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_psrah(uint64_t fs, uint64_t ft)
+uint64_t HELPER(psrah)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs;
     unsigned i;
@@ -649,7 +649,7 @@ uint64_t helper_psrah(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pmullh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pmullh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -662,7 +662,7 @@ uint64_t helper_pmullh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pmulhh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pmulhh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -676,7 +676,7 @@ uint64_t helper_pmulhh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pmulhuh(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pmulhuh)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -690,7 +690,7 @@ uint64_t helper_pmulhuh(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_pmaddhw(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pmaddhw)(uint64_t fs, uint64_t ft)
 {
     unsigned host = BYTE_ORDER_XOR(3);
     LMIValue vs, vt;
@@ -706,7 +706,7 @@ uint64_t helper_pmaddhw(uint64_t fs, uint64_t ft)
     return ((uint64_t)p1 << 32) | p0;
 }
 
-uint64_t helper_pasubub(uint64_t fs, uint64_t ft)
+uint64_t HELPER(pasubub)(uint64_t fs, uint64_t ft)
 {
     LMIValue vs, vt;
     unsigned i;
@@ -720,7 +720,7 @@ uint64_t helper_pasubub(uint64_t fs, uint64_t ft)
     return vs.d;
 }
 
-uint64_t helper_biadd(uint64_t fs)
+uint64_t HELPER(biadd)(uint64_t fs)
 {
     unsigned i, fd;
 
@@ -730,7 +730,7 @@ uint64_t helper_biadd(uint64_t fs)
     return fd & 0xffff;
 }
 
-uint64_t helper_pmovmskb(uint64_t fs)
+uint64_t HELPER(pmovmskb)(uint64_t fs)
 {
     unsigned fd = 0;
 

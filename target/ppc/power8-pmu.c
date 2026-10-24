@@ -286,7 +286,7 @@ static void pmu_delete_timers(CPUPPCState *env)
     }
 }
 
-void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
+void HELPER(store_mmcr0)(CPUPPCState *env, target_ulong value)
 {
     pmu_update_cycles(env);
 
@@ -298,7 +298,7 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
     pmu_update_overflow_timers(env);
 }
 
-void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
+void HELPER(store_mmcr1)(CPUPPCState *env, uint64_t value)
 {
     pmu_update_cycles(env);
 
@@ -307,21 +307,21 @@ void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
     pmu_mmcr01a_updated(env);
 }
 
-void helper_store_mmcrA(CPUPPCState *env, uint64_t value)
+void HELPER(store_mmcrA)(CPUPPCState *env, uint64_t value)
 {
     env->spr[SPR_POWER_MMCRA] = value;
 
     pmu_mmcr01a_updated(env);
 }
 
-target_ulong helper_read_pmc(CPUPPCState *env, uint32_t sprn)
+target_ulong HELPER(read_pmc)(CPUPPCState *env, uint32_t sprn)
 {
     pmu_update_cycles(env);
 
     return env->spr[sprn];
 }
 
-void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
+void HELPER(store_pmc)(CPUPPCState *env, uint32_t sprn, uint64_t value)
 {
     pmu_update_cycles(env);
 
@@ -360,14 +360,14 @@ static void perfm_alert(PowerPCCPU *cpu)
     raise_ebb_perfm_exception(env);
 }
 
-void helper_handle_pmc5_overflow(CPUPPCState *env)
+void HELPER(handle_pmc5_overflow)(CPUPPCState *env)
 {
     env->spr[SPR_POWER_PMC5] = PMC_COUNTER_NEGATIVE_VAL;
     perfm_alert(env_archcpu(env));
 }
 
 /* This helper assumes that the PMC is running. */
-void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
+void HELPER(insns_inc)(CPUPPCState *env, uint32_t num_insns)
 {
     bool overflow_triggered;
 

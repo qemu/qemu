@@ -34,12 +34,12 @@
 #define HELPER_H "tcg/helper-sme-defs.h"
 #include "exec/helper-info.c.inc"
 
-void helper_set_svcr(CPUARMState *env, uint32_t val, uint32_t mask)
+void HELPER(set_svcr)(CPUARMState *env, uint32_t val, uint32_t mask)
 {
     aarch64_set_svcr(env, val, mask);
 }
 
-void helper_sme_zero(CPUARMState *env, uint32_t imm, uint32_t svl)
+void HELPER(sme_zero)(CPUARMState *env, uint32_t imm, uint32_t svl)
 {
     uint32_t i;
 

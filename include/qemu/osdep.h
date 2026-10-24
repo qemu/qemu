@@ -528,6 +528,15 @@ void QEMU_ERROR("code path is reachable")
  */
 #define QEMU_IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), \
                                                         typeof(&(x)[0])))
+/**
+ * ARRAY_SIZE() - Return the number of elements of an array
+ * @x: the array
+ *
+ * For bounds-checked lookups in arrays of strings, see
+ * STR_ARRAY_ELEM_OR_NULL() in "qemu/cutils.h".
+ *
+ * Note: fails to build if @x is a pointer.
+ */
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])) + \
                        QEMU_BUILD_BUG_ON_ZERO(!QEMU_IS_ARRAY(x)))

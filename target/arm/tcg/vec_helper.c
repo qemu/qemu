@@ -1286,23 +1286,23 @@ void HELPER(NAME)(void *vd, void *vn, float_status *stat, uint32_t desc)  \
     clear_tail(d, oprsz, simd_maxsz(desc));                       \
 }
 
-DO_2OP(gvec_frecpe_h, helper_recpe_f16, float16)
-DO_2OP(gvec_frecpe_s, helper_recpe_f32, float32)
-DO_2OP(gvec_frecpe_rpres_s, helper_recpe_rpres_f32, float32)
-DO_2OP(gvec_frecpe_d, helper_recpe_f64, float64)
+DO_2OP(gvec_frecpe_h, HELPER(recpe_f16), float16)
+DO_2OP(gvec_frecpe_s, HELPER(recpe_f32), float32)
+DO_2OP(gvec_frecpe_rpres_s, HELPER(recpe_rpres_f32), float32)
+DO_2OP(gvec_frecpe_d, HELPER(recpe_f64), float64)
 
-DO_2OP(gvec_frsqrte_h, helper_rsqrte_f16, float16)
-DO_2OP(gvec_frsqrte_s, helper_rsqrte_f32, float32)
-DO_2OP(gvec_frsqrte_rpres_s, helper_rsqrte_rpres_f32, float32)
-DO_2OP(gvec_frsqrte_d, helper_rsqrte_f64, float64)
+DO_2OP(gvec_frsqrte_h, HELPER(rsqrte_f16), float16)
+DO_2OP(gvec_frsqrte_s, HELPER(rsqrte_f32), float32)
+DO_2OP(gvec_frsqrte_rpres_s, HELPER(rsqrte_rpres_f32), float32)
+DO_2OP(gvec_frsqrte_d, HELPER(rsqrte_f64), float64)
 
 DO_2OP(gvec_vrintx_h, float16_round_to_int, float16)
 DO_2OP(gvec_vrintx_s, float32_round_to_int, float32)
 
-DO_2OP(gvec_sitos, helper_vfp_sitos, int32_t)
-DO_2OP(gvec_uitos, helper_vfp_uitos, uint32_t)
-DO_2OP(gvec_tosizs, helper_vfp_tosizs, float32)
-DO_2OP(gvec_touizs, helper_vfp_touizs, float32)
+DO_2OP(gvec_sitos, HELPER(vfp_sitos), int32_t)
+DO_2OP(gvec_uitos, HELPER(vfp_uitos), uint32_t)
+DO_2OP(gvec_tosizs, HELPER(vfp_tosizs), float32)
+DO_2OP(gvec_touizs, HELPER(vfp_touizs), float32)
 DO_2OP(gvec_sstoh, int16_to_float16, int16_t)
 DO_2OP(gvec_ustoh, uint16_to_float16, uint16_t)
 DO_2OP(gvec_tosszh, vfp_tosszh, float16)
@@ -2596,19 +2596,19 @@ DO_3OP_PAIR_NO_STATUS(gvec_uminp_s, MIN, uint32_t, H4)
         clear_tail(d, oprsz, simd_maxsz(desc));                         \
     }
 
-DO_VCVT_FIXED(gvec_vcvt_sd, helper_vfp_sqtod, uint64_t)
-DO_VCVT_FIXED(gvec_vcvt_ud, helper_vfp_uqtod, uint64_t)
-DO_VCVT_FIXED(gvec_vcvt_sf, helper_vfp_sltos, uint32_t)
-DO_VCVT_FIXED(gvec_vcvt_uf, helper_vfp_ultos, uint32_t)
-DO_VCVT_FIXED(gvec_vcvt_sh, helper_vfp_shtoh, uint16_t)
-DO_VCVT_FIXED(gvec_vcvt_uh, helper_vfp_uhtoh, uint16_t)
+DO_VCVT_FIXED(gvec_vcvt_sd, HELPER(vfp_sqtod), uint64_t)
+DO_VCVT_FIXED(gvec_vcvt_ud, HELPER(vfp_uqtod), uint64_t)
+DO_VCVT_FIXED(gvec_vcvt_sf, HELPER(vfp_sltos), uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_uf, HELPER(vfp_ultos), uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_sh, HELPER(vfp_shtoh), uint16_t)
+DO_VCVT_FIXED(gvec_vcvt_uh, HELPER(vfp_uhtoh), uint16_t)
 
-DO_VCVT_FIXED(gvec_vcvt_rz_ds, helper_vfp_tosqd_round_to_zero, uint64_t)
-DO_VCVT_FIXED(gvec_vcvt_rz_du, helper_vfp_touqd_round_to_zero, uint64_t)
-DO_VCVT_FIXED(gvec_vcvt_rz_fs, helper_vfp_tosls_round_to_zero, uint32_t)
-DO_VCVT_FIXED(gvec_vcvt_rz_fu, helper_vfp_touls_round_to_zero, uint32_t)
-DO_VCVT_FIXED(gvec_vcvt_rz_hs, helper_vfp_toshh_round_to_zero, uint16_t)
-DO_VCVT_FIXED(gvec_vcvt_rz_hu, helper_vfp_touhh_round_to_zero, uint16_t)
+DO_VCVT_FIXED(gvec_vcvt_rz_ds, HELPER(vfp_tosqd_round_to_zero), uint64_t)
+DO_VCVT_FIXED(gvec_vcvt_rz_du, HELPER(vfp_touqd_round_to_zero), uint64_t)
+DO_VCVT_FIXED(gvec_vcvt_rz_fs, HELPER(vfp_tosls_round_to_zero), uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_rz_fu, HELPER(vfp_touls_round_to_zero), uint32_t)
+DO_VCVT_FIXED(gvec_vcvt_rz_hs, HELPER(vfp_toshh_round_to_zero), uint16_t)
+DO_VCVT_FIXED(gvec_vcvt_rz_hu, HELPER(vfp_touhh_round_to_zero), uint16_t)
 
 #undef DO_VCVT_FIXED
 
@@ -2627,12 +2627,12 @@ DO_VCVT_FIXED(gvec_vcvt_rz_hu, helper_vfp_touhh_round_to_zero, uint16_t)
         clear_tail(d, oprsz, simd_maxsz(desc));                         \
     }
 
-DO_VCVT_RMODE(gvec_vcvt_rm_sd, helper_vfp_tosqd, uint64_t)
-DO_VCVT_RMODE(gvec_vcvt_rm_ud, helper_vfp_touqd, uint64_t)
-DO_VCVT_RMODE(gvec_vcvt_rm_ss, helper_vfp_tosls, uint32_t)
-DO_VCVT_RMODE(gvec_vcvt_rm_us, helper_vfp_touls, uint32_t)
-DO_VCVT_RMODE(gvec_vcvt_rm_sh, helper_vfp_toshh, uint16_t)
-DO_VCVT_RMODE(gvec_vcvt_rm_uh, helper_vfp_touhh, uint16_t)
+DO_VCVT_RMODE(gvec_vcvt_rm_sd, HELPER(vfp_tosqd), uint64_t)
+DO_VCVT_RMODE(gvec_vcvt_rm_ud, HELPER(vfp_touqd), uint64_t)
+DO_VCVT_RMODE(gvec_vcvt_rm_ss, HELPER(vfp_tosls), uint32_t)
+DO_VCVT_RMODE(gvec_vcvt_rm_us, HELPER(vfp_touls), uint32_t)
+DO_VCVT_RMODE(gvec_vcvt_rm_sh, HELPER(vfp_toshh), uint16_t)
+DO_VCVT_RMODE(gvec_vcvt_rm_uh, HELPER(vfp_touhh), uint16_t)
 
 #undef DO_VCVT_RMODE
 
@@ -2651,8 +2651,8 @@ DO_VCVT_RMODE(gvec_vcvt_rm_uh, helper_vfp_touhh, uint16_t)
         clear_tail(d, oprsz, simd_maxsz(desc));                         \
     }
 
-DO_VRINT_RMODE(gvec_vrint_rm_h, helper_rinth, uint16_t)
-DO_VRINT_RMODE(gvec_vrint_rm_s, helper_rints, uint32_t)
+DO_VRINT_RMODE(gvec_vrint_rm_h, HELPER(rinth), uint16_t)
+DO_VRINT_RMODE(gvec_vrint_rm_s, HELPER(rints), uint32_t)
 
 #undef DO_VRINT_RMODE
 
@@ -3242,7 +3242,7 @@ void HELPER(gvec_urecpe_s)(void *vd, void *vn, uint32_t desc)
     uint32_t *d = vd, *n = vn;
 
     for (i = 0; i < opr_sz / 4; ++i) {
-        d[i] = helper_recpe_u32(n[i]);
+        d[i] = HELPER(recpe_u32)(n[i]);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
@@ -3253,7 +3253,7 @@ void HELPER(gvec_ursqrte_s)(void *vd, void *vn, uint32_t desc)
     uint32_t *d = vd, *n = vn;
 
     for (i = 0; i < opr_sz / 4; ++i) {
-        d[i] = helper_rsqrte_u32(n[i]);
+        d[i] = HELPER(rsqrte_u32)(n[i]);
     }
     clear_tail(d, opr_sz, simd_maxsz(desc));
 }
@@ -3307,7 +3307,7 @@ static inline void do_lut_s(void *zd, uint64_t *indexes, uint32_t *table,
 }
 
 #define DO_SME2_LUT(ISIZE, NREG, SUFF, ESIZE) \
-void helper_sme2_luti##ISIZE##_##NREG##SUFF                             \
+void HELPER(sme2_luti##ISIZE##_##NREG##SUFF)                            \
     (void *zd, void *zn, CPUARMState *env, uint32_t desc)               \
 {                                                                       \
     unsigned vl = simd_oprsz(desc);                                     \
@@ -3345,7 +3345,7 @@ DO_SME2_LUT(4,4,s, 4)
 
 #undef DO_SME2_LUT
 
-void helper_sme2_luti4_4b(void *zd, void *zn, CPUARMState *env, uint32_t desc)
+void HELPER(sme2_luti4_4b)(void *zd, void *zn, CPUARMState *env, uint32_t desc)
 {
     unsigned vl = simd_oprsz(desc);
     unsigned strided = extract32(desc, SIMD_DATA_SHIFT, 1);

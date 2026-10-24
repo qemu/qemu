@@ -179,7 +179,7 @@ static inline void dump_store_bat(CPUPPCState *env, char ID, int ul, int nr,
                   value, env->nip);
 }
 
-void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
+void HELPER(store_ibatu)(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 
@@ -206,13 +206,13 @@ void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
     }
 }
 
-void helper_store_ibatl(CPUPPCState *env, uint32_t nr, target_ulong value)
+void HELPER(store_ibatl)(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     dump_store_bat(env, 'I', 1, nr, value);
     env->IBAT[1][nr] = value;
 }
 
-void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
+void HELPER(store_dbatu)(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 
@@ -239,7 +239,7 @@ void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
     }
 }
 
-void helper_store_dbatl(CPUPPCState *env, uint32_t nr, target_ulong value)
+void HELPER(store_dbatl)(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     dump_store_bat(env, 'D', 1, nr, value);
     env->DBAT[1][nr] = value;
@@ -328,7 +328,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 /* Special registers manipulation */
 
 /* Segment registers load and store */
-target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
+target_ulong HELPER(load_sr)(CPUPPCState *env, target_ulong sr_num)
 {
 #if defined(TARGET_PPC64)
     if (mmu_is_64bit(env->mmu_model)) {
@@ -339,7 +339,7 @@ target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
     return env->sr[sr_num];
 }
 
-void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
+void HELPER(store_sr)(CPUPPCState *env, target_ulong srnum, target_ulong value)
 {
     qemu_log_mask(CPU_LOG_MMU,
             "%s: reg=%d " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__,
@@ -383,12 +383,12 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 }
 
 /* TLB management */
-void helper_tlbia(CPUPPCState *env)
+void HELPER(tlbia)(CPUPPCState *env)
 {
     ppc_tlb_invalidate_all(env);
 }
 
-void helper_tlbie(CPUPPCState *env, target_ulong addr)
+void HELPER(tlbie)(CPUPPCState *env, target_ulong addr)
 {
     ppc_tlb_invalidate_one(env, addr);
 }
@@ -418,7 +418,7 @@ void helper_tlbie(CPUPPCState *env, target_ulong addr)
 #define TLBIE_RB_IS_MASK    PPC_BITMASK(52, 53)
 #define TLBIE_RB_AP_MASK    PPC_BITMASK(56, 58)
 
-void helper_tlbie_isa300(CPUPPCState *env, target_ulong rb, target_ulong rs,
+void HELPER(tlbie_isa300)(CPUPPCState *env, target_ulong rb, target_ulong rs,
                          uint32_t flags)
 {
     unsigned ric = (flags & TLBIE_F_RIC_MASK) >> TLBIE_F_RIC_SHIFT;
@@ -547,7 +547,7 @@ invalid:
 
 #endif
 
-void helper_tlbiva(CPUPPCState *env, target_ulong addr)
+void HELPER(tlbiva)(CPUPPCState *env, target_ulong addr)
 {
     /* tlbiva instruction only exists on BookE */
     assert(env->mmu_model == POWERPC_MMU_BOOKE);
@@ -580,12 +580,12 @@ static void do_6xx_tlb(CPUPPCState *env, target_ulong new_EPN, int is_code)
                      way, is_code, CMP, RPN);
 }
 
-void helper_6xx_tlbd(CPUPPCState *env, target_ulong EPN)
+void HELPER(6xx_tlbd)(CPUPPCState *env, target_ulong EPN)
 {
     do_6xx_tlb(env, EPN, 0);
 }
 
-void helper_6xx_tlbi(CPUPPCState *env, target_ulong EPN)
+void HELPER(6xx_tlbi)(CPUPPCState *env, target_ulong EPN)
 {
     do_6xx_tlb(env, EPN, 1);
 }
@@ -674,7 +674,7 @@ static inline int booke_page_size_to_tlb(target_ulong page_size)
 #define PPC4XX_TLBLO_ATTR_MASK      0x000000FF
 #define PPC4XX_TLBLO_RPN_MASK       0xFFFFFC00
 
-void helper_store_40x_pid(CPUPPCState *env, target_ulong val)
+void HELPER(store_40x_pid)(CPUPPCState *env, target_ulong val)
 {
     if (env->spr[SPR_40x_PID] != val) {
         env->spr[SPR_40x_PID] = val;
@@ -682,7 +682,7 @@ void helper_store_40x_pid(CPUPPCState *env, target_ulong val)
     }
 }
 
-target_ulong helper_4xx_tlbre_hi(CPUPPCState *env, target_ulong entry)
+target_ulong HELPER(4xx_tlbre_hi)(CPUPPCState *env, target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
     target_ulong ret;
@@ -699,11 +699,11 @@ target_ulong helper_4xx_tlbre_hi(CPUPPCState *env, target_ulong entry)
         size = PPC4XX_TLBHI_SIZE_DEFAULT;
     }
     ret |= size << PPC4XX_TLBHI_SIZE_SHIFT;
-    helper_store_40x_pid(env, tlb->PID);
+    HELPER(store_40x_pid)(env, tlb->PID);
     return ret;
 }
 
-target_ulong helper_4xx_tlbre_lo(CPUPPCState *env, target_ulong entry)
+target_ulong HELPER(4xx_tlbre_lo)(CPUPPCState *env, target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
     target_ulong ret;
@@ -738,7 +738,7 @@ static void ppcemb_tlb_flush(CPUState *cs, ppcemb_tlb_t *tlb)
                               TARGET_LONG_BITS);
 }
 
-void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
+void HELPER(4xx_tlbwe_hi)(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
     CPUState *cs = env_cpu(env);
@@ -790,7 +790,7 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                   tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
 }
 
-void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
+void HELPER(4xx_tlbwe_lo)(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
     CPUState *cs = env_cpu(env);
@@ -826,7 +826,7 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
                   tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
 }
 
-target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
+target_ulong HELPER(4xx_tlbsx)(CPUPPCState *env, target_ulong address)
 {
     return ppcemb_tlb_search(env, address, env->spr[SPR_40x_PID]);
 }
@@ -851,7 +851,7 @@ static bool mmubooke_pid_match(CPUPPCState *env, ppcemb_tlb_t *tlb)
 }
 
 /* PowerPC 440 TLB management */
-void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
+void HELPER(440_tlbwe)(CPUPPCState *env, uint32_t word, target_ulong entry,
                       target_ulong value)
 {
     ppcemb_tlb_t *tlb;
@@ -912,7 +912,7 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
     }
 }
 
-target_ulong helper_440_tlbre(CPUPPCState *env, uint32_t word,
+target_ulong HELPER(440_tlbre)(CPUPPCState *env, uint32_t word,
                               target_ulong entry)
 {
     ppcemb_tlb_t *tlb;
@@ -968,7 +968,7 @@ target_ulong helper_440_tlbre(CPUPPCState *env, uint32_t word,
     return ret;
 }
 
-target_ulong helper_440_tlbsx(CPUPPCState *env, target_ulong address)
+target_ulong HELPER(440_tlbsx)(CPUPPCState *env, target_ulong address)
 {
     return ppcemb_tlb_search(env, address, env->spr[SPR_440_MMUCR] & 0xFF);
 }
@@ -992,19 +992,19 @@ static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
     return booke206_get_tlbm(env, tlb, ea, esel);
 }
 
-void helper_booke_setpid(CPUPPCState *env, uint32_t pidn, target_ulong pid)
+void HELPER(booke_setpid)(CPUPPCState *env, uint32_t pidn, target_ulong pid)
 {
     env->spr[pidn] = pid;
     /* changing PIDs mean we're in a different address space now */
     tlb_flush(env_cpu(env));
 }
 
-void helper_booke_set_eplc(CPUPPCState *env, target_ulong val)
+void HELPER(booke_set_eplc)(CPUPPCState *env, target_ulong val)
 {
     env->spr[SPR_BOOKE_EPLC] = val & EPID_MASK;
     tlb_flush_by_mmuidx(env_cpu(env), 1 << PPC_TLB_EPID_LOAD);
 }
-void helper_booke_set_epsc(CPUPPCState *env, target_ulong val)
+void HELPER(booke_set_epsc)(CPUPPCState *env, target_ulong val)
 {
     env->spr[SPR_BOOKE_EPSC] = val & EPID_MASK;
     tlb_flush_by_mmuidx(env_cpu(env), 1 << PPC_TLB_EPID_STORE);
@@ -1019,7 +1019,7 @@ static inline void flush_page(CPUPPCState *env, ppcmas_tlb_t *tlb)
     }
 }
 
-void helper_booke206_tlbwe(CPUPPCState *env)
+void HELPER(booke206_tlbwe)(CPUPPCState *env)
 {
     uint32_t tlbncfg, tlbn;
     ppcmas_tlb_t *tlb;
@@ -1147,7 +1147,7 @@ static inline void booke206_tlb_to_mas(CPUPPCState *env, ppcmas_tlb_t *tlb)
     env->spr[SPR_BOOKE_MAS7] = tlb->mas7_3 >> 32;
 }
 
-void helper_booke206_tlbre(CPUPPCState *env)
+void HELPER(booke206_tlbre)(CPUPPCState *env)
 {
     ppcmas_tlb_t *tlb = NULL;
 
@@ -1159,7 +1159,7 @@ void helper_booke206_tlbre(CPUPPCState *env)
     }
 }
 
-void helper_booke206_tlbsx(CPUPPCState *env, target_ulong address)
+void HELPER(booke206_tlbsx)(CPUPPCState *env, target_ulong address)
 {
     ppcmas_tlb_t *tlb = NULL;
     int i, j;
@@ -1233,7 +1233,7 @@ static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
     }
 }
 
-void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
+void HELPER(booke206_tlbivax)(CPUPPCState *env, target_ulong address)
 {
     CPUState *cs;
 
@@ -1264,13 +1264,13 @@ void helper_booke206_tlbivax(CPUPPCState *env, target_ulong address)
     }
 }
 
-void helper_booke206_tlbilx0(CPUPPCState *env, target_ulong address)
+void HELPER(booke206_tlbilx0)(CPUPPCState *env, target_ulong address)
 {
     /* XXX missing LPID handling */
     booke206_flush_tlb(env, -1, 1);
 }
 
-void helper_booke206_tlbilx1(CPUPPCState *env, target_ulong address)
+void HELPER(booke206_tlbilx1)(CPUPPCState *env, target_ulong address)
 {
     int i, j;
     int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
@@ -1291,7 +1291,7 @@ void helper_booke206_tlbilx1(CPUPPCState *env, target_ulong address)
     tlb_flush(env_cpu(env));
 }
 
-void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
+void HELPER(booke206_tlbilx3)(CPUPPCState *env, target_ulong address)
 {
     int i, j;
     ppcmas_tlb_t *tlb;
@@ -1331,7 +1331,7 @@ void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
     tlb_flush(env_cpu(env));
 }
 
-void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
+void HELPER(booke206_tlbflush)(CPUPPCState *env, target_ulong type)
 {
     int flags = 0;
 
@@ -1347,12 +1347,12 @@ void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)
 }
 
 
-void helper_check_tlb_flush_local(CPUPPCState *env)
+void HELPER(check_tlb_flush_local)(CPUPPCState *env)
 {
     check_tlb_flush(env, false);
 }
 
-void helper_check_tlb_flush_global(CPUPPCState *env)
+void HELPER(check_tlb_flush_global)(CPUPPCState *env)
 {
     check_tlb_flush(env, true);
 }

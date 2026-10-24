@@ -1679,7 +1679,7 @@ static bool trans_XXSPLTIDP(DisasContext *ctx, arg_8RR_D *a)
     REQUIRE_VSX(ctx);
 
     tcg_gen_gvec_dup_imm(MO_64, vsr_full_offset(a->xt), 16, 16,
-                         helper_todouble(a->si));
+                         HELPER(todouble)(a->si));
     return true;
 }
 

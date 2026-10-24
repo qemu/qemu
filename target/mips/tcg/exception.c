@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 #include "cpu.h"
 #include "internal.h"
 #include "exec/helper-proto.h"
@@ -44,18 +45,18 @@ target_ulong exception_resume_pc(CPUMIPSState *env)
     return bad_pc;
 }
 
-void helper_raise_exception_err(CPUMIPSState *env, uint32_t exception,
+void HELPER(raise_exception_err)(CPUMIPSState *env, uint32_t exception,
                                 int error_code)
 {
     do_raise_exception_err(env, exception, error_code, 0);
 }
 
-void helper_raise_exception(CPUMIPSState *env, uint32_t exception)
+void HELPER(raise_exception)(CPUMIPSState *env, uint32_t exception)
 {
     do_raise_exception(env, exception, GETPC());
 }
 
-void helper_raise_exception_debug(CPUMIPSState *env)
+void HELPER(raise_exception_debug)(CPUMIPSState *env)
 {
     do_raise_exception(env, EXCP_DEBUG, 0);
 }
@@ -65,7 +66,7 @@ static void raise_exception(CPUMIPSState *env, uint32_t exception)
     do_raise_exception(env, exception, 0);
 }
 
-void helper_wait(CPUMIPSState *env)
+void HELPER(wait)(CPUMIPSState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -88,7 +89,7 @@ void mips_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb)
     env->hflags |= tb->flags & MIPS_HFLAG_BMASK;
 }
 
-static const char * const excp_names[EXCP_LAST + 1] = {
+static const char * const excp_names[] = {
     [EXCP_RESET] = "reset",
     [EXCP_SRESET] = "soft reset",
     [EXCP_DSS] = "debug single step",
@@ -129,12 +130,9 @@ static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_SEMIHOST] = "Semihosting",
 };
 
-const char *mips_exception_name(int32_t exception)
+const char *mips_exception_name(int excp)
 {
-    if (exception < 0 || exception > EXCP_LAST) {
-        return "unknown";
-    }
-    return excp_names[exception];
+    return STR_ARRAY_ELEM_OR_NULL(excp_names, excp) ?: "unknown";
 }
 
 void do_raise_exception_err(CPUMIPSState *env, uint32_t exception,

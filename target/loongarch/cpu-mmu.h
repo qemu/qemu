@@ -99,7 +99,8 @@ TLBRet loongarch_ptw(CPULoongArchState *env, MMUContext *context,
                      int access_type, int mmu_idx, int debug);
 void get_dir_base_width(CPULoongArchState *env, uint64_t *dir_base,
                         uint64_t *dir_width, unsigned int level);
-hwaddr loongarch_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
+bool loongarch_cpu_translate_for_debug(CPUState *cpu, vaddr addr,
+                                       TranslateForDebugResult *result);
 uint64_t loongarch_palen_mask(CPULoongArchState *env);
 
 #endif  /* LOONGARCH_CPU_MMU_H */

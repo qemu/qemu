@@ -118,7 +118,8 @@ enum {
 int get_physical_address(CPUMIPSState *env, hwaddr *physical,
                          int *prot, target_ulong real_address,
                          MMUAccessType access_type, int mmu_idx);
-hwaddr mips_cpu_get_phys_addr_debug(CPUState *cpu, vaddr addr);
+bool mips_cpu_translate_for_debug(CPUState *cpu, vaddr addr,
+                                  TranslateForDebugResult *result);
 
 typedef struct r4k_tlb_t r4k_tlb_t;
 struct r4k_tlb_t {
@@ -226,6 +227,11 @@ static inline void mips_env_set_pc(CPUMIPSState *env, target_ulong value)
     } else {
         env->hflags &= ~(MIPS_HFLAG_M16);
     }
+}
+
+static inline bool mips_env_is_64bit(const CPUMIPSState *env)
+{
+    return env->cpu_model->insn_flags & CPU_MIPS64;
 }
 
 static inline bool mips_env_is_bigendian(CPUMIPSState *env)

@@ -118,7 +118,7 @@ static void f_update_psw_flags(CPUTriCoreState *env, uint8_t flags)
 }
 
 #define FADD_SUB(op)                                                           \
-uint32_t helper_tricore_f##op(CPUTriCoreState *env, uint32_t r1, uint32_t r2)  \
+uint32_t HELPER(tricore_f##op)(CPUTriCoreState *env, uint32_t r1, uint32_t r2) \
 {                                                                              \
     float32 arg1 = make_float32(r1);                                           \
     float32 arg2 = make_float32(r2);                                           \
@@ -144,7 +144,7 @@ uint32_t helper_tricore_f##op(CPUTriCoreState *env, uint32_t r1, uint32_t r2)  \
 FADD_SUB(add)
 FADD_SUB(sub)
 
-uint32_t helper_tricore_fmul(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+uint32_t HELPER(tricore_fmul)(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 {
     uint32_t flags;
     float32 arg1 = make_float32(r1);
@@ -203,7 +203,7 @@ static const uint8_t target_qseed_significand_table[128] = {
     14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2
 };
 
-uint32_t helper_qseed(CPUTriCoreState *env, uint32_t r1)
+uint32_t HELPER(qseed)(CPUTriCoreState *env, uint32_t r1)
 {
     uint32_t arg1, S, E, M, E_minus_one, m_idx;
     uint32_t new_E, new_M, new_S, result;
@@ -251,7 +251,7 @@ uint32_t helper_qseed(CPUTriCoreState *env, uint32_t r1)
     return (uint32_t) result;
 }
 
-uint32_t helper_tricore_fdiv(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+uint32_t HELPER(tricore_fdiv)(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 {
     uint32_t flags;
     float32 arg1 = make_float32(r1);
@@ -277,7 +277,7 @@ uint32_t helper_tricore_fdiv(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
     return (uint32_t)f_result;
 }
 
-uint32_t helper_fmadd(CPUTriCoreState *env, uint32_t r1,
+uint32_t HELPER(fmadd)(CPUTriCoreState *env, uint32_t r1,
                       uint32_t r2, uint32_t r3)
 {
     uint32_t flags;
@@ -303,7 +303,7 @@ uint32_t helper_fmadd(CPUTriCoreState *env, uint32_t r1,
     return (uint32_t)f_result;
 }
 
-uint32_t helper_fmsub(CPUTriCoreState *env, uint32_t r1,
+uint32_t HELPER(fmsub)(CPUTriCoreState *env, uint32_t r1,
                       uint32_t r2, uint32_t r3)
 {
     uint32_t flags;
@@ -331,7 +331,7 @@ uint32_t helper_fmsub(CPUTriCoreState *env, uint32_t r1,
     return (uint32_t)f_result;
 }
 
-uint32_t helper_tricore_fcmp(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
+uint32_t HELPER(tricore_fcmp)(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
 {
     uint32_t result, flags;
     float32 arg1 = make_float32(r1);
@@ -354,7 +354,7 @@ uint32_t helper_tricore_fcmp(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
     return result;
 }
 
-uint32_t helper_tricore_ftoi(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(tricore_ftoi)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
     int32_t result, flags;
@@ -373,7 +373,7 @@ uint32_t helper_tricore_ftoi(CPUTriCoreState *env, uint32_t arg)
     return (uint32_t)result;
 }
 
-uint32_t helper_hptof(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(hptof)(CPUTriCoreState *env, uint32_t arg)
 {
     float16 f_arg = make_float16(arg);
     uint32_t result = 0;
@@ -409,7 +409,7 @@ uint32_t helper_hptof(CPUTriCoreState *env, uint32_t arg)
     return result;
 }
 
-uint32_t helper_ftohp(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(ftohp)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
     uint32_t result = 0;
@@ -447,7 +447,7 @@ uint32_t helper_ftohp(CPUTriCoreState *env, uint32_t arg)
     return result;
 }
 
-uint32_t helper_tricore_itof(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(tricore_itof)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_result;
     uint32_t flags;
@@ -462,7 +462,7 @@ uint32_t helper_tricore_itof(CPUTriCoreState *env, uint32_t arg)
     return (uint32_t)f_result;
 }
 
-uint32_t helper_utof(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(utof)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_result;
     uint32_t flags;
@@ -478,7 +478,7 @@ uint32_t helper_utof(CPUTriCoreState *env, uint32_t arg)
     return (uint32_t)f_result;
 }
 
-uint32_t helper_ftoiz(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(ftoiz)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
     uint32_t result;
@@ -503,7 +503,7 @@ uint32_t helper_ftoiz(CPUTriCoreState *env, uint32_t arg)
     return result;
 }
 
-uint32_t helper_ftou(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(ftou)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
     uint32_t result;
@@ -535,7 +535,7 @@ uint32_t helper_ftou(CPUTriCoreState *env, uint32_t arg)
     return result;
 }
 
-uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
+uint32_t HELPER(ftouz)(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
     uint32_t result;
@@ -567,7 +567,7 @@ uint32_t helper_ftouz(CPUTriCoreState *env, uint32_t arg)
     return result;
 }
 
-void helper_updfl(CPUTriCoreState *env, uint32_t arg)
+void HELPER(updfl)(CPUTriCoreState *env, uint32_t arg)
 {
     env->FPU_FS =  extract32(arg, 7, 1) & extract32(arg, 15, 1);
     env->FPU_FI = (extract32(arg, 6, 1) & extract32(arg, 14, 1)) << 31;

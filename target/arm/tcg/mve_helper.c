@@ -3310,14 +3310,14 @@ DO_VCMP_FP_BOTH(vfcmples, vfcmple_scalars, 4, float32, !DO_GT32)
         mve_advance_vpt(env);                                           \
     }
 
-DO_VCVT_FIXED(vcvt_sh, 2, int16_t, helper_vfp_shtoh)
-DO_VCVT_FIXED(vcvt_uh, 2, uint16_t, helper_vfp_uhtoh)
-DO_VCVT_FIXED(vcvt_hs, 2, int16_t, helper_vfp_toshh_round_to_zero)
-DO_VCVT_FIXED(vcvt_hu, 2, uint16_t, helper_vfp_touhh_round_to_zero)
-DO_VCVT_FIXED(vcvt_sf, 4, int32_t, helper_vfp_sltos)
-DO_VCVT_FIXED(vcvt_uf, 4, uint32_t, helper_vfp_ultos)
-DO_VCVT_FIXED(vcvt_fs, 4, int32_t, helper_vfp_tosls_round_to_zero)
-DO_VCVT_FIXED(vcvt_fu, 4, uint32_t, helper_vfp_touls_round_to_zero)
+DO_VCVT_FIXED(vcvt_sh, 2, int16_t, HELPER(vfp_shtoh))
+DO_VCVT_FIXED(vcvt_uh, 2, uint16_t, HELPER(vfp_uhtoh))
+DO_VCVT_FIXED(vcvt_hs, 2, int16_t, HELPER(vfp_toshh_round_to_zero))
+DO_VCVT_FIXED(vcvt_hu, 2, uint16_t, HELPER(vfp_touhh_round_to_zero))
+DO_VCVT_FIXED(vcvt_sf, 4, int32_t, HELPER(vfp_sltos))
+DO_VCVT_FIXED(vcvt_uf, 4, uint32_t, HELPER(vfp_ultos))
+DO_VCVT_FIXED(vcvt_fs, 4, int32_t, HELPER(vfp_tosls_round_to_zero))
+DO_VCVT_FIXED(vcvt_fu, 4, uint32_t, HELPER(vfp_touls_round_to_zero))
 
 /* VCVT with specified rmode */
 #define DO_VCVT_RMODE(OP, ESIZE, TYPE, FN)                              \
@@ -3351,13 +3351,13 @@ DO_VCVT_FIXED(vcvt_fu, 4, uint32_t, helper_vfp_touls_round_to_zero)
         mve_advance_vpt(env);                                           \
     }
 
-DO_VCVT_RMODE(vcvt_rm_sh, 2, uint16_t, helper_vfp_toshh)
-DO_VCVT_RMODE(vcvt_rm_uh, 2, uint16_t, helper_vfp_touhh)
-DO_VCVT_RMODE(vcvt_rm_ss, 4, uint32_t, helper_vfp_tosls)
-DO_VCVT_RMODE(vcvt_rm_us, 4, uint32_t, helper_vfp_touls)
+DO_VCVT_RMODE(vcvt_rm_sh, 2, uint16_t, HELPER(vfp_toshh))
+DO_VCVT_RMODE(vcvt_rm_uh, 2, uint16_t, HELPER(vfp_touhh))
+DO_VCVT_RMODE(vcvt_rm_ss, 4, uint32_t, HELPER(vfp_tosls))
+DO_VCVT_RMODE(vcvt_rm_us, 4, uint32_t, HELPER(vfp_touls))
 
-#define DO_VRINT_RM_H(M, F, S) helper_rinth(M, S)
-#define DO_VRINT_RM_S(M, F, S) helper_rints(M, S)
+#define DO_VRINT_RM_H(M, F, S) HELPER(rinth)(M, S)
+#define DO_VRINT_RM_S(M, F, S) HELPER(rints)(M, S)
 
 DO_VCVT_RMODE(vrint_rm_h, 2, uint16_t, DO_VRINT_RM_H)
 DO_VCVT_RMODE(vrint_rm_s, 4, uint32_t, DO_VRINT_RM_S)

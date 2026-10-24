@@ -14,52 +14,52 @@
 #define GET_MEMTXATTRS(cas) \
         ((MemTxAttrs){.requester_id = env_cpu(cas)->cpu_index})
 
-uint64_t helper_iocsrrd_b(CPULoongArchState *env, target_ulong r_addr)
+uint64_t HELPER(iocsrrd_b)(CPULoongArchState *env, target_ulong r_addr)
 {
     return address_space_ldub(env->address_space_iocsr, r_addr,
                               GET_MEMTXATTRS(env), NULL);
 }
 
-uint64_t helper_iocsrrd_h(CPULoongArchState *env, target_ulong r_addr)
+uint64_t HELPER(iocsrrd_h)(CPULoongArchState *env, target_ulong r_addr)
 {
     return address_space_lduw_le(env->address_space_iocsr, r_addr,
                                  GET_MEMTXATTRS(env), NULL);
 }
 
-uint64_t helper_iocsrrd_w(CPULoongArchState *env, target_ulong r_addr)
+uint64_t HELPER(iocsrrd_w)(CPULoongArchState *env, target_ulong r_addr)
 {
     return address_space_ldl_le(env->address_space_iocsr, r_addr,
                                 GET_MEMTXATTRS(env), NULL);
 }
 
-uint64_t helper_iocsrrd_d(CPULoongArchState *env, target_ulong r_addr)
+uint64_t HELPER(iocsrrd_d)(CPULoongArchState *env, target_ulong r_addr)
 {
     return address_space_ldq_le(env->address_space_iocsr, r_addr,
                                 GET_MEMTXATTRS(env), NULL);
 }
 
-void helper_iocsrwr_b(CPULoongArchState *env, target_ulong w_addr,
+void HELPER(iocsrwr_b)(CPULoongArchState *env, target_ulong w_addr,
                       target_ulong val)
 {
     address_space_stb(env->address_space_iocsr, w_addr,
                       val, GET_MEMTXATTRS(env), NULL);
 }
 
-void helper_iocsrwr_h(CPULoongArchState *env, target_ulong w_addr,
+void HELPER(iocsrwr_h)(CPULoongArchState *env, target_ulong w_addr,
                       target_ulong val)
 {
     address_space_stw_le(env->address_space_iocsr, w_addr,
                          val, GET_MEMTXATTRS(env), NULL);
 }
 
-void helper_iocsrwr_w(CPULoongArchState *env, target_ulong w_addr,
+void HELPER(iocsrwr_w)(CPULoongArchState *env, target_ulong w_addr,
                       target_ulong val)
 {
     address_space_stl_le(env->address_space_iocsr, w_addr,
                          val, GET_MEMTXATTRS(env), NULL);
 }
 
-void helper_iocsrwr_d(CPULoongArchState *env, target_ulong w_addr,
+void HELPER(iocsrwr_d)(CPULoongArchState *env, target_ulong w_addr,
                       target_ulong val)
 {
     address_space_stq_le(env->address_space_iocsr, w_addr,

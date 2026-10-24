@@ -25,7 +25,7 @@
 #include "helper-tcg.h"
 
 
-void helper_bndck(CPUX86State *env, uint32_t fail)
+void HELPER(bndck)(CPUX86State *env, uint32_t fail)
 {
     if (unlikely(fail)) {
         env->bndcs_regs.sts = 1;
@@ -73,7 +73,7 @@ static uint32_t lookup_bte32(CPUX86State *env, uint32_t base, uintptr_t ra)
     return (extract32(base, 2, 10) << 4) + (bt & ~3);
 }
 
-uint64_t helper_bndldx64(CPUX86State *env, target_ulong base, target_ulong ptr)
+uint64_t HELPER(bndldx64)(CPUX86State *env, target_ulong base, target_ulong ptr)
 {
     uintptr_t ra = GETPC();
     uint64_t bte, lb, ub, pt;
@@ -90,7 +90,7 @@ uint64_t helper_bndldx64(CPUX86State *env, target_ulong base, target_ulong ptr)
     return lb;
 }
 
-uint64_t helper_bndldx32(CPUX86State *env, target_ulong base, target_ulong ptr)
+uint64_t HELPER(bndldx32)(CPUX86State *env, target_ulong base, target_ulong ptr)
 {
     uintptr_t ra = GETPC();
     uint32_t bte, lb, ub, pt;
@@ -106,7 +106,7 @@ uint64_t helper_bndldx32(CPUX86State *env, target_ulong base, target_ulong ptr)
     return ((uint64_t)ub << 32) | lb;
 }
 
-void helper_bndstx64(CPUX86State *env, target_ulong base, target_ulong ptr,
+void HELPER(bndstx64)(CPUX86State *env, target_ulong base, target_ulong ptr,
                      uint64_t lb, uint64_t ub)
 {
     uintptr_t ra = GETPC();
@@ -118,7 +118,7 @@ void helper_bndstx64(CPUX86State *env, target_ulong base, target_ulong ptr,
     cpu_stq_le_data_ra(env, bte + 16, ptr, ra);
 }
 
-void helper_bndstx32(CPUX86State *env, target_ulong base, target_ulong ptr,
+void HELPER(bndstx32)(CPUX86State *env, target_ulong base, target_ulong ptr,
                      uint64_t lb, uint64_t ub)
 {
     uintptr_t ra = GETPC();
@@ -130,7 +130,7 @@ void helper_bndstx32(CPUX86State *env, target_ulong base, target_ulong ptr,
     cpu_stl_le_data_ra(env, bte + 8, ptr, ra);
 }
 
-void helper_bnd_jmp(CPUX86State *env)
+void HELPER(bnd_jmp)(CPUX86State *env)
 {
     if (!(env->hflags2 & HF2_MPX_PR_MASK)) {
         memset(env->bnd_regs, 0, sizeof(env->bnd_regs));

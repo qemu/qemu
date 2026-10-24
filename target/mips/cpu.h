@@ -1347,9 +1347,9 @@ enum {
     EXCP_TLBXI,
     EXCP_TLBRI,
     EXCP_SEMIHOST,
-
-    EXCP_LAST = EXCP_SEMIHOST,
 };
+
+const char *mips_exception_name(int excp);
 
 /*
  * This is an internally generated WAKE request line.

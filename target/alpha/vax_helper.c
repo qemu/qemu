@@ -82,7 +82,7 @@ static float32 f_to_float32(CPUAlphaState *env, uintptr_t retaddr, uint64_t a)
     return r.f;
 }
 
-uint32_t helper_f_to_memory(uint64_t a)
+uint32_t HELPER(f_to_memory)(uint64_t a)
 {
     uint32_t r;
     r =  (a & 0x00001fffe0000000ull) >> 13;
@@ -91,7 +91,7 @@ uint32_t helper_f_to_memory(uint64_t a)
     return r;
 }
 
-uint64_t helper_memory_to_f(uint32_t a)
+uint64_t HELPER(memory_to_f)(uint32_t a)
 {
     uint64_t r;
     r =  ((uint64_t)(a & 0x0000c000)) << 48;
@@ -106,7 +106,7 @@ uint64_t helper_memory_to_f(uint32_t a)
 /* ??? Emulating VAX arithmetic with IEEE arithmetic is wrong.  We should
    either implement VAX arithmetic properly or just signal invalid opcode.  */
 
-uint64_t helper_addf(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(addf)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float32 fa, fb, fr;
 
@@ -116,7 +116,7 @@ uint64_t helper_addf(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float32_to_f(fr);
 }
 
-uint64_t helper_subf(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(subf)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float32 fa, fb, fr;
 
@@ -126,7 +126,7 @@ uint64_t helper_subf(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float32_to_f(fr);
 }
 
-uint64_t helper_mulf(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(mulf)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float32 fa, fb, fr;
 
@@ -136,7 +136,7 @@ uint64_t helper_mulf(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float32_to_f(fr);
 }
 
-uint64_t helper_divf(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(divf)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float32 fa, fb, fr;
 
@@ -146,7 +146,7 @@ uint64_t helper_divf(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float32_to_f(fr);
 }
 
-uint64_t helper_sqrtf(CPUAlphaState *env, uint64_t t)
+uint64_t HELPER(sqrtf)(CPUAlphaState *env, uint64_t t)
 {
     float32 ft, fr;
 
@@ -213,7 +213,7 @@ static float64 g_to_float64(CPUAlphaState *env, uintptr_t retaddr, uint64_t a)
     return r.d;
 }
 
-uint64_t helper_g_to_memory(uint64_t a)
+uint64_t HELPER(g_to_memory)(uint64_t a)
 {
     uint64_t r;
     r =  (a & 0x000000000000ffffull) << 48;
@@ -223,7 +223,7 @@ uint64_t helper_g_to_memory(uint64_t a)
     return r;
 }
 
-uint64_t helper_memory_to_g(uint64_t a)
+uint64_t HELPER(memory_to_g)(uint64_t a)
 {
     uint64_t r;
     r =  (a & 0x000000000000ffffull) << 48;
@@ -233,7 +233,7 @@ uint64_t helper_memory_to_g(uint64_t a)
     return r;
 }
 
-uint64_t helper_addg(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(addg)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb, fr;
 
@@ -243,7 +243,7 @@ uint64_t helper_addg(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float64_to_g(fr);
 }
 
-uint64_t helper_subg(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(subg)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb, fr;
 
@@ -253,7 +253,7 @@ uint64_t helper_subg(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float64_to_g(fr);
 }
 
-uint64_t helper_mulg(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(mulg)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb, fr;
 
@@ -263,7 +263,7 @@ uint64_t helper_mulg(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float64_to_g(fr);
 }
 
-uint64_t helper_divg(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(divg)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb, fr;
 
@@ -273,7 +273,7 @@ uint64_t helper_divg(CPUAlphaState *env, uint64_t a, uint64_t b)
     return float64_to_g(fr);
 }
 
-uint64_t helper_sqrtg(CPUAlphaState *env, uint64_t a)
+uint64_t HELPER(sqrtg)(CPUAlphaState *env, uint64_t a)
 {
     float64 fa, fr;
 
@@ -282,7 +282,7 @@ uint64_t helper_sqrtg(CPUAlphaState *env, uint64_t a)
     return float64_to_g(fr);
 }
 
-uint64_t helper_cmpgeq(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(cmpgeq)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb;
 
@@ -296,7 +296,7 @@ uint64_t helper_cmpgeq(CPUAlphaState *env, uint64_t a, uint64_t b)
     }
 }
 
-uint64_t helper_cmpgle(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(cmpgle)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb;
 
@@ -310,7 +310,7 @@ uint64_t helper_cmpgle(CPUAlphaState *env, uint64_t a, uint64_t b)
     }
 }
 
-uint64_t helper_cmpglt(CPUAlphaState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(cmpglt)(CPUAlphaState *env, uint64_t a, uint64_t b)
 {
     float64 fa, fb;
 
@@ -324,13 +324,13 @@ uint64_t helper_cmpglt(CPUAlphaState *env, uint64_t a, uint64_t b)
     }
 }
 
-uint64_t helper_cvtqf(CPUAlphaState *env, uint64_t a)
+uint64_t HELPER(cvtqf)(CPUAlphaState *env, uint64_t a)
 {
     float32 fr = int64_to_float32(a, &FP_STATUS);
     return float32_to_f(fr);
 }
 
-uint64_t helper_cvtgf(CPUAlphaState *env, uint64_t a)
+uint64_t HELPER(cvtgf)(CPUAlphaState *env, uint64_t a)
 {
     float64 fa;
     float32 fr;
@@ -340,13 +340,13 @@ uint64_t helper_cvtgf(CPUAlphaState *env, uint64_t a)
     return float32_to_f(fr);
 }
 
-uint64_t helper_cvtgq(CPUAlphaState *env, uint64_t a)
+uint64_t HELPER(cvtgq)(CPUAlphaState *env, uint64_t a)
 {
     float64 fa = g_to_float64(env, GETPC(), a);
     return float64_to_int64_round_to_zero(fa, &FP_STATUS);
 }
 
-uint64_t helper_cvtqg(CPUAlphaState *env, uint64_t a)
+uint64_t HELPER(cvtqg)(CPUAlphaState *env, uint64_t a)
 {
     float64 fr;
     fr = int64_to_float64(a, &FP_STATUS);

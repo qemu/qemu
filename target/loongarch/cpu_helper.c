@@ -327,7 +327,8 @@ TLBRet get_physical_address(CPULoongArchState *env, MMUContext *context,
     return loongarch_map_address(env, context, access_type, mmu_idx, is_debug);
 }
 
-hwaddr loongarch_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
+bool loongarch_cpu_translate_for_debug(CPUState *cs, vaddr addr,
+                                       TranslateForDebugResult *result)
 {
     CPULoongArchState *env = cpu_env(cs);
     MMUContext context;
@@ -335,9 +336,14 @@ hwaddr loongarch_cpu_get_phys_addr_debug(CPUState *cs, vaddr addr)
     context.addr = addr;
     if (get_physical_address(env, &context, MMU_DATA_LOAD,
                              cpu_mmu_index(cs, false), 1) != TLBRET_MATCH) {
-        return -1;
+        return false;
     }
-    return context.physical;
+    *result = (TranslateForDebugResult) {
+        .physaddr = context.physical,
+        .attrs.debug = 1,
+        .lg_page_size = TARGET_PAGE_BITS,
+    };
+    return true;
 }
 
 uint64_t loongarch_palen_mask(CPULoongArchState *env)

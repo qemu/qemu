@@ -30,7 +30,7 @@
 
 /* division, flags are undefined */
 
-void helper_divb_AL(CPUX86State *env, target_ulong t0)
+void HELPER(divb_AL)(CPUX86State *env, target_ulong t0)
 {
     unsigned int num, den, q, r;
 
@@ -48,7 +48,7 @@ void helper_divb_AL(CPUX86State *env, target_ulong t0)
     env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | (r << 8) | q;
 }
 
-void helper_idivb_AL(CPUX86State *env, target_ulong t0)
+void HELPER(idivb_AL)(CPUX86State *env, target_ulong t0)
 {
     int num, den, q, r;
 
@@ -66,7 +66,7 @@ void helper_idivb_AL(CPUX86State *env, target_ulong t0)
     env->regs[R_EAX] = (env->regs[R_EAX] & ~0xffff) | (r << 8) | q;
 }
 
-void helper_divw_AX(CPUX86State *env, target_ulong t0)
+void HELPER(divw_AX)(CPUX86State *env, target_ulong t0)
 {
     unsigned int num, den, q, r;
 
@@ -85,7 +85,7 @@ void helper_divw_AX(CPUX86State *env, target_ulong t0)
     env->regs[R_EDX] = (env->regs[R_EDX] & ~0xffff) | r;
 }
 
-void helper_idivw_AX(CPUX86State *env, target_ulong t0)
+void HELPER(idivw_AX)(CPUX86State *env, target_ulong t0)
 {
     int num, den, q, r;
 
@@ -104,7 +104,7 @@ void helper_idivw_AX(CPUX86State *env, target_ulong t0)
     env->regs[R_EDX] = (env->regs[R_EDX] & ~0xffff) | r;
 }
 
-void helper_divl_EAX(CPUX86State *env, target_ulong t0)
+void HELPER(divl_EAX)(CPUX86State *env, target_ulong t0)
 {
     unsigned int den, r;
     uint64_t num, q;
@@ -123,7 +123,7 @@ void helper_divl_EAX(CPUX86State *env, target_ulong t0)
     env->regs[R_EDX] = (uint32_t)r;
 }
 
-void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
+void HELPER(idivl_EAX)(CPUX86State *env, target_ulong t0)
 {
     int den, r;
     int64_t num, q;
@@ -144,7 +144,7 @@ void helper_idivl_EAX(CPUX86State *env, target_ulong t0)
 
 /* bcd */
 
-target_ulong helper_aam(target_ulong al, target_ulong base)
+target_ulong HELPER(aam)(target_ulong al, target_ulong base)
 {
     int ah;
 
@@ -154,7 +154,7 @@ target_ulong helper_aam(target_ulong al, target_ulong base)
     return al | (ah << 8);
 }
 
-target_ulong helper_aad(target_ulong ax, target_ulong base)
+target_ulong HELPER(aad)(target_ulong ax, target_ulong base)
 {
     int al, ah;
 
@@ -164,7 +164,7 @@ target_ulong helper_aad(target_ulong ax, target_ulong base)
     return al;
 }
 
-void helper_aaa(CPUX86State *env)
+void HELPER(aaa)(CPUX86State *env)
 {
     int icarry;
     int al, ah, af;
@@ -189,7 +189,7 @@ void helper_aaa(CPUX86State *env)
     CC_OP = CC_OP_EFLAGS;
 }
 
-void helper_aas(CPUX86State *env)
+void HELPER(aas)(CPUX86State *env)
 {
     int icarry;
     int al, ah, af;
@@ -214,7 +214,7 @@ void helper_aas(CPUX86State *env)
     CC_OP = CC_OP_EFLAGS;
 }
 
-void helper_daa(CPUX86State *env)
+void HELPER(daa)(CPUX86State *env)
 {
     int old_al, al, af, cf;
     int eflags;
@@ -242,7 +242,7 @@ void helper_daa(CPUX86State *env)
     CC_OP = CC_OP_EFLAGS;
 }
 
-void helper_das(CPUX86State *env)
+void HELPER(das)(CPUX86State *env)
 {
     int al, al1, af, cf;
     int eflags;
@@ -364,7 +364,7 @@ static int idiv64(uint64_t *plow, uint64_t *phigh, int64_t b)
     return 0;
 }
 
-void helper_divq_EAX(CPUX86State *env, target_ulong t0)
+void HELPER(divq_EAX)(CPUX86State *env, target_ulong t0)
 {
     uint64_t r0, r1;
 
@@ -380,7 +380,7 @@ void helper_divq_EAX(CPUX86State *env, target_ulong t0)
     env->regs[R_EDX] = r1;
 }
 
-void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
+void HELPER(idivq_EAX)(CPUX86State *env, target_ulong t0)
 {
     uint64_t r0, r1;
 
@@ -405,7 +405,7 @@ void helper_idivq_EAX(CPUX86State *env, target_ulong t0)
 # define clztl  clz64
 #endif
 
-target_ulong helper_pdep(target_ulong src, target_ulong mask)
+target_ulong HELPER(pdep)(target_ulong src, target_ulong mask)
 {
     target_ulong dest = 0;
     int i, o;
@@ -418,7 +418,7 @@ target_ulong helper_pdep(target_ulong src, target_ulong mask)
     return dest;
 }
 
-target_ulong helper_pext(target_ulong src, target_ulong mask)
+target_ulong HELPER(pext)(target_ulong src, target_ulong mask)
 {
     target_ulong dest = 0;
     int i, o;
@@ -434,7 +434,7 @@ target_ulong helper_pext(target_ulong src, target_ulong mask)
 /* Test that BIT is enabled in CR4.  If not, raise an illegal opcode
    exception.  This reduces the requirements for rare CR4 bits being
    mapped into HFLAGS.  */
-void helper_cr4_testbit(CPUX86State *env, uint32_t bit)
+void HELPER(cr4_testbit)(CPUX86State *env, uint32_t bit)
 {
     if (unlikely((env->cr[4] & bit) == 0)) {
         raise_exception_ra(env, EXCP06_ILLOP, GETPC());

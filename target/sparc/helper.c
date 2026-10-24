@@ -33,7 +33,7 @@ void cpu_raise_exception_ra(CPUSPARCState *env, int tt, uintptr_t ra)
     cpu_loop_exit_restore(cs, ra);
 }
 
-void helper_raise_exception(CPUSPARCState *env, int tt)
+void HELPER(raise_exception)(CPUSPARCState *env, int tt)
 {
     CPUState *cs = env_cpu(env);
 
@@ -41,7 +41,7 @@ void helper_raise_exception(CPUSPARCState *env, int tt)
     cpu_loop_exit(cs);
 }
 
-void helper_debug(CPUSPARCState *env)
+void HELPER(debug)(CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -50,14 +50,14 @@ void helper_debug(CPUSPARCState *env)
 }
 
 #ifdef TARGET_SPARC64
-void helper_tick_set_count(void *opaque, uint64_t count)
+void HELPER(tick_set_count)(void *opaque, uint64_t count)
 {
 #if !defined(CONFIG_USER_ONLY)
     cpu_tick_set_count(opaque, count);
 #endif
 }
 
-uint64_t helper_tick_get_count(CPUSPARCState *env, void *opaque, int mem_idx)
+uint64_t HELPER(tick_get_count)(CPUSPARCState *env, void *opaque, int mem_idx)
 {
 #if !defined(CONFIG_USER_ONLY)
     CPUTimer *timer = opaque;
@@ -74,7 +74,7 @@ uint64_t helper_tick_get_count(CPUSPARCState *env, void *opaque, int mem_idx)
 #endif
 }
 
-void helper_tick_set_limit(void *opaque, uint64_t limit)
+void HELPER(tick_set_limit)(void *opaque, uint64_t limit)
 {
 #if !defined(CONFIG_USER_ONLY)
     cpu_tick_set_limit(opaque, limit);
@@ -82,7 +82,7 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 }
 #endif
 
-uint64_t helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
+uint64_t HELPER(udiv)(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     uint64_t a64 = (uint32_t)a | ((uint64_t)env->y << 32);
     uint32_t b32 = b;
@@ -100,7 +100,7 @@ uint64_t helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
     return r;
 }
 
-uint64_t helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)
+uint64_t HELPER(sdiv)(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     int64_t a64 = (uint32_t)a | ((uint64_t)env->y << 32);
     int32_t b32 = b;
@@ -130,7 +130,7 @@ uint64_t helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)
     return (uint32_t)r;
 }
 
-target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
+target_ulong HELPER(taddcctv)(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
     target_ulong dst, v;
@@ -166,7 +166,7 @@ target_ulong helper_taddcctv(CPUSPARCState *env, target_ulong src1,
     cpu_raise_exception_ra(env, TT_TOVF, GETPC());
 }
 
-target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
+target_ulong HELPER(tsubcctv)(CPUSPARCState *env, target_ulong src1,
                              target_ulong src2)
 {
     target_ulong dst, v;
@@ -203,7 +203,7 @@ target_ulong helper_tsubcctv(CPUSPARCState *env, target_ulong src1,
 }
 
 #ifndef TARGET_SPARC64
-void helper_power_down(CPUSPARCState *env)
+void HELPER(power_down)(CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -214,7 +214,7 @@ void helper_power_down(CPUSPARCState *env)
     cpu_loop_exit(cs);
 }
 
-target_ulong helper_rdasr17(CPUSPARCState *env)
+target_ulong HELPER(rdasr17)(CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
     target_ulong val;
