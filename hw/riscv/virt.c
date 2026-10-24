@@ -72,6 +72,11 @@ static bool virt_use_kvm_aia_aplic_imsic(RISCVVirtAIAType aia_type)
     return riscv_is_kvm_aia_aplic_imsic(msimode);
 }
 
+static bool virt_is_acpi_enabled(RISCVVirtState *s)
+{
+    return s->acpi != ON_OFF_AUTO_OFF;
+}
+
 static bool virt_use_emulated_aplic(RISCVVirtAIAType aia_type)
 {
     bool msimode = aia_type == VIRT_AIA_TYPE_APLIC_IMSIC;
@@ -1065,11 +1070,6 @@ static void virt_set_iommu_sys(Object *obj, Visitor *v, const char *name,
     RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
 
     visit_type_OnOffAuto(v, name, &s->iommu_sys, errp);
-}
-
-bool virt_is_acpi_enabled(RISCVVirtState *s)
-{
-    return s->acpi != ON_OFF_AUTO_OFF;
 }
 
 static void virt_get_acpi(Object *obj, Visitor *v, const char *name,
