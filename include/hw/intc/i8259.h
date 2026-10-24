@@ -1,11 +1,13 @@
 #ifndef HW_I8259_H
 #define HW_I8259_H
 
+#include "hw/intc/intc.h"
+
 /* i8259.c */
 
-typedef struct PICCommonState PICCommonState;
+typedef struct I8259PICState I8259PICState;
 
-extern PICCommonState *isa_pic;
+extern I8259PICState *isa_pic;
 
 /*
  * i8259_init()
@@ -16,7 +18,8 @@ extern PICCommonState *isa_pic;
  */
 qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in);
 qemu_irq *kvm_i8259_init(ISABus *bus);
-int pic_get_output(PICCommonState *s);
-int pic_read_irq(PICCommonState *s);
+int pic_get_output(I8259PICState *s);
+int pic_read_irq(I8259PICState *s);
+void i8259_pic_print_info(InterruptStatsProvider *obj, GString *buf);
 
 #endif

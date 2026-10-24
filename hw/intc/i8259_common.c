@@ -30,125 +30,109 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 
-static int irq_level[16];
-static uint64_t irq_count[16];
 
-void pic_reset_common(PICCommonState *s)
+void i8259_common_reset(I8259CommonState *cs)
 {
-    s->last_irr = 0;
-    s->irr &= s->elcr;
-    s->imr = 0;
-    s->isr = 0;
-    s->priority_add = 0;
-    s->irq_base = 0;
-    s->read_reg_select = 0;
-    s->poll = 0;
-    s->special_mask = 0;
-    s->init_state = 0;
-    s->auto_eoi = 0;
-    s->rotate_on_auto_eoi = 0;
-    s->special_fully_nested_mode = 0;
-    s->init4 = 0;
-    s->single_mode = 0;
+    cs->last_irr = 0;
+    cs->irr &= cs->elcr;
+    cs->imr = 0;
+    cs->isr = 0;
+    cs->priority_add = 0;
+    cs->irq_base = 0;
+    cs->read_reg_select = 0;
+    cs->poll = 0;
+    cs->special_mask = 0;
+    cs->init_state = 0;
+    cs->auto_eoi = 0;
+    cs->rotate_on_auto_eoi = 0;
+    cs->special_fully_nested_mode = 0;
+    cs->init4 = 0;
+    cs->single_mode = 0;
     /* Note: ELCR and LTIM are not reset */
 }
 
-static int pic_dispatch_pre_save(void *opaque)
+static int i8259_common_dispatch_pre_save(void *opaque)
 {
-    PICCommonState *s = opaque;
-    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
+    I8259CommonState *cs = opaque;
+    I8259CommonClass *info = I8259_COMMON_GET_CLASS(cs);
 
     if (info->pre_save) {
-        info->pre_save(s);
+        info->pre_save(cs);
     }
 
     return 0;
 }
 
-static int pic_dispatch_post_load(void *opaque, int version_id)
+static int i8259_common_dispatch_post_load(void *opaque, int version_id)
 {
-    PICCommonState *s = opaque;
-    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
+    I8259CommonState *cs = opaque;
+    I8259CommonClass *info = I8259_COMMON_GET_CLASS(cs);
 
     if (info->post_load) {
-        info->post_load(s);
+        info->post_load(cs);
     }
     return 0;
 }
 
-static void pic_common_realize(DeviceState *dev, Error **errp)
+static void i8259_common_realize(DeviceState *dev, Error **errp)
 {
-    PICCommonState *s = PIC_COMMON(dev);
+    I8259CommonState *cs = I8259_COMMON(dev);
     ISADevice *isa = ISA_DEVICE(dev);
 
-    isa_register_ioport(isa, &s->base_io, s->iobase);
-    if (s->elcr_addr != -1) {
-        isa_register_ioport(isa, &s->elcr_io, s->elcr_addr);
+    isa_register_ioport(isa, &cs->base_io, cs->iobase);
+    if (cs->elcr_addr != -1) {
+        isa_register_ioport(isa, &cs->elcr_io, cs->elcr_addr);
     }
 
-    qdev_set_legacy_instance_id(dev, s->iobase, 1);
+    qdev_set_legacy_instance_id(dev, cs->iobase, 1);
 }
 
-ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master)
+void i8259_stat_update_irq(uint64_t *irq_counts, int *irq_levels,
+                           int irq, int level)
 {
-    DeviceState *dev;
-    ISADevice *isadev;
-
-    isadev = isa_new(name);
-    dev = DEVICE(isadev);
-    qdev_prop_set_uint32(dev, "iobase", master ? 0x20 : 0xa0);
-    qdev_prop_set_uint32(dev, "elcr_addr", master ? 0x4d0 : 0x4d1);
-    qdev_prop_set_uint8(dev, "elcr_mask", master ? 0xf8 : 0xde);
-    qdev_prop_set_bit(dev, "master", master);
-    isa_realize_and_unref(isadev, bus, &error_fatal);
-
-    return isadev;
-}
-
-void pic_stat_update_irq(int irq, int level)
-{
-    if (level != irq_level[irq]) {
-        irq_level[irq] = level;
+    if (level != irq_levels[irq]) {
+        irq_levels[irq] = level;
         if (level == 1) {
-            irq_count[irq]++;
+            irq_counts[irq]++;
         }
     }
 }
 
-static bool pic_get_statistics(InterruptStatsProvider *obj,
-                               uint64_t **irq_counts, unsigned int *nb_irqs)
+void i8259_pic_print_info(InterruptStatsProvider *obj, GString *buf)
 {
-    PICCommonState *s = PIC_COMMON(obj);
+    /* No information for i8259-based PICs */
+    return;
+}
 
-    if (s->master) {
-        *irq_counts = irq_count;
-        *nb_irqs = ARRAY_SIZE(irq_count);
-    } else {
-        *irq_counts = NULL;
-        *nb_irqs = 0;
-    }
+static bool i8259_common_get_statistics(InterruptStatsProvider *obj,
+                                        uint64_t **irq_counts,
+                                        unsigned int *nb_irqs)
+{
+    /* No statistics for individual i8259s */
+    *nb_irqs = 0;
 
     return true;
 }
 
-static void pic_print_info(InterruptStatsProvider *obj, GString *buf)
+static void i8259_common_print_info(InterruptStatsProvider *obj, GString *buf)
 {
-    PICCommonState *s = PIC_COMMON(obj);
+    I8259CommonState *cs = I8259_COMMON(obj);
 
-    pic_dispatch_pre_save(s);
-    g_string_append_printf(buf, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
-                           "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
-                           s->master ? 0 : 1, s->irr, s->imr, s->isr,
-                           s->priority_add,
-                           s->irq_base, s->read_reg_select, s->elcr,
-                           s->special_fully_nested_mode);
+    i8259_common_dispatch_pre_save(cs);
+    g_string_append_printf(buf,
+                           "pic%d: irr=0x%02x imr=0x%02x isr=0x%02x hprio=%d "
+                           "irq_base=0x%02x rr_sel=%d elcr=0x%02x fnm=%d\n",
+                           cs->master ? 0 : 1, cs->irr, cs->imr, cs->isr,
+                           cs->priority_add,
+                           cs->irq_base, cs->read_reg_select, cs->elcr,
+                           cs->special_fully_nested_mode);
 }
 
 static bool ltim_state_needed(void *opaque)
 {
-    PICCommonState *s = PIC_COMMON(opaque);
+    I8259CommonState *cs = I8259_COMMON(opaque);
 
-    return !!s->ltim;
+    return !!cs->ltim;
 }
 
 static const VMStateDescription vmstate_pic_ltim = {
@@ -157,34 +141,34 @@ static const VMStateDescription vmstate_pic_ltim = {
     .minimum_version_id = 1,
     .needed = ltim_state_needed,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(ltim, PICCommonState),
+        VMSTATE_UINT8(ltim, I8259CommonState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static const VMStateDescription vmstate_pic_common = {
+static const VMStateDescription vmstate_i8259_common = {
     .name = "i8259",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = pic_dispatch_pre_save,
-    .post_load = pic_dispatch_post_load,
+    .pre_save = i8259_common_dispatch_pre_save,
+    .post_load = i8259_common_dispatch_post_load,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(last_irr, PICCommonState),
-        VMSTATE_UINT8(irr, PICCommonState),
-        VMSTATE_UINT8(imr, PICCommonState),
-        VMSTATE_UINT8(isr, PICCommonState),
-        VMSTATE_UINT8(priority_add, PICCommonState),
-        VMSTATE_UINT8(irq_base, PICCommonState),
-        VMSTATE_UINT8(read_reg_select, PICCommonState),
-        VMSTATE_UINT8(poll, PICCommonState),
-        VMSTATE_UINT8(special_mask, PICCommonState),
-        VMSTATE_UINT8(init_state, PICCommonState),
-        VMSTATE_UINT8(auto_eoi, PICCommonState),
-        VMSTATE_UINT8(rotate_on_auto_eoi, PICCommonState),
-        VMSTATE_UINT8(special_fully_nested_mode, PICCommonState),
-        VMSTATE_UINT8(init4, PICCommonState),
-        VMSTATE_UINT8(single_mode, PICCommonState),
-        VMSTATE_UINT8(elcr, PICCommonState),
+        VMSTATE_UINT8(last_irr, I8259CommonState),
+        VMSTATE_UINT8(irr, I8259CommonState),
+        VMSTATE_UINT8(imr, I8259CommonState),
+        VMSTATE_UINT8(isr, I8259CommonState),
+        VMSTATE_UINT8(priority_add, I8259CommonState),
+        VMSTATE_UINT8(irq_base, I8259CommonState),
+        VMSTATE_UINT8(read_reg_select, I8259CommonState),
+        VMSTATE_UINT8(poll, I8259CommonState),
+        VMSTATE_UINT8(special_mask, I8259CommonState),
+        VMSTATE_UINT8(init_state, I8259CommonState),
+        VMSTATE_UINT8(auto_eoi, I8259CommonState),
+        VMSTATE_UINT8(rotate_on_auto_eoi, I8259CommonState),
+        VMSTATE_UINT8(special_fully_nested_mode, I8259CommonState),
+        VMSTATE_UINT8(init4, I8259CommonState),
+        VMSTATE_UINT8(single_mode, I8259CommonState),
+        VMSTATE_UINT8(elcr, I8259CommonState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
@@ -193,21 +177,21 @@ static const VMStateDescription vmstate_pic_common = {
     }
 };
 
-static const Property pic_properties_common[] = {
-    DEFINE_PROP_UINT32("iobase", PICCommonState, iobase,  -1),
-    DEFINE_PROP_UINT32("elcr_addr", PICCommonState, elcr_addr,  -1),
-    DEFINE_PROP_UINT8("elcr_mask", PICCommonState, elcr_mask,  -1),
-    DEFINE_PROP_BIT("master", PICCommonState, master,  0, false),
+static const Property i8259_common_properties[] = {
+    DEFINE_PROP_UINT32("iobase", I8259CommonState, iobase,  -1),
+    DEFINE_PROP_UINT32("elcr_addr", I8259CommonState, elcr_addr,  -1),
+    DEFINE_PROP_UINT8("elcr_mask", I8259CommonState, elcr_mask,  -1),
+    DEFINE_PROP_BIT("master", I8259CommonState, master,  0, false),
 };
 
-static void pic_common_class_init(ObjectClass *klass, const void *data)
+static void i8259_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
-    dc->vmsd = &vmstate_pic_common;
-    device_class_set_props(dc, pic_properties_common);
-    dc->realize = pic_common_realize;
+    dc->vmsd = &vmstate_i8259_common;
+    device_class_set_props(dc, i8259_common_properties);
+    dc->realize = i8259_common_realize;
     /*
      * Reason: unlike ordinary ISA devices, the PICs need additional
      * wiring: its IRQ input lines are set up by board code, and the
@@ -215,26 +199,23 @@ static void pic_common_class_init(ObjectClass *klass, const void *data)
      * code.
      */
     dc->user_creatable = false;
-    ic->get_statistics = pic_get_statistics;
-    ic->print_info = pic_print_info;
+    ic->get_statistics = i8259_common_get_statistics;
+    ic->print_info = i8259_common_print_info;
 }
 
-static const TypeInfo pic_common_type = {
-    .name = TYPE_PIC_COMMON,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(PICCommonState),
-    .class_size = sizeof(PICCommonClass),
-    .class_init = pic_common_class_init,
-    .abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
+static const TypeInfo i8259_common_type_infos[] = {
+    {
+        .name = TYPE_I8259_COMMON,
+        .parent = TYPE_ISA_DEVICE,
+        .instance_size = sizeof(I8259CommonState),
+        .class_size = sizeof(I8259CommonClass),
+        .class_init = i8259_common_class_init,
+        .abstract = true,
+        .interfaces = (const InterfaceInfo[]) {
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { }
+        },
     },
 };
 
-static void pic_common_register_types(void)
-{
-    type_register_static(&pic_common_type);
-}
-
-type_init(pic_common_register_types)
+DEFINE_TYPES(i8259_common_type_infos)

@@ -16,31 +16,50 @@
 #include "qemu/module.h"
 #include "hw/intc/kvm_irqcount.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "system/kvm.h"
+#include "qapi/error.h"
 #include "qom/object.h"
 
 #define TYPE_KVM_I8259 "kvm-i8259"
-typedef struct KVMPICClass KVMPICClass;
-DECLARE_CLASS_CHECKERS(KVMPICClass, KVM_PIC,
-                       TYPE_KVM_I8259)
+OBJECT_DECLARE_TYPE(KVMI8259State, KVMI8259Class, KVM_I8259)
+
+struct KVMI8259State {
+    I8259CommonState parent_obj;
+};
 
 /**
- * KVMPICClass:
+ * KVMI8259Class:
  * @parent_realize: The parent's realizefn.
  */
-struct KVMPICClass {
-    PICCommonClass parent_class;
+struct KVMI8259Class {
+    I8259CommonClass parent_class;
 
     DeviceRealize parent_realize;
 };
 
-static void kvm_pic_get(PICCommonState *s)
+#define TYPE_KVM_I8259_PIC "kvm-i8259-pic"
+
+struct KVMI8259PICState {
+    DeviceState parent_obj;
+
+    ISABus *isabus;
+    KVMI8259State i8259[2];
+
+    int irq_level[ISA_NUM_IRQS];
+    uint64_t irq_count[ISA_NUM_IRQS];
+};
+
+OBJECT_DECLARE_SIMPLE_TYPE(KVMI8259PICState, KVM_I8259_PIC)
+
+
+static void kvm_i8259_get(I8259CommonState *cs)
 {
     struct kvm_irqchip chip;
     struct kvm_pic_state *kpic;
     int ret;
 
-    chip.chip_id = s->master ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE;
+    chip.chip_id = cs->master ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE;
     ret = kvm_vm_ioctl(kvm_state, KVM_GET_IRQCHIP, &chip);
     if (ret < 0) {
         fprintf(stderr, "KVM_GET_IRQCHIP failed: %s\n", strerror(-ret));
@@ -49,50 +68,50 @@ static void kvm_pic_get(PICCommonState *s)
 
     kpic = &chip.chip.pic;
 
-    s->last_irr = kpic->last_irr;
-    s->irr = kpic->irr;
-    s->imr = kpic->imr;
-    s->isr = kpic->isr;
-    s->priority_add = kpic->priority_add;
-    s->irq_base = kpic->irq_base;
-    s->read_reg_select = kpic->read_reg_select;
-    s->poll = kpic->poll;
-    s->special_mask = kpic->special_mask;
-    s->init_state = kpic->init_state;
-    s->auto_eoi = kpic->auto_eoi;
-    s->rotate_on_auto_eoi = kpic->rotate_on_auto_eoi;
-    s->special_fully_nested_mode = kpic->special_fully_nested_mode;
-    s->init4 = kpic->init4;
-    s->elcr = kpic->elcr;
-    s->elcr_mask = kpic->elcr_mask;
+    cs->last_irr = kpic->last_irr;
+    cs->irr = kpic->irr;
+    cs->imr = kpic->imr;
+    cs->isr = kpic->isr;
+    cs->priority_add = kpic->priority_add;
+    cs->irq_base = kpic->irq_base;
+    cs->read_reg_select = kpic->read_reg_select;
+    cs->poll = kpic->poll;
+    cs->special_mask = kpic->special_mask;
+    cs->init_state = kpic->init_state;
+    cs->auto_eoi = kpic->auto_eoi;
+    cs->rotate_on_auto_eoi = kpic->rotate_on_auto_eoi;
+    cs->special_fully_nested_mode = kpic->special_fully_nested_mode;
+    cs->init4 = kpic->init4;
+    cs->elcr = kpic->elcr;
+    cs->elcr_mask = kpic->elcr_mask;
 }
 
-static void kvm_pic_put(PICCommonState *s)
+static void kvm_i8259_put(I8259CommonState *cs)
 {
     struct kvm_irqchip chip;
     struct kvm_pic_state *kpic;
     int ret;
 
-    chip.chip_id = s->master ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE;
+    chip.chip_id = cs->master ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE;
 
     kpic = &chip.chip.pic;
 
-    kpic->last_irr = s->last_irr;
-    kpic->irr = s->irr;
-    kpic->imr = s->imr;
-    kpic->isr = s->isr;
-    kpic->priority_add = s->priority_add;
-    kpic->irq_base = s->irq_base;
-    kpic->read_reg_select = s->read_reg_select;
-    kpic->poll = s->poll;
-    kpic->special_mask = s->special_mask;
-    kpic->init_state = s->init_state;
-    kpic->auto_eoi = s->auto_eoi;
-    kpic->rotate_on_auto_eoi = s->rotate_on_auto_eoi;
-    kpic->special_fully_nested_mode = s->special_fully_nested_mode;
-    kpic->init4 = s->init4;
-    kpic->elcr = s->elcr;
-    kpic->elcr_mask = s->elcr_mask;
+    kpic->last_irr = cs->last_irr;
+    kpic->irr = cs->irr;
+    kpic->imr = cs->imr;
+    kpic->isr = cs->isr;
+    kpic->priority_add = cs->priority_add;
+    kpic->irq_base = cs->irq_base;
+    kpic->read_reg_select = cs->read_reg_select;
+    kpic->poll = cs->poll;
+    kpic->special_mask = cs->special_mask;
+    kpic->init_state = cs->init_state;
+    kpic->auto_eoi = cs->auto_eoi;
+    kpic->rotate_on_auto_eoi = cs->rotate_on_auto_eoi;
+    kpic->special_fully_nested_mode = cs->special_fully_nested_mode;
+    kpic->init4 = cs->init4;
+    kpic->elcr = cs->elcr;
+    kpic->elcr_mask = cs->elcr_mask;
 
     ret = kvm_vm_ioctl(kvm_state, KVM_SET_IRQCHIP, &chip);
     if (ret < 0) {
@@ -101,67 +120,156 @@ static void kvm_pic_put(PICCommonState *s)
     }
 }
 
-static void kvm_pic_reset(DeviceState *dev)
+static bool kvm_i8259_pic_get_statistics(InterruptStatsProvider *obj,
+                                         uint64_t **irq_counts,
+                                         unsigned int *nb_irqs)
 {
-    PICCommonState *s = PIC_COMMON(dev);
+    KVMI8259PICState *s = KVM_I8259_PIC(obj);
 
-    s->elcr = 0;
-    pic_reset_common(s);
+    *irq_counts = s->irq_count;
+    *nb_irqs = ARRAY_SIZE(s->irq_count);
 
-    kvm_pic_put(s);
+    return true;
+}
+
+static void kvm_i8259_reset(DeviceState *dev)
+{
+    I8259CommonState *cs = I8259_COMMON(dev);
+
+    cs->elcr = 0;
+    i8259_common_reset(cs);
+
+    kvm_i8259_put(cs);
 }
 
 static void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
+    KVMI8259PICState *s = opaque;
     int delivered;
 
-    pic_stat_update_irq(irq, level);
+    i8259_stat_update_irq(s->irq_count, s->irq_level, irq, level);
     delivered = kvm_set_irq(kvm_state, irq, level);
     kvm_report_irq_delivered(delivered);
 }
 
-static void kvm_pic_realize(DeviceState *dev, Error **errp)
+static void kvm_i8259_realize(DeviceState *dev, Error **errp)
 {
-    PICCommonState *s = PIC_COMMON(dev);
-    KVMPICClass *kpc = KVM_PIC_GET_CLASS(dev);
+    I8259CommonState *cs = I8259_COMMON(dev);
+    KVMI8259Class *kpc = KVM_I8259_GET_CLASS(dev);
 
-    memory_region_init_io(&s->base_io, OBJECT(dev), NULL, NULL, "kvm-pic", 2);
-    memory_region_init_io(&s->elcr_io, OBJECT(dev), NULL, NULL, "kvm-elcr", 1);
+    memory_region_init_io(&cs->base_io, OBJECT(dev), NULL, NULL, "kvm-pic", 2);
+    memory_region_init_io(&cs->elcr_io, OBJECT(dev), NULL, NULL, "kvm-elcr", 1);
 
     kpc->parent_realize(dev, errp);
 }
 
 qemu_irq *kvm_i8259_init(ISABus *bus)
 {
-    i8259_init_chip(TYPE_KVM_I8259, bus, true);
-    i8259_init_chip(TYPE_KVM_I8259, bus, false);
+    qemu_irq *irq_set;
+    DeviceState *dev;
+    int i;
 
-    return qemu_allocate_irqs(kvm_pic_set_irq, NULL, ISA_NUM_IRQS);
+    irq_set = g_new0(qemu_irq, ISA_NUM_IRQS);
+
+    dev = qdev_new(TYPE_KVM_I8259_PIC);
+    object_property_set_link(OBJECT(dev), "bus", OBJECT(bus), &error_fatal);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
+
+    for (i = 0 ; i < ISA_NUM_IRQS; i++) {
+        irq_set[i] = qdev_get_gpio_in(dev, i);
+    }
+
+    return irq_set;
 }
 
 static void kvm_i8259_class_init(ObjectClass *klass, const void *data)
 {
-    KVMPICClass *kpc = KVM_PIC_CLASS(klass);
-    PICCommonClass *k = PIC_COMMON_CLASS(klass);
+    KVMI8259Class *kpc = KVM_I8259_CLASS(klass);
+    I8259CommonClass *k = I8259_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, kvm_pic_reset);
-    device_class_set_parent_realize(dc, kvm_pic_realize, &kpc->parent_realize);
-    k->pre_save   = kvm_pic_get;
-    k->post_load  = kvm_pic_put;
+    device_class_set_legacy_reset(dc, kvm_i8259_reset);
+    device_class_set_parent_realize(dc, kvm_i8259_realize,
+                                    &kpc->parent_realize);
+    k->pre_save   = kvm_i8259_get;
+    k->post_load  = kvm_i8259_put;
 }
 
-static const TypeInfo kvm_i8259_info = {
-    .name = TYPE_KVM_I8259,
-    .parent = TYPE_PIC_COMMON,
-    .instance_size = sizeof(PICCommonState),
-    .class_init = kvm_i8259_class_init,
-    .class_size = sizeof(KVMPICClass),
+
+static void kvm_i8259_pic_init(Object *obj)
+{
+    KVMI8259PICState *s = KVM_I8259_PIC(obj);
+
+    object_initialize_child(obj, "primary", &s->i8259[0], TYPE_KVM_I8259);
+    object_initialize_child(obj, "secondary", &s->i8259[1], TYPE_KVM_I8259);
+
+    qdev_init_gpio_in(DEVICE(obj), kvm_pic_set_irq, ISA_NUM_IRQS);
+}
+
+static void kvm_i8259_pic_realize(DeviceState *dev, Error **errp)
+{
+    KVMI8259PICState *s = KVM_I8259_PIC(dev);
+    DeviceState *pri_dev, *sec_dev;
+
+    /* Primary */
+    pri_dev = DEVICE(&s->i8259[0]);
+    qdev_prop_set_uint32(pri_dev, "iobase", 0x20);
+    qdev_prop_set_uint32(pri_dev, "elcr_addr", 0x4d0);
+    qdev_prop_set_uint8(pri_dev, "elcr_mask", 0xf8);
+    qdev_prop_set_bit(pri_dev, "master", 1);
+    if (!isa_realize(ISA_DEVICE(pri_dev), s->isabus, errp)) {
+        return;
+    }
+
+    /* Secondary */
+    sec_dev = DEVICE(&s->i8259[1]);
+    qdev_prop_set_uint32(sec_dev, "iobase", 0xa0);
+    qdev_prop_set_uint32(sec_dev, "elcr_addr", 0x4d1);
+    qdev_prop_set_uint8(sec_dev, "elcr_mask", 0xde);
+    if (!isa_realize(ISA_DEVICE(sec_dev), s->isabus, errp)) {
+        return;
+    }
+}
+
+static const Property kvm_i8259_pic_properties[] = {
+    DEFINE_PROP_LINK("bus", KVMI8259PICState, isabus, TYPE_ISA_BUS,
+                     ISABus *),
 };
 
-static void kvm_pic_register_types(void)
+static void kvm_i8259_pic_class_init(ObjectClass *klass, const void *data)
 {
-    type_register_static(&kvm_i8259_info);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
+
+    dc->realize = kvm_i8259_pic_realize;
+    device_class_set_props(dc, kvm_i8259_pic_properties);
+    ic->get_statistics = kvm_i8259_pic_get_statistics;
+    ic->print_info = i8259_pic_print_info;
+    /*
+     * Reason: must be wired to the ISA bus via the "bus" property
+     */
+    dc->user_creatable = false;
 }
 
-type_init(kvm_pic_register_types)
+static const TypeInfo kvm_i8259_type_infos[] = {
+    {
+        .name = TYPE_KVM_I8259,
+        .parent = TYPE_I8259_COMMON,
+        .instance_size = sizeof(KVMI8259State),
+        .class_init = kvm_i8259_class_init,
+        .class_size = sizeof(KVMI8259Class),
+    },
+    {
+        .name = TYPE_KVM_I8259_PIC,
+        .parent = TYPE_DEVICE,
+        .class_init = kvm_i8259_pic_class_init,
+        .instance_init = kvm_i8259_pic_init,
+        .instance_size = sizeof(KVMI8259PICState),
+        .interfaces = (const InterfaceInfo[]) {
+            { TYPE_INTERRUPT_STATS_PROVIDER },
+            { }
+        },
+    },
+};
+
+DEFINE_TYPES(kvm_i8259_type_infos)

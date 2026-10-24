@@ -26,22 +26,21 @@
 #define QEMU_I8259_INTERNAL_H
 
 #include "hw/isa/isa.h"
-#include "hw/intc/intc.h"
 #include "hw/intc/i8259.h"
 #include "qom/object.h"
 
 
-#define TYPE_PIC_COMMON "pic-common"
-OBJECT_DECLARE_TYPE(PICCommonState, PICCommonClass, PIC_COMMON)
+#define TYPE_I8259_COMMON "i8259-common"
+OBJECT_DECLARE_TYPE(I8259CommonState, I8259CommonClass, I8259_COMMON)
 
-struct PICCommonClass {
+struct I8259CommonClass {
     DeviceClass parent_class;
 
-    void (*pre_save)(PICCommonState *s);
-    void (*post_load)(PICCommonState *s);
+    void (*pre_save)(I8259CommonState *cs);
+    void (*post_load)(I8259CommonState *cs);
 };
 
-struct PICCommonState {
+struct I8259CommonState {
     ISADevice parent_obj;
 
     uint8_t last_irr; /* edge detection */
@@ -70,8 +69,8 @@ struct PICCommonState {
     MemoryRegion elcr_io;
 };
 
-void pic_reset_common(PICCommonState *s);
-ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
-void pic_stat_update_irq(int irq, int level);
+void i8259_common_reset(I8259CommonState *cs);
+void i8259_stat_update_irq(uint64_t *irq_levels, int *irq_counts,
+                           int irq, int level);
 
 #endif /* QEMU_I8259_INTERNAL_H */
