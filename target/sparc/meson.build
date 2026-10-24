@@ -12,7 +12,7 @@ sparc_ss.add(files(
   'win_helper.c',
 ))
 sparc_ss.add(when: 'TARGET_SPARC', if_true: files('int32_helper.c'))
-sparc_ss.add(when: 'TARGET_SPARC64', if_true: files('int64_helper.c', 'vis_helper.c'))
+sparc_ss.add(when: 'TARGET_SPARC64', if_true: files('int64_helper.c', 'vis_helper.c', 'crypto_helper.c'))
 
 sparc_system_ss = ss.source_set()
 sparc_system_ss.add(files(
