@@ -147,12 +147,12 @@ void HELPER(set_fpsw)(CPURXState *env, uint32_t val)
         return ret;                                                 \
     }
 
-FLOATOP(rx_fadd, float32_add)
-FLOATOP(rx_fsub, float32_sub)
-FLOATOP(rx_fmul, float32_mul)
-FLOATOP(rx_fdiv, float32_div)
+FLOATOP(fadd, float32_add)
+FLOATOP(fsub, float32_sub)
+FLOATOP(fmul, float32_mul)
+FLOATOP(fdiv, float32_div)
 
-void HELPER(rx_fcmp)(CPURXState *env, float32 t0, float32 t1)
+void HELPER(fcmp)(CPURXState *env, float32 t0, float32 t1)
 {
     int st;
     st = float32_compare(t0, t1, &env->fp_status);
@@ -407,7 +407,7 @@ uint32_t HELPER(div)(CPURXState *env, uint32_t num, uint32_t den)
     return ret;
 }
 
-uint32_t HELPER(rx_divu)(CPURXState *env, uint32_t num, uint32_t den)
+uint32_t HELPER(divu)(CPURXState *env, uint32_t num, uint32_t den)
 {
     uint32_t ret = num;
     if (den != 0) {
