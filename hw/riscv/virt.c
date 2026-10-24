@@ -712,7 +712,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
     virt_build_smbios(s);
 
     if (virt_is_acpi_enabled(s)) {
-        virt_acpi_setup(s);
+        riscv_virt_acpi_setup(s);
     }
 }
 
