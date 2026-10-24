@@ -48,16 +48,16 @@ void HELPER(write_interval_timer)(CPUHPPAState *env, target_ulong val)
     timer_mod(cpu->alarm_timer, timeout);
 }
 
-void HELPER(hppa_halt)(CPUHPPAState *env)
+void HELPER(halt)(CPUHPPAState *env)
 {
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-    HELPER(hppa_excp)(env, EXCP_HLT);
+    HELPER(excp)(env, EXCP_HLT);
 }
 
-void HELPER(hppa_reset)(CPUHPPAState *env)
+void HELPER(reset)(CPUHPPAState *env)
 {
     qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-    HELPER(hppa_excp)(env, EXCP_HLT);
+    HELPER(excp)(env, EXCP_HLT);
 }
 
 target_ulong HELPER(swap_system_mask)(CPUHPPAState *env, target_ulong nsm)
