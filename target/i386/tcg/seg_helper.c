@@ -2056,7 +2056,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     sa.mmu_index = x86_mmu_index_pl(env, cpl);
 
 #ifdef TARGET_X86_64
-    if (shift == 2) {
+    if (shift == 2 || (env->hflags & HF_CS64_MASK)) {
         sa.sp_mask = -1;
     } else
 #endif
