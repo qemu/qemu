@@ -1731,7 +1731,11 @@ void HELPER(lcall_protected)(CPUX86State *env, int new_cs, target_ulong new_eip,
 #endif
         {
             sa.sp = env->regs[R_ESP];
-            sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
+            if (env->hflags & HF_CS64_MASK) {
+                sa.sp_mask = -1;
+            } else {
+                sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
+            }
             sa.ss_base = env->segs[R_SS].base;
             if (shift) {
                 pushl(&sa, env->segs[R_CS].selector);
