@@ -1925,7 +1925,12 @@ void HELPER(lcall_protected)(CPUX86State *env, int new_cs, target_ulong new_eip,
             /* to same privilege */
             sa.mmu_index = x86_mmu_index_pl(env, cpl);
             sa.sp = env->regs[R_ESP];
-            sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
+#ifdef TARGET_X86_64
+            if (shift == 2) {
+                sa.sp_mask = -1;
+            } else
+#endif
+                sa.sp_mask = get_sp_mask(env->segs[R_SS].flags);
             sa.ss_base = env->segs[R_SS].base;
             /* push_size = (4 << shift); */
             new_stack = 0;
