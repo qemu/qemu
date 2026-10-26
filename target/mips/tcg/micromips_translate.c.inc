@@ -2981,6 +2981,7 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opcode;
     uint32_t op;
+    bool is_16bit;
 
     /* make sure instructions are on a halfword boundary */
     if (ctx->base.pc_next & 0x1) {
@@ -2993,36 +2994,36 @@ static int decode_isa_micromips(CPUMIPSState *env, DisasContext *ctx)
                                  mo_endian(ctx));
     ctx->opcode = opcode;
     op = (ctx->opcode >> 10) & 0x3f;
+    switch (op & 0x7) { /* MSB-3..MSB-5 */
+    case 0:
+    /* POOL32A, POOL32B, POOL32I, POOL32C */
+    case 4:
+    /* ADDI32, ADDIU32, ORI32, XORI32, SLTI32, SLTIU32, ANDI32, JALX32 */
+    case 5:
+    /* LBU32, LHU32, POOL32F, JALS32, BEQ32, BNE32, J32, JAL32 */
+    case 6:
+    /* SB32, SH32, ADDIUPC, SWC132, SDC132, SW32 */
+    case 7:
+    /* LB32, LH32, LWC132, LDC132, LW32 */
+        is_16bit = false;
+        break;
+    case 1:
+    /* POOL16A, POOL16B, POOL16C, LWGP16, POOL16F */
+    case 2:
+    /* LBU16, LHU16, LWSP16, LW16, SB16, SH16, SWSP16, SW16 */
+    case 3:
+    /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
+        is_16bit = true;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
     /* Enforce properly-sized instructions in a delay slot */
-    if (ctx->hflags & MIPS_HFLAG_BDS_STRICT) {
-        switch (op & 0x7) { /* MSB-3..MSB-5 */
-        case 0:
-        /* POOL32A, POOL32B, POOL32I, POOL32C */
-        case 4:
-        /* ADDI32, ADDIU32, ORI32, XORI32, SLTI32, SLTIU32, ANDI32, JALX32 */
-        case 5:
-        /* LBU32, LHU32, POOL32F, JALS32, BEQ32, BNE32, J32, JAL32 */
-        case 6:
-        /* SB32, SH32, ADDIUPC, SWC132, SDC132, SW32 */
-        case 7:
-        /* LB32, LH32, LWC132, LDC132, LW32 */
-            if (ctx->hflags & MIPS_HFLAG_BDS16) {
-                gen_reserved_instruction(ctx);
-                return 2;
-            }
-            break;
-        case 1:
-        /* POOL16A, POOL16B, POOL16C, LWGP16, POOL16F */
-        case 2:
-        /* LBU16, LHU16, LWSP16, LW16, SB16, SH16, SWSP16, SW16 */
-        case 3:
-        /* MOVE16, ANDI16, POOL16D, POOL16E, BEQZ16, BNEZ16, B16, LI16 */
-            if (ctx->hflags & MIPS_HFLAG_BDS32) {
-                gen_reserved_instruction(ctx);
-                return 2;
-            }
-            break;
-        }
+    if ((ctx->hflags & MIPS_HFLAG_BDS_STRICT)
+        && (ctx->hflags & (is_16bit ? MIPS_HFLAG_BDS32 : MIPS_HFLAG_BDS16))) {
+        gen_reserved_instruction(ctx);
+        return 2;
     }
 
     switch (op) {
