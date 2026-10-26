@@ -119,7 +119,7 @@ static int qtest_socket_accept(QTestState *s, int sock)
 {
     struct sockaddr_un addr;
     socklen_t addrlen;
-    int ret;
+    int ret = -1;
     size_t i;
 #ifndef _WIN32
     struct timeval timeout = { .tv_sec = 0,
@@ -145,14 +145,13 @@ static int qtest_socket_accept(QTestState *s, int sock)
 
         addrlen = sizeof(addr);
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
-        if (ret == -1) {
-            if (errno == EINTR || errno == EAGAIN) {
-                continue;
-            } else {
-                fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
-            }
+        if (ret == -1 && (errno == EINTR || errno == EAGAIN)) {
+            continue;
         }
-        return ret;
+        break;
+    }
+    if (ret == -1) {
+        fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
     }
 
  cleanup:
