@@ -4,6 +4,7 @@
 check-help:
 	@echo "Regression testing targets:"
 	@echo " $(MAKE) check                         Run block, qapi-schema, unit, softfloat, qtest and decodetree tests"
+	@echo " $(MAKE) check-thorough                Download assets and run almost all non-flaky tests"
 	@echo " $(MAKE) bench                         Run speed tests"
 	@echo
 	@echo "Individual test suites:"
@@ -46,10 +47,13 @@ FUNCTIONAL_TARGETS=$(patsubst %-softmmu,check-functional-%, $(filter %-softmmu,$
 $(FUNCTIONAL_TARGETS):
 	@$(MAKE) SPEED=thorough $(subst -functional,-func,$@)
 
-.PHONY: check-functional
-check-functional:
+.PHONY: check-functional-precache
+check-functional-precache:
 	@$(NINJA) precache-functional
 	@$(PYTHON) $(SRC_PATH)/scripts/clean_functional_cache.py
+
+.PHONY: check-functional
+check-functional: check-functional-precache
 	@QEMU_TEST_NO_DOWNLOAD=1 $(MAKE) SPEED=thorough check-func check-func-quick
 
 .PHONY: check-func check-func-quick
@@ -57,8 +61,11 @@ check-func check-func-quick:
 
 # Consolidated targets
 
-.PHONY: check check-clean
+.PHONY: check check-thorough check-clean
 check:
+
+check-thorough: check-functional-precache
+	$(MAKE) check SPEED=thorough QEMU_TEST_NO_DOWNLOAD=1
 
 check-build: run-ninja
 
