@@ -42,8 +42,6 @@
 #include "qobject/qstring.h"
 #include "qobject/qbool.h"
 
-#define MAX_IRQ 256
-
 #define ACCEPT_TIMEOUT_MS 250
 #define ACCEPT_RETRIES (4 * 50)
 
@@ -88,7 +86,7 @@ struct QTestState
 #endif
     int expected_status;
     bool big_endian;
-    bool irq_level[MAX_IRQ];
+    GArray *irq_level;
     GString *rx;
     QTestTransportOps ops;
     GList *pending_events;
@@ -501,7 +499,7 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
                                        void *opaque)
 {
     QTestState *s;
-    int sock, qmpsock, i;
+    int sock, qmpsock;
     g_autofree gchar *socket_path = qtest_socket_path("sock");
     g_autofree gchar *qmp_socket_path = qtest_socket_path("qmp");
     g_autofree gchar *args = qtest_qemu_args(extra_args);
@@ -525,9 +523,7 @@ static QTestState *qtest_init_internal(const char *qemu_bin,
     qtest_client_set_tx_handler(s, qtest_client_socket_send);
 
     s->rx = g_string_new("");
-    for (i = 0; i < MAX_IRQ; i++) {
-        s->irq_level[i] = false;
-    }
+    s->irq_level = g_array_new(false, true, sizeof(bool));
 
     s->fd = -1;
     s->qmp_fd = -1;
@@ -693,6 +689,7 @@ void qtest_quit(QTestState *s)
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
+    g_array_unref(s->irq_level);
 
     for (GList *it = s->pending_events; it != NULL; it = it->next) {
         qobject_unref((QDict *)it->data);
@@ -778,12 +775,14 @@ redo:
         ret = qemu_strtol(words[2], NULL, 0, &irq);
         g_assert(!ret);
         g_assert_cmpint(irq, >=, 0);
-        g_assert_cmpint(irq, <, MAX_IRQ);
 
+        if (s->irq_level->len <= irq) {
+            g_array_set_size(s->irq_level, irq + 1);
+        }
         if (strcmp(words[1], "raise") == 0) {
-            s->irq_level[irq] = true;
+            g_array_index(s->irq_level, bool, irq) = true;
         } else {
-            s->irq_level[irq] = false;
+            g_array_index(s->irq_level, bool, irq) = false;
         }
 
         g_strfreev(words);
@@ -1192,7 +1191,10 @@ bool qtest_get_irq(QTestState *s, int num)
     /* dummy operation in order to make sure irq is up to date */
     qtest_inb(s, 0);
 
-    return s->irq_level[num];
+    if (s->irq_level->len <= num) {
+        return false;
+    }
+    return g_array_index(s->irq_level, bool, num);
 }
 
 void qtest_module_load(QTestState *s, const char *prefix, const char *libname)
@@ -2100,9 +2102,7 @@ QTestState *qtest_inproc_init(QTestState **s, bool log, const char* arch,
     qts->pending_events = NULL;
     *s = qts; /* Expose qts early on, since the query endianness relies on it */
     qts->wstatus = 0;
-    for (int i = 0; i < MAX_IRQ; i++) {
-        qts->irq_level[i] = false;
-    }
+    qts->irq_level = g_array_new(false, true, sizeof(bool));
 
     qtest_client_set_rx_handler(qts, qtest_client_inproc_recv_line);
 
