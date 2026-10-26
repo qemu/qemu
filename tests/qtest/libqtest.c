@@ -132,7 +132,6 @@ static int qtest_socket_accept(QTestState *s, int sock)
                    (void *)&timeout, sizeof(timeout))) {
         fprintf(stderr, "%s failed to set SO_RCVTIMEO: %s\n",
                 __func__, strerror(errno));
-        close(sock);
         return -1;
     }
 
@@ -140,7 +139,7 @@ static int qtest_socket_accept(QTestState *s, int sock)
         if (!qtest_probe_child(s)) {
             fprintf(stderr,
                     "child process unexpectedly exited, skipping socket accept\n");
-            goto cleanup;
+            return -1;
         }
 
         addrlen = sizeof(addr);
@@ -153,9 +152,6 @@ static int qtest_socket_accept(QTestState *s, int sock)
     if (ret == -1) {
         fprintf(stderr, "%s failed: %s\n", __func__, strerror(errno));
     }
-
- cleanup:
-    close(sock);
 
     return ret;
 }
@@ -562,6 +558,8 @@ void qtest_connect(QTestState *s)
     unlink(socket_path);
     unlink(qmp_socket_path);
     g_assert(s->fd >= 0 && s->qmp_fd >= 0);
+    close(s->sock);
+    close(s->qmpsock);
     s->sock = s->qmpsock = -1;
     /* ask endianness of the target */
     s->big_endian = qtest_query_target_endianness(s);
@@ -671,6 +669,7 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd)
 
     *sock_fd = qtest_socket_accept(qts, sock_fd_init);
 
+    close(sock_fd_init);
     unlink(sock_path);
     g_free(sock_path);
     rmdir(sock_dir);
