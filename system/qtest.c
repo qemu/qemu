@@ -422,23 +422,24 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support inbound interception of named GPIOs yet */
+            /* NULL is valid and matchable, for "unnamed GPIO" */
+            if (g_strcmp0(ngl->name, words[2]) != 0) {
+                continue;
+            }
+
             if (is_outbound) {
-                /* NULL is valid and matchable, for "unnamed GPIO" */
-                if (g_strcmp0(ngl->name, words[2]) == 0) {
-                    int i;
-                    qtest_init_irq_intercept(ngl->num_out);
-                    for (i = 0; i < ngl->num_out; ++i) {
-                        qtest_install_gpio_out_intercept(dev, ngl->name, i);
-                    }
-                    interception_succeeded = true;
+                int i;
+                qtest_init_irq_intercept(ngl->num_out);
+                for (i = 0; i < ngl->num_out; ++i) {
+                    qtest_install_gpio_out_intercept(dev, ngl->name, i);
                 }
             } else {
                 qtest_init_irq_intercept(ngl->num_in);
                 qemu_irq_set_observer(ngl->in, qtest_irq_handler,
                                       ngl->num_in);
-                interception_succeeded = true;
             }
+            interception_succeeded = true;
+            break;
         }
 
         if (interception_succeeded) {
