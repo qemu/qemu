@@ -176,6 +176,7 @@ struct HexagonCommonMachineState {
 
     MemoryRegion ram;
     MemoryRegion cfgtable_rom;
+    uint32_t cfgtable_data[HEXAGON_CFGSPACE_ENTRIES];
     MemoryRegion vtcm;
     DeviceState *cluster;
     DeviceState *l2vic;
