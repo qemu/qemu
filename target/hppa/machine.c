@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
+#include "qemu/timer.h"
 
 
 static int get_psw(QEMUFile *f, void *opaque, size_t size,
@@ -222,9 +223,21 @@ static const VMStateField vmstate_cpu_fields[] = {
     VMSTATE_END_OF_LIST()
 };
 
+static int cpu_post_load(void *opaque, int version_id)
+{
+    HPPACPU *cpu = opaque;
+
+    /* CR_IT holds the absolute expiry of the interval timer; re-arm it */
+    if (cpu->env.cr[CR_IT]) {
+        timer_mod(cpu->alarm_timer, cpu->env.cr[CR_IT]);
+    }
+    return 0;
+}
+
 const VMStateDescription vmstate_hppa_cpu = {
     .name = "cpu",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = cpu_post_load,
     .fields = vmstate_cpu_fields,
 };
