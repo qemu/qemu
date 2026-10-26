@@ -1823,8 +1823,8 @@
 
 ##
 # @GuestNetworkRoute:
-#     Route information.  Supported on Linux (since 9.1) and Windows
-#     (since 11.0).
+#     Route information.  Supported on Linux (since 9.1), Windows
+#     (since 11.0), and FreeBSD (since 11.2).
 #
 # @iface: The destination network or host's egress network interface
 #     in the routing table
@@ -1838,30 +1838,31 @@
 #
 # @mask: Subnet Mask (IPv4 only)
 #
-# @irtt: Initial round-trip delay (not for windows, IPv4 only)
-#
-# @flags: Route flags (not for windows)
-#
-# @refcnt: The route's reference count (not for windows)
-#
-# @use: Route usage count (not for windows)
-#
-# @window: TCP window size, used for flow control (not for windows,
+# @irtt: Initial round-trip delay (not for Windows and FreeBSD,
 #     IPv4 only)
 #
-# @mtu: Data link layer maximum packet size (not for windows)
+# @flags: Route flags (not for Windows)
+#
+# @refcnt: The route's reference count (not for Windows and FreeBSD)
+#
+# @use: Route usage count (not for Windows and FreeBSD)
+#
+# @window: TCP window size, used for flow control (not for Windows
+#     and FreeBSD, IPv4 only)
+#
+# @mtu: Data link layer maximum packet size (not for Windows)
 #
 # @desprefixlen: Destination prefix length (for IPv6)
 #
-# @source: Source IP address (for IPv6)
+# @source: Source IP address (not for FreeBSD, IPv6 only)
 #
-# @srcprefixlen: Source prefix length (for IPv6)
+# @srcprefixlen: Source prefix length (not for FreeBSD, IPv6 only)
 #
 # @nexthop: Next hop IP address (for IPv6)
 #
 # @version: IP version (4 or 6)
 #
-# Since: 9.1 (Linux only); 11.0 (Windows)
+# Since: 9.1 (Linux only); 11.0 (Windows); 11.2 (FreeBSD)
 ##
 { 'struct': 'GuestNetworkRoute',
   'data': {'iface': 'str',
@@ -1881,7 +1882,7 @@
            '*nexthop': 'str',
            'version': 'int'
            },
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] } }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32', 'CONFIG_FREEBSD'] } }
 
 ##
 # @guest-network-get-route:
@@ -1889,9 +1890,9 @@
 #
 # Returns: List of route info of guest.
 #
-# Since: 9.1 (Linux only); 11.0 (Windows)
+# Since: 9.1 (Linux only); 11.0 (Windows); 11.2 (FreeBSD)
 ##
 { 'command': 'guest-network-get-route',
   'returns': ['GuestNetworkRoute'],
-  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32'] }
+  'if': { 'any': ['CONFIG_LINUX', 'CONFIG_WIN32', 'CONFIG_FREEBSD'] }
 }

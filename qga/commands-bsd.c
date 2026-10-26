@@ -22,6 +22,11 @@
 #include <sys/mount.h>
 #include <net/if_dl.h>
 #include <sys/statvfs.h>
+#if defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#include <net/route.h>
+#include <net/if.h>
+#endif
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <net/if_arp.h>
 #include <netinet/if_ether.h>
@@ -354,4 +359,171 @@ error:
     return NULL;
 }
 
-#endif /* CONFIG_FREEBSD */
+GuestNetworkRouteList *qmp_guest_network_get_route(Error **errp)
+{
+    GuestNetworkRouteList *head = NULL, **tail = &head;
+    int mib[] = { CTL_NET, PF_ROUTE, 0, AF_UNSPEC, NET_RT_DUMP, 0, 0 };
+    g_autofree char *buf = NULL;
+    size_t len;
+
+    if (sysctl(mib, nitems(mib), NULL, &len, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctl size");
+        return NULL;
+    }
+
+    buf = g_malloc0(len);
+
+    if (sysctl(mib, nitems(mib), buf, &len, NULL, 0) == -1) {
+        error_setg_errno(errp, errno, "sysctl routes");
+        return NULL;
+    }
+
+    for (char *p = buf, *end = buf + len; p < end; ) {
+        struct rt_msghdr *rtm = (struct rt_msghdr *)p;
+        struct sockaddr *addresses[RTAX_MAX] = { NULL };
+        struct sockaddr *sa;
+        char destination[NI_MAXHOST];
+        char gateway[NI_MAXHOST];
+        char ifname[IFNAMSIZ];
+        const struct sockaddr *dst = NULL;
+        const struct sockaddr *gw = NULL;
+        const struct sockaddr *netmask = NULL;
+        struct sockaddr_in normalized_mask = { 0 };
+        char netmask_buf[INET_ADDRSTRLEN];
+
+        g_autoptr(GuestNetworkRoute) route = g_new0(GuestNetworkRoute, 1);
+
+        if ((size_t)(end - p) < sizeof(*rtm) ||
+            rtm->rtm_msglen < sizeof(*rtm) ||
+            rtm->rtm_msglen > (size_t)(end - p)) {
+            break;
+        }
+
+        p += rtm->rtm_msglen;
+
+        if (rtm->rtm_version != RTM_VERSION) {
+            continue;
+        }
+
+        sa = (struct sockaddr *)(rtm + 1);
+        for (int i = 0; i < RTAX_MAX; i++) {
+            if (rtm->rtm_addrs & (1U << i)) {
+                addresses[i] = sa;
+                sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
+            }
+        }
+
+        if (if_indextoname(rtm->rtm_index, ifname)) {
+            route->iface = g_strdup(ifname);
+        } else {
+            route->iface = g_strdup_printf("if%u", rtm->rtm_index);
+        }
+
+#if defined(HAVE_STRUCT_RT_METRICS_RMX_METRIC)
+        route->metric = rtm->rtm_rmx.rmx_metric;
+#endif
+
+        dst = addresses[RTAX_DST];
+        if (!dst) {
+            continue;
+        }
+
+        if (dst->sa_family == AF_INET) {
+            route->version = 4;
+        } else if (dst->sa_family == AF_INET6) {
+            route->version = 6;
+        } else {
+            continue;
+        }
+        if (getnameinfo(dst, dst->sa_len,
+                        destination, NI_MAXHOST,
+                        NULL, 0, NI_NUMERICHOST) != 0)
+            continue;
+        route->destination = g_strdup(destination);
+
+        gw = addresses[RTAX_GATEWAY];
+        if (gw && (gw->sa_family == AF_INET || gw->sa_family == AF_INET6)) {
+            if (getnameinfo(gw, gw->sa_len,
+                            gateway, NI_MAXHOST,
+                            NULL, 0, NI_NUMERICHOST) != 0) {
+                continue;
+            }
+            if (gw->sa_family == AF_INET) {
+                route->gateway = g_strdup(gateway);
+            } else if (gw->sa_family == AF_INET6) {
+                route->nexthop = g_strdup(gateway);
+            }
+        }
+
+        netmask = addresses[RTAX_NETMASK];
+        if (dst->sa_family == AF_INET) {
+            if (netmask && netmask->sa_len != 0) {
+                memcpy(&normalized_mask, netmask,
+                       MIN(netmask->sa_len, sizeof(normalized_mask)));
+            } else if (rtm->rtm_flags & RTF_HOST) {
+                normalized_mask.sin_addr.s_addr = 0xFFFFFFFF;
+            }
+
+            if (inet_ntop(AF_INET, &normalized_mask.sin_addr,
+                          netmask_buf, sizeof(netmask_buf)) != NULL) {
+                route->mask = g_strdup(netmask_buf);
+            } else {
+                route->mask = NULL;
+            }
+        } else if (dst->sa_family == AF_INET6) {
+            struct sockaddr_in6 normalized_mask6;
+            memset(&normalized_mask6, 0, sizeof(normalized_mask6));
+
+            if (netmask && netmask->sa_len != 0) {
+                int prefix_len = 0;
+                bool valid_mask = true;
+                bool zero_found = false;
+
+                memcpy(&normalized_mask6, netmask,
+                       MIN(netmask->sa_len, sizeof(normalized_mask6)));
+
+                for (int i = 0; i < sizeof(normalized_mask6.sin6_addr); i++) {
+                    uint8_t byte = normalized_mask6.sin6_addr.s6_addr[i];
+                    for (int bit = 7; bit >= 0; bit--) {
+                        if ((byte >> bit) & 1) {
+                            if (zero_found) {
+                                valid_mask = false;
+                                break;
+                            }
+                            prefix_len++;
+                        } else {
+                            zero_found = true;
+                        }
+                    }
+                    if (!valid_mask) {
+                        break;
+                    }
+                }
+
+                if (valid_mask) {
+                    route->desprefixlen = g_strdup_printf("%d", prefix_len);
+                } else {
+                    route->desprefixlen = NULL;
+                }
+            } else if (rtm->rtm_flags & RTF_HOST) {
+                route->desprefixlen = g_strdup("128");
+            } else {
+                route->desprefixlen = g_strdup("0");
+            }
+        }
+
+        if (rtm->rtm_rmx.rmx_mtu) {
+            route->mtu = rtm->rtm_rmx.rmx_mtu;
+            route->has_mtu = true;
+        }
+
+        route->flags = (uint32_t)rtm->rtm_flags;
+        route->has_flags = true;
+
+        QAPI_LIST_APPEND(tail, route);
+        route = NULL;
+    }
+
+    return head;
+}
+#endif /* __FreeBSD__ */
