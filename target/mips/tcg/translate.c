@@ -1624,6 +1624,17 @@ bool decode_64bit_enabled(DisasContext *ctx)
 }
 
 /*
+ * Map the 3-bit register field of MIPS16e and microMIPS
+ * 16-bit encodings to a GPR index.
+ */
+int gpr3_m16(DisasContext *ctx, int x)
+{
+    static const int map[8] = { 16, 17, 2, 3, 4, 5, 6, 7 };
+
+    return map[x];
+}
+
+/*
  * This code generates a "reserved instruction" exception if cpu is not
  * 64-bit or 64-bit instructions are not enabled.
  */

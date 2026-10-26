@@ -224,6 +224,7 @@ void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 
 bool decode_64bit_enabled(DisasContext *ctx);
+int gpr3_m16(DisasContext *ctx, int x);
 
 /* decodetree generated */
 bool decode_isa_micromips16(DisasContext *ctx, uint16_t insn);

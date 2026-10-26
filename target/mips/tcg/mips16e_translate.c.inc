@@ -120,13 +120,6 @@ enum {
   RR_RY_CNVT_SEW = 0x6,
 };
 
-static int xlat(int r)
-{
-  static const int map[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
-
-  return map[r];
-}
-
 static void decr_and_store(DisasContext *ctx, unsigned regidx, TCGv t0)
 {
     TCGv t1 = tcg_temp_new();
@@ -459,8 +452,8 @@ static int decode_extended_mips16_opc(CPUMIPSState *env, DisasContext *ctx)
     op = (ctx->opcode >> 11) & 0x1f;
     sa = (ctx->opcode >> 22) & 0x1f;
     funct = (ctx->opcode >> 8) & 0x7;
-    rx = xlat((ctx->opcode >> 8) & 0x7);
-    ry = xlat((ctx->opcode >> 5) & 0x7);
+    rx = gpr3_m16(ctx, (ctx->opcode >> 8) & 0x7);
+    ry = gpr3_m16(ctx, (ctx->opcode >> 5) & 0x7);
     offset = imm = (int16_t) (((ctx->opcode >> 16) & 0x1f) << 11
                               | ((ctx->opcode >> 21) & 0x3f) << 5
                               | (ctx->opcode & 0x1f));
@@ -676,9 +669,9 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
 
     sa = (ctx->opcode >> 2) & 0x7;
     sa = sa == 0 ? 8 : sa;
-    rx = xlat((ctx->opcode >> 8) & 0x7);
+    rx = gpr3_m16(ctx, (ctx->opcode >> 8) & 0x7);
     cnvt_op = (ctx->opcode >> 5) & 0x7;
-    ry = xlat((ctx->opcode >> 5) & 0x7);
+    ry = gpr3_m16(ctx, (ctx->opcode >> 5) & 0x7);
     op1 = offset = ctx->opcode & 0x1f;
 
     n_bytes = 2;
@@ -831,7 +824,7 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
                 break;
             case I8_MOV32R:
                 {
-                    int rz = xlat(ctx->opcode & 0x7);
+                    int rz = gpr3_m16(ctx, ctx->opcode & 0x7);
 
                     reg32 = (((ctx->opcode >> 3) & 0x3) << 3) |
                         ((ctx->opcode >> 5) & 0x7);
@@ -910,7 +903,7 @@ static int decode_ase_mips16e(CPUMIPSState *env, DisasContext *ctx)
         break;
     case M16_OPC_RRR:
         {
-            int rz = xlat((ctx->opcode >> 2) & 0x7);
+            int rz = gpr3_m16(ctx, (ctx->opcode >> 2) & 0x7);
             int mips32_op;
 
             switch (ctx->opcode & 0x3) {
