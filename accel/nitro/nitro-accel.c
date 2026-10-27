@@ -251,6 +251,7 @@ static const TypeInfo nitro_accel_type = {
     .parent = TYPE_ACCEL,
     .instance_size = sizeof(NitroAccelState),
     .class_init = nitro_accel_class_init,
+    .secure = true,
 };
 module_obj(TYPE_NITRO_ACCEL);
 
