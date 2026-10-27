@@ -97,6 +97,7 @@ struct TCGLabelUse {
 };
 
 typedef struct TCGLabel TCGLabel;
+typedef struct TCGLabel *TCGLabelPtr;
 struct TCGLabel {
     bool present;
     bool has_value;
@@ -303,6 +304,8 @@ typedef struct TCGTemp {
     void *state_ptr;
 } TCGTemp;
 
+typedef TCGTemp *TCGTempPtr;
+
 typedef struct TCGContext TCGContext;
 
 typedef struct TCGTempSet {
@@ -489,9 +492,10 @@ static inline TCGTemp *arg_temp(TCGArg a)
 }
 
 #ifdef CONFIG_DEBUG_TCG
-size_t temp_idx(TCGTemp *ts);
-TCGTemp *tcgv_i32_temp(TCGv_i32 v);
+QEMU_ARG_NONNULL size_t temp_idx(TCGTemp *ts);
+QEMU_RET_ARG_NONNULL TCGTemp *tcgv_i32_temp(TCGv_i32 v);
 #else
+QEMU_ARG_NONNULL
 static inline size_t temp_idx(TCGTemp *ts)
 {
     return ts - tcg_ctx->temps;
@@ -502,104 +506,124 @@ static inline size_t temp_idx(TCGTemp *ts)
  * its index means that we don't use 0.  That leaves offset 0 free for
  * a NULL representation without having to leave index 0 unused.
  */
+QEMU_RET_ARG_NONNULL
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
     return (void *)tcg_ctx + (uintptr_t)v;
 }
 #endif
 
+QEMU_RET_ARG_NONNULL
 static inline TCGTemp *tcgv_i64_temp(TCGv_i64 v)
 {
     return tcgv_i32_temp((TCGv_i32)v);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGTemp *tcgv_i128_temp(TCGv_i128 v)
 {
     return tcgv_i32_temp((TCGv_i32)v);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGTemp *tcgv_ptr_temp(TCGv_ptr v)
 {
     return tcgv_i32_temp((TCGv_i32)v);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGTemp *tcgv_vec_temp(TCGv_vec v)
 {
     return tcgv_i32_temp((TCGv_i32)v);
 }
 
+QEMU_ARG_NONNULL
 static inline TCGArg tcgv_i32_arg(TCGv_i32 v)
 {
     return temp_arg(tcgv_i32_temp(v));
 }
 
+QEMU_ARG_NONNULL
 static inline TCGArg tcgv_i64_arg(TCGv_i64 v)
 {
     return temp_arg(tcgv_i64_temp(v));
 }
 
+QEMU_ARG_NONNULL
 static inline TCGArg tcgv_i128_arg(TCGv_i128 v)
 {
     return temp_arg(tcgv_i128_temp(v));
 }
 
+QEMU_ARG_NONNULL
 static inline TCGArg tcgv_ptr_arg(TCGv_ptr v)
 {
     return temp_arg(tcgv_ptr_temp(v));
 }
 
+QEMU_ARG_NONNULL
 static inline TCGArg tcgv_vec_arg(TCGv_vec v)
 {
     return temp_arg(tcgv_vec_temp(v));
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
     (void)temp_idx(t); /* trigger embedded assert */
     return (TCGv_i32)((void *)t - (void *)tcg_ctx);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
 {
     return (TCGv_i64)temp_tcgv_i32(t);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGv_i128 temp_tcgv_i128(TCGTemp *t)
 {
     return (TCGv_i128)temp_tcgv_i32(t);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGv_ptr temp_tcgv_ptr(TCGTemp *t)
 {
     return (TCGv_ptr)temp_tcgv_i32(t);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGv_vaddr temp_tcgv_vaddr(TCGTemp *t)
 {
     return (TCGv_vaddr)temp_tcgv_i32(t);
 }
 
+QEMU_RET_ARG_NONNULL
 static inline TCGv_vec temp_tcgv_vec(TCGTemp *t)
 {
     return (TCGv_vec)temp_tcgv_i32(t);
 }
 
+QEMU_ARG_NONNULL
 static inline TCGArg tcg_get_insn_param(TCGOp *op, unsigned arg)
 {
     return op->args[arg];
 }
 
+QEMU_ARG_NONNULL
 static inline void tcg_set_insn_param(TCGOp *op, unsigned arg, TCGArg v)
 {
     op->args[arg] = v;
 }
 
+QEMU_ARG_NONNULL
 static inline uint64_t tcg_get_insn_start_param(TCGOp *op, unsigned arg)
 {
     tcg_debug_assert(arg < INSN_START_WORDS);
     return tcg_get_insn_param(op, arg);
 }
 
+QEMU_ARG_NONNULL
 static inline void tcg_set_insn_start_param(TCGOp *op, unsigned arg, uint64_t v)
 {
     tcg_debug_assert(arg < INSN_START_WORDS);
@@ -628,9 +652,9 @@ static inline bool tcg_op_buf_full(void)
 /* pool based memory allocation */
 
 /* user-mode: mmap_lock must be held for tcg_malloc_internal. */
-void *tcg_malloc_internal(TCGContext *s, int size);
-void tcg_pool_reset(TCGContext *s);
-TranslationBlock *tcg_tb_alloc(TCGContext *s);
+QEMU_RET_ARG_NONNULL void *tcg_malloc_internal(TCGContext *s, int size);
+QEMU_ARG_NONNULL void tcg_pool_reset(TCGContext *s);
+QEMU_ARG_NONNULL TranslationBlock *tcg_tb_alloc(TCGContext *s);
 
 void tcg_region_reset_all(void);
 
@@ -643,7 +667,7 @@ size_t tcg_code_capacity(void);
  *
  * Insert @tb into the region trees.
  */
-void tcg_tb_insert(TranslationBlock *tb);
+QEMU_ARG_NONNULL void tcg_tb_insert(TranslationBlock *tb);
 
 /**
  * tcg_tb_remove:
@@ -651,7 +675,7 @@ void tcg_tb_insert(TranslationBlock *tb);
  *
  * Remove @tb from the region trees.
  */
-void tcg_tb_remove(TranslationBlock *tb);
+QEMU_ARG_NONNULL void tcg_tb_remove(TranslationBlock *tb);
 
 /**
  * tcg_tb_lookup:
@@ -685,6 +709,7 @@ void tcg_tb_foreach(GTraverseFunc func, gpointer user_data);
 size_t tcg_nb_tbs(void);
 
 /* user-mode: Called with mmap_lock held.  */
+QEMU_RET_NONNULL
 static inline void *tcg_malloc(int size)
 {
     TCGContext *s = tcg_ctx;
@@ -703,8 +728,10 @@ static inline void *tcg_malloc(int size)
     }
 }
 
+QEMU_ARG_NONNULL
 void tcg_func_start(TCGContext *s);
 
+QEMU_ARG_NONNULL
 int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start);
 
 void tb_target_set_jmp_target(const TranslationBlock *, int,
@@ -794,7 +821,10 @@ void tcg_gen_call7(void *func, TCGHelperInfo *, TCGTemp *ret,
                    TCGTemp *, TCGTemp *, TCGTemp *, TCGTemp *,
                    TCGTemp *, TCGTemp *, TCGTemp *);
 
+QEMU_RET_NONNULL
 TCGOp *tcg_emit_op(TCGOpcode opc, unsigned nargs);
+
+QEMU_ARG_NONNULL
 void tcg_op_remove(TCGContext *s, TCGOp *op);
 
 /**
@@ -805,10 +835,13 @@ void tcg_op_remove(TCGContext *s, TCGOp *op);
  * a starting point with tcg_last_op(), speculatively emit opcodes,
  * then decide whether or not to keep those opcodes after the fact.
  */
+QEMU_ARG_NONNULL
 void tcg_remove_ops_after(TCGOp *op);
 
+QEMU_ARG_NONNULL
 void tcg_optimize(TCGContext *s);
 
+QEMU_RET_NONNULL
 TCGLabel *gen_new_label(void);
 
 /**
@@ -817,7 +850,7 @@ TCGLabel *gen_new_label(void);
  *
  * Encode a label for storage in the TCG opcode stream.
  */
-
+QEMU_ARG_NONNULL
 static inline TCGArg label_arg(TCGLabel *l)
 {
     return (uintptr_t)l;
@@ -848,7 +881,7 @@ static inline TCGLabel *arg_label(TCGArg i)
  * This version relies on GCC's void pointer arithmetic to get the
  * correct result.
  */
-
+QEMU_ARG_NONNULL
 static inline ptrdiff_t tcg_ptr_byte_diff(const void *a, const void *b)
 {
     return a - b;
@@ -862,7 +895,7 @@ static inline ptrdiff_t tcg_ptr_byte_diff(const void *a, const void *b)
  * Produce a pc-relative difference, from the current code_ptr
  * to the destination address.
  */
-
+QEMU_ARG_NONNULL
 static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, const void *target)
 {
     return tcg_ptr_byte_diff(target, tcg_splitwx_to_rx(s->code_ptr));
@@ -876,6 +909,7 @@ static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, const void *target)
  * Produce a difference, from the beginning of the current TB code
  * to the destination address.
  */
+QEMU_ARG_NONNULL
 static inline ptrdiff_t tcg_tbrel_diff(TCGContext *s, const void *target)
 {
     return tcg_ptr_byte_diff(target, tcg_splitwx_to_rx(s->code_buf));
@@ -888,7 +922,7 @@ static inline ptrdiff_t tcg_tbrel_diff(TCGContext *s, const void *target)
  * Compute the current code size within the translation block.
  * This is used to fill in qemu's data structures for goto_tb.
  */
-
+QEMU_ARG_NONNULL
 static inline size_t tcg_current_code_size(TCGContext *s)
 {
     return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
@@ -946,12 +980,15 @@ static inline size_t tcg_current_code_size(TCGContext *s)
 #define TB_EXIT_REQUESTED 3
 
 #ifdef CONFIG_TCG_INTERPRETER
+QEMU_ARG_NONNULL
 uintptr_t tcg_qemu_tb_exec(CPUArchState *env, const void *tb_ptr);
 #else
-typedef uintptr_t tcg_prologue_fn(CPUArchState *env, const void *tb_ptr);
+typedef QEMU_ARG_NONNULL uintptr_t
+    tcg_prologue_fn(CPUArchState *env, const void *tb_ptr);
 extern tcg_prologue_fn *tcg_qemu_tb_exec;
 #endif
 
+QEMU_ARG_NONNULL
 void tcg_register_jit(const void *buf, size_t buf_size);
 
 /* Return zero if the tuple (opc, type, vece) is unsupportable;

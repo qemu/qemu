@@ -2201,6 +2201,10 @@ void tcg_temp_free_internal(TCGTemp *ts)
 {
     TCGContext *s = tcg_ctx;
 
+    if (ts == NULL) {
+        return;
+    }
+
     switch (ts->kind) {
     case TEMP_CONST:
     case TEMP_TB:
@@ -2251,6 +2255,10 @@ TCGTemp *tcg_constant_internal(TCGType type, int64_t val)
     if (h == NULL) {
         h = g_hash_table_new(g_int64_hash, g_int64_equal);
         s->const_table[type] = h;
+    }
+
+    if (type == TCG_TYPE_I32) {
+        val = (int32_t)val;
     }
 
     ts = g_hash_table_lookup(h, &val);
