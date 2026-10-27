@@ -19,6 +19,12 @@
 
 #define DMA_LEN           4
 
+#define DBG_PAGE_SIZE           0x1000ull
+#define DBG_NAPOT_SIZE          0x10000ull
+#define DBG_SUPERPAGE_SIZE      0x200000ull
+#define DBG_TRANSLATED_PA       0x90000000ull
+#define DBG_NESTED_GPA          0x200000ull
+
 /* RISC-V virt machine PCI configuration */
 #define RISCV_GPEX_PIO_BASE        0x3000000
 #define RISCV_BUS_PIO_LIMIT        0x10000
@@ -34,6 +40,64 @@ typedef struct RiscvIommuTestState {
     QPCIBar testdev_bar;
     uint64_t iommu_base;
 } RiscvIommuTestState;
+
+typedef struct RiscvIommuDbgTest {
+    const char *name;
+    QRIOMMUTransMode mode;
+    uint64_t s_page_size;
+    uint64_t g_page_size;
+    uint64_t pa;
+    uint64_t expected_response;
+} RiscvIommuDbgTest;
+
+static const RiscvIommuDbgTest debug_tests[] = {
+    {
+        .name = "page-4k",
+        .mode = QRIOMMU_TM_S_STAGE_ONLY,
+        .s_page_size = DBG_PAGE_SIZE,
+        .pa = DBG_TRANSLATED_PA + DBG_PAGE_SIZE,
+        .expected_response = 0x24000400ull,
+    }, {
+        .name = "napot-64k",
+        .mode = QRIOMMU_TM_S_STAGE_ONLY,
+        .s_page_size = DBG_NAPOT_SIZE,
+        .pa = DBG_TRANSLATED_PA,
+        .expected_response = 0x24001e00ull,
+    }, {
+        .name = "superpage",
+        .mode = QRIOMMU_TM_S_STAGE_ONLY,
+        .s_page_size = DBG_SUPERPAGE_SIZE,
+        .pa = DBG_TRANSLATED_PA,
+        .expected_response = 0x2403fe00ull,
+    }, {
+        .name = "g-stage-superpage",
+        .mode = QRIOMMU_TM_G_STAGE_ONLY,
+        .g_page_size = DBG_SUPERPAGE_SIZE,
+        .pa = DBG_TRANSLATED_PA,
+        .expected_response = 0x2403fe00ull,
+    }, {
+        .name = "nested-s4k-g2m",
+        .mode = QRIOMMU_TM_NESTED,
+        .s_page_size = DBG_PAGE_SIZE,
+        .g_page_size = DBG_SUPERPAGE_SIZE,
+        .pa = DBG_TRANSLATED_PA,
+        .expected_response = 0x24001000ull,
+    }, {
+        .name = "nested-s2m-g4k",
+        .mode = QRIOMMU_TM_NESTED,
+        .s_page_size = DBG_SUPERPAGE_SIZE,
+        .g_page_size = DBG_PAGE_SIZE,
+        .pa = DBG_TRANSLATED_PA,
+        .expected_response = 0x24001000ull,
+    }, {
+        .name = "nested-s2m-g2m",
+        .mode = QRIOMMU_TM_NESTED,
+        .s_page_size = DBG_SUPERPAGE_SIZE,
+        .g_page_size = DBG_SUPERPAGE_SIZE,
+        .pa = DBG_TRANSLATED_PA,
+        .expected_response = 0x2403fe00ull,
+    },
+};
 
 static void riscv_config_qpci_bus(QGenericPCIBus *qpci)
 {
@@ -264,6 +328,129 @@ static void test_riscv_iommu_nested(void)
     run_riscv_iommu_translation(&cfg);
 }
 
+static void riscv_iommu_dbg_map_leaf(QTestState *qts, uint64_t l1_pa,
+                                    uint64_t l2_pa, uint64_t va, uint64_t pa,
+                                    uint64_t page_size)
+{
+    uint64_t pte = ((pa >> 12) << 10) | QRIOMMU_LEAF_PTE_RW_MASK;
+    uint64_t pte_addr;
+
+    g_assert_cmphex(pa & (page_size - 1), ==, 0);
+
+    if (page_size == DBG_SUPERPAGE_SIZE) {
+        pte_addr = l1_pa + (((va >> 21) & 0x1ff) * sizeof(uint64_t));
+        qtest_writeq(qts, pte_addr, pte);
+    } else if (page_size == DBG_NAPOT_SIZE) {
+        /* A 64 KiB NAPOT PTE has N=1 and PPN[3:0]=1000. */
+        pte |= BIT_ULL(63) | (8ull << 10);
+        va &= ~(DBG_NAPOT_SIZE - 1);
+        for (unsigned i = 0; i < DBG_NAPOT_SIZE / DBG_PAGE_SIZE; i++) {
+            pte_addr = l2_pa + ((((va >> 12) + i) & 0x1ff) *
+                                sizeof(uint64_t));
+            qtest_writeq(qts, pte_addr, pte);
+        }
+    } else {
+        g_assert_cmphex(page_size, ==, DBG_PAGE_SIZE);
+        pte_addr = l2_pa + (((va >> 12) & 0x1ff) * sizeof(uint64_t));
+        qtest_writeq(qts, pte_addr, pte);
+    }
+}
+
+static uint64_t riscv_iommu_dbg_translate(RiscvIommuTestState *state,
+                                         uint64_t iova)
+{
+    uint64_t request;
+
+    qtest_writeq(state->qts,
+                 state->iommu_base + RISCV_IOMMU_REG_TR_REQ_IOVA, iova);
+    request = ((uint64_t)state->testdev->devfn << 40) |
+              RISCV_IOMMU_TR_REQ_CTL_GO_BUSY;
+    qtest_writeq(state->qts,
+                 state->iommu_base + RISCV_IOMMU_REG_TR_REQ_CTL, request);
+
+    request = qtest_readq(state->qts,
+                          state->iommu_base + RISCV_IOMMU_REG_TR_REQ_CTL);
+    g_assert_cmpuint(request & RISCV_IOMMU_TR_REQ_CTL_GO_BUSY, ==, 0);
+
+    return qtest_readq(state->qts,
+                       state->iommu_base + RISCV_IOMMU_REG_TR_RESPONSE);
+}
+
+static void test_riscv_iommu_dbg(gconstpointer data)
+{
+    const RiscvIommuDbgTest *cfg = data;
+    RiscvIommuTestState state = { 0 };
+    uint64_t iova = QRIOMMU_IOVA & ~(DBG_PAGE_SIZE - 1);
+    uint64_t s_pa = cfg->pa;
+    uint64_t page_size = cfg->mode == QRIOMMU_TM_G_STAGE_ONLY ?
+                         cfg->g_page_size : cfg->s_page_size;
+    uint64_t response;
+
+    if (!riscv_iommu_test_setup(&state)) {
+        return;
+    }
+
+    riscv_iommu_check(state.qts, state.iommu_base, cfg->mode);
+    qriommu_build_translation(state.qts, cfg->mode, state.testdev->devfn);
+
+    if (cfg->mode == QRIOMMU_TM_NESTED) {
+        uint64_t g_l1_pa = QRIOMMU_SPACE_OFFS + QRIOMMU_G_L0_PTE_VAL;
+        uint64_t g_l2_pa = QRIOMMU_SPACE_OFFS + QRIOMMU_G_L1_PTE_VAL;
+        uint64_t offset = iova & (DBG_SUPERPAGE_SIZE - 1);
+        uint64_t gpa = DBG_NESTED_GPA + offset;
+        uint64_t pte_addr;
+        uint64_t pte;
+
+        /* Map all S-stage page tables through one 2 MiB G-stage leaf. */
+        riscv_iommu_dbg_map_leaf(state.qts, g_l1_pa, g_l2_pa, 0,
+                                 QRIOMMU_SPACE_OFFS, DBG_SUPERPAGE_SIZE);
+
+        if (cfg->g_page_size == DBG_PAGE_SIZE) {
+            pte_addr = g_l1_pa + (((gpa >> 21) & 0x1ff) * sizeof(uint64_t));
+            pte = ((g_l2_pa >> 12) << 10) | QRIOMMU_NON_LEAF_PTE_MASK;
+            qtest_writeq(state.qts, pte_addr, pte);
+        }
+        riscv_iommu_dbg_map_leaf(state.qts, g_l1_pa, g_l2_pa, gpa,
+                                 cfg->pa + (offset & ~(cfg->g_page_size - 1)),
+                                 cfg->g_page_size);
+        s_pa = gpa & ~(cfg->s_page_size - 1);
+        page_size = MIN(page_size, cfg->g_page_size);
+    }
+
+    if (cfg->mode == QRIOMMU_TM_G_STAGE_ONLY) {
+        riscv_iommu_dbg_map_leaf(state.qts,
+                                 QRIOMMU_SPACE_OFFS + QRIOMMU_G_L0_PTE_VAL,
+                                 QRIOMMU_SPACE_OFFS + QRIOMMU_G_L1_PTE_VAL,
+                                 iova, cfg->pa, cfg->g_page_size);
+    } else {
+        riscv_iommu_dbg_map_leaf(state.qts,
+                                 QRIOMMU_SPACE_OFFS + QRIOMMU_L0_PTE_VAL,
+                                 QRIOMMU_SPACE_OFFS + QRIOMMU_L1_PTE_VAL,
+                                 iova, s_pa, cfg->s_page_size);
+    }
+    qriommu_program_regs(state.qts, state.iommu_base);
+
+    /*
+     * The spec permits reporting a smaller range. These tests check QEMU's
+     * choice to report the effective range returned by an uncached walk.
+     * No DMA precedes these requests, and debug requests do not fill the IOTLB.
+     */
+    response = riscv_iommu_dbg_translate(&state, iova);
+    g_assert_cmphex(response, ==, cfg->expected_response);
+
+    if (page_size > DBG_PAGE_SIZE) {
+        /* Check both ends as well as the interior of the reported range. */
+        iova &= ~(page_size - 1);
+        response = riscv_iommu_dbg_translate(&state, iova);
+        g_assert_cmphex(response, ==, cfg->expected_response);
+        response = riscv_iommu_dbg_translate(&state,
+                                            iova + page_size - DBG_PAGE_SIZE);
+        g_assert_cmphex(response, ==, cfg->expected_response);
+    }
+
+    riscv_iommu_test_teardown(&state);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -275,5 +462,11 @@ int main(int argc, char **argv)
                    test_riscv_iommu_g_stage_only);
     qtest_add_func("/iommu-testdev/translation/ns-nested",
                    test_riscv_iommu_nested);
+    for (unsigned i = 0; i < G_N_ELEMENTS(debug_tests); i++) {
+        g_autofree char *path = g_strdup_printf("/iommu-testdev/debug/%s",
+                                               debug_tests[i].name);
+
+        qtest_add_data_func(path, &debug_tests[i], test_riscv_iommu_dbg);
+    }
     return g_test_run();
 }

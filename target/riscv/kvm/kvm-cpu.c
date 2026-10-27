@@ -58,6 +58,7 @@ void riscv_kvm_aplic_request(void *opaque, int irq, int level)
 }
 
 static bool cap_has_mp_state;
+static bool mp_state_reset;
 
 #define KVM_RISCV_REG_ID_U32(type, idx) (KVM_REG_RISCV | KVM_REG_SIZE_U32 | \
                                          type | idx)
@@ -1444,9 +1445,30 @@ static int kvm_riscv_put_mp_state(CPUState *cs)
     return kvm_vcpu_ioctl(cs, KVM_SET_MP_STATE, &mp_state);
 }
 
+static int kvm_riscv_mp_state_init_received(CPUState *cs)
+{
+    struct kvm_mp_state mp_state = {
+        .mp_state = KVM_MP_STATE_INIT_RECEIVED,
+    };
+
+    if (!cap_has_mp_state || !mp_state_reset) {
+        return 0;
+    }
+
+    /* Let KVM resets the VCPU, The original MP_STATE is preserved*/
+    return kvm_vcpu_ioctl(cs, KVM_SET_MP_STATE, &mp_state);
+}
+
 int kvm_arch_put_registers(CPUState *cs, KvmPutState level, Error **errp)
 {
     int ret = 0;
+
+    if (KVM_PUT_RESET_STATE == level) {
+        ret = kvm_riscv_mp_state_init_received(cs);
+        if (ret) {
+            return ret;
+        }
+    }
 
     ret = kvm_riscv_put_regs_core(cs);
     if (ret) {
@@ -1624,6 +1646,11 @@ int kvm_arch_get_default_type(MachineState *ms)
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
+
+    if (cap_has_mp_state) {
+        mp_state_reset = !kvm_vm_enable_cap(s, KVM_CAP_RISCV_MP_STATE_RESET, 0);
+    }
+
     return 0;
 }
 

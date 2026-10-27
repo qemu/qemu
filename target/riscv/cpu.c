@@ -222,6 +222,7 @@ const RISCVIsaExtData isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zksh, PRIV_VERSION_1_12_0, ext_zksh),
     ISA_EXT_DATA_ENTRY(zkt, PRIV_VERSION_1_12_0, ext_zkt),
     ISA_EXT_DATA_ENTRY(ztso, PRIV_VERSION_1_12_0, ext_ztso),
+    ISA_EXPERIMENTAL_EXT_DATA_ENTRY(zvabd, PRIV_VERSION_1_13_0, ext_zvabd),
     ISA_EXT_DATA_ENTRY(zvbb, PRIV_VERSION_1_12_0, ext_zvbb),
     ISA_EXT_DATA_ENTRY(zvbc, PRIV_VERSION_1_12_0, ext_zvbc),
     ISA_EXT_DATA_ENTRY(zve32f, PRIV_VERSION_1_10_0, ext_zve32f),
@@ -1549,6 +1550,25 @@ static void riscv_cpu_init(Object *obj)
     cpu->env.vext_ver = VEXT_VERSION_1_00_0;
     cpu->cfg.max_satp_mode = -1;
 
+    /*
+     * The way we're handling profiles does not cope well with QMP
+     * instropection.  We have a static array that stores RISCVCPUProfiles
+     * objs that hold runtime state for the lifetime of the QEMU process.
+     * Thus setting profile->enabled once, e.g. when instropecting a
+     * profile CPU, will leave the flag set for subsequent intropections.
+     *
+     * For now, clear all 'enabled' flags to avoid misleading QMP w.r.t
+     * profiles being set.
+     *
+     * FIXME: a better long term solution is to remove profile->enabled
+     * and just use regular cpu->cfg flags, avoiding static variables
+     * storing dynamic state.  This will help us not only with QMP but
+     * also single-binary support.
+     */
+    for (int i = 0; riscv_profiles[i] != NULL; i++) {
+        riscv_profiles[i]->enabled = false;
+    }
+
     if (mcc->def->profile) {
         mcc->def->profile->enabled = true;
     }
@@ -2297,7 +2317,7 @@ static void prop_marchid_set(Object *obj, Visitor *v, const char *name,
         g_assert_not_reached();
     }
 
-    invalid_val = 1LL << (mxlen - 1);
+    invalid_val = 1ULL << (mxlen - 1);
 
     if (value == invalid_val) {
         error_setg(errp, "Unable to set marchid with MSB (%u) bit set "

@@ -25,6 +25,18 @@ tests += {
   'test-minstret-ecall.S': setup + {'qemu_args': ['-icount', 'shift=1', qemu_args]},
   'test-minstret-wfi.S': setup + {'qemu_args': ['-icount', 'shift=1', qemu_args]},
   'test-misa-w.S': setup + {'qemu_args': ['-cpu', 'rv64,x-misa-w=true,c=true,v=true', qemu_args]},
+  'test-zvabd.S': setup + {'qemu_args': ['-cpu', 'rv64,v=true,vlen=256,x-zvabd=true', qemu_args]},
+  'test-vsepc-masking.S': setup + {
+    'test_name': 'test-vsepc-masking-c',
+    'qemu_args': ['-cpu', 'rv64,h=true,c=true', qemu_args],
+  },
+}
+
+tests += {
+  'test-vsepc-masking.S': {
+    'test_name': 'test-vsepc-masking-no-c',
+    'qemu_args': ['-cpu', 'rv64,h=true,c=false,zca=false', qemu_args],
+  },
 }
 
 tests += {

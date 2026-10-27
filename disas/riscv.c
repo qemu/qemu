@@ -104,6 +104,7 @@ static const rvc_constraint rvcc_j[] = { rvc_rd_eq_x0, rvc_end };
 static const rvc_constraint rvcc_ret[] = { rvc_rs1_eq_ra, rvc_end };
 static const rvc_constraint rvcc_jr[] = { rvc_rd_eq_x0, rvc_imm_eq_zero,
                                           rvc_end };
+static const rvc_constraint rvcc_vabs_v[] = { rvc_rs1_eq_x0, rvc_end };
 static const rvc_constraint rvcc_true[] = { rvc_end };
 
 /* pseudo-instruction metadata */
@@ -240,6 +241,11 @@ static const rv_comp_data rvcp_fsgnjn_q[] = {
 
 static const rv_comp_data rvcp_fsgnjx_q[] = {
     { &op_fabs_q, rvcc_fabs_q },
+    { },
+};
+
+static const rv_comp_data rvcp_vabd_vx[] = {
+    { &op_vabs_v, rvcc_vabs_v },
     { },
 };
 
@@ -2025,6 +2031,8 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 case 48: return &op_vwredsumu_vs;
                 case 49: return &op_vwredsum_vs;
                 case 53: return &op_vwsll_vv;
+                case 61: return &op_vwabda_vv;
+                case 62: return &op_vwabdau_vv;
                 }
                 break;
             case 1:
@@ -2167,6 +2175,8 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                         break;
                     }
                     break;
+                case 21: return &op_vabd_vv;
+                case 22: return &op_vabdu_vv;
                 case 23:
                     if ((inst >> 25) & 1) {
                         return &op_vcompress_vm;
@@ -2352,6 +2362,8 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 case 46: return &op_vnclipu_wx;
                 case 47: return &op_vnclip_wx;
                 case 53: return &op_vwsll_vx;
+                case 61: return &op_vwabda_vx;
+                case 62: return &op_vwabdau_vx;
                 }
                 break;
             case 5:
@@ -2428,6 +2440,8 @@ static const rv_opcode_data *decode_inst_opcode(rv_decode *dec, rv_isa isa)
                         }
                     }
                     break;
+                case 21: return &op_vabd_vx;
+                case 22: return &op_vabdu_vx;
                 case 32: return &op_vdivu_vx;
                 case 33: return &op_vdiv_vx;
                 case 34: return &op_vremu_vx;

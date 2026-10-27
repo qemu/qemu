@@ -2108,6 +2108,9 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     }
 
     if (xl != MXL_RV32 || env->debugger) {
+        if (riscv_has_ext(env, RVH)) {
+            mask |= MSTATUS_MPV | MSTATUS_GVA;
+        }
         if ((val & MSTATUS64_SXL) != 0) {
             mask |= MSTATUS64_SXL;
             val = riscv_write_uxl(env, val, MSTATUS64_SXL);
@@ -2150,7 +2153,7 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
                                      target_ulong val, uintptr_t ra)
 {
     uint64_t valh = (uint64_t)val << 32;
-    uint64_t mask = 0;
+    uint64_t mask = riscv_has_ext(env, RVH) ? MSTATUS_MPV | MSTATUS_GVA : 0;
 
     if (riscv_cpu_cfg(env)->ext_smdbltrp) {
         mask |= MSTATUS_MDT;
@@ -3388,9 +3391,18 @@ static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
                                     target_ulong val, uintptr_t ra)
 {
     const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
-    uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE |
-                    MENVCFG_CBZE;
+    uint64_t mask = MENVCFG_FIOM;
     bool stce_changed = false;
+
+    /* CBIE/CBCFE are read-only zero when Zicbom is not implemented. */
+    if (cfg->ext_zicbom) {
+        mask |= MENVCFG_CBIE | MENVCFG_CBCFE;
+    }
+
+    /* CBZE is read-only zero when Zicboz is not implemented. */
+    if (cfg->ext_zicboz) {
+        mask |= MENVCFG_CBZE;
+    }
 
     /*
      * menvcfg.LPE (Zicfilp) and menvcfg.SSE (Zicfiss) reside in the low
@@ -3492,8 +3504,18 @@ static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
                                     target_ulong val, uintptr_t ra)
 {
-    uint64_t mask = SENVCFG_FIOM | SENVCFG_CBIE | SENVCFG_CBCFE | SENVCFG_CBZE;
+    uint64_t mask = SENVCFG_FIOM;
     RISCVException ret;
+
+    /* CBIE/CBCFE are read-only zero when Zicbom is not implemented. */
+    if (env_archcpu(env)->cfg.ext_zicbom) {
+        mask |= SENVCFG_CBIE | SENVCFG_CBCFE;
+    }
+
+    /* CBZE is read-only zero when Zicboz is not implemented. */
+    if (env_archcpu(env)->cfg.ext_zicboz) {
+        mask |= SENVCFG_CBZE;
+    }
     /* Update PMM field only if the value is valid according to Zjpm v1.0 */
     if (env_archcpu(env)->cfg.ext_ssnpm &&
         riscv_cpu_mxl(env) == MXL_RV64 &&
@@ -3550,9 +3572,19 @@ static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
                                     target_ulong val, uintptr_t ra)
 {
     const RISCVCPUConfig *cfg = riscv_cpu_cfg(env);
-    uint64_t mask = HENVCFG_FIOM | HENVCFG_CBIE | HENVCFG_CBCFE | HENVCFG_CBZE;
+    uint64_t mask = HENVCFG_FIOM;
     RISCVException ret;
     bool stce_changed = false;
+
+    /* CBIE/CBCFE are read-only zero when Zicbom is not implemented. */
+    if (cfg->ext_zicbom) {
+        mask |= HENVCFG_CBIE | HENVCFG_CBCFE;
+    }
+
+    /* CBZE is read-only zero when Zicboz is not implemented. */
+    if (cfg->ext_zicboz) {
+        mask |= HENVCFG_CBZE;
+    }
 
     ret = smstateen_acc_ok(env, 0, SMSTATEEN0_HSENVCFG);
     if (ret != RISCV_EXCP_NONE) {
@@ -5484,14 +5516,14 @@ static RISCVException write_vsscratch(CPURISCVState *env, int csrno,
 static RISCVException read_vsepc(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->vsepc;
+    *val = env->vsepc & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vsepc(CPURISCVState *env, int csrno,
                                   target_ulong val, uintptr_t ra)
 {
-    env->vsepc = val;
+    env->vsepc = val & get_xepc_mask(env);
     return RISCV_EXCP_NONE;
 }
 
@@ -5764,6 +5796,10 @@ static RISCVException write_mnstatus(CPURISCVState *env, int csrno,
         }
 
         mask |= MNSTATUS_MNPV;
+    }
+
+    if (env_archcpu(env)->cfg.ext_zicfilp) {
+        mask |= MNSTATUS_MNPELP;
     }
 
     /* mnstatus.mnie can only be cleared by hardware. */

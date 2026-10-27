@@ -73,6 +73,7 @@ struct RISCVIOMMUState {
 
     GHashTable *iot_cache;          /* IO Translated Address Cache */
     unsigned iot_limit;             /* IO Translation Cache size limit */
+    QemuMutex iot_lock;
 
     /* MMIO Hardware Interface */
     MemoryRegion regs_mr;

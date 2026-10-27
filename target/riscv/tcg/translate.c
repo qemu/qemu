@@ -693,7 +693,7 @@ static TCGv get_address_indexed(DisasContext *ctx, int rs1, TCGv offs)
  */
 static void mark_fs_dirty(DisasContext *ctx)
 {
-    TCGv tmp;
+    TCGv_i64 tmp;
 
     if (!has_ext(ctx, RVF)) {
         return;
@@ -703,15 +703,15 @@ static void mark_fs_dirty(DisasContext *ctx)
         /* Remember the state change for the rest of the TB. */
         ctx->mstatus_fs = EXT_STATUS_DIRTY;
 
-        tmp = tcg_temp_new();
-        tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
-        tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS);
-        tcg_gen_st_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
+        tmp = tcg_temp_new_i64();
+        tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
+        tcg_gen_ori_i64(tmp, tmp, MSTATUS_FS);
+        tcg_gen_st_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
 
         if (ctx->virt_enabled) {
-            tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
-            tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS);
-            tcg_gen_st_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
+            tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
+            tcg_gen_ori_i64(tmp, tmp, MSTATUS_FS);
+            tcg_gen_st_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
         }
     }
 }
@@ -726,21 +726,21 @@ static inline void mark_fs_dirty(DisasContext *ctx) { }
  */
 static void mark_vs_dirty(DisasContext *ctx)
 {
-    TCGv tmp;
+    TCGv_i64 tmp;
 
     if (ctx->mstatus_vs != EXT_STATUS_DIRTY) {
         /* Remember the state change for the rest of the TB.  */
         ctx->mstatus_vs = EXT_STATUS_DIRTY;
 
-        tmp = tcg_temp_new();
-        tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
-        tcg_gen_ori_tl(tmp, tmp, MSTATUS_VS);
-        tcg_gen_st_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
+        tmp = tcg_temp_new_i64();
+        tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
+        tcg_gen_ori_i64(tmp, tmp, MSTATUS_VS);
+        tcg_gen_st_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus));
 
         if (ctx->virt_enabled) {
-            tcg_gen_ld_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
-            tcg_gen_ori_tl(tmp, tmp, MSTATUS_VS);
-            tcg_gen_st_tl(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
+            tcg_gen_ld_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
+            tcg_gen_ori_i64(tmp, tmp, MSTATUS_VS);
+            tcg_gen_st_i64(tmp, tcg_env, offsetof(CPURISCVState, mstatus_hs));
         }
     }
 }
