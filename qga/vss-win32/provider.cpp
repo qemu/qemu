@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+
+#include <vector>
+#include <algorithm>
+#include <string>
+
 #include "vss-common.h"
 #include "vss-debug.h"
 #ifdef HAVE_VSS_SDK
@@ -138,6 +143,170 @@ STDMETHODIMP CQGAVSSEnumObject::Clone(IVssEnumObject **ppenum)
     return E_NOTIMPL;
 }
 
+static VSS_PWSZ qga_vss_strdup(const WCHAR *value)
+{
+    size_t len = (wcslen(value) + 1) * sizeof(WCHAR);
+    VSS_PWSZ str = (VSS_PWSZ)CoTaskMemAlloc(len);
+
+    if (str) {
+        memcpy(str, value, len);
+    }
+    return str;
+}
+
+static VSS_PWSZ qga_vss_strdup(const std::wstring &value)
+{
+    return qga_vss_strdup(value.c_str());
+}
+
+static VSS_TIMESTAMP qga_vss_timestamp(void)
+{
+    FILETIME ft;
+    ULARGE_INTEGER value;
+
+    GetSystemTimeAsFileTime(&ft);
+    value.LowPart = ft.dwLowDateTime;
+    value.HighPart = ft.dwHighDateTime;
+    return value.QuadPart;
+}
+
+/* Registry of the snapshot IDs for this provider */
+class QGAVssSnapshotRegistry
+{
+public:
+    bool Track(VSS_ID set_id, VSS_ID snapshot_id,
+               VSS_PWSZ volume_name, LONG context);
+    HRESULT GetProperties(VSS_ID snapshot_id, VSS_SNAPSHOT_PROP *prop) const;
+    LONG RemoveSet(VSS_ID set_id); /* returns how many were removed */
+    bool Remove(VSS_ID snapshot_id);
+
+private:
+    struct Entry {
+        VSS_ID set_id;
+        VSS_ID snapshot_id;
+        std::wstring volume_name;
+        LONG context;
+        VSS_TIMESTAMP timestamp;
+    };
+
+    std::vector<Entry> m_entries;
+    mutable SRWLOCK m_lock = SRWLOCK_INIT;
+};
+
+static QGAVssSnapshotRegistry qga_vss_registry;
+
+bool QGAVssSnapshotRegistry::Track(VSS_ID set_id, VSS_ID snapshot_id,
+                                   VSS_PWSZ volume_name, LONG context)
+{
+    bool ok;
+
+    AcquireSRWLockExclusive(&m_lock);
+    try {
+        m_entries.push_back(Entry { set_id, snapshot_id, volume_name,
+                                    context, qga_vss_timestamp() });
+        ok = true;
+    } catch (...) {
+        ok = false;
+    }
+    ReleaseSRWLockExclusive(&m_lock);
+    return ok;
+}
+
+HRESULT QGAVssSnapshotRegistry::GetProperties(VSS_ID snapshot_id,
+                                              VSS_SNAPSHOT_PROP *prop) const
+{
+    HRESULT hr = S_OK;
+    VSS_PWSZ device = NULL, original = NULL;
+    VSS_PWSZ originating = NULL, service = NULL;
+
+    AcquireSRWLockShared(&m_lock);
+    auto it = std::find_if(m_entries.begin(), m_entries.end(),
+        [&](const Entry &e) {
+            return IsEqualGUID(e.snapshot_id, snapshot_id);
+        });
+    if (it == m_entries.end()) {
+        hr = VSS_E_OBJECT_NOT_FOUND;
+        goto out;
+    }
+
+    {
+        const Entry &e = *it;
+        WCHAR machine[256] = L"";
+        DWORD machine_size = ARRAYSIZE(machine);
+
+        if (!GetComputerNameExW(ComputerNameDnsFullyQualified, machine,
+                               &machine_size)) {
+            *machine = L'\0';
+        }
+
+        device = qga_vss_strdup(L"");
+        original = qga_vss_strdup(e.volume_name);
+        originating = qga_vss_strdup(machine);
+        service = qga_vss_strdup(machine);
+        if (!device || !original || !originating || !service) {
+            hr = E_OUTOFMEMORY;
+            goto out;
+        }
+
+        memset(prop, 0, sizeof(*prop));
+        prop->m_SnapshotId = e.snapshot_id;
+        prop->m_SnapshotSetId = e.set_id;
+        prop->m_lSnapshotsCount = std::count_if(m_entries.begin(),
+            m_entries.end(), [&](const Entry &o) {
+                return IsEqualGUID(o.set_id, e.set_id);
+            });
+        prop->m_pwszSnapshotDeviceObject = device;
+        prop->m_pwszOriginalVolumeName = original;
+        prop->m_pwszOriginatingMachine = originating;
+        prop->m_pwszServiceMachine = service;
+        prop->m_ProviderId = g_gProviderId;
+        prop->m_lSnapshotAttributes = e.context;
+        prop->m_tsCreationTimestamp = e.timestamp;
+        prop->m_eStatus = VSS_SS_CREATED;
+
+        device = original = originating = service = NULL;
+    }
+
+out:
+    CoTaskMemFree(device);
+    CoTaskMemFree(original);
+    CoTaskMemFree(originating);
+    CoTaskMemFree(service);
+    ReleaseSRWLockShared(&m_lock);
+    return hr;
+}
+
+LONG QGAVssSnapshotRegistry::RemoveSet(VSS_ID set_id)
+{
+    LONG removed;
+
+    AcquireSRWLockExclusive(&m_lock);
+    auto it = std::remove_if(m_entries.begin(), m_entries.end(),
+        [&](const Entry &e) {
+            return IsEqualGUID(e.set_id, set_id);
+        });
+    removed = m_entries.end() - it;
+    m_entries.erase(it, m_entries.end());
+    ReleaseSRWLockExclusive(&m_lock);
+    return removed;
+}
+
+bool QGAVssSnapshotRegistry::Remove(VSS_ID snapshot_id)
+{
+    bool found;
+
+    AcquireSRWLockExclusive(&m_lock);
+    auto it = std::find_if(m_entries.begin(), m_entries.end(),
+        [&](const Entry &e) {
+            return IsEqualGUID(e.snapshot_id, snapshot_id);
+        });
+    found = it != m_entries.end();
+    if (found) {
+        m_entries.erase(it);
+    }
+    ReleaseSRWLockExclusive(&m_lock);
+    return found;
+}
 
 /* QGAVssProvider */
 
@@ -266,7 +435,7 @@ STDMETHODIMP CQGAVssProvider::SetContext(LONG lContext)
 STDMETHODIMP CQGAVssProvider::GetSnapshotProperties(
     VSS_ID SnapshotId, VSS_SNAPSHOT_PROP *pProp)
 {
-    return S_OK;
+    return qga_vss_registry.GetProperties(SnapshotId, pProp);
 }
 
 STDMETHODIMP CQGAVssProvider::Query(
@@ -286,6 +455,27 @@ STDMETHODIMP CQGAVssProvider::DeleteSnapshots(
     VSS_ID SourceObjectId, VSS_OBJECT_TYPE eSourceObjectType,
     BOOL bForceDelete, LONG *plDeletedSnapshots, VSS_ID *pNondeletedSnapshotID)
 {
+    LONG deleted = 0;
+
+    switch (eSourceObjectType) {
+    case VSS_OBJECT_SNAPSHOT:
+        if (qga_vss_registry.Remove(SourceObjectId)) {
+            deleted = 1;
+        }
+        break;
+    case VSS_OBJECT_SNAPSHOT_SET:
+        deleted = qga_vss_registry.RemoveSet(SourceObjectId);
+        break;
+    default:
+        break;
+    }
+
+    if (deleted > 0) {
+        *plDeletedSnapshots = deleted;
+        *pNondeletedSnapshotID = GUID_NULL;
+        return S_OK;
+    }
+
     *plDeletedSnapshots = 0;
     *pNondeletedSnapshotID = SourceObjectId;
     return S_OK;
@@ -295,6 +485,13 @@ STDMETHODIMP CQGAVssProvider::BeginPrepareSnapshot(
     VSS_ID SnapshotSetId, VSS_ID SnapshotId,
     VSS_PWSZ pwszVolumeName, LONG lNewContext)
 {
+    if (!pwszVolumeName) {
+        return E_INVALIDARG;
+    }
+    if (!qga_vss_registry.Track(SnapshotSetId, SnapshotId,
+                                pwszVolumeName, lNewContext)) {
+        return E_OUTOFMEMORY;
+    }
     return S_OK;
 }
 
@@ -411,6 +608,7 @@ STDMETHODIMP CQGAVssProvider::PostFinalCommitSnapshots(VSS_ID SnapshotSetId)
 
 STDMETHODIMP CQGAVssProvider::AbortSnapshots(VSS_ID SnapshotSetId)
 {
+    qga_vss_registry.RemoveSet(SnapshotSetId);
     return S_OK;
 }
 

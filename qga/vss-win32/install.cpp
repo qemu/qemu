@@ -422,6 +422,7 @@ STDAPI COMRegister(void)
     chk(put_Value(pObj, L"Authentication",                 short(6)));
     chk(put_Value(pObj, L"AuthenticationCapability",       short(2)));
     chk(put_Value(pObj, L"ImpersonationLevel",             short(2)));
+    /* NT-service-hosted apps have ConcurrentApps=1 enforced */
     chk(pApps->SaveChanges(&n));
 
     /* The app should be deleted if something fails after SaveChanges */

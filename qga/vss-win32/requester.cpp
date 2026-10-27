@@ -52,6 +52,7 @@ static t_VssFreeSnapshotProperties pVssFreeSnapshotProperties;
 static struct QGAVSSContext {
     IVssBackupComponents *pVssbc;  /* VSS requester interface */
     IVssAsync *pAsyncSnapshot;     /* async info of VSS snapshot operation */
+    VSS_ID idSnapshotSet;          /* snapshot set created for this cycle */
     HANDLE hEventFrozen;           /* notify fs/writer freeze from provider */
     HANDLE hEventThaw;             /* request provider to thaw */
     HANDLE hEventTimeout;          /* notify timeout in provider */
@@ -116,6 +117,7 @@ static void requester_cleanup(void)
         vss_ctx.pVssbc->Release();
         vss_ctx.pVssbc = NULL;
     }
+    vss_ctx.idSnapshotSet = GUID_NULL;
     vss_ctx.cFrozenVols = 0;
     qga_debug_end;
 }
@@ -446,6 +448,7 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
         err_set(errset, hr, "failed to start snapshot set");
         goto out;
     }
+    vss_ctx.idSnapshotSet = guidSnapshotSet;
 
     if (mountpoints) {
         PWCHAR volume_name_wchar;
@@ -678,6 +681,29 @@ void requester_thaw(int *num_vols, void *mountpints, ErrorSet *errset)
 
     default:
         err_set(errset, hr, "failed to do snapshot set");
+    }
+
+    /*
+     * The snapshot set is created in VSS_CTX_APP_ROLLBACK context, so
+     * it is persistent: if it was committed, VSS keeps it (and keeps
+     * querying providers about it) until it is explicitly deleted. The
+     * freeze/thaw cycle is over whatever the outcome above, so delete
+     * it now. Failure is not fatal here, only log it.
+     */
+    {
+        LONG lDeletedSnapshots = 0;
+        VSS_ID idNonDeletedSnapshot;
+        HRESULT hrDelete;
+
+        hrDelete = vss_ctx.pVssbc->DeleteSnapshots(vss_ctx.idSnapshotSet,
+                                                   VSS_OBJECT_SNAPSHOT_SET,
+                                                   TRUE,
+                                                   &lDeletedSnapshots,
+                                                   &idNonDeletedSnapshot);
+        if (FAILED(hrDelete)) {
+            qga_debug("failed to delete snapshot set after thaw,"
+                      " hr=0x%08lx", hrDelete);
+        }
     }
 
     if (err_is_set(errset)) {
