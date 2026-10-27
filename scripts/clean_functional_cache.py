@@ -44,4 +44,4 @@ for file in cache_dir.iterdir():
         print(f"Removing {cache_dir}/{file.name}.")
         file.chmod(stat.S_IWRITE)
         file.unlink()
-        stampfile.unlink()
+        stampfile.unlink(missing_ok=True)
