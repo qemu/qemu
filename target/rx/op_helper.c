@@ -46,17 +46,17 @@ static void _set_psw(CPURXState *env, uint32_t psw, uint32_t rte)
     }
 }
 
-void helper_set_psw(CPURXState *env, uint32_t psw)
+void HELPER(set_psw)(CPURXState *env, uint32_t psw)
 {
     _set_psw(env, psw, 0);
 }
 
-void helper_set_psw_rte(CPURXState *env, uint32_t psw)
+void HELPER(set_psw_rte)(CPURXState *env, uint32_t psw)
 {
     _set_psw(env, psw, 1);
 }
 
-uint32_t helper_pack_psw(CPURXState *env)
+uint32_t HELPER(pack_psw)(CPURXState *env)
 {
     return rx_cpu_pack_psw(env);
 }
@@ -120,7 +120,7 @@ static void update_fpsw(CPURXState *env, float32 ret, uintptr_t retaddr)
     }
 }
 
-void helper_set_fpsw(CPURXState *env, uint32_t val)
+void HELPER(set_fpsw)(CPURXState *env, uint32_t val)
 {
     static const int roundmode[] = {
         float_round_nearest_even,
@@ -139,7 +139,7 @@ void helper_set_fpsw(CPURXState *env, uint32_t val)
 }
 
 #define FLOATOP(op, func)                                           \
-    float32 helper_##op(CPURXState *env, float32 t0, float32 t1)    \
+    float32 HELPER(op)(CPURXState *env, float32 t0, float32 t1)     \
     {                                                               \
         float32 ret;                                                \
         ret = func(t0, t1, &env->fp_status);                        \
@@ -147,12 +147,12 @@ void helper_set_fpsw(CPURXState *env, uint32_t val)
         return ret;                                                 \
     }
 
-FLOATOP(rx_fadd, float32_add)
-FLOATOP(rx_fsub, float32_sub)
-FLOATOP(rx_fmul, float32_mul)
-FLOATOP(rx_fdiv, float32_div)
+FLOATOP(fadd, float32_add)
+FLOATOP(fsub, float32_sub)
+FLOATOP(fmul, float32_mul)
+FLOATOP(fdiv, float32_div)
 
-void helper_rx_fcmp(CPURXState *env, float32 t0, float32 t1)
+void HELPER(fcmp)(CPURXState *env, float32 t0, float32 t1)
 {
     int st;
     st = float32_compare(t0, t1, &env->fp_status);
@@ -172,7 +172,7 @@ void helper_rx_fcmp(CPURXState *env, float32 t0, float32 t1)
     }
 }
 
-uint32_t helper_ftoi(CPURXState *env, float32 t0)
+uint32_t HELPER(ftoi)(CPURXState *env, float32 t0)
 {
     uint32_t ret;
     ret = float32_to_int32_round_to_zero(t0, &env->fp_status);
@@ -180,7 +180,7 @@ uint32_t helper_ftoi(CPURXState *env, float32 t0)
     return ret;
 }
 
-uint32_t helper_round(CPURXState *env, float32 t0)
+uint32_t HELPER(round)(CPURXState *env, float32 t0)
 {
     uint32_t ret;
     ret = float32_to_int32(t0, &env->fp_status);
@@ -188,7 +188,7 @@ uint32_t helper_round(CPURXState *env, float32 t0)
     return ret;
 }
 
-float32 helper_itof(CPURXState *env, uint32_t t0)
+float32 HELPER(itof)(CPURXState *env, uint32_t t0)
 {
     float32 ret;
     ret = int32_to_float32(t0, &env->fp_status);
@@ -197,7 +197,7 @@ float32 helper_itof(CPURXState *env, uint32_t t0)
 }
 
 /* string operations */
-void helper_scmpu(CPURXState *env)
+void HELPER(scmpu)(CPURXState *env)
 {
     uint8_t tmp0, tmp1;
     if (env->regs[3] == 0) {
@@ -234,7 +234,7 @@ static void (* const cpu_stfn[])(CPUArchState *env,
     cpu_stb_data_ra, cpu_stw_le_data_ra, cpu_stl_le_data_ra,
 };
 
-void helper_sstr(CPURXState *env, uint32_t sz)
+void HELPER(sstr)(CPURXState *env, uint32_t sz)
 {
     tcg_debug_assert(sz < 3);
     while (env->regs[3] != 0) {
@@ -266,23 +266,23 @@ static void smov(uint32_t mode, CPURXState *env)
     }
 }
 
-void helper_smovu(CPURXState *env)
+void HELPER(smovu)(CPURXState *env)
 {
     smov(OP_SMOVU, env);
 }
 
-void helper_smovf(CPURXState *env)
+void HELPER(smovf)(CPURXState *env)
 {
     smov(OP_SMOVF, env);
 }
 
-void helper_smovb(CPURXState *env)
+void HELPER(smovb)(CPURXState *env)
 {
     smov(OP_SMOVB, env);
 }
 
 
-void helper_suntil(CPURXState *env, uint32_t sz)
+void HELPER(suntil)(CPURXState *env, uint32_t sz)
 {
     uint32_t tmp;
     tcg_debug_assert(sz < 3);
@@ -301,7 +301,7 @@ void helper_suntil(CPURXState *env, uint32_t sz)
     env->psw_c = (tmp <= env->regs[2]);
 }
 
-void helper_swhile(CPURXState *env, uint32_t sz)
+void HELPER(swhile)(CPURXState *env, uint32_t sz)
 {
     uint32_t tmp;
     tcg_debug_assert(sz < 3);
@@ -321,7 +321,7 @@ void helper_swhile(CPURXState *env, uint32_t sz)
 }
 
 /* accumulator operations */
-void helper_rmpa(CPURXState *env, uint32_t sz)
+void HELPER(rmpa)(CPURXState *env, uint32_t sz)
 {
     uint64_t result_l, prev;
     int32_t result_h;
@@ -363,7 +363,7 @@ void helper_rmpa(CPURXState *env, uint32_t sz)
     env->regs[4] = result_l & 0xffffffff;
 }
 
-void helper_racw(CPURXState *env, uint32_t imm)
+void HELPER(racw)(CPURXState *env, uint32_t imm)
 {
     int64_t acc;
     acc = env->acc;
@@ -379,7 +379,7 @@ void helper_racw(CPURXState *env, uint32_t imm)
     env->acc = acc;
 }
 
-void helper_satr(CPURXState *env)
+void HELPER(satr)(CPURXState *env)
 {
     if (env->psw_o >> 31) {
         if ((int)env->psw_s < 0) {
@@ -395,7 +395,7 @@ void helper_satr(CPURXState *env)
 }
 
 /* div */
-uint32_t helper_div(CPURXState *env, uint32_t num, uint32_t den)
+uint32_t HELPER(div)(CPURXState *env, uint32_t num, uint32_t den)
 {
     uint32_t ret = num;
     if (!((num == INT_MIN && den == -1) || den == 0)) {
@@ -407,7 +407,7 @@ uint32_t helper_div(CPURXState *env, uint32_t num, uint32_t den)
     return ret;
 }
 
-uint32_t helper_rx_divu(CPURXState *env, uint32_t num, uint32_t den)
+uint32_t HELPER(divu)(CPURXState *env, uint32_t num, uint32_t den)
 {
     uint32_t ret = num;
     if (den != 0) {
@@ -430,22 +430,22 @@ void raise_exception(CPURXState *env, int index,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-G_NORETURN void helper_raise_privilege_violation(CPURXState *env)
+G_NORETURN void HELPER(raise_privilege_violation)(CPURXState *env)
 {
     raise_exception(env, RX_EXCP_PRIVILEGE_VIOLATION, GETPC());
 }
 
-G_NORETURN void helper_raise_access_fault(CPURXState *env)
+G_NORETURN void HELPER(raise_access_fault)(CPURXState *env)
 {
     raise_exception(env, RX_EXCP_ACCESS, GETPC());
 }
 
-G_NORETURN void helper_raise_illegal_instruction(CPURXState *env)
+G_NORETURN void HELPER(raise_illegal_instruction)(CPURXState *env)
 {
     raise_exception(env, RX_EXCP_ILLEGAL_INSTRUCTION, GETPC());
 }
 
-G_NORETURN void helper_wait(CPURXState *env)
+G_NORETURN void HELPER(wait)(CPURXState *env)
 {
     CPUState *cs = env_cpu(env);
 
@@ -455,7 +455,7 @@ G_NORETURN void helper_wait(CPURXState *env)
     raise_exception(env, EXCP_HLT, 0);
 }
 
-G_NORETURN void helper_trap(CPURXState *env, uint32_t vec)
+G_NORETURN void HELPER(trap)(CPURXState *env, uint32_t vec)
 {
     raise_exception(env, RX_EXCP_TRAP_BASE + vec, 0);
 }

@@ -30,13 +30,20 @@
 /* stub for system/main.c */
 int (*qemu_main)(void);
 
-static void test_qom_types_are_unique(void)
+static void test_qom_types_are_unique(const void *data)
 {
-    module_call_init(MODULE_INIT_TARGET_INFO);
-    g_autoptr(GSList) targets = object_class_get_list(TYPE_TARGET_INFO, false);
-    g_assert(targets);
-    const TargetInfo *first_ti = TARGET_INFO_CLASS(targets->data)->target_info;
-    target_info_qom_set_target_info(first_ti);
+    const TargetInfo *ti = data;
+
+    /* QOM types can be initialized only once, so do it in a subprocess. */
+    if (!g_test_subprocess()) {
+        /* parent process path - respawn this exact test path */
+        g_test_trap_subprocess(NULL, 0, G_TEST_SUBPROCESS_INHERIT_STDERR);
+        g_test_trap_assert_passed();
+        return;
+    }
+    /* child process path */
+
+    target_info_qom_set_target_info(ti);
 
     /* register all types */
     module_call_init(MODULE_INIT_QOM);
@@ -47,7 +54,18 @@ static void test_qom_types_are_unique(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    g_test_add_func("/multi-targets/qom-types-are-unique",
-                   test_qom_types_are_unique);
+
+    module_call_init(MODULE_INIT_TARGET_INFO);
+    g_autoptr(GSList) targets = object_class_get_list_sorted(TYPE_TARGET_INFO,
+                                                             false);
+    g_assert(targets);
+    for (GSList *elem = targets; elem; elem = elem->next) {
+        const TargetInfo *ti = TARGET_INFO_CLASS(elem->data)->target_info;
+        g_autofree char *path =
+            g_strdup_printf("/multi-targets/qom-types-are-unique/%s",
+                            ti->target_name);
+        g_test_add_data_func(path, ti, test_qom_types_are_unique);
+    }
+
     return g_test_run();
 }

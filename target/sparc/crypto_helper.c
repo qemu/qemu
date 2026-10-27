@@ -52,42 +52,42 @@ static uint64_t aes_round(uint64_t key, uint64_t s2, uint64_t s3,
     return r.d[out];
 }
 
-uint64_t helper_aes_eround01(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_eround01)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 0, false, false);
 }
 
-uint64_t helper_aes_eround23(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_eround23)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 1, false, false);
 }
 
-uint64_t helper_aes_dround01(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_dround01)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 0, true, false);
 }
 
-uint64_t helper_aes_dround23(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_dround23)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 1, true, false);
 }
 
-uint64_t helper_aes_eround01_l(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_eround01_l)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 0, false, true);
 }
 
-uint64_t helper_aes_eround23_l(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_eround23_l)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 1, false, true);
 }
 
-uint64_t helper_aes_dround01_l(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_dround01_l)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 0, true, true);
 }
 
-uint64_t helper_aes_dround23_l(uint64_t key, uint64_t s2, uint64_t s3)
+uint64_t HELPER(aes_dround23_l)(uint64_t key, uint64_t s2, uint64_t s3)
 {
     return aes_round(key, s2, s3, 1, true, true);
 }
@@ -114,7 +114,7 @@ static uint32_t aes_subword(uint32_t x)
  * AES Cryptographic Operations 4-operand (Section 7.3)
  * AES key expansion with RotWord, SubWord, and RCON.
  */
-uint64_t helper_aes_kexpand1(uint64_t rs1, uint64_t rs2, uint32_t imm)
+uint64_t HELPER(aes_kexpand1)(uint64_t rs1, uint64_t rs2, uint32_t imm)
 {
     static const uint8_t rcon[10] = {
         0x01, 0x02, 0x04, 0x08, 0x10,
@@ -135,7 +135,7 @@ uint64_t helper_aes_kexpand1(uint64_t rs1, uint64_t rs2, uint32_t imm)
  * AES Cryptographic Operations 3-operand (Section 7.4)
  * AES key expansion with SubWord, without RotWord or RCON.
  */
-uint64_t helper_aes_kexpand0(uint64_t rs1, uint64_t rs2)
+uint64_t HELPER(aes_kexpand0)(uint64_t rs1, uint64_t rs2)
 {
     return aes_kexpand(rs1, aes_subword(rs2));
 }
@@ -144,7 +144,7 @@ uint64_t helper_aes_kexpand0(uint64_t rs1, uint64_t rs2)
  * AES Cryptographic Operations 3-operand (Section 7.4)
  * AES key expansion without SubWord, RotWord, or RCON.
  */
-uint64_t helper_aes_kexpand2(uint64_t rs1, uint64_t rs2)
+uint64_t HELPER(aes_kexpand2)(uint64_t rs1, uint64_t rs2)
 {
     return aes_kexpand(rs1, (uint32_t)rs2);
 }
@@ -153,7 +153,7 @@ uint64_t helper_aes_kexpand2(uint64_t rs1, uint64_t rs2)
  * CRC32C Operation 3-operand (Section 7.19)
  * Accumulate CRC32C over the eight bytes of rs2, most significant first.
  */
-uint64_t helper_crc32c(uint64_t rs1, uint64_t rs2)
+uint64_t HELPER(crc32c)(uint64_t rs1, uint64_t rs2)
 {
     uint8_t buf[8];
     /* IV and result are byte-swapped in the register. */
@@ -172,7 +172,7 @@ uint64_t helper_crc32c(uint64_t rs1, uint64_t rs2)
  * Compress one SHA-1 block from f8-f23 into f0-f4.
  * Clear f5 to match SPARC M7 behavior.
  */
-void helper_sha1(CPUSPARCState *env)
+void HELPER(sha1)(CPUSPARCState *env)
 {
     uint32_t a = env->fpr[0].l.upper;
     uint32_t b = env->fpr[0].l.lower;
@@ -396,7 +396,7 @@ static void sha512_compress(uint64_t state[8], const uint64_t block[16])
 }
 
 /* Compress one SHA-256 block from f8-f23 into f0-f7. */
-void helper_sha256(CPUSPARCState *env)
+void HELPER(sha256)(CPUSPARCState *env)
 {
     uint32_t state[8], block[16];
 
@@ -422,7 +422,7 @@ void helper_sha256(CPUSPARCState *env)
  * Compress one SHA-512 block from FD16, FD18, ..., FD46
  * into FD0, FD2, ..., FD14.
  */
-void helper_sha512(CPUSPARCState *env)
+void HELPER(sha512)(CPUSPARCState *env)
 {
     uint64_t state[8], block[16];
 

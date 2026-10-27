@@ -62,7 +62,7 @@ uint32_t HELPER(get)(uint32_t id, uint32_t ctrl)
     return 0xdead0000 | id;
 }
 
-void HELPER(microblaze_raise_exception)(CPUMBState *env, uint32_t index)
+void HELPER(raise_exception)(CPUMBState *env, uint32_t index)
 {
     CPUState *cs = env_cpu(env);
 
@@ -154,7 +154,7 @@ static void update_fpu_flags(CPUMBState *env, int flags, uintptr_t ra)
     }
 }
 
-uint32_t HELPER(microblaze_fadd)(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fadd)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -183,7 +183,7 @@ uint32_t HELPER(frsub)(CPUMBState *env, uint32_t a, uint32_t b)
     return fd.l;
 }
 
-uint32_t HELPER(microblaze_fmul)(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fmul)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -198,7 +198,7 @@ uint32_t HELPER(microblaze_fmul)(CPUMBState *env, uint32_t a, uint32_t b)
     return fd.l;
 }
 
-uint32_t HELPER(microblaze_fdiv)(CPUMBState *env, uint32_t a, uint32_t b)
+uint32_t HELPER(fdiv)(CPUMBState *env, uint32_t a, uint32_t b)
 {
     CPU_FloatU fd, fa, fb;
     int flags;
@@ -352,7 +352,7 @@ uint32_t HELPER(fint)(CPUMBState *env, uint32_t a)
     return r;
 }
 
-uint32_t HELPER(microblaze_fsqrt)(CPUMBState *env, uint32_t a)
+uint32_t HELPER(fsqrt)(CPUMBState *env, uint32_t a)
 {
     CPU_FloatU fd, fa;
     int flags;
