@@ -111,9 +111,10 @@ static abi_ptr extframe_alloc(struct extctx_layout *extctx,
 {
     abi_ptr sp = orig_sp;
 
-    sp -= sizeof(struct target_sctx_info) + size;
+    sp -= size;
     align = MAX(align, CONTEXT_INFO_ALIGN);
     sp = ROUND_DOWN(sp, align);
+    sp -= sizeof(struct target_sctx_info);
     sctx->gaddr = sp;
 
     size = orig_sp - sp;
