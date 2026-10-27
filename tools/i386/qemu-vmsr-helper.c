@@ -34,7 +34,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -42,7 +42,6 @@
 #include "io/channel.h"
 #include "io/channel-socket.h"
 #include "trace/control.h"
-#include "qemu-version.h"
 #include "rapl-msr-index.h"
 
 #define MSR_PATH_TEMPLATE "/dev/cpu/%u/msr"

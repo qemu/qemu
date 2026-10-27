@@ -50,7 +50,7 @@
 #include "qobject/qstring.h"
 #include "io/channel-socket.h"
 #include "trace/control.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 
 #include "block/thread-pool.h"
 

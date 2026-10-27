@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 
 #include "monitor-internal.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"

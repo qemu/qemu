@@ -46,7 +46,7 @@
 #include "crypto/init.h"
 #include "crypto/tlscreds.h"
 #include "trace/control.h"
-#include "qemu-version.h"
+#include "qemu/version.h"
 
 #ifdef CONFIG_SELINUX
 #include <selinux/selinux.h>
