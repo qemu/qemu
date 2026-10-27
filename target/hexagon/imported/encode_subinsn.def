@@ -71,6 +71,7 @@ DEF_ENC_SUBINSN(SS2_storebi0,    SUBINSN_S2, "100 10ssssiiii")
 DEF_ENC_SUBINSN(SS2_storebi1,    SUBINSN_S2, "100 11ssssiiii")
 
 DEF_ENC_SUBINSN(SS2_allocframe,  SUBINSN_S2, "111 0iiiii----")
+DEF_ENC_SUBINSN(SS2_allocframe_rb,SUBINSN_S2, "111 1iiiii----")
 
 
 

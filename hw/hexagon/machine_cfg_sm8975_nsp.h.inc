@@ -1,0 +1,55 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/* Config table of the SM8975 NSP. */
+static const struct hexagon_machine_config sm8975_nsp = {
+    .ddr_base = 0x80000000,
+    .cfgbase = 0x24180000,
+    .l2tcm_size = 0x100000,
+    .l2vic_base = 0x26390000,
+    .l2vic_size = 0x1000,
+    .csr_base = 0x263a0000,
+    .qtmr_region = 0x263a1000,
+    .cfgtable = {
+        .l2tcm_base = 0x2400,
+        .subsystem_base = 0x2638,
+        .etm_base = 0x2419,
+        .l2cfg_base = 0x241a,
+        .l1s0_base = 0x2500,
+        .fastl2vic_base = 0x241e,
+        .jtlb_size_entries = 0x80,
+        .coproc_present = 0x1d,
+        .ext_contexts = 8,
+        .vtcm_base = 0x2500,
+        .vtcm_size_kb = 0x3000,
+        .l2tag_size = 0x400,
+        .l2ecomem_size = 0x400,
+        .thread_enable_mask = 0xfff,
+        .l2line_size = 0x80,
+        .l2itcm_base = 0x2400,
+        .dma_version = 0xc,
+        .hvx_vec_log_length = 7,
+        .coproc2_reg0 = 0x10,
+        .coproc2_reg1 = 8,
+        .coproc2_reg2 = 3,
+        .acd_preset = 1,
+        .mnd_preset = 1,
+        .l1d_size_kb = 0x40,
+        .l1i_size_kb = 0x40,
+        .l1d_write_policy = 2,
+        .vtcm_bank_width = 0x80,
+        .consistency_domain = 0xe0,
+        .capacity_domain = 0x80,
+        .axi3_lowaddr = 0x4000,
+        .corecfg_present = 0xd,
+        .coproc2_fp16_acc_exp = 3,
+        .AXIM_data_width = 0x100,
+        .l1d_ways = 8,
+        .l1i_ways = 4,
+        .l2way_num = 8,
+        .dma_jtlb_entries = 0x40,
+    },
+};

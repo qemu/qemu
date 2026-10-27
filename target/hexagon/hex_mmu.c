@@ -29,6 +29,11 @@ static inline void hex_log_tlbw(uint32_t index, uint64_t entry)
                   index, entry);
 }
 
+static void hex_tlb_flush_all(CPUState *cs)
+{
+    tlb_flush_by_mmuidx_all_cpus_synced(cs, MMU_IDX_ALL);
+}
+
 void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
 {
     uint32_t myidx = fTLB_NONPOW2WRAP(fTLB_IDXMASK(index));
@@ -36,10 +41,22 @@ void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value)
     uint64_t old_entry = hexagon_tlb_write(tlb, myidx, value);
     bool old_entry_valid = extract64(old_entry, 63, 1);
     if (old_entry_valid && hexagon_cpu_mmu_enabled(env)) {
-        CPUState *cs = env_cpu(env);
-        tlb_flush_all_cpus_synced(cs);
+        hex_tlb_flush_all(env_cpu(env));
     }
     hex_log_tlbw(myidx, value);
+}
+
+void hex_tlb_invalidate_asid(CPUHexagonState *env, uint32_t asid)
+{
+    HexagonTLBState *tlb = env_archcpu(env)->tlb;
+    uint32_t invalidated = hexagon_tlb_invalidate_asid(tlb, asid);
+
+    qemu_log_mask(CPU_LOG_MMU,
+                  "tlbinvasid: asid 0x%02" PRIx32 ", %" PRIu32 " entries\n",
+                  asid, invalidated);
+    if (invalidated && hexagon_cpu_mmu_enabled(env)) {
+        hex_tlb_flush_all(env_cpu(env));
+    }
 }
 
 void hex_mmu_on(CPUHexagonState *env)
@@ -56,11 +73,12 @@ void hex_mmu_off(CPUHexagonState *env)
     tlb_flush(cs);
 }
 
-void hex_mmu_mode_change(CPUHexagonState *env)
+void hex_mmu_asid_change(CPUHexagonState *env)
 {
-    qemu_log_mask(CPU_LOG_MMU, "Hexagon mode change!\n");
     CPUState *cs = env_cpu(env);
-    tlb_flush(cs);
+
+    qemu_log_mask(CPU_LOG_MMU, "Hexagon ASID change!\n");
+    tlb_flush_by_mmuidx(cs, MMU_IDX_ALL);
 }
 
 bool hex_tlb_find_match(CPUHexagonState *env, uint32_t VA,

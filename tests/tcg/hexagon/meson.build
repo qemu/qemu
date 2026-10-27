@@ -25,8 +25,20 @@ foreach t: tcg_tests['multiarch-linux-user']['tests']
 endforeach
 
 tests += {
-  'atomics.c': {'cflags': cflags},
+  # The cross assembler does not know v85; v85 instructions in atomics.c
+  # are encoded with .word directives.
+  'atomics.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
   'brev.c': {'cflags': cflags},
+  # The cross assembler does not know v83; cfi_tlb.c uses raw encodings.
+  'cfi_tlb.c': {
+    'cflags': cflags,
+    'qemu_args': ['-cpu', 'v85'],
+  },
+  # The cross assembler does not know v83; cfi_tgts.S uses raw encodings.
+  'cfi_user.c': {
+    'cflags': [cflags, files('cfi_tgts.S')],
+    'qemu_args': ['-cpu', 'v85'],
+  },
   # Compile for v66 so that the ELF selects a v66 CPU; the test then
   # exercises revision gating by executing a v68 .word instruction.
   'check_rev_gating.c': {
@@ -57,7 +69,7 @@ tests += {
     'cflags': [cflags, '-mhvx', '-Wno-gnu-folding-constant',
                files('hvx_histogram_row.S')]
   },
-  'invalid-encoding.c': {'cflags': cflags},
+  'invalid-encoding.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
   'invalid-slots.c': {'cflags': cflags},
   'icinva.c': {'cflags': cflags},
   'load_align.c': {'cflags': cflags},
@@ -68,6 +80,7 @@ tests += {
   'overflow.c': {'cflags': cflags, 'exe_name': 'hex-overflow'},
   'preg_alias.c': {'cflags': cflags},
   'dual_stores.c': {'cflags': cflags},
+  'framekey.c': {'cflags': cflags},
   'multi_result.c': {'cflags': cflags},
   'mem_noshuf.c': {'cflags': cflags},
   'mem_noshuf_exception.c': {'cflags': cflags},
@@ -106,6 +119,8 @@ tests += {
   'test_vpmpyh.S': {'cflags': asmflags},
   'test_vspliceb.S': {'cflags': asmflags},
   'test_vwhist.c': {'cflags': [cflags, '-mhvx']},
+  # The cross assembler does not know trap2; the test uses its raw encoding.
+  'trap2.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
   'unaligned_pc.c': {'cflags': cflags},
   'unaligned_data.c': {'cflags': cflags},
   'usr.c': {
@@ -117,6 +132,12 @@ tests += {
   'v69_hvx.c': {'cflags': [cflags, '-mhvx', '-Wno-unused-function', '-mv69']},
   'v73_scalar.c': {'cflags': [cflags, '-Wno-unused-function', '-mv73']},
   'v79_scalar.c': {'cflags': [cflags, '-Wno-unused-function', '-mv79']},
+  'v83_scalar_fp.c': {'cflags': [cflags, '-mv67'],
+                      'qemu_args': ['-cpu', 'v85']},
+  # The cross assembler does not know v83; the vallocframe instructions in
+  # this test are encoded with .word directives.
+  'vallocframe.c': {'cflags': [cflags, '-mv67', '-O2'],
+                    'qemu_args': ['-cpu', 'v85']},
   'valid-slots.c': {'cflags': cflags},
   'vector_add_int.c': {'cflags': [cflags, '-mhvx', '-fvectorize']},
 }

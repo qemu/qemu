@@ -241,6 +241,9 @@ Q6INSN(A2_minup,"Rdd32=minu(Rtt32,Rss32)",ATTRIBS(A_ARCHV3),
 Q6INSN(A2_nop,"nop",ATTRIBS(A_IT_NOP),
 "Nop (32-bit encoding)",
  fHIDE( { }  ))
+Q6INSN(A2_nop_rb,"nop_rb",ATTRIBS(A_IT_NOP,A_RESTRICT_TARGET),
+"Restricted branch nop target",
+ fHIDE( { } ))
 
 
 Q6INSN(A4_ext,"immext(#u26:6)",ATTRIBS(A_IT_EXTENDER),

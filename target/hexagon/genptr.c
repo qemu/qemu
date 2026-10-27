@@ -698,6 +698,59 @@ static inline void gen_store_conditional8(DisasContext *ctx,
     tcg_gen_movi_tl(hex_llsc_addr, ~0);
 }
 
+void gen_atomic4(DisasContext *ctx, TCGv dest, TCGv vaddr, TCGv src,
+                 HexAtomicOp operation)
+{
+    MemOp memop = MO_LE | MO_32 | MO_ALIGN;
+
+    switch (operation) {
+    case HEX_ATOMIC_ADD:
+        tcg_gen_atomic_fetch_add_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_AND:
+        tcg_gen_atomic_fetch_and_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_OR:
+        tcg_gen_atomic_fetch_or_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_XOR:
+        tcg_gen_atomic_fetch_xor_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    case HEX_ATOMIC_SWAP:
+        tcg_gen_atomic_xchg_tl(dest, vaddr, src, ctx->mem_idx, memop);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+void gen_atomic8(DisasContext *ctx, TCGv_i64 dest, TCGv vaddr, TCGv_i64 src)
+{
+    tcg_gen_atomic_xchg_i64(dest, vaddr, src, ctx->mem_idx,
+                            MO_LE | MO_64 | MO_ALIGN);
+}
+
+void gen_vframecheck(DisasContext *ctx, TCGv vsp)
+{
+    TCGLabel *write_vsp = gen_new_label();
+
+#ifndef CONFIG_USER_ONLY
+    TCGv mode = tcg_temp_new();
+
+    tcg_gen_andi_tl(mode, hex_t_sreg[HEX_SREG_SSR],
+                    1 << reg_field_info[SSR_EX].offset);
+    tcg_gen_brcondi_tl(TCG_COND_NE, mode, 0, write_vsp);
+    tcg_gen_andi_tl(mode, hex_t_sreg[HEX_SREG_SSR],
+                    1 << reg_field_info[SSR_UM].offset);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, mode, 0, write_vsp);
+#endif
+    tcg_gen_brcond_tl(TCG_COND_GEU, vsp,
+                      hex_gpr[HEX_REG_VFRAMELIMIT], write_vsp);
+    gen_precise_exception(HEX_CAUSE_VECTOR_STACK_OVERFLOW, ctx->pkt.pc);
+    gen_set_label(write_vsp);
+    tcg_gen_mov_tl(hex_gpr[HEX_REG_VSP], vsp);
+}
+
 #ifndef CONFIG_HEXAGON_IDEF_PARSER
 static TCGv gen_slotval(DisasContext *ctx)
 {
@@ -1006,6 +1059,8 @@ static void gen_call(DisasContext *ctx, int pc_off)
 static void gen_callr(DisasContext *ctx, TCGv new_pc)
 {
     TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
+
+    new_pc = gen_unalias_gpr_src(new_pc, lr);
     tcg_gen_movi_tl(lr, ctx->next_PC);
     gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
 }
@@ -1027,6 +1082,42 @@ static void gen_cond_callr(DisasContext *ctx,
     TCGLabel *skip = gen_new_label();
     tcg_gen_brcondi_tl(cond, pred, 1, skip);
     gen_callr(ctx, new_pc);
+    gen_set_label(skip);
+}
+
+static void gen_set_cfi(DisasContext *ctx)
+{
+    fSET_CFI(tcg_constant_i32(1));
+}
+
+static void gen_reset_cfi(DisasContext *ctx)
+{
+    fSET_CFI(tcg_constant_i32(0));
+}
+
+/* Indirect transfers through LR are returns, which do not set the CFI state */
+static void gen_set_cfi_for_target(DisasContext *ctx, int rs_num)
+{
+    if (rs_num == HEX_REG_LR) {
+        gen_reset_cfi(ctx);
+    } else {
+        gen_set_cfi(ctx);
+    }
+}
+
+/*
+ * Update the CFI state if the predicate (true if @sense, else false) holds.
+ * @rs_num is the jump target register, or -1 for calls.
+ */
+static void gen_cond_set_cfi(DisasContext *ctx, bool sense, TCGv pred,
+                             int rs_num)
+{
+    TCGv lsb = tcg_temp_new();
+    TCGLabel *skip = gen_new_label();
+
+    tcg_gen_andi_tl(lsb, pred, 1);
+    tcg_gen_brcondi_tl(sense ? TCG_COND_EQ : TCG_COND_NE, lsb, 0, skip);
+    gen_set_cfi_for_target(ctx, rs_num);
     gen_set_label(skip);
 }
 

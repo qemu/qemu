@@ -321,6 +321,24 @@ uint64_t hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index,
     return old;
 }
 
+uint32_t hexagon_tlb_invalidate_asid(HexagonTLBState *tlb, uint32_t asid)
+{
+    uint32_t invalidated = 0;
+
+    for (uint32_t i = 0; i < tlb->num_entries; i++) {
+        uint64_t entry = tlb->entries[i];
+
+        if (!GET_PTE_V(entry) || GET_PTE_G(entry) ||
+            GET_PTE_ASID(entry) != asid) {
+            continue;
+        }
+        tlb->entries[i] = deposit64(entry, 63, 1, 0);
+        invalidated++;
+    }
+
+    return invalidated;
+}
+
 bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint32_t asid,
                             uint32_t VA, MMUAccessType access_type,
                             hwaddr *PA, int *prot, uint64_t *size,

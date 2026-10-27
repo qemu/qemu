@@ -423,6 +423,18 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fCAST8S_16S(A) (int128_exts64(A))
 #define fCAST16S_8S(A) (int128_getlo(A))
 
+#define fSET_CFI(CFI_VALUE) \
+    do { \
+        TCGLabel *skip_cfi_reset = gen_new_label(); \
+        tcg_gen_movcond_i32(TCG_COND_NE, hex_cfi_active_log, hex_cfi_updated, \
+                            tcg_constant_i32(1), tcg_constant_i32(0), \
+                            hex_cfi_active_log); \
+        tcg_gen_movi_i32(hex_cfi_updated, 1); \
+        tcg_gen_brcondi_i32(TCG_COND_EQ, CFI_VALUE, 0, skip_cfi_reset); \
+        tcg_gen_movi_i32(hex_cfi_active_log, 1); \
+        gen_set_label(skip_cfi_reset); \
+    } while (0)
+
 #ifdef QEMU_GENERATE
 #define fEA_RI(REG, IMM) tcg_gen_addi_tl(EA, REG, IMM)
 #define fEA_RRs(REG, REG2, SCALE) \

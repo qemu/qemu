@@ -106,6 +106,10 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPUHexagonState *env)
 
     __put_user(env->gpr[HEX_REG_CS0], &sc->sc_regs.cs0);
     __put_user(env->gpr[HEX_REG_CS1], &sc->sc_regs.cs1);
+    /* Preserve a pending restricted-branch landing pad across the signal. */
+    __put_user(env->cfi_active, &sc->sc_regs.pad1);
+    env->cfi_active = 0;
+    env->cfi_updated = 0;
 }
 
 static void setup_ucontext(struct target_ucontext *uc,
@@ -176,6 +180,7 @@ static void restore_sigcontext(CPUHexagonState *env,
                                struct target_sigcontext *sc)
 {
     abi_ulong preds;
+    abi_ulong cfi;
 
     for (int i = 0; i < 32; i++) {
         __get_user(env->gpr[HEX_REG_R00 + i], &sc->sc_regs.gpr[i]);
@@ -199,6 +204,9 @@ static void restore_sigcontext(CPUHexagonState *env,
 
     __get_user(env->gpr[HEX_REG_CS0], &sc->sc_regs.cs0);
     __get_user(env->gpr[HEX_REG_CS1], &sc->sc_regs.cs1);
+    __get_user(cfi, &sc->sc_regs.pad1);
+    env->cfi_active = cfi & 1;
+    env->cfi_updated = 0;
 }
 
 static void restore_ucontext(CPUHexagonState *env, struct target_ucontext *uc)

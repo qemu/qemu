@@ -7,8 +7,6 @@
 #ifndef HEXAGON_CPU_HELPER_H
 #define HEXAGON_CPU_HELPER_H
 
-void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
-                         void *retptr, uintptr_t retaddr);
 void hexagon_write_memory(CPUHexagonState *env, target_ulong vaddr,
                           int size, uint64_t data, uintptr_t retaddr);
 void hexagon_peek_memory_range(CPUHexagonState *env, uint32_t start_addr,

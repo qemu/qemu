@@ -28,6 +28,7 @@
 #include "semihosting/console.h"
 #include "semihosting/syscalls.h"
 #include "semihosting/guestfd.h"
+#include "semihosting/uaccess.h"
 #include "system/runstate.h"
 
 /* non-arm-compatible semihosting calls */
@@ -168,14 +169,18 @@ static void init_semihosting_guestfds(void)
     }
 }
 
-static void do_preload(CPUHexagonState *env, target_ulong swi_info, bool load)
+static bool do_preload(CPUHexagonState *env, target_ulong swi_info)
 {
+    CPUState *cs = env_cpu(env);
     uint32_t addr, count;
     uintptr_t retaddr = 0;
 
-    hexagon_read_memory(env, swi_info + 4, 4, &addr, retaddr);
-    hexagon_read_memory(env, swi_info + 8, 4, &count, retaddr);
+    if (get_user_u32(addr, swi_info + 4) ||
+        get_user_u32(count, swi_info + 8)) {
+        return false;
+    }
     hexagon_peek_memory_range(env, addr, count, retaddr);
+    return true;
 }
 
 /* Hexagon semihosting errno values */
@@ -366,6 +371,10 @@ static void coredump(CPUHexagonState *env)
         fprintf(f, "0x%x, Stack limit check error",
                 HEX_CAUSE_STACK_LIMIT);
         break;
+    case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
+        fprintf(f, "0x%x, Vector stack overflow",
+                HEX_CAUSE_VECTOR_STACK_OVERFLOW);
+        break;
     case HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT:
         fprintf(f, "0x%x, Floating-Point: Execution of Floating-Point "
                 "instruction resulted in exception",
@@ -429,7 +438,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
              * the input address. The contents of that buffer will be
              * directed to the SWI interface.
              */
-            do_preload(env, swi_info, (what_swi == HEX_SYS_WRITE));
+            if (!do_preload(env, swi_info)) {
+                semi_cb(cs, -1, EFAULT);
+                return;
+            }
         }
         /*
          * ARM-compat semihosting SWI numbers are all <= 0x31.
@@ -461,31 +473,28 @@ static void sim_handle_trap0(CPUHexagonState *env)
 
     case HEX_SYS_OPEN:
     {
-        char filename[BUFSIZ];
+        char *filename;
         target_ulong physical_filename_addr;
         unsigned int filemode;
-        int length;
+        uint32_t filename_len;
+        size_t filename_size;
         int real_openmode;
         int ret, err = 0;
-        int i = 0;
 
-        hexagon_read_memory(env, swi_info, 4, &physical_filename_addr, retaddr);
-        hexagon_read_memory(env, swi_info + 4, 4, &filemode, retaddr);
-        hexagon_read_memory(env, swi_info + 8, 4, &length, retaddr);
-
-        if (length >= BUFSIZ) {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: filename too large (%d)\n",
-                          __func__, length);
-            semi_cb(cs, -1, ENAMETOOLONG);
-            break;
+        if (get_user_u32(physical_filename_addr, swi_info) ||
+            get_user_u32(filemode, swi_info + 4) ||
+            get_user_u32(filename_len, swi_info + 8)) {
+            goto do_fault;
         }
 
-        do {
-            hexagon_read_memory(env, physical_filename_addr + i, 1,
-                                &filename[i], retaddr);
-            i++;
-        } while (filename[i - 1]);
+        /* The ABI length excludes the filename's terminating NUL. */
+        filename_size = (size_t)filename_len + 1;
+        filename = lock_user(VERIFY_READ, physical_filename_addr,
+                             filename_size, true);
+        if (!filename || filename[filename_len] != '\0') {
+            unlock_user(filename, physical_filename_addr, 0);
+            goto do_fault;
+        }
 
         /* convert ARM ANGEL filemode into host filemode */
         if (filemode < ARRAY_SIZE(angel_to_host_filemode_table)) {
@@ -494,6 +503,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: invalid OPEN mode: %u\n",
                           __func__, filemode);
+            unlock_user(filename, physical_filename_addr, 0);
             semi_cb(cs, -1, EINVAL);
             break;
         }
@@ -513,6 +523,7 @@ static void sim_handle_trap0(CPUHexagonState *env)
                 ret = guestfd;
             }
         }
+        unlock_user(filename, physical_filename_addr, 0);
         semi_cb(cs, ret, err);
     }
     break;
@@ -531,7 +542,9 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_ISTTY:
     {
         int fd;
-        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
+        if (get_user_u32(fd, swi_info)) {
+            goto do_fault;
+        }
         semi_cb(cs, isatty(fd), 0);
     }
     break;
@@ -540,8 +553,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
     {
         int fd;
         target_ulong off;
-        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
-        hexagon_read_memory(env, swi_info + 4, 4, &off, retaddr);
+        if (get_user_u32(fd, swi_info) ||
+            get_user_u32(off, swi_info + 4)) {
+            goto do_fault;
+        }
         semihost_sys_lseek(env_cpu(env), common_semi_ftell_cb, fd, off,
                           GDB_SEEK_SET);
     }
@@ -553,20 +568,23 @@ static void sim_handle_trap0(CPUHexagonState *env)
         struct stat st_buf;
         uint8_t *st_bufptr = (uint8_t *)&sys_stat;
         int rc, err = 0;
-        char filename[BUFSIZ];
+        char *filename;
         target_ulong physical_filename_addr;
         target_ulong statBufferAddr;
-        hexagon_read_memory(env, swi_info, 4, &physical_filename_addr, retaddr);
+        if (get_user_u32(physical_filename_addr, swi_info) ||
+            get_user_u32(statBufferAddr, swi_info + 4)) {
+            goto do_fault;
+        }
 
         if (what_swi == HEX_SYS_STAT) {
-            int i = 0;
-            do {
-                hexagon_read_memory(env, physical_filename_addr + i, 1,
-                                    &filename[i], retaddr);
-                i++;
-            } while ((i < BUFSIZ) && filename[i - 1]);
+            filename = lock_user_string(physical_filename_addr);
+            if (!filename) {
+                semi_cb(cs, -1, EFAULT);
+                break;
+            }
             rc = stat(filename, &st_buf);
             err = errno;
+            unlock_user(filename, physical_filename_addr, 0);
         } else {
             int fd = physical_filename_addr;
             GuestFD *gf = get_guestfd(fd);
@@ -590,8 +608,6 @@ static void sim_handle_trap0(CPUHexagonState *env)
             sys_stat.mtime = cpu_to_le32(st_buf.st_mtime);
             sys_stat.ctime = cpu_to_le32(st_buf.st_ctime);
         }
-        hexagon_read_memory(env, swi_info + 4, 4, &statBufferAddr, retaddr);
-
         for (int i = 0; i < sizeof(sys_stat); i++) {
             hexagon_write_memory(env, statBufferAddr + i, 1, st_bufptr[i],
                                  retaddr);
@@ -604,33 +620,34 @@ static void sim_handle_trap0(CPUHexagonState *env)
     {
         int fd;
         off_t size_limit;
-        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
-        hexagon_read_memory(env, swi_info + 4, 8, &size_limit, retaddr);
+        if (get_user_u32(fd, swi_info) ||
+            get_user_u64(size_limit, swi_info + 4)) {
+            goto do_fault;
+        }
         semihost_sys_ftruncate(cs, semi_cb, fd, size_limit);
     }
     break;
 
     case HEX_SYS_ACCESS:
     {
-        char filename[BUFSIZ];
+        char *filename;
         uint32_t FileNameAddr;
         uint32_t BufferMode;
-        int rc;
+        int rc, err;
 
-        int i = 0;
-
-        hexagon_read_memory(env, swi_info, 4, &FileNameAddr, retaddr);
-        do {
-            hexagon_read_memory(env, FileNameAddr + i, 1, &filename[i],
-                                retaddr);
-            i++;
-        } while ((i < BUFSIZ) && (filename[i - 1]));
-        filename[i] = 0;
-
-        hexagon_read_memory(env, swi_info + 4, 4, &BufferMode, retaddr);
-
+        if (get_user_u32(FileNameAddr, swi_info) ||
+            get_user_u32(BufferMode, swi_info + 4)) {
+            goto do_fault;
+        }
+        filename = lock_user_string(FileNameAddr);
+        if (!filename) {
+            semi_cb(cs, -1, EFAULT);
+            break;
+        }
         rc = access(filename, BufferMode);
-        semi_cb(cs, rc,  rc == 0 ? 0 : errno);
+        err = errno;
+        unlock_user(filename, FileNameAddr, 0);
+        semi_cb(cs, rc,  rc == 0 ? 0 : err);
     }
     break;
 
@@ -641,8 +658,10 @@ static void sim_handle_trap0(CPUHexagonState *env)
         uint32_t BufferSize;
         uint32_t rc = 0, err = 0;
 
-        hexagon_read_memory(env, swi_info, 4, &BufferAddr, retaddr);
-        hexagon_read_memory(env, swi_info + 4, 4, &BufferSize, retaddr);
+        if (get_user_u32(BufferAddr, swi_info) ||
+            get_user_u32(BufferSize, swi_info + 4)) {
+            goto do_fault;
+        }
 
         if (!getcwd(cwdPtr, PATH_MAX)) {
             err = errno;
@@ -676,7 +695,9 @@ static void sim_handle_trap0(CPUHexagonState *env)
     case HEX_SYS_FTELL:
     {
         int fd;
-        hexagon_read_memory(env, swi_info, 4, &fd, retaddr);
+        if (get_user_u32(fd, swi_info)) {
+            goto do_fault;
+        }
         semihost_sys_lseek(cs, common_semi_ftell_cb, fd, 0, GDB_SEEK_CUR);
     }
     break;
@@ -720,6 +741,11 @@ static void sim_handle_trap0(CPUHexagonState *env)
                       "unknown swi request: 0x%" PRIx32 "\n",
                       (uint32_t)what_swi);
         semi_cb(cs, -1, ENOSYS);
+        break;
+
+    do_fault:
+        semi_cb(cs, -1, EFAULT);
+        break;
     }
 }
 
@@ -753,7 +779,17 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     env->llsc_addr = ~0;
 
     ssr = env->t_sreg[HEX_SREG_SSR];
+    if (GET_SSR_FIELD(SSR_EX, ssr) == 0) {
+        SET_SSR_FIELD(env, SSR_CFI, env->cfi_active);
+    }
+    env->cfi_active = 0;
+    env->cfi_updated = 0;
+
     if (GET_SSR_FIELD(SSR_EX, ssr) == 1) {
+        /*
+         * Double exception: keep the SSR.CFI value saved by the first
+         * exception, which a later rte would need to restore.
+         */
         if (cpu->globalregs) {
             hexagon_globalreg_write(cpu->globalregs, HEX_SREG_DIAG,
                                     env->cause_code, env->threadId);
@@ -773,6 +809,11 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_TRAP1:
+        hexagon_ssr_set_cause(env, env->cause_code);
+        set_addresses(env, 4, cs->exception_index);
+        break;
+
+    case HEX_EVENT_TRAP2:
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 4, cs->exception_index);
         break;
@@ -846,13 +887,13 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
     case HEX_EVENT_DEBUG:
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 0, cs->exception_index);
-        qemu_log_mask(LOG_UNIMP, "single-step exception is not handled\n");
         break;
 
     case HEX_EVENT_PRECISE:
         switch (env->cause_code) {
         case HEX_CAUSE_FETCH_NO_XPAGE:
         case HEX_CAUSE_FETCH_NO_UPAGE:
+        case HEX_CAUSE_CFI_VIOLATION:
         case HEX_CAUSE_PRIV_NO_READ:
         case HEX_CAUSE_PRIV_NO_UREAD:
         case HEX_CAUSE_PRIV_NO_WRITE:
@@ -883,6 +924,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_NO_COPROC_ENABLE:
         case HEX_CAUSE_NO_COPROC2_ENABLE:
         case HEX_CAUSE_UNSUPPORTED_HVX_64B:
+        case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
         case HEX_CAUSE_REG_WRITE_CONFLICT:
         case HEX_CAUSE_VWCTRL_WINDOW_MISS:
             hexagon_ssr_set_cause(env, env->cause_code);
@@ -963,7 +1005,19 @@ void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
 {
     CPUState *cs = env_cpu(env);
 
-    cs->exception_index = (traptype == 0) ? HEX_EVENT_TRAP0 : HEX_EVENT_TRAP1;
+    switch (traptype) {
+    case 0:
+        cs->exception_index = HEX_EVENT_TRAP0;
+        break;
+    case 1:
+        cs->exception_index = HEX_EVENT_TRAP1;
+        break;
+    case 2:
+        cs->exception_index = HEX_EVENT_TRAP2;
+        break;
+    default:
+        g_assert_not_reached();
+    }
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
 
     env->cause_code = imm;

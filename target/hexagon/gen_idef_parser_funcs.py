@@ -68,6 +68,8 @@ def main():
             ## Skip the guest instructions
             if "A_GUEST" in hex_common.attribdict[tag]:
                 continue
+            if "A_ATOMIC" in hex_common.attribdict[tag]:
+                continue
             ## Skip instructions that saturate in a ternary expression
             if tag in {"S2_asr_r_r_sat", "S2_asl_r_r_sat"}:
                 continue
@@ -75,7 +77,7 @@ def main():
             if tag in {"S4_vrcrotate_acc", "S4_vrcrotate"}:
                 continue
             ## Skip trap instructions
-            if tag in {"J2_trap0", "J2_trap1"}:
+            if tag in {"J2_trap0", "J2_trap1", "J2_trap2"}:
                 continue
             ## Skip 128-bit instructions
             if tag in {"A7_croundd_ri", "A7_croundd_rr"}:

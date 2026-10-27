@@ -100,6 +100,28 @@
 #define fGEN_TCG_L4_loadrd_ap(SHORTCODE) \
     fGEN_TCG_LOAD_AP(RddV, 8, u)
 
+#define fGEN_TCG_ATOMIC4(OP) \
+    do { \
+        fEA_REG(RsV); \
+        gen_atomic4(ctx, RdV, EA, RtV, OP); \
+    } while (0)
+#define fGEN_TCG_AM_addw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_ADD)
+#define fGEN_TCG_AM_addw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_ADD)
+#define fGEN_TCG_AM_andw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_AND)
+#define fGEN_TCG_AM_andw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_AND)
+#define fGEN_TCG_AM_orw_aq(SHORTCODE)  fGEN_TCG_ATOMIC4(HEX_ATOMIC_OR)
+#define fGEN_TCG_AM_orw_rl(SHORTCODE)  fGEN_TCG_ATOMIC4(HEX_ATOMIC_OR)
+#define fGEN_TCG_AM_xorw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_XOR)
+#define fGEN_TCG_AM_xorw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_XOR)
+#define fGEN_TCG_AM_swapw_aq(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_SWAP)
+#define fGEN_TCG_AM_swapw_rl(SHORTCODE) fGEN_TCG_ATOMIC4(HEX_ATOMIC_SWAP)
+#define fGEN_TCG_AM_swapd_aq(SHORTCODE) \
+    do { \
+        fEA_REG(RsV); \
+        gen_atomic8(ctx, RddV, EA, RttV); \
+    } while (0)
+#define fGEN_TCG_AM_swapd_rl(SHORTCODE) fGEN_TCG_AM_swapd_aq(SHORTCODE)
+
 #define fGEN_TCG_L2_loadrub_pci(SHORTCODE)    SHORTCODE
 #define fGEN_TCG_L2_loadrb_pci(SHORTCODE)     SHORTCODE
 #define fGEN_TCG_L2_loadruh_pci(SHORTCODE)    SHORTCODE
@@ -509,12 +531,40 @@
     do { RsV = RsV; } while (0)
 #endif
 
+#define fGEN_TCG_V2_CHECK_AND_WRITE_VSP(VSP) \
+    gen_vframecheck(ctx, VSP)
+#define fGEN_TCG_V2_vallocframe_imm(SHORTCODE) \
+    do { \
+        TCGv vsp = tcg_temp_new(); \
+        tcg_gen_subi_tl(vsp, hex_gpr[HEX_REG_VSP], uiV << 11); \
+        fGEN_TCG_V2_CHECK_AND_WRITE_VSP(vsp); \
+    } while (0)
+#define fGEN_TCG_V2_vallocframe_reg(SHORTCODE) \
+    do { \
+        TCGv size = tcg_temp_new(); \
+        TCGv vsp = tcg_temp_new(); \
+        tcg_gen_shli_tl(size, RsV, 11); \
+        tcg_gen_sub_tl(vsp, hex_gpr[HEX_REG_VSP], size); \
+        fGEN_TCG_V2_CHECK_AND_WRITE_VSP(vsp); \
+    } while (0)
+#define fGEN_TCG_V2_vdeallocframe_imm(SHORTCODE) \
+    tcg_gen_addi_tl(hex_gpr[HEX_REG_VSP], hex_gpr[HEX_REG_VSP], uiV << 11)
+#define fGEN_TCG_V2_vdeallocframe_reg(SHORTCODE) \
+    do { \
+        TCGv size = tcg_temp_new(); \
+        tcg_gen_shli_tl(size, RsV, 11); \
+        tcg_gen_add_tl(hex_gpr[HEX_REG_VSP], hex_gpr[HEX_REG_VSP], size); \
+    } while (0)
+
 /*
  * allocframe(#uiV)
  *     RxV == r29
  */
 #define fGEN_TCG_S2_allocframe(SHORTCODE) \
     gen_allocframe(ctx, RxV, uiV)
+
+#define fGEN_TCG_S2_allocframe_rb(SHORTCODE) \
+    fGEN_TCG_S2_allocframe(SHORTCODE)
 
 /* sub-instruction version (no RxV, so handle it manually) */
 #define fGEN_TCG_SS2_allocframe(SHORTCODE) \
@@ -523,6 +573,9 @@
         tcg_gen_mov_tl(r29, hex_gpr[HEX_REG_SP]); \
         gen_allocframe(ctx, r29, uiV); \
     } while (0)
+
+#define fGEN_TCG_SS2_allocframe_rb(SHORTCODE) \
+    fGEN_TCG_SS2_allocframe(SHORTCODE)
 
 /*
  * Rdd32 = deallocframe(Rs32):raw
@@ -704,6 +757,16 @@
     gen_callr(ctx, RsV)
 #define fGEN_TCG_J2_callrh(SHORTCODE) \
     gen_callr(ctx, RsV)
+#define fGEN_TCG_J2_callr_rb(SHORTCODE) \
+    do { \
+        gen_callr(ctx, RsV); \
+        gen_set_cfi(ctx); \
+    } while (0)
+#define fGEN_TCG_J2_callrh_rb(SHORTCODE) \
+    do { \
+        gen_callr(ctx, RsV); \
+        gen_set_cfi(ctx); \
+    } while (0)
 
 #define fGEN_TCG_J2_callt(SHORTCODE) \
     gen_cond_call(ctx, PuV, TCG_COND_TSTEQ, riV)
@@ -713,6 +776,16 @@
     gen_cond_callr(ctx, TCG_COND_TSTEQ, PuV, RsV)
 #define fGEN_TCG_J2_callrf(SHORTCODE) \
     gen_cond_callr(ctx, TCG_COND_TSTNE, PuV, RsV)
+#define fGEN_TCG_J2_callrt_rb(SHORTCODE) \
+    do { \
+        gen_cond_callr(ctx, TCG_COND_TSTEQ, PuV, RsV); \
+        gen_cond_set_cfi(ctx, true, PuV, -1); \
+    } while (0)
+#define fGEN_TCG_J2_callrf_rb(SHORTCODE) \
+    do { \
+        gen_cond_callr(ctx, TCG_COND_TSTNE, PuV, RsV); \
+        gen_cond_set_cfi(ctx, false, PuV, -1); \
+    } while (0)
 
 #define fGEN_TCG_J2_loop0r(SHORTCODE) \
     gen_loop0r(ctx, RsV, riV)
@@ -933,6 +1006,39 @@
     gen_jumpr(ctx, RsV)
 #define fGEN_TCG_J2_jumprh(SHORTCODE) \
     gen_jumpr(ctx, RsV)
+#define fGEN_TCG_J2_jumpr_rb(SHORTCODE) \
+    do { \
+        gen_jumpr(ctx, RsV); \
+        gen_set_cfi_for_target(ctx, RsN); \
+    } while (0)
+#define fGEN_TCG_J2_jumprh_rb(SHORTCODE) \
+    fGEN_TCG_J2_jumpr_rb(SHORTCODE)
+#define fGEN_TCG_J2_jumprt_rb(SHORTCODE) \
+    do { \
+        gen_cond_jumpr(ctx, RsV, TCG_COND_TSTEQ, PuV); \
+        gen_cond_set_cfi(ctx, true, PuV, RsN); \
+    } while (0)
+#define fGEN_TCG_J2_jumprf_rb(SHORTCODE) \
+    do { \
+        gen_cond_jumpr(ctx, RsV, TCG_COND_TSTNE, PuV); \
+        gen_cond_set_cfi(ctx, false, PuV, RsN); \
+    } while (0)
+#define fGEN_TCG_J2_jumprtpt_rb(SHORTCODE) fGEN_TCG_J2_jumprt_rb(SHORTCODE)
+#define fGEN_TCG_J2_jumprfpt_rb(SHORTCODE) fGEN_TCG_J2_jumprf_rb(SHORTCODE)
+#define fGEN_TCG_J2_jumprtnew_rb(SHORTCODE) \
+    do { \
+        gen_cond_jumpr(ctx, RsV, TCG_COND_TSTEQ, PuN); \
+        gen_cond_set_cfi(ctx, true, PuN, RsN); \
+    } while (0)
+#define fGEN_TCG_J2_jumprfnew_rb(SHORTCODE) \
+    do { \
+        gen_cond_jumpr(ctx, RsV, TCG_COND_TSTNE, PuN); \
+        gen_cond_set_cfi(ctx, false, PuN, RsN); \
+    } while (0)
+#define fGEN_TCG_J2_jumprtnewpt_rb(SHORTCODE) \
+    fGEN_TCG_J2_jumprtnew_rb(SHORTCODE)
+#define fGEN_TCG_J2_jumprfnewpt_rb(SHORTCODE) \
+    fGEN_TCG_J2_jumprfnew_rb(SHORTCODE)
 #define fGEN_TCG_J4_jumpseti(SHORTCODE) \
     do { \
         tcg_gen_movi_tl(RdV, UiV); \
@@ -1122,7 +1228,7 @@
                            RdV, tcg_constant_tl(0)); \
     } while (0)
 
-#define fGEN_TCG_Y2_break(SHORTCODE)
+#define fGEN_TCG_Y2_break(SHORTCODE) gen_reset_cfi(ctx)
 #define fGEN_TCG_J2_unpause(SHORTCODE)
 
 #ifdef CONFIG_USER_ONLY
@@ -1261,6 +1367,16 @@
     gen_helper_sfadd(RdV, tcg_env, RsV, RtV, pkt_need_commit)
 #define fGEN_TCG_F2_sfsub(SHORTCODE) \
     gen_helper_sfsub(RdV, tcg_env, RsV, RtV, pkt_need_commit)
+#define fGEN_TCG_F7_vsfadd(SHORTCODE) \
+    gen_helper_vsfadd(RddV, tcg_env, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsfsub(SHORTCODE) \
+    gen_helper_vsfsub(RddV, tcg_env, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsfmpy(SHORTCODE) \
+    gen_helper_vsfmpy(RddV, tcg_env, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsffma(SHORTCODE) \
+    gen_helper_vsffma(RxxV, tcg_env, RxxV, RssV, RttV, pkt_need_commit)
+#define fGEN_TCG_F7_vsffms(SHORTCODE) \
+    gen_helper_vsffms(RxxV, tcg_env, RxxV, RssV, RttV, pkt_need_commit)
 #define fGEN_TCG_F2_sfcmpeq(SHORTCODE) \
     gen_helper_sfcmpeq(PdV, tcg_env, RsV, RtV, pkt_need_commit)
 #define fGEN_TCG_F2_sfcmpgt(SHORTCODE) \
@@ -1377,6 +1493,11 @@
         RsV = RsV; \
         uiV = uiV; \
     } while (0)
+#define fGEN_TCG_Y4_dcfetch_multi(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        RtV = RtV; \
+    } while (0)
 
 #define fGEN_TCG_L2_loadw_aq(SHORTCODE)                 SHORTCODE
 #define fGEN_TCG_L4_loadd_aq(SHORTCODE)                 SHORTCODE
@@ -1399,4 +1520,5 @@
 #endif
 
 #define fGEN_TCG_A2_nop(SHORTCODE) do { } while (0)
+#define fGEN_TCG_A2_nop_rb(SHORTCODE) gen_reset_cfi(ctx)
 #define fGEN_TCG_SA1_setin1(SHORTCODE) tcg_gen_movi_tl(RdV, -1)

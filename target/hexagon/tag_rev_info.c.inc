@@ -643,21 +643,6 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [Y2_dcfetchbo_nt] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [Y2_dczeroa_nt] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
 
-    [Y2_tlbpp] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-
-    [V6_valign4] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqhf] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqhf_and] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqhf_or] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqhf_xor] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqsf] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqsf_and] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqsf_or] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_veqsf_xor] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
-    [V6_vconv_h_hf_rnd] = {
-        .introduced = HEX_VER_V81, .removed = HEX_VER_NONE
-    },
-
     [V6_get_qfext] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_get_qfext_oracc] = {
         .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
@@ -671,7 +656,6 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
         .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
     },
     [V6_vabs_qf32_sf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
-    [V6_vconv_bf_qf32] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
     [V6_vconv_qf16_hf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_vconv_qf16_qf16] = {
         .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
@@ -698,6 +682,72 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vneg_qf32_sf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_vsub_hf_mix] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_vsub_sf_mix] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+
+    [Y2_tlbpp] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+
+    [V6_valign4] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf_and] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf_or] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqhf_xor] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf_and] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf_or] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_veqsf_xor] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [V6_vconv_h_hf_rnd] = {
+        .introduced = HEX_VER_V81, .removed = HEX_VER_NONE
+    },
+    [V6_vconv_bf_qf32] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+
+    [V2_vallocframe_imm] = { .introduced = HEX_VER_V83,
+                             .removed = HEX_VER_NONE },
+    [V2_vallocframe_reg] = { .introduced = HEX_VER_V83,
+                             .removed = HEX_VER_NONE },
+    [V2_vdeallocframe_imm] = { .introduced = HEX_VER_V83,
+                               .removed = HEX_VER_NONE },
+    [V2_vdeallocframe_reg] = { .introduced = HEX_VER_V83,
+                               .removed = HEX_VER_NONE },
+    [J2_callr_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_callrh_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_callrt_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_callrf_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumpr_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprh_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprt_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprf_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprtpt_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprfpt_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprtnew_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprfnew_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_jumprtnewpt_rb] = { .introduced = HEX_VER_V83,
+                            .removed = HEX_VER_NONE },
+    [J2_jumprfnewpt_rb] = { .introduced = HEX_VER_V83,
+                            .removed = HEX_VER_NONE },
+    [S2_allocframe_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [SS2_allocframe_rb] = { .introduced = HEX_VER_V83,
+                            .removed = HEX_VER_NONE },
+    [A2_nop_rb] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [J2_trap2] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsfadd] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsfsub] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsfmpy] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsffma] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+    [F7_vsffms] = { .introduced = HEX_VER_V83, .removed = HEX_VER_NONE },
+
+    [Y4_dcfetch_multi] = { .introduced = HEX_VER_V85,
+                            .removed = HEX_VER_NONE },
+    [AM_addw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_addw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_andw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_andw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_orw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_orw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapd_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapd_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_swapw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_xorw_aq] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
+    [AM_xorw_rl] = { .introduced = HEX_VER_V85, .removed = HEX_VER_NONE },
 };
 
 #endif /* HEXAGON_TAG_ARCH_TABLE_H */

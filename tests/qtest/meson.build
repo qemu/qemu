@@ -321,7 +321,9 @@ qtests_riscv64 = ['riscv-csr-test'] + \
    ['k230-ddr-test', 'k230-wdt-test', 'k230-gsdma-test', 'k230-decomp-gzip-test'] : []) + \
    ['milkv-duo-test']
 
-qtests_hexagon = ['boot-serial-test', 'l2vic-test', 'qct-qtimer-test']
+qtests_hexagon = ['boot-serial-test', 'hexagon-config-test', 'l2vic-test',
+                  'qcom-dsp-test',
+                  'qct-qtimer-test']
 
 qos_test_ss = ss.source_set()
 qos_test_ss.add(

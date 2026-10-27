@@ -13,10 +13,11 @@
 #include "monitor/hmp.h"
 
 extern void hex_tlbw(CPUHexagonState *env, uint32_t index, uint64_t value);
+extern void hex_tlb_invalidate_asid(CPUHexagonState *env, uint32_t asid);
 extern uint32_t hex_tlb_lookup(CPUHexagonState *env, uint32_t ssr, uint32_t VA);
 extern void hex_mmu_on(CPUHexagonState *env);
 extern void hex_mmu_off(CPUHexagonState *env);
-extern void hex_mmu_mode_change(CPUHexagonState *env);
+extern void hex_mmu_asid_change(CPUHexagonState *env);
 extern bool hex_tlb_find_match(CPUHexagonState *env, uint32_t VA,
                                MMUAccessType access_type, hwaddr *PA, int *prot,
                                uint64_t *size, int32_t *excp, int mmu_idx);

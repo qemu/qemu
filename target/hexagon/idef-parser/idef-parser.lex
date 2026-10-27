@@ -161,6 +161,7 @@ STRING_LIT               \"(\\.|[^"\\])*\"
 "fFRAME_SCRAMBLE"        |
 "fFRAME_UNSCRAMBLE"      { return FSCR; }
 "fFRAMECHECK"            { return FCHK; }
+"fVFRAMECHECK"           { return VFCHK; }
 "Constant_extended"      { return CONSTEXT; }
 "fCL1_"{DIGIT}           { return LOCNT; }
 "fbrev"                  { return BREV; }
@@ -325,6 +326,13 @@ STRING_LIT               \"(\\.|[^"\\])*\"
 "SP"                     { yylval->rvalue.type = REGISTER;
                            yylval->rvalue.reg.type = GENERAL_PURPOSE;
                            yylval->rvalue.reg.id = HEX_REG_SP;
+                           yylval->rvalue.reg.bit_width = 32;
+                           yylval->rvalue.bit_width = 32;
+                           yylval->rvalue.signedness = UNSIGNED;
+                           return REG; }
+"VSP"                    { yylval->rvalue.type = REGISTER;
+                           yylval->rvalue.reg.type = GENERAL_PURPOSE;
+                           yylval->rvalue.reg.id = HEX_REG_VSP;
                            yylval->rvalue.reg.bit_width = 32;
                            yylval->rvalue.bit_width = 32;
                            yylval->rvalue.signedness = UNSIGNED;

@@ -12,6 +12,11 @@
 
 #include "hw/hexagon/machine_cfg_v68n_1024.h.inc"
 #include "hw/hexagon/machine_cfg_v66g_1024.h.inc"
+#include "hw/hexagon/machine_cfg_qcs6490_cdsp.h.inc"
+#include "hw/hexagon/machine_cfg_sm8975_nsp.h.inc"
+#include "hw/hexagon/machine_cfg_sa8797p_nsp0.h.inc"
+#include "hw/hexagon/machine_cfg_sc8480xp_nsp0.h.inc"
+#include "hw/hexagon/machine_cfg_sa8775_cdsp0.h.inc"
 
 #define QTIMER_DEFAULT_FREQ_HZ 19200000ULL
 
@@ -342,6 +347,11 @@ typedef struct {
 static const QtimerMachineCfg qtimer_machines[] = {
     { "virt",      &v68n_1024 },
     { "V66G_1024", &v66g_1024 },
+    { "qcs6490-cdsp", &qcs6490_cdsp },
+    { "sa8775p-cdsp", &SA8775P_cdsp0 },
+    { "sc8480xp-nsp0", &sc8480xp_nsp0 },
+    { "sa8797p-nsp0", &sa8797p_nsp0 },
+    { "sm8975-nsp", &sm8975_nsp },
 };
 
 static void test_qtimer_on_machine(gconstpointer data)

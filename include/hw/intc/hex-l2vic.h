@@ -31,8 +31,13 @@ typedef struct HexL2VicInterfaceClass {
     void (*update_vid)(HexL2VicInterface *l2vic, uint32_t group,
                         uint32_t value);
 
-    /* Clear interrupt using CIAD instruction */
-    void (*clear_interrupt)(HexL2VicInterface *l2vic);
+    /*
+     * Clear interrupts using the CIAD instruction.
+     * @mask the CPU interrupts that the CIAD acknowledged.  The interrupt is
+     * only cleared if @mask has the CPU interrupt that its VID group is
+     * delivered on.
+     */
+    void (*clear_interrupt)(HexL2VicInterface *l2vic, uint32_t mask);
 } HexL2VicInterfaceClass;
 
 DECLARE_OBJ_CHECKERS(HexL2VicInterface, HexL2VicInterfaceClass,
@@ -52,10 +57,11 @@ static inline void l2vic_update_vid(HexL2VicInterface *l2vic, uint32_t group,
     k->update_vid(l2vic, group, value);
 }
 
-static inline void l2vic_clear_interrupt(HexL2VicInterface *l2vic)
+static inline void l2vic_clear_interrupt(HexL2VicInterface *l2vic,
+                                         uint32_t mask)
 {
     HexL2VicInterfaceClass *k = HEX_L2VIC_INTERFACE_GET_CLASS(l2vic);
-    k->clear_interrupt(l2vic);
+    k->clear_interrupt(l2vic, mask);
 }
 
 #endif /* HW_INTC_HEX_L2VIC_H */

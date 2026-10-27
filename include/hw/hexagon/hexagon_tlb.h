@@ -30,6 +30,8 @@ uint64_t hexagon_tlb_read(HexagonTLBState *tlb, uint32_t index);
 uint64_t hexagon_tlb_write(HexagonTLBState *tlb, uint32_t index,
                            uint64_t value);
 
+uint32_t hexagon_tlb_invalidate_asid(HexagonTLBState *tlb, uint32_t asid);
+
 bool hexagon_tlb_find_match(HexagonTLBState *tlb, uint32_t asid,
                             uint32_t VA, MMUAccessType access_type,
                             hwaddr *PA, int *prot, uint64_t *size,

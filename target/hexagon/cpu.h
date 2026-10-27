@@ -76,6 +76,14 @@ typedef struct HexagonHVXContextState HexagonHVXContextState;
 #define MMU_GUEST_IDX        1
 #define MMU_KERNEL_IDX       2
 
+/*
+ * TLB entry match is by ASID and global bit, neither of which is encoded in
+ * mmu_idx, so a JTLB change has to be flushed out of every mmu_idx.
+ */
+#define MMU_IDX_ALL          ((1 << MMU_USER_IDX) | \
+                              (1 << MMU_GUEST_IDX) | \
+                              (1 << MMU_KERNEL_IDX))
+
 typedef enum {
     HEX_LOCK_UNLOCKED       = 0,
     HEX_LOCK_WAITING        = 1,
@@ -132,6 +140,9 @@ typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
     uint32_t cause_code;
+    uint32_t cfi_active;
+    uint32_t cfi_active_log;
+    uint32_t cfi_updated;
 
     /* For comparing with LLDB on target - see adjust_stack_ptrs function */
     target_ulong last_pc_dumped;
@@ -227,6 +238,7 @@ FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
 FIELD(TB_FLAGS, MMU_INDEX, 1, 3)
 FIELD(TB_FLAGS, HVX_COPROC_ENABLED, 5, 1)
 FIELD(TB_FLAGS, CPU_MODE, 6, 2)
+FIELD(TB_FLAGS, SS_ACTIVE, 8, 1)
 
 G_NORETURN void hexagon_raise_exception_err(CPUHexagonState *env,
                                             uint32_t exception,

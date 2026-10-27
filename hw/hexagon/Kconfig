@@ -7,12 +7,56 @@ config HEX_DSP
     select HEX_QTIMER
     select ARM_COMPATIBLE_SEMIHOSTING
 
-config HEX_VIRT
+config HEX_BOARD
     bool
-    default y
     depends on HEX_DSP && FDT
     select DEVICE_TREE
     select VIRTIO_MMIO
     select PL011
+
+config HEX_VIRT
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_BOARD
     select VIRTIO_BLK
     select VIRTIO_SCSI
+
+config HEX_QCOM_DSP
+    bool
+    depends on HEX_DSP && FDT
+    select HEX_BOARD
+    select UNIMP
+    select QCOM_QDSP6SS_CLK
+    select VIRTIO_BLK
+    select VIRTIO_SCSI
+
+config HEX_QCS6490_CDSP
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP
+
+config HEX_SA8775P_CDSP
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP
+
+config HEX_SC8480XP_NSP0
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP
+
+config HEX_SA8797P_NSP0
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP
+
+config HEX_SM8975_NSP
+    bool
+    default y
+    depends on HEX_DSP && FDT
+    select HEX_QCOM_DSP

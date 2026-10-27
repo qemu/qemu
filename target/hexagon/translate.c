@@ -68,6 +68,9 @@ TCGv hex_imprecise_exception;
 TCGv hex_vstore_addr[VSTORES_MAX];
 TCGv hex_vstore_size[VSTORES_MAX];
 TCGv hex_vstore_pending[VSTORES_MAX];
+TCGv_i32 hex_cfi_active;
+TCGv_i32 hex_cfi_active_log;
+TCGv_i32 hex_cfi_updated;
 #ifndef CONFIG_USER_ONLY
 TCGv_ptr hex_hvx_ptr;
 #endif
@@ -136,7 +139,7 @@ intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
     return offset;
 }
 
-static void gen_precise_exception(int cause, uint32_t PC)
+void gen_precise_exception(int cause, uint32_t PC)
 {
     tcg_gen_movi_i32(hex_cause_code, cause);
     gen_helper_raise_exception(tcg_env, tcg_constant_i32(HEX_EVENT_PRECISE),
@@ -175,9 +178,47 @@ static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+/*
+ * Raise the single-step debug event once the packet has retired.  PC
+ * already holds the address of the next packet, which becomes ELR.
+ */
+static void gen_singlestep_exception(DisasContext *ctx)
+{
+    tcg_gen_movi_i32(hex_cause_code, HEX_CAUSE_DEBUG_SINGLESTEP);
+    gen_helper_raise_exception(tcg_env,
+                               tcg_constant_i32(HEX_EVENT_DEBUG),
+                               hex_gpr[HEX_REG_PC]);
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static void gen_end_tb_singlestep(DisasContext *ctx)
+{
+    TCGv pc = hex_gpr[HEX_REG_PC];
+
+    if (ctx->branch_cond == TCG_COND_ALWAYS) {
+        tcg_gen_movi_tl(pc, ctx->branch_dest);
+    } else if (ctx->branch_cond != TCG_COND_NEVER) {
+        tcg_gen_movcond_tl(ctx->branch_cond, pc, ctx->branch_taken,
+                           tcg_constant_tl(1), tcg_constant_tl(ctx->next_PC),
+                           tcg_constant_tl(ctx->branch_dest));
+    } else if (!ctx->pkt.pkt_has_cof) {
+        tcg_gen_movi_tl(pc, ctx->next_PC);
+    }
+    gen_singlestep_exception(ctx);
+}
+#endif
+
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
+
+#ifndef CONFIG_USER_ONLY
+    if (ctx->ss_active) {
+        gen_end_tb_singlestep(ctx);
+        return;
+    }
+#endif
 
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
@@ -442,6 +483,45 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
     }
 }
 
+static bool pkt_legal_cfi_target(const Packet *pkt)
+{
+    int i;
+
+    for (i = 0; i < pkt->num_insns; i++) {
+        if (GET_ATTRIB(pkt->insn[i].opcode, A_RESTRICT_TARGET) ||
+            pkt->insn[i].opcode == Y2_break ||
+            (pkt->insn[i].opcode == J2_trap0 &&
+             pkt->insn[i].immed[0] == 0xdb)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void gen_cfi_check(DisasContext *ctx)
+{
+    TCGLabel *skip;
+
+    if (ctx->hex_def->hex_version < HEX_VER_V83 ||
+        pkt_legal_cfi_target(&ctx->pkt)) {
+        return;
+    }
+
+    skip = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_EQ, hex_cfi_active, 0, skip);
+    gen_precise_exception(HEX_CAUSE_CFI_VIOLATION, ctx->pkt.pc);
+    gen_set_label(skip);
+}
+
+static void gen_cfi_target_update(DisasContext *ctx)
+{
+    if (ctx->hex_def->hex_version >= HEX_VER_V83 &&
+        pkt_legal_cfi_target(&ctx->pkt)) {
+        tcg_gen_movi_i32(hex_cfi_active_log, 0);
+        tcg_gen_movi_i32(hex_cfi_updated, 1);
+    }
+}
+
 static void mark_implicit_usr_write(DisasContext *ctx, int attrib)
 {
     uint16_t opcode = ctx->insn->opcode;
@@ -569,6 +649,7 @@ static void clear_pkt_ctx(DisasContext *ctx)
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
+    ctx->implicit_usr_write = false;
 #ifndef CONFIG_USER_ONLY
     ctx->greg_log_idx = 0;
     bitmap_zero(ctx->gregs_written, NUM_GREGS);
@@ -709,6 +790,9 @@ static void gen_start_packet(DisasContext *ctx)
     if (need_pc_preload(ctx)) {
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     }
+
+    gen_cfi_target_update(ctx);
+    gen_cfi_check(ctx);
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
     if (ctx->need_commit &&
@@ -1231,6 +1315,14 @@ static void gen_commit_packet(DisasContext *ctx)
         gen_helper_probe_pkt_scalar_store_s0(tcg_env, args_tcgv);
     }
 
+    if (ctx->hex_def->hex_version >= HEX_VER_V83) {
+        /* A restricted branch commits before a faulting store in its packet. */
+        tcg_gen_movcond_i32(TCG_COND_NE, hex_cfi_active, hex_cfi_updated,
+                            tcg_constant_i32(0), hex_cfi_active_log,
+                            hex_cfi_active);
+        tcg_gen_movi_i32(hex_cfi_updated, 0);
+    }
+
     process_store_log(ctx);
 
     gen_reg_writes(ctx);
@@ -1336,6 +1428,12 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         FIELD_EX32(hex_flags, TB_FLAGS, HVX_COPROC_ENABLED);
     ctx->hvx_check_emitted = false;
     ctx->cpu_mode = FIELD_EX32(hex_flags, TB_FLAGS, CPU_MODE);
+    ctx->ss_active = FIELD_EX32(hex_flags, TB_FLAGS, SS_ACTIVE);
+    if (ctx->ss_active) {
+        /* Step one packet, and let endloop0 branch within the packet */
+        ctx->base.max_insns = 1;
+        ctx->is_tight_loop = false;
+    }
 #endif
 }
 
@@ -1403,6 +1501,12 @@ static void hexagon_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
     case DISAS_TOO_MANY:
         gen_exec_counters(ctx);
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
+#ifndef CONFIG_USER_ONLY
+        if (ctx->ss_active) {
+            gen_singlestep_exception(ctx);
+            break;
+        }
+#endif
         tcg_gen_exit_tb(NULL, 0);
         break;
     case DISAS_NORETURN:
@@ -1468,6 +1572,12 @@ void hexagon_translate_init(void)
     }
     hex_new_value_usr = tcg_global_mem_new(tcg_env,
         offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
+    hex_cfi_active = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, cfi_active), "cfi_active");
+    hex_cfi_active_log = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, cfi_active_log), "cfi_active_log");
+    hex_cfi_updated = tcg_global_mem_new_i32(tcg_env,
+        offsetof(CPUHexagonState, cfi_updated), "cfi_updated");
 
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(tcg_env,

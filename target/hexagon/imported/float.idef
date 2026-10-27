@@ -51,6 +51,55 @@ Q6INSN(F2_sffms,"Rx32-=sfmpy(Rs32,Rt32)",ATTRIBS(),
 "Floating-Point Fused Multiply Add",
 { RxV=fUNFLOAT(fFMAF(-fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV))); })
 
+Q6INSN(F7_vsfadd,"Rdd32=vsfadd(Rss32,Rtt32)",ATTRIBS(),
+       "Vector Floating-Point Add",
+{
+    fSETWORD(0,RddV,fUNFLOAT(fFLOAT(fGETUWORD(0,RssV)) +
+                              fFLOAT(fGETUWORD(0,RttV))));
+    fSETWORD(1,RddV,fUNFLOAT(fFLOAT(fGETUWORD(1,RssV)) +
+                              fFLOAT(fGETUWORD(1,RttV))));
+})
+
+Q6INSN(F7_vsfsub,"Rdd32=vsfsub(Rss32,Rtt32)",ATTRIBS(),
+       "Vector Floating-Point Subtract",
+{
+    fSETWORD(0,RddV,fUNFLOAT(fFLOAT(fGETUWORD(0,RssV)) -
+                              fFLOAT(fGETUWORD(0,RttV))));
+    fSETWORD(1,RddV,fUNFLOAT(fFLOAT(fGETUWORD(1,RssV)) -
+                              fFLOAT(fGETUWORD(1,RttV))));
+})
+
+Q6INSN(F7_vsfmpy,"Rdd32=vsfmpy(Rss32,Rtt32)",ATTRIBS(),
+       "Vector Floating-Point Multiply",
+{
+    fSETWORD(0,RddV,fUNFLOAT(fSFMPY(fFLOAT(fGETUWORD(0,RssV)),
+                                   fFLOAT(fGETUWORD(0,RttV)))));
+    fSETWORD(1,RddV,fUNFLOAT(fSFMPY(fFLOAT(fGETUWORD(1,RssV)),
+                                   fFLOAT(fGETUWORD(1,RttV)))));
+})
+
+Q6INSN(F7_vsffma,"Rxx32+=vsfmpy(Rss32,Rtt32)",ATTRIBS(),
+       "Vector Floating-Point Fused Multiply Add",
+{
+    fSETWORD(0,RxxV,fUNFLOAT(fFMAF(fFLOAT(fGETUWORD(0,RssV)),
+                                  fFLOAT(fGETUWORD(0,RttV)),
+                                  fFLOAT(fGETUWORD(0,RxxV)))));
+    fSETWORD(1,RxxV,fUNFLOAT(fFMAF(fFLOAT(fGETUWORD(1,RssV)),
+                                  fFLOAT(fGETUWORD(1,RttV)),
+                                  fFLOAT(fGETUWORD(1,RxxV)))));
+})
+
+Q6INSN(F7_vsffms,"Rxx32-=vsfmpy(Rss32,Rtt32)",ATTRIBS(),
+       "Vector Floating-Point Fused Multiply Subtract",
+{
+    fSETWORD(0,RxxV,fUNFLOAT(fFMAF(-fFLOAT(fGETUWORD(0,RssV)),
+                                  fFLOAT(fGETUWORD(0,RttV)),
+                                  fFLOAT(fGETUWORD(0,RxxV)))));
+    fSETWORD(1,RxxV,fUNFLOAT(fFMAF(-fFLOAT(fGETUWORD(1,RssV)),
+                                  fFLOAT(fGETUWORD(1,RttV)),
+                                  fFLOAT(fGETUWORD(1,RxxV)))));
+})
+
 Q6INSN(F2_sffma_lib,"Rx32+=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
 "Floating-Point Fused Multiply Add for Library Routines",
 { fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;)

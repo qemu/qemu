@@ -186,6 +186,7 @@ static bool decode_opcode_can_jump(int opcode)
         (GET_ATTRIB(opcode, A_CALL)) ||
         (opcode == J2_trap0) ||
         (opcode == J2_trap1) ||
+        (opcode == J2_trap2) ||
         (opcode == J2_rte) ||
         (opcode == J2_pause)) {
         /* Exception to A_JUMP attribute */
@@ -600,8 +601,11 @@ decode_set_slot_number(Packet *pkt)
     for (i = 0, slot = 3; i < pkt->num_insns; i++) {
         SlotMask valid_slots = get_valid_slots(pkt, i);
 
-        while (!(valid_slots & (1 << slot))) {
+        while (slot >= 0 && !(valid_slots & (1 << slot))) {
             slot--;
+        }
+        if (slot < 0) {
+            return false;
         }
         pkt->insn[i].slot = slot;
         if (slot) {
@@ -692,6 +696,22 @@ bool opcode_supported(uint16_t opcode, const HexagonCPUDef *hex_def)
 }
 
 /*
+ * Some encodings of an otherwise supported opcode are reserved on newer
+ * versions.  HEX_VER_ANY (used when only disassembling) accepts everything.
+ */
+bool encoding_supported(uint16_t opcode, uint32_t encoding,
+                        const HexagonCPUDef *hex_def)
+{
+    /* Bit 7 of L4_loadw_phys became reserved in v83. */
+    if (hex_def->hex_version != HEX_VER_ANY &&
+        hex_def->hex_version >= HEX_VER_V83 &&
+        opcode == L4_loadw_phys && (encoding & 0x80)) {
+        return false;
+    }
+    return true;
+}
+
+/*
  * decode_packet
  * Decodes packet with given words
  * Returns 0 on insufficient words,
@@ -719,6 +739,9 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
         new_insns = decode_insns(ctx, insn, encoding32);
         if (new_insns == 0) {
             /* Invalid instruction encoding */
+            return 0;
+        }
+        if (!encoding_supported(insn->opcode, encoding32, ctx->hex_def)) {
             return 0;
         }
         /*

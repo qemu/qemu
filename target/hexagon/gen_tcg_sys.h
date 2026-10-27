@@ -20,6 +20,9 @@
 #define fGEN_TCG_Y4_siad(SHORTCODE) \
     gen_helper_siad(tcg_env, RsV)
 
+#define fGEN_TCG_Y5_tlbasidi(SHORTCODE) \
+    gen_helper_tlbinvasid(tcg_env, RsV)
+
 #define fGEN_TCG_Y2_iassignw(SHORTCODE) \
     gen_helper_iassignw(tcg_env, RsV)
 
@@ -131,11 +134,17 @@
  */
 #define fGEN_TCG_J2_rte(SHORTCODE) \
     do { \
+        TCGv_i32 cfi = tcg_temp_new_i32(); \
         TCGv_i32 new_ssr = tcg_temp_new_i32(); \
+        tcg_gen_extract_i32(cfi, hex_t_sreg[HEX_SREG_SSR], \
+                            reg_field_info[SSR_CFI].offset, 1); \
+        fSET_CFI(cfi); \
         tcg_gen_deposit_tl(new_ssr, hex_t_sreg[HEX_SREG_SSR], \
                            tcg_constant_tl(0), \
                            reg_field_info[SSR_EX].offset, \
                            reg_field_info[SSR_EX].width); \
+        tcg_gen_deposit_tl(new_ssr, new_ssr, tcg_constant_tl(0), \
+                           reg_field_info[SSR_CFI].offset, 1); \
         gen_log_sreg_write(ctx, HEX_SREG_SSR, new_ssr); \
         gen_jumpr(ctx, hex_t_sreg[HEX_SREG_ELR]); \
     } while (0)

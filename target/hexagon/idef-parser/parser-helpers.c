@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "hex_regs.h"
 #include "idef-parser.h"
 #include "parser-helpers.h"
 #include "idef-parser.tab.h"
@@ -1313,6 +1314,11 @@ void gen_write_reg(Context *c, YYLTYPE *locp, HexValue *reg, HexValue *value)
     yyassert(c, locp, reg->type == REGISTER, "reg must be a register!");
     value_m = gen_rvalue_truncate(c, locp, &value_m);
     value_m = rvalue_materialize(c, locp, &value_m);
+    if (reg->reg.id == HEX_REG_VSP) {
+        OUT(c, locp, "tcg_gen_mov_tl(hex_gpr[HEX_REG_VSP], ", &value_m,
+            ");\n");
+        return;
+    }
     OUT(c,
         locp,
         "tcg_gen_mov_tl(get_result_gpr(ctx, ", &reg->reg.id, "), ",
@@ -1740,6 +1746,14 @@ void gen_framecheck(Context *c, YYLTYPE *locp, HexValue *addr, HexValue *ea)
     OUT(c, locp, "gen_framecheck(ctx, ", &addr_m, ", ", &ea_m, ");\n");
 }
 
+void gen_vframecheck(Context *c, YYLTYPE *locp, HexValue *addr)
+{
+    HexValue addr_m = rvalue_materialize(c, locp, addr);
+
+    addr_m = gen_rvalue_truncate(c, locp, &addr_m);
+    OUT(c, locp, "gen_vframecheck(ctx, ", &addr_m, ");\n");
+}
+
 void gen_load(Context *c, YYLTYPE *locp, HexValue *width,
               HexSignedness signedness, HexValue *ea, HexValue *dst)
 {
@@ -1989,7 +2003,7 @@ HexValue gen_rvalue_fscr(Context *c, YYLTYPE *locp, HexValue *value)
     *value = gen_rvalue_extend(c, locp, value);
     OUT(c, locp, "gen_read_reg(", &frame_key, ", HEX_REG_FRAMEKEY);\n");
     OUT(c, locp, "tcg_gen_concat_i32_i64(",
-        &key, ", ", &frame_key, ", ", &frame_key, ");\n");
+        &key, ", tcg_constant_tl(0), ", &frame_key, ");\n");
     OUT(c, locp, "tcg_gen_xor_i64(", &res, ", ", value, ", ", &key, ");\n");
     return res;
 }

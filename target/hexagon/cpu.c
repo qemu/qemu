@@ -88,7 +88,7 @@ const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
   "sa0", "lc0", "sa1", "lc1", "p3_0", "c5",  "m0",  "m1",
   "usr", "pc",  "ugp", "gp",  "cs0",  "cs1", "c14", "c15",
   "c16", "c17", "c18", "c19", "pkt_cnt",  "insn_cnt", "hvx_cnt", "c23",
-  "c24", "c25", "c26", "c27", "c28",  "c29", "c30", "c31",
+  "c24", "c25", "c26", "c27", "vframelimit", "vsp", "c30", "c31",
 };
 
 #ifndef CONFIG_USER_ONLY
@@ -388,6 +388,10 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
                            GET_SSR_FIELD(SSR_XE, env->t_sreg[HEX_SREG_SSR]));
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, CPU_MODE,
                            get_cpu_mode(env));
+    /* Single-step applies only to user and guest mode packets */
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE,
+                           GET_SSR_FIELD(SSR_SS, env->t_sreg[HEX_SREG_SSR]) &&
+                           get_cpu_mode(env) != HEX_CPU_MODE_MONITOR);
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
@@ -426,6 +430,9 @@ static bool hexagon_cpu_has_work(CPUState *cs)
 {
     CPUHexagonState *env = cpu_env(cs);
 
+    if (qatomic_read(&cs->exception_index) != HEX_EVENT_NONE) {
+        return true;
+    }
     return hexagon_thread_is_enabled(env) &&
         (cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_SWI
             | CPU_INTERRUPT_K0_UNLOCK | CPU_INTERRUPT_TLB_UNLOCK
@@ -448,6 +455,9 @@ void hexagon_cpu_soft_reset(CPUHexagonState *env)
 
     BQL_LOCK_GUARD();
     env->llsc_addr = ~0;
+    env->cfi_active = 0;
+    env->cfi_active_log = 0;
+    env->cfi_updated = 0;
     env->t_sreg[HEX_SREG_SSR] = 0;
     hexagon_ssr_set_cause(env, HEX_CAUSE_RESET);
 
@@ -485,6 +495,9 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     set_float_default_nan_pattern(0b01111111, &env->hvx_fp_status);
 
     env->llsc_addr = ~0;
+    env->cfi_active = 0;
+    env->cfi_active_log = 0;
+    env->cfi_updated = 0;
 #ifndef CONFIG_USER_ONLY
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
@@ -975,6 +988,8 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_HEXAGON_CPU_V75,              HEX_VER_V75),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V79,              HEX_VER_V79),
     DEFINE_CPU(TYPE_HEXAGON_CPU_V81,              HEX_VER_V81),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V83,              HEX_VER_V83),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V85,              HEX_VER_V85),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)

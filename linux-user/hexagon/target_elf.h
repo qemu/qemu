@@ -43,6 +43,8 @@ enum {
     HWCAP_HEXAGON_ISA_V77           = 16,
     HWCAP_HEXAGON_ISA_V79           = 17,
     HWCAP_HEXAGON_ISA_V81           = 18,
+    HWCAP_HEXAGON_ISA_V83           = 19,
+    HWCAP_HEXAGON_ISA_V85           = 20,
     HWCAP_HEXAGON_HVX               = 1 << 7,
     HWCAP_HEXAGON_CABAC             = 1 << 8,
     HWCAP_HEXAGON_HVX_LENGTH_128B   = 1 << 9,

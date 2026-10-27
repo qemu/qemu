@@ -23,15 +23,22 @@ typedef enum {
     v66_rev = 0xa666,
     v67_rev = 0x2667,
     v68_rev = 0x8d68,
+    v68_qcs6490_rev = 0x8a68,
     v69_rev = 0x8c69,
     v71_rev = 0x8c71,
     v73_rev = 0x8c73,
     v73m_rev = 0xcc73,
+    v73nc_1_rev = 0x8b73,
+    v79_rev = 0x8c79,
     v81_rev = 0x8781,
+    v81_sc8480xp_rev = 0x8081,
     v81dgb_1_rev = 0xcc81,
+    v85qa_1_rev = 0x8185,
+    v85na_1_rev = 0x8085,
+    v85_sm8975_rev = v85na_1_rev,
 } Rev_t;
-#define HEXAGON_LATEST_REV v73
-#define HEXAGON_LATEST_REV_UPPER V73
+#define HEXAGON_LATEST_REV v85
+#define HEXAGON_LATEST_REV_UPPER V85
 
 /*
  * Config table address bases represent bits [35:16].
@@ -39,6 +46,10 @@ typedef enum {
 #define HEXAGON_CFG_ADDR_BASE(addr) (((addr) >> 16) & 0x0fffff)
 
 #define HEXAGON_CFGSPACE_ENTRIES (128)
+
+/* Offsets of q6ss cfg peripherals from the subsystem base. */
+#define HEXAGON_L2VIC_OFFSET  0x10000
+#define HEXAGON_QTIMER_OFFSET 0x21000
 
 union hexagon_config_table {
     struct {
@@ -145,6 +156,8 @@ union hexagon_config_table {
 };
 
 struct hexagon_machine_config {
+    /* Base address of the main DDR region */
+    hwaddr ddr_base;
     /* Base address of config table */
     uint32_t cfgbase;
     /* Size of L2 TCM */
@@ -167,6 +180,7 @@ struct HexagonCommonMachineState {
 
     MemoryRegion ram;
     MemoryRegion cfgtable_rom;
+    uint32_t cfgtable_data[HEXAGON_CFGSPACE_ENTRIES];
     MemoryRegion vtcm;
     DeviceState *cluster;
     DeviceState *l2vic;

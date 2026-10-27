@@ -28,48 +28,6 @@
 
 #ifndef CONFIG_USER_ONLY
 
-static bool hexagon_read_memory_small(CPUHexagonState *env, target_ulong addr,
-                                      int byte_count, uint64_t *data,
-                                      int mmu_idx, uintptr_t retaddr)
- {
-    /* handle small sizes */
-    switch (byte_count) {
-    case 1:
-        *data = cpu_ldub_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    case 2:
-        *data = cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    case 4:
-        *data = cpu_ldl_le_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    case 8:
-        *data = cpu_ldq_le_mmuidx_ra(env, addr, mmu_idx, retaddr);
-        return true;
-
-    default:
-        /* larger request, handle elsewhere */
-        return false;
-    }
-}
-
-void hexagon_read_memory(CPUHexagonState *env, target_ulong vaddr, int size,
-                         void *retptr, uintptr_t retaddr)
-{
-    BQL_LOCK_GUARD();
-    CPUState *cs = env_cpu(env);
-    unsigned mmu_idx = cpu_mmu_index(cs, false);
-    uint64_t data;
-    if (hexagon_read_memory_small(env, vaddr, size, &data, mmu_idx, retaddr)) {
-        stn_he_p(retptr, size, data);
-    } else {
-        cpu_abort(cs, "%s: ERROR: bad size = %d!\n", __func__, size);
-    }
-}
-
 static bool hexagon_write_memory_small(CPUHexagonState *env, target_ulong addr,
                                        int byte_count, uint64_t data,
                                        int mmu_idx, uintptr_t retaddr)
@@ -117,11 +75,13 @@ static inline uint32_t page_start(uint32_t addr)
 void hexagon_peek_memory_range(CPUHexagonState *env, uint32_t start_addr,
                                uint32_t length, uintptr_t retaddr)
 {
-    unsigned int warm;
+    CPUState *cs = env_cpu(env);
+    unsigned int mmu_idx = cpu_mmu_index(cs, false);
     uint32_t first = page_start(start_addr);
     uint32_t last = page_start(start_addr + length - 1);
+
     for (uint32_t page = first; page <= last; page += TARGET_PAGE_SIZE) {
-        hexagon_read_memory(env, page, 1, &warm, retaddr);
+        cpu_ldub_mmuidx_ra(env, page, mmu_idx, retaddr);
     }
 }
 
@@ -138,6 +98,7 @@ static void hexagon_resume_thread(CPUHexagonState *env)
     clear_wait_mode(env);
     cs = env_cpu(env);
     ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
+    cpu_reset_interrupt(cs, CPU_INTERRUPT_HALT);
     cs->halted = false;
     cs->exception_index = HEX_EVENT_NONE;
     qemu_cpu_kick(cs);
@@ -231,26 +192,16 @@ unsigned hexagon_hvx_select_context(CPUHexagonState *env, uint32_t ssr)
 
 void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
 {
-    bool old_EX, old_UM, old_GM, old_IE;
-    bool new_EX, new_UM, new_GM, new_IE;
+    bool old_EX, old_IE;
+    bool new_EX, new_IE;
     uint8_t old_asid, new_asid;
 
     g_assert(bql_locked());
 
     old_EX = GET_SSR_FIELD(SSR_EX, old);
-    old_UM = GET_SSR_FIELD(SSR_UM, old);
-    old_GM = GET_SSR_FIELD(SSR_GM, old);
     old_IE = GET_SSR_FIELD(SSR_IE, old);
     new_EX = GET_SSR_FIELD(SSR_EX, new);
-    new_UM = GET_SSR_FIELD(SSR_UM, new);
-    new_GM = GET_SSR_FIELD(SSR_GM, new);
     new_IE = GET_SSR_FIELD(SSR_IE, new);
-
-    if ((old_EX != new_EX) ||
-        (old_UM != new_UM) ||
-        (old_GM != new_GM)) {
-        hex_mmu_mode_change(env);
-    }
 
     bool xa_changed = GET_SSR_FIELD(SSR_XA, new) != GET_SSR_FIELD(SSR_XA, old);
     bool xe_changed = GET_SSR_FIELD(SSR_XE, new) != GET_SSR_FIELD(SSR_XE, old);
@@ -267,8 +218,7 @@ void hexagon_modify_ssr(CPUHexagonState *env, uint32_t new, uint32_t old)
     old_asid = GET_SSR_FIELD(SSR_ASID, old);
     new_asid = GET_SSR_FIELD(SSR_ASID, new);
     if (new_asid != old_asid) {
-        CPUState *cs = env_cpu(env);
-        tlb_flush(cs);
+        hex_mmu_asid_change(env);
     }
 
     /* See if the interrupts have been enabled or we have exited EX mode */
