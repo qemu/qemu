@@ -152,6 +152,8 @@ endif
 ifneq ($(CROSS_CC_HAS_SVE2),)
 AARCH64_TESTS += test-826
 test-826: CFLAGS += $(CROSS_CC_HAS_SVE2)
+AARCH64_TESTS += sve-vec-imm
+sve-vec-imm: CFLAGS += $(CROSS_CC_HAS_SVE2)
 endif
 
 TESTS += $(AARCH64_TESTS)
