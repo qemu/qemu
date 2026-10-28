@@ -1853,6 +1853,27 @@ static void gen_ld_asi(DisasContext *dc, DisasASI *da, TCGv dst, TCGv addr)
     }
 }
 
+/*
+ * On T4 and later, a block-initializing store to the first doubleword of
+ * a 32-byte block zeroes the rest of the block. glibc and Linux memset
+ * rely on this and store only one doubleword per block when zeroing.
+ */
+static void gen_blkinit_zero(DisasContext *dc, DisasASI *da, TCGv addr,
+                             MemOp size)
+{
+    TCGLabel *skip = gen_new_label();
+    TCGv t = tcg_temp_new();
+    TCGv_i64 zero = tcg_constant_i64(0);
+
+    tcg_gen_brcondi_tl(TCG_COND_TSTNE, addr, 31, skip);
+    /* A narrower store also zeroes the rest of the first doubleword. */
+    for (int i = size == MO_64 ? 8 : 0; i < 32; i += 8) {
+        tcg_gen_addi_tl(t, addr, i);
+        tcg_gen_qemu_st_i64(zero, t, da->mem_idx, MO_UQ);
+    }
+    gen_set_label(skip);
+}
+
 static void gen_st_asi(DisasContext *dc, DisasASI *da, TCGv src, TCGv addr)
 {
     switch (da->type) {
@@ -1863,12 +1884,19 @@ static void gen_st_asi(DisasContext *dc, DisasASI *da, TCGv src, TCGv addr)
         if (TARGET_LONG_BITS == 32) {
             gen_exception(dc, TT_ILL_INSN);
             break;
-        } else if (!(dc->def->features & CPU_FEATURE_HYPV)) {
-            /* Pre OpenSPARC CPUs don't have these */
+        } else if (!(dc->def->features &
+                    (CPU_FEATURE_HYPV | CPU_FEATURE_CRYPTO))) {
+            /*
+             * Pre-OpenSPARC CPUs lack block-init stores. Crypto
+             * instructions imply T4 or later, which has them.
+             */
             gen_exception(dc, TT_ILL_INSN);
             break;
         }
         /* In OpenSPARC T1+ CPUs TWINX ASIs in store are ST_BLKINIT_ ASIs */
+        if (dc->def->features & CPU_FEATURE_CRYPTO) {
+            gen_blkinit_zero(dc, da, addr, da->memop & MO_SIZE);
+        }
         /* fall through */
 
     case GET_ASI_DIRECT:
@@ -2166,6 +2194,17 @@ static void gen_stf_asi(DisasContext *dc, DisasASI *da, MemOp orig_size,
             break;
         default:
             g_assert_not_reached();
+        }
+        break;
+
+    case GET_ASI_DTWINX:
+        /* stdfa with a block-initializing ASI, T4 and later */
+        if (orig_size == MO_64 && (dc->def->features & CPU_FEATURE_CRYPTO)) {
+            gen_blkinit_zero(dc, da, addr, MO_64);
+            d64 = gen_load_fpr_D(dc, rd);
+            tcg_gen_qemu_st_i64(d64, addr, da->mem_idx, memop | MO_ALIGN);
+        } else {
+            gen_exception(dc, TT_ILL_INSN);
         }
         break;
 
