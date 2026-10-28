@@ -902,13 +902,17 @@ typedef struct BlockLimits {
     BlockZoneModel zoned;
 
     /* zone size expressed in bytes */
-    uint32_t zone_size;
+    uint64_t zone_size;
+
+    /*
+     * log2 of zone_size, derived by bdrv_refresh_limits(). A zoned device
+     * always has a zone size that is a power of two, so the zone an offset
+     * falls in is a shift rather than a division. See bdrv_zone_index().
+     */
+    uint32_t zone_size_bits;
 
     /* total number of zones */
     uint32_t nr_zones;
-
-    /* maximum sectors of a zone append write operation */
-    uint32_t max_append_sectors;
 
     /* maximum number of open zones */
     uint32_t max_open_zones;
@@ -916,6 +920,13 @@ typedef struct BlockLimits {
     /* maximum number of active zones */
     uint32_t max_active_zones;
 
+    /*
+     * The granularity that the backend requires of a write to a sequential
+     * zone, in bytes, or zero if it has none. This describes the host, so it
+     * must not be reported to a guest: a frontend reports
+     * blkconf_zone_write_granularity() and checks this against it when the
+     * device is realized.
+     */
     uint32_t write_granularity;
 } BlockLimits;
 

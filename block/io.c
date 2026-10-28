@@ -230,6 +230,11 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
         }
     }
 
+    if (bs->bl.zone_size) {
+        assert(is_power_of_2(bs->bl.zone_size));
+        bs->bl.zone_size_bits = ctz64(bs->bl.zone_size);
+    }
+
     if (bs->bl.request_alignment > BDRV_MAX_ALIGNMENT) {
         error_setg(errp, "Driver requires too large request alignment");
     }
@@ -3303,40 +3308,36 @@ int coroutine_fn bdrv_co_zone_report(BlockDriverState *bs, int64_t offset,
                         BlockZoneDescriptor *zones)
 {
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-            .coroutine = qemu_coroutine_self(),
-    };
+    int ret;
     IO_CODE();
 
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_report || bs->bl.zoned == BLK_Z_NONE) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
-    co.ret = drv->bdrv_co_zone_report(bs, offset, nr_zones, zones);
+    ret = drv->bdrv_co_zone_report(bs, offset, nr_zones, zones);
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+    return ret;
 }
 
 int coroutine_fn bdrv_co_zone_mgmt(BlockDriverState *bs, BlockZoneOp op,
         int64_t offset, int64_t len)
 {
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-            .coroutine = qemu_coroutine_self(),
-    };
+    int ret;
     IO_CODE();
 
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_mgmt || bs->bl.zoned == BLK_Z_NONE) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
-    co.ret = drv->bdrv_co_zone_mgmt(bs, op, offset, len);
+    ret = drv->bdrv_co_zone_mgmt(bs, op, offset, len);
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+    return ret;
 }
 
 int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
@@ -3345,9 +3346,6 @@ int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
 {
     int ret;
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-            .coroutine = qemu_coroutine_self(),
-    };
     IO_CODE();
 
     ret = bdrv_check_qiov_request(*offset, qiov->size, qiov, 0, NULL);
@@ -3355,15 +3353,60 @@ int coroutine_fn bdrv_co_zone_append(BlockDriverState *bs, int64_t *offset,
         return ret;
     }
 
+    /*
+     * Zone write pointers are kept and reported in units of BDRV_SECTOR_SIZE,
+     * so an append that would leave a write pointer at a finer granularity
+     * cannot be represented. Drivers may impose a coarser granularity of their
+     * own, see BlockLimits.write_granularity.
+     */
+    if (!QEMU_IS_ALIGNED(qiov->size, BDRV_SECTOR_SIZE)) {
+        return -EINVAL;
+    }
+
+    /*
+     * An append cannot cross a zone boundary, so one that is larger than a
+     * zone can never be carried out, wherever the write pointer of the zone
+     * is. The exact bound is the part of the zone that is still writable,
+     * which only a driver can check, as only it holds the write pointer.
+     * zone_size is zero when the device is not zoned, which is reported as
+     * unsupported below.
+     */
+    if (bs->bl.zone_size && qiov->size > bs->bl.zone_size) {
+        return -EINVAL;
+    }
+
     bdrv_inc_in_flight(bs);
     if (!drv || !drv->bdrv_co_zone_append || bs->bl.zoned == BLK_Z_NONE) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
-    co.ret = drv->bdrv_co_zone_append(bs, offset, qiov, flags);
+    ret = drv->bdrv_co_zone_append(bs, offset, qiov, flags);
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+    return ret;
+}
+
+uint32_t bdrv_zone_index(BlockDriverState *bs, uint64_t offset)
+{
+    IO_CODE();
+
+    return offset >> bs->bl.zone_size_bits;
+}
+
+bool bdrv_zone_is_conv(BlockDriverState *bs, uint32_t index)
+{
+    IO_CODE();
+
+    return BDRV_ZT_IS_CONV(bs->wps->wp[index]);
+}
+
+bool bdrv_zone_is_full(BlockDriverState *bs, uint32_t index)
+{
+    uint64_t zone_end = MIN((uint64_t)(index + 1) * bs->bl.zone_size,
+                            (uint64_t)bs->total_sectors << BDRV_SECTOR_BITS);
+    IO_CODE();
+
+    return bs->wps->wp[index] >= zone_end;
 }
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)

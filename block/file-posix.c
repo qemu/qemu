@@ -1379,7 +1379,7 @@ static int get_zones_wp(BlockDriverState *bs, int fd, int64_t offset,
     size_t rep_size;
     uint64_t sector = offset >> BDRV_SECTOR_BITS;
     BlockZoneWps *wps = bs->wps;
-    unsigned int j = offset / bs->bl.zone_size;
+    unsigned int j = bdrv_zone_index(bs, offset);
     unsigned int n = 0, i = 0;
     int ret;
     rep_size = sizeof(struct blk_zone_report) + nrz * sizeof(struct blk_zone);
@@ -1507,11 +1507,6 @@ static void raw_refresh_zoned_limits(BlockDriverState *bs, struct stat *st,
         goto no_zoned;
     }
     bs->bl.nr_zones = ret;
-
-    ret = get_sysfs_long_val(st, "zone_append_max_bytes");
-    if (ret > 0) {
-        bs->bl.max_append_sectors = ret >> BDRV_SECTOR_BITS;
-    }
 
     ret = get_sysfs_long_val(st, "zone_write_granularity");
     if (ret >= 0) {
@@ -2579,7 +2574,28 @@ raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr, uint64_t bytes,
         bs->bl.zoned != BLK_Z_NONE) {
         qemu_co_mutex_lock(&bs->wps->colock);
         if (type & QEMU_AIO_ZONE_APPEND) {
-            int index = offset / bs->bl.zone_size;
+            uint32_t index = bdrv_zone_index(bs, offset);
+
+            /*
+             * The write pointer of the addressed zone becomes the offset of
+             * the write, so it has to name a position inside that zone. A
+             * conventional zone has no write pointer, and the pointer of a
+             * full zone is reported at the end of the zone. Either would send
+             * the data to a zone that was never addressed.
+             */
+            if (bdrv_zone_is_conv(bs, index)) {
+                error_report("zone append at offset 0x%" PRIx64 " addresses a "
+                             "conventional zone", offset);
+                qemu_co_mutex_unlock(&bs->wps->colock);
+                return -EINVAL;
+            }
+            if (bdrv_zone_is_full(bs, index)) {
+                error_report("zone append at offset 0x%" PRIx64 " addresses a "
+                             "full zone", offset);
+                qemu_co_mutex_unlock(&bs->wps->colock);
+                return -ENOSPC;
+            }
+
             offset = bs->wps->wp[index];
         }
     }
@@ -2634,7 +2650,7 @@ out:
         bs->bl.zoned != BLK_Z_NONE) {
         BlockZoneWps *wps = bs->wps;
         if (ret == 0) {
-            uint64_t *wp = &wps->wp[offset / bs->bl.zone_size];
+            uint64_t *wp = &wps->wp[bdrv_zone_index(bs, offset)];
             if (!BDRV_ZT_IS_CONV(*wp)) {
                 if (type & QEMU_AIO_ZONE_APPEND) {
                     *offset_ptr = *wp;
@@ -3532,7 +3548,7 @@ static int coroutine_fn raw_co_zone_mgmt(BlockDriverState *bs, BlockZoneOp op,
         return -EINVAL;
     }
 
-    uint32_t i = offset / bs->bl.zone_size;
+    uint32_t i = bdrv_zone_index(bs, offset);
     uint32_t nrz = len / bs->bl.zone_size;
     uint64_t *wp = &wps->wp[i];
     if (BDRV_ZT_IS_CONV(*wp) && len != capacity) {
@@ -3611,30 +3627,23 @@ raw_co_zone_append(BlockDriverState *bs,
                    QEMUIOVector *qiov,
                    BdrvRequestFlags flags) {
     assert(flags == 0);
+    int64_t capacity = bs->total_sectors << BDRV_SECTOR_BITS;
     int64_t zone_size_mask = bs->bl.zone_size - 1;
-    int64_t iov_len = 0;
-    int64_t len = 0;
+
+    if (*offset >= capacity) {
+        error_report("*offset %" PRId64 " is equal to or greater than the "
+                     "device capacity %" PRId64 "", *offset, capacity);
+        return -ENOSPC;
+    }
 
     if (*offset & zone_size_mask) {
         error_report("sector offset %" PRId64 " is not aligned to zone size "
-                     "%" PRId32 "", *offset / 512, bs->bl.zone_size / 512);
+                     "%" PRId64 "", *offset / 512, bs->bl.zone_size / 512);
         return -EINVAL;
     }
 
-    int64_t wg = bs->bl.write_granularity;
-    int64_t wg_mask = wg - 1;
-    for (int i = 0; i < qiov->niov; i++) {
-        iov_len = qiov->iov[i].iov_len;
-        if (iov_len & wg_mask) {
-            error_report("len of IOVector[%d] %" PRId64 " is not aligned to "
-                         "block size %" PRId64 "", i, iov_len, wg);
-            return -EINVAL;
-        }
-        len += iov_len;
-    }
-
     trace_zbd_zone_append(bs, *offset >> BDRV_SECTOR_BITS);
-    return raw_co_prw(bs, offset, len, qiov, QEMU_AIO_ZONE_APPEND, 0);
+    return raw_co_prw(bs, offset, qiov->size, qiov, QEMU_AIO_ZONE_APPEND, 0);
 }
 #endif
 
