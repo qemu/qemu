@@ -1400,6 +1400,7 @@ static void s390_pcihost_unplug(const HotplugHandler *hotplug_dev, DeviceState *
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
         pbdev->fid = 0;
+        fmb_timer_free(pbdev);
         QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
         g_hash_table_remove(s->zpci_table, &pbdev->idx);
         if (pbdev->dma_limit) {
