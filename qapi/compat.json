@@ -57,13 +57,6 @@
 #
 #     This is intended for testing users of the management interfaces.
 #
-# Limitation: covers only syntactic aspects of QMP, i.e. stuff tagged
-# with feature 'deprecated' or 'unstable'.  We may want to extend it
-# to cover semantic aspects and CLI.
-#
-# Limitation: deprecated-output policy @hide is not implemented for
-# enumeration values.  They behave the same as with policy @accept.
-#
 # @deprecated-input: how to handle deprecated input (default 'accept')
 #
 # @deprecated-output: how to handle deprecated output (default
@@ -77,6 +70,14 @@
 #
 # @insecure-types: how to handle types that are not declared secure
 #     (default 'accept') (since 11.2)
+#
+# Limitation: @deprecated-input, @deprecated-output, @unstable-input,
+# and @unstable-output cover only syntactic aspects of QMP, i.e. stuff
+# tagged with feature 'deprecated' or 'unstable'.  We may want to
+# extend it to cover semantic aspects and CLI.
+#
+# Limitation: @deprecated-output policy @hide is not implemented for
+# enumeration values.  They behave the same as with policy @accept.
 #
 # Since: 6.0
 ##
