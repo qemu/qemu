@@ -1,3 +1,5 @@
+subdir('system')
+
 if 'qemu-mips64el' in emulators
   tcg_tests += {
     'mips64el-linux-user': {
