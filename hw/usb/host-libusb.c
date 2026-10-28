@@ -1925,6 +1925,7 @@ static void usb_host_auto_check(void *unused)
                     s->errcount++;
                     continue;
                 }
+                s->errcount = 0;
                 break;
             }
         }
