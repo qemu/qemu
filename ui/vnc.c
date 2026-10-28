@@ -748,11 +748,24 @@ static void vnc_abort_display_jobs(VncDisplay *vd)
     }
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_lock_output(vs);
-        if (vs->update == VNC_STATE_UPDATE_NONE &&
-            vs->job_update != VNC_STATE_UPDATE_NONE) {
-            /* job aborted before completion */
-            vs->update = vs->job_update;
+        if (vs->job_update != VNC_STATE_UPDATE_NONE) {
+            /*
+             * Job aborted before completion (a completed job's output was
+             * consumed by vnc_jobs_join(), which cleared job_update).
+             * Retire it even if the client sent a newer request meanwhile,
+             * or vnc_should_update() refuses every later update.
+             * vnc_update_client() already cleared the dirty bits of the
+             * rectangles it carried and the server surface already holds
+             * their pixels, so nothing would mark them dirty again:
+             * re-dirty the whole client area and its pending-dirty count.
+             */
+            if (vs->update != VNC_STATE_UPDATE_FORCE) {
+                vs->update = vs->job_update;
+            }
             vs->job_update = VNC_STATE_UPDATE_NONE;
+            vnc_set_area_dirty(vs->dirty, vd, 0, 0,
+                               vnc_width(vd), vnc_height(vd));
+            vs->has_dirty++;
         }
         vs->abort = false;
         vnc_unlock_output(vs);
