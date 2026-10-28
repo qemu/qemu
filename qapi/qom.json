@@ -926,25 +926,6 @@
             'node': 'uint32' } }
 
 ##
-# @RngProperties:
-#     Properties for objects of classes derived from rng.
-#
-# @opened: if true, the device is opened immediately when applying
-#     this option and will probably fail when processing the next
-#     option.  Don't use; only provided for compatibility.
-#     (default: false)
-#
-# Features:
-#
-# @deprecated: Member @opened is deprecated.  Setting true doesn't
-#     make sense, and false is already the default.
-#
-# Since: 1.3
-##
-{ 'struct': 'RngProperties',
-  'data': { '*opened': { 'type': 'bool', 'features': ['deprecated'] } } }
-
-##
 # @RngEgdProperties:
 #     Properties for rng-egd objects.
 #
@@ -954,7 +935,6 @@
 # Since: 1.3
 ##
 { 'struct': 'RngEgdProperties',
-  'base': 'RngProperties',
   'data': { 'chardev': 'str' } }
 
 ##
@@ -967,7 +947,6 @@
 # Since: 1.3
 ##
 { 'struct': 'RngRandomProperties',
-  'base': 'RngProperties',
   'data': { '*filename': 'str' },
   'if': 'CONFIG_POSIX' }
 
@@ -1372,7 +1351,6 @@
       'pr-manager-helper':          { 'type': 'PrManagerHelperProperties',
                                       'if': 'CONFIG_LINUX' },
       'qtest':                      'QtestProperties',
-      'rng-builtin':                'RngProperties',
       'rng-egd':                    'RngEgdProperties',
       'rng-random':                 { 'type': 'RngRandomProperties',
                                       'if': 'CONFIG_POSIX' },

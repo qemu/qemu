@@ -41,13 +41,6 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
     }
 }
 
-static bool rng_backend_prop_get_opened(Object *obj, Error **errp)
-{
-    RngBackend *s = RNG_BACKEND(obj);
-
-    return s->opened;
-}
-
 static void rng_backend_complete(UserCreatable *uc, Error **errp)
 {
     RngBackend *s = RNG_BACKEND(uc);
@@ -123,10 +116,6 @@ static void rng_backend_class_init(ObjectClass *oc, const void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = rng_backend_complete;
-
-    object_class_property_add_bool(oc, "opened",
-                                   rng_backend_prop_get_opened,
-                                   NULL);
 }
 
 static const TypeInfo rng_backend_info = {
