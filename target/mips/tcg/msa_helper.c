@@ -8300,8 +8300,13 @@ void HELPER(msa_ld_d)(CPUMIPSState *env, uint32_t wd,
     uintptr_t ra = GETPC();
     uint64_t d0, d1;
 
-    d0 = cpu_ldq_data_ra(env, addr + 0, ra);
-    d1 = cpu_ldq_data_ra(env, addr + 8, ra);
+    if (mips_env_is_bigendian(env)) {
+        d0 = cpu_ldq_be_data_ra(env, addr + 0, ra);
+        d1 = cpu_ldq_be_data_ra(env, addr + 8, ra);
+    } else {
+        d0 = cpu_ldq_le_data_ra(env, addr + 0, ra);
+        d1 = cpu_ldq_le_data_ra(env, addr + 8, ra);
+    }
     pwd->d[0] = d0;
     pwd->d[1] = d1;
 }
@@ -8389,6 +8394,11 @@ void HELPER(msa_st_d)(CPUMIPSState *env, uint32_t wd,
 
     ensure_writable_pages(env, addr, mmu_idx, GETPC());
 
-    cpu_stq_data_ra(env, addr + 0, pwd->d[0], ra);
-    cpu_stq_data_ra(env, addr + 8, pwd->d[1], ra);
+    if (mips_env_is_bigendian(env)) {
+        cpu_stq_be_data_ra(env, addr + 0, pwd->d[0], ra);
+        cpu_stq_be_data_ra(env, addr + 8, pwd->d[1], ra);
+    } else {
+        cpu_stq_le_data_ra(env, addr + 0, pwd->d[0], ra);
+        cpu_stq_le_data_ra(env, addr + 8, pwd->d[1], ra);
+    }
 }
