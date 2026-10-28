@@ -80,7 +80,7 @@
         'XDbgBlockGraph',
         'YankInstanceType',
         'blockdev-reopen' ],
-    # Externally visible types whose member names may use uppercase
+    # Externally visible types whose member names may use uppercase or '_'
     'member-name-exceptions': [     # visible in:
         'ACPISlotType',             # query-acpi-ospm-status
         'AcpiTableOptions',         # -acpitable
