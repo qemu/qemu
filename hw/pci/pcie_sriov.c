@@ -230,7 +230,6 @@ void pcie_sriov_pf_init_vf_bar(PCIDevice *dev, int region_num,
     assert(sriov_cap > 0);
     assert(region_num >= 0);
     assert(region_num < PCI_SRIOV_NUM_BARS);
-    assert(region_num != PCI_ROM_SLOT);
 
     wmask = ~(size - 1);
     addr = sriov_cap + PCI_SRIOV_BAR + region_num * 4;
@@ -343,6 +342,8 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
 
     dev->exp.sriov_pf.vf = vfs;
     dev->exp.sriov_pf.vf_user_created = true;
+
+    assert(vfs[0]->io_regions[PCI_ROM_SLOT].size == 0);
 
     for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
         PCIIORegion *region = &vfs[0]->io_regions[i];
