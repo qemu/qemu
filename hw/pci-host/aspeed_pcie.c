@@ -181,6 +181,8 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
     g_autofree char *dram_alias_name = NULL;
     g_autofree char *root_bus_name = NULL;
 
+    msi_nonbroken = true;
+
     /* PCI configuration space */
     pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
     sysbus_init_mmio(sbd, &pex->mmio);
@@ -294,8 +296,6 @@ static void aspeed_pcie_rc_class_init(ObjectClass *klass, const void *data)
 
     hc->root_bus_path = aspeed_pcie_rc_root_bus_path;
     device_class_set_props(dc, aspeed_pcie_rc_props);
-
-    msi_nonbroken = true;
 }
 
 /*

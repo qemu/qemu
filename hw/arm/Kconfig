@@ -479,9 +479,15 @@ config FSL_IMX25
     default y
     depends on TCG && ARM
     imply I2C_DEVICES
-    select IMX
+    select FSL_IMX25_CCM
+    select GPIO_IMX
+    select IMX_AVIC
+    select IMX_EPIT
     select IMX_FEC
+    select IMX_GPT
     select IMX_I2C
+    select IMX_RNG
+    select IMX_SERIAL
     select USB_CHIPIDEA
     select WDT_IMX2
     select SDHCI
@@ -491,9 +497,14 @@ config FSL_IMX31
     default y
     depends on TCG && ARM
     imply I2C_DEVICES
+    select FSL_IMX31_CCM
+    select GPIO_IMX
     select SERIAL_MM
-    select IMX
+    select IMX_AVIC
+    select IMX_EPIT
+    select IMX_GPT
     select IMX_I2C
+    select IMX_SERIAL
     select WDT_IMX2
     select LAN9118
 
@@ -502,9 +513,16 @@ config FSL_IMX6
     imply PCIE_DEVICES
     imply I2C_DEVICES
     select A9MPCORE
-    select IMX
+    select FSL_IMX6_CCM
+    select FSL_IMX6_SRC
+    select FSL_IMX7_SNVS
+    select GPIO_IMX
+    select IMX_EPIT
     select IMX_FEC
+    select IMX_GPT
     select IMX_I2C
+    select IMX_SERIAL
+    select IMX_SPI
     select IMX_USBPHY
     select CAN_FLEXCAN
     select WDT_IMX2
@@ -576,10 +594,18 @@ config FSL_IMX7
     imply TEST_DEVICES
     imply I2C_DEVICES
     select A15MPCORE
+    select FSL_IMX7_CCM
+    select FSL_IMX7_GPR
+    select FSL_IMX7_SNVS
+    select FSL_IMX7_SRC
+    select GPIO_IMX
     select PCI
-    select IMX
     select IMX_FEC
+    select IMX_GPCV2
+    select IMX_GPT
     select IMX_I2C
+    select IMX_SERIAL
+    select IMX_SPI
     select WDT_IMX2
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
@@ -593,11 +619,15 @@ config FSL_IMX8MP
     imply PCI_DEVICES
     select ARM_GIC
     select CAN_FLEXCAN
+    select FSL_IMX7_SNVS
     select FSL_IMX8MP_ANALOG
     select FSL_IMX8MP_CCM
-    select IMX
+    select GPIO_IMX
     select IMX_FEC
+    select IMX_GPT
     select IMX_I2C
+    select IMX_SERIAL
+    select IMX_SPI
     select OR_IRQ
     select PCI_EXPRESS_DESIGNWARE
     select PCI_EXPRESS_FSL_IMX8M_PHY
@@ -618,15 +648,20 @@ config FSL_IMX8MM
     imply PCI_DEVICES
     imply I2C_DEVICES
     select ARM_GIC
+    select FSL_IMX7_SNVS
     select FSL_IMX8MP_ANALOG
     select FSL_IMX8MP_CCM
-    select IMX
+    select GPIO_IMX
     select IMX_FEC
+    select IMX_GPT
     select IMX_I2C
+    select IMX_SERIAL
+    select IMX_SPI
     select OR_IRQ
     select SDHCI
     select PCI_EXPRESS_DESIGNWARE
     select PCI_EXPRESS_FSL_IMX8M_PHY
+    select UNIMP
     select USB_DWC3
     select WDT_IMX2
 
@@ -656,10 +691,18 @@ config FSL_IMX6UL
     depends on TCG && ARM
     imply I2C_DEVICES
     select A15MPCORE
-    select IMX
+    select FSL_IMX6_SRC
+    select FSL_IMX6UL_CCM
+    select FSL_IMX7_SNVS
+    select GPIO_IMX
     select IMX6UL_LCDIF
+    select IMX_EPIT
     select IMX_FEC
+    select IMX_GPCV2
+    select IMX_GPT
     select IMX_I2C
+    select IMX_SERIAL
+    select IMX_SPI
     select IMX_USBPHY
     select WDT_IMX2
     select SDHCI

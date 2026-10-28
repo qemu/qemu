@@ -491,7 +491,7 @@ static uint64_t imx6_ccm_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value = 0;
     uint32_t index = offset >> 2;
-    IMX6CCMState *s = (IMX6CCMState *)opaque;
+    IMX6CCMState *s = opaque;
 
     value = s->ccm[index];
 
@@ -504,7 +504,7 @@ static void imx6_ccm_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
     uint32_t index = offset >> 2;
-    IMX6CCMState *s = (IMX6CCMState *)opaque;
+    IMX6CCMState *s = opaque;
 
     trace_imx6_ccm_write(imx6_ccm_reg_name(index), (uint32_t)value);
 
@@ -519,7 +519,7 @@ static uint64_t imx6_analog_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value;
     uint32_t index = offset >> 2;
-    IMX6CCMState *s = (IMX6CCMState *)opaque;
+    IMX6CCMState *s = opaque;
 
     switch (index) {
     case CCM_ANALOG_PLL_ARM_SET:
@@ -611,7 +611,7 @@ static void imx6_analog_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
     uint32_t index = offset >> 2;
-    IMX6CCMState *s = (IMX6CCMState *)opaque;
+    IMX6CCMState *s = opaque;
 
     trace_imx6_analog_write(imx6_analog_reg_name(index), (uint32_t)value);
 

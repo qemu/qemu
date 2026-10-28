@@ -248,7 +248,7 @@ static uint32_t imx_phy_read(IMXFECState *s, int reg)
         if (s->phy_consumer && phy == s->phy_consumer->phy_num) {
             s = s->phy_consumer;
         } else {
-            trace_imx_phy_read_num(phy, s->phy_num);
+            trace_imx_phy_read_num(DEVICE(s)->canonical_path, phy, s->phy_num);
             return 0xffff;
         }
     }
@@ -270,7 +270,7 @@ static void imx_phy_write(IMXFECState *s, int reg, uint32_t val)
         if (s->phy_consumer && phy == s->phy_consumer->phy_num) {
             s = s->phy_consumer;
         } else {
-            trace_imx_phy_write_num(phy, s->phy_num);
+            trace_imx_phy_write_num(DEVICE(s)->canonical_path, phy, s->phy_num);
             return;
         }
     }
@@ -364,7 +364,7 @@ static void imx_fec_do_tx(IMXFECState *s)
         if ((bd.flags & ENET_BD_R) == 0) {
 
             /* Run out of descriptors to transmit.  */
-            trace_imx_eth_tx_bd_busy();
+            trace_imx_eth_tx_bd_busy(DEVICE(s)->canonical_path);
 
             break;
         }
@@ -446,7 +446,7 @@ static void imx_enet_do_tx(IMXFECState *s, uint32_t index)
         if ((bd.flags & ENET_BD_R) == 0) {
             /* Run out of descriptors to transmit.  */
 
-            trace_imx_eth_tx_bd_busy();
+            trace_imx_eth_tx_bd_busy(DEVICE(s)->canonical_path);
 
             break;
         }
@@ -521,7 +521,7 @@ static void imx_eth_enable_rx(IMXFECState *s, bool flush)
     s->regs[ENET_RDAR] = (bd.flags & ENET_BD_E) ? ENET_RDAR_RDAR : 0;
 
     if (!s->regs[ENET_RDAR]) {
-        trace_imx_eth_rx_bd_full();
+        trace_imx_eth_rx_bd_full(DEVICE(s)->canonical_path);
     } else if (flush) {
         qemu_flush_queued_packets(qemu_get_queue(s->nic));
     }
@@ -659,7 +659,8 @@ static uint64_t imx_eth_read(void *opaque, hwaddr offset, unsigned size)
         break;
     }
 
-    trace_imx_eth_read(index, imx_eth_reg_name(s, index), value);
+    trace_imx_eth_read(DEVICE(s)->canonical_path, index,
+                       imx_eth_reg_name(s, index), value);
 
     return value;
 }
@@ -767,7 +768,8 @@ static void imx_eth_write(void *opaque, hwaddr offset, uint64_t value,
     const bool single_tx_ring = !imx_eth_is_multi_tx_ring(s);
     uint32_t index = offset >> 2;
 
-    trace_imx_eth_write(index, imx_eth_reg_name(s, index), value);
+    trace_imx_eth_write(DEVICE(s)->canonical_path, index,
+                        imx_eth_reg_name(s, index), value);
 
     switch (index) {
     case ENET_EIR:
@@ -951,7 +953,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
     unsigned int buf_len;
     size_t size = len;
 
-    trace_imx_fec_receive(size);
+    trace_imx_fec_receive(DEVICE(s)->canonical_path, size);
 
     if (!s->regs[ENET_RDAR]) {
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Unexpected packet\n",
@@ -993,7 +995,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
         bd.length = buf_len;
         size -= buf_len;
 
-        trace_imx_fec_receive_len(addr, bd.length);
+        trace_imx_fec_receive_len(DEVICE(s)->canonical_path, addr, bd.length);
 
         /* The last 4 bytes are the CRC.  */
         if (size < 4) {
@@ -1013,7 +1015,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
             /* Last buffer in frame.  */
             bd.flags |= flags | ENET_BD_L;
 
-            trace_imx_fec_receive_last(bd.flags);
+            trace_imx_fec_receive_last(DEVICE(s)->canonical_path, bd.flags);
 
             s->regs[ENET_EIR] |= ENET_INT_RXF;
         } else {
@@ -1047,7 +1049,7 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
     size_t size = len;
     bool shift16 = s->regs[ENET_RACC] & ENET_RACC_SHIFT16;
 
-    trace_imx_enet_receive(size);
+    trace_imx_enet_receive(DEVICE(s)->canonical_path, size);
 
     if (!s->regs[ENET_RDAR]) {
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Unexpected packet\n",
@@ -1093,7 +1095,7 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
         bd.length = buf_len;
         size -= buf_len;
 
-        trace_imx_enet_receive_len(addr, bd.length);
+        trace_imx_enet_receive_len(DEVICE(s)->canonical_path, addr, bd.length);
 
         /* The last 4 bytes are the CRC.  */
         if (size < 4) {
@@ -1131,7 +1133,7 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
             /* Last buffer in frame.  */
             bd.flags |= flags | ENET_BD_L;
 
-            trace_imx_enet_receive_last(bd.flags);
+            trace_imx_enet_receive_last(DEVICE(s)->canonical_path, bd.flags);
 
             /* Indicate that we've updated the last buffer descriptor. */
             bd.last_buffer = ENET_BD_BDU;

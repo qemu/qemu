@@ -175,7 +175,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
             }
             if (val & (1 << 1)) {
                 sh_serial_clear_fifo(s);
-                s->sr &= ~(1 << 1);
+                s->flags &= ~SH_SERIAL_FLAG_RDF;
             }
 
             return;
@@ -316,13 +316,13 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
 
 static int sh_serial_can_receive(SHSerialState *s)
 {
-    return s->scr & (1 << 4) ? SH_RX_FIFO_LENGTH - s->rx_head : 0;
+    return s->scr & (1 << 4) ? SH_RX_FIFO_LENGTH - s->rx_cnt : 0;
 }
 
 static void sh_serial_receive_break(SHSerialState *s)
 {
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        s->sr |= (1 << 4);
+        s->flags |= SH_SERIAL_FLAG_BRK;
     }
 }
 

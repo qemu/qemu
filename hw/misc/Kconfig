@@ -89,17 +89,50 @@ config IVSHMEM_FLAT_DEVICE
 config ECCMEMCTL
     bool
 
-config IMX
+config IMX_CCM
     bool
-    select PTIMER
-    select SSI
-    select USB_EHCI_SYSBUS
+
+config IMX_RNG
+    bool
+
+config FSL_IMX25_CCM
+    bool
+    select IMX_CCM
+
+config FSL_IMX31_CCM
+    bool
+    select IMX_CCM
+
+config FSL_IMX6_CCM
+    bool
+    select IMX_CCM
+
+config FSL_IMX6_SRC
+    bool
+
+config FSL_IMX6UL_CCM
+    bool
+    select IMX_CCM
+
+config FSL_IMX7_CCM
+    bool
+    select IMX_CCM
+
+config FSL_IMX7_GPR
+    bool
+
+config FSL_IMX7_SNVS
+    bool
+
+config FSL_IMX7_SRC
+    bool
 
 config FSL_IMX8MP_ANALOG
     bool
 
 config FSL_IMX8MP_CCM
     bool
+    select IMX_CCM
 
 config STM32_RCC
     bool

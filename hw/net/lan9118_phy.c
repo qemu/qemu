@@ -85,14 +85,14 @@ uint16_t lan9118_phy_read(Lan9118PhyState *s, int reg)
         break;
     }
 
-    trace_lan9118_phy_read(val, reg);
+    trace_lan9118_phy_read(DEVICE(s)->canonical_path, val, reg);
 
     return val;
 }
 
 void lan9118_phy_write(Lan9118PhyState *s, int reg, uint16_t val)
 {
-    trace_lan9118_phy_write(val, reg);
+    trace_lan9118_phy_write(DEVICE(s)->canonical_path, val, reg);
 
     switch (reg) {
     case MII_BMCR:
@@ -138,11 +138,11 @@ void lan9118_phy_update_link(Lan9118PhyState *s, bool link_down)
 
     /* Autonegotiation status mirrors link status. */
     if (link_down) {
-        trace_lan9118_phy_update_link("down");
+        trace_lan9118_phy_link_down(DEVICE(s)->canonical_path);
         s->status &= ~(MII_BMSR_AN_COMP | MII_BMSR_LINK_ST);
         s->ints |= PHY_INT_DOWN;
     } else {
-        trace_lan9118_phy_update_link("up");
+        trace_lan9118_phy_link_up(DEVICE(s)->canonical_path);
         s->status |= MII_BMSR_AN_COMP | MII_BMSR_LINK_ST;
         s->ints |= PHY_INT_ENERGYON;
         s->ints |= PHY_INT_AUTONEG_COMPLETE;
@@ -152,7 +152,7 @@ void lan9118_phy_update_link(Lan9118PhyState *s, bool link_down)
 
 void lan9118_phy_reset(Lan9118PhyState *s)
 {
-    trace_lan9118_phy_reset();
+    trace_lan9118_phy_reset(DEVICE(s)->canonical_path);
 
     s->control = MII_BMCR_AUTOEN | MII_BMCR_SPEED100;
     s->status = MII_BMSR_100TX_FD

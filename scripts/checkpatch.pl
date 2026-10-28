@@ -1889,7 +1889,7 @@ sub process {
 
 			if ($line !~ /^\s*Fixes:\s+CVE/i) {
 				my $tag_case = not ($tag eq "Fixes:");
-				my $tag_space = not ($line =~ /^fixes:? [0-9a-f]{5,40}/i);
+				my $tag_space = not ($line =~ /^\s*fixes:? [0-9a-f]{5,40}/i);
 				my $id_length = not ($orig_commit =~ /^[0-9a-f]{12,40}$/);
 				my $id_case = not ($orig_commit !~ /[A-F]/);
 

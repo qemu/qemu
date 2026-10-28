@@ -49,7 +49,7 @@ static void imx_usbphy_reset(DeviceState *dev)
 
 static uint64_t imx_usbphy_read(void *opaque, hwaddr offset, unsigned size)
 {
-    IMXUSBPHYState *s = (IMXUSBPHYState *)opaque;
+    IMXUSBPHYState *s = opaque;
     uint32_t index = offset >> 2;
     uint32_t value;
 
@@ -108,7 +108,7 @@ static uint64_t imx_usbphy_read(void *opaque, hwaddr offset, unsigned size)
 static void imx_usbphy_write(void *opaque, hwaddr offset, uint64_t value,
                              unsigned size)
 {
-    IMXUSBPHYState *s = (IMXUSBPHYState *)opaque;
+    IMXUSBPHYState *s = opaque;
     uint32_t index = offset >> 2;
 
     switch (index) {
