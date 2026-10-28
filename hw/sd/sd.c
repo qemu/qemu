@@ -2610,6 +2610,10 @@ send_response:
         sd->data_offset = 0;
         /* fall-through */
     case sd_illegal:
+        if (sd_is_spi(sd)) {
+            sd_response_r1_make(sd, response);
+            response[0] |= 1 << 2; /* ILLEGAL_COMMAND */
+        }
         break;
     default:
         g_assert_not_reached();
