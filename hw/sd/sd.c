@@ -2806,7 +2806,9 @@ static size_t sd_write_data(SDState *sd, const void *buf, size_t length)
         break;
 
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DAT write illegal for command %s\n",
+                      __func__, sd->last_cmd_name);
+        break;
     }
 
     return length;
