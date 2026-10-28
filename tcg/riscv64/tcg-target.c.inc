@@ -736,6 +736,12 @@ static void tcg_out_opc_vi_u(TCGContext *s, RISCVInsn opc,
     tcg_out32(s, encode_vi_u(opc, vd, imm, vs2, true));
 }
 
+/* Constants are replicated by VECE; extract one element for .vi forms. */
+static int64_t vec_imm(TCGArg arg, unsigned vece)
+{
+    return sextract64(arg, 0, 8 << vece);
+}
+
 static void tcg_out_opc_vv_vi(TCGContext *s, RISCVInsn o_vv, RISCVInsn o_vi,
                               TCGReg vd, TCGReg vs2, TCGArg vi1, int c_vi1)
 {
@@ -2805,12 +2811,13 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_add_vec:
         set_vtype_len_sew(s, type, vece);
-        tcg_out_opc_vv_vi(s, OPC_VADD_VV, OPC_VADD_VI, a0, a1, a2, c2);
+        tcg_out_opc_vv_vi(s, OPC_VADD_VV, OPC_VADD_VI, a0, a1,
+                          c2 ? vec_imm(a2, vece) : a2, c2);
         break;
     case INDEX_op_sub_vec:
         set_vtype_len_sew(s, type, vece);
         if (const_args[1]) {
-            tcg_out_opc_vi(s, OPC_VRSUB_VI, a0, a2, a1);
+            tcg_out_opc_vi(s, OPC_VRSUB_VI, a0, a2, vec_imm(a1, vece));
         } else {
             tcg_out_opc_vv(s, OPC_VSUB_VV, a0, a1, a2);
         }
@@ -2841,19 +2848,23 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_ssadd_vec:
         set_vtype_len_sew(s, type, vece);
-        tcg_out_opc_vv_vi(s, OPC_VSADD_VV, OPC_VSADD_VI, a0, a1, a2, c2);
+        tcg_out_opc_vv_vi(s, OPC_VSADD_VV, OPC_VSADD_VI, a0, a1,
+                          c2 ? vec_imm(a2, vece) : a2, c2);
         break;
     case INDEX_op_sssub_vec:
         set_vtype_len_sew(s, type, vece);
-        tcg_out_opc_vv_vi(s, OPC_VSSUB_VV, OPC_VSSUB_VI, a0, a1, a2, c2);
+        tcg_out_opc_vv_vi(s, OPC_VSSUB_VV, OPC_VSSUB_VI, a0, a1,
+                          c2 ? vec_imm(a2, vece) : a2, c2);
         break;
     case INDEX_op_usadd_vec:
         set_vtype_len_sew(s, type, vece);
-        tcg_out_opc_vv_vi(s, OPC_VSADDU_VV, OPC_VSADDU_VI, a0, a1, a2, c2);
+        tcg_out_opc_vv_vi(s, OPC_VSADDU_VV, OPC_VSADDU_VI, a0, a1,
+                          c2 ? vec_imm(a2, vece) : a2, c2);
         break;
     case INDEX_op_ussub_vec:
         set_vtype_len_sew(s, type, vece);
-        tcg_out_opc_vv_vi(s, OPC_VSSUBU_VV, OPC_VSSUBU_VI, a0, a1, a2, c2);
+        tcg_out_opc_vv_vi(s, OPC_VSSUBU_VV, OPC_VSSUBU_VI, a0, a1,
+                          c2 ? vec_imm(a2, vece) : a2, c2);
         break;
     case INDEX_op_smax_vec:
         set_vtype_len_sew(s, type, vece);
