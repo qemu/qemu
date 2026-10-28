@@ -1556,9 +1556,9 @@ static void tcg_out_cltz(TCGContext *s, TCGType type, RISCVInsn insn,
 
 static void tcg_out_cmpsel(TCGContext *s, TCGType type, unsigned vece,
                            TCGCond cond, TCGReg ret,
-                           TCGReg cmp1, TCGReg cmp2, bool c_cmp2,
-                           TCGReg val1, bool c_val1,
-                           TCGReg val2, bool c_val2)
+                           TCGReg cmp1, TCGArg cmp2, bool c_cmp2,
+                           TCGArg val1, bool c_val1,
+                           TCGArg val2, bool c_val2)
 {
     set_vtype_len_sew(s, type, vece);
 
@@ -1575,7 +1575,7 @@ static void tcg_out_cmpsel(TCGContext *s, TCGType type, unsigned vece,
     /* Perform the comparison into V0 mask. */
     if (c_cmp2) {
         tcg_out_opc_vi(s, tcg_cmpcond_to_rvv_vi[cond].op, TCG_REG_V0, cmp1,
-                       cmp2 - tcg_cmpcond_to_rvv_vi[cond].adjust);
+                       vec_imm(cmp2, vece) - tcg_cmpcond_to_rvv_vi[cond].adjust);
     } else if (tcg_cmpcond_to_rvv_vv[cond].swap) {
         tcg_out_opc_vv(s, tcg_cmpcond_to_rvv_vv[cond].op,
                        TCG_REG_V0, cmp2, cmp1);
@@ -1585,11 +1585,12 @@ static void tcg_out_cmpsel(TCGContext *s, TCGType type, unsigned vece,
     }
     if (c_val1) {
         if (c_val2) {
-            tcg_out_opc_vi(s, OPC_VMV_V_I, ret, 0, val2);
+            tcg_out_opc_vi(s, OPC_VMV_V_I, ret, 0, vec_imm(val2, vece));
             val2 = ret;
         }
         /* vd[i] == v0.mask[i] ? imm : vs2[i] */
-        tcg_out_opc_vim_mask(s, OPC_VMERGE_VIM, ret, val2, val1);
+        tcg_out_opc_vim_mask(s, OPC_VMERGE_VIM, ret, val2,
+                             vec_imm(val1, vece));
     } else {
         /* vd[i] == v0.mask[i] ? vs1[i] : vs2[i] */
         tcg_out_opc_vvm_mask(s, OPC_VMERGE_VVM, ret, val2, val1);
