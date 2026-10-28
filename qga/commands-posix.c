@@ -718,7 +718,7 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     }
 }
 
-#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
+#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM) || defined(CONFIG_BSD)
 void free_fs_mount_list(FsMountList *mounts)
 {
      FsMount *mount, *temp;
@@ -731,7 +731,7 @@ void free_fs_mount_list(FsMountList *mounts)
          QTAILQ_REMOVE(mounts, mount, next);
          g_free(mount->dirname);
          g_free(mount->devtype);
-#if defined(__FreeBSD__)
+#ifdef CONFIG_BSD
          g_free(mount->fromname);
 #endif
          g_free(mount);

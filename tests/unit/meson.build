@@ -169,7 +169,7 @@ if have_system
   tests += {'test-qdev': [qom, hwcore]}
 endif
 
-if have_ga and host_os == 'linux'
+if have_ga and host_os in ['freebsd', 'linux']
   tests += {'test-qga': ['../qtest/libqmp.c', '../qtest/libqtest.c']}
   test_deps += {'test-qga': qga}
 endif

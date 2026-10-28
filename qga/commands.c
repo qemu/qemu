@@ -626,7 +626,7 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
 
     read_data = guest_file_read_unsafe(gfh, count, errp);
     if (!read_data) {
-        slog("guest-file-write failed, handle: %" PRId64, handle);
+        slog("guest-file-read failed, handle: %" PRId64, handle);
     }
 
     return read_data;
