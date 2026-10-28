@@ -1786,9 +1786,9 @@ static void s390_pci_device_realize(DeviceState *dev, Error **errp)
     zpci->fmb.format = ZPCI_FMB_FORMAT;
 }
 
-static void s390_pci_device_reset(DeviceState *dev)
+static void s390_pci_device_reset_exit(Object *obj, ResetType type)
 {
-    S390PCIBusDevice *pbdev = S390_PCI_DEVICE(dev);
+    S390PCIBusDevice *pbdev = S390_PCI_DEVICE(obj);
 
     switch (pbdev->state) {
     case ZPCI_FS_RESERVED:
@@ -2019,10 +2019,11 @@ static const VMStateDescription s390_pci_device_vmstate = {
 static void s390_pci_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->desc = "zpci device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    device_class_set_legacy_reset(dc, s390_pci_device_reset);
+    rc->phases.exit = s390_pci_device_reset_exit;
     dc->bus_type = TYPE_S390_PCI_BUS;
     dc->realize = s390_pci_device_realize;
     device_class_set_props(dc, s390_pci_device_properties);
