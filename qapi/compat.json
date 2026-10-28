@@ -53,7 +53,7 @@
 
 ##
 # @CompatPolicy:
-#     Policy for handling deprecated management interfaces.
+#     Policy for handling problematic management interfaces.
 #
 #     This is intended for testing users of the management interfaces.
 #
