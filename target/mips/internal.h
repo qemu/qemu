@@ -160,7 +160,7 @@ struct CPUMIPSTLBContext {
     } mmu;
 };
 
-void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc);
+void sync_c0_status(const CPUMIPSState *env, CPUMIPSState *cpu, int tc);
 void cpu_mips_store_status(CPUMIPSState *env, target_ulong val);
 void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val);
 
@@ -234,12 +234,12 @@ static inline bool mips_env_is_64bit(const CPUMIPSState *env)
     return env->cpu_model->insn_flags & CPU_MIPS64;
 }
 
-static inline bool mips_env_is_bigendian(CPUMIPSState *env)
+static inline bool mips_env_is_bigendian(const CPUMIPSState *env)
 {
     return extract32(env->CP0_Config0, CP0C0_BE, 1);
 }
 
-static inline MemOp mo_endian_env(CPUMIPSState *env)
+static inline MemOp mo_endian_env(const CPUMIPSState *env)
 {
     return mips_env_is_bigendian(env) ? MO_BE : MO_LE;
 }

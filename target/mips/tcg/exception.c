@@ -27,7 +27,7 @@
 #include "exec/translation-block.h"
 #include "accel/tcg/cpu-loop.h"
 
-target_ulong exception_resume_pc(CPUMIPSState *env)
+target_ulong exception_resume_pc(const CPUMIPSState *env)
 {
     target_ulong bad_pc;
     target_ulong isa_mode;
