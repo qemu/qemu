@@ -16,7 +16,7 @@
 #include "hw/pci/pci.h"
 
 typedef struct PCIESriovPF {
-    uint8_t vf_bar_type[PCI_NUM_REGIONS];   /* Store type for each VF bar */
+    uint8_t vf_bar_type[PCI_SRIOV_NUM_BARS];   /* Store type for each VF bar */
     PCIDevice **vf;     /* Pointer to an array of num_vfs VF devices */
     bool vf_user_created; /* If VFs are created by user */
 } PCIESriovPF;
