@@ -535,12 +535,18 @@ static tcg_insn_unit encode_j(RISCVInsn opc, TCGReg rd, tcg_target_long imm)
 
 /* Type-OPIVI */
 
+static tcg_insn_unit encode_vi_raw(RISCVInsn opc, TCGReg rd, unsigned imm5,
+                                   TCGReg vs2, bool vm)
+{
+    return opc | (rd & 0x1f) << 7 | (imm5 & 0x1f) << 15 |
+           (vs2 & 0x1f) << 20 | (vm << 25);
+}
+
 static tcg_insn_unit encode_vi(RISCVInsn opc, TCGReg rd, tcg_target_long imm,
                                TCGReg vs2, bool vm)
 {
     tcg_debug_assert(imm == sextract32(imm, 0, 5));
-    return opc | (rd & 0x1f) << 7 | (imm & 0x1f) << 15 |
-           (vs2 & 0x1f) << 20 | (vm << 25);
+    return encode_vi_raw(opc, rd, imm, vs2, vm);
 }
 
 /* Type-OPIVV/OPMVV/OPIVX/OPMVX, Vector load and store */
