@@ -201,9 +201,12 @@ class PowernvMachine(LinuxKernelTest):
 
         self.wait_for_console_pattern("CPU: " + proc + " generation processor")
         self.wait_for_console_pattern("INIT: Starting kernel at ")
+        # NVMe, e1000e, and xHCI are probed synchronously by the kernel
+        # during PCI enumeration, after OPAL hands off to Linux.
+        self.wait_for_console_pattern("nvme nvme0")
+        self.wait_for_console_pattern("e1000e")
+        self.wait_for_console_pattern("xhci_hcd")
         self.wait_for_console_pattern("Run /sbin/init as init process")
-        # Device detection output driven by udev probing is sometimes cut off
-        # from console output, suspect S14silence-console init script.
 
     def test_ppc64_powernv_external_dtb(self):
         self.set_machine('powernv11')

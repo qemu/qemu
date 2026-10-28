@@ -15,11 +15,11 @@ class PpcMigrationTest(MigrationTest):
         self.migration_with_tcp_localhost()
 
     def test_migration_with_unix(self):
-        self.set_machine('mac99')
+        self.set_machine('pseries')
         self.migration_with_unix()
 
     def test_migration_with_exec(self):
-        self.set_machine('mac99')
+        self.set_machine('pseries')
         self.migration_with_exec()
 
 
