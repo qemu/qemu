@@ -2418,7 +2418,9 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     default:
-        g_assert_not_reached();
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DAT write illegal for command %s\n",
+                      __func__, sd->last_cmd_name);
+        break;
     }
 }
 
