@@ -429,7 +429,7 @@ typedef struct CPUArchState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPUSysState sys_states[1];
+    CPUSysState sys_states[VM_LEVELS];
     uint32_t cpucfg[21];
     uint32_t pv_features;
     uint64_t vendor_id;
@@ -440,7 +440,7 @@ typedef struct CPUArchState {
     AddressSpace *address_space_iocsr;
     uint32_t mp_state;
 #endif
-    CPUSysState *sys_state;
+    int vm_level;
     unsigned int irq_nr;
 } CPULoongArchState;
 
@@ -510,12 +510,14 @@ struct LoongArchCPUClass {
 
 static inline CPUSysState *env_sys(CPULoongArchState *env)
 {
-    return env->sys_state;
+    return &env->sys_states[env->vm_level];
 }
 
 static inline void set_sys(CPULoongArchState *env, int vm_level)
 {
-    env->sys_state = &env->sys_states[vm_level];
+    if (vm_level >= 0 && vm_level <  VM_LEVELS) {
+        env->vm_level = vm_level;
+    }
 }
 
 static inline CPUTimerState *env_timer(CPULoongArchState *env)
