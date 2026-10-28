@@ -360,8 +360,9 @@ void HELPER(ginvt)(CPUMIPSState *env, target_ulong arg, uint32_t type)
 }
 
 /* no MMU emulation */
-static int no_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                              target_ulong address, MMUAccessType access_type)
+static int no_mmu_map_address(const CPUMIPSState *env, hwaddr *physical,
+                              int *prot, target_ulong address,
+                              MMUAccessType access_type)
 {
     *physical = address;
     *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -369,7 +370,7 @@ static int no_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
 }
 
 /* fixed mapping MMU emulation */
-static int fixed_mmu_map_address(CPUMIPSState *env, hwaddr *physical,
+static int fixed_mmu_map_address(const CPUMIPSState *env, hwaddr *physical,
                                  int *prot, target_ulong address,
                                  MMUAccessType access_type)
 {
@@ -390,7 +391,7 @@ static int fixed_mmu_map_address(CPUMIPSState *env, hwaddr *physical,
 }
 
 /* MIPS32/MIPS64 R4000-style MMU emulation */
-static int r4k_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
+static int r4k_map_address(const CPUMIPSState *env, hwaddr *physical, int *prot,
                            target_ulong address, MMUAccessType access_type)
 {
     uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
