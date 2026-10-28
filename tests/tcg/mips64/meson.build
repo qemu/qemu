@@ -29,15 +29,8 @@ tests = []
 
 tests_mips64r6 = [
   '../mips64/test_mips64r6_bitops.c',
+  '../mips64/test_mips64r6_crc.c',
   '../mips64/test_mips64r6_and.c',
-  '../mips64/test_mips64r6_crc32b.c',
-  '../mips64/test_mips64r6_crc32cb.c',
-  '../mips64/test_mips64r6_crc32cd.c',
-  '../mips64/test_mips64r6_crc32ch.c',
-  '../mips64/test_mips64r6_crc32cw.c',
-  '../mips64/test_mips64r6_crc32d.c',
-  '../mips64/test_mips64r6_crc32h.c',
-  '../mips64/test_mips64r6_crc32w.c',
   '../mips64/test_mips64r6_dmuh.c',
   '../mips64/test_mips64r6_dmuhu.c',
   '../mips64/test_mips64r6_dmul.c',
