@@ -19,6 +19,26 @@ qemu_args = ['-M', 'none', '-cpu', 'R5900', '-m', '16M',
 gdb_test = ['--gdb-args=-ex "set remoteaddresssize 64"',
             '--test', files('test-r5900.py')]
 
+# o32: 32-bit pointers, 32-bit GPRs are enough
+foreach t: [
+  'test_r5900_div1.c',
+  'test_r5900_divu1.c',
+  'test_r5900_madd.c',
+  'test_r5900_maddu.c',
+  'test_r5900_mflohi1.c',
+  'test_r5900_mtlohi1.c',
+  'test_r5900_mult.c',
+  'test_r5900_multu.c',
+]
+  tests += {
+    t: {
+      'cflags': cflags + ['-mabi=32'],
+      'qemu_args': qemu_args,
+      'gdb_test': gdb_test,
+    }
+  }
+endforeach
+
 if 'qemu-system-mips64el' in emulators
   tcg_tests += {
     'mips64el-softmmu': {
