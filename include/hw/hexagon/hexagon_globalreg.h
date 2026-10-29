@@ -59,6 +59,12 @@ uint32_t hexagon_globalreg_masked_value(HexagonGlobalRegState *s, uint32_t reg,
 void hexagon_globalreg_write_masked(HexagonGlobalRegState *s, uint32_t reg,
                                     uint32_t value);
 
+/*
+ * SYSCFG, without the BQL: for the translator, which asks for it on every
+ * translation block lookup and can't afford to contend for the lock.
+ */
+uint32_t hexagon_globalreg_read_syscfg_unlocked(HexagonGlobalRegState *s);
+
 /* Global performance cycle counter access */
 uint64_t hexagon_globalreg_read_pcycle(HexagonGlobalRegState *s);
 uint64_t hexagon_globalreg_get_pcycle_base(HexagonGlobalRegState *s);

@@ -572,11 +572,14 @@ static int hexagon_cpu_mmu_index(CPUState *cs, bool ifetch)
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     int cpu_mode;
 
-    BQL_LOCK_GUARD();
+    /*
+     * No BQL: this runs for every translation block lookup, and the vCPU
+     * threads would otherwise queue up on it.  SYSCFG is read atomically and
+     * the rest is this vCPU's own state.
+     */
     if (cpu->globalregs) {
         uint32_t syscfg =
-            hexagon_globalreg_read(cpu->globalregs, HEX_SREG_SYSCFG,
-                                   env->threadId);
+            hexagon_globalreg_read_syscfg_unlocked(cpu->globalregs);
         uint8_t mmuen = GET_SYSCFG_FIELD(SYSCFG_MMUEN, syscfg);
         if (!mmuen) {
             return MMU_KERNEL_IDX;

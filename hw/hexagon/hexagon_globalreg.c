@@ -252,7 +252,7 @@ static uint32_t get_reg_value(HexagonGlobalRegState *s, uint32_t reg)
         return reg == HEX_SREG_PCYCLELO ?
                 (uint32_t)value : (uint32_t)(value >> 32);
     }
-    return s->regs[reg];
+    return qatomic_read(&s->regs[reg]);
 }
 
 static void set_reg_value(HexagonGlobalRegState *s, uint32_t reg,
@@ -266,7 +266,7 @@ static void set_reg_value(HexagonGlobalRegState *s, uint32_t reg,
         return;
     }
 
-    s->regs[reg] = value;
+    qatomic_set(&s->regs[reg], value);
     if (pcycle_enable) {
         s->g_pcycle_base = 0;
         if (s->pcycle_running) {
@@ -279,6 +279,11 @@ static void set_reg_value(HexagonGlobalRegState *s, uint32_t reg,
     if (reg == HEX_SREG_MODECTL) {
         pcycle_set_running(s, modectl_any_thread_running(value));
     }
+}
+
+uint32_t hexagon_globalreg_read_syscfg_unlocked(HexagonGlobalRegState *s)
+{
+    return s ? qatomic_read(&s->regs[HEX_SREG_SYSCFG]) : 0;
 }
 
 uint32_t hexagon_globalreg_read(HexagonGlobalRegState *s, uint32_t reg,
