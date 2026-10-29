@@ -11,6 +11,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_int_average.c',
   '../mips/test_msa_int_compare.c',
   '../mips/test_msa_int_div_mod.c',
+  '../mips/test_msa_int_dot_product.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -159,22 +160,4 @@ tests_mips_msa = [
   '../mips/user/ase/msa/int-max-min/test_msa_min_s_b.c',
   '../mips/user/ase/msa/int-max-min/test_msa_min_u_w.c',
   '../mips/user/ase/msa/int-max-min/test_msa_max_u_w.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_s_h.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_u_h.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_s_w.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_s_w.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_s_d.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_u_d.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dotp_s_h.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dotp_u_h.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dotp_s_d.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_u_h.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_s_d.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_s_h.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_u_w.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dotp_s_w.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dotp_u_d.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_u_d.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_u_w.c',
-  '../mips/user/ase/msa/int-dot-product/test_msa_dotp_u_w.c',
 ]
