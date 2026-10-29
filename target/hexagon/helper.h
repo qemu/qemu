@@ -32,6 +32,9 @@ DEF_HELPER_FLAGS_2(cabacdecbin_val, TCG_CALL_NO_RWG_SE, s64, s64, s64)
 DEF_HELPER_FLAGS_2(cabacdecbin_pred, TCG_CALL_NO_RWG_SE, s32, s64, s64)
 
 /* HLX helpers */
+DEF_HELPER_5(hlx_load_vec, void, env, ptr, tl, i32, i32)
+DEF_HELPER_5(hlx_store_vec, void, env, tl, ptr, i32, i32)
+DEF_HELPER_1(hlx_commit_store, void, env)
 DEF_HELPER_FLAGS_2(hlx_trace_op, TCG_CALL_NO_RWG, void, env, i32)
 
 /* Floating point */
@@ -154,3 +157,6 @@ DEF_HELPER_3(modify_ccr, void, env, i32, i32)
 DEF_HELPER_1(pending_interrupt, void, env)
 DEF_HELPER_2(tlbinvasid, void, env, i32)
 #endif
+DEF_HELPER_2(hlx_copy_live_to_future, void, env, i32)
+DEF_HELPER_2(hlx_copy_live_to_tmp,    void, env, i32)
+DEF_HELPER_2(hlx_commit_reg,          void, env, i32)

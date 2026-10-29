@@ -204,6 +204,10 @@ typedef struct CPUArchState {
 
     HLXVector future_LRegs[NUM_LREGS] QEMU_ALIGNED(16);
     HLXVector tmp_LRegs[NUM_LREGS] QEMU_ALIGNED(16);
+    /* Pending HLX store. */
+    HLXVector hlx_store_data QEMU_ALIGNED(16);
+    target_ulong hlx_store_va;
+    bool hlx_store_pending;
 
     /* Temporaries used within instructions */
     MMVectorPair VuuV QEMU_ALIGNED(16);

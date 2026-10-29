@@ -703,4 +703,60 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fPREDUSE_TIMING()
 
+#define fLVECSIZE() (2048)
+/* Unlike HVX, COUNT is an element count. */
+#define fLVFOREACH(COUNT, VAR) for (VAR = 0; VAR < (COUNT); VAR++)
+
+#define fLMPY16UU(A, B) \
+    ((uint64_t)((uint32_t)(uint16_t)(A) * (uint32_t)(uint16_t)(B)))
+#define fLMPY16SU(A, B) ((int64_t)(int32_t)((int16_t)(A) * (uint16_t)(B)))
+#define fLMPY16SS(A, B) ((int64_t)(int32_t)((int16_t)(A) * (int16_t)(B)))
+
+#define fLSHIFT(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((int64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((int64_t)(VAL) >> fMIN(32, (SHAMT))))
+#define fLSHIFT_RND(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((int64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((((int64_t)(VAL) >> fMIN(32, (SHAMT) - 1)) + 1) >> 1))
+#define fLSHIFTU(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((uint64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((uint64_t)(VAL) >> fMIN(32, (SHAMT))))
+#define fLSHIFTU_RND(VAL, SHAMT) \
+    ((SHAMT) <= 0 ? ((uint64_t)(VAL) << fMIN(32, -(SHAMT))) : \
+                    ((((uint64_t)(VAL) >> fMIN(32, (SHAMT) - 1)) + 1) >> 1))
+
+#define fABSW(A) (((int64_t)(A) < 0) ? (-(int64_t)(A)) : ((int64_t)(A)))
+#define fBIT_WIDTH(SIZE, VAL) \
+    ((uint32_t)(VAL) ? \
+     (SIZE) - (__builtin_clz((uint32_t)(VAL)) - (32 - (SIZE))) : 0)
+
+#define HLX_MEM_ALIGN_MASK (~(HLX_VEC_SIZE_BYTES - 1))
+
+#ifdef QEMU_GENERATE
+#define fLOADMML(EA, DST, ABOVE, BELOW) \
+    gen_helper_hlx_load_vec(tcg_env, tcg_constant_ptr((intptr_t)&(DST)), \
+                            EA, tcg_constant_i32(ABOVE), \
+                            tcg_constant_i32(BELOW))
+#else
+#define fLOADMML(EA, DST, ABOVE, BELOW) \
+    do { HELPER(hlx_load_vec)(env, &(DST), (EA), (ABOVE), (BELOW)); } while (0)
+#endif
+
+/* The helper logs the store for packet commit. */
+#ifdef QEMU_GENERATE
+#define fSTOREMML(EA, SRC, ABOVE, BELOW) \
+    gen_helper_hlx_store_vec(tcg_env, EA, tcg_constant_ptr((intptr_t)&(SRC)), \
+                             tcg_constant_i32(ABOVE), tcg_constant_i32(BELOW))
+#else
+#define fSTOREMML(EA, SRC, ABOVE, BELOW) \
+    do { HELPER(hlx_store_vec)(env, (EA), &(SRC), (ABOVE), (BELOW)); } while (0)
+#endif
+
+/* Helpers receive .new registers in future_LRegs. */
+#define fNEWLREG(LNUM) (LNUM)
+
+#define fMPY3216UU(A, B) (fZE32_64(A) * fZXTN(16, 64, B))
+#define check_ilog2_compliance(RESULT, INPUT, OFFSET) do {} while (0)
+#define f64BIT_SCALAR_MASK(REG) do {} while (0)
+
 #endif
