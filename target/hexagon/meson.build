@@ -22,6 +22,26 @@ gen_tcg_h = meson.current_source_dir() / 'gen_tcg.h'
 gen_tcg_hvx_h = meson.current_source_dir() / 'gen_tcg_hvx.h'
 gen_tcg_sys_h = meson.current_source_dir() / 'gen_tcg_sys.h'
 idef_parser_dir = meson.current_source_dir() / 'idef-parser'
+imported_dir = meson.current_source_dir() / 'imported'
+
+#
+# Create the HLX ext.idef.
+#
+preprocessed_hlx_ext = custom_target(
+    'hlx_ext.preprocessed.idef',
+    output: 'hlx_ext.preprocessed.idef',
+    input: imported_dir / 'hlx_ext.idef',
+    command: meson.get_compiler('c').cmd_array() +
+             ['-x', 'c', '-E', '-o', '@OUTPUT@', '@INPUT@']
+)
+generated_hlx_ext = custom_target(
+    'generated_hlx_ext.idef',
+    output: 'generated_hlx_ext.idef',
+    input: preprocessed_hlx_ext,
+    depend_files: [hex_common_py],
+    command: [python, files('gen_hlx_ext.py'), '@INPUT@', '@OUTPUT@'],
+)
+hexagon_ss.add(generated_hlx_ext)
 
 #
 #  Step 1
@@ -30,6 +50,7 @@ idef_parser_dir = meson.current_source_dir() / 'idef-parser'
 gen_semantics = executable(
     'gen_semantics',
     'gen_semantics.c',
+    sources: generated_hlx_ext,
     native: true, build_by_default: false)
 
 semantics_generated = custom_target(
@@ -123,6 +144,15 @@ hvx_decode_generated = custom_target(
 )
 hexagon_ss.add(hvx_decode_generated)
 
+hlx_decode_generated = custom_target(
+    'hlx_decode_generated',
+    output: 'hlx_decode_generated',
+    depends: [iset_py, semantics_generated],
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files('gen_decodetree.py'), semantics_generated, 'EXT_hlx', '@OUTPUT@'],
+)
+hexagon_ss.add(hlx_decode_generated)
+
 subinsn_a_decode_generated = custom_target(
     'subinsn_a_decode_generated',
     output: 'subinsn_a_decode_generated',
@@ -189,6 +219,15 @@ decode_hvx_generated = custom_target(
     command: [python, files(decodetree_py), hvx_decode_generated, '--static-decode=decode_hvx', '-o', '@OUTPUT@'],
 )
 hexagon_ss.add(decode_hvx_generated)
+
+decode_hlx_generated = custom_target(
+    'decode_hlx_generated.c.inc',
+    output: 'decode_hlx_generated.c.inc',
+    input: hlx_decode_generated,
+    env: {'PYTHONPATH': meson.current_build_dir()},
+    command: [python, files(decodetree_py), hlx_decode_generated, '--static-decode=decode_hlx', '-o', '@OUTPUT@'],
+)
+hexagon_ss.add(decode_hlx_generated)
 
 decode_subinsn_a_generated = custom_target(
     'decode_subinsn_a_generated.c.inc',

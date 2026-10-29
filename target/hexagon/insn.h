@@ -49,6 +49,7 @@ struct Instruction {
                               */
     bool extension_valid;   /* Has a constant extender attached */
     bool is_endloop;   /* This is an end of loop */
+    bool hlx_new_zero; /* HLX .new store without a producer. */
     int32_t immed[IMMEDS_MAX];    /* immediate field */
 };
 

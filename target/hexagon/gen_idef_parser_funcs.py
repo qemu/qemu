@@ -62,6 +62,9 @@ def main():
         for tag in hex_common.tags:
             if hex_common.tag_ignore(tag):
                 continue
+            ## Skip instructions that explicitly request no idef-parser
+            if "A_NO_IDEF_PARSER" in hex_common.attribdict[tag]:
+                continue
             ## Skip the priv instructions
             if "A_PRIV" in hex_common.attribdict[tag]:
                 continue

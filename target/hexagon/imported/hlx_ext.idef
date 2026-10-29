@@ -1,0 +1,45 @@
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef EXTINSN
+#define EXTINSN Q6INSN
+#define __SELF_DEF_EXTINSN 1
+#endif
+
+#ifndef NO_HLX
+
+/* HLX vectors hold 1024 halfwords or 512 words. */
+#define HLX_FOR_EACH_CODE(CODE) \
+{ \
+    fHIDE(int i;) \
+    fLVFOREACH(1024, i) { \
+        CODE ; \
+    } \
+}
+
+EXTINSN(LX_L16b_tmp,"Ld16.tmp=mem(Rs32)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_NOTE_HLX_MEM,A_HLX_MEM,A_VTCM_ALLBANK_ACCESS,A_LOAD,A_RESTRICT_SLOT1ONLY,A_HLX_TMP),"Aligned HLX load",
+{ fEA_REG(RsV); fLOADMML(EA,LdV,false,false);})
+
+EXTINSN(LX_L16b_p_tmp,"if (Pv4) Ld16.tmp=mem(Rs32)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_NOTE_HLX_MEM,A_HLX_MEM,A_VTCM_ALLBANK_ACCESS,A_LOAD,A_RESTRICT_SLOT1ONLY,A_HLX_TMP,A_CONDEXEC),"Aligned HLX load",
+{ fEA_REG(RsV); if(fLSBOLD(PvV)){fLOADMML(EA,LdV,false,false);} else {LOAD_CANCEL(EA);};})
+
+EXTINSN(LX_S16b_new,"mem(Rs32)=Ku16.new",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_NOTE_HLX_MEM,A_HLX_MEM,A_VTCM_ALLBANK_ACCESS,A_STORE,A_HLX_NEW,A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY),"Aligned HLX new halfword store",
+{ fEA_REG(RsV); fSTOREMML(EA,fNEWLREG(KuN),false,false);})
+
+EXTINSN(LX_S16b_p_new,"if (Pv4) mem(Rs32)=Ku16.new",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_NOTE_HLX_MEM,A_HLX_MEM,A_VTCM_ALLBANK_ACCESS,A_STORE,A_HLX_NEW,A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY,A_CONDEXEC),"Aligned HLX new halfword store",
+{ fEA_REG(RsV); if(fLSBOLD(PvV)){fSTOREMML(EA,fNEWLREG(KuN),false,false);} else {STORE_CANCEL(EA);};})
+
+Q6INSN(LX_LL16b_tmp,"Ldd16.tmp=mem(Rs32)",ATTRIBS(A_MAPPING,A_HLX,A_NO_IDEF_PARSER),"Mapping from Ldd16.tmp=mem(Rs32) to LWd.tmp=mem(R)",
+fASM_MAP("Ldd16.tmp=mem(Rs32)","LWd.tmp=mem(R)"))
+
+Q6INSN(LX_SS16b_new,"mem(Rs32)=Kuu16.new",ATTRIBS(A_MAPPING,A_HLX,A_NO_IDEF_PARSER),"Mapping from mem(Rs32)=Kuu16.new to mem(R)=KWnew",
+fASM_MAP("mem(Rs32)=Kuu16.new","mem(R)=KWnew"))
+
+#endif /* NO_HLX */
+
+#ifdef __SELF_DEF_EXTINSN
+#undef EXTINSN
+#undef __SELF_DEF_EXTINSN
+#endif

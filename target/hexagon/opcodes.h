@@ -35,6 +35,7 @@ typedef enum {
     SUBINSN_S2,
     EXT_noext,
     EXT_mmvec,
+    EXT_hlx,
     XX_LAST_ENC_CLASS
 } EncClass;
 

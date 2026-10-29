@@ -1264,6 +1264,15 @@ static void gen_commit_hvx(DisasContext *ctx)
     }
 }
 
+/* A .new store without a producer reads zeroed future_LRegs. */
+static void gen_hlx_new_zero(Insn *insn)
+{
+    int rnum = insn->regno[insn->new_read_idx];
+
+    tcg_gen_gvec_dup_imm(MO_64, offsetof(CPUHexagonState, future_LRegs[rnum]),
+                         sizeof(HLXVector), sizeof(HLXVector), 0);
+}
+
 static void gen_commit_hlx(DisasContext *ctx)
 {
     int i;
@@ -1490,6 +1499,9 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
                         continue;
                     }
                     ctx->insn = insn;
+                    if (insn->hlx_new_zero) {
+                        gen_hlx_new_zero(insn);
+                    }
                     if (GET_ATTRIB(insn->opcode, A_HLX) &&
                         trace_event_get_state_backends(
                             TRACE_HEXAGON_HLX_OP)) {

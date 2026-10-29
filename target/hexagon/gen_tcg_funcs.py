@@ -118,6 +118,9 @@ def gen_tcg_func(f, tag, regs, imms):
         arguments = ", ".join(["ctx", "ctx->insn", "&ctx->pkt"] + declared)
         f.write(f"    emit_{tag}({arguments});\n")
 
+    elif hex_common.is_hlx_inline_tag(tag):
+        hex_common.gen_hlx_inline(f, tag, regs)
+
     elif hex_common.skip_qemu_helper(tag):
         if "A_FPOP" in hex_common.attribdict[tag]:
             f.write("    TCGv pkt_need_commit = ")

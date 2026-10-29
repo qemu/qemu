@@ -1,0 +1,18 @@
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#define CONCAT(A,B) A##B
+#define EXTEXTNAME(X) CONCAT(EXT_,X)
+#define DEF_ENC(TAG,STR) DEF_EXT_ENC(TAG,EXTEXTNAME(EXTNAME),STR)
+
+DEF_ENC(LX_L16b_tmp,"1001100----sssssPP-10----000dddd")
+DEF_ENC(LX_L16b_p_tmp,"1001100----sssssPP-10vv--100dddd")
+
+DEF_ENC(LX_S16b_new,"1010-1001--sssssPP000----000uuuu")
+DEF_ENC(LX_S16b_p_new,"1010-1001--sssssPP000vv--100uuuu")
+
+#undef DEF_ENC
+#undef EXTEXTNAME
+#undef CONCAT

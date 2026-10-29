@@ -79,6 +79,7 @@ static const char * const opcode_enc_class_names[XX_LAST_ENC_CLASS] = {
     "SUBINSN_S2",
     "EXT_noext",
     "EXT_mmvec",
+    "EXT_hlx",
 };
 
 static const char *get_opcode_enc(int opcode)
@@ -94,10 +95,14 @@ static const char *get_opcode_enc_class(int opcode)
 {
     const char *tmp = opcode_encodings[opcode].encoding;
     if (tmp == NULL) {
-        const char *test = "V6_";        /* HVX */
+        const char *test_hvx = "V6_";
+        const char *test_hlx = "LX_";
         const char *name = opcode_names[opcode];
-        if (strncmp(name, test, strlen(test)) == 0) {
+        if (strncmp(name, test_hvx, strlen(test_hvx)) == 0) {
             return "EXT_mmvec";
+        }
+        if (strncmp(name, test_hlx, strlen(test_hlx)) == 0) {
+            return "EXT_hlx";
         }
     }
     return opcode_enc_class_names[opcode_encodings[opcode].enc_class];

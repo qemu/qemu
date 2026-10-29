@@ -18,3 +18,7 @@
 #define EXTNAME mmvec
 #include "mmvec/encode_ext.def"
 #undef EXTNAME
+
+#define EXTNAME hlx
+#include "hlx/encode_ext.def"
+#undef EXTNAME
