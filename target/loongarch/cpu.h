@@ -542,6 +542,12 @@ static inline bool is_va32(CPULoongArchState *env)
     return va32;
 }
 
+static inline bool cpu_has_msgint(CPULoongArchState *env)
+{
+
+    return FIELD_EX32(env->cpucfg[1], CPUCFG1, MSG_INT);
+}
+
 static inline void set_pc(CPULoongArchState *env, uint64_t value)
 {
     if (is_va32(env)) {

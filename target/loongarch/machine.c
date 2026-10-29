@@ -49,7 +49,7 @@ static bool msgint_needed(void *opaque)
 {
     LoongArchCPU *cpu = opaque;
 
-    return FIELD_EX64(cpu->env.cpucfg[1], CPUCFG1, MSG_INT);
+    return cpu_has_msgint(&cpu->env);
 }
 
 static const VMStateDescription vmstate_msgint = {
