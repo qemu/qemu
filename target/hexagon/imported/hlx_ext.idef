@@ -73,6 +73,78 @@ fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fBIT_WIDTH(32,LuuV.l[i].w ^ -(Luu
 EXTINSN(LX_sub_ilog2_uw,"Ld16.h=sub(ilog2(Luu16.uw),#u5)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR32),"Count leading bits of unsigned word",
 fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fBIT_WIDTH(32,LuuV.l[i].uw) - 1 - uiV; fHIDE(check_ilog2_compliance(LdV.h[i],LuuV.l[i].uw, uiV);); })
 
+EXTINSN(LX_mpyr_uw_uh,"Ldd16.uw=mpy(Lu16.uh,Rt32.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Widening multiply with HLX unsigned half and scalar unsigned half",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = fLMPY16UU(LuV.uh[i],fGETUHALF(0,RtV)); })
+
+EXTINSN(LX_mpy_uw_uh,"Ldd16.uw=mpy(Lu16.uh,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY),"Widening multiply with two HLX unsigned half",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = fLMPY16UU(LuV.uh[i],LvV.uh[i]); })
+
+EXTINSN(LX_mpyr_w_huh,"Ldd16.w=mpy(Lu16.h,Rt32.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Widening multiply with HLX unsigned half and scalar unsigned half",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fLMPY16SU(LuV.h[i],fGETUHALF(0,RtV)); })
+
+EXTINSN(LX_mpy_w_huh,"Ldd16.w=mpy(Lu16.h,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY),"Widening multiply with unsigned half and signed half",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fLMPY16SU(LuV.h[i],LvV.uh[i]); })
+
+EXTINSN(LX_mpyr_w_h,"Ldd16.w=mpy(Lu16.h,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Widening multiply with HLX signed half and scalar signed half",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fLMPY16SS(LuV.h[i],fGETHALF(0,RtV)); })
+
+EXTINSN(LX_mpy_w_h,"Ldd16.w=mpy(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY),"Widening multiply with signed half and signed half",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fLMPY16SS(LuV.h[i],LvV.h[i]); })
+
+EXTINSN(LX_mpar_wuh,"Lxx16.w+=mpy(Lu16.uh,Rt32.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w += fLMPY16UU(LuV.uh[i], fGETUHALF(0,RtV)); })
+
+EXTINSN(LX_mpa_wuh,"Lxx16.w+=mpy(Lu16.uh,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w += fLMPY16UU(LuV.uh[i], LvV.uh[i]); })
+
+EXTINSN(LX_mpar_whuh,"Lxx16.w+=mpy(Lu16.h,Rt32.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = LxxV.l[i].w + fLMPY16SU(LuV.h[i], fGETUHALF(0,RtV)); })
+
+EXTINSN(LX_mpa_whuh,"Lxx16.w+=mpy(Lu16.h,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = LxxV.l[i].w + fLMPY16SU(LuV.h[i], LvV.uh[i]); })
+
+EXTINSN(LX_mpar_wh,"Lxx16.w+=mpy(Lu16.h,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = LxxV.l[i].w + fLMPY16SS(LuV.h[i], fGETHALF(0,RtV)); })
+
+EXTINSN(LX_mpa_wh,"Lxx16.w+=mpy(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = LxxV.l[i].w + fLMPY16SS(LuV.h[i], LvV.h[i]); })
+
+EXTINSN(LX_mpar_wuh_lo,"Lxx16.uw=add(mpy(Lu16.uh,Rt32.uh),lo(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fLMPY16UU(LuV.uh[i], fGETUHALF(0,RtV)) + fZE16_32(LxxV.l[i].uh[0]); })
+
+EXTINSN(LX_mpa_wuh_lo,"Lxx16.uw=add(mpy(Lu16.uh,Lv16.uh),lo(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fLMPY16UU(LuV.uh[i],LvV.uh[i]) + fZE16_32(LxxV.l[i].uh[0]); })
+
+EXTINSN(LX_mpar_whuh_lo,"Lxx16.w=add(mpy(Lu16.h,Rt32.uh),lo(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = fLMPY16SU(LuV.h[i], fGETUHALF(0,RtV)) + fZE16_32(LxxV.l[i].uh[0]); })
+
+EXTINSN(LX_mpa_whuh_lo,"Lxx16.w=add(mpy(Lu16.h,Lv16.uh),lo(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = fLMPY16SU(LuV.h[i], LvV.uh[i]) + fZE16_32(LxxV.l[i].uh[0]); })
+
+EXTINSN(LX_mpar_wuh_hi,"Lxx16.uw=add(mpy(Lu16.uh,Rt32.uh),hi(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fLMPY16UU(LuV.uh[i], fGETUHALF(0,RtV)) + fZE16_32(LxxV.l[i].uh[1]); })
+
+EXTINSN(LX_mpa_wuh_hi,"Lxx16.uw=add(mpy(Lu16.uh,Lv16.uh),hi(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fLMPY16UU(LuV.uh[i], LvV.uh[i]) + fZE16_32(LxxV.l[i].uh[1]); })
+
+EXTINSN(LX_mpar_wh_hi,"Lxx16.uw=add(mpy(Lu16.h,Rt32.uh),hi(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fLMPY16SU(LuV.h[i], fGETUHALF(0,RtV)) + fZE16_32(LxxV.l[i].uh[1]); })
+
+EXTINSN(LX_mpa_wh_hi,"Lxx16.uw=add(mpy(Lu16.h,Lv16.uh),hi(Lxx16).uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_ADD),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fLMPY16SU(LuV.h[i], LvV.uh[i]) + fZE16_32(LxxV.l[i].uh[1]); })
+
+EXTINSN(LX_mpar_uwuhuw_si,"Lxx16.uw=add(mpy(Lu16.uh,hi(Lxx16).uh),Rt32.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_MPY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = fGETWORD(0,RtV) + fMPY3216UU(LxxV.l[i].uh[1],LuV.h[i]); })
+
+EXTINSN(LX_mpa_uwuhuw_si,"Lxx16.uw=add(mpy(Lu16.uh,hi(Lxx16).uh),Lvv16.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_MPY),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].uw = LvvV.l[i].w + fMPY3216UU(LxxV.l[i].uh[1],LuV.h[i]); })
+
+EXTINSN(LX_mpar_wuhw_si,"Lxx16.w=add(mpy(Lu16.uh,hi(Lxx16).h),Rt32.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_MPY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = fGETWORD(0,RtV) + fMPY3216SU(LxxV.l[i].h[1],LuV.uh[i]); })
+
+EXTINSN(LX_mpa_wuhw_si,"Lxx16.w=add(mpy(Lu16.uh,hi(Lxx16).h),Lvv16.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_MPY,A_RESTRICT_SLOT3ONLY,A_HLX_LXX_MPY),"Large multiply add",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w = LvvV.l[i].w + fMPY3216SU(LxxV.l[i].h[1],LuV.uh[i]); })
+
 EXTINSN(LX_L16b_tmp,"Ld16.tmp=mem(Rs32)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_NOTE_HLX_MEM,A_HLX_MEM,A_VTCM_ALLBANK_ACCESS,A_LOAD,A_RESTRICT_SLOT1ONLY,A_HLX_TMP),"Aligned HLX load",
 { fEA_REG(RsV); fLOADMML(EA,LdV,false,false);})
 
