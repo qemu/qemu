@@ -33,14 +33,16 @@ encs = {
 }
 
 
-regre = re.compile(r"((?<!DUP)[MNORCPQXSGVZA])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+S?)")
+regre = re.compile(
+    r"((?<!DUP)[MNORCPQXSGVZALK])([stuvwxyzdefg]+)([.]?[LlHh]?)(\d+S?)"
+)
 immre = re.compile(r"[#]([rRsSuUm])(\d+)(?:[:](\d+))?")
 
 
 def ordered_unique(l):
     return sorted(set(l), key=l.index)
 
-num_registers = {"R": 32, "V": 32}
+num_registers = {"R": 32, "V": 32, "L": 16}
 
 operand_letters = {
     "P",
