@@ -3,6 +3,7 @@
  *
  * Authors:
  *   James Hilliard
+ *   Philippe Mathieu-Daudé
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -38,6 +39,21 @@ static uint64_t octeon_dmul(uint64_t rs, uint64_t rt)
         : [rd] "=r" (rd)
         : [rs] "r" (rs), [rt] "r" (rt)
         : "$8", "$9", "$10");
+
+    return rd;
+}
+
+static uint64_t octeon_pop(uint64_t rs)
+{
+    uint64_t rd;
+
+    asm volatile(
+        "move $8, %[rs]\n\t"
+        ".word 0x7100502c\n\t" /* pop $10, $8 */
+        "move %[rd], $10\n\t"
+        : [rd] "=r" (rd)
+        : [rs] "r" (rs)
+        : "$8", "$10");
 
     return rd;
 }
@@ -391,6 +407,9 @@ int main(void)
     TAP_START();
     TAP_CHECK(octeon_baddu(0x123, 0x0f0) == 0x13);
     TAP_CHECK(octeon_dmul(0x12345678, 0x10) == 0x123456780);
+    TAP_CHECK(octeon_pop(0) == 0);
+    TAP_CHECK(octeon_pop(0xf0f0f0f0) == 16);
+    TAP_CHECK(octeon_pop(0xffffffff00000001ULL) == 1); /* low 32 bits only */
     TAP_CHECK(octeon_dpop(0xf0f0f0f0f0f0f0f0ULL) == 32);
     TAP_CHECK(octeon_seq(0xabc, 0xabc) == 1);
     TAP_CHECK(octeon_seq(0xabc, 0xdef) == 0);
