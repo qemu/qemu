@@ -48,6 +48,28 @@ DO_MIPS32R6__RD__RS_RT(SLLV, sllv)
 DO_MIPS32R6__RD__RS_RT(SRLV, srlv)
 DO_MIPS32R6__RD__RS_RT(SRAV, srav)
 
+/* LSA rd, rs, rt, sa: rd = (rs << sa) + rt, with sa in 1..4. */
+#define DO_MIPS32R6__LSA(suffix, sa)                                   \
+static inline void do_mips32r6_##suffix(const uint32_t *input1,        \
+                                        const uint32_t *input2,        \
+                                        uint32_t *output)              \
+{                                                                      \
+   __asm__ volatile (                                                  \
+      "lw $t1, 0(%0)\n\t"                                              \
+      "lw $t2, 0(%1)\n\t"                                              \
+      "lsa $t0, $t1, $t2, " #sa "\n\t"                                 \
+      "sw $t0, 0(%2)\n\t"                                              \
+      :                                                                \
+      : "r" (input1), "r" (input2), "r" (output)                       \
+      : "t0", "t1", "t2", "memory"                                     \
+   );                                                                  \
+}
+
+DO_MIPS32R6__LSA(LSA1, 1)
+DO_MIPS32R6__LSA(LSA2, 2)
+DO_MIPS32R6__LSA(LSA3, 3)
+DO_MIPS32R6__LSA(LSA4, 4)
+
 DO_MIPS32R6__RD__RS_RT(MUL, mul)
 DO_MIPS32R6__RD__RS_RT(MUH, muh)
 DO_MIPS32R6__RD__RS_RT(MULU, mulu)

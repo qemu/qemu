@@ -24,6 +24,12 @@ static uint32_t ref_srav(uint32_t a, uint32_t b)
     return (uint32_t)((int32_t)a >> (b & 31));
 }
 
+/* LSA: shift rs left by 1..4, then add rt. */
+static uint32_t ref_lsa1(uint32_t a, uint32_t b) { return (a << 1) + b; }
+static uint32_t ref_lsa2(uint32_t a, uint32_t b) { return (a << 2) + b; }
+static uint32_t ref_lsa3(uint32_t a, uint32_t b) { return (a << 3) + b; }
+static uint32_t ref_lsa4(uint32_t a, uint32_t b) { return (a << 4) + b; }
+
 static int check_one(const char *name, binary_op_32 op, ref_op_32 ref,
                      uint32_t a, uint32_t b)
 {
@@ -69,6 +75,10 @@ int main(void)
     run("SLLV", do_mips32r6_SLLV, ref_sllv);
     run("SRLV", do_mips32r6_SRLV, ref_srlv);
     run("SRAV", do_mips32r6_SRAV, ref_srav);
+    run("LSA1", do_mips32r6_LSA1, ref_lsa1);
+    run("LSA2", do_mips32r6_LSA2, ref_lsa2);
+    run("LSA3", do_mips32r6_LSA3, ref_lsa3);
+    run("LSA4", do_mips32r6_LSA4, ref_lsa4);
 
     return tap_done();
 }
