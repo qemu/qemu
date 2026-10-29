@@ -49,6 +49,7 @@
 #include "hw/pci-host/pnv_phb.h"
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/pci-host/pnv_phb4.h"
+#include "hw/pci-host/pnv_phb5.h"
 
 #include "hw/ppc/xics.h"
 #include "hw/core/qdev-properties.h"

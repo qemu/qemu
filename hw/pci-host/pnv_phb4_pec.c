@@ -13,6 +13,7 @@
 #include "hw/ppc/fdt.h"
 #include "hw/pci-host/pnv_phb4_regs.h"
 #include "hw/pci-host/pnv_phb4.h"
+#include "hw/pci-host/pnv_phb5.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
@@ -20,7 +21,6 @@
 #include "hw/ppc/pnv_chip.h"
 #include "hw/core/qdev-properties.h"
 #include "system/system.h"
-
 #include <libfdt.h>
 
 #define phb_pec_error(pec, fmt, ...)                                    \

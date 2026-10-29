@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci-host/pnv_phb4.h"
+#include "hw/pci-host/pnv_phb5.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #define XPEC_PCI_CPLT_OFFSET                        0x1000000ULL

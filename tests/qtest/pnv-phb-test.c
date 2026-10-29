@@ -16,7 +16,10 @@
 #define PHB3_PBCQ_SPCI_ASB_ADDR      0x0
 #define PHB3_PBCQ_SPCI_ASB_DATA      0x2
 
-#define PHB4_XSCOM              0x40084800ull
+#define PHB5_XSCOM              0x40084800ull
+
+/* Index of PNV_CHIP_POWER10 in pnv_chips[] within "pnv-xscom.h" */
+#define PNV_P10_CHIP_INDEX      2
 
 /* SCOM to PCBA address conversion */
 #define SCOM_TO_PCBA(scom, addr) (((scom) >> 3) + (addr))
@@ -34,6 +37,29 @@ static uint64_t pnv_phb_xscom_read(QTestState *qts, const PnvChip *chip,
                  reg);
     return qtest_readq(qts, pnv_xscom_addr(chip, SCOM_TO_PCBA(scom,
                                                               indirect_data)));
+}
+
+#define PHB5_XSCOM_READ(a) pnv_phb_xscom_read(qts, \
+                                   &pnv_chips[PNV_P10_CHIP_INDEX], PHB5_XSCOM, \
+                                   PHB_SCOM_HV_IND_ADDR, PHB_SCOM_HV_IND_DATA, \
+                                   PPC_BIT(0) | (a))
+
+/* Assert that 'PHB PBL Control' register has correct reset value */
+static void phb5_reset_test(QTestState *qts)
+{
+    g_assert_cmpuint(PHB5_XSCOM_READ(PHB_PBL_CONTROL), ==, 0xC009000000000000);
+}
+
+static void phb5_tests(void)
+{
+    QTestState *qts = NULL;
+
+    qts = qtest_initf("-machine powernv10 -accel tcg");
+
+    /* Check reset value of a register */
+    phb5_reset_test(qts);
+
+    qtest_quit(qts);
 }
 
 /* Assert that 'PHB - Version Register' bits[24:31] are as expected */
@@ -59,7 +85,7 @@ static void phb_version_test(const void *data)
         expected_ver = 0xA4;
     } else if ((chip->chip_type == PNV_CHIP_POWER10) ||
                (chip->chip_type == PNV_CHIP_POWER11)) {
-        phb_xscom = PHB4_XSCOM;
+        phb_xscom = PHB5_XSCOM;
         indirect_addr = PHB_SCOM_HV_IND_ADDR;
         indirect_data = PHB_SCOM_HV_IND_DATA;
         reg_phb_version |= PPC_BIT(0);
@@ -94,6 +120,9 @@ int main(int argc, char **argv)
 
     /* PHB[345] tests */
     add_phbX_version_test();
+
+    /* PHB5 specific tests */
+    qtest_add_func("phb5", phb5_tests);
 
     return g_test_run();
 }
