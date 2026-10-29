@@ -16,6 +16,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_int_multiply.c',
   '../mips/test_msa_int_subtract.c',
   '../mips/test_msa_interleave.c',
+  '../mips/test_msa_load_store.c',
   '../mips/test_msa_logic.c',
   '../mips/test_msa_pack.c',
   '../mips/test_msa_shift.c',
