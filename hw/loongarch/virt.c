@@ -901,12 +901,12 @@ static void virt_check_dmsi(MachineState *machine)
 
     cpu = LOONGARCH_CPU(first_cpu);
     if (lvms->dmsi == ON_OFF_AUTO_AUTO) {
-        if (cpu->msgint != ON_OFF_AUTO_OFF) {
+        if (cpu_has_msgint(&cpu->env)) {
             lvms->misc_feature = BIT(IOCSRF_DMSI);
         }
     }
 
-    if (lvms->dmsi == ON_OFF_AUTO_ON && cpu->msgint == ON_OFF_AUTO_OFF) {
+    if (lvms->dmsi == ON_OFF_AUTO_ON && !cpu_has_msgint(&cpu->env)) {
         error_report("Fail to enable dmsi , cpu msgint is off "
                      "pleass add cpu feature mesgint=on.");
         exit(EXIT_FAILURE);
