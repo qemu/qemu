@@ -16,6 +16,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_int_multiply.c',
   '../mips/test_msa_int_subtract.c',
   '../mips/test_msa_interleave.c',
+  '../mips/test_msa_logic.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -73,9 +74,4 @@ tests_mips_msa = [
   '../mips/user/ase/msa/shift/test_msa_srar_w.c',
   '../mips/user/ase/msa/shift/test_msa_srlr_b.c',
   '../mips/user/ase/msa/shift/test_msa_srlr_w.c',
-  '../mips/user/ase/msa/logic/test_msa_or_v.c',
-  '../mips/user/ase/msa/logic/test_msa_nor_v.c',
-  '../mips/user/ase/msa/logic/test_msa_and_v.c',
-  '../mips/user/ase/msa/logic/test_msa_xor_v.c',
-  '../mips/user/ase/msa/move/test_msa_move_v.c',
 ]
