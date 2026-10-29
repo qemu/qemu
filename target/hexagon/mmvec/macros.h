@@ -341,6 +341,11 @@
     fVSATN(WIDTH, fSXTN(WIDTH, 2 * WIDTH, U) + fSXTN(WIDTH, 2 * WIDTH, V))
 #define fVUSUBSAT(WIDTH, U, V) \
     fVSATUN(WIDTH, fZXTN(WIDTH, 2 * WIDTH, U) - fZXTN(WIDTH, 2 * WIDTH, V))
+/* Signed inputs, result saturated to the unsigned range */
+#define fVUSADDSAT(WIDTH, U, V) \
+    fVSATUN(WIDTH, fSXTN(WIDTH, 2 * WIDTH, U) + fSXTN(WIDTH, 2 * WIDTH, V))
+#define fVUSSUBSAT(WIDTH, U, V) \
+    fVSATUN(WIDTH, fSXTN(WIDTH, 2 * WIDTH, U) - fSXTN(WIDTH, 2 * WIDTH, V))
 #define fVSSUBSAT(WIDTH, U, V) \
     fVSATN(WIDTH, fSXTN(WIDTH, 2 * WIDTH, U) - fSXTN(WIDTH, 2 * WIDTH, V))
 #define fVAVGU(WIDTH, U, V) \
