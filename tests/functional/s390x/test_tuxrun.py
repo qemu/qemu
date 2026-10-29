@@ -55,7 +55,6 @@ class TuxRunS390xTest(TuxRunBaselineTest):
                                rootfs_asset=self.ASSET_S390X_ROOTFS,
                                symbol_off="0x3ffe0000000",
                                drive="virtio-blk-ccw",
-                               haltmsg="Requesting system halt",
                                accel="kvm")
 
 if __name__ == '__main__':
