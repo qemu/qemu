@@ -5,6 +5,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_bit_count.c',
   '../mips/test_msa_bit_move.c',
   '../mips/test_msa_bit_set.c',
+  '../mips/test_msa_fixed_multiply.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -199,18 +200,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/logic/test_msa_and_v.c',
   '../mips/user/ase/msa/logic/test_msa_xor_v.c',
   '../mips/user/ase/msa/move/test_msa_move_v.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_mulr_q_h.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_mul_q_w.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_msubr_q_w.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_maddr_q_h.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_maddr_q_w.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_msub_q_w.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_msub_q_h.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_madd_q_h.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_mul_q_h.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_mulr_q_w.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_madd_q_w.c',
-  '../mips/user/ase/msa/fixed-multiply/test_msa_msubr_q_h.c',
   '../mips/user/ase/msa/int-max-min/test_msa_min_u_h.c',
   '../mips/user/ase/msa/int-max-min/test_msa_max_a_b.c',
   '../mips/user/ase/msa/int-max-min/test_msa_max_s_b.c',
