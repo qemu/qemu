@@ -13,6 +13,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_int_div_mod.c',
   '../mips/test_msa_int_dot_product.c',
   '../mips/test_msa_int_max_min.c',
+  '../mips/test_msa_int_multiply.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -72,18 +73,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/int-subtract/test_msa_asub_u_h.c',
   '../mips/user/ase/msa/int-subtract/test_msa_asub_s_b.c',
   '../mips/user/ase/msa/int-subtract/test_msa_subs_s_w.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_mulv_w.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_msubv_d.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_msubv_h.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_maddv_w.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_msubv_b.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_mulv_b.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_maddv_d.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_msubv_w.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_maddv_b.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_mulv_h.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_mulv_d.c',
-  '../mips/user/ase/msa/int-multiply/test_msa_maddv_h.c',
   '../mips/user/ase/msa/interleave/test_msa_ilvr_b.c',
   '../mips/user/ase/msa/interleave/test_msa_ilvr_d.c',
   '../mips/user/ase/msa/interleave/test_msa_ilvod_b.c',
