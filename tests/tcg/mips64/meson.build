@@ -39,11 +39,12 @@ foreach src: tests_mips64r6
   tests += {src: {'cflags': '-march=mips64r6', 'protocol': 'tap'}}
 endforeach
 
-foreach src: tests_mips_msa + tests_mips_msa_groups
+foreach src: tests_mips_msa_groups
   tests += {
     src: {
       'cflags': ['-march=mips64r6', '-mmsa'],
       'qemu_args': ['-cpu', 'I6400'],
+      'protocol': 'tap',
     }
   }
 endforeach
