@@ -3250,13 +3250,28 @@ static void virtio_net_get_features(VirtIODevice *vdev, uint64_t *features,
     }
 }
 
+static bool virtio_net_pre_load_device(void *opaque, Error **errp)
+{
+    ERRP_GUARD();
+    VirtIONet *n = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    if (n->peers_wait_incoming) {
+        /* MIG_PRI_BACKEND ensures the peers have already been loaded. */
+        n->peers_wait_incoming = false;
+        peer_test_vnet_hdr(n);
+        virtio_net_get_features(vdev, vdev->host_features_ex, errp);
+    }
+
+    return !*errp;
+}
+
 static int virtio_net_post_load_device(void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     int i, link_down;
     bool has_tunnel_hdr = virtio_has_tunnel_hdr(vdev->guest_features_ex);
-    Error *local_err = NULL;
 
     trace_virtio_net_post_load_device();
     virtio_net_set_mrg_rx_bufs(n, n->mergeable_rx_bufs,
@@ -3314,20 +3329,6 @@ static int virtio_net_post_load_device(void *opaque, int version_id)
     }
 
     virtio_net_commit_rss_config(n);
-
-    /*
-     * If live-migration is enabled for some backend, than backend
-     * has already been migrated at higher priority (MIG_PRI_BACKEND)
-     * and virtio_net_vnet_post_load() has already called
-     * peer_test_vnet_hdr().  Recompute host_features so that virtio-net
-     * reflects the capabilities of the restored backend.
-     */
-    virtio_net_get_features(vdev, &vdev->host_features, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        return -EINVAL;
-    }
-
     return 0;
 }
 
@@ -3477,14 +3478,6 @@ static const VMStateDescription vmstate_virtio_net_has_ufo = {
 static int virtio_net_vnet_post_load(void *opaque, int version_id)
 {
     struct VirtIONetMigTmp *tmp = opaque;
-
-    /*
-     * If live-migration is enabled for some backend, than backend
-     * has already been migrated at higher priority (MIG_PRI_BACKEND),
-     * so n->has_vnet_hdr can be refreshed from the live backend right
-     * here.
-     */
-    peer_test_vnet_hdr(tmp->parent);
 
     if (tmp->has_vnet_hdr && !peer_has_vnet_hdr(tmp->parent)) {
         error_report("virtio-net: saved image requires vnet_hdr=on");
@@ -3674,6 +3667,7 @@ static const VMStateDescription vmstate_virtio_net_device = {
     .name = "virtio-net-device",
     .version_id = VIRTIO_NET_VM_VERSION,
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
+    .pre_load_errp = virtio_net_pre_load_device,
     .post_load = virtio_net_post_load_device,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8_ARRAY(mac, VirtIONet, ETH_ALEN),
@@ -4010,6 +4004,15 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     if (n->net_conf.mtu) {
         n->host_features |= (1ULL << VIRTIO_NET_F_MTU);
+    }
+
+    if (n->net_conf.mtu_from_tap) {
+        NetClientState *peer = n->nic_conf.peers.ncs[0];
+        int mtu = qemu_get_mtu(peer);
+        if (mtu > 0) {
+            n->net_conf.mtu = mtu;
+            n->host_features |= (1ULL << VIRTIO_NET_F_MTU);
+        }
     }
 
     if (n->net_conf.duplex_str) {
@@ -4392,6 +4395,7 @@ static const Property virtio_net_properties[] = {
     DEFINE_PROP_UINT16("tx_queue_size", VirtIONet, net_conf.tx_queue_size,
                        VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE),
     DEFINE_PROP_UINT16("host_mtu", VirtIONet, net_conf.mtu, 0),
+    DEFINE_PROP_BOOL("mtu-from-tap", VirtIONet, net_conf.mtu_from_tap, false),
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
     DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),

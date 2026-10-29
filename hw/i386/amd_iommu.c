@@ -24,6 +24,7 @@
 #include "hw/i386/pc.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_bridge.h"
 #include "migration/vmstate.h"
 #include "amd_iommu.h"
 #include "qapi/error.h"
@@ -2472,8 +2473,16 @@ static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &amdvi_dev_as->as;
 }
 
+static int amdvi_get_x86_iommu(void *opaque, void **x86_iommu)
+{
+    AMDVIState *s = opaque;
+    *x86_iommu = X86_IOMMU_DEVICE(s);
+    return 0;
+}
+
 static const PCIIOMMUOps amdvi_iommu_ops = {
     .get_address_space = amdvi_host_dma_iommu,
+    .get_x86_iommu = amdvi_get_x86_iommu,
 };
 
 static const MemoryRegionOps mmio_mem_ops = {
@@ -2672,6 +2681,50 @@ static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
      }
 };
 
+/* Go up in the PCI hierarchy and find the root bus pcie.0 or pxb-pci */
+static PCIBus *get_root_bus(struct PCIBus *bus)
+{
+    while (bus) {
+
+        if (!pci_bus_is_express(bus)) {
+            error_report("attached to non PCI express bus %s",
+                         bus->qbus.name);
+            goto err_out;
+        }
+
+        if (bus->iommu_ops) {
+            error_report("different IOMMU already serves bus %s",
+                         bus->qbus.name);
+            goto err_out;
+        }
+
+        if (pci_bus_is_root(bus) &&
+            object_dynamic_cast(OBJECT(bus)->parent, TYPE_PCI_HOST_BRIDGE)) {
+
+            if (bus->parent_dev &&
+                !object_dynamic_cast(OBJECT(bus), TYPE_PXB_PCIE_BUS)) {
+
+                    error_report("only supports PXB-PCI as extra root bus");
+                    goto err_out;
+            }
+            /* We found the valid root bus so return it to the user*/
+            goto out;
+        }
+
+        if (bus->parent_dev) {
+            bus = pci_get_bus(bus->parent_dev);
+        } else {
+            error_report("could not find valid PCIE bus");
+            goto err_out;
+        }
+    };
+
+err_out:
+    exit(EXIT_FAILURE);
+out:
+    return bus;
+}
+
 static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = (DeviceClass *) object_get_class(OBJECT(dev));
@@ -2679,7 +2732,7 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     MachineState *ms = MACHINE(qdev_get_machine());
     PCMachineState *pcms = PC_MACHINE(ms);
     X86MachineState *x86ms = X86_MACHINE(ms);
-    PCIBus *bus = pcms->pcibus;
+    PCIBus *iommu_bus;
 
     if (s->pci_id) {
         PCIDevice *pdev = NULL;
@@ -2695,15 +2748,19 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
             return;
         }
 
+        iommu_bus = pci_get_bus(pdev);
         s->pci = AMD_IOMMU_PCI(pdev);
         dc->vmsd = &vmstate_amdvi_sysbus_migratable;
     } else {
+        iommu_bus = pcms->pcibus;
         s->pci = AMD_IOMMU_PCI(object_new(TYPE_AMD_IOMMU_PCI));
         /* This device should take care of IOMMU PCI properties */
-        if (!qdev_realize(DEVICE(s->pci), &bus->qbus, errp)) {
+        if (!qdev_realize(DEVICE(s->pci), &iommu_bus->qbus, errp)) {
             return;
         }
     }
+
+    s->root_bus = get_root_bus(iommu_bus);
 
     s->iotlb = g_hash_table_new_full(amdvi_iotlb_hash,
                                      amdvi_iotlb_equal, g_free, g_free);
@@ -2733,8 +2790,16 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion_overlap(&s->mr_sys, AMDVI_INT_ADDR_FIRST,
                                         &s->mr_ir, 1);
 
-    /* Pseudo address space under root PCI bus. */
-    x86ms->ioapic_as = amdvi_host_dma_iommu(bus, s, AMDVI_IOAPIC_SB_DEVID);
+    /**
+     * Pseudo address space under root PCI bus.
+     * The linux kernel disables the intremap when it cannot find IOAPIC under
+     * AMD IOMMU IVRS, hence create a ioapic_as with root bus even though AMD
+     * IOMMU is not serving devices attached to root bus.
+     */
+    if (x86_iommu_ir_supported(X86_IOMMU_DEVICE(s))) {
+        x86ms->ioapic_as = amdvi_host_dma_iommu(pcms->pcibus, s,
+                                                AMDVI_IOAPIC_SB_DEVID);
+    }
 
     if (kvm_enabled() && x86ms->apic_id_limit > 255 && !s->xtsup) {
         error_report("AMD IOMMU with x2APIC configuration requires xtsup=on");
@@ -2749,7 +2814,7 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    pci_setup_iommu(bus, &amdvi_iommu_ops, s);
+    pci_setup_iommu(s->root_bus, &amdvi_iommu_ops, s);
     amdvi_init(s);
 }
 

@@ -100,6 +100,10 @@ PCI devices (other than virtio):
   PCI UFS device (``-device ufs``)
 1b36:0014
   PCI RISC-V IOMMU device
+1b36:0015
+  PCIe Upstream Switch Port (``-device pcie-upstream-port``)
+1b36:0016
+  PCIe Downstream Switch Port (``-device pcie-downstream-port``)
 
 All these devices are documented in :doc:`index`.
 

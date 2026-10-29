@@ -22,6 +22,47 @@
 #include "hw/virtio/virtio-dmabuf.h"
 
 
+static void test_remove_vhost_device(void)
+{
+    struct vhost_dev dev = { 0 }, other = { 0 };
+    QemuUUID uuids[2], other_uuid, dmabuf_uuid;
+    int i;
+
+    /* Also allow cleanup before any resources have been registered. */
+    virtio_remove_vhost_device(&dev);
+
+    for (i = 0; i < ARRAY_SIZE(uuids); i++) {
+        qemu_uuid_generate(&uuids[i]);
+        g_assert_true(virtio_add_vhost_device(&uuids[i], &dev));
+    }
+    qemu_uuid_generate(&other_uuid);
+    g_assert_true(virtio_add_vhost_device(&other_uuid, &other));
+    qemu_uuid_generate(&dmabuf_uuid);
+    g_assert_true(virtio_add_dmabuf(&dmabuf_uuid, 3));
+
+    virtio_remove_vhost_device(&dev);
+    for (i = 0; i < ARRAY_SIZE(uuids); i++) {
+        g_assert_null(virtio_lookup_vhost_device(&uuids[i]));
+        g_assert_cmpint(virtio_object_type(&uuids[i]), ==, TYPE_INVALID);
+    }
+
+    /* Repeated cleanup must preserve unrelated resources. */
+    virtio_remove_vhost_device(&dev);
+    g_assert_true(virtio_lookup_vhost_device(&other_uuid) == &other);
+    g_assert_cmpint(virtio_lookup_dmabuf(&dmabuf_uuid), ==, 3);
+
+    /* Removed UUIDs can be exported by another device. */
+    g_assert_true(virtio_add_vhost_device(&uuids[0], &other));
+    virtio_remove_vhost_device(&other);
+    g_assert_null(virtio_lookup_vhost_device(&uuids[0]));
+    g_assert_null(virtio_lookup_vhost_device(&other_uuid));
+    g_assert_true(virtio_remove_resource(&dmabuf_uuid));
+
+    virtio_remove_vhost_device(&dev);
+    virtio_free_resources();
+    virtio_remove_vhost_device(&dev);
+}
+
 static void test_add_remove_resources(void)
 {
     QemuUUID uuid;
@@ -125,6 +166,8 @@ static void test_free_resources(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
+    g_test_add_func("/virtio-dmabuf/remove_vhost_device",
+                    test_remove_vhost_device);
     g_test_add_func("/virtio-dmabuf/add_rm_res", test_add_remove_resources);
     g_test_add_func("/virtio-dmabuf/add_rm_dev", test_add_remove_dev);
     g_test_add_func("/virtio-dmabuf/rm_invalid_res",

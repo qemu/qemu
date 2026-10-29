@@ -9,12 +9,16 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "system/iommufd.h"
 #include "intel_iommu_internal.h"
 #include "intel_iommu_accel.h"
 #include "hw/core/iommu.h"
 #include "hw/pci/pci_bus.h"
 #include "trace.h"
+
+static void vtd_write_fs_faultq(VTDAccelPASIDCacheEntry *vtd_pce,
+                                uint32_t cookie, uint32_t code);
 
 bool vtd_check_hiod_accel(IntelIOMMUState *s, VTDHostIOMMUDevice *vtd_hiod,
                           Error **errp)
@@ -83,13 +87,277 @@ VTDHostIOMMUDevice *vtd_find_hiod_iommufd(VTDAddressSpace *as)
     return NULL;
 }
 
-static bool vtd_create_fs_hwpt(VTDHostIOMMUDevice *vtd_hiod,
-                               VTDPASIDEntry *pe, uint32_t *fs_hwpt_id,
-                               Error **errp)
+static void vtd_prq_handle_pasid_response(VTDAccelPASIDCacheEntry *vtd_pce,
+                                          IOMMUPRIResponse *response)
+{
+    VTDPRQEntry *prqe, *tmp;
+
+    QLIST_FOREACH_SAFE(prqe, &vtd_pce->vtd_prq_list, next, tmp) {
+        if (prqe->grpid != response->prgi) {
+            continue;
+        }
+
+        vtd_write_fs_faultq(vtd_pce, prqe->cookie, response->response_code);
+
+        QLIST_REMOVE(prqe, next);
+        g_free(prqe);
+        break;
+    }
+}
+
+bool vtd_accel_propagate_page_group_response(IntelIOMMUState *s,
+                                             uint16_t rid, uint32_t pasid,
+                                             IOMMUPRIResponse *response)
+{
+    VTDAddressSpace *vtd_as = vtd_get_as_by_sid(s, rid);
+    VTDAccelPASIDCacheEntry *vtd_pce;
+    VTDHostIOMMUDevice *vtd_hiod = vtd_find_hiod_iommufd(vtd_as);
+
+    if (!vtd_hiod) {
+        return false;
+    }
+
+    QLIST_FOREACH(vtd_pce, &vtd_hiod->pasid_cache_list, next) {
+        if (vtd_pce->pasid == pasid) {
+            vtd_prq_handle_pasid_response(vtd_pce, response);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void vtd_propagate_recoverable_faults(VTDAccelPASIDCacheEntry *vtd_pce,
+                                             struct iommu_hwpt_pgfault *fault,
+                                             unsigned cnt)
+{
+    VTDHostIOMMUDevice *vtd_hiod = vtd_pce->vtd_hiod;
+    uint32_t pasid =
+        vtd_pce->pasid == IOMMU_NO_PASID ? PCI_NO_PASID : vtd_pce->pasid;
+
+    for (; cnt--; fault++) {
+        bool last_page = fault->flags & IOMMU_PGFAULT_FLAGS_LAST_PAGE;
+        int ret;
+
+        ret = vtd_pri_request_page(vtd_hiod->bus, vtd_hiod->iommu_state,
+                                   vtd_hiod->devfn, pasid,
+                                   fault->perm & IOMMU_PGFAULT_PERM_PRIV,
+                                   fault->perm & IOMMU_PGFAULT_PERM_EXEC,
+                                   fault->addr, last_page, fault->grpid,
+                                   fault->perm & IOMMU_PGFAULT_PERM_READ,
+                                   fault->perm & IOMMU_PGFAULT_PERM_WRITE);
+        if (!last_page) {
+            continue;
+        }
+
+        if (!ret) {
+            VTDPRQEntry *prqe = g_malloc0(sizeof(*prqe));
+
+            prqe->grpid = fault->grpid;
+            prqe->cookie = fault->cookie;
+            QLIST_INSERT_HEAD(&vtd_pce->vtd_prq_list, prqe, next);
+            continue;
+        }
+
+        /*
+         * vt-d spec 7.4.1:
+         *
+         * Hardware generates page group response with code of success for
+         * PRQ overflow and PRQ full, with code of invalid request for
+         * other error conditions.
+         */
+        if (ret == -ENOSPC) {
+            vtd_write_fs_faultq(vtd_pce, fault->cookie,
+                                IOMMUFD_PAGE_RESP_SUCCESS);
+        } else {
+            vtd_write_fs_faultq(vtd_pce, fault->cookie,
+                                IOMMUFD_PAGE_RESP_INVALID);
+        }
+    }
+}
+
+/* Batch size per read(); remaining faults trigger another callback */
+#define FAULTQ_BUF_SIZE 2048
+
+static void vtd_read_fs_faultq(void *opaque)
+{
+    VTDAccelPASIDCacheEntry *vtd_pce = opaque;
+    struct iommu_hwpt_pgfault faults[FAULTQ_BUF_SIZE];
+    uint32_t id = vtd_pce->fault_id;
+    int fd = vtd_pce->fault_fd;
+    ssize_t bytes, last_bytes;
+
+    bytes = read(fd, faults, sizeof(faults));
+    trace_vtd_read_fs_faultq(id, fd, bytes);
+    if (bytes < 0) {
+        if (errno != EAGAIN && errno != EINTR) {
+            error_report_once("FAULTQ(id %u): read failed (%m)", id);
+        }
+        return;
+    } else if (!bytes) {
+        error_report_once("FAULTQ(id %u): fault group empty unexpectedly", id);
+        return;
+    }
+
+    last_bytes = bytes % sizeof(faults[0]);
+    if (last_bytes) {
+        error_report_once("FAULTQ(id %u): discard partial fault data: %zd/%zu",
+                          id, last_bytes, sizeof(faults[0]));
+    }
+
+    vtd_propagate_recoverable_faults(vtd_pce, faults,
+                                     bytes / sizeof(faults[0]));
+}
+
+static void vtd_write_fs_faultq(VTDAccelPASIDCacheEntry *vtd_pce,
+                                uint32_t cookie, uint32_t code)
+{
+    struct iommu_hwpt_page_response resp = {.cookie = cookie, .code = code};
+    uint32_t id = vtd_pce->fault_id;
+    int fd = vtd_pce->fault_fd;
+    ssize_t bytes;
+
+    bytes = write(fd, &resp, sizeof(resp));
+    trace_vtd_write_fs_faultq(id, fd, cookie, code, bytes);
+    if (bytes < 0) {
+        error_report_once("FAULTQ(id %u): write failed "
+                          "[cookie 0x%x code 0x%x] (%m)", id, cookie, code);
+    }
+}
+
+static void vtd_destroy_fs_faultq(VTDHostIOMMUDevice *vtd_hiod,
+                                  uint32_t fault_id, int fault_fd)
+{
+    HostIOMMUDeviceIOMMUFD *hiodi = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
+
+    if (fault_fd < 0) {
+        return;
+    }
+
+    close(fault_fd);
+    iommufd_backend_free_id(hiodi->iommufd, fault_id);
+}
+
+static bool vtd_create_fs_faultq(VTDHostIOMMUDevice *vtd_hiod,
+                                 uint32_t *fault_id_p, int *fault_fd_p,
+                                 Error **errp)
+{
+    HostIOMMUDeviceIOMMUFD *hiodi = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
+    uint32_t fault_id, fault_fd;
+    int flags;
+
+    if (!iommufd_backend_alloc_faultq(hiodi->iommufd, &fault_id, &fault_fd,
+                                      errp)) {
+        return false;
+    }
+
+    flags = fcntl(fault_fd, F_GETFL);
+    if (flags < 0) {
+        error_setg_errno(errp, errno, "Failed to get flags for FAULTQ fd");
+        goto free_faultq;
+    }
+
+    if (fcntl(fault_fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+        error_setg_errno(errp, errno, "Failed to set O_NONBLOCK on FAULTQ fd");
+        goto free_faultq;
+    }
+
+    *fault_id_p = fault_id;
+    *fault_fd_p = fault_fd;
+    return true;
+
+free_faultq:
+    vtd_destroy_fs_faultq(vtd_hiod, fault_id, fault_fd);
+    return false;
+}
+
+typedef struct IOMMUFaultQueue {
+    IOMMUFDBackend *iommufd;
+    uint32_t id;
+    int fd;
+    QLIST_HEAD(, VTDPRQEntry) vtd_prq_list;
+} IOMMUFaultQueue;
+
+static void faultq_teardown_bh(void *opaque)
+{
+    IOMMUFaultQueue *fq = opaque;
+    VTDPRQEntry *prqe, *next;
+
+    QLIST_FOREACH_SAFE(prqe, &fq->vtd_prq_list, next, next) {
+        QLIST_REMOVE(prqe, next);
+        g_free(prqe);
+    }
+
+    qemu_set_fd_handler(fq->fd, NULL, NULL, NULL);
+    close(fq->fd);
+    iommufd_backend_free_id(fq->iommufd, fq->id);
+    iommufd_backend_disconnect(fq->iommufd);
+
+    g_free(fq);
+}
+
+static void vtd_destroy_old_fs_faultq(VTDAccelPASIDCacheEntry *vtd_pce)
+{
+    HostIOMMUDeviceIOMMUFD *idev =
+        HOST_IOMMU_DEVICE_IOMMUFD(vtd_pce->vtd_hiod->hiod);
+    IOMMUFaultQueue *fq;
+
+    if (vtd_pce->fault_fd < 0) {
+        return;
+    }
+
+    fq = g_malloc(sizeof(*fq));
+    fq->iommufd = idev->iommufd;
+    fq->fd = vtd_pce->fault_fd;
+    fq->id = vtd_pce->fault_id;
+    vtd_pce->fault_id = 0;
+    vtd_pce->fault_fd = -1;
+    fq->vtd_prq_list.lh_first = vtd_pce->vtd_prq_list.lh_first;
+    QLIST_INIT(&vtd_pce->vtd_prq_list);
+
+    /*
+     * During a VFIO device hot-unplug, if this is the last device connected
+     * to the IOMMUFDBackend, the backend user count (iommufd->users) will
+     * drop to zero, triggering iommufd_backend_disconnect() which closes
+     * the backend's opened container FD.
+     *
+     * Since the teardown of this fault queue (faultq_teardown_bh) is
+     * scheduled asynchronously as a bottom half, we must temporarily
+     * increment the connection user count of the iommufd backend here.
+     * This guarantees the backend connection remains open and its opened
+     * FD remains active until the async BH completes.
+     *
+     * Incrementing the user count is guaranteed to succeed here because the
+     * VFIO device is still registered as an active user of the backend at
+     * this point in the teardown sequence.
+     */
+    iommufd_backend_connect(fq->iommufd, &error_abort);
+
+    aio_bh_schedule_oneshot(iohandler_get_aio_context(),
+                            faultq_teardown_bh, fq);
+}
+
+static void vtd_setup_fs_faultq(VTDAccelPASIDCacheEntry *vtd_pce,
+                                uint32_t fault_id, int fault_fd)
+{
+    if (fault_fd < 0) {
+        return;
+    }
+
+    vtd_pce->fault_id = fault_id;
+    vtd_pce->fault_fd = fault_fd;
+    qemu_set_fd_handler(fault_fd, vtd_read_fs_faultq, NULL, vtd_pce);
+}
+
+static bool vtd_create_fs_hwpt(VTDHostIOMMUDevice *vtd_hiod, VTDPASIDEntry *pe,
+                               bool has_fault_id, uint32_t fault_id,
+                               uint32_t *fs_hwpt_id, Error **errp)
 {
     HostIOMMUDeviceIOMMUFD *hiodi = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
     struct iommu_hwpt_vtd_s1 vtd = {};
     uint32_t flags = vtd_hiod->iommu_state->pasid ? IOMMU_HWPT_ALLOC_PASID : 0;
+
+    flags |= has_fault_id ? IOMMU_HWPT_FAULT_ID_VALID : 0;
 
     vtd.flags = (VTD_SM_PASID_ENTRY_SRE(pe) ? IOMMU_VTD_S1_SRE : 0) |
                 (VTD_SM_PASID_ENTRY_WPE(pe) ? IOMMU_VTD_S1_WPE : 0) |
@@ -100,7 +368,7 @@ static bool vtd_create_fs_hwpt(VTDHostIOMMUDevice *vtd_hiod,
     return iommufd_backend_alloc_hwpt(hiodi->iommufd, hiodi->devid,
                                       hiodi->hwpt_id, flags,
                                       IOMMU_HWPT_DATA_VTD_S1, sizeof(vtd), &vtd,
-                                      fs_hwpt_id, errp);
+                                      fault_id, fs_hwpt_id, errp);
 }
 
 static void vtd_destroy_old_fs_hwpt(VTDAccelPASIDCacheEntry *vtd_pce)
@@ -121,7 +389,8 @@ static bool vtd_device_attach_iommufd(VTDAccelPASIDCacheEntry *vtd_pce,
     VTDHostIOMMUDevice *vtd_hiod = vtd_pce->vtd_hiod;
     HostIOMMUDeviceIOMMUFD *hiodi = HOST_IOMMU_DEVICE_IOMMUFD(vtd_hiod->hiod);
     VTDPASIDEntry *pe = &vtd_pce->pasid_entry;
-    uint32_t hwpt_id = hiodi->hwpt_id, pasid = vtd_pce->pasid;
+    uint32_t hwpt_id = hiodi->hwpt_id, pasid = vtd_pce->pasid, fault_id = 0;
+    int fault_fd = -1;
     bool ret;
 
     /*
@@ -136,7 +405,29 @@ static bool vtd_device_attach_iommufd(VTDAccelPASIDCacheEntry *vtd_pce,
     }
 
     if (vtd_pe_pgtt_is_fst(pe)) {
-        if (!vtd_create_fs_hwpt(vtd_hiod, pe, &hwpt_id, errp)) {
+        IntelIOMMUState *s = vtd_hiod->iommu_state;
+        bool is_pre = false;
+
+        if (s->svm) {
+            uint8_t bus_n = pci_bus_num(vtd_hiod->bus);
+            VTDContextEntry ce;
+
+            if (vtd_dev_to_context_entry(s, bus_n, vtd_hiod->devfn, &ce)) {
+                error_setg(errp, "Failed to fetch context entry");
+                return false;
+            }
+
+            is_pre = !!VTD_CE_GET_PRE(&ce);
+
+            if (is_pre &&
+                !vtd_create_fs_faultq(vtd_hiod, &fault_id, &fault_fd, errp)) {
+                return false;
+            }
+        }
+
+        if (!vtd_create_fs_hwpt(vtd_hiod, pe, is_pre, fault_id, &hwpt_id,
+                                errp)) {
+            vtd_destroy_fs_faultq(vtd_hiod, fault_id, fault_fd);
             return false;
         }
     }
@@ -146,11 +437,14 @@ static bool vtd_device_attach_iommufd(VTDAccelPASIDCacheEntry *vtd_pce,
     if (ret) {
         /* Destroy old fs_hwpt if it's a replacement */
         vtd_destroy_old_fs_hwpt(vtd_pce);
+        vtd_destroy_old_fs_faultq(vtd_pce);
         if (vtd_pe_pgtt_is_fst(pe)) {
             vtd_pce->fs_hwpt_id = hwpt_id;
+            vtd_setup_fs_faultq(vtd_pce, fault_id, fault_fd);
         }
     } else if (vtd_pe_pgtt_is_fst(pe)) {
         iommufd_backend_free_id(hiodi->iommufd, hwpt_id);
+        vtd_destroy_fs_faultq(vtd_hiod, fault_id, fault_fd);
     }
 
     return ret;
@@ -183,6 +477,7 @@ static bool vtd_device_detach_iommufd(VTDAccelPASIDCacheEntry *vtd_pce,
 
     if (ret) {
         vtd_destroy_old_fs_hwpt(vtd_pce);
+        vtd_destroy_old_fs_faultq(vtd_pce);
     }
 
     return ret;
@@ -282,6 +577,8 @@ static void vtd_accel_fill_pc(VTDHostIOMMUDevice *vtd_hiod, uint32_t pasid,
     vtd_pce->vtd_hiod = vtd_hiod;
     vtd_pce->pasid = pasid;
     vtd_pce->pasid_entry = *pe;
+    vtd_pce->fault_fd = -1;
+    QLIST_INIT(&vtd_pce->vtd_prq_list);
     QLIST_INSERT_HEAD(&vtd_hiod->pasid_cache_list, vtd_pce, next);
 
     if (!vtd_device_attach_iommufd(vtd_pce, &local_err)) {

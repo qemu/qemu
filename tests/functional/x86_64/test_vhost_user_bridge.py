@@ -76,12 +76,6 @@ class VhostUserBridge(LinuxKernelTest):
     def assemble_vubr_args(self, vubr_path, ud_socket_path, lport, rport):
         vubr_args = []
 
-        if (stdbuf_path := which("stdbuf")) is None:
-            self.log.info("Could not find stdbuf: vhost-user-bridge "
-                          "log lines may appear out of order")
-        else:
-            vubr_args += [stdbuf_path, "-o0", "-e0"]
-
         vubr_args += [vubr_path, "-u", f"{ud_socket_path}",
                       "-l", f"127.0.0.1:{lport}", "-r", f"127.0.0.1:{rport}"]
 

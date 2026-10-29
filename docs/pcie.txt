@@ -85,7 +85,7 @@ number of PCI Express Root Ports per PCI Express Root Bus is 256.
 
 Prefer grouping PCI Express Root Ports into multi-function devices
 to keep a simple flat hierarchy that is enough for most scenarios.
-Only use PCI Express Switches (x3130-upstream, xio3130-downstream)
+Only use PCI Express Switches (pcie-upstream-port, pcie-downstream-port)
 if there is no more room for PCI Express Root Ports.
 Please see section 4. for further justifications.
 
@@ -120,8 +120,8 @@ Plug only PCI Express devices into PCI Express Ports.
       -device pcie-root-port,id=root_port3,chassis=x2,addr=z.2[,slot=y2][,bus=pcie.0] \
 2.2.3 Plugging a PCI Express device into a Switch:
       -device pcie-root-port,id=root_port1,chassis=x,slot=y[,bus=pcie.0][,addr=z]  \
-      -device x3130-upstream,id=upstream_port1,bus=root_port1[,addr=x]          \
-      -device xio3130-downstream,id=downstream_port1,bus=upstream_port1,chassis=x1,slot=y1[,addr=z1]] \
+      -device pcie-upstream-port,id=upstream_port1,bus=root_port1[,addr=x]          \
+      -device pcie-downstream-port,id=downstream_port1,bus=upstream_port1,chassis=x1,slot=y1[,addr=z1]] \
       -device <dev>,bus=downstream_port1
 
 Notes:

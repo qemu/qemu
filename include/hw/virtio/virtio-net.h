@@ -52,6 +52,7 @@ typedef struct virtio_net_conf
     uint16_t rx_queue_size;
     uint16_t tx_queue_size;
     uint16_t mtu;
+    bool mtu_from_tap;
     int32_t speed;
     char *duplex_str;
     uint8_t duplex;

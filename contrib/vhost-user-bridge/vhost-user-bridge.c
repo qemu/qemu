@@ -41,7 +41,7 @@
 #define DPRINT(...) \
     do { \
         if (VHOST_USER_BRIDGE_DEBUG) { \
-            printf(__VA_ARGS__); \
+            fprintf(stderr, __VA_ARGS__); \
         } \
     } while (0)
 

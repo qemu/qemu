@@ -38,6 +38,12 @@ conventions <backend_conventions>`.
 The *front-end* and *back-end* can be either a client (i.e. connecting) or
 server (listening) in the socket communication.
 
+The protocol is developed and discussed on the `vhost-user mailing list
+<mailto:vhost-user@lists.linux.dev>`_, archived at
+https://lore.kernel.org/vhost-user/. Until October 2026, when this list
+was created, discussions took place on the qemu-devel mailing list,
+archived at https://lore.kernel.org/qemu-devel/.
+
 Support for platforms other than Linux
 --------------------------------------
 
@@ -248,7 +254,7 @@ Multiple Memory regions description
 
 :padding: 32-bit
 
-:regions: regions field contains 8 regions of type :ref:`Memory region description <memory_region_description>`.
+:regions: regions field contains up to 8 regions of type :ref:`Memory region description <memory_region_description>`.
 
 Log description
 ^^^^^^^^^^^^^^^

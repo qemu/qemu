@@ -2636,6 +2636,12 @@ static int sanitize_range(CXLType3Dev *ct3d, uint64_t dpa_addr, size_t length,
     return address_space_set(as, dpa_addr, fill_value, length, mem_attrs);
 }
 
+static void cxl_discard_media_op_sanitize(CXLType3Dev *ct3d)
+{
+    g_free(ct3d->media_op_sanitize);
+    ct3d->media_op_sanitize = NULL;
+}
+
 /* Perform the actual device zeroing */
 static void __do_sanitize(CXLType3Dev *ct3d)
 {
@@ -2653,8 +2659,7 @@ static void __do_sanitize(CXLType3Dev *ct3d)
         }
     }
 exit:
-    g_free(ct3d->media_op_sanitize);
-    ct3d->media_op_sanitize = NULL;
+    cxl_discard_media_op_sanitize(ct3d);
     return;
 }
 
@@ -4841,6 +4846,19 @@ void cxl_initialize_mailbox_t3(CXLCCI *cci, DeviceState *d, size_t payload_max)
     /* No separation for PCI MB as protocol handled in PCI device */
     cci->intf = d;
     cxl_init_cci(cci, payload_max);
+}
+
+void cxl_destroy_mailbox_t3(CXLType3Dev *ct3d)
+{
+    if (ct3d->cci.initialized) {
+        cxl_destroy_cci(&ct3d->cci);
+    }
+    /*
+     * An in-flight Media Operations sanitize is only advanced by this CCI's
+     * background timer; with the CCI gone the operation can never complete,
+     * so its state would otherwise be leaked (CXL r4.0 Section 8.2.9.4).
+     */
+    cxl_discard_media_op_sanitize(ct3d);
 }
 
 static const struct cxl_cmd cxl_cmd_set_t3_ld[256][256] = {

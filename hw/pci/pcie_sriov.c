@@ -229,7 +229,7 @@ void pcie_sriov_pf_init_vf_bar(PCIDevice *dev, int region_num,
 
     assert(sriov_cap > 0);
     assert(region_num >= 0);
-    assert(region_num < PCI_NUM_REGIONS);
+    assert(region_num < PCI_SRIOV_NUM_BARS);
     assert(region_num != PCI_ROM_SLOT);
 
     wmask = ~(size - 1);
@@ -308,7 +308,7 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
             return -1;
         }
 
-        for (size_t j = 0; j < PCI_NUM_REGIONS; j++) {
+        for (size_t j = 0; j < PCI_SRIOV_NUM_BARS; j++) {
             if (vfs[i]->io_regions[j].size != vfs[0]->io_regions[j].size ||
                 vfs[i]->io_regions[j].type != vfs[0]->io_regions[j].type) {
                 error_setg(errp, "inconsistent SR-IOV BARs");
@@ -344,7 +344,7 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
     dev->exp.sriov_pf.vf = vfs;
     dev->exp.sriov_pf.vf_user_created = true;
 
-    for (i = 0; i < PCI_NUM_REGIONS; i++) {
+    for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
         PCIIORegion *region = &vfs[0]->io_regions[i];
 
         if (region->size) {
@@ -357,12 +357,6 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
 
 bool pcie_sriov_register_device(PCIDevice *dev, Error **errp)
 {
-    if (!dev->exp.sriov_pf.vf && dev->qdev.id &&
-        pfs && g_hash_table_contains(pfs, dev->qdev.id)) {
-        error_setg(errp, "attaching user-created SR-IOV VF unsupported");
-        return false;
-    }
-
     if (dev->sriov_pf) {
         PCIDevice *pci_pf;
         GPtrArray *pf;
@@ -463,8 +457,8 @@ void pcie_sriov_pf_reset(PCIDevice *dev)
      */
     pci_set_word(dev->config + sriov_cap + PCI_SRIOV_SYS_PGSIZE, 0x1);
 
-    for (uint16_t i = 0; i < PCI_NUM_REGIONS; i++) {
-        pci_set_quad(dev->config + sriov_cap + PCI_SRIOV_BAR + i * 4,
+    for (uint16_t i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
+        pci_set_long(dev->config + sriov_cap + PCI_SRIOV_BAR + i * 4,
                      dev->exp.sriov_pf.vf_bar_type[i]);
     }
 }

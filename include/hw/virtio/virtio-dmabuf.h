@@ -66,6 +66,14 @@ bool virtio_add_vhost_device(QemuUUID *uuid, struct vhost_dev *dev);
 bool virtio_remove_resource(const QemuUUID *uuid);
 
 /**
+ * virtio_remove_vhost_device() - Remove a vhost device's exported resources
+ * @dev: the exporter whose entries are to be removed
+ *
+ * The caller must remove the entries before cleaning up the device.
+ */
+void virtio_remove_vhost_device(struct vhost_dev *dev);
+
+/**
  * virtio_lookup_dmabuf() - Looks for a dma-buf resource in the lookup table
  * @uuid: resource's UUID
  *

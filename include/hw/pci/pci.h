@@ -121,6 +121,8 @@ extern bool pci_available;
 #define PCI_DEVICE_ID_REDHAT_ACPI_ERST   0x0012
 #define PCI_DEVICE_ID_REDHAT_UFS         0x0013
 #define PCI_DEVICE_ID_REDHAT_RISCV_IOMMU 0x0014
+#define PCI_DEVICE_ID_REDHAT_PCIE_USP    0x0015
+#define PCI_DEVICE_ID_REDHAT_PCIE_DSP    0x0016
 #define PCI_DEVICE_ID_REDHAT_QXL         0x0100
 
 #define FMT_PCIBUS                      PRIx64
@@ -698,6 +700,18 @@ typedef struct PCIIOMMUOps {
      * Returns: the guest physical address of the MSI doorbell.
      */
     uint64_t (*get_msi_direct_gpa)(PCIBus *bus, void *opaque, int devfn);
+
+    /**
+     * @get_x86_iommu: get parent x86-iommu for given hardware (AMD/Intel)
+     *
+     * Callback is required if IOMMU defines x86->int_remap()
+     *
+     * @opaque: the data passed to pci_setup_iommu()
+     *
+     * @x86_iommu: A pointer to store the x86-iommu object
+     */
+    int (*get_x86_iommu)(void *opaque, void **x86_iommu);
+
 } PCIIOMMUOps;
 
 bool pci_device_get_iommu_bus_devfn(PCIDevice *dev, PCIBus **piommu_bus,
