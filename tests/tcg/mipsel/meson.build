@@ -63,3 +63,32 @@ if 'qemu-mipsel' in emulators
     }
   }
 endif
+
+tests = []
+
+tests_mips32r6 = [
+  'test_mips32r6_logic.c',
+]
+
+foreach src: tests_mips32r6
+  tests += {
+    src: {
+      'cflags': ['-mabi=32', '-march=mips32r6'],
+      'qemu_args': ['-cpu', 'mips32r6-generic'],
+      'protocol': 'tap',
+    }
+  }
+endforeach
+
+if 'qemu-mipsel' in emulators
+  tcg_tests += {
+    'mips32r6el-linux-user': {
+      'cc': 'mipsisa32r6el-linux-gnu-gcc',
+      'cc_dockerfile': 'debian-all-test-cross',
+      'folder': 'mipsel',
+      'gdb_arch': 'mipsel',
+      'qemu': emulators['qemu-mipsel'],
+      'tests': tests,
+    }
+  }
+endif
