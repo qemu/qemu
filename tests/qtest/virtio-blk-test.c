@@ -858,6 +858,25 @@ static void get_id_serial_short_20_characters(void *obj, void *data,
     qvirtqueue_cleanup(blk_if->vdev->bus, vq, t_alloc);
 }
 
+static void get_id_serial_short_trunc(void *obj, void *data,
+                                      QGuestAllocator *t_alloc)
+{
+    QVirtioBlk *blk_if = obj;
+    QVirtioDevice *dev = blk_if->vdev;
+    QVirtQueue *vq;
+    uint8_t status;
+    /* Everything after the 20 character maximum is untouched, no '\0' */
+    const char expected[25] = "01234567890123456789\xa5\xa5\xa5\xa5\xa5";
+    char buf[25];
+
+    vq = get_id_setup(dev, t_alloc);
+    status = get_id_request(dev, vq, buf, 25, 0xa5, t_alloc);
+    g_assert_cmpint(status, ==, 0);
+    g_assert_cmpmem(buf, 25, expected, sizeof(expected));
+
+    qvirtqueue_cleanup(blk_if->vdev->bus, vq, t_alloc);
+}
+
 static void *virtio_blk_test_setup(GString *cmd_line, void *arg)
 {
     char *tmp_path = drive_create();
@@ -898,6 +917,10 @@ static void register_virtio_blk_test(void)
     opts.edge.extra_device_opts = "serial=01234567890123456789";
     qos_add_test("get_id/serial_short_20_characters", "virtio-blk",
                  get_id_serial_short_20_characters, &opts);
+
+    opts.edge.extra_device_opts = "serial=012345678901234567890123456789";
+    qos_add_test("get_id/serial_short_trunc", "virtio-blk",
+                 get_id_serial_short_trunc, &opts);
 }
 
 libqos_init(register_virtio_blk_test);
