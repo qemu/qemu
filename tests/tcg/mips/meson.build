@@ -3,6 +3,7 @@ tests = []
 # MSA tests shared by the mipsel and mips64 targets
 tests_mips_msa_groups = [
   '../mips/test_msa_bit_count.c',
+  '../mips/test_msa_bit_move.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -152,17 +153,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/pack/test_msa_pckod_w.c',
   '../mips/user/ase/msa/pack/test_msa_vshf_h.c',
   '../mips/user/ase/msa/pack/test_msa_pckod_d.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsr_w.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsr_b.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsr_d.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsr_h.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsl_h.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsl_w.c',
-  '../mips/user/ase/msa/bit-move/test_msa_bmnz_v.c',
-  '../mips/user/ase/msa/bit-move/test_msa_bsel_v.c',
-  '../mips/user/ase/msa/bit-move/test_msa_bmz_v.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsl_d.c',
-  '../mips/user/ase/msa/bit-move/test_msa_binsl_b.c',
   '../mips/user/ase/msa/shift/test_msa_sra_d.c',
   '../mips/user/ase/msa/shift/test_msa_srl_b.c',
   '../mips/user/ase/msa/shift/test_msa_srl_d.c',
