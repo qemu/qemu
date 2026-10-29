@@ -321,6 +321,63 @@ HLX_INLINE_TAGS = {
     "LX_assign_w":   {"op": "mov",          "vece": "MO_64",
                       "size": "2 * sizeof(HLXVector)"},
     "LX_combine_w":  {"op": "combine_pair", "vece": "MO_64"},
+    "LX_add_h_sat":  {"op": "gvec3_fn", "fn": "ssadd",
+                      "vece": "MO_16"},
+    "LX_add_uh_sat": {"op": "gvec3_fn", "fn": "usadd",
+                      "vece": "MO_16"},
+    "LX_sub_h_sat":  {"op": "gvec3_fn", "fn": "sssub",
+                      "vece": "MO_16"},
+    "LX_sub_uh_sat": {"op": "gvec3_fn", "fn": "ussub",
+                      "vece": "MO_16"},
+    # Word forms use helpers because their halfwords are split.
+    "LX_add_hp_sat": {"op": "gvec3_fn", "fn": "ssadd",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_add_uhp_sat":{"op": "gvec3_fn", "fn": "usadd",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_sub_hp_sat": {"op": "gvec3_fn", "fn": "sssub",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_sub_uhp_sat":{"op": "gvec3_fn", "fn": "ussub",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_and":        {"op": "gvec3_fn",     "fn": "and",
+                      "vece": "MO_64"},
+    "LX_or":         {"op": "gvec3_fn",     "fn": "or",
+                      "vece": "MO_64"},
+    "LX_xor":        {"op": "gvec3_fn",     "fn": "xor",
+                      "vece": "MO_64"},
+    "LX_andn":       {"op": "gvec3_fn",     "fn": "andc",
+                      "vece": "MO_64"},
+    "LX_orn":        {"op": "gvec3_fn",     "fn": "orc",
+                      "vece": "MO_64"},
+    "LX_and_w":      {"op": "gvec3_fn",     "fn": "and",
+                      "vece": "MO_64", "size": "2 * sizeof(HLXVector)"},
+    "LX_or_w":       {"op": "gvec3_fn",     "fn": "or",
+                      "vece": "MO_64", "size": "2 * sizeof(HLXVector)"},
+    "LX_xor_w":      {"op": "gvec3_fn",     "fn": "xor",
+                      "vece": "MO_64", "size": "2 * sizeof(HLXVector)"},
+    "LX_andn_w":     {"op": "gvec3_fn",     "fn": "andc",
+                      "vece": "MO_64", "size": "2 * sizeof(HLXVector)"},
+    "LX_orn_w":      {"op": "gvec3_fn",     "fn": "orc",
+                      "vece": "MO_64", "size": "2 * sizeof(HLXVector)"},
+    "LX_min_h":      {"op": "gvec3_fn", "fn": "smin",
+                      "vece": "MO_16"},
+    "LX_max_h":      {"op": "gvec3_fn", "fn": "smax",
+                      "vece": "MO_16"},
+    "LX_min_uh":     {"op": "gvec3_fn", "fn": "umin",
+                      "vece": "MO_16"},
+    "LX_max_uh":     {"op": "gvec3_fn", "fn": "umax",
+                      "vece": "MO_16"},
+    "LX_min_hp":     {"op": "gvec3_fn", "fn": "smin",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_max_hp":     {"op": "gvec3_fn", "fn": "smax",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_min_uhp":    {"op": "gvec3_fn", "fn": "umin",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_max_uhp":    {"op": "gvec3_fn", "fn": "umax",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
+    "LX_abs_uh":     {"op": "gvec2_fn", "fn": "abs",
+                      "vece": "MO_16"},
+    "LX_abs_uhp":    {"op": "gvec2_fn", "fn": "abs",
+                      "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
 }
 
 def is_hlx_inline_tag(tag):
@@ -449,27 +506,29 @@ def gen_hlx_inline(f, tag, regs):
                                    {b}_base, {b}_off,
                                    {oprsz}, {maxsz}, &{table});
             """))
-    elif op == "gvec3_arr":
-        # Like gvec3, but table is a GVecGen3[4] indexed by vece.
+    elif op == "gvec3_fn":
         d, a, b = reg(0), reg(1), reg(2)
-        table = desc["table"]
+        fn = desc["fn"]
         if pair_dst:
             f.write(code_fmt(f"""\
-                tcg_gen_gvec_3_var({d}_base, {d}_off,
-                                   {a}_base, {a}_off,
-                                   {b}_base, {b}_off,
-                                   {oprsz}, {maxsz}, &{table}[{vece}]);
-                tcg_gen_gvec_3_var({d}_base, {d}_off + sizeof(HLXVector),
-                                   {a}_base, {a}_off + sizeof(HLXVector),
-                                   {b}_base, {b}_off + sizeof(HLXVector),
-                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+                tcg_gen_gvec_{fn}_var({vece},
+                                      {d}_base, {d}_off,
+                                      {a}_base, {a}_off,
+                                      {b}_base, {b}_off,
+                                      {oprsz}, {maxsz});
+                tcg_gen_gvec_{fn}_var({vece},
+                                      {d}_base, {d}_off + sizeof(HLXVector),
+                                      {a}_base, {a}_off + sizeof(HLXVector),
+                                      {b}_base, {b}_off + sizeof(HLXVector),
+                                      {oprsz}, {maxsz});
             """))
         else:
             f.write(code_fmt(f"""\
-                tcg_gen_gvec_3_var({d}_base, {d}_off,
-                                   {a}_base, {a}_off,
-                                   {b}_base, {b}_off,
-                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+                tcg_gen_gvec_{fn}_var({vece},
+                                      {d}_base, {d}_off,
+                                      {a}_base, {a}_off,
+                                      {b}_base, {b}_off,
+                                      {oprsz}, {maxsz});
             """))
     elif op == "combine_pair":
         dd, u, v = reg(0), reg(1), reg(2)
@@ -486,7 +545,7 @@ def gen_hlx_inline(f, tag, regs):
                                  {single}, {single});
         """))
     elif op == "gvec2":
-        # Two-operand op: dest and one source.  table is a const GVecGen2.
+        # Two-operand op: dest and one source. table is a const GVecGen2.
         d, a = reg(0), reg(1)
         table = desc["table"]
         if pair_dst:
@@ -504,46 +563,50 @@ def gen_hlx_inline(f, tag, regs):
                                    {a}_base, {a}_off,
                                    {oprsz}, {maxsz}, &{table});
             """))
-    elif op == "gvec2_arr":
-        # Like gvec2, but table is a GVecGen2[4] indexed by vece.
+    elif op == "gvec2_fn":
         d, a = reg(0), reg(1)
-        table = desc["table"]
+        fn = desc["fn"]
         if pair_dst:
             f.write(code_fmt(f"""\
-                tcg_gen_gvec_2_var({d}_base, {d}_off,
-                                   {a}_base, {a}_off,
-                                   {oprsz}, {maxsz}, &{table}[{vece}]);
-                tcg_gen_gvec_2_var({d}_base, {d}_off + sizeof(HLXVector),
-                                   {a}_base, {a}_off + sizeof(HLXVector),
-                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+                tcg_gen_gvec_{fn}_var({vece},
+                                      {d}_base, {d}_off,
+                                      {a}_base, {a}_off,
+                                      {oprsz}, {maxsz});
+                tcg_gen_gvec_{fn}_var({vece},
+                                      {d}_base, {d}_off + sizeof(HLXVector),
+                                      {a}_base, {a}_off + sizeof(HLXVector),
+                                      {oprsz}, {maxsz});
             """))
         else:
             f.write(code_fmt(f"""\
-                tcg_gen_gvec_2_var({d}_base, {d}_off,
-                                   {a}_base, {a}_off,
-                                   {oprsz}, {maxsz}, &{table}[{vece}]);
+                tcg_gen_gvec_{fn}_var({vece},
+                                      {d}_base, {d}_off,
+                                      {a}_base, {a}_off,
+                                      {oprsz}, {maxsz});
             """))
-    elif op == "cmp_gt":
-        # a > b is done as b < a, with the less-than descriptor in "table"
+    elif op == "cmp":
         d, a, b = reg(0), reg(1), reg(2)
-        table = desc["table"]
+        cond = desc["cond"]
         if pair_dst:
             f.write(code_fmt(f"""\
-                tcg_gen_gvec_3_var({d}_base, {d}_off,
-                                   {b}_base, {b}_off,
-                                   {a}_base, {a}_off,
-                                   {oprsz}, {maxsz}, &{table});
-                tcg_gen_gvec_3_var({d}_base, {d}_off + sizeof(HLXVector),
-                                   {b}_base, {b}_off + sizeof(HLXVector),
-                                   {a}_base, {a}_off + sizeof(HLXVector),
-                                   {oprsz}, {maxsz}, &{table});
+                tcg_gen_gvec_cmp_var({cond}, {vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {b}_base, {b}_off,
+                                     {oprsz}, {maxsz});
+                tcg_gen_gvec_cmp_var({cond}, {vece},
+                                     {d}_base, {d}_off + sizeof(HLXVector),
+                                     {a}_base, {a}_off + sizeof(HLXVector),
+                                     {b}_base, {b}_off + sizeof(HLXVector),
+                                     {oprsz}, {maxsz});
             """))
         else:
             f.write(code_fmt(f"""\
-                tcg_gen_gvec_3_var({d}_base, {d}_off,
-                                   {b}_base, {b}_off,
-                                   {a}_base, {a}_off,
-                                   {oprsz}, {maxsz}, &{table});
+                tcg_gen_gvec_cmp_var({cond}, {vece},
+                                     {d}_base, {d}_off,
+                                     {a}_base, {a}_off,
+                                     {b}_base, {b}_off,
+                                     {oprsz}, {maxsz});
             """))
     elif op == "conv_h_to_w_pair":
         # lo = the source; hi = zeros (zxt) or the source >> 15 (sxt)
