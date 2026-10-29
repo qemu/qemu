@@ -69,6 +69,7 @@ tests = []
 tests_mips32r6 = [
   'test_mips32r6_bitops.c',
   'test_mips32r6_logic.c',
+  'test_mips32r6_multiply.c',
   'test_mips32r6_shift.c',
 ]
 
