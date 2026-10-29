@@ -93,3 +93,53 @@ void HELPER(hlx_commit_reg)(CPUHexagonState *env, uint32_t rnum)
     memcpy(&env->hlx_ctx->LRegs[rnum], &env->future_LRegs[rnum],
            sizeof(HLXVector));
 }
+
+/* HLX vectors exceed the gvec inline limit. */
+void HELPER(hlx_gvec_ushsat_add16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int32_t r = (int32_t)(*(int16_t *)((char *)a + i))
+                  + (int32_t)(*(int16_t *)((char *)b + i));
+        if (r < 0) {
+            r = 0;
+        } else if (r > 0xFFFF) {
+            r = 0xFFFF;
+        }
+        *(uint16_t *)((char *)d + i) = (uint16_t)r;
+    }
+}
+
+void HELPER(hlx_gvec_ushsat_sub16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int32_t r = (int32_t)(*(int16_t *)((char *)a + i))
+                  - (int32_t)(*(int16_t *)((char *)b + i));
+        if (r < 0) {
+            r = 0;
+        } else if (r > 0xFFFF) {
+            r = 0xFFFF;
+        }
+        *(uint16_t *)((char *)d + i) = (uint16_t)r;
+    }
+}
+
+void HELPER(hlx_gvec_abs_uh_sat16)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t v = *(int16_t *)((char *)a + i);
+        int32_t r = (v < 0) ? -(int32_t)v : (int32_t)v;
+        if (r > INT16_MAX) {
+            r = INT16_MAX;
+        }
+        *(int16_t *)((char *)d + i) = (int16_t)r;
+    }
+}

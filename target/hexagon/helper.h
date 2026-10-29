@@ -37,6 +37,13 @@ DEF_HELPER_5(hlx_store_vec, void, env, tl, ptr, i32, i32)
 DEF_HELPER_1(hlx_commit_store, void, env)
 DEF_HELPER_FLAGS_2(hlx_trace_op, TCG_CALL_NO_RWG, void, env, i32)
 
+/* GVec helpers for signed-to-unsigned MO_16 saturation. */
+DEF_HELPER_FLAGS_4(hlx_gvec_ushsat_add16, TCG_CALL_NO_RWG,
+                   void, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_4(hlx_gvec_ushsat_sub16, TCG_CALL_NO_RWG,
+                   void, ptr, ptr, ptr, i32)
+DEF_HELPER_FLAGS_3(hlx_gvec_abs_uh_sat16, TCG_CALL_NO_RWG, void, ptr, ptr, i32)
+
 /* Floating point */
 DEF_HELPER_3(conv_sf2df, f64, env, f32, i32)
 DEF_HELPER_3(conv_df2sf, f32, env, f64, i32)

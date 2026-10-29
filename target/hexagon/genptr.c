@@ -36,7 +36,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "gen_tcg_sys.h"
 #endif
-
+#include "hlx_gvec_tables.h"
 #include "genptr.h"
 
 static void gen_sabsdiff_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
