@@ -79,15 +79,36 @@
 #define fFRAMECHECK(ADDR, EA) gen_framecheck(ctx, ADDR, EA)
 #endif
 
-#define fVIRTINSN_SPSWAP(IMM, REG)
-#define fVIRTINSN_GETIE(IMM, REG) { REG = 0xdeafbeef; }
-#define fVIRTINSN_SETIE(IMM, REG)
-#define fVIRTINSN_RTE(IMM, REG)
+#define fVIRTINSN_SPSWAP(IMM, REG) \
+    do { \
+        if (GET_FIELD(GSR_UM, env->greg[HEX_GREG_GSR])) { \
+            uint32_t tmp = (REG); \
+            (REG) = env->greg[HEX_GREG_GOSP]; \
+            env->greg[HEX_GREG_GOSP] = tmp; \
+        } \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+#define fVIRTINSN_GETIE(IMM, REG) \
+    do { \
+        (REG) = CCR_FIELD_SET(env, CCR_GIE); \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+#define fVIRTINSN_SETIE(IMM, REG) \
+    do { \
+        uint32_t old_gie = CCR_FIELD_SET(env, CCR_GIE); \
+        uint32_t new_gie = (REG) & 1; \
+        SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, new_gie); \
+        (REG) = old_gie; \
+        env->gpr[HEX_REG_PC] = next_PC; \
+    } while (0)
+#define fVIRTINSN_RTE(IMM, REG) hexagon_vmrte(env)
 #define fGRE_ENABLED() \
     GET_FIELD(CCR_GRE, env->t_sreg[HEX_SREG_CCR])
+/* Virtual instructions execute only in guest mode. */
 #define fTRAP1_VIRTINSN(IMM) \
-    (fGRE_ENABLED() && \
-        (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || ((IMM) == 6)))
+    (get_cpu_mode(env) == HEX_CPU_MODE_GUEST && fGRE_ENABLED() && \
+        (((IMM) == 1) || ((IMM) == 3) || ((IMM) == 4) || \
+         ((IMM) == 6)))
 
 /* Not modeled in qemu */
 

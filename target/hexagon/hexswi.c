@@ -821,6 +821,34 @@ static void guest_event_entry(CPUHexagonState *env, uint32_t cause,
     env->gpr[HEX_REG_PC] = gevb + vec_offset;
 }
 
+void hexagon_vmrte(CPUHexagonState *env)
+{
+    uint32_t gsr = env->greg[HEX_GREG_GSR];
+    uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
+    CPUState *cs = env_cpu(env);
+
+    if (GET_FIELD(GSR_UM, gsr)) {
+        uint32_t sp = env->gpr[HEX_REG_SP];
+
+        env->gpr[HEX_REG_SP] = env->greg[HEX_GREG_GOSP];
+        env->greg[HEX_GREG_GOSP] = sp;
+    }
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS,
+                     GET_FIELD(GSR_SS, gsr));
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM,
+                     !GET_FIELD(GSR_UM, gsr));
+    {
+        BQL_LOCK_GUARD();
+        hexagon_modify_ssr(env, env->t_sreg[HEX_SREG_SSR], old_ssr);
+    }
+    SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE,
+                      GET_FIELD(GSR_IE, gsr));
+    env->cfi_active = GET_FIELD(GSR_CFI, gsr);
+    fSET_FIELD(env->greg[HEX_GREG_GSR], GSR_CFI, 0);
+    env->gpr[HEX_REG_PC] = env->greg[HEX_GREG_GELR] & ~3;
+    cpu_loop_exit(cs);
+}
+
 void hexagon_cpu_do_interrupt(CPUState *cs)
 
 {
