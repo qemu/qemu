@@ -10,6 +10,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_int_add.c',
   '../mips/test_msa_int_average.c',
   '../mips/test_msa_int_compare.c',
+  '../mips/test_msa_int_div_mod.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -35,14 +36,6 @@ if 'qemu-mips' in emulators
 endif
 
 tests_mips_msa = [
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_s_b.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_u_d.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_s_d.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_s_w.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_s_h.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_u_b.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_u_h.c',
-  '../mips/user/ase/msa/int-modulo/test_msa_mod_u_w.c',
   '../mips/user/ase/msa/int-subtract/test_msa_asub_s_w.c',
   '../mips/user/ase/msa/int-subtract/test_msa_hsub_u_d.c',
   '../mips/user/ase/msa/int-subtract/test_msa_hsub_s_w.c',
@@ -89,14 +82,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/int-multiply/test_msa_mulv_h.c',
   '../mips/user/ase/msa/int-multiply/test_msa_mulv_d.c',
   '../mips/user/ase/msa/int-multiply/test_msa_maddv_h.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_s_b.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_u_b.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_s_d.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_s_h.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_s_w.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_u_w.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_u_h.c',
-  '../mips/user/ase/msa/int-divide/test_msa_div_u_d.c',
   '../mips/user/ase/msa/interleave/test_msa_ilvr_b.c',
   '../mips/user/ase/msa/interleave/test_msa_ilvr_d.c',
   '../mips/user/ase/msa/interleave/test_msa_ilvod_b.c',
