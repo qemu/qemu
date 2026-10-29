@@ -28,6 +28,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "../../include/tap.h"
+
 #define PRINT_RESULTS 0
 
 
@@ -41,25 +43,21 @@ static inline int32_t check_results_64(const char *isa_ase_name,
 {
 #if PRINT_RESULTS
     uint32_t ii;
-    printf("\n");
     for (ii = 0; ii < test_count; ii++) {
         uint64_t a;
         memcpy(&a, (b64_result + ii), 8);
         if (ii % 8 != 0) {
-            printf("        0x%016llxULL,\n", a);
+            TAP_INFO("        0x%016llxULL,", a);
         } else {
-            printf("        0x%016llxULL,                    /* %3d  */\n",
-                   a, ii);
+            TAP_INFO("        0x%016llxULL,                    /* %3d  */",
+                     a, ii);
         }
     }
-    printf("\n");
 #endif
     uint32_t i;
     uint32_t pass_count = 0;
     uint32_t fail_count = 0;
 
-    printf("| %-10s \t| %-20s\t| %-16s \t|",
-           isa_ase_name, group_name, instruction_name);
     for (i = 0; i < test_count; i++) {
         if (b64_result[i] == b64_expect[i]) {
             pass_count++;
@@ -68,8 +66,10 @@ static inline int32_t check_results_64(const char *isa_ase_name,
         }
     }
 
-    printf(" PASS: %3d \t| FAIL: %3d \t| elapsed time: %5.2f ms \t|\n",
-           pass_count, fail_count, elapsed_time);
+    TAP_INFO("%-10s \t| %-20s\t| %-16s \t| PASS: %3d \t| FAIL: %3d \t| "
+             "elapsed time: %5.2f ms \t|",
+             isa_ase_name, group_name, instruction_name,
+             pass_count, fail_count, elapsed_time);
 
     if (fail_count > 0) {
         return -1;
@@ -92,10 +92,10 @@ static inline bool check_binary_op_64_with_input(binary_op_64 op, const char *op
             uint64_t expected = expect[i * cols + j];
             uint64_t res = 0;
             op(&input1, &input2, &res);
-            printf("assert(0x%"PRIx64" == %s(0x%"PRIx64", 0x%"PRIx64"));\n",
-                   res, op_str, input1, input2);
+            TAP_INFO("assert(0x%"PRIx64" == %s(0x%"PRIx64", 0x%"PRIx64"));",
+                     res, op_str, input1, input2);
             if (expected != res) {
-                printf("// error: expected 0x%"PRIx64"\n", expected);
+                TAP_INFO("error: expected 0x%"PRIx64, expected);
                 ret = false;
             }
         }
