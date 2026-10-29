@@ -388,6 +388,22 @@ HLX_INLINE_TAGS = {
                          "vece": "MO_16", "size": "2 * sizeof(HLXVector)"},
     "LX_abs_uh_sat":    {"op": "gvec2", "table": "hlx_abs_uh_sat_op",
                          "vece": "MO_16"},
+    "LX_cmp_gt_h":   {"op": "cmp",    "cond": "TCG_COND_GT",
+                      "vece": "MO_16"},
+    "LX_cmp_gt_uh":  {"op": "cmp",    "cond": "TCG_COND_GTU",
+                      "vece": "MO_16"},
+    "LX_cmp_gt_hp":  {"op": "cmp",    "cond": "TCG_COND_GT",
+                      "vece": "MO_16",   "size": "2 * sizeof(HLXVector)"},
+    "LX_cmp_gt_uhp": {"op": "cmp",    "cond": "TCG_COND_GTU",
+                      "vece": "MO_16",   "size": "2 * sizeof(HLXVector)"},
+    "LX_avg_h":         {"op": "gvec3", "table": "hlx_avg_sh_op",
+                         "vece": "MO_16"},
+    "LX_avg_h_rnd":     {"op": "gvec3", "table": "hlx_avg_sh_rnd_op",
+                         "vece": "MO_16"},
+    "LX_avg_uh":        {"op": "gvec3", "table": "hlx_avg_uh_op",
+                         "vece": "MO_16"},
+    "LX_avg_uh_rnd":    {"op": "gvec3", "table": "hlx_avg_uh_rnd_op",
+                         "vece": "MO_16"},
 }
 
 def is_hlx_inline_tag(tag):

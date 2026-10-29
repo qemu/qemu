@@ -111,3 +111,108 @@ const GVecGen2 hlx_abs_uh_sat_op = {
     .fno     = gen_helper_hlx_gvec_abs_uh_sat16,
     .vece    = MO_16,
 };
+
+/* Halfword averages. The shift is arithmetic or logical by signedness. */
+static void hlx_fniv_avg_sh(unsigned vece, TCGv_vec r,
+                             TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec ta = tcg_temp_new_vec_matching(r);
+    TCGv_vec tb = tcg_temp_new_vec_matching(r);
+    tcg_gen_and_vec(vece, ta, a, b);
+    tcg_gen_xor_vec(vece, tb, a, b);
+    tcg_gen_sari_vec(vece, tb, tb, 1);
+    tcg_gen_add_vec(vece, r, ta, tb);
+}
+
+static void hlx_fniv_avg_sh_rnd(unsigned vece, TCGv_vec r,
+                                 TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec ta = tcg_temp_new_vec_matching(r);
+    TCGv_vec tb = tcg_temp_new_vec_matching(r);
+    tcg_gen_or_vec(vece, ta, a, b);
+    tcg_gen_xor_vec(vece, tb, a, b);
+    tcg_gen_sari_vec(vece, tb, tb, 1);
+    tcg_gen_sub_vec(vece, r, ta, tb);
+}
+
+static void hlx_fniv_avg_uh(unsigned vece, TCGv_vec r,
+                             TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec ta = tcg_temp_new_vec_matching(r);
+    TCGv_vec tb = tcg_temp_new_vec_matching(r);
+    tcg_gen_and_vec(vece, ta, a, b);
+    tcg_gen_xor_vec(vece, tb, a, b);
+    tcg_gen_shri_vec(vece, tb, tb, 1);
+    tcg_gen_add_vec(vece, r, ta, tb);
+}
+
+static void hlx_fniv_avg_uh_rnd(unsigned vece, TCGv_vec r,
+                                  TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec ta = tcg_temp_new_vec_matching(r);
+    TCGv_vec tb = tcg_temp_new_vec_matching(r);
+    tcg_gen_or_vec(vece, ta, a, b);
+    tcg_gen_xor_vec(vece, tb, a, b);
+    tcg_gen_shri_vec(vece, tb, tb, 1);
+    tcg_gen_sub_vec(vece, r, ta, tb);
+}
+
+static const TCGOpcode hlx_vecop_avg_sh[] = {
+    INDEX_op_and_vec,
+    INDEX_op_xor_vec,
+    INDEX_op_sari_vec,
+    INDEX_op_add_vec,
+    0
+};
+
+static const TCGOpcode hlx_vecop_avg_sh_rnd[] = {
+    INDEX_op_or_vec,
+    INDEX_op_xor_vec,
+    INDEX_op_sari_vec,
+    INDEX_op_sub_vec,
+    0
+};
+
+static const TCGOpcode hlx_vecop_avg_uh[] = {
+    INDEX_op_and_vec,
+    INDEX_op_xor_vec,
+    INDEX_op_shri_vec,
+    INDEX_op_add_vec,
+    0
+};
+
+static const TCGOpcode hlx_vecop_avg_uh_rnd[] = {
+    INDEX_op_or_vec,
+    INDEX_op_xor_vec,
+    INDEX_op_shri_vec,
+    INDEX_op_sub_vec,
+    0
+};
+
+const GVecGen3 hlx_avg_sh_op = {
+    .fniv    = hlx_fniv_avg_sh,
+    .opt_opc = hlx_vecop_avg_sh,
+    .fno     = gen_helper_hlx_gvec_avg_sh16,
+    .vece    = MO_16,
+};
+
+const GVecGen3 hlx_avg_sh_rnd_op = {
+    .fniv    = hlx_fniv_avg_sh_rnd,
+    .opt_opc = hlx_vecop_avg_sh_rnd,
+    .fno     = gen_helper_hlx_gvec_avg_sh16_rnd,
+    .vece    = MO_16,
+};
+
+const GVecGen3 hlx_avg_uh_op = {
+    .fniv    = hlx_fniv_avg_uh,
+    .opt_opc = hlx_vecop_avg_uh,
+    .fno     = gen_helper_hlx_gvec_avg_uh16,
+    .vece    = MO_16,
+};
+
+const GVecGen3 hlx_avg_uh_rnd_op = {
+    .fniv    = hlx_fniv_avg_uh_rnd,
+    .opt_opc = hlx_vecop_avg_uh_rnd,
+    .fno     = gen_helper_hlx_gvec_avg_uh16_rnd,
+    .vece    = MO_16,
+};
