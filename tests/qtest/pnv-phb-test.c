@@ -25,6 +25,19 @@
 #define SCOM_TO_PCBA(scom, addr) (((scom) >> 3) + (addr))
 
 /*
+ * Indirect XSCOM write:
+ * - Write 'Indirect Address Register' with register-offset to write.
+ * - Write 'Indirect Data Register' with the value.
+ */
+static void pnv_phb_xscom_write(QTestState *qts, const PnvChip *chip,
+        uint64_t scom, uint32_t indirect_addr, uint32_t indirect_data,
+        uint64_t reg, uint64_t val)
+{
+    qtest_writeq(qts, pnv_xscom_addr(chip, (scom >> 3) + indirect_addr), reg);
+    qtest_writeq(qts, pnv_xscom_addr(chip, (scom >> 3) + indirect_data), val);
+}
+
+/*
  * Indirect XSCOM read::
  * - Write 'Indirect Address Register' with register-offset to read.
  * - Read 'Indirect Data Register' to get the value.
@@ -39,6 +52,11 @@ static uint64_t pnv_phb_xscom_read(QTestState *qts, const PnvChip *chip,
                                                               indirect_data)));
 }
 
+#define PHB5_XSCOM_WRITE(a, v) pnv_phb_xscom_write(qts, \
+                                   &pnv_chips[PNV_P10_CHIP_INDEX], PHB5_XSCOM, \
+                                   PHB_SCOM_HV_IND_ADDR, PHB_SCOM_HV_IND_DATA, \
+                                   PPC_BIT(0) | (a), (v))
+
 #define PHB5_XSCOM_READ(a) pnv_phb_xscom_read(qts, \
                                    &pnv_chips[PNV_P10_CHIP_INDEX], PHB5_XSCOM, \
                                    PHB_SCOM_HV_IND_ADDR, PHB_SCOM_HV_IND_DATA, \
@@ -50,6 +68,26 @@ static void phb5_reset_test(QTestState *qts)
     g_assert_cmpuint(PHB5_XSCOM_READ(PHB_PBL_CONTROL), ==, 0xC009000000000000);
 }
 
+/* Check sticky-reset */
+static void phb5_sticky_rst_test(QTestState *qts)
+{
+    uint64_t val;
+
+    /*
+     * Sticky reset test of PHB_PBL_ERR_STATUS.
+     *
+     * Write all 1's to reg PHB_PBL_ERR_INJECT.
+     * Updated value will be copied to reg PHB_PBL_ERR_STATUS.
+     *
+     * Reset PBL core by setting PHB_PCIE_CRESET_PBL in reg PHB_PCIE_CRESET.
+     * Verify the sticky bits are still set.
+     */
+    PHB5_XSCOM_WRITE(PHB_PBL_ERR_INJECT, PPC_BITMASK(0, 63));
+    PHB5_XSCOM_WRITE(PHB_PCIE_CRESET, PHB_PCIE_CRESET_PBL); /*Reset*/
+    val = PHB5_XSCOM_READ(PHB_PBL_ERR_STATUS);
+    g_assert_cmpuint(val, ==, (PPC_BITMASK(0, 9) | PPC_BITMASK(12, 63)));
+}
+
 static void phb5_tests(void)
 {
     QTestState *qts = NULL;
@@ -58,6 +96,9 @@ static void phb5_tests(void)
 
     /* Check reset value of a register */
     phb5_reset_test(qts);
+
+    /* Check sticky reset of a register */
+    phb5_sticky_rst_test(qts);
 
     qtest_quit(qts);
 }

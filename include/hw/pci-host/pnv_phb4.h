@@ -215,5 +215,22 @@ struct PnvPhb4PecClass {
     const uint32_t *num_phbs;
 };
 
+/*
+ * Get the PCI-E capability offset from the root-port
+ */
+uint32_t get_exp_offset(PCIDevice *pdev);
+
+/*
+ * Apply sticky-mask 's' to the reset-value 'v' and write to the address 'a'.
+ * RC-config space values and masks are LE.
+ * Method pnv_phb4_rc_config_read() returns BE, hence convert to LE.
+ * Compute new value in LE domain.
+ * New value computation using sticky-mask is in LE.
+ * Convert the computed value from LE to BE before writing back.
+ */
+#define RC_CONFIG_STICKY_RESET(a, v, s) \
+    (pci_set_word(conf + (a), be16_to_cpu( \
+                     (be16_to_cpu(pci_get_word(conf + (a))) & (s)) | \
+                     ((v) & ~(s)))))
 
 #endif /* PCI_HOST_PNV_PHB4_H */

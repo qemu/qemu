@@ -25,16 +25,6 @@
 #include "trace.h"
 #include "system/reset.h"
 
-/*
- * Get the PCI-E capability offset from the root-port
- */
-static uint32_t get_exp_offset(PCIDevice *pdev)
-{
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(pdev);
-
-    return rpc->exp_offset;
-}
-
 void pnv_phb5_cfg_core_reset(PCIDevice *d)
 {
     uint8_t *conf = d->config;
@@ -81,6 +71,15 @@ void pnv_phb5_cfg_core_reset(PCIDevice *d)
     pci_set_long(conf + P16_ECAP, 0x22410026);
     pci_set_long(conf + P32_ECAP, 0x1002A);
     pci_set_long(conf + P32_CAP,  0x103);
+
+    /* Sticky reset */
+    RC_CONFIG_STICKY_RESET(exp_offset + PCI_EXP_LNKCTL2,
+                                          PCI_EXP_LNKCTL2_TLS_32_0GT, 0xFEFFBF);
+    RC_CONFIG_STICKY_RESET(P16_STAT,          0,    0x1F);
+    RC_CONFIG_STICKY_RESET(P16_LDPM,          0,    0xFFFF);
+    RC_CONFIG_STICKY_RESET(P16_FRDPM,         0,    0xFFFF);
+    RC_CONFIG_STICKY_RESET(P16_SRDPM,         0,    0xFFFF);
+    RC_CONFIG_STICKY_RESET(P32_CTL,           0,    0x3);
 }
 
 static void pnv_phb5_pbl_core_reset(PnvPHB4 *phb)
