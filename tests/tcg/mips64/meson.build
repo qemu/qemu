@@ -32,16 +32,11 @@ tests_mips64r6 = [
   '../mips64/test_mips64r6_crc.c',
   '../mips64/test_mips64r6_logic.c',
   '../mips64/test_mips64r6_multiply.c',
-  '../mips64/test_mips64r6_dsllv.c',
-  '../mips64/test_mips64r6_dsrav.c',
-  '../mips64/test_mips64r6_dsrlv.c',
-  '../mips64/test_mips64r6_sllv.c',
-  '../mips64/test_mips64r6_srav.c',
-  '../mips64/test_mips64r6_srlv.c',
+  '../mips64/test_mips64r6_shift.c',
 ]
 
 foreach src: tests_mips64r6
-  tests += {src: {'cflags': '-march=mips64r6'}}
+  tests += {src: {'cflags': '-march=mips64r6', 'protocol': 'tap'}}
 endforeach
 
 foreach src: tests_mips_msa
