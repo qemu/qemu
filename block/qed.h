@@ -253,7 +253,7 @@ static inline uint64_t qed_offset_into_cluster(BDRVQEDState *s, uint64_t offset)
 static inline uint64_t qed_bytes_to_clusters(BDRVQEDState *s, uint64_t bytes)
 {
     return qed_start_of_cluster(s, bytes + (s->header.cluster_size - 1)) /
-           (s->header.cluster_size - 1);
+           s->header.cluster_size;
 }
 
 static inline unsigned int qed_l1_index(BDRVQEDState *s, uint64_t pos)
