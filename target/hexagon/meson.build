@@ -265,6 +265,7 @@ hexagon_ss.add(files(
     'mmvec/system_ext_mmvec.c',
     'mmvec/hvx_ieee_fp.c',
     'mmvec/hvx_qfloat.c',
+    'hlx/decode_ext_hlx.c',
     'hlx_helper.c',
     'hlx_gvec_tables.c',
 ))
