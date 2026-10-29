@@ -19,11 +19,59 @@
     } \
 }
 
+EXTINSN(LX_lut4,"Ld16.h=lut4(Lu16.uh,Rtt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR64),"Large 4 entry lookup table",
+fHIDE(f64BIT_SCALAR_MASK(RttV)) fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]= fGETHALF(((LuV.uh[i]>>14)&0x3), RttV ); })
+
+EXTINSN(LX_lut4_sh,"Ldd16.w=lut4(Lu16.uh,Rtt32.uh):>>1",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR64),"Large 4 entry lookup table",
+fHIDE(f64BIT_SCALAR_MASK(RttV)) fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fCAST4s(fGETUHALF(((LuV.uh[i]>>14)&0x3), RttV ))<<15; })
+
+EXTINSN(LX_lut4_sh_neg,"Ldd16.w=lut4(Lu16.uh,Rtt32.uh):>>1:neg",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR64),"Large 4 entry lookup table",
+fHIDE(f64BIT_SCALAR_MASK(RttV)) fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = (fCAST4u(fGETUHALF(((LuV.uh[i]>>14)&0x3), RttV )) - (1<<16))<<15; })
+
+EXTINSN(LX_lut4_mask,"Ld16.h=lut4(Lu16.uh,Rtt32.h):mask",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR64),"Large 4 entry lookup table",
+fHIDE(f64BIT_SCALAR_MASK(RttV)) fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = (fGETHALF(((LuV.uh[i]>>14)&0x3), RttV ) & ((LuV.uh[i] & 0x3FFF) == 0 ? 0xFFFF : 0)); })
+
 Q6INSN(LX_mux_h_alt,"if(Lv16.h<0) Lx16.h = Lu16.h",ATTRIBS(A_MAPPING,A_HLX,A_NO_IDEF_PARSER),"Mapping from if(Lv16.h<0) Lx16.h = Lu16.h to Lx16.h=mux(Lx16.h,Lu16.h,Lv16.h)",
 fASM_MAP("if(Lv16.h<0) Lx16.h = Lu16.h","Lx16.h=mux(Lx16.h,Lu16.h,Lv16.h)"))
 
 EXTINSN(LX_mux_h,"Lx16.h=mux(Lx16.h,Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_COMMON_ALU,A_HLX_SLOT23),"Mux select",
 fHIDE(int i;) fLVFOREACH(1024, i) { LxV.h[i] = (LvV.h[i] < 0) ? LuV.h[i] : LxV.h[i]; })
+
+EXTINSN(LX_shra_h_uh,"Lx16.h+=shr(Lu16.uh,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxV.h[i]+=fLSHIFTU(LuV.uh[i],LvV.h[i]); })
+
+EXTINSN(LX_shrar_h_uh,"Lx16.h+=shr(Lu16.uh,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxV.h[i]+=fLSHIFTU(LuV.uh[i],fCAST2_2s(RtV)); })
+
+EXTINSN(LX_shra_h_h,"Lx16.h+=shr(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxV.h[i]+=fLSHIFT(LuV.h[i],LvV.h[i]); })
+
+EXTINSN(LX_shrar_h_h,"Lx16.h+=shr(Lu16.h,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxV.h[i]+=fLSHIFT(LuV.h[i],fCAST2_2s(RtV)); })
+
+EXTINSN(LX_shra_w_uw,"Lxx16.w+=shr(Luu16.uw,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w+=fLSHIFTU(LuuV.l[i].uw,LvV.h[i]); })
+
+EXTINSN(LX_shrar_w_uw,"Lxx16.w+=shr(Luu16.uw,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w+=fLSHIFTU(LuuV.l[i].uw,fCAST2_2s(RtV)); })
+
+EXTINSN(LX_shra_w_w,"Lxx16.w+=shr(Luu16.w,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w+=fLSHIFT(LuuV.l[i].w,LvV.h[i]); })
+
+EXTINSN(LX_shrar_w_w,"Lxx16.w+=shr(Luu16.w,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"",
+fHIDE(int i;) fLVFOREACH(1024, i) { LxxV.l[i].w+=fLSHIFT(LuuV.l[i].w,fCAST2_2s(RtV)); })
+
+EXTINSN(LX_sub_ilog2_h,"Ld16.h=sub(ilog2(Lu16.h),#u4)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR32),"Count leading bits of halfword",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fBIT_WIDTH(16,LuV.h[i] ^ -(LuV.h[i] < 0)) - 1 - uiV; fHIDE(check_ilog2_compliance(LdV.h[i],LuV.h[i], uiV);); })
+
+EXTINSN(LX_sub_ilog2_uh,"Ld16.h=sub(ilog2(Lu16.uh),#u4)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR32),"Count leading bits of unsigned halfword",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fBIT_WIDTH(16,LuV.uh[i]) - 1 - uiV; fHIDE(check_ilog2_compliance(LdV.h[i],LuV.uh[i], uiV);); })
+
+EXTINSN(LX_sub_ilog2_w,"Ld16.h=sub(ilog2(Luu16.w),#u5)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR32),"Count leading bits of word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fBIT_WIDTH(32,LuuV.l[i].w ^ -(LuuV.l[i].w < 0)) - 1 - uiV; fHIDE(check_ilog2_compliance(LdV.h[i],LuuV.l[i].w, uiV);); })
+
+EXTINSN(LX_sub_ilog2_uw,"Ld16.h=sub(ilog2(Luu16.uw),#u5)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_SCALAR32),"Count leading bits of unsigned word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fBIT_WIDTH(32,LuuV.l[i].uw) - 1 - uiV; fHIDE(check_ilog2_compliance(LdV.h[i],LuuV.l[i].uw, uiV);); })
 
 EXTINSN(LX_L16b_tmp,"Ld16.tmp=mem(Rs32)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_NOTE_HLX_MEM,A_HLX_MEM,A_VTCM_ALLBANK_ACCESS,A_LOAD,A_RESTRICT_SLOT1ONLY,A_HLX_TMP),"Aligned HLX load",
 { fEA_REG(RsV); fLOADMML(EA,LdV,false,false);})
@@ -84,6 +132,18 @@ fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = fZXTN(16,32,LuV.uh[i]); })
 
 EXTINSN(LX_conv_w_h,"Ldd16.w=sxt(Lu16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_COMMON_ALU,A_HLX_SLOT23),"Convert halfword to word",
 fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fSXTN(16,32,LuV.h[i]); })
+
+EXTINSN(LX_conv_b_h_hi,"Ld16.b=packhi(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Grab the high byte of two halfwords and pack into 16-bit register",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.b[2*i+1] = LuV.b[2*i+1]; LdV.b[2*i] = LvV.b[2*i+1]; })
+
+EXTINSN(LX_conv_b_h_lo,"Ld16.b=packlo(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Grab the low byte of two halfwords and pack into 16-bit register",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.b[2*i+1] = LuV.b[2*i]; LdV.b[2*i] = LvV.b[2*i]; })
+
+EXTINSN(LX_conv_h_b_hi,"Ldd16.h=unpackhi(Lu16.b)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Place bytes from two-byte packed register in high byte of each 16-bit register",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].b[3] = LuV.b[2*i+1]; LddV.l[i].b[1] = LuV.b[2*i]; })
+
+EXTINSN(LX_conv_h_b_lo,"Ldd16.h=unpacklo(Lu16.b)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Place bytes from two-byte packed register in low byte of each 16-bit register",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].b[2] = LuV.b[2*i+1]; LddV.l[i].b[0] = LuV.b[2*i]; })
 
 EXTINSN(LX_add_w,"Ldd16.w=add(Luu16.w,Lvv16.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_PAIRED_ALU),"Large vector add word",
 fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = LuuV.l[i].w + LvvV.l[i].w; })
@@ -150,6 +210,18 @@ fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uh[0] = fABSW(LuuV.l[i].h[0]); Ldd
 
 EXTINSN(LX_abs_uhp_sat,"Ldd16.h=abs(Luu16.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_PAIRED_ALU),"Absolute value & saturate of large vector of word",
 fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].h[0] = fVSATH(fABSW(LuuV.l[i].h[0])); LddV.l[i].h[1] = fVSATH(fABSW(LuuV.l[i].h[1])) ; })
+
+EXTINSN(LX_absdiff_h,"Ld16.uh=absdiff(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Absolute differences: large vector of half word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i] = fABSW(LuV.h[i] - LvV.h[i]); })
+
+EXTINSN(LX_absdiff_uh,"Ld16.uh=absdiff(Lu16.uh,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Absolute differences: large vector of unsigned half word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i] = (LuV.uh[i] > LvV.uh[i]) ? (LuV.uh[i] - LvV.uh[i]) : (LvV.uh[i] - LuV.uh[i]); })
+
+EXTINSN(LX_absdiff_w,"Ldd16.uw=absdiff(Luu16.w,Lvv16.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Absolute differences: large vector of word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = fABS(fSXTN(32,64,LuuV.l[i].w) - fSXTN(32,64,LvvV.l[i].w)); })
+
+EXTINSN(LX_absdiff_uw,"Ldd16.uw=absdiff(Luu16.uw,Lvv16.uw)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Absolute differences: large vector of unsigned word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = (LuuV.l[i].uw > LvvV.l[i].uw) ? (LuuV.l[i].uw - LvvV.l[i].uw) : (LvvV.l[i].uw - LuuV.l[i].uw); })
 
 EXTINSN(LX_cmp_gt_uh,"Ld16.h=cmp.gt(Lu16.uh, Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_COMMON_ALU,A_HLX_SLOT23),"Unsigned compare greater than",
 fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = (LuV.uh[i] > LvV.uh[i]) ? 0xFFFF : 0x0; })
@@ -261,6 +333,108 @@ fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=uiV; })
 
 EXTINSN(LX_assign_rw,"Ldd16.w=Rt32.w",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_COMMON_ALU,A_HLX_SLOT23,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Assign half a scalar register to L register",
 fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w=RtV; })
+
+EXTINSN(LX_avg_h,"Ld16.h=avg(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of half word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fVAVGS(16, LuV.h[i], LvV.h[i]); })
+
+EXTINSN(LX_avg_h_rnd,"Ld16.h=avg(Lu16.h,Lv16.h):rnd",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of half word with rounding",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fVAVGSRND(16, LuV.h[i], LvV.h[i]); })
+
+EXTINSN(LX_navg_h,"Ld16.h=navg(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Negative average of large vector of half word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fVNAVGS(16, LuV.h[i], LvV.h[i]); })
+
+EXTINSN(LX_avg_w,"Ldd16.w=avg(Luu16.w,Lvv16.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fVAVGS(32, LuuV.l[i].w, LvvV.l[i].w); })
+
+EXTINSN(LX_avg_w_rnd,"Ldd16.w=avg(Luu16.w,Lvv16.w):rnd",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of word with rounding",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fVAVGSRND(32, LuuV.l[i].w, LvvV.l[i].w); })
+
+EXTINSN(LX_navg_w,"Ldd16.w=navg(Luu16.w,Lvv16.w)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Negative average of large vector of word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fVNAVGS(32, LuuV.l[i].w, LvvV.l[i].w); })
+
+EXTINSN(LX_avg_uh,"Ld16.uh=avg(Lu16.uh,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of unsigned half word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i] = fVAVGU(16, LuV.uh[i], LvV.uh[i]); })
+
+EXTINSN(LX_avg_uh_rnd,"Ld16.uh=avg(Lu16.uh,Lv16.uh):rnd",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of unsigned half word with rounding",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i] = fVAVGURND(16, LuV.uh[i], LvV.uh[i]); })
+
+EXTINSN(LX_navg_uh,"Ld16.h=navg(Lu16.uh,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Negative average of large vector of unsigned half word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fVNAVGU(16, LuV.uh[i], LvV.uh[i]); })
+
+EXTINSN(LX_avg_uw,"Ldd16.uw=avg(Luu16.uw,Lvv16.uw)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of unsigned word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = fVAVGU(32, LuuV.l[i].uw, LvvV.l[i].uw); })
+
+EXTINSN(LX_avg_uw_rnd,"Ldd16.uw=avg(Luu16.uw,Lvv16.uw):rnd",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Average of large vector of unsigned word with rounding",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw = fVAVGURND(32, LuuV.l[i].uw, LvvV.l[i].uw); })
+
+EXTINSN(LX_navg_uw,"Ldd16.w=navg(Luu16.uw,Lvv16.uw)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Negative average of large vector of unsigned word",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w = fVNAVGU(32, LuuV.l[i].uw, LvvV.l[i].uw); })
+
+EXTINSN(LX_shr_uh_uh,"Ld16.uh=shr(Lu16.uh,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fLSHIFTU(LuV.uh[i], LvV.h[i]); })
+
+EXTINSN(LX_shrr_uh_uh,"Ld16.uh=shr(Lu16.uh,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fLSHIFTU(LuV.uh[i], fGETHALF(0,RtV)); })
+
+EXTINSN(LX_shr_h,"Ld16.h=shr(Lu16.h,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]=fLSHIFT(LuV.h[i], LvV.h[i]); })
+
+EXTINSN(LX_shrr_h,"Ld16.h=shr(Lu16.h,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]=fLSHIFT(LuV.h[i], fGETHALF(0,RtV)); })
+
+EXTINSN(LX_shr_uw_uw,"Ldd16.uw=shr(Luu16.uw,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw=fLSHIFTU(LuuV.l[i].uw, LvV.h[i]); })
+
+EXTINSN(LX_shrr_uw_uw,"Ldd16.uw=shr(Luu16.uw,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].uw=fLSHIFTU(LuuV.l[i].uw, fGETHALF(0,RtV)); })
+
+EXTINSN(LX_shr_w_w,"Ldd16.w=shr(Luu16.w,Lv16.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w=fLSHIFT(LuuV.l[i].w, LvV.h[i]); })
+
+EXTINSN(LX_shrr_w_w,"Ldd16.w=shr(Luu16.w,Rt32.h)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional shift large vector",
+fHIDE(int i;) fLVFOREACH(1024, i) { LddV.l[i].w=fLSHIFT(LuuV.l[i].w, fGETHALF(0,RtV)); })
+
+EXTINSN(LX_shr_h_w_uh,"Ld16.h=shr(Luu16.w,Lv16.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Narrowing modular shift",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fGETHALF(0,(LuuV.l[i].w >> (LvV.uh[i] & 15))); })
+
+EXTINSN(LX_shrr_h_w_uh,"Ld16.h=shr(Luu16.w,Rt32.uh)",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Narrowing modular shift",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i] = fGETHALF(0,(LuuV.l[i].w >> (fGETUHALF(0,RtV) & 15))); })
+
+EXTINSN(LX_shr_h_w_sat,"Ld16.h=shr(Luu16.w,Lv16.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional narrowing shift large vector with saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]=fVSATH(fLSHIFT(LuuV.l[i].w, LvV.h[i])); })
+
+EXTINSN(LX_shr_h_w_rnd_sat,"Ld16.h=shr(Luu16.w,Lv16.h):rnd:sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional narrowing shift large vector with round and saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]=fVSATH(fLSHIFT_RND(LuuV.l[i].w, LvV.h[i])); })
+
+EXTINSN(LX_shrr_h_w_sat,"Ld16.h=shr(Luu16.w,Rt32.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional narrowing shift large vector with saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]=fVSATH(fLSHIFT(LuuV.l[i].w, fGETHALF(0,RtV))); })
+
+EXTINSN(LX_shrr_h_w_rnd_sat,"Ld16.h=shr(Luu16.w,Rt32.h):rnd:sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional narrowing shift large vector with round and saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.h[i]=fVSATH(fLSHIFT_RND(LuuV.l[i].w, fGETHALF(0,RtV))); })
+
+EXTINSN(LX_shr_uh_uw_sat,"Ld16.uh=shr(Luu16.uw,Lv16.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional narrowing shift large vector with saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFTU(LuuV.l[i].uw, LvV.h[i])); })
+
+EXTINSN(LX_shr_uh_uw_rnd_sat,"Ld16.uh=shr(Luu16.uw,Lv16.h):rnd:sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional narrowing shift large vector with round and saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFTU_RND(LuuV.l[i].uw, LvV.h[i])); })
+
+EXTINSN(LX_shrr_uh_uw_sat,"Ld16.uh=shr(Luu16.uw,Rt32.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional narrowing shift large vector with saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFTU(LuuV.l[i].uw, fGETHALF(0,RtV))); })
+
+EXTINSN(LX_shrr_uh_uw_rnd_sat,"Ld16.uh=shr(Luu16.uw,Rt32.h):rnd:sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional narrowing shift large vector with round and saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFTU_RND(LuuV.l[i].uw, fGETHALF(0,RtV))); })
+
+EXTINSN(LX_shr_uh_w_sat,"Ld16.uh=shr(Luu16.w,Lv16.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional narrowing shift large vector with saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFT(LuuV.l[i].w, LvV.h[i])); })
+
+EXTINSN(LX_shr_uh_w_rnd_sat,"Ld16.uh=shr(Luu16.w,Lv16.h):rnd:sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY),"Bidirectional narrowing shift large vector with round and saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFT_RND(LuuV.l[i].w, LvV.h[i])); })
+
+EXTINSN(LX_shrr_uh_w_sat,"Ld16.uh=shr(Luu16.w,Rt32.h):sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional narrowing shift large vector with saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFT(LuuV.l[i].w, fGETHALF(0,RtV))); })
+
+EXTINSN(LX_shrr_uh_w_rnd_sat,"Ld16.uh=shr(Luu16.w,Rt32.h):rnd:sat",ATTRIBS(A_HLX,A_EXTENSION,A_NO_IDEF_PARSER,A_HLX_SHIFT,A_RESTRICT_SLOT2ONLY,A_HLX_CU_SCALAR,A_HLX_SCALAR32),"Bidirectional narrowing shift large vector with round and saturation",
+fHIDE(int i;) fLVFOREACH(1024, i) { LdV.uh[i]=fVSATUH(fLSHIFT_RND(LuuV.l[i].w, fGETHALF(0,RtV))); })
 
 Q6INSN(LX_zero,"Ld16=#0",ATTRIBS(A_MAPPING,A_HLX,A_NO_IDEF_PARSER),"Mapping from Ld16=#0 to Ld16=xor(L15,L15)",
 fASM_MAP("Ld16=#0","Ld16=xor(L15,L15)"))
