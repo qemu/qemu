@@ -1303,8 +1303,8 @@ static const TypeInfo hda_codec_device_type_info = {
 };
 
 /*
- * create intel hda controller with codec attached to it,
- * so '-soundhw hda' works.
+ * Create intel hda controller with codec attached to it,
+ * so '-audio model=hda' works.
  */
 static void intel_hda_and_codec_init(const char *audiodev)
 {
