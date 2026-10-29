@@ -1,5 +1,10 @@
 tests = []
 
+# MSA tests shared by the mipsel and mips64 targets
+tests_mips_msa_groups = [
+  '../mips/test_msa_bit_count.c',
+]
+
 tests += tcg_tests['multiarch-linux-user']['tests']
 
 tests += {
@@ -93,18 +98,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/int-divide/test_msa_div_u_w.c',
   '../mips/user/ase/msa/int-divide/test_msa_div_u_h.c',
   '../mips/user/ase/msa/int-divide/test_msa_div_u_d.c',
-  '../mips/user/ase/msa/bit-count/test_msa_pcnt_h.c',
-  '../mips/user/ase/msa/bit-count/test_msa_pcnt_b.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nloc_h.c',
-  '../mips/user/ase/msa/bit-count/test_msa_pcnt_w.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nlzc_h.c',
-  '../mips/user/ase/msa/bit-count/test_msa_pcnt_d.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nloc_d.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nloc_w.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nloc_b.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nlzc_d.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nlzc_w.c',
-  '../mips/user/ase/msa/bit-count/test_msa_nlzc_b.c',
   '../mips/user/ase/msa/int-add/test_msa_addv_d.c',
   '../mips/user/ase/msa/int-add/test_msa_adds_a_h.c',
   '../mips/user/ase/msa/int-add/test_msa_add_a_h.c',
