@@ -89,6 +89,15 @@ static void test_multifd_postcopy_preempt(char *name, MigrateCommon *args)
     test_postcopy_common(args);
 }
 
+static void test_multifd_postcopy_preempt_recovery(char *name,
+                                                   MigrateCommon *args)
+{
+    args->start.caps[MIGRATION_CAPABILITY_MULTIFD] = true;
+    args->start.caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT] = true;
+
+    test_postcopy_recovery_common(args, POSTCOPY_FAIL_NONE);
+}
+
 void migration_test_add_postcopy(MigrationTestEnv *env)
 {
     migration_test_add_postcopy_smoke(env);
@@ -113,6 +122,8 @@ void migration_test_add_postcopy(MigrationTestEnv *env)
                            test_multifd_postcopy);
         migration_test_add("/migration/multifd+postcopy/preempt/plain",
                            test_multifd_postcopy_preempt);
+        migration_test_add("/migration/multifd+postcopy/preempt/recovery/plain",
+                           test_multifd_postcopy_preempt_recovery);
         if (env->is_x86) {
             migration_test_add("/migration/postcopy/suspend",
                                test_postcopy_suspend);

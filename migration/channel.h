@@ -24,7 +24,8 @@ typedef enum {
     CH_NONE,
     CH_MAIN,
     CH_MULTIFD,
-    CH_POSTCOPY
+    CH_POSTCOPY,
+    CH_NUM,
 } MigChannelType;
 
 void migration_channel_process_incoming(QIOChannel *ioc);
@@ -48,4 +49,7 @@ bool migration_channel_parse_input(const char *uri,
                                    MigrationChannel **main_channelp,
                                    MigrationChannel **cpr_channelp,
                                    Error **errp);
+
+void migration_incoming_free_early_channels(MigrationIncomingState *mis);
+
 #endif

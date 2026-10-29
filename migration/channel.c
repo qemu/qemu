@@ -12,6 +12,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "channel.h"
 #include "exec.h"
 #include "fd.h"
@@ -33,6 +35,13 @@
 #include "tls.h"
 #include "trace.h"
 #include "yank_functions.h"
+
+static const char *const mig_channel_str[CH_NUM] = {
+    [CH_NONE] = "NONE",
+    [CH_MAIN] = "MAIN",
+    [CH_MULTIFD] = "MULTIFD",
+    [CH_POSTCOPY] = "PREEMPT",
+};
 
 void migration_connect_outgoing(MigrationState *s, MigrationAddress *addr,
                                 Error **errp)
@@ -139,62 +148,350 @@ bool migration_has_all_channels(void)
     return true;
 }
 
-static MigChannelType migration_channel_identify(MigrationIncomingState *mis,
-                                                 QIOChannel *ioc, Error **errp)
+static bool qio_channel_is_peekable(QIOChannel *ioc)
+{
+    return qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_READ_MSG_PEEK);
+}
+
+/*
+ * With multiple channels, it is possible that we receive channels out of
+ * order on destination side, causing incorrect mapping of source channels
+ * on destination side.
+ *
+ * When the channel is peekable (e.g. non-TLS socket channels), check
+ * channel MAGIC to decide type of channel.
+ *
+ * Please note this is best effort, postcopy preempt channel does not send
+ * any magic number so avoid it for postcopy live migration.
+ *
+ * Returns: >0 if success, ==0 (CH_NONE) if error.  If error happened,
+ * *errp must be set.
+ */
+static MigChannelType migration_channel_peek(MigrationIncomingState *mis,
+                                             QIOChannel *ioc,
+                                             Error **errp)
 {
     MigChannelType channel = CH_NONE;
     uint32_t channel_magic = 0;
     int ret = 0;
 
-    if (!migration_has_main_and_multifd_channels()) {
-        if (qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_READ_MSG_PEEK)) {
-            /*
-             * With multiple channels, it is possible that we receive channels
-             * out of order on destination side, causing incorrect mapping of
-             * source channels on destination side. Check channel MAGIC to
-             * decide type of channel. Please note this is best effort,
-             * postcopy preempt channel does not send any magic number so
-             * avoid it for postcopy live migration. Also tls live migration
-             * already does tls handshake while initializing main channel so
-             * with tls this issue is not possible.
-             */
-            ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
-                                              sizeof(channel_magic), errp);
-            if (ret != 0) {
-                goto out;
-            }
+    assert(qio_channel_is_peekable(ioc));
 
-            channel_magic = be32_to_cpu(channel_magic);
-            if (channel_magic == QEMU_VM_FILE_MAGIC) {
-                channel = CH_MAIN;
-            } else if (channel_magic == MULTIFD_MAGIC) {
-                assert(migrate_multifd());
-                channel = CH_MULTIFD;
-            } else if (!mis->from_src_file &&
-                        mis->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
-                /* reconnect main channel for postcopy recovery */
-                channel = CH_MAIN;
-            } else {
-                error_setg(errp, "unknown channel magic: %u", channel_magic);
-            }
-        } else if (mis->from_src_file && migrate_multifd()) {
-            /*
-             * Non-peekable channels like tls/file are processed as
-             * multifd channels when multifd is enabled.
-             */
-            channel = CH_MULTIFD;
-        } else if (!mis->from_src_file) {
-            channel = CH_MAIN;
-        } else {
-            error_setg(errp, "non-peekable channel used without multifd");
-        }
+    ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
+                                      sizeof(channel_magic), errp);
+    if (ret != 0) {
+        /* Failed */
+        return channel;
+    }
+
+    channel_magic = be32_to_cpu(channel_magic);
+
+    if (channel_magic == QEMU_VM_FILE_MAGIC) {
+        channel = CH_MAIN;
+    } else if (channel_magic == MULTIFD_MAGIC) {
+        assert(migrate_multifd());
+        channel = CH_MULTIFD;
+    } else if (!mis->from_src_file &&
+               mis->state == MIGRATION_STATUS_POSTCOPY_PAUSED) {
+        /* reconnect main channel for postcopy recovery */
+        channel = CH_MAIN;
     } else {
-        assert(migrate_postcopy_preempt());
-        channel = CH_POSTCOPY;
+        error_setg(errp, "Unknown channel magic: %u", channel_magic);
+    }
+
+    return channel;
+}
+
+/*
+ * Returns: >0 if success, ==0 (CH_NONE) if error.  If error happened,
+ * *errp must be set.  NOTE: preempt channel is done separately.
+ */
+static MigChannelType migration_channel_identify(MigrationIncomingState *mis,
+                                                 QIOChannel *ioc, Error **errp)
+{
+    MigChannelType channel = CH_NONE;
+
+    if (!mis->from_src_file) {
+        channel = CH_MAIN;
+    } else if (migrate_multifd()) {
+        /*
+         * Non-peekable channels like tls/file are processed as
+         * multifd channels when multifd is enabled.
+         */
+        channel = CH_MULTIFD;
+    } else {
+        error_setg(errp, "Unexpected non-peekable channel observed");
+    }
+
+    return channel;
+}
+
+static void migration_incoming_error_propagate(MigrationIncomingState *mis,
+                                               Error *error)
+{
+    error_report_err(error);
+    migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
+    if (mis->exit_on_error) {
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* Must be with mis->channels_early.mutex held */
+static void
+migration_incoming_early_channel_insert(MigrationIncomingState *mis,
+                                        QIOChannel *ioc,
+                                        GSource *source)
+{
+    MigEarlyIncomingChannel chan = {
+        .source = source,
+        .ioc = ioc,
+    };
+
+    object_ref(OBJECT(ioc));
+    g_source_ref(source);
+
+    g_array_append_val(mis->channels_early.channels, chan);
+}
+
+static void migration_incoming_early_channel_free(GArray *channels, int i)
+{
+    MigEarlyIncomingChannel *chan;
+
+    chan = &g_array_index(channels, MigEarlyIncomingChannel, i);
+
+    g_source_destroy(chan->source);
+    g_source_unref(chan->source);
+    object_unref(OBJECT(chan->ioc));
+
+    g_array_remove_index_fast(channels, i);
+}
+
+/*
+ * Remove this channel from the monitoring of @channels_early array.
+ * Return true if found and successful, false otherwise.
+ */
+static bool
+migration_incoming_early_channel_remove(MigrationIncomingState *mis,
+                                        QIOChannel *ioc)
+{
+    GArray *channels = mis->channels_early.channels;
+    MigEarlyIncomingChannel *chan;
+    int i;
+
+    QEMU_LOCK_GUARD(&mis->channels_early.mutex);
+
+    for (i = 0; i < channels->len; i++) {
+        chan = &g_array_index(channels, MigEarlyIncomingChannel, i);
+        if (chan->ioc != ioc) {
+            continue;
+        }
+        migration_incoming_early_channel_free(channels, i);
+        return true;
+    }
+
+    return false;
+}
+
+void migration_incoming_free_early_channels(MigrationIncomingState *mis)
+{
+    GArray *channels = mis->channels_early.channels;
+
+    QEMU_LOCK_GUARD(&mis->channels_early.mutex);
+
+    while (channels->len) {
+        migration_incoming_early_channel_free(channels, 0);
+    }
+}
+
+static bool migration_incoming_setup_channel(QIOChannel *ioc,
+                                             MigChannelType ch,
+                                             Error **errp)
+{
+    trace_migration_incoming_channel_set(ioc,
+                                         object_get_typename(OBJECT(ioc)),
+                                         mig_channel_str[ch]);
+    migration_ioc_register_yank(ioc);
+
+    return migration_incoming_setup(ioc, ch, errp);
+}
+
+static bool migration_incoming_channel_install(MigrationIncomingState *mis,
+                                               QIOChannel *ioc,
+                                               MigChannelType ch,
+                                               Error **errp)
+{
+    if (!migration_incoming_setup_channel(ioc, ch, errp)) {
+        return false;
+    }
+
+    /* Installation succeeded, kickoff migration if needed */
+    if (migration_has_main_and_multifd_channels()) {
+        migration_start_incoming();
+    }
+
+    return true;
+}
+
+static void
+migration_incoming_channel_preempt_setup(QIOChannel *ioc)
+{
+    assert(migrate_postcopy_preempt());
+    /* Installation of preempt channel should never fail */
+    migration_incoming_setup_channel(ioc, CH_POSTCOPY, &error_abort);
+}
+
+static void
+migration_incoming_detect_preempt_channel(MigrationIncomingState *mis)
+{
+    GArray *channels = mis->channels_early.channels;
+    MigEarlyIncomingChannel *chan;
+
+    QEMU_LOCK_GUARD(&mis->channels_early.mutex);
+
+    /* When preempt mode not enabled, nothing to detect.. */
+    if (!migrate_postcopy_preempt()) {
+        /*
+         * .. but if we found something pending, throw an error only, which
+         * should not happen.  Even if it happens, resources will still be
+         * released after incoming migration is completedly.
+         */
+        if (channels->len) {
+            error_report("%s: Found %u unused channels",
+                         __func__, channels->len);
+        }
+        return;
+    }
+
+    /* Preempt channel hasn't yet arrived?  Process it later */
+    if (!channels->len) {
+        return;
+    }
+
+    /*
+     * More than one channel should never happen.. capture it in case if
+     * it happens, then there's not much we can do.
+     */
+    if (channels->len > 1) {
+        error_report("%s: Found %u unused channels, "
+                     "can't identify preempt channel",
+                     __func__, channels->len);
+        return;
+    }
+
+    assert(channels->len == 1);
+    /* This is the preempt channel, install it directly */
+    chan = &g_array_index(channels, MigEarlyIncomingChannel, 0);
+    migration_incoming_channel_preempt_setup(chan->ioc);
+    migration_incoming_early_channel_free(channels, 0);
+}
+
+static gboolean migration_incoming_channel_readable(QIOChannel *ioc,
+                                                    GIOCondition condition,
+                                                    gpointer opaque)
+{
+    MigrationIncomingState *mis = opaque;
+    Error *local_err = NULL;
+    MigChannelType ch;
+
+    /*
+     * No need to monitor this channel anymore as long as anything arrived,
+     * remove it from tracking.
+     *
+     * NOTE: this means if partial data arrived we may still block here,
+     * but it shouldn't happen in production, only malicious stream.  Since
+     * migration stream is trusted (either due to trusted network, or TLS),
+     * that's non-issue.
+     *
+     * NOTE2: it's theoretically possible that this entry is gone reaching
+     * here. Example: the main thread is doing incoming cleanup having this
+     * one removed, while this watch can be registered on the monitor
+     * iothread's context and fired at the exact same time but in the
+     * iothread instead.  If it happens, skip the rest.  I'm not sure if
+     * this could happen at all, may depend on iothread lifespan management
+     * in the main thread, but be prepared.
+     */
+    if (!migration_incoming_early_channel_remove(mis, ioc)) {
+        goto out;
+    }
+
+    ch = migration_channel_peek(mis, ioc, &local_err);
+    if (!ch) {
+        goto out;
+    }
+
+    if (!migration_incoming_channel_install(mis, ioc, ch, &local_err)) {
+        goto out;
+    }
+
+    if (migration_has_main_and_multifd_channels()) {
+        /*
+         * Possibilities when reaching here:
+         *
+         * (1) if preempt not enabled, this should be no-op, all done,
+         * (2) if preempt enabled,
+         *   (2.a) preempt channel arrived @channels_early, handle it now
+         *   (2.b) preempt channel not arrived, to be handled in
+         *         migration_channel_process_incoming() later
+         */
+        migration_incoming_detect_preempt_channel(mis);
     }
 
 out:
-    return channel;
+    if (local_err) {
+        migration_incoming_error_propagate(mis, local_err);
+    }
+
+    /*
+     * NOTE: we should have already detached the GSource, returning
+     * G_SOURCE_REMOVE to be logically consistent only.
+     */
+    return G_SOURCE_REMOVE;
+}
+
+static void migration_incoming_channel_watch(MigrationIncomingState *mis,
+                                             QIOChannel *ioc)
+{
+    GMainContext *context = g_main_context_get_thread_default();
+    GSource *source;
+    guint io_tag;
+
+    trace_migration_incoming_channel_watch(ioc,
+                                           object_get_typename(OBJECT(ioc)));
+
+    /*
+     * Careful: this can be run from either the main thread or the monitor
+     * iothread when migrate_recover is used with OOB=on, so we need to
+     * take the lock and use the full version to specify the correct
+     * context.
+     */
+    QEMU_LOCK_GUARD(&mis->channels_early.mutex);
+
+    /*
+     * We should never watch an @ioc that is not peekable, because there's
+     * no point.  What is worse is we lose the real order of accept()s via
+     * the asynchronous IO watch operation.
+     *
+     * Another note is TLS channel (non-peekable) may or may not work
+     * properly with IO watch due to its current .io_create_watch() impl,
+     * which is another story.  Just guard both points.
+     */
+    assert(qio_channel_is_peekable(ioc));
+    io_tag = qio_channel_add_watch_full(ioc, G_IO_IN,
+                                        migration_incoming_channel_readable,
+                                        mis, NULL, context);
+
+    /*
+     * Replace this if one day qio_channel_add_watch*() API can directly
+     * return the GSource*.. for now, stick with it.
+     */
+    source = g_main_context_find_source_by_id(context, io_tag);
+    /*
+     * Nothing can race with adding the IO watch, aka, concurrent removal
+     * is not possible when we have the lock.  So it must be present.
+     */
+    assert(source);
+
+    migration_incoming_early_channel_insert(mis, ioc, source);
 }
 
 /**
@@ -211,35 +508,60 @@ void migration_channel_process_incoming(QIOChannel *ioc)
     Error *local_err = NULL;
     MigChannelType ch;
 
-    trace_migration_set_incoming_channel(
+    trace_migration_incoming_channel_process(
         ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         migration_tls_channel_process_incoming(ioc, &local_err);
     } else {
-        migration_ioc_register_yank(ioc);
-        ch = migration_channel_identify(mis, ioc, &local_err);
-        if (!ch) {
-            goto out;
-        }
-
-        if (migration_incoming_setup(ioc, ch, &local_err)) {
-            migration_start_incoming();
+        if (migration_has_main_and_multifd_channels()) {
+            /*
+             * If all main+multifd channels are present already, this must
+             * be the preempt channel.
+             *
+             * QEMU can't register an IO watch for it if there is only the
+             * last preempt channel left, because it means the IO watch
+             * will never fire and nobody will pick it up: we rely on the
+             * one before the last one to pick both.
+             *
+             * See comment in migration_incoming_channel_readable() on
+             * the migration_incoming_detect_preempt_channel() call.
+             */
+            migration_incoming_channel_preempt_setup(ioc);
+        } else {
+            if (qio_channel_is_peekable(ioc)) {
+                /*
+                 * Register an IO watch for the peekable channel, deciding
+                 * the type of channel later by peeking at it whenever
+                 * possible.  migration_incoming_channel_install() will be
+                 * postponed.
+                 */
+                migration_incoming_channel_watch(mis, ioc);
+            } else {
+                /*
+                 * Non-peekable channels (file, TLS, etc.), cannot register
+                 * IO watch because (1) there's nothing to peek, (2) after
+                 * registering IO watch, QEMU will lose the real ordering
+                 * it gets from accept(), which is still so far the only
+                 * source of truth to identify a channel in this case.
+                 */
+                ch = migration_channel_identify(mis, ioc, &local_err);
+                if (ch) {
+                    migration_incoming_channel_install(mis, ioc, ch,
+                                                       &local_err);
+                }
+            }
         }
     }
-out:
+
     if (local_err) {
-        error_report_err(local_err);
-        migrate_set_state(&mis->state, mis->state, MIGRATION_STATUS_FAILED);
-        if (mis->exit_on_error) {
-            exit(EXIT_FAILURE);
-        }
+        migration_incoming_error_propagate(mis, local_err);
     }
 }
 
 void migration_channel_connect_outgoing(MigrationState *s, QIOChannel *ioc)
 {
-    trace_migration_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
+    trace_migration_outgoing_channel_set(ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         Error *local_err = NULL;

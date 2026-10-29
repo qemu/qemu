@@ -334,6 +334,10 @@ void migration_object_init(void)
     current_incoming->page_requested = g_tree_new(page_request_addr_cmp);
 
     current_incoming->exit_on_error = INMIGRATE_DEFAULT_EXIT_ON_ERROR;
+    /* zero_terminated=false, clear_=true (NOTE, "clear_" is not a typo) */
+    current_incoming->channels_early.channels =
+        g_array_new(FALSE, TRUE, sizeof(MigEarlyIncomingChannel));
+    qemu_mutex_init(&current_incoming->channels_early.mutex);
 
     migration_object_check(current_migration, &error_fatal);
 
@@ -447,6 +451,24 @@ void migration_incoming_state_destroy(void)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps = postcopy_state_get();
 
+    /* Cleanup listener to make sure no further accept() for sockets */
+    migration_incoming_transport_cleanup(mis);
+
+    /*
+     * It's safer to free channel watches earlier than most of the rest, in
+     * case the IO watches could fire in the monitor iothread concurrently
+     * against this function.
+     *
+     * Above migration_incoming_transport_cleanup() should have disarmed
+     * anything that we could accept() new sockets.
+     *
+     * Here return of migration_incoming_free_early_channels() makes sure
+     * even if something already fired concurrently, it won't really do
+     * anything but return - see migration_incoming_early_channel_remove()
+     * and its return code for details.
+     */
+    migration_incoming_free_early_channels(mis);
+
     multifd_recv_cleanup();
 
     if (ps != POSTCOPY_INCOMING_NONE) {
@@ -491,7 +513,6 @@ void migration_incoming_state_destroy(void)
         mis->postcopy_remote_fds = NULL;
     }
 
-    migration_incoming_transport_cleanup(mis);
     qemu_event_reset(&mis->main_thread_load_event);
 
     if (mis->page_requested) {
@@ -843,10 +864,6 @@ out:
     migrate_incoming_unref_outgoing_state();
 }
 
-/*
- * Returns whether all the necessary channels to proceed with the
- * incoming migration have been established without error.
- */
 bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -862,6 +879,7 @@ bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp)
         assert(!mis->from_src_file);
         mis->from_src_file = f;
         qemu_file_set_blocking(f, false, &error_abort);
+        trace_migration_main_channel_received();
         break;
 
     case CH_MULTIFD:
@@ -874,13 +892,13 @@ bool migration_incoming_setup(QIOChannel *ioc, uint8_t channel, Error **errp)
         assert(!mis->postcopy_qemufile_dst);
         f = qemu_file_new_input(ioc);
         postcopy_preempt_new_channel(mis, f);
-        return false;
+        break;
 
     default:
         g_assert_not_reached();
     }
 
-    return migration_has_main_and_multifd_channels();
+    return true;
 }
 
 void migration_outgoing_setup(QIOChannel *ioc)
@@ -928,6 +946,8 @@ static bool postcopy_try_recover(void)
 
 void migration_start_incoming(void)
 {
+    trace_migration_start_incoming();
+
     if (postcopy_try_recover()) {
         return;
     }
@@ -3719,6 +3739,21 @@ static void *migration_thread(void *opaque)
         goto out;
     }
 
+    /*
+     * Only for old 7.1/7.2 machine types (preempt mode supported since
+     * 7.1).  Connect the preempt channel only after multifd channels,
+     * because some QEMU versions (v10.1 to v11.1) will assume the order of
+     * channels to be: (1) main, then (2) multifd channels, then (3)
+     * preempt channel.  IOW, (3) must be after (2).
+     *
+     * multifd_send_setup() makes sure all multifd channels be connected
+     * first, then initiate preempt channel here guarantees the ordering to
+     * those QEMU binaries.
+     */
+    if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
+        postcopy_preempt_setup(s);
+    }
+
     bql_lock();
     qemu_savevm_state_header(s->to_dst_file);
     bql_unlock();
@@ -3999,16 +4034,16 @@ void migration_start_outgoing(MigrationState *s)
         open_return_path_on_source(s);
     }
 
-    /*
-     * This needs to be done before resuming a postcopy.  Note: for newer
-     * QEMUs we will delay the channel creation until postcopy_start(), to
-     * avoid disorder of channel creations.
-     */
-    if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
-        postcopy_preempt_setup(s);
-    }
-
     if (resume) {
+        /*
+         * This needs to be done before resuming a postcopy.  Note: for newer
+         * QEMUs we will delay the channel creation until postcopy_start(), to
+         * avoid disorder of channel creations.
+         */
+        if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
+            postcopy_preempt_setup(s);
+        }
+
         /* Wakeup the main migration thread to do the recovery */
         migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_RECOVER_SETUP,
                           MIGRATION_STATUS_POSTCOPY_RECOVER);
