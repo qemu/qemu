@@ -173,11 +173,7 @@ def main():
 
         for tag in hex_common.tags:
             if hex_common.tag_ignore(tag):
-                f.write(f"static void generate_{tag}"
-                        f"(DisasContext *ctx)\n")
-                f.write("{\n}\n\n")
                 continue
-
             gen_def_tcg_func(f, tag, tagregs, tagimms)
 
         f.write("#endif    /* HEXAGON_TCG_FUNCS_H */\n")

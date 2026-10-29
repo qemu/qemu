@@ -757,15 +757,6 @@ void gen_vframecheck(DisasContext *ctx, TCGv vsp)
     tcg_gen_mov_tl(hex_gpr[HEX_REG_VSP], vsp);
 }
 
-#ifndef CONFIG_HEXAGON_IDEF_PARSER
-static TCGv gen_slotval(DisasContext *ctx)
-{
-    int slotval =
-        (ctx->pkt.pkt_has_scalar_store_s1 & 1) | (ctx->insn->slot << 1);
-    return tcg_constant_tl(slotval);
-}
-#endif
-
 void gen_store32(TCGv vaddr, TCGv src, uint32_t width, uint32_t slot)
 {
     tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
@@ -1860,8 +1851,4 @@ void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 }
 
 #include "tcg_funcs_generated.c.inc"
-const SemanticInsn opcode_genptr[XX_LAST_OPCODE] = {
-#define OPCODE(X)    [X] = generate_##X
-#include "opcodes_def_generated.h.inc"
-#undef OPCODE
-};
+#include "tcg_func_table_generated.c.inc"

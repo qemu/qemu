@@ -1520,7 +1520,8 @@ def helper_args(tag, regs, imms):
     if need_slot(tag):
         args.append(HelperArg(
             "i32",
-            "gen_slotval(ctx)",
+            "tcg_constant_i32((ctx->pkt.pkt_has_scalar_store_s1 & 1) | "
+            "(ctx->insn->slot << 1))",
             "uint32_t slotval"
         ))
     if need_part1(tag):
