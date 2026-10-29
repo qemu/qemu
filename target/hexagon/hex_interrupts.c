@@ -305,8 +305,8 @@ static bool int_should_dtg(CPUHexagonState *env, int int_num)
     return GET_FIELD(CCR_GIE, ccr);
 }
 
-static void guest_interrupt_entry(CPUHexagonState *env, uint32_t cause,
-                                  uint32_t event_pc)
+static void guest_interrupt_entry(CPUHexagonState *env, int int_num,
+                                  uint32_t cause, uint32_t event_pc)
 {
     uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
     uint32_t new_ssr = old_ssr;
@@ -328,6 +328,7 @@ static void guest_interrupt_entry(CPUHexagonState *env, uint32_t cause,
 
     fSET_FIELD(new_ssr, SSR_SS, 0);
     fSET_FIELD(new_ssr, SSR_GM, 1);
+    fSET_FIELD(new_ssr, SSR_CAUSE, HEX_CAUSE_INT0 | int_num);
     env->t_sreg[HEX_SREG_SSR] = new_ssr;
     hexagon_modify_ssr(env, new_ssr, old_ssr);
 
@@ -367,7 +368,7 @@ static void hex_accept_int(CPUHexagonState *env, int int_num)
         uint32_t vid = extract32(vid_packed,
                                  (vic_group & 1) ? 16 : 0, 16);
 
-        guest_interrupt_entry(env, vid, elr);
+        guest_interrupt_entry(env, int_num, vid, elr);
     } else {
         uint32_t evb =
             hexagon_globalreg_read(cpu->globalregs, HEX_SREG_EVB,

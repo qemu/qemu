@@ -79,7 +79,6 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     CPUState *cs = env_cpu(env);
     qemu_log_mask(CPU_LOG_INT, "%s: 0x%08" PRIx32 ", @ %08" PRIx32 "\n",
                   __func__, exception, PC);
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
 
     env->gpr[HEX_REG_PC] = PC;
     cs->exception_index = exception;
@@ -1665,7 +1664,6 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     cs = env_cpu(env);
     cs->exception_index = HEX_EVENT_PRECISE;
     env->cause_code = HEX_CAUSE_STACK_LIMIT;
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
 
     if (slot == 0) {
         env->t_sreg[HEX_SREG_BADVA0] = badva;
