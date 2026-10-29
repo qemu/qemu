@@ -540,6 +540,18 @@ static void hexagon_cpu_disas_set_info(const CPUState *cs,
     info->target_info = &cpu->cfg;
 }
 
+static bool hexagon_cpu_has_hlx(HexagonCPU *cpu)
+{
+    if (cpu->cfg.hex_def->hex_version < HEX_VER_V85) {
+        return false;
+    }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
+    return cpu->hlx && cpu->hlx->num_contexts > 0;
+#endif
+}
+
 static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -558,6 +570,12 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"));
+
+    if (hexagon_cpu_has_hlx(cpu)) {
+        gdb_register_coprocessor(cs, hexagon_hlx_gdb_read_register,
+                                 hexagon_hlx_gdb_write_register,
+                                 gdb_find_static_feature("hexagon-hlx.xml"));
+    }
 
 #ifndef CONFIG_USER_ONLY
     gdb_register_coprocessor(cs, hexagon_sys_gdb_read_register,
