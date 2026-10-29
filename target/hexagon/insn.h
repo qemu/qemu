@@ -71,6 +71,7 @@ struct Packet {
 
     bool pkt_has_hvx;
     Insn *vhist_insn;
+    bool pkt_has_hlx;
 
     Insn insn[INSTRUCTIONS_MAX];
 };

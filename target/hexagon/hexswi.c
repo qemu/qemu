@@ -1034,6 +1034,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_INVALID_OPCODE:
         case HEX_CAUSE_NO_COPROC_ENABLE:
         case HEX_CAUSE_NO_COPROC2_ENABLE:
+        case HEX_CAUSE_NO_COPROC3_ENABLE:
         case HEX_CAUSE_UNSUPPORTED_HVX_64B:
         case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
         case HEX_CAUSE_REG_WRITE_CONFLICT:
