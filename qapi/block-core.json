@@ -3391,6 +3391,23 @@
                   'if': 'CONFIG_POSIX' } ] }
 
 ##
+# @BlockdevOptionsHostDevice:
+#     Driver specific block device options for the host_device
+#     backend.
+#
+# @accept-read-only-device: allow opening a read-only device as
+#     read-write.  If this is false, opening a host device read-write
+#     requires on Linux that the BLKROGET ioctl considers the device
+#     writable.  If it is true, this check is skipped.  (since: 11.2,
+#     default: false)
+#
+# Since: 11.2
+##
+{ 'struct': 'BlockdevOptionsHostDevice',
+  'base': 'BlockdevOptionsFile',
+  'data': { '*accept-read-only-device': 'bool' } }
+
+##
 # @BlockdevOptionsNull:
 #     Driver specific block device options for the null backend.
 #
@@ -4777,7 +4794,7 @@
       'ftps':       'BlockdevOptionsCurlFtps',
       'host_cdrom':  { 'type': 'BlockdevOptionsFile',
                        'if': 'HAVE_HOST_BLOCK_DEVICE' },
-      'host_device': { 'type': 'BlockdevOptionsFile',
+      'host_device': { 'type': 'BlockdevOptionsHostDevice',
                        'if': 'HAVE_HOST_BLOCK_DEVICE' },
       'http':       'BlockdevOptionsCurlHttp',
       'https':      'BlockdevOptionsCurlHttps',
