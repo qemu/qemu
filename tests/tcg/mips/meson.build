@@ -6,6 +6,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_bit_move.c',
   '../mips/test_msa_bit_set.c',
   '../mips/test_msa_fixed_multiply.c',
+  '../mips/test_msa_float_max_min.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -73,14 +74,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/int-subtract/test_msa_asub_u_h.c',
   '../mips/user/ase/msa/int-subtract/test_msa_asub_s_b.c',
   '../mips/user/ase/msa/int-subtract/test_msa_subs_s_w.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmin_w.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmax_w.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmax_a_d.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmin_a_w.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmax_a_w.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmax_d.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmin_d.c',
-  '../mips/user/ase/msa/float-max-min/test_msa_fmin_a_d.c',
   '../mips/user/ase/msa/int-multiply/test_msa_mulv_w.c',
   '../mips/user/ase/msa/int-multiply/test_msa_msubv_d.c',
   '../mips/user/ase/msa/int-multiply/test_msa_msubv_h.c',
