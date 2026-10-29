@@ -57,11 +57,17 @@ static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
 static QTest *qtest;
 static GString *inbuf;
-static int irq_levels[MAX_IRQ];
 static GTimer *timer;
 static bool qtest_opened;
 static void (*qtest_server_send)(void*, const char*);
 static void *qtest_server_send_opaque;
+
+typedef struct IrqInterceptState {
+    int *irq_levels;
+    int num_irqs;
+} IrqInterceptState;
+
+IrqInterceptState irq_intercept_state;
 
 #define FMT_timeval "%.06f"
 
@@ -327,9 +333,10 @@ void qtest_sendf(CharFrontend *chr, const char *fmt, ...)
 
 static void qtest_irq_handler(void *opaque, int n, int level)
 {
-    if (irq_levels[n] != level) {
+    assert(n >= 0 && n < irq_intercept_state.num_irqs);
+    if (irq_intercept_state.irq_levels[n] != level) {
         CharFrontend *chr = &qtest->qtest_chr;
-        irq_levels[n] = level;
+        irq_intercept_state.irq_levels[n] = level;
         qtest_sendf(chr, "IRQ %s %d\n",
                     level ? "raise" : "lower", n);
     }
@@ -351,6 +358,13 @@ static void qtest_install_gpio_out_intercept(DeviceState *dev, const char *name,
                                       disconnected, n);
 
     *disconnected = qdev_intercept_gpio_out(dev, icpt, name, n);
+}
+
+static void qtest_init_irq_intercept(int num_irqs)
+{
+    g_free(irq_intercept_state.irq_levels);
+    irq_intercept_state.irq_levels = g_new0(int, num_irqs);
+    irq_intercept_state.num_irqs = num_irqs;
 }
 
 static void qtest_process_command(CharFrontend *chr, gchar **words)
@@ -408,21 +422,24 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         }
 
         QLIST_FOREACH(ngl, &dev->gpios, node) {
-            /* We don't support inbound interception of named GPIOs yet */
+            /* NULL is valid and matchable, for "unnamed GPIO" */
+            if (g_strcmp0(ngl->name, words[2]) != 0) {
+                continue;
+            }
+
             if (is_outbound) {
-                /* NULL is valid and matchable, for "unnamed GPIO" */
-                if (g_strcmp0(ngl->name, words[2]) == 0) {
-                    int i;
-                    for (i = 0; i < ngl->num_out; ++i) {
-                        qtest_install_gpio_out_intercept(dev, ngl->name, i);
-                    }
-                    interception_succeeded = true;
+                int i;
+                qtest_init_irq_intercept(ngl->num_out);
+                for (i = 0; i < ngl->num_out; ++i) {
+                    qtest_install_gpio_out_intercept(dev, ngl->name, i);
                 }
             } else {
+                qtest_init_irq_intercept(ngl->num_in);
                 qemu_irq_set_observer(ngl->in, qtest_irq_handler,
                                       ngl->num_in);
-                interception_succeeded = true;
             }
+            interception_succeeded = true;
+            break;
         }
 
         if (interception_succeeded) {
@@ -861,8 +878,10 @@ static void qtest_event(void *opaque, QEMUChrEvent event)
          * used.  Injects an extra reset even when it's not used, and
          * that can mess up tests, e.g. -boot once.
          */
-        for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
-            irq_levels[i] = 0;
+        if (irq_intercept_state.irq_levels) {
+            for (i = 0; i < irq_intercept_state.num_irqs; i++) {
+                irq_intercept_state.irq_levels[i] = 0;
+            }
         }
 
         g_clear_pointer(&timer, g_timer_destroy);
