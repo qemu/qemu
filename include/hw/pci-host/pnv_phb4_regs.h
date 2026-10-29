@@ -173,6 +173,7 @@
 #define PHB_PEST_BAR                    0x1a8
 #define   PHB_PEST_BAR_ENABLE           PPC_BIT(0)
 #define   PHB_PEST_BASE_ADDRESS         PPC_BITMASK(8, 51)
+#define PHB_CRW_BAR                     0x1B0
 #define PHB_ASN_CMPM                    0x1C0
 #define   PHB_ASN_CMPM_ENABLE           PPC_BIT(63)
 #define PHB_CAPI_CMPM                   0x1C8
@@ -357,6 +358,11 @@
 #define PHB_AER_RERR                            0x130
 #define PHB_AER_ESID                            0x134
 #define PHB_SEC_ECAP                            0x148
+#define P16_ECAP                                0x174
+#define P16_STAT                                0x180
+#define P16_LDPM                                0x184
+#define P16_FRDPM                               0x188
+#define P16_SRDPM                               0x18C
 #define PHB_LMR_ECAP                            0x1A0
 #define PHB_LMR_CTLSTA_2                        0x1AC
 #define PHB_LMR_CTLSTA_16                       0x1E4
@@ -398,6 +404,7 @@
 #define   PHB_PCIE_CRESET_PERST_N       PPC_BIT(3)
 #define   PHB_PCIE_CRESET_PIPE_N        PPC_BIT(4)
 #define   PHB_PCIE_CRESET_REFCLK_N      PPC_BIT(8)
+#define PHB_PCIE_DLP_STR                0x1A18
 #define PHB_PCIE_HOTPLUG_STATUS         0x1A20
 #define   PHB_PCIE_HPSTAT_SIMDIAG       PPC_BIT(3)
 #define   PHB_PCIE_HPSTAT_RESAMPLE      PPC_BIT(9)
@@ -427,18 +434,20 @@
 #define   PHB_PCIE_DLP_DL_PGRESET       PPC_BIT(22)
 #define   PHB_PCIE_DLP_TRAINING         PPC_BIT(20)
 #define   PHB_PCIE_DLP_INBAND_PRESENCE  PPC_BIT(19)
-
+#define PHB_PCIE_DLP_LSR                0x1A48
+#define PHB_PCIE_DLP_LANEZEROCTL        0x1A70
 #define PHB_PCIE_DLP_CTL                0x1A78
 #define   PHB_PCIE_DLP_CTL_BYPASS_PH2   PPC_BIT(4)
 #define   PHB_PCIE_DLP_CTL_BYPASS_PH3   PPC_BIT(5)
-
 #define PHB_PCIE_DLP_TRWCTL             0x1A80
 #define   PHB_PCIE_DLP_TRWCTL_EN        PPC_BIT(0)
 #define   PHB_PCIE_DLP_TRWCTL_WREN      PPC_BIT(1)
+#define PHB_PCIE_DLP_TRCRDDATA          0x1A88
 #define PHB_PCIE_DLP_ERRLOG1            0x1AA0
 #define PHB_PCIE_DLP_ERRLOG2            0x1AA8
 #define PHB_PCIE_DLP_ERR_STATUS         0x1AB0
 #define PHB_PCIE_DLP_ERR_COUNTERS       0x1AB8
+#define PHB_PCIE_DLP_EIC                0x1AC8
 
 #define PHB_PCIE_LANE_EQ_CNTL0          0x1AD0
 #define PHB_PCIE_LANE_EQ_CNTL1          0x1AD8
@@ -580,6 +589,5 @@
 #define IODA3_PEST0_MSI_DATA            PPC_BITMASK(48, 63)
 
 #define IODA3_PEST1_FAIL_ADDR           PPC_BITMASK(3, 63)
-
 
 #endif /* PCI_HOST_PNV_PHB4_REGS_H */

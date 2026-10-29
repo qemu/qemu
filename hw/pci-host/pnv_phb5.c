@@ -103,9 +103,116 @@ static void pnv_phb5_reset(Object *obj, ResetType type)
     pnv_phb5_pbl_core_reset(phb);
 }
 
+static uint64_t pnv_phb5_reg_read(void *opaque, hwaddr off, unsigned size)
+{
+    PnvPHB4 *phb = PNV_PHB4(opaque);
+
+    uint64_t val = ~0ull;
+
+    switch (off) {
+    /* Registers removed in PHB5 from PHB4, return all 1's on read */
+    case PHB_CRW_BAR ... PHB_ASN_CMPM:
+    case PHB_PERFMON_CTR2 ... PHB_PERFMON_CTR3:
+    case P16_ECAP ... P16_SRDPM:
+    case PHB_PBL_NBW_CMP_MASK:
+        qemu_log_mask(LOG_GUEST_ERROR, "phb5: read from reserved offset 0x%"
+                      PRIx64"\n", off);
+        return ~0ULL;
+
+    /* New registers in PHB5 from PHB4 */
+    case P16_LDPM_PHB5 ... P16_SRDPM_PHB5:
+    case P32_ECAP ... P32_STAT:
+    case PHB_PCIE_DLP_LANE_PWR:
+    case PHB_PCIE_DLP_RXMGN:
+    case PHB_PCIE_DLP_LZC:
+    case PHB_PCIE_DLP_LEC0 ... PHB_PCIE_DLP_LEC1:
+    case PHB_PCIE_PHY_EQ_CTL:
+    case PHB_PCIE_PHY_RXEQ_STAT_G3_00_03 ... PHB_PCIE_PHY_RXEQ_STAT_G5_12_15:
+        val = phb->regs[off >> 3];
+        break;
+
+    default:
+        val = pnv_phb4_reg_read(opaque, off, size);
+    }
+
+    return val;
+}
+
+static void pnv_phb5_reg_write(void *opaque, hwaddr off, uint64_t val,
+                               unsigned size)
+{
+    PnvPHB4 *phb = PNV_PHB4(opaque);
+
+    switch (off) {
+    /* Registers removed in PHB5 from PHB4 */
+    case PHB_CRW_BAR ... PHB_ASN_CMPM:
+    case PHB_PERFMON_CTR2 ... PHB_PERFMON_CTR3:
+    case P16_ECAP ... P16_SRDPM:
+    case PHB_PBL_NBW_CMP_MASK:
+        qemu_log_mask(LOG_GUEST_ERROR, "phb5: write to reserved offset 0x%"
+                      PRIx64"\n", off);
+        return;
+
+    /* New registers in PHB5 from PHB4 */
+
+    /* W1C: Write-1-to-Clear registers */
+    case P16_STAT_PHB5 ... P16_SRDPM_PHB5:
+        phb->regs[off >> 3] &= ~val;
+        break;
+
+    /* Read only registers */
+    case P16_ECAP_PHB5:
+    case P32_ECAP:
+    case P32_STAT:
+    case PHB_PCIE_PHY_RXEQ_STAT_G3_00_03 ... PHB_PCIE_PHY_RXEQ_STAT_G5_12_15:
+        return;
+
+    /* Simple write */
+    case P32_CTL:
+    case PHB_PCIE_DLP_LANE_PWR:
+    case PHB_PCIE_DLP_RXMGN:
+    case PHB_PCIE_DLP_LZC:
+    case PHB_PCIE_DLP_LEC0 ... PHB_PCIE_DLP_LEC1:
+    case PHB_PCIE_PHY_EQ_CTL:
+        phb->regs[off >> 3] = val;
+        break;
+
+    default:
+        pnv_phb4_reg_write(opaque, off, val, size);
+    }
+}
+
+static const MemoryRegionOps pnv_phb5_reg_ops = {
+    .read = pnv_phb5_reg_read,
+    .write = pnv_phb5_reg_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void pnv_phb5_realize(DeviceState *dev, Error **errp)
+{
+    PnvPHB4 *phb = PNV_PHB4(dev);
+    char name[32];
+
+    pnv_phb4_realize(dev, errp);
+
+    /* Controller Registers */
+    snprintf(name, sizeof(name), "phb5-%d.%d-regs", phb->chip_id,
+             phb->phb_id);
+    memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb5_reg_ops, phb,
+                          name, 0x2000);
+}
+
 static void pnv_phb5_class_init(ObjectClass *klass, const void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
+
+    dc->realize         = pnv_phb5_realize;
+    dc->user_creatable  = false;
 
     rc->phases.enter = pnv_phb5_reset;
 }
@@ -114,7 +221,8 @@ static const TypeInfo pnv_phb5_type_info = {
     .name          = TYPE_PNV_PHB5,
     .parent        = TYPE_PNV_PHB4,
     .instance_size = sizeof(PnvPHB4),
-    .class_init    = pnv_phb5_class_init
+    .class_init    = pnv_phb5_class_init,
+    .class_size    = sizeof(PnvPHB4Class)
 };
 
 static void pnv_phb5_register_types(void)

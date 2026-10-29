@@ -173,6 +173,9 @@ PnvPhb4PecState *pnv_pec_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp);
 void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb);
 void pnv_phb4_cfg_core_reset(PCIDevice *d);
 extern const MemoryRegionOps pnv_phb4_xscom_ops;
+uint64_t pnv_phb4_reg_read(void *opaque, hwaddr off, unsigned size);
+void pnv_phb4_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size);
+void pnv_phb4_realize(DeviceState *dev, Error **errp);
 
 /*
  * PHB4 PEC (PCI Express Controller)
