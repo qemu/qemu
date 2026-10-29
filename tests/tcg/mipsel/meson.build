@@ -11,28 +11,7 @@ tests_dsp = [
   'test_dsp_dot.c',
   'test_dsp_mul.c',
   'test_dsp_pack.c',
-  'test_dsp_r1_shll_ph.c',
-  'test_dsp_r1_shll_qb.c',
-  'test_dsp_r1_shll_s_ph.c',
-  'test_dsp_r1_shll_s_w.c',
-  'test_dsp_r1_shllv_ph.c',
-  'test_dsp_r1_shllv_qb.c',
-  'test_dsp_r1_shllv_s_ph.c',
-  'test_dsp_r1_shllv_s_w.c',
-  'test_dsp_r1_shra_ph.c',
-  'test_dsp_r1_shra_r_ph.c',
-  'test_dsp_r1_shra_r_w.c',
-  'test_dsp_r1_shrav_ph.c',
-  'test_dsp_r1_shrav_r_ph.c',
-  'test_dsp_r1_shrav_r_w.c',
-  'test_dsp_r1_shrl_qb.c',
-  'test_dsp_r1_shrlv_qb.c',
-  'test_dsp_r2_shra_qb.c',
-  'test_dsp_r2_shra_r_qb.c',
-  'test_dsp_r2_shrav_qb.c',
-  'test_dsp_r2_shrav_r_qb.c',
-  'test_dsp_r2_shrl_ph.c',
-  'test_dsp_r2_shrlv_ph.c',
+  'test_dsp_shift.c',
 ]
 
 foreach src: tests_dsp
@@ -41,6 +20,7 @@ foreach src: tests_dsp
       'cflags': ['-EL', '-mabi=32', '-march=mips32r2', '-mgp32', '-mdsp', '-mdspr2',
                  '-Wno-unused-but-set-variable', '-Wno-unused-variable'],
       'qemu_args': ['-cpu', '74Kf'],
+      'protocol': 'tap',
     }
   }
 endforeach
