@@ -3783,6 +3783,7 @@ static void gen_RDMSR(DisasContext *s, X86DecodedInsn *decode)
     gen_update_cc_op(s);
     gen_update_eip_cur(s);
     gen_helper_rdmsr(tcg_env);
+    s->base.is_jmp = DISAS_EOB_NEXT;
 }
 #else
 #define gen_RDMSR gen_unreachable
