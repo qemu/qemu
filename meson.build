@@ -3695,6 +3695,7 @@ if have_system or have_user
     'target/arm',
     'target/arm/hvf',
     'target/arm/tcg',
+    'target/hexagon',
     'target/hppa',
     'target/i386',
     'target/i386/kvm',
