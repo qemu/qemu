@@ -15,6 +15,7 @@ tests_mips_msa_groups = [
   '../mips/test_msa_int_max_min.c',
   '../mips/test_msa_int_multiply.c',
   '../mips/test_msa_int_subtract.c',
+  '../mips/test_msa_interleave.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -40,22 +41,6 @@ if 'qemu-mips' in emulators
 endif
 
 tests_mips_msa = [
-  '../mips/user/ase/msa/interleave/test_msa_ilvr_b.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvr_d.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvod_b.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvl_b.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvev_w.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvr_w.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvr_h.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvev_h.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvev_b.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvod_w.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvev_d.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvl_d.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvod_d.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvl_h.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvl_w.c',
-  '../mips/user/ase/msa/interleave/test_msa_ilvod_h.c',
   '../mips/user/ase/msa/pack/test_msa_vshf_b.c',
   '../mips/user/ase/msa/pack/test_msa_pckev_b.c',
   '../mips/user/ase/msa/pack/test_msa_vshf_w.c',
