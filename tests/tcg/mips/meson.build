@@ -4,6 +4,7 @@ tests = []
 tests_mips_msa_groups = [
   '../mips/test_msa_bit_count.c',
   '../mips/test_msa_bit_move.c',
+  '../mips/test_msa_bit_set.c',
 ]
 
 tests += tcg_tests['multiarch-linux-user']['tests']
@@ -250,18 +251,6 @@ tests_mips_msa = [
   '../mips/user/ase/msa/int-average/test_msa_aver_u_d.c',
   '../mips/user/ase/msa/int-average/test_msa_ave_u_b.c',
   '../mips/user/ase/msa/int-average/test_msa_aver_s_h.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bneg_b.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bclr_d.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bneg_h.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bset_h.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bclr_b.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bclr_h.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bneg_w.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bset_w.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bset_b.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bclr_w.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bset_d.c',
-  '../mips/user/ase/msa/bit-set/test_msa_bneg_d.c',
   '../mips/user/ase/msa/int-dot-product/test_msa_dpadd_s_h.c',
   '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_u_h.c',
   '../mips/user/ase/msa/int-dot-product/test_msa_dpsub_s_w.c',
