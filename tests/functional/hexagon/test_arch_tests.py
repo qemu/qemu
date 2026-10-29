@@ -21,13 +21,15 @@ class ArchTestsUart(QemuSystemTest):
 
     ASSET_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
-        "download/v0.2.14/arch_tests_uart.tar.gz",
-        "ce93cb90b9d757c1946dfe8fe6abcec8292b08a66546ac51b2dd48650b05fa91",
+        "download/v0.3.1/arch_tests_uart.tar.gz",
+        "1baba59ad29c24a3d38043cc9f6846fd"
+        "fd3f88e8b67501c13722916c6c744c3c",
     )
     ASSET_SEMIHOSTING_TARBALL = Asset(
         "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
-        "download/v0.2.9/arch_tests_semihosting.tar.gz",
-        "f0ce731dc8dc2b861792b8bd60808cb714fd1922c0dc793af65090c0ba525bb0",
+        "download/v0.3.1/arch_tests_semihosting.tar.gz",
+        "37b460146e7a2a6898ba6454dfea7e1c"
+        "64053b31e8e3acf7c97e7e82209b6bda",
     )
 
     def run_uart_test(self, test_name: str,
