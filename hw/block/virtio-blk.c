@@ -1849,6 +1849,12 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (conf->serial && strlen(conf->serial) > VIRTIO_BLK_ID_BYTES) {
+        warn_report("serial is longer than %d characters and will be truncated "
+                    "for the guest. This configuration is deprecated.",
+                    VIRTIO_BLK_ID_BYTES);
+    }
+
     if (!blkconf_apply_backend_options(&conf->conf,
                                        !blk_supports_write_perm(conf->conf.blk),
                                        true, errp)) {
