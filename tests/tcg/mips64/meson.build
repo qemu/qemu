@@ -30,7 +30,7 @@ tests = []
 tests_mips64r6 = [
   '../mips64/test_mips64r6_bitops.c',
   '../mips64/test_mips64r6_crc.c',
-  '../mips64/test_mips64r6_and.c',
+  '../mips64/test_mips64r6_logic.c',
   '../mips64/test_mips64r6_dmuh.c',
   '../mips64/test_mips64r6_dmuhu.c',
   '../mips64/test_mips64r6_dmul.c',
@@ -42,12 +42,9 @@ tests_mips64r6 = [
   '../mips64/test_mips64r6_muhu.c',
   '../mips64/test_mips64r6_mul.c',
   '../mips64/test_mips64r6_mulu.c',
-  '../mips64/test_mips64r6_nor.c',
-  '../mips64/test_mips64r6_or.c',
   '../mips64/test_mips64r6_sllv.c',
   '../mips64/test_mips64r6_srav.c',
   '../mips64/test_mips64r6_srlv.c',
-  '../mips64/test_mips64r6_xor.c',
 ]
 
 foreach src: tests_mips64r6
