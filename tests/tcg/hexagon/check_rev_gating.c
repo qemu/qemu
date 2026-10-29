@@ -3,7 +3,7 @@
  * are rejected with SIGILL.
  *
  * Compiled with -mv66 so that e_flags selects CPU v66. The test embeds
- * instructions from v68 up through v81 via .word encoding: the
+ * instructions from v68 up through v85 via .word encoding: the
  * assembler enforces the selected CPU's own minimum version, so none
  * of these -- including ones it otherwise knows how to assemble at
  * their own target, such as callrh or unpause -- can be written as
@@ -155,6 +155,11 @@ TRY_FUNC(v81hvx_vconv_qf16_f8,
 TRY_FUNC(v81hvx_vconv_f8_qf16,
          ".word 0x1e0ce4e3    /* v3.f8 = v4.qf16 */\n")
 
+TRY_FUNC(v85hlx_assign_r,
+         ".word 0xe520e422    /* L1.h = r0.h */\n")
+TRY_FUNC(v85hlx_zero_store,
+         ".word 0xa480c001    /* mem(r0) = L1.new */\n")
+
 int main(void)
 {
     struct sigaction act;
@@ -209,6 +214,9 @@ int main(void)
     assert(try_v81hvx_veqhf() == SIGILL);
     assert(try_v81hvx_vconv_qf16_f8() == SIGILL);
     assert(try_v81hvx_vconv_f8_qf16() == SIGILL);
+
+    assert(try_v85hlx_assign_r() == SIGILL);
+    assert(try_v85hlx_zero_store() == SIGILL);
 
     assert(signals_handled == expected_signals);
 

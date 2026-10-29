@@ -60,6 +60,22 @@ tests += {
                'qemu_args': ['-cpu', 'v81']},
   'qfloat_v81.c': {'cflags': [cflags, '-mv81', '-mhvx', '-mhvx-ieee-fp'],
                    'qemu_args': ['-cpu', 'v81']},
+  # HLX instructions use .word encodings.
+  'hlx_abs_cmp.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_arith_h.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_arith_w.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_assign_conv.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_basic.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_lanes.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_logical.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_lut_ilog2.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_mem.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_minmax_avg.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_mpy.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_mpy_adv.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_reg_writes.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_shift.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
+  'hlx_shift_acc.c': {'cflags': cflags, 'qemu_args': ['-cpu', 'v85']},
   # Run the QFloat test below and above the v79 extended-QFloat boundary.
   'hvx_ext.c': {
     'cflags': [cflags, '-mv79', '-mhvx', '-mhvx-ieee-fp'],
