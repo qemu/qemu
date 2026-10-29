@@ -345,6 +345,7 @@ static bool need_slot_cancelled(Packet *pkt)
 static bool sreg_write_ends_tb(int reg_num)
 {
     return reg_num == HEX_SREG_SSR ||
+           reg_num == HEX_SREG_CCR ||
            reg_num == HEX_SREG_STID ||
            reg_num == HEX_SREG_IMASK ||
            reg_num == HEX_SREG_IPENDAD ||
@@ -986,6 +987,13 @@ static void gen_sreg_writes(DisasContext *ctx)
             tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
             gen_helper_modify_ssr(tcg_env, ctx->t_sreg_new_value[reg_num],
                                   old_reg);
+        } else if (reg_num == HEX_SREG_CCR) {
+            tcg_gen_mov_tl(old_reg, hex_t_sreg[reg_num]);
+            tcg_gen_mov_tl(hex_t_sreg[reg_num], ctx->t_sreg_new_value[reg_num]);
+            gen_helper_modify_ccr(tcg_env, ctx->t_sreg_new_value[reg_num],
+                                  old_reg);
+            /* A CCR write can change context, so end the TB. */
+            ctx->base.is_jmp = DISAS_NORETURN;
         } else if ((reg_num == HEX_SREG_STID) ||
                     (reg_num == HEX_SREG_IMASK) ||
                    (reg_num == HEX_SREG_IPENDAD) ||

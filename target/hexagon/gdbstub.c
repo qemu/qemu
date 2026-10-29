@@ -23,6 +23,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "cpu_helper.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #endif
 
 int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
@@ -120,6 +121,10 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             uint32_t old = env->t_sreg[HEX_SREG_SSR];
             env->t_sreg[HEX_SREG_SSR] = val;
             hexagon_modify_ssr(env, val, old);
+        } else if (n == HEX_SREG_CCR) {
+            uint32_t old = env->t_sreg[HEX_SREG_CCR];
+            env->t_sreg[HEX_SREG_CCR] = val;
+            hexagon_modify_ccr(env, val, old);
         } else if (n < HEX_SREG_GLB_START) {
             env->t_sreg[n] = val;
         } else if (cpu->globalregs) {

@@ -18,6 +18,13 @@
 #ifndef HEXAGON_CPU_H
 #define HEXAGON_CPU_H
 
+typedef struct HexagonHLXContext HexagonHLXContext;
+
+#ifdef CONFIG_USER_ONLY
+/* linux-user embeds an HLX context and needs the full type. */
+#include "hw/hexagon/hexagon_hlx.h"
+#endif
+
 #include "fpu/softfloat-types.h"
 
 #ifndef CONFIG_USER_ONLY
@@ -30,11 +37,13 @@
 typedef struct HexagonTLBState HexagonTLBState;
 typedef struct HexagonGlobalRegState HexagonGlobalRegState;
 typedef struct HexagonHVXContextState HexagonHVXContextState;
+typedef struct HexagonHLXState HexagonHLXState;
 
 #include "cpu-qom.h"
 #include "exec/cpu-common.h"
 #include "exec/target_long.h"
 #include "hex_regs.h"
+#include "hlx/hlx.h"
 #include "mmvec/mmvec.h"
 #include "hw/core/registerfields.h"
 #include "qemu/bitmap.h"
@@ -186,6 +195,16 @@ typedef struct CPUArchState {
 
     MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
 
+    /* Active HLX context, or NULL when disabled or unavailable. */
+    HexagonHLXContext *hlx_ctx;
+
+#ifdef CONFIG_USER_ONLY
+    HexagonHLXContext hlx_user_ctx;
+#endif
+
+    HLXVector future_LRegs[NUM_LREGS] QEMU_ALIGNED(16);
+    HLXVector tmp_LRegs[NUM_LREGS] QEMU_ALIGNED(16);
+
     /* Temporaries used within instructions */
     MMVectorPair VuuV QEMU_ALIGNED(16);
     MMVectorPair VvvV QEMU_ALIGNED(16);
@@ -222,6 +241,7 @@ struct ArchCPU {
     HexagonGlobalRegState *globalregs;
     uint32_t htid;
     HexL2VicInterface *l2vic;
+    HexagonHLXState *hlx;
 #endif
 };
 

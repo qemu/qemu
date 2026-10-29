@@ -42,6 +42,7 @@
 #include "hexswi.h"
 #include "exec/cpu-interrupt.h"
 #include "exec/page-protection.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #include "exec/target_page.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
@@ -72,6 +73,8 @@ static const Property hexagon_cpu_properties[] = {
     DEFINE_PROP_LINK("global-regs", HexagonCPU, globalregs,
         TYPE_HEXAGON_GLOBALREG, HexagonGlobalRegState *),
     DEFINE_PROP_UINT32("htid", HexagonCPU, htid, 0),
+    DEFINE_PROP_LINK("hlx", HexagonCPU, hlx,
+                     TYPE_HEXAGON_HLX, HexagonHLXState *),
 #endif
     DEFINE_PROP_BOOL("lldb-compat", HexagonCPU, cfg.lldb_compat, false),
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, cfg.lldb_stack_adjust,
@@ -498,6 +501,12 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
     env->cfi_active = 0;
     env->cfi_active_log = 0;
     env->cfi_updated = 0;
+#ifdef CONFIG_USER_ONLY
+    memset(&env->hlx_user_ctx, 0, sizeof(env->hlx_user_ctx));
+    env->hlx_ctx = &env->hlx_user_ctx;
+#else
+    env->hlx_ctx = NULL;
+#endif
 #ifndef CONFIG_USER_ONLY
     memset(env->t_sreg, 0, sizeof(uint32_t) * NUM_SREGS);
     memset(env->greg, 0, sizeof(uint32_t) * NUM_GREGS);
@@ -508,11 +517,18 @@ static void hexagon_cpu_reset_hold(Object *obj, ResetType type)
 
     env->t_sreg[HEX_SREG_HTID] = cpu->htid;
     env->threadId = cpu->htid;
+    if (cs->cpu_index == 0 && cpu->hlx) {
+        hexagon_hlx_reset_all(cpu->hlx);
+    }
+
     hexagon_cpu_soft_reset(env);
     hexagon_hvx_select_context(env, env->t_sreg[HEX_SREG_SSR]);
     env->cause_code = HEX_EVENT_NONE;
     env->gpr[HEX_REG_PC] = cpu->boot_addr;
 #endif
+
+    memset(env->future_LRegs, 0, sizeof(env->future_LRegs));
+    memset(env->tmp_LRegs, 0, sizeof(env->tmp_LRegs));
 }
 
 static void hexagon_cpu_disas_set_info(const CPUState *cs,

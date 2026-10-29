@@ -287,7 +287,7 @@ static const uint32_t sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_STID] = 0xff00ff00,
     [HEX_SREG_ELR] = 0x00000003,
     [HEX_SREG_SSR] = 0x00008000,
-    [HEX_SREG_CCR] = 0x10e0ff24,
+    [HEX_SREG_CCR] = 0x00c0ff24,
     [HEX_SREG_HTID] = IMMUTABLE,
     [HEX_SREG_GEVB] = 0x000000ff,
 };
@@ -308,7 +308,8 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv_i32 val)
     if (reg_mask != IMMUTABLE) {
         if (rnum < HEX_SREG_GLB_START) {
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
-            if (ctx->need_commit || rnum == HEX_SREG_SSR) {
+            if (ctx->need_commit || rnum == HEX_SREG_SSR ||
+                rnum == HEX_SREG_CCR) {
                 tcg_gen_mov_i32(ctx->t_sreg_new_value[rnum], val);
             } else {
                 tcg_gen_mov_i32(hex_t_sreg[rnum], val);

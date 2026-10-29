@@ -1355,6 +1355,12 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
     hexagon_modify_ssr(env, new, old);
 }
 
+void HELPER(modify_ccr)(CPUHexagonState *env, uint32_t new, uint32_t old)
+{
+    BQL_LOCK_GUARD();
+    hexagon_modify_ccr(env, new, old);
+}
+
 static void hex_k0_lock(CPUHexagonState *env, uint32_t PC)
 {
     HexagonCPU *cpu = env_archcpu(env);
