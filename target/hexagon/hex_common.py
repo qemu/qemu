@@ -404,6 +404,16 @@ HLX_INLINE_TAGS = {
                          "vece": "MO_16"},
     "LX_avg_uh_rnd":    {"op": "gvec3", "table": "hlx_avg_uh_rnd_op",
                          "vece": "MO_16"},
+    "LX_absdiff_h":     {"op": "gvec3", "table": "hlx_absdiff_sh_op",
+                         "vece": "MO_16"},
+    "LX_absdiff_uh":    {"op": "gvec3", "table": "hlx_absdiff_uh_op",
+                         "vece": "MO_16"},
+
+    # These use one source register, not a pair destination.
+    "LX_conv_uw_uh":    {"op": "conv_h_to_w_pair", "sign_extend": False,
+                         "vece": "MO_16"},
+    "LX_conv_w_h":      {"op": "conv_h_to_w_pair", "sign_extend": True,
+                         "vece": "MO_16", "table": "hlx_sari15_h_op"},
 }
 
 def is_hlx_inline_tag(tag):

@@ -17,4 +17,9 @@ extern const GVecGen3 hlx_avg_sh_rnd_op;
 extern const GVecGen3 hlx_avg_uh_op;
 extern const GVecGen3 hlx_avg_uh_rnd_op;
 
+extern const GVecGen3 hlx_absdiff_sh_op;
+extern const GVecGen3 hlx_absdiff_uh_op;
+
+extern const GVecGen2 hlx_sari15_h_op;
+
 #endif /* HLX_GVEC_TABLES_H */

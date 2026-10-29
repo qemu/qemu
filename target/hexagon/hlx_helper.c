@@ -195,3 +195,42 @@ void HELPER(hlx_gvec_avg_uh16_rnd)(void *d, void *a, void *b, uint32_t desc)
         *(uint16_t *)((char *)d + i) = r;
     }
 }
+
+void HELPER(hlx_gvec_absdiff_sh16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t av = *(int16_t *)((char *)a + i);
+        int16_t bv = *(int16_t *)((char *)b + i);
+        int16_t mx = (av > bv) ? av : bv;
+        int16_t mn = (av > bv) ? bv : av;
+        *(uint16_t *)((char *)d + i) = (uint16_t)(mx - mn);
+    }
+}
+
+void HELPER(hlx_gvec_absdiff_uh16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint16_t)) {
+        uint16_t av = *(uint16_t *)((char *)a + i);
+        uint16_t bv = *(uint16_t *)((char *)b + i);
+        uint16_t mx = (av > bv) ? av : bv;
+        uint16_t mn = (av > bv) ? bv : av;
+        *(uint16_t *)((char *)d + i) = mx - mn;
+    }
+}
+
+void HELPER(hlx_gvec_sari15_h16)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t av = *(int16_t *)((char *)a + i);
+        *(uint16_t *)((char *)d + i) = (uint16_t)(av >> 15);
+    }
+}

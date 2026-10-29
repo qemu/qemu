@@ -216,3 +216,71 @@ const GVecGen3 hlx_avg_uh_rnd_op = {
     .fno     = gen_helper_hlx_gvec_avg_uh16_rnd,
     .vece    = MO_16,
 };
+
+/* Halfword absolute difference as uint16_t. */
+static void hlx_fniv_absdiff_sh(unsigned vece, TCGv_vec r,
+                                 TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec mx = tcg_temp_new_vec_matching(r);
+    TCGv_vec mn = tcg_temp_new_vec_matching(r);
+    tcg_gen_smax_vec(vece, mx, a, b);
+    tcg_gen_smin_vec(vece, mn, a, b);
+    tcg_gen_sub_vec(vece, r, mx, mn);
+}
+
+static void hlx_fniv_absdiff_uh(unsigned vece, TCGv_vec r,
+                                 TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec mx = tcg_temp_new_vec_matching(r);
+    TCGv_vec mn = tcg_temp_new_vec_matching(r);
+    tcg_gen_umax_vec(vece, mx, a, b);
+    tcg_gen_umin_vec(vece, mn, a, b);
+    tcg_gen_sub_vec(vece, r, mx, mn);
+}
+
+static const TCGOpcode hlx_vecop_absdiff_sh[] = {
+    INDEX_op_smax_vec,
+    INDEX_op_smin_vec,
+    INDEX_op_sub_vec,
+    0
+};
+
+static const TCGOpcode hlx_vecop_absdiff_uh[] = {
+    INDEX_op_umax_vec,
+    INDEX_op_umin_vec,
+    INDEX_op_sub_vec,
+    0
+};
+
+const GVecGen3 hlx_absdiff_sh_op = {
+    .fniv    = hlx_fniv_absdiff_sh,
+    .opt_opc = hlx_vecop_absdiff_sh,
+    .fno     = gen_helper_hlx_gvec_absdiff_sh16,
+    .vece    = MO_16,
+};
+
+const GVecGen3 hlx_absdiff_uh_op = {
+    .fniv    = hlx_fniv_absdiff_uh,
+    .opt_opc = hlx_vecop_absdiff_uh,
+    .fno     = gen_helper_hlx_gvec_absdiff_uh16,
+    .vece    = MO_16,
+};
+
+/* Fill LX_conv_w_h's high register with sign bits. */
+
+static void hlx_fniv_sari15_h(unsigned vece, TCGv_vec r, TCGv_vec a)
+{
+    tcg_gen_sari_vec(vece, r, a, 15);
+}
+
+static const TCGOpcode hlx_vecop_sari15_h[] = {
+    INDEX_op_sari_vec,
+    0
+};
+
+const GVecGen2 hlx_sari15_h_op = {
+    .fniv    = hlx_fniv_sari15_h,
+    .opt_opc = hlx_vecop_sari15_h,
+    .fno     = gen_helper_hlx_gvec_sari15_h16,
+    .vece    = MO_16,
+};
