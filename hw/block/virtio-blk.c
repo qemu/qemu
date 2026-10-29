@@ -1011,14 +1011,18 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     case VIRTIO_BLK_T_GET_ID:
     {
         /*
-         * NB: per existing s/n string convention the string is
+         * The spec requires NUL-padding for the output. The string is
          * terminated by '\0' only when shorter than buffer.
          */
         const char *serial = s->conf.serial ? s->conf.serial : "";
-        size_t size = MIN(strlen(serial) + 1,
-                          MIN(iov_size(in_iov, in_num),
-                              VIRTIO_BLK_ID_BYTES));
+        size_t req_size = MIN(iov_size(in_iov, in_num), VIRTIO_BLK_ID_BYTES);
+        size_t size = MIN(strlen(serial), req_size);
+        size_t padding = req_size - size;
+
         iov_from_buf(in_iov, in_num, 0, serial, size);
+        if (padding) {
+            iov_memset(in_iov, in_num, size, 0, padding);
+        }
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
         g_free(req);
         break;
