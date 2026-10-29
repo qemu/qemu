@@ -27,7 +27,7 @@ void HELPER(asrtle_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
     CPUSysState *sys = env_sys(env);
 
-    if (rj > rk) {
+    if ((target_long)rj > (target_long)rk) {
         sys->CSR_BADV = rj;
         do_raise_exception(env, EXCCODE_BCE, GETPC());
     }
@@ -37,7 +37,7 @@ void HELPER(asrtgt_d)(CPULoongArchState *env, target_ulong rj, target_ulong rk)
 {
     CPUSysState *sys = env_sys(env);
 
-    if (rj <= rk) {
+    if ((target_long)rj <= (target_long)rk) {
         sys->CSR_BADV = rj;
         do_raise_exception(env, EXCCODE_BCE, GETPC());
     }
