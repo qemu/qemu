@@ -82,7 +82,7 @@ static bool gen_fload_gt(DisasContext *ctx, arg_frr *a, MemOp mop)
     CHECK_FPE;
 
     gen_helper_asrtgt_d(tcg_env, src1, src2);
-    addr = make_address_x(ctx, src1, src2);
+    addr = make_address_i(ctx, src1, 0);
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, mop);
     maybe_nanbox_load(dest, mop);
     set_fpr(a->fd, dest);
@@ -100,7 +100,7 @@ static bool gen_fstore_gt(DisasContext *ctx, arg_frr *a, MemOp mop)
     CHECK_FPE;
 
     gen_helper_asrtgt_d(tcg_env, src1, src2);
-    addr = make_address_x(ctx, src1, src2);
+    addr = make_address_i(ctx, src1, 0);
     tcg_gen_qemu_st_tl(src3, addr, ctx->mem_idx, mop);
 
     return true;
@@ -116,7 +116,7 @@ static bool gen_fload_le(DisasContext *ctx, arg_frr *a, MemOp mop)
     CHECK_FPE;
 
     gen_helper_asrtle_d(tcg_env, src1, src2);
-    addr = make_address_x(ctx, src1, src2);
+    addr = make_address_i(ctx, src1, 0);
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, mop);
     maybe_nanbox_load(dest, mop);
     set_fpr(a->fd, dest);
@@ -134,7 +134,7 @@ static bool gen_fstore_le(DisasContext *ctx, arg_frr *a, MemOp mop)
     CHECK_FPE;
 
     gen_helper_asrtle_d(tcg_env, src1, src2);
-    addr = make_address_x(ctx, src1, src2);
+    addr = make_address_i(ctx, src1, 0);
     tcg_gen_qemu_st_tl(src3, addr, ctx->mem_idx, mop);
 
     return true;
