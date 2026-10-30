@@ -12,6 +12,8 @@ static VMChangeStateEntry *cb_change_state_entry = NULL;
 
 static bool cb_reset_serial_on_resume = false;
 
+static int guest_peer_count;
+
 static const VMStateDescription vmstate_cbcontent = {
     .name = "clipboard/content",
     .version_id = 0,
@@ -80,6 +82,10 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
         cb_change_state_entry = qemu_add_vm_change_state_handler(qemu_clipboard_change_state, NULL);
     }
 
+    if (peer->guest) {
+        guest_peer_count++;
+    }
+
     notifier_list_add(&clipboard_notifiers, &peer->notifier);
     qemu_clipboard_notify_peer_update(peer, true);
 }
@@ -92,12 +98,23 @@ void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
         qemu_clipboard_peer_release(peer, i);
     }
     notifier_remove(&peer->notifier);
+
+    if (peer->guest) {
+        assert(guest_peer_count > 0);
+        guest_peer_count--;
+    }
+
     qemu_clipboard_notify_peer_update(peer, false);
 
     if (QLIST_EMPTY(&clipboard_notifiers.notifiers)) {
         g_clear_pointer(&cb_change_state_entry,
                         qemu_del_vm_change_state_handler);
     }
+}
+
+bool qemu_clipboard_guest_peer_present(void)
+{
+    return guest_peer_count > 0;
 }
 
 bool qemu_clipboard_peer_owns(QemuClipboardPeer *peer,

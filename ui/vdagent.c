@@ -695,6 +695,7 @@ static void vdagent_clipboard_peer_register(VDAgentChardev *vd)
     }
 
     vd->cbpeer.name = "vdagent";
+    vd->cbpeer.guest = true;
     vd->cbpeer.notifier.notify = vdagent_clipboard_notify;
     vd->cbpeer.request = vdagent_clipboard_request;
     qemu_clipboard_peer_register(&vd->cbpeer);
