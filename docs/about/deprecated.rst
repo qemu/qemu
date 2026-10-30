@@ -287,6 +287,16 @@ The machine never got fully implemented and can only show the firmware prompt.
 Given the incomplete state and slow progress on improvements, it might get
 removed again without replacement.
 
+``quanta-gsj`` Arm machine (since 11.2)
+'''''''''''''''''''''''''''''''''''''''
+
+The ``quanta-gsj`` machine models a system with a Nuvoton SoC
+intended for use as a baseband management controller in a server.
+Support for this machine type was dropped from the OpenBMC project
+in 2023. If OpenBMC no longer care about this hardware, the QEMU
+model is unlikely to have many users, so we are deprecating it.
+Users should consider one of the other Nuvoton-based board models.
+
 
 Backend options
 ---------------
