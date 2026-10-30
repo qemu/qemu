@@ -102,6 +102,6 @@ void block_copy_call_cancel(BlockCopyCallState *call_state);
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 int64_t block_copy_cluster_size(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
-void block_copy_set_zero_bitmap_valid(BlockCopyState *s);
+void block_copy_set_scan_done(BlockCopyState *s);
 
 #endif /* BLOCK_COPY_H */

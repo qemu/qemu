@@ -254,7 +254,6 @@ static void backup_init_bcs_bitmap(BackupBlockJob *job)
 static int coroutine_fn backup_scan_source(BackupBlockJob *s)
 {
     Job *job = &s->common.job;
-    bool top = s->sync_mode == MIRROR_SYNC_MODE_TOP;
     int64_t offset, cached_end = 0, count;
     int ret = 0;
 
@@ -279,10 +278,7 @@ static int coroutine_fn backup_scan_source(BackupBlockJob *s)
         }
     }
 
-    if (top) {
-        block_copy_set_skip_unallocated(s->bcs, false);
-    }
-    block_copy_set_zero_bitmap_valid(s->bcs);
+    block_copy_set_scan_done(s->bcs);
 
     return 0;
 }

@@ -161,8 +161,12 @@ typedef struct BlockCopyState {
     BdrvDirtyBitmap *copy_bitmap;
     /* Clusters reading as zero; allocated on demand, frozen once valid. */
     HBitmap *zero_bitmap;
-    /* Published only after the scan, with skip_unallocated already false. */
-    bool zero_bitmap_valid; /* atomic, store-release/load-acquire */
+    /*
+     * Set when the scan is over: zero_bitmap is complete, and for sync=top
+     * copy_bitmap holds no unallocated clusters, so a task needs no
+     * block-status query of its own.
+     */
+    bool scan_done; /* atomic, store-release/load-acquire */
     ProgressMeter *progress;
     SharedResource *mem;
     RateLimit rate_limit;
@@ -214,7 +218,7 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
      * The scan already knows how this range reads: pick the method here and
      * stop the task where the answer changes.
      */
-    if (qatomic_load_acquire(&s->zero_bitmap_valid)) {
+    if (qatomic_load_acquire(&s->scan_done)) {
         int64_t boundary;
 
         if (hbitmap_get(s->zero_bitmap, offset)) {
@@ -687,7 +691,7 @@ int block_copy_block_status(BlockCopyState *s, int64_t offset, int64_t bytes,
     return ret;
 }
 
-/* Only the scan allocates, and it runs before zero_bitmap_valid. */
+/* Only the scan allocates, and it runs before scan_done. */
 static HBitmap *block_copy_zero_bitmap(BlockCopyState *s)
 {
     if (!s->zero_bitmap) {
@@ -845,7 +849,7 @@ block_copy_set_task_method(BlockCopyState *s, BlockCopyTask *task)
     int64_t status_bytes;
 
     /* block_copy_task_create() already decided, from zero_bitmap. */
-    if (qatomic_load_acquire(&s->zero_bitmap_valid)) {
+    if (qatomic_load_acquire(&s->scan_done)) {
         return true;
     }
 
@@ -1179,10 +1183,11 @@ void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip)
     qatomic_set(&s->skip_unallocated, skip);
 }
 
-void block_copy_set_zero_bitmap_valid(BlockCopyState *s)
+void block_copy_set_scan_done(BlockCopyState *s)
 {
     block_copy_zero_bitmap(s);
-    qatomic_store_release(&s->zero_bitmap_valid, true);
+    qatomic_set(&s->skip_unallocated, false);
+    qatomic_store_release(&s->scan_done, true);
 }
 
 void block_copy_set_speed(BlockCopyState *s, uint64_t speed)
