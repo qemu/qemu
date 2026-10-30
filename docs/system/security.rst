@@ -168,7 +168,7 @@ eligible for CVE assignment. Annotations will be extended to other backend
 and object types over time, to make their security status explicit.
 
 It is possible to control or identify the usage of types that do not offer
-an explicit security boundary using the ``insecure-types`` parameter to the
+an explicit security boundary using the ``insecure-input`` parameter to the
 ``-compat`` argument, which accepts three values:
 
  * accept: usage of any type will be permitted. This is the current

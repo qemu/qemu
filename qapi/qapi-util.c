@@ -72,7 +72,7 @@ bool compat_policy_check_security(const CompatPolicy *policy,
         return true;
     }
 
-    switch (policy->insecure_types) {
+    switch (policy->insecure_input) {
     case COMPAT_POLICY_SECURITY_ACCEPT:
         return true;
 

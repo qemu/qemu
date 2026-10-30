@@ -73,7 +73,7 @@
 # @unstable-output: how to handle unstable output (default 'accept')
 #     (since 6.2)
 #
-# @insecure-types: how to handle types that are not declared secure
+# @insecure-input: how to handle types that are not declared secure
 #     (default 'accept') (since 11.2)
 #
 # Limitation: @deprecated-input, @deprecated-output, @unstable-input,
@@ -91,4 +91,4 @@
             '*deprecated-output': 'CompatPolicyOutput',
             '*unstable-input': 'CompatPolicyInput',
             '*unstable-output': 'CompatPolicyOutput',
-            '*insecure-types': 'CompatPolicySecurity' } }
+            '*insecure-input': 'CompatPolicySecurity' } }
