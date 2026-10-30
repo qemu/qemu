@@ -233,6 +233,18 @@ DEF_ATTRIB(CVI_VX_NO_TMP_LD, "HVX multiply without tmp load", "", "")
 DEF_ATTRIB(HVX_FLT, "This a floating point HVX instruction.", "", "")
 
 DEF_ATTRIB(NO_IDEF_PARSER, "Skip idef-parser for this instruction", "", "")
+DEF_ATTRIB(SHARED_EXTENSION, "Shared extension instruction", "", "")
+DEF_ATTRIB(EA_REG_ONLY, "EA = input register only", "", "")
+DEF_ATTRIB(EA_PAGECROSS, "EA calculation can have a Page Cross Stall", "", "")
+DEF_ATTRIB(MPY, "Has a multiply", "", "")
+DEF_ATTRIB(PAIR_1OF2, "For assembler", "", "")
+DEF_ATTRIB(PAIR_2OF2, "For assembler", "", "")
+DEF_ATTRIB(HMX, "HMX coprocessor instruction", "", "")
+DEF_ATTRIB(HMX_CVT, "HMX convert instruction", "", "")
+DEF_ATTRIB(HMX_FLT, "HMX floating-point instruction", "", "")
+DEF_ATTRIB(HMX_CU_SCALAR, "HMX scalar operand", "", "")
+DEF_ATTRIB(HMX_BLOCK_ALIGN, "HMX block-aligned access", "", "")
+DEF_ATTRIB(HMX_128B_ALIGN, "HMX 128-byte aligned access", "", "")
 
 /* Keep this as the last attribute: */
 DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file", "", "")
