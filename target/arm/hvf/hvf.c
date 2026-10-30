@@ -1307,7 +1307,7 @@ void hvf_arm_set_cpu_features_from_host(ARMCPU *cpu)
     cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
     cpu->isar = arm_host_cpu_features.isar;
     cpu->env.features = arm_host_cpu_features.features;
-    cpu->midr = arm_host_cpu_features.midr;
+    SET_IDREG(&cpu->isar, MIDR, arm_host_cpu_features.midr);
     cpu->reset_sctlr = arm_host_cpu_features.reset_sctlr;
     cpu->sme_vq.supported = arm_host_cpu_features.sme_vq_supported;
 }
@@ -1484,7 +1484,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 
     /* Set CP_NO_RAW system registers on init */
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_MIDR_EL1,
-                              arm_cpu->midr);
+                              GET_IDREG(&arm_cpu->isar, MIDR));
     assert_hvf_ok(ret);
 
     ret = hv_vcpu_set_sys_reg(cpu->accel->fd, HV_SYS_REG_MPIDR_EL1,

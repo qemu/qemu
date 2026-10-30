@@ -27,7 +27,8 @@ static void arm926_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
-    cpu->midr = 0x41069265;
+    SET_IDREG(&cpu->isar, MIDR, 0x41069265);
+
     cpu->reset_fpsid = 0x41011090;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00050078;
@@ -54,7 +55,7 @@ static void arm946_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_PMSA);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
-    cpu->midr = 0x41059461;
+    SET_IDREG(&cpu->isar, MIDR, 0x41059461);
     cpu->ctr = 0x0f004006;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -68,7 +69,7 @@ static void arm1026_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
-    cpu->midr = 0x4106a262;
+    SET_IDREG(&cpu->isar, MIDR, 0x4106a262);
     cpu->reset_fpsid = 0x410110a0;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00050078;
@@ -117,7 +118,7 @@ static void arm1136_r2_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
-    cpu->midr = 0x4107b362;
+    SET_IDREG(isar, MIDR, 0x4107b362);
     cpu->reset_fpsid = 0x410120b4;
     cpu->isar.mvfr0 = 0x11111111;
     cpu->isar.mvfr1 = 0x00000000;
@@ -149,7 +150,7 @@ static void arm1136_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
-    cpu->midr = 0x4117b363;
+    SET_IDREG(isar, MIDR, 0x4117b363);
     cpu->reset_fpsid = 0x410120b4;
     cpu->isar.mvfr0 = 0x11111111;
     cpu->isar.mvfr1 = 0x00000000;
@@ -182,7 +183,7 @@ static void arm1176_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
     set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
     set_feature(&cpu->env, ARM_FEATURE_EL3);
-    cpu->midr = 0x410fb767;
+    SET_IDREG(isar, MIDR, 0x410fb767);
     cpu->reset_fpsid = 0x410120b5;
     cpu->isar.mvfr0 = 0x11111111;
     cpu->isar.mvfr1 = 0x00000000;
@@ -213,7 +214,7 @@ static void arm11mpcore_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
     set_feature(&cpu->env, ARM_FEATURE_MPIDR);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
-    cpu->midr = 0x410fb022;
+    SET_IDREG(isar, MIDR, 0x410fb022);
     cpu->reset_fpsid = 0x410120b4;
     cpu->isar.mvfr0 = 0x11111111;
     cpu->isar.mvfr1 = 0x00000000;
@@ -257,7 +258,7 @@ static void cortex_a8_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     set_feature(&cpu->env, ARM_FEATURE_PMU);
-    cpu->midr = 0x410fc080;
+    SET_IDREG(isar, MIDR, 0x410fc080);
     cpu->reset_fpsid = 0x410330c0;
     cpu->isar.mvfr0 = 0x11110222;
     cpu->isar.mvfr1 = 0x00011111;
@@ -335,7 +336,7 @@ static void cortex_a9_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     set_feature(&cpu->env, ARM_FEATURE_CBAR);
     set_feature(&cpu->env, ARM_FEATURE_D32DIS);
-    cpu->midr = 0x410fc090;
+    SET_IDREG(isar, MIDR, 0x410fc090);
     cpu->reset_fpsid = 0x41033090;
     cpu->isar.mvfr0 = 0x11110222;
     cpu->isar.mvfr1 = 0x01111111;
@@ -403,7 +404,7 @@ static void cortex_a7_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     set_feature(&cpu->env, ARM_FEATURE_PMU);
     set_feature(&cpu->env, ARM_FEATURE_D32DIS);
-    cpu->midr = 0x410fc075;
+    SET_IDREG(isar, MIDR, 0x410fc075);
     cpu->reset_fpsid = 0x41023075;
     cpu->isar.mvfr0 = 0x10110222;
     cpu->isar.mvfr1 = 0x11111111;
@@ -455,7 +456,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     set_feature(&cpu->env, ARM_FEATURE_PMU);
     /* r4p0 cpu, not requiring expensive tlb flush errata */
-    cpu->midr = 0x414fc0f0;
+    SET_IDREG(isar, MIDR, 0x414fc0f0);
     SET_IDREG(isar, REVIDR, 0);
     cpu->reset_fpsid = 0x410430f0;
     cpu->isar.mvfr0 = 0x10110222;
@@ -505,7 +506,7 @@ static void cortex_r5_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     set_feature(&cpu->env, ARM_FEATURE_PMSA);
     set_feature(&cpu->env, ARM_FEATURE_PMU);
-    cpu->midr = 0x411fc153; /* r1p3 */
+    SET_IDREG(isar, MIDR, 0x411fc153); /* r1p3 */
     SET_IDREG(isar, ID_PFR0, 0x0131);
     SET_IDREG(isar, ID_PFR1, 0x001);
     SET_IDREG(isar, ID_DFR0, 0x010400);
@@ -646,7 +647,7 @@ static void cortex_r52_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_BACKCOMPAT_CNTFRQ);
     set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
-    cpu->midr = 0x411fd133; /* r1p3 */
+    SET_IDREG(isar, MIDR, 0x411fd133); /* r1p3 */
     SET_IDREG(isar, REVIDR, 0);
     cpu->reset_fpsid = 0x41034023;
     cpu->isar.mvfr0 = 0x10110222;
@@ -694,7 +695,7 @@ static void ti925t_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V4T);
     set_feature(&cpu->env, ARM_FEATURE_OMAPCP);
-    cpu->midr = ARM_CPUID_TI925T;
+    SET_IDREG(&cpu->isar, MIDR, ARM_CPUID_TI925T);
     cpu->ctr = 0x5109149;
     cpu->reset_sctlr = 0x00000070;
 }
@@ -706,7 +707,7 @@ static void sa1100_initfn(Object *obj)
     cpu->dtb_compatible = "intel,sa1100";
     set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
-    cpu->midr = 0x4401A11B;
+    SET_IDREG(&cpu->isar, MIDR, 0x4401A11B);
     cpu->reset_sctlr = 0x00000070;
 }
 
@@ -715,7 +716,7 @@ static void sa1110_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
-    cpu->midr = 0x6901B119;
+    SET_IDREG(&cpu->isar, MIDR, 0x6901B119);
     cpu->reset_sctlr = 0x00000070;
 }
 

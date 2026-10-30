@@ -775,7 +775,7 @@ void whpx_arm_set_cpu_features_from_host(ARMCPU *cpu)
     cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
     cpu->isar = arm_host_cpu_features.isar;
     cpu->env.features = arm_host_cpu_features.features;
-    cpu->midr = arm_host_cpu_features.midr;
+    SET_IDREG(&cpu->isar, MIDR, arm_host_cpu_features.midr);
     cpu->reset_sctlr = arm_host_cpu_features.reset_sctlr;
 }
 
@@ -836,7 +836,7 @@ int whpx_init_vcpu(CPUState *cpu)
     assert(write_cpustate_to_list(arm_cpu, false));
 
     /* Set CP_NO_RAW system registers on init */
-    val.Reg64 = arm_cpu->midr;
+    val.Reg64 = GET_IDREG(&arm_cpu->isar, MIDR);
     whpx_set_reg(cpu, WHvArm64RegisterMidrEl1,
                               val);
 
