@@ -1370,6 +1370,7 @@ static void next_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "next.ram";
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
     mc->no_cdrom = true;
+    mc->deprecation_reason = "machine is incomplete and cannot boot a kernel";
 }
 
 static const TypeInfo next_typeinfo = {
