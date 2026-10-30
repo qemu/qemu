@@ -1596,8 +1596,7 @@ static void gen_mxu_s32ldxvx(DisasContext *ctx, bool reversed,
 
     gen_load_gpr(t0, Rb);
     gen_load_gpr(t1, Rc);
-    tcg_gen_shli_i32(t1, t1, strd2);
-    tcg_gen_add_i32(t0, t0, t1);
+    tcg_gen_lea_i32(t0, t0, t1, strd2, 0);
 
     tcg_gen_qemu_ld_i32(t1, t0, ctx->mem_idx,
                        MO_SL | mo_endian_rev(ctx, reversed) |

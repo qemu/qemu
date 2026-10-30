@@ -105,4 +105,7 @@ tcg_target_extract_valid(TCGType type, unsigned ofs, unsigned len)
 }
 #define TCG_TARGET_extract_valid  tcg_target_extract_valid
 
+#define TCG_TARGET_lea_sh_valid(type, sh)          ((sh) <= 3)
+#define TCG_TARGET_lea_imm_valid(type, imm)        ((imm) == (int32_t)(imm))
+
 #endif

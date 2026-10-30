@@ -57,4 +57,7 @@
 #define TCG_TARGET_sextract_valid(type, ofs, len)  1
 #define TCG_TARGET_deposit_valid(type, ofs, len)   1
 
+#define TCG_TARGET_lea_sh_valid(type, sh)          ((sh) < tcg_type_bits(type))
+#define TCG_TARGET_lea_imm_valid(type, imm)        ((imm) == 0)
+
 #endif

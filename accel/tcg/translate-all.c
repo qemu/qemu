@@ -288,12 +288,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu, TCGTBCPUState s)
     assert_no_pages_locked();
     tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(!tb)) {
-        /* flush must be done */
-        if (cpu_in_serial_context(cpu)) {
-            trace_tb_gen_code_buffer_overflow("tcg_tb_alloc");
-            tb_flush__exclusive_or_serial();
-            goto buffer_overflow;
-        }
+        /*
+         * Flush must be done.  Always exit the cpu loop so that the
+         * last_tb linkage within the inner cpu loop does not apply.
+         */
+        trace_tb_gen_code_buffer_overflow("tcg_tb_alloc");
         queue_tb_flush(cpu);
         mmap_unlock();
         /* Make the execution loop process the flush as soon as possible.  */

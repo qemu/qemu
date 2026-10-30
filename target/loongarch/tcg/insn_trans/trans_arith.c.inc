@@ -188,9 +188,7 @@ static void gen_rem_w(TCGv dest, TCGv src1, TCGv src2)
 
 static void gen_alsl(TCGv dest, TCGv src1, TCGv src2, target_long sa)
 {
-    TCGv t0 = tcg_temp_new();
-    tcg_gen_shli_tl(t0, src1, sa);
-    tcg_gen_add_tl(dest, t0, src2);
+    tcg_gen_lea_tl(dest, src2, src1, sa, 0);
 }
 
 static bool trans_lu32i_d(DisasContext *ctx, arg_lu32i_d *a)

@@ -224,6 +224,7 @@ typedef enum {
 
     /* Zba: Bit manipulation extension, address generation */
     OPC_ADD_UW = 0x0800003b,
+    OPC_SHxADD = 0x20000033,  /* plus sh << 13 */
 
     /* Zbb: Bit manipulation extension, basic bit manipulation */
     OPC_ANDN   = 0x40007033,
@@ -2740,6 +2741,22 @@ static const TCGOutOpStore outop_st = {
     .out_r = tcg_out_st,
 };
 
+static void tgen_lea(TCGContext *s, TCGType type, TCGReg a0, TCGReg a1,
+                     TCGReg a2, unsigned sh, tcg_target_long imm)
+{
+    tcg_out32(s, encode_r(OPC_SHxADD, a0, a2, a1) | (sh << 13));
+}
+
+static TCGConstraintSetIndex cset_zba_rrr(TCGType type, unsigned flags)
+{
+    return cpuinfo & CPUINFO_ZBA ? C_O1_I2(r, r, r) : C_NotImplemented;
+}
+
+static const TCGOutOpLea outop_lea = {
+    .base.static_constraint = C_Dynamic,
+    .base.dynamic_constraint = cset_zba_rrr,
+    .out = tgen_lea,
+};
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
                            unsigned vecl, unsigned vece,

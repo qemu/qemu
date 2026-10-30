@@ -31,6 +31,7 @@
 #define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
 
 typedef enum {
+    TCG_REG_NONE = -1,
     TCG_REG_EAX = 0,
     TCG_REG_ECX,
     TCG_REG_EDX,
@@ -78,5 +79,7 @@ typedef enum {
     TCG_AREG0 = TCG_REG_EBP,
     TCG_REG_CALL_STACK = TCG_REG_ESP
 } TCGReg;
+
+#define TCG_REG_ZERO  TCG_REG_NONE
 
 #endif

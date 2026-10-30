@@ -478,16 +478,16 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
                          last_tb->tc.ptr, pc, lookup_symbol(pc));
             }
         }
-    }
-
-    /*
-     * If gdb single-step, and we haven't raised another exception,
-     * raise a debug exception.  Single-step with another exception
-     * is handled in cpu_handle_exception.
-     */
-    if (unlikely(cpu_single_stepping(cpu)) && cpu->exception_index == -1) {
-        cpu->exception_index = EXCP_DEBUG;
-        cpu_loop_exit(cpu);
+    } else {
+        /*
+         * If gdb single-step, and we haven't raised another exception,
+         * raise a debug exception.  Single-step with another exception
+         * is handled in cpu_handle_exception.
+         */
+        if (unlikely(cpu_single_stepping(cpu)) && cpu->exception_index == -1) {
+            cpu->exception_index = EXCP_DEBUG;
+            cpu_loop_exit(cpu);
+        }
     }
 
     return last_tb;
