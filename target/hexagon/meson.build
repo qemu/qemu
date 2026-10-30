@@ -307,6 +307,7 @@ hexagon_ss.add(files(
     'hlx/decode_ext_hlx.c',
     'hlx_helper.c',
     'hlx_gvec_tables.c',
+    'hmx_config.c',
 ))
 
 hexagon_softmmu_ss.add(files(

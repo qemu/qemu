@@ -201,6 +201,8 @@ void hex_subsys_create(HexagonCommonMachineState *hms,
 
 void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
 {
+    Object *hmx;
+
     object_property_add_child(OBJECT(hms->cluster), "cpu[*]", OBJECT(cpu));
     object_property_set_link(OBJECT(cpu), "global-regs",
                              OBJECT(hms->glob_regs), &error_fatal);
@@ -215,6 +217,11 @@ void hex_subsys_add_cpu(HexagonCommonMachineState *hms, DeviceState *cpu)
         Object *ctx = object_resolve_path_component(OBJECT(hms), name);
 
         object_property_set_link(OBJECT(cpu), name, ctx, &error_fatal);
+    }
+    hmx = object_resolve_path_component(OBJECT(hms), "hmx-context");
+    if (hmx) {
+        object_property_set_link(OBJECT(cpu), "hmx-context", hmx,
+                                 &error_fatal);
     }
 }
 

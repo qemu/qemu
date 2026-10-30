@@ -46,6 +46,7 @@
 #include "exec/target_page.h"
 #include "hw/hexagon/hexagon_globalreg.h"
 #include "hw/hexagon/hexagon_hvx_context.h"
+#include "hw/hexagon/hexagon_hmx_context.h"
 #endif
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -567,6 +568,24 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
 
     cpu->cfg.hex_def = mcc->hex_def;
 
+    hmx_init_config(cpu);
+#ifdef CONFIG_USER_ONLY
+    /* All threads of the process share one HMX unit */
+    static HmxState *user_hmx;
+
+    if (cpu->hmx_cfg.hmx_present) {
+        if (!user_hmx) {
+            user_hmx = g_new0(HmxState, 1);
+        }
+        cpu->hmx = user_hmx;
+    }
+#else
+    if (cpu->hmx_ctx && cpu->hmx_cfg.hmx_present) {
+        cpu->hmx = &cpu->hmx_ctx->regs;
+    }
+#endif
+    cpu_env(cs)->hmx_state = cpu->hmx;
+
     gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
                              hexagon_hvx_gdb_write_register,
                              gdb_find_static_feature("hexagon-hvx.xml"));
@@ -666,6 +685,10 @@ static void hexagon_cpu_init(Object *obj)
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
+    object_property_add_link(obj, "hmx-context", TYPE_HEXAGON_HMX_CONTEXT,
+                             (Object **)&cpu->hmx_ctx,
+                             qdev_prop_allow_set_link_before_realize,
+                             OBJ_PROP_LINK_STRONG);
 #endif
 }
 
