@@ -538,7 +538,8 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
          * We can't report this error yet, so flag that we need to
          * in arm_cpu_realizefn().
          */
-        cpu->host_cpu_probe_failed = true;
+        error_setg(&cpu->host_cpu_probe_err,
+                   "failed to retrieve host CPU features");
         return;
     }
 

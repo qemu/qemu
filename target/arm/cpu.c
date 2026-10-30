@@ -1740,6 +1740,10 @@ static void arm_cpu_finalizefn(Object *obj)
 
     g_hash_table_destroy(cpu->cp_regs);
 
+    if (cpu->host_cpu_probe_err) {
+        error_free(cpu->host_cpu_probe_err);
+    }
+
     QLIST_FOREACH_SAFE(hook, &cpu->pre_el_change_hooks, node, next) {
         QLIST_REMOVE(hook, node);
         g_free(hook);
@@ -1842,12 +1846,14 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
      * then it's possible that might have failed in the initfn, but
      * this is the first point where we can report it.
      */
-    if (cpu->host_cpu_probe_failed) {
+    if (cpu->host_cpu_probe_err) {
         if (!kvm_enabled() && !hvf_enabled() && !whpx_enabled()) {
             error_setg(errp, "The 'host' CPU type can only be used with KVM, HVF or WHPX");
+            error_free(cpu->host_cpu_probe_err);
         } else {
-            error_setg(errp, "Failed to retrieve host CPU features");
+            error_propagate(errp, cpu->host_cpu_probe_err);
         }
+        cpu->host_cpu_probe_err = NULL;
         return;
     }
 
