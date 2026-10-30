@@ -44,7 +44,8 @@ def gen_helper_function(f, tag, tagregs, tagimms):
     for arg in hex_common.helper_args(tag, regs, imms):
         declared.append(arg.func_arg)
 
-    arguments = ", ".join(declared)
+    ## A helper with no arguments needs (void) to be a prototype
+    arguments = ", ".join(declared) or "void"
     f.write(f"{ret_type} HELPER({tag})({arguments})\n")
     f.write("{\n")
     if hex_common.need_ea(tag):

@@ -22,3 +22,6 @@
 #define EXTNAME hlx
 #include "hlx/encode_ext.def"
 #undef EXTNAME
+#define EXTNAME hmx
+#include "hmx/encode_ext.def"
+#undef EXTNAME

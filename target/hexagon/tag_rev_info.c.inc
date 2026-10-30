@@ -620,6 +620,355 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
     [V6_vcombine_tmp] = { .introduced = HEX_VER_V69, .removed = HEX_VER_NONE },
     [V6_vmpyuhvs] = { .introduced = HEX_VER_V69, .removed = HEX_VER_NONE },
 
+    /* HMX (matrix) coprocessor extension */
+    [M8_cvt_rs_f8] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [M8_cvt_rs_hf] = { .introduced = HEX_VER_V73, .removed = HEX_VER_NONE },
+    [M8_cvt_rs_ub] = { .introduced = HEX_VER_V73, .removed = HEX_VER_NONE },
+    [M8_cvt_rs_ub_sc0] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_cvt_rs_ub_sc1] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_cvt_rs_uh_2x1] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_cvt_rs_uh_2x2] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxaccshl] = { .introduced = HEX_VER_V68, .removed = HEX_VER_V79 },
+    [M8_mxclracc] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxclracc_hf] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvta_sat_uh] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvta_sat_uh2x2] = {
+        .introduced = HEX_VER_V69, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvta_sat_uh2x2_r] = {
+        .introduced = HEX_VER_V69, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvta_sat_uh_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvta_uh] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvta_uh2x2] = { .introduced = HEX_VER_V69, .removed = HEX_VER_NONE },
+    [M8_mxcvta_uh2x2_r] = {
+        .introduced = HEX_VER_V69, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvta_uh_r] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtb_sat_uh] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtb_sat_uh2x2] = {
+        .introduced = HEX_VER_V69, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtb_sat_uh2x2_r] = {
+        .introduced = HEX_VER_V69, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtb_sat_uh_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtb_uh] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtb_uh2x2] = { .introduced = HEX_VER_V69, .removed = HEX_VER_NONE },
+    [M8_mxcvtb_uh2x2_r] = {
+        .introduced = HEX_VER_V69, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtb_uh_r] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtl_dm_sat_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_dm_sat_ub_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_dm_ub] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtl_dm_ub_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_sat_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_sat_hf_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_sat_pos_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_sat_pos_hf_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_sat_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_sat_ub_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtl_ub] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtl_ub_r] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtr_dm_sat_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_dm_sat_ub_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_dm_ub] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtr_dm_ub_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_sat_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_sat_hf_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_sat_pos_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_sat_pos_hf_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_sat_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_sat_ub_r] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxcvtr_ub] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxcvtr_ub_r] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem] = { .introduced = HEX_VER_V73, .removed = HEX_VER_NONE },
+    [M8_mxmem2_bias] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem2_st_bias] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_2x2] = { .introduced = HEX_VER_V73, .removed = HEX_VER_NONE },
+    [M8_mxmema_wei_b] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmema_wei_b1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmema_wei_c] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmema_wei_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmema_wei_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmema_wei_n] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmema_wei_n_2x] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxmema_wei_sb1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmema_wei_sc] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmema_wei_sm] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_bias] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_blk_dm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_blk_sm_act_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_blk_sm_act_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_blk_sm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_cm] = { .introduced = HEX_VER_V73, .removed = HEX_VER_NONE },
+    [M8_mxmem_cm_deep] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemd_blk_dm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemd_blk_sm_act_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemd_blk_sm_act_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemd_blk_sm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_deep] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+    [M8_mxmem_deep_f8] = {
+        .introduced = HEX_VER_V81, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_b] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_b1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_c] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_n] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_n_2x] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_sb1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_sc] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdi_wei_sm] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_dm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_b] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_b1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_c] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_n] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_n_2x] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_sb1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_sc] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdp_wei_sm] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_b] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_b1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_c] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_n] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_n_2x] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_sb1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_sc] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemdr_wei_sm] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_f8] = { .introduced = HEX_VER_V81, .removed = HEX_VER_NONE },
+    [M8_mxmems_blk_dm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_blk_sm_act_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_blk_sm_act_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_blk_sm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_sm_act_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_sm_act_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_sm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_st_bias] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_b] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmems_wei_b1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_c] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmems_wei_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_n] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmems_wei_n_2x] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_sb1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_sc] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmems_wei_sm] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemu_blk_dm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemu_blk_sm_act_f8] = {
+        .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemu_blk_sm_act_hf] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmemu_blk_sm_act_ub] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_wei_b] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_b1] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_c] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_f8] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_hf] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_n] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_n_2x] = {
+        .introduced = HEX_VER_V73, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_wei_sb1] = {
+        .introduced = HEX_VER_V68, .removed = HEX_VER_NONE
+    },
+    [M8_mxmem_wei_sc] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxmem_wei_sm] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxswap] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+    [M8_mxswap_hf] = { .introduced = HEX_VER_V68, .removed = HEX_VER_NONE },
+
     [S2_pstorerbf_pi_nt] = { .introduced = HEX_VER_V79,
                              .removed = HEX_VER_NONE },
     [S2_pstorerbt_pi_nt] = { .introduced = HEX_VER_V79,
