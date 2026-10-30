@@ -171,6 +171,7 @@ struct VncDisplay
     bool lossy;
     bool non_adaptive;
     bool power_control;
+    bool clipboard_availability;
     QCryptoTLSCreds *tlscreds;
     char *tlsauthzid;
 #ifdef CONFIG_VNC_SASL
@@ -422,6 +423,7 @@ enum {
 #define VNC_ENCODING_DESKTOP_RESIZE_EXT   0XFFFFFECC /* -308 */
 #define VNC_ENCODING_XVP                  0XFFFFFECB /* -309 */
 #define VNC_ENCODING_ALPHA_CURSOR         0XFFFFFEC6 /* -314 */
+#define VNC_ENCODING_CLIPBOARD_AVAILABILITY  0XFFFFFEC2 /* -318 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 #define VNC_ENCODING_CLIPBOARD_EXT        0xc0a1e5ce
 
@@ -466,6 +468,7 @@ enum VncFeatures {
     VNC_FEATURE_LED_STATE,
     VNC_FEATURE_XVP,
     VNC_FEATURE_CLIPBOARD_EXT,
+    VNC_FEATURE_CLIPBOARD_AVAILABILITY,
     VNC_FEATURE_AUDIO,
 };
 
@@ -540,6 +543,10 @@ enum VncFeatures {
 #define VNC_CLIPBOARD_PEEK     (1 << 26)
 #define VNC_CLIPBOARD_NOTIFY   (1 << 27)
 #define VNC_CLIPBOARD_PROVIDE  (1 << 28)
+
+/* ClipboardAvailability pseudo-encoding values */
+#define VNC_CLIPBOARD_UNAVAILABLE  0
+#define VNC_CLIPBOARD_AVAILABLE    1
 
 VncDisplay *vnc_display_new(const char *id, Error **errp);
 void vnc_display_free(VncDisplay *vd);
@@ -637,6 +644,7 @@ void vnc_zrle_clear(VncWorker *worker);
 
 /* vnc-clipboard.c */
 void vnc_clipboard_peer_register(VncState *vs);
+void vnc_clipboard_availability_send(VncState *vs, bool available);
 void vnc_server_cut_text_caps(VncState *vs);
 void vnc_client_cut_text(VncState *vs, size_t len, uint8_t *text);
 void vnc_client_cut_text_ext(VncState *vs, int32_t len, uint32_t flags, uint8_t *data);

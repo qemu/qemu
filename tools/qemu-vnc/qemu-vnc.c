@@ -95,6 +95,7 @@ on_manager_ready(GObject *source_object,
     g_autoptr(GPtrArray) console_paths = NULL;
     bool found = false;
     Error *local_err = NULL;
+    VncDisplay *vd;
 
     manager = G_DBUS_OBJECT_MANAGER(
         g_dbus_object_manager_client_new_finish(res, &err));
@@ -145,12 +146,16 @@ on_manager_ready(GObject *source_object,
      * Create the VNC display now that consoles exist, so that the
      * display change listener is registered against a valid console.
      */
-    if (!vnc_display_new("default", &local_err)) {
+    vd = vnc_display_new("default", &local_err);
+    if (!vd) {
         error_report("Failed to create VNC display: %s",
                      error_get_pretty(local_err));
         g_assert_not_reached();
         return;
     }
+
+    /* guest clipboard peer presence is not exposed over D-Bus */
+    vd->clipboard_availability = false;
 
     vnc_dbus_setup(state->bus);
 

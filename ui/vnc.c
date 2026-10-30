@@ -2191,6 +2191,14 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_EXT);
             vnc_server_cut_text_caps(vs);
             break;
+        case VNC_ENCODING_CLIPBOARD_AVAILABILITY:
+            if (vs->vd->clipboard_availability) {
+                vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_AVAILABILITY);
+                vnc_clipboard_peer_register(vs);
+                vnc_clipboard_availability_send(vs,
+                    qemu_clipboard_guest_peer_present());
+            }
+            break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
             vc->worker.tight.compression = (enc & 0x0F);
             break;
@@ -3459,6 +3467,7 @@ VncDisplay *vnc_display_new(const char *id, Error **errp)
 
     vd->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
     vd->connections_limit = 32;
+    vd->clipboard_availability = true;
 
     vnc_start_worker_thread(vd);
 
