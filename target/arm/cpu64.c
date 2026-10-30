@@ -771,15 +771,15 @@ static void kvm_arm_set_cpreg_mig_tolerances(ARMCPU *cpu)
      */
 
     /*
-     * TCR_EL1 was erroneously unconditionnally exposed before linux v6.13.
+     * TCR_EL1 was erroneously unconditionally exposed before linux v6.13.
      * See commit 0fcb4eea5345 ("KVM: arm64: Hide TCR2_EL1 from userspace
      * when disabled for guests")
      */
     arm_register_cpreg_mig_tolerance(cpu, ARM64_SYS_REG(3, 0, 2, 0, 3),
                                      0, 0, ToleranceNotOnBothEnds);
     /*
-     * PIRE0_EL1 and PIR_EL1 were erroneously unconditionnally exposed
-     * before linux v6.13. See commit a68cddbe47ef ("KVM: arm64: Hide
+     * PIRE0_EL1 and PIR_EL1 were erroneously unconditionally exposed
+     * before linux v6.13. See commit a68cddbe47ef ("KVM: arm64: Hide
      * S1PIE registers from userspace when disabled for guests")
      */
     arm_register_cpreg_mig_tolerance(cpu, ARM64_SYS_REG(3, 0, 10, 2, 2),
