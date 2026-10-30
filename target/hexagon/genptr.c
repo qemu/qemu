@@ -33,6 +33,7 @@
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
 #include "gen_tcg_hvx.h"
+#include "gen_tcg_hmx.h"
 #ifndef CONFIG_USER_ONLY
 #include "gen_tcg_sys.h"
 #endif

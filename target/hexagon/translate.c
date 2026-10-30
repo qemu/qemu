@@ -922,7 +922,8 @@ static void gen_start_packet(DisasContext *ctx)
 
     if (ctx->pkt.pkt_has_hmx) {
         for (i = 0; i < ctx->pkt.num_insns; i++) {
-            if (GET_ATTRIB(ctx->pkt.insn[i].opcode, A_HMX)) {
+            if (GET_ATTRIB(ctx->pkt.insn[i].opcode, A_HMX) &&
+                ctx->pkt.insn[i].opcode != M8_mxclracc) {
                 qemu_log_mask(LOG_UNIMP, "'%s' is not implemented\n",
                               opcode_names[ctx->pkt.insn[i].opcode]);
             }
@@ -1299,7 +1300,17 @@ static void gen_commit_hlx(DisasContext *ctx)
         int rnum = ctx->lreg_log[i];
         gen_helper_hlx_commit_reg(tcg_env, tcg_constant_i32(rnum));
     }
+}
 
+static void gen_commit_hmx(DisasContext *ctx)
+{
+    int i;
+
+    for (i = 0; i < ctx->pkt.num_insns; i++) {
+        if (ctx->pkt.insn[i].opcode == M8_mxclracc) {
+            gen_helper_mxclracc(tcg_env);
+        }
+    }
 }
 
 static void update_exec_counters(DisasContext *ctx)
@@ -1443,6 +1454,9 @@ static void gen_commit_packet(DisasContext *ctx)
     }
     if (ctx->pkt.pkt_has_hlx) {
         gen_commit_hlx(ctx);
+    }
+    if (ctx->pkt.pkt_has_hmx) {
+        gen_commit_hmx(ctx);
     }
     update_exec_counters(ctx);
 

@@ -2149,6 +2149,18 @@ void HELPER(pending_interrupt)(CPUHexagonState *env)
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")
 
+void HELPER(mxclracc)(CPUHexagonState *env)
+{
+    HmxState *hmx = env->hmx_state;
+    int i;
+
+    g_assert(hmx);
+
+    for (i = 0; i < HMX_NUM_ACC_SETS; i++) {
+        memset(&hmx->acc[i].fxp_primary, 0, sizeof(hmx->acc[i].fxp_primary));
+    }
+}
+
 #include "helper_funcs_generated.c.inc"
 
 #define DO_ABSDIFF(NAME, TYPE, UTYPE) \
