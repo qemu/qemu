@@ -31,7 +31,22 @@ enum {
      * contiguous regions of the image is efficient.
      */
     COMMIT_BUFFER_SIZE = 512 * 1024, /* in bytes */
+
+    /*
+     * Zeroes need no buffer, so they are bounded by this instead. It stays
+     * well under BDRV_REQUEST_MAX_BYTES and keeps a cancel from waiting on
+     * a multi-gigabyte write.
+     */
+    COMMIT_ZERO_CHUNK = 256 * 1024 * 1024, /* in bytes */
 };
+
+/* Last block-status answer, covering [offset, end). Empty when equal. */
+typedef struct CommitStatus {
+    int64_t len;
+    int64_t offset;
+    int64_t end;
+    int ret;
+} CommitStatus;
 
 typedef struct CommitBlockJob {
     BlockJob common;
@@ -130,25 +145,44 @@ static void commit_clean(Job *job)
 
 static int coroutine_fn
 commit_iteration(CommitBlockJob *s, int64_t offset,
-                 int64_t *requested_bytes, void *buf)
+                 int64_t *requested_bytes, void *buf, CommitStatus *st)
 {
     BlockErrorAction action;
-    int64_t bytes = *requested_bytes;
+    int64_t bytes;
     int ret = 0;
     bool error_in_source = true;
 
-    /* Copy if allocated above the base */
-    WITH_GRAPH_RDLOCK_GUARD() {
-        ret = bdrv_co_common_block_status_above(blk_bs(s->top),
-            s->base_overlay, true, BDRV_WANT_PRECISE, offset,
-            COMMIT_BUFFER_SIZE, &bytes, NULL, NULL, NULL);
+    assert(offset >= st->offset);
+
+    if (offset >= st->end) {
+        /* Copy if allocated above the base */
+        WITH_GRAPH_RDLOCK_GUARD() {
+            ret = bdrv_co_common_block_status_above(blk_bs(s->top),
+                s->base_overlay, true, BDRV_WANT_PRECISE, offset,
+                st->len - offset, &bytes, NULL, NULL, NULL);
+        }
+
+        if (ret < 0) {
+            trace_commit_one_iteration(s, offset, 0, ret);
+            goto fail;
+        }
+
+        st->offset = offset;
+        st->end = offset + bytes;
+        st->ret = ret;
+    }
+
+    ret = st->ret;
+    bytes = st->end - offset;
+
+    /* An unallocated span costs no I/O, so it is crossed in one step. */
+    if (ret & BDRV_BLOCK_ZERO) {
+        bytes = MIN(bytes, COMMIT_ZERO_CHUNK);
+    } else if (ret & BDRV_BLOCK_ALLOCATED) {
+        bytes = MIN(bytes, COMMIT_BUFFER_SIZE);
     }
 
     trace_commit_one_iteration(s, offset, bytes, ret);
-
-    if (ret < 0) {
-        goto fail;
-    }
 
     if (ret & BDRV_BLOCK_ALLOCATED) {
         if (ret & BDRV_BLOCK_ZERO) {
@@ -215,6 +249,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     int64_t n = 0; /* bytes */
     QEMU_AUTO_VFREE void *buf = NULL;
     int64_t len, base_len;
+    CommitStatus st = { 0 };
 
     len = blk_co_getlength(s->top);
     if (len < 0) {
@@ -235,6 +270,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     }
 
     buf = blk_blockalign(s->top, COMMIT_BUFFER_SIZE);
+    st.len = len;
 
     for (offset = 0; offset < len; offset += n) {
         /* Note that even when no rate limit is applied we need to yield
@@ -245,7 +281,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
             break;
         }
 
-        ret = commit_iteration(s, offset, &n, buf);
+        ret = commit_iteration(s, offset, &n, buf, &st);
 
         if (ret < 0) {
             return ret;
