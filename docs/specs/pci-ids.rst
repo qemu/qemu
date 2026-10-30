@@ -50,6 +50,10 @@ maintained as part of the virtio specification.
   QEMU, such as the intel chipset devices.  Also used for virtio
   devices and generic pci class devices (1b36:00xx, see below).
 
+1af4:1101
+  PCI Subsystem ID for OSMates (github.com/osmates), will be used
+  for virtio devices and pci class devices (xhci, nvme).
+
 1af4:1110
   ivshmem device (:doc:`ivshmem-spec`)
 
