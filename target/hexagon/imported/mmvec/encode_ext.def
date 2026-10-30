@@ -882,6 +882,18 @@ DEF_ENC(V6_veqhf_or,"00011100100vvvvvPP1uuuuu010111xx")
 DEF_ENC(V6_veqsf_xor,"00011100100vvvvvPP1uuuuu100011xx")
 DEF_ENC(V6_veqhf_xor,"00011100100vvvvvPP1uuuuu100111xx")
 
+/* FP8 instructions */
+DEF_ENC(V6_vadd_hf_f8,"00011111100vvvvvPP0uuuuu100ddddd")
+DEF_ENC(V6_vsub_hf_f8,"00011111100vvvvvPP0uuuuu101ddddd")
+DEF_ENC(V6_vmpy_hf_f8,"00011111100vvvvvPP0uuuuu110ddddd")
+DEF_ENC(V6_vmpy_hf_f8_acc,"00011111100vvvvvPP0uuuuu111xxxxx")
+DEF_ENC(V6_vfmin_f8,"00011100011vvvvvPP1uuuuu100ddddd")
+DEF_ENC(V6_vfmax_f8,"00011100011vvvvvPP1uuuuu101ddddd")
+DEF_ENC(V6_vabs_f8,"00011100011--110PP1uuuuu110ddddd")
+DEF_ENC(V6_vfneg_f8,"00011100011--110PP1uuuuu111ddddd")
+DEF_ENC(V6_vcvt_f8_hf,"00011111111vvvvvPP1uuuuu010ddddd")
+DEF_ENC(V6_vcvt_hf_f8,"00011110--0--101PP1uuuuu101ddddd")
+
 /* BFLOAT instructions */
 DEF_ENC(V6_vmpy_sf_bf,"00011101010vvvvvPP1uuuuu100ddddd")
 DEF_ENC(V6_vmpy_sf_bf_acc,"00011101000vvvvvPP1uuuuu000xxxxx")

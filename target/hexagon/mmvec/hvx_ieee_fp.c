@@ -6,6 +6,8 @@
 
 #include "qemu/osdep.h"
 #include "hvx_ieee_fp.h"
+#include "fpu/softfloat-parts.h"
+#include "fpu/softfloat-macros.h"
 
 float32 fp_mult_sf_hf(float16 a1, float16 a2, float_status *fp_status)
 {
@@ -145,11 +147,7 @@ uint16_t cmpgt_hf(float16 a1, float16 a2, float_status *fp_status)
     return float16_compare(a1, a2, fp_status) == float_relation_greater;
 }
 
-/*
- * Unlike cmpgt_sf/cmpgt_hf, equality has no NaN-ordering convention to
- * apply: per IEEE-754, a compare-equal predicate is quiet and always
- * false when either operand is NaN.
- */
+/* IEEE equality is quiet and false when either operand is NaN. */
 uint32_t cmpeq_sf(float32 a1, float32 a2, float_status *fp_status)
 {
     return float32_eq_quiet(a1, a2, fp_status);
@@ -158,4 +156,121 @@ uint32_t cmpeq_sf(float32 a1, float32 a2, float_status *fp_status)
 uint16_t cmpeq_hf(float16 a1, float16 a2, float_status *fp_status)
 {
     return float16_eq_quiet(a1, a2, fp_status);
+}
+
+float16 f8_to_f16(uint8_t a, float_status *fp_status)
+{
+    int exp = extract32(a, 3, 4);
+    int frac = extract32(a, 0, 3);
+    float16 ret;
+
+    if (a == F8_NAN) {
+        return float16_default_nan(fp_status);
+    }
+    if (a == 0) {
+        return float16_zero;
+    }
+
+    /* FP8 subnormals share the exponent of the smallest normal. */
+    ret = uint64_to_float16_scalbn(exp ? frac | 8 : frac, (exp ? exp : 1) - 11,
+                                   fp_status);
+    return a & 0x80 ? float16_chs(ret) : ret;
+}
+
+uint8_t f16_to_f8(float16 a, bool sat, float_status *fp_status)
+{
+    FloatParts64 p = float16_unpack_canonical(a, fp_status);
+    uint8_t sign = p.sign ? 0x80 : 0;
+    uint64_t frac;
+    int shift, code;
+
+    switch (p.cls) {
+    case float_class_qnan:
+    case float_class_snan:
+        return F8_NAN;
+    case float_class_inf:
+        return sat ? sign | F8_MAX_NORM : F8_NAN;
+    case float_class_zero:
+        return 0;
+    default:
+        break;
+    }
+
+    /* Retain four significant bits and three rounding bits. */
+    shift = 60 + (p.exp < -7 ? -7 - p.exp : 0);
+    shift64RightJamming(p.frac, shift - 3, &frac);
+    code = frac >> 3;
+    if ((frac & 7) > 4 || ((frac & 7) == 4 && (code & 1))) {
+        code++;
+    }
+
+    if (p.exp >= -7) {
+        /* Rounding up to 2^(exp+1) carries into the exponent field */
+        code += (p.exp + 8) * 8 - 8;
+    }
+    if (p.exp > 7 || code > F8_MAX_NORM) {
+        return sat ? sign | F8_MAX_NORM : F8_NAN;
+    }
+    /* There's no negative zero */
+    return code ? sign | code : 0;
+}
+
+float16 fp_add_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status)
+{
+    return float16_add(f8_to_f16(a1, fp_status), f8_to_f16(a2, fp_status),
+                       fp_status);
+}
+
+float16 fp_sub_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status)
+{
+    return float16_sub(f8_to_f16(a1, fp_status), f8_to_f16(a2, fp_status),
+                       fp_status);
+}
+
+float16 fp_mult_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status)
+{
+    return float16_mul(f8_to_f16(a1, fp_status), f8_to_f16(a2, fp_status),
+                       fp_status);
+}
+
+float16 fp_mult_hf_f8_acc(uint8_t a1, uint8_t a2, float16 acc,
+                          float_status *fp_status)
+{
+    return float16_muladd(f8_to_f16(a1, fp_status), f8_to_f16(a2, fp_status),
+                          acc, 0, fp_status);
+}
+
+uint8_t fp_neg_f8(uint8_t a)
+{
+    /* Zero has no negative counterpart, and NaN stays NaN */
+    return a == 0 || a == F8_NAN ? a : a ^ 0x80;
+}
+
+uint8_t fp_abs_f8(uint8_t a)
+{
+    return a == F8_NAN ? a : a & 0x7f;
+}
+
+/*
+ * These return NaN if either input is, unlike the IEEE min/max which return
+ * the number.
+ */
+uint8_t fp_min_f8(uint8_t a1, uint8_t a2, float_status *fp_status)
+{
+    if (a1 == F8_NAN || a2 == F8_NAN) {
+        return F8_NAN;
+    }
+    return f16_to_f8(float16_min(f8_to_f16(a1, fp_status),
+                                 f8_to_f16(a2, fp_status), fp_status),
+                     true, fp_status);
+}
+
+uint8_t fp_max_f8(uint8_t a1, uint8_t a2, float_status *fp_status)
+{
+    if (a1 == F8_NAN || a2 == F8_NAN) {
+        return F8_NAN;
+    }
+    return f16_to_f8(float16_max(f8_to_f16(a1, fp_status),
+                                 f8_to_f16(a2, fp_status), fp_status),
+                     true, fp_status);
 }

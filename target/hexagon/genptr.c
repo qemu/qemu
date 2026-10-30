@@ -552,7 +552,12 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
     if (reg_num == HEX_REG_P3_0_ALIASED) {
         gen_write_p3_0(ctx, val);
     } else {
-        const target_ulong reg_mask = reg_immut_masks[reg_num];
+        target_ulong reg_mask = reg_immut_masks[reg_num];
+        if (reg_num == HEX_REG_USR &&
+            ctx->hex_def->hex_version >= HEX_VER_V79) {
+            /* USR.FPSAT is reserved before v79 */
+            reg_mask &= ~fGET_REG_FIELD_MASK(USR_FPSAT);
+        }
         gen_masked_reg_write(val, hex_gpr[reg_num], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, reg_num), val);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {

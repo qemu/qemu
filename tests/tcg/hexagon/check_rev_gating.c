@@ -135,6 +135,18 @@ TRY_FUNC(v79hvx_vcvt2_hf_ub,
          ".word 0x1ed5e0e2    /* v3:2.hf = vcvt2(v0.ub) */\n")
 TRY_FUNC(v79hvx_vcvt2_b_hf,
          ".word 0x1ac1e0c2    /* v2.b = vcvt2(v0.hf, v1.hf) */\n")
+TRY_FUNC(v79hvx_vcvt_f8_hf,
+         ".word 0x1fe1e040    /* v0.f8 = vcvt(v0.hf, v1.hf) */\n")
+TRY_FUNC(v79hvx_vcvt_hf_f8,
+         ".word 0x1e05e0a2    /* v3:2.hf = vcvt(v0.f8) */\n")
+TRY_FUNC(v79hvx_vmpy_hf_f8,
+         ".word 0x1f80c0c0    /* v1:0.hf = vmpy(v0.f8, v0.f8) */\n")
+TRY_FUNC(v79hvx_vmpy_hf_f8_acc,
+         ".word 0x1f80c0e0    /* v1:0.hf += vmpy(v0.f8, v0.f8) */\n")
+TRY_FUNC(v79hvx_vfneg_f8,
+         ".word 0x1c66e0e2    /* v2.f8 = vfneg(v0.f8) */\n")
+TRY_FUNC(v79hvx_vfmin_f8,
+         ".word 0x1c61e082    /* v2.f8 = vfmin(v0.f8, v1.f8) */\n")
 
 TRY_FUNC(v81hvx_veqhf,
          ".word 0x1f82c11c    /* q0 = vcmp.eq(v1.hf, v2.hf) */\n")
@@ -183,6 +195,12 @@ int main(void)
     assert(try_v79hvx_vmerge_qf() == SIGILL);
     assert(try_v79hvx_vcvt2_hf_ub() == SIGILL);
     assert(try_v79hvx_vcvt2_b_hf() == SIGILL);
+    assert(try_v79hvx_vcvt_f8_hf() == SIGILL);
+    assert(try_v79hvx_vcvt_hf_f8() == SIGILL);
+    assert(try_v79hvx_vmpy_hf_f8() == SIGILL);
+    assert(try_v79hvx_vmpy_hf_f8_acc() == SIGILL);
+    assert(try_v79hvx_vfneg_f8() == SIGILL);
+    assert(try_v79hvx_vfmin_f8() == SIGILL);
 
     assert(try_v81hvx_veqhf() == SIGILL);
 

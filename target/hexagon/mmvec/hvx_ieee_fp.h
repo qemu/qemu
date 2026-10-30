@@ -35,6 +35,33 @@ uint16_t cmpgt_hf(float16 a1, float16 a2, float_status *fp_status);
 uint32_t cmpeq_sf(float32 a1, float32 a2, float_status *fp_status);
 uint16_t cmpeq_hf(float16 a1, float16 a2, float_status *fp_status);
 
+/*
+ * FP8 instructions.  The FP8 format is E4M3FNUZ: one sign bit, four exponent
+ * bits (bias 8) and three fraction bits, with no infinities and no negative
+ * zero.  The encoding that would be negative zero, 0x80, is the only NaN.
+ * softfloat has no such format, so values are widened to float16 (which holds
+ * every FP8 value exactly) to operate on them.
+ */
+#define F8_NAN 0x80
+#define F8_MAX_NORM 0x7f
+
+float16 f8_to_f16(uint8_t a, float_status *fp_status);
+/*
+ * Narrow with round-to-nearest-even.  Infinity and results too large for FP8
+ * become the largest normal number if sat is set and NaN otherwise.
+ */
+uint8_t f16_to_f8(float16 a, bool sat, float_status *fp_status);
+
+float16 fp_add_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
+float16 fp_sub_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
+float16 fp_mult_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
+float16 fp_mult_hf_f8_acc(uint8_t a1, uint8_t a2, float16 acc,
+                          float_status *fp_status);
+uint8_t fp_neg_f8(uint8_t a);
+uint8_t fp_abs_f8(uint8_t a);
+uint8_t fp_min_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
+uint8_t fp_max_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
+
 /* IEEE BFloat instructions */
 
 #define fp_mult_sf_bf(A, B) \

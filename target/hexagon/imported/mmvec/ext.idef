@@ -2920,6 +2920,12 @@ EXTINSN(V6_##TAG, SYNTAX, \
 ATTRIBS(A_EXTENSION,A_HVX_IEEE_FP,A_CVI,A_CVI_VX,A_HVX_IEEE_FP_OUT_32), \
 DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
 
+/* Single pipe, 8-bit output */
+#define ITERATOR_INSN_IEEE_FP_8(WIDTH,TAG,SYNTAX,DESCR,CODE) \
+EXTINSN(V6_##TAG, SYNTAX, \
+    ATTRIBS(A_EXTENSION,A_HVX_IEEE_FP,A_CVI,A_CVI_VX,A_HVX_IEEE_FP_OUT_8), \
+    DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
+
 /* Single pipe, 16-bit output */
 #define ITERATOR_INSN_IEEE_FP_16(WIDTH,TAG,SYNTAX,DESCR,CODE) \
 EXTINSN(V6_##TAG, SYNTAX, \
@@ -3371,6 +3377,78 @@ ITERATOR_INSN_IEEE_FP_16_32_LATE(16, vmax_bf, "Vd32.bf=vmax(Vu32.bf,Vv32.bf)",
 ITERATOR_INSN_IEEE_FP_16_32_LATE(16, vmin_bf, "Vd32.bf=vmin(Vu32.bf,Vv32.bf)",
     "Vector IEEE min: bf", VdV.bf[i] = fp_min_bf(VuV.bf[i], VvV.bf[i]);
     fBFLOAT())
+
+
+/******************************************************************************
+ FP8 instructions
+ ******************************************************************************/
+
+/*
+ * The widening FP8 instructions split the source elements between the two
+ * result vectors by position: the even-numbered bytes of each word go to the
+ * first vector and the odd-numbered ones to the second.  The narrowing
+ * conversion, vcvt_f8_hf, takes its elements alternately from its two sources.
+ */
+ITERATOR_INSN_IEEE_FP_DOUBLE_16(32, vadd_hf_f8, "Vdd32.hf=vadd(Vu32.f8,Vv32.f8)",
+    "Vector FP8 add: f8 widen to hf",
+    VddV.v[0].hf[2*i]   = fp_add_hf_f8(VuV.f8[4*i], VvV.f8[4*i], &env->hvx_fp_status);
+    VddV.v[0].hf[2*i+1] = fp_add_hf_f8(VuV.f8[4*i+2], VvV.f8[4*i+2], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i]   = fp_add_hf_f8(VuV.f8[4*i+1], VvV.f8[4*i+1], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i+1] = fp_add_hf_f8(VuV.f8[4*i+3], VvV.f8[4*i+3], &env->hvx_fp_status))
+
+ITERATOR_INSN_IEEE_FP_DOUBLE_16(32, vsub_hf_f8, "Vdd32.hf=vsub(Vu32.f8,Vv32.f8)",
+    "Vector FP8 sub: f8 widen to hf",
+    VddV.v[0].hf[2*i]   = fp_sub_hf_f8(VuV.f8[4*i], VvV.f8[4*i], &env->hvx_fp_status);
+    VddV.v[0].hf[2*i+1] = fp_sub_hf_f8(VuV.f8[4*i+2], VvV.f8[4*i+2], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i]   = fp_sub_hf_f8(VuV.f8[4*i+1], VvV.f8[4*i+1], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i+1] = fp_sub_hf_f8(VuV.f8[4*i+3], VvV.f8[4*i+3], &env->hvx_fp_status))
+
+ITERATOR_INSN_IEEE_FP_DOUBLE_16(32, vmpy_hf_f8, "Vdd32.hf=vmpy(Vu32.f8,Vv32.f8)",
+    "Vector FP8 mul: f8 widen to hf",
+    VddV.v[0].hf[2*i]   = fp_mult_hf_f8(VuV.f8[4*i], VvV.f8[4*i], &env->hvx_fp_status);
+    VddV.v[0].hf[2*i+1] = fp_mult_hf_f8(VuV.f8[4*i+2], VvV.f8[4*i+2], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i]   = fp_mult_hf_f8(VuV.f8[4*i+1], VvV.f8[4*i+1], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i+1] = fp_mult_hf_f8(VuV.f8[4*i+3], VvV.f8[4*i+3], &env->hvx_fp_status))
+
+ITERATOR_INSN_IEEE_FP_DOUBLE_16(32, vmpy_hf_f8_acc, "Vxx32.hf+=vmpy(Vu32.f8,Vv32.f8)",
+    "Vector FP8 fma: f8 widen to hf",
+    VxxV.v[0].hf[2*i]   = fp_mult_hf_f8_acc(VuV.f8[4*i], VvV.f8[4*i],
+                                            VxxV.v[0].hf[2*i], &env->hvx_fp_status);
+    VxxV.v[0].hf[2*i+1] = fp_mult_hf_f8_acc(VuV.f8[4*i+2], VvV.f8[4*i+2],
+                                            VxxV.v[0].hf[2*i+1], &env->hvx_fp_status);
+    VxxV.v[1].hf[2*i]   = fp_mult_hf_f8_acc(VuV.f8[4*i+1], VvV.f8[4*i+1],
+                                            VxxV.v[1].hf[2*i], &env->hvx_fp_status);
+    VxxV.v[1].hf[2*i+1] = fp_mult_hf_f8_acc(VuV.f8[4*i+3], VvV.f8[4*i+3],
+                                            VxxV.v[1].hf[2*i+1], &env->hvx_fp_status))
+
+ITERATOR_INSN_IEEE_FP_DOUBLE_16(32, vcvt_hf_f8, "Vdd32.hf=vcvt(Vu32.f8)",
+    "Vector cvt to fp16: f8 widen to hf",
+    VddV.v[0].hf[2*i]   = f8_to_f16(VuV.f8[4*i], &env->hvx_fp_status);
+    VddV.v[0].hf[2*i+1] = f8_to_f16(VuV.f8[4*i+2], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i]   = f8_to_f16(VuV.f8[4*i+1], &env->hvx_fp_status);
+    VddV.v[1].hf[2*i+1] = f8_to_f16(VuV.f8[4*i+3], &env->hvx_fp_status))
+
+/*
+ * With USR.FPSAT set, overflow saturates to the largest FP8 normal number
+ * instead of producing NaN.
+ */
+ITERATOR_INSN_IEEE_FP_8(32, vcvt_f8_hf, "Vd32.f8=vcvt(Vu32.hf,Vv32.hf)",
+    "Vector cvt to fp8: hf narrow to f8",
+    VdV.f8[4*i]   = f16_to_f8(VuV.hf[2*i], GET_USR_FIELD(USR_FPSAT), &env->hvx_fp_status);
+    VdV.f8[4*i+1] = f16_to_f8(VvV.hf[2*i], GET_USR_FIELD(USR_FPSAT), &env->hvx_fp_status);
+    VdV.f8[4*i+2] = f16_to_f8(VuV.hf[2*i+1], GET_USR_FIELD(USR_FPSAT), &env->hvx_fp_status);
+    VdV.f8[4*i+3] = f16_to_f8(VvV.hf[2*i+1], GET_USR_FIELD(USR_FPSAT), &env->hvx_fp_status))
+
+ITERATOR_INSN_IEEE_FP_8(8, vfneg_f8, "Vd32.f8=vfneg(Vu32.f8)",
+    "Vector FP8 neg: f8", VdV.f8[i] = fp_neg_f8(VuV.f8[i]))
+ITERATOR_INSN_IEEE_FP_8(8, vabs_f8, "Vd32.f8=vabs(Vu32.f8)",
+    "Vector FP8 abs: f8", VdV.f8[i] = fp_abs_f8(VuV.f8[i]))
+ITERATOR_INSN_IEEE_FP_8(8, vfmin_f8, "Vd32.f8=vfmin(Vu32.f8,Vv32.f8)",
+    "Vector FP8 min: f8",
+    VdV.f8[i] = fp_min_f8(VuV.f8[i], VvV.f8[i], &env->hvx_fp_status))
+ITERATOR_INSN_IEEE_FP_8(8, vfmax_f8, "Vd32.f8=vfmax(Vu32.f8,Vv32.f8)",
+    "Vector FP8 max: f8",
+    VdV.f8[i] = fp_max_f8(VuV.f8[i], VvV.f8[i], &env->hvx_fp_status))
 
 
 /******************************************************************************
