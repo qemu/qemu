@@ -325,6 +325,16 @@ void vnc_client_cut_text(VncState *vs, size_t len, uint8_t *text)
     qemu_clipboard_info_unref(info);
 }
 
+void vnc_clipboard_peer_register(VncState *vs)
+{
+    if (!vs->cbpeer.notifier.notify) {
+        vs->cbpeer.name = "vnc";
+        vs->cbpeer.notifier.notify = vnc_clipboard_notify;
+        vs->cbpeer.request = vnc_clipboard_request;
+        qemu_clipboard_peer_register(&vs->cbpeer);
+    }
+}
+
 void vnc_server_cut_text_caps(VncState *vs)
 {
     uint32_t caps[2];
@@ -341,10 +351,5 @@ void vnc_server_cut_text_caps(VncState *vs)
     caps[1] = 0;
     vnc_clipboard_send(vs, 2, caps);
 
-    if (!vs->cbpeer.notifier.notify) {
-        vs->cbpeer.name = "vnc";
-        vs->cbpeer.notifier.notify = vnc_clipboard_notify;
-        vs->cbpeer.request = vnc_clipboard_request;
-        qemu_clipboard_peer_register(&vs->cbpeer);
-    }
+    vnc_clipboard_peer_register(vs);
 }
