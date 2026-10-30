@@ -112,6 +112,8 @@ typedef struct DisasContext {
     DECLARE_BITMAP(lregs_updated, NUM_LREGS);
     DECLARE_BITMAP(lregs_multi_write, NUM_LREGS);
     DECLARE_BITMAP(lregs_updated_tmp, NUM_LREGS);
+    bool hmx_coproc_enabled;
+    bool hmx_check_emitted;
 } DisasContext;
 
 bool is_gather_store_insn(DisasContext *ctx);

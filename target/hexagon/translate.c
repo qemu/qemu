@@ -919,6 +919,24 @@ static void gen_start_packet(DisasContext *ctx)
         }
     }
 #endif
+
+    if (ctx->pkt.pkt_has_hmx) {
+        for (i = 0; i < ctx->pkt.num_insns; i++) {
+            if (GET_ATTRIB(ctx->pkt.insn[i].opcode, A_HMX)) {
+                qemu_log_mask(LOG_UNIMP, "'%s' is not implemented\n",
+                              opcode_names[ctx->pkt.insn[i].opcode]);
+            }
+        }
+    }
+
+#ifndef CONFIG_USER_ONLY
+    /* HMX needs SSR:XE2 */
+    if (ctx->pkt.pkt_has_hmx && !ctx->hmx_coproc_enabled &&
+        !ctx->hmx_check_emitted) {
+        gen_precise_exception(HEX_CAUSE_NO_COPROC2_ENABLE, ctx->pkt.pc);
+        ctx->hmx_check_emitted = true;
+    }
+#endif
 }
 
 bool is_gather_store_insn(DisasContext *ctx)
@@ -1556,6 +1574,9 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
         ctx->base.max_insns = 1;
         ctx->is_tight_loop = false;
     }
+    ctx->hmx_coproc_enabled =
+        FIELD_EX32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED);
+    ctx->hmx_check_emitted = false;
 #endif
 }
 

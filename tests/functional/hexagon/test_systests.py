@@ -96,6 +96,9 @@ class SysTestsStandaloneTests(QemuSystemTest):
         """A semihosting read restarts after a fault on its second page."""
         self.run_exit_zero("swi_touch_memory")
 
+    def test_invalid_hmx(self):
+        self.run_exit_zero("invalid_hmx")
+
     def test_dtg_interrupt(self):
         self.run_exit_zero("dtg_interrupt")
 

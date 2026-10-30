@@ -828,11 +828,14 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
     pkt->encod_pkt_size_in_bytes = words_read * 4;
     pkt->pkt_has_hvx = false;
     pkt->pkt_has_hlx = false;
+    pkt->pkt_has_hmx = false;
     for (i = 0; i < num_insns; i++) {
         pkt->pkt_has_hvx |=
             GET_ATTRIB(pkt->insn[i].opcode, A_CVI);
         pkt->pkt_has_hlx |=
             GET_ATTRIB(pkt->insn[i].opcode, A_HLX);
+        pkt->pkt_has_hmx |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_HMX);
     }
 
     /*

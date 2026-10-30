@@ -71,6 +71,7 @@ struct Packet {
     bool pkt_has_scalar_store_s1;
 
     bool pkt_has_hvx;
+    bool pkt_has_hmx;
     Insn *vhist_insn;
     bool pkt_has_hlx;
 

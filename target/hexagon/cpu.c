@@ -396,6 +396,9 @@ static TCGTBCPUState hexagon_get_tb_cpu_state(CPUState *cs)
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, SS_ACTIVE,
                            GET_SSR_FIELD(SSR_SS, env->t_sreg[HEX_SREG_SSR]) &&
                            get_cpu_mode(env) != HEX_CPU_MODE_MONITOR);
+    hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, HMX_COPROC_ENABLED,
+                           cpu->hmx &&
+                           GET_SSR_FIELD(SSR_XE2, env->t_sreg[HEX_SREG_SSR]));
 #else
     hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, MMU_INDEX, MMU_USER_IDX);
 #endif
