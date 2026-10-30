@@ -101,7 +101,10 @@ TLBRet loongarch_check_pte(CPULoongArchState *env, MMUContext *context,
 
     context->physical = (tlb_ppn << R_TLBENTRY_64_PPN_SHIFT) |
                         (context->addr & MAKE_64BIT_MASK(0, tlb_ps));
-    context->prot = PAGE_READ;
+    context->prot = 0;
+    if (!tlb_nr) {
+        context->prot |= PAGE_READ;
+    }
     context->mmu_index = tlb_plv;
     if (tlb_d) {
         context->prot |= PAGE_WRITE;
