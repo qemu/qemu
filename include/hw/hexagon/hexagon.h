@@ -40,6 +40,11 @@ typedef enum {
 #define HEXAGON_LATEST_REV v85
 #define HEXAGON_LATEST_REV_UPPER V85
 
+#define HEXAGON_COPROC_HMX (1U << 2)
+
+#define HEXAGON_CFGTABLE_HAS_HMX(t) \
+    ((t)->coproc2_reg0 != 0 || ((t)->coproc_present & HEXAGON_COPROC_HMX))
+
 /*
  * Config table address bases represent bits [35:16].
  */
