@@ -38,6 +38,9 @@ static bool compat_policy_input_ok1(CompatPolicyInput policy,
                   adjective, kind, name);
         return false;
     case COMPAT_POLICY_INPUT_CRASH:
+        error_report("%s %s %s disabled by policy, aborting",
+                     adjective, kind, name);
+        /* fallthrough */
     default:
         abort();
     }
