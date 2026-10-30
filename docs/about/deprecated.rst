@@ -362,6 +362,19 @@ the addition of volatile memory support, it is now necessary to distinguish
 between persistent and volatile memory backends.  As such, memdev is deprecated
 in favor of persistent-memdev.
 
+``-device virtio-blk,serial=more_than_20_characters`` (since 11.2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``virtio-blk`` device has a limitation of 20 characters for the serial
+string. Accidentally, QEMU started accepting longer strings on the command line
+in version 0.15.0, but it was still silently truncated to 20 characters for
+guests.
+
+Specifying a longer serial than can be exposed to the guest is a configuration
+error and deprecated; it will become a hard error in later versions. If the
+truncation is intentional, explicitly specify the serial already in truncated
+form on the command line instead.
+
 Block device options
 ''''''''''''''''''''
 
