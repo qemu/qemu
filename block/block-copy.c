@@ -708,13 +708,13 @@ static void block_copy_mark_zero_prefix(BlockCopyState *s, int64_t offset,
 }
 
 /*
- * Check if the cluster starting at offset is allocated or not.
- * return via pnum the number of contiguous clusters sharing this allocation.
- * Also marks the zero prefix of the range in zero_bitmap.
+ * One block-status query of the scan at @offset: return 1 if the cluster
+ * there is allocated, 0 if not, -errno on failure, and via @pnum the number
+ * of contiguous clusters sharing that allocation. Their zero prefix goes
+ * into zero_bitmap.
  */
 static int coroutine_fn GRAPH_RDLOCK
-block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
-                                int64_t *pnum)
+block_copy_scan_status(BlockCopyState *s, int64_t offset, int64_t *pnum)
 {
     BlockDriverState *bs = s->source->bs;
     BlockDriverState *base = block_copy_status_base(s);
@@ -793,7 +793,7 @@ int64_t coroutine_fn block_copy_reset_unallocated(BlockCopyState *s,
     int ret;
     int64_t clusters, bytes;
 
-    ret = block_copy_is_cluster_allocated(s, offset, &clusters);
+    ret = block_copy_scan_status(s, offset, &clusters);
     if (ret < 0) {
         return ret;
     }
@@ -837,7 +837,7 @@ block_copy_calculate_zero_bitmap(BlockCopyState *s, int64_t offset,
     if (*cached_end < dirty_end) {
         int64_t clusters;
         int64_t query_offset = MAX(dirty_offset, *cached_end);
-        int ret = block_copy_is_cluster_allocated(s, query_offset, &clusters);
+        int ret = block_copy_scan_status(s, query_offset, &clusters);
 
         if (ret >= 0) {
             *cached_end = query_offset + clusters * s->cluster_size;
