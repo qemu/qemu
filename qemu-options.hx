@@ -4696,7 +4696,9 @@ DEF("compat", HAS_ARG, QEMU_OPTION_compat,
     "-compat [deprecated-input=accept|reject|crash|warn][,deprecated-output=accept|hide]\n"
     "                Policy for handling deprecated management interfaces\n"
     "-compat [unstable-input=accept|reject|crash|warn][,unstable-output=accept|hide]\n"
-    "                Policy for handling unstable management interfaces\n",
+    "                Policy for handling unstable management interfaces\n"
+    "-compat [insecure-input=accept|reject|crash|warn]\n"
+    "                Policy for handling insecure configuration requests\n",
     QEMU_ARCH_ALL)
 SRST
 ``-compat [deprecated-input=<input-policy>][,deprecated-output=<output-policy>]``
@@ -4736,6 +4738,25 @@ SRST
         Suppress unstable command results and events
 
     Limitation: covers only syntactic aspects of QMP.
+
+``-compat [insecure-input=<input-policy>]``
+    Set policy for handling insecure configuration requests:
+
+    ``insecure-input=accept`` (default)
+        Accept insecure configurations requests silently
+    ``insecure-input=warn``
+        Accept insecure configuration requests with repeated warnings
+	on stderr
+    ``insecure-input=reject``
+        Reject insecure configuration requests
+    ``insecure-input=crash``
+        Crash on insecure configuration requests
+
+    Limitation: an insecure configuration is one where QEMU does
+    not provide a security boundary to protect against malicious
+    usage / untrusted data. Covers only user creatable QOM types
+    for devices, machine types and accelerators. Implicitly created
+    QOM types and parent types are not checked at this time.
 ERST
 
 DEF("fw_cfg", HAS_ARG, QEMU_OPTION_fwcfg,
