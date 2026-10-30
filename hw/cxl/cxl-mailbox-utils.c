@@ -2986,6 +2986,12 @@ void cxl_init_cci(CXLCCI *cci, size_t payload_max)
     cci->fw.slot[cci->fw.active_slot - 1] = true;
 }
 
+void cxl_destroy_cci(CXLCCI *cci)
+{
+    timer_free(cci->bg.timer);
+    cci->bg.timer = NULL;
+}
+
 static void cxl_copy_cci_commands(CXLCCI *cci, const struct cxl_cmd (*cxl_cmds)[256])
 {
     for (int set = 0; set < 256; set++) {
