@@ -15,6 +15,10 @@ void loongarch_csr_translate_init(void);
 bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                             MMUAccessType access_type, int mmu_idx,
                             bool probe, uintptr_t retaddr);
+G_NORETURN void loongarch_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
+                                                  MMUAccessType access_type,
+                                                  int mmu_idx,
+                                                  uintptr_t retaddr);
 
 TLBRet loongarch_get_addr_from_tlb(CPULoongArchState *env,
                                    MMUContext *context,

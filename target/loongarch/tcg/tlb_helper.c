@@ -706,6 +706,22 @@ bool loongarch_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
+G_NORETURN void loongarch_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
+                                                  MMUAccessType access_type,
+                                                  int mmu_idx,
+                                                  uintptr_t retaddr)
+{
+    CPULoongArchState *env = cpu_env(cs);
+    CPUSysState *sys = env_sys(env);
+
+    /*
+     * Unaligned accesses are currently triggered by atomic instructions
+     * that impose alignment requirements on memory operands.
+     */
+    sys->CSR_BADV = vaddr;
+    do_raise_exception(env, EXCCODE_ALE, retaddr);
+}
+
 static inline uint64_t loongarch_sanitize_hw_pte(CPULoongArchState *env,
                                                  uint64_t pte)
 {

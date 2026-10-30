@@ -92,6 +92,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     case EXCCODE_PME:
     case EXCCODE_PNR:
     case EXCCODE_PPI:
+    case EXCCODE_ALE:
         cause = cs->exception_index;
         break;
     default:
@@ -289,5 +290,6 @@ const TCGCPUOps loongarch_tcg_ops = {
     .cpu_exec_reset = cpu_reset,
     .do_interrupt = loongarch_cpu_do_interrupt,
     .do_transaction_failed = loongarch_cpu_do_transaction_failed,
+    .do_unaligned_access = loongarch_cpu_do_unaligned_access,
 #endif
 };
