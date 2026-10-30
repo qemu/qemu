@@ -664,6 +664,10 @@ static const struct tag_rev_info tag_rev_info[XX_LAST_OPCODE] = {
         .introduced = HEX_VER_V79, .removed = HEX_VER_NONE
     },
     [V6_vconv_qf32_sf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+    [V6_vcvt2_b_hf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+    [V6_vcvt2_hf_b] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+    [V6_vcvt2_hf_ub] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
+    [V6_vcvt2_ub_hf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_vilog2_hf] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_vilog2_qf16] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },
     [V6_vilog2_qf32] = { .introduced = HEX_VER_V79, .removed = HEX_VER_NONE },

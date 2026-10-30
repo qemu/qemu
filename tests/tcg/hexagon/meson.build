@@ -54,6 +54,8 @@ tests += {
                         'qemu_args': ['-cpu', 'v73,ieee-fp=false']},
   'fp_hvx_cvt.c': {'cflags': [cflags, '-mv73', '-mhvx', '-mhvx-ieee-fp']},
   'fp_hvx_cmp.c': {'cflags': [cflags, '-mv73', '-mhvx', '-mhvx-ieee-fp']},
+  'fp_hvx_v79.c': {'cflags': [cflags, '-mv79', '-mhvx', '-mhvx-ieee-fp'],
+                   'qemu_args': ['-cpu', 'v79']},
   'v81_hvx.c': {'cflags': [cflags, '-mv81', '-mhvx', '-mhvx-ieee-fp'],
                'qemu_args': ['-cpu', 'v81']},
   'qfloat_v81.c': {'cflags': [cflags, '-mv81', '-mhvx', '-mhvx-ieee-fp'],
