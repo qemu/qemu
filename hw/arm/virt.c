@@ -337,6 +337,21 @@ unsigned int virt_get_caches(const VirtMachineState *vms, CPUCoreCaches *caches)
     ARMISARegisters *isar = &armcpu->isar;
     uint32_t clidr = GET_IDREG(isar, CLIDR);
 
+    /*
+     * Commit f669de70011 ("hw/arm/virt: add cache hierarchy to device tree")
+     * read the CLIDR value from the isar array. However, in KVM mode, we failed
+     * to initialize that register value from host and the resulting bug is that
+     * we have always read 0.
+     *
+     * Soon we will initialize all writable isar.idreg[] from host, including
+     * CLIDR_EL1 but we will need to handle compat properly and also extend the
+     * support to unified L1 cache. For now do not pretend we have something
+     * different from 0.
+     */
+    if (kvm_enabled()) {
+        clidr = 0;
+    }
+
     for (int cache_level = 1; cache_level <= CLIDR_CTYPE_MAX_CACHE_LEVEL;
          cache_level++) {
         uint8_t ctype =
