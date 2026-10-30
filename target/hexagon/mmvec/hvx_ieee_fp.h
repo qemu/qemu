@@ -52,6 +52,14 @@ float16 f8_to_f16(uint8_t a, float_status *fp_status);
  */
 uint8_t f16_to_f8(float16 a, bool sat, float_status *fp_status);
 
+/*
+ * The v81 conversions between FP8 and qf16 read the same encoding with
+ * exponent bias 7 instead of 8, so every value is twice as large.
+ * NaN is still 0x80 and narrowing never saturates.
+ */
+float16 f8_bias7_to_f16(uint8_t a, float_status *fp_status);
+uint8_t f16_to_f8_bias7(float16 a, float_status *fp_status);
+
 float16 fp_add_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
 float16 fp_sub_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status);
 float16 fp_mult_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status);

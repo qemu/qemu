@@ -417,6 +417,26 @@
 
 #define fQF_VILOG2(TYPE, A, AEXT) qf_vilog2(TYPE, A, AEXT)
 
+/*
+ * Convert an FP8 element to the qf16 element (V).qf16[i].  FP8 is exactly
+ * representable in hf, so go through that.  The one FP8 NaN becomes the
+ * negative qf16 NaN.
+ */
+#define fCONVERT_F8_TO_QF16(V, A) \
+    do { \
+        if ((A) == F8_NAN) { \
+            (V).qf16[i] = (int16_t)(extqf16_neg_nan >> 4); \
+            set_extended_bits(&(V), i, 16, \
+                              extqf16_neg_nan & EXT16_BITMASK); \
+        } else { \
+            unfloat u = fPARSEHF(f8_bias7_to_f16(A, &env->hvx_fp_status)); \
+            INIT_UNFLOAT(v) \
+            v.exp = E_MIN_EXTQF16; \
+            v.sign = 1; \
+            fQFADD(16, V, u, v); \
+        } \
+    } while (0)
+
 #define fCONVERT_QF32_TO_SF(A, AEXT) \
     (qfloat_is_extended(env) ? \
      conv_sf_extqf32(A, AEXT, CVI_QFRND_MODE) : legacy_conv_sf_qf32(A))

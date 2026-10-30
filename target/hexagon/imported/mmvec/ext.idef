@@ -3519,6 +3519,12 @@ EXTINSN(V6_vconv_hf_qf32,"Vd32.hf=Vuu32.qf32",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS
 EXTINSN(V6_vconv_qf16_hf,"Vd32.qf16=Vu32.hf",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of qf16 format to ieee HF",
 { fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEHF(VuV.hf[i]); INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
 
+EXTINSN(V6_vconv_qf16_f8,"Vdd32.qf16=Vu32.f8",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VP_VS,A_HVX_FLT),"Vector convert to qf16: f8 widen to qf16",
+{ fHIDE(int i;) fVFOREACH(16, i) { fCONVERT_F8_TO_QF16(VddV.v[0], VuV.f8[2*i]); fCONVERT_F8_TO_QF16(VddV.v[1], VuV.f8[2*i+1]); } })
+
+EXTINSN(V6_vconv_f8_qf16,"Vd32.f8=Vu32.qf16",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector convert qf16 to f8",
+{ fHIDE(int i;) fVFOREACH(16, i) { VdV.uh[i] = f16_to_f8_bias7(fCONVERT_QF16_TO_HF(VuV.qf16[i], GET_VEXT(VuV, i, 16)), &env->hvx_fp_status); } })
+
 EXTINSN(V6_vconv_qf16_qf16,"Vd32.qf16=Vu32.qf16",ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_HVX_FLT),"Vector conversion of qf16 to qf16",
 { fHIDE(int i;) fVFOREACH(16, i) { fHIDE(unfloat )u = fPARSEQF_EXT(16,VuV,i); INIT_UNFLOAT(v) v.exp = E_MIN_EXTQF16; v.sign = 1; fQFADD(16,VdV,u,v)  ; } })
 

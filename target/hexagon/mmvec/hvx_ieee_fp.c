@@ -215,6 +215,27 @@ uint8_t f16_to_f8(float16 a, bool sat, float_status *fp_status)
     return code ? sign | code : 0;
 }
 
+float16 f8_bias7_to_f16(uint8_t a, float_status *fp_status)
+{
+    float_status exact = { 0 };
+
+    /* Preserve NaN's default value from fp_status. */
+    return a == F8_NAN ? f8_to_f16(a, fp_status) :
+           float16_mul(f8_to_f16(a, fp_status), make_float16(0x4000), &exact);
+}
+
+uint8_t f16_to_f8_bias7(float16 a, float_status *fp_status)
+{
+    float_status halve = { 0 };
+
+    if (float16_is_any_nan(a)) {
+        return F8_NAN;
+    }
+    /* Halving only loses insignificant bits before FP8 rounding. */
+    return f16_to_f8(float16_mul(a, make_float16(0x3800), &halve), false,
+                     fp_status);
+}
+
 float16 fp_add_hf_f8(uint8_t a1, uint8_t a2, float_status *fp_status)
 {
     return float16_add(f8_to_f16(a1, fp_status), f8_to_f16(a2, fp_status),

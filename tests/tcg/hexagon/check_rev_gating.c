@@ -150,6 +150,10 @@ TRY_FUNC(v79hvx_vfmin_f8,
 
 TRY_FUNC(v81hvx_veqhf,
          ".word 0x1f82c11c    /* q0 = vcmp.eq(v1.hf, v2.hf) */\n")
+TRY_FUNC(v81hvx_vconv_qf16_f8,
+         ".word 0x1e0ce2a0    /* v1:0.qf16 = v2.f8 */\n")
+TRY_FUNC(v81hvx_vconv_f8_qf16,
+         ".word 0x1e0ce4e3    /* v3.f8 = v4.qf16 */\n")
 
 int main(void)
 {
@@ -203,6 +207,8 @@ int main(void)
     assert(try_v79hvx_vfmin_f8() == SIGILL);
 
     assert(try_v81hvx_veqhf() == SIGILL);
+    assert(try_v81hvx_vconv_qf16_f8() == SIGILL);
+    assert(try_v81hvx_vconv_f8_qf16() == SIGILL);
 
     assert(signals_handled == expected_signals);
 
