@@ -22,8 +22,11 @@
 #
 
 import os
+from collections import namedtuple
+
 import iotests
-from iotests import try_remove
+from iotests import (compare_images, qemu_img_create, qemu_img_map, qemu_io,
+                     try_remove)
 from qemu.qmp.qmp_client import ExecuteError
 
 
@@ -746,6 +749,348 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         self.make_reference_backup(bitmap)
         self.vm.shutdown()
         self.check_backups()
+
+
+# Backup of sources mixing data, zero clusters and holes.
+
+Extent = namedtuple('Extent', ['start', 'length', 'kind'])
+Case = namedtuple('Case', ['size', 'layout', 'expected'], defaults=[None])
+
+source_img = os.path.join(iotests.test_dir, 'source')
+base_img = os.path.join(iotests.test_dir, 'base')
+target_img = os.path.join(iotests.test_dir, 'target')
+
+SIZE = 64 * 1024 * 1024
+MB = 1024 * 1024
+CLUSTER = 64 * 1024
+
+# Data, write-zero and holes, every combination at a cluster boundary.
+MIXED = Case(SIZE, [
+    (0, MB, 'data'),
+    (2 * MB, MB, 'zero'),
+    (5 * MB, 2 * MB, 'data'),
+    (8 * MB, MB, 'zero'),
+    (10 * MB, MB // 2, 'data'),
+    (20 * MB, 4 * MB, 'zero'),
+    (30 * MB, MB, 'data'),
+])
+
+# Single-cluster runs, and a zero run ending exactly at EOF.
+BOUNDARY_SIZE = 16 * MB
+BOUNDARY = Case(BOUNDARY_SIZE, [
+    (0, CLUSTER, 'zero'),
+    (CLUSTER, CLUSTER, 'data'),
+    (2 * CLUSTER, CLUSTER, 'zero'),
+    (3 * CLUSTER, CLUSTER, 'data'),
+    (4 * CLUSTER, 8 * MB, 'zero'),
+    (4 * CLUSTER + 8 * MB, CLUSTER, 'data'),
+    (BOUNDARY_SIZE - CLUSTER, CLUSTER, 'zero'),
+])
+
+# A zero run past the old block_copy_chunk_size() 16M cap.
+LARGE_ZERO = Case(48 * MB, [
+    (0, MB, 'data'),
+    (4 * MB, 32 * MB, 'zero'),
+    (40 * MB, MB, 'data'),
+])
+
+# Image size not a multiple of the cluster size: a partial tail cluster.
+TAIL_SIZE = 4 * MB + 4096
+TAIL_CLUSTER = (TAIL_SIZE // CLUSTER) * CLUSTER
+TAIL_DATA = Case(TAIL_SIZE, [
+    (0, MB, 'data'),
+    (2 * MB, MB, 'zero'),
+    (4 * MB, TAIL_SIZE - 4 * MB, 'data'),
+])
+# The partial tail cluster falls out of zero_bitmap, so it copies as data.
+TAIL_ZERO = Case(TAIL_SIZE, [
+    (0, MB, 'data'),
+    (2 * MB, TAIL_SIZE - 2 * MB, 'zero'),
+], [
+    (0, MB, 'data'),
+    (2 * MB, TAIL_CLUSTER - 2 * MB, 'zero'),
+    (TAIL_CLUSTER, TAIL_SIZE - TAIL_CLUSTER, 'data'),
+])
+
+
+def coalesce(extents):
+    out = []
+    for e in extents:
+        prev = out[-1] if out else None
+        adjacent = prev is not None and prev.start + prev.length == e.start
+        if adjacent and prev.kind == e.kind:
+            out[-1] = prev._replace(length=prev.length + e.length)
+        else:
+            out.append(e)
+    return out
+
+
+def layout_to_extents(layout, size, gap='hole'):
+    extents = []
+    pos = 0
+    for offset, length, kind in layout:
+        if offset > pos:
+            extents.append(Extent(pos, offset - pos, gap))
+        extents.append(Extent(offset, length, kind))
+        pos = offset + length
+    if pos < size:
+        extents.append(Extent(pos, size - pos, gap))
+    return coalesce(extents)
+
+
+def create_image(path, size, backing=None, opts=None):
+    args = ['-f', iotests.imgfmt]
+    if opts:
+        args += ['-o', opts]
+    if backing:
+        args += ['-b', backing, '-F', iotests.imgfmt]
+    qemu_img_create(*args, path, str(size))
+
+
+class TestBackupZeroClusters(iotests.QMPTestCase):
+    def setUp(self):
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for img in (source_img, base_img, target_img):
+            if os.path.exists(img):
+                os.remove(img)
+
+    def hmp_write(self, drive, cmd):
+        res = self.vm.hmp_qemu_io(drive, cmd)
+        self.assertNotIn('error', res['return'].lower())
+
+    def write_layout(self, layout):
+        for offset, length, kind in layout:
+            opt = '-z' if kind == 'zero' else '-P 0x5a'
+            self.hmp_write('src', f'write {opt} {offset} {length}')
+
+    def assert_map(self, case, backing=False, gap='hole'):
+        # Content is not enough, pin the data/zero/hole split as well.
+        def classify(e):
+            is_hole = e['depth'] > 0 if backing else not e['present']
+            return 'hole' if is_hole else ('zero' if e['zero'] else 'data')
+
+        actual = coalesce([Extent(e['start'], e['length'], classify(e))
+                           for e in qemu_img_map(target_img)])
+        layout = case.expected if case.expected else case.layout
+
+        self.assertEqual(actual, layout_to_extents(layout, case.size, gap))
+
+    def add_source(self, case=MIXED, backing=None, opts=None):
+        create_image(source_img, case.size, backing, opts)
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'src',
+            'driver': iotests.imgfmt,
+            'file': {'driver': 'file', 'filename': source_img},
+        })
+
+        # Write through the node, so an attached bitmap sees it.
+        self.write_layout(case.layout)
+
+    def dirty_layout(self, case):
+        # A new bitmap tracks nothing yet: dirty all, then re-apply.
+        self.vm.cmd('block-dirty-bitmap-add', node='src', name='bm0')
+        self.hmp_write('src', f'write -z 0 {case.size}')
+        self.write_layout(case.layout)
+
+    def do_backup(self, sync, case, target_backing=None, prefill=None,
+                  **kwargs):
+        create_image(target_img, case.size, target_backing)
+
+        if prefill is not None:
+            # Not zero, so a skipped cluster is provably untouched.
+            qemu_io('-c', f'write -P {prefill} 0 {case.size}', target_img)
+
+        self.vm.cmd('blockdev-add', {
+            'node-name': 'target',
+            'driver': iotests.imgfmt,
+            'file': {'driver': 'file', 'filename': target_img},
+        })
+
+        self.vm.cmd('blockdev-backup', device='src', target='target',
+                    job_id='bk0', sync=sync, **kwargs)
+        self.wait_until_completed(drive='bk0')
+
+        self.vm.cmd('blockdev-del', node_name='target')
+        self.vm.cmd('blockdev-del', node_name='src')
+
+    def backup_and_check(self, sync, case, gap='zero', backing=False,
+                         **kwargs):
+        self.do_backup(sync, case, **kwargs)
+        self.assertTrue(compare_images(source_img, target_img))
+        self.assert_map(case, backing=backing, gap=gap)
+
+    def test_full(self):
+        self.add_source()
+        self.backup_and_check('full', MIXED)
+
+    def test_full_zero_overwrite(self):
+        # full skips holes, so only check that zero overwrites prefill.
+        case = Case(SIZE, [(2 * MB, MB, 'zero')])
+        self.add_source(case)
+        self.do_backup('full', case, prefill=0xcc)
+        qemu_io('-c', f'read -P 0 {2 * MB} {MB}', target_img)
+
+    def test_bitmap(self):
+        self.add_source()
+        self.dirty_layout(MIXED)
+        self.backup_and_check('bitmap', MIXED, bitmap='bm0',
+                              bitmap_mode='never')
+
+    def test_top(self):
+        # Non-zero backing data, so a hole and an explicit zero differ.
+        create_image(base_img, SIZE)
+        qemu_io('-c', f'write -P 0x33 0 {SIZE}', base_img)
+
+        self.add_source(backing=base_img)
+        self.backup_and_check('top', MIXED, gap='hole', backing=True,
+                              target_backing=base_img)
+
+    def test_boundary_full(self):
+        self.add_source(BOUNDARY)
+        self.backup_and_check('full', BOUNDARY)
+
+    def test_boundary_bitmap(self):
+        self.add_source(BOUNDARY)
+        self.dirty_layout(BOUNDARY)
+        self.backup_and_check('bitmap', BOUNDARY, bitmap='bm0',
+                              bitmap_mode='never')
+
+    def test_large_zero_full(self):
+        self.add_source(LARGE_ZERO)
+        self.backup_and_check('full', LARGE_ZERO)
+
+    def test_large_zero_bitmap(self):
+        self.add_source(LARGE_ZERO)
+        self.dirty_layout(LARGE_ZERO)
+        self.backup_and_check('bitmap', LARGE_ZERO, bitmap='bm0',
+                              bitmap_mode='never')
+
+    def test_huge_zero(self):
+        # A zero run past the cap on a single write-zeroes request, so it
+        # has to be split. qemu-io caps one write at 2G, hence three.
+        case = Case(2560 * MB, [(0, 1024 * MB, 'zero'),
+                                (1024 * MB, 1024 * MB, 'zero'),
+                                (2048 * MB, 512 * MB, 'zero')])
+        self.add_source(case)
+        self.backup_and_check('full', case)
+
+    def test_tail_data(self):
+        self.add_source(TAIL_DATA)
+        self.backup_and_check('full', TAIL_DATA)
+
+    def test_tail_zero(self):
+        self.add_source(TAIL_ZERO)
+        self.backup_and_check('full', TAIL_ZERO)
+
+    def test_tail_zero_bitmap(self):
+        # Same tail rounding as test_tail_zero, via the bitmap scan.
+        self.add_source(TAIL_ZERO)
+        self.dirty_layout(TAIL_ZERO)
+        self.backup_and_check('bitmap', TAIL_ZERO, bitmap='bm0',
+                              bitmap_mode='never')
+
+    def test_mixed_cluster(self):
+        # 4K source clusters, so content varies inside one 64K cluster.
+        case = Case(2 * CLUSTER, [
+            (0, 8 * 1024, 'zero'),
+            (8 * 1024, 8 * 1024, 'data'),
+            (CLUSTER, CLUSTER, 'zero'),
+        ], [
+            # A mixed cluster must be data, or the data at [8k, 16k) is lost.
+            (0, CLUSTER, 'data'),
+            (CLUSTER, CLUSTER, 'zero'),
+        ])
+        self.add_source(case, opts='cluster_size=4k')
+        self.backup_and_check('full', case)
+
+    def test_top_zero_broken(self):
+        # An overlay hole before an explicit-zero run: the zero prefix
+        # must stop at the hole, or the backing data under it is lost.
+        size = 2 * CLUSTER
+        create_image(base_img, size, opts='cluster_size=4k')
+        qemu_io('-c', f'write -P 0x33 0 {size}', base_img)
+
+        # [0, 4k) stays a hole, the zero run spills into cluster 1.
+        case = Case(size, [(4096, CLUSTER, 'zero')])
+        self.add_source(case, backing=base_img, opts='cluster_size=4k')
+
+        self.do_backup('top', case, target_backing=base_img)
+        self.assertTrue(compare_images(source_img, target_img))
+
+    def test_bitmap_straddle(self):
+        # One dirty run straddling a zero/data transition, both ways.
+        case = Case(SIZE, [])
+        self.add_source(case)
+        self.vm.cmd('block-dirty-bitmap-add', node='src', name='bm0')
+
+        # One contiguous dirty run each: [7M, 9M) zero to data, and
+        # [15M, 17M) data to zero.
+        layout = [
+            (7 * MB, MB, 'zero'),
+            (8 * MB, MB, 'data'),
+            (15 * MB, MB, 'data'),
+            (16 * MB, MB, 'zero'),
+        ]
+        self.write_layout(layout)
+
+        self.do_backup('bitmap', case, bitmap='bm0', bitmap_mode='never')
+        self.assertTrue(compare_images(source_img, target_img))
+        # Nothing outside the two dirty runs may reach the target.
+        self.assert_map(case._replace(layout=layout))
+
+    def test_bitmap_fragmented(self):
+        # Isolated single-cluster dirty spots: nothing outside them
+        # may reach the target.
+        case = Case(SIZE, [])
+        self.add_source(case)
+
+        # Written before the bitmap exists, so untracked.
+        self.hmp_write('src', f'write -P 0x5a 0 {16 * MB}')
+
+        self.vm.cmd('block-dirty-bitmap-add', node='src', name='bm0')
+
+        # The only dirty bit in the data region, with a pattern of its own.
+        data_island = 4 * MB
+        self.hmp_write('src', f'write -P 0x7b {data_island} {CLUSTER}')
+
+        # The only dirty bit in the hole region.
+        zero_island = 24 * MB
+        self.hmp_write('src', f'write -z {zero_island} {CLUSTER}')
+
+        self.do_backup('bitmap', case, bitmap='bm0', bitmap_mode='never',
+                       prefill=0xcc)
+
+        # Only the two isolated spots should have reached target ...
+        qemu_io('-c', f'read -P 0x7b {data_island} {CLUSTER}', target_img)
+        qemu_io('-c', f'read -P 0 {zero_island} {CLUSTER}', target_img)
+
+        # ... everything else must still hold the prefill pattern.
+        qemu_io('-c', f'read -P 0xcc 0 {CLUSTER}', target_img)
+        qemu_io('-c', f'read -P 0xcc {8 * MB} {CLUSTER}', target_img)
+
+    def test_bitmap_clean_zero_gap(self):
+        # A clean zero run between two dirty ones must stay prefilled.
+        case = Case(16 * MB, [])
+        self.add_source(case)
+        self.hmp_write('src', f'write -z 0 {16 * MB}')
+
+        self.vm.cmd('block-dirty-bitmap-add', node='src', name='bm0')
+        self.write_layout([(2 * MB, MB, 'zero'), (6 * MB, MB, 'zero')])
+
+        self.do_backup('bitmap', case, bitmap='bm0', bitmap_mode='never',
+                       prefill=0xcc)
+
+        qemu_io('-c', f'read -P 0 {2 * MB} {MB}', target_img)
+        qemu_io('-c', f'read -P 0 {6 * MB} {MB}', target_img)
+
+        qemu_io('-c', f'read -P 0xcc 0 {2 * MB}', target_img)
+        qemu_io('-c', f'read -P 0xcc {3 * MB} {3 * MB}', target_img)
+        qemu_io('-c', f'read -P 0xcc {7 * MB} {9 * MB}', target_img)
 
 
 if __name__ == '__main__':
