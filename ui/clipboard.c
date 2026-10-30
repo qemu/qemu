@@ -59,6 +59,21 @@ static void qemu_clipboard_change_state(void *opaque, bool running, RunState sta
 
 }
 
+static void qemu_clipboard_notify_peer_update(QemuClipboardPeer *peer,
+                                              bool registered)
+{
+    QemuClipboardNotify notify = {
+        .type = QEMU_CLIPBOARD_PEER_UPDATE,
+        .peer_update = {
+            .peer = peer,
+            .registered = registered,
+        },
+    };
+
+    trace_clipboard_peer_update(peer->name, registered);
+    notifier_list_notify(&clipboard_notifiers, &notify);
+}
+
 void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 {
     if (cb_change_state_entry == NULL) {
@@ -66,6 +81,7 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
     }
 
     notifier_list_add(&clipboard_notifiers, &peer->notifier);
+    qemu_clipboard_notify_peer_update(peer, true);
 }
 
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
@@ -76,6 +92,8 @@ void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
         qemu_clipboard_peer_release(peer, i);
     }
     notifier_remove(&peer->notifier);
+    qemu_clipboard_notify_peer_update(peer, false);
+
     if (QLIST_EMPTY(&clipboard_notifiers.notifiers)) {
         g_clear_pointer(&cb_change_state_entry,
                         qemu_del_vm_change_state_handler);

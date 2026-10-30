@@ -174,6 +174,9 @@ vnc_dbus_clipboard_notify(Notifier *notifier, void *data)
                 -1, NULL, NULL, NULL);
         }
         return;
+    case QEMU_CLIPBOARD_PEER_UPDATE:
+        /* ignore */
+        return;
     }
 }
 

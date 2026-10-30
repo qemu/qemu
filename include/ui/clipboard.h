@@ -25,6 +25,7 @@ typedef enum QemuClipboardNotifyType QemuClipboardNotifyType;
 typedef enum QemuClipboardSelection QemuClipboardSelection;
 typedef struct QemuClipboardPeer QemuClipboardPeer;
 typedef struct QemuClipboardNotify QemuClipboardNotify;
+typedef struct QemuClipboardPeerUpdate QemuClipboardPeerUpdate;
 typedef struct QemuClipboardInfo QemuClipboardInfo;
 typedef struct QemuClipboardContent QemuClipboardContent;
 
@@ -78,12 +79,27 @@ struct QemuClipboardPeer {
  *
  * @QEMU_CLIPBOARD_UPDATE_INFO: clipboard info update
  * @QEMU_CLIPBOARD_RESET_SERIAL: reset clipboard serial
+ * @QEMU_CLIPBOARD_PEER_UPDATE: peer registered/unregistered
  *
  * Clipboard notify type.
  */
 enum QemuClipboardNotifyType {
     QEMU_CLIPBOARD_UPDATE_INFO,
     QEMU_CLIPBOARD_RESET_SERIAL,
+    QEMU_CLIPBOARD_PEER_UPDATE,
+};
+
+/**
+ * struct QemuClipboardPeerUpdate
+ *
+ * @peer: the peer affected by this event
+ * @registered: whether @peer registered or unregistered.
+ *
+ * Clipboard peer update event data.
+ */
+struct QemuClipboardPeerUpdate {
+    QemuClipboardPeer *peer;
+    bool registered;
 };
 
 /**
@@ -91,6 +107,8 @@ enum QemuClipboardNotifyType {
  *
  * @type: the type of event.
  * @info: a QemuClipboardInfo event.
+ * @peer_update: a peer register/unregister event
+ *               (valid for QEMU_CLIPBOARD_PEER_UPDATE).
  *
  * Clipboard notify data.
  */
@@ -98,6 +116,7 @@ struct QemuClipboardNotify {
     QemuClipboardNotifyType type;
     union {
         QemuClipboardInfo *info;
+        QemuClipboardPeerUpdate peer_update;
     };
 };
 
