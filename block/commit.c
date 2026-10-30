@@ -140,8 +140,8 @@ commit_iteration(CommitBlockJob *s, int64_t offset,
     /* Copy if allocated above the base */
     WITH_GRAPH_RDLOCK_GUARD() {
         ret = bdrv_co_common_block_status_above(blk_bs(s->top),
-            s->base_overlay, true, true, offset, COMMIT_BUFFER_SIZE,
-            &bytes, NULL, NULL, NULL);
+            s->base_overlay, true, BDRV_WANT_PRECISE, offset,
+            COMMIT_BUFFER_SIZE, &bytes, NULL, NULL, NULL);
     }
 
     trace_commit_one_iteration(s, offset, bytes, ret);
