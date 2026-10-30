@@ -37,7 +37,7 @@ void aarch64_aa32_a57_init(ARMCPU *cpu, bool aarch64_enabled)
         cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A57;
     }
     cpu->midr = 0x411fd070;
-    cpu->revidr = 0x00000000;
+    SET_IDREG(isar, REVIDR, 0);
     cpu->reset_fpsid = 0x41034070;
     cpu->isar.mvfr0 = 0x10110222;
     cpu->isar.mvfr1 = 0x12111111;

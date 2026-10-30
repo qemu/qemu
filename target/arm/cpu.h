@@ -1126,7 +1126,6 @@ struct ArchCPU {
         uint64_t idregs[NUM_ID_IDX];
     } isar;
     uint64_t midr;
-    uint32_t revidr;
     uint32_t reset_fpsid;
     uint64_t ctr;
     uint32_t reset_sctlr;
