@@ -788,6 +788,14 @@ static void kvm_arm_set_cpreg_mig_tolerances(ARMCPU *cpu)
                                      0, 0, ToleranceNotOnBothEnds);
 
     /*
+     * PMMIR_EL1 was unconditionally exposed for linux 7.3 with commit
+     * 453f6ff04b8d ("KVM: arm64: Expose PMMIR_EL1.SLOTS under strict
+     * PMUv3 UAPI"). Tolerate backward migration to an older kernel.
+     */
+    arm_register_cpreg_mig_tolerance(cpu, ARM64_SYS_REG(3, 0, 9, 14, 6),
+                                     0, 0, ToleranceNotOnBothEnds);
+
+    /*
      * KVM_REG_ARM_VENDOR_HYP_BMAP_2 pseudo FW register is exposed
      * from v6.15 onwards. Backward migration from a >= v6.15 to an older
      * kernel would fail without cpreg migration tolerance definition.
