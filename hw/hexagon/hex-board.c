@@ -106,6 +106,12 @@ void hex_board_fdt_add_hvx(MachineState *ms,
         qemu_fdt_setprop_cells(ms->fdt, "/soc/hvx", "qcom,hvx-vlength",
                                t->hvx_vec_log_length);
     }
+
+    if (HEXAGON_CFGTABLE_HAS_HMX(t)) {
+        qemu_fdt_add_subnode(ms->fdt, "/soc/hmx");
+        qemu_fdt_setprop_string(ms->fdt, "/soc/hmx", "compatible",
+                                "qcom,hexagon-hmx");
+    }
 }
 
 void hex_board_fdt_add_cpus(MachineState *ms)
