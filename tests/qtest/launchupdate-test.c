@@ -51,7 +51,7 @@ static void test_vm_launch_update_capability(void)
 static void test_vm_launch_update_disable(void)
 {
     QFWCFG *fw_cfg;
-    QOSState *qs;
+    g_autoptr(QOSState) qs = NULL;
     VMLaunchUpdate launch_update;
     uint64_t control;
     size_t filesize;
@@ -95,13 +95,12 @@ static void test_vm_launch_update_disable(void)
     g_assert_cmpint(VM_LAUNCHUPDATE_CTL_DISABLE & control, ==, 1);
 
     pc_fw_cfg_uninit(fw_cfg);
-    qtest_shutdown(qs);
 }
 
 static void check_error(void)
 {
     QFWCFG *fw_cfg;
-    QOSState *qs;
+    g_autoptr(QOSState) qs = NULL;
     VMLaunchUpdate launch_update;
     uint16_t status;
     size_t filesize;
@@ -149,6 +148,8 @@ static void check_error(void)
     status = le64_to_cpu(launch_update.status);
     /* should fail with LOAD_FAIL since it was not IGVM format */
     g_assert_cmpint(status, ==, VM_LAUNCHUPDATE_LOAD_FAIL);
+
+    pc_fw_cfg_uninit(fw_cfg);
 }
 
 static int64_t get_image_size(const char *filename)
@@ -192,8 +193,8 @@ static guint32 match_string(char *serial_f, const char *exp_out)
 {
     GError *error = NULL;
     g_autofree gchar *f_contents = NULL;
-    g_autofree GRegex *regex = NULL;
-    g_autofree GMatchInfo *match_info = NULL;
+    g_autoptr(GRegex) regex = NULL;
+    g_autoptr(GMatchInfo) match_info = NULL;
     gsize len;
     guint32 count = 0;
     gboolean ret;
@@ -214,7 +215,6 @@ static guint32 match_string(char *serial_f, const char *exp_out)
         g_match_info_next(match_info, &error);
         count++;
     }
-    g_regex_unref(regex);
     return count;
 }
 
@@ -327,7 +327,7 @@ static void test_load_igvm(void)
     size_t igvm_sz;
     size_t filesize;
     QFWCFG *fw_cfg;
-    QOSState *qs;
+    g_autoptr(QOSState) qs = NULL;
     VMLaunchUpdate launch_update;
 
     if (!trace) {
@@ -457,8 +457,6 @@ static void test_load_igvm(void)
     close(ser_fd);
     guest_free(&qs->alloc, gaddr);
     pc_fw_cfg_uninit(fw_cfg);
-    /* qtest_quit() kils QEMU, first by sending SIGTERM, then SIGKILL */
-    qtest_quit(qs->qts);
 }
 
 static void test_set_ctrl_once_and_reset_to_host_igvm(void)
@@ -476,7 +474,7 @@ static void test_set_ctrl_once_and_reset_to_host_igvm(void)
     size_t igvm_sz;
     size_t filesize;
     QFWCFG *fw_cfg;
-    QOSState *qs;
+    g_autoptr(QOSState) qs = NULL;
     VMLaunchUpdate launch_update;
 
     if (!qtest_has_machine("q35")) {
@@ -586,8 +584,6 @@ static void test_set_ctrl_once_and_reset_to_host_igvm(void)
     close(ser_fd);
     guest_free(&qs->alloc, gaddr);
     pc_fw_cfg_uninit(fw_cfg);
-    /* qtest_quit() kils QEMU, first by sending SIGTERM, then SIGKILL */
-    qtest_quit(qs->qts);
 }
 
 int main(int argc, char **argv)

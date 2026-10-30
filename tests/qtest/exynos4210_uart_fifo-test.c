@@ -52,8 +52,8 @@ static void enable_uart_fifo(QTestState *qts)
  */
 static void test_recv_large_str(void)
 {
-    int sock_fd;
-    char *sendbuf, *recvbuf;
+    g_autofd int sock_fd = -1;
+    g_autofree char *sendbuf = NULL, *recvbuf = NULL;
     QTestState *qts = qtest_init_with_serial("-M smdkc210", &sock_fd);
 
     enable_uart_fifo(qts);
@@ -70,8 +70,6 @@ static void test_recv_large_str(void)
 
     g_assert_true(TEST_BUFFER_LEN - 1 == strlen(recvbuf));
     g_assert_true(strcmp(sendbuf, recvbuf) == 0);
-
-    close(sock_fd);
 
     qtest_quit(qts);
 }

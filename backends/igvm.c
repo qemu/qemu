@@ -38,6 +38,12 @@
 #define IGVM_VHT_OPTIONAL_BIT (1U << 31)
 #endif
 
+struct IgvmMemoryRegion {
+    Object parent_obj;
+    MemoryRegion mr;
+    QTAILQ_ENTRY(IgvmMemoryRegion) next;
+};
+
 /*
  * Bit 31 of the variable header type indicates that the header is
  * optional and can be safely ignored by a loader that does not
@@ -260,10 +266,13 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
                                   int region_identifier, Error **errp)
 {
     ERRP_GUARD();
-    IgvmMemoryRegion *imr = NULL;
+    g_autoptr(IgvmMemoryRegion) imr = NULL;
     Int128 gpa_region_size;
+    g_autofree char *region_name = NULL;
+    uint32_t flags = 0;
     MemoryRegionSection mrs =
         memory_region_find(get_system_memory(), addr, size);
+
     if (mrs.mr) {
         if (!memory_region_is_ram(mrs.mr)) {
             memory_region_unref(mrs.mr);
@@ -275,9 +284,9 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
             return NULL;
         }
 
+        memory_region_unref(mrs.mr);
         gpa_region_size = int128_make64(size);
         if (int128_lt(mrs.size, gpa_region_size)) {
-            memory_region_unref(mrs.mr);
             error_setg(
                 errp,
                 "Processing of IGVM file failed: Could not prepare memory "
@@ -286,36 +295,29 @@ static void *qigvm_prepare_memory(QIgvm *ctx, uint64_t addr, uint64_t size,
             return NULL;
         }
         return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
-    } else {
-        /*
-         * The region_identifier is the is the index of the IGVM directive that
-         * contains the page with the lowest GPA in the region. This will
-         * generate a unique region name.
-         */
-        g_autofree char *region_name =
-            g_strdup_printf("igvm.%X", region_identifier);
-        imr = g_new0(IgvmMemoryRegion, 1);
-        imr->mr = g_new0(MemoryRegion, 1);
-        if (ctx->machine_state->cgs &&
-            ctx->machine_state->cgs->require_guest_memfd) {
-            if (!memory_region_init_ram_guest_memfd_private(
-                    imr->mr, NULL, region_name, size, errp)) {
-                g_free(imr->mr);
-                g_free(imr);
-                return NULL;
-            }
-        } else {
-            if (!memory_region_init_ram(imr->mr, NULL, region_name, size,
-                                        errp)) {
-                g_free(imr->mr);
-                g_free(imr);
-                return NULL;
-            }
-        }
-        memory_region_add_subregion(get_system_memory(), addr, imr->mr);
-        QTAILQ_INSERT_TAIL(&ctx->cfg->memory_regions, imr, next);
-        return memory_region_get_ram_ptr(imr->mr);
     }
+
+    /*
+     * The region_identifier is the is the index of the IGVM directive that
+     * contains the page with the lowest GPA in the region. This will
+     * generate a unique region name.
+     */
+    region_name = g_strdup_printf("igvm.%X", region_identifier);
+    imr = IGVM_MEMORY_REGION(object_new(TYPE_IGVM_MEMORY_REGION));
+    if (ctx->machine_state->cgs &&
+        ctx->machine_state->cgs->require_guest_memfd) {
+        flags = RAM_GUEST_MEMFD_PRIVATE;
+    }
+    if (!memory_region_init_ram_flags_nomigrate(&imr->mr, OBJECT(imr),
+                                                region_name, size,
+                                                flags, errp)) {
+        return NULL;
+    }
+    vmstate_register_ram_global(&imr->mr);
+    memory_region_add_subregion(get_system_memory(), addr, &imr->mr);
+    object_ref(imr); /* for the list */
+    QTAILQ_INSERT_TAIL(&ctx->cfg->memory_regions, imr, next);
+    return memory_region_get_ram_ptr(&imr->mr);
 }
 
 static int qigvm_type_to_cgs_type(IgvmPageDataType memory_type, bool unmeasured,
@@ -1206,14 +1208,33 @@ void qigvm_cleanup_memory(IgvmCfg *cfg)
 {
     IgvmMemoryRegion *imr, *tmp;
 
-    QTAILQ_FOREACH_SAFE(imr, &cfg->memory_regions, next, tmp)
-    {
-        trace_qigvm_cleanup_memory(imr->mr->name);
-        memory_region_del_subregion(get_system_memory(), imr->mr);
-        vmstate_unregister_ram(imr->mr, NULL);
+    QTAILQ_FOREACH_SAFE(imr, &cfg->memory_regions, next, tmp) {
+        trace_qigvm_cleanup_memory(imr->mr.name);
         QTAILQ_REMOVE(&cfg->memory_regions, imr, next);
-        /* this triggers MemoryRegion cleanup */
-        object_unparent(OBJECT(imr->mr));
-        g_free(imr);
+        object_unref(OBJECT(imr));
     }
 }
+
+static void qigvm_memory_region_finalize(Object *obj)
+{
+    IgvmMemoryRegion *imr = IGVM_MEMORY_REGION(obj);
+
+    if (imr->mr.container) {
+        memory_region_del_subregion(imr->mr.container, &imr->mr);
+    }
+    vmstate_unregister_ram(&imr->mr, NULL);
+}
+
+static const TypeInfo qigvm_memory_region_info = {
+    .name = TYPE_IGVM_MEMORY_REGION,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(IgvmMemoryRegion),
+    .instance_finalize = qigvm_memory_region_finalize,
+};
+
+static void qigvm_register_types(void)
+{
+    type_register_static(&qigvm_memory_region_info);
+}
+
+type_init(qigvm_register_types);

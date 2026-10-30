@@ -42,4 +42,6 @@ static inline void qfree(QOSState *q, uint64_t addr)
     guest_free(&q->alloc, addr);
 }
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QOSState, qtest_shutdown)
+
 #endif

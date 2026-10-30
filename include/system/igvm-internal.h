@@ -18,10 +18,11 @@
 #include "system/confidential-guest-support.h"
 #include <igvm/igvm.h>
 
-typedef struct IgvmMemoryRegion {
-    QTAILQ_ENTRY(IgvmMemoryRegion) next;
-    MemoryRegion *mr;
-} IgvmMemoryRegion;
+typedef struct IgvmMemoryRegion IgvmMemoryRegion;
+
+#define TYPE_IGVM_MEMORY_REGION "igvm-memory-region"
+
+OBJECT_DECLARE_SIMPLE_TYPE(IgvmMemoryRegion, IGVM_MEMORY_REGION)
 
 struct IgvmCfg {
     Object parent_obj;

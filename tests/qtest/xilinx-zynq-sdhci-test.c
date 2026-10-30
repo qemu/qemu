@@ -58,10 +58,10 @@ static QTestState *setup_sd_card(void)
 
 static void write_pattern_to_image(size_t offset, size_t len)
 {
-    gchar *buf = g_malloc(len);
+    g_autofree gchar *buf = g_malloc(len);
+    g_autoptr(GIOChannel) chan = NULL;
     GError *err = NULL;
     gsize bytes_written;
-    GIOChannel *chan;
 
     for (size_t i = 0; i < len; i++) {
         buf[i] = (i * 13 + 7) & 0xff;
@@ -78,8 +78,6 @@ static void write_pattern_to_image(size_t offset, size_t len)
     g_assert_cmpint(bytes_written, ==, len);
     g_io_channel_shutdown(chan, TRUE, &err);
     g_assert_no_error(err);
-
-    g_free(buf);
 }
 
 static void wait_for_block_count(QTestState *qts, uint16_t expected)

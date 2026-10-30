@@ -570,6 +570,11 @@ static bool s390_build_iplb(DeviceState *dev_st, IplParameterBlock *iplb)
     if (ccw_dev) {
         lp = ccw_dev->loadparm;
 
+        /* If the device loadparm is empty use the global machine loadparm */
+        if (memcmp(lp, NO_LOADPARM, 8) == 0) {
+            lp = S390_CCW_MACHINE(qdev_get_machine())->loadparm;
+        }
+
         switch (devtype) {
         case CCW_DEVTYPE_SCSI:
             sd = SCSI_DEVICE(dev_st);
@@ -603,11 +608,6 @@ static bool s390_build_iplb(DeviceState *dev_st, IplParameterBlock *iplb)
             iplb->ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
             iplb->ccw.ssid = ccw_dev->sch->ssid & 3;
             break;
-        }
-
-        /* If the device loadparm is empty use the global machine loadparm */
-        if (memcmp(lp, NO_LOADPARM, 8) == 0) {
-            lp = S390_CCW_MACHINE(qdev_get_machine())->loadparm;
         }
 
         s390_ipl_convert_loadparm((char *)lp, iplb->loadparm);
