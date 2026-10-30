@@ -3276,10 +3276,10 @@ void object_class_property_set_description(ObjectClass *klass,
 
 bool object_class_check_security(ObjectClass *klass, Error **errp)
 {
-    return compat_policy_check_security(&compat_policy,
-                                        object_class_get_name(klass),
-                                        object_class_is_secure(klass),
-                                        errp);
+    return compat_policy_security_ok(&compat_policy,
+                                     object_class_get_name(klass),
+                                     object_class_is_secure(klass),
+                                     errp);
 }
 
 static void object_class_init(ObjectClass *klass, const void *data)

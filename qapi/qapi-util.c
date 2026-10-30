@@ -64,10 +64,10 @@ bool compat_policy_input_ok(const CompatPolicy *policy,
     return true;
 }
 
-bool compat_policy_check_security(const CompatPolicy *policy,
-                                  const char *typename,
-                                  bool is_secure,
-                                  Error **errp)
+bool compat_policy_security_ok(const CompatPolicy *policy,
+                               const char *typename,
+                               bool is_secure,
+                               Error **errp)
 {
     ERRP_GUARD();
 
