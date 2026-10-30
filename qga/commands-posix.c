@@ -1336,7 +1336,7 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 
     info = g_new0(GuestOSInfo, 1);
 
-    if (uname(&kinfo) != 0) {
+    if (uname(&kinfo) < 0) {
         error_setg_errno(errp, errno, "uname failed");
     } else {
         info->kernel_version = g_strdup(kinfo.version);
