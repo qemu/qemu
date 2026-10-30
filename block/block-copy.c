@@ -92,19 +92,21 @@ typedef struct BlockCopyTask {
     BlockCopyState *s;
     BlockCopyCallState *call_state;
     /*
-     * @method can also be set again in the while loop of
-     * block_copy_dirty_clusters(), but it is never accessed concurrently
-     * because the only other function that reads it is
+     * @method and @zero_fast can also be set again in the while loop of
+     * block_copy_dirty_clusters(), but they are never accessed concurrently
+     * because the only other function that reads them is
      * block_copy_task_entry() and it is invoked afterwards in the same
      * iteration.
      */
     BlockCopyMethod method;
+    /* A write-zeroes task asking for BDRV_REQ_NO_FALLBACK. */
+    bool zero_fast;
 
     /*
      * Generally, req is protected by lock in BlockCopyState, Still req.offset
      * is only set on task creation, so may be read concurrently after creation.
-     * req.bytes is changed at most once, and need only protecting the case of
-     * parallel read while updating @bytes value in block_copy_task_shrink().
+     * req.bytes only shrinks, and need only protecting the case of parallel
+     * read while updating @bytes value in block_copy_task_shrink().
      */
     BlockReq req;
 } BlockCopyTask;
@@ -159,6 +161,8 @@ typedef struct BlockCopyState {
     bool skip_unallocated; /* atomic */
     /* State fields that use a thread-safe API */
     BdrvDirtyBitmap *copy_bitmap;
+    /* Cleared once the target refuses BDRV_REQ_NO_FALLBACK. */
+    bool zero_widen; /* atomic */
     /* Clusters reading as zero; allocated on demand, frozen once valid. */
     HBitmap *zero_bitmap;
     /*
@@ -192,6 +196,23 @@ static int64_t block_copy_chunk_size(BlockCopyState *s)
 }
 
 /*
+ * A write-zeroes task carries no buffer, so it may cover far more than
+ * block_copy_chunk_size(). Return how far it may run; the caller clamps it
+ * to where the zero run ends.
+ */
+static int64_t block_copy_widen_zero_area(BlockCopyState *s, int64_t offset,
+                                          int64_t bytes)
+{
+    int64_t clean;
+
+    bytes = MIN(bytes, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
+                                       s->cluster_size));
+    clean = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset, bytes);
+
+    return clean < 0 ? bytes : clean - offset;
+}
+
+/*
  * Search for the first dirty area in offset/bytes range and create task at
  * the beginning of it.
  */
@@ -201,7 +222,9 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
 {
     BlockCopyTask *task;
     BlockCopyMethod method;
+    bool zero_fast = false;
     int64_t max_chunk;
+    int64_t search_end = offset + bytes;
 
     QEMU_LOCK_GUARD(&s->lock);
     max_chunk = MIN_NON_ZERO(block_copy_chunk_size(s), call_state->max_chunk);
@@ -223,6 +246,11 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
 
         if (hbitmap_get(s->zero_bitmap, offset)) {
             method = COPY_WRITE_ZEROES;
+            zero_fast = qatomic_read(&s->zero_widen);
+            if (zero_fast) {
+                bytes = block_copy_widen_zero_area(s, offset,
+                                                   search_end - offset);
+            }
             boundary = hbitmap_next_zero(s->zero_bitmap, offset, bytes);
         } else {
             boundary = hbitmap_next_dirty(s->zero_bitmap, offset, bytes);
@@ -248,6 +276,7 @@ block_copy_task_create(BlockCopyState *s, BlockCopyCallState *call_state,
         .s = s,
         .call_state = call_state,
         .method = method,
+        .zero_fast = zero_fast,
     };
     reqlist_init_req(&s->reqs, &task->req, offset, bytes);
 
@@ -469,6 +498,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .max_transfer = QEMU_ALIGN_DOWN(
                                     block_copy_max_transfer(source, target),
                                     cluster_size),
+        .zero_widen = target->bs->supported_zero_flags & BDRV_REQ_NO_FALLBACK,
     };
 
     s->discard_source = discard_source;
@@ -486,6 +516,15 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
 void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm)
 {
     s->progress = pm;
+}
+
+/*
+ * Bytes @task moves as data, for the memory pool and the rate limit. Only a
+ * write-zeroes request that may not fall back is sure to need no buffer.
+ */
+static uint64_t block_copy_task_data_bytes(BlockCopyTask *task)
+{
+    return task->zero_fast ? 0 : task->req.bytes;
 }
 
 /*
@@ -509,7 +548,7 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
 
     aio_task_pool_wait_slot(pool);
     if (aio_task_pool_status(pool) < 0) {
-        co_put_to_shres(task->s->mem, task->req.bytes);
+        co_put_to_shres(task->s->mem, block_copy_task_data_bytes(task));
         block_copy_task_end(task, -ECANCELED);
         g_free(task);
         return -ECANCELED;
@@ -518,6 +557,34 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
     aio_task_pool_start_task(pool, &task->task);
 
     return 0;
+}
+
+/*
+ * Widening a write-zeroes request only pays off where the target zeroes by
+ * metadata, so while the target is believed to oblige, a request asks to fail
+ * instead of falling back to writing the zeroes out. A refusal ends the
+ * widening and shrinks @t to one cluster for the caller to write the usual
+ * way; the rest is dirty again and is picked up at the buffer chunk size.
+ */
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_write_zeroes_fast(BlockCopyTask *t, bool *error_is_read)
+{
+    BlockCopyState *s = t->s;
+    int64_t nbytes = MIN(t->req.offset + t->req.bytes, s->len) - t->req.offset;
+    int ret;
+
+    ret = bdrv_co_pwrite_zeroes(s->target, t->req.offset, nbytes,
+                                (s->write_flags & ~BDRV_REQ_WRITE_COMPRESSED) |
+                                BDRV_REQ_NO_FALLBACK);
+    if (ret == -ENOTSUP) {
+        qatomic_set(&s->zero_widen, false);
+        block_copy_task_shrink(t, s->cluster_size);
+    } else if (ret < 0) {
+        trace_block_copy_write_zeroes_fail(s, t->req.offset, ret);
+        *error_is_read = false;
+    }
+
+    return ret;
 }
 
 /*
@@ -622,8 +689,13 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     int ret = -1;
 
     WITH_GRAPH_RDLOCK_GUARD() {
-        ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
-                                 &error_is_read);
+        if (t->zero_fast) {
+            ret = block_copy_write_zeroes_fast(t, &error_is_read);
+        }
+        if (!t->zero_fast || ret == -ENOTSUP) {
+            ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
+                                     &error_is_read);
+        }
     }
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
@@ -640,7 +712,7 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
             progress_work_done(s->progress, t->req.bytes);
         }
     }
-    co_put_to_shres(s->mem, t->req.bytes);
+    co_put_to_shres(s->mem, block_copy_task_data_bytes(t));
     block_copy_task_end(t, ret);
 
     if (s->discard_source && ret == 0) {
@@ -867,6 +939,7 @@ block_copy_set_task_method(BlockCopyState *s, BlockCopyTask *task)
     }
     if (ret & BDRV_BLOCK_ZERO) {
         task->method = COPY_WRITE_ZEROES;
+        task->zero_fast = qatomic_read(&s->zero_widen);
     }
 
     return true;
@@ -935,11 +1008,12 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
             }
         }
 
-        ratelimit_calculate_delay(&s->rate_limit, task->req.bytes);
+        ratelimit_calculate_delay(&s->rate_limit,
+                                  block_copy_task_data_bytes(task));
 
         trace_block_copy_process(s, task->req.offset);
 
-        co_get_from_shres(s->mem, task->req.bytes);
+        co_get_from_shres(s->mem, block_copy_task_data_bytes(task));
 
         offset = task_end(task);
         bytes = end - offset;
