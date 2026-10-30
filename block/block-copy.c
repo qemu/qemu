@@ -153,8 +153,8 @@ typedef struct BlockCopyState {
      * This is indicated by skip_unallocated.
      *
      * In this case, block_copy() will query the source’s allocation status,
-     * skip unallocated regions, clear them in the copy_bitmap, and invoke
-     * block_copy_reset_unallocated() every time it does.
+     * skip unallocated regions and clear them in the copy_bitmap, as
+     * block_copy_prescan() does.
      */
     bool skip_unallocated; /* atomic */
     /* State fields that use a thread-safe API */
@@ -781,40 +781,17 @@ void block_copy_reset(BlockCopyState *s, int64_t offset, int64_t bytes)
 }
 
 /*
- * Reset bits in copy_bitmap starting at offset if they represent unallocated
- * data in the image. May reset subsequent contiguous bits.
- * @return 0 when the cluster at @offset was unallocated,
- *         1 otherwise, and -ret on error.
+ * One step of the scan run before copying: query the next dirty area, fill
+ * zero_bitmap and, while skip_unallocated is set, drop the clusters which
+ * are not allocated above the backing from copy_bitmap. @cached_end tracks
+ * progress across calls, @count how far @offset should move.
+ *
+ * A failed query only leaves the area unmarked, so it copies as data, but
+ * sync=top cannot tell what to skip and fails instead.
  */
-int64_t coroutine_fn block_copy_reset_unallocated(BlockCopyState *s,
-                                                  int64_t offset,
-                                                  int64_t *count)
-{
-    int ret;
-    int64_t clusters, bytes;
-
-    ret = block_copy_scan_status(s, offset, &clusters);
-    if (ret < 0) {
-        return ret;
-    }
-
-    bytes = clusters * s->cluster_size;
-
-    if (!ret) {
-        block_copy_reset(s, offset, bytes);
-    }
-
-    *count = bytes;
-    return ret;
-}
-
-/*
- * One scan step, like block_copy_reset_unallocated(); @cached_end
- * tracks progress across calls, @count how far @offset should move.
- */
-void coroutine_fn GRAPH_RDLOCK
-block_copy_calculate_zero_bitmap(BlockCopyState *s, int64_t offset,
-                                 int64_t *cached_end, int64_t *count)
+int coroutine_fn GRAPH_RDLOCK
+block_copy_prescan(BlockCopyState *s, int64_t offset, int64_t *cached_end,
+                   int64_t *count)
 {
     int64_t max_bytes = QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
                                         s->cluster_size);
@@ -830,7 +807,7 @@ block_copy_calculate_zero_bitmap(BlockCopyState *s, int64_t offset,
 
     if (!found) {
         *count = s->len - offset;
-        return;
+        return 0;
     }
     dirty_end = dirty_offset + dirty_bytes;
 
@@ -839,15 +816,21 @@ block_copy_calculate_zero_bitmap(BlockCopyState *s, int64_t offset,
         int64_t query_offset = MAX(dirty_offset, *cached_end);
         int ret = block_copy_scan_status(s, query_offset, &clusters);
 
-        if (ret >= 0) {
-            *cached_end = query_offset + clusters * s->cluster_size;
-        } else {
-            /* Best-effort: leave this area unmarked; it copies as data. */
+        if (ret < 0) {
+            if (qatomic_read(&s->skip_unallocated)) {
+                return ret;
+            }
             *cached_end = dirty_end;
+        } else {
+            *cached_end = query_offset + clusters * s->cluster_size;
+            if (!ret && qatomic_read(&s->skip_unallocated)) {
+                block_copy_reset(s, query_offset, clusters * s->cluster_size);
+            }
         }
     }
 
     *count = MIN(*cached_end, dirty_end) - offset;
+    return 0;
 }
 
 /*

@@ -271,12 +271,7 @@ static int coroutine_fn backup_scan_source(BackupBlockJob *s)
 
         /* rdlock protects the block-status queries below */
         bdrv_graph_co_rdlock();
-        if (top) {
-            ret = block_copy_reset_unallocated(s->bcs, offset, &count);
-        } else {
-            block_copy_calculate_zero_bitmap(s->bcs, offset, &cached_end,
-                                             &count);
-        }
+        ret = block_copy_prescan(s->bcs, offset, &cached_end, &count);
         bdrv_graph_co_rdunlock();
 
         if (ret < 0) {
