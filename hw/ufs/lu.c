@@ -218,33 +218,57 @@ static const struct SCSIBusInfo ufs_scsi_info = {
     .cancel = ufs_scsi_command_cancelled,
 };
 
+static bool ufs_append_lun(uint8_t *outbuf, uint32_t outbuf_len, int *len,
+                           uint8_t lun, uint8_t lun_msb)
+{
+    if (*len + 8 > outbuf_len) {
+        return false;
+    }
+
+    memset(outbuf + *len, 0, 8);
+    outbuf[*len] = lun_msb;
+    outbuf[*len + 1] = lun;
+    *len += 8;
+
+    return true;
+}
+
 static int ufs_emulate_report_luns(UfsRequest *req, uint8_t *outbuf,
                                    uint32_t outbuf_len)
 {
     UfsHc *u = req->hc;
     int len = 0;
 
-    /* TODO: Support for cases where SELECT REPORT is 1 and 2 */
-    if (req->req_upiu.sc.cdb[2] != 0) {
+    uint8_t report_lun_cmd = req->req_upiu.sc.cdb[2];
+
+    if (report_lun_cmd > 2) {
         return SCSI_COMMAND_FAIL;
     }
 
     if (outbuf_len < 8) {
         return SCSI_COMMAND_FAIL;
     }
+
     memset(outbuf, 0, 8);
     len += 8;
 
-    for (uint8_t lun = 0; lun < UFS_MAX_LUS; ++lun) {
-        if (u->lus[lun]) {
-            if (len + 8 > outbuf_len) {
+    if (report_lun_cmd == 2 || report_lun_cmd == 1) {
+        ufs_append_lun(outbuf, outbuf_len, &len, u->report_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+        ufs_append_lun(outbuf, outbuf_len, &len, u->dev_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+        ufs_append_lun(outbuf, outbuf_len, &len, u->boot_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+        ufs_append_lun(outbuf, outbuf_len, &len, u->rpmb_wlu.lun & 0x7F,
+                       UFS_WLUN_MSB);
+    }
+
+    if (report_lun_cmd == 0 || report_lun_cmd == 2) {
+        for (uint8_t lun = 0; lun < UFS_MAX_LUS; ++lun) {
+            if (u->lus[lun] &&
+                !ufs_append_lun(outbuf, outbuf_len, &len, lun, 0)) {
                 break;
             }
-
-            memset(outbuf + len, 0, 8);
-            outbuf[len] = 0;
-            outbuf[len + 1] = lun;
-            len += 8;
         }
     }
 
@@ -382,6 +406,10 @@ static UfsReqResult ufs_emulate_scsi_cmd(UfsLu *lu, UfsRequest *req)
 static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
 {
     uint8_t task_tag = req->req_upiu.header.task_tag;
+    uint8_t *cdb = req->req_upiu.sc.cdb;
+    uint8_t sync_cache_10[UFS_CDB_SIZE] = { SYNCHRONIZE_CACHE };
+    SCSIRequest *scsi_req;
+    uint32_t len;
 
     /*
      * Each ufs-lu has its own independent virtual SCSI bus. Therefore, we can't
@@ -393,12 +421,41 @@ static UfsReqResult ufs_process_scsi_cmd(UfsLu *lu, UfsRequest *req)
         return ufs_emulate_scsi_cmd(lu, req);
     }
 
-    SCSIRequest *scsi_req =
-        scsi_req_new(lu->scsi_dev, task_tag, lu->lun, req->req_upiu.sc.cdb,
-                     UFS_CDB_SIZE, req);
+    /*
+     * scsi-hd implements SYNCHRONIZE CACHE(10) only, while Linux sends the
+     * 16-byte variant to zoned disks. scsi-hd flushes the whole medium for
+     * SYNCHRONIZE CACHE(10) whatever its LBA range, so pass the 16-byte
+     * command on as the 10-byte one, keeping IMMED.
+     */
+    if (cdb[0] == SYNCHRONIZE_CACHE_16) {
+        sync_cache_10[1] = cdb[1] & 0x02;
+        cdb = sync_cache_10;
+    }
+
+    scsi_req = scsi_req_new(lu->scsi_dev, task_tag, lu->lun, cdb, UFS_CDB_SIZE,
+                            req);
+
+    /*
+     * scsi-hd moves as many bytes as the SG list holds, and without an SG
+     * list it would call the transfer_data callback, which ufs-lu does not
+     * set. A UFS device moves what the CDB asks for, so fit the PRDT to the
+     * transfer length, and fail a request whose PRDT describes less, a
+     * missing PRDT included, with OCS MISMATCH DATA BUFFER SIZE, as
+     * virtio-scsi fails a buffer that does not match the command. The
+     * response reports the rest of the Expected Data Transfer Length as a
+     * residual. A request that reports a pending unit attention moves no
+     * data; its sense is already set, so let it through and the guest sees
+     * the UA.
+     */
+    if (!scsi_req->sense_len &&
+        !ufs_fit_data_buffer(req, scsi_req->cmd.xfer)) {
+        scsi_req_unref(scsi_req);
+        return UFS_REQUEST_MISMATCH_DATA_BUF;
+    }
+
     req->sreq = scsi_req;
 
-    uint32_t len = scsi_req_enqueue(scsi_req);
+    len = scsi_req_enqueue(scsi_req);
     if (len) {
         scsi_req_continue(scsi_req);
     }

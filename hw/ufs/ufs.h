@@ -47,6 +47,8 @@ typedef enum UfsReqResult {
     UFS_REQUEST_SUCCESS = 0,
     UFS_REQUEST_FAIL = 1,
     UFS_REQUEST_NO_COMPLETE = 2,
+    /* The PRDT describes less data than the command moves */
+    UFS_REQUEST_MISMATCH_DATA_BUF = 3,
 } UfsReqResult;
 
 #define UFS_INVALID_SLOT (-1)
@@ -88,6 +90,60 @@ typedef struct UfsLu {
     UfsScsiOp scsi_op;
 } UfsLu;
 
+/*
+ * Fault injection modes for x-fault-inject-mode property.
+ * Controls how the held transfer request and subsequent Task Management
+ * Request (TMR) are resolved by the controller:
+ *
+ * UFS_FAULT_INJECT_ABORT_SUCCESS: TMR ABORT_TASK aborts the held request,
+ *                                 clears its state, and returns SUCCESS
+ *                                 (COMPL).
+ * UFS_FAULT_INJECT_ABORT_FAILED:  TMR ABORT_TASK returns
+ *                                 TASK_MANAGEMENT_FUNC_FAILED, forcing host
+ *                                 driver to escalate to Host Reset.
+ * UFS_FAULT_INJECT_IN_TRANSITION: TMR QUERY_TASK releases the held request to
+ *                                 execute normally through the SCSI layer and
+ *                                 returns the real task status (SUCCEEDED while
+ *                                 the command is still in flight);
+ *                                 ABORT_TASK cancels the held request and
+ *                                 returns FUNCTION_COMPLETE.
+ * UFS_FAULT_INJECT_TIMEOUT:       TMR ABORT_TASK does not complete or clear
+ *                                 doorbell, triggering hardware-level TMR
+ *                                 timeout.
+ * UFS_FAULT_INJECT_SSU_TIMEOUT:   Intercepts SCSI START_STOP (0x1B) commands
+ *                                 targeting the UFS Device WLUN when
+ *                                 x-fault-inject-tag is armed.
+ */
+typedef enum UfsFaultInjectMode {
+    UFS_FAULT_INJECT_ABORT_SUCCESS = 0,
+    UFS_FAULT_INJECT_ABORT_FAILED,
+    UFS_FAULT_INJECT_IN_TRANSITION,
+    UFS_FAULT_INJECT_TIMEOUT,
+    UFS_FAULT_INJECT_SSU_TIMEOUT,
+    UFS_FAULT_INJECT_MODE_MAX,
+} UfsFaultInjectMode;
+
+/*
+ * Sentinel values for x-fault-inject-tag property.
+ * Task Tags in UFS are 8-bit (0..255). Values >= 256 are reserved as
+ * sentinel flags to preserve full testability of Tag 0.
+ *
+ * UFS_FAULT_INJECT_TAG_NONE: Disable fault injection (default).
+ * UFS_FAULT_INJECT_TAG_ANY:  Automatically intercept the first user-space
+ *                            READ_10, WRITE_10, READ_16, or WRITE_16 command
+ *                            targeting LBA >= UFS_FAULT_INJECT_MIN_LBA.
+ */
+#define UFS_FAULT_INJECT_TAG_NONE 0xffffffff
+#define UFS_FAULT_INJECT_TAG_ANY  0xfffffffe
+
+/*
+ * Minimum Logical Block Address (LBA) for automatic fault injection.
+ * Skip early disk blocks (LBA 0..511, e.g. MBR, GPT partition tables, EFI,
+ * and filesystem superblocks) to ensure guest OS boot-time disk discovery
+ * and partition scanning complete cleanly without being held.
+ */
+#define UFS_FAULT_INJECT_MIN_LBA 512
+
 typedef struct UfsParams {
     char *serial;
     uint8_t nutrs; /* Number of UTP Transfer Request Slots */
@@ -97,6 +153,8 @@ typedef struct UfsParams {
     uint8_t mcq_maxq; /* MCQ Maximum number of Queues */
     uint32_t wb_max_size; /* WB Maximum allocation units */
     uint32_t wb_min_size; /* WB Minimum allocation units */
+    uint32_t fault_inject_tag;
+    UfsFaultInjectMode fault_inject_mode;
 } UfsParams;
 
 /*
@@ -186,6 +244,10 @@ typedef struct UfsHc {
     uint32_t hid_fragment_count; /* Remaining fragmented 4KB units */
     uint32_t hid_defrag_total; /* Requested units at defrag start */
     uint32_t hid_defrag_remaining; /* Requested units left to move */
+
+    /* Test and fault injection properties */
+    uint32_t active_fault_inject_tag;
+    UfsRequest *held_req;
 } UfsHc;
 
 static inline uint32_t ufs_mcq_sq_tail(UfsHc *u, uint32_t qid)
@@ -304,9 +366,15 @@ void ufs_build_upiu_header(UfsRequest *req, uint8_t trans_type, uint8_t flags,
                            uint16_t data_segment_length);
 void ufs_build_query_response(UfsRequest *req);
 void ufs_complete_req(UfsRequest *req, UfsReqResult req_result);
+bool ufs_fit_data_buffer(UfsRequest *req, uint64_t len);
 void ufs_wb_update_avail_buffer(UfsHc *u);
 void ufs_init_wlu(UfsLu *wlu, uint8_t wlun);
 bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as,
                  Error **errp);
 void ufs_unrealize(UfsHc *u);
+
+extern const PropertyInfo ufs_prop_fault_inject_tag;
+extern const PropertyInfo ufs_prop_fault_inject_mode;
+extern const QEnumLookup UfsFaultInjectMode_lookup;
+
 #endif /* HW_UFS_UFS_H */

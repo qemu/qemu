@@ -835,6 +835,9 @@ typedef struct QEMU_PACKED UtpTaskReqDesc {
  */
 #define UFS_EHS_OFFSET_IN_RESPONSE 32
 
+/* Most significant byte in the Report Lun response for Well Known LU */
+#define UFS_WLUN_MSB 0xC1
+
 /* Well known logical unit id in LUN field of UPIU */
 enum {
     UFS_UPIU_REPORT_LUNS_WLUN = 0x81,

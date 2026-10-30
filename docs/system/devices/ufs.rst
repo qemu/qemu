@@ -51,7 +51,6 @@ Host Controller Properties
 
 ``nutmrs`` (default 8, maximum 8)
   Number of UTP task management request slots advertised to the guest.
-  Task management requests are not processed yet (see Limitations).
 
 ``mcq`` (default off)
   Advertise Multi-Circular Queue (MCQ) support. When off, the guest
@@ -81,8 +80,10 @@ Limitations
   link startup, DME attribute access and hibernation are handled; DME
   reads return fixed values, and DME writes, power mode changes and
   hibernation do not change any link state.
-* UTP task management requests are not processed, so a guest that
-  tries to abort a command or reset a logical unit gets no completion.
+* Only the ``QUERY TASK`` and ``ABORT TASK`` UTP task management
+  requests are supported; other task management functions such as
+  ``LOGICAL UNIT RESET`` return ``TASK MANAGEMENT FUNCTION NOT
+  SUPPORTED``.
 * The Boot and RPMB well-known logical units only answer basic SCSI
   commands such as INQUIRY; boot and RPMB data access are not emulated.
 * The device cannot be migrated.

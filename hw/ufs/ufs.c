@@ -15,8 +15,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "scsi/constants.h"
 #include "hw/core/irq.h"
+#include "hw/core/qdev-prop-internal.h"
 #include "trace.h"
 #include "ufs.h"
 
@@ -35,6 +37,7 @@
 #define UFS_HID_PROGRESS_COMPLETE 100
 
 static void ufs_exec_req(UfsRequest *req);
+static void ufs_fault_inject_execute_held_req(UfsRequest *hreq);
 static void ufs_clear_req(UfsRequest *req);
 static void ufs_mcq_process_cq(void *opaque);
 
@@ -225,6 +228,41 @@ static MemTxResult ufs_dma_read_prdt(UfsRequest *req)
         req->data_len += data_byte_count;
     }
     return MEMTX_OK;
+}
+
+/*
+ * Fit the SG list built from the PRDT to the len bytes that the command of
+ * req moves: keep only the first len bytes of a longer list. Return false if
+ * the PRDT describes fewer than len bytes.
+ */
+bool ufs_fit_data_buffer(UfsRequest *req, uint64_t len)
+{
+    QEMUSGList *prdt_sg = req->sg;
+    uint64_t prdt_size = prdt_sg ? prdt_sg->size : 0;
+    QEMUSGList *sg;
+    int i;
+
+    if (prdt_size < len) {
+        trace_ufs_err_mismatch_data_buf(req->slot,
+                                        req->req_upiu.header.task_tag, len,
+                                        prdt_size);
+        return false;
+    }
+    if (prdt_size == len) {
+        return true;
+    }
+
+    sg = g_new0(QEMUSGList, 1);
+    qemu_sglist_init(sg, prdt_sg->dev, prdt_sg->nsg, prdt_sg->as);
+    for (i = 0; i < prdt_sg->nsg && sg->size < len; i++) {
+        qemu_sglist_add(sg, prdt_sg->sg[i].base,
+                        MIN(prdt_sg->sg[i].len, len - sg->size));
+    }
+    qemu_sglist_destroy(prdt_sg);
+    g_free(prdt_sg);
+    req->sg = sg;
+    req->data_len = sg->size;
+    return true;
 }
 
 static MemTxResult ufs_dma_read_upiu(UfsRequest *req)
@@ -743,6 +781,152 @@ static bool ufs_mcq_delete_cq(UfsHc *u, uint8_t qid)
     return true;
 }
 
+static void ufs_fault_inject_init(UfsHc *u)
+{
+    u->active_fault_inject_tag = u->params.fault_inject_tag;
+    u->held_req = NULL;
+}
+
+static void ufs_fault_inject_hce_reset(UfsHc *u)
+{
+    if (u->held_req) {
+        u->held_req = NULL;
+        u->active_fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+        u->params.fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+    } else {
+        u->active_fault_inject_tag = u->params.fault_inject_tag;
+    }
+}
+
+static bool ufs_fault_inject_tmr(UfsHc *u, uint8_t tm_func, uint8_t lun,
+                                 uint32_t task_tag, uint8_t *tm_resp,
+                                 bool *skip_completion)
+{
+    UfsRequest *hreq = u->held_req;
+
+    *skip_completion = false;
+    if (!hreq || task_tag != u->active_fault_inject_tag ||
+        hreq->req_upiu.header.lun != lun) {
+        return false;
+    }
+
+    if (tm_func == UFS_QUERY_TASK) {
+        if (u->params.fault_inject_mode == UFS_FAULT_INJECT_IN_TRANSITION) {
+            u->held_req = NULL;
+            u->active_fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+            u->params.fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+            ufs_fault_inject_execute_held_req(hreq);
+            return false;
+        }
+        /*
+         * Generic QUERY TASK in ufs_process_tmr() will check
+         * ufs_find_req_by_tag() and return SUCCEEDED for the held request.
+         */
+        return false;
+    }
+
+    if (tm_func == UFS_ABORT_TASK) {
+        if (u->params.fault_inject_mode == UFS_FAULT_INJECT_ABORT_FAILED) {
+            *tm_resp = UFS_UPIU_TASK_MANAGEMENT_FUNC_FAILED;
+            return true;
+        }
+        if (u->params.fault_inject_mode == UFS_FAULT_INJECT_TIMEOUT) {
+            *skip_completion = true;
+            return true;
+        }
+
+        /*
+         * UFS_FAULT_INJECT_ABORT_SUCCESS, UFS_FAULT_INJECT_IN_TRANSITION,
+         * or default:
+         * Release the fault-injection hold, then let generic ABORT TASK
+         * in ufs_process_tmr() handle cancellation.
+         */
+        u->held_req = NULL;
+        u->active_fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+        u->params.fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+        return false;
+    }
+
+    return false;
+}
+
+static void ufs_fault_inject_sq_cleanup(UfsHc *u, UfsRequest *req)
+{
+    if (u->held_req == req) {
+        u->held_req = NULL;
+        u->active_fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+        u->params.fault_inject_tag = UFS_FAULT_INJECT_TAG_NONE;
+    }
+}
+
+static bool ufs_fault_inject_exec_req(UfsRequest *req)
+{
+    UfsHc *u = req->hc;
+    uint8_t op;
+
+    if (likely(u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_NONE) ||
+        u->held_req != NULL ||
+        req->req_upiu.header.trans_type != UFS_UPIU_TRANSACTION_COMMAND) {
+        return false;
+    }
+
+    op = req->req_upiu.sc.cdb[0];
+    if (u->params.fault_inject_mode == UFS_FAULT_INJECT_SSU_TIMEOUT) {
+        if (op == START_STOP &&
+            req->req_upiu.header.lun == UFS_UPIU_UFS_DEVICE_WLUN &&
+            (u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_ANY ||
+             req->req_upiu.header.task_tag == u->active_fault_inject_tag)) {
+            u->active_fault_inject_tag = req->req_upiu.header.task_tag;
+            u->held_req = req;
+            trace_ufs_fault_inject_hold_req(req->req_upiu.header.task_tag, 0);
+            return true;
+        }
+        return false;
+    }
+
+    if (u->active_fault_inject_tag == UFS_FAULT_INJECT_TAG_ANY) {
+        uint64_t lba = 0;
+        bool is_match = false;
+
+        if (op == READ_10 || op == WRITE_10) {
+            /*
+             * In 10-byte SCSI read/write commands (SBC-4), bytes 2..5
+             * encode the 32-bit Logical Block Address (LBA) in
+             * big-endian.
+             */
+            lba = ldl_be_p(&req->req_upiu.sc.cdb[2]);
+            is_match = (lba >= UFS_FAULT_INJECT_MIN_LBA);
+        } else if (op == READ_16 || op == WRITE_16) {
+            /*
+             * In 16-byte SCSI read/write commands (SBC-4), bytes 2..9
+             * encode the 64-bit Logical Block Address (LBA) in
+             * big-endian.
+             */
+            lba = ldq_be_p(&req->req_upiu.sc.cdb[2]);
+            is_match = (lba >= UFS_FAULT_INJECT_MIN_LBA);
+        }
+
+        /*
+         * Only intercept target I/O targeting LBA >=
+         * UFS_FAULT_INJECT_MIN_LBA. Skips guest boot-time partition
+         * table and superblock scanning.
+         */
+        if (is_match) {
+            u->active_fault_inject_tag = req->req_upiu.header.task_tag;
+            u->held_req = req;
+            trace_ufs_fault_inject_hold_req(
+                req->req_upiu.header.task_tag, lba);
+            return true;
+        }
+    } else if (req->req_upiu.header.task_tag == u->active_fault_inject_tag) {
+        u->held_req = req;
+        trace_ufs_fault_inject_hold_req(req->req_upiu.header.task_tag, 0);
+        return true;
+    }
+
+    return false;
+}
+
 static void ufs_hce_reset(UfsHc *u)
 {
     int i;
@@ -819,6 +1003,8 @@ static void ufs_hce_reset(UfsHc *u)
         memset(u->mcq_op_reg, 0, sizeof(u->mcq_op_reg));
     }
 
+    ufs_fault_inject_hce_reset(u);
+
     u->resetting = false;
 
     /* 5. De-assert IRQ */
@@ -870,6 +1056,7 @@ static void ufs_process_tmr(UfsHc *u, uint32_t val)
             UtpTaskReqDesc desc;
             uint8_t tm_func, tm_resp, lun;
             uint32_t task_tag;
+            bool skip_completion = false;
 
             if (ufs_addr_read(u, desc_addr, &desc, sizeof(desc))) {
                 continue;
@@ -879,7 +1066,12 @@ static void ufs_process_tmr(UfsHc *u, uint32_t val)
             lun = desc.upiu_req.req_header.lun;
             task_tag = be32_to_cpu(desc.upiu_req.input_param2);
 
-            if (tm_func == UFS_QUERY_TASK) {
+            if (ufs_fault_inject_tmr(u, tm_func, lun, task_tag, &tm_resp,
+                                     &skip_completion)) {
+                if (skip_completion) {
+                    continue;
+                }
+            } else if (tm_func == UFS_QUERY_TASK) {
                 UfsRequest *req = ufs_find_req_by_tag(u, lun, task_tag);
 
                 if (req) {
@@ -1147,6 +1339,7 @@ static void ufs_mcq_sq_cleanup(UfsHc *u, uint8_t qid)
         }
 
         if (req) {
+            ufs_fault_inject_sq_cleanup(u, req);
             if (req->sreq != NULL) {
                 SCSIRequest *sreq = req->sreq;
                 req->sreq = NULL;
@@ -2397,6 +2590,10 @@ static void ufs_exec_req(UfsRequest *req)
         return;
     }
 
+    if (ufs_fault_inject_exec_req(req)) {
+        return;
+    }
+
     switch (req->req_upiu.header.trans_type) {
     case UFS_UPIU_TRANSACTION_NOP_OUT:
         req_result = ufs_exec_nop_cmd(req);
@@ -2420,6 +2617,16 @@ static void ufs_exec_req(UfsRequest *req)
      */
     if (req_result != UFS_REQUEST_NO_COMPLETE) {
         ufs_complete_req(req, req_result);
+    }
+}
+
+static void ufs_fault_inject_execute_held_req(UfsRequest *hreq)
+{
+    UfsReqResult req_result;
+
+    req_result = ufs_exec_scsi_cmd(hreq);
+    if (req_result != UFS_REQUEST_NO_COMPLETE) {
+        ufs_complete_req(hreq, req_result);
     }
 }
 
@@ -2451,10 +2658,16 @@ void ufs_complete_req(UfsRequest *req, UfsReqResult req_result)
     UfsHc *u = req->hc;
     assert(req->state == UFS_REQUEST_RUNNING);
 
-    if (req_result == UFS_REQUEST_SUCCESS) {
+    switch (req_result) {
+    case UFS_REQUEST_SUCCESS:
         req->utrd.header.dword_2 = cpu_to_le32(UFS_OCS_SUCCESS);
-    } else {
+        break;
+    case UFS_REQUEST_MISMATCH_DATA_BUF:
+        req->utrd.header.dword_2 = cpu_to_le32(UFS_OCS_MISMATCH_DATA_BUF_SIZE);
+        break;
+    default:
         req->utrd.header.dword_2 = cpu_to_le32(UFS_OCS_INVALID_CMD_TABLE_ATTR);
+        break;
     }
 
     req->state = UFS_REQUEST_COMPLETE;
@@ -3017,7 +3230,93 @@ static void ufs_init_hc(UfsHc *u)
 
     timer_init_ms(&u->idle_timer, QEMU_CLOCK_VIRTUAL_RT, ufs_idle_timer_cb, u);
     timer_mod(&u->idle_timer, now + UFS_IDLE_TIMER_TICK);
+
+    ufs_fault_inject_init(u);
 }
+
+const QEnumLookup UfsFaultInjectMode_lookup = {
+    .array = (const char *const[]) {
+        [UFS_FAULT_INJECT_ABORT_SUCCESS] = "abort-success",
+        [UFS_FAULT_INJECT_ABORT_FAILED] = "abort-failed",
+        [UFS_FAULT_INJECT_IN_TRANSITION] = "in-transition",
+        [UFS_FAULT_INJECT_TIMEOUT] = "timeout",
+        [UFS_FAULT_INJECT_SSU_TIMEOUT] = "ssu-timeout",
+    },
+    .size = UFS_FAULT_INJECT_MODE_MAX,
+};
+
+static void ufs_prop_get_fault_inject_tag(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    UfsParams *params = container_of(ptr, UfsParams, fault_inject_tag);
+    UfsHc *u = container_of(params, UfsHc, params);
+
+    visit_type_uint32(v, name, &u->active_fault_inject_tag, errp);
+}
+
+static void ufs_prop_set_fault_inject_tag(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    UfsParams *params = container_of(ptr, UfsParams, fault_inject_tag);
+    UfsHc *u = container_of(params, UfsHc, params);
+    uint32_t val;
+
+    if (!visit_type_uint32(v, name, &val, errp)) {
+        return;
+    }
+
+    if (val > 255 && val != UFS_FAULT_INJECT_TAG_NONE &&
+        val != UFS_FAULT_INJECT_TAG_ANY) {
+        error_setg(errp,
+                   "invalid %s %u: must be 0..255, 0x%x (none), or 0x%x (any)",
+                   name, val, UFS_FAULT_INJECT_TAG_NONE,
+                   UFS_FAULT_INJECT_TAG_ANY);
+        return;
+    }
+
+    if (u->held_req != NULL) {
+        error_setg(errp,
+                   "cannot change %s while a request (tag %u) is held",
+                   name, u->held_req->req_upiu.header.task_tag);
+        return;
+    }
+
+    *ptr = val;
+    u->active_fault_inject_tag = val;
+    trace_ufs_fault_inject_set_tag(val);
+}
+
+static void ufs_prop_set_default_fault_inject_tag(ObjectProperty *op,
+                                                  const Property *prop)
+{
+    object_property_set_default_uint(op, prop->defval.u);
+}
+
+const PropertyInfo ufs_prop_fault_inject_tag = {
+    .type = "uint32",
+    .description = "Task tag to hold for fault injection",
+    .get = ufs_prop_get_fault_inject_tag,
+    .set = ufs_prop_set_fault_inject_tag,
+    .set_default_value = ufs_prop_set_default_fault_inject_tag,
+    .realized_set_allowed = true,
+};
+
+const PropertyInfo ufs_prop_fault_inject_mode = {
+    .type = "UfsFaultInjectMode",
+    .description = "Fault injection mode: abort-success, abort-failed, "
+                   "in-transition, timeout, ssu-timeout",
+    .enum_table = &UfsFaultInjectMode_lookup,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .realized_set_allowed = true,
+};
 
 bool ufs_realize(UfsHc *u, DeviceState *dev, AddressSpace *dma_as, Error **errp)
 {
