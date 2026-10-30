@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+# group: rw auto quick
+#
+# Test that discard reaches the source through a blockdev-mirror filter.
+#
+# Copyright (C) 2026 SmartX, Inc.
+
+from pathlib import Path
+
+import iotests
+
+
+source = Path(iotests.test_dir, 'mirror-discard-source.qcow2')
+target = Path(iotests.test_dir, 'mirror-discard-target.qcow2')
+
+
+class TestMirrorDiscard(iotests.QMPTestCase):
+    def setUp(self):
+        for path in (source, target):
+            self.addCleanup(path.unlink, missing_ok=True)
+            iotests.qemu_img_create(
+                '-f', iotests.imgfmt,
+                '-o', 'compat=1.1,cluster_size=65536', str(path), '1M')
+
+        self.vm = iotests.VM()
+        # Cleanups run in reverse order: close the VM before removing images.
+        self.addCleanup(self.vm.shutdown)
+        self.vm.add_drive(str(source), opts='discard=unmap,node-name=src')
+        self.vm.add_blockdev(
+            f'driver={iotests.imgfmt},node-name=target,'
+            f'file.driver=file,file.filename={target}')
+        self.vm.launch()
+
+    def test_background_discard(self):
+        self.vm.cmd('x-qemu-io', device='drive0',
+                    command='write -q -P 0xab 0 192k')
+
+        # Check discard works before mirror_top is inserted, then restore data.
+        self.vm.cmd('x-qemu-io', device='drive0',
+                    command='discard -q 64k 64k')
+        self.vm.cmd('x-qemu-io', device='drive0',
+                    command='read -q -P 0x00 64k 64k')
+        self.vm.cmd('x-qemu-io', device='drive0',
+                    command='write -q -P 0xab 64k 64k')
+
+        self.vm.cmd('blockdev-mirror', job_id='mirror', device='drive0',
+                    target='target', sync='full', copy_mode='background')
+        self.wait_ready('mirror')
+        self.pause_job('mirror')
+
+        # Use the backend so the request passes through mirror_top to src.
+        self.vm.cmd('x-qemu-io', device='drive0',
+                    command='discard -q 64k 64k')
+        checks = (
+            'read -q -P 0x00 64k 64k',
+            'read -q -P 0xab 0 64k',
+            'read -q -P 0xab 128k 64k',
+        )
+        for command in checks:
+            self.vm.cmd('x-qemu-io', device='drive0', command=command)
+
+        self.vm.cmd('block-job-resume', device='mirror')
+        self.complete_and_wait('mirror', wait_ready=False)
+        self.vm.shutdown()
+
+        # Check both images independently after all writes have been flushed.
+        for path in (source, target):
+            for command in checks:
+                iotests.qemu_io('-f', iotests.imgfmt, '-c', command, str(path))
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'], supported_protocols=['file'])
