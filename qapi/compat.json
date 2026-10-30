@@ -41,22 +41,6 @@
   'data': [ 'accept', 'hide' ] }
 
 ##
-# @CompatPolicySecurity:
-#     Policy for handling any devices or backends which do not provide
-#     a security boundary to protect against untrusted environments
-#
-# @accept: Allow any usage
-#
-# @reject: Reject with an error reported
-#
-# @warn: Allow any usage, with a warning reported
-#
-# Since: 11.2
-##
-{ 'enum': 'CompatPolicySecurity',
-  'data': [ 'accept', 'reject', 'warn' ] }
-
-##
 # @CompatPolicy:
 #     Policy for handling problematic management interfaces.
 #
@@ -91,4 +75,4 @@
             '*deprecated-output': 'CompatPolicyOutput',
             '*unstable-input': 'CompatPolicyInput',
             '*unstable-output': 'CompatPolicyOutput',
-            '*insecure-input': 'CompatPolicySecurity' } }
+            '*insecure-input': 'CompatPolicyInput' } }
