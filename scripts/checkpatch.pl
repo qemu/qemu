@@ -586,6 +586,37 @@ sub git_commit_info {
 	return ($id, $desc);
 }
 
+my $git_upstream_branch_checked = 0;
+my $git_upstream_branch_cached = undef;
+
+sub git_upstream_branch {
+	return $git_upstream_branch_cached if ($git_upstream_branch_checked);
+	$git_upstream_branch_checked = 1;
+
+	return undef if ((which("git") eq "") || !(-e "$gitroot"));
+
+	my $url_regex =
+		qr{(?:gitlab\.com[/: ]qemu-project|github\.com[/: ]qemu)/qemu(?:\.git)?$}i;
+
+	# Scan configured remotes for the upstream repository
+	my $output = `git remote -v 2>/dev/null`;
+	for my $line (split(/\n/, $output)) {
+		if ($line =~ /^\s*(\S+)\s+(\S+)\s+\(fetch\)/) {
+			my ($remote, $url) = ($1, $2);
+			if ($url =~ $url_regex) {
+				my $ref = "$remote/master";
+				`git rev-parse --verify --quiet $ref 2>/dev/null`;
+				if ($? == 0) {
+					$git_upstream_branch_cached = $ref;
+					return $git_upstream_branch_cached;
+				}
+			}
+		}
+	}
+
+	return undef;
+}
+
 sub expand_tabs {
 	my ($str) = @_;
 
@@ -1913,9 +1944,12 @@ sub process {
 				}
 				if (which("git") ne "" && -e "$gitroot") {
 					my $hash = defined($cid) ? $cid : $orig_commit;
-					`git merge-base --is-ancestor $hash master 2>/dev/null`;
-					if ($? != 0) {
-						WARN("Fixes: commit $hash is not an ancestor of master\n" . $herecurr);
+					my $upstream = git_upstream_branch();
+					if (defined($upstream)) {
+						`git merge-base --is-ancestor $hash $upstream 2>/dev/null`;
+						if ($? != 0) {
+							WARN("Fixes: commit $hash is not an ancestor of $upstream\n" . $herecurr);
+						}
 					}
 				}
 			}
