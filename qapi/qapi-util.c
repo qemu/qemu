@@ -28,6 +28,10 @@ static bool compat_policy_input_ok1(CompatPolicyInput policy,
     switch (policy) {
     case COMPAT_POLICY_INPUT_ACCEPT:
         return true;
+    case COMPAT_POLICY_INPUT_WARN:
+        warn_report("%s %s %s accepted by policy",
+                    adjective, kind, name);
+        return true;
     case COMPAT_POLICY_INPUT_REJECT:
         error_set(errp, error_class, "%s %s %s disabled by policy",
                   adjective, kind, name);

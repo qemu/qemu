@@ -4693,9 +4693,9 @@ DEFHEADING()
 DEFHEADING(Debug/Expert options:)
 
 DEF("compat", HAS_ARG, QEMU_OPTION_compat,
-    "-compat [deprecated-input=accept|reject|crash][,deprecated-output=accept|hide]\n"
+    "-compat [deprecated-input=accept|reject|crash|warn][,deprecated-output=accept|hide]\n"
     "                Policy for handling deprecated management interfaces\n"
-    "-compat [unstable-input=accept|reject|crash][,unstable-output=accept|hide]\n"
+    "-compat [unstable-input=accept|reject|crash|warn][,unstable-output=accept|hide]\n"
     "                Policy for handling unstable management interfaces\n",
     QEMU_ARCH_ALL)
 SRST
@@ -4703,7 +4703,10 @@ SRST
     Set policy for handling deprecated management interfaces (experimental):
 
     ``deprecated-input=accept`` (default)
-        Accept deprecated commands and arguments
+        Accept deprecated commands and arguments silently
+    ``deprecated-input=warn``
+        Accept deprecated commands and arguments with repeated warnings
+        on stderr
     ``deprecated-input=reject``
         Reject deprecated commands and arguments
     ``deprecated-input=crash``
@@ -4719,7 +4722,10 @@ SRST
     Set policy for handling unstable management interfaces (experimental):
 
     ``unstable-input=accept`` (default)
-        Accept unstable commands and arguments
+        Accept unstable commands and arguments silently
+    ``unstable-input=warn``
+        Accept unstable commands and arguments with repeated warnings
+        on stderr
     ``unstable-input=reject``
         Reject unstable commands and arguments
     ``unstable-input=crash``

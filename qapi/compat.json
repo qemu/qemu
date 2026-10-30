@@ -17,10 +17,15 @@
 #
 # @crash: abort() the process
 #
+# @warn: Accept with warnings printed to stderr (Since: 11.2)
+#
+# .. note:: at this time, warnings will be printed on every policy
+#           check failure rather than once only.
+#
 # Since: 6.0
 ##
 { 'enum': 'CompatPolicyInput',
-  'data': [ 'accept', 'reject', 'crash' ] }
+  'data': [ 'accept', 'reject', 'crash', 'warn' ] }
 
 ##
 # @CompatPolicyOutput:
