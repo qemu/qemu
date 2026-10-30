@@ -65,8 +65,8 @@ bool compat_policy_input_ok(const CompatPolicy *policy,
 }
 
 bool compat_policy_security_ok(const CompatPolicy *policy,
-                               const char *typename,
                                bool is_secure,
+                               const char *typename,
                                Error **errp)
 {
     ERRP_GUARD();
