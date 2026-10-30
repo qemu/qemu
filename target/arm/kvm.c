@@ -62,6 +62,7 @@ typedef struct ARMHostCPUFeatures {
     uint32_t target;
     uint32_t sve_vq_supported;
     const char *dtb_compatible;
+    Error *probe_err;
 } ARMHostCPUFeatures;
 
 static ARMHostCPUFeatures arm_host_cpu_features;
@@ -104,13 +105,14 @@ static int kvm_arm_vcpu_finalize(ARMCPU *cpu, int feature)
 }
 
 bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
-                                      struct kvm_vcpu_init *init)
+                                      struct kvm_vcpu_init *init, Error **errp)
 {
     int ret = 0, kvmfd = -1, vmfd = -1, cpufd = -1;
     int max_vm_pa_size;
 
     kvmfd = qemu_open_old("/dev/kvm", O_RDWR);
     if (kvmfd < 0) {
+        error_setg_errno(errp, errno, "Failed to open /dev/kvm");
         goto err;
     }
     max_vm_pa_size = ioctl(kvmfd, KVM_CHECK_EXTENSION, KVM_CAP_ARM_VM_IPA_SIZE);
@@ -121,6 +123,7 @@ bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
         vmfd = ioctl(kvmfd, KVM_CREATE_VM, max_vm_pa_size);
     } while (vmfd == -1 && errno == EINTR);
     if (vmfd < 0) {
+        error_setg_errno(errp, errno, "Failed to create the scratch VM");
         goto err;
     }
 
@@ -140,6 +143,7 @@ bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
 
     cpufd = ioctl(vmfd, KVM_CREATE_VCPU, 0);
     if (cpufd < 0) {
+        error_setg_errno(errp, errno, "Failed to create the scratch VCPU");
         goto err;
     }
 
@@ -153,12 +157,16 @@ bool kvm_arm_create_scratch_host_vcpu(int *fdarray,
 
         ret = ioctl(vmfd, KVM_ARM_PREFERRED_TARGET, &preferred);
         if (ret < 0) {
+            error_setg_errno(errp, errno,
+                             "Failed to get the preferred KVM target");
             goto err;
         }
         init->target = preferred.target;
     }
     ret = ioctl(cpufd, KVM_ARM_VCPU_INIT, init);
     if (ret < 0) {
+        error_setg_errno(errp, errno,
+                         "Failed to initialize the scratch VCPU");
         goto err;
     }
 
@@ -312,13 +320,19 @@ static uint32_t kvm_arm_sve_get_vls(int fd)
     return vls[0] & MAKE_64BIT_MASK(0, ARM_MAX_VQ);
 }
 
-static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
+/**
+ * kvm_arm_get_host_cpu_features:
+ * @ahcf: host CPU feature struct to populate
+ * @errp: error handle
+ *
+ * Identify the feature bits corresponding to the host CPU by creating a
+ * scratch VM/vCPU and querying its ID registers.
+ *
+ * On failure, @ahcf->target is QEMU_KVM_ARM_TARGET_NONE and *errp is set
+ * On success, @ahcf->target is set to a valid KVM target.
+ */
+static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf, Error **errp)
 {
-    /* Identify the feature bits corresponding to the host CPU, and
-     * fill out the ARMHostCPUClass fields accordingly. To do this
-     * we have to create a scratch VM, create a single CPU inside it,
-     * and then query that CPU for the relevant ID registers.
-     */
     int fdarray[3];
     bool sve_supported;
     bool el2_supported;
@@ -330,6 +344,7 @@ static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     ahcf->dtb_compatible = "arm,armv8";
 
     if (!kvm_enabled()) {
+        error_setg(errp, "KVM is not enabled");
         return;
     }
 
@@ -371,7 +386,7 @@ static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         features |= 1ULL << ARM_FEATURE_PMU;
     }
 
-    if (!kvm_arm_create_scratch_host_vcpu(fdarray, &init)) {
+    if (!kvm_arm_create_scratch_host_vcpu(fdarray, &init, errp)) {
         return;
     }
 
@@ -502,6 +517,7 @@ static void kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     kvm_arm_destroy_scratch_host_vcpu(fdarray);
 
     if (err < 0) {
+        error_setg(errp, "Failed to read some host CPU ID registers");
         return;
     }
 
@@ -528,7 +544,8 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
 
     if (!arm_host_cpu_features.dtb_compatible) {
-        kvm_arm_get_host_cpu_features(&arm_host_cpu_features);
+        kvm_arm_get_host_cpu_features(&arm_host_cpu_features,
+                                      &arm_host_cpu_features.probe_err);
     }
 
     cpu->kvm_target = arm_host_cpu_features.target;
@@ -538,8 +555,7 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
          * We can't report this error yet, so flag that we need to
          * in arm_cpu_realizefn().
          */
-        error_setg(&cpu->host_cpu_probe_err,
-                   "failed to retrieve host CPU features");
+        cpu->host_cpu_probe_err = error_copy(arm_host_cpu_features.probe_err);
         return;
     }
 
@@ -2674,7 +2690,7 @@ void arm_gic_cap_kvm_probe(GICCapability *v2, GICCapability *v3)
 {
     int fdarray[3];
 
-    if (!kvm_arm_create_scratch_host_vcpu(fdarray, NULL)) {
+    if (!kvm_arm_create_scratch_host_vcpu(fdarray, NULL, NULL)) {
         return;
     }
 
