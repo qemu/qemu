@@ -4709,6 +4709,7 @@ Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Pierrick Bouvier <pierrick.bouvier@oss.qualcomm.com>
 S: Maintained
+F: tests/tcg/include/tap.h
 F: tests/tcg/meson.build
 
 GitLab custom runners (HW sponsored by Linaro, OSUOSL and IBM)
