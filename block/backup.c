@@ -280,6 +280,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
             offset += count;
         }
         block_copy_set_skip_unallocated(s->bcs, false);
+        block_copy_set_zero_bitmap_valid(s->bcs);
     }
 
     if (s->sync_mode == MIRROR_SYNC_MODE_NONE) {
