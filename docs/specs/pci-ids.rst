@@ -46,8 +46,9 @@ maintained as part of the virtio specification.
   upstream merge or shipping a distro/product) to avoid conflicts.
 
 1af4:1100
-  Used as PCI Subsystem ID for existing hardware devices emulated
-  by QEMU.
+  Used as PCI Subsystem ID for existing hardware devices emulated by
+  QEMU, such as the intel chipset devices.  Also used for virtio
+  devices and generic pci class devices (1b36:00xx, see below).
 
 1af4:1110
   ivshmem device (:doc:`ivshmem-spec`)
