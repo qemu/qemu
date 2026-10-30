@@ -484,7 +484,7 @@ int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
     return 0;
 }
 
-int kvm_arch_init_vcpu(CPUState *cs)
+int kvm_arch_init_vcpu(CPUState *cs, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *cenv = &cpu->env;
@@ -493,9 +493,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cpu);
     if (ret) {
+        error_setg_errno(errp, -ret, "Register sync failed");
         if (ret == -EINVAL) {
-            error_report("Register sync failed... If you're using kvm-hv.ko,"
-                         " only \"-cpu host\" is possible");
+            error_append_hint(errp, "If you're using kvm-hv.ko,"
+                              " only \"-cpu host\" is possible\n");
         }
         return ret;
     }
@@ -504,6 +505,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     case POWERPC_MMU_BOOKE206:
         /* This target supports access to KVM's guest TLB */
         ret = kvm_booke206_tlb_init(cpu);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "failed kvm_booke206_tlb_init");
+        }
         break;
     case POWERPC_MMU_2_07:
         if (!cap_htm && !kvmppc_is_pr(cs->kvm_state)) {
