@@ -57,6 +57,7 @@ tests += {
 # Linux tests
 tests += {
   multiarch/'linux/linux-madvise.c': {},
+  multiarch/'linux/linux-null-buffer.c': {},
   multiarch/'linux/linux-shmat-maps.c': {},
   multiarch/'linux/linux-shmat-null.c': {},
   multiarch/'linux/linux-sigrtminmax.c': {},
