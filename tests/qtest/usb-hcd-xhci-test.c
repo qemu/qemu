@@ -56,6 +56,7 @@
 #define ER_TRANSFER             32
 #define ER_COMMAND_COMPLETE     33
 #define CC_SUCCESS              1
+#define CC_TRB_ERROR            5
 
 #define EP_TYPE_ISOCH_OUT       1
 #define EP_TYPE_CONTROL         4
@@ -64,6 +65,8 @@
 
 #define XHCI_RING_TRBS          64
 #define XHCI_MICROFRAME_NS      125000
+/* in the PCI hole of the pc machine, nothing is mapped there */
+#define XHCI_UNASSIGNED_ADDR    0xf0000000
 
 typedef struct XHCITest {
     QTestState *qts;
@@ -71,7 +74,7 @@ typedef struct XHCITest {
     QPCIBus *bus;
     struct qhc hc;
     uint32_t oper, runtime, doorbell;
-    uint64_t cmd_ring, event_ring, input_ctx;
+    uint64_t dcbaa, cmd_ring, event_ring, input_ctx;
     unsigned int cmd_idx, event_idx;
     unsigned int port, slot;
 } XHCITest;
@@ -226,8 +229,9 @@ static bool xhci_next_event(XHCITest *x, uint32_t *status, uint32_t *control)
     return true;
 }
 
-static unsigned int xhci_command(XHCITest *x, uint64_t parameter,
-                                 uint32_t control)
+/* Submit a command and return its completion code. */
+static unsigned int xhci_submit_command(XHCITest *x, uint64_t parameter,
+                                        uint32_t control, unsigned int *slot)
 {
     uint32_t status;
 
@@ -238,17 +242,30 @@ static unsigned int xhci_command(XHCITest *x, uint64_t parameter,
 
     g_assert_true(xhci_next_event(x, &status, &control));
     g_assert_cmpuint(TRB_GET_TYPE(control), ==, ER_COMMAND_COMPLETE);
-    g_assert_cmpuint(TRB_GET_CCODE(status), ==, CC_SUCCESS);
-    return TRB_GET_SLOT(control);
+    if (slot) {
+        *slot = TRB_GET_SLOT(control);
+    }
+    return TRB_GET_CCODE(status);
+}
+
+/* Submit a command that has to succeed and return the slot ID. */
+static unsigned int xhci_command(XHCITest *x, uint64_t parameter,
+                                 uint32_t control)
+{
+    unsigned int slot;
+
+    g_assert_cmpuint(xhci_submit_command(x, parameter, control, &slot), ==,
+                     CC_SUCCESS);
+    return slot;
 }
 
 /*
- * Start qemu-xhci with one USB device, run the controller and bring the
- * device to the Addressed state.
+ * Start qemu-xhci with one USB device, run the controller, enable a slot
+ * for the device and fill in the input context for Address Device.
  */
-static void xhci_test_start(XHCITest *x, const char *usb_device)
+static void xhci_test_init(XHCITest *x, const char *usb_device)
 {
-    uint64_t dcbaa, erst, ep0_ring;
+    uint64_t erst, ep0_ring;
     unsigned int maxports;
 
     memset(x, 0, sizeof(*x));
@@ -267,14 +284,14 @@ static void xhci_test_start(XHCITest *x, const char *usb_device)
     xhci_writel(x, x->oper + XHCI_USBCMD, USBCMD_HCRST);
     g_assert_false(xhci_readl(x, x->oper + XHCI_USBCMD) & USBCMD_HCRST);
 
-    dcbaa = xhci_alloc_page(x);
+    x->dcbaa = xhci_alloc_page(x);
     erst = xhci_alloc_page(x);
     x->cmd_ring = xhci_alloc_page(x);
     x->event_ring = xhci_alloc_page(x);
     x->input_ctx = xhci_alloc_page(x);
 
     xhci_writel(x, x->oper + XHCI_CONFIG, 1);
-    xhci_writeq(x, x->oper + XHCI_DCBAAP, dcbaa);
+    xhci_writeq(x, x->oper + XHCI_DCBAAP, x->dcbaa);
     qtest_writeq(x->qts, erst, x->event_ring);
     qtest_writel(x->qts, erst + 8, XHCI_RING_TRBS);
     xhci_writel(x, x->runtime + XHCI_ERSTSZ, 1);
@@ -296,7 +313,7 @@ static void xhci_test_start(XHCITest *x, const char *usb_device)
     }
 
     x->slot = xhci_command(x, 0, TRB_TYPE(CR_ENABLE_SLOT));
-    qtest_writeq(x->qts, dcbaa + 8 * x->slot, xhci_alloc_page(x));
+    qtest_writeq(x->qts, x->dcbaa + 8 * x->slot, xhci_alloc_page(x));
 
     /* input control context: add slot and ep0 */
     qtest_writel(x->qts, x->input_ctx + 0x04, 0x3);
@@ -308,6 +325,12 @@ static void xhci_test_start(XHCITest *x, const char *usb_device)
     qtest_writel(x->qts, x->input_ctx + 0x44,
                  (64 << 16) | (EP_TYPE_CONTROL << 3));
     qtest_writeq(x->qts, x->input_ctx + 0x48, ep0_ring | 1);
+}
+
+/* xhci_test_init(), then bring the device to the Addressed state. */
+static void xhci_test_start(XHCITest *x, const char *usb_device)
+{
+    xhci_test_init(x, usb_device);
     xhci_command(x, x->input_ctx,
                  TRB_TYPE(CR_ADDRESS_DEVICE) | (x->slot << 24));
 }
@@ -353,6 +376,44 @@ static bool xhci_test_supported(const char *usb_device)
         return false;
     }
     return true;
+}
+
+/*
+ * Address Device reads the output context pointer from the DCBAA. Point
+ * DCBAAP at unassigned memory: the command has to fail instead of carrying
+ * on with the zero the failed read leaves behind, which used to put the
+ * contexts at guest address 0 and still report Success.
+ */
+static void test_xhci_address_device_dcbaa_read_error(void)
+{
+    uint8_t fill[64], low_mem[sizeof(fill)];
+    unsigned int ccode;
+    XHCITest x;
+
+    if (!xhci_test_supported("usb-kbd")) {
+        return;
+    }
+
+    xhci_test_init(&x, "-device usb-kbd");
+    memset(fill, 0xaa, sizeof(fill));
+    qtest_memwrite(x.qts, 0, fill, sizeof(fill));
+    xhci_writeq(&x, x.oper + XHCI_DCBAAP, XHCI_UNASSIGNED_ADDR);
+
+    ccode = xhci_submit_command(&x, x.input_ctx,
+                                TRB_TYPE(CR_ADDRESS_DEVICE) | (x.slot << 24),
+                                NULL);
+    g_assert_cmpuint(ccode, ==, CC_TRB_ERROR);
+    g_assert_cmphex(xhci_readl(&x, x.oper + XHCI_USBSTS) & USBSTS_HCE, ==,
+                    USBSTS_HCE);
+    qtest_memread(x.qts, 0, low_mem, sizeof(low_mem));
+    g_assert_cmpmem(low_mem, sizeof(low_mem), fill, sizeof(fill));
+
+    /* The failed command left the slot usable. */
+    xhci_writeq(&x, x.oper + XHCI_DCBAAP, x.dcbaa);
+    xhci_command(&x, x.input_ctx,
+                 TRB_TYPE(CR_ADDRESS_DEVICE) | (x.slot << 24));
+
+    xhci_test_end(&x);
 }
 
 /*
@@ -481,6 +542,8 @@ int main(int argc, char **argv)
     if (qtest_has_device("usb-ccid")) {
         qtest_add_func("/xhci/pci/hotplug/usb-ccid", test_usb_ccid_hotplug);
     }
+    qtest_add_func("/xhci/pci/address-device/dcbaa-read-error",
+                   test_xhci_address_device_dcbaa_read_error);
     qtest_add_func("/xhci/pci/isoch/mfindex-32bit",
                    test_xhci_isoch_mfindex_32bit);
     qtest_add_func("/xhci/pci/intr/mfindex-32bit",
