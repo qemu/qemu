@@ -48,9 +48,11 @@ def main():
         "Emit instruction implementations that can be fed to idef-parser"
     )
     parser.add_argument("semantics", help="semantics file")
+    parser.add_argument("overrides_hmx", help="HMX overrides file")
     parser.add_argument("out", help="output file")
     args = parser.parse_args()
     hex_common.read_semantics_file(args.semantics)
+    hex_common.read_overrides_file(args.overrides_hmx)
     hex_common.calculate_attribs()
     hex_common.init_registers()
     tagregs = hex_common.get_tagregs()
@@ -61,6 +63,9 @@ def main():
 
         for tag in hex_common.tags:
             if hex_common.tag_ignore(tag):
+                continue
+            ## Skip instructions that explicitly request no idef-parser
+            if "A_NO_IDEF_PARSER" in hex_common.attribdict[tag]:
                 continue
             ## Skip the priv instructions
             if "A_PRIV" in hex_common.attribdict[tag]:
@@ -113,6 +118,10 @@ def main():
             if tag.startswith("Y"):
                 continue
             if tag.startswith("V6_"):
+                continue
+            ## Skip the HMX instructions implemented by an override
+            if ("A_HMX" in hex_common.attribdict[tag] and
+                hex_common.skip_qemu_helper(tag)):
                 continue
             if ( tag.startswith("F") and
                  tag not in {

@@ -761,6 +761,94 @@ static void set_addresses(CPUHexagonState *env, uint32_t pc_offset,
     env->gpr[HEX_REG_PC] = evb | (exception_index << 2);
 }
 
+static bool event_to_guest(CPUHexagonState *env, unsigned enable_field)
+{
+    return get_cpu_mode(env) != HEX_CPU_MODE_MONITOR &&
+           GET_FIELD(enable_field, env->t_sreg[HEX_SREG_CCR]);
+}
+
+#define HEX_CAUSE_INSN_FAULT_FIRST  0x10
+#define HEX_CAUSE_DATA_FAULT_FIRST  0x20
+#define HEX_CAUSE_DATA_FAULT_LAST   0x2f
+#define HEX_CAUSE_TLB_MISS_FIRST    0x72
+#define HEX_CAUSE_TLB_MISS_LAST     0x75
+#define HEX_CAUSE_TLB_MISS_EXTRA    0x79
+
+static bool cause_goes_to_guest(uint32_t cause)
+{
+    return (cause >= HEX_CAUSE_INSN_FAULT_FIRST &&
+            cause <= HEX_CAUSE_DATA_FAULT_LAST) ||
+           (cause >= HEX_CAUSE_TLB_MISS_FIRST &&
+            cause <= HEX_CAUSE_TLB_MISS_LAST) ||
+           cause == HEX_CAUSE_TLB_MISS_EXTRA;
+}
+
+static bool cause_sets_gbadva(uint32_t cause)
+{
+    return cause >= HEX_CAUSE_DATA_FAULT_FIRST && cause_goes_to_guest(cause);
+}
+
+/* Take an event from guest user mode in the guest kernel. */
+static void guest_event_entry(CPUHexagonState *env, uint32_t cause,
+                              uint32_t event_pc, uint32_t vec_offset,
+                              bool set_gbadva)
+{
+    uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
+    uint32_t gsr = 0;
+    uint32_t gevb = env->t_sreg[HEX_SREG_GEVB];
+
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_CAUSE, cause);
+    gsr = deposit32(gsr, reg_field_info[GSR_CAUSE].offset,
+                    reg_field_info[GSR_CAUSE].width, cause);
+    gsr = deposit32(gsr, reg_field_info[GSR_SS].offset,
+                    reg_field_info[GSR_SS].width,
+                    GET_FIELD(SSR_SS, old_ssr));
+    gsr = deposit32(gsr, reg_field_info[GSR_UM].offset,
+                    reg_field_info[GSR_UM].width,
+                    !GET_FIELD(SSR_GM, old_ssr));
+    gsr = deposit32(gsr, reg_field_info[GSR_IE].offset,
+                    reg_field_info[GSR_IE].width,
+                    GET_FIELD(CCR_GIE, env->t_sreg[HEX_SREG_CCR]));
+    env->greg[HEX_GREG_GSR] = gsr;
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS, 0);
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM, 1);
+    hexagon_modify_ssr(env, env->t_sreg[HEX_SREG_SSR], old_ssr);
+    SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE, 0);
+    env->greg[HEX_GREG_GELR] = event_pc;
+    if (set_gbadva) {
+        env->greg[HEX_GREG_GBADVA] = env->t_sreg[HEX_SREG_BADVA];
+    }
+    env->gpr[HEX_REG_PC] = gevb + vec_offset;
+}
+
+void hexagon_vmrte(CPUHexagonState *env)
+{
+    uint32_t gsr = env->greg[HEX_GREG_GSR];
+    uint32_t old_ssr = env->t_sreg[HEX_SREG_SSR];
+    CPUState *cs = env_cpu(env);
+
+    if (GET_FIELD(GSR_UM, gsr)) {
+        uint32_t sp = env->gpr[HEX_REG_SP];
+
+        env->gpr[HEX_REG_SP] = env->greg[HEX_GREG_GOSP];
+        env->greg[HEX_GREG_GOSP] = sp;
+    }
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_SS,
+                     GET_FIELD(GSR_SS, gsr));
+    SET_SYSTEM_FIELD(env, HEX_SREG_SSR, SSR_GM,
+                     !GET_FIELD(GSR_UM, gsr));
+    {
+        BQL_LOCK_GUARD();
+        hexagon_modify_ssr(env, env->t_sreg[HEX_SREG_SSR], old_ssr);
+    }
+    SET_SYSTEM_FIELD(env, HEX_SREG_CCR, CCR_GIE,
+                      GET_FIELD(GSR_IE, gsr));
+    env->cfi_active = GET_FIELD(GSR_CFI, gsr);
+    fSET_FIELD(env->greg[HEX_GREG_GSR], GSR_CFI, 0);
+    env->gpr[HEX_REG_PC] = env->greg[HEX_GREG_GELR] & ~3;
+    cpu_loop_exit(cs);
+}
+
 void hexagon_cpu_do_interrupt(CPUState *cs)
 
 {
@@ -800,6 +888,12 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case HEX_EVENT_TRAP0:
+        if (event_to_guest(env, CCR_GTE)) {
+            guest_event_entry(env, env->cause_code,
+                              env->gpr[HEX_REG_PC] + 4,
+                              HEX_GEVB_HW_TRAP0, false);
+            break;
+        }
         if (env->cause_code == 0) {
             sim_handle_trap0(env);
         }
@@ -880,16 +974,33 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         break;
 
     case HEX_EVENT_FPTRAP:
+        if (event_to_guest(env, CCR_GEE)) {
+            guest_event_entry(env, env->cause_code, env->gpr[HEX_REG_PC],
+                              HEX_GEVB_HW_FPTRAP, false);
+            break;
+        }
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 0, cs->exception_index);
         break;
 
     case HEX_EVENT_DEBUG:
+        if (event_to_guest(env, CCR_GEE)) {
+            guest_event_entry(env, env->cause_code, env->gpr[HEX_REG_PC],
+                              HEX_GEVB_HW_DEBUG, false);
+            break;
+        }
         hexagon_ssr_set_cause(env, env->cause_code);
         set_addresses(env, 0, cs->exception_index);
         break;
 
     case HEX_EVENT_PRECISE:
+        if (event_to_guest(env, CCR_GEE) &&
+            cause_goes_to_guest(env->cause_code)) {
+            guest_event_entry(env, env->cause_code,
+                              env->gpr[HEX_REG_PC], HEX_GEVB_HW_ERROR,
+                              cause_sets_gbadva(env->cause_code));
+            break;
+        }
         switch (env->cause_code) {
         case HEX_CAUSE_FETCH_NO_XPAGE:
         case HEX_CAUSE_FETCH_NO_UPAGE:
@@ -923,6 +1034,7 @@ void hexagon_cpu_do_interrupt(CPUState *cs)
         case HEX_CAUSE_INVALID_OPCODE:
         case HEX_CAUSE_NO_COPROC_ENABLE:
         case HEX_CAUSE_NO_COPROC2_ENABLE:
+        case HEX_CAUSE_NO_COPROC3_ENABLE:
         case HEX_CAUSE_UNSUPPORTED_HVX_64B:
         case HEX_CAUSE_VECTOR_STACK_OVERFLOW:
         case HEX_CAUSE_REG_WRITE_CONFLICT:
@@ -1018,8 +1130,6 @@ void register_trap_exception(CPUHexagonState *env, int traptype, int imm,
     default:
         g_assert_not_reached();
     }
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
-
     env->cause_code = imm;
     env->gpr[HEX_REG_PC] = PC;
     cpu_loop_exit(cs);

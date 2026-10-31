@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #include "internal.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
@@ -32,10 +33,11 @@
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
 #include "gen_tcg_hvx.h"
+#include "gen_tcg_hmx.h"
 #ifndef CONFIG_USER_ONLY
 #include "gen_tcg_sys.h"
 #endif
-
+#include "hlx_gvec_tables.h"
 #include "genptr.h"
 
 static void gen_sabsdiff_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
@@ -287,7 +289,7 @@ static const uint32_t sreg_immut_masks[NUM_SREGS] = {
     [HEX_SREG_STID] = 0xff00ff00,
     [HEX_SREG_ELR] = 0x00000003,
     [HEX_SREG_SSR] = 0x00008000,
-    [HEX_SREG_CCR] = 0x10e0ff24,
+    [HEX_SREG_CCR] = 0x00c0ff24,
     [HEX_SREG_HTID] = IMMUTABLE,
     [HEX_SREG_GEVB] = 0x000000ff,
 };
@@ -308,7 +310,8 @@ static void gen_log_sreg_write(DisasContext *ctx, int rnum, TCGv_i32 val)
     if (reg_mask != IMMUTABLE) {
         if (rnum < HEX_SREG_GLB_START) {
             gen_masked_reg_write(val, hex_t_sreg[rnum], reg_mask);
-            if (ctx->need_commit || rnum == HEX_SREG_SSR) {
+            if (ctx->need_commit || rnum == HEX_SREG_SSR ||
+                rnum == HEX_SREG_CCR) {
                 tcg_gen_mov_i32(ctx->t_sreg_new_value[rnum], val);
             } else {
                 tcg_gen_mov_i32(hex_t_sreg[rnum], val);
@@ -552,7 +555,12 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
     if (reg_num == HEX_REG_P3_0_ALIASED) {
         gen_write_p3_0(ctx, val);
     } else {
-        const target_ulong reg_mask = reg_immut_masks[reg_num];
+        target_ulong reg_mask = reg_immut_masks[reg_num];
+        if (reg_num == HEX_REG_USR &&
+            ctx->hex_def->hex_version >= HEX_VER_V79) {
+            /* USR.FPSAT is reserved before v79 */
+            reg_mask &= ~fGET_REG_FIELD_MASK(USR_FPSAT);
+        }
         gen_masked_reg_write(val, hex_gpr[reg_num], reg_mask);
         tcg_gen_mov_tl(get_result_gpr(ctx, reg_num), val);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
@@ -750,15 +758,6 @@ void gen_vframecheck(DisasContext *ctx, TCGv vsp)
     gen_set_label(write_vsp);
     tcg_gen_mov_tl(hex_gpr[HEX_REG_VSP], vsp);
 }
-
-#ifndef CONFIG_HEXAGON_IDEF_PARSER
-static TCGv gen_slotval(DisasContext *ctx)
-{
-    int slotval =
-        (ctx->pkt.pkt_has_scalar_store_s1 & 1) | (ctx->insn->slot << 1);
-    return tcg_constant_tl(slotval);
-}
-#endif
 
 void gen_store32(TCGv vaddr, TCGv src, uint32_t width, uint32_t slot)
 {
@@ -1854,8 +1853,4 @@ void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 }
 
 #include "tcg_funcs_generated.c.inc"
-const SemanticInsn opcode_genptr[XX_LAST_OPCODE] = {
-#define OPCODE(X)    [X] = generate_##X
-#include "opcodes_def_generated.h.inc"
-#undef OPCODE
-};
+#include "tcg_func_table_generated.c.inc"

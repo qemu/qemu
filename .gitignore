@@ -1,5 +1,6 @@
 /GNUmakefile
 /build/
+/roms/hexagon-firmware-build/
 /.cache/
 /.vscode/
 *.pyc

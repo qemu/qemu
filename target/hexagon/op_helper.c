@@ -37,8 +37,10 @@
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
 #include "op_helper.h"
+#include "opcodes.h"
 #include "cpu_helper.h"
 #include "tcg/tcg-gvec-desc.h"
+#include "trace.h"
 #include "translate.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu/timer.h"
@@ -68,6 +70,11 @@ uint64_t HELPER(utimer)(void)
 }
 #endif
 
+void HELPER(hlx_trace_op)(CPUHexagonState *env, uint32_t opcode)
+{
+    trace_hexagon_hlx_op(opcode, opcode_names[opcode]);
+}
+
 #define SF_BIAS        127
 #define SF_MANTBITS    23
 
@@ -79,7 +86,6 @@ void do_raise_exception(CPUHexagonState *env, uint32_t exception,
     CPUState *cs = env_cpu(env);
     qemu_log_mask(CPU_LOG_INT, "%s: 0x%08" PRIx32 ", @ %08" PRIx32 "\n",
                   __func__, exception, PC);
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, exception);
 
     env->gpr[HEX_REG_PC] = PC;
     cs->exception_index = exception;
@@ -1356,6 +1362,12 @@ void HELPER(modify_ssr)(CPUHexagonState *env, uint32_t new, uint32_t old)
     hexagon_modify_ssr(env, new, old);
 }
 
+void HELPER(modify_ccr)(CPUHexagonState *env, uint32_t new, uint32_t old)
+{
+    BQL_LOCK_GUARD();
+    hexagon_modify_ccr(env, new, old);
+}
+
 static void hex_k0_lock(CPUHexagonState *env, uint32_t PC)
 {
     HexagonCPU *cpu = env_archcpu(env);
@@ -1665,7 +1677,6 @@ void HELPER(raise_stack_overflow)(CPUHexagonState *env, uint32_t slot,
     cs = env_cpu(env);
     cs->exception_index = HEX_EVENT_PRECISE;
     env->cause_code = HEX_CAUSE_STACK_LIMIT;
-    ASSERT_DIRECT_TO_GUEST_UNSET(env, cs->exception_index);
 
     if (slot == 0) {
         env->t_sreg[HEX_SREG_BADVA0] = badva;
@@ -2137,6 +2148,18 @@ void HELPER(pending_interrupt)(CPUHexagonState *env)
 
 #define BOGUS_HELPER(tag) \
     printf("ERROR: bogus helper: " #tag "\n")
+
+void HELPER(mxclracc)(CPUHexagonState *env)
+{
+    HmxState *hmx = env->hmx_state;
+    int i;
+
+    g_assert(hmx);
+
+    for (i = 0; i < HMX_NUM_ACC_SETS; i++) {
+        memset(&hmx->acc[i].fxp_primary, 0, sizeof(hmx->acc[i].fxp_primary));
+    }
+}
 
 #include "helper_funcs_generated.c.inc"
 

@@ -45,3 +45,6 @@
 [submodule "tests/lcitool/libvirt-ci"]
 	path = tests/lcitool/libvirt-ci
 	url = https://gitlab.com/libvirt/libvirt-ci.git
+[submodule "roms/hexagon-hypervisor"]
+	path = roms/hexagon-hypervisor
+	url = https://gitlab.com/qemu-project/hexagon-hypervisor.git

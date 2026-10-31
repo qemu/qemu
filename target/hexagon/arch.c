@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "fma_emu.h"
 #include "arch.h"
+#include "internal.h"
 #include "macros.h"
 
 #define SF_BIAS        127
@@ -213,10 +214,14 @@ void arch_fpop_start(CPUHexagonState *env)
  */
 #define RAISE_FP_EXCEPTION   do {} while (0)
 #else
- /*
-  * To be implemented.
-  */
-#define RAISE_FP_EXCEPTION   do { g_assert_not_reached(); } while (0)
+#define RAISE_FP_EXCEPTION \
+    do { \
+        CPUState *cs = env_cpu(env); \
+        cs->exception_index = HEX_EVENT_FPTRAP; \
+        env->cause_code = HEX_CAUSE_FPTRAP_CAUSE_BADFLOAT; \
+        do_raise_exception(env, cs->exception_index, \
+                           env->gpr[HEX_REG_PC], 0); \
+    } while (0)
 #endif
 
 #define SOFTFLOAT_TEST_FLAG(FLAG, MYF, MYE) \

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  LLDB uses fields that GDB can ignore. See:
+  https://github.com/llvm/llvm-project/blob/287aa6c4536408413b860e61fca0318a27214cf3/lldb/docs/lldb-gdb-remote.txt#L738-L860
+-->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.hexagon.hlx">
+
+  <!-- Sixteen 2048-byte HLX L-registers. -->
+  <vector id="hlx_ud" type="uint64" count="256"/>
+  <vector id="hlx_d"  type="int64"  count="256"/>
+  <vector id="hlx_uw" type="uint32" count="512"/>
+  <vector id="hlx_w"  type="int32"  count="512"/>
+  <vector id="hlx_uh" type="uint16" count="1024"/>
+  <vector id="hlx_h"  type="int16"  count="1024"/>
+  <vector id="hlx_ub" type="uint8"  count="2048"/>
+  <vector id="hlx_b"  type="int8"   count="2048"/>
+  <union id="hlx_vec">
+    <field name="ud" type="hlx_ud"/>
+    <field name="d"  type="hlx_d"/>
+    <field name="uw" type="hlx_uw"/>
+    <field name="w"  type="hlx_w"/>
+    <field name="uh" type="hlx_uh"/>
+    <field name="h"  type="hlx_h"/>
+    <field name="ub" type="hlx_ub"/>
+    <field name="b"  type="hlx_b"/>
+  </union>
+
+  <!-- dwarf_regnums 124-139 follow HVX q0-q3. -->
+  <reg name="l0"  bitsize="16384" offset="0"     encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="124"/>
+  <reg name="l1"  bitsize="16384" offset="2048"  encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="125"/>
+  <reg name="l2"  bitsize="16384" offset="4096"  encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="126"/>
+  <reg name="l3"  bitsize="16384" offset="6144"  encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="127"/>
+  <reg name="l4"  bitsize="16384" offset="8192"  encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="128"/>
+  <reg name="l5"  bitsize="16384" offset="10240" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="129"/>
+  <reg name="l6"  bitsize="16384" offset="12288" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="130"/>
+  <reg name="l7"  bitsize="16384" offset="14336" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="131"/>
+  <reg name="l8"  bitsize="16384" offset="16384" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="132"/>
+  <reg name="l9"  bitsize="16384" offset="18432" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="133"/>
+  <reg name="l10" bitsize="16384" offset="20480" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="134"/>
+  <reg name="l11" bitsize="16384" offset="22528" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="135"/>
+  <reg name="l12" bitsize="16384" offset="24576" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="136"/>
+  <reg name="l13" bitsize="16384" offset="26624" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="137"/>
+  <reg name="l14" bitsize="16384" offset="28672" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="138"/>
+  <reg name="l15" bitsize="16384" offset="30720" encoding="vector" format="hex" group="HLX Vector Registers" dwarf_regnum="139"/>
+
+</feature>

@@ -23,6 +23,7 @@
 #include "insn.h"
 #include "printinsn.h"
 #include "mmvec/decode_ext_mmvec.h"
+#include "hlx/decode_ext_hlx.h"
 
 #define fZXTN(N, M, VAL) ((VAL) & ((1LL << (N)) - 1))
 
@@ -69,6 +70,7 @@ static int shift_left(DisasContext *ctx, int x, int n, int immno)
 /* Include the generated decoder for 32 bit insn */
 #include "decode_normal_generated.c.inc"
 #include "decode_hvx_generated.c.inc"
+#include "decode_hlx_generated.c.inc"
 
 /* Include the generated decoder for 16 bit insn */
 #include "decode_subinsn_a_generated.c.inc"
@@ -102,40 +104,77 @@ void decode_send_insn_to(Packet *packet, int start, int newloc)
     }
 }
 
-/* Fill newvalue registers with the correct regno */
-static void
+/* An HLX .new N-field names its producer register. */
+static int hlx_find_new_value_producer(Packet *packet, int consumer,
+                                       int lreg)
+{
+    for (int i = 0; i < packet->num_insns; i++) {
+        Insn *insn = &packet->insn[i];
+
+        if (i != consumer && GET_ATTRIB(insn->opcode, A_HLX) &&
+            insn->dest_idx != -1 && insn->regno[insn->dest_idx] == lreg) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/* Fill newvalue registers with the correct regno. */
+static bool
 decode_fill_newvalue_regno(Packet *packet)
 {
     int i, use_regidx, offset, def_idx, dst_idx;
 
-    for (i = 1; i < packet->num_insns; i++) {
+    for (i = 0; i < packet->num_insns; i++) {
         if (GET_ATTRIB(packet->insn[i].opcode, A_DOTNEWVALUE) &&
-            !GET_ATTRIB(packet->insn[i].opcode, A_EXTENSION)) {
+            (!GET_ATTRIB(packet->insn[i].opcode, A_EXTENSION) ||
+             GET_ATTRIB(packet->insn[i].opcode, A_HLX))) {
 
-            g_assert(packet->insn[i].new_read_idx != -1);
+            if (i == 0 && !GET_ATTRIB(packet->insn[i].opcode, A_HLX)) {
+                continue;
+            }
+            if (packet->insn[i].new_read_idx == -1) {
+                return false;
+            }
             use_regidx = packet->insn[i].new_read_idx;
 
-            /*
-             * What's encoded at the N-field is the offset to who's producing
-             * the value.  Shift off the LSB which indicates odd/even register,
-             * then walk backwards and skip over the constant extenders.
-             */
-            offset = packet->insn[i].regno[use_regidx] >> 1;
-            def_idx = i - offset;
-            for (int j = 0; j < offset; j++) {
-                if (GET_ATTRIB(packet->insn[i - j - 1].opcode, A_IT_EXTENDER)) {
-                    def_idx--;
+            if (GET_ATTRIB(packet->insn[i].opcode, A_HLX)) {
+                def_idx = hlx_find_new_value_producer(
+                    packet, i, packet->insn[i].regno[use_regidx]);
+                if (def_idx < 0) {
+                    /* No producer means a 2KB zero store. */
+                    packet->insn[i].hlx_new_zero = true;
+                    continue;
+                }
+            } else {
+                /*
+                 * What's encoded at the N-field is the offset to who's
+                 * producing the value.  Shift off the LSB which indicates
+                 * odd/even register, then walk backwards and skip over the
+                 * constant extenders.
+                 */
+                offset = packet->insn[i].regno[use_regidx] >> 1;
+                if (offset == 0 || offset > i) {
+                    return false;
+                }
+                def_idx = i - offset;
+                for (int j = 0; j < offset; j++) {
+                    if (GET_ATTRIB(packet->insn[i - j - 1].opcode,
+                                   A_IT_EXTENDER)) {
+                        def_idx--;
+                    }
+                }
+
+                /*
+                 * Check for a badly encoded N-field which points to an
+                 * instruction out-of-range
+                 */
+                if (def_idx < 0 || packet->insn[def_idx].dest_idx == -1) {
+                    return false;
                 }
             }
 
-            /*
-             * Check for a badly encoded N-field which points to an instruction
-             * out-of-range
-             */
-            g_assert(!((def_idx < 0) || (def_idx > (packet->num_insns - 1))));
-
             /* Now patch up the consumer with the register number */
-            g_assert(packet->insn[def_idx].dest_idx != -1);
             dst_idx = packet->insn[def_idx].dest_idx;
             packet->insn[i].regno[use_regidx] =
                 packet->insn[def_idx].regno[dst_idx];
@@ -147,6 +186,7 @@ decode_fill_newvalue_regno(Packet *packet)
                 packet->insn[def_idx].slot;
         }
     }
+    return true;
 }
 
 /* Split CJ into a compare and a jump */
@@ -422,7 +462,12 @@ static void decode_remove_extenders(Packet *packet)
 static SlotMask get_valid_slots(const Packet *pkt, unsigned int slot)
 {
     if (GET_ATTRIB(pkt->insn[slot].opcode, A_EXTENSION)) {
-        return mmvec_ext_decode_find_iclass_slots(pkt->insn[slot].opcode);
+        if (GET_ATTRIB(pkt->insn[slot].opcode, A_HLX)) {
+            return hlx_ext_decode_find_iclass_slots(
+                       pkt->insn[slot].opcode);
+        }
+        return mmvec_ext_decode_find_iclass_slots(
+                   pkt->insn[slot].opcode);
     } else {
         return find_iclass_slots(pkt->insn[slot].opcode,
                                  pkt->insn[slot].iclass);
@@ -491,7 +536,8 @@ decode_insns(DisasContext *ctx, Insn *insn, uint32_t encoding)
 {
     if (parse_bits(encoding) != 0) {
         if (decode_normal(ctx, encoding) ||
-            decode_hvx(ctx, encoding)) {
+            decode_hvx(ctx, encoding) ||
+            decode_hlx(ctx, encoding)) {
             insn->generate = opcode_genptr[insn->opcode];
             insn->iclass = iclass_bits(encoding);
             return 1;
@@ -614,8 +660,11 @@ decode_set_slot_number(Packet *pkt)
         }
     }
 
-    /* Fix the exceptions - mem insns to slot 0,1 */
+    /* HLX instructions already have extension-assigned slots. */
     for (i = pkt->num_insns - 1; i >= 0; i--) {
+        if (GET_ATTRIB(pkt->insn[i].opcode, A_HLX)) {
+            continue;
+        }
         /* First memory instruction always goes to slot 0 */
         if ((GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE) ||
              GET_ATTRIB(pkt->insn[i].opcode, A_MEMLIKE_PACKET_RULES)) &&
@@ -671,8 +720,9 @@ decode_set_slot_number(Packet *pkt)
         }
     }
     /* Is slot0 empty and slot1 used? */
-    if ((!slot0_found) && slot1_found) {
-        /* Then push it to slot0 */
+    if ((!slot0_found) && slot1_found &&
+        !GET_ATTRIB(pkt->insn[slot1_iidx].opcode, A_HLX)) {
+        /* Push it to slot 0. HLX loads remain in slot 1. */
         pkt->insn[slot1_iidx].slot = 0;
     }
 
@@ -687,6 +737,10 @@ bool opcode_supported(uint16_t opcode, const HexagonCPUDef *hex_def)
     struct tag_rev_info info = tag_rev_info[opcode];
     if (hex_version == HEX_VER_ANY) {
         return true;
+    }
+    /* HLX was added in V85. */
+    if (GET_ATTRIB(opcode, A_HLX) && hex_version < HEX_VER_V85) {
+        return false;
     }
     if ((info.introduced != HEX_VER_NONE && hex_version < info.introduced) ||
         (info.removed != HEX_VER_NONE && hex_version >= info.removed)) {
@@ -773,9 +827,15 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
 
     pkt->encod_pkt_size_in_bytes = words_read * 4;
     pkt->pkt_has_hvx = false;
+    pkt->pkt_has_hlx = false;
+    pkt->pkt_has_hmx = false;
     for (i = 0; i < num_insns; i++) {
         pkt->pkt_has_hvx |=
             GET_ATTRIB(pkt->insn[i].opcode, A_CVI);
+        pkt->pkt_has_hlx |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_HLX);
+        pkt->pkt_has_hmx |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_HMX);
     }
 
     /*
@@ -808,10 +868,15 @@ int decode_packet(DisasContext *ctx, int max_words, const uint32_t *words,
             return 0;
         }
     }
-    decode_fill_newvalue_regno(pkt);
+    if (!decode_fill_newvalue_regno(pkt)) {
+        return 0;
+    }
 
     if (pkt->pkt_has_hvx) {
         mmvec_ext_decode_checks(pkt, disas_only);
+    }
+    if (pkt->pkt_has_hlx && !hlx_ext_decode_checks(pkt, disas_only)) {
+        return 0;
     }
 
     if (!disas_only) {

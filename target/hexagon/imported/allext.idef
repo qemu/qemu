@@ -23,3 +23,14 @@
 #include "mmvec/ext.idef"
 #undef EXTNAME
 #undef EXTSTR
+
+#define EXTNAME hlx
+#define EXTSTR "hlx"
+#include "generated_hlx_ext.idef"
+#undef EXTNAME
+#undef EXTSTR
+#define EXTNAME hmx
+#define EXTSTR "hmx"
+#include "hmx/ext.idef"
+#undef EXTNAME
+#undef EXTSTR

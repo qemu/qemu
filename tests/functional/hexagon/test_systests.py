@@ -13,7 +13,7 @@ from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
 
 _TARBALL_BIN_PATH = (
     "systests_standalone_package",
-    "StandaloneSysTests_6.4.0.2_v68",
+    "StandaloneSysTests_6.7.0.0_v68",
     "bin",
 )
 
@@ -21,8 +21,10 @@ class SysTestsStandaloneTests(QemuSystemTest):
     SYSTEST_TIMEOUT_SEC = 30
 
     ASSET_TARBALL = Asset(
-        "https://github.com/qualcomm/qemu-hexagon-testing/releases/download/v0.2.14/systests_standalone.tar.gz",
-        "f0c535d746384126954757b6ce54452c5fe82624618c79862495eec24718a6ff",
+        "https://github.com/qualcomm/qemu-hexagon-testing/releases/"
+        "download/v0.3.1/systests_standalone.tar.gz",
+        "40163fa94d67a63e5ef645fc83682e4e"
+        "b56e1d79a9068614055e74f35d4cf70d",
     )
 
     def setUp(self):
@@ -90,6 +92,13 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_semihost(self):
         self.run_console_pattern("semihost", "PASS", "-append", "arg1", "arg2")
 
+    def test_swi_touch_memory(self):
+        """A semihosting read restarts after a fault on its second page."""
+        self.run_exit_zero("swi_touch_memory")
+
+    def test_invalid_hmx(self):
+        self.run_exit_zero("invalid_hmx")
+
     def test_dtg_interrupt(self):
         self.run_exit_zero("dtg_interrupt")
 
@@ -108,6 +117,8 @@ class SysTestsStandaloneTests(QemuSystemTest):
     def test_standalone_vec(self):
         self.run_exit_zero("standalone_vec")
 
+    @unittest.skip("lock_verify has timing defects before v0.2.22 "
+                   "and in v0.3.1")
     def test_lock_verify(self):
         self.run_exit_zero("lock_verify")
 

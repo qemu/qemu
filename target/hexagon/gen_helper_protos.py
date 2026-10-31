@@ -42,9 +42,10 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
     arguments = ", ".join(declared)
 
     ## Add the TCG_CALL_NO_RWG_SE flag to helpers that don't take the env
-    ## argument and aren't HVX instructions.  Since HVX instructions take
-    ## pointers to their arguments, they will have side effects.
-    if hex_common.need_env(tag) or hex_common.is_hvx_insn(tag):
+    ## argument and are not vector instructions. Vector pointer arguments
+    ## have side effects.
+    if (hex_common.need_env(tag) or hex_common.is_hvx_insn(tag) or
+            "A_HLX" in hex_common.attribdict[tag]):
         f.write(f"DEF_HELPER_{len(declared) - 1}({tag}, {arguments})\n")
     else:
         f.write(f"DEF_HELPER_FLAGS_{len(declared) - 1}({tag}, "

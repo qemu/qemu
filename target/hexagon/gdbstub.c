@@ -23,6 +23,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "cpu_helper.h"
 #include "hw/hexagon/hexagon_globalreg.h"
+#include "hw/hexagon/hexagon_hlx.h"
 #endif
 
 int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
@@ -120,6 +121,10 @@ int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             uint32_t old = env->t_sreg[HEX_SREG_SSR];
             env->t_sreg[HEX_SREG_SSR] = val;
             hexagon_modify_ssr(env, val, old);
+        } else if (n == HEX_SREG_CCR) {
+            uint32_t old = env->t_sreg[HEX_SREG_CCR];
+            env->t_sreg[HEX_SREG_CCR] = val;
+            hexagon_modify_ccr(env, val, old);
         } else if (n < HEX_SREG_GLB_START) {
             env->t_sreg[n] = val;
         } else if (cpu->globalregs) {
@@ -211,4 +216,50 @@ int hexagon_hvx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     }
 
     g_assert_not_reached();
+}
+
+int hexagon_hlx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    int total = 0;
+
+    BQL_LOCK_GUARD();
+
+    if (n < 0 || n >= NUM_LREGS) {
+        g_assert_not_reached();
+    }
+
+    /* Return zeroes when no HLX context is active. */
+    if (env->hlx_ctx == NULL) {
+        for (int i = 0; i < HLX_VEC_SIZE_BYTES; i++) {
+            g_byte_array_append(mem_buf, (const guint8 *)"\0", 1);
+        }
+        return HLX_VEC_SIZE_BYTES;
+    }
+
+    for (int i = 0; i < (int)ARRAY_SIZE(env->hlx_ctx->LRegs[n].uw); i++) {
+        total += gdb_get_reg32(mem_buf, env->hlx_ctx->LRegs[n].uw[i]);
+    }
+    return total;
+}
+
+int hexagon_hlx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+{
+    CPUHexagonState *env = cpu_env(cs);
+    BQL_LOCK_GUARD();
+
+    if (n < 0 || n >= NUM_LREGS) {
+        g_assert_not_reached();
+    }
+
+    /* Ignore writes without an active context. */
+    if (env->hlx_ctx == NULL) {
+        return HLX_VEC_SIZE_BYTES;
+    }
+
+    for (int i = 0; i < (int)ARRAY_SIZE(env->hlx_ctx->LRegs[n].uw); i++) {
+        env->hlx_ctx->LRegs[n].uw[i] = ldl_le_p(mem_buf);
+        mem_buf += 4;
+    }
+    return HLX_VEC_SIZE_BYTES;
 }

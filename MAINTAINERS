@@ -1397,6 +1397,8 @@ F: tests/functional/hexagon/
 F: tests/qtest/hexagon-config-test.c
 F: tests/qtest/qcom-dsp-test.c
 F: docs/devel/hexagon-sys.rst
+F: pc-bios/hexagon*
+F: roms/hexagon-hypervisor
 
 LoongArch Machines
 ------------------

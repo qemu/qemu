@@ -44,7 +44,8 @@ def gen_helper_function(f, tag, tagregs, tagimms):
     for arg in hex_common.helper_args(tag, regs, imms):
         declared.append(arg.func_arg)
 
-    arguments = ", ".join(declared)
+    ## A helper with no arguments needs (void) to be a prototype
+    arguments = ", ".join(declared) or "void"
     f.write(f"{ret_type} HELPER({tag})({arguments})\n")
     f.write("{\n")
     if hex_common.need_ea(tag):
@@ -55,24 +56,28 @@ def gen_helper_function(f, tag, tagregs, tagimms):
     if not hex_common.is_predicated(tag):
         for regtype, regid in regs:
             reg = hex_common.get_register(tag, regtype, regid)
-            if reg.is_writeonly() and not reg.is_hvx_reg():
+            is_vector = reg.is_hvx_reg() or reg.is_hlx_reg()
+            if reg.is_writeonly() and not is_vector:
                 f.write(hex_common.code_fmt(f"""\
                     {reg.helper_arg_type()} {reg.helper_arg_name()} = 0;
                 """))
 
-    ## Print useful information about HVX registers
+    ## Print useful information about HVX and HLX registers.
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
         if reg.is_hvx_reg():
             reg.helper_hvx_desc(f)
+        if reg.is_hlx_reg():
+            reg.helper_hlx_desc(f)
 
     if hex_common.need_slot(tag):
         if "A_LOAD" in hex_common.attribdict[tag]:
             f.write(hex_common.code_fmt(f"""\
-                bool pkt_has_scalar_store_s1 = slotval & 0x1;
+                bool pkt_has_scalar_store_s1 __attribute__((unused)) = \
+                    slotval & 0x1;
             """))
         f.write(hex_common.code_fmt(f"""\
-            uint32_t slot = slotval >> 1;
+            uint32_t slot __attribute__((unused)) = slotval >> 1;
         """))
 
     if "A_FPOP" in hex_common.attribdict[tag]:
@@ -80,14 +85,84 @@ def gen_helper_function(f, tag, tagregs, tagimms):
             arch_fpop_start(env);
         """))
 
+    ## Define HLX register variables.
+    has_hlx_reg = False
+    for regtype, regid in regs:
+        reg = hex_common.get_register(tag, regtype, regid)
+        if reg.is_hlx_reg():
+            has_hlx_reg = True
+            if reg.is_pair():
+                tmp_name = f"_{reg.reg_tcg()}_tmp"
+                f.write(hex_common.code_fmt(f"""\
+                    HLXVectorPair {tmp_name};
+                """))
+                if reg.is_read():
+                    f.write(hex_common.code_fmt(f"""\
+                        hlx_interleave_pair(&{tmp_name},
+                            (const HLXVector *)({reg.helper_arg_name()}),
+                            (const HLXVector *)({reg.helper_arg_name()}) + 1);
+                    """))
+                else:
+                    f.write(hex_common.code_fmt(f"""\
+                        memset(&{tmp_name}, 0, sizeof({tmp_name}));
+                    """))
+                f.write(hex_common.code_fmt(f"""\
+                    #define {reg.reg_tcg()} {tmp_name}
+                """))
+            else:
+                reg_def = f"(*(HLXVector *)({reg.helper_arg_name()}))"
+                f.write(hex_common.code_fmt(f"""\
+                    #define {reg.reg_tcg()} {reg_def}
+                """))
+
+    ## Declare fLVFOREACH loop variables.
+    semantics = hex_common.semdict[tag]
+    if has_hlx_reg and "fLVFOREACH" in semantics:
+        f.write(hex_common.code_fmt(f"""\
+            int i;
+        """))
+        # Remove nested fHIDE() wrappers.
+        while 'fHIDE(' in semantics:
+            # Find the matching closing parenthesis.
+            start = semantics.find('fHIDE(')
+            paren_count = 0
+            end = -1
+            for pos in range(start + len('fHIDE('), len(semantics)):
+                if semantics[pos] == '(':
+                    paren_count += 1
+                elif semantics[pos] == ')':
+                    if paren_count == 0:
+                        end = pos
+                        break
+                    paren_count -= 1
+            if end < 0:
+                raise Exception(f"unbalanced fHIDE( in {tag}")
+            semantics = semantics[:start] + semantics[end + 1:]
+
     f.write(hex_common.code_fmt(f"""\
-        {hex_common.semdict[tag]}
+        {semantics};
     """))
+
+    ## Undefine HLX registers and deinterleave written pairs.
+    for regtype, regid in regs:
+        reg = hex_common.get_register(tag, regtype, regid)
+        if reg.is_hlx_reg():
+            if reg.is_pair() and reg.is_written():
+                tmp_name = f"_{reg.reg_tcg()}_tmp"
+                f.write(hex_common.code_fmt(f"""\
+                    hlx_deinterleave_pair(
+                        (HLXVector *)({reg.helper_arg_name()}),
+                        (HLXVector *)({reg.helper_arg_name()}) + 1,
+                        &{tmp_name});
+                """))
+            f.write(hex_common.code_fmt(f"""\
+                #undef {reg.reg_tcg()}
+            """))
 
     ## Return the scalar result
     for regtype, regid in regs:
         reg = hex_common.get_register(tag, regtype, regid)
-        if reg.is_written() and not reg.is_hvx_reg():
+        if reg.is_written() and not reg.is_hvx_reg() and not reg.is_hlx_reg():
             f.write(hex_common.code_fmt(f"""\
                 return {reg.helper_arg_name()};
             """))

@@ -118,6 +118,9 @@ def gen_tcg_func(f, tag, regs, imms):
         arguments = ", ".join(["ctx", "ctx->insn", "&ctx->pkt"] + declared)
         f.write(f"    emit_{tag}({arguments});\n")
 
+    elif hex_common.is_hlx_inline_tag(tag):
+        hex_common.gen_hlx_inline(f, tag, regs)
+
     elif hex_common.skip_qemu_helper(tag):
         if "A_FPOP" in hex_common.attribdict[tag]:
             f.write("    TCGv pkt_need_commit = ")
@@ -173,11 +176,7 @@ def main():
 
         for tag in hex_common.tags:
             if hex_common.tag_ignore(tag):
-                f.write(f"static void generate_{tag}"
-                        f"(DisasContext *ctx)\n")
-                f.write("{\n}\n\n")
                 continue
-
             gen_def_tcg_func(f, tag, tagregs, tagimms)
 
         f.write("#endif    /* HEXAGON_TCG_FUNCS_H */\n")

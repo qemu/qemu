@@ -55,6 +55,7 @@ typedef struct {
         int8_t    b[MAX_VEC_SIZE_BYTES / 1];
         float32  sf[MAX_VEC_SIZE_BYTES / 4];
         float16  hf[MAX_VEC_SIZE_BYTES / 2];
+        uint8_t  f8[MAX_VEC_SIZE_BYTES / 1];
         bfloat16 bf[MAX_VEC_SIZE_BYTES / 2];
         /* qfloat "visible" mantissa/exponent, sans the extended bits below */
         int32_t  qf32[MAX_VEC_SIZE_BYTES / 4];

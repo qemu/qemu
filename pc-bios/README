@@ -1,6 +1,13 @@
 - SeaBIOS (bios.bin) is the successor of pc bios.
   See http://www.seabios.org/ for more information.
 
+- hexagon_booter_<machine> and hexagon_loadlinux_<machine> are the H2
+  hypervisor firmware for the Hexagon machines. The sources are at
+  https://gitlab.com/qemu-project/hexagon-hypervisor, built from commit
+  23d5bde4313c1e63ba64dd5d7f542b1055188ef8 with Hexagon SDK 6.7.0.0
+  via "make -C roms hexagon-<machine>".  H2 is distributed under the terms
+  given in "hexagon-hypervisor-license.txt".
+
 - The VGA BIOS and the Cirrus VGA BIOS come from the LGPL VGA bios
   project (http://www.nongnu.org/vgabios/).
 

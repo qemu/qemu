@@ -24,6 +24,8 @@ int hexagon_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int hexagon_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int hexagon_hvx_gdb_read_register(CPUState *env, GByteArray *mem_buf, int n);
 int hexagon_hvx_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n);
+int hexagon_hlx_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n);
+int hexagon_hlx_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
 #ifndef CONFIG_USER_ONLY
 int hexagon_sys_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n);
 int hexagon_sys_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n);
