@@ -30,6 +30,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-char.h"
+#include "qapi/qapi-type-infos-qom.h"
 #include "qobject/qdict.h"
 #include "qobject/qjson.h"
 #include "qobject/qlist.h"
@@ -134,8 +135,8 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
                                    monitor_qmp_get_pretty,
                                    monitor_qmp_set_pretty);
     object_class_property_add_enum(cls, "close-action",
-                                   "MonitorQMPCloseAction", NULL,
-                                   &MonitorQMPCloseAction_lookup,
+                                   "MonitorQMPCloseAction",
+                                   &MonitorQMPCloseAction_type_info, NULL,
                                    monitor_qmp_get_close_action,
                                    monitor_qmp_set_close_action);
 

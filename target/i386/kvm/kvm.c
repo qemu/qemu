@@ -14,6 +14,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qapi-events-run-state.h"
+#include "qapi/qapi-type-infos-common.h"
+#include "qapi/qapi-type-infos-run-state.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include <math.h>
@@ -7099,8 +7101,7 @@ static void kvm_arch_set_honor_guest_pat(Object *obj, int value, Error **errp)
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
-                                   NULL,
-                                   &NotifyVmexitOption_lookup,
+                                   &NotifyVmexitOption_type_info, NULL,
                                    kvm_arch_get_notify_vmexit,
                                    kvm_arch_set_notify_vmexit);
     object_class_property_set_description(oc, "notify-vmexit",
@@ -7137,8 +7138,8 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
     object_class_property_set_description(oc, "xen-evtchn-max-pirq",
                                           "Maximum number of Xen PIRQs");
 
-    object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto", NULL,
-                                   &OnOffAuto_lookup,
+    object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto",
+                                   &OnOffAuto_type_info, NULL,
                                    kvm_arch_get_honor_guest_pat,
                                    kvm_arch_set_honor_guest_pat);
     object_class_property_set_description(oc, "honor-guest-pat",

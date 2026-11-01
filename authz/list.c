@@ -22,6 +22,7 @@
 #include "authz/list.h"
 #include "trace.h"
 #include "qom/object_interfaces.h"
+#include "qapi/qapi-type-infos-authz.h"
 #include "qapi/qapi-visit-authz.h"
 #include "qemu/module.h"
 
@@ -120,8 +121,9 @@ qauthz_list_class_init(ObjectClass *oc, const void *data)
 {
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
 
-    object_class_property_add_enum(oc, "policy", "QAuthZListPolicy", NULL,
-                                   &QAuthZListPolicy_lookup,
+    object_class_property_add_enum(oc, "policy", "QAuthZListPolicy",
+                                   &QAuthZListPolicy_type_info,
+                                   NULL,
                                    qauthz_list_prop_get_policy,
                                    qauthz_list_prop_set_policy);
 

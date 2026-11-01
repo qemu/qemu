@@ -27,6 +27,7 @@
 #include "qemu/target-info.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "target/microblaze/cpu.h"
 #include "hw/core/sysbus.h"
 #include "net/net.h"
@@ -175,8 +176,7 @@ static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc,
     mc->is_default = true;
 
     prop = object_class_property_add_enum(oc, "endianness", "EndianMode",
-                                          NULL,
-                                          &EndianMode_lookup,
+                                          &EndianMode_type_info, NULL,
                                           machine_get_endianness,
                                           machine_set_endianness);
     object_property_set_default_str(prop, target_big_endian() ? "big"

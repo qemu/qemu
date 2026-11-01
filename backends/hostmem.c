@@ -16,6 +16,7 @@
 #include "hw/core/boards.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"
 #include "qom/compat-properties.h"
@@ -551,8 +552,8 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, "host-nodes",
         "Binds memory to the list of NUMA host nodes");
-    object_class_property_add_enum(oc, "policy", "HostMemPolicy", NULL,
-                                   &HostMemPolicy_lookup,
+    object_class_property_add_enum(oc, "policy", "HostMemPolicy",
+                                   &HostMemPolicy_type_info, NULL,
                                    host_memory_backend_get_policy,
                                    host_memory_backend_set_policy);
     object_class_property_set_description(oc, "policy",
