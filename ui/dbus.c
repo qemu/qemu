@@ -508,8 +508,8 @@ dbus_display_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "p2p", get_dbus_p2p, set_dbus_p2p);
     object_class_property_add_str(oc, "addr", get_dbus_addr, set_dbus_addr);
     object_class_property_add_str(oc, "audiodev", get_audiodev, set_audiodev);
-    object_class_property_add_enum(oc, "gl-mode",
-                                   "DisplayGLMode", &DisplayGLMode_lookup,
+    object_class_property_add_enum(oc, "gl-mode", "DisplayGLMode", NULL,
+                                   &DisplayGLMode_lookup,
                                    get_gl_mode, set_gl_mode);
 }
 

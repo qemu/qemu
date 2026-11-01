@@ -7099,6 +7099,7 @@ static void kvm_arch_set_honor_guest_pat(Object *obj, int value, Error **errp)
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
+                                   NULL,
                                    &NotifyVmexitOption_lookup,
                                    kvm_arch_get_notify_vmexit,
                                    kvm_arch_set_notify_vmexit);
@@ -7136,7 +7137,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
     object_class_property_set_description(oc, "xen-evtchn-max-pirq",
                                           "Maximum number of Xen PIRQs");
 
-    object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto",
+    object_class_property_add_enum(oc, "honor-guest-pat", "OnOffAuto", NULL,
                                    &OnOffAuto_lookup,
                                    kvm_arch_get_honor_guest_pat,
                                    kvm_arch_set_honor_guest_pat);

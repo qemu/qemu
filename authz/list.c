@@ -120,8 +120,7 @@ qauthz_list_class_init(ObjectClass *oc, const void *data)
 {
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
 
-    object_class_property_add_enum(oc, "policy",
-                                   "QAuthZListPolicy",
+    object_class_property_add_enum(oc, "policy", "QAuthZListPolicy", NULL,
                                    &QAuthZListPolicy_lookup,
                                    qauthz_list_prop_get_policy,
                                    qauthz_list_prop_set_policy);

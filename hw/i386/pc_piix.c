@@ -413,7 +413,8 @@ static void pc_i440fx_machine_options(MachineClass *m)
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_UEFI_VARS_X64);
 
-    object_class_property_add_enum(oc, "x-south-bridge", "PCSouthBridgeOption",
+    object_class_property_add_enum(oc, "x-south-bridge",
+                                   "PCSouthBridgeOption", NULL,
                                    &PCSouthBridgeOption_lookup,
                                    pc_get_south_bridge,
                                    pc_set_south_bridge);

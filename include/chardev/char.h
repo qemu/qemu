@@ -356,7 +356,7 @@ static inline void chardev_vc_add_encoding_prop(ObjectClass *oc,
     int (*get)(Object *, Error **),
     void (*set)(Object *, int, Error **))
 {
-    object_class_property_add_enum(oc, "encoding", "ChardevVCEncoding",
+    object_class_property_add_enum(oc, "encoding", "ChardevVCEncoding", NULL,
                                    &ChardevVCEncoding_lookup, get, set);
 }
 

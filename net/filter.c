@@ -342,7 +342,7 @@ static void netfilter_class_init(ObjectClass *oc, const void *data)
 
     object_class_property_add_str(oc, "netdev",
                                   netfilter_get_netdev_id, netfilter_set_netdev_id);
-    object_class_property_add_enum(oc, "queue", "NetFilterDirection",
+    object_class_property_add_enum(oc, "queue", "NetFilterDirection", NULL,
                                    &NetFilterDirection_lookup,
                                    netfilter_get_direction, netfilter_set_direction);
     object_class_property_add_str(oc, "status",

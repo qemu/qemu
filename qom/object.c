@@ -2501,6 +2501,7 @@ object_class_property_add_bool(ObjectClass *klass, const char *name,
 }
 
 typedef struct EnumProperty {
+    const QAPITypeInfo *qapi_type; /* non-null for QAPI enums */
     const QEnumLookup *lookup;
     int (*get)(Object *, Error **);
     void (*set)(Object *, int, Error **);
@@ -2537,17 +2538,20 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
 ObjectProperty *
 object_property_add_enum(Object *obj, const char *name,
                          const char *typename,
+                         const QAPITypeInfo *qapi_type,
                          const QEnumLookup *lookup,
                          int (*get)(Object *, Error **),
                          void (*set)(Object *, int, Error **))
 {
     EnumProperty *prop = g_malloc(sizeof(*prop));
 
-    prop->lookup = lookup;
+    assert(!qapi_type != !lookup);
+    prop->qapi_type = qapi_type;
+    prop->lookup = lookup ?: qapi_type->lookup;
     prop->get = get;
     prop->set = set;
 
-    return object_property_add(obj, name, typename, NULL,
+    return object_property_add(obj, name, typename, qapi_type,
                                get ? property_get_enum : NULL,
                                set ? property_set_enum : NULL,
                                property_release_data,
@@ -2557,17 +2561,20 @@ object_property_add_enum(Object *obj, const char *name,
 ObjectProperty *
 object_class_property_add_enum(ObjectClass *klass, const char *name,
                                     const char *typename,
+                                    const QAPITypeInfo *qapi_type,
                                     const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
                                     void (*set)(Object *, int, Error **))
 {
     EnumProperty *prop = g_malloc(sizeof(*prop));
 
-    prop->lookup = lookup;
+    assert(!qapi_type != !lookup);
+    prop->qapi_type = qapi_type;
+    prop->lookup = lookup ?: qapi_type->lookup;
     prop->get = get;
     prop->set = set;
 
-    return object_class_property_add(klass, name, typename, NULL,
+    return object_class_property_add(klass, name, typename, qapi_type,
                                      get ? property_get_enum : NULL,
                                      set ? property_set_enum : NULL,
                                      NULL,
