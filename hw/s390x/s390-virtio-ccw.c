@@ -44,6 +44,7 @@
 #include "target/s390x/kvm/pv.h"
 #include "migration/blocker.h"
 #include "qapi/qapi-builtin-type-infos.h"
+#include "qapi/qapi-type-infos-machine-s390x.h"
 #include "qapi/visitor.h"
 #include "qapi/qapi-visit-machine-s390x.h"
 #include "hw/s390x/cpu-topology.h"
@@ -917,7 +918,8 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel");
 
-    object_class_property_add(oc, "boot-certs", "BootCertificatesList", NULL,
+    object_class_property_add(oc, "boot-certs", "BootCertificatesList",
+                              &BootCertificatesList_type_info,
                               machine_get_boot_certs, machine_set_boot_certs, NULL, NULL);
     object_class_property_set_description(oc, "boot-certs",
             "provide paths to a directory and/or a certificate file for secure boot");
