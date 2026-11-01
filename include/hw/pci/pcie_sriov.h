@@ -57,6 +57,8 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
 bool pcie_sriov_register_device(PCIDevice *dev, Error **errp);
 void pcie_sriov_unregister_device(PCIDevice *dev);
 
+bool pcie_sriov_check_after_realize(PCIDevice *dev, Error **errp);
+
 /*
  * Default (minimal) page size support values
  * as required by the SR/IOV standard:
