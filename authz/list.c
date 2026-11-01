@@ -123,7 +123,6 @@ qauthz_list_class_init(ObjectClass *oc, const void *data)
 
     object_class_property_add_enum(oc, "policy", "QAuthZListPolicy",
                                    &QAuthZListPolicy_type_info,
-                                   NULL,
                                    qauthz_list_prop_get_policy,
                                    qauthz_list_prop_set_policy);
 

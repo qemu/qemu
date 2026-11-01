@@ -152,8 +152,7 @@ static void dummy_class_init(ObjectClass *cls, const void *data)
                               dummy_get_sv, dummy_set_sv,
                               NULL, NULL);
     object_class_property_add_enum(cls, "av", "DummyAnimal",
-                                   &dummy_animal_qapi_type_info, NULL,
-                                   dummy_get_av,
+                                   &dummy_animal_qapi_type_info, dummy_get_av,
                                    dummy_set_av);
 }
 

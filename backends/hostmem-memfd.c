@@ -204,8 +204,8 @@ memfd_backend_class_init(ObjectClass *oc, const void *data)
                                               "Huge pages size (ex: 2M, 1G)");
     }
 
-    object_class_property_add_enum(oc, "guest-memfd",  "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+    object_class_property_add_enum(oc, "guest-memfd", "OnOffAuto",
+                                   &OnOffAuto_type_info,
                                    memfd_backend_get_guest_memfd,
                                    memfd_backend_set_guest_memfd);
     object_class_property_set_description(oc, "guest-memfd",

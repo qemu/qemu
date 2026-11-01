@@ -389,9 +389,8 @@ static void pc_i440fx_machine_options(MachineClass *m)
 
     object_class_property_add_enum(oc, "x-south-bridge",
                                    "PCSouthBridgeOption",
-                                   &PCSouthBridgeOption_type_info, NULL,
-                                   pc_get_south_bridge,
-                                   pc_set_south_bridge);
+                                   &PCSouthBridgeOption_type_info,
+                                   pc_get_south_bridge, pc_set_south_bridge);
     object_class_property_set_description(oc, "x-south-bridge",
                                      "Use a different south bridge than PIIX3");
     compat_props_add(m->compat_props,

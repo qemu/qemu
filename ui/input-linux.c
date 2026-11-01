@@ -508,7 +508,7 @@ static void input_linux_class_init(ObjectClass *oc, const void *data)
                                    input_linux_get_repeat,
                                    input_linux_set_repeat);
     object_class_property_add_enum(oc, "grab-toggle", "GrabToggleKeys",
-                                   &GrabToggleKeys_type_info, NULL,
+                                   &GrabToggleKeys_type_info,
                                    input_linux_get_grab_toggle,
                                    input_linux_set_grab_toggle);
 }

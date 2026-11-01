@@ -3019,7 +3019,7 @@ sev_guest_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "session-file",
             "guest owners session parameters (encoded with base64)");
     object_class_property_add_enum(oc, "legacy-vm-type", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+                                   &OnOffAuto_type_info,
                                    sev_guest_get_legacy_vm_type,
                                    sev_guest_set_legacy_vm_type);
     object_class_property_set_description(oc, "legacy-vm-type",

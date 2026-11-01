@@ -2501,8 +2501,7 @@ object_class_property_add_bool(ObjectClass *klass, const char *name,
 }
 
 typedef struct EnumProperty {
-    const QAPITypeInfo *qapi_type; /* non-null for QAPI enums */
-    const QEnumLookup *lookup;
+    const QAPITypeInfo *qapi_type;
     int (*get)(Object *, Error **);
     void (*set)(Object *, int, Error **);
 } EnumProperty;
@@ -2520,7 +2519,7 @@ static void property_get_enum(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_enum(v, name, &value, prop->lookup, errp);
+    visit_type_enum(v, name, &value, prop->qapi_type->lookup, errp);
 }
 
 static void property_set_enum(Object *obj, Visitor *v, const char *name,
@@ -2529,7 +2528,7 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
     EnumProperty *prop = opaque;
     int value;
 
-    if (!visit_type_enum(v, name, &value, prop->lookup, errp)) {
+    if (!visit_type_enum(v, name, &value, prop->qapi_type->lookup, errp)) {
         return;
     }
     prop->set(obj, value, errp);
@@ -2539,15 +2538,12 @@ ObjectProperty *
 object_property_add_enum(Object *obj, const char *name,
                          const char *typename,
                          const QAPITypeInfo *qapi_type,
-                         const QEnumLookup *lookup,
                          int (*get)(Object *, Error **),
                          void (*set)(Object *, int, Error **))
 {
     EnumProperty *prop = g_malloc(sizeof(*prop));
 
-    assert(!qapi_type != !lookup);
     prop->qapi_type = qapi_type;
-    prop->lookup = lookup ?: qapi_type->lookup;
     prop->get = get;
     prop->set = set;
 
@@ -2562,15 +2558,12 @@ ObjectProperty *
 object_class_property_add_enum(ObjectClass *klass, const char *name,
                                     const char *typename,
                                     const QAPITypeInfo *qapi_type,
-                                    const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
                                     void (*set)(Object *, int, Error **))
 {
     EnumProperty *prop = g_malloc(sizeof(*prop));
 
-    assert(!qapi_type != !lookup);
     prop->qapi_type = qapi_type;
-    prop->lookup = lookup ?: qapi_type->lookup;
     prop->get = get;
     prop->set = set;
 
@@ -2607,7 +2600,7 @@ int object_property_get_enum(Object *obj, const char *name,
         return -1;
     }
 
-    ret = qapi_enum_parse(enumprop->lookup, str, -1, errp);
+    ret = qapi_enum_parse(enumprop->qapi_type->lookup, str, -1, errp);
     g_free(str);
 
     return ret;

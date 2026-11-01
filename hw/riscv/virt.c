@@ -1175,14 +1175,14 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     }
 
     object_class_property_add_enum(oc, "acpi", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   virt_get_acpi, virt_set_acpi);
+                                   &OnOffAuto_type_info, virt_get_acpi,
+                                   virt_set_acpi);
     object_class_property_set_description(oc, "acpi",
                                           "Enable ACPI");
 
-    object_class_property_add_enum(oc,  "iommu-sys", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   virt_get_iommu_sys, virt_set_iommu_sys);
+    object_class_property_add_enum(oc, "iommu-sys", "OnOffAuto",
+                                   &OnOffAuto_type_info, virt_get_iommu_sys,
+                                   virt_set_iommu_sys);
     object_class_property_set_description(oc, "iommu-sys",
                                           "Enable IOMMU platform device");
 }

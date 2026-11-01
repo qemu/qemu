@@ -1988,7 +1988,6 @@ ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
  * @name: the name of the property
  * @typename: the name of the enum data type
  * @qapi_type: QAPI type info descriptor
- * @lookup: enum value namelookup table
  * @get: the getter or %NULL if the property is write-only.
  * @set: the setter or %NULL if the property is read-only
  *
@@ -2000,7 +1999,6 @@ ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
 ObjectProperty *object_property_add_enum(Object *obj, const char *name,
                               const char *typename,
                               const QAPITypeInfo *qapi_type,
-                              const QEnumLookup *lookup,
                               int (*get)(Object *, Error **),
                               void (*set)(Object *, int, Error **));
 
@@ -2010,7 +2008,6 @@ ObjectProperty *object_property_add_enum(Object *obj, const char *name,
  * @name: the name of the property
  * @typename: the name of the enum data type
  * @qapi_type: QAPI type info descriptor
- * @lookup: enum value namelookup table
  * @get: the getter or %NULL if the property is write-only.
  * @set: the setter or %NULL if the property is read-only
  *
@@ -2023,7 +2020,6 @@ ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
                                     const char *name,
                                     const char *typename,
                                     const QAPITypeInfo *qapi_type,
-                                    const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
                                     void (*set)(Object *, int, Error **));
 

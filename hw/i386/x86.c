@@ -373,29 +373,25 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
     nc->raise_nmi = x86_nmi;
 
     object_class_property_add_enum(oc, X86_MACHINE_SMM, "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   x86_machine_get_smm,
+                                   &OnOffAuto_type_info, x86_machine_get_smm,
                                    x86_machine_set_smm);
     object_class_property_set_description(oc, X86_MACHINE_SMM,
         "Enable SMM");
 
     object_class_property_add_enum(oc, X86_MACHINE_ACPI, "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   x86_machine_get_acpi,
+                                   &OnOffAuto_type_info, x86_machine_get_acpi,
                                    x86_machine_set_acpi);
     object_class_property_set_description(oc, X86_MACHINE_ACPI,
         "Enable ACPI");
 
     object_class_property_add_enum(oc, X86_MACHINE_PIT, "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   x86_machine_get_pit,
+                                   &OnOffAuto_type_info, x86_machine_get_pit,
                                    x86_machine_set_pit);
     object_class_property_set_description(oc, X86_MACHINE_PIT,
         "Enable i8254 PIT");
 
     object_class_property_add_enum(oc, X86_MACHINE_PIC, "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   x86_machine_get_pic,
+                                   &OnOffAuto_type_info, x86_machine_get_pic,
                                    x86_machine_set_pic);
     object_class_property_set_description(oc, X86_MACHINE_PIC,
         "Enable i8259 PIC");

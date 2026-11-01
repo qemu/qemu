@@ -511,8 +511,8 @@ dbus_display_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "addr", get_dbus_addr, set_dbus_addr);
     object_class_property_add_str(oc, "audiodev", get_audiodev, set_audiodev);
     object_class_property_add_enum(oc, "gl-mode", "DisplayGLMode",
-                                   &DisplayGLMode_type_info, NULL,
-                                   get_gl_mode, set_gl_mode);
+                                   &DisplayGLMode_type_info, get_gl_mode,
+                                   set_gl_mode);
 }
 
 #define TYPE_CHARDEV_VC "chardev-vc"

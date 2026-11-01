@@ -176,7 +176,7 @@ static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc,
     mc->is_default = true;
 
     prop = object_class_property_add_enum(oc, "endianness", "EndianMode",
-                                          &EndianMode_type_info, NULL,
+                                          &EndianMode_type_info,
                                           machine_get_endianness,
                                           machine_set_endianness);
     object_property_set_default_str(prop, target_big_endian() ? "big"

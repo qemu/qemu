@@ -2974,17 +2974,16 @@ void whpx_arch_accel_class_init(ObjectClass *oc)
 {
     object_class_property_add_enum(oc, "ignore-unknown-msr", "OnOffAuto",
                                    &OnOffAuto_type_info, NULL,
-                                   NULL, whpx_set_unknown_msr);
+                                   whpx_set_unknown_msr);
     object_class_property_set_description(oc, "ignore-unknown-msr",
         "Configure unknown MSR behavior");
     object_class_property_add_enum(oc, "intercept-msr-gp", "OnOffAuto",
                                    &OnOffAuto_type_info, NULL,
-                                   NULL, whpx_set_intercept_msr_gp);
+                                   whpx_set_intercept_msr_gp);
     object_class_property_set_description(oc, "intercept-msr-gp",
         "Intercept #GP to log erroring MSR accesses.");
     object_class_property_add_enum(oc, "ssd", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   NULL, whpx_set_ssd);
+                                   &OnOffAuto_type_info, NULL, whpx_set_ssd);
     object_class_property_set_description(oc, "ssd",
         "Separate security domain");
 }

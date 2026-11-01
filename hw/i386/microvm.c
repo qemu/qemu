@@ -658,25 +658,22 @@ static void microvm_class_init(ObjectClass *oc, const void *data)
     hc->unplug_request = microvm_device_unplug_request_cb;
     hc->unplug = microvm_device_unplug_cb;
 
-    object_class_property_add_enum(oc, MICROVM_MACHINE_RTC,
-                                   "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+    object_class_property_add_enum(oc, MICROVM_MACHINE_RTC, "OnOffAuto",
+                                   &OnOffAuto_type_info,
                                    microvm_machine_get_rtc,
                                    microvm_machine_set_rtc);
     object_class_property_set_description(oc, MICROVM_MACHINE_RTC,
         "Enable MC146818 RTC");
 
-    object_class_property_add_enum(oc, MICROVM_MACHINE_PCIE,
-                                   "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+    object_class_property_add_enum(oc, MICROVM_MACHINE_PCIE, "OnOffAuto",
+                                   &OnOffAuto_type_info,
                                    microvm_machine_get_pcie,
                                    microvm_machine_set_pcie);
     object_class_property_set_description(oc, MICROVM_MACHINE_PCIE,
         "Enable PCIe");
 
-    object_class_property_add_enum(oc, MICROVM_MACHINE_IOAPIC2,
-                                   "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+    object_class_property_add_enum(oc, MICROVM_MACHINE_IOAPIC2, "OnOffAuto",
+                                   &OnOffAuto_type_info,
                                    microvm_machine_get_ioapic2,
                                    microvm_machine_set_ioapic2);
     object_class_property_set_description(oc, MICROVM_MACHINE_IOAPIC2,

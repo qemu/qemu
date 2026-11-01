@@ -293,7 +293,7 @@ file_backend_class_init(ObjectClass *oc, const void *data)
         file_memory_backend_get_readonly,
         file_memory_backend_set_readonly);
     object_class_property_add_enum(oc, "rom", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+                                   &OnOffAuto_type_info,
                                    file_memory_backend_get_rom,
                                    file_memory_backend_set_rom);
     object_class_property_set_description(oc, "rom",

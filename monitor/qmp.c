@@ -136,7 +136,7 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
                                    monitor_qmp_set_pretty);
     object_class_property_add_enum(cls, "close-action",
                                    "MonitorQMPCloseAction",
-                                   &MonitorQMPCloseAction_type_info, NULL,
+                                   &MonitorQMPCloseAction_type_info,
                                    monitor_qmp_get_close_action,
                                    monitor_qmp_set_close_action);
 

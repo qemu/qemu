@@ -271,7 +271,7 @@ static void hvf_accel_class_init(ObjectClass *oc, const void *data)
 
     object_class_property_add_enum(oc, "kernel-irqchip", "on|off|split",
                                    &OnOffSplit_type_info, NULL,
-                                   NULL, hvf_set_kernel_irqchip);
+                                   hvf_set_kernel_irqchip);
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure HVF irqchip");
 }

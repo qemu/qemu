@@ -1726,9 +1726,8 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, PC_MACHINE_MAX_RAM_BELOW_4G,
         "Maximum ram below the 4G boundary (32bit boundary)");
 
-    object_class_property_add_enum(oc, PC_MACHINE_VMPORT,
-                                   "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
+    object_class_property_add_enum(oc, PC_MACHINE_VMPORT, "OnOffAuto",
+                                   &OnOffAuto_type_info,
                                    pc_machine_get_vmport,
                                    pc_machine_set_vmport);
     object_class_property_set_description(oc, PC_MACHINE_VMPORT,

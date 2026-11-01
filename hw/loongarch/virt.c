@@ -1470,18 +1470,18 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     hc->unplug = virt_device_unplug;
 
     object_class_property_add_enum(oc, "acpi", "OnOffAuto",
-                                        &OnOffAuto_type_info, NULL,
-                                        virt_get_acpi, virt_set_acpi);
+                                   &OnOffAuto_type_info, virt_get_acpi,
+                                   virt_set_acpi);
     object_class_property_set_description(oc, "acpi",
         "Enable ACPI");
     object_class_property_add_enum(oc, "v-eiointc", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   virt_get_veiointc, virt_set_veiointc);
+                                   &OnOffAuto_type_info, virt_get_veiointc,
+                                   virt_set_veiointc);
     object_class_property_set_description(oc, "v-eiointc",
                             "Enable Virt Extend I/O Interrupt Controller.");
-    object_class_property_add_enum(oc,  "dmsi", "OnOffAuto",
-                                   &OnOffAuto_type_info, NULL,
-                                   virt_get_dmsi, virt_set_dmsi);
+    object_class_property_add_enum(oc, "dmsi", "OnOffAuto",
+                                   &OnOffAuto_type_info, virt_get_dmsi,
+                                   virt_set_dmsi);
     object_class_property_set_description(oc, "dmsi",
                             "Enable direct Message-interrupts Controller.");
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);

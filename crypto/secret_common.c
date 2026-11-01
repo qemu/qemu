@@ -271,7 +271,7 @@ qcrypto_secret_class_init(ObjectClass *oc, const void *data)
     ucc->complete = qcrypto_secret_complete;
 
     object_class_property_add_enum(oc, "format", "QCryptoSecretFormat",
-                                   &QCryptoSecretFormat_type_info, NULL,
+                                   &QCryptoSecretFormat_type_info,
                                    qcrypto_secret_prop_get_format,
                                    qcrypto_secret_prop_set_format);
     object_class_property_add_str(oc, "keyid",

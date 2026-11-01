@@ -554,7 +554,7 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "host-nodes",
         "Binds memory to the list of NUMA host nodes");
     object_class_property_add_enum(oc, "policy", "HostMemPolicy",
-                                   &HostMemPolicy_type_info, NULL,
+                                   &HostMemPolicy_type_info,
                                    host_memory_backend_get_policy,
                                    host_memory_backend_set_policy);
     object_class_property_set_description(oc, "policy",
