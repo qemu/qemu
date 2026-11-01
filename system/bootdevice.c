@@ -336,7 +336,7 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
     prop->suffix = suffix;
     prop->dev = dev;
 
-    object_property_add(obj, name, "int32",
+    object_property_add(obj, name, "int32", NULL,
                         device_get_bootindex,
                         device_set_bootindex,
                         property_release_bootindex,

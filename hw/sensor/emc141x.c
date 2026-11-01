@@ -251,16 +251,16 @@ static void emc141x_reset(DeviceState *dev)
 
 static void emc141x_initfn(Object *obj)
 {
-    object_property_add(obj, "temperature0", "int",
+    object_property_add(obj, "temperature0", "int", NULL,
                         emc141x_get_temperature,
                         emc141x_set_temperature, NULL, NULL);
-    object_property_add(obj, "temperature1", "int",
+    object_property_add(obj, "temperature1", "int", NULL,
                         emc141x_get_temperature,
                         emc141x_set_temperature, NULL, NULL);
-    object_property_add(obj, "temperature2", "int",
+    object_property_add(obj, "temperature2", "int", NULL,
                         emc141x_get_temperature,
                         emc141x_set_temperature, NULL, NULL);
-    object_property_add(obj, "temperature3", "int",
+    object_property_add(obj, "temperature3", "int", NULL,
                         emc141x_get_temperature,
                         emc141x_set_temperature, NULL, NULL);
 }

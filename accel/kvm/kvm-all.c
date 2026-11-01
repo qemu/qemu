@@ -4303,21 +4303,22 @@ static void kvm_accel_class_init(ObjectClass *oc, const void *data)
     ac->has_memory = kvm_accel_has_memory;
     ac->allowed = &kvm_allowed;
 
-    object_class_property_add(oc, "kernel-irqchip", "on|off|split",
-        NULL, kvm_set_kernel_irqchip,
-        NULL, NULL);
+    object_class_property_add(oc, "kernel-irqchip", "on|off|split", NULL,
+                              NULL, kvm_set_kernel_irqchip,
+                              NULL, NULL);
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure KVM in-kernel irqchip");
 
-    object_class_property_add(oc, "kvm-shadow-mem", "int",
-        kvm_get_kvm_shadow_mem, kvm_set_kvm_shadow_mem,
-        NULL, NULL);
+    object_class_property_add(oc, "kvm-shadow-mem", "int", NULL,
+                              kvm_get_kvm_shadow_mem, kvm_set_kvm_shadow_mem,
+                              NULL, NULL);
     object_class_property_set_description(oc, "kvm-shadow-mem",
         "KVM shadow MMU size");
 
-    object_class_property_add(oc, "dirty-ring-size", "uint32",
-        kvm_get_dirty_ring_size, kvm_set_dirty_ring_size,
-        NULL, NULL);
+    object_class_property_add(oc, "dirty-ring-size", "uint32", NULL,
+                              kvm_get_dirty_ring_size,
+                              kvm_set_dirty_ring_size,
+                              NULL, NULL);
     object_class_property_set_description(oc, "dirty-ring-size",
         "Size of KVM dirty page ring buffer (default: 0, i.e. use bitmap)");
 

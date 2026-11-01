@@ -159,7 +159,7 @@ static void sgx_epc_class_init(ObjectClass *oc, const void *data)
     mdc->get_memory_region = sgx_epc_md_get_memory_region;
     mdc->fill_device_info = sgx_epc_md_fill_device_info;
 
-    object_class_property_add(oc, SGX_EPC_SIZE_PROP, "uint64",
+    object_class_property_add(oc, SGX_EPC_SIZE_PROP, "uint64", NULL,
                               sgx_epc_get_size,
                               NULL,
                               NULL, NULL);

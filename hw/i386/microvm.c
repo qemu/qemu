@@ -673,21 +673,21 @@ static void microvm_class_init(ObjectClass *oc, const void *data)
     hc->unplug_request = microvm_device_unplug_request_cb;
     hc->unplug = microvm_device_unplug_cb;
 
-    object_class_property_add(oc, MICROVM_MACHINE_RTC, "OnOffAuto",
+    object_class_property_add(oc, MICROVM_MACHINE_RTC, "OnOffAuto", NULL,
                               microvm_machine_get_rtc,
                               microvm_machine_set_rtc,
                               NULL, NULL);
     object_class_property_set_description(oc, MICROVM_MACHINE_RTC,
         "Enable MC146818 RTC");
 
-    object_class_property_add(oc, MICROVM_MACHINE_PCIE, "OnOffAuto",
+    object_class_property_add(oc, MICROVM_MACHINE_PCIE, "OnOffAuto", NULL,
                               microvm_machine_get_pcie,
                               microvm_machine_set_pcie,
                               NULL, NULL);
     object_class_property_set_description(oc, MICROVM_MACHINE_PCIE,
         "Enable PCIe");
 
-    object_class_property_add(oc, MICROVM_MACHINE_IOAPIC2, "OnOffAuto",
+    object_class_property_add(oc, MICROVM_MACHINE_IOAPIC2, "OnOffAuto", NULL,
                               microvm_machine_get_ioapic2,
                               microvm_machine_set_ioapic2,
                               NULL, NULL);

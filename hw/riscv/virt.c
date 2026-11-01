@@ -1184,13 +1184,13 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
         object_class_property_set_description(oc, "aia-guests", str);
     }
 
-    object_class_property_add(oc, "acpi", "OnOffAuto",
+    object_class_property_add(oc, "acpi", "OnOffAuto", NULL,
                               virt_get_acpi, virt_set_acpi,
                               NULL, NULL);
     object_class_property_set_description(oc, "acpi",
                                           "Enable ACPI");
 
-    object_class_property_add(oc, "iommu-sys", "OnOffAuto",
+    object_class_property_add(oc, "iommu-sys", "OnOffAuto", NULL,
                               virt_get_iommu_sys, virt_set_iommu_sys,
                               NULL, NULL);
     object_class_property_set_description(oc, "iommu-sys",

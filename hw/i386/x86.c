@@ -391,26 +391,26 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
     mc->kvm_type = x86_kvm_type;
     nc->raise_nmi = x86_nmi;
 
-    object_class_property_add(oc, X86_MACHINE_SMM, "OnOffAuto",
-        x86_machine_get_smm, x86_machine_set_smm,
-        NULL, NULL);
+    object_class_property_add(oc, X86_MACHINE_SMM, "OnOffAuto", NULL,
+                              x86_machine_get_smm, x86_machine_set_smm,
+                              NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_SMM,
         "Enable SMM");
 
-    object_class_property_add(oc, X86_MACHINE_ACPI, "OnOffAuto",
-        x86_machine_get_acpi, x86_machine_set_acpi,
-        NULL, NULL);
+    object_class_property_add(oc, X86_MACHINE_ACPI, "OnOffAuto", NULL,
+                              x86_machine_get_acpi, x86_machine_set_acpi,
+                              NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_ACPI,
         "Enable ACPI");
 
-    object_class_property_add(oc, X86_MACHINE_PIT, "OnOffAuto",
+    object_class_property_add(oc, X86_MACHINE_PIT, "OnOffAuto", NULL,
                               x86_machine_get_pit,
                               x86_machine_set_pit,
                               NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_PIT,
         "Enable i8254 PIT");
 
-    object_class_property_add(oc, X86_MACHINE_PIC, "OnOffAuto",
+    object_class_property_add(oc, X86_MACHINE_PIC, "OnOffAuto", NULL,
                               x86_machine_get_pic,
                               x86_machine_set_pic,
                               NULL, NULL);
@@ -435,14 +435,15 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
                                           "The string may be up to 8 bytes in size");
 
     object_class_property_add(oc, X86_MACHINE_BUS_LOCK_RATELIMIT, "uint64_t",
+                                NULL,
                                 x86_machine_get_bus_lock_ratelimit,
                                 x86_machine_set_bus_lock_ratelimit, NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_BUS_LOCK_RATELIMIT,
             "Set the ratelimit for the bus locks acquired in VMs");
 
-    object_class_property_add(oc, "sgx-epc", "SgxEPC",
-        machine_get_sgx_epc, machine_set_sgx_epc,
-        NULL, NULL);
+    object_class_property_add(oc, "sgx-epc", "SgxEPC", NULL,
+                              machine_get_sgx_epc, machine_set_sgx_epc,
+                              NULL, NULL);
     object_class_property_set_description(oc, "sgx-epc",
         "SGX EPC device");
 }

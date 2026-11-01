@@ -3024,7 +3024,7 @@ sev_guest_class_init(ObjectClass *oc, const void *data)
                                   sev_guest_set_session_file);
     object_class_property_set_description(oc, "session-file",
             "guest owners session parameters (encoded with base64)");
-    object_class_property_add(oc, "legacy-vm-type", "OnOffAuto",
+    object_class_property_add(oc, "legacy-vm-type", "OnOffAuto", NULL,
                               sev_guest_get_legacy_vm_type,
                               sev_guest_set_legacy_vm_type, NULL, NULL);
     object_class_property_set_description(oc, "legacy-vm-type",
@@ -3056,7 +3056,7 @@ sev_guest_instance_init(Object *obj)
     sev_guest->policy = DEFAULT_GUEST_POLICY;
     object_property_add_uint32_ptr(obj, "handle", &sev_guest->handle,
                                    OBJ_PROP_FLAG_READWRITE);
-    object_property_add(obj, "policy", "uint32", sev_guest_get_policy,
+    object_property_add(obj, "policy", "uint32", NULL, sev_guest_get_policy,
                         sev_guest_set_policy, NULL, NULL);
     object_apply_compat_props(obj);
 
@@ -3334,7 +3334,7 @@ sev_snp_guest_class_init(ObjectClass *oc, const void *data)
     x86_klass->adjust_cpuid_features = sev_snp_adjust_cpuid_features;
     x86_klass->kvm_type = sev_snp_kvm_type;
 
-    object_class_property_add(oc, "policy", "uint64",
+    object_class_property_add(oc, "policy", "uint64", NULL,
                               sev_snp_guest_get_policy,
                               sev_snp_guest_set_policy, NULL, NULL);
     object_class_property_add_str(oc, "guest-visible-workarounds",
@@ -3358,7 +3358,7 @@ sev_snp_guest_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "secure-tsc",
                                   sev_snp_guest_get_secure_tsc,
                                   sev_snp_guest_set_secure_tsc);
-    object_class_property_add(oc, "tsc-frequency", "uint32",
+    object_class_property_add(oc, "tsc-frequency", "uint32", NULL,
                               sev_snp_guest_get_tsc_frequency,
                               sev_snp_guest_set_tsc_frequency, NULL, NULL);
 }

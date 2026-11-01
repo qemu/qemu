@@ -281,14 +281,14 @@ file_backend_class_init(ObjectClass *oc, const void *data)
         file_memory_backend_get_discard_data, file_memory_backend_set_discard_data);
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path);
-    object_class_property_add(oc, "align", "uint64",
-        file_memory_backend_get_align,
-        file_memory_backend_set_align,
-        NULL, NULL);
-    object_class_property_add(oc, "offset", "int",
-        file_memory_backend_get_offset,
-        file_memory_backend_set_offset,
-        NULL, NULL);
+    object_class_property_add(oc, "align", "uint64", NULL,
+                              file_memory_backend_get_align,
+                              file_memory_backend_set_align,
+                              NULL, NULL);
+    object_class_property_add(oc, "offset", "int", NULL,
+                              file_memory_backend_get_offset,
+                              file_memory_backend_set_offset,
+                              NULL, NULL);
     object_class_property_set_description(oc, "offset",
         "Offset into the target file (ex: 1G)");
 #ifdef CONFIG_LIBPMEM
@@ -298,8 +298,9 @@ file_backend_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_bool(oc, "readonly",
         file_memory_backend_get_readonly,
         file_memory_backend_set_readonly);
-    object_class_property_add(oc, "rom", "OnOffAuto",
-        file_memory_backend_get_rom, file_memory_backend_set_rom, NULL, NULL);
+    object_class_property_add(oc, "rom", "OnOffAuto", NULL,
+                              file_memory_backend_get_rom,
+                              file_memory_backend_set_rom, NULL, NULL);
     object_class_property_set_description(oc, "rom",
         "Whether to create Read Only Memory (ROM)");
 }

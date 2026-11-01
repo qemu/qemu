@@ -388,18 +388,22 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
+                              NULL,
                               i440fx_pcihost_get_pci_hole_start,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
+                              NULL,
                               i440fx_pcihost_get_pci_hole_end,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
+                              NULL,
                               i440fx_pcihost_get_pci_hole64_start,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
+                              NULL,
                               i440fx_pcihost_get_pci_hole64_end,
                               NULL, NULL, NULL);
 }

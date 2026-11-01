@@ -182,7 +182,7 @@ static void filter_buffer_class_init(ObjectClass *oc, const void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 
-    object_class_property_add(oc, "interval", "uint32",
+    object_class_property_add(oc, "interval", "uint32", NULL,
                               filter_buffer_get_interval,
                               filter_buffer_set_interval, NULL, NULL);
 

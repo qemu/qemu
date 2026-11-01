@@ -139,8 +139,8 @@ static void acpi_generic_initiator_class_init(ObjectClass *oc, const void *data)
         acpi_generic_initiator_set_pci_device);
     object_class_property_set_description(oc, "pci-dev",
         "PCI device to associate with the node");
-    object_class_property_add(oc, "node", "uint32", NULL,
-        acpi_generic_initiator_set_node, NULL, NULL);
+    object_class_property_add(oc, "node", "uint32", NULL, NULL,
+                              acpi_generic_initiator_set_node, NULL, NULL);
     object_class_property_set_description(oc, "node",
         "NUMA node associated with the PCI device");
 }
@@ -253,8 +253,8 @@ static void acpi_generic_port_class_init(ObjectClass *oc, const void *data)
         acpi_generic_port_set_pci_bus);
     object_class_property_set_description(oc, "pci-bus",
        "PCI Bus of the host bridge associated with this GP affinity structure");
-    object_class_property_add(oc, "node", "uint32", NULL,
-        acpi_generic_port_set_node, NULL, NULL);
+    object_class_property_add(oc, "node", "uint32", NULL, NULL,
+                              acpi_generic_port_set_node, NULL, NULL);
     object_class_property_set_description(oc, "node",
        "The NUMA node like ID to index HMAT/SLIT NUMA properties involving GP");
 }

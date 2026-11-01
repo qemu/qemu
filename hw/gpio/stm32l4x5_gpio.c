@@ -409,10 +409,10 @@ static void stm32l4x5_gpio_init(Object *obj)
 
     s->clk = qdev_init_clock_in(DEVICE(s), "clk", NULL, s, 0);
 
-    object_property_add(obj, "disconnected-pins", "uint16",
+    object_property_add(obj, "disconnected-pins", "uint16", NULL,
                         disconnected_pins_get, disconnected_pins_set,
                         NULL, &s->disconnected_pins);
-    object_property_add(obj, "clock-freq-hz", "uint32",
+    object_property_add(obj, "clock-freq-hz", "uint32", NULL,
                         clock_freq_get, NULL, NULL, NULL);
 }
 

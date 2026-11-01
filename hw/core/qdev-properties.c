@@ -1150,7 +1150,7 @@ void qdev_property_add_static(DeviceState *dev, const Property *prop)
 
     assert(!prop->info->create);
 
-    op = object_property_add(obj, prop->name, prop->info->type,
+    op = object_property_add(obj, prop->name, prop->info->type, NULL,
                              field_prop_getter(prop->info),
                              field_prop_setter(prop->info),
                              prop->info->release,
@@ -1176,8 +1176,7 @@ static void qdev_class_add_property(DeviceClass *klass, const char *name,
     if (prop->info->create) {
         op = prop->info->create(oc, name, prop);
     } else {
-        op = object_class_property_add(oc,
-                                       name, prop->info->type,
+        op = object_class_property_add(oc, name, prop->info->type, NULL,
                                        field_prop_getter(prop->info),
                                        field_prop_setter(prop->info),
                                        prop->info->release,

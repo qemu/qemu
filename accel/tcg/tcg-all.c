@@ -270,9 +270,9 @@ static void tcg_accel_class_init(ObjectClass *oc, const void *data)
                                   tcg_get_thread,
                                   tcg_set_thread);
 
-    object_class_property_add(oc, "tb-size", "uint32",
-        tcg_get_tb_size, tcg_set_tb_size,
-        NULL, NULL);
+    object_class_property_add(oc, "tb-size", "uint32", NULL,
+                              tcg_get_tb_size, tcg_set_tb_size,
+                              NULL, NULL);
     object_class_property_set_description(oc, "tb-size",
         "TCG translation block cache size");
 

@@ -195,12 +195,14 @@ static void cpi_class_init(ObjectClass *klass, const void *data)
             "name of the cluster which the VM belongs to, if any"
             " e.g. \"PLEX    \"");
 
-    object_class_property_add(klass, "system_level", "uint64", get_system_level,
+    object_class_property_add(klass, "system_level", "uint64", NULL,
+                              get_system_level,
                               NULL, NULL, NULL);
     object_class_property_set_description(klass, "system_level",
             "distribution and kernel version in Linux e.g. 74872343805430528");
 
-    object_class_property_add(klass, "timestamp", "uint64", get_timestamp,
+    object_class_property_add(klass, "timestamp", "uint64", NULL,
+                              get_timestamp,
                               NULL, NULL, NULL);
     object_class_property_set_description(klass, "timestamp",
             "latest update of CPI data in nanoseconds since the UNIX EPOCH");

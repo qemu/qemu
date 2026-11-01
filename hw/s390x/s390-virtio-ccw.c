@@ -908,7 +908,7 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "dea-key-wrap",
             "enable/disable DEA key wrapping using the CPACF wrapping key");
 
-    object_class_property_add(oc, "loadparm", "loadparm",
+    object_class_property_add(oc, "loadparm", "loadparm", NULL,
                               machine_get_loadparm, machine_set_loadparm,
                               NULL, NULL);
     object_class_property_set_description(oc, "loadparm",
@@ -916,7 +916,7 @@ static void ccw_machine_class_init(ObjectClass *oc, const void *data)
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel");
 
-    object_class_property_add(oc, "boot-certs", "BootCertificatesList",
+    object_class_property_add(oc, "boot-certs", "BootCertificatesList", NULL,
                               machine_get_boot_certs, machine_set_boot_certs, NULL, NULL);
     object_class_property_set_description(oc, "boot-certs",
             "provide paths to a directory and/or a certificate file for secure boot");

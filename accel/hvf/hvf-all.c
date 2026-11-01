@@ -277,9 +277,9 @@ static void hvf_accel_class_init(ObjectClass *oc, const void *data)
     ac->allowed = &hvf_allowed;
     hvf_kernel_irqchip_override = false;
     hvf_kernel_irqchip = false;
-    object_class_property_add(oc, "kernel-irqchip", "on|off|split",
-        NULL, hvf_set_kernel_irqchip,
-        NULL, NULL);
+    object_class_property_add(oc, "kernel-irqchip", "on|off|split", NULL,
+                              NULL, hvf_set_kernel_irqchip,
+                              NULL, NULL);
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure HVF irqchip");
 }

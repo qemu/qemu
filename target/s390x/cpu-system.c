@@ -138,6 +138,7 @@ void s390_cpu_system_init(Object *obj)
 
     cs->start_powered_off = true;
     object_property_add(obj, "crash-information", "GuestPanicInformation",
+                        NULL,
                         s390_cpu_get_crash_info_qom, NULL, NULL, NULL);
     cpu->env.tod_timer =
         timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);

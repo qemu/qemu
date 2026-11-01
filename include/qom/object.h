@@ -1163,6 +1163,7 @@ void object_unref(void *obj);
  *   defined.  Sub namespaces are constructed by using a prefix and then
  *   to angle brackets.  For instance, the type 'virtio-net-pci' in the
  *   'link' namespace would be 'link<virtio-net-pci>'.
+ * @qapi_type: QAPI type info descriptor
  * @get: The getter to be called to read a property.  If this is NULL, then
  *   the property cannot be read.
  * @set: the setter to be called to write a property.  If this is NULL,
@@ -1188,6 +1189,7 @@ void object_unref(void *obj);
  */
 ObjectProperty *object_property_try_add(Object *obj, const char *name,
                                         const char *type,
+                                        const QAPITypeInfo *qapi_type,
                                         ObjectPropertyAccessor *get,
                                         ObjectPropertyAccessor *set,
                                         ObjectPropertyRelease *release,
@@ -1203,6 +1205,7 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
  *   defined.  Sub namespaces are constructed by using a prefix and then
  *   to angle brackets.  For instance, the type 'virtio-net-pci' in the
  *   'link' namespace would be 'link<virtio-net-pci>'.
+ * @qapi_type: QAPI type info descriptor
  * @get: The getter to be called to read a property.  If this is NULL, then
  *   the property cannot be read.
  * @set: the setter to be called to write a property.  If this is NULL,
@@ -1220,6 +1223,7 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
  */
 ObjectProperty *object_property_add(Object *obj, const char *name,
                                     const char *type,
+                                    const QAPITypeInfo *qapi_type,
                                     ObjectPropertyAccessor *get,
                                     ObjectPropertyAccessor *set,
                                     ObjectPropertyRelease *release,
@@ -1237,6 +1241,7 @@ void object_property_del(Object *obj, const char *name);
 
 ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           const char *type,
+                                          const QAPITypeInfo *qapi_type,
                                           ObjectPropertyAccessor *get,
                                           ObjectPropertyAccessor *set,
                                           ObjectPropertyRelease *release,

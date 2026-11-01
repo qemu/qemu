@@ -1483,18 +1483,18 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     hc->unplug_request = virt_device_unplug_request;
     hc->unplug = virt_device_unplug;
 
-    object_class_property_add(oc, "acpi", "OnOffAuto",
-        virt_get_acpi, virt_set_acpi,
-        NULL, NULL);
+    object_class_property_add(oc, "acpi", "OnOffAuto", NULL,
+                              virt_get_acpi, virt_set_acpi,
+                              NULL, NULL);
     object_class_property_set_description(oc, "acpi",
         "Enable ACPI");
-    object_class_property_add(oc, "v-eiointc", "OnOffAuto",
-        virt_get_veiointc, virt_set_veiointc,
-        NULL, NULL);
+    object_class_property_add(oc, "v-eiointc", "OnOffAuto", NULL,
+                              virt_get_veiointc, virt_set_veiointc,
+                              NULL, NULL);
     object_class_property_set_description(oc, "v-eiointc",
                             "Enable Virt Extend I/O Interrupt Controller.");
-    object_class_property_add(oc, "dmsi", "OnOffAuto",
-        virt_get_dmsi, virt_set_dmsi, NULL, NULL);
+    object_class_property_add(oc, "dmsi", "OnOffAuto", NULL,
+                              virt_get_dmsi, virt_set_dmsi, NULL, NULL);
     object_class_property_set_description(oc, "dmsi",
                             "Enable direct Message-interrupts Controller.");
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
@@ -1525,7 +1525,7 @@ static void virt_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "highmem-mmio",
                                           "Set on/off to enable/disable high "
                                           "memory region for PCI MMIO");
-    object_class_property_add(oc, "highmem-mmio-size", "size",
+    object_class_property_add(oc, "highmem-mmio-size", "size", NULL,
                                    virt_get_highmem_mmio_size,
                                    virt_set_highmem_mmio_size,
                                    NULL, NULL);

@@ -153,7 +153,7 @@ static void hexagon_sim_set_subsystem_base(Object *obj, Visitor *v,
 
 static void add_dsp_properties(ObjectClass *oc)
 {
-    object_class_property_add(oc, "subsystem-base", "uint32",
+    object_class_property_add(oc, "subsystem-base", "uint32", NULL,
                               hexagon_sim_get_subsystem_base,
                               hexagon_sim_set_subsystem_base, NULL, NULL);
     object_class_property_set_description(oc, "subsystem-base",

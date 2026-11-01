@@ -350,16 +350,16 @@ static void tmp421_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
 
-    object_class_property_add(klass, "temperature0", "int",
+    object_class_property_add(klass, "temperature0", "int", NULL,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature1", "int",
+    object_class_property_add(klass, "temperature1", "int", NULL,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature2", "int",
+    object_class_property_add(klass, "temperature2", "int", NULL,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
-    object_class_property_add(klass, "temperature3", "int",
+    object_class_property_add(klass, "temperature3", "int", NULL,
                               tmp421_get_temperature,
                               tmp421_set_temperature, NULL, NULL);
 }

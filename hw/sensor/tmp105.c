@@ -408,7 +408,7 @@ static void tmp105_realize(DeviceState *dev, Error **errp)
 
 static void tmp105_initfn(Object *obj)
 {
-    object_property_add(obj, "temperature", "int",
+    object_property_add(obj, "temperature", "int", NULL,
                         tmp105_get_temperature,
                         tmp105_set_temperature, NULL, NULL);
     object_property_set_description(obj, "temperature",

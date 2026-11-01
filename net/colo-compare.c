@@ -1373,15 +1373,15 @@ static void colo_compare_init(Object *obj)
     object_property_add_str(obj, "notify_dev",
                             compare_get_notify_dev, compare_set_notify_dev);
 
-    object_property_add(obj, "compare_timeout", "uint64",
+    object_property_add(obj, "compare_timeout", "uint64", NULL,
                         compare_get_timeout,
                         compare_set_timeout, NULL, NULL);
 
-    object_property_add(obj, "expired_scan_cycle", "uint32",
+    object_property_add(obj, "expired_scan_cycle", "uint32", NULL,
                         compare_get_expired_scan_cycle,
                         compare_set_expired_scan_cycle, NULL, NULL);
 
-    object_property_add(obj, "max_queue_size", "uint32",
+    object_property_add(obj, "max_queue_size", "uint32", NULL,
                         get_max_queue_size,
                         set_max_queue_size, NULL, NULL);
 

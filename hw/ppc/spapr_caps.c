@@ -1069,7 +1069,7 @@ void spapr_caps_add_properties(SpaprMachineClass *smc)
         g_autofree char *name = g_strdup_printf("cap-%s", cap->name);
         g_autofree char *desc = g_strdup(cap->description);
 
-        object_class_property_add(klass, name, cap->type,
+        object_class_property_add(klass, name, cap->type, NULL,
                                   cap->get, cap->set,
                                   NULL, cap);
 

@@ -99,11 +99,12 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
 
 static void nvdimm_init(Object *obj)
 {
-    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "size",
+    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "size", NULL,
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL);
 
-    object_property_add(obj, NVDIMM_UUID_PROP, "QemuUUID", nvdimm_get_uuid,
+    object_property_add(obj, NVDIMM_UUID_PROP, "QemuUUID", NULL,
+                        nvdimm_get_uuid,
                         nvdimm_set_uuid, NULL, NULL);
 }
 

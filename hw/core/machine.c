@@ -1119,26 +1119,29 @@ static void machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "dumpdtb",
         "Dump current dtb to a file and quit");
 
-    object_class_property_add(oc, "boot", "BootConfiguration",
-        machine_get_boot, machine_set_boot,
-        NULL, NULL);
+    object_class_property_add(oc, "boot", "BootConfiguration", NULL,
+                              machine_get_boot, machine_set_boot,
+                              NULL, NULL);
     object_class_property_set_description(oc, "boot",
         "Boot configuration");
 
-    object_class_property_add(oc, "smp", "SMPConfiguration",
-        machine_get_smp, machine_set_smp,
-        NULL, NULL);
+    object_class_property_add(oc, "smp", "SMPConfiguration", NULL,
+                              machine_get_smp, machine_set_smp,
+                              NULL, NULL);
     object_class_property_set_description(oc, "smp",
         "CPU topology");
 
     object_class_property_add(oc, "smp-cache", "SmpCachePropertiesWrapper",
-        machine_get_smp_cache, machine_set_smp_cache, NULL, NULL);
+                              NULL,
+                              machine_get_smp_cache, machine_set_smp_cache,
+                              NULL, NULL);
     object_class_property_set_description(oc, "smp-cache",
         "Cache properties list for SMP machine");
 
-    object_class_property_add(oc, "phandle-start", "int",
-        machine_get_phandle_start, machine_set_phandle_start,
-        NULL, NULL);
+    object_class_property_add(oc, "phandle-start", "int", NULL,
+                              machine_get_phandle_start,
+                              machine_set_phandle_start,
+                              NULL, NULL);
     object_class_property_set_description(oc, "phandle-start",
         "The first phandle ID we may generate dynamically");
 
@@ -1213,9 +1216,9 @@ static void machine_class_init(ObjectClass *oc, const void *data)
                                           "Set RAM backend"
                                           "Valid value is ID of hostmem based backend");
 
-    object_class_property_add(oc, "memory", "MemorySizeConfiguration",
-        machine_get_mem, machine_set_mem,
-        NULL, NULL);
+    object_class_property_add(oc, "memory", "MemorySizeConfiguration", NULL,
+                              machine_get_mem, machine_set_mem,
+                              NULL, NULL);
     object_class_property_set_description(oc, "memory",
         "Memory size configuration");
 }

@@ -107,7 +107,7 @@ qcrypto_secret_keyring_class_init(ObjectClass *oc, const void *data)
     QCryptoSecretCommonClass *sic = QCRYPTO_SECRET_COMMON_CLASS(oc);
     sic->load_data = qcrypto_secret_keyring_load_data;
 
-    object_class_property_add(oc, "serial", "int32_t",
+    object_class_property_add(oc, "serial", "int32_t", NULL,
                                   qcrypto_secret_prop_get_key,
                                   qcrypto_secret_prop_set_key,
                                   NULL, NULL);

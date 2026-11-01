@@ -238,7 +238,8 @@ static void filter_dump_class_init(ObjectClass *oc, const void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 
-    object_class_property_add(oc, "maxlen", "uint32", filter_dump_get_maxlen,
+    object_class_property_add(oc, "maxlen", "uint32", NULL,
+                              filter_dump_get_maxlen,
                               filter_dump_set_maxlen, NULL, NULL);
     object_class_property_add_str(oc, "file", file_dump_get_filename,
                                   file_dump_set_filename);

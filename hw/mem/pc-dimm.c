@@ -176,7 +176,8 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
 
 static void pc_dimm_init(Object *obj)
 {
-    object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", pc_dimm_get_size,
+    object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", NULL,
+                        pc_dimm_get_size,
                         NULL, NULL, NULL);
 }
 

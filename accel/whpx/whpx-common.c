@@ -528,14 +528,14 @@ static void whpx_accel_class_init(ObjectClass *oc, const void *data)
     ac->pre_resume_vm = whpx_pre_resume_vm;
     ac->allowed = &whpx_allowed;
 
-    object_class_property_add(oc, "kernel-irqchip", "on|off|split",
-        NULL, whpx_set_kernel_irqchip,
-        NULL, NULL);
+    object_class_property_add(oc, "kernel-irqchip", "on|off|split", NULL,
+                              NULL, whpx_set_kernel_irqchip,
+                              NULL, NULL);
     object_class_property_set_description(oc, "kernel-irqchip",
         "Configure WHPX in-kernel irqchip");
-    object_class_property_add(oc, "hyperv", "OnOffAuto",
-        NULL, whpx_set_hyperv,
-        NULL, NULL);
+    object_class_property_add(oc, "hyperv", "OnOffAuto", NULL,
+                              NULL, whpx_set_hyperv,
+                              NULL, NULL);
     object_class_property_set_description(oc, "hyperv",
         "Configure Hyper-V enlightenments");
 

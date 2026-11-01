@@ -185,7 +185,7 @@ static void clock_initfn(Object *obj)
     QLIST_INIT(&clk->children);
 
     if (qtest_enabled()) {
-        object_property_add(obj, "qtest-clock-period", "uint64",
+        object_property_add(obj, "qtest-clock-period", "uint64", NULL,
                             clock_period_prop_get, NULL, NULL, NULL);
     }
 }

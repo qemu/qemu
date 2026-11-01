@@ -642,14 +642,16 @@ static void adc128d818_initfn(Object *obj)
     for (unsigned ch = 0u; ch < ADC128D818_NUM_CHANNELS; ch++) {
         char *name = g_strdup_printf("ain%u", ch);
 
-        object_property_add(obj, name, "int", adc128d818_get_ain,
+        object_property_add(obj, name, "int", NULL, adc128d818_get_ain,
                             adc128d818_set_ain, NULL, NULL);
         g_free(name);
     }
 
-    object_property_add(obj, "temperature", "int", adc128d818_get_temperature,
+    object_property_add(obj, "temperature", "int", NULL,
+                        adc128d818_get_temperature,
                         adc128d818_set_temperature, NULL, NULL);
-    object_property_add(obj, "ext-vref-mv", "int", adc128d818_get_ext_vref,
+    object_property_add(obj, "ext-vref-mv", "int", NULL,
+                        adc128d818_get_ext_vref,
                         adc128d818_set_ext_vref, NULL, NULL);
 }
 

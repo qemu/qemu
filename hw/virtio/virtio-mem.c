@@ -1533,12 +1533,13 @@ static void virtio_mem_instance_init(Object *obj)
 
     notifier_list_init(&vmem->size_change_notifiers);
 
-    object_property_add(obj, VIRTIO_MEM_SIZE_PROP, "size", virtio_mem_get_size,
+    object_property_add(obj, VIRTIO_MEM_SIZE_PROP, "size", NULL,
+                        virtio_mem_get_size,
                         NULL, NULL, NULL);
-    object_property_add(obj, VIRTIO_MEM_REQUESTED_SIZE_PROP, "size",
+    object_property_add(obj, VIRTIO_MEM_REQUESTED_SIZE_PROP, "size", NULL,
                         virtio_mem_get_requested_size,
                         virtio_mem_set_requested_size, NULL, NULL);
-    object_property_add(obj, VIRTIO_MEM_BLOCK_SIZE_PROP, "size",
+    object_property_add(obj, VIRTIO_MEM_BLOCK_SIZE_PROP, "size", NULL,
                         virtio_mem_get_block_size, virtio_mem_set_block_size,
                         NULL, NULL);
 }
