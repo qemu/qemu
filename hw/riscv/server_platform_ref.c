@@ -192,6 +192,7 @@ static void create_fdt_sockets(RISCVServerRefMachineState *s,
 {
     int socket, phandle_pos;
     MachineState *ms = MACHINE(s);
+    g_autofree char *aplic_name = NULL;
     uint32_t msi_m_phandle = 0, msi_s_phandle = 0;
     uint32_t xplic_phandles[MAX_NODES];
     g_autofree uint32_t *intc_phandles = NULL;
@@ -251,8 +252,6 @@ static void create_fdt_sockets(RISCVServerRefMachineState *s,
     aplic_fdt_props.aplic_m = !kvm_enabled()
                               ? &memmap[RVSERVER_APLIC_M] : NULL;
     aplic_fdt_props.aplic_s = &memmap[RVSERVER_APLIC_S];
-    aplic_fdt_props.platform_bus = &memmap[RVSERVER_PLATFORM_BUS];
-    aplic_fdt_props.platform_bus_irq = RVSERVER_PLATFORM_BUS_IRQ;
     aplic_fdt_props.num_harts = ms->smp.cpus;
     aplic_fdt_props.numa_enabled = numa_enabled;
     aplic_fdt_props.irqchip_num_sources = RVSERVER_IRQCHIP_NUM_SOURCES;
@@ -269,6 +268,12 @@ static void create_fdt_sockets(RISCVServerRefMachineState *s,
                                       &intc_phandles[phandle_pos],
                                       xplic_phandles);
     }
+
+    aplic_name = riscv_fdt_get_aplic_nodename(memmap[RVSERVER_APLIC_S].base);
+    platform_bus_add_all_fdt_nodes(ms->fdt, aplic_name,
+                                   memmap[RVSERVER_PLATFORM_BUS].base,
+                                   memmap[RVSERVER_PLATFORM_BUS].size,
+                                   RVSERVER_PLATFORM_BUS_IRQ);
 
     for (socket = 0; socket < socket_count; socket++) {
         if (socket == 0) {

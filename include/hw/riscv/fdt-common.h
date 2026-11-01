@@ -54,8 +54,6 @@ typedef struct IMSICFdtProps {
 typedef struct APLICFdtProps {
     const MemMapEntry *aplic_m;
     const MemMapEntry *aplic_s;
-    const MemMapEntry *platform_bus;
-    int platform_bus_irq;
     int socket;
     int num_harts;
     bool numa_enabled;
@@ -129,6 +127,7 @@ void riscv_create_fdt_socket_aplic(void *fdt, APLICFdtProps *props,
 void riscv_create_fdt_socket_aclint(void *fdt, ACLINTFdtProps *props,
                                     uint32_t *intc_phandles);
 /* Caller must free the returned string.  */
+char *riscv_fdt_get_aplic_nodename(hwaddr addr);
 char *riscv_fdt_get_uart_nodename(hwaddr addr);
 void riscv_create_fdt_uart(void *fdt, const MemMapEntry *uart_mem,
                            int uart_irq, int aia_type,
