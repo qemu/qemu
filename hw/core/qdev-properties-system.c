@@ -592,7 +592,7 @@ static void qdev_propinfo_set_losttickpolicy(Object *obj, Visitor *v,
     int value;
 
     if (!visit_type_enum(v, name, &value,
-                         qdev_propinfo_enum_lookup(prop->info), errp)) {
+                         prop->info->qapi_type->lookup, errp)) {
         return;
     }
 
@@ -1081,8 +1081,7 @@ static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
         abort();
     }
 
-    visit_type_enum(v, name, &speed,
-                    qdev_propinfo_enum_lookup(prop->info), errp);
+    visit_type_enum(v, name, &speed, prop->info->qapi_type->lookup, errp);
 }
 
 static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
@@ -1093,7 +1092,7 @@ static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
     int speed;
 
     if (!visit_type_enum(v, name, &speed,
-                         qdev_propinfo_enum_lookup(prop->info), errp)) {
+                         prop->info->qapi_type->lookup, errp)) {
         return;
     }
 
@@ -1167,8 +1166,7 @@ static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
         abort();
     }
 
-    visit_type_enum(v, name, &width,
-                    qdev_propinfo_enum_lookup(prop->info), errp);
+    visit_type_enum(v, name, &width, prop->info->qapi_type->lookup, errp);
 }
 
 static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
@@ -1179,7 +1177,7 @@ static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
     int width;
 
     if (!visit_type_enum(v, name, &width,
-                         qdev_propinfo_enum_lookup(prop->info), errp)) {
+                         prop->info->qapi_type->lookup, errp)) {
         return;
     }
 
