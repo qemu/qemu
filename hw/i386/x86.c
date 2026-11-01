@@ -24,7 +24,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "qapi/qapi-visit-common.h"
+#include "qapi/qapi-type-infos-common.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
 #include "system/qtest.h"
@@ -188,21 +188,16 @@ bool x86_machine_is_smm_enabled(const X86MachineState *x86ms)
     return false;
 }
 
-static void x86_machine_get_smm(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
+static int x86_machine_get_smm(Object *obj, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-    OnOffAuto smm = x86ms->smm;
-
-    visit_type_OnOffAuto(v, name, &smm, errp);
+    return x86ms->smm;
 }
 
-static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
+static void x86_machine_set_smm(Object *obj, int value, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-
-    visit_type_OnOffAuto(v, name, &x86ms->smm, errp);
+    x86ms->smm = value;
 }
 
 bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms)
@@ -213,55 +208,40 @@ bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms)
     return true;
 }
 
-static void x86_machine_get_acpi(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
+static int x86_machine_get_acpi(Object *obj, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-    OnOffAuto acpi = x86ms->acpi;
-
-    visit_type_OnOffAuto(v, name, &acpi, errp);
+    return x86ms->acpi;
 }
 
-static void x86_machine_set_acpi(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
+static void x86_machine_set_acpi(Object *obj, int value, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-
-    visit_type_OnOffAuto(v, name, &x86ms->acpi, errp);
+    x86ms->acpi = value;
 }
 
-static void x86_machine_get_pit(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
+static int x86_machine_get_pit(Object *obj, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-    OnOffAuto pit = x86ms->pit;
-
-    visit_type_OnOffAuto(v, name, &pit, errp);
+    return x86ms->pit;
 }
 
-static void x86_machine_set_pit(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
+static void x86_machine_set_pit(Object *obj, int value, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-
-    visit_type_OnOffAuto(v, name, &x86ms->pit, errp);
+    x86ms->pit = value;
 }
 
-static void x86_machine_get_pic(Object *obj, Visitor *v, const char *name,
-                                void *opaque, Error **errp)
+static int x86_machine_get_pic(Object *obj, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-    OnOffAuto pic = x86ms->pic;
-
-    visit_type_OnOffAuto(v, name, &pic, errp);
+    return x86ms->pic;
 }
 
-static void x86_machine_set_pic(Object *obj, Visitor *v, const char *name,
-                                void *opaque, Error **errp)
+static void x86_machine_set_pic(Object *obj, int value, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
-
-    visit_type_OnOffAuto(v, name, &x86ms->pic, errp);
+    x86ms->pic = value;
 }
 
 static char *x86_machine_get_oem_id(Object *obj, Error **errp)
@@ -391,29 +371,31 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
     mc->kvm_type = x86_kvm_type;
     nc->raise_nmi = x86_nmi;
 
-    object_class_property_add(oc, X86_MACHINE_SMM, "OnOffAuto", NULL,
-                              x86_machine_get_smm, x86_machine_set_smm,
-                              NULL, NULL);
+    object_class_property_add_enum(oc, X86_MACHINE_SMM, "OnOffAuto",
+                                   &OnOffAuto_type_info, NULL,
+                                   x86_machine_get_smm,
+                                   x86_machine_set_smm);
     object_class_property_set_description(oc, X86_MACHINE_SMM,
         "Enable SMM");
 
-    object_class_property_add(oc, X86_MACHINE_ACPI, "OnOffAuto", NULL,
-                              x86_machine_get_acpi, x86_machine_set_acpi,
-                              NULL, NULL);
+    object_class_property_add_enum(oc, X86_MACHINE_ACPI, "OnOffAuto",
+                                   &OnOffAuto_type_info, NULL,
+                                   x86_machine_get_acpi,
+                                   x86_machine_set_acpi);
     object_class_property_set_description(oc, X86_MACHINE_ACPI,
         "Enable ACPI");
 
-    object_class_property_add(oc, X86_MACHINE_PIT, "OnOffAuto", NULL,
-                              x86_machine_get_pit,
-                              x86_machine_set_pit,
-                              NULL, NULL);
+    object_class_property_add_enum(oc, X86_MACHINE_PIT, "OnOffAuto",
+                                   &OnOffAuto_type_info, NULL,
+                                   x86_machine_get_pit,
+                                   x86_machine_set_pit);
     object_class_property_set_description(oc, X86_MACHINE_PIT,
         "Enable i8254 PIT");
 
-    object_class_property_add(oc, X86_MACHINE_PIC, "OnOffAuto", NULL,
-                              x86_machine_get_pic,
-                              x86_machine_set_pic,
-                              NULL, NULL);
+    object_class_property_add_enum(oc, X86_MACHINE_PIC, "OnOffAuto",
+                                   &OnOffAuto_type_info, NULL,
+                                   x86_machine_get_pic,
+                                   x86_machine_set_pic);
     object_class_property_set_description(oc, X86_MACHINE_PIC,
         "Enable i8259 PIC");
 
