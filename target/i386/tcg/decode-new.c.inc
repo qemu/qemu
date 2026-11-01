@@ -2109,9 +2109,6 @@ static void decode_EVEX4cc(DisasContext *s, CPUX86State *env, X86OpEntry *entry,
 
     if (s->prefix & PREFIX_REPNZ) {
         *entry = setcc;
-        if (EVEX_APX_ND(s)) {
-            entry->s1 = X86_SIZE_q; /* optimization for zu */
-        }
     } else {
         *entry = (EVEX_APX_ND(s) ? cfcmov_nd1 : cfcmov_nd0)[EVEX_APX_NF(s)][mod == 3];
     }
