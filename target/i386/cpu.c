@@ -35,6 +35,8 @@
 #include "sev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qapi/qapi-type-infos-machine.h"
+#include "qapi/qapi-type-infos-run-state.h"
 #include "qapi/qapi-visit-machine.h"
 #include "standard-headers/asm-x86/kvm_para.h"
 #include "hw/core/qdev-properties.h"
@@ -10569,11 +10571,12 @@ static void x86_cpu_initfn(Object *obj)
 
     x86_cpu_init_default_topo(cpu);
 
-    object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo", NULL,
+    object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo",
+                        &X86CPUFeatureWordInfoList_type_info,
                         x86_cpu_get_feature_words,
                         NULL, NULL, (void *)env->features);
     object_property_add(obj, "filtered-features", "X86CPUFeatureWordInfo",
-                        NULL,
+                        &X86CPUFeatureWordInfo_type_info,
                         x86_cpu_get_feature_words,
                         NULL, NULL, (void *)cpu->filtered_features);
 
@@ -11041,7 +11044,8 @@ static void x86_cpu_common_class_init(ObjectClass *oc, const void *data)
 
 #if !defined(CONFIG_USER_ONLY)
     object_class_property_add(oc, "crash-information",
-                              "GuestPanicInformation", NULL,
+                              "GuestPanicInformation",
+                              &GuestPanicInformation_type_info,
                               x86_cpu_get_crash_info_qom, NULL, NULL, NULL);
 #endif
 

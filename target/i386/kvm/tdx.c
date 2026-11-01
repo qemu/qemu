@@ -14,6 +14,7 @@
 #include "qemu/base64.h"
 #include "qemu/mmap-alloc.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-sockets.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qom/object_interfaces.h"
 #include "crypto/hash.h"
@@ -1586,10 +1587,11 @@ static void tdx_guest_init(Object *obj)
                             tdx_guest_get_mrownerconfig,
                             tdx_guest_set_mrownerconfig);
 
-    object_property_add(obj, "quote-generation-socket", "SocketAddress", NULL,
-                            tdx_guest_get_qgs,
-                            tdx_guest_set_qgs,
-                            NULL, NULL);
+    object_property_add(obj, "quote-generation-socket", "SocketAddress",
+                        &SocketAddress_type_info,
+                        tdx_guest_get_qgs,
+                        tdx_guest_set_qgs,
+                        NULL, NULL);
 
     tdx->event_notify_vector = -1;
     tdx->event_notify_apicid = -1;

@@ -18,6 +18,7 @@
 #include "hw/core/loader.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-type-infos-machine.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qemu/madvise.h"
@@ -1119,20 +1120,22 @@ static void machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, "dumpdtb",
         "Dump current dtb to a file and quit");
 
-    object_class_property_add(oc, "boot", "BootConfiguration", NULL,
+    object_class_property_add(oc, "boot", "BootConfiguration",
+                              &BootConfiguration_type_info,
                               machine_get_boot, machine_set_boot,
                               NULL, NULL);
     object_class_property_set_description(oc, "boot",
         "Boot configuration");
 
-    object_class_property_add(oc, "smp", "SMPConfiguration", NULL,
+    object_class_property_add(oc, "smp", "SMPConfiguration",
+                              &SMPConfiguration_type_info,
                               machine_get_smp, machine_set_smp,
                               NULL, NULL);
     object_class_property_set_description(oc, "smp",
         "CPU topology");
 
     object_class_property_add(oc, "smp-cache", "SmpCachePropertiesWrapper",
-                              NULL,
+                              &SmpCachePropertiesWrapper_type_info,
                               machine_get_smp_cache, machine_set_smp_cache,
                               NULL, NULL);
     object_class_property_set_description(oc, "smp-cache",
@@ -1216,7 +1219,8 @@ static void machine_class_init(ObjectClass *oc, const void *data)
                                           "Set RAM backend"
                                           "Valid value is ID of hostmem based backend");
 
-    object_class_property_add(oc, "memory", "MemorySizeConfiguration", NULL,
+    object_class_property_add(oc, "memory", "MemorySizeConfiguration",
+                              &MemorySizeConfiguration_type_info,
                               machine_get_mem, machine_set_mem,
                               NULL, NULL);
     object_class_property_set_description(oc, "memory",
