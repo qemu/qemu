@@ -2073,6 +2073,7 @@ Example::
             { "name", QLIT_QSTR("30"), },
             {}
         })),
+        /* "[32]" = UserDefOneList */
         QLIT_QDICT(((QLitDictEntry[]) {
             { "element-type", QLIT_QSTR("32"), },
             { "meta-type", QLIT_QSTR("array"), },
