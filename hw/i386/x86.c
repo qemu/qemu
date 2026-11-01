@@ -25,6 +25,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qapi/qapi-type-infos-common.h"
+#include "qapi/qapi-type-infos-machine.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
 #include "system/qtest.h"
@@ -423,7 +424,7 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
     object_class_property_set_description(oc, X86_MACHINE_BUS_LOCK_RATELIMIT,
             "Set the ratelimit for the bus locks acquired in VMs");
 
-    object_class_property_add(oc, "sgx-epc", "SgxEPC", NULL,
+    object_class_property_add(oc, "sgx-epc", "SgxEPC", &SgxEPCList_type_info,
                               machine_get_sgx_epc, machine_set_sgx_epc,
                               NULL, NULL);
     object_class_property_set_description(oc, "sgx-epc",
