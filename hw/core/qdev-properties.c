@@ -12,6 +12,8 @@
 #include "qdev-prop-internal.h"
 #include "qom/compat-properties.h"
 #include "qom/qom-qobject.h"
+#include "qapi/qapi-builtin-type-infos.h"
+#include "qapi/qapi-type-infos-common.h"
 
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                   Error **errp)
@@ -182,6 +184,7 @@ static void set_default_value_bool(ObjectProperty *op, const Property *prop)
 
 const PropertyInfo qdev_prop_bit = {
     .type  = "bool",
+    .qapi_type = &bool_type_info,
     .description = "on/off",
     .get   = prop_get_bit,
     .set   = prop_set_bit,
@@ -232,6 +235,7 @@ static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_bit64 = {
     .type  = "bool",
+    .qapi_type = &bool_type_info,
     .description = "on/off",
     .get   = prop_get_bit64,
     .set   = prop_set_bit64,
@@ -294,8 +298,8 @@ static void prop_set_on_off_auto_bit64(Object *obj, Visitor *v,
 
 const PropertyInfo qdev_prop_on_off_auto_bit64 = {
     .type = "OnOffAuto",
+    .qapi_type = &OnOffAuto_type_info,
     .description = "on/off/auto",
-    .enum_table = &OnOffAuto_lookup,
     .get = prop_get_on_off_auto_bit64,
     .set = prop_set_on_off_auto_bit64,
     .set_default_value = qdev_propinfo_set_default_value_enum,
@@ -323,6 +327,7 @@ static void set_bool(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_bool = {
     .type  = "bool",
+    .qapi_type = &bool_type_info,
     .description = "on/off",
     .get   = get_bool,
     .set   = set_bool,
@@ -363,6 +368,7 @@ void qdev_propinfo_set_default_value_uint(ObjectProperty *op,
 
 const PropertyInfo qdev_prop_uint8 = {
     .type  = "uint8",
+    .qapi_type = &uint8_type_info,
     .get   = get_uint8,
     .set   = set_uint8,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -390,6 +396,7 @@ static void set_uint16(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_uint16 = {
     .type  = "uint16",
+    .qapi_type = &uint16_type_info,
     .get   = get_uint16,
     .set   = set_uint16,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -435,6 +442,7 @@ static void set_int32(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_uint32 = {
     .type  = "uint32",
+    .qapi_type = &uint32_type_info,
     .get   = get_uint32,
     .set   = set_uint32,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -442,6 +450,7 @@ const PropertyInfo qdev_prop_uint32 = {
 
 const PropertyInfo qdev_prop_int32 = {
     .type  = "int32",
+    .qapi_type = &int32_type_info,
     .get   = qdev_propinfo_get_int32,
     .set   = set_int32,
     .set_default_value = qdev_propinfo_set_default_value_int,
@@ -487,6 +496,7 @@ static void set_int64(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_uint64 = {
     .type  = "uint64",
+    .qapi_type = &uint64_type_info,
     .get   = get_uint64,
     .set   = set_uint64,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -494,6 +504,7 @@ const PropertyInfo qdev_prop_uint64 = {
 
 const PropertyInfo qdev_prop_int64 = {
     .type  = "int64",
+    .qapi_type = &int64_type_info,
     .get   = get_int64,
     .set   = set_int64,
     .set_default_value = qdev_propinfo_set_default_value_int,
@@ -516,6 +527,7 @@ static void set_uint64_checkmask(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_uint64_checkmask = {
     .type  = "uint64",
+    .qapi_type = &uint64_type_info,
     .get   = get_uint64,
     .set   = set_uint64_checkmask,
 };
@@ -552,6 +564,11 @@ static void set_usize(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_usize = {
     .type  = "usize",
+#if HOST_LONG_BITS == 32
+    .qapi_type = &uint32_type_info,
+#else
+    .qapi_type = &uint64_type_info,
+#endif
     .get   = get_usize,
     .set   = set_usize,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -596,6 +613,7 @@ static void set_string(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_string = {
     .type  = "str",
+    .qapi_type = &str_type_info,
     .release = release_string,
     .get   = get_string,
     .set   = set_string,
@@ -605,8 +623,8 @@ const PropertyInfo qdev_prop_string = {
 
 const PropertyInfo qdev_prop_on_off_auto = {
     .type = "OnOffAuto",
+    .qapi_type = &OnOffAuto_type_info,
     .description = "on/off/auto",
-    .enum_table = &OnOffAuto_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
     .set_default_value = qdev_propinfo_set_default_value_enum,
@@ -648,6 +666,7 @@ static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_size32 = {
     .type  = "size",
+    .qapi_type = &size_type_info,
     .get = qdev_propinfo_get_size32,
     .set = set_size32,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -1061,6 +1080,7 @@ static void set_size(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_size = {
     .type  = "size",
+    .qapi_type = &size_type_info,
     .get = get_size,
     .set = set_size,
     .set_default_value = qdev_propinfo_set_default_value_uint,
@@ -1143,6 +1163,7 @@ static void set_link(Object *obj, Visitor *v, const char *name, void *opaque,
 
 const PropertyInfo qdev_prop_link = {
     .type = "link",
+    .qapi_type = &str_type_info,
     .create = create_link_property,
     /*
      * Since we have a create method, the get and set are used
