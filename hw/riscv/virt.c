@@ -859,7 +859,15 @@ static void virt_machine_init(MachineState *machine)
     }
 
     if (kvm_enabled() && virt_use_kvm_aia_aplic_imsic(s->aia_type)) {
-        kvm_riscv_aia_create(machine, IMSIC_MMIO_GROUP_MIN_SHIFT,
+        g_autofree RISCVAIASocket *aia_sockets =
+                g_new(RISCVAIASocket, socket_count);
+        for (i = 0; i < socket_count; i++) {
+            aia_sockets[i].hartid_base = s->soc[i].hartid_base;
+            aia_sockets[i].num_harts = s->soc[i].num_harts;
+        }
+
+        kvm_riscv_aia_create(aia_sockets, socket_count,
+                             IMSIC_MMIO_GROUP_MIN_SHIFT,
                              VIRT_IRQCHIP_NUM_SOURCES, VIRT_IRQCHIP_NUM_MSIS,
                              s->memmap[VIRT_APLIC_S].base,
                              s->memmap[VIRT_IMSIC_S].base,

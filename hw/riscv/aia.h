@@ -12,6 +12,11 @@
 #include "exec/hwaddr.h"
 #include "qemu/bitops.h"
 
+typedef struct RISCVAIASocket {
+    uint32_t hartid_base;
+    uint32_t num_harts;
+} RISCVAIASocket;
+
 static inline uint32_t imsic_num_bits(uint32_t count)
 {
     uint32_t ret = 0;
