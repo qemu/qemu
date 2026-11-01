@@ -172,7 +172,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
-        self._trees: List[Annotated[SchemaInfo]] = []
+        self._trees: Dict[str, Annotated[SchemaInfo]] = {}
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "%(prefix)sqapi-introspect.h"
@@ -191,13 +191,14 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 extern const QLitObject %(c_name)s;
 ''',
                              c_name=c_name(name)))
+        trees = list(self._trees.values())
         self._genc.add(mcgen('''
 const QLitObject %(c_name)s = %(c_string)s;
 ''',
                              c_name=c_name(name),
-                             c_string=_tree_to_qlit(self._trees)))
+                             c_string=_tree_to_qlit(trees)))
         self._schema = None
-        self._trees = []
+        self._trees = {}
 
     def _name(self, name: str) -> str:
         assert self._schema
@@ -235,7 +236,12 @@ const QLitObject %(c_name)s = %(c_string)s;
         obj['meta-type'] = mtype
         if features:
             obj['features'] = self._gen_features(features)
-        self._trees.append(Annotated(obj, ifcond, comment))
+        if introspection_name in self._trees:
+            # Duplicates are possible because
+            # QAPISchemaBuiltinType.introspection_name() returns 'int'
+            # for all integer types.  Ignore them.
+            return
+        self._trees[introspection_name] = Annotated(obj, ifcond, comment)
 
     def _gen_enum_member(self, member: QAPISchemaEnumMember
                          ) -> Annotated[SchemaInfoEnumMember]:
@@ -268,8 +274,6 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_builtin_type(self, name: str, info: Optional[QAPISourceInfo],
                            json_type: str) -> None:
-        if json_type == 'int' and name != 'int':
-            return
         self._gen_tree(name, 'builtin', {'json-type': json_type})
 
     def visit_enum_type(self, name: str, info: Optional[QAPISourceInfo],
@@ -287,8 +291,6 @@ const QLitObject %(c_name)s = %(c_string)s;
     def visit_array_type(self, name: str, info: Optional[QAPISourceInfo],
                          ifcond: QAPISchemaIfCond,
                          element_type: QAPISchemaType) -> None:
-        if element_type.json_type() == 'int' and name != 'intList':
-            return
         element = self._use_type(element_type)
         self._gen_tree(name, 'array', {'element-type': element}, ifcond)
 
