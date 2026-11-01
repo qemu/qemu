@@ -748,11 +748,24 @@ static void vnc_abort_display_jobs(VncDisplay *vd)
     }
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_lock_output(vs);
-        if (vs->update == VNC_STATE_UPDATE_NONE &&
-            vs->job_update != VNC_STATE_UPDATE_NONE) {
-            /* job aborted before completion */
-            vs->update = vs->job_update;
+        if (vs->job_update != VNC_STATE_UPDATE_NONE) {
+            /*
+             * Job aborted before completion (a completed job's output was
+             * consumed by vnc_jobs_join(), which cleared job_update).
+             * Retire it even if the client sent a newer request meanwhile,
+             * or vnc_should_update() refuses every later update.
+             * vnc_update_client() already cleared the dirty bits of the
+             * rectangles it carried and the server surface already holds
+             * their pixels, so nothing would mark them dirty again:
+             * re-dirty the whole client area and its pending-dirty count.
+             */
+            if (vs->update != VNC_STATE_UPDATE_FORCE) {
+                vs->update = vs->job_update;
+            }
             vs->job_update = VNC_STATE_UPDATE_NONE;
+            vnc_set_area_dirty(vs->dirty, vd, 0, 0,
+                               vnc_width(vd), vnc_height(vd));
+            vs->has_dirty++;
         }
         vs->abort = false;
         vnc_unlock_output(vs);
@@ -2191,6 +2204,14 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_EXT);
             vnc_server_cut_text_caps(vs);
             break;
+        case VNC_ENCODING_CLIPBOARD_AVAILABILITY:
+            if (vs->vd->clipboard_availability) {
+                vnc_set_feature(vs, VNC_FEATURE_CLIPBOARD_AVAILABILITY);
+                vnc_clipboard_peer_register(vs);
+                vnc_clipboard_availability_send(vs,
+                    qemu_clipboard_guest_peer_present());
+            }
+            break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
             vc->worker.tight.compression = (enc & 0x0F);
             break;
@@ -3459,6 +3480,7 @@ VncDisplay *vnc_display_new(const char *id, Error **errp)
 
     vd->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
     vd->connections_limit = 32;
+    vd->clipboard_availability = true;
 
     vnc_start_worker_thread(vd);
 

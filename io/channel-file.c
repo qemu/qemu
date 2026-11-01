@@ -23,6 +23,7 @@
 #include "io/channel-util.h"
 #include "io/channel-watch.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "trace.h"
@@ -31,6 +32,11 @@ QIOChannelFile *
 qio_channel_file_new_fd(int fd)
 {
     QIOChannelFile *ioc;
+
+    if (fd <= STDERR_FILENO) {
+        warn_report("potential bug: creating a channel from stdio fd %d; "
+                    "the fd will be closed when the channel is destroyed", fd);
+    }
 
     ioc = QIO_CHANNEL_FILE(object_new(TYPE_QIO_CHANNEL_FILE));
 

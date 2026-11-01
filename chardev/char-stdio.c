@@ -114,6 +114,7 @@ static bool stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
     StdioChardev *s = STDIO_CHARDEV(chr);
     ChardevStdio *opts = backend->u.stdio.data;
     struct sigaction act;
+    int fd_in, fd_out;
 
     if (is_daemonized()) {
         error_setg(errp, "cannot use stdio with -daemonize");
@@ -133,7 +134,20 @@ static bool stdio_chr_open(Chardev *chr, ChardevBackend *backend, Error **errp)
         return false;
     }
 
-    if (!qemu_chr_open_fd(chr, 0, 1, errp)) {
+    fd_in = qemu_dup(0);
+    if (fd_in < 0) {
+        error_setg_errno(errp, errno, "Failed to dup stdin fd");
+        return false;
+    }
+    fd_out = qemu_dup(1);
+    if (fd_out < 0) {
+        error_setg_errno(errp, errno, "Failed to dup stdout fd");
+        qemu_close(fd_in);
+        return false;
+    }
+    if (!qemu_chr_open_fd(chr, fd_in, fd_out, errp)) {
+        qemu_close(fd_in);
+        qemu_close(fd_out);
         return false;
     }
 
